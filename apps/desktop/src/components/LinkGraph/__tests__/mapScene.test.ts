@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type { ICard } from "@/types";
+import { toItems } from "./fixtures";
 import { Camera } from "../core/camera";
 import { buildMapScene, isMapScene } from "../core/mapScene";
 import { buildScene, sceneBounds } from "../core/graph";
@@ -19,16 +20,15 @@ const card = (id: number, links: number[] = [], text = `卡片${id}`): ICard =>
     content: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
     create_time: id,
   }) as unknown as ICard;
-const links = (c: ICard) => c.links;
 
 const map: KnowledgeMap = {
   computedAt: 1,
   nodes: [
-    { cardId: 1, x: -100, y: 0, topic: 0, subtopic: 2 },
-    { cardId: 2, x: -90, y: 5, topic: 0, subtopic: 2 },
-    { cardId: 3, x: -95, y: -8, topic: 0, subtopic: 2 },
-    { cardId: 4, x: 100, y: 0, topic: 1, subtopic: -1 },
-    { cardId: 5, x: 300, y: 300, topic: -1, subtopic: -1 },
+    { key: "card:1", x: -100, y: 0, topic: 0, subtopic: 2 },
+    { key: "card:2", x: -90, y: 5, topic: 0, subtopic: 2 },
+    { key: "card:3", x: -95, y: -8, topic: 0, subtopic: 2 },
+    { key: "card:4", x: 100, y: 0, topic: 1, subtopic: -1 },
+    { key: "card:5", x: 300, y: 300, topic: -1, subtopic: -1 },
   ],
   topics: [
     { id: 0, parent: -1, label: "JavaScript", colorSlot: 4, size: 3 },
@@ -39,7 +39,7 @@ const map: KnowledgeMap = {
 
 describe("buildMapScene", () => {
   const cards = [card(1, [2]), card(2), card(3), card(4), card(5), card(6, [4])];
-  const scene = buildMapScene(cards, links, map);
+  const scene = buildMapScene(toItems(cards), map);
 
   it("坐标与主题直接取自地图，不重新布局", () => {
     expect(scene.nodeById.get(1)).toMatchObject({ x: -100, y: 0, cluster: 0 });
@@ -70,13 +70,13 @@ describe("buildMapScene", () => {
   });
 
   it("没有邻居的新卡片放到外圈，不压在已有主题上", () => {
-    const lonely = buildMapScene([...cards, card(7)], links, map).nodeById.get(7)!;
+    const lonely = buildMapScene(toItems([...cards, card(7)]), map).nodeById.get(7)!;
     const extent = Math.max(...map.nodes.map(n => Math.hypot(n.x, n.y)));
     expect(Math.hypot(lonely.x, lonely.y)).toBeGreaterThan(extent);
   });
 
   it("地图里有、但卡片集合里已没有的节点不出现", () => {
-    const partial = buildMapScene([card(1), card(4)], links, map);
+    const partial = buildMapScene(toItems([card(1), card(4)]), map);
     expect(partial.nodes.map(n => n.id).sort()).toEqual([1, 4]);
     expect(partial.subtopics[0]?.members ?? []).toEqual([1]);
   });
@@ -86,14 +86,14 @@ describe("buildMapScene", () => {
       ...map,
       topics: map.topics.map(t => (t.label === "CSS" ? { ...t, colorSlot: -1 } : t)),
     };
-    const next = buildMapScene(cards, links, neutral);
+    const next = buildMapScene(toItems(cards), neutral);
     expect([...next.colorSlots.entries()]).toEqual([[0, 4]]);
     expect(next.clusters.map(c => c.label)).toEqual(["JavaScript", "CSS"]);
   });
 
   it("isMapScene 能区分地图场景与链接场景", () => {
     expect(isMapScene(scene)).toBe(true);
-    expect(isMapScene(buildScene(cards, links))).toBe(false);
+    expect(isMapScene(buildScene(toItems(cards)))).toBe(false);
   });
 });
 
@@ -166,7 +166,7 @@ function renderAt(
   focus?: { x: number; y: number }
 ) {
   const cards = [card(1), card(2), card(3), card(4), card(5)];
-  const scene = buildMapScene(cards, links, map);
+  const scene = buildMapScene(toItems(cards), map);
   const { canvas, calls } = recordingCanvas();
   const renderer = new Canvas2DRenderer(canvas);
   renderer.resize(1000, 800, 1);

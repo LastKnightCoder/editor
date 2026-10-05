@@ -211,9 +211,39 @@ export function AboutSection() {
           </SettingRow>
         </SettingsGroup>
       )}
+
+      {/* 内置字体为 SIL OFL-1.1，许可要求随软件保留版权与许可声明（原文随安装包附在字体目录） */}
+      <SettingsGroup title="开源字体">
+        {BUNDLED_FONTS.map(font => (
+          <SettingRow key={font.name} title={font.name} description={font.credit}>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={ExternalLink}
+              onClick={() => openExternal(font.url)}
+            >
+              SIL OFL 1.1
+            </Button>
+          </SettingRow>
+        ))}
+      </SettingsGroup>
     </>
   );
 }
+
+/** 白板手绘模式的内置字体（D-107） */
+const BUNDLED_FONTS = [
+  {
+    name: "Shantell Sans",
+    credit: "白板手绘模式的英文字体 · © 2022 The Shantell Sans Project Authors",
+    url: "https://github.com/arrowtype/shantell-sans",
+  },
+  {
+    name: "小赖字体 Xiaolai SC",
+    credit: "白板手绘模式的中文字体 · © 2020-2024 LXGW，© 2014 Nozomi Seto",
+    url: "https://github.com/lxgw/kose-font",
+  },
+];
 
 function UpdateChip({
   status,

@@ -1,7 +1,7 @@
 /**
  * 今日视图（原统计页并入）—— 一页滚动，按时间方向分三段：
  *   hero（只放今天的数字）→ 今天（复习/待办/日程，内容等量）→
- *   继续（最近编辑三栏 / 探究中的问题）→ 回顾（RetroSection：热力图 + 窗口化统计，懒加载）。
+ *   继续（AI 洞见卡 / 最近编辑三栏 / 探究中的问题）→ 回顾（RetroSection：热力图 + 窗口化统计，懒加载）。
  * 同一份数据全页只出现一次；每一行点击都落到具体项（卡组 / 任务 / 日程 / 卡片 / 文章 / 日记 / 问题），
  * 目标页经页面参数定位并选中高亮。
  *
@@ -26,6 +26,7 @@ import type { ActiveQuestionPreview } from "@/types";
 import { Composition, GroupDot, StatusRing } from "@/features/questions/components/QuestionBits";
 import { describeEvent, relativeDay } from "@/features/questions/model";
 import { RetroSection } from "./RetroSection";
+import { InsightCard } from "./InsightCard";
 import { SectionHeading } from "./SectionHeading";
 import "../home.css";
 
@@ -222,6 +223,7 @@ export function HomeView() {
 
           {/* ━━ 继续：手头在做的事 ━━ */}
           <SectionHeading title="继续" className="pt-3" />
+          <InsightCard />
           <Panel variant="outline" pad="compact">
             <PanelTitle className="mb-2.5">
               最近编辑

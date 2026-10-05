@@ -4,9 +4,9 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Bookmark, MessageSquareText, X } from "lucide-react";
+import { Bookmark, CircleHelp, Layers, MessageSquareText, X } from "lucide-react";
 import { ThumbImg, ThumbnailsPane, type ThumbMeta } from "@embedpdf/plugin-thumbnail/react";
-import { FADE_SCROLL_CLASS, FilterPill, Segmented, cn, useEdgeFade } from "@tau/ui";
+import { FADE_SCROLL_CLASS, FilterPill, IconButton, Segmented, cn, useEdgeFade } from "@tau/ui";
 import type { PdfAnnotation, PdfBookmark } from "@/types";
 import {
   COLOR_SPECS,
@@ -36,6 +36,10 @@ interface LeftPanelProps {
   bookmarks: PdfBookmark[];
   onJumpPage: (page: number) => void;
   onJumpAnnotation: (record: PdfAnnotation) => void;
+  /** 标注转为卡片（复制原文与批注，记谱系）；不传则不显示 */
+  onAnnotationToCard?: (record: PdfAnnotation) => void;
+  /** 标注转为问题（标注成为问题的第一条材料）；不传则不显示 */
+  onAnnotationToQuestion?: (record: PdfAnnotation) => void;
   onRemoveBookmark: (bookmark: PdfBookmark) => void;
 }
 
@@ -188,7 +192,13 @@ function ThumbList({
   );
 }
 
-function AnnotationList({ records, activeRecordId, onJumpAnnotation }: LeftPanelProps) {
+function AnnotationList({
+  records,
+  activeRecordId,
+  onJumpAnnotation,
+  onAnnotationToCard,
+  onAnnotationToQuestion,
+}: LeftPanelProps) {
   const [filter, setFilter] = useState<AnnotationFilter>("all");
   const sorted = useMemo(() => sortAnnotations(records), [records]);
   const list = useMemo(() => filterAnnotations(sorted, filter), [sorted, filter]);
@@ -234,39 +244,66 @@ function AnnotationList({ records, activeRecordId, onJumpAnnotation }: LeftPanel
               const spec = COLOR_SPECS[annotationColor(record)];
               const style = record.type === "area" ? null : markupStyleOf(record.annotation);
               const note = noteText(record);
+              // 区域截图没有原文，有批注才能转
+              const hasText = record.type !== "area" || Boolean(note);
+              const canToCard = onAnnotationToCard && hasText;
+              const canToQuestion = onAnnotationToQuestion && hasText;
               return (
-                <button
-                  key={record.id}
-                  type="button"
-                  onClick={() => onJumpAnnotation(record)}
-                  className={cn(
-                    "rounded-tau-sm ease-tau-out flex w-full flex-col gap-1 px-2 py-2 text-left transition-colors duration-[160ms]",
-                    record.id === activeRecordId ? "bg-selected" : "hover:bg-hover"
-                  )}
-                >
-                  <span
+                <div key={record.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => onJumpAnnotation(record)}
                     className={cn(
-                      "text-tau-sm text-ink-1 line-clamp-3 border-l-[3px] pl-2 leading-relaxed",
-                      spec.border
+                      "rounded-tau-sm ease-tau-out flex w-full flex-col gap-1 px-2 py-2 text-left transition-colors duration-[160ms]",
+                      record.id === activeRecordId ? "bg-selected" : "hover:bg-hover"
                     )}
                   >
-                    {annotationSnippet(record)}
-                  </span>
-                  {note && (
-                    <span className="text-tau-meta text-ink-2 flex gap-1.5 pl-0.5">
-                      <MessageSquareText
-                        size={12}
-                        strokeWidth={1.75}
-                        className="mt-[3px] shrink-0"
-                      />
-                      <span className="line-clamp-2">{note}</span>
+                    <span
+                      className={cn(
+                        "text-tau-sm text-ink-1 line-clamp-3 border-l-[3px] pl-2 leading-relaxed",
+                        spec.border
+                      )}
+                    >
+                      {annotationSnippet(record)}
                     </span>
+                    {note && (
+                      <span className="text-tau-meta text-ink-2 flex gap-1.5 pl-0.5">
+                        <MessageSquareText
+                          size={12}
+                          strokeWidth={1.75}
+                          className="mt-[3px] shrink-0"
+                        />
+                        <span className="line-clamp-2">{note}</span>
+                      </span>
+                    )}
+                    <span className="text-tau-meta text-ink-3 pl-0.5 tabular-nums">
+                      第 {annotationPage(record)} 页
+                      {style && style !== "highlight" ? ` · ${STYLE_LABEL[style]}` : ""}
+                    </span>
+                  </button>
+                  {(canToCard || canToQuestion) && (
+                    <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100">
+                      {canToQuestion && (
+                        <IconButton
+                          title="转为问题"
+                          onClick={() => onAnnotationToQuestion(record)}
+                          className="bg-surface shadow-lift size-[24px] rounded-[7px]"
+                        >
+                          <CircleHelp className="size-[12px]" strokeWidth={1.75} />
+                        </IconButton>
+                      )}
+                      {canToCard && (
+                        <IconButton
+                          title="转为卡片"
+                          onClick={() => onAnnotationToCard(record)}
+                          className="bg-surface shadow-lift size-[24px] rounded-[7px]"
+                        >
+                          <Layers className="size-[12px]" strokeWidth={1.75} />
+                        </IconButton>
+                      )}
+                    </div>
                   )}
-                  <span className="text-tau-meta text-ink-3 pl-0.5 tabular-nums">
-                    第 {annotationPage(record)} 页
-                    {style && style !== "highlight" ? ` · ${STYLE_LABEL[style]}` : ""}
-                  </span>
-                </button>
+                </div>
               );
             })}
           </div>

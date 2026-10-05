@@ -9,16 +9,26 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
+import { ArrowRightLeft, FlaskConical, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Loading, Menu, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
+import { openChatInDock } from "@/features/chat/openInDock";
+import { openMaterialTarget } from "@/services/open-material";
 import {
-  ECardCategory,
+  planNotebookResources,
+  plannedResourceCount,
+  upgradeQuestionToNotebook,
+} from "@/services/question-to-notebook";
+import useSettingStore from "@/stores/useSettingStore";
+import {
+  type EntityKind,
+  type QuestionChat,
+  type QuestionDetail as QuestionDetailData,
   type QuestionLinkTarget,
   type QuestionMaterial,
   type QuestionStatus,
@@ -49,6 +59,19 @@ import {
 } from "../queries";
 import { useDeferredActions } from "../useDeferredActions";
 
+/** 「关联已有」可选的类型：我的笔记在前，外部材料与对话在后 */
+const PICKER_KINDS: EntityKind[] = [
+  "card",
+  "article",
+  "project_item",
+  "project",
+  "white_board",
+  "excerpt",
+  "pdf-annotation",
+  "web-clip",
+  "chat-session",
+];
+
 export function QuestionsView() {
   const { navigator } = usePage();
   const params = usePageParams<{ id?: string; selectedId?: number }>();
@@ -66,6 +89,7 @@ export function QuestionsView() {
   const [cardOpen, setCardOpen] = useState(false);
   const [answerDialog, setAnswerDialog] = useState<AnswerDialogState | null>(null);
   const [preview, setPreview] = useState<QuestionMaterial | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const captureRef = useRef<HTMLInputElement>(null);
   const deferred = useDeferredActions();
   const queryClient = useQueryClient();
@@ -155,6 +179,21 @@ export function QuestionsView() {
         })
     );
 
+  const unlinkChat = (chat: QuestionChat) =>
+    deferred.schedule(`c:${chat.id}`, "已解除关联（对话仍保留）", () =>
+      questionMutations.unlinkChat(chat.questionId, chat.sessionId)
+    );
+
+  // 点对话：在右侧停靠栏打开，留在问题页接着聊
+  const openChat = (chat: QuestionChat) => {
+    if (chat.openable && !chat.missing) openChatInDock(chat.sessionId);
+  };
+
+  // 在对话页打开：问题从某条消息转来时定位到那条
+  const openChatPage = (chat: QuestionChat) => {
+    if (chat.openable) navigator.push("chat", { id: chat.sessionId, entry: chat.messageIds?.[0] });
+  };
+
   const openTarget = (target: OpenTarget) => navigator.push(target.key, target.params);
 
   const openMaterial = (material: QuestionMaterial) => {
@@ -183,6 +222,39 @@ export function QuestionsView() {
             questionTitle: detail.question.questionContent,
             contentId: material.targetId,
           });
+        return;
+      case "excerpt":
+      case "pdf-annotation":
+      case "web-clip":
+        if (material.material?.open)
+          openMaterialTarget(material.material.open).catch(() => toast.error("打开失败"));
+    }
+  };
+
+  const openNotebook = (id: number) => navigator.push("vibe-learning-detail", { id });
+
+  const discuss = () => {
+    if (detail) navigator.push("chat", { seedQuestion: detail.question.id });
+  };
+
+  const upgrade = async () => {
+    if (!detail) return;
+    if (detail.notebook) {
+      openNotebook(detail.notebook.id);
+      return;
+    }
+    try {
+      const { projectId, failed } = await upgradeQuestionToNotebook(
+        detail,
+        useSettingStore.getState().setting.database.active
+      );
+      void queryClient.invalidateQueries({ queryKey: ["questions"] });
+      if (failed) toast.warning(`已立项，${failed} 份材料没能带入，可在 Notebook 里手动添加`);
+      else toast.success("已立项");
+      openNotebook(projectId);
+    } catch {
+      toast.error("立项失败");
+      throw new Error("upgrade failed");
     }
   };
 
@@ -237,6 +309,15 @@ export function QuestionsView() {
         }}
       >
         关联已有材料…
+      </Menu.Item>
+      <Menu.Item
+        icon={<FlaskConical className="size-[15px]" strokeWidth={1.75} />}
+        onSelect={() => {
+          setSelectedId(question.id);
+          setUpgradeOpen(true);
+        }}
+      >
+        以此立项…
       </Menu.Item>
       <Menu.Separator />
       <Menu.Submenu label="状态" icon={<StatusRing status={question.status} size="sm" />}>
@@ -427,6 +508,18 @@ export function QuestionsView() {
                 canPreview(material) ? setPreview(material) : openMaterial(material)
               }
               onUnlink={unlink}
+              hiddenChats={
+                new Set(
+                  (detail?.chats ?? [])
+                    .filter(c => deferred.pending.has(`c:${c.id}`))
+                    .map(c => c.id)
+                )
+              }
+              onOpenChat={openChat}
+              onOpenChatPage={openChatPage}
+              onOpenNotebook={openNotebook}
+              onDiscuss={discuss}
+              onUnlinkChat={unlinkChat}
               onWriteCard={() => setCardOpen(true)}
               onWriteAnswer={() =>
                 detail &&
@@ -445,21 +538,31 @@ export function QuestionsView() {
           onClose={() => setPickerOpen(false)}
           title="关联已有材料"
           subtitle={detail?.question.questionContent}
-          kinds={["card", "article", "project_item", "project", "white_board"]}
+          kinds={PICKER_KINDS}
           isLinked={c =>
-            detail?.materials.some(m => m.targetType === c.kind && m.targetId === c.id) ?? false
+            c.kind === "chat-session"
+              ? (detail?.chats.some(chat => chat.sessionId === c.sessionId) ?? false)
+              : (detail?.materials.some(m => m.targetType === c.kind && m.targetId === c.id) ??
+                false)
           }
           onConfirm={async picked => {
             if (!detail) return;
             try {
+              const chats = picked.filter(c => c.kind === "chat-session" && c.sessionId);
               const added = await questionMutations.link(
                 detail.question.id,
-                picked.map(c => ({
-                  targetType: c.kind as QuestionLinkTarget["targetType"],
-                  targetId: c.id,
-                }))
+                picked
+                  .filter(c => c.kind !== "chat-session")
+                  .map(c => ({
+                    targetType: c.kind as QuestionLinkTarget["targetType"],
+                    targetId: c.id,
+                  }))
               );
-              toast.success(`已关联 ${added.length} 份材料`);
+              for (const chat of chats)
+                await questionMutations.linkChat(detail.question.id, {
+                  sessionId: chat.sessionId!,
+                });
+              toast.success(`已关联 ${added.length + chats.length} 份材料`);
             } catch {
               toast.error("关联失败");
               throw new Error("link failed");
@@ -468,7 +571,6 @@ export function QuestionsView() {
         />
         <CreateCardDialog
           open={cardOpen}
-          defaultCategory={ECardCategory.Temporary}
           onClose={() => setCardOpen(false)}
           onCreated={card => {
             if (!detail) return;
@@ -476,6 +578,12 @@ export function QuestionsView() {
               .link(detail.question.id, [{ targetType: "card", targetId: card.id }], true)
               .catch(() => toast.error("卡片已保存，但挂到问题上失败"));
           }}
+        />
+        <UpgradeDialog
+          open={upgradeOpen && detail != null}
+          detail={detail}
+          onOpenChange={setUpgradeOpen}
+          onConfirm={upgrade}
         />
         <MaterialPreviewDialog
           material={preview}
@@ -494,6 +602,50 @@ export function QuestionsView() {
         />
       </div>
     </MotionConfig>
+  );
+}
+
+/** 以此立项确认：说明会带入几份资源、几项带不进去；已立项的直接打开 */
+function UpgradeDialog({
+  open,
+  detail,
+  onOpenChange,
+  onConfirm,
+}: {
+  open: boolean;
+  detail: QuestionDetailData | null;
+  onOpenChange(open: boolean): void;
+  onConfirm(): Promise<void>;
+}) {
+  const plan = detail ? planNotebookResources(detail) : null;
+  const count = plan ? plannedResourceCount(plan) : 0;
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={detail?.notebook ? "已经立项" : "以此立项"}
+      context={detail?.question.questionContent}
+      description={
+        detail?.notebook
+          ? `这个问题已立项为 Notebook「${detail.notebook.title}」。`
+          : "新建一个 Notebook 课题，以问题为标题、背景为描述，探究材料作为资料带入。之后问题新增的材料不会自动同步。"
+      }
+      impact={
+        detail?.notebook || !plan
+          ? undefined
+          : [
+              count ? `带入 ${count} 份资料` : "没有可带入的资料",
+              plan.skipped ? `${plan.skipped} 项（项目、白板、对话或已删除的材料）不会带入` : "",
+            ]
+              .filter(Boolean)
+              .join("；")
+      }
+      confirmText={detail?.notebook ? "打开 Notebook" : "立项"}
+      onConfirm={async () => {
+        await onConfirm();
+        onOpenChange(false);
+      }}
+    />
   );
 }
 

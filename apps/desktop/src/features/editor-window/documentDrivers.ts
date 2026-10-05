@@ -28,6 +28,8 @@ export interface EditorDocument {
   contentId: number;
   content: Descendant[];
   title?: string;
+  /** 卡片的 AI 标题（没有标题字段的类型用它作窗口标题） */
+  aiTitle?: string;
   tags?: string[];
   createTime: number;
   updateTime: number;
@@ -76,6 +78,7 @@ const cardDriver: DocumentDriver<ICard> = {
     id: card.id,
     contentId: card.contentId,
     content: card.content,
+    aiTitle: card.aiTitle,
     tags: card.tags,
     createTime: card.create_time,
     updateTime: card.update_time,

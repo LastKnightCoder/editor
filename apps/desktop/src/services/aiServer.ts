@@ -6,6 +6,8 @@ import { installBrowserBridgeRenderer } from "@/services/browserBridgeRenderer";
 import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
 import {
   AI_RUN_METHODS,
+  APPEARANCE_METHODS,
+  type AppearanceThemePayload,
   type AiRunEvent,
   type AiRunEventNotification,
   type AiRunStartParams,
@@ -16,6 +18,7 @@ import useSkillStore from "@/stores/useSkillStore";
 import { openContent } from "./open-content";
 import { openPage } from "./page-navigation";
 import { produce } from "immer";
+import { useThemeStore } from "@tau/themes/react";
 import { ensureToolingReady } from "@/tools";
 import { Role } from "@/constants";
 import type { RequestMessage, ToolCallPayload } from "@/types";
@@ -43,6 +46,7 @@ import {
 } from "@/commands/file";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { createContent, getContentById, updateContent } from "@/commands/content";
+import { syncExcerptWebPage } from "@/commands/excerpt";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
 import { getContentLength, defaultContentEventBus } from "@/utils";
@@ -74,6 +78,7 @@ interface RemoteContentUpdatedNotificationData {
 }
 
 let aiServer: WebSocketServer | null = null;
+let disposeThemeForwarder: (() => void) | null = null;
 let extToolClient: WebSocketClient | null = null;
 let isInitialized = false;
 let disposeContentRemoteUpdateForwarder: (() => void) | null = null;
@@ -464,7 +469,7 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     feature: keyof ISetting["llmUsageSettings"];
     providerId: string;
-    modelName: string;
+    modelId: string;
   };
 
   useSettingStore.setState(
@@ -472,11 +477,11 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
       if (!draft.setting.llmUsageSettings[params.feature]) {
         draft.setting.llmUsageSettings[params.feature] = {
           providerId: "",
-          modelName: "",
+          modelId: "",
         };
       }
       draft.setting.llmUsageSettings[params.feature].providerId = params.providerId;
-      draft.setting.llmUsageSettings[params.feature].modelName = params.modelName;
+      draft.setting.llmUsageSettings[params.feature].modelId = params.modelId;
     })
   );
 
@@ -507,6 +512,11 @@ const handleSettingsGetEmbeddingModelInfo = async () => {
 const handleSettingsGetCurrentDatabase = async () => {
   const { database } = useSettingStore.getState().setting;
   return { dbName: database.active };
+};
+
+/** 插件按页同步划线快照（KL-035）；参数由主进程校验，这里只转发 */
+const handleExcerptSyncPage = async (request: RpcRequestMessage) => {
+  return await syncExcerptWebPage(request.params);
 };
 
 const handleContentCreate = async (request: RpcRequestMessage) => {
@@ -762,6 +772,7 @@ export const initAiServer = () => {
   // 注册内容/卡片/文章 RPC 处理器
   aiServer.addRequestHandler("settings.getCurrentDatabase", handleSettingsGetCurrentDatabase);
   aiServer.addRequestHandler("content.create", handleContentCreate);
+  aiServer.addRequestHandler("excerpt.syncPage", handleExcerptSyncPage);
   aiServer.addRequestHandler("content.getById", handleContentGetById);
   aiServer.addRequestHandler("content.subscription.set", handleContentSubscriptionSet);
   aiServer.addRequestHandler("content.update", handleContentUpdate);
@@ -771,6 +782,17 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("article.isContentIsArticle", handleArticleIsContentIsArticle);
   aiServer.addRequestHandler("note.showInsertModal", handleNoteShowInsertModal);
   aiServer.addRequestHandler("mcp.manager.open", handleMcpManagerOpen);
+
+  // 主题同步：扩展只跟随主题族，明暗各自决定（任一窗口换主题都会经 storage 事件同步到本窗口）
+  aiServer.addRequestHandler(APPEARANCE_METHODS.getTheme, async () => ({
+    theme: useThemeStore.getState().theme,
+  }));
+  disposeThemeForwarder = useThemeStore.subscribe((state, previous) => {
+    if (state.theme === previous.theme) return;
+    aiServer?.sendNotification<AppearanceThemePayload>(APPEARANCE_METHODS.themeChanged, {
+      theme: state.theme,
+    });
+  });
   aiServer.addRequestHandler("block.preview.open", handleBlockPreviewOpen);
 
   // 内容引用打开使用当前内容入口，不保留旧 Tab 协议。
@@ -820,6 +842,8 @@ export const initAiServer = () => {
  * 关闭 AI 服务端
  */
 export const closeAiServer = () => {
+  disposeThemeForwarder?.();
+  disposeThemeForwarder = null;
   disposeContentRemoteUpdateForwarder?.();
   disposeContentRemoteUpdateForwarder = null;
   contentSubscriptionRegistry.clear();

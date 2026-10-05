@@ -143,7 +143,6 @@ const Handwrite = memo((props: HandwriteProps) => {
       <ArrowConnectPointGroup
         element={element}
         points={arrowConnectExtendPoints}
-        proximityBounds={{ x, y, width, height }}
         isSelected={isSelected}
         disabled={isMoveArrowClosing}
       />

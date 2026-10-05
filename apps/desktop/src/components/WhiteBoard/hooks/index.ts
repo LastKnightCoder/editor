@@ -22,3 +22,4 @@ export { default as useColumnChildrenWatch } from "./useColumnChildrenWatch";
 export { default as useInertControl } from "./useInertControl";
 export { default as usePreventTextSelection } from "./usePreventTextSelection";
 export { useMindTheme, useMindMode, useMindThemePreviewStore } from "./useMindTheme";
+export { usePageSketch, useSketch } from "./useSketch";

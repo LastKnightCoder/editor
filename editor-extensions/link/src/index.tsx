@@ -2,10 +2,13 @@ import { defineElement, defineExtension, type ElementRenderProps } from "@tau/ed
 import type {} from "./augmentations";
 
 import Link from "./components/Link.tsx";
+import LinkPanelLayer from "./panel/LinkPanelLayer.tsx";
 import { type LinkElement } from "./types.ts";
 
 import hoveringBarConfigs from "./hovering-bar-configs/index.ts";
 import { linkCommands, linkHotkeys } from "./commands.ts";
+import { pasteUrl } from "./operations.ts";
+import { isPastedUrl } from "./url.ts";
 
 const linkExtension = defineExtension({
   id: "tau.link",
@@ -19,8 +22,15 @@ const linkExtension = defineExtension({
           {children}
         </Link>
       ),
+      ingest: {
+        text: {
+          when: data => isPastedUrl(data.getData("text/plain")),
+          run: ({ editor, data }) => pasteUrl(editor, data.getData("text/plain")),
+        },
+      },
     }),
   ],
+  layers: [LinkPanelLayer],
   toolbar: hoveringBarConfigs,
   commands: linkCommands,
   hotkeys: linkHotkeys,
@@ -29,3 +39,4 @@ const linkExtension = defineExtension({
 export default linkExtension;
 export type { LinkElement } from "./types";
 export { wrapLink, unwrapLink } from "./operations";
+export { openLinkPanel } from "./panel/controller";

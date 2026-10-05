@@ -52,6 +52,7 @@ const mockContext = vi.hoisted(() => {
         stale: false,
         queued: 0,
         indexed: 0,
+        failed: 0,
       })),
     },
     vibeLearningQueueMock: {
@@ -114,6 +115,7 @@ import embeddingIndexOrchestrator, {
   IDLE_INDEX_DELAY_MS,
   isMainContentWriteEvent,
 } from "../embedding-index-orchestrator";
+import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
 
 describe("EmbeddingIndexOrchestrator(video-note)", () => {
   beforeEach(() => {
@@ -152,6 +154,39 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
     );
   });
 
+  it("远端升级部分失败后保留进度，下次启动只补失败项", async () => {
+    const fingerprint = mainEmbeddingFingerprint("fp-remote");
+    mockContext.resolveEmbeddingConfig.mockReturnValue({
+      providerType: "remote_openai",
+      fingerprint: "fp-remote",
+      dimensions: 3,
+      model: "remote",
+    });
+    mockContext.metaStore.set("main_content_embedding_fingerprint", "old");
+    mockContext.mainContentQueueMock.reconcileByPolicy.mockImplementationOnce(async () => {
+      mockContext.metaStore.set(MAIN_CHUNK_BUILD_KEY, fingerprint);
+      return { queued: 2, indexed: 1, failed: 1, stale: false };
+    });
+    const orchestrator = embeddingIndexOrchestrator as any;
+    await orchestrator.reconcileForCurrentDb("data.db", {}, "startup_reconcile");
+    expect(mockContext.metaStore.get("main_content_embedding_fingerprint")).toBe("old");
+    expect(mockContext.metaStore.get(MAIN_CHUNK_BUILD_KEY)).toBe(fingerprint);
+    mockContext.mainContentQueueMock.reconcileByPolicy.mockResolvedValueOnce({
+      queued: 1,
+      indexed: 1,
+      failed: 0,
+      stale: false,
+    });
+    await orchestrator.reconcileForCurrentDb("data.db", {}, "startup_reconcile");
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenLastCalledWith(
+      expect.objectContaining({ fingerprintChanged: false, autoIndex: true })
+    );
+    expect(mockContext.metaStore.get("main_content_embedding_fingerprint")).toBe(fingerprint);
+    expect(mockContext.metaStore.get(MAIN_CHUNK_BUILD_KEY)).toBe("");
+    await orchestrator.reconcileForCurrentDb("data.db", {}, "startup_reconcile");
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledTimes(2);
+  });
+
   it("embedding 指纹未变化时，video-note 队列不应重复重建", async () => {
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb("data.db", {}, "model_switch");
     mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
@@ -169,7 +204,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("上传重连且索引已 ready、指纹未变化时，应跳过所有 reconcile", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
@@ -184,7 +222,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("下载重连即使指纹未变化也应继续 reconcile", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
@@ -203,7 +244,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("上传重连时若索引状态不是 ready，则仍应执行 reconcile", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("pending");
 
     await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
@@ -222,7 +266,10 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("上传重连时应只依据向量索引状态决定是否跳过", async () => {
-    mockContext.metaStore.set("main_content_embedding_fingerprint", "fp-a");
+    mockContext.metaStore.set(
+      "main_content_embedding_fingerprint",
+      mainEmbeddingFingerprint("fp-a")
+    );
     mockContext.databaseModuleMock.getIndexRebuildState.mockImplementation(
       (_dbName: string, target?: string) => (target === "vec" ? "pending" : "ready")
     );

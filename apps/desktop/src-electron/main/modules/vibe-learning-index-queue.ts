@@ -38,7 +38,8 @@ import type { StreamOption } from "@/types/youtube";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
-import type { TaskProgress } from "@/types/vibe-learning";
+import { buildMaterialResourceMarkdown } from "./vl-material-resource";
+import type { MaterialSourceMeta, TaskProgress } from "@/types/vibe-learning";
 import {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
@@ -957,6 +958,8 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         // 检查是否是来自笔记的资源
         if (sourceType === "note" && sourceMetaInfo) {
           markdownContent = await this.processNoteResource(resourceId, sourceMetaInfo, mainDbName);
+        } else if (sourceType === "material" && sourceMetaInfo) {
+          markdownContent = this.processMaterialResource(resourceId, sourceMetaInfo, mainDbName);
         } else if (sourceType === "bilibili" && sourceMetaInfo) {
           // Bilibili 视频
           markdownContent = await this.processBilibiliVideo(
@@ -1142,6 +1145,26 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
       log.error(`[VibeLearningIndexQueue] Task failed for resource ${resourceId}: ${errorMessage}`);
     }
+  }
+
+  private processMaterialResource(
+    resourceId: number,
+    sourceMetaInfo: string,
+    mainDbName: string
+  ): string {
+    let meta: MaterialSourceMeta;
+    try {
+      meta = JSON.parse(sourceMetaInfo) as MaterialSourceMeta;
+    } catch {
+      throw new Error("无效的材料资源元信息");
+    }
+    this.processingStatus.set(resourceId, "converting");
+    this.emit("status-change", resourceId, "converting");
+    const db = databaseModule.getDatabase(mainDbName);
+    if (!db) throw new Error("数据库连接不存在");
+    const markdown = buildMaterialResourceMarkdown(db, meta);
+    if (!markdown) throw new Error("材料都已不存在");
+    return markdown;
   }
 
   private async processNoteResource(

@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>文章 · 网格 / 列表切换</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .sb { background: transparent; padding: 10px 8px; display: flex; flex-direction: column; min-height: 0; }
+  .sb-head { display: flex; align-items: center; gap: 9px; padding: 6px 10px 14px; font-weight: 600; }
+  .sb-logo { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); color: var(--ink-inv); display: grid; place-items: center; font-size: 13px; }
+  .sb-scroll { flex: 1; overflow: auto; }
+  .sb-gt { font-size: 11px; color: var(--ink-3); padding: 10px 10px 4px; }
+  .sb-item { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 13px; }
+  .sb-item.on { background: var(--selected); color: var(--accent-text); font-weight: 500; }
+  .sb-sub { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 10px 0 32px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 12.5px; }
+  .sb-sub .n { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+
+  .ar-paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .ar-head { flex: none; display: flex; align-items: center; gap: 12px; height: 40px; margin: 20px 32px 12px; }
+  .ar-head h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .ar-head .sum { flex: 1; min-width: 0; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ar-head .sum b { color: var(--ink-1); font-weight: 600; }
+  .srch { display: flex; align-items: center; gap: 7px; width: 220px; height: 30px; padding: 0 10px; border-radius: 9px; background: var(--hover); color: var(--ink-3); font-size: 12.5px; }
+  .srch svg.lucide { width: 14px; height: 14px; }
+  .btn .cv { width: 13px; height: 13px; color: var(--ink-3); margin-left: -2px; }
+  .btn.ghost.on { background: var(--hover); color: var(--ink-1); }
+  .dd { position: relative; }
+
+  .menu { position: absolute; z-index: 30; top: calc(100% + 4px); right: 0; min-width: 168px; padding: 4px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-1); }
+  .menu .mi { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink-1); cursor: pointer; white-space: nowrap; }
+  .menu .mi:hover { background: var(--hover); }
+  .menu .mi svg.lucide { width: 15px; height: 15px; color: var(--ink-2); }
+  .menu .mi.on { color: var(--accent-text); font-weight: 500; }
+  .menu .mi.on svg.lucide { color: var(--accent); }
+  .menu .sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+  .menu .cap { font-size: 11px; color: var(--ink-3); padding: 6px 10px 2px; }
+  .menu .mi.danger, .menu .mi.danger svg.lucide { color: var(--danger); }
+
+  .ar-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 26px 24px 32px; margin: 0 6px 16px 0; }
+  .sec { margin-bottom: 24px; }
+  .sec-h { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; gap: 10px; padding: 2px 2px 12px; background: linear-gradient(180deg, var(--surface) calc(100% - 12px), transparent); }
+  .lst .sec-h { top: 30px; padding: 8px 12px 6px; background: var(--surface); }
+  .sec-h .l { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .lst .sec-h .l { font-size: 13px; }
+  .sec-h .l small { margin-left: 3px; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+  .sec-h .h { font-size: 11.5px; color: var(--ink-3); }
+  .foot { display: flex; align-items: center; justify-content: center; min-height: 56px; color: var(--ink-3); font-size: 12px; }
+
+  /* ── 网格（现状，简化示意） ── */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .ac { border: 1px solid var(--line-1); border-radius: 14px; overflow: hidden; cursor: pointer; }
+  .ac:hover { box-shadow: var(--shadow-lift); border-color: transparent; }
+  .ac .cv { height: 120px; padding: 14px 16px; color: rgba(67, 57, 44, 0.82); font-size: 12px; line-height: 1.6; overflow: hidden; }
+  .ac .bd { padding: 12px 16px 13px; }
+  .ac h3 { margin: 0; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ac .m { margin-top: 6px; font-size: 11.5px; color: var(--ink-3); }
+
+  /* ── 列表 ── */
+  .lst { --cols: minmax(0, 1fr) 180px 64px 92px 92px 58px; }
+  .lh, .lr { display: grid; grid-template-columns: var(--cols); align-items: center; gap: 14px; padding: 0 12px; }
+  .lh { height: 30px; font-size: 11.5px; color: var(--ink-3); position: sticky; top: 0; z-index: 3; background: var(--surface); box-shadow: 0 1px 0 var(--line-2); }
+  .lh span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .lh span[data-sort] { cursor: pointer; }
+  .lh span[data-sort]:hover { color: var(--ink-1); }
+  .lh span.on { color: var(--ink-1); font-weight: 500; }
+  .lh span svg.lucide { width: 12px; height: 12px; }
+  .r { justify-content: flex-end; text-align: right; }
+  .lr { position: relative; height: 60px; border-radius: 10px; cursor: pointer; }
+  .lr:hover { background: var(--hover); }
+  .lr .nm { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .thumb { flex: none; width: 52px; height: 36px; border-radius: 7px; background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04); }
+  .lst.no-thumb .thumb { display: none; }
+  .lr .tx { min-width: 0; }
+  .lr .t { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; min-width: 0; }
+  .lr .t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr .t mark { background: var(--accent-soft); color: var(--accent-text); border-radius: 3px; padding: 0 1px; }
+  .lr .p { margin-top: 2px; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr .c { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+  .lr .c.mute { color: var(--ink-3); }
+  .lr .tgs { display: flex; gap: 4px; min-width: 0; overflow: hidden; }
+  .tg { flex: none; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--hover); color: var(--ink-2); border-radius: 5px; padding: 0 7px; font-size: 11px; line-height: 19px; }
+  .lr:hover .tg { background: var(--surface); }
+  .tg.more { color: var(--ink-3); }
+  .star { width: 13px !important; height: 13px !important; color: var(--accent); fill: var(--accent); flex: none; }
+  .pod { width: 12px !important; height: 12px !important; color: var(--ink-3); flex: none; }
+  .ops { display: flex; gap: 2px; justify-content: flex-end; opacity: 0; transition: opacity var(--fast); }
+  .lr:hover .ops, .ops.on { opacity: 1; }
+  .ops .ib { width: 23px; height: 23px; border-radius: 7px; }
+  .ops .ib:hover { background: var(--surface); }
+  .ops .ib svg.lucide { width: 13px; height: 13px; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>文章 · 网格 / 列表切换</h3>
+  现在的月刊网格封面占了大半张卡，一屏只能看到 6～9 篇。列表排布一屏能放 12 篇以上，适合整理和翻找。做法和项目列表（D-092）一致：同一份数据两种排布，偏好按本机保存。
+  <ul>
+    <li><b>切换入口</b>：工具栏放「按钮 + Menu」（网格 / 列表），位置在搜索框和「导入」之间，与项目工具栏 A 方案一致。文章页标题栏没有面包屑速切器，所以不放在那里。</li>
+    <li><b>行</b>：小封面缩略（有 banner 用 banner，没有就用 id 派生的渐变色，和卡片同色）+ 标题 + 一行摘要；之后是标签、字数、更新、创建、悬停操作（置顶 + ⋯，菜单与卡片一致：演示 / 导出 / 换封面 / 窗口打开 / 删除）。播客用耳机小图标标出。</li>
+    <li><b>分组可选（控制条切换）</b>：
+      <br />A <b>按月分段</b>：月头吸顶，和网格同一套分段与无限滚动，<b>主进程不用改</b>，只是换了排布。
+      <br />B <b>平铺 + 列头排序</b>（创建 / 更新 / 字数 / 标题，置顶始终在前）：需要给 <code>getArticlePage</code> 加 <code>orderBy</code> 参数，分页仍按 offset。按更新时间排序是网格做不到的，适合找「最近改过的那篇」。</li>
+    <li><b>搜索</b>：标题搜索框两种排布都能用，列表里把命中的词高亮出来。</li>
+    <li><b>不做</b>：「最近打开」续读行。文章表没有打开记录，要加得像项目那样补 <code>last_open_time</code>，这个之后再说。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { titlebar, anno, icons } from "../chat/shared.js?v=3";
+
+const GRADS = [
+  "linear-gradient(140deg, #e8c4a8, #d9885f)", "linear-gradient(140deg, #ccd8c2, #96ab8a)", "linear-gradient(140deg, #c8d2dd, #92a5b8)",
+  "linear-gradient(140deg, #e2cf9f, #c0a05e)", "linear-gradient(140deg, #e5c9c4, #c98d84)", "linear-gradient(140deg, #cfc8ba, #a39682)",
+  "linear-gradient(140deg, #eccaa2, #d89a5e)", "linear-gradient(140deg, #d3dcc6, #a3b58e)", "linear-gradient(140deg, #cfe0dc, #9dbbb4)",
+  "linear-gradient(140deg, #ddd4e0, #b3a3c4)", "linear-gradient(140deg, #eed3c2, #dd9a86)", "linear-gradient(140deg, #ddd8a5, #b3a860)",
+];
+const coverOf = id => GRADS[(id * 7 + 3) % 12];
+const PHOTO = "linear-gradient(160deg, #6b7d8c, #2f3b45)";
+
+/* d = 创建距今天数，u = 更新距今天数 */
+const A = [
+  { id: 1, t: "我的知识管理工作流（2026 版）", p: "从卡片到文章再到项目，三层结构如何互相喂养；附每周回顾清单。", tags: ["学习方法", "工作流"], w: 6240, d: 50, u: 2, top: 1, photo: 1 },
+  { id: 2, t: "为什么我不再用番茄钟", p: "番茄钟解决的是启动问题，而不是专注问题。真正让我进入状态的是……", tags: ["效率"], w: 2810, d: 1, u: 1 },
+  { id: 3, t: "从 OT 到 CRDT：协同编辑十年", p: "Google Docs 的 OT、Figma 的服务端权威、Yjs 的 YATA——三条路线的取舍。", tags: ["编辑器/协同", "分布式", "技术"], w: 8930, d: 3, u: 0, pod: 1 },
+  { id: 4, t: "读《置身事内》", p: "一本把地方财政讲清楚的书。土地、债务与产业政策如何缠绕在一起。", tags: ["读书/经济"], w: 4120, d: 6, u: 6 },
+  { id: 5, t: "Electron 应用的内存泄漏排查", p: "IPC 监听、隐藏窗口、未释放的 WebContents——三类最常见的泄漏和定位手段。", tags: ["前端/Electron"], w: 5370, d: 12, u: 4, photo: 1 },
+  { id: 6, t: "FSRS 参数调优实录", p: "用一年的复习日志训练个人参数，保留率从 85% 提到 91%，复习量反而下降。", tags: ["学习方法/记忆", "算法"], w: 3680, d: 18, u: 18 },
+  { id: 7, t: "未命名", p: "", tags: [], w: 0, d: 20, u: 20 },
+  { id: 8, t: "Tailwind 在大型应用里的三条约束", p: "语义 token、cn 合并、禁止裸色值——设计系统落地时最值钱的三件事。", tags: ["前端/CSS", "设计系统"], w: 3150, d: 38, u: 35 },
+  { id: 9, t: "Rust 异步运行时的心智模型", p: "Future 是状态机，Pin 保证不移动，Waker 负责唤醒——把三者串起来。", tags: ["Rust"], w: 7420, d: 44, u: 40, pod: 1 },
+  { id: 10, t: "夏天读完的 6 本书", p: "《思考，快与慢》《置身事内》《枪炮、病菌与钢铁》……", tags: ["读书"], w: 2260, d: 70, u: 70, photo: 1 },
+  { id: 11, t: "向量检索落地笔记", p: "召回、精排、混合检索，以及为什么本地知识库更需要 BM25 兜底。", tags: ["AI/检索"], w: 4880, d: 80, u: 66 },
+];
+const DAY = d => (d === 0 ? "今天" : d === 1 ? "昨天" : d < 7 ? `${d} 天前` : (() => { const t = new Date(2026, 9, 4 - d); return `${t.getMonth() + 1}月${t.getDate()}日`; })());
+const monthOf = d => { const t = new Date(2026, 9, 4 - d); return [t.getFullYear(), t.getMonth() + 1]; };
+const wordsLabel = w => (w >= 10000 ? (w / 10000).toFixed(1) + " 万" : w.toLocaleString());
+const SORTS = {
+  created: [(a, b) => a.d - b.d, "创建时间", "calendar-plus"],
+  updated: [(a, b) => a.u - b.u, "最近更新", "pencil-line"],
+  words: [(a, b) => b.w - a.w, "字数", "text"],
+  title: [(a, b) => a.t.localeCompare(b.t, "zh-CN"), "标题", "a-large-small"],
+};
+const sortItems = (list, key) => [...list].sort((a, b) => (b.top || 0) - (a.top || 0) || SORTS[key][0](a, b));
+const VIEWS = [["grid", "网格", "layout-grid"], ["list", "列表", "list"]];
+
+const state = {
+  m: "normal",
+  view: localStorage.getItem("ar-mock-view") || "list",
+  group: localStorage.getItem("ar-mock-group") || "month",
+  thumb: localStorage.getItem("ar-mock-thumb") || "on",
+  sort: "created",
+  menu: null,
+  more: null,
+};
+
+/* ── 控制条 ── */
+const bar = document.createElement("div");
+bar.className = "mock-bar";
+const seg = (id, items, cur) => `<span class="seg" id="${id}">${items.map(([k, l]) => `<button data-v="${k}" class="mb-btn" style="${k === cur ? "background:#d97757;color:#fff;border-color:#d97757" : ""}">${l}</button>`).join("")}</span>`;
+function renderBar() {
+  bar.innerHTML = `
+    <b>文章 · 样板间</b>
+    <span>视图</span>${seg("mb-view", [["grid", "网格"], ["list", "列表"]], state.view)}
+    <span>列表分组</span>${seg("mb-group", [["month", "A 按月分段"], ["flat", "B 平铺 + 列头排序"]], state.group)}
+    <span>缩略图</span>${seg("mb-thumb", [["on", "有"], ["off", "无"]], state.thumb)}
+    <span>状态</span>${seg("mb-m", [["normal", "默认"], ["search", "搜索中"], ["viewmenu", "视图菜单"]], state.m)}
+    <span class="sp"></span>
+    <span style="opacity:.7">缩放 <span id="mb-zoom">100%</span></span>
+    <label>窗口宽 <select id="mb-width"><option value="1280">1280</option><option value="1440">1440</option><option value="1680">1680</option></select></label>
+    <button class="mb-btn" id="mb-theme">切换深浅</button>
+    <button class="mb-btn" id="mb-note">方案说明</button>
+    <button class="mb-btn" id="mb-anno">标注</button>`;
+  const bind = (id, fn) => bar.querySelectorAll(`#${id} button`).forEach(b => (b.onclick = () => { fn(b.dataset.v); renderBar(); render(); }));
+  bind("mb-view", v => setView(v));
+  bind("mb-group", v => { state.group = v; localStorage.setItem("ar-mock-group", v); });
+  bind("mb-thumb", v => { state.thumb = v; localStorage.setItem("ar-mock-thumb", v); });
+  bind("mb-m", v => { state.m = v; state.menu = v === "viewmenu" ? "view" : null; });
+  bar.querySelector("#mb-theme").onclick = () => {
+    const next = document.documentElement.dataset.theme === "cream" ? "cocoa" : "cream";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("chat-mock-theme", next);
+  };
+  bar.querySelector("#mb-anno").onclick = () => document.body.classList.toggle("no-anno");
+  bar.querySelector("#mb-note").onclick = () => { document.body.classList.toggle("no-note"); fit(); };
+  const sel = bar.querySelector("#mb-width");
+  sel.value = localStorage.getItem("chat-mock-width") || "1440";
+  if (!sel.value) sel.value = "1440";
+  sel.onchange = () => { localStorage.setItem("chat-mock-width", sel.value); applyWidth(); };
+}
+document.body.prepend(bar);
+document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";
+
+const win = document.getElementById("win");
+function fit() {
+  if (window.innerWidth < 100 || window.innerHeight < 100) return;
+  const w = +(localStorage.getItem("chat-mock-width") || 1440);
+  const top = bar.offsetHeight + (document.body.classList.contains("no-note") ? 0 : (document.querySelector(".mock-note")?.offsetHeight || 0) + 18);
+  const z = Math.min(1, (window.innerWidth - 24) / w, Math.max(0.35, (window.innerHeight - top - 24) / 820));
+  win.style.zoom = z;
+  const ro = bar.querySelector("#mb-zoom");
+  if (ro) ro.textContent = Math.round(z * 100) + "%";
+}
+function applyWidth() {
+  win.style.width = (localStorage.getItem("chat-mock-width") || 1440) + "px";
+  fit();
+}
+window.addEventListener("resize", fit);
+
+function setView(v) {
+  state.view = v;
+  state.menu = null;
+  if (state.m === "viewmenu") state.m = "normal";
+  localStorage.setItem("ar-mock-view", v);
+}
+
+function sidebar() {
+  const groups = [
+    ["工作台", [["flame", "今日"], ["calendar", "日程"], ["list-todo", "待办"]]],
+    ["知识", [["layers", "卡片库"], ["file-text", "文章", true], ["pen-line", "日记"], ["presentation", "白板"]]],
+    ["学习", [["folder-tree", "项目"], ["repeat", "闪卡复习"], ["book-marked", "PDF"]]],
+  ];
+  const subs = [["学习方法", 3], ["前端", 2], ["读书", 2], ["分布式", 1]];
+  return `<aside class="sb"><div class="sb-head"><div class="sb-logo">τ</div><span>Tau</span></div><div class="sb-scroll">${groups
+    .map(([g, items]) => `<div class="sb-gt">${g}</div>${items
+      .map(([ic, l, on]) => `<div class="sb-item ${on ? "on" : ""}"><i data-lucide="${ic}"></i><span>${l}</span></div>${l === "文章" ? subs.map(([s, n]) => `<div class="sb-sub"><span>${s}</span><span class="n num">${n}</span></div>`).join("") : ""}`)
+      .join("")}`)
+    .join("")}</div><div class="sb-item"><i data-lucide="sliders-horizontal"></i><span>设置</span></div></aside>`;
+}
+
+/* ── 工具栏 ── */
+function head(data) {
+  const cur = VIEWS.find(v => v[0] === state.view);
+  const menu = state.menu === "view"
+    ? `<div class="menu" style="min-width:148px">${VIEWS.map(([k, l, ic]) => `<div class="mi ${state.view === k ? "on" : ""}" data-view="${k}"><i data-lucide="${ic}"></i>${l}</div>`).join("")}</div>`
+    : "";
+  const words = data.reduce((s, a) => s + a.w, 0);
+  const searching = state.m === "search";
+  return `<div class="ar-head">
+    <h1>文章</h1>
+    <span class="sum">${searching ? "找到" : "共"} <b class="num">${data.length}</b> 篇 · 累计 <b class="num">${wordsLabel(words)}</b> 字</span>
+    <div class="srch"><i data-lucide="search"></i>${searching ? '<span style="color:var(--ink-1)">CRDT</span>' : "搜索文章标题"}</div>
+    <div class="dd"><button class="btn ghost ${state.menu === "view" ? "on" : ""}" data-menu="view" title="切换视图"><i data-lucide="${cur[2]}"></i>${cur[1]}<i data-lucide="chevron-down" class="cv"></i></button>${menu}</div>
+    <button class="btn"><i data-lucide="import"></i>导入</button>
+    <button class="btn primary"><i data-lucide="plus"></i>新建</button>
+  </div>`;
+}
+
+/* ── 列表行 ── */
+const moreMenu = a =>
+  state.more === a.id
+    ? `<div class="menu" style="top:28px">
+        <div class="mi"><i data-lucide="play"></i>演示模式</div>
+        <div class="mi"><i data-lucide="download"></i>导出 Markdown</div>
+        <div class="mi"><i data-lucide="image-plus"></i>更换封面</div>
+        <div class="mi"><i data-lucide="monitor-up"></i>窗口打开</div>
+        <div class="sep"></div>
+        <div class="mi danger"><i data-lucide="trash-2"></i>删除</div></div>`
+    : "";
+const ops = a => `<div class="ops ${state.more === a.id ? "on" : ""}">
+    <button class="ib" title="${a.top ? "取消置顶" : "置顶"}"><i data-lucide="star"></i></button>
+    <div class="dd"><button class="ib" data-more="${a.id}" title="更多操作"><i data-lucide="more-horizontal"></i></button>${moreMenu(a)}</div>
+  </div>`;
+const tags = a => {
+  if (!a.tags.length) return `<div class="tgs"><span class="c mute">—</span></div>`;
+  const shown = a.tags.slice(0, 2);
+  const rest = a.tags.length - shown.length;
+  return `<div class="tgs">${shown.map(t => `<span class="tg">${t}</span>`).join("")}${rest ? `<span class="tg more">+${rest}</span>` : ""}</div>`;
+};
+const hl = t => (state.m === "search" ? t.replace("CRDT", "<mark>CRDT</mark>") : t);
+const row = a => `<div class="lr">
+    <div class="nm">
+      <span class="thumb" style="background:${a.photo ? PHOTO : coverOf(a.id)}"></span>
+      <div class="tx">
+        <div class="t">${a.top ? '<i data-lucide="star" class="star"></i>' : ""}<span>${hl(a.t)}</span>${a.pod ? '<i data-lucide="headphones" class="pod"></i>' : ""}</div>
+        <div class="p">${a.p || "还没有正文"}</div>
+      </div>
+    </div>
+    ${tags(a)}
+    <span class="c r num ${a.w ? "" : "mute"}">${a.w ? wordsLabel(a.w) : "—"}</span>
+    <span class="c num">${DAY(a.u)}</span>
+    <span class="c num">${DAY(a.d)}</span>
+    ${ops(a)}
+  </div>`;
+function listHead() {
+  const sortable = state.group === "flat";
+  const col = (k, l, cls = "") => {
+    const on = sortable ? state.sort === k : k === "created";
+    const arrow = k === "title" ? "arrow-up" : "arrow-down";
+    return `<span ${sortable ? `data-sort="${k}"` : ""} class="${cls} ${on ? "on" : ""}">${l}${on ? `<i data-lucide="${arrow}"></i>` : ""}</span>`;
+  };
+  return `<div class="lh">${col("title", "标题")}<span>标签</span>${col("words", "字数", "r")}${col("updated", "更新")}${col("created", "创建")}<span></span></div>`;
+}
+
+/* 按月分段（置顶单独成段，同网格） */
+function monthSections(data, render) {
+  const tops = data.filter(a => a.top);
+  const rest = data.filter(a => !a.top).sort((a, b) => a.d - b.d);
+  const buckets = [];
+  for (const a of rest) {
+    const [y, m] = monthOf(a.d);
+    const key = `${y}-${m}`;
+    let b = buckets.find(x => x.key === key);
+    if (!b) buckets.push((b = { key, y, m, items: [] }));
+    b.items.push(a);
+  }
+  const sec = (label, year, items) => `<section class="sec"><div class="sec-h"><span class="l">${label}${year ? `<small class="num">${year}</small>` : ""}</span><span class="h num">${items.length} 篇 · ${wordsLabel(items.reduce((s, a) => s + a.w, 0))} 字</span></div>${render(items)}</section>`;
+  return (tops.length ? sec("置顶", null, tops) : "") + buckets.map(b => sec(`${b.m} 月`, b.y, b.items)).join("");
+}
+
+const card = a => `<div class="ac"><div class="cv" style="background:${a.photo ? PHOTO : coverOf(a.id)}">${a.photo ? "" : a.p}</div><div class="bd"><h3>${a.t}</h3><div class="m num">${DAY(a.d)} · ${wordsLabel(a.w)} 字</div></div></div>`;
+
+function body() {
+  const data = state.m === "search" ? A.filter(a => a.t.includes("CRDT")) : A;
+  let content;
+  if (state.view === "grid") {
+    content = monthSections(data, items => `<div class="grid">${items.map(card).join("")}</div>`);
+  } else {
+    const cls = `lst ${state.thumb === "off" ? "no-thumb" : ""}`;
+    const rows = state.group === "month" ? monthSections(data, items => items.map(row).join("")) : sortItems(data, state.sort).map(row).join("");
+    content = `<div class="${cls}">${listHead()}${rows}</div>`;
+  }
+  return `${head(data)}<div class="ar-scroll">${content}<div class="foot num">已全部加载 · ${data.length} 篇</div></div>`;
+}
+
+function render() {
+  const sc = win.querySelector(".ar-scroll");
+  const keep = sc ? sc.scrollTop : 0;
+  const normal = state.m === "normal";
+  const isList = state.view === "list";
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar("<b>文章</b>")}
+      <div class="main"><section class="paper ar-paper">${body()}</section></div>
+    </div>
+    ${normal ? anno(1, "视图：按钮 + Menu（网格 / 列表），偏好按本机保存", "right:200px;top:104px") : ""}
+    ${normal && isList ? anno(2, "缩略封面：有 banner 用图，没有就用 id 派生渐变（同网格卡）", "left:300px;top:200px") + anno(3, state.group === "flat" ? "B：点列头排序，需 getArticlePage 加 orderBy" : "A：月头吸顶，分页与网格一致，主进程不改", "left:720px;top:150px") : ""}`;
+  icons();
+  const nsc = win.querySelector(".ar-scroll");
+  if (nsc) nsc.scrollTop = keep;
+
+  const on = (sel, fn) => win.querySelectorAll(sel).forEach(el => (el.onclick = e => { e.stopPropagation(); fn(el); renderBar(); render(); }));
+  on("[data-menu]", el => { state.more = null; state.menu = state.menu === el.dataset.menu ? null : el.dataset.menu; });
+  on("[data-view]", el => setView(el.dataset.view));
+  on("[data-sort]", el => (state.sort = el.dataset.sort));
+  on("[data-more]", el => { state.menu = null; state.more = state.more === +el.dataset.more ? null : +el.dataset.more; });
+}
+win.onclick = () => {
+  if (state.menu || state.more) {
+    state.menu = null;
+    state.more = null;
+    if (state.m === "viewmenu") state.m = "normal";
+    renderBar();
+    render();
+  }
+};
+
+renderBar();
+render();
+requestAnimationFrame(applyWidth);
+</script>
+</body>
+</html>

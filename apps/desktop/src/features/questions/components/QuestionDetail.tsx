@@ -1,7 +1,7 @@
 /**
  * 问题详情抽屉（非模态 Drawer，盖在列表右侧；不压暗列表，Esc 经页面浮层仲裁关闭）。
  * 头部：标题（即改即存）→ 分组 Menu + 提出时间 · 更多菜单；正文：状态三段 → 背景（富文本）→ 我的答案 →
- * 探究材料 → 动作（写卡片 / 新建 ▾ / 关联已有）→ 探究轨迹。
+ * 探究材料 → 探究对话 → 动作（写卡片 / 新建 ▾ / 关联已有）→ 探究轨迹。
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -9,10 +9,12 @@ import type { Descendant } from "slate";
 import {
   ChevronDown,
   FileText,
+  FlaskConical,
   FolderKanban,
   Layers,
   Lightbulb,
   Link2,
+  MessageCircle,
   MoreHorizontal,
   PenLine,
   Plus,
@@ -24,9 +26,15 @@ import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { QuestionGroupDTO } from "@/commands/question-group";
-import type { QuestionDetail as Detail, QuestionMaterial, QuestionStatus } from "@/types";
+import type {
+  QuestionChat,
+  QuestionDetail as Detail,
+  QuestionMaterial,
+  QuestionStatus,
+} from "@/types";
 import { STATUS_META, STATUS_STEPS, relativeDay, trajectoryStats } from "../model";
 import { questionMutations, type CreatableKind } from "../queries";
+import { ChatList } from "./ChatList";
 import { MaterialList } from "./MaterialList";
 import { Composition, GroupDot, StatusRing } from "./QuestionBits";
 import { Trajectory } from "./Trajectory";
@@ -49,6 +57,12 @@ export function QuestionDrawer({
   onOpenMaterial,
   onClickMaterial,
   onUnlink,
+  hiddenChats,
+  onOpenChat,
+  onOpenChatPage,
+  onUnlinkChat,
+  onOpenNotebook,
+  onDiscuss,
   onWriteCard,
   onWriteAnswer,
   onCreate,
@@ -70,6 +84,16 @@ export function QuestionDrawer({
   /** 点材料行：可预览的弹窗预览，其余同「打开」 */
   onClickMaterial(material: QuestionMaterial): void;
   onUnlink(material: QuestionMaterial): void;
+  /** 解除关联暂存中的对话 */
+  hiddenChats: ReadonlySet<number>;
+  /** 在右侧停靠栏打开对话 */
+  onOpenChat(chat: QuestionChat): void;
+  /** 在对话页打开（定位到转出问题的那条消息） */
+  onOpenChatPage(chat: QuestionChat): void;
+  onUnlinkChat(chat: QuestionChat): void;
+  onOpenNotebook(id: number): void;
+  /** 围绕这个问题开一次新对话 */
+  onDiscuss(): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
@@ -157,6 +181,12 @@ export function QuestionDrawer({
           onOpenMaterial={onOpenMaterial}
           onClickMaterial={onClickMaterial}
           onUnlink={onUnlink}
+          hiddenChats={hiddenChats}
+          onOpenChat={onOpenChat}
+          onOpenChatPage={onOpenChatPage}
+          onUnlinkChat={onUnlinkChat}
+          onOpenNotebook={onOpenNotebook}
+          onDiscuss={onDiscuss}
           onWriteCard={onWriteCard}
           onWriteAnswer={onWriteAnswer}
           onCreate={onCreate}
@@ -177,6 +207,12 @@ function DetailBody({
   onOpenMaterial,
   onClickMaterial,
   onUnlink,
+  hiddenChats,
+  onOpenChat,
+  onOpenChatPage,
+  onUnlinkChat,
+  onOpenNotebook,
+  onDiscuss,
   onWriteCard,
   onWriteAnswer,
   onCreate,
@@ -189,6 +225,15 @@ function DetailBody({
   onOpenMaterial(material: QuestionMaterial): void;
   onClickMaterial(material: QuestionMaterial): void;
   onUnlink(material: QuestionMaterial): void;
+  hiddenChats: ReadonlySet<number>;
+  /** 在右侧停靠栏打开对话 */
+  onOpenChat(chat: QuestionChat): void;
+  /** 在对话页打开（定位到转出问题的那条消息） */
+  onOpenChatPage(chat: QuestionChat): void;
+  onUnlinkChat(chat: QuestionChat): void;
+  onOpenNotebook(id: number): void;
+  /** 围绕这个问题开一次新对话 */
+  onDiscuss(): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
@@ -198,6 +243,7 @@ function DetailBody({
   const materials = detail.materials.filter(m => !hiddenMaterials.has(m.id));
   const answers = materials.filter(m => m.targetType === "answer");
   const refs = materials.filter(m => m.targetType !== "answer");
+  const chats = detail.chats.filter(c => !hiddenChats.has(c.id));
   const refCounts: Partial<Record<QuestionMaterial["targetType"], number>> = {};
   refs.forEach(m => (refCounts[m.targetType] = (refCounts[m.targetType] ?? 0) + 1));
 
@@ -229,6 +275,17 @@ function DetailBody({
           );
         })}
       </div>
+
+      {detail.notebook && (
+        <button
+          type="button"
+          onClick={() => onOpenNotebook(detail.notebook!.id)}
+          className="text-ink-2 hover:text-ink-1 hover:bg-hover mt-2.5 flex w-full items-center gap-2 rounded-[9px] px-2.5 py-1.5 text-left text-[12.5px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+        >
+          <FlaskConical className="size-[14px] shrink-0" strokeWidth={1.75} />
+          <span className="min-w-0 truncate">已立项 · Notebook「{detail.notebook.title}」</span>
+        </button>
+      )}
 
       <SectionTitle>背景</SectionTitle>
       <DescriptionEditor
@@ -284,8 +341,20 @@ function DetailBody({
         />
       ) : (
         <Hint icon>
-          从这里开始探究：读到什么、想到什么，写成一张卡片挂上来；或者关联已有的卡片、文章、项目、白板。
+          从这里开始探究：读到什么、想到什么，写成一张卡片挂上来；或者关联已有的卡片、文章、划线、对话。
         </Hint>
+      )}
+      {chats.length > 0 && (
+        <>
+          <SectionTitle count={chats.length}>探究对话</SectionTitle>
+          <ChatList
+            chats={chats}
+            now={now}
+            onOpen={onOpenChat}
+            onOpenPage={onOpenChatPage}
+            onUnlink={onUnlinkChat}
+          />
+        </>
       )}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         <Button variant="secondary" size="sm" icon={Layers} onClick={onWriteCard}>
@@ -326,6 +395,9 @@ function DetailBody({
             独立答案
           </Menu.Item>
         </Menu>
+        <Button variant="secondary" size="sm" icon={MessageCircle} onClick={onDiscuss}>
+          围绕它聊
+        </Button>
         <Button variant="secondary" size="sm" icon={Link2} onClick={onLink}>
           关联已有
           <kbd className="bg-hover text-ink-2 ml-0.5 rounded-[4px] px-1 font-mono text-[10px]">
@@ -345,7 +417,9 @@ function DetailBody({
       </SectionTitle>
       <Trajectory
         events={events}
+        chats={detail.chats}
         now={now}
+        onOpenChat={onOpenChat}
         onAddNote={async text => {
           await questionMutations.addNote(question.id, text);
         }}

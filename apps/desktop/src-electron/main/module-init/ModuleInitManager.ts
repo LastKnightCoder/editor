@@ -7,7 +7,6 @@ import type BackendWebSocketServer from "../utils/BackendWebSocketServer";
 // 需要注入 WebSocket 服务的模块
 import userSettingModule from "../modules/user-setting";
 import pomodoroModule from "../modules/pomodoro";
-import webClipModule from "../modules/web-clip";
 import resourceSyncModule from "../modules/resource-sync";
 import publishModule from "../modules/publish";
 
@@ -129,7 +128,6 @@ class ModuleInitManager {
       // 初始化其他 WebSocket 依赖模块
       await userSettingModule.init(this.backendServer);
       await pomodoroModule.init(this.backendServer);
-      await webClipModule.init(this.backendServer);
       await resourceSyncModule.init(this.backendServer);
 
       log.info(

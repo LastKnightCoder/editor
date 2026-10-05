@@ -1,7 +1,7 @@
 import type { Flashcard, FlashcardDeck, FlashcardDifficulty } from "@/types";
-import { Button, Input, Menu, Segmented, Tag } from "@tau/ui";
+import { Button, Menu, Segmented } from "@tau/ui";
 import { ChevronDown } from "lucide-react";
-import { useState } from "react";
+import AddTag from "@/components/AddTag";
 import { STATUS_LABEL, dueText, resumedStatus } from "../model";
 import { DeckMark, StatusDot } from "./FlashcardBits";
 
@@ -27,7 +27,6 @@ export function CardEditorProperties({
   now: number;
   patch(next: Partial<FormState>): void;
 }) {
-  const [tagInput, setTagInput] = useState("");
   const deck = decks.find(d => d.id === form.deckId);
   return (
     <div className="flex flex-col gap-4">
@@ -73,26 +72,13 @@ export function CardEditorProperties({
       </Field>
 
       <Field label="标签">
-        {form.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {form.tags.map(tag => (
-              <Tag key={tag} onRemove={() => patch({ tags: form.tags.filter(t => t !== tag) })}>
-                {tag}
-              </Tag>
-            ))}
-          </div>
-        )}
-        <Input
-          value={tagInput}
-          onChange={e => setTagInput(e.target.value)}
-          placeholder="回车添加标签"
-          onKeyDown={e => {
-            if (e.key !== "Enter" || e.nativeEvent.isComposing || e.metaKey || e.ctrlKey) return;
-            e.preventDefault();
-            const tag = tagInput.trim();
-            if (tag && !form.tags.includes(tag)) patch({ tags: [...form.tags, tag] });
-            setTagInput("");
-          }}
+        <AddTag
+          tags={form.tags}
+          addTag={tag => patch({ tags: [...form.tags, tag] })}
+          removeTag={tag => patch({ tags: form.tags.filter(t => t !== tag) })}
+          editTag={(oldTag, newTag) =>
+            patch({ tags: form.tags.map(t => (t === oldTag ? newTag : t)) })
+          }
         />
       </Field>
 

@@ -27,11 +27,11 @@ import {
   NO_COLOR_SLOT,
   TOPIC_PALETTE_SIZE,
   type KnowledgeMap,
-  type KnowledgeMapCardInput,
+  type KnowledgeMapNodeInput,
   type KnowledgeMapNode,
   type KnowledgeMapTopic,
 } from "./types";
-import { knn, type CardVector } from "./vectors";
+import { capInDegree, knn, type CardVector } from "./vectors";
 
 export interface ComputeOptions {
   /** 每张卡取几个语义近邻 */
@@ -45,6 +45,8 @@ export interface ComputeOptions {
 
 /** 显式链接的权重：用户亲手连的，比算法推测的语义相似更可信 */
 const LINK_WEIGHT = 1.5;
+/** 每个节点最多被「近邻数 × 该系数」个节点选作语义近邻（见 vectors.capInDegree） */
+const IN_DEGREE_CAP_FACTOR = 2;
 /**
  * 摆大主题时，跨主题的显式链接再额外放大这么多倍。
  * 跨主题链接很少（真实数据 324 条里只有 6 条），不放大就淹没在几百条语义边里；
@@ -57,6 +59,8 @@ const CROSS_LINK_BOOST = 4;
  * 但那要求松弛跨岛进行。改成直接挪锚点后效果等价，松弛就能按岛切开跑（快得多）。
  */
 const BRIDGE_ANCHOR_SHIFT = 0.25;
+/** 子主题排布的向心力：比大主题的强，岛内排得紧凑，外接圆（即岛的大小）不至于虚胖 */
+const SUBTOPIC_CENTERING = 0.3;
 const RESOLUTIONS = [0.15, 0.25, 0.35, 0.5, 0.7, 1, 1.4];
 
 /**
@@ -77,7 +81,7 @@ export function mapNodeRadius(degree: number): number {
 
 /* ───────── 加权图 ───────── */
 
-interface WeightedGraph {
+export interface WeightedGraph {
   count: number;
   edges: Array<{ source: number; target: number; weight: number; explicit: boolean }>;
   /** 每个下标的加权邻接，合并阶段按边权找「最亲近」的主题用 */
@@ -87,7 +91,7 @@ interface WeightedGraph {
 }
 
 function buildWeightedGraph(
-  cards: KnowledgeMapCardInput[],
+  cards: KnowledgeMapNodeInput[],
   vectors: CardVector[],
   options: Required<Pick<ComputeOptions, "neighbors" | "minSimilarity">>
 ): WeightedGraph {
@@ -117,7 +121,10 @@ function buildWeightedGraph(
 
   // 语义近邻：权重按相似度在 [minSimilarity, 1] 上线性映射到 (0, 1]
   const vectorIndex = vectors.map(v => indexOf.get(v.id));
-  const neighbors = knn(vectors, options.neighbors, options.minSimilarity);
+  const neighbors = capInDegree(
+    knn(vectors, options.neighbors, options.minSimilarity),
+    options.neighbors * IN_DEGREE_CAP_FACTOR
+  );
   const span = Math.max(1e-6, 1 - options.minSimilarity);
   const semanticPairs = new Set<string>();
   neighbors.forEach((list, i) => {
@@ -384,6 +391,70 @@ function splitIncoherent(
     }
   }
 }
+
+/**
+ * 一个名字（tag 首段，或无 tag 项目文档的项目名）的成员里，至少这么多比例的连接权重要落在彼此之间，
+ * 才算「自成一体」，可以从所在大主题里独立出来。
+ */
+const LABEL_COHESION = 0.5;
+
+/**
+ * 按名字独立：大主题里某个名字有足够多的成员、且这些成员主要彼此相连，就独立成大主题。
+ *
+ * 补 splitIncoherent 的盲区：那里看「拆了之后整张图的名字准了多少」，块越小越拉不动整体，
+ * 于是 TypeScript、一整个 Docker 教程项目这类边界清楚的小主题，始终埋在 JavaScript 底下。
+ * 这里只看这群成员自己：够不够多、是不是主要连着彼此。与所在大主题同名的不动。
+ */
+export function promoteCohesiveLabels(
+  assignment: Int32Array,
+  graph: WeightedGraph,
+  headsOf: (node: number) => string[],
+  labelFor: (members: number[]) => string
+) {
+  let nextGroup = Math.max(-1, ...assignment) + 1;
+  const minTopic = minTopicSize(graph.count);
+  for (const [, members] of groupsOf(assignment)) {
+    if (members.length < minTopic * 2) continue;
+    const parentLabel = labelFor(members);
+    const byHead = new Map<string, number[]>();
+    for (const node of members) {
+      for (const head of new Set(headsOf(node))) {
+        if (!head || head === parentLabel) continue;
+        const list = byHead.get(head) ?? [];
+        list.push(node);
+        byHead.set(head, list);
+      }
+    }
+    const candidates = [...byHead.entries()]
+      .filter(([, nodes]) => nodes.length >= minTopic)
+      .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+    const moved = new Set<number>();
+    for (const [, nodes] of candidates) {
+      const group = nodes.filter(node => !moved.has(node));
+      if (group.length < minTopic || members.length - moved.size - group.length < minTopic)
+        continue;
+      const inside = new Set(group);
+      let internal = 0;
+      let total = 0;
+      for (const node of group) {
+        for (const [other, weight] of graph.adjacency[node]) {
+          total += weight;
+          if (inside.has(other)) internal += weight;
+        }
+      }
+      if (total <= 0 || internal / total < LABEL_COHESION) continue;
+      const id = nextGroup++;
+      for (const node of group) {
+        assignment[node] = id;
+        moved.add(node);
+      }
+    }
+  }
+}
+
+/** 无名子主题里带父主题名的成员不到这个比例，就归为「其它」 */
+const MISC_SUBTOPIC_SHARE = 0.5;
+export const MISC_SUBTOPIC_LABEL = "其它";
 
 /** 命名后同名合并：两个都叫「JavaScript」的主题在用户眼里就是一个 */
 function mergeByLabel(
@@ -804,7 +875,8 @@ function packDiscs(
   discs: Disc[],
   links: Array<{ source: number; target: number; weight: number }>,
   random: () => number,
-  gap: number
+  gap: number,
+  centering = 0.04
 ) {
   if (discs.length === 0) return;
   if (discs.length === 1) {
@@ -828,8 +900,8 @@ function packDiscs(
         .strength(l => 0.1 + 0.6 * (l.weight / maxWeight))
     )
     .force("collide", forceCollide<Disc>(d => d.radius + gap / 2).iterations(3))
-    .force("x", forceX<Disc>(0).strength(0.04))
-    .force("y", forceY<Disc>(0).strength(0.04))
+    .force("x", forceX<Disc>(0).strength(centering))
+    .force("y", forceY<Disc>(0).strength(centering))
     .stop();
   simulation.tick(300);
 }
@@ -851,7 +923,7 @@ interface MapNodeDatum extends SimulationNodeDatum {
 /* ───────── 入口 ───────── */
 
 export function computeKnowledgeMap(
-  cards: KnowledgeMapCardInput[],
+  cards: KnowledgeMapNodeInput[],
   vectors: CardVector[],
   options: ComputeOptions = {}
 ): KnowledgeMap {
@@ -877,8 +949,15 @@ export function computeKnowledgeMap(
   mergeByLabel(topicOf, labelFor);
   mergeStronglyConnected(topicOf, graph);
   splitIncoherent(topicOf, graph, labelFor, headCoverage);
+  promoteCohesiveLabels(
+    topicOf,
+    graph,
+    node => cards[node].tags.map(tag => tagPath(tag)[0]),
+    labelFor
+  );
   // 合并与拆分后主题成分变了，名字要按新成员重取，并再做一次同名合并
   const labelOf = mergeByLabel(topicOf, labelFor);
+  const topLabels = new Set([...labelOf.values()].filter(Boolean));
   const groups = groupsOf(topicOf);
 
   // 3) 按规模重新编号（0 是最大的主题），并分子主题
@@ -913,7 +992,11 @@ export function computeKnowledgeMap(
       (a, b) => b[1].length - a[1].length || a[0] - b[0]
     )) {
       const nodes = local.map(i => members[i]);
-      const label = subtopicLabel(nodes.map(labelMember), parentLabel);
+      const label =
+        subtopicLabel(nodes.map(labelMember), parentLabel, topLabels) ||
+        // 取不出名字、且多数成员并不属于父主题：是挂在这里的杂项，明说「其它」，
+        // 不让它冒充父主题的一部分；等同类内容攒够了会自己独立出去
+        (headCoverage(nodes, parentLabel) < MISC_SUBTOPIC_SHARE ? MISC_SUBTOPIC_LABEL : "");
       if (!label) {
         unnamed.push(nodes);
         continue;
@@ -946,10 +1029,44 @@ export function computeKnowledgeMap(
     topicIndex,
     orderedTopics.map(([, members]) => members.length)
   );
-  const topicDiscs: Disc[] = orderedTopics.map(([, members], id) => ({
-    key: id,
-    radius: discRadius(members),
-  }));
+  // 子主题先在各自主题内排好（以主题中心为原点），主题圆盘的半径取它们实际占用的外接圆。
+  // 按全部成员估算的半径会偏小：几个子主题并排比一整团更占地方，伸出去的子主题会越过水道、
+  // 贴到别的岛边上（「软件使用文档 / 编辑器」被摆到 CSS 旁）
+  const subLayouts = orderedTopics.map(([, members], topicId) => {
+    const subs = subtopicsByTopic.get(topicId) ?? [];
+    const subDiscs: Disc[] = subs.map(sub => ({ key: sub.id, radius: discRadius(sub.members) }));
+    const interSub = new Map<string, { source: number; target: number; weight: number }>();
+    for (const edge of graph.edges) {
+      const a = subtopicIndex[edge.source];
+      const b = subtopicIndex[edge.target];
+      if (a < 0 || b < 0 || a === b || topicIndex[edge.source] !== topicId) continue;
+      const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+      const entry = interSub.get(key) ?? {
+        source: Math.min(a, b),
+        target: Math.max(a, b),
+        weight: 0,
+      };
+      entry.weight += edge.weight;
+      interSub.set(key, entry);
+    }
+    packDiscs(subDiscs, [...interSub.values()], random, 18, SUBTOPIC_CENTERING);
+    // 以外接圆为准重新居中：packDiscs 只用弱向心力，排布不一定以原点为中心
+    if (subDiscs.length > 0) {
+      const minX = Math.min(...subDiscs.map(d => (d.x ?? 0) - d.radius));
+      const maxX = Math.max(...subDiscs.map(d => (d.x ?? 0) + d.radius));
+      const minY = Math.min(...subDiscs.map(d => (d.y ?? 0) - d.radius));
+      const maxY = Math.max(...subDiscs.map(d => (d.y ?? 0) + d.radius));
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      for (const disc of subDiscs) {
+        disc.x = (disc.x ?? 0) - cx;
+        disc.y = (disc.y ?? 0) - cy;
+      }
+    }
+    const enclosing = Math.max(0, ...subDiscs.map(d => Math.hypot(d.x ?? 0, d.y ?? 0) + d.radius));
+    return { subs, subDiscs, radius: Math.max(discRadius(members), enclosing) };
+  });
+  const topicDiscs: Disc[] = subLayouts.map(({ radius }, id) => ({ key: id, radius }));
   packDiscs(topicDiscs, strongestPairs(interTopic.values(), TOPIC_LAYOUT_NEIGHBORS), random, 70);
 
   // 颜色要等大主题摆好才能分：循环复用色槽时要知道谁和谁在地图上挨着。
@@ -992,23 +1109,7 @@ export function computeKnowledgeMap(
   const anchorY = new Float64Array(cards.length);
   orderedTopics.forEach(([, members], topicId) => {
     const center = topicDiscs[topicId];
-    const subs = subtopicsByTopic.get(topicId) ?? [];
-    const subDiscs: Disc[] = subs.map(sub => ({ key: sub.id, radius: discRadius(sub.members) }));
-    const interSub = new Map<string, { source: number; target: number; weight: number }>();
-    for (const edge of graph.edges) {
-      const a = subtopicIndex[edge.source];
-      const b = subtopicIndex[edge.target];
-      if (a < 0 || b < 0 || a === b || topicIndex[edge.source] !== topicId) continue;
-      const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-      const entry = interSub.get(key) ?? {
-        source: Math.min(a, b),
-        target: Math.max(a, b),
-        weight: 0,
-      };
-      entry.weight += edge.weight;
-      interSub.set(key, entry);
-    }
-    packDiscs(subDiscs, [...interSub.values()], random, 18);
+    const { subs, subDiscs } = subLayouts[topicId];
     // 岛内朝向：连向外部主题的子主题转到岛上面向那个主题的一侧。
     // 不转的话，「CSS/选择器」可能落在 CSS 岛背对 DOM 的一面，连线要横穿整个岛
     orientTowardOutside(
@@ -1169,7 +1270,7 @@ export function computeKnowledgeMap(
   }
 
   const nodes: KnowledgeMapNode[] = cards.map((card, index) => ({
-    cardId: card.id,
+    key: card.key,
     // 存两位小数就够，库里省空间、diff 也稳定
     x: Math.round((datums[index].x ?? 0) * 100) / 100,
     y: Math.round((datums[index].y ?? 0) * 100) / 100,
@@ -1181,21 +1282,21 @@ export function computeKnowledgeMap(
 }
 
 /**
- * 增量放置：新卡片不重算全图，按语义近邻的坐标加权落位、按多数归属主题。
- * 近邻里没有已在图上的卡片时归入未归类并放到外圈。
+ * 增量放置：新节点不重算全图，按语义近邻的坐标加权落位、按多数归属主题。
+ * 近邻里没有已在图上的节点时归入未归类并放到外圈。seed 只用来错开角度（取数值 id 即可）。
  */
 export function placeIncrementally(
   map: KnowledgeMap,
-  card: { id: number; neighbors: Array<{ cardId: number; similarity: number }> }
+  card: { key: string; seed: number; neighbors: Array<{ key: string; similarity: number }> }
 ): KnowledgeMapNode {
-  const byId = new Map(map.nodes.map(node => [node.cardId, node]));
-  const placed = card.neighbors.filter(n => byId.has(n.cardId));
+  const byKey = new Map(map.nodes.map(node => [node.key, node]));
+  const placed = card.neighbors.filter(n => byKey.has(n.key));
   if (placed.length === 0) {
     let extent = 0;
     for (const node of map.nodes) extent = Math.max(extent, Math.hypot(node.x, node.y));
-    const angle = (((card.id * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const angle = (((card.seed * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     return {
-      cardId: card.id,
+      key: card.key,
       x: Math.cos(angle) * (extent + 60),
       y: Math.sin(angle) * (extent + 60),
       topic: -1,
@@ -1209,7 +1310,7 @@ export function placeIncrementally(
   const topicVotes = new Map<number, number>();
   const subtopicVotes = new Map<number, number>();
   for (const neighbor of placed) {
-    const node = byId.get(neighbor.cardId)!;
+    const node = byKey.get(neighbor.key)!;
     const weight = Math.max(1e-3, neighbor.similarity);
     totalWeight += weight;
     x += node.x * weight;
@@ -1226,9 +1327,9 @@ export function placeIncrementally(
     new Map([...subtopicVotes].filter(([id]) => topicOfSub.get(id) === topic)).set(-1, 0)
   );
   // 与质心错开一点，免得和某个近邻完全重合
-  const angle = (((card.id * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const angle = (((card.seed * 2.39996) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
   return {
-    cardId: card.id,
+    key: card.key,
     x: x / totalWeight + Math.cos(angle) * 8,
     y: y / totalWeight + Math.sin(angle) * 8,
     topic,

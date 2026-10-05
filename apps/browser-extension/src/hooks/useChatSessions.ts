@@ -49,7 +49,7 @@ const toSession = (entry: ChatListEntry): ChatSession => ({
   updateTime: entry.updateTime,
 });
 
-const pageIdentity = (url: string | null) => {
+export const pageIdentity = (url: string | null) => {
   if (!url) return null;
   try {
     const parsed = new URL(url);

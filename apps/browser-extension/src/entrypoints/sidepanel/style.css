@@ -3,10 +3,12 @@
 @import "@tau/editor-comment/styles.css";
 @import "@tau/editor-list/styles.css";
 @import "tailwindcss";
-@import "@tau/themes/scale.css";
-/* 编辑器的浮层原语来自 @tau/ui，类名经 @tau/themes 的语义映射取 --tau-* */
+/* 与桌面同一套主题数据块（含尺度层）：<html data-theme data-mode> 决定取值 */
+@import "@tau/themes/tokens.css";
+/* 插件深色调亮（只作用于插件），须紧跟 tokens.css */
+@import "../../styles/dark-tone.css";
+/* 语义类（bg-page / text-ink-1 …）经 @tau/themes 的映射取 --tau-* */
 @import "@tau/themes/tailwind.css";
-@import "./tau-tokens.css";
 @source "../../../../../packages/editor/src";
 @source "../../../../../editor-extensions/media/src";
 @source "../../../../../editor-extensions/blockquote/src";
@@ -75,16 +77,15 @@ body,
   overscroll-behavior: none;
 }
 
-/* body 基础 CSS 变量（对应 desktop main.less 第 27-41 行） */
+/* 编辑器字体变量（useSyncFont 按桌面字体设置覆盖） */
 body {
-  --font:
-    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
-    "PingFang SC", "Microsoft YaHei", sans-serif;
-  --mono-font: monospace;
+  --font: var(--tau-font);
+  --mono-font: var(--tau-font-mono);
   --font-size: 16px;
   --block-distance: 1.25em;
   font-family: var(--font);
-  color: var(--text-normal);
+  color: var(--tau-ink-1);
+  background: var(--tau-bg-page);
   font-size: var(--font-size);
   padding: 0;
   margin: 0;
@@ -100,179 +101,7 @@ code {
 }
 
 ::selection {
-  background: var(--selection-color);
-}
-
-[class*="ant-"] {
-  font-family: var(--font) !important;
-}
-
-:root {
-  --color-bg-page: #f3f4f6;
-  --color-bg-container: #ffffff;
-  --color-bg-elevated: #ffffff;
-  --color-bg-canvas: #f9fafb;
-  --color-bg-input: #ffffff;
-
-  --color-text-primary: #111827;
-  --color-text-secondary: #4b5563;
-  --color-text-tertiary: #6b7280;
-  --color-text-quaternary: #9ca3af;
-
-  --color-border-primary: #e5e7eb;
-  --color-border-secondary: #f3f4f6;
-
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-primary-active: #1d4ed8;
-
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
-
-  --color-tag-bg: #dbeafe;
-  --color-tag-text: #1e40af;
-  --color-mask: rgba(0, 0, 0, 0.65);
-  --button-primary-text: #ffffff;
-  --button-secondary-bg: #ffffff;
-
-  --primary-bg-color: #f8f9fb;
-  --main-bg-color: #fff;
-  --line-color: #f0f0f0;
-  --text-normal: black;
-  --code-normal: #18045f;
-  --code-bg: transparent;
-  --box-shadow1: 0 3px 6px 0 rgba(0, 0, 0, 0.15);
-  --box-shadow2: 0 4px 21px -12px rgba(0, 0, 0, 0.6);
-  --block-panel-active-bg: #e6e6e6;
-  --table-border-color: #dadde1;
-  --table-odd-bg: #e6e6e666;
-  --card-bg-color: rgb(255 255 255 / 0.4);
-  --scroller-track-background-color: rgba(0, 0, 0, 0.04);
-  --scroller-thumb-background-color: rgba(0, 0, 0, 0.06);
-  --normal-card-bg: hsl(168, 8%, 95%);
-  --normal-icon-bg: #e8e8e8;
-  --active-bg-color: hsl(168, 80%, 95%);
-  --active-text-color: hsl(168, 50%, 30%);
-  --active-icon-bg: hsl(168, 60%, 80%);
-  --card-line-color: hsl(168, 40%, 80%);
-  --bullet-list-item-bg: hsl(168, 10%, 45%);
-  --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
-  --selection-color: #d9f0ff;
-  --sidebar-background: transparent;
-  --shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-
-  --bg-secondary: #f7f7f7;
-  --bg-tertiary: #ebeef2;
-  --text-primary: rgba(0, 0, 0, 0.85);
-  --text-secondary: rgba(0, 0, 0, 0.5);
-  --ui-border: hsl(220, 14%, 90%);
-  --ui-outline: hsla(224, 76%, 48%, 0.35);
-
-  --color-hover-bg: rgba(0, 0, 0, 0.04);
-  --color-active-bg: rgba(0, 0, 0, 0.06);
-
-  /* ==================== 侧边栏语义 token（--sb-*）==================== */
-  /* 表面层级：灰底白卡，消除"白底白卡"层级模糊问题 */
-  --sb-surface: var(--color-bg-page);
-  --sb-card-bg: var(--color-bg-container);
-  --sb-card-border: color-mix(in srgb, #000 6%, transparent);
-  --sb-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.04);
-  --sb-card-shadow-hover: 0 3px 8px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
-  --sb-card-shadow-expanded: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
-  /* Tab 导航 */
-  --sb-tab-hover-bg: color-mix(in srgb, #000 5%, transparent);
-  --sb-tab-active-bg: color-mix(in srgb, var(--color-primary) 12%, transparent);
-  --sb-tab-active-text: var(--color-primary);
-  --sb-tab-indicator: var(--color-primary);
-  --sb-tab-badge-bg: color-mix(in srgb, var(--color-primary) 16%, transparent);
-  --sb-tab-badge-text: var(--color-primary);
-  --sb-divider: var(--color-border-secondary);
-}
-
-.dark {
-  --color-bg-page: #010409;
-  --color-bg-container: #161b22;
-  --color-bg-elevated: #1f2937;
-  --color-bg-canvas: #0d1117;
-  --color-bg-input: #0d1117;
-
-  --color-text-primary: #e6edf3;
-  --color-text-secondary: #8b949e;
-  --color-text-tertiary: #6e7681;
-  --color-text-quaternary: #484f58;
-
-  --color-border-primary: #30363d;
-  --color-border-secondary: #21262d;
-
-  --color-primary: #60a5fa;
-  --color-primary-hover: #93c5fd;
-  --color-primary-active: #bfdbfe;
-
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-error: #f87171;
-  --color-info: #60a5fa;
-
-  --color-tag-bg: #1e3a8a;
-  --color-tag-text: #dbeafe;
-  --color-mask: rgba(0, 0, 0, 0.75);
-  --button-primary-text: #ffffff;
-  --button-secondary-bg: #0d1117;
-
-  --primary-bg-color: #242424;
-  --main-bg-color: #191919;
-  --line-color: #2a2a2a;
-  --text-normal: rgba(255, 255, 255, 0.9);
-  --code-normal: #fbde2d;
-  --code-bg: transparent;
-  --box-shadow1: 0px 3px 3px 0 rgba(128, 128, 128, 0.3);
-  --box-shadow2: 0 4px 21px -12px rgba(0, 0, 0, 0.6);
-  --block-panel-active-bg: #1a1b1d;
-  --table-odd-bg: rgba(255, 255, 255, 0.05);
-  --table-border-color: #606770;
-  --card-bg-color: rgb(255 255 255 / 0.01);
-  --card-line-color: #3a3f44;
-  --scroller-track-background-color: rgba(255, 255, 255, 0.12);
-  --scroller-thumb-background-color: rgba(255, 255, 255, 0.24);
-  --normal-card-bg: #1d1f22;
-  --common-hover-bg: #222222;
-  --item-common-hover-bg: rgba(255, 255, 255, 0.08);
-  --normal-icon-bg: rgba(255, 255, 255, 0.1);
-  --active-bg-color: hsl(168, 80%, 10%);
-  --active-text-color: hsl(168, 50%, 70%);
-  --active-icon-bg: hsl(168, 80%, 20%);
-  --bullet-list-item-bg: hsl(168, 45%, 95%);
-  --bullet-list-item-shodow: 0 0 0 0.3em hsla(168, 90%, 85%, 0.55);
-  --selection-color: #182f3f;
-  --sidebar-background: transparent;
-  --shadow: 0 4px 5px rgba(200, 220, 255, 0.15), 0 8px 10px rgba(158, 178, 255, 0.1);
-
-  --bg-secondary: #242424;
-  --bg-tertiary: #2c2c2c;
-  --text-primary: rgba(255, 255, 255, 0.9);
-  --text-secondary: rgba(255, 255, 255, 0.6);
-  --ui-border: hsl(220, 10%, 22%);
-  --ui-outline: hsla(212, 100%, 62%, 0.35);
-
-  --color-hover-bg: rgba(255, 255, 255, 0.08);
-  --color-active-bg: rgba(255, 255, 255, 0.12);
-
-  /* ==================== 侧边栏语义 token（--sb-*）暗色 ==================== */
-  --sb-surface: var(--color-bg-page);
-  --sb-card-bg: var(--color-bg-container);
-  --sb-card-border: color-mix(in srgb, #fff 8%, transparent);
-  --sb-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --sb-card-shadow-hover: 0 3px 8px rgba(0, 0, 0, 0.4);
-  --sb-card-shadow-expanded: 0 4px 14px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --sb-tab-hover-bg: color-mix(in srgb, #fff 8%, transparent);
-  --sb-tab-active-bg: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  --sb-tab-active-text: var(--color-primary);
-  --sb-tab-indicator: var(--color-primary);
-  --sb-tab-badge-bg: color-mix(in srgb, var(--color-primary) 22%, transparent);
-  --sb-tab-badge-text: var(--color-primary);
-  --sb-divider: var(--color-border-secondary);
+  background: var(--tau-accent-soft);
 }
 
 .edit-text-with-placeholder[data-empty="true"][data-placeholder]::before {
@@ -280,7 +109,7 @@ code {
   position: absolute;
   left: 0;
   top: 0;
-  color: var(--placeholder-color, rgba(0, 0, 0, 0.35));
+  color: var(--placeholder-color, var(--tau-ink-3));
   pointer-events: none;
   white-space: pre-wrap;
   user-select: none;
@@ -293,15 +122,12 @@ code {
 }
 
 .tau-scrollbar::-webkit-scrollbar-track {
-  border-radius: 4px;
-  background: var(--scroller-track-background-color);
-  -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
+  background: transparent;
 }
 
 .tau-scrollbar::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: var(--scroller-thumb-background-color);
-  -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+  background: var(--tau-bg-press);
 }
 
 .tau-scrollbar::-webkit-scrollbar-corner {

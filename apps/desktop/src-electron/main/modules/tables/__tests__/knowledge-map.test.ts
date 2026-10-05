@@ -1,5 +1,5 @@
 /**
- * 知识地图表的 IO：建表用真实的 index.sql 产物，读写一轮验证契约。
+ * 知识地图表的 IO：主库与索引库都用真实的 main.sql / index.sql 产物建表，读写一轮验证契约。
  */
 
 import Database from "better-sqlite3";
@@ -7,27 +7,98 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { KnowledgeMap } from "@/knowledge-map/types";
-import KnowledgeMapTable, { KNOWLEDGE_MAP_FINGERPRINT_KEY } from "../knowledge-map";
+import { reindexContents } from "../../entity-context/ref-indexer";
+import KnowledgeMapTable, {
+  KNOWLEDGE_MAP_COMPUTED_AT_KEY,
+  KNOWLEDGE_MAP_FINGERPRINT_KEY,
+} from "../knowledge-map";
 
-const INDEX_SQL = readFileSync(
-  resolve(__dirname, "../../../../../../../packages/db-schema/schema/index.sql"),
-  "utf8"
-);
+const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
+const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
+const INDEX_SQL = readFileSync(resolve(SCHEMA_DIR, "index.sql"), "utf8");
 
 let mainDb: Database.Database;
 let indexDb: Database.Database;
+let clock = 1_000;
+
+const text = (t: string) => ({ type: "formatted", text: t });
+const p = (...children: unknown[]) => ({ type: "paragraph", children });
+const link = (contentType: string, refId: number, contentId?: number) => ({
+  type: "content-link",
+  contentType,
+  refId,
+  contentId,
+  contentTitle: "x",
+  children: [text("x")],
+});
+
+const content = (nodes: unknown[] = [p(text("正文"))], count = 2, updateTime = clock++) =>
+  Number(
+    mainDb
+      .prepare(
+        `INSERT INTO contents (create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, 1)`
+      )
+      .run(updateTime, updateTime, JSON.stringify(nodes), count).lastInsertRowid
+  );
+const card = (contentId: number, tags: string[] = [], links: number[] = [], updateTime = clock) =>
+  Number(
+    mainDb
+      .prepare(
+        `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(updateTime, updateTime, JSON.stringify(tags), JSON.stringify(links), contentId)
+      .lastInsertRowid
+  );
+const article = (contentId: number, tags: string[] = [], isDelete = 0) =>
+  Number(
+    mainDb
+      .prepare(
+        `INSERT INTO articles (create_time, update_time, title, author, tags, links, content_id, is_delete)
+         VALUES (?, ?, '文', '', ?, '[]', ?, ?)`
+      )
+      .run(clock, clock, JSON.stringify(tags), contentId, isDelete).lastInsertRowid
+  );
+const project = (title: string) =>
+  Number(
+    mainDb
+      .prepare(
+        `INSERT INTO project (create_time, update_time, title, children) VALUES (?, ?, ?, '[]')`
+      )
+      .run(clock, clock, title).lastInsertRowid
+  );
+const item = (
+  contentId: number,
+  options: {
+    title?: string;
+    projectId?: number;
+    parent?: number;
+    tags?: string[];
+    type?: string;
+    refType?: string;
+  } = {}
+) =>
+  Number(
+    mainDb
+      .prepare(
+        `INSERT INTO project_item (create_time, update_time, title, content_id, children, parents, projects, project_item_type, ref_type, tags)
+         VALUES (?, ?, ?, ?, '[]', ?, ?, ?, ?, ?)`
+      )
+      .run(
+        clock,
+        clock,
+        options.title ?? "文档",
+        contentId,
+        JSON.stringify(options.parent ? [options.parent] : []),
+        JSON.stringify(options.projectId ? [options.projectId] : []),
+        options.type ?? "document",
+        options.refType ?? null,
+        JSON.stringify(options.tags ?? [])
+      ).lastInsertRowid
+  );
 
 beforeEach(() => {
   mainDb = new Database(":memory:");
-  mainDb.exec(`
-    CREATE TABLE cards (
-      id INTEGER PRIMARY KEY, tags TEXT, links TEXT, content_id INTEGER,
-      update_time INTEGER NOT NULL DEFAULT 0
-    );
-    CREATE TABLE contents (
-      id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER NOT NULL DEFAULT 0
-    );
-  `);
+  mainDb.exec(MAIN_SQL);
   indexDb = new Database(":memory:");
   indexDb.exec(INDEX_SQL);
 });
@@ -40,8 +111,8 @@ afterEach(() => {
 const sample: KnowledgeMap = {
   computedAt: 1234,
   nodes: [
-    { cardId: 1, x: 1.5, y: -2, topic: 0, subtopic: 2 },
-    { cardId: 2, x: 10, y: 20, topic: 1, subtopic: -1 },
+    { key: "article:2", x: 10, y: 20, topic: 1, subtopic: -1 },
+    { key: "card:1", x: 1.5, y: -2, topic: 0, subtopic: 2 },
   ],
   topics: [
     { id: 0, parent: -1, label: "JavaScript", colorSlot: 3, size: 1 },
@@ -49,96 +120,69 @@ const sample: KnowledgeMap = {
     { id: 2, parent: 0, label: "Symbol", colorSlot: 3, size: 1 },
   ],
 };
+const sortedNodes = (map: KnowledgeMap) => [...map.nodes].sort((a, b) => (a.key < b.key ? -1 : 1));
 
-describe("KnowledgeMapTable", () => {
+describe("KnowledgeMapTable：读写", () => {
   it("没算过时 load 返回 null", () => {
     expect(KnowledgeMapTable.load(indexDb)).toBeNull();
   });
 
-  it("save 后 load 原样读回，并记下指纹", () => {
+  it("save 后 load 原样读回，并记下指纹；save 是整体替换", () => {
     KnowledgeMapTable.save(indexDb, sample, "fp-1");
     const loaded = KnowledgeMapTable.load(indexDb)!;
     expect(loaded.computedAt).toBe(1234);
-    expect(loaded.nodes.sort((a, b) => a.cardId - b.cardId)).toEqual(sample.nodes);
+    expect(sortedNodes(loaded)).toEqual(sample.nodes);
     expect(loaded.topics).toEqual(sample.topics);
     expect(KnowledgeMapTable.storedFingerprint(indexDb)).toBe("fp-1");
-  });
 
-  it("save 是整体替换，不残留旧地图的节点与主题", () => {
-    KnowledgeMapTable.save(indexDb, sample, "fp-1");
     KnowledgeMapTable.save(
       indexDb,
       {
         computedAt: 99,
-        nodes: [{ cardId: 7, x: 0, y: 0, topic: 0, subtopic: -1 }],
+        nodes: [{ key: "card:7", x: 0, y: 0, topic: 0, subtopic: -1 }],
         topics: [sample.topics[0]],
       },
       "fp-2"
     );
-    const loaded = KnowledgeMapTable.load(indexDb)!;
-    expect(loaded.nodes.map(n => n.cardId)).toEqual([7]);
-    expect(loaded.topics).toHaveLength(1);
-    expect(KnowledgeMapTable.storedFingerprint(indexDb)).toBe("fp-2");
+    expect(KnowledgeMapTable.load(indexDb)!.nodes.map(n => n.key)).toEqual(["card:7"]);
   });
 
   it("upsertNode 新增与覆盖，removeNode 删除", () => {
     KnowledgeMapTable.save(indexDb, sample, "fp");
-    KnowledgeMapTable.upsertNode(indexDb, { cardId: 3, x: 5, y: 5, topic: 0, subtopic: -1 });
-    KnowledgeMapTable.upsertNode(indexDb, { cardId: 1, x: 9, y: 9, topic: 1, subtopic: -1 });
-    KnowledgeMapTable.removeNode(indexDb, 2);
-    const byId = new Map(KnowledgeMapTable.load(indexDb)!.nodes.map(n => [n.cardId, n]));
-    expect([...byId.keys()].sort()).toEqual([1, 3]);
-    expect(byId.get(1)).toMatchObject({ x: 9, topic: 1 });
+    KnowledgeMapTable.upsertNode(indexDb, {
+      key: "project-item:3",
+      x: 5,
+      y: 5,
+      topic: 0,
+      subtopic: -1,
+    });
+    KnowledgeMapTable.upsertNode(indexDb, { key: "card:1", x: 9, y: 9, topic: 1, subtopic: -1 });
+    KnowledgeMapTable.removeNode(indexDb, "article:2");
+    const byKey = new Map(KnowledgeMapTable.load(indexDb)!.nodes.map(n => [n.key, n]));
+    expect([...byKey.keys()].sort()).toEqual(["card:1", "project-item:3"]);
+    expect(byKey.get("card:1")).toMatchObject({ x: 9, topic: 1 });
   });
 
-  it("driftCount 只数整体重算之后增量写入的节点", () => {
-    KnowledgeMapTable.save(indexDb, { ...sample, computedAt: Date.now() - 1000 }, "fp");
-    const computedAt = KnowledgeMapTable.load(indexDb)!.computedAt;
-    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(0);
-    KnowledgeMapTable.upsertNode(indexDb, { cardId: 3, x: 0, y: 0, topic: 0, subtopic: -1 });
-    KnowledgeMapTable.upsertNode(indexDb, { cardId: 4, x: 0, y: 0, topic: 0, subtopic: -1 });
-    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(2);
-  });
-
-  it("driftCount 也数重算之后编辑过的卡片，与增量放置按卡片去重", () => {
-    const computedAt = Date.now() - 1000;
-    KnowledgeMapTable.save(indexDb, { ...sample, computedAt }, "fp");
-    const insert = mainDb.prepare(
-      "INSERT INTO cards (id, tags, links, update_time) VALUES (?, '[]', '[]', ?)"
-    );
-    insert.run(1, computedAt - 5000); // 重算前改的：不算
-    insert.run(2, computedAt + 10); // 重算后编辑过
-    insert.run(3, computedAt + 20); // 新建且已增量放置：只算一次
-    KnowledgeMapTable.upsertNode(indexDb, { cardId: 3, x: 0, y: 0, topic: 0, subtopic: -1 });
-    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(2);
-  });
-
-  it("driftCount 把只改了正文（contents.update_time）的卡片也算作编辑过", () => {
-    const computedAt = Date.now() - 1000;
-    KnowledgeMapTable.save(indexDb, { ...sample, computedAt }, "fp");
-    mainDb
-      .prepare("INSERT INTO contents (id, content, update_time) VALUES (?, '[]', ?)")
-      .run(10, computedAt + 10); // 重算后改过正文
-    mainDb
-      .prepare("INSERT INTO contents (id, content, update_time) VALUES (?, '[]', ?)")
-      .run(11, computedAt - 5000); // 正文也是重算前改的
-    const insert = mainDb.prepare(
-      "INSERT INTO cards (id, tags, links, content_id, update_time) VALUES (?, '[]', '[]', ?, ?)"
-    );
-    insert.run(1, 10, computedAt - 5000); // 卡片元数据没动、正文动了：算
-    insert.run(2, 11, computedAt - 5000); // 两边都没动：不算
-    insert.run(3, null, computedAt - 5000); // 没有正文行：不算
-    expect(KnowledgeMapTable.driftCount(mainDb, indexDb, computedAt)).toBe(1);
+  it("旧版以 card_id 为主键的表被删除并清掉计算时间；新表不受影响", () => {
+    const legacy = new Database(":memory:");
+    legacy.exec(`
+      CREATE TABLE knowledge_map_nodes (card_id INTEGER PRIMARY KEY, x REAL, y REAL, topic INTEGER, subtopic INTEGER, update_time INTEGER);
+      CREATE TABLE knowledge_map_topics (id INTEGER PRIMARY KEY, parent INTEGER, label TEXT, color_slot INTEGER, size INTEGER);
+      CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT, updated_at INTEGER);
+      INSERT INTO index_meta VALUES ('${KNOWLEDGE_MAP_COMPUTED_AT_KEY}', '5', 0);
+    `);
+    KnowledgeMapTable.migrateLegacy(legacy);
+    legacy.exec(INDEX_SQL);
+    expect(KnowledgeMapTable.load(legacy)).toBeNull();
+    KnowledgeMapTable.save(legacy, sample, "fp");
+    KnowledgeMapTable.migrateLegacy(legacy);
+    expect(KnowledgeMapTable.load(legacy)!.nodes).toHaveLength(2);
+    legacy.close();
   });
 
   it("没有向量表时 hasVectors 为 false、neighborsOf 为空，不抛错", () => {
-    expect(KnowledgeMapTable.hasVectors(indexDb, 1)).toBe(false);
-    expect(KnowledgeMapTable.neighborsOf(indexDb, 1, 8)).toEqual([]);
-  });
-
-  it("cardIds 列出主库全部卡片", () => {
-    mainDb.exec("INSERT INTO cards (id) VALUES (5), (9)");
-    expect(KnowledgeMapTable.cardIds(mainDb).sort()).toEqual([5, 9]);
+    expect(KnowledgeMapTable.hasVectors(indexDb, "card:1")).toBe(false);
+    expect(KnowledgeMapTable.neighborsOf(indexDb, "card:1", 8)).toEqual([]);
   });
 
   it("readFingerprint 读 embedding 指纹，与地图自己的指纹分开存", () => {
@@ -148,23 +192,92 @@ describe("KnowledgeMapTable", () => {
     expect(KnowledgeMapTable.readFingerprint(indexDb)).toBe("model-a");
     expect(KNOWLEDGE_MAP_FINGERPRINT_KEY).not.toBe("main_content_embedding_fingerprint");
   });
+});
 
-  it("readInputs 合并 links 字段与正文里的内联卡片链接，解析坏 JSON 不抛错", () => {
-    mainDb.exec(`
-      INSERT INTO contents (id, content) VALUES
-        (10, '[{"type":"paragraph","children":[{"type":"content-link","contentType":"card","refId":2,"children":[]}]}]'),
-        (11, 'not json');
-      INSERT INTO cards (id, tags, links, content_id) VALUES
-        (1, '["JavaScript/Symbol"]', '[3]', 10),
-        (2, 'broken', NULL, 11),
-        (3, NULL, '[]', NULL);
-    `);
-    const { cards, chunks } = KnowledgeMapTable.readInputs(mainDb, indexDb);
-    const byId = new Map(cards.map(c => [c.id, c]));
-    expect(byId.get(1)!.links.sort()).toEqual([2, 3]);
-    expect(byId.get(1)!.tags).toEqual(["JavaScript/Symbol"]);
-    expect(byId.get(2)!.tags).toEqual([]);
+describe("KnowledgeMapTable.listEntities：节点范围与命名", () => {
+  it("卡片、未删文章、非引用型且有正文的项目文档；共用正文只出一个节点", () => {
+    const shared = content();
+    const cardId = card(shared, ["JavaScript/Symbol"]);
+    const pid = project("前端体系");
+    item(shared, { projectId: pid, refType: "card" }); // 引用型：不出
+    const articleId = article(content(), ["渲染"]);
+    article(content(), [], 1); // 软删：不出
+    const docId = item(content(), { projectId: pid, title: "浏览器" });
+    item(content([], 0), { projectId: pid }); // 空正文：不出
+    item(content(), { projectId: pid, type: "white-board" }); // 非文档：不出
+    const keys = KnowledgeMapTable.listEntities(mainDb).map(e => e.key);
+    expect(keys).toEqual([`article:${articleId}`, `card:${cardId}`, `project-item:${docId}`]);
+  });
+
+  it("项目文档有 tag 用 tag，没有则用「项目名 / 顶层文档」", () => {
+    const pid = project("前端体系");
+    const root = item(content(), { projectId: pid, title: "渲染" });
+    const child = item(content(), { projectId: pid, title: "重排", parent: root });
+    const grandchild = item(content(), { projectId: pid, title: "细节", parent: child });
+    const tagged = item(content(), { projectId: pid, tags: ["自己的标签"] });
+    const tags = new Map(KnowledgeMapTable.listEntities(mainDb).map(e => [e.key, e.tags]));
+    expect(tags.get(`project-item:${root}`)).toEqual(["前端体系/渲染"]);
+    expect(tags.get(`project-item:${child}`)).toEqual(["前端体系/渲染"]);
+    expect(tags.get(`project-item:${grandchild}`)).toEqual(["前端体系/渲染"]);
+    expect(tags.get(`project-item:${tagged}`)).toEqual(["自己的标签"]);
+  });
+
+  it("driftCount 数重算之后增量放置的与编辑过的节点（含只改了正文的），按键去重", () => {
+    const computedAt = 10_000;
+    KnowledgeMapTable.save(indexDb, { ...sample, computedAt }, "fp");
+    card(content(undefined, 2, computedAt - 500), [], [], computedAt - 500); // 都没动
+    card(content(undefined, 2, computedAt + 10), [], [], computedAt - 500); // 只改了正文
+    const fresh = card(content(undefined, 2, computedAt + 20), [], [], computedAt + 20); // 新建且已放置
+    KnowledgeMapTable.upsertNode(indexDb, {
+      key: `card:${fresh}`,
+      x: 0,
+      y: 0,
+      topic: 0,
+      subtopic: -1,
+    });
+    const entities = KnowledgeMapTable.listEntities(mainDb);
+    expect(KnowledgeMapTable.driftCount(entities, indexDb, computedAt)).toBe(2);
+  });
+});
+
+describe("KnowledgeMapTable.readInputs", () => {
+  it("显式链接与跨类型的内联引用都成为边；下标按键排序，坏 JSON 不抛错", () => {
+    const targetContent = content();
+    const target = card(targetContent, ["甲"]);
+    const other = card(content(), [], []);
+    const linking = card(content(), ["乙"], [target, 999]);
+    const articleContent = content([p(link("card", target, targetContent))]);
+    const articleId = article(articleContent);
+    const pid = project("项目");
+    const docContent = content([p(link("article", articleId))]);
+    const docId = item(docContent, { projectId: pid });
+    mainDb.prepare("UPDATE cards SET tags = 'broken' WHERE id = ?").run(other);
+    reindexContents(mainDb, indexDb, [articleContent, docContent]);
+
+    const { nodes, chunks } = KnowledgeMapTable.readInputs(mainDb, indexDb);
+    const byKey = new Map(nodes.map(n => [n.key, n]));
+    const index = (key: string) => byKey.get(key)!.id;
+    expect(nodes.map(n => n.id)).toEqual(nodes.map((_, i) => i));
+    expect(byKey.get(`card:${linking}`)!.links).toEqual([index(`card:${target}`)]);
+    expect(byKey.get(`article:${articleId}`)!.links).toEqual([index(`card:${target}`)]);
+    expect(byKey.get(`project-item:${docId}`)!.links).toEqual([index(`article:${articleId}`)]);
+    expect(byKey.get(`card:${other}`)!.tags).toEqual([]);
     // 没有 vec_documents 表（未配置 embedding）时不抛错、没有向量
     expect(chunks).toEqual([]);
+  });
+
+  it("项目文档连到最近的、在地图上的祖先，跨过空文档", () => {
+    const pid = project("Docker");
+    const root = item(content(), { projectId: pid, title: "Docker" });
+    const empty = item(content([], 0), { projectId: pid, title: "空章节", parent: root });
+    const leaf = item(content(), { projectId: pid, title: "镜像", parent: empty });
+    const child = item(content(), { projectId: pid, title: "容器", parent: root });
+    const { nodes } = KnowledgeMapTable.readInputs(mainDb, indexDb);
+    const byKey = new Map(nodes.map(n => [n.key, n]));
+    const rootIndex = byKey.get(`project-item:${root}`)!.id;
+    expect(byKey.has(`project-item:${empty}`)).toBe(false);
+    expect(byKey.get(`project-item:${leaf}`)!.links).toEqual([rootIndex]);
+    expect(byKey.get(`project-item:${child}`)!.links).toEqual([rootIndex]);
+    expect(byKey.get(`project-item:${root}`)!.links).toEqual([]);
   });
 });

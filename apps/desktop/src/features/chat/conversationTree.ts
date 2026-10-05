@@ -36,6 +36,29 @@ export interface ConversationTreeSummary {
   forkPoints: Set<string>;
 }
 
+export function conversationEntryTail(nodes: ConversationTreeNode[], entry: string): string | null {
+  const root = nodes.find(node => node.id === entry && !node.omitted);
+  if (!root) return null;
+  const children = new Map<string, ConversationTreeNode[]>();
+  for (const node of nodes) {
+    if (!node.parentId) continue;
+    const siblings = children.get(node.parentId) ?? [];
+    siblings.push(node);
+    children.set(node.parentId, siblings);
+  }
+  let tail = root;
+  const pending = [root],
+    seen = new Set<string>();
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (seen.has(current.id)) continue;
+    seen.add(current.id);
+    if (!current.omitted && current.time >= tail.time) tail = current;
+    pending.push(...(children.get(current.id) ?? []));
+  }
+  return tail.id;
+}
+
 export function layoutConversationTree(nodes: ConversationTreeNode[]): ConversationTreeSummary {
   const children = new Map<string | null, ConversationTreeNode[]>();
   for (const node of nodes) {

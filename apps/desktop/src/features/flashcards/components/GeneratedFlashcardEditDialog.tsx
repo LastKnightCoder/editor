@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import type { Descendant } from "slate";
 import { CreditCard, Trash2 } from "lucide-react";
-import { Button, Checkbox, Dialog, DialogBody, Input, Radio, Tag, Textarea } from "@tau/ui";
+import { Button, Checkbox, Dialog, DialogBody, Input, Radio, Textarea } from "@tau/ui";
+import AddTag from "@/components/AddTag";
 import RichTextEditor from "@/components/FlashcardEditor/components/RichTextEditor";
 import type { GeneratedFlashcard } from "../hooks/useFlashcardGeneration";
 import { FLASHCARD_TYPE_META, textToDescendants } from "@/utils/flashcard";
@@ -41,7 +42,6 @@ const GeneratedFlashcardEditModal = ({
   const [type, setType] = useState<FlashcardType>("qa");
   const [difficulty, setDifficulty] = useState<FlashcardDifficulty>("standard");
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState("");
   const [cardData, setCardData] = useState<FlashcardData>({});
   // 跟踪当前已初始化的 card id，用于判断是否需要等待 state 同步
   const [initializedCardId, setInitializedCardId] = useState<string | null>(null);
@@ -354,28 +354,11 @@ const GeneratedFlashcardEditModal = ({
             {/* Tags */}
             <div className="flex flex-col gap-1.5">
               <label className={FIELD_LABEL}>标签</label>
-              {tags.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-2">
-                  {tags.map(tag => (
-                    <Tag key={tag} onRemove={() => setTags(tags.filter(t => t !== tag))}>
-                      {tag}
-                    </Tag>
-                  ))}
-                </div>
-              )}
-              <Input
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && tagInput.trim()) {
-                    e.preventDefault();
-                    if (!tags.includes(tagInput.trim())) {
-                      setTags([...tags, tagInput.trim()]);
-                    }
-                    setTagInput("");
-                  }
-                }}
-                placeholder="输入标签后按回车添加"
+              <AddTag
+                tags={tags}
+                addTag={tag => setTags([...tags, tag])}
+                removeTag={tag => setTags(tags.filter(t => t !== tag))}
+                editTag={(oldTag, newTag) => setTags(tags.map(t => (t === oldTag ? newTag : t)))}
               />
             </div>
           </div>

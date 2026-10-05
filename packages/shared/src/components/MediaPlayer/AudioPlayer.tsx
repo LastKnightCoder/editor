@@ -1,8 +1,9 @@
-import React, { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, cn } from "@tau/ui";
 import { ChevronDown, CircleAlert } from "lucide-react";
 import ProgressBar from "./ProgressBar";
 import Waveform from "./Waveform";
+import type { WaveformSegment } from "./waveformSegments";
 import { formatTime } from "./formatTime";
 import { useMediaController } from "./useMediaController";
 import { useAudioPeaks } from "./useAudioPeaks";
@@ -16,6 +17,13 @@ import {
   TimeCode,
   VolumeControl,
 } from "./MediaControls";
+
+export interface AudioPlayerFooterContext {
+  currentTime: number;
+  playing: boolean;
+  /** 跳到指定秒数并开始播放 */
+  playFrom: (time: number) => void;
+}
 
 export interface AudioPlayerProps extends React.AudioHTMLAttributes<HTMLAudioElement> {
   /** 卡片标题，默认从 src 提取文件名 */
@@ -34,6 +42,14 @@ export interface AudioPlayerProps extends React.AudioHTMLAttributes<HTMLAudioEle
   playbackRate?: number;
   /** 用户经菜单或快捷键改了倍速时回调 */
   onPlaybackRateChange?: (rate: number) => void;
+  /** 已知时长（秒）：元数据就绪前先显示，避免流式加载时一直是 --:-- */
+  durationHint?: number;
+  /** 波形分段着色（秒为单位），如播客按说话人 */
+  segments?: { start: number; end: number; tone: WaveformSegment["tone"] }[];
+  /** 标题行末尾的附加操作（如 ⋯ 菜单） */
+  actions?: React.ReactNode;
+  /** 波形行下方的附加内容，拿到播放进度（如逐句脚本） */
+  footer?: (context: AudioPlayerFooterContext) => React.ReactNode;
 }
 
 /** 1 分钟以内的短音频不记忆播放位置 */
@@ -82,6 +98,10 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
       loadWaveformData,
       playbackRate,
       onPlaybackRateChange,
+      durationHint,
+      segments,
+      actions,
+      footer,
       className,
       style,
       // 自定义控件始终接管，忽略原生 controls
@@ -213,7 +233,28 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     const loading = !src;
     const failed = errorCode != null;
     const title = label || deriveLabel(src ?? "");
-    const durationText = duration > 0 ? formatTime(duration) : "--:--";
+    const knownDuration = duration > 0 ? duration : (durationHint ?? 0);
+    const durationText = knownDuration > 0 ? formatTime(knownDuration) : "--:--";
+    const waveformSegments = useMemo(
+      () =>
+        duration > 0 && segments?.length
+          ? segments.map(segment => ({
+              start: segment.start / duration,
+              end: segment.end / duration,
+              tone: segment.tone,
+            }))
+          : undefined,
+      [duration, segments]
+    );
+    const dismissResume = resume.dismiss;
+    const playFrom = useCallback(
+      (time: number) => {
+        seek(time);
+        dismissResume();
+        void audioRef.current?.play().catch(() => undefined);
+      },
+      [seek, dismissResume]
+    );
 
     const metaLine = failed ? (
       <span className="text-danger truncate">
@@ -224,8 +265,8 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     ) : (
       <span className="flex min-w-0 items-center gap-1 truncate">
         {info && <span className="truncate">{info}</span>}
-        {info && duration > 0 && <span aria-hidden>·</span>}
-        {duration > 0 && <span className="shrink-0 tabular-nums">{durationText}</span>}
+        {info && knownDuration > 0 && <span aria-hidden>·</span>}
+        {knownDuration > 0 && <span className="shrink-0 tabular-nums">{durationText}</span>}
       </span>
     );
 
@@ -309,6 +350,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
               />
             </>
           )}
+          {actions}
         </div>
 
         {/* 波形行：30 分钟以内画真实波形，否则（或数据未就绪）退回进度线，行高固定不跳 */}
@@ -320,7 +362,12 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
               </span>
             </TimeCode>
             {peaks ? (
-              <Waveform peaks={peaks} className="flex-1" {...scrubProps} />
+              <Waveform
+                peaks={peaks}
+                segments={waveformSegments}
+                className="flex-1"
+                {...scrubProps}
+              />
             ) : (
               <ProgressBar
                 tone="surface"
@@ -338,6 +385,8 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
             {sourceText}
           </div>
         )}
+
+        {!failed && footer?.({ currentTime, playing, playFrom })}
 
         <MediaOsd osd={osd} />
 

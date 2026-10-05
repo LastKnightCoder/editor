@@ -142,9 +142,9 @@ export function useAudioPeaks({ src, duration, cacheKey, loadData }: AudioPeaksO
     return () => {
       cancelled = true;
     };
-    // loadData 由宿主每次渲染新建，按 key 判定是否需要重算
+    // loadData 由宿主每次渲染新建，按 key 判定是否需要重算；取数方式从无到有（如后台缓存完成）时重试一次
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eligible, key, src]);
+  }, [eligible, key, src, !!loadData]);
 
   return eligible ? peaks : null;
 }

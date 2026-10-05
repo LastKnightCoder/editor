@@ -23,6 +23,9 @@ import {
   type SwatchLook,
   type SwatchOption,
 } from "@/components/WhiteBoard/chrome";
+import { useSketch } from "@/components/WhiteBoard/hooks";
+import { handTextClass } from "@/components/WhiteBoard/utils/sketch";
+import SketchPopover from "../SketchPopover";
 
 interface RichTextSetterProps {
   element: RichTextElement;
@@ -75,6 +78,7 @@ const STYLE_GROUPS = [
 const RichTextSetter = (props: RichTextSetterProps) => {
   const { element, onChange } = props;
   const current = resolveTextStyle(element);
+  const textClassName = handTextClass(useSketch(element));
 
   const handleStyleChange = useMemoizedFn((key: string) => {
     const next = parseKey(key);
@@ -100,7 +104,9 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         element.id,
         element.content,
         element.width,
-        getTextBoxPadding(current)
+        getTextBoxPadding(current),
+        element.contentId,
+        textClassName
       )
     );
     const newElement = produce(element, draft => {
@@ -112,20 +118,35 @@ const RichTextSetter = (props: RichTextSetterProps) => {
   });
 
   const handleFitWidth = useMemoizedFn(async () => {
+    const padding = getTextBoxPadding(current);
     // 离屏测量文字真实自然宽度，避免在屏测量被父容器/旧 maxWidth 封顶
     const naturalWidth = await DOMSizeMeasurer.measureRichTextWidth(
       element.id,
       element.content,
-      getTextBoxPadding(current),
-      element.contentId
+      padding,
+      element.contentId,
+      textClassName
+    );
+    // 测量端已 Math.ceil，仅 +2 防亚像素/fit-content 收缩抖动，不设 300 下限以真正收缩
+    const targetWidth = naturalWidth + 2;
+    // 非编辑态编辑器尺寸变化不回写元素，宽度变了高度需在这里一并重算
+    const contentHeight = Math.ceil(
+      await DOMSizeMeasurer.measureRichTextHeight(
+        element.id,
+        element.content,
+        targetWidth,
+        padding,
+        element.contentId,
+        textClassName
+      )
     );
 
     const newElement = produce(element, draft => {
-      // 测量端已 Math.ceil，仅 +2 防亚像素/fit-content 收缩抖动，不设 300 下限以真正收缩；
       // width 与 maxWidth 取相同值，使聚焦/非聚焦 foreignObject 宽度一致，
       // 消除非聚焦时 fit-content 被父容器恰好封顶在文字自然宽度而导致的换行
-      const targetWidth = naturalWidth + 2;
       draft.width = targetWidth;
+      draft.height = contentHeight;
+      draft.maxHeight = Math.max(draft.maxHeight, contentHeight);
       draft.maxWidth = targetWidth;
       // 回到自适应模式：编辑器用 fit-content + auto 高度自然展开，高度随宽度变化跟随
       draft.resized = false;
@@ -152,6 +173,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         icon={<FoldHorizontal strokeWidth={1.75} />}
         onClick={handleFitWidth}
       />
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 };

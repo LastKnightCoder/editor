@@ -4,18 +4,23 @@
  * 打开时先显示缓存，已连接则后台拉最新笔记并回写缓存。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Highlighter, PanelLeft } from "lucide-react";
 import { IconButton, Loading, Tooltip, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { openExternal } from "@/commands/extra";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
+import { scrollToAndFlash } from "@/utils/flash-element";
+import { findExcerptByExternal } from "@/commands/excerpt";
+import { convertMaterialToCard } from "@/services/material-to-card";
+import { requestMaterialQuestionCapture } from "@/services/question-capture";
 import {
   buildBookNotes,
   countNotes,
   filterNotes,
   notesToMarkdown,
   toBook,
+  type BookNote,
   type HighlightColor,
   type NoteFilter,
 } from "../model";
@@ -33,7 +38,7 @@ const PAGE_KEY = "weread-book";
 
 export function WeReadBookView() {
   const { navigator } = usePage();
-  const { bookId } = usePageParams<{ bookId: string }>();
+  const { bookId, bookmark } = usePageParams<{ bookId: string; bookmark?: string }>();
   const connected = useWeReadConnection() === "valid";
   const { detail, loading, refreshing, refresh } = useWeReadBook(bookId);
   const tocOpen = useWeReadPrefs(s => s.tocOpen);
@@ -102,6 +107,53 @@ export function WeReadBookView() {
     scrollEl.addEventListener("scroll", update, { passive: true });
     return () => scrollEl.removeEventListener("scroll", update);
   }, [scrollEl, chapters]);
+
+  // 摘录打开到原处：清掉筛选，等笔记渲染后滚到那一条（每个 bookmark 只定位一次）；找不到就停在书首
+  const pendingBookmark = useRef<string | null>(null);
+  useEffect(() => {
+    pendingBookmark.current = bookmark ?? null;
+    if (bookmark) setFilter("all");
+  }, [bookmark]);
+  useEffect(() => {
+    const target = pendingBookmark.current;
+    if (!target || !scrollEl || filter !== "all") return;
+    const el = scrollEl.querySelector(`[data-note-id="${CSS.escape(target)}"]`);
+    if (!el) return;
+    pendingBookmark.current = null;
+    scrollToAndFlash(el);
+  }, [scrollEl, chapters, filter]);
+
+  // 单书页的条目 id 是 bookmarkId（划线）或 reviewId（只有想法），对应摘录的两种外部 id
+  const findExcerpt = useCallback(
+    async (note: BookNote) => {
+      const excerpt = await findExcerptByExternal("weread", [
+        `${bookId}:${note.id}`,
+        `${bookId}:review:${note.id}`,
+      ]);
+      if (!excerpt) toast.error("这条划线还没有同步为摘录，请稍后重试");
+      return excerpt;
+    },
+    [bookId]
+  );
+
+  const toCard = useCallback(
+    async (note: BookNote) => {
+      const excerpt = await findExcerpt(note);
+      if (excerpt) await convertMaterialToCard({ kind: "excerpt", id: excerpt.id });
+    },
+    [findExcerpt]
+  );
+
+  const toQuestion = useCallback(
+    async (note: BookNote) => {
+      const excerpt = await findExcerpt(note);
+      if (!excerpt) return;
+      await requestMaterialQuestionCapture({ kind: "excerpt", id: excerpt.id }).catch(() =>
+        toast.error("这条划线已不存在")
+      );
+    },
+    [findExcerpt]
+  );
 
   const jump = useCallback(
     (key: string) => {
@@ -186,6 +238,8 @@ export function WeReadBookView() {
                     key={chapter.key}
                     chapter={chapter}
                     index={notes.chapters.findIndex(c => c.key === chapter.key)}
+                    onToCard={toCard}
+                    onToQuestion={toQuestion}
                   />
                 ))}
               </>

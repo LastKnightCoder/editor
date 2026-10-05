@@ -45,6 +45,9 @@ import { GroupDot, TodoCheck, TypeIcon } from "./TodoBits";
 
 export type AgendaMode = "date" | "group";
 
+/** 按项目分段的已完成列表每次展开的条数（折叠时行也挂载，不一次渲染全量） */
+const DONE_PAGE = 20;
+
 /** 让位动画：短促、无回弹（生产力工具不要弹簧晃动） */
 export const LAYOUT_TRANSITION: Transition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
 
@@ -102,6 +105,7 @@ export function AgendaPanel({
   renderMenu(entry: TodoEntry): ReactNode;
 }) {
   const [foldOpen, setFoldOpen] = useState<Set<string>>(() => new Set());
+  const [doneShown, setDoneShown] = useState<Record<string, number>>({});
 
   const sections = useMemo<Section[]>(() => {
     const byTime = (a: TodoEntry, b: TodoEntry) =>
@@ -142,8 +146,7 @@ export function AgendaPanel({
           open: own.filter(e => isOpen(e, now)).sort((a, b) => a.sortIndex - b.sortIndex),
           done: own
             .filter(e => e.type !== "recurring" && e.isCompleted)
-            .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
-            .slice(0, 20),
+            .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)),
         };
       })
       .filter(s => s.open.length || s.done.length || groups.length <= 1);
@@ -194,6 +197,8 @@ export function AgendaPanel({
         const nowLineAt =
           section.bucket === "today" ? section.open.findIndex(e => sortKey(e, now) > now) : -1;
         const isFoldOpen = foldOpen.has(section.key);
+        const shownDone = section.done.slice(0, doneShown[section.key] ?? DONE_PAGE);
+        const hiddenDone = section.done.length - shownDone.length;
         // 时间槽列只在按日期的带日期段出现（列宽按模式固定，不随数据跳动）；
         // 按项目时时间进元信息行，无日期段本就无时间可显示
         const noSlot = mode === "group" || section.bucket === "none";
@@ -270,7 +275,24 @@ export function AgendaPanel({
                     )}
                   >
                     <div className="overflow-hidden">
-                      {section.done.map(entry => row(entry, section.bucket, noSlot))}
+                      {shownDone.map(entry => row(entry, section.bucket, noSlot))}
+                      {hiddenDone > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDoneShown(prev => ({
+                              ...prev,
+                              [section.key]: shownDone.length + DONE_PAGE,
+                            }))
+                          }
+                          className={cn(
+                            "text-ink-3 hover:text-ink-2 py-1.5 pr-3.5 text-[11.5px]",
+                            noSlot ? "pl-5" : "pl-3.5"
+                          )}
+                        >
+                          再显示 {Math.min(hiddenDone, DONE_PAGE)} 条（共 {section.done.length}）
+                        </button>
+                      )}
                     </div>
                   </div>
                 </>

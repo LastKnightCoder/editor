@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo } from "react";
-import { toast } from "@tau/ui";
+import { memo, useCallback, useMemo, useState } from "react";
+import { ImagePreview, toast } from "@tau/ui";
 import {
   buildLegacyAssistantDisplayBlocks,
   type ChatMessageType,
@@ -8,15 +8,16 @@ import {
   type ToolCallExecutionState,
 } from "@tau/shared";
 import {
-  ChatMessageView,
-  type ChatMessageViewFile,
-  type ChatMessageViewImage,
-  type ChatMessageViewMarkdownRenderParams,
   ChatMarkdownRenderer,
-  ChatToolCallDisplay,
+  MessageView,
+  ToolCallBlock,
   type CodeBlockPreviewPayload,
+  type MessageMarkdownParams,
+  type MessageViewFile,
+  type MessageViewImage,
 } from "@tau/chat-ui";
 import type WebSocketClient from "../../utils/WebSocketClient";
+import RpcLocalImage from "../RpcLocalImage";
 
 export type { ChatMessageType };
 export type { ToolCallExecutionState, ContentBlock } from "@tau/shared";
@@ -31,8 +32,6 @@ interface ChatMessageProps {
   onCreateBranch?: (messageIndex: number) => void;
   /** 切到这条用户消息的第 versionIndex 个版本（会话树，M4-d） */
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
-  onCopySuccess?: () => void;
-  onCopyError?: () => void;
   onDeleteConfirm?: () => Promise<boolean>;
 }
 
@@ -65,7 +64,7 @@ const getUserText = (message: LocalChatMessage) => {
     .join("\n");
 };
 
-const getUserImages = (message: LocalChatMessage): ChatMessageViewImage[] => {
+const getUserImages = (message: LocalChatMessage): MessageViewImage[] => {
   if (!message.requestContent?.length) {
     return [];
   }
@@ -77,7 +76,7 @@ const getUserImages = (message: LocalChatMessage): ChatMessageViewImage[] => {
     }));
 };
 
-const getUserFiles = (message: LocalChatMessage): ChatMessageViewFile[] => {
+const getUserFiles = (message: LocalChatMessage): MessageViewFile[] => {
   if (!message.requestContent?.length) {
     return [];
   }
@@ -98,10 +97,9 @@ export function ChatMessage({
   onRegenerateMessage,
   onCreateBranch,
   onSwitchVersion,
-  onCopySuccess,
-  onCopyError,
   onDeleteConfirm,
 }: ChatMessageProps) {
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const localMessage = message as LocalChatMessage;
   const isUser = message.role === "user";
   const userText = getUserText(localMessage);
@@ -160,7 +158,7 @@ export function ChatMessage({
   );
 
   const openFileInFolder = useCallback(
-    async (file: ChatMessageViewFile) => {
+    async (file: MessageViewFile) => {
       if (!wsClient?.isConnected) {
         toast.warning("桌面端未连接，无法打开文件位置");
         return;
@@ -190,7 +188,7 @@ export function ChatMessage({
   );
 
   const renderMarkdown = useCallback(
-    ({ content }: ChatMessageViewMarkdownRenderParams) => (
+    ({ content }: MessageMarkdownParams) => (
       <ChatMarkdownRenderer
         content={content}
         isDark={isDark}
@@ -198,42 +196,59 @@ export function ChatMessage({
         onReferenceClick={handleReferenceClick}
         onLinkClick={handleLinkClick}
         onPreviewCodeBlock={handlePreviewCodeBlock}
-        messageApi={toast}
       />
     ),
     [handleLinkClick, handlePreviewCodeBlock, handleReferenceClick, isDark, wsClient?.isConnected]
   );
 
   return (
-    <ChatMessageView
-      role={isUser ? "user" : "assistant"}
-      messageIndex={messageIndex}
-      isDark={isDark}
-      userText={userText}
-      images={userImages}
-      files={userFiles}
-      assistantBlocks={assistantDisplayBlocks}
-      onDelete={handleDelete}
-      onRegenerate={onRegenerateMessage}
-      onCreateBranch={onCreateBranch}
-      {...(isUser && message.piVersions
-        ? {
-            versions: { index: message.piVersions.index, count: message.piVersions.ids.length },
-          }
-        : {})}
-      onSwitchVersion={onSwitchVersion}
-      onOpenFile={openFileInFolder}
-      onCopySuccess={onCopySuccess}
-      onCopyError={onCopyError}
-      renderMarkdown={renderMarkdown}
-      renderToolCall={(execution, index) => (
-        <ChatToolCallDisplay
-          key={execution.toolCallId || index}
-          execution={execution}
-          isDark={isDark}
+    <>
+      <MessageView
+        role={isUser ? "user" : "assistant"}
+        messageIndex={messageIndex}
+        userText={userText}
+        images={userImages}
+        files={userFiles}
+        assistantBlocks={assistantDisplayBlocks}
+        onDelete={handleDelete}
+        onRegenerate={onRegenerateMessage}
+        onCreateBranch={onCreateBranch}
+        {...(isUser && message.piVersions
+          ? {
+              versions: { index: message.piVersions.index, count: message.piVersions.ids.length },
+            }
+          : {})}
+        onSwitchVersion={onSwitchVersion}
+        onOpenFile={openFileInFolder}
+        renderMarkdown={renderMarkdown}
+        renderImage={(image, index, className) => (
+          <RpcLocalImage
+            key={`${image.url}-${index}`}
+            url={image.url}
+            alt={image.alt}
+            wsClient={wsClient ?? null}
+            className={className}
+            onClick={() => setPreviewIndex(index)}
+          />
+        )}
+        renderToolCall={(execution, index) => (
+          <ToolCallBlock
+            key={execution.toolCallId || index}
+            execution={execution}
+            isDark={isDark}
+          />
+        )}
+      />
+      {userImages.length > 0 && (
+        <ImagePreview
+          images={userImages.map(image => ({ src: image.url, alt: image.alt }))}
+          index={previewIndex ?? 0}
+          onIndexChange={setPreviewIndex}
+          open={previewIndex !== null}
+          onOpenChange={open => !open && setPreviewIndex(null)}
         />
       )}
-    />
+    </>
   );
 }
 

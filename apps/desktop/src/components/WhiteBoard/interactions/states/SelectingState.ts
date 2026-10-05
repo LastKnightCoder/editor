@@ -53,24 +53,12 @@ export class SelectingState implements InteractionState {
     if (!startPoint) return null;
 
     const state = new SelectingState();
-    state.hitElements = BoardUtil.getHitElements(
-      board,
-      startPoint.x,
-      startPoint.y,
-    );
+    state.hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
     state.startPoint = startPoint;
-    const selectedElements = expandSelectionByGroup(
-      board,
-      board.selection.selectedElements,
-    );
+    const selectedElements = expandSelectionByGroup(board, board.selection.selectedElements);
     const isHitSelectedGroupBounds =
       state.hitElements.length === 0 &&
-      isPointInAnySelectedGroupBounds(
-        board,
-        selectedElements,
-        startPoint.x,
-        startPoint.y,
-      );
+      isPointInAnySelectedGroupBounds(board, selectedElements, startPoint.x, startPoint.y);
     state.hitSelectedGroupBounds = isHitSelectedGroupBounds;
 
     SelectTransforms.updateSelectArea(board, {
@@ -122,26 +110,20 @@ export class SelectingState implements InteractionState {
         const clickedGroupId = getElementGroupId(clickedElement);
         if (clickedGroupId) {
           const groupMembers = collectGroupMembers(board, clickedGroupId);
-          const selectedIds = new Set(selectedElements.map((el) => el.id));
-          const isFullGroupSelected = groupMembers.every((member) =>
-            selectedIds.has(member.id),
-          );
+          const selectedIds = new Set(selectedElements.map(el => el.id));
+          const isFullGroupSelected = groupMembers.every(member => selectedIds.has(member.id));
 
           if (isFullGroupSelected) {
-            const groupMemberIds = new Set(groupMembers.map((el) => el.id));
-            selectedElements = selectedElements.filter(
-              (el) => !groupMemberIds.has(el.id),
-            );
+            const groupMemberIds = new Set(groupMembers.map(el => el.id));
+            selectedElements = selectedElements.filter(el => !groupMemberIds.has(el.id));
           } else {
             const merged = new Map<string, BoardElement>();
-            selectedElements.forEach((el) => merged.set(el.id, el));
-            groupMembers.forEach((el) => merged.set(el.id, el));
+            selectedElements.forEach(el => merged.set(el.id, el));
+            groupMembers.forEach(el => merged.set(el.id, el));
             selectedElements = Array.from(merged.values());
           }
         } else {
-          const existingIndex = selectedElements.findIndex(
-            (el) => el.id === clickedElement.id,
-          );
+          const existingIndex = selectedElements.findIndex(el => el.id === clickedElement.id);
 
           if (existingIndex >= 0) {
             selectedElements = [
@@ -166,8 +148,7 @@ export class SelectingState implements InteractionState {
       selectedElements,
     });
 
-    // 确保参考线被清除
-    board.clearRefLines();
+    board.snap.end();
 
     this.isFinished = true;
   }
@@ -186,34 +167,21 @@ export class SelectingState implements InteractionState {
 
     if (
       !this.moved &&
-      Math.hypot(
-        endPoint.x - this.startPoint.x,
-        endPoint.y - this.startPoint.y,
-      ) > 5
+      Math.hypot(endPoint.x - this.startPoint.x, endPoint.y - this.startPoint.y) > 5
     ) {
       this.moved = true;
     }
 
-    if (
-      (this.hitElements && this.hitElements.length > 0) ||
-      this.hitSelectedGroupBounds
-    )
-      return;
+    if ((this.hitElements && this.hitElements.length > 0) || this.hitSelectedGroupBounds) return;
 
     const selectArea = {
       anchor: this.startPoint,
       focus: endPoint,
     };
 
-    const selectedElements = BoardUtil.getElementsInSelectArea(
-      board,
-      selectArea,
-    );
+    const selectedElements = BoardUtil.getElementsInSelectArea(board, selectArea);
 
-    const expandedSelectedElements = expandSelectionByGroup(
-      board,
-      selectedElements,
-    );
+    const expandedSelectedElements = expandSelectionByGroup(board, selectedElements);
 
     SelectTransforms.updateSelectArea(board, {
       selectArea,

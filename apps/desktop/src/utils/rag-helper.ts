@@ -26,6 +26,9 @@ export function getTypeDisplayName(type: string): string {
     article: "文章",
     "project-item": "项目条目",
     "diary-daily": "日记",
+    excerpt: "划线",
+    "pdf-annotation": "PDF 标注",
+    "web-clip": "剪藏",
   };
   return typeMap[type] || type;
 }

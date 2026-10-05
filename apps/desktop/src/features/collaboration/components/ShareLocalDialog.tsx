@@ -19,21 +19,25 @@ import type { CollaborationSession, SourceType } from "@tau/collaboration";
 import { createSharedContent } from "@/commands";
 import { InvitationCode } from "@/components/CollaborationUI";
 import { clampText, richTextPlainText } from "@/utils/richTextText";
-import type { IndexType, SearchResult } from "@/types";
+import type { ContentIndexType, SearchResult } from "@/types";
 import { useShareCandidates } from "../queries";
 
-const TYPE_META: Record<IndexType, { label: string; icon: LucideIcon; source: SourceType }> = {
-  article: { label: "文章", icon: FileText, source: "article" },
-  card: { label: "卡片", icon: Layers, source: "card" },
-  "project-item": { label: "项目文档", icon: FolderKanban, source: "project-item" },
-  // 日记没有独立的来源类型，按通用内容共享
-  "diary-daily": { label: "日记", icon: PenLine, source: "content" },
-};
+const TYPE_META: Record<ContentIndexType, { label: string; icon: LucideIcon; source: SourceType }> =
+  {
+    article: { label: "文章", icon: FileText, source: "article" },
+    card: { label: "卡片", icon: Layers, source: "card" },
+    "project-item": { label: "项目文档", icon: FolderKanban, source: "project-item" },
+    // 日记没有独立的来源类型，按通用内容共享
+    "diary-daily": { label: "日记", icon: PenLine, source: "content" },
+  };
+
+/** 候选只检索 SHAREABLE_TYPES（正文实体），不会出现外部材料 */
+const metaOf = (item: SearchResult) => TYPE_META[item.type as ContentIndexType];
 
 const titleOf = (item: SearchResult) =>
   item.title?.trim() ||
   clampText(richTextPlainText(item.content), 40) ||
-  `${TYPE_META[item.type].label} #${item.contentId}`;
+  `${metaOf(item).label} #${item.contentId}`;
 
 type Phase =
   { kind: "pick" } | { kind: "sharing"; title: string } | { kind: "done"; documentId: string };
@@ -51,7 +55,7 @@ export function ShareLocalDialog({
   onShared: (documentId: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<IndexType | "all">("all");
+  const [type, setType] = useState<ContentIndexType | "all">("all");
   const [phase, setPhase] = useState<Phase>({ kind: "pick" });
   const [error, setError] = useState<string>();
   const keyword = useDebounce(query, { wait: 250 });
@@ -67,7 +71,7 @@ export function ShareLocalDialog({
     phase.kind === "done" ? sessions.find(session => session.id === phase.documentId) : undefined;
 
   const share = async (item: SearchResult) => {
-    const meta = TYPE_META[item.type];
+    const meta = metaOf(item);
     const title = titleOf(item);
     setError(undefined);
     setPhase({ kind: "sharing", title });
@@ -138,7 +142,7 @@ export function ShareLocalDialog({
             />
             <Segmented label="内容类型" value={type} onValueChange={setType} className="self-start">
               <Segmented.Item value="all" label="全部" />
-              {(Object.keys(TYPE_META) as IndexType[]).map(key => (
+              {(Object.keys(TYPE_META) as ContentIndexType[]).map(key => (
                 <Segmented.Item key={key} value={key} label={TYPE_META[key].label} />
               ))}
             </Segmented>
@@ -162,7 +166,7 @@ export function ShareLocalDialog({
               ) : (
                 <ul className="flex flex-col">
                   {list.map(item => {
-                    const Icon = TYPE_META[item.type].icon;
+                    const Icon = metaOf(item).icon;
                     return (
                       <li key={`${item.type}-${item.id}`}>
                         <button
@@ -175,9 +179,7 @@ export function ShareLocalDialog({
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="text-tau-body block truncate">{titleOf(item)}</span>
-                            <span className="text-ink-3 text-tau-sm">
-                              {TYPE_META[item.type].label}
-                            </span>
+                            <span className="text-ink-3 text-tau-sm">{metaOf(item).label}</span>
                           </span>
                           <ArrowRight
                             className="text-ink-3 size-4 flex-none opacity-0 group-hover:opacity-100"

@@ -12,6 +12,7 @@ export {
 export {
   default as AudioPlayer,
   type AudioPlayerProps,
+  type AudioPlayerFooterContext,
 } from "./components/MediaPlayer/AudioPlayer";
 export { formatTime } from "./components/MediaPlayer/formatTime";
 export { default as CustomCheckbox } from "./components/CustomCheckbox";
@@ -61,12 +62,10 @@ export {
   type MentionEntityType,
   type MentionRef,
   type ChatContextUsage,
-  ContextUsageIndicator,
-  getContextUsageSummary,
-  formatTokenCount,
-  resolveNewChatTooltipOpen,
-  shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";
+
+// 对话输入框部件（＋ 添加面板、上下文用量环、工具行 chip），桌面与浏览器扩展共用
+export * from "./components/ChatComposer";
 
 // 聊天展示投影与消息类型
 export {
@@ -147,6 +146,8 @@ export {
   type AiRunSnapshot,
   type AiRunStateResult,
 } from "./chat-core/aiRunProtocol";
+
+export { APPEARANCE_METHODS, type AppearanceThemePayload } from "./appearanceProtocol";
 
 export type {
   ColumnDef,

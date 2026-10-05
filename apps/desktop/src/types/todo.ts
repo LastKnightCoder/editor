@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 import type { CalendarEvent } from "./calendar";
 
-// 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达，见 D-113）
+// 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达，见 D-114）
 export type TodoItemType = "normal" | "deadline" | "recurring";
 
 // 系统组类型

@@ -113,6 +113,8 @@ const FEATURE_LABELS: Record<string, string> = {
   videoSummary: "视频总结",
   videoEbookRewrite: "视频电子书重写",
   vibeLearningImageDescription: "图片理解",
+  contentMetadata: "笔记元信息",
+  contentInsights: "AI 洞见",
   videoInsights: "视频洞察",
   videoHighlights: "视频要点",
   topicHighlights: "话题要点",

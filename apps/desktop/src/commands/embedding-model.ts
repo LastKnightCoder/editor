@@ -1,3 +1,4 @@
+import type { IndexType } from "@/types/search";
 import { invoke, on, off } from "@/electron";
 import { withModule } from "./module-init";
 
@@ -104,9 +105,9 @@ export function onEmbeddingDownloadProgress(
   return () => off("embedding-model-download-progress", handler);
 }
 
-/* ── 主内容向量索引状态（卡片 / 文章 / 项目文档 / 日记） ── */
+/* ── 主内容向量索引状态（卡片 / 文章 / 项目文档 / 日记 + 摘录 / PDF 标注 / 剪藏） ── */
 
-export type EmbeddingIndexContentType = "card" | "article" | "project-item" | "diary-daily";
+export type EmbeddingIndexContentType = IndexType;
 
 export interface EmbeddingIndexCounts {
   total: number;
@@ -130,6 +131,8 @@ export interface EmbeddingIndexProgress {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  /** 实时覆盖率（索引进行中由主进程逐篇更新） */
+  stats?: EmbeddingIndexStats;
 }
 
 export interface EmbeddingIndexStatus {

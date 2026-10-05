@@ -4,7 +4,12 @@
  * 工作台本体为 D-033 整体搬迁件（features/projects/components/，换皮与数据收编另立锚点）。
  */
 
-import { createPageSchema, paramNumber, paramOptional } from "@/page/core/paramsSchema";
+import {
+  createPageSchema,
+  paramNumber,
+  paramOptional,
+  paramString,
+} from "@/page/core/paramsSchema";
 import { definePage } from "@/page/definePage";
 import { ProjectDetailView } from "../views/ProjectDetailView";
 
@@ -12,6 +17,9 @@ const schema = createPageSchema({
   id: paramNumber(),
   // 定位到文档树具体条目（跨项目跳转/新建后定位；同项目内点击走域内 setActiveItemId）
   itemId: paramOptional(paramNumber()),
+  at: paramOptional(paramString()),
+  // "1"：打开时展开项目回顾（今日页「洞见」卡的「打开回顾」）
+  review: paramOptional(paramString()),
 });
 
 export default definePage({

@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="mint" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>编辑器 · 链接样式与交互 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --ring:0 0 0 3px rgba(74,157,120,.28);
+    --ok:#4a8a62; --ok-soft:#e3efe6;
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --ring:0 0 0 3px hsla(155,36%,58%,.4);
+    --ok:#84b294; --ok-soft:#1d2b23;
+    --danger:#df8a80; --danger-soft:#35211e;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --ring:0 0 0 3px rgba(217,119,87,.28);
+    --ok:#61795f; --ok-soft:#e5ede2;
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --ring:0 0 0 3px hsla(22,62%,65%,.4);
+    --ok:#8cab87; --ok-soft:#243023;
+    --danger:#d97e66; --danger-soft:#34201a;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+  :root { --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.36,.64,1); }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body {
+    font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased; padding:36px 5vw 200px; transition:background .2s;
+  }
+  .mono { font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace; }
+  button, input { font:inherit; color:inherit; background:none; border:0; }
+  button { cursor:pointer; }
+  svg.i { width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.75; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; display:block; }
+  svg.i.s { width:13px; height:13px; }
+  .kbd { font:11px/17px ui-monospace,monospace; color:var(--ink-3); padding:0 5px; border-radius:4px; border:1px solid var(--line-1); background:var(--page); display:inline-block; }
+
+  /* ── 页面骨架 ── */
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:80ch; }
+  .switches { display:flex; gap:10px; flex-wrap:wrap; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  section { margin-top:60px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:90ch; margin:6px 0 20px; }
+  .desc b, .notes b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:90ch; margin-top:16px; }
+  .notes li { margin:4px 0; }
+  .sheet { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); padding:22px 28px 24px; position:relative; }
+
+  /* ── 样式对比 ── */
+  .styles { display:grid; grid-template-columns:repeat(auto-fill,minmax(440px,1fr)); gap:16px; max-width:1240px; }
+  .styles .sheet { padding:18px 24px 20px; }
+  .styles .sheet.rec { box-shadow:var(--shadow-card), inset 0 0 0 1.5px var(--accent); }
+  .s-head { display:flex; align-items:baseline; gap:8px; margin-bottom:8px; }
+  .s-head b { font-size:13.5px; }
+  .s-head .tag { font-size:11px; padding:0 7px; border-radius:6px; line-height:19px; background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .s-head .tag.old { background:var(--hover); color:var(--ink-3); }
+  .s-head span.d { font-size:12px; color:var(--ink-3); }
+  .s-foot { font-size:12px; color:var(--ink-3); margin-top:8px; }
+  .s-foot b { color:var(--ink-2); font-weight:500; }
+
+  /* ── 正文 ── */
+  .doc { font-size:15px; line-height:1.95; color:var(--ink-1); }
+  .doc p + p { margin-top:10px; }
+  #doc { outline:none; max-width:560px; caret-color:var(--accent); }
+  #doc ::selection, #doc::selection { background:var(--accent-soft); }
+
+  /* ── 链接行内样式（data-ls 切换） ── */
+  .lk { border-radius:3px; cursor:text; transition:color .16s, text-decoration-color .16s, background-color .3s, border-color .16s; }
+  body.mod #doc .lk, .styles .lk { cursor:pointer; }
+  .lk.editing { background:var(--accent-soft); }
+  .lk.flash { animation:flash .9s var(--ease); }
+  @keyframes flash { 0%,30% { background:var(--accent-soft); } 100% { background:transparent; } }
+  .pending { background:var(--accent-soft); border-radius:3px; transition:background-color .3s; }
+
+  /* 现状 */
+  [data-ls="now"] .lk { color:var(--accent-text); font-weight:500; border-bottom:1px dashed var(--accent-soft); padding:0 2px; }
+  [data-ls="now"] .lk:hover, [data-ls="now"] .lk.hot { border-bottom-style:solid; }
+  [data-ls="now"] .lk:not(.ref)::after {
+    content:""; display:inline-block; width:13px; height:13px; margin-left:3px; vertical-align:-1px; background:currentColor; opacity:.6;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E") center/contain no-repeat;
+            mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6'/%3E%3Cpath d='M10 14 21 3'/%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
+  [data-ls="now"] .lk.ref { color:var(--ink-1); font-weight:400; border:0; padding:0; text-decoration:underline dotted var(--ink-3); text-underline-offset:4px; }
+  [data-ls="now"] .lk.ref::after { content:"↗"; font-size:.68em; vertical-align:super; line-height:0; color:var(--accent); font-weight:600; margin-left:1px; }
+
+  /* S1 accent 字 + 细下划线；S3 = S1 + 上标 ↗ */
+  :is([data-ls="s1"],[data-ls="s3"]) .lk {
+    color:var(--accent-text); text-decoration:underline 1px; text-underline-offset:3px;
+    text-decoration-color:color-mix(in srgb, var(--accent) 38%, transparent);
+  }
+  :is([data-ls="s1"],[data-ls="s3"]) .lk:hover, :is([data-ls="s1"],[data-ls="s3"]) .lk.hot { text-decoration-color:var(--accent); }
+  :is([data-ls="s1"],[data-ls="s3"]) .lk.ref { text-decoration-style:dotted; text-decoration-thickness:1.5px; }
+  [data-ls="s3"] .lk::after {
+    content:"↗"; display:inline-block; font-size:.66em; vertical-align:super; line-height:0; margin-left:1px;
+    color:var(--accent); opacity:.55; font-weight:600; transition:transform .16s var(--ease), opacity .16s;
+  }
+  [data-ls="s3"] .lk:hover::after, [data-ls="s3"] .lk.hot::after { opacity:1; transform:translate(1px,-1px); }
+
+  /* S2 墨色字 + accent 下划线 */
+  [data-ls="s2"] .lk {
+    color:var(--ink-1); text-decoration:underline 1.5px; text-underline-offset:3.5px;
+    text-decoration-color:color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  [data-ls="s2"] .lk:hover, [data-ls="s2"] .lk.hot { color:var(--accent-text); text-decoration-color:var(--accent); }
+  [data-ls="s2"] .lk.ref { text-decoration-style:dotted; text-decoration-thickness:2px; }
+
+  /* S4 浅底标记 */
+  [data-ls="s4"] .lk { color:var(--accent-text); background:var(--accent-soft); padding:1px 3px; border-radius:4px; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+  [data-ls="s4"] .lk:hover, [data-ls="s4"] .lk.hot { background:color-mix(in srgb, var(--accent) 22%, transparent); }
+  [data-ls="s4"] .lk.ref { color:var(--ink-1); background:var(--hover); }
+  [data-ls="s4"] .lk.ref:hover, [data-ls="s4"] .lk.ref.hot { background:var(--press); }
+
+  /* ── 原型布局 ── */
+  .proto { display:flex; gap:28px; align-items:flex-start; flex-wrap:wrap; }
+  .proto .sheet { flex:0 1 640px; padding:28px 36px 40px; }
+  .try { flex:0 1 360px; background:var(--surface); border:1px solid var(--line-1); border-radius:14px; padding:14px 16px; font-size:13px; color:var(--ink-2); }
+  .try h4 { font-size:13px; color:var(--ink-1); margin-bottom:6px; }
+  .try ol { padding-left:18px; }
+  .try li { margin:5px 0; }
+  .try li b { color:var(--ink-1); font-weight:500; }
+  .ctrl { display:flex; gap:10px; align-items:center; margin-bottom:14px; font-size:12.5px; color:var(--ink-3); }
+
+  /* ── 浮层：一个容器，模式之间做尺寸形变 ── */
+  #pop {
+    position:fixed; z-index:50; left:0; top:0; overflow:hidden;
+    background:var(--surface); border:1px solid var(--line-1); border-radius:12px; box-shadow:var(--shadow-float);
+    font-size:13px; line-height:1.5; color:var(--ink-1);
+    opacity:0; transform:translateY(-4px) scale(.97); transform-origin:top left; pointer-events:none;
+    transition:opacity .14s ease, transform .22s var(--spring), width .24s var(--ease), height .24s var(--ease), left .2s var(--ease), top .2s var(--ease);
+  }
+  #pop.up { transform:translateY(4px) scale(.97); transform-origin:bottom left; }
+  #pop.show { opacity:1; transform:none; pointer-events:auto; }
+  #pop.noanim { transition:none !important; }
+  #pop .enter { animation:in .2s var(--ease) both; }
+  @keyframes in { from { opacity:0; } }
+
+  .ib { height:28px; min-width:28px; padding:0 6px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; gap:5px; color:var(--ink-2); transition:background .14s, color .14s; }
+  .ib:hover { background:var(--hover); color:var(--ink-1); }
+  .ib.danger:hover { background:var(--danger-soft); color:var(--danger); }
+  .ib.on { background:var(--accent-soft); color:var(--accent-text); }
+  .ib.txt { font-size:12.5px; padding:0 9px; }
+  .ib b.g { font:650 13px/1 -apple-system,sans-serif; }
+  .vsep { width:1px; height:16px; background:var(--line-1); margin:0 3px; flex-shrink:0; }
+
+  .pv { display:flex; align-items:center; gap:2px; padding:4px; white-space:nowrap; }
+  .site { width:20px; height:20px; border-radius:6px; background:var(--accent-soft); color:var(--accent-text); display:grid; place-items:center; font:600 11px/1 -apple-system,sans-serif; margin:0 7px 0 4px; flex-shrink:0; }
+  .addr { display:grid; margin-right:8px; max-width:250px; min-width:0; }
+  .addr > span { grid-area:1/1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; transition:opacity .16s, transform .16s var(--ease); }
+  .addr .a1 b { font-weight:500; color:var(--ink-1); }
+  .addr .a1 i { font-style:normal; color:var(--ink-3); }
+  .addr .a2 { opacity:0; transform:translateY(4px); color:var(--accent-text); display:flex; gap:5px; align-items:center; font-weight:500; }
+  .addr.done .a1 { opacity:0; transform:translateY(-4px); }
+  .addr.done .a2 { opacity:1; transform:none; }
+
+  .ed { width:360px; padding:8px; display:flex; flex-direction:column; gap:6px; }
+  .row { display:flex; align-items:center; gap:8px; height:34px; padding:0 10px; border-radius:9px; background:var(--page); border:1px solid var(--line-1); transition:border-color .14s, box-shadow .14s, background .14s; }
+  .row:focus-within { border-color:var(--accent); box-shadow:var(--ring); background:var(--surface); }
+  .row > span { font-size:12px; color:var(--ink-3); width:28px; flex-shrink:0; }
+  .row input { flex:1; min-width:0; outline:none; font-size:13px; color:var(--ink-1); }
+  .row input::placeholder { color:var(--ink-3); }
+  .ft { display:flex; align-items:center; gap:6px; padding:2px 2px 0; font-size:11.5px; color:var(--ink-3); }
+  .ft .sp { flex:1; }
+  .lnk { display:inline-flex; gap:5px; align-items:center; font-size:12px; color:var(--ink-3); padding:3px 6px; border-radius:6px; transition:background .14s, color .14s; }
+  .lnk.danger:hover { color:var(--danger); background:var(--danger-soft); }
+
+  .cr { width:330px; padding:4px; }
+  .cr .row { background:transparent; border-color:transparent; color:var(--ink-3); }
+  .cr .row:focus-within { box-shadow:none; border-color:transparent; background:transparent; }
+  .err { font-size:12px; color:var(--danger); padding:0 10px 4px 33px; display:none; }
+  .err.on { display:block; }
+
+  .tbar { display:flex; align-items:center; gap:2px; padding:4px; }
+  .nt { display:flex; align-items:center; gap:10px; padding:5px 5px 5px 12px; font-size:12.5px; color:var(--ink-2); white-space:nowrap; }
+  .nt button { color:var(--accent-text); font-weight:500; padding:3px 9px; border-radius:6px; }
+  .nt button:hover { background:var(--accent-soft); }
+
+  .rf { width:340px; }
+  .rf .rh { display:flex; gap:10px; padding:12px 14px 6px; align-items:center; }
+  .rf .bd { width:28px; height:28px; border-radius:7px; display:grid; place-items:center; background:var(--ok-soft); color:var(--ok); flex-shrink:0; }
+  .rf .rt { font-weight:600; font-size:13.5px; }
+  .rf .rm { font-size:11.5px; color:var(--ink-3); }
+  .rf .rd { padding:0 14px 10px; font-size:12.5px; color:var(--ink-2); }
+  .rf .rfoot { border-top:1px solid var(--line-1); display:flex; align-items:center; padding:4px 6px 4px 14px; font-size:11.5px; color:var(--ink-3); }
+  .rf .rfoot span { flex:1; }
+
+  #tip { position:fixed; z-index:60; background:var(--tip-bg); color:var(--tip-ink); font-size:12px; padding:4px 8px; border-radius:7px; white-space:nowrap; pointer-events:none; opacity:0; transform:translate(-50%,3px); transition:opacity .12s, transform .12s; display:flex; gap:7px; }
+  #tip.show { opacity:1; transform:translate(-50%,0); }
+  #tip kbd { font:11px ui-monospace,monospace; opacity:.6; }
+  #toast { position:fixed; z-index:60; left:50%; bottom:28px; transform:translate(-50%,8px); opacity:0; background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; padding:7px 14px; border-radius:10px; transition:opacity .16s, transform .2s var(--ease); pointer-events:none; max-width:80vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+
+  /* ── 规格表 ── */
+  table.spec { border-collapse:collapse; font-size:13px; background:var(--surface); border-radius:12px; overflow:hidden; box-shadow:var(--shadow-card); max-width:1240px; }
+  table.spec th, table.spec td { padding:9px 14px; text-align:left; border-bottom:1px solid var(--line-1); vertical-align:top; }
+  table.spec th { font-weight:600; font-size:12.5px; background:var(--hover); }
+  table.spec td { color:var(--ink-2); }
+  table.spec td:first-child { color:var(--ink-1); font-weight:500; white-space:nowrap; }
+  table.spec td.old { color:var(--ink-3); }
+  table.spec tr:last-child td { border-bottom:0; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/></symbol>
+    <symbol id="i-unlink" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7"/><path d="M15 7h2a5 5 0 0 1 4 8"/><line x1="8" x2="12" y1="12" y2="12"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  </defs>
+</svg>
+
+<header class="top">
+  <div>
+    <h1>编辑器 · 链接的样式与交互</h1>
+    <p>只改样式和交互，不改数据模型，也不合并网页链接和内部引用的入口。先选行内样式（§1），再在原型里亲手试交互（§2）；时序和规则见 §3。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" data-k="theme"><button class="on" data-v="mint">mint</button><button data-v="paper">paper</button></div>
+    <div class="switch" data-k="mode"><button class="on" data-v="light">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</header>
+
+<!-- ═════════ 1 行内样式 ═════════ -->
+<section>
+  <h2><span class="no">01</span>行内样式</h2>
+  <p class="desc">底线是<b>一眼能认出是链接</b>：要么有颜色，要么有下划线，最好两者都有。网页链接用实线，内部引用用点线；每段第二个网页链接显示的是 hover 态。</p>
+  <div class="styles">
+    <div class="sheet" data-ls="now">
+      <div class="s-head"><b>现状</b><span class="tag old">对照</span></div>
+      <div class="doc"><p>Hooks 的设计动机可以参考 <span class="lk">React 官方文档</span>，以及我之前写的 <span class="lk ref">自定义 Hook 的边界</span>。另外 <span class="lk hot">MDN</span> 和 <span class="lk">GitHub 讨论</span> 里也有不少案例。</p></div>
+      <div class="s-foot">加粗 + 虚线边框 + 每个链接都带外链图标，链接一多正文就碎；内部引用又是另一套样式。</div>
+    </div>
+    <div class="sheet rec" data-ls="s1">
+      <div class="s-head"><b>S1 经典</b><span class="tag">推荐</span><span class="d">accent 字 · 常规字重 · 淡下划线</span></div>
+      <div class="doc"><p>Hooks 的设计动机可以参考 <span class="lk">React 官方文档</span>，以及我之前写的 <span class="lk ref">自定义 Hook 的边界</span>。另外 <span class="lk hot">MDN</span> 和 <span class="lk">GitHub 讨论</span> 里也有不少案例。</p></div>
+      <div class="s-foot">最符合“链接”的通用认知。不加粗，也不带图标，hover 时下划线变成实色。</div>
+    </div>
+    <div class="sheet" data-ls="s3">
+      <div class="s-head"><b>S3 经典 + 上标箭头</b><span class="d">S1 + 小号 ↗</span></div>
+      <div class="doc"><p>Hooks 的设计动机可以参考 <span class="lk">React 官方文档</span>，以及我之前写的 <span class="lk ref">自定义 Hook 的边界</span>。另外 <span class="lk hot">MDN</span> 和 <span class="lk">GitHub 讨论</span> 里也有不少案例。</p></div>
+      <div class="s-foot">把内部引用现有的上标 ↗ 推广到网页链接，比尾随图标轻很多；hover 时箭头轻轻上移。</div>
+    </div>
+    <div class="sheet" data-ls="s2">
+      <div class="s-head"><b>S2 墨色 + 彩色下划线</b><span class="d">正文色 · 1.5px accent 下划线</span></div>
+      <div class="doc"><p>Hooks 的设计动机可以参考 <span class="lk">React 官方文档</span>，以及我之前写的 <span class="lk ref">自定义 Hook 的边界</span>。另外 <span class="lk hot">MDN</span> 和 <span class="lk">GitHub 讨论</span> 里也有不少案例。</p></div>
+      <div class="s-foot">阅读最安静，靠彩色下划线识别（类似 Medium）；hover 时文字也变成 accent。</div>
+    </div>
+    <div class="sheet" data-ls="s4">
+      <div class="s-head"><b>S4 浅底标记</b><span class="d">accent-soft 底 · 无下划线</span></div>
+      <div class="doc"><p>Hooks 的设计动机可以参考 <span class="lk">React 官方文档</span>，以及我之前写的 <span class="lk ref">自定义 Hook 的边界</span>。另外 <span class="lk hot">MDN</span> 和 <span class="lk">GitHub 讨论</span> 里也有不少案例。</p></div>
+      <div class="s-foot">最显眼，但容易和高亮 / 批注混淆（你的编辑器有高亮功能），不推荐做默认。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 2 交互原型 ═════════ -->
+<section>
+  <h2><span class="no">02</span>交互原型<span style="font-size:12.5px;font-weight:400;color:var(--ink-3)">可编辑，直接上手试</span></h2>
+  <p class="desc">核心思路：<b>只用一个浮层，在查看、编辑、新建、工具条之间原地形变</b>，不会再弹第二个窗。鼠标和键盘都能走完整条链路，每一步都有就地反馈。</p>
+  <div class="proto">
+    <div class="sheet" id="sheet" data-ls="s1">
+      <div class="ctrl">行内样式
+        <div class="switch" id="ls"><button data-v="now">现状</button><button class="on" data-v="s1">S1</button><button data-v="s3">S3</button><button data-v="s2">S2</button><button data-v="s4">S4</button></div>
+      </div>
+      <div class="doc" id="doc" contenteditable="true" spellcheck="false">
+        <p>Hooks 的设计动机可以参考 <span class="lk" data-url="https://react.dev/learn/reusing-logic-with-custom-hooks">React 官方文档</span>，以及我之前写的 <span class="lk ref" data-url="tau://card/128">自定义 Hook 的边界</span>。另外 <span class="lk" data-url="https://developer.mozilla.org/zh-CN/docs/Web/API/AbortController">MDN</span> 和 <span class="lk" data-url="https://github.com/facebook/react/issues/14920">GitHub 讨论</span> 里也有不少案例。</p>
+        <p>依赖数组的问题，Dan 在 <span class="lk" data-url="https://overreacted.io/a-complete-guide-to-useeffect/">useEffect 完整指南</span> 里讲得最透：effect 不是生命周期，而是把渲染结果同步到外部系统的手段。</p>
+        <p>长链接跨行测试：<span class="lk" data-url="https://example.com/a/very/long/path">这是一段很长的链接文字，用来测试跨行时浮层会贴在鼠标所在的那一行，而不是固定贴在第一行</span>，悬停第二行看看。</p>
+      </div>
+    </div>
+    <div class="try">
+      <h4>试试这些</h4>
+      <ol>
+        <li><b>悬停</b>任意链接，停一下才会出现；鼠标划过不会打扰。</li>
+        <li>浮层出现后，把鼠标<b>移到相邻链接</b>，浮层会直接滑过去，不用重新等。</li>
+        <li><b>悬停跨行链接的第二行</b>，浮层会贴住那一行。</li>
+        <li>点<b>复制</b>，地址原位换成“已复制”；点<b>编辑</b>，浮层原地展开，改文字或地址会实时生效，<span class="kbd">↵</span> 完成，<span class="kbd">Esc</span> 还原。</li>
+        <li><b>用方向键把光标移进链接</b>，不碰鼠标也会出现同一个浮层；这时按 <span class="kbd">⌘L</span> 直接编辑。</li>
+        <li><b>选中一段文字</b>，在工具条里点链接按钮，工具条会原地变成输入框；或者选中后直接按 <span class="kbd">⌘L</span>。</li>
+        <li>复制一个网址，<b>选中文字后粘贴</b>，文字直接变成链接。</li>
+        <li>按住 <span class="kbd">⌘</span>，链接变成手型，点击即打开。</li>
+        <li>点<b>取消链接</b>，3.5 秒内可以撤销。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 3 规格 ═════════ -->
+<section>
+  <h2><span class="no">03</span>交互规格</h2>
+  <table class="spec" style="margin-top:14px">
+    <tr><th>场景</th><th>现在</th><th>新方案</th><th>细节</th></tr>
+    <tr><td>悬停查看</td><td class="old">进入立即出现，离开 300ms 后收起</td><td>停留 <b>350ms</b> 才出现，划过不打扰；离开有 <b>220ms</b> 宽限，可以移进浮层</td><td>已有浮层时移到其它链接<b>立即切换</b>，位置滑动过去（热切换）</td></tr>
+    <tr><td>跨行链接</td><td class="old">贴整体包围盒的中心</td><td>贴<b>鼠标所在的那一行</b>，在行间移动时跟随</td><td>用 <span class="mono">getClientRects()</span> 选最近的一行</td></tr>
+    <tr><td>光标进入链接</td><td class="old">无</td><td>光标停在链接内 <b>450ms</b> 后出现同一个浮层，光标离开就收起；开始打字也收起</td><td>键盘用户不需要摸鼠标</td></tr>
+    <tr><td>编辑</td><td class="old">全屏 Modal，只能改地址</td><td>浮层<b>原地形变</b>为编辑态，可改文字和地址，<b>边改边生效</b>；被编辑的链接带浅底</td><td><span class="kbd">↵</span> / 点外面 = 完成；<span class="kbd">Esc</span> = 还原；地址清空后完成 = 取消链接；链接内有格式时隐藏「文字」</td></tr>
+    <tr><td>新建（有选区）</td><td class="old"><span class="mono">⌘L</span> / 工具条 → Modal</td><td>工具条<b>原地变成输入框</b>；<span class="mono">⌘L</span> 在选区下方展开。选区一直保持高亮，确认后高亮<b>渐变成链接样式</b></td><td>取消后恢复原选区；不会留下空链接</td></tr>
+    <tr><td>新建（无选区）</td><td class="old">插入空链接 + Modal</td><td>同一个输入框；确认后以去掉协议的地址作为文字插入</td><td>自动补 <span class="mono">https://</span>，相对路径和 <span class="mono">#锚点</span> 放行</td></tr>
+    <tr><td>粘贴</td><td class="old">无</td><td>选区上粘贴 URL 直接成链；光标处粘贴 URL 插入为链接</td><td>闪一下浅底作为反馈；<span class="mono">⌘Z</span> 回到粘贴前</td></tr>
+    <tr><td>打开</td><td class="old"><span class="mono">⌘</span> 点击 / 点尾随图标</td><td><span class="mono">⌘</span> 点击，或浮层第一个按钮；<b>按住 <span class="mono">⌘</span> 时链接变成手型</b></td><td>去掉尾随图标；平时点击只放光标</td></tr>
+    <tr><td>复制</td><td class="old">全局 toast</td><td>浮层内地址原位换成「已复制」，1.2s 后恢复</td><td>宽度不跳</td></tr>
+    <tr><td>取消链接</td><td class="old">立即生效，没有反馈</td><td>浮层形变成「已取消链接 · 撤销」，保留 3.5s</td><td>撤销恢复原链接并闪一下</td></tr>
+    <tr><td>工具条按钮（选区已在链接内）</td><td class="old">点击直接取消链接</td><td>点击进入编辑；取消链接放在编辑浮层里</td><td>避免误删</td></tr>
+    <tr><td>动效</td><td class="old">弹簧弹出 / Modal 缩放</td><td>出现：透明度 140ms + 位移弹簧 220ms；形变：宽高 240ms；跟随：位置 200ms</td><td>统一曲线 <span class="mono">cubic-bezier(.2,.8,.2,1)</span>，跟随 <span class="mono">prefers-reduced-motion</span> 关闭</td></tr>
+  </table>
+  <ul class="notes">
+    <li><b>落地范围</b>：只改 <span class="mono">editor-extensions/link</span>。<span class="mono">LinkPopover</span> 和 <span class="mono">LinkSelectModal</span> 合并成一个按模式切换的 <span class="mono">LinkPanel</span>（复用 <span class="mono">AnchoredPanel</span> 的定位能力）；颜色全部换成 tau / <span class="mono">--ed-*</span> token；粘贴成链走现有 ingest；光标进入检测挂在 selection 变化上。数据模型、命令 id、markdown codec 都不变。</li>
+    <li><b>内部引用</b>：只同步行内样式（点线 + 同样的 hover 与 <span class="mono">⌘</span> 手型规则），预览卡和 <span class="mono">@</span> 面板保持现状。</li>
+    <li><b>需要你定的</b>：① 行内样式选 S1 还是 S3；② “光标进入链接自动出浮层”要不要（有人会觉得打扰，也可以改成只在 <span class="mono">⌘L</span> 时出现）；③ 编辑时点外面算“完成”还是“取消”（原型里按“完成”处理，与 Notion 一致）。</li>
+  </ul>
+</section>
+
+<div id="pop"></div>
+<div id="tip"></div>
+<div id="toast"></div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const doc = $("#doc"), pop = $("#pop"), tip = $("#tip"), toastEl = $("#toast");
+  const MOD = /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
+  const T = { open: 350, close: 220, caret: 450, notice: 3500 };
+  const ICON = id => `<svg class="i"><use href="#i-${id}"/></svg>`;
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  let mode = null, cur = null, anchor = null, pending = null, viaCaret = false;
+  let openTimer = 0, closeTimer = 0, caretTimer = 0, noticeTimer = 0, sizeTimer = 0, toastTimer = 0, tipTimer = 0;
+  let lastY = null, snapshot = null, undoInfo = null, noticeText = "";
+
+  // ── 切换器 ──
+  document.querySelectorAll(".switch[data-k]").forEach(sw => sw.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    sw.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    document.documentElement.dataset[sw.dataset.k] = b.dataset.v;
+  }));
+  $("#ls").addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    $("#ls").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    $("#sheet").dataset.ls = b.dataset.v;
+  });
+
+  // ── 工具 ──
+  const parseUrl = url => {
+    try { const u = new URL(url); return { host: u.hostname.replace(/^www\./, "") || url, path: (u.pathname + u.search).replace(/\/$/, "") }; }
+    catch { return { host: url, path: "" }; }
+  };
+  const normalize = raw => {
+    const s = raw.trim();
+    if (!s) return "";
+    if (/^([a-z][\w+.-]*:|#|\/|\.)/i.test(s)) return s;
+    if (/^[\w-]+(\.[\w-]+)+/.test(s)) return "https://" + s;
+    return s;
+  };
+  const looksBad = raw => /\s/.test(raw.trim()) || /^h?t?t?ps?\/\//i.test(raw.trim()) || /^htps?:/i.test(raw.trim());
+  const isUrl = s => /^(https?:\/\/|www\.)\S+$/i.test(s.trim());
+  const closestLink = node => {
+    const el = node && (node.nodeType === 3 ? node.parentElement : node);
+    const link = el && el.closest && el.closest(".lk");
+    return link && doc.contains(link) ? link : null;
+  };
+  const anchorRect = (el, y) => {
+    const rects = [...el.getClientRects()];
+    if (!rects.length) return el.getBoundingClientRect();
+    if (y == null) return rects[0];
+    const mid = r => (r.top + r.bottom) / 2;
+    return rects.reduce((a, b) => (Math.abs(mid(b) - y) < Math.abs(mid(a) - y) ? b : a));
+  };
+  const flash = el => { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 900); };
+  const caretAfter = el => {
+    const r = document.createRange(); r.setStartAfter(el); r.collapse(true);
+    doc.focus({ preventScroll: true });
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  };
+  const toast = text => {
+    toastEl.textContent = text; toastEl.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
+  };
+  const openUrl = link => toast(link.classList.contains("ref") ? "打开内部内容：" + link.textContent : "在浏览器打开 " + link.dataset.url);
+
+  // ── 浮层定位与形变 ──
+  function place(rect, prefer) {
+    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 8;
+    const left = Math.min(Math.max(gap, rect.left - 6), innerWidth - w - gap);
+    const below = rect.bottom + gap, above = rect.top - gap - h;
+    let top;
+    if (prefer === "above") top = above > gap ? above : below;
+    else top = below + h < innerHeight - gap ? below : above;
+    pop.classList.toggle("up", top < rect.top);
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+  }
+
+  function open(next, anchorFn) {
+    clearTimeout(openTimer); clearTimeout(closeTimer); hideTip();
+    const shown = pop.classList.contains("show");
+    const first = shown ? { w: pop.offsetWidth, h: pop.offsetHeight, l: pop.style.left, t: pop.style.top } : null;
+    mode = next; anchor = anchorFn;
+    pop.dataset.mode = next;
+    pop.classList.add("noanim");
+    pop.style.width = ""; pop.style.height = "";
+    pop.innerHTML = RENDER[next]();
+    pop.firstElementChild.classList.add("enter");
+    const { rect, prefer } = anchorFn();
+    place(rect, prefer);
+    if (!shown) {
+      void pop.offsetWidth;
+      pop.classList.remove("noanim");
+      pop.classList.add("show");
+      return;
+    }
+    const last = { w: pop.offsetWidth, h: pop.offsetHeight, l: pop.style.left, t: pop.style.top };
+    Object.assign(pop.style, { width: first.w + "px", height: first.h + "px", left: first.l, top: first.t });
+    void pop.offsetWidth;
+    pop.classList.remove("noanim");
+    Object.assign(pop.style, { width: last.w + "px", height: last.h + "px", left: last.l, top: last.t });
+    clearTimeout(sizeTimer);
+    sizeTimer = setTimeout(() => { pop.style.width = ""; pop.style.height = ""; }, 260);
+  }
+
+  function hide() {
+    clearTimeout(openTimer); clearTimeout(closeTimer); clearTimeout(caretTimer); hideTip();
+    if (cur) cur.classList.remove("editing");
+    pop.classList.remove("show");
+    mode = null; cur = null; viaCaret = false; anchor = null;
+  }
+  const scheduleClose = () => { clearTimeout(closeTimer); closeTimer = setTimeout(hide, T.close); };
+
+  const RENDER = {
+    view() {
+      const { host, path } = parseUrl(cur.dataset.url);
+      return `<div class="pv">
+        <span class="site">${esc(host[0] || "?").toUpperCase()}</span>
+        <span class="addr"><span class="a1"><b>${esc(host)}</b><i>${esc(path)}</i></span><span class="a2">${ICON("check")}已复制</span></span>
+        <span class="vsep"></span>
+        <button class="ib" data-act="open" data-tip="打开<kbd>${MOD} 点击</kbd>">${ICON("open")}</button>
+        <button class="ib" data-act="copy" data-tip="复制链接">${ICON("copy")}</button>
+        <button class="ib" data-act="edit" data-tip="编辑<kbd>${MOD}L</kbd>">${ICON("edit")}</button>
+        <button class="ib danger" data-act="unlink" data-tip="取消链接">${ICON("unlink")}</button>
+      </div>`;
+    },
+    ref() {
+      return `<div class="rf">
+        <div class="rh"><span class="bd">${ICON("layers")}</span><div><div class="rt">${esc(cur.textContent)}</div><div class="rm">卡片 · 3 天前编辑 · 约 420 字</div></div></div>
+        <div class="rd">什么时候该抽成自定义 Hook？判断标准不是“代码重复”，而是“这段逻辑有没有独立的名字”……</div>
+        <div class="rfoot"><span>内部引用 · 预览卡沿用现状</span><button class="ib txt" data-act="open">${ICON("open")}打开</button></div>
+      </div>`;
+    },
+    edit() {
+      return `<div class="ed">
+        <label class="row"><span>文字</span><input data-f="text"></label>
+        <label class="row"><span>地址</span><input data-f="url" placeholder="清空后完成 = 取消链接"></label>
+        <div class="ft"><button class="lnk danger" data-act="unlink">${ICON("unlink")}取消链接</button><span class="sp"></span><span class="kbd">↵</span>完成<span class="kbd">Esc</span>还原</div>
+      </div>`;
+    },
+    create() {
+      return `<div class="cr">
+        <label class="row">${ICON("link")}<input data-f="url" placeholder="粘贴或输入链接地址"><span class="kbd">↵</span></label>
+        <div class="err"></div>
+      </div>`;
+    },
+    toolbar() {
+      const inLink = selectionLink();
+      return `<div class="tbar">
+        <button class="ib" data-act="fmt" data-cmd="bold" data-tip="加粗<kbd>${MOD}B</kbd>"><b class="g">B</b></button>
+        <button class="ib" data-act="fmt" data-cmd="italic" data-tip="斜体<kbd>${MOD}I</kbd>"><b class="g" style="font-style:italic">I</b></button>
+        <button class="ib" data-act="fmt" data-cmd="underline" data-tip="下划线<kbd>${MOD}U</kbd>"><b class="g" style="text-decoration:underline">U</b></button>
+        <span class="vsep"></span>
+        <button class="ib ${inLink ? "on" : ""}" data-act="tb-link" data-tip="${inLink ? "编辑链接" : "链接"}<kbd>${MOD}L</kbd>">${ICON("link")}</button>
+      </div>`;
+    },
+    notice() {
+      return `<div class="nt">${noticeText}<button data-act="undo">撤销</button></div>`;
+    },
+  };
+
+  // ── 查看 ──
+  function showView(link, caret) {
+    cur = link; viaCaret = caret;
+    const y = caret ? null : lastY;
+    const rect = anchorRect(link, y);
+    open(link.classList.contains("ref") ? "ref" : "view", () => ({ rect }));
+  }
+  function onLinkEnter(link) {
+    if (mode === "edit" || mode === "create" || mode === "toolbar") return;
+    clearTimeout(closeTimer);
+    if (mode === "view" || mode === "ref") {
+      if (cur !== link) showView(link, false);
+      return;
+    }
+    clearTimeout(openTimer);
+    openTimer = setTimeout(() => showView(link, false), T.open);
+  }
+
+  doc.addEventListener("mousemove", e => {
+    lastY = e.clientY;
+    if ((mode === "view" || mode === "ref") && !viaCaret && closestLink(e.target) === cur) {
+      const r = anchorRect(cur, e.clientY);
+      if (anchor && Math.abs(anchor().rect.top - r.top) > 2) { anchor = () => ({ rect: r }); place(r); }
+    }
+  });
+  doc.addEventListener("mouseover", e => {
+    const link = closestLink(e.target);
+    if (link && !link.contains(e.relatedTarget)) onLinkEnter(link);
+  });
+  doc.addEventListener("mouseout", e => {
+    const link = closestLink(e.target);
+    if (!link || link.contains(e.relatedTarget)) return;
+    clearTimeout(openTimer);
+    if ((mode === "view" || mode === "ref") && cur === link && !viaCaret) scheduleClose();
+  });
+  pop.addEventListener("mouseenter", () => clearTimeout(closeTimer));
+  pop.addEventListener("mouseleave", () => { if ((mode === "view" || mode === "ref") && !viaCaret) scheduleClose(); });
+
+  // ⌘ 按住时链接显示手型
+  const syncMod = e => document.body.classList.toggle("mod", e.metaKey || e.ctrlKey);
+  addEventListener("keydown", syncMod); addEventListener("keyup", syncMod);
+  addEventListener("blur", () => document.body.classList.remove("mod"));
+
+  doc.addEventListener("click", e => {
+    const link = closestLink(e.target);
+    if (link && (e.metaKey || e.ctrlKey)) { e.preventDefault(); openUrl(link); }
+  });
+
+  // ── 光标进入链接 ──
+  const selectionLink = () => {
+    const sel = getSelection();
+    return sel.rangeCount ? closestLink(sel.anchorNode) : null;
+  };
+  document.addEventListener("selectionchange", () => {
+    if (mode === "edit" || mode === "create") return;
+    const sel = getSelection();
+    if (!sel.rangeCount || !doc.contains(sel.anchorNode)) return;
+    clearTimeout(caretTimer);
+    if (mode === "toolbar" && sel.isCollapsed) hide();
+    const link = sel.isCollapsed ? closestLink(sel.anchorNode) : null;
+    if (viaCaret && mode && cur !== link) hide();
+    if (link && document.activeElement === doc && !(mode && cur === link)) {
+      caretTimer = setTimeout(() => showView(link, true), T.caret);
+    }
+  });
+
+  // ── 选区工具条 ──
+  function maybeToolbar() {
+    if (mode === "edit" || mode === "create") return;
+    const sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !doc.contains(sel.anchorNode)) return;
+    clearTimeout(caretTimer);
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    cur = null; viaCaret = false;
+    open("toolbar", () => ({ rect, prefer: "above" }));
+  }
+  doc.addEventListener("mouseup", () => setTimeout(maybeToolbar, 0));
+  doc.addEventListener("keyup", e => { if (e.shiftKey && e.key.startsWith("Arrow")) maybeToolbar(); });
+
+  // ── 新建 ──
+  const unwrapEl = el => { const nodes = [...el.childNodes]; el.replaceWith(...nodes); return nodes; };
+  function startCreate(prefer) {
+    const sel = getSelection();
+    if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (!doc.contains(range.commonAncestorContainer)) return;
+    pending = document.createElement("span");
+    pending.className = "pending";
+    if (range.collapsed) {
+      pending.dataset.empty = "1";
+      pending.textContent = "\u200b";
+    } else {
+      pending.appendChild(range.extractContents());
+      pending.querySelectorAll(".lk").forEach(unwrapEl);
+    }
+    range.insertNode(pending);
+    sel.removeAllRanges();
+    cur = null;
+    const rect = pending.getBoundingClientRect();
+    open("create", () => ({ rect, prefer }));
+    $("input", pop).focus();
+  }
+  function commitCreate(fromOutside) {
+    if (!pending) return;
+    const input = $("input", pop), raw = input.value, url = normalize(raw);
+    if (!url) return cancelCreate();
+    if (looksBad(raw)) {
+      if (fromOutside) return cancelCreate();
+      const err = $(".err", pop); err.textContent = "看起来不是有效地址"; err.classList.add("on");
+      return;
+    }
+    const link = pending; pending = null;
+    if (link.dataset.empty) { link.textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, ""); delete link.dataset.empty; }
+    link.className = "lk";
+    link.dataset.url = url;
+    hide(); caretAfter(link); flash(link);
+  }
+  function cancelCreate() {
+    if (!pending) return;
+    const p = pending; pending = null;
+    hide();
+    if (p.dataset.empty) { const r = document.createRange(); r.setStartBefore(p); r.collapse(true); p.remove(); restore(r); return; }
+    const nodes = unwrapEl(p);
+    const r = document.createRange(); r.setStartBefore(nodes[0]); r.setEndAfter(nodes[nodes.length - 1]);
+    restore(r);
+  }
+  const restore = r => { doc.focus({ preventScroll: true }); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+
+  // ── 编辑 ──
+  function startEdit(link) {
+    if (link.classList.contains("ref")) return;
+    const keepAnchor = (mode === "view" || mode === "toolbar") && anchor;
+    const prevAnchor = anchor;
+    cur = link; viaCaret = true;
+    snapshot = { url: link.dataset.url, html: link.innerHTML };
+    link.classList.add("editing");
+    const rect = anchorRect(link, lastY);
+    open("edit", keepAnchor && mode === "view" ? prevAnchor : () => ({ rect }));
+    const t = $('[data-f="text"]', pop), u = $('[data-f="url"]', pop);
+    if (link.children.length) t.closest(".row").remove(); else t.value = link.textContent;
+    u.value = link.dataset.url;
+    u.focus(); u.select();
+  }
+  function commitEdit() {
+    const link = cur;
+    if (!link.dataset.url) return unlink(link);
+    hide(); caretAfter(link); flash(link);
+  }
+  function cancelEdit() {
+    const link = cur;
+    link.dataset.url = snapshot.url; link.innerHTML = snapshot.html;
+    hide(); caretAfter(link);
+  }
+
+  // ── 取消链接 / 撤销 ──
+  function unlink(link) {
+    const rect = anchorRect(link, null);
+    link.classList.remove("editing");
+    undoInfo = { url: link.dataset.url, cls: link.className, nodes: unwrapEl(link) };
+    cur = null; viaCaret = true;
+    noticeText = "已取消链接";
+    open("notice", () => ({ rect }));
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => { if (mode === "notice") hide(); }, T.notice);
+  }
+  function undo() {
+    if (!undoInfo) return;
+    const { url, cls, nodes } = undoInfo; undoInfo = null;
+    const link = document.createElement("span");
+    link.className = cls; link.dataset.url = url;
+    nodes[0].before(link); link.append(...nodes);
+    hide(); flash(link);
+  }
+
+  // ── 浮层内事件 ──
+  pop.addEventListener("mousedown", e => { if (!e.target.closest("input")) e.preventDefault(); });
+  pop.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const act = b.dataset.act;
+    if (act === "open") openUrl(cur);
+    else if (act === "copy") {
+      navigator.clipboard?.writeText(cur.dataset.url).catch(() => {});
+      const addr = $(".addr", pop); addr.classList.add("done");
+      setTimeout(() => addr.classList.remove("done"), 1200);
+    }
+    else if (act === "edit") startEdit(cur);
+    else if (act === "unlink") unlink(cur);
+    else if (act === "undo") undo();
+    else if (act === "fmt") document.execCommand(b.dataset.cmd);
+    else if (act === "tb-link") { const l = selectionLink(); l ? startEdit(l) : startCreate("above"); }
+  });
+  pop.addEventListener("input", e => {
+    const f = e.target.dataset.f;
+    $(".err", pop)?.classList.remove("on");
+    if (mode !== "edit") return;
+    if (f === "text" && e.target.value) cur.textContent = e.target.value;
+    if (f === "url") cur.dataset.url = normalize(e.target.value);
+  });
+  pop.addEventListener("keydown", e => {
+    if (!e.target.matches("input")) return;
+    if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); mode === "edit" ? commitEdit() : commitCreate(false); }
+    else if (e.key === "Escape") { e.preventDefault(); mode === "edit" ? cancelEdit() : cancelCreate(); }
+  });
+  document.addEventListener("mousedown", e => {
+    if (pop.contains(e.target)) return;
+    if (mode === "edit") commitEdit();
+    else if (mode === "create") commitCreate(true);
+    else if (mode === "toolbar" || mode === "notice") hide();
+  });
+
+  // ── 编辑器键盘 ──
+  doc.addEventListener("keydown", e => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === "l") {
+      e.preventDefault();
+      const sel = getSelection(), link = selectionLink();
+      if (link && sel.isCollapsed) startEdit(link);
+      else startCreate(mode === "toolbar" ? "above" : "below");
+      return;
+    }
+    if (e.key === "Escape" && mode) { e.preventDefault(); hide(); return; }
+    if (viaCaret && (mode === "view" || mode === "ref") && e.key.length === 1 && !mod) hide();
+  });
+
+  // ── 粘贴成链 ──
+  doc.addEventListener("paste", e => {
+    const text = e.clipboardData.getData("text/plain");
+    if (!isUrl(text)) return;
+    e.preventDefault();
+    const url = normalize(text.trim());
+    const sel = getSelection(); if (!sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const link = document.createElement("span");
+    link.className = "lk"; link.dataset.url = url;
+    if (range.collapsed || closestLink(range.commonAncestorContainer)) {
+      link.textContent = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      range.deleteContents();
+    } else {
+      link.appendChild(range.extractContents());
+      link.querySelectorAll(".lk").forEach(unwrapEl);
+    }
+    range.insertNode(link);
+    hide(); caretAfter(link); flash(link);
+  });
+
+  // ── 滚动 / 尺寸变化时重新贴住锚点 ──
+  const reanchor = () => {
+    if (!mode || !anchor) return;
+    pop.classList.add("noanim");
+    const target = pending || (cur && doc.contains(cur) ? cur : null);
+    const { prefer } = anchor();
+    const rect = target ? anchorRect(target, null) : anchor().rect;
+    place(rect, prefer);
+    requestAnimationFrame(() => pop.classList.remove("noanim"));
+  };
+  addEventListener("scroll", reanchor, true);
+  addEventListener("resize", reanchor);
+
+  // ── 浮层内 tooltip ──
+  function hideTip() { clearTimeout(tipTimer); tip.classList.remove("show"); }
+  pop.addEventListener("mouseover", e => {
+    const b = e.target.closest("[data-tip]"); if (!b) return;
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => {
+      tip.innerHTML = b.dataset.tip;
+      const r = b.getBoundingClientRect();
+      tip.style.left = r.left + r.width / 2 + "px";
+      tip.style.top = r.top - 32 + "px";
+      tip.classList.add("show");
+    }, 400);
+  });
+  pop.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]")) hideTip(); });
+})();
+</script>
+</body>
+</html>

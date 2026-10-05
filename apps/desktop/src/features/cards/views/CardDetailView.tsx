@@ -1,13 +1,12 @@
 /**
  * 卡片详情视图（mockups/card-detail/plan-a-plain.html v2 定稿落地）：
- * 单栏正文列（640）在整张纸（bg-surface 卡面）内恒居中，卡头一行 meta（分类 Tag 只读展示 · 时间 · ⋯ 菜单；
- * 分类切换与编号语言 2026-09-21 裁决：切换收进 ⋯ 菜单「编辑分类」，#id 与置顶操作移除），
+ * 单栏正文列（640）在整张纸（bg-surface 卡面）内恒居中，卡头一行 meta（时间 · ⋯ 菜单），
  * 标签行在正文末，连接区仅在有连接时渲染（空卡不堆区块）。
  * 面包屑静态（无速切器）经槽位注入壳层；无底部状态栏——字数并入卡头 meta，
  * 协作：未共享时入口在 ⋯ 菜单「发起协作」；已共享时 meta 行常驻成员条，菜单项改「协作成员」。
  *
  * 保存分工：正文走 ContentEditor 文档会话，缓存由 queries 按 contentId 并入；
- * 元数据（标签/分类/置顶/链接）每次操作即时 patch（CardMetadataPatch），
+ * 元数据（标签/置顶/链接）每次操作即时 patch（CardMetadataPatch），
  * 双向链接双边写（等价 legacy useEditCard）。
  *
  * 搬用（§6.1 共存期复用，legacy 组件直接消费）：ContentEditor / AddTag /
@@ -17,7 +16,7 @@
  * 图谱入口不做（卡片库列表页已有）。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Descendant, Range } from "slate";
 import { Transforms } from "slate";
@@ -33,7 +32,6 @@ import {
   FileType,
   FileText,
   Image as ImageIcon,
-  Layers,
   Link2,
   Maximize2,
   MessageSquare,
@@ -82,9 +80,7 @@ import {
   formatDate,
   getMarkdown,
 } from "@/utils";
-import { getEditorText } from "@/utils/editor";
-import { ECardCategory, type ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
+import type { ICard } from "@/types";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import {
   cardsKey,
@@ -93,9 +89,18 @@ import {
   useCardsFeed,
   useCardsMutations,
 } from "../queries";
-import { CATEGORY_COLORS } from "../categoryColors";
-import { AddCardLinkDialog, CardDetailLinks } from "../components/CardDetailLinks";
-import { CategoryBadge } from "../components/CardItemView";
+import {
+  AddCardLinkDialog,
+  CardConnections,
+  cardConnectionCount,
+} from "../components/CardDetailLinks";
+import { ContextBadge } from "@/features/context/components/ContextBadge";
+import { openEntity } from "@/services/open-content";
+import { cardTitle as titleOfCard } from "@/utils/card-title";
+import { useInsightsView } from "@/features/insights/useInsightsView";
+import { cardMorphKey } from "../morph";
+import { usePatternCardDraft } from "../usePatternCardDraft";
+import { CardContentPreview } from "../components/CardContentPreview";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -112,12 +117,10 @@ function cloneRange(selection: Range | null): Range | null {
   };
 }
 
-const CATEGORY_KEYS = Object.keys(cardCategoryName) as ECardCategory[];
-
 export function CardDetailView() {
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
-  const { id } = usePageParams<{ id: number }>();
+  const { id, at } = usePageParams<{ id: number; at?: string }>();
 
   const detailQuery = useCardDetail(Number.isFinite(id) ? id : null);
   const card = detailQuery.data ?? null;
@@ -158,9 +161,21 @@ export function CardDetailView() {
   }, [editorRemountKey, immersive]);
 
   const cardTitle = useMemo(
-    () => (card ? getEditorText(card.content, 20) || `卡片 #${card.id}` : ""),
+    () => (card ? titleOfCard(card, 20) || `卡片 #${card.id}` : ""),
     [card]
   );
+
+  /* AI 洞见：元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
+  const insights = useInsightsView({
+    ref: { kind: "card", id: card?.id ?? 0 },
+    contentId: card?.contentId ?? 0,
+    sourceLabel: `卡片：${cardTitle}`,
+    getEditor: useCallback(() => editorRef.current?.getEditor(), []),
+  });
+
+  /* 同一思路「写成卡片」的草稿：空正文的占位提示，关闭时还空着就撤回（KL-069） */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const draft = usePatternCardDraft(card?.id ?? null, rootRef);
 
   /* 制卡：闪卡引用指向卡片正文（refType content，与文章制卡同链路） */
   const flashcard = useFlashcardCreation({
@@ -284,20 +299,57 @@ export function CardDetailView() {
     );
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div
+      ref={rootRef}
+      className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1"
+    >
       {/* 一整张纸（同卡片库/微信读书笔记页）：正文列在纸内居中滚动 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* 纸面是形变目标（D-106）：正文会话就绪前由只读全文占位，卡片数据到位即可截图 */}
+      <div
+        data-morph-key={cardMorphKey(card.id)}
+        className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <FadeScroll className="my-4 min-h-0 flex-1">
           <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-8 pt-6">
             <article className="col-start-2 min-w-0">
-              {/* 卡头 meta：分类 Tag（只读展示，切换在 ⋯ 菜单「编辑分类」）· 时间 ·
-                ⋯ 菜单（时间右侧）；置顶操作在列表页承担（2026-09-21 裁决，详情页不做） */}
+              {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
+                （2026-09-21 裁决，详情页不做） */}
               <div className="mb-5 flex items-center gap-2.5">
-                <CategoryBadge category={card.category} full />
                 <span className="text-tau-meta text-ink-3 tabular-nums">
                   创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
                   {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
                 </span>
+                {/* 脉络入口：连接（links ∪ 内联引用）并入浮层首个分区（KL-018） */}
+                <ContextBadge
+                  entity={{ kind: "card", id: card.id }}
+                  hideOutlinks
+                  onConnect={ref => linkCards([ref.id])}
+                  leading={{
+                    count: cardConnectionCount(card),
+                    render: close => (
+                      <CardConnections
+                        card={card}
+                        cards={feed.cards}
+                        onNavigate={ref => {
+                          close();
+                          if (ref.kind === "card") {
+                            navigator.push("card-detail", { id: ref.id });
+                            return;
+                          }
+                          openEntity(ref).catch(error =>
+                            toast.error(error instanceof Error ? error.message : "无法打开内容")
+                          );
+                        }}
+                        onUnlink={targetId => void unlinkCard(targetId)}
+                        onOpenAddDialog={() => {
+                          close();
+                          setAddLinkOpen(true);
+                        }}
+                      />
+                    ),
+                  }}
+                />
+                {insights.button}
 
                 {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。
@@ -374,26 +426,6 @@ export function CardDetailView() {
                     >
                       {shared ? "协作成员" : "发起协作"}
                     </Menu.Item>
-                    <Menu.Submenu
-                      label="编辑分类"
-                      icon={<Layers className="size-[15px] shrink-0" strokeWidth={1.75} />}
-                    >
-                      {CATEGORY_KEYS.map(key => (
-                        <Menu.Item
-                          key={key}
-                          disabled={card.category === key}
-                          onSelect={() => mutations.changeCategory.mutate({ card, category: key })}
-                          icon={
-                            <span
-                              className="size-[8px] shrink-0 rounded-full"
-                              style={{ background: CATEGORY_COLORS[key].text }}
-                            />
-                          }
-                        >
-                          {cardCategoryName[key]}
-                        </Menu.Item>
-                      ))}
-                    </Menu.Submenu>
                     <Menu.Submenu
                       label="复制"
                       icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -482,29 +514,45 @@ export function CardDetailView() {
               {card.podcast && (
                 <div className="mb-[30px]">
                   <PodcastPlayer
-                    defaultPodcast={card.podcast}
+                    podcast={card.podcast}
                     onDelete={podcast.handleDeletePodcast}
                     onEdit={podcast.openPodcastModal}
                   />
                 </div>
               )}
 
+              {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
+
               {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
-              <ErrorBoundary>
-                <ContentEditor
-                  ref={editorRef}
-                  contentId={card.contentId}
-                  key={`${card.id}-${editorRemountKey}`}
-                  initValue={card.content}
-                  readonly={false}
-                  source={{ sourceType: "card", sourceId: card.id }}
-                  editingContext={{ entityType: "card", entityId: card.id }}
-                  className="min-h-[80px]"
-                />
-              </ErrorBoundary>
+              {insights.frame(
+                <ErrorBoundary>
+                  <ContentEditor
+                    at={at}
+                    ref={editorRef}
+                    contentId={card.contentId}
+                    key={`${card.id}-${editorRemountKey}`}
+                    fallback={
+                      <CardContentPreview
+                        content={card.content}
+                        blocks={Infinity}
+                        className="min-h-[80px]"
+                      />
+                    }
+                    initValue={card.content}
+                    readonly={false}
+                    source={{ sourceType: "card", sourceId: card.id }}
+                    editingContext={{ entityType: "card", entityId: card.id }}
+                    className="min-h-[80px]"
+                    onInit={draft.onInit}
+                    {...(draft.placeholder ? { placeHolder: draft.placeholder } : {})}
+                    {...insights.editorProps}
+                  />
+                </ErrorBoundary>
+              )}
 
               {/* 标签行（正文末）：每次操作即时 patch */}
               <AddTag
+                divided
                 tags={card.tags}
                 addTag={tag => {
                   if (card.tags.includes(tag)) return;
@@ -527,21 +575,12 @@ export function CardDetailView() {
                   });
                 }}
               />
-
-              {/* 连接区：links ∪ 内联引用，有关联才渲染 */}
-              <CardDetailLinks
-                card={card}
-                cards={feed.cards}
-                onNavigate={targetId => navigator.push("card-detail", { id: targetId })}
-                onUnlink={targetId => void unlinkCard(targetId)}
-                onOpenAddDialog={() => setAddLinkOpen(true)}
-              />
             </article>
           </div>
         </FadeScroll>
       </div>
 
-      {/* 添加连接（空卡时唯一连接入口在 ⋯ 菜单） */}
+      {/* 添加连接：入口在 ⋯ 菜单与脉络浮层的「连接」分区 */}
       <AddCardLinkDialog
         open={addLinkOpen}
         card={card}

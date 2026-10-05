@@ -25,6 +25,8 @@ CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_tim
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_chat_unique ON question_chat(question_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_question_chat_session ON question_chat(session_id);
 CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
@@ -32,9 +34,9 @@ CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_i
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);
-CREATE INDEX IF NOT EXISTS idx_content_link_source ON content_link(source_id, source_type);
-CREATE INDEX IF NOT EXISTS idx_content_link_target ON content_link(target_id, target_type);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_content_link_unique ON content_link(source_id, source_type, target_id, target_type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_lineage_unique
+      ON entity_lineage(src_kind, src_id, dst_kind, dst_id, relation);
+CREATE INDEX IF NOT EXISTS idx_entity_lineage_dst ON entity_lineage(dst_kind, dst_id);
 CREATE INDEX IF NOT EXISTS idx_resource_sync_blacklist_file_name ON resource_sync_blacklist(file_name);
 CREATE INDEX IF NOT EXISTS idx_publish_selections_type
       ON publish_selections(content_type);
@@ -96,6 +98,8 @@ CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_updated_at ON weread_notebook(updated_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_excerpt_external ON excerpt(source_type, external_id);
+CREATE INDEX IF NOT EXISTS idx_excerpt_source ON excerpt(source_type, source_key);
 CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
@@ -109,3 +113,9 @@ CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_set ON vl_quiz_record(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_project ON vl_quiz_record(project_id);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
+-- 由正文反查所属实体（一份正文可被多个实体共用）
+CREATE INDEX IF NOT EXISTS idx_cards_content_id ON cards(content_id);
+CREATE INDEX IF NOT EXISTS idx_articles_content_id ON articles(content_id);
+CREATE INDEX IF NOT EXISTS idx_project_item_content_id ON project_item(content_id);
+CREATE INDEX IF NOT EXISTS idx_diary_segments_content_id ON diary_segments(content_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_ai_insights_scope ON knowledge_ai_insights(scope, project_id);

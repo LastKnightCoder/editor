@@ -8,6 +8,7 @@ import { ColumnColor, COLUMN_COLOR_OPTIONS } from "../../../types/column";
 import { useBoard } from "../../../hooks";
 import { ColumnUtil } from "../../../utils";
 import { AttrAction, AttrPopover, SwatchRow } from "../../../chrome";
+import SketchPopover from "../SketchPopover";
 
 interface ColumnSetterProps {
   element: ColumnElement;
@@ -69,6 +70,7 @@ const ColumnSetter = memo(({ element, onChange }: ColumnSetterProps) => {
         onClick={() => ColumnUtil.toggleCollapsed(board, element)}
       />
       <AttrAction label="解散分栏" icon={<Ungroup strokeWidth={1.75} />} onClick={handleDissolve} />
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 });

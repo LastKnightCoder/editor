@@ -4,6 +4,8 @@
   --font: sans-serif;
   --mono-font: monospace;
   --font-size: 16px;
+  /* 白板手绘模式（D-107）：内置 Shantell Sans（拉丁）+ 小赖 SC（中文），@font-face 见 assets/fonts/hand */
+  --tau-font-hand: var(--tau-font-hand-faces), "Hannotate SC", "KaiTi", var(--tau-font);
 }
 
 html,
@@ -117,4 +119,24 @@ html {
   object-fit: none;
   object-position: left top;
   animation-duration: 200ms;
+}
+
+/* 共享元素形变（page/morph.ts，卡片 / 列表行 ⇄ 预览 ⇄ 详情）：放大缩小——新旧截图按容器
+   宽度等比缩放、顶边对齐，多出的高度由组裁掉，内容只随容器整体缩放、不在容器里滑动。
+   不用 cover：列表行与弹窗宽高比相差十几倍，cover 会按高度把行截图放大近十倍再急剧回落。
+   旧图先淡出、新图全程淡入，中途两层都半透明时由纸面底色托住，不透出下层页面 */
+::view-transition-group(page-morph) {
+  overflow: clip;
+  border-radius: var(--tau-radius-lg);
+  background: var(--tau-bg-surface);
+  animation-duration: 380ms;
+  animation-timing-function: var(--tau-ease-out);
+}
+::view-transition-old(page-morph),
+::view-transition-new(page-morph) {
+  width: 100%;
+  height: auto;
+}
+::view-transition-old(page-morph) {
+  animation-duration: 180ms;
 }

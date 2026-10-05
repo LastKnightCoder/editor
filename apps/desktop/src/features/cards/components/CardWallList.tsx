@@ -15,10 +15,11 @@ import type { ICard } from "@/types";
 import { CardContentPreview } from "./CardContentPreview";
 import { cn, useEdgeFade, IconButton, Tag } from "@tau/ui";
 import { bucketByTimeGroups } from "../queries";
-import { CardItemView, CategoryBadge, formatMonthDay } from "./CardItemView";
+import { CardItemView, formatMonthDay } from "./CardItemView";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
+import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
 import type { CardItemActions } from "../types";
-import { CATEGORY_COLORS } from "../categoryColors";
+import { cardMorphKey } from "../morph";
 
 const MIN_CARD_WIDTH = 288;
 const GAP = 16;
@@ -45,10 +46,7 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
   const [showBackToTop, setShowBackToTop] = useState(false);
   useEdgeFade(scrollEl);
 
-  useLayoutEffect(() => {
-    if (scrollEl) scrollEl.scrollTop = 0;
-    setShowBackToTop(false);
-  }, [scrollEl, resetScrollKey]);
+  useScrollTopOnChange(scrollEl, resetScrollKey, () => setShowBackToTop(false));
 
   /* 列数跟随滚动容器宽（侧栏收起/拖宽/窗口缩放统一覆盖；rAF 合并） */
   const widthRef = useRef(0);
@@ -225,7 +223,7 @@ function SectionHead({
   );
 }
 
-/** 置顶横卡：双列宽，左缘分类色脊，正文 Editor 只读预览（同条目卡口径） */
+/** 置顶横卡：双列宽，左缘置顶色脊，正文 Editor 只读预览（同条目卡口径） */
 function FeaturedCard({
   card,
   actions,
@@ -235,29 +233,25 @@ function FeaturedCard({
   actions: CardItemActions;
   previewMaxHeight: number;
 }) {
-  const color = CATEGORY_COLORS[card.category];
   return (
     <article
       tabIndex={0}
+      data-morph-key={cardMorphKey(card.id)}
+      onPointerEnter={() => actions.onPrefetch?.(card)}
       onClick={() => actions.onOpen(card)}
       className={cn(
         "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer overflow-hidden rounded-[var(--tau-radius-lg)] border py-4 pl-[18px] pr-5",
         "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
       )}
     >
-      <span className="absolute inset-y-0 left-0 w-1" style={{ background: color.text }} />
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: "var(--tau-accent)" }} />
       <span
-        className="absolute right-3.5 top-3 grid size-[22px] place-items-center rounded-full"
-        style={{
-          background: CATEGORY_COLORS.temporary.soft,
-          color: CATEGORY_COLORS.temporary.text,
-        }}
+        className="bg-accent-soft text-accent absolute right-3.5 top-3 grid size-[22px] place-items-center rounded-full"
         title="已置顶"
       >
         <Pin className="size-3" strokeWidth={1.75} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
-        <CategoryBadge category={card.category} />
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
           <FadeWhenOverflow style={{ maxHeight: previewMaxHeight }}>
             <CardContentPreview content={card.content} />

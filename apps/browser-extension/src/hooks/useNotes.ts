@@ -43,8 +43,8 @@ interface UseNotesReturn {
   ) => Promise<void>;
 }
 
-const STORAGE_PREFIX_META = "tau-notes-meta:";
-const STORAGE_PREFIX_CONTENT = "tau-note-content:";
+export const STORAGE_PREFIX_META = "tau-notes-meta:";
+export const STORAGE_PREFIX_CONTENT = "tau-note-content:";
 
 /**
  * 管理单个 URL 下的多笔记生命周期

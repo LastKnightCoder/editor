@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { FileText, FolderOpen, Newspaper, StickyNote } from "lucide-react";
 import { SearchResult } from "@/types";
 import { richTextPlainText } from "@/utils/richTextText";
-import { ComposerPanelItem } from "@/components/ChatInputArea/ComposerPanel";
+import { ComposerPanelItem } from "@tau/shared";
 
 interface IItemProps {
   item: SearchResult;

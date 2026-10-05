@@ -19,7 +19,8 @@ import {
 } from "@/types/block-preview";
 import { InlineBlockShell } from "@/features/previews/components/InlineBlockShell";
 import { usePreviewActions } from "@/features/previews/components/previewActions";
-import { downloadBlob, safeFileName } from "@/features/previews/exportImage";
+import { downloadBlob } from "@/features/previews/exportImage";
+import { sanitizeFileName } from "@/utils/file-name";
 import { convertWhiteboardToBoard, parseWhiteboardDsl, type WhiteboardDocument } from "./dsl";
 
 const WhiteBoard = lazy(() => import("@/components/WhiteBoard"));
@@ -191,7 +192,7 @@ function WhiteboardPreview({ block, generating }: BlockPreviewProps) {
               type: "png",
               quality: 0.95,
             });
-            downloadBlob(blob, `${safeFileName(title)}.png`);
+            downloadBlob(blob, `${sanitizeFileName(title, "白板")}.png`);
             toast.success("图片已导出");
           } finally {
             setBusy(false);

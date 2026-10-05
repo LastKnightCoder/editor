@@ -6,7 +6,7 @@
  * 现在分层为 core（图/布局/相机/命中/调色板）+ renderers + 本文件（React 壳）。
  *
  * 本文件只做三件事：挂 canvas、把 props 翻译成引擎参数、渲染悬停预览面板。
- * props 与旧版完全一致，三个调用点无需改动。
+ * 输入是通用的 GraphItem（不绑定卡片），由宿主组装。
  */
 
 import { memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
@@ -15,14 +15,22 @@ import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { AnchoredPanel } from "@tau/ui";
 import { Editor, createValueDocument, type EditorDocument } from "@tau/editor";
-import { getCardById } from "@/commands";
+import { getContentById } from "@/commands/content";
 import Loading from "@/components/Loading";
 import type { KnowledgeMap } from "@/knowledge-map/types";
-import { ICard } from "@/types";
 import { GraphCaption } from "./GraphCaption";
-import { useGraphEngine, type GraphInsight, type PlaybackState } from "./useGraphEngine";
+import { placePreview, type PreviewPlace } from "./core/previewPlacement";
+import type { GraphItem } from "./core/types";
+import {
+  useGraphEngine,
+  type CanvasCircle,
+  type GraphInsight,
+  type GraphOverlayApi,
+  type PlaybackState,
+} from "./useGraphEngine";
+import type { Box } from "./renderers/Canvas2DRenderer";
 
-export type { GraphInsight, PlaybackState };
+export type { CanvasCircle, GraphInsight, GraphItem, GraphOverlayApi, PlaybackState };
 
 /** 宿主手里的动画把手：用于「第一次进入自动播一次」这类时机触发 */
 export interface LinkGraphPlaybackHandle {
@@ -31,13 +39,14 @@ export interface LinkGraphPlaybackHandle {
 }
 
 interface ILinkGraphProps {
-  initCards: ICard[];
-  getCardLinks?: (card: ICard) => number[];
+  items: GraphItem[];
   className?: string;
   style?: React.CSSProperties;
   cardWidth?: number;
   cardMaxHeight?: number;
   cardFontSize?: number;
+  /** 打开时把镜头对准的节点（场景内数值 id）；就绪后与变化时各飞一次 */
+  focusId?: number | null;
   /** 当前卡片（通常一两张，如正在编辑的那张）：accent 强调 */
   currentCardIds?: number[];
   /**
@@ -48,7 +57,7 @@ interface ILinkGraphProps {
   fitView?: boolean;
   /** 兼容旧签名（G6 的 padding 数组）；自研版只用第一个值 */
   fitViewPadding?: number[];
-  onClickCard?: (card: ICard) => void;
+  onClickItem?: (item: GraphItem) => void;
   enableHoverPreview?: boolean;
   /**
    * 传了就把布局坐标按这个键落盘（IndexedDB），重开即刻恢复上次的图形。
@@ -64,50 +73,62 @@ interface ILinkGraphProps {
    * 点一下按创建时间播放卡片的生长过程。不开就没有动画——局部子图没有回放的意义
    */
   caption?: boolean;
+  /** 说明行的量词与名词，默认「条笔记」 */
+  captionUnit?: { measure: string; noun: string };
   /** 临时替换说明行的邀请语（卡片数跨过里程碑时），null 表示显示平常的描述 */
   captionHint?: string | null;
   /** 动画把手：宿主据此做时机触发（第一次进入自动播一次） */
   playbackRef?: Ref<LinkGraphPlaybackHandle>;
   /** 播放开始 / 结束 */
   onPlaybackChange?: (state: PlaybackState) => void;
+  /**
+   * 叠在画布上的宿主内容（如 AI 洞见的标记）。容器不接指针事件，里面需要点的元素自己开 pointer-events；
+   * 位置经 overlayRef 拿到的 GraphOverlayApi 每帧换算。
+   */
+  overlay?: React.ReactNode;
+  /** 覆盖层坐标换算与镜头控制 */
+  overlayRef?: Ref<GraphOverlayApi>;
 }
 
 const defaultFitViewPadding = [40];
-const defaultGetCardLinks = (card: ICard) => card.links;
+const defaultCaptionUnit = { measure: "条", noun: "笔记" };
 
 const LinkGraph = memo((props: ILinkGraphProps) => {
   const {
     className,
     style,
-    initCards,
+    items,
     cardWidth = 420,
     cardMaxHeight = 360,
     cardFontSize,
+    focusId = null,
     currentCardIds,
     filterCardIds,
-    getCardLinks = defaultGetCardLinks,
     fitView = true,
     fitViewPadding = defaultFitViewPadding,
-    onClickCard,
+    onClickItem,
     enableHoverPreview = true,
     persistKey,
     onClusters,
     knowledgeMap,
     caption = false,
+    captionUnit = defaultCaptionUnit,
     captionHint = null,
     playbackRef,
     onPlaybackChange,
+    overlay,
+    overlayRef,
   } = props;
 
-  // 说明行的「始于」：最早一张卡的创建时间
+  // 说明行的「始于」：最早一个条目的创建时间
   const since = useMemo(() => {
     let earliest = 0;
-    for (const card of initCards) {
-      const time = card.create_time ?? 0;
+    for (const item of items) {
+      const time = item.createdAt;
       if (time > 0 && (earliest === 0 || time < earliest)) earliest = time;
     }
     return earliest;
-  }, [initCards]);
+  }, [items]);
 
   const [previewDocument, setPreviewDocument] = useState<{
     id: number;
@@ -115,32 +136,47 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   } | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [previewId, setPreviewId] = useState<number | null>(null);
-  // 锚点是一个零尺寸空 div：AnchoredPanel 要的是 DOM 元素，而我们只有 canvas 坐标
+  const [place, setPlace] = useState<PreviewPlace | null>(null);
+  // 锚点是一个盖住节点与标题的空 div：AnchoredPanel 要的是 DOM 元素，而我们只有 canvas 坐标
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   const padding = fitViewPadding[0] ?? 40;
 
-  const handleHoverNode = useMemoizedFn(
-    (payload: { id: number; canvasX: number; canvasY: number } | null) => {
-      if (!payload) {
-        setAnchor(null);
-        setPreviewId(null);
-        return;
-      }
-      const element = anchorRef.current;
-      if (!element) return;
-      element.style.left = `${payload.canvasX}px`;
-      element.style.top = `${payload.canvasY}px`;
-      setPreviewId(payload.id);
-      setAnchor(element);
+  const handleHoverNode = useMemoizedFn((payload: { id: number; box: Box } | null) => {
+    if (!payload) {
+      setAnchor(null);
+      setPreviewId(null);
+      return;
     }
-  );
+    const element = anchorRef.current;
+    const canvasRect = engine.canvasRef.current?.getBoundingClientRect();
+    if (!element || !canvasRect) return;
+    const { box } = payload;
+    element.style.left = `${box.left}px`;
+    element.style.top = `${box.top}px`;
+    element.style.width = `${box.right - box.left}px`;
+    element.style.height = `${box.bottom - box.top}px`;
+    setPlace(
+      placePreview(
+        {
+          left: canvasRect.left + box.left,
+          right: canvasRect.left + box.right,
+          top: canvasRect.top + box.top,
+          bottom: canvasRect.top + box.bottom,
+        },
+        { width: cardWidth, maxHeight: cardMaxHeight },
+        { width: window.innerWidth, height: window.innerHeight }
+      )
+    );
+    setPreviewId(payload.id);
+    setAnchor(element);
+  });
 
-  const handleClickNode = useMemoizedFn((card: ICard) => {
+  const handleClickNode = useMemoizedFn((item: GraphItem) => {
     setAnchor(null);
     setPreviewId(null);
-    onClickCard?.(card);
+    onClickItem?.(item);
   });
 
   // 指针从画布移进预览面板时保持悬停：用户是去读 / 滚动正文的
@@ -150,8 +186,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   );
 
   const engine = useGraphEngine({
-    cards: initCards,
-    getCardLinks,
+    items,
     currentCardIds,
     filterCardIds,
     fitView,
@@ -170,9 +205,14 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     () => ({ play: engine.playback.play, stop: engine.playback.stop }),
     [engine.playback.play, engine.playback.stop]
   );
+  useImperativeHandle(overlayRef, () => engine.overlay, [engine.overlay]);
   const playbackActive = engine.playback.state.active;
   const emitPlayback = useMemoizedFn(() => onPlaybackChange?.(engine.playback.state));
   useEffect(emitPlayback, [playbackActive, emitPlayback]);
+
+  useEffect(() => {
+    if (engine.ready && focusId !== null) engine.focusNode(focusId);
+  }, [engine.ready, engine.focusNode, focusId]);
 
   // 离开面板：回到画布就交还给画布的悬停判定，去别处就收起
   const handlePanelLeave = useMemoizedFn((event: React.PointerEvent) => {
@@ -183,10 +223,12 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   useEffect(() => {
     if (previewId === null) return;
     let cancelled = false;
-    getCardById(previewId)
-      .then(card => {
-        if (cancelled) return;
-        setPreviewDocument({ id: previewId, document: createValueDocument(card.content) });
+    const contentId = items.find(item => item.id === previewId)?.contentId;
+    if (!contentId) return;
+    getContentById(contentId)
+      .then(content => {
+        if (cancelled || !content) return;
+        setPreviewDocument({ id: previewId, document: createValueDocument(content.content) });
       })
       .catch(() => {
         if (!cancelled) setAnchor(null);
@@ -194,7 +236,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     return () => {
       cancelled = true;
     };
-  }, [previewId]);
+  }, [previewId, items]);
 
   // Body 的高度上限由它自己的 min(60vh, 420px) 兜底，宿主想收更紧就用 CSS 变量覆盖
   // （Body 只接 children/className，不接 style）
@@ -203,9 +245,9 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       ({
         width: cardWidth,
         fontSize: cardFontSize,
-        "--graph-preview-max-h": `${cardMaxHeight}px`,
+        "--graph-preview-max-h": `${place?.maxHeight ?? cardMaxHeight}px`,
       }) as React.CSSProperties,
-    [cardWidth, cardFontSize, cardMaxHeight]
+    [cardWidth, cardFontSize, cardMaxHeight, place]
   );
 
   return (
@@ -218,11 +260,15 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       style={style}
     >
       <canvas ref={engine.canvasRef} className="block h-full w-full touch-none" />
-      <div ref={anchorRef} className="pointer-events-none absolute h-0 w-0" />
+      <div ref={anchorRef} className="pointer-events-none absolute" />
+      {overlay && engine.ready && (
+        <div className="pointer-events-none absolute inset-0">{overlay}</div>
+      )}
       {caption && engine.ready && (
         <GraphCaption
           playback={engine.playback}
-          total={initCards.length}
+          total={items.length}
+          unit={captionUnit}
           since={since}
           hint={captionHint}
         />
@@ -236,7 +282,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         <AnchoredPanel
           ref={panelRef}
           anchor={anchor}
-          placement="bottom-start"
+          placement={place?.placement ?? "bottom-start"}
           style={panelStyle}
           onPointerLeave={handlePanelLeave}
         >

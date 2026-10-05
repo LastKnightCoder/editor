@@ -1,19 +1,24 @@
 /**
- * 文章页视图 · 月刊形态，一整张纸（mockups/articles/plan-sheet.html 方案 B 定稿）：
- * 纸顶工具栏（标题 / 当前标签 + 摘要 + 标题搜索 + 导入 / 新建）→ 纸内按月分段
- * （sticky 月头纸色实底）+ 描边竖卡网格 + 无限滚动（触底预加载）。无排序（按月归段即时间序）。
+ * 文章页视图 · 一整张纸（mockups/articles/plan-sheet.html 方案 B 定稿）：
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 标题搜索 + 视图 + 导入 / 新建）→ 纸内两种排布，
+ * 都走无限滚动（触底预加载）：
+ * - 网格 = 月刊形态：按月分段（sticky 月头纸色实底）+ 描边竖卡，按更新时间排，不设排序；
+ * - 列表 = 平铺行 + 列头排序（D-105，mockups/articles/list-view.html），排序下推主进程。
  *
  * 筛选：标签在侧栏「文章」入口的子项里（ArticlesNav，页面参数 id），页内不放标签 pills；
  * 右上角搜索框按标题关键词筛选（停顿后下推到 getArticlePage，与标签叠加）。
  * 点击卡片/新建走页内导航到 article-detail 占位页（编辑器迁移后接正文编辑，
  * 见 DECISIONS.md D-015）；「窗口打开」菜单项保留 Electron 独立窗口能力。
+ * 网格卡 / 列表行 ⇄ 详情页的纸走共享元素形变（D-106）。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Import, Plus, Search, X } from "lucide-react";
 import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageParams } from "@/page/PageProvider";
-import { Button, ConfirmDialog, Input, Loading, Spinner, toast } from "@tau/ui";
+import { morph, queryActivePageMorph } from "@/page/morph";
+import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
+import { Button, ConfirmDialog, Input, Loading, Spinner, cn, toast } from "@tau/ui";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
@@ -28,8 +33,13 @@ import { getFileBaseName, readTextFile, readBinaryFile, selectFile } from "@/com
 import { getMarkdown, downloadMarkdown, importFromMarkdown, getContentLength } from "@/utils";
 import type { Descendant } from "slate";
 import type { ArticlePageItem } from "@/types";
-import { useArticleFeed, useArticleMutations, bucketByMonths } from "../queries";
-import { ArticleCard, formatWords, type ArticleCardProps } from "./ArticleCard";
+import { LayoutMenu } from "@/features/shared/list/ListControls";
+import { ARTICLE_PAGE_SIZE, useArticleFeed, useArticleMutations, bucketByMonths } from "../queries";
+import { useArticlesPreferencesStore } from "../preferences";
+import { ArticleListRows } from "../components/ArticleListRows";
+import type { ArticleItemActions } from "../components/ArticleItemOps";
+import { ArticleCard, formatWords } from "./ArticleCard";
+import { articleMorphKey } from "../morph";
 
 const LOAD_MORE_THRESHOLD = 700;
 /** 搜索框停顿多久再查询（逐字下推会每键一次 IPC） */
@@ -45,7 +55,14 @@ export function ArticlesView() {
     const timer = window.setTimeout(() => setQuery(search.trim()), SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [search]);
-  const feed = useArticleFeed(tag, query);
+  const { layout, listSort, update: updatePreferences } = useArticlesPreferencesStore();
+  const listLayout = layout === "list";
+  const feed = useArticleFeed({
+    tag,
+    keyword: query,
+    sort: listLayout ? listSort : "updated",
+    pageSize: ARTICLE_PAGE_SIZE[layout],
+  });
   const { toggleTop, remove, createDefault } = useArticleMutations();
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
@@ -64,12 +81,22 @@ export function ArticlesView() {
 
   const openDetail = useCallback(
     (article: ArticlePageItem) => {
-      navigator.push("article-detail", { id: article.id });
+      const key = articleMorphKey(article.id);
+      morph({
+        from: queryActivePageMorph(key),
+        update: () => navigator.push("article-detail", { id: article.id }),
+        to: () => queryActivePageMorph(key),
+      });
     },
     [navigator]
   );
 
+  /* 换排布或排序是另一条数据流，回到顶部从头看（从详情返回不算，保留滚动位置） */
+  useScrollTopOnChange(scrollEl, `${layout}\n${listSort}`);
+
   /* 无限滚动：距底阈值触发，fetchNextPage 进行中不重入 */
+  const { hasMore, loadingMore, loadMore } = feed;
+  const loadedCount = feed.items.length;
   useEffect(() => {
     const el = scrollEl;
     if (!el) return;
@@ -79,14 +106,17 @@ export function ArticlesView() {
       ticking = true;
       requestAnimationFrame(() => {
         ticking = false;
-        if (!feed.hasMore || feed.loadingMore) return;
+        if (!hasMore || loadingMore) return;
         if (el.scrollHeight - el.scrollTop - el.clientHeight > LOAD_MORE_THRESHOLD) return;
-        feed.loadMore();
+        loadMore();
       });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
+    // 首屏没填满时不会有滚动事件：内容高度不足就直接续取下一页（loadedCount 变化后重新判断）
+    if (hasMore && !loadingMore && el.scrollHeight <= el.clientHeight + LOAD_MORE_THRESHOLD)
+      loadMore();
     return () => el.removeEventListener("scroll", onScroll);
-  }, [scrollEl, feed.hasMore, feed.loadingMore, feed.loadMore]);
+  }, [scrollEl, hasMore, loadingMore, loadMore, loadedCount]);
 
   /* ---------- 卡片操作 ---------- */
 
@@ -177,7 +207,7 @@ export function ArticlesView() {
     }
   }, [feed]);
 
-  const cardActions: Omit<ArticleCardProps, "article" | "featured"> = {
+  const cardActions: ArticleItemActions = {
     onOpen: openDetail,
     onToggleTop: article => void toggleTop(article.id, !article.isTop),
     onDelete: setPendingDelete,
@@ -242,6 +272,7 @@ export function ArticlesView() {
             className="w-0"
             wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
           />
+          <LayoutMenu value={layout} onChange={next => updatePreferences({ layout: next })} />
           {/* 导入：带文字的次要按钮（同 Skill 页「关联目录 + 添加」），不用裸图标——
               下箭头落横线是通用的「下载 / 导出」语义，且裸图标夹在搜索框与主按钮之间分量不齐 */}
           <Button
@@ -268,13 +299,23 @@ export function ArticlesView() {
         </div>
 
         {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8），离纸底 16px；
-            pt-1 给首行卡片 hover 的 lift 阴影留出绘制空间 */}
+            网格 pt-1 给首行卡片 hover 的 lift 阴影留出绘制空间；列表不留 pt，列头贴顶吸附 */}
         <FadeScroll
           scrollRef={setScrollEl}
-          className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-1"
+          topFade={!listLayout}
+          className={cn("mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px]", !listLayout && "pt-1")}
         >
+          {listLayout && feed.total > 0 && (
+            <ArticleListRows
+              items={feed.items}
+              sort={listSort}
+              onSortChange={next => updatePreferences({ listSort: next })}
+              actions={cardActions}
+            />
+          )}
+
           {/* 置顶段 */}
-          {tops.length > 0 && (
+          {!listLayout && tops.length > 0 && (
             <MonthSection label="置顶" count={tops.length} words={sumWords(tops)}>
               {tops.map(article => (
                 <ArticleCard key={article.id} article={article} {...cardActions} />
@@ -283,19 +324,20 @@ export function ArticlesView() {
           )}
 
           {/* 月分段（段内统一竖卡） */}
-          {months.map(month => (
-            <MonthSection
-              key={month.key}
-              label={`${month.month} 月`}
-              year={month.year}
-              count={month.items.length}
-              words={month.words}
-            >
-              {month.items.map(article => (
-                <ArticleCard key={article.id} article={article} {...cardActions} />
-              ))}
-            </MonthSection>
-          ))}
+          {!listLayout &&
+            months.map(month => (
+              <MonthSection
+                key={month.key}
+                label={`${month.month} 月`}
+                year={month.year}
+                count={month.items.length}
+                words={month.words}
+              >
+                {month.items.map(article => (
+                  <ArticleCard key={article.id} article={article} {...cardActions} />
+                ))}
+              </MonthSection>
+            ))}
 
           {/* 空态：筛选无结果 / 还没有文章 */}
           {feed.total === 0 &&
@@ -351,7 +393,11 @@ export function ArticlesView() {
                   加载中…
                 </>
               ) : feed.hasMore ? (
-                "向下滚动加载更早的月份"
+                listLayout ? (
+                  "向下滚动加载更多"
+                ) : (
+                  "向下滚动加载更早的月份"
+                )
               ) : (
                 <span className="tabular-nums">已全部加载 · {feed.total} 篇</span>
               )}

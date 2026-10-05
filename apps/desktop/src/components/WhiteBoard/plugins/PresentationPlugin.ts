@@ -1,9 +1,4 @@
-import {
-  Board,
-  IBoardPlugin,
-  BoardElement,
-  ECreateBoardElementType,
-} from "../types";
+import { Board, IBoardPlugin, BoardElement, ECreateBoardElementType } from "../types";
 import { BoardUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 import { BOARD_TO_CONTAINER } from "../constants";
@@ -38,11 +33,7 @@ export class PresentationPlugin implements IBoardPlugin {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
-    this.hitElements = BoardUtil.getHitElements(
-      board,
-      startPoint.x,
-      startPoint.y,
-    );
+    this.hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
 
     this.startPoint = startPoint;
     this.moved = false;
@@ -50,9 +41,7 @@ export class PresentationPlugin implements IBoardPlugin {
     // 清空当前选择
     SelectTransforms.updateSelectArea(board, {
       selectedElements:
-        this.hitElements && this.hitElements.length > 0
-          ? board.selection.selectedElements
-          : [],
+        this.hitElements && this.hitElements.length > 0 ? board.selection.selectedElements : [],
     });
   }
 
@@ -69,8 +58,7 @@ export class PresentationPlugin implements IBoardPlugin {
 
     if (
       !this.moved &&
-      (Math.abs(endPoint.x - this.startPoint.x) > 3 ||
-        Math.abs(endPoint.y - this.startPoint.y) > 3)
+      (Math.abs(endPoint.x - this.startPoint.x) > 3 || Math.abs(endPoint.y - this.startPoint.y) > 3)
     ) {
       this.moved = true;
     }
@@ -83,10 +71,7 @@ export class PresentationPlugin implements IBoardPlugin {
       focus: endPoint,
     };
 
-    const selectedElements = BoardUtil.getElementsInSelectArea(
-      board,
-      selectArea,
-    );
+    const selectedElements = BoardUtil.getElementsInSelectArea(board, selectArea);
 
     SelectTransforms.updateSelectArea(board, {
       selectArea,
@@ -109,9 +94,7 @@ export class PresentationPlugin implements IBoardPlugin {
 
       if (isMultiSelect) {
         // 多选模式下，如果点击的元素已经在选中列表中，则移除它；否则添加它
-        const existingIndex = selectedElements.findIndex(
-          (el) => el.id === clickedElement.id,
-        );
+        const existingIndex = selectedElements.findIndex(el => el.id === clickedElement.id);
 
         if (existingIndex >= 0) {
           // 元素已存在，移除它
@@ -136,7 +119,7 @@ export class PresentationPlugin implements IBoardPlugin {
     });
 
     // 确保参考线被清除
-    board.clearRefLines();
+    board.snap.end();
 
     // 重置状态
     this.startPoint = null;

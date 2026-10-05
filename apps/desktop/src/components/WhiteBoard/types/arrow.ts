@@ -39,8 +39,6 @@ export interface ArrowElement extends BoardElement {
   target: ArrowBound;
   points: Point[];
   lineWidth: number;
-  sketchEnabled?: boolean;
-  roughness?: number;
   dashed?: boolean;
   dashArray?: number[];
   animated?: boolean;

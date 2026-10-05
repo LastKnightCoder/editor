@@ -125,6 +125,28 @@ describe("EditorThemeScope", () => {
     expect(container.querySelector("span")?.dataset.mode).toBe("dark");
   });
 
+  it("EditorThemeOverride 覆盖主题族：明暗相同也补作用域属性，主题族取覆盖值", async () => {
+    root().dataset.theme = "paper";
+    root().dataset.mode = "light";
+    const container = await render(
+      <EditorThemeOverride themeKey="sakura">
+        <EditorThemeScope>
+          {scope => (
+            <div
+              data-overridden={String(scope.overridden)}
+              data-key={scope.themeKey}
+              data-scope-mode={scope.mode}
+            />
+          )}
+        </EditorThemeScope>
+      </EditorThemeOverride>
+    );
+    const div = container.querySelector("div");
+    expect(div?.dataset.overridden).toBe("true");
+    expect(div?.dataset.key).toBe("sakura");
+    expect(div?.dataset.scopeMode).toBe("light");
+  });
+
   it("覆盖明暗与宿主相同时不补作用域属性", async () => {
     root().dataset.mode = "dark";
     const container = await render(

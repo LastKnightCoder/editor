@@ -24,7 +24,7 @@ import { parseFences } from "@/features/previews/model/fences";
 import { blockKey } from "@/features/previews/model/chatBlocks";
 import { chatBlockId } from "@/features/previews/useChatBlocks";
 import { openBlockPreview } from "@/features/previews/openBlock";
-import { CodeBlock } from "./CodeBlock";
+import { CodeBlock, INLINE_CODE_CLASS, MARKDOWN_LINK_CLASS } from "@tau/chat-ui";
 
 function simpleHash(str: string): string {
   let hash = 0;
@@ -115,10 +115,7 @@ export function useChatMarkdownComponents({
 
       if (!isBlock) {
         return (
-          <code
-            {...rest}
-            className="border-line-1 bg-page font-tau-mono text-ink-1 mx-px rounded-[5px] border px-[5px] py-px text-[0.88em]"
-          >
+          <code {...rest} className={INLINE_CODE_CLASS}>
             {children}
           </code>
         );
@@ -175,7 +172,7 @@ export function useChatMarkdownComponents({
       <a
         {...props}
         href={href}
-        className="text-accent-text decoration-accent/35 hover:decoration-accent underline underline-offset-[3px]"
+        className={MARKDOWN_LINK_CLASS}
         onClick={(event: MouseEvent<HTMLAnchorElement>) => {
           if (!href) return;
           event.preventDefault();

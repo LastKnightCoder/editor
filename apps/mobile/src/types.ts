@@ -27,7 +27,6 @@ export interface CardListItem {
   id: number;
   contentId: number;
   updateTime: number;
-  category: string;
   tags: string[];
   excerpt: string;
   content: Descendant[];
@@ -38,7 +37,6 @@ export interface CardDetailResponse {
   contentId: number;
   createTime: number;
   updateTime: number;
-  category: string;
   tags: string[];
   links: number[];
   content: Descendant[];
@@ -49,7 +47,6 @@ export interface ContentCardMeta {
   id: number;
   createTime: number;
   updateTime: number;
-  category: string;
   tags: string[];
   links: number[];
 }
@@ -68,7 +65,6 @@ export interface CardsOverviewResponse {
   page: number;
   pageSize: number;
   query: string;
-  category: string;
   searchMode: "none" | "fts" | "like" | string;
   items: CardListItem[];
 }
@@ -100,7 +96,6 @@ export interface UnifiedSearchResponse {
 
 export interface CardsQueryState {
   query: string;
-  category: string;
   page: number;
   pageSize: number;
 }

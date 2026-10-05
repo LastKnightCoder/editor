@@ -40,10 +40,11 @@ import {
   useArrowMove,
   useCreateElementType,
   useInertControl,
+  useSketch,
 } from "../../hooks";
 import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
-import { toast, useEdgeFade } from "@tau/ui";
+import { cn, toast, useEdgeFade } from "@tau/ui";
 
 import "./mask.css";
 
@@ -56,6 +57,8 @@ const styles = {
   skeletonLine: "rounded-full bg-current opacity-[0.18]",
 };
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
+import { handTextClass } from "../../utils/sketch";
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;
 
@@ -144,6 +147,7 @@ const Richtext = (props: RichTextProps) => {
   const textStyle = useMemo(() => ({ variant, tone }), [variant, tone]);
   const padding = useMemo(() => getTextBoxPadding(textStyle), [textStyle]);
   const surface = getTextSurface(textStyle);
+  const sketch = useSketch(element);
   const bandColor = getTextBandColor(textStyle);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -451,7 +455,7 @@ const Richtext = (props: RichTextProps) => {
       >
         <div
           id={`rich-text-container-${elementId}`}
-          className={styles.richTextContainer}
+          className={cn(styles.richTextContainer, handTextClass(sketch))}
           ref={containerRef}
           style={containerStyle}
           onDoubleClick={e => {
@@ -468,7 +472,8 @@ const Richtext = (props: RichTextProps) => {
                   height,
                   borderRadius: TEXT_BOX.radius,
                   background: surface.background,
-                  "--text-edge": surface.edge,
+                  // 手绘时底板描边改由 SketchRect 画墨迹框
+                  "--text-edge": sketch.enabled ? "transparent" : surface.edge,
                 } as React.CSSProperties
               }
             >
@@ -525,6 +530,19 @@ const Richtext = (props: RichTextProps) => {
           )}
         </div>
       </foreignObject>
+      {surface && sketch.enabled && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={TEXT_BOX.radius}
+          stroke={surface.sketchEdge}
+          strokeWidth={1.2}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
       <If condition={isSelected}>
         <g>
           <rect
@@ -558,7 +576,6 @@ const Richtext = (props: RichTextProps) => {
         <ArrowConnectPointGroup
           element={element}
           points={arrowConnectExtendPoints}
-          proximityBounds={{ x, y, width, height }}
           isSelected={isSelected}
           disabled={isMoveArrowClosing}
         />

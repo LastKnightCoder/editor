@@ -27,6 +27,9 @@ const TYPE_LABELS: Record<EmbeddingIndexContentType, string> = {
   article: "文章",
   "project-item": "项目文档",
   "diary-daily": "日记",
+  excerpt: "划线",
+  "pdf-annotation": "PDF 标注",
+  "web-clip": "剪藏",
 };
 
 const REASON_LABELS: Record<string, string> = {
@@ -98,6 +101,9 @@ export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
         void refresh();
       } else {
         setRunning(progress);
+        // 覆盖率随进度推送，进行中不用再拉
+        const stats = progress.stats;
+        if (stats) setStatus(current => (current ? { ...current, stats } : current));
       }
     });
     return () => unsubscribe();

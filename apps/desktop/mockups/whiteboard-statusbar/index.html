@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 点阵背景 + 右下视图条 · 三方案</title>
+<!--
+  视觉参考，非导出源（D-001）。
+  点阵：SVG <pattern> 平铺，背景恒为 2 个 <rect>（次级点 + 主点），与缩放无关；
+  LOD：屏幕点距 < 10px 时间距 ×2，次级点透明度随屏幕点距 10→20px 线性渐显，层级切换无跳变。
+-->
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67,57,44,.06); --bg-press: rgba(67,57,44,.1);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22,58%,42%,.12);
+    --line-1: #e9e1d2; --line-2: rgba(200,188,168,.45);
+    --canvas: #fbf7ef; --dot: rgba(67,57,44,.26); --dot-major: rgba(67,57,44,.34);
+    --lift: 0 1px 2px rgba(120,100,70,.08), 0 6px 16px -8px rgba(120,100,70,.32);
+    --el-a: #dbe8fb; --el-b: #e4f1ea; --el-c: #f6e3cf;
+  }
+  :root[data-theme="cocoa"] {
+    --bg-page: #1f1a15; --bg-surface: #2a241e; --bg-hover: rgba(240,228,210,.07); --bg-press: rgba(240,228,210,.12);
+    --ink-1: #efe6d8; --ink-2: #c7b9a4; --ink-3: #8a7c68;
+    --accent: hsl(24 62% 60%); --accent-text: #e3a17f; --accent-soft: hsla(24,62%,60%,.16);
+    --line-1: #3a3229; --line-2: rgba(240,228,210,.1);
+    --canvas: #241f1a; --dot: rgba(240,228,210,.17); --dot-major: rgba(240,228,210,.24);
+    --lift: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+    --el-a: #2f3b4d; --el-b: #2d3d34; --el-c: #4a3828;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 -apple-system, "PingFang SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* ───────── 顶部说明 + 方案切换 ───────── */
+  .top { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 18px; }
+  .top h1 { font-size: 14px; font-weight: 600; }
+  .plans { display: flex; gap: 2px; background: var(--bg-hover); padding: 3px; border-radius: 10px; }
+  .plans button { height: 26px; padding: 0 12px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; }
+  .plans button[aria-pressed="true"] { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--lift); }
+  .top .sp { flex: 1; }
+  .top .ghost { height: 28px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); }
+  .top .ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+  .main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 340px; gap: 14px; padding: 0 14px 14px; }
+  .sheet { position: relative; border-radius: 16px; overflow: hidden; background: var(--canvas); box-shadow: 0 0 0 1px var(--line-2); }
+  svg.board { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+  svg.board.dragging { cursor: grabbing; }
+
+  /* 调试 HUD：证明背景节点数恒定 */
+  .hud { position: absolute; left: 12px; bottom: 12px; font: 11px/1.5 ui-monospace, Consolas, monospace; color: var(--ink-3);
+    background: var(--bg-surface); border-radius: 8px; padding: 6px 9px; box-shadow: 0 0 0 1px var(--line-2); pointer-events: none; }
+  .hud b { color: var(--accent-text); font-weight: 600; }
+
+  /* ───────── 右侧方案说明 ───────── */
+  .notes { overflow: auto; background: var(--bg-surface); border-radius: 16px; padding: 18px 20px; box-shadow: 0 0 0 1px var(--line-2); }
+  .notes h2 { font-size: 14.5px; font-weight: 600; margin-bottom: 4px; }
+  .notes h3 { font-size: 12.5px; font-weight: 600; margin: 16px 0 4px; color: var(--ink-2); }
+  .notes p, .notes li { color: var(--ink-2); font-size: 12.5px; }
+  .notes ul { padding-left: 18px; }
+  .notes li + li { margin-top: 3px; }
+  .notes .good { color: #61795f; } .notes .bad { color: #b0564d; }
+  :root[data-theme="cocoa"] .notes .good { color: #9cb79a; } :root[data-theme="cocoa"] .notes .bad { color: #de8c83; }
+  kbd { font: 10.5px/1 ui-monospace, monospace; background: var(--bg-hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-2); }
+  code { font: 11.5px ui-monospace, monospace; color: var(--accent-text); }
+
+  /* ───────── chrome 公共件（对齐 D-049：实底 + shadow-lift + 细描边，组间留白） ───────── */
+  .bar { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; padding: 4px;
+    background: var(--bg-surface); border-radius: 12px; box-shadow: var(--lift), 0 0 0 1px var(--line-2); z-index: 5; user-select: none; }
+  .gap { width: 6px; flex: none; }
+  .ib { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); position: relative; flex: none; }
+  .ib:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .ib[aria-pressed="true"], .ib.on { background: var(--accent-soft); color: var(--accent-text); }
+  .ib[aria-expanded="true"] { background: var(--bg-press); color: var(--ink-1); }
+  .ib svg { width: 16px; height: 16px; }
+  .tb { height: 30px; padding: 0 8px; border-radius: 8px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px; flex: none; }
+  .tb:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .tb[aria-expanded="true"] { background: var(--bg-press); color: var(--ink-1); }
+  .tb svg { width: 15px; height: 15px; }
+  .tb .chev { width: 11px; height: 11px; opacity: .55; }
+  .num { font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap;
+    background: var(--ink-1); color: var(--bg-surface); font-size: 11.5px; line-height: 1; padding: 6px 8px; border-radius: 6px; pointer-events: none; z-index: 20; }
+  [aria-expanded="true"][data-tip]:hover::after { display: none; }
+
+  /* 拆分按钮：主体 + 窄箭头共用一个底 */
+  .split { display: flex; border-radius: 8px; flex: none; }
+  .split > button:first-child { border-radius: 8px 0 0 8px; }
+  .split > button:last-child { border-radius: 0 8px 8px 0; width: 16px; padding: 0; display: grid; place-items: center; color: var(--ink-3); }
+  .split > button:last-child:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .split > button:last-child svg { width: 11px; height: 11px; }
+
+  /* 弹层 */
+  .pop { position: absolute; bottom: calc(100% + 8px); right: 0; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--lift), 0 0 0 1px var(--line-2);
+    padding: 6px; min-width: 228px; display: none; z-index: 10; }
+  .pop.open { display: block; }
+  .mi { display: flex; align-items: center; gap: 10px; height: 30px; padding: 0 8px; border-radius: 7px; width: 100%; text-align: left; color: var(--ink-1); }
+  .mi:hover { background: var(--bg-hover); }
+  .mi svg { width: 15px; height: 15px; color: var(--ink-2); flex: none; }
+  .mi .k { margin-left: auto; color: var(--ink-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .mi[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+  .sep { height: 1px; background: var(--line-1); margin: 5px 4px; }
+  .lab { font-size: 11.5px; color: var(--ink-3); padding: 4px 8px 4px; }
+  .chips { display: flex; gap: 4px; padding: 0 6px 4px; flex-wrap: wrap; }
+  .chip { white-space: nowrap; flex: none; height: 26px; padding: 0 10px; border-radius: 7px; background: var(--bg-hover); color: var(--ink-2); font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+  .chip:hover { background: var(--bg-press); color: var(--ink-1); }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+  .chip[disabled] { opacity: .45; pointer-events: none; }
+  .chip svg { width: 14px; height: 14px; }
+  .chips.fill .chip { flex: 1 1 0; justify-content: center; }
+
+  /* 演示序列条目 */
+  .seq { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 6px 0 6px; border-radius: 9px; width: 100%; text-align: left; }
+  .seq:hover { background: var(--bg-hover); }
+  .seq .pi { width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; flex: none; }
+  .seq .pi svg { width: 11px; height: 11px; }
+  .seq .t { flex: 1; min-width: 0; line-height: 1.25; }
+  .seq .t b { display: block; font-weight: 400; font-size: 13px; }
+  .seq .t span { font-size: 11.5px; color: var(--ink-3); }
+  .seq .last { font-size: 10.5px; color: var(--accent-text); background: var(--accent-soft); border-radius: 5px; padding: 1px 5px; }
+  .btn-soft { width: 100%; height: 30px; margin-top: 4px; border-radius: 8px; background: var(--bg-hover); color: var(--ink-1); display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn-soft:hover { background: var(--bg-press); }
+  .btn-soft svg { width: 14px; height: 14px; }
+
+  /* 方案 B：缩放滑杆 */
+  .slider { width: 96px; height: 30px; display: flex; align-items: center; padding: 0 4px; position: relative; flex: none; }
+  .slider .track { position: relative; height: 3px; width: 100%; background: var(--line-1); border-radius: 2px; }
+  .slider .fillbar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 2px; opacity: .7; }
+  .slider .tick { position: absolute; top: -3px; width: 1px; height: 9px; background: var(--ink-3); opacity: .5; }
+  .slider .knob { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--bg-surface);
+    box-shadow: 0 0 0 1.5px var(--accent), 0 1px 3px rgba(0,0,0,.2); }
+  .slider input { position: absolute; inset: 0; opacity: 0; cursor: ew-resize; width: 100%; }
+
+  /* 方案 C：小地图卡 */
+  .card { position: absolute; right: 0; bottom: calc(100% + 8px); width: 288px; background: var(--bg-surface); border-radius: 14px;
+    box-shadow: var(--lift), 0 0 0 1px var(--line-2); padding: 8px; display: none; z-index: 10; }
+  .card.open { display: block; }
+  .mini { position: relative; height: 140px; border-radius: 9px; background: var(--canvas); box-shadow: inset 0 0 0 1px var(--line-2); overflow: hidden; cursor: pointer; }
+  .mini svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .mini .vp { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.25; cursor: move; }
+  .row { display: flex; align-items: center; gap: 2px; margin-top: 6px; }
+  .row .grow { flex: 1; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>白板 · 点阵背景 + 右下视图条</h1>
+  <div class="plans" id="plans">
+    <button data-plan="a" aria-pressed="true">A · 合并成视图菜单</button>
+    <button data-plan="a2" aria-pressed="false">A′ · 菜单 + 一键全览</button>
+    <button data-plan="b" aria-pressed="false">B · 滑杆 + 拆分按钮</button>
+    <button data-plan="c" aria-pressed="false">C · 小地图卡</button>
+  </div>
+  <span class="sp"></span>
+  <button class="ghost" id="theme">切换深色</button>
+</div>
+
+<div class="main">
+  <div class="sheet" id="sheet">
+    <svg class="board" id="board">
+      <defs>
+        <!-- 平铺单元：一个点，patternUnits=userSpaceOnUse 让它对齐世界坐标原点 -->
+        <pattern id="dots-minor" patternUnits="userSpaceOnUse"><circle id="c-minor" /></pattern>
+        <pattern id="dots-major" patternUnits="userSpaceOnUse"><circle id="c-major" /></pattern>
+      </defs>
+      <g id="bg">
+        <rect id="r-minor" fill="url(#dots-minor)" />
+        <rect id="r-major" fill="url(#dots-major)" />
+      </g>
+      <g id="els"></g>
+    </svg>
+    <div class="hud" id="hud"></div>
+    <div id="barHost"></div>
+  </div>
+  <aside class="notes" id="notes"></aside>
+</div>
+
+<script>
+/* ───────── 图标（lucide 线框，1.75 描边） ───────── */
+const I = {
+  minus: '<path d="M5 12h14"/>',
+  plus: '<path d="M5 12h14M12 5v14"/>',
+  fit: '<path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  play: '<path d="M6 4l14 8-14 8z" fill="currentColor"/>',
+  playo: '<path d="M6 4l14 8-14 8z"/>',
+  chev: '<path d="M6 9l6 6 6-6"/>',
+  chevup: '<path d="M18 15l-6-6-6 6"/>',
+  dots: '<circle cx="6" cy="6" r="1.3" fill="currentColor"/><circle cx="12" cy="6" r="1.3" fill="currentColor"/><circle cx="18" cy="6" r="1.3" fill="currentColor"/><circle cx="6" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18" cy="12" r="1.3" fill="currentColor"/><circle cx="6" cy="18" r="1.3" fill="currentColor"/><circle cx="12" cy="18" r="1.3" fill="currentColor"/><circle cx="18" cy="18" r="1.3" fill="currentColor"/>',
+  blank: '<rect x="4" y="4" width="16" height="16" rx="3"/>',
+  sel: '<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>',
+  one: '<path d="M10 8l3-2v12"/><path d="M4 4h16v16H4z" opacity=".35"/>',
+  clap: '<path d="M4 11v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8z"/><path d="M4 11l1.5-5.5 14.5-1.5.5 3z"/>',
+  map: '<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+  magnet: '<path d="M6 3v8a6 6 0 0 0 12 0V3"/><path d="M6 7h4M14 7h4"/>',
+};
+const ic = (n, cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${I[n]}</svg>`;
+
+/* ───────── 画布状态 ───────── */
+const ZOOMS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+const MIN_Z = 0.05, MAX_Z = 4;
+const state = { plan: "a", zoom: 1, cx: 520, cy: 320, bg: "dots", gap: 20, snap: true, selected: "e2", lastSeq: "s1" };
+const seqs = [
+  { id: "s1", name: "注意力机制讲解", frames: 6 },
+  { id: "s2", name: "整体结构速览", frames: 3 },
+];
+// 一点 mock 元素：分散开，方便看缩小后的点阵和全览效果
+const els = [
+  { id: "e1", x: 120, y: 120, w: 260, h: 140, c: "--el-a", t: "Encoder" },
+  { id: "e2", x: 460, y: 160, w: 220, h: 110, c: "--el-b", t: "Multi-Head Attention" },
+  { id: "e3", x: 760, y: 120, w: 240, h: 150, c: "--el-c", t: "Decoder" },
+  { id: "e4", x: 300, y: 380, w: 300, h: 120, c: "--el-a", t: "Positional Encoding" },
+  { id: "e5", x: 1400, y: 900, w: 260, h: 140, c: "--el-b", t: "参考资料（远处）" },
+  { id: "e6", x: -600, y: 760, w: 220, h: 120, c: "--el-c", t: "草稿区（远处）" },
+];
+
+const $ = (s, r = document) => r.querySelector(s);
+const board = $("#board"), sheet = $("#sheet");
+
+function viewBox() {
+  const { width, height } = sheet.getBoundingClientRect();
+  const w = width / state.zoom, h = height / state.zoom;
+  return { minX: state.cx - w / 2, minY: state.cy - h / 2, width: w, height: h, sw: width, sh: height };
+}
+
+/* ───────── 点阵：两层 pattern + LOD ───────── */
+const MIN_SCREEN_GAP = 10; // 屏幕点距下限（px），低于它就把间距翻倍
+function renderDots(vb) {
+  const show = state.bg === "dots";
+  $("#bg").style.display = show ? "" : "none";
+  if (!show) return { level: "-", minorAlpha: 0 };
+  let step = state.gap, k = 0;
+  while (step * state.zoom < MIN_SCREEN_GAP) { step *= 2; k++; }
+  const screenGap = step * state.zoom;
+  // 次级点在 10→20px 区间渐显；主点永远是次级的 2 倍间距
+  const minorAlpha = Math.min(1, Math.max(0, (screenGap - MIN_SCREEN_GAP) / MIN_SCREEN_GAP));
+  const r = 1 / state.zoom; // 半径固定屏幕 1px
+  const set = (id, s, rad, cid) => {
+    const p = $("#" + id); p.setAttribute("width", s); p.setAttribute("height", s);
+    const c = $("#" + cid); c.setAttribute("cx", s / 2); c.setAttribute("cy", s / 2); c.setAttribute("r", rad);
+  };
+  set("dots-minor", step, r, "c-minor");
+  set("dots-major", step * 2, r * 1.15, "c-major");
+  // pattern 原点 = 世界 (0,0)；circle 放在格子中心，所以整体偏移半格，让点落在网格交点上
+  $("#dots-minor").setAttribute("x", -step / 2); $("#dots-minor").setAttribute("y", -step / 2);
+  $("#dots-major").setAttribute("x", -step); $("#dots-major").setAttribute("y", -step);
+  $("#c-minor").style.fill = "var(--dot)";
+  $("#c-major").style.fill = "var(--dot-major)";
+  for (const id of ["r-minor", "r-major"]) {
+    const rc = $("#" + id);
+    rc.setAttribute("x", vb.minX); rc.setAttribute("y", vb.minY); rc.setAttribute("width", vb.width); rc.setAttribute("height", vb.height);
+  }
+  $("#r-minor").setAttribute("opacity", minorAlpha.toFixed(3));
+  return { level: `×${2 ** k}`, minorAlpha, screenGap };
+}
+
+function renderEls() {
+  $("#els").innerHTML = els.map(e => `
+    <g data-id="${e.id}">
+      <rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="8" style="fill:var(${e.c})" ${state.selected === e.id ? `stroke="var(--accent)" stroke-width="${1.5 / state.zoom}"` : ""}/>
+      <text x="${e.x + 16}" y="${e.y + 30}" font-size="15" style="fill:var(--ink-1)">${e.t}</text>
+    </g>`).join("");
+}
+
+function render() {
+  const vb = viewBox();
+  board.setAttribute("viewBox", `${vb.minX} ${vb.minY} ${vb.width} ${vb.height}`);
+  const d = renderDots(vb);
+  renderEls();
+  const naiveLines = Math.ceil(vb.width / state.gap) + Math.ceil(vb.height / state.gap);
+  const naiveDots = Math.ceil(vb.width / state.gap) * Math.ceil(vb.height / state.gap);
+  $("#hud").innerHTML = state.bg === "dots"
+    ? `缩放 <b>${Math.round(state.zoom * 100)}%</b> · 背景节点 <b>2</b> 个 rect · LOD <b>${d.level}</b> · 屏幕点距 ${d.screenGap.toFixed(1)}px · 次级点 α ${d.minorAlpha.toFixed(2)}<br>对照：现状逐条画线需 ${naiveLines} 个 &lt;line&gt;，逐个画点需 ${naiveDots.toLocaleString()} 个 &lt;circle&gt;`
+    : `缩放 <b>${Math.round(state.zoom * 100)}%</b> · 背景空白`;
+  updateBar();
+}
+
+/* ───────── 视口操作 ───────── */
+function zoomAt(z, sx, sy) {
+  z = Math.min(MAX_Z, Math.max(MIN_Z, z));
+  const vb = viewBox();
+  if (sx == null) { sx = vb.sw / 2; sy = vb.sh / 2; }
+  const wx = vb.minX + sx / state.zoom, wy = vb.minY + sy / state.zoom;
+  state.zoom = z;
+  const nvb = viewBox();
+  state.cx += wx - (nvb.minX + sx / z);
+  state.cy += wy - (nvb.minY + sy / z);
+  render();
+}
+const stepZoom = dir => {
+  const z = state.zoom;
+  const next = dir > 0 ? ZOOMS.find(v => v > z + 1e-3) ?? MAX_Z : [...ZOOMS].reverse().find(v => v < z - 1e-3) ?? MIN_Z;
+  zoomAt(next);
+};
+function fitTo(list) {
+  if (!list.length) return;
+  const minX = Math.min(...list.map(e => e.x)), minY = Math.min(...list.map(e => e.y));
+  const maxX = Math.max(...list.map(e => e.x + e.w)), maxY = Math.max(...list.map(e => e.y + e.h));
+  const { width, height } = sheet.getBoundingClientRect();
+  const pad = 80;
+  if (width <= pad * 2 || height <= pad * 2) return;
+  state.zoom = Math.min(MAX_Z, Math.min((width - pad * 2) / (maxX - minX), (height - pad * 2) / (maxY - minY)), 2);
+  state.cx = (minX + maxX) / 2; state.cy = (minY + maxY) / 2;
+  render();
+}
+const fitAll = () => fitTo(els);
+// Z：第一次全览并记住原视角，再按一次回到原视角（视角被手动改过就重新全览）
+let beforeFit = null, fitView = null;
+const sameView = (a, b) => a && Math.abs(a.zoom - b.zoom) < 1e-6 && Math.abs(a.cx - b.cx) < 1e-6 && Math.abs(a.cy - b.cy) < 1e-6;
+function quickFit() {
+  const cur = { zoom: state.zoom, cx: state.cx, cy: state.cy };
+  if (beforeFit && sameView(fitView, cur)) {
+    Object.assign(state, beforeFit); beforeFit = null; render(); return;
+  }
+  beforeFit = cur; fitAll(); fitView = { zoom: state.zoom, cx: state.cx, cy: state.cy };
+}
+const fitSel = () => fitTo(els.filter(e => e.id === state.selected));
+const actual = () => zoomAt(1);
+
+let drag = null;
+board.addEventListener("pointerdown", e => {
+  const g = e.target.closest("[data-id]");
+  if (g) { state.selected = g.dataset.id; render(); }
+  drag = { x: e.clientX, y: e.clientY, cx: state.cx, cy: state.cy };
+  board.classList.add("dragging"); board.setPointerCapture(e.pointerId);
+  closeAll();
+});
+board.addEventListener("pointermove", e => {
+  if (!drag) return;
+  state.cx = drag.cx - (e.clientX - drag.x) / state.zoom;
+  state.cy = drag.cy - (e.clientY - drag.y) / state.zoom;
+  render();
+});
+board.addEventListener("pointerup", () => { drag = null; board.classList.remove("dragging"); });
+board.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = sheet.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(state.zoom * Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+  else { state.cx += e.deltaX / state.zoom; state.cy += e.deltaY / state.zoom; render(); }
+}, { passive: false });
+window.addEventListener("keydown", e => {
+  if (e.shiftKey && e.code === "Digit1") fitAll();
+  if (e.code === "KeyZ" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) quickFit();
+  if (e.shiftKey && e.code === "Digit2") fitSel();
+  if (e.shiftKey && e.code === "Digit0") actual();
+  if ((e.metaKey || e.ctrlKey) && (e.key === "=" || e.key === "+")) { e.preventDefault(); stepZoom(1); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "-") { e.preventDefault(); stepZoom(-1); }
+  if (e.key === "'" && (e.metaKey || e.ctrlKey)) { state.bg = state.bg === "dots" ? "none" : "dots"; render(); }
+  if (e.key === "Escape") closeAll();
+});
+
+/* ───────── 弹层开关 ───────── */
+function closeAll() {
+  document.querySelectorAll(".pop.open, .card.open").forEach(p => p.classList.remove("open"));
+  document.querySelectorAll('[aria-expanded="true"]').forEach(b => b.setAttribute("aria-expanded", "false"));
+}
+function toggle(btn, pop) {
+  const open = !pop.classList.contains("open");
+  closeAll();
+  if (open) { pop.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
+}
+document.addEventListener("pointerdown", e => { if (!e.target.closest(".bar")) closeAll(); });
+
+/* ───────── 共用片段 ───────── */
+const pct = () => `${Math.round(state.zoom * 100)}%`;
+const viewItems = () => `
+  <button class="mi" data-act="fitAll">${ic("fit")}适应全部<span class="k">⇧1</span></button>
+  <button class="mi" data-act="fitSel" ${state.selected ? "" : 'aria-disabled="true"'}>${ic("sel")}适应选中<span class="k">⇧2</span></button>
+  <button class="mi" data-act="actual">${ic("one")}实际大小<span class="k">⇧0</span></button>`;
+const presetChips = () => `<div class="chips fill">${[0.5, 1, 2].map(z => `<button class="chip" data-zoom="${z}" aria-pressed="${Math.abs(state.zoom - z) < 1e-3}">${z * 100}%</button>`).join("")}</div>`;
+const bgBlock = () => `
+  <div class="lab">背景</div>
+  <div class="chips fill">
+    <button class="chip" data-bg="dots" aria-pressed="${state.bg === "dots"}">${ic("dots")}点阵</button>
+    <button class="chip" data-bg="none" aria-pressed="${state.bg === "none"}">${ic("blank")}空白</button>
+  </div>
+  <div class="lab">点距</div>
+  <div class="chips fill">${[10, 20, 40].map(g => `<button class="chip" data-gap="${g}" aria-pressed="${state.gap === g}" ${state.bg === "dots" ? "" : "disabled"}>${g}</button>`).join("")}</div>
+  <button class="mi" data-act="snap">${ic("magnet")}吸附到点阵<span class="k">${state.snap ? "开" : "关"}</span></button>`;
+const seqList = () => `
+  <div class="lab" style="color:var(--ink-1);font-weight:600;font-size:12.5px">演示序列</div>
+  ${seqs.map(s => `<button class="seq" data-seq="${s.id}"><span class="pi">${ic("play")}</span><span class="t"><b>${s.name}</b><span>${s.frames} 帧</span></span>${state.lastSeq === s.id ? '<span class="last">上次</span>' : ""}</button>`).join("")}
+  <button class="btn-soft" data-act="newSeq">${ic("clap")}新建演示序列</button>`;
+
+/* ───────── 方案 A：− 100% ＋ · 演示；百分比点开 = 视图菜单（缩放 + 背景）。A′ 额外常驻「全览」 ───────── */
+function barA(withFit = false) {
+  return `<div class="bar">
+    <button class="ib" data-tip="缩小 ⌘−" data-act="out">${ic("minus")}</button>
+    <span style="position:relative">
+      <button class="tb num" id="zBtn" aria-expanded="false" data-tip="视图">${pct()}${ic("chev", "chev")}</button>
+      <div class="pop" id="zPop" style="right:-36px">
+        ${viewItems()}
+        <div class="sep"></div>
+        <div class="lab">缩放</div>
+        ${presetChips()}
+        <div class="sep"></div>
+        ${bgBlock()}
+      </div>
+    </span>
+    <button class="ib" data-tip="放大 ⌘＋" data-act="in">${ic("plus")}</button>
+    ${withFit ? `<button class="ib" data-tip="适应全部 Z" data-act="fitAll">${ic("fit")}</button>` : ""}
+    <span class="gap"></span>
+    <span style="position:relative">
+      <button class="tb" id="sBtn" aria-expanded="false">${ic("playo")}演示</button>
+      <div class="pop" id="sPop" style="width:268px">${seqList()}</div>
+    </span>
+  </div>`;
+}
+
+/* ───────── 方案 B：全览 · 滑杆 · 百分比 · [点阵|▾] · [▶|▾] ───────── */
+const zToT = z => Math.log(z / MIN_Z) / Math.log(MAX_Z / MIN_Z);
+const tToZ = t => MIN_Z * (MAX_Z / MIN_Z) ** t;
+function barB() {
+  const t = zToT(state.zoom);
+  return `<div class="bar">
+    <button class="ib" data-tip="适应全部 ⇧1" data-act="fitAll">${ic("fit")}</button>
+    <div class="slider" data-tip="拖动缩放（对数刻度，竖线 = 100%）">
+      <div class="track"><div class="fillbar" style="width:${t * 100}%"></div><div class="tick" style="left:${zToT(1) * 100}%"></div><div class="knob" style="left:${t * 100}%"></div></div>
+      <input type="range" min="0" max="1000" value="${Math.round(t * 1000)}" id="zRange">
+    </div>
+    <span style="position:relative">
+      <button class="tb num" id="zBtn" aria-expanded="false" data-tip="缩放">${pct()}</button>
+      <div class="pop" id="zPop">${viewItems()}<div class="sep"></div>${presetChips()}</div>
+    </span>
+    <span class="gap"></span>
+    <span class="split" style="position:relative">
+      <button class="ib ${state.bg === "dots" ? "on" : ""}" data-act="toggleBg" data-tip="点阵 ⌘'">${ic("dots")}</button>
+      <button id="gBtn" aria-expanded="false" data-tip="背景设置">${ic("chevup")}</button>
+      <div class="pop" id="gPop">${bgBlock()}</div>
+    </span>
+    <span class="split" style="position:relative">
+      <button class="tb" data-act="playLast" data-tip="放映「${seqs.find(s => s.id === state.lastSeq).name}」">${ic("playo")}演示</button>
+      <button id="sBtn" aria-expanded="false" data-tip="全部序列">${ic("chevup")}</button>
+      <div class="pop" id="sPop" style="width:268px">${seqList()}</div>
+    </span>
+  </div>`;
+}
+
+/* ───────── 方案 C：折叠态是窄胶囊；点开是带小地图的视图卡 ───────── */
+function barC() {
+  return `<div class="bar">
+    <span style="position:relative">
+      <button class="tb" id="mBtn" aria-expanded="false" data-tip="视图 · 小地图">${ic("map")}<span class="num">${pct()}</span></button>
+      <div class="card" id="mCard">
+        <div class="mini" id="mini"></div>
+        <div class="row">
+          <button class="ib" data-tip="缩小" data-act="out">${ic("minus")}</button>
+          <button class="tb num grow" data-act="actual" data-tip="点击回到 100%">${pct()}</button>
+          <button class="ib" data-tip="放大" data-act="in">${ic("plus")}</button>
+          <button class="ib" data-tip="适应全部 ⇧1" data-act="fitAll">${ic("fit")}</button>
+          <button class="ib" data-tip="适应选中 ⇧2" data-act="fitSel">${ic("sel")}</button>
+        </div>
+        <div class="sep"></div>
+        <div class="row">
+          <button class="chip" data-bg="dots" aria-pressed="${state.bg === "dots"}">${ic("dots")}点阵</button>
+          <button class="chip" data-bg="none" aria-pressed="${state.bg === "none"}">${ic("blank")}空白</button>
+          <span class="grow"></span>
+          ${[10, 20, 40].map(g => `<button class="chip" data-gap="${g}" aria-pressed="${state.gap === g}" ${state.bg === "dots" ? "" : "disabled"}>${g}</button>`).join("")}
+        </div>
+      </div>
+    </span>
+    <span style="position:relative">
+      <button class="ib" id="sBtn" aria-expanded="false" data-tip="演示">${ic("playo")}</button>
+      <div class="pop" id="sPop" style="width:268px">${seqList()}</div>
+    </span>
+  </div>`;
+}
+
+function renderMini() {
+  const host = $("#mini");
+  if (!host) return;
+  const pad = 200;
+  const vb = viewBox();
+  const minX = Math.min(...els.map(e => e.x), vb.minX) - pad, minY = Math.min(...els.map(e => e.y), vb.minY) - pad;
+  const maxX = Math.max(...els.map(e => e.x + e.w), vb.minX + vb.width) + pad, maxY = Math.max(...els.map(e => e.y + e.h), vb.minY + vb.height) + pad;
+  host.innerHTML = `<svg viewBox="${minX} ${minY} ${maxX - minX} ${maxY - minY}" preserveAspectRatio="xMidYMid meet">
+    ${els.map(e => `<rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="20" style="fill:var(${e.c})"/>`).join("")}
+    <rect class="vp" x="${vb.minX}" y="${vb.minY}" width="${vb.width}" height="${vb.height}" rx="12" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+  const svg = host.querySelector("svg");
+  const toWorld = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+  let md = false;
+  svg.onpointerdown = ev => { md = true; svg.setPointerCapture(ev.pointerId); const w = toWorld(ev); state.cx = w.x; state.cy = w.y; render(); };
+  svg.onpointermove = ev => { if (!md) return; const w = toWorld(ev); state.cx = w.x; state.cy = w.y; render(); };
+  svg.onpointerup = () => { md = false; };
+}
+
+/* ───────── 说明 ───────── */
+const NOTES = {
+  a: `<h2>A · 合并成视图菜单</h2>
+  <p>顶层只留 <b>− 100% ＋ · 演示</b>，比现状少两个按钮。点百分比打开「视图」菜单，缩放和背景都在这一个菜单里。</p>
+  <h3>相比现状</h3>
+  <ul>
+    <li class="good">「适应选中 ⇧2」「实际大小 ⇧0」现状没有入口，这里补上，菜单里标出快捷键</li>
+    <li class="good">缩放档位从 9 档长列表收成 50 / 100 / 200 三个常用档，其余用 ± 和滚轮</li>
+    <li class="good">网格按钮去掉；开关和点距并进菜单，开关不用再点 Switch</li>
+    <li class="bad">切换点阵要两次点击（多给一个 <kbd>⌘'</kbd> 快捷键）</li>
+  </ul>
+  <h3>适合</h3><p>背景不常切换、右下角越安静越好的场景。</p>`,
+  a2: `<h2>A′ · 菜单 + 一键全览</h2>
+  <p>在 A 的基础上，把<b>全览</b>放回顶层：<b>− 100% ＋ ⛶ · 演示</b>。结构和 tldraw、Excalidraw 的「− % ＋，点百分比弹菜单」一致，只多了一个全览按钮。</p>
+  <h3>相比 A</h3>
+  <ul>
+    <li class="good">全览一次点击。除了滚轮，它是最常用的视图操作：缩出去看全局，再缩回来</li>
+    <li class="good">按 <kbd>Z</kbd> 全览，再按一次回到原来的视角（学的 Milanote 的 Z），看完全局不用手动找回原处</li>
+    <li class="good">菜单内容和 A 一样，背景、点距这类低频设置仍然收在菜单里</li>
+    <li class="bad">比 A 多一个按钮，宽约 36px</li>
+  </ul>
+  <h3>相比现状</h3>
+  <ul>
+    <li class="good">网格按钮去掉了，缩放、全览、演示的位置不变，肌肉记忆基本保留</li>
+    <li class="good">补上适应选中 <kbd>⇧2</kbd>、实际大小 <kbd>⇧0</kbd>，菜单里标出快捷键</li>
+  </ul>
+  <h3>适合</h3><p>默认推荐：常用操作一次点击，低频设置收进菜单。</p>`,
+  b: `<h2>B · 滑杆 + 拆分按钮</h2>
+  <p>常用动作都是一次点击：全览、拖滑杆缩放、点阵开关、放映上一次的序列。设置收在拆分按钮的小箭头里。</p>
+  <h3>相比现状</h3>
+  <ul>
+    <li class="good">对数刻度的滑杆，一下就能从 5% 拉到 400%，竖线标出 100%</li>
+    <li class="good">点阵按钮本体是开关，箭头里才是点距和吸附设置</li>
+    <li class="good">「演示」本体直接放映上一次的序列，箭头里列出全部序列、能新建</li>
+    <li class="bad">整条最宽（约 340px），视觉上也最「工具化」</li>
+  </ul>
+  <h3>适合</h3><p>经常在缩略和细节之间来回、经常放映的用户。</p>`,
+  c: `<h2>C · 小地图卡</h2>
+  <p>平时只是一个窄胶囊（<b>地图 100% · ▶</b>），几乎不挡画布。点开是一张视图卡：小地图（可点、可拖视口框）、缩放行、背景行。</p>
+  <h3>相比现状</h3>
+  <ul>
+    <li class="good">大白板里有小地图才不容易迷路，能一眼看到远处还有元素</li>
+    <li class="good">折叠态最小，约 110px</li>
+    <li class="bad">± 缩放要先展开（滚轮和 <kbd>⌘±</kbd> 照常可用）</li>
+    <li class="bad">小地图需要渲染一份元素缩略图：实现时只画元素的包围盒色块，节流更新</li>
+  </ul>
+  <h3>适合</h3><p>白板很大、元素分散的场景。</p>`,
+};
+const COMMON = `
+  <h3>点阵背景（三个方案相同）</h3>
+  <ul>
+    <li>SVG <code>&lt;pattern&gt;</code> 平铺：背景恒定 <b>2 个 rect</b>，跟视口大小和缩放无关（左下 HUD 实时对照现状的节点数）</li>
+    <li>点半径固定为屏幕 1px，缩放时点不会变大变糊</li>
+    <li>LOD：屏幕点距小于 10px 时间距翻倍；次级点随缩放渐隐渐显，没有突变（缩到 5% 试试）</li>
+    <li>吸附改成按数学取整（<code>round(x / gap) * gap</code>），不再把每条网格线注册成参考线</li>
+    <li>点的颜色走主题 token（见右上角深色切换），不受白板背景色影响</li>
+  </ul>
+  <h3>操作</h3>
+  <p>拖动平移 · 滚轮平移 · <kbd>⌘</kbd>+滚轮缩放 · <kbd>Z</kbd> 全览 / 回到原视角 · <kbd>⇧1</kbd> <kbd>⇧2</kbd> <kbd>⇧0</kbd> · <kbd>⌘'</kbd> 开关点阵 · 点元素选中</p>
+  <h3>需要你拍板</h3>
+  <ul>
+    <li>选哪个方案（或者组合，比如 A 的菜单 + C 的小地图）</li>
+    <li>背景只保留「点阵 / 空白」，还是也保留原来的网格线</li>
+    <li>点阵默认开还是关（现状网格默认关）</li>
+  </ul>`;
+
+/* ───────── 状态栏渲染与事件 ───────── */
+function updateBar() {
+  // 保留展开中的弹层，只刷新内容
+  const openId = document.querySelector(".pop.open, .card.open")?.id;
+  $("#barHost").innerHTML = { a: () => barA(), a2: () => barA(true), b: barB, c: barC }[state.plan]();
+  if (openId) {
+    const pop = $("#" + openId);
+    pop.classList.add("open");
+    const btn = { zPop: "zBtn", sPop: "sBtn", gPop: "gBtn", mCard: "mBtn" }[openId];
+    $("#" + btn)?.setAttribute("aria-expanded", "true");
+  }
+  renderMini();
+  const range = $("#zRange");
+  if (range) range.oninput = e => zoomAt(tToZ(e.target.value / 1000));
+}
+
+$("#barHost").addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  const pairs = { zBtn: "zPop", sBtn: "sPop", gBtn: "gPop", mBtn: "mCard" };
+  if (pairs[t.id]) return toggle(t, $("#" + pairs[t.id]));
+  const a = t.dataset.act;
+  if (a === "in") stepZoom(1);
+  if (a === "out") stepZoom(-1);
+  if (a === "fitAll") fitAll();
+  if (a === "fitSel") fitSel();
+  if (a === "actual") actual();
+  if (a === "toggleBg") { state.bg = state.bg === "dots" ? "none" : "dots"; render(); }
+  if (a === "snap") { state.snap = !state.snap; render(); }
+  if (a === "playLast" || t.dataset.seq) {
+    if (t.dataset.seq) state.lastSeq = t.dataset.seq;
+    closeAll();
+    alert(`（mockup）开始放映「${seqs.find(s => s.id === state.lastSeq).name}」`);
+    render();
+  }
+  if (a === "newSeq") { closeAll(); alert("（mockup）进入新建演示序列"); }
+  if (t.dataset.zoom) zoomAt(Number(t.dataset.zoom));
+  if (t.dataset.bg) { state.bg = t.dataset.bg; render(); }
+  if (t.dataset.gap) { state.gap = Number(t.dataset.gap); render(); }
+});
+
+$("#plans").addEventListener("click", e => {
+  const b = e.target.closest("button[data-plan]");
+  if (!b) return;
+  state.plan = b.dataset.plan;
+  document.querySelectorAll("#plans button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  $("#notes").innerHTML = NOTES[state.plan] + COMMON;
+  closeAll();
+  render();
+});
+$("#theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme === "cocoa";
+  document.documentElement.dataset.theme = dark ? "" : "cocoa";
+  $("#theme").textContent = dark ? "切换深色" : "切换浅色";
+});
+window.addEventListener("resize", render);
+
+$("#notes").innerHTML = NOTES.a + COMMON;
+render();
+</script>
+</body>
+</html>

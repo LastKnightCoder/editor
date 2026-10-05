@@ -44,9 +44,10 @@ CREATE TABLE IF NOT EXISTS questions (
         question_content TEXT,
         answers TEXT DEFAULT '[]'
       , group_id INTEGER, sort_index INTEGER NOT NULL DEFAULT 0, resolved_time INTEGER, status TEXT NOT NULL DEFAULT 'not_started', description TEXT);
--- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer；
--- answer 的 target_id 为 contents.id，其余为各实体表主键）。content_id = 本关联持有引用计数的 contents.id
--- （卡片 / 文章 / 项目文档 / 独立答案有值，项目与白板为 NULL），目标实体被删后仍可据此释放引用。
+-- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer
+-- | excerpt | pdf-annotation | web-clip；answer 的 target_id 为 contents.id，其余为各实体表主键，均为整数）。
+-- content_id = 本关联持有引用计数的 contents.id（卡片 / 文章 / 项目文档 / 独立答案有值，项目、白板与外部材料为 NULL），
+-- 目标实体被删后仍可据此释放引用。对话不在此表，见 question_chat。
 CREATE TABLE IF NOT EXISTS question_link (
         id INTEGER PRIMARY KEY,
         question_id INTEGER NOT NULL,
@@ -54,6 +55,15 @@ CREATE TABLE IF NOT EXISTS question_link (
         target_id INTEGER NOT NULL,
         content_id INTEGER,
         sort_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL
+      );
+-- 问题的探究对话：session_id = chat_session.id（pi 会话 UUID）；message_ids 为 JSON 数组，记录问题从哪几条消息转来（可空）。
+-- 弱引用：对话被删不级联，解析时降级；删除问题时一并删除。
+CREATE TABLE IF NOT EXISTS question_chat (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL,
+        message_ids TEXT,
         create_time INTEGER NOT NULL
       );
 -- 问题的探究轨迹：type = create | status | link | unlink | note，payload 为 JSON

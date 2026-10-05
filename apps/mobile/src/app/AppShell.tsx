@@ -207,7 +207,7 @@ function AppShellInner() {
   });
 
   const refreshCardsSafe = useMemoizedFn(
-    async (overrides?: { page?: number; pageSize?: number; query?: string; category?: string }) => {
+    async (overrides?: { page?: number; pageSize?: number; query?: string }) => {
       try {
         return await cards.refreshCards(overrides);
       } catch (error) {
@@ -401,22 +401,6 @@ function AppShellInner() {
     return result;
   });
 
-  const handleUpdateCardCategory = useMemoizedFn(
-    async (
-      cardId: number,
-      category: Parameters<AppContextValue["handleUpdateCardCategory"]>[1]
-    ) => {
-      try {
-        await tauri.updateCardCategory({ id: cardId, category });
-        await refreshCardsSafe({ page: 1 });
-        toast.success("卡片类型已更新");
-      } catch (error) {
-        presentError(error, "更新卡片类型失败");
-        throw error;
-      }
-    }
-  );
-
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
     try {
       const changed = await tauri.deleteCard(cardId);
@@ -439,7 +423,6 @@ function AppShellInner() {
       resourceSync,
       cards,
       refreshCardsSafe,
-      handleUpdateCardCategory,
       handleDeleteCard,
       handleSwitchDatabase,
       handleSaveSetting,
@@ -464,7 +447,6 @@ function AppShellInner() {
       cards,
       presentError,
       refreshCardsSafe,
-      handleUpdateCardCategory,
       handleDeleteCard,
       handleSwitchDatabase,
       handleSaveSetting,
@@ -550,7 +532,6 @@ const EMPTY_CARDS_FALLBACK: CardsOverviewResponse = {
   page: 1,
   pageSize: 20,
   query: "",
-  category: "",
   searchMode: "none",
   items: [],
 };

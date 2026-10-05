@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>7b 文档的 AI 洞见 · mockup v2</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1360px; }
+  .main { position: relative; }
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; }
+  .grid { display: grid; grid-template-columns: 1fr minmax(0, 700px) 1fr; align-items: start; padding: 40px 26px 72px; transition: padding var(--normal) var(--ease); }
+  .drawer-open .grid { padding-right: 452px; }
+  .page-card .grid { grid-template-columns: 1fr minmax(0, 620px) 1fr; }
+  .grid article { grid-column: 2; min-width: 0; }
+  .title { font-size: 27px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
+  .meta { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12.5px; }
+  .meta i.sep { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); opacity: .6; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; color: var(--ink-2); cursor: pointer; }
+  .pill:hover, .pill.on { background: var(--hover); color: var(--ink-1); }
+  .pill svg.lucide { width: 13px; height: 13px; }
+  .pill .n { min-width: 16px; height: 16px; border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); font-size: 11px; display: inline-grid; place-items: center; padding: 0 4px; }
+
+  .prose { margin-top: 22px; font-size: 15.5px; line-height: 1.85; }
+  .prose p { margin: 0 0 14px; }
+  .prose h2 { font-size: 20px; margin: 30px 0 10px; font-weight: 600; position: relative; }
+  .prose a.lnk { color: var(--accent-text); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px; }
+  .prose .flash { background: var(--accent-soft); border-radius: 3px; box-shadow: 0 0 0 2px var(--accent-soft); }
+  .caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--ink-1); vertical-align: -0.18em; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* 节首淡点（A）：标题右侧页边；悬停显示第一条引子 */
+  .dot { position: absolute; right: -30px; top: 6px; width: 20px; height: 20px; display: grid; place-items: center; cursor: pointer; }
+  .dot::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); opacity: .4; transition: all var(--fast) var(--ease); }
+  .dot:hover::before { opacity: 1; transform: scale(1.3); }
+  .dot .tip { position: absolute; left: 24px; top: -4px; width: 260px; font-size: 12.5px; font-weight: 400; line-height: 1.6; color: var(--ink-2); background: var(--surface); box-shadow: var(--shadow-lift); padding: 7px 10px; border-radius: var(--r-sm); opacity: 0; pointer-events: none; transition: opacity var(--fast); z-index: 5; }
+  .dot:hover .tip { opacity: 1; }
+  .editing .dot { display: none; }
+
+  /* 侧栏：非模态 Drawer，伴随正文 */
+  .drawer { position: absolute; top: 12px; right: 12px; bottom: 12px; width: 420px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-float); display: flex; flex-direction: column; transform-origin: right center; transition: opacity var(--normal) var(--ease), transform var(--normal) var(--ease); }
+  .drawer.off { opacity: 0; transform: scale(.98); pointer-events: none; }
+  .dh { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; }
+  .dh b { font-size: 14px; }
+  .dh svg.lucide { width: 15px; height: 15px; color: var(--accent-text); }
+  .dh .x { margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--ink-3); cursor: pointer; }
+  .dh .x:hover { background: var(--hover); color: var(--ink-1); }
+  .dsub { display: flex; align-items: center; gap: 8px; padding: 0 16px 10px; font-size: 12px; color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+  .dsub .re { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .dsub .re:hover { color: var(--ink-1); }
+  .dsub svg.lucide { width: 12px; height: 12px; }
+  .stale { margin: 10px 16px 0; padding: 7px 10px; font-size: 12px; color: var(--warn); background: var(--warn-soft); border-radius: var(--r-sm); }
+  .dbody { flex: 1; overflow: auto; padding: 8px 10px 16px; }
+  .grp { font-size: 12px; color: var(--ink-3); margin: 14px 6px 6px; display: flex; gap: 6px; align-items: center; }
+  .grp svg.lucide { width: 12px; height: 12px; }
+  .ins { padding: 10px 10px 8px; border-radius: var(--r-md); margin-bottom: 4px; transition: background var(--fast); }
+  .ins:hover, .ins.focus { background: var(--surface-hover); }
+  .ins .q { font-size: 12.5px; color: var(--ink-2); cursor: pointer; display: flex; gap: 6px; align-items: baseline; }
+  .ins .q mark { background: none; color: var(--ink-1); box-shadow: inset 0 -0.45em 0 var(--accent-soft); padding: 0 1px; }
+  .ins .q .sec { color: var(--ink-3); font-size: 11.5px; white-space: nowrap; }
+  .ins .tg { margin-top: 6px; font-size: 13px; display: flex; gap: 6px; align-items: center; }
+  .ins .tg svg.lucide { width: 13px; height: 13px; color: var(--ink-3); flex: none; }
+  .ins .tg .t { color: var(--ink-1); font-weight: 500; border-bottom: 1px dashed var(--line-1); cursor: pointer; position: relative; }
+  .ins .tg .at { color: var(--ink-3); font-size: 12px; }
+  .ins .hint { margin-top: 5px; font-size: 13px; line-height: 1.65; color: var(--ink-1); }
+  .ins .ai { display: inline-block; font-size: 11px; color: var(--accent-text); background: var(--accent-soft); border-radius: 4px; padding: 0 5px; margin-right: 4px; vertical-align: 1px; }
+  .ins .more { margin-top: 4px; font-size: 12px; color: var(--ink-3); cursor: pointer; display: inline-flex; gap: 3px; align-items: center; }
+  .ins .more svg.lucide { width: 12px; height: 12px; }
+  .ins .detail { display: none; margin-top: 6px; font-size: 12.5px; line-height: 1.7; color: var(--ink-2); padding-left: 10px; border-left: 2px solid var(--line-1); }
+  .ins.open .detail { display: block; }
+  .acts { display: flex; gap: 4px; margin-top: 8px; }
+  .btn { height: 26px; padding: 0 9px; border-radius: var(--r-sm); font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; background: var(--hover); }
+  .btn:hover { background: var(--press); color: var(--ink-1); }
+  .btn.primary { background: var(--accent); color: var(--ink-inv); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.ghost { background: none; color: var(--ink-3); }
+  .btn.ghost:hover { background: var(--hover); color: var(--ink-2); }
+  .btn svg.lucide { width: 12px; height: 12px; }
+  .done { margin: 16px 6px 0; font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .done svg.lucide { width: 12px; height: 12px; }
+
+  /* 对方预览（复用 content-link 悬停预览） */
+  .preview { position: absolute; left: 0; top: 22px; width: 340px; background: var(--surface); box-shadow: var(--shadow-float); border-radius: var(--r-md); padding: 12px 14px; font-size: 12.5px; font-weight: 400; line-height: 1.7; color: var(--ink-2); z-index: 20; display: none; }
+  .preview b { display: block; color: var(--ink-1); font-size: 13px; margin-bottom: 4px; }
+  .tg .t:hover .preview { display: block; }
+
+  .toast { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink-1); color: var(--ink-inv); font-size: 12.5px; padding: 7px 14px; border-radius: var(--r-md); opacity: 0; transition: opacity var(--fast); pointer-events: none; }
+  .toast.on { opacity: 1; }
+  .empty { padding: 40px 20px; text-align: center; color: var(--ink-3); font-size: 13px; line-height: 1.8; }
+  .empty .btn { margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>文档的 AI 洞见 mockup v2</b>
+  <span>页面</span>
+  <a href="#" data-page="article" class="on">文章</a>
+  <a href="#" data-page="card">卡片</a>
+  <span style="margin-left:14px">状态</span>
+  <a href="#" data-mode="read" class="on">已有洞见</a>
+  <a href="#" data-mode="edit">正在输入</a>
+  <a href="#" data-mode="stale">正文已改动</a>
+  <a href="#" data-mode="none">还没分析</a>
+  <span class="sp"></span>
+  <select id="theme"><option value="cream">cream</option><option value="cocoa">cocoa</option></select>
+</div>
+
+<div class="mock-note">
+  <h3>AI 站在整个知识库的角度读这一篇：哪里该连、哪里重复或矛盾、哪里可以追问与延伸（设计见 docs/knowledge-loop/15）</h3>
+  <ul>
+    <li><b>入口是主动的</b>：元信息行「✦ AI 洞见」按钮（带未处理数），不在脉络浮层里。最近写过的文档由 AI 在后台先分析好；其他文档点开按钮才分析。</li>
+    <li><b>节首淡点（A）</b>：只在长文，最多 3 个；悬停看引子，点击打开侧栏并定位。正在输入时隐藏。卡片只有按钮。</li>
+    <li><b>建立连接</b>：AI 指出本文的原文片段与对方，确认后那几个字直接变成 content-link（试试点「建立连接」）。不确认就不连。</li>
+    <li>悬停对方标题看预览；点引文让正文滚到那一处高亮；矛盾 / 追问 / 空白 / AI 的补充可以「记为问题」；每条可忽略，已处理的折叠在底部。</li>
+  </ul>
+</div>
+
+<div class="stage">
+  <div class="win page-article" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item" data-nav="card"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item" data-nav="article"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+        </div>
+      </div>
+    </aside>
+    <div class="col">
+      <div class="tb"><span class="crumb" id="crumb"></span><span class="sp"></span><span class="search"><i data-lucide="search"></i>搜索或跳转…</span></div>
+      <div class="main">
+        <section class="paper">
+          <div class="scroll">
+            <div class="grid">
+              <article>
+                <div class="title" id="title"></div>
+                <div class="meta" id="meta"></div>
+                <div class="prose" id="prose"></div>
+              </article>
+            </div>
+          </div>
+        </section>
+        <div class="drawer off" id="drawer"></div>
+        <div class="toast" id="toast"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 正文：每节若干段；锚点文字用 {{id|文字}} 标记，建立连接后变成链接 */
+const DOCS = {
+  article: {
+    title: "浏览器是怎样把一页画出来的",
+    crumb: "文章",
+    sections: [
+      { h: "", p: ["从拿到 HTML 到屏幕上出现像素，浏览器大致要走五步：解析、样式、布局、绘制、合成。这篇按顺序把每一步做了什么、代价在哪里写下来。"] },
+      { h: "解析与样式", p: ["HTML 解析成 DOM，CSS 解析成 CSSOM，两者合在一起算出每个元素最终的样式。", "{{i4|CSS 会阻塞渲染}}，所以样式表放在头部；脚本默认会阻塞解析，加上 defer 后推迟到解析完成。"] },
+      { h: "布局", p: ["布局阶段算出每个盒子的位置和尺寸。几何属性一变，布局就要重来。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，也就是{{i1|强制同步布局}}。"] },
+      { h: "绘制与合成", p: ["绘制把盒子变成一组绘制指令，合成线程再把各个{{i5|图层}}拼起来。", "{{i3|只改 transform 和 opacity 时，可以只走合成这一步}}，动画就不会卡主线程。"] },
+    ],
+  },
+  card: {
+    title: "",
+    crumb: "卡片库",
+    sections: [
+      { h: "", p: ["重排是重新计算元素的位置和尺寸，重绘只重新绘制像素。重排一定引起重绘，反过来不会。", "读 offsetTop 这类属性时，如果布局已经失效，浏览器会立刻同步计算一次，这就是{{c1|强制同步布局}}。"] },
+    ],
+  },
+};
+
+const INSIGHTS = {
+  article: [
+    { id: "i1", type: "link", sec: 2, anchor: "强制同步布局", target: { icon: "layers", t: "列表滚动掉帧的排查", at: "", preview: "滚动回调里读了 offsetTop，每一帧都强制同步布局，掉到 30 帧。改成先批量读、再批量写后恢复 60 帧。" },
+      hint: "这里讲的强制同步布局，正是《列表滚动掉帧的排查》那次掉帧的原因，两处可以互相印证。", detail: "那张卡记的是现象与修法（批量读写），这一节讲的是机制；连上后，读到机制时能看到真实案例，排查时也能回到原理。" },
+    { id: "i2", type: "dup", sec: 2, anchor: "", target: { icon: "folder-kanban", t: "前端体系", at: "渲染篇 › 布局与重排", preview: "布局（重排）计算元素的几何信息……几何属性变化会使布局失效，需要在下一帧重新计算……" },
+      hint: "这一节和《前端体系》› 渲染篇 › 布局与重排 几乎在讲同一件事，那边写得更完整。", detail: "两处的结论一致，那边多了「哪些属性会触发布局」的清单。可以在这里连过去，避免两处各自维护。" },
+    { id: "i3", type: "conflict", sec: 3, anchor: "只改 transform 和 opacity 时，可以只走合成这一步", target: { icon: "file-text", t: "动画性能笔记", at: "transform-origin 的坑", preview: "改 transform-origin 时，Chrome 会让元素重新绘制，并不是只走合成……" },
+      hint: "这里说只改 transform 就只走合成；你在《动画性能笔记》里写过改 transform-origin 会触发重绘。这个结论在什么条件下成立？", detail: "两处并不完全冲突：transform 的值变化可以只走合成，但 transform-origin、以及首次提升图层时都会触发绘制。这一节的说法可以加上条件。" },
+    { id: "i4", type: "ask", sec: 1, anchor: "CSS 会阻塞渲染", hint: "这里断言 CSS 会阻塞渲染，但没写为什么它不阻塞 DOM 解析，以及媒体查询不匹配的样式表是否也阻塞。", detail: "浏览器需要 CSSOM 才能算出渲染树，所以阻塞的是渲染而不是解析；media 不匹配的样式表优先级会降低、不阻塞首次渲染。" },
+    { id: "i5", type: "extend", sec: 3, anchor: "图层", hint: "全文多次提到图层，但没写元素什么时候会被提升为合成层。", detail: "常见触发条件：will-change: transform / opacity、3D 变换、video / canvas、与已提升图层发生重叠。过多的合成层会占用显存。", ai: true },
+  ],
+  card: [
+    { id: "c1", type: "link", sec: 0, anchor: "强制同步布局", target: { icon: "layers", t: "列表滚动掉帧的排查", at: "", preview: "滚动回调里读了 offsetTop，每一帧都强制同步布局……" },
+      hint: "「强制同步布局」可以连到《列表滚动掉帧的排查》，那是你遇到过的真实案例。", detail: "两张卡一张讲机制、一张讲案例，连起来更容易记住。" },
+    { id: "c2", type: "ask", sec: 0, anchor: "", hint: "重排一定引起重绘——如果元素不可见（visibility: hidden）呢？", detail: "不可见元素仍参与布局，但可能跳过绘制；display: none 则不参与布局。" },
+  ],
+};
+
+const GROUPS = [
+  { key: "link", label: "可以建立的连接", icon: "link-2" },
+  { key: "dupconf", label: "重复与矛盾", icon: "git-compare" },
+  { key: "ask", label: "可以追问的", icon: "circle-help" },
+  { key: "extend", label: "AI 的补充", icon: "sparkles" },
+];
+const groupOf = t => (t === "dup" || t === "conflict" ? "dupconf" : t);
+const TYPE_LABEL = { dup: "重复", conflict: "矛盾" };
+const PRIORITY = { conflict: 0, link: 1, dup: 2, ask: 3, extend: 4 };
+
+let page = "article", mode = "read", drawer = false, focus = "", showDone = false;
+const status = {}; // id → linked / questioned / dismissed
+
+const items = () => INSIGHTS[page];
+const openItems = () => items().filter(i => !status[i.id]);
+
+function proseHtml() {
+  const doc = DOCS[page];
+  const dots = new Map();
+  if (page === "article" && mode !== "none") {
+    [...openItems()].sort((a, b) => PRIORITY[a.type] - PRIORITY[b.type]).forEach(i => {
+      if (!dots.has(i.sec) && dots.size < 3) dots.set(i.sec, i);
+    });
+  }
+  return doc.sections.map((s, si) => {
+    const dot = dots.get(si);
+    const dotHtml = dot ? `<span class="dot" data-focus="${dot.id}"><span class="tip">${dot.hint}</span></span>` : "";
+    const head = s.h ? `<h2>${s.h}${dotHtml}</h2>` : dotHtml ? `<div style="position:relative">${dotHtml}</div>` : "";
+    const paras = s.p.map((p, pi) => {
+      let html = p.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (_, id, text) =>
+        status[id] === "linked"
+          ? `<a class="lnk" title="${items().find(i => i.id === id).target.t}">${text}</a>`
+          : `<span data-anchor="${id}">${text}</span>`);
+      if (mode === "edit" && si === doc.sections.length - 1 && pi === s.p.length - 1) html += `<span class="caret"></span>`;
+      return `<p>${html}</p>`;
+    }).join("");
+    return head + paras;
+  }).join("");
+}
+
+function insightHtml(i) {
+  const doc = DOCS[page];
+  const secName = doc.sections[i.sec].h || (page === "card" ? "正文" : "开头");
+  const q = `<div class="q" data-locate="${i.id}">${i.anchor ? `<mark>${i.anchor}</mark>` : ""}<span class="sec">${i.anchor ? "· " : ""}${secName}</span></div>`;
+  const tg = i.target
+    ? `<div class="tg"><i data-lucide="${i.target.icon}"></i><span class="t">${i.target.t}<span class="preview"><b>${i.target.t}${i.target.at ? ` › ${i.target.at}` : ""}</b>${i.target.preview}</span></span>${i.target.at ? `<span class="at">› ${i.target.at}</span>` : ""}</div>`
+    : "";
+  const acts = [];
+  if (i.type === "link") acts.push(`<span class="btn primary" data-act="link" data-id="${i.id}"><i data-lucide="link-2"></i>建立连接</span>`);
+  if (i.type === "dup") acts.push(`<span class="btn" data-act="link" data-id="${i.id}"><i data-lucide="link-2"></i>在这一节末尾连过去</span>`);
+  if (i.type !== "link" && i.type !== "dup") acts.push(`<span class="btn" data-act="question" data-id="${i.id}"><i data-lucide="circle-help"></i>记为问题</span>`);
+  acts.push(`<span class="btn ghost" data-act="dismiss" data-id="${i.id}"><i data-lucide="eye-off"></i>忽略</span>`);
+  const badge = i.ai ? `<span class="ai">AI 的补充</span>` : TYPE_LABEL[i.type] ? `<span class="ai">${TYPE_LABEL[i.type]}</span>` : "";
+  return `<div class="ins${focus === i.id ? " focus" : ""}" id="ins-${i.id}">${q}${tg}
+    <div class="hint">${badge}${i.hint}</div>
+    <span class="more" data-more="${i.id}"><i data-lucide="chevron-down"></i>AI 的看法</span><div class="detail">${i.detail}</div>
+    <div class="acts">${acts.join("")}</div></div>`;
+}
+
+function drawerHtml() {
+  const what = page === "card" ? "张卡" : "篇";
+  const head = `<div class="dh"><i data-lucide="sparkles"></i><b>AI 洞见</b><span class="x" id="close"><i data-lucide="x"></i></span></div>`;
+  if (mode === "none") {
+    return head + `<div class="dsub">还没分析过这一${what}</div><div class="empty">AI 会对照你的整个知识库读这一${what}，<br />找出可以建立的连接、重复与矛盾、可以追问与延伸的地方。<br /><span class="btn primary"><i data-lucide="sparkles"></i>开始分析</span></div>`;
+  }
+  const sub = `<div class="dsub"><span>10 月 3 日 14:20 分析 · deepseek-flash</span><span class="re"><i data-lucide="refresh-cw"></i>重新分析</span></div>`
+    + (mode === "stale" ? `<div class="stale">正文在分析之后改动较大，部分洞见可能已不适用，可以重新分析。</div>` : "");
+  const open = openItems();
+  const body = GROUPS.map(g => {
+    const list = open.filter(i => groupOf(i.type) === g.key);
+    return list.length ? `<div class="grp"><i data-lucide="${g.icon}"></i>${g.label}</div>${list.map(insightHtml).join("")}` : "";
+  }).join("");
+  const done = items().filter(i => status[i.id]);
+  const label = { linked: "已连接", questioned: "已记为问题", dismissed: "已忽略" };
+  const doneHtml = done.length
+    ? `<div class="done" id="done"><i data-lucide="${showDone ? "chevron-up" : "chevron-down"}"></i>已处理 ${done.length} 条</div>`
+      + (showDone ? done.map(i => `<div class="ins" style="opacity:.6"><div class="hint">${label[status[i.id]]} · ${i.hint}</div><div class="acts"><span class="btn ghost" data-act="restore" data-id="${i.id}">恢复</span></div></div>`).join("") : "")
+    : "";
+  return head + sub + `<div class="dbody">${body || `<div class="empty">都处理完了</div>`}${doneHtml}</div>`;
+}
+
+function toast(text) {
+  const t = document.getElementById("toast");
+  t.textContent = text;
+  t.classList.add("on");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("on"), 1800);
+}
+
+function render() {
+  document.getElementById("win").className = `win page-${page}${mode === "edit" ? " editing" : ""}${drawer ? " drawer-open" : ""}`;
+  document.querySelectorAll("[data-nav]").forEach(n => n.classList.toggle("on", n.dataset.nav === page));
+  const doc = DOCS[page];
+  document.getElementById("crumb").innerHTML = `${doc.crumb} <span style="color:var(--ink-3)">/</span> <b>${page === "card" ? "重排与重绘" : doc.title}</b>`;
+  const title = document.getElementById("title");
+  title.textContent = doc.title;
+  title.style.display = page === "card" ? "none" : "";
+  const n = mode === "none" ? 0 : openItems().length;
+  document.getElementById("meta").innerHTML = `<span>2026-09-14 创建</span><i class="sep"></i><span>${page === "article" ? "1,860 字" : "212 字"}</span><i class="sep"></i>
+    <span class="pill"><i data-lucide="waypoints"></i>3 处关联</span>
+    <span class="pill${drawer ? " on" : ""}" id="ai"><i data-lucide="sparkles"></i>AI 洞见${n ? `<span class="n">${n}</span>` : ""}</span>`;
+  document.getElementById("prose").innerHTML = proseHtml();
+  const d = document.getElementById("drawer");
+  d.classList.toggle("off", !drawer);
+  d.innerHTML = drawerHtml();
+
+  document.getElementById("ai").onclick = () => { drawer = !drawer; focus = ""; render(); };
+  document.getElementById("close").onclick = () => { drawer = false; render(); };
+  document.querySelectorAll("[data-focus]").forEach(el => el.onclick = () => {
+    drawer = true;
+    focus = el.dataset.focus;
+    render();
+    document.getElementById(`ins-${focus}`)?.scrollIntoView({ block: "nearest" });
+  });
+  document.querySelectorAll("[data-more]").forEach(el => el.onclick = () => el.parentElement.classList.toggle("open"));
+  document.querySelectorAll("[data-locate]").forEach(el => el.onclick = () => {
+    const a = document.querySelector(`[data-anchor="${el.dataset.locate}"]`);
+    if (!a) return;
+    a.scrollIntoView({ block: "center", behavior: "smooth" });
+    a.classList.add("flash");
+    setTimeout(() => a.classList.remove("flash"), 1400);
+  });
+  document.querySelectorAll("[data-act]").forEach(el => el.onclick = () => {
+    const id = el.dataset.id, act = el.dataset.act;
+    if (act === "link") { status[id] = "linked"; toast("已在正文中建立连接"); }
+    if (act === "question") { status[id] = "questioned"; toast("已打开命令面板：记为问题（来源：本文）"); }
+    if (act === "dismiss") status[id] = "dismissed";
+    if (act === "restore") delete status[id];
+    render();
+  });
+  const done = document.getElementById("done");
+  if (done) done.onclick = () => { showDone = !showDone; render(); };
+  lucide.createIcons();
+}
+
+document.querySelectorAll(".mock-bar a").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  const k = Object.keys(a.dataset)[0];
+  if (k === "page") page = a.dataset.page;
+  if (k === "mode") mode = a.dataset.mode;
+  focus = "";
+  if (mode === "none") drawer = false;
+  document.querySelectorAll(`.mock-bar a[data-${k}]`).forEach(x => x.classList.toggle("on", x === a));
+  render();
+});
+document.getElementById("theme").onchange = e => (document.documentElement.dataset.theme = e.target.value);
+render();
+</script>
+</body>
+</html>

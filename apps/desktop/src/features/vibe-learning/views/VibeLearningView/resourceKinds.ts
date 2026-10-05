@@ -5,6 +5,7 @@ import {
   Clapperboard,
   FileText,
   Globe,
+  Highlighter,
   Image,
   NotebookPen,
   type LucideIcon,
@@ -16,6 +17,7 @@ import { toast } from "@tau/ui";
 
 export function resourceIcon(resource: VLResource): LucideIcon {
   if (resource.sourceType === "note") return NotebookPen;
+  if (resource.sourceType === "material") return Highlighter;
   switch (resource.resourceType) {
     case "audio":
       return AudioLines;
@@ -44,12 +46,16 @@ export const DOCUMENT_TYPES: VLResourceType[] = [
   "other",
 ];
 
+/** 笔记与外部材料资源没有原件文件 */
 export const isDocument = (resource: VLResource) =>
-  resource.sourceType !== "note" && DOCUMENT_TYPES.includes(resource.resourceType);
+  resource.sourceType !== "note" &&
+  resource.sourceType !== "material" &&
+  DOCUMENT_TYPES.includes(resource.resourceType);
 
-/** 能在阅读区打开：音视频 / 网页 / 图片 / 笔记，以及已转换出文本的文档 */
+/** 能在阅读区打开：音视频 / 网页 / 图片 / 笔记 / 外部材料，以及已转换出文本的文档 */
 export const canOpenInStage = (resource: VLResource) =>
   resource.sourceType === "note" ||
+  resource.sourceType === "material" ||
   ["video", "audio", "html", "image"].includes(resource.resourceType) ||
   (isDocument(resource) && !!resource.markdownPath);
 

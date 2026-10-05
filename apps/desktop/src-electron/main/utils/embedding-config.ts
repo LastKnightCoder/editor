@@ -30,6 +30,9 @@ interface SettingWithEmbeddingProvider {
   embeddingProvider?: EmbeddingProviderSetting;
 }
 
+/** 本地嵌入管线版本；2 = 补 <s> + 480 token 分窗（修复 node-llama-cpp 下 bge-m3 长文本向量塌缩） */
+export const LOCAL_EMBEDDING_PIPELINE = 2;
+
 export interface EmbeddingFingerprintPayload {
   providerType: EmbeddingProviderType;
   configId: string;
@@ -44,6 +47,11 @@ export interface EmbeddingFingerprintPayload {
    * 的向量不可混检，该字段变化会触发全量索引重建
    */
   runtime?: "llama" | "python";
+  /**
+   * 本地嵌入管线版本：输入整形方式变化（如补 <s>、分窗，见 local-inference/embedding-input.ts）时递增，
+   * 旧向量随之失效、全量重建
+   */
+  pipeline?: number;
 }
 
 export type EmbeddingFingerprint = string;
@@ -90,6 +98,8 @@ export const buildEmbeddingFingerprint = (
     localModelDir: payload.localModelDir || "",
     baseUrl: payload.baseUrl || "",
     runtime: payload.runtime || "",
+    // 只在本地管线带上，远端配置的指纹保持不变、不触发重建
+    ...(payload.pipeline ? { pipeline: payload.pipeline } : {}),
   });
 };
 
@@ -139,6 +149,7 @@ export const resolveEmbeddingConfig = (
     baseUrl: providerType === "remote_openai" ? normalizedBaseUrl : undefined,
     // 本地向量现由 node-llama-cpp(GGUF) 产生，与旧 torch 向量不兼容
     runtime: providerType === "local_python" ? "llama" : undefined,
+    pipeline: providerType === "local_python" ? LOCAL_EMBEDDING_PIPELINE : undefined,
   };
 
   return {

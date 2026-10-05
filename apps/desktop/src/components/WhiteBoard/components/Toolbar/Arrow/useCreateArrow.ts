@@ -9,12 +9,7 @@ import {
   useViewPort,
   useBoard,
 } from "../../../hooks/index";
-import {
-  ArrowElement,
-  CustomOffset,
-  ECreateBoardElementType,
-  Point,
-} from "../../../types";
+import { ArrowElement, CustomOffset, ECreateBoardElementType, Point } from "../../../types";
 import {
   BoardUtil,
   PointUtil,
@@ -53,11 +48,7 @@ export const useCreateArrow = () => {
     (e: PointerEvent) => {
       if (!startPoint.current) return;
 
-      currentPoint.current = PointUtil.screenToViewPort(
-        board,
-        e.clientX,
-        e.clientY,
-      );
+      currentPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!currentPoint.current) return;
 
       if (!isMoved.current) {
@@ -99,8 +90,6 @@ export const useCreateArrow = () => {
           themeColorId: preset.themeColorId,
           dashed: preset.dashed,
           dashArray: preset.dashArray,
-          sketchEnabled: preset.sketchEnabled,
-          roughness: preset.roughness,
           animated: preset.animated,
           animationSpeed: preset.animationSpeed,
         };
@@ -114,20 +103,20 @@ export const useCreateArrow = () => {
               node: createArrow,
             },
           ],
-          false,
+          false
         );
       } else {
         if (!createdArrow.current || !createdArrowPath.current) return;
         const updateArrowElement = getUpdateArrowElement(
           createdArrow.current,
           currentPoint.current,
-          createdArrow.current.points.length - 1,
+          createdArrow.current.points.length - 1
         );
 
         const ops = BoardUtil.diffNodePatchOnly(
           createdArrow.current,
           updateArrowElement,
-          createdArrowPath.current,
+          createdArrowPath.current
         );
         if (ops.length > 0) {
           board.apply(ops, false);
@@ -141,7 +130,7 @@ export const useCreateArrow = () => {
         });
       }
     },
-    { wait: 25 },
+    { wait: 25 }
   );
 
   const cancelPointerMoveSafely = useMemoizedFn(() => {
@@ -170,11 +159,7 @@ export const useCreateArrow = () => {
         return;
       }
 
-      const candidate = getNearestCustomConnectCandidate(
-        board.children,
-        pointerViewport,
-        zoom,
-      );
+      const candidate = getNearestCustomConnectCandidate(board.children, pointerViewport, zoom);
       if (!candidate) {
         clearSourceSnapPreview();
         return;
@@ -203,38 +188,22 @@ export const useCreateArrow = () => {
       document.removeEventListener("keyup", handleKeyChange);
       window.removeEventListener("blur", clearSourceSnapPreview);
     };
-  }, [
-    board,
-    clearSourceSnapPreview,
-    createBoardElementType,
-    pointerViewport,
-    zoom,
-  ]);
+  }, [board, clearSourceSnapPreview, createBoardElementType, pointerViewport, zoom]);
 
   useEffect(() => {
-    if (createBoardElementType !== ECreateBoardElementType.StraightArrow)
-      return;
+    if (createBoardElementType !== ECreateBoardElementType.StraightArrow) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (createBoardElementType !== ECreateBoardElementType.StraightArrow)
-        return;
+      if (createBoardElementType !== ECreateBoardElementType.StraightArrow) return;
       e.stopPropagation();
       const boardContainer = BOARD_TO_CONTAINER.get(board);
       if (!boardContainer) return;
 
-      const pointerStartPoint = PointUtil.screenToViewPort(
-        board,
-        e.clientX,
-        e.clientY,
-      );
+      const pointerStartPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!pointerStartPoint) return;
 
       const pointerDownCandidate =
         e.altKey && !sourceSnapCandidate.current
-          ? getNearestCustomConnectCandidate(
-              board.children,
-              pointerStartPoint,
-              zoom,
-            )
+          ? getNearestCustomConnectCandidate(board.children, pointerStartPoint, zoom)
           : null;
       dragSourceSnapCandidate.current =
         e.altKey && sourceSnapCandidate.current
@@ -246,8 +215,7 @@ export const useCreateArrow = () => {
                 customOffset: pointerDownCandidate.customOffset,
               }
             : null;
-      startPoint.current =
-        dragSourceSnapCandidate.current?.point ?? pointerStartPoint;
+      startPoint.current = dragSourceSnapCandidate.current?.point ?? pointerStartPoint;
       if (!startPoint.current) return;
       clearSourceSnapPreview();
 
@@ -282,7 +250,7 @@ export const useCreateArrow = () => {
               },
             },
           ],
-          false,
+          false
         );
         board.apply(
           [
@@ -292,7 +260,7 @@ export const useCreateArrow = () => {
               node: createdArrow.current,
             },
           ],
-          true,
+          true
         );
       }
 
@@ -341,12 +309,7 @@ export const useCreateArrow = () => {
       boardContainer.removeEventListener("pointermove", handlePointerMove);
       boardContainer.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [
-    cancelPointerMoveSafely,
-    createBoardElementType,
-    handlePointerMove,
-    board,
-  ]);
+  }, [cancelPointerMoveSafely, createBoardElementType, handlePointerMove, board]);
 };
 
 export default useCreateArrow;

@@ -269,6 +269,10 @@ export interface ISetting {
     videoSummary: LLMUsageConfigV2 | null;
     videoEbookRewrite: LLMUsageConfigV2 | null;
     vibeLearningImageDescription: LLMUsageConfigV2 | null;
+    /** 笔记元信息（卡片 AI 标题、要点等）：配上即在后台处理全部笔记 */
+    contentMetadata: LLMUsageConfigV2 | null;
+    /** AI 洞见：在详情页点「AI 洞见」时对这一篇分析一次 */
+    contentInsights: LLMUsageConfigV2 | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -689,6 +693,8 @@ const initialState: IState = {
       videoSummary: null,
       videoEbookRewrite: null,
       vibeLearningImageDescription: null,
+      contentMetadata: null,
+      contentInsights: null,
     },
     embeddingProvider: {
       currentConfigId: "",

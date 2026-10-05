@@ -37,6 +37,8 @@ interface IPreviewWithEditorProps {
   element: CustomElement;
   center?: boolean;
   extend?: boolean;
+  /** 内容随容器宽度流式布局（如自定义块）：全屏画布沿用文档内宽度，避免按内容自身宽度收缩后挤成一列 */
+  fluid?: boolean;
 }
 
 const codeMirrorOptions = (mode: string, readOnly: boolean, lineNumbers: boolean) =>
@@ -61,10 +63,12 @@ const codeMirrorOptions = (mode: string, readOnly: boolean, lineNumbers: boolean
   }) as EditorConfiguration;
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = memo(props => {
-  const { mode, title, icon, initValue, onChange, children, element, center, extend } = props;
+  const { mode, title, icon, initValue, onChange, children, element, center, extend, fluid } =
+    props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenWidth, setFullscreenWidth] = useState<number>();
   const [showFullscreenSource, setShowFullscreenSource] = useState(true);
   const [copied, setCopied] = useState(false);
   const [inlineError, setInlineError] = useState<PreviewError | null>(null);
@@ -361,6 +365,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     fullscreenEditorRef.current?.setValue(currentValue);
     setEditing(false);
     setShowFullscreenSource(!readOnly);
+    setFullscreenWidth(fluid ? ref.current?.clientWidth : undefined);
     setIsFullscreen(true);
   });
 
@@ -396,9 +401,10 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     <PreviewErrorContext.Provider value={setInlineError}>
       <div
         className={cn(
-          "box-border min-h-[2.5em] whitespace-normal transition-opacity duration-150",
+          // 内容矮于最小高度时垂直居中，单行公式上下留白一致；3em 恰好容纳居中的悬浮操作条
+          "box-border min-h-[3em] whitespace-normal transition-opacity duration-150",
           extend && "py-[0.3125em]",
-          center && "flex items-center justify-center",
+          center ? "flex items-center justify-center" : "flex flex-col justify-center",
           inlineError?.stale && "opacity-40"
         )}
       >
@@ -509,6 +515,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           showSource={showFullscreenSource}
           onToggleSource={() => setShowFullscreenSource(show => !show)}
           error={fullscreenError}
+          contentWidth={fullscreenWidth}
           onClose={closeFullscreen}
           source={
             <CodeEditor

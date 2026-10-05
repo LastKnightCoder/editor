@@ -52,7 +52,6 @@ import type {
   UpdateTodoItemPayload,
   UpdateTodoRecurrencePayload,
 } from "../types";
-import type { KnownCardCategory } from "../features/cards/cardCategory";
 import type {
   Flashcard,
   FlashcardDeck,
@@ -261,12 +260,7 @@ export function setActiveDatabase(name: string) {
   return trackedInvoke<ActiveDatabaseResponse>("set_active_database", { name });
 }
 
-export function getCardsOverview(params: {
-  page: number;
-  pageSize: number;
-  query?: string;
-  category?: string;
-}) {
+export function getCardsOverview(params: { page: number; pageSize: number; query?: string }) {
   return withCardTimeout(
     trackedInvoke<CardsOverviewResponse>("get_cards_overview", params),
     "读取卡片列表"
@@ -296,11 +290,11 @@ export function getContentDetail(contentId: number) {
   return trackedInvoke<ContentDetailResponse>("get_content_detail", { contentId });
 }
 
-export function createTemporaryCard(params: { content: unknown[]; count: number }) {
+export function createQuickCard(params: { content: unknown[]; count: number }) {
   // 创建是非幂等操作：超时只代表放弃等待，后端事务可能仍会提交，
   // 引导用户确认而非盲目重试，避免产生重复卡片
   return withTimeout(
-    trackedInvoke<CardDetailResponse>("create_temporary_card", {
+    trackedInvoke<CardDetailResponse>("create_quick_card", {
       payload: params,
     }),
     CARD_INVOKE_TIMEOUT_MS,
@@ -314,15 +308,6 @@ export function updateContent(params: { contentId: number; content: unknown[]; c
       payload: params,
     }),
     "保存卡片内容"
-  );
-}
-
-export function updateCardCategory(params: { id: number; category: KnownCardCategory }) {
-  return withCardTimeout(
-    trackedInvoke<CardDetailResponse>("update_card_category", {
-      payload: params,
-    }),
-    "更新卡片分类"
   );
 }
 

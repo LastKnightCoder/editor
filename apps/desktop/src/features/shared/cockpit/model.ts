@@ -1,9 +1,10 @@
 /** 驾驶舱列表模型：排布、排序、最近打开与时间展示（纯函数，三模块共用） */
 
+import type { ListLayout } from "../list/ListControls";
 import { cockpitRelativeTime } from "./text";
 import type { CockpitItem } from "./types";
 
-export type CockpitLayout = "grid" | "list";
+export type CockpitLayout = ListLayout;
 export type CockpitSort = "opened" | "updated" | "name" | "created";
 
 export const COCKPIT_SORTS: { value: CockpitSort; label: string }[] = [

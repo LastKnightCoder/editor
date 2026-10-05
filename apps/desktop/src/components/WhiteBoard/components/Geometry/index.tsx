@@ -11,10 +11,11 @@ import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import GeometryRenderer from "./GeometryRenderer";
+import SketchGeometry from "./SketchGeometry";
 
 import { Board, EHandlerPosition, Point } from "../../types";
 import { PathUtil, PointUtil } from "../../utils";
-import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
 import { GeometryElement } from "../../plugins";
 import {
   SELECT_RECT_STROKE,
@@ -24,6 +25,7 @@ import {
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
 import { registerGeometryRenderers } from "./registerGeometryRenderers";
+import { handTextClass } from "../../utils/sketch";
 const styles = {
   textContainer: "box-border flex size-full items-center justify-center p-3 text-center",
   left: "justify-start text-left",
@@ -79,6 +81,7 @@ const Geometry = memo((props: GeometryProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
+  const sketch = useSketch(element);
   const geometryRef = useRef<SVGGElement>(null);
   const textRef = useRef<EditorRef>(null);
   const [textContent] = useState(text.content);
@@ -253,22 +256,31 @@ const Geometry = memo((props: GeometryProps) => {
         height={height}
         viewBox={`0 0 ${width} ${height}`}
       >
-        <GeometryRenderer
-          element={element}
-          width={width}
-          height={height}
-          fill={fill}
-          fillOpacity={fillOpacity}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          strokeOpacity={strokeOpacity}
-        />
+        {sketch.enabled ? (
+          <SketchGeometry element={element} width={width} height={height} sketch={sketch} />
+        ) : (
+          <GeometryRenderer
+            element={element}
+            width={width}
+            height={height}
+            fill={fill}
+            fillOpacity={fillOpacity}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            strokeOpacity={strokeOpacity}
+          />
+        )}
       </svg>
       <foreignObject x={x} y={y} width={width} height={height} className="border-none">
         <div
-          className={classnames(styles.textContainer, styles[text.align], {
-            [styles.readonly]: !isEditing,
-          })}
+          className={classnames(
+            styles.textContainer,
+            styles[text.align],
+            {
+              [styles.readonly]: !isEditing,
+            },
+            handTextClass(sketch)
+          )}
           style={{ color }}
         >
           {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
@@ -316,7 +328,6 @@ const Geometry = memo((props: GeometryProps) => {
       <ArrowConnectPointGroup
         element={element}
         points={arrowConnectExtendPoints}
-        proximityBounds={{ x, y, width, height }}
         isSelected={isSelected}
         disabled={isMoveArrowClosing}
       />

@@ -53,6 +53,7 @@
 
   --font-tau: var(--tau-font);
   --font-tau-mono: var(--tau-font-mono);
+  --font-tau-hand: var(--tau-font-hand);
 
   /* ── 尺度词（D-001，tau 命名空间，见 02 规范 §3/§4）── */
 

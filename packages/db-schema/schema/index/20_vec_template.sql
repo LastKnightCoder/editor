@@ -4,5 +4,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS vec_documents USING vec0(
         update_time FLOAT,
         content TEXT,
         type TEXT,
+        chunk_index INTEGER,
         vec_embedding FLOAT[__VEC_DIMENSION__] distance_metric=cosine
       );

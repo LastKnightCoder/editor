@@ -45,6 +45,7 @@ const SOURCE_LABEL: Record<string, string> = {
   youtube: "YouTube",
   remote: "网页链接",
   note: "来自笔记",
+  material: "来自摘录",
 };
 
 function metaOf(resource: VLResource) {

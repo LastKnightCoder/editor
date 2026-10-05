@@ -2,7 +2,7 @@ import React, { act, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CardPreviewDialog } from "../components/CardPreviewDialog";
-import { ECardCategory, type ICard } from "@/types/card";
+import { type ICard } from "@/types/card";
 import type { CardItemActions } from "../types";
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   realDialog: false,
   delayEditor: false,
   editorReady: () => {},
-  editorFailed: () => {},
 }));
 vi.mock("../queries", () => ({
   useCardsMutations: () => ({ patch: { mutateAsync: mocks.patch, isPending: false } }),
@@ -25,14 +24,20 @@ vi.mock("ahooks", () => ({
 }));
 vi.mock("@/utils", () => ({ formatDate: () => "日期", getContentLength: () => 0 }));
 vi.mock("@/components/ContentEditor", () => ({
-  default: function MockContentEditor({ contentId, onInit, onLoadError }: any) {
-    mocks.editorReady = () => onInit?.({}, []);
-    mocks.editorFailed = () => onLoadError?.("正文会话加载失败");
+  default: function MockContentEditor({ contentId, onInit, fallback }: any) {
+    const [ready, setReady] = useState(!mocks.delayEditor);
+    mocks.editorReady = () => {
+      setReady(true);
+      onInit?.({}, []);
+    };
     useEffect(() => {
       if (!mocks.delayEditor) onInit?.({}, []);
     }, []);
-    return <div data-testid="editor">正文 {contentId}</div>;
+    return ready ? <div data-testid="editor">正文 {contentId}</div> : <>{fallback}</>;
   },
+}));
+vi.mock("../components/CardContentPreview", () => ({
+  CardContentPreview: () => <div data-testid="reader">只读全文</div>,
 }));
 vi.mock("@/components/ErrorBoundary", () => ({
   default: ({ children }: { children: React.ReactNode }) => children,
@@ -94,10 +99,6 @@ function Harness() {
       serverCard = { ...serverCard, isTop: !serverCard.isTop };
       update(serverCard);
     },
-    onChangeCategory: (_card: ICard, category: ECardCategory) => {
-      serverCard = { ...serverCard, category };
-      update(serverCard);
-    },
   };
   return (
     <CardPreviewDialog
@@ -130,7 +131,6 @@ beforeEach(async () => {
     count: 0,
     tags: [],
     links: [],
-    category: ECardCategory.Temporary,
     isTop: false,
     create_time: 0,
     update_time: 0,
@@ -150,16 +150,15 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-it("未保存标签在分类与置顶刷新后仍保留，保存只提交标签", async () => {
+it("未保存标签在置顶刷新后仍保留，保存只提交标签", async () => {
   await click("标签：");
-  await click("永久笔记");
   await click("设置置顶");
   expect(host.textContent).toContain("标签：标签1");
   expect(host.textContent).toContain("取消置顶");
   await act(async () => mocks.tick());
   expect(mocks.patch).toHaveBeenCalledWith({ id: 1, patch: { tags: ["标签1"] } });
   expect(mocks.saved).toHaveBeenCalledWith(
-    expect.objectContaining({ category: ECardCategory.Permanent, isTop: true, tags: ["标签1"] })
+    expect.objectContaining({ isTop: true, tags: ["标签1"] })
   );
 });
 
@@ -271,38 +270,8 @@ it("退场中重新打开另一张卡片，不会被旧的关闭任务清空", a
   expect(dialog?.textContent).toContain("正文 20");
 });
 
-it("正文会话就绪前隐藏挂载，不抢焦点；编辑器初始化后才显示", async () => {
+it("正文会话就绪前以只读全文占位立即显示，编辑器初始化后换成可编辑正文", async () => {
   vi.useFakeTimers();
-  mocks.realDialog = true;
-  mocks.delayEditor = true;
-  const trigger = document.createElement("button");
-  document.body.append(trigger);
-  trigger.focus();
-  try {
-    await act(async () =>
-      root.render(
-        <CardPreviewDialog
-          open
-          card={{ ...serverCard, id: 2 }}
-          actions={{} as CardItemActions}
-          onOpenChange={() => {}}
-        />
-      )
-    );
-    const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog.closest('[aria-hidden="true"]')).not.toBeNull();
-    expect(document.activeElement).toBe(trigger);
-    expect(document.body.style.overflow).not.toBe("hidden");
-    await act(async () => mocks.editorReady());
-    await act(async () => vi.advanceTimersByTime(20));
-    expect(dialog.closest('[aria-hidden="true"]')).toBeNull();
-    expect(document.activeElement).toBe(dialog);
-  } finally {
-    trigger.remove();
-  }
-});
-
-it("正文会话加载失败也放行弹窗，不会永久隐藏", async () => {
   mocks.realDialog = true;
   mocks.delayEditor = true;
   await act(async () =>
@@ -315,8 +284,14 @@ it("正文会话加载失败也放行弹窗，不会永久隐藏", async () => {
       />
     )
   );
-  const dialog = document.querySelector('[role="dialog"]')!;
-  expect(dialog.closest('[aria-hidden="true"]')).not.toBeNull();
-  await act(async () => mocks.editorFailed());
+  await act(async () => vi.advanceTimersByTime(20));
+  const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
   expect(dialog.closest('[aria-hidden="true"]')).toBeNull();
+  expect(dialog.dataset.state).toBe("open");
+  expect(dialog.querySelector('[data-testid="reader"]')).not.toBeNull();
+  expect(dialog.querySelector('[data-testid="editor"]')).toBeNull();
+
+  await act(async () => mocks.editorReady());
+  expect(dialog.querySelector('[data-testid="reader"]')).toBeNull();
+  expect(dialog.querySelector('[data-testid="editor"]')?.textContent).toBe("正文 10");
 });

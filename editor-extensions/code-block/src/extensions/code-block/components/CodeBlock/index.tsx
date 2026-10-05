@@ -6,12 +6,13 @@ import isHotkey from "is-hotkey";
 import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import type { HighlighterCore } from "shiki/core";
-import { MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
+import { ChevronDown } from "lucide-react";
 
 import type { CodeBlockElement, CodeBlockMagicMove } from "../../../../types";
 import {
   AddParagraph,
   type AddParagraphRef,
+  ElementMenu,
   useEditorTheme as useTheme,
   useIsLastElement,
 } from "@tau/editor/api";
@@ -23,19 +24,18 @@ import {
 } from "@tau/editor/api";
 import HighlightMenu from "./HighlightMenu";
 import { highlightCommandIds } from "../../highlightCommands";
-import SelectLanguage from "../SelectLanguage";
-import ToolbarButtons, { CODE_HOVER_GROUP } from "./ToolbarButtons";
+import CodeBlockHeader, { CODE_HOVER_GROUP, type CodeBlockStepNav } from "./CodeBlockHeader";
 import ShikiOverlayEditor, { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
 import { codeBlockActionsMap, codeBlockMap } from "../../utils/controllerMaps";
 import { getShikiHighlighter, getShikiTheme } from "../../utils/shikiHighlighter";
 import {
-  createInitialMagicMove,
   getActiveStepCode,
   getActiveStepHighlightLines,
   insertNextMagicMoveStep,
   normalizeMagicMove,
-  removeMagicMoveStep,
 } from "../../utils/magicMoveOps";
+import { getChangedLines } from "../../utils/lineDiff";
+import { normalizeCodeBlockFilename } from "../../utils/filename";
 import { deleteVoidBlock } from "@tau/editor/api";
 import { hasHighlightedLineInRange } from "../../utils/highlightLineRanges";
 import type { CodeBlockController } from "../../types";
@@ -55,6 +55,10 @@ const NODE_PERSIST_DELAY = 120;
 const MIN_FOLD_HEIGHT = 200;
 const MAX_FOLD_HEIGHT = 1200;
 const DEFAULT_FOLD_HEIGHT = 400;
+const COPIED_FEEDBACK_MS = 1500;
+/** 切步后改动行先亮、再淡出，最后卸载标记 */
+const CHANGED_LINES_VISIBLE_MS = 1200;
+const CHANGED_LINES_CLEAR_MS = 2000;
 const AUTO_CLOSE_MAP: Record<string, string> = {
   "(": ")",
   "{": "}",
@@ -79,6 +83,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     highlightLines,
     isFold = false,
     foldHeight = DEFAULT_FOLD_HEIGHT,
+    filename,
+    wrap = false,
+    lineNumbers = true,
   } = element;
   const slateEditor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -97,6 +104,15 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   }>({
     selectedLines: { start: 0, end: 0 },
   });
+  const [copied, setCopied] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [editingFilename, setEditingFilename] = useState(false);
+  const [changedLines, setChangedLines] = useState<ReadonlySet<number> | null>(null);
+  const [changedLinesVisible, setChangedLinesVisible] = useState(false);
+  const [lineTops, setLineTops] = useState<number[]>([]);
+  const highlightAnchorRef = useRef<number | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
+  const changedLinesTimersRef = useRef<number[]>([]);
   const pendingLocalCodeRef = useRef<string | null>(null);
   const previewTimerRef = useRef<number | null>(null);
   const stepSwitchRafRef = useRef<number | null>(null);
@@ -124,7 +140,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     selectedStartLine,
     selectedEndLine
   );
-  const canDeleteCurrentStep = Boolean(magicMove && magicMove.steps.length > 1);
   const shikiTheme = getShikiTheme(isDark);
   const normalizedFoldHeight = Math.min(
     MAX_FOLD_HEIGHT,
@@ -133,6 +148,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   const canFold = contentHeight > Math.max(normalizedFoldHeight, MIN_FOLD_HEIGHT);
   const isFolded = isFold && canFold;
   const overlayDisplayHeight = isFolded ? normalizedFoldHeight : null;
+  const hiddenLineCount = isFolded ? lineTops.filter(top => top >= normalizedFoldHeight).length : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -167,6 +183,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
         persistTimerRef.current = null;
       }
       pendingPersistRef.current = null;
+      if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+      changedLinesTimersRef.current.forEach(timer => window.clearTimeout(timer));
     };
   }, []);
 
@@ -249,23 +267,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       return nextCode;
     }
   );
-
-  const disableNodeMagicMove = useMemoizedFn((nextCode: string, nextHighlightLines?: string) => {
-    const path = ReactEditor.findPath(slateEditor, element);
-    Transforms.setNodes(
-      slateEditor,
-      {
-        code: nextCode,
-        highlightLines: nextHighlightLines,
-      },
-      { at: path }
-    );
-    if (!nextHighlightLines) {
-      Transforms.unsetNodes(slateEditor, "highlightLines", { at: path });
-    }
-    Transforms.unsetNodes(slateEditor, "magicMove", { at: path });
-    return nextCode;
-  });
 
   const executeHighlight = useMemoizedFn((command: string) => {
     const { start, end } = highlightContextMenu.selectedLines;
@@ -350,6 +351,25 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     }, 650);
   });
 
+  const clearChangedLines = useMemoizedFn(() => {
+    changedLinesTimersRef.current.forEach(timer => window.clearTimeout(timer));
+    changedLinesTimersRef.current = [];
+    setChangedLines(null);
+    setChangedLinesVisible(false);
+  });
+
+  const flashChangedLines = useMemoizedFn((previousCode: string, nextCode: string) => {
+    clearChangedLines();
+    const lines = getChangedLines(previousCode, nextCode);
+    if (lines.size === 0) return;
+    setChangedLines(lines);
+    setChangedLinesVisible(true);
+    changedLinesTimersRef.current = [
+      window.setTimeout(() => setChangedLinesVisible(false), CHANGED_LINES_VISIBLE_MS),
+      window.setTimeout(() => setChangedLines(null), CHANGED_LINES_CLEAR_MS),
+    ];
+  });
+
   const goToStep = useMemoizedFn((step: number) => {
     if (!magicMove) return;
     flushPendingPersist();
@@ -359,6 +379,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     }
     const nextStep = Math.min(Math.max(step, 0), magicMove.steps.length - 1);
     const nextCode = magicMove.steps[nextStep]?.code ?? "";
+    // 只在前进时标改动行：后退看到的是「上一步的样子」，没有新增内容
+    if (nextStep > currentStepIndex) flashChangedLines(code || "", nextCode);
+    else clearChangedLines();
     setPreviewHeightHint(nextCode);
     playStepPreviewAnimation();
     stepSwitchRafRef.current = window.requestAnimationFrame(() => {
@@ -384,69 +407,59 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     goToStep(currentStepIndex + 1);
   });
 
-  const handleDiffPrimaryAction = useMemoizedFn(() => {
-    if (readOnly) {
-      return;
-    }
-    flushPendingPersist();
-
-    if (!magicMove) {
-      const sourceCode = code || defaultCode || "";
-      const nextMagicMove = createInitialMagicMove(sourceCode, currentStepHighlightLines);
-      const nextCode = setNodeMagicMove(nextMagicMove, sourceCode);
-      pendingLocalCodeRef.current = nextCode;
-      setCode(nextCode);
-      setPreviewHeightHint(nextCode);
-      playStepPreviewAnimation();
-      window.requestAnimationFrame(() => {
-        setPreviewHeightHint(null);
-      });
-      message.success("已开启 Diff 动画");
-      return;
-    }
-
-    const nextMagicMove = insertNextMagicMoveStep(magicMove, code || "", currentStepHighlightLines);
-    const nextCode = setNodeMagicMove(nextMagicMove, code || "");
-    pendingLocalCodeRef.current = nextCode;
-    setCode(nextCode);
-    setPreviewHeightHint(nextCode);
-    playStepPreviewAnimation();
-    window.requestAnimationFrame(() => {
-      setPreviewHeightHint(null);
-    });
-    message.success("已新增下一步");
-  });
-
-  const handleDeleteCurrentStep = useMemoizedFn(() => {
+  const handleInsertNextStep = useMemoizedFn(() => {
     if (readOnly || !magicMove) {
       return;
     }
     flushPendingPersist();
-    const result = removeMagicMoveStep(
-      magicMove,
-      code || defaultCode || "",
-      currentStepHighlightLines,
-      currentStepIndex
-    );
-    if (!result.removed) {
-      return;
-    }
-
-    const nextCode = result.magicMove
-      ? setNodeMagicMove(result.magicMove, result.code)
-      : disableNodeMagicMove(result.code, result.highlightLines);
+    const nextMagicMove = insertNextMagicMoveStep(magicMove, code || "", currentStepHighlightLines);
+    const nextCode = setNodeMagicMove(nextMagicMove, code || "");
     pendingLocalCodeRef.current = nextCode;
     setCode(nextCode);
-    setPreviewHeightHint(nextCode);
-    playStepPreviewAnimation();
-    window.requestAnimationFrame(() => {
-      setPreviewHeightHint(null);
-    });
-    if (result.magicMove) {
-      message.success("已删除当前步骤");
-    } else {
-      message.success("步骤已删除，Diff 动画已关闭");
+    clearChangedLines();
+    codeBlockMap.get(uuid)?.focus();
+  });
+
+  const handleStepTitleChange = useMemoizedFn((title: string) => {
+    if (readOnly || !magicMove) return;
+    const steps = magicMove.steps.map((step, index) =>
+      index === currentStepIndex ? { ...step, title: title || undefined } : step
+    );
+    Transforms.setNodes(
+      slateEditor,
+      { magicMove: { ...magicMove, steps } },
+      { at: ReactEditor.findPath(slateEditor, element) }
+    );
+  });
+
+  const handleFilenameCommit = useMemoizedFn((value: string) => {
+    setEditingFilename(false);
+    if (readOnly) return;
+    const nextFilename = normalizeCodeBlockFilename(value);
+    if (nextFilename === filename) return;
+    const path = ReactEditor.findPath(slateEditor, element);
+    if (nextFilename) Transforms.setNodes(slateEditor, { filename: nextFilename }, { at: path });
+    else Transforms.unsetNodes(slateEditor, "filename", { at: path });
+  });
+
+  const handleLineNumberClick = useMemoizedFn((line: number, event: React.MouseEvent) => {
+    if (readOnly) return;
+    const anchor = highlightAnchorRef.current;
+    if (event.shiftKey && anchor !== null) {
+      slateEditor.commands?.execute(
+        highlightCommandIds.add,
+        { start: Math.min(anchor, line), end: Math.max(anchor, line) },
+        element
+      );
+      return;
     }
+    highlightAnchorRef.current = line;
+    const highlighted = hasHighlightedLineInRange(currentStepHighlightLines, line, line);
+    slateEditor.commands?.execute(
+      highlighted ? highlightCommandIds.remove : highlightCommandIds.add,
+      { start: line, end: line },
+      element
+    );
   });
 
   const updateFoldHeight = useMemoizedFn((nextHeight: number) => {
@@ -505,16 +518,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   }, [handleResizeEnd, handleResizeMove]);
 
   useEffect(() => {
-    codeBlockActionsMap.set(uuid, {
-      goToPreviousStep,
-      goToNextStep,
-      hasPreviousStep,
-      hasNextStep,
-    });
+    codeBlockActionsMap.set(uuid, { editFilename: () => setEditingFilename(true) });
     return () => {
       codeBlockActionsMap.delete(uuid);
     };
-  }, [uuid, goToPreviousStep, goToNextStep, hasPreviousStep, hasNextStep]);
+  }, [uuid]);
 
   useEffect(() => {
     const scrollIntoView = () => {
@@ -562,8 +570,18 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       message.error("复制代码失败");
       return;
     }
-    await navigator.clipboard.writeText(currentCode);
-    message.success("复制代码成功");
+    try {
+      await navigator.clipboard.writeText(currentCode);
+    } catch {
+      message.error("复制代码失败");
+      return;
+    }
+    setCopied(true);
+    if (copiedTimerRef.current) window.clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = window.setTimeout(() => {
+      copiedTimerRef.current = null;
+      setCopied(false);
+    }, COPIED_FEEDBACK_MS);
   });
 
   const handleOnLanguageChange = useMemoizedFn((value: string) => {
@@ -747,101 +765,141 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     }
   );
 
+  const stepNav: CodeBlockStepNav | null =
+    hasMagicMove && magicMove
+      ? {
+          current: currentStepIndex,
+          total: magicMove.steps.length,
+          title: magicMove.steps[currentStepIndex]?.title,
+          hasPrevious: hasPreviousStep,
+          hasNext: hasNextStep,
+          onPrevious: goToPreviousStep,
+          onNext: goToNextStep,
+          onInsertNext: readOnly ? undefined : handleInsertNextStep,
+          onTitleChange: readOnly ? undefined : handleStepTitleChange,
+        }
+      : null;
+
   return (
     <div
       contentEditable={false}
       className={cn(
-        "relative [--ed-code-pad-bottom:1.1em] [--ed-code-pad-left:1.5em] [--ed-code-pad-right:0.85em] [--ed-code-pad-top:3em]",
+        "relative [--ed-code-pad-bottom:0.9em] [--ed-code-pad-left:1.25em] [--ed-code-pad-right:1em] [--ed-code-pad-top:0.9em]",
         CODE_HOVER_GROUP
       )}
     >
       <div {...attributes}>
         {children}
-        <ToolbarButtons
-          onCopy={handleCopyCode}
-          onDiffPrimaryAction={readOnly ? undefined : handleDiffPrimaryAction}
-          onDeleteCurrentStep={readOnly ? undefined : handleDeleteCurrentStep}
-          canDeleteCurrentStep={canDeleteCurrentStep}
-          diffEnabled={Boolean(magicMove)}
-          onPreviousStep={goToPreviousStep}
-          onNextStep={goToNextStep}
-          hasPreviousStep={hasPreviousStep}
-          hasNextStep={hasNextStep}
-          showStepNavigation={hasMagicMove}
-          currentStep={hasMagicMove ? currentStepIndex + 1 : 0}
-          totalSteps={magicMove?.steps.length ?? 0}
-        />
-        <SelectLanguage
-          readonly={readOnly}
-          className="absolute left-[1em] top-[0.625em] z-[4]"
-          value={language}
-          onChange={handleOnLanguageChange}
-        />
-        <div
-          className={cn(
-            "group/viewport relative overflow-hidden rounded-[0.5em] bg-[var(--ed-code-bg)] shadow-[var(--ed-code-shadow)]",
-            // 折叠时底部渐隐到代码底色
-            isFolded &&
-              "after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-[3em] after:bg-[linear-gradient(180deg,transparent_0%,var(--ed-code-bg)_100%)] after:content-['']"
-          )}
-        >
-          <HighlightMenu
+        <div className="overflow-hidden rounded-[0.625em] bg-[var(--ed-code-bg)] shadow-[var(--ed-code-shadow)]">
+          <CodeBlockHeader
+            language={language}
+            onLanguageChange={handleOnLanguageChange}
             readOnly={readOnly}
-            canRemove={canRemoveSelectedHighlight}
-            onAdd={() => executeHighlight(highlightCommandIds.add)}
-            onRemove={() => executeHighlight(highlightCommandIds.remove)}
+            filename={filename}
+            editingFilename={editingFilename}
+            onEditFilename={() => setEditingFilename(true)}
+            onFilenameCommit={handleFilenameCommit}
+            steps={stepNav}
+            copied={copied}
+            onCopy={handleCopyCode}
+            onOpenMenu={
+              readOnly
+                ? undefined
+                : anchor => setMenuPosition({ x: anchor.left, y: anchor.bottom + 6 })
+            }
+          />
+          <div
+            className={cn(
+              "relative",
+              // 折叠时底部渐隐到代码底色
+              isFolded &&
+                "after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:z-[4] after:h-[3em] after:bg-[linear-gradient(180deg,transparent_0%,var(--ed-code-bg)_100%)] after:content-['']"
+            )}
           >
-            <ShikiOverlayEditor
-              value={code || ""}
-              language={language}
-              isDark={isDark}
+            <HighlightMenu
               readOnly={readOnly}
-              className="ed-code-overlay"
-              allowScroll={isFolded}
-              displayHeight={overlayDisplayHeight}
-              heightHintValue={magicMovePreview ? previewHeightHint : null}
-              onContentHeightChange={setContentHeight}
-              onChange={applyCodeChange}
-              onBlur={flushPendingPersist}
-              onKeyDown={readOnly ? undefined : handleEditorKeyDown}
-              onDidMount={readOnly ? undefined : onDidMount}
-              onWillUnmount={readOnly ? undefined : onWillUnmount}
-              magicMoveEnabled={hasMagicMove}
-              enableMagicMovePreview={magicMovePreview && hasMagicMove}
-              magicMoveHighlighter={highlighter}
-              magicMoveTheme={shikiTheme}
-              highlightLines={currentStepHighlightLines}
-              onContextMenu={
-                readOnly
-                  ? undefined
-                  : (e, sel) => {
-                      e.preventDefault();
-                      setHighlightContextMenu({
-                        selectedLines: sel,
-                      });
-                    }
-              }
-            />
-          </HighlightMenu>
-          {canFold && (
+              canRemove={canRemoveSelectedHighlight}
+              onAdd={() => executeHighlight(highlightCommandIds.add)}
+              onRemove={() => executeHighlight(highlightCommandIds.remove)}
+            >
+              <ShikiOverlayEditor
+                value={code || ""}
+                language={language}
+                isDark={isDark}
+                readOnly={readOnly}
+                className="ed-code-overlay"
+                allowScroll={isFolded}
+                displayHeight={overlayDisplayHeight}
+                heightHintValue={magicMovePreview ? previewHeightHint : null}
+                onContentHeightChange={setContentHeight}
+                onChange={applyCodeChange}
+                onBlur={flushPendingPersist}
+                onKeyDown={readOnly ? undefined : handleEditorKeyDown}
+                onDidMount={readOnly ? undefined : onDidMount}
+                onWillUnmount={readOnly ? undefined : onWillUnmount}
+                magicMoveEnabled={hasMagicMove}
+                enableMagicMovePreview={magicMovePreview && hasMagicMove}
+                magicMoveHighlighter={highlighter}
+                magicMoveTheme={shikiTheme}
+                highlightLines={currentStepHighlightLines}
+                lineNumbers={lineNumbers}
+                wrap={wrap && !hasMagicMove}
+                changedLines={changedLines}
+                changedLinesVisible={changedLinesVisible}
+                onLineNumberClick={readOnly ? undefined : handleLineNumberClick}
+                onLineTopsChange={canFold ? setLineTops : undefined}
+                onContextMenu={
+                  readOnly
+                    ? undefined
+                    : (e, sel) => {
+                        e.preventDefault();
+                        setHighlightContextMenu({
+                          selectedLines: sel,
+                        });
+                      }
+                }
+              />
+            </HighlightMenu>
+          </div>
+          {canFold && !readOnly && (
             <div
-              className="pointer-events-none absolute bottom-[0.75em] right-[0.75em] z-[4] flex cursor-pointer items-center justify-center text-[var(--ed-text-tertiary)] opacity-0 transition-colors duration-200 ease-[ease] hover:text-[var(--ed-text)] group-hover/viewport:pointer-events-auto group-hover/viewport:opacity-100"
+              role="button"
+              tabIndex={-1}
+              className="relative flex h-[2.25em] cursor-pointer select-none items-center justify-center gap-[0.375em] border-t border-dashed border-[var(--ed-border)] text-[0.75em] text-[var(--ed-text-secondary)] transition-colors duration-150 hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]"
               onClick={handleToggleFold}
             >
-              {isFolded ? <MdKeyboardArrowDown size={18} /> : <MdKeyboardArrowUp size={18} />}
-            </div>
-          )}
-          {isFolded && !readOnly && (
-            <div
-              className="pointer-events-none absolute bottom-0 left-1/2 flex h-[1.1em] w-[2.75em] -translate-x-1/2 cursor-ns-resize items-end justify-center opacity-0 transition-opacity duration-200 ease-[ease] group-hover/viewport:pointer-events-auto group-hover/viewport:opacity-100"
-              onMouseDown={handleResizeStart}
-            >
-              <div className="h-[0.25em] w-[2.5em] rounded-[0.125em] bg-[var(--ed-border)] group-hover/viewport:bg-[var(--ed-text-tertiary)]" />
+              {isFolded && (
+                <span
+                  className={cn(
+                    "absolute left-1/2 top-[-0.25em] h-[0.5em] w-[3.5em] -translate-x-1/2 cursor-ns-resize rounded-full",
+                    "after:absolute after:inset-x-0 after:top-[0.125em] after:h-[0.25em] after:rounded-full after:bg-[var(--ed-border)] after:opacity-0 after:transition-opacity after:content-[''] group-hover/code:after:opacity-100"
+                  )}
+                  onMouseDown={handleResizeStart}
+                  onClick={event => event.stopPropagation()}
+                />
+              )}
+              <ChevronDown
+                size="1.2em"
+                strokeWidth={2}
+                className={cn("transition-transform duration-200", !isFolded && "rotate-180")}
+              />
+              {isFolded
+                ? hiddenLineCount > 0
+                  ? `展开剩余 ${hiddenLineCount} 行`
+                  : "展开"
+                : "收起"}
             </div>
           )}
         </div>
         {!(readOnly && isLast) && <AddParagraph element={element} ref={addParagraphRef} />}
       </div>
+      {menuPosition && (
+        <ElementMenu
+          element={element}
+          position={menuPosition}
+          onClose={() => setMenuPosition(null)}
+        />
+      )}
     </div>
   );
 };

@@ -14,7 +14,6 @@ import { CornerDownRight, GitBranch, Pencil, RotateCw, Trash2, TriangleAlert } f
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
-import { COMPOSER_ANCHOR_ATTR } from "@/components/ChatInputArea/ComposerPanel";
 
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
@@ -61,8 +60,11 @@ import type { EditTextHandle } from "@/components/EditText";
 import { FADE_SCROLL_CLASS, Popover, cn, toast, useEdgeFade } from "@tau/ui";
 import { useConversationTree } from "@/features/chat/useConversationTree";
 import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";
-import type { ConversationTreeRow } from "@/features/chat/conversationTree";
+import { conversationEntryTail, type ConversationTreeRow } from "@/features/chat/conversationTree";
+import { piSessionTree } from "@/commands/piSession";
+import { useChatEntryLocation } from "./useChatEntryLocation";
 import {
+  COMPOSER_ANCHOR_ATTR,
   type ChatMessageType as CoreChatMessageType,
   type MessageContentItem,
   useChatAutoScroll,
@@ -73,6 +75,7 @@ import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { latestContextUsage } from "@/services/chatContextUsage";
 import { canRetryChatMessage } from "@/services/chatRetry";
+import { requestQuestionCapture } from "@/services/question-capture";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
@@ -150,6 +153,8 @@ interface HiddenPromptContextState {
 }
 
 interface ChatContainerProps {
+  entry?: string;
+  onEntryLocated?: () => void;
   /** 当前对话（统一会话 store 里已打开的对话；新对话是草稿：真 id、尚无 sessionFile） */
   currentChat: ChatMessage;
   isDark: boolean;
@@ -194,6 +199,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   (
     {
       currentChat,
+      entry,
+      onEntryLocated,
       isDark,
       markdownComponents,
       isVisible,
@@ -655,9 +662,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           message.error(getErrorMessage(error) || "修改对话历史失败");
           return null;
         }
-        const next = adoptTranscript(actualChatRef.current, messages);
-        actualChatRef.current = next;
-        setUpdateCounter(prev => prev + 1);
+        const next = adoptTranscript(chat, messages);
+        if (
+          actualChatRef.current.id === chat.id &&
+          actualChatRef.current.databaseName === chat.databaseName
+        ) {
+          actualChatRef.current = next;
+          setUpdateCounter(prev => prev + 1);
+        }
         useChatSessionStore.getState().publishChat(next);
         return next;
       }
@@ -1276,6 +1288,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       });
     }, [runtimeTick, sendLoading, sendMessageContent, sessionKey, updateCounter]);
 
+    // 用户消息转为问题：只在主对话（其余场景的对话不能经对话页打开）；问题记下这条消息的 entry id
+    const handleToQuestion = useMemoizedFn((messageIndex: number) => {
+      const chat = actualChatRef.current;
+      const target = visibleMessagesOf(chat)[messageIndex];
+      const entryIds = target?.piEntryIds ?? [];
+      if (!target || target.role !== Role.User) return;
+      if (entryIds.length === 0) {
+        message.warning("这条消息还没有保存下来，暂时不能转为问题");
+        return;
+      }
+      const text = getRequestMessageText(target as RequestMessage).trim();
+      requestQuestionCapture({
+        source: { kind: "chat", sessionId: chat.id, messageIds: entryIds },
+        sourceLabel: `对话：${chat.title || "未命名对话"}`,
+        defaultTitle: text.replace(/\s+/g, " ").slice(0, 200),
+      });
+    });
+
     // 删除消息：pi 原生 context_edit 省略（只删那一条；一条回答要把它全部 entry 一起省略）
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
       if (sendLoading) {
@@ -1403,6 +1433,30 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     });
 
+    useChatEntryLocation({
+      sessionKey,
+      entry,
+      visible: isVisible,
+      busy: sendLoading,
+      messages: visibleMessages,
+      findBranch: async target => {
+        const chat = actualChatRef.current;
+        if (!chat.sessionFile) return null;
+        const result = await piSessionTree({
+          sessionFile: chat.sessionFile,
+          databaseName: chat.databaseName,
+        });
+        return result.ok ? conversationEntryTail(result.nodes ?? [], target) : null;
+      },
+      scrollTo: index => coreRef.current?.scrollToIndex(index, { align: "start" }),
+      onElsewhere: reason =>
+        reason === "other-branch"
+          ? message.info("这条消息在对话的另一个分支，可在对话树里切换过去")
+          : message.warning("原消息已不在这次对话里"),
+      onLocated: onEntryLocated,
+      onError: error => message.error(getErrorMessage(error)),
+    });
+
     if (!currentChat) {
       return null;
     }
@@ -1499,7 +1553,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           )}
           <ChatContainerCore
             ref={coreRef}
-            isDark={isDark}
             isConnected={true}
             messages={coreMessages}
             isLoading={sendLoading}
@@ -1687,7 +1740,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             )}
             renderChatInputArea={({ chatInputRef, inputProps }) => {
               const {
-                services: _services,
                 onMcpManagerClick: _onMcpManagerClick,
                 modelSelectItems: _modelSelectItems,
                 onModelSelect: _onModelSelect,
@@ -1710,9 +1762,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 />
               );
             }}
-            onDeleteMessage={handleDeleteMessage}
-            onRegenerateMessage={handleRegenerateMessage}
-            onCreateBranch={handleCreateBranch}
             renderMessage={({ messageIndex }) => {
               const item = visibleMessages[messageIndex];
               if (!item) return null;
@@ -1759,6 +1808,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         : undefined
                     }
                     onCreateBranch={handleCreateBranch}
+                    {...(chatScope === "main-chat" && item.role === Role.User
+                      ? { onToQuestion: handleToQuestion }
+                      : {})}
                     {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
                     messageMeta={{
                       chatId: actualChatRef.current.id,

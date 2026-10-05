@@ -304,15 +304,23 @@ export default class PdfTable {
 
   static addPdfAnnotation(
     db: Database.Database,
-    annotation: Omit<PdfAnnotation, "id" | "createTime" | "updateTime">
+    annotation: Omit<PdfAnnotation, "id" | "createTime" | "updateTime"> & { id?: number }
   ): PdfAnnotation {
+    // 撤销删除带回原 id：仍空着就沿用，被占用则分配新 id
+    const reuseId =
+      Number.isSafeInteger(annotation.id) &&
+      (annotation.id as number) > 0 &&
+      !db.prepare("SELECT 1 FROM pdf_annotations WHERE id = ?").get(annotation.id)
+        ? (annotation.id as number)
+        : null;
     const stmt = db.prepare(`
       INSERT INTO pdf_annotations
-      (pdf_id, page_num, annotation_payload, color, notes, type, area_data, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, pdf_id, page_num, annotation_payload, color, notes, type, area_data, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
+      reuseId,
       annotation.pdfId,
       annotation.annotation.pageIndex ?? 0,
       JSON.stringify(annotation.annotation),

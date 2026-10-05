@@ -1060,7 +1060,8 @@ mod tests {
         index
             .execute_batch(
                 &include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql")
-                    .replace("__VEC_DIMENSION__", "3"),
+                    .replace("__VEC_DIMENSION__", "3")
+                    .replace("chunk_index INTEGER,", ""),
             )
             .unwrap();
         let vector: Vec<u8> = [1.0f32, 0.0, 0.0]

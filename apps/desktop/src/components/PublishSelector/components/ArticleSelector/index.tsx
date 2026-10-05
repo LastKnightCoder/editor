@@ -125,7 +125,6 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
             contentKey={previewArticle.id}
             onClose={handleClosePreview}
             meta={{
-              category: "文章",
               updateTime: previewArticle.updateTime,
               createTime: previewArticle.createTime,
             }}

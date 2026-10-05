@@ -47,7 +47,7 @@ export * from "./remote-image-cache";
 export * from "./remote-audio-cache";
 export * from "./web-link";
 export * from "./web-clip";
-export * from "./content-link";
+export * from "./lineage";
 export * from "./web-note";
 export * from "./web-view-preference";
 export * from "./weread";

@@ -19,7 +19,7 @@ import {
   ComposerPanel,
   ComposerPanelFooter,
   ComposerPanelItem,
-} from "@/components/ChatInputArea/ComposerPanel";
+} from "@tau/shared";
 import useSkillStore, {
   dedupeSkills,
   getSkillInvocation,

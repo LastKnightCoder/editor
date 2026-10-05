@@ -5,13 +5,12 @@
 
 import { describe, expect, it } from "vitest";
 import type { ICard } from "@/types";
+import { toItems } from "./fixtures";
 import { detectClusters, MIN_CLUSTER_SIZE } from "../core/cluster";
 import { clusterForce } from "../core/clusterForce";
 import { buildScene } from "../core/graph";
 import { clusterColor } from "../core/palette";
 import type { GraphScene } from "../core/types";
-
-const links = (c: ICard) => c.links;
 
 const card = (id: number, linkIds: number[], tags: string[] = [], text = `卡片${id}`): ICard =>
   ({
@@ -41,7 +40,7 @@ function topicCards(k: number, size: number, extraTags = true) {
 describe("detectClusters", () => {
   it("每个团一个簇，成员齐全", () => {
     const cards = topicCards(4, 6);
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     expect(result.clusters).toHaveLength(4);
     expect(result.clusters.reduce((sum, c) => sum + c.members.length, 0)).toBe(24);
@@ -50,7 +49,7 @@ describe("detectClusters", () => {
 
   it("标签取簇内高区分度的 tag", () => {
     const cards = topicCards(3, 5);
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     for (const cluster of result.clusters) {
       expect(cluster.label).toMatch(/^主题\d$/);
@@ -60,14 +59,14 @@ describe("detectClusters", () => {
   it("所有簇共有的 tag 没有区分度，不该被选中", () => {
     // 每张卡都有「笔记」，另各有自己的主题 tag
     const cards = topicCards(3, 5).map(c => ({ ...c, tags: ["笔记", ...c.tags] }));
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     for (const cluster of result.clusters) expect(cluster.label).not.toContain("笔记");
   });
 
   it("只有一个簇时 tag 没有区分度，标签退化为代表卡片正文", () => {
     const cards = topicCards(1, 8);
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     expect(result.clusters).toHaveLength(1);
     expect(result.clusters[0].label).toMatch(/^卡片\d+$/);
@@ -75,7 +74,7 @@ describe("detectClusters", () => {
 
   it("没有 tag 时退化为代表卡片的正文首句", () => {
     const cards = topicCards(2, 5, false);
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     for (const cluster of result.clusters) expect(cluster.label).toMatch(/^卡片\d+$/);
   });
@@ -91,7 +90,7 @@ describe("detectClusters", () => {
       card(7, [5]),
       card(8, [5, 1]),
     ];
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     for (const cluster of result.clusters) {
       const degrees = cluster.members.map(id => scene.nodeById.get(id)!.degree);
@@ -101,7 +100,7 @@ describe("detectClusters", () => {
 
   it("识别桥接卡片：连到别的簇的那张", () => {
     const cards = topicCards(3, 6);
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     const allBridges = result.clusters.flatMap(c => c.bridges);
     expect(allBridges.length).toBeGreaterThan(0);
@@ -117,7 +116,7 @@ describe("detectClusters", () => {
 
   it("没有链接的卡片进 isolated，不进任何簇", () => {
     const cards = [...topicCards(2, 5), card(100, []), card(101, [])];
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     expect(result.isolated.sort()).toEqual([100, 101]);
     expect(result.clusterOf.has(100)).toBe(false);
@@ -126,7 +125,7 @@ describe("detectClusters", () => {
   it("太小的社区不单独成簇，归入 scattered", () => {
     // 一对互连的卡片（规模 2 < MIN_CLUSTER_SIZE）
     const cards = [...topicCards(2, 6), card(200, [201]), card(201, [200])];
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     expect(MIN_CLUSTER_SIZE).toBeGreaterThan(2);
     expect(result.scattered).toContain(200);
@@ -138,7 +137,7 @@ describe("detectClusters", () => {
       ...topicCards(1, 10),
       ...topicCards(1, 4).map(c => ({ ...c, id: c.id + 100, links: c.links.map(l => l + 100) })),
     ];
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const result = detectClusters(scene, cards);
     const sizes = result.clusters.map(c => c.members.length);
     expect([...sizes].sort((a, b) => b - a)).toEqual(sizes);
@@ -146,7 +145,7 @@ describe("detectClusters", () => {
   });
 
   it("空卡片集返回空结果", () => {
-    const scene = buildScene([], links);
+    const scene = buildScene(toItems([]));
     const result = detectClusters(scene, []);
     expect(result.clusters).toHaveLength(0);
     expect(result.modularity).toBe(0);
@@ -154,21 +153,21 @@ describe("detectClusters", () => {
 
   it("buildScene 会把簇回填到节点上", () => {
     const cards = topicCards(3, 6);
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     expect(scene.clusters.length).toBe(3);
     const assigned = scene.nodes.filter(n => n.cluster >= 0);
     expect(assigned).toHaveLength(18);
   });
 
   it("锚点是簇内最小 id：卡片增删不改变已有簇的颜色", () => {
-    const before = buildScene(topicCards(3, 6), links);
+    const before = buildScene(toItems(topicCards(3, 6)));
     // 再加一个新主题（新 id 段），已有簇的锚点不应变化
     const extra = topicCards(1, 5).map(c => ({
       ...c,
       id: c.id + 500,
       links: c.links.map(l => l + 500),
     }));
-    const after = buildScene([...topicCards(3, 6), ...extra], links);
+    const after = buildScene(toItems([...topicCards(3, 6), ...extra]));
 
     const anchorsBefore = new Set(before.clusters.map(c => c.anchor));
     const anchorsAfter = new Set(after.clusters.map(c => c.anchor));
@@ -181,7 +180,7 @@ describe("detectClusters", () => {
 });
 
 describe("clusterForce", () => {
-  const sceneWithClusters = (): GraphScene => buildScene(topicCards(3, 8), links);
+  const sceneWithClusters = (): GraphScene => buildScene(toItems(topicCards(3, 8)));
 
   const runForce = (scene: GraphScene, ticks: number) => {
     const force = clusterForce(scene.clusters.length);
@@ -238,7 +237,7 @@ describe("clusterForce", () => {
 
   it("不属于任何簇的节点不受簇力影响", () => {
     const cards = [...topicCards(2, 6), card(900, [])];
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const loose = scene.nodeById.get(900)!;
     loose.x = 1000;
     loose.y = 1000;
@@ -271,7 +270,7 @@ describe("clusterForce", () => {
         cards.push(card(base + i, linkIds, [`主题${c}`]));
       }
     }
-    const scene = buildScene(cards, links);
+    const scene = buildScene(toItems(cards));
     const force = clusterForce(scene.clusters.length);
     force.initialize(scene.nodes);
     const start = performance.now();

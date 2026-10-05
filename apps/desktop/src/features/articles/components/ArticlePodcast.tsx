@@ -7,7 +7,6 @@
  * 预览）时一并处理，届时本容器只换挂载的弹窗组件。
  */
 
-import { useState } from "react";
 import type { IArticle } from "@/types";
 import type { IPodcast, PodcastScriptLine, PodcastSpeaker } from "@/types/podcast";
 import { findOneArticle } from "@/commands/article";
@@ -19,9 +18,8 @@ import {
   updatePodcast,
 } from "@/commands/podcast";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
-import { ConfirmDialog, toast } from "@tau/ui";
-
-import { PodcastPlayer } from "./PodcastPlayer";
+import PodcastPlayer from "@/components/PodcastPlayer";
+import { toast } from "@tau/ui";
 
 interface ArticlePodcastProps {
   article: IArticle;
@@ -38,8 +36,6 @@ export function ArticlePodcast({
   onModalOpenChange,
   onUpdated,
 }: ArticlePodcastProps) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const podcast: IPodcast | undefined = article.podcast;
 
   const reloadArticle = async () => {
@@ -88,18 +84,14 @@ export function ArticlePodcast({
 
   const handleDelete = async () => {
     if (!podcast) return;
-    setDeleting(true);
     try {
       await detachPodcastFromArticle(article.id);
       await deletePodcast(podcast.id);
       await reloadArticle();
-      setConfirmOpen(false);
       toast.success("播客已删除");
     } catch (error) {
       console.error("删除播客失败:", error);
       toast.error("删除播客失败");
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -109,7 +101,7 @@ export function ArticlePodcast({
         <PodcastPlayer
           podcast={podcast}
           onEdit={() => onModalOpenChange(true)}
-          onDelete={() => setConfirmOpen(true)}
+          onDelete={handleDelete}
         />
       )}
 
@@ -121,21 +113,6 @@ export function ArticlePodcast({
         onSuccess={handleSuccess}
         onCancel={() => onModalOpenChange(false)}
         saveText="保存到文章"
-      />
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onOpenChange={open => {
-          if (!open) setConfirmOpen(false);
-        }}
-        title="删除播客"
-        context={podcast?.name || "未命名播客"}
-        description="将从文章移除并删除音频与脚本。"
-        impact="生成记录不可恢复，重新生成需再次调用语音服务"
-        danger
-        confirmText="删除"
-        loading={deleting}
-        onConfirm={() => void handleDelete()}
       />
     </>
   );
