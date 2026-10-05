@@ -110,13 +110,16 @@ export function hasUnseen(data: KnowledgeInsightsPayload | null) {
 export const bothCards = (mark: KnowledgeMark) =>
   mark.ends.length === 2 && mark.ends.every(end => end.ref.kind === "card");
 
-/** 气泡的主动作：呼应与重复是连接；同一思路是观察，看到就够了；其余是记为问题 */
-export type MarkAction = "connect" | "acknowledge" | "question";
+/**
+ * 气泡的主动作：呼应与重复是连接；同一思路是已经会用、还没提炼的原理，写成一张卡片（KL-069）；
+ * 其余是还不知道的，记为问题
+ */
+export type MarkAction = "connect" | "write" | "question";
 export const primaryAction = (mark: KnowledgeMark): MarkAction =>
   mark.kind === "bridge" || mark.kind === "dup"
     ? "connect"
     : mark.kind === "pattern"
-      ? "acknowledge"
+      ? "write"
       : "question";
 
 /** 去连接时打开哪一端：有原文片段的长文优先 */

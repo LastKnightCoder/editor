@@ -6,37 +6,28 @@ export class ViewPortTransforms {
     const originViewPort = board.viewPort;
     const container = BOARD_TO_CONTAINER.get(board);
     if (!container) return;
-    const newViewport = this.getNewViewport(
-      originViewPort,
-      container,
-      newZoom,
-      point,
-    );
+    const newViewport = this.getNewViewport(originViewPort, container, newZoom, point);
     board.apply(
       {
         type: "set_viewport",
         properties: originViewPort,
         newProperties: newViewport,
       },
-      false,
+      false
     );
   }
 
   static onContainerResize(board: Board) {
     const container = BOARD_TO_CONTAINER.get(board);
     if (!container) return;
-    const newViewport = this.getNewViewport(
-      board.viewPort,
-      container,
-      board.viewPort.zoom,
-    );
+    const newViewport = this.getNewViewport(board.viewPort, container, board.viewPort.zoom);
     board.apply(
       {
         type: "set_viewport",
         properties: board.viewPort,
         newProperties: newViewport,
       },
-      false,
+      false
     );
   }
 
@@ -50,36 +41,47 @@ export class ViewPortTransforms {
           minY,
         },
       },
-      false,
+      false
     );
   }
 
-  static fitAllElements(
-    board: Board,
-    padding = 50,
-    animate = true,
-    elements?: BoardElement[],
-  ) {
+  static fitAllElements(board: Board, padding = 50, animate = true, elements?: BoardElement[]) {
+    const newViewport = this.getFitViewport(board, padding, elements);
+    if (!newViewport) return;
+
+    if (animate) {
+      // 使用动画效果
+      this.animateToViewport(board, board.viewPort, newViewport, 300);
+    } else {
+      // 直接应用新视图，无动画
+      board.apply(
+        {
+          type: "set_viewport",
+          properties: board.viewPort,
+          newProperties: newViewport,
+        },
+        false
+      );
+    }
+  }
+
+  /** 容纳指定元素（默认全部）所需的视口；无容器或无有效边界时返回 null */
+  static getFitViewport(board: Board, padding = 50, elements?: BoardElement[]): ViewPort | null {
     const container = BOARD_TO_CONTAINER.get(board);
-    if (!container) return;
+    if (!container) return null;
 
     // 使用指定的元素或所有元素
     const targetElements = elements || board.children;
 
-    if (targetElements.length === 0) return;
+    if (targetElements.length === 0) return null;
 
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    targetElements.forEach((element) => {
-      if (
-        "x" in element &&
-        "y" in element &&
-        "width" in element &&
-        "height" in element
-      ) {
+    targetElements.forEach(element => {
+      if ("x" in element && "y" in element && "width" in element && "height" in element) {
         const { x, y, width, height } = element;
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
@@ -99,14 +101,9 @@ export class ViewPortTransforms {
     });
 
     // 如果没有找到有效的边界，则返回
-    if (
-      minX === Infinity ||
-      minY === Infinity ||
-      maxX === -Infinity ||
-      maxY === -Infinity
-    ) {
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
       console.warn("未找到有效边界，退出全览");
-      return;
+      return null;
     }
 
     minX -= padding;
@@ -124,28 +121,13 @@ export class ViewPortTransforms {
     const scaleY = containerHeight / elementsHeight;
     const zoom = Math.min(scaleX, scaleY);
 
-    const newViewport = {
+    return {
       zoom,
       width: containerWidth / zoom,
       height: containerHeight / zoom,
       minX: minX - (containerWidth / zoom - elementsWidth) / 2,
       minY: minY - (containerHeight / zoom - elementsHeight) / 2,
     };
-
-    if (animate) {
-      // 使用动画效果
-      this.animateToViewport(board, board.viewPort, newViewport, 300);
-    } else {
-      // 直接应用新视图，无动画
-      board.apply(
-        {
-          type: "set_viewport",
-          properties: board.viewPort,
-          newProperties: newViewport,
-        },
-        false,
-      );
-    }
   }
 
   /**
@@ -162,9 +144,9 @@ export class ViewPortTransforms {
     startViewport: ViewPort,
     endViewport: ViewPort,
     duration = 500,
-    easeFunction: (t: number) => number = (t) => 1 - Math.pow(1 - t, 3),
+    easeFunction: (t: number) => number = t => 1 - Math.pow(1 - t, 3)
   ): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const startTime = Date.now();
 
       const animateViewport = () => {
@@ -174,21 +156,11 @@ export class ViewPortTransforms {
         const easeProgress = easeFunction(progress);
 
         const currentViewport = {
-          zoom:
-            startViewport.zoom +
-            (endViewport.zoom - startViewport.zoom) * easeProgress,
-          width:
-            startViewport.width +
-            (endViewport.width - startViewport.width) * easeProgress,
-          height:
-            startViewport.height +
-            (endViewport.height - startViewport.height) * easeProgress,
-          minX:
-            startViewport.minX +
-            (endViewport.minX - startViewport.minX) * easeProgress,
-          minY:
-            startViewport.minY +
-            (endViewport.minY - startViewport.minY) * easeProgress,
+          zoom: startViewport.zoom + (endViewport.zoom - startViewport.zoom) * easeProgress,
+          width: startViewport.width + (endViewport.width - startViewport.width) * easeProgress,
+          height: startViewport.height + (endViewport.height - startViewport.height) * easeProgress,
+          minX: startViewport.minX + (endViewport.minX - startViewport.minX) * easeProgress,
+          minY: startViewport.minY + (endViewport.minY - startViewport.minY) * easeProgress,
         };
 
         board.apply(
@@ -197,7 +169,7 @@ export class ViewPortTransforms {
             properties: board.viewPort,
             newProperties: currentViewport,
           },
-          false,
+          false
         );
 
         if (progress < 1) {
@@ -215,7 +187,7 @@ export class ViewPortTransforms {
     originViewPort: ViewPort,
     container: HTMLDivElement,
     newZoom: number,
-    point?: [number, number],
+    point?: [number, number]
   ): ViewPort {
     const width = container.clientWidth;
     const height = container.clientHeight;
@@ -240,7 +212,7 @@ export class ViewPortTransforms {
       animate: true,
       duration: 300,
       padding: 50,
-    },
+    }
   ) {
     const container = BOARD_TO_CONTAINER.get(board);
     if (!container) return;
@@ -253,13 +225,8 @@ export class ViewPortTransforms {
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    elements.forEach((element) => {
-      if (
-        "x" in element &&
-        "y" in element &&
-        "width" in element &&
-        "height" in element
-      ) {
+    elements.forEach(element => {
+      if ("x" in element && "y" in element && "width" in element && "height" in element) {
         const { x, y, width, height } = element;
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
@@ -279,12 +246,7 @@ export class ViewPortTransforms {
     });
 
     // 如果没有找到有效的边界，则返回
-    if (
-      minX === Infinity ||
-      minY === Infinity ||
-      maxX === -Infinity ||
-      maxY === -Infinity
-    ) {
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
       return;
     }
 
@@ -332,12 +294,7 @@ export class ViewPortTransforms {
 
     if (options.animate) {
       // 使用动画效果
-      this.animateToViewport(
-        board,
-        board.viewPort,
-        newViewport,
-        options.duration,
-      );
+      this.animateToViewport(board, board.viewPort, newViewport, options.duration);
     } else {
       // 直接应用新视图，无动画
       board.apply(
@@ -346,7 +303,7 @@ export class ViewPortTransforms {
           properties: board.viewPort,
           newProperties: newViewport,
         },
-        false,
+        false
       );
     }
   }
@@ -360,13 +317,8 @@ export class ViewPortTransforms {
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    elements.forEach((element) => {
-      if (
-        "x" in element &&
-        "y" in element &&
-        "width" in element &&
-        "height" in element
-      ) {
+    elements.forEach(element => {
+      if ("x" in element && "y" in element && "width" in element && "height" in element) {
         const { x, y, width, height } = element;
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
@@ -386,12 +338,7 @@ export class ViewPortTransforms {
     });
 
     // 如果没有找到有效的边界，则返回
-    if (
-      minX === Infinity ||
-      minY === Infinity ||
-      maxX === -Infinity ||
-      maxY === -Infinity
-    ) {
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
       return;
     }
 
@@ -404,10 +351,7 @@ export class ViewPortTransforms {
 
     // 判断元素是否完全在视口中
     const isFullyInViewPort =
-      minX >= viewPortMinX &&
-      minY >= viewPortMinY &&
-      maxX <= viewPortMaxX &&
-      maxY <= viewPortMaxY;
+      minX >= viewPortMinX && minY >= viewPortMinY && maxX <= viewPortMaxX && maxY <= viewPortMaxY;
 
     // 如果不是完全在视口中，则调用 centerElements 居中元素
     if (!isFullyInViewPort) {

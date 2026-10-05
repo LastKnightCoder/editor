@@ -24,6 +24,7 @@ import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
 import { TextTone, TextVariant, getTextBoxPadding, resolveTextStyle } from "../constants";
+import { handTextClass, resolveSketch } from "../utils/sketch";
 
 export interface RichTextElement extends CommonElement {
   type: "richtext";
@@ -73,14 +74,15 @@ export class RichTextPlugin extends CommonPlugin {
       },
       refLine: { participatesInRefLines: true },
       measurement: {
-        measureHeightForWidth: async (element, targetWidth) => {
+        measureHeightForWidth: async (element, targetWidth, board) => {
           const richText = element as RichTextElement;
           return DOMSizeMeasurer.measureRichTextHeight(
             richText.id,
             richText.content,
             targetWidth,
             getTextBoxPadding(resolveTextStyle(richText)),
-            richText.contentId
+            richText.contentId,
+            handTextClass(resolveSketch(board.sketch, richText))
           );
         },
       },

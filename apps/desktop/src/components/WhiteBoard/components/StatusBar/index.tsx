@@ -1,40 +1,34 @@
 import React, { memo, useState } from "react";
-import {
-  Clapperboard,
-  Hash,
-  Maximize,
-  Minus,
-  Pencil,
-  PenLine,
-  Play,
-  Plus,
-  Trash2,
-} from "lucide-react";
-import { Button, ConfirmDialog, IconButton, Menu, Popover, Switch, Tooltip, cn } from "@tau/ui";
+import { Clapperboard, Maximize, Minus, Pencil, PenLine, Play, Plus, Trash2 } from "lucide-react";
+import { Button, ConfirmDialog, IconButton, Menu, Popover, Tooltip } from "@tau/ui";
 
 import { PresentationSequence, SketchLevel, SketchMode } from "../../types";
 import {
-  GRID_SIZE_OPTIONS,
   SKETCH_LEVEL_OPTIONS,
   SKETCH_MODE_OPTIONS,
-  ZOOMS,
+  ZOOM_PRESETS,
   sketchLevelLabel,
 } from "../../constants";
-import { useBoard, usePageSketch, usePresentationState, useReadonly } from "../../hooks";
+import {
+  useBoard,
+  usePageSketch,
+  usePresentationState,
+  useReadonly,
+  useSelection,
+} from "../../hooks";
 import { SketchTransforms } from "../../transforms";
 import { ChromeBar, ChromeButton, ChromeGap, stopCanvasEvents } from "../../chrome";
 
 interface StatusBarProps {
   gridVisible?: boolean;
-  gridSize?: number;
   zoom: number;
   sequences: PresentationSequence[];
   onGridVisibleChange: (visible: boolean) => void;
-  onGridSizeChange: (size: number) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomTo: (zoomValue: number) => void;
-  onFitElements: (e: React.MouseEvent<HTMLElement>) => void;
+  onFitAll: () => void;
+  onFitSelection: () => void;
   onStartPresentation: (sequenceId: string) => void;
   onEditSequence: (sequenceId: string) => void;
   onDeleteSequence: (sequenceId: string) => void;
@@ -42,22 +36,22 @@ interface StatusBarProps {
 }
 
 /**
- * 右下状态栏（D-049）：画风（D-107）· 网格 · 缩放（− 百分比 ＋）· 全览 · 演示。
- * 「演示」一个入口收拢演示序列：点序列即放映，悬停出编辑 / 删除，底部「新建演示序列」
- * （原工具条上的演示序列按钮并入这里）。
+ * 右下状态栏：画风（D-107）· − 缩放百分比 ＋ · 全览 · 演示（D-111）。
+ * 百分比点开是「视图」菜单：适应全部 / 适应选中 / 缩放档位 / 点阵开关——
+ * 低频的背景设置收进菜单，顶层只留缩放与全览。
+ * 「演示」一个入口收拢演示序列：点序列即放映，悬停出编辑 / 删除，底部「新建演示序列」。
  */
 const StatusBar = memo((props: StatusBarProps) => {
   const {
     gridVisible = false,
-    gridSize = 20,
     zoom,
     sequences,
     onGridVisibleChange,
-    onGridSizeChange,
     onZoomIn,
     onZoomOut,
     onZoomTo,
-    onFitElements,
+    onFitAll,
+    onFitSelection,
     onStartPresentation,
     onEditSequence,
     onDeleteSequence,
@@ -66,82 +60,56 @@ const StatusBar = memo((props: StatusBarProps) => {
 
   // 序列列表直接订阅 presentationManager（父组件不会因序列增删而重渲染，prop 只作初值兜底）
   const { isPresentationMode, sequences: liveSequences } = usePresentationState();
+  const hasSelection = (useSelection()?.selectedElements.length ?? 0) > 0;
   if (isPresentationMode) return null;
 
   return (
     <ChromeBar ref={ref} className="bottom-3 right-3 text-[12px]">
       <SketchEntry />
-      <Popover
-        placement="top"
-        arrow={false}
-        trigger={
-          <ChromeButton label="网格" active={gridVisible} tooltipPlacement="top">
-            <Hash strokeWidth={1.75} />
-          </ChromeButton>
-        }
-      >
-        <div {...stopCanvasEvents} className="w-[232px] px-3.5 pb-3.5 pt-3">
-          <div className="text-ink-1 flex h-7 items-center text-[12.5px]">
-            <span className="flex-1">显示网格</span>
-            <Switch
-              size="sm"
-              checked={gridVisible}
-              onCheckedChange={onGridVisibleChange}
-              aria-label="显示网格"
-            />
-          </div>
-          <div className="text-ink-3 mb-1.5 mt-2.5 text-[11.5px]">网格大小</div>
-          <div className="flex flex-wrap gap-1">
-            {GRID_SIZE_OPTIONS.map(o => (
-              <button
-                key={o.value}
-                type="button"
-                disabled={!gridVisible}
-                aria-pressed={gridSize === o.value}
-                onClick={() => onGridSizeChange(o.value)}
-                className={cn(
-                  "bg-hover text-ink-2 hover:bg-press hover:text-ink-1 h-6 cursor-pointer rounded-[7px] px-2.5 text-[12px]",
-                  "disabled:pointer-events-none disabled:opacity-45",
-                  "aria-pressed:bg-accent-soft aria-pressed:text-accent-text aria-pressed:font-medium"
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Popover>
-      <ChromeGap className="w-1" />
-      <ChromeButton label="缩小" tooltipPlacement="top" onClick={onZoomOut}>
+      <ChromeButton label="缩小" kbd="⌘−" tooltipPlacement="top" onClick={onZoomOut}>
         <Minus strokeWidth={1.75} />
       </ChromeButton>
       <Menu
         align="end"
+        fit
+        className="w-[220px]"
         trigger={
           <button
             type="button"
-            aria-label="缩放"
+            aria-label="视图"
             className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-expanded:bg-press h-[30px] min-w-12 cursor-pointer rounded-[8px] text-center tabular-nums"
           >
             {Math.round(zoom * 100)}%
           </button>
         }
       >
+        <Menu.Item kbd="⇧1" onSelect={onFitAll}>
+          适应全部
+        </Menu.Item>
+        <Menu.Item kbd="⇧2" disabled={!hasSelection} onSelect={onFitSelection}>
+          适应选中
+        </Menu.Item>
+        <Menu.Separator />
+        <Menu.Group>缩放</Menu.Group>
         <Menu.RadioGroup
-          value={String(ZOOMS.find(z => Math.abs(zoom - z) < 0.001) ?? "")}
+          value={String(ZOOM_PRESETS.find(z => Math.abs(zoom - z) < 0.001) ?? "")}
           onValueChange={v => onZoomTo(Number(v))}
         >
-          {ZOOMS.map(z => (
-            <Menu.RadioItem key={z} value={String(z)}>
+          {ZOOM_PRESETS.map(z => (
+            <Menu.RadioItem key={z} value={String(z)} kbd={z === 1 ? "⇧0" : undefined}>
               {Math.round(z * 100)}%
             </Menu.RadioItem>
           ))}
         </Menu.RadioGroup>
+        <Menu.Separator />
+        <Menu.CheckboxItem checked={gridVisible} onCheckedChange={onGridVisibleChange}>
+          显示点阵
+        </Menu.CheckboxItem>
       </Menu>
-      <ChromeButton label="放大" tooltipPlacement="top" onClick={onZoomIn}>
+      <ChromeButton label="放大" kbd="⌘＋" tooltipPlacement="top" onClick={onZoomIn}>
         <Plus strokeWidth={1.75} />
       </ChromeButton>
-      <ChromeButton label="全览" tooltipPlacement="top" onClick={onFitElements}>
+      <ChromeButton label="全览" kbd="Z" tooltipPlacement="top" onClick={onFitAll}>
         <Maximize strokeWidth={1.75} />
       </ChromeButton>
       <ChromeGap className="w-1" />

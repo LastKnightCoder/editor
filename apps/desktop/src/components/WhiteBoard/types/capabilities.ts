@@ -287,7 +287,11 @@ export interface IMeasurementCapability {
    * 测量元素在指定宽度下的高度
    * 返回 Promise 因为可能需要 DOM 渲染
    */
-  measureHeightForWidth?: (element: BoardElement, targetWidth: number) => Promise<number>;
+  measureHeightForWidth?: (
+    element: BoardElement,
+    targetWidth: number,
+    board: Board
+  ) => Promise<number>;
 }
 
 // =============================================================================

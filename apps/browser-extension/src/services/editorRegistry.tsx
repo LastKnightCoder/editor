@@ -10,7 +10,6 @@ import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 export { extensionImportFromMarkdown } from "./editorMarkdown";
 import type WebSocketClient from "../utils/WebSocketClient";
-import type { ResolvedTheme } from "../utils/types";
 import RpcLocalImage from "../components/RpcLocalImage";
 import RpcLocalVideo from "../components/RpcLocalVideo";
 import RpcLocalAudio from "../components/RpcLocalAudio";
