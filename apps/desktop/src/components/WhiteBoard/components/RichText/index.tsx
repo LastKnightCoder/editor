@@ -576,7 +576,6 @@ const Richtext = (props: RichTextProps) => {
         <ArrowConnectPointGroup
           element={element}
           points={arrowConnectExtendPoints}
-          proximityBounds={{ x, y, width, height }}
           isSelected={isSelected}
           disabled={isMoveArrowClosing}
         />

@@ -87,7 +87,7 @@ const Frame = memo(
     // 拖入子元素时的虚线高亮是交互反馈，保持普通描边
     const sketchBorder = sketch.enabled && !isChildMoveIn;
     const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
-      useDropArrow(element);
+      useDropArrow(element, { container: true });
 
     const [resizePoints] = useMemo(() => {
       const resizePoints = PointUtil.getResizePointFromRect({
@@ -277,7 +277,6 @@ const Frame = memo(
         <ArrowConnectPointGroup
           element={element}
           points={arrowConnectExtendPoints}
-          proximityBounds={{ x, y, width, height }}
           isSelected={isFrameSelected}
           disabled={isMoveArrowClosing}
         />

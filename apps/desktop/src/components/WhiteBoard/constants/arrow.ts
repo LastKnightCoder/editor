@@ -4,6 +4,8 @@ export const ARROW_CONNECT_POINT_FILL = "var(--tau-accent)";
 export const ARROW_CONNECT_POINT_RADIUS = 4;
 export const ARROW_CONNECT_PROXIMITY_RADIUS = 28;
 export const ARROW_CONNECT_PROXIMITY_HIDE_DELAY = 80;
+// 拖动箭头端点时，元素成为落点目标的感应半径（世界单位）
+export const ARROW_DROP_PROXIMITY_RADIUS = 10;
 
 export const DEFAULT_ARROW_LINE_COLOR = "currentColor";
 export const DEFAULT_ARROW_LINE_WIDTH = 2;
@@ -20,7 +22,7 @@ export const ARROW_CONNECT_ID = {
 } as const;
 
 // 自定义连接点吸附阈值（屏幕像素），除以 zoom 换算到世界坐标；
-// 同时保证不低于 useDropArrow 的外扩框(10 世界单位)，避免外扩命中却被阈值拒绝。
+// 同时保证不低于 落点感应半径 ARROW_DROP_PROXIMITY_RADIUS，避免外扩命中却被阈值拒绝。
 export const ARROW_CUSTOM_CONNECT_PROXIMITY = 14;
 export const ARROW_CUSTOM_CONNECT_MIN_WORLD = 12;
 
