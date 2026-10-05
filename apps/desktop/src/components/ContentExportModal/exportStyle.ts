@@ -1,4 +1,5 @@
 import type { ThemeMode } from "@tau/themes/react";
+import { sanitizeFileName } from "@/utils/file-name";
 
 /** 纸外的背景：柔光 = 纸放在带晕光的底上；整张纸 = 不留背景，整张图就是纸 */
 export type ExportBackdrop = "glow" | "paper";
@@ -112,17 +113,11 @@ export function resolveExportBackground(
   ].join(", ");
 }
 
-/** 去掉文件系统不接受的字符；空标题回落默认名 */
+/** 用标题命名；标题净化后为空时按日期命名 */
 export function createExportFileName(title: string | undefined, now = new Date()): string {
-  const cleaned = Array.from((title ?? "").replace(/[<>:"/\\|?*]/g, "_"))
-    .filter(ch => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .replace(/\s+/g, " ")
-    .replace(/[. ]+$/g, "")
-    .trim();
-  if (cleaned) return `${cleaned}.png`;
   const pad = (value: number) => String(value).padStart(2, "0");
-  return `Tau-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}.png`;
+  const fallback = `Tau-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+  return `${sanitizeFileName(title, fallback)}.png`;
 }
 
 export function formatExportDate(date: Date): string {
