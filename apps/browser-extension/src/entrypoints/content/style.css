@@ -4,6 +4,7 @@
  * 颜色只取 --tau-*。
  */
 @import "@tau/themes/tokens.css";
+@import "../../styles/dark-tone.css";
 
 #tau-highlighter-root {
   color: var(--tau-ink-1);
