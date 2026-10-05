@@ -1,6 +1,7 @@
 import type { Descendant } from "slate";
 import { exportPdfWithDialog } from "@/commands";
 import type { PdfExportPayload, PdfExportResult } from "@/types";
+import { sanitizeFileName } from "@/utils/file-name";
 import { buildPdfHtml, processCodeBlocks } from "@/utils/pdf-html-builder";
 
 export interface ExportSlateToPdfInput {
@@ -13,32 +14,6 @@ export interface ExportSlateToPdfInput {
   };
   defaultFileName?: string;
 }
-
-const removeControlChars = (input: string) =>
-  Array.from(input)
-    .filter((ch) => {
-      const code = ch.charCodeAt(0);
-      return !(code < 32 || code === 127);
-    })
-    .join("");
-
-const sanitizeFileName = (value: string) => {
-  const trimmed = (value || "").trim();
-  if (!trimmed) {
-    return "未命名文档";
-  }
-
-  const sanitized = trimmed
-    .replace(/[<>:"/\\|?*]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const withoutControls = removeControlChars(sanitized)
-    .replace(/[. ]+$/g, "")
-    .trim();
-
-  return withoutControls || "未命名文档";
-};
 
 const buildPdfHtmlWithCover = (html: string, coverImageSrc?: string) => {
   if (!coverImageSrc) return html;
@@ -59,7 +34,7 @@ const buildPdfHtmlWithCover = (html: string, coverImageSrc?: string) => {
 };
 
 export const exportSlateToPdfWithDialog = async (
-  input: ExportSlateToPdfInput,
+  input: ExportSlateToPdfInput
 ): Promise<PdfExportResult> => {
   const { html: bodyHtml, styles } = await buildPdfHtml({
     content: input.content || [],
@@ -69,10 +44,7 @@ export const exportSlateToPdfWithDialog = async (
   });
 
   const processedHtml = processCodeBlocks(bodyHtml, "adaptive");
-  const finalHtml = buildPdfHtmlWithCover(
-    processedHtml,
-    input.metadata.coverImageSrc,
-  );
+  const finalHtml = buildPdfHtmlWithCover(processedHtml, input.metadata.coverImageSrc);
 
   const payload: PdfExportPayload = {
     html: finalHtml,
@@ -98,9 +70,7 @@ export const exportSlateToPdfWithDialog = async (
         strategy: "adaptive",
       },
     },
-    defaultFileName: sanitizeFileName(
-      input.defaultFileName || input.metadata.title || "未命名文档",
-    ),
+    defaultFileName: sanitizeFileName(input.defaultFileName || input.metadata.title, "未命名文档"),
   };
 
   return await exportPdfWithDialog(payload);

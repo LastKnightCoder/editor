@@ -16,6 +16,7 @@ import {
   loadProjectItemMap,
   type ProjectTreeNode,
 } from "@/utils/projectTree";
+import { sanitizeFileName } from "@/utils/file-name";
 import { htmlSerializerRegistry } from "@/utils/html-serializers";
 import { processEpubAssets } from "@/utils/epub-export/assets";
 import { isMeaningfulHtmlFragment } from "@/utils/epub-export/chaptering";
@@ -42,18 +43,7 @@ export interface BatchExportTreeNode {
 const escapeHtml = (value: string) =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const sanitizeFileName = (value: string) => {
-  const trimmed = (value || "").trim();
-  if (!trimmed) {
-    return "未命名文档";
-  }
-  const sanitized = trimmed
-    // eslint-disable-next-line no-control-regex
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim();
-  return sanitized || "未命名文档";
-};
+const UNTITLED_FILE_NAME = "未命名文档";
 
 /**
  * Slate 层面的"是否有正文"判断：任一文本非空，或存在非段落块（图片/表格等）
@@ -288,7 +278,7 @@ export const buildBatchPdfPayload = async (input: {
       },
       generateOutline: input.pdf?.outline ?? false,
     },
-    defaultFileName: sanitizeFileName(input.title),
+    defaultFileName: sanitizeFileName(input.title, UNTITLED_FILE_NAME),
   };
 };
 
@@ -390,7 +380,7 @@ export const buildBatchEpubPayload = async (input: {
           ],
     nav: meaningfulChapters.length > 0 ? meaningfulNavItems : undefined,
     assets: assetResult.assets,
-    defaultFileName: sanitizeFileName(input.metadata.title),
+    defaultFileName: sanitizeFileName(input.metadata.title, UNTITLED_FILE_NAME),
   };
 
   return { payload, warnings: assetResult.warnings };
@@ -478,9 +468,9 @@ export const buildMarkdownZipBytes = async (
       if (!includedNodeIds.has(node.id)) {
         continue;
       }
-      const dirName = uniqueDirName(sanitizeFileName(node.title));
+      const dirName = uniqueDirName(sanitizeFileName(node.title, UNTITLED_FILE_NAME));
       if (fileNodeIds.has(node.id)) {
-        const fileName = uniqueFileName(sanitizeFileName(node.title));
+        const fileName = uniqueFileName(sanitizeFileName(node.title, UNTITLED_FILE_NAME));
         const markdown = node.empty ? "" : getMarkdown(node.content || []).trim() + "\n";
         await zipWriter.add([...dirSegments, `${fileName}.md`].join("/"), new TextReader(markdown));
         processedFiles += 1;
