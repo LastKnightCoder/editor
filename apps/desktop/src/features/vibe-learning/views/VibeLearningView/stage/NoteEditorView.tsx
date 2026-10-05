@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
+import { sanitizeFileName } from "@/utils/file-name";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 import { EditorRef } from "@tau/editor";
@@ -52,30 +53,6 @@ const DEFAULT_CONTENT: Descendant[] = [
     children: [{ type: "formatted", text: "" }],
   },
 ];
-
-const removeControlChars = (input: string) =>
-  Array.from(input)
-    .filter(ch => {
-      const code = ch.charCodeAt(0);
-      return !(code < 32 || code === 127);
-    })
-    .join("");
-
-const sanitizeFilename = (rawName: string, fallback: string) => {
-  const name = (rawName || "").trim();
-  const safe = (name || fallback)
-    // 替换常见非法文件名字符（Windows/macOS/Linux）
-    .replace(/[\\/:*?"<>|]/g, "_")
-    // 去掉控制字符（避免 eslint no-control-regex）
-    .trim();
-
-  const withoutControls = removeControlChars(safe)
-    // 规避结尾的点和空格（Windows）
-    .replace(/[. ]+$/g, "")
-    .trim();
-
-  return withoutControls || fallback;
-};
 
 const downloadBlob = (blob: Blob, filename: string) => {
   const url = URL.createObjectURL(blob);
@@ -428,7 +405,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       toast.error("没有可下载的 PPT 内容");
       return;
     }
-    const filename = `${sanitizeFilename(title, "演示文稿")}.html`;
+    const filename = `${sanitizeFileName(title, "演示文稿")}.html`;
     downloadTextFile(pptHtmlContent, filename, "text/html;charset=utf-8");
     toast.success("PPT 已下载");
   });
@@ -438,7 +415,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       toast.error("没有可下载的报告内容");
       return;
     }
-    const filename = `${sanitizeFilename(title, "报告")}.html`;
+    const filename = `${sanitizeFileName(title, "报告")}.html`;
     downloadTextFile(reportHtmlContent, filename, "text/html;charset=utf-8");
     toast.success("报告已下载");
   });
@@ -450,7 +427,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       toast.error("没有可下载的内容");
       return;
     }
-    const filename = `${sanitizeFilename(title, "笔记")}.md`;
+    const filename = `${sanitizeFileName(title, "笔记")}.md`;
     downloadTextFile(markdown, filename, "text/markdown;charset=utf-8");
     toast.success("笔记已下载");
   });
@@ -467,7 +444,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       const result = await exportSlateToEpubWithDialog({
         content,
         metadata,
-        defaultFileName: sanitizeFilename(title, "笔记"),
+        defaultFileName: sanitizeFileName(title, "笔记"),
       });
 
       if (result.canceled) {
@@ -504,7 +481,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       const result = await exportSlateToPdfWithDialog({
         content,
         metadata,
-        defaultFileName: sanitizeFilename(title, "笔记"),
+        defaultFileName: sanitizeFileName(title, "笔记"),
       });
 
       if (result.canceled) {
@@ -607,7 +584,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       captureTarget.style.transformOrigin = originalStyle.transformOrigin;
       captureTarget.style.background = originalStyle.background;
 
-      const filename = `${sanitizeFilename(title, "思维导图")}.png`;
+      const filename = `${sanitizeFileName(title, "思维导图")}.png`;
       downloadBlob(blob, filename);
       toast.success("图片导出成功");
     } catch (e) {
