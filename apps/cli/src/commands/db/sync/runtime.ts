@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
-import sqliteVec from "sqlite-vec";
+import { loadSqliteVec } from "../../../data-access/sqlite-vec.js";
 import {
   acquireDatabaseSyncLock,
   assertDatabaseSyncLockOwned,
@@ -47,7 +47,7 @@ export interface SyncContext {
 export function openSnapshotDatabase(path: string): Database.Database {
   const db = new Database(path, { readonly: true, fileMustExist: true });
   try {
-    db.loadExtension(sqliteVec.getLoadablePath());
+    loadSqliteVec(db);
     return db;
   } catch (error) {
     db.close();
