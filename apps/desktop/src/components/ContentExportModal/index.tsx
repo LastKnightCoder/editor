@@ -13,7 +13,6 @@ import { listThemes } from "@tau/themes";
 import { useThemeStore, type ThemeMode } from "@tau/themes/react";
 import { Editor, EditorThemeOverride } from "@tau/editor";
 
-import logo from "@/assets/logo.png";
 import { getContentKit } from "@/services/editorKit";
 import { downloadBlob } from "@/utils/download";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
@@ -156,7 +155,10 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                   </div>
                   {showSignature && (
                     <div className="text-ink-3 mt-6 flex items-center gap-[7px] text-[11.5px]">
-                      <img src={logo} alt="" className="size-3.5 rounded-[4px]" />
+                      {/* 纯 CSS 标记，不引用图片资源：截图时不必额外加载本地文件 */}
+                      <span className="bg-accent text-ink-inverse grid size-3.5 place-items-center rounded-[4px] text-[9px] font-bold">
+                        T
+                      </span>
                       Tau
                     </div>
                   )}
