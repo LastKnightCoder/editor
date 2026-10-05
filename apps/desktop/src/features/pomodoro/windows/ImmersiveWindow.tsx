@@ -137,7 +137,8 @@ export function ImmersiveWindow() {
     meta = (
       <>
         <PresetDot presetId={session.presetId} className="size-[max(7px,1.1vh)]" />
-        <span>{nameOf(session.presetId)}</span>
+        <span>{session.boundTitle ?? nameOf(session.presetId)}</span>
+        {session.boundTitle && <span className="text-ink-3">· {nameOf(session.presetId)}</span>}
         <span className={paused ? "text-warn font-medium" : "text-ink-3"}>
           · {paused ? "已暂停" : countdown ? "剩余" : "已专注"}
         </span>

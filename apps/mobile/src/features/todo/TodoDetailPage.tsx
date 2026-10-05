@@ -21,6 +21,7 @@ import type {
   TodoRecurrence,
   TodoRecurrenceCompletion,
 } from "../../types";
+import { SELECTABLE_TODO_TYPES } from "../../types";
 import {
   EMPTY_EDITOR_CONTENT,
   getContentLength,
@@ -353,9 +354,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     }
   };
 
-  const typeSheetItems: ActionSheetItem[] = (
-    ["normal", "deadline", "planned", "recurring"] as TodoItem["type"][]
-  ).map(t => ({
+  const typeSheetItems: ActionSheetItem[] = SELECTABLE_TODO_TYPES.map(t => ({
     label: TYPE_LABELS[t],
     trailing: current?.type === t ? <Check strokeWidth={2.6} /> : undefined,
     onClick: () => void handleUpdateItemField({ type: t }),

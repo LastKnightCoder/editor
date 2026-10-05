@@ -38,14 +38,12 @@ interface SubtaskRow {
 const TYPE_LABELS: Record<string, string> = {
   normal: "普通任务",
   deadline: "截止任务",
-  planned: "计划任务",
   recurring: "周期任务",
 };
 
 const TYPE_COLORS: Record<string, string> = {
   normal: "gray",
   deadline: "red",
-  planned: "blue",
   recurring: "magenta",
 };
 

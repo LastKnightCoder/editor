@@ -5,9 +5,11 @@ import {
   UpdateTodoItem,
   MoveAndReorderPayload,
   TodoItemType,
+  CalendarEvent,
 } from "@/types";
 import ContentTable from "./content";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
+import CalendarEventTable from "./calendar-event";
 import TodoNoteLinkTable from "./todo-note-link";
 import { Descendant } from "slate";
 
@@ -129,6 +131,7 @@ export default class TodoItemTable {
       "todo:list-items-by-type": this.listItemsByType.bind(this),
       "todo:create-item": this.createItem.bind(this),
       "todo:create-item-relative": this.createItemRelative.bind(this),
+      "todo:create-with-schedule": this.createWithSchedule.bind(this),
       "todo:update-item": this.updateItem.bind(this),
       "todo:toggle-complete-cascade": this.toggleCompleteCascade.bind(this),
       "todo:move-and-reorder": this.moveAndReorder.bind(this),
@@ -138,8 +141,54 @@ export default class TodoItemTable {
     } as const;
   }
 
+  /** 「计划任务」已退役（D-114）：计划时段改由关联待办的日历事件表达，拒绝再写入 planned */
+  static assertType(type: string | undefined) {
+    if (type !== undefined && !["normal", "deadline", "recurring"].includes(type)) {
+      throw new Error(`Unsupported todo type: ${type}`);
+    }
+  }
+
   /**
-   * 日历一致性：截止 / 计划任务在增改后写入「待办清单」日历；类型变更先清旧映射再按新类型重建。
+   * 删除待办时处理它的安排（calendar_event.todo_item_id）：尚未开始的随待办删除，
+   * 已开始 / 已结束的解除关联、留作时间记录。
+   */
+  static releaseSchedules(db: Database.Database, todoItemId: number, now = Date.now()) {
+    const events = db
+      .prepare(
+        `SELECT id, start_date, start_time, all_day, detail_content_id FROM calendar_event WHERE todo_item_id = ?`
+      )
+      .all(todoItemId) as Array<{
+      id: number;
+      start_date: number;
+      start_time: number | null;
+      all_day: number;
+      detail_content_id: number | null;
+    }>;
+    for (const event of events) {
+      const startMs = event.start_date + (event.all_day ? 0 : (event.start_time ?? 0)) * 60_000;
+      if (startMs > now) CalendarEventTable.deleteEvent(db, event.id);
+      else db.prepare(`UPDATE calendar_event SET todo_item_id = NULL WHERE id = ?`).run(event.id);
+    }
+  }
+
+  /** 快速添加写了时段：建普通待办并同时把它安排进该时段（同一事务） */
+  static createWithSchedule(
+    db: Database.Database,
+    payload: CreateTodoItem & {
+      schedule: { startDate: number; startTime: number; endTime: number };
+    }
+  ): { item: TodoItem; event: CalendarEvent } {
+    const { schedule, ...item } = payload;
+    const created = this.createItem(db, { ...item, type: "normal", startAt: null, dueAt: null });
+    const event = CalendarEventTable.createEventForTodo(db, {
+      todoItemId: created.id,
+      ...schedule,
+    });
+    return { item: created, event };
+  }
+
+  /**
+   * 日历一致性：截止任务在增改后写入「待办清单」日历；类型变更先清旧映射再按新类型重建。
    * 周期任务的日历事件由日历读取时按规则即时生成（calendar-event.getEventsByDateRange），这里不写。
    * 同步失败不阻断待办本身的增改（与 deleteItemCascade 的清理口径一致）。
    */
@@ -148,7 +197,7 @@ export default class TodoItemTable {
       if (previousType && previousType !== item.type) {
         TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: item.id });
       }
-      if (item.type === "deadline" || item.type === "planned") {
+      if (item.type === "deadline") {
         TodoCalendarSyncTable.syncTodoItem(db, { todoItem: item });
       }
     } catch (e) {
@@ -255,6 +304,7 @@ export default class TodoItemTable {
     }
 
     // 确定任务类型
+    this.assertType(payload.type);
     const type = payload.type || "normal";
 
     const insert = db.prepare(
@@ -304,6 +354,7 @@ export default class TodoItemTable {
       | undefined;
     if (!cur) throw new Error("todo_item not found");
 
+    this.assertType(payload.type);
     const title = payload.title ?? cur.title;
     const type = payload.type ?? cur.type;
     const descriptionContentId =
@@ -318,6 +369,14 @@ export default class TodoItemTable {
     db.prepare(
       `UPDATE todo_item SET title = ?, type = ?, description_content_id = ?, start_at = ?, due_at = ?, remind_before = ?, update_time = ? WHERE id = ?`
     ).run(title, type, descriptionContentId, startAt, dueAt, remindBefore, now, payload.id);
+    // 安排的标题跟随待办
+    if (title !== cur.title) {
+      db.prepare(`UPDATE calendar_event SET title = ?, update_time = ? WHERE todo_item_id = ?`).run(
+        title,
+        now,
+        payload.id
+      );
+    }
 
     const row = db
       .prepare(
@@ -349,6 +408,7 @@ export default class TodoItemTable {
     } catch (e) {
       // 忽略清理日历事件时的错误
     }
+    this.releaseSchedules(db, id);
 
     // 获取 description_content_id
     const item = db.prepare(`SELECT description_content_id FROM todo_item WHERE id = ?`).get(id) as
@@ -559,6 +619,7 @@ export default class TodoItemTable {
       } catch (e) {
         // 忽略清理日历事件时的错误
       }
+      this.releaseSchedules(db, id);
       db.prepare(
         `DELETE FROM todo_recurrence_completion
          WHERE recurrence_id IN (SELECT id FROM todo_recurrence WHERE todo_item_id = ?)`

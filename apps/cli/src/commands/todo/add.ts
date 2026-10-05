@@ -10,7 +10,8 @@ interface AddOptions {
   parent?: string;
 }
 
-const VALID_TYPES = ["normal", "deadline", "planned", "recurring"];
+// 计划任务已退役（安排时间改在日程里拖动待办完成）
+const VALID_TYPES = ["normal", "deadline", "recurring"];
 
 export async function runTodoAdd(title: string, options: AddOptions) {
   const groupResult = parsePositiveIntOrError(options.group, "--group");

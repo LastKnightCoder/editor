@@ -80,6 +80,7 @@ import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
 import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
+import { retirePlannedTodos } from "@tau/db-schema/src/planned-retirement";
 import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
 import {
   retireEditorBlocks,
@@ -384,6 +385,11 @@ class DatabaseModule implements Module {
           `[database] retired feature tables: db=${name}, dropped=${retiredFeatures.join(",")}`
         );
       }
+      // 须在 MAIN_SCHEMA_SQL 之前：补 calendar_event.todo_item_id 后才能建其上的索引
+      const retiredPlanned = retirePlannedTodos(database, dbPath);
+      if (retiredPlanned > 0) {
+        log.info(`[database] retired planned todos: db=${name}, converted=${retiredPlanned}`);
+      }
       database.exec(MAIN_SCHEMA_SQL);
       upgradeKnowledgeDatabase(database, dbPath);
       const migratedContentLinks = retireContentLink(database, dbPath);
@@ -657,6 +663,7 @@ class DatabaseModule implements Module {
         }
         retireSubscriptions(db, path);
         retireFeatureTables(db, path);
+        retirePlannedTodos(db, path);
         db.exec(MAIN_SCHEMA_SQL);
         // 知识库迁移可复用下载副本，订阅退役仍保留专属快照。
         upgradeKnowledgeDatabase(db, path, { skipBackup: true });

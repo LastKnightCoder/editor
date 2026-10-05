@@ -4,6 +4,8 @@ import * as calendarCommands from "@/commands/calendar";
 import * as groupCommands from "@/commands/calendar-group";
 import * as todoCommands from "@/commands/todo";
 import * as contentCommands from "@/commands/content";
+import { getPomodoroEventBindings } from "@/commands/pomodoro";
+import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 import { on } from "@/electron";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
@@ -26,10 +28,18 @@ import type {
   CreateCalendarGroup,
   CreateCalendarEvent,
   UpdateCalendarEvent,
+  PomodoroEventBinding,
   TodoCalendarEventSource,
+  TodoScheduleSummary,
 } from "@/types";
 import { useScheduleStore } from "./uiStore";
-import { buildCalendarKinds, type EventSourceKind } from "./eventTone";
+import { usePendingDeletes } from "./pendingDeleteStore";
+import {
+  buildCalendarKinds,
+  buildCalendarRoles,
+  type CalendarRole,
+  type EventSourceKind,
+} from "./eventTone";
 
 const databaseId = (database: string) => database.replace(/\.db$/, "");
 export const scheduleKeys = {
@@ -42,6 +52,10 @@ export const scheduleKeys = {
   content: (database: string, id: number) =>
     [...scheduleKeys.root(database), "content", id] as const,
   sources: (database: string) => [...scheduleKeys.root(database), "todo-sources"] as const,
+  day: (database: string, day: number) => [...scheduleKeys.root(database), "day", day] as const,
+  pomodoroBindings: (database: string) =>
+    [...scheduleKeys.root(database), "pomodoro-bindings"] as const,
+  todoSchedules: (database: string) => [...scheduleKeys.root(database), "todo-schedules"] as const,
 };
 
 export function invalidateSchedule(client: QueryClient, database: string) {
@@ -67,6 +81,7 @@ export function useScheduleCommands() {
           ...groupCommands,
           ...todoCommands,
           ...contentCommands,
+          getPomodoroEventBindings,
         },
         { databaseName: database }
       ),
@@ -138,8 +153,14 @@ export function useCalendarEvents() {
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
+  // 延迟删除中的日程先从各视图隐藏
+  const deleting = usePendingDeletes(state => state.ids);
+  const visible = useMemo(
+    () => (deleting.size && query.data ? query.data.filter(e => !deleting.has(e.id)) : query.data),
+    [query.data, deleting]
+  );
   return {
-    events: ids.length ? (query.data ?? EMPTY_EVENTS) : EMPTY_EVENTS,
+    events: ids.length ? (visible ?? EMPTY_EVENTS) : EMPTY_EVENTS,
     loading: catalog.loading || (ids.length > 0 && query.isPending),
     error: catalog.error ?? query.error,
     retry: catalog.error ? catalog.retry : query.refetch,
@@ -246,6 +267,18 @@ export function useScheduleMutations() {
         refresh();
         return result;
       },
+      /** 把待办安排进某个时段（新建关联该待办的用户日历事件） */
+      async scheduleTodo(input: {
+        todoItemId: number;
+        startDate: number;
+        startTime: number;
+        endTime: number;
+      }) {
+        assertCurrentDatabase();
+        const result = await commands.createCalendarEventForTodo(input);
+        refresh();
+        return result;
+      },
       async updateEvent(input: UpdateCalendarEvent) {
         assertCurrentDatabase();
         const result = await commands.updateCalendarEvent(input);
@@ -274,6 +307,12 @@ export function useScheduleMutations() {
   }, [client, database, commands, assertCurrentDatabase]);
 }
 
+/** calendarId → 系统日历角色（番茄钟 / 截止 / 计划 / 周期），随日历与分组变化重算 */
+export function useCalendarRoles(): Map<number, CalendarRole> {
+  const { calendars, calendarGroups } = useCalendarCatalog();
+  return useMemo(() => buildCalendarRoles(calendars, calendarGroups), [calendars, calendarGroups]);
+}
+
 /** calendarId → 来源类型（番茄钟 / 待办），随日历与分组变化重算 */
 export function useCalendarKinds(): Map<number, EventSourceKind> {
   const { calendars, calendarGroups } = useCalendarCatalog();
@@ -288,7 +327,7 @@ export function useTodoEventSources(events: CalendarEvent[]) {
   const ids = useMemo(
     () =>
       events
-        .filter(e => kinds.get(e.calendarId) === "todo")
+        .filter(e => kinds.get(e.calendarId) === "todo" || e.todoItemId != null)
         .map(e => e.id)
         .sort((a, b) => a - b),
     [events, kinds]
@@ -320,7 +359,76 @@ export function useToggleTodoEvent() {
       }
       await commands.toggleCompleteCascade(source.todoItemId, next);
     },
-    onSuccess: () => invalidateSchedule(queryClient, database),
+    onSuccess: (_result, source) => {
+      invalidateSchedule(queryClient, database);
+      // 待办页 / 待安排面板读待办快照：经待办变更事件统一失效
+      emitTodoMutation({
+        source: "schedule",
+        entityType: source.syncType === "recurring" ? "recurrence" : "item",
+        action: source.isCompleted
+          ? TODO_MUTATION_ACTIONS.UNCOMPLETE_ITEM
+          : TODO_MUTATION_ACTIONS.COMPLETE_ITEM,
+        entityId: source.todoItemId,
+      });
+    },
   });
   return mutation.mutate;
+}
+
+/** 某一天的日程（不依赖日程页视图状态，供番茄「专注于…」等域外入口用）；随 schedule:changed 失效 */
+export function useEventsOfDay(day: number, enabled = true): CalendarEvent[] {
+  const { database, commands } = useScheduleCommands();
+  const connected = useDatabaseConnected();
+  const query = useQuery({
+    queryKey: scheduleKeys.day(database, day),
+    queryFn: () => commands.getEventsForDay(day),
+    enabled: enabled && connected,
+    staleTime: 30_000,
+  });
+  return query.data ?? EMPTY_EVENTS;
+}
+
+const EMPTY_BINDINGS: Record<number, PomodoroEventBinding> = {};
+
+/** 可见日程里番茄事件所属会话的绑定（番茄事件 id → 绑定），用于把专注收进绑定事件 */
+export function usePomodoroBindings(events: CalendarEvent[]) {
+  const { database, commands } = useScheduleCommands();
+  const connected = useDatabaseConnected();
+  const roles = useCalendarRoles();
+  const ids = useMemo(
+    () =>
+      events
+        .filter(e => roles.get(e.calendarId) === "pomodoro")
+        .map(e => e.id)
+        .sort((a, b) => a - b),
+    [events, roles]
+  );
+  const query = useQuery({
+    queryKey: [...scheduleKeys.pomodoroBindings(database), ids],
+    queryFn: () => commands.getPomodoroEventBindings(ids),
+    enabled: connected && ids.length > 0,
+    staleTime: 30_000,
+  });
+  return query.data ?? EMPTY_BINDINGS;
+}
+
+const EMPTY_SCHEDULES: Record<number, TodoScheduleSummary> = {};
+
+/**
+ * 待办的安排概况（日历里关联它的事件：next / last / count），供待安排面板与待办详情；
+ * 随 schedule:changed 失效。now 取分钟粒度，避免每次渲染都换查询键。
+ */
+export function useTodoSchedules(todoIds: number[], enabled = true) {
+  const { database, commands } = useScheduleCommands();
+  const connected = useDatabaseConnected();
+  const ids = useMemo(() => [...new Set(todoIds)].sort((a, b) => a - b), [todoIds]);
+  const minute = Math.floor(Date.now() / 60_000);
+  const query = useQuery({
+    queryKey: [...scheduleKeys.todoSchedules(database), ids, minute],
+    queryFn: () => commands.getTodoSchedules(ids, minute * 60_000),
+    enabled: enabled && connected && ids.length > 0,
+    staleTime: 30_000,
+    placeholderData: previous => previous,
+  });
+  return query.data ?? EMPTY_SCHEDULES;
 }

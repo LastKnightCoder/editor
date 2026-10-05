@@ -61,13 +61,7 @@ interface RawRow {
   update_time: number;
 }
 
-const STATUSES: ReadonlySet<string> = new Set([
-  "open",
-  "linked",
-  "questioned",
-  "seen",
-  "dismissed",
-]);
+const STATUSES: ReadonlySet<string> = new Set(["open", "linked", "questioned", "dismissed"]);
 
 export const emptyResult = (): KnowledgeInsightResult => ({
   lead: "",
@@ -90,7 +84,10 @@ function parseResult(raw: string): KnowledgeInsightResult {
   const value = parseJson<Partial<KnowledgeInsightResult>>(raw, {});
   return {
     lead: typeof value.lead === "string" ? value.lead : "",
-    marks: Array.isArray(value.marks) ? value.marks : [],
+    // 认不出的处理状态（如已去掉的 seen）按未处理读
+    marks: Array.isArray(value.marks)
+      ? value.marks.map(mark => (STATUSES.has(mark.status) ? mark : { ...mark, status: "open" }))
+      : [],
     asks: Array.isArray(value.asks) ? value.asks : [],
     growth: Array.isArray(value.growth) ? value.growth.map(Number) : [],
     candidates: Number(value.candidates) || 0,

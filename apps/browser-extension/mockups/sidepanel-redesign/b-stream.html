@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>B 阅读伴侣 · 浏览器插件重设计</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .stream { padding: 2px 12px 8px; display: flex; flex-direction: column; gap: 6px; }
+  .sec-h { display: flex; align-items: center; gap: 6px; padding: 8px 4px 2px; font-size: 12px; font-weight: 600; color: var(--tau-ink-2); }
+  .sec-h svg { width: 14px; height: 14px; color: var(--tau-ink-3); }
+  .sec-h .r { margin-left: auto; font-weight: 400; color: var(--tau-ink-3); display: inline-flex; align-items: center; gap: 2px; }
+  .sec-h .r svg { width: 13px; height: 13px; }
+  .sum { padding: 12px 14px; }
+  .more { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; font-size: 12px; color: var(--tau-accent-text); }
+  .more svg { width: 13px; height: 13px; }
+  .hls { overflow: hidden; }
+  .hls .hl + .hl { border-top: 1px solid var(--tau-line-2); }
+  .hls q { font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .note { padding: 12px 14px; }
+  .note b { font-size: 13.5px; }
+  .note p { margin: 4px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--tau-ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .note .st { margin-top: 8px; display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--tau-ink-3); }
+  .addnote { display: flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border-radius: 10px; border: 1px dashed var(--tau-line-1); font-size: 12.5px; color: var(--tau-ink-2); }
+  .addnote svg { width: 14px; height: 14px; }
+  .back { display: flex; align-items: center; gap: 6px; padding: 10px 12px 8px 8px; border-bottom: 1px solid var(--tau-line-1); }
+  .back .tt { min-width: 0; flex: 1; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .skel { height: 10px; border-radius: 5px; background: var(--tau-bg-hover); margin: 8px 0; }
+  .ctxchip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 26px; padding: 0 8px; border-radius: 8px; background: var(--tau-bg-hover); font-size: 12px; color: var(--tau-ink-2); }
+  .ctxchip svg { width: 13px; height: 13px; }
+  .ctxchip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <div class="intro">
+    <h1>B · 阅读伴侣（单页流）</h1>
+    去掉页签，侧栏就是「这一页」的一张纸：从上到下是<b>总结 → 高亮 → 笔记</b>，底部常驻「问这一页」输入框。
+    <ul>
+      <li>边读边看：划完线，侧栏里立刻多一条，不用切到「高亮」页签。</li>
+      <li>对话和笔记编辑是<b>进入</b>的二级页（顶部「← 本页」返回），其余时间都停留在流里。</li>
+      <li>输入框常驻，任何时候都能追问；发送后进入对话视图，回到本页时对话收成一行「上次对话」。</li>
+    </ul>
+    <p style="margin:6px 0 0"><span class="pros">好处：</span>最贴近「读一页」的真实动作，信息密度高，一屏看全本页的所有痕迹。
+    <span class="cons">代价：</span>改动最大；高亮很多时流会变长（高亮只显示前 3 条 + 「全部 N」）。</p>
+  </div>
+
+  <h2 class="sec">主流程</h2>
+  <div class="row">
+    <div>
+      <p class="cap"><b>本页</b>：总结默认只露一句话；高亮按原文顺序；笔记卡片点开进入编辑。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <div class="scroll stream">
+          <div class="card sum">
+            <div class="prose" style="font-size:13px"><b>一句话：</b>间隔重复借助「快要忘记时再回想」的难度来加固记忆，长期保持率是连续重读的两到三倍。</div>
+            <span class="more">展开 3 个要点<i data-lucide="chevron-down"></i></span>
+          </div>
+          <div>
+            <div class="sec-h"><i data-lucide="highlighter"></i>高亮 5<span class="r">全部<i data-lucide="chevron-right"></i></span></div>
+            <div class="card hls">
+              <div class="hl"><span class="bar c1"></span><div><q>每一次成功的提取，都会让下一次遗忘来得更晚。</q><div class="th" style="margin-top:3px;font-size:12px">和卡片复习的间隔算法是一回事。</div></div></div>
+              <div class="hl"><span class="bar c2"></span><div><q>重读带来的流畅感是一种错觉，它让人误以为自己已经掌握。</q></div></div>
+              <div class="hl"><span class="bar c3"></span><div><q>最佳复习时机，是你快要忘记、但还能想起来的那一刻。</q></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="sec-h"><i data-lucide="notebook-pen"></i>笔记</div>
+            <div class="card note"><b>间隔重复读书笔记</b><p>重读≠记住。读完的那种「我懂了」只是熟悉感，换个问法就答不上。</p><div class="st"><i data-lucide="circle-check" style="width:12px;height:12px;color:var(--tau-ok)"></i>已同步到卡片 · 2 分钟前</div></div>
+            <div class="addnote" style="margin-top:8px"><i data-lucide="plus"></i>新建笔记</div>
+          </div>
+          <div>
+            <div class="sec-h"><i data-lucide="message-circle"></i>上次对话<span class="r">1 小时前</span></div>
+            <div class="card" style="padding:10px 14px;font-size:12.5px" >它和费曼学习法有什么关系？<span class="muted"> — 两者都依赖主动提取…</span></div>
+          </div>
+        </div>
+        <div class="cmp"><div class="ph">问这一页…</div><div class="bar"><span class="plus"><i data-lucide="plus"></i></span><span class="sp"></span><span class="tc"><b style="font-weight:500">Claude Sonnet</b><i data-lucide="chevron-down"></i></span><span class="send off"><i data-lucide="arrow-up"></i></span></div></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap"><b>对话</b>：从输入框发送后进入；「← 本页」回到流。引用某条高亮提问时，引文以小条附在输入框上方 <span class="new">新增?</span>。</p>
+      <div class="panel">
+        <div class="back"><button class="ib"><i data-lucide="arrow-left"></i></button><span class="tt">和费曼学习法的关系</span><button class="ib"><i data-lucide="history"></i></button><button class="ib"><i data-lucide="square-pen"></i></button></div>
+        <div class="scroll" style="display:flex;flex-direction:column;gap:14px;padding:14px">
+          <div class="msg-u">它和费曼学习法有什么关系？</div>
+          <div class="msg-a">
+            <div class="fold"><i data-lucide="check" style="color:var(--tau-ok)"></i>读取页面正文 <span class="muted">· 0.8 秒</span></div>
+            <p style="margin:6px 0">两者都依赖<b>主动提取</b>，只是角度不同：费曼法让你「讲出来」暴露缺口，间隔重复决定「什么时候再讲一遍」。</p>
+          </div>
+          <div class="msg-u">那这句该怎么做成卡片？</div>
+          <div class="msg-a"><p style="margin:0">正面写问题「什么时候复习最有效？」，背面写原句，再补一句你自己的例子……</p></div>
+        </div>
+        <div class="cmp focus">
+          <div class="ctxchip" style="margin-bottom:8px"><i data-lucide="quote"></i><span>最佳复习时机，是你快要忘记、但还能想起来的那一刻</span><i data-lucide="x"></i></div>
+          <div class="ph" style="color:var(--tau-ink-1)">再给一个反例<span class="caret"></span></div>
+          <div class="bar"><span class="plus"><i data-lucide="plus"></i></span><span class="sp"></span><span class="tc"><b style="font-weight:500">Claude Sonnet</b><i data-lucide="chevron-down"></i></span><span class="send"><i data-lucide="arrow-up"></i></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap"><b>笔记</b>：点笔记卡片进入整页编辑；同步状态在标题下，⋯ 里是「存为卡片 / 文章、插入到项目、删除」。</p>
+      <div class="panel surface">
+        <div class="back"><button class="ib"><i data-lucide="arrow-left"></i></button><span class="tt">本页</span><button class="ib"><i data-lucide="quote"></i></button><button class="ib on"><i data-lucide="ellipsis"></i></button></div>
+        <div class="menu" style="right:10px;top:46px;width:200px">
+          <div class="it"><i data-lucide="refresh-cw"></i>更新到卡片</div>
+          <div class="it"><i data-lucide="file-text"></i>存为文章</div>
+          <div class="it"><i data-lucide="folder-input"></i>插入到项目</div>
+          <hr />
+          <div class="it" style="color:var(--tau-danger)"><i data-lucide="trash-2" style="color:var(--tau-danger)"></i>删除笔记</div>
+        </div>
+        <div class="scroll paper" style="padding:16px 18px">
+          <h3>间隔重复读书笔记</h3>
+          <div class="sync tiny" style="display:flex;gap:5px;align-items:center;color:var(--tau-ok);margin-bottom:12px"><i data-lucide="circle-check" style="width:12px;height:12px"></i>已同步到卡片 · 2 分钟前</div>
+          <p>重读≠记住。读完的那种「我懂了」只是<b>熟悉感</b>，换个问法就答不上。</p>
+          <blockquote>最佳复习时机，是你快要忘记、但还能想起来的那一刻。</blockquote>
+          <p>对我的卡片复习：按间隔排，回答时先说出来再翻面<span class="caret"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap"><b>刚打开一页</b>：总结生成中显示骨架；没有高亮 / 笔记时各留一行提示，不占地方。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav" style="color:var(--tau-info)">W</div><div class="t"><b>Spaced repetition - Wikipedia</b><span>en.wikipedia.org · 约 14 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <div class="scroll stream">
+          <div class="card sum">
+            <div class="sm muted" style="display:flex;gap:6px;align-items:center"><i data-lucide="sparkles" style="width:13px;height:13px;color:var(--tau-accent-text)"></i>正在总结这一页…</div>
+            <div class="skel" style="width:92%"></div><div class="skel" style="width:78%"></div><div class="skel" style="width:54%"></div>
+          </div>
+          <div class="sec-h"><i data-lucide="highlighter"></i>高亮</div>
+          <div class="sm muted" style="padding:0 4px 4px">选中网页上的文字，用浮出的工具条高亮</div>
+          <div class="sec-h"><i data-lucide="notebook-pen"></i>笔记</div>
+          <div class="addnote"><i data-lucide="plus"></i>新建笔记</div>
+        </div>
+        <div class="cmp"><div class="ph">问这一页…</div><div class="bar"><span class="plus"><i data-lucide="plus"></i></span><span class="sp"></span><span class="tc"><b style="font-weight:500">Claude Sonnet</b><i data-lucide="chevron-down"></i></span><span class="send off"><i data-lucide="arrow-up"></i></span></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="shared.js"></script>
+</body>
+</html>

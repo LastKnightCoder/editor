@@ -1,4 +1,5 @@
 import { invoke, off, on } from "@/electron";
+import type { ICard } from "@/types";
 import type { InsightStatus } from "@/types/content-insights";
 import type {
   KnowledgeInsightNode,
@@ -39,6 +40,20 @@ export function reviewProject(projectId: number) {
 export function linkCardsMutually(a: number, b: number) {
   return withModule("topic-insights", () =>
     invoke<boolean>("knowledge-insights:link-cards", { a, b })
+  );
+}
+
+/** 同一思路「写成卡片」：新建一张空卡片，连上用到这个思路的几处，标记记为已连接 */
+export function writePatternCard(id: number, itemId: string) {
+  return withModule("topic-insights", () =>
+    invoke<ICard>("knowledge-insights:write-pattern-card", { id, itemId })
+  );
+}
+
+/** 撤回还空着的那张卡片，标记回到未处理；已写了内容时不动，返回 null */
+export function discardPatternCard(id: number, itemId: string, cardId: number) {
+  return withModule("topic-insights", () =>
+    invoke<ICard | null>("knowledge-insights:discard-pattern-card", { id, itemId, cardId })
   );
 }
 

@@ -24,13 +24,12 @@ vi.mock("../useChatSessions", () => ({
 vi.mock("../useLlmConfigs", () => ({ useLlmConfigs: () => ({ llmConfigs: [] }) }));
 vi.mock("../useAiServerWebSocket", () => ({ useAiServerWebSocket: () => ({}) }));
 vi.mock("../useSkills", () => ({ useSkills: () => ({ skills: [] }) }));
-vi.mock("../useTheme", () => ({ useTheme: () => "light" }));
-vi.mock("../../stores/useThemeStore", () => ({ useThemeStore: () => ({ themeMode: "light" }) }));
+vi.mock("../../stores/useExtensionTheme", () => ({ useIsDark: () => false }));
 vi.mock("../../components/ChatMessage", () => ({ default: () => null }));
 vi.mock("../../components/ToolApprovalBar", () => ({ default: () => null }));
 vi.mock("../../components/ChatDropdownSelector", () => ({ default: () => null }));
-import SharedChatTab from "../../entrypoints/sidepanel/components/tabs/SharedChatTab";
+import ChatPage from "../../entrypoints/sidepanel/components/pages/ChatPage";
 it("流式视图使用运行时消息，文件投影为空也能显示回答与提问卡", () => {
-  renderToString(<SharedChatTab wsClient={null} url="https://example.com" />);
+  renderToString(<ChatPage wsClient={null} url="https://example.com" onBack={() => {}} />);
   expect(data.props.messages).toBe(data.live);
 });

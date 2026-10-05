@@ -10,6 +10,8 @@ interface SchedulePreferences {
   showMyCalendarSection: boolean;
   showArchivedSection: boolean;
   showDayPanel: boolean;
+  /** 「待安排」面板（纸内右侧常驻栏） */
+  showTodoPanel: boolean;
 }
 
 const defaults: SchedulePreferences = {
@@ -18,6 +20,7 @@ const defaults: SchedulePreferences = {
   showMyCalendarSection: true,
   showArchivedSection: false,
   showDayPanel: false,
+  showTodoPanel: false,
 };
 
 export function sanitizeSchedulePreferences(value: unknown): SchedulePreferences {
@@ -41,6 +44,8 @@ export function sanitizeSchedulePreferences(value: unknown): SchedulePreferences
         : defaults.showArchivedSection,
     showDayPanel:
       typeof source.showDayPanel === "boolean" ? source.showDayPanel : defaults.showDayPanel,
+    showTodoPanel:
+      typeof source.showTodoPanel === "boolean" ? source.showTodoPanel : defaults.showTodoPanel,
   };
 }
 
@@ -88,6 +93,7 @@ interface ScheduleState extends SchedulePreferences {
   setShowMyCalendarSection(show: boolean): void;
   setShowArchivedSection(show: boolean): void;
   setShowDayPanel(show: boolean): void;
+  setShowTodoPanel(show: boolean): void;
   toggleMergeMode(): void;
   toggleCalendarForMerge(id: number): void;
   resetSession(): void;
@@ -120,6 +126,7 @@ export const useScheduleStore = create<ScheduleState>()(
         setShowMyCalendarSection: showMyCalendarSection => set({ showMyCalendarSection }),
         setShowArchivedSection: showArchivedSection => set({ showArchivedSection }),
         setShowDayPanel: showDayPanel => set({ showDayPanel }),
+        setShowTodoPanel: showTodoPanel => set({ showTodoPanel }),
         toggleMergeMode: () =>
           set(state => ({
             mergeModeEnabled: !state.mergeModeEnabled,

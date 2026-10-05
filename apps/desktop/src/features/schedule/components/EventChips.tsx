@@ -1,16 +1,19 @@
 /**
  * 日程的三种展示形态（日/周/月视图共用，取代各视图里复制的内联色块）：
- * - AllDayBar：全天 / 跨天 = 数据色软底条，文字取数据色偏墨，跨行续接处去圆角；
+ * - AllDayBar：全天 / 跨天 / 标记（截止、周期打卡）= 数据色软底条，文字取数据色偏墨，跨行续接处去圆角；
+ *   定时标记带时刻，已完成的标记整体变淡；
  * - TimedChip：月视图单日定时 = 透明底 + 色点 + mono 时间；
- * - TimedBlock：时间网格块 = 软底 + 左缘 3px 色条，过去的日程降透明度。
+ * - TimedBlock：时间网格块 = 左缘 3px 色条 + 账本底色（记录实心、计划空心描边、进行中在现在处切开）；
+ *   收进来的番茄画成块内右侧的专注竖条；可编辑的块带拖动（块体平移、下边缘改时长）。
  * 位置由调用方（布局算法）通过 style 给出，这里只管皮。
  */
 
-import type { CSSProperties, MouseEvent } from "react";
+import type { CSSProperties, MouseEvent, PointerEvent } from "react";
 import { cn } from "@tau/ui";
 import { formatTime } from "@/utils/calendar";
 import type { Calendar, CalendarEvent } from "@/types";
-import { TONE, TONE_SOFT_BG, eventToneStyle } from "../eventTone";
+import { PLAN_OUTLINE, TONE, TONE_SOFT_BG, eventToneStyle, ledgerFill } from "../eventTone";
+import { eventEndMinutes, spanPercent, type FocusSpan, type LedgerPhase } from "../ledger";
 import { EventTitle, type EventDecor } from "./EventTitle";
 
 interface ChipProps {
@@ -37,6 +40,7 @@ export function AllDayBar({
   continuesLeft,
   continuesRight,
 }: ChipProps & { continuesLeft?: boolean; continuesRight?: boolean }) {
+  const markerTime = event.allDay ? null : event.startTime;
   return (
     <div
       title={event.title}
@@ -54,9 +58,15 @@ export function AllDayBar({
         TONE_TEXT,
         continuesLeft && "rounded-l-none",
         continuesRight && "rounded-r-none",
+        decor.source?.isCompleted && "opacity-55",
         className
       )}
     >
+      {markerTime !== null && (
+        <span className="font-tau-mono mr-1.5 shrink-0 text-[10.5px] tabular-nums opacity-80">
+          {formatTime(markerTime)}
+        </span>
+      )}
       <EventTitle event={event} decor={decor} />
     </div>
   );
@@ -98,8 +108,25 @@ export function TimedBlock({
   style,
   className,
   compact,
-  past,
-}: ChipProps & { compact?: boolean; past?: boolean }) {
+  phase,
+  focus,
+  focusTone,
+  drag,
+}: ChipProps & {
+  compact?: boolean;
+  phase: LedgerPhase;
+  focus?: FocusSpan[];
+  /** 专注条色（番茄钟日历） */
+  focusTone?: CSSProperties;
+  /** 可拖动（用户日历日程）：块体平移、下边缘改时长；dragging = 正在被拖 */
+  drag?: {
+    onMove(e: PointerEvent): void;
+    onResize(e: PointerEvent): void;
+    dragging: boolean;
+  };
+}) {
+  const fill = ledgerFill(phase);
+  const planned = phase.kind !== "record";
   const range =
     event.startTime !== null
       ? `${formatTime(event.startTime)}${event.endTime !== null ? ` – ${formatTime(event.endTime)}` : ""}`
@@ -112,14 +139,23 @@ export function TimedBlock({
         onClick(e.currentTarget);
       }}
       onMouseDown={stop}
-      style={{ ...eventToneStyle(event, calendars), ...style }}
+      onPointerDown={drag?.onMove}
+      style={{
+        ...eventToneStyle(event, calendars),
+        ...fill.style,
+        // 计划 / 进行中的描边：用 outline 而非 box-shadow，不与悬停阴影互相覆盖
+        ...(planned && { outline: `1px solid ${PLAN_OUTLINE}`, outlineOffset: -1 }),
+        ...style,
+      }}
       className={cn(
         "absolute cursor-pointer overflow-hidden rounded-[7px] py-1 pl-[9px] pr-1.5",
         "hover:shadow-lift text-[12px] leading-[1.35] transition-shadow duration-[160ms]",
         "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-[var(--cal)]",
         TONE,
-        TONE_SOFT_BG,
-        past && "opacity-60",
+        fill.className,
+        phase.kind === "plan" && "before:opacity-50",
+        drag && "touch-none",
+        drag?.dragging && "shadow-lift z-40 cursor-grabbing opacity-90",
         className
       )}
     >
@@ -135,6 +171,34 @@ export function TimedBlock({
           <EventTitle event={event} decor={decor} className="font-medium" />
           <div className="text-ink-2 font-tau-mono text-[10.5px] tabular-nums">{range}</div>
         </>
+      )}
+      {drag && (
+        <div
+          aria-hidden
+          onPointerDown={e => {
+            e.stopPropagation();
+            drag.onResize(e);
+          }}
+          className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
+        />
+      )}
+      {focus && focus.length > 0 && (
+        <div style={focusTone} className={cn("absolute inset-y-0 right-[3px] w-1", TONE)}>
+          {focus.map(span => {
+            const { offset, size } = spanPercent(
+              span,
+              event.startTime ?? 0,
+              eventEndMinutes(event)
+            );
+            return (
+              <i
+                key={span.start}
+                className="absolute inset-x-0 rounded-full bg-[var(--cal)]"
+                style={{ top: `${offset}%`, height: `${size}%` }}
+              />
+            );
+          })}
+        </div>
       )}
     </div>
   );

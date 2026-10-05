@@ -7,13 +7,13 @@ import { useMemo, useState, type Ref } from "react";
 import { Clock, Flag, List, Repeat, Sparkles } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { TodoGroup } from "@/types";
-import { describeQuickAdd, parseQuickAdd, type QuickAddResult } from "../quickAdd";
+import { describeQuickAdd, parseQuickAdd, quickAddKind, type QuickAddResult } from "../quickAdd";
 import { GroupDot } from "./TodoBits";
 
 const TOKEN_CLASS = {
   normal: "bg-hover text-ink-1",
   deadline: "bg-warn-soft text-ink-1 [&_svg]:text-warn",
-  planned: "bg-info-soft text-ink-1 [&_svg]:text-info",
+  scheduled: "bg-info-soft text-ink-1 [&_svg]:text-info",
   recurring: "bg-ok-soft text-ink-1 [&_svg]:text-ok",
 } as const;
 
@@ -117,15 +117,16 @@ export function QuickAddBar({
   );
 }
 
-const TOKEN_ICON = { normal: List, deadline: Flag, planned: Clock, recurring: Repeat } as const;
+const TOKEN_ICON = { normal: List, deadline: Flag, scheduled: Clock, recurring: Repeat } as const;
 
 function ParsedToken({ parsed, now }: { parsed: QuickAddResult; now: number }) {
-  const Icon = TOKEN_ICON[parsed.type];
+  const kind = quickAddKind(parsed);
+  const Icon = TOKEN_ICON[kind];
   return (
     <span
       className={cn(
         "inline-flex h-[22px] items-center gap-1.5 rounded-[6px] px-2 [&_svg]:size-3",
-        TOKEN_CLASS[parsed.type]
+        TOKEN_CLASS[kind]
       )}
     >
       <Icon strokeWidth={1.75} />

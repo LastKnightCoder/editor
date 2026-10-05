@@ -1,6 +1,6 @@
 import { useState } from "react";
 import dayjs from "dayjs";
-import { ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Plus } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CalendarDays, ListTodo, Plus } from "lucide-react";
 import { Button, DatePickerPanel, IconButton, Popover, Segmented, cn, toast } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
 import { useCalendarCatalog } from "../../queries";
@@ -84,6 +84,7 @@ const CalendarHeader = () => {
   const currentDate = useScheduleStore(s => s.currentDate);
   const { calendars } = useCalendarCatalog();
   const showDayPanel = useScheduleStore(s => s.showDayPanel);
+  const showTodoPanel = useScheduleStore(s => s.showTodoPanel);
   const {
     setCurrentView,
     setCurrentDate,
@@ -92,6 +93,7 @@ const CalendarHeader = () => {
     goToNext,
     setEditingEvent,
     setShowDayPanel,
+    setShowTodoPanel,
   } = useScheduleStore.getState();
   const [jumpOpen, setJumpOpen] = useState(false);
 
@@ -188,6 +190,17 @@ const CalendarHeader = () => {
       </Segmented>
       <Button variant="primary" size="sm" icon={Plus} onClick={handleCreate}>
         新建日程
+      </Button>
+      <Button
+        variant={showTodoPanel ? "soft" : "secondary"}
+        size="sm"
+        icon={ListTodo}
+        aria-pressed={showTodoPanel}
+        title={showTodoPanel ? "收起待安排" : "待安排：把待办拖进日程"}
+        onClick={() => setShowTodoPanel(!showTodoPanel)}
+        className="shrink-0 whitespace-nowrap"
+      >
+        待安排
       </Button>
       <DayPanelButton open={showDayPanel} onToggle={() => setShowDayPanel(!showDayPanel)} />
     </div>

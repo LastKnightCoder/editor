@@ -134,7 +134,7 @@ export function MiniWindow() {
         <div className="min-w-0 flex-1">
           <div className="text-ink-2 flex items-center gap-2 whitespace-nowrap text-[15px]">
             <PresetDot presetId={session.presetId} className="size-2" />
-            <span className="truncate">{nameOf(session.presetId)}</span>
+            <span className="truncate">{session.boundTitle ?? nameOf(session.presetId)}</span>
             <span className={cn(timing.paused ? "text-warn font-medium" : "text-ink-3")}>
               {timing.paused ? "已暂停" : countdown ? "剩余" : "已专注"}
             </span>

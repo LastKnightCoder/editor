@@ -1,6 +1,7 @@
 /**
  * 专注左栏：预设纵向列表（点行打开预设详情抽屉，点行尾 ▶ 或数字键直接开始），
  * 专注中顶部换成竖版播放器（时间 / 状态 / 进度线 / 小窗 · 沉浸 / 背景音 / 结束 / 暂停继续）。
+ * 「专注于…」可选关联今天的日程或待办：开始前由页面暂存、随任一开始入口带上；专注中直接改会话绑定。
  *
  * 预设行的数字键提示与 ▶ 按钮共用固定槽位原位交叉淡入——悬停不改变行宽。
  * 行可纵向拖动排序（落 reorderPomodoroPresets），右键开始 / 编辑 / 归档；专注中不可开始（详情照常可看）。
@@ -19,13 +20,14 @@ import {
   Plus,
   Square,
 } from "lucide-react";
-import { ConfirmDialog, ContextMenu, IconButton, Menu, Tooltip, cn } from "@tau/ui";
+import { ConfirmDialog, ContextMenu, IconButton, Menu, Tooltip, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { isElectron } from "@/electron";
 import { openPomodoroImmersiveWindow, openPomodoroMiniWindow } from "@/commands/window";
-import type { PomodoroPreset, PomodoroSession } from "@/types";
+import type { PomodoroBindTarget, PomodoroPreset, PomodoroSession } from "@/types";
 import { formatClock, formatHM, presetShort, type SessionTiming } from "../model";
 import { pomodoroActions } from "../timerStore";
+import { BindPicker, type BindChoice } from "./BindPicker";
 import { PresetDot } from "./PomodoroBits";
 import { SoundPopover } from "./SoundPopover";
 
@@ -35,6 +37,9 @@ export function FocusRail({
   timing,
   presetName,
   openPresetId,
+  bind,
+  onBind,
+  onStart,
   onOpen,
   onCreate,
   onEdit,
@@ -47,6 +52,10 @@ export function FocusRail({
   presetName: string;
   /** 详情抽屉打开中的预设 */
   openPresetId: number | null;
+  /** 开始前暂存的「专注于…」选择 */
+  bind: BindChoice | null;
+  onBind(choice: BindChoice | null): void;
+  onStart(preset: PomodoroPreset): void;
   onOpen(preset: PomodoroPreset): void;
   onCreate(anchor: HTMLElement): void;
   onEdit(preset: PomodoroPreset, anchor: HTMLElement): void;
@@ -64,11 +73,13 @@ export function FocusRail({
           <p className="text-ink-3 text-tau-sm mt-0.5">
             {presets.length ? "点 ▶ 或数字键开始 · 点预设看详情" : "先建一个预设"}
           </p>
+          <BindPicker value={bind} onChange={onBind} className="-mx-2 mt-1.5 w-[calc(100%+16px)]" />
         </div>
       )}
       <PresetList
         presets={presets}
         disabled={live}
+        onStart={onStart}
         openPresetId={openPresetId}
         onOpen={onOpen}
         onCreate={onCreate}
@@ -85,6 +96,7 @@ export function FocusRail({
 function PresetList({
   presets,
   disabled,
+  onStart,
   openPresetId,
   onOpen,
   onCreate,
@@ -95,6 +107,7 @@ function PresetList({
   presets: PomodoroPreset[];
   /** 专注中：不可开始、不可拖动，详情与右键编辑 / 归档照常 */
   disabled: boolean;
+  onStart(preset: PomodoroPreset): void;
   openPresetId: number | null;
   onOpen(preset: PomodoroPreset): void;
   onCreate(anchor: HTMLElement): void;
@@ -107,7 +120,7 @@ function PresetList({
   );
 
   const start = (preset: PomodoroPreset) => {
-    if (!disabled) void pomodoroActions.start(preset);
+    if (!disabled) onStart(preset);
   };
 
   const onDragOver = (e: DragEvent<HTMLElement>, target: PomodoroPreset) => {
@@ -263,6 +276,13 @@ function PresetList({
 
 /* ---------- 专注中：竖版播放器 ---------- */
 
+/** 会话当前绑定（选择器高亮用）：有事件按事件，否则按待办 */
+function sessionTarget(session: PomodoroSession): PomodoroBindTarget {
+  return session.boundEventId != null
+    ? { kind: "event", eventId: session.boundEventId }
+    : { kind: "todo", todoId: session.boundTodoId ?? 0 };
+}
+
 function Player({
   session,
   timing,
@@ -284,7 +304,13 @@ function Player({
     <section className="border-line-1 relative flex-none overflow-hidden rounded-[18px] border px-5 pb-4 pt-4">
       <div className="flex items-center gap-[7px] font-semibold">
         <PresetDot presetId={session.presetId} />
-        <span className="min-w-0 truncate">{presetName}</span>
+        {/* 有关联时主标题是关联对象，预设名降为副文字 */}
+        <span className="min-w-0 truncate">{session.boundTitle ?? presetName}</span>
+        {session.boundTitle && (
+          <span className="text-ink-3 text-tau-sm min-w-[3em] shrink truncate font-normal">
+            {presetName}
+          </span>
+        )}
         <span
           className={cn(
             "text-tau-sm ml-auto flex-none font-medium",
@@ -305,6 +331,16 @@ function Player({
         {formatHM(session.startTime)} 开始
         {timing.endsAt != null && ` → ${formatHM(timing.endsAt)} 结束`}
       </div>
+
+      <BindPicker
+        value={
+          session.boundTitle ? { target: sessionTarget(session), title: session.boundTitle } : null
+        }
+        onChange={choice =>
+          void pomodoroActions.bind(choice?.target ?? null).catch(() => toast.error("关联失败"))
+        }
+        className="-mx-2 mt-1.5 w-[calc(100%+16px)]"
+      />
 
       <div className="bg-track mt-3 h-[3px] overflow-hidden rounded-full">
         <div

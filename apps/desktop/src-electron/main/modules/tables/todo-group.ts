@@ -10,7 +10,6 @@ const SYSTEM_GROUPS: Array<{
   { systemType: "all", title: "全部任务" },
   { systemType: "normal", title: "普通任务" },
   { systemType: "deadline", title: "截止任务" },
-  { systemType: "planned", title: "计划任务" },
   { systemType: "recurring", title: "周期任务" },
 ];
 
@@ -318,7 +317,7 @@ export default class TodoGroupTable {
     }
 
     // 各类型任务
-    const types: TodoSystemGroupType[] = ["normal", "deadline", "planned", "recurring"];
+    const types: TodoSystemGroupType[] = ["normal", "deadline", "recurring"];
     for (const type of types) {
       const groupId = typeToGroupId.get(type);
       if (groupId) {

@@ -53,15 +53,10 @@ export function HabitRail({
     const deadline = roots.filter(
       e => e.type === "deadline" && e.dueAt != null && dayDiff(e.dueAt, day) === 0
     ).length;
-    const planned = roots.filter(e => {
-      if (e.type !== "planned" || e.startAt == null) return false;
-      const end = e.dueAt ?? e.startAt;
-      return dayDiff(e.startAt, day) <= 0 && dayDiff(end, day) >= 0;
-    }).length;
     const recurring = habits.filter(e => isScheduledOn(e.recurrence!, day)).length;
-    return { day, offset, deadline, planned, recurring };
+    return { day, offset, deadline, recurring };
   });
-  const max = Math.max(1, ...week.map(d => d.deadline + d.planned + d.recurring));
+  const max = Math.max(1, ...week.map(d => d.deadline + d.recurring));
   const recent = [...completed]
     .filter(e => e.completedAt != null)
     .sort((a, b) => b.completedAt! - a.completedAt!)
@@ -143,13 +138,13 @@ export function HabitRail({
       >
         <div className="grid h-[92px] grid-cols-7 items-end gap-1.5 pt-1">
           {week.map(d => {
-            const total = d.deadline + d.planned + d.recurring;
+            const total = d.deadline + d.recurring;
             const unit = 58 / max;
             return (
               <button
                 key={d.day}
                 type="button"
-                title={`${WEEKDAY_CN[new Date(d.day).getDay()]}：截止 ${d.deadline} · 计划 ${d.planned} · 打卡 ${d.recurring}`}
+                title={`${WEEKDAY_CN[new Date(d.day).getDay()]}：截止 ${d.deadline} · 打卡 ${d.recurring}`}
                 onClick={() => onJump(d.offset)}
                 className="ease-tau-out hover:bg-hover flex h-full flex-col items-center justify-end gap-1 rounded-[8px] py-0.5 transition-[background-color] duration-150"
               >
@@ -160,9 +155,6 @@ export function HabitRail({
                 >
                   {d.deadline > 0 && (
                     <i className="bg-warn block" style={{ height: d.deadline * unit }} />
-                  )}
-                  {d.planned > 0 && (
-                    <i className="bg-info block" style={{ height: d.planned * unit }} />
                   )}
                   {d.recurring > 0 && (
                     <i className="bg-ok block opacity-80" style={{ height: d.recurring * unit }} />
@@ -182,7 +174,6 @@ export function HabitRail({
         </div>
         <div className="text-ink-3 mt-2 flex gap-3 text-[11px]">
           <Legend className="bg-warn">截止</Legend>
-          <Legend className="bg-info">计划</Legend>
           <Legend className="bg-ok">打卡</Legend>
         </div>
       </Block>

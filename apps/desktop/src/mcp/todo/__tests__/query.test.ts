@@ -100,7 +100,7 @@ const items: TodoItem[] = [
     groupId: 102,
     parentId: null,
     title: "买菜",
-    type: "planned",
+    type: "deadline",
     isCompleted: false,
     dueAt: Date.now() + 86400000,
     startAt: Date.now(),
