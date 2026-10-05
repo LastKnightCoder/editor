@@ -17,7 +17,7 @@ import { cn, useEdgeFade, IconButton, Tag } from "@tau/ui";
 import { bucketByTimeGroups } from "../queries";
 import { CardItemView, formatMonthDay } from "./CardItemView";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
-import { useScrollTopOnChange } from "./useScrollTopOnChange";
+import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
 import type { CardItemActions } from "../types";
 import { cardMorphKey } from "../morph";
 
