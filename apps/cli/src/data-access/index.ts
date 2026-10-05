@@ -10,7 +10,7 @@ import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
 import { migrateKnowledgeIndex } from "@tau/db-schema/src/knowledge-index-migration";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import sqliteVec from "sqlite-vec";
+import { loadSqliteVec } from "./sqlite-vec.js";
 import { getIndexDbPath } from "./index-db.js";
 import { assertDatabaseNotSyncing, recoverSessionDownload } from "@tau/db-schema/sync";
 
@@ -37,7 +37,7 @@ export class DataAccess {
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
     try {
-      this.db.loadExtension(sqliteVec.getLoadablePath());
+      loadSqliteVec(this.db);
       retireSubscriptions(this.db, dbPath);
       retireFeatureTables(this.db, dbPath);
       retirePlannedTodos(this.db, dbPath);
@@ -48,7 +48,7 @@ export class DataAccess {
       if (options.migrateIndex !== false && existsSync(indexPath)) {
         const index = new Database(indexPath);
         try {
-          index.loadExtension(sqliteVec.getLoadablePath());
+          loadSqliteVec(index);
           migrateKnowledgeIndex(this.db, index);
         } finally {
           index.close();
