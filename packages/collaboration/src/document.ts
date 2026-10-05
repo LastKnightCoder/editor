@@ -5,6 +5,7 @@ import type { Descendant } from "slate";
 import {
   ASSET_PREFIX,
   CollaborationError,
+  isLocalAssetReference,
   COLLABORATION_VERSION,
   type ContentNode,
   type SharedContent,
@@ -38,6 +39,7 @@ export const RESOURCE_FIELDS = new Set([
   "poster",
   "bannerBg",
   "previewUrl",
+  "localFilePath",
 ]);
 
 export const getBody = (doc: Y.Doc) => doc.get("content", Y.XmlText);
@@ -490,7 +492,7 @@ const httpUrl = (value: string): boolean => {
 };
 
 export function isSafeResource(value: string, field = ""): boolean {
-  if (!value || value.startsWith(ASSET_PREFIX)) return true;
+  if (!value || value.startsWith(ASSET_PREFIX) || isLocalAssetReference(value)) return true;
   // bannerBg 可以是颜色或 CSS 渐变；带协议头的值（file:、https: 等）必须是 http(s)，
   // 其余情况只校验其中 url(...) 引用的地址。
   if (field === "bannerBg") {
