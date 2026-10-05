@@ -1,5 +1,15 @@
 # 决策记录（轻量 ADR）
 
+## D-106 白板手绘模式：页级画风 + 墨水笔迹（方案 B）
+
+（2026-10-05，用户确认 `mockups/whiteboard-sketch/` 方案 B「墨水」与技术方案 `docs/whiteboard/手绘模式技术方案.md`）
+
+- 背景：旧「草图风格」是 rough.js 薄封装，只接入形状与连线、逐元素开关，面板暴露 7 种填充 + 4 根滑杆；填充角 0°、间距固定、透明度丢失、圆角被抖成麻花，箭头 seed 每次重绘随机导致拖动时整条线抖动；文字、画框、导图不跟随，风格割裂。
+- 选择：① 画风是**页**的属性（`WhiteBoardContent.data.sketch = { mode: "sketch" | "normal", level }`），新建页默认普通；元素可单独覆盖模式 / 笔触档位 / 换一笔（`element.sketch`），思维导图只在根节点存；② 笔迹改用 perfect-freehand 变宽墨迹（与手写工具同一引擎），渲染为 `utils/sketch` 纯函数 → 声明式 `<path>`，seed 默认由元素 id 派生，同一元素永远同一笔；移除 roughjs；③ 笔触三档（工整 / 自然 / 潦草），填充收敛为淡涂 / 斜线 / 交叉 / 涂鸦四种（`GeometryElement.fillStyle`，普通模式按实色渲染）；④ 手绘时文字换 `--tau-font-hand`，一期系统回退栈，二期内置 Excalifont + 小赖 SC；⑤ 流动动画保留：虚线 = 连续墨迹 × 虚线遮罩（动画只改遮罩 dashoffset），实线 = 流动点。
+- 范围：一期形状、连线、画框、分栏、文本、卡片、思维导图；二期图片 / 视频 / 网页 / 音频 / 白板引用的墨迹外框、内置字体与导出内嵌、多选批量改笔触。画布 chrome（选中框、控制点、参考线）永远普通（D-049）。
+- 页级切换走 `set_sketch` Operation（进撤销历史）；删除只有类型没有实现的 `set_theme` 空壳。
+- 旧数据：不升级。旧字段 `sketchEnabled / sketchOptions / roughness` 不再读取，原开草图的元素显示为普通。
+
 ## D-105 卡片库与文章的列表排布
 
 （2026-10-04，用户确认 `mockups/cards/list-view.html` 与 `mockups/articles/list-view.html`：平铺 + 列头排序、两行、文章带缩略图；卡片标题优先用 AI 标题）
