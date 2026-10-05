@@ -4,6 +4,7 @@ import { APPEARANCE_METHODS, type AppearanceThemePayload } from "@tau/shared";
 import { getTheme } from "@tau/themes";
 import { createThemeRuntime } from "@tau/themes/react";
 import type WebSocketClient from "../utils/WebSocketClient";
+import { CONTENT_THEME_STORAGE_KEY, type ContentThemeState } from "../content/theme";
 
 /**
  * 侧栏主题：主题族默认跟随桌面（经 aiServer 同步），可在设置里关掉跟随自选；
@@ -55,7 +56,25 @@ export function initExtensionTheme() {
   } catch {
     /* 用运行时默认 */
   }
-  return runtime.init();
+  const stop = runtime.init();
+  // 页面内的划线 UI 读不到扩展页的 localStorage：镜像一份到 chrome.storage 给 content script
+  const mirror = ({ theme, appearance }: { theme: string; appearance: string }) => {
+    try {
+      void chrome.storage?.local
+        ?.set({ [CONTENT_THEME_STORAGE_KEY]: { theme, appearance } satisfies ContentThemeState })
+        .catch(() => undefined);
+    } catch {
+      /* 非扩展环境（测试） */
+    }
+  };
+  mirror(runtime.useThemeStore.getState());
+  const unsubscribe = runtime.useThemeStore.subscribe((state, previous) => {
+    if (state.theme !== previous.theme || state.appearance !== previous.appearance) mirror(state);
+  });
+  return () => {
+    unsubscribe();
+    stop();
+  };
 }
 
 /** 收到桌面主题族：跟随时应用；扩展没有的主题（桌面更新更早）保持当前 */

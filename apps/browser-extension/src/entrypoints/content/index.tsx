@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client";
 import HighlighterApp from "@/content/ui/HighlighterApp";
 import { injectHighlightStyles } from "@/content/highlighter";
+import { bindContentTheme } from "@/content/theme";
 import "./style.css";
 
 export default defineContentScript({
@@ -35,12 +36,14 @@ export default defineContentScript({
         app.style.pointerEvents = "none";
         container.appendChild(app);
 
+        const unbindTheme = bindContentTheme(app);
         const root = ReactDOM.createRoot(app);
         root.render(<HighlighterApp shadowRoot={shadow} />);
-        return root;
+        return { root, unbindTheme };
       },
-      onRemove(root) {
-        root?.unmount();
+      onRemove(mounted) {
+        mounted?.unbindTheme();
+        mounted?.root.unmount();
       },
     });
 

@@ -1,18 +1,33 @@
-/* 选中文字：深底面板内禁用系统默认黑底黑字，统一蓝底白字 */
+/*
+ * 页面内划线 UI（工具条 / 取色 / 想法 / 问 AI）：与侧栏同一套主题。
+ * 根容器 #tau-highlighter-root 上的 data-theme / data-mode 由 content/theme.ts 跟随侧栏偏好写入；
+ * 颜色只取 --tau-*。
+ */
+@import "@tau/themes/tokens.css";
+
+#tau-highlighter-root {
+  color: var(--tau-ink-1);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+}
+
+/* 选中文字：用主题 accent 轻染，文字保持原色 */
 ::selection {
-  background: rgba(96, 165, 250, 0.35);
-  color: #ffffff;
+  background: var(--tau-accent-soft);
+  color: inherit;
 }
 
 /* === Floating Toolbar === */
 .tau-floating-toolbar {
+  border: 1px solid var(--tau-line-1);
   display: flex;
   align-items: center;
   gap: 2px;
   padding: 4px 6px;
-  background: #1c1c1e;
+  background: var(--tau-bg-surface);
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--tau-shadow-float);
   animation: tau-fade-in 0.15s ease-out;
   pointer-events: auto;
 }
@@ -25,7 +40,7 @@
   height: 32px;
   border: none;
   background: transparent;
-  color: #f5f5f7;
+  color: var(--tau-ink-2);
   border-radius: 6px;
   cursor: pointer;
   transition:
@@ -34,19 +49,19 @@
 }
 
 .tau-floating-toolbar button:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-1);
 }
 
 .tau-floating-toolbar button.tau-toolbar-btn-active {
-  background: rgba(96, 165, 250, 0.25);
-  color: #60a5fa;
+  background: var(--tau-bg-selected);
+  color: var(--tau-accent-text);
 }
 
 .tau-toolbar-divider {
   width: 1px;
   height: 20px;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--tau-line-1);
   margin: 0 2px;
 }
 
@@ -61,9 +76,9 @@
   min-width: 144px;
   padding: 6px;
   border-radius: 8px;
-  background: #2c2c2e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  box-shadow: var(--tau-shadow-float);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -80,27 +95,28 @@
 }
 
 .tau-toolbar-more-menu .tau-toolbar-more-item:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--tau-bg-hover);
 }
 
 .tau-toolbar-more-menu .tau-toolbar-more-item-danger {
-  color: #fca5a5;
+  color: var(--tau-danger);
 }
 
 .tau-toolbar-more-menu .tau-toolbar-more-item-danger:hover {
-  background: rgba(248, 113, 113, 0.16);
-  color: #fecaca;
+  background: var(--tau-danger-soft);
+  color: var(--tau-danger);
 }
 
 /* === Color Picker === */
 .tau-color-picker {
+  border: 1px solid var(--tau-line-1);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: #1c1c1e;
+  background: var(--tau-bg-surface);
   border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--tau-shadow-float);
   animation: tau-fade-in 0.15s ease-out;
   pointer-events: auto;
 }
@@ -128,7 +144,7 @@
 }
 
 .tau-color-dot-selected {
-  border-color: #ffffff;
+  border-color: var(--tau-ink-1);
   transform: scale(1.15);
 }
 
@@ -140,12 +156,10 @@
   transform: translateX(-50%);
   width: 90%;
   max-width: 560px;
-  background: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
   border-radius: 18px;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--tau-shadow-float);
   z-index: 2147483647;
   animation: tau-slide-up 0.2s ease-out;
   pointer-events: auto;
@@ -154,10 +168,10 @@
   overflow: hidden;
 }
 
-/* 深底面板内选中文字：蓝底白字 */
+/* 面板内选中文字 */
 .tau-thought-input ::selection {
-  background: rgba(96, 165, 250, 0.35);
-  color: #ffffff;
+  background: var(--tau-accent-soft);
+  color: inherit;
 }
 
 /* 顶栏：标题 + 关闭 */
@@ -173,14 +187,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #f5f5f7;
+  color: var(--tau-ink-1);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 .tau-thought-title svg {
-  color: #60a5fa;
+  color: var(--tau-accent-text);
 }
 
 .tau-thought-close {
@@ -191,7 +205,7 @@
   height: 28px;
   border: none;
   background: transparent;
-  color: #8e8e93;
+  color: var(--tau-ink-3);
   border-radius: 50%;
   cursor: pointer;
   transition:
@@ -200,8 +214,8 @@
 }
 
 .tau-thought-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f5f5f7;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-1);
 }
 
 /* 主体内容区 */
@@ -213,14 +227,14 @@
 /* 编辑态 textarea 区域 */
 .tau-thought-textarea-wrap {
   position: relative;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
   border-radius: 12px;
   transition: border-color 0.15s;
 }
 
 .tau-thought-textarea-wrap:focus-within {
-  border-color: rgba(96, 165, 250, 0.5);
+  border-color: var(--tau-accent);
 }
 
 .tau-thought-textarea {
@@ -230,7 +244,7 @@
   resize: none;
   border: none;
   background: transparent;
-  color: #f5f5f7;
+  color: var(--tau-ink-1);
   padding: 14px 16px;
   font-size: 14px;
   line-height: 1.6;
@@ -241,14 +255,14 @@
 }
 
 .tau-thought-textarea::placeholder {
-  color: #6b6b70;
+  color: var(--tau-ink-3);
 }
 
 /* 查看态想法文字 */
 .tau-thought-view-text {
   font-size: 14px;
   line-height: 1.7;
-  color: #e8e8ea;
+  color: var(--tau-ink-1);
   margin: 0;
   padding: 4px 2px;
   word-break: break-word;
@@ -263,13 +277,13 @@
   justify-content: space-between;
   padding: 10px 16px 14px;
   flex-shrink: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--tau-line-2);
 }
 
 /* 编辑态快捷键提示 */
 .tau-thought-hint {
   font-size: 11px;
-  color: #6b6b70;
+  color: var(--tau-ink-3);
   letter-spacing: 0.02em;
 }
 
@@ -279,7 +293,7 @@
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: #6b6b70;
+  color: var(--tau-ink-3);
 }
 
 /* 查看态操作组 */
@@ -305,12 +319,12 @@
 }
 
 .tau-thought-danger {
-  color: #f87171;
+  color: var(--tau-danger);
 }
 
 .tau-thought-danger:hover {
-  background: rgba(248, 113, 113, 0.12);
-  color: #fca5a5;
+  background: var(--tau-danger-soft);
+  color: var(--tau-danger);
 }
 
 /* 主按钮（保存 / 编辑） */
@@ -318,8 +332,8 @@
   padding: 7px 20px;
   border: none;
   border-radius: 16px;
-  background: #3b82f6;
-  color: #fff;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -330,7 +344,7 @@
 }
 
 .tau-thought-primary-btn:hover {
-  background: #2563eb;
+  background: var(--tau-accent-hover);
 }
 
 .tau-thought-primary-btn:active {
@@ -350,12 +364,10 @@
   transform: translateX(-50%);
   width: 90%;
   max-width: 620px;
-  background: #1c1c1e;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
   border-radius: 18px;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--tau-shadow-float);
   z-index: 2147483647;
   animation: tau-slide-up 0.2s ease-out;
   pointer-events: auto;
@@ -365,10 +377,10 @@
   overflow: hidden;
 }
 
-/* 选中文字保持高对比，避免黑底黑字看不清 */
+/* 面板内选中文字 */
 .tau-ai-panel ::selection {
-  background: rgba(96, 165, 250, 0.35);
-  color: #ffffff;
+  background: var(--tau-accent-soft);
+  color: inherit;
 }
 
 /* 顶栏：标题 + 关闭按钮 */
@@ -384,14 +396,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #f5f5f7;
+  color: var(--tau-ink-1);
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 .tau-ai-panel-title svg {
-  color: #60a5fa;
+  color: var(--tau-accent-text);
 }
 
 .tau-ai-panel-close {
@@ -402,7 +414,7 @@
   height: 28px;
   border: none;
   background: transparent;
-  color: #8e8e93;
+  color: var(--tau-ink-3);
   border-radius: 50%;
   cursor: pointer;
   transition:
@@ -411,8 +423,8 @@
 }
 
 .tau-ai-panel-close:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f5f5f7;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-1);
 }
 
 /* 引用块（选中文字预览） */
@@ -422,14 +434,14 @@
   gap: 10px;
   margin: 0 16px 12px;
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border-left: 3px solid rgba(96, 165, 250, 0.5);
+  background: var(--tau-bg-hover);
+  border-left: 3px solid var(--tau-accent);
   border-radius: 8px;
 }
 
 .tau-ai-panel-quote-icon {
   flex-shrink: 0;
-  color: #60a5fa;
+  color: var(--tau-accent-text);
   margin-top: 1px;
   opacity: 0.85;
 }
@@ -437,7 +449,7 @@
 .tau-ai-panel-quote-text {
   font-size: 13px;
   line-height: 1.55;
-  color: #c7c7cc;
+  color: var(--tau-ink-2);
   word-break: break-word;
   user-select: text;
 }
@@ -450,7 +462,7 @@
   margin: 0 16px 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(248, 180, 64, 0.08);
+  background: var(--tau-warn-soft);
 }
 
 .tau-ai-panel-status {
@@ -458,15 +470,15 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #d8a85a;
+  color: var(--tau-warn);
 }
 
 .tau-ai-panel-open-tau {
   padding: 4px 12px;
-  border: 1px solid rgba(96, 165, 250, 0.3);
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
   font-size: 12px;
   cursor: pointer;
   transition:
@@ -475,8 +487,8 @@
 }
 
 .tau-ai-panel-open-tau:hover {
-  background: rgba(96, 165, 250, 0.2);
-  border-color: rgba(96, 165, 250, 0.5);
+  background: var(--tau-bg-selected);
+  border-color: transparent;
 }
 
 .tau-ai-panel-error {
@@ -486,9 +498,9 @@
   margin: 0 16px 8px;
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(248, 113, 113, 0.08);
+  background: var(--tau-danger-soft);
   font-size: 12px;
-  color: #f87171;
+  color: var(--tau-danger);
 }
 
 /* AI 响应区域（中间，可滚动，占满剩余空间） */
@@ -498,7 +510,7 @@
   padding: 4px 18px 14px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: var(--tau-bg-press) transparent;
 }
 
 .tau-ai-panel-body::-webkit-scrollbar {
@@ -510,7 +522,7 @@
 }
 
 .tau-ai-panel-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--tau-bg-press);
   border-radius: 2px;
 }
 
@@ -530,14 +542,14 @@
   align-items: flex-end;
   gap: 8px;
   padding: 6px 6px 6px 14px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
   border-radius: 22px;
   transition: border-color 0.15s;
 }
 
 .tau-ai-panel-composer:focus-within {
-  border-color: rgba(96, 165, 250, 0.5);
+  border-color: var(--tau-accent);
 }
 
 .tau-ai-panel-input {
@@ -547,7 +559,7 @@
   resize: none;
   border: none;
   background: transparent;
-  color: #f5f5f7;
+  color: var(--tau-ink-1);
   padding: 7px 0;
   font-size: 14px;
   line-height: 1.5;
@@ -558,7 +570,7 @@
 }
 
 .tau-ai-panel-input::placeholder {
-  color: #6b6b70;
+  color: var(--tau-ink-3);
 }
 
 .tau-ai-panel-input:disabled {
@@ -583,12 +595,12 @@
 }
 
 .tau-ai-panel-send {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
 }
 
 .tau-ai-panel-send:hover {
-  background: #2563eb;
+  background: var(--tau-accent-hover);
 }
 
 .tau-ai-panel-send:active {
@@ -601,12 +613,12 @@
 }
 
 .tau-ai-panel-stop {
-  background: rgba(248, 113, 113, 0.2);
-  color: #f87171;
+  background: var(--tau-danger-soft);
+  color: var(--tau-danger);
 }
 
 .tau-ai-panel-stop:hover {
-  background: rgba(248, 113, 113, 0.32);
+  background: color-mix(in srgb, var(--tau-danger) 22%, transparent);
 }
 
 /* 加载动画 */
@@ -621,7 +633,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #60a5fa;
+  background: var(--tau-accent);
   animation: tau-dot-pulse 1.2s ease-in-out infinite;
 }
 
@@ -650,7 +662,7 @@
 .tau-ai-markdown {
   font-size: 14px;
   line-height: 1.7;
-  color: #f5f5f7;
+  color: var(--tau-ink-1);
   word-break: break-word;
 }
 
@@ -660,7 +672,7 @@
 .tau-ai-markdown h4,
 .tau-ai-markdown h5,
 .tau-ai-markdown h6 {
-  color: #f0f0f0;
+  color: var(--tau-ink-1);
   margin-top: 16px;
   margin-bottom: 8px;
   line-height: 1.4;
@@ -709,14 +721,14 @@
 }
 
 .tau-ai-markdown blockquote {
-  border-left: 3px solid rgba(96, 165, 250, 0.5);
+  border-left: 3px solid var(--tau-accent);
   margin: 12px 0;
   padding: 4px 12px;
-  color: #a1a1a6;
+  color: var(--tau-ink-2);
 }
 
 .tau-ai-markdown code {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--tau-bg-hover);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.9em;
@@ -724,7 +736,8 @@
 }
 
 .tau-ai-markdown pre {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--tau-bg-surface-hover);
+  border: 1px solid var(--tau-line-1);
   border-radius: 8px;
   padding: 12px 16px;
   margin: 12px 0;
@@ -747,24 +760,24 @@
 
 .tau-ai-markdown th,
 .tau-ai-markdown td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--tau-line-1);
   padding: 8px 12px;
   text-align: left;
 }
 
 .tau-ai-markdown th {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--tau-bg-hover);
   font-weight: 600;
 }
 
 .tau-ai-markdown hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--tau-line-1);
   margin: 16px 0;
 }
 
 .tau-ai-markdown a {
-  color: #60a5fa;
+  color: var(--tau-accent-text);
   text-decoration: none;
 }
 
@@ -773,7 +786,7 @@
 }
 
 .tau-ai-markdown strong {
-  color: #f0f0f0;
+  color: var(--tau-ink-1);
   font-weight: 600;
 }
 
