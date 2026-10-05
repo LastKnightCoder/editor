@@ -22,14 +22,6 @@ type BenchArrowElement = BoardElement & {
   target: { connectId?: string };
 };
 
-const EMPTY_REF_LINES: Array<{
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}> = [];
-
 const DEFAULT_VIEW_PORT: ViewPort = {
   minX: 0,
   minY: 0,
@@ -213,7 +205,6 @@ const RenderProfileHarness = ({
               isolateStaticSelection={isolateStaticSelection}
               gridVisible={false}
               showAssistLayers={false}
-              refLines={EMPTY_REF_LINES}
             />
           </Profiler>
         </ViewPortContext.Provider>

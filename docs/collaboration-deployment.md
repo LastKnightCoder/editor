@@ -46,7 +46,7 @@ curl -fsS https://collab.xiongtao.life/health/ready
 pnpm deploy:collaboration
 ```
 
-需要本地 Docker 正在运行、项目依赖已安装，以及免密 `ssh ali-ecs`。此命令部署当前工作目录中的源码，包括未提交的修改；只更新协作服务，不发布桌面客户端。
+需要本地 Docker 正在运行、项目依赖已安装，以及免密 `ssh ali-ecs`。此命令部署当前工作目录中的源码，包括未提交的修改；只更新协作服务，不发布桌面客户端。主仓库里 desktop 的 `electron-rebuild` 会把服务端依赖的 better-sqlite3 覆盖成 Electron ABI，部署前的服务端测试会先经 `scripts/ensure-node-sqlite.mjs` 自检并恢复 Node ABI（不影响 desktop 自己的实例），无需改到新装依赖的 worktree 部署。
 
 流程为完整服务端和共享协议测试、生产入口类型检查、本地 `linux/amd64` 构建、上传镜像与同源代码快照、远端备份、在备份副本上验证迁移、切换容器、HTTPS/WSS 和数据库完整性检查。默认基础镜像为 `public.ecr.aws/docker/library/node:24-bookworm-slim`，可通过 `COLLAB_NODE_IMAGE` 指定其他可信 Node 24 镜像。
 

@@ -9,12 +9,15 @@
  * 右上角搜索框按标题关键词筛选（停顿后下推到 getArticlePage，与标签叠加）。
  * 点击卡片/新建走页内导航到 article-detail 占位页（编辑器迁移后接正文编辑，
  * 见 DECISIONS.md D-015）；「窗口打开」菜单项保留 Electron 独立窗口能力。
+ * 网格卡 / 列表行 ⇄ 详情页的纸走共享元素形变（D-106）。
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Import, Plus, Search, X } from "lucide-react";
 import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageParams } from "@/page/PageProvider";
+import { morph, queryActivePageMorph } from "@/page/morph";
+import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
 import { Button, ConfirmDialog, Input, Loading, Spinner, cn, toast } from "@tau/ui";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
@@ -36,6 +39,7 @@ import { useArticlesPreferencesStore } from "../preferences";
 import { ArticleListRows } from "../components/ArticleListRows";
 import type { ArticleItemActions } from "../components/ArticleItemOps";
 import { ArticleCard, formatWords } from "./ArticleCard";
+import { articleMorphKey } from "../morph";
 
 const LOAD_MORE_THRESHOLD = 700;
 /** 搜索框停顿多久再查询（逐字下推会每键一次 IPC） */
@@ -77,15 +81,18 @@ export function ArticlesView() {
 
   const openDetail = useCallback(
     (article: ArticlePageItem) => {
-      navigator.push("article-detail", { id: article.id });
+      const key = articleMorphKey(article.id);
+      morph({
+        from: queryActivePageMorph(key),
+        update: () => navigator.push("article-detail", { id: article.id }),
+        to: () => queryActivePageMorph(key),
+      });
     },
     [navigator]
   );
 
-  /* 换排布或排序是另一条数据流，回到顶部从头看 */
-  useEffect(() => {
-    if (scrollEl) scrollEl.scrollTop = 0;
-  }, [scrollEl, layout, listSort]);
+  /* 换排布或排序是另一条数据流，回到顶部从头看（从详情返回不算，保留滚动位置） */
+  useScrollTopOnChange(scrollEl, `${layout}\n${listSort}`);
 
   /* 无限滚动：距底阈值触发，fetchNextPage 进行中不重入 */
   const { hasMore, loadingMore, loadMore } = feed;

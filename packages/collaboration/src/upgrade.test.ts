@@ -207,4 +207,25 @@ describe("共享会话降级为本机", () => {
 
     expect(withoutLocalFields()).toBe(before);
   });
+
+  it("还原不了的仅本机视频直接删除，能还原的换回本地路径", () => {
+    const LOCAL_VIDEO = "/Users/someone/Movies/clip.mp4";
+    const kept = "tau-collab-local:11111111-1111-4111-8111-111111111111";
+    const foreign = "tau-collab-local:22222222-2222-4222-8222-222222222222";
+    const value = article();
+    value.content.splice(
+      4,
+      0,
+      { type: "video", src: LOCAL_VIDEO, children: [{ text: "" }] },
+      { type: "video", src: foreign, children: [{ text: "" }] }
+    );
+    const { doc, privateNodes } = local(value);
+    upgradeLocalDocument(doc, privateNodes, new Map([[LOCAL_VIDEO, kept]]));
+
+    downgradeSharedDocument(doc, privateNodes, new Map([[kept, LOCAL_VIDEO]]));
+
+    const videos = readSharedContent(doc).content.filter(node => node.type === "video");
+    expect(videos).toHaveLength(1);
+    expect(videos[0]).toMatchObject({ src: LOCAL_VIDEO });
+  });
 });

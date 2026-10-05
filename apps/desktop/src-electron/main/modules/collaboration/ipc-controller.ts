@@ -8,6 +8,7 @@ import {
   type ContentSessionTarget,
 } from "@tau/collaboration";
 import type { CollaborationIpcContext } from "./types";
+import { isVideoFile } from "./asset-service";
 
 export function registerCollaborationIpc(context: CollaborationIpcContext) {
   const handle = <Args extends unknown[]>(
@@ -216,6 +217,8 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     "upload-resource",
     async (_event, id: string, file: { name: string; mime: string; bytes: Uint8Array }) => {
       const session = context.requireSession(id);
+      // 视频不上传服务器，只在插入者本机可播放，其他成员看到占位
+      if (isVideoFile(file)) return context.assets.keepLocalFile(session.info.id, file);
       if (file.bytes.byteLength > 25 * 1024 * 1024) throw new Error("文件超过 25 MB");
       session.provider?.detach();
       const reference = await context.assets.enqueue(session.info.id, file);
@@ -225,8 +228,8 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       return reference;
     }
   );
-  handle("resource", (_event, id: string, assetId: string) => {
+  handle("resource", (_event, id: string, reference: string) => {
     const session = context.requireSession(id);
-    return context.assets.resolve(session.info.serverUrl, session.info.id, assetId);
+    return context.assets.resolveReference(session.info.serverUrl, session.info.id, reference);
   });
 }

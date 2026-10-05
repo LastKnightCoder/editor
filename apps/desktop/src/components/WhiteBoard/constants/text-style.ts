@@ -66,7 +66,7 @@ const toneOf = (tone?: TextTone) => TEXT_TONES.find(t => t.value === tone);
 
 /**
  * 底板的底色与发丝线色；none 返回 null。卡片不用阴影，只靠发丝线分层。
- * sketchEdge：手绘模式下的墨迹框色——发丝线太淡，墨迹需要可辨的颜色（D-106）
+ * sketchEdge：手绘模式下的墨迹框色——发丝线太淡，墨迹需要可辨的颜色（D-107）
  */
 export function getTextSurface(
   style: TextStyle

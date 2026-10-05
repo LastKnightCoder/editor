@@ -72,7 +72,7 @@ export function registerAssetRoutes(
             .join("")
             .slice(0, 200) || "附件";
         const mime =
-          /^(image\/(png|jpeg|gif|webp|avif)|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+|application\/pdf)$/.test(
+          /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+|application\/pdf)$/.test(
             file.mimetype
           )
             ? file.mimetype

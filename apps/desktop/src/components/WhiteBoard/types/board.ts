@@ -41,7 +41,7 @@ export interface BoardElement {
   autoHeight?: boolean; // 是否高度自适应，默认 false
   /** 指向正文实体（kind 用 EntityRefKind 的写法）；白板引用索引通用识别 */
   entityRef?: EntityRef;
-  /** 手绘覆盖（D-106）：未设置时跟随页面画风 */
+  /** 手绘覆盖（D-107）：未设置时跟随页面画风 */
   sketch?: ElementSketch;
   [key: string]: any;
 }

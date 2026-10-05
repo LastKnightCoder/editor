@@ -98,6 +98,8 @@ import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { openEntity } from "@/services/open-content";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
 import { useInsightsView } from "@/features/insights/useInsightsView";
+import { cardMorphKey } from "../morph";
+import { CardContentPreview } from "../components/CardContentPreview";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -294,7 +296,11 @@ export function CardDetailView() {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸（同卡片库/微信读书笔记页）：正文列在纸内居中滚动 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* 纸面是形变目标（D-106）：正文会话就绪前由只读全文占位，卡片数据到位即可截图 */}
+      <div
+        data-morph-key={cardMorphKey(card.id)}
+        className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <FadeScroll className="my-4 min-h-0 flex-1">
           <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-8 pt-6">
             <article className="col-start-2 min-w-0">
@@ -517,6 +523,13 @@ export function CardDetailView() {
                     ref={editorRef}
                     contentId={card.contentId}
                     key={`${card.id}-${editorRemountKey}`}
+                    fallback={
+                      <CardContentPreview
+                        content={card.content}
+                        blocks={Infinity}
+                        className="min-h-[80px]"
+                      />
+                    }
                     initValue={card.content}
                     readonly={false}
                     source={{ sourceType: "card", sourceId: card.id }}

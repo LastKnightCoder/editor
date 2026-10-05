@@ -92,7 +92,7 @@ export function AssistDock() {
         "ease-tau-out transition-[margin,opacity,visibility] duration-[220ms]",
         // 首帧从收起态起滑；形变过渡期间一步到位
         "starting:mr-[calc(var(--assist-w)*-1)] starting:opacity-0",
-        "[[data-assist-morph]_&]:transition-none",
+        "[[data-morph]_&]:transition-none",
         overlay
           ? "shadow-float absolute bottom-[18px] right-[18px] top-0 z-30 mr-0"
           : "shadow-card relative mb-[18px] mr-[18px]",

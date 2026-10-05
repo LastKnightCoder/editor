@@ -1,4 +1,4 @@
-/* 由 scripts/build-hand-font.py 生成，勿手改。白板手绘模式字体（D-106），OFL-1.1，许可见同目录 */
+/* 由 scripts/build-hand-font.py 生成，勿手改。白板手绘模式字体（D-107），OFL-1.1，许可见同目录 */
 @font-face { font-family: "Tau Hand Latin"; src: url("./shantell-sans.woff2") format("woff2"); font-weight: 300 800; font-display: swap; unicode-range: U+20-7E, U+A0-FF, U+2010, U+2013-2014, U+2016, U+2018-201A, U+201C-201E, U+2020-2022, U+2026, U+2030, U+2032-2033, U+2039-203A, U+20AC, U+2190-2193, U+2212; }
 @font-face { font-family: "Tau Hand CJK 000"; src: url("./xiaolai-000.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+2C6-2DD, U+391-3A1, U+3A3-3C9, U+2002, U+200D, U+2011-2012, U+2015, U+2017, U+201B, U+201F, U+2023-2025, U+2027, U+2031, U+2034-2038, U+203B-203C, U+2042, U+2044, U+2047-2049, U+2051, U+2100-2138, U+213B, U+214D-214E, U+2153-2182, U+2184, U+2194-2198; }
 @font-face { font-family: "Tau Hand CJK 001"; src: url("./xiaolai-001.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+2199-21EA, U+21F5, U+2200-2211, U+2213-2289; }

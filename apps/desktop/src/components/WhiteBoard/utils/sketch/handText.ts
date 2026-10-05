@@ -10,6 +10,6 @@ const HAND_FONT_CLASS: Record<SketchLevel, string> = {
   loose: "font-tau-hand [font-variation-settings:'wght'_480,'INFM'_90]",
 };
 
-/** 手绘文字容器的类名（D-106）；未启用手绘时为空串 */
+/** 手绘文字容器的类名（D-107）；未启用手绘时为空串 */
 export const handTextClass = (sketch: ResolvedSketch) =>
   sketch.enabled ? HAND_FONT_CLASS[sketch.level] : "";

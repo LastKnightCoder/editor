@@ -231,7 +231,7 @@ export function AboutSection() {
   );
 }
 
-/** 白板手绘模式的内置字体（D-106） */
+/** 白板手绘模式的内置字体（D-107） */
 const BUNDLED_FONTS = [
   {
     name: "Shantell Sans",

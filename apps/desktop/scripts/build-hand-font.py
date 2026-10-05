@@ -1,5 +1,5 @@
 """
-白板手绘模式内置字体构建（D-106）：Shantell Sans（拉丁）+ 小赖 SC（中文）。
+白板手绘模式内置字体构建（D-107）：Shantell Sans（拉丁）+ 小赖 SC（中文）。
 
 - Shantell Sans：只留 Basic Latin / Latin-1 / 常用标点符号，可变轴保留 wght 与 INFM。
 - 小赖 SC：按《通用规范汉字表》8105 字 + 中文标点 + 全角字符子集化，再按 unicode-range
@@ -112,7 +112,7 @@ def main():
         shutil.rmtree(OUT)
     OUT.mkdir(parents=True)
     css = [
-        "/* 由 scripts/build-hand-font.py 生成，勿手改。白板手绘模式字体（D-106），OFL-1.1，许可见同目录 */"
+        "/* 由 scripts/build-hand-font.py 生成，勿手改。白板手绘模式字体（D-107），OFL-1.1，许可见同目录 */"
     ]
     # 导出内嵌用：分片 → 起始码位（分片互不重叠，起始码位即可唯一对上 document.fonts 里的 FontFace）
     manifest = []

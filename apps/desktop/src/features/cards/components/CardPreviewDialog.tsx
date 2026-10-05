@@ -4,11 +4,13 @@
  * 标签增删改经既有 AddTag。无 footer；右上区（× 下方）平铺「进入详情」+
  * More 菜单（域内共享 CardActionMenu；「进入详情」菜单项与演示前落盘为预览
  * 特有差异，经 props 注入）。元数据由卡片查询同步，标签仅提交字段补丁；
- * 正文经 ContentEditor 文档会话同步。「进入详情」落盘后交 actions.onOpenDetail
- * （宿主演示为 navigator.push("card-detail")）。
+ * 正文经 ContentEditor 文档会话同步。「进入详情」落盘后交 actions.onOpenDetail，
+ * 由宿主在同一次形变里收起预览并 push 详情（D-106）；ref 指向弹窗卡体，宿主据此
+ * 定位形变的起止元素（卡体 data-state="open" 即内容就绪）。正文会话就绪前以只读全文
+ * 占位显示，弹窗随卡片数据就位即可展示，形变不等会话加载。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { useRafInterval, useUnmount } from "ahooks";
 import { produce } from "immer";
 import type { Descendant, Editor as SlateEditor } from "slate";
@@ -21,6 +23,7 @@ import { formatDate, getContentLength } from "@/utils";
 import { useCardsMutations } from "../queries";
 import type { ICard } from "@/types";
 import { CardActionMenu } from "./CardActionMenu";
+import { CardContentPreview } from "./CardContentPreview";
 import type { CardItemActions } from "../types";
 import { Dialog, DialogBody, IconButton, Button } from "@tau/ui";
 
@@ -34,6 +37,7 @@ export interface CardPreviewDialogProps {
   actions: CardItemActions;
   onOpenChange(open: boolean): void;
   onSaved?(card: ICard): void;
+  ref?: Ref<HTMLDivElement>;
 }
 
 export function CardPreviewDialog({
@@ -44,11 +48,11 @@ export function CardPreviewDialog({
   actions,
   onOpenChange,
   onSaved,
+  ref,
 }: CardPreviewDialogProps) {
   const [editing, setEditing] = useState<ICard | null>(null);
   const [initValue, setInitValue] = useState<Descendant[]>([]);
   const [displayError, setDisplayError] = useState(error);
-  const [readyEditorId, setReadyEditorId] = useState<number | null>(null);
   const editorRef = useRef<EditorRef>(null);
   const prevRef = useRef<ICard | null>(null);
   const { patch } = useCardsMutations();
@@ -111,7 +115,6 @@ export function CardPreviewDialog({
 
   const handleInit = (_editor: SlateEditor, content: Descendant[]) => {
     if (!editing) return;
-    setReadyEditorId(editing.id);
     setEditing(
       produce(editing, draft => {
         draft.content = content;
@@ -145,7 +148,6 @@ export function CardPreviewDialog({
 
   const openDetail = async () => {
     await saveCard();
-    onOpenChange(false);
     if (editing) actions.onOpenDetail(editing);
   };
 
@@ -153,14 +155,13 @@ export function CardPreviewDialog({
 
   return (
     <Dialog
+      ref={ref}
       open={open && (Boolean(card && editing?.id === card.id) || Boolean(error))}
-      contentReady={Boolean(error) || Boolean(editing && readyEditorId === editing.id)}
       onAfterClose={() => {
         if (open) return;
         setEditing(null);
         setInitValue([]);
         setDisplayError(undefined);
-        setReadyEditorId(null);
         prevRef.current = null;
       }}
       onOpenChange={open => {
@@ -229,7 +230,13 @@ export function CardPreviewDialog({
                 key={editing.id}
                 initValue={initValue}
                 onInit={handleInit}
-                onLoadError={() => setReadyEditorId(editing.id)}
+                fallback={
+                  <CardContentPreview
+                    content={initValue}
+                    blocks={Infinity}
+                    className="min-h-[240px]"
+                  />
+                }
                 onChange={handleContentChange}
                 readonly={false}
                 source={{ sourceType: "card", sourceId: editing.id }}

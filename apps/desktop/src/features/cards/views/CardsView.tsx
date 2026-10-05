@@ -10,11 +10,13 @@
  * 表格 = 既有 CardDatabaseView（Database 组件）复用。图谱已移到全局知识地图（KL-022）。
  * 视图切换在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，usePageBreadcrumb 注入）。
  * 不设页内搜索——卡片标题由元信息承担（D-100），语义检索由全局命令面板（Ctrl+K）承担。
+ * 卡面 / 列表行 ⇄ 预览弹窗 ⇄ 详情页的纸走共享元素形变（D-106）；表格视图不形变。
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
+import { morph, queryActivePageMorph } from "@/page/morph";
 import { Import, Layers, Plus, X } from "lucide-react";
 import type { Descendant } from "slate";
 import "../cards.css";
@@ -45,12 +47,16 @@ import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import { CreateCardDialog } from "../components/CreateCardDialog";
 import type { CardFilter, CardItemActions } from "../types";
 import type { CardListSort } from "../listModel";
+import { cardMorphKey } from "../morph";
 import {
   DEFAULT_CARDS_PREFERENCES,
   useCardsPreferencesStore,
   type CardsViewMode,
 } from "../preferences";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
+
+/** 悬停预取的新鲜期：鼠标在墙上来回划过时不重复读取 */
+const PREFETCH_STALE_MS = 30_000;
 
 export function CardsView() {
   const { navigator } = usePage();
@@ -73,6 +79,7 @@ export function CardsView() {
   const clearTag = () => navigator.push("cards", { id: "" });
   const resetScrollKey = tag;
   const [previewCardId, setPreviewCardId] = useState<number | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ICard | null>(null);
   const [presenting, setPresenting] = useState<ICard | null>(null);
@@ -132,9 +139,50 @@ export function CardsView() {
     }
   };
 
+  /* 形变定位：卡面在本页（激活页）内按 key 找；预览卡体内容就绪才算可形变 */
+  const cardElement = (id: number) => queryActivePageMorph(cardMorphKey(id));
+  const openPreviewElement = () =>
+    previewRef.current?.dataset.state === "open" ? previewRef.current : null;
+
+  const openPreview = (card: ICard) =>
+    morph({
+      from: cardElement(card.id),
+      update: () => setPreviewCardId(card.id),
+      to: openPreviewElement,
+    });
+
+  /* 原卡还在（未被删、在视口内）才缩回，否则弹窗照常淡出 */
+  const closePreview = () => {
+    const id = previewCardId;
+    morph({
+      from: id !== null && cardElement(id) ? openPreviewElement() : null,
+      update: () => setPreviewCardId(null),
+      to: () => (id === null ? null : cardElement(id)),
+    });
+  };
+
+  /* 从预览进入时由弹窗卡体形变，卡面「进入详情」直接由卡形变；收起预览与 push 同批 */
+  const openDetail = (card: ICard) =>
+    morph({
+      from: openPreviewElement() ?? cardElement(card.id),
+      update: () => {
+        setPreviewCardId(null);
+        navigator.push("card-detail", { id: card.id });
+      },
+      to: () => queryActivePageMorph(cardMorphKey(card.id)),
+    });
+
   const actions: CardItemActions = {
-    onOpen: card => setPreviewCardId(card.id),
-    onOpenDetail: card => navigator.push("card-detail", { id: card.id }),
+    onOpen: openPreview,
+    onPrefetch: card => {
+      if (!databaseName) return;
+      void queryClient.prefetchQuery({
+        queryKey: cardDetailKey(databaseName, card.id),
+        queryFn: () => getScopedCard(databaseName, card.id),
+        staleTime: PREFETCH_STALE_MS,
+      });
+    },
+    onOpenDetail: openDetail,
     onToggleTop: card => mutations.toggleTop.mutate({ card, isTop: !card.isTop }),
     onPresent: card => {
       void requireFullCard(card).then(full => full && setPresenting(full));
@@ -285,13 +333,14 @@ export function CardsView() {
 
       {/* 浮层：预览（编辑） / 新建 / 删除确认 / 演示 / 导出×3 */}
       <CardPreviewDialog
+        ref={previewRef}
         open={previewCardId !== null}
         card={previewCard}
         error={previewCardQuery.error?.message}
         onRetry={() => void previewCardQuery.refetch()}
         actions={actions}
         onOpenChange={open => {
-          if (!open) setPreviewCardId(null);
+          if (!open) closePreview();
         }}
       />
       <CreateCardDialog open={creating} onClose={() => setCreating(false)} />

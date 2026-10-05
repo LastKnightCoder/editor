@@ -10,6 +10,7 @@ import {
   readSharedContent,
   replaceSharedContent,
   replaceText,
+  isSafeResource,
   validateDocument,
 } from "./document";
 
@@ -84,7 +85,9 @@ describe("共享文档", () => {
       replaceSharedContent(doc, next as never, privateNodes);
 
       // 云端（不传私有块）看到占位符，本机（传真身）还原为白板
-      expect(readSharedContent(doc).content[1]).toMatchObject({ type: "collaboration-placeholder" });
+      expect(readSharedContent(doc).content[1]).toMatchObject({
+        type: "collaboration-placeholder",
+      });
       expect(readSharedContent(doc, privateNodes).content[1]).toMatchObject({ type: "whiteboard" });
     } finally {
       doc.destroy();
@@ -293,6 +296,34 @@ describe("共享文档", () => {
     expect(JSON.stringify(panes[1])).toContain("最新 B");
     expect(JSON.stringify(panes)).not.toContain("tabsContent");
     doc.getMap("meta").set("bannerBg", "file:///etc/passwd");
+    expect(() => validateDocument(doc)).toThrow("本地路径");
+    doc.destroy();
+  });
+
+  it("仅本机资源引用只接受不透明标识，不能借前缀夹带本地路径", () => {
+    const id = "0b5c6a3e-1f2d-4c5b-9a8e-7d6c5b4a3f21";
+    expect(isSafeResource(`tau-collab-local:${id}`)).toBe(true);
+    expect(isSafeResource("tau-collab-local:/Users/me/clip.mp4")).toBe(false);
+    const doc = createSharedDocument({
+      ...article,
+      content: [{ type: "video", src: `tau-collab-local:${id}`, children: [{ text: "" }] }],
+    });
+    expect(() => validateDocument(doc)).not.toThrow();
+    doc.destroy();
+  });
+
+  it("附件的本机路径字段同样受资源校验", () => {
+    const doc = createSharedDocument({
+      ...article,
+      content: [
+        {
+          type: "file-attachment",
+          filePath: "https://files.example/a.pdf",
+          localFilePath: "/Users/me/a.pdf",
+          children: [{ text: "" }],
+        },
+      ],
+    });
     expect(() => validateDocument(doc)).toThrow("本地路径");
     doc.destroy();
   });
