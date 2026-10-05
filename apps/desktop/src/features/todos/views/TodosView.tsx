@@ -51,7 +51,7 @@ import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
-import { readSavedGroupFilter, saveGroupFilter } from "../preferences";
+import { readSavedGroupFilter, readSavedMode, saveGroupFilter, saveMode } from "../preferences";
 
 const UNDO_MS = 5000;
 
@@ -75,7 +75,7 @@ export function TodosView() {
   useEffect(() => {
     if (params.id !== undefined) saveGroupFilter(params.id);
   }, [params.id]);
-  const [mode, setMode] = useState<AgendaMode>("date");
+  const [mode, setMode] = useState<AgendaMode>(readSavedMode);
   // 项目筛选 = 侧栏子项选中的项目（0 = 全部）；项目被归档 / 删除后自然回到全部
   const groupFilter =
     params.id && snapshot?.groups.some(g => g.id === Number(params.id)) ? Number(params.id) : 0;
@@ -419,7 +419,10 @@ export function TodosView() {
               <Segmented
                 label="分段方式"
                 value={mode}
-                onValueChange={(v: AgendaMode) => setMode(v)}
+                onValueChange={(v: AgendaMode) => {
+                  setMode(v);
+                  saveMode(v);
+                }}
               >
                 <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
                 <Segmented.Item value="group" icon={Folder} label="按项目" />
