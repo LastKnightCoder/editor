@@ -35,11 +35,6 @@ export const CornerIcon = (p: SVGProps<SVGSVGElement>) => (
     <path d="M4 20V10a6 6 0 0 1 6-6h10" />
   </Icon>
 );
-export const ScribbleIcon = (p: SVGProps<SVGSVGElement>) => (
-  <Icon {...p}>
-    <path d="M3 17c3-7 5-10 7-10s-1 8 1 8 4-6 6-6-1 4 1 4 3-2 3-2" />
-  </Icon>
-);
 export const DashIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M3 12h4M10 12h4M17 12h4" />
