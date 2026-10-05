@@ -20,3 +20,6 @@ export const SKETCH_FILL_OPTIONS: { value: SketchFillStyle; label: string }[] = 
 
 export const sketchLevelLabel = (level: SketchLevel) =>
   SKETCH_LEVEL_OPTIONS.find(o => o.value === level)?.label ?? "";
+
+/** 媒体类元素（图片 / 视频 / 网页 / 音频 / 白板引用）手绘外框的墨色 */
+export const SKETCH_MEDIA_FRAME = "var(--tau-ink-3)";

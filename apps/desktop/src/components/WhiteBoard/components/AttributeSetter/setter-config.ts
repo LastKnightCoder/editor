@@ -7,6 +7,7 @@ import FrameSetter from "./FrameSetter";
 import MindMapSetter from "./MindMapSetter";
 import HandwriteSetter from "./HandwriteSetter";
 import ColumnSetter from "./ColumnSetter";
+import MediaSetter from "./MediaSetter";
 
 export default {
   richtext: {
@@ -35,6 +36,18 @@ export default {
   },
   "mind-node": {
     component: MindMapSetter,
+  },
+  video: {
+    component: MediaSetter,
+  },
+  webview: {
+    component: MediaSetter,
+  },
+  audio: {
+    component: MediaSetter,
+  },
+  whiteboard: {
+    component: MediaSetter,
   },
   multiselect: {
     component: MultiSelectSetter,

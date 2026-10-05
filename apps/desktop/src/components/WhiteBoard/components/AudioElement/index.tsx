@@ -1,20 +1,23 @@
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
 import If from "@/components/If";
+import { cn } from "@tau/ui";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
 import { Music, Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 import { Board, EHandlerPosition, Point, AudioElement } from "../../types";
 import { PointUtil } from "../../utils";
-import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
   SELECT_RECT_FILL_OPACITY,
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
+  SKETCH_MEDIA_FRAME,
 } from "../../constants";
 import { AUDIO_CARD_HEIGHT } from "../../constants/audio";
 import useTheme from "@/hooks/useTheme";
@@ -96,6 +99,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
   const accentColor = "var(--tau-accent)";
   const board = useBoard();
   const { isSelected } = useSelectState(id);
+  const sketch = useSketch(element);
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -235,7 +239,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
         }}
       >
         <div
-          className={`${styles.audioCard} ${isDark ? styles.dark : ""}`}
+          className={cn(styles.audioCard, isDark && styles.dark, sketch.enabled && "font-tau-hand")}
           style={{ width: width, height: height }}
           onDoubleClick={stopAllPropagation}
         >
@@ -325,6 +329,19 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
           </div>
         </div>
       </foreignObject>
+      {sketch.enabled && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={12}
+          stroke={SKETCH_MEDIA_FRAME}
+          strokeWidth={1.5}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
 
       <If condition={isSelected}>
         <g>

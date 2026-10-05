@@ -231,9 +231,9 @@ describe("resolveSketch", () => {
     ).toMatchObject({ enabled: true, level: "neat" });
   });
 
-  it("不在名单内的类型（手写、图片）不手绘", () => {
+  it("手写不跟随手绘（本来就是墨迹），媒体与卡片跟随", () => {
     expect(resolveSketch(page, { id: "a", type: "handwrite" }).enabled).toBe(false);
-    expect(resolveSketch(page, { id: "a", type: "image" }).enabled).toBe(false);
+    expect(resolveSketch(page, { id: "a", type: "image" }).enabled).toBe(true);
     expect(resolveSketch(page, { id: "a", type: "card" }).enabled).toBe(true);
   });
 

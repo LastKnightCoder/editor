@@ -14,6 +14,7 @@ import { ImageUtil } from "../../../utils";
 import useTheme from "@/hooks/useTheme";
 import { AttrPopover, Field, OptionGrid, Seg, SwatchRow } from "../../../chrome";
 import { ShadowIcon } from "../../../chrome/icons";
+import SketchPopover from "../SketchPopover";
 
 interface ImageSetterProps {
   element: ImageElement;
@@ -161,6 +162,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
           </>
         )}
       </AttrPopover>
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 });
