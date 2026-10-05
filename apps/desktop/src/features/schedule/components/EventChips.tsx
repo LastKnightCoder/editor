@@ -1,8 +1,9 @@
 /**
  * 日程的三种展示形态（日/周/月视图共用，取代各视图里复制的内联色块）：
- * - AllDayBar：全天 / 跨天 = 数据色软底条，文字取数据色偏墨，跨行续接处去圆角；
+ * - AllDayBar：全天 / 跨天 / 标记（截止、周期打卡）= 数据色软底条，文字取数据色偏墨，跨行续接处去圆角；
+ *   定时标记带时刻，已完成的标记整体变淡；
  * - TimedChip：月视图单日定时 = 透明底 + 色点 + mono 时间；
- * - TimedBlock：时间网格块 = 软底 + 左缘 3px 色条，过去的日程降透明度。
+ * - TimedBlock：时间网格块 = 左缘 3px 色条 + 账本底色（记录实心、计划空心描边、进行中在现在处切开）。
  * 位置由调用方（布局算法）通过 style 给出，这里只管皮。
  */
 
@@ -10,7 +11,8 @@ import type { CSSProperties, MouseEvent } from "react";
 import { cn } from "@tau/ui";
 import { formatTime } from "@/utils/calendar";
 import type { Calendar, CalendarEvent } from "@/types";
-import { TONE, TONE_SOFT_BG, eventToneStyle } from "../eventTone";
+import { PLAN_OUTLINE, TONE, TONE_SOFT_BG, eventToneStyle, ledgerFill } from "../eventTone";
+import type { LedgerPhase } from "../ledger";
 import { EventTitle, type EventDecor } from "./EventTitle";
 
 interface ChipProps {
@@ -37,6 +39,7 @@ export function AllDayBar({
   continuesLeft,
   continuesRight,
 }: ChipProps & { continuesLeft?: boolean; continuesRight?: boolean }) {
+  const markerTime = event.allDay ? null : event.startTime;
   return (
     <div
       title={event.title}
@@ -54,9 +57,15 @@ export function AllDayBar({
         TONE_TEXT,
         continuesLeft && "rounded-l-none",
         continuesRight && "rounded-r-none",
+        decor.source?.isCompleted && "opacity-55",
         className
       )}
     >
+      {markerTime !== null && (
+        <span className="font-tau-mono mr-1.5 shrink-0 text-[10.5px] tabular-nums opacity-80">
+          {formatTime(markerTime)}
+        </span>
+      )}
       <EventTitle event={event} decor={decor} />
     </div>
   );
@@ -98,8 +107,10 @@ export function TimedBlock({
   style,
   className,
   compact,
-  past,
-}: ChipProps & { compact?: boolean; past?: boolean }) {
+  phase,
+}: ChipProps & { compact?: boolean; phase: LedgerPhase }) {
+  const fill = ledgerFill(phase);
+  const planned = phase.kind !== "record";
   const range =
     event.startTime !== null
       ? `${formatTime(event.startTime)}${event.endTime !== null ? ` – ${formatTime(event.endTime)}` : ""}`
@@ -112,14 +123,20 @@ export function TimedBlock({
         onClick(e.currentTarget);
       }}
       onMouseDown={stop}
-      style={{ ...eventToneStyle(event, calendars), ...style }}
+      style={{
+        ...eventToneStyle(event, calendars),
+        ...fill.style,
+        // 计划 / 进行中的描边：用 outline 而非 box-shadow，不与悬停阴影互相覆盖
+        ...(planned && { outline: `1px solid ${PLAN_OUTLINE}`, outlineOffset: -1 }),
+        ...style,
+      }}
       className={cn(
         "absolute cursor-pointer overflow-hidden rounded-[7px] py-1 pl-[9px] pr-1.5",
         "hover:shadow-lift text-[12px] leading-[1.35] transition-shadow duration-[160ms]",
         "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-[var(--cal)]",
         TONE,
-        TONE_SOFT_BG,
-        past && "opacity-60",
+        fill.className,
+        phase.kind === "plan" && "before:opacity-50",
         className
       )}
     >

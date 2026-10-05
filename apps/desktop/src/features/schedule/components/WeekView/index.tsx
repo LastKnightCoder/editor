@@ -3,7 +3,8 @@ import dayjs from "dayjs";
 import { cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import { useScheduleStore } from "../../uiStore";
-import { useCalendarCatalog, useCalendarEvents } from "../../queries";
+import { useCalendarCatalog, useCalendarEvents, useCalendarRoles } from "../../queries";
+import { eventPhase, isMarker } from "../../ledger";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
 import { getWeekStart, isToday, getDateStart } from "@/utils/calendar";
@@ -43,6 +44,7 @@ const WeekView = () => {
   const setCurrentDate = useScheduleStore(s => s.setCurrentDate);
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
+  const roles = useCalendarRoles();
 
   const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(null);
   const nowMinutes = useNowMinutes();
@@ -89,20 +91,23 @@ const WeekView = () => {
     });
   };
 
-  // 定时日程按天分列
+  // 定时日程按天分列（标记不进时间网格）
   const dayTimedEventsLists = useMemo(
     () =>
       weekDays.map(day => {
         const dayDate = getDateStart(day.getTime());
         return (events ?? []).filter(
-          event => !event.allDay && getDateStart(event.startDate) === dayDate
+          event => !isMarker(event, roles) && getDateStart(event.startDate) === dayDate
         );
       }),
-    [weekDays, events]
+    [weekDays, events, roles]
   );
 
-  // 全天日程：跨天条与单日条共用一套分层
-  const allDayEvents = useMemo(() => (events ?? []).filter(event => event.allDay), [events]);
+  // 全天车道放全部标记（全天日程、截止、周期打卡）：跨天条与单日条共用一套分层
+  const allDayEvents = useMemo(
+    () => (events ?? []).filter(event => isMarker(event, roles)),
+    [events, roles]
+  );
   const eventLevels = useMemo(
     () => assignWeekViewLevels(allDayEvents, weekDays[0]),
     [allDayEvents, weekDays]
@@ -242,7 +247,8 @@ function WeekDayColumn({
     gridStartTime: 0,
   });
   const today = isToday(day.getTime());
-  const dayStart = getDateStart(day.getTime());
+  // 分钟精度，随 nowMinutes 的 tick 推进
+  const nowMs = getDateStart(Date.now()) + nowMinutes * 60_000;
 
   return (
     <div
@@ -275,7 +281,7 @@ function WeekDayColumn({
             decor={decorOf(event)}
             onClick={anchor => onOpen(event, anchor)}
             compact={height < 36}
-            past={dayStart + end * 60000 < Date.now()}
+            phase={eventPhase(event, nowMs)}
             style={{
               top: minutesToPx(start),
               height,

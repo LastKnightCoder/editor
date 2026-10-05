@@ -27,28 +27,29 @@ export interface QuickAddResult {
   hints: { date?: string; time?: string; calendar?: string };
 }
 
+/** 摘出 `#日历` 标签（按日历名精确匹配，其次前缀匹配）；匹配不到的标签原样留在文本里 */
+export function extractCalendarTag(
+  input: string,
+  calendars: QuickAddCalendar[]
+): { rest: string; calendarId: number | null; hint?: string } {
+  const tag = input.match(/[#＃](\S+)/);
+  if (!tag) return { rest: input, calendarId: null };
+  const name = tag[1];
+  const found =
+    calendars.find(c => c.title === name) ?? calendars.find(c => c.title.startsWith(name));
+  if (!found) return { rest: input, calendarId: null };
+  return { rest: input.replace(tag[0], " "), calendarId: found.id, hint: found.title };
+}
+
 export function parseQuickAdd(
   input: string,
   options: { baseDate: number; now?: Date; calendars: QuickAddCalendar[] }
 ): QuickAddResult {
-  let rest = ` ${input} `;
-
-  // 日历：#名称
-  let calendarId: number | null = null;
-  let calendarHint: string | undefined;
-  const tag = rest.match(/[#＃](\S+)/);
-  if (tag) {
-    const name = tag[1];
-    const found =
-      options.calendars.find(c => c.title === name) ??
-      options.calendars.find(c => c.title.startsWith(name));
-    // 匹配不到日历的标签原样留在标题里
-    if (found) {
-      rest = rest.replace(tag[0], " ");
-      calendarId = found.id;
-      calendarHint = found.title;
-    }
-  }
+  const {
+    rest,
+    calendarId,
+    hint: calendarHint,
+  } = extractCalendarTag(` ${input} `, options.calendars);
 
   const dt = extractDateTime(rest, options.now ?? new Date());
   const { startTime } = dt;
