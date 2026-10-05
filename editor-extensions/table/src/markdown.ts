@@ -1,34 +1,55 @@
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
+import type { TableAlign } from "./align";
+
+type AlignedTable = { align?: TableAlign[] };
 
 const isNonBlank = (value: string): boolean => value.trim().length > 0;
 
-const buildSimpleTable = (rows: string[]): string => {
+const SEPARATOR: Record<NonNullable<TableAlign> | "none", string> = {
+  none: "---",
+  left: ":---",
+  center: ":---:",
+  right: "---:",
+};
+
+const buildSimpleTable = (rows: string[], align: readonly TableAlign[] = []): string => {
   if (rows.length === 0) return "";
   const firstRow = rows[0];
   const pipeCount = firstRow.split("|").length - 1;
   const cellCount = Math.max(pipeCount - 1, 0);
-  const separator = `| ${Array.from({ length: cellCount })
-    .map(() => "---")
-    .join(" | ")} |`;
+  const separator = `| ${Array.from({ length: cellCount }, (_, i) => SEPARATOR[align[i] ?? "none"]).join(" | ")} |`;
   return [firstRow, separator, ...rows.slice(1)].join("\n");
+};
+
+const isAlign = (value: unknown): value is TableAlign =>
+  value === null || value === "left" || value === "center" || value === "right";
+
+const importAlign = (value: unknown): TableAlign[] | undefined => {
+  if (!Array.isArray(value)) return;
+  const align = value.map(item => (isAlign(item) ? item : null));
+  return align.some(item => item !== null) ? align : undefined;
 };
 
 export const tableCodec: MarkdownCodec = {
   type: "table",
   childSeparator: "\n",
-  importNode: node =>
-    node.type === "table" ? ({ type: "table", children: [] } as unknown as Descendant) : null,
+  importNode: node => {
+    if (node.type !== "table") return null;
+    const align = importAlign(node.align);
+    return { type: "table", children: [], ...(align ? { align } : {}) } as unknown as Descendant;
+  },
   serializer: {
     isBlock: true,
-    toMarkdown: (_element, children) => buildSimpleTable(children.split("\n").filter(isNonBlank)),
-    toMarkdownStructured: (_element, children) => {
+    toMarkdown: (element, children) =>
+      buildSimpleTable(children.split("\n").filter(isNonBlank), (element as AlignedTable).align),
+    toMarkdownStructured: (element, children) => {
       const rows = children.split("\n").filter(isNonBlank);
       if (rows.length === 0) {
         return { output: "" };
       }
       return {
-        output: buildSimpleTable(rows),
+        output: buildSimpleTable(rows, (element as AlignedTable).align),
         childLineShifts: rows.length > 1 ? [{ startIndex: 1, lineDelta: 1 }] : [],
       };
     },
