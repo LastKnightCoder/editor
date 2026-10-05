@@ -22,11 +22,7 @@ const useCreateGeometry = () => {
 
   const handlePointerDown = useMemoizedFn((e: PointerEvent) => {
     if (createBoardElementType !== ECreateBoardElementType.Geometry) return;
-    startPoint.current = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    startPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint.current) return;
 
     e.stopPropagation();
@@ -39,11 +35,7 @@ const useCreateGeometry = () => {
 
   const handlePointerMove = useMemoizedFn((e: PointerEvent) => {
     if (!startPoint.current) return;
-    currentPoint.current = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    currentPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!currentPoint.current) return;
 
     if (!isMoved.current) {
@@ -82,13 +74,7 @@ const useCreateGeometry = () => {
       height = max;
     }
 
-    const {
-      cornerRadius,
-      textAlign,
-      sketchEnabled,
-      sketchOptions: rememberedSketchOptions,
-      ...geometryStyle
-    } = GeometryUtil.getPrevGeometryStyle();
+    const { cornerRadius, textAlign, ...geometryStyle } = GeometryUtil.getPrevGeometryStyle();
 
     if (!geometryCreateId.current) {
       geometryCreateId.current = getUuid();
@@ -124,14 +110,6 @@ const useCreateGeometry = () => {
       y,
       width,
       height,
-      sketchEnabled,
-      sketchOptions:
-        sketchEnabled && rememberedSketchOptions
-          ? {
-              ...rememberedSketchOptions,
-              seed: Math.floor(Math.random() * 2147483647),
-            }
-          : undefined,
       ...geometryStyle,
     };
 
@@ -146,13 +124,13 @@ const useCreateGeometry = () => {
             node: geometryElement,
           },
         ],
-        false,
+        false
       );
     } else {
       const ops = BoardUtil.diffNodePatchOnly(
         createdGeometry.current,
         geometryElement,
-        createdGeometryPath.current,
+        createdGeometryPath.current
       );
       if (ops.length > 0) {
         board.apply(ops, false);
@@ -177,7 +155,7 @@ const useCreateGeometry = () => {
             node: createdGeometry.current,
           },
         ],
-        false,
+        false
       );
 
       board.apply(
@@ -188,7 +166,7 @@ const useCreateGeometry = () => {
             node: createdGeometry.current,
           },
         ],
-        true,
+        true
       );
     }
 
@@ -227,13 +205,7 @@ const useCreateGeometry = () => {
         boardContainer.removeEventListener("pointerdown", handlePointerDown);
       }
     };
-  }, [
-    createBoardElementType,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    board,
-  ]);
+  }, [createBoardElementType, handlePointerDown, handlePointerMove, handlePointerUp, board]);
 };
 
 export default useCreateGeometry;

@@ -1,6 +1,5 @@
 import { geometrySetterManager } from "./GeometrySetterManager";
 import { RectangleCornerRadiusSetter } from "./setters/RectangleCornerRadiusSetter";
-import { SketchStyleSetter } from "./setters/SketchStyleSetter";
 import { ColorSetter } from "./setters/ColorSetter";
 import { StrokeWidthSetter } from "./setters/StrokeWidthSetter";
 import { AlignSetter } from "./setters/AlignSetter";
@@ -17,7 +16,4 @@ export function registerGeometrySetters() {
 
   // 注册矩形的圆角设置器
   geometrySetterManager.register(new RectangleCornerRadiusSetter());
-
-  // 注册草图风格设置器（适用于所有几何图形）
-  geometrySetterManager.register(new SketchStyleSetter());
 }

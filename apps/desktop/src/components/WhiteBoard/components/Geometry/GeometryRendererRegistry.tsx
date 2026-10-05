@@ -64,11 +64,11 @@ class GeometryRendererRegistry {
     // 重新排序渲染器和优先级
     this.renderers.set(
       geometryType,
-      indices.map((i) => renderers[i]),
+      indices.map(i => renderers[i])
     );
     this.priorities.set(
       geometryType,
-      indices.map((i) => priorities[i]),
+      indices.map(i => priorities[i])
     );
   };
 
@@ -87,7 +87,7 @@ class GeometryRendererRegistry {
   renderGeometry = (props: GeometryRendererProps): React.ReactNode => {
     const { element } = props;
 
-    // 首先尝试使用通用渲染器（可能包含草图风格等特殊渲染器）
+    // 首先尝试使用通用渲染器（geometryType 为 "*"）
     const universalRenderers = this.renderers.get("*");
     if (universalRenderers) {
       for (const renderer of universalRenderers) {
