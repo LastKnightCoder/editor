@@ -9,6 +9,11 @@ const { openLocalMediaPickerMock, openMediaUrlInputMock } = vi.hoisted(() => ({
   openLocalMediaPickerMock: vi.fn(),
   openMediaUrlInputMock: vi.fn(),
 }));
+const openLinkPanel = vi.hoisted(() => vi.fn());
+vi.mock("@tau/editor-link", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/editor-link")>()),
+  openLinkPanel,
+}));
 vi.mock("@tau/editor-media", async importOriginal => ({
   ...(await importOriginal<typeof import("@tau/editor-media")>()),
   openLocalMediaPicker: (...args: unknown[]) => openLocalMediaPickerMock(...args),
@@ -301,7 +306,9 @@ describe("useMobileEditorToolbarController", () => {
       linkController.syncSelection();
       linkController.executeAction("link");
     });
-    expect(hasNodeType(linkEditor, "link")).toBe(true);
+    // 链接改由浮层输入地址后才成链，不再预插空链接
+    expect(openLinkPanel).toHaveBeenCalledWith(linkEditor);
+    expect(hasNodeType(linkEditor, "link")).toBe(false);
 
     const styledTextEditor = createFormattedEditor("样式能力");
     const styledTextController = mountController(styledTextEditor);

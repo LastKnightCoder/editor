@@ -1,4 +1,4 @@
-import { unwrapLink, wrapLink } from "@tau/editor-link";
+import { openLinkPanel } from "@tau/editor-link";
 import { wrapComment, unwrapComment } from "@tau/editor-comment";
 import { wrapKbd, unwrapKbd } from "@tau/editor-kbd";
 import { unwrapStyledText, wrapStyledText } from "@tau/editor-styled-text";
@@ -428,11 +428,9 @@ export function toggleInlineWrap(editor: Editor, actionId: InlineWrapActionId): 
       wrapStyledText(editor);
     }
   } else if (actionId === "link") {
-    if (hasNodeType(editor, "link")) {
-      unwrapLink(editor);
-    } else {
-      wrapLink(editor, "", true);
-    }
+    // 链接浮层自己保存选区并负责新建 / 编辑（在链接里时编辑，取消链接在浮层内）
+    openLinkPanel(editor);
+    return;
   }
 
   collapseSelectionIfExpanded(editor);
