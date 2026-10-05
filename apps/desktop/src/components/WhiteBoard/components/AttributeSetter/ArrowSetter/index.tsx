@@ -9,6 +9,7 @@ import { saveArrowStylePresetFromElement } from "../../../utils";
 import { THEME_COLORS, getDefaultThemeColorId } from "../../../constants/theme-colors";
 import { AttrPopover, AttrToggle, Field, OptionGrid, Slider, SwatchRow } from "../../../chrome";
 import { DashIcon, LineWidthIcon, MarkerEndIcon, MarkerStartIcon } from "../../../chrome/icons";
+import SketchPopover from "../SketchPopover";
 
 interface ArrowSetterProps {
   element: ArrowElement;
@@ -198,6 +199,7 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           onChange={v => set(d => void (d.animated = v))}
         />
       )}
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 };

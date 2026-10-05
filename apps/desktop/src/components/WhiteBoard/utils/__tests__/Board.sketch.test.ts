@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Board from "../../Board";
 import { DEFAULT_PAGE_SKETCH, type BoardElement, type PageSketch } from "../../types";
+import { SketchTransforms } from "../../transforms";
 
 const rect = (id: string): BoardElement => ({
   id,
@@ -96,5 +97,24 @@ describe("Board 页级画风（set_sketch）", () => {
     const board = createBoard(undefined, true);
     toSketch(board, "sketch");
     expect(board.sketch.mode).toBe("normal");
+  });
+
+  it("SketchTransforms.setPageSketch：值未变化不产生操作，只记录变化的字段", () => {
+    const board = createBoard();
+    const onChange = vi.fn();
+    board.on("change", onChange);
+
+    SketchTransforms.setPageSketch(board, { mode: "normal", level: "natural" });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(board.undos).toHaveLength(0);
+
+    SketchTransforms.setPageSketch(board, { mode: "sketch", level: "natural" });
+    expect(board.undos[0]).toEqual([
+      expect.objectContaining({
+        type: "set_sketch",
+        properties: { mode: "normal" },
+        newProperties: { mode: "sketch" },
+      }),
+    ]);
   });
 });
