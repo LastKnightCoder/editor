@@ -17,7 +17,7 @@ RELEASE="/root/tau-collab-releases/$VERSION"
 BUILD="$RELEASE/build"
 IMAGE="tau-collaboration:$VERSION"
 # 与 deploy-local.sh 打包的路径逐项一致，保证导出目录就是仓库根布局。
-CONTEXT=(package.json pnpm-lock.yaml pnpm-workspace.yaml patches packages/collaboration apps/collaboration-server .dockerignore)
+CONTEXT=(package.json pnpm-lock.yaml pnpm-workspace.yaml patches packages/collaboration packages/db-schema apps/collaboration-server .dockerignore)
 
 test -d "$REPO/objects" || { echo "找不到 git 仓库：$REPO" >&2; exit 1; }
 test -d "$RELEASE" || { echo "找不到发布目录：$RELEASE" >&2; exit 1; }
