@@ -17,6 +17,7 @@ import type { KnowledgeMapTopic } from "@/knowledge-map/types";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { requestInsightFocus } from "@/services/insight-focus";
 import { openEntity } from "@/services/open-content";
+import { startPatternCard } from "@/services/pattern-card";
 import { requestQuestionCapture } from "@/services/question-capture";
 import type { InsightAsk } from "@/types/content-insights";
 import type {
@@ -191,7 +192,7 @@ export function useMapInsights(
   }, [initial, data, api]);
 
   /* ── 动作 ── */
-  const resolveTo = (itemId: string, status: "linked" | "questioned" | "seen" | "dismissed") => {
+  const resolveTo = (itemId: string, status: "linked" | "questioned" | "dismissed") => {
     if (node) setStatus.mutate({ nodeId: node.id, itemId, status });
     if (walking) {
       const rest = order.filter(item => item.id !== itemId);
@@ -236,6 +237,17 @@ export function useMapInsights(
     open(target);
   };
 
+  // 状态由主进程随建卡一起记为已连接，撤回空卡片时回到未处理；去写卡片了，逐条看一并结束
+  const write = (mark: KnowledgeMark) => {
+    if (!node) return;
+    startPatternCard(node.id, mark)
+      .then(() => {
+        setWalking(false);
+        setCurrent(null);
+      })
+      .catch(error => toast.error(error instanceof Error ? error.message : "新建卡片失败"));
+  };
+
   const question = (mark: KnowledgeMark) => {
     requestQuestionCapture(questionDraft(mark, topicLabel ?? "知识地图"));
     resolveTo(mark.id, "questioned");
@@ -276,7 +288,7 @@ export function useMapInsights(
         event.preventDefault();
         const action = primaryAction(mark);
         if (action === "connect") connect(mark);
-        else if (action === "acknowledge") resolveTo(mark.id, "seen");
+        else if (action === "write") write(mark);
         else question(mark);
       } else if (event.key === "Backspace" && mark) {
         event.preventDefault();
@@ -364,7 +376,7 @@ export function useMapInsights(
           walking={walking}
           onConnect={connect}
           onQuestion={question}
-          onAcknowledge={mark => resolveTo(mark.id, "seen")}
+          onWrite={write}
           onDismiss={mark => resolveTo(mark.id, "dismissed")}
           onOpen={host.preview}
           placeOf={host.placeOf}
