@@ -1,11 +1,7 @@
 /**
- * 块预览的导出小工具（D-057）：下载 Blob、SVG → PNG、文件名净化。
+ * 块预览的导出小工具（D-057）：下载 Blob、SVG → PNG。
  * 画布类（导图 / 白板）截图仍走 utils/snapdom-export。
  */
-
-export function safeFileName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "_").trim() || "export";
-}
 
 export function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);

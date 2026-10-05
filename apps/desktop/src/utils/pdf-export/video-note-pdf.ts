@@ -1,6 +1,7 @@
 import type { Descendant } from "slate";
 import { exportPdfWithDialog } from "@/commands";
 import type { PdfExportPayload, PdfExportResult } from "@/types";
+import { sanitizeFileName } from "@/utils/file-name";
 import { buildPdfHtml, processCodeBlocks } from "@/utils/pdf-html-builder";
 
 export interface ExportVideoNoteToPdfInput {
@@ -13,19 +14,6 @@ export interface ExportVideoNoteToPdfInput {
   };
   defaultFileName?: string;
 }
-
-const sanitizeFileName = (value: string) => {
-  const trimmed = (value || "").trim();
-  if (!trimmed) {
-    return "未命名文档";
-  }
-  const sanitized = trimmed
-    // eslint-disable-next-line no-control-regex
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim();
-  return sanitized || "未命名文档";
-};
 
 /**
  * 构建带封面的 PDF HTML
@@ -49,7 +37,7 @@ const buildPdfHtmlWithCover = (html: string, coverImageSrc?: string) => {
 };
 
 export const exportVideoNoteToPdfWithDialog = async (
-  input: ExportVideoNoteToPdfInput,
+  input: ExportVideoNoteToPdfInput
 ): Promise<PdfExportResult> => {
   // 1. 构建 HTML 和样式
   const { html: bodyHtml, styles } = await buildPdfHtml({
@@ -63,10 +51,7 @@ export const exportVideoNoteToPdfWithDialog = async (
   const processedHtml = processCodeBlocks(bodyHtml, "adaptive");
 
   // 3. 添加封面（如果有）
-  const finalHtml = buildPdfHtmlWithCover(
-    processedHtml,
-    input.metadata.coverImageSrc,
-  );
+  const finalHtml = buildPdfHtmlWithCover(processedHtml, input.metadata.coverImageSrc);
 
   // 4. 构建 PDF 导出 payload
   const payload: PdfExportPayload = {
@@ -93,9 +78,7 @@ export const exportVideoNoteToPdfWithDialog = async (
         strategy: "adaptive",
       },
     },
-    defaultFileName: sanitizeFileName(
-      input.defaultFileName || input.metadata.title || "未命名文档",
-    ),
+    defaultFileName: sanitizeFileName(input.defaultFileName || input.metadata.title, "未命名文档"),
   };
 
   // 5. 调用导出对话框
