@@ -9,7 +9,7 @@ export * from "./GeometryUtil";
 export * from "./TextStyleStore";
 export * from "./RichTextContentUtil";
 export * from "./common";
-export * from "./RefLineUtil";
+export * from "./snap/SnapGeometry";
 export * from "./ArrowUtil.ts";
 export * from "./ConnectPointUtil.ts";
 export * from "./MindUtil.ts";
