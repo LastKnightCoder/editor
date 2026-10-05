@@ -1,5 +1,6 @@
 // 吸附纯几何：输入运动包围盒与候选包围盒，输出吸附偏移与"吸附后真正对齐"的参考线。
 // 参考线只由吸附结果派生，不再另行匹配，保证"画出来的线 = 实际对齐的线"。
+import { buildGapGuides, collectGaps, findNearestGapOffset } from "./SnapGaps";
 
 export interface SnapBounds {
   x: number;
@@ -12,7 +13,9 @@ export type SnapAxis = "x" | "y";
 
 export interface SnapGuide {
   key: string;
-  /** x 轴对齐画竖线，y 轴对齐画横线 */
+  /** align = 边/中心对齐线；gap = 等距测距线 */
+  kind: "align" | "gap";
+  /** align：x 轴画竖线、y 轴画横线；gap：沿该轴方向画测距线 */
   axis: SnapAxis;
   x1: number;
   y1: number;
@@ -116,8 +119,8 @@ const buildGuides = (
 
     guides.push(
       axis === "x"
-        ? { key: `x:${value}`, axis, x1: value, y1: start, x2: value, y2: end }
-        : { key: `y:${value}`, axis, x1: start, y1: value, x2: end, y2: value }
+        ? { key: `x:${value}`, kind: "align", axis, x1: value, y1: start, x2: value, y2: end }
+        : { key: `y:${value}`, kind: "align", axis, x1: start, y1: value, x2: end, y2: value }
     );
   }
   return guides;
@@ -129,19 +132,29 @@ const translate = (bounds: SnapBounds, dx: number, dy: number): SnapBounds => ({
   y: bounds.y + dy,
 });
 
+/** 对齐与等距两类候选里取绝对值最小的偏移，相同时对齐优先 */
+const pickNearest = (alignOffset: number | null, gapOffset: number | null): number => {
+  if (alignOffset === null) return gapOffset ?? 0;
+  if (gapOffset === null) return alignOffset;
+  return Math.abs(gapOffset) < Math.abs(alignOffset) ? gapOffset : alignOffset;
+};
+
 /**
- * 移动吸附：运动包围盒的左/中/右、上/中/下分别与候选的同类点比较，
- * 每个轴只取最近的一个偏移。
+ * 移动吸附：运动包围盒的左/中/右、上/中/下与候选同类点比较，
+ * 并与候选间的相邻间距比较（等距），每个轴只取最近的一个偏移。
  */
 export const snapMove = (
   moving: SnapBounds,
   candidates: SnapBounds[],
   threshold: number
 ): { dx: number; dy: number; guides: SnapGuide[] } => {
-  const candidateXs = candidates.flatMap(bounds => axisValues(bounds, "x"));
-  const candidateYs = candidates.flatMap(bounds => axisValues(bounds, "y"));
-  const dx = findNearestOffset(axisValues(moving, "x"), candidateXs, threshold) ?? 0;
-  const dy = findNearestOffset(axisValues(moving, "y"), candidateYs, threshold) ?? 0;
+  const offsets = (["x", "y"] as const).map(axis => {
+    const targets = candidates.flatMap(bounds => axisValues(bounds, axis));
+    const alignOffset = findNearestOffset(axisValues(moving, axis), targets, threshold);
+    const gapOffset = findNearestGapOffset(moving, collectGaps(candidates, axis), axis, threshold);
+    return pickNearest(alignOffset, gapOffset);
+  });
+  const [dx, dy] = offsets;
 
   const snapped = translate(moving, dx, dy);
   const movingPoints = boundsPoints(snapped);
@@ -153,6 +166,8 @@ export const snapMove = (
     guides: [
       ...buildGuides("x", movingPoints, candidatePoints, axisValues(snapped, "x")),
       ...buildGuides("y", movingPoints, candidatePoints, axisValues(snapped, "y")),
+      ...buildGapGuides(snapped, collectGaps(candidates, "x"), "x"),
+      ...buildGapGuides(snapped, collectGaps(candidates, "y"), "y"),
     ],
   };
 };
