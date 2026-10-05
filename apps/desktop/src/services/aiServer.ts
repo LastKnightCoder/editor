@@ -465,7 +465,7 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
     feature: keyof ISetting["llmUsageSettings"];
     providerId: string;
-    modelName: string;
+    modelId: string;
   };
 
   useSettingStore.setState(
@@ -473,11 +473,11 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
       if (!draft.setting.llmUsageSettings[params.feature]) {
         draft.setting.llmUsageSettings[params.feature] = {
           providerId: "",
-          modelName: "",
+          modelId: "",
         };
       }
       draft.setting.llmUsageSettings[params.feature].providerId = params.providerId;
-      draft.setting.llmUsageSettings[params.feature].modelName = params.modelName;
+      draft.setting.llmUsageSettings[params.feature].modelId = params.modelId;
     })
   );
 
