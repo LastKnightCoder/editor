@@ -3,4 +3,5 @@ export interface VecDocument {
   id: number;
   type: string;
   content: string;
+  chunkIndex?: number;
 }

@@ -44,7 +44,13 @@ import {
   PointerViewportStoreContext,
   type PointerViewportStore,
 } from "./context";
-import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
+import {
+  ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
+  ARROW_CONNECT_PROXIMITY_RADIUS,
+  BOARD_TO_CONTAINER,
+  FIT_VIEW_PADDING,
+} from "./constants";
+import { createConnectPointOwnerStore } from "./utils/ConnectPointOwner";
 import {
   BoardElement,
   Point,
@@ -55,6 +61,8 @@ import {
   ContextMenuModalPayload,
   MindNodeElement,
   VideoElement,
+  PageSketch,
+  DEFAULT_PAGE_SKETCH,
 } from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
@@ -108,12 +116,15 @@ interface WhiteBoardProps {
   initViewPort?: ViewPort;
   initSelection?: Selection;
   initPresentationSequences?: PresentationSequence[];
+  /** 页级画风（D-107），缺省为普通 */
+  initSketch?: PageSketch;
   readonly?: boolean;
   onChange?: (data: {
     children: BoardElement[];
     viewPort: ViewPort;
     selection: Selection;
     presentationSequences?: PresentationSequence[];
+    sketch: PageSketch;
   }) => void;
   showSidebar?: boolean;
   showToolbar?: boolean;
@@ -187,6 +198,7 @@ const WhiteBoard = memo(
       initViewPort = DEFAULT_VIEW_PORT,
       initSelection = DEFAULT_SELECTION,
       initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
+      initSketch = DEFAULT_PAGE_SKETCH,
       readonly,
       onChange,
       showSidebar = false,
@@ -257,6 +269,23 @@ const WhiteBoard = memo(
         },
       };
     }, []);
+    const connectPointOwnerStore = useCreation(
+      () =>
+        createConnectPointOwnerStore({
+          radius: ARROW_CONNECT_PROXIMITY_RADIUS,
+          hideDelay: ARROW_CONNECT_PROXIMITY_HIDE_DELAY,
+        }),
+      []
+    );
+    useEffect(() => {
+      const unsubscribe = pointerViewportStore.subscribe(() => {
+        connectPointOwnerStore.setPointer(pointerViewportStore.getSnapshot());
+      });
+      return () => {
+        unsubscribe();
+        connectPointOwnerStore.dispose();
+      };
+    }, [connectPointOwnerStore, pointerViewportStore]);
 
     // 网格设置
     const { gridVisible, gridSize, handleGridVisibleChange, handleGridSizeChange } =
@@ -292,7 +321,8 @@ const WhiteBoard = memo(
         initSelection,
         plugins,
         initPresentationSequences,
-        readonly
+        readonly,
+        initSketch
       );
     }, []);
 
@@ -302,7 +332,6 @@ const WhiteBoard = memo(
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
     const { markInteracting } = usePreventTextSelection(containerRef);
-    const [refLineVersion, setRefLineVersion] = useState(0);
 
     // 右键菜单触发的弹窗状态
     const [contextMenuModal, setContextMenuModal] = useState<ContextMenuModalPayload | null>(null);
@@ -984,14 +1013,8 @@ const WhiteBoard = memo(
     });
 
     useEffect(() => {
-      const handleRefLineChange = () => {
-        setRefLineVersion(value => value + 1);
-      };
-      board.on("ref-line:change", handleRefLineChange);
-      return () => {
-        board.off("ref-line:change", handleRefLineChange);
-      };
-    }, [board]);
+      board.snap.setGridSize(gridVisible ? gridSize : null);
+    }, [board, gridVisible, gridSize]);
 
     useEffect(() => {
       const handleOpenImagePreview = (payload: { src: string; alt?: string }) => {
@@ -1069,18 +1092,10 @@ const WhiteBoard = memo(
           statusBar.removeEventListener("mouseup", stopPropagation, true);
         }
 
-        board.clearRefLines();
-
         observer.disconnect();
         board.destroy();
       };
     }, [board, handleContainerResize]);
-
-    // 获取参考线
-    const refLines = useMemo(
-      () => board.refLine.matchRefLines(15 / zoom),
-      [board, zoom, refLineVersion]
-    );
 
     // 演示相关处理函数
     const handleStartPresentation = useMemoizedFn((sequenceId: string) => {
@@ -1119,6 +1134,7 @@ const WhiteBoard = memo(
                   isMoving: isElementsMoving,
                   movingStore,
                   simplifiedRenderZoomThreshold,
+                  connectPointOwnerStore,
                 }}
               >
                 <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>
@@ -1164,7 +1180,6 @@ const WhiteBoard = memo(
                             isolateStaticSelection={isolateStaticSelection}
                             gridVisible={gridVisible}
                             gridSize={gridSize}
-                            refLines={refLines}
                             connectPointOverlayRef={connectPointOverlayRef}
                           />
 

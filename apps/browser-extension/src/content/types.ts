@@ -27,6 +27,8 @@ export interface Annotation {
 
 export interface PageHighlights {
   url: string;
+  /** 页面标题（content script 保存时写入，同步摘录用） */
+  title?: string;
   highlights: Highlight[];
   annotations: Record<string, Annotation>;
   version: 1;

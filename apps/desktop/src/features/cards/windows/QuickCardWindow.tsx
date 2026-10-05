@@ -1,5 +1,5 @@
 /**
- * 快捷卡片窗口（路由 /quick-card，全局快捷键 ⌘⇧N 唤起的置顶窗）：新建一张闪念笔记，
+ * 快捷卡片窗口（路由 /quick-card，全局快捷键 ⌘⇧N 唤起的置顶窗）：快捷新建一张卡片，
  * 直接进入卡片编辑窗口（features/editor-window 的 EditorWindow，自动保存，无保存按钮）。
  *
  * 空卡片不留存：关窗时正文为空即删除；删除没来得及执行时，下次唤起复用这张空卡片而不是再建一张。
@@ -18,7 +18,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import { deleteCard, getCardById } from "@/commands/card";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import { getContentLength } from "@/utils";
-import { ECardCategory } from "@/types";
 import { useCardsMutations } from "../queries";
 import "@/app/base.css";
 
@@ -92,7 +91,6 @@ export default function QuickCardWindow() {
               content: DEFAULT_CARD_CONTENT,
               tags: [],
               links: [],
-              category: ECardCategory.Temporary,
               count: 0,
               isTop: false,
             })

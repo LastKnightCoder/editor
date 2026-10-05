@@ -4,6 +4,7 @@ import { parseContentLinkAttributes } from "./chat-mentions";
 /**
  * Remark 插件：处理文档引用语法
  * 将 :ref[显示文本]{id=123 type=card} 转换为自定义节点
+ * :ref 可带 block=N（AI 检索命中节的顶层块序号），输出 data-block 供宿主打开到该块；不认识的宿主忽略即可
  */
 const remarkDocumentReference = () => {
   return (tree: any) => {
@@ -40,6 +41,10 @@ const remarkDocumentReference = () => {
             ? attributes.contentType || attributes.type || ""
             : attributes.type || attributes.contentType || "";
         const textValue = attributes.title || displayText;
+        const block =
+          directiveName === "ref" && /^\d+$/.test(attributes.block ?? "")
+            ? Number(attributes.block)
+            : undefined;
 
         // 添加匹配前的文本
         if (matchStart > lastIndex) {
@@ -62,6 +67,7 @@ const remarkDocumentReference = () => {
               "data-id": id,
               "data-type": type,
               "data-text": textValue,
+              ...(block !== undefined ? { "data-block": block } : {}),
             },
           },
           children: [

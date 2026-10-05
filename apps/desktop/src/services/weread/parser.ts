@@ -149,6 +149,21 @@ export const parseChapterHighlightReview = (
     }
   });
 
+  // 章节列表里找不到的划线（章节接口缺项、公众号文章等）归入「其他」，不丢弃
+  const knownChapters = new Set(chapters.map(chapter => chapter.chapterUid));
+  const orphanHighlights = highlights
+    .filter(highlight => !knownChapters.has(highlight.chapterUid))
+    .sort(sortByRange);
+  if (orphanHighlights.length > 0) {
+    result.push({
+      chapterIdx: Number.MAX_SAFE_INTEGER,
+      chapterTitle: "其他",
+      level: 1,
+      isMPChapter: 0,
+      highlights: orphanHighlights,
+    });
+  }
+
   return result.sort((a, b) => (a.chapterIdx ?? 0) - (b.chapterIdx ?? 0));
 };
 
@@ -180,6 +195,21 @@ export const parseChapterResp = (
   }
 
   return [];
+};
+
+/** 划线接口自带的章节（只含有划线的章节），无章节时退回公众号文章列表 */
+export const chaptersFromHighlights = (highlightResp: HighlightResponse): Chapter[] => {
+  if (highlightResp.chapters?.length) {
+    return highlightResp.chapters.map(chapter => ({
+      chapterUid: chapter.chapterUid,
+      chapterIdx: chapter.chapterIdx,
+      title: chapter.title,
+      updateTime: 0,
+      isMPChapter: 0,
+      level: 1,
+    }));
+  }
+  return parseChapterResp({ data: [] } as unknown as ChapterResponse, highlightResp);
 };
 
 export const parseReviews = (resp: BookReviewResponse): Review[] => {

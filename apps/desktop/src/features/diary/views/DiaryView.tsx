@@ -47,7 +47,8 @@ const OTD_DISMISS_KEY = "diary:otd-dismissed";
 
 export function DiaryView() {
   const { navigator } = usePage();
-  const params = usePageParams<{ id?: string; date?: string; moment?: string }>();
+  const params = usePageParams<{ id?: string; date?: string; moment?: string; at?: string }>();
+  const [locationTarget, setLocationTarget] = useState<{ moment: string; at: string } | null>(null);
   const scope = parseScope(params.id);
   const { snapshot, loading } = useDiarySnapshot();
   const mutations = useDiaryMutations();
@@ -172,6 +173,7 @@ export function DiaryView() {
   /* ---------- 外部定位到某天（带 moment 时精确到那一条） ---------- */
   useEffect(() => {
     if (!params.date || !snapshot) return;
+    setLocationTarget(params.moment && params.at ? { moment: params.moment, at: params.at } : null);
     setRange(null);
     setQuery("");
     const day = params.date;
@@ -188,7 +190,7 @@ export function DiaryView() {
     navigator.push("diary", { id: params.id ?? "" });
     // 只响应 date 参数本身
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.date, snapshot != null]);
+  }, [params.date, params.moment, params.at, snapshot != null]);
 
   // 待滚动目标在渲染后执行
   const stopSettling = useRef<(() => void) | null>(null);
@@ -219,7 +221,12 @@ export function DiaryView() {
     pendingScroll.current = null;
     // 单条落在视口中部（天的粘性头不会挡住它）；整天 / 整月对齐顶部
     stopSettling.current?.();
-    stopSettling.current = scrollSettled(scrollEl, el, kind === "moment" ? "center" : "top");
+    stopSettling.current = scrollSettled(
+      scrollEl,
+      el,
+      kind === "moment" ? "center" : "top",
+      Boolean(locationTarget && kind === "moment")
+    );
   });
   useEffect(() => () => stopSettling.current?.(), []);
 
@@ -495,6 +502,7 @@ export function DiaryView() {
                             <DaySection
                               group={group}
                               freshIds={freshIds}
+                              location={locationTarget}
                               today={today}
                               tags={tags}
                               counts={counts}
@@ -607,7 +615,12 @@ function Empty({
  * 图片晚到——按估算位置一次滚过去，沿途真实高度出来就偏了。
  * 故瞬时跳转后逐帧校正，连续 6 帧不再移动即止（上限约 1 秒）；用户一滚动 / 按下立即让出。
  */
-function scrollSettled(container: HTMLElement, el: HTMLElement, align: "center" | "top") {
+function scrollSettled(
+  container: HTMLElement,
+  el: HTMLElement,
+  align: "center" | "top",
+  locateBlock = false
+) {
   let frame = 0;
   let still = 0;
   let tries = 0;
@@ -619,7 +632,10 @@ function scrollSettled(container: HTMLElement, el: HTMLElement, align: "center" 
   };
   const step = () => {
     const box = container.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
+    const target = locateBlock
+      ? (el.querySelector<HTMLElement>("[data-content-location]") ?? el)
+      : el;
+    const rect = target.getBoundingClientRect();
     // 比视口还高的条目居中会看不到开头，退回顶部对齐
     const center = align === "center" && rect.height < box.height * 0.8;
     const delta = center

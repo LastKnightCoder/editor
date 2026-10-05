@@ -13,6 +13,7 @@ export * from "./mind.ts";
 export * from "./webview.ts";
 export * from "./presentation.ts";
 export * from "./frame.ts";
+export * from "./sketch.ts";
 export * from "./arrow";
 export * from "./board";
 export * from "./frame";

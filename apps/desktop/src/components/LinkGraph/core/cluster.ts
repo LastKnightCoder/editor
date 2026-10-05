@@ -10,7 +10,6 @@
  * 那样每加一张卡全图换色；锚点取簇内最小 id，只要簇还在颜色就稳定。
  */
 
-import type { ICard } from "@/types";
 import { buildCompactGraph, louvain } from "./louvain";
 import type { GraphScene } from "./types";
 
@@ -80,7 +79,11 @@ function pickLabel(
   return picked.map(item => item.tag).join(" · ");
 }
 
-export function detectClusters(scene: GraphScene, cards: ICard[], resolution = 1): ClusterResult {
+export function detectClusters(
+  scene: GraphScene,
+  items: Array<{ id: number; tags?: string[] }>,
+  resolution = 1
+): ClusterResult {
   if (scene.nodes.length === 0) return EMPTY;
 
   const indexOf = new Map<number, number>();
@@ -123,7 +126,7 @@ export function detectClusters(scene: GraphScene, cards: ICard[], resolution = 1
     for (const cardId of members) clusterOf.set(cardId, id);
   });
 
-  const tagsOf = new Map(cards.map(card => [card.id, card.tags ?? []]));
+  const tagsOf = new Map(items.map(item => [item.id, item.tags ?? []]));
   const documentFrequency = new Map<string, number>();
   for (const members of kept) {
     const seen = new Set<string>();

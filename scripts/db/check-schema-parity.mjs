@@ -12,14 +12,20 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 63;
-const MAIN_INDEX_COUNT = 103;
+const MAIN_TABLE_COUNT = 68;
+const MAIN_INDEX_COUNT = 111;
 const INDEX_CORE_TABLES = [
   "content_fts",
   "vec_index_meta",
   "index_meta",
   "knowledge_map_nodes",
   "knowledge_map_topics",
+  "entity_refs",
+  "entity_ref_sources",
+  "whiteboard_refs",
+  "whiteboard_ref_sources",
+  "whiteboard_embeds",
+  "content_sections",
 ];
 const REMOVED_TABLES = [
   "rss_feed",
@@ -49,6 +55,7 @@ const REMOVED_TABLES = [
   "audio_note_chats",
   "audio_notes",
   "audio_note_item",
+  "content_link",
 ];
 
 function readText(filePath) {

@@ -17,14 +17,6 @@ pub struct SearchResult {
 
 static JIEBA: OnceLock<Jieba> = OnceLock::new();
 
-fn category_filter(category: &str) -> String {
-    if category.eq_ignore_ascii_case("all") {
-        String::new()
-    } else {
-        category.trim().to_string()
-    }
-}
-
 fn has_fts5_support(conn: &Connection) -> bool {
     conn.query_row(
         "SELECT sqlite_compileoption_used('ENABLE_FTS5')",
@@ -154,11 +146,9 @@ fn escape_like_text(input: &str) -> String {
 fn query_cards_by_like(
     conn: &Connection,
     query: &str,
-    category: &str,
     limit: i64,
     offset: i64,
 ) -> Result<SearchResult, String> {
-    let category = category_filter(category);
     let like_pattern = format!("%{}%", escape_like_text(query.trim()));
 
     let total: u64 = conn
@@ -167,13 +157,12 @@ fn query_cards_by_like(
             SELECT COUNT(1)
             FROM cards c
             LEFT JOIN contents ct ON c.content_id = ct.id
-            WHERE (?1 = '' OR c.category = ?1)
-              AND (
-                ct.content LIKE ?2 ESCAPE '\\'
-                OR c.tags LIKE ?2 ESCAPE '\\'
+            WHERE (
+                ct.content LIKE ?1 ESCAPE '\\'
+                OR c.tags LIKE ?1 ESCAPE '\\'
               )
             ",
-            params![category, like_pattern],
+            params![like_pattern],
             |row| row.get(0),
         )
         .map_err(|e| format!("DB_OPEN_FAILED: LIKE count query failed: {e}"))?;
@@ -181,21 +170,20 @@ fn query_cards_by_like(
     let mut stmt = conn
         .prepare(
             "
-            SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
+            SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
             FROM cards c
             LEFT JOIN contents ct ON c.content_id = ct.id
-            WHERE (?1 = '' OR c.category = ?1)
-              AND (
-                ct.content LIKE ?2 ESCAPE '\\'
-                OR c.tags LIKE ?2 ESCAPE '\\'
+            WHERE (
+                ct.content LIKE ?1 ESCAPE '\\'
+                OR c.tags LIKE ?1 ESCAPE '\\'
               )
             ORDER BY c.is_top DESC, c.create_time DESC
-            LIMIT ?3 OFFSET ?4
+            LIMIT ?2 OFFSET ?3
             ",
         )
         .map_err(|e| format!("DB_OPEN_FAILED: LIKE query prepare failed: {e}"))?;
     let mut rows = stmt
-        .query(params![category, like_pattern, limit, offset])
+        .query(params![like_pattern, limit, offset])
         .map_err(|e| format!("DB_OPEN_FAILED: LIKE query failed: {e}"))?;
 
     let mut items = vec![];
@@ -213,14 +201,11 @@ fn query_cards_by_like(
             update_time: row
                 .get(2)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row update_time parse failed: {e}"))?,
-            category: row
-                .get(3)
-                .map_err(|e| format!("DB_OPEN_FAILED: LIKE row category parse failed: {e}"))?,
             tags_raw: row
-                .get(4)
+                .get(3)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row tags parse failed: {e}"))?,
             content_raw: row
-                .get(5)
+                .get(4)
                 .map_err(|e| format!("DB_OPEN_FAILED: LIKE row content parse failed: {e}"))?,
         });
     }
@@ -235,12 +220,9 @@ fn query_cards_by_like(
 fn query_cards_by_fts(
     conn: &Connection,
     match_query: &str,
-    category: &str,
     limit: i64,
     offset: i64,
 ) -> Result<SearchResult, String> {
-    let category = category_filter(category);
-
     let total: u64 = conn
         .query_row(
             "
@@ -263,9 +245,8 @@ fn query_cards_by_fts(
             SELECT COUNT(1)
             FROM ids i
             JOIN cards c ON c.id = i.card_id
-            WHERE (?2 = '' OR c.category = ?2)
             ",
-            params![match_query, category],
+            params![match_query],
             |row| row.get(0),
         )
         .map_err(|e| format!("FTS_QUERY_FAILED: FTS count query failed: {e}"))?;
@@ -289,19 +270,18 @@ fn query_cards_by_fts(
                 SELECT CAST(substr(prefixed_id, instr(prefixed_id, ':') + 1) AS INTEGER) AS card_id, rank
                 FROM best
             )
-            SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
+            SELECT c.id, c.content_id, c.update_time, c.tags, ct.content
             FROM ids i
             JOIN cards c ON c.id = i.card_id
             LEFT JOIN contents ct ON c.content_id = ct.id
-            WHERE (?2 = '' OR c.category = ?2)
             ORDER BY c.is_top DESC, i.rank ASC, c.create_time DESC
-            LIMIT ?3 OFFSET ?4
+            LIMIT ?2 OFFSET ?3
             ",
         )
         .map_err(|e| format!("FTS_QUERY_FAILED: FTS query prepare failed: {e}"))?;
 
     let mut rows = stmt
-        .query(params![match_query, category, limit, offset])
+        .query(params![match_query, limit, offset])
         .map_err(|e| format!("FTS_QUERY_FAILED: FTS query failed: {e}"))?;
     let mut items = vec![];
     while let Some(row) = rows
@@ -318,14 +298,11 @@ fn query_cards_by_fts(
             update_time: row
                 .get(2)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row update_time parse failed: {e}"))?,
-            category: row
-                .get(3)
-                .map_err(|e| format!("FTS_QUERY_FAILED: FTS row category parse failed: {e}"))?,
             tags_raw: row
-                .get(4)
+                .get(3)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row tags parse failed: {e}"))?,
             content_raw: row
-                .get(5)
+                .get(4)
                 .map_err(|e| format!("FTS_QUERY_FAILED: FTS row content parse failed: {e}"))?,
         });
     }
@@ -340,12 +317,11 @@ fn query_cards_by_fts(
 pub fn query_cards_by_search(
     conn: &Connection,
     query: &str,
-    category: &str,
     limit: i64,
     offset: i64,
 ) -> Result<SearchResult, String> {
     if query.trim().is_empty() {
-        return query_cards_by_like(conn, query, category, limit, offset);
+        return query_cards_by_like(conn, query, limit, offset);
     }
 
     let fts_ready = has_fts5_support(conn)
@@ -354,13 +330,13 @@ pub fn query_cards_by_search(
         && is_index_ready(conn);
     if fts_ready {
         if let Some(match_query) = build_match_query(query) {
-            if let Ok(result) = query_cards_by_fts(conn, &match_query, category, limit, offset) {
+            if let Ok(result) = query_cards_by_fts(conn, &match_query, limit, offset) {
                 return Ok(result);
             }
         }
     }
 
-    query_cards_by_like(conn, query, category, limit, offset)
+    query_cards_by_like(conn, query, limit, offset)
 }
 
 const SEARCH_TYPES: &[&str] = &[

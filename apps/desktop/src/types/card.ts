@@ -1,13 +1,6 @@
 import { Descendant } from "slate";
 import { IPodcast } from "./podcast";
 
-export enum ECardCategory {
-  Temporary = "temporary",
-  Permanent = "permanent",
-  Theme = "theme",
-  Literature = "literature",
-}
-
 export interface ICard {
   id: number;
   create_time: number;
@@ -15,18 +8,19 @@ export interface ICard {
   tags: string[];
   links: number[];
   content: Descendant[];
-  category: ECardCategory;
   count: number;
   contentId: number;
   isTop: boolean;
   podcastId?: number;
   podcast?: IPodcast;
+  /** AI 生成的精简标题（content_ai_meta），没有时取正文开头，见 utils/card-title */
+  aiTitle?: string;
 }
 
 export type ICreateCard = Omit<ICard, "id" | "create_time" | "update_time" | "contentId">;
 export type IUpdateCard = Omit<ICard, "create_time" | "update_time" | "content" | "count">;
 
-export type CardMetadataPatch = Partial<Pick<ICard, "tags" | "links" | "category" | "isTop">>;
+export type CardMetadataPatch = Partial<Pick<ICard, "tags" | "links" | "isTop">>;
 
 export interface CardDatabaseScope {
   databaseName: string;

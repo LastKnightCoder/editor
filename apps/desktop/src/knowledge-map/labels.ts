@@ -51,8 +51,17 @@ export function topicLabel(members: LabelMember[]): string {
   return mode(counts)?.value ?? "";
 }
 
-/** 子主题名；取不到够格的名字返回空串 */
-export function subtopicLabel(members: LabelMember[], parentLabel: string): string {
+/**
+ * 子主题名；取不到够格的名字返回空串。
+ * reserved 是全部大主题的名字：子主题不能和任何大主题同名（否则看起来像「JavaScript 成了 CSS 的子主题」），
+ * 成员 tag 首段是某个大主题名时，改取它的下一段。
+ */
+export function subtopicLabel(
+  members: LabelMember[],
+  parentLabel: string,
+  reserved: ReadonlySet<string> = new Set()
+): string {
+  const isReserved = (part: string) => part === parentLabel || reserved.has(part);
   const counts = new Map<string, number>();
   let nameable = 0;
   for (const member of members) {
@@ -60,8 +69,8 @@ export function subtopicLabel(members: LabelMember[], parentLabel: string): stri
     for (const tag of member.tags) {
       const path = tagPath(tag);
       if (path.length === 0) continue;
-      const next = path[0] === parentLabel ? path[1] : path[0];
-      if (next && next !== parentLabel) parts.add(next);
+      const next = isReserved(path[0]) ? path[1] : path[0];
+      if (next && !isReserved(next)) parts.add(next);
     }
     if (parts.size > 0) nameable += 1;
     for (const part of parts) counts.set(part, (counts.get(part) ?? 0) + 1);

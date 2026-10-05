@@ -5,7 +5,8 @@ import { hasRetiredAudioItems, retireAudioNotes } from "./audio-note-retirement"
 /**
  * 已下线功能留在老库里的表与列（功能下线时只删了建表语句，老库里的一直没删）：
  * history（浏览历史）、prompt（提示词库）、skill（数据库版 Skill，现存文件）、notion_sync（Notion 同步），
- * 音频笔记表与项目节点，以及 vibe_learning_resources 上不再使用的分章节字段。
+ * 音频笔记表与项目节点，vibe_learning_resources 上不再使用的分章节字段，
+ * 以及 cards 上已下线的分类字段（卡片不再区分闪念/文献/永久/主题）。
  */
 const RETIRED_TABLES = [
   "history",
@@ -18,6 +19,7 @@ const RETIRED_TABLES = [
 const RETIRED_COLUMNS: Array<[table: string, column: string]> = [
   ["vibe_learning_resources", "is_chunked"],
   ["vibe_learning_resources", "chapter_count"],
+  ["cards", "category"],
 ];
 
 const tableExists = (db: MigrationDatabase, name: string) =>

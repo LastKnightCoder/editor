@@ -4,6 +4,7 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   ECreateBoardElementType,
+  SketchFillStyle,
 } from "../types";
 import Geometry from "../components/Geometry";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
@@ -21,25 +22,8 @@ export interface GeometryElement extends CommonElement {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
-  sketchEnabled?: boolean;
-  sketchOptions?: {
-    seed?: number;
-    roughness?: number;
-    fillStyle?:
-      | "hachure"
-      | "solid"
-      | "zigzag"
-      | "cross-hatch"
-      | "dots"
-      | "dashed"
-      | "zigzag-line";
-    fillWeight?: number;
-    hachureAngle?: number;
-    hachureGap?: number;
-    dashOffset?: number;
-    dashGap?: number;
-    zigzagOffset?: number;
-  };
+  /** 手绘模式下的填充样式（D-107）；普通模式一律按实色渲染，缺省 solid */
+  fillStyle?: SketchFillStyle;
   paths: string[];
   extraInfo?: Record<string, any>;
   text: {
@@ -70,12 +54,7 @@ export class GeometryPlugin extends CommonPlugin {
           key: `create-geometry-${item.geometryType}`,
           label: item.name,
           icon: (
-            <svg
-              width={14}
-              height={14}
-              viewBox="0 0 16 16"
-              style={{ overflow: "visible" }}
-            >
+            <svg width={14} height={14} viewBox="0 0 16 16" style={{ overflow: "visible" }}>
               {item.paths.map((path, pathIndex) => {
                 const pathString = transformPath(path, 16, 16);
                 return (

@@ -7,8 +7,13 @@ import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import DiaryTable from "./tables/diary";
 import VecDocumentTable from "./tables/vec-document";
+import { listMaterialIndexDocs, MATERIAL_INDEX_TYPES } from "./material-index";
+import { CHAT_PROMPT_TYPE, listChatPromptDocs } from "./chat-prompt-index";
 import { getMarkdown } from "@/utils/markdown.ts";
+import { splitSections, type ContentSection } from "@/entity/sections";
+import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
 import type { IndexType } from "@/types";
+import type { ChatPromptIndexType } from "@/types/search";
 import type { ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
@@ -23,8 +28,14 @@ export type MainContentReconcileReason =
 /** 主内容队列的运行原因：自动 reconcile 之外还有用户手动发起 */
 export type MainContentIndexRunReason = MainContentReconcileReason | "manual" | "content_idle";
 
-/** 参与向量索引的主内容类型（与 collect 顺序一致） */
-export const MAIN_CONTENT_INDEX_TYPES = ["card", "article", "project-item", "diary-daily"] as const;
+/** 参与向量索引的主内容类型（与 collect 顺序一致）：正文实体 + 外部材料（KL-037） */
+export const MAIN_CONTENT_INDEX_TYPES = [
+  "card",
+  "article",
+  "project-item",
+  "diary-daily",
+  ...MATERIAL_INDEX_TYPES,
+] as const;
 export type MainContentIndexType = (typeof MAIN_CONTENT_INDEX_TYPES)[number];
 
 export interface MainContentVecIndexProgress {
@@ -39,6 +50,8 @@ export interface MainContentVecIndexProgress {
   startedAt: number;
   finishedAt?: number;
   error?: string;
+  /** 实时覆盖率：开始时扫库得出基数，之后每处理成功一篇在内存里挪一格，随进度推送 */
+  stats?: MainContentIndexStats;
 }
 
 export interface MainContentIndexCounts {
@@ -56,14 +69,41 @@ export interface MainContentIndexStats extends MainContentIndexCounts {
   byType: Record<MainContentIndexType, MainContentIndexCounts>;
 }
 
+/** 一篇索引成功：从「未索引」或「待更新」挪到「已索引」（计数不为负） */
+export function markIndexed(
+  stats: MainContentIndexStats,
+  type: string,
+  wasIndexedBefore: boolean
+): void {
+  const from: keyof MainContentIndexCounts = wasIndexedBefore ? "outdated" : "unindexed";
+  const bucket = stats.byType[type as MainContentIndexType];
+  for (const counts of bucket ? [stats, bucket] : [stats]) {
+    if (counts[from] <= 0) continue;
+    counts[from] -= 1;
+    counts.indexed += 1;
+  }
+}
+
+const cloneProgress = (progress: MainContentVecIndexProgress): MainContentVecIndexProgress => ({
+  ...progress,
+  stats: progress.stats && {
+    ...progress.stats,
+    byType: Object.fromEntries(
+      Object.entries(progress.stats.byType).map(([type, counts]) => [type, { ...counts }])
+    ) as MainContentIndexStats["byType"],
+  },
+});
+
 const LAST_RUN_META_KEY = "main_content_last_run";
 const PROGRESS_EMIT_INTERVAL_MS = 300;
 
 interface MainContentVecIndexTask {
-  id: number;
-  type: IndexType;
+  id: number | string;
+  type: IndexType | ChatPromptIndexType;
   updateTime: number;
   content: string;
+  title?: string;
+  sections?: ContentSection[];
 }
 
 interface ReconcileByPolicyParams {
@@ -80,6 +120,7 @@ export interface MainContentReconcileResult {
   reinitialized: boolean;
   queued: number;
   indexed: number;
+  failed: number;
   stale: boolean;
   autoIndex: boolean;
 }
@@ -141,6 +182,13 @@ class MainContentVecIndexQueue implements Module {
       return null;
     }
 
+    return this.computeStats(mainDb, indexDb);
+  }
+
+  private async computeStats(
+    mainDb: Database.Database,
+    indexDb: Database.Database
+  ): Promise<MainContentIndexStats> {
     const emptyCounts = (): MainContentIndexCounts => ({
       total: 0,
       indexed: 0,
@@ -218,7 +266,8 @@ class MainContentVecIndexQueue implements Module {
         reinitialized: false,
         queued: 0,
         indexed: 0,
-        stale: false,
+        failed: 0,
+        stale: true,
         autoIndex: params.autoIndex,
       };
     }
@@ -233,7 +282,8 @@ class MainContentVecIndexQueue implements Module {
         reinitialized: false,
         queued: 0,
         indexed: 0,
-        stale: false,
+        failed: 0,
+        stale: true,
         autoIndex: params.autoIndex,
       };
     }
@@ -246,6 +296,19 @@ class MainContentVecIndexQueue implements Module {
         VecDocumentTable.initTableByVecLength(indexDb, params.embeddingConfig.dimensions);
       }
       reinitialized = true;
+      if (params.autoIndex) {
+        // 重试沿用已创建的向量表，成功写入的实体不应再次付费嵌入。
+        indexDb
+          .prepare(
+            `INSERT INTO vec_index_meta (key, value, updated_at) VALUES (?, ?, ?)
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+          )
+          .run(
+            MAIN_CHUNK_BUILD_KEY,
+            mainEmbeddingFingerprint(params.embeddingConfig.fingerprint),
+            Date.now()
+          );
+      }
     } else if (params.autoIndex) {
       this.ensureVecTableReady(indexDb, params.embeddingConfig.dimensions);
     }
@@ -260,6 +323,7 @@ class MainContentVecIndexQueue implements Module {
         reinitialized,
         queued: 0,
         indexed: 0,
+        failed: 0,
         stale: false,
         autoIndex: false,
       };
@@ -285,7 +349,9 @@ class MainContentVecIndexQueue implements Module {
 
     try {
       const tasks = await this.collectTasks(mainDb, indexDb, params.fingerprintChanged);
-      this.updateProgress({ phase: "indexing", queued: tasks.length }, true);
+      const stats = await this.computeStats(mainDb, indexDb);
+      const previouslyIndexed = this.loadIndexedUpdateTimes(indexDb);
+      this.updateProgress({ phase: "indexing", queued: tasks.length, stats }, true);
       let indexed = 0;
       let failed = 0;
       let consecutiveFailures = 0;
@@ -302,6 +368,7 @@ class MainContentVecIndexQueue implements Module {
             reinitialized,
             queued: tasks.length,
             indexed,
+            failed,
             stale: true,
             autoIndex: true,
           };
@@ -311,6 +378,8 @@ class MainContentVecIndexQueue implements Module {
           id: task.id,
           type: task.type,
           content: task.content,
+          title: task.title,
+          sections: task.sections,
           updateTime: task.updateTime,
           modelInfo,
         });
@@ -318,6 +387,10 @@ class MainContentVecIndexQueue implements Module {
         if (ok) {
           indexed += 1;
           consecutiveFailures = 0;
+          // 提问不进覆盖率统计（只服务「问了但没写」）
+          if (task.type !== CHAT_PROMPT_TYPE) {
+            markIndexed(stats, task.type, previouslyIndexed.has(`${task.type}:${task.id}`));
+          }
           this.updateProgress({ processed: indexed + failed, indexed, failed });
         } else {
           failed += 1;
@@ -336,8 +409,13 @@ class MainContentVecIndexQueue implements Module {
         await yieldToEventLoop();
       }
 
-      databaseModule.setIndexRebuildState(params.mainDbName, "ready", "vec");
-      this.finishProgress(indexDb, { phase: "done" });
+      databaseModule.setIndexRebuildState(params.mainDbName, failed ? "pending" : "ready", "vec");
+      this.finishProgress(
+        indexDb,
+        failed
+          ? { phase: "failed", error: `${failed} 个实体索引失败，等待补全` }
+          : { phase: "done" }
+      );
       log.info(
         `[MainContentVecIndexQueue] Reconcile done: reason=${params.reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, reinitialized=${reinitialized}, searchableDuringBuilding=true`
       );
@@ -347,6 +425,7 @@ class MainContentVecIndexQueue implements Module {
         reinitialized,
         queued: tasks.length,
         indexed,
+        failed,
         stale: false,
         autoIndex: true,
       };
@@ -387,7 +466,7 @@ class MainContentVecIndexQueue implements Module {
       return;
     }
     const finished: MainContentVecIndexProgress = {
-      ...this.currentProgress,
+      ...cloneProgress(this.currentProgress),
       ...patch,
       finishedAt: Date.now(),
     };
@@ -421,7 +500,7 @@ class MainContentVecIndexQueue implements Module {
       return;
     }
     this.lastEmitAt = now;
-    this.notifyListeners({ ...this.currentProgress });
+    this.notifyListeners(cloneProgress(this.currentProgress));
   }
 
   private notifyListeners(progress: MainContentVecIndexProgress) {
@@ -481,23 +560,36 @@ class MainContentVecIndexQueue implements Module {
     forceReindex: boolean
   ): Promise<MainContentVecIndexTask[]> {
     const tasks: MainContentVecIndexTask[] = [];
-    await this.forEachCandidate(mainDb, task => {
-      if (forceReindex) {
-        tasks.push(task);
-        return;
-      }
-      const indexInfo = VecDocumentTable.checkIndexExists(indexDb, task.id, task.type);
-      if (!indexInfo || indexInfo.updateTime < task.updateTime) {
-        tasks.push(task);
-      }
-    });
+    const candidates = new Set<string>();
+    await this.forEachCandidate(
+      mainDb,
+      task => {
+        candidates.add(`${task.type}:${task.id}`);
+        if (forceReindex) {
+          tasks.push(task);
+          return;
+        }
+        const indexInfo = VecDocumentTable.checkIndexExists(indexDb, task.id, task.type);
+        if (!indexInfo || indexInfo.updateTime < task.updateTime) {
+          tasks.push(task);
+        }
+      },
+      { withChatPrompts: true }
+    );
+    // 已不是候选的（实体已删、摘录软删、剪藏变孤儿、正文清空、对话已删）删掉，检索不再命中
+    const removed = VecDocumentTable.removeIndexesNotIn(indexDb, candidates, [
+      ...MAIN_CONTENT_INDEX_TYPES,
+      CHAT_PROMPT_TYPE,
+    ]);
+    if (removed) log.info(`[MainContentVecIndexQueue] Removed stale vectors: ${removed}`);
     return tasks;
   }
 
-  /** 遍历全部有正文的主内容（卡片 / 文章 / 项目文档 / 日记），期间定期让出事件循环 */
+  /** 遍历全部有正文的主内容（卡片 / 文章 / 项目文档 / 日记）与外部材料，期间定期让出事件循环 */
   private async forEachCandidate(
     mainDb: Database.Database,
-    visit: (task: MainContentVecIndexTask) => void
+    visit: (task: MainContentVecIndexTask) => void,
+    options: { withChatPrompts?: boolean } = {}
   ) {
     let processed = 0;
     const handle = async (task: MainContentVecIndexTask) => {
@@ -513,6 +605,7 @@ class MainContentVecIndexQueue implements Module {
         id: card.id,
         type: "card",
         content: getMarkdown(card.content || []).trim(),
+        sections: splitSections(card.content || [], "", true),
         updateTime: Number(card.update_time || 0),
       });
     }
@@ -523,6 +616,8 @@ class MainContentVecIndexQueue implements Module {
         id: article.id,
         type: "article",
         content: getMarkdown(article.content || []).trim(),
+        title: article.title,
+        sections: splitSections(article.content || [], article.title || ""),
         updateTime: Number(article.update_time || 0),
       });
     }
@@ -533,6 +628,8 @@ class MainContentVecIndexQueue implements Module {
         id: item.id,
         type: "project-item",
         content: getMarkdown(item.content || []).trim(),
+        title: item.title,
+        sections: splitSections(item.content || [], item.title || ""),
         updateTime: Number(item.updateTime || 0),
       });
     }
@@ -543,8 +640,19 @@ class MainContentVecIndexQueue implements Module {
         id: entry.id,
         type: "diary-daily",
         content: getMarkdown(entry.content || []).trim(),
+        sections: splitSections(entry.content || [], DiaryTable.getDiarySearchTitle(entry)),
         updateTime: Number(entry.updateTime || 0),
       });
+    }
+    await yieldToEventLoop();
+
+    for (const doc of listMaterialIndexDocs(mainDb)) {
+      await handle(doc);
+    }
+    if (!options.withChatPrompts) return;
+    await yieldToEventLoop();
+    for (const doc of listChatPromptDocs(mainDb)) {
+      await handle(doc);
     }
   }
 }

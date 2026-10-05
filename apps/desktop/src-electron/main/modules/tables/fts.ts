@@ -8,8 +8,14 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DiaryTable from "./diary";
 import VecDocumentTable from "./vec-document";
+import { searchResultDetails } from "../search-details";
 import { getMarkdown } from "@/utils/markdown.ts";
-import { smartChunk } from "../../utils/smart-chunk";
+import {
+  pruneContentSections,
+  readContentSection,
+  sectionsForIndex,
+  writeContentSections,
+} from "../content-sections";
 import {
   createMainContentAdapter,
   MainContentAdapterContext,
@@ -33,6 +39,7 @@ export interface PartialSearchResult {
   source: "fts";
   updateTime: number;
   rank?: number;
+  chunkIndex?: number;
 }
 
 class FTSTable {
@@ -57,9 +64,9 @@ class FTSTable {
       .prepare("SELECT value FROM index_meta WHERE key = 'migration_state'")
       .get() as { value?: string } | undefined;
     const rebuildState = indexDb
-      .prepare("SELECT value FROM index_meta WHERE key = 'rebuild_state'")
+      .prepare("SELECT value FROM index_meta WHERE key = 'fts_rebuild_state'")
       .get() as { value?: string } | undefined;
-    return migrationState?.value === "done" && rebuildState?.value === "ready";
+    return migrationState?.value === "done" && rebuildState?.value !== "failed";
   }
 
   static upgradeTable(_db: Database.Database) {
@@ -115,43 +122,40 @@ class FTSTable {
     }
 
     const prefixedId = addTypePrefix(id, type);
-    this.removeIndex(db, prefixedId);
 
     const normalizedContent = content.trim();
     if (!normalizedContent) {
       return false;
     }
 
-    const chunks = smartChunk(normalizedContent, {
-      minLength: 500,
-      maxLength: 2000,
-      overlap: 0,
-      splitter: "paragraph",
-    })
-      .map(chunkText => chunkText.trim())
-      .filter(chunkText => !!chunkText);
+    const chunks = sectionsForIndex(params);
 
     try {
       if (chunks.length === 0) {
         return false;
       }
 
-      const stmt = db.prepare(`
-        INSERT INTO content_fts (prefixed_id, content, update_time, type)
-        VALUES (?, ?, ?, ?)
-      `);
-
-      let insertedCount = 0;
-      chunks.forEach(chunkText => {
-        const segmentedText = this.segmentText(chunkText).trim();
-        if (!segmentedText) return;
-        stmt.run(prefixedId, segmentedText, updateTime, type);
-        insertedCount += 1;
-      });
-
-      if (insertedCount === 0) {
-        return false;
-      }
+      db.transaction(() => {
+        this.removeIndex(db, prefixedId);
+        writeContentSections(db, prefixedId, updateTime, chunks);
+        const stmt = db.prepare(`
+          INSERT INTO content_fts (prefixed_id, content, update_time, type, title, chunk_index)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        chunks.forEach(chunk => {
+          const segmentedText = this.segmentText(chunk.text).trim();
+          if (!segmentedText) return;
+          stmt.run(
+            prefixedId,
+            segmentedText,
+            updateTime,
+            type,
+            this.segmentText([params.title, chunk.headingPath].filter(Boolean).join(" › ")),
+            chunk.chunkIndex
+          );
+        });
+        pruneContentSections(db, prefixedId);
+      })();
     } catch (error) {
       console.error("索引内容失败:", error);
       return false;
@@ -161,50 +165,7 @@ class FTSTable {
   }
 
   static batchIndexContent(db: Database.Database, items: IndexParams[]) {
-    if (!this.hasTable(db, "content_fts")) {
-      return false;
-    }
-    try {
-      for (const item of items) {
-        const { id, content, type, updateTime } = item;
-        const prefixedId = addTypePrefix(id, type);
-        this.removeIndex(db, prefixedId);
-
-        const normalizedContent = content.trim();
-        if (!normalizedContent) {
-          continue;
-        }
-
-        const chunks = smartChunk(normalizedContent, {
-          minLength: 500,
-          maxLength: 2000,
-          overlap: 0,
-          splitter: "paragraph",
-        })
-          .map(chunkText => chunkText.trim())
-          .filter(chunkText => !!chunkText);
-
-        if (chunks.length === 0) {
-          continue;
-        }
-
-        const stmt = db.prepare(`
-          INSERT INTO content_fts (prefixed_id, content, update_time, type)
-          VALUES (?, ?, ?, ?)
-        `);
-
-        chunks.forEach(chunkText => {
-          const segmentedText = this.segmentText(chunkText).trim();
-          if (!segmentedText) return;
-          stmt.run(prefixedId, segmentedText, updateTime, type);
-        });
-      }
-    } catch (error) {
-      console.error("批量索引失败:", error);
-      return false;
-    }
-
-    return true;
+    return items.map(item => this.indexContent(db, item)).every(Boolean);
   }
 
   static removeIndex(db: Database.Database, prefixedId: string) {
@@ -216,7 +177,28 @@ class FTSTable {
     `);
 
     stmt.run(prefixedId);
+    if (this.hasTable(db, "content_sections")) pruneContentSections(db, prefixedId);
     return true;
+  }
+
+  /**
+   * 对账清理：删除这些类型里不在 keep（`type:id`）中的索引——实体已删、摘录软删、剪藏变孤儿。
+   * 返回删除的文档数。
+   */
+  static removeIndexesNotIn(db: Database.Database, keep: Set<string>, types: readonly string[]) {
+    if (!this.hasTable(db, "content_fts") || types.length === 0) return 0;
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT prefixed_id FROM content_fts WHERE type IN (${types.map(() => "?").join(",")})`
+      )
+      .all(...types) as Array<{ prefixed_id: string }>;
+    let removed = 0;
+    for (const row of rows) {
+      if (keep.has(row.prefixed_id)) continue;
+      this.removeIndex(db, row.prefixed_id);
+      removed += 1;
+    }
+    return removed;
   }
 
   static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
@@ -399,11 +381,11 @@ class FTSTable {
     }
 
     const sql = `
-      SELECT prefixed_id, update_time, rank FROM (
-        SELECT prefixed_id, update_time, rank,
+      SELECT prefixed_id, update_time, rank, chunk_index FROM (
+        SELECT prefixed_id, update_time, rank, chunk_index,
                ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) as rn
         FROM content_fts
-        WHERE content MATCH ?
+        WHERE content_fts MATCH ?
         ${
           types && types.length > 0
             ? ` AND type IN (${types.map(() => "?").join(",")}) AND rank < -2`
@@ -431,10 +413,11 @@ class FTSTable {
           source: "fts",
           updateTime: result.update_time,
           rank: result.rank,
+          chunkIndex: result.chunk_index,
         };
       });
 
-      return this.getSearchResultDetails(mainDb, partialResults);
+      return this.getSearchResultDetails(mainDb, partialResults, indexDb);
     } catch (error) {
       console.warn("[FTS] search failed, fallback like:", error);
       return this.searchContentByLike(mainDb, searchParams);
@@ -479,46 +462,30 @@ class FTSTable {
 
   static getSearchResultDetails(
     db: Database.Database,
-    results: PartialSearchResult[]
+    results: PartialSearchResult[],
+    indexDb?: Database.Database
   ): SearchResult[] {
     const detailedResults = [];
 
     for (const result of results) {
-      let details = null;
-
-      switch (result.type) {
-        case "card":
-          details = CardTable.getCardById(db, result.id);
-          break;
-        case "article":
-          details = ArticleTable.getArticleById(db, result.id);
-          break;
-        case "project-item":
-          details = ProjectTable.getProjectItem(db, result.id);
-          break;
-        case "diary-daily": {
-          const diaryEntry = DiaryTable.getDiaryEntryById(db, result.id);
-          if (diaryEntry) {
-            details = {
-              ...diaryEntry,
-              contentId: diaryEntry.segments[0]?.contentId ?? 0,
-              title: DiaryTable.getDiarySearchTitle(diaryEntry),
-            };
-          }
-          break;
-        }
-        default:
-          break;
-      }
+      const details = searchResultDetails(db, result.type, result.id);
 
       if (details) {
+        const section = indexDb
+          ? readContentSection(
+              indexDb,
+              `${result.type}:${result.id}`,
+              result.updateTime,
+              result.chunkIndex
+            )
+          : undefined;
         detailedResults.push({
           ...result,
           ...details,
           type: result.type,
-          // @ts-ignore
-          title: details.title || "",
-          content: details.content || [],
+          title: details.title,
+          content: details.content,
+          ...(section ? { section } : {}),
           updateTime: result.updateTime,
         });
       }

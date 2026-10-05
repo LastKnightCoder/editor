@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
-import classNames from "classnames";
+import { useEffect, useId, useMemo, useState } from "react";
+import { Check, CircleAlert, MessageCircleQuestion } from "lucide-react";
+import { Button, Checkbox, Input, Radio, cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "@tau/chat-ui/renderers";
-import { CustomCheckbox } from "@tau/shared";
 import {
   normalizeAskQuestionPayload,
   type AskQuestionAnswerItem,
@@ -40,7 +40,6 @@ const parseOutputResult = (output?: string): AskQuestionToolResult | null => {
 
 const AskQuestionRenderer = ({
   execution,
-  isDark,
   parsedInput,
   inputParseError,
   renderDefault,
@@ -50,6 +49,7 @@ const AskQuestionRenderer = ({
     state.questions.find(question => question.toolCallId === execution.toolCallId)
   );
   const answerHost = useRunInteractionStore(state => state.answer);
+  const fieldIdBase = useId();
   const [hostSubmitting, setHostSubmitting] = useState(false);
   const [hostSubmitted, setHostSubmitted] = useState<AskQuestionSubmission | undefined>();
 
@@ -189,48 +189,30 @@ const AskQuestionRenderer = ({
       .finally(() => setHostSubmitting(false));
   };
 
-  const checkboxAccentColor = isDark ? "#38bdf8" : "#0284c7";
+  const statusText = !isLocked
+    ? "请完成选择后提交答案"
+    : submittedAnswers
+      ? "答案已提交，等待模型继续响应"
+      : isTransientStreamingState(execution.status) && !execution.output
+        ? "正在准备问题…"
+        : "提问已结束，这次没有得到回答";
 
   return (
-    <div
-      className={classNames(
-        "my-3 overflow-hidden rounded-2xl border backdrop-blur-xl",
-        isDark ? "border-white/10 bg-zinc-900/80" : "border-slate-200/80 bg-white/80"
-      )}
-    >
-      <div
-        className={classNames(
-          "border-b px-5 py-4",
-          isDark ? "border-white/10" : "border-slate-200/70"
-        )}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className={classNames(
-              "flex h-8 w-8 items-center justify-center rounded-xl",
-              isDark
-                ? "border border-sky-400/30 bg-sky-400/15 text-sky-300"
-                : "border border-sky-200 bg-sky-50 text-sky-600"
-            )}
-          >
-            ?
-          </div>
+    <div className="border-line-1 bg-surface rounded-tau-md my-2 w-full min-w-0 max-w-full overflow-hidden border">
+      <div className="px-3.5 pb-1 pt-3">
+        <div className="flex items-start gap-2">
+          <MessageCircleQuestion
+            aria-hidden
+            size={16}
+            strokeWidth={1.75}
+            className="text-accent-text mt-px shrink-0"
+          />
           <div className="min-w-0 flex-1">
-            <div
-              className={classNames(
-                "truncate text-sm font-semibold",
-                isDark ? "text-slate-100" : "text-slate-800"
-              )}
-            >
+            <div className="text-tau-body text-ink-1 truncate font-semibold">
               {payload.title || "进一步确认需求"}
             </div>
             {payload.description && (
-              <div
-                className={classNames(
-                  "mt-0.5 text-xs",
-                  isDark ? "text-slate-400" : "text-slate-500"
-                )}
-              >
+              <div className="text-tau-meta text-ink-3 mt-0.5 break-words">
                 {payload.description}
               </div>
             )}
@@ -238,155 +220,108 @@ const AskQuestionRenderer = ({
         </div>
       </div>
 
-      <div className="space-y-4 px-5 py-4">
+      <div className="space-y-4 px-3.5 pb-3.5 pt-2">
         {payload.questions.map((question, questionIndex) => {
           const selectedValues = selectedValuesMap[question.id] || [];
           const otherText = otherTextMap[question.id] || "";
           const answerSummary = displayAnswerMap.get(question.id);
+          const isMultiple = question.type === "multiple";
+          const groupName = `${fieldIdBase}-${question.id}`;
 
           return (
-            <div
-              key={question.id}
-              className={classNames(
-                "rounded-xl border p-4",
-                isDark ? "border-white/10 bg-zinc-950/50" : "border-slate-200 bg-slate-50/70"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className={classNames(
-                    "inline-flex h-5 min-w-5 items-center justify-center rounded-md px-1.5 text-[11px] font-semibold",
-                    isDark
-                      ? "border border-slate-700 bg-zinc-800 text-slate-300"
-                      : "border border-slate-200 bg-white text-slate-600"
-                  )}
-                >
-                  {questionIndex + 1}
+            <div key={question.id} className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
+                  {questionIndex + 1}.
                 </span>
-                <div
-                  className={classNames(
-                    "text-sm font-medium",
-                    isDark ? "text-slate-100" : "text-slate-800"
-                  )}
-                >
+                <div className="text-tau-body text-ink-1 min-w-0 flex-1 break-words font-medium">
                   {question.question}
                 </div>
-                <span
-                  className={classNames(
-                    "ml-auto text-[11px]",
-                    isDark ? "text-slate-500" : "text-slate-400"
-                  )}
-                >
-                  {question.type === "multiple" ? "多选" : "单选"}
+                <span className="text-tau-tiny text-ink-3 shrink-0">
+                  {isMultiple ? "多选" : "单选"}
                   {question.required ? " · 必答" : " · 可选"}
                 </span>
               </div>
 
-              <div className="mt-3 grid gap-2">
-                {question.options.map(option => {
+              <div role={isMultiple ? "group" : "radiogroup"} className="grid gap-0.5">
+                {question.options.map((option, optionIndex) => {
                   const active = selectedValues.includes(option.value);
+                  const optionId = `${groupName}-${optionIndex}`;
                   return (
-                    <button
+                    <div
                       key={option.value}
-                      type="button"
-                      disabled={isLocked}
-                      onClick={() =>
-                        handleSelectOption(question.id, option.value, question.type === "multiple")
-                      }
-                      className={classNames(
-                        "w-full rounded-lg border px-3 py-2 text-left transition-all",
-                        "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70",
-                        active
-                          ? isDark
-                            ? "border-sky-300/60 bg-sky-400/15 text-slate-100"
-                            : "border-sky-300 bg-sky-50 text-slate-900"
-                          : isDark
-                            ? "border-white/10 bg-zinc-900/40 text-slate-300 hover:bg-zinc-800/60"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                        isLocked && "cursor-not-allowed opacity-80"
+                      className={cn(
+                        "rounded-tau-sm ease-tau-out px-1.5 py-1 transition-colors duration-[140ms]",
+                        active ? "bg-selected" : !isLocked && "hover:bg-hover",
+                        "[&>label]:flex [&>label]:w-full"
                       )}
                     >
-                      <div className="flex items-center gap-3">
-                        {question.type === "multiple" ? (
-                          <CustomCheckbox
-                            checked={active}
-                            onChange={() => handleSelectOption(question.id, option.value, true)}
-                            readonly={isLocked}
-                            accentColor={checkboxAccentColor}
-                            className="!mt-0 self-center"
-                          />
-                        ) : (
-                          <span
-                            className={classNames(
-                              "flex h-[16px] w-[16px] shrink-0 items-center justify-center self-center rounded-full border-[1.5px] transition-all",
-                              active
-                                ? isDark
-                                  ? "border-sky-300 bg-sky-400/20"
-                                  : "border-sky-500 bg-sky-100"
-                                : isDark
-                                  ? "border-slate-600 bg-transparent"
-                                  : "border-slate-300 bg-transparent"
-                            )}
-                          >
-                            <span
-                              className={classNames(
-                                "h-[6px] w-[6px] rounded-full transition-all",
-                                active ? (isDark ? "bg-sky-300" : "bg-sky-500") : "bg-transparent"
-                              )}
-                            />
-                          </span>
-                        )}
-                        <span className="text-sm leading-5">{option.label}</span>
-                      </div>
-                      {option.description && (
+                      {isMultiple ? (
                         <div
-                          className={classNames(
-                            "mt-1 pl-7 text-xs",
-                            isDark ? "text-slate-500" : "text-slate-500"
+                          className={cn(
+                            "flex gap-2",
+                            option.description ? "items-start" : "items-center"
                           )}
                         >
-                          {option.description}
+                          <Checkbox
+                            id={optionId}
+                            checked={active}
+                            disabled={isLocked}
+                            onChange={() => handleSelectOption(question.id, option.value, true)}
+                          />
+                          <label
+                            htmlFor={optionId}
+                            className={cn(
+                              "flex min-w-0 flex-1 flex-col gap-px",
+                              isLocked ? "cursor-default opacity-55" : "cursor-pointer",
+                              option.description && "pt-[2px]"
+                            )}
+                          >
+                            <span className="text-tau-body text-ink-1">{option.label}</span>
+                            {option.description && (
+                              <span className="text-tau-meta text-ink-3 leading-[1.55]">
+                                {option.description}
+                              </span>
+                            )}
+                          </label>
                         </div>
+                      ) : (
+                        <Radio
+                          name={groupName}
+                          value={option.value}
+                          checked={active}
+                          disabled={isLocked}
+                          onChange={() => handleSelectOption(question.id, option.value, false)}
+                          label={option.label}
+                          description={option.description || undefined}
+                        />
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
 
-              <div className="mt-3">
-                <input
-                  value={otherText}
-                  disabled={isLocked}
-                  onChange={event =>
-                    setOtherTextMap(prev => ({
-                      ...prev,
-                      [question.id]: event.target.value,
-                    }))
-                  }
-                  placeholder="其他选项（可自定义输入）"
-                  className={classNames(
-                    "w-full rounded-xl border px-3 py-2 text-sm outline-none transition-all",
-                    "focus:border-sky-400 focus:ring-2 focus:ring-sky-300/30",
-                    isDark
-                      ? "border-slate-700 bg-zinc-900 text-slate-100 placeholder:text-slate-500"
-                      : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400",
-                    isLocked && "cursor-not-allowed opacity-80"
-                  )}
-                />
-              </div>
+              <Input
+                size="sm"
+                value={otherText}
+                disabled={isLocked}
+                onChange={event =>
+                  setOtherTextMap(prev => ({
+                    ...prev,
+                    [question.id]: event.target.value,
+                  }))
+                }
+                placeholder="其他选项（可自定义输入）"
+              />
 
               {isLocked && answerSummary && (
-                <div
-                  className={classNames(
-                    "mt-3 rounded-lg px-3 py-2 text-xs",
-                    isDark
-                      ? "border border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
-                      : "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                  )}
-                >
-                  已提交：
-                  {(answerSummary.selectedValues || []).join("、") || "无"}
-                  {answerSummary.otherText ? `；其他：${answerSummary.otherText}` : ""}
+                <div className="text-tau-sm text-ok flex items-start gap-1.5">
+                  <Check aria-hidden size={14} strokeWidth={2} className="mt-px shrink-0" />
+                  <span className="min-w-0 break-words">
+                    已提交：
+                    {(answerSummary.selectedValues || []).join("、") || "无"}
+                    {answerSummary.otherText ? `；其他：${answerSummary.otherText}` : ""}
+                  </span>
                 </div>
               )}
             </div>
@@ -394,44 +329,17 @@ const AskQuestionRenderer = ({
         })}
 
         {error && (
-          <div
-            className={classNames(
-              "rounded-lg border px-3 py-2 text-xs",
-              isDark
-                ? "border-red-400/35 bg-red-500/10 text-red-300"
-                : "border-red-200 bg-red-50 text-red-600"
-            )}
-          >
-            {error}
+          <div role="alert" className="text-tau-sm text-danger flex items-start gap-1.5">
+            <CircleAlert aria-hidden size={14} strokeWidth={1.75} className="mt-px shrink-0" />
+            <span className="min-w-0 break-words">{error}</span>
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <div className={classNames("text-xs", isDark ? "text-slate-500" : "text-slate-500")}>
-            {!isLocked
-              ? "请完成选择后提交答案"
-              : submittedAnswers
-                ? "答案已提交，等待模型继续响应"
-                : isTransientStreamingState(execution.status) && !execution.output
-                  ? "正在准备问题…"
-                  : "提问已结束，这次没有得到回答"}
-          </div>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isLocked}
-            className={classNames(
-              "rounded-xl px-4 py-2 text-sm font-semibold transition-all",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-              isLocked
-                ? isDark
-                  ? "cursor-not-allowed bg-zinc-700 text-slate-400"
-                  : "cursor-not-allowed bg-slate-100 text-slate-400"
-                : "bg-sky-500 text-white hover:bg-sky-600"
-            )}
-          >
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-tau-sm text-ink-3">{statusText}</div>
+          <Button variant="primary" size="sm" onClick={handleSubmit} disabled={isLocked}>
             {payload.submitLabel || "提交答案"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

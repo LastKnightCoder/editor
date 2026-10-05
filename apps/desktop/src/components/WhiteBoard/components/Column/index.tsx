@@ -5,14 +5,17 @@ import { cn } from "@tau/ui";
 
 import { EHandlerPosition, Point, Board, BoardElement, ColumnElement } from "../../types";
 import { COLUMN_DEFAULTS, COLUMN_COLORS, COLUMN_COLOR_OPTIONS } from "../../types/column";
-import { useSelectState, useDropArrow, useColumnChildrenWatch } from "../../hooks";
+import { useSelectState, useDropArrow, useColumnChildrenWatch, useSketch } from "../../hooks";
 import { PathUtil, ColumnUtil, PointUtil } from "../../utils";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
+import SketchStroke from "../SketchPaths/SketchStroke";
 import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
+import { handTextClass } from "../../utils/sketch";
 
 const PLACEHOLDER_KEY = "__placeholder__";
 const APPEND_BUTTON_HEIGHT = 32;
@@ -55,6 +58,9 @@ const Column = memo(
     const height = element.height || ColumnUtil.calculateHeight(board, element);
 
     const { isSelected } = useSelectState(element.id);
+    const sketch = useSketch(element);
+    // 拖入时的 accent 边线是交互反馈，保持普通描边；手绘线用 ink-3，发丝线色太淡
+    const sketchTray = sketch.enabled && !isChildDraggingOver;
     const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
       useDropArrow({ ...element, height });
 
@@ -243,10 +249,27 @@ const Column = memo(
             height: trayHeight,
             transition: `height ${animationDuration}ms ${animationEasing}`,
             fill: isChildDraggingOver ? COLUMN_COLORS.trayDropOver : COLUMN_COLORS.tray,
-            stroke: isChildDraggingOver ? COLUMN_COLORS.lineDropOver : COLUMN_COLORS.line,
+            stroke: sketchTray
+              ? "none"
+              : isChildDraggingOver
+                ? COLUMN_COLORS.lineDropOver
+                : COLUMN_COLORS.line,
             strokeWidth: 1,
           }}
         />
+        {sketchTray && (
+          <SketchRect
+            x={x}
+            y={y}
+            width={width}
+            height={trayHeight}
+            radius={borderRadius}
+            stroke={COLUMN_COLORS.muted}
+            strokeWidth={1.2}
+            level="neat"
+            seed={sketch.seed}
+          />
+        )}
 
         {/* 顶部色带：裁成托盘的上圆角 */}
         {colorToken && (
@@ -291,7 +314,10 @@ const Column = memo(
               id={`column-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Column"}
-              className="text-tau-body-lg min-w-5 max-w-full cursor-pointer select-none truncate font-semibold leading-5 outline-none"
+              className={cn(
+                "text-tau-body-lg min-w-5 max-w-full cursor-pointer select-none truncate font-semibold leading-5 outline-none",
+                handTextClass(sketch)
+              )}
               style={{ color: COLUMN_COLORS.title }}
               contentEditable={isEditingTitle}
               onBlur={handleTitleBlur}
@@ -330,15 +356,27 @@ const Column = memo(
           </div>
         </foreignObject>
 
-        <line
-          visibility={collapsed ? "hidden" : undefined}
-          x1={x}
-          y1={y + titleHeight}
-          x2={x + width}
-          y2={y + titleHeight}
-          style={{ stroke: COLUMN_COLORS.line, strokeWidth: 1 }}
-          className="pointer-events-none"
-        />
+        {sketch.enabled ? (
+          !collapsed && (
+            <SketchStroke
+              d={`M ${x + 6} ${y + titleHeight} L ${x + width - 6} ${y + titleHeight}`}
+              color={COLUMN_COLORS.muted}
+              strokeWidth={1}
+              level="neat"
+              seed={sketch.seed + 1}
+            />
+          )
+        ) : (
+          <line
+            visibility={collapsed ? "hidden" : undefined}
+            x1={x}
+            y1={y + titleHeight}
+            x2={x + width}
+            y2={y + titleHeight}
+            style={{ stroke: COLUMN_COLORS.line, strokeWidth: 1 }}
+            className="pointer-events-none"
+          />
+        )}
 
         {/* 空列占位 */}
         <If condition={layout.isVisuallyEmpty}>
@@ -507,7 +545,6 @@ const Column = memo(
         <ArrowConnectPointGroup
           element={element}
           points={arrowConnectExtendPoints}
-          proximityBounds={{ x, y, width, height }}
           isSelected={isSelected}
           disabled={isMoveArrowClosing}
         />

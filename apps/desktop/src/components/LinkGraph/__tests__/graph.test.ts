@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ICard } from "@/types";
+import { toItems } from "./fixtures";
 import { buildScene, inheritPositions, nodeRadius, sceneBounds } from "../core/graph";
 
 const card = (id: number, links: number[] = [], content?: unknown): ICard =>
@@ -13,11 +14,9 @@ const card = (id: number, links: number[] = [], content?: unknown): ICard =>
     tags: [],
   }) as unknown as ICard;
 
-const links = (c: ICard) => c.links;
-
 describe("buildScene", () => {
   it("成边去重、去自环、去悬空链接", () => {
-    const scene = buildScene([card(1, [2, 2, 1, 99]), card(2, [1])], links);
+    const scene = buildScene(toItems([card(1, [2, 2, 1, 99]), card(2, [1])]));
     expect(scene.edges).toEqual([{ source: 1, target: 2 }]);
     expect(scene.nodeById.get(1)!.degree).toBe(1);
   });
@@ -32,14 +31,15 @@ describe("buildScene", () => {
 
   it("标签取正文首段文本并压缩空白", () => {
     const scene = buildScene(
-      [card(1, [], [{ type: "paragraph", children: [{ type: "formatted", text: "  上  下  " }] }])],
-      links
+      toItems([
+        card(1, [], [{ type: "paragraph", children: [{ type: "formatted", text: "  上  下  " }] }]),
+      ])
     );
     expect(scene.nodeById.get(1)!.label).toBe("上 下");
   });
 
   it("空正文不炸，标签为空串", () => {
-    const scene = buildScene([card(1, [], [])], links);
+    const scene = buildScene(toItems([card(1, [], [])]));
     expect(scene.nodeById.get(1)!.label).toBe("");
   });
 
@@ -47,7 +47,7 @@ describe("buildScene", () => {
     // 两个各 5 节点的链，互不相连
     const chain = (base: number) =>
       [0, 1, 2, 3, 4].map(i => card(base + i, i < 4 ? [base + i + 1] : []));
-    const scene = buildScene([...chain(1), ...chain(11)], links);
+    const scene = buildScene(toItems([...chain(1), ...chain(11)]));
     const first = [1, 2, 3, 4, 5].map(id => scene.nodeById.get(id)!);
     const second = [11, 12, 13, 14, 15].map(id => scene.nodeById.get(id)!);
     const centroid = (nodes: typeof first) => ({
@@ -61,8 +61,7 @@ describe("buildScene", () => {
 
   it("同一分量内的节点互不重合", () => {
     const scene = buildScene(
-      Array.from({ length: 20 }, (_, i) => card(i + 1, i < 19 ? [i + 2] : [])),
-      links
+      toItems(Array.from({ length: 20 }, (_, i) => card(i + 1, i < 19 ? [i + 2] : [])))
     );
     const seen = new Set(scene.nodes.map(n => `${n.x.toFixed(3)},${n.y.toFixed(3)}`));
     expect(seen.size).toBe(scene.nodes.length);
@@ -71,14 +70,14 @@ describe("buildScene", () => {
 
 describe("inheritPositions", () => {
   it("已有节点保留坐标与固定状态", () => {
-    const previous = buildScene([card(1, [2]), card(2, [1])], links);
+    const previous = buildScene(toItems([card(1, [2]), card(2, [1])]));
     previous.nodeById.get(1)!.x = 123;
     previous.nodeById.get(1)!.y = 456;
     previous.nodeById.get(1)!.fx = 123;
     previous.nodeById.get(1)!.fy = 456;
 
     const next = inheritPositions(
-      buildScene([card(1, [2]), card(2, [1]), card(3, [1])], links),
+      buildScene(toItems([card(1, [2]), card(2, [1]), card(3, [1])])),
       previous
     );
     expect(next.nodeById.get(1)!.x).toBe(123);
@@ -86,26 +85,26 @@ describe("inheritPositions", () => {
   });
 
   it("新增节点落在已有邻居附近，而不是螺旋种子位", () => {
-    const previous = buildScene([card(1)], links);
+    const previous = buildScene(toItems([card(1)]));
     previous.nodeById.get(1)!.x = 1000;
     previous.nodeById.get(1)!.y = 1000;
 
-    const next = inheritPositions(buildScene([card(1), card(2, [1])], links), previous);
+    const next = inheritPositions(buildScene(toItems([card(1), card(2, [1])])), previous);
     const fresh = next.nodeById.get(2)!;
     expect(Math.hypot(fresh.x - 1000, fresh.y - 1000)).toBeLessThan(60);
   });
 
   it("新增的孤立节点不继承任何坐标", () => {
-    const previous = buildScene([card(1)], links);
+    const previous = buildScene(toItems([card(1)]));
     previous.nodeById.get(1)!.x = 1000;
-    const next = inheritPositions(buildScene([card(1), card(2)], links), previous);
+    const next = inheritPositions(buildScene(toItems([card(1), card(2)])), previous);
     expect(next.nodeById.get(2)!.x).not.toBe(1000);
   });
 });
 
 describe("sceneBounds", () => {
   it("包围盒包含节点半径", () => {
-    const scene = buildScene([card(1)], links);
+    const scene = buildScene(toItems([card(1)]));
     const node = scene.nodeById.get(1)!;
     node.x = 0;
     node.y = 0;
@@ -115,7 +114,7 @@ describe("sceneBounds", () => {
   });
 
   it("空图返回非退化的盒，避免 fit 时除零", () => {
-    const bounds = sceneBounds(buildScene([], links));
+    const bounds = sceneBounds(buildScene(toItems([])));
     expect(bounds.maxX - bounds.minX).toBeGreaterThan(0);
   });
 });

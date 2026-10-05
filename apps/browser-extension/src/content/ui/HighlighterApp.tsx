@@ -61,6 +61,35 @@ const getSessionStorageArea = () =>
     ? (chrome.storage as ChromeStorageWithSession).session
     : undefined;
 
+
+/** 桌面摘录打开网页时附带的划线定位：#tau-hl=<划线 id> */
+export function highlightIdFromHash(hash: string): string | null {
+  const match = /(?:^#|&)tau-hl=([^&]+)/.exec(hash);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** 滚到某条划线并短暂描边闪烁；找不到（恢复失败）时不做任何事 */
+function scrollToHighlight(highlightId: string) {
+  const mark = document.querySelector(
+    `mark[data-tau-highlight-id="${CSS.escape(highlightId)}"]`,
+  );
+  if (!mark) return;
+  mark.scrollIntoView({ behavior: "smooth", block: "center" });
+  const el = mark as HTMLElement;
+  el.style.transition = "outline 0.2s, outline-offset 0.2s";
+  el.style.outline = "2px solid rgba(96, 165, 250, 0.8)";
+  el.style.outlineOffset = "2px";
+  setTimeout(() => {
+    el.style.outline = "none";
+    el.style.outlineOffset = "0";
+    setTimeout(() => {
+      el.style.removeProperty("transition");
+      el.style.removeProperty("outline");
+      el.style.removeProperty("outline-offset");
+    }, 200);
+  }, 1200);
+}
+
 export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   // Page data
   const [pageData, setPageData] = useState<PageHighlights | null>(null);
@@ -203,7 +232,8 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
           annotations: {},
           version: 1,
         };
-        const next = updater(base);
+        // background 拿不到页面标题，保存时带上（摘录同步用）
+        const next = { ...updater(base), title: document.title || base.title };
         savePageHighlights(next);
         return next;
       });
@@ -469,6 +499,9 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
       if (data) {
         setPageData(data);
         restoreAllHighlights(data.highlights);
+        // 从桌面摘录打开时 URL 带 #tau-hl=<划线 id>，恢复后滚到那条
+        const target = highlightIdFromHash(window.location.hash);
+        if (target) scrollToHighlight(target);
       }
     })();
   }, [url]);
@@ -575,26 +608,7 @@ export default function HighlighterApp({ shadowRoot }: HighlighterAppProps) {
   useEffect(() => {
     const handler = (message: any) => {
       if (message.type === "TAU_SCROLL_TO_HIGHLIGHT" && message.highlightId) {
-        const mark = document.querySelector(
-          `mark[data-tau-highlight-id="${message.highlightId}"]`,
-        );
-        if (mark) {
-          mark.scrollIntoView({ behavior: "smooth", block: "center" });
-          // 闪烁效果：短暂高亮后恢复
-          const el = mark as HTMLElement;
-          el.style.transition = "outline 0.2s, outline-offset 0.2s";
-          el.style.outline = "2px solid rgba(96, 165, 250, 0.8)";
-          el.style.outlineOffset = "2px";
-          setTimeout(() => {
-            el.style.outline = "none";
-            el.style.outlineOffset = "0";
-            setTimeout(() => {
-              el.style.removeProperty("transition");
-              el.style.removeProperty("outline");
-              el.style.removeProperty("outline-offset");
-            }, 200);
-          }, 1200);
-        }
+        scrollToHighlight(message.highlightId);
       }
     };
     chrome.runtime.onMessage.addListener(handler);

@@ -8,14 +8,11 @@ import {
   DEFAULT_GEOMETRY_TEXT_ALIGN,
 } from "../constants";
 import type { GeometryElement } from "../plugins/GeometryPlugin";
+import type { SketchFillStyle } from "../types";
 
 const LOCAL_STORAGE_KEY = "whiteboard-geometry";
 
-// 记忆中的草图选项（剔除 seed：seed 为每个元素独有，不应被复用）
-type RememberedSketchOptions = Omit<
-  NonNullable<GeometryElement["sketchOptions"]>,
-  "seed"
->;
+const FILL_STYLES: SketchFillStyle[] = ["solid", "hatch", "cross", "scribble"];
 
 type GeometryTextAlign = GeometryElement["text"]["align"];
 
@@ -42,74 +39,29 @@ export class GeometryUtil {
     return Number.isNaN(n) ? fallback : n;
   }
 
-  // 读取布尔（"true"/"false"），缺失时回退默认值
-  private static getBoolean(key: string, fallback: boolean): boolean {
-    const raw = this.getLocalStorage(key);
-    if (raw == null) return fallback;
-    return raw === "true";
-  }
-
-  // 读取并解析 JSON，缺失或非法时回退默认值
-  private static getJSON<T>(key: string, fallback: T): T {
-    const raw = this.getLocalStorage(key);
-    if (raw == null || raw === "") return fallback;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return fallback;
-    }
-  }
-
-  // 序列化草图选项为 JSON 字符串（剔除 seed）
-  static serializeSketchOptions(
-    options: GeometryElement["sketchOptions"],
-  ): string | undefined {
-    if (!options) return undefined;
-    const rest = { ...options };
-    delete rest.seed;
-    return JSON.stringify(rest);
-  }
-
   // 获取上次创建几何图形时使用的样式，用于新建时复用
   static getPrevGeometryStyle() {
     const fill = this.getLocalStorage("fill") ?? DEFAULT_GEOMETRY_FILL;
-    const fillOpacity = this.getNumber(
-      "fillOpacity",
-      DEFAULT_GEOMETRY_FILL_OPACITY,
-    );
+    const fillOpacity = this.getNumber("fillOpacity", DEFAULT_GEOMETRY_FILL_OPACITY);
     const stroke = this.getLocalStorage("stroke") ?? DEFAULT_GEOMETRY_STROKE;
-    const strokeWidth = this.getNumber(
-      "strokeWidth",
-      DEFAULT_GEOMETRY_STROKE_WIDTH,
-    );
-    const strokeOpacity = this.getNumber(
-      "strokeOpacity",
-      DEFAULT_GEOMETRY_STROKE_OPACITY,
-    );
+    const strokeWidth = this.getNumber("strokeWidth", DEFAULT_GEOMETRY_STROKE_WIDTH);
+    const strokeOpacity = this.getNumber("strokeOpacity", DEFAULT_GEOMETRY_STROKE_OPACITY);
     const color = this.getLocalStorage("color") ?? undefined;
 
     const themeRaw = this.getLocalStorage("theme");
     const theme: "light" | "dark" | undefined =
       themeRaw === "light" || themeRaw === "dark" ? themeRaw : undefined;
 
-    const cornerRadius = this.getNumber(
-      "cornerRadius",
-      DEFAULT_GEOMETRY_CORNER_RADIUS,
-    );
+    const cornerRadius = this.getNumber("cornerRadius", DEFAULT_GEOMETRY_CORNER_RADIUS);
 
     const textAlignRaw = this.getLocalStorage("textAlign");
     const textAlign: GeometryTextAlign =
-      textAlignRaw === "left" ||
-      textAlignRaw === "center" ||
-      textAlignRaw === "right"
+      textAlignRaw === "left" || textAlignRaw === "center" || textAlignRaw === "right"
         ? textAlignRaw
         : DEFAULT_GEOMETRY_TEXT_ALIGN;
 
-    const sketchEnabled = this.getBoolean("sketchEnabled", false);
-    const sketchOptions = this.getJSON<RememberedSketchOptions | undefined>(
-      "sketchOptions",
-      undefined,
-    );
+    const fillStyleRaw = this.getLocalStorage("fillStyle");
+    const fillStyle = FILL_STYLES.find(style => style === fillStyleRaw);
 
     return {
       fill,
@@ -121,8 +73,7 @@ export class GeometryUtil {
       theme,
       cornerRadius,
       textAlign,
-      sketchEnabled,
-      sketchOptions,
+      fillStyle,
     } as const;
   }
 }

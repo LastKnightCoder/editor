@@ -1,4 +1,13 @@
-import { forwardRef, useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
+import { useContentLocation } from "./useContentLocation";
 import { Loader2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
@@ -18,6 +27,7 @@ import type { ContentSessionTarget } from "@tau/collaboration";
 import type { Descendant } from "slate";
 
 type ContentEditorProps = ComponentProps<typeof Editor> & {
+  at?: string;
   contentId?: number;
   source?: Omit<ContentSessionTarget, "contentId">;
   onLoadError?: (error: string) => void;
@@ -30,8 +40,46 @@ type ContentEditorProps = ComponentProps<typeof Editor> & {
 /** 内容快照重建要全量序列化 markdown，防抖到输入停顿后执行 */
 const EDITING_SESSION_SNAPSHOT_DEBOUNCE_MS = 500;
 
+function ContentLocation({
+  editor,
+  contentId,
+  at,
+}: {
+  editor: ReturnType<EditorRef["getEditor"]> | null;
+  contentId?: number;
+  at: string;
+}) {
+  useContentLocation(editor, contentId, at);
+  return null;
+}
+
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, source, onLoadError, fallback, editingContext, ...props }, ref) => {
+  ({ contentId, source, onLoadError, fallback, editingContext, at, ...props }, ref) => {
+    const [locationEditor, setLocationEditor] = useState<{
+      editor: ReturnType<EditorRef["getEditor"]>;
+      contentId?: number;
+    } | null>(null);
+    const onInitRef = useRef(props.onInit);
+    onInitRef.current = props.onInit;
+    const atRef = useRef(at);
+    atRef.current = at;
+    const initializedEditor = useRef<typeof locationEditor>(null);
+    const handleInit = useCallback(
+      (editor: ReturnType<EditorRef["getEditor"]>, content: Descendant[]) => {
+        initializedEditor.current = { editor, contentId };
+        if (atRef.current)
+          setLocationEditor(previous =>
+            previous?.editor === editor && previous.contentId === contentId
+              ? previous
+              : { editor, contentId }
+          );
+        onInitRef.current?.(editor, content);
+      },
+      [contentId]
+    );
+    useEffect(() => {
+      if (at) setLocationEditor(initializedEditor.current);
+    }, [at]);
     const sessions = useCollaborationStore(state => state.sessions);
     const readonly = props.readonly ?? true;
     const { document, binding, article, error, sessionError, frozen, swapping } =
@@ -40,6 +88,16 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const callback = useRef(props.onChange);
     const editorRef = useRef<EditorRef | null>(null);
     callback.current = props.onChange;
+    const forwardedRef = useRef(ref);
+    forwardedRef.current = ref;
+    // 回调 ref 必须稳定：Editor 的 useImperativeHandle 以 ref 为依赖，换身份时会先置空再挂回，
+    // 期间编辑器内部的 layout effect（如 decorate 变化后的装饰重算）经外部 ref 读到的是 null
+    const setEditorRef = useCallback((value: EditorRef | null) => {
+      editorRef.current = value;
+      const target = forwardedRef.current;
+      if (typeof target === "function") target(value);
+      else if (target) target.current = value;
+    }, []);
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
     const kit = useCollaborationKit(binding, props.kit);
@@ -104,6 +162,15 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }
     return (
       <>
+        {at && !swapping && !frozen && (
+          <ContentLocation
+            at={at}
+            contentId={contentId}
+            editor={
+              locationEditor?.contentId === contentId ? (locationEditor?.editor ?? null) : null
+            }
+          />
+        )}
         {error && (
           <div role="alert" style={{ color: "#dc2626", fontSize: 12 }}>
             {error}
@@ -112,11 +179,8 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
         <Editor
           {...props}
           kit={kit}
-          ref={value => {
-            editorRef.current = value;
-            if (typeof ref === "function") ref(value);
-            else if (ref) ref.current = value;
-          }}
+          onInit={handleInit}
+          ref={setEditorRef}
           document={document}
           readonly={
             readonly || frozen || swapping || Boolean(session && session.status !== "active")

@@ -42,6 +42,17 @@ export function resultDisplay(
   maxSnippet = 90
 ): { title: string; snippet: string } {
   const rawTitle = (result.title ?? "").trim();
+  if (result.section) {
+    return {
+      title: clampText(rawTitle || richTextPlainText(result.content), maxTitle),
+      snippet: [
+        result.section.headingPath ? `› ${result.section.headingPath}` : "",
+        clampText(result.section.text, maxSnippet),
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  }
   if (rawTitle) {
     return {
       title: clampText(rawTitle, maxTitle),

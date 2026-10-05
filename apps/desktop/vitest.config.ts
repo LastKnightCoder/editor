@@ -17,6 +17,8 @@ export default defineConfig({
     environment: "jsdom",
     environmentMatchGlobs: [["src-electron/main/modules/__tests__/pi-*.test.ts", "node"]],
     setupFiles: ["./src/test-setup.ts"],
+    // 被 electron-rebuild 覆盖成 Electron ABI 时先恢复，否则主进程侧 sqlite 测试全部加载失败
+    globalSetup: ["../../scripts/ensure-node-sqlite.mjs"],
     // e2e spec 由 Playwright 独立执行（test:collaboration:e2e），vitest 不收集
     exclude: [...configDefaults.exclude, "e2e/**"],
     deps: {

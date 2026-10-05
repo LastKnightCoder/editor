@@ -98,6 +98,13 @@ export const chatSessionKey = (
 ): string =>
   `${databaseName ? `${databaseName.replace(/\.db$/, "")}\u0000` : ""}${chatScope.split(":")[0]}:${chatId}`;
 
+/** 会话键 → 对话 id（= chat_session.id）；不是会话键时返回 null */
+export const chatIdFromSessionKey = (key: string): string | null => {
+  const body = key.slice(key.indexOf("\u0000") + 1);
+  const separator = body.indexOf(":");
+  return separator > 0 && separator < body.length - 1 ? body.slice(separator + 1) : null;
+};
+
 class PiChatSessionManager {
   private readonly sessions = new Map<string, ChatSessionDescriptor>();
   private readonly creating = new Map<string, Promise<EnsuredChatSession>>();

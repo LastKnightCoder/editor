@@ -6,14 +6,18 @@ import {
   File,
   FileText,
   FolderKanban,
+  Globe,
+  Highlighter,
   Layers,
+  MessageCircle,
   PenLine,
   Presentation,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 import type {
+  QuestionCompositionKind,
   QuestionEvent,
-  QuestionLinkTargetType,
   QuestionMaterial,
   QuestionStatus,
   QuestionSummary,
@@ -35,22 +39,30 @@ export const SECTION_ORDER: QuestionStatus[] = ["in_progress", "not_started", "r
 /** 状态条 / 数字键 1-3 的顺序：按学习阶段 */
 export const STATUS_STEPS: QuestionStatus[] = ["not_started", "in_progress", "resolved"];
 
-export const TARGET_META: Record<QuestionLinkTargetType, { label: string; icon: LucideIcon }> = {
+export const TARGET_META: Record<QuestionCompositionKind, { label: string; icon: LucideIcon }> = {
   card: { label: "卡片", icon: Layers },
   article: { label: "文章", icon: FileText },
   project_item: { label: "项目文档", icon: File },
   project: { label: "项目", icon: FolderKanban },
   white_board: { label: "白板", icon: Presentation },
   answer: { label: "独立答案", icon: PenLine },
+  excerpt: { label: "划线", icon: Highlighter },
+  "pdf-annotation": { label: "PDF 标注", icon: ScrollText },
+  "web-clip": { label: "剪藏", icon: Globe },
+  "chat-session": { label: "对话", icon: MessageCircle },
 };
 
 /** 构成计数的展示顺序 */
-export const COMPOSITION_ORDER: QuestionLinkTargetType[] = [
+export const COMPOSITION_ORDER: QuestionCompositionKind[] = [
   "card",
   "article",
   "project_item",
   "project",
   "white_board",
+  "excerpt",
+  "pdf-annotation",
+  "web-clip",
+  "chat-session",
   "answer",
 ];
 
@@ -118,6 +130,12 @@ export function canPreview(material: QuestionMaterial): boolean {
   return !material.missing && material.contentId != null && PREVIEWABLE.has(material.targetType);
 }
 
+/** 外部材料要能定位到原处才可打开（源端已删除的划线只展示原文） */
+export function canOpenMaterial(material: QuestionMaterial): boolean {
+  if (material.missing) return false;
+  return material.material ? material.material.open != null : true;
+}
+
 export function materialMeta(material: QuestionMaterial): string {
   const words =
     material.targetType === "article" || material.targetType === "project_item"
@@ -126,7 +144,7 @@ export function materialMeta(material: QuestionMaterial): string {
   return [material.meta, words].filter(Boolean).join(" · ");
 }
 
-const CREATED_VERB: Record<QuestionLinkTargetType, string> = {
+const CREATED_VERB: Partial<Record<QuestionCompositionKind, string>> = {
   card: "写下卡片",
   article: "写了文章",
   project_item: "写了项目文档",
@@ -139,7 +157,7 @@ export interface EventView {
   /** 视觉档：自动事件轻、手动记录重 */
   tone: "start" | "made" | "plain" | "muted" | "done" | "note";
   verb: string;
-  targetType?: QuestionLinkTargetType;
+  targetType?: QuestionCompositionKind;
   title?: string;
   text?: string;
   estimated: boolean;
@@ -150,7 +168,7 @@ export function describeEvent(event: QuestionEvent): EventView {
     to?: QuestionStatus;
     auto?: boolean;
     created?: boolean;
-    targetType?: QuestionLinkTargetType;
+    targetType?: QuestionCompositionKind;
     title?: string;
     text?: string;
     estimated?: boolean;
@@ -172,7 +190,10 @@ export function describeEvent(event: QuestionEvent): EventView {
       const type = p.targetType ?? "card";
       return {
         tone: p.created ? "made" : "plain",
-        verb: p.created ? CREATED_VERB[type] : `关联${TARGET_META[type]?.label ?? "材料"}`,
+        verb:
+          p.created && CREATED_VERB[type]
+            ? CREATED_VERB[type]
+            : `关联${TARGET_META[type]?.label ?? "材料"}`,
         targetType: type,
         title: p.title,
         estimated,

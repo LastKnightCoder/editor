@@ -1,13 +1,12 @@
-import { getKnowledgeMap, type KnowledgeMapPayload } from "@/commands/knowledge-map";
 /**
  * 卡片库数据源与派生。
  *
  * 数据：getScopedCards 轻表拉取（content 为主进程截好的预览块，不含播客对象），
  * react-query 承载缓存与窗口聚焦刷新；单卡全文/播客经 useCardDetail 按需获取。
  * 写入与跨窗口事件按 id 单卡并入缓存，不做整域失效——全量重拉只剩显式 refresh
- * 与窗口聚焦。分类 / 标签树 / 时间分组全部前端派生（旧版同口径）。
+ * 与窗口聚焦。标签树 / 时间分组全部前端派生（旧版同口径）。
  *
- * 派生：filterCards（分类 + 标签前缀）→ bucketByTimeGroups
+ * 派生：filterCards（标签前缀）→ bucketByTimeGroups
  * （置顶优先 → 创建时间降序的分组呈现）→ buildTagTree（层级计数）。
  */
 
@@ -20,7 +19,10 @@ import {
   getScopedCards,
   patchScopedCard,
 } from "@/commands/card";
-import { ECardCategory, type ICard } from "@/types";
+import { getContentAiTitles } from "@/commands/content-ai";
+import { on } from "@/electron";
+import { queryClient as appQueryClient } from "@/queryClient";
+import { type ICard } from "@/types";
 import type { CardMetadataPatch, ICreateCard } from "@/types/card";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
@@ -53,6 +55,41 @@ function mergeCardIntoCache(
     queryClient.setQueryData(cardDetailKey(databaseName, card.id), card);
   }
 }
+
+const sameDatabase = (a: unknown, b: string) =>
+  typeof a === "string" && a.replace(/\.db$/, "") === b.replace(/\.db$/, "");
+
+/**
+ * 主进程写入元信息后（已节流）按正文取新标题，原地补进列表与详情缓存：
+ * 首轮处理全库时每隔几秒就有一批，整表重拉代价太大。
+ */
+export async function patchCardAiTitles(
+  queryClient: QueryClient,
+  databaseName: string,
+  contentIds: number[]
+) {
+  if (!contentIds.length) return;
+  const titles = await getContentAiTitles(contentIds);
+  const changed = new Set(contentIds);
+  const update = (card: ICard): ICard =>
+    changed.has(card.contentId) ? { ...card, aiTitle: titles[card.contentId] || undefined } : card;
+  const matches = {
+    predicate: (query: { queryKey: readonly unknown[] }) =>
+      query.queryKey[0] === "cards" && sameDatabase(query.queryKey[1], databaseName),
+  };
+  queryClient.setQueriesData<ICard[] | ICard>(matches, data =>
+    Array.isArray(data) ? data.map(update) : data && "contentId" in data ? update(data) : data
+  );
+}
+
+on(
+  "content-ai-meta:changed",
+  (_event, payload: { databaseName: string; contentIds?: number[] }) => {
+    void patchCardAiTitles(appQueryClient, payload.databaseName, payload.contentIds ?? []).catch(
+      () => undefined
+    );
+  }
+);
 
 /* ---------- 查询 ---------- */
 
@@ -181,10 +218,6 @@ export function useCardsMutations() {
     mutationFn: ({ card, isTop }: { card: ICard; isTop: boolean }) =>
       patch.mutateAsync({ id: card.id, patch: { isTop } }),
   });
-  const changeCategory = useMutation({
-    mutationFn: ({ card, category }: { card: ICard; category: ECardCategory }) =>
-      patch.mutateAsync({ id: card.id, patch: { category } }),
-  });
   const remove = useMutation({
     mutationFn: (id: number) => {
       assertActive();
@@ -200,7 +233,7 @@ export function useCardsMutations() {
       }
     },
   });
-  return { toggleTop, changeCategory, remove, patch, create };
+  return { toggleTop, remove, patch, create };
 }
 
 /* ---------- 派生 ---------- */
@@ -212,10 +245,9 @@ export function sortCards(cards: ICard[]): ICard[] {
   );
 }
 
-/** 分类与标签过滤后，按置顶优先、创建时间降序排列。 */
+/** 标签过滤后，按置顶优先、创建时间降序排列。 */
 export function filterCards(cards: ICard[], filter: CardFilter): ICard[] {
   const filtered = cards.filter(card => {
-    if (filter.category !== "all" && card.category !== filter.category) return false;
     if (filter.tag && !card.tags.some(t => t === filter.tag || t.startsWith(filter.tag + "/")))
       return false;
     return true;
@@ -290,55 +322,4 @@ export function buildTagTree(cards: ICard[]): CardTagNode[] {
       .map(node => ({ ...node, children: sortTree(node.children) }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
   return sortTree(root.children);
-}
-
-/* ---------- 知识地图 ---------- */
-
-export const knowledgeMapKey = (databaseName: string) =>
-  ["cards", databaseName, "knowledge-map"] as const;
-
-/**
- * 从外部写知识地图的缓存（开发悬浮球的「整体重算」）。一律经这里写，不要直接 setQueryData：
- * 缓存里存的是整个 payload（带 status，首次构建中时要轮询），曾经有人直接写进一份裸地图，
- * 图谱读 `.map` 读到 undefined，以为没有地图，退回了按链接跑力布局的链接图谱——
- * 分布与缩放全变了，重新进入页面才恢复。
- */
-export function setKnowledgeMapCache(
-  client: QueryClient,
-  databaseName: string,
-  payload: KnowledgeMapPayload
-) {
-  client.setQueryData<KnowledgeMapPayload | null>(knowledgeMapKey(databaseName), payload);
-}
-
-/**
- * 离线知识地图（主进程按「显式链接 + 语义近邻」算好的坐标与两层主题）。
- * 主进程在读取时顺带对账新增/删除的卡片，过时则后台重算；这里每次打开图谱视图拉一次即可。
- * 取不到（无 Electron、索引库异常）时返回 null，图谱退回按链接实时计算。
- */
-/** 首次构建中时的轮询间隔：万级库要几分钟，这点轮询的开销可以忽略 */
-const KNOWLEDGE_MAP_POLL_MS = 3000;
-
-export function useKnowledgeMap(enabled: boolean) {
-  const databaseName = useSettingStore(state => state.setting.database.active);
-  const ready = useGlobalStateStore(state => state.databaseStatus[databaseName] === "ready");
-  return useQuery<KnowledgeMapPayload | null>({
-    queryKey: knowledgeMapKey(databaseName),
-    queryFn: async () => {
-      if (typeof window === "undefined" || !window.electron) return null;
-      try {
-        return await getKnowledgeMap();
-      } catch {
-        return null;
-      }
-    },
-    enabled: enabled && Boolean(databaseName) && ready,
-    // 每次进入图谱视图重新对账（新写的卡片落位），不做窗口聚焦刷新：地图变动不该在用户看着时跳
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    // 大库首次构建是分钟级的：主进程立刻回 building，这里轮询等它算完
-    //（期间渲染层显示链接图谱，用户能看能点）
-    refetchInterval: query =>
-      query.state.data?.status === "building" ? KNOWLEDGE_MAP_POLL_MS : false,
-  });
 }

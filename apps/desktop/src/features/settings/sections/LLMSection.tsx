@@ -60,13 +60,18 @@ import { ToolPermissionGroup } from "./ToolPermissionGroup";
 import { AgentShellGroup } from "./AgentShellGroup";
 import { AgentWorkspaceGroup } from "./AgentWorkspaceGroup";
 import { ModelUsagePanel } from "./ModelUsagePanel";
+import {
+  ContentInsightsDescription,
+  ContentMetadataDescription,
+  ContentMetadataProgressRow,
+} from "./ContentMetadataStatus";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
 
 interface FeatureDef {
   key: FeatureKey;
   label: string;
-  desc: string;
+  desc: ReactNode;
 }
 
 const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = [
@@ -79,6 +84,8 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
     features: [
       { key: "titleSummary", label: "标题总结", desc: "笔记与文档的命名摘要" },
       { key: "webClip", label: "网页剪藏", desc: "剪藏页面的正文抽取与清洗" },
+      { key: "contentMetadata", label: "笔记元信息", desc: <ContentMetadataDescription /> },
+      { key: "contentInsights", label: "AI 洞见", desc: <ContentInsightsDescription /> },
     ],
   },
   {
@@ -789,6 +796,9 @@ export function LLMSection() {
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>
             {cat.features.map(renderAssignmentRow)}
+            {cat.features.some(feature => feature.key === "contentMetadata") && (
+              <ContentMetadataProgressRow />
+            )}
           </SettingsGroup>
         ))
       )}

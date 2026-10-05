@@ -35,9 +35,10 @@ pub(super) fn has_column(conn: &Connection, table: &str, name: &str) -> rusqlite
 
 /// 已下线功能留在老库里的表与列（与桌面 packages/db-schema/src/feature-table-retirement.ts 同一清单）
 pub(super) const RETIRED_FEATURE_TABLES: [&str; 6] = ["history", "prompt", "skill", "notion_sync", "audio_note_item", "audio_notes"];
-const RETIRED_FEATURE_COLUMNS: [(&str, &str); 2] = [
+const RETIRED_FEATURE_COLUMNS: [(&str, &str); 3] = [
     ("vibe_learning_resources", "is_chunked"),
     ("vibe_learning_resources", "chapter_count"),
+    ("cards", "category"),
 ];
 
 /// 是否有需要退役的残留（调用方据此先备份整库）

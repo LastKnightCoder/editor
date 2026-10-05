@@ -30,7 +30,7 @@ const PAGE_KEY = "pdf-detail";
 const PAGE_SAVE_DELAY = 1500;
 
 export function PdfDetailView() {
-  const { pdfId } = usePageParams<{ pdfId: number }>();
+  const { pdfId, annotation } = usePageParams<{ pdfId: number; annotation?: number }>();
   const { navigator } = usePage();
   const { pdf, loading } = usePdfDetail(pdfId);
   const title = pdf ? pdfTitle(pdf.fileName) : null;
@@ -77,7 +77,7 @@ export function PdfDetailView() {
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 overflow-hidden">
         {pdf ? (
-          <PdfReaderPage pdf={pdf} />
+          <PdfReaderPage pdf={pdf} annotationId={annotation ?? null} />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center">
             <FileX className="text-ink-3 size-7" strokeWidth={1.5} />
@@ -98,7 +98,7 @@ export function PdfDetailView() {
   );
 }
 
-function PdfReaderPage({ pdf }: { pdf: Pdf }) {
+function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number | null }) {
   const client = useQueryClient();
   const { database } = useDatabaseReady();
   const file = usePdfFile(pdf);
@@ -113,9 +113,9 @@ function PdfReaderPage({ pdf }: { pdf: Pdf }) {
     void recordPdfOpen(pdf.id).then(invalidateLibrary);
   }, [pdf.id, invalidateLibrary]);
 
-  // 起始页只取一次：之后 lastPage 随翻页变化，不能再触发跳转
+  // 起始页只取一次：之后 lastPage 随翻页变化，不能再触发跳转；指定了标注时由标注定位
   const [jumpTarget, setJumpTarget] = useState<PdfCitationTarget | null>(() =>
-    pdf.lastPage && pdf.lastPage > 1 ? { pageNumber: pdf.lastPage } : null
+    !annotationId && pdf.lastPage && pdf.lastPage > 1 ? { pageNumber: pdf.lastPage } : null
   );
 
   const pendingPage = useRef<number | null>(null);
@@ -196,6 +196,7 @@ function PdfReaderPage({ pdf }: { pdf: Pdf }) {
         file={file}
         index={index}
         jumpTarget={jumpTarget}
+        jumpAnnotationId={annotationId}
         onPageChange={onPageChange}
         onAskAI={onAskAI}
         onOpenChat={chatOpen ? undefined : () => setChatOpen(true)}

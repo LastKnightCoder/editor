@@ -12,7 +12,12 @@ import {
 import ContentDetailModal from "./knowledge/ContentDetailModal";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { markdownToContent } from "@/services/content-editing";
-import { Button } from "@tau/ui";
+import { Button, toast } from "@tau/ui";
+import { openEntity } from "@/services/open-content";
+import { normalizeEntityRefKind } from "@/entity/ref";
+import { isMaterialKind } from "@/entity/material";
+import { locatesSection } from "@/entity/section-location";
+import { openMaterial } from "@/services/open-material";
 
 interface KnowledgeSearchResultItem {
   id: number;
@@ -24,6 +29,7 @@ interface KnowledgeSearchResultItem {
   updateTime: number;
   source: string;
   date?: string;
+  section?: { blockStart: number; headingPath: string };
 }
 
 interface KnowledgeSearchOutput {
@@ -158,7 +164,23 @@ const KnowledgeSearchRenderer = ({
                   key={`${item.type}-${item.id}`}
                   item={item}
                   isDark={isDark}
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => {
+                    const kind = normalizeEntityRefKind(item.type);
+                    const located = item.section && locatesSection(item.type);
+                    if (isMaterialKind(item.type)) {
+                      void openMaterial(
+                        { kind: item.type, id: item.id },
+                        located ? { block: item.section!.blockStart } : undefined
+                      ).catch(error => toast.error(String(error)));
+                      return;
+                    }
+                    if (kind && located)
+                      void openEntity(
+                        { kind, id: item.id },
+                        { at: { block: item.section!.blockStart } }
+                      ).catch(error => toast.error(String(error)));
+                    else setSelectedItem(item);
+                  }}
                 />
               ))}
               {hasMore && (

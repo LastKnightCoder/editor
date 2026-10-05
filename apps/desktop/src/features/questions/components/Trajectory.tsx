@@ -2,13 +2,16 @@
  * 探究轨迹：一条连续的时间线，每步「做了什么」在上、「何时 · 第几天」在下。
  * 自动事件（提出 / 状态 / 关联 / 移除）视觉轻，手动「记一笔」视觉重（accent 圆点 + 正文字号）；
  * 推算出的旧数据只有日期，标「约」。
+ * 关联对话的事件显示对话的实时标题（事件里存的是关联那一刻的标题，常常还是「新对话」），
+ * 对话还能打开时点它在右侧停靠栏打开。
  * 末尾输入框回车写入一条记录。
  */
 
 import { useState } from "react";
 import { NotebookPen } from "lucide-react";
 import { cn, toast } from "@tau/ui";
-import type { QuestionEvent } from "@/types";
+import type { QuestionChat, QuestionEvent } from "@/types";
+import { useChatTitle } from "@/features/chat/openInDock";
 import { TARGET_META, clock, daySpan, describeEvent, relativeDay, type EventView } from "../model";
 
 const DOT: Record<EventView["tone"], string> = {
@@ -22,13 +25,19 @@ const DOT: Record<EventView["tone"], string> = {
 
 export function Trajectory({
   events,
+  chats,
   now,
+  onOpenChat,
   onAddNote,
 }: {
   events: QuestionEvent[];
+  /** 这个问题的探究对话：事件里的对话据此判断能不能打开 */
+  chats: QuestionChat[];
   now: number;
+  onOpenChat(chat: QuestionChat): void;
   onAddNote(text: string): Promise<void>;
 }) {
+  const titleOf = useChatTitle();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -53,6 +62,16 @@ export function Trajectory({
       <ol className="flex flex-col">
         {events.map(event => {
           const view = describeEvent(event);
+          const sessionId =
+            view.targetType === "chat-session"
+              ? (event.payload as { sessionId?: string }).sessionId
+              : undefined;
+          const chat = sessionId ? chats.find(item => item.sessionId === sessionId) : undefined;
+          const title = (sessionId && titleOf(sessionId)) || view.title;
+          const openChat =
+            chat && chat.openable && !chat.missing && view.tone !== "muted"
+              ? () => onOpenChat(chat)
+              : undefined;
           return (
             <li
               key={event.id}
@@ -80,8 +99,13 @@ export function Trajectory({
                   {view.verb}
                 </div>
               )}
-              {view.tone !== "note" && view.title && (
-                <EventRef type={view.targetType} title={view.title} muted={view.tone === "muted"} />
+              {view.tone !== "note" && title && (
+                <EventRef
+                  type={view.targetType}
+                  title={title}
+                  muted={view.tone === "muted"}
+                  onClick={openChat}
+                />
               )}
               <div className="text-ink-3 mt-1 text-[11px] tabular-nums">
                 {when(event.createTime, view.estimated, now)}
@@ -125,21 +149,37 @@ function EventRef({
   type,
   title,
   muted,
+  onClick,
 }: {
   type?: keyof typeof TARGET_META;
   title: string;
   muted: boolean;
+  /** 能打开时给（目前只有对话） */
+  onClick?: () => void;
 }) {
   const Icon = type ? TARGET_META[type].icon : null;
-  return (
-    <span
-      className={cn(
-        "text-ink-2 text-tau-meta mt-1 inline-flex max-w-full items-center gap-1",
-        muted ? "text-ink-3 line-through" : undefined
-      )}
-    >
+  const className = cn(
+    "text-ink-2 text-tau-meta mt-1 inline-flex max-w-full items-center gap-1",
+    muted ? "text-ink-3 line-through" : undefined
+  );
+  const body = (
+    <>
       {Icon && <Icon className="text-ink-3 size-3 shrink-0" strokeWidth={1.75} />}
       <span className="truncate">{title}</span>
-    </span>
+    </>
+  );
+  if (!onClick) return <span className={className}>{body}</span>;
+  return (
+    <button
+      type="button"
+      title="在侧栏打开对话"
+      onClick={onClick}
+      className={cn(
+        className,
+        "hover:text-accent-text rounded-[4px] text-left outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+      )}
+    >
+      {body}
+    </button>
   );
 }

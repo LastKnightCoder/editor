@@ -1,10 +1,27 @@
 import React, { memo, useState } from "react";
-import { Clapperboard, Hash, Maximize, Minus, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import {
+  Clapperboard,
+  Hash,
+  Maximize,
+  Minus,
+  Pencil,
+  PenLine,
+  Play,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Button, ConfirmDialog, IconButton, Menu, Popover, Switch, Tooltip, cn } from "@tau/ui";
 
-import { PresentationSequence } from "../../types";
-import { GRID_SIZE_OPTIONS, ZOOMS } from "../../constants";
-import { useBoard, usePresentationState } from "../../hooks";
+import { PresentationSequence, SketchLevel, SketchMode } from "../../types";
+import {
+  GRID_SIZE_OPTIONS,
+  SKETCH_LEVEL_OPTIONS,
+  SKETCH_MODE_OPTIONS,
+  ZOOMS,
+  sketchLevelLabel,
+} from "../../constants";
+import { useBoard, usePageSketch, usePresentationState, useReadonly } from "../../hooks";
+import { SketchTransforms } from "../../transforms";
 import { ChromeBar, ChromeButton, ChromeGap, stopCanvasEvents } from "../../chrome";
 
 interface StatusBarProps {
@@ -25,7 +42,7 @@ interface StatusBarProps {
 }
 
 /**
- * 右下状态栏（D-049）：网格 · 缩放（− 百分比 ＋）· 全览 · 演示。
+ * 右下状态栏（D-049）：画风（D-107）· 网格 · 缩放（− 百分比 ＋）· 全览 · 演示。
  * 「演示」一个入口收拢演示序列：点序列即放映，悬停出编辑 / 删除，底部「新建演示序列」
  * （原工具条上的演示序列按钮并入这里）。
  */
@@ -53,6 +70,7 @@ const StatusBar = memo((props: StatusBarProps) => {
 
   return (
     <ChromeBar ref={ref} className="bottom-3 right-3 text-[12px]">
+      <SketchEntry />
       <Popover
         placement="top"
         arrow={false}
@@ -136,6 +154,57 @@ const StatusBar = memo((props: StatusBarProps) => {
     </ChromeBar>
   );
 });
+
+/** 页级画风：手绘 / 普通 + 默认笔触；单独设置过的元素不受影响 */
+function SketchEntry() {
+  const board = useBoard();
+  const sketch = usePageSketch();
+  const readonly = useReadonly();
+  if (readonly) return null;
+  const isSketch = sketch.mode === "sketch";
+
+  return (
+    <>
+      <Menu
+        align="end"
+        className="w-[220px]"
+        trigger={
+          <Button variant="ghost" icon={PenLine} className="aria-expanded:bg-press h-[30px] px-2.5">
+            {isSketch ? `手绘 · ${sketchLevelLabel(sketch.level)}` : "普通"}
+          </Button>
+        }
+      >
+        <Menu.Group>画风</Menu.Group>
+        <Menu.RadioGroup
+          value={sketch.mode}
+          onValueChange={v => SketchTransforms.setPageSketch(board, { mode: v as SketchMode })}
+        >
+          {SKETCH_MODE_OPTIONS.map(o => (
+            <Menu.RadioItem key={o.value} value={o.value}>
+              {o.label}
+            </Menu.RadioItem>
+          ))}
+        </Menu.RadioGroup>
+        <Menu.Separator />
+        <Menu.Group>默认笔触</Menu.Group>
+        <Menu.RadioGroup
+          value={sketch.level}
+          onValueChange={v => SketchTransforms.setPageSketch(board, { level: v as SketchLevel })}
+        >
+          {SKETCH_LEVEL_OPTIONS.map(o => (
+            <Menu.RadioItem key={o.value} value={o.value} disabled={!isSketch}>
+              {o.label}
+            </Menu.RadioItem>
+          ))}
+        </Menu.RadioGroup>
+        <div className="text-ink-3 text-tau-tiny px-2.5 pb-1 pt-1.5">
+          单独设置过画风的元素不受影响
+        </div>
+      </Menu>
+      <ChromeGap className="w-1" />
+    </>
+  );
+}
 
 function SequenceEntry({
   sequences,

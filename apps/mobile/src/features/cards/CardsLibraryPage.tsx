@@ -1,22 +1,10 @@
-// 卡片库页：全量卡片浏览（分类筛选 + 虚拟化无限列表）。
+// 卡片库页：全量卡片浏览（虚拟化无限列表）。
 // 与首页分离：首页只保留仪表盘 + 最近卡片预览，完整列表在这里。
 
 import { useRef } from "react";
-import { useMemoizedFn } from "ahooks";
-import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
+import { useEdgeFade } from "../../hooks/useScrollState";
 import { Search } from "lucide-react";
 import { CardsPage } from "./CardsPage";
-import { CARD_CATEGORY_OPTIONS, cardCategoryDotClass, cardCategoryTagClass } from "./cardCategory";
-
-const CATEGORY_CHIPS = [
-  { value: "", label: "全部", dotClass: "bg-accent", activeClass: "bg-accent-soft text-ink" },
-  ...CARD_CATEGORY_OPTIONS.map(option => ({
-    value: option.value,
-    label: option.label,
-    dotClass: cardCategoryDotClass(option.value),
-    activeClass: cardCategoryTagClass(option.value),
-  })),
-];
 
 type CardsLibraryPageProps = {
   onOpenSearch: () => void;
@@ -34,14 +22,6 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEdgeFade(scrollRef);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const categoryRef = useRef<HTMLElement | null>(null);
-  useEdgeFadeX(categoryRef);
-
-  const handleCategoryChange = useMemoizedFn((category: string) => {
-    void props.refreshCards({ category, page: 1 });
-  });
-
-  const activeCategory = props.queryState.category;
 
   return (
     <div className="bg-page relative flex h-full flex-col">
@@ -68,32 +48,7 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
         ref={scrollRef}
         className="edge-fade-scroll dock-pad scrollbar-hide flex-1 overflow-y-auto overscroll-y-contain"
       >
-        {/* padding 放在滚动容器外的包裹层，筛选 chip 滚动时不会贴到屏幕边缘（对齐日记页） */}
-        <div ref={contentRef} className="px-[18px]">
-          <nav
-            ref={categoryRef}
-            className="edge-fade-x-scroll scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-3 pt-0.5"
-            aria-label="卡片分类筛选"
-          >
-            {CATEGORY_CHIPS.map(chip => {
-              const active = activeCategory === chip.value;
-              return (
-                <button
-                  key={chip.value || "all"}
-                  type="button"
-                  onClick={() => handleCategoryChange(chip.value)}
-                  aria-pressed={active}
-                  className={`shadow-card flex shrink-0 items-center gap-1.5 rounded-full px-[15px] py-[9px] text-[13px] font-semibold transition-all duration-200 active:scale-95 ${
-                    active ? chip.activeClass : "bg-surface text-ink-2"
-                  }`}
-                >
-                  <span className={`h-2 w-2 rounded-full ${chip.dotClass}`} />
-                  {chip.label}
-                </button>
-              );
-            })}
-          </nav>
-
+        <div ref={contentRef} className="mt-3 px-[18px]">
           <CardsPage
             cards={props.cards}
             queryState={props.queryState}

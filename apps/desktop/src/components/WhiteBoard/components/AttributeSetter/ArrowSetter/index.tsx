@@ -8,13 +8,8 @@ import { getArrowDisplayColor } from "../../../utils/color";
 import { saveArrowStylePresetFromElement } from "../../../utils";
 import { THEME_COLORS, getDefaultThemeColorId } from "../../../constants/theme-colors";
 import { AttrPopover, AttrToggle, Field, OptionGrid, Slider, SwatchRow } from "../../../chrome";
-import {
-  DashIcon,
-  LineWidthIcon,
-  MarkerEndIcon,
-  MarkerStartIcon,
-  ScribbleIcon,
-} from "../../../chrome/icons";
+import { DashIcon, LineWidthIcon, MarkerEndIcon, MarkerStartIcon } from "../../../chrome/icons";
+import SketchPopover from "../SketchPopover";
 
 interface ArrowSetterProps {
   element: ArrowElement;
@@ -171,29 +166,6 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           />
         )}
       </AttrPopover>
-      <AttrPopover
-        label="草图风格"
-        icon={<ScribbleIcon />}
-        width={240}
-        toggle={{
-          checked: !!element.sketchEnabled,
-          onChange: v => set(d => void (d.sketchEnabled = v)),
-        }}
-      >
-        {element.sketchEnabled && (
-          <Field label="粗糙度">
-            <Slider
-              label="粗糙度"
-              min={0.1}
-              max={3}
-              step={0.1}
-              value={element.roughness || 1}
-              format={v => v.toFixed(1)}
-              onChange={v => set(d => void (d.roughness = v))}
-            />
-          </Field>
-        )}
-      </AttrPopover>
       {element.animated ? (
         <AttrPopover
           label="流动动画"
@@ -227,6 +199,7 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           onChange={v => set(d => void (d.animated = v))}
         />
       )}
+      <SketchPopover target={element} onChange={onChange} />
     </>
   );
 };

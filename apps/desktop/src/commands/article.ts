@@ -6,6 +6,7 @@ import {
   ICreateArticle,
   IUpdateArticle,
   ArticlePageItem,
+  ArticlePageSort,
   ArticleTagCount,
 } from "@/types";
 
@@ -37,13 +38,15 @@ export async function getAllArticles(): Promise<IArticle[]> {
   return articleCommands.getAll.call();
 }
 
+/** sort 必传：主进程包装层会在参数尾部追加命令上下文，省略会让上下文落进 sort 位 */
 export async function getArticlePage(
   offset: number,
   limit: number,
-  tag?: string,
-  query?: string
+  tag: string | undefined,
+  query: string | undefined,
+  sort: ArticlePageSort
 ): Promise<{ items: ArticlePageItem[]; total: number; totalWords: number }> {
-  return articleCommands.listPage.call(offset, limit, tag, query);
+  return articleCommands.listPage.call(offset, limit, tag, query, sort);
 }
 
 export async function getArticleTagCounts(): Promise<ArticleTagCount[]> {

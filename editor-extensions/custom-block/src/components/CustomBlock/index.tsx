@@ -88,6 +88,7 @@ const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = props 
         mode={"jsx"}
         title="自定义块"
         icon={Blocks}
+        fluid
         initValue={content}
         element={element}
         onChange={handleChange}

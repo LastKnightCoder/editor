@@ -2,7 +2,8 @@
  * PageProvider —— 导航运行时枢纽（从移动端 RouterProvider 移植的最小核心）。
  *
  * 职责：持有栈机状态、暴露 navigator 命令对象（push/replace/back/forward/popToTop）、
- * Esc 关闭浮层（LIFO，无浮层时不操作）、match 去重（single/params 命中即激活不新建）。
+ * Esc 关闭浮层（LIFO，无浮层时不操作）、match 去重（single/params 命中即激活不新建）、
+ * 后退/前进的共享元素形变（源页与保活中的目标页声明了同一 morph key 才转场，D-106）。
  *
  * 栈操作以 action 走 reducer、由 React 串行归约：同一 tick 内连续导航不会互相覆盖
  * （去重判定也在 reducer 内基于 prev 做，不依赖渲染期的 stateRef 桥）。
@@ -27,6 +28,7 @@ import {
 import * as sm from "./core/stackMachine";
 import { getPageMeta } from "./core/pageMeta";
 import { sanitizeParams } from "./core/paramsSchema";
+import { findPageMorphPair, morph } from "./morph";
 
 export interface Navigator {
   push(key: string, params?: Record<string, unknown>): void;
@@ -147,19 +149,26 @@ export function PageProvider({
     };
   }, []);
 
-  const navigator = useMemo<Navigator>(
-    () => ({
+  const navigator = useMemo<Navigator>(() => {
+    const traverse = (type: "back" | "forward") => {
+      const prev = stateRef.current;
+      const from = sm.current(prev);
+      const to = sm.current((type === "back" ? sm.back(prev) : sm.forward(prev)) ?? prev);
+      const pair = from && to && from.id !== to.id ? findPageMorphPair(from.id, to.id) : null;
+      if (!pair) return dispatch({ type });
+      morph({ from: pair.from, to: pair.to, update: () => dispatch({ type }) });
+    };
+    return {
       push: (key, params) => dispatch({ type: "push", key, params }),
       replace: (key, params) => dispatch({ type: "replace", key, params }),
-      back: () => dispatch({ type: "back" }),
-      forward: () => dispatch({ type: "forward" }),
+      back: () => traverse("back"),
+      forward: () => traverse("forward"),
       popToTop: () => dispatch({ type: "popToTop" }),
       canBack: () => sm.canBack(stateRef.current),
       canForward: () => sm.canForward(stateRef.current),
       current: () => sm.current(stateRef.current),
-    }),
-    []
-  );
+    };
+  }, []);
 
   // Esc 仲裁（03 指南 §5）：只承担浮层退场（注册表 LIFO，浮层输入框里的 Esc
   // 同义）；无浮层时无操作——后退由 Alt+←/→ 与标题栏按钮承担（2026-09-20

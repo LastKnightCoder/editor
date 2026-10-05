@@ -7,7 +7,6 @@ import { ChevronRight } from "lucide-react";
 import * as tauri from "../../services/tauri";
 import type { CardListItem } from "../../types";
 import { getNavigator } from "../../router";
-import { cardCategoryDotClass, cardCategoryLabel } from "./cardCategory";
 
 type LinksDisclosureProps = {
   /** 关联卡片 id 集合（cards.links，存 cardId） */
@@ -77,15 +76,8 @@ export function LinksDisclosure({ links, onError }: LinksDisclosureProps) {
             }}
             className="flex w-full items-center gap-3 py-3 text-left"
           >
-            <span
-              className={`h-[7px] w-[7px] shrink-0 rounded-full ${cardCategoryDotClass(item.category)}`}
-              aria-hidden
-            />
             <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
               {resolveTitle(item)}
-            </span>
-            <span className="text-ink-3 shrink-0 text-[11px] font-medium">
-              {cardCategoryLabel(item.category)}
             </span>
             <ChevronRight size={14} className="text-ink-3 shrink-0" />
           </button>

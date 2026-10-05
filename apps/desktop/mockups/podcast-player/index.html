@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<title>播客播放器 · 三个方向</title>
+<style>
+  :root, [data-mode="light"] {
+    --page: #f3eee2; --surface: #fffdf9; --sunken: #e7dbc8; --track: #e0d6c3;
+    --hover: rgba(67,57,44,.05); --press: rgba(67,57,44,.09);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --accent: hsl(22 58% 42%); --accent-soft: hsla(22,58%,42%,.12);
+    --accent-text: #a05236; --on-accent: #fff8ef;
+    --tag-1: #61795f; --tag-1-soft: #e5ede2; --tag-2: #5c7d99; --tag-2-soft: #e2ebf3;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+  }
+  [data-mode="dark"] {
+    --page: #221d16; --surface: #2e2820; --sunken: #100d08; --track: #463d31;
+    --hover: rgba(236,226,208,.06); --press: rgba(236,226,208,.11);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768;
+    --line-1: #3a3227; --accent: hsl(22 62% 65%); --accent-soft: hsla(22,62%,65%,.16);
+    --accent-text: hsl(22 62% 70%); --on-accent: #241a10;
+    --tag-1: #8fa98c; --tag-1-soft: rgba(143,169,140,.16); --tag-2: #8eabc6; --tag-2-soft: rgba(142,171,198,.16);
+    --shadow-card: 0 1px 2px rgba(0,0,0,.2), 0 10px 24px -14px rgba(0,0,0,.5);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink-1);
+    font: 14px/1.6 -apple-system, "PingFang SC", "Noto Serif SC", sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 12px; align-items: center;
+    padding: 12px 32px; background: var(--page); border-bottom: 1px solid var(--line-1); }
+  .bar h1 { font-size: 15px; margin: 0; font-weight: 600; flex: 1; }
+  .bar button { border: 1px solid var(--line-1); background: var(--surface); color: var(--ink-2);
+    border-radius: 8px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 28px; padding: 28px 32px 60px; }
+  .opt-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 4px; }
+  .opt-head b { font-size: 13px; color: var(--accent-text); }
+  .opt-head h2 { font-size: 16px; margin: 0; }
+  .opt-desc { color: var(--ink-2); font-size: 13px; margin: 0 0 14px; }
+  /* 模拟卡片详情页 */
+  .doc { background: var(--surface); border-radius: 14px; padding: 28px 36px 32px; box-shadow: var(--shadow-card); }
+  .doc-title { font-size: 22px; font-weight: 600; margin: 0 0 18px; }
+  .doc-body p { color: var(--ink-2); margin: 0 0 10px; }
+  .doc-body .skel { height: 10px; border-radius: 5px; background: var(--hover); margin: 10px 0; }
+  /* 播放卡 */
+  .player { position: relative; border-radius: 12px; background: var(--surface); margin-bottom: 26px;
+    border: 1px solid var(--line-1); padding: 14px 16px 12px; }
+  .row { display: flex; align-items: center; }
+  .play { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent);
+    display: grid; place-items: center; cursor: pointer; flex-shrink: 0; }
+  .play.soft { background: var(--accent-soft); color: var(--accent); }
+  .play svg { width: 16px; height: 16px; }
+  .meta { flex: 1; min-width: 0; margin: 0 12px; }
+  .title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sub { color: var(--ink-3); font-size: 12.5px; display: flex; align-items: center; gap: 6px; margin-top: 1px; }
+  .chip { border: 1px solid var(--line-1); color: var(--ink-2); border-radius: 6px; padding: 0 6px; font-size: 11px; line-height: 18px; }
+  .ib { width: 30px; height: 30px; border-radius: 7px; border: 0; background: transparent; color: var(--ink-2);
+    display: grid; place-items: center; cursor: pointer; font: inherit; font-size: 12px; }
+  .ib:hover { background: var(--hover); color: var(--ink-1); }
+  .ib svg { width: 16px; height: 16px; }
+  .wave-row { display: flex; align-items: center; gap: 12px; height: 40px; margin-top: 10px; padding-right: 4px; }
+  .tc { font: 12px ui-monospace, "SF Mono", monospace; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 36px; }
+  .tc.now { color: var(--ink-1); font-weight: 500; text-align: right; }
+  .wave { position: relative; flex: 1; height: 40px; cursor: pointer; }
+  .wave .bars { position: absolute; inset: 0; display: flex; align-items: center; gap: 1.5px; }
+  .wave i { flex: 1; min-width: 1px; border-radius: 99px; background: var(--track); }
+  .wave .played { clip-path: inset(0 60% 0 0); }
+  .wave .played i { background: var(--accent); }
+  .wave.spk .played i.s1 { background: var(--tag-1); }
+  .wave.spk .played i.s2 { background: var(--tag-2); }
+  .wave.spk .bars:not(.played) i.s1 { background: color-mix(in srgb, var(--tag-1) 22%, var(--track)); }
+  .wave.spk .bars:not(.played) i.s2 { background: color-mix(in srgb, var(--tag-2) 22%, var(--track)); }
+  .avatars { display: inline-flex; }
+  .av { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 600;
+    border: 1.5px solid var(--surface); }
+  .av + .av { margin-left: -5px; }
+  .av.s1 { background: var(--tag-1-soft); color: var(--tag-1); }
+  .av.s2 { background: var(--tag-2-soft); color: var(--tag-2); }
+  /* 加载态 */
+  .loadline { flex: 1; height: 4px; border-radius: 99px; background: var(--track); overflow: hidden; position: relative; }
+  .loadline span { position: absolute; inset: 0 auto 0 0; width: 38%; background: var(--accent-soft); }
+  .state-label { font-size: 11px; color: var(--ink-3); text-transform: none; letter-spacing: .02em; margin: 18px 0 6px; }
+  /* 字幕条 */
+  .caption { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--hover); }
+  .caption .who { font-size: 12px; font-weight: 600; flex-shrink: 0; padding-top: 1px; }
+  .caption .who.s1 { color: var(--tag-1); } .caption .who.s2 { color: var(--tag-2); }
+  .caption .txt { color: var(--ink-1); font-size: 13.5px; }
+  .caption .nxt { color: var(--ink-3); }
+  /* 脚本跟读 */
+  .script { margin-top: 8px; border-top: 1px solid var(--line-1); padding-top: 6px; max-height: 236px; overflow: auto; }
+  .line { display: grid; grid-template-columns: 44px 1fr; gap: 6px 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+  .line:hover { background: var(--hover); }
+  .line .t { font: 11.5px ui-monospace, monospace; color: var(--ink-3); padding-top: 3px; }
+  .line .who { font-size: 12px; font-weight: 600; }
+  .line .who.s1 { color: var(--tag-1); } .line .who.s2 { color: var(--tag-2); }
+  .line .txt { color: var(--ink-2); font-size: 13.5px; }
+  .line.past .txt { color: var(--ink-3); }
+  .line.cur { background: var(--accent-soft); }
+  .line.cur .txt { color: var(--ink-1); }
+  .line.cur .t { color: var(--accent-text); }
+  .toggle { display: flex; justify-content: center; margin-top: 4px; }
+  .toggle button { border: 0; background: none; color: var(--ink-3); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 8px; border-radius: 6px; }
+  .toggle button:hover { background: var(--hover); color: var(--ink-1); }
+  .menu { position: absolute; right: 12px; top: 54px; width: 168px; background: var(--surface); border: 1px solid var(--line-1);
+    border-radius: 10px; box-shadow: 0 16px 40px -12px rgba(120,100,70,.4); padding: 4px; z-index: 3; display: none; }
+  .menu.open { display: block; }
+  .menu div { padding: 6px 10px; border-radius: 6px; font-size: 13px; color: var(--ink-1); cursor: pointer; }
+  .menu div:hover { background: var(--hover); }
+  .menu hr { border: 0; border-top: 1px solid var(--line-1); margin: 4px 0; }
+  .menu .danger { color: #b0564d; }
+  .note { margin-top: 14px; font-size: 12.5px; color: var(--ink-2); background: var(--hover); border-radius: 8px; padding: 10px 12px; }
+  .note b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>卡片播客播放器 · 三个方向（点播放可看联动，⋯ 可展开菜单）</h1>
+  <button onclick="document.documentElement.dataset.mode = document.documentElement.dataset.mode === 'dark' ? 'light' : 'dark'">切换深浅色</button>
+</div>
+
+<div class="grid">
+
+  <!-- A -->
+  <section>
+    <div class="opt-head"><b>A</b><h2>直接复用 Audio 波形卡</h2></div>
+    <p class="opt-desc">和编辑器里的音频块长得一模一样：标题行 + 波形行。主讲人进副标题，「脚本」沿用 Audio 的「原文」展开位。最省事、最统一。</p>
+    <div class="doc">
+      <div class="doc-title">复利思维：为什么慢就是快</div>
+      <div class="player" data-player>
+        <div class="row">
+          <button class="play" data-play></button>
+          <div class="meta">
+            <div class="row" style="gap:8px">
+              <div class="title" style="flex:1">复利思维 · 双人对谈</div>
+              <span class="chip">AI 播客</span>
+              <button class="ib" style="width:auto;padding:0 6px;height:22px;font-size:12.5px" data-toggle-script>脚本 ▾</button>
+            </div>
+            <div class="sub">小林、阿哲 · 12:36</div>
+          </div>
+          <button class="ib" title="音量"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></button>
+          <button class="ib" title="倍速" style="font-weight:600">1×</button>
+          <button class="ib" data-more><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        </div>
+        <div class="wave-row">
+          <span class="tc now" data-now>0:00</span>
+          <div class="wave" data-wave></div>
+          <span class="tc">12:36</span>
+        </div>
+        <div class="script" data-script hidden></div>
+        <div class="menu" data-menu><div>编辑播客</div><div>下载音频</div><hr /><div class="danger">删除播客</div></div>
+      </div>
+      <div class="doc-body"><p>复利的本质不是「快速变大」，而是让每一次投入都成为下一次增长的底座……</p><div class="skel" style="width:92%"></div><div class="skel" style="width:76%"></div></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section>
+    <div class="opt-head"><b>B</b><h2>说话人分色波形 + 实时字幕</h2></div>
+    <p class="opt-desc">播客专属的增强：波形按说话人着两种色（一眼看出谁说了多久），下方一行实时字幕显示当前这句。点波形任意处跳转，字幕跟着变。</p>
+    <div class="doc">
+      <div class="doc-title">复利思维：为什么慢就是快</div>
+      <div class="player" data-player data-speaker>
+        <div class="row">
+          <button class="play" data-play></button>
+          <div class="meta">
+            <div class="title">复利思维 · 双人对谈</div>
+            <div class="sub">
+              <span class="avatars"><span class="av s1">林</span><span class="av s2">哲</span></span>
+              <span>小林、阿哲</span><span>·</span><span>12:36</span>
+            </div>
+          </div>
+          <button class="ib" title="音量"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></button>
+          <button class="ib" title="倍速" style="font-weight:600">1×</button>
+          <button class="ib" data-more><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        </div>
+        <div class="wave-row">
+          <span class="tc now" data-now>0:00</span>
+          <div class="wave spk" data-wave></div>
+          <span class="tc">12:36</span>
+        </div>
+        <div class="caption" data-caption></div>
+        <div class="menu" data-menu><div>脚本详情</div><div>编辑播客</div><div>下载音频</div><hr /><div class="danger">删除播客</div></div>
+      </div>
+      <div class="doc-body"><p>复利的本质不是「快速变大」，而是让每一次投入都成为下一次增长的底座……</p><div class="skel" style="width:92%"></div><div class="skel" style="width:76%"></div></div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section>
+    <div class="opt-head"><b>C</b><h2>波形卡 + 脚本跟读</h2></div>
+    <p class="opt-desc">在 B 的基础上把字幕扩成可展开的逐句脚本（类似视频笔记的转录）：当前句高亮并自动滚动，点任一句跳过去。替代现在的「脚本详情」弹窗。</p>
+    <div class="doc">
+      <div class="doc-title">复利思维：为什么慢就是快</div>
+      <div class="player" data-player data-speaker data-follow>
+        <div class="row">
+          <button class="play" data-play></button>
+          <div class="meta">
+            <div class="title">复利思维 · 双人对谈</div>
+            <div class="sub">
+              <span class="avatars"><span class="av s1">林</span><span class="av s2">哲</span></span>
+              <span>小林、阿哲</span><span>·</span><span>12:36</span>
+            </div>
+          </div>
+          <button class="ib" title="音量"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></button>
+          <button class="ib" title="倍速" style="font-weight:600">1×</button>
+          <button class="ib" data-more><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        </div>
+        <div class="wave-row">
+          <span class="tc now" data-now>0:00</span>
+          <div class="wave spk" data-wave></div>
+          <span class="tc">12:36</span>
+        </div>
+        <div class="script" data-script></div>
+        <div class="toggle"><button data-toggle-script>收起脚本 ▴</button></div>
+        <div class="menu" data-menu><div>编辑播客</div><div>下载音频</div><hr /><div class="danger">删除播客</div></div>
+      </div>
+      <div class="doc-body"><p>复利的本质不是「快速变大」，而是让每一次投入都成为下一次增长的底座……</p></div>
+    </div>
+  </section>
+
+  <!-- 加载态 -->
+  <section>
+    <div class="opt-head"><b>＋</b><h2>加载态（三个方向通用）</h2></div>
+    <p class="opt-desc">不再整块 Spinner：卡片骨架立刻出现，标题/主讲人/时长来自数据库马上可见；音频边下边播，后台缓存。</p>
+    <div class="doc">
+      <div class="state-label">现在：整个 WAV 下载完之前只有这个</div>
+      <div style="display:grid;place-items:center;height:60px;border:1px dashed var(--line-1);border-radius:12px;color:var(--ink-3)">◌</div>
+
+      <div class="state-label">改后 ①：首帧（元数据还没到，约几百毫秒）</div>
+      <div class="player" style="margin-bottom:0">
+        <div class="row">
+          <button class="play soft"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="animation:spin 1s linear infinite"><path d="M12 3a9 9 0 1 0 9 9" /></svg></button>
+          <div class="meta">
+            <div class="title">复利思维 · 双人对谈</div>
+            <div class="sub"><span class="avatars"><span class="av s1">林</span><span class="av s2">哲</span></span><span>小林、阿哲</span><span>·</span><span>12:36</span></div>
+          </div>
+        </div>
+        <div class="wave-row"><span class="tc now">--:--</span><div class="loadline"><span></span></div><span class="tc">12:36</span></div>
+      </div>
+
+      <div class="state-label">改后 ②：已可播放（流式），波形算好后淡入替换进度线</div>
+      <div class="player" style="margin-bottom:0">
+        <div class="row">
+          <button class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+          <div class="meta">
+            <div class="title">复利思维 · 双人对谈</div>
+            <div class="sub"><span class="avatars"><span class="av s1">林</span><span class="av s2">哲</span></span><span>小林、阿哲</span><span>·</span><span>12:36</span></div>
+          </div>
+        </div>
+        <div class="wave-row"><span class="tc now">0:00</span><div class="loadline"><span style="width:22%;background:var(--track);filter:brightness(.93)"></span></div><span class="tc">12:36</span></div>
+      </div>
+      <div class="note">
+        <b>时长</b>直接读 <code>podcast.duration</code>（生成时已写入），不必等音频元数据；<b>说话人分段</b>来自 <code>scriptLines[].startTime</code>，B/C 的分色和字幕都不需要额外分析音频。
+      </div>
+    </div>
+  </section>
+</div>
+
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+<script>
+  const DURATION = 756;
+  const LINES = [
+    [0, 1, "欢迎收听。今天聊一个老话题：复利，但我们想换个角度——为什么「慢」反而是最快的路。"],
+    [41, 2, "我先抛个反常识的点：大多数人不是输在起点，而是输在第 3 个月就停了。"],
+    [96, 1, "对，复利曲线前半段几乎是平的，你看不到回报，就很容易怀疑自己。"],
+    [158, 2, "所以关键不是找到收益率最高的事，而是找到你能坚持十年的事。"],
+    [233, 1, "这让我想到写卡片，一开始每张都很零散，直到某天它们突然连成了一张网。"],
+    [312, 2, "这就是知识的复利：新卡片不是加法，而是和旧卡片之间产生的连接数在增长。"],
+    [398, 1, "那普通人怎么开始？我的建议是先把门槛降到荒谬的程度，比如每天一张。"],
+    [471, 2, "再加一条：定期回看。没有回看，复利就只剩「存」，没有「利」。"],
+    [552, 1, "最后总结一下：慢、持续、回看，三件事做对，时间会站在你这边。"],
+    [640, 2, "感谢收听，我们下期见。"],
+  ];
+  const NAMES = { 1: "小林", 2: "阿哲" };
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  const speakerAt = t => { let s = 1; for (const [st, sp] of LINES) if (t >= st) s = sp; return s; };
+  const lineAt = t => { let i = 0; LINES.forEach(([st], k) => { if (t >= st) i = k; }); return i; };
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const PEAKS = Array.from({ length: 150 }, (_, i) => {
+    const t = (i / 150) * DURATION; const inGap = LINES.some(([st]) => Math.abs(t - st) < 3);
+    return inGap ? 0.12 : 0.25 + rnd() * 0.65;
+  });
+  const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+
+  document.querySelectorAll("[data-player]").forEach(root => {
+    let time = 168, playing = false, timer = null;
+    const speaker = root.hasAttribute("data-speaker");
+    const wave = root.querySelector("[data-wave]");
+    const bars = PEAKS.map((p, i) => {
+      const cls = speaker ? `s${speakerAt((i / PEAKS.length) * DURATION)}` : "";
+      return `<i class="${cls}" style="height:${p * 100}%"></i>`;
+    }).join("");
+    wave.innerHTML = `<div class="bars">${bars}</div><div class="bars played">${bars}</div>`;
+    const played = wave.querySelector(".played");
+    const playBtn = root.querySelector("[data-play]");
+    const now = root.querySelector("[data-now]");
+    const caption = root.querySelector("[data-caption]");
+    const script = root.querySelector("[data-script]");
+    if (script) {
+      script.innerHTML = LINES.map(([st, sp, txt], k) =>
+        `<div class="line" data-k="${k}"><span class="t">${fmt(st)}</span><div><div class="who s${sp}">${NAMES[sp]}</div><div class="txt">${txt}</div></div></div>`).join("");
+      script.addEventListener("click", e => { const l = e.target.closest(".line"); if (l) { time = LINES[+l.dataset.k][0]; render(true); } });
+    }
+    function render(scroll) {
+      played.style.clipPath = `inset(0 ${(1 - time / DURATION) * 100}% 0 0)`;
+      now.textContent = fmt(time);
+      playBtn.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+      const k = lineAt(time);
+      if (caption) {
+        const [, sp, txt] = LINES[k]; const nxt = LINES[k + 1];
+        caption.innerHTML = `<span class="who s${sp}">${NAMES[sp]}</span><span class="txt">${txt}${nxt ? ` <span class="nxt">· ${NAMES[nxt[1]]}：${nxt[2].slice(0, 14)}…</span>` : ""}</span>`;
+      }
+      if (script) {
+        script.querySelectorAll(".line").forEach((el, i) => { el.classList.toggle("cur", i === k); el.classList.toggle("past", i < k); });
+        if (scroll && !script.hidden) { const cur = script.querySelector(".cur"); script.scrollTo({ top: cur.offsetTop - script.offsetTop - 60, behavior: "smooth" }); }
+      }
+    }
+    playBtn.addEventListener("click", () => {
+      playing = !playing;
+      clearInterval(timer);
+      if (playing) timer = setInterval(() => { const before = lineAt(time); time = Math.min(DURATION, time + 4); render(lineAt(time) !== before); }, 200);
+      render();
+    });
+    wave.addEventListener("click", e => { const r = wave.getBoundingClientRect(); time = ((e.clientX - r.left) / r.width) * DURATION; render(true); });
+    root.querySelectorAll("[data-toggle-script]").forEach(btn => btn.addEventListener("click", () => {
+      script.hidden = !script.hidden;
+      if (root.hasAttribute("data-follow")) btn.textContent = script.hidden ? "展开脚本 ▾" : "收起脚本 ▴";
+      render(true);
+    }));
+    const menu = root.querySelector("[data-menu]");
+    root.querySelector("[data-more]").addEventListener("click", e => { e.stopPropagation(); menu.classList.toggle("open"); });
+    document.addEventListener("click", () => menu.classList.remove("open"));
+    render();
+  });
+</script>
+</body>
+</html>

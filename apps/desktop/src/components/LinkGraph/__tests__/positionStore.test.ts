@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { ICard } from "@/types";
+import { toItems } from "./fixtures";
 import { buildScene } from "../core/graph";
 import {
   applyPositions,
@@ -16,7 +17,6 @@ import {
   type PositionRecord,
 } from "../core/positionStore";
 
-const links = (c: ICard) => c.links;
 const cards = (count: number): ICard[] =>
   Array.from({ length: count }, (_, i) => {
     const id = i + 1;
@@ -33,7 +33,7 @@ const place = (scene: ReturnType<typeof buildScene>) => {
 
 describe("编解码", () => {
   it("往返后坐标逐节点一致", () => {
-    const scene = place(buildScene(cards(5), links));
+    const scene = place(buildScene(toItems(cards(5))));
     const map = recordToMap(encodeScene(scene, "k"));
     expect(map.size).toBe(5);
     for (const node of scene.nodes) {
@@ -45,7 +45,7 @@ describe("编解码", () => {
   });
 
   it("负坐标与小数也能往返（布局坐标以原点为中心）", () => {
-    const scene = buildScene(cards(2), links);
+    const scene = buildScene(toItems(cards(2)));
     scene.nodes[0].x = -1234.5;
     scene.nodes[0].y = 0.25;
     const map = recordToMap(encodeScene(scene, "k"));
@@ -74,7 +74,7 @@ describe("编解码", () => {
   });
 
   it("空场景编码出空记录", () => {
-    const record = encodeScene(buildScene([], links), "k");
+    const record = encodeScene(buildScene(toItems([])), "k");
     expect(record.ids.length).toBe(0);
     expect(recordToMap(record).size).toBe(0);
   });
@@ -82,34 +82,33 @@ describe("编解码", () => {
 
 describe("applyPositions 覆盖率", () => {
   it("全命中返回 1，坐标被贴回", () => {
-    const saved = recordToMap(encodeScene(place(buildScene(cards(4), links)), "k"));
-    const fresh = buildScene(cards(4), links);
+    const saved = recordToMap(encodeScene(place(buildScene(toItems(cards(4)))), "k"));
+    const fresh = buildScene(toItems(cards(4)));
     expect(applyPositions(fresh, saved)).toBe(1);
     expect(fresh.nodeById.get(3)!.x).toBe(20);
   });
 
   it("部分命中按比例返回，未命中的节点保留种子位", () => {
-    const saved = recordToMap(encodeScene(place(buildScene(cards(2), links)), "k"));
-    const fresh = buildScene(cards(4), links);
+    const saved = recordToMap(encodeScene(place(buildScene(toItems(cards(2)))), "k"));
+    const fresh = buildScene(toItems(cards(4)));
     const before = fresh.nodeById.get(4)!.x;
     expect(applyPositions(fresh, saved)).toBe(0.5);
     expect(fresh.nodeById.get(4)!.x).toBe(before);
   });
 
   it("卡片集整批换掉时覆盖率为 0（此时不该沿用旧布局）", () => {
-    const saved = recordToMap(encodeScene(place(buildScene(cards(3), links)), "k"));
+    const saved = recordToMap(encodeScene(place(buildScene(toItems(cards(3)))), "k"));
     const other = buildScene(
-      [
+      toItems([
         { id: 900, links: [], content: [], create_time: 1, tags: [] },
         { id: 901, links: [], content: [], create_time: 2, tags: [] },
-      ] as unknown as ICard[],
-      links
+      ] as unknown as ICard[])
     );
     expect(applyPositions(other, saved)).toBe(0);
   });
 
   it("空场景返回 0 而不是除零", () => {
-    expect(applyPositions(buildScene([], links), new Map())).toBe(0);
+    expect(applyPositions(buildScene(toItems([])), new Map())).toBe(0);
   });
 });
 
@@ -117,7 +116,7 @@ describe("后端", () => {
   it("内存后端读写往返", async () => {
     const backend = createMemoryBackend();
     expect(await backend.read("missing")).toBeNull();
-    const record = encodeScene(place(buildScene(cards(3), links)), "graph");
+    const record = encodeScene(place(buildScene(toItems(cards(3)))), "graph");
     await backend.write(record);
     const loaded = await backend.read("graph");
     expect(recordToMap(loaded!).get(2)).toEqual([10, -5]);
@@ -125,8 +124,8 @@ describe("后端", () => {
 
   it("同键重写覆盖旧记录", async () => {
     const backend = createMemoryBackend();
-    await backend.write(encodeScene(place(buildScene(cards(3), links)), "graph"));
-    const moved = buildScene(cards(3), links);
+    await backend.write(encodeScene(place(buildScene(toItems(cards(3)))), "graph"));
+    const moved = buildScene(toItems(cards(3)));
     moved.nodes.forEach(node => {
       node.x = 777;
       node.y = 777;
@@ -138,14 +137,14 @@ describe("后端", () => {
 
   it("不同键互不干扰（全库图谱与局部子图共存）", async () => {
     const backend = createMemoryBackend();
-    await backend.write(encodeScene(place(buildScene(cards(2), links)), "library"));
+    await backend.write(encodeScene(place(buildScene(toItems(cards(2)))), "library"));
     expect(await backend.read("card-7")).toBeNull();
   });
 
   it("环境没有 IndexedDB 时退化为内存后端而不是抛错", async () => {
     expect(typeof indexedDB).toBe("undefined");
     const backend = createPositionBackend();
-    await backend.write(encodeScene(place(buildScene(cards(2), links)), "k"));
+    await backend.write(encodeScene(place(buildScene(toItems(cards(2)))), "k"));
     expect(await backend.read("k")).not.toBeNull();
   });
 });

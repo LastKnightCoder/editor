@@ -13,7 +13,13 @@ import vibeLearningIndexQueue from "./vibe-learning-index-queue";
 import localInference from "./local-inference";
 import videoNoteIndexQueue from "./video-note-index-queue";
 import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
+import {
+  MAIN_CHUNK_BUILD_KEY,
+  mainEmbeddingFingerprint,
+  needsMainChunkUpgrade,
+} from "@/entity/chunk-version";
 import { IndexRebuildState } from "./main-content-index-db";
+import { WEREAD_EXCERPTS_CHANGED_EVENT } from "./tables/excerpt";
 
 const MAIN_CONTENT_FINGERPRINT_KEY = "main_content_embedding_fingerprint";
 const VL_FINGERPRINT_KEY = "vl_embedding_fingerprint";
@@ -39,9 +45,22 @@ const MAIN_CONTENT_WRITE_EVENTS = new Set([
   "create-diary-segment",
   "update-diary-segment",
   "create-diary-moment",
+  // 外部材料（KL-037）：摘录、PDF 标注、剪藏
+  WEREAD_EXCERPTS_CHANGED_EVENT,
+  "excerpt:sync-web-page",
+  "add-pdf-annotation",
+  "update-pdf-annotation",
+  "delete-pdf-annotation",
+  "delete-pdf",
+  "web-clip:create",
+  "web-clip:update",
+  "lineage:record",
+  // 主对话的提问只进向量（KL-064）：每轮结束会话行会更新
+  "chat-session:update",
+  "chat-session:delete",
 ]);
 
-/** 会改变卡片 / 文章 / 项目文档 / 日记正文的写命令 */
+/** 会改变卡片 / 文章 / 项目文档 / 日记正文或外部材料的写命令 */
 export const isMainContentWriteEvent = (eventName: string) =>
   MAIN_CONTENT_WRITE_EVENTS.has(eventName);
 
@@ -272,7 +291,10 @@ class EmbeddingIndexOrchestrator implements Module {
     }
     this.ensureMetaTable(indexDb);
     const fingerprintChanged =
-      this.getMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY) !== resolvedConfig.fingerprint;
+      this.getMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY) !==
+        mainEmbeddingFingerprint(resolvedConfig.fingerprint) &&
+      this.getMetaValue(indexDb, MAIN_CHUNK_BUILD_KEY) !==
+        mainEmbeddingFingerprint(resolvedConfig.fingerprint);
     const result = await mainContentVecIndexQueue.reconcileByPolicy({
       mainDbName,
       embeddingConfig: resolvedConfig,
@@ -280,8 +302,13 @@ class EmbeddingIndexOrchestrator implements Module {
       autoIndex: true,
       reason,
     });
-    if (!result.stale) {
-      this.setMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY, resolvedConfig.fingerprint);
+    if (!result.stale && result.failed === 0) {
+      this.setMetaValue(
+        indexDb,
+        MAIN_CONTENT_FINGERPRINT_KEY,
+        mainEmbeddingFingerprint(resolvedConfig.fingerprint)
+      );
+      this.setMetaValue(indexDb, MAIN_CHUNK_BUILD_KEY, "");
     }
     log.info(
       `[EmbeddingIndexOrchestrator] Incremental index finished: db=${mainDbName}, reason=${reason}, queued=${result.queued}, indexed=${result.indexed}, stale=${result.stale}`
@@ -433,9 +460,13 @@ class EmbeddingIndexOrchestrator implements Module {
     this.ensureMetaTable(indexDb);
 
     const mainFingerprint = this.getMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY);
+    const resumeMainBuild =
+      this.getMetaValue(indexDb, MAIN_CHUNK_BUILD_KEY) ===
+      mainEmbeddingFingerprint(resolvedConfig.fingerprint);
     const vlFingerprint = this.getMetaValue(indexDb, VL_FINGERPRINT_KEY);
     const videoNoteFingerprint = this.getMetaValue(indexDb, VIDEO_NOTE_FINGERPRINT_KEY);
-    const mainFingerprintChanged = mainFingerprint !== resolvedConfig.fingerprint;
+    const mainFingerprintChanged =
+      mainFingerprint !== mainEmbeddingFingerprint(resolvedConfig.fingerprint) && !resumeMainBuild;
     const vlFingerprintChanged = vlFingerprint !== resolvedConfig.fingerprint;
     const videoNoteFingerprintChanged = videoNoteFingerprint !== resolvedConfig.fingerprint;
     const rebuildState = databaseModule.getIndexRebuildState(mainDbName, "vec");
@@ -445,7 +476,7 @@ class EmbeddingIndexOrchestrator implements Module {
         mainDbName,
         reason,
         rebuildState,
-        mainFingerprintChanged
+        mainFingerprintChanged || resumeMainBuild
       )
     ) {
       this.lastReconciledDbName = mainDbName;
@@ -456,7 +487,7 @@ class EmbeddingIndexOrchestrator implements Module {
     }
 
     const shouldSkipMainStartupReconcile =
-      reason === "startup_reconcile" && !mainFingerprintChanged;
+      reason === "startup_reconcile" && !mainFingerprintChanged && !resumeMainBuild;
 
     const mainResult = shouldSkipMainStartupReconcile
       ? {
@@ -465,14 +496,21 @@ class EmbeddingIndexOrchestrator implements Module {
           reinitialized: false,
           queued: 0,
           indexed: 0,
+          failed: 0,
           stale: false,
-          autoIndex: resolvedConfig.providerType === "local_python",
+          autoIndex:
+            resolvedConfig.providerType === "local_python" ||
+            needsMainChunkUpgrade(mainFingerprint) ||
+            resumeMainBuild,
         }
       : await mainContentVecIndexQueue.reconcileByPolicy({
           mainDbName,
           embeddingConfig: resolvedConfig,
           fingerprintChanged: mainFingerprintChanged,
-          autoIndex: resolvedConfig.providerType === "local_python",
+          autoIndex:
+            resolvedConfig.providerType === "local_python" ||
+            needsMainChunkUpgrade(mainFingerprint) ||
+            resumeMainBuild,
           reason,
         });
 
@@ -482,8 +520,13 @@ class EmbeddingIndexOrchestrator implements Module {
       );
     }
 
-    if (!mainResult.stale) {
-      this.setMetaValue(indexDb, MAIN_CONTENT_FINGERPRINT_KEY, resolvedConfig.fingerprint);
+    if (!mainResult.stale && mainResult.failed === 0) {
+      this.setMetaValue(
+        indexDb,
+        MAIN_CONTENT_FINGERPRINT_KEY,
+        mainEmbeddingFingerprint(resolvedConfig.fingerprint)
+      );
+      this.setMetaValue(indexDb, MAIN_CHUNK_BUILD_KEY, "");
     }
 
     const vlResult = await vibeLearningIndexQueue.handleEmbeddingSwitchByPolicy({

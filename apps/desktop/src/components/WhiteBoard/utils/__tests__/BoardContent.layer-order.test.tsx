@@ -32,14 +32,6 @@ const DEFAULT_VIEW_PORT: ViewPort = {
   zoom: 1,
 };
 
-const EMPTY_REF_LINES: Array<{
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}> = [];
-
 const createElement = (id: string): BoardElement => ({
   id,
   type: "geometry",
@@ -80,7 +72,6 @@ describe("BoardContent 图层顺序", () => {
                 centerConnectAndSelectedArrows={[createElement("selected-arrow")]}
                 disableViewportFilter={true}
                 showAssistLayers={false}
-                refLines={EMPTY_REF_LINES}
               />
             </ViewPortContext.Provider>
           </SelectionContext.Provider>

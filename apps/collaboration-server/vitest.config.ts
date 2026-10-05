@@ -11,6 +11,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // 被 desktop 的 electron-rebuild 覆盖成 Electron ABI 时先恢复（部署前的测试也走这里）
+    globalSetup: ["../../scripts/ensure-node-sqlite.mjs"],
     include: ["src/**/*.test.ts"],
     testTimeout: 20000,
   },

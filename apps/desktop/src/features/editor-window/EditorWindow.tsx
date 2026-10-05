@@ -42,7 +42,7 @@ import {
   type OutlineHeader,
 } from "@/components/ContentOutline";
 import { ThemeToggle } from "@/app/Titlebar";
-import { ArticleTags } from "@/features/articles/components/ArticleTags";
+import AddTag from "@/components/AddTag";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -61,12 +61,12 @@ import {
   getMarkdown,
 } from "@/utils";
 import { formatDate } from "@/utils/time";
-import { getEditorText } from "@/utils/editor";
 import type { DocumentDriver, DocumentFields, EditorDocument } from "./documentDrivers";
 import type { SaveState } from "./useEditorDocument";
 import { useEditorWindowPrefs } from "./editorWindowPrefs";
 import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { EditorStatusBar } from "./EditorStatusBar";
+import { cardTitle } from "@/utils/card-title";
 
 /** 低于该宽度大纲不再常驻右栏，改由标题栏按钮弹出 */
 const OUTLINE_COLUMN_MIN_WIDTH = 900;
@@ -135,7 +135,7 @@ export function EditorWindow({
 
   const title = driver.hasTitle
     ? doc.title || "未命名"
-    : getEditorText(doc.content, 20) || `${driver.label} #${doc.id}`;
+    : cardTitle(doc, 20) || `${driver.label} #${doc.id}`;
   useEffect(() => {
     document.title = title;
   }, [title]);
@@ -446,12 +446,18 @@ export function EditorWindow({
                   />
                 </ErrorBoundary>
               </div>
-              {/* 标签独占一行（样式同文章详情页） */}
+              {/* 标签独占一行（正文末统一口径） */}
               {driver.hasTags && (
-                <ArticleTags
+                <AddTag
+                  divided
                   tags={doc.tags ?? []}
-                  onAdd={tag => updateFields({ tags: [...(doc.tags ?? []), tag] })}
-                  onDelete={tag => updateFields({ tags: (doc.tags ?? []).filter(t => t !== tag) })}
+                  addTag={tag => updateFields({ tags: [...(doc.tags ?? []), tag] })}
+                  removeTag={tag => updateFields({ tags: (doc.tags ?? []).filter(t => t !== tag) })}
+                  editTag={(oldTag, newTag) =>
+                    updateFields({
+                      tags: (doc.tags ?? []).map(tag => (tag === oldTag ? newTag : tag)),
+                    })
+                  }
                 />
               )}
             </div>

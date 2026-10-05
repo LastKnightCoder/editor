@@ -51,6 +51,7 @@ import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "./local-store";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
+import { emitContentWritten } from "../content-events";
 import { localSessionId, resolveSessionId } from "./session-identity";
 import {
   findContentTitle,
@@ -688,9 +689,11 @@ class CollaborationManager {
     });
     // 先上传本地资源拿到引用映射，再一次性改写文档：升级必须是同步的最小编辑
     const resources = new Map<string, string>();
+    const banner = session.doc.getMap("meta").get("bannerBg");
     for (const reference of collectSharedResources(session.doc, session.privateNodes)) {
-      const asset = await this.assets.uploadReference(url, created.id, reference);
-      if (asset !== reference) resources.set(reference, asset);
+      const field = reference === banner ? "bannerBg" : "";
+      const shared = await this.assets.shareReference(url, created.id, reference, field);
+      if (shared !== reference) resources.set(reference, shared);
     }
     const rollback = upgradeLocalDocument(session.doc, session.privateNodes, resources);
     try {
@@ -921,11 +924,13 @@ class CollaborationManager {
           databaseName: basename(database.name),
           [entry.field]: entry.id,
         });
-      if (changed)
+      if (changed) {
         this.broadcast("content:updated", {
           databaseName: basename(database.name),
           contentId: source.contentId,
         });
+        emitContentWritten(database, source.contentId, "update");
+      }
       session.info.title = value.title;
       if (local && session.info.error) {
         session.info.error = undefined;

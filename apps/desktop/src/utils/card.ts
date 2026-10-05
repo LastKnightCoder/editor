@@ -1,6 +1,5 @@
 import { ICard, ICardTree } from "@/types";
-import { ContentLinkElement } from "@/editor-extensions/content-link";
-import { Descendant } from "slate";
+import { inlineCardIds } from "@/entity/inline-refs";
 
 export const findCardsByTags = (cards: ICard[], tags: string[]) => {
   return cards.filter((card) =>
@@ -49,33 +48,8 @@ export const generateCardTree = (cards: ICard[]): ICardTree[] => {
   return tree;
 };
 
-export const getInlineLinks = (card: ICard) => {
-  const { content } = card;
-  // 深度优先变量，获取 type 为 content-link 的节点
-  // 深度遍历，找到所有的 formatted 节点
-  const contentLinkElements: Array<ContentLinkElement> = [];
-  const traverse = (node: Descendant) => {
-    // @ts-ignore
-    if (node.type === "content-link" && node.contentType === "card") {
-      contentLinkElements.push(node);
-      return;
-    }
-    // @ts-ignore
-    if (node.children && node.children.length > 0) {
-      // @ts-ignore
-      node.children.forEach((child) => {
-        traverse(child);
-      });
-    }
-  };
-  content.forEach((node) => {
-    traverse(node);
-  });
-
-  return contentLinkElements.map(
-    (contentLinkElement) => contentLinkElement.refId,
-  );
-};
+/** 正文里内联引用的卡片 id */
+export const getInlineLinks = (card: ICard) => inlineCardIds(card.content);
 
 export const getLinkedCards = (card: ICard, cards: ICard[]): ICard[] => {
   const { links } = card;

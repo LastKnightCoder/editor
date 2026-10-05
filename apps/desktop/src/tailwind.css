@@ -5,6 +5,7 @@
 @import "tailwindcss";
 @import "@tau/themes/tokens.css";
 @import "@tau/themes/tailwind.css";
+@import "./assets/fonts/hand/hand-font.css";
 @source "../../../packages/editor/src";
 @source "../../../editor-extensions/media/src";
 @source "../../../editor-extensions/blockquote/src";
@@ -47,6 +48,87 @@
   --animate-float: float 3s ease-in-out infinite;
   --animate-fadeIn: fadeIn 120ms ease-out;
   --animate-collab-pulse: collab-pulse 1.8s ease-in-out infinite;
+  /* AI 洞见视图：标记依次画出、读的过程中一道光扫过正文 */
+  --animate-insight-draw: insight-draw 550ms ease-out both;
+  --animate-insight-line: insight-line 550ms ease-out both;
+  --animate-insight-sweep: insight-sweep 1.8s ease-in-out infinite;
+  --animate-insight-grow: insight-grow 600ms ease-out both;
+  /* 知识地图的洞见视图：一道光横扫地图、线从一端画到另一端、圈依次出现、问号轻轻呼吸 */
+  --animate-insight-sweep-x: insight-sweep-x 2.2s ease-in-out infinite;
+  --animate-insight-stroke: insight-stroke 700ms ease-out both;
+  --animate-insight-ring: insight-ring 600ms ease-out both;
+  --animate-insight-breathe: insight-breathe 2.4s ease-in-out infinite;
+
+  @keyframes insight-sweep-x {
+    0% {
+      left: -160px;
+      opacity: 0;
+    }
+    15%,
+    85% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%;
+      opacity: 0;
+    }
+  }
+
+  /* 线条要带 pathLength="1"，按比例画，不依赖实际长度 */
+  @keyframes insight-stroke {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes insight-ring {
+    from {
+      opacity: 0;
+      transform: scale(0.4);
+    }
+  }
+
+  @keyframes insight-breathe {
+    50% {
+      transform: scale(1.12);
+    }
+  }
+
+  @keyframes insight-grow {
+    from {
+      stroke-dashoffset: 60;
+    }
+  }
+
+  @keyframes insight-draw {
+    from {
+      background-size: 0% 2px;
+    }
+  }
+
+  @keyframes insight-line {
+    from {
+      text-decoration-color: transparent;
+    }
+  }
+
+  @keyframes insight-sweep {
+    0% {
+      top: -96px;
+      opacity: 0;
+    }
+    20%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      top: 100%;
+      opacity: 0;
+    }
+  }
 
   @keyframes collab-pulse {
     50% {

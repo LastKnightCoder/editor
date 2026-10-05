@@ -1,4 +1,5 @@
 import { snapdom } from "@zumer/snapdom";
+import { getBundledLocalFonts } from "./bundled-font-embed";
 
 type SnapdomBlobOptions = NonNullable<Parameters<typeof snapdom.toBlob>[1]>;
 
@@ -9,7 +10,7 @@ interface CaptureBlobWithSnapdomOptions extends SnapdomBlobOptions {
 const DEFAULT_FONT_READY_TIMEOUT_MS = 2000;
 
 export const waitForFontsReady = async (
-  timeoutMs = DEFAULT_FONT_READY_TIMEOUT_MS,
+  timeoutMs = DEFAULT_FONT_READY_TIMEOUT_MS
 ): Promise<void> => {
   if (typeof document === "undefined") {
     return;
@@ -24,18 +25,14 @@ export const waitForFontsReady = async (
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   try {
-    const readyPromise = Promise.resolve(fonts.ready).then(
-      () => "ready" as const,
-    );
-    const timeoutPromise = new Promise<"timeout">((resolve) => {
+    const readyPromise = Promise.resolve(fonts.ready).then(() => "ready" as const);
+    const timeoutPromise = new Promise<"timeout">(resolve => {
       timeoutId = setTimeout(() => resolve("timeout"), safeTimeoutMs);
     });
 
     const result = await Promise.race([readyPromise, timeoutPromise]);
     if (result === "timeout") {
-      console.warn(
-        `[snapdom-export] 字体等待超时（${safeTimeoutMs}ms），继续执行导出`,
-      );
+      console.warn(`[snapdom-export] 字体等待超时（${safeTimeoutMs}ms），继续执行导出`);
     }
   } catch (error) {
     console.warn("[snapdom-export] 等待字体加载失败，继续执行导出", error);
@@ -48,17 +45,20 @@ export const waitForFontsReady = async (
 
 export const captureBlobWithSnapdom = async (
   element: Element,
-  options: CaptureBlobWithSnapdomOptions = {},
+  options: CaptureBlobWithSnapdomOptions = {}
 ): Promise<Blob> => {
-  const {
-    fontReadyTimeoutMs = DEFAULT_FONT_READY_TIMEOUT_MS,
-    ...snapdomOptions
-  } = options;
+  const { fontReadyTimeoutMs = DEFAULT_FONT_READY_TIMEOUT_MS, ...snapdomOptions } = options;
 
   await waitForFontsReady(fontReadyTimeoutMs);
+  // 内置字体在 file:// 下 snapdom 自己 fetch 不到，预先读成 data URL 传入
+  const bundledFonts = await getBundledLocalFonts().catch(error => {
+    console.warn("[snapdom-export] 准备内置字体失败，导出回落系统字体", error);
+    return [];
+  });
 
   return snapdom.toBlob(element, {
     ...snapdomOptions,
     embedFonts: true,
+    localFonts: [...(snapdomOptions.localFonts ?? []), ...bundledFonts],
   });
 };

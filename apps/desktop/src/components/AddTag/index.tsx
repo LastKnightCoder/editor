@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import isHotKey from "is-hotkey";
 import { Plus } from "lucide-react";
 
-import { Tag as TauTag } from "@tau/ui";
+import { Tag as TauTag, cn } from "@tau/ui";
 import Tags from "@/components/Tags";
 
 interface AddTagProps {
@@ -11,6 +11,8 @@ interface AddTagProps {
   removeTag: (tag: string) => void;
   editTag?: (oldTag: string, newTag: string) => void;
   readonly?: boolean;
+  /** 正文末标签行：自带上分割线与留白，与正文最后一块（段落/代码块…）的外边距无关 */
+  divided?: boolean;
   className?: string;
   style?: React.CSSProperties;
   // 拖拽排序相关
@@ -18,20 +20,31 @@ interface AddTagProps {
 }
 
 const AddTag = (props: AddTagProps) => {
-  const { tags, addTag, removeTag, editTag, readonly = false, className, style, onReorder } = props;
+  const {
+    tags,
+    addTag,
+    removeTag,
+    editTag,
+    readonly = false,
+    divided = false,
+    className,
+    style,
+    onReorder,
+  } = props;
   const [addTagVisible, setAddTagVisible] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const editRef = useRef<HTMLDivElement>(null);
 
   const handleAddTag = useCallback(
-    (tag: string) => {
-      if (tag) {
+    (input: string) => {
+      const tag = input.trim();
+      if (tag && !tags.includes(tag)) {
         addTag(tag);
       }
       setAddTagVisible(false);
     },
-    [addTag]
+    [addTag, tags]
   );
 
   const handleBlur = useCallback(() => {
@@ -42,13 +55,14 @@ const AddTag = (props: AddTagProps) => {
   }, [handleAddTag]);
 
   const handleEditTag = useCallback(
-    (oldTag: string, newTag: string) => {
-      if (newTag && newTag !== oldTag && editTag) {
+    (oldTag: string, input: string) => {
+      const newTag = input.trim();
+      if (newTag && newTag !== oldTag && !tags.includes(newTag) && editTag) {
         editTag(oldTag, newTag);
       }
       setEditingTag(null);
     },
-    [editTag]
+    [editTag, tags]
   );
 
   const handleEditBlur = useCallback(() => {
@@ -87,7 +101,7 @@ const AddTag = (props: AddTagProps) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotKey("enter", e)) {
+      if (isHotKey("enter", e) && !e.isComposing) {
         if (addTagVisible) {
           const tag = ref.current;
           if (tag) {
@@ -153,7 +167,7 @@ const AddTag = (props: AddTagProps) => {
 
   return (
     <Tags
-      className={className}
+      className={cn(divided && "border-line-2 mt-[34px] border-t pt-[18px]", className)}
       style={style}
       tags={tags}
       hoverAble={!readonly}

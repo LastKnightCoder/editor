@@ -4,6 +4,7 @@ import type { ChatDropdownItem } from "@tau/shared";
 import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
+  COMPOSER_ANCHOR_ATTR,
   ChatInputArea,
   useChatAutoScroll,
   type ChatInputAreaProps,
@@ -26,7 +27,6 @@ import ChatDropdownSelector from "../../../../components/ChatDropdownSelector";
 import { useTheme } from "../../../../hooks/useTheme";
 import { useThemeStore } from "../../../../stores/useThemeStore";
 import type { ChatMessageType } from "@tau/shared";
-import classNames from "classnames";
 
 export interface ChatTabProps {
   wsClient: WebSocketClient | null;
@@ -50,6 +50,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     isSupportImage,
 
     setLlmUsage,
+    currentProviderConfig,
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
   const { skills } = useSkills(aiWsClient);
@@ -141,7 +142,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     isConnected,
     sendMessage,
     sendRequestMessage,
-    clearMessages,
     stopGeneration,
     retryStatus,
     interactions,
@@ -188,18 +188,27 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         group: true,
       },
       ...(provider.models || []).map(model => ({
-        key: `${provider.id}:${model.id ?? model.name}`,
+        key: `${provider.id}::${model.id}`,
         label: model.name ?? model.id,
       })),
     ]);
   }, [llmConfigs]);
 
+  const currentModelKey =
+    currentProviderConfig && currentModelConfig
+      ? `${currentProviderConfig.id}::${currentModelConfig.id}`
+      : undefined;
+
   const handleModelSelect = useCallback(
     async ({ key }: { key: string }) => {
-      const [providerId, modelId] = key.split(":");
-      if (!providerId || !modelId) return;
+      // 模型 id 自身可能含冒号（如 qwen2.5:7b），只按第一个分隔符切
+      const separator = key.indexOf("::");
+      if (separator <= 0) return;
+      const providerId = key.slice(0, separator);
+      const modelId = key.slice(separator + 2);
+      if (!modelId) return;
       try {
-        await setLlmUsage(providerId, modelId ?? "");
+        await setLlmUsage(providerId, modelId);
       } catch (err) {
         console.error("设置模型失败:", err);
         toast.error("设置模型失败");
@@ -286,14 +295,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     [confirmPrompt]
   );
 
-  const handleCopySuccess = useCallback(() => {
-    toast.success("已复制到剪贴板");
-  }, []);
-
-  const handleCopyError = useCallback(() => {
-    toast.error("复制失败");
-  }, []);
-
   const chatInputServices: ChatInputAreaServices = useMemo(
     () => ({
       uploadFile: async (file: File) => {
@@ -358,7 +359,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         currentChat={currentSession}
         onChatSelect={selectSession}
         onTitleChange={title => updateSessionTitle(currentSession.id, title)}
-        onCreateNewChat={() => createSession()}
         onChatDelete={deleteSession}
       />
     );
@@ -387,11 +387,13 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       {confirmDialog}
       <ChatContainerCore
         ref={coreRef}
-        isDark={isDark}
         isConnected={isConnected}
         messages={liveMessages}
         isLoading={isLoading}
         error={error}
+        retryStatus={
+          retryStatus ? { attempt: retryStatus.attempt, maxRetries: retryStatus.maxAttempts } : null
+        }
         thinkingLevel={thinkingLevel}
         onThinkingLevelChange={setThinkingLevel}
         thinkingLevelDisabled={!currentModelConfig?.reasoning}
@@ -407,22 +409,14 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         onSendMessageContent={handleSendMessageContent}
         onUserSend={handleUserSend}
         onStopGeneration={stopGeneration}
-        onClearMessages={clearMessages}
-        onDeleteMessage={handleDeleteMessage}
-        onRegenerateMessage={handleRegenerateMessage}
-        onCreateBranch={handleCreateBranch}
-        onCopySuccess={handleCopySuccess}
-        onCopyError={handleCopyError}
-        onDeleteConfirm={handleDeleteConfirm}
-        chatInputServices={chatInputServices}
         chatHeader={chatHeader}
         messagesContainerRef={messagesContainerRef}
         messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
         renderInputWrapper={inputNode => (
+          // 外框与桌面对话输入框一致；＋ 面板按它的矩形定位（同宽、贴上沿）
           <div
-            className={classNames(
-              "bg-(--th-chat-input) border-(--th-chat-input-border) m-1 mt-3 box-border flex-none rounded-3xl border px-3 py-3 shadow-sm"
-            )}
+            {...{ [COMPOSER_ANCHOR_ATTR]: "" }}
+            className="border-line-1 bg-surface ease-tau-out focus-within:border-accent relative m-2 mt-3 flex-none rounded-[16px] border pb-2.5 pl-3.5 pr-2.5 pt-3 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]"
           >
             {inputNode}
           </div>
@@ -432,20 +426,12 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
           return (
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
-                <ToolApprovalBar
-                  approvals={interactions.approvals}
-                  isDark={isDark}
-                  onDecide={approveTool}
-                />
-                {retryStatus && (
-                  <div role="status" className="mb-2 text-xs text-amber-600">
-                    请求失败，正在重试（第 {retryStatus.attempt}/{retryStatus.maxAttempts} 次）…
-                  </div>
-                )}
+                <ToolApprovalBar approvals={interactions.approvals} onDecide={approveTool} />
                 <ChatInputArea
                   ref={chatInputRef as Ref<ChatInputAreaHandle>}
                   className="min-w-0 flex-1"
                   {...resolvedProps}
+                  currentModelKey={currentModelKey}
                   services={chatInputServices}
                 />
               </div>
@@ -463,8 +449,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
               onRegenerateMessage={handleRegenerateMessage}
               onCreateBranch={handleCreateBranch}
               {...(!isLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
-              onCopySuccess={handleCopySuccess}
-              onCopyError={handleCopyError}
               onDeleteConfirm={handleDeleteConfirm}
             />
           </div>

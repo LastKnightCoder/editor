@@ -12,7 +12,6 @@ import type { useBootstrap } from "../hooks/useBootstrap";
 import type { useCardsQuery } from "../hooks/useCardsQuery";
 import type { useSyncSettings } from "../hooks/useSyncSettings";
 import type { useResourceSync } from "../hooks/useResourceSync";
-import type { KnownCardCategory } from "../features/cards/cardCategory";
 
 export type AppContextValue = {
   presentError: (error: unknown, fallback: string, type?: "error" | "info" | "success") => void;
@@ -24,9 +23,7 @@ export type AppContextValue = {
     page?: number;
     pageSize?: number;
     query?: string;
-    category?: string;
   }) => Promise<CardsOverviewResponse | null>;
-  handleUpdateCardCategory: (cardId: number, category: KnownCardCategory) => Promise<void>;
   handleDeleteCard: (cardId: number) => Promise<void>;
   handleSwitchDatabase: (name: string) => Promise<void>;
   handleSaveSetting: () => Promise<void>;

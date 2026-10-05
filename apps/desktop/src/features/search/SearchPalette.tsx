@@ -14,6 +14,8 @@
  * #名称 分别匹配待办项目 / 日历 / 问题分组。
  * 像问题的输入（以问号结尾或带 #分组）记录组置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
  * 前缀「待办:」「日程:」「问题:」或对应命令进入收集模式，列表只剩该收集行。
+ * 「转为问题」（划线、PDF 标注、对话消息）经 services/question-capture 唤起记问题模式并带来源 chip，
+ * 回车后来源成为问题的第一条材料 / 探究对话。
  */
 
 import {
@@ -36,6 +38,9 @@ import {
   X,
 } from "lucide-react";
 import clsx from "clsx";
+import { openEntity } from "@/services/open-content";
+import { normalizeEntityRefKind } from "@/entity/ref";
+import { locatesSection } from "@/entity/section-location";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
 import {
@@ -45,6 +50,8 @@ import {
   matchCommands,
   scopeLabel,
   scopeIcon,
+  scopeOfType,
+  scopeTypes,
   isReplayableVisit,
   type PaletteCommand,
   type PaletteScope,
@@ -56,8 +63,14 @@ import { toggleAssistFor } from "@/app/assistOwner";
 import { useThemeStore } from "@tau/themes/react";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
-import type { IndexType, SearchResult } from "@/types";
+import type { SearchResult } from "@/types";
+import { openMaterialTarget } from "@/services/open-material";
 import { captureQuestion } from "@/commands/question";
+import {
+  submitQuestionCapture,
+  subscribeQuestionCapture,
+  type QuestionCaptureDraft,
+} from "@/services/question-capture";
 import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
 import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
 import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
@@ -151,6 +164,9 @@ export function SearchPalette() {
   const [query, setQuery] = useState("");
   const [scopes, setScopes] = useState<Set<PaletteScope>>(() => new Set());
   const [capture, setCapture] = useState<CaptureKind | null>(null);
+  /** 「转为问题」带来的来源；退出记问题模式即丢弃 */
+  const [captureSource, setCaptureSource] = useState<QuestionCaptureDraft | null>(null);
+  const openPalette = useSearchStore(s => s.openPalette);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -160,7 +176,7 @@ export function SearchPalette() {
   const debouncedQ = useDebouncedValue(trimmedQ, 250);
 
   const activeTypes = useMemo(() => {
-    const t = SCOPE_ORDER.filter(s => s !== "cmd" && scopes.has(s)) as IndexType[];
+    const t = SCOPE_ORDER.filter(s => scopes.has(s)).flatMap(scopeTypes);
     return t.length ? t : undefined;
   }, [scopes]);
 
@@ -219,17 +235,24 @@ export function SearchPalette() {
 
   const captureRow = (text: string): Row => {
     const { title, groupHint } = parseCapture(text);
+    const source = capture === "question" ? captureSource : null;
     return {
       key: "capture:question",
       icon: CircleHelp,
       title: title ? `记为问题：${title}` : "输入问题，回车收集到问题页",
-      sub: groupHint ? `#${groupHint}` : "#分组 可指定分组",
+      sub:
+        [source ? `来源：${source.sourceLabel}` : "", groupHint ? `#${groupHint}` : ""]
+          .filter(Boolean)
+          .join(" · ") || "#分组 可指定分组",
       tag: { label: "问题", cls: "bg-accent-soft text-accent-text" },
       hint: !title,
       run: () => {
         if (!title) return;
         closeAnd(() => {
-          captureQuestion(title, groupHint)
+          (source
+            ? submitQuestionCapture(source.source, title, groupHint)
+            : captureQuestion(title, groupHint)
+          )
             .then(({ question, groupTitle }) =>
               toast.success(`已收集到「${groupTitle}」`, {
                 action: {
@@ -238,7 +261,13 @@ export function SearchPalette() {
                 },
               })
             )
-            .catch(() => toast.error("收集问题失败"));
+            .catch(error =>
+              toast.error(
+                error instanceof Error && error.message === "来源已不存在"
+                  ? "来源已不存在，未创建问题"
+                  : "收集问题失败"
+              )
+            );
         });
       },
     };
@@ -371,6 +400,26 @@ export function SearchPalette() {
 
   const contentRow = (r: SearchResult): Row => {
     const meta = CONTENT_TYPES[r.type];
+    if (r.material) {
+      // 外部材料：标题是引文，次行是来源，点击打开到原处（单书页划线 / PDF 标注 / 网页 / 网页条目）
+      const { material } = r;
+      return {
+        key: `material:${r.type}:${r.id}`,
+        icon: meta.icon,
+        title: material.title,
+        sub: r.section ? `${material.meta} · ${resultDisplay(r).snippet}` : material.meta,
+        tag: { label: meta.label, cls: meta.tag },
+        meta: relativeTime(r.updateTime),
+        run: () =>
+          closeAnd(() => {
+            if (!material.open) return navigator.push(meta.navKey);
+            openMaterialTarget(
+              material.open,
+              r.section && locatesSection(r.type) ? { block: r.section.blockStart } : undefined
+            ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+          }),
+      };
+    }
     const { title, snippet } = resultDisplay(r);
     return {
       key: `content:${r.type}:${r.contentId}`,
@@ -379,8 +428,15 @@ export function SearchPalette() {
       sub: snippet,
       tag: { label: meta.label, cls: meta.tag },
       meta: relativeTime(r.updateTime),
-      // 详情页迁移前（D-003 注记）跳对应模块列表页
-      run: () => closeAnd(() => navigator.push(meta.navKey)),
+      run: () =>
+        closeAnd(() => {
+          const kind = normalizeEntityRefKind(r.type);
+          if (!kind) return navigator.push(meta.navKey);
+          void openEntity(
+            { kind, id: r.id },
+            r.section && locatesSection(r.type) ? { at: { block: r.section.blockStart } } : {}
+          ).catch(error => toast.error(error instanceof Error ? error.message : "打开失败"));
+        }),
     };
   };
 
@@ -504,6 +560,7 @@ export function SearchPalette() {
     trimmedQ,
     scopes,
     capture,
+    captureSource,
     commands,
     todoGroups,
     calendars,
@@ -544,6 +601,25 @@ export function SearchPalette() {
     inputRef.current?.blur();
     setCapture(null);
   }, [open]);
+
+  useEffect(() => {
+    if (capture !== "question") setCaptureSource(null);
+  }, [capture]);
+
+  useEffect(
+    () =>
+      subscribeQuestionCapture(draft => {
+        setCapture("question");
+        setCaptureSource(draft);
+        setScopes(new Set());
+        const title = draft.defaultTitle ?? "";
+        setQuery(title);
+        if (inputRef.current) inputRef.current.value = title;
+        openPalette();
+        inputRef.current?.focus();
+      }),
+    [openPalette]
+  );
 
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
@@ -655,7 +731,8 @@ export function SearchPalette() {
     if (!trimmedQ) return counts;
     counts.set("cmd", commands.length);
     (contentQuery.data ?? []).forEach(r => {
-      counts.set(r.type, (counts.get(r.type) ?? 0) + 1);
+      const scope = scopeOfType(r.type);
+      counts.set(scope, (counts.get(scope) ?? 0) + 1);
     });
     return counts;
   }, [trimmedQ, commands.length, contentQuery.data]);
@@ -705,6 +782,14 @@ export function SearchPalette() {
                 {CAPTURE_META[capture].chip}
                 <X size={12} strokeWidth={2} />
               </button>
+            )}
+            {capture === "question" && captureSource && (
+              <span
+                title={captureSource.sourceLabel}
+                className="bg-hover text-ink-2 text-tau-sm flex h-6 min-w-0 max-w-[220px] flex-none items-center rounded-lg px-2.5"
+              >
+                <span className="truncate">{captureSource.sourceLabel}</span>
+              </span>
             )}
             {[...scopes].map(s => (
               <button

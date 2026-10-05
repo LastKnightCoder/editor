@@ -14,37 +14,24 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { useCardsMutations } from "../queries";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import { getContentLength } from "@/utils";
-import { ECardCategory, type ICard } from "@/types";
-import { cardCategoryName } from "@/constants/card";
+import type { ICard } from "@/types";
 import { Button, Dialog, DialogBody, toast } from "@tau/ui";
 
 export interface CreateCardDialogProps {
   open: boolean;
-  /** 打开入口携带的默认分类（旧版：数据库视图新建 / 分类上下文） */
-  defaultCategory: ECardCategory;
   onClose(): void;
   onCreated?(card: ICard): void;
 }
 
-export function CreateCardDialog({
-  open,
-  defaultCategory,
-  onClose,
-  onCreated,
-}: CreateCardDialogProps) {
+export function CreateCardDialog({ open, onClose, onCreated }: CreateCardDialogProps) {
   const [content, setContent] = useLocalStorageState<Descendant[]>("card-edit-content", {
     defaultValue: DEFAULT_CARD_CONTENT,
   });
   const [tags, setTags] = useLocalStorageState<string[]>("card-edit-tags", { defaultValue: [] });
-  const [category, setCategory] = useState<ECardCategory>(defaultCategory);
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<EditorRef>(null);
   const [editorRevision, setEditorRevision] = useState(0);
   const { create } = useCardsMutations();
-
-  useEffect(() => {
-    if (open) setCategory(defaultCategory);
-  }, [open, defaultCategory]);
 
   useEffect(() => {
     if (open) setTimeout(() => editorRef.current?.focus(), 120);
@@ -68,7 +55,6 @@ export function CreateCardDialog({
         content: value,
         tags: tags ?? [],
         links: [],
-        category,
         count: getContentLength(value),
         isTop: false,
       });
@@ -116,23 +102,6 @@ export function CreateCardDialog({
     >
       <DialogBody>
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-1.5 text-[12px]">
-            <span className="text-ink-3">分类</span>
-            {(Object.keys(cardCategoryName) as ECardCategory[]).map(key => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setCategory(key)}
-                className={
-                  category === key
-                    ? "bg-selected text-ink-1 rounded-full px-2.5 py-0.5 font-medium"
-                    : "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-full px-2.5 py-0.5"
-                }
-              >
-                {cardCategoryName[key]}
-              </button>
-            ))}
-          </div>
           <ErrorBoundary>
             <ContentEditor
               key={editorRevision}

@@ -34,6 +34,8 @@ interface FullscreenWorkbenchProps {
   /** 源码栏内容（CodeMirror 由外层持有，收起时保持挂载） */
   source: ReactNode;
   error: PreviewError | null;
+  /** 画布内容的固定宽度；缺省时按内容自身宽度 */
+  contentWidth?: number;
   onClose: () => void;
   children: ReactNode;
 }
@@ -50,6 +52,7 @@ const FullscreenWorkbench = ({
   onToggleSource,
   source,
   error,
+  contentWidth,
   onClose,
   children,
 }: FullscreenWorkbenchProps) => {
@@ -231,7 +234,10 @@ const FullscreenWorkbench = ({
                       ? "select-none"
                       : "transition-transform duration-200 ease-[var(--tau-ease-out)]"
                   )}
-                  style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+                  style={{
+                    width: contentWidth,
+                    transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  }}
                 >
                   {children}
                 </div>

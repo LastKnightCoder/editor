@@ -1,7 +1,8 @@
 /**
  * 项目条目 · 视频笔记（学习台布局，同 Vibe Learning）：
  * 左 = 材料（视频 + 跟随播放的转录），中 = 本视频的 AI 对话；打开「笔记」后笔记占中间、
- * 对话退到右栏（可拖宽 / 收起）。对话面板始终挂在同一位置，切换布局不打断进行中的回答。
+ * 对话退到右栏（可拖宽 / 收起）。收起对话的开关常驻顶栏，笔记打开时收起由笔记占满中间、
+ * 关闭时材料栏独占。对话面板始终挂在同一位置，切换布局不打断进行中的回答。
  * 会话与工具跟视频走（useScopedChat / 视频专属工具），与壳层全局 AI 栏无关。
  */
 
@@ -92,6 +93,8 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const dockWidth = clampDockChatWidth(chatWidth ?? DOCK_CHAT_MIN);
   const startDockResize = useDockResize(dockWidth, setChatWidth);
   const dockChat = !!notesOpen;
+  // 笔记关闭且对话收起：材料栏独占整行（专注看视频/转录）
+  const materialFills = !dockChat && !chatOpen;
   // 材料栏常驻；仅笔记打开且条目过窄（三栏放不下）时让位，关掉笔记即恢复
   const materialVisible = !(dockChat && rootWidth > 0 && rootWidth < MATERIAL_AUTO_COLLAPSE_WIDTH);
 
@@ -256,18 +259,16 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
                 <NotebookPen className="size-4" strokeWidth={1.75} />
               </IconButton>
             </Tooltip>
-            {dockChat && (
-              <Tooltip content={chatOpen ? "收起对话" : "展开对话"} placement="bottom">
-                <IconButton
-                  aria-label={chatOpen ? "收起对话" : "展开对话"}
-                  aria-pressed={!!chatOpen}
-                  onClick={() => setChatOpen(!chatOpen)}
-                  className={toggleClass(!!chatOpen)}
-                >
-                  <MessageCircle className="size-4" strokeWidth={1.75} />
-                </IconButton>
-              </Tooltip>
-            )}
+            <Tooltip content={chatOpen ? "收起对话" : "展开对话"} placement="bottom">
+              <IconButton
+                aria-label={chatOpen ? "收起对话" : "展开对话"}
+                aria-pressed={!!chatOpen}
+                onClick={() => setChatOpen(!chatOpen)}
+                className={toggleClass(!!chatOpen)}
+              >
+                <MessageCircle className="size-4" strokeWidth={1.75} />
+              </IconButton>
+            </Tooltip>
             {/* trigger 用原生 button + title：Menu.trigger 需单一透传元素，Tooltip 包裹会吞注入 */}
             <Menu
               align="end"
@@ -296,8 +297,9 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
           sidebarPosition="left"
           minWidth={280}
           maxWidth={560}
-          disableResize={!materialVisible}
+          disableResize={!materialVisible || materialFills}
           showDivider
+          fillRemaining={materialFills}
           className="h-full"
         >
           <MaterialColumn
@@ -316,12 +318,12 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
           </div>
         )}
 
-        {/* 对话：笔记关闭时占中间，打开时停靠右栏（收起只隐藏，保留流式回答） */}
+        {/* 对话：笔记关闭时占中间，打开时停靠右栏；收起只隐藏（保留流式回答），入口常驻顶栏 */}
         <div
           className={cn(
             "relative flex min-h-0 min-w-0 flex-col",
             dockChat ? "shrink-0 shadow-[inset_1px_0_0_var(--tau-line-2)]" : "flex-1",
-            dockChat && !chatOpen && "hidden"
+            !chatOpen && "hidden"
           )}
           style={dockChat ? { width: dockWidth } : undefined}
         >

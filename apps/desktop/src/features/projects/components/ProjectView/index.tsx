@@ -8,14 +8,18 @@ import { useProjectDetail } from "@/features/projects/queries";
 import { Loader2 } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import { ProjectReviewContext } from "../../review/ProjectReviewContext";
+import { useProjectReview } from "../../review/useProjectReview";
 
 interface ProjectViewProps {
   projectId: number;
   /** 定位到文档树内具体条目（命令面板/外部跳转用，列表进入不带） */
   itemId?: number;
+  /** 打开时展开项目回顾（今日页「打开回顾」） */
+  openReview?: boolean;
 }
 
-const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
+const ProjectView = ({ projectId, itemId, openReview = false }: ProjectViewProps) => {
   const { navigator } = usePage();
   const [documentAction, setDocumentAction] = useState<ProjectDocumentAction | null>(null);
   const clearDocumentAction = useCallback(() => setDocumentAction(null), []);
@@ -33,6 +37,12 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
 
   const queryClient = useQueryClient();
   const { project, loading } = useProjectDetail(projectId);
+  const review = useProjectReview({
+    projectId,
+    projectTitle: project?.title ?? "",
+    archived: Boolean(project?.archived),
+    autoOpen: openReview && Boolean(project),
+  });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
 
@@ -94,15 +104,19 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
           ref={containerRef}
           className="tau-sheet bg-surface shadow-card rounded-tau-lg relative flex h-full overflow-hidden"
         >
-          <div className="h-full overflow-hidden">
-            <ProjectList />
-          </div>
+          <ProjectReviewContext.Provider value={review.tree}>
+            <div className="h-full overflow-hidden">
+              <ProjectList />
+            </div>
+          </ProjectReviewContext.Provider>
 
           <div className="flex h-full flex-1 flex-col overflow-hidden">
+            {review.report}
             <div className="w-full flex-1 overflow-hidden">
               <EditProjectView />
             </div>
           </div>
+          {review.popover}
         </div>
       </div>
     </ProjectContext.Provider>

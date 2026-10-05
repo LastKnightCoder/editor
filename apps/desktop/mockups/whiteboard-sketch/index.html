@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板手绘风格重构 · 总览</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="sketch.css">
+<style>
+  body { padding: 40px 8vw 90px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 96ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  header .links { margin-top: 14px; display: flex; gap: 10px; }
+  header .links a { text-decoration: none; font-size: 13px; color: var(--accent-text); background: var(--accent-soft); padding: 5px 12px; border-radius: 9px; font-weight: 500; }
+  h2 { font-size: 16px; margin: 44px 0 14px; font-weight: 600; }
+  h2 small { font-weight: 400; color: var(--ink-3); font-size: 12.5px; margin-left: 8px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 100ch; }
+  ul.tight li + li { margin-top: 5px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-card); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; }
+  .card.rec { outline: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent); }
+  .card .no { font: 600 12px/1 var(--mono); color: var(--accent-text); display: flex; gap: 8px; align-items: center; }
+  .card .no em { font: 500 11px/18px var(--font); font-style: normal; background: var(--accent-soft); padding: 0 7px; border-radius: 6px; }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 6px; }
+  .tile { margin-top: 12px; border-radius: 12px; background-color: var(--sk-paper); background-image: radial-gradient(var(--sk-dot) 1px, transparent 1.2px); background-size: 10px 10px; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .tile svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .tile text { font-size: 15px; fill: var(--sk-ink); }
+  .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); } .verdict .cost { color: var(--ink-3); }
+  .ask { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 14px 20px; max-width: 108ch; }
+  .ask + .ask { margin-top: 10px; }
+  .ask > b { display: block; font-weight: 600; margin-bottom: 4px; }
+  .ask p { color: var(--ink-2); font-size: 13px; }
+  .ask p + p { margin-top: 4px; }
+  pre { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 14px 18px; font: 12.5px/1.65 var(--mono); color: var(--ink-1); overflow: auto; max-width: 108ch; }
+  pre .c { color: var(--ink-3); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 1100px; }
+  @media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body class="doc">
+<header>
+  <h1>白板手绘风格重构 · 三个方向</h1>
+  <p class="sub">现状的「草图风格」是 rough.js 的一层薄封装：只有<b>形状</b>和<b>连线</b>能开，每个元素单独开关，属性面板直接暴露 rough.js 的 7 种填充 + 粗糙度 / 填充角度 / 填充间距 / 填充粗细四根滑杆。读完代码后，问题不只是参数没调好，而是三层都缺：<b>笔迹本身</b>（等宽线、机械排线、圆角抖成麻花）、<b>心智模型</b>（手绘是元素特效而不是白板的画风，文字、画框、导图都不跟随）、<b>实现</b>（命令式 DOM、箭头每次重绘随机 seed）。</p>
+  <p class="sub">三个方向共用同一套「地基」改动（白板级画风、三档笔触、五种填充、seed 固定、手写字体），区别只在<b>笔迹怎么画</b>。mockup 用的是项目里同版本的 rough.js 4.6 与 perfect-freehand 1.2，算法可直接搬进 <code>src/</code>。</p>
+  <p class="meta">2026-10-05 · mockup 只作视觉参考，不作为导出源（D-001）· 只出方案，不动 src/</p>
+  <div class="links"><a href="compare.html">并排对比（现状 / A / B / C）→</a><a href="board.html?plan=b">整板演示（可拖动、可改属性）→</a></div>
+</header>
+
+<h2>一 · 现状诊断<small>读 components/WhiteBoard 得出</small></h2>
+<table>
+  <tr><th>问题</th><th>现象</th><th>位置</th></tr>
+  <tr><td>排线机械</td><td>填充角默认 <code>0</code>（rough.js 自己的默认是 -41°），间距固定 8px、粗细固定 1，不随形状尺寸与线宽变化：大形状稀、小形状糊，看着像扫描纹</td><td><code>BaseSketchRenderer.getRoughOptions</code></td></tr>
+  <tr><td>透明度丢失</td><td>草图模式不传 <code>fillOpacity / strokeOpacity</code>，实心填充是满饱和色块，压住文字</td><td>同上</td></tr>
+  <tr><td>圆角 / 心形难看</td><td>圆角矩形拼 Q 曲线、心形直接喂 C 曲线给 <code>rough.path</code>，曲线段被抖成麻花；双描边（multiStroke）在小尺寸下糊成一团</td><td><code>RectangleSketchRenderer</code> / <code>PathSketchRenderer</code></td></tr>
+  <tr><td>连线抖动</td><td>箭头 seed 每次 effect 都 <code>Math.random()</code>，拖动 / 改任何属性 / 重渲染，整条线和箭头都重新抖一遍（对比页点「模拟拖动」）</td><td><code>SketchArrow.tsx</code></td></tr>
+  <tr><td>箭头过大</td><td>实心三角头尺寸 <code>max(10, 8 × 线宽)</code>，4px 线时 32px 的大黑三角</td><td><code>SketchArrow.drawArrowMarker</code></td></tr>
+  <tr><td>风格割裂</td><td>形状手绘了，里面的文字、旁边的文本 / 画框 / 分栏 / 导图仍是印刷体与直线；手绘要一个个元素去开</td><td>只有 Geometry / Arrow 两处接入</td></tr>
+  <tr><td>参数是工程语言</td><td>7 种填充（含「锯齿线」「虚线填充」这类难区分的）+ 4 根滑杆，用户要调到好看得会 rough.js</td><td><code>SketchStyleSetterComponent</code></td></tr>
+  <tr><td>实现方式</td><td>effect 里清空并命令式 <code>appendChild</code>，首帧空白；<code>"*"</code> 渲染器被注册表当普通函数调用（内部有 hooks）；Manager 单例 + 抽象基类 + 3 个子类只为分派 3 种形状；新建记忆走 localStorage</td><td><code>SketchRenderer.tsx</code> / <code>GeometryRendererRegistry</code> / <code>sketch/*</code></td></tr>
+</table>
+
+<h2>二 · 设计原则</h2>
+<ul class="tight">
+  <li><b>手绘是白板的画风，不是元素的特效。</b>一个开关整块白板切换（画框、形状、连线、文本、导图一起变），元素可以单独覆盖。正式场合一键切回「普通」导出。</li>
+  <li><b>参数说人话。</b>笔触只有「工整 / 自然 / 潦草」三档；填充收敛为「无 / 淡涂 / 斜线 / 交叉 / 涂鸦」五种；排线角度、间距、粗细按形状尺寸与线宽自动算，不再给滑杆。多一个「换一笔」，不满意就重摇。</li>
+  <li><b>笔迹稳定。</b>seed 落进元素数据（连线也是），拖动、缩放、撤销、重开都是同一笔；抖动是「沿弧长的连续函数」，端点移动时线形平滑变化，不跳。</li>
+  <li><b>文字跟着变。</b>手绘时形状内文字、文本、连线标签、画框标题换手写字体，这是「像手绘」最大的单项来源。</li>
+  <li><b>克制。</b>卡片 / 图片 / 视频 / 网页 / 白板引用是「内容」，不手绘；选中框、控制点、参考线等 chrome 永远普通（D-049）。用户选的颜色原样渲染，只有未指定颜色时默认墨色跟主题 ink。</li>
+</ul>
+
+<h2>三 · 三个方向<small>差别只在「笔迹怎么画」</small></h2>
+<div class="cards">
+  <div class="card">
+    <div class="no">方案 A</div>
+    <h3>纸笔 · rough.js 调优</h3>
+    <p>保留 rough.js，把参数调对：单笔描边（潦草档才双描）、-41° 排线、间距 / 粗细随线宽与尺寸、圆角与心形先采样成折线再抖、箭头改开口两笔且尺寸封顶 22px。观感接近 Excalidraw。</p>
+    <div class="tile" data-plan="a"></div>
+    <div class="verdict"><span class="good">＋ 改动最小，用户熟悉的白板手绘语言</span><span class="bad">－ 等宽线条，「电脑模拟手绘」的感觉还在</span><span class="cost">成本：S（参数 + 轮廓采样 + seed）</span></div>
+  </div>
+  <div class="card rec">
+    <div class="no">方案 B <em>推荐</em></div>
+    <h3>墨水 · 变宽墨迹 + 马克笔淡涂</h3>
+    <p>形状轮廓一笔绕一圈、收尾轻微搭接；用 perfect-freehand 描成起笔重、收笔轻的变宽墨迹。填充是马克笔淡涂：轮廓外扩抖动 + 套色错位 3px，multiply 叠在纸上，文字始终清楚。与现有「手写」工具<b>同一个墨水引擎</b>，批注和图形终于是同一支笔。</p>
+    <div class="tile" data-plan="b"></div>
+    <div class="verdict"><span class="good">＋ 最像真人用笔，好看的关键在「线有粗细」</span><span class="good">＋ 可移除 rough.js 依赖；纯 path、无滤镜，导出图片零改动</span><span class="bad">－ 轮廓采样 / 抖动 / 描边需自写（约 300 行纯函数，可单测）</span><span class="cost">成本：M</span></div>
+  </div>
+  <div class="card">
+    <div class="no">方案 C</div>
+    <h3>铅笔 · 多遍细线 + 出头</h3>
+    <p>直边按边拆笔、两端出头交叉，两遍细线叠出铅笔的深浅；曲线绕两圈；填充是彩铅排线。最有「建筑速写」的结构感。</p>
+    <div class="tile" data-plan="c"></div>
+    <div class="verdict"><span class="good">＋ 结构感强，适合草图构思</span><span class="bad">－ 细线在缩小、深色主题下发虚；元素一多显得「脏」</span><span class="bad">－ 不适合信息密集的知识白板</span><span class="cost">成本：M</span></div>
+  </div>
+</div>
+
+<h2>四 · 交互改版<small>整板演示里可以直接点</small></h2>
+<div class="two">
+  <div class="ask"><b>白板级「画风」—— 右下状态栏</b>
+    <p>状态栏最前面一个按钮「✎ 手绘 · 自然」，点开菜单：画风「手绘 / 普通」（带一句说明）+ 默认笔触三档。切换即时作用于整块白板里<b>没有单独设置过</b>的元素。数据挂在白板（页）上，随白板保存。</p>
+    <p>新建元素跟随页面画风，不再用 localStorage 记忆 <code>sketchEnabled / sketchOptions</code>。</p>
+  </div>
+  <div class="ask"><b>元素级「笔触」—— 浮动属性条的一项</b>
+    <p>替换现在的「草图风格」开关 + 四根滑杆。弹层三段：<b>画风</b>「跟随页面（显示当前值）/ 手绘 / 普通」→ <b>笔触</b>三档 → <b>填充</b>五种（缩略图用真实渲染画）；底部「🎲 换一笔」。条目上直接显示当前档位（如「自然」），不用点开就知道状态。</p>
+    <p>多选时同一弹层批量改；普通模式下只留一句说明，不摆禁用控件。</p>
+  </div>
+</div>
+
+<h2>五 · 覆盖范围</h2>
+<table>
+  <tr><th>元素</th><th>画风为「手绘」时</th><th>备注</th></tr>
+  <tr><td>形状</td><td>手绘轮廓 + 手绘填充 + 形状内文字换手写字体</td><td>普通模式下补上 fillOpacity</td></tr>
+  <tr><td>连线</td><td>手绘线身 + 开口箭头（尺寸随线宽、封顶）+ 标签手写字体；虚线是一段段短笔</td><td>流动动画保留（虚线流动 / 流动点）</td></tr>
+  <tr><td>画框 / 分栏</td><td>淡墨圆角框（固定「工整」档，不抢内容）+ 标题手写字体</td><td>新增接入</td></tr>
+  <tr><td>文本</td><td>手写字体</td><td>新增接入；富文本内的代码等保持原字体</td></tr>
+  <tr><td>思维导图</td><td>节点外框 + 分支线手绘，节点文字手写字体</td><td>新增接入（待拍板 4）</td></tr>
+  <tr><td>手写</td><td>不变（本来就是 perfect-freehand 墨迹）</td><td>B 方案与之同引擎</td></tr>
+  <tr><td>卡片 / 图片 / 视频 / 音频 / 网页 / 白板引用</td><td>不变</td><td>内容元素，手绘会降低可读性</td></tr>
+  <tr><td>选中框 / 控制点 / 连接点 / 参考线</td><td>不变</td><td>chrome 永远普通</td></tr>
+</table>
+
+<h2>六 · 实现草案<small>以方案 B 为例</small></h2>
+<pre><span class="c">// 白板（页）级：画风默认值</span>
+interface BoardSketch { style: "hand" | "precise"; level: "neat" | "natural" | "loose" }
+
+<span class="c">// 元素级：可选覆盖 + 固定笔迹种子（形状 / 连线 / 画框 / 文本 / 导图节点共用）</span>
+interface ElementSketch { style?: "hand" | "precise"; level?: SketchLevel; seed: number }
+<span class="c">// 形状的填充样式与画风无关，普通模式下 hatch / cross / scribble 退化为实色淡填</span>
+type FillStyle = "none" | "wash" | "hatch" | "cross" | "scribble"
+
+<span class="c">// 渲染：纯函数，输入几何 + 样式 + seed，输出 path 列表；组件里 useMemo 缓存、声明式 &lt;path&gt;</span>
+sketchShape(input): SketchPath[]   <span class="c">// { d, fill?, stroke?, opacity?, blend? }</span>
+sketchArrow(input): SketchPath[]
+</pre>
+<ul class="tight" style="margin-top:12px">
+  <li><b>删掉</b> <code>sketch/</code> 下的 Manager 单例 + 抽象基类 + 三个子类，和命令式的 <code>SketchRenderer.tsx</code> / <code>SketchArrow.tsx</code>（576 行）；换成 <code>utils/sketch/</code> 一组纯函数（轮廓采样 / 抖动 / 墨迹 / 填充），单测覆盖「同 seed 同输出」「端点微移输出连续」。</li>
+  <li><b>导出图片</b>：输出全是普通 path，没有 SVG filter，ExportImagePlugin 不用改；缩略图（D-047 复用导出管线）同样受益。</li>
+  <li><b>性能</b>：每个元素一次轮廓计算（perfect-freehand 单笔 ~0.1ms），按几何 + 样式 + seed 做 memo；拖动时只重算被拖元素与相连连线。</li>
+  <li><b>数据升级（D-091）</b>：旧 <code>sketchEnabled: true</code> → 元素级 <code>style: "hand"</code>；<code>roughness</code> → 档位（&lt;0.8 工整 / &lt;1.6 自然 / 其余潦草）；<code>fillStyle</code> hachure→hatch、solid→wash、cross-hatch→cross、zigzag / zigzag-line→scribble、dots / dashed→hatch；角度 / 间距 / 粗细字段丢弃。白板默认「普通」，存量白板打开后观感不变。</li>
+</ul>
+
+<h2>七 · 待拍板</h2>
+<div class="ask"><b>1. 方向：A / B / C？</b><p>推荐 <b>B</b>：好看的关键是线有粗细与收笔，等宽线怎么调都像程序画的；它和手写工具同一支笔，还能顺手去掉 rough.js。A 可以作为「最小改动」的保底。</p></div>
+<div class="ask"><b>2. 画风放在白板级 + 元素覆盖，还是只保留元素级？</b><p>推荐白板级 + 覆盖：手绘是一种整体氛围，逐个开关既累又容易混搭；同时保留元素覆盖，满足「这块白板手绘，但这张图要普通」。</p></div>
+<div class="ask"><b>3. 手写字体：系统回退还是打包？</b><p>mockup 用系统字体回退（macOS 手札体 / 翰字铅笔 / 楷体，Windows 楷体），零包体，但各平台观感不一、部分 macOS 字体需要按需下载。打包一款开源手写字体（如 小赖字体、Excalifont 拉丁部分）能保证一致，代价是数 MB 包体，且导出 / 缩略图要内嵌字体。</p></div>
+<div class="ask"><b>4. 思维导图跟不跟随画风？</b><p>导图有自己的主题（配色 × 风格），手绘可以作为它的第三个维度，也可以干脆不跟随。mockup 里画成了跟随。</p></div>
+<div class="ask"><b>5. 新建白板默认画风？</b><p>推荐默认「普通」，手绘由用户在状态栏一键打开；存量白板升级后观感不变。</p></div>
+<div class="ask"><b>6. 填充从 7 种砍到 5 种可以吗？</b><p>去掉「点状」「虚线填充」（小尺寸下和斜线难分），「锯齿」「锯齿线」合并为「涂鸦」。</p></div>
+
+<script src="vendor/rough.js"></script>
+<script src="vendor/perfect-freehand.js"></script>
+<script src="sketch.js"></script>
+<script>
+function drawTile(box) {
+  const mode = box.dataset.plan;
+  const svg = SK.node("svg", { viewBox: "0 0 320 120" }, box);
+  const sh = (x, y, el, label) => {
+    const g = SK.node("g", { transform: `translate(${x} ${y})` }, svg);
+    SK.renderShape(g, { sw: 2, ...el }, mode, { level: "natural" });
+    if (label) SK.node("text", { x: el.w / 2, y: el.h / 2 + 5, "text-anchor": "middle", class: "hand" }, g).textContent = label;
+  };
+  sh(18, 28, { shape: { kind: "rect" }, w: 92, h: 56, fill: { type: "wash", color: "#8fb3e6" }, seed: 3 }, "Query");
+  sh(210, 22, { shape: { kind: "ellipse" }, w: 96, h: 68, fill: { type: "hatch", color: "#f0c55a" }, seed: 4 }, "Softmax");
+  SK.renderArrow(svg, { sw: 2, seed: 9, pts: [[118, 56], [204, 56]], curve: [[150, 30], [172, 84]] }, mode, { level: "natural" });
+}
+document.querySelectorAll(".tile[data-plan]").forEach(drawTile);
+</script>
+</body>
+</html>

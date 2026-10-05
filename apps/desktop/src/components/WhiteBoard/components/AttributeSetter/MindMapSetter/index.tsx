@@ -22,6 +22,7 @@ import {
   Seg,
 } from "@/components/WhiteBoard/chrome";
 import ThemeThumbnail from "./ThemeThumbnail";
+import SketchPopover from "../SketchPopover";
 
 interface MindMapSetterProps {
   element: MindNodeElement;
@@ -169,11 +170,20 @@ function ThemeSetter({ element, onChange }: MindMapSetterProps) {
   );
 }
 
+/** 画风覆盖存在根节点上，整棵导图共用；选中任一节点都能改 */
+function MindSketchSetter({ element, onChange }: MindMapSetterProps) {
+  const board = useBoard();
+  const root = useMemo(() => MindUtil.getRoot(board, element), [board, element]);
+  if (!root) return null;
+  return <SketchPopover target={root} onChange={onChange} />;
+}
+
 const MindMapSetter = ({ element, onChange }: MindMapSetterProps) => {
   return (
     <>
       {/* 导图主题只挂在根节点上 */}
       {MindUtil.isRoot(element) && <ThemeSetter element={element} onChange={onChange} />}
+      <MindSketchSetter element={element} onChange={onChange} />
       <NoteSetter element={element} />
     </>
   );

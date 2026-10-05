@@ -5,7 +5,7 @@ import Database, { type DatabaseRef } from "@/components/Database/Database";
 import CardDatabaseView from "..";
 import type { DatabaseStoreType } from "@/components/Database/DatabaseContext";
 import type { DatabaseProps } from "@/components/Database/types";
-import { ECardCategory, type ICard } from "@/types/card";
+import { type ICard } from "@/types/card";
 
 const mocks = vi.hoisted(() => ({
   store: undefined as DatabaseStoreType | undefined,
@@ -13,12 +13,12 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/commands", () => ({ deleteContent: vi.fn(), updateCard: vi.fn() }));
 vi.mock("@/utils/editor", () => ({ getEditorText: () => "标题" }));
-vi.mock("@/constants", () => ({ cardCategoryName: { temporary: "临时", permanent: "永久" } }));
 vi.mock("@/hooks/useTheme", () => ({ default: () => ({ theme: "light", isDark: false }) }));
 vi.mock("../plugins/CardLinksPlugin", () => ({ default: { type: "card-links" } }));
 vi.mock("@/components/Database/plugins", async () => {
   const { default: select } = await import("@/components/Database/plugins/SelectPlugin");
-  return { builtInPlugins: [select] };
+  const { default: multiSelect } = await import("@/components/Database/plugins/MultiSelectPlugin");
+  return { builtInPlugins: [select, multiSelect] };
 });
 vi.mock("@/components/Database/hooks", () => ({
   useColumnResize: () => ({ isResizing: false, startResize: () => {} }),
@@ -235,16 +235,14 @@ it("卡片宿主通过增量操作接入新增、筛选和删除", async () => {
     count: 0,
     tags: [],
     links: [],
-    category: ECardCategory.Temporary,
     isTop: false,
     create_time: 0,
     update_time: 0,
   });
   const first = card(1);
-  const second = card(2);
+  const tagged = { ...card(2), tags: ["读书"] };
   const callbacks = {
     databaseName: "a",
-    selectCategory: "all" as const,
     onCardClick: vi.fn(),
     onOpenCreateCard: vi.fn(),
     onDeleteCard: vi.fn(),
@@ -252,21 +250,14 @@ it("卡片宿主通过增量操作接入新增、筛选和删除", async () => {
   };
   await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[first]} />));
   expect(host.textContent).toBe("1");
-  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[second, first]} />));
+  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[tagged, first]} />));
   expect(host.textContent).toBe("1,2");
-  const permanent = { ...second, category: ECardCategory.Permanent };
   await act(async () =>
-    root.render(
-      <CardDatabaseView
-        {...callbacks}
-        cards={[first, permanent]}
-        selectCategory={ECardCategory.Permanent}
-      />
-    )
+    root.render(<CardDatabaseView {...callbacks} cards={[first, tagged]} tag="读书" />)
   );
   expect(host.textContent).toBe("2");
   expect(mocks.store!.getState().rows).toHaveLength(2);
-  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[permanent]} />));
+  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[tagged]} />));
   expect(mocks.store!.getState().rows.map(row => row.id)).toEqual(["2"]);
   expect(callbacks.onUpdateCard).not.toHaveBeenCalled();
 });
