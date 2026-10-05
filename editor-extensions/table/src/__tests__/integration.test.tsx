@@ -9,14 +9,17 @@ import { IOverlayBackDismiss, type OverlayBackDismissProps } from "@tau/editor/a
 import {
   tableExtensions,
   insertTable,
-  insertRowAfter,
-  insertColRight,
-  deleteRowByIndex,
-  deleteColByIndex,
-  moveNextCol,
+  insertRows,
+  insertColumns,
+  deleteRows,
+  deleteColumns,
+  setColumnAlign,
+  getCellSelection,
   type TableElement,
 } from "../index";
-import { moveTableRow } from "../rowDrag";
+
+// jsdom 的 Range 没有布局方法；格选区会触发核心悬浮工具条定位
+Range.prototype.getBoundingClientRect ??= () => new DOMRect();
 
 const paragraph = () => ({
   type: "paragraph" as const,
@@ -72,7 +75,15 @@ async function mount(value: Descendant[], readonly = false) {
   };
 }
 
-it("独立表格可插入、增删行列并在最后一列删除后回到段落", async () => {
+const tableAt = (editor: SlateEditor, index = 0) => editor.children[index] as TableElement;
+const hoverCell = async (host: HTMLElement, row: number, col: number) => {
+  const cell = host.querySelectorAll("tr")[row].querySelectorAll("td")[col];
+  await act(async () => {
+    cell.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+  });
+};
+
+it("插入表格后按下标增删行列，一次操作一步撤销，删光回到段落", async () => {
   const view = await mount([paragraph()]);
   try {
     await act(async () => {
@@ -80,13 +91,15 @@ it("独立表格可插入、增删行列并在最后一列删除后回到段落"
       insertTable(view.editor, 2, 2);
     });
     expect(view.editor.selection?.anchor.path).toEqual([0, 0, 0, 0]);
-    await act(async () => insertRowAfter(view.editor));
-    await act(async () => insertColRight(view.editor));
-    expect((view.editor.children[0] as TableElement).children).toHaveLength(3);
-    expect((view.editor.children[0] as TableElement).children[0].children).toHaveLength(3);
-    await act(async () => deleteRowByIndex(view.editor, 1));
-    expect((view.editor.children[0] as TableElement).children).toHaveLength(2);
-    for (let index = 0; index < 3; index++) await act(async () => deleteColByIndex(view.editor, 0));
+    await act(async () => insertRows(view.editor, [0], 2));
+    await act(async () => insertColumns(view.editor, [0], 2));
+    expect(tableAt(view.editor).children).toHaveLength(3);
+    expect(tableAt(view.editor).children[0].children).toHaveLength(3);
+    await act(async () => view.editor.undo());
+    expect(tableAt(view.editor).children[0].children).toHaveLength(2);
+    await act(async () => deleteRows(view.editor, [0], 1));
+    expect(tableAt(view.editor).children).toHaveLength(2);
+    await act(async () => deleteColumns(view.editor, [0], 0, 1));
     expect(view.editor.children).toEqual([paragraph()]);
     expect(view.editor.selection?.anchor.path).toEqual([0, 0]);
   } finally {
@@ -94,19 +107,36 @@ it("独立表格可插入、增删行列并在最后一列删除后回到段落"
   }
 });
 
-it("单元格回车保留结构，跨末格导航有段落落点，行手柄在合法单元格内", async () => {
+it("加载时补齐缺格；列对齐渲染到单元格", async () => {
+  const ragged = table();
+  ragged.children[1].children.pop();
+  ragged.align = [null, "right"];
+  const view = await mount([ragged]);
+  try {
+    expect(tableAt(view.editor).children[1].children).toHaveLength(2);
+    const cells = view.host.querySelectorAll("tr")[0].querySelectorAll("td");
+    expect(cells[1].style.textAlign).toBe("right");
+    await act(async () => setColumnAlign(view.editor, [0], 0, 0, "center"));
+    expect(view.host.querySelectorAll("td")[0].style.textAlign).toBe("center");
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("Tab / Enter / 方向键在格间导航，末行回车新增行，末行下移跳出表格", async () => {
   const view = await mount([table()]);
   try {
-    for (const row of view.host.querySelectorAll("tr")) {
-      expect([...row.children].every(child => child.tagName === "TD")).toBe(true);
-      expect(row.querySelector("td [data-drag-handle]")).toBeTruthy();
-    }
+    Transforms.select(view.editor, SlateEditor.end(view.editor, [0, 0, 1]));
+    expect(view.editor.commands?.execute("tau.table.next-cell")).toBe(true);
+    expect(view.editor.selection?.anchor.path.slice(0, 3)).toEqual([0, 1, 0]);
+    await act(async () => view.editor.commands?.execute("tau.table.next-row"));
+    expect(tableAt(view.editor).children).toHaveLength(3);
+    expect(view.editor.selection?.anchor.path.slice(0, 3)).toEqual([0, 2, 0]);
     await act(async () => {
-      Transforms.select(view.editor, SlateEditor.end(view.editor, [0, 1, 1]));
       view.editor.insertBreak();
     });
     expect(view.editor.children).toHaveLength(1);
-    await act(async () => moveNextCol(view.editor));
+    await act(async () => view.editor.commands?.execute("tau.table.move-down"));
     expect(view.editor.children[1]).toEqual(paragraph());
     expect(view.editor.selection?.anchor.path).toEqual([1, 0]);
   } finally {
@@ -114,7 +144,7 @@ it("单元格回车保留结构，跨末格导航有段落落点，行手柄在�
   }
 });
 
-it("只读与无选区操作不写入，非法表格尺寸不破坏原内容", async () => {
+it("只读时变换不写入、不渲染手柄，非法表格尺寸不破坏原内容", async () => {
   const view = await mount([table()], true);
   try {
     await act(async () =>
@@ -122,13 +152,16 @@ it("只读与无选区操作不写入，非法表格尺寸不破坏原内容", a
     );
     const before = JSON.stringify(view.editor.children);
     await act(async () => {
-      insertRowAfter(view.editor);
-      insertColRight(view.editor);
-      deleteRowByIndex(view.editor, 1);
-      deleteColByIndex(view.editor, 0);
+      insertRows(view.editor, [0], 1);
+      insertColumns(view.editor, [0], 1);
+      deleteRows(view.editor, [0], 1);
+      deleteColumns(view.editor, [0], 0);
       insertTable(view.editor, 2, 2);
     });
     expect(JSON.stringify(view.editor.children)).toBe(before);
+    await hoverCell(view.host, 1, 0);
+    expect(view.host.querySelector('[aria-label="列操作"]')).toBeNull();
+    expect(view.host.querySelector('[aria-label="添加行"]')).toBeNull();
   } finally {
     await view.dispose();
   }
@@ -147,19 +180,33 @@ it("只读与无选区操作不写入，非法表格尺寸不破坏原内容", a
   }
 });
 
-it("两张表仅当前表格的菜单生效，浮层可经宿主返回关闭", async () => {
+it("悬停出现行列手柄；点击选中整列并打开菜单，菜单内 ⌫ 删除该列，浮层经宿主返回关闭", async () => {
   const view = await mount([table(), table()]);
   try {
-    await act(async () =>
-      Transforms.select(view.editor, SlateEditor.start(view.editor, [1, 1, 0]))
-    );
-    const menus = [...view.host.querySelectorAll(".lucide-ellipsis-vertical")].map(
-      icon => icon.parentElement
-    );
-    expect(menus).toHaveLength(2);
-    await act(async () => menus[0]?.click());
+    await hoverCell(view.host, 1, 1);
+    const grips = view.host.querySelectorAll<HTMLButtonElement>('[aria-label="列操作"]');
+    expect(grips).toHaveLength(1);
+    expect(view.host.querySelectorAll('[aria-label="行操作"]')).toHaveLength(1);
+
+    await act(async () => grips[0].click());
+    expect(view.dismissals.size).toBe(1);
+    expect(getCellSelection(view.editor)).toMatchObject({
+      tablePath: [0],
+      kind: "col",
+      colStart: 1,
+    });
+    expect(document.body.textContent).toContain("在右侧插入列");
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
+    });
+    expect(tableAt(view.editor).children[0].children).toHaveLength(1);
+    expect(tableAt(view.editor, 1).children[0].children).toHaveLength(2);
     expect(view.dismissals.size).toBe(0);
-    await act(async () => menus[1]?.click());
+
+    await hoverCell(view.host, 1, 0);
+    const rowGrip = view.host.querySelector<HTMLButtonElement>('[aria-label="行操作"]');
+    await act(async () => rowGrip?.click());
     expect(view.dismissals.size).toBe(1);
     await act(async () => [...view.dismissals][0]());
     expect(view.dismissals.size).toBe(0);
@@ -169,32 +216,18 @@ it("两张表仅当前表格的菜单生效，浮层可经宿主返回关闭", a
   }
 });
 
-it("行拖拽重新定位节点，拒绝已删除来源、跨表和标题行", async () => {
-  const first = table();
-  first.children.push({
-    ...first.children[1],
-    children: [{ type: "table-cell", children: [{ type: "formatted", text: "第三行" }] }],
-  });
-  const view = await mount([first, table()]);
+it("右侧 / 底部「+」追加列与行", async () => {
+  const view = await mount([table()]);
   try {
-    const current = view.editor.children[0] as TableElement;
-    const [heading, source, target] = current.children;
-    const other = (view.editor.children[1] as TableElement).children[1];
-    await act(async () => {
-      expect(moveTableRow(view.editor, view.editor, heading, target, false)).toBe(false);
-      expect(moveTableRow(view.editor, view.editor, source, other, false)).toBe(false);
-      Transforms.insertNodes(view.editor, table().children[1], { at: [0, 1] });
-    });
     await act(async () =>
-      expect(moveTableRow(view.editor, view.editor, source, target, false)).toBe(true)
+      view.host.querySelector<HTMLButtonElement>('[aria-label="添加列"]')?.click()
     );
-    expect(Node.get(view.editor, [0, 3])).toBe(source);
-    await act(async () => Transforms.removeNodes(view.editor, { at: [0, 3] }));
-    const before = JSON.stringify(view.editor.children);
     await act(async () =>
-      expect(moveTableRow(view.editor, view.editor, source, target, true)).toBe(false)
+      view.host.querySelector<HTMLButtonElement>('[aria-label="添加行"]')?.click()
     );
-    expect(JSON.stringify(view.editor.children)).toBe(before);
+    expect(tableAt(view.editor).children).toHaveLength(3);
+    expect(tableAt(view.editor).children.every(row => row.children.length === 3)).toBe(true);
+    expect(view.editor.selection?.anchor.path.slice(0, 3)).toEqual([0, 2, 0]);
   } finally {
     await view.dispose();
   }

@@ -1,74 +1,92 @@
-import { Editor, Range } from "slate";
+import { Editor, Node, Range, Transforms } from "slate";
 
 import type { EditorCommand, EditorHotkey } from "@tau/editor/api";
+import { insertParagraphAndFocus } from "@tau/editor/api";
+import type { TableElement } from "./types";
 import {
-  deleteNextCol,
-  deleteNextRow,
-  deletePrevCol,
-  deletePrevRow,
-  insertColLeft,
-  insertColRight,
-  insertRowAfter,
-  insertRowBefore,
-  moveNextCol,
-  moveNextRow,
-  movePrevCol,
-  movePrevRow,
-} from "./utils";
+  columnCount,
+  getCellPosition,
+  getTableAt,
+  insertRows,
+  selectCell,
+  type CellPosition,
+} from "./transforms";
 
-/** 光标是否在表格单元格内（表格热键的公共前提） */
-const inTableCell = (editor: Editor) => {
-  const { selection } = editor;
-  if (!selection || !Range.isCollapsed(selection)) return false;
-  const [match] = Editor.nodes(editor, {
-    match: n => n.type === "table-cell",
-  });
-  return !!match;
-};
+/** 单元格内的导航动作；返回 true 表示已处理（阻止默认按键行为） */
+type CellAction = (editor: Editor, at: CellPosition, table: TableElement) => boolean;
 
-/** 定义一个「单元格内才生效」的表格命令：action 为单元格内的实际动作 */
-const tableCommand = (
-  id: string,
-  title: string,
-  run: (editor: Editor) => void,
-  stopPropagation = false
-): EditorCommand => ({
+/** 只在光标折叠于单元格内时生效的表格命令 */
+const tableCommand = (id: string, title: string, action: CellAction): EditorCommand => ({
   id,
   title,
   run: (editor, ctx) => {
-    if (!inTableCell(editor)) return;
-    run(editor);
-    ctx.event?.preventDefault();
-    if (stopPropagation) ctx.event?.stopPropagation();
+    const { selection } = editor;
+    if (!selection || !Range.isCollapsed(selection)) return;
+    const at = getCellPosition(editor);
+    const table = at && getTableAt(editor, at.tablePath);
+    if (at && table && action(editor, at, table)) ctx.event?.preventDefault();
   },
 });
 
+const appendRowAndSelect = (editor: Editor, at: CellPosition, table: TableElement, col: number) => {
+  const index = table.children.length;
+  insertRows(editor, at.tablePath, index);
+  return selectCell(editor, at.tablePath, index, col, "start");
+};
+
+/** 格内有软换行时，上下方向键交给原生的行内移动 */
+const isMultiline = (table: TableElement, { row, col }: CellPosition) =>
+  Node.string(table.children[row].children[col]).includes("\n");
+
+const nextCell: CellAction = (editor, at, table) => {
+  const { tablePath, row, col } = at;
+  if (col < columnCount(table) - 1) return selectCell(editor, tablePath, row, col + 1);
+  if (row < table.children.length - 1) return selectCell(editor, tablePath, row + 1, 0);
+  return appendRowAndSelect(editor, at, table, 0);
+};
+
+const prevCell: CellAction = (editor, { tablePath, row, col }, table) => {
+  if (col > 0) return selectCell(editor, tablePath, row, col - 1);
+  if (row > 0) return selectCell(editor, tablePath, row - 1, columnCount(table) - 1);
+  return true;
+};
+
+const nextRow: CellAction = (editor, at, table) =>
+  at.row < table.children.length - 1
+    ? selectCell(editor, at.tablePath, at.row + 1, at.col)
+    : appendRowAndSelect(editor, at, table, at.col);
+
+const moveDown: CellAction = (editor, at, table) => {
+  if (isMultiline(table, at)) return false;
+  if (at.row < table.children.length - 1)
+    return selectCell(editor, at.tablePath, at.row + 1, at.col);
+  const next = Editor.next(editor, { at: at.tablePath });
+  if (next) Transforms.select(editor, Editor.start(editor, next[1]));
+  else insertParagraphAndFocus(editor, table);
+  return true;
+};
+
+const moveUp: CellAction = (editor, at, table) => {
+  if (isMultiline(table, at)) return false;
+  if (at.row > 0) return selectCell(editor, at.tablePath, at.row - 1, at.col);
+  const previous = Editor.previous(editor, { at: at.tablePath });
+  if (!previous) return false;
+  Transforms.select(editor, Editor.end(editor, previous[1]));
+  return true;
+};
+
 export const tableCommands: EditorCommand[] = [
-  tableCommand("tau.table.next-cell", "下一单元格", moveNextCol),
-  tableCommand("tau.table.prev-cell", "上一单元格", movePrevCol),
-  tableCommand("tau.table.next-row", "下一行", moveNextRow),
-  tableCommand("tau.table.prev-row", "上一行", movePrevRow),
-  tableCommand("tau.table.insert-col-right", "右侧插入列", insertColRight, true),
-  tableCommand("tau.table.insert-col-left", "左侧插入列", insertColLeft, true),
-  tableCommand("tau.table.insert-row-before", "上方插入行", insertRowBefore),
-  tableCommand("tau.table.insert-row-after", "下方插入行", insertRowAfter),
-  tableCommand("tau.table.delete-col-right", "删除右侧列", deleteNextCol),
-  tableCommand("tau.table.delete-col-left", "删除左侧列", deletePrevCol),
-  tableCommand("tau.table.delete-row-above", "删除上方行", deletePrevRow),
-  tableCommand("tau.table.delete-row-below", "删除下方行", deleteNextRow),
+  tableCommand("tau.table.next-cell", "下一单元格", nextCell),
+  tableCommand("tau.table.prev-cell", "上一单元格", prevCell),
+  tableCommand("tau.table.next-row", "下一行", nextRow),
+  tableCommand("tau.table.move-down", "移到下方单元格", moveDown),
+  tableCommand("tau.table.move-up", "移到上方单元格", moveUp),
 ];
 
 export const tableHotkeys: EditorHotkey[] = [
   { key: "tab", command: "tau.table.next-cell" },
   { key: "shift+tab", command: "tau.table.prev-cell" },
-  { key: ["enter", "ArrowDown"], command: "tau.table.next-row" },
-  { key: "ArrowUp", command: "tau.table.prev-row" },
-  { key: "mod+ArrowRight", command: "tau.table.insert-col-right" },
-  { key: "mod+ArrowLeft", command: "tau.table.insert-col-left" },
-  { key: "mod+ArrowUp", command: "tau.table.insert-row-before" },
-  { key: "mod+ArrowDown", command: "tau.table.insert-row-after" },
-  { key: "mod+shift+ArrowRight", command: "tau.table.delete-col-right" },
-  { key: "mod+shift+ArrowLeft", command: "tau.table.delete-col-left" },
-  { key: "mod+shift+ArrowUp", command: "tau.table.delete-row-above" },
-  { key: "mod+shift+ArrowDown", command: "tau.table.delete-row-below" },
+  { key: "enter", command: "tau.table.next-row" },
+  { key: "ArrowDown", command: "tau.table.move-down" },
+  { key: "ArrowUp", command: "tau.table.move-up" },
 ];

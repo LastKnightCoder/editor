@@ -1,6 +1,6 @@
 import { Table } from "lucide-react";
 import { IBlockPanelListItem } from "../types";
-import { insertTable } from "../utils";
+import { insertTable } from "../insertTable";
 
 const items: IBlockPanelListItem[] = [
   {

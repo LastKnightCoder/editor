@@ -16,11 +16,8 @@
   },
   "dependencies": {
     "@tau/ui": "workspace:*",
-    "@tau/shared": "workspace:*",
     "@tau/markdown": "workspace:*",
-    "react-icons": "^4.10.1",
-    "lucide-react": "^0.399.0",
-    "react-dnd": "^16.0.1"
+    "lucide-react": "^0.399.0"
   },
   "peerDependencies": {
     "@tau/editor": "workspace:*",

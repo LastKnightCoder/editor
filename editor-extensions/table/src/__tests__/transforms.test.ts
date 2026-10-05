@@ -202,4 +202,14 @@ describe("Markdown 列对齐", () => {
     expect("align" in table).toBe(false);
     expect(processor.getMarkdown(value)).toContain("| --- | --- |");
   });
+
+  it("格内竖线转义、软换行写成 <br> 并往返还原", () => {
+    const markdown = "| a<br>b | c\\|d |\n| --- | --- |\n| x | y |";
+    const value = processor.importFromMarkdown(markdown);
+    const table = value.find(node => (node as Element).type === "table") as TableElement;
+    expect(table.children[0].children.map(cell => Node.string(cell))).toEqual(["a\nb", "c|d"]);
+    const output = processor.getMarkdown(value);
+    expect(output).toContain("| a<br>b | c\\|d |");
+    expect(output).toContain("| --- | --- |");
+  });
 });

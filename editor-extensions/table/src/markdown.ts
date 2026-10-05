@@ -2,8 +2,6 @@ import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 import type { TableAlign } from "./align";
 
-type AlignedTable = { align?: TableAlign[] };
-
 const isNonBlank = (value: string): boolean => value.trim().length > 0;
 
 const SEPARATOR: Record<NonNullable<TableAlign> | "none", string> = {
@@ -13,13 +11,14 @@ const SEPARATOR: Record<NonNullable<TableAlign> | "none", string> = {
   right: "---:",
 };
 
-const buildSimpleTable = (rows: string[], align: readonly TableAlign[] = []): string => {
+type AlignedTable = { align?: TableAlign[]; children?: Array<{ children?: unknown[] }> };
+
+const buildSimpleTable = (rows: string[], table: AlignedTable): string => {
   if (rows.length === 0) return "";
-  const firstRow = rows[0];
-  const pipeCount = firstRow.split("|").length - 1;
-  const cellCount = Math.max(pipeCount - 1, 0);
+  const align = table.align ?? [];
+  const cellCount = table.children?.[0]?.children?.length ?? 0;
   const separator = `| ${Array.from({ length: cellCount }, (_, i) => SEPARATOR[align[i] ?? "none"]).join(" | ")} |`;
-  return [firstRow, separator, ...rows.slice(1)].join("\n");
+  return [rows[0], separator, ...rows.slice(1)].join("\n");
 };
 
 const isAlign = (value: unknown): value is TableAlign =>
@@ -42,14 +41,14 @@ export const tableCodec: MarkdownCodec = {
   serializer: {
     isBlock: true,
     toMarkdown: (element, children) =>
-      buildSimpleTable(children.split("\n").filter(isNonBlank), (element as AlignedTable).align),
+      buildSimpleTable(children.split("\n").filter(isNonBlank), element as AlignedTable),
     toMarkdownStructured: (element, children) => {
       const rows = children.split("\n").filter(isNonBlank);
       if (rows.length === 0) {
         return { output: "" };
       }
       return {
-        output: buildSimpleTable(rows, (element as AlignedTable).align),
+        output: buildSimpleTable(rows, element as AlignedTable),
         childLineShifts: rows.length > 1 ? [{ startIndex: 1, lineDelta: 1 }] : [],
       };
     },
@@ -72,16 +71,34 @@ export const tableRowCodec: MarkdownCodec = {
   },
 };
 
+const BR = /^<br\s*\/?>$/i;
+
+/** 格内内容进 GFM 表格行：竖线转义、格内换行写成 <br> */
+const cellMarkdown = (children: string) =>
+  children
+    .trim()
+    .replace(/(?<!\\)\|/g, "\\|")
+    .replace(/\n/g, "<br>");
+
 export const tableCellCodec: MarkdownCodec = {
   type: "table-cell",
-  importNode: node =>
-    node.type === "tableCell"
-      ? ({ type: "table-cell", children: [] } as unknown as Descendant)
-      : null,
+  importNode: (node, context) => {
+    if (node.type === "tableCell")
+      return { type: "table-cell", children: [] } as unknown as Descendant;
+    // 格内 <br> 还原为软换行
+    if (
+      node.type === "html" &&
+      context.parent?.type === "tableCell" &&
+      BR.test(String(node.value ?? "").trim())
+    ) {
+      return { type: "formatted", text: "\n" } as unknown as Descendant;
+    }
+    return null;
+  },
   serializer: {
-    toMarkdown: (_element, children) => `${children.trim()} | `,
+    toMarkdown: (_element, children) => `${cellMarkdown(children)} | `,
     toMarkdownStructured: (_element, children) => ({
-      output: `${children.trim()} | `,
+      output: `${cellMarkdown(children)} | `,
       childrenStart: { line: 0, ch: 0 },
     }),
   },
