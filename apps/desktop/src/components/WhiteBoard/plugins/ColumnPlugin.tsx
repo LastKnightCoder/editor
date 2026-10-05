@@ -439,37 +439,23 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
 
-    board.refLine.setCurrentRects([
-      {
-        key: layoutedColumn.id,
-        x: layoutedColumn.x,
-        y: layoutedColumn.y,
-        width: layoutedColumn.width,
-        height: layoutedColumn.height,
-      },
-    ]);
-
     let finalColumn = layoutedColumn;
 
-    if (isAdsorb) {
-      const updateElements = board.refLine.getUpdateCurrent(
-        true,
-        5 / board.viewPort.zoom,
-        true,
-        position
-      );
-      board.refLine.setCurrent(updateElements);
-      const updateElement = updateElements.rects.find(el => el.key === layoutedColumn.id);
-      if (updateElement) {
-        // 创建新对象避免修改只读对象
-        const snappedColumn = {
-          ...layoutedColumn,
-          x: updateElement.x,
-          width: updateElement.width,
-        };
-        // Re-layout after snap adjustment
-        finalColumn = ColumnUtil.layout(board, snappedColumn);
-      }
+    const snapped = board.snap.resize({
+      element: layoutedColumn,
+      bounds: layoutedColumn,
+      position,
+      enabled: isAdsorb,
+      axes: ["x"],
+    });
+    if (snapped.x !== layoutedColumn.x || snapped.width !== layoutedColumn.width) {
+      const snappedWidth = Math.max(element.minWidth, Math.min(snapped.width, element.maxWidth));
+      finalColumn = ColumnUtil.layout(board, {
+        ...layoutedColumn,
+        x:
+          position === EHandlerPosition.Left ? snapped.x + snapped.width - snappedWidth : snapped.x,
+        width: snappedWidth,
+      });
     }
 
     {
@@ -500,10 +486,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
 
   protected onResizeEnd(board: Board) {
     this.originResizeElement = null;
-    board.refLine.setCurrent({
-      rects: [],
-      lines: [],
-    });
+    board.snap.end();
   }
 
   render(board: Board, { element, children }: { element: ColumnElement; children?: any }) {
