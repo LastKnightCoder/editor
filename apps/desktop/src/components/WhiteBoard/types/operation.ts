@@ -47,7 +47,7 @@ export type SetViewportOperation = {
   newProperties: Partial<ViewPort>;
 };
 
-/** 页级画风（D-106），进撤销历史 */
+/** 页级画风（D-107），进撤销历史 */
 export type SetSketchOperation = {
   type: "set_sketch";
   properties: Partial<PageSketch>;

@@ -13,7 +13,7 @@ import {
 import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
-import { ASSET_PREFIX, readSharedContent, type SharedContent } from "@tau/collaboration";
+import { isCollaborationResource, readSharedContent, type SharedContent } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { on, off } from "@/electron";
 
@@ -191,9 +191,7 @@ export default function useCollaborationDocument(documentId?: string) {
               bytes: new Uint8Array(await file.arrayBuffer()),
             }),
           resolveResource: async url =>
-            url.startsWith(ASSET_PREFIX)
-              ? resolveCollaborationResource(id, url.slice(ASSET_PREFIX.length))
-              : url,
+            isCollaborationResource(url) ? resolveCollaborationResource(id, url) : url,
         };
         setBinding(activeBinding);
         publish();

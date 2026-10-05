@@ -22,7 +22,7 @@ export interface GeometryElement extends CommonElement {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
-  /** 手绘模式下的填充样式（D-106）；普通模式一律按实色渲染，缺省 solid */
+  /** 手绘模式下的填充样式（D-107）；普通模式一律按实色渲染，缺省 solid */
   fillStyle?: SketchFillStyle;
   paths: string[];
   extraInfo?: Record<string, any>;

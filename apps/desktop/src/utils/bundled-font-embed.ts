@@ -2,7 +2,7 @@ import { readBinaryFile } from "@/commands/file";
 import manifest from "@/assets/fonts/hand/hand-font.json";
 
 /**
- * 内置字体（白板手绘模式，D-106）导出内嵌。
+ * 内置字体（白板手绘模式，D-107）导出内嵌。
  *
  * snapdom 的 embedFonts 用 fetch 读 @font-face 的 url；打包后的渲染端是 file://，
  * fetch 本地文件会被拦截，导出产物里就没有字体。这里改为：从 document.fonts 找出

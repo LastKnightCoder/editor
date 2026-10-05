@@ -22,7 +22,7 @@ const DASH_PX_PER_SPEED = 10;
 
 /**
  * 手绘连线：一笔连续墨迹 + 手绘端点。
- * 流动动画：虚线经遮罩 dashoffset 流动（墨迹不重算）；实线沿中心线跑流动点（D-106）。
+ * 流动动画：虚线经遮罩 dashoffset 流动（墨迹不重算）；实线沿中心线跑流动点（D-107）。
  */
 const SketchArrow = memo((props: SketchArrowProps) => {
   const { d, sourceMarker, targetMarker, lineColor, lineWidth, sketch } = props;

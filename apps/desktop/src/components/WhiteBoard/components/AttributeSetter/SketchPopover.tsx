@@ -134,7 +134,7 @@ interface SketchPopoverProps<T extends BoardElement> {
 }
 
 /**
- * 元素级「笔触」（D-106）：画风（跟随页面 / 手绘 / 普通）· 笔触档位 · 填充 · 换一笔。
+ * 元素级「笔触」（D-107）：画风（跟随页面 / 手绘 / 普通）· 笔触档位 · 填充 · 换一笔。
  * 未单独设置的字段跟随页面，选「跟随页面」即删除覆盖。
  */
 function SketchPopover<T extends BoardElement>({ target, onChange, fill }: SketchPopoverProps<T>) {

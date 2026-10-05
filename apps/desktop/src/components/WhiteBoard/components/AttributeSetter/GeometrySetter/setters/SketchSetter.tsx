@@ -25,7 +25,7 @@ const SketchSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element
   />
 );
 
-/** 笔触设置器（D-106）：适用于所有几何图形 */
+/** 笔触设置器（D-107）：适用于所有几何图形 */
 export class SketchSetter extends BaseGeometrySetter {
   constructor() {
     super("sketch-setter", "笔触设置器", ["*"], 60);

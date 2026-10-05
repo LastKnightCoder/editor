@@ -1,7 +1,7 @@
 import React from "react";
 import EventEmitter from "eventemitter3";
 import curry from "lodash/curry";
-import RefLineUtil, { Rect } from "./utils/RefLineUtil";
+import SnapManager from "./utils/snap/SnapManager";
 import { PresentationManager } from "./utils/PresentationManager";
 import ViewportUtil from "./utils/ViewportUtil";
 
@@ -47,7 +47,7 @@ class Board {
 
   private plugins: IBoardPlugin[] = [];
   private eventEmitter: EventEmitter;
-  public refLine: RefLineUtil;
+  public snap: SnapManager;
   public capabilityService: CapabilityService;
   public interactions: InteractionManager;
 
@@ -57,7 +57,7 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
-  /** 页级画风（D-106）；变化时 emit("sketchChange") */
+  /** 页级画风（D-107）；变化时 emit("sketchChange") */
   public sketch: PageSketch;
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
@@ -115,10 +115,7 @@ class Board {
     this.presentationManager = new PresentationManager(this, presentationSequences);
     this.subscribe = this.subscribe.bind(this);
     this.getSnapshot = this.getSnapshot.bind(this);
-    this.refLine = new RefLineUtil({
-      refRects: this.getRefRects(),
-      onChange: () => this.emit("ref-line:change"),
-    });
+    this.snap = new SnapManager(this);
     this._readonly = readonly;
   }
 
@@ -152,6 +149,7 @@ class Board {
 
   destroy() {
     this.isDestroyed = true;
+    this.snap.dispose();
     this.interactions.destroy();
     this.eventEmitter.removeAllListeners();
     this.plugins = [];
@@ -401,14 +399,6 @@ class Board {
     executeSequence(fns, event, this);
   }
 
-  // 添加一个清除参考线的辅助方法
-  clearRefLines() {
-    this.refLine.setCurrent({
-      rects: [],
-      lines: [],
-    });
-  }
-
   apply(ops: Operation | Operation[], updateHistory = true) {
     if (!Array.isArray(ops)) {
       ops = [ops];
@@ -497,8 +487,6 @@ class Board {
       this.viewPort = data.viewPort;
       changed = true;
       viewPortChanged = true;
-      // 视口变化时清除参考线
-      this.clearRefLines();
     }
 
     // 更新selection
@@ -517,25 +505,6 @@ class Board {
       changed = true;
       sketchChanged = true;
     }
-
-    // 更新参考线（参与与否由各元素的 refLine 能力声明决定）
-    metadata.changedElements.forEach(element => {
-      if (this.capabilityService.shouldParticipateInRefLines(element)) {
-        this.refLine.addRefRect({
-          key: element.id,
-          x: element.x,
-          y: element.y,
-          width: element.width,
-          height: element.height,
-        });
-      }
-    });
-
-    metadata.removedElements.forEach(element => {
-      if (this.capabilityService.shouldParticipateInRefLines(element)) {
-        this.refLine.removeRefRect(element.id);
-      }
-    });
 
     // 更新历史记录
     if (updateHistory) {
@@ -679,27 +648,6 @@ class Board {
   set currentCreateType(value: ECreateBoardElementType) {
     this._currentCreateType = value;
     this.emit("onCurrentCreateTypeChange");
-  }
-
-  getRefRects() {
-    const rects: Rect[] = [];
-    BoardUtil.dfs(this, element => {
-      if (
-        BoardUtil.isBoard(element) ||
-        this.selection.selectedElements.some(ele => ele.id === element.id)
-      )
-        return;
-      // 使用能力查询：检查元素是否参与参考线计算
-      if (!this.capabilityService.shouldParticipateInRefLines(element)) return;
-      rects.push({
-        key: element.id,
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-      });
-    });
-    return rects;
   }
 
   // 获取插件实例

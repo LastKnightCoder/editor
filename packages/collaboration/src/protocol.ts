@@ -1,6 +1,17 @@
 export const COLLABORATION_VERSION = 1;
 export const DEFAULT_COLLABORATION_URL = "https://collab.xiongtao.life";
 export const ASSET_PREFIX = "tau-collab-asset:";
+/**
+ * 仅本机资源引用：不上传服务器的资源（视频、丢失或无法识别的本地文件）在共享文档里换成它，
+ * 原始地址只记录在引用所属设备上，其他成员看到占位；结束共享时由作者设备还原。
+ */
+export const LOCAL_ASSET_PREFIX = "tau-collab-local:";
+const LOCAL_ASSET_PATTERN = /^tau-collab-local:[a-f0-9-]{36}$/;
+
+export const isLocalAssetReference = (value: string) => LOCAL_ASSET_PATTERN.test(value);
+/** 需经协作会话解析的资源引用（服务器资产或仅本机资源） */
+export const isCollaborationResource = (value: string | undefined): value is string =>
+  !!value && (value.startsWith(ASSET_PREFIX) || value.startsWith(LOCAL_ASSET_PREFIX));
 
 // 共享来源类型：与桌面端 projectContentTitle 的表名映射保持一致，拼错会在编译期报错。
 export const SOURCE_TYPES = ["article", "card", "project-item", "content"] as const;

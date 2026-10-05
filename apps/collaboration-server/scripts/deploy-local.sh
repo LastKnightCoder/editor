@@ -37,7 +37,7 @@ echo "构建 $IMAGE"
 COPYFILE_DISABLE=1 tar --no-xattrs --exclude=node_modules --exclude=dist \
   --exclude='.env' --exclude='.env.local' --exclude='data' \
   --exclude=docker-compose.override.yml -czf "$WORK_DIR/source.tar.gz" \
-  package.json pnpm-lock.yaml pnpm-workspace.yaml patches packages/collaboration \
+  package.json pnpm-lock.yaml pnpm-workspace.yaml patches packages/collaboration packages/db-schema \
   apps/collaboration-server .dockerignore
 mkdir "$WORK_DIR/source"
 tar -xzf "$WORK_DIR/source.tar.gz" -C "$WORK_DIR/source"

@@ -14,6 +14,7 @@ import { coverGradientOf } from "@/utils/cover";
 import type { ArticlePageItem } from "@/types";
 import { ArticleItemOps, type ArticleItemActions } from "../components/ArticleItemOps";
 import { useArticleBanner } from "../components/useArticleBanner";
+import { articleMorphKey } from "../morph";
 
 /** 文字封面的前景（粉彩底上的定稿对比色，出处同上） */
 const TEXT_ON_COVER = "rgba(67,57,44,0.82)";
@@ -32,6 +33,7 @@ export function ArticleCard(props: ArticleCardProps) {
   return (
     <article
       tabIndex={0}
+      data-morph-key={articleMorphKey(article.id)}
       onClick={() => props.onOpen(article)}
       className={cn(
         "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--tau-radius-md)] border",

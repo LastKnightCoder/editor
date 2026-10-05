@@ -84,6 +84,8 @@ import { useArticleMutations } from "../queries";
 import { ArticlePodcast } from "../components/ArticlePodcast";
 import { ArticleHero } from "../components/ArticleHero";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
+import { ArticleBodyFallback } from "../components/ArticleBodyFallback";
+import { articleMorphKey } from "../morph";
 import {
   ContentOutline,
   extractContentHeaders,
@@ -440,7 +442,11 @@ export function ArticleDetailView() {
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸（同卡片详情）：封面内衬在纸顶，版心恒居中（hero 与正文列同轴）；
           滚动区贴满纸面（不留上下外边距），封面才能与纸边等距 10px；面包屑由壳层槽位渲染 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      {/* 纸面是形变目标（D-106）：文章读到才声明，切换文章的原位更新期间不认旧文章 */}
+      <div
+        data-morph-key={editingArticle.id === id ? articleMorphKey(id) : undefined}
+        className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 border-r-[3px]">
           <ArticleHero
             article={editingArticle}
@@ -493,6 +499,7 @@ export function ArticleDetailView() {
                       contentId={editingArticle.contentId}
                       key={`${editingArticle.id}-${editorRemountKey}`}
                       initValue={editingArticle.content}
+                      fallback={<ArticleBodyFallback content={editingArticle.content} />}
                       onInit={onInit}
                       onChange={content => {
                         onContentChange(content);

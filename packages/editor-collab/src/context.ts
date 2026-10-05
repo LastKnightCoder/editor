@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { ASSET_PREFIX } from "@tau/collaboration";
+import { isCollaborationResource } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "./types";
 
 export const CollaborationContext = createContext<EditorCollaborationBinding | undefined>(
@@ -12,7 +12,7 @@ export function useCollaborationResource(url: string | undefined) {
   useEffect(() => {
     let active = true;
     setResolved(undefined);
-    if (url?.startsWith(ASSET_PREFIX) && binding) {
+    if (isCollaborationResource(url) && binding) {
       void binding
         .resolveResource(url)
         .then(value => {
@@ -24,5 +24,5 @@ export function useCollaborationResource(url: string | undefined) {
       active = false;
     };
   }, [url, binding]);
-  return url?.startsWith(ASSET_PREFIX) ? resolved : url;
+  return isCollaborationResource(url) ? resolved : url;
 }
