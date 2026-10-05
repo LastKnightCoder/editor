@@ -1,18 +1,14 @@
 /**
- * 工具调用（D-048）：
- *  - ToolCallRow：通用折叠行「✓ tool_name · 1.2 秒」，失败 / 重试默认展开；展开看输入 / 输出 / 错误。
- *  - ToolCallBlock：接 chat-ui 的渲染注册表——有自定义渲染器（日程、待办、检索……）走渲染器，
- *    否则落到 ToolCallRow；渲染器内部的 renderDefault() 也回到 ToolCallRow。
+ * 工具调用折叠行（D-048）：「✓ tool_name · 1.2 秒」，失败 / 重试默认展开；展开看输入 / 输出 / 错误。
+ * 也是 ToolCallDisplay 的缺省单项与自定义渲染器 renderDefault() 的落点。
  * 状态只用语义色：成功 ok、失败 danger、重试 warn、执行中 accent 转圈、等待 / 取消 ink-3。
  */
 
 import { memo, useState, type ReactNode } from "react";
 import { Ban, Check, Clock, RotateCw, ShieldQuestion, TriangleAlert, X } from "lucide-react";
-import type { ToolCallExecutionState } from "@tau/shared";
-import { ToolCallDisplay } from "@tau/chat-ui";
+import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { Spinner, cn } from "@tau/ui";
 import { FoldBody, FoldRow } from "./FoldRow";
-import { ToolApprovalBar } from "./ToolApprovalBar";
 
 const formatJson = (value: string) => {
   try {
@@ -126,40 +122,5 @@ export const ToolCallRow = memo(function ToolCallRow({
         </FoldBody>
       )}
     </div>
-  );
-});
-
-const renderDefaultItem = ({ execution }: { execution: ToolCallExecutionState }) => (
-  <ToolCallRow execution={execution} />
-);
-
-/** 单条工具调用：自定义渲染器优先，缺省走 ToolCallRow */
-export const ToolCallBlock = memo(function ToolCallBlock({
-  execution,
-  isDark,
-  rendererContext,
-}: {
-  execution: ToolCallExecutionState;
-  isDark: boolean;
-  rendererContext?: Record<string, unknown>;
-}) {
-  // 等待确认时一律走通用行 + 确认条（自定义渲染器此刻还没有结果可画）
-  if (execution.status === "awaiting-approval") {
-    return (
-      <div className="min-w-0">
-        <ToolCallRow execution={execution} />
-        <ToolApprovalBar execution={execution} />
-      </div>
-    );
-  }
-  return (
-    <ToolCallDisplay
-      executions={[execution]}
-      isDark={isDark}
-      // shared 外层自带 my-2 space-y-2 且用 classNames 拼接（不去重），这里用 important 覆盖
-      className="my-0! space-y-0!"
-      rendererContext={rendererContext}
-      renderDefaultItem={renderDefaultItem}
-    />
   );
 });

@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { normalizeCodeLanguage, tauPrismTheme, usePrismHighlighter } from "@/components/ChatUI";
+import { normalizeCodeLanguage, tauPrismTheme, usePrismHighlighter } from "@tau/chat-ui";
 
 export function SourceView({
   code,

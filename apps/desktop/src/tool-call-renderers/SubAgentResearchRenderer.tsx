@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } fr
 import { Ban, Check, CircleAlert, Clock, X } from "lucide-react";
 import { Button, Dialog, Spinner, cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@/types";
-import { ReasoningBlock } from "@/components/ChatUI";
+import { ReasoningBlock } from "@tau/chat-ui";
 import ToolCallDisplay from "@/components/ChatSidebar/MessageItem/ToolCallDisplay";
 import MarkdownRenderer from "@/components/ChatSidebar/MarkdownRenderer";
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";

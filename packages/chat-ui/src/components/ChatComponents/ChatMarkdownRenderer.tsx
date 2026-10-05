@@ -1,16 +1,8 @@
 import React, { memo, useCallback, useMemo } from "react";
-import { cn as classNames } from "@tau/ui";
+import { cn } from "@tau/ui";
 import MarkdownRenderer, { type MarkdownRendererProps } from "../MarkdownRenderer";
-import { LazySyntaxHighlighter } from "@tau/shared";
+import { CodeBlock } from "../Message/CodeBlock";
 import { markdownClasses as styles } from "./classes";
-/**
- * message 实例的最小消费面（Mermaid 通知）；antd message 与 @tau/ui toast 结构均满足。
- * 纯类型依赖不产出运行时代码，browser-extension 侧消费本组件不受影响（D-073）。
- */
-interface MessageApiLike {
-  success(content: React.ReactNode): void;
-  error(content: React.ReactNode): void;
-}
 
 export interface CodeBlockPreviewPayload {
   id: string;
@@ -28,7 +20,6 @@ export interface CodeBlockPreviewPayload {
 
 export interface CodeBlockPreviewCardProps {
   payload: CodeBlockPreviewPayload;
-  isDark?: boolean;
   onPreview?: (payload: CodeBlockPreviewPayload) => void;
 }
 
@@ -41,7 +32,6 @@ export interface ChatMarkdownRendererProps extends Omit<
   codeBlockPreviewLanguages?: string[];
   codeLanguageRenderers?: Record<string, React.ComponentType<{ code: string; isDark?: boolean }>>;
   onPreviewCodeBlock?: (payload: CodeBlockPreviewPayload) => void;
-  messageApi?: MessageApiLike;
 }
 
 const DEFAULT_PREVIEW_LANGUAGES = [
@@ -155,15 +145,9 @@ export const buildCodeBlockPreviewPayload = (
 };
 
 export const CodeBlockPreviewCard: React.FC<CodeBlockPreviewCardProps> = memo(
-  function CodeBlockPreviewCard({ payload, isDark = false, onPreview }) {
+  function CodeBlockPreviewCard({ payload, onPreview }) {
     return (
-      <button
-        type="button"
-        onClick={() => onPreview?.(payload)}
-        className={classNames(styles.previewCard, {
-          [styles.dark]: isDark,
-        })}
-      >
+      <button type="button" onClick={() => onPreview?.(payload)} className={styles.previewCard}>
         <div className={styles.previewTitle}>{payload.metadata.title}</div>
         <div className={styles.previewDesc}>{payload.metadata.description}</div>
         <div className={styles.previewTag}>{payload.metadata.size}</div>
@@ -203,37 +187,19 @@ export const ChatMarkdownRenderer: React.FC<ChatMarkdownRendererProps> = memo(
         renderers[language] = ({ code }) => {
           const normalized = normalizePreviewLanguage(language);
           if (!previewLanguageSet.has(normalized)) {
-            return (
-              <LazySyntaxHighlighter language={language} isDark={isDark}>
-                {code}
-              </LazySyntaxHighlighter>
-            );
+            return <CodeBlock code={code} language={language} />;
           }
 
           if (normalized === "html" && !isCompleteHtmlDocument(code)) {
-            return (
-              <LazySyntaxHighlighter language="html" isDark={isDark}>
-                {code}
-              </LazySyntaxHighlighter>
-            );
+            return <CodeBlock code={code} language="html" />;
           }
 
           const payload = buildCodeBlockPreviewPayload(language, code);
           if (!payload) {
-            return (
-              <LazySyntaxHighlighter language={language} isDark={isDark}>
-                {code}
-              </LazySyntaxHighlighter>
-            );
+            return <CodeBlock code={code} language={language} />;
           }
 
-          return (
-            <CodeBlockPreviewCard
-              payload={payload}
-              isDark={isDark}
-              onPreview={onPreviewCodeBlock}
-            />
-          );
+          return <CodeBlockPreviewCard payload={payload} onPreview={onPreviewCodeBlock} />;
         };
       });
 
@@ -250,7 +216,7 @@ export const ChatMarkdownRenderer: React.FC<ChatMarkdownRendererProps> = memo(
     return (
       <MarkdownRenderer
         {...props}
-        className={classNames(styles.markdown, className)}
+        className={cn(styles.markdown, className)}
         isDark={isDark}
         components={components}
         codeLanguageRenderers={mergedCodeLanguageRenderers}

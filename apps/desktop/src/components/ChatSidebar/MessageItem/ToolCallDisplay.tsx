@@ -1,6 +1,7 @@
 import React from "react";
 import type { ToolCallExecutionState } from "@tau/shared";
-import { ToolCallBlock, ToolCallRow } from "@/components/ChatUI";
+import { ToolCallRow } from "@tau/chat-ui";
+import { ToolCallBlock } from "@/components/ChatUI";
 
 interface ToolCallDisplayProps {
   execution: ToolCallExecutionState;

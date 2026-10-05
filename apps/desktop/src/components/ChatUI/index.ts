@@ -1,18 +1,8 @@
 /**
- * 桌面对话 UI 共享层（D-048）：消息、思考、工具调用、代码块、markdown 组件。
- * 对话页、停靠栏与项目 / PDF / 视频笔记等域内对话共用；@tau/shared 的同名旧组件留给浏览器扩展。
+ * 桌面对话 UI 的宿主层（D-048）：消息、思考、工具行、代码块等通用件在 @tau/chat-ui，
+ * 这里只放依赖桌面能力的部分——工具确认条、带确认的工具块、markdown 代码与链接渲染。
  */
 
-export { MessageView } from "./MessageView";
-export type {
-  MessageViewProps,
-  MessageViewImage,
-  MessageViewFile,
-  MessageMarkdownParams,
-} from "./MessageView";
-export { ReasoningBlock, formatElapsed } from "./ReasoningBlock";
-export { ToolCallBlock, ToolCallRow, toolStatusText, formatToolDuration } from "./ToolCallRow";
-export { FoldRow, FoldBody } from "./FoldRow";
-export { CodeBlock, normalizeCodeLanguage, usePrismHighlighter } from "./CodeBlock";
-export { tauPrismTheme } from "./prismTheme";
+export { ToolCallBlock } from "./ToolCallBlock";
+export { ToolApprovalBar } from "./ToolApprovalBar";
 export { useChatMarkdownComponents } from "./useChatMarkdownComponents";

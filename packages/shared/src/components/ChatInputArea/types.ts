@@ -92,6 +92,8 @@ export interface ChatInputAreaProps {
   onCreateNewMessage?: () => void;
   /** 模型选择菜单项 */
   modelSelectItems?: ChatDropdownItem[];
+  /** 当前选中模型的菜单项 key，用于菜单勾选 */
+  currentModelKey?: string;
   /** 模型选择回调 */
   onModelSelect?: ({ key }: { key: string }) => void;
   /** 当前模型名称 */
@@ -114,6 +116,6 @@ export interface ChatInputAreaProps {
   thinkingLevelDisabled?: boolean;
   /** MCP 管理按钮点击回调（可选，不提供则不显示按钮） */
   onMcpManagerClick?: () => void;
-  /** 额外的工具栏按钮（渲染在左侧工具栏末尾） */
+  /** 额外的工具栏按钮（渲染在 ＋ 右侧） */
   extraToolbarButtons?: ReactNode;
 }

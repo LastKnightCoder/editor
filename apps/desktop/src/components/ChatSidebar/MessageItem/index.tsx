@@ -10,11 +10,11 @@ import { remoteResourceToLocal } from "@/utils";
 import LocalImage from "@/components/LocalImage";
 import {
   MessageView,
-  ToolCallBlock,
   type MessageMarkdownParams,
   type MessageViewFile,
   type MessageViewImage,
-} from "@/components/ChatUI";
+} from "@tau/chat-ui";
+import { ToolCallBlock } from "@/components/ChatUI";
 import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
 
 interface MessageItemProps {

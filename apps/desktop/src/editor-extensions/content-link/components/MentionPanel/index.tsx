@@ -14,11 +14,7 @@ import { Search } from "lucide-react";
 import { Spinner } from "@tau/ui";
 import { searchContent, getAllIndexResults } from "@/utils/search";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import {
-  COMPOSER_ANCHOR_ATTR,
-  ComposerPanel,
-  ComposerPanelFooter,
-} from "@/components/ChatInputArea/ComposerPanel";
+import { COMPOSER_ANCHOR_ATTR, ComposerPanel, ComposerPanelFooter } from "@tau/shared";
 import useMentionPanelStore from "../../stores/useMentionPanelStore";
 import { cleanupMentionPanel } from "../../plugins/withMentionCommands";
 import List from "./List";

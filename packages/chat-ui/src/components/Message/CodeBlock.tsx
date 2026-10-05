@@ -40,8 +40,9 @@ let highlighterPromise: Promise<Highlighter> | null = null;
 let highlighter: Highlighter | null = null;
 
 function loadHighlighter() {
-  // 与 @tau/shared 同一入口（esm/prism 无类型声明）：只带 prism 语法，按需加载
-  // @ts-expect-error 缺少子路径类型声明
+  // 与 @tau/shared 同一入口：只带 prism 语法，按需加载。
+  // 子路径类型在各宿主下解析结果不一致（有的能找到声明、有的不能），故用 ts-ignore 而非 ts-expect-error
+  // @ts-ignore
   highlighterPromise ??= import("react-syntax-highlighter/dist/esm/prism").then(mod => {
     highlighter = mod.default as unknown as Highlighter;
     return highlighter;
