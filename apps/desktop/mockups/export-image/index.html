@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>导出图片 · 主题与弹窗重设计</title>
+<style>
+  /* 弹窗外壳取值与 packages/themes/src/tokens.css 同步（暖纸 / 海盐 × 浅 / 深） */
+  [data-theme="paper"][data-mode="light"] {
+    --tau-bg-page: #f3eee2; --tau-bg-surface: #fffdf9; --tau-bg-surface-hover: #f6f3ef; --tau-bg-sunken: #e7dbc8; --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67, 57, 44, 0.05); --tau-bg-press: rgba(67, 57, 44, 0.09);
+    --tau-ink-1: #43392c; --tau-ink-2: #6a5c49; --tau-ink-3: #a89a85; --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2;
+    --tau-accent: hsl(22 58% 42%); --tau-accent-hover: hsl(22 58% 35%); --tau-accent-soft: hsla(22, 58%, 42%, 0.12); --tau-accent-text: #a05236;
+    --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --tau-ok: #61795f; --tau-ok-soft: #e5ede2;
+    --tau-overlay: rgba(67, 57, 44, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --desk: #e8e1d1;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --tau-bg-page: #221d16; --tau-bg-surface: #2e2820; --tau-bg-surface-hover: #39332b; --tau-bg-sunken: #100d08; --tau-bg-track: #463d31;
+    --tau-bg-hover: rgba(236, 226, 208, 0.06); --tau-bg-press: rgba(236, 226, 208, 0.11);
+    --tau-ink-1: #ece2d0; --tau-ink-2: #a89a85; --tau-ink-3: #857768; --tau-ink-inverse: #241a10;
+    --tau-line-1: #3a3227;
+    --tau-accent: hsl(22 62% 65%); --tau-accent-hover: hsl(22 62% 72%); --tau-accent-soft: hsla(22, 62%, 65%, 0.16); --tau-accent-text: hsl(22 66% 70%);
+    --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --tau-ok: #8cab87; --tau-ok-soft: #243023;
+    --tau-overlay: rgba(10, 8, 5, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --desk: #15110c;
+  }
+  [data-theme="ocean"][data-mode="light"] {
+    --tau-bg-page: #edf2f8; --tau-bg-surface: #fcfdff; --tau-bg-surface-hover: #f2f3f6; --tau-bg-sunken: #d6e0ec; --tau-bg-track: #d3dce8;
+    --tau-bg-hover: rgba(45, 54, 68, 0.05); --tau-bg-press: rgba(45, 54, 68, 0.09);
+    --tau-ink-1: #2d3644; --tau-ink-2: #56637a; --tau-ink-3: #a6b1c2; --tau-ink-inverse: #f7faff;
+    --tau-line-1: #dde5ef;
+    --tau-accent: hsl(214 50% 44%); --tau-accent-hover: hsl(214 50% 37%); --tau-accent-soft: hsla(214, 50%, 44%, 0.12); --tau-accent-text: #35659f;
+    --tau-focus-ring: 0 0 0 3px rgba(77, 127, 196, 0.28);
+    --tau-ok: #527f63; --tau-ok-soft: #e2eee6;
+    --tau-overlay: rgba(45, 54, 68, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(60, 80, 120, 0.06), 0 10px 24px -14px rgba(60, 80, 120, 0.2);
+    --tau-shadow-float: 0 16px 40px -12px rgba(60, 80, 120, 0.4);
+    --desk: #dfe6ef;
+  }
+  [data-theme="ocean"][data-mode="dark"] {
+    --tau-bg-page: #161c25; --tau-bg-surface: #1f2733; --tau-bg-surface-hover: #2b333f; --tau-bg-sunken: #0b1017; --tau-bg-track: #37424f;
+    --tau-bg-hover: rgba(227, 234, 244, 0.06); --tau-bg-press: rgba(227, 234, 244, 0.11);
+    --tau-ink-1: #e3eaf4; --tau-ink-2: #9aa7b9; --tau-ink-3: #748196; --tau-ink-inverse: #0f1722;
+    --tau-line-1: #2c3542;
+    --tau-accent: hsl(214 62% 66%); --tau-accent-hover: hsl(214 62% 73%); --tau-accent-soft: hsla(214, 62%, 66%, 0.16); --tau-accent-text: hsl(214 70% 72%);
+    --tau-focus-ring: 0 0 0 3px hsla(214, 62%, 66%, 0.4);
+    --tau-ok: #82b394; --tau-ok-soft: #1f2e26;
+    --tau-overlay: rgba(5, 8, 12, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --desk: #0e131a;
+  }
+  :root {
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--desk); color: var(--tau-ink-1);
+    font: 13px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased; padding: 32px 3vw 80px; transition: background .2s;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg { display: block; }
+
+  /* ---------- 说明区 ---------- */
+  .intro h1 { font-size: 22px; font-weight: 650; }
+  .intro > p { color: var(--tau-ink-2); max-width: 96ch; margin-top: 6px; font-size: 13.5px; }
+  .diag { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; max-width: 1180px; }
+  .diag div { background: var(--tau-bg-surface); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: var(--tau-ink-2); box-shadow: var(--tau-shadow-card); }
+  .diag b { display: block; color: var(--tau-ink-1); font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .bar-ctl { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; margin: 22px 0 10px; font-size: 12.5px; color: var(--tau-ink-2); }
+  .bar-ctl .grp { display: flex; gap: 4px; align-items: center; }
+  .bar-ctl .grp > span { margin-right: 4px; color: var(--tau-ink-3); }
+  .bar-ctl button { padding: 4px 12px; border-radius: 99px; background: var(--tau-bg-hover); }
+  .bar-ctl button.on { background: var(--tau-ink-1); color: var(--tau-bg-page); }
+  .sec-h { margin: 44px 0 6px; display: flex; align-items: baseline; gap: 12px; }
+  .sec-h h2 { font-size: 18px; font-weight: 650; }
+  .sec-h span { color: var(--tau-ink-3); font-size: 12.5px; }
+  .note { max-width: 1180px; margin: 0 0 14px; font-size: 12.5px; color: var(--tau-ink-2); }
+  .note b { color: var(--tau-ink-1); font-weight: 600; }
+  .note ul { margin: 4px 0 0 18px; } .note li { margin-top: 2px; }
+  .rec { display: inline-block; font-size: 11px; font-weight: 600; padding: 0 8px; border-radius: 99px; background: var(--tau-accent-soft); color: var(--tau-accent-text); margin-left: 6px; vertical-align: 1px; }
+
+  /* ---------- 导出图片本体（.xi）：所有颜色来自 --x-*，由主题 × 明暗 × 方向推导 ---------- */
+  .xi { width: var(--w); background: var(--x-backdrop); padding: var(--pad); color: var(--x-ink1); font: 14.5px/1.8 var(--sans); }
+  .xi .paper { background: var(--x-paper); border-radius: 14px; box-shadow: var(--x-shadow); padding: var(--inner) calc(var(--inner) + 4px) calc(var(--inner) - 6px); }
+  .xi.flat .paper { border-radius: 0; box-shadow: none; }
+  .xi.flat .paper::before { content: ""; display: block; width: 28px; height: 3px; border-radius: 2px; background: var(--x-accent); margin-bottom: 18px; }
+  .xi h1 { font-size: 22px; line-height: 1.35; font-weight: 650; letter-spacing: .01em; }
+  .xi.narrow h1 { font-size: 20px; }
+  .xi .meta { font-size: 12px; color: var(--x-ink3); margin-top: 6px; }
+  .xi .body { margin-top: 14px; }
+  .xi .body > :first-child { margin-top: 0; }
+  .xi p { margin-top: 10px; }
+  .xi b { font-weight: 600; }
+  .xi mark { background: var(--x-accent-soft); color: inherit; padding: 0 2px; border-radius: 3px; }
+  .xi blockquote { margin-top: 12px; padding: 2px 0 2px 14px; box-shadow: inset 3px 0 0 var(--x-quote); color: var(--x-ink2); }
+  .xi h2 { font-size: 16px; font-weight: 650; margin-top: 20px; line-height: 1.5; }
+  .xi ol, .xi ul { margin-top: 6px; padding-left: 22px; }
+  .xi li { margin-top: 2px; } .xi li::marker { color: var(--x-ink3); }
+  .xi code { font: 12.5px var(--mono); background: var(--x-code); color: var(--x-accent-text); padding: 1px 5px; border-radius: 4px; }
+  .xi a { color: var(--x-accent-text); text-decoration: underline; text-decoration-color: var(--x-accent-soft); text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+  .xi pre { margin-top: 12px; background: var(--x-code); border-radius: 8px; padding: 10px 14px; font: 12.5px/1.65 var(--mono); color: var(--x-ink2); white-space: pre-wrap; }
+  .xi pre .k { color: var(--x-accent-text); } .xi pre .c { color: var(--x-ink3); }
+  .xi .sig { margin-top: 26px; display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--x-ink3); }
+  .xi .sig i { width: 14px; height: 14px; border-radius: 4px; background: var(--x-accent); display: grid; place-items: center; color: var(--x-paper); font: 700 9px var(--sans); font-style: normal; }
+  .xi .sig .r { margin-left: auto; }
+
+  /* ---------- 方向画廊 ---------- */
+  .dir-tabs { display: flex; gap: 8px; margin: 12px 0 14px; flex-wrap: wrap; }
+  .dir-tab { text-align: left; padding: 10px 14px; border-radius: var(--r-md); background: var(--tau-bg-surface); box-shadow: 0 0 0 1px var(--tau-line-1) inset; width: 300px; transition: box-shadow .14s var(--ease); }
+  .dir-tab:hover { background: var(--tau-bg-surface-hover); }
+  .dir-tab b { display: block; font-weight: 600; font-size: 13.5px; }
+  .dir-tab span { display: block; font-size: 12px; color: var(--tau-ink-3); margin-top: 2px; line-height: 1.5; }
+  .dir-tab.on { box-shadow: 0 0 0 1.5px var(--tau-accent) inset; }
+  .gal { background: var(--tau-bg-surface); border-radius: var(--r-lg); box-shadow: var(--tau-shadow-card); padding: 18px 20px 22px; max-width: 1240px; }
+  .gal-row + .gal-row { margin-top: 18px; }
+  .gal-row .lbl { font-size: 12px; font-weight: 600; color: var(--tau-ink-2); margin-bottom: 8px; display: flex; gap: 8px; align-items: baseline; }
+  .gal-row .lbl small { font-weight: 400; color: var(--tau-ink-3); }
+  .gal-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  .thumb { display: flex; flex-direction: column; gap: 6px; }
+  .thumb .shot { border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px var(--tau-line-1); }
+  .thumb .shot .xi { zoom: .3; }
+  .thumb .nm { font-size: 12px; color: var(--tau-ink-2); display: flex; justify-content: space-between; }
+  .thumb .nm em { font: 11px var(--mono); color: var(--tau-ink-3); font-style: normal; }
+  .gal-old .shot .xi { zoom: .3; }
+
+  /* ---------- 窗口背景（模糊的文章页） ---------- */
+  .win { height: 780px; border-radius: 14px; overflow: hidden; background: var(--tau-bg-page); position: relative; display: flex; flex-direction: column; max-width: 1240px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12); }
+  .titlebar { height: 40px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--tau-bg-track); }
+  .bgpage { flex: 1; display: flex; gap: 16px; padding: 4px 22px 22px 14px; min-height: 0; }
+  .bgpage .side { width: 44px; display: flex; flex-direction: column; gap: 14px; align-items: center; padding-top: 10px; }
+  .bgpage .side i { width: 18px; height: 18px; border-radius: 6px; background: var(--tau-bg-track); opacity: .7; }
+  .bgpage .paperbg { flex: 1; border-radius: 14px; background: var(--tau-bg-surface); box-shadow: var(--tau-shadow-card); padding: 40px 18%; display: flex; flex-direction: column; gap: 12px; }
+  .bgpage .paperbg i { height: 10px; border-radius: 5px; background: var(--tau-bg-track); opacity: .55; }
+  .scrim { position: absolute; inset: 0; background: var(--tau-overlay); display: grid; place-items: center; padding: 24px; }
+
+  /* ---------- 弹窗骨架（对齐 @tau/ui Dialog） ---------- */
+  .dlg { background: var(--tau-bg-surface); border-radius: var(--r-lg); box-shadow: var(--tau-shadow-float); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .dlg-h { display: flex; align-items: center; gap: 10px; padding: 16px 16px 10px 22px; }
+  .dlg-h h2 { font-size: 15px; font-weight: 650; }
+  .ctx { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tau-ink-2); padding: 1px 9px 1px 7px; border-radius: 99px; background: var(--tau-bg-hover); max-width: 260px; }
+  .ctx svg { width: 13px; height: 13px; flex: none; color: var(--tau-ink-3); }
+  .ctx span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .x { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--tau-ink-3); flex: none; }
+  .x:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .x svg { width: 16px; height: 16px; }
+  .sp { flex: 1; }
+
+  .btn { height: 32px; padding: 0 14px; border-radius: 9px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; transition: background .15s; position: relative; }
+  .btn.sec { background: var(--tau-bg-surface); box-shadow: 0 0 0 1px var(--tau-line-1) inset; }
+  .btn.sec:hover { background: var(--tau-bg-surface-hover); }
+  .btn.pri { background: var(--tau-accent); color: var(--tau-ink-inverse); }
+  .btn.pri:hover { background: var(--tau-accent-hover); }
+  .btn.busy { background: var(--tau-accent-soft); color: var(--tau-accent-text); cursor: default; }
+  .btn.done { background: var(--tau-ok-soft); color: var(--tau-ok); box-shadow: none; }
+  .btn svg { width: 15px; height: 15px; }
+  .btn .kbd { font: 11px var(--mono); opacity: .7; }
+
+  .lbl2 { font-size: 12px; font-weight: 600; color: var(--tau-ink-2); display: flex; align-items: center; gap: 8px; }
+  .lbl2 .r { margin-left: auto; font-weight: 400; color: var(--tau-ink-3); display: flex; align-items: center; gap: 8px; }
+
+  .sw { width: 30px; height: 18px; border-radius: 99px; background: var(--tau-bg-track); position: relative; flex: none; transition: background .16s var(--ease); }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--tau-bg-surface); box-shadow: 0 1px 2px rgba(0,0,0,.18); transition: transform .16s var(--ease); }
+  .sw.on { background: var(--tau-accent); } .sw.on::after { transform: translateX(12px); }
+
+  .cb { width: 16px; height: 16px; border-radius: 5px; box-shadow: 0 0 0 1.5px var(--tau-bg-track) inset; flex: none; display: grid; place-items: center; background: var(--tau-bg-surface); }
+  .cb.on { background: var(--tau-accent); box-shadow: none; }
+  .cb.on::after { content: ""; width: 8px; height: 4.5px; border: 1.8px solid var(--tau-ink-inverse); border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+
+  .row { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 2px; cursor: pointer; }
+  .row .t { flex: 1; min-width: 0; font-size: 13px; }
+  .row .t small { color: var(--tau-ink-3); font-size: 12px; margin-left: 6px; }
+
+  .pick { height: 28px; padding: 0 7px 0 10px; border-radius: 8px; box-shadow: 0 0 0 1px var(--tau-line-1) inset; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--tau-ink-1); background: var(--tau-bg-surface); white-space: nowrap; }
+  .pick:hover { background: var(--tau-bg-surface-hover); }
+  .pick svg { width: 13px; height: 13px; color: var(--tau-ink-3); }
+  .pick em { font: 11.5px var(--mono); color: var(--tau-ink-3); font-style: normal; }
+  .ib { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--tau-ink-2); }
+  .ib:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .ib.on { background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+  .ib svg { width: 16px; height: 16px; }
+
+  /* 菜单 */
+  .mwrap { position: relative; display: inline-flex; }
+  .menu { position: absolute; z-index: 20; min-width: 200px; background: var(--tau-bg-surface); border-radius: 10px; box-shadow: var(--tau-shadow-float), 0 0 0 1px var(--tau-line-1); padding: 5px; display: none; }
+  .menu.open { display: block; }
+  .menu.down { top: calc(100% + 6px); right: 0; }
+  .menu.up { bottom: calc(100% + 8px); left: 0; }
+  .mi { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; height: 32px; padding: 0 10px; border-radius: 7px; font-size: 13px; }
+  .mi:hover { background: var(--tau-bg-hover); }
+  .mi .t { flex: 1; } .mi em { font: 11.5px var(--mono); color: var(--tau-ink-3); font-style: normal; }
+  .mi .ck { width: 14px; height: 14px; color: var(--tau-accent-text); visibility: hidden; }
+  .mi.on .ck { visibility: visible; }
+  .mh { font-size: 11.5px; color: var(--tau-ink-3); padding: 6px 10px 2px; }
+  .msep { height: 6px; }
+
+  /* 预览舞台 */
+  .stage { position: relative; background: var(--tau-bg-page); overflow: auto; min-height: 0; }
+  .stage .fit { display: flex; justify-content: center; padding: 28px 24px 56px; min-height: 100%; }
+  .stage .fit.mid { align-items: center; }
+  .stage .xi { border-radius: 4px; box-shadow: 0 0 0 1px var(--tau-line-1), var(--tau-shadow-card); flex: none; }
+  .size { position: sticky; left: 12px; bottom: 12px; float: left; margin-top: -40px; font: 11.5px var(--mono); color: var(--tau-ink-3); background: var(--tau-bg-surface); padding: 2px 9px; border-radius: 99px; box-shadow: 0 0 0 1px var(--tau-line-1); }
+
+  /* 样式色块 */
+  .chip { display: flex; flex-direction: column; gap: 5px; align-items: center; text-align: center; }
+  .chip .sq { width: 100%; aspect-ratio: 1.25; border-radius: 10px; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--tau-line-1); transition: box-shadow .14s var(--ease); }
+  .chip .sq .pp { position: absolute; inset: 22% 18% -10% 18%; border-radius: 5px; background: var(--x-paper); box-shadow: var(--x-shadow); padding: 9px 9px; display: flex; flex-direction: column; gap: 5px; }
+  .chip .sq.flat .pp { inset: 0; border-radius: 0; box-shadow: none; padding: 12px 14px; }
+  .chip .sq .pp i { display: block; height: 3px; border-radius: 2px; background: var(--x-ink3); opacity: .55; }
+  .chip .sq .pp i:first-child { width: 60%; height: 4px; background: var(--x-ink1); opacity: .85; }
+  .chip .sq .pp i.a { width: 40%; background: var(--x-accent); opacity: 1; }
+  .chip .sq.flat .pp::before { content: ""; width: 14px; height: 2px; border-radius: 1px; background: var(--x-accent); margin-bottom: 2px; }
+  .chip span { font-size: 12px; color: var(--tau-ink-2); }
+  .chip:hover .sq { box-shadow: 0 0 0 1px var(--tau-line-1), 0 0 0 2px var(--tau-bg-surface), 0 0 0 3.5px var(--tau-ink-3); }
+  .chip.on .sq { box-shadow: 0 0 0 2px var(--tau-bg-surface), 0 0 0 4px var(--tau-accent); }
+  .chip.on span { color: var(--tau-ink-1); font-weight: 600; }
+
+  .toast { position: absolute; left: 50%; top: 18px; transform: translate(-50%, -8px); background: var(--tau-ink-1); color: var(--tau-bg-surface); font-size: 12.5px; padding: 6px 14px; border-radius: 99px; opacity: 0; transition: opacity .18s, transform .18s var(--ease); pointer-events: none; z-index: 30; display: flex; gap: 6px; align-items: center; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast svg { width: 14px; height: 14px; }
+
+  /* ================= 方案 A：右侧设置栏 ================= */
+  .A { width: 1100px; height: 700px; flex-direction: row; }
+  .A .stage { flex: 1; }
+  .A .panel { width: 300px; flex: none; display: flex; flex-direction: column; }
+  .A .panel .dlg-h { padding: 16px 14px 6px 20px; }
+  .A .pbody { flex: 1; min-height: 0; overflow: auto; padding: 8px 20px 12px; display: flex; flex-direction: column; gap: 20px; }
+  .A .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; margin-top: 10px; }
+  .A .pfoot { padding: 12px 20px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .A .pfoot .acts { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+  .A .pfoot .acts .btn { height: 36px; }
+  .A .pfoot .sum { font: 11.5px var(--mono); color: var(--tau-ink-3); text-align: center; }
+
+  /* ================= 方案 B：预览为主 + 底部工具条 ================= */
+  .B { width: 1100px; height: 720px; }
+  .B .stage { flex: 1; }
+  .B .tool { flex: none; display: flex; align-items: center; gap: 6px; padding: 10px 16px 12px; }
+  .B .dotsel { display: flex; gap: 6px; padding: 0 4px; }
+  .B .dot { width: 26px; height: 26px; border-radius: 50%; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--tau-line-1); }
+  .B .dot::after { content: ""; position: absolute; inset: 50% 0 0 50%; background: var(--x-paper); border-top-left-radius: 6px; }
+  .B .dot.flat::after { inset: 0; border-radius: 0; }
+  .B .dot b { position: absolute; z-index: 1; right: 4px; bottom: 6px; width: 6px; height: 2px; border-radius: 1px; background: var(--x-accent); }
+  .B .dot.on { box-shadow: 0 0 0 2px var(--tau-bg-surface), 0 0 0 3.5px var(--tau-accent); }
+  .B .dot:hover:not(.on) { box-shadow: 0 0 0 2px var(--tau-bg-surface), 0 0 0 3px var(--tau-ink-3); }
+  .B .vsep { width: 1px; height: 18px; background: var(--tau-line-1); margin: 0 6px; }
+  .B .tname { font-size: 12.5px; color: var(--tau-ink-2); margin-right: 4px; min-width: 52px; }
+
+  /* ================= 方案 C：样式画廊 ================= */
+  .C { width: 1100px; height: 720px; }
+  .C .strip { flex: none; display: flex; gap: 10px; padding: 4px 22px 14px; overflow-x: auto; }
+  .C .strip .grp { display: flex; gap: 10px; }
+  .C .strip .gsep { width: 1px; background: var(--tau-line-1); margin: 4px 4px 22px; flex: none; }
+  .C .card { width: 92px; flex: none; display: flex; flex-direction: column; gap: 5px; align-items: center; }
+  .C .card .sq { width: 92px; height: 108px; border-radius: 9px; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--tau-line-1); }
+  .C .card .sq .pp { position: absolute; inset: 12px 12px -6px; border-radius: 5px; background: var(--x-paper); box-shadow: var(--x-shadow); padding: 10px 9px; display: flex; flex-direction: column; gap: 5px; }
+  .C .card .sq.flat .pp { inset: 0; border-radius: 0; box-shadow: none; padding: 14px 12px; }
+  .C .card .sq.flat .pp::before { content: ""; width: 14px; height: 2px; border-radius: 1px; background: var(--x-accent); margin-bottom: 3px; }
+  .C .card .sq .pp i { display: block; height: 3px; border-radius: 2px; background: var(--x-ink3); opacity: .5; }
+  .C .card .sq .pp i:first-child { width: 70%; height: 5px; background: var(--x-ink1); opacity: .85; margin-bottom: 3px; }
+  .C .card .sq .pp i.q { margin-left: 5px; box-shadow: -5px 0 0 -1px var(--x-quote); }
+  .C .card .sq .pp i.a { width: 46%; background: var(--x-accent); opacity: 1; }
+  .C .card span { font-size: 11.5px; color: var(--tau-ink-2); }
+  .C .card:hover .sq { box-shadow: 0 0 0 1px var(--tau-line-1), 0 0 0 2px var(--tau-bg-surface), 0 0 0 3.5px var(--tau-ink-3); }
+  .C .card.on .sq { box-shadow: 0 0 0 2px var(--tau-bg-surface), 0 0 0 4px var(--tau-accent); }
+  .C .card.on span { color: var(--tau-ink-1); font-weight: 600; }
+  .C .body { flex: 1; min-height: 0; display: flex; }
+  .C .stage { flex: 1; }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>导出图片 · 主题与弹窗重设计</h1>
+  <p>对象：<code>components/ContentExportModal</code>（卡片 / 文章 / 项目 / 编辑器窗口的「导出图片」）。白板的导出弹窗是另一套（背景 / 倍数 / 边距），不在本稿范围，选定方向后可以再对齐。</p>
+  <div class="diag">
+    <div><b>配色是手挑的，和应用不成套</b>16 组渐变各自取色，饱和度、明度没有统一口径（柠檬黄绿、薄荷绿蓝很跳）；文字只有纯黑 / 纯白，正文里的链接、引用、代码块仍按应用主题取色，跟背景不配套。</div>
+    <div><b>一个维度拆成了两层</b>先选「深色 / 浅色」再从 8 个预设里挑，两边各记一个当前项，但只存在内存里，重开弹窗后另一侧的选择就丢了；宽度只有「移动端 / 桌面端」两档。</div>
+    <div><b>出口单一</b>只能下载，文件名是时间戳，不能复制到剪贴板；看不到导出尺寸；导出按钮被刷成背景渐变，不像主操作；不能隐藏标题，也没有日期和署名。</div>
+  </div>
+</div>
+
+<div class="bar-ctl">
+  <div class="grp"><span>应用主题</span>
+    <button data-chrome-theme="paper" class="on">暖纸</button><button data-chrome-theme="ocean">海盐</button>
+  </div>
+  <div class="grp"><span>应用明暗</span>
+    <button data-chrome-mode="light" class="on">浅</button><button data-chrome-mode="dark">深</button>
+  </div>
+  <div class="grp"><span>弹窗内文档</span>
+    <button data-doc="short">短笔记</button><button data-doc="long" class="on">长文章</button>
+  </div>
+</div>
+
+<!-- ========================= 一、配色方向 ========================= -->
+<div class="sec-h"><h2>一、配色方向</h2><span>三个方向都从应用已有的 6 套主题推导，不再单独挑颜色</span></div>
+<div class="note">
+  <b>共同的底子：</b>导出样式 = 应用主题（暖纸 / 海盐 / 薄荷 / 紫藤 / 樱花 / 水墨）× 浅 / 深，共 12 种。纸色、墨色、强调色、引用线、代码底都取该主题的 <code>--tau-*</code>，所以正文里的链接、引用、代码块和背景天然成套；对比度已由 <code>theme-parity.test.ts</code> 的 AA 断言兜住。以后新增一套应用主题，导出就自动多一种样式，零维护。<br>
+  三个方向的区别只在「纸外面那一圈」：
+</div>
+<div class="dir-tabs" id="dirTabs"></div>
+<div class="gal" id="gallery"></div>
+
+<!-- ========================= 二、弹窗交互 ========================= -->
+<div class="sec-h"><h2>二、弹窗交互</h2><span>三种布局，都可以点；上面选的配色方向会同步到这里</span></div>
+
+<div class="note">
+  <b>方案 A · 右侧设置栏</b><span class="rec">推荐</span>：保留现在「左预览、右设置」的骨架，但设置一屏看全、不用滚动。
+  <ul>
+    <li><b>样式</b>：6 个主题色块（色块就是缩小的纸 + 背景，所见即所得），右上角一个「深色」开关，代替现在「深色 / 浅色」+ 8 个预设的两层结构。默认跟随应用当前的主题和明暗，用户改过之后记住。</li>
+    <li><b>尺寸</b>：宽度、边距做成按钮 + 菜单（不用分段控件）；宽度从 2 档扩到 375 手机 / 600 标准 / 800 宽屏。</li>
+    <li><b>显示</b>：标题、日期、署名三个开关；署名是左下角的「Tau」小标，可以关掉。</li>
+    <li><b>出口</b>：「复制」和「保存图片」并列，保存用文档标题命名；底部常驻导出尺寸（如 <code>600 × 1180 · @2x</code>）。主按钮回到 accent 色，不再刷成背景渐变。</li>
+  </ul>
+</div>
+<div class="win"><div class="titlebar"><div class="dots"><i></i><i></i><i></i></div></div>
+  <div class="bgpage"><div class="side"><i></i><i></i><i></i><i></i></div><div class="paperbg"><i style="width:40%;height:18px"></i><i></i><i></i><i style="width:80%"></i><i></i><i style="width:60%"></i></div></div>
+  <div class="scrim"><div class="dlg A" id="dlgA"></div></div>
+</div>
+
+<div class="note" style="margin-top:40px">
+  <b>方案 B · 预览为主 + 底部工具条</b>：弹窗几乎全给预览，所有设置收进底部一条工具条，参考 ray.so 这类「先看效果再微调」的工具。
+  <ul>
+    <li>工具条从左到右：6 个主题圆点（悬停显示名字，选中后右边写出名字）、深色切换、宽度菜单、「选项」菜单（边距 + 标题 / 日期 / 署名）。</li>
+    <li>复制 / 保存放到右上角标题栏，和关闭按钮挨着，<code>⌘C</code> 复制、<code>⌘S</code> 保存。</li>
+    <li>代价：边距和显示开关藏进了菜单，第一次用的人要点开才看得到。</li>
+  </ul>
+</div>
+<div class="win"><div class="titlebar"><div class="dots"><i></i><i></i><i></i></div></div>
+  <div class="bgpage"><div class="side"><i></i><i></i><i></i><i></i></div><div class="paperbg"><i style="width:40%;height:18px"></i><i></i><i></i><i style="width:80%"></i><i></i><i style="width:60%"></i></div></div>
+  <div class="scrim"><div class="dlg B" id="dlgB"></div></div>
+</div>
+
+<div class="note" style="margin-top:40px">
+  <b>方案 C · 样式画廊</b>：把 12 种样式（6 主题 × 浅 / 深）平铺在顶部一排，一眼看全，点哪个就是哪个，不需要「深色」开关。
+  <ul>
+    <li>适合样式就是主要决策的情况；宽度、边距、显示开关收进右上角「选项」菜单。</li>
+    <li>缩略图是骨架（标题条 + 正文线 + 引用 + 强调色），不是真实内容：12 份真实内容要渲染 12 个编辑器实例，长文时开销明显。</li>
+    <li>代价：顶部条占掉约 140px 预览高度；以后应用主题变多，这一排会更长（横向滚动）。</li>
+  </ul>
+</div>
+<div class="win"><div class="titlebar"><div class="dots"><i></i><i></i><i></i></div></div>
+  <div class="bgpage"><div class="side"><i></i><i></i><i></i><i></i></div><div class="paperbg"><i style="width:40%;height:18px"></i><i></i><i></i><i style="width:80%"></i><i></i><i style="width:60%"></i></div></div>
+  <div class="scrim"><div class="dlg C" id="dlgC"></div></div>
+</div>
+
+<script>
+/* ---------- 应用主题 token（同步自 packages/themes/src/tokens.css） ---------- */
+const T = {
+  paper: { name: "暖纸", glow: "tag5",
+    light: { page: "#f3eee2", surface: "#fffdf9", sunken: "#e7dbc8", ink1: "#43392c", ink2: "#6a5c49", ink3: "#a89a85", accent: "hsl(22 58% 42%)", accentText: "#a05236", tag2: "#5c7d99", tag3: "#8a7aa6", tag5: "#b06a5e" },
+    dark:  { page: "#221d16", surface: "#2e2820", sunken: "#100d08", ink1: "#ece2d0", ink2: "#a89a85", ink3: "#857768", accent: "hsl(22 62% 65%)", accentText: "hsl(22 66% 70%)", tag2: "#83aecf", tag3: "#a596c8", tag5: "#d0806a" } },
+  ocean: { name: "海盐", glow: "tag3",
+    light: { page: "#edf2f8", surface: "#fcfdff", sunken: "#d6e0ec", ink1: "#2d3644", ink2: "#56637a", ink3: "#a6b1c2", accent: "hsl(214 50% 44%)", accentText: "#35659f", tag2: "#4d6f9e", tag3: "#7f74a8", tag5: "#a56677" },
+    dark:  { page: "#161c25", surface: "#1f2733", sunken: "#0b1017", ink1: "#e3eaf4", ink2: "#9aa7b9", ink3: "#748196", accent: "hsl(214 62% 66%)", accentText: "hsl(214 70% 72%)", tag2: "#86abd9", tag3: "#a79ad6", tag5: "#d48a9b" } },
+  mint: { name: "薄荷", glow: "tag2",
+    light: { page: "#eef4ee", surface: "#fbfefb", sunken: "#d9e6da", ink1: "#2e3d31", ink2: "#526350", ink3: "#a5b3a3", accent: "hsl(153 40% 33%)", accentText: "#2f6b50", tag2: "#567f96", tag3: "#8378a4", tag5: "#a86e64" },
+    dark:  { page: "#151b18", surface: "#1e2521", sunken: "#0a0f0c", ink1: "#e0eae3", ink2: "#98a69c", ink3: "#728078", accent: "hsl(155 36% 58%)", accentText: "hsl(155 42% 64%)", tag2: "#87b3c9", tag3: "#a99fd0", tag5: "#d49488" } },
+  wisteria: { name: "紫藤", glow: "tag5",
+    light: { page: "#f1eff6", surface: "#fdfcff", sunken: "#dfdbea", ink1: "#342d46", ink2: "#5f5775", ink3: "#aba4bd", accent: "hsl(262 42% 50%)", accentText: "#62449f", tag2: "#5a74a0", tag3: "#8a6fb0", tag5: "#b0667c" },
+    dark:  { page: "#1a1724", surface: "#242031", sunken: "#0e0c15", ink1: "#e8e3f2", ink2: "#a59fb8", ink3: "#7f7893", accent: "hsl(262 60% 72%)", accentText: "hsl(262 66% 78%)", tag2: "#8fa9dc", tag3: "#b39be0", tag5: "#d98fa6" } },
+  sakura: { name: "樱花", glow: "tag3",
+    light: { page: "#f9eef1", surface: "#fffafb", sunken: "#eddde2", ink1: "#422d35", ink2: "#6d5560", ink3: "#b3a2a8", accent: "hsl(340 62% 47%)", accentText: "#a8295a", tag2: "#58739a", tag3: "#8873a6", tag5: "#b0606e" },
+    dark:  { page: "#1c1719", surface: "#271f23", sunken: "#100b0d", ink1: "#f0e2e8", ink2: "#ae9ea6", ink3: "#85767d", accent: "hsl(340 62% 72%)", accentText: "hsl(340 68% 78%)", tag2: "#8fa9d4", tag3: "#b39fd6", tag5: "#d992a0" } },
+  ink: { name: "水墨", glow: "tag2",
+    light: { page: "#f5f4f0", surface: "#fcfbf8", sunken: "#e2e0da", ink1: "#1f1f1d", ink2: "#55544f", ink3: "#a3a19a", accent: "hsl(205 18% 32%)", accentText: "#3f4f5c", tag2: "#4f6a80", tag3: "#7a7090", tag5: "#9c6b55" },
+    dark:  { page: "#1a1a19", surface: "#232321", sunken: "#0d0d0c", ink1: "#e6e4df", ink2: "#a09e97", ink3: "#78766f", accent: "hsl(205 22% 68%)", accentText: "hsl(205 28% 74%)", tag2: "#8faac0", tag3: "#a79fbd", tag5: "#c99a84" } },
+};
+const KEYS = Object.keys(T);
+
+const DIRS = {
+  solid: { name: "Ⅰ · 纸与桌", desc: "纸放在该主题的「凹陷」色上，纯色、无渐变。最安静，最像在应用里截了一张。" },
+  tint:  { name: "Ⅱ · 柔光", desc: "同样是纸 + 背景，背景两角各晕开一点强调色和邻近色，比 Ⅰ 更适合分享，但仍是从主题推导。" },
+  flat:  { name: "Ⅲ · 整张纸", desc: "不要背景框，整张图就是纸，靠标题上方一道强调色短线收头。适合长文、贴进文档或发小红书。" },
+};
+
+/** 主题 × 明暗 × 方向 → 导出图片用的 --x-* 变量 */
+function xvars(key, dark, dir) {
+  const th = T[key], t = th[dark ? "dark" : "light"], g = t[th.glow];
+  const mix = (c, p, base) => `color-mix(in srgb, ${c} ${p}%, ${base})`;
+  let backdrop = t.sunken;
+  if (dir === "tint") {
+    backdrop = dark
+      ? `radial-gradient(110% 80% at 0% 0%, ${mix(t.accent, 26, t.sunken)} 0%, transparent 62%), radial-gradient(100% 80% at 100% 100%, ${mix(g, 22, t.sunken)} 0%, transparent 65%), ${mix(t.page, 70, t.sunken)}`
+      : `radial-gradient(110% 80% at 0% 0%, ${mix(t.accent, 22, t.page)} 0%, transparent 62%), radial-gradient(100% 80% at 100% 100%, ${mix(g, 24, t.page)} 0%, transparent 65%), ${t.sunken}`;
+  }
+  if (dir === "flat") backdrop = t.surface;
+  return {
+    "--x-backdrop": backdrop,
+    "--x-paper": t.surface,
+    "--x-ink1": t.ink1, "--x-ink2": t.ink2, "--x-ink3": t.ink3,
+    "--x-accent": t.accent, "--x-accent-text": t.accentText,
+    "--x-accent-soft": mix(t.accent, dark ? 30 : 22, "transparent"),
+    "--x-quote": mix(t.accent, 45, t.surface),
+    "--x-code": mix(t.ink1, dark ? 8 : 5, t.surface),
+    "--x-shadow": dark
+      ? "0 1px 2px rgba(0,0,0,.3), 0 20px 44px -18px rgba(0,0,0,.7)"
+      : `0 1px 2px ${mix(t.ink1, 6, "transparent")}, 0 20px 44px -20px ${mix(t.ink1, 40, "transparent")}`,
+  };
+}
+const styleStr = o => Object.entries(o).map(([k, v]) => `${k}:${v}`).join(";");
+
+/* ---------- 示例文档 ---------- */
+const DOC = {
+  title: "为什么间隔重复有效",
+  date: "2026 年 10 月 5 日",
+  short: `
+    <p>遗忘不是匀速发生的。新学的内容在最初 <b>20 分钟</b>里就会忘掉近一半，之后衰减才慢下来。</p>
+    <blockquote>每次在快要忘记时成功想起来，记忆的半衰期都会被拉长。</blockquote>
+    <ol><li>第一次复习放在学完当天</li><li>间隔按 1 → 3 → 7 → 15 天拉长</li></ol>`,
+  long: `
+    <p>遗忘不是匀速发生的。艾宾浩斯在 1885 年的实验里发现，新学的内容在最初 <b>20 分钟</b>里就会忘掉近一半，之后衰减才逐渐放缓——这条曲线前陡后平。</p>
+    <blockquote>每次在快要忘记时成功想起来，记忆的半衰期都会被拉长。复习的价值不在「再看一遍」，而在「费力地想起来」。</blockquote>
+    <h2>三条实践</h2>
+    <ol>
+      <li>第一次复习放在学完当天，趁还记得大概；</li>
+      <li>间隔按 1 → 3 → 7 → 15 天拉长，<mark>想得起来就继续拉长</mark>；</li>
+      <li>想不起来就把间隔重置，不要硬撑着往后排。</li>
+    </ol>
+    <p>在 Tau 里给卡片加上 <code>#闪卡</code> 标签，它就会自动进入<a>今日复习</a>。间隔的计算大致是：</p>
+    <pre><span class="k">next</span> = last × ease   <span class="c">// ease 初始 2.5，答错时下调</span></pre>
+    <h2>为什么「费力」反而好</h2>
+    <p>心理学把这叫作<b>合意困难</b>：提取越费劲，提取成功后巩固得越牢。所以复习时先别翻答案，哪怕只想起一半，也比直接看完整版有用。</p>`,
+};
+
+function exportHTML(o, docKind) {
+  const narrow = o.w <= 375;
+  const pads = { tight: 24, std: 40, loose: 64 };
+  const pad = o.dir === "flat" ? 0 : Math.round(pads[o.pad] * (narrow ? .6 : 1));
+  const inner = narrow ? 24 : (o.dir === "flat" ? Math.round(pads[o.pad] * 1.1) : 36);
+  const vars = { ...xvars(o.theme, o.dark, o.dir), "--w": o.w + "px", "--pad": pad + "px", "--inner": inner + "px" };
+  return `<div class="xi ${o.dir === "flat" ? "flat" : ""} ${narrow ? "narrow" : ""}" style="${styleStr(vars)}"><div class="paper">
+    ${o.title ? `<h1>${DOC.title}</h1>` : ""}
+    ${o.date ? `<div class="meta">${DOC.date} · 读书笔记</div>` : ""}
+    <div class="body">${DOC[docKind]}</div>
+    ${o.sign ? `<div class="sig"><i>T</i>Tau</div>` : ""}
+  </div></div>`;
+}
+
+/* ---------- 现状渐变（对照） ---------- */
+const OLD = [
+  ["夜色静谧", "linear-gradient(135deg,rgb(27,27,31) 0%,rgb(33,31,32) 100%)", true],
+  ["日落余晖", "linear-gradient(135deg,rgb(148,109,59) 0%,rgb(150,148,41) 100%)", true],
+  ["炽热熔岩", "linear-gradient(135deg,rgb(101,31,35) 0%,rgb(178,53,42) 100%)", true],
+  ["柠檬清香", "linear-gradient(135deg,rgb(255,253,150) 0%,rgb(205,255,176) 100%)", false],
+  ["薄荷清凉", "linear-gradient(135deg,rgb(152,251,152) 0%,rgb(135,206,235) 100%)", false],
+  ["粉樱飞舞", "linear-gradient(135deg,rgb(255,182,193) 0%,rgb(255,160,200) 100%)", false],
+];
+function oldHTML([, bg, dark]) {
+  // 现状：背景渐变直接当画布，正文纯黑 / 纯白，链接和代码按应用浅色主题取色
+  const vars = { "--w": "600px", "--pad": "32px", "--x-backdrop": bg, "--x-paper": "transparent", "--x-shadow": "none", "--inner": "0px",
+    "--x-ink1": dark ? "#fff" : "#000", "--x-ink2": dark ? "#fff" : "#000", "--x-ink3": dark ? "#fff" : "#000",
+    "--x-accent": "hsl(22 58% 42%)", "--x-accent-text": "#a05236", "--x-accent-soft": "rgba(160,82,54,.25)", "--x-quote": "#e9e1d2", "--x-code": "#f3eee2" };
+  return `<div class="xi" style="${styleStr(vars)}"><div class="paper" style="padding:0">
+    <h1 style="text-align:center">${DOC.title}</h1><div class="body">${DOC.short}</div></div></div>`;
+}
+
+/* ---------- 状态 ---------- */
+const S = {
+  dir: "tint",
+  doc: "long",
+  A: { theme: "paper", dark: false, w: 600, pad: "std", title: true, date: true, sign: true },
+  B: { theme: "paper", dark: false, w: 600, pad: "std", title: true, date: true, sign: true },
+  C: { theme: "paper", dark: false, w: 600, pad: "std", title: true, date: true, sign: true },
+};
+const WIDTHS = [[375, "手机"], [600, "标准"], [800, "宽屏"]];
+const PADS = [["tight", "紧凑"], ["std", "标准"], ["loose", "宽松"]];
+const wLabel = w => WIDTHS.find(x => x[0] === w)[1];
+const pLabel = p => PADS.find(x => x[0] === p)[1];
+
+const I = {
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  down: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  save: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  width: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></svg>',
+  sliders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>',
+};
+
+/* ---------- 配色画廊 ---------- */
+function renderDirTabs() {
+  document.getElementById("dirTabs").innerHTML = Object.entries(DIRS).map(([k, d]) =>
+    `<button class="dir-tab ${S.dir === k ? "on" : ""}" data-dir="${k}"><b>${d.name}${k === "tint" ? '<span class="rec">推荐</span>' : ""}</b><span>${d.desc}</span></button>`
+  ).join("") + `<button class="dir-tab ${S.dir === "old" ? "on" : ""}" data-dir="old" style="width:200px"><b>对照 · 现状</b><span>现有 16 组渐变里挑 6 组。</span></button>`;
+}
+function renderGallery() {
+  const g = document.getElementById("gallery");
+  if (S.dir === "old") {
+    g.innerHTML = `<div class="gal-row gal-old"><div class="lbl">现状<small>正文纯黑 / 纯白；链接、代码块仍按应用浅色主题取色</small></div><div class="gal-grid">${
+      OLD.map(o => `<div class="thumb"><div class="shot">${oldHTML(o)}</div><div class="nm">${o[0]}</div></div>`).join("")}</div></div>`;
+    return;
+  }
+  const row = dark => `<div class="gal-row"><div class="lbl">${dark ? "深色" : "浅色"}<small>${dark ? "取各主题的 dark 数据块" : "取各主题的 light 数据块"}</small></div><div class="gal-grid">${
+    KEYS.map(k => `<div class="thumb"><div class="shot">${exportHTML({ theme: k, dark, dir: S.dir, w: 600, pad: "std", title: true, date: true, sign: true }, "short")}</div><div class="nm">${T[k].name}<em>${k}${dark ? "·dark" : ""}</em></div></div>`).join("")
+  }</div></div>`;
+  g.innerHTML = row(false) + row(true);
+}
+
+/* ---------- 弹窗公共件 ---------- */
+const chipSq = (key, dark, dir) => `<div class="sq ${dir === "flat" ? "flat" : ""}" style="${styleStr(xvars(key, dark, dir))};background:var(--x-backdrop)"><div class="pp"><i></i><i></i><i style="width:80%"></i><i class="a"></i></div></div>`;
+const sw = on => `<span class="sw ${on ? "on" : ""}"></span>`;
+const menu = (id, dirCls, items) => `<div class="menu ${dirCls}" data-menu-body="${id}">${items}</div>`;
+const mi = (set, label, on, extra = "") => `<button class="mi ${on ? "on" : ""}" data-set="${set}"><span class="t">${label}</span>${extra}<span class="ck">${I.check}</span></button>`;
+const mcb = (tog, label, on) => `<button class="mi" data-toggle="${tog}" data-keep><span class="cb ${on ? "on" : ""}"></span><span class="t">${label}</span></button>`;
+const stage = (id, o) => `<div class="stage" data-stage="${id}"><div class="fit">${exportHTML({ ...o, dir: S.dir }, S.doc)}</div><span class="size" data-size="${id}"></span></div>`;
+const actBtns = (id, big) => `
+  <button class="btn sec" data-act="copy:${id}">${I.copy}<span>复制</span>${big ? "" : '<span class="kbd">⌘C</span>'}</button>
+  <button class="btn pri" data-act="save:${id}">${I.save}<span>保存图片</span>${big ? "" : '<span class="kbd">⌘S</span>'}</button>`;
+const toast = id => `<div class="toast" data-toast="${id}">${I.check}<span></span></div>`;
+
+/* ---------- 方案 A ---------- */
+function renderA() {
+  const o = S.A;
+  document.getElementById("dlgA").innerHTML = `
+    ${toast("A")}
+    ${stage("A", o)}
+    <div class="panel">
+      <div class="dlg-h"><h2>导出图片</h2><span class="sp"></span><button class="x" aria-label="关闭">${I.x}</button></div>
+      <div class="pbody">
+        <div>
+          <div class="lbl2">样式<span class="r" data-toggle="A:dark" style="cursor:pointer">深色 ${sw(o.dark)}</span></div>
+          <div class="chips">${KEYS.map(k => `<button class="chip ${o.theme === k ? "on" : ""}" data-set="A:theme:${k}">${chipSq(k, o.dark, S.dir)}<span>${T[k].name}</span></button>`).join("")}</div>
+        </div>
+        <div>
+          <div class="lbl2">尺寸</div>
+          <div class="row" style="cursor:default;margin-top:4px"><span class="t">宽度</span>
+            <span class="mwrap"><button class="pick" data-menu="A-w">${wLabel(o.w)} <em>${o.w}</em>${I.down}</button>
+              ${menu("A-w", "down", WIDTHS.map(([w, l]) => mi(`A:w:${w}`, l, o.w === w, `<em>${w} px</em>`)).join(""))}</span></div>
+          <div class="row" style="cursor:default"><span class="t">边距</span>
+            <span class="mwrap"><button class="pick" data-menu="A-p" ${S.dir === "flat" ? 'title="整张纸时调的是纸内留白"' : ""}>${pLabel(o.pad)}${I.down}</button>
+              ${menu("A-p", "down", PADS.map(([p, l]) => mi(`A:pad:${p}`, l, o.pad === p)).join(""))}</span></div>
+        </div>
+        <div>
+          <div class="lbl2">显示</div>
+          <div style="margin-top:4px">
+            <div class="row" data-toggle="A:title"><span class="t">标题</span>${sw(o.title)}</div>
+            <div class="row" data-toggle="A:date"><span class="t">日期</span>${sw(o.date)}</div>
+            <div class="row" data-toggle="A:sign"><span class="t">署名<small>Tau</small></span>${sw(o.sign)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="pfoot">
+        <div class="acts">${actBtns("A", true)}</div>
+        <div class="sum" data-sum="A"></div>
+      </div>
+    </div>`;
+}
+
+/* ---------- 方案 B ---------- */
+function renderB() {
+  const o = S.B;
+  document.getElementById("dlgB").innerHTML = `
+    ${toast("B")}
+    <div class="dlg-h"><h2>导出图片</h2><span class="ctx">${I.doc}<span>${DOC.title}</span></span><span class="sp"></span>
+      ${actBtns("B")}<button class="x" aria-label="关闭" style="margin-left:4px">${I.x}</button></div>
+    ${stage("B", o)}
+    <div class="tool">
+      <div class="dotsel">${KEYS.map(k => {
+        const v = xvars(k, o.dark, S.dir);
+        return `<button class="dot ${S.dir === "flat" ? "flat" : ""} ${o.theme === k ? "on" : ""}" title="${T[k].name}" data-set="B:theme:${k}" style="${styleStr(v)};background:var(--x-backdrop)"><b></b></button>`;
+      }).join("")}</div>
+      <span class="tname">${T[o.theme].name}</span>
+      <button class="ib ${o.dark ? "on" : ""}" title="${o.dark ? "切换到浅色" : "切换到深色"}" data-toggle="B:dark">${o.dark ? I.moon : I.sun}</button>
+      <span class="vsep"></span>
+      <span class="mwrap"><button class="pick" data-menu="B-w">${I.width}${wLabel(o.w)} <em>${o.w}</em>${I.down}</button>
+        ${menu("B-w", "up", WIDTHS.map(([w, l]) => mi(`B:w:${w}`, l, o.w === w, `<em>${w} px</em>`)).join(""))}</span>
+      <span class="mwrap"><button class="pick" data-menu="B-o">${I.sliders}选项${I.down}</button>
+        ${menu("B-o", "up", `<div class="mh">边距</div>${PADS.map(([p, l]) => mi(`B:pad:${p}`, l, o.pad === p)).join("")}<div class="msep"></div><div class="mh">显示</div>${mcb("B:title", "标题", o.title)}${mcb("B:date", "日期", o.date)}${mcb("B:sign", "署名 Tau", o.sign)}`)}</span>
+      <span class="sp"></span>
+      <span class="sum" data-sum="B" style="font:11.5px var(--mono);color:var(--tau-ink-3)"></span>
+    </div>`;
+}
+
+/* ---------- 方案 C ---------- */
+function renderC() {
+  const o = S.C;
+  const card = (k, dark) => `<button class="card ${o.theme === k && o.dark === dark ? "on" : ""}" data-set="C:style:${k}.${dark}">
+      <div class="sq ${S.dir === "flat" ? "flat" : ""}" style="${styleStr(xvars(k, dark, S.dir))};background:var(--x-backdrop)"><div class="pp"><i></i><i></i><i style="width:85%"></i><i class="q" style="width:70%"></i><i></i><i class="a"></i></div></div>
+      <span>${T[k].name}</span></button>`;
+  document.getElementById("dlgC").innerHTML = `
+    ${toast("C")}
+    <div class="dlg-h"><h2>导出图片</h2><span class="ctx">${I.doc}<span>${DOC.title}</span></span><span class="sp"></span>
+      <span class="mwrap"><button class="pick" data-menu="C-o">${I.sliders}${wLabel(o.w)} · ${pLabel(o.pad)}${I.down}</button>
+        ${menu("C-o", "down", `<div class="mh">宽度</div>${WIDTHS.map(([w, l]) => mi(`C:w:${w}`, l, o.w === w, `<em>${w} px</em>`)).join("")}<div class="msep"></div><div class="mh">边距</div>${PADS.map(([p, l]) => mi(`C:pad:${p}`, l, o.pad === p)).join("")}<div class="msep"></div><div class="mh">显示</div>${mcb("C:title", "标题", o.title)}${mcb("C:date", "日期", o.date)}${mcb("C:sign", "署名 Tau", o.sign)}`)}</span>
+      ${actBtns("C")}<button class="x" aria-label="关闭" style="margin-left:4px">${I.x}</button></div>
+    <div class="strip">
+      <div class="grp">${KEYS.map(k => card(k, false)).join("")}</div>
+      <span class="gsep"></span>
+      <div class="grp">${KEYS.map(k => card(k, true)).join("")}</div>
+    </div>
+    <div class="body">${stage("C", o)}</div>`;
+}
+
+/* ---------- 预览适配与尺寸 ---------- */
+function fit(id) {
+  const st = document.querySelector(`[data-stage="${id}"]`);
+  if (!st) return;
+  const xi = st.querySelector(".xi"), o = S[id];
+  xi.style.zoom = 1;
+  const avail = st.clientWidth - 48;
+  const z = Math.min(1, avail / o.w);
+  xi.style.zoom = z;
+  st.querySelector(".fit").classList.toggle("mid", xi.offsetHeight * z < st.clientHeight - 84);
+  const txt = `${o.w} × ${xi.offsetHeight} · PNG @2x${z < 1 ? ` · 预览 ${Math.round(z * 100)}%` : ""}`;
+  const sum = document.querySelector(`[data-sum="${id}"]`);
+  const size = document.querySelector(`[data-size="${id}"]`);
+  if (id === "A") { sum.textContent = txt; size.style.display = "none"; }
+  else if (id === "B") { sum.textContent = txt; size.style.display = "none"; }
+  else size.textContent = txt;
+}
+const R = { A: renderA, B: renderB, C: renderC };
+function rerender(id) { R[id](); fit(id); }
+function rerenderAll() { renderDirTabs(); renderGallery(); ["A", "B", "C"].forEach(rerender); }
+
+/* ---------- 事件 ---------- */
+const parse = v => v === "true" ? true : v === "false" ? false : /^\d+$/.test(v) ? +v : v;
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-dir],[data-set],[data-toggle],[data-menu],[data-act],[data-chrome-theme],[data-chrome-mode],[data-doc]");
+  const openMenu = document.querySelector(".menu.open");
+  if (!t) { openMenu?.classList.remove("open"); return; }
+  if (t.dataset.menu) {
+    const m = document.querySelector(`[data-menu-body="${t.dataset.menu}"]`);
+    const wasOpen = m.classList.contains("open");
+    openMenu?.classList.remove("open");
+    if (!wasOpen) m.classList.add("open");
+    return;
+  }
+  if (t.dataset.dir) { S.dir = t.dataset.dir; renderDirTabs(); renderGallery(); if (S.dir !== "old") ["A", "B", "C"].forEach(rerender); return; }
+  if (t.dataset.doc) { S.doc = t.dataset.doc; document.querySelectorAll("[data-doc]").forEach(b => b.classList.toggle("on", b === t)); ["A", "B", "C"].forEach(rerender); return; }
+  if (t.dataset.chromeTheme) { document.documentElement.dataset.theme = t.dataset.chromeTheme; document.querySelectorAll("[data-chrome-theme]").forEach(b => b.classList.toggle("on", b === t)); return; }
+  if (t.dataset.chromeMode) { document.documentElement.dataset.mode = t.dataset.chromeMode; document.querySelectorAll("[data-chrome-mode]").forEach(b => b.classList.toggle("on", b === t)); return; }
+  if (t.dataset.set) {
+    const [id, k, v] = t.dataset.set.split(":");
+    if (k === "style") { const [th, dk] = v.split("."); S[id].theme = th; S[id].dark = dk === "true"; }
+    else S[id][k] = parse(v);
+    rerender(id); return;
+  }
+  if (t.dataset.toggle) {
+    const [id, k] = t.dataset.toggle.split(":");
+    S[id][k] = !S[id][k];
+    const keepMenu = t.closest(".menu")?.dataset.menuBody;
+    rerender(id);
+    if (keepMenu) document.querySelector(`[data-menu-body="${keepMenu}"]`).classList.add("open");
+    return;
+  }
+  if (t.dataset.act) {
+    const [act, id] = t.dataset.act.split(":");
+    if (t.classList.contains("busy") || t.classList.contains("done")) return;
+    const label = t.querySelector("span");
+    const orig = label.textContent;
+    t.classList.add("busy"); label.textContent = "生成中…";
+    setTimeout(() => {
+      t.classList.remove("busy"); t.classList.add("done");
+      label.textContent = act === "copy" ? "已复制" : "已保存";
+      const ts = document.querySelector(`[data-toast="${id}"]`);
+      ts.querySelector("span").textContent = act === "copy" ? "已复制到剪贴板，可以直接粘贴" : `已保存到 下载 / ${DOC.title}.png`;
+      ts.classList.add("show");
+      setTimeout(() => { ts.classList.remove("show"); t.classList.remove("done"); label.textContent = orig; }, 1800);
+    }, 700);
+  }
+});
+window.addEventListener("resize", () => ["A", "B", "C"].forEach(fit));
+rerenderAll();
+</script>
+</body>
+</html>
