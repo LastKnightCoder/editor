@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>A 顶部页签 · 浏览器插件重设计</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 文字页签：下划线指示，不用分段控件 */
+  .tabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--tau-line-1); }
+  .tabs a { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 36px; padding: 0 10px; font-size: 13px; color: var(--tau-ink-2); cursor: pointer; }
+  .tabs a:hover { color: var(--tau-ink-1); }
+  .tabs a.on { color: var(--tau-ink-1); font-weight: 600; }
+  .tabs a.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 1px; background: var(--tau-accent); }
+  .tabs .n { font-size: 11px; font-weight: 500; color: var(--tau-ink-3); }
+  .tabs a.on .n { color: var(--tau-accent-text); }
+  .body { padding: 14px; }
+  .sumhead { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 12px; color: var(--tau-ink-3); }
+  .sumhead svg { width: 14px; height: 14px; color: var(--tau-accent-text); }
+  .acts { display: flex; gap: 2px; margin-top: 4px; }
+  .sugg { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+  .sugg button { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface); font-size: 12.5px; color: var(--tau-ink-1); text-align: left; }
+  .sugg button svg { width: 14px; height: 14px; color: var(--tau-ink-3); }
+  .hlbar { display: flex; align-items: center; gap: 6px; padding: 10px 14px 6px; }
+  .hllist { display: flex; flex-direction: column; gap: 8px; padding: 4px 14px 14px; }
+  .notebar { display: flex; align-items: center; gap: 6px; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--tau-line-1); }
+  .notebar .sel { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 6px 0 8px; border-radius: 8px; font-weight: 600; font-size: 13px; }
+  .notebar .sel svg { width: 13px; height: 13px; color: var(--tau-ink-3); }
+  .sync { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--tau-ok); }
+  .sync svg { width: 13px; height: 13px; }
+  .foot { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--tau-line-1); }
+</style>
+</head>
+<body>
+<main>
+  <div class="intro">
+    <h1>A · 顶部页签</h1>
+    信息架构不变（概览 / 对话 / 笔记 / 高亮四块），只换皮与收口：
+    <ul>
+      <li>顶部是<b>当前网页</b>（图标 + 标题 + 域名），让人一眼知道侧栏在说哪一页；原来的 Tau logo、设置、刷新收进 <b>⋯</b>。</li>
+      <li>底部图标栏改为<b>顶部文字页签</b>（带数量），不用猜图标；全部笔记、设置进 ⋯ 菜单。</li>
+      <li>概览底部给「问这页」的推荐问题，点了直接跳到对话页签并发送。</li>
+    </ul>
+    <p style="margin:6px 0 0"><span class="pros">好处：</span>改动最小，用户习惯不变，实现成本低。
+    <span class="cons">代价：</span>四块仍是割裂的，在高亮页想追问要来回切。</p>
+  </div>
+
+  <h2 class="sec">四个页签</h2>
+  <div class="row">
+    <div>
+      <p class="cap"><b>概览</b>：AI 总结 + 推荐问题。自动总结关闭时显示「生成总结」按钮。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <nav class="tabs"><a class="on">概览</a><a>对话</a><a>笔记 <span class="n">1</span></a><a>高亮 <span class="n">5</span></a></nav>
+        <div class="scroll body">
+          <div class="sumhead"><i data-lucide="sparkles"></i>AI 总结 · 3 分钟前</div>
+          <div class="prose">
+            <p><b>一句话：</b>间隔重复借助「快要忘记时再回想」的难度来加固记忆，长期保持率是连续重读的两到三倍。</p>
+            <ul>
+              <li>重读带来的流畅感是错觉，主动<b>提取</b>才真正加固记忆。</li>
+              <li>复习间隔应随掌握程度拉长，最佳时机是快要忘记的那一刻。</li>
+              <li>Bjork 称之为「有益的困难」：难一点，记得更久。</li>
+            </ul>
+          </div>
+          <div class="acts"><button class="ib" title="复制"><i data-lucide="copy"></i></button><button class="ib" title="重新生成"><i data-lucide="refresh-cw"></i></button></div>
+          <div class="sugg">
+            <span class="sm muted">问问这一页 <span class="new">新增?</span></span>
+            <button><i data-lucide="message-circle"></i>它和费曼学习法有什么关系？</button>
+            <button><i data-lucide="message-circle"></i>文中的间隔算法具体怎么排？</button>
+            <button><i data-lucide="message-circle"></i>有反对这个结论的研究吗？</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap"><b>对话</b>：与桌面停靠栏同一套消息与输入框；会话切换收在标题 ▾。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <nav class="tabs"><a>概览</a><a class="on">对话</a><a>笔记 <span class="n">1</span></a><a>高亮 <span class="n">5</span></a></nav>
+        <div style="display:flex;align-items:center;gap:4px;padding:8px 10px 0 12px"><button class="btn ghost" style="padding:0 6px;font-weight:600;color:var(--tau-ink-1)">和费曼学习法的关系 <i data-lucide="chevron-down"></i></button><span style="flex:1"></span><button class="ib"><i data-lucide="square-pen"></i></button></div>
+        <div class="scroll" style="display:flex;flex-direction:column;gap:14px;padding:12px 14px">
+          <div class="msg-u">它和费曼学习法有什么关系？</div>
+          <div class="msg-a">
+            <div class="fold"><i data-lucide="check" style="color:var(--tau-ok)"></i>读取页面正文 <span class="muted">· 0.8 秒</span></div>
+            <p style="margin:6px 0">两者都依赖<b>主动提取</b>，只是角度不同：</p>
+            <ul style="margin:0;padding-left:18px">
+              <li>费曼法让你「讲出来」，暴露理解的缺口；</li>
+              <li>间隔重复决定「什么时候再讲一遍」。</li>
+            </ul>
+            <p style="margin:6px 0 0">合起来用：先用费曼法把卡片写成自己的话，再交给间隔复习。</p>
+          </div>
+        </div>
+        <div class="cmp"><div class="ph">继续问，⌘ Enter 发送</div><div class="bar"><span class="plus"><i data-lucide="plus"></i></span><span class="sp"></span><span class="tc"><b style="font-weight:500">Claude Sonnet</b><i data-lucide="chevron-down"></i></span><span class="send off"><i data-lucide="arrow-up"></i></span></div></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap"><b>笔记</b>：本页笔记一页一篇为主，多篇时标题 ▾ 切换；同步状态常驻在标题行，「存为卡片 / 文章、插入到项目」进 ⋯。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <nav class="tabs"><a>概览</a><a>对话</a><a class="on">笔记 <span class="n">1</span></a><a>高亮 <span class="n">5</span></a></nav>
+        <div class="notebar"><span class="sel">间隔重复读书笔记<i data-lucide="chevron-down"></i></span><span class="sync"><i data-lucide="circle-check"></i>已同步到卡片</span><span style="flex:1"></span><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <div class="scroll paper" style="padding:16px 18px">
+          <p>重读≠记住。读完的那种「我懂了」只是<b>熟悉感</b>，换个问法就答不上。</p>
+          <blockquote>最佳复习时机，是你快要忘记、但还能想起来的那一刻。</blockquote>
+          <p>对我的卡片复习：</p>
+          <p>· 不再连刷同一组，按间隔排</p>
+          <p>· 回答时先说出来再翻面<span class="caret"></span></p>
+        </div>
+        <div class="foot"><button class="btn ghost"><i data-lucide="quote"></i>插入高亮</button><span style="flex:1"></span><span class="tiny muted">自动保存</span></div>
+      </div>
+    </div>
+
+    <div>
+      <p class="cap"><b>高亮</b>：按页面顺序排列；颜色筛选在顶上；点引文滚到原文位置，悬停出「写想法 / 删除」。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <nav class="tabs"><a>概览</a><a>对话</a><a>笔记 <span class="n">1</span></a><a class="on">高亮 <span class="n">5</span></a></nav>
+        <div class="hlbar"><span class="chip accent">全部 5</span><span class="chip"><span class="dot c1"></span>2</span><span class="chip"><span class="dot c2"></span>1</span><span class="chip"><span class="dot c3"></span>1</span><span class="chip"><span class="dot c4"></span>1</span></div>
+        <div class="scroll hllist">
+          <div class="card hl"><span class="bar c1"></span><div><q>每一次成功的提取，都会让下一次遗忘来得更晚。</q><div class="th">和卡片复习的间隔算法是一回事。</div><div class="meta">第 2 段 · 刚刚</div></div></div>
+          <div class="card hl"><span class="bar c2"></span><div><q>重读带来的流畅感是一种错觉，它让人误以为自己已经掌握。</q><div class="meta">第 4 段 · 5 分钟前</div></div></div>
+          <div class="card hl" style="box-shadow:var(--tau-focus-ring);border-color:var(--tau-accent)"><span class="bar c3"></span><div><q>最佳复习时机，是你快要忘记、但还能想起来的那一刻。</q><div class="th">这句可以做成卡片的正面。</div><div class="meta">第 6 段 · 8 分钟前 <span style="flex:1"></span><button class="ib" style="width:22px;height:22px"><i data-lucide="pencil" style="width:13px;height:13px"></i></button><button class="ib" style="width:22px;height:22px"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button></div></div></div>
+          <div class="card hl"><span class="bar c4"></span><div><q>Bjork 把这种有益的困难称为 desirable difficulty。</q><div class="meta">第 7 段 · 8 分钟前</div></div></div>
+          <div class="card hl"><span class="bar c1"></span><div><q>难度本身不是目的，难度带来的提取努力才是。</q><div class="meta">第 9 段 · 10 分钟前</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="sec">⋯ 菜单 · 空态</h2>
+  <div class="row">
+    <div>
+      <p class="cap"><b>⋯ 菜单</b>：全部笔记、设置、重新连接；底部显示连接状态。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib on"><i data-lucide="ellipsis"></i></button></div>
+        <nav class="tabs"><a class="on">概览</a><a>对话</a><a>笔记 <span class="n">1</span></a><a>高亮 <span class="n">5</span></a></nav>
+        <div class="menu" style="right:10px;top:50px;width:220px">
+          <div class="it"><i data-lucide="library"></i>全部笔记<span class="r">36</span></div>
+          <div class="it"><i data-lucide="app-window"></i>在 Tau 中打开本页笔记<span class="r new">新增?</span></div>
+          <hr />
+          <div class="it"><i data-lucide="settings"></i>设置</div>
+          <div class="it"><i data-lucide="refresh-cw"></i>重新连接</div>
+          <hr />
+          <div class="it" style="height:28px"><span class="dot" style="background:var(--tau-ok)"></span><span class="sm ink2">已连接桌面端 · 主题 <span data-theme-name></span></span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="cap"><b>高亮空态</b>：教用户怎么划线，而不是只说「暂无」。</p>
+      <div class="panel">
+        <div class="ctx"><div class="fav">S</div><div class="t"><b>为什么间隔重复比反复阅读更有效</b><span>sspai.com · 约 8 分钟</span></div><button class="ib"><i data-lucide="ellipsis"></i></button></div>
+        <nav class="tabs"><a>概览</a><a>对话</a><a>笔记</a><a class="on">高亮</a></nav>
+        <div class="scroll" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 40px;text-align:center">
+          <div style="display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:var(--tau-accent-soft);color:var(--tau-accent-text)"><i data-lucide="highlighter" style="width:20px;height:20px"></i></div>
+          <b style="font-size:14px">这一页还没有高亮</b>
+          <span class="sm ink2" style="line-height:1.7">在网页上选中文字，用浮出的工具条选个颜色，高亮会按原文顺序出现在这里</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script src="shared.js"></script>
+</body>
+</html>

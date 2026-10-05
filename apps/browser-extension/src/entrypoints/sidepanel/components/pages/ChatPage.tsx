@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef, type Ref } from "react";
-import { toast } from "@tau/ui";
+import { IconButton, toast } from "@tau/ui";
+import { SquarePen } from "lucide-react";
 import type { ChatDropdownItem } from "@tau/shared";
 import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
@@ -9,7 +10,6 @@ import {
   useChatAutoScroll,
   type ChatInputAreaProps,
   type ChatInputAreaHandle,
-  type ChatInputAreaServices,
   type MessageContentItem,
   type ThinkingLevel,
 } from "@tau/shared";
@@ -24,23 +24,34 @@ import ChatMessage from "../../../../components/ChatMessage";
 import ToolApprovalBar from "../../../../components/ToolApprovalBar";
 import { useRunInteractionStore } from "../../../../stores/useRunInteractionStore";
 import ChatDropdownSelector from "../../../../components/ChatDropdownSelector";
-import { useTheme } from "../../../../hooks/useTheme";
-import { useThemeStore } from "../../../../stores/useThemeStore";
+import { useIsDark } from "../../../../stores/useExtensionTheme";
+import { useChatInputServices } from "../../../../hooks/useChatInputServices";
+import { SubpageHeader } from "../SubpageHeader";
 import type { ChatMessageType } from "@tau/shared";
 
-export interface ChatTabProps {
+export interface ChatPageProps {
   wsClient: WebSocketClient | null;
   url: string | null;
+  onBack: () => void;
   additionalSystemPrompt?: string;
+  /** 从本页流的输入框带进来的消息：就绪后发进当前对话，只发一次 */
+  pendingMessage?: MessageContentItem[] | null;
+  onPendingConsumed?: () => void;
 }
 
-export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }: ChatTabProps) {
+/** 对话二级页：当前网页的对话（会话按页面存于桌面），顶栏切换 / 新建对话 */
+export default function ChatPage({
+  wsClient,
+  url,
+  onBack,
+  additionalSystemPrompt,
+  pendingMessage,
+  onPendingConsumed,
+}: ChatPageProps) {
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("off");
   const { confirm: confirmPrompt, confirmDialog } = useConfirmPrompt();
 
-  const { themeMode } = useThemeStore();
-  const resolvedTheme = useTheme(themeMode);
-  const isDark = resolvedTheme === "dark";
+  const isDark = useIsDark();
 
   const { client: aiWsClient, status: aiWsStatus } = useAiServerWebSocket();
 
@@ -295,42 +306,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     [confirmPrompt]
   );
 
-  const chatInputServices: ChatInputAreaServices = useMemo(
-    () => ({
-      uploadFile: async (file: File) => {
-        if (!aiWsClient?.isConnected) {
-          throw new Error("WebSocket 未连接");
-        }
-        const buffer = await file.arrayBuffer();
-        const base64 = btoa(
-          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
-        );
-        const result = (await aiWsClient.sendRequest("resource.upload", {
-          data: base64,
-          name: file.name,
-          type: file.type,
-        })) as { url: string | null };
-        return result.url;
-      },
-      convertFileSrc: async (path: string) => {
-        if (!aiWsClient?.isConnected) {
-          return path;
-        }
-        const result = (await aiWsClient.sendRequest("file.convertFileSrc", {
-          path,
-        })) as { url: string };
-        return result.url;
-      },
-      getHomeDir: async () => {
-        if (!aiWsClient?.isConnected) {
-          return "";
-        }
-        const result = (await aiWsClient.sendRequest("file.getHomeDir", {})) as { homeDir: string };
-        return result.homeDir;
-      },
-    }),
-    [aiWsClient]
-  );
+  const chatInputServices = useChatInputServices(aiWsClient);
 
   const handleSendMessageContent = useCallback(
     (content: MessageContentItem[]) => {
@@ -349,28 +325,35 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     setTimeout(forceScrollToBottom, 0);
   }, [enableAutoScroll, forceScrollToBottom]);
 
-  const chatHeader = useMemo(() => {
-    if (isSessionsLoading) {
-      return null;
-    }
-    return (
-      <ChatDropdownSelector
-        chats={sessions}
-        currentChat={currentSession}
-        onChatSelect={selectSession}
-        onTitleChange={title => updateSessionTitle(currentSession.id, title)}
-        onChatDelete={deleteSession}
-      />
-    );
+  // 本页流输入框带进来的消息：会话与连接都就绪后发出
+  const pendingSentRef = useRef(false);
+  useEffect(() => {
+    if (!pendingMessage?.length || pendingSentRef.current) return;
+    if (isSessionsLoading || !isConnected) return;
+    pendingSentRef.current = true;
+    handleUserSend();
+    handleSendMessageContent(pendingMessage);
+    onPendingConsumed?.();
   }, [
-    createSession,
-    currentSession,
-    deleteSession,
+    handleSendMessageContent,
+    handleUserSend,
+    isConnected,
     isSessionsLoading,
-    selectSession,
-    sessions,
-    updateSessionTitle,
+    onPendingConsumed,
+    pendingMessage,
   ]);
+
+  const chatTitle = isSessionsLoading ? (
+    "对话"
+  ) : (
+    <ChatDropdownSelector
+      chats={sessions}
+      currentChat={currentSession}
+      onChatSelect={selectSession}
+      onTitleChange={title => updateSessionTitle(currentSession.id, title)}
+      onChatDelete={deleteSession}
+    />
+  );
 
   useEffect(() => {
     setTimeout(forceScrollToBottom, 100);
@@ -383,8 +366,22 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
   }, [messages, scrollToBottom]);
 
   return (
-    <>
+    <div className="flex h-full flex-col">
       {confirmDialog}
+      <SubpageHeader
+        title={chatTitle}
+        onBack={onBack}
+        actions={
+          <IconButton
+            aria-label="新建对话"
+            title="新建对话"
+            className="size-8"
+            onClick={() => void createSession()}
+          >
+            <SquarePen size={16} strokeWidth={1.75} />
+          </IconButton>
+        }
+      />
       <ChatContainerCore
         ref={coreRef}
         isConnected={isConnected}
@@ -409,9 +406,8 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         onSendMessageContent={handleSendMessageContent}
         onUserSend={handleUserSend}
         onStopGeneration={stopGeneration}
-        chatHeader={chatHeader}
         messagesContainerRef={messagesContainerRef}
-        messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+        messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-4 py-1 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
         renderInputWrapper={inputNode => (
           // 外框与桌面对话输入框一致；＋ 面板按它的矩形定位（同宽、贴上沿）
           <div
@@ -454,6 +450,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
           </div>
         )}
       />
-    </>
+    </div>
   );
 }

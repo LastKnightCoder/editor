@@ -148,6 +148,12 @@
         "apps/desktop/mockups/export-image"
       ],
       "port": 8831
+    },
+    {
+      "name": "ext-sidepanel-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8815", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8815
     }
   ]
 }
