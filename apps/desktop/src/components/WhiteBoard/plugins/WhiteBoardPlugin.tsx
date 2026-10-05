@@ -141,26 +141,21 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
-    board.refLine.setCurrentRects([
-      {
-        key: newElement.id,
+    const snapped = board.snap.resize({
+      element: newElement,
+      bounds: {
         x: newBBox.x,
         y: element.y,
         width: newBBox.width,
         height: WHITEBOARD_CARD_HEIGHT,
       },
-    ]);
-    const updateElement = board.refLine.getUpdateCurrent(
-      isAdsorb,
-      5 / board.viewPort.zoom,
-      true,
-      position
-    );
-    board.refLine.setCurrent(updateElement);
-    newElement.x = updateElement.rects[0].x;
-    // y 坐标保持不变
-    newElement.width = updateElement.rects[0].width;
-    // 高度保持固定值
+      position,
+      enabled: isAdsorb,
+      axes: ["x"],
+    });
+    newElement.x = snapped.x;
+    newElement.width = snapped.width;
+    newElement.maxWidth = snapped.width;
 
     const ops = BoardUtil.diffNodePatchOnly(element, newElement, path);
     if (ops.length > 0) {

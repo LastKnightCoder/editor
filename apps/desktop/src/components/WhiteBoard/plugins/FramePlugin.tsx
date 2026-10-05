@@ -378,13 +378,6 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     super.onResizeEnd(board);
-
-    // 清除参考线和重置状态
-    this.originResizeElement = null;
-    board.refLine.setCurrent({
-      rects: [],
-      lines: [],
-    });
   }
 
   render(_board: Board, { element, children }: { element: FrameElement; children?: any }) {

@@ -7,15 +7,7 @@ import {
   Point,
   CustomOffset,
 } from "../types";
-import {
-  isRectIntersect,
-  selectAreaToRect,
-  getResizedBBox,
-  PathUtil,
-  BoardUtil,
-  Rect,
-  isValid,
-} from "../utils";
+import { isRectIntersect, selectAreaToRect, getResizedBBox, PathUtil, BoardUtil } from "../utils";
 import { ARROW_CONNECT_ID } from "../constants";
 import { SelectTransforms } from "../transforms";
 
@@ -142,10 +134,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
 
   // 自定义连接点：按相对坐标 uv 重算绝对坐标，与 5 个固定点统一为 uv 模型，
   // 这样图形移动/缩放时连接点天然跟随（resize 时因 uv 不变而按比例缩放）。
-  static getCustomBindPoint(
-    element: CommonElement,
-    customOffset: CustomOffset,
-  ): Point {
+  static getCustomBindPoint(element: CommonElement, customOffset: CustomOffset): Point {
     const { x, y, width, height } = element;
     return {
       x: x + customOffset.u * width,
@@ -157,7 +146,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     _board: Board,
     element: CommonElement,
     connectId: string,
-    customOffset?: CustomOffset,
+    customOffset?: CustomOffset
   ) {
     const { x, y, width, height } = element;
 
@@ -202,12 +191,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     return x >= left && x <= left + width && y >= top && y <= top + height;
   }
 
-  moveElement(
-    _board: Board,
-    element: CommonElement & any,
-    dx: number,
-    dy: number,
-  ) {
+  moveElement(_board: Board, element: CommonElement & any, dx: number, dy: number) {
     return {
       ...element,
       x: element.x + dx,
@@ -228,7 +212,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
   isElementSelected(
     board: Board,
     element: CommonElement & any,
-    selectArea: Selection["selectArea"] = board.selection.selectArea,
+    selectArea: Selection["selectArea"] = board.selection.selectArea
   ) {
     if (!selectArea) return false;
     const selectRect = selectAreaToRect(selectArea);
@@ -246,7 +230,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio = false,
-    isAdsorb = false,
+    isAdsorb = false
   ) {
     if (!this.originResizeElement) return;
     const newBBox = getResizedBBox(
@@ -254,7 +238,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
       position,
       startPoint,
       endPoint,
-      isPreserveRatio,
+      isPreserveRatio
     );
     const newElement = {
       ...element,
@@ -263,50 +247,13 @@ export abstract class CommonPlugin implements IBoardPlugin {
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
-    let childRects: Rect[] = [];
-    // 容器整体参与参考线：子元素边界也不显示为参考线（能力查询，无类型硬编码）
-    const capService = board.capabilityService;
-    if (capService.isContainer(newElement)) {
-      childRects = capService
-        .collectMoveSubtree(newElement)
-        .slice(1)
-        .map((child) => {
-          if (
-            "x" in child &&
-            "y" in child &&
-            "width" in child &&
-            "height" in child
-          ) {
-            return {
-              key: child.id,
-              x: child.x,
-              y: child.y,
-              width: child.width,
-              height: child.height,
-            };
-          }
-          return null;
-        })
-        .filter(isValid) as Rect[];
-    }
-    board.refLine.setCurrentRects([
-      {
-        key: newElement.id,
-        ...newBBox,
-      },
-      ...childRects,
-    ]);
-    const updateElements = board.refLine.getUpdateCurrent(
-      isAdsorb,
-      5 / board.viewPort.zoom,
-      true,
+    const updateElement = board.snap.resize({
+      element: newElement,
+      bounds: newBBox,
       position,
-    );
-    board.refLine.setCurrent(updateElements);
-    const updateElement = updateElements.rects.find(
-      (element) => element.key === newElement.id,
-    );
-    if (!updateElement) return;
+      enabled: isAdsorb,
+      preserveRatio: isPreserveRatio,
+    });
 
     // 注意：容器类元素（Frame/Column 等）常带有 children。
     // 这里仅通过 set_node patch 更新 bbox 字段，避免把 children 一起写入操作历史。
@@ -333,7 +280,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
         properties: oldBBoxPatch,
         newProperties: newBBoxPatch,
       },
-      false,
+      false
     );
 
     SelectTransforms.updateSelectArea(board, {
@@ -373,12 +320,9 @@ export abstract class CommonPlugin implements IBoardPlugin {
           },
         ]);
       }
-      this.originResizeElement = null;
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
     }
+    this.originResizeElement = null;
+    board.snap.end();
   }
 }
 
