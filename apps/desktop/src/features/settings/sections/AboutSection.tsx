@@ -5,7 +5,8 @@
  * - 顶部应用卡：图标 / 名称 / 版本 + 更新状态签与对应动作（检查 / 下载 / 重启并安装），
  *   下载中显示进度条，有可用更新或出错时提供「手动下载」外链；状态全部来自 useUpdateStore
  *   （主进程事件由全局 AutoUpdateChecker 挂载，本页只读状态与触发动作）
- * - 更新：自动检查更新开关（misc.update.autoCheck）
+ * - 有可用更新时在应用卡下方展示跨越版本的升级公告（来自 latest*.yml）
+ * - 更新：自动检查更新开关（misc.update.autoCheck）；本版更新内容（安装包内置公告）
  * - 命令行工具：tau 命令安装状态与安装 / 卸载；legacy 无平台判定、取状态失败即视为不可用，
  *   这里同样以取状态成功为渲染条件
  */
@@ -18,6 +19,9 @@ import useSettingStore from "@/stores/useSettingStore";
 import { useUpdateStore, type UpdateStatus } from "@/stores/useUpdateStore";
 import { getCliStatus, getVersions, installCli, openExternal, uninstallCli } from "@/commands";
 import { platform } from "@/platform";
+import { bundledNotesBetween } from "@/features/release-notes/notes";
+import { ReleaseNotesContent } from "@/features/release-notes/ReleaseNotesContent";
+import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
@@ -35,6 +39,7 @@ export function AboutSection() {
   const fallbackUrl = useUpdateStore(s => s.fallbackUrl);
   const progress = useUpdateStore(s => s.progress);
   const errorMessage = useUpdateStore(s => s.errorMessage);
+  const releaseNotes = useUpdateStore(s => s.releaseNotes);
   const autoCheck = useSettingStore(s => s.setting.misc.update.autoCheck);
   const setAutoCheck = useSettingStore(s => s.setAutoCheckUpdate);
 
@@ -80,6 +85,7 @@ export function AboutSection() {
   };
 
   const percent = Math.round(progress);
+  const currentNotes = version ? bundledNotesBetween(null, version) : [];
   const showFallback = (status === "available" || status === "error") && !!fallbackUrl;
 
   return (
@@ -157,10 +163,29 @@ export function AboutSection() {
         </Panel>
       </SettingsGroup>
 
+      {releaseNotes.length > 0 && (
+        <SettingsGroup title={`v${releaseNotes[0].version} 更新内容`}>
+          <Panel pad="none" className="rounded-[14px] px-5 py-4">
+            <ReleaseNotesContent notes={releaseNotes} />
+          </Panel>
+        </SettingsGroup>
+      )}
+
       <SettingsGroup title="更新">
         <SettingRow title="自动检查更新" description="启动时在后台检查，有新版本在这里提示">
           <Switch aria-label="自动检查更新" checked={autoCheck} onCheckedChange={setAutoCheck} />
         </SettingRow>
+        {currentNotes.length > 0 && (
+          <SettingRow title="本版更新内容" description={`v${version} 带来的变化`}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => useReleaseNotesStore.getState().show(currentNotes)}
+            >
+              查看
+            </Button>
+          </SettingRow>
+        )}
       </SettingsGroup>
 
       {cli && (

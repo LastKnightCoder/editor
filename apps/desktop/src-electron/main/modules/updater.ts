@@ -1,13 +1,22 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { stat } from "node:fs/promises";
+import { join } from "node:path";
+import fsExtra from "fs-extra/esm";
 import log from "electron-log";
 import electronUpdaterPkg from "electron-updater";
 import { isAppQuitting } from "../app-quit-controller";
 import { Module } from "../types/module";
+import PathUtil from "../utils/PathUtil";
 
 const { autoUpdater } = electronUpdaterPkg;
 
 // 与 electron-builder.yml 的 publish url 保持一致，用于组装手动下载兜底地址
 const UPDATE_FEED_URL = "https://release-bin.oss-cn-shanghai.aliyuncs.com/desktop";
+
+export interface ReleaseNote {
+  version: string;
+  note: string;
+}
 
 export interface UpdateCheckPayload {
   available: boolean;
@@ -15,6 +24,50 @@ export interface UpdateCheckPayload {
   version: string | null;
   releaseDate: string | null;
   fallbackUrl: string | null;
+  /** latest*.yml 中截至新版本的全部公告，由渲染端按当前版本截取 */
+  releaseNotes: ReleaseNote[];
+}
+
+export interface VersionChangePayload {
+  /** 上次启动的版本；首次安装或无变化时为 null */
+  previousVersion: string | null;
+  currentVersion: string;
+}
+
+const VERSION_STATE_FILE = "version-state.json";
+
+/** electron-updater 的 releaseNotes 可能是字符串（单版本）或 {version, note} 数组 */
+function normalizeReleaseNotes(raw: unknown, version: string | undefined): ReleaseNote[] {
+  if (typeof raw === "string") return version && raw.trim() ? [{ version, note: raw }] : [];
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (item): item is ReleaseNote =>
+      typeof item?.version === "string" && typeof item?.note === "string"
+  );
+}
+
+/**
+ * 读出上次启动的版本并记录本次版本。
+ * 没有记录时，若 setting.json 早于本进程创建，说明是从尚未记录版本的旧版升级而来，
+ * 以空字符串表示「来源版本未知」，渲染端据此只展示本版公告。
+ */
+async function recordLaunchVersion(currentVersion: string): Promise<string | null> {
+  const appDir = PathUtil.getAppDir();
+  const stateFile = join(appDir, VERSION_STATE_FILE);
+  let previousVersion: string | null = null;
+  try {
+    const state = await fsExtra.readJson(stateFile);
+    previousVersion = typeof state?.lastVersion === "string" ? state.lastVersion : null;
+  } catch {
+    const processStartMs = Date.now() - process.uptime() * 1000;
+    const settingStat = await stat(join(appDir, "setting.json")).catch(() => null);
+    const birthtimeMs = settingStat?.birthtimeMs ?? 0;
+    if (birthtimeMs > 0 && birthtimeMs < processStartMs) previousVersion = "";
+  }
+  if (previousVersion !== currentVersion) {
+    await fsExtra.outputJson(stateFile, { lastVersion: currentVersion });
+  }
+  return previousVersion === currentVersion ? null : previousVersion;
 }
 
 export interface UpdateDownloadProgressPayload {
@@ -33,8 +86,16 @@ class UpdaterModule implements Module {
   name = "updater";
   private downloading = false;
   private fallbackUrl: string | null = null;
+  private versionChange: VersionChangePayload | null = null;
 
   async init(): Promise<void> {
+    const currentVersion = app.getVersion();
+    try {
+      const previousVersion = await recordLaunchVersion(currentVersion);
+      this.versionChange = { previousVersion, currentVersion };
+    } catch (error) {
+      log.error("updater record launch version failed:", error);
+    }
     autoUpdater.logger = log;
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
@@ -68,6 +129,7 @@ class UpdaterModule implements Module {
           version: null,
           releaseDate: null,
           fallbackUrl: null,
+          releaseNotes: [],
         };
       }
       const result = await autoUpdater.checkForUpdates();
@@ -79,7 +141,15 @@ class UpdaterModule implements Module {
         version: updateInfo?.version ?? null,
         releaseDate: updateInfo?.releaseDate ?? null,
         fallbackUrl: this.fallbackUrl,
+        releaseNotes: normalizeReleaseNotes(updateInfo?.releaseNotes, updateInfo?.version),
       };
+    });
+
+    // 只交付一次：渲染端重载不重复提示
+    ipcMain.handle("updater:take-version-change", (): VersionChangePayload => {
+      const change = this.versionChange ?? { previousVersion: null, currentVersion };
+      this.versionChange = { previousVersion: null, currentVersion };
+      return change;
     });
 
     ipcMain.handle("updater:download", async (): Promise<{ started: boolean }> => {

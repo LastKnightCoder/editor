@@ -7,7 +7,9 @@ import {
   onUpdateDownloadProgress,
   onUpdateDownloaded,
   onUpdateError,
+  type ReleaseNote,
 } from "@/commands/updater";
+import { notesBetween } from "@/features/release-notes/notes";
 
 export type UpdateStatus =
   | "idle" // 未检查
@@ -23,6 +25,8 @@ interface UpdateState {
   currentVersion: string | null;
   newVersion: string | null;
   fallbackUrl: string | null;
+  /** 从当前版本到新版本之间（不含当前版本）的公告，从新到旧 */
+  releaseNotes: ReleaseNote[];
   /** 本次 available 结果来自启动自动检查还是手动检查 */
   autoChecked: boolean;
   progress: number;
@@ -42,6 +46,7 @@ export const useUpdateStore = create<UpdateState>()((set, get) => ({
   currentVersion: null,
   newVersion: null,
   fallbackUrl: null,
+  releaseNotes: [],
   autoChecked: false,
   progress: 0,
   errorMessage: null,
@@ -55,6 +60,10 @@ export const useUpdateStore = create<UpdateState>()((set, get) => ({
         currentVersion: result.currentVersion,
         newVersion: result.version,
         fallbackUrl: result.fallbackUrl,
+        releaseNotes:
+          result.available && result.version
+            ? notesBetween(result.releaseNotes, result.currentVersion, result.version)
+            : [],
         autoChecked: Boolean(options?.silent),
       });
     } catch (error) {
