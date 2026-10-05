@@ -133,6 +133,9 @@ export function recurrenceText(recurrence: TodoRecurrence): string {
 
 /* ---------- 完成态 ---------- */
 
+/** 待办拖进日历的 dataTransfer 类型（值为待办 id），与 application/x-tau-question 同约定 */
+export const TODO_DRAG_TYPE = "application/x-tau-todo";
+
 /** 「未完成」口径：一次性任务看 isCompleted；周期任务看今天是否已打卡（非计划日视为未完成——它仍是活跃习惯） */
 export function isOpen(entry: TodoEntry, now: number): boolean {
   return entry.type === "recurring" ? !doneToday(entry, now) : !entry.isCompleted;
@@ -141,15 +144,7 @@ export function isOpen(entry: TodoEntry, now: number): boolean {
 export function isOverdue(entry: TodoEntry, now: number): boolean {
   if (entry.isCompleted) return false;
   if (entry.type === "deadline" && entry.dueAt != null) return dayDiff(entry.dueAt, now) < 0;
-  if (entry.type === "planned" && entry.dueAt != null) return dayDiff(entry.dueAt, now) < 0;
   return false;
-}
-
-/** 计划任务今天处于起止区间内 */
-export function isRunning(entry: TodoEntry, now: number): boolean {
-  if (entry.type !== "planned" || entry.startAt == null) return false;
-  const end = entry.dueAt ?? entry.startAt;
-  return dayDiff(entry.startAt, now) <= 0 && dayDiff(end, now) >= 0;
 }
 
 /* ---------- 议程分段与排序 ---------- */
@@ -166,13 +161,6 @@ export function bucketOf(entry: TodoEntry, now: number): BucketKey {
   switch (entry.type) {
     case "deadline":
       return entry.dueAt == null ? "none" : bucketForDay(dayDiff(entry.dueAt, now), now);
-    case "planned": {
-      if (entry.startAt == null && entry.dueAt == null) return "none";
-      if (isRunning(entry, now)) return "today";
-      const end = entry.dueAt ?? entry.startAt!;
-      if (dayDiff(end, now) < 0) return "overdue";
-      return bucketForDay(dayDiff(entry.startAt ?? end, now), now);
-    }
     case "recurring": {
       if (!entry.recurrence) return "none";
       const next = nextOccurrence(entry.recurrence, now);
@@ -183,15 +171,11 @@ export function bucketOf(entry: TodoEntry, now: number): BucketKey {
   }
 }
 
-/** 段内排序键：截止看 dueAt、计划看开始、周期看下一次计划日（全天，排在同日带时刻项之前） */
+/** 段内排序键：截止看 dueAt、周期看下一次计划日（全天，排在同日带时刻项之前） */
 export function sortKey(entry: TodoEntry, now: number): number {
   switch (entry.type) {
     case "deadline":
       return entry.dueAt ?? Number.MAX_SAFE_INTEGER;
-    case "planned":
-      return isRunning(entry, now)
-        ? startOfDay(now)
-        : (entry.startAt ?? entry.dueAt ?? Number.MAX_SAFE_INTEGER);
     case "recurring":
       return entry.recurrence
         ? (nextOccurrence(entry.recurrence, now) ?? Number.MAX_SAFE_INTEGER)

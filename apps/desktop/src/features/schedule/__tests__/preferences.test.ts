@@ -38,6 +38,7 @@ describe("日程偏好迁移", () => {
       showSystemSection: true,
       showMyCalendarSection: true,
       showArchivedSection: false,
+      showTodoPanel: false,
     });
   });
 

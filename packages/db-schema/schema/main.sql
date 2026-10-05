@@ -519,7 +519,10 @@ CREATE TABLE IF NOT EXISTS pomodoro_sessions (
         pauses TEXT NOT NULL DEFAULT '[]',
         status TEXT NOT NULL,
         create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
+        update_time INTEGER NOT NULL,
+        bound_event_id INTEGER,
+        bound_todo_id INTEGER,
+        bound_title TEXT
       );
 CREATE TABLE IF NOT EXISTS pomodoro_calendar_mapping (
         id INTEGER PRIMARY KEY,
@@ -560,7 +563,8 @@ CREATE TABLE IF NOT EXISTS calendar_event (
         start_time INTEGER,
         end_time INTEGER,
         color TEXT,
-        all_day INTEGER DEFAULT 0
+        all_day INTEGER DEFAULT 0,
+        todo_item_id INTEGER
       );
 CREATE TABLE IF NOT EXISTS weread_notebook (
         book_id TEXT PRIMARY KEY,
@@ -831,6 +835,7 @@ CREATE INDEX IF NOT EXISTS idx_calendar_event_calendar_id ON calendar_event(cale
 CREATE INDEX IF NOT EXISTS idx_calendar_event_start_date ON calendar_event(start_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_end_date ON calendar_event(end_date);
 CREATE INDEX IF NOT EXISTS idx_calendar_event_date_range ON calendar_event(start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_calendar_event_todo_item ON calendar_event(todo_item_id);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_title ON weread_notebook(title);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_reading_status ON weread_notebook(reading_status);
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook(last_read_date);

@@ -40,6 +40,7 @@ import {
   Canvas2DRenderer,
   MAP_CARD_LABEL_SCALE,
   MAP_SUBTOPIC_LABEL_SCALE,
+  type Box,
 } from "./renderers/Canvas2DRenderer";
 
 /** 超过这个位移才算拖拽，否则算点击（避免手抖吞掉点击） */
@@ -85,8 +86,11 @@ export interface GraphEngineOptions {
    * 宿主据此做洞见提示；批次 6 的 AI 分析也从这里取上下文。
    */
   onClusters?: (insight: GraphInsight) => void;
-  /** 悬停达到延迟后回调，宿主据此挂预览面板；id 为 null 表示收起 */
-  onHoverNode?: (payload: { id: number; canvasX: number; canvasY: number } | null) => void;
+  /**
+   * 悬停达到延迟后回调，宿主据此挂预览面板；id 为 null 表示收起。
+   * box 是节点圆连同其标题的占位框（画布坐标），面板须避开它，否则会盖住节点没法点
+   */
+  onHoverNode?: (payload: { id: number; box: Box } | null) => void;
   /**
    * 指针离开画布时，去往的元素若返回 true 就保持悬停（宿主用来放行自己的预览面板）。
    * 保持期间悬停的结束由宿主调 clearHover 决定
@@ -621,6 +625,22 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     return { x, y: y + node.radius * camera.scale };
   });
 
+  /** 节点圆与悬停标题的并集（画布坐标） */
+  const hoverBoxOf = useMemoizedFn((id: number): Box | null => {
+    const node = sceneRef.current?.nodeById.get(id);
+    const camera = cameraRef.current;
+    if (!node || !camera) return null;
+    const [x, y] = camera.toCanvas(node.x, node.y);
+    const r = node.radius * camera.scale;
+    const label = rendererRef.current?.hoverLabelBox();
+    return {
+      left: Math.min(x - r, label?.left ?? Infinity),
+      top: y - r,
+      right: Math.max(x + r, label?.right ?? -Infinity),
+      bottom: Math.max(y + r, label?.bottom ?? -Infinity),
+    };
+  });
+
   // ---- 指针交互
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -721,15 +741,8 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       hoverTimerRef.current = setTimeout(() => {
         hoverTimerRef.current = null;
         if (hoveredRef.current !== nextId) return;
-        // 预览面板挂在标题下方而不是光标处：挂在光标处时面板正好压在标题上，
-        // 鼠标一碰面板画布就收到 pointerleave，悬停断开、面板消失，又回到悬停……
-        const box = rendererRef.current?.hoverLabelBox();
-        const below = anchorOf(nextId);
-        onHoverNode?.({
-          id: nextId,
-          canvasX: box?.left ?? below?.x ?? x,
-          canvasY: box?.bottom ?? below?.y ?? y,
-        });
+        const box = hoverBoxOf(nextId);
+        if (box) onHoverNode?.({ id: nextId, box });
       }, HOVER_DELAY);
     };
 
@@ -794,7 +807,15 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       canvas.removeEventListener("pointerleave", onPointerLeave);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [anchorOf, clearHover, enableHoverPreview, keepHoverOnLeave, onClickNode, onHoverNode]);
+  }, [
+    anchorOf,
+    clearHover,
+    enableHoverPreview,
+    hoverBoxOf,
+    keepHoverOnLeave,
+    onClickNode,
+    onHoverNode,
+  ]);
 
   useEffect(() => {
     if (enableHoverPreview) return;

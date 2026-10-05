@@ -2,9 +2,8 @@
  * 新建日程弹窗（tau Dialog）：表单见 useEventForm。已有日程的查看 / 编辑走右侧 EventDrawer。
  */
 
-import { useState } from "react";
 import { Trash2 } from "lucide-react";
-import { Button, ConfirmDialog, Dialog, DialogBody } from "@tau/ui";
+import { Button, Dialog, DialogBody } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
 import { useEventForm } from "./useEventForm";
 
@@ -12,7 +11,6 @@ const EventDialog = () => {
   const editingEvent = useScheduleStore(s => s.editingEvent);
   const close = () => useScheduleStore.getState().setEditingEvent(null);
   const form = useEventForm(editingEvent, close, { autoFocusTitle: true });
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
     <>
@@ -34,7 +32,7 @@ const EventDialog = () => {
                 icon={Trash2}
                 className="mr-auto"
                 disabled={form.saving}
-                onClick={() => setConfirmDelete(true)}
+                onClick={form.remove}
               >
                 删除
               </Button>
@@ -56,20 +54,6 @@ const EventDialog = () => {
       >
         <DialogBody>{form.fields}</DialogBody>
       </Dialog>
-
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        danger
-        title="删除日程"
-        context={editingEvent?.title}
-        description="删除后不可恢复。"
-        confirmText="删除"
-        onConfirm={async () => {
-          await form.remove();
-          setConfirmDelete(false);
-        }}
-      />
     </>
   );
 };

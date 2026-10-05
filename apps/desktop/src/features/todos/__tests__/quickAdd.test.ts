@@ -19,6 +19,7 @@ describe("parseQuickAdd", () => {
       startAt: null,
       recurrence: null,
       groupId: 1,
+      schedule: null,
     });
   });
 
@@ -32,12 +33,15 @@ describe("parseQuickAdd", () => {
     expect(parse("周六 洗车")).toMatchObject({ dueAt: at(9, 26) });
   });
 
-  it("时段 → 计划任务", () => {
+  it("时段 → 普通任务 + 安排进该时段；跨零点截到当天", () => {
     expect(parse("周六 10:00-12:00 读书")).toMatchObject({
-      type: "planned",
-      startAt: at(9, 26, 10),
-      dueAt: at(9, 26, 12),
+      type: "normal",
+      dueAt: null,
+      schedule: { startDate: at(9, 26), startTime: 600, endTime: 720 },
       title: "读书",
+    });
+    expect(parse("今天 23:00-01:00 熬夜")).toMatchObject({
+      schedule: { startDate: at(9, 24), startTime: 1380, endTime: 1439 },
     });
   });
 
@@ -71,9 +75,8 @@ describe("parseQuickAdd", () => {
     expect(parse("28号 交房租")).toMatchObject({ dueAt: at(9, 28), title: "交房租" });
     expect(parse("明早九点半 晨跑")).toMatchObject({ dueAt: at(9, 25, 9, 30), title: "晨跑" });
     expect(parse("明天下午3点到5点 写周报")).toMatchObject({
-      type: "planned",
-      startAt: at(9, 25, 15),
-      dueAt: at(9, 25, 17),
+      type: "normal",
+      schedule: { startDate: at(9, 25), startTime: 900, endTime: 1020 },
       title: "写周报",
     });
   });

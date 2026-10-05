@@ -17,10 +17,11 @@ import {
   setBackgroundSound,
   startPomodoroSession,
   stopPomodoroSession,
+  updatePomodoroBinding,
 } from "@/commands/pomodoro";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import type { BackgroundSoundType } from "@/types/pomodoro";
-import type { PomodoroPreset, PomodoroSession } from "@/types";
+import type { PomodoroBindTarget, PomodoroPreset, PomodoroSession } from "@/types";
 import { endedSession, sessionTiming, type EndedSession } from "./model";
 
 export interface PomodoroEndResult extends EndedSession {
@@ -53,7 +54,10 @@ const sameSession = (a: PomodoroSession | null, b: PomodoroSession | null) =>
     a.startTime === b.startTime &&
     a.status === b.status &&
     a.pauseCount === b.pauseCount &&
-    a.pauseTotalMs === b.pauseTotalMs);
+    a.pauseTotalMs === b.pauseTotalMs &&
+    a.boundEventId === b.boundEventId &&
+    a.boundTodoId === b.boundTodoId &&
+    a.boundTitle === b.boundTitle);
 
 function applySession(next: PomodoroSession | null) {
   const { session: prev, lastResult } = usePomodoroTimer.getState();
@@ -117,10 +121,12 @@ useBackendWebsocketStore.subscribe((state, prev) => {
 /* ---------- 命令 ---------- */
 
 export const pomodoroActions = {
-  start(preset: PomodoroPreset) {
-    const expected = preset.mode === "countdown" ? preset.durationMin * 60_000 : undefined;
-    return startPomodoroSession(preset.id, expected);
+  start(preset: PomodoroPreset, target?: PomodoroBindTarget | null) {
+    const expectedMs = preset.mode === "countdown" ? preset.durationMin * 60_000 : undefined;
+    return startPomodoroSession({ presetId: preset.id, expectedMs, target });
   },
+  /** 修改 / 清除进行中会话的绑定 */
+  bind: (target: PomodoroBindTarget | null) => updatePomodoroBinding(target),
   pause: () => pausePomodoroSession(),
   resume: () => resumePomodoroSession(),
   toggle() {

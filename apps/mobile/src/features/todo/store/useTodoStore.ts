@@ -27,7 +27,6 @@ const TODO_SYSTEM_TYPES: Exclude<TodoSystemGroupType, null>[] = [
   "all",
   "normal",
   "deadline",
-  "planned",
   "recurring",
 ];
 

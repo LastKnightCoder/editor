@@ -150,7 +150,7 @@ describe("地图洞见的模型", () => {
   it("主动作：呼应与重复连接，同一思路知道了，其余记为问题", () => {
     expect(primaryAction(mark("bridge"))).toBe("connect");
     expect(primaryAction(mark("dup"))).toBe("connect");
-    expect(primaryAction(mark("pattern"))).toBe("acknowledge");
+    expect(primaryAction(mark("pattern"))).toBe("write");
     expect(primaryAction(mark("conflict"))).toBe("question");
     expect(primaryAction(mark("gap"))).toBe("question");
   });

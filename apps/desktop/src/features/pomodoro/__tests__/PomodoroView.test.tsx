@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { PomodoroPreset, PomodoroSession } from "@/types";
+import type { CalendarEvent, PomodoroPreset, PomodoroSession } from "@/types";
 import { usePomodoroTimer } from "../timerStore";
 import { PomodoroView } from "../views/PomodoroView";
 
@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   stop: vi.fn(),
   pause: vi.fn(),
   resume: vi.fn(),
+  events: [] as CalendarEvent[],
 }));
 
 vi.mock("@/commands/pomodoro", () => ({
@@ -39,6 +40,13 @@ vi.mock("@/commands/pomodoro", () => ({
   reorderPomodoroPresets: vi.fn(),
   deletePomodoroSession: vi.fn(),
   updatePomodoroSession: vi.fn(),
+}));
+vi.mock("@/features/schedule/queries", () => ({
+  useEventsOfDay: () => mocks.events,
+  useCalendarRoles: () => new Map(),
+}));
+vi.mock("@/features/todos/queries", () => ({
+  useTodoSnapshot: () => ({ snapshot: undefined, loading: false }),
 }));
 vi.mock("@/commands/window", () => ({
   openPomodoroMiniWindow: vi.fn(),
@@ -112,6 +120,7 @@ beforeEach(() => {
     record(9, NOW - 40 * 24 * 60 * MIN, 25, 25),
   ];
   for (const fn of [mocks.start, mocks.stop, mocks.pause, mocks.resume]) fn.mockReset();
+  mocks.start.mockResolvedValue(null);
   usePomodoroTimer.setState({ session: null, lastResult: null, ready: true });
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -150,9 +159,17 @@ it("空闲：左栏列出预设（带数字键），今天摘要来自近期会�
 it("点行尾 ▶ 即开始：倒计时带预期时长，正计时不带", async () => {
   await render();
   act(() => (container.querySelector('[data-preset-start="1"]') as HTMLElement).click());
-  expect(mocks.start).toHaveBeenCalledWith(1, 25 * MIN);
+  expect(mocks.start).toHaveBeenCalledWith({
+    presetId: 1,
+    expectedMs: 25 * MIN,
+    target: undefined,
+  });
   act(() => (container.querySelector('[data-preset-start="3"]') as HTMLElement).click());
-  expect(mocks.start).toHaveBeenLastCalledWith(3, undefined);
+  expect(mocks.start).toHaveBeenLastCalledWith({
+    presetId: 3,
+    expectedMs: undefined,
+    target: undefined,
+  });
 });
 
 it("点预设行打开详情抽屉（不开始），抽屉内开始；再点同一行收起", async () => {
@@ -169,7 +186,11 @@ it("点预设行打开详情抽屉（不开始），抽屉内开始；再点同�
     b.textContent?.includes("开始专注")
   );
   act(() => startBtn!.click());
-  expect(mocks.start).toHaveBeenCalledWith(1, 25 * MIN);
+  expect(mocks.start).toHaveBeenCalledWith({
+    presetId: 1,
+    expectedMs: 25 * MIN,
+    target: undefined,
+  });
   act(() => row().click());
   expect(row().getAttribute("aria-current")).toBeNull();
 });
@@ -177,7 +198,11 @@ it("点预设行打开详情抽屉（不开始），抽屉内开始；再点同�
 it("数字键开始第 N 个预设（空闲时）", async () => {
   await render();
   act(() => void window.dispatchEvent(new KeyboardEvent("keydown", { key: "2" })));
-  expect(mocks.start).toHaveBeenCalledWith(2, 30 * MIN);
+  expect(mocks.start).toHaveBeenCalledWith({
+    presetId: 2,
+    expectedMs: 30 * MIN,
+    target: undefined,
+  });
 });
 
 it("专注中：播放器显示剩余；不足 5 分钟结束先弹确认，确认后按未到点结束", async () => {
@@ -245,4 +270,43 @@ it("账本：往前翻页后标题变为日期范围并出现「回到今天」"
   act(() => buttonByText("回到今天")!.click());
   await flush();
   expect(text()).toContain("近 14 天");
+});
+
+it("开始前选「专注于…」，▶ 与数字键都带上；开始后清空", async () => {
+  mocks.events = [
+    {
+      id: 40,
+      createTime: 0,
+      updateTime: 0,
+      calendarId: 1,
+      title: "写季度报告",
+      detailContentId: 0,
+      startDate: new Date(2026, 8, 24).getTime(),
+      endDate: null,
+      startTime: 14 * 60,
+      endTime: 16 * 60,
+      color: null,
+      allDay: false,
+    },
+  ];
+  await render();
+  act(() => (container.querySelector('[aria-label="选择专注于什么"]') as HTMLElement).click());
+  await flush();
+  const option = [...document.querySelectorAll('[role="option"]')].find(el =>
+    el.textContent?.includes("写季度报告")
+  ) as HTMLElement;
+  expect(option.textContent).toContain("进行中");
+  act(() => option.click());
+  expect(container.textContent).toContain("写季度报告");
+
+  await act(async () =>
+    (container.querySelector('[data-preset-start="1"]') as HTMLElement).click()
+  );
+  expect(mocks.start).toHaveBeenCalledWith({
+    presetId: 1,
+    expectedMs: 25 * MIN,
+    target: { kind: "event", eventId: 40 },
+  });
+  expect(container.querySelector('[aria-label="选择专注于什么"]')).not.toBeNull();
+  mocks.events = [];
 });

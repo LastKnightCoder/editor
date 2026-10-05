@@ -1,14 +1,14 @@
 import { Descendant } from "slate";
+import type { CalendarEvent } from "./calendar";
 
-// 任务类型
-export type TodoItemType = "normal" | "deadline" | "planned" | "recurring";
+// 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达，见 D-114）
+export type TodoItemType = "normal" | "deadline" | "recurring";
 
 // 系统组类型
 export type TodoSystemGroupType =
   | "all" // 全部任务
   | "normal" // 普通任务
   | "deadline" // 截止任务
-  | "planned" // 计划任务
   | "recurring" // 周期任务
   | null;
 
@@ -82,8 +82,8 @@ export interface TodoRecurrenceCompletion {
   createTime: number;
 }
 
-// 待办-日历映射
-export type TodoCalendarSyncType = "deadline" | "planned" | "recurring";
+// 待办-日历映射（系统日历物化）
+export type TodoCalendarSyncType = "deadline" | "recurring";
 
 export interface TodoCalendarMapping {
   id: number;
@@ -98,7 +98,8 @@ export interface TodoCalendarMapping {
 export interface TodoCalendarEventSource {
   calendarEventId: number;
   todoItemId: number;
-  syncType: TodoCalendarSyncType;
+  /** linked = 用户日历里关联待办的事件（安排） */
+  syncType: TodoCalendarSyncType | "linked";
   recurrenceDate: number | null;
   /** 周期任务的规则 ID（完成单次需要）；非周期任务为 null */
   recurrenceId: number | null;
@@ -338,4 +339,13 @@ export interface TodoMutationEvent {
   action: string;
   changedFields?: string[];
   timestamp: number;
+}
+
+/** 一条待办的安排概况（日历里关联它的事件） */
+export interface TodoScheduleSummary {
+  /** 尚未结束的最早一条（含进行中） */
+  next?: CalendarEvent;
+  /** 已结束的最近一条 */
+  last?: CalendarEvent;
+  count: number;
 }

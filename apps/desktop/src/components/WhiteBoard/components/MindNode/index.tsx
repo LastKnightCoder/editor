@@ -484,7 +484,7 @@ const MindNode = (props: MindNodeProps) => {
             strokeWidth={2}
           />
         </If>
-        {/* 手绘：底色与外框由墨迹框承担，放在文字之下 */}
+        {/* 手绘：底色与外框由墨迹框承担，放在文字之下；无边框的实色节点只留淡涂，不描同色轮廓 */}
         {sketch.enabled && (
           <SketchRect
             x={x}
@@ -494,7 +494,7 @@ const MindNode = (props: MindNodeProps) => {
             radius={nodeStyle.borderRadius}
             fill={background || undefined}
             washAlpha={1}
-            stroke={nodeStyle.borderWidth > 0 ? nodeStyle.borderColor : background || undefined}
+            stroke={nodeStyle.borderWidth > 0 ? nodeStyle.borderColor : undefined}
             strokeWidth={Math.max(1.2, nodeStyle.borderWidth)}
             level={sketch.level}
             seed={sketch.seed}

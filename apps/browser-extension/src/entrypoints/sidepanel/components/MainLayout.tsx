@@ -1,175 +1,132 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
+import type { MessageContentItem } from "@tau/shared";
 import type WebSocketClient from "../../../utils/WebSocketClient";
-import type { ThemeMode, ResolvedTheme, TabType, PageType } from "../../../utils/types";
-import { useActiveTabUrl } from "../../../hooks/useActiveTabUrl";
-import Header from "./Header";
-import SettingsPage from "./SettingsPage";
-import AllNotesPage from "./AllNotesPage";
-import TabBar from "./TabBar";
-import OverviewTab from "./tabs/OverviewTab";
-import ChatTab from "./tabs/ChatTab";
-import NotesTab from "./tabs/NotesTab";
-import HighlightsTab from "./tabs/HighlightsTab";
+import { useActiveTab } from "../../../hooks/useActiveTab";
+import { PageHeader } from "./PageHeader";
+import PageStream from "./stream/PageStream";
+import ChatPage from "./pages/ChatPage";
+import NotePage, { type NoteIntent } from "./pages/NotePage";
+import HighlightsPage from "./pages/HighlightsPage";
+import AllNotesPage from "./pages/AllNotesPage";
+import SettingsPage from "./pages/SettingsPage";
 
-/** 待选中的笔记信息 */
-export interface PendingNoteSelection {
-  noteId: string;
-  url: string;
-}
+/** 叠在本页流上的二级页 */
+type Subpage =
+  | { name: "chat"; pending?: MessageContentItem[] }
+  /** 笔记按打开时的页面 URL 绑定：编辑途中切换标签页不会串到别的页面 */
+  | { name: "note"; intent: NoteIntent; url: string }
+  | { name: "highlights" }
+  | { name: "allNotes" }
+  | { name: "settings" };
+
+/** 二级页退场动画时长（与 animate-slide-out-right 一致） */
+const SLIDE_OUT_MS = 280;
 
 interface MainLayoutProps {
   wsClient: WebSocketClient | null;
+  aiClient: WebSocketClient | null;
+  connecting: boolean;
   reconnect: () => void;
-  themeMode: ThemeMode;
-  resolvedTheme: ResolvedTheme;
-  onThemeModeChange: (mode: ThemeMode) => void;
 }
 
 /**
- * 主布局组件
- * 管理页面栈导航和 Tab 切换
+ * 侧栏主布局：底层是当前网页的「本页」流（常驻，返回时保留滚动位置），
+ * 对话、笔记编辑、全部高亮、全部笔记、设置从右侧滑入，顶栏「←」返回。
  */
-export default function MainLayout({
-  wsClient,
-  reconnect,
-  themeMode,
-  resolvedTheme,
-  onThemeModeChange,
-}: MainLayoutProps) {
-  const { url } = useActiveTabUrl();
-  const [currentTab, setCurrentTab] = useState<TabType>("overview");
-  const [currentPage, setCurrentPage] = useState<PageType>("main");
-  const [pageAnimating, setPageAnimating] = useState(false);
-  const [pageDirection, setPageDirection] = useState<"in" | "out">("in");
-  const pendingNoteRef = useRef<PendingNoteSelection | null>(null);
-  // 当前页高亮数量，由 HighlightsTab 上报，用于 TabBar 徽标
-  const [highlightCount, setHighlightCount] = useState(0);
+export default function MainLayout({ wsClient, aiClient, connecting, reconnect }: MainLayoutProps) {
+  const tab = useActiveTab();
+  const [subpage, setSubpage] = useState<Subpage | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleHighlightCountChange = useCallback((count: number) => {
-    setHighlightCount(count);
+  const open = useCallback((next: Subpage) => {
+    setLeaving(false);
+    setSubpage(next);
   }, []);
 
-  const navigateTo = useCallback((page: PageType) => {
-    setPageDirection("in");
-    setPageAnimating(true);
-    setCurrentPage(page);
-  }, []);
-
-  const navigateBack = useCallback(() => {
-    setPageDirection("out");
-    setPageAnimating(true);
+  const back = useCallback(() => {
+    setLeaving(true);
     setTimeout(() => {
-      setCurrentPage("main");
-      setPageAnimating(false);
-    }, 280);
+      setSubpage(null);
+      setLeaving(false);
+      setRefreshKey(key => key + 1);
+    }, SLIDE_OUT_MS);
   }, []);
 
-  const handleAnimationEnd = useCallback(() => {
-    if (pageDirection === "in") {
-      setPageAnimating(false);
+  /** 全部笔记里点某条：在当前标签页打开那个网页，再进入那篇笔记 */
+  const openNoteFromAll = useCallback(async (noteUrl: string, noteId: string) => {
+    try {
+      const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (active?.id) await chrome.tabs.update(active.id, { url: noteUrl });
+    } catch (error) {
+      console.error("Failed to navigate tab:", error);
     }
-  }, [pageDirection]);
+    setSubpage({ name: "note", intent: { type: "open", noteId }, url: noteUrl });
+  }, []);
 
-  /** 从全部笔记页面点击某条笔记：打开对应网页、切换到笔记 tab */
-  const handleNoteClick = useCallback(
-    async (noteUrl: string, noteId: string) => {
-      // 1. 将笔记所在的 URL 在当前 tab 打开
-      try {
-        const [tab] = await chrome.tabs.query({
-          active: true,
-          currentWindow: true,
-        });
-        if (tab?.id) {
-          await chrome.tabs.update(tab.id, { url: noteUrl });
-        }
-      } catch (error) {
-        console.error("Failed to navigate tab:", error);
-      }
-
-      // 2. 记录待选中的笔记
-      pendingNoteRef.current = { noteId, url: noteUrl };
-
-      // 3. 切换到笔记 tab 并关闭全部笔记页面
-      setCurrentTab("notes");
-      navigateBack();
-    },
-    [navigateBack]
-  );
-
-  const renderTabContent = () => {
-    switch (currentTab) {
-      case "overview":
-        return <OverviewTab key={url} wsClient={wsClient} url={url} />;
+  const renderSubpage = (page: Subpage) => {
+    switch (page.name) {
       case "chat":
-        return <ChatTab key={url} wsClient={wsClient} url={url} />;
-      case "notes":
         return (
-          <NotesTab
+          <ChatPage
+            key={tab.url}
             wsClient={wsClient}
-            resolvedTheme={resolvedTheme}
-            url={url}
-            pendingNoteRef={pendingNoteRef}
+            url={tab.url}
+            onBack={back}
+            pendingMessage={page.pending ?? null}
+            onPendingConsumed={() => setSubpage({ name: "chat" })}
+          />
+        );
+      case "note":
+        return (
+          <NotePage
+            key={`${page.url}-${page.intent.type === "open" ? page.intent.noteId : "new"}`}
+            wsClient={wsClient}
+            url={page.url}
+            intent={page.intent}
+            onBack={back}
           />
         );
       case "highlights":
-        return <HighlightsTab key={url} url={url} onCountChange={handleHighlightCountChange} />;
-    }
-  };
-
-  /** 渲染滑入页面的内容 */
-  const renderOverlayPage = () => {
-    switch (currentPage) {
-      case "settings":
-        return (
-          <SettingsPage
-            themeMode={themeMode}
-            onThemeModeChange={onThemeModeChange}
-            onBack={navigateBack}
-          />
-        );
+        return <HighlightsPage url={tab.url} onBack={back} />;
       case "allNotes":
-        return <AllNotesPage onBack={navigateBack} onNoteClick={handleNoteClick} />;
-      default:
-        return null;
+        return <AllNotesPage onBack={back} onNoteClick={openNoteFromAll} />;
+      case "settings":
+        return <SettingsPage onBack={back} />;
     }
   };
-
-  const isOverlayVisible = currentPage !== "main";
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-white dark:bg-[#161b22]">
-      {/* 主页面层 */}
+    <div className="bg-page text-ink-1 relative flex h-full flex-col overflow-hidden">
       <div
-        className={`flex h-full flex-col transition-transform duration-300 ease-in-out ${
-          isOverlayVisible && !pageAnimating
-            ? "-translate-x-1/4 opacity-0"
-            : isOverlayVisible && pageDirection === "in"
-              ? "-translate-x-1/4 opacity-0"
-              : "translate-x-0 opacity-100"
-        }`}
-        style={{
-          display: isOverlayVisible && !pageAnimating ? "none" : "flex",
-        }}
+        className="flex h-full flex-col"
+        style={{ display: subpage && !leaving ? "none" : "flex" }}
       >
-        <Header onSettingsClick={() => navigateTo("settings")} onReloadClick={reconnect} />
-        <div className="flex min-h-0 flex-1 flex-col">{renderTabContent()}</div>
-        <TabBar
-          currentTab={currentTab}
-          onTabChange={setCurrentTab}
-          onAllNotesClick={() => navigateTo("allNotes")}
-          highlightCount={highlightCount}
+        <PageHeader
+          tab={tab}
+          connecting={connecting}
+          onAllNotes={() => open({ name: "allNotes" })}
+          onSettings={() => open({ name: "settings" })}
+          onReconnect={reconnect}
+        />
+        <PageStream
+          wsClient={wsClient}
+          aiClient={aiClient}
+          url={tab.url}
+          refreshKey={refreshKey}
+          onOpenChat={pending => open({ name: "chat", ...(pending ? { pending } : {}) })}
+          onOpenNote={intent => tab.url && open({ name: "note", intent, url: tab.url })}
+          onOpenHighlights={() => open({ name: "highlights" })}
         />
       </div>
 
-      {/* 滑入覆盖层（设置 / 全部笔记等） */}
-      {isOverlayVisible && (
+      {subpage && (
         <div
-          className={`absolute inset-0 flex flex-col bg-white dark:bg-[#161b22] ${
-            pageDirection === "in" ? "animate-slide-in-right" : "animate-slide-out-right"
+          className={`bg-page absolute inset-0 flex flex-col ${
+            leaving ? "animate-slide-out-right" : "animate-slide-in-right"
           }`}
-          onAnimationEnd={handleAnimationEnd}
         >
-          {renderOverlayPage()}
+          {renderSubpage(subpage)}
         </div>
       )}
     </div>

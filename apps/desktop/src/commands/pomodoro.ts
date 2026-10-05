@@ -1,5 +1,11 @@
 import { invoke } from "@/electron";
-import { PomodoroPreset, PomodoroSession } from "@/types";
+import type {
+  PomodoroBindTarget,
+  PomodoroEventBinding,
+  PomodoroFocusSummary,
+  PomodoroPreset,
+  PomodoroSession,
+} from "@/types";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import type { BackgroundSoundType } from "@/types/pomodoro";
 
@@ -48,16 +54,24 @@ export const getActivePomodoroSession = async (): Promise<PomodoroSession | null
   return (await client.sendRequest("pomodoro:get-active-session", null)) as PomodoroSession | null;
 };
 
-export const startPomodoroSession = async (
-  presetId: number,
-  expectedMs?: number
+/** 开始专注；倒计时预设缺 expectedMs 时由主进程按预设时长补算 */
+export const startPomodoroSession = async (options: {
+  presetId: number;
+  expectedMs?: number;
+  target?: PomodoroBindTarget | null;
+}): Promise<PomodoroSession> => {
+  const client = useBackendWebsocketStore.getState().client;
+  if (!client) throw new Error("Client not initialized");
+  return (await client.sendRequest("pomodoro:start-session", options)) as PomodoroSession;
+};
+
+/** 修改 / 清除进行中会话的绑定 */
+export const updatePomodoroBinding = async (
+  target: PomodoroBindTarget | null
 ): Promise<PomodoroSession> => {
   const client = useBackendWebsocketStore.getState().client;
   if (!client) throw new Error("Client not initialized");
-  return (await client.sendRequest("pomodoro:start-session", {
-    presetId,
-    expectedMs,
-  })) as PomodoroSession;
+  return (await client.sendRequest("pomodoro:update-binding", { target })) as PomodoroSession;
 };
 
 export const pausePomodoroSession = async (): Promise<PomodoroSession | null> => {
@@ -118,6 +132,16 @@ export const updatePomodoroSession = async (
   focusMs: number
 ): Promise<PomodoroSession> => {
   return invoke("pomodoro:update-session", { sessionId, focusMs });
+};
+
+export const summaryPomodoroByTodo = async (todoId: number): Promise<PomodoroFocusSummary> => {
+  return invoke("pomodoro:summary-by-todo", todoId);
+};
+
+export const getPomodoroEventBindings = async (
+  calendarEventIds: number[]
+): Promise<Record<number, PomodoroEventBinding>> => {
+  return invoke("pomodoro:get-event-bindings", { calendarEventIds });
 };
 
 export const getBackgroundSound = async (): Promise<{

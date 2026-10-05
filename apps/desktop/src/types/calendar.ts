@@ -50,6 +50,8 @@ export interface CalendarEvent {
   color: ProjectColorName | null;
   allDay: boolean;
   detailContent?: Descendant[]; // 预加载的描述内容
+  /** 关联的待办：有值即「任务型」事件（把待办安排进这个时段）；整行更新不改它 */
+  todoItemId?: number | null;
 }
 
 export type CreateCalendarEvent = Omit<CalendarEvent, "id" | "createTime" | "updateTime">;

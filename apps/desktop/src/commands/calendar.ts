@@ -7,6 +7,7 @@ import {
   CreateCalendarEvent,
   UpdateCalendarEvent,
 } from "@/types/calendar";
+import type { TodoScheduleSummary } from "@/types/todo";
 
 // 日历管理
 export const createCalendar = async (calendar: CreateCalendar): Promise<Calendar> => {
@@ -36,6 +37,25 @@ export const getVisibleCalendars = async (): Promise<Calendar[]> => {
 // 事件管理
 export const createCalendarEvent = async (event: CreateCalendarEvent): Promise<CalendarEvent> => {
   return await invoke("calendar-event:create", event);
+};
+
+/** 把待办安排进某个时段：新建关联该待办的用户日历事件（日历缺省为默认用户日历） */
+export const createCalendarEventForTodo = async (payload: {
+  todoItemId: number;
+  startDate: number;
+  startTime: number;
+  endTime: number;
+  calendarId?: number;
+}): Promise<CalendarEvent> => {
+  return await invoke("calendar-event:create-for-todo", payload);
+};
+
+/** 每条待办的安排概况（next / last / count） */
+export const getTodoSchedules = async (
+  todoItemIds: number[],
+  now: number
+): Promise<Record<number, TodoScheduleSummary>> => {
+  return await invoke("calendar-event:get-todo-schedules", { todoItemIds, now });
 };
 
 export const updateCalendarEvent = async (event: UpdateCalendarEvent): Promise<CalendarEvent> => {

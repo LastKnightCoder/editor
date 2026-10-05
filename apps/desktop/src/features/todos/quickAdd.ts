@@ -5,8 +5,8 @@
  *  - 项目：`#名称`（包含匹配，取第一个命中的进行中项目）
  *  - 周期：每天 / 每日 / 工作日 / 每周一、三 / 每月 N 号(日)
  *  - 日期 / 时刻 / 时段：与日程快速添加同一套词表（utils/quickDateTime）
- * 判定：有周期词 → 周期任务（时刻忽略：TodoRecurrence 无时刻字段）；有时段 → 计划任务；
- * 有日期或时刻 → 截止任务（只写日期 = 全天，时间部分为 0）；否则普通任务。
+ * 判定：有周期词 → 周期任务（时刻忽略：TodoRecurrence 无时刻字段）；有时段 → 普通任务 + 安排进该时段
+ *（落库时同时建关联日历事件，见 createTodoFromQuickAdd）；有日期或时刻 → 截止任务（只写日期 = 全天）；否则普通任务。
  */
 
 import type { RecurrenceType, TodoGroup } from "@/types";
@@ -19,14 +19,26 @@ export interface QuickAddRecurrence {
   monthDay?: number;
 }
 
+/** 识别出的时段：一次安排（当天，分钟数） */
+export interface QuickAddSchedule {
+  startDate: number;
+  startTime: number;
+  endTime: number;
+}
+
 export interface QuickAddResult {
   title: string;
-  type: "normal" | "deadline" | "planned" | "recurring";
+  type: "normal" | "deadline" | "recurring";
   dueAt: number | null;
   startAt: number | null;
   recurrence: QuickAddRecurrence | null;
   groupId: number | null;
+  schedule: QuickAddSchedule | null;
 }
+
+/** 回显用的种类：写了时段的是「安排」 */
+export const quickAddKind = (parsed: QuickAddResult) =>
+  parsed.schedule ? ("scheduled" as const) : parsed.type;
 
 const WEEKDAY: Record<string, number> = { 日: 0, 天: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 };
 
@@ -70,34 +82,40 @@ export function parseQuickAdd(
   const today = startOfDay(now);
   const at = (base: number, minutes: number) => base + minutes * 60_000;
 
+  const plain = { dueAt: null, startAt: null, recurrence: null, groupId, schedule: null };
   if (recurrence) {
-    return { title, type: "recurring", dueAt: null, startAt: null, recurrence, groupId };
+    return { ...plain, title, type: "recurring", recurrence };
   }
   if (dt.startTime !== null && dt.endTime !== null) {
-    const base = dt.date ?? today;
-    const startAt = at(base, dt.startTime);
-    let dueAt = at(base, dt.endTime);
-    if (dueAt <= startAt) dueAt += DAY_MS; // 跨零点
-    return { title, type: "planned", dueAt, startAt, recurrence: null, groupId };
+    // 安排只落在当天：跨零点的时段截到当天 23:59
+    const endTime = dt.endTime > dt.startTime ? dt.endTime : 24 * 60 - 1;
+    return {
+      ...plain,
+      title,
+      type: "normal",
+      schedule: { startDate: dt.date ?? today, startTime: dt.startTime, endTime },
+    };
   }
   if (dt.date !== null || dt.startTime !== null) {
     let base = dt.date ?? today;
     // 只写了时刻且已过去 → 视为明天
     if (dt.date === null && dt.startTime !== null && at(base, dt.startTime) <= now) base += DAY_MS;
     return {
+      ...plain,
       title,
       type: "deadline",
       dueAt: dt.startTime !== null ? at(base, dt.startTime) : base,
-      startAt: null,
-      recurrence: null,
-      groupId,
     };
   }
-  return { title, type: "normal", dueAt: null, startAt: null, recurrence: null, groupId };
+  return { ...plain, title, type: "normal" };
 }
 
-/** 识别结果的一句话描述：「截止 · 明天 17:00」「计划 · 周六 10:00–12:00」「周期 · 每周一、四」 */
+/** 识别结果的一句话描述：「截止 · 明天 17:00」「安排 · 周六 10:00–12:00」「周期 · 每周一、四」 */
 export function describeQuickAdd(parsed: QuickAddResult, now: number): string {
+  if (parsed.schedule) {
+    const { startDate, startTime, endTime } = parsed.schedule;
+    return `安排 · ${dateTimeWord(startDate + startTime * 60_000, now)}–${hm(startDate + endTime * 60_000)}`;
+  }
   switch (parsed.type) {
     case "recurring":
       return `周期 · ${recurrenceText({
@@ -112,8 +130,6 @@ export function describeQuickAdd(parsed: QuickAddResult, now: number): string {
         createTime: now,
         updateTime: now,
       })}`;
-    case "planned":
-      return `计划 · ${dateTimeWord(parsed.startAt!, now)}–${hm(parsed.dueAt!)}`;
     case "deadline":
       return `截止 · ${dateTimeWord(parsed.dueAt!, now)}`;
     default:
