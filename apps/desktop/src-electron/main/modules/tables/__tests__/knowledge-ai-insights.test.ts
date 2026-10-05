@@ -80,13 +80,6 @@ describe("knowledge_ai_insights 纯函数", () => {
     expect(later.marks).toHaveLength(0);
   });
 
-  it("知道了：重新生成时沿用、照样不画，但不算不相关", () => {
-    const previous = result([mark("m1", [1, 2], { kind: "pattern", status: "seen" })]);
-    const merged = mergeResults(previous, result([mark("x1", [2, 1], { kind: "pattern" })]));
-    expect(merged.marks[0]).toMatchObject({ id: "x1", status: "seen" });
-    expect(merged.dismissed).toEqual([]);
-  });
-
   it("成员重合度与变化量", () => {
     const a: Array<[number, string]> = [
       [1, "a"],
@@ -138,6 +131,15 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(next.increments).toBe(1);
     expect(next.result.marks.map(item => item.id)).toEqual(["n2"]);
     expect(next.result.asks[0].status).toBe("questioned");
+  });
+
+  it("认不出的处理状态按未处理读", () => {
+    const row = KnowledgeAiInsightsTable.save(db, input([mark("m1", [1, 2])]));
+    db.prepare(`UPDATE knowledge_ai_insights SET result = ? WHERE id = ?`).run(
+      JSON.stringify(result([mark("m1", [1, 2], { status: "seen" as never })])),
+      row.id
+    );
+    expect(KnowledgeAiInsightsTable.get(db, row.id)!.result.marks[0].status).toBe("open");
   });
 
   it("按范围列出、取项目回顾、只换成员", () => {
