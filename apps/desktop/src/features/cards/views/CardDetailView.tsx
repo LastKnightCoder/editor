@@ -99,6 +99,7 @@ import { openEntity } from "@/services/open-content";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
 import { useInsightsView } from "@/features/insights/useInsightsView";
 import { cardMorphKey } from "../morph";
+import { usePatternCardDraft } from "../usePatternCardDraft";
 import { CardContentPreview } from "../components/CardContentPreview";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
@@ -171,6 +172,10 @@ export function CardDetailView() {
     sourceLabel: `卡片：${cardTitle}`,
     getEditor: useCallback(() => editorRef.current?.getEditor(), []),
   });
+
+  /* 同一思路「写成卡片」的草稿：空正文的占位提示，关闭时还空着就撤回（KL-069） */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const draft = usePatternCardDraft(card?.id ?? null, rootRef);
 
   /* 制卡：闪卡引用指向卡片正文（refType content，与文章制卡同链路） */
   const flashcard = useFlashcardCreation({
@@ -294,7 +299,10 @@ export function CardDetailView() {
     );
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div
+      ref={rootRef}
+      className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1"
+    >
       {/* 一整张纸（同卡片库/微信读书笔记页）：正文列在纸内居中滚动 */}
       {/* 纸面是形变目标（D-106）：正文会话就绪前由只读全文占位，卡片数据到位即可截图 */}
       <div
@@ -535,6 +543,8 @@ export function CardDetailView() {
                     source={{ sourceType: "card", sourceId: card.id }}
                     editingContext={{ entityType: "card", entityId: card.id }}
                     className="min-h-[80px]"
+                    onInit={draft.onInit}
+                    {...(draft.placeholder ? { placeHolder: draft.placeholder } : {})}
                     {...insights.editorProps}
                   />
                 </ErrorBoundary>

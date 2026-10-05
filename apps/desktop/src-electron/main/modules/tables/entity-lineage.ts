@@ -98,6 +98,14 @@ export default class EntityLineageTable {
     return result.changes > 0;
   }
 
+  /** 删掉指向这一端、某种关系的全部谱系（撤回一张刚建、还没写的卡片时用），返回删除行数 */
+  static removeToDst(db: Database.Database, dst: LineageNode, relation: LineageRelation): number {
+    const stored = toStoredLineageNode(dst);
+    return db
+      .prepare(`DELETE FROM entity_lineage WHERE dst_kind = ? AND dst_id = ? AND relation = ?`)
+      .run(stored.kind, stored.id, relation).changes;
+  }
+
   /** 按来源与关系查衍生，可限定衍生的类型；按写入时间先后 */
   static findDst(
     db: Database.Database,

@@ -511,7 +511,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `entity_lineage`
 
-谱系：「A 衍生出 B」中推导不出的事实，`src_id` / `dst_id` 均为文本。`relation`：`derived` / `saved_from` / `clipped_from` / `excerpt_of` / `upgraded_to`（问题 → Notebook）/ `discussed_in`（问题 → 对话）；端点 kind 含 `question`、`vl-project`。
+谱系：「A 衍生出 B」中推导不出的事实，`src_id` / `dst_id` 均为文本。`relation`：`derived` / `saved_from` / `clipped_from` / `excerpt_of` / `upgraded_to`（问题 → Notebook）/ `discussed_in`（问题 → 对话）/ `distilled_from`（用到同一思路的笔记 → 据此新写的卡片）；端点 kind 含 `question`、`vl-project`。
 
 | 字段          | SQLite 定义                         |
 | ------------- | ----------------------------------- |

@@ -4,7 +4,7 @@
  */
 
 import { Fragment } from "react";
-import { ArrowRight, ArrowUpRight, Check, CircleHelp, Link2, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CircleHelp, Link2, PenLine, X } from "lucide-react";
 import { AnchoredPanel, Button, IconButton, cn } from "@tau/ui";
 import type { KnowledgeEndpoint, KnowledgeMark } from "@/types/knowledge-insights";
 import {
@@ -22,8 +22,8 @@ export interface MapInsightPopoverProps {
   walking: boolean;
   onConnect(mark: KnowledgeMark): void;
   onQuestion(mark: KnowledgeMark): void;
-  /** 知道了：成立、看到了，不再画出（同一思路） */
-  onAcknowledge(mark: KnowledgeMark): void;
+  /** 写成卡片：新建一张空卡片连上这几处并打开（同一思路） */
+  onWrite(mark: KnowledgeMark): void;
   onDismiss(mark: KnowledgeMark): void;
   onOpen(end: KnowledgeEndpoint): void;
   placeOf(end: KnowledgeEndpoint): string | null;
@@ -33,7 +33,7 @@ export interface MapInsightPopoverProps {
 
 /** 主按钮文案；连接的文案随两端类型变，单独算 */
 const ACTION_LABEL: Partial<Record<MarkAction, string>> = {
-  acknowledge: "知道了",
+  write: "写成卡片",
   question: "记为问题",
 };
 
@@ -98,7 +98,7 @@ export function MapInsightPopover({
   walking,
   onConnect,
   onQuestion,
-  onAcknowledge,
+  onWrite,
   onDismiss,
   onOpen,
   placeOf,
@@ -222,15 +222,15 @@ export function MapInsightPopover({
             >
               {connectLabel}
             </Button>
-          ) : action === "acknowledge" ? (
+          ) : action === "write" ? (
             <Button
               size="sm"
               variant="primary"
-              icon={Check}
-              title="这一处成立，看到了，不再画出来"
-              onClick={() => onAcknowledge(mark)}
+              icon={PenLine}
+              title="新建一张卡片，连上这几篇，用自己的话把这个思路写下来"
+              onClick={() => onWrite(mark)}
             >
-              知道了
+              写成卡片
             </Button>
           ) : (
             <Button

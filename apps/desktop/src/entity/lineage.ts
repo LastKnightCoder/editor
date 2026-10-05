@@ -26,12 +26,14 @@ export const LINEAGE_RELATIONS = [
   "excerpt_of",
   "upgraded_to",
   "discussed_in",
+  "distilled_from",
 ] as const;
 
 /**
  * derived：复制出来，之后各自演化；saved_from：由对话中的消息存成；
  * clipped_from：剪藏解析自网页条目；excerpt_of：由某条摘录 / PDF 标注写成；
- * upgraded_to：问题立项为 Notebook；discussed_in：从该实体发起了这次对话（KL-007）
+ * upgraded_to：问题立项为 Notebook；discussed_in：从该实体发起了这次对话（KL-007）；
+ * distilled_from：同一思路「写成卡片」时，用到这个思路的笔记 → 新写的那张卡片（KL-069）
  */
 export type LineageRelation = (typeof LINEAGE_RELATIONS)[number];
 
