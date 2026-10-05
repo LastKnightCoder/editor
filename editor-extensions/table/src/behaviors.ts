@@ -2,9 +2,10 @@ import { Editor, Element as SlateElement, Range, Transforms } from "slate";
 
 import type { ElementBehaviors } from "@tau/editor/api";
 import type { ParagraphElement, TableCellElement } from "./types";
-import { isAtParagraphStart, isParagraphAndEmpty, movePrevCol } from "./utils";
+import { isAtParagraphStart, isParagraphAndEmpty } from "@tau/editor/api";
+import { columnCount, getCellPosition, getTableAt, selectCell } from "./transforms";
 
-/** 单元格内回车不拆行（表格内的换行语义交给单元格导航热键） */
+/** 单元格内回车不拆行（Enter 由导航热键接管，格内换行走 ⇧Enter 软换行） */
 const insertBreak: ElementBehaviors<TableCellElement>["insertBreak"] = editor => {
   const { selection } = editor;
   if (!selection || !Range.isCollapsed(selection)) return false;
@@ -24,7 +25,11 @@ const deleteBackward: ElementBehaviors<TableCellElement>["deleteBackward"] = edi
   if (!text) return false;
   const [, path] = text;
   if (path[path.length - 1] === 0 && Editor.isStart(editor, selection.anchor, path)) {
-    movePrevCol(editor);
+    const at = getCellPosition(editor);
+    const table = at && getTableAt(editor, at.tablePath);
+    if (!at || !table) return false;
+    if (at.col > 0) selectCell(editor, at.tablePath, at.row, at.col - 1);
+    else if (at.row > 0) selectCell(editor, at.tablePath, at.row - 1, columnCount(table) - 1);
     return true;
   }
   return false;

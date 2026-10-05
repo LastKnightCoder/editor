@@ -8,7 +8,7 @@ import TableRow from "./components/TableRow";
 import TableCell from "./components/TableCell";
 import { tableCellBehaviors, tableForParagraph } from "./behaviors";
 import { tableCommands, tableHotkeys } from "./commands";
-import { withTableDeleteGuard } from "./deleteGuard";
+import { withTableCellSelection } from "./selection";
 import { tableCellNormalize, tableNormalize, tableRowNormalize } from "./normalize";
 import blockPanelItems from "./block-panel-items";
 
@@ -33,9 +33,9 @@ export const tableExtension = defineExtension({
     }),
   ],
   blockPanel: blockPanelItems,
-  // delete / deleteFragment 的改写是编辑器级方法（跨单元格选区防护、全选删除重置），
-  // 不在 ElementBehaviors 方法面上，保留为受信任层插件（ER-005）
-  plugins: [withTableDeleteGuard],
+  // 格选区的删除 / 输入 / 复制改写的是编辑器级方法，不在 ElementBehaviors 方法面上，
+  // 保留为受信任层插件（ER-005）
+  plugins: [withTableCellSelection],
   behaviorsFor: {
     paragraph: tableForParagraph,
   },
@@ -76,6 +76,13 @@ export const tableCellExtension = defineExtension({
 
 export const tableExtensions = [tableExtension, tableRowExtension, tableCellExtension] as const;
 export type { TableElement, TableRowElement, TableCellElement, TableAlign } from "./types";
-export * from "./operations";
 export * from "./transforms";
+export {
+  getCellSelection,
+  selectCells,
+  selectRows,
+  selectColumns,
+  type CellSelection,
+  type CellSelectionKind,
+} from "./selection";
 export { insertTable } from "./insertTable";

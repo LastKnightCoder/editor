@@ -1,25 +1,26 @@
 import React, { useContext } from "react";
-import { DragHandle } from "@tau/editor/api";
-import { TableRowDragContext } from "../TableRow/dragContext";
-import { RenderElementProps } from "slate-react";
+import type { RenderElementProps } from "slate-react";
 
 import type { TableCellElement } from "../../types";
+import { TableAlignContext, TableRowContext } from "../context";
 
 interface ITableCellProps {
   attributes: RenderElementProps["attributes"];
   element: TableCellElement;
 }
 
-const TableCell: React.FC<React.PropsWithChildren<ITableCellProps>> = props => {
-  const { attributes, children, element } = props;
-  const rowDrag = useContext(TableRowDragContext);
+const TableCell: React.FC<React.PropsWithChildren<ITableCellProps>> = ({
+  attributes,
+  element,
+  children,
+}) => {
+  const align = useContext(TableAlignContext);
+  const row = useContext(TableRowContext);
+  const textAlign = align?.[row?.children.indexOf(element) ?? -1] ?? undefined;
 
   return (
-    <td {...attributes}>
+    <td {...attributes} style={textAlign ? { textAlign } : undefined}>
       {children}
-      {rowDrag?.firstCell === element && (
-        <DragHandle dragRef={rowDrag.dragRef} canDrag={rowDrag.canDrag} />
-      )}
     </td>
   );
 };

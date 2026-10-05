@@ -2738,21 +2738,12 @@ importers:
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       '@tau/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-icons:
-        specifier: ^4.10.1
-        version: 4.12.0(react@19.2.0)
     devDependencies:
       '@tau/editor':
         specifier: workspace:*
@@ -2772,6 +2763,9 @@ importers:
       react:
         specifier: 19.2.0
         version: 19.2.0
+      react-dnd:
+        specifier: ^16.0.1
+        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
       react-dnd-html5-backend:
         specifier: ^16.0.1
         version: 16.0.1
