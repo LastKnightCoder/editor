@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import OSS from "ali-oss";
+import { assertReleaseNote, injectReleaseNotes, releaseNotesUpTo } from "./release-notes.mjs";
 
 // 与 ffmpeg/python 运行时下载地址同 bucket，桌面端 electron-updater 从该地址拉取更新，bucket/region 不可变更
 const OSS_REGION = "oss-cn-shanghai";
@@ -13,6 +14,7 @@ const PUBLIC_BASE_URL = `https://${OSS_BUCKET}.${OSS_REGION}.aliyuncs.com`;
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopDir = join(root, "apps/desktop");
 const releaseDir = join(desktopDir, "release");
+const releaseNotesDir = join(desktopDir, "release-notes");
 const desktopPackageFile = join(desktopDir, "package.json");
 const rootPackageFile = join(root, "package.json");
 
@@ -21,6 +23,8 @@ function printHelp() {
 
 构建桌面端并将当前版本的安装包发布到 OSS，更新 electron-updater 拉取的 latest*.yml。
 版本号默认取 apps/desktop/package.json 当前值（只上传该版本的产物）。
+发布前必须准备好 apps/desktop/release-notes/<版本>.md 升级公告，缺失即拒绝发布；
+公告会写进 latest*.yml，供旧版本在升级前展示。
 指定 --version 时会先回写根目录与 apps/desktop 两处 package.json 再构建；
 若后续构建或上传失败，版本号不回滚，修复后可用 --skip-build 重试。
 上传全部成功后自动创建 vX.Y.Z 版本 tag（已存在则跳过，不自动推送）。
@@ -108,6 +112,15 @@ function collectArtifacts(version) {
   return { versionedArtifacts, latestFiles };
 }
 
+function writeReleaseNotesToLatestFiles(version, latestFiles) {
+  const notes = releaseNotesUpTo(releaseNotesDir, version);
+  for (const name of latestFiles) {
+    const file = join(releaseDir, name);
+    writeFileSync(file, injectReleaseNotes(readFileSync(file, "utf8"), notes));
+  }
+  console.log(`▶ 已写入升级公告（${notes.length} 个版本）到 ${latestFiles.join(", ")}`);
+}
+
 async function fetchRemoteVersion(client, latestFiles) {
   const remoteVersions = [];
   for (const name of latestFiles) {
@@ -169,6 +182,8 @@ async function main() {
   const desktopPkg = readJson(desktopPackageFile);
   const version = options.version ?? desktopPkg.version;
   console.log(`▶ 发布版本: ${version}`);
+  // 先于回写版本号与构建校验，避免构建完成后才发现没写公告
+  assertReleaseNote(releaseNotesDir, version);
 
   if (options.version && !options.dryRun) {
     console.log("▶ 回写版本号（根目录与 apps/desktop）...");
@@ -195,6 +210,7 @@ async function main() {
   }
 
   const { versionedArtifacts, latestFiles } = collectArtifacts(version);
+  writeReleaseNotesToLatestFiles(version, latestFiles);
 
   const totalSize = [...versionedArtifacts, ...latestFiles].reduce((sum, name) => {
     return sum + statSync(join(releaseDir, name)).size;

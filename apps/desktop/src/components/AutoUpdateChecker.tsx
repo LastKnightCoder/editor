@@ -1,9 +1,10 @@
 import useAutoUpdateCheck from "@/hooks/useAutoUpdateCheck";
+import { ReleaseNotesDialog } from "@/features/release-notes/ReleaseNotesDialog";
 
-/** 全局挂载一次：负责更新事件监听与启动自动检查，发现新版本经 notify 弹通知 */
+/** 全局挂载一次：负责更新事件监听、启动自动检查与升级公告；发现新版本或刚升级时经 notify 弹通知 */
 const AutoUpdateChecker = () => {
   useAutoUpdateCheck();
-  return null;
+  return <ReleaseNotesDialog />;
 };
 
 export default AutoUpdateChecker;

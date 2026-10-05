@@ -1,13 +1,48 @@
 import { useEffect, useRef } from "react";
-import { Download } from "lucide-react";
+import { Download, Sparkles } from "lucide-react";
 import { notify } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { useSettingsStore } from "@/app/settingsStore";
 import { initUpdateListeners, useUpdateStore } from "@/stores/useUpdateStore";
+import { takeVersionChange } from "@/commands/updater";
+import { bundledNotesBetween } from "@/features/release-notes/notes";
+import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore";
 
 // 延迟检查，避免与应用启动初始化抢资源
 const AUTO_CHECK_DELAY_MS = 5000;
+const UPGRADED_NOTICE_DELAY_MS = 2000;
 const NOTICE_ID = "app-update-available";
+const UPGRADED_NOTICE_ID = "app-upgraded";
+
+/** 升级后首次启动：展示跨越版本的内置公告 */
+async function notifyIfUpgraded() {
+  let change;
+  try {
+    change = await takeVersionChange();
+  } catch {
+    return; // 非 Electron 运行时或主进程未就绪：不提示
+  }
+  if (change.previousVersion === null) return;
+  const notes = bundledNotesBetween(change.previousVersion || null, change.currentVersion);
+  if (notes.length === 0) return;
+
+  notify({
+    id: UPGRADED_NOTICE_ID,
+    title: `已更新到 v${change.currentVersion}`,
+    body: "看看这次更新带来了哪些变化。",
+    source: "应用更新",
+    icon: Sparkles,
+    sticky: true,
+    actions: [
+      { label: "稍后" },
+      {
+        label: "查看更新内容",
+        primary: true,
+        onClick: () => useReleaseNotesStore.getState().show(notes),
+      },
+    ],
+  });
+}
 
 const useAutoUpdateCheck = () => {
   const notifiedRef = useRef(false);
@@ -17,6 +52,11 @@ const useAutoUpdateCheck = () => {
   const newVersion = useUpdateStore(state => state.newVersion);
 
   useEffect(() => initUpdateListeners(), []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => void notifyIfUpgraded(), UPGRADED_NOTICE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -33,6 +73,7 @@ const useAutoUpdateCheck = () => {
     if (notifiedRef.current) return;
     notifiedRef.current = true;
 
+    const { releaseNotes } = useUpdateStore.getState();
     notify({
       id: NOTICE_ID,
       title: `发现新版本 v${newVersion}`,
@@ -41,7 +82,12 @@ const useAutoUpdateCheck = () => {
       icon: Download,
       sticky: true,
       actions: [
-        { label: "稍后" },
+        releaseNotes.length > 0
+          ? {
+              label: "查看更新内容",
+              onClick: () => useReleaseNotesStore.getState().show(releaseNotes),
+            }
+          : { label: "稍后" },
         {
           label: "前往更新",
           primary: true,
