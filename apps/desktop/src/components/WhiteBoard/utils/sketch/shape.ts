@@ -31,6 +31,8 @@ export interface SketchShapeInput {
   fill?: string;
   fillOpacity?: number;
   fillStyle?: SketchFillStyle;
+  /** 淡涂叠在纸上的不透明度系数，缺省 WASH_ALPHA；底色承载文字对比度时（导图节点）传 1 */
+  washAlpha?: number;
   level: SketchLevel;
   seed: number;
 }
@@ -178,7 +180,7 @@ function fillPaths(
         )
       )
       .join(" ");
-    return [{ role: "wash", d, color, opacity: fillOpacity * WASH_ALPHA }];
+    return [{ role: "wash", d, color, opacity: fillOpacity * (input.washAlpha ?? WASH_ALPHA) }];
   }
 
   if (style === "scribble") {
