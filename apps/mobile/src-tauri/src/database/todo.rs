@@ -6,11 +6,10 @@ use tauri::AppHandle;
 use super::schema;
 use super::todo_calendar_sync;
 
-const SYSTEM_GROUPS: [(&str, &str); 5] = [
+const SYSTEM_GROUPS: [(&str, &str); 4] = [
     ("all", "全部任务"),
     ("normal", "普通任务"),
     ("deadline", "截止任务"),
-    ("planned", "计划任务"),
     ("recurring", "周期任务"),
 ];
 
@@ -362,6 +361,16 @@ fn parse_item_row(row: &Row<'_>) -> rusqlite::Result<TodoItem> {
         update_time: row.get(15)?,
         recurrence: parse_recurrence_row(row, 16)?,
     })
+}
+
+/// 「计划任务」已退役：拒绝显式写入 planned（已有的 planned 行照常读取、编辑时保留，等桌面转换）
+fn reject_retired_type(value: &Option<String>) -> Result<(), String> {
+    match value.as_deref().map(|v| v.trim().to_ascii_lowercase()) {
+        Some(t) if t == "planned" => {
+            Err("TODO_TYPE_RETIRED: 计划任务已退役，请在日程里安排时间".to_string())
+        }
+        _ => Ok(()),
+    }
 }
 
 fn normalize_item_type(value: Option<String>) -> String {

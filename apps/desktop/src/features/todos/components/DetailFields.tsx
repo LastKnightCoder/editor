@@ -1,5 +1,5 @@
 /**
- * 抽屉详情 · 属性区：项目 / 类型 / 时间（截止 · 计划起止）/ 重复规则 / 提醒 / 日程同步说明 / 已投入专注（只读）。
+ * 抽屉详情 · 属性区：项目 / 类型 / 截止 / 重复规则 / 提醒 / 日程同步说明 / 安排与已投入专注（只读）。
  * 每项即改即存（无保存按钮）；日历同步由主进程 updateItem 内部完成。
  * 重复规则可改（legacy 创建后只读）：类型 / 间隔 / 周几 / 每月几号 / 排除节假日。
  */
@@ -9,14 +9,17 @@ import {
   Bell,
   CalendarDays,
   ChevronDown,
-  Clock,
   Flag,
   Folder,
   List,
   Repeat,
   Timer,
+  CalendarClock,
 } from "lucide-react";
 import { useTodoFocusSummary } from "@/features/pomodoro/queries";
+import { useTodoSchedules } from "@/features/schedule/queries";
+import { usePage } from "@/page/PageProvider";
+import { formatTime } from "@/utils/calendar";
 import {
   DatePicker,
   Menu,
@@ -27,9 +30,15 @@ import {
   cn,
   type DatePickerPreset,
 } from "@tau/ui";
-import type { RecurrenceType, TodoGroup, TodoItemType, TodoRecurrence } from "@/types";
+import type {
+  CalendarEvent,
+  RecurrenceType,
+  TodoGroup,
+  TodoItemType,
+  TodoRecurrence,
+} from "@/types";
 import type { ComponentProps, ReactNode } from "react";
-import { REMIND_OPTIONS, recurrenceText, remindText, startOfDay } from "../model";
+import { REMIND_OPTIONS, dayWord, recurrenceText, remindText } from "../model";
 import type { TodoMutations } from "../queries";
 import type { TodoEntry } from "../types";
 import { GroupDot } from "./TodoBits";
@@ -110,7 +119,6 @@ export function DetailFields({
         >
           <Segmented.Item value="normal" label="普通" />
           <Segmented.Item value="deadline" icon={Flag} label="截止" />
-          <Segmented.Item value="planned" icon={Clock} label="计划" />
           <Segmented.Item value="recurring" icon={Repeat} label="周期" />
         </Segmented>
       </Field>
@@ -132,39 +140,6 @@ export function DetailFields({
         </Field>
       )}
 
-      {entry.type === "planned" && (
-        <Field icon={Clock} label="时间">
-          <DatePicker
-            size="sm"
-            precision="minute"
-            presets={PRESETS}
-            value={toPicker(entry.startAt)}
-            onValueChange={v => {
-              const startAt = fromPicker(v);
-              if (startAt == null) return;
-              const dueAt =
-                entry.dueAt != null && entry.dueAt > startAt ? entry.dueAt : startAt + 3_600_000;
-              void mutations.updateItem(entry, { startAt, dueAt });
-            }}
-            className="w-[164px]"
-          />
-          <span className="text-ink-3">→</span>
-          <DatePicker
-            size="sm"
-            precision="minute"
-            value={toPicker(entry.dueAt)}
-            isDateDisabled={day =>
-              entry.startAt != null && dayjs(day).valueOf() < startOfDay(entry.startAt)
-            }
-            onValueChange={v => {
-              const dueAt = fromPicker(v);
-              if (dueAt != null) void mutations.updateItem(entry, { dueAt });
-            }}
-            className="w-[164px]"
-          />
-        </Field>
-      )}
-
       {entry.type === "recurring" && entry.recurrence && (
         <Field icon={Repeat} label="重复">
           <RecurrenceEditor recurrence={entry.recurrence} mutations={mutations} />
@@ -179,7 +154,7 @@ export function DetailFields({
         </Field>
       )}
 
-      {(entry.type === "deadline" || entry.type === "planned") && (
+      {entry.type === "deadline" && (
         <Field icon={Bell} label="提醒">
           <Menu
             trigger={
@@ -210,14 +185,49 @@ export function DetailFields({
           <span className="text-ink-3 text-[12px]">
             {entry.type === "recurring"
               ? "按规则显示在「待办清单 · 周期任务」日历"
-              : `已同步到「待办清单 · ${entry.type === "deadline" ? "截止" : "计划"}任务」日历`}
+              : "截止日显示在「待办清单 · 截止任务」日历"}
           </span>
         </Field>
       )}
 
+      <ScheduleField todoId={entry.id} />
       <FocusField todoId={entry.id} />
     </div>
   );
+}
+
+/** 安排：日历里关联这条待办的事件——有未结束的显示「已安排」，否则「上次安排」；没有时不显示 */
+function ScheduleField({ todoId }: { todoId: number }) {
+  const { navigator } = usePage();
+  const summary = useTodoSchedules([todoId])[todoId];
+  const event = summary?.next ?? summary?.last;
+  if (!event) return null;
+  const now = Date.now();
+  const more = summary.count > 1 ? ` · 共 ${summary.count} 次` : "";
+  return (
+    <Field icon={CalendarClock} label="安排">
+      <button
+        type="button"
+        title="在日程中查看"
+        onClick={() => navigator.push("schedule", { eventId: event.id })}
+        className={cn(
+          "text-[12px] tabular-nums hover:underline",
+          summary.next ? "text-ink-2" : "text-ink-3"
+        )}
+      >
+        {summary.next ? "已安排" : "上次安排"} · {scheduleText(event, now)}
+        {more}
+      </button>
+    </Field>
+  );
+}
+
+/** 「周三 9:00–11:00」「今天 14:00–15:00」「10月3日 全天」 */
+function scheduleText(event: CalendarEvent, now: number): string {
+  const day = dayWord(event.startDate, now);
+  if (event.allDay || event.startTime == null) return `${day} 全天`;
+  const end = event.endTime ?? event.startTime + 60;
+  return `${day} ${formatTime(event.startTime)}–${formatTime(end)}`;
 }
 
 /** 已投入：绑定到这条待办（含其日程）的番茄；没有时不显示 */

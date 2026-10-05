@@ -685,6 +685,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `end_time`          | `INTEGER`             |
 | `color`             | `TEXT`                |
 | `all_day`           | `INTEGER DEFAULT 0`   |
+| `todo_item_id`      | `INTEGER`             |
 
 ### `weread_notebook`
 

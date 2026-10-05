@@ -50,20 +50,25 @@ export function resolveEventColor(event: CalendarEvent, calendars: Calendar[]): 
   return event.color || calendars.find(c => c.id === event.calendarId)?.color || "blue";
 }
 
+/** 可直接改时间 / 删除的日程：用户日历里的（系统日历——番茄、截止、周期——只读）；表单与拖拽共用 */
+export function isEditableEvent(event: CalendarEvent, calendars: Calendar[]): boolean {
+  const calendar = calendars.find(c => c.id === event.calendarId);
+  return !!calendar && !calendar.isInSystemGroup;
+}
+
 export function eventToneStyle(event: CalendarEvent, calendars: Calendar[]): CSSProperties {
   return toneStyle(resolveEventColor(event, calendars));
 }
 
 export type EventSourceKind = "pomodoro" | "todo";
-/** 系统日历的细分角色：待办清单下按截止 / 计划 / 周期区分 */
-export type CalendarRole = "pomodoro" | "deadline" | "planned" | "recurring";
+/** 系统日历的细分角色：待办清单下按截止 / 周期区分（计划任务已退役，安排改由用户日历里关联待办的事件表达） */
+export type CalendarRole = "pomodoro" | "deadline" | "recurring";
 
 /** 与主进程约定的系统日历名（pomodoro.ts / todo-calendar-sync.ts 的 TODO_CALENDARS） */
 const POMODORO_CALENDAR_TITLE = "番茄钟";
 const TODO_GROUP_NAME = "待办清单";
 const TODO_CALENDAR_ROLES: Record<string, CalendarRole> = {
   截止任务: "deadline",
-  计划任务: "planned",
   周期任务: "recurring",
 };
 
@@ -85,8 +90,8 @@ export function buildCalendarRoles(
     ) {
       roles.set(calendar.id, "pomodoro");
     } else if (todoGroup && calendar.groupId === todoGroup.id) {
-      // 待办清单下名称不认识的日历按计划任务处理：仍是带勾选圈的时间块
-      roles.set(calendar.id, TODO_CALENDAR_ROLES[calendar.title] ?? "planned");
+      // 待办清单下名称不认识的日历按截止处理：标记，不进时间轴
+      roles.set(calendar.id, TODO_CALENDAR_ROLES[calendar.title] ?? "deadline");
     }
   }
   return roles;

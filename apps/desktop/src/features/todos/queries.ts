@@ -20,6 +20,7 @@ import {
   createRecurrence,
   createTodoGroup,
   createTodoItem,
+  createTodoWithSchedule,
   deleteTodoGroup,
   deleteTodoItemCascade,
   detachNote,
@@ -204,15 +205,15 @@ const DEFAULT_RECURRENCE = (startDate: number) => ({
   startDate,
 });
 
-/** 快速添加落库（命令面板等非待办页入口也走这里）：周期任务同时建规则，否则日历上不会出现 */
+/**
+ * 快速添加落库（命令面板等非待办页入口也走这里）：周期任务同时建规则，否则日历上不会出现；
+ * 写了时段的同时安排进日历（主进程同一事务）。
+ */
 export async function createTodoFromQuickAdd(parsed: QuickAddResult, groupId: number) {
-  const item = await createTodoItem({
-    groupId,
-    title: parsed.title,
-    type: parsed.type,
-    startAt: parsed.startAt,
-    dueAt: parsed.dueAt,
-  });
+  const base = { groupId, title: parsed.title, type: parsed.type, dueAt: parsed.dueAt };
+  const item = parsed.schedule
+    ? (await createTodoWithSchedule({ ...base, schedule: parsed.schedule })).item
+    : await createTodoItem({ ...base, startAt: parsed.startAt });
   if (parsed.type === "recurring" && parsed.recurrence) {
     await createRecurrence({
       todoItemId: item.id,
@@ -300,11 +301,6 @@ export function useTodoMutations() {
       const today = startOfDay(Date.now());
       const patch: Omit<UpdateTodoItem, "id"> = { type };
       if (type === "deadline" && entry.dueAt == null) patch.dueAt = today;
-      if (type === "planned") {
-        const start = entry.startAt ?? today + DAY_MS + 9 * 3_600_000;
-        patch.startAt = start;
-        if (entry.dueAt == null || entry.dueAt < start) patch.dueAt = start + 3_600_000;
-      }
       await updateTodoItem({ id: entry.id, ...patch });
       if (type === "recurring" && !entry.recurrence) {
         await createRecurrence({ todoItemId: entry.id, ...DEFAULT_RECURRENCE(today) });

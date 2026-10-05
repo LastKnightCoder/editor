@@ -305,7 +305,10 @@ export interface DiaryTagSetting {
   updateTime: number;
 }
 
+// planned（计划任务）已退役，只为读取尚未经桌面转换的旧行保留；新建 / 改类型不再提供
 export type TodoItemType = "normal" | "deadline" | "planned" | "recurring";
+/** 可选的任务类型（类型选择器用） */
+export const SELECTABLE_TODO_TYPES = ["normal", "deadline", "recurring"] as const;
 
 /* ── 番茄专注（与桌面端 apps/desktop/src/types/pomodoro.ts 同构） ── */
 
@@ -363,7 +366,7 @@ export interface ListPomodoroSessionsPayload {
   offset?: number;
 }
 
-export type TodoSystemGroupType = "all" | "normal" | "deadline" | "planned" | "recurring" | null;
+export type TodoSystemGroupType = "all" | "normal" | "deadline" | "recurring" | null;
 
 export type RecurrenceType = "daily" | "weekdays" | "weekly" | "monthly" | "yearly" | "custom";
 

@@ -31,7 +31,7 @@ function dateLabel(start: number, end: number | null) {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-export function EventDrawer() {
+export function EventDrawer({ className }: { className?: string }) {
   const requested = usePeekStore(s => s.event);
   const close = usePeekStore(s => s.close);
   const { calendars } = useCalendarCatalog();
@@ -45,7 +45,6 @@ export function EventDrawer() {
   /* 关闭时保留最后一条做退场动画 */
   const event = useRetainedValue(selected);
   const decorOf = useEventDecor(event ? [event] : []);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const form = useEventForm(event, () => {
     close();
     toast.success("日程已保存");
@@ -69,6 +68,7 @@ export function EventDrawer() {
         onOpenChange={open => !open && close()}
         label="日程详情"
         width={440}
+        className={className}
         icon={
           event && (
             <i
@@ -110,7 +110,7 @@ export function EventDrawer() {
                 size="sm"
                 icon={Trash2}
                 disabled={form.saving}
-                onClick={() => setConfirmDelete(true)}
+                onClick={form.remove}
               >
                 删除
               </Button>
@@ -155,20 +155,6 @@ export function EventDrawer() {
           // 关闭时 event 仍保留同一条（退场动画），表单不会自动重载：显式丢弃修改
           form.reset();
           setSelected(pending?.next ?? null);
-        }}
-      />
-
-      <ConfirmDialog
-        open={confirmDelete}
-        onOpenChange={setConfirmDelete}
-        danger
-        title="删除日程"
-        context={event?.title}
-        description="删除后不可恢复。"
-        confirmText="删除"
-        onConfirm={async () => {
-          await form.remove();
-          setConfirmDelete(false);
         }}
       />
     </>

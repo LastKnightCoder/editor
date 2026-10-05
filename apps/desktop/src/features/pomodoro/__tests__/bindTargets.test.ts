@@ -15,7 +15,6 @@ const at = (h: number, m = 0) => DAY + (h * 60 + m) * 60_000;
 const roles = new Map<number, CalendarRole>([
   [9, "pomodoro"],
   [11, "deadline"],
-  [12, "planned"],
 ]);
 
 let seq = 0;
@@ -42,7 +41,7 @@ describe("eventCandidates", () => {
         ev(8 * 60, 9 * 60, 1, "晨读"),
         ev(16 * 60, 17 * 60, 1, "健身"),
         ev(10 * 60, 11 * 60, 1, "站会"),
-        ev(13 * 60, 15 * 60, 12, "写季度报告"),
+        { ...ev(13 * 60, 15 * 60, 1, "写季度报告"), todoItemId: 7 },
         ev(14 * 60, 14 * 60 + 25, 9, "🍅 深度工作"),
         ev(18 * 60, null, 11, "提交报告"),
         ev(null, null, 1, "全天"),

@@ -4,11 +4,11 @@
  *   定时标记带时刻，已完成的标记整体变淡；
  * - TimedChip：月视图单日定时 = 透明底 + 色点 + mono 时间；
  * - TimedBlock：时间网格块 = 左缘 3px 色条 + 账本底色（记录实心、计划空心描边、进行中在现在处切开）；
- *   收进来的番茄画成块内右侧的专注竖条。
+ *   收进来的番茄画成块内右侧的专注竖条；可编辑的块带拖动（块体平移、下边缘改时长）。
  * 位置由调用方（布局算法）通过 style 给出，这里只管皮。
  */
 
-import type { CSSProperties, MouseEvent } from "react";
+import type { CSSProperties, MouseEvent, PointerEvent } from "react";
 import { cn } from "@tau/ui";
 import { formatTime } from "@/utils/calendar";
 import type { Calendar, CalendarEvent } from "@/types";
@@ -111,12 +111,19 @@ export function TimedBlock({
   phase,
   focus,
   focusTone,
+  drag,
 }: ChipProps & {
   compact?: boolean;
   phase: LedgerPhase;
   focus?: FocusSpan[];
   /** 专注条色（番茄钟日历） */
   focusTone?: CSSProperties;
+  /** 可拖动（用户日历日程）：块体平移、下边缘改时长；dragging = 正在被拖 */
+  drag?: {
+    onMove(e: PointerEvent): void;
+    onResize(e: PointerEvent): void;
+    dragging: boolean;
+  };
 }) {
   const fill = ledgerFill(phase);
   const planned = phase.kind !== "record";
@@ -132,6 +139,7 @@ export function TimedBlock({
         onClick(e.currentTarget);
       }}
       onMouseDown={stop}
+      onPointerDown={drag?.onMove}
       style={{
         ...eventToneStyle(event, calendars),
         ...fill.style,
@@ -146,6 +154,8 @@ export function TimedBlock({
         TONE,
         fill.className,
         phase.kind === "plan" && "before:opacity-50",
+        drag && "touch-none",
+        drag?.dragging && "shadow-lift z-40 cursor-grabbing opacity-90",
         className
       )}
     >
@@ -161,6 +171,16 @@ export function TimedBlock({
           <EventTitle event={event} decor={decor} className="font-medium" />
           <div className="text-ink-2 font-tau-mono text-[10.5px] tabular-nums">{range}</div>
         </>
+      )}
+      {drag && (
+        <div
+          aria-hidden
+          onPointerDown={e => {
+            e.stopPropagation();
+            drag.onResize(e);
+          }}
+          className="absolute inset-x-0 bottom-0 h-1.5 cursor-ns-resize"
+        />
       )}
       {focus && focus.length > 0 && (
         <div style={focusTone} className={cn("absolute inset-y-0 right-[3px] w-1", TONE)}>

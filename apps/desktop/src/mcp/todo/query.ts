@@ -262,11 +262,9 @@ const buildBuckets = (
           label:
             item.type === "deadline"
               ? "截止任务"
-              : item.type === "planned"
-                ? "计划任务"
-                : item.type === "recurring"
-                  ? "周期任务"
-                  : "普通任务",
+              : item.type === "recurring"
+                ? "周期任务"
+                : "普通任务",
         };
         break;
       case "due_date":

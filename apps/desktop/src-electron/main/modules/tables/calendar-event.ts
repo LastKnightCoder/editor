@@ -13,6 +13,8 @@ export default class CalendarEventTable {
   static getListenEvents() {
     return {
       "calendar-event:create": this.createEvent.bind(this),
+      "calendar-event:create-for-todo": this.createEventForTodo.bind(this),
+      "calendar-event:get-todo-schedules": this.getTodoSchedules.bind(this),
       "calendar-event:update": this.updateEvent.bind(this),
       "calendar-event:delete": this.deleteEvent.bind(this),
       "calendar-event:get-by-id": this.getEventById.bind(this),
@@ -207,6 +209,7 @@ export default class CalendarEventTable {
       endTime: row.end_time !== null ? row.end_time : null,
       color: row.color || null,
       allDay: Boolean(row.all_day),
+      todoItemId: row.todo_item_id ?? null,
     };
 
     // 解析预加载的描述内容
@@ -225,8 +228,8 @@ export default class CalendarEventTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar_event
-      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, todo_item_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -240,12 +243,87 @@ export default class CalendarEventTable {
       data.startTime !== null ? data.startTime : null,
       data.endTime !== null ? data.endTime : null,
       data.color || null,
-      Number(data.allDay || false)
+      Number(data.allDay || false),
+      data.todoItemId ?? null
     );
 
     Operation.insertOperation(db, "calendar_event", "insert", res.lastInsertRowid, now);
 
     return this.getEventById(db, Number(res.lastInsertRowid));
+  }
+
+  /** 默认用户日历：首个非系统分组、未归档的日历（与日程页补记同口径） */
+  static getDefaultUserCalendarId(db: Database.Database): number | null {
+    return (
+      CalendarTable.getAllCalendars(db).find(c => !c.isInSystemGroup && !c.archived)?.id ?? null
+    );
+  }
+
+  /** 把待办安排进某个时段：新建关联该待办的用户日历事件（标题取待办，备注不与待办描述共用） */
+  static createEventForTodo(
+    db: Database.Database,
+    data: {
+      todoItemId: number;
+      startDate: number;
+      startTime: number;
+      endTime: number;
+      calendarId?: number;
+    }
+  ): CalendarEvent {
+    const todo = db.prepare("SELECT title FROM todo_item WHERE id = ?").get(data.todoItemId) as
+      { title: string } | undefined;
+    if (!todo) throw new Error(`Todo ${data.todoItemId} not found`);
+    const calendarId = data.calendarId ?? this.getDefaultUserCalendarId(db);
+    if (calendarId == null) throw new Error("NO_USER_CALENDAR: 请先创建一个日历");
+    return this.createEvent(db, {
+      calendarId,
+      title: todo.title,
+      detailContentId: 0,
+      startDate: data.startDate,
+      endDate: data.startDate,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      color: null,
+      allDay: false,
+      todoItemId: data.todoItemId,
+    });
+  }
+
+  /**
+   * 每条待办的安排：next = 尚未结束的最早一条（含进行中），last = 已结束的最近一条，count = 总条数。
+   * 按 todo_item_id 索引取，每条待办的安排数量很小，排序在内存里做。
+   */
+  static getTodoSchedules(
+    db: Database.Database,
+    params: { todoItemIds: number[]; now: number }
+  ): Record<number, { next?: CalendarEvent; last?: CalendarEvent; count: number }> {
+    const result: Record<number, { next?: CalendarEvent; last?: CalendarEvent; count: number }> =
+      {};
+    const ids = [...new Set(params.todoItemIds)];
+    const MINUTE = 60_000;
+    const startOf = (e: CalendarEvent) =>
+      e.startDate + (e.allDay ? 0 : (e.startTime ?? 0)) * MINUTE;
+    const endOf = (e: CalendarEvent) =>
+      (e.endDate ?? e.startDate) +
+      (e.allDay ? 24 * 60 : (e.endTime ?? (e.startTime ?? 0) + 60)) * MINUTE;
+    for (let i = 0; i < ids.length; i += 500) {
+      const part = ids.slice(i, i + 500);
+      const rows = db
+        .prepare(
+          `SELECT * FROM calendar_event WHERE todo_item_id IN (${part.map(() => "?").join(",")})`
+        )
+        .all(...part);
+      for (const event of rows.map(row => this.parseCalendarEvent(row))) {
+        const entry = (result[event.todoItemId!] ??= { count: 0 });
+        entry.count += 1;
+        if (endOf(event) > params.now) {
+          if (!entry.next || startOf(event) < startOf(entry.next)) entry.next = event;
+        } else if (!entry.last || startOf(event) > startOf(entry.last)) {
+          entry.last = event;
+        }
+      }
+    }
+    return result;
   }
 
   static updateEvent(db: Database.Database, data: UpdateCalendarEvent): CalendarEvent {

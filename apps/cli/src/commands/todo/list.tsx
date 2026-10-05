@@ -34,7 +34,6 @@ interface ListOptions {
 const TYPE_LABELS: Record<string, { text: string; color: string }> = {
   normal: { text: "普通", color: "gray" },
   deadline: { text: "截止", color: "red" },
-  planned: { text: "计划", color: "blue" },
   recurring: { text: "周期", color: "magenta" },
 };
 
@@ -57,7 +56,7 @@ function getDueText(item: TodoRow): string {
 }
 
 const VALID_STATUSES = ["pending", "completed", "overdue"] as const;
-const VALID_TYPES = ["normal", "deadline", "planned", "recurring"] as const;
+const VALID_TYPES = ["normal", "deadline", "recurring"] as const;
 
 function TodoListOutput({ items }: { items: TodoRow[] }) {
   if (items.length === 0) {

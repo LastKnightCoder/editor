@@ -18,7 +18,7 @@ export function registerTodoCommands(program: Command) {
     )
     .option(
       "-t, --type <type>",
-      "Filter by type (normal, deadline, planned, recurring)",
+      "Filter by type (normal, deadline, recurring)",
     )
     .option("-l, --limit <number>", "Limit results", "20")
     .action(async (options) => {
@@ -31,7 +31,7 @@ export function registerTodoCommands(program: Command) {
     .option("-g, --group <id>", "Group ID")
     .option(
       "-t, --type <type>",
-      "Task type (normal, deadline, planned, recurring)",
+      "Task type (normal, deadline, recurring)",
       "normal",
     )
     .option("-d, --due <date>", "Due date (YYYY-MM-DD)")

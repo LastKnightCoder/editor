@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type PointerEvent,
+} from "react";
 import dayjs from "dayjs";
 import { cn, toast } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
@@ -8,9 +16,18 @@ import {
   useCalendarEvents,
   useCalendarRoles,
   usePomodoroBindings,
+  useScheduleMutations,
 } from "../../queries";
+import { useEventDrag, type EventDragDraft } from "@/hooks/useEventDrag";
+import {
+  DROP_MINUTES,
+  dropMinutes,
+  isTodoDrag,
+  readTodoDrag,
+  useScheduleTodo,
+} from "../../todoDrop";
 import { absorbFocus, eventPhase, isMarker, type FocusSpan } from "../../ledger";
-import { toneStyle } from "../../eventTone";
+import { isEditableEvent, toneStyle } from "../../eventTone";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
 import { getWeekStart, isToday, getDateStart } from "@/utils/calendar";
@@ -53,6 +70,9 @@ const WeekView = () => {
   const roles = useCalendarRoles();
 
   const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(null);
+  const { updateEvent } = useScheduleMutations();
+  const scheduleTodo = useScheduleTodo();
+  const gridRef = useRef<HTMLDivElement>(null);
   const nowMinutes = useNowMinutes();
   const scrollRef = useScrollToNow(currentDate);
   const decorOf = useEventDecor(events);
@@ -117,6 +137,36 @@ const WeekView = () => {
         );
       }),
     [weekDays, events, roles, bindings]
+  );
+
+  // 拖动日程块：松手按新列 / 新时段整行更新（跨天的定时日程不参与拖动）
+  const dayIndexAt = (clientX: number) => {
+    const cols = gridRef.current?.querySelectorAll<HTMLElement>("[data-week-col]");
+    let index = 0;
+    cols?.forEach((col, i) => {
+      if (clientX >= col.getBoundingClientRect().left) index = i;
+    });
+    return index;
+  };
+  const eventDrag = useEventDrag({
+    cellHeight: CELL_HEIGHT,
+    dayIndexAt,
+    onCommit: (eventId, next) => {
+      const event = events.find(e => e.id === eventId);
+      if (!event) return;
+      const startDate = getDateStart(weekDays[next.dayIndex].getTime());
+      void updateEvent({
+        ...event,
+        startDate,
+        endDate: event.endDate == null ? null : startDate,
+        startTime: next.start,
+        endTime: next.end,
+      }).catch(() => toast.error("调整时间失败"));
+    },
+  });
+  const columns = useMemo(
+    () => withDraft(dayTimedEventsLists, eventDrag.draft, weekDays),
+    [dayTimedEventsLists, eventDrag.draft, weekDays]
   );
 
   // 全天车道放全部标记（全天日程、截止、周期打卡）：跨天条与单日条共用一套分层
@@ -212,14 +262,35 @@ const WeekView = () => {
       {/* 时间网格：离纸底留 16px，滚动条不贴纸缘；
           FadeScroll 右侧 6px 透明边 + pr-1.5 合计 12px，与日期头 / 全天车道的 pr-3 对齐 */}
       <FadeScroll scrollRef={scrollRef} className="mb-4 mt-2 min-h-0 flex-1 pr-1.5">
-        <div className="flex" style={{ height: GRID_HEIGHT }}>
+        <div ref={gridRef} className="flex" style={{ height: GRID_HEIGHT }}>
           <HourGutter />
           {weekDays.map((day, dayIndex) => (
             <WeekDayColumn
               key={dayIndex}
               day={day}
-              events={dayTimedEventsLists[dayIndex].blocks}
-              focus={dayTimedEventsLists[dayIndex].focus}
+              events={columns[dayIndex].blocks}
+              focus={columns[dayIndex].focus}
+              draggingId={eventDrag.draft?.eventId ?? null}
+              canDrag={event =>
+                isEditableEvent(event, calendars) &&
+                (event.endDate == null || event.endDate === event.startDate)
+              }
+              onDragStart={(e, event, mode) =>
+                eventDrag.start(
+                  e,
+                  {
+                    eventId: event.id,
+                    dayIndex,
+                    start: event.startTime ?? 0,
+                    end: event.endTime ?? (event.startTime ?? 0) + 60,
+                  },
+                  mode
+                )
+              }
+              consumeClick={eventDrag.consumeClick}
+              onDropTodo={(todoId, start) =>
+                void scheduleTodo(todoId, getDateStart(day.getTime()), start)
+              }
               focusTone={focusTone}
               calendars={calendars}
               decorOf={decorOf}
@@ -236,11 +307,39 @@ const WeekView = () => {
   );
 };
 
-/** 单日列：自持拖拽与重叠分列（原先 7 个 hook 在 map 里调用，拆成组件后合规） */
+/** 拖动中的日程按草稿位置渲染：从原列移除，放进草稿列（时段换成草稿起止） */
+function withDraft(
+  columns: { blocks: CalendarEvent[]; focus: Map<number, FocusSpan[]> }[],
+  draft: EventDragDraft | null,
+  weekDays: Date[]
+) {
+  if (!draft) return columns;
+  const dragged = columns.flatMap(c => c.blocks).find(e => e.id === draft.eventId);
+  if (!dragged) return columns;
+  const startDate = getDateStart(weekDays[draft.dayIndex].getTime());
+  const moved: CalendarEvent = {
+    ...dragged,
+    startDate,
+    endDate: dragged.endDate == null ? null : startDate,
+    startTime: draft.start,
+    endTime: draft.end,
+  };
+  return columns.map((column, index) => {
+    const blocks = column.blocks.filter(e => e.id !== draft.eventId);
+    return { ...column, blocks: index === draft.dayIndex ? [...blocks, moved] : blocks };
+  });
+}
+
+/** 单日列：自持框选新建、待办拖入与重叠分列（原先 7 个 hook 在 map 里调用，拆成组件后合规） */
 function WeekDayColumn({
   day,
   events,
   focus,
+  draggingId,
+  canDrag,
+  onDragStart,
+  consumeClick,
+  onDropTodo,
   focusTone,
   calendars,
   decorOf,
@@ -253,6 +352,11 @@ function WeekDayColumn({
   day: Date;
   events: CalendarEvent[];
   focus: Map<number, FocusSpan[]>;
+  draggingId: number | null;
+  canDrag(event: CalendarEvent): boolean;
+  onDragStart(e: PointerEvent, event: CalendarEvent, mode: "move" | "resize"): void;
+  consumeClick(): boolean;
+  onDropTodo(todoId: number, start: number): void;
   focusTone: CSSProperties | undefined;
   calendars: Calendar[];
   decorOf: (event: CalendarEvent) => EventDecor;
@@ -271,16 +375,41 @@ function WeekDayColumn({
   const today = isToday(day.getTime());
   // 分钟精度，随 nowMinutes 的 tick 推进
   const nowMs = getDateStart(Date.now()) + nowMinutes * 60_000;
+  // 待办拖入的落点预览
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  const dropMinute = (e: DragEvent<HTMLDivElement>) =>
+    dropMinutes(e.clientY - e.currentTarget.getBoundingClientRect().top, CELL_HEIGHT);
 
   return (
     <div
+      data-week-col
       className={cn(
         "relative flex-1 cursor-cell select-none",
         !first && "shadow-[-1px_0_0_var(--tau-line-2)]",
         today && "bg-accent/[0.04]"
       )}
       {...handlers}
+      onDragOver={e => {
+        if (!isTodoDrag(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        const at = dropMinute(e);
+        if (at !== dropAt) setDropAt(at);
+      }}
+      onDragLeave={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropAt(null);
+      }}
+      onDrop={e => {
+        const todoId = readTodoDrag(e);
+        setDropAt(null);
+        if (todoId == null) return;
+        e.preventDefault();
+        onDropTodo(todoId, dropMinute(e));
+      }}
     >
+      {dropAt !== null && (
+        <PendingRange start={dropAt} end={Math.min(dropAt + DROP_MINUTES, 24 * 60 - 1)} />
+      )}
       <HourLines />
       {isDragging && selectedRange && (
         <DragRange start={selectedRange.start} end={selectedRange.end} />
@@ -301,11 +430,22 @@ function WeekDayColumn({
             event={event}
             calendars={calendars}
             decor={decorOf(event)}
-            onClick={anchor => onOpen(event, anchor)}
+            onClick={anchor => {
+              if (!consumeClick()) onOpen(event, anchor);
+            }}
             compact={height < 36}
             phase={eventPhase(event, nowMs)}
             focus={focus.get(event.id)}
             focusTone={focusTone}
+            drag={
+              canDrag(event)
+                ? {
+                    onMove: e => onDragStart(e, event, "move"),
+                    onResize: e => onDragStart(e, event, "resize"),
+                    dragging: draggingId === event.id,
+                  }
+                : undefined
+            }
             style={{
               top: minutesToPx(start),
               height,

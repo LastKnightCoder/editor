@@ -4,6 +4,7 @@ import { notifyApp } from "./notify.js";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
 import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
+import { retirePlannedTodos } from "@tau/db-schema/src/planned-retirement";
 import { retireEditorBlocks } from "@tau/db-schema/src/editor-block-retirement";
 import { migrateKnowledgeIndex } from "@tau/db-schema/src/knowledge-index-migration";
 import { existsSync, statSync } from "node:fs";
@@ -38,6 +39,7 @@ export class DataAccess {
       this.db.loadExtension(sqliteVec.getLoadablePath());
       retireSubscriptions(this.db, dbPath);
       retireFeatureTables(this.db, dbPath);
+      retirePlannedTodos(this.db, dbPath);
       upgradeKnowledgeDatabase(this.db, dbPath, { skipBackup: options.skipMigrationBackup });
       retireEditorBlocks(this.db, dbPath);
       const indexPath = getIndexDbPath(dbName);

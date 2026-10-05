@@ -107,16 +107,18 @@ describe("待办增改删的日历一致性", () => {
     expect(eventOf(item.id).title).toBe("设计评审");
     expect(eventOf(item.id).start_date).toBe(at(9, 28));
 
-    TodoItemTable.updateItem(db, {
-      id: item.id,
-      type: "planned",
-      startAt: at(9, 28, 10),
-      dueAt: at(9, 28, 12),
-    });
-    const calendars = TodoCalendarSyncTable.getTodoCalendars(db);
-    expect(mappings(item.id)).toHaveLength(1);
-    expect(mappings(item.id)[0].syncType).toBe("planned");
-    expect(eventOf(item.id).calendar_id).toBe(calendars.planned);
+    TodoItemTable.updateItem(db, { id: item.id, type: "normal" });
+    expect(mappings(item.id)).toHaveLength(0);
+  });
+
+  it("计划任务已退役：拒绝写入 planned", () => {
+    expect(() =>
+      TodoItemTable.createItem(db, { groupId, title: "x", type: "planned" as never })
+    ).toThrow("Unsupported todo type");
+    const item = TodoItemTable.createItem(db, { groupId, title: "y" });
+    expect(() => TodoItemTable.updateItem(db, { id: item.id, type: "planned" as never })).toThrow(
+      "Unsupported todo type"
+    );
   });
 
   it("单条删除同时清理日历映射与事件", () => {

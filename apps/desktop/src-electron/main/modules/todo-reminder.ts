@@ -14,7 +14,7 @@ interface InternalReminder {
   title: string;
   dueAt: number;
   remindAt: number;
-  type: "deadline" | "planned" | "recurring";
+  type: "deadline" | "recurring";
   recurrenceDate?: number;
 }
 
@@ -36,12 +36,9 @@ class TodoReminderModule implements Module {
 
     ipcMain.handle(
       "todo-reminder:dismiss",
-      async (
-        _event,
-        { todoId, recurrenceDate }: { todoId: number; recurrenceDate?: number },
-      ) => {
+      async (_event, { todoId, recurrenceDate }: { todoId: number; recurrenceDate?: number }) => {
         this.dismissReminder(todoId, recurrenceDate);
-      },
+      }
     );
 
     ipcMain.handle("todo-reminder:dismiss-all", async () => {
@@ -106,7 +103,7 @@ class TodoReminderModule implements Module {
 
   private getInternalRemindersFromDb(
     db: ReturnType<typeof databaseModule.getDatabase>,
-    now: number,
+    now: number
   ): InternalReminder[] {
     if (!db) return [];
 
@@ -119,9 +116,9 @@ class TodoReminderModule implements Module {
           FROM todo_item
           WHERE is_completed = 0
             AND is_archived = 0
-            AND type IN ('deadline', 'planned')
+            AND type = 'deadline'
             AND remind_before IS NOT NULL
-            AND due_at IS NOT NULL`,
+            AND due_at IS NOT NULL`
         )
         .all() as Array<{
         id: number;
@@ -138,16 +135,13 @@ class TodoReminderModule implements Module {
         const remindAt = row.due_at - row.remind_before;
 
         // 只添加即将到来的提醒（提前 24 小时到当前时间）
-        if (
-          remindAt > now - 24 * 60 * 60 * 1000 &&
-          remindAt <= now + 24 * 60 * 60 * 1000
-        ) {
+        if (remindAt > now - 24 * 60 * 60 * 1000 && remindAt <= now + 24 * 60 * 60 * 1000) {
           reminders.push({
             todoId: row.id,
             title: row.title,
             dueAt: row.due_at,
             remindAt,
-            type: row.type as "deadline" | "planned",
+            type: "deadline",
           });
         }
       }
@@ -233,9 +227,7 @@ class TodoReminderModule implements Module {
 
     for (const reminder of internalReminders) {
       // 获取完整的 TodoItem
-      const todoItem = db
-        .prepare(`SELECT * FROM todo_item WHERE id = ?`)
-        .get(reminder.todoId);
+      const todoItem = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(reminder.todoId);
 
       if (todoItem) {
         pendingReminders.push({

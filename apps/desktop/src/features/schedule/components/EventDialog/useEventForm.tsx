@@ -5,7 +5,8 @@
  * 全天 precision="day"；表单内部仍按 日期字符串 + "HH:mm" 分存，保存时换算回
  * 时间戳 + 分钟数（数据契约不变）。
  * 系统日历日程（番茄钟 / 待办同步）锁定日历、全天、时间、颜色，不可删除；
- * 待办日程另锁标题（反向同步未接，避免日历与待办不一致）。
+ * 待办日程（系统物化 + 用户日历里的安排）另锁标题——标题跟随待办（改待办标题时主进程同步）。
+ * 删除不二次确认，走 pendingDeleteStore 的 Toast 撤销。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +27,7 @@ import {
   useScheduleCommands,
   useScheduleMutations,
 } from "../../queries";
+import { scheduleEventDelete } from "../../pendingDeleteStore";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -98,7 +100,10 @@ export function useEventForm(
     ? calendars.find(c => c.id === editingEvent.calendarId)
     : undefined;
   const isSystemCalendarEvent = eventCalendar?.isInSystemGroup ?? false;
-  const isTodoEvent = editingEvent ? kinds.get(editingEvent.calendarId) === "todo" : false;
+  // 系统待办日历的物化事件，或用户日历里关联待办的安排：标题跟随待办
+  const isTodoEvent = editingEvent
+    ? kinds.get(editingEvent.calendarId) === "todo" || editingEvent.todoItemId != null
+    : false;
 
   useEffect(() => {
     if (!editingEvent) return;
@@ -237,9 +242,11 @@ export function useEventForm(
     return [hours && `${hours} 小时`, mins && `${mins} 分钟`].filter(Boolean).join(" ");
   })();
 
-  const remove = async () => {
+  /** 删除不二次确认：先隐藏 + Toast 撤销，到时才落库（pendingDeleteStore） */
+  const remove = () => {
     if (!editingEvent || editingEvent.id === 0) return;
-    await deleteEvent(editingEvent.id);
+    const target = editingEvent;
+    scheduleEventDelete(target, () => deleteEvent(target.id));
     setBaseline(snapshot);
     onDone();
   };
@@ -268,6 +275,11 @@ export function useEventForm(
           {isTodoEvent
             ? "来自待办：标题、时间与日历归属请在待办中修改"
             : "系统日历日程：时间、日历归属与颜色不可修改"}
+        </p>
+      )}
+      {!isSystemCalendarEvent && isTodoEvent && (
+        <p className="text-ink-3 text-tau-meta mb-2">
+          这是待办的一次安排：标题跟随待办，时间可在这里调整
         </p>
       )}
 

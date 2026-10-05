@@ -14,7 +14,6 @@ const WINDOW_AFTER_DAYS: i64 = 180;
 #[derive(Debug, Clone)]
 pub struct TodoCalendars {
     pub deadline: i64,
-    pub planned: i64,
     pub recurring: i64,
 }
 
@@ -395,12 +394,11 @@ fn upsert_calendar(
 
 pub fn ensure_todo_calendars(tx: &Transaction<'_>) -> Result<TodoCalendars, String> {
     let group_id = upsert_calendar_group(tx)?;
+    // 「计划任务」日历已退役（桌面开库时转换为用户日历里关联待办的事件），这里不再补建
     let deadline = upsert_calendar(tx, group_id, "截止任务", "red", 0)?;
-    let planned = upsert_calendar(tx, group_id, "计划任务", "blue", 1)?;
     let recurring = upsert_calendar(tx, group_id, "周期任务", "green", 2)?;
     Ok(TodoCalendars {
         deadline,
-        planned,
         recurring,
     })
 }
@@ -516,39 +514,6 @@ fn build_event_for_deadline(
         start_time: if has_time { Some(due_minute) } else { None },
         end_time: None,
         all_day: !has_time,
-    })
-}
-
-fn build_event_for_planned(
-    todo: &TodoRow,
-    calendars: &TodoCalendars,
-    zone: CalendarTimeZone,
-) -> Option<CalendarEventData> {
-    let anchor = todo.start_at.or(todo.due_at)?;
-    let start_date = start_of_day(anchor, zone);
-    let due_at = todo.due_at;
-    let end_date = due_at
-        .map(|ts| start_of_day(ts, zone))
-        .filter(|d| *d != start_date);
-    // 对齐桌面：起止时刻各自独立判定（有值且分钟数 > 0 才落），
-    // 缺失一侧保持 None，否则只有开始时间的计划任务会显示「结束 00:00」
-    let start_time = todo
-        .start_at
-        .map(|ts| minute_of_day(ts, zone))
-        .filter(|minute| *minute > 0);
-    let end_time = due_at
-        .map(|ts| minute_of_day(ts, zone))
-        .filter(|minute| *minute > 0);
-
-    Some(CalendarEventData {
-        calendar_id: calendars.planned,
-        title: todo.title.clone(),
-        detail_content_id: todo.description_content_id.unwrap_or(0),
-        start_date,
-        end_date,
-        start_time,
-        end_time,
-        all_day: start_time.is_none() && end_time.is_none(),
     })
 }
 
@@ -763,7 +728,7 @@ pub fn sync_single_item(
     let zone = time_zone;
     let event_data = match todo.item_type.as_str() {
         "deadline" => build_event_for_deadline(&todo, &calendars, zone),
-        "planned" => build_event_for_planned(&todo, &calendars, zone),
+        // 尚未经桌面转换的 planned 待办不再物化（时间仍在 start_at / due_at，桌面转换时据此建事件）
         _ => None,
     };
     if let Some(data) = event_data {
@@ -883,7 +848,8 @@ mod tests {
         let count: i64 = tx
             .query_row("SELECT COUNT(*) FROM calendar", [], |r| r.get(0))
             .unwrap();
-        assert_eq!(count, 3);
+        // 截止 + 周期（计划任务日历已退役）
+        assert_eq!(count, 2);
     }
 
     #[test]
@@ -1122,31 +1088,6 @@ mod tests {
             .unwrap();
         assert_eq!(start_date, 1757952000_000); // 本地 9/16 0 点
         assert_eq!(start_time, 60);
-        assert_eq!(all_day, 0);
-    }
-
-    #[test]
-    fn planned_event_keeps_missing_time_side_null() {
-        let mut connection = database();
-        // 只有开始时刻的计划任务：结束侧保持 NULL（对齐桌面独立判定），
-        // 否则列表会显示「结束 00:00」、详情显示「时长 0 分钟」
-        connection
-            .execute(
-                "INSERT INTO todo_item (id, title, type, start_at, due_at) VALUES (1, '计划', 'planned', ?1, NULL)",
-                [1757916000_000i64], // 本地 9/15 14:00
-            )
-            .unwrap();
-        let tx = connection.transaction().unwrap();
-        sync_single_item(&tx, 1, TZ_UTC8).unwrap();
-        let (start_time, end_time, all_day): (Option<i64>, Option<i64>, i64) = tx
-            .query_row(
-                "SELECT start_time, end_time, all_day FROM calendar_event",
-                [],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .unwrap();
-        assert_eq!(start_time, Some(14 * 60));
-        assert_eq!(end_time, None);
         assert_eq!(all_day, 0);
     }
 

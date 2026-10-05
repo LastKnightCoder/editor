@@ -24,7 +24,8 @@ export function useEventDecor(events: CalendarEvent[]) {
   return useCallback(
     (event: CalendarEvent): EventDecor => {
       const kind = kinds.get(event.calendarId);
-      const source = kind === "todo" ? sources[event.id] : undefined;
+      // 系统待办日历的物化事件，或用户日历里关联待办的安排
+      const source = kind === "todo" || event.todoItemId != null ? sources[event.id] : undefined;
       return { kind, source, onToggle: source ? () => toggle(source) : undefined };
     },
     [kinds, sources, toggle]
@@ -44,7 +45,7 @@ export function EventTitle({ event, decor, className }: EventTitleProps) {
       {decor.kind === "pomodoro" && (
         <Timer aria-label="番茄钟" className="size-3 shrink-0 opacity-75" strokeWidth={2} />
       )}
-      {decor.kind === "todo" && (
+      {(decor.kind === "todo" || decor.source) && (
         <button
           type="button"
           aria-label={done ? "标记为未完成" : "标记为完成"}

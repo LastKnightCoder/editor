@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import type { MoveAndReorderTodoItemPayload, TodoGroup, TodoItem, TodoItemType } from "../../types";
+import { SELECTABLE_TODO_TYPES } from "../../types";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { toggleTodoComplete } from "./toggleComplete";
 import { getTodoItemsCacheKey, useTodoStore } from "./store/useTodoStore";
@@ -54,7 +55,6 @@ const SYSTEM_GROUP_LABELS: Record<Exclude<TodoGroup["systemType"], null>, string
   all: "全部任务",
   normal: "普通任务",
   deadline: "截止任务",
-  planned: "计划任务",
   recurring: "周期任务",
 };
 
@@ -62,7 +62,6 @@ const SYSTEM_GROUP_ORDER: Exclude<TodoGroup["systemType"], null>[] = [
   "all",
   "normal",
   "deadline",
-  "planned",
   "recurring",
 ];
 
@@ -707,7 +706,7 @@ export function TodoPage({
       <ActionSheet
         open={typeSheetOpen}
         title="选择任务类型"
-        items={(["normal", "deadline", "planned", "recurring"] as TodoItemType[]).map(t => ({
+        items={SELECTABLE_TODO_TYPES.map(t => ({
           label: TYPE_LABELS[t],
           trailing: newType === t ? <Check strokeWidth={2.6} /> : undefined,
           onClick: () => setNewType(t),
