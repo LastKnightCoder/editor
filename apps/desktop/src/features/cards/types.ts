@@ -30,6 +30,8 @@ export interface CardFilter {
 /** 卡面条目操作契约：卡面与预览共用同一组操作（视图层组装注入，菜单实现见 CardActionMenu） */
 export interface CardItemActions {
   onOpen(card: ICard): void;
+  /** 悬停预取单卡全文：点开时预览 / 详情可直接渲染，形变不等读取 */
+  onPrefetch?(card: ICard): void;
   onOpenDetail(card: ICard): void;
   onToggleTop(card: ICard): void;
   onPresent(card: ICard): void;

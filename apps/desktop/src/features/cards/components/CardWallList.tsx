@@ -17,7 +17,9 @@ import { cn, useEdgeFade, IconButton, Tag } from "@tau/ui";
 import { bucketByTimeGroups } from "../queries";
 import { CardItemView, formatMonthDay } from "./CardItemView";
 import { FadeWhenOverflow } from "./FadeWhenOverflow";
+import { useScrollTopOnChange } from "./useScrollTopOnChange";
 import type { CardItemActions } from "../types";
+import { cardMorphKey } from "../morph";
 
 const MIN_CARD_WIDTH = 288;
 const GAP = 16;
@@ -44,10 +46,7 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
   const [showBackToTop, setShowBackToTop] = useState(false);
   useEdgeFade(scrollEl);
 
-  useLayoutEffect(() => {
-    if (scrollEl) scrollEl.scrollTop = 0;
-    setShowBackToTop(false);
-  }, [scrollEl, resetScrollKey]);
+  useScrollTopOnChange(scrollEl, resetScrollKey, () => setShowBackToTop(false));
 
   /* 列数跟随滚动容器宽（侧栏收起/拖宽/窗口缩放统一覆盖；rAF 合并） */
   const widthRef = useRef(0);
@@ -237,6 +236,8 @@ function FeaturedCard({
   return (
     <article
       tabIndex={0}
+      data-morph-key={cardMorphKey(card.id)}
+      onPointerEnter={() => actions.onPrefetch?.(card)}
       onClick={() => actions.onOpen(card)}
       className={cn(
         "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer overflow-hidden rounded-[var(--tau-radius-lg)] border py-4 pl-[18px] pr-5",

@@ -6,7 +6,9 @@
  * 协议）。阻断通知不带 icon，文字头部与其它对话同构（D-011）。
  *
  * 行为内建（不做成 props）：
- *  - 开合动效：遮罩淡入 + 卡片 scale(0.97)+translateY(8px)，退场等长后卸载
+ *  - 开合动效：遮罩淡入 + 卡片 scale(0.97)+translateY(8px)，退场等长后卸载；根上带
+ *    data-morph（视图转场进行中）时一步到位到终态——转场更新期间 rAF 不触发，入场
+ *    动效跑不起来，浏览器要截的是终态。卡片 data-state=open|closed 供形变定位就绪
  *  - Esc：仅 open 态在卡片 DOM 消费（stopPropagation）——焦点圈闭保证 Esc 必落
  *    卡片，焦点链即 LIFO，不进 D-003 注册表（同 D-007/D-010 口径，ui 不反向依赖
  *    page/）；critical 抖动拒绝
@@ -95,6 +97,9 @@ export interface DialogProps {
 const CHIP_CLASS =
   "border-line-1 bg-surface text-ink-2 inline-flex h-[22px] max-w-[176px] shrink-0 items-center " +
   "gap-[5px] truncate rounded-full border px-2.5 text-[11px]";
+
+/** 视图转场进行中（根上 data-morph，D-106）关掉开合过渡 */
+const MORPH_INSTANT = "[[data-morph]_&]:transition-none";
 
 /** critical 的拒绝反馈：300ms 横向抖动（jsdom 无 WAAPI，可选链防御） */
 function shakeCard(el: HTMLElement | null) {
@@ -238,6 +243,8 @@ export function Dialog({
         "backdrop-blur-[4px]",
         "ease-tau-out transition-opacity duration-[200ms]",
         visible && shown ? "opacity-100" : "opacity-0",
+        MORPH_INSTANT,
+        visible && "[[data-morph]_&]:opacity-100",
         !visible && "pointer-events-none",
         !contentReady && "invisible"
       )}
@@ -254,6 +261,7 @@ export function Dialog({
           aria-labelledby={header ? undefined : titleId}
           aria-label={header ? title : undefined}
           tabIndex={-1}
+          data-state={visible ? "open" : "closed"}
           onKeyDown={onCardKeyDown}
           style={{ width, height: height ? `min(82vh, ${height}px)` : undefined }}
           className={clsx(
@@ -264,6 +272,9 @@ export function Dialog({
             size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
             "ease-tau-out transition-[opacity,transform] duration-[200ms]",
             visible && shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
+            MORPH_INSTANT,
+            visible &&
+              "[[data-morph]_&]:translate-none [[data-morph]_&]:scale-none [[data-morph]_&]:opacity-100",
             !(visible && shown) && "pointer-events-none",
             className
           )}
