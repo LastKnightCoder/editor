@@ -218,6 +218,42 @@ export function clearCells(editor: Editor, tablePath: Path, rect: CellRect): boo
   return true;
 }
 
+export type CellContent = TableCellElement["children"];
+
+/**
+ * 从 (row, col) 起按格写入内容，行列不够时在末尾补齐；空内容写成空文本。
+ * 一次调用即一步撤销。
+ */
+export function fillCells(
+  editor: Editor,
+  tablePath: Path,
+  row: number,
+  col: number,
+  grid: CellContent[][]
+): boolean {
+  const table = writableTable(editor, tablePath);
+  const width = Math.max(0, ...grid.map(cells => cells.length));
+  if (!table || !grid.length || !width) return false;
+  Editor.withoutNormalizing(editor, () => {
+    const missingRows = row + grid.length - table.children.length;
+    if (missingRows > 0) insertRows(editor, tablePath, table.children.length, missingRows);
+    const missingCols = col + width - columnCount(table);
+    if (missingCols > 0) insertColumns(editor, tablePath, columnCount(table), missingCols);
+    grid.forEach((cells, i) =>
+      cells.forEach((content, j) => {
+        const cellPath = [...tablePath, row + i, col + j];
+        const cell = Node.get(editor, cellPath) as TableCellElement;
+        for (let k = cell.children.length - 1; k >= 0; k--) {
+          Transforms.removeNodes(editor, { at: [...cellPath, k] });
+        }
+        const nodes = content.length ? structuredClone(content) : [{ type: "formatted", text: "" }];
+        Transforms.insertNodes(editor, nodes as CellContent, { at: [...cellPath, 0] });
+      })
+    );
+  });
+  return true;
+}
+
 /** 光标放进指定单元格（默认末尾）；越界时就近取格 */
 export function selectCell(
   editor: Editor,

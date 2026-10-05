@@ -50,7 +50,7 @@
 
 - 热键收敛到 Tab / ⇧Tab / Enter / ↑ / ↓ 五个命令（⇧Enter 由插件改写 insertSoftBreak）；同步 `packages/editor/src/__tests__/define-extension.test.tsx` 中对 `tau.table.*` 的断言。
 - `⇧Enter` 在格内插入软换行，codec 导出为 `<br>`、导入还原。
-- 粘贴走扩展 `ingest.text`：认领含制表符的多行文本与 HTML `<table>`。
+- 粘贴由插件改写 insertData / insertFragment（见进度 P4）。正文里只认领 HTML 表格，避免把带制表符的代码误转成表。
 
 ### P5 收尾
 
@@ -63,4 +63,5 @@
 - [x] P2 格选区：`selection.ts` 取代 `deleteGuard.ts`（矩形删除 / 输入 / 格式 / 复制、全选删除补段落）
 - [x] P3 交互外观：行列手柄 + 菜单 + 拖动排序、追加条、选区覆盖层、细框线样式；删除旧工具条、Actions 菜单、react-dnd 行拖拽与 `operations.ts`
 - [x] P4 键盘：五个导航命令、⇧Enter 软换行；codec 修正格内竖线未转义、换行丢失、分隔行按竖线数误算列数
-- [ ] P4 粘贴（ingest）
+- [x] P4 粘贴：`paste.ts`（受信任层插件，需要光标上下文，ingest 的 `when(data)` 拿不到编辑器，故不走 ingest）。格内：HTML 表格 / TSV / 编辑器子表片段从光标格起填充并扩行扩列，普通多行文本留作软换行，其它块片段摊平为行内；正文：主体为表格的 HTML 生成新表，纯 TSV 不认领
+- [ ] 视觉验收（用户）

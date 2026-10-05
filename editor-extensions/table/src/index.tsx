@@ -9,6 +9,7 @@ import TableCell from "./components/TableCell";
 import { tableCellBehaviors, tableForParagraph } from "./behaviors";
 import { tableCommands, tableHotkeys } from "./commands";
 import { withTableCellSelection } from "./selection";
+import { withTablePaste } from "./paste";
 import { tableCellNormalize, tableNormalize, tableRowNormalize } from "./normalize";
 import blockPanelItems from "./block-panel-items";
 
@@ -33,9 +34,9 @@ export const tableExtension = defineExtension({
     }),
   ],
   blockPanel: blockPanelItems,
-  // 格选区的删除 / 输入 / 复制改写的是编辑器级方法，不在 ElementBehaviors 方法面上，
+  // 格选区的删除 / 输入 / 复制与表格粘贴改写的是编辑器级方法，不在 ElementBehaviors 方法面上，
   // 保留为受信任层插件（ER-005）
-  plugins: [withTableCellSelection],
+  plugins: [withTableCellSelection, withTablePaste],
   behaviorsFor: {
     paragraph: tableForParagraph,
   },
