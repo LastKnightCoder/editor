@@ -16,6 +16,7 @@ import {
   filterAnnotations,
   hasNote,
   isEngineAnnotation,
+  joinSelectedLines,
   layoutMarginNotes,
   layoutPins,
   marginFitClientWidth,
@@ -152,6 +153,14 @@ describe("页边图钉", () => {
       });
     const slots = layoutPins([at(1, 100), at(2, 105), at(3, 400)], 1.5, 22);
     expect(slots.map(s => s.top)).toEqual([150, 176, 600]);
+  });
+});
+
+describe("选区文字", () => {
+  it("中文行间直接相连，英文行间补空格，行内空白压缩", () => {
+    expect(joinSelectedLines(["边际收益", "递减并不意味着", "  "])).toBe("边际收益递减并不意味着");
+    expect(joinSelectedLines(["based   solely on", "attention"])).toBe("based solely on attention");
+    expect(joinSelectedLines(["见 Transformer", "架构"])).toBe("见 Transformer架构");
   });
 });
 

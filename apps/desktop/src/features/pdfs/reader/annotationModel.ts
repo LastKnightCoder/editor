@@ -197,6 +197,20 @@ export function annotationText(annotation?: PdfAnnotationObject): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+const CJK = /[\u3000-\u303f\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
+/** 选区的逐行文字拼成一段：中日文行间直接相连，其余行间补一个空格；行内空白压成一个 */
+export function joinSelectedLines(lines: string[]): string {
+  let text = "";
+  for (const raw of lines) {
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    const glue = text && !CJK.test(text.slice(-1)) && !CJK.test(line[0]) ? " " : "";
+    text += glue + line;
+  }
+  return text;
+}
+
 export function annotationPage(record: PdfAnnotation): number {
   const index =
     record.type === "area" ? (record.areaData?.pageIndex ?? 0) : (record.annotation.pageIndex ?? 0);
