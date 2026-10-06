@@ -52,6 +52,7 @@ import {
   annotationText,
   hasNote,
   isEngineAnnotation,
+  joinSelectedLines,
   isMarginNote,
   markupDefaults,
   noteText,
@@ -241,7 +242,7 @@ export function ReaderLayout({
       if (!first) return;
       selection.getSelectedText().wait(
         lines => {
-          const text = normalize(lines.join(" "));
+          const text = joinSelectedLines(lines);
           if (!text) return;
           annotationCap?.deselectAnnotation();
           setOverlay({ kind: "selection", pageIndex: first.pageIndex, rect: first.rect, text });
@@ -257,6 +258,20 @@ export function ReaderLayout({
       offChange();
     };
   }, [selection, annotationCap]);
+
+  // 引擎的选区只是画在位图上的高亮，页面里没有 DOM 选区，⌘C / 菜单「复制」要在 copy 事件里自己写剪贴板；
+  // 页面别处有真实选区或焦点在输入框时让位
+  const selectionCopyText = overlay?.kind === "selection" ? overlay.text : null;
+  useEffect(() => {
+    if (!selectionCopyText) return;
+    const onCopy = (e: ClipboardEvent) => {
+      if (isEditableTarget(document.activeElement) || window.getSelection()?.toString()) return;
+      e.preventDefault();
+      e.clipboardData?.setData("text/plain", selectionCopyText);
+    };
+    document.addEventListener("copy", onCopy);
+    return () => document.removeEventListener("copy", onCopy);
+  }, [selectionCopyText]);
 
   // Alt 拖动框选：松开即截图，弹区域工具条
   useEffect(() => {
