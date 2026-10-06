@@ -1,7 +1,6 @@
-// 协作设置（设计稿 06 方案 B）：身份卡置顶（设备即身份）+ 服务器组 + 协作组。
+// 协作设置：身份卡置顶（设备即身份）+ 协作组。服务器固定为默认协作服务器，与桌面端一致。
 // 本文件位于静态 bundle，因此协作运行时（yjs）只在保存动作中动态引入。
 import { useState } from "react";
-import { DEFAULT_COLLABORATION_URL, normalizeServerUrl } from "@tau/collaboration/src/protocol";
 import { useAppContext } from "../../../app/AppContext";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { GroupLabel } from "../../../components/GroupLabel";
@@ -15,25 +14,11 @@ import {
   GroupCard,
   GroupNote,
   GroupRow,
-  IconCloud,
-  IconKeyRound,
-  IconPower,
   IconUsers,
   IconWifi,
   ListItem,
   StatusDot,
-  SwitchButton,
 } from "./ui";
-
-/** 前置校验直接复用共享包规则（与 Rust 侧 normalize_server_url 对齐，见 protocol.ts） */
-function validateServerUrl(value: string): string | undefined {
-  try {
-    normalizeServerUrl(value.trim());
-    return undefined;
-  } catch (error) {
-    return error instanceof Error ? error.message : "地址格式不正确";
-  }
-}
 
 function deviceLabel(deviceId?: string) {
   if (!deviceId) return "未注册";
@@ -50,14 +35,11 @@ export function CollaborationSection() {
   const status = useCollaborationStore(state => state.status);
   const sessions = useCollaborationStore(state => state.sessions);
   const requests = useCollaborationStore(state => state.requests);
+  const error = useCollaborationStore(state => state.error);
 
-  const serverUrl = setting?.collaboration?.serverUrl || DEFAULT_COLLABORATION_URL;
   const nickname = setting?.collaboration?.nickname || "Tau 用户";
-  const enabled = setting?.collaboration?.enable !== false;
 
   const [nicknameDraft, setNicknameDraft] = useState<string>();
-  const [serverDraft, setServerDraft] = useState<string>();
-  const [serverError, setServerError] = useState<string>();
   const [busy, setBusy] = useState(false);
   useCollaborationRuntime();
 
@@ -68,7 +50,7 @@ export function CollaborationSection() {
         ? "连接中"
         : status === "error"
           ? "连接异常"
-          : "未启用";
+          : "未连接";
   const statusTone = status === "ready" ? "ok" : status === "error" ? "warn" : "idle";
 
   const saveNickname = async () => {
@@ -93,35 +75,6 @@ export function CollaborationSection() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const saveServer = () => {
-    const value = (serverDraft ?? "").trim();
-    const invalid = validateServerUrl(value);
-    if (invalid) {
-      setServerError(invalid);
-      return;
-    }
-    updateSetting(
-      prev => ({
-        ...prev,
-        collaboration: { ...(prev.collaboration ?? {}), serverUrl: value.replace(/\/+$/, "") },
-      }),
-      { persist: true }
-    );
-    toast.success("已切换协作服务器");
-    setServerDraft(undefined);
-    setServerError(undefined);
-  };
-
-  const toggleEnabled = () => {
-    updateSetting(
-      prev => ({
-        ...prev,
-        collaboration: { ...(prev.collaboration ?? {}), enable: !enabled },
-      }),
-      { persist: true }
-    );
   };
 
   const pendingCount = requests.length;
@@ -152,39 +105,21 @@ export function CollaborationSection() {
         </div>
       </div>
 
-      <GroupLabel>协作服务器</GroupLabel>
+      <GroupLabel>协作</GroupLabel>
       <GroupCard>
-        <ListItem
-          icon={<IconCloud />}
-          label="服务器地址"
-          value={serverUrl.replace(/^https?:\/\//, "")}
-          onClick={() => {
-            setServerDraft(serverUrl);
-            setServerError(undefined);
-          }}
-        />
         <GroupRow>
           <IconWifi />
-          <span className="text-ink flex-1 text-[14px] font-medium">连接状态</span>
-          <span className="text-ink-2 flex items-center gap-1.5 text-[12.5px]">
+          <span className="min-w-0 flex-1">
+            <span className="text-ink block text-[14px] font-medium">连接状态</span>
+            {status === "error" && error ? (
+              <span className="text-ink-3 block truncate text-[11.5px]">{error}</span>
+            ) : null}
+          </span>
+          <span className="text-ink-2 flex shrink-0 items-center gap-1.5 text-[12.5px]">
             <StatusDot tone={statusTone} />
             {statusText}
           </span>
         </GroupRow>
-        <GroupRow>
-          <IconKeyRound />
-          <span className="min-w-0 flex-1">
-            <span className="text-ink block text-[14px] font-medium">身份导入 / 导出</span>
-            <span className="text-ink-3 block text-[11.5px]">跨设备迁移协作身份（含密钥）</span>
-          </span>
-          <span className="bg-butter-soft text-butter shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold">
-            即将
-          </span>
-        </GroupRow>
-      </GroupCard>
-
-      <GroupLabel>协作</GroupLabel>
-      <GroupCard>
         <ListItem
           icon={<IconUsers />}
           label="我的协作"
@@ -195,17 +130,9 @@ export function CollaborationSection() {
           }
           onClick={() => navigator.push("collaborationCenter")}
         />
-        <GroupRow>
-          <IconPower />
-          <span className="min-w-0 flex-1">
-            <span className="text-ink block text-[14px] font-medium">启用协作模块</span>
-            <span className="text-ink-3 block text-[11.5px]">关闭后停止连接协作服务器</span>
-          </span>
-          <SwitchButton checked={enabled} onChange={toggleEnabled} />
-        </GroupRow>
       </GroupCard>
 
-      <GroupNote className="pt-2">与桌面端使用相同协议 · 同一服务器可跨端协作</GroupNote>
+      <GroupNote className="pt-2">与桌面端使用同一协作服务器 · 可跨端协作</GroupNote>
 
       <BottomSheet
         open={nicknameDraft !== undefined}
@@ -227,43 +154,6 @@ export function CollaborationSection() {
             style={{ backgroundImage: "var(--brand-grad)" }}
           >
             {busy ? "保存中…" : "保存"}
-          </button>
-        </div>
-      </BottomSheet>
-
-      <BottomSheet
-        open={serverDraft !== undefined}
-        title="协作服务器"
-        onClose={() => {
-          setServerDraft(undefined);
-          setServerError(undefined);
-        }}
-      >
-        <FieldInput
-          label="服务器地址 · 仅支持 HTTPS"
-          value={serverDraft ?? ""}
-          onChange={value => {
-            setServerDraft(value);
-            setServerError(undefined);
-          }}
-          placeholder="https://collab.example.com"
-        />
-        {serverError ? (
-          <p className="text-rose mt-2 text-[12px] leading-relaxed">{serverError}</p>
-        ) : (
-          <p className="text-ink-3 mt-2 text-[11.5px] leading-relaxed">
-            切换服务器后，身份与房间按服务器隔离
-          </p>
-        )}
-        <div className="mt-4">
-          <button
-            type="button"
-            disabled={!(serverDraft ?? "").trim()}
-            onClick={saveServer}
-            className="shadow-accent w-full rounded-full py-3 text-[15px] font-extrabold text-white disabled:opacity-50 disabled:shadow-none"
-            style={{ backgroundImage: "var(--brand-grad)" }}
-          >
-            保存并重连
           </button>
         </div>
       </BottomSheet>

@@ -11,7 +11,6 @@ import {
   Info,
   KeyRound,
   Moon,
-  Power,
   Users,
   Wifi,
 } from "lucide-react";
@@ -89,26 +88,10 @@ export function IconWifi() {
   );
 }
 
-export function IconKeyRound() {
-  return (
-    <IconTile className="bg-butter-soft text-butter">
-      <KeyRound size={17} strokeWidth={1.9} aria-hidden="true" />
-    </IconTile>
-  );
-}
-
 export function IconUsers() {
   return (
     <IconTile className="bg-accent-soft text-accent">
       <Users size={17} strokeWidth={1.9} aria-hidden="true" />
-    </IconTile>
-  );
-}
-
-export function IconPower() {
-  return (
-    <IconTile className="bg-rose-soft text-rose">
-      <Power size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

@@ -45,8 +45,6 @@ function formatBytes(bytes: number): string {
 type OverviewSectionProps = {
   activeResource: string;
   activeDatabase?: string;
-  /** 协作服务器地址（已配置时以域名展示），未配置则显示默认服务器 */
-  collaborationServerUrl?: string;
   imageAppearance?: {
     borderRadius?: ImageBorderRadiusPreset;
     shadow?: ImageShadowPreset | boolean;
@@ -126,11 +124,6 @@ export function OverviewSection(props: OverviewSectionProps) {
         <ListItem
           icon={<IconUsers />}
           label="实时协作"
-          value={
-            props.collaborationServerUrl
-              ? props.collaborationServerUrl.replace(/^https?:\/\//, "")
-              : "未配置"
-          }
           onClick={() => props.onOpenModule("collaboration")}
         />
       </div>
