@@ -57,7 +57,7 @@ export function FileDropZone({
         "rounded-tau-md flex cursor-pointer flex-col items-center justify-center gap-2 border border-dashed px-4 py-6 text-center outline-none",
         "ease-tau-out transition-[border-color,background-color] duration-[160ms]",
         "focus-visible:shadow-[var(--tau-focus-ring)]",
-        dragging ? "border-accent bg-accent-soft" : "border-line-1 bg-sunken hover:border-accent",
+        dragging ? "border-accent bg-accent-soft" : "border-line-1 bg-hover hover:border-accent",
         disabled && "pointer-events-none opacity-55",
         className
       )}
