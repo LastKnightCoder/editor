@@ -60,13 +60,10 @@ class FTSTable {
     if (!this.hasTable(indexDb, "index_meta")) {
       return false;
     }
-    const migrationState = indexDb
-      .prepare("SELECT value FROM index_meta WHERE key = 'migration_state'")
-      .get() as { value?: string } | undefined;
     const rebuildState = indexDb
       .prepare("SELECT value FROM index_meta WHERE key = 'fts_rebuild_state'")
       .get() as { value?: string } | undefined;
-    return migrationState?.value === "done" && rebuildState?.value !== "failed";
+    return rebuildState?.value !== "failed";
   }
   static getListenEvents() {
     return {

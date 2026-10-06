@@ -96,7 +96,7 @@ export interface DiaryTagSetting {
   updateTime: number;
 }
 
-// createDiaryEntry 的入参：兼容旧 content 单段 + 新 segments 多段
+// createDiaryEntry 的入参：单段 content 或多段 segments
 interface CreateDiaryEntryPayload {
   type: "daily" | "weekly" | "monthly";
   date: string;
@@ -315,7 +315,7 @@ export default class DiaryTable {
       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)
     `);
 
-    // 兼容：若调用方传了 content（旧接口），作为单段处理；若传了 segments，按段建
+    // content 单段创建入口与 segments 多段入口共用同一段建段逻辑
     const segmentsContent: Descendant[][] = entry.segments ? entry.segments : [entry.content ?? []];
 
     const totalWordCount = segmentsContent.reduce((sum, c) => sum + getContentLength(c || []), 0);

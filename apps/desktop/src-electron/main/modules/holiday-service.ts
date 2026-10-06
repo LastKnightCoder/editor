@@ -68,7 +68,7 @@ class HolidayServiceModule implements Module {
         const content = fs.readFileSync(filePath, "utf-8");
         const cached: YearHolidayCache = JSON.parse(content);
 
-        // 旧格式含 MM-DD 键或布尔值，不能作为标准化缓存继续使用。
+        // 缓存格式校验：损坏或非标准化的缓存不能使用，跳过后重新拉取。
         if (
           Object.entries(cached.data).every(
             ([date, type]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && [0, 1, 2, 3].includes(type)

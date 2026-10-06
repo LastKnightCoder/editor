@@ -79,7 +79,7 @@ function installRendererLogHandler() {
   );
 }
 
-// 清理过期日志：logs 目录下的 session 文件（含轮转产物）与旧版单文件 notes.log
+// 清理过期日志：logs 目录下的 session 文件（含轮转产物）
 function cleanExpiredLogs() {
   const removeIfExpired = (filePath: string) => {
     try {
@@ -101,8 +101,6 @@ function cleanExpiredLogs() {
   } catch {
     // 目录不存在时视为无待清理日志
   }
-  removeIfExpired(path.join(PathUtil.getAppDir(), "notes.log"));
-  removeIfExpired(path.join(PathUtil.getAppDir(), "notes.old.log"));
 }
 
 let installed = false;

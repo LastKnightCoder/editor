@@ -299,15 +299,11 @@ export default class QuestionTable {
   static listByGroup(
     db: Database.Database,
     groupId: number,
-    filter: "all" | "answered" | "unanswered" | "not_started" | "in_progress" | "resolved" = "all",
+    filter: "all" | "not_started" | "in_progress" | "resolved" = "all",
     search?: string
   ): IQuestion[] {
     const conditions: string[] = ["group_id = ?"];
     const params: unknown[] = [groupId];
-    // 兼容旧的 filter 值
-    if (filter === "answered") conditions.push("answers <> '[]'");
-    if (filter === "unanswered") conditions.push("answers = '[]'");
-    // 新的状态 filter
     if (filter === "not_started") {
       conditions.push("status = ?");
       params.push("not_started");

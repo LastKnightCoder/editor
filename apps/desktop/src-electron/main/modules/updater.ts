@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import fsExtra from "fs-extra/esm";
 import log from "electron-log";
@@ -48,8 +47,6 @@ function normalizeReleaseNotes(raw: unknown, version: string | undefined): Relea
 
 /**
  * 读出上次启动的版本并记录本次版本。
- * 没有记录时，若 setting.json 早于本进程创建，说明是从尚未记录版本的旧版升级而来，
- * 以空字符串表示「来源版本未知」，渲染端据此只展示本版公告。
  */
 async function recordLaunchVersion(currentVersion: string): Promise<string | null> {
   const appDir = PathUtil.getAppDir();
@@ -59,10 +56,7 @@ async function recordLaunchVersion(currentVersion: string): Promise<string | nul
     const state = await fsExtra.readJson(stateFile);
     previousVersion = typeof state?.lastVersion === "string" ? state.lastVersion : null;
   } catch {
-    const processStartMs = Date.now() - process.uptime() * 1000;
-    const settingStat = await stat(join(appDir, "setting.json")).catch(() => null);
-    const birthtimeMs = settingStat?.birthtimeMs ?? 0;
-    if (birthtimeMs > 0 && birthtimeMs < processStartMs) previousVersion = "";
+    // 状态文件缺失或损坏视为首次记录
   }
   if (previousVersion !== currentVersion) {
     await fsExtra.outputJson(stateFile, { lastVersion: currentVersion });
