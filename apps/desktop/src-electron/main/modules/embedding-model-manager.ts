@@ -328,25 +328,6 @@ class EmbeddingModelManagerModule implements Module {
     ipcMain.handle("embedding-model-is-downloading", (_event, modelName: string) => {
       return this.service.isDownloading(modelName);
     });
-
-    // 检索增强（query expander / reranker）已退役，删除遗留的 search-models 模型目录
-    const legacySearchModelsDir = path.join(app.getPath("userData"), "search-models");
-    fs.pathExists(legacySearchModelsDir)
-      .then(exists => {
-        if (exists) {
-          return fs.remove(legacySearchModelsDir).then(() => {
-            log.info("[EmbeddingModelManager] Removed legacy search-models directory", {
-              dir: legacySearchModelsDir,
-            });
-          });
-        }
-      })
-      .catch(error => {
-        log.warn("[EmbeddingModelManager] Failed to remove legacy search-models directory", {
-          dir: legacySearchModelsDir,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
   }
 }
 

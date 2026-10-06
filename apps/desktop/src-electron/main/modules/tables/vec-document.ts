@@ -101,13 +101,11 @@ export default class VecDocumentTable {
 
   private static getIndexAvailability(indexDb: Database.Database): {
     hasVecTable: boolean;
-    migrationState: string;
     vecRebuildState: string;
     searchable: boolean;
     partial: boolean;
   } {
     const hasVecTable = this.hasTable(indexDb, "vec_documents");
-    const migrationState = this.getIndexMeta(indexDb, "migration_state") || "init";
     const vecRebuildState =
       this.getIndexMeta(indexDb, "vec_rebuild_state") ||
       this.getIndexMeta(indexDb, "rebuild_state") ||
@@ -115,9 +113,8 @@ export default class VecDocumentTable {
 
     return {
       hasVecTable,
-      migrationState,
       vecRebuildState,
-      searchable: hasVecTable && migrationState === "done" && vecRebuildState !== "failed",
+      searchable: hasVecTable && vecRebuildState !== "failed",
       partial: vecRebuildState === "building",
     };
   }

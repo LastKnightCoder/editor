@@ -172,7 +172,7 @@ export async function getNoAnswerQuestions(): Promise<IQuestion[]> {
 
 export async function listQuestionsByGroup(params: {
   groupId: number;
-  filter?: "all" | "answered" | "unanswered" | "not_started" | "in_progress" | "resolved";
+  filter?: "all" | "not_started" | "in_progress" | "resolved";
   search?: string;
 }): Promise<IQuestion[]> {
   return invoke(

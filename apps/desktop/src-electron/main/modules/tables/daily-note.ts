@@ -4,7 +4,6 @@ import { DailyNote } from "@/types/daily_note";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { getContentLength } from "@/utils/helper.ts";
-import log from "electron-log";
 
 export default class DailyNoteTable {
   static getListenEvents() {
@@ -19,21 +18,10 @@ export default class DailyNoteTable {
   }
 
   static parseDailyNote(note: any): DailyNote {
-    let content = [];
-
-    // 如果记录中有content字段（旧数据），直接使用
-    if (note.content) {
-      try {
-        content = JSON.parse(note.content);
-      } catch (error) {
-        log.error("解析content错误:", error);
-      }
-    }
-
     return {
       id: note.id,
       date: note.date,
-      content: content,
+      content: [],
       contentId: note.content_id,
     };
   }
