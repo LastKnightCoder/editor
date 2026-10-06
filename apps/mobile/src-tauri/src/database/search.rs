@@ -85,14 +85,6 @@ fn has_content_fts_table(conn: &Connection) -> bool {
 }
 
 fn is_index_ready(conn: &Connection) -> bool {
-    let migration_state = conn
-        .query_row(
-            "SELECT value FROM idx.index_meta WHERE key = 'migration_state'",
-            [],
-            |row| row.get::<_, String>(0),
-        )
-        .ok()
-        .unwrap_or_else(|| "init".to_string());
     let rebuild_state = conn
         .query_row(
             "SELECT value FROM idx.index_meta WHERE key = 'rebuild_state'",
@@ -101,7 +93,7 @@ fn is_index_ready(conn: &Connection) -> bool {
         )
         .ok()
         .unwrap_or_else(|| "pending".to_string());
-    migration_state == "done" && rebuild_state == "ready"
+    rebuild_state == "ready"
 }
 
 fn escape_fts_token(token: &str) -> String {
@@ -750,7 +742,10 @@ mod tests {
         assert!(items.iter().any(|item| item.result_type == "article"));
         assert!(items.iter().any(|item| item.result_type == "project-item"));
         assert!(items.iter().any(|item| item.result_type == "diary-daily"));
-        let flashcard = items.iter().find(|item| item.result_type == "flashcard").unwrap();
+        let flashcard = items
+            .iter()
+            .find(|item| item.result_type == "flashcard")
+            .unwrap();
         assert_eq!(flashcard.title, "闪卡统一搜索");
         assert_eq!(flashcard.container_id, Some(9));
         assert_eq!(flashcard.container_title.as_deref(), Some("算法面试"));
@@ -783,8 +778,7 @@ mod tests {
             .execute_batch(
                 "CREATE VIRTUAL TABLE content_fts USING fts5(prefixed_id, update_time, content, type, title, chunk_index, tokenize='porter unicode61');
                  CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT, updated_at INTEGER);
-                 INSERT INTO index_meta VALUES ('migration_state', 'done', 0);
-                 INSERT INTO index_meta VALUES ('rebuild_state', 'ready', 0);
+                     INSERT INTO index_meta VALUES ('rebuild_state', 'ready', 0);
                  INSERT INTO content_fts(prefixed_id, update_time, content, type, title, chunk_index)
                  VALUES ('article:1', 10, '全文 索引 命中', 'article', '文章 标题', 0);
                  INSERT INTO content_fts(prefixed_id, update_time, content, type, title, chunk_index)
@@ -796,7 +790,10 @@ mod tests {
         assert_eq!(mode, "fts");
         assert_eq!(total, 2);
         assert!(items.iter().any(|item| item.result_type == "article"));
-        let flashcard = items.iter().find(|item| item.result_type == "flashcard").unwrap();
+        let flashcard = items
+            .iter()
+            .find(|item| item.result_type == "flashcard")
+            .unwrap();
         assert_eq!(flashcard.title, "全文索引闪卡题干");
         assert_eq!(flashcard.container_title.as_deref(), Some("英语高频词"));
         drop(index);

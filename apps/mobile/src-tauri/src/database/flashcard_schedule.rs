@@ -4,10 +4,10 @@
 // 必须逐字段一致，同一张卡在两端复习的调度结果才会收敛。修改任何常量前先同步桌面端。
 
 pub(crate) const REVIEW_INTERVALS_MS: [i64; 10] = [
-    5 * 60 * 1000,        // 5 分钟
-    30 * 60 * 1000,       // 30 分钟
-    12 * 60 * 60 * 1000,  // 12 小时
-    24 * 60 * 60 * 1000,  // 1 天
+    5 * 60 * 1000,            // 5 分钟
+    30 * 60 * 1000,           // 30 分钟
+    12 * 60 * 60 * 1000,      // 12 小时
+    24 * 60 * 60 * 1000,      // 1 天
     2 * 24 * 60 * 60 * 1000,  // 2 天
     4 * 24 * 60 * 60 * 1000,  // 4 天
     7 * 24 * 60 * 60 * 1000,  // 1 周
@@ -60,7 +60,8 @@ pub(crate) fn calculate_schedule(
     let max_level = REVIEW_INTERVALS_MS.len() as i64 - 1;
     let level = (review_level + delta as i64).clamp(0, max_level);
     let ease = (ease_factor + ease_delta(rating)).clamp(EASE_MIN, EASE_MAX);
-    let interval_ms = (REVIEW_INTERVALS_MS[level as usize] as f64 * (0.8 + ease * 0.2)).round() as i64;
+    let interval_ms =
+        (REVIEW_INTERVALS_MS[level as usize] as f64 * (0.8 + ease * 0.2)).round() as i64;
     // 桌面端语义：复习满 3 次且非 hard 即进入巩固期，否则保持学习中
     let next_review_count = review_count + 1;
     let status = if next_review_count >= 3 && rating != "hard" {
@@ -90,7 +91,10 @@ mod tests {
         assert_eq!(s.level, 2);
         assert!((s.ease - 2.65).abs() < 1e-9);
         assert_eq!(s.due_ms, NOW + s.interval_ms);
-        assert_eq!(s.interval_ms, ((12 * 3_600_000) as f64 * 1.33).round() as i64);
+        assert_eq!(
+            s.interval_ms,
+            ((12 * 3_600_000) as f64 * 1.33).round() as i64
+        );
         assert_eq!(s.status, "learning"); // review_count 1 < 3
     }
 
@@ -114,13 +118,24 @@ mod tests {
     fn level_clamps_at_bounds() {
         assert_eq!(calculate_schedule(9, 2.5, 0, "easy", NOW).unwrap().level, 9);
         assert_eq!(calculate_schedule(1, 2.5, 0, "hard", NOW).unwrap().level, 0);
-        assert_eq!(calculate_schedule(0, 2.5, 0, "struggle", NOW).unwrap().level, 0);
+        assert_eq!(
+            calculate_schedule(0, 2.5, 0, "struggle", NOW)
+                .unwrap()
+                .level,
+            0
+        );
     }
 
     #[test]
     fn ease_clamps_at_bounds() {
-        assert_eq!(calculate_schedule(0, 3.45, 0, "easy", NOW).unwrap().ease, EASE_MAX);
-        assert_eq!(calculate_schedule(0, 1.4, 0, "hard", NOW).unwrap().ease, EASE_MIN);
+        assert_eq!(
+            calculate_schedule(0, 3.45, 0, "easy", NOW).unwrap().ease,
+            EASE_MAX
+        );
+        assert_eq!(
+            calculate_schedule(0, 1.4, 0, "hard", NOW).unwrap().ease,
+            EASE_MIN
+        );
     }
 
     #[test]

@@ -13,4 +13,6 @@ pub use calendar_calendars::*;
 pub use calendar_events::*;
 
 // 番茄钟桥不暴露 command，仅供 pomodoro 域在事务内调用
-pub(crate) use calendar_pomodoro::{create_calendar_events_for_session, delete_calendar_events_for_session};
+pub(crate) use calendar_pomodoro::{
+    create_calendar_events_for_session, delete_calendar_events_for_session,
+};

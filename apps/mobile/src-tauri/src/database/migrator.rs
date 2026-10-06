@@ -164,44 +164,18 @@ pub(super) fn needs_main_upgrade(conn: &Connection) -> Result<bool, String> {
             != Some(compute_hash(MAIN_SCHEMA_SQL).as_str()))
 }
 
+fn has_user_tables(conn: &Connection) -> Result<bool, String> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_meta')",
+        [],
+        |r| r.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// 数据基线门禁：低于当前 schema 版本且非空库的数据库来自未完成历史升级的旧版本，拒绝进入。
+/// 后续 schema 演进 = 版本号递增 + 显式迁移代码；hash 变化只负责补建新表与新索引。
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
-    let retired_tables_exist: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name IN ('read_later','rss_entry','rss_subscription','rss_feed'))",
-        [], |row| row.get(0),
-    ).map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: {e}"))?;
-    if retired_tables_exist {
-        if let Some(path) = conn.path().filter(|path| !path.is_empty() && *path != ":memory:") {
-            let backup = format!("{path}.pre-subscription-retirement-v1-{}.bak", uuid::Uuid::new_v4());
-            conn.execute("VACUUM INTO ?1", [&backup])
-                .map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
-        }
-    }
-    // 下线功能的残留表（prompt / notion_sync 可能还有数据）：删前备份，与桌面同一文件名
-    if super::main_upgrade::has_retired_features(conn)
-        .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: {e}"))?
-    {
-        if let Some(path) = conn.path().filter(|path| !path.is_empty() && *path != ":memory:") {
-            let backup = format!(
-                "{path}.pre-feature-table-retirement-v1-{}.bak",
-                uuid::Uuid::new_v4()
-            );
-            conn.execute("VACUUM INTO ?1", [&backup])
-                .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
-        }
-    }
-    // content_link 迁入谱系：删前备份，与桌面同一文件名
-    if super::content_link_retirement::has_table(conn)
-        .map_err(|e| format!("CONTENT_LINK_RETIREMENT_FAILED: {e}"))?
-    {
-        if let Some(path) = conn.path().filter(|path| !path.is_empty() && *path != ":memory:") {
-            let backup = format!(
-                "{path}.pre-content-link-retirement-v1-{}.bak",
-                uuid::Uuid::new_v4()
-            );
-            conn.execute("VACUUM INTO ?1", [&backup])
-                .map_err(|e| format!("CONTENT_LINK_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
-        }
-    }
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;
@@ -211,80 +185,65 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to set main PRAGMA: {e}"))?;
 
+    ensure_schema_meta(conn)?;
+    let stored_version = get_meta(conn, "main_schema_version")?
+        .and_then(|v| v.parse::<i64>().ok())
+        .unwrap_or(0);
+    if stored_version > MAIN_SCHEMA_VERSION {
+        return Err("DB_SCHEMA_INCOMPATIBLE: 数据库来自更新的移动端，请先升级应用".into());
+    }
+    if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
+        return Err(
+            "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"
+                .into(),
+        );
+    }
+    if !needs_main_upgrade(conn)? {
+        return Ok(());
+    }
+
+    // 全新空库，或 schema 演进（同版本号内的新表/新索引）：按当前 schema 补齐
     let baseline = Connection::open_in_memory().map_err(|e| e.to_string())?;
     baseline
         .execute_batch(MAIN_SCHEMA_SQL)
         .map_err(|e| e.to_string())?;
-    // 立即取写锁：升级事务含全表扫描与 JSON 重写，避免延迟加锁时被并发写入打断成裸 BUSY 错误
     let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
-    ensure_schema_meta(&tx)?;
-    let stored = get_meta(&tx, "main_schema_version")?
-        .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(0);
-    if stored > MAIN_SCHEMA_VERSION {
-        return Err("DB_SCHEMA_INCOMPATIBLE: 数据库来自更新的移动端，请先升级应用".into());
-    }
-    if stored < MAIN_SCHEMA_VERSION
-        || get_meta(&tx, "main_schema_hash")?.as_deref()
-            != Some(compute_hash(MAIN_SCHEMA_SQL).as_str())
-    {
-        super::main_upgrade::upgrade(&tx, &baseline, now_millis())?;
-    }
-    tx.execute_batch("DROP TABLE IF EXISTS read_later;
-        DROP TABLE IF EXISTS rss_entry;
-        DROP TABLE IF EXISTS rss_subscription;
-        DROP TABLE IF EXISTS rss_feed;")
-        .map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: {e}"))?;
-    // 桌面旧聊天链路的运行记录（pi 迁移 M8）：只存运行中状态，移动端从不读
-    tx.execute_batch("DROP TABLE IF EXISTS chat_run;")
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))?;
-    super::main_upgrade::retire_feature_tables(&tx)
-        .map_err(|e| format!("FEATURE_TABLE_RETIREMENT_FAILED: {e}"))?;
-    super::knowledge_migration::migrate(&tx)?;
-    super::content_link_retirement::retire(&tx)
-        .map_err(|e| format!("CONTENT_LINK_RETIREMENT_FAILED: {e}"))?;
-    super::main_upgrade::validate(&tx, &baseline)?;
-    let broken_reference = tx
-        .prepare("PRAGMA foreign_key_check")
-        .map_err(|e| e.to_string())?
-        .query_row([], |r| r.get::<_, String>(0))
-        .optional()
+    tx.execute_batch(MAIN_SCHEMA_SQL)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
+    let mut indexes = baseline
+        .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
         .map_err(|e| e.to_string())?;
-    if let Some(table) = broken_reference {
-        return Err(format!(
-            "DB_SCHEMA_INCOMPATIBLE: {table} 存在无效外键引用，已停止升级"
-        ));
-    }
-    if needs_main_upgrade(&tx)? {
-        // 补列后再创建索引，避免旧表缺列导致整库打不开。
-        let mut indexes = baseline
-            .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
+    for sql in indexes
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+    {
+        let sql = sql.map_err(|e| e.to_string())?;
+        // sqlite_master 会去掉 IF NOT EXISTS，直接重建保证旧定义的索引被替换
+        let name: String = baseline
+            .query_row("SELECT name FROM sqlite_master WHERE sql=?1", [&sql], |r| {
+                r.get(0)
+            })
             .map_err(|e| e.to_string())?;
-        for sql in indexes
-            .query_map([], |row| row.get::<_, String>(0))
-            .map_err(|e| e.to_string())?
-        {
-            let sql = sql.map_err(|e| e.to_string())?;
-            // sqlite_master 会去掉 IF NOT EXISTS，重建索引只在升级时执行。
-            let name: String = baseline
-                .query_row("SELECT name FROM sqlite_master WHERE sql=?1", [&sql], |r| {
-                    r.get(0)
-                })
-                .map_err(|e| e.to_string())?;
-            tx.execute_batch(&format!(
-                "DROP INDEX IF EXISTS \"{}\"",
-                name.replace('"', "\"\"")
-            ))
-            .map_err(|e| e.to_string())?;
-            tx.execute_batch(&sql).map_err(|e| e.to_string())?;
-        }
+        tx.execute_batch(&format!(
+            "DROP INDEX IF EXISTS \"{}\"",
+            name.replace('"', "\"\"")
+        ))
+        .map_err(|e| e.to_string())?;
+        tx.execute_batch(&sql).map_err(|e| e.to_string())?;
     }
+    tx.execute(
+        "INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time)
+         VALUES(?1,'#52c41a',0,?2,?2),('月记','#fa8c16',1,?2,?2)
+         ON CONFLICT(name) DO NOTHING",
+        params!["周记", now_millis()],
+    )
+    .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to seed diary tag settings: {e}"))?;
     set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
     set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
     tx.commit()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))?;
-    super::editor_block_retirement::retire(conn)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to commit schema update: {e}"))?;
+    Ok(())
 }
 
 pub fn ensure_index_schema(conn: &Connection, vec_dimension: i64) -> Result<bool, String> {

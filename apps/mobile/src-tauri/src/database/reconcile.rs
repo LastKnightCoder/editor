@@ -341,10 +341,13 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
         })
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to query flashcards index rows: {e}"))?;
     for row in flashcard_rows {
-        let (id, update_time, prompt, detail, tags) = row
-            .map_err(|e| format!("DB_OPEN_FAILED: Failed to read flashcard index row: {e}"))?;
+        let (id, update_time, prompt, detail, tags) =
+            row.map_err(|e| format!("DB_OPEN_FAILED: Failed to read flashcard index row: {e}"))?;
         let extra = [
-            detail.as_deref().map(extract_plain_text).unwrap_or_default(),
+            detail
+                .as_deref()
+                .map(extract_plain_text)
+                .unwrap_or_default(),
             parse_tags_text(tags),
         ]
         .into_iter()

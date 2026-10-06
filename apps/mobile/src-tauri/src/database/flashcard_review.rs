@@ -27,7 +27,9 @@ pub fn flashcard_get_review_queue(
         conditions.push("deck_id = ?".into());
         values.push(Box::new(deck_id));
     }
-    values.push(Box::new(payload.limit.unwrap_or(20).clamp(1, 100)) as Box<dyn rusqlite::types::ToSql>);
+    values.push(
+        Box::new(payload.limit.unwrap_or(20).clamp(1, 100)) as Box<dyn rusqlite::types::ToSql>
+    );
     let sql = format!(
         "SELECT {CARD_COLUMNS} FROM flashcards WHERE {} \
          ORDER BY due_time ASC, review_level ASC LIMIT ?",
@@ -78,7 +80,14 @@ pub fn flashcard_submit_review(
          review_level = ?1, due_time = ?2, last_review_time = ?3, review_count = review_count + 1, \
          ease_factor = ?4, status = ?5, update_time = ?3 \
          WHERE id = ?6",
-        params![schedule.level, schedule.due_ms, now, schedule.ease, schedule.status, payload.card_id],
+        params![
+            schedule.level,
+            schedule.due_ms,
+            now,
+            schedule.ease,
+            schedule.status,
+            payload.card_id
+        ],
     )
     .map_err(|e| format_db_error("FLASHCARD_REVIEW_FAILED", "update card schedule", e))?;
     tx.execute(
@@ -98,7 +107,8 @@ pub fn flashcard_submit_review(
     .map_err(|e| format_db_error("FLASHCARD_REVIEW_FAILED", "insert review history", e))?;
     tx.commit()
         .map_err(|e| format_db_error("FLASHCARD_REVIEW_FAILED", "commit transaction", e))?;
-    query_card_by_id(&conn, payload.card_id)?.ok_or_else(|| "FLASHCARD_NOT_FOUND: 复习后读取失败".to_string())
+    query_card_by_id(&conn, payload.card_id)?
+        .ok_or_else(|| "FLASHCARD_NOT_FOUND: 复习后读取失败".to_string())
 }
 
 /// 按天聚合复习历史（day_starts 由前端按本地时区传入，对齐番茄钟 summary_daily 范式）。
@@ -170,13 +180,18 @@ pub fn flashcard_review_stats(
     Ok(payload
         .day_starts
         .iter()
-        .map(|&day| result_map.get(&day).cloned().unwrap_or(FlashcardReviewDayStats {
-            day_start: day,
-            count: 0,
-            easy: 0,
-            normal: 0,
-            struggle: 0,
-            hard: 0,
-        }))
+        .map(|&day| {
+            result_map
+                .get(&day)
+                .cloned()
+                .unwrap_or(FlashcardReviewDayStats {
+                    day_start: day,
+                    count: 0,
+                    easy: 0,
+                    normal: 0,
+                    struggle: 0,
+                    hard: 0,
+                })
+        })
         .collect())
 }

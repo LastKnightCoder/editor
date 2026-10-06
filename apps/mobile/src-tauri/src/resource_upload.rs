@@ -1051,8 +1051,7 @@ fn thumb_path_for(canonical: &Path) -> std::path::PathBuf {
 
 /// 缩略图新鲜度：原图被同名覆盖更新（云同步下发即原地写入）时必须重建
 fn is_thumb_fresh(original: &Path, thumb: &Path) -> bool {
-    let (Ok(original_meta), Ok(thumb_meta)) = (fs::metadata(original), fs::metadata(thumb))
-    else {
+    let (Ok(original_meta), Ok(thumb_meta)) = (fs::metadata(original), fs::metadata(thumb)) else {
         return false;
     };
     match (original_meta.modified(), thumb_meta.modified()) {
@@ -1088,7 +1087,8 @@ fn read_thumb_bytes(canonical: &Path) -> Result<Vec<u8>, String> {
             return Ok(cached);
         }
     }
-    let original = fs::read(canonical).map_err(|e| format!("RESOURCE_READ_FAILED: 读取失败: {e}"))?;
+    let original =
+        fs::read(canonical).map_err(|e| format!("RESOURCE_READ_FAILED: 读取失败: {e}"))?;
     let Some(thumb_bytes) =
         build_thumb_bytes(&original).map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))?
     else {

@@ -9,7 +9,8 @@ use super::calendar_types::{
     CreateCalendarEventPayload, UpdateCalendarEventPayload,
 };
 use crate::database::common::{
-    db_err, decrement_or_delete_content, insert_content_record, now_millis, trigger_reconcile, write_operation,
+    db_err, decrement_or_delete_content, insert_content_record, now_millis, trigger_reconcile,
+    write_operation,
 };
 use crate::database::schema;
 use crate::database::todo_calendar_sync::{
@@ -406,7 +407,9 @@ pub(crate) fn insert_event_in_tx(
 ) -> Result<(), String> {
     let now = now_millis();
     let content_id = match &payload.detail_content {
-        Some(content) => insert_content_record(tx, content, payload.detail_content_count.unwrap_or(0), now)?,
+        Some(content) => {
+            insert_content_record(tx, content, payload.detail_content_count.unwrap_or(0), now)?
+        }
         None => payload.detail_content_id.unwrap_or(0),
     };
     tx.execute(
@@ -467,7 +470,9 @@ pub fn calendar_event_update(
         )
         .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "get old content id", e))?;
     let new_content_id = match &payload.detail_content {
-        Some(content) => insert_content_record(&tx, content, payload.detail_content_count.unwrap_or(0), now)?,
+        Some(content) => {
+            insert_content_record(&tx, content, payload.detail_content_count.unwrap_or(0), now)?
+        }
         None => payload.detail_content_id.unwrap_or(old_content_id),
     };
     tx.execute(

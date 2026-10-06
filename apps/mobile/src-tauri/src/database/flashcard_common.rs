@@ -1,7 +1,9 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
 
-use super::flashcard_types::{Flashcard, FlashcardDeck, FlashcardDeckStats, FlashcardReference, FlashcardReferenceContent};
+use super::flashcard_types::{
+    Flashcard, FlashcardDeck, FlashcardDeckStats, FlashcardReference, FlashcardReferenceContent,
+};
 
 pub(crate) fn now_millis() -> i64 {
     std::time::SystemTime::now()
@@ -45,8 +47,12 @@ pub(crate) fn parse_deck_row(row: &rusqlite::Row) -> Result<FlashcardDeck, rusql
         id: row.get(0)?,
         name: row.get(1)?,
         description: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
-        cover_color: row.get::<_, Option<String>>(3)?.unwrap_or_else(|| "#2563eb".into()),
-        emoji: row.get::<_, Option<String>>(4)?.unwrap_or_else(|| "🧠".into()),
+        cover_color: row
+            .get::<_, Option<String>>(3)?
+            .unwrap_or_else(|| "#2563eb".into()),
+        emoji: row
+            .get::<_, Option<String>>(4)?
+            .unwrap_or_else(|| "🧠".into()),
         sort_order: row.get(5)?,
         meta,
         create_time: row.get(7)?,
@@ -93,7 +99,10 @@ pub(crate) fn parse_card_row(
     })
 }
 
-pub(crate) fn query_deck_by_id(conn: &Connection, id: i64) -> Result<Option<FlashcardDeck>, String> {
+pub(crate) fn query_deck_by_id(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<FlashcardDeck>, String> {
     conn.query_row(
         &format!("SELECT {DECK_COLUMNS} FROM flashcard_decks WHERE id = ?1"),
         params![id],
@@ -149,16 +158,18 @@ pub(crate) fn query_references_by_card_ids(
             let content_id: Option<i64> = row.get(7)?;
             let content_json: Option<String> = row.get(8)?;
             let content = match (content_id, content_json) {
-                (Some(id), Some(text)) => serde_json::from_str::<Value>(&text).ok().map(|content| {
-                    FlashcardReferenceContent {
-                        id,
-                        content,
-                        create_time: row.get(9).unwrap_or(0),
-                        update_time: row.get(10).unwrap_or(0),
-                        count: row.get(11).unwrap_or(0),
-                        ref_count: row.get(12).unwrap_or(0),
-                    }
-                }),
+                (Some(id), Some(text)) => {
+                    serde_json::from_str::<Value>(&text).ok().map(|content| {
+                        FlashcardReferenceContent {
+                            id,
+                            content,
+                            create_time: row.get(9).unwrap_or(0),
+                            update_time: row.get(10).unwrap_or(0),
+                            count: row.get(11).unwrap_or(0),
+                            ref_count: row.get(12).unwrap_or(0),
+                        }
+                    })
+                }
                 _ => None,
             };
             Ok(FlashcardReference {
@@ -174,8 +185,8 @@ pub(crate) fn query_references_by_card_ids(
         })
         .map_err(|e| format_db_error("FLASHCARD_QUERY_FAILED", "query references", e))?;
     for row in rows {
-        let reference = row
-            .map_err(|e| format_db_error("FLASHCARD_QUERY_FAILED", "parse reference row", e))?;
+        let reference =
+            row.map_err(|e| format_db_error("FLASHCARD_QUERY_FAILED", "parse reference row", e))?;
         map.entry(reference.card_id).or_default().push(reference);
     }
     Ok(map)
@@ -237,13 +248,20 @@ pub(crate) fn release_references(conn: &Connection, scope: ReferenceScope) -> Re
     };
     let content_ids: Vec<i64> = {
         let mut stmt = conn
-            .prepare(&format!("SELECT content_id FROM flashcard_references WHERE {filter}"))
-            .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "prepare reference contents", e))?;
+            .prepare(&format!(
+                "SELECT content_id FROM flashcard_references WHERE {filter}"
+            ))
+            .map_err(|e| {
+                format_db_error("FLASHCARD_DELETE_FAILED", "prepare reference contents", e)
+            })?;
         let rows = stmt
             .query_map(params![id], |row| row.get::<_, i64>(0))
-            .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "query reference contents", e))?;
-        rows.collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "parse reference contents", e))?
+            .map_err(|e| {
+                format_db_error("FLASHCARD_DELETE_FAILED", "query reference contents", e)
+            })?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| {
+            format_db_error("FLASHCARD_DELETE_FAILED", "parse reference contents", e)
+        })?
     };
     conn.execute(
         &format!("DELETE FROM flashcard_references WHERE {filter}"),
@@ -326,7 +344,9 @@ mod tests {
         assert_eq!(ref_count_of(&conn, 100), Some(2));
         assert_eq!(ref_count_of(&conn, 200), None);
         let remaining: i64 = conn
-            .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(remaining, 1);
     }
@@ -338,7 +358,9 @@ mod tests {
         assert_eq!(ref_count_of(&conn, 100), Some(1));
         assert_eq!(ref_count_of(&conn, 200), None);
         let remaining: i64 = conn
-            .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(remaining, 0);
     }

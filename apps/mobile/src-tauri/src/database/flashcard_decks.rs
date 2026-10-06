@@ -6,7 +6,8 @@ use super::flashcard_common::{
     release_references, ReferenceScope, DECK_COLUMNS,
 };
 use super::flashcard_types::{
-    CreateFlashcardDeckPayload, DeleteFlashcardDeckPayload, FlashcardDeck, UpdateFlashcardDeckPayload,
+    CreateFlashcardDeckPayload, DeleteFlashcardDeckPayload, FlashcardDeck,
+    UpdateFlashcardDeckPayload,
 };
 use crate::database::schema;
 
@@ -89,11 +90,15 @@ pub fn flashcard_update_deck(
         params![name, description, cover_color, emoji, sort_order, now_millis(), payload.id],
     )
     .map_err(|e| format_db_error("FLASHCARD_UPDATE_FAILED", "update deck", e))?;
-    query_deck_by_id(&conn, payload.id)?.ok_or_else(|| "FLASHCARD_NOT_FOUND: 更新后读取失败".to_string())
+    query_deck_by_id(&conn, payload.id)?
+        .ok_or_else(|| "FLASHCARD_NOT_FOUND: 更新后读取失败".to_string())
 }
 
 #[tauri::command]
-pub fn flashcard_delete_deck(app: AppHandle, payload: DeleteFlashcardDeckPayload) -> Result<i64, String> {
+pub fn flashcard_delete_deck(
+    app: AppHandle,
+    payload: DeleteFlashcardDeckPayload,
+) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -111,7 +116,10 @@ pub fn flashcard_delete_deck(app: AppHandle, payload: DeleteFlashcardDeckPayload
     )
     .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "delete cards", e))?;
     let changed = tx
-        .execute("DELETE FROM flashcard_decks WHERE id = ?1", params![payload.id])
+        .execute(
+            "DELETE FROM flashcard_decks WHERE id = ?1",
+            params![payload.id],
+        )
         .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "delete deck", e))?;
     if changed == 0 {
         return Err("FLASHCARD_NOT_FOUND: 卡组不存在".to_string());

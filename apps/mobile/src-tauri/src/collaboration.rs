@@ -169,11 +169,7 @@ async fn send_json(
         "POST" => client().post(&url),
         "PATCH" => client().patch(&url),
         "DELETE" => client().delete(&url),
-        other => {
-            return Err(format!(
-                "COLLAB_REQUEST_FAILED: 不支持的请求方法 {other}"
-            ))
-        }
+        other => return Err(format!("COLLAB_REQUEST_FAILED: 不支持的请求方法 {other}")),
     };
     if let Some(token) = bearer {
         request = request.header("Authorization", format!("Bearer {token}"));
