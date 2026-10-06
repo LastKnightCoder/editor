@@ -24,14 +24,6 @@ export type {
   RequestMessage,
 } from "@tau/shared";
 
-export interface ProviderConfig {
-  id: string;
-  name: string;
-  apiKey: string;
-  baseUrl: string;
-  models: ModelConfig[];
-}
-
 export interface ModelFeatures {
   online: boolean;
   thinking: boolean;
@@ -40,30 +32,6 @@ export interface ModelFeatures {
   audio: boolean;
   file: boolean;
   multimodal?: boolean;
-}
-
-export type MessageFormat = "openai" | "claude";
-export type LLMApiProtocol = "chat-completions" | "responses";
-
-export interface ModelConfig {
-  name: string;
-  description: string;
-  features: ModelFeatures;
-  messageFormat?: MessageFormat;
-  apiProtocol?: LLMApiProtocol;
-  /** 最大输出 token。Claude Messages API 使用 max_tokens，未配置时使用应用默认值。 */
-  maxOutputTokens?: number;
-  /** 上下文窗口大小，单位为 k tokens。 */
-  contextWindowK?: number;
-  /** 可选的请求 User-Agent。 */
-  userAgent?: string;
-  /** 可选的采样温度。 */
-  temperature?: number;
-}
-
-export interface LLMUsageConfig {
-  providerId: string;
-  modelName: string;
 }
 
 // RAG 知识库选项

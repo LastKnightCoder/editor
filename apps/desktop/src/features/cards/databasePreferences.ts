@@ -14,18 +14,6 @@ export interface CardDatabasePreferences {
 
 const EMPTY: CardDatabasePreferences = { views: [], activeViewId: null, columnWidths: {} };
 
-export function migrateCardDatabasePreferences(storage: Storage) {
-  const legacy = storage.getItem("card-database-views");
-  if (!legacy) return;
-  const snapshot = JSON.parse(legacy).state as CardDatabasePreferences;
-  if (!snapshot || !Array.isArray(snapshot.views)) throw new Error("旧卡片视图配置无法解析");
-  const cached = storage.getItem(CARD_DATABASE_PREFERENCES_KEY);
-  const current = cached ? JSON.parse(cached) : { version: 1, state: { byDatabase: {} } };
-  if (!current.state.legacyDefaults) current.state.legacyDefaults = snapshot;
-  storage.setItem(CARD_DATABASE_PREFERENCES_KEY, JSON.stringify(current));
-  storage.removeItem("card-database-views");
-}
-
 interface PreferencesState {
   byDatabase: Record<string, CardDatabasePreferences>;
   legacyDefaults: CardDatabasePreferences | null;
@@ -39,11 +27,6 @@ interface PreferencesState {
 }
 
 export function createCardDatabasePreferencesStore(storage: Storage) {
-  try {
-    migrateCardDatabasePreferences(storage);
-  } catch {
-    // 迁移失败保留旧键，避免丢掉用户配置。
-  }
   return create<PreferencesState>()(
     persist(
       (set, get) => {

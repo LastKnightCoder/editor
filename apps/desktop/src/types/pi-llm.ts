@@ -2,7 +2,6 @@
  * LLM 设置模型 v2：字段与语义对齐 pi agent（@earendil-works/pi-ai）。
  * provider = createProvider 的直接输入；model 字段映射 pi Model 元数据
  * （samplingParams 承载 temperature、headers 承载自定义 User-Agent）。
- * 旧 ProviderConfig/ModelConfig 由 llmSettingsMigration 一次性转化，不留兼容层。
  */
 
 import type { ThinkingLevel } from "@tau/shared";
@@ -76,7 +75,7 @@ export interface LLMModelCost {
 }
 
 export interface LLMModelSetting {
-  /** 请求体里的 model 名（原 ModelConfig.name），provider 内唯一 */
+  /** 请求体里的 model 名，provider 内唯一 */
   id: string;
   /** 展示名，缺省同 id */
   name?: string;
@@ -96,7 +95,7 @@ export interface LLMModelSetting {
    * 光靠服务商级 api 会落到错误协议。从目录勾选模型时记下，手填模型可留空。
    */
   api?: PiApiKind;
-  /** 采样参数直通 pi StreamOptions.samplingParams（temperature 等原 ModelConfig.temperature） */
+  /** 采样参数直通 pi StreamOptions.samplingParams（temperature 等） */
   samplingParams?: Record<string, unknown>;
   /** 请求头覆盖（原 userAgent → headers["User-Agent"]） */
   headers?: Record<string, string>;

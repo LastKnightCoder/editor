@@ -17,9 +17,7 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
   };
   const RADIUS_PRESETS = ["none", "sm", "md", "lg"];
   const SHADOW_PRESETS = ["none", "sm", "md", "lg"];
-  // 桌面端旧版 shadow 为布尔值，读取时一次性升级为 preset（true→md）
   const normalizeShadowPreset = (shadow: unknown) => {
-    if (shadow === true) return "md";
     if (typeof shadow === "string" && SHADOW_PRESETS.includes(shadow)) return shadow;
     return "none";
   };

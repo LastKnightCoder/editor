@@ -14,7 +14,7 @@ import {
   DEFAULT_OPENAI_IMAGE_BASE_URL,
   DEFAULT_OPENAI_IMAGE_MODEL,
 } from "@/utils/image-generation";
-import type { ImageGenerationStoreShape, ImageProviderConfig } from "@/types/imageGeneration";
+import type { ImageGenerationStoreShape } from "@/types/imageGeneration";
 
 export enum EImageBed {
   Local = "local",
@@ -38,129 +38,43 @@ export enum EPublishProvider {
 }
 
 import type { LLMProviderSetting, LLMUsageConfigV2 } from "@/types/pi-llm";
-import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
 import {
   DEFAULT_TOOL_PERMISSION_MODE,
   type ToolPermissionMode,
 } from "@/services/tool-permission/mode";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 
-const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(setting: T): T => {
-  const nextSetting = setting as T & {
-    llmUsageSettings?: Record<string, unknown>;
-  };
-
-  if (nextSetting.llmUsageSettings && typeof nextSetting.llmUsageSettings === "object") {
-    delete nextSetting.llmUsageSettings.contentPolish;
-    delete nextSetting.llmUsageSettings.autoTagging;
-    delete nextSetting.llmUsageSettings.aiContinueWrite;
-    delete nextSetting.llmUsageSettings.vibeLearningDocSummary;
-  }
-
-  return nextSetting;
-};
-
-const migrateImageGenerationConfig = <T extends Partial<ISetting>>(setting: T): void => {
-  const img = (setting as any).imageGeneration;
-  if (!img) return;
-  if (typeof img !== "object") {
-    (setting as any).imageGeneration = {
+/** 图片生成配置的完整性清洗：损坏结构兜底、剔除无效项、修正失效的当前提供商指向 */
+const normalizeImageGenerationConfig = (setting: Partial<ISetting>): void => {
+  const img = (setting as Partial<ISetting> & { imageGeneration?: unknown }).imageGeneration;
+  if (!img || typeof img !== "object") {
+    (setting as { imageGeneration?: ImageGenerationStoreShape }).imageGeneration = {
       currentProviderId: "",
       providers: [],
     };
     return;
   }
-  // 旧格式：{ baseUrl, apiKey, modelName } → 新格式：{ currentProviderId, providers[] }
-  if (!("providers" in img)) {
-    (setting as any).imageGeneration = {
-      currentProviderId: "default-openai",
-      providers: [
-        {
-          id: "default-openai",
-          name: "OpenAI 兼容",
-          providerType: "openai",
-          baseUrl: img.baseUrl ?? DEFAULT_OPENAI_IMAGE_BASE_URL,
-          apiKey: img.apiKey ?? "",
-          modelName: img.modelName ?? DEFAULT_OPENAI_IMAGE_MODEL,
-        },
-      ],
-    };
-    return;
-  }
-
-  img.providers = Array.isArray(img.providers)
-    ? img.providers
-        .filter((provider: Partial<ImageProviderConfig> | null) => Boolean(provider?.id))
-        .map((provider: Partial<ImageProviderConfig>) => ({
-          id: String(provider.id),
-          name: provider.name || "OpenAI 兼容",
-          providerType: provider.providerType || "openai",
-          baseUrl: provider.baseUrl ?? DEFAULT_OPENAI_IMAGE_BASE_URL,
-          apiKey: provider.apiKey ?? "",
-          modelName: provider.modelName ?? DEFAULT_OPENAI_IMAGE_MODEL,
-        }))
+  const imageGeneration = img as ImageGenerationStoreShape;
+  imageGeneration.providers = Array.isArray(imageGeneration.providers)
+    ? imageGeneration.providers.filter(provider => Boolean(provider?.id))
     : [];
-
   if (
-    typeof img.currentProviderId !== "string" ||
-    !img.providers.some((provider: ImageProviderConfig) => provider.id === img.currentProviderId)
+    typeof imageGeneration.currentProviderId !== "string" ||
+    !imageGeneration.providers.some(provider => provider.id === imageGeneration.currentProviderId)
   ) {
-    img.currentProviderId = img.providers[0]?.id ?? "";
-  }
-};
-
-/** LLM 设置一次性转化（见 services/llmSettingsMigration）：llmConfigs → llmProviders、
- *  llmUsageSettings 的 modelName 主键 → modelId，转化后删除旧字段 */
-const migrateLLMSettings = (
-  setting: Partial<ISetting> & { llmConfigs?: unknown; llmUsageSettings?: unknown }
-) => {
-  const legacy = setting.llmConfigs;
-  if (!Array.isArray(legacy) || legacy.length === 0) return;
-  if (Array.isArray(setting.llmProviders) && setting.llmProviders.length > 0) {
-    delete setting.llmConfigs;
-    return;
-  }
-  const usage = (setting.llmUsageSettings ?? {}) as Record<
-    string,
-    { providerId: string; modelName: string }
-  >;
-  const result = migrateLlmSettingsToV2({ llmConfigs: legacy as never, llmUsageSettings: usage });
-  setting.llmProviders = result.providers;
-  setting.llmUsageSettings = result.usage as Partial<ISetting>["llmUsageSettings"];
-  delete setting.llmConfigs;
-};
-
-const sanitizeAppearanceSetting = (setting: ISetting) => {
-  delete (setting as ISetting & { darkMode?: boolean }).darkMode;
-  const appearance = setting.appearance as
-    (NonNullable<ISetting["appearance"]> & Record<string, unknown>) | undefined;
-  if (!appearance) return;
-  for (const field of ["accent", "backgroundType", "backgroundGlow", "backgroundAnimation"]) {
-    delete appearance[field];
+    imageGeneration.currentProviderId = imageGeneration.providers[0]?.id ?? "";
   }
 };
 
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
-  migrateImageGenerationConfig(setting);
-  // LLM 设置一次性转化：旧 llmConfigs（messageFormat×apiProtocol 二维适配）→ pi 对齐的
-  // llmProviders，功能槽位 modelName 改主键 modelId，转化后删除旧字段不留兼容层
-  migrateLLMSettings(setting as Partial<ISetting> & { llmConfigs?: unknown });
   const mergedSetting = structuredClone(defaultSetting);
   const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
   merge(mergedSetting, setting);
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
   }
-  sanitizeAppearanceSetting(mergedSetting);
-  sanitizeDeprecatedLLMUsageSettings(mergedSetting);
-  migrateImageGenerationConfig(mergedSetting);
+  normalizeImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
-  // mermaid 渲染已改为原生 mermaid，移除旧缓存中的 beautiful-mermaid 配置
-  delete (mergedSetting.misc as Record<string, unknown>).mermaid;
-  // 功能模块开关已退役（所有模块恒开启），丢弃旧 setting.json 中的 module / moduleOrder 残留
-  const legacyFields = mergedSetting as unknown as Record<string, unknown>;
-  delete legacyFields.module;
-  delete legacyFields.moduleOrder;
   return mergedSetting;
 };
 
@@ -174,7 +88,7 @@ export interface ISetting {
   appearance?: {
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
-      shadow?: ImageShadowPreset | boolean;
+      shadow?: ImageShadowPreset;
     };
   };
   imageBed: {
@@ -499,7 +413,6 @@ const normalizeWeReadTransientState = (weread: ISetting["integration"]["weread"]
 };
 
 const normalizeTransientSettingState = (setting: ISetting) => {
-  sanitizeAppearanceSetting(setting);
   normalizeWeReadTransientState(setting.integration.weread);
   return setting;
 };
@@ -543,25 +456,10 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
 
   try {
     const cached = window.localStorage.getItem(SETTING_CACHE_KEY);
-    window.localStorage.removeItem("chat-agent-type");
-    window.localStorage.removeItem("chat-agent-working-directory");
-    window.localStorage.removeItem("resource-store");
-    window.localStorage.removeItem("rss-store");
-    window.localStorage.removeItem("read-later-store");
-    window.localStorage.removeItem("cards-management");
-    window.localStorage.removeItem("small-component-sidebar");
-    window.localStorage.removeItem("flashcard-center");
-    window.localStorage.removeItem("vl-quiz-store");
-    // pi 迁移遗留（M8）：旧聊天 store（M4 起事实源在 pi 会话文件）与渲染端提问 store（M3-b 起宿主原生）
-    window.localStorage.removeItem("chat-message");
-    window.localStorage.removeItem("ask-question-session");
     if (!cached) {
       return null;
     }
-    const cachedSetting = JSON.parse(cached) as Partial<ISetting>;
-    const migrated = sanitizeDeprecatedLLMUsageSettings(cachedSetting);
-    migrateImageGenerationConfig(migrated);
-    return migrated;
+    return JSON.parse(cached) as Partial<ISetting>;
   } catch (error) {
     console.error("Failed to parse cached setting", error);
     return null;

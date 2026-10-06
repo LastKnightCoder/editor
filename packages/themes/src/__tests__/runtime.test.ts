@@ -40,33 +40,6 @@ describe("主题运行时", () => {
     expect(document.documentElement.dataset.theme).toBe(expected.theme);
     expect(document.documentElement.dataset.mode).toBe(expected.mode);
   });
-  it("旧版带明暗的主题 key 拆成 主题族 + 明暗偏好并写回", () => {
-    const config = themeRuntimeConfig();
-    expect(resolveThemePreference("cocoa", null, false, config)).toEqual({
-      theme: "paper",
-      appearance: "dark",
-      mode: "dark",
-    });
-    expect(resolveThemePreference("system", null, true, config)).toEqual({
-      theme: "paper",
-      appearance: "system",
-      mode: "dark",
-    });
-    expect(resolveThemePreference("nope", "bogus", false, config)).toEqual({
-      theme: "paper",
-      appearance: "light",
-      mode: "light",
-    });
-    localStorage.setItem("tau-theme", "cream");
-    const runtime = createThemeRuntime({
-      root: () => document.createElement("div"),
-      media: () => null,
-    });
-    const stop = runtime.init();
-    expect(localStorage.getItem("tau-theme")).toBe("paper");
-    expect(localStorage.getItem("tau-appearance")).toBe("light");
-    stop();
-  });
   it("明暗偏好与主题族正交：切明暗不动主题族，跟随系统随系统变化", () => {
     const element = document.createElement("div");
     const listeners = new Set<() => void>();

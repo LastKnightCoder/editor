@@ -84,10 +84,7 @@ export function AppearanceSection() {
     }));
   };
 
-  /* 历史 boolean 阴影值归一化（true→md / false·缺省→none），写入时即清洗 */
-  const rawShadow = appearance?.image?.shadow;
-  const imageShadow: ImageShadowPreset =
-    rawShadow === true ? "md" : rawShadow === false || !rawShadow ? "none" : rawShadow;
+  const imageShadow: ImageShadowPreset = appearance?.image?.shadow ?? "none";
 
   return (
     <>

@@ -158,7 +158,7 @@ export interface IPublishAppearanceSettings {
   appearance?: {
     image?: {
       borderRadius?: import("@tau/editor-media/types").ImageBorderRadiusPreset;
-      shadow?: import("@tau/editor-media/types").ImageShadowPreset | boolean;
+      shadow?: import("@tau/editor-media/types").ImageShadowPreset;
     };
   };
 }
