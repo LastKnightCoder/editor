@@ -33,16 +33,14 @@ export interface UpdateQuestionGroupPayload {
 }
 
 export default class QuestionGroupTable {
-  static upgradeTable(db: Database.Database) {
-    // 保证至少存在一个默认分组“未分类”
-    const row = db
-      .prepare(`SELECT id FROM question_group WHERE is_default = 1 LIMIT 1`)
-      .get() as { id?: number } | undefined;
+  static ensureDefaultGroup(db: Database.Database) {
+    const row = db.prepare(`SELECT id FROM question_group WHERE is_default = 1 LIMIT 1`).get() as
+      { id?: number } | undefined;
     if (!row || !row.id) {
       const now = Date.now();
       const insert = db.prepare(
         `INSERT INTO question_group (title, color, sort_index, is_default, create_time, update_time)
-         VALUES (?, ?, ?, 1, ?, ?)`,
+         VALUES (?, ?, ?, 1, ?, ?)`
       );
       // 默认颜色灰色
       insert.run("未分类", "#9CA3AF", 0, now, now);
@@ -75,24 +73,21 @@ export default class QuestionGroupTable {
 
   static listGroups(db: Database.Database): QuestionGroup[] {
     const rows = db
-      .prepare(
-        `SELECT * FROM question_group ORDER BY sort_index ASC, create_time ASC`,
-      )
+      .prepare(`SELECT * FROM question_group ORDER BY sort_index ASC, create_time ASC`)
       .all() as QuestionGroupRow[];
     return rows.map(this.parse);
   }
 
   static getDefaultGroup(db: Database.Database): QuestionGroup {
-    const row = db
-      .prepare(`SELECT * FROM question_group WHERE is_default = 1 LIMIT 1`)
-      .get() as QuestionGroupRow | undefined;
+    const row = db.prepare(`SELECT * FROM question_group WHERE is_default = 1 LIMIT 1`).get() as
+      QuestionGroupRow | undefined;
 
     // 如果没有找到默认分组，创建一个
     if (!row) {
       const now = Date.now();
       const insert = db.prepare(
         `INSERT INTO question_group (title, color, sort_index, is_default, create_time, update_time)
-         VALUES (?, ?, ?, 1, ?, ?)`,
+         VALUES (?, ?, ?, 1, ?, ?)`
       );
       insert.run("未分类", "#9CA3AF", 0, now, now);
 
@@ -107,58 +102,46 @@ export default class QuestionGroupTable {
   }
 
   static getGroupById(db: Database.Database, id: number): QuestionGroup | null {
-    const row = db
-      .prepare(`SELECT * FROM question_group WHERE id = ?`)
-      .get(id) as QuestionGroupRow | undefined;
+    const row = db.prepare(`SELECT * FROM question_group WHERE id = ?`).get(id) as
+      QuestionGroupRow | undefined;
     return row ? this.parse(row) : null;
   }
 
   static getMaxSortIndex(db: Database.Database): number {
-    const row = db
-      .prepare(`SELECT MAX(sort_index) AS max_idx FROM question_group`)
-      .get() as { max_idx: number | null };
+    const row = db.prepare(`SELECT MAX(sort_index) AS max_idx FROM question_group`).get() as {
+      max_idx: number | null;
+    };
     return row?.max_idx ?? 0;
   }
 
   static createGroup(
     db: Database.Database,
-    payload: CreateQuestionGroupPayload,
+    payload: CreateQuestionGroupPayload
   ): QuestionGroup | null {
     const now = Date.now();
     const sortIndex = this.getMaxSortIndex(db) + 1024;
     const insert = db.prepare(
       `INSERT INTO question_group (title, color, sort_index, is_default, create_time, update_time)
-       VALUES (?, ?, ?, 0, ?, ?)`,
+       VALUES (?, ?, ?, 0, ?, ?)`
     );
-    const res = insert.run(
-      payload.title,
-      payload.color ?? null,
-      sortIndex,
-      now,
-      now,
-    );
+    const res = insert.run(payload.title, payload.color ?? null, sortIndex, now, now);
     const id = Number(res.lastInsertRowid);
     return this.getGroupById(db, id);
   }
 
-  static updateGroup(
-    db: Database.Database,
-    payload: UpdateQuestionGroupPayload,
-  ): QuestionGroup {
+  static updateGroup(db: Database.Database, payload: UpdateQuestionGroupPayload): QuestionGroup {
     const now = Date.now();
-    const cur = db
-      .prepare(`SELECT * FROM question_group WHERE id = ?`)
-      .get(payload.id) as QuestionGroupRow | undefined;
+    const cur = db.prepare(`SELECT * FROM question_group WHERE id = ?`).get(payload.id) as
+      QuestionGroupRow | undefined;
     if (!cur) throw new Error("question_group not found");
 
     const isDefault = !!cur.is_default;
     const title = isDefault ? cur.title : (payload.title ?? cur.title);
-    const color =
-      (payload.color === undefined ? cur.color : payload.color) ?? null;
+    const color = (payload.color === undefined ? cur.color : payload.color) ?? null;
     const sortIndex = payload.sortIndex ?? cur.sort_index;
 
     db.prepare(
-      `UPDATE question_group SET title = ?, color = ?, sort_index = ?, update_time = ? WHERE id = ?`,
+      `UPDATE question_group SET title = ?, color = ?, sort_index = ?, update_time = ? WHERE id = ?`
     ).run(title, color, sortIndex, now, payload.id);
 
     const row = db
@@ -168,33 +151,26 @@ export default class QuestionGroupTable {
   }
 
   static deleteGroup(db: Database.Database, id: number): number {
-    const cur = db
-      .prepare(`SELECT * FROM question_group WHERE id = ?`)
-      .get(id) as QuestionGroupRow | undefined;
+    const cur = db.prepare(`SELECT * FROM question_group WHERE id = ?`).get(id) as
+      QuestionGroupRow | undefined;
     if (!cur) return 0;
     if (cur.is_default) throw new Error("默认分组不可删除");
 
     // 将该分组的问题迁移到默认分组
-    const def = db
-      .prepare(`SELECT id FROM question_group WHERE is_default = 1 LIMIT 1`)
-      .get() as { id: number };
-    db.prepare(`UPDATE questions SET group_id = ? WHERE group_id = ?`).run(
-      def.id,
-      id,
-    );
+    const def = db.prepare(`SELECT id FROM question_group WHERE is_default = 1 LIMIT 1`).get() as {
+      id: number;
+    };
+    db.prepare(`UPDATE questions SET group_id = ? WHERE group_id = ?`).run(def.id, id);
 
     const res = db.prepare(`DELETE FROM question_group WHERE id = ?`).run(id);
     return res.changes;
   }
 
-  static reorderGroups(
-    db: Database.Database,
-    params: { orderedIds: number[] },
-  ): number {
+  static reorderGroups(db: Database.Database, params: { orderedIds: number[] }): number {
     const ids = params.orderedIds;
     const step = 1024;
     const upd = db.prepare(
-      `UPDATE question_group SET sort_index = ?, update_time = ? WHERE id = ?`,
+      `UPDATE question_group SET sort_index = ?, update_time = ? WHERE id = ?`
     );
     const now = Date.now();
     ids.forEach((id, idx) => {
@@ -217,11 +193,11 @@ export default class QuestionGroupTable {
            SUM(CASE WHEN answers <> '[]' THEN 1 ELSE 0 END) as answered,
            SUM(CASE WHEN answers = '[]' THEN 1 ELSE 0 END) as unanswered
          FROM questions
-         GROUP BY group_id`,
+         GROUP BY group_id`
       )
       .all() as any[];
 
-    return rows.map((r) => ({
+    return rows.map(r => ({
       groupId: Number(r.groupId),
       total: Number(r.total || 0),
       answered: Number(r.answered || 0),

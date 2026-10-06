@@ -2,10 +2,6 @@ import Database from "better-sqlite3";
 import { TodoCalendarEventSource, TodoCalendarMapping, TodoCalendarSyncType } from "@/types";
 
 export default class TodoCalendarMappingTable {
-  static upgradeTable(_db: Database.Database) {
-    // no-op for now
-  }
-
   static getListenEvents() {
     return {
       "todo:get-calendar-mappings-by-todo": this.getMappingsByTodoId.bind(this),

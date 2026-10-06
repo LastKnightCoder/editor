@@ -33,21 +33,6 @@ export default class TodoCalendarSyncTable {
     } as const;
   }
 
-  static upgradeTable(db: Database.Database) {
-    // 确保待办清单日历分组和日历存在
-    this.ensureTodoCalendars(db);
-
-    // 清理孤立的日历事件（一次性清理历史数据）
-    try {
-      const cleanedCount = this.cleanupOrphanedEvents(db);
-      if (cleanedCount > 0) {
-        console.log(`[TodoCalendarSync] 清理了 ${cleanedCount} 个孤立的日历事件`);
-      }
-    } catch (e) {
-      console.error("[TodoCalendarSync] 清理孤立事件失败:", e);
-    }
-  }
-
   // 确保待办清单日历系统存在
   static ensureTodoCalendars(db: Database.Database): TodoCalendars {
     if (this.cachedCalendars) {

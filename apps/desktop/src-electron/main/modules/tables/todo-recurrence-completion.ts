@@ -2,10 +2,6 @@ import Database from "better-sqlite3";
 import { TodoRecurrenceCompletion } from "@/types";
 
 export default class TodoRecurrenceCompletionTable {
-  static upgradeTable(_db: Database.Database) {
-    // no-op for now
-  }
-
   static getListenEvents() {
     return {
       "todo:get-recurrence-completions": this.getCompletions.bind(this),
@@ -15,8 +11,7 @@ export default class TodoRecurrenceCompletionTable {
       "todo:complete-recurrence": this.completeRecurrence.bind(this),
       "todo:uncomplete-recurrence": this.uncompleteRecurrence.bind(this),
       "todo:skip-recurrence": this.skipRecurrence.bind(this),
-      "todo:delete-recurrence-completions":
-        this.deleteByRecurrenceId.bind(this),
+      "todo:delete-recurrence-completions": this.deleteByRecurrenceId.bind(this),
     } as const;
   }
 
@@ -34,7 +29,7 @@ export default class TodoRecurrenceCompletionTable {
   // 获取周期任务的所有完成记录
   static getCompletions(
     db: Database.Database,
-    params: { recurrenceId: number; startDate?: number; endDate?: number },
+    params: { recurrenceId: number; startDate?: number; endDate?: number }
   ): TodoRecurrenceCompletion[] {
     let sql = `SELECT * FROM todo_recurrence_completion WHERE recurrence_id = ?`;
     const args: any[] = [params.recurrenceId];
@@ -57,7 +52,7 @@ export default class TodoRecurrenceCompletionTable {
 
   static getCompletionsByRecurrenceIds(
     db: Database.Database,
-    params: { recurrenceIds: number[]; startDate?: number; endDate?: number },
+    params: { recurrenceIds: number[]; startDate?: number; endDate?: number }
   ): Record<number, TodoRecurrenceCompletion[]> {
     if (!params.recurrenceIds.length) {
       return {};
@@ -81,12 +76,9 @@ export default class TodoRecurrenceCompletionTable {
 
     const rows = db.prepare(sql).all(...args) as any[];
     const grouped: Record<number, TodoRecurrenceCompletion[]> = {};
-    rows.forEach((row) => {
+    rows.forEach(row => {
       const completion = this.parse(row);
-      grouped[completion.recurrenceId] = [
-        ...(grouped[completion.recurrenceId] ?? []),
-        completion,
-      ];
+      grouped[completion.recurrenceId] = [...(grouped[completion.recurrenceId] ?? []), completion];
     });
     return grouped;
   }
@@ -94,11 +86,11 @@ export default class TodoRecurrenceCompletionTable {
   // 获取特定日期的完成记录
   static getCompletion(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number },
+    params: { recurrenceId: number; scheduledDate: number }
   ): TodoRecurrenceCompletion | null {
     const row = db
       .prepare(
-        `SELECT * FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`,
+        `SELECT * FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
       )
       .get(params.recurrenceId, params.scheduledDate);
     return row ? this.parse(row) : null;
@@ -107,7 +99,7 @@ export default class TodoRecurrenceCompletionTable {
   // 标记周期任务为已完成
   static completeRecurrence(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number },
+    params: { recurrenceId: number; scheduledDate: number }
   ): TodoRecurrenceCompletion {
     const now = Date.now();
 
@@ -116,14 +108,14 @@ export default class TodoRecurrenceCompletionTable {
 
     if (existing) {
       db.prepare(
-        `UPDATE todo_recurrence_completion SET completed_at = ?, skipped = 0 WHERE id = ?`,
+        `UPDATE todo_recurrence_completion SET completed_at = ?, skipped = 0 WHERE id = ?`
       ).run(now, existing.id);
       return this.getCompletion(db, params)!;
     }
 
     db.prepare(
       `INSERT INTO todo_recurrence_completion (recurrence_id, scheduled_date, completed_at, skipped, create_time)
-       VALUES (?, ?, ?, 0, ?)`,
+       VALUES (?, ?, ?, 0, ?)`
     ).run(params.recurrenceId, params.scheduledDate, now, now);
 
     return this.getCompletion(db, params)!;
@@ -132,11 +124,11 @@ export default class TodoRecurrenceCompletionTable {
   // 取消周期任务的完成状态
   static uncompleteRecurrence(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number },
+    params: { recurrenceId: number; scheduledDate: number }
   ): number {
     const res = db
       .prepare(
-        `DELETE FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`,
+        `DELETE FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
       )
       .run(params.recurrenceId, params.scheduledDate);
     return res.changes;
@@ -145,7 +137,7 @@ export default class TodoRecurrenceCompletionTable {
   // 跳过周期任务
   static skipRecurrence(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number },
+    params: { recurrenceId: number; scheduledDate: number }
   ): TodoRecurrenceCompletion {
     const now = Date.now();
 
@@ -154,24 +146,21 @@ export default class TodoRecurrenceCompletionTable {
 
     if (existing) {
       db.prepare(
-        `UPDATE todo_recurrence_completion SET skipped = 1, completed_at = NULL WHERE id = ?`,
+        `UPDATE todo_recurrence_completion SET skipped = 1, completed_at = NULL WHERE id = ?`
       ).run(existing.id);
       return this.getCompletion(db, params)!;
     }
 
     db.prepare(
       `INSERT INTO todo_recurrence_completion (recurrence_id, scheduled_date, completed_at, skipped, create_time)
-       VALUES (?, ?, NULL, 1, ?)`,
+       VALUES (?, ?, NULL, 1, ?)`
     ).run(params.recurrenceId, params.scheduledDate, now);
 
     return this.getCompletion(db, params)!;
   }
 
   // 删除周期任务的所有完成记录
-  static deleteByRecurrenceId(
-    db: Database.Database,
-    params: { recurrenceId: number },
-  ): number {
+  static deleteByRecurrenceId(db: Database.Database, params: { recurrenceId: number }): number {
     const res = db
       .prepare(`DELETE FROM todo_recurrence_completion WHERE recurrence_id = ?`)
       .run(params.recurrenceId);
@@ -181,7 +170,7 @@ export default class TodoRecurrenceCompletionTable {
   // 获取周期任务在指定日期范围内的完成统计
   static getCompletionStats(
     db: Database.Database,
-    params: { recurrenceId: number; startDate: number; endDate: number },
+    params: { recurrenceId: number; startDate: number; endDate: number }
   ): { total: number; completed: number; skipped: number } {
     const row = db
       .prepare(
@@ -190,7 +179,7 @@ export default class TodoRecurrenceCompletionTable {
            SUM(CASE WHEN completed_at IS NOT NULL THEN 1 ELSE 0 END) as completed,
            SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END) as skipped
          FROM todo_recurrence_completion
-         WHERE recurrence_id = ? AND scheduled_date >= ? AND scheduled_date <= ?`,
+         WHERE recurrence_id = ? AND scheduled_date >= ? AND scheduled_date <= ?`
       )
       .get(params.recurrenceId, params.startDate, params.endDate) as any;
 
@@ -204,30 +193,27 @@ export default class TodoRecurrenceCompletionTable {
   // 检查指定日期是否已完成
   static isCompleted(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number },
+    params: { recurrenceId: number; scheduledDate: number }
   ): boolean {
     const row = db
       .prepare(
-        `SELECT completed_at FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`,
+        `SELECT completed_at FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
       )
       .get(params.recurrenceId, params.scheduledDate) as
-      | { completed_at: number | null }
-      | undefined;
+      { completed_at: number | null } | undefined;
     return row?.completed_at !== null && row?.completed_at !== undefined;
   }
 
   // 检查指定日期是否已跳过
   static isSkipped(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number },
+    params: { recurrenceId: number; scheduledDate: number }
   ): boolean {
     const row = db
       .prepare(
-        `SELECT skipped FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`,
+        `SELECT skipped FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
       )
-      .get(params.recurrenceId, params.scheduledDate) as
-      | { skipped: number }
-      | undefined;
+      .get(params.recurrenceId, params.scheduledDate) as { skipped: number } | undefined;
     return Boolean(row?.skipped);
   }
 }

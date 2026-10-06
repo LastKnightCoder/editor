@@ -29,8 +29,6 @@ export async function runSyncPull() {
       // 只升级下载副本；校验失败不改变本地数据库和索引。
       const candidate = new DataAccess(database.name, {
         databasePath: downloadPath,
-        migrateIndex: false,
-        skipMigrationBackup: true,
       });
       candidate.close();
       const local = new Database(context.databasePath, { fileMustExist: true });

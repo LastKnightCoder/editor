@@ -10,11 +10,9 @@ import {
   createSharedDocument,
   readSharedContent,
   replaceSharedContent,
-  guardRetiredEditorBlocks,
 } from "@tau/collaboration/src/document";
 import {
   DEFAULT_COLLABORATION_URL,
-  migrateKnowledgeDocument,
   type CollaborationEvent,
   type CollaborationSession,
   type ContentNode,
@@ -617,12 +615,7 @@ class CollaborationManager {
     if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
     const doc = new Y.Doc({ guid: info.id });
     Y.applyUpdate(doc, base64ToBytes(state));
-    const knowledgeMapping = await tauri.collabKnowledgeMapping(info.id);
-    if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
-    if (knowledgeMapping) migrateKnowledgeDocument(doc, knowledgeMapping);
-    // 与桌面端一致：guard 绑定会话的 privateNodes，使后续事务中退役的私有节点同步清理
     const privateNodes = new Map<string, ContentNode>();
-    guardRetiredEditorBlocks(doc, privateNodes);
     const session: RuntimeSession = {
       info: {
         ...info,
@@ -640,16 +633,6 @@ class CollaborationManager {
     // 标题是 Y.Text：任何一端改名都要即时反映到会话列表与编辑页顶栏；
     // 会话拆除时摘除监听（doc 本体可能仍被挂载中的编辑器持有）
     const onDocUpdate = () => {
-      if (knowledgeMapping) {
-        try {
-          migrateKnowledgeDocument(doc, knowledgeMapping, session.privateNodes);
-        } catch (error) {
-          session.info.error = describeError(error, "历史引用升级失败，已停止投影");
-          session.info.frozen = true;
-          this.changed();
-          return;
-        }
-      }
       const title = doc.getText("title").toString();
       if (session.info.title !== title) {
         session.info.title = title;

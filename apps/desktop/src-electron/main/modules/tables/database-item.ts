@@ -12,16 +12,6 @@ import { getNextModuleEntityId } from "./module-entity-id";
  * data_tables.ref_count 的持有者由 project 换成了这里。
  */
 export default class DatabaseItemTable {
-  static upgradeTable(db: Database.Database) {
-    // 建表由 schema 分片（main/31_module_split.sql）负责，这里只补后加的列
-    const columns = (db.pragma("table_info(database_item)") as Array<{ name: string }>).map(
-      c => c.name
-    );
-    if (!columns.includes("last_open_time")) {
-      db.exec("ALTER TABLE database_item ADD COLUMN last_open_time INTEGER");
-    }
-  }
-
   static getListenEvents() {
     return {
       "database-item:create": this.create.bind(this),

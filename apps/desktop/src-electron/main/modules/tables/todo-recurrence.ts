@@ -11,18 +11,6 @@ import {
 } from "@/types";
 
 export default class TodoRecurrenceTable {
-  static upgradeTable(db: Database.Database) {
-    // 检查是否存在 max_occurrences 列
-    const tableInfo = db.pragma("table_info(todo_recurrence)") as Array<{
-      name: string;
-    }>;
-    const hasMaxOccurrences = tableInfo.some(col => col.name === "max_occurrences");
-
-    if (!hasMaxOccurrences) {
-      db.exec(`ALTER TABLE todo_recurrence ADD COLUMN max_occurrences INTEGER;`);
-    }
-  }
-
   static getListenEvents() {
     return {
       "todo:get-recurrence": this.getRecurrence.bind(this),

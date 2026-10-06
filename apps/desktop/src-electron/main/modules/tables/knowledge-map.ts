@@ -134,22 +134,6 @@ export function meanVector(blobs: Buffer[]): Buffer | null {
 }
 
 export default class KnowledgeMapTable {
-  /**
-   * 旧版地图表以 card_id 为主键；改为 node_key 后旧表直接删除（数据可重算），
-   * 并清掉计算时间，下次打开地图时整体重建。须在执行 index.sql 之前调用。
-   */
-  static migrateLegacy(indexDb: Database.Database) {
-    if (!hasTable(indexDb, "knowledge_map_nodes")) return;
-    const columns = indexDb.prepare("PRAGMA table_info(knowledge_map_nodes)").all() as Array<{
-      name: string;
-    }>;
-    if (!columns.some(column => column.name === "card_id")) return;
-    indexDb.exec("DROP TABLE knowledge_map_nodes; DROP TABLE IF EXISTS knowledge_map_topics;");
-    if (hasTable(indexDb, "index_meta")) {
-      indexDb.prepare("DELETE FROM index_meta WHERE key = ?").run(KNOWLEDGE_MAP_COMPUTED_AT_KEY);
-    }
-  }
-
   /** 当前应在地图上的全部节点，按键排序（计算结果依赖输入顺序，排序保证确定） */
   static listEntities(mainDb: Database.Database): MapEntity[] {
     const paths = projectPaths(mainDb);

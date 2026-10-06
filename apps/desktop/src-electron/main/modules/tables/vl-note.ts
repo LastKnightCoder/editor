@@ -1,13 +1,7 @@
 import Database from "better-sqlite3";
 import ContentTable from "./content";
 
-export type VLNoteType =
-  | "note"
-  | "outline"
-  | "highlights"
-  | "mindmap"
-  | "ppt"
-  | "podcast";
+export type VLNoteType = "note" | "outline" | "highlights" | "mindmap" | "ppt" | "podcast";
 
 export interface VLNote {
   id: number;
@@ -35,24 +29,6 @@ export interface UpdateVLNotePayload {
 }
 
 export default class VLNoteTable {
-  static upgradeTable(db: Database.Database) {
-    // 添加 type 列，默认值为 'note'
-    try {
-      db.exec(
-        `ALTER TABLE vl_note ADD COLUMN type TEXT NOT NULL DEFAULT 'note'`,
-      );
-    } catch {
-      // 列已存在，忽略
-    }
-
-    // 添加 podcast_id 列（可为空），用于关联播客记录
-    try {
-      db.exec(`ALTER TABLE vl_note ADD COLUMN podcast_id INTEGER DEFAULT NULL`);
-    } catch {
-      // 列已存在，忽略
-    }
-  }
-
   static parse(row: Record<string, unknown>): VLNote {
     return {
       id: row.id as number,
@@ -91,7 +67,7 @@ export default class VLNoteTable {
       payload.contentId,
       payload.title,
       noteType,
-      podcastId,
+      podcastId
     );
     const note = this.getById(db, Number(res.lastInsertRowid));
     if (!note) {
@@ -101,18 +77,15 @@ export default class VLNoteTable {
   }
 
   static update(db: Database.Database, payload: UpdateVLNotePayload): VLNote {
-    const existing = db
-      .prepare(`SELECT * FROM vl_note WHERE id = ?`)
-      .get(payload.id) as Record<string, unknown> | undefined;
+    const existing = db.prepare(`SELECT * FROM vl_note WHERE id = ?`).get(payload.id) as
+      Record<string, unknown> | undefined;
     if (!existing) {
       throw new Error(`VL note ${payload.id} not found`);
     }
     const now = Date.now();
     const newTitle = payload.title ?? (existing.title as string);
     const newPodcastId =
-      payload.podcastId !== undefined
-        ? payload.podcastId
-        : (existing.podcast_id as number | null);
+      payload.podcastId !== undefined ? payload.podcastId : (existing.podcast_id as number | null);
     const stmt = db.prepare(`
       UPDATE vl_note SET title = ?, podcast_id = ?, update_time = ? WHERE id = ?
     `);
@@ -126,18 +99,15 @@ export default class VLNoteTable {
 
   static getById(db: Database.Database, id: number): VLNote | null {
     const row = db.prepare(`SELECT * FROM vl_note WHERE id = ?`).get(id) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return row ? this.parse(row) : null;
   }
 
   static listByProjectId(db: Database.Database, projectId: number): VLNote[] {
     const rows = db
-      .prepare(
-        `SELECT * FROM vl_note WHERE project_id = ? ORDER BY update_time DESC`,
-      )
+      .prepare(`SELECT * FROM vl_note WHERE project_id = ? ORDER BY update_time DESC`)
       .all(projectId) as Record<string, unknown>[];
-    return rows.map((row) => this.parse(row));
+    return rows.map(row => this.parse(row));
   }
 
   static deleteByProjectId(db: Database.Database, projectId: number): number {

@@ -28,7 +28,6 @@ import PodcastTable from "../tables/podcast";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  WhiteBoardContentTable.upgradeTable(db);
   return db;
 }
 

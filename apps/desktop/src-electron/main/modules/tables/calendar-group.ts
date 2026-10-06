@@ -54,36 +54,6 @@ export default class CalendarGroupTable {
       "calendar-group:get-by-id": this.getGroupById.bind(this),
     };
   }
-
-  static upgradeTable(db: Database.Database) {
-    // 添加 parent_group_id 字段（如果不存在）
-    try {
-      // 检查字段是否存在
-      const tableInfo = db
-        .prepare("PRAGMA table_info(calendar_group)")
-        .all() as Array<{
-        name: string;
-      }>;
-      const hasParentGroupId = tableInfo.some(
-        (col) => col.name === "parent_group_id",
-      );
-
-      if (!hasParentGroupId) {
-        // 添加字段
-        db.exec(
-          "ALTER TABLE calendar_group ADD COLUMN parent_group_id INTEGER DEFAULT NULL",
-        );
-        // 添加索引
-        db.exec(
-          "CREATE INDEX IF NOT EXISTS idx_calendar_group_parent ON calendar_group(parent_group_id)",
-        );
-        console.log("Added parent_group_id field to calendar_group table");
-      }
-    } catch (e) {
-      console.error("Failed to add parent_group_id field:", e);
-    }
-  }
-
   static parseGroup(row: CalendarGroupRow): CalendarGroup {
     return parse(row);
   }
@@ -112,10 +82,7 @@ export default class CalendarGroupTable {
     return parse(newRow);
   }
 
-  static createGroup(
-    db: Database.Database,
-    data: CreateCalendarGroup,
-  ): CalendarGroup {
+  static createGroup(db: Database.Database, data: CreateCalendarGroup): CalendarGroup {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar_group (name, is_system, parent_group_id, order_index, create_time, update_time)
@@ -128,16 +95,13 @@ export default class CalendarGroupTable {
       data.parentGroupId ?? null,
       data.orderIndex || 0,
       now,
-      now,
+      now
     );
 
     return this.getGroupById(db, Number(res.lastInsertRowid));
   }
 
-  static updateGroup(
-    db: Database.Database,
-    data: UpdateCalendarGroup,
-  ): CalendarGroup {
+  static updateGroup(db: Database.Database, data: UpdateCalendarGroup): CalendarGroup {
     const now = Date.now();
     const existing = this.getGroupById(db, data.id);
 
@@ -152,12 +116,10 @@ export default class CalendarGroupTable {
 
     stmt.run(
       data.name ?? existing.name,
-      data.parentGroupId !== undefined
-        ? data.parentGroupId
-        : existing.parentGroupId,
+      data.parentGroupId !== undefined ? data.parentGroupId : existing.parentGroupId,
       data.orderIndex ?? existing.orderIndex,
       now,
-      data.id,
+      data.id
     );
 
     return this.getGroupById(db, data.id);
@@ -171,9 +133,7 @@ export default class CalendarGroupTable {
     }
 
     // 将该分组下的日历的 group_id 设置为 NULL
-    db.prepare("UPDATE calendar SET group_id = NULL WHERE group_id = ?").run(
-      id,
-    );
+    db.prepare("UPDATE calendar SET group_id = NULL WHERE group_id = ?").run(id);
 
     const stmt = db.prepare("DELETE FROM calendar_group WHERE id = ?");
     return stmt.run(id).changes;
@@ -190,7 +150,7 @@ export default class CalendarGroupTable {
 
   static getAllGroups(db: Database.Database): CalendarGroup[] {
     const stmt = db.prepare(
-      "SELECT * FROM calendar_group ORDER BY is_system DESC, order_index ASC, create_time ASC",
+      "SELECT * FROM calendar_group ORDER BY is_system DESC, order_index ASC, create_time ASC"
     );
     const rows = stmt.all() as CalendarGroupRow[];
     return rows.map(parse);

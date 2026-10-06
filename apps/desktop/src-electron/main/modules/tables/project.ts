@@ -1,5 +1,6 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
+import { getNextModuleEntityId } from "./module-entity-id";
 import {
   Project,
   ProjectItem,
@@ -23,15 +24,8 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
 import WhiteBoardContentTable from "./white-board-content";
-import WebLinkTable from "./web-link";
-import { WebLinkSourceType } from "@/types";
 
 import log from "electron-log";
-import { readKnowledgeMapping } from "@tau/db-schema/src/knowledge-migration";
-import { getNextModuleEntityId, isMigrationDone, markMigrationDone } from "./module-entity-id";
-
-const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
-const SPLIT_MODULES_MIGRATION_KEY = "project:split-modules";
 
 type TreeMovePosition = "top" | "bottom" | "inside";
 
@@ -92,213 +86,8 @@ const getProjectTargetParentId = ({
 };
 
 export default class ProjectTable {
-  static upgradeTable(db: Database.Database) {
-    // 检查并添加新字段
-    const tableInfo = db.prepare(`PRAGMA table_info(project)`).all() as Array<{
-      name: string;
-    }>;
-    const hasProjectType = tableInfo.some(column => column.name === "project_type");
-    const hasDataTableId = tableInfo.some(column => column.name === "data_table_id");
-
-    if (!hasProjectType) {
-      db.exec("ALTER TABLE project ADD COLUMN project_type TEXT DEFAULT 'document-tree'");
-      db.exec(`UPDATE project SET project_type = 'document-tree' WHERE project_type IS NULL`);
-    }
-
-    if (!hasDataTableId) {
-      db.exec("ALTER TABLE project ADD COLUMN data_table_id INTEGER DEFAULT 0");
-      db.exec(`UPDATE project SET data_table_id = 0 WHERE data_table_id IS NULL`);
-    }
-
-    for (const column of ["last_open_time", "last_open_item_id"]) {
-      if (!tableInfo.some(info => info.name === column)) {
-        db.exec(`ALTER TABLE project ADD COLUMN ${column} INTEGER`);
-      }
-    }
-
-    // 检查 project_item 表是否有 podcast_id 字段
-    const projectItemTableInfo = db.prepare(`PRAGMA table_info(project_item)`).all() as Array<{
-      name: string;
-    }>;
-    const hasPodcastId = projectItemTableInfo.some(column => column.name === "podcast_id");
-    if (!projectItemTableInfo.some(column => column.name === "tags")) {
-      db.exec("ALTER TABLE project_item ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
-    }
-
-    if (!hasPodcastId) {
-      db.exec(`ALTER TABLE project_item ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);`
-      );
-      log.info("已添加 podcast_id 字段到 project_item 表");
-    }
-
-    // 拆分数据库 / Vibe Learning 到独立模块表
-    this.migrateSplitModules(db);
-
-    // 删除不在任何项目中的条目
-    this.deleteProjectItemsNotInAnyProject(db);
-    this.migrateLegacyWebLinks(db);
-  }
-
-  static extractLegacyWebLink(title: string): { title: string; url: string } {
-    const urlRegex = /\s*\[([^\]]+)\]\s*$/;
-    const match = title.match(urlRegex);
-    if (match && match[1]) {
-      return {
-        title: title.replace(urlRegex, "").trim(),
-        url: match[1],
-      };
-    }
-    return {
-      title: title.trim(),
-      url: "",
-    };
-  }
-
-  /**
-   * 把 project 表里寄生的两类项目搬到各自的独立模块表，之后 project 表只剩文档树。
-   *
-   * id 原样保留：VL 的 per-project 索引库、markdown 目录、chat_session.domain_id、
-   * vl_note.project_id 等都以这个 id 命名，重编号会指向错误的数据。
-   */
-  static migrateSplitModules(db: Database.Database) {
-    if (isMigrationDone(db, SPLIT_MODULES_MIGRATION_KEY)) {
-      return;
-    }
-
-    const tableInfo = db.prepare(`PRAGMA table_info(project)`).all() as Array<{ name: string }>;
-    if (!tableInfo.some(column => column.name === "project_type")) {
-      // 全新库，没有历史数据可搬
-      markMigrationDone(db, SPLIT_MODULES_MIGRATION_KEY);
-      return;
-    }
-
-    // 理论上这两类项目不挂 project_item，非空说明数据异常，只告警不阻断
-    const strayTrees = db
-      .prepare(
-        `SELECT id FROM project
-         WHERE project_type <> 'document-tree' AND children IS NOT NULL
-           AND children NOT IN ('[]', '')`
-      )
-      .all() as Array<{ id: number }>;
-    if (strayTrees.length > 0) {
-      log.warn(
-        `[ProjectTable] split-modules: 非文档树项目携带 children，人工确认: ids=${strayTrees
-          .map(row => row.id)
-          .join(",")}`
-      );
-    }
-
-    const tx = db.transaction(() => {
-      db.exec(`
-        INSERT OR IGNORE INTO database_item
-          (id, create_time, update_time, title, desc, archived, pinned, data_table_id)
-        SELECT id, create_time, update_time, title, desc,
-               COALESCE(archived, 0), COALESCE(pinned, 0), COALESCE(data_table_id, 0)
-        FROM project WHERE project_type = 'data-table'
-      `);
-
-      db.exec(`
-        INSERT OR IGNORE INTO vibe_learning_project
-          (id, create_time, update_time, title, desc, archived, pinned)
-        SELECT id, create_time, update_time, title, desc,
-               COALESCE(archived, 0), COALESCE(pinned, 0)
-        FROM project WHERE project_type = 'vibe-learning'
-      `);
-
-      this.rebuildVibeLearningResourceForeignKey(db);
-
-      db.exec(`DELETE FROM project WHERE project_type <> 'document-tree'`);
-
-      // 清理指向已迁走项目的发布选择
-      db.exec(`
-        DELETE FROM publish_selections
-        WHERE content_type = 'project'
-          AND content_id NOT IN (SELECT id FROM project)
-      `);
-    });
-
-    tx();
-
-    const fkErrors = db.prepare(`PRAGMA foreign_key_check`).all() as unknown[];
-    if (fkErrors.length > 0) {
-      log.error(`[ProjectTable] split-modules: 迁移后外键校验失败，count=${fkErrors.length}`);
-    }
-
-    markMigrationDone(db, SPLIT_MODULES_MIGRATION_KEY);
-    log.info("[ProjectTable] split-modules 迁移完成");
-  }
-
-  /**
-   * vibe_learning_resources.project_id 的外键原本指向 project(id)，
-   * VL 项目搬走后必须改指 vibe_learning_project(id)，否则外键校验失败
-   * （移动端的 migrator 会因此直接中止升级）。SQLite 无法改外键，只能重建表。
-   */
-  private static rebuildVibeLearningResourceForeignKey(db: Database.Database) {
-    const sqlRow = db
-      .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`)
-      .get("vibe_learning_resources") as { sql: string } | undefined;
-    if (!sqlRow?.sql || !/REFERENCES\s+project\s*\(/i.test(sqlRow.sql)) {
-      return;
-    }
-
-    const columns = (
-      db.prepare(`PRAGMA table_info(vibe_learning_resources)`).all() as Array<{ name: string }>
-    )
-      .map(column => column.name)
-      .join(", ");
-
-    const rebuiltSql = sqlRow.sql
-      .replace(/vibe_learning_resources/, "vibe_learning_resources_new")
-      .replace(/REFERENCES\s+project\s*\(\s*id\s*\)/i, "REFERENCES vibe_learning_project(id)");
-
-    db.exec(rebuiltSql);
-    db.exec(
-      `INSERT INTO vibe_learning_resources_new (${columns}) SELECT ${columns} FROM vibe_learning_resources`
-    );
-    db.exec(`DROP TABLE vibe_learning_resources`);
-    db.exec(`ALTER TABLE vibe_learning_resources_new RENAME TO vibe_learning_resources`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_vlr_project_id ON vibe_learning_resources(project_id)`);
-    log.info("[ProjectTable] split-modules: 已重建 vibe_learning_resources 外键");
-  }
-
-  static migrateLegacyWebLinks(db: Database.Database) {
-    if (isMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY)) {
-      return;
-    }
-
-    const webviewItems = db
-      .prepare(`SELECT id, title, ref_type, ref_id FROM project_item WHERE project_item_type = ?`)
-      .all(EProjectItemType.WebView) as any[];
-    const updateStmt = db.prepare(
-      `UPDATE project_item SET title = ?, ref_type = ?, ref_id = ? WHERE id = ?`
-    );
-    const updateTitleStmt = db.prepare(`UPDATE project_item SET title = ? WHERE id = ?`);
-    for (const item of webviewItems) {
-      if (item.ref_type === "web-link" && item.ref_id) continue;
-      const parsed = this.extractLegacyWebLink(item.title || "");
-      if (!parsed.url) {
-        if (parsed.title !== item.title) {
-          updateTitleStmt.run(parsed.title, item.id);
-        }
-        continue;
-      }
-      const sourceType: WebLinkSourceType = parsed.url.startsWith("http") ? "remote" : "local";
-      const webLink = WebLinkTable.create(db, {
-        title: parsed.title || parsed.url,
-        url: parsed.url,
-        sourceType,
-      });
-      updateStmt.run(webLink.title, "web-link", webLink.id, item.id);
-    }
-
-    markMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY);
-  }
-
   static getListenEvents() {
     return {
-      "get-project-migration-map": readKnowledgeMapping,
       "create-project": this.createProject.bind(this),
       "update-project": this.updateProject.bind(this),
       "delete-project": this.deleteProject.bind(this),

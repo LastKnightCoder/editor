@@ -29,7 +29,6 @@ const emptyContent = [{ type: "paragraph", children: [{ text: "" }] }] as any;
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  ProjectTable.upgradeTable(db);
   return db;
 }
 

@@ -56,25 +56,6 @@ export default class PodcastTable {
       "podcast:increment-ref-count": this.incrementRefCount.bind(this),
     };
   }
-
-  static upgradeTable(db: Database.Database) {
-    // 检查是否存在 name 字段
-    const tableInfo = db.prepare("PRAGMA table_info(podcasts)").all() as Array<{
-      name: string;
-    }>;
-    const hasNameColumn = tableInfo.some(col => col.name === "name");
-
-    if (!hasNameColumn) {
-      db.exec("ALTER TABLE podcasts ADD COLUMN name TEXT");
-    }
-
-    // 检查是否存在 script_lines 字段
-    const hasScriptLinesColumn = tableInfo.some(col => col.name === "script_lines");
-    if (!hasScriptLinesColumn) {
-      db.exec("ALTER TABLE podcasts ADD COLUMN script_lines TEXT");
-    }
-  }
-
   static parsePodcast(row: unknown): IPodcast {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = row as any;

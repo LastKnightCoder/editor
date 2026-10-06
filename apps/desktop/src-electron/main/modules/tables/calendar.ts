@@ -18,27 +18,6 @@ export default class CalendarTable {
       "calendar:merge": this.mergeCalendars.bind(this),
     };
   }
-
-  static upgradeTable(db: Database.Database) {
-    // 数据迁移和升级逻辑
-
-    // 检查 group_id 字段是否存在
-    const tableInfo = db.prepare(`PRAGMA table_info(calendar)`).all() as Array<{
-      name: string;
-    }>;
-    const hasGroupId = tableInfo.some((column) => column.name === "group_id");
-
-    // 添加 group_id 字段
-    if (!hasGroupId) {
-      db.exec(`ALTER TABLE calendar ADD COLUMN group_id INTEGER DEFAULT NULL;`);
-    }
-
-    // 添加索引
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_calendar_group_id ON calendar(group_id);`,
-    );
-  }
-
   static parseCalendar(row: any, db: Database.Database): Calendar {
     let description: Descendant[] = [];
     const descriptionContentId = row.description_content_id || 0;
@@ -60,10 +39,7 @@ export default class CalendarTable {
           isInSystemGroup = true;
         } else if (group.parentGroupId) {
           try {
-            const parentGroup = CalendarGroupTable.getGroupById(
-              db,
-              group.parentGroupId,
-            );
+            const parentGroup = CalendarGroupTable.getGroupById(db, group.parentGroupId);
             isInSystemGroup = parentGroup.isSystem;
           } catch (e) {
             // 父分组不存在
@@ -109,16 +85,10 @@ export default class CalendarTable {
       Number(data.pinned || false),
       Number(data.visible !== undefined ? data.visible : true),
       data.orderIndex || 0,
-      data.groupId ?? null,
+      data.groupId ?? null
     );
 
-    Operation.insertOperation(
-      db,
-      "calendar",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+    Operation.insertOperation(db, "calendar", "insert", res.lastInsertRowid, now);
 
     return this.getCalendarById(db, Number(res.lastInsertRowid));
   }
@@ -149,7 +119,7 @@ export default class CalendarTable {
       Number(data.visible !== undefined ? data.visible : true),
       data.orderIndex || 0,
       data.groupId ?? null,
-      data.id,
+      data.id
     );
 
     Operation.insertOperation(db, "calendar", "update", data.id, now);
@@ -166,7 +136,7 @@ export default class CalendarTable {
 
     // 删除所有关联的事件（直接执行 SQL）
     const eventStmt = db.prepare(
-      "SELECT id, detail_content_id FROM calendar_event WHERE calendar_id = ?",
+      "SELECT id, detail_content_id FROM calendar_event WHERE calendar_id = ?"
     );
     const events = eventStmt.all(id) as Array<{
       id: number;
@@ -203,25 +173,23 @@ export default class CalendarTable {
   }
 
   static getAllCalendars(db: Database.Database): Calendar[] {
-    const stmt = db.prepare(
-      "SELECT * FROM calendar ORDER BY order_index ASC, create_time DESC",
-    );
+    const stmt = db.prepare("SELECT * FROM calendar ORDER BY order_index ASC, create_time DESC");
     const rows = stmt.all();
-    return rows.map((row) => this.parseCalendar(row, db));
+    return rows.map(row => this.parseCalendar(row, db));
   }
 
   static getVisibleCalendars(db: Database.Database): Calendar[] {
     const stmt = db.prepare(
-      "SELECT * FROM calendar WHERE visible = 1 ORDER BY order_index ASC, create_time DESC",
+      "SELECT * FROM calendar WHERE visible = 1 ORDER BY order_index ASC, create_time DESC"
     );
     const rows = stmt.all();
-    return rows.map((row) => this.parseCalendar(row, db));
+    return rows.map(row => this.parseCalendar(row, db));
   }
 
   static mergeCalendars(
     db: Database.Database,
     sourceCalendarIds: number[],
-    targetCalendarId: number,
+    targetCalendarId: number
   ): { transferredEvents: number; deletedCalendars: number } {
     // 验证目标日历
     const targetCalendar = this.getCalendarById(db, targetCalendarId);
@@ -244,18 +212,15 @@ export default class CalendarTable {
 
         // 检查是否为系统日历
         if (sourceCalendar.isInSystemGroup) {
-          throw new Error(
-            `Cannot merge system calendar: ${sourceCalendar.title}`,
-          );
+          throw new Error(`Cannot merge system calendar: ${sourceCalendar.title}`);
         }
 
         // 转移事件
-        const transferredCount =
-          CalendarEventTable.transferEventsBetweenCalendars(
-            db,
-            sourceId,
-            targetCalendarId,
-          );
+        const transferredCount = CalendarEventTable.transferEventsBetweenCalendars(
+          db,
+          sourceId,
+          targetCalendarId
+        );
         totalTransferredEvents += transferredCount;
 
         // 删除源日历

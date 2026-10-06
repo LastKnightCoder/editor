@@ -11,29 +11,6 @@ import { findCollaborationBinding } from "../collaboration-guard";
 const parseSourceType = (value: string | undefined | null): SourceType | undefined =>
   SOURCE_TYPES.includes(value as SourceType) ? (value as SourceType) : undefined;
 
-export function migrateContentBindings(db: Database.Database) {
-  const columns = db.prepare("PRAGMA table_info(collaboration_bindings)").all() as {
-    name: string;
-  }[];
-  if (!columns.some(column => column.name === "article_id")) return;
-  db.transaction(() => {
-    db.exec(`
-      ALTER TABLE collaboration_bindings RENAME TO collaboration_bindings_legacy;
-      CREATE TABLE collaboration_bindings (
-        content_id INTEGER PRIMARY KEY, content_created_at INTEGER NOT NULL,
-        server_url TEXT NOT NULL, document_id TEXT NOT NULL,
-        source_type TEXT, source_id INTEGER, source_title TEXT,
-        FOREIGN KEY(content_id) REFERENCES contents(id)
-      );
-      INSERT INTO collaboration_bindings
-        SELECT b.content_id, c.create_time, b.server_url, b.document_id, 'article', b.article_id, a.title
-        FROM collaboration_bindings_legacy b JOIN contents c ON c.id=b.content_id
-        JOIN articles a ON a.id=b.article_id AND a.create_time=b.article_created_at AND a.content_id=c.id;
-      DROP TABLE collaboration_bindings_legacy;
-    `);
-  })();
-}
-
 export function restorePrivateNodes(
   db: Database.Database,
   source: SourceBinding,

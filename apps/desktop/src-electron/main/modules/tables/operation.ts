@@ -3,10 +3,6 @@ import { Operation } from "@/types";
 import dayjs from "dayjs";
 
 export default class OperationTable {
-  static upgradeTable(_db: Database.Database) {
-    // 暂无升级
-  }
-
   static getListenEvents() {
     return {
       "create-operation": this.createOperation.bind(this),

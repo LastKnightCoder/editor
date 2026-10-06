@@ -2,9 +2,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import * as Y from "yjs";
-import { randomUUID } from "node:crypto";
 import type { CollaborationSession, ContentNode } from "@tau/collaboration";
-import { retireEditorBlocksInDoc } from "@tau/collaboration";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
@@ -44,13 +42,6 @@ export class CollaborationLocalStore {
   delete(key: string) {
     this.db.prepare("DELETE FROM settings WHERE key=?").run(key);
   }
-  backupBeforeKnowledgeMigration(databaseName: string) {
-    const key = `knowledge-migration-backup:${databaseName}`;
-    if (this.get(key, "")) return;
-    const path = `${this.db.name}.pre-knowledge-v1-${randomUUID()}.bak`;
-    this.db.prepare("VACUUM INTO ?").run(path);
-    this.set(key, path);
-  }
   list() {
     return (
       this.db.prepare("SELECT metadata FROM sessions").all() as {
@@ -69,18 +60,6 @@ export class CollaborationLocalStore {
       .all(id) as { state: Buffer }[])
       Y.applyUpdate(doc, update.state);
     const privateNodes = new Map<string, ContentNode>(JSON.parse(row.private_nodes));
-    if (
-      retireEditorBlocksInDoc(doc, privateNodes, () => {
-        this.db
-          .prepare("VACUUM INTO ?")
-          .run(`${this.db.name}.pre-editor-block-retirement-v1-${randomUUID()}.bak`);
-      })
-    ) {
-      this.db.transaction(() => {
-        this.compact(id, doc);
-        this.privateNodes(id, privateNodes);
-      })();
-    }
     return { doc, privateNodes };
   }
   create(session: CollaborationSession, doc: Y.Doc, privateNodes = new Map()) {

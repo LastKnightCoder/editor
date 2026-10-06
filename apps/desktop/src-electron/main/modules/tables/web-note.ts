@@ -3,10 +3,6 @@ import { CreateWebNotePayload, UpdateWebNotePayload, WebNote } from "@/types";
 import ContentTable from "./content";
 
 export default class WebNoteTable {
-  static upgradeTable(_db: Database.Database) {
-    // placeholder for future migrations
-  }
-
   static parse(row: Record<string, unknown>): WebNote {
     return {
       id: row.id as number,
@@ -34,13 +30,7 @@ export default class WebNoteTable {
       INSERT INTO web_note (create_time, update_time, project_item_id, content_id, title)
       VALUES (?, ?, ?, ?, ?)
     `);
-    const res = stmt.run(
-      now,
-      now,
-      payload.projectItemId,
-      payload.contentId,
-      payload.title,
-    );
+    const res = stmt.run(now, now, payload.projectItemId, payload.contentId, payload.title);
     const note = this.getById(db, Number(res.lastInsertRowid));
     if (!note) {
       throw new Error("Failed to create web note");
@@ -49,9 +39,8 @@ export default class WebNoteTable {
   }
 
   static update(db: Database.Database, payload: UpdateWebNotePayload): WebNote {
-    const existing = db
-      .prepare(`SELECT * FROM web_note WHERE id = ?`)
-      .get(payload.id) as Record<string, unknown> | undefined;
+    const existing = db.prepare(`SELECT * FROM web_note WHERE id = ?`).get(payload.id) as
+      Record<string, unknown> | undefined;
     if (!existing) {
       throw new Error(`Web note ${payload.id} not found`);
     }
@@ -69,21 +58,15 @@ export default class WebNoteTable {
 
   static getById(db: Database.Database, id: number): WebNote | null {
     const row = db.prepare(`SELECT * FROM web_note WHERE id = ?`).get(id) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return row ? this.parse(row) : null;
   }
 
-  static listByProjectItemId(
-    db: Database.Database,
-    projectItemId: number,
-  ): WebNote[] {
+  static listByProjectItemId(db: Database.Database, projectItemId: number): WebNote[] {
     const rows = db
-      .prepare(
-        `SELECT * FROM web_note WHERE project_item_id = ? ORDER BY create_time ASC`,
-      )
+      .prepare(`SELECT * FROM web_note WHERE project_item_id = ? ORDER BY create_time ASC`)
       .all(projectItemId) as Record<string, unknown>[];
-    return rows.map((row) => this.parse(row));
+    return rows.map(row => this.parse(row));
   }
 
   static remove(db: Database.Database, id: number): number {

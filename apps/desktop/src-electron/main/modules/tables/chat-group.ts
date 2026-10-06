@@ -51,11 +51,6 @@ export default class ChatGroupTable {
       "chat-group:get-by-id": this.getGroupById.bind(this),
     };
   }
-
-  static upgradeTable(_db: Database.Database) {
-    // 数据迁移和升级逻辑
-  }
-
   static parseGroup(row: ChatGroupRow): ChatGroup {
     return parse(row);
   }

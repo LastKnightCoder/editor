@@ -57,11 +57,6 @@ export default class TranscriptionTable {
       "transcription:increment-ref-count": this.incrementRefCount.bind(this),
     };
   }
-
-  static upgradeTable(_db: Database.Database) {
-    // 未来版本升级逻辑
-  }
-
   static parseTranscription(row: unknown): ITranscription {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r = row as any;
@@ -84,10 +79,7 @@ export default class TranscriptionTable {
     };
   }
 
-  static createTranscription(
-    db: Database.Database,
-    data: ICreateTranscription,
-  ): ITranscription {
+  static createTranscription(db: Database.Database, data: ICreateTranscription): ITranscription {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO transcriptions
@@ -110,7 +102,7 @@ export default class TranscriptionTable {
       data.modelSize,
       JSON.stringify(data.segments),
       data.wordSegments ? JSON.stringify(data.wordSegments) : null,
-      1,
+      1
     );
 
     const createdId = Number(res.lastInsertRowid);
@@ -123,10 +115,7 @@ export default class TranscriptionTable {
     return transcription;
   }
 
-  static getTranscriptionById(
-    db: Database.Database,
-    id: number,
-  ): ITranscription | null {
+  static getTranscriptionById(db: Database.Database, id: number): ITranscription | null {
     const stmt = db.prepare("SELECT * FROM transcriptions WHERE id = ?");
     const row = stmt.get(id);
     if (!row) {
@@ -137,10 +126,10 @@ export default class TranscriptionTable {
 
   static getTranscriptionBySource(
     db: Database.Database,
-    sourcePath: string,
+    sourcePath: string
   ): ITranscription | null {
     const stmt = db.prepare(
-      "SELECT * FROM transcriptions WHERE source_path = ? ORDER BY create_time DESC LIMIT 1",
+      "SELECT * FROM transcriptions WHERE source_path = ? ORDER BY create_time DESC LIMIT 1"
     );
     const row = stmt.get(sourcePath);
     if (!row) {
@@ -152,13 +141,13 @@ export default class TranscriptionTable {
   static getTranscriptionsBySourceId(
     db: Database.Database,
     sourceType: "audio" | "video",
-    sourceId: number,
+    sourceId: number
   ): ITranscription[] {
     const stmt = db.prepare(
-      "SELECT * FROM transcriptions WHERE source_type = ? AND source_id = ? ORDER BY create_time DESC",
+      "SELECT * FROM transcriptions WHERE source_type = ? AND source_id = ? ORDER BY create_time DESC"
     );
     const rows = stmt.all(sourceType, sourceId);
-    return rows.map((row) => this.parseTranscription(row));
+    return rows.map(row => this.parseTranscription(row));
   }
 
   static getAllTranscriptions(
@@ -168,7 +157,7 @@ export default class TranscriptionTable {
       language?: string;
       limit?: number;
       offset?: number;
-    },
+    }
   ): ITranscription[] {
     let sql = "SELECT * FROM transcriptions WHERE 1=1";
     const params: (string | number)[] = [];
@@ -197,13 +186,13 @@ export default class TranscriptionTable {
 
     const stmt = db.prepare(sql);
     const rows = stmt.all(...params);
-    return rows.map((row) => this.parseTranscription(row));
+    return rows.map(row => this.parseTranscription(row));
   }
 
   static updateTranscription(
     db: Database.Database,
     id: number,
-    data: IUpdateTranscription,
+    data: IUpdateTranscription
   ): ITranscription | null {
     const now = Date.now();
     const updates: string[] = ["update_time = ?"];
@@ -226,9 +215,7 @@ export default class TranscriptionTable {
 
     params.push(id);
 
-    const stmt = db.prepare(
-      `UPDATE transcriptions SET ${updates.join(", ")} WHERE id = ?`,
-    );
+    const stmt = db.prepare(`UPDATE transcriptions SET ${updates.join(", ")} WHERE id = ?`);
     stmt.run(...params);
 
     Operation.insertOperation(db, "transcription", "update", id, now);
@@ -238,14 +225,12 @@ export default class TranscriptionTable {
   static deleteTranscription(db: Database.Database, id: number): number {
     // 先减少引用计数
     const decrementStmt = db.prepare(
-      "UPDATE transcriptions SET ref_count = ref_count - 1 WHERE id = ?",
+      "UPDATE transcriptions SET ref_count = ref_count - 1 WHERE id = ?"
     );
     decrementStmt.run(id);
 
     // 查询当前引用计数
-    const refCountStmt = db.prepare(
-      "SELECT ref_count FROM transcriptions WHERE id = ?",
-    );
+    const refCountStmt = db.prepare("SELECT ref_count FROM transcriptions WHERE id = ?");
     const result = refCountStmt.get(id) as { ref_count: number } | undefined;
 
     // 如果引用计数为 0，则删除
@@ -259,9 +244,7 @@ export default class TranscriptionTable {
   }
 
   static incrementRefCount(db: Database.Database, id: number): void {
-    const stmt = db.prepare(
-      "UPDATE transcriptions SET ref_count = ref_count + 1 WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE transcriptions SET ref_count = ref_count + 1 WHERE id = ?");
     stmt.run(id);
   }
 
@@ -271,7 +254,7 @@ export default class TranscriptionTable {
     options?: {
       sourceType?: "audio" | "video";
       limit?: number;
-    },
+    }
   ): ITranscription[] {
     let sql = "SELECT * FROM transcriptions WHERE text LIKE ?";
     const params: (string | number)[] = [`%${keyword}%`];
@@ -290,6 +273,6 @@ export default class TranscriptionTable {
 
     const stmt = db.prepare(sql);
     const rows = stmt.all(...params);
-    return rows.map((row) => this.parseTranscription(row));
+    return rows.map(row => this.parseTranscription(row));
   }
 }

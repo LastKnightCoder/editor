@@ -1,18 +1,12 @@
 import { ipcMain } from "electron";
 import Database from "better-sqlite3";
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { Module } from "../types/module";
-import {
-  ensureIndexDbDir,
-  getIndexDbDir,
-  migrateDbFileWithSidecars,
-  normalizeMainDbBase,
-  scanLegacyDbFiles,
-} from "./utils/index-db-storage";
+import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
 
 interface VideoNoteIndexChunk {
   chunkIndex: number;
@@ -26,7 +20,6 @@ class VideoNoteIndexDBManager implements Module {
   name: string;
   private databases: Map<string, Database.Database> = new Map();
   private currentVecDimensions = 3072;
-  private legacyScanCompleted = false;
 
   constructor() {
     this.name = "video-note-index-db";
@@ -40,7 +33,7 @@ class VideoNoteIndexDBManager implements Module {
       async (_event, mainDbName: string, videoNoteId: number) => {
         this.getDatabase(mainDbName, videoNoteId);
         return true;
-      },
+      }
     );
 
     ipcMain.handle(
@@ -48,7 +41,7 @@ class VideoNoteIndexDBManager implements Module {
       async (_event, mainDbName: string, videoNoteId: number) => {
         this.deleteDatabase(mainDbName, videoNoteId);
         return true;
-      },
+      }
     );
   }
 
@@ -62,92 +55,7 @@ class VideoNoteIndexDBManager implements Module {
     return join(indexDir, `${this.getDatabaseKey(mainDbName, videoNoteId)}.db`);
   }
 
-  private getLegacyDatabasePath(
-    mainDbName: string,
-    videoNoteId: number,
-  ): string {
-    const appDir = PathUtil.getAppDir();
-    return join(appDir, `${this.getDatabaseKey(mainDbName, videoNoteId)}.db`);
-  }
-
-  private migrateLegacyDatabase(mainDbName: string, videoNoteId: number): void {
-    const legacyPath = this.getLegacyDatabasePath(mainDbName, videoNoteId);
-    const targetPath = this.getDatabasePath(mainDbName, videoNoteId);
-    try {
-      const result = migrateDbFileWithSidecars(legacyPath, targetPath);
-      if (result.reason === "source_not_found") {
-        return;
-      }
-      log.info(
-        `[VideoNoteIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
-      );
-    } catch (error) {
-      log.warn(
-        `[VideoNoteIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
-      );
-    }
-  }
-
-  private scanAndMigrateLegacyDatabases(): void {
-    if (this.legacyScanCompleted) {
-      return;
-    }
-    this.legacyScanCompleted = true;
-
-    let found = 0;
-    let migrated = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    try {
-      const { files } = scanLegacyDbFiles((fileName) =>
-        /-video-note-\d+\.db$/i.test(fileName),
-      );
-      found = files.length;
-      for (const legacyPath of files) {
-        const fileName = basename(legacyPath);
-        const matched = fileName.match(/^(.*)-video-note-(\d+)\.db$/i);
-        if (!matched) {
-          skipped += 1;
-          continue;
-        }
-        const mainDbName = `${matched[1]}.db`;
-        const videoNoteId = Number.parseInt(matched[2], 10);
-        if (!Number.isFinite(videoNoteId)) {
-          skipped += 1;
-          continue;
-        }
-        const targetPath = this.getDatabasePath(mainDbName, videoNoteId);
-        try {
-          const result = migrateDbFileWithSidecars(legacyPath, targetPath);
-          if (result.moved) {
-            migrated += 1;
-          } else {
-            skipped += 1;
-          }
-          log.info(
-            `[VideoNoteIndexDB] startup migration: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
-          );
-        } catch (error) {
-          failed += 1;
-          log.warn(
-            `[VideoNoteIndexDB] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
-          );
-        }
-      }
-    } catch (error) {
-      failed += 1;
-      log.warn(`[VideoNoteIndexDB] startup migration scan failed: ${error}`);
-    }
-
-    log.info(
-      `[VideoNoteIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`,
-    );
-  }
-
   getDatabase(mainDbName: string, videoNoteId: number): Database.Database {
-    this.scanAndMigrateLegacyDatabases();
-    this.migrateLegacyDatabase(mainDbName, videoNoteId);
     ensureIndexDbDir(mainDbName);
 
     const key = this.getDatabaseKey(mainDbName, videoNoteId);
@@ -183,7 +91,7 @@ class VideoNoteIndexDBManager implements Module {
     const vecDimensions = dimensions || this.currentVecDimensions;
     const tableExists = db
       .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='video_note_vec_documents'",
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='video_note_vec_documents'"
       )
       .get();
     if (!tableExists) {
@@ -199,11 +107,7 @@ class VideoNoteIndexDBManager implements Module {
     }
   }
 
-  reinitVecTable(
-    mainDbName: string,
-    videoNoteId: number,
-    dimensions: number,
-  ): boolean {
+  reinitVecTable(mainDbName: string, videoNoteId: number, dimensions: number): boolean {
     try {
       const db = this.getDatabase(mainDbName, videoNoteId);
       db.exec("DROP TABLE IF EXISTS video_note_vec_documents");
@@ -240,10 +144,10 @@ class VideoNoteIndexDBManager implements Module {
         return;
       }
       const currentConfig = embeddingProvider.configs?.find(
-        (c: { id: string }) => c.id === embeddingProvider.currentConfigId,
+        (c: { id: string }) => c.id === embeddingProvider.currentConfigId
       );
       const modelConfig = currentConfig?.models?.find(
-        (m: { name: string }) => m.name === currentConfig.currentModel,
+        (m: { name: string }) => m.name === currentConfig.currentModel
       );
       if (modelConfig?.contextLength) {
         this.currentVecDimensions = modelConfig.contextLength;
@@ -284,10 +188,7 @@ class VideoNoteIndexDBManager implements Module {
 
   deleteDatabase(mainDbName: string, videoNoteId: number): void {
     this.closeDatabase(mainDbName, videoNoteId);
-    const paths = [
-      this.getDatabasePath(mainDbName, videoNoteId),
-      this.getLegacyDatabasePath(mainDbName, videoNoteId),
-    ];
+    const paths = [this.getDatabasePath(mainDbName, videoNoteId)];
     for (const dbPath of paths) {
       try {
         if (existsSync(dbPath)) {
@@ -300,9 +201,7 @@ class VideoNoteIndexDBManager implements Module {
           unlinkSync(`${dbPath}-shm`);
         }
       } catch (error) {
-        log.error(
-          `[VideoNoteIndexDB] delete db failed: path=${dbPath}, ${error}`,
-        );
+        log.error(`[VideoNoteIndexDB] delete db failed: path=${dbPath}, ${error}`);
       }
     }
   }
@@ -310,9 +209,9 @@ class VideoNoteIndexDBManager implements Module {
   checkIndexExists(mainDbName: string, videoNoteId: number): boolean {
     try {
       const db = this.getDatabase(mainDbName, videoNoteId);
-      const row = db
-        .prepare("SELECT COUNT(*) as count FROM video_note_fts")
-        .get() as { count: number };
+      const row = db.prepare("SELECT COUNT(*) as count FROM video_note_fts").get() as {
+        count: number;
+      };
       return row.count > 0;
     } catch (error) {
       log.error(`[VideoNoteIndexDB] check index failed: ${error}`);
@@ -320,11 +219,7 @@ class VideoNoteIndexDBManager implements Module {
     }
   }
 
-  createIndex(
-    mainDbName: string,
-    videoNoteId: number,
-    chunks: VideoNoteIndexChunk[],
-  ): boolean {
+  createIndex(mainDbName: string, videoNoteId: number, chunks: VideoNoteIndexChunk[]): boolean {
     try {
       const db = this.getDatabase(mainDbName, videoNoteId);
       if (!chunks.length) {
@@ -353,7 +248,7 @@ class VideoNoteIndexDBManager implements Module {
               BigInt(Math.floor(chunk.startMs)),
               BigInt(Math.floor(chunk.endMs)),
               chunk.text,
-              JSON.stringify(chunk.embedding),
+              JSON.stringify(chunk.embedding)
             );
           }
         }
@@ -370,7 +265,7 @@ class VideoNoteIndexDBManager implements Module {
   addEmbeddingsOnly(
     mainDbName: string,
     videoNoteId: number,
-    chunks: VideoNoteIndexChunk[],
+    chunks: VideoNoteIndexChunk[]
   ): boolean {
     try {
       const db = this.getDatabase(mainDbName, videoNoteId);
@@ -388,7 +283,7 @@ class VideoNoteIndexDBManager implements Module {
           BigInt(Math.floor(chunk.startMs)),
           BigInt(Math.floor(chunk.endMs)),
           chunk.text,
-          JSON.stringify(chunk.embedding),
+          JSON.stringify(chunk.embedding)
         );
       }
       return true;
@@ -414,7 +309,7 @@ class VideoNoteIndexDBManager implements Module {
     mainDbName: string,
     videoNoteId: number,
     query: string,
-    limit = 10,
+    limit = 10
   ): Array<{
     chunkIndex: number;
     startMs: number;
@@ -438,7 +333,7 @@ class VideoNoteIndexDBManager implements Module {
         content: string;
         rank?: number;
       }>;
-      return rows.map((row) => ({
+      return rows.map(row => ({
         chunkIndex: row.chunk_index,
         startMs: row.start_ms,
         endMs: row.end_ms,
@@ -456,7 +351,7 @@ class VideoNoteIndexDBManager implements Module {
     videoNoteId: number,
     queryEmbedding: number[],
     limit = 10,
-    maxDistance = 0.6,
+    maxDistance = 0.6
   ): Array<{
     chunkIndex: number;
     startMs: number;
@@ -468,7 +363,7 @@ class VideoNoteIndexDBManager implements Module {
       const db = this.getDatabase(mainDbName, videoNoteId);
       const tableExists = db
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='video_note_vec_documents'",
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='video_note_vec_documents'"
         )
         .get();
       if (!tableExists) {
@@ -481,11 +376,7 @@ class VideoNoteIndexDBManager implements Module {
         WHERE distance < ? AND vec_embedding MATCH ? AND k = ?
         ORDER BY distance
       `);
-      const rows = stmt.all(
-        maxDistance,
-        JSON.stringify(queryEmbedding),
-        BigInt(limit),
-      ) as Array<{
+      const rows = stmt.all(maxDistance, JSON.stringify(queryEmbedding), BigInt(limit)) as Array<{
         chunk_index: number;
         start_ms: number;
         end_ms: number;
@@ -493,7 +384,7 @@ class VideoNoteIndexDBManager implements Module {
         distance: number;
       }>;
 
-      return rows.map((row) => ({
+      return rows.map(row => ({
         chunkIndex: row.chunk_index,
         startMs: row.start_ms,
         endMs: row.end_ms,

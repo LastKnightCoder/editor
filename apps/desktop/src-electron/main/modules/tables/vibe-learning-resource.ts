@@ -29,52 +29,9 @@ interface VLResourceRecord {
 
 const RESOURCE_SORT_STEP = 1024;
 const RESOURCE_SORT_BASE_OFFSET = 2;
-const RESOURCE_LIST_ORDER_SQL =
-  "ORDER BY sort_index ASC, create_time DESC, id DESC";
+const RESOURCE_LIST_ORDER_SQL = "ORDER BY sort_index ASC, create_time DESC, id DESC";
 
 export default class VibeLearningResourceTable {
-  static upgradeTable(db: Database.Database) {
-    // 检查是否需要添加 source_type 列
-    const tableInfo = db
-      .prepare("PRAGMA table_info(vibe_learning_resources)")
-      .all() as { name: string }[];
-    const columns = tableInfo.map((col) => col.name);
-
-    if (!columns.includes("source_type")) {
-      db.exec(
-        "ALTER TABLE vibe_learning_resources ADD COLUMN source_type TEXT",
-      );
-      log.info("[VibeLearningResource] Added source_type column");
-    }
-
-    if (!columns.includes("source_meta_info")) {
-      db.exec(
-        "ALTER TABLE vibe_learning_resources ADD COLUMN source_meta_info TEXT",
-      );
-      log.info("[VibeLearningResource] Added source_meta_info column");
-    }
-
-    if (!columns.includes("transcript_segments")) {
-      db.exec(
-        "ALTER TABLE vibe_learning_resources ADD COLUMN transcript_segments TEXT",
-      );
-      log.info("[VibeLearningResource] Added transcript_segments column");
-    }
-
-    if (!columns.includes("sort_index")) {
-      db.exec(
-        "ALTER TABLE vibe_learning_resources ADD COLUMN sort_index INTEGER NOT NULL DEFAULT 0",
-      );
-      log.info("[VibeLearningResource] Added sort_index column");
-    }
-
-    db.exec(
-      "CREATE INDEX IF NOT EXISTS idx_vl_resource_project_sort ON vibe_learning_resources(project_id, sort_index)",
-    );
-
-    this.normalizeProjectsWithZeroSortIndex(db);
-  }
-
   static getListenEvents() {
     return {
       "vl-create-resource": this.createResource.bind(this),
@@ -118,7 +75,7 @@ export default class VibeLearningResourceTable {
           SELECT DISTINCT project_id
           FROM vibe_learning_resources
           WHERE sort_index = 0
-        `,
+        `
       )
       .all() as Array<{ project_id: number }>;
 
@@ -139,7 +96,7 @@ export default class VibeLearningResourceTable {
             sort_index ASC,
             create_time DESC,
             id DESC
-        `,
+        `
       )
       .all(projectId) as Array<{ id: number }>;
 
@@ -153,29 +110,22 @@ export default class VibeLearningResourceTable {
         UPDATE vibe_learning_resources
         SET sort_index = ?, update_time = ?
         WHERE id = ?
-      `,
+      `
     );
 
     orderedIds.forEach(({ id }, index) => {
-      updateStmt.run(
-        (index + RESOURCE_SORT_BASE_OFFSET) * RESOURCE_SORT_STEP,
-        now,
-        id,
-      );
+      updateStmt.run((index + RESOURCE_SORT_BASE_OFFSET) * RESOURCE_SORT_STEP, now, id);
     });
   }
 
-  static getMinSortIndex(
-    db: Database.Database,
-    projectId: number,
-  ): number | null {
+  static getMinSortIndex(db: Database.Database, projectId: number): number | null {
     const row = db
       .prepare(
         `
           SELECT MIN(sort_index) AS min_sort
           FROM vibe_learning_resources
           WHERE project_id = ?
-        `,
+        `
       )
       .get(projectId) as { min_sort: number | null };
 
@@ -197,10 +147,7 @@ export default class VibeLearningResourceTable {
     return RESOURCE_SORT_STEP;
   }
 
-  static createResource(
-    db: Database.Database,
-    params: CreateVLResource,
-  ): VLResource {
+  static createResource(db: Database.Database, params: CreateVLResource): VLResource {
     const now = Date.now();
     const sortIndex = this.getCreateSortIndex(db, params.projectId);
     const stmt = db.prepare(`
@@ -221,20 +168,14 @@ export default class VibeLearningResourceTable {
       params.fileSize || null,
       params.duration || null,
       params.sourceType || null,
-      params.sourceMetaInfo || null,
+      params.sourceMetaInfo || null
     );
 
     const resourceId = Number(res.lastInsertRowid);
-    Operation.insertOperation(
-      db,
-      "vibe-learning-resource",
-      "insert",
-      resourceId,
-      now,
-    );
+    Operation.insertOperation(db, "vibe-learning-resource", "insert", resourceId, now);
 
     log.info(
-      `[VibeLearningResource] Created resource: ${resourceId} for project ${params.projectId}, sourceType: ${params.sourceType || "local"}`,
+      `[VibeLearningResource] Created resource: ${resourceId} for project ${params.projectId}, sourceType: ${params.sourceType || "local"}`
     );
 
     const resource = this.getResourceById(db, resourceId);
@@ -247,7 +188,7 @@ export default class VibeLearningResourceTable {
   static getNoteResourceByContentId(
     db: Database.Database,
     projectId: number,
-    contentId: number,
+    contentId: number
   ): VLResource | null {
     const stmt = db.prepare(
       `
@@ -258,11 +199,9 @@ export default class VibeLearningResourceTable {
           AND original_path = ?
         ORDER BY create_time DESC
         LIMIT 1
-      `,
+      `
     );
-    const record = stmt.get(projectId, `note://${contentId}`) as
-      | VLResourceRecord
-      | undefined;
+    const record = stmt.get(projectId, `note://${contentId}`) as VLResourceRecord | undefined;
 
     if (!record) {
       return null;
@@ -279,13 +218,9 @@ export default class VibeLearningResourceTable {
       title: string;
       noteType: VLNoteType | string;
       originalId: number;
-    },
+    }
   ): { resource: VLResource; created: boolean } {
-    const existing = this.getNoteResourceByContentId(
-      db,
-      params.projectId,
-      params.contentId,
-    );
+    const existing = this.getNoteResourceByContentId(db, params.projectId, params.contentId);
     if (existing) {
       return {
         resource: existing,
@@ -314,10 +249,7 @@ export default class VibeLearningResourceTable {
     };
   }
 
-  static updateResource(
-    db: Database.Database,
-    params: UpdateVLResource,
-  ): VLResource | null {
+  static updateResource(db: Database.Database, params: UpdateVLResource): VLResource | null {
     const existing = this.getResourceById(db, params.id);
     if (!existing) {
       return null;
@@ -337,30 +269,18 @@ export default class VibeLearningResourceTable {
     stmt.run(
       now,
       params.name ?? existing.name,
-      params.markdownPath !== undefined
-        ? params.markdownPath
-        : existing.markdownPath,
+      params.markdownPath !== undefined ? params.markdownPath : existing.markdownPath,
       params.fileSize ?? existing.fileSize,
       params.duration ?? existing.duration,
-      params.id,
+      params.id
     );
 
-    Operation.insertOperation(
-      db,
-      "vibe-learning-resource",
-      "update",
-      params.id,
-      now,
-    );
+    Operation.insertOperation(db, "vibe-learning-resource", "update", params.id, now);
 
     return this.getResourceById(db, params.id);
   }
 
-  static updateMarkdownPath(
-    db: Database.Database,
-    id: number,
-    markdownPath: string,
-  ): boolean {
+  static updateMarkdownPath(db: Database.Database, id: number, markdownPath: string): boolean {
     const now = Date.now();
     const stmt = db.prepare(`
       UPDATE vibe_learning_resources SET
@@ -372,16 +292,8 @@ export default class VibeLearningResourceTable {
     const res = stmt.run(now, markdownPath, id);
 
     if (res.changes > 0) {
-      Operation.insertOperation(
-        db,
-        "vibe-learning-resource",
-        "update",
-        id,
-        now,
-      );
-      log.info(
-        `[VibeLearningResource] Updated markdown path for resource: ${id}`,
-      );
+      Operation.insertOperation(db, "vibe-learning-resource", "update", id, now);
+      log.info(`[VibeLearningResource] Updated markdown path for resource: ${id}`);
       return true;
     }
 
@@ -391,7 +303,7 @@ export default class VibeLearningResourceTable {
   static updateTranscriptSegments(
     db: Database.Database,
     id: number,
-    segments: Array<{ text: string; start: number; end: number }>,
+    segments: Array<{ text: string; start: number; end: number }>
   ): boolean {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -405,7 +317,7 @@ export default class VibeLearningResourceTable {
 
     if (res.changes > 0) {
       log.info(
-        `[VibeLearningResource] Updated transcript segments for resource: ${id}, count=${segments.length}`,
+        `[VibeLearningResource] Updated transcript segments for resource: ${id}, count=${segments.length}`
       );
       return true;
     }
@@ -418,13 +330,7 @@ export default class VibeLearningResourceTable {
     const res = stmt.run(id);
 
     if (res.changes > 0) {
-      Operation.insertOperation(
-        db,
-        "vibe-learning-resource",
-        "delete",
-        id,
-        Date.now(),
-      );
+      Operation.insertOperation(db, "vibe-learning-resource", "delete", id, Date.now());
       log.info(`[VibeLearningResource] Deleted resource: ${id}`);
       return true;
     }
@@ -432,10 +338,7 @@ export default class VibeLearningResourceTable {
     return false;
   }
 
-  static deleteResourcesByProjectId(
-    db: Database.Database,
-    projectId: number,
-  ): number {
+  static deleteResourcesByProjectId(db: Database.Database, projectId: number): number {
     const resources = this.getResourcesByProjectId(db, projectId);
     let deletedCount = 0;
 
@@ -445,16 +348,12 @@ export default class VibeLearningResourceTable {
       }
     }
 
-    log.info(
-      `[VibeLearningResource] Deleted ${deletedCount} resources for project ${projectId}`,
-    );
+    log.info(`[VibeLearningResource] Deleted ${deletedCount} resources for project ${projectId}`);
     return deletedCount;
   }
 
   static getResourceById(db: Database.Database, id: number): VLResource | null {
-    const stmt = db.prepare(
-      "SELECT * FROM vibe_learning_resources WHERE id = ?",
-    );
+    const stmt = db.prepare("SELECT * FROM vibe_learning_resources WHERE id = ?");
     const record = stmt.get(id) as VLResourceRecord | undefined;
 
     if (!record) {
@@ -464,25 +363,22 @@ export default class VibeLearningResourceTable {
     return this.parseResource(record);
   }
 
-  static getResourcesByProjectId(
-    db: Database.Database,
-    projectId: number,
-  ): VLResource[] {
+  static getResourcesByProjectId(db: Database.Database, projectId: number): VLResource[] {
     const stmt = db.prepare(
-      `SELECT * FROM vibe_learning_resources WHERE project_id = ? ${RESOURCE_LIST_ORDER_SQL}`,
+      `SELECT * FROM vibe_learning_resources WHERE project_id = ? ${RESOURCE_LIST_ORDER_SQL}`
     );
     const records = stmt.all(projectId) as VLResourceRecord[];
 
-    return records.map((record) => this.parseResource(record));
+    return records.map(record => this.parseResource(record));
   }
 
   static getAllResources(db: Database.Database): VLResource[] {
     const stmt = db.prepare(
-      `SELECT * FROM vibe_learning_resources ORDER BY project_id ASC, sort_index ASC, create_time DESC, id DESC`,
+      `SELECT * FROM vibe_learning_resources ORDER BY project_id ASC, sort_index ASC, create_time DESC, id DESC`
     );
     const records = stmt.all() as VLResourceRecord[];
 
-    return records.map((record) => this.parseResource(record));
+    return records.map(record => this.parseResource(record));
   }
 
   static getResourcesByIds(db: Database.Database, ids: number[]): VLResource[] {
@@ -492,19 +388,19 @@ export default class VibeLearningResourceTable {
 
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(
-      `SELECT * FROM vibe_learning_resources WHERE id IN (${placeholders}) ${RESOURCE_LIST_ORDER_SQL}`,
+      `SELECT * FROM vibe_learning_resources WHERE id IN (${placeholders}) ${RESOURCE_LIST_ORDER_SQL}`
     );
     const records = stmt.all(...ids) as VLResourceRecord[];
 
-    return records.map((record) => this.parseResource(record));
+    return records.map(record => this.parseResource(record));
   }
 
   static reorderResources(
     db: Database.Database,
-    params: { projectId: number; orderedIds: number[] },
+    params: { projectId: number; orderedIds: number[] }
   ): number {
     const currentIds = this.getResourcesByProjectId(db, params.projectId).map(
-      (resource) => resource.id,
+      resource => resource.id
     );
 
     if (currentIds.length === 0) {
@@ -513,9 +409,9 @@ export default class VibeLearningResourceTable {
 
     const currentIdSet = new Set(currentIds);
     const orderedIds = params.orderedIds.filter(
-      (id, index, array) => currentIdSet.has(id) && array.indexOf(id) === index,
+      (id, index, array) => currentIdSet.has(id) && array.indexOf(id) === index
     );
-    const remainingIds = currentIds.filter((id) => !orderedIds.includes(id));
+    const remainingIds = currentIds.filter(id => !orderedIds.includes(id));
     const nextIds = [...orderedIds, ...remainingIds];
     const now = Date.now();
     const updateStmt = db.prepare(
@@ -523,7 +419,7 @@ export default class VibeLearningResourceTable {
         UPDATE vibe_learning_resources
         SET sort_index = ?, update_time = ?
         WHERE id = ? AND project_id = ?
-      `,
+      `
     );
 
     nextIds.forEach((id, index) => {
@@ -531,36 +427,27 @@ export default class VibeLearningResourceTable {
         (index + RESOURCE_SORT_BASE_OFFSET) * RESOURCE_SORT_STEP,
         now,
         id,
-        params.projectId,
+        params.projectId
       );
-      Operation.insertOperation(
-        db,
-        "vibe-learning-resource",
-        "update",
-        id,
-        now,
-      );
+      Operation.insertOperation(db, "vibe-learning-resource", "update", id, now);
     });
 
     return nextIds.length;
   }
 
-  static getPendingResources(
-    db: Database.Database,
-    projectId?: number,
-  ): VLResource[] {
+  static getPendingResources(db: Database.Database, projectId?: number): VLResource[] {
     if (projectId !== undefined) {
       const stmt = db.prepare(
-        "SELECT * FROM vibe_learning_resources WHERE markdown_path IS NULL AND project_id = ? ORDER BY create_time ASC",
+        "SELECT * FROM vibe_learning_resources WHERE markdown_path IS NULL AND project_id = ? ORDER BY create_time ASC"
       );
       const records = stmt.all(projectId) as VLResourceRecord[];
-      return records.map((record) => this.parseResource(record));
+      return records.map(record => this.parseResource(record));
     }
 
     const stmt = db.prepare(
-      "SELECT * FROM vibe_learning_resources WHERE markdown_path IS NULL ORDER BY create_time ASC",
+      "SELECT * FROM vibe_learning_resources WHERE markdown_path IS NULL ORDER BY create_time ASC"
     );
     const records = stmt.all() as VLResourceRecord[];
-    return records.map((record) => this.parseResource(record));
+    return records.map(record => this.parseResource(record));
   }
 }

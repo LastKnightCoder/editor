@@ -1,18 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
-import {
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createSharedDocument, getBody, type CollaborationSession } from "@tau/collaboration";
-import * as Y from "yjs";
 
 // 隔离 Electron 运行时，使用临时目录验证协作缓存和本地副本。
 vi.mock("electron", () => ({
@@ -40,14 +30,8 @@ vi.mock("../../video-note-index-queue", () => ({
   default: { push: () => {}, remove: () => {}, destroy: () => {} },
 }));
 
-import {
-  bindingMatches,
-  migrateContentBindings,
-  planClosedReshare,
-  restoreContentBinding,
-  restorePrivateNodes,
-  writeContentProjection,
-} from "../content-repository";
+import { planClosedReshare, restorePrivateNodes } from "../content-repository";
+import { createSharedDocument, type CollaborationSession } from "@tau/collaboration";
 import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
@@ -69,34 +53,6 @@ function database() {
 }
 
 describe("通用内容和本地恢复", () => {
-  it("恢复缓存时备份并同时删除问题占位符与私有节点", () => {
-    const directory = temporary();
-    const store = new CollaborationLocalStore(directory);
-    cleanup.push(() => store.db.close());
-    const doc = new Y.Doc();
-    const block = new Y.XmlText();
-    block.setAttribute("type", "collaboration-placeholder");
-    block.setAttribute("label", "question");
-    block.setAttribute("collabId", "q");
-    getBody(doc).applyDelta([{ insert: block }]);
-    const privateNodes = JSON.stringify([
-      ["q", { type: "question", questionId: 123, children: [] }],
-    ]);
-    store.db
-      .prepare("INSERT INTO sessions VALUES('retired','{}',?,?)")
-      .run(Buffer.from(Y.encodeStateAsUpdate(doc)), privateNodes);
-    const loaded = store.load("retired");
-    expect(getBody(loaded.doc).length).toBe(0);
-    expect(loaded.privateNodes.size).toBe(0);
-    expect(store.db.prepare("SELECT private_nodes FROM sessions").get()).toEqual({
-      private_nodes: "[]",
-    });
-    const again = store.load("retired");
-    expect(readdirSync(directory).filter(name => name.endsWith(".bak"))).toHaveLength(1);
-    doc.destroy();
-    loaded.doc.destroy();
-    again.doc.destroy();
-  });
   it("恢复跨设备私有组件标识，并阻止不可识别的旧组件被占位符覆盖", () => {
     const db = database();
     const original = {
@@ -117,38 +73,6 @@ describe("通用内容和本地恢复", () => {
     );
     expect(() => restorePrivateNodes(db, source, new Map())).toThrow("缺少本地组件关联标识");
   });
-  it("迁移旧文章绑定，恢复任意 content 的关联并拒绝同号替换", () => {
-    const db = database();
-    db.prepare(
-      "INSERT INTO contents(id,create_time,update_time,content) VALUES (7,100,100,'[]')"
-    ).run();
-    db.prepare(
-      "INSERT INTO articles(id,title,create_time,update_time,content_id) VALUES (5,'标题',200,200,7)"
-    ).run();
-    db.exec(
-      "DROP TABLE collaboration_bindings; CREATE TABLE collaboration_bindings(content_id INTEGER PRIMARY KEY,article_id INTEGER,article_created_at INTEGER,server_url TEXT,document_id TEXT); INSERT INTO collaboration_bindings VALUES(7,5,200,'https://collab.example','doc');"
-    );
-    migrateContentBindings(db);
-    const source = restoreContentBinding(db, "data", "doc", "https://collab.example");
-    expect(source?.contentCreatedAt).toBe(100);
-    expect(source?.contentId).toBe(7);
-    if (!source) throw new Error("未恢复绑定");
-    writeContentProjection(db, source, "doc", "https://collab.example", [{ text: "新内容" }], 3);
-    db.prepare("UPDATE contents SET content='[]' WHERE id=7").run();
-    expect(
-      writeContentProjection(db, source, "doc", "https://collab.example", [{ text: "新内容" }], 3)
-    ).toBe(true);
-    expect(bindingMatches(db, source, "doc", "https://collab.example")).toBe(true);
-    // 改绑到其它共享 / 其它服务：不再匹配（清理时据此跳过写回）
-    expect(bindingMatches(db, source, "other", "https://collab.example")).toBe(false);
-    expect(bindingMatches(db, source, "doc", "https://elsewhere.example")).toBe(false);
-    db.prepare("UPDATE contents SET create_time=999 WHERE id=7").run();
-    expect(bindingMatches(db, source, "doc", "https://collab.example")).toBe(false);
-    expect(() =>
-      writeContentProjection(db, source, "doc", "https://collab.example", [], 0)
-    ).toThrow("关联已变化");
-  });
-
   it("本地缓存带版本，离线增量跨重启恢复，未知新版本不覆盖", () => {
     const directory = temporary();
     const store = new CollaborationLocalStore(directory);

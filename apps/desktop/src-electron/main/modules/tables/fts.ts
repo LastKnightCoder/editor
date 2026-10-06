@@ -68,11 +68,6 @@ class FTSTable {
       .get() as { value?: string } | undefined;
     return migrationState?.value === "done" && rebuildState?.value !== "failed";
   }
-
-  static upgradeTable(_db: Database.Database) {
-    // 不需要升级
-  }
-
   static getListenEvents() {
     return {
       "fts-index-content": (

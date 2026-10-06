@@ -24,7 +24,6 @@ import ProjectTable from "../tables/project";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  ProjectTable.upgradeTable(db);
   return db;
 }
 

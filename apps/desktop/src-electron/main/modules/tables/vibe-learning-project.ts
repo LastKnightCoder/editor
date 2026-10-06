@@ -25,22 +25,6 @@ import { getNextModuleEntityId } from "./module-entity-id";
  * 原样从 ProjectTable.deleteProject 的 VibeLearning 分支搬来。
  */
 export default class VibeLearningProjectTable {
-  static upgradeTable(db: Database.Database) {
-    // 建表由 schema 分片（main/31_module_split.sql）负责，这里只补后加的列
-    const columns = (db.pragma("table_info(vibe_learning_project)") as Array<{ name: string }>).map(
-      c => c.name
-    );
-    for (const [column, type] of [
-      ["last_open_time", "INTEGER"],
-      ["last_open_kind", "TEXT"],
-      ["last_open_item_id", "INTEGER"],
-    ]) {
-      if (!columns.includes(column)) {
-        db.exec(`ALTER TABLE vibe_learning_project ADD COLUMN ${column} ${type}`);
-      }
-    }
-  }
-
   static getListenEvents() {
     return {
       "vibe-learning-project:create": this.create.bind(this),

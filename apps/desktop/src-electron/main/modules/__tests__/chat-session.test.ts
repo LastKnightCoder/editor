@@ -18,7 +18,24 @@ describe.skipIf(!nativeAvailable)("ChatSessionTable", () => {
 
   beforeEach(() => {
     db = new Database(":memory:");
-    ChatSessionTable.upgradeTable(db);
+    db.exec(`
+      CREATE TABLE chat_session (
+        id TEXT PRIMARY KEY,
+        scope TEXT NOT NULL,
+        domain_ref TEXT,
+        session_file TEXT NOT NULL,
+        cwd TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT '',
+        title_dirty INTEGER NOT NULL DEFAULT 0,
+        group_id INTEGER,
+        order_num INTEGER,
+        archived INTEGER NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'desktop',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      )
+    `);
   });
 
   afterEach(() => db.close());

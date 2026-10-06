@@ -186,22 +186,4 @@ describe("番茄绑定", () => {
     });
     expect(PomodoroSessionTable.getEventBindings(db, { calendarEventIds: [] })).toEqual({});
   });
-
-  it("旧库升级补齐三列，重复执行幂等", () => {
-    const old = new Database(":memory:");
-    old.exec(`CREATE TABLE pomodoro_sessions (
-      id INTEGER PRIMARY KEY, preset_id INTEGER NOT NULL, start_time INTEGER NOT NULL, end_time INTEGER,
-      expected_ms INTEGER, focus_ms INTEGER NOT NULL DEFAULT 0, pause_total_ms INTEGER NOT NULL DEFAULT 0,
-      pause_count INTEGER NOT NULL DEFAULT 0, pauses TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL,
-      create_time INTEGER NOT NULL, update_time INTEGER NOT NULL)`);
-    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    PomodoroSessionTable.upgradeTable(old);
-    PomodoroSessionTable.upgradeTable(old);
-    errors.mockRestore();
-    const columns = (old.pragma("table_info(pomodoro_sessions)") as { name: string }[]).map(
-      c => c.name
-    );
-    expect(columns.slice(-3)).toEqual(["bound_event_id", "bound_todo_id", "bound_title"]);
-    old.close();
-  });
 });

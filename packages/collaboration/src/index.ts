@@ -10,5 +10,4 @@ export {
 } from "@tau/db-schema";
 export * from "./encoding";
 export * from "./content-length";
-export * from "./knowledge-migration";
 export { stripRetiredEditorBlocks, isRetiredEditorBlock } from "@tau/db-schema";

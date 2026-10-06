@@ -22,16 +22,10 @@ const parse = (row: PomodoroCalendarMappingRow): PomodoroCalendarMapping => ({
 });
 
 export default class PomodoroCalendarMappingTable {
-  static upgradeTable(_db: Database.Database): void {
-    // 暂无迁移
-  }
-
   static getListenEvents() {
     return {
-      "pomodoro-calendar:get-events-by-session":
-        this.getEventsBySessionId.bind(this),
-      "pomodoro-calendar:get-session-by-event":
-        this.getSessionByEventId.bind(this),
+      "pomodoro-calendar:get-events-by-session": this.getEventsBySessionId.bind(this),
+      "pomodoro-calendar:get-session-by-event": this.getSessionByEventId.bind(this),
       "pomodoro-calendar:delete-by-session": this.deleteBySessionId.bind(this),
       "pomodoro-calendar:delete-by-event": this.deleteByEventId.bind(this),
     } as const;
@@ -43,7 +37,7 @@ export default class PomodoroCalendarMappingTable {
   static createMapping(
     db: Database.Database,
     pomodoroSessionId: number,
-    calendarEventId: number,
+    calendarEventId: number
   ): PomodoroCalendarMapping {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -67,7 +61,7 @@ export default class PomodoroCalendarMappingTable {
   static createMappings(
     db: Database.Database,
     pomodoroSessionId: number,
-    calendarEventIds: number[],
+    calendarEventIds: number[]
   ): PomodoroCalendarMapping[] {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -87,7 +81,7 @@ export default class PomodoroCalendarMappingTable {
       } catch (e) {
         // 忽略重复插入错误
         console.warn(
-          `Failed to create mapping for session ${pomodoroSessionId} and event ${eventId}`,
+          `Failed to create mapping for session ${pomodoroSessionId} and event ${eventId}`
         );
       }
     }
@@ -98,29 +92,23 @@ export default class PomodoroCalendarMappingTable {
   /**
    * 根据番茄钟会话 ID 获取所有关联的日历事件 ID
    */
-  static getEventsBySessionId(
-    db: Database.Database,
-    pomodoroSessionId: number,
-  ): number[] {
+  static getEventsBySessionId(db: Database.Database, pomodoroSessionId: number): number[] {
     const rows = db
       .prepare(
-        "SELECT calendar_event_id FROM pomodoro_calendar_mapping WHERE pomodoro_session_id = ?",
+        "SELECT calendar_event_id FROM pomodoro_calendar_mapping WHERE pomodoro_session_id = ?"
       )
       .all(pomodoroSessionId) as Array<{ calendar_event_id: number }>;
 
-    return rows.map((row) => row.calendar_event_id);
+    return rows.map(row => row.calendar_event_id);
   }
 
   /**
    * 根据日历事件 ID 获取关联的番茄钟会话 ID
    */
-  static getSessionByEventId(
-    db: Database.Database,
-    calendarEventId: number,
-  ): number | null {
+  static getSessionByEventId(db: Database.Database, calendarEventId: number): number | null {
     const row = db
       .prepare(
-        "SELECT pomodoro_session_id FROM pomodoro_calendar_mapping WHERE calendar_event_id = ?",
+        "SELECT pomodoro_session_id FROM pomodoro_calendar_mapping WHERE calendar_event_id = ?"
       )
       .get(calendarEventId) as { pomodoro_session_id: number } | undefined;
 
@@ -130,26 +118,16 @@ export default class PomodoroCalendarMappingTable {
   /**
    * 根据番茄钟会话 ID 删除所有映射
    */
-  static deleteBySessionId(
-    db: Database.Database,
-    pomodoroSessionId: number,
-  ): number {
-    const stmt = db.prepare(
-      "DELETE FROM pomodoro_calendar_mapping WHERE pomodoro_session_id = ?",
-    );
+  static deleteBySessionId(db: Database.Database, pomodoroSessionId: number): number {
+    const stmt = db.prepare("DELETE FROM pomodoro_calendar_mapping WHERE pomodoro_session_id = ?");
     return stmt.run(pomodoroSessionId).changes;
   }
 
   /**
    * 根据日历事件 ID 删除映射
    */
-  static deleteByEventId(
-    db: Database.Database,
-    calendarEventId: number,
-  ): number {
-    const stmt = db.prepare(
-      "DELETE FROM pomodoro_calendar_mapping WHERE calendar_event_id = ?",
-    );
+  static deleteByEventId(db: Database.Database, calendarEventId: number): number {
+    const stmt = db.prepare("DELETE FROM pomodoro_calendar_mapping WHERE calendar_event_id = ?");
     return stmt.run(calendarEventId).changes;
   }
 

@@ -60,8 +60,6 @@ export const WEREAD_EXCERPTS_CHANGED_EVENT = "weread:excerpts-changed";
  * 不在新集合里的软删除、重新出现的复位（KL-032）。
  */
 export default class ExcerptTable {
-  static upgradeTable(_db: Database.Database) {}
-
   static getListenEvents() {
     return {
       "excerpt:get-by-ids": this.getByIds.bind(this),

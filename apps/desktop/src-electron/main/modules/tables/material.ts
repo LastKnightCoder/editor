@@ -95,8 +95,6 @@ interface WebClipRow {
  * 外部材料的展示信息（KL-031）：摘录、PDF 标注、剪藏解析文档。脉络、搜索、对话引用共用一份解析口径。
  */
 export default class MaterialTable {
-  static upgradeTable(_db: Database.Database) {}
-
   static getListenEvents() {
     return {
       "material:resolve": this.resolve.bind(this),

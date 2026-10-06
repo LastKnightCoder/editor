@@ -31,7 +31,6 @@ const paragraph = (text: string) =>
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  FlashcardTable.upgradeTable(db);
   return db;
 }
 

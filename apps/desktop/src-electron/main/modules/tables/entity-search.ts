@@ -82,10 +82,6 @@ const CHAT_SCOPE_LABEL: Record<string, string> = {
 };
 
 export default class EntitySearchTable {
-  static upgradeTable(_db: Database.Database) {
-    // 无自有表
-  }
-
   static getListenEvents() {
     return {
       "entity:search": this.search.bind(this),

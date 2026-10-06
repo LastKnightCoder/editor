@@ -25,7 +25,6 @@ import QuestionEventTable from "./question-event";
 import QuestionGroupTable from "./question-group";
 import QuestionTable from "./question";
 
-const MIGRATION_KEY = "question-link:v1";
 const SORT_STEP = 1024;
 
 const TYPE_LABEL: Record<QuestionLinkTargetType, string> = {
@@ -82,14 +81,6 @@ const parseJsonArray = (raw: unknown): unknown[] => {
 };
 
 export default class QuestionLinkTable {
-  static upgradeTable(db: Database.Database) {
-    const columns = db.prepare(`PRAGMA table_info(question_link)`).all() as { name: string }[];
-    if (!columns.some(column => column.name === "content_id")) {
-      db.exec(`ALTER TABLE question_link ADD COLUMN content_id INTEGER`);
-    }
-    this.backfill(db);
-  }
-
   static getListenEvents() {
     return {
       "question:get-detail": this.getDetail.bind(this),
@@ -546,96 +537,5 @@ export default class QuestionLinkTable {
         lastEventTitle: payload?.title ?? payload?.text ?? null,
       };
     });
-  }
-
-  /**
-   * 一次性迁移：questions.answers（content id 数组）→ question_link，并回填轨迹。
-   * 引用计数沿用旧数据（旧关联已持有引用），不增减。
-   * 旧 resolved_time 语义是「首个答案时间」，非已解答的问题清空该字段。
-   */
-  static backfill(db: Database.Database) {
-    const done = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(MIGRATION_KEY);
-    if (done) return;
-    const questions = db
-      .prepare(`SELECT id, create_time, update_time, answers, status, resolved_time FROM questions`)
-      .all() as {
-      id: number;
-      create_time: number;
-      update_time: number;
-      answers: string | null;
-      status: string;
-      resolved_time: number | null;
-    }[];
-    const insert = db.prepare(
-      `INSERT OR IGNORE INTO question_link (question_id, target_type, target_id, content_id, sort_index, create_time)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    );
-    const hasEvents = db.prepare(`SELECT 1 FROM question_event WHERE question_id = ? LIMIT 1`);
-    for (const q of questions) {
-      const contentIds = parseJsonArray(q.answers)
-        .map(Number)
-        .filter(id => Number.isFinite(id));
-      const logEvents = !hasEvents.get(q.id);
-      if (logEvents) QuestionEventTable.log(db, q.id, "create", {}, q.create_time);
-      let firstLinkTime: number | null = null;
-      contentIds.forEach((contentId, idx) => {
-        const content = db
-          .prepare(`SELECT create_time FROM contents WHERE id = ?`)
-          .get(contentId) as { create_time: number } | undefined;
-        if (!content) return;
-        const target = this.resolveContentTarget(db, contentId);
-        // 早于提问的材料无法得知关联时刻，按提问时间记
-        const linkTime = Math.max(content.create_time, q.create_time);
-        insert.run(
-          q.id,
-          target.targetType,
-          target.targetId,
-          contentId,
-          (idx + 1) * SORT_STEP,
-          linkTime
-        );
-        firstLinkTime = firstLinkTime == null ? linkTime : Math.min(firstLinkTime, linkTime);
-        if (logEvents) {
-          const [material] = this.resolveMaterials(
-            db,
-            this.rows(db, q.id).filter(
-              r => r.target_type === target.targetType && r.target_id === target.targetId
-            )
-          );
-          QuestionEventTable.log(
-            db,
-            q.id,
-            "link",
-            {
-              ...target,
-              created: content.create_time >= q.create_time,
-              title: material?.title,
-              estimated: true,
-            },
-            linkTime
-          );
-        }
-      });
-      if (logEvents && q.status === "resolved") {
-        const at = q.resolved_time ?? q.update_time;
-        QuestionEventTable.log(db, q.id, "status", { to: "resolved", estimated: true }, at);
-      } else if (logEvents && q.status === "in_progress" && firstLinkTime != null) {
-        QuestionEventTable.log(
-          db,
-          q.id,
-          "status",
-          { to: "in_progress", auto: true, estimated: true },
-          firstLinkTime
-        );
-      }
-      if (q.status !== "resolved" && q.resolved_time != null) {
-        db.prepare(`UPDATE questions SET resolved_time = NULL WHERE id = ?`).run(q.id);
-      }
-      this.syncAnswersCache(db, q.id);
-    }
-    db.prepare(`INSERT INTO migration_meta (key, value) VALUES (?, ?)`).run(
-      MIGRATION_KEY,
-      String(Date.now())
-    );
   }
 }

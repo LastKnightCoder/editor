@@ -20,25 +20,6 @@ export function ensureMigrationMetaTable(db: Database.Database) {
     )
   `);
 }
-
-export function isMigrationDone(db: Database.Database, key: string) {
-  ensureMigrationMetaTable(db);
-  const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
-    { value: string } | undefined;
-  return row?.value === "done";
-}
-
-export function markMigrationDone(db: Database.Database, key: string) {
-  ensureMigrationMetaTable(db);
-  db.prepare(
-    `
-      INSERT INTO migration_meta (key, value)
-      VALUES (?, 'done')
-      ON CONFLICT(key) DO UPDATE SET value = 'done'
-    `
-  ).run(key);
-}
-
 function tableExists(db: Database.Database, table: string) {
   const row = db
     .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)

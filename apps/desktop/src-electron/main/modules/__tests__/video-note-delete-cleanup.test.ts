@@ -31,8 +31,6 @@ import ChatSessionTable from "../tables/chat-session";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  VideoNoteItemTable.upgradeTable(db);
-  VideoNoteTable.upgradeTable(db);
   return db;
 }
 

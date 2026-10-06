@@ -8,8 +8,6 @@ import type {
   PomodoroStatus,
 } from "@/types";
 import { Notification } from "electron";
-import CalendarGroupTable from "./calendar-group";
-import CalendarTable from "./calendar";
 import CalendarEventTable from "./calendar-event";
 import PomodoroPresetTable from "./pomodoro-preset";
 import PomodoroCalendarMappingTable from "./pomodoro-calendar-mapping";
@@ -151,124 +149,6 @@ export function splitCrossDaySession(
 }
 
 class PomodoroSessionTable {
-  static upgradeTable(db: Database.Database): void {
-    // 绑定三列：必须在「番茄钟日历已存在就返回」之前补齐
-    const columns = (db.pragma("table_info(pomodoro_sessions)") as Array<{ name: string }>).map(
-      c => c.name
-    );
-    for (const [name, type] of [
-      ["bound_event_id", "INTEGER"],
-      ["bound_todo_id", "INTEGER"],
-      ["bound_title", "TEXT"],
-    ] as const) {
-      if (!columns.includes(name)) {
-        db.exec(`ALTER TABLE pomodoro_sessions ADD COLUMN ${name} ${type}`);
-      }
-    }
-
-    // 迁移番茄钟记录到日历
-    try {
-      // 1. 获取或创建系统分组
-      const systemGroup = CalendarGroupTable.getSystemGroup(db);
-
-      // 2. 检查是否已经存在"番茄钟"日历
-      const existingCalendar = db
-        .prepare("SELECT id, group_id FROM calendar WHERE title = ?")
-        .get("番茄钟") as { id: number; group_id: number } | undefined;
-
-      if (existingCalendar) {
-        // 如果日历已存在，确保它在系统分组下
-        if (existingCalendar.group_id !== systemGroup.id) {
-          db.prepare("UPDATE calendar SET group_id = ? WHERE id = ?").run(
-            systemGroup.id,
-            existingCalendar.id
-          );
-          console.log(`Moved pomodoro calendar to system group (id: ${systemGroup.id})`);
-        }
-        // 已经迁移过，跳过会话迁移
-        return;
-      }
-
-      // 3. 创建"番茄钟"日历
-      const pomodoroCalendar = CalendarTable.createCalendar(db, {
-        title: "番茄钟",
-        color: "red" as any,
-        descriptionContentId: 0,
-        archived: false,
-        pinned: false,
-        visible: true,
-        orderIndex: 0,
-        groupId: systemGroup.id,
-      });
-
-      // 3. 查询所有已完成的番茄钟会话
-      const sessions = db
-        .prepare(
-          `SELECT * FROM pomodoro_sessions 
-           WHERE (status = 'completed' OR status = 'stopped') 
-           AND end_time IS NOT NULL
-           ORDER BY start_time ASC`
-        )
-        .all() as PomodoroSessionRow[];
-
-      console.log(`Migrating ${sessions.length} pomodoro sessions to calendar...`);
-
-      // 4. 为每个会话创建对应的日历事件
-      for (const sessionRow of sessions) {
-        try {
-          // 获取预设名称
-          let presetName = "未知";
-          try {
-            const preset = PomodoroPresetTable.getById(db, sessionRow.preset_id);
-            if (preset) {
-              presetName = preset.name;
-            }
-          } catch (e) {
-            // 预设可能已被删除
-          }
-
-          // 计算实际专注分钟数
-          const focusMinutes = Math.round(sessionRow.focus_ms / 60000);
-
-          // 生成标题
-          const title = `专注 ${presetName} ${focusMinutes} 分钟`;
-
-          // 分割跨天会话
-          const segments = splitCrossDaySession(sessionRow.start_time, sessionRow.end_time!);
-
-          // 为每个段创建日历事件并建立映射关系
-          const eventIds: number[] = [];
-          for (const segment of segments) {
-            const event = CalendarEventTable.createEvent(db, {
-              calendarId: pomodoroCalendar.id,
-              title,
-              detailContentId: 0,
-              startDate: segment.startDate,
-              endDate: segment.endDate,
-              startTime: segment.startTime,
-              endTime: segment.endTime,
-              allDay: false,
-              color: null,
-            });
-            eventIds.push(event.id);
-          }
-
-          // 创建映射关系
-          if (eventIds.length > 0) {
-            PomodoroCalendarMappingTable.createMappings(db, sessionRow.id, eventIds);
-          }
-        } catch (e) {
-          console.error(`Failed to migrate pomodoro session ${sessionRow.id}:`, e);
-        }
-      }
-
-      console.log("Pomodoro sessions migration completed");
-    } catch (e) {
-      console.error("Failed to migrate pomodoro sessions:", e);
-      // 不抛出异常，避免阻塞数据库初始化
-    }
-  }
-
   static getListenEvents() {
     return {
       "pomodoro:list-sessions": this.listSessions.bind(this),

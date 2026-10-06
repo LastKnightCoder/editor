@@ -39,8 +39,6 @@ import TodoRecurrenceTable from "./tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "./tables/todo-recurrence-completion";
 import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
 import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
-import BadgeHardCleanupTable from "./tables/badge-hard-cleanup";
-import GoalHardCleanupTable from "./tables/goal-hard-cleanup";
 import QuestionGroupTable from "./tables/question-group";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
@@ -49,7 +47,6 @@ import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 import PodcastTable from "./tables/podcast";
-import ResourceHardCleanupTable from "./tables/resource-hard-cleanup";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
@@ -58,14 +55,11 @@ import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
 import WeReadNotebookTable from "./tables/weread-notebook";
-import WereadViewCleanupTable from "./tables/weread-view-cleanup";
 import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
-import EpubHardCleanupTable from "./tables/epub-hard-cleanup";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
-import SlideHardCleanupTable from "./tables/slide-hard-cleanup";
 import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VLNoteTable from "./tables/vl-note";
@@ -77,16 +71,6 @@ import mainContentIndexDBManager, {
   IndexRebuildTarget,
 } from "./main-content-index-db";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
-import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
-import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
-import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
-import { retirePlannedTodos } from "@tau/db-schema/src/planned-retirement";
-import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
-import {
-  retireEditorBlocks,
-  installEditorBlockGuards,
-} from "@tau/db-schema/src/editor-block-retirement";
-import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { recoverSessionDownload } from "./pi-session-store";
@@ -255,7 +239,7 @@ class DatabaseModule implements Module {
       ChatSessionTable,
       OperationTable,
       StatisticTable,
-      VideoNoteItemTable, // Must be before VideoNoteTable for migration
+      VideoNoteItemTable,
       VideoNoteTable,
       QuestionGroupTable,
       QuestionTable,
@@ -263,7 +247,6 @@ class DatabaseModule implements Module {
       QuestionLinkTable,
       QuestionChatTable,
       EntitySearchTable,
-      GoalHardCleanupTable,
       DataTableTable,
       DatabaseItemTable,
       DataTableViewTable,
@@ -273,7 +256,6 @@ class DatabaseModule implements Module {
       TodoRecurrenceTable,
       TodoRecurrenceCompletionTable,
       TodoCalendarMappingTable,
-      BadgeHardCleanupTable,
       PomodoroPresetTable,
       PomodoroSessionTable,
       PomodoroCalendarMappingTable,
@@ -281,7 +263,6 @@ class DatabaseModule implements Module {
       CalendarTable,
       CalendarEventTable,
       TodoCalendarSyncTable, // 移到 CalendarGroupTable 之后
-      ResourceHardCleanupTable,
       WebLinkTable,
       WebClipTable,
       WebNoteTable,
@@ -290,14 +271,11 @@ class DatabaseModule implements Module {
       ExcerptTable,
       MaterialTable,
       WeReadNotebookTable,
-      WereadViewCleanupTable,
       WeReadConfigTable,
       FlashcardTable,
-      EpubHardCleanupTable,
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,
-      SlideHardCleanupTable,
       TranscriptionTable,
       VibeLearningProjectTable,
       VibeLearningResourceTable,
@@ -374,39 +352,28 @@ class DatabaseModule implements Module {
         `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`
       );
 
+      // 数据基线门禁：残留历史旧表的库来自未完成最后升级的旧版本，在任何写入之前拒绝进入
+      assertNoLegacyTables(database);
+
       const schemaStartAt = Date.now();
-      retireSubscriptions(database, dbPath);
-      const retiredFeatures = retireFeatureTables(database, dbPath);
-      if (retiredFeatures.length > 0) {
-        log.info(
-          `[database] retired feature tables: db=${name}, dropped=${retiredFeatures.join(",")}`
-        );
-      }
-      // 须在 MAIN_SCHEMA_SQL 之前：补 calendar_event.todo_item_id 后才能建其上的索引
-      const retiredPlanned = retirePlannedTodos(database, dbPath);
-      if (retiredPlanned > 0) {
-        log.info(`[database] retired planned todos: db=${name}, converted=${retiredPlanned}`);
-      }
       database.exec(MAIN_SCHEMA_SQL);
-      upgradeKnowledgeDatabase(database, dbPath);
-      const migratedContentLinks = retireContentLink(database, dbPath);
-      if (migratedContentLinks > 0) {
-        log.info(`[database] content_link retired: db=${name}, migrated=${migratedContentLinks}`);
-      }
-      migrateContentBindings(database);
-      retireEditorBlocks(database, dbPath);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
 
       if (mode === "maintenance") {
-        const upgradeStartAt = Date.now();
-        for (const table of this.tables) {
-          table.upgradeTable(database);
+        const maintenanceStartAt = Date.now();
+        TodoGroupTable.ensureSystemGroups(database);
+        QuestionGroupTable.ensureDefaultGroup(database);
+        TodoCalendarSyncTable.ensureTodoCalendars(database);
+        try {
+          TodoCalendarSyncTable.cleanupOrphanedEvents(database);
+        } catch (error) {
+          log.error("[database] 清理孤立日历事件失败:", error);
         }
-        installEditorBlockGuards(database);
+        StatisticTable.doStatistic(database);
         log.info(
-          `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`
+          `[database] openDatabase maintenance done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - maintenanceStartAt}`
         );
 
         const pageCount = Number(database.pragma("page_count", { simple: true }));
@@ -425,9 +392,6 @@ class DatabaseModule implements Module {
           }
         }
       }
-
-      // 数据基线门禁：残留历史旧表的库来自未完成最后升级的旧版本，拒绝进入
-      assertNoLegacyTables(database);
 
       log.info(
         `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`
@@ -496,9 +460,9 @@ class DatabaseModule implements Module {
 
         const ensureStartAt = Date.now();
         try {
-          const ensureResult = mainContentIndexDBManager.ensureReady(name, database);
+          const ensureResult = mainContentIndexDBManager.ensureReady(name);
           log.info(
-            `[database] index ensureReady done: db=${name}, reason=${reason}, migrationState=${ensureResult.migrationState}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`
+            `[database] index ensureReady done: db=${name}, reason=${reason}, rebuildState=${ensureResult.rebuildState}, elapsedMs=${Date.now() - ensureStartAt}`
           );
           resolve(ensureResult);
         } catch (error) {
@@ -567,15 +531,9 @@ class DatabaseModule implements Module {
         ) {
           throw new Error("下载的文件不是 Tau 数据库");
         }
-        retireSubscriptions(db, path);
-        retireFeatureTables(db, path);
-        retirePlannedTodos(db, path);
+        // 数据基线门禁：与本地开库同一接受边界，旧端上传的快照在这里被拒绝
+        assertNoLegacyTables(db);
         db.exec(MAIN_SCHEMA_SQL);
-        // 知识库迁移可复用下载副本，订阅退役仍保留专属快照。
-        upgradeKnowledgeDatabase(db, path, { skipBackup: true });
-        retireContentLink(db, path);
-        migrateContentBindings(db);
-        retireEditorBlocks(db, path);
         const checkpoint = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];
         if (checkpoint.some(row => row.busy !== 0)) throw new Error("下载数据库尚未完整落盘");
         return true;

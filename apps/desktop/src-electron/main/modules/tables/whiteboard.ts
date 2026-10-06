@@ -4,21 +4,6 @@ import Operation from "./operation";
 import Project from "./project";
 import WhiteBoardContentTable from "./white-board-content";
 export default class WhiteboardTable {
-  static upgradeTable(db: Database.Database) {
-    const tableInfo = db.prepare("PRAGMA table_info(white_boards)").all() as Array<{
-      name: string;
-    }>;
-    const hasActiveWhiteBoardContentId = tableInfo.some(
-      column => column.name === "active_white_board_content_id"
-    );
-
-    if (!hasActiveWhiteBoardContentId) {
-      db.exec(
-        "ALTER TABLE white_boards ADD COLUMN active_white_board_content_id INTEGER DEFAULT NULL"
-      );
-    }
-  }
-
   static getListenEvents() {
     return {
       "create-white-board": this.createWhiteboard.bind(this),

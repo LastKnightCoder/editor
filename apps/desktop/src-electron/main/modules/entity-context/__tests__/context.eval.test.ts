@@ -24,7 +24,6 @@ vi.mock("../../video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
 
-import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
 import type { EntityRef } from "@/entity/ref";
 import { listMaterialIndexDocs } from "../../material-index";
 import QuestionLinkTable from "../../tables/question-link";
@@ -52,7 +51,6 @@ it.skipIf(!MAIN)(
       return result;
     };
 
-    await timed("content_link 退役（迁移条数）", () => retireContentLink(main, ":memory:"));
     main.exec(readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8"));
     await timed("引用索引首次对账", () => reconcileRefs(main, index));
     await timed("白板索引首次对账", () => reconcileWhiteboardRefs(main, index));

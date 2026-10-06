@@ -134,11 +134,6 @@ export default class VecDocumentTable {
       )
     `);
   }
-
-  static upgradeTable(_db: Database.Database) {
-    // 不需要升级
-  }
-
   static getListenEvents() {
     return {
       "vec-document-index-content": (
