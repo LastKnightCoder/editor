@@ -1,5 +1,5 @@
 /**
- * 阅读区底部悬浮 HUD：翻页 / 页码 / 缩放 / 查找 / 更多（双页、旋转、夜间页面、全屏、在文件夹中显示、
+ * 阅读区底部悬浮 HUD：翻页 / 页码 / 缩放 / 查找 / 更多（页边、双页、旋转、夜间页面、全屏、在文件夹中显示、
  * 重建 AI 索引），对话关着时末尾多一个对话开关。常驻显示。
  */
 
@@ -16,6 +16,7 @@ import {
   Moon,
   MoreHorizontal,
   PanelLeft,
+  PanelRight,
   Plus,
   RefreshCw,
   RotateCw,
@@ -41,6 +42,10 @@ interface HudProps {
   onRotate: () => void;
   night: boolean;
   onToggleNight: () => void;
+  margin: boolean;
+  /** 双页 / 旋转时页边不展开 */
+  marginAvailable: boolean;
+  onToggleMargin: () => void;
   onFullscreen: () => void;
   onReveal?: () => void;
   onRebuildIndex?: () => void;
@@ -149,6 +154,15 @@ export function Hud(props: HudProps) {
           </IconButton>
         }
       >
+        <Menu.CheckboxItem
+          checked={props.margin}
+          onCheckedChange={props.onToggleMargin}
+          disabled={!props.marginAvailable}
+          icon={<PanelRight {...ICON} />}
+          kbd="M"
+        >
+          {props.marginAvailable ? "页边批注" : "页边批注（仅单页未旋转）"}
+        </Menu.CheckboxItem>
         <Menu.CheckboxItem
           checked={props.spread}
           onCheckedChange={props.onToggleSpread}

@@ -62,6 +62,23 @@ const revive = (record: PdfAnnotation): PdfAnnotation => ({
 
 /* ───────── 标注 ───────── */
 
+/** 不进引擎的标注（区域、页边）也存一个引擎对象，只是占位：定位与排序用 */
+function placeholderObject(
+  prefix: string,
+  pageIndex: number,
+  rect: { x: number; y: number; width: number; height: number }
+): PdfAnnotationObject {
+  return {
+    id: `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    type: 0,
+    pageIndex,
+    rect: { origin: { x: rect.x, y: rect.y }, size: { width: rect.width, height: rect.height } },
+    contents: "",
+    created: new Date(),
+    modified: new Date(),
+  } as PdfAnnotationObject;
+}
+
 export function useReaderAnnotations(pdfId: number) {
   const client = useQueryClient();
   const { database, ready } = useDatabaseReady();
@@ -159,27 +176,29 @@ export function useReaderAnnotations(pdfId: number) {
       },
 
       createArea: async (areaData: AreaAnnotationData, color?: EHighlightColor) => {
-        // 区域标注不进引擎，annotation 字段只是占位（定位与排序用）
-        const placeholder: PdfAnnotationObject = {
-          id: `area-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          type: 0,
-          pageIndex: areaData.pageIndex,
-          rect: {
-            origin: { x: areaData.rect.x, y: areaData.rect.y },
-            size: { width: areaData.rect.width, height: areaData.rect.height },
-          },
-          contents: "",
-          created: new Date(),
-          modified: new Date(),
-        } as PdfAnnotationObject;
         const created = revive(
           await addPdfAnnotation({
             pdfId,
-            annotation: placeholder,
+            annotation: placeholderObject("area", areaData.pageIndex, areaData.rect),
             color,
             notes: [],
             type: "area",
             areaData,
+          })
+        );
+        write(list => [...list, created]);
+        void touchLibrary();
+        return created;
+      },
+
+      /** 页边批注：y 为 PDF 坐标里的纵向位置 */
+      createMargin: async (pageIndex: number, y: number, notes: Note[]) => {
+        const created = revive(
+          await addPdfAnnotation({
+            pdfId,
+            annotation: placeholderObject("margin", pageIndex, { x: 0, y, width: 0, height: 0 }),
+            notes,
+            type: "margin",
           })
         );
         write(list => [...list, created]);

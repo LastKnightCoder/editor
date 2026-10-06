@@ -1,6 +1,6 @@
 /**
- * 每页叠加层（随页面一起滚动、缩放）：页角书签、查找命中、跳转闪烁、区域标注框、页边笔记图钉、
- * 新选区 / 框选 / 区域标注的浮动工具条、写笔记卡。文本标注的工具条由引擎的 selectionMenu 承载
+ * 每页叠加层（随页面一起滚动、缩放）：页角书签、查找命中、跳转闪烁、区域标注框、页边（展开时）
+ * 或页内笔记图钉（收起时）、新选区 / 框选 / 区域标注的浮动工具条、写笔记卡。文本标注的工具条由引擎的 selectionMenu 承载
  * （见 AnnotationMenu）。坐标一律是 PDF 坐标 × scale。
  */
 
@@ -19,15 +19,20 @@ import {
   layoutPins,
   noteText,
 } from "../annotationModel";
+import type { PaperPalette } from "../paper";
 import { overlayProps, useReader } from "../readerContext";
 import { FloatToolbar } from "./FloatToolbar";
+import { MarginColumn } from "./MarginColumn";
 import { NoteCard } from "./NoteCard";
 
 interface PageLayerProps {
   pageIndex: number;
   scale: number;
-  /** 页面显示宽度（已缩放，像素） */
+  /** 页面显示宽高（已缩放，像素） */
   width: number;
+  height: number;
+  /** 本页纸色（页边着色用）；null = 未取到 */
+  paper: PaperPalette | null;
 }
 
 const PIN_SIZE = 22;
@@ -90,7 +95,7 @@ function Anchor({
   );
 }
 
-export function PageLayer({ pageIndex, scale, width }: PageLayerProps) {
+export function PageLayer({ pageIndex, scale, width, height, paper }: PageLayerProps) {
   const reader = useReader();
   const pageNumber = pageIndex + 1;
   const pageRecords = useMemo(
@@ -101,7 +106,9 @@ export function PageLayer({ pageIndex, scale, width }: PageLayerProps) {
   const overlay = reader.overlay;
   const hits = reader.searchHits.filter(h => h.pageIndex === pageIndex);
   const flash = reader.flash?.pageIndex === pageIndex ? reader.flash : null;
-  const note = reader.noteTarget?.pageIndex === pageIndex ? reader.noteTarget : null;
+  const marginOpen = reader.marginWidth > 0;
+  // 页边展开时写笔记卡由页边承载
+  const note = !marginOpen && reader.noteTarget?.pageIndex === pageIndex ? reader.noteTarget : null;
   const noteRecord = note
     ? (reader.records.find(r => r.annotation.id === note.objectId) ?? null)
     : null;
@@ -159,7 +166,17 @@ export function PageLayer({ pageIndex, scale, width }: PageLayerProps) {
           <AreaBox key={record.id} record={record} scale={scale} />
         ))}
 
-      <NotePins records={pageRecords.filter(hasNote)} scale={scale} />
+      {marginOpen ? (
+        <MarginColumn
+          pageIndex={pageIndex}
+          scale={scale}
+          height={height}
+          paper={paper}
+          records={pageRecords}
+        />
+      ) : (
+        <NotePins records={pageRecords.filter(hasNote)} scale={scale} />
+      )}
 
       {overlay?.kind === "selection" && overlay.pageIndex === pageIndex && (
         <Anchor rect={overlay.rect} scale={scale} pageWidth={width} estimatedWidth={400}>
@@ -241,7 +258,7 @@ export function PageLayer({ pageIndex, scale, width }: PageLayerProps) {
           placement="below"
         >
           <NoteCard
-            key={note.objectId}
+            key={note.objectId ?? "draft"}
             record={noteRecord}
             onSave={notes => (noteRecord ? reader.saveNote(noteRecord, notes) : Promise.resolve())}
             onCancel={reader.closeNote}

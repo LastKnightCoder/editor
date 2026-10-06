@@ -15,7 +15,10 @@ import {
   colorFromHex,
   filterAnnotations,
   hasNote,
+  isEngineAnnotation,
+  layoutMarginNotes,
   layoutPins,
+  marginFitClientWidth,
   markupDefaults,
   markupStyleOf,
   sortAnnotations,
@@ -149,6 +152,63 @@ describe("页边图钉", () => {
       });
     const slots = layoutPins([at(1, 100), at(2, 105), at(3, 400)], 1.5, 22);
     expect(slots.map(s => s.top)).toEqual([150, 176, 600]);
+  });
+});
+
+describe("页边批注", () => {
+  const margin = (id: number, text: string) =>
+    record(id, {
+      type: "margin",
+      annotation: markup({ id: `m${id}`, type: 0 as never, color: undefined }),
+      notes: withNote(text),
+    });
+
+  it("不进引擎、摘录给页码、不进颜色筛选", () => {
+    const note = margin(1, "随手一记");
+    expect(isEngineAnnotation(note)).toBe(false);
+    expect(isEngineAnnotation(record(2, { type: "area" }))).toBe(false);
+    expect(isEngineAnnotation(record(3))).toBe(true);
+    expect(annotationSnippet(note)).toBe("页边批注 · 第 1 页");
+    expect(filterAnnotations([note], "notes")).toEqual([note]);
+    expect(filterAnnotations([note], EHighlightColor.Yellow)).toEqual([]);
+  });
+
+  it("顶端对齐锚点、重叠时顺排；越过页底的不显示并计数", () => {
+    const { slots, hidden } = layoutMarginNotes(
+      [
+        { id: 1, anchor: 100, height: 40 },
+        { id: 2, anchor: 110, height: 40 },
+        { id: 3, anchor: 300, height: 40 },
+        { id: 4, anchor: 320, height: 80 },
+        { id: 5, anchor: 330, height: 20 },
+      ],
+      420
+    );
+    expect(slots).toEqual([
+      { id: 1, top: 100 },
+      { id: 2, top: 148 },
+      { id: 3, top: 300 },
+    ]);
+    expect(hidden).toBe(2);
+  });
+
+  it("适宽折算：页面 + 页边恰好放进视口", () => {
+    const gap = 24;
+    const fitted = marginFitClientWidth(1000, gap, 0.38);
+    const pageWidth = fitted - 2 * gap;
+    expect(pageWidth * 1.38).toBeCloseTo(1000 - 2 * gap);
+  });
+
+  it("对话引用标为页边批注", () => {
+    const content = applyQuote([{ type: "text", text: "对吗？" }], {
+      kind: "margin",
+      pageNumber: 2,
+      text: "随手一记",
+    });
+    expect(content[0]).toEqual({
+      type: "text",
+      text: "> 第 2 页 · 页边批注\n> 随手一记\n\n对吗？",
+    });
   });
 });
 

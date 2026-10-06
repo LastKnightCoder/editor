@@ -1,4 +1,4 @@
-/** PDF 阅读器本机偏好：左面板、划线默认色与样式、夜间页面、对话栏开合与宽度（所有 PDF 共用） */
+/** PDF 阅读器本机偏好：左面板、划线默认色与样式、夜间页面、页边、对话栏开合与宽度（所有 PDF 共用） */
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -17,6 +17,8 @@ interface ReaderPrefs {
   lastColor: EHighlightColor;
   lastStyle: NewMarkupStyle;
   nightPage: boolean;
+  /** 页面右侧展开页边（笔记常显、可在空白处写批注）；关着时笔记收成页内图钉 */
+  marginOpen: boolean;
   chatOpen: boolean;
   chatWidth: number;
   setLeftOpen: (open: boolean) => void;
@@ -25,6 +27,7 @@ interface ReaderPrefs {
   setLastColor: (color: EHighlightColor) => void;
   setLastStyle: (style: NewMarkupStyle) => void;
   toggleNightPage: () => void;
+  toggleMargin: () => void;
   setChatOpen: (open: boolean) => void;
   setChatWidth: (width: number) => void;
 }
@@ -37,6 +40,7 @@ export const useReaderPrefs = create<ReaderPrefs>()(
       lastColor: EHighlightColor.Yellow,
       lastStyle: "highlight",
       nightPage: false,
+      marginOpen: true,
       chatOpen: true,
       chatWidth: CHAT_DEFAULT_W,
       setLeftOpen: leftOpen => set({ leftOpen }),
@@ -45,6 +49,7 @@ export const useReaderPrefs = create<ReaderPrefs>()(
       setLastColor: lastColor => set({ lastColor }),
       setLastStyle: lastStyle => set({ lastStyle }),
       toggleNightPage: () => set(s => ({ nightPage: !s.nightPage })),
+      toggleMargin: () => set(s => ({ marginOpen: !s.marginOpen })),
       setChatOpen: chatOpen => set({ chatOpen }),
       setChatWidth: w =>
         set({ chatWidth: Math.min(CHAT_MAX_W, Math.max(CHAT_MIN_W, Math.round(w))) }),
@@ -57,6 +62,7 @@ export const useReaderPrefs = create<ReaderPrefs>()(
         lastColor,
         lastStyle,
         nightPage,
+        marginOpen,
         chatOpen,
         chatWidth,
       }) => ({
@@ -65,6 +71,7 @@ export const useReaderPrefs = create<ReaderPrefs>()(
         lastColor,
         lastStyle,
         nightPage,
+        marginOpen,
         chatOpen,
         chatWidth,
       }),

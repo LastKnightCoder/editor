@@ -13,7 +13,8 @@ export type ReaderOverlay =
   | { kind: "area"; recordId: number };
 
 export interface NoteTarget {
-  objectId: string;
+  /** null = 页边新批注草稿（保存时才落库），位置取 rect.origin.y */
+  objectId: string | null;
   pageIndex: number;
   rect: Rect;
 }
@@ -40,6 +41,8 @@ export interface ReaderContextValue {
   flash: PageHighlight | null;
   canAsk: boolean;
   newStyle: "highlight" | "underline";
+  /** 页边宽度（已缩放，像素）；0 = 页边收起，笔记显示为页内图钉 */
+  marginWidth: number;
 
   toggleBookmark: (pageNumber: number) => void;
   setPinned: (recordId: number | null) => void;
@@ -66,6 +69,10 @@ export interface ReaderContextValue {
   copy: (target: PdfAnnotationObject | PdfAnnotation) => void;
   remove: (target: PdfAnnotationObject | PdfAnnotation) => void;
   clearNote: (record: PdfAnnotation) => void;
+
+  /* 页边批注 */
+  draftMargin: (pageIndex: number, y: number) => void;
+  saveMarginDraft: (notes: Note[]) => Promise<unknown>;
 
   closeNote: () => void;
   saveNote: (record: PdfAnnotation, notes: Note[]) => Promise<unknown>;
