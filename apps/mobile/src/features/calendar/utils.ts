@@ -169,14 +169,14 @@ export function isSameDay(a: number, b: number): boolean {
   return dayStart(a) === dayStart(b);
 }
 
-/** 今日 Bento 卡摘要（方案 §6.3）：下一件未结束的定时日程「14:00 周会 · 还有 2 件」；
- *  无定时日程时全天件数兜底，全部结束给收尾文案 */
+/** 首页今日日程摘要：下一件未结束的定时日程「14:00 周会 · 还有 2 件」；
+ *  无定时日程时全天件数兜底，全部结束给收尾文案。upcoming = 未结束定时日程 + 全天日程 */
 export function summarizeToday(
   events: CalendarEvent[],
   now = Date.now()
-): { total: number; headline: string } {
+): { total: number; upcoming: number; headline: string } {
   if (events.length === 0) {
-    return { total: 0, headline: "今天没有日程" };
+    return { total: 0, upcoming: 0, headline: "今天没有日程" };
   }
   const nowMinutes = new Date(now).getHours() * 60 + new Date(now).getMinutes();
   const today = dayStart(now);
@@ -196,6 +196,7 @@ export function summarizeToday(
   if (!next) {
     return {
       total: events.length,
+      upcoming: allDayCount,
       headline: allDayCount > 0 ? `${allDayCount} 件全天日程` : "今日日程已结束",
     };
   }
@@ -203,6 +204,7 @@ export function summarizeToday(
   const label = `${formatTime(next.startTime as number)} ${next.title}`;
   return {
     total: events.length,
+    upcoming: remaining + 1,
     headline: remaining > 0 ? `${label} · 还有 ${remaining} 件` : label,
   };
 }
