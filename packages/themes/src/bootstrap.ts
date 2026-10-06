@@ -9,23 +9,12 @@ export const DEFAULT_APPEARANCE: Appearance = "light";
 export const THEME_STORAGE_KEY = "tau-theme";
 export const APPEARANCE_STORAGE_KEY = "tau-appearance";
 
-/**
- * 旧存储值迁移：主题族改造前 tau-theme 存的是「带明暗的主题 key | system」，
- * 读到旧值时拆成 主题族 + 明暗偏好（运行时 init 会把拆分结果写回两个 key）。
- */
-const LEGACY_THEME_VALUES: Record<string, [theme: string, appearance: Appearance]> = {
-  cream: ["paper", "light"],
-  cocoa: ["paper", "dark"],
-  system: ["paper", "system"],
-};
-
 export interface ThemeRuntimeConfig {
   defaultTheme: string;
   defaultAppearance: Appearance;
   themeStorageKey: string;
   appearanceStorageKey: string;
   themes: string[];
-  legacy: Record<string, [string, Appearance]>;
 }
 
 export interface ResolvedThemePreference {
@@ -35,7 +24,7 @@ export interface ResolvedThemePreference {
 }
 
 export function themeRuntimeConfig(
-  overrides: Partial<Omit<ThemeRuntimeConfig, "themes" | "legacy">> = {}
+  overrides: Partial<Omit<ThemeRuntimeConfig, "themes">> = {}
 ): ThemeRuntimeConfig {
   return {
     defaultTheme: DEFAULT_THEME_KEY,
@@ -44,7 +33,6 @@ export function themeRuntimeConfig(
     appearanceStorageKey: APPEARANCE_STORAGE_KEY,
     ...overrides,
     themes: [...getThemeRegistry().keys()],
-    legacy: LEGACY_THEME_VALUES,
   };
 }
 
@@ -57,22 +45,12 @@ export function resolveThemePreference(
   prefersDark: boolean,
   config: ThemeRuntimeConfig
 ): ResolvedThemePreference {
-  const legacy =
-    savedTheme && Object.prototype.hasOwnProperty.call(config.legacy, savedTheme)
-      ? config.legacy[savedTheme]
-      : null;
   const theme =
-    savedTheme && config.themes.indexOf(savedTheme) !== -1
-      ? savedTheme
-      : legacy && config.themes.indexOf(legacy[0]) !== -1
-        ? legacy[0]
-        : config.defaultTheme;
+    savedTheme && config.themes.indexOf(savedTheme) !== -1 ? savedTheme : config.defaultTheme;
   const appearance: Appearance =
     savedAppearance === "light" || savedAppearance === "dark" || savedAppearance === "system"
       ? savedAppearance
-      : legacy
-        ? legacy[1]
-        : config.defaultAppearance;
+      : config.defaultAppearance;
   const mode: ThemeMode = appearance === "system" ? (prefersDark ? "dark" : "light") : appearance;
   return { theme, appearance, mode };
 }

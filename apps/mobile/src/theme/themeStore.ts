@@ -21,8 +21,6 @@ function readStoredMode(): ThemeMode {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && (THEME_IDS.has(saved) || saved === "system")) return saved as ThemeMode;
-    if (saved === "dark" || saved === "nocturne") return "midnight"; // 兼容旧版存储
-    if (saved === "light") return "apricot";
   } catch {
     // ignore
   }

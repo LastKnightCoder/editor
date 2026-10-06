@@ -3,7 +3,6 @@ import type { DataTableView } from "@/types";
 import {
   CARD_DATABASE_PREFERENCES_KEY,
   createCardDatabasePreferencesStore,
-  migrateCardDatabasePreferences,
 } from "../databasePreferences";
 
 const view = (id: number, name = "已保存视图"): DataTableView => ({
@@ -33,12 +32,14 @@ afterEach(() => localStorage.clear());
 describe("卡片数据库视图偏好", () => {
   it("完整保留旧模板、视图和列宽，各库首次继承后独立修改", () => {
     const previous = legacy();
-    localStorage.setItem("card-database-views", JSON.stringify(previous));
+    localStorage.setItem(
+      CARD_DATABASE_PREFERENCES_KEY,
+      JSON.stringify({ version: 1, state: { byDatabase: {}, legacyDefaults: previous.state } })
+    );
     const store = createCardDatabasePreferencesStore(localStorage);
     const actions = store.getState();
     actions.initialize("a");
     actions.initialize("b.db");
-    expect(localStorage.getItem("card-database-views")).toBeNull();
     expect(store.getState().legacyDefaults).toEqual(previous.state);
     expect(store.getState().byDatabase.a).toEqual(previous.state);
     expect(store.getState().byDatabase.b).toEqual(previous.state);
@@ -69,7 +70,6 @@ describe("卡片数据库视图偏好", () => {
         },
       })
     );
-    localStorage.setItem("card-database-views", JSON.stringify(legacy()));
     const store = createCardDatabasePreferencesStore(localStorage);
     store.getState().initialize("a");
     expect(store.getState().byDatabase.a).toMatchObject({
@@ -109,22 +109,5 @@ describe("卡片数据库视图偏好", () => {
     actions.setActiveViewId("a", second.id);
     actions.deleteView("a", second.id);
     expect(store.getState().byDatabase.a.activeViewId).toBe(initial.id);
-  });
-
-  it("迁移写入失败或旧 JSON 损坏时保留旧键", () => {
-    const raw = JSON.stringify(legacy());
-    localStorage.setItem("card-database-views", raw);
-    const storage = {
-      getItem: localStorage.getItem.bind(localStorage),
-      removeItem: localStorage.removeItem.bind(localStorage),
-      setItem: () => {
-        throw new Error("存储已满");
-      },
-    } as unknown as Storage;
-    expect(() => migrateCardDatabasePreferences(storage)).toThrow("存储已满");
-    expect(localStorage.getItem("card-database-views")).toBe(raw);
-    localStorage.setItem("card-database-views", "损坏 JSON");
-    expect(() => migrateCardDatabasePreferences(localStorage)).toThrow();
-    expect(localStorage.getItem("card-database-views")).toBe("损坏 JSON");
   });
 });

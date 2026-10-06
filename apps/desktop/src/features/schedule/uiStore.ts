@@ -49,35 +49,6 @@ export function sanitizeSchedulePreferences(value: unknown): SchedulePreferences
   };
 }
 
-export function migrateSchedulePreferences(
-  storage: Pick<Storage, "getItem" | "setItem" | "removeItem">
-) {
-  const legacy = storage.getItem("calendar-store");
-  if (!legacy) return;
-  if (!storage.getItem("tau-schedule-preferences")) {
-    let state: unknown;
-    try {
-      state = JSON.parse(legacy).state;
-    } catch {
-      state = undefined;
-    }
-    storage.setItem(
-      "tau-schedule-preferences",
-      JSON.stringify({
-        state: sanitizeSchedulePreferences(state),
-        version: 1,
-      })
-    );
-  }
-  storage.removeItem("calendar-store");
-}
-
-try {
-  migrateSchedulePreferences(window.localStorage);
-} catch {
-  // 存储不可用时保留旧键，下次启动继续迁移。
-}
-
 interface ScheduleState extends SchedulePreferences {
   currentDate: number;
   editingEvent: CalendarEvent | null;

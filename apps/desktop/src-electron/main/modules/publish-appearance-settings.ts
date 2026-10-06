@@ -9,7 +9,7 @@ export interface PublishAppearanceSettingsInput {
   appearance?: {
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
-      shadow?: ImageShadowPreset | boolean;
+      shadow?: ImageShadowPreset;
     };
   };
 }
