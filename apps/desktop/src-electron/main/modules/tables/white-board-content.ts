@@ -68,51 +68,6 @@ export default class WhiteboardTable {
       }
     }
   }
-
-  static upgradeTable(db: Database.Database) {
-    // 检查 img_url 列是否存在
-    const tableInfo = db.prepare("PRAGMA table_info(white_board_contents)").all() as Array<{
-      name: string;
-    }>;
-    const hasImgUrl = tableInfo.some(col => col.name === "img_url");
-
-    if (!hasImgUrl) {
-      // 添加 img_url 列
-      db.exec(`ALTER TABLE white_board_contents ADD COLUMN img_url TEXT DEFAULT ''`);
-
-      // 获取所有白板及其内容列表
-      const whiteBoards = db
-        .prepare(
-          `
-        SELECT id, white_board_content_ids, snapshot FROM white_boards
-      `
-        )
-        .all() as Array<{
-        id: number;
-        white_board_content_ids: string;
-        snapshot: string;
-      }>;
-
-      // 为每个白板的子白板设置 img_url
-      const updateStmt = db.prepare(`
-        UPDATE white_board_contents SET img_url = ? WHERE id = ?
-      `);
-
-      for (const whiteBoard of whiteBoards) {
-        try {
-          const contentIds = JSON.parse(whiteBoard.white_board_content_ids || "[]") as number[];
-          const snapshot = whiteBoard.snapshot || "";
-
-          for (const contentId of contentIds) {
-            updateStmt.run(snapshot, contentId);
-          }
-        } catch (e) {
-          // 忽略解析错误
-        }
-      }
-    }
-  }
-
   static deleteWhiteBoardContentWhenRefCountIsZero(db: Database.Database) {
     // 先查找所有 ref_count <= 0 的白板
     const selectStmt = db.prepare(`

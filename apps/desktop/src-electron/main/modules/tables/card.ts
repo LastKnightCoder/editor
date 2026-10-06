@@ -9,7 +9,6 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
 
-import log from "electron-log";
 import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
 import { parseContentAiMeta } from "./content-ai-meta";
 
@@ -110,21 +109,6 @@ export default class CardTable {
     this.assertDatabase(db, request);
     return this.deleteCard(db, request.id);
   }
-
-  static upgradeTable(db: Database.Database) {
-    // 检查 podcast_id 字段是否存在
-    const tableInfo = db.prepare(`PRAGMA table_info(cards)`).all() as Array<{
-      name: string;
-    }>;
-    const hasPodcastId = tableInfo.some(column => column.name === "podcast_id");
-
-    if (!hasPodcastId) {
-      db.exec(`ALTER TABLE cards ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
-      db.exec(`CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);`);
-      log.info("已添加 podcast_id 字段到 cards 表");
-    }
-  }
-
   static parseCard(card: any): ICard {
     let content = [];
     let count = 0;

@@ -22,8 +22,6 @@ import VibeLearningProjectTable from "../tables/vibe-learning-project";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  DatabaseItemTable.upgradeTable(db);
-  VibeLearningProjectTable.upgradeTable(db);
   return db;
 }
 

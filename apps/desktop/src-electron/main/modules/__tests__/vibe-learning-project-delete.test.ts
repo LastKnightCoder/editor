@@ -26,10 +26,6 @@ import VLQuizTable from "../tables/vl-quiz";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  VibeLearningProjectTable.upgradeTable(db);
-  VibeLearningResourceTable.upgradeTable(db);
-  VLNoteTable.upgradeTable(db);
-  VLQuizTable.upgradeTable(db);
   return db;
 }
 

@@ -15,7 +15,6 @@ vi.mock("../video-note-index-queue", () => ({
 }));
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
-import CalendarGroupTable from "../tables/calendar-group";
 import CalendarTable from "../tables/calendar";
 import CalendarEventTable from "../tables/calendar-event";
 import TodoGroupTable from "../tables/todo-group";
@@ -26,13 +25,9 @@ import TodoCalendarMappingTable from "../tables/todo-calendar-mapping";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  CalendarGroupTable.upgradeTable(db);
-  CalendarTable.upgradeTable(db);
-  CalendarEventTable.upgradeTable(db);
-  TodoGroupTable.upgradeTable(db);
-  TodoItemTable.upgradeTable(db);
+  TodoGroupTable.ensureSystemGroups(db);
   (TodoCalendarSyncTable as unknown as { cachedCalendars: unknown }).cachedCalendars = null;
-  TodoCalendarSyncTable.upgradeTable(db);
+  TodoCalendarSyncTable.ensureTodoCalendars(db);
   return db;
 }
 

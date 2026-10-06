@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { existsSync, unlinkSync } from "node:fs";
 import log from "electron-log";
 import type {
@@ -13,14 +13,7 @@ import type {
   PdfSectionNode,
 } from "@/types";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
-import PathUtil from "../utils/PathUtil";
-import {
-  ensureIndexDbDir,
-  getIndexDbDir,
-  migrateDbFileWithSidecars,
-  normalizeMainDbBase,
-  scanLegacyDbFiles,
-} from "./utils/index-db-storage";
+import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
 
 const jieba = Jieba.withDict(dict);
 const DEFAULT_VEC_DIMENSIONS = 3072;
@@ -118,7 +111,6 @@ const parseJsonArray = (value: unknown): string[] => {
 
 class PdfIndexDBManager {
   private databases: Map<string, Database.Database> = new Map();
-  private legacyScanCompleted = false;
 
   private getDatabaseKey(mainDbName: string, pdfId: number): string {
     return `${normalizeMainDbBase(mainDbName)}-pdf-${pdfId}`;
@@ -131,89 +123,10 @@ class PdfIndexDBManager {
 
   /** 是否已有索引库（getDatabase 会按需创建，只读查询前先用它判断） */
   hasDatabase(mainDbName: string, pdfId: number): boolean {
-    return (
-      existsSync(this.getDatabasePath(mainDbName, pdfId)) ||
-      existsSync(this.getLegacyDatabasePath(mainDbName, pdfId))
-    );
-  }
-
-  private getLegacyDatabasePath(mainDbName: string, pdfId: number): string {
-    return join(PathUtil.getAppDir(), `${this.getDatabaseKey(mainDbName, pdfId)}.db`);
-  }
-
-  private migrateLegacyDatabase(mainDbName: string, pdfId: number): void {
-    const legacyPath = this.getLegacyDatabasePath(mainDbName, pdfId);
-    const targetPath = this.getDatabasePath(mainDbName, pdfId);
-    try {
-      const result = migrateDbFileWithSidecars(legacyPath, targetPath);
-      if (result.reason === "source_not_found") {
-        return;
-      }
-      log.info(
-        `[PdfIndexDB] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`
-      );
-    } catch (error) {
-      log.warn(
-        `[PdfIndexDB] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`
-      );
-    }
-  }
-
-  private scanAndMigrateLegacyDatabases(): void {
-    if (this.legacyScanCompleted) {
-      return;
-    }
-    this.legacyScanCompleted = true;
-
-    let found = 0;
-    let migrated = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    try {
-      const { files } = scanLegacyDbFiles(fileName => /-pdf-\d+\.db$/i.test(fileName));
-      found = files.length;
-      for (const legacyPath of files) {
-        const fileName = basename(legacyPath);
-        const matched = fileName.match(/^(.*)-pdf-(\d+)\.db$/i);
-        if (!matched) {
-          skipped += 1;
-          continue;
-        }
-        const mainDbName = `${matched[1]}.db`;
-        const pdfId = Number.parseInt(matched[2], 10);
-        if (!Number.isFinite(pdfId)) {
-          skipped += 1;
-          continue;
-        }
-        const targetPath = this.getDatabasePath(mainDbName, pdfId);
-        try {
-          const result = migrateDbFileWithSidecars(legacyPath, targetPath);
-          if (result.moved) {
-            migrated += 1;
-          } else {
-            skipped += 1;
-          }
-        } catch (error) {
-          failed += 1;
-          log.warn(
-            `[PdfIndexDB] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`
-          );
-        }
-      }
-    } catch (error) {
-      failed += 1;
-      log.warn(`[PdfIndexDB] startup migration scan failed: ${error}`);
-    }
-
-    log.info(
-      `[PdfIndexDB] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`
-    );
+    return existsSync(this.getDatabasePath(mainDbName, pdfId));
   }
 
   getDatabase(mainDbName: string, pdfId: number): Database.Database {
-    this.scanAndMigrateLegacyDatabases();
-    this.migrateLegacyDatabase(mainDbName, pdfId);
     ensureIndexDbDir(mainDbName);
 
     const key = this.getDatabaseKey(mainDbName, pdfId);
@@ -945,10 +858,7 @@ class PdfIndexDBManager {
       this.databases.delete(key);
     }
 
-    const paths = [
-      this.getDatabasePath(mainDbName, pdfId),
-      this.getLegacyDatabasePath(mainDbName, pdfId),
-    ];
+    const paths = [this.getDatabasePath(mainDbName, pdfId)];
     for (const dbPath of paths) {
       try {
         if (existsSync(dbPath)) {

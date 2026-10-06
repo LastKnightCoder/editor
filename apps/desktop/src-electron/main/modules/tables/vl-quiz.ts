@@ -161,11 +161,6 @@ class VLQuizTable {
       "vl-quiz:delete-record": this.deleteQuizRecord.bind(this),
     };
   }
-
-  static upgradeTable(_db: Database.Database) {
-    // 预留增量更新
-  }
-
   private static parseJSON<T>(value: string | null | undefined, fallback: T): T {
     if (!value) return fallback;
     try {

@@ -793,13 +793,6 @@ export function projectItemUpdate(params: { id: number; title?: string; tags?: s
   return trackedInvoke<number>("project_item_update", { payload: params });
 }
 
-export function collabKnowledgeMapping(documentId: string) {
-  return trackedInvoke<import("@tau/collaboration").KnowledgeMapping | null>(
-    "collab_knowledge_mapping",
-    { documentId }
-  );
-}
-
 export function projectItemDelete(id: number) {
   return trackedInvoke<number>("project_item_delete", { payload: { id } });
 }

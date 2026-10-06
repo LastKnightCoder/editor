@@ -6,10 +6,6 @@ import type { QuestionEvent, QuestionEventPayload, QuestionEventType } from "@/t
  * note 为用户手动「记一笔」。
  */
 export default class QuestionEventTable {
-  static upgradeTable(_db: Database.Database) {
-    // 表由 main.sql 创建，无增量迁移
-  }
-
   static getListenEvents() {
     return {
       "question:list-events": this.list.bind(this),

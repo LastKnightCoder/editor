@@ -51,31 +51,6 @@ const toSqlValue = (field: keyof ChatSessionPatch, value: unknown): unknown =>
   field === "titleDirty" || field === "archived" ? (value ? 1 : 0) : (value ?? null);
 
 export default class ChatSessionTable {
-  static upgradeTable(db: Database.Database) {
-    // 建表语句与 schema 分片保持一致（存量库首次升级时这里负责建出来）
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS chat_session (
-        id TEXT PRIMARY KEY,
-        scope TEXT NOT NULL,
-        domain_ref TEXT,
-        session_file TEXT NOT NULL,
-        cwd TEXT NOT NULL DEFAULT '',
-        title TEXT NOT NULL DEFAULT '',
-        title_dirty INTEGER NOT NULL DEFAULT 0,
-        group_id INTEGER,
-        order_num INTEGER,
-        archived INTEGER NOT NULL DEFAULT 0,
-        source TEXT NOT NULL DEFAULT 'desktop',
-        message_count INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      )
-    `);
-    db.exec("CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_ref)");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time)");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id)");
-  }
-
   static getListenEvents() {
     return {
       "chat-session:create": this.create.bind(this),

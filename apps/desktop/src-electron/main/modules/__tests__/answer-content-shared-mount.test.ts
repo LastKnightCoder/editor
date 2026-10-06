@@ -28,7 +28,6 @@ import { EProjectItemType } from "../../../../src/types/project";
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  ProjectTable.upgradeTable(db);
   return db;
 }
 

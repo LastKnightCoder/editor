@@ -49,91 +49,12 @@ describe("问题材料关联与探究轨迹", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(MAIN_SCHEMA_SQL);
-    QuestionGroupTable.upgradeTable(db);
+    QuestionGroupTable.ensureDefaultGroup(db);
     groupId = QuestionGroupTable.getDefaultGroup(db).id;
   });
 
   afterEach(() => {
     db.close();
-  });
-
-  it("回填：answers 转为类型化关联，补齐轨迹，只执行一次", () => {
-    const base = Date.now() - 10 * 86400000;
-    const card = insertCard("dirtyPaths 只标记祖先", base + 2 * 86400000);
-    const answerContent = ContentTable.createContent(db, { content: doc("我的结论") });
-    db.prepare(`UPDATE contents SET create_time = ? WHERE id = ?`).run(
-      base + 4 * 86400000,
-      answerContent
-    );
-    const questionId = Number(
-      db
-        .prepare(
-          `INSERT INTO questions (create_time, update_time, question_content, answers, group_id, status, resolved_time)
-           VALUES (?, ?, ?, ?, ?, 'resolved', ?)`
-        )
-        .run(
-          base,
-          base,
-          "normalize 为什么触发这么多次？",
-          JSON.stringify([card.contentId, answerContent]),
-          groupId,
-          base + 5 * 86400000
-        ).lastInsertRowid
-    );
-
-    QuestionLinkTable.backfill(db);
-    QuestionLinkTable.backfill(db);
-
-    const links = QuestionLinkTable.list(db, questionId);
-    expect(links.map(l => [l.targetType, l.targetId])).toEqual([
-      ["card", card.cardId],
-      ["answer", answerContent],
-    ]);
-    const events = QuestionEventTable.list(db, questionId);
-    expect(events.map(e => e.type)).toEqual(["create", "link", "link", "status"]);
-    expect(events[1].payload).toMatchObject({ targetType: "card", created: true, estimated: true });
-    // 引用计数沿用旧数据
-    expect(refCount(db, card.contentId)).toBe(1);
-    // answers 缓存保持 content id
-    expect(QuestionTable.getQuestionById(db, questionId)!.answers).toEqual([
-      card.contentId,
-      answerContent,
-    ]);
-  });
-
-  it("升级旧版 question_link：补齐 content_id 后可执行回填", () => {
-    db.exec(`
-      DROP TABLE question_link;
-      CREATE TABLE question_link (
-        id INTEGER PRIMARY KEY,
-        question_id INTEGER NOT NULL,
-        target_type TEXT NOT NULL,
-        target_id INTEGER NOT NULL,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL
-      );
-    `);
-
-    expect(() => QuestionLinkTable.upgradeTable(db)).not.toThrow();
-    expect(
-      (db.prepare(`PRAGMA table_info(question_link)`).all() as { name: string }[]).some(
-        column => column.name === "content_id"
-      )
-    ).toBe(true);
-  });
-
-  it("回填：非已解答问题清空旧的「首个答案时间」", () => {
-    const now = Date.now();
-    const questionId = Number(
-      db
-        .prepare(
-          `INSERT INTO questions (create_time, update_time, question_content, answers, group_id, status, resolved_time)
-           VALUES (?, ?, 'q', '[]', ?, 'in_progress', ?)`
-        )
-        .run(now, now, groupId, now).lastInsertRowid
-    );
-    QuestionLinkTable.backfill(db);
-    expect(QuestionTable.getQuestionById(db, questionId)!.resolvedTime).toBeNull();
   });
 
   it("关联已有卡片：增加引用、自动进入探究中；解除关联只释放引用", () => {

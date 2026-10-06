@@ -13,7 +13,6 @@ import {
   createSharedDocument,
   migrateTabsBlocksInDoc,
   guardRetiredEditorBlocks,
-  migrateKnowledgeDocument,
   collectSharedResources,
   downgradeSharedDocument,
   readSharedContent,
@@ -33,8 +32,6 @@ import {
 } from "@tau/collaboration";
 import PathUtil from "../../utils/PathUtil";
 import databaseModule from "../database";
-import { readKnowledgeMapping } from "@tau/db-schema/src/knowledge-migration";
-import { migrateKnowledgeReferences } from "@tau/db-schema/src/knowledge-references";
 import ContentTable from "../tables/content";
 import {
   bindingMatches,
@@ -68,7 +65,6 @@ class CollaborationManager {
   private client!: CollaborationClient;
   private projecting = new Set<string>();
   // 会话完成知识库引用转换后不再重复整树比对；会话对象重建时自然重查（迁移幂等）
-  private knowledgeMigrated = new WeakSet<RuntimeSession>();
   private directory = "";
   private sessions = new Map<string, RuntimeSession>();
   // 旧 documentId → 新 documentId（升级 / 降级换身份后的过渡期，见 rekeySession）
@@ -333,7 +329,6 @@ class CollaborationManager {
     }
     if (session.info.source?.contentCreatedAt !== content.createTime)
       throw new Error("原内容关联已变化");
-    this.migrateKnowledgeSession(db, session);
     registerContentSession(db, content.id, session);
     return {
       documentId: id,
@@ -855,36 +850,12 @@ class CollaborationManager {
     }
   }
 
-  private migrateKnowledgeSession(
-    database: import("better-sqlite3").Database,
-    session: RuntimeSession
-  ) {
-    if (this.knowledgeMigrated.has(session)) return;
-    const mapping = readKnowledgeMapping(database);
-    if (!mapping) return;
-    this.store.backupBeforeKnowledgeMigration(database.name);
-    const source = session.info.source;
-    const nextSource = migrateKnowledgeReferences(source, mapping) as SourceBinding | undefined;
-    const changed = migrateKnowledgeDocument(session.doc, mapping, session.privateNodes);
-    if (JSON.stringify(source) !== JSON.stringify(nextSource)) {
-      session.info.source = nextSource;
-      this.store.metadata(session.info);
-    }
-    if (changed) {
-      this.store.privateNodes(session.info.id, session.privateNodes);
-      this.store.compact(session.info.id, session.doc);
-    }
-    this.knowledgeMigrated.add(session);
-  }
-
   private async project(session: RuntimeSession) {
     if (!session.info.source || this.projecting.has(session.info.id)) return;
     const database = databaseModule.getDatabase(session.info.source.databaseName);
     if (!database?.open) return;
     this.projecting.add(session.info.id);
     try {
-      this.migrateKnowledgeSession(database, session);
-      // 会话迁移可能替换 source 引用，后续投影统一消费最新值
       const source = session.info.source;
       if (!source) return;
       const local = session.info.mode === "local";

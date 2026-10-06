@@ -1,25 +1,15 @@
 import Database from "better-sqlite3";
 import { getDbPath } from "../utils/path.js";
 import { notifyApp } from "./notify.js";
-import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
-import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
-import { retireFeatureTables } from "@tau/db-schema/src/feature-table-retirement";
-import { retirePlannedTodos } from "@tau/db-schema/src/planned-retirement";
-import { retireEditorBlocks } from "@tau/db-schema/src/editor-block-retirement";
-import { retireContentLink } from "@tau/db-schema/src/content-link-retirement";
-import { migrateKnowledgeIndex } from "@tau/db-schema/src/knowledge-index-migration";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadSqliteVec } from "./sqlite-vec.js";
-import { getIndexDbPath } from "./index-db.js";
+import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { assertDatabaseNotSyncing, recoverSessionDownload } from "@tau/db-schema/sync";
 
 export interface DataAccessOptions {
   databasePath?: string;
-  migrateIndex?: boolean;
   allowOwnedSync?: boolean;
-  /** 同步下载等已另行保全副本的场景，迁移无需再留全量备份。 */
-  skipMigrationBackup?: boolean;
 }
 
 export class DataAccess {
@@ -38,22 +28,8 @@ export class DataAccess {
     this.db.pragma("foreign_keys = ON");
     try {
       loadSqliteVec(this.db);
-      retireSubscriptions(this.db, dbPath);
-      retireFeatureTables(this.db, dbPath);
-      retirePlannedTodos(this.db, dbPath);
-      upgradeKnowledgeDatabase(this.db, dbPath, { skipBackup: options.skipMigrationBackup });
-      retireContentLink(this.db, dbPath);
-      retireEditorBlocks(this.db, dbPath);
-      const indexPath = getIndexDbPath(dbName);
-      if (options.migrateIndex !== false && existsSync(indexPath)) {
-        const index = new Database(indexPath);
-        try {
-          loadSqliteVec(index);
-          migrateKnowledgeIndex(this.db, index);
-        } finally {
-          index.close();
-        }
-      }
+      // 数据基线门禁：与桌面同一接受边界，未完成最后升级的旧库拒绝进入
+      assertNoLegacyTables(this.db);
     } catch (error) {
       this.db.close();
       throw error;

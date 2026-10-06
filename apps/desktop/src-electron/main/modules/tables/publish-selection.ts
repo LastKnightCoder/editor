@@ -12,12 +12,6 @@ export default class PublishSelectionTable {
       "batch-upsert-publish-selections": this.batchUpsert.bind(this),
     };
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  static upgradeTable(_db: Database.Database) {
-    // 暂无升级逻辑
-  }
-
   static parseRow(row: Record<string, unknown>): IPublishSelection {
     return {
       id: row.id as number,
@@ -36,20 +30,17 @@ export default class PublishSelectionTable {
       ORDER BY content_type, content_id
     `);
     const rows = stmt.all() as Record<string, unknown>[];
-    return rows.map((row) => this.parseRow(row));
+    return rows.map(row => this.parseRow(row));
   }
 
-  static getByType(
-    db: Database.Database,
-    contentType: PublishContentType,
-  ): IPublishSelection[] {
+  static getByType(db: Database.Database, contentType: PublishContentType): IPublishSelection[] {
     const stmt = db.prepare(`
       SELECT * FROM publish_selections 
       WHERE content_type = ? 
       ORDER BY content_id
     `);
     const rows = stmt.all(contentType) as Record<string, unknown>[];
-    return rows.map((row) => this.parseRow(row));
+    return rows.map(row => this.parseRow(row));
   }
 
   static upsert(
@@ -59,7 +50,7 @@ export default class PublishSelectionTable {
       contentId: number;
       parentPath?: string;
       selected?: boolean;
-    },
+    }
   ): IPublishSelection {
     const { contentType, contentId, parentPath = "", selected = true } = data;
     const now = Date.now();
@@ -78,10 +69,7 @@ export default class PublishSelectionTable {
       SELECT * FROM publish_selections 
       WHERE content_type = ? AND content_id = ?
     `);
-    const row = selectStmt.get(contentType, contentId) as Record<
-      string,
-      unknown
-    >;
+    const row = selectStmt.get(contentType, contentId) as Record<string, unknown>;
     return this.parseRow(row);
   }
 
@@ -92,7 +80,7 @@ export default class PublishSelectionTable {
       contentId: number;
       parentPath?: string;
       selected?: boolean;
-    }>,
+    }>
   ): void {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -106,12 +94,7 @@ export default class PublishSelectionTable {
 
     const transaction = db.transaction(() => {
       for (const item of items) {
-        const {
-          contentType,
-          contentId,
-          parentPath = "",
-          selected = true,
-        } = item;
+        const { contentType, contentId, parentPath = "", selected = true } = item;
         stmt.run(contentType, contentId, parentPath, selected ? 1 : 0, now);
       }
     });
@@ -122,7 +105,7 @@ export default class PublishSelectionTable {
   static delete(
     db: Database.Database,
     contentType: PublishContentType,
-    contentId: number,
+    contentId: number
   ): boolean {
     const stmt = db.prepare(`
       DELETE FROM publish_selections 

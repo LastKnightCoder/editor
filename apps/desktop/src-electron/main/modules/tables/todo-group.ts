@@ -14,24 +14,6 @@ const SYSTEM_GROUPS: Array<{
 ];
 
 export default class TodoGroupTable {
-  static upgradeTable(db: Database.Database) {
-    // 检查是否存在 is_system 列
-    const tableInfo = db.pragma("table_info(todo_group)") as Array<{
-      name: string;
-    }>;
-    const hasIsSystem = tableInfo.some(col => col.name === "is_system");
-
-    if (!hasIsSystem) {
-      db.exec(`ALTER TABLE todo_group ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0;`);
-      db.exec(`ALTER TABLE todo_group ADD COLUMN system_type TEXT;`);
-      db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_group_system ON todo_group(is_system);`);
-      db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_group_system_type ON todo_group(system_type);`);
-    }
-
-    // 确保系统组存在
-    this.ensureSystemGroups(db);
-  }
-
   // 确保系统组存在
   static ensureSystemGroups(db: Database.Database) {
     const now = Date.now();

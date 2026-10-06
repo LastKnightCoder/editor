@@ -77,7 +77,7 @@ describe("正文写入点白名单", () => {
     /INSERT\s+INTO\s+contents\b|DELETE\s+FROM\s+contents\b|UPDATE\s+contents\s+SET[^"'`]*\bcontent\s*=/gi;
   const ALLOWED: Record<string, number> = {
     // createContent / updateContent / deleteContent 与两处开库迁移（迁移由对账兜底）
-    "main/modules/tables/content.ts": 5,
+    "main/modules/tables/content.ts": 3,
     "main/modules/collaboration/content-sessions.ts": 1,
     "main/modules/collaboration/content-repository.ts": 1,
   };

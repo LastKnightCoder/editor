@@ -39,10 +39,6 @@ const parseIds = (raw: string | null): string[] => {
  * 弱引用：对话被删不级联，解析时 missing；关联 / 解除同样记轨迹，第一份关联让待探究转为探究中。
  */
 export default class QuestionChatTable {
-  static upgradeTable(_db: Database.Database) {
-    // 表由 main.sql 创建，无增量迁移
-  }
-
   static getListenEvents() {
     return {
       "question:link-chat": this.link.bind(this),

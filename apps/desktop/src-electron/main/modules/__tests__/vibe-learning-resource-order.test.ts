@@ -68,7 +68,7 @@ class FakeStatement {
       all?: (...args: any[]) => any;
       get?: (...args: any[]) => any;
       run?: (...args: any[]) => any;
-    },
+    }
   ) {}
 
   all(...args: any[]) {
@@ -97,9 +97,7 @@ class FakeVibeLearningResourceDb {
   }
 
   exec(sql: string) {
-    if (
-      sql.includes("CREATE INDEX IF NOT EXISTS idx_vl_resource_project_sort")
-    ) {
+    if (sql.includes("CREATE INDEX IF NOT EXISTS idx_vl_resource_project_sort")) {
       if (!this.columns.has("sort_index")) {
         throw new Error("SqliteError: no such column: sort_index");
       }
@@ -120,7 +118,7 @@ class FakeVibeLearningResourceDb {
 
     if (sql.includes("ADD COLUMN sort_index")) {
       this.columns.add("sort_index");
-      this.rows = this.rows.map((row) => ({ ...row, sort_index: 0 }));
+      this.rows = this.rows.map(row => ({ ...row, sort_index: 0 }));
     }
   }
 
@@ -129,7 +127,7 @@ class FakeVibeLearningResourceDb {
 
     if (normalized.startsWith("pragma table_info(vibe_learning_resources)")) {
       return new FakeStatement({
-        all: () => Array.from(this.columns).map((name) => ({ name })),
+        all: () => Array.from(this.columns).map(name => ({ name })),
       });
     }
 
@@ -140,12 +138,8 @@ class FakeVibeLearningResourceDb {
       return new FakeStatement({
         all: () =>
           Array.from(
-            new Set(
-              this.rows
-                .filter((row) => row.sort_index === 0)
-                .map((row) => row.project_id),
-            ),
-          ).map((project_id) => ({ project_id })),
+            new Set(this.rows.filter(row => row.sort_index === 0).map(row => row.project_id))
+          ).map(project_id => ({ project_id })),
       });
     }
 
@@ -157,15 +151,12 @@ class FakeVibeLearningResourceDb {
         all: (projectId: number) =>
           sortRows(
             this.rows
-              .filter((row) => row.project_id === projectId)
-              .map((row) => ({
+              .filter(row => row.project_id === projectId)
+              .map(row => ({
                 ...row,
-                sort_index:
-                  row.sort_index === 0
-                    ? Number.MAX_SAFE_INTEGER
-                    : row.sort_index,
-              })),
-          ).map((row) => ({ id: row.id })),
+                sort_index: row.sort_index === 0 ? Number.MAX_SAFE_INTEGER : row.sort_index,
+              }))
+          ).map(row => ({ id: row.id })),
       });
     }
 
@@ -175,14 +166,12 @@ class FakeVibeLearningResourceDb {
     ) {
       return new FakeStatement({
         get: (projectId: number) => {
-          const projectRows = this.rows.filter(
-            (row) => row.project_id === projectId,
-          );
+          const projectRows = this.rows.filter(row => row.project_id === projectId);
           if (projectRows.length === 0) {
             return { min_sort: null };
           }
           return {
-            min_sort: Math.min(...projectRows.map((row) => row.sort_index)),
+            min_sort: Math.min(...projectRows.map(row => row.sort_index)),
           };
         },
       });
@@ -205,7 +194,7 @@ class FakeVibeLearningResourceDb {
           fileSize: number | null,
           duration: number | null,
           sourceType: string | null,
-          sourceMetaInfo: string | null,
+          sourceMetaInfo: string | null
         ) => {
           const id = this.nextId++;
           this.rows.push({
@@ -231,37 +220,27 @@ class FakeVibeLearningResourceDb {
 
     if (normalized === "select * from vibe_learning_resources where id = ?") {
       return new FakeStatement({
-        get: (id: number) => this.rows.find((row) => row.id === id),
+        get: (id: number) => this.rows.find(row => row.id === id),
       });
     }
 
     if (
-      normalized.includes(
-        "select * from vibe_learning_resources where project_id = ?",
-      ) &&
+      normalized.includes("select * from vibe_learning_resources where project_id = ?") &&
       normalized.includes("order by sort_index asc")
     ) {
       return new FakeStatement({
-        all: (projectId: number) =>
-          sortRows(this.rows.filter((row) => row.project_id === projectId)),
+        all: (projectId: number) => sortRows(this.rows.filter(row => row.project_id === projectId)),
       });
     }
 
     if (
       normalized.startsWith(
-        "update vibe_learning_resources set sort_index = ?, update_time = ? where id = ? and project_id = ?",
+        "update vibe_learning_resources set sort_index = ?, update_time = ? where id = ? and project_id = ?"
       )
     ) {
       return new FakeStatement({
-        run: (
-          sortIndex: number,
-          updateTime: number,
-          id: number,
-          projectId: number,
-        ) => {
-          const target = this.rows.find(
-            (row) => row.id === id && row.project_id === projectId,
-          );
+        run: (sortIndex: number, updateTime: number, id: number, projectId: number) => {
+          const target = this.rows.find(row => row.id === id && row.project_id === projectId);
           if (target) {
             target.sort_index = sortIndex;
             target.update_time = updateTime;
@@ -273,12 +252,12 @@ class FakeVibeLearningResourceDb {
 
     if (
       normalized.startsWith(
-        "update vibe_learning_resources set sort_index = ?, update_time = ? where id = ?",
+        "update vibe_learning_resources set sort_index = ?, update_time = ? where id = ?"
       )
     ) {
       return new FakeStatement({
         run: (sortIndex: number, updateTime: number, id: number) => {
-          const target = this.rows.find((row) => row.id === id);
+          const target = this.rows.find(row => row.id === id);
           if (target) {
             target.sort_index = sortIndex;
             target.update_time = updateTime;
@@ -292,7 +271,7 @@ class FakeVibeLearningResourceDb {
   }
 
   seedRows(rows: ResourceRow[]) {
-    this.rows = rows.map((row) => ({ ...row }));
+    this.rows = rows.map(row => ({ ...row }));
     this.nextId = rows.reduce((maxId, row) => Math.max(maxId, row.id), 0) + 1;
   }
 }
@@ -325,9 +304,7 @@ describe("VibeLearningResourceTable 排序", () => {
     });
 
     expect(
-      VibeLearningResourceTable.getResourcesByProjectId(db as never, 1).map(
-        (resource) => resource.id,
-      ),
+      VibeLearningResourceTable.getResourcesByProjectId(db as never, 1).map(resource => resource.id)
     ).toEqual([third.id, second.id, first.id]);
 
     VibeLearningResourceTable.reorderResources(db as never, {
@@ -336,9 +313,7 @@ describe("VibeLearningResourceTable 排序", () => {
     });
 
     expect(
-      VibeLearningResourceTable.getResourcesByProjectId(db as never, 1).map(
-        (resource) => resource.id,
-      ),
+      VibeLearningResourceTable.getResourcesByProjectId(db as never, 1).map(resource => resource.id)
     ).toEqual([second.id, first.id, third.id]);
 
     const latest = VibeLearningResourceTable.createResource(db as never, {
@@ -348,69 +323,16 @@ describe("VibeLearningResourceTable 排序", () => {
       resourceType: "pdf",
     });
 
-    const reorderedResources =
-      VibeLearningResourceTable.getResourcesByProjectId(db as never, 1);
-    expect(reorderedResources.map((resource) => resource.id)).toEqual([
+    const reorderedResources = VibeLearningResourceTable.getResourcesByProjectId(db as never, 1);
+    expect(reorderedResources.map(resource => resource.id)).toEqual([
       latest.id,
       second.id,
       first.id,
       third.id,
     ]);
     expect(reorderedResources[0]?.sortIndex).toBeLessThan(
-      reorderedResources[1]?.sortIndex ?? Number.MAX_SAFE_INTEGER,
+      reorderedResources[1]?.sortIndex ?? Number.MAX_SAFE_INTEGER
     );
-  });
-
-  it("旧表升级后应按原默认顺序回填 sort_index", () => {
-    const db = new FakeVibeLearningResourceDb({ includeSortIndex: false });
-    db.seedRows([
-      {
-        id: 1,
-        project_id: 9,
-        sort_index: 0,
-        create_time: 100,
-        update_time: 100,
-        name: "oldest.pdf",
-        original_path: "/tmp/oldest.pdf",
-        markdown_path: null,
-        resource_type: "pdf",
-        file_size: null,
-        duration: null,
-        source_type: null,
-        source_meta_info: null,
-        transcript_segments: null,
-      },
-      {
-        id: 2,
-        project_id: 9,
-        sort_index: 0,
-        create_time: 200,
-        update_time: 200,
-        name: "newest.pdf",
-        original_path: "/tmp/newest.pdf",
-        markdown_path: null,
-        resource_type: "pdf",
-        file_size: null,
-        duration: null,
-        source_type: null,
-        source_meta_info: null,
-        transcript_segments: null,
-      },
-    ]);
-
-    VibeLearningResourceTable.upgradeTable(db as never);
-
-    const upgradedResources = VibeLearningResourceTable.getResourcesByProjectId(
-      db as never,
-      9,
-    );
-    expect(upgradedResources.map((resource) => resource.id)).toEqual([2, 1]);
-    expect(upgradedResources.every((resource) => resource.sortIndex > 0)).toBe(
-      true,
-    );
-    expect(db.indexes.has("idx_vl_resource_project_sort")).toBe(true);
-    expect(db.columns.has("is_chunked")).toBe(false);
-    expect(db.columns.has("chapter_count")).toBe(false);
   });
 
   it("解析资源时不应暴露旧分章兼容字段", () => {

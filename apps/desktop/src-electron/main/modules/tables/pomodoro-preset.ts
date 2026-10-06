@@ -36,11 +36,6 @@ const parse = (row: PomodoroPresetRow): PomodoroPreset => ({
 });
 
 class PomodoroPresetTable {
-  static upgradeTable(_db: Database.Database): void {
-    // 目前无迁移
-    void _db;
-  }
-
   static getListenEvents() {
     return {
       "pomodoro:list-presets": this.list.bind(this),
@@ -56,43 +51,35 @@ class PomodoroPresetTable {
   static list(db: Database.Database): PomodoroPreset[] {
     const rows = db
       .prepare(
-        `SELECT * FROM pomodoro_presets ORDER BY archived ASC, sort_order ASC, create_time ASC`,
+        `SELECT * FROM pomodoro_presets ORDER BY archived ASC, sort_order ASC, create_time ASC`
       )
       .all() as PomodoroPresetRow[];
     return rows.map(parse);
   }
 
   static getById(db: Database.Database, id: number): PomodoroPreset | null {
-    const row = db
-      .prepare(`SELECT * FROM pomodoro_presets WHERE id = ?`)
-      .get(id) as PomodoroPresetRow | undefined;
+    const row = db.prepare(`SELECT * FROM pomodoro_presets WHERE id = ?`).get(id) as
+      PomodoroPresetRow | undefined;
     return row ? parse(row) : null;
   }
 
   static getMaxSortIndex(db: Database.Database): number {
-    const row = db
-      .prepare(`SELECT MAX(sort_order) as max_idx FROM pomodoro_presets`)
-      .get() as { max_idx: number | null };
+    const row = db.prepare(`SELECT MAX(sort_order) as max_idx FROM pomodoro_presets`).get() as {
+      max_idx: number | null;
+    };
     return row?.max_idx ?? 0;
   }
 
   static create(
     db: Database.Database,
-    payload: { name: string; mode: PomodoroMode; durationMin?: number },
+    payload: { name: string; mode: PomodoroMode; durationMin?: number }
   ): PomodoroPreset {
     const now = Date.now();
     const sort = this.getMaxSortIndex(db) + 1024;
     db.prepare(
       `INSERT INTO pomodoro_presets (name, mode, duration_min, sort_order, archived, create_time, update_time)
-       VALUES (?, ?, ?, ?, 0, ?, ?)`,
-    ).run(
-      payload.name,
-      payload.mode,
-      payload.durationMin ?? 25,
-      sort,
-      now,
-      now,
-    );
+       VALUES (?, ?, ?, ?, 0, ?, ?)`
+    ).run(payload.name, payload.mode, payload.durationMin ?? 25, sort, now, now);
     const inserted = db.prepare(`SELECT last_insert_rowid() as id`).get() as {
       id: number | bigint;
     };
@@ -109,43 +96,35 @@ class PomodoroPresetTable {
       name?: string;
       mode?: PomodoroMode;
       durationMin?: number;
-    },
+    }
   ): PomodoroPreset {
     const cur = this.getById(db, payload.id);
     if (!cur) throw new Error("preset not found");
     const now = Date.now();
     db.prepare(
-      `UPDATE pomodoro_presets SET name = ?, mode = ?, duration_min = ?, update_time = ? WHERE id = ?`,
+      `UPDATE pomodoro_presets SET name = ?, mode = ?, duration_min = ?, update_time = ? WHERE id = ?`
     ).run(
       payload.name ?? cur.name,
       (payload.mode ?? cur.mode) as string,
       payload.durationMin ?? cur.durationMin,
       now,
-      payload.id,
+      payload.id
     );
     const res = this.getById(db, payload.id);
     if (!res) throw new Error("failed to fetch updated pomodoro preset");
     return res;
   }
 
-  static archive(
-    db: Database.Database,
-    payload: { id: number; archived: boolean },
-  ): number {
+  static archive(db: Database.Database, payload: { id: number; archived: boolean }): number {
     const now = Date.now();
     return db
-      .prepare(
-        `UPDATE pomodoro_presets SET archived = ?, update_time = ? WHERE id = ?`,
-      )
+      .prepare(`UPDATE pomodoro_presets SET archived = ?, update_time = ? WHERE id = ?`)
       .run(payload.archived ? 1 : 0, now, payload.id).changes;
   }
 
-  static reorder(
-    db: Database.Database,
-    payload: { orderedIds: number[] },
-  ): number {
+  static reorder(db: Database.Database, payload: { orderedIds: number[] }): number {
     const upd = db.prepare(
-      `UPDATE pomodoro_presets SET sort_order = ?, update_time = ? WHERE id = ?`,
+      `UPDATE pomodoro_presets SET sort_order = ?, update_time = ? WHERE id = ?`
     );
     const now = Date.now();
     payload.orderedIds.forEach((id, idx) => {

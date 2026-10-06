@@ -120,200 +120,6 @@ class FlashcardTable {
       "flashcard:review-stats": this.getReviewStats.bind(this),
     };
   }
-
-  static upgradeTable(db: Database.Database) {
-    // 预留增量更新
-    const deckInfo = db.prepare(`PRAGMA table_info(flashcard_decks)`).all() as {
-      name: string;
-    }[];
-    const hasMeta = deckInfo.some(column => column.name === "meta");
-    if (!hasMeta) {
-      db.exec(`ALTER TABLE flashcard_decks ADD COLUMN meta TEXT;`);
-    }
-
-    const cardInfo = db.prepare(`PRAGMA table_info(flashcards)`).all() as {
-      name: string;
-    }[];
-    const referenceSummaryExists = cardInfo.some(column => column.name === "reference_summary");
-    if (!referenceSummaryExists) {
-      db.exec(`ALTER TABLE flashcards ADD COLUMN reference_summary TEXT DEFAULT NULL;`);
-    }
-
-    // Rich text migration: Convert prompt and detail from plain text to Descendant[]
-    try {
-      // Check if migration needed by sampling first card
-      const sampleCard = db.prepare("SELECT prompt FROM flashcards LIMIT 1").get() as
-        { prompt: string } | undefined;
-
-      if (sampleCard && sampleCard.prompt && !sampleCard.prompt.startsWith("[")) {
-        log.info("[FlashcardTable] Starting rich text migration...");
-
-        const cards = db
-          .prepare("SELECT id, prompt, detail, data, type FROM flashcards")
-          .all() as Array<{
-          id: number;
-          prompt: string;
-          detail: string;
-          data: string;
-          type: string;
-        }>;
-
-        const updateStmt = db.prepare(
-          "UPDATE flashcards SET prompt = ?, detail = ?, data = ? WHERE id = ?"
-        );
-
-        for (const card of cards) {
-          // Convert prompt to rich text
-          let richPrompt = JSON.stringify([
-            {
-              type: "paragraph",
-              children: [{ type: "formatted", text: card.prompt || "" }],
-            },
-          ]);
-
-          // Convert detail to rich text
-          const richDetail = JSON.stringify([
-            {
-              type: "paragraph",
-              children: [{ type: "formatted", text: card.detail || "" }],
-            },
-          ]);
-
-          // For cloze cards: migrate data.richContent to prompt if it exists
-          let updatedData = card.data;
-          if (card.type === "cloze") {
-            try {
-              const data = JSON.parse(card.data);
-              if (data.richContent && Array.isArray(data.richContent)) {
-                richPrompt = JSON.stringify(data.richContent);
-                delete data.richContent;
-                updatedData = JSON.stringify(data);
-              }
-            } catch (error) {
-              log.error(`[FlashcardTable] Failed to parse cloze data for card ${card.id}`, error);
-            }
-          }
-
-          updateStmt.run(richPrompt, richDetail, updatedData, card.id);
-        }
-
-        log.info(`[FlashcardTable] Rich text migration completed for ${cards.length} cards`);
-      }
-    } catch (error) {
-      log.error("[FlashcardTable] Rich text migration failed", error);
-    }
-
-    // Migrate flashcard_references table to new structure
-    try {
-      const refInfo = db.prepare(`PRAGMA table_info(flashcard_references)`).all() as {
-        name: string;
-      }[];
-      const hasOldStructure = refInfo.some(column => column.name === "ref_label");
-
-      if (hasOldStructure) {
-        log.info("[FlashcardTable] Starting flashcard_references migration...");
-
-        // 创建新表
-        db.exec(`
-          CREATE TABLE IF NOT EXISTS flashcard_references_new (
-            id INTEGER PRIMARY KEY,
-            card_id INTEGER NOT NULL,
-            content_id INTEGER NOT NULL,
-            ref_type TEXT NOT NULL,
-            title TEXT NOT NULL,
-            create_time INTEGER NOT NULL,
-            update_time INTEGER NOT NULL
-          );
-        `);
-
-        // 迁移数据
-        const oldRefs = db.prepare("SELECT * FROM flashcard_references").all() as Array<{
-          id: number;
-          card_id: number;
-          ref_type: string;
-          ref_id: number | null;
-          ref_label: string;
-          ref_url: string | null;
-          extra: string | null;
-          create_time: number;
-          update_time: number;
-        }>;
-
-        const insertStmt = db.prepare(`
-          INSERT INTO flashcard_references_new (id, card_id, content_id, ref_type, title, create_time, update_time)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        for (const oldRef of oldRefs) {
-          let contentId: number;
-          let refType: string;
-          const title = oldRef.ref_label || "无标题";
-
-          // 对于旧的自定义引用，创建新的 content 记录
-          if (oldRef.ref_type === "custom" || !oldRef.ref_id) {
-            refType = "custom";
-
-            // 从 extra 中提取 richContent 或使用空内容
-            let richContent: any = [
-              {
-                type: "paragraph",
-                children: [{ type: "formatted", text: "" }],
-              },
-            ];
-            if (oldRef.extra) {
-              try {
-                const extra = JSON.parse(oldRef.extra);
-                if (extra.richContent) {
-                  richContent = extra.richContent;
-                }
-              } catch (e) {
-                // 忽略解析错误
-              }
-            }
-
-            // 创建新的 content 记录
-            const result = ContentTable.createContent(db, {
-              content: richContent,
-              count: 0,
-              refCount: 1,
-            });
-            contentId = result;
-          } else {
-            // 对于旧的内容引用，使用 ref_id 作为 contentId
-            refType = "content";
-            contentId = oldRef.ref_id;
-          }
-
-          insertStmt.run(
-            oldRef.id,
-            oldRef.card_id,
-            contentId,
-            refType,
-            title,
-            oldRef.create_time,
-            oldRef.update_time
-          );
-        }
-
-        // 删除旧表，重命名新表
-        db.exec("DROP TABLE flashcard_references");
-        db.exec("ALTER TABLE flashcard_references_new RENAME TO flashcard_references");
-        db.exec(
-          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);"
-        );
-        db.exec(
-          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);"
-        );
-
-        log.info(
-          `[FlashcardTable] flashcard_references migration completed for ${oldRefs.length} references`
-        );
-      }
-    } catch (error) {
-      log.error("[FlashcardTable] flashcard_references migration failed", error);
-    }
-  }
-
   private static parseJSON<T>(value: string | null | undefined, fallback: T): T {
     if (!value) return fallback;
     try {
@@ -593,22 +399,17 @@ class FlashcardTable {
    * 删除指定卡片的全部引用行，返回释放其 content 引用计数的回调。
    * 释放走 ContentTable.deleteContent：计数减一，归零时按 contents 回收逻辑级联清理。
    */
-  private static detachReferences(
-    db: Database.Database,
-    cardIds: number[],
-  ): () => void {
+  private static detachReferences(db: Database.Database, cardIds: number[]): () => void {
     if (!cardIds.length) return () => {};
     const placeholders = cardIds.map(() => "?").join(",");
     const rows = db
-      .prepare(
-        `SELECT content_id FROM flashcard_references WHERE card_id IN (${placeholders})`,
-      )
+      .prepare(`SELECT content_id FROM flashcard_references WHERE card_id IN (${placeholders})`)
       .all(...cardIds) as { content_id: number }[];
-    db.prepare(
-      `DELETE FROM flashcard_references WHERE card_id IN (${placeholders})`,
-    ).run(...cardIds);
+    db.prepare(`DELETE FROM flashcard_references WHERE card_id IN (${placeholders})`).run(
+      ...cardIds
+    );
     return () => {
-      rows.forEach((row) => ContentTable.deleteContent(db, row.content_id));
+      rows.forEach(row => ContentTable.deleteContent(db, row.content_id));
     };
   }
 

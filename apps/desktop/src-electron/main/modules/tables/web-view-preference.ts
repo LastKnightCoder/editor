@@ -2,15 +2,10 @@ import Database from "better-sqlite3";
 import { SetWebViewPreferencePayload, WebViewPreference } from "@/types";
 
 export default class WebViewPreferenceTable {
-  static upgradeTable(_db: Database.Database) {
-    // placeholder for migrations
-  }
-
   static parse(row: Record<string, unknown>): WebViewPreference {
     return {
       projectItemId: row.project_item_id as number,
-      preferredContentId:
-        (row.preferred_content_id as number | null | undefined) ?? null,
+      preferredContentId: (row.preferred_content_id as number | null | undefined) ?? null,
     };
   }
 
@@ -23,7 +18,7 @@ export default class WebViewPreferenceTable {
 
   static getByProjectItemId(
     db: Database.Database,
-    projectItemId: number,
+    projectItemId: number
   ): WebViewPreference | null {
     const row = db
       .prepare(`SELECT * FROM web_view_preference WHERE project_item_id = ?`)
@@ -33,7 +28,7 @@ export default class WebViewPreferenceTable {
 
   static setPreference(
     db: Database.Database,
-    payload: SetWebViewPreferencePayload,
+    payload: SetWebViewPreferencePayload
   ): WebViewPreference {
     const stmt = db.prepare(`
       INSERT INTO web_view_preference (project_item_id, preferred_content_id)

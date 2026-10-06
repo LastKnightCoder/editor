@@ -1,16 +1,7 @@
 import Database from "better-sqlite3";
-import {
-  CreateWebLinkPayload,
-  UpdateWebLinkPayload,
-  WebLink,
-  WebLinkSourceType,
-} from "@/types";
+import { CreateWebLinkPayload, UpdateWebLinkPayload, WebLink, WebLinkSourceType } from "@/types";
 
 export default class WebLinkTable {
-  static upgradeTable(_db: Database.Database) {
-    // placeholder for future migrations
-  }
-
   static parse(row: any): WebLink {
     return {
       id: row.id,
@@ -38,13 +29,7 @@ export default class WebLinkTable {
       INSERT INTO web_link (create_time, update_time, title, url, source_type)
       VALUES (?, ?, ?, ?, ?)
     `);
-    const res = stmt.run(
-      now,
-      now,
-      payload.title,
-      payload.url,
-      payload.sourceType,
-    );
+    const res = stmt.run(now, now, payload.title, payload.url, payload.sourceType);
     const webLink = this.getById(db, Number(res.lastInsertRowid));
     if (!webLink) {
       throw new Error(`Failed to create web link`);
@@ -53,9 +38,7 @@ export default class WebLinkTable {
   }
 
   static update(db: Database.Database, payload: UpdateWebLinkPayload): WebLink {
-    const existing = db
-      .prepare(`SELECT * FROM web_link WHERE id = ?`)
-      .get(payload.id) as {
+    const existing = db.prepare(`SELECT * FROM web_link WHERE id = ?`).get(payload.id) as {
       id: number;
       title: string;
       url: string;
@@ -75,7 +58,7 @@ export default class WebLinkTable {
       payload.url ?? existing.url,
       payload.sourceType ?? existing.source_type,
       now,
-      payload.id,
+      payload.id
     );
     const webLink = this.getById(db, payload.id);
     if (!webLink) {
@@ -92,10 +75,8 @@ export default class WebLinkTable {
   static listByIds(db: Database.Database, ids: number[]): WebLink[] {
     if (!ids.length) return [];
     const placeholders = ids.map(() => "?").join(",");
-    const rows = db
-      .prepare(`SELECT * FROM web_link WHERE id IN (${placeholders})`)
-      .all(...ids);
-    return rows.map((row) => this.parse(row));
+    const rows = db.prepare(`SELECT * FROM web_link WHERE id IN (${placeholders})`).all(...ids);
+    return rows.map(row => this.parse(row));
   }
 
   static remove(db: Database.Database, id: number): number {

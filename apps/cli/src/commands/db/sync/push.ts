@@ -33,7 +33,6 @@ export async function runSyncPush() {
       const access = new DataAccess(database.name, {
         databasePath: context.databasePath,
         allowOwnedSync: true,
-        migrateIndex: false,
       });
       try {
         access.getDatabase().prepare("VACUUM INTO ?").run(snapshotPath);

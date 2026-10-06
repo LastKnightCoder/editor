@@ -114,13 +114,3 @@ export function readContentSection(
       }
     : undefined;
 }
-
-/** 旧结构（无 update_time / text 列）可重算，直接删掉由 schema 重建 */
-export function migrateContentSections(indexDb: Database.Database) {
-  if (!hasTable(indexDb, "content_sections")) return;
-  const columns = indexDb.prepare("PRAGMA table_info(content_sections)").all() as {
-    name: string;
-  }[];
-  if (!columns.some(column => column.name === "update_time"))
-    indexDb.exec("DROP TABLE content_sections");
-}

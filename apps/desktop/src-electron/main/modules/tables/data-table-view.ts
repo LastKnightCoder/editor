@@ -15,53 +15,6 @@ type ReorderPayload = {
 };
 
 export default class DataTableViewTable {
-  static upgradeTable(db: Database.Database) {
-    const selectStmt = db.prepare(
-      `SELECT id, config FROM data_table_views WHERE config IS NOT NULL`,
-    );
-    const updateStmt = db.prepare(
-      `UPDATE data_table_views SET config = ?, update_time = ? WHERE id = ?`,
-    );
-
-    const rows = selectStmt.all();
-    if (!rows.length) return;
-
-    const now = Date.now();
-
-    const migrate = db.transaction(
-      (entries: { id: number; config: string }[]) => {
-        entries.forEach((entry) => {
-          let parsed: DataTableViewConfig | Record<string, unknown>;
-          try {
-            parsed = JSON.parse(entry.config || "{}");
-          } catch (error) {
-            console.warn(
-              "upgradeTable: 无法解析 config，跳过",
-              entry.id,
-              error,
-            );
-            return;
-          }
-
-          const filters = (parsed as DataTableViewConfig).filters as unknown;
-          if (
-            Array.isArray(filters) ||
-            (filters && typeof filters !== "object")
-          ) {
-            (parsed as DataTableViewConfig).filters = null;
-          }
-
-          const serialized = JSON.stringify(parsed);
-          if (serialized !== entry.config) {
-            updateStmt.run(serialized, now, entry.id);
-          }
-        });
-      },
-    );
-
-    migrate(rows as { id: number; config: string }[]);
-  }
-
   static getListenEvents() {
     return {
       "data-table-view:create": this.create.bind(this),
@@ -85,9 +38,7 @@ export default class DataTableViewTable {
     };
   }
 
-  static normalizeConfig(
-    config?: Partial<DataTableViewConfig>,
-  ): DataTableViewConfig {
+  static normalizeConfig(config?: Partial<DataTableViewConfig>): DataTableViewConfig {
     return {
       columnOrder: config?.columnOrder ? [...config.columnOrder] : [],
       rowOrder: config?.rowOrder ? [...config.rowOrder] : [],
@@ -115,12 +66,10 @@ export default class DataTableViewTable {
               ? {
                   template: config.kanbanConfig.cardDisplay.template,
                   doneColumnId: config.kanbanConfig.cardDisplay.doneColumnId,
-                  visibleFieldIds: config.kanbanConfig.cardDisplay
-                    .visibleFieldIds
+                  visibleFieldIds: config.kanbanConfig.cardDisplay.visibleFieldIds
                     ? [...config.kanbanConfig.cardDisplay.visibleFieldIds]
                     : undefined,
-                  showFieldLabels:
-                    config.kanbanConfig.cardDisplay.showFieldLabels,
+                  showFieldLabels: config.kanbanConfig.cardDisplay.showFieldLabels,
                 }
               : undefined,
           }
@@ -128,20 +77,14 @@ export default class DataTableViewTable {
     };
   }
 
-  static listByTableId(
-    db: Database.Database,
-    tableId: number,
-  ): DataTableView[] {
+  static listByTableId(db: Database.Database, tableId: number): DataTableView[] {
     const stmt = db.prepare(
-      `SELECT * FROM data_table_views WHERE table_id = ? ORDER BY sort_order ASC, id ASC`,
+      `SELECT * FROM data_table_views WHERE table_id = ? ORDER BY sort_order ASC, id ASC`
     );
-    return stmt.all(tableId).map((row) => this.parse(row));
+    return stmt.all(tableId).map(row => this.parse(row));
   }
 
-  static create(
-    db: Database.Database,
-    payload: CreateDataTableView,
-  ): DataTableView {
+  static create(db: Database.Database, payload: CreateDataTableView): DataTableView {
     const config = this.normalizeConfig(payload.config);
     const now = Date.now();
 
@@ -165,7 +108,7 @@ export default class DataTableViewTable {
       JSON.stringify(config),
       payload.order ?? now,
       now,
-      now,
+      now
     );
 
     const id = Number(result.lastInsertRowid);
@@ -180,10 +123,7 @@ export default class DataTableViewTable {
     return this.parse(row);
   }
 
-  static update(
-    db: Database.Database,
-    payload: UpdateDataTableView,
-  ): DataTableView | null {
+  static update(db: Database.Database, payload: UpdateDataTableView): DataTableView | null {
     const config = this.normalizeConfig(payload.config);
     const stmt = db.prepare(`
       UPDATE data_table_views SET
@@ -203,7 +143,7 @@ export default class DataTableViewTable {
       JSON.stringify(config),
       payload.order,
       now,
-      payload.id,
+      payload.id
     );
     Operation.insertOperation(db, "data-table-view", "update", payload.id, now);
     return this.getById(db, payload.id);
@@ -217,7 +157,7 @@ export default class DataTableViewTable {
 
   static reorder(db: Database.Database, payload: ReorderPayload): void {
     const stmt = db.prepare(
-      `UPDATE data_table_views SET sort_order = ?, update_time = ? WHERE id = ? AND table_id = ?`,
+      `UPDATE data_table_views SET sort_order = ?, update_time = ? WHERE id = ? AND table_id = ?`
     );
     const now = Date.now();
     const transaction = db.transaction((ids: number[]) => {
@@ -231,22 +171,22 @@ export default class DataTableViewTable {
   static ensureViewConfigIncludesColumnsAndRows(
     config: DataTableViewConfig,
     columns: DataTableColumn[],
-    rows: DataTableRow[],
+    rows: DataTableRow[]
   ): DataTableViewConfig {
-    const columnIds = columns.map((col) => col.id);
-    const rowIds = rows.map((row) => row.id);
+    const columnIds = columns.map(col => col.id);
+    const rowIds = rows.map(row => row.id);
 
     const configColumns = new Set(config.columnOrder);
-    const nextColumnOrder = columnIds.filter((id) => configColumns.has(id));
-    columnIds.forEach((id) => {
+    const nextColumnOrder = columnIds.filter(id => configColumns.has(id));
+    columnIds.forEach(id => {
       if (!configColumns.has(id)) {
         nextColumnOrder.push(id);
       }
     });
 
     const configRows = new Set(config.rowOrder);
-    const nextRowOrder = config.rowOrder.filter((id) => rowIds.includes(id));
-    rowIds.forEach((id) => {
+    const nextRowOrder = config.rowOrder.filter(id => rowIds.includes(id));
+    rowIds.forEach(id => {
       if (!configRows.has(id)) {
         nextRowOrder.push(id);
       }
@@ -263,18 +203,16 @@ export default class DataTableViewTable {
     db: Database.Database,
     tableId: number,
     columns: DataTableColumn[],
-    rows: DataTableRow[],
+    rows: DataTableRow[]
   ): void {
     const views = this.listByTableId(db, tableId);
-    const stmt = db.prepare(
-      `UPDATE data_table_views SET config = ?, update_time = ? WHERE id = ?`,
-    );
+    const stmt = db.prepare(`UPDATE data_table_views SET config = ?, update_time = ? WHERE id = ?`);
     const now = Date.now();
-    views.forEach((view) => {
+    views.forEach(view => {
       const config = this.ensureViewConfigIncludesColumnsAndRows(
         this.normalizeConfig(view.config),
         columns,
-        rows,
+        rows
       );
       stmt.run(JSON.stringify(config), now, view.id);
     });
@@ -284,12 +222,12 @@ export default class DataTableViewTable {
     db: Database.Database,
     tableId: number,
     columns: DataTableColumn[],
-    rows: DataTableRow[],
+    rows: DataTableRow[]
   ): DataTableView {
     const config = this.ensureViewConfigIncludesColumnsAndRows(
       this.normalizeConfig(),
       columns,
-      rows,
+      rows
     );
     return this.create(db, {
       tableId,

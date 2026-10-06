@@ -8,28 +8,18 @@
 
 import { ipcMain, BrowserWindow } from "electron";
 import Database from "better-sqlite3";
-import { basename, join } from "node:path";
-import { existsSync, unlinkSync, readFileSync, copyFileSync } from "node:fs";
+import { join } from "node:path";
+import { existsSync, unlinkSync, readFileSync } from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { Module } from "../types/module";
-import {
-  ensureIndexDbDir,
-  getIndexDbDir,
-  migrateDbFileWithSidecars,
-  normalizeMainDbBase,
-  scanLegacyDbFiles,
-} from "./utils/index-db-storage";
+import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
 
 class VibeLearningDBManager implements Module {
   name: string;
   private databases: Map<string, Database.Database> = new Map();
   private currentVecDimensions = 3072; // 默认维度，会在初始化时从配置读取
-  private legacyScanCompleted = false;
-  private chunkMetadataLegacyFallback = new Set<string>();
-  private chunkMetadataLegacySchemaMode = new Set<string>();
-  private chunkMetadataLegacyRangeFallback = new Set<string>();
 
   constructor() {
     this.name = "vibe-learning-db";
@@ -40,41 +30,27 @@ class VibeLearningDBManager implements Module {
     this.loadDimensionsFromConfig();
 
     // 注册 IPC 处理器
-    ipcMain.handle(
-      "vl-get-index-db",
-      async (_event, mainDbName: string, projectId: number) => {
-        // 不返回数据库对象，只确保连接
-        this.getDatabase(mainDbName, projectId);
-        return true;
-      },
-    );
+    ipcMain.handle("vl-get-index-db", async (_event, mainDbName: string, projectId: number) => {
+      // 不返回数据库对象，只确保连接
+      this.getDatabase(mainDbName, projectId);
+      return true;
+    });
 
-    ipcMain.handle(
-      "vl-close-index-db",
-      async (_event, mainDbName: string, projectId: number) => {
-        this.closeDatabase(mainDbName, projectId);
-        return true;
-      },
-    );
+    ipcMain.handle("vl-close-index-db", async (_event, mainDbName: string, projectId: number) => {
+      this.closeDatabase(mainDbName, projectId);
+      return true;
+    });
 
-    ipcMain.handle(
-      "vl-delete-index-db",
-      async (_event, mainDbName: string, projectId: number) => {
-        this.deleteDatabase(mainDbName, projectId);
-        return true;
-      },
-    );
+    ipcMain.handle("vl-delete-index-db", async (_event, mainDbName: string, projectId: number) => {
+      this.deleteDatabase(mainDbName, projectId);
+      return true;
+    });
 
     ipcMain.handle(
       "vl-check-index-exists",
-      async (
-        _event,
-        mainDbName: string,
-        projectId: number,
-        resourceId: number,
-      ) => {
+      async (_event, mainDbName: string, projectId: number, resourceId: number) => {
         return this.checkIndexExists(mainDbName, projectId, resourceId);
-      },
+      }
     );
 
     log.info("[VibeLearningDBManager] Module initialized");
@@ -96,96 +72,10 @@ class VibeLearningDBManager implements Module {
     const key = this.getDatabaseKey(mainDbName, projectId);
     return join(appDir, `${key}.db`);
   }
-
-  private getLegacyDatabasePath(mainDbName: string, projectId: number): string {
-    const appDir = PathUtil.getAppDir();
-    const key = this.getDatabaseKey(mainDbName, projectId);
-    return join(appDir, `${key}.db`);
-  }
-
-  private migrateLegacyDatabase(mainDbName: string, projectId: number): void {
-    const legacyPath = this.getLegacyDatabasePath(mainDbName, projectId);
-    const targetPath = this.getDatabasePath(mainDbName, projectId);
-    try {
-      const result = migrateDbFileWithSidecars(legacyPath, targetPath);
-      if (result.reason === "source_not_found") {
-        return;
-      }
-      log.info(
-        `[VibeLearningDBManager] migrate legacy file: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
-      );
-    } catch (error) {
-      log.warn(
-        `[VibeLearningDBManager] migrate legacy file failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
-      );
-    }
-  }
-
-  private scanAndMigrateLegacyDatabases(): void {
-    if (this.legacyScanCompleted) {
-      return;
-    }
-    this.legacyScanCompleted = true;
-
-    let found = 0;
-    let migrated = 0;
-    let skipped = 0;
-    let failed = 0;
-
-    try {
-      const { files } = scanLegacyDbFiles((fileName) =>
-        /-project-\d+\.db$/i.test(fileName),
-      );
-      found = files.length;
-      for (const legacyPath of files) {
-        const fileName = basename(legacyPath);
-        const matched = fileName.match(/^(.*)-project-(\d+)\.db$/i);
-        if (!matched) {
-          skipped += 1;
-          continue;
-        }
-        const mainDbName = `${matched[1]}.db`;
-        const projectId = Number.parseInt(matched[2], 10);
-        if (!Number.isFinite(projectId)) {
-          skipped += 1;
-          continue;
-        }
-        const targetPath = this.getDatabasePath(mainDbName, projectId);
-        try {
-          const result = migrateDbFileWithSidecars(legacyPath, targetPath);
-          if (result.moved) {
-            migrated += 1;
-          } else {
-            skipped += 1;
-          }
-          log.info(
-            `[VibeLearningDBManager] startup migration: source=${result.source}, target=${result.target}, moved=${result.moved}, skipped=${result.skipped}, reason=${result.reason}`,
-          );
-        } catch (error) {
-          failed += 1;
-          log.warn(
-            `[VibeLearningDBManager] startup migration failed: source=${legacyPath}, target=${targetPath}, error=${error}`,
-          );
-        }
-      }
-    } catch (error) {
-      failed += 1;
-      log.warn(
-        `[VibeLearningDBManager] startup migration scan failed: ${error}`,
-      );
-    }
-
-    log.info(
-      `[VibeLearningDBManager] startup migration summary: found=${found}, migrated=${migrated}, skipped=${skipped}, failed=${failed}`,
-    );
-  }
-
   /**
    * 获取项目索引数据库（自动创建）
    */
   getDatabase(mainDbName: string, projectId: number): Database.Database {
-    this.scanAndMigrateLegacyDatabases();
-    this.migrateLegacyDatabase(mainDbName, projectId);
     ensureIndexDbDir(mainDbName);
 
     const key = this.getDatabaseKey(mainDbName, projectId);
@@ -205,7 +95,7 @@ class VibeLearningDBManager implements Module {
     db.pragma("journal_mode = WAL");
 
     // 初始化表结构
-    this.initTables(db, dbPath);
+    this.initTables(db);
 
     this.databases.set(key, db);
     return db;
@@ -214,11 +104,7 @@ class VibeLearningDBManager implements Module {
   /**
    * 初始化表结构（FTS 和 Vec）
    */
-  private initTables(
-    db: Database.Database,
-    dbPath?: string,
-    dimensions?: number,
-  ) {
+  private initTables(db: Database.Database, dimensions?: number) {
     // FTS 全文搜索表
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS vl_content_fts USING fts5(
@@ -244,63 +130,10 @@ class VibeLearningDBManager implements Module {
       )
     `);
 
-    const dbKey = dbPath ? this.getDatabaseKeyFromPath(dbPath) : null;
-    const metadataColumns = db
-      .prepare("PRAGMA table_info(vl_chunk_metadata)")
-      .all() as Array<{ name: string }>;
-    const columnNames = metadataColumns.map((column) => column.name);
-    if (dbKey && !this.hasChunkRangeColumns(columnNames)) {
-      this.chunkMetadataLegacyRangeFallback.add(dbKey);
-    }
-
-    let migrationSucceeded = true;
-    if (this.shouldMigrateChunkMetadataColumns(columnNames)) {
-      migrationSucceeded = this.migrateChunkMetadataColumns(db, dbPath);
-      if (!migrationSucceeded && dbKey) {
-        this.chunkMetadataLegacySchemaMode.add(dbKey);
-      }
-    }
-
-    const refreshedMetadataColumns = db
-      .prepare("PRAGMA table_info(vl_chunk_metadata)")
-      .all() as Array<{ name: string }>;
-    const refreshedColumnNames = refreshedMetadataColumns.map(
-      (column) => column.name,
-    );
-    if (dbKey && this.hasChunkRangeColumns(refreshedColumnNames)) {
-      this.chunkMetadataLegacyRangeFallback.delete(dbKey);
-    }
-    if (
-      migrationSucceeded &&
-      !refreshedColumnNames.includes("chunk_start_line")
-    ) {
-      db.exec(
-        "ALTER TABLE vl_chunk_metadata ADD COLUMN chunk_start_line INTEGER",
-      );
-    }
-    if (
-      migrationSucceeded &&
-      !refreshedColumnNames.includes("chunk_end_line")
-    ) {
-      db.exec(
-        "ALTER TABLE vl_chunk_metadata ADD COLUMN chunk_end_line INTEGER",
-      );
-    }
-    for (const columnName of ["start_offset", "end_offset", "char_count"]) {
-      if (migrationSucceeded && !refreshedColumnNames.includes(columnName)) {
-        db.exec(
-          `ALTER TABLE vl_chunk_metadata ADD COLUMN ${columnName} INTEGER`,
-        );
-      }
-    }
-    if (dbKey && migrationSucceeded) {
-      this.chunkMetadataLegacyRangeFallback.delete(dbKey);
-    }
-
     // 获取 vec_version 来确认 sqlite-vec 已加载
-    const { vec_version } = db
-      .prepare("SELECT vec_version() as vec_version")
-      .get() as { vec_version: string };
+    const { vec_version } = db.prepare("SELECT vec_version() as vec_version").get() as {
+      vec_version: string;
+    };
     log.info(`[VibeLearningDBManager] sqlite-vec version: ${vec_version}`);
 
     // 初始化向量表
@@ -317,9 +150,7 @@ class VibeLearningDBManager implements Module {
 
     // 检查表是否已存在
     const tableExists = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='vl_vec_documents'",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vl_vec_documents'")
       .get();
 
     if (!tableExists) {
@@ -331,20 +162,14 @@ class VibeLearningDBManager implements Module {
           vec_embedding FLOAT[${vecDimensions}] distance_metric=cosine
         )
       `);
-      log.info(
-        `[VibeLearningDBManager] Created vec table with ${vecDimensions} dimensions`,
-      );
+      log.info(`[VibeLearningDBManager] Created vec table with ${vecDimensions} dimensions`);
     }
   }
 
   /**
    * 重建向量索引表（维度变化时调用）
    */
-  reinitVecTable(
-    mainDbName: string,
-    projectId: number,
-    dimensions: number,
-  ): boolean {
+  reinitVecTable(mainDbName: string, projectId: number, dimensions: number): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
 
@@ -362,7 +187,7 @@ class VibeLearningDBManager implements Module {
       `);
 
       log.info(
-        `[VibeLearningDBManager] Reinit vec table for project ${projectId} with ${dimensions} dimensions`,
+        `[VibeLearningDBManager] Reinit vec table for project ${projectId} with ${dimensions} dimensions`
       );
       return true;
     } catch (error) {
@@ -386,9 +211,7 @@ class VibeLearningDBManager implements Module {
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       if (!existsSync(settingPath)) {
-        log.info(
-          "[VibeLearningDBManager] No setting.json found, using default dimensions",
-        );
+        log.info("[VibeLearningDBManager] No setting.json found, using default dimensions");
         return;
       }
 
@@ -401,29 +224,23 @@ class VibeLearningDBManager implements Module {
       }
 
       const { configs, currentConfigId } = embeddingProvider;
-      const currentConfig = configs?.find(
-        (c: { id: string }) => c.id === currentConfigId,
-      );
+      const currentConfig = configs?.find((c: { id: string }) => c.id === currentConfigId);
 
       if (!currentConfig) {
         return;
       }
 
       const { currentModel, models } = currentConfig;
-      const modelConfig = models?.find(
-        (m: { name: string }) => m.name === currentModel,
-      );
+      const modelConfig = models?.find((m: { name: string }) => m.name === currentModel);
 
       if (modelConfig?.contextLength) {
         this.currentVecDimensions = modelConfig.contextLength;
         log.info(
-          `[VibeLearningDBManager] Loaded dimensions from config: ${this.currentVecDimensions}`,
+          `[VibeLearningDBManager] Loaded dimensions from config: ${this.currentVecDimensions}`
         );
       }
     } catch (error) {
-      log.error(
-        `[VibeLearningDBManager] Error loading dimensions from config: ${error}`,
-      );
+      log.error(`[VibeLearningDBManager] Error loading dimensions from config: ${error}`);
     }
   }
 
@@ -450,9 +267,6 @@ class VibeLearningDBManager implements Module {
       }
       this.databases.delete(key);
     }
-    this.chunkMetadataLegacySchemaMode.delete(key);
-    this.chunkMetadataLegacyFallback.delete(key);
-    this.chunkMetadataLegacyRangeFallback.delete(key);
   }
 
   /**
@@ -470,9 +284,6 @@ class VibeLearningDBManager implements Module {
           log.error(`[VibeLearningDBManager] Error closing database: ${error}`);
         }
         this.databases.delete(key);
-        this.chunkMetadataLegacySchemaMode.delete(key);
-        this.chunkMetadataLegacyFallback.delete(key);
-        this.chunkMetadataLegacyRangeFallback.delete(key);
       }
     }
   }
@@ -484,10 +295,7 @@ class VibeLearningDBManager implements Module {
     // 先关闭连接
     this.closeDatabase(mainDbName, projectId);
 
-    const dbPaths = [
-      this.getDatabasePath(mainDbName, projectId),
-      this.getLegacyDatabasePath(mainDbName, projectId),
-    ];
+    const dbPaths = [this.getDatabasePath(mainDbName, projectId)];
 
     for (const dbPath of dbPaths) {
       try {
@@ -502,9 +310,7 @@ class VibeLearningDBManager implements Module {
           unlinkSync(dbPath + "-shm");
         }
       } catch (error) {
-        log.error(
-          `[VibeLearningDBManager] Error deleting database: path=${dbPath}, ${error}`,
-        );
+        log.error(`[VibeLearningDBManager] Error deleting database: path=${dbPath}, ${error}`);
       }
     }
   }
@@ -512,17 +318,13 @@ class VibeLearningDBManager implements Module {
   /**
    * 检查资源 FTS 索引是否存在
    */
-  checkIndexExists(
-    mainDbName: string,
-    projectId: number,
-    resourceId: number,
-  ): boolean {
+  checkIndexExists(mainDbName: string, projectId: number, resourceId: number): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
 
       // 检查 FTS 表中是否有记录
       const ftsStmt = db.prepare(
-        "SELECT COUNT(*) as count FROM vl_content_fts WHERE resource_id = ?",
+        "SELECT COUNT(*) as count FROM vl_content_fts WHERE resource_id = ?"
       );
       const ftsResult = ftsStmt.get(String(resourceId)) as { count: number };
 
@@ -536,19 +338,13 @@ class VibeLearningDBManager implements Module {
   /**
    * 检查资源向量索引是否存在
    */
-  checkVecIndexExists(
-    mainDbName: string,
-    projectId: number,
-    resourceId: number,
-  ): boolean {
+  checkVecIndexExists(mainDbName: string, projectId: number, resourceId: number): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
 
       // 检查向量表是否存在
       const tableExists = db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='vl_vec_documents'",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vl_vec_documents'")
         .get();
 
       if (!tableExists) {
@@ -558,7 +354,7 @@ class VibeLearningDBManager implements Module {
       // 检查 Vec 表中是否有记录
       // 使用 BigInt 确保 sqlite-vec 接收到真正的整数类型
       const vecStmt = db.prepare(
-        "SELECT COUNT(*) as count FROM vl_vec_documents WHERE resource_id = ?",
+        "SELECT COUNT(*) as count FROM vl_vec_documents WHERE resource_id = ?"
       );
       const vecResult = vecStmt.get(BigInt(Math.floor(resourceId))) as {
         count: number;
@@ -578,7 +374,7 @@ class VibeLearningDBManager implements Module {
     mainDbName: string,
     projectId: number,
     resourceId: number,
-    chunks: Array<{ text: string; embedding: number[] }>,
+    chunks: Array<{ text: string; embedding: number[] }>
   ): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
@@ -589,9 +385,7 @@ class VibeLearningDBManager implements Module {
       const bigIntResourceId = BigInt(intResourceId);
 
       // 先删除旧的向量索引
-      db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
-        bigIntResourceId,
-      );
+      db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(bigIntResourceId);
 
       // 插入新的向量索引
       const vecStmt = db.prepare(`
@@ -602,17 +396,12 @@ class VibeLearningDBManager implements Module {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         if (chunk.embedding && chunk.embedding.length > 0) {
-          vecStmt.run(
-            bigIntResourceId,
-            BigInt(i),
-            chunk.text,
-            JSON.stringify(chunk.embedding),
-          );
+          vecStmt.run(bigIntResourceId, BigInt(i), chunk.text, JSON.stringify(chunk.embedding));
         }
       }
 
       log.info(
-        `[VibeLearningDBManager] Added embeddings for resource ${intResourceId}: ${chunks.length} chunks`,
+        `[VibeLearningDBManager] Added embeddings for resource ${intResourceId}: ${chunks.length} chunks`
       );
       return true;
     } catch (error) {
@@ -641,7 +430,7 @@ class VibeLearningDBManager implements Module {
       endOffset?: number;
       charCount?: number;
     }>,
-    chunkIndexOffset?: number,
+    chunkIndexOffset?: number
   ): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
@@ -649,36 +438,25 @@ class VibeLearningDBManager implements Module {
       // 先验证数据有效性
       if (!chunks || chunks.length === 0) {
         log.error(
-          `[VibeLearningDBManager] createIndex: chunks is empty for resource ${resourceId}`,
+          `[VibeLearningDBManager] createIndex: chunks is empty for resource ${resourceId}`
         );
         return false;
       }
 
       const bigIntResourceId = BigInt(resourceId);
       const offset = chunkIndexOffset || 0;
-      const dbKey = this.getDatabaseKey(mainDbName, projectId);
-      const usesLegacyMetadataSchema =
-        this.chunkMetadataLegacySchemaMode.has(dbKey);
-      const usesLegacyRangeSchema =
-        this.chunkMetadataLegacyRangeFallback.has(dbKey);
 
       // 使用事务确保原子性：删除旧索引和插入新索引要么全部成功，要么全部失败
       const transaction = db.transaction(() => {
         // 只在 offset=0 时删除旧索引（普通整文索引入口）
         if (offset === 0) {
           // 1. 删除旧 FTS 索引
-          db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(
-            String(resourceId),
-          );
+          db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(String(resourceId));
 
           // 2. 删除旧向量索引
-          db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
-            bigIntResourceId,
-          );
+          db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(bigIntResourceId);
 
-          db.prepare("DELETE FROM vl_chunk_metadata WHERE resource_id = ?").run(
-            resourceId,
-          );
+          db.prepare("DELETE FROM vl_chunk_metadata WHERE resource_id = ?").run(resourceId);
         }
 
         // 3. 准备插入语句
@@ -691,47 +469,20 @@ class VibeLearningDBManager implements Module {
           INSERT INTO vl_vec_documents (resource_id, chunk_index, content, vec_embedding)
           VALUES (?, ?, ?, vec_f32(?))
         `);
-        const metadataStmt = usesLegacyMetadataSchema
-          ? usesLegacyRangeSchema
-            ? db.prepare(`
-                INSERT INTO vl_chunk_metadata (
-                  resource_id,
-                  chunk_index,
-                  search_content,
-                  display_content,
-                  chapter_start_line,
-                  chapter_end_line
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
-              `)
-            : db.prepare(`
-                INSERT INTO vl_chunk_metadata (
-                  resource_id,
-                  chunk_index,
-                  search_content,
-                  display_content,
-                  chapter_start_line,
-                  chapter_end_line,
-                  start_offset,
-                  end_offset,
-                  char_count
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `)
-          : db.prepare(`
-              INSERT INTO vl_chunk_metadata (
-                resource_id,
-                chunk_index,
-                search_content,
-                display_content,
-                chunk_start_line,
-                chunk_end_line,
-                start_offset,
-                end_offset,
-                char_count
-              )
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `);
+        const metadataStmt = db.prepare(`
+          INSERT INTO vl_chunk_metadata (
+            resource_id,
+            chunk_index,
+            search_content,
+            display_content,
+            chunk_start_line,
+            chunk_end_line,
+            start_offset,
+            end_offset,
+            char_count
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
 
         // 4. 插入新索引
         for (let i = 0; i < chunks.length; i++) {
@@ -740,35 +491,24 @@ class VibeLearningDBManager implements Module {
           const searchContent = chunk.searchText || chunk.text;
           const displayContent = chunk.displayText || chunk.text;
           ftsStmt.run(String(resourceId), chunkIndex, searchContent);
-          if (usesLegacyMetadataSchema && usesLegacyRangeSchema) {
-            metadataStmt.run(
-              resourceId,
-              chunkIndex,
-              searchContent,
-              displayContent,
-              chunk.chunkStartLine ?? null,
-              chunk.chunkEndLine ?? null,
-            );
-          } else {
-            metadataStmt.run(
-              resourceId,
-              chunkIndex,
-              searchContent,
-              displayContent,
-              chunk.chunkStartLine ?? null,
-              chunk.chunkEndLine ?? null,
-              chunk.startOffset ?? null,
-              chunk.endOffset ?? null,
-              chunk.charCount ?? null,
-            );
-          }
+          metadataStmt.run(
+            resourceId,
+            chunkIndex,
+            searchContent,
+            displayContent,
+            chunk.chunkStartLine ?? null,
+            chunk.chunkEndLine ?? null,
+            chunk.startOffset ?? null,
+            chunk.endOffset ?? null,
+            chunk.charCount ?? null
+          );
 
           if (chunk.embedding && chunk.embedding.length > 0) {
             vecStmt.run(
               bigIntResourceId,
               BigInt(chunkIndex),
               searchContent,
-              JSON.stringify(chunk.embedding),
+              JSON.stringify(chunk.embedding)
             );
           }
         }
@@ -778,7 +518,7 @@ class VibeLearningDBManager implements Module {
       transaction();
 
       log.info(
-        `[VibeLearningDBManager] Created index for resource ${resourceId}: ${chunks.length} chunks`,
+        `[VibeLearningDBManager] Created index for resource ${resourceId}: ${chunks.length} chunks`
       );
       return true;
     } catch (error) {
@@ -791,11 +531,7 @@ class VibeLearningDBManager implements Module {
   /**
    * 删除资源索引
    */
-  removeIndex(
-    mainDbName: string,
-    projectId: number,
-    resourceId: number,
-  ): boolean {
+  removeIndex(mainDbName: string, projectId: number, resourceId: number): boolean {
     try {
       const db = this.getDatabase(mainDbName, projectId);
 
@@ -804,19 +540,11 @@ class VibeLearningDBManager implements Module {
       // 使用 BigInt 确保 sqlite-vec 接收到真正的整数类型
       const bigIntResourceId = BigInt(intResourceId);
 
-      db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(
-        String(intResourceId),
-      );
-      db.prepare("DELETE FROM vl_chunk_metadata WHERE resource_id = ?").run(
-        intResourceId,
-      );
-      db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(
-        bigIntResourceId,
-      );
+      db.prepare("DELETE FROM vl_content_fts WHERE resource_id = ?").run(String(intResourceId));
+      db.prepare("DELETE FROM vl_chunk_metadata WHERE resource_id = ?").run(intResourceId);
+      db.prepare("DELETE FROM vl_vec_documents WHERE resource_id = ?").run(bigIntResourceId);
 
-      log.info(
-        `[VibeLearningDBManager] Removed index for resource ${intResourceId}`,
-      );
+      log.info(`[VibeLearningDBManager] Removed index for resource ${intResourceId}`);
       return true;
     } catch (error) {
       log.error(`[VibeLearningDBManager] Error removing index: ${error}`);
@@ -831,7 +559,7 @@ class VibeLearningDBManager implements Module {
     mainDbName: string,
     projectId: number,
     query: string,
-    limit = 10,
+    limit = 10
   ): Array<{
     resourceId: number;
     chunkIndex: number;
@@ -856,7 +584,7 @@ class VibeLearningDBManager implements Module {
         rank?: number;
       }>;
 
-      return results.map((r) => ({
+      return results.map(r => ({
         resourceId: parseInt(r.resource_id, 10),
         chunkIndex: r.chunk_index,
         content: r.content,
@@ -872,7 +600,7 @@ class VibeLearningDBManager implements Module {
     mainDbName: string,
     projectId: number,
     resourceId: number,
-    chunkIndex: number,
+    chunkIndex: number
   ): {
     searchContent: string;
     displayContent: string;
@@ -884,13 +612,7 @@ class VibeLearningDBManager implements Module {
   } | null {
     try {
       const db = this.getDatabase(mainDbName, projectId);
-      const row = this.getChunkMetadataRow(
-        db,
-        mainDbName,
-        projectId,
-        resourceId,
-        chunkIndex,
-      );
+      const row = this.getChunkMetadataRow(db, resourceId, chunkIndex);
 
       if (!row) {
         return null;
@@ -899,266 +621,50 @@ class VibeLearningDBManager implements Module {
       return {
         searchContent: row.search_content,
         displayContent: row.display_content,
-        chunkStartLine:
-          row.chunk_start_line ?? row.chapter_start_line ?? undefined,
-        chunkEndLine: row.chunk_end_line ?? row.chapter_end_line ?? undefined,
+        chunkStartLine: row.chunk_start_line ?? undefined,
+        chunkEndLine: row.chunk_end_line ?? undefined,
         startOffset: row.start_offset ?? undefined,
         endOffset: row.end_offset ?? undefined,
         charCount: row.char_count ?? undefined,
       };
     } catch (error) {
-      log.error(
-        `[VibeLearningDBManager] Error getting chunk metadata: ${error}`,
-      );
+      log.error(`[VibeLearningDBManager] Error getting chunk metadata: ${error}`);
       return null;
     }
   }
-
-  private shouldMigrateChunkMetadataColumns(columnNames: string[]): boolean {
-    const hasLegacyStart = columnNames.includes("chapter_start_line");
-    const hasLegacyEnd = columnNames.includes("chapter_end_line");
-    const hasNewStart = columnNames.includes("chunk_start_line");
-    const hasNewEnd = columnNames.includes("chunk_end_line");
-
-    return (hasLegacyStart || hasLegacyEnd) && !hasNewStart && !hasNewEnd;
-  }
-
-  private hasChunkRangeColumns(columnNames: string[]): boolean {
-    return (
-      columnNames.includes("start_offset") &&
-      columnNames.includes("end_offset") &&
-      columnNames.includes("char_count")
-    );
-  }
-
-  private migrateChunkMetadataColumns(
-    db: Database.Database,
-    dbPath?: string,
-  ): boolean {
-    try {
-      if (dbPath && existsSync(dbPath)) {
-        this.backupIndexDbWithSidecars(db, dbPath);
-      }
-
-      db.exec("BEGIN");
-      db.exec(
-        "ALTER TABLE vl_chunk_metadata RENAME TO vl_chunk_metadata_legacy",
-      );
-      db.exec(`
-        CREATE TABLE vl_chunk_metadata (
-          resource_id INTEGER NOT NULL,
-          chunk_index INTEGER NOT NULL,
-          search_content TEXT NOT NULL,
-          display_content TEXT NOT NULL,
-          chunk_start_line INTEGER,
-          chunk_end_line INTEGER,
-          start_offset INTEGER,
-          end_offset INTEGER,
-          char_count INTEGER,
-          PRIMARY KEY (resource_id, chunk_index)
-        )
-      `);
-      db.exec(`
-        INSERT INTO vl_chunk_metadata (
-          resource_id,
-          chunk_index,
-          search_content,
-          display_content,
-          chunk_start_line,
-          chunk_end_line,
-          start_offset,
-          end_offset,
-          char_count
-        )
-        SELECT
-          resource_id,
-          chunk_index,
-          search_content,
-          display_content,
-          chapter_start_line AS chunk_start_line,
-          chapter_end_line AS chunk_end_line,
-          NULL AS start_offset,
-          NULL AS end_offset,
-          NULL AS char_count
-        FROM vl_chunk_metadata_legacy
-      `);
-      db.exec("DROP TABLE vl_chunk_metadata_legacy");
-      db.exec("COMMIT");
-      log.info(
-        "[VibeLearningDBManager] Migrated vl_chunk_metadata line columns",
-      );
-      return true;
-    } catch (error) {
-      try {
-        db.exec("ROLLBACK");
-      } catch {
-        // ignore rollback failure
-      }
-      log.warn(
-        `[VibeLearningDBManager] Failed to migrate vl_chunk_metadata line columns, fallback to legacy read path: ${error}`,
-      );
-      return false;
-    }
-  }
-
   private getChunkMetadataRow(
     db: Database.Database,
-    mainDbName: string,
-    projectId: number,
     resourceId: number,
-    chunkIndex: number,
+    chunkIndex: number
   ):
     | {
         search_content: string;
         display_content: string;
         chunk_start_line?: number | null;
         chunk_end_line?: number | null;
-        chapter_start_line?: number | null;
-        chapter_end_line?: number | null;
         start_offset?: number | null;
         end_offset?: number | null;
         char_count?: number | null;
       }
     | undefined {
-    const legacyKey = this.getDatabaseKey(mainDbName, projectId);
-
-    if (
-      !this.chunkMetadataLegacyFallback.has(legacyKey) &&
-      !this.chunkMetadataLegacySchemaMode.has(legacyKey)
-    ) {
-      try {
-        return db
-          .prepare(
-            `SELECT search_content, display_content, chunk_start_line, chunk_end_line, start_offset, end_offset, char_count
-             FROM vl_chunk_metadata
-             WHERE resource_id = ? AND chunk_index = ?`,
-          )
-          .get(resourceId, chunkIndex) as
-          | {
-              search_content: string;
-              display_content: string;
-              chunk_start_line: number | null;
-              chunk_end_line: number | null;
-              start_offset: number | null;
-              end_offset: number | null;
-              char_count: number | null;
-            }
-          | undefined;
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          /no such column:\s*chunk_(start|end)_line/i.test(error.message)
-        ) {
-          this.chunkMetadataLegacyFallback.add(legacyKey);
-          log.warn(
-            `[VibeLearningDBManager] Chunk metadata still uses legacy line columns, fallback enabled for ${legacyKey}`,
-          );
-        } else if (
-          error instanceof Error &&
-          /no such column:\s*(?:start_offset|end_offset|char_count)/i.test(
-            error.message,
-          )
-        ) {
-          this.chunkMetadataLegacyRangeFallback.add(legacyKey);
-        } else {
-          throw error;
+    return db
+      .prepare(
+        `SELECT search_content, display_content, chunk_start_line, chunk_end_line, start_offset, end_offset, char_count
+         FROM vl_chunk_metadata
+         WHERE resource_id = ? AND chunk_index = ?`
+      )
+      .get(resourceId, chunkIndex) as
+      | {
+          search_content: string;
+          display_content: string;
+          chunk_start_line: number | null;
+          chunk_end_line: number | null;
+          start_offset: number | null;
+          end_offset: number | null;
+          char_count: number | null;
         }
-      }
-    }
-
-    if (this.chunkMetadataLegacyRangeFallback.has(legacyKey)) {
-      return db
-        .prepare(
-          `SELECT search_content, display_content, chapter_start_line, chapter_end_line
-           FROM vl_chunk_metadata
-           WHERE resource_id = ? AND chunk_index = ?`,
-        )
-        .get(resourceId, chunkIndex) as
-        | {
-            search_content: string;
-            display_content: string;
-            chapter_start_line: number | null;
-            chapter_end_line: number | null;
-          }
-        | undefined;
-    }
-
-    try {
-      return db
-        .prepare(
-          `SELECT search_content, display_content, chapter_start_line, chapter_end_line, start_offset, end_offset, char_count
-           FROM vl_chunk_metadata
-           WHERE resource_id = ? AND chunk_index = ?`,
-        )
-        .get(resourceId, chunkIndex) as
-        | {
-            search_content: string;
-            display_content: string;
-            chapter_start_line: number | null;
-            chapter_end_line: number | null;
-            start_offset: number | null;
-            end_offset: number | null;
-            char_count: number | null;
-          }
-        | undefined;
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        /no such column:\s*(?:start_offset|end_offset|char_count)/i.test(
-          error.message,
-        )
-      ) {
-        this.chunkMetadataLegacyRangeFallback.add(legacyKey);
-        return db
-          .prepare(
-            `SELECT search_content, display_content, chapter_start_line, chapter_end_line
-             FROM vl_chunk_metadata
-             WHERE resource_id = ? AND chunk_index = ?`,
-          )
-          .get(resourceId, chunkIndex) as
-          | {
-              search_content: string;
-              display_content: string;
-              chapter_start_line: number | null;
-              chapter_end_line: number | null;
-            }
-          | undefined;
-      }
-      throw error;
-    }
+      | undefined;
   }
-
-  private getDatabaseKeyFromPath(dbPath: string): string {
-    const fileName = dbPath.split("/").pop() || dbPath;
-    return fileName.endsWith(".db") ? fileName.slice(0, -3) : fileName;
-  }
-
-  private backupIndexDbWithSidecars(
-    db: Database.Database,
-    dbPath: string,
-  ): void {
-    try {
-      db.pragma("wal_checkpoint(PASSIVE)");
-    } catch (error) {
-      log.warn(
-        `[VibeLearningDBManager] wal checkpoint before chunk metadata migration backup failed: ${error}`,
-      );
-    }
-
-    const backupPath = `${dbPath}.chunk-line-migration.bak`;
-    if (!existsSync(backupPath)) {
-      copyFileSync(dbPath, backupPath);
-    }
-
-    for (const suffix of ["-wal", "-shm"]) {
-      const sidecarPath = `${dbPath}${suffix}`;
-      const backupSidecarPath = `${backupPath}${suffix}`;
-      if (existsSync(sidecarPath) && !existsSync(backupSidecarPath)) {
-        copyFileSync(sidecarPath, backupSidecarPath);
-      }
-    }
-  }
-
   /**
    * 向量搜索
    */
@@ -1167,7 +673,7 @@ class VibeLearningDBManager implements Module {
     projectId: number,
     queryEmbedding: number[],
     limit = 10,
-    maxDistance = 0.6,
+    maxDistance = 0.6
   ): Array<{
     resourceId: number;
     chunkIndex: number;
@@ -1188,7 +694,7 @@ class VibeLearningDBManager implements Module {
       const results = stmt.all(
         maxDistance,
         JSON.stringify(queryEmbedding),
-        BigInt(limit),
+        BigInt(limit)
       ) as Array<{
         resource_id: number;
         chunk_index: number;
@@ -1196,7 +702,7 @@ class VibeLearningDBManager implements Module {
         distance: number;
       }>;
 
-      return results.map((r) => ({
+      return results.map(r => ({
         resourceId: r.resource_id,
         chunkIndex: r.chunk_index,
         content: r.content,
@@ -1212,7 +718,7 @@ class VibeLearningDBManager implements Module {
    * 通知所有窗口数据库状态变更
    */
   notifyStatusChange(resourceId: number, status: string, error?: string): void {
-    BrowserWindow.getAllWindows().forEach((win) => {
+    BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
         win.webContents.send("vibe-learning-status-change", {
           resourceId,

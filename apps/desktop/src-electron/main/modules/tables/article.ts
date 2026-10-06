@@ -17,7 +17,6 @@ import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
-import log from "electron-log";
 
 /** 分页排序白名单（拼进 ORDER BY，不接受任意字符串）；同值按更新时间兜底 */
 const ARTICLE_PAGE_ORDER: Record<ArticlePageSort, string> = {
@@ -34,20 +33,6 @@ function articlePageOrder(sort: unknown): string {
 }
 
 export default class ArticleTable {
-  static upgradeTable(db: Database.Database) {
-    // 检查 podcast_id 字段是否存在
-    const tableInfo = db.prepare(`PRAGMA table_info(articles)`).all() as Array<{
-      name: string;
-    }>;
-    const hasPodcastId = tableInfo.some(column => column.name === "podcast_id");
-
-    if (!hasPodcastId) {
-      db.exec(`ALTER TABLE articles ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
-      db.exec(`CREATE INDEX IF NOT EXISTS idx_articles_podcast_id ON articles(podcast_id);`);
-      log.info("已添加 podcast_id 字段到 articles 表");
-    }
-  }
-
   static getListenEvents() {
     return {
       "create-article": this.createArticle.bind(this),

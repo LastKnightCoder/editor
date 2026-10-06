@@ -1,4 +1,3 @@
-import { safeStorage } from "electron";
 import type { DeviceIdentity } from "@tau/collaboration";
 import type { CollaborationLocalStore } from "./local-store";
 
@@ -30,7 +29,7 @@ export class CollaborationClient {
         return { id: parsed.id, secret: parsed.secret, nickname: parsed.nickname ?? "" };
       }
     } catch {
-      // 非 JSON 说明是旧版 safeStorage 密文，由调用方迁移
+      // 非 JSON 值视为无效身份
     }
     return null;
   }
@@ -44,20 +43,6 @@ export class CollaborationClient {
       if (identity) {
         this.identities.set(url, identity);
         return identity;
-      }
-      // 旧版用 safeStorage 加密，每次启动都会触发系统钥匙串弹窗，这里仅解密一次并回写明文完成迁移
-      if (safeStorage.isEncryptionAvailable()) {
-        try {
-          const migrated = this.parseIdentity(
-            safeStorage.decryptString(Buffer.from(stored, "base64"))
-          );
-          if (migrated) {
-            this.saveIdentity(url, migrated);
-            return migrated;
-          }
-        } catch {
-          // 用户拒绝钥匙串授权等导致解密失败，放弃旧身份走重新注册
-        }
       }
       this.store.delete(`identity:${url}`);
     }

@@ -13,12 +13,6 @@ export default class PublishHistoryTable {
       "batch-upsert-publish-history": this.batchUpsert.bind(this),
     };
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  static upgradeTable(_db: Database.Database) {
-    // 暂无升级逻辑
-  }
-
   static parseRow(row: Record<string, unknown>): IPublishHistory {
     return {
       id: row.id as number,

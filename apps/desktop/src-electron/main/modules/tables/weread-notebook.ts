@@ -6,28 +6,6 @@ import { expandWeReadExcerpts } from "@/entity/excerpt/weread";
 import ExcerptTable from "./excerpt";
 
 class WeReadNotebookTable implements Table {
-  upgradeTable(db: Database): void {
-    const columns = db
-      .prepare("PRAGMA table_info(weread_notebook)")
-      .all() as Array<{
-      name: string;
-    }>;
-    const hasBookmarkCount = columns.some(
-      (column) => column.name === "bookmark_count",
-    );
-    if (!hasBookmarkCount) {
-      db.exec(
-        "ALTER TABLE weread_notebook ADD COLUMN bookmark_count INTEGER DEFAULT 0;",
-      );
-    }
-    const hasArchiveName = columns.some(
-      (column) => column.name === "archive_name",
-    );
-    if (!hasArchiveName) {
-      db.exec("ALTER TABLE weread_notebook ADD COLUMN archive_name TEXT;");
-    }
-  }
-
   getListenEvents(): Record<string, (db: Database, ...args: any) => any> {
     return {};
   }
@@ -63,7 +41,7 @@ class WeReadNotebookTable implements Table {
       "weread",
       bookId,
       title ?? "",
-      expandWeReadExcerpts(bookId, notebook.chapterHighlights ?? []),
+      expandWeReadExcerpts(bookId, notebook.chapterHighlights ?? [])
     );
   }
 
@@ -173,14 +151,14 @@ class WeReadNotebookTable implements Table {
       JSON.stringify(notebook.chapterHighlights),
       JSON.stringify(notebook.bookReview),
       now,
-      now,
+      now
     );
   }
 
   // 批量保存；返回是否有摘录变化
   saveMany(db: Database, notebooks: Notebook[]): boolean {
     const transaction = db.transaction(() =>
-      notebooks.map((notebook) => this.save(db, notebook)).some(hasExcerptChanges),
+      notebooks.map(notebook => this.save(db, notebook)).some(hasExcerptChanges)
     );
     return transaction();
   }
@@ -191,7 +169,7 @@ class WeReadNotebookTable implements Table {
       SELECT * FROM weread_notebook ORDER BY updated_at DESC
     `);
     const rows = stmt.all() as any[];
-    return rows.map((row) => this.rowToNotebook(row));
+    return rows.map(row => this.rowToNotebook(row));
   }
 
   // 缓存了划线的书（摘录回填用）
@@ -199,10 +177,10 @@ class WeReadNotebookTable implements Table {
     const rows = db
       .prepare(
         `SELECT * FROM weread_notebook
-         WHERE chapter_highlights IS NOT NULL AND chapter_highlights NOT IN ('', '[]')`,
+         WHERE chapter_highlights IS NOT NULL AND chapter_highlights NOT IN ('', '[]')`
       )
       .all() as any[];
-    return rows.map((row) => this.rowToNotebook(row));
+    return rows.map(row => this.rowToNotebook(row));
   }
 
   // 根据 bookId 获取
@@ -261,9 +239,7 @@ class WeReadNotebookTable implements Table {
         },
       },
       chapterHighlights: JSON.parse(row.chapter_highlights || "[]"),
-      bookReview: JSON.parse(
-        row.book_review || '{"chapterReviews":[],"bookReviews":[]}',
-      ),
+      bookReview: JSON.parse(row.book_review || '{"chapterReviews":[],"bookReviews":[]}'),
     };
   }
 }

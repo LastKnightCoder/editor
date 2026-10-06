@@ -66,8 +66,6 @@ const endpointsWhere = (prefix: "src" | "dst", nodes: LineageNode[]) => {
  * 读取方遇到解析不到的端点自行降级。
  */
 export default class EntityLineageTable {
-  static upgradeTable(_db: Database.Database) {}
-
   static getListenEvents() {
     return {
       "lineage:record": this.record.bind(this),

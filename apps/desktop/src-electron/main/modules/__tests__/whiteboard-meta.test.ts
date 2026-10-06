@@ -35,8 +35,6 @@ const pageData = (id: string) =>
 function createTestDatabase() {
   const db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
-  WhiteBoardContentTable.upgradeTable(db);
-  WhiteboardTable.upgradeTable(db);
   return db;
 }
 

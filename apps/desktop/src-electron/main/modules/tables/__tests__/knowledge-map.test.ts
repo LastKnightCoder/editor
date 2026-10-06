@@ -8,10 +8,7 @@ import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { reindexContents } from "../../entity-context/ref-indexer";
-import KnowledgeMapTable, {
-  KNOWLEDGE_MAP_COMPUTED_AT_KEY,
-  KNOWLEDGE_MAP_FINGERPRINT_KEY,
-} from "../knowledge-map";
+import KnowledgeMapTable, { KNOWLEDGE_MAP_FINGERPRINT_KEY } from "../knowledge-map";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -161,23 +158,6 @@ describe("KnowledgeMapTable：读写", () => {
     const byKey = new Map(KnowledgeMapTable.load(indexDb)!.nodes.map(n => [n.key, n]));
     expect([...byKey.keys()].sort()).toEqual(["card:1", "project-item:3"]);
     expect(byKey.get("card:1")).toMatchObject({ x: 9, topic: 1 });
-  });
-
-  it("旧版以 card_id 为主键的表被删除并清掉计算时间；新表不受影响", () => {
-    const legacy = new Database(":memory:");
-    legacy.exec(`
-      CREATE TABLE knowledge_map_nodes (card_id INTEGER PRIMARY KEY, x REAL, y REAL, topic INTEGER, subtopic INTEGER, update_time INTEGER);
-      CREATE TABLE knowledge_map_topics (id INTEGER PRIMARY KEY, parent INTEGER, label TEXT, color_slot INTEGER, size INTEGER);
-      CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT, updated_at INTEGER);
-      INSERT INTO index_meta VALUES ('${KNOWLEDGE_MAP_COMPUTED_AT_KEY}', '5', 0);
-    `);
-    KnowledgeMapTable.migrateLegacy(legacy);
-    legacy.exec(INDEX_SQL);
-    expect(KnowledgeMapTable.load(legacy)).toBeNull();
-    KnowledgeMapTable.save(legacy, sample, "fp");
-    KnowledgeMapTable.migrateLegacy(legacy);
-    expect(KnowledgeMapTable.load(legacy)!.nodes).toHaveLength(2);
-    legacy.close();
   });
 
   it("没有向量表时 hasVectors 为 false、neighborsOf 为空，不抛错", () => {

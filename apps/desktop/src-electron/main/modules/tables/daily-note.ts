@@ -7,10 +7,6 @@ import { getContentLength } from "@/utils/helper.ts";
 import log from "electron-log";
 
 export default class DailyNoteTable {
-  static upgradeTable(_db: Database.Database) {
-    // 不需要升级
-  }
-
   static getListenEvents() {
     return {
       "create-daily-note": this.createDailyNote.bind(this),

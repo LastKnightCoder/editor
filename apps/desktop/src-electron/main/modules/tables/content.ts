@@ -2,14 +2,11 @@ import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { dfs, getContentLength } from "@/utils/helper.ts";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
-import log from "electron-log";
 import { Descendant } from "slate";
-import { produce } from "immer";
 import { basename } from "node:path";
 
 import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
-import CardTable from "./card";
 import QuestionTable from "./question";
 import ContentAiMetaTable from "./content-ai-meta";
 import ContentAiInsightsTable from "./content-ai-insights";
@@ -20,9 +17,7 @@ import {
   contentRevision,
   replaceSessionContent,
 } from "../collaboration/content-sessions";
-import { readSharedContent, migrateTabsToPanes, type ContentNode } from "@tau/collaboration";
-
-const TABS_PANE_MIGRATION_KEY = "tabs-pane-v1";
+import { readSharedContent, type ContentNode } from "@tau/collaboration";
 
 export default class ContentTable {
   static getListenEvents() {
@@ -35,123 +30,6 @@ export default class ContentTable {
       "content:decrement-ref-count": this.decrementRefCount.bind(this),
     };
   }
-
-  static upgradeTable(db: Database.Database) {
-    this.migrateLegacyTabs(db);
-
-    const contents = this.getAllContents(db);
-    for (const content of contents) {
-      let hasWhiteboard = false;
-      let hasCardLink = false;
-      // 遍历卡片内容，如果内容中包含白板，则更新白板内容
-      const newContent = produce(content.content, draft => {
-        dfs(draft, node => {
-          // @ts-ignore
-          if (node.type === "whiteboard" && node.data) {
-            hasWhiteboard = true;
-            // @ts-ignore
-            const whiteboardData = node.data;
-            const contentId = WhiteBoardContentTable.createWhiteboardContent(db, {
-              data: whiteboardData,
-              name: "白板",
-              imgUrl: "",
-            });
-
-            // @ts-ignore
-            node.whiteBoardContentId = contentId;
-            // @ts-ignore
-            delete node.data;
-          }
-          // @ts-ignore
-          if (node.type === "card-link") {
-            // @ts-ignore
-            const cardId = node.cardId;
-            const card = CardTable.getCardById(db, cardId);
-            if (!card) return;
-
-            hasCardLink = true;
-
-            // @ts-ignore
-            node.refId = card.id;
-            // @ts-ignore
-            node.type = "content-link";
-            // @ts-ignore
-            node.contentType = "card";
-            // @ts-ignore
-            node.contentTitle = "";
-            // @ts-ignore
-            node.contentId = card.contentId;
-
-            // @ts-ignore
-            delete node.cardId;
-          }
-        });
-      });
-      if (hasWhiteboard || hasCardLink) {
-        log.info(`Migrating data for content ${content.id}:`, newContent);
-        const updateContentStmt = db.prepare("UPDATE contents SET content = ? WHERE id = ?");
-        updateContentStmt.run(JSON.stringify(newContent), content.id);
-      }
-    }
-  }
-
-  private static ensureMigrationMetaTable(db: Database.Database) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS migration_meta (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      )
-    `);
-  }
-
-  private static isMigrationDone(db: Database.Database, key: string) {
-    this.ensureMigrationMetaTable(db);
-    const row = db.prepare(`SELECT value FROM migration_meta WHERE key = ?`).get(key) as
-      { value: string } | undefined;
-    return row?.value === "done";
-  }
-
-  private static markMigrationDone(db: Database.Database, key: string) {
-    this.ensureMigrationMetaTable(db);
-    db.prepare(
-      `
-        INSERT INTO migration_meta (key, value)
-        VALUES (?, 'done')
-        ON CONFLICT(key) DO UPDATE SET value = 'done'
-      `
-    ).run(key);
-  }
-
-  /**
-   * 存量 tabs 数据（tabsContent 形态）一次性迁移为 tab-pane 子节点形态，幂等。
-   * 有活跃协作会话的内容以 Yjs 投影为准，跳过等待会话写回。
-   */
-  static migrateLegacyTabs(db: Database.Database) {
-    if (this.isMigrationDone(db, TABS_PANE_MIGRATION_KEY)) {
-      return;
-    }
-    const contents = this.getAllContents(db);
-    const updateStmt = db.prepare("UPDATE contents SET content = ?, count = ? WHERE id = ?");
-    let migratedCount = 0;
-    for (const content of contents) {
-      if (contentSession(db, Number(content.id))) {
-        continue;
-      }
-      const { content: migrated, changed } = migrateTabsToPanes(content.content as ContentNode[]);
-      if (!changed) continue;
-      updateStmt.run(
-        JSON.stringify(migrated),
-        getContentLength(migrated as Descendant[]),
-        content.id
-      );
-      migratedCount++;
-    }
-    if (migratedCount > 0) {
-      log.info(`Migrated tabs to tab-pane for ${migratedCount} contents`);
-    }
-    this.markMigrationDone(db, TABS_PANE_MIGRATION_KEY);
-  }
-
   static parseContent(content: any): IContent {
     return {
       id: content.id,

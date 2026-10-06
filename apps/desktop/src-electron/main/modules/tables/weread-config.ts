@@ -2,10 +2,6 @@ import { Database } from "better-sqlite3";
 import { Table } from "../../types/table";
 
 class WeReadConfigTable implements Table {
-  upgradeTable(_db: Database): void {
-    // 未来版本升级时使用
-  }
-
   getListenEvents(): Record<string, (db: Database, ...args: any) => any> {
     return {};
   }

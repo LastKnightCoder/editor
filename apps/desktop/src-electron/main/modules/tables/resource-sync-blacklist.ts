@@ -30,26 +30,16 @@ export default class ResourceSyncBlacklistTable {
       "resource-sync-blacklist:clear": this.clear.bind(this),
     };
   }
-
-  static upgradeTable(_db: Database.Database) {}
-
   static list(db: Database.Database): ResourceSyncBlacklistItem[] {
     const stmt = db.prepare(
-      "SELECT * FROM resource_sync_blacklist ORDER BY update_time DESC, create_time DESC",
+      "SELECT * FROM resource_sync_blacklist ORDER BY update_time DESC, create_time DESC"
     );
     return (stmt.all() as ResourceSyncBlacklistRow[]).map(parse);
   }
 
-  static add(
-    db: Database.Database,
-    fileNames: string[] = [],
-  ): ResourceSyncBlacklistItem[] {
+  static add(db: Database.Database, fileNames: string[] = []): ResourceSyncBlacklistItem[] {
     const normalized = Array.from(
-      new Set(
-        (fileNames || [])
-          .map((name) => name?.trim())
-          .filter((name): name is string => !!name),
-      ),
+      new Set((fileNames || []).map(name => name?.trim()).filter((name): name is string => !!name))
     );
     if (!normalized.length) {
       return this.list(db);
@@ -63,7 +53,7 @@ export default class ResourceSyncBlacklistTable {
     `);
 
     const insert = db.transaction((names: string[]) => {
-      names.forEach((name) => {
+      names.forEach(name => {
         stmt.run(name, now, now);
       });
     });
@@ -73,17 +63,13 @@ export default class ResourceSyncBlacklistTable {
 
   static remove(
     db: Database.Database,
-    payload: { ids?: number[]; fileNames?: string[] } = {},
+    payload: { ids?: number[]; fileNames?: string[] } = {}
   ): ResourceSyncBlacklistItem[] {
-    const ids = Array.from(
-      new Set((payload.ids || []).filter((id): id is number => !!id)),
-    );
+    const ids = Array.from(new Set((payload.ids || []).filter((id): id is number => !!id)));
     const names = Array.from(
       new Set(
-        (payload.fileNames || [])
-          .map((name) => name?.trim())
-          .filter((name): name is string => !!name),
-      ),
+        (payload.fileNames || []).map(name => name?.trim()).filter((name): name is string => !!name)
+      )
     );
 
     if (!ids.length && !names.length) {
@@ -93,9 +79,7 @@ export default class ResourceSyncBlacklistTable {
     const removeById =
       ids.length > 0
         ? db.prepare(
-            `DELETE FROM resource_sync_blacklist WHERE id IN (${ids
-              .map(() => "?")
-              .join(",")})`,
+            `DELETE FROM resource_sync_blacklist WHERE id IN (${ids.map(() => "?").join(",")})`
           )
         : null;
 
@@ -104,11 +88,9 @@ export default class ResourceSyncBlacklistTable {
     }
 
     if (names.length) {
-      const stmt = db.prepare(
-        "DELETE FROM resource_sync_blacklist WHERE file_name = ?",
-      );
+      const stmt = db.prepare("DELETE FROM resource_sync_blacklist WHERE file_name = ?");
       const batch = db.transaction((list: string[]) => {
-        list.forEach((name) => stmt.run(name));
+        list.forEach(name => stmt.run(name));
       });
       batch(names);
     }

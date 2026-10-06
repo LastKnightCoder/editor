@@ -26,7 +26,6 @@ describe("闪卡撤销评分", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(MAIN_SCHEMA_SQL);
-    FlashcardTable.upgradeTable(db);
     deckId = FlashcardTable.createDeck(db, { name: "操作系统" }).id;
   });
 
