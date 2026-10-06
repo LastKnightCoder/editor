@@ -34,7 +34,4 @@ export {
   unregisterToolCallRenderer,
   getToolCallRenderer,
 } from "../../../renderers";
-export {
-  buildLegacyAssistantDisplayBlocks,
-  getDisplayTextFromBlocks,
-} from "@tau/shared/chat-renderers";
+export { getDisplayTextFromBlocks } from "@tau/shared/chat-renderers";

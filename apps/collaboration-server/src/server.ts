@@ -8,7 +8,6 @@ import * as Y from "yjs";
 import {
   CollaborationError,
   COLLABORATION_VERSION,
-  guardRetiredEditorBlocks,
   type CollaborationEvent,
   type Member,
 } from "@tau/collaboration";
@@ -139,7 +138,6 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       const loaded = store.loadDocument(documentName);
       Y.applyUpdate(document, Y.encodeStateAsUpdate(loaded));
       loaded.destroy();
-      guardRetiredEditorBlocks(document);
       return document;
     },
     async beforeHandleMessage({ documentName, context, update, socketId }) {

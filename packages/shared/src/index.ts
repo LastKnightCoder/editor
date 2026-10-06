@@ -69,7 +69,6 @@ export * from "./components/ChatComposer";
 
 // 聊天展示投影与消息类型
 export {
-  buildLegacyAssistantDisplayBlocks,
   getDisplayTextFromBlocks,
   type ContentBlockType,
   type TextContentBlock,

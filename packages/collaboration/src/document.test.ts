@@ -108,30 +108,6 @@ describe("共享文档", () => {
     }
   });
 
-  it("标签页内容应迁移为 tab-pane 子节点并完整还原", () => {
-    const paragraph = { type: "paragraph", children: [{ type: "formatted", text: "" }] };
-    const doc = createSharedDocument({
-      ...article,
-      content: [
-        {
-          type: "tabs",
-          activeKey: "a",
-          tabsContent: [{ key: "a", title: "A", content: [paragraph] }],
-          children: [paragraph],
-        } as never,
-      ],
-    });
-    try {
-      expect(readSharedContent(doc).content[0]).toMatchObject({
-        type: "tabs",
-        activeKey: "a",
-        children: [{ type: "tab-pane", tabKey: "a", title: "A", children: [paragraph] }],
-      });
-    } finally {
-      doc.destroy();
-    }
-  });
-
   it("在 Slate 0.123 中合并并发输入，并只撤销自己的内容", () => {
     const first = createSharedDocument(article);
     const second = fork(first);
@@ -273,28 +249,8 @@ describe("共享文档", () => {
     }
   });
 
-  it("标签页激活内容（children）应覆盖快照迁移进 pane，并拒绝本地文件路径", () => {
-    const doc = createSharedDocument({
-      ...article,
-      content: [
-        {
-          type: "tabs",
-          activeKey: "b",
-          tabsContent: [
-            {
-              key: "a",
-              title: "A",
-              content: [{ type: "paragraph", children: [{ text: "A" }] }],
-            },
-            { key: "b", title: "B", content: [] },
-          ],
-          children: [{ type: "paragraph", children: [{ text: "最新 B" }] }],
-        } as never,
-      ],
-    });
-    const panes = readSharedContent(doc).content[0].children as unknown[];
-    expect(JSON.stringify(panes[1])).toContain("最新 B");
-    expect(JSON.stringify(panes)).not.toContain("tabsContent");
+  it("共享文档拒绝本地文件路径", () => {
+    const doc = createSharedDocument({ ...article });
     doc.getMap("meta").set("bannerBg", "file:///etc/passwd");
     expect(() => validateDocument(doc)).toThrow("本地路径");
     doc.destroy();

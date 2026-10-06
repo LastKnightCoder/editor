@@ -1,6 +1,4 @@
 import type { Descendant } from "slate";
-// 仅引入纯函数子模块，避免把协作包入口的 yjs 拖进移动端产物
-import { migrateTabsToPanes } from "@tau/db-schema";
 import type { ContentNode } from "@tau/collaboration/src/protocol";
 import { getContentLength as sharedGetContentLength } from "@tau/collaboration/src/content-length";
 
@@ -23,9 +21,7 @@ export function normalizeEditorContent(content: unknown): EditorDocument {
   if (!Array.isArray(content) || content.length === 0) {
     return EMPTY_EDITOR_CONTENT;
   }
-  // 存量 tabs 旧形态（tabsContent）懒迁移为 tab-pane 子节点形态，幂等
-  const { content: migrated } = migrateTabsToPanes(content as ContentNode[]);
-  return migrated as EditorDocument;
+  return content as EditorDocument;
 }
 
 // 字数统计已下沉共享包（与桌面端同一口径）

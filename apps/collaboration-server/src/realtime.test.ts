@@ -5,7 +5,7 @@ import { join } from "node:path";
 import * as Y from "yjs";
 import { WebSocket } from "ws";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
-import { createSharedDocument, readSharedContent, replaceText, getBody } from "@tau/collaboration";
+import { createSharedDocument, readSharedContent, replaceText } from "@tau/collaboration";
 import { createServer } from "./server";
 
 const cleanup: (() => Promise<void> | void)[] = [];
@@ -87,14 +87,6 @@ describe("真实 WebSocket 协作", () => {
       expect(new Set(group.map(client => client.document.getText("title").toString())).size).toBe(
         1
       );
-    const retired = new Y.XmlText();
-    retired.setAttribute("type", "question");
-    getBody(groups[0][0].document).applyDelta([{ insert: retired }]);
-    await until(() =>
-      groups[0].every(
-        client => getBody(client.document).length === 1 && !client.provider.hasUnsyncedChanges
-      )
-    );
   });
 
   it("离线增量通过 SyncStep2 持久化，并在撤权后拒绝继续更新", async () => {
