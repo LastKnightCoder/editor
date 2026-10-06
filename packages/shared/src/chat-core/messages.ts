@@ -187,7 +187,6 @@ export interface ChatSessionRecord {
   createTime: number;
   updateTime: number;
   messages: ChatSessionMessage[];
-  messageSchemaVersion?: number;
   title: string;
   titleDirty?: boolean;
   groupId?: number | null;

@@ -89,12 +89,9 @@ import {
 import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
-import { migrateLegacyChatsToSessions } from "./chat-session-migration";
-import { mergeChatSessionBranches } from "./chat-session-tree-migration";
-import { retireLegacyChats } from "./legacy-chat-retirement";
 import { recoverSessionDownload } from "./pi-session-store";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
-import { chatSessionDirOf } from "./pi-session-paths";
+import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 
@@ -394,9 +391,7 @@ class DatabaseModule implements Module {
       upgradeKnowledgeDatabase(database, dbPath);
       const migratedContentLinks = retireContentLink(database, dbPath);
       if (migratedContentLinks > 0) {
-        log.info(
-          `[database] content_link retired: db=${name}, migrated=${migratedContentLinks}`
-        );
+        log.info(`[database] content_link retired: db=${name}, migrated=${migratedContentLinks}`);
       }
       migrateContentBindings(database);
       retireEditorBlocks(database, dbPath);
@@ -414,10 +409,6 @@ class DatabaseModule implements Module {
           `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`
         );
 
-        database.exec("DROP TABLE IF EXISTS shortcuts");
-        // 旧聊天链路的运行记录（pi 迁移 M8）：只存运行中状态，渲染端早已零调用，无需备份
-        database.exec("DROP TABLE IF EXISTS chat_run");
-
         const pageCount = Number(database.pragma("page_count", { simple: true }));
         const freelistCount = Number(database.pragma("freelist_count", { simple: true }));
         const pageSize = Number(database.pragma("page_size", { simple: true }));
@@ -434,6 +425,9 @@ class DatabaseModule implements Module {
           }
         }
       }
+
+      // 数据基线门禁：残留历史旧表的库来自未完成最后升级的旧版本，拒绝进入
+      assertNoLegacyTables(database);
 
       log.info(
         `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`
@@ -526,102 +520,14 @@ class DatabaseModule implements Module {
     });
   }
 
-  /**
-   * 老对话一次性迁移到 pi 会话（M4）。会话目录取法与 pi-session-host 的 currentDatabaseName
-   * 一致（库名去 .db）——两处不一致的话迁移写出的文件宿主找不到。
-   */
-  private async migrateChatSessions(database: Database.Database, name: string, dbPath: string) {
-    const startedAt = Date.now();
-    try {
-      const appDir = PathUtil.getAppDir();
-      const result = await migrateLegacyChatsToSessions({
-        db: database,
-        databasePath: dbPath,
-        sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
-        cwd: appDir,
-      });
-      log.info(
-        `[database] chat session migration done: db=${name}, migrated=${result.migrated}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
-      );
-      for (const failure of result.failed) {
-        log.error(
-          `[database] chat session migration row failed: db=${name}, table=${failure.table}, id=${failure.id}, error=${failure.error}`
-        );
-      }
-      if (result.failed.length > 0) {
-        throw new Error(`聊天数据迁移失败：${result.failed.length} 条记录未转换，旧数据已保留`);
-      }
-    } catch (error) {
-      log.error(`[database] chat session migration failed: db=${name}`, error);
-      throw error;
-    }
-    this.mergeChatSessionTrees(database, name, dbPath);
-  }
-
-  /**
-   * 分支族合并成会话树（M4-d）：在老对话迁移之后跑（迁移出来的分支族一起并）。
-   * 同步下载后重连也要跑：下载来的 .db 与会话包是配对的，对面若还没合并过，这里补上
-   */
-  private mergeChatSessionTrees(database: Database.Database, name: string, dbPath: string) {
-    const startedAt = Date.now();
-    try {
-      const result = mergeChatSessionBranches({
-        db: database,
-        databasePath: dbPath,
-        sessionDir: chatSessionDirOf(this.formatDatabaseName(name)),
-      });
-      log.info(
-        `[database] chat session tree migration done: db=${name}, merged=${result.merged}, detached=${result.detached}, failed=${result.failed.length}, backup=${result.backupPath ?? "none"}, elapsedMs=${Date.now() - startedAt}`
-      );
-      for (const failure of result.failed) {
-        log.error(
-          `[database] chat session tree migration branch failed: db=${name}, id=${failure.id}, error=${failure.error}`
-        );
-      }
-      if (result.failed.length > 0) {
-        throw new Error(`聊天分支迁移失败：${result.failed.length} 个分支未转换，关系已保留`);
-      }
-    } catch (error) {
-      log.error(`[database] chat session tree migration failed: db=${name}`, error);
-      throw error;
-    }
-    this.retireLegacyChatTables(database, name, dbPath);
-  }
-
-  /** 旧聊天表退役（M8）：两次迁移都记账后删旧表与目录表分支列；没迁完的库什么都不做 */
-  private retireLegacyChatTables(database: Database.Database, name: string, dbPath: string) {
-    try {
-      const result = retireLegacyChats(database, dbPath);
-      if (!result.retired) return;
-      log.info(
-        `[database] legacy chat tables retired: db=${name}, tables=${result.droppedTables.join(",") || "none"}, branchColumns=${result.droppedBranchColumns}, backup=${result.backupPath ?? "none"}`
-      );
-    } catch (error) {
-      log.error(`[database] legacy chat retirement failed: db=${name}`, error);
-      throw error;
-    }
-  }
-
   private openReadyDatabase(name: string, mode: DatabaseConnectMode, allowOwnedSync = false) {
     const pending = this.readyDatabaseTasks.get(name);
     if (pending) return pending;
     const task = Promise.resolve()
       .then(async () => {
         const database = this.openDatabase(name, mode, allowOwnedSync);
-        try {
-          if (mode === "maintenance") {
-            await this.migrateChatSessions(
-              database,
-              name,
-              join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`)
-            );
-          }
-          this.databases.set(name, database);
-          return database;
-        } catch (error) {
-          database.close();
-          throw error;
-        }
+        this.databases.set(name, database);
+        return database;
       })
       .finally(() => {
         this.readyDatabaseTasks.delete(name);

@@ -4,7 +4,7 @@
  * 浏览器插件经 streamEvents 归约器共用同一组装逻辑。
  */
 import { Role } from "./messages";
-import { createChatMessageClientId, getAssistantToolExecutionsFromBlocks } from "./messageSchema";
+import { createChatMessageClientId } from "./messageSchema";
 import type {
   AssistantBlock,
   AssistantReasoningBlock,
@@ -194,7 +194,9 @@ export const ensureAssistantMessage = (message: ResponseMessage): ResponseMessag
 };
 
 export const getAssistantToolExecutions = (message: ResponseMessage): ToolCallExecutionState[] =>
-  getAssistantToolExecutionsFromBlocks(message.assistant_blocks || []);
+  (message.assistant_blocks || [])
+    .filter((block): block is AssistantToolCallBlock => block.type === "tool_call")
+    .map(block => createSyntheticExecution(block.toolCall, block.execution));
 
 export const getAssistantContentBlocks = (message: ResponseMessage): ResponseContentBlock[] =>
   mapAssistantBlocksToContentBlocks(message.assistant_blocks || []);

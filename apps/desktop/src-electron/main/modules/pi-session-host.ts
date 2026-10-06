@@ -475,16 +475,12 @@ class PiSessionHostModule {
           }
         })
     );
-    // 浏览器扩展对话（M4.5）：按页面列出/改名/删除，全部取自 pi 会话文件本身
+    // 浏览器扩展对话：按页面列出/改名/删除，全部取自 pi 会话文件本身
     ipcMain.handle("pi-session:browser-list", async (_event, { pageUrl }: { pageUrl: string }) =>
       PiSessionHostModule.guard(async () => {
-        const dir = browserSessionDirOf(pageUrl);
-        const release = PiSessionHostModule.access.acquire([dir]);
+        const release = PiSessionHostModule.access.acquire([browserSessionDirOf(pageUrl)]);
         try {
-          const opened = PiSessionHostModule.states().some(
-            item => item.file && dirname(item.file) === dir
-          );
-          return { sessions: await listBrowserSessions(pageUrl, !opened) };
+          return { sessions: await listBrowserSessions(pageUrl) };
         } finally {
           release();
         }
