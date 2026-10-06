@@ -5,16 +5,27 @@ import { RpcMessageType } from "../types";
 
 type Handler = (message?: unknown) => void;
 
+interface FakePort {
+  name: string;
+  messageHandlers: Handler[];
+  disconnectHandlers: Handler[];
+  peer: FakePort | null;
+  onMessage: { addListener: (h: Handler) => void };
+  onDisconnect: { addListener: (h: Handler) => void };
+  postMessage(message: unknown): void;
+  disconnect(): void;
+}
+
 /** 一端 postMessage 投递到另一端 onMessage；disconnect 只通知对端（与 chrome 语义一致） */
 const createPortPair = (name: string) => {
-  const make = () => {
+  const make = (): FakePort => {
     const messageHandlers: Handler[] = [];
     const disconnectHandlers: Handler[] = [];
     return {
       name,
       messageHandlers,
       disconnectHandlers,
-      peer: null as ReturnType<typeof make> | null,
+      peer: null,
       onMessage: { addListener: (h: Handler) => messageHandlers.push(h) },
       onDisconnect: { addListener: (h: Handler) => disconnectHandlers.push(h) },
       postMessage(message: unknown) {
