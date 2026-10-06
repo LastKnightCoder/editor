@@ -5,12 +5,15 @@ import { useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Search } from "lucide-react";
 import { HomeDashboard } from "../features/home/HomeDashboard";
+import { useTodayAgenda } from "../features/home/useTodayAgenda";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useEdgeFade } from "../hooks/useScrollState";
 import { useRootScrollLock } from "../router/useRootScrollLock";
 import { useRouterContext, switchTabScreen } from "../router";
 import { useAppContext } from "./AppContext";
 import { describeDiaryPeriod, getBaseDateFromDiaryKey } from "../features/diary/dateKey";
+import { getTodayDateKey } from "../features/diary/feedUtils";
+import { useDiaryStore } from "../features/diary/store/useDiaryStore";
 import type { DiaryEntry, DiarySegment } from "../types";
 
 const RECENT_CARD_COUNT = 6;
@@ -71,14 +74,47 @@ export function HomeScreen() {
   });
   const onOpenPomodoro = useMemoizedFn(() => navigator.push("pomodoro"));
   const onOpenCalendar = useMemoizedFn(() => navigator.push("calendarHome"));
-  // 闪卡：有待复习直达全库复习队列，否则进闪卡首页
-  const onOpenFlashcards = useMemoizedFn((dueCount: number) => {
-    if (dueCount > 0) navigator.push("flashcardReview", { deckId: -1 });
-    else navigator.push("flashcardHome");
+  const onOpenFlashcards = useMemoizedFn(() => navigator.push("flashcardHome"));
+  const onStartFlashcardReview = useMemoizedFn(() =>
+    navigator.push("flashcardReview", { deckId: -1 })
+  );
+  // 发新日记：与日记页顶部入口一致，新建今天的 segment 而非打开当天已有日记
+  const onComposeDiary = useMemoizedFn(() => {
+    void (async () => {
+      try {
+        const today = getTodayDateKey();
+        const contentId = await useDiaryStore.getState().startNewSegment("daily", today);
+        if (typeof contentId !== "number" || contentId <= 0) {
+          throw new Error("DIARY_CONTENT_NOT_FOUND");
+        }
+        navigator.push("contentDetail", {
+          contentId,
+          contentTitle: "",
+          fromDiary: true,
+          diaryDate: describeDiaryPeriod("daily", today),
+        });
+      } catch (error) {
+        app.presentError(error, "打开日记失败");
+      }
+    })();
   });
   const onError = useMemoizedFn((error: unknown, fallback: string) => {
     app.presentError(error, fallback);
   });
+
+  const modules = {
+    todoEnabled: app.todoModuleEnabled,
+    diaryEnabled: app.diaryModuleEnabled,
+    pomodoroEnabled: app.pomodoroModuleEnabled,
+    calendarEnabled: app.calendarModuleEnabled,
+  };
+  const agenda = useTodayAgenda(modules);
+  const agendaHint =
+    agenda.items.length === 0
+      ? ""
+      : agenda.pendingCount > 0
+        ? ` · 今天还有 ${agenda.pendingCount} 件事`
+        : " · 今天的事都做完了";
 
   const cards = app.cards.cards;
   const recentItems = cards?.items.slice(0, RECENT_CARD_COUNT) ?? [];
@@ -88,7 +124,10 @@ export function HomeScreen() {
       <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
           <h1 className="text-ink text-2xl font-extrabold tracking-tight">{getGreeting(now)}</h1>
-          <p className="text-ink-2 mt-1 text-[12.5px]">{formatHeadDate(now)}</p>
+          <p className="text-ink-2 mt-1 text-[12.5px]">
+            {formatHeadDate(now)}
+            {agendaHint}
+          </p>
         </div>
         <button
           type="button"
@@ -107,16 +146,14 @@ export function HomeScreen() {
           cardsTotal={cards?.total ?? 0}
           recentCards={recentItems}
           isLoadingCards={app.cards.isLoadingCards}
-          todoEnabled={app.todoModuleEnabled}
-          diaryEnabled={app.diaryModuleEnabled}
-          pomodoroEnabled={app.pomodoroModuleEnabled}
-          calendarEnabled={app.calendarModuleEnabled}
-          onOpenSearch={onOpenSearch}
+          {...modules}
           onOpenCards={onOpenCards}
           onOpenTodo={onOpenTodo}
           onOpenPomodoro={onOpenPomodoro}
           onOpenCalendar={onOpenCalendar}
           onOpenFlashcards={onOpenFlashcards}
+          onStartFlashcardReview={onStartFlashcardReview}
+          onComposeDiary={onComposeDiary}
           onOpenDiary={onOpenDiary}
           onOpenArticles={onOpenArticles}
           onOpenProjects={onOpenProjects}

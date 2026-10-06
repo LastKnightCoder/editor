@@ -1,8 +1,9 @@
-// 首页（今天）：纯仪表盘（v2 模板）——搜索条 + Bento 统计 + 今日任务摘要 + 最近动态。
-// 卡片全量列表在「卡片库」Tab；这里只做数据与最近活动的聚合呈现。
-// 数据全部走 query 缓存，模块关闭时对应请求与区块一并隐藏。
+// 首页（今天）：「接下来」议程清单 + 任务摘要 + 最近动态（按类型筛选，筛选按钮带资料库总数）。
+// 卡片全量列表在「卡片库」Tab；这里只做今日待办与最近活动的聚合呈现。
+// 数据全部走 query 缓存，模块关闭时对应请求与条目一并隐藏。
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Article,
   BookOpen,
@@ -20,19 +21,11 @@ import { useDiaryEntries } from "../diary/queries";
 import { useArticlesQuery } from "../articles/queries";
 import { useProjectItemsQuery } from "../projects/queries";
 import { useHomeStatsQuery } from "./queries";
-import {
-  todayReviewedCount,
-  totalDueOf,
-  useFlashcardDecks,
-  useFlashcardReviewStats,
-} from "../flashcard/queries";
-import { useTodoGroupStats, useTodoItems, useTodoSystemGroups } from "../todo/queries";
+import { useTodayAgenda } from "./useTodayAgenda";
+import type { AgendaItem, AgendaKind } from "./useTodayAgenda";
+import { useTodoItems } from "../todo/queries";
 import { toggleTodoComplete } from "../todo/toggleComplete";
 import { TodoCheck } from "../todo/TodoCheck";
-import { usePomodoroTodaySummary } from "../pomodoro/queries";
-import { formatFocusDuration } from "../pomodoro/timer";
-import { useCalendarEventsByRange, useCalendars } from "../calendar/queries";
-import { addDays, summarizeToday, todayStart } from "../calendar/utils";
 import { dfs } from "../cards/editorContentUtils";
 
 /** 日记动态标题：取正文开头的纯文本（首页最近动态单行展示，仅前几条调用） */
@@ -56,8 +49,87 @@ function formatRelativeTime(ts: number | null | undefined): string {
   return `${Math.floor(diff / 86_400_000)} 天前`;
 }
 
-const BENTO_CARD_CLASS =
-  "rounded-bento p-4 shadow-card transition-transform duration-200 active:scale-[0.97] pop-in";
+/** 「全部」默认展示条数，「显示更多」展开到 FEED_EXPANDED_COUNT */
+const FEED_COLLAPSED_COUNT = 5;
+const FEED_EXPANDED_COUNT = 10;
+/** 每类候选条数：保证按类型筛选时也能凑满 FEED_COLLAPSED_COUNT */
+const FEED_PER_KIND = 5;
+
+type FeedKind = "card" | "diary" | "todo" | "article" | "projectDoc";
+type FeedFilter = "all" | Exclude<FeedKind, "todo">;
+
+const FEED_KIND_STYLE: Record<
+  FeedKind,
+  { label: string; chip: string; icon: Icon; tone: string; soft: string }
+> = {
+  card: {
+    label: "卡片",
+    chip: "bg-sky-soft text-sky",
+    icon: Stack,
+    tone: "var(--sky)",
+    soft: "var(--sky-soft)",
+  },
+  diary: {
+    label: "日记",
+    chip: "bg-sage-soft text-sage",
+    icon: BookOpen,
+    tone: "var(--sage)",
+    soft: "var(--sage-soft)",
+  },
+  todo: {
+    label: "任务",
+    chip: "bg-butter-soft text-butter",
+    icon: CheckCircle,
+    tone: "var(--butter)",
+    soft: "var(--butter-soft)",
+  },
+  article: {
+    label: "文章",
+    chip: "bg-apricot-soft text-apricot",
+    icon: Article,
+    tone: "var(--apricot)",
+    soft: "var(--apricot-soft)",
+  },
+  projectDoc: {
+    label: "项目",
+    chip: "bg-lilac-soft text-lilac",
+    icon: FolderOpen,
+    tone: "var(--lilac)",
+    soft: "var(--lilac-soft)",
+  },
+};
+
+const AGENDA_STYLE: Record<AgendaKind, { icon: ReactNode; tone: string; soft: string }> = {
+  calendar: {
+    icon: <CalendarCheck size={19} weight="duotone" color="var(--sky)" aria-hidden="true" />,
+    tone: "var(--sky)",
+    soft: "var(--sky-soft)",
+  },
+  flashcard: {
+    icon: <Brain size={19} weight="duotone" color="var(--butter)" aria-hidden="true" />,
+    tone: "var(--butter)",
+    soft: "var(--butter-soft)",
+  },
+  todo: {
+    icon: <CheckCircle size={19} weight="duotone" color="var(--brand)" aria-hidden="true" />,
+    tone: "var(--brand)",
+    soft: "var(--brand-soft)",
+  },
+  diary: {
+    icon: <BookOpen size={19} weight="duotone" color="var(--sage)" aria-hidden="true" />,
+    tone: "var(--sage)",
+    soft: "var(--sage-soft)",
+  },
+  pomodoro: {
+    icon: (
+      <span className="text-[18px] leading-none" aria-hidden="true">
+        🍅
+      </span>
+    ),
+    tone: "var(--rose)",
+    soft: "var(--rose-soft)",
+  },
+};
 
 type HomeDashboardProps = {
   cardsTotal: number;
@@ -67,14 +139,14 @@ type HomeDashboardProps = {
   diaryEnabled: boolean;
   pomodoroEnabled: boolean;
   calendarEnabled: boolean;
-  onOpenSearch: () => void;
   onOpenCards: () => void;
   onOpenTodo: () => void;
   onOpenPomodoro: () => void;
   onOpenCalendar: () => void;
-  /** dueCount>0 直达全库复习，否则进闪卡首页（由 HomeScreen 决定跳转目标） */
-  onOpenFlashcards: (dueCount: number) => void;
+  onOpenFlashcards: () => void;
+  onStartFlashcardReview: () => void;
   onOpenDiary: () => void;
+  onComposeDiary: () => void;
   onOpenArticles: () => void;
   onOpenProjects: () => void;
   onOpenArticle: (articleId: number) => void;
@@ -85,50 +157,16 @@ type HomeDashboardProps = {
 };
 
 export function HomeDashboard(props: HomeDashboardProps) {
-  const now = useMemo(() => new Date(), []);
-  const todoStatsQuery = useTodoGroupStats(props.todoEnabled);
-  const systemGroupsQuery = useTodoSystemGroups(props.todoEnabled);
+  const agenda = useTodayAgenda(props);
   const allItemsQuery = useTodoItems(
     props.todoEnabled ? { systemType: "all" as const } : { groupId: -1 }
   );
   const diaryEntriesQuery = useDiaryEntries(props.diaryEnabled);
-  const flashcardDecksQuery = useFlashcardDecks();
-  const flashcardStatsQuery = useFlashcardReviewStats(1);
-  const flashcardDue = totalDueOf(flashcardDecksQuery.data ?? []);
-  const flashcardReviewedToday = todayReviewedCount(flashcardStatsQuery.data);
   const articlesQuery = useArticlesQuery();
   const projectItemsQuery = useProjectItemsQuery();
-  const homeStatsQuery = useHomeStatsQuery();
-  const homeStats = homeStatsQuery.data ?? null;
-  const pomodoroSummaryQuery = usePomodoroTodaySummary(props.pomodoroEnabled);
-  const pomodoroSummary = pomodoroSummaryQuery.data ?? null;
-  // 今日日程：Bento 卡展示事件数 + 下一件日程摘要。「今天」每次渲染重算，
-  // 跨午夜后 queryKey 变化自动重新查询（不缓存首挂载当天的边界）
-  const todayStartMs = todayStart();
-  // 与主页可见性语义一致：按库内 visible 过滤（chips 的会话级过滤不联动首页卡）
-  const { data: todaysCalendars = null } = useCalendars();
-  const visibleCalendarIds =
-    todaysCalendars?.filter(calendar => calendar.visible).map(calendar => calendar.id) ?? null;
-  const calendarTodayQuery = useCalendarEventsByRange({
-    startDate: todayStartMs,
-    endDate: addDays(todayStartMs, 1) - 1,
-    calendarIds: visibleCalendarIds ?? [],
-    // 日历列表未加载完成前不发查询；空 ids 表示不显示任何日历。
-    enabled: props.calendarEnabled && visibleCalendarIds !== null,
-  });
-  const calendarToday = calendarTodayQuery.data;
-
-  const todoStats = useMemo(() => {
-    if (!props.todoEnabled) return null;
-    const allGroupId = (systemGroupsQuery.data ?? []).find(group => group.systemType === "all")?.id;
-    const stats = allGroupId != null ? todoStatsQuery.data?.[allGroupId] : undefined;
-    if (!stats) return null;
-    return {
-      total: stats.total,
-      uncompleted: stats.uncompleted,
-      completed: Math.max(0, stats.total - stats.uncompleted),
-    };
-  }, [props.todoEnabled, systemGroupsQuery.data, todoStatsQuery.data]);
+  const homeStats = useHomeStatsQuery().data ?? null;
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
+  const [feedExpanded, setFeedExpanded] = useState(false);
 
   // 今日任务摘要：未完成的排前面（截止早的靠前），最多 3 条
   const todayTodos = useMemo(() => {
@@ -144,50 +182,20 @@ export function HomeDashboard(props: HomeDashboardProps) {
       .slice(0, 3);
   }, [allItemsQuery.data]);
 
-  const diaryEntries = diaryEntriesQuery.data ?? [];
-
-  const diaryBlock = useMemo(() => {
-    if (!props.diaryEnabled) return null;
-    const dailyDates = new Set(diaryEntries.filter(e => e.type === "daily").map(e => e.date));
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const key = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const cursor = dailyDates.has(key(today)) ? today : new Date(today.getTime() - DAY_MS);
-    let streak = 0;
-    const day = new Date(cursor.getTime());
-    while (dailyDates.has(key(day))) {
-      streak += 1;
-      day.setDate(day.getDate() - 1);
-    }
-    const weekday = (now.getDay() + 6) % 7;
-    const weekStart = new Date(today.getTime() - weekday * DAY_MS);
-    const dots = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(weekStart.getTime() + i * DAY_MS);
-      return { hit: dailyDates.has(key(d)), today: i === weekday };
-    });
-    return { streak, dots };
-  }, [props.diaryEnabled, diaryEntries, now]);
-
-  const todoPct =
-    todoStats && todoStats.total > 0
-      ? Math.round((todoStats.completed / todoStats.total) * 100)
-      : 0;
-
-  // 最近动态：卡片 / 日记 / 文章 / 项目文档 / 知识库文档 / 完成的任务按时间混排
+  // 最近动态：卡片 / 日记 / 文章 / 项目文档 / 完成的任务按时间混排，每类取前 FEED_PER_KIND 条
   const recentFeed = useMemo(() => {
     type FeedItem = {
       key: string;
-      kind: "card" | "diary" | "todo" | "article" | "projectDoc";
+      kind: FeedKind;
       title: string;
       time: number;
       action: () => void;
     };
     const items: FeedItem[] = [];
-    const pickRecent = <T extends { updateTime: number }>(list: T[], count: number) =>
-      [...list].sort((a, b) => b.updateTime - a.updateTime).slice(0, count);
+    const pickRecent = <T extends { updateTime: number }>(list: T[]) =>
+      [...list].sort((a, b) => b.updateTime - a.updateTime).slice(0, FEED_PER_KIND);
 
-    props.recentCards.slice(0, 3).forEach(card => {
+    props.recentCards.slice(0, FEED_PER_KIND).forEach(card => {
       items.push({
         key: `card-${card.id}`,
         kind: "card",
@@ -199,7 +207,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
 
     (articlesQuery.data?.pages ?? [])
       .flatMap(page => page.items)
-      .slice(0, 3)
+      .slice(0, FEED_PER_KIND)
       .forEach(article => {
         items.push({
           key: `article-${article.id}`,
@@ -210,10 +218,10 @@ export function HomeDashboard(props: HomeDashboardProps) {
         });
       });
 
-    diaryEntries
+    (diaryEntriesQuery.data ?? [])
       .flatMap(entry => entry.segments.map(segment => ({ entry, segment })))
       .sort((a, b) => b.segment.updateTime - a.segment.updateTime)
-      .slice(0, 3)
+      .slice(0, FEED_PER_KIND)
       .forEach(({ entry, segment }) => {
         items.push({
           key: `diary-${segment.contentId}`,
@@ -244,8 +252,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
     pickRecent(
       (projectItemsQuery.data ?? []).filter(
         item => item.projectItemType === "document" && !item.refType
-      ),
-      3
+      )
     ).forEach(item => {
       items.push({
         key: `projectDoc-${item.id}`,
@@ -256,257 +263,87 @@ export function HomeDashboard(props: HomeDashboardProps) {
       });
     });
 
-    return items.sort((a, b) => b.time - a.time).slice(0, 10);
-  }, [props, diaryEntries, allItemsQuery.data, articlesQuery.data, projectItemsQuery.data]);
+    return items.sort((a, b) => b.time - a.time);
+  }, [
+    props,
+    diaryEntriesQuery.data,
+    allItemsQuery.data,
+    articlesQuery.data,
+    projectItemsQuery.data,
+  ]);
 
-  const feedKindStyle: Record<
-    string,
-    { label: string; chip: string; icon: Icon; tone: string; soft: string }
-  > = {
-    card: {
+  const feedFilters: {
+    key: FeedFilter;
+    label: string;
+    count?: number;
+    viewAll?: () => void;
+    viewAllLabel?: string;
+  }[] = [
+    { key: "all", label: "全部" },
+    {
+      key: "card",
       label: "卡片",
-      chip: "bg-sky-soft text-sky",
-      icon: Stack,
-      tone: "var(--sky)",
-      soft: "var(--sky-soft)",
+      count: props.cardsTotal,
+      viewAll: props.onOpenCards,
+      viewAllLabel: `查看全部 ${props.cardsTotal} 张卡片`,
     },
-    diary: {
-      label: "日记",
-      chip: "bg-sage-soft text-sage",
-      icon: BookOpen,
-      tone: "var(--sage)",
-      soft: "var(--sage-soft)",
-    },
-    todo: {
-      label: "任务",
-      chip: "bg-butter-soft text-butter",
-      icon: CheckCircle,
-      tone: "var(--butter)",
-      soft: "var(--butter-soft)",
-    },
-    article: {
+    {
+      key: "article",
       label: "文章",
-      chip: "bg-apricot-soft text-apricot",
-      icon: Article,
-      tone: "var(--apricot)",
-      soft: "var(--apricot-soft)",
+      count: homeStats?.articlesTotal,
+      viewAll: props.onOpenArticles,
+      viewAllLabel: `查看全部 ${homeStats?.articlesTotal ?? ""} 篇文章`,
     },
-    projectDoc: {
+    {
+      key: "projectDoc",
       label: "项目",
-      chip: "bg-lilac-soft text-lilac",
-      icon: FolderOpen,
-      tone: "var(--lilac)",
-      soft: "var(--lilac-soft)",
+      count: homeStats?.projectsTotal,
+      viewAll: props.onOpenProjects,
+      viewAllLabel: `查看全部 ${homeStats?.projectsTotal ?? ""} 个项目`,
     },
+    ...(props.diaryEnabled
+      ? [
+          {
+            key: "diary" as const,
+            label: "日记",
+            viewAll: props.onOpenDiary,
+            viewAllLabel: "查看全部日记",
+          },
+        ]
+      : []),
+  ];
+  const activeFilter = feedFilters.find(filter => filter.key === feedFilter) ?? feedFilters[0];
+  const filteredFeed =
+    feedFilter === "all" ? recentFeed : recentFeed.filter(item => item.kind === feedFilter);
+  const visibleFeed = filteredFeed.slice(
+    0,
+    feedFilter === "all" && feedExpanded ? FEED_EXPANDED_COUNT : FEED_COLLAPSED_COUNT
+  );
+  const canExpandFeed =
+    feedFilter === "all" && !feedExpanded && filteredFeed.length > FEED_COLLAPSED_COUNT;
+
+  const agendaHandlers: Record<AgendaKind, { open: () => void; action?: [string, () => void] }> = {
+    calendar: { open: props.onOpenCalendar },
+    flashcard: { open: props.onOpenFlashcards, action: ["开始", props.onStartFlashcardReview] },
+    todo: { open: props.onOpenTodo },
+    diary: { open: props.onOpenDiary, action: ["写", props.onComposeDiary] },
+    pomodoro: { open: props.onOpenPomodoro, action: ["开始", props.onOpenPomodoro] },
   };
 
   return (
     <div className="px-[18px] pt-5">
-      <div className="grid grid-cols-2 gap-[11px]">
-        {props.todoEnabled ? (
-          <button
-            type="button"
-            onClick={props.onOpenTodo}
-            className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
-            style={{
-              animationDelay: "0.02s",
-              background: "linear-gradient(135deg, var(--rose-soft), var(--apricot-soft))",
-            }}
-          >
-            <span className="flex shrink-0 items-baseline gap-[3px]">
-              <span className="text-accent text-[34px] font-extrabold tabular-nums leading-none">
-                {todoStats ? todoStats.completed : "…"}
-              </span>
-              <span className="text-ink-3 text-base font-bold">
-                / {todoStats ? todoStats.total : "…"}
-              </span>
-            </span>
-            <span className="min-w-0 flex-1 text-left">
-              <span className="text-ink block text-[14.5px] font-bold">今日任务</span>
-              <span className="text-ink-2 mt-0.5 block text-[12px]">
-                {!todoStats
-                  ? "加载中"
-                  : todoStats.total === 0
-                    ? "还没有任务"
-                    : `还剩 ${todoStats.uncompleted} 项`}
-              </span>
-              <span className="mt-2 block h-[6px] overflow-hidden rounded-full bg-[var(--ring-track)]">
-                <span
-                  className="block h-full rounded-full transition-[width] duration-500"
-                  style={{
-                    width: `${todoPct}%`,
-                    backgroundImage: "linear-gradient(90deg, var(--brand-strong), var(--brand))",
-                  }}
-                />
-              </span>
-            </span>
-          </button>
-        ) : null}
-
-        {props.pomodoroEnabled ? (
-          <button
-            type="button"
-            onClick={props.onOpenPomodoro}
-            className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
-            style={{
-              animationDelay: "0.04s",
-              background: "linear-gradient(135deg, var(--rose-soft), var(--bg-surface))",
-            }}
-          >
-            <span className="text-[28px] leading-none">🍅</span>
-            <span className="min-w-0 flex-1 text-left">
-              <span className="text-ink block text-[14.5px] font-bold">番茄专注</span>
-              <span className="text-ink-2 mt-0.5 block text-[12px]">
-                {pomodoroSummary
-                  ? pomodoroSummary.count > 0
-                    ? `今日 ${formatFocusDuration(pomodoroSummary.focusMs)} · ${pomodoroSummary.count} 个番茄`
-                    : "今天还没有专注，开始一次？"
-                  : "加载中"}
-              </span>
-            </span>
-          </button>
-        ) : null}
-
-        {props.calendarEnabled ? (
-          <button
-            type="button"
-            onClick={props.onOpenCalendar}
-            className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
-            style={{
-              animationDelay: "0.08s",
-              background: "linear-gradient(135deg, var(--sky-soft), var(--bg-surface))",
-            }}
-          >
-            <CalendarCheck
-              size={28}
-              weight="duotone"
-              className="text-sky flex-none"
-              aria-hidden="true"
-            />
-            <span className="min-w-0 flex-1 text-left">
-              <span className="text-ink block text-[14.5px] font-bold">今日日程</span>
-              <span className="text-ink-2 mt-0.5 block text-[12px]">
-                {calendarTodayQuery.isLoading
-                  ? "加载中"
-                  : summarizeToday(calendarToday ?? []).headline}
-              </span>
-            </span>
-            <span className="flex shrink-0 items-baseline gap-[3px]">
-              <span className="text-sky text-[34px] font-extrabold tabular-nums leading-none">
-                {calendarTodayQuery.isLoading ? "…" : (calendarToday?.length ?? 0)}
-              </span>
-              <span className="text-ink-3 text-base font-bold">件</span>
-            </span>
-          </button>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={() => props.onOpenFlashcards(flashcardDue)}
-          className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
-          style={{
-            animationDelay: "0.06s",
-            background: "linear-gradient(135deg, var(--butter-soft), var(--bg-surface))",
-          }}
-        >
-          <Brain size={28} weight="duotone" className="text-butter flex-none" aria-hidden="true" />
-          <span className="min-w-0 flex-1 text-left">
-            <span className="text-ink block text-[14.5px] font-bold">闪卡复习</span>
-            <span className="text-ink-2 mt-0.5 block text-[12px]">
-              {flashcardDecksQuery.isLoading
-                ? "加载中"
-                : flashcardDue > 0
-                  ? `今日待复习 · 已复习 ${flashcardReviewedToday} 张`
-                  : flashcardReviewedToday > 0
-                    ? `今日已清空 · 共复习 ${flashcardReviewedToday} 张`
-                    : "今日没有待复习的卡片"}
-            </span>
-          </span>
-          <span className="flex shrink-0 items-baseline gap-[3px]">
-            <span className="text-butter text-[34px] font-extrabold tabular-nums leading-none">
-              {flashcardDecksQuery.isLoading ? "…" : flashcardDue}
-            </span>
-            <span className="text-ink-3 text-base font-bold">张</span>
-          </span>
-        </button>
-
-        {props.diaryEnabled && diaryBlock ? (
-          <button
-            type="button"
-            onClick={props.onOpenDiary}
-            className={`${BENTO_CARD_CLASS} bg-sage-soft text-left`}
-            style={{ animationDelay: "0.07s" }}
-          >
-            <span className="text-sage block text-2xl font-extrabold tabular-nums leading-tight">
-              {diaryBlock.streak}
-              <em className="ml-0.5 text-[12.5px] font-semibold not-italic">天</em>
-            </span>
-            <span className="text-ink-2 mt-0.5 block text-[11.5px]">日记连续</span>
-            <span className="mt-2 flex gap-[6px]">
-              {diaryBlock.dots.map((dot, index) => (
-                <span
-                  key={index}
-                  aria-hidden="true"
-                  className={`h-[11px] w-[11px] rounded-full ${
-                    dot.hit ? "bg-sage" : "bg-[var(--ring-track)]"
-                  } ${dot.today && !dot.hit ? "shadow-[inset_0_0_0_2px_var(--sage)]" : ""}`}
-                />
-              ))}
-            </span>
-          </button>
-        ) : null}
-
-        <button
-          type="button"
-          onClick={props.onOpenCards}
-          className={`${BENTO_CARD_CLASS} bg-lilac-soft text-left`}
-          style={{ animationDelay: "0.12s" }}
-        >
-          <span className="text-lilac block text-2xl font-extrabold tabular-nums leading-tight">
-            {props.isLoadingCards && props.cardsTotal === 0 ? "…" : props.cardsTotal}
-            <em className="ml-0.5 text-[12.5px] font-semibold not-italic">张</em>
-          </span>
-          <span className="text-ink-2 mt-0.5 block text-[11.5px]">卡片总数</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={props.onOpenArticles}
-          className={`${BENTO_CARD_CLASS} bg-apricot-soft text-left`}
-          style={{ animationDelay: "0.17s" }}
-        >
-          <span className="text-apricot block text-2xl font-extrabold tabular-nums leading-tight">
-            {homeStats ? homeStats.articlesTotal : "…"}
-            <em className="ml-0.5 text-[12.5px] font-semibold not-italic">篇</em>
-          </span>
-          <span className="text-ink-2 mt-0.5 block text-[11.5px]">文章</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={props.onOpenProjects}
-          className={`${BENTO_CARD_CLASS} bg-butter-soft col-span-2 flex items-center gap-[15px] text-left`}
-          style={{ animationDelay: "0.27s" }}
-        >
-          <span className="flex shrink-0 items-baseline gap-[3px]">
-            <span className="text-butter text-[34px] font-extrabold tabular-nums leading-none">
-              {homeStats ? homeStats.projectsTotal : "…"}
-            </span>
-            <span className="text-ink-3 text-base font-bold">个</span>
-          </span>
-          <span className="min-w-0 flex-1 text-left">
-            <span className="text-ink block text-[14.5px] font-bold">项目</span>
-            <span className="text-ink-2 mt-0.5 block text-[12px]">
-              {homeStats ? `${homeStats.projectDocumentsTotal} 篇项目文档` : "加载中"}
-            </span>
-          </span>
-        </button>
-      </div>
+      {agenda.items.length > 0 ? (
+        <div className="list-group pop-in py-1" style={{ animationDelay: "0.02s" }}>
+          {agenda.items.map(item => (
+            <AgendaRow key={item.kind} item={item} {...agendaHandlers[item.kind]} />
+          ))}
+        </div>
+      ) : null}
 
       {props.todoEnabled ? (
         <section className="mt-6">
           <div className="mb-2.5 flex items-baseline justify-between px-1">
-            <h2 className="text-ink text-[16.5px] font-extrabold">今日任务</h2>
+            <h2 className="text-ink text-[16.5px] font-extrabold">任务</h2>
             <button
               type="button"
               onClick={props.onOpenTodo}
@@ -518,8 +355,8 @@ export function HomeDashboard(props: HomeDashboardProps) {
           <div className="list-group pop-in" style={{ animationDelay: "0.06s" }}>
             {todayTodos.length === 0 ? (
               <p className="text-ink-3 px-4 py-6 text-center text-[13px]">
-                {todoStats && todoStats.total > 0
-                  ? "今天的任务都完成了，休息一下"
+                {agenda.todoTotals && agenda.todoTotals.total > 0
+                  ? "任务都完成了，休息一下"
                   : "还没有安排任务"}
               </p>
             ) : (
@@ -538,8 +375,33 @@ export function HomeDashboard(props: HomeDashboardProps) {
       ) : null}
 
       <section className="mt-6">
-        <div className="mb-2.5 flex items-baseline justify-between px-1">
+        <div className="mb-2.5 px-1">
           <h2 className="text-ink text-[16.5px] font-extrabold">最近</h2>
+        </div>
+        <div className="scrollbar-hide -mx-[18px] mb-2.5 flex gap-1.5 overflow-x-auto px-[18px] py-1">
+          {feedFilters.map(filter => {
+            const on = filter.key === feedFilter;
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setFeedFilter(filter.key)}
+                className={`shadow-card flex h-[30px] flex-none items-center gap-1 rounded-full px-3 text-[12px] font-bold transition-colors ${
+                  on ? "bg-ink text-surface" : "bg-surface text-ink-2"
+                }`}
+              >
+                {filter.label}
+                {filter.count != null ? (
+                  <span
+                    className={`font-semibold tabular-nums ${on ? "opacity-60" : "text-ink-3"}`}
+                  >
+                    {filter.count}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
         <div className="list-group pop-in px-4 py-1" style={{ animationDelay: "0.1s" }}>
           {props.isLoadingCards && recentFeed.length === 0 ? (
@@ -554,11 +416,15 @@ export function HomeDashboard(props: HomeDashboardProps) {
                 </div>
               ))}
             </div>
-          ) : recentFeed.length === 0 ? (
-            <p className="text-ink-3 py-6 text-center text-[13px]">还没有动态，写下第一条记录吧</p>
+          ) : visibleFeed.length === 0 ? (
+            <p className="text-ink-3 py-6 text-center text-[13px]">
+              {feedFilter === "all"
+                ? "还没有动态，写下第一条记录吧"
+                : `还没有${activeFilter.label}`}
+            </p>
           ) : (
-            recentFeed.map(item => {
-              const style = feedKindStyle[item.kind];
+            visibleFeed.map(item => {
+              const style = FEED_KIND_STYLE[item.kind];
               return (
                 <button
                   key={item.key}
@@ -577,11 +443,13 @@ export function HomeDashboard(props: HomeDashboardProps) {
                       {item.title}
                     </span>
                     <span className="text-ink-3 mt-0.5 flex items-center gap-1.5 text-[11.5px]">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${style.chip}`}
-                      >
-                        {style.label}
-                      </span>
+                      {feedFilter === "all" ? (
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${style.chip}`}
+                        >
+                          {style.label}
+                        </span>
+                      ) : null}
                       {formatRelativeTime(item.time)}
                     </span>
                   </span>
@@ -589,8 +457,92 @@ export function HomeDashboard(props: HomeDashboardProps) {
               );
             })
           )}
+          {canExpandFeed ? (
+            <button
+              type="button"
+              onClick={() => setFeedExpanded(true)}
+              className="text-ink-3 active:text-ink border-line -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
+            >
+              显示更多
+            </button>
+          ) : null}
+          {feedFilter !== "all" && activeFilter.viewAll ? (
+            <button
+              type="button"
+              onClick={activeFilter.viewAll}
+              className="text-ink-3 active:text-ink border-line -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
+            >
+              {activeFilter.viewAllLabel} ›
+            </button>
+          ) : null}
         </div>
       </section>
+    </div>
+  );
+}
+
+function AgendaRow({
+  item,
+  open,
+  action,
+}: {
+  item: AgendaItem;
+  open: () => void;
+  action?: [string, () => void];
+}) {
+  const style = AGENDA_STYLE[item.kind];
+  const progressPct = item.progress
+    ? Math.round((item.progress.completed / item.progress.total) * 100)
+    : 0;
+  return (
+    <div
+      className={`border-line flex items-center gap-3 border-b border-dashed px-4 py-3 last:border-b-0 ${
+        item.done ? "opacity-50" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={open}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity active:opacity-60"
+      >
+        <span
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px]"
+          style={{ background: style.soft }}
+        >
+          {style.icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="text-ink block truncate text-[14.5px] font-bold">{item.title}</span>
+          {item.progress ? (
+            <span className="mt-[7px] block h-[6px] overflow-hidden rounded-full bg-[var(--ring-track)]">
+              <span
+                className="block h-full rounded-full transition-[width] duration-500"
+                style={{
+                  width: `${progressPct}%`,
+                  backgroundImage: "linear-gradient(90deg, var(--brand-strong), var(--brand))",
+                }}
+              />
+            </span>
+          ) : item.subtitle ? (
+            <span className="text-ink-2 mt-0.5 block truncate text-[12px]">{item.subtitle}</span>
+          ) : null}
+        </span>
+      </button>
+      {item.progress ? (
+        <span className="text-ink-2 shrink-0 text-[12px] font-bold tabular-nums">
+          {item.progress.completed}/{item.progress.total}
+        </span>
+      ) : null}
+      {action && !item.done ? (
+        <button
+          type="button"
+          onClick={action[1]}
+          className="h-[30px] shrink-0 rounded-full px-3.5 text-[12px] font-bold transition-transform active:scale-95"
+          style={{ background: style.tone, color: "var(--bg-surface)" }}
+        >
+          {action[0]}
+        </button>
+      ) : null}
     </div>
   );
 }
