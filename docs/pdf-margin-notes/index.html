@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>PDF 页边笔记 · Mockup</title>
+<style>
+  :root {
+    --page: #f3eee2; --surface: #fffdf9; --sunken: #e7dbc8;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --tag-1: #61795f; --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d; --tag-5: #b06a5e;
+    --hl-yellow: #fde58b; --hl-blue: #b8d3ff; --hl-green: #b2f1b7;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-paper: 0 1px 2px rgba(80,60,30,.08), 0 12px 28px -16px rgba(80,60,30,.35);
+    --shadow-float: 0 16px 40px -12px rgba(120,100,70,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e4ddd0; font-family: -apple-system, "PingFang SC", sans-serif; color: var(--ink-1); padding: 36px 40px 80px; }
+  h1 { font-size: 22px; margin-bottom: 8px; }
+  .lead { color: var(--ink-2); font-size: 14px; line-height: 1.8; max-width: 1100px; margin-bottom: 30px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(560px, 1fr)); gap: 28px; }
+  .variant { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 22px 24px 26px; }
+  .variant h2 { font-size: 17px; display: flex; gap: 10px; align-items: baseline; }
+  .variant h2 .tag { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .variant h2 .tag.muted { background: var(--sunken); color: var(--ink-2); }
+  .variant .desc { font-size: 12.8px; color: var(--ink-2); line-height: 1.75; margin: 6px 0 16px; min-height: 66px; }
+  .stage { background: var(--page); border-radius: 14px; padding: 26px 0; display: flex; justify-content: center; position: relative; overflow: hidden; min-height: 500px; }
+  .pros { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-top: 16px; font-size: 12.5px; line-height: 1.7; color: var(--ink-2); }
+  .pros b { display: block; color: var(--ink-1); font-size: 12px; margin-bottom: 2px; }
+  .pros ul { padding-left: 16px; }
+
+  /* 仿 PDF 页 */
+  .pdf { width: 320px; height: 448px; background: #fff; box-shadow: var(--shadow-paper); padding: 34px 32px; font-family: "Songti SC", "STSong", serif; color: #2a2a2a; position: relative; flex: none; }
+  .pdf .chap { font-size: 9px; letter-spacing: .2em; color: #999; margin-bottom: 10px; }
+  .pdf h3 { font-size: 15px; margin-bottom: 12px; font-weight: 700; }
+  .pdf p { font-size: 9.6px; line-height: 1.85; text-indent: 2em; margin-bottom: 7px; text-align: justify; }
+  .pdf .folio { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; font-size: 8px; color: #aaa; }
+  mark { background: none; padding: 0 1px; }
+  mark.y { background: color-mix(in srgb, var(--hl-yellow) 75%, transparent); }
+  mark.b { background: color-mix(in srgb, var(--hl-blue) 70%, transparent); }
+  mark.u { background: none; border-bottom: 1.5px solid var(--tag-2); }
+
+  /* —— A：纸张外延 —— */
+  .a-sheet { display: flex; box-shadow: var(--shadow-paper); position: relative; }
+  .a-sheet .pdf { box-shadow: none; }
+  .a-margin { width: 150px; background: #fbf9f4; position: relative; border-left: 1px solid transparent; transition: border-color .2s; }
+  .a-sheet:hover .a-margin { border-left-color: #eee6d6; }
+  .a-note { position: absolute; left: 14px; right: 14px; font-size: 10.5px; line-height: 1.6; color: var(--ink-2); padding-left: 9px; }
+  .a-note::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 2px; border-radius: 2px; background: var(--c, var(--ink-3)); }
+  .a-note .q { display: block; font-size: 9px; color: var(--ink-3); margin-bottom: 2px; }
+  .a-note.free::before { background: none; border-left: 2px dotted var(--ink-3); width: 0; }
+  .a-ghost { position: absolute; left: 14px; right: 14px; top: 330px; height: 46px; border-radius: 8px; border: 1px dashed #e4dac8; display: grid; place-items: center; font-size: 10px; color: var(--ink-3); opacity: 0; transition: opacity .2s; }
+  .a-margin:hover .a-ghost { opacity: 1; }
+  .a-cursor { position: absolute; left: 14px; right: 14px; top: 400px; font-size: 10.5px; color: var(--ink-1); }
+  .a-cursor i { display: inline-block; width: 1px; height: 12px; background: var(--accent); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .a-toggle { position: absolute; top: 12px; right: 14px; font-size: 11px; color: var(--ink-2); background: var(--surface); border-radius: 99px; padding: 4px 10px; box-shadow: var(--shadow-card); display: flex; gap: 6px; align-items: center; }
+  .a-toggle .sw { width: 22px; height: 12px; border-radius: 99px; background: var(--accent); position: relative; }
+  .a-toggle .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+
+  /* —— B：页旁批注栏 —— */
+  .b-wrap { display: flex; gap: 0; position: relative; }
+  .b-col { width: 190px; position: relative; margin-left: 18px; }
+  .b-card { position: absolute; left: 0; right: 0; background: var(--surface); border-radius: 10px; box-shadow: var(--shadow-card); padding: 8px 10px; font-size: 10.5px; line-height: 1.6; color: var(--ink-1); }
+  .b-card .meta { font-size: 9px; color: var(--ink-3); display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+  .b-card .meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+  .b-card.active { box-shadow: var(--shadow-float); transform: translateX(-6px); }
+  .b-lead { position: absolute; height: 1px; background: color-mix(in srgb, var(--c) 55%, transparent); pointer-events: none; }
+
+  /* —— C：页内留白便笺 —— */
+  .c-note { position: absolute; font-family: -apple-system, "PingFang SC", sans-serif; font-size: 8.6px; line-height: 1.5; color: var(--tag-2); }
+  .c-note.side { right: 6px; width: 26px; writing-mode: vertical-rl; letter-spacing: .08em; }
+  .c-note.bottom { left: 32px; right: 32px; bottom: 30px; border-top: 1px dashed #d8e2ee; padding-top: 5px; }
+  .c-note.top { left: 32px; top: 12px; color: var(--tag-5); }
+  .c-sel { position: absolute; border: 1px solid var(--tag-2); border-radius: 3px; background: color-mix(in srgb, var(--tag-2) 6%, transparent); }
+  .c-handle { position: absolute; width: 6px; height: 6px; background: #fff; border: 1px solid var(--tag-2); border-radius: 50%; }
+  .c-warn { position: absolute; left: 50%; transform: translateX(-50%); bottom: 10px; font-size: 11px; color: var(--ink-2); background: var(--surface); border-radius: 8px; padding: 5px 10px; box-shadow: var(--shadow-card); white-space: nowrap; }
+
+  /* —— D：对开空白页 —— */
+  .d-spread { display: flex; box-shadow: var(--shadow-paper); }
+  .d-spread .pdf { box-shadow: none; width: 270px; height: 400px; padding: 28px 26px; }
+  .d-blank { width: 230px; height: 400px; background: #fbf9f4; position: relative; padding: 30px 22px; background-image: repeating-linear-gradient(transparent 0 21px, #efe7d8 21px 22px); background-position: 0 52px; background-clip: content-box; }
+  .d-blank::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 18px; background: linear-gradient(90deg, rgba(80,60,30,.08), transparent); }
+  .d-blank .ttl { font-size: 9px; letter-spacing: .15em; color: var(--ink-3); margin-bottom: 8px; background: #fbf9f4; }
+  .d-blank .ln { font-size: 10.5px; line-height: 22px; color: var(--ink-2); }
+  .d-blank .ref { color: var(--tag-4); font-size: 9.5px; }
+
+  /* 推荐方案细节 */
+  .detail { margin-top: 34px; background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 24px 28px; }
+  .detail h2 { font-size: 18px; margin-bottom: 4px; }
+  .detail .sub { font-size: 13px; color: var(--ink-2); margin-bottom: 20px; }
+  .states { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .state { background: var(--page); border-radius: 14px; padding: 16px; }
+  .state h4 { font-size: 13px; margin-bottom: 4px; }
+  .state p { font-size: 11.8px; color: var(--ink-2); line-height: 1.7; margin-bottom: 12px; min-height: 60px; }
+  .mini { display: flex; justify-content: center; }
+  .mini .pg { width: 92px; height: 128px; background: #fff; box-shadow: var(--shadow-paper); padding: 10px 9px; }
+  .mini .pg i { display: block; height: 3px; background: #e6e6e6; border-radius: 2px; margin-bottom: 4px; }
+  .mini .pg i.h { background: var(--hl-yellow); }
+  .mini .mg { width: 44px; height: 128px; background: #fbf9f4; position: relative; box-shadow: var(--shadow-paper); }
+  .mini .mg b { position: absolute; left: 6px; right: 6px; height: 3px; background: var(--ink-3); opacity: .5; border-radius: 2px; }
+  .mini .mg b::before { content: ""; position: absolute; left: -4px; top: -1px; width: 2px; height: 5px; background: var(--c, var(--ink-3)); }
+  .mini .stack { position: absolute; left: 6px; bottom: 8px; font-size: 8px; color: var(--ink-3); }
+  .mini .rail { width: 6px; height: 128px; position: relative; margin-left: 2px; }
+  .mini .rail b { position: absolute; left: 0; width: 4px; height: 8px; border-radius: 2px; background: var(--tag-4); opacity: .7; }
+  .rules { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; font-size: 12.6px; line-height: 1.8; color: var(--ink-2); }
+  .rules h4 { font-size: 13px; color: var(--ink-1); margin-bottom: 4px; }
+  .rules ul { padding-left: 16px; }
+  code { font-family: ui-monospace, monospace; font-size: 11.5px; background: var(--sunken); padding: 1px 5px; border-radius: 4px; color: var(--ink-1); }
+
+  /* —— 定稿：A + B —— */
+  .final { margin-bottom: 30px; }
+  .final .stage { min-height: 540px; gap: 60px; align-items: flex-start; }
+  .f-sheet { display: flex; box-shadow: var(--shadow-paper); outline: 1px solid var(--line-1); background: #fff; position: relative; }
+  .f-sheet .pdf { box-shadow: none; }
+  .f-margin { width: 128px; position: relative; border-left: 1px dashed var(--line-1); }
+  .f-note { position: absolute; left: 10px; right: 10px; font-size: 10.5px; line-height: 1.6; color: var(--ink-2); padding-left: 8px; cursor: text; border-radius: 4px; }
+  .f-note::before { content: ""; position: absolute; left: 0; top: 3px; bottom: 3px; width: 2px; border-radius: 2px; background: var(--c); }
+  .f-note.free::before { background: none; border-left: 2px dotted var(--ink-3); width: 0; }
+  .f-note.clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .f-note.hover { background: var(--page); }
+  .f-ring { position: absolute; border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--tag-2) 45%, transparent); }
+  .f-card { position: absolute; left: 6px; width: 250px; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-float); padding: 10px; font-size: 11px; z-index: 2; }
+  .f-card .src { font-size: 9.5px; color: var(--ink-2); border-left: 3px solid var(--tag-4); padding-left: 6px; margin-bottom: 7px; }
+  .f-card .src.free { border-left: 3px dotted var(--ink-3); }
+  .f-card .box { border: 1px solid var(--accent); border-radius: 7px; padding: 6px 8px; min-height: 54px; line-height: 1.6; box-shadow: 0 0 0 3px rgba(217,119,87,.2); }
+  .f-card .foot { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 10px; color: var(--ink-3); }
+  .f-card .foot .sp { flex: 1; }
+  .f-card .btn { padding: 3px 9px; border-radius: 6px; }
+  .f-card .btn.p { background: var(--accent); color: #fff; }
+  .f-card .btn.d { color: var(--tag-5); }
+  .f-cap { font-size: 12px; color: var(--ink-2); text-align: center; margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1>PDF 页边笔记 · 四个方向</h1>
+<p class="lead">
+  现状：笔记只能依附划线，以 22px 图钉的形式显示在<strong>页面右边缘内侧</strong>，悬停才能看到内容。读纸书时的「页边批注」有三个特征——<strong>常驻可见</strong>（扫一眼就能看到自己写过什么）、<strong>位置即上下文</strong>（写在哪一段旁边就是在说哪一段）、<strong>可以不依附划线</strong>（随手冒出的想法）。下面四个方案都围绕这三点展开，按推荐程度排序。
+</p>
+
+
+<section class="variant final">
+  <h2>定稿 · A + B <span class="tag">已定稿</span></h2>
+  <p class="desc">平时是 A：页边和 PDF 同一张纸、同一底色，只用一条虚线隔开；笔记直接排在对应段落的高度，超过 4 行折叠。写和改的时候是 B：点页边的笔记或空白处，就地弹出卡片编辑，长笔记、富文本都放得下。悬停页边笔记时，原文里对应的划线会描一圈。</p>
+  <div class="stage">
+    <div>
+      <div class="f-sheet">
+        <div class="pdf" data-page="1"><div class="f-ring" style="left:58px; top:242px; width:232px; height:30px"></div></div>
+        <div class="f-margin">
+          <div class="f-note clamp" style="top:104px; --c: var(--tag-4)">和《穷查理》里「复利需要耐心」放一起看——递减的是边际，不是总量。所以再读一本书的价值取决于已有结构，而不是数量，这也解释了为什么</div>
+          <div class="f-note hover" style="top:236px; --c: var(--tag-2)">作者这里偷换了概念：机会成本 ≠ 沉没成本。</div>
+          <div class="f-note free" style="top:316px">这个例子放到知识工作里还成立吗？</div>
+        </div>
+      </div>
+      <p class="f-cap">阅读：悬停第二条，原文划线描边</p>
+    </div>
+    <div>
+      <div class="f-sheet">
+        <div class="pdf" data-page="1"></div>
+        <div class="f-margin">
+          <div class="f-note clamp" style="top:104px; --c: var(--tag-4)">和《穷查理》里「复利需要耐心」放一起看——递减的是边际，不是总量。</div>
+          <div class="f-note" style="top:236px; --c: var(--tag-2)">作者这里偷换了概念：机会成本 ≠ 沉没成本。</div>
+          <div class="f-card" style="top:330px; left:-120px">
+            <div class="src free">页边 · 第 12 页</div>
+            <div class="box">第三章会回到这个问题，到时候对照着看|</div>
+            <div class="foot"><span>第 12 页</span><span class="sp"></span><span class="btn d">删除</span><span class="btn">取消</span><span class="btn p">保存 ⌘↵</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="f-cap">书写：点页边空白处，就地弹出卡片</p>
+    </div>
+  </div>
+</section>
+
+<div class="grid">
+  <!-- A -->
+  <section class="variant">
+    <h2>A · 纸张外延 <span class="tag">推荐</span></h2>
+    <p class="desc">在页面外侧「接」出一条同质纸边（暖白，不是 PDF 的纯白，暗示这是你的而不是书的），笔记直接以小号正文排在对应段落的高度，左侧一道划线同色的细竖线。没有卡片、没有边框——像铅笔写在书边上。悬停才显出接缝；点空白处直接落笔，写下的就是不依附划线的「自由批注」（虚线竖标）。</p>
+    <div class="stage">
+      <div class="a-toggle">页边 <span class="sw"></span></div>
+      <div class="a-sheet">
+        <div class="pdf" data-page="1"></div>
+        <div class="a-margin">
+          <div class="a-note" style="top:104px; --c: var(--tag-4)"><span class="q">「边际收益递减…」</span>和上周读的《穷查理》里「复利需要耐心」放一起看——递减的是边际，不是总量。</div>
+          <div class="a-note" style="top:212px; --c: var(--tag-2)">作者这里偷换了概念：机会成本 ≠ 沉没成本。</div>
+          <div class="a-note free" style="top:282px">？这个例子如果放到知识工作里还成立吗</div>
+          <div class="a-ghost">点击在此处写批注</div>
+          <div class="a-cursor">第三章会回到这个问题<i></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="pros">
+      <div><b>好在</b><ul><li>最像纸书，常驻可见，扫读成本最低</li><li>视觉增量极小：只多一块纸色，没有新的「组件感」</li><li>自由批注零学习成本：空白处点一下就写</li></ul></div>
+      <div><b>代价</b><ul><li>占横向空间：窄窗口需要自动收起成细轨（见下方状态）</li><li>双页模式只能放外侧（左页放左、右页放右）</li><li>一段写很多时会挤：需要折叠与「+N」</li></ul></div>
+    </div>
+  </section>
+
+  <!-- B -->
+  <section class="variant">
+    <h2>B · 页旁批注栏 <span class="tag muted">稳妥</span></h2>
+    <p class="desc">Google Docs / Word 评论式：页面右侧一列浮动小卡，细引线连回原文。卡片之间自动避让，选中的卡片前移并加深阴影。信息结构最清楚，但「卡片」本身就是软件感，和读书的气质有距离。</p>
+    <div class="stage">
+      <div class="b-wrap">
+        <div class="pdf" data-page="1"></div>
+        <div class="b-col">
+          <div class="b-card" style="top:92px; --c: var(--tag-4)"><div class="meta"><span class="dot"></span>划线 · 第 12 页</div>和《穷查理》里「复利需要耐心」放一起看——递减的是边际，不是总量。</div>
+          <div class="b-card active" style="top:196px; --c: var(--tag-2)"><div class="meta"><span class="dot"></span>划线 · 第 12 页</div>作者这里偷换了概念：机会成本 ≠ 沉没成本。</div>
+          <div class="b-card" style="top:280px; --c: var(--ink-3)"><div class="meta"><span class="dot"></span>页边</div>这个例子放到知识工作里还成立吗？</div>
+        </div>
+        <div class="b-lead" style="left:250px; width:88px; top:120px; --c: var(--tag-4)"></div>
+        <div class="b-lead" style="left:240px; width:92px; top:212px; --c: var(--tag-2)"></div>
+      </div>
+    </div>
+    <div class="pros">
+      <div><b>好在</b><ul><li>实现最接近现有 NoteCard，改动小</li><li>长笔记、富文本、多条回复都装得下</li></ul></div>
+      <div><b>代价</b><ul><li>「卡片墙」视觉重，笔记多时页面很吵</li><li>不像书，更像审稿</li></ul></div>
+    </div>
+  </section>
+
+  <!-- C -->
+  <section class="variant">
+    <h2>C · 写进页内留白 <span class="tag muted">补充</span></h2>
+    <p class="desc">不扩展页面，直接在 PDF 自带的页边、段间、页脚空白处放文字（可竖排塞进窄边）。最「原汁原味」，还能写回 PDF 的 FreeText 标注，导出给别的阅读器也看得到。但很多 PDF（论文、扫描件）几乎没有留白。</p>
+    <div class="stage">
+      <div class="pdf" data-page="1">
+        <div class="c-note top">↓ 本章核心：边际思维</div>
+        <div class="c-note side" style="top:150px">偷换概念</div>
+        <div class="c-sel" style="left:30px; right:30px; bottom:26px; height:36px"></div>
+        <div class="c-handle" style="right:27px; bottom:59px"></div>
+        <div class="c-handle" style="left:27px; bottom:23px"></div>
+        <div class="c-note bottom">这个例子放到知识工作里还成立吗？——第三章会回到这个问题</div>
+      </div>
+      <div class="c-warn">本页留白不足时自动提示改用页边</div>
+    </div>
+    <div class="pros">
+      <div><b>好在</b><ul><li>零额外空间，缩放/双页都不受影响</li><li>可写回 PDF，跨阅读器可见</li></ul></div>
+      <div><b>代价</b><ul><li>依赖文件本身的留白，体验不稳定</li><li>字小、易遮挡正文；自由摆放需要拖拽手柄，操作重</li></ul></div>
+    </div>
+  </section>
+
+  <!-- D -->
+  <section class="variant">
+    <h2>D · 对开空白页 <span class="tag muted">长笔记</span></h2>
+    <p class="desc">像在书里夹一张活页：在某页后插一张横线笔记页，双页模式下左书右笔。适合读完一章写一段完整的总结或推导，而不是零碎批注。可作为 A 的「展开」形态而不是独立方案。</p>
+    <div class="stage">
+      <div class="d-spread">
+        <div class="pdf" data-page="1"></div>
+        <div class="d-blank">
+          <div class="ttl">活页 · 第 12 页之后</div>
+          <div class="ln"><span class="ref">↳ 边际收益递减</span></div>
+          <div class="ln">递减的是边际，不是总量。</div>
+          <div class="ln">所以「再多读一本」的价值</div>
+          <div class="ln">取决于已读的结构，而不是数量。</div>
+          <div class="ln"><span class="ref">↳ 机会成本</span></div>
+          <div class="ln">作者把沉没成本混进来了，</div>
+          <div class="ln">第 14 页的例子其实不成立。</div>
+        </div>
+      </div>
+    </div>
+    <div class="pros">
+      <div><b>好在</b><ul><li>空间充裕，能写完整的段落、公式、图</li><li>天然适配双页阅读</li></ul></div>
+      <div><b>代价</b><ul><li>与原文的位置关联变弱（只到页级）</li><li>打乱页码与翻页节奏，需要明确区分「书页」与「我的页」</li></ul></div>
+    </div>
+  </section>
+</div>
+
+<section class="detail">
+  <h2>推荐 A 的细节：怎么做到「不丑」</h2>
+  <p class="sub">核心原则：页边是纸的一部分，不是一块 UI 面板。所有视觉增量都要能用「铅笔写在书边」来解释。</p>
+  <div class="states">
+    <div class="state">
+      <h4>① 本页无笔记</h4>
+      <p>页边依然在（宽度全书统一，避免翻页时页面左右跳），但完全空白，接缝不可见；悬停才浮出「点击写批注」。</p>
+      <div class="mini"><div class="pg"><i></i><i></i><i class="h"></i><i></i><i></i><i></i><i></i></div><div class="mg"></div></div>
+    </div>
+    <div class="state">
+      <h4>② 常规</h4>
+      <p>笔记顶端对齐锚点所在行；重叠时向下顺排（复用现有 <code>layoutPins</code> 的避让逻辑）。划线批注=实色竖线，自由批注=虚线。</p>
+      <div class="mini"><div class="pg"><i></i><i class="h"></i><i></i><i></i><i class="h"></i><i></i><i></i></div><div class="mg"><b style="top:16px; --c: var(--tag-4)"></b><b style="top:24px; --c: var(--tag-4)"></b><b style="top:46px; --c: var(--tag-2)"></b><b style="top:80px"></b></div></div>
+    </div>
+    <div class="state">
+      <h4>③ 写满</h4>
+      <p>单条超过 4 行折叠，悬停展开；挤出页底的笔记合并为「+2 条」，点击在页边内滚动，不越过页面。</p>
+      <div class="mini"><div class="pg"><i class="h"></i><i class="h"></i><i></i><i class="h"></i><i></i><i class="h"></i><i></i></div><div class="mg"><b style="top:10px; --c: var(--tag-4)"></b><b style="top:18px; --c: var(--tag-4)"></b><b style="top:30px; --c: var(--tag-2)"></b><b style="top:42px; --c: var(--tag-5)"></b><b style="top:54px; --c: var(--tag-3)"></b><b style="top:66px; --c: var(--tag-4)"></b><span class="stack">+2 条</span></div></div>
+    </div>
+    <div class="state">
+      <h4>④ 窄窗口 / 收起</h4>
+      <p>放不下页边时退化为页外 6px 细轨，只画色标（等于把现在页内的图钉挪到页外，不再遮正文）；点击色标展开为浮层。</p>
+      <div class="mini"><div class="pg"><i></i><i class="h"></i><i></i><i></i><i class="h"></i><i></i><i></i></div><div class="rail"><b style="top:16px"></b><b style="top:46px; background: var(--tag-2)"></b><b style="top:80px; background: var(--ink-3)"></b></div></div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div>
+      <h4>视觉</h4>
+      <ul>
+        <li>纸边用暖白 <code>#fbf9f4</code>（亮）/ 页面同色降一档（暗），与 PDF 纯白形成「书页 vs 我的纸」的微差</li>
+        <li>与页面共用一个阴影，看起来是同一张纸；接缝 1px 只在悬停出现</li>
+        <li>笔记用界面字体、比正文小一号、<code>ink-2</code> 色；不用手写体（廉价感 + 中文手写字体体积大）</li>
+        <li>页边宽度 ≈ 页宽 × 0.42，随缩放等比，字号也随缩放，保持「写在纸上」的比例</li>
+      </ul>
+    </div>
+    <div>
+      <h4>交互</h4>
+      <ul>
+        <li>点页边空白 = 在该高度新建自由批注，直接进入编辑（复用 NoteCard 的 Slate 编辑器，去掉卡片外壳）</li>
+        <li>划线后「写笔记」= 在页边对应高度落笔，不再弹浮卡</li>
+        <li>悬停批注 ↔ 原文划线互相高亮；拖动批注可微调高度</li>
+        <li>页边开关放进 HUD（按文档记忆），有批注的文档默认开</li>
+      </ul>
+    </div>
+    <div>
+      <h4>数据</h4>
+      <ul>
+        <li><code>pdf_annotations.type</code> 新增 <code>"margin"</code>：存 pageIndex + y（PDF 坐标），不写进 PDF 文件</li>
+        <li>划线批注沿用现有 <code>notes</code>，只是换个显示位置，零迁移</li>
+        <li>自由批注同样进入摘录 / 知识闭环 / 对话引用（「第 12 页 · 页边」）</li>
+        <li>D（活页）可作为后续：页边批注「展开为活页」</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+  const PAGE = `
+    <div class="chap">第 二 章 · 边际</div>
+    <h3>在边际上做决定</h3>
+    <p>经济学家习惯在边际上思考。所谓边际，是指在现有状态的基础上再增加一单位所带来的变化。<mark class="y">边际收益递减并不意味着总收益减少</mark>，它只是说每多投入一份，换回来的会比上一份少一些。</p>
+    <p>理解这一点之后，很多看似矛盾的选择就变得合理了。一个已经读过一百本书的人，再读第一百零一本的收获，取决于这本书能否接上他已有的结构。</p>
+    <p>与此相关的另一个概念是机会成本。<mark class="b">当你选择做一件事时，真正的代价是你因此放弃的最好的那个选项</mark>，而不是你已经付出、无法收回的部分。</p>
+    <p>人们常常把二者混为一谈。已经花掉的时间和金钱属于沉没成本，它们不应影响眼下的决定，可我们总是忍不住为了「不浪费」而继续投入。</p>
+    <p>这种倾向在知识工作中尤其明显：读了一半的书、做了一半的项目，都会产生一种必须完成的心理压力。</p>
+    <div class="folio">12</div>`;
+  document.querySelectorAll('.pdf[data-page]').forEach(el => el.insertAdjacentHTML('afterbegin', PAGE));
+</script>
+</body>
+</html>

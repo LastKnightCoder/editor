@@ -22,7 +22,8 @@ export interface AreaAnnotationData {
   pageIndex: number;
 }
 
-export type PdfAnnotationType = "text-markup" | "area";
+/** margin = 页边批注：不依附原文，位置是 annotation.pageIndex + rect.origin.y，内容全在 notes */
+export type PdfAnnotationType = "text-markup" | "area" | "margin";
 
 export interface Pdf {
   id: number;

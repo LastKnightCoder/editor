@@ -16,6 +16,8 @@ import {
   annotationPage,
   annotationSnippet,
   filterAnnotations,
+  isEngineAnnotation,
+  isMarginNote,
   markupStyleOf,
   noteText,
   sortAnnotations,
@@ -234,6 +236,8 @@ function AnnotationList({
           选中文字即可高亮或写笔记
           <br />
           按住 Alt 拖动可框选区域
+          <br />
+          点页面右侧的页边可随手写批注
         </Empty>
       ) : list.length === 0 ? (
         <Empty>没有符合条件的标注</Empty>
@@ -242,7 +246,8 @@ function AnnotationList({
           <div className="flex flex-col gap-0.5">
             {list.map(record => {
               const spec = COLOR_SPECS[annotationColor(record)];
-              const style = record.type === "area" ? null : markupStyleOf(record.annotation);
+              const margin = isMarginNote(record);
+              const style = isEngineAnnotation(record) ? markupStyleOf(record.annotation) : null;
               const note = noteText(record);
               // 区域截图没有原文，有批注才能转
               const hasText = record.type !== "area" || Boolean(note);
@@ -261,12 +266,13 @@ function AnnotationList({
                     <span
                       className={cn(
                         "text-tau-sm text-ink-1 line-clamp-3 border-l-[3px] pl-2 leading-relaxed",
-                        spec.border
+                        margin ? "border-ink-3 border-dotted" : spec.border
                       )}
                     >
-                      {annotationSnippet(record)}
+                      {/* 页边批注没有原文，主行就是批注 */}
+                      {margin ? note : annotationSnippet(record)}
                     </span>
-                    {note && (
+                    {note && !margin && (
                       <span className="text-tau-meta text-ink-2 flex gap-1.5 pl-0.5">
                         <MessageSquareText
                           size={12}
@@ -277,7 +283,7 @@ function AnnotationList({
                       </span>
                     )}
                     <span className="text-tau-meta text-ink-3 pl-0.5 tabular-nums">
-                      第 {annotationPage(record)} 页
+                      第 {annotationPage(record)} 页{margin ? " · 页边" : ""}
                       {style && style !== "highlight" ? ` · ${STYLE_LABEL[style]}` : ""}
                     </span>
                   </button>

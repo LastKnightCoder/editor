@@ -1,9 +1,10 @@
 /**
  * 阅读器主体（EmbedPDF 上下文内）：左面板 + 阅读区（引擎视口 + 每页叠加层 + 查找条 + 底部 HUD）。
  * 交互编排集中在这里：先划线再出工具条（没有「工具模式」）、点标注出同一条工具条、Alt 拖动框选、
- * 空格按住平移、页边图钉、书签、查找、引用跳转闪烁。
+ * 空格按住平移、页边批注（展开）/ 页内图钉（收起）、书签、查找、引用跳转闪烁。
+ * 页边只在单页、未旋转时展开：包住 Scroller 的容器右侧留出页边宽度，适宽 / 适页经 useMarginFit 把页边算进去。
  *
- * 键位：←/→ 翻页、B 书签、D 双页、R 旋转、H 抓手、空格平移、Alt 框选；Ctrl/⌘+F 经全局查找接管打开查找条；
+ * 键位：←/→ 翻页、B 书签、D 双页、R 旋转、M 页边、H 抓手、空格平移、Alt 框选；Ctrl/⌘+F 经全局查找接管打开查找条；
  * 只在焦点位于阅读器（或无焦点）时生效，让位编辑上下文与输入法组合。Alt+←/→ 归导航，
  * 这里只把单独按下的 Alt 当作框选修饰键。Esc 一律经页面浮层仲裁。
  */
@@ -50,7 +51,12 @@ import {
   annotationRect,
   annotationText,
   hasNote,
+  isEngineAnnotation,
+  isMarginNote,
   markupDefaults,
+  noteText,
+  notesPlainText,
+  MARGIN_RATIO,
   markupStyleOf,
   toggleStylePatch,
   COLOR_SPECS,
@@ -70,6 +76,8 @@ import { useReaderPrefs } from "./readerPrefs";
 import { convertMaterialToCard } from "@/services/material-to-card";
 import { requestMaterialQuestionCapture } from "@/services/question-capture";
 import { useAnnotationSync } from "./useAnnotationSync";
+import { useMarginFit } from "./useMarginFit";
+import { nightPaper, paperPalette, samplePaperColor, type Rgb } from "./paper";
 import { usePinchZoom } from "./usePinchZoom";
 import { AnnotationMenu, type SelectionMenuProps } from "./components/AnnotationMenu";
 import { FindBar, type FindMode, type FindResultRow } from "./components/FindBar";
@@ -153,7 +161,7 @@ export function ReaderLayout({
   const { provides: annotationCap } = useAnnotationCapability();
   const { provides: capture } = useCaptureCapability();
   const { provides: pan } = usePanCapability();
-  const { provides: rotate } = useRotate();
+  const { provides: rotate, rotation } = useRotate();
   const { spreadMode, provides: spread } = useSpread();
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -189,6 +197,15 @@ export function ReaderLayout({
     if (scrollState?.currentPage) onPageChangeRef.current?.(scrollState.currentPage);
   }, [scrollState?.currentPage]);
 
+  /* ───────── 页边 ───────── */
+
+  const marginActive = prefs.marginOpen && spreadMode === SpreadMode.None && rotation === 0;
+  useMarginFit(marginActive ? MARGIN_RATIO : null);
+  const contentWidth = scroll?.getLayout().totalContentSize.width ?? 0;
+  const marginWidth = marginActive
+    ? Math.round(MARGIN_RATIO * contentWidth * (zoomState?.currentZoomLevel ?? 1))
+    : 0;
+
   /* ───────── 浮层状态 ───────── */
 
   const [overlay, setOverlay] = useState<ReaderOverlay | null>(null);
@@ -197,6 +214,10 @@ export function ReaderLayout({
   const [flashPin, setFlashPin] = useState<number | null>(null);
   const [flash, setFlash] = useState<PageHighlight | null>(null);
   const [activeRecordId, setActiveRecordId] = useState<number | null>(null);
+  // 页边收起时页边草稿没有承载处，直接丢弃
+  useEffect(() => {
+    if (!marginActive) setNoteTarget(current => (current?.objectId === null ? null : current));
+  }, [marginActive]);
   const timers = useRef<number[]>([]);
   const later = (fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
@@ -298,7 +319,7 @@ export function ReaderLayout({
     const rect = annotationRect(record);
     scrollToRect(annotationPage(record), rect ? { x: rect.x, y: rect.y } : undefined);
     setActiveRecordId(record.id);
-    if (hasNote(record)) {
+    if (hasNote(record) || isMarginNote(record)) {
       setPinned(record.id);
       setFlashPin(record.id);
       later(() => setFlashPin(current => (current === record.id ? null : current)), 1800);
@@ -369,6 +390,9 @@ export function ReaderLayout({
 
   const quoteOf = (target: PdfAnnotationObject | PdfAnnotation): PdfQuote => {
     if (isRecord(target)) {
+      if (isMarginNote(target)) {
+        return { kind: "margin", pageNumber: annotationPage(target), text: noteText(target) };
+      }
       return target.type === "area"
         ? {
             kind: "area",
@@ -395,10 +419,10 @@ export function ReaderLayout({
     setOverlay(null);
   });
 
-  const copyText = async (text: string) => {
+  const copyText = async (text: string, label = "原文") => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("已复制原文");
+      toast.success(`已复制${label}`);
     } catch {
       toast.error("复制失败");
     }
@@ -406,7 +430,7 @@ export function ReaderLayout({
 
   const removeTarget = useMemoizedFn((target: PdfAnnotationObject | PdfAnnotation) => {
     const record = isRecord(target) ? target : recordOf(target);
-    if (record?.type === "area") {
+    if (record && !isEngineAnnotation(record)) {
       void annotations.remove(record);
     } else {
       // 文本标注从引擎删，落库由同步钩子跟进
@@ -416,13 +440,13 @@ export function ReaderLayout({
     setOverlay(null);
     if (pinned === record?.id) setPinned(null);
     if (!record) return;
-    toast.info("已删除标注", {
+    toast.info(isMarginNote(record) ? "已删除页边批注" : "已删除标注", {
       duration: 5000,
       action: {
         label: "撤销",
         onClick: () => {
           void annotations.restore(record).then(restored => {
-            if (restored.type !== "area") sync.reimport(restored);
+            if (isEngineAnnotation(restored)) sync.reimport(restored);
           });
         },
       },
@@ -477,6 +501,7 @@ export function ReaderLayout({
     flash,
     canAsk: Boolean(onAskAI),
     newStyle: prefs.lastStyle,
+    marginWidth,
     toggleBookmark,
     setPinned,
     selectArea: recordId => setOverlay(recordId == null ? null : { kind: "area", recordId }),
@@ -570,10 +595,16 @@ export function ReaderLayout({
           .catch(() => toast.error("复制图片失败"));
         return;
       }
-      void copyText(quoteOf(target).text);
+      const quote = quoteOf(target);
+      void copyText(quote.text, quote.kind === "margin" ? "批注" : "原文");
     },
     remove: removeTarget,
     clearNote: record => {
+      // 页边批注只有笔记，清空即删除整条
+      if (isMarginNote(record)) {
+        removeTarget(record);
+        return;
+      }
       const previous = record.notes;
       setPinned(null);
       void annotations.updateNotes(record.id, []).then(() =>
@@ -586,8 +617,39 @@ export function ReaderLayout({
         })
       );
     },
+    draftMargin: (pageIndex, y) => {
+      annotationCap?.deselectAnnotation();
+      setOverlay(null);
+      setPinned(null);
+      setNoteTarget({
+        objectId: null,
+        pageIndex,
+        rect: { origin: { x: 0, y }, size: { width: 0, height: 0 } },
+      });
+    },
+    saveMarginDraft: async notes => {
+      const target = noteTarget;
+      if (target?.objectId !== null || !target) return;
+      if (!notesPlainText(notes)) {
+        setNoteTarget(null);
+        return;
+      }
+      try {
+        await annotations.createMargin(target.pageIndex, target.rect.origin.y, notes);
+        setNoteTarget(null);
+      } catch (error) {
+        console.error("[pdf-reader] 保存页边批注失败", error);
+        toast.error("保存页边批注失败");
+      }
+    },
+
     closeNote: () => setNoteTarget(null),
     saveNote: async (record, notes) => {
+      if (isMarginNote(record) && !notesPlainText(notes)) {
+        setNoteTarget(null);
+        removeTarget(record);
+        return;
+      }
       await annotations.updateNotes(record.id, notes);
       setNoteTarget(null);
     },
@@ -707,6 +769,10 @@ export function ReaderLayout({
         case "R":
           rotate?.rotateForward();
           break;
+        case "m":
+        case "M":
+          useReaderPrefs.getState().toggleMargin();
+          break;
         case "h":
         case "H":
           setHandTool(on => !on);
@@ -798,29 +864,33 @@ export function ReaderLayout({
                 data-pdf-viewport=""
                 className={cn(FADE_SCROLL_CLASS, "min-h-0 min-w-0 flex-1 bg-transparent")}
               >
-                <Scroller
-                  renderPage={({ width, height, pageIndex, scale, rotation }) => (
-                    <Rotate pageSize={{ width, height }}>
-                      <PagePointerProvider
-                        pageIndex={pageIndex}
-                        pageWidth={width}
-                        pageHeight={height}
-                        rotation={rotation}
-                        scale={scale}
-                      >
-                        <PageFrame
+                {/* 页边展开时右侧留出页边宽度（页边本身画在每页叠加层里，溢出页面右缘） */}
+                <div className="mx-auto w-fit" style={{ paddingRight: marginWidth }}>
+                  <Scroller
+                    renderPage={({ width, height, pageIndex, scale, rotation }) => (
+                      <Rotate pageSize={{ width, height }}>
+                        <PagePointerProvider
                           pageIndex={pageIndex}
-                          width={width}
-                          height={height}
-                          scale={scale}
+                          pageWidth={width}
+                          pageHeight={height}
                           rotation={rotation}
-                          night={prefs.nightPage}
-                          renderMenu={renderMenu}
-                        />
-                      </PagePointerProvider>
-                    </Rotate>
-                  )}
-                />
+                          scale={scale}
+                        >
+                          <PageFrame
+                            pageIndex={pageIndex}
+                            width={width}
+                            height={height}
+                            scale={scale}
+                            rotation={rotation}
+                            night={prefs.nightPage}
+                            marginWidth={marginWidth}
+                            renderMenu={renderMenu}
+                          />
+                        </PagePointerProvider>
+                      </Rotate>
+                    )}
+                  />
+                </div>
                 {/* 末页下方留出悬浮 HUD 的高度，滚到底时最后几行不被挡住 */}
                 <div aria-hidden className="h-16" />
               </Viewport>
@@ -863,6 +933,9 @@ export function ReaderLayout({
               onRotate={() => rotate?.rotateForward()}
               night={prefs.nightPage}
               onToggleNight={prefs.toggleNightPage}
+              margin={prefs.marginOpen}
+              marginAvailable={spreadMode === SpreadMode.None && rotation === 0}
+              onToggleMargin={prefs.toggleMargin}
               onFullscreen={toggleFullscreen}
               onReveal={
                 pdf.isLocal && resolvedPath ? () => void showInFolder(resolvedPath) : undefined
@@ -898,6 +971,7 @@ function PageFrame({
   scale,
   rotation,
   night,
+  marginWidth,
   renderMenu,
 }: {
   pageIndex: number;
@@ -906,18 +980,36 @@ function PageFrame({
   scale: number;
   rotation: Rotation;
   night: boolean;
+  /** 页边宽度（像素），0 = 收起 */
+  marginWidth: number;
   renderMenu: (props: SelectionMenuProps) => React.JSX.Element;
 }) {
   const [painted, setPainted] = useState(false);
+  const [paperRgb, setPaperRgb] = useState<Rgb | null>(null);
+  const paper = useMemo(
+    () => (paperRgb ? paperPalette(night ? nightPaper(paperRgb) : paperRgb) : null),
+    [paperRgb, night]
+  );
   return (
     <div
-      // 页缘：细边 + 卡片投影，纸白页面落在同色阅读区上也能看清上下沿
-      className="group/page shadow-card outline-line-1 relative outline"
+      // 页缘：细边 + 卡片投影，纸白页面落在同色阅读区上也能看清上下沿；页边展开时由底纸统一承担
+      className={cn("group/page relative", !marginWidth && "shadow-card outline-line-1 outline")}
       style={{ width, height }}
       data-page-number={pageIndex + 1}
       draggable={false}
       onDragStart={e => e.preventDefault()}
     >
+      {marginWidth > 0 && (
+        <div
+          aria-hidden
+          // 底纸取 PDF 自己的纸色，页边因此与页面同色；取不到时用主题表面色
+          className={cn(
+            "shadow-card outline-line-1 absolute inset-y-0 left-0 outline",
+            !paper && "bg-surface"
+          )}
+          style={{ width: width + marginWidth, backgroundColor: paper?.paper }}
+        />
+      )}
       {/* 夜间页面只反色页面位图，标注与浮层保持原色 */}
       <div
         className={cn(
@@ -925,7 +1017,14 @@ function PageFrame({
           night && "[filter:invert(0.88)_hue-rotate(180deg)]"
         )}
       >
-        <RenderLayer pageIndex={pageIndex} scale={0.5} onLoad={() => setPainted(true)} />
+        <RenderLayer
+          pageIndex={pageIndex}
+          scale={0.5}
+          onLoad={e => {
+            setPainted(true);
+            setPaperRgb(samplePaperColor(e.currentTarget));
+          }}
+        />
         <TilingLayer pageIndex={pageIndex} scale={scale} />
       </div>
       <SelectionLayer pageIndex={pageIndex} scale={scale} />
@@ -943,7 +1042,13 @@ function PageFrame({
           rotation={rotation}
           selectionMenu={renderMenu}
         />
-        <PageLayer pageIndex={pageIndex} scale={scale} width={width} />
+        <PageLayer
+          pageIndex={pageIndex}
+          scale={scale}
+          width={width}
+          height={height}
+          paper={paper}
+        />
       </div>
       <MarqueeCapture pageIndex={pageIndex} scale={scale} />
     </div>

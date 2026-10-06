@@ -1,6 +1,6 @@
 /**
  * 引擎标注 ↔ 数据库记录的双向同步（须在 EmbedPDF 上下文内调用）：
- * - 记录到达后把文本标注导入引擎（区域标注不进引擎，由 AreaLayer 自己画）；
+ * - 记录到达后把文本标注导入引擎（区域标注与页边批注不进引擎，由叠加层自己画）；
  * - 引擎里的创建 / 修改 / 删除落库；导入引起的事件跳过，避免回写。
  */
 
@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useAnnotationCapability } from "@embedpdf/plugin-annotation/react";
 import type { AnnotationEvent } from "@embedpdf/plugin-annotation";
 import type { PdfAnnotation } from "@/types";
-import { colorFromHex } from "./annotationModel";
+import { colorFromHex, isEngineAnnotation } from "./annotationModel";
 import type { ReaderAnnotations } from "./data";
 
 export function useAnnotationSync(pluginsReady: boolean, store: ReaderAnnotations) {
@@ -21,7 +21,7 @@ export function useAnnotationSync(pluginsReady: boolean, store: ReaderAnnotation
     (items: PdfAnnotation[]) => {
       if (!capability) return;
       const fresh = items.filter(
-        r => r.type !== "area" && r.annotation?.id && !imported.current.has(r.annotation.id)
+        r => isEngineAnnotation(r) && r.annotation?.id && !imported.current.has(r.annotation.id)
       );
       if (fresh.length === 0) return;
       for (const record of fresh) {

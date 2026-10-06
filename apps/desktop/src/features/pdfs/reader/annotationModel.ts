@@ -5,7 +5,7 @@
 
 import { PdfAnnotationSubtype, PdfBlendMode, type PdfAnnotationObject } from "@embedpdf/models";
 import type { MessageContentItem } from "@tau/shared";
-import { EHighlightColor, type PdfAnnotation } from "@/types";
+import { EHighlightColor, type Note, type PdfAnnotation } from "@/types";
 import { richTextPlainText } from "@/utils/richTextText";
 
 /** 新建可选的 5 色（粉色只保留给旧标注显示） */
@@ -115,9 +115,19 @@ export function colorFromHex(hex: unknown): EHighlightColor | null {
   return best;
 }
 
+/** 页边批注：没有原文，只有笔记 */
+export function isMarginNote(record: PdfAnnotation): boolean {
+  return record.type === "margin";
+}
+
+/** 进引擎的只有文本标注；区域标注与页边批注由叠加层自己画 */
+export function isEngineAnnotation(record: PdfAnnotation): boolean {
+  return record.type !== "area" && record.type !== "margin";
+}
+
 /** 一条标注记录的颜色：区域标注看记录，文本标注看写进 PDF 的颜色，缺省为黄 */
 export function annotationColor(record: PdfAnnotation): EHighlightColor {
-  if (record.type === "area") return record.color ?? EHighlightColor.Yellow;
+  if (!isEngineAnnotation(record)) return record.color ?? EHighlightColor.Yellow;
   const fromObject = colorFromHex((record.annotation as { color?: unknown }).color);
   return fromObject ?? record.color ?? EHighlightColor.Yellow;
 }
@@ -208,9 +218,13 @@ export function annotationRect(record: PdfAnnotation): PageRect | null {
   return { x: rect.origin.x, y: rect.origin.y, width: rect.size.width, height: rect.size.height };
 }
 
-export function noteText(record: PdfAnnotation): string {
-  const first = record.notes?.[0]?.note;
+export function notesPlainText(notes: Note[] | undefined): string {
+  const first = notes?.[0]?.note;
   return first ? richTextPlainText(first).trim() : "";
+}
+
+export function noteText(record: PdfAnnotation): string {
+  return notesPlainText(record.notes);
 }
 
 export function hasNote(record: PdfAnnotation): boolean {
@@ -220,6 +234,7 @@ export function hasNote(record: PdfAnnotation): boolean {
 /** 列表 / 边注里展示的摘录 */
 export function annotationSnippet(record: PdfAnnotation): string {
   if (record.type === "area") return `区域截图 · 第 ${annotationPage(record)} 页`;
+  if (record.type === "margin") return `页边批注 · 第 ${annotationPage(record)} 页`;
   return annotationText(record.annotation) || `第 ${annotationPage(record)} 页标注`;
 }
 
@@ -240,7 +255,8 @@ export function filterAnnotations(
 ): PdfAnnotation[] {
   if (filter === "all") return records;
   if (filter === "notes") return records.filter(hasNote);
-  return records.filter(record => annotationColor(record) === filter);
+  // 页边批注没有颜色，不进色板筛选
+  return records.filter(record => !isMarginNote(record) && annotationColor(record) === filter);
 }
 
 /* ───────── 页边图钉 ───────── */
@@ -265,18 +281,61 @@ export function layoutPins(records: PdfAnnotation[], scale: number, pinSize: num
   return slots;
 }
 
+/* ───────── 页边 ───────── */
+
+/** 页边宽度占页宽的比例（适宽 / 适页时页面与页边一起放进视口） */
+export const MARGIN_RATIO = 0.38;
+
+/** 引擎按页宽算适宽 / 适页：把视口宽度折算成「只给页面的那部分」，页边恰好放得下 */
+export function marginFitClientWidth(clientWidth: number, viewportGap: number, ratio: number) {
+  return 2 * viewportGap + (clientWidth - 2 * viewportGap) / (1 + ratio);
+}
+
+export interface MarginSlot {
+  id: number;
+  /** 页内纵向位置（已乘缩放，像素） */
+  top: number;
+}
+
+/**
+ * 页边笔记排版：顶端对齐锚点，重叠时向下顺排；排不下的（底端越过页底）不显示，计入 hidden。
+ * items 须已按锚点排序；height 为实测高度。
+ */
+export function layoutMarginNotes(
+  items: Array<{ id: number; anchor: number; height: number }>,
+  pageHeight: number,
+  gap = 8
+): { slots: MarginSlot[]; hidden: number } {
+  const slots: MarginSlot[] = [];
+  let lastBottom = -Infinity;
+  for (const [i, item] of items.entries()) {
+    const top = Math.max(item.anchor, lastBottom + gap);
+    if (top + item.height > pageHeight) return { slots, hidden: items.length - i };
+    slots.push({ id: item.id, top });
+    lastBottom = top + item.height;
+  }
+  return { slots, hidden: 0 };
+}
+
 /* ───────── 对话引用 ───────── */
 
 export interface PdfQuote {
-  kind: "selection" | "annotation" | "area";
+  kind: "selection" | "annotation" | "area" | "margin";
   pageNumber: number;
   text: string;
   /** 区域截图（已上传的地址） */
   imageUrl?: string;
 }
 
+const QUOTE_KIND_LABEL: Record<PdfQuote["kind"], string> = {
+  selection: "选区",
+  annotation: "标注",
+  area: "区域截图",
+  margin: "页边批注",
+};
+
 export function quoteSource(quote: PdfQuote): string {
-  const kind = quote.kind === "area" ? "区域截图" : quote.kind === "annotation" ? "标注" : "选区";
+  const kind = QUOTE_KIND_LABEL[quote.kind];
   return `第 ${quote.pageNumber} 页 · ${kind}`;
 }
 

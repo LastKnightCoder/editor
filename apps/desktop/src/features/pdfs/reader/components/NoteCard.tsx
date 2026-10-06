@@ -1,6 +1,7 @@
 /**
- * 写笔记卡：在标注下方弹出（定位由调用方负责），轻量富文本（Slate JSON，存进 pdf_annotations.notes）。
- * ⌘/Ctrl+↵ 保存，Esc 经页面浮层仲裁取消；标注还在落库时保存键禁用。
+ * 写笔记卡：在标注下方或页边弹出（定位由调用方负责），轻量富文本（Slate JSON，存进 pdf_annotations.notes）。
+ * ⌘/Ctrl+↵ 保存，Esc 经页面浮层仲裁取消；标注还在落库时保存键禁用。页边新批注（draftPage）没有记录，
+ * 保存时才落库。
  */
 
 import { useCallback, useRef, useState } from "react";
@@ -8,7 +9,8 @@ import type { Descendant } from "slate";
 import { Editor as SlateEditor, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { v4 as uuid } from "uuid";
-import { Button, cn } from "@tau/ui";
+import { MessageCircle } from "lucide-react";
+import { Button, IconButton, cn } from "@tau/ui";
 import { Editor } from "@tau/editor";
 import { getDescriptionKit } from "@/services/editorKit";
 import { useOverlayDismiss } from "@/page/PageProvider";
@@ -18,6 +20,7 @@ import {
   annotationColor,
   annotationPage,
   annotationSnippet,
+  isMarginNote,
 } from "../annotationModel";
 
 const emptyValue = (): Descendant[] => [
@@ -25,14 +28,27 @@ const emptyValue = (): Descendant[] => [
 ];
 
 interface NoteCardProps {
-  /** null = 标注刚建好还在落库 */
+  /** null = 标注刚建好还在落库，或页边新批注（此时传 draftPage） */
   record: PdfAnnotation | null;
+  /** 页边新批注所在页（从 1 开始） */
+  draftPage?: number;
   onSave: (notes: Note[]) => Promise<unknown>;
   onCancel: () => void;
+  /** 删除笔记（页边批注即删除整条） */
+  onDelete?: () => void;
+  onAsk?: () => void;
   className?: string;
 }
 
-export function NoteCard({ record, onSave, onCancel, className }: NoteCardProps) {
+export function NoteCard({
+  record,
+  draftPage,
+  onSave,
+  onCancel,
+  onDelete,
+  onAsk,
+  className,
+}: NoteCardProps) {
   const [value, setValue] = useState<Descendant[]>(() => {
     const existing = record?.notes?.[0]?.note;
     return existing && existing.length ? existing : emptyValue();
@@ -41,16 +57,17 @@ export function NoteCard({ record, onSave, onCancel, className }: NoteCardProps)
   const cardRef = useRef<HTMLDivElement>(null);
   useOverlayDismiss(onCancel);
 
+  const savable = Boolean(record) || draftPage !== undefined;
   const save = useCallback(async () => {
-    if (!record || saving) return;
+    if (!savable || saving) return;
     setSaving(true);
     try {
-      const base = record.notes?.[0];
+      const base = record?.notes?.[0];
       await onSave([base ? { ...base, note: value } : { id: uuid(), note: value }]);
     } finally {
       setSaving(false);
     }
-  }, [record, saving, value, onSave]);
+  }, [record, savable, saving, value, onSave]);
 
   const focusEnd = useCallback((editor: SlateEditor) => {
     window.setTimeout(() => {
@@ -63,7 +80,9 @@ export function NoteCard({ record, onSave, onCancel, className }: NoteCardProps)
     }, 0);
   }, []);
 
-  const color = record ? annotationColor(record) : null;
+  const margin = record ? isMarginNote(record) : draftPage !== undefined;
+  const color = record && !margin ? annotationColor(record) : null;
+  const pageNumber = record ? annotationPage(record) : draftPage;
 
   return (
     <div
@@ -84,14 +103,14 @@ export function NoteCard({ record, onSave, onCancel, className }: NoteCardProps)
         className
       )}
     >
-      {record && (
+      {(record || margin) && (
         <div
           className={cn(
             "text-tau-meta text-ink-2 line-clamp-2 border-l-[3px] pl-2",
-            color && COLOR_SPECS[color].border
+            color ? COLOR_SPECS[color].border : "border-ink-3 border-dotted"
           )}
         >
-          {annotationSnippet(record)}
+          {record ? annotationSnippet(record) : `页边批注 · 第 ${pageNumber} 页`}
         </div>
       )}
       <div className="border-line-1 bg-surface focus-within:border-accent rounded-tau-sm text-tau-body max-h-[240px] min-h-[72px] overflow-y-auto border px-2.5 py-1.5 focus-within:shadow-[var(--tau-focus-ring)]">
@@ -106,9 +125,19 @@ export function NoteCard({ record, onSave, onCancel, className }: NoteCardProps)
       </div>
       <div className="text-tau-meta text-ink-3 flex items-center gap-2">
         <span className="tabular-nums">
-          {record ? `第 ${annotationPage(record)} 页` : "正在保存标注…"}
+          {pageNumber !== undefined ? `第 ${pageNumber} 页` : "正在保存标注…"}
         </span>
+        {onAsk && (
+          <IconButton title="问 AI" aria-label="问 AI" onClick={onAsk} className="size-6">
+            <MessageCircle size={13} strokeWidth={1.75} />
+          </IconButton>
+        )}
         <span className="flex-1" />
+        {onDelete && (
+          <Button variant="ghost" size="sm" className="hover:text-danger" onClick={onDelete}>
+            删除
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={onCancel}>
           取消
         </Button>
@@ -116,7 +145,7 @@ export function NoteCard({ record, onSave, onCancel, className }: NoteCardProps)
           variant="primary"
           size="sm"
           onClick={() => void save()}
-          disabled={!record}
+          disabled={!savable}
           loading={saving}
           loadingText="保存中"
         >

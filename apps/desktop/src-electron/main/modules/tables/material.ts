@@ -71,10 +71,12 @@ function pdfAnnotationInfo(row: PdfAnnotationRow): MaterialInfo {
   const quote = pdfAnnotationQuote(row.annotation_payload);
   const note = pdfAnnotationNote(row.notes);
   const page = row.page_num + 1;
+  // 页边批注没有原文，标题即批注
+  const margin = row.type === "margin";
   return {
     ref: { kind: "pdf-annotation", id: row.id },
-    title: clip(quote || note) || `区域截图 · 第 ${page} 页`,
-    meta: `PDF · ${row.file_name} · 第 ${page} 页`,
+    title: clip(quote || note) || `${margin ? "页边批注" : "区域截图"} · 第 ${page} 页`,
+    meta: `PDF · ${row.file_name} · 第 ${page} 页${margin ? " · 页边" : ""}`,
     quote,
     note,
     deleted: false,
