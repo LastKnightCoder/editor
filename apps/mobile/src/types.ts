@@ -636,10 +636,8 @@ export interface SettingCompat {
     };
     [key: string]: unknown;
   };
-  /** 协作设置（与桌面端 setting.json 的 collaboration 节同构）：服务器与展示昵称 */
+  /** 协作设置：展示昵称（服务器固定为默认协作服务器，协作常开） */
   collaboration?: {
-    enable?: boolean;
-    serverUrl?: string;
     nickname?: string;
     [key: string]: unknown;
   };

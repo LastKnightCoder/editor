@@ -79,14 +79,14 @@ class CollaborationManager {
   private eventSockets = new Map<string, WebSocket>();
   private pendingJoins = new Map<string, number>();
   private requests: JoinRequest[] = [];
-  private serverUrl = DEFAULT_COLLABORATION_URL;
+  private readonly serverUrl = DEFAULT_COLLABORATION_URL;
   private nickname = "Tau 用户";
   private deviceId?: string;
   private error?: string;
   private refreshing = false;
   private starting: Promise<void> | null = null;
-  /** start 的最新目标配置：启动过程中切换服务器时，由启动循环接续消费 */
-  private desired: { serverUrl: string; nickname: string } | null = null;
+  /** start 的最新目标配置：启动过程中 stop→start 交错时，由启动循环接续消费 */
+  private desired: { nickname: string } | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private lifecycleCleanup: (() => void) | null = null;
@@ -142,14 +142,10 @@ class CollaborationManager {
     return this.nickname;
   }
 
-  /** 配置并启动运行时；同服务器重复调用为幂等，切换服务器会先拆除旧连接。
-   *  昵称变更不触发重启——请用 updateNickname 同步，避免打断进行中的同步。
-   *  启动进行中收到新目标（如切换服务器）时，由启动循环在当前轮结束后接续处理。 */
-  start(options: { serverUrl: string; nickname: string }): Promise<void> {
-    this.desired = {
-      serverUrl: options.serverUrl.trim() || DEFAULT_COLLABORATION_URL,
-      nickname: options.nickname.trim() || "Tau 用户",
-    };
+  /** 启动运行时（服务器固定为 DEFAULT_COLLABORATION_URL，与桌面端一致）；已启动时重复调用为幂等。
+   *  昵称变更不触发重启——请用 updateNickname 同步，避免打断进行中的同步。 */
+  start(options: { nickname: string }): Promise<void> {
+    this.desired = { nickname: options.nickname.trim() || "Tau 用户" };
     this.starting ??= this.runStartLoop();
     return this.starting;
   }
@@ -175,12 +171,11 @@ class CollaborationManager {
   private async runStartLoop(): Promise<void> {
     try {
       while (this.desired) {
-        // 取走式消费：await 期间收到的新目标（切服/开关）由下一轮循环接续处理
+        // 取走式消费：await 期间收到的新目标（开关）由下一轮循环接续处理
         const target = this.desired;
         this.desired = null;
-        if (this.stopped || target.serverUrl !== this.serverUrl) {
+        if (this.stopped) {
           this.teardown();
-          this.serverUrl = target.serverUrl;
           this.nickname = target.nickname;
           this.stopped = false;
           this.bindLifecycle();
@@ -239,7 +234,7 @@ class CollaborationManager {
 
   /** 等待进行中的启动完成：挂载即触发的操作（发起共享 / 打开文档）与运行时
    *  启动并发时避免用到未就绪的服务器配置；启动失败由后续请求自然报错。
-   *  协作页面漏挂 runtime（防御）：按用户设置就地启动，避免把请求发往默认服务器。 */
+   *  协作页面漏挂 runtime（防御）：按用户设置的昵称就地启动。 */
   /** 读取 starting 的稳定通道：方法调用不做控制流收窄，await 之后仍能读到并发启动 */
   private pendingStart(): Promise<void> | null {
     return this.starting;
@@ -247,28 +242,23 @@ class CollaborationManager {
 
   private async whenReady() {
     if (!this.starting && this.stopped) {
-      const stored = await this.readStoredConfig();
+      const nickname = await this.readStoredNickname();
       // await 期间并发启动（页面挂载 runtime）时不重复启动
       const pending = this.pendingStart();
       if (pending) return pending.catch(() => {});
-      if (stored) await this.start(stored).catch(() => {});
+      await this.start({ nickname }).catch(() => {});
     }
     if (this.starting) await this.starting.catch(() => {});
   }
 
-  private async readStoredConfig(): Promise<{ serverUrl: string; nickname: string } | null> {
+  private async readStoredNickname(): Promise<string> {
     try {
       const setting = JSON.parse(await tauri.readSettingJson()) as {
-        collaboration?: { enable?: boolean; serverUrl?: string; nickname?: string };
+        collaboration?: { nickname?: string };
       };
-      const collaboration = setting.collaboration;
-      if (!collaboration || collaboration.enable === false) return null;
-      return {
-        serverUrl: collaboration.serverUrl || DEFAULT_COLLABORATION_URL,
-        nickname: collaboration.nickname || "Tau 用户",
-      };
+      return setting.collaboration?.nickname || "Tau 用户";
     } catch {
-      return null;
+      return "Tau 用户";
     }
   }
 
@@ -843,7 +833,9 @@ class CollaborationManager {
    *  不产生新状态，直接写 store 会让所有订阅组件无谓重渲染。 */
   private broadcastSummary = "";
   private changed() {
-    const status = this.stopped ? "idle" : this.error ? "error" : "ready";
+    // 启动失败时 stopped 与 error 同时成立，须先判 error，否则失败会显示成「未启用」；
+    // 主动 stop 经 teardown 清空 error，仍落到 idle
+    const status = this.error ? "error" : this.stopped ? "idle" : "ready";
     const sessions = [...this.sessions.values()].map(session => ({ ...session.info }));
     const summary = JSON.stringify([
       this.serverUrl,
