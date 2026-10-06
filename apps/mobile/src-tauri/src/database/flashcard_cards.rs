@@ -28,7 +28,9 @@ pub fn flashcard_list_cards(
         ))
         .map_err(|e| format_db_error("FLASHCARD_QUERY_FAILED", "prepare list cards", e))?;
     let mut cards: Vec<Flashcard> = stmt
-        .query_map(rusqlite::params![payload.deck_id], |row| parse_card_row(row, vec![]))
+        .query_map(rusqlite::params![payload.deck_id], |row| {
+            parse_card_row(row, vec![])
+        })
         .map_err(|e| format_db_error("FLASHCARD_QUERY_FAILED", "query cards", e))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| format_db_error("FLASHCARD_QUERY_FAILED", "parse card row", e))?;
@@ -114,10 +116,22 @@ fn update_reference_summary(tx: &Transaction, card_id: i64) -> Result<(), String
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "parse reference title", e))?
     };
-    let summary = titles.iter().take(3).cloned().collect::<Vec<_>>().join(" · ");
+    let summary = titles
+        .iter()
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" · ");
     tx.execute(
         "UPDATE flashcards SET reference_summary = ?1 WHERE id = ?2",
-        params![if summary.is_empty() { None } else { Some(summary) }, card_id],
+        params![
+            if summary.is_empty() {
+                None
+            } else {
+                Some(summary)
+            },
+            card_id
+        ],
     )
     .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "update reference summary", e))?;
     Ok(())
@@ -168,10 +182,18 @@ pub fn flashcard_create_card(
             payload.card_type,
             serialize_value(&payload.prompt)?,
             serialize_value(&detail)?,
-            serialize_value(&payload.data.clone().unwrap_or_else(|| serde_json::json!({})))?,
+            serialize_value(
+                &payload
+                    .data
+                    .clone()
+                    .unwrap_or_else(|| serde_json::json!({}))
+            )?,
             serde_json::to_string(&payload.tags.clone().unwrap_or_default())
                 .map_err(|e| format!("FLASHCARD_SAVE_FAILED: Failed to serialize tags: {e}"))?,
-            payload.difficulty.clone().unwrap_or_else(|| "standard".into()),
+            payload
+                .difficulty
+                .clone()
+                .unwrap_or_else(|| "standard".into()),
             now
         ],
     )
@@ -185,7 +207,8 @@ pub fn flashcard_create_card(
         .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "commit transaction", e))?;
     // reconcile 须在 commit 后触发：它另起连接异步读库，抢在提交前会读不到新卡且无补救
     crate::database::common::trigger_reconcile(&app);
-    query_card_by_id(&conn, card_id)?.ok_or_else(|| "FLASHCARD_SAVE_FAILED: 建后读取失败".to_string())
+    query_card_by_id(&conn, card_id)?
+        .ok_or_else(|| "FLASHCARD_SAVE_FAILED: 建后读取失败".to_string())
 }
 
 #[tauri::command]
@@ -260,11 +283,15 @@ pub fn flashcard_update_card(
     tx.commit()
         .map_err(|e| format_db_error("FLASHCARD_UPDATE_FAILED", "commit transaction", e))?;
     crate::database::common::trigger_reconcile(&app);
-    query_card_by_id(&conn, payload.id)?.ok_or_else(|| "FLASHCARD_NOT_FOUND: 更新后读取失败".to_string())
+    query_card_by_id(&conn, payload.id)?
+        .ok_or_else(|| "FLASHCARD_NOT_FOUND: 更新后读取失败".to_string())
 }
 
 #[tauri::command]
-pub fn flashcard_delete_card(app: AppHandle, payload: DeleteFlashcardPayload) -> Result<i64, String> {
+pub fn flashcard_delete_card(
+    app: AppHandle,
+    payload: DeleteFlashcardPayload,
+) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()

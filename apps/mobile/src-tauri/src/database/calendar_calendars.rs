@@ -8,7 +8,9 @@ use super::calendar_types::{
     CalendarByIdPayload, CalendarDto, CalendarGroupDto, CreateCalendarPayload,
     UpdateCalendarPayload,
 };
-use crate::database::common::{db_err, decrement_or_delete_content, now_millis, trigger_reconcile, write_operation};
+use crate::database::common::{
+    db_err, decrement_or_delete_content, now_millis, trigger_reconcile, write_operation,
+};
 use crate::database::schema;
 
 pub(crate) const CALENDAR_COLUMNS: &str =
@@ -33,7 +35,8 @@ pub(crate) fn load_group_map(conn: &Connection) -> Result<GroupMap, String> {
         .map_err(|e| db_err("CALENDAR_QUERY_FAILED", "query group map", e))?;
     let mut map = HashMap::new();
     for row in rows {
-        let (id, is_system, parent) = row.map_err(|e| db_err("CALENDAR_QUERY_FAILED", "parse group row", e))?;
+        let (id, is_system, parent) =
+            row.map_err(|e| db_err("CALENDAR_QUERY_FAILED", "parse group row", e))?;
         map.insert(id, (is_system, parent));
     }
     Ok(map)
@@ -50,7 +53,9 @@ pub(crate) fn is_in_system_group(group_id: Option<i64>, groups: &GroupMap) -> bo
         return true;
     }
     match parent {
-        Some(pid) => groups.get(&pid).map_or(false, |&(parent_system, _)| parent_system),
+        Some(pid) => groups
+            .get(&pid)
+            .map_or(false, |&(parent_system, _)| parent_system),
         None => false,
     }
 }
@@ -167,7 +172,10 @@ pub fn calendar_get_all(app: AppHandle) -> Result<Vec<CalendarDto>, String> {
 }
 
 #[tauri::command]
-pub fn calendar_create(app: AppHandle, payload: CreateCalendarPayload) -> Result<CalendarDto, String> {
+pub fn calendar_create(
+    app: AppHandle,
+    payload: CreateCalendarPayload,
+) -> Result<CalendarDto, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -200,7 +208,10 @@ pub fn calendar_create(app: AppHandle, payload: CreateCalendarPayload) -> Result
 }
 
 #[tauri::command]
-pub fn calendar_update(app: AppHandle, payload: UpdateCalendarPayload) -> Result<CalendarDto, String> {
+pub fn calendar_update(
+    app: AppHandle,
+    payload: UpdateCalendarPayload,
+) -> Result<CalendarDto, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
@@ -232,7 +243,8 @@ pub fn calendar_update(app: AppHandle, payload: UpdateCalendarPayload) -> Result
     write_operation(&tx, "calendar", "update", payload.id, now)?;
     tx.commit()
         .map_err(|e| db_err("CALENDAR_UPDATE_FAILED", "commit calendar", e))?;
-    query_calendar_by_id(&conn, payload.id)?.ok_or_else(|| "CALENDAR_NOT_FOUND: 日历不存在".to_string())
+    query_calendar_by_id(&conn, payload.id)?
+        .ok_or_else(|| "CALENDAR_NOT_FOUND: 日历不存在".to_string())
 }
 
 // 级联删除对齐桌面 calendar.ts deleteCalendar：事件详情内容随事件清理（引用计数）、
@@ -269,8 +281,11 @@ pub fn calendar_delete(app: AppHandle, payload: CalendarByIdPayload) -> Result<i
     }
     drop(stmt);
     for event_id in event_ids {
-        tx.execute("DELETE FROM calendar_event WHERE id = ?1", params![event_id])
-            .map_err(|e| db_err("CALENDAR_DELETE_FAILED", "delete event", e))?;
+        tx.execute(
+            "DELETE FROM calendar_event WHERE id = ?1",
+            params![event_id],
+        )
+        .map_err(|e| db_err("CALENDAR_DELETE_FAILED", "delete event", e))?;
     }
     if current.description_content_id > 0 {
         decrement_or_delete_content(&tx, current.description_content_id)?;
@@ -297,6 +312,9 @@ pub(crate) fn content_by_id(conn: &Connection, content_id: i64) -> Result<Option
     )
     .optional()
     .map_err(|e| db_err("CONTENT_QUERY_FAILED", "get content by id", e))?
-    .map(|text| serde_json::from_str::<Value>(&text).map_err(|e| db_err("CONTENT_INVALID", "parse content", e)))
+    .map(|text| {
+        serde_json::from_str::<Value>(&text)
+            .map_err(|e| db_err("CONTENT_INVALID", "parse content", e))
+    })
     .transpose()
 }

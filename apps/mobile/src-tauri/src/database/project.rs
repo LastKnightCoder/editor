@@ -506,7 +506,12 @@ pub fn project_create(app: AppHandle, payload: CreateProjectPayload) -> Result<P
         INSERT INTO project (title, desc, children, archived, pinned, create_time, update_time, id)
         VALUES (?1, ?2, '[]', 0, 0, ?3, ?3, ?4)
         ",
-        params![title, description_json(payload.desc.unwrap_or_default()), now, project_id],
+        params![
+            title,
+            description_json(payload.desc.unwrap_or_default()),
+            now,
+            project_id
+        ],
     )
     .map_err(|e| db_err("PROJECT_CREATE_FAILED", "insert project", e))?;
     write_operation(&tx, "project", "insert", project_id, now)?;

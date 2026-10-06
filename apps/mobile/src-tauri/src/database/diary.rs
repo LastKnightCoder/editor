@@ -1132,12 +1132,7 @@ mod tests {
         let entry = upsert_entry(&mut conn, payload("tagged", None, false)).unwrap();
         upsert_entry(&mut conn, payload("more", None, true)).unwrap();
         let segment_id = entry.segments[0].id;
-        update_segment_tags(
-            &mut conn,
-            segment_id,
-            vec!["日常".into(), "周记".into()],
-        )
-        .unwrap();
+        update_segment_tags(&mut conn, segment_id, vec!["日常".into(), "周记".into()]).unwrap();
 
         // 全新库自带「周记」「月记」种子，新增标签排到末尾
         let settings = upsert_tag_setting(&mut conn, "日常", "#1890FF").unwrap();

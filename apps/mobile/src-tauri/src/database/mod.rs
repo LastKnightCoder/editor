@@ -14,19 +14,14 @@ use crate::setting::{
 
 mod article;
 mod calendar;
-mod calendar_time;
 mod calendar_holidays;
+mod calendar_time;
 mod collaboration;
 mod common;
-mod content_link_retirement;
 mod diary;
-mod editor_block_retirement;
 mod flashcard;
 mod home_stats;
 mod index_db;
-mod knowledge_migration;
-mod audio_note_retirement;
-mod main_upgrade;
 mod migrator;
 mod pomodoro;
 mod project;
@@ -43,10 +38,11 @@ pub use collaboration::*;
 pub use diary::*;
 pub use flashcard::*;
 pub use home_stats::*;
+pub use index_db::reset_index_database;
 pub use pomodoro::*;
 pub use project::*;
-pub use index_db::reset_index_database;
-pub(crate) use knowledge_migration::DATA_MODEL_VERSION;
+/** 移动端同步包的数据模型版本（与桌面同步信封版本、主库 schema 版本分属不同口径） */
+pub(crate) const DATA_MODEL_VERSION: i64 = 1;
 pub use schema::ensure_database_file;
 pub(crate) use schema::invalidate_cached_connection;
 pub use schema::validate_download;

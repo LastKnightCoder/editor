@@ -9,46 +9,6 @@ use super::index_db;
 use super::migrator;
 use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
 
-/// 升级前备份的文件名前缀（含 schema 版本号：每次版本 bump 都会重新备份一份）
-fn backup_prefix(db_stem: &str) -> String {
-    format!(
-        "{db_stem}.db.pre-schema-v{}-",
-        migrator::MAIN_SCHEMA_VERSION
-    )
-}
-
-fn backup_before_migration(
-    conn: &Connection,
-    database_path: &std::path::Path,
-) -> Result<(), String> {
-    let file_prefix = backup_prefix(
-        database_path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or_default(),
-    );
-    // 迁移失败重试时库内容与首份备份一致，已存在备份则复用，避免全量备份反复膨胀
-    if let Some(parent) = database_path.parent() {
-        if let Ok(entries) = fs::read_dir(parent) {
-            let exists = entries
-                .filter_map(|entry| entry.ok())
-                .any(|entry| entry.file_name().to_string_lossy().starts_with(&file_prefix));
-            if exists {
-                return Ok(());
-            }
-        }
-    }
-    let backup_path = database_path.with_extension(format!(
-        "db.pre-schema-v{}-{}.bak",
-        migrator::MAIN_SCHEMA_VERSION,
-        uuid::Uuid::new_v4()
-    ));
-    // VACUUM INTO 包含 WAL 中已提交的数据，直接复制 db 文件可能遗漏记录。
-    conn.execute("VACUUM INTO ?1", [backup_path.to_string_lossy().as_ref()])
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: 备份数据库失败: {e}"))?;
-    Ok(())
-}
-
 pub fn force_checkpoint(app: &AppHandle, db_name: &str) -> Result<(), String> {
     let path = resolve_database_path(app, db_name)
         .map_err(|e| format!("DB_CHECKPOINT_FAILED: Failed to resolve database path: {e}"))?;
@@ -82,11 +42,6 @@ pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String
     }
     let conn = Connection::open(&database_path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open database: {e}"))?;
-    let has_data: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')", [], |r| r.get(0)).map_err(|e| e.to_string())?;
-    if has_data && migrator::needs_main_upgrade(&conn)? {
-        backup_before_migration(&conn, &database_path)
-            .map_err(|error| format!("{error}；原数据库未修改，备份文件路径位于数据库目录"))?;
-    }
     migrator::ensure_main_schema(&conn)?;
     index_db::ensure_index_database(app, db_name, &conn)?;
     Ok(())
@@ -99,7 +54,6 @@ pub fn open_database_by_name(app: &AppHandle, db_name: &str) -> Result<Connectio
     let conn = Connection::open(path).map_err(|e| format!("DB_OPEN_FAILED: {e}"))?;
     conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")
         .map_err(|e| e.to_string())?;
-    super::editor_block_retirement::install_guards(&conn)?;
     Ok(conn)
 }
 
@@ -199,7 +153,6 @@ pub fn invalidate_cached_connection() {
         Err(poisoned) => poisoned.into_inner(),
     };
     *guard = None;
-    super::knowledge_migration::clear_mapping_cache();
 }
 
 /// 当前激活数据库文件大小（字节）：主库 + WAL/SHM 附属文件一并计入
@@ -224,51 +177,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn backup_before_migration_snapshots_wal_and_reuses_first() {
-        let dir = std::env::temp_dir().join(format!("tau-backup-{}", uuid::Uuid::new_v4()));
-        fs::create_dir(&dir).unwrap();
-        let path = dir.join("main.db");
-        let conn = Connection::open(&path).unwrap();
-        conn.execute_batch(
-            "PRAGMA journal_mode=WAL;
-             CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);
-             INSERT INTO t(v) VALUES('in-wal');",
-        )
-        .unwrap();
-        backup_before_migration(&conn, &path).unwrap();
-        let backups: Vec<String> = fs::read_dir(&dir)
-            .unwrap()
-            .filter_map(|entry| entry.ok())
-            .map(|entry| entry.file_name().to_string_lossy().to_string())
-            .filter(|name| name.starts_with(&backup_prefix("main")))
-            .collect();
-        assert_eq!(backups.len(), 1, "首份备份应存在且唯一");
-        assert!(backups[0].ends_with(".bak"));
-        // WAL 中已提交的数据必须进入快照，直接复制 db 文件会遗漏
-        let snapshot = Connection::open(dir.join(&backups[0])).unwrap();
-        let in_wal: i64 = snapshot
-            .query_row("SELECT COUNT(*) FROM t WHERE v='in-wal'", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(in_wal, 1);
-        drop(snapshot);
-        // 迁移失败重试复用首份，不反复膨胀
-        backup_before_migration(&conn, &path).unwrap();
-        let count = fs::read_dir(&dir)
-            .unwrap()
-            .filter_map(|entry| entry.ok())
-            .filter(|entry| {
-                entry
-                    .file_name()
-                    .to_string_lossy()
-                    .starts_with(&backup_prefix("main"))
-            })
-            .count();
-        assert_eq!(count, 1);
-        drop(conn);
-        fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
     fn downloaded_file_is_validated_and_migrated_before_use() {
         let dir = std::env::temp_dir().join(format!("tau-download-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&dir).unwrap();
@@ -282,8 +190,19 @@ mod tests {
         drop(conn);
         assert!(validate_download(&path).is_err());
         fs::remove_file(&path).unwrap();
+        // 数据基线门禁：有表但未带 schema 版本的旧端快照被拒绝，且不修改数据
         let conn = Connection::open(&path).unwrap();
         conn.execute_batch("CREATE TABLE contents(id INTEGER PRIMARY KEY,create_time INTEGER NOT NULL,update_time INTEGER NOT NULL,content TEXT,count INTEGER DEFAULT 0,ref_count INTEGER DEFAULT 0);").unwrap();
+        drop(conn);
+        let error = validate_download(&path).unwrap_err();
+        assert!(
+            error.contains("DB_LEGACY_SCHEMA"),
+            "unexpected error: {error}"
+        );
+        fs::remove_file(&path).unwrap();
+        // 来自当前版本端的快照：通过校验并按 DELETE 模式落盘
+        let conn = Connection::open(&path).unwrap();
+        migrator::ensure_main_schema(&conn).unwrap();
         drop(conn);
         validate_download(&path).unwrap();
         let conn = Connection::open(&path).unwrap();

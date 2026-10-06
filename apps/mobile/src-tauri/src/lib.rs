@@ -193,7 +193,6 @@ pub fn run() {
             database::collab_list_bindings,
             database::collab_unbind_content,
             database::collab_project_content,
-            database::collab_knowledge_mapping,
             request_background
         ])
         .setup(|app| {

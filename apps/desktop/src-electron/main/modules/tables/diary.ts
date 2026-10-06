@@ -108,6 +108,18 @@ interface CreateDiaryEntryPayload {
 }
 
 export default class DiaryTable {
+  /** 默认标签种子：「周记」「月记」标签库预置项 */
+  static ensureDefaultTagSettings(db: Database.Database) {
+    const now = Date.now();
+    const upsertTag = db.prepare(`
+      INSERT INTO diary_tag_settings (name, color, sort, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(name) DO NOTHING
+    `);
+    upsertTag.run("周记", "#52c41a", 0, now, now);
+    upsertTag.run("月记", "#fa8c16", 1, now, now);
+  }
+
   private static parseEntryDateMs(date: string, fallback: number) {
     const parsed = Date.parse(`${date}T00:00:00`);
     return Number.isNaN(parsed) ? fallback : parsed;

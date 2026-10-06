@@ -365,6 +365,7 @@ class DatabaseModule implements Module {
         const maintenanceStartAt = Date.now();
         TodoGroupTable.ensureSystemGroups(database);
         QuestionGroupTable.ensureDefaultGroup(database);
+        DiaryTable.ensureDefaultTagSettings(database);
         TodoCalendarSyncTable.ensureTodoCalendars(database);
         try {
           TodoCalendarSyncTable.cleanupOrphanedEvents(database);
