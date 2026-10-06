@@ -33,16 +33,6 @@ describe("importFromMarkdown 选项与粘贴判定", () => {
     expect(paragraph.children?.find(leaf => leaf.strikethrough)?.text).toBe("删除线。");
   });
 
-  it("导入时应剥离历史驻留的零宽空格", () => {
-    const content = importFromMarkdown("中文\u200B**加粗**文本");
-    const paragraph = content[0] as {
-      children?: Array<{ text?: string; bold?: boolean }>;
-    };
-
-    expect(paragraph.children?.every(leaf => !leaf.text?.includes("\u200B"))).toBe(true);
-    expect(paragraph.children?.find(leaf => leaf.bold)?.text).toBe("加粗");
-  });
-
   it("customDirectives 应支持 container、leaf 与 text 三种 directive", () => {
     const handler = (attributes: Record<string, string | undefined>) =>
       ({

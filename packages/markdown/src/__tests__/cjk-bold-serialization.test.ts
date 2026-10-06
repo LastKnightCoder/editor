@@ -54,43 +54,6 @@ describe("CJK 删除线解析（remark-cjk-friendly-gfm-strikethrough）", () =>
   });
 });
 
-describe("零宽空格清理", () => {
-  it("中文相邻加粗序列化不应包含零宽空格", () => {
-    const value = [
-      {
-        type: "paragraph",
-        children: [
-          { type: "formatted", text: "中文" },
-          { type: "formatted", text: "加粗", bold: true },
-          { type: "formatted", text: "中文" },
-        ],
-      },
-    ];
-    const markdown = getMarkdown(value as any);
-
-    expect(markdown).not.toContain("\u200B");
-    expect(markdown).toContain("**加粗**");
-  });
-
-  it("文本中残留的零宽空格导出时应被剥离", () => {
-    const value = [
-      {
-        type: "paragraph",
-        children: [{ type: "formatted", text: "中\u200B文" }],
-      },
-    ];
-
-    expect(getMarkdown(value as any)).not.toContain("\u200B");
-  });
-
-  it("导入时应剥离历史驻留的零宽空格", () => {
-    const leaves = paragraphLeaves("中文\u200B**加粗**文本");
-
-    expect(leaves.find(leaf => leaf.text === "中文")).toBeTruthy();
-    expect(leaves.every(leaf => !leaf.text.includes("\u200B"))).toBe(true);
-  });
-});
-
 describe("CJK 加粗往返与位置映射", () => {
   it("中文标点相邻加粗应支持导出后再解析", () => {
     const leaves = paragraphLeaves("**加粗。**后续文本");

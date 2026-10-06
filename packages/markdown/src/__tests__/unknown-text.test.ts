@@ -196,17 +196,4 @@ describe("未知文本字段保真", () => {
     expect(result.positionMap.slateToMarkdown({ path: [0, 0], offset: 2 })).toEqual(mapping.mdEnd);
     expect(result.positionMap.markdownToSlate(mapping.mdEnd)).toEqual({ path: [0, 0], offset: 2 });
   });
-
-  it("手写 JSON 中的零宽字段仍由载体保留，外围历史零宽继续清理", () => {
-    const item = { type: "formatted", text: "a\u200Bb", custom: "x\u200By" };
-    const json = JSON.stringify(item).replace(/"/g, "&quot;");
-    const source = `外\u200B:tau-node[标签]{type="formatted" json="${json}"}`;
-    const parsed = md.importFromMarkdown(source);
-    expect(parsed).toEqual([
-      { type: "paragraph", children: [{ type: "formatted", text: "外" }, item] },
-    ]);
-    expect(md.importFromMarkdownWithPositions(source).content).toEqual([
-      { type: "paragraph", children: [{ type: "formatted", text: "外\u200B" }, item] },
-    ]);
-  });
 });

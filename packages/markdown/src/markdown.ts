@@ -895,41 +895,8 @@ export const importFromMarkdownUsing = (
   options?: ImportFromMarkdownOptions
 ): Descendant[] => withParseContext(config, options, () => importInContext(markdown, ignoreTypes));
 
-const stripLegacyZeroWidths = (markdown: string): string => {
-  if (!markdown.includes("\u200B")) return markdown;
-  if (!markdown.includes(UNKNOWN_NODE_DIRECTIVE)) return markdown.replace(/\u200B/g, "");
-  const ranges: Array<{ start: number; end: number }> = [];
-  const collect = (node: MarkdownAstNode) => {
-    const start = node.position?.start?.offset;
-    const end = node.position?.end?.offset;
-    if (
-      node.type.endsWith("Directive") &&
-      node.name === UNKNOWN_NODE_DIRECTIVE &&
-      typeof start === "number" &&
-      typeof end === "number"
-    ) {
-      ranges.push({ start, end });
-      return;
-    }
-    for (const child of node.children ?? []) collect(child);
-  };
-  collect(createMarkdownParser().parse(markdown) as unknown as MarkdownAstNode);
-  const parts: string[] = [];
-  let cursor = 0;
-  for (const range of ranges.sort((a, b) => a.start - b.start)) {
-    if (range.start < cursor) continue;
-    parts.push(
-      markdown.slice(cursor, range.start).replace(/\u200B/g, ""),
-      markdown.slice(range.start, range.end)
-    );
-    cursor = range.end;
-  }
-  parts.push(markdown.slice(cursor).replace(/\u200B/g, ""));
-  return parts.join("");
-};
-
 const importInContext = (markdown: string, ignoreTypes: string[]): Descendant[] =>
-  importWithPositionsInContext(stripLegacyZeroWidths(markdown), ignoreTypes, false).content;
+  importWithPositionsInContext(markdown, ignoreTypes, false).content;
 
 const normalizeEditorContent = (
   editor: Descendant[],

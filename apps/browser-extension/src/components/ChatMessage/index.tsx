@@ -1,7 +1,6 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { ImagePreview, toast } from "@tau/ui";
 import {
-  buildLegacyAssistantDisplayBlocks,
   type ChatMessageType,
   type ContentBlock,
   type MessageContentItem,
@@ -111,15 +110,10 @@ export function ChatMessage({
       return [];
     }
 
-    if (Array.isArray(message.contentBlocks) && message.contentBlocks.length > 0) {
+    if (Array.isArray(message.contentBlocks)) {
       return message.contentBlocks;
     }
-
-    return buildLegacyAssistantDisplayBlocks({
-      content: localMessage.content,
-      reasoning: localMessage.reasoning,
-      toolExecutions: localMessage.tool_executions,
-    });
+    return [];
   }, [isUser, localMessage, message.contentBlocks]);
 
   const handleReferenceClick = useCallback(

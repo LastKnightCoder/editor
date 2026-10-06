@@ -25,42 +25,6 @@ const auth = (identity: { id: string; secret: string }) => ({
 });
 
 describe("协作权限和持久化", () => {
-  it("历史引用块先备份再原位清理，旧端增量不能使其恢复", async () => {
-    const { store } = await setup();
-    const owner = store.register("作者");
-    const room = store.create(owner.id, "retired-blocks");
-    const seed = createSharedDocument({
-      title: "正文",
-      content: [{ type: "paragraph", collabId: "kept", children: [{ text: "保留" }] }],
-      bannerBg: "",
-      bannerPosition: "center",
-    });
-    store.publish(room.id, owner.id, Y.encodeStateAsUpdate(seed));
-    const old = new Y.Doc();
-    Y.applyUpdate(old, Y.encodeStateAsUpdate(seed));
-    const block = new Y.XmlText();
-    block.setAttribute("type", "question");
-    getBody(old).applyDelta([{ insert: block }]);
-    store.db
-      .prepare("UPDATE snapshots SET state=? WHERE document_id=?")
-      .run(Buffer.from(Y.encodeStateAsUpdate(old)), room.id);
-    const loaded = store.loadDocument(room.id);
-    expect(getBody(loaded).length).toBe(1);
-    expect(readSharedContent(loaded).content[0].collabId).toBe("kept");
-    const restored = store.loadDocument(room.id);
-    expect(getBody(restored).length).toBe(1);
-    expect(
-      readdirSync(directories.at(-1)!).filter(name => name.includes("pre-editor-block-retirement"))
-    ).toHaveLength(1);
-    const vector = Y.encodeStateVector(old);
-    const another = new Y.XmlText();
-    another.setAttribute("type", "chat-reference");
-    getBody(old).applyDelta([{ insert: another }]);
-    store.appendUpdate(room.id, owner.id, Y.encodeStateAsUpdate(old, vector), loaded);
-    const latest = store.loadDocument(room.id);
-    expect(getBody(latest).length).toBe(1);
-    for (const doc of [seed, old, loaded, restored, latest]) doc.destroy();
-  });
   it("审批前无法读取，批准后可读，退出和结束共享撤销访问", async () => {
     const { app, store } = await setup();
     const owner = store.register("作者");

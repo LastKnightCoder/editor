@@ -8,7 +8,7 @@ export function assertCompatibleSync(info: {
   databaseObject?: unknown;
   sessionsObject?: unknown;
 }) {
-  if (info.dataModelVersion === 2 || info.dataModelVersion === SYNC_MODEL_VERSION) {
+  if (info.dataModelVersion === SYNC_MODEL_VERSION) {
     if (typeof info.databaseObject !== "string" || !info.databaseObject)
       throw new Error("同步快照缺少数据库对象名");
     if (info.sessionsObject !== undefined && typeof info.sessionsObject !== "string")

@@ -1,13 +1,38 @@
 import { Editor, NodeEntry, Path, Transforms } from "slate";
 import type { Element as SlateElement } from "slate";
-import { hasSubstantialContent, migrateTabsNode } from "@tau/db-schema";
 
 import type { ElementBehaviors } from "@tau/editor/api";
 import type { ParagraphElement, TabPaneElement, TabsElement } from "./types";
 import { isParagraphAndEmpty } from "@tau/editor/api";
 import { deleteCurTab } from "./deleteCurTab";
 
-type ContentNode = Parameters<typeof migrateTabsNode>[0];
+// children 的宽松结构口径：规范化阶段会见到占位、空段落等非正式形态
+type ChildNode = { type?: string; text?: string; children?: unknown[] };
+
+// 协作 Yjs 树的占位 children（单个空 formatted），不代表真实内容
+const isPlaceholderChildren = (children: unknown): boolean =>
+  Array.isArray(children) &&
+  children.length === 1 &&
+  children[0].type === "formatted" &&
+  children[0].text === "";
+
+const isEmptyParagraph = (node: ChildNode): boolean =>
+  node?.type === "paragraph" &&
+  Array.isArray(node.children) &&
+  node.children.length === 1 &&
+  (node.children[0] as ChildNode).type === "formatted" &&
+  (node.children[0] as ChildNode).text === "";
+
+/** children 是否承载实质内容（排除占位与空段落） */
+const hasSubstantialContent = (children: unknown): boolean => {
+  if (!Array.isArray(children) || children.length === 0) return false;
+  if (
+    children.length === 1 &&
+    (isEmptyParagraph(children[0] as ChildNode) || isPlaceholderChildren(children))
+  )
+    return false;
+  return true;
+};
 
 const createParagraph = (): ParagraphElement => ({
   type: "paragraph",
@@ -19,38 +44,10 @@ const createParagraph = (): ParagraphElement => ({
   ],
 });
 
-// 旧数据（tabsContent 形态）读入编辑器时转换为 tab-pane 子节点形态
-const migrateLegacyTabs = (editor: Editor, node: TabsElement, path: number[]) => {
-  const { node: migrated, replacedBy } = migrateTabsNode(node as unknown as ContentNode);
-  Editor.withoutNormalizing(editor, () => {
-    if (replacedBy) {
-      Transforms.removeNodes(editor, { at: path });
-      Transforms.insertNodes(editor, replacedBy as unknown as TabPaneElement, { at: path });
-      return;
-    }
-    const panes = (migrated.children || []) as unknown as TabPaneElement[];
-    for (let i = node.children.length - 1; i >= 0; i--) {
-      Transforms.removeNodes(editor, { at: [...path, i] });
-    }
-    Transforms.insertNodes(editor, panes, { at: [...path, 0] });
-    Transforms.setNodes(
-      editor,
-      { activeKey: migrated.activeKey as string, tabsContent: undefined },
-      { at: path }
-    );
-  });
-};
-
 /** tabs 容器规范化：旧数据迁移、空容器退化、普通块子内容包进 pane、activeKey 修正 */
 const normalizeTabs: ElementBehaviors<TabsElement>["normalize"] = (editor, [node, path]) => {
   const children = Array.isArray(node.children) ? node.children : [];
   const hasPane = children.some(child => child.type === "tab-pane");
-
-  // 旧数据形态：tabsContent 存在时读入迁移
-  if (Array.isArray(node.tabsContent)) {
-    migrateLegacyTabs(editor, node, path);
-    return true;
-  }
 
   // 无任何 Tab 内容：整个 tabs 块退化为空段落
   if (children.length === 0) {
@@ -63,7 +60,7 @@ const normalizeTabs: ElementBehaviors<TabsElement>["normalize"] = (editor, [node
 
   // 无 pane 但有实质内容的普通块子节点：包进单个 pane，避免内容游离在 tabs 直接子层。
   // 空壳（占位/空段落）保持不动——可能是其它版本代码写入的脏形态，不能洗成正式结构。
-  if (!hasPane && hasSubstantialContent(children as unknown as ContentNode[])) {
+  if (!hasPane && hasSubstantialContent(children)) {
     Editor.withoutNormalizing(editor, () => {
       for (let i = children.length - 1; i >= 0; i--) {
         Transforms.removeNodes(editor, { at: [...path, i] });

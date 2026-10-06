@@ -10,8 +10,6 @@ import {
   type ContentNode,
   type SharedContent,
 } from "./protocol";
-import { migrateTabsToPanes } from "@tau/db-schema";
-import { isRetiredEditorBlock, stripRetiredEditorBlocks } from "@tau/db-schema";
 
 export const SOURCE_FIELDS: Record<string, string[]> = {
   "code-block": ["code"],
@@ -45,98 +43,6 @@ export const RESOURCE_FIELDS = new Set([
 export const getBody = (doc: Y.Doc) => doc.get("content", Y.XmlText);
 export const getFields = (doc: Y.Doc) => doc.getMap<Y.Map<unknown>>("fields");
 
-/** 删除 CRDT 中的原节点，不重插其余正文，避免多端迁移产生重复内容。 */
-export function retireEditorBlocksInDoc(
-  doc: Y.Doc,
-  privateNodes = new Map<string, ContentNode>(),
-  beforeChange?: () => void
-): boolean {
-  const changes: (() => void)[] = [];
-  const deletedIds = new Set<string>();
-  const collectDeletedIds = (node: Y.XmlText) => {
-    const id = node.getAttribute("collabId");
-    if (typeof id === "string") deletedIds.add(id);
-    for (const part of node.toDelta())
-      if (part.insert instanceof Y.XmlText) collectDeletedIds(part.insert);
-  };
-  const collectFields = (node: Y.XmlText) => {
-    const attributes = node.getAttributes();
-    const cleaned = stripRetiredEditorBlocks(attributes);
-    if (cleaned.changed)
-      changes.push(() => {
-        for (const key of Object.keys(attributes))
-          if (!(key in cleaned.value)) node.removeAttribute(key);
-        for (const [key, value] of Object.entries(cleaned.value))
-          if (value !== attributes[key]) node.setAttribute(key, value);
-      });
-    let offset = 0;
-    const removals: { offset: number; node: Y.XmlText }[] = [];
-    for (const part of node.toDelta()) {
-      if (part.insert instanceof Y.XmlText) {
-        collectFields(part.insert);
-        if (isRetiredEditorBlock({ ...part.insert.getAttributes(), children: [] })) {
-          collectDeletedIds(part.insert);
-          removals.push({ offset, node: part.insert });
-        }
-      }
-      offset += typeof part.insert === "string" ? part.insert.length : 1;
-    }
-    for (const removal of removals.reverse())
-      changes.push(() => {
-        node.delete(removal.offset, 1);
-      });
-  };
-  collectFields(getBody(doc));
-  for (const [, fields] of getFields(doc)) {
-    if (!(fields instanceof Y.Map)) continue;
-    for (const [key, value] of fields) {
-      const json = value instanceof Y.AbstractType ? value.toJSON() : value;
-      const cleaned = stripRetiredEditorBlocks(json);
-      if (cleaned.changed) changes.push(() => setSharedValue(fields, key, cleaned.value));
-    }
-  }
-  for (const [id, value] of privateNodes) {
-    if (isRetiredEditorBlock(value))
-      changes.push(() => {
-        privateNodes.delete(id);
-      });
-    else {
-      const cleaned = stripRetiredEditorBlocks(value);
-      if (cleaned.changed)
-        changes.push(() => {
-          privateNodes.set(id, cleaned.value);
-        });
-    }
-  }
-  if (!changes.length) return false;
-  beforeChange?.();
-  doc.transact(() => {
-    for (const apply of changes) apply();
-    for (const id of deletedIds) {
-      getFields(doc).delete(id);
-      privateNodes.delete(id);
-    }
-  }, RETIRE_TRANSACTION_ORIGIN);
-  return true;
-}
-
-const RETIRE_TRANSACTION_ORIGIN = "retired-editor-blocks";
-
-const guardedDocuments = new WeakSet<Y.Doc>();
-export function guardRetiredEditorBlocks(doc: Y.Doc, privateNodes?: Map<string, ContentNode>) {
-  retireEditorBlocksInDoc(doc, privateNodes);
-  if (guardedDocuments.has(doc)) return;
-  guardedDocuments.add(doc);
-  const clean = (transaction: Y.Transaction) => {
-    // 退役事务自身触发的事件无需再清理，否则每个退役事务后都多一轮全树扫描
-    if (transaction.origin === RETIRE_TRANSACTION_ORIGIN) return;
-    retireEditorBlocksInDoc(doc, privateNodes);
-  };
-  doc.on("afterTransaction", clean);
-  doc.on("destroy", () => {
-    doc.off("afterTransaction", clean);
-  });
-}
 export const emptyContent = (): ContentNode[] => [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
@@ -334,97 +240,13 @@ export function materializeNodes(
   });
 }
 
-/**
- * 存量协作缓存结构转换：旧版本把 tabs 内容外置在块字段（tabOrder + tabs Y.Map），
- * 在同一 Y.Doc 内整体重建正文为 tab-pane 树内形态并清理块字段。幂等：无旧块字段时不动。
- * 返回是否发生了转换。
- */
-export function migrateTabsBlocksInDoc(
-  doc: Y.Doc,
-  privateNodes?: Map<string, ContentNode>
-): boolean {
-  const fields = getFields(doc);
-  const legacyBlockIds: string[] = [];
-  for (const [id, block] of fields.entries()) {
-    if (block instanceof Y.Map && (block.has("tabs") || block.has("tabOrder")))
-      legacyBlockIds.push(id);
-  }
-  if (legacyBlockIds.length === 0) return false;
-
-  // 块字段中的旧 Tab 内容（title + Y.XmlText 内容）按 collabId 收集
-  const legacyTabs = new Map<string, { key: string; title: string; content: ContentNode[] }[]>();
-  for (const id of legacyBlockIds) {
-    const block = fields.get(id) as Y.Map<unknown>;
-    const order = block.get("tabOrder") as Y.Array<string> | undefined;
-    const tabs = block.get("tabs") as Y.Map<Y.Map<unknown>> | undefined;
-    const entries = [...new Set(order?.toArray() || [])].flatMap(key => {
-      const tab = tabs?.get(key);
-      const root = tab?.get("content");
-      if (!(root instanceof Y.XmlText)) return [];
-      return [
-        {
-          key,
-          title: String(tab?.get("title") || ""),
-          content: materializeNodes(
-            doc,
-            yTextToSlateElement(root).children as ContentNode[],
-            privateNodes
-          ),
-        },
-      ];
-    });
-    legacyTabs.set(id, entries);
-  }
-
-  // 物化正文后把旧 Tab 内容补回 tabs 节点，再走统一的 JSON 迁移
-  const article = readSharedContent(doc, privateNodes);
-  const injectedIds = new Set<string>();
-  const injectLegacyTabs = (nodes: ContentNode[]): ContentNode[] =>
-    nodes.map(node => {
-      if (typeof node.text === "string" || !Array.isArray(node.children)) return node;
-      const next: ContentNode = { ...node, children: injectLegacyTabs(node.children) };
-      if (next.type === "tabs" && legacyTabs.has(String(next.collabId))) {
-        const entries = legacyTabs.get(String(next.collabId))!;
-        injectedIds.add(String(next.collabId));
-        return {
-          ...next,
-          activeKey: next.activeKey ?? entries[0]?.key,
-          tabsContent: entries,
-        };
-      }
-      return next;
-    });
-  const injected = injectLegacyTabs(article.content);
-  // 树中找不到对应 tabs 节点时不清理块字段，避免内容随块字段一起丢失
-  const removableIds = legacyBlockIds.filter(id => injectedIds.has(id));
-  if (removableIds.length === 0) return false;
-  const { content: migrated } = migrateTabsToPanes(injected);
-
-  doc.transact(() => {
-    const body = getBody(doc);
-    body.delete(0, body.length);
-    body.applyDelta(
-      slateNodesToInsertDelta(prepareNodes(doc, migrated, privateNodes) as Descendant[])
-    );
-    for (const id of removableIds) {
-      const block = fields.get(id) as Y.Map<unknown> | undefined;
-      block?.delete("tabs");
-      block?.delete("tabOrder");
-    }
-  });
-  return true;
-}
-
 export function createSharedDocument(
   article: SharedContent,
   privateNodes?: Map<string, ContentNode>,
   mode: "local" | "shared" = "shared"
 ): Y.Doc {
   const doc = new Y.Doc();
-  // 旧数据（tabsContent 形态）进 Yjs 树前统一迁移为 tab-pane 子节点形态
-  const { content } = migrateTabsToPanes(
-    stripRetiredEditorBlocks(article.content.length ? article.content : emptyContent()).value
-  );
+  const content = article.content.length ? article.content : emptyContent();
   doc.transact(() => {
     doc.getMap("meta").set("version", COLLABORATION_VERSION);
     doc.getMap("meta").set("mode", mode);
@@ -435,7 +257,6 @@ export function createSharedDocument(
       slateNodesToInsertDelta(prepareNodes(doc, content, privateNodes) as Descendant[])
     );
   });
-  guardRetiredEditorBlocks(doc, privateNodes);
   return doc;
 }
 
@@ -447,14 +268,13 @@ export function replaceSharedContent(
   content: ContentNode[],
   privateNodes?: Map<string, ContentNode>
 ): void {
-  const migrated = migrateTabsToPanes(
-    stripRetiredEditorBlocks(content.length ? content : emptyContent()).value
-  ).content;
   doc.transact(() => {
     const body = getBody(doc);
     body.delete(0, body.length);
     body.applyDelta(
-      slateNodesToInsertDelta(prepareNodes(doc, migrated, privateNodes) as Descendant[])
+      slateNodesToInsertDelta(
+        prepareNodes(doc, content.length ? content : emptyContent(), privateNodes) as Descendant[]
+      )
     );
   });
 }
@@ -464,7 +284,6 @@ export function readSharedContent(
   privateNodes?: Map<string, ContentNode>,
   activeKeyOverrides?: Map<string, string>
 ): SharedContent {
-  retireEditorBlocksInDoc(doc, privateNodes);
   return {
     title: doc.getText("title").toString(),
     bannerBg: String(doc.getMap("meta").get("bannerBg") || ""),
