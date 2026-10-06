@@ -43,13 +43,25 @@ const checks = [
   {
     name: "tau-cli",
     code: `
+      const fs = require("node:fs");
+      const os = require("node:os");
       const path = require("node:path");
       const resources = path.resolve(path.dirname(${JSON.stringify(packagePaths?.appAsar ?? "")}));
-      const output = require("node:child_process").execFileSync(process.execPath, [path.join(resources, "cli", "index.js"), "--help"], {
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: [path.join(resources, "app.asar.unpacked", "node_modules"), path.join(resources, "app.asar", "node_modules")].join(path.delimiter) },
+      const runCli = (args, extraEnv = {}) => require("node:child_process").execFileSync(process.execPath, [path.join(resources, "cli", "index.js"), ...args], {
+        env: { ...process.env, ...extraEnv, ELECTRON_RUN_AS_NODE: "1", NODE_PATH: [path.join(resources, "app.asar.unpacked", "node_modules"), path.join(resources, "app.asar", "node_modules")].join(path.delimiter) },
         encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15000,
       });
-      if (!output.includes("Usage: tau")) throw new Error("packaged Tau CLI failed to start");
+      if (!runCli(["--help"]).includes("Usage: tau")) throw new Error("packaged Tau CLI failed to start");
+      // 打开数据库会加载 sqlite-vec：CLI 须自行改写到 app.asar.unpacked，SQLite 的 dlopen 不经 Electron 重定向
+      const home = fs.mkdtempSync(path.join(os.tmpdir(), "tau-cli-"));
+      try {
+        fs.mkdirSync(path.join(home, ".editor"));
+        const Database = require(path.join(resources, "app.asar", "node_modules", "better-sqlite3"));
+        new Database(path.join(home, ".editor", "data.db")).close();
+        if (!runCli(["db", "status"], { HOME: home }).includes("Journal Mode")) throw new Error("packaged Tau CLI failed to open database");
+      } finally {
+        fs.rmSync(home, { recursive: true, force: true });
+      }
       console.log("tau-cli=ok");
     `,
   },
