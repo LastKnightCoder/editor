@@ -1,11 +1,9 @@
 /**
- * pi 会话目录表（M4）：会话内容的事实源是 pi JSONL，本表只存列表与管理要用的轻量元数据。
- * 与旧的 chat_message / pdf_chats / video_note_chats / vibe_learning_chats 的区别：
- * 这里**不存消息载荷**，所以列表查询是常数级的，不会把整库消息拉进内存。
+ * pi 会话目录表：会话内容的事实源是 pi JSONL，本表只存列表与管理要用的轻量元数据，
+ * **不存消息载荷**，所以列表查询是常数级的，不会把整库消息拉进内存。
  * id 即 pi 会话 id；scope + domain_ref 区分五个聊天场景与所属对象。
  *
- * 一行 = 一个对话 = 一个会话文件；分支在文件内部的会话树上（M4-d）。M4 时期的库还带
- * parent_session_id / branch_index 两列，树合并迁移读完后由 legacy-chat-retirement 删掉（M8）。
+ * 一行 = 一个对话 = 一个会话文件；分支在文件内部的会话树上。
  */
 import Database from "better-sqlite3";
 import { rmSync } from "node:fs";

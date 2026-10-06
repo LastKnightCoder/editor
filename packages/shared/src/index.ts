@@ -106,13 +106,7 @@ export {
   type UpdateChatGroup,
 } from "./chat-core/messages";
 
-export {
-  CHAT_MESSAGE_SCHEMA_VERSION,
-  createChatMessageClientId,
-  migrateAssistantMessage,
-  migrateChatSessionMessages,
-  getAssistantToolExecutionsFromBlocks,
-} from "./chat-core/messageSchema";
+export { createChatMessageClientId } from "./chat-core/messageSchema";
 
 export {
   syncAssistantDerivedFields,

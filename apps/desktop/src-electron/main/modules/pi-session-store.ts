@@ -1,14 +1,13 @@
 /**
- * pi 会话文件的存储层（M4）：会话目录的定位、读投影、改历史、删除、浏览器扩展会话列表、
+ * pi 会话文件的存储层：会话目录的定位、读投影、改历史、删除、浏览器扩展会话列表、
  * 同步打包/解包。electron-free，可单测；IPC 壳在 pi-session-host.ts。
  *
  * 两类会话目录：
  * - 应用对话：`sessions/<库名>/`，目录行在 chat_session 表里，文件名存在目录行；
  * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
- *   全部取自会话文件本身；分支在文件内部的会话树上（M4-d）。
+ *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename } from "node:path";
+import { existsSync, rmSync } from "node:fs";
 import { installSessionDownload as installPairedSnapshot } from "@tau/db-schema/sync";
 import Database from "better-sqlite3";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
@@ -25,7 +24,6 @@ import {
   switchToVersion,
   type ConversationTreeNode,
 } from "./pi-session-files";
-import { graftSessionFile } from "./pi-session-graft";
 import { browserSessionDirOf, findSessionFileById } from "./pi-session-paths";
 
 /** 读会话投影；文件不存在（首轮没等到回答 pi 不落盘）= 空对话 */
@@ -76,65 +74,9 @@ export function applySessionEditToFile(file: string, edit: SessionEdit): void {
 
 // ── 浏览器扩展会话 ────────────────────────────────────────────────────────────
 
-const sessionIdOfPath = (path: string) => /_([^_]+)\.jsonl$/.exec(basename(path))?.[1] ?? "";
-
-/**
- * 页面目录里 M4 留下的分支文件（会话头带 parentSession）并进父文件的树（M4-d）。
- * 扩展会话没有目录表与开库时机，列表时顺手合并；父文件对不上的把 parentSession 去掉、成为独立对话。
- */
-export async function mergeBranchFilesInDir(dir: string): Promise<void> {
-  if (!existsSync(dir)) return;
-  const infos = await SessionManager.listAll(dir);
-  const pathById = new Map(infos.map(info => [info.id, info.path]));
-  const parentOf = new Map(
-    infos
-      .filter(info => info.parentSessionPath)
-      .map(info => [info.id, sessionIdOfPath(info.parentSessionPath!)])
-  );
-  const depthOf = (id: string) => {
-    let depth = 0;
-    for (
-      let cursor = parentOf.get(id);
-      cursor && depth < infos.length;
-      cursor = parentOf.get(cursor)
-    )
-      depth += 1;
-    return depth;
-  };
-  for (const id of [...parentOf.keys()].sort((a, b) => depthOf(b) - depthOf(a))) {
-    const branchPath = pathById.get(id)!;
-    const parentPath = pathById.get(parentOf.get(id)!);
-    try {
-      if (
-        parentPath &&
-        existsSync(parentPath) &&
-        graftSessionFile(parentPath, branchPath).kind === "merged"
-      ) {
-        rmSync(branchPath, { force: true });
-        continue;
-      }
-    } catch (error) {
-      console.error("[pi-session] 合并扩展分支失败:", branchPath, error);
-    }
-    detachSessionHeader(branchPath);
-  }
-}
-
-/** 去掉会话头的 parentSession：分支降级为独立对话 */
-function detachSessionHeader(file: string): void {
-  const [head, ...rest] = readFileSync(file, "utf8").split("\n");
-  const header = JSON.parse(head) as Record<string, unknown>;
-  delete header.parentSession;
-  writeFileSync(file, [JSON.stringify(header), ...rest].join("\n"));
-}
-
-/** 一个目录里的全部对话，按最近活动降序（先把 M4 留下的分支文件并进树） */
-export async function listSessionsInDir(
-  dir: string,
-  migrateBranches = true
-): Promise<PiBrowserSessionInfo[]> {
+/** 一个目录里的全部对话，按最近活动降序 */
+export async function listSessionsInDir(dir: string): Promise<PiBrowserSessionInfo[]> {
   if (!existsSync(dir)) return [];
-  if (migrateBranches) await mergeBranchFilesInDir(dir);
   // listAll(dir) 不按 cwd 过滤（list 会拿 cwd 比对会话头，扩展会话的 cwd 是应用目录）
   const infos = await SessionManager.listAll(dir);
   return infos.map(info => ({
@@ -160,8 +102,8 @@ export function deleteSessionInDir(dir: string, sessionId: string): void {
 }
 
 // 页面 → 目录的包装（IPC 壳用）
-export const listBrowserSessions = (pageUrl: string, migrateBranches = true) =>
-  listSessionsInDir(browserSessionDirOf(pageUrl), migrateBranches);
+export const listBrowserSessions = (pageUrl: string) =>
+  listSessionsInDir(browserSessionDirOf(pageUrl));
 export const browserSessionFile = (pageUrl: string, sessionId: string) =>
   findSessionFileById(browserSessionDirOf(pageUrl), sessionId);
 export const renameBrowserSession = (pageUrl: string, sessionId: string, title: string) =>

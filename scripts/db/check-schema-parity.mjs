@@ -27,36 +27,10 @@ const INDEX_CORE_TABLES = [
   "whiteboard_embeds",
   "content_sections",
 ];
-const REMOVED_TABLES = [
-  "rss_feed",
-  "rss_subscription",
-  "rss_entry",
-  "read_later",
-  "documents",
-  "document_items",
-  "resources",
-  "resource_group",
-  "resource_scan_version",
-  "goal",
-  "slide",
-  "time_records",
-  "shortcuts",
-  "history",
-  "skill",
-  "prompt",
-  "epubs",
-  "epub_annotations",
-  "epub_bookmarks",
-  "chat_run",
-  "chat_message",
-  "pdf_chats",
-  "video_note_chats",
-  "vibe_learning_chats",
-  "audio_note_chats",
-  "audio_notes",
-  "audio_note_item",
-  "content_link",
-];
+// 与运行时门禁（packages/db-schema/src/legacy-table-guard.ts）共用同一份黑名单
+const REMOVED_TABLES = JSON.parse(
+  fs.readFileSync(path.join(rootDir, "packages/db-schema/src/legacy-tables.json"), "utf8")
+);
 
 function readText(filePath) {
   if (!fs.existsSync(filePath)) {
