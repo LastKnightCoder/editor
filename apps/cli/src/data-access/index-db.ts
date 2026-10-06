@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import sqliteVec from "sqlite-vec";
+import { loadSqliteVec } from "./sqlite-vec.js";
 import { getAppDir, getActiveDbName } from "../utils/path.js";
 
 export type IndexType = "card" | "article" | "project-item" | "diary-daily";
@@ -185,7 +185,7 @@ export function searchVec(
   }
 
   try {
-    db.loadExtension(sqliteVec.getLoadablePath());
+    loadSqliteVec(db);
   } catch {
     db.close();
     return null;
