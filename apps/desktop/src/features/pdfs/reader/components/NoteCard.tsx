@@ -103,14 +103,15 @@ export function NoteCard({
         className
       )}
     >
-      {(record || margin) && (
+      {/* 原文引用条；页边批注没有原文，不显示 */}
+      {record && !margin && (
         <div
           className={cn(
             "text-tau-meta text-ink-2 line-clamp-2 border-l-[3px] pl-2",
-            color ? COLOR_SPECS[color].border : "border-ink-3 border-dotted"
+            color && COLOR_SPECS[color].border
           )}
         >
-          {record ? annotationSnippet(record) : `页边批注 · 第 ${pageNumber} 页`}
+          {annotationSnippet(record)}
         </div>
       )}
       <div className="border-line-1 bg-surface focus-within:border-accent rounded-tau-sm text-tau-body max-h-[240px] min-h-[72px] overflow-y-auto border px-2.5 py-1.5 focus-within:shadow-[var(--tau-focus-ring)]">
@@ -125,7 +126,9 @@ export function NoteCard({
       </div>
       <div className="text-tau-meta text-ink-3 flex items-center gap-2">
         <span className="tabular-nums">
-          {pageNumber !== undefined ? `第 ${pageNumber} 页` : "正在保存标注…"}
+          {pageNumber === undefined
+            ? "正在保存标注…"
+            : `${margin ? "页边批注 · " : ""}第 ${pageNumber} 页`}
         </span>
         {onAsk && (
           <IconButton title="问 AI" aria-label="问 AI" onClick={onAsk} className="size-6">

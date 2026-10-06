@@ -266,7 +266,7 @@ function AnnotationList({
                     <span
                       className={cn(
                         "text-tau-sm text-ink-1 line-clamp-3 border-l-[3px] pl-2 leading-relaxed",
-                        margin ? "border-ink-3 border-dotted" : spec.border
+                        margin ? "border-ink-3/40" : spec.border
                       )}
                     >
                       {/* 页边批注没有原文，主行就是批注 */}
