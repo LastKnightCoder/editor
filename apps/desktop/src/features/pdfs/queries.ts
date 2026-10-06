@@ -36,7 +36,8 @@ const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
 
 const libraryKey = (database: string) => ["pdfs", "library", database] as const;
 const indexKey = (database: string, ids: number[]) => ["pdfs", "index", database, ids] as const;
-const detailKey = (database: string, id: number) => ["pdfs", "detail", database, id] as const;
+export const detailKey = (database: string, id: number) =>
+  ["pdfs", "detail", database, id] as const;
 
 /** 当前工作区数据库名与是否已连接；PDF 域的查询都按库分 key、连上才发 */
 export function useDatabaseReady() {

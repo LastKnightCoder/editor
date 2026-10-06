@@ -2,7 +2,8 @@
  * PDF 阅读页（D-070 方案 B）：一整张纸——左面板（目录 / 页面 / 标注 / 书签）+ 阅读区 + 纸内右栏
  * 的 AI 对话（这份 PDF 专属，Ctrl/⌘+J 在本页开合它，壳层停靠栏让位）。
  * 面包屑「[左面板开关] PDF / 文件名」；进入收起全局侧栏、离开还原。
- * 打开即记录打开时间并跳到上次读到的页；翻页防抖写回；文件就位后补生成缩略图（顺带记下页数）。
+ * 打开即记录打开时间并还原到上次的阅读位置（页码进库、页内位置记在本机）；阅读位置防抖写回，
+ * 离开（含保活隐藏）时立即写回；文件就位后补生成缩略图（顺带记下页数）。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,16 +18,21 @@ import type { Pdf } from "@/types";
 import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import PdfChatPanel, { type PdfChatPanelHandle } from "../chat/PdfChatPanel";
 import { pdfTitle } from "../model";
-import { useDatabaseReady, usePdfDetail } from "../queries";
+import { detailKey, useDatabaseReady, usePdfDetail } from "../queries";
 import type { PdfQuote } from "../reader/annotationModel";
 import { usePdfIndex } from "../reader/data";
 import { PdfReaderView } from "../reader/PdfReader";
 import { CHAT_DEFAULT_W, CHAT_MAX_W, CHAT_MIN_W, useReaderPrefs } from "../reader/readerPrefs";
 import { usePdfFile } from "../reader/usePdfFile";
+import {
+  initialReadingPosition,
+  useReadingPositions,
+  type ReadingPosition,
+} from "../reader/readingPosition";
 import { saveThumbnailFromBytes } from "../thumbnails";
 
 const PAGE_KEY = "pdf-detail";
-/** 翻页写回的防抖：连续翻页只落最后一页 */
+/** 阅读位置写回的防抖：连续滚动只落最后的位置 */
 const PAGE_SAVE_DELAY = 1500;
 
 export function PdfDetailView() {
@@ -113,30 +119,40 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
     void recordPdfOpen(pdf.id).then(invalidateLibrary);
   }, [pdf.id, invalidateLibrary]);
 
-  // 起始页只取一次：之后 lastPage 随翻页变化，不能再触发跳转；指定了标注时由标注定位
-  const [jumpTarget, setJumpTarget] = useState<PdfCitationTarget | null>(() =>
-    !annotationId && pdf.lastPage && pdf.lastPage > 1 ? { pageNumber: pdf.lastPage } : null
+  const [jumpTarget, setJumpTarget] = useState<PdfCitationTarget | null>(null);
+  // 起始位置只取一次（之后 lastPage 随阅读变化）；指定了标注时由标注定位
+  const [initialPosition] = useState(() =>
+    annotationId ? null : initialReadingPosition(pdf.id, pdf.lastPage)
   );
 
-  const pendingPage = useRef<number | null>(null);
+  const pendingPosition = useRef<ReadingPosition | null>(null);
+  const savedPage = useRef(pdf.lastPage ?? null);
   const saveTimer = useRef<number | null>(null);
-  const flushPage = useCallback(() => {
+  const flushPosition = useCallback(() => {
     if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
     saveTimer.current = null;
-    if (pendingPage.current === null) return;
-    const page = pendingPage.current;
-    pendingPage.current = null;
-    void recordPdfPage(pdf.id, page).then(invalidateLibrary);
-  }, [pdf.id, invalidateLibrary]);
-  useEffect(() => flushPage, [flushPage]);
+    const position = pendingPosition.current;
+    if (position === null) return;
+    pendingPosition.current = null;
+    useReadingPositions.getState().save(pdf.id, position);
+    if (position.page === savedPage.current) return;
+    savedPage.current = position.page;
+    // 详情缓存不自动刷新（staleTime: Infinity），同步改掉，免得下次打开用旧页码
+    client.setQueryData<Pdf | null>(detailKey(database, pdf.id), prev =>
+      prev ? { ...prev, lastPage: position.page } : prev
+    );
+    void recordPdfPage(pdf.id, position.page).then(invalidateLibrary);
+  }, [pdf.id, client, database, invalidateLibrary]);
+  // 卸载或保活隐藏（effect 停驻）时立即写回
+  useEffect(() => flushPosition, [flushPosition]);
 
-  const onPageChange = useCallback(
-    (page: number) => {
-      pendingPage.current = page;
+  const onPositionChange = useCallback(
+    (position: ReadingPosition) => {
+      pendingPosition.current = position;
       if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
-      saveTimer.current = window.setTimeout(flushPage, PAGE_SAVE_DELAY);
+      saveTimer.current = window.setTimeout(flushPosition, PAGE_SAVE_DELAY);
     },
-    [flushPage]
+    [flushPosition]
   );
 
   // 还没有缩略图（页数为空即从未生成）：文件就位后补一张
@@ -197,7 +213,8 @@ function PdfReaderPage({ pdf, annotationId }: { pdf: Pdf; annotationId: number |
         index={index}
         jumpTarget={jumpTarget}
         jumpAnnotationId={annotationId}
-        onPageChange={onPageChange}
+        initialPosition={initialPosition}
+        onPositionChange={onPositionChange}
         onAskAI={onAskAI}
         onOpenChat={chatOpen ? undefined : () => setChatOpen(true)}
       />

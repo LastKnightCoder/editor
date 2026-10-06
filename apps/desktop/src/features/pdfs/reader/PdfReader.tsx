@@ -38,7 +38,13 @@ import { usePdfFile, type PdfFileSource } from "./usePdfFile";
 
 type LayoutPassThrough = Pick<
   ReaderLayoutProps,
-  "jumpTarget" | "jumpAnnotationId" | "onPageChange" | "onAskAI" | "leftToggleInHud" | "onOpenChat"
+  | "jumpTarget"
+  | "jumpAnnotationId"
+  | "initialPosition"
+  | "onPositionChange"
+  | "onAskAI"
+  | "leftToggleInHud"
+  | "onOpenChat"
 >;
 
 function buildPlugins(pdfFile: PdfFile): PluginBatchRegistrations {

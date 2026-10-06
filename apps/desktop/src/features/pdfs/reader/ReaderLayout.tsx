@@ -4,6 +4,9 @@
  * 空格按住平移、页边批注（展开）/ 页内图钉（收起）、书签、查找、引用跳转闪烁。
  * 页边只在单页、未旋转时展开：包住 Scroller 的容器右侧留出页边宽度，适宽 / 适页经 useMarginFit 把页边算进去。
  *
+ * 阅读位置：持续记录视口顶端所在页与页内位置（onPositionChange）；首次就绪、以及页面保活后重新显示时
+ * （隐藏期间 display:none 会丢掉滚动位置）都按记下的位置还原，还原后短时间内的缩放适配也跟着重新对齐。
+ *
  * 键位：←/→ 翻页、B 书签、D 双页、R 旋转、M 页边、H 抓手、空格平移、Alt 框选；Ctrl/⌘+F 经全局查找接管打开查找条；
  * 只在焦点位于阅读器（或无焦点）时生效，让位编辑上下文与输入法组合。Alt+←/→ 归导航，
  * 这里只把单独按下的 Alt 当作框选修饰键。Esc 一律经页面浮层仲裁。
@@ -21,7 +24,7 @@ import type {
   SearchResult,
 } from "@embedpdf/models";
 import { useLoaderCapability } from "@embedpdf/plugin-loader/react";
-import { Viewport } from "@embedpdf/plugin-viewport/react";
+import { Viewport, useViewportCapability } from "@embedpdf/plugin-viewport/react";
 import { Scroller, useScroll } from "@embedpdf/plugin-scroll/react";
 import { RenderLayer } from "@embedpdf/plugin-render/react";
 import { TilingLayer } from "@embedpdf/plugin-tiling/react";
@@ -78,6 +81,7 @@ import { convertMaterialToCard } from "@/services/material-to-card";
 import { requestMaterialQuestionCapture } from "@/services/question-capture";
 import { useAnnotationSync } from "./useAnnotationSync";
 import { useMarginFit } from "./useMarginFit";
+import type { ReadingPosition } from "./readingPosition";
 import { nightPaper, paperPalette, samplePaperColor, type Rgb } from "./paper";
 import { usePinchZoom } from "./usePinchZoom";
 import { AnnotationMenu, type SelectionMenuProps } from "./components/AnnotationMenu";
@@ -96,7 +100,9 @@ export interface ReaderLayoutProps {
   jumpTarget?: PdfCitationTarget | null;
   /** 定位到某条标注（材料打开到原处）；标注加载、布局就绪后跳一次 */
   jumpAnnotationId?: number | null;
-  onPageChange?: (page: number) => void;
+  /** 打开时还原到的阅读位置（只在挂载时读取） */
+  initialPosition?: ReadingPosition | null;
+  onPositionChange?: (position: ReadingPosition) => void;
   /** 不传则隐藏所有「问 AI」入口 */
   onAskAI?: (quote: PdfQuote) => void;
   /** 宿主没有面包屑开关时，左面板开关放进 HUD */
@@ -106,6 +112,8 @@ export interface ReaderLayoutProps {
 }
 
 const FLASH_MS = 2200;
+/** 还原阅读位置后，这段时间内的滚动不记、缩放变化跟着重新对齐 */
+const RESTORE_SETTLE_MS = 600;
 const KEYWORD_DEBOUNCE_MS = 250;
 
 const isRecord = (target: PdfAnnotationObject | PdfAnnotation): target is PdfAnnotation =>
@@ -143,7 +151,8 @@ export function ReaderLayout({
   index,
   jumpTarget,
   jumpAnnotationId,
-  onPageChange,
+  initialPosition,
+  onPositionChange,
   onAskAI,
   leftToggleInHud,
   onOpenChat,
@@ -192,11 +201,56 @@ export function ReaderLayout({
   });
   const outline = useMemo(() => flattenOutline(outlineQuery.data ?? []), [outlineQuery.data]);
 
-  const onPageChangeRef = useRef(onPageChange);
-  onPageChangeRef.current = onPageChange;
+  /* ───────── 阅读位置 ───────── */
+
+  const positionRef = useRef<ReadingPosition | null>(initialPosition ?? null);
+  const onPositionChangeRef = useRef(onPositionChange);
+  onPositionChangeRef.current = onPositionChange;
+  // 这一时刻之前的滚动是还原 / 适配引起的，不当作阅读位置；有起始位置时首次还原前（引擎先报第 1 页）一律不记
+  const restoringUntil = useRef(initialPosition ? Infinity : 0);
+  const { provides: viewportCap } = useViewportCapability();
+
+  const restorePosition = useMemoizedFn(() => {
+    const position = positionRef.current;
+    if (!position || !scroll) return;
+    scroll.scrollToPage({
+      pageNumber: position.page,
+      pageCoordinates: { x: 0, y: position.y },
+      behavior: "instant",
+    });
+  });
+
   useEffect(() => {
-    if (scrollState?.currentPage) onPageChangeRef.current?.(scrollState.currentPage);
-  }, [scrollState?.currentPage]);
+    if (!scroll || !viewportCap) return;
+    return scroll.onScroll(metrics => {
+      if (performance.now() < restoringUntil.current) return;
+      if (viewportCap.getMetrics().clientHeight === 0) return;
+      const top = metrics.pageVisibilityMetrics[0];
+      if (!top) return;
+      // 引擎的页内位置没扣视口留白（scrollToPage 会加上），这里扣掉，往返不漂移
+      const scale = zoom?.getState().currentZoomLevel ?? 1;
+      const y =
+        top.original.pageY > 0 ? top.original.pageY - viewportCap.getViewportGap() / scale : 0;
+      const position = { page: top.pageNumber, y: Math.max(0, Math.round(y)) };
+      positionRef.current = position;
+      onPositionChangeRef.current?.(position);
+    });
+  }, [scroll, viewportCap, zoom]);
+
+  // 保活页重新显示时 effect 会重跑：布局就绪即还原，下一帧（视口重新量过尺寸）再对齐一次
+  useEffect(() => {
+    if (!layoutReady) return;
+    restoringUntil.current = performance.now() + RESTORE_SETTLE_MS;
+    restorePosition();
+    const frame = requestAnimationFrame(restorePosition);
+    return () => cancelAnimationFrame(frame);
+  }, [layoutReady, restorePosition]);
+
+  // 还原后不久的适宽 / 页边适配会改缩放，跟着再对齐
+  const currentZoom = zoomState?.currentZoomLevel;
+  useEffect(() => {
+    if (currentZoom && performance.now() < restoringUntil.current) restorePosition();
+  }, [currentZoom, restorePosition]);
 
   /* ───────── 页边 ───────── */
 
@@ -326,8 +380,12 @@ export function ReaderLayout({
     }
   });
 
+  // 每个跳转目标只跳一次：保活页重新显示时 effect 重跑，不能再跳回旧目标
+  const handledJump = useRef<PdfCitationTarget | null>(null);
   useEffect(() => {
-    if (jumpTarget && layoutReady) void navigateToTarget(jumpTarget);
+    if (!jumpTarget || !layoutReady || handledJump.current === jumpTarget) return;
+    handledJump.current = jumpTarget;
+    void navigateToTarget(jumpTarget);
   }, [jumpTarget, layoutReady, navigateToTarget]);
 
   const jumpToRecord = useMemoizedFn((record: PdfAnnotation) => {
