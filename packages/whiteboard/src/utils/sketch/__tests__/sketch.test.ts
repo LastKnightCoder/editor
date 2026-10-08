@@ -231,10 +231,10 @@ describe("resolveSketch", () => {
     ).toMatchObject({ enabled: true, level: "neat" });
   });
 
-  it("手写不跟随手绘（本来就是墨迹），媒体与卡片跟随", () => {
+  it("手写不跟随手绘（本来就是墨迹），媒体与文档卡跟随", () => {
     expect(resolveSketch(page, { id: "a", type: "handwrite" }).enabled).toBe(false);
     expect(resolveSketch(page, { id: "a", type: "image" }).enabled).toBe(true);
-    expect(resolveSketch(page, { id: "a", type: "card" }).enabled).toBe(true);
+    expect(resolveSketch(page, { id: "a", type: "document" }).enabled).toBe(true);
   });
 
   it("seed 默认由 id 派生，换一笔写入的 seed 优先", () => {

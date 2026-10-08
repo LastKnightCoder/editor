@@ -8,13 +8,14 @@ import MindMapSetter from "./MindMapSetter";
 import HandwriteSetter from "./HandwriteSetter";
 import ColumnSetter from "./ColumnSetter";
 import MediaSetter from "./MediaSetter";
+import DocumentSetter from "./DocumentSetter";
 
 export default {
   richtext: {
     component: RichTextSetter,
   },
-  card: {
-    component: RichTextSetter,
+  document: {
+    component: DocumentSetter,
   },
   geometry: {
     component: GeometrySetter,

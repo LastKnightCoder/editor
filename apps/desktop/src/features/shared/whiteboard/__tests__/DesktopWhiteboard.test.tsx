@@ -49,14 +49,15 @@ vi.mock("@/components/ContentSelectorModal", () => ({ default: () => null }));
 vi.mock("@/components/LocalImage", () => ({ default: () => null }));
 vi.mock("@/hooks/useContentDocument", () => ({ default: () => ({ article: null }) }));
 vi.mock("../DesktopWhiteboardLayers", () => ({ DesktopWhiteboardLayers: () => null }));
-vi.mock("../components/Card", () => ({ default: () => null }));
+vi.mock("../components/Document/DocumentCard", () => ({ DocumentCard: () => null }));
+vi.mock("../components/Document/DocumentReader", () => ({ DocumentReaderLayer: () => null }));
 vi.mock("../components/WhiteBoardCard", () => ({ default: () => null }));
 vi.mock("../components/VideoElement", () => ({ default: () => null }));
 vi.mock("../components/WebviewElement", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Image", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Video", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Audio", () => ({ default: () => null }));
-vi.mock("../components/Toolbar/Card", () => ({ default: () => null }));
+vi.mock("../components/Toolbar/Document", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/Webview", () => ({ default: () => null }));
 vi.mock("../components/Toolbar/WhiteBoard", () => ({ default: () => null }));
 
@@ -84,6 +85,8 @@ it("真实桌面适配器只挂载一次包组件，并传递 ref、初始值和
     expect(props.onChange).toBe(changed);
     expect(props.slots?.Layers).toBeTypeOf("function");
     expect(props.slots?.Editor).toBeTypeOf("function");
+    expect(props.slots?.CanvasLayer).toBeTypeOf("function");
+    expect(props.slots?.elements?.document).toBeTypeOf("function");
     expect(props.services?.uploadResource).toBeTypeOf("function");
     await props.services!.updateContent!(7, []);
     expect(mocks.updateContent).toHaveBeenCalledTimes(1);

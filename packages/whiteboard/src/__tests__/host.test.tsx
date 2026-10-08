@@ -3,7 +3,7 @@ import Board from "../Board";
 import { ImagePlugin } from "../plugins/ImagePlugin";
 import { VideoPlugin } from "../plugins/VideoPlugin";
 import { AudioPlugin } from "../plugins/AudioPlugin";
-import { CardPlugin } from "../plugins/CardPlugin";
+import { DocumentPlugin } from "../plugins/DocumentPlugin";
 import { WhiteBoardPlugin } from "../plugins/WhiteBoardPlugin";
 import { ImageUtil } from "../utils/ImageUtil";
 import { createRichTextContentId } from "../utils/RichTextContentUtil";
@@ -68,9 +68,9 @@ describe("白板宿主能力与实例边界", () => {
     expect(canSubmit()).toBe(false);
     board.destroy();
   });
-  it("无业务能力时只展示可用的图片入口，隐藏卡片与白板创建", () => {
+  it("无业务能力时只展示可用的图片入口，隐藏文档与白板创建", () => {
     const board = createBoard();
-    board.initPlugins([new ImagePlugin(), new CardPlugin(), new WhiteBoardPlugin()]);
+    board.initPlugins([new ImagePlugin(), new DocumentPlugin(), new WhiteBoardPlugin()]);
     const items = board.getContextMenu({
       clientX: 0,
       clientY: 0,
@@ -83,9 +83,9 @@ describe("白板宿主能力与实例边界", () => {
     expect(
       items.find(item => item.key === "create-image")?.children?.map(item => item.key)
     ).toEqual(["image-url"]);
-    expect(items.some(item => item.key === "create-card" || item.key === "create-whiteboard")).toBe(
-      false
-    );
+    expect(
+      items.some(item => item.key === "create-document" || item.key === "create-whiteboard")
+    ).toBe(false);
     board.destroy();
   });
 

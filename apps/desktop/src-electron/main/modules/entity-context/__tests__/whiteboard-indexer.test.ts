@@ -49,16 +49,21 @@ afterEach(() => {
 });
 
 describe("白板引用索引", () => {
-  it("解析页里的卡片与思维导图关联的笔记；引用集合不变时不算变化", () => {
+  it("解析页里的文档卡与思维导图关联的笔记；引用集合不变时不算变化", () => {
     const id = insertPage(
       canvas(
-        { id: "a", type: "card", cardId: 3 },
-        { id: "m", type: "mind-node", text: [], children: [{ id: "n", type: "mind-node", contentId: 9, text: [], children: [] }] }
+        { id: "a", type: "document", entityRef: { kind: "card", id: 3 } },
+        {
+          id: "m",
+          type: "mind-node",
+          text: [],
+          children: [{ id: "n", type: "mind-node", contentId: 9, text: [], children: [] }],
+        }
       )
     );
     expect(reindexWhiteboardPages(mainDb, indexDb, [id])).toEqual({ processed: 1, changed: 1 });
     expect(refsOf(id)).toEqual([
-      { dst_kind: "card", dst_id: 3, via: "card" },
+      { dst_kind: "card", dst_id: 3, via: "entity" },
       { dst_kind: "content", dst_id: 9, via: "mind-node" },
     ]);
 
@@ -66,16 +71,21 @@ describe("白板引用索引", () => {
     updatePage(
       id,
       canvas(
-        { id: "m", type: "mind-node", text: [], children: [{ id: "n", type: "mind-node", contentId: 9, text: [], children: [] }] },
-        { id: "a", type: "card", cardId: 3, x: 100 }
+        {
+          id: "m",
+          type: "mind-node",
+          text: [],
+          children: [{ id: "n", type: "mind-node", contentId: 9, text: [], children: [] }],
+        },
+        { id: "a", type: "document", entityRef: { kind: "card", id: 3 }, x: 100 }
       )
     );
     expect(reindexWhiteboardPages(mainDb, indexDb, [id]).changed).toBe(0);
   });
 
   it("对账只处理变化与已删除的页", async () => {
-    const a = insertPage(canvas({ id: "a", type: "card", cardId: 1 }));
-    const b = insertPage(canvas({ id: "b", type: "card", cardId: 2 }));
+    const a = insertPage(canvas({ id: "a", type: "document", entityRef: { kind: "card", id: 1 } }));
+    const b = insertPage(canvas({ id: "b", type: "document", entityRef: { kind: "card", id: 2 } }));
     expect(await reconcileWhiteboardRefs(mainDb, indexDb)).toEqual({
       processed: 2,
       changed: 2,
@@ -83,17 +93,19 @@ describe("白板引用索引", () => {
     });
     expect(diffWhiteboardSources(mainDb, indexDb)).toEqual([]);
 
-    updatePage(a, canvas({ id: "a", type: "card", cardId: 5 }));
+    updatePage(a, canvas({ id: "a", type: "document", entityRef: { kind: "card", id: 5 } }));
     mainDb.prepare(`DELETE FROM white_board_contents WHERE id = ?`).run(b);
     expect(diffWhiteboardSources(mainDb, indexDb).sort()).toEqual([a, b].sort());
     await reconcileWhiteboardRefs(mainDb, indexDb);
-    expect(refsOf(a)).toEqual([{ dst_kind: "card", dst_id: 5, via: "card" }]);
+    expect(refsOf(a)).toEqual([{ dst_kind: "card", dst_id: 5, via: "entity" }]);
     expect(refsOf(b)).toEqual([]);
     expect((await reconcileWhiteboardRefs(mainDb, indexDb)).processed).toBe(0);
   });
 
   it("解析口径升级后，画布没变的页也在下次对账时重解析", async () => {
-    const id = insertPage(canvas({ id: "a", type: "article-embed", entityRef: { kind: "article", id: 8 } }));
+    const id = insertPage(
+      canvas({ id: "a", type: "article-embed", entityRef: { kind: "article", id: 8 } })
+    );
     // 模拟旧口径下已索引过、但没认出新元素的状态
     indexDb
       .prepare(`INSERT INTO whiteboard_ref_sources (page_id, update_time) VALUES (?, ?)`)

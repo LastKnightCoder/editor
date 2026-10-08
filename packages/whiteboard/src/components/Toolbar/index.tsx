@@ -37,7 +37,7 @@ const Toolbar = memo(() => {
       <HostTool kind="audio" />
       <HostTool kind="webview" />
       <ChromeGap />
-      <HostTool kind="card" />
+      <HostTool kind="document" />
       <HostTool kind="whiteboard" />
       <ChromeGap />
       <Frame />

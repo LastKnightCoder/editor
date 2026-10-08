@@ -6,7 +6,7 @@ export * from "./CopyPastePlugin";
 export * from "./RichTextPlugin";
 export * from "./GeometryPlugin";
 export * from "./HandwritePlugin";
-export * from "./CardPlugin";
+export * from "./DocumentPlugin";
 export * from "./CommonPlugin";
 export * from "./ArrowPlugin";
 export * from "./ImagePlugin";

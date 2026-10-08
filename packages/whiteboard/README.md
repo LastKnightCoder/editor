@@ -1,6 +1,6 @@
 # @tau/whiteboard
 
-私有源码工作区包，包含通用画布、交互、基础文字、脑图、演示和导出。桌面通过 DesktopWhiteboard 注入业务能力；存储格式不变。
+私有源码工作区包，包含通用画布、交互、基础文字、脑图、演示和导出。桌面通过 DesktopWhiteboard 注入业务能力。
 
 ## 接入
 
@@ -11,7 +11,8 @@
 ## 宿主边界
 
 - services：正文创建与引用、上传/下载、文字 Kit、Markdown 导入和导出捕获。
-- slots：正文编辑、低缩放快照订阅、业务元素、工具按钮和弹窗层；编辑、预览和测量必须共用 Kit 与正文绑定。
+- slots：正文编辑、低缩放快照订阅、业务元素、工具按钮、弹窗层（`Layers`，画布容器外）与画布内宿主层（`CanvasLayer`）；编辑、预览和测量必须共用 Kit 与正文绑定。`CanvasLayer` 的浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布。
+- 文档卡（`document` 元素）：包内只负责外壳与展开请求（`DOCUMENT_OPEN_EVENT`），纸面由 `slots.elements.document` 渲染，展开后的阅读 / 编辑由宿主在 `CanvasLayer` 实现；未提供 `CanvasLayer` 时右键「展开」隐藏。
 - outline：受控开关与宽度；实际占宽回调归所属页面，避免实例串扰。
 - Board.captureSubmission：异步操作开始时捕获，提交前验证；只读切换、隐藏、卸载和目标删除使旧操作失效。
 

@@ -1,8 +1,7 @@
-import { act, useState, type ComponentProps } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WhiteBoard from "../WhiteBoard";
-import RichText from "../components/RichText";
 import { useBoard } from "../hooks/useBoard";
 import type Board from "../Board";
 import type { WhiteboardEditorProps } from "../host";
@@ -20,10 +19,6 @@ function DelayedEditor({ style, className }: WhiteboardEditorProps) {
   ) : (
     <div key={version} data-slate-editor style={style} className={className} />
   );
-}
-
-function CardBody(props: Omit<ComponentProps<typeof RichText>, "onContentChange">) {
-  return <RichText {...props} onContentChange={() => {}} />;
 }
 
 function Capture() {
@@ -67,9 +62,9 @@ beforeEach(async () => {
       <WhiteBoard
         initData={[
           {
-            id: "card",
-            type: "card",
-            cardId: 1,
+            id: "text",
+            type: "richtext",
+            contentId: 1,
             x: 0,
             y: 0,
             width: 300,
@@ -84,7 +79,7 @@ beforeEach(async () => {
         showToolbar={false}
         showAttributeSetter={false}
         showStatusBar={false}
-        slots={{ Editor: DelayedEditor, elements: { card: CardBody }, Layers: Capture }}
+        slots={{ Editor: DelayedEditor, Layers: Capture }}
       />
     )
   );
@@ -97,7 +92,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("白板卡片滚轮仲裁", () => {
+describe("白板文本滚轮仲裁", () => {
   it("异步挂载的正文仍优先滚动，画布不接管且保留默认滚动", async () => {
     expect(host.querySelector("[data-slate-editor]")).toBeNull();
     const viewportWheel = vi.spyOn(board, "onWheel").mockImplementation(() => {});

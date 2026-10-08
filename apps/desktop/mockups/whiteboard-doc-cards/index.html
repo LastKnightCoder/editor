@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 文章 / 项目文档卡片 · 展开方式三方案</title>
+<!--
+  视觉参考，非导出源（D-001）。
+  开合动画：卡片里就是同一份文档 DOM（固定版宽 620 排版后 scale 缩小），展开 = transform 放大 + clip-path 揭开纸面，
+  全程不重排文字；停靠 ⇄ 居中切换用 View Transitions。
+-->
+<style>
+  :root {
+    --bg-page: #f3eee2; --surface: #fffdf9; --hover: rgba(67,57,44,.06); --press: rgba(67,57,44,.1);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22,58%,42%,.12);
+    --line-1: #e9e1d2; --line-2: rgba(200,188,168,.45);
+    --canvas: #fbf7ef; --dot: rgba(67,57,44,.2);
+    --overlay: rgba(67,57,44,.28);
+    --card: 0 1px 2px rgba(120,100,70,.06), 0 10px 24px -14px rgba(120,100,70,.22);
+    --lift: 0 1px 2px rgba(120,100,70,.08), 0 6px 16px -8px rgba(120,100,70,.32);
+    --float: 0 2px 6px rgba(120,100,70,.08), 0 24px 60px -16px rgba(120,100,70,.42);
+    --tag-1: #f6d9c4; --tag-2: #e9d3e6; --tag-3: #d5e6dc; --tag-4: #d8e2f3; --tag-5: #f3e7bf;
+    --ok: #61795f;
+  }
+  :root[data-theme="cocoa"] {
+    --bg-page: #1f1a15; --surface: #2a241e; --hover: rgba(240,228,210,.07); --press: rgba(240,228,210,.12);
+    --ink-1: #efe6d8; --ink-2: #c7b9a4; --ink-3: #8a7c68;
+    --accent: hsl(24 62% 60%); --accent-text: #e3a17f; --accent-soft: hsla(24,62%,60%,.16);
+    --line-1: #3a3229; --line-2: rgba(240,228,210,.1);
+    --canvas: #241f1a; --dot: rgba(240,228,210,.13);
+    --overlay: rgba(10,8,6,.5);
+    --card: 0 1px 2px rgba(0,0,0,.3), 0 10px 24px -12px rgba(0,0,0,.5);
+    --lift: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+    --float: 0 2px 6px rgba(0,0,0,.3), 0 28px 64px -16px rgba(0,0,0,.7);
+    --tag-1: #5a3d2c; --tag-2: #4d3a4b; --tag-3: #33463b; --tag-4: #334055; --tag-5: #54482a;
+    --ok: #9cb79a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 -apple-system, "PingFang SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg { flex: none; }
+
+  /* ───────── 顶部 ───────── */
+  .top { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 18px; }
+  .top h1 { font-size: 14px; font-weight: 600; }
+  .seg { display: flex; gap: 2px; background: var(--hover); padding: 3px; border-radius: 10px; }
+  .seg button { height: 26px; padding: 0 12px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--lift); }
+  .top .sp { flex: 1; }
+  .ghost { height: 28px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); white-space: nowrap; }
+  .ghost:hover { background: var(--hover); color: var(--ink-1); }
+  .ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+
+  .main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 340px; gap: 14px; padding: 0 14px 14px; }
+  body.notes-off .main { grid-template-columns: 1fr; }
+  body.notes-off .notes { display: none; }
+
+  /* ───────── 画布 ───────── */
+  .stage { position: relative; border-radius: 16px; overflow: hidden; background-color: var(--canvas); box-shadow: 0 0 0 1px var(--line-2);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.3px); cursor: default; touch-action: none; user-select: none; }
+  .stage.panning { cursor: grabbing; }
+  .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  .links path { fill: none; stroke: var(--ink-3); stroke-width: 1.5; }
+
+  .wb-card { position: absolute; background: var(--surface); border-radius: 10px; box-shadow: var(--card); overflow: hidden; cursor: default; }
+  .wb-card .doc { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+  .wb-card::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 56px; background: linear-gradient(transparent, var(--surface)); pointer-events: none; }
+  .wb-card.sel { box-shadow: var(--card), 0 0 0 2px var(--accent); }
+  .wb-card.hidden { visibility: hidden; }
+  .wb-card.editing { box-shadow: var(--card), 0 0 0 2px var(--accent); }
+  .wb-card.editing .doc { opacity: .55; }
+  .wb-card .badge { position: absolute; right: 8px; top: 8px; z-index: 2; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11px; line-height: 20px;
+    background: var(--accent); color: var(--surface); display: none; }
+  .wb-card.editing .badge { display: block; }
+  /* 低缩放 LOD：只留标题 + 骨架线 */
+  .wb-card .skel { position: absolute; inset: 0; padding: 18px; display: none; }
+  .wb-card .skel b { display: block; font-size: 26px; line-height: 1.25; font-weight: 600; }
+  .wb-card .skel i { display: block; height: 10px; border-radius: 5px; background: var(--hover); margin-top: 14px; }
+  .world.lod .wb-card .doc { display: none; }
+  .world.lod .wb-card .skel { display: block; }
+
+  .sticky { position: absolute; border-radius: 10px; padding: 14px 16px; font-size: 13px; line-height: 1.55; box-shadow: var(--card); color: var(--ink-1); }
+  .label { position: absolute; font-size: 22px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+  .shape { position: absolute; border-radius: 50%; border: 2px solid var(--ink-3); }
+
+  /* 选中后的展开胶囊（屏幕空间，不随缩放） */
+  .chipbar { position: absolute; z-index: 6; display: none; gap: 2px; padding: 3px; background: var(--surface); border-radius: 10px; box-shadow: var(--lift), 0 0 0 1px var(--line-2); }
+  .chipbar.on { display: flex; }
+  .chipbar button { height: 26px; padding: 0 9px; border-radius: 7px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-1); font-size: 12px; white-space: nowrap; }
+  .chipbar button:hover { background: var(--hover); }
+  .chipbar svg { width: 14px; height: 14px; color: var(--ink-2); }
+  kbd { font: 10.5px/1 ui-monospace, monospace; background: var(--hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-3); }
+
+  .hint { position: absolute; left: 12px; bottom: 12px; z-index: 4; font-size: 11.5px; color: var(--ink-3); background: var(--surface); border-radius: 8px; padding: 5px 9px;
+    box-shadow: 0 0 0 1px var(--line-2); pointer-events: none; }
+
+  /* ───────── 展开的阅读纸 ───────── */
+  .scrim { position: absolute; inset: 0; z-index: 8; background: var(--overlay); opacity: 0; pointer-events: none; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .rshadow { position: absolute; z-index: 9; border-radius: 16px; box-shadow: var(--float); pointer-events: none; }
+  .reader { position: absolute; z-index: 10; background: var(--surface); border-radius: 16px; overflow: hidden; view-transition-name: wb-reader; }
+  .rinner { position: absolute; inset: 0; display: flex; flex-direction: column; user-select: text; }
+  /* 形变期间阅读纸铺满画布、靠 clip-path 显形，卡片在纸外（停靠时）也能从原位长出来 */
+  .reader.morphing { border-radius: 0; inset: 0 !important; width: auto !important; height: auto !important; }
+  .reader.morphing .rinner { inset: auto; }
+  .reader.settled { box-shadow: var(--float); }
+  .reader.docked.settled { box-shadow: var(--float), 0 0 0 1px var(--line-2); }
+  .rhead { flex: none; height: 46px; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 10px; }
+  .rhead .crumb { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12.5px; min-width: 0; margin-left: 4px; }
+  .rhead .crumb b { color: var(--ink-2); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rhead .crumb svg { width: 14px; height: 14px; }
+  .rhead .sp { flex: 1; }
+  .ib { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); position: relative; flex: none; }
+  .ib:hover { background: var(--hover); color: var(--ink-1); }
+  .ib svg { width: 16px; height: 16px; }
+  .rhead .saved { font-size: 11.5px; color: var(--ink-3); margin-right: 6px; opacity: 0; transition: opacity .3s; }
+  .rhead .saved.on { opacity: 1; }
+  [data-tip]:hover::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); right: 0; white-space: nowrap; background: var(--ink-1); color: var(--surface);
+    font-size: 11.5px; line-height: 1; padding: 6px 8px; border-radius: 6px; pointer-events: none; z-index: 20; }
+  .rscroll { flex: 1; min-height: 0; overflow: auto; }
+  .rscroll .doc { margin: 0 auto; transform-origin: 0 0; }
+  .rscroll [contenteditable] { outline: none; cursor: text; }
+  .rscroll [contenteditable]:empty::before { content: "无标题"; color: var(--ink-3); }
+
+  ::view-transition-group(wb-reader) { animation-duration: var(--vt-dur, 420ms); animation-timing-function: cubic-bezier(.22,1,.36,1); }
+  ::view-transition-old(wb-reader), ::view-transition-new(wb-reader) { height: 100%; object-fit: cover; object-position: top left; }
+  ::view-transition-group(root) { animation-duration: var(--vt-dur, 420ms); }
+
+  /* ───────── 文档排版（卡片与展开共用同一份） ───────── */
+  .doc { width: 620px; padding: 40px 52px 72px; color: var(--ink-1); font-size: 16px; line-height: 1.85; }
+  .doc .cover { height: 190px; margin: -40px -52px 30px; position: relative; display: flex; align-items: flex-end; padding: 0 52px 22px; }
+  .doc .cover span { font-size: 13px; color: color-mix(in srgb, var(--ink-1) 72%, transparent); max-width: 30em; line-height: 1.6; }
+  .doc .kicker { font-size: 13px; color: var(--ink-3); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+  .doc .kicker .pill { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-text); }
+  .doc h1 { font-size: 30px; line-height: 1.32; font-weight: 600; letter-spacing: -.01em; }
+  .doc .meta { margin-top: 10px; font-size: 13px; color: var(--ink-3); }
+  .doc .body { margin-top: 26px; }
+  .doc .body p { margin-bottom: 16px; }
+  .doc .body h2 { font-size: 19px; line-height: 1.5; font-weight: 600; margin: 30px 0 10px; }
+  .doc .body blockquote { padding-left: 16px; box-shadow: inset 3px 0 0 var(--accent-soft); color: var(--ink-2); margin: 0 0 16px; }
+  .doc .body ul { padding-left: 0; list-style: none; margin-bottom: 16px; }
+  .doc .body li { display: flex; gap: 10px; align-items: flex-start; }
+  .doc .body li .cb { width: 16px; height: 16px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px var(--ink-3); margin-top: 6px; flex: none; }
+  .doc .body li.done .cb { background: var(--accent); box-shadow: none; }
+  .doc .body li.done { color: var(--ink-3); text-decoration: line-through; }
+  .doc code { font: 14px ui-monospace, monospace; color: var(--accent-text); }
+  /* 卡片：版宽更窄（460），没有标题，标签放在顶部 */
+  .doc.is-card { width: 460px; padding: 30px 36px 48px; font-size: 16.5px; }
+  .doc.is-card .kicker { margin-bottom: 14px; }
+  .doc.is-card .tag { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--hover); color: var(--ink-2); }
+  .doc.is-card .body { margin-top: 0; }
+  .doc.is-card .body p:first-child { font-size: 19px; line-height: 1.6; font-weight: 600; }
+  .doc.is-card .meta { margin-top: 18px; }
+
+  /* 富文本：画布上的一段字，没有纸面，双击就地编辑 */
+  .rt { position: absolute; font-size: 15px; line-height: 1.7; color: var(--ink-1); padding: 6px 8px; border-radius: 6px; cursor: default; }
+  .rt.sel { box-shadow: 0 0 0 1.5px var(--accent); }
+  .rt[contenteditable="true"] { cursor: text; outline: none; box-shadow: 0 0 0 1.5px var(--accent); user-select: text; }
+  .rt b { font-weight: 600; }
+  .cmp { position: absolute; font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+
+  /* ───────── 右侧说明 ───────── */
+  .notes { overflow: auto; background: var(--surface); border-radius: 16px; padding: 18px 20px 28px; box-shadow: 0 0 0 1px var(--line-2); }
+  .notes h2 { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
+  .notes .who { font-size: 12px; color: var(--ink-3); }
+  .notes h3 { font-size: 12.5px; font-weight: 600; margin: 16px 0 4px; color: var(--ink-1); }
+  .notes p, .notes li { color: var(--ink-2); font-size: 12.5px; }
+  .notes ul { padding-left: 18px; }
+  .notes li + li { margin-top: 3px; }
+  .notes .good { color: var(--ok); } .notes .bad { color: #b0564d; }
+  :root[data-theme="cocoa"] .notes .bad { color: #de8c83; }
+  .notes code { font: 11.5px ui-monospace, monospace; color: var(--accent-text); }
+  .notes table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .notes td { font-size: 12px; color: var(--ink-2); padding: 4px 0; vertical-align: top; }
+  .notes td:first-child { color: var(--ink-1); font-weight: 500; width: 92px; padding-right: 8px; }
+  .notes .rec { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-text); font-size: 12.5px; }
+  [data-plan-note] { display: none; }
+  body[data-plan="A"] [data-plan-note="A"], body[data-plan="B"] [data-plan-note="B"], body[data-plan="C"] [data-plan-note="C"] { display: block; }
+</style>
+</head>
+<body data-plan="C">
+
+<div class="top">
+  <h1>白板 · 文章 / 项目文档卡片</h1>
+  <div class="seg" id="plans">
+    <button data-plan="A">A 全屏展开</button>
+    <button data-plan="B">B 右侧面板</button>
+    <button data-plan="C" aria-pressed="true">C 居中展开 + 可停靠</button>
+  </div>
+  <div class="sp"></div>
+  <button class="ghost" id="slow">慢放 ×4</button>
+  <button class="ghost" id="theme">深色</button>
+  <button class="ghost" id="notesBtn">收起说明</button>
+</div>
+
+<div class="main">
+  <div class="stage" id="stage">
+    <div class="world" id="world">
+      <svg class="links" id="links" width="1" height="1"></svg>
+    </div>
+    <div class="chipbar" id="chip">
+      <button id="chipOpen"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9 7M2.5 13.5 7 9"/></svg>展开 <kbd>↵</kbd></button>
+    </div>
+    <div class="hint">双击卡片或选中后按 ↵ 展开 · Esc 收起 · 拖空白处平移 · ⌘/Ctrl + 滚轮缩放</div>
+    <div class="scrim" id="scrim"></div>
+  </div>
+
+  <aside class="notes">
+    <div data-plan-note="A">
+      <h2>A · 全屏展开</h2>
+      <div class="who">同类：Spatial、Milanote 文档、Apple Freeform 的便签放大</div>
+      <h3>交互</h3>
+      <ul>
+        <li>卡片从原位置「长」成一张居中的纸，画布压暗；Esc 或点纸外收回原位。</li>
+        <li>纸宽 780，正文列 620（约 33 个汉字一行），和文章详情页的阅读宽度一致。</li>
+        <li>画布上的原卡在展开期间隐藏，收起时纸「落回」原卡，编辑结果已经写进卡片。</li>
+      </ul>
+      <h3>评价</h3>
+      <ul>
+        <li class="good">注意力最集中，长文读写最舒服；空间连续感最好，像拿起一张纸凑近看。</li>
+        <li class="good">实现最简单：一层浮层，不改画布布局。</li>
+        <li class="bad">编辑时看不到白板：不能边写边看别的卡片，也不能从正文往画布拖连线。</li>
+        <li class="bad">在画布上「整理」（连续点开好几张）时，每次都要开合一遍。</li>
+      </ul>
+    </div>
+    <div data-plan-note="B">
+      <h2>B · 右侧面板</h2>
+      <div class="who">同类：Heptabase（白板卡片在右侧栏打开）、Obsidian Canvas 的侧边打开</div>
+      <h3>交互</h3>
+      <ul>
+        <li>卡片「飞」进右侧面板，原卡留在画布上标「编辑中」，打字实时同步回卡片。</li>
+        <li>被面板挡住的卡片，画布会自动平移让它露出来。</li>
+        <li>面板开着时单击画布上另一张文档卡，面板直接换成那一篇，不用先关。</li>
+      </ul>
+      <h3>评价</h3>
+      <ul>
+        <li class="good">适合对照写作：左边看素材、右边写；能看到修改落在白板上的位置。</li>
+        <li class="good">连续浏览多张卡片的成本最低。</li>
+        <li class="bad">面板约 640px，在 1280 宽的窗口里画布只剩一半，左侧全局侧栏展开时更挤。</li>
+        <li class="bad">从小卡飞到屏幕右侧，位移很远，「从卡片展开」的感觉比 A 弱。</li>
+      </ul>
+    </div>
+    <div data-plan-note="C">
+      <h2>C · 居中展开 + 可停靠<span style="font-weight:400;color:var(--accent-text);font-size:12px;margin-left:6px">推荐</span></h2>
+      <div class="who">同类：Heptabase（侧栏与全屏可切换）、Notion 的居中预览 / 侧边预览</div>
+      <h3>交互</h3>
+      <ul>
+        <li>默认按 A 居中展开；纸面右上角的「停靠到右侧」切成 B，「居中」再切回去。</li>
+        <li>记住上一次的打开方式（按白板记），整理时停靠，写作时居中。</li>
+        <li>停靠状态下单击别的文档卡就换内容，和 B 一样。</li>
+      </ul>
+      <h3>为什么推荐</h3>
+      <ul>
+        <li>「读 / 写一篇」和「整理一片」都是白板里真实存在的场景，只选一种必然有一半人别扭。</li>
+        <li>两种形态共用同一个阅读纸组件，只是摆放的位置不同；多出来的成本只有一个切换按钮和一次 View Transition。</li>
+      </ul>
+    </div>
+
+    <h3>卡片也是文档卡，和富文本分开</h3>
+    <table>
+      <tr><td>富文本</td><td>属于白板自己的字，正文存在画布里。没有纸面，双击原地编辑，拖动边框就能改宽度，字号跟着缩放走。左下角那段就是富文本。</td></tr>
+      <tr><td>文档卡</td><td>文章、项目文档、卡片三种，都是引用库里的实体。在画布上只看不编辑，双击展开编辑，删掉白板上的元素不会删掉原文。</td></tr>
+      <tr><td>卡片的差异</td><td>版宽 460，比文章的 620 窄，缩小后的字更好认。没有标题，第一段加粗当标题，标签放在顶部，展开后是一张更小的居中纸（560 宽），不铺满整屏。</td></tr>
+      <tr><td>现状</td><td>白板里的卡片现在复用富文本组件就地编辑，读代码看，正文改动没有写回卡片（<code>saveCard</code> 不带 <code>content</code>）。改成文档卡后统一走 <code>ContentEditor</code>，按 <code>contentId</code> 读写，这个问题会顺带消失。</td></tr>
+    </table>
+
+    <h3>通用设计输入（三个方案都适用）</h3>
+    <table>
+      <tr><td>触发</td><td>单击只选中，双击、↵ 或选中后的「展开」胶囊才展开。白板上单击要承担拖动和框选，单击即展开会在拖动时误触发。Spatial 是单击即开，但它的卡片不承担连线、编组这类编辑操作。</td></tr>
+      <tr><td>卡片长相</td><td>就是文档本身按 620 版宽排好再缩小（封面、标题、正文开头），底部渐隐。没有 banner 的文章用按 id 派生的粉彩封面。</td></tr>
+      <tr><td>低缩放</td><td>缩放低于 45% 时只画标题和骨架线（试试缩小画布），沿用现有的 <code>ContentSnapshotObserver</code> 思路。</td></tr>
+      <tr><td>编辑</td><td>展开后直接可编辑，实时保存，不设「完成」按钮；退出靠 Esc 或点纸外。</td></tr>
+      <tr><td>动画</td><td>展开卡片时，阅读纸里那份文档从卡片的位置和缩放放大到 1，同时用 clip-path 把纸面从卡片大小揭开。文字不重排，全程只合成 transform，60fps，而且清晰。时长约 450ms，用临界阻尼弹簧曲线。</td></tr>
+      <tr><td>为何不用 View Transitions 做展开</td><td>View Transitions 拿的是截图，文字从 0.39 倍放大时会糊；动画期间页面不能交互，也不能中途打断。所以只在停靠和居中之间切换时用它，和 <code>page/morph.ts</code> 一致。</td></tr>
+      <tr><td>减少动效</td><td>系统开了「减少动效」时，改成 120ms 淡入淡出。</td></tr>
+    </table>
+    <div class="rec">建议落地顺序：先做卡片元素和 C 的居中形态，形态稳定后再加停靠，停靠只是阅读纸换个摆放位置。</div>
+  </aside>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const stage = $('#stage'), world = $('#world'), linksSvg = $('#links'), scrim = $('#scrim'), chip = $('#chip');
+const DOC_W = 620;
+const docW = c => c.kind === 'card' ? 460 : DOC_W;
+const docClass = c => c.kind === 'card' ? 'doc is-card' : 'doc';
+const cardLead = c => (c.body.match(/<p>(.*?)<\/p>/)?.[1] || '').replace(/<[^>]+>/g, '');
+
+/* ───────── 弹簧曲线 → CSS linear() ───────── */
+function springEasing(stiffness = 230, damping = 28) {
+  let x = 0, v = 0, t = 0; const dt = 1 / 240, samples = [0];
+  while (t < 1.5) {
+    const a = stiffness * (1 - x) - damping * v; v += a * dt; x += v * dt; t += dt; samples.push(x);
+    if (t > .2 && Math.abs(1 - x) < 5e-4 && Math.abs(v) < 5e-3) break;
+  }
+  const n = 48, pts = [];
+  for (let i = 0; i <= n; i++) pts.push(samples[Math.round(i / n * (samples.length - 1))].toFixed(4));
+  pts[n] = '1';
+  return { easing: `linear(${pts.join(',')})`, duration: t * 1000 };
+}
+const SPRING = CSS.supports('animation-timing-function', 'linear(0, 1)') ? springEasing() : { easing: 'cubic-bezier(.22,1,.36,1)', duration: 440 };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let slow = 1;
+const dur = (ms = SPRING.duration) => ms * slow;
+
+/* ───────── 数据 ───────── */
+const cards = [
+  { id: 'a1', kind: 'article', x: 80, y: 120, w: 240, h: 310, tone: 'var(--tag-1), var(--tag-2)',
+    cover: '我花了三年把笔记塞进越来越深的文件夹，然后在某个周日下午把它们全部摊平。',
+    title: '为什么我不再用文件夹整理笔记', meta: '文章 · 2026年9月28日 · 2,140 字',
+    body: `<p>文件夹要求你在写下一个想法的瞬间就决定它属于哪里。可是想法刚出现的时候，恰恰是你最不知道它属于哪里的时候。</p>
+<p>后来我换了一种做法：先写，先放，等它和别的东西发生关系之后再决定位置。白板就是这样一个「先放下」的地方——位置本身就是一种还没想清楚的分类。</p>
+<h2>位置是一种临时的意义</h2>
+<p>把两张卡片放得近一些，并不需要你说清楚它们为什么相关。这种模糊恰好是思考早期需要的东西。等关系稳定下来，再把它写成文章，或者拉一根线。</p>
+<blockquote>整理不是把东西放进盒子，而是让东西之间的关系变得可见。</blockquote>
+<p>这也是我希望文章能直接出现在白板上的原因：一篇写完的文章，不应该从它诞生的那片素材里被拿走。</p>
+<h2>摊平之后</h2>
+<p>三个月后，我的「文件夹」只剩下三个：收件箱、正在写、已归档。其余的组织工作，都交给了白板上的距离、分组和连线。</p>
+<p>最意外的收获是重读。以前打开一个文件夹，看到的是一列标题；现在打开一块白板，看到的是当时思考的样子。</p>` },
+  { id: 'd1', kind: 'doc', x: 400, y: 150, w: 240, h: 290,
+    crumb: '时间账本', title: '迭代 3 · 详细设计', meta: '项目文档 · 更新于 10月6日',
+    body: `<p>本轮目标：让日历上的时间块可以直接编辑，并且与待办双向关联。</p>
+<h2>范围</h2>
+<ul><li class="done"><span class="cb"></span><span>时间块拖拽改时长</span></li><li class="done"><span class="cb"></span><span>待办拖入日历生成时间块</span></li><li><span class="cb"></span><span>时间块完成后回写待办状态</span></li><li><span class="cb"></span><span>重复规则的单次例外</span></li></ul>
+<h2>数据</h2>
+<p>新增 <code>time_block</code> 表，待办通过 <code>todo_id</code> 弱引用；删除待办不级联删除已经发生的时间块。</p>
+<p>重复规则沿用 RRULE 字符串，单次例外记录在 <code>time_block_exception</code>，避免展开整条重复序列。</p>
+<h2>风险</h2>
+<p>跨时区设备同步时，全天事件按本地日期存储，跨设备时可能偏移一天，需要在同步层统一按日期字符串比较。</p>
+<p>拖拽改时长需要在 60fps 下实时预览，渲染层只改 transform，落库在 pointerup 时一次提交。</p>` },
+  { id: 'a2', kind: 'article', x: 720, y: 90, w: 220, h: 300, tone: 'var(--tag-4), var(--tag-3)',
+    cover: '形式追随功能——这句话被引用了一百年，也被误解了一百年。',
+    title: '包豪斯：一百年后重读', meta: '文章 · 2026年8月3日 · 3,580 字',
+    body: `<p>1919 年，格罗皮乌斯在魏玛创办包豪斯时，宣言里写的是「所有造型活动的最终目标是建筑」，而不是我们今天熟悉的那些几何海报。</p>
+<p>几何、原色、无衬线字体，是后来者对包豪斯的提炼，也是简化。真正的包豪斯更像一所作坊：金属、纺织、陶瓷、舞台，每一门都从材料出发。</p>
+<h2>材料先于风格</h2>
+<p>在纺织作坊里，学生先学织机的结构，再谈图案。图案之所以是几何的，是因为经纬线本来就是网格。</p>
+<p>这也许是对今天的软件设计最有用的提醒：界面的「风格」应该从它承载的材料里长出来，而不是先选一套风格再往里填。</p>` },
+  { id: 'c1', kind: 'card', x: 1010, y: 100, w: 210, h: 200, tags: ['设计', '白板'], meta: '卡片 · 10月2日',
+    body: `<p>位置本身就是一种还没想清楚的分类。</p>
+<p>放得近，不需要解释为什么相关；模糊恰好是思考早期需要的东西。等关系稳定了，再写成文章或拉一根线。</p>
+<p>出处：周日下午整理笔记时的想法。</p>` },
+  { id: 'c2', kind: 'card', x: 1010, y: 340, w: 210, h: 170, tags: ['动效'], meta: '卡片 · 9月30日',
+    body: `<p>展开动画别用截图放大</p>
+<p>View Transitions 拿的是位图，从 0.4 倍放大时文字会糊。真 DOM 做 transform 更清楚，还能中途打断。</p>` },
+];
+const stickies = [
+  { x: 420, y: 480, w: 200, text: '展开的时候，要让人感觉是把这张纸拿起来凑近看，而不是打开了另一个页面。', bg: 'var(--tag-3)' },
+  { x: 740, y: 430, w: 180, text: '素材：Spatial、Heptabase、Milanote 的展开方式对比', bg: 'var(--tag-5)' },
+];
+
+/* ───────── 画布渲染 ───────── */
+const cam = { x: 30, y: 10, z: 1 };
+function applyCam() {
+  world.style.transform = `translate(${cam.x}px,${cam.y}px) scale(${cam.z})`;
+  const g = 18 * cam.z;
+  stage.style.backgroundSize = `${g}px ${g}px`;
+  stage.style.backgroundPosition = `${cam.x}px ${cam.y}px`;
+  world.classList.toggle('lod', cam.z < .45);
+  placeChip();
+}
+
+function docHTML(c, editable = false) {
+  const ce = editable ? ' contenteditable="true" spellcheck="false"' : '';
+  if (c.kind === 'card') {
+    return `<div class="kicker">${c.tags.map(t => `<span class="tag">#${t}</span>`).join('')}</div><div class="body" data-f="body"${ce}>${c.body}</div><div class="meta">${c.meta}</div>`;
+  }
+  const head = c.kind === 'article'
+    ? `<div class="cover" style="background:linear-gradient(135deg, ${c.tone})"><span>${c.cover}</span></div>`
+    : `<div class="kicker"><span class="pill">项目</span>${c.crumb}</div>`;
+  return `${head}<h1 data-f="title"${ce}>${c.title}</h1><div class="meta">${c.meta}</div><div class="body" data-f="body"${ce}>${c.body}</div>`;
+}
+
+function renderCard(c) {
+  let el = world.querySelector(`[data-id="${c.id}"]`);
+  if (!el) {
+    el = document.createElement('div'); el.className = 'wb-card'; el.dataset.id = c.id;
+    el.innerHTML = `<span class="badge">编辑中</span><div class="doc"></div><div class="skel"><b></b><i></i><i style="width:80%"></i><i style="width:60%"></i></div>`;
+    world.appendChild(el);
+  }
+  Object.assign(el.style, { left: c.x + 'px', top: c.y + 'px', width: c.w + 'px', height: c.h + 'px' });
+  const d = el.querySelector('.doc');
+  d.className = docClass(c);
+  d.style.transform = `scale(${c.w / docW(c)})`;
+  d.innerHTML = docHTML(c);
+  // 卡片未手动调整尺寸时高度随内容，封顶后底部渐隐
+  if (c.kind === 'card') { c.docH = d.offsetHeight; c.h = Math.min(300, Math.ceil(d.offsetHeight * c.w / docW(c)) - 12); el.style.height = c.h + 'px'; }
+  el.querySelector('.skel b').textContent = (c.kind === 'card' ? cardLead(c) : c.title) || '无标题';
+  return el;
+}
+
+function renderLinks() {
+  const [a, b, c, d] = cards;
+  const p = (from, to) => {
+    const x1 = from.x + from.w, y1 = from.y + from.h / 2, x2 = to.x, y2 = to.y + to.h / 2, mx = (x1 + x2) / 2;
+    return `<path d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}" marker-end="url(#arr)"/>`;
+  };
+  linksSvg.innerHTML = `<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 1 9 5 0 9" fill="none" stroke="var(--ink-3)" stroke-width="1.5"/></marker></defs>${p(a, b)}${p(b, c)}${p(c, d)}`;
+}
+
+function renderStatic() {
+  world.insertAdjacentHTML('beforeend', `<div class="label" style="left:80px;top:60px">阅读 · 写作素材</div>
+    <div class="cmp" style="left:88px;top:478px">富文本 · 白板自己的字，双击就地编辑</div>
+    <div class="rt" style="left:80px;top:500px;width:280px"><b>待整理</b><br>把这三篇和右边两张卡片串成一个系列；Spatial 的展开方式记得截图。</div>
+    <div class="cmp" style="left:1018px;top:72px">卡片 · 双击展开</div>`);
+  for (const s of stickies) world.insertAdjacentHTML('beforeend', `<div class="sticky" style="left:${s.x}px;top:${s.y}px;width:${s.w}px;background:${s.bg}">${s.text}</div>`);
+}
+
+/* ───────── 选择 / 拖拽 / 平移 / 缩放 ───────── */
+let selected = null;
+function select(id) {
+  selected = id;
+  world.querySelectorAll('.wb-card').forEach(el => el.classList.toggle('sel', el.dataset.id === id));
+  placeChip();
+}
+function placeChip() {
+  const el = selected && world.querySelector(`[data-id="${selected}"]`);
+  const show = el && !(open && open.mode === 'center');
+  chip.classList.toggle('on', !!show);
+  if (!show) return;
+  const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  chip.style.left = (r.right - s.left - chip.offsetWidth) + 'px';
+  chip.style.top = (r.top - s.top - chip.offsetHeight - 8) + 'px';
+}
+
+let drag = null;
+stage.addEventListener('pointerdown', e => {
+  if (e.target.closest('.chipbar, .reader')) return;
+  const rt = e.target.closest('.rt');
+  if (rt?.isContentEditable) return;
+  world.querySelectorAll('.rt').forEach(x => { x.classList.remove('sel'); if (x.isContentEditable) { x.contentEditable = 'false'; x.blur(); } });
+  const cardEl = e.target.closest('.wb-card');
+  stage.setPointerCapture(e.pointerId);
+  if (rt) {
+    select(null); rt.classList.add('sel');
+    drag = { type: 'rt', el: rt, sx: e.clientX, sy: e.clientY, ox: rt.offsetLeft, oy: rt.offsetTop, moved: false };
+  } else if (cardEl) {
+    const c = cards.find(c => c.id === cardEl.dataset.id);
+    drag = { type: 'card', c, sx: e.clientX, sy: e.clientY, ox: c.x, oy: c.y, moved: false };
+  } else {
+    drag = { type: 'pan', sx: e.clientX, sy: e.clientY, ox: cam.x, oy: cam.y, moved: false };
+  }
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  drag.moved = true;
+  if (drag.type === 'rt') {
+    drag.el.style.left = drag.ox + dx / cam.z + 'px'; drag.el.style.top = drag.oy + dy / cam.z + 'px';
+  } else if (drag.type === 'card') {
+    drag.c.x = drag.ox + dx / cam.z; drag.c.y = drag.oy + dy / cam.z;
+    const el = world.querySelector(`[data-id="${drag.c.id}"]`);
+    el.style.left = drag.c.x + 'px'; el.style.top = drag.c.y + 'px';
+    renderLinks(); placeChip();
+  } else {
+    stage.classList.add('panning');
+    cam.x = drag.ox + dx; cam.y = drag.oy + dy; applyCam();
+  }
+});
+stage.addEventListener('pointerup', () => {
+  if (drag && !drag.moved) {
+    if (drag.type === 'card') {
+      // 停靠状态下单击另一张文档卡 = 换面板内容
+      if (open && open.mode === 'dock' && open.id !== drag.c.id) swapDocked(drag.c.id);
+      else select(drag.c.id);
+    } else if (drag.type === 'pan') select(null);
+  }
+  drag = null; stage.classList.remove('panning');
+});
+stage.addEventListener('dblclick', e => {
+  const rt = e.target.closest('.rt');
+  if (rt && !rt.isContentEditable) { rt.contentEditable = 'true'; rt.focus(); return; }
+  const el = e.target.closest('.wb-card');
+  if (el && !open) openCard(el.dataset.id);
+});
+stage.addEventListener('wheel', e => {
+  if (e.target.closest('.reader')) return;
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) {
+    const s = stage.getBoundingClientRect(), px = e.clientX - s.left, py = e.clientY - s.top;
+    const nz = Math.min(2.5, Math.max(.2, cam.z * Math.exp(-e.deltaY * .01)));
+    cam.x = px - (px - cam.x) * nz / cam.z; cam.y = py - (py - cam.y) * nz / cam.z; cam.z = nz;
+  } else { cam.x -= e.deltaX; cam.y -= e.deltaY; }
+  applyCam();
+}, { passive: false });
+$('#chipOpen').addEventListener('click', () => selected && openCard(selected));
+
+/* ───────── 展开 / 收起 ───────── */
+let open = null; // { id, mode, reader, shadow }
+const plan = () => document.body.dataset.plan;
+let lastModeC = 'center';
+
+function relRect(el) {
+  const r = el.getBoundingClientRect(), s = stage.getBoundingClientRect();
+  return { left: r.left - s.left, top: r.top - s.top, width: r.width, height: r.height, right: r.right - s.left, bottom: r.bottom - s.top };
+}
+function targetRect(mode, c) {
+  const W = stage.clientWidth, H = stage.clientHeight;
+  if (mode === 'center') {
+    // 卡片是短内容：展开成一张更小的居中纸，不铺满整屏
+    const isCard = c?.kind === 'card';
+    const w = Math.min(W - 64, isCard ? 560 : 780), h = isCard ? Math.min(H - 40, Math.max(320, c.docH + 46)) : H - 40;
+    return { left: (W - w) / 2, top: (H - h) / 2, width: w, height: h };
+  }
+  const w = Math.min(660, Math.max(DOC_W + 20, W * .5)); return { left: W - w - 12, top: 12, width: w, height: H - 24 };
+}
+const ICON = {
+  collapse: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6.5h-4v-4M2.5 9.5h4v4M9.5 6.5 14 2M6.5 9.5 2 14"/></svg>',
+  close: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="m4 4 8 8M12 4l-8 8"/></svg>',
+  dock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M9.5 2.5v11"/></svg>',
+  center: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="2"/><rect x="5" y="5" width="6" height="6" rx="1"/></svg>',
+  page: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2.5h4.5V7M13.5 2.5 8 8M12 9.5v3a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3"/></svg>',
+  more: '<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/></svg>',
+  article: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 2.5h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM5.5 6h5M5.5 8.5h5M5.5 11h3"/></svg>',
+  doc: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 4.5a1 1 0 0 1 1-1h3l1.5 1.5h4.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/></svg>',
+  card: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><rect x="2.5" y="4" width="9" height="9.5" rx="1.5"/><path d="M5 2.5h7a1.5 1.5 0 0 1 1.5 1.5v7"/></svg>',
+};
+
+function headHTML(c, mode) {
+  const crumb = c.kind === 'article' ? `${ICON.article}文章<span>/</span><b>${c.title}</b>`
+    : c.kind === 'card' ? `${ICON.card}卡片<span>/</span><b>${cardLead(c)}</b>`
+    : `${ICON.doc}${c.crumb}<span>/</span><b>${c.title}</b>`;
+  const pageName = { article: '文章', card: '卡片', doc: '项目' }[c.kind];
+  const toggle = plan() === 'C'
+    ? (mode === 'center' ? `<button class="ib" data-act="dock" data-tip="停靠到右侧">${ICON.dock}</button>` : `<button class="ib" data-act="center" data-tip="居中展开">${ICON.center}</button>`) : '';
+  const closeBtn = mode === 'center' ? `<button class="ib" data-act="close" data-tip="收起  Esc">${ICON.collapse}</button>` : `<button class="ib" data-act="close" data-tip="关闭  Esc">${ICON.close}</button>`;
+  return `${mode === 'center' ? closeBtn : ''}<div class="crumb">${crumb}</div><div class="sp"></div><span class="saved">已保存</span>${toggle}<button class="ib" data-act="page" data-tip="在${pageName}页打开">${ICON.page}</button><button class="ib" data-tip="更多">${ICON.more}</button>${mode === 'dock' ? closeBtn : ''}`;
+}
+
+function buildReader(c, mode) {
+  const reader = document.createElement('div');
+  reader.className = 'reader' + (mode === 'dock' ? ' docked' : '');
+  reader.innerHTML = `<div class="rinner"><div class="rhead">${headHTML(c, mode)}</div><div class="rscroll"><div class="${docClass(c)}">${docHTML(c, true)}</div></div></div>`;
+  Object.assign(reader.style, px(targetRect(mode, c)));
+  reader.addEventListener('click', e => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'close') closeCard();
+    else if (act === 'dock' || act === 'center') switchMode(act);
+  });
+  let t;
+  reader.addEventListener('input', e => {
+    const f = e.target.closest('[data-f]'); if (!f || !open) return;
+    const card = cards.find(x => x.id === open.id);
+    card[f.dataset.f] = f.innerHTML;
+    if (f.dataset.f === 'title') reader.querySelector('.crumb b').textContent = f.textContent;
+    if (card.kind === 'card') reader.querySelector('.crumb b').textContent = cardLead(card);
+    if (open.mode === 'dock') renderCard(card);
+    const s = reader.querySelector('.saved'); s.classList.add('on'); clearTimeout(t); t = setTimeout(() => s.classList.remove('on'), 1200);
+  });
+  return reader;
+}
+function setMorph(reader, box) {
+  reader.classList.toggle('morphing', !!box);
+  Object.assign(reader.querySelector('.rinner').style, box ? px(box) : { left: '', top: '', width: '', height: '' });
+}
+const px = r => ({ left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+const inset = (from, box, rad) => `inset(${from.top - box.top}px ${box.left + box.width - from.right}px ${box.top + box.height - from.bottom}px ${from.left - box.left}px round ${rad}px)`;
+
+function openCard(id) {
+  const c = cards.find(x => x.id === id);
+  const mode = plan() === 'A' ? 'center' : plan() === 'B' ? 'dock' : lastModeC;
+  const cardEl = world.querySelector(`[data-id="${id}"]`);
+  select(id);
+
+  // 停靠：被面板挡住的卡片先让画布平移出来
+  let shift = 0;
+  if (mode === 'dock') {
+    const panel = targetRect('dock'), r = relRect(cardEl);
+    if (r.right > panel.left - 24) shift = Math.max(panel.left - 24 - r.right, 24 - r.left);
+  }
+  const from = relRect(cardEl); from.left += shift; from.right += shift;
+  if (shift) {
+    const before = world.style.transform; cam.x += shift; applyCam();
+    world.animate([{ transform: before }, { transform: world.style.transform }], { duration: dur(), easing: SPRING.easing });
+  }
+
+  const reader = buildReader(c, mode), shadow = document.createElement('div');
+  shadow.className = 'rshadow';
+  stage.append(shadow, reader);
+  open = { id, mode, reader, shadow };
+  cardEl.classList.add(mode === 'center' ? 'hidden' : 'editing');
+  placeChip();
+
+  const box = targetRect(mode, c), full ={ left: 0, top: 0, width: stage.clientWidth, height: stage.clientHeight };
+  setMorph(reader, box);
+  const doc = reader.querySelector('.rscroll .doc'), d = relRect(doc), s = from.width / d.width;
+  const cardRad = 10 * cam.z;
+  if (reduceMotion) {
+    setMorph(reader, null); reader.animate([{ opacity: 0 }, { opacity: 1 }], 120); shadow.remove(); reader.classList.add('settled');
+    if (mode === 'center') scrim.classList.add('on');
+    return;
+  }
+  const opt = { duration: dur(), easing: SPRING.easing };
+  doc.animate([{ transform: `translate(${from.left - d.left}px,${from.top - d.top}px) scale(${s})` }, { transform: 'none' }], opt);
+  reader.animate([{ clipPath: inset(from, full, cardRad) }, { clipPath: inset(box, full, 16) }], opt)
+    .finished.then(() => { if (open?.reader === reader) { setMorph(reader, null); shadow.remove(); reader.classList.add('settled'); } });
+  shadow.animate([{ ...px(from), borderRadius: cardRad + 'px', opacity: .4 }, { ...px(box), borderRadius: '16px', opacity: 1 }], { ...opt, fill: 'forwards' });
+  reader.querySelector('.rhead').animate([{ opacity: 0 }, { opacity: 0, offset: .45 }, { opacity: 1 }], { duration: dur() });
+  if (mode === 'center') {
+    scrim.classList.add('on');
+    scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur() * .8, easing: 'ease-out' });
+  }
+}
+
+function closeCard() {
+  if (!open) return;
+  const { id, mode, reader } = open, c = cards.find(x => x.id === id);
+  document.activeElement?.blur?.();
+  const cardEl = renderCard(c);
+  const scroller = reader.querySelector('.rscroll'), st = scroller.scrollTop; scroller.scrollTop = 0;
+  const box = relRect(reader), to = relRect(cardEl), full = { left: 0, top: 0, width: stage.clientWidth, height: stage.clientHeight };
+  setMorph(reader, box);
+  const doc = reader.querySelector('.rscroll .doc'), d = relRect(doc), s = to.width / d.width;
+  const rad = 10 * cam.z;
+  open = null;
+  reader.classList.remove('settled');
+  const shadow = document.createElement('div'); shadow.className = 'rshadow'; stage.insertBefore(shadow, reader);
+  const finish = () => { reader.remove(); shadow.remove(); cardEl.classList.remove('hidden', 'editing'); placeChip(); };
+  scrim.classList.remove('on');
+  if (reduceMotion) { finish(); return; }
+  const opt = { duration: dur(SPRING.duration * .85), easing: SPRING.easing, fill: 'forwards' };
+  doc.animate([{ transform: `translateY(${-st}px)` }, { transform: `translate(${to.left - d.left}px,${to.top - d.top}px) scale(${s})` }], opt);
+  reader.animate([{ clipPath: inset(box, full, 16) }, { clipPath: inset(to, full, rad) }], opt);
+  shadow.animate([{ ...px(box), borderRadius: '16px' }, { ...px(to), borderRadius: rad + 'px', opacity: .3 }], opt);
+  reader.querySelector('.rhead').animate([{ opacity: 1 }, { opacity: 0, offset: .3 }, { opacity: 0 }], { duration: opt.duration, fill: 'forwards' });
+  if (mode === 'center') scrim.animate([{ opacity: 1 }, { opacity: 0 }], { duration: opt.duration * .8, easing: 'ease-out' });
+  // 收起的最后几帧把画布上的卡片交叉淡入，避免阅读纸与卡片在交接帧上闪一下
+  reader.animate([{ opacity: 1 }, { opacity: 1, offset: .82 }, { opacity: 0 }], opt).finished.then(finish);
+  cardEl.classList.remove('hidden');
+  cardEl.animate([{ opacity: 0 }, { opacity: 0, offset: .8 }, { opacity: 1 }], { duration: opt.duration });
+}
+
+function switchMode(mode) {
+  if (!open) return;
+  lastModeC = mode;
+  const apply = () => {
+    const c = cards.find(x => x.id === open.id), r = open.reader;
+    open.mode = mode;
+    r.classList.toggle('docked', mode === 'dock');
+    Object.assign(r.style, px(targetRect(mode, c)));
+    r.querySelector('.rhead').innerHTML = headHTML(c, mode);
+    scrim.classList.toggle('on', mode === 'center');
+    const el = world.querySelector(`[data-id="${c.id}"]`);
+    el.classList.toggle('hidden', mode === 'center'); el.classList.toggle('editing', mode === 'dock');
+    renderCard(c); placeChip();
+  };
+  document.documentElement.style.setProperty('--vt-dur', dur(420) + 'ms');
+  if (document.startViewTransition && !reduceMotion) document.startViewTransition(apply); else apply();
+}
+
+function swapDocked(id) {
+  const prev = world.querySelector(`[data-id="${open.id}"]`); prev.classList.remove('editing');
+  const c = cards.find(x => x.id === id), r = open.reader;
+  open.id = id; select(id);
+  world.querySelector(`[data-id="${id}"]`).classList.add('editing');
+  const sc = r.querySelector('.rscroll');
+  sc.animate([{ opacity: 1 }, { opacity: 0 }], { duration: dur(90) }).finished.then(() => {
+    r.querySelector('.rhead').innerHTML = headHTML(c, 'dock');
+    const d = sc.querySelector('.doc'); d.className = docClass(c); d.innerHTML = docHTML(c, true); sc.scrollTop = 0;
+    sc.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: dur(180), easing: 'cubic-bezier(.22,1,.36,1)' });
+  });
+}
+
+scrim.addEventListener('click', closeCard);
+document.addEventListener('keydown', e => {
+  if (e.isComposing) return;
+  const rt = e.target.closest?.('.rt');
+  if (e.key === 'Escape' && rt) { rt.contentEditable = 'false'; rt.blur(); }
+  else if (e.key === 'Escape' && open) { e.preventDefault(); closeCard(); }
+  else if (e.key === 'Enter' && !open && selected && !e.target.closest?.('[contenteditable]')) { e.preventDefault(); openCard(selected); }
+});
+
+/* ───────── 顶部控件 ───────── */
+$('#plans').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (open) { const { reader, id } = open; reader.remove(); scrim.classList.remove('on'); world.querySelector(`[data-id="${id}"]`).classList.remove('hidden', 'editing'); open = null; }
+  document.querySelectorAll('#plans button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  document.body.dataset.plan = b.dataset.plan; placeChip();
+});
+$('#slow').addEventListener('click', e => { slow = slow === 1 ? 4 : 1; e.currentTarget.setAttribute('aria-pressed', slow === 4); });
+$('#theme').addEventListener('click', e => {
+  const dark = document.documentElement.dataset.theme !== 'cocoa';
+  document.documentElement.dataset.theme = dark ? 'cocoa' : ''; e.currentTarget.textContent = dark ? '浅色' : '深色';
+});
+$('#notesBtn').addEventListener('click', e => {
+  const off = document.body.classList.toggle('notes-off'); e.currentTarget.textContent = off ? '展开说明' : '收起说明';
+  requestAnimationFrame(placeChip);
+});
+addEventListener('resize', () => { if (open) Object.assign(open.reader.style, px(targetRect(open.mode, cards.find(x => x.id === open.id)))); placeChip(); });
+
+renderStatic(); cards.forEach(renderCard); renderLinks(); applyCam();
+</script>
+</body>
+</html>

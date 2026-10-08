@@ -16,7 +16,7 @@ import {
   ViewPortPlugin,
   HistoryPlugin,
   CopyPastePlugin,
-  CardPlugin,
+  DocumentPlugin,
   SelectPlugin,
   GeometryPlugin,
   HandwritePlugin,
@@ -97,6 +97,7 @@ import {
   releaseBoardPointers,
   finishBoardPointer,
   wasBoardPointerFinished,
+  isCanvasOverlayEvent,
 } from "./utils/events";
 import { isEditableTarget } from "@tau/ui";
 import MediaUrlDialog from "./components/MediaUrlDialog";
@@ -244,7 +245,7 @@ const WhiteBoard = memo(
         new ArrowPlugin(),
         new GeometryPlugin(),
         new HandwritePlugin(),
-        new CardPlugin(),
+        new DocumentPlugin(),
         new WhiteBoardPlugin(),
         new RichTextPlugin(),
         new ImagePlugin(),
@@ -530,6 +531,8 @@ const WhiteBoard = memo(
     });
 
     const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
+      // 画布内宿主浮层（阅读纸）自己滚动，不缩放 / 平移画布
+      if (isCanvasOverlayEvent(e)) return;
       e.stopPropagation();
       e.preventDefault();
       noStopPropagationOnWheel(e);
@@ -817,6 +820,7 @@ const WhiteBoard = memo(
                             readonly={readonly}
                             buildMenuItems={buildContextMenuItems}
                           />
+                          {slots.CanvasLayer && <slots.CanvasLayer />}
                         </div>
 
                         <ExportImageModal
