@@ -13,8 +13,8 @@ const { dispatch } = mocks;
 vi.mock("@/utils/editor", () => ({ getEditorText: () => "标题" }));
 vi.mock("@/hooks/useTheme", () => ({ default: () => ({ isDark: false }) }));
 vi.mock("../plugins/CardLinksPlugin", () => ({ default: { type: "card-links" } }));
-vi.mock("@/components/Database", () => ({
-  default: forwardRef<DatabaseRef, DatabaseProps>(function Probe(props, ref) {
+vi.mock("@/features/shared/database/DesktopDatabase", () => ({
+  DesktopDatabase: forwardRef<DatabaseRef, DatabaseProps>(function Probe(props, ref) {
     mocks.props = props;
     useImperativeHandle(
       ref,

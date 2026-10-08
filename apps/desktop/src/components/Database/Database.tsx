@@ -1,8 +1,8 @@
 import { useEffect, ReactNode, useMemo, useState, forwardRef, useImperativeHandle } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { ConfirmDialog } from "@tau/ui";
-import classnames from "classnames";
-import useTheme from "@/hooks/useTheme";
+import { ConfirmDialog, cn } from "@tau/ui";
+import { useThemeStore } from "@tau/themes/react";
+import { DatabaseHostContext } from "./DatabaseHostContext";
 
 import {
   CellPlugin,
@@ -52,6 +52,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       views,
       config,
       plugins = defaultPlugins,
+      slots = {},
+      onRowCleanup,
       onDataChange,
       onRowDetailOpen,
       onRowAdd,
@@ -73,11 +75,20 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       return pluginMgr;
     }, []);
     const store = useCreation(
-      () => createDatabaseStore(columns, data, viewConfig, views, activeViewId, pluginMgr),
+      () =>
+        createDatabaseStore(
+          columns,
+          data,
+          viewConfig,
+          views,
+          activeViewId,
+          pluginMgr,
+          onRowCleanup
+        ),
       []
     );
 
-    const { theme: systemTheme } = useTheme();
+    const systemTheme = useThemeStore(state => state.mode);
     const finalTheme = theme || systemTheme;
 
     const [confirmDeleteViewId, setConfirmDeleteViewId] = useState<number | null>(null);
@@ -291,43 +302,45 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     ]);
 
     return (
-      <DatabaseContext.Provider value={store}>
-        <div
-          className={classnames(
-            "relative flex h-full w-full flex-col overflow-hidden",
-            !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
-            className,
-            {
-              "cursor-col-resize select-none": isResizing,
-            }
-          )}
-        >
-          <div className="shrink-0">
-            <ViewTabs
-              pluginManager={pluginMgr}
-              onCreateView={handleCreateView}
-              onDeleteView={handleDeleteView}
-              onActiveViewIdChange={onActiveViewIdChange}
-              onRenameView={handleRenameView}
-              onUpdateView={handleUpdateView}
-              onReorderViews={handleReorderViews}
-              theme={finalTheme}
-              bare={bare}
+      <DatabaseHostContext.Provider value={slots}>
+        <DatabaseContext.Provider value={store}>
+          <div
+            className={cn(
+              "relative flex h-full w-full flex-col overflow-hidden",
+              !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
+              className,
+              {
+                "cursor-col-resize select-none": isResizing,
+              }
+            )}
+          >
+            <div className="shrink-0">
+              <ViewTabs
+                pluginManager={pluginMgr}
+                onCreateView={handleCreateView}
+                onDeleteView={handleDeleteView}
+                onActiveViewIdChange={onActiveViewIdChange}
+                onRenameView={handleRenameView}
+                onUpdateView={handleUpdateView}
+                onReorderViews={handleReorderViews}
+                theme={finalTheme}
+                bare={bare}
+              />
+            </div>
+            <div className="min-h-0 w-full flex-1">{View}</div>
+            <ConfirmDialog
+              open={confirmDeleteViewId !== null}
+              onOpenChange={open => {
+                if (!open) setConfirmDeleteViewId(null);
+              }}
+              title="确定删除此视图吗？"
+              danger
+              confirmText="删除"
+              onConfirm={() => handleConfirmDeleteView()}
             />
           </div>
-          <div className="min-h-0 w-full flex-1">{View}</div>
-          <ConfirmDialog
-            open={confirmDeleteViewId !== null}
-            onOpenChange={open => {
-              if (!open) setConfirmDeleteViewId(null);
-            }}
-            title="确定删除此视图吗？"
-            danger
-            confirmText="删除"
-            onConfirm={() => handleConfirmDeleteView()}
-          />
-        </div>
-      </DatabaseContext.Provider>
+        </DatabaseContext.Provider>
+      </DatabaseHostContext.Provider>
     );
   }
 );

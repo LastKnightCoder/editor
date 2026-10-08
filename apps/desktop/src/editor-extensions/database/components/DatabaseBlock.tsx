@@ -5,7 +5,7 @@ import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
 import { AddParagraph } from "@tau/editor";
 import { useIsLastElement } from "@tau/editor/api";
-import Database from "@/components/Database";
+import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
 import type { DatabaseElement } from "../types";
 
 interface DatabaseBlockProps {

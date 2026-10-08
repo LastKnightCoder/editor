@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Descendant } from "slate";
 import PluginManager from "../../../PluginManager";
 import { builtInPlugins } from "../../../plugins";
 import type { ColumnDef } from "../../../types";
 import {
   collectFoldedColumnIds,
   coverImagesOf,
-  isBlankDocument,
   isEmptyCellValue,
   neighborRowIds,
   orderVisibleColumns,
@@ -72,16 +70,5 @@ describe("RowDetailModal utils", () => {
     );
     expect(images.map(image => image.url)).toEqual(["a.png"]);
     expect(coverImagesOf({ id: "r" }, columns)).toEqual([]);
-  });
-
-  it("isBlankDocument：只有空段落才算没写", () => {
-    const paragraph = (text: string) =>
-      ({ type: "paragraph", children: [{ type: "formatted", text }] }) as Descendant;
-    expect(isBlankDocument([paragraph("")])).toBe(true);
-    expect(isBlankDocument([paragraph(""), paragraph("")])).toBe(true);
-    expect(isBlankDocument([paragraph("写了")])).toBe(false);
-    expect(
-      isBlankDocument([{ type: "image", url: "a.png", children: [{ text: "" }] } as Descendant])
-    ).toBe(false);
   });
 });

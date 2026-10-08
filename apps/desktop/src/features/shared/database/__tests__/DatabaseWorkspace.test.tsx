@@ -12,8 +12,10 @@ const { hookResult, setHookResult } = vi.hoisted(() => ({
 vi.mock("@tau/shared", () => ({
   useEditDatabaseWithContext: (_tableId?: number) => hookResult.current,
 }));
-vi.mock("@/components/Database", () => ({
-  default: (props: Record<string, unknown>) => <div data-database={String(props.activeViewId)} />,
+vi.mock("@/features/shared/database/DesktopDatabase", () => ({
+  DesktopDatabase: (props: Record<string, unknown>) => (
+    <div data-database={String(props.activeViewId)} />
+  ),
 }));
 vi.mock("@tau/ui", async importOriginal => ({
   ...(await importOriginal<typeof import("@tau/ui")>()),
