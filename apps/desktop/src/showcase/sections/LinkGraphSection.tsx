@@ -10,7 +10,19 @@ import { useMemo, useState } from "react";
 import LinkGraph, { type GraphItem } from "@/components/LinkGraph";
 import { labelFromContent } from "@/components/LinkGraph/core/graph";
 import type { KnowledgeMap, KnowledgeMapTopic } from "@/knowledge-map/types";
-import type { ICard } from "@/types";
+
+/** 样板间的合成卡片：只要图谱需要的字段，links 是演示用的邻接表（同卡片 id 空间） */
+interface ShowcaseCard {
+  id: number;
+  links: number[];
+  content: Array<{ type: string; children: Array<{ type: string; text: string }> }>;
+  create_time: number;
+  update_time: number;
+  tags: string[];
+  count: number;
+  contentId: number;
+  isTop: boolean;
+}
 // 真实卡片库的离线知识地图导出（坐标、主题、显式链接为真，标题已替换为「主题 · 子主题 · 序号」）。
 // 含个人 tag 与链接结构，已 gitignore、不进仓库；本机没有该文件时「知识地图」形态不出现。
 const fixtureModules = import.meta.glob<{ default: { topics: unknown[]; nodes: unknown[] } }>(
@@ -49,7 +61,7 @@ const seeded = (seed: number) => {
   };
 };
 
-function makeCards(shape: Shape, count: number): ICard[] {
+function makeCards(shape: Shape, count: number): ShowcaseCard[] {
   const random = seeded(42);
   const clusterSize = shape === "sparse" ? 4 : 15;
   return Array.from({ length: count }, (_, index) => {
@@ -86,16 +98,16 @@ function makeCards(shape: Shape, count: number): ICard[] {
       count: 120,
       contentId: id,
       isTop: false,
-    } as unknown as ICard;
+    };
   });
 }
 
 type FixtureNode = [number, number, number, number, number, string, number[]];
 
-function fixtureMap(): { cards: ICard[]; map: KnowledgeMap } | null {
+function fixtureMap(): { cards: ShowcaseCard[]; map: KnowledgeMap } | null {
   if (!mapFixture) return null;
   const nodes = mapFixture.nodes as FixtureNode[];
-  const cards = nodes.map(([id, , , , , title, links]) => ({
+  const cards: ShowcaseCard[] = nodes.map(([id, , , , , title, links]) => ({
     id,
     links,
     tags: [],
@@ -106,7 +118,7 @@ function fixtureMap(): { cards: ICard[]; map: KnowledgeMap } | null {
     count: 0,
     contentId: id,
     isTop: false,
-  })) as unknown as ICard[];
+  }));
   return {
     cards,
     map: {
@@ -136,7 +148,7 @@ export default function LinkGraphSection() {
       cards.map(card => ({
         id: card.id,
         key: `card:${card.id}`,
-        label: labelFromContent(card.content),
+        label: labelFromContent(card.content as never),
         createdAt: card.create_time,
         tags: card.tags,
         links: card.links,

@@ -55,7 +55,8 @@ export default class CardTable {
     this.assertDatabase(db, scope);
     // 列表轻表：不 JOIN podcasts、content 截为预览块，全量数据经 getScopedCard 按需单卡获取
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+             (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
@@ -92,13 +93,12 @@ export default class CardTable {
     this.assertDatabase(db, request);
     const card = this.getCardById(db, request.id);
     if (!card) throw new Error("卡片不存在");
-    const { tags, links, isTop } = request.patch;
+    const { tags, isTop } = request.patch;
     return this.updateCard(
       db,
       {
         ...card,
         tags: tags ?? card.tags,
-        links: links ?? card.links,
         isTop: isTop ?? card.isTop,
       },
       ctx
@@ -151,7 +151,7 @@ export default class CardTable {
       create_time: card.create_time,
       update_time: updateTime,
       tags: JSON.parse(card.tags),
-      links: JSON.parse(card.links),
+      linkCount: Number(card.link_count ?? 0),
       content: content,
       count: count,
       contentId: card.content_id,
@@ -184,7 +184,8 @@ export default class CardTable {
 
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+             (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -199,7 +200,8 @@ export default class CardTable {
 
   static getCardById(db: Database.Database, cardId: number | bigint): ICard | null {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+             (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -220,7 +222,8 @@ export default class CardTable {
 
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+             (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -234,7 +237,7 @@ export default class CardTable {
   }
 
   static createCard(db: Database.Database, card: ICreateCard): ICard {
-    const { tags, links, content, count, isTop } = card;
+    const { tags, content, count, isTop } = card;
 
     // 创建content记录
     const contentId = ContentTable.createContent(db, {
@@ -244,17 +247,10 @@ export default class CardTable {
 
     // 创建card记录
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, '[]', ?, ?)"
     );
     const now = Date.now();
-    const res = stmt.run(
-      now,
-      now,
-      JSON.stringify(tags),
-      JSON.stringify(links),
-      contentId,
-      isTop ? 1 : 0
-    );
+    const res = stmt.run(now, now, JSON.stringify(tags), contentId, isTop ? 1 : 0);
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
 
@@ -271,10 +267,10 @@ export default class CardTable {
     ContentTable.incrementRefCount(db, contentId);
 
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, '[]', '[]', ?, ?)"
     );
     const now = Date.now();
-    const res = stmt.run(now, now, JSON.stringify([]), JSON.stringify([]), contentId, 0);
+    const res = stmt.run(now, now, contentId, 0);
     const createdCardId = res.lastInsertRowid;
 
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
@@ -286,14 +282,12 @@ export default class CardTable {
     card: IUpdateCard,
     ctx: CommandContext = fallbackCommandContext
   ): ICard {
-    const { tags, links, id, isTop } = card;
+    const { tags, id, isTop } = card;
 
-    // 更新card记录
-    const stmt = db.prepare(
-      "UPDATE cards SET update_time = ?, tags = ?, links = ?, is_top = ? WHERE id = ?"
-    );
+    // 更新card记录（显式连接在 content_links，不经此路径）
+    const stmt = db.prepare("UPDATE cards SET update_time = ?, tags = ?, is_top = ? WHERE id = ?");
     const now = Date.now();
-    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), isTop ? 1 : 0, id);
+    stmt.run(now, JSON.stringify(tags), isTop ? 1 : 0, id);
 
     Operation.insertOperation(db, "card", "update", card.id, now);
 
@@ -437,7 +431,8 @@ export default class CardTable {
 
     const placeholders = dates.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+             (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
@@ -472,7 +467,8 @@ export default class CardTable {
     const endTimestamp = new Date(endDate + " 23:59:59").getTime();
 
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.content_id, c.is_top, c.podcast_id,
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.content_id, c.is_top, c.podcast_id,
+             (SELECT COUNT(*) FROM content_links cl WHERE cl.content_id = c.content_id OR cl.target_content_id = c.content_id) AS link_count,
              ct.content, ct.count, ct.update_time as content_update_time, m.meta AS ai_meta,
              p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.script_lines as podcast_script_lines, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c

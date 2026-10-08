@@ -11,7 +11,7 @@ const COMPARE: Record<CardListSort, (a: ICard, b: ICard) => number> = {
   created: (a, b) => b.create_time - a.create_time,
   updated: (a, b) => b.update_time - a.update_time,
   words: (a, b) => b.count - a.count || b.create_time - a.create_time,
-  links: (a, b) => b.links.length - a.links.length || b.create_time - a.create_time,
+  links: (a, b) => b.linkCount - a.linkCount || b.create_time - a.create_time,
 };
 
 /** 置顶在任何排序下都排最前，各列方向固定为降序 */

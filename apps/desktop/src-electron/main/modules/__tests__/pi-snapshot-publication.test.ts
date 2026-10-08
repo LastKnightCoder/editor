@@ -32,7 +32,7 @@ const snapshot = (id: string, parent = 1) => ({
   version: parent + 1,
   parentVersion: parent,
   commitId: id,
-  dataModelVersion: 3,
+  dataModelVersion: 4,
   databaseObject: `${id}.db`,
   sessionsObject: `${id}.zip`,
 });

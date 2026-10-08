@@ -6,7 +6,8 @@ export interface ICard {
   create_time: number;
   update_time: number;
   tags: string[];
-  links: number[];
+  /** 显式连接数（content_links，按正文计；共用正文的身份共享） */
+  linkCount: number;
   content: Descendant[];
   count: number;
   contentId: number;
@@ -17,10 +18,16 @@ export interface ICard {
   aiTitle?: string;
 }
 
-export type ICreateCard = Omit<ICard, "id" | "create_time" | "update_time" | "contentId">;
-export type IUpdateCard = Omit<ICard, "create_time" | "update_time" | "content" | "count">;
+export type ICreateCard = Omit<
+  ICard,
+  "id" | "create_time" | "update_time" | "contentId" | "linkCount"
+>;
+export type IUpdateCard = Omit<
+  ICard,
+  "create_time" | "update_time" | "content" | "count" | "linkCount"
+>;
 
-export type CardMetadataPatch = Partial<Pick<ICard, "tags" | "links" | "isTop">>;
+export type CardMetadataPatch = Partial<Pick<ICard, "tags" | "isTop">>;
 
 export interface CardDatabaseScope {
   databaseName: string;

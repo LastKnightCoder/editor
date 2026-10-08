@@ -54,18 +54,24 @@ describe("脉络「相关」", () => {
          VALUES (?, 1.0, '', ?, 0, vec_f32(?))`
       )
       .run(key, key.split(":")[0], JSON.stringify(vector));
-  const addCard = (text: string, vector: number[], links: number[] = []) => {
+  const addCard = (text: string, vector: number[]) => {
     const contentId = addContent(text);
     const id = Number(
       main
         .prepare(
-          `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', ?, ?)`
+          `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', '[]', ?)`
         )
-        .run(JSON.stringify(links), contentId).lastInsertRowid
+        .run(contentId).lastInsertRowid
     );
     addVector(`card:${id}`, vector);
     return { id, contentId };
   };
+  const linkContents = (a: number, b: number) =>
+    main
+      .prepare(
+        `INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?, ?, 1)`
+      )
+      .run(Math.min(a, b), Math.max(a, b));
 
   beforeEach(() => {
     main = new Database(":memory:");
@@ -99,10 +105,8 @@ describe("脉络「相关」", () => {
 
   it("排除已有关系，最多 5 条，带要点；共用正文只出一次", () => {
     const self = addCard("自身", near(0));
-    const linked = addCard("双向链接", near(0), [self.id]);
-    main
-      .prepare(`UPDATE cards SET links = ? WHERE id = ?`)
-      .run(JSON.stringify([linked.id]), self.id);
+    const linked = addCard("双向链接", near(0));
+    linkContents(self.contentId, linked.contentId);
     const backlink = addCard("引用了自身", near(0));
     index
       .prepare(

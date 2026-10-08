@@ -45,6 +45,8 @@ export interface PublishDataSource {
   getCardByIds(ids: number[]): ICard[];
   getCardById(id: number): ICard | null;
   getCardByContentId(contentId: number): ICard | null;
+  /** 正文显式连接的对方正文（按建立时间排序） */
+  getContentLinkTargetContentIds(contentId: number): number[];
   getArticleByIds(ids: number[]): IArticle[];
   getArticleByContentId(contentId: number): IArticle | null;
   getProject(id: number): Project;
@@ -881,20 +883,17 @@ export class PublishSiteGenerator {
     card: ICard,
     cache: Map<number, ICard>
   ): ILinkedCardInfo[] {
-    if (!Array.isArray(card.links) || card.links.length === 0) {
-      return [];
-    }
     const result: ILinkedCardInfo[] = [];
-    for (const linkId of card.links) {
-      if (linkId === card.id) continue;
-      let target = cache.get(linkId);
+    for (const contentId of db.getContentLinkTargetContentIds(card.contentId)) {
+      if (contentId === card.contentId) continue;
+      let target = cache.get(contentId);
       if (!target) {
-        target = db.getCardById(linkId) || undefined;
+        target = db.getCardByContentId(contentId) || undefined;
         if (target) {
-          cache.set(linkId, target);
+          cache.set(contentId, target);
         }
       }
-      if (target) {
+      if (target && target.id !== card.id) {
         result.push(this.toLinkedCardInfo(target));
       }
       if (result.length >= 5) {

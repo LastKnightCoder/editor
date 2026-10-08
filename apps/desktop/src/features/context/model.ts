@@ -48,16 +48,13 @@ export const USAGE_KIND_ICON: Record<ContextUsage["kind"], LucideIcon> = {
 };
 
 /**
- * 元信息行显示的关联数：引用了 + 引用我的来源 + 共用正文的身份（含 Notebook 笔记）+ 相关问题
- * + 来源 + 衍生 + 被使用（KL-023）
+ * 元信息行显示的关联数：连接（显式连接 + 内联出链）+ 引用我的来源 + 共用正文的身份
+ * （含 Notebook 笔记）+ 相关问题 + 来源 + 衍生 + 被使用（KL-023）
  */
-export function contextCount(
-  context: EntityContext | null | undefined,
-  options: { hideOutlinks?: boolean } = {}
-): number {
+export function contextCount(context: EntityContext | null | undefined): number {
   if (!context) return 0;
   return (
-    (options.hideOutlinks ? 0 : context.outlinks.length) +
+    context.links.length +
     context.backlinkTotal +
     context.projections.length +
     context.notebookProjections.length +

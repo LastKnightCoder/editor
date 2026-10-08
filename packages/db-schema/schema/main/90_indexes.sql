@@ -119,3 +119,6 @@ CREATE INDEX IF NOT EXISTS idx_articles_content_id ON articles(content_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_content_id ON project_item(content_id);
 CREATE INDEX IF NOT EXISTS idx_diary_segments_content_id ON diary_segments(content_id);
 CREATE INDEX IF NOT EXISTS idx_knowledge_ai_insights_scope ON knowledge_ai_insights(scope, project_id);
+-- 正文显式连接：成对唯一 + 反向查（正向由成对唯一索引前缀覆盖）
+CREATE UNIQUE INDEX IF NOT EXISTS idx_content_links_pair ON content_links(content_id, target_content_id);
+CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_content_id);

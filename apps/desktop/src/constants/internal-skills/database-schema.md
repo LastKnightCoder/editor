@@ -387,6 +387,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `payload`     | `TEXT NOT NULL DEFAULT '{}'` |
 | `create_time` | `INTEGER NOT NULL`           |
 
+### `content_links`
+
+正文之间的显式连接（无向边，一行一条；`content_id` 恒为较小一侧）。连接绑定 `contents.id`，共用同一份正文的身份（卡片、文章、项目文档、日记及其投影）共享同一组连接。
+
+| 字段                | SQLite 定义        |
+| ------------------- | ------------------ |
+| `content_id`        | `INTEGER NOT NULL` |
+| `target_content_id` | `INTEGER NOT NULL` |
+| `create_time`       | `INTEGER NOT NULL` |
+
 ### `data_tables`
 
 | 字段             | SQLite 定义           |

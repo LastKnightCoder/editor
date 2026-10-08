@@ -21,6 +21,7 @@ beforeEach(() => {
       meta TEXT, model TEXT, create_time INTEGER, update_time INTEGER);
     CREATE TABLE podcasts (id INTEGER PRIMARY KEY, name TEXT, audio_url TEXT, script TEXT,
       script_lines TEXT, duration INTEGER, speakers TEXT);
+    CREATE TABLE content_links (content_id INTEGER, target_content_id INTEGER, create_time INTEGER);
     INSERT INTO contents VALUES (10, '[]', 0, 0);
     INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', '[2]', 10, 0, NULL);
   `);
@@ -34,7 +35,7 @@ describe("卡片数据库作用域命令", () => {
     expect(saved).toMatchObject({
       isTop: true,
       tags: ["新标签"],
-      links: [2],
+      linkCount: 0,
       contentId: 10,
     });
     expect(CardTable.getScopedCards(db, scope)[0]).toEqual(saved);
@@ -72,6 +73,15 @@ describe("卡片数据库作用域命令", () => {
       "数据库已切换"
     );
     expect(() => CardTable.getScopedCard(db, { ...scope, id: 99 })).toThrow("卡片不存在");
+  });
+  it("linkCount 双向计数：边的 target 侧也计入", () => {
+    // 卡 1 的正文 id=10 处于边的较大一侧（规范化后落在 target_content_id）
+    db.exec(`
+      INSERT INTO contents VALUES (9, '[]', 0, 0);
+      INSERT INTO content_links VALUES (9, 10, 1);
+    `);
+    expect(CardTable.getCardById(db, 1)?.linkCount).toBe(1);
+    expect(CardTable.getScopedCards(db, scope)[0].linkCount).toBe(1);
   });
   it("读、写、删除和创建均拒绝错误数据库身份", () => {
     const wrong = { databaseName: "another" };
