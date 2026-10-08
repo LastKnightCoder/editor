@@ -2,6 +2,7 @@ import { act, forwardRef, useImperativeHandle } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { DatabaseProps, DatabaseRef } from "@tau/database";
+import type { ICard } from "@/types/card";
 import {
   CARD_DATABASE_PREFERENCES_KEY,
   useCardsDatabasePreferencesStore,
@@ -111,4 +112,80 @@ it("切库后旧实例迟到的视图回调只更新原库，不认领新库同 
   await act(async () => previous(2));
   expect(useCardsDatabasePreferencesStore.getState().byDatabase.a.activeViewId).toBe(2);
   expect(useCardsDatabasePreferencesStore.getState().byDatabase.b.activeViewId).toBe(1);
+});
+
+it("新建标签按名称保存，回读和重新挂载后仍使用名称", async () => {
+  const card: ICard = {
+    id: 1,
+    contentId: 1,
+    content: [],
+    count: 0,
+    tags: ["HTML/form"],
+    links: [],
+    isTop: false,
+    create_time: 0,
+    update_time: 0,
+  };
+  const onUpdateCard = vi.fn(async (_id: number, patch: Partial<ICard>) => ({ ...card, ...patch }));
+  const props = { ...callbacks, databaseName: "a", cards: [card], onUpdateCard };
+  await act(async () => root?.render(<CardDatabaseView {...props} />));
+  const database = mocks.props;
+  if (!database) throw new Error("表格未挂载");
+  const optionId = "58b62e04-70df-499e-9200-000000000001";
+  const columns = database.columns.map(column =>
+    column.id === "tags"
+      ? {
+          ...column,
+          config: {
+            options: [
+              { id: "HTML/form", name: "HTML/form", color: "blue" },
+              { id: optionId, name: "安全", color: "red" },
+            ],
+          },
+        }
+      : column
+  );
+  const rows = [{ id: "1", tags: ["HTML/form", optionId], links: [2] }];
+  await act(async () =>
+    database.onDataChange?.(
+      { columns, rows },
+      { source: "user", dataChanged: true, viewChanged: false, rows: { upsert: rows, remove: [] } }
+    )
+  );
+  expect(onUpdateCard).toHaveBeenCalledExactlyOnceWith(1, {
+    tags: ["HTML/form", "安全"],
+    links: [2],
+  });
+  const saved = await onUpdateCard.mock.results[0].value;
+  await act(async () => root?.render(<CardDatabaseView {...props} cards={[saved]} />));
+  expect(dispatch).toHaveBeenCalledWith(
+    { type: "rows.receive", rows: [expect.objectContaining({ tags: ["HTML/form", "安全"] })] },
+    "external"
+  );
+  await act(async () => root?.render(null));
+  await act(async () => root?.render(<CardDatabaseView {...props} cards={[saved]} />));
+  const reloaded = mocks.props;
+  if (!reloaded) throw new Error("表格未重新挂载");
+  expect(reloaded.columns.find(column => column.id === "tags")?.config).toEqual({
+    options: [
+      { id: "HTML/form", name: "HTML/form", color: "blue" },
+      { id: "安全", name: "安全", color: "blue" },
+    ],
+  });
+  onUpdateCard.mockClear();
+  for (const tags of [["安全"], []]) {
+    const rows = [{ id: "1", tags }];
+    await act(async () =>
+      reloaded.onDataChange?.(
+        { columns: reloaded.columns, rows },
+        {
+          source: "user",
+          dataChanged: true,
+          viewChanged: false,
+          rows: { upsert: rows, remove: [] },
+        }
+      )
+    );
+    expect(onUpdateCard).toHaveBeenLastCalledWith(1, { tags });
+  }
 });
