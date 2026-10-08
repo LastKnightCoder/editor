@@ -69,7 +69,62 @@ describe("安排（calendar_event.todo_item_id）", () => {
       todoItemId: item.id,
       startTime: 540,
       endTime: 660,
+      allDay: false,
     });
+  });
+
+  it("全天安排关联待办且不占时段，可重复安排并进入安排概况", () => {
+    const item = TodoItemTable.createItem(db, { groupId, title: "写报告", description: "大纲" });
+    const input = { todoItemId: item.id, startDate: DAY, allDay: true } as const;
+    const event = CalendarEventTable.createEventForTodo(db, input);
+    const again = CalendarEventTable.createEventForTodo(db, input);
+    expect(event).toMatchObject({
+      calendarId,
+      title: "写报告",
+      detailContentId: 0,
+      todoItemId: item.id,
+      startDate: DAY,
+      endDate: DAY,
+      startTime: null,
+      endTime: null,
+      allDay: true,
+    });
+    expect(again.id).not.toBe(event.id);
+    expect(
+      TodoItemTable.listItems(db, { groupId }).find(todo => todo.id === item.id)
+    ).toMatchObject({ isCompleted: false });
+    expect(
+      CalendarEventTable.getTodoSchedules(db, { todoItemIds: [item.id], now: NOW })[item.id]
+    ).toMatchObject({ count: 2, next: { allDay: true, startTime: null, startDate: DAY } });
+    CalendarEventTable.deleteEvent(db, event.id);
+    expect(
+      TodoItemTable.listItems(db, { groupId }).find(todo => todo.id === item.id)
+    ).toMatchObject({ title: "写报告" });
+    expect(
+      CalendarEventTable.getTodoSchedules(db, { todoItemIds: [item.id], now: NOW })[item.id]
+    ).toMatchObject({ count: 1, next: { id: again.id } });
+  });
+
+  it("全天安排没有可用用户日历或待办已删除时不创建事件", () => {
+    const item = TodoItemTable.createItem(db, { groupId, title: "写报告" });
+    db.prepare("UPDATE calendar SET archived = 1 WHERE id = ?").run(calendarId);
+    expect(() =>
+      CalendarEventTable.createEventForTodo(db, {
+        todoItemId: item.id,
+        startDate: DAY,
+        allDay: true,
+      })
+    ).toThrow("NO_USER_CALENDAR");
+    expect(() =>
+      CalendarEventTable.createEventForTodo(db, {
+        todoItemId: -1,
+        startDate: DAY,
+        allDay: true,
+      })
+    ).toThrow("not found");
+    expect(
+      db.prepare("SELECT COUNT(*) AS count FROM calendar_event WHERE todo_item_id = ?").get(item.id)
+    ).toEqual({ count: 0 });
   });
 
   it("整行更新不清关联；没有可用用户日历时报错", () => {

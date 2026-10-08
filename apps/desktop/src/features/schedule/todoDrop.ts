@@ -1,5 +1,5 @@
 /**
- * 待办拖进日程（周视图网格、当日时间线空档共用）：读 dataTransfer、换算落点、新建安排，
+ * 待办拖进日程（月 / 周视图、当日时间线空档共用）：读 dataTransfer、换算落点、新建安排，
  * 放下即建不弹窗，Toast 回执带「撤销」（撤销 = 删掉刚建的这条）。
  */
 
@@ -31,19 +31,23 @@ export function useScheduleTodo() {
   return async (
     todoItemId: number,
     startDate: number,
-    startTime: number,
+    startTime: number | null,
     minutes = DROP_MINUTES
   ) => {
     try {
-      const event = await scheduleTodo({
-        todoItemId,
-        startDate,
-        startTime,
-        endTime: Math.min(startTime + minutes, DAY_END),
-      });
+      const event = await scheduleTodo(
+        startTime === null
+          ? { todoItemId, startDate, allDay: true }
+          : {
+              todoItemId,
+              startDate,
+              startTime,
+              endTime: Math.min(startTime + minutes, DAY_END),
+            }
+      );
       const d = new Date(startDate);
       toast.success(
-        `已安排「${event.title}」· ${d.getMonth() + 1}月${d.getDate()}日 ${formatTime(startTime)}`,
+        `已安排「${event.title}」· ${d.getMonth() + 1}月${d.getDate()}日 ${startTime === null ? "全天" : formatTime(startTime)}`,
         {
           action: {
             label: "撤销",

@@ -1,6 +1,6 @@
 /**
  * 「待安排」面板（日程页纸内右侧常驻栏）：未完成的顶层待办（周期任务是标记，不在此列），按项目分组。
- * 行可拖进周视图网格或当日时间线的空档 = 把它安排进那个时段（新建关联该待办的日程）；
+ * 行可拖进月视图日期建全天安排，或拖进周视图网格 / 当日时间线空档安排时段；
  * 已安排的不消失（一条待办可多次安排），淡色 meta 写「已安排 · 周三 9:00」/「上次安排 · 周一」/ 截止日。
  * 勾选圈直接完成待办。数据：待办快照（todos/queries）+ 安排概况（useTodoSchedules）。
  */
@@ -55,7 +55,7 @@ export function TodoPanel({ onClose }: { onClose(): void }) {
         </IconButton>
       </div>
       <p className="text-ink-3 text-tau-sm px-4 pb-2">
-        拖进日程 = 给它一段时间。没做完不会消失，可以再拖。
+        拖进月历安排全天，拖进时间段安排时间。没做完可以再拖。
       </p>
       <label className="border-line-1 mx-3 mb-1 flex items-center gap-1.5 rounded-[8px] border px-2">
         <Search className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />

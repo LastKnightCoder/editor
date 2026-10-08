@@ -2,12 +2,12 @@
  * 月视图（方案 C：整块大面板 + 格内细线，含邻月日期）。
  *
  * 交互：单击格子 = 选中这一天（右栏当日时间线跟随）；双击 = 新建全天日程；
- * 拖过多天 = 新建跨天日程；点日程 = 速览浮层。
+ * 拖过多天 = 新建跨天日程；待办拖入日期 = 新建全天安排；点日程 = 速览浮层。
  * 布局：所有日程参与 assignMonthViewLevels 统一分层（legacy 算法原样复用），
  * 全天 / 跨天画软底条，单日定时画色点行；放不下的收进「还有 N 项」。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import { Dialog, DialogBody, cn, toast } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
 import { useCalendarCatalog, useCalendarEvents } from "../../queries";
@@ -18,6 +18,7 @@ import { usePeekStore } from "../../peekStore";
 import { AllDayBar, TimedChip } from "../EventChips";
 import { useEventDecor } from "../EventTitle";
 import { AgendaRow } from "../AgendaRow";
+import { isTodoDrag, readTodoDrag, useScheduleTodo } from "../../todoDrop";
 
 /** 日期行高度（事件条从这里往下排） */
 const DATE_AREA = 32;
@@ -59,7 +60,9 @@ const MonthView = () => {
   const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
   const decorOf = useEventDecor(events);
+  const scheduleTodo = useScheduleTodo();
 
+  const [dropDay, setDropDay] = useState<number | null>(null);
   const [moreDay, setMoreDay] = useState<number | null>(null);
   const [pending, setPending] = useState<{ start: number; end: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,32 @@ const MonthView = () => {
     return { grid: cells, totalRows: range.rows };
   }, [year, month]);
   const gridIndex = (ts: number) => grid.indexOf(getDateStart(ts));
+
+  useEffect(() => {
+    const clearDrop = () => setDropDay(null);
+    clearDrop();
+    document.addEventListener("dragend", clearDrop);
+    return () => document.removeEventListener("dragend", clearDrop);
+  }, [year, month]);
+
+  // 日程条覆盖日期格，落点按整个网格坐标计算，避免依赖事件目标。
+  const dayAtDrop = (e: DragEvent<HTMLDivElement>): number | null => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (
+      rect.width <= 0 ||
+      rect.height <= 0 ||
+      x < 0 ||
+      y < 0 ||
+      x >= rect.width ||
+      y >= rect.height
+    )
+      return null;
+    const col = Math.floor((x / rect.width) * 7);
+    const row = Math.floor((y / rect.height) * totalRows);
+    return grid[row * 7 + col] ?? null;
+  };
 
   const eventsOfDay = (day: number) =>
     (events ?? []).filter(event => {
@@ -210,8 +239,28 @@ const MonthView = () => {
 
       <div
         ref={containerRef}
+        data-month-grid
         className="relative grid min-h-0 flex-1 grid-cols-7"
         style={{ gridTemplateRows: `repeat(${totalRows}, minmax(0, 1fr))` }}
+        onDragOver={e => {
+          if (!isTodoDrag(e)) return;
+          const day = dayAtDrop(e);
+          setDropDay(day);
+          if (day === null) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDragLeave={e => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropDay(null);
+        }}
+        onDrop={e => {
+          setDropDay(null);
+          if (!isTodoDrag(e)) return;
+          e.preventDefault();
+          const todoId = readTodoDrag(e);
+          const day = dayAtDrop(e);
+          if (todoId !== null && day !== null) void scheduleTodo(todoId, day, null);
+        }}
       >
         {grid.map((day, index) => {
           const outside = new Date(day).getMonth() !== month - 1;
@@ -232,6 +281,7 @@ const MonthView = () => {
           return (
             <div
               key={day}
+              data-month-day={day}
               onClick={() => {
                 if (!isDragging && day !== selectedDay) setCurrentDate(day);
               }}
@@ -242,7 +292,7 @@ const MonthView = () => {
                 "border-line-2 relative flex cursor-pointer select-none flex-col transition-colors duration-[160ms]",
                 col !== 6 && "border-r",
                 index < lastRowStart && "border-b",
-                selected ? "bg-selected" : "hover:bg-hover"
+                dropDay === day ? "bg-accent-soft" : selected ? "bg-selected" : "hover:bg-hover"
               )}
             >
               <div className="flex h-[30px] items-center px-2 pt-1">
