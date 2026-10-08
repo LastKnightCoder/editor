@@ -84,6 +84,19 @@ export interface TableViewConfig {
   galleryConfig?: GalleryViewConfig;
   calendarConfig?: CalendarViewConfig;
   kanbanConfig?: KanbanViewConfig;
+  /** 表尾汇总：列 id → 汇总方式；未登记的列不显示汇总值 */
+  footer?: Record<string, FooterSpec>;
+}
+
+// ============ Footer Types ============
+
+export type AggregateOp =
+  "sum" | "avg" | "median" | "min" | "max" | "countAll" | "countNonEmpty" | "countEmpty" | "unique";
+
+/** 判别联合，后续可扩展组合表达式而不改存量数据 */
+export interface FooterSpec {
+  kind: "aggregate";
+  op: AggregateOp;
 }
 
 export interface DataTableView {

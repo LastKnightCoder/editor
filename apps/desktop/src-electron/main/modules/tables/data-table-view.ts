@@ -9,6 +9,19 @@ import type {
 } from "@/types";
 import Operation from "./operation";
 
+/** 只保留形如 { kind: "aggregate", op } 的表尾配置；空表返回 undefined */
+function normalizeFooter(footer: DataTableViewConfig["footer"]): DataTableViewConfig["footer"] {
+  if (!footer || typeof footer !== "object") return undefined;
+  const entries = Object.entries(footer).filter(
+    ([, spec]) => spec?.kind === "aggregate" && typeof spec.op === "string"
+  );
+  return entries.length
+    ? Object.fromEntries(
+        entries.map(([columnId, spec]) => [columnId, { kind: spec.kind, op: spec.op }])
+      )
+    : undefined;
+}
+
 type ReorderPayload = {
   tableId: number;
   orderedIds: number[];
@@ -74,6 +87,7 @@ export default class DataTableViewTable {
               : undefined,
           }
         : undefined,
+      footer: normalizeFooter(config?.footer),
     };
   }
 

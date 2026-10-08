@@ -40,6 +40,11 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
   type: "date",
   name: "日期",
   editable: true,
+  valueType: "date",
+  toScalar: value => {
+    const start = (value as DateValue | null)?.start;
+    return typeof start === "number" && Number.isFinite(start) ? start : null;
+  },
   Renderer,
   Editor,
   Icon: ({ className }) => <CalendarDays className={className} />,
