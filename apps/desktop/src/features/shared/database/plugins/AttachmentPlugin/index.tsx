@@ -1,4 +1,4 @@
-import { CellPlugin } from "@/components/Database";
+import { CellPlugin } from "@tau/database";
 import { Paperclip } from "lucide-react";
 import { Renderer } from "./components/index";
 import { AttachmentPluginValue, AttachmentPluginConfig } from "./types";

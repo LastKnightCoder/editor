@@ -9,11 +9,11 @@ import {
   DatabaseProps,
   DatabaseChange,
   FilterGroup,
-} from "@/components/Database";
+} from "@tau/database";
 import { useCardDatabasePreferences } from "../../databasePreferences";
 import { ICard, DataTableView, CreateDataTableView } from "@/types";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
-import { DateValue } from "@/components/Database/plugins/DatePlugin";
+import { DateValue } from "@tau/database";
 import useTheme from "@/hooks/useTheme";
 import type { CardMetadataPatch } from "@/types/card";
 import { cardTitle } from "@/utils/card-title";

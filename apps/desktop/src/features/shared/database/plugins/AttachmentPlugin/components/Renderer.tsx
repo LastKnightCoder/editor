@@ -3,7 +3,7 @@ import { Popover as TauPopover, ConfirmDialog, toast } from "@tau/ui";
 import { Cloud, FileText, Folder, Plus, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import useUploadResource from "@/hooks/useUploadResource";
-import { ColumnDef } from "@/components/Database";
+import { ColumnDef } from "@tau/database";
 import { AttachmentPluginValue, AttachmentItem } from "../types";
 import FileUpload from "./FileUpload";
 import { v4 as uuid } from "uuid";

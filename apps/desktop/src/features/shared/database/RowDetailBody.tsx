@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Element, Node, type Descendant } from "slate";
-import type { RowDetailBodyHandle, RowDetailBodyProps } from "@/components/Database";
+import type { RowDetailBodyHandle, RowDetailBodyProps } from "@tau/database";
 import Editor from "@/components/ContentEditor";
 import * as contentCommands from "@/commands/content";
 import { bindDatabaseCommands } from "@/services/command-context";

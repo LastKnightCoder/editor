@@ -5,7 +5,7 @@ import {
   plugins,
   DatabaseContext,
   DatabaseHostContext,
-} from "@/components/Database";
+} from "@tau/database";
 import { RowDetailBody, isBlankDocument } from "../RowDetailBody";
 const { builtInPlugins } = plugins;
 import { act } from "react";
@@ -14,7 +14,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
-import type { ColumnDef, RowData, TableViewConfig } from "@/components/Database";
+import type { ColumnDef, RowData, TableViewConfig } from "@tau/database";
 import type { DataTableView } from "@/types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

@@ -4,7 +4,7 @@ import { FileText, Folder, Plus, StickyNote, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuid } from "uuid";
-import { ColumnDef } from "@/components/Database";
+import { ColumnDef } from "@tau/database";
 import { RichTextPluginValue, RichTextItem } from "../types";
 import { DropdownMenu } from "./index";
 import { ContentEditDialog } from "@/components/ContentEditDialog";

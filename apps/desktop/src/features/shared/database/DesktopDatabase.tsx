@@ -5,7 +5,7 @@ import Database, {
   type DatabaseRef,
   type DatabaseImageProps,
   type DatabaseSlots,
-} from "@/components/Database";
+} from "@tau/database";
 import LocalImage from "@/components/LocalImage";
 import { deleteContent } from "@/commands/content";
 import { bindDatabaseCommands } from "@/services/command-context";
