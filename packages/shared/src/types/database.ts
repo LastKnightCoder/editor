@@ -35,6 +35,17 @@ export interface DatabaseData {
   rows: RowData[];
 }
 
+export interface DatabaseRowChanges {
+  upsert: RowData[];
+  remove: string[];
+  inserted?: string[];
+}
+
+export interface DatabaseDataChange {
+  rows: DatabaseRowChanges;
+  columnsChanged?: boolean;
+}
+
 // ============ View Types ============
 
 export type DataTableViewType = "table" | "gallery" | "calendar" | "kanban";
@@ -151,7 +162,7 @@ export interface DatabaseHookResult {
   table: DataTable | null;
   views: DataTableView[];
   activeViewId: number | null;
-  onDataChange?: (data: DatabaseData) => Promise<void> | void;
+  onDataChange?: (data: DatabaseData, change?: DatabaseDataChange) => Promise<void> | void;
   onViewConfigChange?: (config: TableViewConfig) => Promise<void> | void;
   onActiveViewIdChange?: (viewId: number | null) => Promise<void> | void;
   onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;

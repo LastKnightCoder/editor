@@ -1,10 +1,10 @@
 import React, { memo, useEffect, useState } from "react";
 import { CalendarDays, LayoutGrid, SquareKanban, Table2 } from "lucide-react";
 import { cn, Button, Dialog, DialogBody, Input, Select } from "@tau/ui";
-import { DataTableViewType } from "./types";
+import { DatabaseViewType } from "./types";
 
 interface ViewType {
-  type: DataTableViewType | string;
+  type: DatabaseViewType | string;
   name: string;
   icon: typeof Table2;
   disabled?: boolean;
@@ -15,7 +15,7 @@ interface ViewTypeSelectModalProps {
   open: boolean;
   onCancel: () => void;
   onConfirm: (
-    type: DataTableViewType,
+    type: DatabaseViewType,
     name: string,
     dateColumnId?: string,
     groupColumnId?: string
@@ -26,7 +26,7 @@ interface ViewTypeSelectModalProps {
 
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
   ({ open, onCancel, onConfirm, columns }) => {
-    const [selectedType, setSelectedType] = useState<DataTableViewType | null>(null);
+    const [selectedType, setSelectedType] = useState<DatabaseViewType | null>(null);
     const [name, setName] = useState("");
     const [dateColumnId, setDateColumnId] = useState<string | null>(null);
     const [groupColumnId, setGroupColumnId] = useState<string | null>(null);
@@ -68,7 +68,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
       }
     }, [open]);
 
-    const handleSelectType = (type: DataTableViewType) => {
+    const handleSelectType = (type: DatabaseViewType) => {
       setSelectedType(type);
       // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
       if (!userModifiedName) {
@@ -118,7 +118,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                     type="button"
                     disabled={viewType.disabled}
                     title={viewType.disabled ? viewType.disabledReason : undefined}
-                    onClick={() => handleSelectType(viewType.type as DataTableViewType)}
+                    onClick={() => handleSelectType(viewType.type as DatabaseViewType)}
                     className={cn(
                       "ease-tau-out rounded-tau-md flex flex-col items-center justify-center gap-1.5 border p-5 transition-colors duration-[160ms]",
                       viewType.disabled

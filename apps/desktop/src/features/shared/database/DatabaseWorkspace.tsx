@@ -1,6 +1,12 @@
 import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
 import { memo, useRef } from "react";
-import { RowData, ColumnDef, TableViewConfig, DatabaseProps } from "@tau/database";
+import {
+  RowData,
+  ColumnDef,
+  TableViewConfig,
+  DatabaseProps,
+  CreateDatabaseView,
+} from "@tau/database";
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useEditDatabaseWithContext } from "@tau/shared";
@@ -60,6 +66,11 @@ const DatabaseWorkspace = memo(
       onViewConfigChange?.(config as any);
     });
 
+    const handleCreateView = useMemoizedFn((view: CreateDatabaseView) => {
+      if (!table || !onCreateView) return Promise.resolve(null);
+      return onCreateView({ ...view, tableId: table.id });
+    });
+
     const handleUpdateView = useMemoizedFn(
       async (
         viewId: number,
@@ -91,6 +102,7 @@ const DatabaseWorkspace = memo(
             {headerExtra}
           </div>
           <Database
+            tableId={table.id}
             bare
             className="min-h-0 flex-1"
             key={table.id}
@@ -102,7 +114,7 @@ const DatabaseWorkspace = memo(
             onActiveViewIdChange={handleActiveViewIdChange}
             onViewConfigChange={handleViewConfigChange}
             onDataChange={onDataChange}
-            onCreateView={onCreateView}
+            onCreateView={handleCreateView}
             onDeleteView={onDeleteView}
             onRenameView={onRenameView}
             onUpdateView={handleUpdateView}

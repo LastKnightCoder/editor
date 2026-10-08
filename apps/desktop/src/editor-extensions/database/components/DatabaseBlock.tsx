@@ -89,6 +89,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     return (
       <div style={{ minHeight: `${height}em` }}>
         <Database
+          tableId={databaseState.table.id}
           key={databaseState.table.id}
           columns={databaseState.table.columns}
           data={databaseState.table.rows}
@@ -104,7 +105,10 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
           }
           onViewConfigChange={databaseState?.onViewConfigChange}
           onDataChange={databaseState?.onDataChange}
-          onCreateView={databaseState?.onCreateView}
+          onCreateView={async view => {
+            if (!databaseState.onCreateView || !databaseState.table) return null;
+            return databaseState.onCreateView({ ...view, tableId: databaseState.table.id });
+          }}
           onDeleteView={databaseState?.onDeleteView}
           onRenameView={databaseState?.onRenameView}
           onUpdateView={databaseState?.onUpdateView}

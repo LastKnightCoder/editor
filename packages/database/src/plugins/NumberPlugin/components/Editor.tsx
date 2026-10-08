@@ -8,7 +8,7 @@ interface NumberEditorProps {
   value: CellValue;
   column: ColumnDef;
   onCellValueChange: (newValue: CellValue) => void;
-  onFinishEdit: () => void;
+  onFinishEdit: (restoreFocus?: boolean) => void;
 }
 
 const NumberEditor: React.FC<NumberEditorProps> = memo(
@@ -38,7 +38,7 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
           contentEditable={true}
           onChange={handleChange}
           onBlur={onFinishEdit}
-          onPressEnter={onFinishEdit}
+          onPressEnter={() => onFinishEdit(true)}
           className="flex h-full w-full items-center px-2 py-2"
           isSlateEditor
         />

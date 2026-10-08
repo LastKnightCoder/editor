@@ -13,7 +13,7 @@ import {
   DatabaseCommand,
   DatabaseChange,
 } from "./types";
-import type { DataTableView, SortRule } from "./types";
+import type { DatabaseView, SortRule } from "./types";
 import PluginManager from "./PluginManager";
 import { emptyQuery, projectDatabase, type DatabaseProjection } from "./core/projection";
 import { applyRowChanges, diffRows } from "./core/changes";
@@ -28,7 +28,7 @@ export enum Direction {
 interface TableState {
   columns: ColumnDef[];
   rows: RowData[];
-  views: DataTableView[];
+  views: DatabaseView[];
   viewConfig: TableViewConfig;
   activeViewId: number | null;
 
@@ -104,7 +104,7 @@ export const createDatabaseStore = (
   initialColumns: ColumnDef[] = [],
   initialRows: RowData[] = [],
   initialViewConfig?: TableViewConfig,
-  initialViews?: DataTableView[],
+  initialViews?: DatabaseView[],
   activeViewId?: number,
   plugins = new PluginManager(),
   onRowCleanup?: (row: RowData) => void | Promise<void>
@@ -181,7 +181,13 @@ export const createDatabaseStore = (
         editingCell: switchedView ? null : validCell(next.editingCell),
         lastChange:
           dataChanged || viewChanged
-            ? { source, dataChanged, viewChanged, rows: diffRows(before.rows, next.rows) }
+            ? {
+                source,
+                dataChanged,
+                viewChanged,
+                columnsChanged: next.columns !== before.columns,
+                rows: diffRows(before.rows, next.rows),
+              }
             : before.lastChange,
       });
     };
@@ -241,7 +247,7 @@ export const createDatabaseStore = (
             state => ({
               views: [...new Set([...command.ids, ...state.views.map(view => view.id)])]
                 .map(id => state.views.find(view => view.id === id))
-                .filter((view): view is DataTableView => Boolean(view))
+                .filter((view): view is DatabaseView => Boolean(view))
                 .map((view, order) => ({ ...view, order })),
             }),
             source

@@ -41,6 +41,7 @@ import {
   convertFileSrc,
   getDataTableDetail,
   updateDataTable,
+  updateDataTableChanges,
   updateDataTableView,
   createDataTableView,
   deleteDataTableView,
@@ -115,6 +116,7 @@ const Application = () => {
     () => ({
       getDataTableDetail,
       updateDataTable,
+      updateDataTableChanges,
       updateDataTableView,
       createDataTableView,
       deleteDataTableView,
