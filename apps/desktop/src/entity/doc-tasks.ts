@@ -7,10 +7,44 @@
  */
 
 import { dayStart, extractDateTime } from "@/utils/quickDateTime";
+import { minimalTextEdit, type TextEdit } from "./text-edits";
 
 export interface DocTaskGroup {
   id: number;
   title: string;
+  aliases?: string[];
+  createdAt?: number;
+}
+export interface DocTaskGroupBinding {
+  id: number;
+  token: string;
+  createdAt?: number;
+}
+
+function groupsForBinding(
+  text: string,
+  groups: DocTaskGroup[],
+  binding?: DocTaskGroupBinding | null
+): DocTaskGroup[] {
+  if (
+    !binding ||
+    typeof binding.id !== "number" ||
+    typeof binding.token !== "string" ||
+    !/^[#＃].+/.test(binding.token)
+  )
+    return groups;
+  const bound =
+    binding &&
+    groups.find(
+      group =>
+        group.id === binding.id &&
+        (binding.createdAt == null ||
+          group.createdAt == null ||
+          group.createdAt === binding.createdAt)
+    );
+  if (!bound || !binding || !text.includes(binding.token)) return groups;
+  const title = binding.token.slice(1);
+  return [{ ...bound, title, aliases: [] }, ...groups.filter(group => group.title !== title)];
 }
 
 export interface DocTask {
@@ -30,6 +64,8 @@ export interface DocTask {
   groupToken: string | null;
   /** 命中的日期原文；null = 没写日期 */
   dateHint: string | null;
+  dateAnchor: number | null;
+  dueAt: number | null;
 }
 
 interface JsonNode {
@@ -38,6 +74,8 @@ interface JsonNode {
   children?: unknown;
   checked?: unknown;
   taskId?: unknown;
+  taskDateAnchor?: unknown;
+  taskGroup?: unknown;
 }
 
 const asNode = (value: unknown): JsonNode | null =>
@@ -63,13 +101,48 @@ export function matchGroupToken(
   text: string,
   groups: DocTaskGroup[]
 ): { group: DocTaskGroup; token: string } | null {
-  const sorted = [...groups].sort((a, b) => b.title.length - a.title.length);
+  const currentTitles = new Set(groups.map(group => group.title));
+  const sorted = groups
+    .flatMap(group => [
+      group,
+      ...(group.aliases ?? [])
+        .filter(title => !currentTitles.has(title))
+        .map(title => ({ ...group, title })),
+    ])
+    .sort((a, b) => b.title.length - a.title.length);
   for (const match of text.matchAll(/[#＃]/g)) {
     const after = text.slice(match.index! + 1);
-    const group = sorted.find(g => g.title && after.startsWith(g.title));
+    const group = sorted.find(
+      g =>
+        g.title &&
+        after.startsWith(g.title) &&
+        (!after[g.title.length] || /[\s#＃，。！？、,:;；()（）]/.test(after[g.title.length]))
+    );
     if (group) return { group, token: `${match[0]}${group.title}` };
   }
   return null;
+}
+
+export function groupTokenEdits(
+  text: string,
+  groups: DocTaskGroup[],
+  titles: ReadonlyMap<number, string>,
+  binding?: DocTaskGroupBinding | null
+): TextEdit[] {
+  groups = groupsForBinding(text, groups, binding);
+  const edits: TextEdit[] = [];
+  let offset = 0;
+  while (offset < text.length) {
+    const rest = text.slice(offset);
+    const hit = matchGroupToken(rest, groups);
+    if (!hit) break;
+    const at = rest.indexOf(hit.token);
+    const title = titles.get(hit.group.id);
+    const edit = title == null ? null : minimalTextEdit(hit.token, `${hit.token[0]}${title}`);
+    if (edit) edits.push({ ...edit, index: offset + at + edit.index });
+    offset += at + hit.token.length;
+  }
+  return edits;
 }
 
 /** 带年份的绝对日期（正文规范写法 `2026年10月10日`，兼容 `2026-10-10` / `2026/10/10`） */
@@ -85,6 +158,25 @@ function absoluteDate(text: string): { date: number } | null {
   return { date: date.getTime() };
 }
 
+export function docTaskDateHint(text: string, now: Date = new Date()): string | null {
+  const absolute = text.match(ABSOLUTE_DATE)?.[0];
+  if (absolute) return absoluteDate(absolute) ? absolute : null;
+  for (const word of text.match(/\S+/g) ?? []) {
+    const parsed = extractDateTime(word, now);
+    if (parsed.date == null || parsed.hints.date !== word) continue;
+    const monthDay = word.match(/^(\d{1,2})(?:月|\/)(\d{1,2})[日号]?$/);
+    if (monthDay) {
+      const date = new Date(parsed.date);
+      if (date.getMonth() + 1 !== Number(monthDay[1]) || date.getDate() !== Number(monthDay[2]))
+        continue;
+    }
+    const day = word.match(/^(\d{1,2})[号日]$/);
+    if (day && new Date(parsed.date).getDate() !== Number(day[1])) continue;
+    return word;
+  }
+  return null;
+}
+
 /** 正文里的规范日期写法 */
 export const formatDocTaskDate = (ts: number): string => {
   const d = new Date(ts);
@@ -94,12 +186,13 @@ export const formatDocTaskDate = (ts: number): string => {
 export function parseDocTaskText(
   text: string,
   groups: DocTaskGroup[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  binding?: DocTaskGroupBinding | null
 ): Pick<DocTask, "title" | "groupId" | "groupToken" | "dateHint"> {
   let rest = text;
-  const group = matchGroupToken(rest, groups);
+  const group = matchGroupToken(rest, groupsForBinding(rest, groups, binding));
   if (group) rest = rest.replace(group.token, " ");
-  const dateHint = rest.match(ABSOLUTE_DATE)?.[0] ?? extractDateTime(rest, now).hints.date ?? null;
+  const dateHint = docTaskDateHint(rest, now);
   if (dateHint) rest = rest.replace(dateHint, " ");
   return {
     title: collapse(rest),
@@ -130,10 +223,11 @@ export interface DocTaskTokenSpan {
 export function docTaskTokenSpans(
   text: string,
   groups: DocTaskGroup[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  binding?: DocTaskGroupBinding | null
 ): DocTaskTokenSpan[] {
   const spans: DocTaskTokenSpan[] = [];
-  const group = matchGroupToken(text, groups);
+  const group = matchGroupToken(text, groupsForBinding(text, groups, binding));
   let masked = text;
   if (group) {
     const start = text.indexOf(group.token);
@@ -144,7 +238,7 @@ export function docTaskTokenSpans(
       " ".repeat(group.token.length) +
       text.slice(start + group.token.length);
   }
-  const hint = masked.match(ABSOLUTE_DATE)?.[0] ?? extractDateTime(masked, now).hints.date;
+  const hint = docTaskDateHint(masked, now);
   if (hint) {
     const start = masked.indexOf(hint);
     if (start >= 0) spans.push({ kind: "date", start, end: start + hint.length, hint });
@@ -160,6 +254,7 @@ export function resolveDocTaskDue(dateHint: string | null, anchor: number): numb
   if (!dateHint) return null;
   // 写了年份就按绝对日期处理，非法（2 月 30 日）也不再退回相对词规则
   if (ABSOLUTE_DATE.test(dateHint)) return absoluteDate(dateHint)?.date ?? null;
+  if (docTaskDateHint(dateHint, new Date(anchor)) !== dateHint) return null;
   const { date } = extractDateTime(dateHint, new Date(anchor));
   return date === null ? null : dayStart(new Date(date));
 }
@@ -172,6 +267,7 @@ export function extractDocTasks(
 ): { tasks: DocTask[]; missingIds: number } {
   const tasks: DocTask[] = [];
   let missingIds = 0;
+  const seen = new Set<string>();
   const walk = (value: unknown, depth: number, parentTaskId: string | null) => {
     const node = asNode(value);
     if (!node) return;
@@ -181,9 +277,21 @@ export function extractDocTasks(
     }
     const [first, ...nested] = childrenOf(node).map(asNode);
     const taskId = typeof node.taskId === "string" && node.taskId ? node.taskId : null;
-    if (!taskId) missingIds += 1;
+    if (!taskId || seen.has(taskId)) missingIds += 1;
     else {
+      seen.add(taskId);
       const text = first ? collapse(plainText(first)) : "";
+      const parsed = parseDocTaskText(
+        text,
+        groups,
+        now,
+        node.taskGroup as DocTaskGroupBinding | undefined
+      );
+      const anchor = node.taskDateAnchor as { hint?: unknown; at?: unknown; date?: unknown } | null;
+      const anchored =
+        anchor?.hint === parsed.dateHint &&
+        typeof anchor.at === "number" &&
+        Number.isFinite(anchor.at);
       tasks.push({
         taskId,
         text,
@@ -191,7 +299,13 @@ export function extractDocTasks(
         depth,
         parentTaskId,
         order: tasks.length,
-        ...parseDocTaskText(text, groups, now),
+        ...parsed,
+        dateAnchor: anchored ? (anchor.at as number) : null,
+        dueAt: isAbsoluteDateHint(parsed.dateHint)
+          ? resolveDocTaskDue(parsed.dateHint, now.getTime())
+          : anchored && typeof anchor.date === "string"
+            ? resolveDocTaskDue(anchor.date, now.getTime())
+            : null,
       });
     }
     nested.forEach(child => child && walk(child, depth + 1, taskId ?? parentTaskId));

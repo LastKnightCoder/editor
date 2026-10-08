@@ -13,6 +13,11 @@ import {
   type SourceBinding,
 } from "@tau/collaboration";
 import type { RuntimeSession } from "./types";
+import { applySegmentEdits } from "@/entity/text-edits";
+import type { NodeAttributePatcher, TextPatcher, ParagraphPatcher } from "../content-node-patches";
+export { minimalTextEdit } from "@/entity/text-edits";
+import { minimalTextEdit } from "@/entity/text-edits";
+export type { NodeAttributePatcher, TextPatcher } from "../content-node-patches";
 
 const sessions = new Map<Database.Database, Map<number, RuntimeSession>>();
 
@@ -53,36 +58,6 @@ function assertSessionWritable(session: RuntimeSession) {
     throw new Error("CONTENT_SESSION_LOCKED: 内容正在切换或已停止协作");
 }
 
-/** 元素属性补丁：返回 null 表示不改；遍历按文档序，与正文 JSON 的深度优先顺序一致 */
-export type NodeAttributePatcher = (
-  attributes: Record<string, unknown>
-) => Record<string, unknown> | null;
-
-/** 文本补丁：传入一段文字（同一格式的连续文本），返回改后的文字；null 表示不改 */
-export type TextPatcher = (text: string) => string | null;
-
-/** 把 from 改成 to 的最小编辑：公共前后缀不动，只删改中间一段（保留格式与并发输入） */
-export function minimalTextEdit(
-  from: string,
-  to: string
-): { index: number; remove: number; insert: string } | null {
-  if (from === to) return null;
-  let start = 0;
-  while (start < from.length && start < to.length && from[start] === to[start]) start++;
-  let end = 0;
-  while (
-    end < from.length - start &&
-    end < to.length - start &&
-    from[from.length - 1 - end] === to[to.length - 1 - end]
-  )
-    end++;
-  return {
-    index: start,
-    remove: from.length - start - end,
-    insert: to.slice(start, to.length - end),
-  };
-}
-
 /**
  * 在会话文档上就地修改（一次事务，CRDT 增量操作），与正在进行的编辑合并；
  * 返回改动的元素 / 文本段数。不整篇替换，因此不打断光标与撤销栈。
@@ -90,13 +65,38 @@ export function minimalTextEdit(
 export function patchSessionNodes(
   session: RuntimeSession,
   patcher: NodeAttributePatcher,
-  textPatcher?: TextPatcher
+  textPatcher?: TextPatcher,
+  paragraphPatcher?: ParagraphPatcher
 ): number {
   assertSessionWritable(session);
   let patched = 0;
+  const segmentsOf = (
+    text: Y.XmlText
+  ): Array<{ text: string; write: (index: number, remove: number, insert: string) => void }> => {
+    let offset = 0;
+    const segments: ReturnType<typeof segmentsOf> = [];
+    for (const part of text.toDelta()) {
+      if (typeof part.insert === "string") {
+        const start = offset;
+        segments.push({
+          text: part.insert,
+          write: (index, remove, insert) => {
+            if (remove) text.delete(start + index, remove);
+            if (insert) text.insert(start + index, insert, part.attributes);
+          },
+        });
+        offset += part.insert.length;
+      } else {
+        if (part.insert instanceof Y.XmlText) segments.push(...segmentsOf(part.insert));
+        offset++;
+      }
+    }
+    return segments;
+  };
   const walk = (text: Y.XmlText) => {
     let offset = 0;
     const edits: Array<{ index: number; remove: number; insert: string; format?: object }> = [];
+    let childIndex = 0;
     for (const part of text.toDelta() as Array<{ insert: unknown; attributes?: object }>) {
       if (typeof part.insert === "string") {
         const next = textPatcher?.(part.insert);
@@ -108,12 +108,39 @@ export function patchSessionNodes(
       offset += 1;
       if (!(part.insert instanceof Y.XmlText)) continue;
       const element = part.insert;
-      const patch = patcher(element.getAttributes() as Record<string, unknown>);
+      const firstChild = element
+        .toDelta()
+        .find((child: { insert?: unknown }) => child.insert instanceof Y.XmlText)?.insert as
+        Y.XmlText | undefined;
+      const patch = patcher(element.getAttributes() as Record<string, unknown>, {
+        identityKey: element._item
+          ? `y:${element._item.id.client}:${element._item.id.clock}`
+          : undefined,
+        get firstText() {
+          return firstChild
+            ? segmentsOf(firstChild)
+                .map(segment => segment.text)
+                .join("")
+            : "";
+        },
+      });
       if (patch) {
         for (const [key, value] of Object.entries(patch)) element.setAttribute(key, value as never);
         patched++;
       }
       walk(element);
+      if (element.getAttribute("type") === "paragraph" && paragraphPatcher) {
+        const segments = segmentsOf(element);
+        patched += applySegmentEdits(
+          segments,
+          paragraphPatcher(
+            segments.map(segment => segment.text).join(""),
+            text.getAttributes(),
+            childIndex
+          )
+        );
+      }
+      childIndex++;
     }
     // 从后往前改，前面的偏移不受影响
     for (const edit of edits.reverse()) {

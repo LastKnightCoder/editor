@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
+    "./task-ids": "./task-ids.ts",
     "./markdown": "./markdown.ts",
     "./styles.css": "./styles.css"
   },

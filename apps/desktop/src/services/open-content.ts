@@ -7,7 +7,10 @@ import { getPageNavigation, openPage } from "./page-navigation";
 import { serializeEntityLocation, type EntityLocation } from "@/entity/locate";
 
 /** 打开一个实体对应的 Page；异步查询期间切库则放弃导航 */
-export async function openEntity(ref: EntityRef, options: { at?: EntityLocation } = {}) {
+export async function openEntity(
+  ref: EntityRef,
+  options: { at?: EntityLocation; momentId?: number } = {}
+) {
   const position = options.at ? { at: serializeEntityLocation(options.at) } : {};
   const { kind, id } = ref;
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error("内容 ID 无效");
@@ -43,7 +46,10 @@ export async function openEntity(ref: EntityRef, options: { at?: EntityLocation 
       ensureDatabase();
       if (!entry?.date) throw new Error("日记不存在");
       // 旧 weekly / monthly 条目的 date 是 YYYY-Www / YYYY-MM，日记页按归属日定位
-      openPage("diary", { date: normalizeDiaryDay(entry.date, entry.createTime) });
+      openPage("diary", {
+        date: normalizeDiaryDay(entry.date, entry.createTime),
+        ...(options.momentId != null ? { moment: String(options.momentId), ...position } : {}),
+      });
       return;
     }
   }

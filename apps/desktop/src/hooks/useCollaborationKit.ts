@@ -5,6 +5,7 @@ import { IEditorSlots } from "@tau/editor-media/services";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
+import { ITaskIdSource } from "@tau/editor-list/task-ids";
 
 const derived = new WeakMap<EditorCollaborationBinding, Map<EditorKit, EditorKit>>();
 
@@ -21,7 +22,7 @@ export function collaborationKit(
   scenarioKit?: EditorKit
 ): EditorKit {
   const kit = scenarioKit ?? getContentKit();
-  if (!binding || binding.mode === "local") return kit;
+  if (!binding) return kit;
   let cache = derived.get(binding);
   if (!cache) {
     cache = new Map();
@@ -31,6 +32,8 @@ export function collaborationKit(
   if (cached) return cached;
   const base = kit.registry;
   const services: ServiceRegistration = register => {
+    register(ITaskIdSource, { managed: true });
+    if (binding.mode === "local") return;
     register(IResourceService, {
       ...base.get(IResourceService),
       remoteResourceToLocal: url => binding.resolveResource(url),

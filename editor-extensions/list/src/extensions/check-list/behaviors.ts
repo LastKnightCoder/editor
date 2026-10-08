@@ -11,7 +11,7 @@ import {
   isCheckListItemElement,
   isParagraphAndEmpty,
 } from "../../utils";
-import { createTaskId, needsNewTaskId } from "./taskId";
+import { needsNewTaskId, normalizeTaskIds } from "./taskId";
 
 /** 勾选项内回车：空段落退出列表（嵌套时提升一级）；非空末尾插入未勾选新项；其余默认拆行 */
 const insertBreak: ElementBehaviors<CheckListItemElement>["insertBreak"] = editor => {
@@ -336,8 +336,7 @@ const normalizeItem: ElementBehaviors<CheckListItemElement>["normalize"] = (
   }
 
   if (needsNewTaskId(editor, node.taskId, path)) {
-    Transforms.setNodes(editor, { taskId: createTaskId() }, { at: path });
-    return true;
+    if (normalizeTaskIds(editor)) return true;
   }
 
   // 确保只有一个paragraph和可选的一个check-list

@@ -53,6 +53,7 @@ import {
   projectContentTitle,
   projectLocalContent,
   registerContentSession,
+  contentSession,
   unregisterContentSession,
 } from "./content-sessions";
 
@@ -246,7 +247,17 @@ class CollaborationManager {
         source: session.info.source,
         title,
       });
+      const source = session.info.source;
+      const db = source && databaseModule.getDatabase(source.databaseName);
+      if (db?.open && contentSession(db, source!.contentId) === session)
+        ContentTable.ensureTaskIds(db, source!.contentId);
     });
+    const source = session.info.source;
+    const db = source && databaseModule.getDatabase(source.databaseName);
+    if (db?.open && source) {
+      registerContentSession(db, source.contentId, session);
+      if (session.info.status === "active") ContentTable.ensureTaskIds(db, source.contentId);
+    }
     this.attach(session);
     return session;
   }
@@ -324,6 +335,7 @@ class CollaborationManager {
     if (session.info.source?.contentCreatedAt !== content.createTime)
       throw new Error("原内容关联已变化");
     registerContentSession(db, content.id, session);
+    ContentTable.ensureTaskIds(db, content.id);
     return {
       documentId: id,
       mode: session.info.mode || "shared",
