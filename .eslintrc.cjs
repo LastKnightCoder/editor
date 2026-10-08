@@ -31,6 +31,8 @@ const whiteboardPluginIsolation = [
 ];
 
 module.exports = {
+  // 仓库根即配置根：不向上合并仓库外的配置（worktree 放在别的仓库目录下时会撞插件）
+  root: true,
   env: { browser: true, es2022: true, node: true },
   extends: [
     "eslint:recommended",
