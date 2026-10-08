@@ -1,4 +1,12 @@
-import React, { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import React, {
+  memo,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { cn, ConfirmDialog, Dialog, FADE_SCROLL_CLASS, ImagePreview, useEdgeFade } from "@tau/ui";
@@ -14,6 +22,7 @@ import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import PropertyRow from "./PropertyRow";
 import RowCover from "./RowCover";
+import { DatabaseWriteContext } from "../../DatabaseWriteContext";
 import RowDetailHeader from "./RowDetailHeader";
 import TitleField from "./TitleField";
 import {
@@ -57,6 +66,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
   }) => {
     const [currentId, setCurrentId] = useState(rowId);
     const store = useDatabaseStore();
+    const commitRowPatch = useContext(DatabaseWriteContext);
     const { RowDetailBody, Image = BrowserImage } = useDatabaseSlots();
     const bodyRef = useRef<RowDetailBodyHandle>(null);
     const {
@@ -112,6 +122,12 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     }, [row, onClose]);
 
     const commitCell = useMemoizedFn((targetRowId: string, columnId: string, value: CellValue) => {
+      if (commitRowPatch) {
+        Promise.resolve(commitRowPatch(targetRowId, { [columnId]: value })).catch(error => {
+          console.error("保存行属性失败:", error);
+        });
+        return;
+      }
       const column = columns.find(col => col.id === columnId);
       const next = column
         ? pluginManager.transformBeforeSave(column.type, value, column.config)
@@ -240,6 +256,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     isRowPresent={() => store.getState().rows.some(item => item.id === row.id)}
                     onRowChange={patch => {
                       if (!store.getState().rows.some(item => item.id === row.id)) return;
+                      if (commitRowPatch) return commitRowPatch(row.id, patch);
                       for (const [field, value] of Object.entries(patch)) {
                         if (field !== "id") commitCell(row.id, field, value);
                       }

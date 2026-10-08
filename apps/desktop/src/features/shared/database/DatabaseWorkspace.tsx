@@ -93,7 +93,7 @@ const DatabaseWorkspace = memo(
           <Database
             bare
             className="min-h-0 flex-1"
-            key={`${table.id}-${activeView.id}`}
+            key={table.id}
             columns={table.columns as ColumnDef[]}
             data={table.rows as RowData[]}
             views={views}

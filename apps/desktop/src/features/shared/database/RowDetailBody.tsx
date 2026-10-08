@@ -43,7 +43,7 @@ export const RowDetailBody = forwardRef<RowDetailBodyHandle, RowDetailBodyProps>
           const contentId = await commands.createContent(value, 0);
           if (!contentId) return;
           draft.current = null;
-          if (isCurrent()) onRowChange({ detailContentId: contentId });
+          if (isCurrent()) await onRowChange({ detailContentId: contentId });
           else await commands.deleteContent(contentId);
         } catch (error) {
           console.error("保存行详情正文失败:", error);

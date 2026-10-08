@@ -187,7 +187,7 @@ describe("RowDetailModal", () => {
     expect(deleteContent).toHaveBeenCalledWith(73);
   });
 
-  it("直接卸载仍提交未落库正文，并且重复关闭共用一次创建", async () => {
+  it("直接卸载仍提交未落库正文", async () => {
     const { store } = await renderDetail("r1");
     typeInto(
       card().querySelector<HTMLTextAreaElement>('[data-testid="description"]')!,

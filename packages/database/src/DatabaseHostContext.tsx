@@ -14,7 +14,7 @@ export interface RowDetailBodyHandle {
 export interface RowDetailBodyProps {
   row: RowData;
   readonly: boolean;
-  onRowChange(patch: Partial<RowData>): void;
+  onRowChange(patch: Partial<RowData>): void | Promise<void>;
   isRowPresent(): boolean;
   ref?: Ref<RowDetailBodyHandle>;
 }
