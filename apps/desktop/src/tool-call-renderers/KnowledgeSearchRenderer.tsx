@@ -10,7 +10,7 @@ import {
   ToolSectionTitle,
 } from "./ui";
 import ContentDetailModal from "./knowledge/ContentDetailModal";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { markdownToContent } from "@/services/content-editing";
 import { Button, toast } from "@tau/ui";
 import { openEntity } from "@/services/open-content";

@@ -6,7 +6,7 @@ import { CardTagNode, CardListItem, PublishContentType, SelectionFilter } from "
 import { collectCardsFromTagNode, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
 import { ContentPreviewModal } from "../ContentPreviewModal";
 import { useSearch } from "../../hooks";

@@ -571,6 +571,11 @@ class PiSessionHostModule {
         cwd: hosted?.requestedCwd,
         toolSpecs: hosted?.toolSpecs,
         toolScope: hosted?.toolScope,
+        busy: found ? PiSessionHostModule.states().find(state => state.id === found)?.busy : false,
+        messages: hosted
+          ? piEntriesToDesktopMessages(transcriptOf(hosted.session.sessionManager))
+          : undefined,
+        streamingMessage: hosted?.session.state.streamingMessage,
       };
     });
     ipcMain.handle(

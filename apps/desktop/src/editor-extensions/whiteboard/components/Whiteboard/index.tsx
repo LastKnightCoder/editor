@@ -7,7 +7,8 @@ import { Transforms } from "slate";
 import { AddParagraph, type ElementRenderProps } from "@tau/editor/api";
 
 import { If } from "@tau/shared";
-import WhiteBoard, { ViewPort } from "@/components/WhiteBoard";
+import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
+import { ViewPort } from "@tau/whiteboard";
 import { getWhiteBoardContentById, updateSubWhiteBoard } from "@/commands";
 import { WhiteBoardContent } from "@/types";
 

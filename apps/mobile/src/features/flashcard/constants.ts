@@ -1,7 +1,13 @@
-// 闪卡常量：题型元数据、评分档位、卡组调色板、调度间隔预览表。
-// REVIEW_INTERVALS_MIN 与 Rust 侧 flashcard_schedule.rs 的 REVIEW_INTERVALS_MS 同源
-// （仅用于评分按钮上的「下次间隔」文案预览，权威调度在 Rust 侧计算）。
+// 闪卡常量：题型元数据、评分档位、卡组调色板、调度间隔预览。
+// 预览与 Rust 侧 flashcard_schedule.rs 的 fsrs 调度同式，经 @tau/shared/fsrs-schedule 对齐
+// （仅用于评分按钮上的「下次间隔」文案，权威调度在 Rust 侧事务内计算）。
 
+import {
+  fsrsElapsedDays,
+  fsrsGradeOf,
+  fsrsSchedule,
+  type FsrsMemoryState,
+} from "@tau/shared/fsrs-schedule";
 import type {
   FlashcardDifficulty,
   FlashcardReviewRating,
@@ -62,46 +68,27 @@ export const REVIEW_RATINGS: Array<{
   { value: "easy", label: "轻松", color: "var(--sage)" },
 ];
 
-/** 与 Rust REVIEW_INTERVALS_MS 同源的分钟表（预览文案用） */
-const REVIEW_INTERVALS_MIN = [
-  5,
-  30,
-  12 * 60,
-  24 * 60,
-  2 * 24 * 60,
-  4 * 24 * 60,
-  7 * 24 * 60,
-  15 * 24 * 60,
-  30 * 24 * 60,
-  60 * 24 * 60,
-];
-
-const RATING_LEVEL_DELTA: Record<FlashcardReviewRating, number> = {
-  easy: 2,
-  normal: 1,
-  struggle: -1,
-  hard: -2,
-};
-
-const RATING_EASE_DELTA: Record<FlashcardReviewRating, number> = {
-  easy: 0.15,
-  normal: 0,
-  struggle: -0.1,
-  hard: -0.25,
-};
-
-/** 评分按钮上的「下次间隔」预览（与 Rust calculate_schedule 同式：interval × (0.8 + 评分后新 ease×0.2)） */
+/** 评分按钮上的「下次间隔」预览：与 Rust flashcard_schedule.rs（fsrs crate）同式，
+ *  经 @tau/shared/fsrs-schedule 对齐（权威调度在 Rust 侧事务内计算）。 */
 export function nextIntervalPreview(
-  card: { reviewLevel: number; easeFactor: number },
+  card: {
+    memoryStability: number | null;
+    memoryDifficulty: number | null;
+    lastReviewTime: number | null;
+  },
   rating: FlashcardReviewRating
 ): string {
-  const level = Math.max(
-    0,
-    Math.min(REVIEW_INTERVALS_MIN.length - 1, card.reviewLevel + RATING_LEVEL_DELTA[rating])
+  const memory: FsrsMemoryState | null =
+    card.memoryStability != null && card.memoryDifficulty != null
+      ? { stability: card.memoryStability, difficulty: card.memoryDifficulty }
+      : null;
+  const next = fsrsSchedule(
+    memory,
+    fsrsElapsedDays(card.lastReviewTime, Date.now()),
+    fsrsGradeOf(rating)
   );
-  const ease = Math.min(3.5, Math.max(1.3, card.easeFactor + RATING_EASE_DELTA[rating]));
-  const minutes = REVIEW_INTERVALS_MIN[level] * (0.8 + ease * 0.2);
-  if (minutes < 60) return `${Math.round(minutes)} 分钟后`;
+  const minutes = next.intervalDays * 24 * 60;
+  if (minutes < 60) return `${Math.max(1, Math.round(minutes))} 分钟后`;
   if (minutes < 24 * 60) return `${Math.round(minutes / 60)} 小时后`;
   const days = minutes / (24 * 60);
   return `${days >= 10 ? Math.round(days) : Math.round(days * 10) / 10} 天后`;

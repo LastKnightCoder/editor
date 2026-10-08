@@ -5,7 +5,7 @@
  *    只保留文本与基础行内样式（粗 / 斜 / 行内代码），与 legacy ClozeReviewRenderer 口径一致。
  */
 
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { getFlashcardKit } from "@/services/editorKit";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import { Editor } from "@tau/editor";

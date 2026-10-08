@@ -1,16 +1,12 @@
 import { toast } from "@tau/ui";
-import { BoardElement } from "@/components/WhiteBoard/types/board";
+import { BoardElement } from "@tau/whiteboard";
 
 const CLIPBOARD_SOURCE = "editor-white-board";
 
 /**
  * 递归移动元素及其 children
  */
-function moveElementRecursive(
-  element: BoardElement,
-  dx: number,
-  dy: number,
-): void {
+function moveElementRecursive(element: BoardElement, dx: number, dy: number): void {
   // 移动当前元素
   if (typeof element.x === "number" && typeof element.y === "number") {
     element.x += dx;
@@ -36,16 +32,14 @@ function moveElementRecursive(
 /**
  * 构建白板剪贴板数据
  */
-export function buildWhiteBoardClipboardPayload(
-  elements: BoardElement[],
-): string | null {
+export function buildWhiteBoardClipboardPayload(elements: BoardElement[]): string | null {
   if (!elements || elements.length === 0) return null;
 
   // 深拷贝元素数组
   const clonedElements: BoardElement[] = JSON.parse(JSON.stringify(elements));
 
   // 递归移动所有元素（偏移 20px）
-  clonedElements.forEach((element) => {
+  clonedElements.forEach(element => {
     moveElementRecursive(element, 20, 20);
   });
 
@@ -83,11 +77,7 @@ export async function writeClipboardData(payload: string): Promise<boolean> {
 
   // 策略 2: 使用 writeText (降级方案)
   try {
-    if (
-      typeof navigator !== "undefined" &&
-      navigator.clipboard &&
-      navigator.clipboard.writeText
-    ) {
+    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(payload);
       return true;
     }
@@ -96,14 +86,11 @@ export async function writeClipboardData(payload: string): Promise<boolean> {
   }
 
   // 策略 3: 使用 execCommand (最后的降级方案)
-  if (
-    typeof document === "undefined" ||
-    typeof document.execCommand !== "function"
-  ) {
+  if (typeof document === "undefined" || typeof document.execCommand !== "function") {
     return false;
   }
 
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     let resolved = false;
     const cleanup = (result: boolean) => {
       if (resolved) return;
@@ -140,9 +127,7 @@ export async function writeClipboardData(payload: string): Promise<boolean> {
 /**
  * 复制元素到剪贴板
  */
-export async function copyElementsToClipboard(
-  elements: BoardElement[],
-): Promise<void> {
+export async function copyElementsToClipboard(elements: BoardElement[]): Promise<void> {
   try {
     if (!elements || elements.length === 0) {
       toast.error("没有可复制的内容");

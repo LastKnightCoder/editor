@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useDrag, useDrop } from "react-dnd";
 import { Check, Copy, Files, PencilLine, Plus, Trash2 } from "lucide-react";
 import { ContextMenu, Menu, cn } from "@tau/ui";
-import { ChromeButton, ChromeGap } from "@/components/WhiteBoard/chrome";
+import { ChromeButton, ChromeGap } from "@tau/whiteboard";
 
 const DND_TYPE = "WHITEBOARD_PAGE_TAB";
 

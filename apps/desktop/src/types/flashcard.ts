@@ -112,11 +112,12 @@ export interface Flashcard {
   data: FlashcardData;
   tags: string[];
   difficulty: FlashcardDifficulty;
-  reviewLevel: number;
   dueTime: number;
   lastReviewTime: number | null;
   reviewCount: number;
-  easeFactor: number;
+  /** FSRS 记忆状态（稳定性/难度），null = 新卡未学 */
+  memoryStability: number | null;
+  memoryDifficulty: number | null;
   status: FlashcardStatus;
   referenceSummary?: string | null;
   references: FlashcardReference[];
@@ -148,8 +149,9 @@ export interface FlashcardReview {
   rating: FlashcardReviewRating;
   reviewTime: number;
   interval: number;
-  reviewLevel: number;
-  easeFactor: number;
+  /** 该次评分后的 FSRS 记忆状态快照 */
+  stability: number;
+  difficulty: number;
   notes?: string | null;
 }
 
@@ -166,7 +168,7 @@ export interface FlashcardUndoReviewPayload {
   reviewId: number;
   previous: Pick<
     Flashcard,
-    "reviewLevel" | "easeFactor" | "dueTime" | "lastReviewTime" | "reviewCount" | "status"
+    "memoryStability" | "memoryDifficulty" | "dueTime" | "lastReviewTime" | "reviewCount" | "status"
   >;
 }
 

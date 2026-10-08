@@ -189,17 +189,20 @@ export function piSessionUnpack(
   return invoke("pi-session:unpack", { databaseName, archive });
 }
 
-/** 渲染层重载后按 scope 找主进程仍持有的会话（待审批/待回答交互恢复用） */
-export function piSessionFindByScope(scope: string): Promise<
-  Outcome & {
-    sessionId?: string;
-    modelRef?: { providerId: string; modelId: string };
-    thinkingLevel?: PiThinkingLevel;
-    cwd?: string;
-    toolSpecs?: PiHostToolSpec[];
-    toolScope?: string;
-  }
-> {
+export type PiSessionRecovery = Outcome & {
+  sessionId?: string;
+  modelRef?: { providerId: string; modelId: string };
+  thinkingLevel?: PiThinkingLevel;
+  cwd?: string;
+  toolSpecs?: PiHostToolSpec[];
+  toolScope?: string;
+  busy?: boolean;
+  messages?: ChatSessionMessage[];
+  streamingMessage?: Extract<AgentSessionEvent, { type: "message_start" }>["message"];
+};
+
+/** 渲染层重载后按 scope 恢复宿主、运行状态及尚未落盘的回答快照。 */
+export function piSessionFindByScope(scope: string): Promise<PiSessionRecovery> {
   return invoke("pi-session:find-by-scope", { scope });
 }
 

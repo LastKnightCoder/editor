@@ -2,11 +2,13 @@
 @import "@tau/editor-text-formatting/styles.css";
 @import "@tau/editor-comment/styles.css";
 @import "@tau/editor-list/styles.css";
+@import "@tau/whiteboard/styles.css";
 @import "tailwindcss";
 @import "@tau/themes/tokens.css";
 @import "@tau/themes/tailwind.css";
 @import "./assets/fonts/hand/hand-font.css";
 @source "../../../packages/editor/src";
+@source "../../../packages/whiteboard/src";
 @source "../../../editor-extensions/media/src";
 @source "../../../editor-extensions/blockquote/src";
 @source "../../../editor-extensions/callout/src";

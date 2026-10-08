@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { IconButton, Menu, cn } from "@tau/ui";
 import { ContentOutline } from "@/components/ContentOutline";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { showInFolder } from "@/commands";
 import { baseName } from "./paths";
 import { FileTree, type FileTreeHandlers } from "./fileTree/FileTree";

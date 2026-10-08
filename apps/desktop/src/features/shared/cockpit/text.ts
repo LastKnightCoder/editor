@@ -4,7 +4,7 @@
  */
 
 import type { Descendant } from "slate";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
+import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 
 const DAY_MS = 86_400_000;
 

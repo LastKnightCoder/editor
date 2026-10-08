@@ -366,6 +366,7 @@ class DatabaseModule implements Module {
         TodoGroupTable.ensureSystemGroups(database);
         QuestionGroupTable.ensureDefaultGroup(database);
         DiaryTable.ensureDefaultTagSettings(database);
+        FlashcardTable.upgradeTable(database);
         TodoCalendarSyncTable.ensureTodoCalendars(database);
         try {
           TodoCalendarSyncTable.cleanupOrphanedEvents(database);

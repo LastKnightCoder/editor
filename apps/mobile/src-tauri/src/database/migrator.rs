@@ -6,7 +6,7 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 4;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 5;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -173,8 +173,127 @@ fn has_user_tables(conn: &Connection) -> Result<bool, String> {
     .map_err(|e| e.to_string())
 }
 
-/// 数据基线门禁：低于当前 schema 版本且非空库的数据库来自未完成历史升级的旧版本，拒绝进入。
+/// 数据基线门禁：低于 v4 且非空库的数据库来自未完成历史升级的旧版本，拒绝进入；
+/// v4 → v5 走 FSRS 表迁移（migrate_v4_to_v5）。
 /// 后续 schema 演进 = 版本号递增 + 显式迁移代码；hash 变化只负责补建新表与新索引。
+/// v4 → v5：闪卡调度从自研间隔阶梯迁移到 FSRS——flashcards/flashcard_reviews 表重建
+/// （review_level/ease_factor 退役，新增 memory_stability/memory_difficulty 与历史快照列），
+/// 存量卡片记忆状态由 fsrs memory_state_from_sm2 从旧 ease 与最近间隔回填。
+/// 建表语句与 packages/db-schema/schema/main/50_learning.sql、90_indexes.sql 同步，
+/// 桌面端等价实现在 apps/desktop/src-electron/main/modules/tables/flashcard.ts 的 upgradeTable；
+/// migration_tests 校验迁移后列结构与全新建库完全一致。
+fn migrate_v4_to_v5(conn: &Connection) -> Result<(), String> {
+    const MIGRATE_SQL: &str = "
+        CREATE TABLE flashcard_reviews_v5 (
+          id INTEGER PRIMARY KEY,
+          card_id INTEGER NOT NULL,
+          deck_id INTEGER NOT NULL,
+          rating TEXT NOT NULL,
+          review_time INTEGER NOT NULL,
+          interval INTEGER NOT NULL,
+          stability REAL NOT NULL DEFAULT 0,
+          difficulty REAL NOT NULL DEFAULT 0,
+          notes TEXT,
+          FOREIGN KEY(card_id) REFERENCES flashcards(id),
+          FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
+        );
+        INSERT INTO flashcard_reviews_v5 (id, card_id, deck_id, rating, review_time, interval, notes)
+          SELECT id, card_id, deck_id, rating, review_time, interval, notes FROM flashcard_reviews;
+        DROP TABLE flashcard_reviews;
+        ALTER TABLE flashcard_reviews_v5 RENAME TO flashcard_reviews;
+
+        CREATE TABLE flashcards_v5 (
+          id INTEGER PRIMARY KEY,
+          deck_id INTEGER NOT NULL,
+          type TEXT NOT NULL,
+          prompt TEXT NOT NULL,
+          detail TEXT DEFAULT '',
+          data TEXT NOT NULL,
+          tags TEXT DEFAULT '[]',
+          difficulty TEXT DEFAULT 'standard',
+          due_time INTEGER NOT NULL,
+          last_review_time INTEGER,
+          review_count INTEGER DEFAULT 0,
+          memory_stability REAL,
+          memory_difficulty REAL,
+          status TEXT DEFAULT 'new',
+          reference_summary TEXT,
+          create_time INTEGER NOT NULL,
+          update_time INTEGER NOT NULL,
+          FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
+        );
+        INSERT INTO flashcards_v5 (id, deck_id, type, prompt, detail, data, tags, difficulty,
+          due_time, last_review_time, review_count, status, reference_summary, create_time, update_time)
+          SELECT id, deck_id, type, prompt, detail, data, tags, difficulty,
+          due_time, last_review_time, review_count, status, reference_summary, create_time, update_time
+          FROM flashcards;
+        DROP TABLE flashcards;
+        ALTER TABLE flashcards_v5 RENAME TO flashcards;
+
+        CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
+        CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
+        CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
+        CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
+    ";
+
+    // 自愈：上次迁移已提交但版本号未写入（表结构已无 ease_factor）时直接补版本号，
+    // 避免重复迁移在读旧列时 no such column 而永久卡死
+    let has_ease_factor: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('flashcards') WHERE name = 'ease_factor')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
+    if !has_ease_factor {
+        return set_meta(conn, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string());
+    }
+
+    // 迁移输入须在旧表重建前读取：旧 ease 与最近一次调度的间隔
+    let mut stmt = conn
+        .prepare(
+            "SELECT f.id, f.ease_factor, COALESCE(\
+             (SELECT r.interval FROM flashcard_reviews r WHERE r.card_id = f.id ORDER BY r.id DESC LIMIT 1), 0) \
+             FROM flashcards f WHERE f.review_count > 0",
+        )
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: prepare flashcard v4 input: {e}"))?;
+    let inputs: Vec<(i64, f64, i64)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: query flashcard v4 input: {e}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: parse flashcard v4 input: {e}"))?;
+
+    conn.execute_batch("PRAGMA foreign_keys = OFF;")
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: disable foreign_keys: {e}"))?;
+    // 表重建、回填与版本号写入同事务：消除「表已迁移、版本号未写」的中间态
+    let migrate = || -> Result<(), String> {
+        let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v4->v5: {e}"))?;
+        tx.execute_batch(MIGRATE_SQL)
+            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: rebuild flashcard tables: {e}"))?;
+        for (card_id, ease_factor, interval_ms) in &inputs {
+            // memory_from_sm2 以常量参数构造，失败仅理论可能；None 时该卡保持 NULL（=新卡重学）
+            if let Some((stability, difficulty)) =
+                super::flashcard::memory_from_sm2(*ease_factor, *interval_ms)
+            {
+                tx.execute(
+                    "UPDATE flashcards SET memory_stability = ?1, memory_difficulty = ?2 WHERE id = ?3",
+                    params![stability, difficulty, card_id],
+                )
+                .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: backfill memory state: {e}"))?;
+            }
+        }
+        set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+        tx.commit()
+            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v4->v5: {e}"))
+    };
+    let result = migrate();
+    // 失败路径同样恢复连接级外键约束，避免调用方复用连接时失去保护
+    conn.execute_batch("PRAGMA foreign_keys = ON;")
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: restore foreign_keys: {e}"))?;
+    result
+}
+
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
         "
@@ -192,7 +311,9 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     if stored_version > MAIN_SCHEMA_VERSION {
         return Err("DB_SCHEMA_INCOMPATIBLE: 数据库来自更新的移动端，请先升级应用".into());
     }
-    if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
+    if stored_version == MAIN_SCHEMA_VERSION - 1 && has_user_tables(conn)? {
+        migrate_v4_to_v5(conn)?;
+    } else if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
         return Err(
             "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"
                 .into(),

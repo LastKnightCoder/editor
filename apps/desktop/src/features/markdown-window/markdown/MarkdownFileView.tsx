@@ -26,7 +26,7 @@ import { useThrottleFn } from "ahooks";
 import { Code2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import {
   extractContentHeaders,
   resolveEditorHeaderAnchor,

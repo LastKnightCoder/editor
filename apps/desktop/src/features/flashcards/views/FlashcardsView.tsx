@@ -7,15 +7,15 @@
  * 复习 = 沉浸模式：页面换成 ReviewSession（同样一整张纸，纸即题卡），
  * 导航侧栏收成图标列（mac 信号灯画在侧栏里，不整列隐藏），
  * 结束后恢复进入前的侧栏状态。编辑 = CardEditorDialog；删除卡片不确认，Toast 撤销 5 秒后才落库。
- * 键位（本页在栈顶、无浮层、不在输入框时）：R 复习当前范围 · N 新建闪卡。
+ * 键位（本页在栈顶、无浮层、不在输入框时）：N 新建闪卡。
  */
 
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import type { Flashcard, FlashcardDeck, FlashcardType } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, IconButton, Loading, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { BarChart3, FolderPlus, Plus } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -145,9 +145,9 @@ export function FlashcardsView() {
     setEditor({ card: null, deckId: targetDeckId });
   };
 
-  /* 键位：R 复习 · N 新建（仅本页在栈顶，浮层与输入框让位） */
-  const keyHandlers = useRef({ startReview, openNewCard, deckId, reviewing: review !== null });
-  keyHandlers.current = { startReview, openNewCard, deckId, reviewing: review !== null };
+  /* 键位：N 新建（仅本页在栈顶，浮层与输入框让位） */
+  const keyHandlers = useRef({ openNewCard, deckId, reviewing: review !== null });
+  keyHandlers.current = { openNewCard, deckId, reviewing: review !== null };
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       const h = keyHandlers.current;
@@ -155,10 +155,7 @@ export function FlashcardsView() {
       if (navigator.current()?.key !== PAGE_KEY || isEditableTarget(e.target)) return;
       if (overlayOpen()) return;
       const key = e.key.toLowerCase();
-      if (key === "r") {
-        e.preventDefault();
-        h.startReview(h.deckId);
-      } else if (key === "n") {
+      if (key === "n") {
         e.preventDefault();
         h.openNewCard(h.deckId);
       }

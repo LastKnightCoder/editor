@@ -19,7 +19,7 @@ import { useSettingsStore } from "@/app/settingsStore";
 import { MacTrafficLights, WindowControls } from "@/app/WindowControls";
 import { useFullScreen } from "@/app/useFullScreen";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS, type SettingsSectionDef } from "./sections";
 
 export function SettingsScreen() {

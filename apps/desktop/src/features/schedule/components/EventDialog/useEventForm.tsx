@@ -18,7 +18,7 @@ import { AlarmClock, CalendarDays, NotebookText, Palette, Sun } from "lucide-rea
 import { Button, DatePicker, Input, Select, Switch, cn, toast, type SelectOption } from "@tau/ui";
 import { PROJECT_COLORS, type ProjectColorName } from "@/constants/project-colors";
 import type { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
-import { richTextPlainText } from "@/utils/richTextText";
+import { richTextPlainText } from "@tau/shared/rich-text-text";
 import { TONE, toneStyle } from "../../eventTone";
 import {
   useCalendarCatalog,

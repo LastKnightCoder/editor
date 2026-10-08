@@ -6,7 +6,7 @@
 import { PdfAnnotationSubtype, PdfBlendMode, type PdfAnnotationObject } from "@embedpdf/models";
 import type { MessageContentItem } from "@tau/shared";
 import { EHighlightColor, type Note, type PdfAnnotation } from "@/types";
-import { richTextPlainText } from "@/utils/richTextText";
+import { richTextPlainText } from "@tau/shared/rich-text-text";
 
 /** 新建可选的 5 色（粉色只保留给旧标注显示） */
 export const PICKABLE_COLORS = [

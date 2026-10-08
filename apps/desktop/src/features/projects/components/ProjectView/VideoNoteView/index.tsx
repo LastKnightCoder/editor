@@ -19,7 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ConfirmDialog, IconButton, Loading, Menu, Tooltip, cn, toast } from "@tau/ui";
-import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { ResizableAndHideableSidebar as ResizeableAndHideableSidebar } from "@tau/ui";
 import { StageHeader } from "@/components/StageHeader";
 import { DOCK_CHAT_MIN, clampDockChatWidth, useDockResize } from "@/hooks/useDockResize";
 import useSettingStore from "@/stores/useSettingStore";

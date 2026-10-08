@@ -1,15 +1,36 @@
 # 决策记录（轻量 ADR）
 
-## D-119 文档待办：正文是唯一真相源，待办页是镜像
+## D-120 文档待办：正文是唯一真相源，待办页是镜像
 
 （2026-10-08，用户确认；方案与决策细目见 `docs/doc-tasks/01-方案.md`，mockup 见 `apps/desktop/mockups/doc-todos/index.html`）
 
 - 所有文档的 checkbox 默认收集到待办页（按文档可排除）；镜像存索引库、可整表重建，不写 `todo_item`。勾选、改日期、改项目都回写成正文；标题与删除只在原文。需要周期 / 番茄 / 日程时转为独立待办（新 todo_item + 关联原文）。
-- 身份是 `check-list-item.taskId`（归 `@tau/editor-list`，规范化补齐、拆分 / 粘贴去重），不依赖协作层 collabId；写回只经内容层 `patchContentNode`，待办模块不感知协作。
+- 身份是 `check-list-item.taskId`（归 `@tau/editor-list`，规范化补齐、拆分 / 粘贴去重），不依赖协作层 collabId；写回只经内容层 `ContentTable.patchNodes`，待办模块不感知协作。
 - 项目与日期写在正文里（`#项目名` + 日期词，与 quickAdd 同语法），编辑器装饰为胶囊；项目改名同步改写正文。
 - 正文日期一律存带年份的绝对日期（编辑器里相对词按空格即改写）；不经编辑器写入的相对词以首次收集时刻为锚。
 - 用户选择（本文不收集、已转为独立待办）存主库 `doc_task_settings`，不进可重建的索引库。
 - 待办页不改文档条目的日期 / 项目：在原文胶囊菜单上改，少一条回写路径。
+
+## D-118 闪卡复习调度退役自研算法，迁移 FSRS-6 官方库
+
+（2026-10-08，用户确认调研方案后实施）
+
+- 背景：自研「10 档固定间隔阶梯 + SM-2 式 ease」调度在桌面主进程、桌面渲染层、移动 Rust、移动 JS 四处人工同步（靠注释点名 + 单测钉住），且固定阶梯无个性化空间。调研确认 open-spaced-repetition 官方双实现（ts-fsrs / fsrs-rs，后者为 Anki 内置同款）默认参数逐值一致，遂以 FSRS-6 替换。
+- 契约（两端收敛的锚点）：FSRS-6 默认 21 参数显式锁定、期望保留率 0.9、fuzz 关闭、`elapsed_days` 取整数天（floor 毫秒差）、间隔为天（可为小数、fsrs-rs 语义不取整）；评分映射 hard=Again / struggle=Hard / normal=Good / easy=Easy；状态推导 间隔≥1 天→review 否则 learning（new/suspended 由应用层维护）。跨端一致性由 `packages/shared/fsrs-schedule.fixture.json` 对拍钉住：Rust `verify_fixture` 与 `@tau/shared` vitest 读同一份 fixture（fsrs-rs f32 与 ts-fsrs f64 的毫秒级浮点噪声按 1e-3 相对容差吸收）。
+- 实现落位：TS 侧统一封装 `@tau/shared/fsrs-schedule`（ts-fsrs `FSRSAlgorithm.next_state` 公式层，绕开其 scheduler 的取整/学习步骤），桌面主进程 `tables/flashcard.ts` 的 `calculateSchedule`、渲染层 `model.ts` 预览、移动 JS 预览三处共用；Rust 侧 `flashcard_schedule.rs` 用 `fsrs` crate（权威）。表计数与索引不变（parity 68/112）。
+- 数据迁移：`flashcards` 删 `review_level`/`ease_factor`、增 `memory_stability`/`memory_difficulty`（NULL=新卡）；`flashcard_reviews` 两旧快照列换成 `stability`/`difficulty`（历史行填 0——FSRS 优化器只需 rating+间隔序列，快照可重建）。存量已学卡记忆状态由 fsrs `memory_state_from_sm2`（sm2_retention=0.9，稳定性=旧间隔天数）回填。桌面 `FlashcardTable.upgradeTable`（开库 maintenance，按 `review_level` 列存在性幂等）；移动端 migrator `MAIN_SCHEMA_VERSION` 4→5 显式迁移（迁移后列结构与全新建库由测试钉住一致）。撤销凭据 previous 换 memory 双列。
+- 队列排序次级键 `review_level ASC` 换 `memory_stability ASC`（SQLite ASC 下 NULL 新卡排最前，与原语义一致）；「熟练度 level/9」展示改「稳定性 N 天」。
+- 后续（未做）：参数优化器用复习历史训练个性化参数（fsrs-rs Optimizer / ts-fsrs binding），期望保留率设置项。
+
+## D-119 Whiteboard 包化与通用 UI 单一归属
+
+（2026-10-08，用户确认计划，并要求避免复制公共组件）
+
+- 只拆一个私有源码工作区包 `@tau/whiteboard`，包含完整通用画布、交互、基础文字、脑图、演示和导出；不发布 npm、不接入新端、不改变数据和剪贴板格式。
+- 桌面通过 DesktopWhiteboard 注入实例 services/slots；业务弹窗、平台媒体、正文会话和导航归宿主。编辑、低缩放订阅与测量使用相同 Kit 和绑定。
+- 通用容器沿用原实现并迁入 `@tau/ui`，不在白板包维护副本；实体/媒体纯类型归 shared 公共入口。
+- 偏好保留原键；选区、手势、预览、测量和实际占宽按实例隔离。Activity 隐藏暂停效果，卸载才销毁；旧异步结果不得在失效后落地。
+- 根入口与 CSS 为唯一公开路径；源码边界、独立示例和行为测试守护，视觉由用户验收。
 
 ## D-117 Database 组件包化与宿主适配
 

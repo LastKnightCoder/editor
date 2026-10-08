@@ -9,7 +9,7 @@ import {
 } from "react";
 import dayjs from "dayjs";
 import { cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
 import {
   useCalendarCatalog,

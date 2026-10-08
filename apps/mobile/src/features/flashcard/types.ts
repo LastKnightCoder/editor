@@ -87,11 +87,12 @@ export interface Flashcard {
   data: FlashcardData;
   tags: string[];
   difficulty: FlashcardDifficulty;
-  reviewLevel: number;
   dueTime: number;
   lastReviewTime: number | null;
   reviewCount: number;
-  easeFactor: number;
+  /** FSRS 记忆状态（稳定性/难度），null = 新卡未学 */
+  memoryStability: number | null;
+  memoryDifficulty: number | null;
   status: FlashcardStatus;
   referenceSummary?: string | null;
   references: FlashcardReference[];

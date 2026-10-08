@@ -4,8 +4,8 @@
  */
 
 import type { Descendant } from "slate";
-import type { ArrowElement, BoardElement } from "@/components/WhiteBoard";
-import { EArrowLineType, EMarkerType } from "@/components/WhiteBoard";
+import type { ArrowElement, BoardElement } from "@tau/whiteboard";
+import { EArrowLineType, EMarkerType } from "@tau/whiteboard";
 
 export type WhiteboardLayout = "flow-right" | "flow-down" | "grid";
 type WhiteboardTone =

@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import { readVLResourceRange } from "@/commands/vibe-learning";
 import { useChatMarkdownComponents } from "@/components/ChatUI";

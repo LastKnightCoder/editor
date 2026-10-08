@@ -1,5 +1,5 @@
 import { cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { formatTime } from "./useTranscriptSync";
 
 interface TranscriptSegment {

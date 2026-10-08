@@ -13,7 +13,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { queryClient } from "@/queryClient";
 
-/** 首次开库可能需要备份和历史数据迁移，给升级预留时间。 */
 const CONNECT_TIMEOUT_MS = 120_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

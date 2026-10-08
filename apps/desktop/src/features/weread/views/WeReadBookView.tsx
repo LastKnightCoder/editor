@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Highlighter, PanelLeft } from "lucide-react";
 import { IconButton, Loading, Tooltip, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { openExternal } from "@/commands/extra";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { scrollToAndFlash } from "@/utils/flash-element";
