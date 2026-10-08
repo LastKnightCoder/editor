@@ -7,6 +7,7 @@ import { receiveInteractions, usePiInteractionStore } from "../piInteractions";
 const mocks = vi.hoisted(() => ({
   listeners: new Map<string, (event: AgentSessionEvent) => void>(),
   adopt: vi.fn(),
+  find: vi.fn(),
 }));
 vi.mock("@/constants", () => ({ Role: { Assistant: "assistant" } }));
 vi.mock("@/commands/piSession", () => ({
@@ -15,6 +16,7 @@ vi.mock("@/commands/piSession", () => ({
     return () => mocks.listeners.delete(id);
   },
   onPiSessionInteractions: vi.fn(),
+  piSessionFindByScope: mocks.find,
   piSessionInteractions: vi.fn().mockResolvedValue({ ok: true, snapshots: [] }),
   piSessionApproveTool: vi.fn(),
   piSessionAnswerQuestion: vi.fn(),
@@ -95,13 +97,15 @@ describe("pi 待处理交互恢复与后台归约", () => {
   beforeEach(() => {
     usePiInteractionStore.setState({ sessions: {}, readySessions: {} });
     mocks.adopt.mockReset();
+    mocks.find.mockReset();
+    mocks.find.mockResolvedValue({ ok: true, sessionId, busy: true });
   });
   afterEach(() => piChatRuntime.disposeConversation(key));
 
   it("恢复时先绑定事件再开放审批，完成后更新原工具行并落库", async () => {
-    let resolveSession!: (id: string) => void;
+    let resolveSession!: (session: { ok: boolean; sessionId: string; busy: boolean }) => void;
     mocks.adopt.mockReturnValue(
-      new Promise<string>(resolve => {
+      new Promise(resolve => {
         resolveSession = resolve;
       })
     );
@@ -111,9 +115,10 @@ describe("pi 待处理交互恢复与后台归约", () => {
       settle,
     });
     pendingApproval();
-    const restoring = piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
+    const restoring = piChatRuntime.restoreSession(key, "main-chat", chatId);
+    expect(piChatRuntime.isPending(key)).toBe(true);
     expect(usePiInteractionStore.getState().readySessions[sessionId]).not.toBe(true);
-    resolveSession(sessionId);
+    resolveSession({ ok: true, sessionId, busy: true });
     await restoring;
     expect(mocks.listeners.has(sessionId)).toBe(true);
     expect(usePiInteractionStore.getState().readySessions[sessionId]).toBe(true);
@@ -165,7 +170,7 @@ describe("pi 待处理交互恢复与后台归约", () => {
   });
 
   it("等待中的提问同样触发恢复收养，宿主快照置运行态并续流写回原卡", async () => {
-    mocks.adopt.mockResolvedValue(sessionId);
+    mocks.adopt.mockResolvedValue({ ok: true, sessionId, busy: true });
     const container = piChatRuntime.ensureConversation(
       key,
       waitingChat({ toolName: "ask-question", status: "executing" }),
@@ -185,7 +190,7 @@ describe("pi 待处理交互恢复与后台归约", () => {
         },
       ],
     });
-    await piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
     expect(mocks.adopt).toHaveBeenCalledWith("main-chat", chatId, undefined);
     expect(piChatRuntime.isStreaming(key)).toBe(true);
     const execution = () =>
@@ -198,14 +203,139 @@ describe("pi 待处理交互恢复与后台归约", () => {
     });
   });
 
-  // M4 起判定是「有没有结果的 tool_call」：JSONL 在等待期间还没有 toolResult，投影没有 execution
-  it("工具已完成（有结果）时不收养会话", async () => {
+  it("工具已完成也查询宿主；没有仍存活的宿主时允许正常发送", async () => {
     piChatRuntime.ensureConversation(key, waitingChat({ status: "success" }), {
       publish: vi.fn(),
       settle: async chat => chat.messages,
     });
-    await piChatRuntime.restorePendingInteractions(key, "main-chat", chatId);
-    expect(mocks.adopt).not.toHaveBeenCalled();
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
+    expect(mocks.adopt).toHaveBeenCalled();
+    expect(piChatRuntime.isStreaming(key)).toBe(false);
+    expect(piChatRuntime.isPending(key)).toBe(false);
+  });
+
+  it("普通回答生成中刷新：恢复未落盘的快照、接收续流并在结束后解除运行态", async () => {
+    const user = { role: "user", content: [{ type: "text", text: "解释正则表达式" }] };
+    const partial = { role: "assistant", content: [{ type: "text", text: "正则表达式" }] };
+    mocks.adopt.mockResolvedValue({
+      ok: true,
+      sessionId,
+      busy: true,
+      messages: [user],
+      streamingMessage: partial,
+    });
+    const chat = { ...waitingChat(), messages: [user] } as ChatMessage;
+    const final = { role: "assistant", content: "正则表达式用于匹配文本" };
+    const settle = vi.fn(async () => [user, final] as ChatMessage["messages"]);
+    const container = piChatRuntime.ensureConversation(key, chat, { publish: vi.fn(), settle });
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
+
+    expect(piChatRuntime.resolveSessionId(key)).toBe(sessionId);
+    expect(piChatRuntime.isStreaming(key)).toBe(true);
+    expect(container.current.messages.at(-1)?.role).toBe("assistant");
+    mocks.listeners.get(sessionId)?.(
+      assistantMessageEvent("message_end", {
+        content: [{ type: "text", text: final.content }],
+      })
+    );
+    expect(container.current.messages.at(-1)?.content).toBe(final.content);
+    mocks.listeners.get(sessionId)?.({ type: "agent_settled" } as AgentSessionEvent);
+    await Promise.resolve();
+    expect(settle).toHaveBeenCalled();
+    expect(piChatRuntime.isStreaming(key)).toBe(false);
+    expect(container.current.messages).toHaveLength(2);
+  });
+
+  it("首字返回前刷新也恢复运行态，下一条回答正常写入", async () => {
+    const user = { role: "user", content: [{ type: "text", text: "你好" }] };
+    mocks.adopt.mockResolvedValue({ ok: true, sessionId, busy: true, messages: [user] });
+    const container = piChatRuntime.ensureConversation(
+      key,
+      { ...waitingChat(), messages: [user] } as ChatMessage,
+      { publish: vi.fn(), settle: async chat => chat.messages }
+    );
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
+    expect(piChatRuntime.isStreaming(key)).toBe(true);
+    mocks.listeners.get(sessionId)?.(assistantMessageEvent("message_start"));
+    mocks.listeners.get(sessionId)?.(
+      assistantMessageEvent("message_end", {
+        content: [{ type: "text", text: "你好！" }],
+      })
+    );
+    expect(container.current.messages.at(-1)?.content).toBe("你好！");
+  });
+
+  it("刷新期间已完成的回答按宿主投影补齐，保持空闲", async () => {
+    const user = { role: "user", content: [{ type: "text", text: "你好" }] };
+    const answer = { role: "assistant", content: "你好！" };
+    mocks.adopt.mockResolvedValue({ ok: true, sessionId, busy: false, messages: [user, answer] });
+    const container = piChatRuntime.ensureConversation(
+      key,
+      { ...waitingChat(), messages: [user] } as ChatMessage,
+      { publish: vi.fn(), settle: async chat => chat.messages }
+    );
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
+    expect(container.current.messages).toEqual([user, answer]);
+    expect(piChatRuntime.isStreaming(key)).toBe(false);
+  });
+
+  it("宿主在查询后、续流订阅前结束，复核快照补齐回答并解除运行态", async () => {
+    const user = { role: "user", content: [{ type: "text", text: "你好" }] };
+    const answer = { role: "assistant", content: "你好！" };
+    mocks.adopt.mockResolvedValue({ ok: true, sessionId, busy: true, messages: [user] });
+    mocks.find.mockResolvedValue({ ok: true, sessionId, busy: false, messages: [user, answer] });
+    const container = piChatRuntime.ensureConversation(
+      key,
+      { ...waitingChat(), messages: [user] } as ChatMessage,
+      { publish: vi.fn(), settle: async chat => chat.messages }
+    );
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
+    expect(container.current.messages).toMatchObject([user, answer]);
+    expect(piChatRuntime.isStreaming(key)).toBe(false);
+  });
+
+  it("首条回答在查询后、订阅前开始，复核快照恢复当前 turn 并接上续流", async () => {
+    const user = { role: "user", content: [{ type: "text", text: "你好" }] };
+    mocks.adopt.mockResolvedValue({ ok: true, sessionId, busy: true, messages: [user] });
+    mocks.find.mockResolvedValue({
+      ok: true,
+      sessionId,
+      busy: true,
+      messages: [user],
+      streamingMessage: { role: "assistant", content: [{ type: "text", text: "你" }] },
+    });
+    const container = piChatRuntime.ensureConversation(
+      key,
+      { ...waitingChat(), messages: [user] } as ChatMessage,
+      { publish: vi.fn(), settle: async chat => chat.messages }
+    );
+    await piChatRuntime.restoreSession(key, "main-chat", chatId);
+    mocks.listeners.get(sessionId)?.(
+      assistantMessageEvent("message_end", { content: [{ type: "text", text: "你好！" }] })
+    );
+    expect(container.current.messages.at(-1)?.content).toBe("你好！");
+    expect(container.current.messages).toHaveLength(2);
+  });
+
+  it("复核期间已收到新一轮事件，迟到的空闲快照不能覆盖运行态", async () => {
+    let resolveSnapshot!: (snapshot: Record<string, unknown>) => void;
+    mocks.adopt.mockResolvedValue({ ok: true, sessionId, busy: true });
+    mocks.find.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          resolveSnapshot = resolve;
+        })
+    );
+    piChatRuntime.ensureConversation(key, waitingChat(), {
+      publish: vi.fn(),
+      settle: async chat => chat.messages,
+    });
+    const restoring = piChatRuntime.restoreSession(key, "main-chat", chatId);
+    await vi.waitFor(() => expect(mocks.find).toHaveBeenCalled());
+    mocks.listeners.get(sessionId)?.({ type: "agent_start" } as AgentSessionEvent);
+    resolveSnapshot({ ok: true, sessionId, busy: false, messages: [] });
+    await restoring;
+    expect(piChatRuntime.isStreaming(key)).toBe(true);
   });
 
   it("没有 UI 钩子时仍持续归约审批，卸载视图不需要重建会话", () => {
