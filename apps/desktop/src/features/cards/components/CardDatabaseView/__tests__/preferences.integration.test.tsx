@@ -1,7 +1,7 @@
 import { act, forwardRef, useImperativeHandle } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { DatabaseProps, DatabaseRef } from "@/components/Database";
+import type { DatabaseProps, DatabaseRef } from "@tau/database";
 import {
   CARD_DATABASE_PREFERENCES_KEY,
   useCardsDatabasePreferencesStore,

@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
-export interface LayoutEvent {
-  id: number;
+export interface LayoutEvent<Id extends string | number = number> {
+  id: Id;
   startDate: number;
   endDate: number | null;
 }
@@ -87,8 +87,8 @@ export function assignWeekViewLevels(events: LayoutEvent[], weekStart: Date): Ma
 /**
  * 月视图的跨天事件布局信息
  */
-export interface MonthEventSpan {
-  eventId: number;
+export interface MonthEventSpan<Id extends string | number = number> {
+  eventId: Id;
   row: number;
   startCol: number;
   endCol: number;
@@ -108,18 +108,18 @@ export type SortStrategy = "endTimeFirst" | "durationFirst";
  * @param strategy 排序策略：'endTimeFirst' 结束时间优先（短事件优先），'durationFirst' 长度优先（长事件优先）
  * @returns 每行的事件布局信息
  */
-export function assignMonthViewLevels(
+export function assignMonthViewLevels<Id extends string | number>(
   events: Array<{
-    event: LayoutEvent;
-    spans: MonthEventSpan[];
+    event: LayoutEvent<Id>;
+    spans: MonthEventSpan<Id>[];
   }>,
   maxLevels: number,
   strategy: SortStrategy = "endTimeFirst"
-): Map<number, Array<{ eventId: number; span: MonthEventSpan; level: number }>> {
+): Map<number, Array<{ eventId: Id; span: MonthEventSpan<Id>; level: number }>> {
   // 结果：每行的事件布局
   const rowLayouts = new Map<
     number,
-    Array<{ eventId: number; span: MonthEventSpan; level: number }>
+    Array<{ eventId: Id; span: MonthEventSpan<Id>; level: number }>
   >();
 
   // 1. 按开始日期排序事件，相同开始日期时根据策略选择不同的次要排序

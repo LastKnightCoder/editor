@@ -1,4 +1,4 @@
-import { CellPlugin } from "@/components/Database/types";
+import { CellPlugin } from "@tau/database";
 import { Link2 } from "lucide-react";
 import Renderer from "./components/Renderer";
 import { CardLinksPluginConfig } from "./types";

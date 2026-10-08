@@ -38,6 +38,7 @@
 @source "../../../packages/shared/src";
 @source "../../../packages/chat-ui/src";
 @source "../../../packages/ui/src";
+@source "../../../packages/database/src";
 
 @theme {
   --spacing-15: 60px;

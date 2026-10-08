@@ -3,7 +3,7 @@ import { Link2, Plus, X } from "lucide-react";
 import { ConfirmDialog } from "@tau/ui";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
-import { ColumnDef, CellValue } from "@/components/Database/types";
+import { ColumnDef, CellValue } from "@tau/database";
 import { CardLinksPluginConfig } from "../types";
 import { getInlineLinks } from "@/utils";
 import classNames from "classnames";

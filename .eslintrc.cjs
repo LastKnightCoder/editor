@@ -84,6 +84,40 @@ module.exports = {
   },
   overrides: [
     {
+      files: ["packages/database/src/**/*.{ts,tsx}"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@tau/shared",
+                message: "Database 使用 type-only database-types 或 calendar-utils",
+              },
+            ],
+            patterns: [
+              {
+                group: [
+                  "@/*",
+                  "**/apps/**",
+                  "electron",
+                  "electron-*",
+                  "@tau/editor",
+                  "@tau/editor-*",
+                  "slate",
+                  "slate-*",
+                  "antd",
+                  "antd/*",
+                  "@ant-design/*",
+                ],
+                message: "Database 不依赖宿主、编辑器或原生能力",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
       files: [
         "editor-extensions/webview/src/**/*.{ts,tsx}",
         "examples/editor-reminder/src/extension/**/*.{ts,tsx}",

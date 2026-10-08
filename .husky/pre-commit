@@ -1,3 +1,4 @@
 pnpm exec lint-staged
 node scripts/editor-refactor-baseline.mjs --check --quiet
 node scripts/antd-ratchet.mjs --check
+node scripts/check-database-boundaries.mjs

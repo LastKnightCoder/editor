@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { ExternalLink, PanelRight } from "lucide-react";
-import { CellValue, ColumnDef } from "@/components/Database";
-import { normalizeUrl } from "@/components/Database/plugins/LinkPlugin/utils";
+import { CellValue, ColumnDef } from "@tau/database";
+import { normalizeUrl } from "@tau/database";
 import { useMemoizedFn } from "ahooks";
 import { openExternal } from "@/commands";
 import { Tooltip, toast } from "@tau/ui";

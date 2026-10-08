@@ -1,4 +1,4 @@
-import { CellPlugin, CellValue } from "@/components/Database";
+import { CellPlugin, CellValue } from "@tau/database";
 import { FileText } from "lucide-react";
 import { Renderer } from "./components/index";
 import { RichTextPluginValue, RichTextPluginConfig } from "./types";

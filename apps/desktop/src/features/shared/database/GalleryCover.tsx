@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { GalleryCoverProps } from "@/components/Database";
+import type { GalleryCoverProps } from "@tau/database";
 import { getContentById } from "@/commands/content";
 import Editor from "@/components/ContentEditor";
 import LocalImage from "@/components/LocalImage";
