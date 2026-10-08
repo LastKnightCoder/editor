@@ -64,12 +64,9 @@ describe("统一查询投影", () => {
     const config = store.getState().viewConfig;
     const view = (id: number, rowOrder: string[]) => ({
       id,
-      tableId: 0,
       name: String(id),
       type: "table" as const,
       order: id,
-      createTime: 0,
-      updateTime: 0,
       config: { ...config, rowOrder },
     });
     store
@@ -113,12 +110,9 @@ describe("统一查询投影", () => {
     });
     const view = {
       id: 1,
-      tableId: 0,
       name: "看板",
       type: "kanban" as const,
       order: 0,
-      createTime: 0,
-      updateTime: 0,
       config: {
         ...store.getState().viewConfig,
         kanbanConfig: { groupColumnId: "group", columnOrder: ["Y", "X", "Z"] },

@@ -7,7 +7,7 @@ interface TextEditorProps {
   value: CellValue;
   column: ColumnDef;
   onCellValueChange: (newValue: CellValue) => void;
-  onFinishEdit: () => void;
+  onFinishEdit: (restoreFocus?: boolean) => void;
 }
 
 const TextEditor: React.FC<TextEditorProps> = memo(({ value, onCellValueChange, onFinishEdit }) => {
@@ -29,7 +29,7 @@ const TextEditor: React.FC<TextEditorProps> = memo(({ value, onCellValueChange, 
         defaultValue={value?.toString() || ""}
         onChange={onCellValueChange}
         onBlur={onFinishEdit}
-        onPressEnter={onFinishEdit}
+        onPressEnter={() => onFinishEdit(true)}
         contentEditable={true}
         defaultFocus={true}
         className="flex h-full w-full items-center whitespace-nowrap px-2 py-2 text-sm"

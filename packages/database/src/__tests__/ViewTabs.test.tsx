@@ -9,7 +9,7 @@ import PluginManager from "../PluginManager";
 import { builtInPlugins } from "../plugins";
 import { DatabaseContext } from "../DatabaseContext";
 import type { ColumnDef, TableViewConfig } from "../types";
-import type { DataTableView } from "../types";
+import type { DatabaseView } from "../types";
 
 let root: Root | undefined;
 let host: HTMLDivElement;
@@ -44,16 +44,13 @@ const buildFixture = () => {
     groupBy: null,
   };
 
-  const views: DataTableView[] = [
+  const views: DatabaseView[] = [
     {
       id: 1,
-      tableId: 0,
       name: "全部卡片",
       type: "table",
       order: 0,
       config: viewConfig,
-      createTime: 0,
-      updateTime: 0,
     },
   ];
 

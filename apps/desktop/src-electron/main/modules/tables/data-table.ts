@@ -1,5 +1,11 @@
 import Database from "better-sqlite3";
-import { DataTable, CreateDataTable, UpdateDataTable } from "@/types";
+import {
+  DataTable,
+  CreateDataTable,
+  UpdateDataTable,
+  PatchDataTableRow,
+  ApplyDataTableChanges,
+} from "@/types";
 import Operation from "./operation";
 import DataTableViewTable from "./data-table-view";
 import ContentTable from "./content";
@@ -66,6 +72,8 @@ export default class DataTableTable {
     return {
       "data-table:create": this.create.bind(this),
       "data-table:update": this.update.bind(this),
+      "data-table:patch-row": this.patchRow.bind(this),
+      "data-table:apply-changes": this.applyChanges.bind(this),
       "data-table:get-by-id": this.getById.bind(this),
       "data-table:get-detail": this.getDetail.bind(this),
       "data-table:set-active-view": this.setActiveView.bind(this),
@@ -166,6 +174,85 @@ export default class DataTableTable {
     DataTableViewTable.syncViewsWithTable(db, table.id, table.columns || [], table.rows || []);
 
     return this.getById(db, table.id);
+  }
+
+  static patchRow(db: Database.Database, input: PatchDataTableRow): boolean {
+    return db.transaction(() => {
+      const table = this.getById(db, input.tableId);
+      if (!table || (table.refCount ?? 0) <= 0) return false;
+      const row = table.rows.find(item => item.id === input.rowId);
+      if (!row) return false;
+      const fields = Object.keys(input.patch).filter(field => field !== "id");
+      if (!fields.length) return false;
+      for (const field of fields) {
+        if (field !== "detailContentId" && !table.columns.some(column => column.id === field))
+          return false;
+        if (!Object.hasOwn(input.expected, field)) return false;
+        const actual = field === "detailContentId" ? row[field] || 0 : (row[field] ?? null);
+        const expected =
+          field === "detailContentId"
+            ? input.expected[field] || 0
+            : (input.expected[field] ?? null);
+        if (JSON.stringify(actual) !== JSON.stringify(expected)) return false;
+      }
+      const patch = Object.fromEntries(fields.map(field => [field, input.patch[field]]));
+      const rows = table.rows.map(item => (item.id === input.rowId ? { ...item, ...patch } : item));
+      const now = Date.now();
+      db.prepare("UPDATE data_tables SET rows = ?, update_time = ? WHERE id = ?").run(
+        JSON.stringify(rows),
+        now,
+        table.id
+      );
+      Operation.insertOperation(db, "data-table", "update", table.id, now);
+      return true;
+    })();
+  }
+
+  static applyChanges(db: Database.Database, input: ApplyDataTableChanges): DataTable | null {
+    return db.transaction(() => {
+      const table = this.getById(db, input.id);
+      if (!table || (table.refCount ?? 0) <= 0) return null;
+      const removed = new Set(input.rows.remove);
+      const inserted = new Set(input.rows.inserted ?? []);
+      const patches = new Map(input.rows.upsert.map(row => [row.id, row]));
+      const columns = input.columns ?? table.columns;
+      const removedColumns = table.columns.filter(
+        column => !columns.some(next => next.id === column.id)
+      );
+      const rows = table.rows
+        .filter(row => {
+          if (!removed.has(row.id)) return true;
+          if (row.detailContentId) ContentTable.deleteContent(db, row.detailContentId);
+          return false;
+        })
+        .map(row => {
+          const patch = patches.get(row.id);
+          patches.delete(row.id);
+          const allowed = Object.fromEntries(
+            Object.entries(patch ?? {}).filter(
+              ([field]) =>
+                field !== "id" &&
+                (field === "detailContentId" || columns.some(column => column.id === field))
+            )
+          );
+          const next = inserted.has(row.id) ? { ...row } : { ...row, ...allowed };
+          for (const column of removedColumns) delete next[column.id];
+          return next;
+        });
+      for (const [id, row] of patches) {
+        if (inserted.has(id) && !removed.has(id)) rows.push(row);
+      }
+      const now = Date.now();
+      db.prepare("UPDATE data_tables SET columns = ?, rows = ?, update_time = ? WHERE id = ?").run(
+        JSON.stringify(columns),
+        JSON.stringify(rows),
+        now,
+        table.id
+      );
+      DataTableViewTable.syncViewsWithTable(db, table.id, columns, rows);
+      Operation.insertOperation(db, "data-table", "update", table.id, now);
+      return this.getById(db, table.id);
+    })();
   }
 
   static remove(db: Database.Database, id: number): number {

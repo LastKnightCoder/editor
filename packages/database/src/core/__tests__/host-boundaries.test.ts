@@ -5,7 +5,7 @@ import PluginManager from "../../PluginManager";
 describe("宿主边界", () => {
   it("删除行只清理一次原行快照，external 移除不重复清理", () => {
     const cleanup = vi.fn();
-    const row = { id: "r", detailContentId: 12 };
+    const row = { id: "r", resourceRef: 12 };
     const store = createDatabaseStore(
       [],
       [row],
@@ -18,7 +18,7 @@ describe("宿主边界", () => {
     store.getState().deleteRow("r");
     store.getState().deleteRow("r");
     expect(cleanup).toHaveBeenCalledExactlyOnceWith(row);
-    store.getState().dispatch({ type: "rows.receive", rows: [{ id: "s", detailContentId: 13 }] });
+    store.getState().dispatch({ type: "rows.receive", rows: [{ id: "s", resourceRef: 13 }] });
     store
       .getState()
       .dispatch({ type: "rows.apply", changes: { upsert: [], remove: ["s"] } }, "external");

@@ -5,11 +5,13 @@ export function diffRows(before: RowData[], after: RowData[]): RowChanges {
   if (before === after) return { upsert: [], remove: [] };
   const previous = new Map(before.map(row => [row.id, row]));
   const upsert: RowData[] = [];
+  const inserted: string[] = [];
   for (const row of after) {
     const old = previous.get(row.id);
     previous.delete(row.id);
     if (!old) {
       upsert.push(row);
+      inserted.push(row.id);
       continue;
     }
     if (old === row) continue;
@@ -20,7 +22,7 @@ export function diffRows(before: RowData[], after: RowData[]): RowChanges {
     }
     if (Object.keys(patch).length > 1) upsert.push(patch);
   }
-  return { upsert, remove: [...previous.keys()] };
+  return { upsert, remove: [...previous.keys()], ...(inserted.length ? { inserted } : {}) };
 }
 
 export function applyRowChanges(rows: RowData[], changes: RowChanges): RowData[] {

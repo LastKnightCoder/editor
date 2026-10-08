@@ -8,7 +8,7 @@ import {
 } from "@tau/database";
 import { RowDetailBody, isBlankDocument } from "../RowDetailBody";
 const { builtInPlugins } = plugins;
-import { act } from "react";
+import { act, forwardRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
 import type { ColumnDef, RowData, TableViewConfig } from "@tau/database";
 import type { DataTableView } from "@/types";
+import type { RowDetailBodyHandle, RowDetailBodyProps } from "@tau/database";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -99,7 +100,12 @@ const fixtureRows = (): RowData[] => [
 
 async function renderDetail(
   rowId: string,
-  props: Partial<{ onClose: () => void; onDeleteRow: (id: string) => void; readonly: boolean }> = {}
+  props: Partial<{
+    onClose: () => void;
+    onDeleteRow: (id: string) => void;
+    readonly: boolean;
+    Body: typeof RowDetailBody;
+  }> = {}
 ) {
   const fixture = buildStore(fixtureRows());
   const onClose = props.onClose ?? vi.fn();
@@ -109,7 +115,7 @@ async function renderDetail(
   await act(async () => {
     root!.render(
       <DndProvider backend={HTML5Backend}>
-        <DatabaseHostContext.Provider value={{ RowDetailBody }}>
+        <DatabaseHostContext.Provider value={{ RowDetailBody: props.Body ?? RowDetailBody }}>
           <DatabaseContext.Provider value={fixture.store}>
             <RowDetailModal
               rowId={rowId}
@@ -156,6 +162,17 @@ const typeInto = (el: HTMLTextAreaElement, value: string) => {
 };
 
 describe("RowDetailModal", () => {
+  it("持久化拒绝已删除行的晚到正文补丁时释放新内容，不改变旧内存行", async () => {
+    const Body = forwardRef<RowDetailBodyHandle, RowDetailBodyProps>((props, ref) => (
+      <RowDetailBody {...props} ref={ref} onRowChange={async () => false} />
+    ));
+    const { store } = await renderDetail("r1", { Body });
+    typeInto(card().querySelector<HTMLTextAreaElement>('[data-testid="description"]')!, "晚到正文");
+    await press(card(), "j");
+    expect(createContent).toHaveBeenCalledTimes(1);
+    expect(deleteContent).toHaveBeenCalledExactlyOnceWith(42);
+    expect(store.getState().rows.find(row => row.id === "r1")?.detailContentId).toBeUndefined();
+  });
   it("只有空段落的正文不创建内容，媒体节点视为有效正文", () => {
     const paragraph = (text: string) => ({ type: "paragraph", children: [{ text }] }) as Descendant;
     expect(isBlankDocument([paragraph("")])).toBe(true);

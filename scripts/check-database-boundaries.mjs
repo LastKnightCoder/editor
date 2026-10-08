@@ -76,12 +76,42 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
       }
     };
     const visit = node => {
+      if (inPackage && ts.isIdentifier(node)) {
+        assert(
+          ![
+            "tableId",
+            "databaseName",
+            "detailContentId",
+            "refCount",
+            "DataTable",
+            "DataTableView",
+            "CreateDataTableView",
+            "UpdateDataTableView",
+            "DatabaseHookResult",
+          ].includes(node.text),
+          "Database 不感知持久化实体字段：" + relative(root, file) + ": " + node.text
+        );
+      }
       if (
         (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
         node.moduleSpecifier &&
         ts.isStringLiteral(node.moduleSpecifier)
       ) {
         const clause = node.importClause;
+        if (inPackage && clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+          for (const item of clause.namedBindings.elements) {
+            assert(
+              ![
+                "DataTable",
+                "DataTableView",
+                "CreateDataTableView",
+                "UpdateDataTableView",
+                "DatabaseHookResult",
+              ].includes((item.propertyName ?? item.name).text),
+              "Database 不消费持久化模型：" + relative(root, file)
+            );
+          }
+        }
         const typeOnly =
           node.isTypeOnly ||
           clause?.isTypeOnly ||

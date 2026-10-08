@@ -1,12 +1,6 @@
 import type {
   ColumnDef as SharedColumnDef,
   CellValue as SharedCellValue,
-  RowData as SharedRowData,
-  DatabaseData as SharedDatabaseData,
-  DataTableView,
-  DataTableViewType,
-  CreateDataTableView,
-  UpdateDataTableView,
   TableViewConfig,
   GalleryViewConfig,
   CalendarViewConfig,
@@ -27,10 +21,6 @@ import type { DatabaseImage, DatabaseSlots } from "./DatabaseHostContext";
 
 // Re-export shared types
 export type {
-  DataTableView,
-  DataTableViewType,
-  CreateDataTableView,
-  UpdateDataTableView,
   TableViewConfig,
   GalleryViewConfig,
   CalendarViewConfig,
@@ -50,8 +40,29 @@ export type {
 // Extend shared types with local specifics
 export type ColumnDef<T = unknown> = SharedColumnDef<T>;
 export type CellValue = SharedCellValue | DatabaseImage[];
-export type RowData = SharedRowData;
-export type DatabaseData = SharedDatabaseData;
+export interface RowData {
+  id: string;
+  [columnId: string]: CellValue;
+}
+
+export interface DatabaseData {
+  columns: ColumnDef[];
+  rows: RowData[];
+}
+
+export type DatabaseViewType = "table" | "gallery" | "calendar" | "kanban";
+
+export interface DatabaseView {
+  id: number;
+  name: string;
+  type: DatabaseViewType;
+  order: number;
+  config: TableViewConfig;
+}
+
+export type CreateDatabaseView = Omit<DatabaseView, "id" | "config"> & {
+  config?: Partial<TableViewConfig>;
+};
 
 /** 会话查询与持久视图共同组成一次查询，分组策略显式指定。 */
 export interface DatabaseQuery {
@@ -64,6 +75,7 @@ export interface DatabaseQuery {
 export interface RowChanges {
   upsert: RowData[];
   remove: string[];
+  inserted?: string[];
 }
 
 export type DatabaseCommand =
@@ -71,7 +83,7 @@ export type DatabaseCommand =
   | { type: "rows.receive"; rows: RowData[] }
   | { type: "column.configure"; id: string; config: unknown }
   | { type: "column.resize"; id: string; width: number }
-  | { type: "view.receive"; view: DataTableView; activate?: boolean }
+  | { type: "view.receive"; view: DatabaseView; activate?: boolean }
   | { type: "view.remove"; id: number }
   | { type: "views.reorder"; ids: number[] };
 
@@ -79,6 +91,7 @@ export interface DatabaseChange {
   source: "user" | "external";
   rows: RowChanges;
   dataChanged: boolean;
+  columnsChanged?: boolean;
   viewChanged: boolean;
 }
 
@@ -94,19 +107,24 @@ export interface DatabaseProps {
   /** 初始数据；挂载后的外部变更通过 DatabaseRef 显式操作。 */
   data: RowData[];
   columns: ColumnDef[];
-  views: DataTableView[];
+  views: DatabaseView[];
   activeViewId: number;
   viewConfig: TableViewConfig;
   config?: DatabaseConfig;
   plugins?: CellPlugin<unknown>[];
   slots?: DatabaseSlots;
   onRowCleanup?: (row: RowData) => void | Promise<void>;
+  onDetachedRowPatch?: (
+    rowId: string,
+    patch: Partial<RowData>,
+    previousRow: RowData
+  ) => Promise<boolean>;
   onDataChange?: (data: DatabaseData, change: DatabaseChange) => void;
   onViewConfigChange?: (config: TableViewConfig) => void;
   onActiveViewIdChange?: (viewId: number | null) => Promise<void>;
-  onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
+  onCreateView?: (view: CreateDatabaseView) => Promise<DatabaseView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
+  onRenameView?: (viewId: number, name: string) => Promise<DatabaseView | null>;
   onUpdateView?: (
     viewId: number,
     updates: {
@@ -116,7 +134,7 @@ export interface DatabaseProps {
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
     }
-  ) => Promise<DataTableView | null>;
+  ) => Promise<DatabaseView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   onRowDetailOpen?: (row: RowData) => void;
   onRowAdd?: (defaultData?: Partial<RowData>) => void;
@@ -145,7 +163,7 @@ export interface CellPlugin<T> {
     value: CellValue;
     column: ColumnDef;
     onCellValueChange: (newValue: CellValue) => void;
-    onFinishEdit: () => void;
+    onFinishEdit: (restoreFocus?: boolean) => void;
     onColumnChange: (column: ColumnDef) => void;
     theme: "light" | "dark";
     readonly: boolean;
