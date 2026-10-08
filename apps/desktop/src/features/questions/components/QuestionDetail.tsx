@@ -23,7 +23,7 @@ import {
 import { Button, Drawer, IconButton, Loading, Menu, cn, toast, useRetainedValue } from "@tau/ui";
 import type { EditorRef } from "@tau/editor";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { QuestionGroupDTO } from "@/commands/question-group";
 import type {

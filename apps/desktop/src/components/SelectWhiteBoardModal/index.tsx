@@ -11,9 +11,9 @@ import { Check, Files, Presentation, Search } from "lucide-react";
 import { Button, Dialog, Input, Loading, cn } from "@tau/ui";
 
 import { WhiteBoard } from "@/types";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
-import { PageSchematic } from "@/components/WhiteBoard/schematic/PageSchematic";
+import { PageSchematic } from "@tau/whiteboard";
 import {
   displayTitle,
   fullTime,

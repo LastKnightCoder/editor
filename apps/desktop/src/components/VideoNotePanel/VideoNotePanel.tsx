@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog, Tooltip, toast } from "@tau/ui";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import classNames from "classnames";
 import { Descendant, Node } from "slate";
 import { EditorRef } from "@tau/editor";

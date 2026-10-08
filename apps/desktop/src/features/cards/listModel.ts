@@ -3,7 +3,7 @@
  */
 
 import type { ICard } from "@/types";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
+import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 
 export type CardListSort = "created" | "updated" | "words" | "links";
 

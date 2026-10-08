@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useCardTagTree } from "../queries";
 import type { CardTagNode } from "../types";
 

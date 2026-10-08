@@ -26,13 +26,13 @@ import ContentEditor from "@/components/ContentEditor";
 import { ContentEditDialog } from "@/components/ContentEditDialog";
 import { EntityPicker } from "@/components/EntityPicker";
 import { ENTITY_KIND_META } from "@/components/EntityPicker/meta";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { createArticle } from "@/commands/article";
 import { locateEntity } from "@/commands/entity";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { usePage } from "@/page/PageProvider";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
+import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 import { type EntityCandidate, type EntityKind, type TodoNoteLink } from "@/types";
 import {
   doneToday,

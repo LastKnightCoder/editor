@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Presentation, Search, SearchX, X } from "lucide-react";
 import { Button, ConfirmDialog, Input, Loading, Segmented, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import {
   inScope,

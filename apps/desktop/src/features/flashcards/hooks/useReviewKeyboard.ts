@@ -1,4 +1,4 @@
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import type { Flashcard, FlashcardReviewRating } from "@/types";
 import { useEffect, useRef } from "react";
 import { RATINGS, type ReviewAnswer } from "../model";

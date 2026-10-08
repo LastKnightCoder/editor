@@ -6,7 +6,7 @@
 import { ExternalLink } from "lucide-react";
 import { Button, Dialog } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import type { QuestionMaterial } from "@/types";
 import { TARGET_META, materialMeta, relativeDay } from "../model";
 

@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { Popover, Tooltip, cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import {
   AXIS_FROM_HOUR,

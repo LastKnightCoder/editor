@@ -9,7 +9,7 @@ import { DocTreeNode, EntityScope } from "../../types";
 import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SelectAllButton } from "../SearchToolbar";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 
 interface EntityTreeModalProps {
   open: boolean;

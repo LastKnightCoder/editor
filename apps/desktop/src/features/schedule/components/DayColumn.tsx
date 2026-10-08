@@ -11,7 +11,7 @@
 import { useMemo, useState, type CSSProperties, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, CornerDownLeft, Plus } from "lucide-react";
 import { IconButton, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useScheduleStore } from "../uiStore";
 import {
   useCalendarCatalog,

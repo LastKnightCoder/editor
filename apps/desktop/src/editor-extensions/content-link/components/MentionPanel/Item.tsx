@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { FileText, FolderOpen, Newspaper, StickyNote } from "lucide-react";
 import { SearchResult } from "@/types";
-import { richTextPlainText } from "@/utils/richTextText";
+import { richTextPlainText } from "@tau/shared/rich-text-text";
 import { ComposerPanelItem } from "@tau/shared";
 
 interface IItemProps {

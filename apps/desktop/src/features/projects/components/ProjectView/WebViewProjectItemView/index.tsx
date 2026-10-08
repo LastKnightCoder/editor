@@ -37,12 +37,7 @@ import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Descendant, Path, Transforms } from "slate";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
-import {
-  convertFileSrc,
-  getHomeDir,
-  createWebClip,
-  updateWebClip,
-} from "@/commands";
+import { convertFileSrc, getHomeDir, createWebClip, updateWebClip } from "@/commands";
 import { findClippedWebClipId, recordWebClip } from "@/commands/lineage";
 import {
   remoteResourceToLocal,
@@ -68,8 +63,8 @@ import {
 } from "@/components/ContentOutline";
 import EditorComment from "@/components/EditorComment";
 import EditTitleModal from "@/components/EditTitleModal";
-import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import { FadeScroll } from "@/components/FadeScroll";
+import { ResizableAndHideableSidebar as ResizeableAndHideableSidebar } from "@tau/ui";
+import { FadeScroll } from "@tau/ui";
 import {
   getProjectItemById,
   openExternal,

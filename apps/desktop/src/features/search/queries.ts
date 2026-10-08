@@ -9,7 +9,7 @@
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { searchHybridContent } from "@/commands";
-import { richTextPlainText, clampText } from "@/utils/richTextText";
+import { richTextPlainText, clampText } from "@tau/shared/rich-text-text";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import useSettingStore from "@/stores/useSettingStore";
 import { CONTENT_TYPES } from "./searchMeta";

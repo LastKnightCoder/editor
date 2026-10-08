@@ -1,10 +1,4 @@
-import {
-  BoardElement,
-  ViewPort,
-  Selection,
-  PresentationSequence,
-  PageSketch,
-} from "@/components/WhiteBoard";
+import type { WhiteboardSnapshot } from "@tau/whiteboard";
 
 export interface WhiteBoard {
   id: number;
@@ -37,12 +31,5 @@ export interface WhiteBoardContent {
   imgUrl: string; // 白板背景图片
   createTime: number;
   updateTime: number;
-  data: {
-    children: BoardElement[];
-    viewPort: ViewPort;
-    selection: Selection;
-    presentationSequences?: PresentationSequence[];
-    /** 页级画风（D-107），缺省为普通 */
-    sketch?: PageSketch;
-  };
+  data: WhiteboardSnapshot;
 }

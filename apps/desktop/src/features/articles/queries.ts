@@ -23,7 +23,7 @@ import {
   updateArticleIsTop,
 } from "@/commands/article";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
+import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 import type { ArticlePageItem, ArticlePageSort, IArticle } from "@/types";
 import type { ArticleMonthSection } from "./types";
 

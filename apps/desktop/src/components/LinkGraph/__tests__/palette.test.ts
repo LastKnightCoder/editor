@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { THEME_MODES, getThemeRegistry } from "@tau/themes";
-import { contrast, hexTone } from "@/utils/oklch";
+import { contrast, hexTone } from "@tau/shared/color-utils";
 import {
   LABEL_MIN_CONTRAST,
   resolveBackdrop,

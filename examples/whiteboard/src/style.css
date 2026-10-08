@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+@import "@tau/editor-text-formatting/styles.css";
+@import "@tau/whiteboard/styles.css";
+@source "../../../packages/whiteboard/src";
+@source "../../../packages/ui/src";
+@source "../../../packages/editor/src";
+@source "../../../editor-extensions/text-formatting/src";
+@source "../../../editor-extensions/link/src";
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));

@@ -28,7 +28,7 @@ import {
 import { IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import { Editor } from "@tau/editor";
 import { createYjsDocument } from "@tau/editor-collab";

@@ -11,11 +11,11 @@
  */
 
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import type { Flashcard, FlashcardDeck, FlashcardType } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, IconButton, Loading, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { BarChart3, FolderPlus, Plus } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";

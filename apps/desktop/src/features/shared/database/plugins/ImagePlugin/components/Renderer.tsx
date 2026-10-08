@@ -9,7 +9,7 @@ import { ImagePluginValue, ImageItem } from "../types";
 import ImageUpload from "./ImageUpload";
 import { v4 as uuid } from "uuid";
 import { useMemoizedFn } from "ahooks";
-import PortalToBody from "@/components/PortalToBody";
+import { PortalToBody } from "@tau/ui";
 
 interface ImageRendererProps {
   value: ImagePluginValue;

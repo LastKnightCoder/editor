@@ -1,0 +1,362 @@
+import { memo, useMemo, useState, useEffect, useRef } from "react";
+import { useMemoizedFn } from "ahooks";
+import { If as If } from "@tau/ui";
+import ResizeCircle from "../ResizeCircle";
+import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
+import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import SketchRect from "../SketchPaths/SketchRect";
+
+import { cn as classnames } from "@tau/ui";
+
+import { Board, EHandlerPosition, Point, ImageElement } from "../../types";
+import { PointUtil } from "../../utils";
+import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
+import {
+  SELECT_RECT_STROKE,
+  SELECT_RECT_STROKE_WIDTH,
+  SELECT_RECT_FILL_OPACITY,
+  RESIZE_CIRCLE_FILL,
+  RESIZE_CIRCLE_RADIUS,
+  getShadowStyle,
+  SKETCH_MEDIA_FRAME,
+} from "../../constants";
+import {
+  IMAGE_DESCRIPTION_HEIGHT,
+  IMAGE_DESCRIPTION_PADDING,
+  IMAGE_DESCRIPTION_MARGIN,
+  IMAGE_DESCRIPTION_LIGHT_COLOR,
+  IMAGE_DESCRIPTION_DARK_COLOR,
+  IMAGE_DESCRIPTION_PLACEHOLDER,
+  EDescriptionPosition,
+  DEFAULT_DESCRIPTION,
+  DEFAULT_DESCRIPTION_POSITION,
+  DEFAULT_DESCRIPTION_ALIGNMENT,
+  DEFAULT_DESCRIPTION_FONT_SIZE,
+} from "../../constants/image";
+import { EditText, EditTextHandle } from "@tau/ui";
+import useTheme from "../../hooks/useTheme";
+import LocalImage from "../HostImage";
+import { handTextClass } from "../../utils/sketch";
+
+const styles = {
+  descriptionContainer: "flex size-full items-center overflow-visible",
+  left: "justify-start",
+  center: "justify-center",
+  right: "justify-end",
+  descriptionText:
+    "flex h-full min-w-2 w-fit cursor-text items-center text-ellipsis whitespace-normal break-words pl-2 leading-[1.4]",
+  placeholder: "font-normal opacity-60",
+};
+
+interface ImageElementProps {
+  element: ImageElement;
+  onResizeStart?: (element: ImageElement, startPoint: Point) => void;
+  onResize: (
+    board: Board,
+    element: ImageElement,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+    isPreserveRatio?: boolean,
+    isAdsorb?: boolean
+  ) => void;
+  onResizeEnd?: (
+    board: Board,
+    element: ImageElement,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point
+  ) => void;
+}
+
+const ImageElementComponent = memo((props: ImageElementProps) => {
+  const { element, onResize, onResizeStart, onResizeEnd } = props;
+
+  const {
+    id,
+    x,
+    y,
+    width,
+    height,
+    src,
+    showDescription = false,
+    description = DEFAULT_DESCRIPTION,
+    descriptionPosition = DEFAULT_DESCRIPTION_POSITION,
+    descriptionAlignment = DEFAULT_DESCRIPTION_ALIGNMENT,
+    resizable = true,
+    shadowSize,
+  } = element;
+
+  const { isDark } = useTheme();
+
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [tempDescription, setTempDescription] = useState(description);
+  const editTextRef = useRef<EditTextHandle>(null);
+
+  useEffect(() => {
+    setTempDescription(description);
+  }, [description]);
+
+  const board = useBoard();
+  const { isSelected } = useSelectState(id);
+  const sketch = useSketch(element);
+
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
+    useDropArrow(element);
+
+  const [resizePoints] = useMemo(() => {
+    const resizePoints = PointUtil.getResizePointFromRect({
+      x,
+      y,
+      width,
+      height,
+    });
+
+    return [resizePoints];
+  }, [x, y, width, height]);
+
+  const handleOnResizeStart = useMemoizedFn((startPoint: Point) => {
+    onResizeStart?.(element, startPoint);
+  });
+
+  const handleOnResize = useMemoizedFn(
+    (
+      position: EHandlerPosition,
+      startPoint: Point,
+      endPoint: Point,
+      isPreserveRatio?: boolean,
+      isAdsorb?: boolean
+    ) => {
+      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    }
+  );
+
+  const handleOnResizeEnd = useMemoizedFn(
+    (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+      onResizeEnd?.(board, element, position, startPoint, endPoint);
+    }
+  );
+
+  const handleDescriptionChange = useMemoizedFn((value: string) => {
+    setTempDescription(value);
+  });
+
+  const handleDescriptionPressEnter = useMemoizedFn(() => {
+    setIsEditingDescription(false);
+    saveDescription();
+  });
+
+  const saveDescription = useMemoizedFn(() => {
+    if (tempDescription !== description) {
+      const path = board.children.findIndex(item => item.id === id);
+      if (path !== -1) {
+        board.apply({
+          type: "set_node",
+          path: [path],
+          properties: { description: element.description },
+          newProperties: { description: tempDescription },
+        });
+      }
+    }
+  });
+
+  const handleDescriptionClick = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSelected && !isEditingDescription) {
+      setIsEditingDescription(true);
+    }
+  });
+
+  const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
+    // 阻止删除键冒泡，防止删除图片
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.stopPropagation();
+    }
+  });
+
+  const stopPropagation = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+  });
+
+  const handleDoubleClickDescription = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingDescription(true);
+    // 这里提前设置为 true，这样才能 focus，通过 React 状态同步就晚了
+    editTextRef.current?.setContentEditable(true);
+    editTextRef.current?.focusEnd();
+  });
+
+  // 获取描述文字颜色
+  const descriptionColor =
+    element.descriptionStyle?.color ||
+    (isDark ? IMAGE_DESCRIPTION_DARK_COLOR : IMAGE_DESCRIPTION_LIGHT_COLOR);
+
+  // 获取描述文字大小
+  const descriptionFontSize = element.descriptionStyle?.fontSize || DEFAULT_DESCRIPTION_FONT_SIZE;
+
+  const descriptionBackgroundColor = element.descriptionStyle?.backgroundColor || "transparent";
+  const descriptionBorderColor = element.descriptionStyle?.borderColor || "transparent";
+
+  // 计算描述区域高度 - 根据字体大小动态调整
+  const descriptionHeight = Math.max(IMAGE_DESCRIPTION_HEIGHT, descriptionFontSize * 2.5);
+
+  // 计算描述的位置
+  const descriptionY =
+    descriptionPosition === EDescriptionPosition.TOP
+      ? y - descriptionHeight - IMAGE_DESCRIPTION_MARGIN
+      : y + height + IMAGE_DESCRIPTION_MARGIN;
+
+  // 描述文本样式
+  const descriptionTextStyle = {
+    color: descriptionColor,
+    fontSize: `${descriptionFontSize}px`,
+    padding: IMAGE_DESCRIPTION_PADDING,
+    lineHeight: "1.4",
+    overflow: "hidden",
+    backgroundColor: descriptionBackgroundColor,
+    borderColor: descriptionBorderColor,
+    borderWidth: 2,
+    borderRadius: 8,
+  };
+
+  return (
+    <>
+      {showDescription && (
+        <foreignObject
+          x={x}
+          y={descriptionY}
+          width={width}
+          height={descriptionHeight}
+          className="border-none"
+          style={{
+            userSelect: "none",
+            pointerEvents: "auto",
+          }}
+          onPointerDown={stopPropagation}
+          onPointerUp={stopPropagation}
+          onWheel={stopPropagation}
+          onDoubleClick={stopPropagation}
+        >
+          <div
+            className={classnames(styles.descriptionContainer, {
+              [styles[descriptionAlignment]]: true,
+            })}
+            onClick={handleDescriptionClick}
+            onKeyDown={handleKeyDown}
+            onDoubleClick={handleDoubleClickDescription}
+          >
+            <EditText
+              ref={editTextRef}
+              defaultValue={tempDescription}
+              onChange={handleDescriptionChange}
+              onPressEnter={handleDescriptionPressEnter}
+              contentEditable={isEditingDescription}
+              defaultFocus={isEditingDescription}
+              className={classnames(
+                styles.descriptionText,
+                styles[descriptionAlignment],
+                {
+                  "hidden!": !isEditingDescription && !description.trim(),
+                },
+                handTextClass(sketch)
+              )}
+              style={descriptionTextStyle}
+              onBlur={handleDescriptionPressEnter}
+            />
+            {!isEditingDescription && !description.trim() && (
+              <span className={handTextClass(sketch)} style={descriptionTextStyle}>
+                {IMAGE_DESCRIPTION_PLACEHOLDER}
+              </span>
+            )}
+          </div>
+        </foreignObject>
+      )}
+
+      <foreignObject
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        className="border-none"
+        style={{
+          userSelect: "none",
+          overflow: "visible",
+        }}
+      >
+        <LocalImage
+          url={src}
+          alt={description}
+          width={width}
+          height={height}
+          className="select-none object-contain object-center"
+          draggable={false}
+          onDoubleClick={stopPropagation}
+          style={{
+            boxShadow: getShadowStyle(shadowSize, isDark),
+            borderRadius: 4,
+          }}
+        />
+      </foreignObject>
+      {sketch.enabled && (
+        <SketchRect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={4}
+          stroke={SKETCH_MEDIA_FRAME}
+          strokeWidth={1.5}
+          level={sketch.level}
+          seed={sketch.seed}
+        />
+      )}
+
+      <If condition={isSelected}>
+        <g>
+          <rect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fillOpacity={SELECT_RECT_FILL_OPACITY}
+            stroke={SELECT_RECT_STROKE}
+            strokeWidth={SELECT_RECT_STROKE_WIDTH}
+            style={{ pointerEvents: "none" }}
+          />
+          {resizable &&
+            Object.entries(resizePoints).map(([position, point]) => (
+              <ResizeCircle
+                key={position}
+                cx={point.x}
+                cy={point.y}
+                r={RESIZE_CIRCLE_RADIUS}
+                fill={RESIZE_CIRCLE_FILL}
+                position={position as EHandlerPosition}
+                onResizeStart={handleOnResizeStart}
+                onResize={handleOnResize}
+                onResizeEnd={handleOnResizeEnd}
+              />
+            ))}
+        </g>
+      </If>
+      <ArrowConnectPointGroup
+        element={element}
+        points={arrowConnectExtendPoints}
+        isSelected={isSelected}
+        disabled={isMoveArrowClosing}
+      />
+      <If condition={isMoveArrowClosing}>
+        {arrowConnectPoints.map(point => (
+          <ArrowDropConnectPoint
+            key={point.connectId}
+            cx={point.point.x}
+            cy={point.point.y}
+            isActive={activeConnectId === point.connectId}
+          />
+        ))}
+      </If>
+    </>
+  );
+});
+
+export default ImageElementComponent;

@@ -19,7 +19,7 @@ import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { EmptyNote, Panel, PanelNote, PanelTitle, PanelAction, Loading } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useHomeSnapshot, minutesToHM } from "../queries";
 import type { RecentEdit, ReviewDeckLite } from "../types";
 import type { ActiveQuestionPreview } from "@/types";

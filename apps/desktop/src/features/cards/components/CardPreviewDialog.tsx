@@ -18,7 +18,7 @@ import { Maximize2, MoreHorizontal } from "lucide-react";
 import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { formatDate, getContentLength } from "@/utils";
 import { useCardsMutations } from "../queries";
 import type { ICard } from "@/types";

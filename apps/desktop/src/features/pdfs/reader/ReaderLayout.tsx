@@ -46,7 +46,7 @@ import { searchPdfContent, showInFolder } from "@/commands";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import type { EHighlightColor, Pdf, PdfAnnotation, PdfSearchResult } from "@/types";
 import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import {

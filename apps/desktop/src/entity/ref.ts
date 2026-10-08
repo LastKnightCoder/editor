@@ -7,15 +7,9 @@
  */
 
 /** 现阶段覆盖四类正文实体；后续按需扩展 */
-export const ENTITY_REF_KINDS = ["card", "article", "project-item", "diary"] as const;
-
-export type EntityRefKind = (typeof ENTITY_REF_KINDS)[number];
-
-export interface EntityRef {
-  kind: EntityRefKind;
-  /** diary 为 diary_entries.id，其余为各自表的主键 */
-  id: number;
-}
+export { ENTITY_REF_KINDS } from "@tau/shared/entity-ref";
+export type { EntityRef, EntityRefKind } from "@tau/shared/entity-ref";
+import type { EntityRef, EntityRefKind } from "@tau/shared/entity-ref";
 
 const KIND_ALIASES: Record<string, EntityRefKind> = {
   card: "card",
