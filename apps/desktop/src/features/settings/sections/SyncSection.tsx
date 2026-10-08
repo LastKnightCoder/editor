@@ -168,7 +168,7 @@ export function SyncSection() {
     try {
       const ok = await download();
       if (ok) {
-        queryClient.setQueryData(remoteKey, localVersion);
+        queryClient.setQueryData(remoteKey, remoteVersion);
         toast.success("更新成功，已刷新数据库，原文件已备份至 backup 文件夹");
       } else {
         toast.error("下载失败");
