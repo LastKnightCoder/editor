@@ -4,12 +4,13 @@
  */
 
 import Database from "better-sqlite3";
+import dayjs from "dayjs";
+import { normalizeDiaryDay } from "@/utils/diary-day";
 import type { EntityCandidate, EntityKind, EntityLocation, EntitySearchParams } from "@/types";
 import { ENTITY_REF_PRIORITY, type EntityRef, type EntityRefKind } from "@/entity/ref";
 import { contentBlockLines } from "@/entity/text-digest";
 import { contentTitles } from "./content-ai-meta";
 import ContentTable from "./content";
-import DiaryTable from "./diary";
 import MaterialTable from "./material";
 
 /** Slate 文档按块取纯文本：第一块即卡片的开头 */
@@ -47,14 +48,10 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
     ORDER BY update_time DESC LIMIT @limit`,
   white_board: kw => `SELECT id, update_time AS t FROM white_boards
     ${kw ? "WHERE title LIKE @kw OR description LIKE @kw" : ""} ORDER BY update_time DESC LIMIT @limit`,
-  // 日记正文在段落（diary_segments）里；按日期倒序更符合「最近」
-  diary: kw => `SELECT d.id, d.update_time AS t FROM diary_entries d
-    ${
-      kw
-        ? `WHERE d.date LIKE @kw OR EXISTS (SELECT 1 FROM diary_segments s JOIN contents ct ON ct.id = s.content_id
-             WHERE s.diary_id = d.id AND ct.content LIKE @kw)`
-        : ""
-    } ORDER BY d.date DESC, d.update_time DESC LIMIT @limit`,
+  "diary-moment": kw => `SELECT s.id, MAX(s.update_time, ct.update_time) AS t FROM diary_segments s
+    JOIN contents ct ON ct.id = s.content_id
+    ${kw ? "WHERE ct.content LIKE @kw" : ""}
+    ORDER BY t DESC, s.id DESC LIMIT @limit`,
   // 摘录可达数万条：LIKE 全表扫 + LIMIT，规模实测见 entity-search-scale.eval.test.ts
   excerpt: kw => `SELECT id, update_time AS t FROM excerpt WHERE is_deleted = 0
     ${kw ? "AND (quote LIKE @kw OR note LIKE @kw OR source_title LIKE @kw)" : ""}
@@ -178,7 +175,7 @@ export default class EntitySearchTable {
   ): EntityLocation | null {
     const kinds: EntityKind[] = params.kind
       ? [params.kind]
-      : ["card", "article", "project_item", "diary"];
+      : ["card", "article", "project_item", "diary-moment"];
     const get = (sql: string) => db.prepare(sql).get(params.contentId) as any;
     for (const kind of kinds) {
       switch (kind) {
@@ -198,11 +195,18 @@ export default class EntitySearchTable {
             return { kind, id: row.id, projectId: Number(parseJsonArray(row.projects)[0]) || null };
           break;
         }
-        case "diary": {
+        case "diary-moment": {
           const row = get(
-            `SELECT d.id, d.date FROM diary_segments s JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id = ?`
+            `SELECT s.id, s.diary_id, d.date, d.create_time FROM diary_segments s
+             JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id = ?`
           );
-          if (row) return { kind, id: row.id, date: row.date };
+          if (row)
+            return {
+              kind,
+              id: row.id,
+              diaryId: row.diary_id,
+              date: normalizeDiaryDay(row.date, row.create_time),
+            };
           break;
         }
       }
@@ -225,7 +229,7 @@ export default class EntitySearchTable {
           `SELECT 'card' AS kind, id, content_id AS contentId FROM cards WHERE content_id IN (${marks})
            UNION ALL SELECT 'article', id, content_id FROM articles WHERE content_id IN (${marks}) AND is_delete = 0
            UNION ALL SELECT 'project-item', id, content_id FROM project_item WHERE content_id IN (${marks})
-           UNION ALL SELECT DISTINCT 'diary', d.id, s.content_id FROM diary_segments s
+           UNION ALL SELECT DISTINCT 'diary-moment', s.id, s.content_id FROM diary_segments s
              JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id IN (${marks})`
         )
         .all(...batch, ...batch, ...batch, ...batch) as Array<{
@@ -322,21 +326,20 @@ export default class EntitySearchTable {
           meta: pages > 1 ? `${pages} 页` : "",
         };
       }
-      case "diary": {
-        const entry = DiaryTable.getDiaryEntryByIdOrNull(db, id);
-        if (!entry) return null;
-        // 关联落在首段（与全局搜索 diary-daily 的 contentId 口径一致）
-        const contentId = entry.segments[0]?.contentId ?? null;
-        if (contentId == null) return null;
+      case "diary-moment": {
+        const row = get(
+          `SELECT s.content_id, s.diary_id, s.create_time, d.date, d.create_time AS day_create_time
+           FROM diary_segments s JOIN diary_entries d ON d.id = s.diary_id WHERE s.id = ?`
+        );
+        if (!row) return null;
+        const lines = blockLines(content(row.content_id)?.content);
         return {
           ...base,
-          contentId,
-          title: DiaryTable.getDiarySearchTitle(entry),
-          excerpt: entry.segments
-            .flatMap(s => blockLines(s.content))
-            .join(" ")
-            .slice(0, EXCERPT),
-          meta: entry.segments.length > 1 ? `${entry.segments.length} 段` : "",
+          diaryId: row.diary_id,
+          contentId: row.content_id,
+          title: lines[0]?.slice(0, 40) || "空白日记",
+          excerpt: lines.slice(1).join(" ").slice(0, EXCERPT),
+          meta: `${normalizeDiaryDay(row.date, row.day_create_time)} ${dayjs(row.create_time).format("HH:mm")}`,
         };
       }
       default:

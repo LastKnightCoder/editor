@@ -1,16 +1,20 @@
 /**
  * 文档阅读纸（白板 slots.CanvasLayer）：文档卡双击 / ↵ / 「展开」后，从卡片原位展开成可编辑的纸。
- * - 居中：画布压暗，纸居中；卡片是短内容，展开成更小的纸、高度随内容；
+ * - 居中：画布压暗，纸居中；卡片与碎碎念是短内容，展开成更小的纸、高度随内容；
  * - 停靠右侧：画布可继续操作，选中另一张文档卡即换成那一篇；被面板挡住的卡片先平移出来；
  * - 两种摆放可在纸面右上角切换，记住上一次的选择；Esc / 点纸外 / 收起按钮收回原位。
  * 正文经 ContentEditor 实时保存；浮层根节点带 CANVAS_OVERLAY_ATTR，其中的按键、剪贴板、滚轮不归画布。
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn, useUnmount } from "ahooks";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Descendant } from "slate";
+import type { ContentSessionTarget } from "@tau/collaboration";
 import {
   ExternalLink,
   FileText,
+  Feather,
   FolderOpen,
   Minimize2,
   PanelRight,
@@ -33,11 +37,14 @@ import {
   type DocumentKind,
 } from "@tau/whiteboard";
 import ContentEditor from "@/components/ContentEditor";
+import { updateDiarySegment } from "@/commands/diary";
 import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
 import { getContentKit } from "@/services/editorKit";
 import { openEntity } from "@/services/open-content";
+import { openPage } from "@/services/page-navigation";
 import { DesktopEditorOverlayDismiss } from "@/services/editorOverlayDismiss";
 import { DocumentPaper } from "./DocumentPaper";
+import { isCompactDocument } from "./layout";
 import { DOCUMENT_KIND_LABEL, useDocumentSource, type DocumentSource } from "./source";
 import {
   getDocumentReaderStore,
@@ -57,6 +64,7 @@ const KIND_ICON: Record<DocumentKind, typeof FileText> = {
   card: StickyNote,
   article: FileText,
   "project-item": FolderOpen,
+  "diary-moment": Feather,
 };
 
 function computeBox(
@@ -70,9 +78,9 @@ function computeBox(
     const width = Math.min(W - EDGE * 2, Math.max(640, Math.min(720, W * 0.5)));
     return { left: W - width - EDGE, top: EDGE, width, height: H - EDGE * 2 };
   }
-  const card = kind === "card";
-  const width = Math.min(W - 64, card ? 560 : 780);
-  const height = card ? Math.min(H - 40, Math.max(320, docHeight + HEADER_HEIGHT)) : H - 40;
+  const compact = isCompactDocument(kind);
+  const width = Math.min(W - 64, compact ? 560 : 780);
+  const height = compact ? Math.min(H - 40, Math.max(320, docHeight + HEADER_HEIGHT)) : H - 40;
   return { left: (W - width) / 2, top: (H - height) / 2, width, height };
 }
 
@@ -114,6 +122,57 @@ function HeaderButton({
   );
 }
 
+/** 碎碎念节流同步字数与时间（同日记页）；主进程的 diary:changed 只广播其他窗口，同窗口的日记缓存在这里失效 */
+const MOMENT_SYNC_WAIT = 800;
+
+/** 正文编辑器：正文经文档会话落库；碎碎念另外节流同步片段的字数与时间 */
+function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly: boolean }) {
+  const client = useQueryClient();
+  const { moment } = source;
+  const unsaved = useRef<Descendant[] | null>(null);
+  const syncNow = useMemoizedFn(() => {
+    const content = unsaved.current;
+    if (!content || !moment) return;
+    unsaved.current = null;
+    updateDiarySegment({ segmentId: moment.segmentId, content })
+      .then(() => {
+        void client.invalidateQueries({ queryKey: ["diary"] });
+        void client.invalidateQueries({ queryKey: ["home"] });
+      })
+      .catch(() => toast.error("碎碎念同步失败"));
+  });
+  // ahooks 的节流在卸载时会取消尾调用，最后一段改动由 useUnmount 补存
+  const { run: throttledSync } = useThrottleFn(syncNow, { wait: MOMENT_SYNC_WAIT });
+  useUnmount(syncNow);
+
+  const sessionSource: Omit<ContentSessionTarget, "contentId"> | undefined =
+    source.kind === "card"
+      ? { sourceType: "card", sourceId: source.id }
+      : moment
+        ? { sourceType: "content", sourceId: source.contentId }
+        : undefined;
+
+  return (
+    <ContentEditor
+      contentId={source.contentId}
+      kit={getContentKit()}
+      initValue={source.content}
+      readonly={readonly}
+      fallback={<CardContentPreview content={source.content} blocks={Infinity} />}
+      {...(sessionSource ? { source: sessionSource } : {})}
+      editingContext={{ entityType: source.kind, entityId: moment?.segmentId ?? source.id }}
+      {...(moment
+        ? {
+            onChange: (content: Descendant[]) => {
+              unsaved.current = content;
+              throttledSync();
+            },
+          }
+        : {})}
+    />
+  );
+}
+
 interface ReaderProps {
   board: Board;
   element: DocumentElement;
@@ -151,6 +210,8 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     return () => observer.disconnect();
   }, []);
 
+  // 纸面挂上（图层测量完成）后才有文档 DOM 可测
+  const measured = layer !== null;
   useLayoutEffect(() => {
     const doc = docRef.current;
     if (!doc) return;
@@ -158,7 +219,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     const observer = new ResizeObserver(() => setDocHeight(doc.offsetHeight));
     observer.observe(doc);
     return () => observer.disconnect();
-  }, [layer !== null]);
+  }, [measured]);
 
   const setMorphing = (on: boolean) => {
     if (clipRef.current) clipRef.current.dataset.morphing = on ? "true" : "false";
@@ -218,7 +279,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
   };
 
   // 打开：等纸面盒子算出来后从卡片原位长出
-  const ready = box !== null && (source.kind !== "card" || docHeight !== null);
+  const ready = box !== null && (!isCompactDocument(source.kind) || docHeight !== null);
   useLayoutEffect(() => {
     if (!ready || phase.current !== "opening") return;
     const layerEl = layerRef.current!;
@@ -302,6 +363,11 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
 
   const openInPage = useMemoizedFn(() => {
     onClosed();
+    // 碎碎念定位到日记页的那一条；其余按实体打开
+    if (source.moment) {
+      openPage("diary", { date: source.moment.day, moment: String(source.moment.segmentId) });
+      return;
+    }
     openEntity(source).catch(error =>
       toast.error(error instanceof Error ? error.message : "打开失败")
     );
@@ -380,7 +446,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
                   </HeaderButton>
                 )}
                 <HeaderButton
-                  label={`在${DOCUMENT_KIND_LABEL[source.kind]}页打开`}
+                  label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
                   onClick={openInPage}
                 >
                   <ExternalLink className="size-4" strokeWidth={1.75} />
@@ -393,17 +459,10 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
               >
                 <div ref={docRef} className="mx-auto w-fit origin-top-left">
                   <DocumentPaper source={source}>
-                    <ContentEditor
+                    <DocumentEditor
                       key={source.contentId}
-                      contentId={source.contentId}
-                      kit={getContentKit()}
-                      initValue={source.content}
+                      source={source}
                       readonly={board.readonly}
-                      fallback={<CardContentPreview content={source.content} blocks={Infinity} />}
-                      {...(source.kind === "card"
-                        ? { source: { sourceType: "card", sourceId: source.id } }
-                        : {})}
-                      editingContext={{ entityType: source.kind, entityId: source.id }}
                     />
                   </DocumentPaper>
                 </div>
@@ -426,7 +485,7 @@ export function DocumentReaderLayer() {
   const element = openId
     ? (BoardUtil.getElementById(board, openId) as DocumentElement | null)
     : null;
-  const { source, missing } = useDocumentSource(element?.entityRef ?? null);
+  const { source, missing } = useDocumentSource(element);
 
   useEffect(() => {
     const onOpen = (id: string) => {

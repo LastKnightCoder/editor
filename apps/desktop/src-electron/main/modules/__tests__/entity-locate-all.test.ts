@@ -58,12 +58,16 @@ describe("EntitySearchTable.locateAll", () => {
         )
         .run(now, now).lastInsertRowid
     );
-    for (const contentId of contentIds) {
-      db.prepare(
-        `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
-      ).run(now, now, diaryId, contentId);
-    }
-    return diaryId;
+    const ids = contentIds.map(contentId =>
+      Number(
+        db
+          .prepare(
+            `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
+          )
+          .run(now, now, diaryId, contentId).lastInsertRowid
+      )
+    );
+    return ids;
   };
 
   beforeEach(() => {
@@ -97,13 +101,13 @@ describe("EntitySearchTable.locateAll", () => {
     expect(result.has(orphan)).toBe(false);
   });
 
-  it("日记段落反查到日记本身，同一日记的多段不重复", () => {
+  it("同一天的不同正文反查到各自的碎碎念身份", () => {
     const s1 = content();
     const s2 = content();
-    const diaryId = diary([s1, s2]);
+    const [first, second] = diary([s1, s2]);
     const result = EntitySearchTable.locateAll(db, [s1, s2]);
-    expect(result.get(s1)).toEqual([{ kind: "diary", id: diaryId }]);
-    expect(result.get(s2)).toEqual([{ kind: "diary", id: diaryId }]);
+    expect(result.get(s1)).toEqual([{ kind: "diary-moment", id: first }]);
+    expect(result.get(s2)).toEqual([{ kind: "diary-moment", id: second }]);
   });
 
   it("超过一批的正文数也能全部反查", () => {

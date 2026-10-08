@@ -728,12 +728,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   });
 
   // 笔记：EntityPicker 的类型 → 资料里记录的笔记类型
-  const NOTE_KINDS: EntityKind[] = ["card", "article", "project_item", "diary"];
+  const NOTE_KINDS: EntityKind[] = ["card", "article", "project_item", "diary-moment"];
   const NOTE_TYPE: Record<string, string> = {
     card: "card",
     article: "article",
     project_item: "project-item",
-    diary: "diary-daily",
+    "diary-moment": "diary-moment",
   };
   const linkedContentIds = new Set(
     resources

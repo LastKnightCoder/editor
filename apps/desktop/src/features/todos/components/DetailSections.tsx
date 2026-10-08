@@ -239,25 +239,25 @@ export function SubtaskSection({
 /* ---------- 关联笔记 ---------- */
 
 /** 可关联的类型 → todo_note_link.type（沿用全局搜索 IndexType 口径） */
-const NOTE_KINDS = ["card", "article", "project_item", "diary"] satisfies EntityKind[];
+const NOTE_KINDS = ["card", "article", "project_item", "diary-moment"] satisfies EntityKind[];
 const LINK_TYPE: Partial<Record<EntityKind, string>> = {
   card: "card",
   article: "article",
   project_item: "project-item",
-  diary: "diary-daily",
+  "diary-moment": "diary-moment",
 };
 
 const NOTE_KIND: Record<string, { label: string; icon: LucideIcon }> = {
   card: ENTITY_KIND_META.card,
   article: ENTITY_KIND_META.article,
   "project-item": ENTITY_KIND_META.project_item,
-  "diary-daily": ENTITY_KIND_META.diary,
+  "diary-moment": ENTITY_KIND_META["diary-moment"],
 };
 const LINK_KIND: Record<string, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
-  "diary-daily": "diary",
+  "diary-moment": "diary-moment",
 };
 /** 卡片与无主笔记在弹窗里就地编辑，其余打开所在页面 */
 const editsInPlace = (link: TodoNoteLink) => link.type === "card" || isOwnNote(link);
@@ -318,7 +318,8 @@ export function NoteLinksSection({
     if (target?.kind === "article") navigator.push("article-detail", { id: target.id });
     else if (target?.kind === "project_item" && target.projectId != null)
       navigator.push("project-detail", { id: target.projectId, itemId: target.id });
-    else if (target?.kind === "diary") navigator.push("diary", { date: target.date });
+    else if (target?.kind === "diary-moment")
+      navigator.push("diary", { date: target.date, moment: String(target.id) });
     else toast.info("原内容已不存在，可以取消关联");
   };
 

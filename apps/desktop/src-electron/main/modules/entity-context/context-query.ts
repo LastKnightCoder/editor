@@ -36,7 +36,7 @@ const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
-  diary: "diary",
+  "diary-moment": "diary-moment",
 };
 
 const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = {
@@ -45,7 +45,7 @@ const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = 
   "project-item": "project_item",
 };
 
-/** 实体对应的正文；日记有多段，全部算作它的正文 */
+/** 一个正文实体对应的内容 id */
 function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
   const one = (sql: string) =>
     (db.prepare(sql).get(ref.id) as { content_id: number | null } | undefined)?.content_id;
@@ -60,12 +60,8 @@ function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
     case "project-item":
       ids = [one(`SELECT content_id FROM project_item WHERE id = ?`)];
       break;
-    case "diary":
-      ids = (
-        db
-          .prepare(`SELECT content_id FROM diary_segments WHERE diary_id = ? ORDER BY id`)
-          .all(ref.id) as Array<{ content_id: number | null }>
-      ).map(row => row.content_id);
+    case "diary-moment":
+      ids = [one(`SELECT content_id FROM diary_segments WHERE id = ?`)];
       break;
   }
   return ids.filter((id): id is number => typeof id === "number" && id > 0);
@@ -74,19 +70,14 @@ function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
 function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
   const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
   if (!candidate) return null;
-  // 搜索标题是「YYYY-MM-DD 日记」；浮层行尾已有类型名，标题只留日期
-  if (ref.kind === "diary") {
-    return {
-      ref,
-      title: candidate.title.replace(/\s*日记$/, ""),
-      meta: candidate.meta ? `日记 · ${candidate.meta}` : "日记",
-    };
-  }
   return { ref, title: candidate.title, meta: candidate.meta };
 }
 
 /** 日记一天有多条（segment），按引用所在的正文定位到那一条 */
-function diaryMomentTarget(db: Database.Database, contentId: number): ContextOpenTarget | undefined {
+function diaryMomentTarget(
+  db: Database.Database,
+  contentId: number
+): ContextOpenTarget | undefined {
   const row = db
     .prepare(
       `SELECT s.id, s.create_time, e.date FROM diary_segments s
@@ -104,7 +95,7 @@ function withDiaryMoment(
   entity: ContextEntity,
   contentId: number | null
 ): ContextEntity {
-  if (entity.ref.kind !== "diary" || contentId == null) return entity;
+  if (entity.ref.kind !== "diary-moment" || contentId == null) return entity;
   const open = diaryMomentTarget(db, contentId);
   return open ? { ...entity, open } : entity;
 }
@@ -187,7 +178,8 @@ function backlinksOf(
     if (!source) continue;
     const locatedSource = withDiaryMoment(mainDb, source, group.contentId);
     if (locatedSource.open?.page === "diary") locatedSource.open.at = { block: group.block };
-    if (source.ref.kind !== "diary") locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
+    if (source.ref.kind !== "diary-moment")
+      locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
     backlinks.push({ source: locatedSource, snippets: group.snippets });
   }
   return { backlinks, total: groups.size, unresolved: [...unresolved] };

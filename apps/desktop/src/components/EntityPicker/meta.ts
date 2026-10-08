@@ -1,5 +1,5 @@
 import {
-  CalendarDays,
+  Feather,
   File,
   FileText,
   FolderKanban,
@@ -20,7 +20,7 @@ export const ENTITY_KIND_META: Record<EntityKind, { label: string; icon: LucideI
   project_item: { label: "项目文档", icon: File },
   project: { label: "项目", icon: FolderKanban },
   white_board: { label: "白板", icon: Presentation },
-  diary: { label: "日记", icon: CalendarDays },
+  "diary-moment": { label: "日记", icon: Feather },
   excerpt: { label: "划线", icon: Highlighter },
   "pdf-annotation": { label: "PDF 标注", icon: ScrollText },
   "web-clip": { label: "剪藏", icon: Globe },

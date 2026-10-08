@@ -18,14 +18,15 @@ import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
 
 /** 文档卡可指向的正文实体，写法同 EntityRefKind */
-export type DocumentKind = "card" | "article" | "project-item";
+export type DocumentKind = "card" | "article" | "project-item" | "diary-moment";
 
 /**
- * 文档卡：引用一篇库里的正文（卡片 / 文章 / 项目文档）。画布上只读预览，展开后编辑；
+ * 文档卡：引用一篇库里的正文（卡片 / 文章 / 项目文档 / 日记里的一条碎碎念）。画布上只读预览，展开后编辑；
  * 正文不存在元素上，删除元素不影响原文。只存 entityRef，不存 contentId——白板保存按 contentId 计引用。
  */
 export interface DocumentElement extends CommonElement {
   type: "document";
+  /** 正文实体身份；碎碎念的 id 是 diary_segments.id */
   entityRef: { kind: DocumentKind; id: number };
   /** 插入时的标题快照：元素树行名，正文读不到时兜底 */
   title?: string;
@@ -34,11 +35,12 @@ export interface DocumentElement extends CommonElement {
 /** 展开请求：宿主监听后打开阅读纸 */
 export const DOCUMENT_OPEN_EVENT = "document:open";
 
-/** 新建时的默认尺寸：卡片短，文章与项目文档竖版 */
+/** 新建时的默认尺寸：卡片与碎碎念短，文章与项目文档竖版 */
 export const DOCUMENT_DEFAULT_SIZE: Record<DocumentKind, { width: number; height: number }> = {
   card: { width: 260, height: 240 },
   article: { width: 280, height: 360 },
   "project-item": { width: 280, height: 360 },
+  "diary-moment": { width: 260, height: 240 },
 };
 const MIN_SIZE = 120;
 

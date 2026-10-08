@@ -15,7 +15,13 @@ import {
   useDocumentReaderPreference,
 } from "../components/Document/readerStore";
 
-const mocks = vi.hoisted(() => ({ openEntity: vi.fn(async () => {}) }));
+const mocks = vi.hoisted(() => ({
+  openEntity: vi.fn(async () => {}),
+  openPage: vi.fn(),
+  updateDiarySegment: vi.fn(async () => null),
+  /** 当前编辑器的 onChange，模拟在阅读纸里打字 */
+  editorChange: undefined as ((content: unknown[]) => void) | undefined,
+}));
 
 vi.mock("@/stores/useSettingStore", () => {
   const state = { setting: { database: { active: "db" } } };
@@ -48,9 +54,33 @@ vi.mock("@/commands/project", () => ({
   getProjectItemById: async () => null,
   getProjectById: async () => null,
 }));
-vi.mock("@/components/ContentEditor", () => ({
-  default: ({ contentId }: { contentId: number }) => <div data-testid="editor">{contentId}</div>,
+vi.mock("@/commands/diary", () => ({
+  getDiaryMoment: async (id: number) => ({
+    id,
+    entryDate: "2026-10-08",
+    weather: { type: "emoji", value: "☀️" },
+    mood: null,
+    createTime: 0,
+    contentId: 302,
+    content: [],
+    tags: ["散步"],
+    updateTime: 0,
+  }),
+  updateDiarySegment: mocks.updateDiarySegment,
 }));
+vi.mock("@/components/ContentEditor", () => ({
+  default: ({
+    contentId,
+    onChange,
+  }: {
+    contentId: number;
+    onChange?: (content: unknown[]) => void;
+  }) => {
+    mocks.editorChange = onChange;
+    return <div data-testid="editor">{contentId}</div>;
+  },
+}));
+vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
 vi.mock("@/features/cards/components/CardContentPreview", () => ({
   CardContentPreview: () => <div data-testid="preview" />,
 }));
@@ -72,6 +102,7 @@ const doc = (id: string, ref: DocumentElement["entityRef"], x = 0): DocumentElem
 let root: Root;
 let host: HTMLDivElement;
 let board: Board;
+let client: QueryClient;
 
 function Capture() {
   board = useBoard();
@@ -111,12 +142,16 @@ beforeEach(async () => {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await act(async () =>
     root.render(
       <QueryClientProvider client={client}>
         <WhiteBoard
-          initData={[doc("a", { kind: "card", id: 1 }), doc("b", { kind: "article", id: 2 }, 400)]}
+          initData={[
+            doc("a", { kind: "card", id: 1 }),
+            doc("b", { kind: "article", id: 2 }, 400),
+            doc("c", { kind: "diary-moment", id: 32 }, 800),
+          ]}
           showToolbar={false}
           showAttributeSetter={false}
           showStatusBar={false}
@@ -136,6 +171,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+  vi.clearAllMocks();
 });
 
 describe("文档阅读纸", () => {
@@ -200,5 +236,31 @@ describe("文档阅读纸", () => {
     await act(async () => board.apply({ type: "remove_node", path: [0], node }));
     await flush();
     expect(reader()).toBeNull();
+  });
+
+  it("碎碎念：只展开选中的那一条，头部是日期时间与天气", async () => {
+    await act(async () => board.emit(DOCUMENT_OPEN_EVENT, "c"));
+    await flush();
+    const editors = [...host.querySelectorAll('[data-testid="editor"]')].map(el => el.textContent);
+    expect(editors).toEqual(["302"]);
+    expect(reader()?.textContent).toContain("2026年10月8日");
+    expect(reader()?.textContent).toContain("☀️");
+    expect(reader()?.textContent).toContain("#散步");
+  });
+
+  it("碎碎念：编辑后同步该片段并失效同窗口的日记缓存；在日记页打开定位到那一条", async () => {
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    await act(async () => board.emit(DOCUMENT_OPEN_EVENT, "c"));
+    await flush();
+    const content = [{ type: "paragraph", children: [{ text: "傍晚去河边走了走" }] }];
+    await act(async () => mocks.editorChange!(content));
+    await flush();
+    expect(mocks.updateDiarySegment).toHaveBeenCalledWith({ segmentId: 32, content });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["diary"] });
+
+    await act(async () => button("在日记页打开").click());
+    await flush();
+    expect(mocks.openPage).toHaveBeenCalledWith("diary", { date: "2026-10-08", moment: "32" });
+    expect(mocks.openEntity).not.toHaveBeenCalled();
   });
 });

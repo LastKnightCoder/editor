@@ -47,11 +47,13 @@ import { CollaborationLocalStore } from "./local-store";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
+import { diaryLinkPatcher } from "../diary-entity-upgrade";
 import { localSessionId, resolveSessionId } from "./session-identity";
 import {
   findContentTitle,
   projectContentTitle,
   projectLocalContent,
+  patchSessionNodes,
   registerContentSession,
   unregisterContentSession,
 } from "./content-sessions";
@@ -323,6 +325,9 @@ class CollaborationManager {
     }
     if (session.info.source?.contentCreatedAt !== content.createTime)
       throw new Error("原内容关联已变化");
+    // 缓存的会话正文也需同步日记引用身份，避免旧快照覆盖开库转换后的正文。
+    if (session.info.status === "active" && !session.info.frozen && !session.info.leaving)
+      patchSessionNodes(session, diaryLinkPatcher(db));
     registerContentSession(db, content.id, session);
     return {
       documentId: id,
@@ -854,6 +859,8 @@ class CollaborationManager {
       if (!source) return;
       const local = session.info.mode === "local";
       if (local && findCollaborationBinding(database, source.contentId)) return;
+      if (session.info.status === "active" && !session.info.frozen && !session.info.leaving)
+        patchSessionNodes(session, diaryLinkPatcher(database));
       if (!local) {
         restorePrivateNodes(database, source, session.privateNodes);
         this.store.privateNodes(session.info.id, session.privateNodes);

@@ -244,7 +244,7 @@ describe("ContextBadge", () => {
       backlinks: [
         {
           source: {
-            ref: { kind: "diary", id: 4 },
+            ref: { kind: "diary-moment", id: 12 },
             title: "2025-11-13",
             meta: "日记",
             open: { page: "diary", date: "2025-11-13", momentId: 12 },

@@ -65,7 +65,7 @@ vi.mock("../tables/article", () => ({
   default: { getAllArticles: () => mockContext.state.articles },
 }));
 vi.mock("../tables/project", () => ({ default: { getAllProjectItems: () => [] } }));
-vi.mock("../tables/diary", () => ({ default: { getAllDiaryEntries: () => [] } }));
+vi.mock("../tables/diary", () => ({ default: { getAllDiarySegmentsFlat: () => [] } }));
 vi.mock("../tables/vec-document", () => ({ default: mockContext.vecTableMock }));
 vi.mock("../material-index", () => ({
   MATERIAL_INDEX_TYPES: ["excerpt", "pdf-annotation", "web-clip"],

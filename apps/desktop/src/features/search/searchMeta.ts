@@ -41,7 +41,7 @@ export const CONTENT_TYPES: Record<
     tag: "bg-tag-4-soft text-tag-4",
     icon: FolderKanban,
   },
-  "diary-daily": { label: "日记", navKey: "diary", tag: "bg-warn-soft text-warn", icon: PenLine },
+  "diary-moment": { label: "日记", navKey: "diary", tag: "bg-warn-soft text-warn", icon: PenLine },
   // 外部材料：命中后经 openMaterialTarget 打开到原处，navKey 只在无法定位时兜底
   excerpt: { label: "划线", navKey: "weread", tag: "bg-tag-2-soft text-tag-2", icon: Highlighter },
   "pdf-annotation": {
@@ -61,7 +61,7 @@ export const SCOPE_ORDER: PaletteScope[] = [
   "card",
   "article",
   "project-item",
-  "diary-daily",
+  "diary-moment",
   "material",
   "cmd",
 ];
