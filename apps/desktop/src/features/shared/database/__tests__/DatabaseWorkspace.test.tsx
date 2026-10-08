@@ -8,15 +8,22 @@ const { hookResult, setHookResult } = vi.hoisted(() => ({
     hookResult.current = value;
   },
 }));
+const { databaseMount } = vi.hoisted(() => ({ databaseMount: vi.fn() }));
 
 vi.mock("@tau/shared", () => ({
   useEditDatabaseWithContext: (_tableId?: number) => hookResult.current,
 }));
-vi.mock("@/features/shared/database/DesktopDatabase", () => ({
-  DesktopDatabase: (props: Record<string, unknown>) => (
-    <div data-database={String(props.activeViewId)} />
-  ),
-}));
+vi.mock("@/features/shared/database/DesktopDatabase", async () => {
+  const { useEffect } = await import("react");
+  return {
+    DesktopDatabase: function Probe(props: Record<string, unknown>) {
+      useEffect(() => {
+        databaseMount();
+      }, []);
+      return <div data-database={String(props.activeViewId)} />;
+    },
+  };
+});
 vi.mock("@tau/ui", async importOriginal => ({
   ...(await importOriginal<typeof import("@tau/ui")>()),
   EditText: ({
@@ -75,6 +82,25 @@ const render = (props: Partial<DatabaseWorkspaceProps>) => {
 };
 
 describe("DatabaseWorkspace（表格工作台共享骨架）", () => {
+  it("同一张表切换视图不重挂载 Database 实例", () => {
+    const state = makeHookResult();
+    const props: DatabaseWorkspaceProps = {
+      tableId: 9,
+      titleKey: 1,
+      title: "表格",
+      onTitleChange: vi.fn(),
+      onTitleCommit: vi.fn(async () => {}),
+    };
+    setHookResult(state);
+    render(props);
+    expect(databaseMount).toHaveBeenCalledTimes(1);
+    setHookResult({ ...state, activeViewId: 4 });
+    act(() => {
+      root!.render(<DatabaseWorkspace {...props} title="表格（更新）" />);
+    });
+    expect(container.querySelector("[data-database='4']")).toBeTruthy();
+    expect(databaseMount).toHaveBeenCalledTimes(1);
+  });
   it("表格数据就绪后渲染 Database 视图区", () => {
     setHookResult(makeHookResult() as never);
     render({

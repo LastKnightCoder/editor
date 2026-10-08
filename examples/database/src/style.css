@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+@source "../../../packages/database/src";
+@source "../../../packages/ui/src";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));

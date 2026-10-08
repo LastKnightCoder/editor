@@ -89,7 +89,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     return (
       <div style={{ minHeight: `${height}em` }}>
         <Database
-          key={`${databaseState.table.id}-${activeView.id}`}
+          key={databaseState.table.id}
           columns={databaseState.table.columns}
           data={databaseState.table.rows}
           views={views}

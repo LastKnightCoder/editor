@@ -43,6 +43,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 - 外部确认更新经 `ref.dispatch(command, "external")`，不触发保存回调；使用 rows.apply 提交字段差量，rows.receive 提交确认快照。
 - 查询经 `ref.setQuery()` 接入；四种视图、键盘与拖拽共用内部 projection。
 - 键盘仅作用于事件目标所在实例，输入、输入法组合及导航组合键让行。
+- 行详情的卸载草稿和异步正文经实例行补丁入口提交；父级订阅退出后仍调用宿主保存，已删除行拒绝补丁。宿主只按表身份建立实例，不按活动视图重挂载。
 - 存储模型归 shared，经 `@tau/shared/database-types` 仅类型导入；本包不访问 SQLite、Electron 或业务页面。
 
 ## 宿主能力

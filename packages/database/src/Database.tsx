@@ -11,6 +11,7 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { ConfirmDialog, cn, isEditableTarget } from "@tau/ui";
 import { useThemeStore } from "@tau/themes/react";
 import { DatabaseHostContext } from "./DatabaseHostContext";
+import { DatabaseWriteContext } from "./DatabaseWriteContext";
 
 import {
   CellPlugin,
@@ -98,6 +99,28 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     );
 
     const systemTheme = useThemeStore(state => state.mode);
+    const subscriptionActive = useRef(false);
+    const commitRowPatch = useMemoizedFn((rowId: string, patch: Partial<RowData>) => {
+      const state = store.getState();
+      if (!state.rows.some(row => row.id === rowId)) return;
+      const values: RowData = Object.assign(Object.create(null), { id: rowId });
+      for (const [field, value] of Object.entries(patch)) {
+        if (field === "id") continue;
+        const column = state.columns.find(item => item.id === field);
+        values[field] = column
+          ? pluginMgr.transformBeforeSave(column.type, value, column.config)
+          : value;
+      }
+      if (Object.keys(values).length === 1) return;
+      state.commitHistory();
+      state.dispatch({ type: "rows.apply", changes: { upsert: [values], remove: [] } }, "user");
+      const updated = store.getState();
+      if (!subscriptionActive.current && updated.lastChange?.dataChanged) {
+        return Promise.resolve(
+          onDataChange?.({ columns: updated.columns, rows: updated.rows }, updated.lastChange)
+        );
+      }
+    });
     const finalTheme = theme || systemTheme;
 
     const [confirmDeleteViewId, setConfirmDeleteViewId] = useState<number | null>(null);
@@ -126,6 +149,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     }));
 
     useEffect(() => {
+      subscriptionActive.current = true;
       const unsubscribe = store.subscribe((state, prevState) => {
         const change = state.lastChange;
         if (!change || change === prevState.lastChange || change.source !== "user") return;
@@ -135,6 +159,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       });
 
       return () => {
+        subscriptionActive.current = false;
         unsubscribe();
       };
     }, [store, onDataChange, onViewConfigChange]);
@@ -313,54 +338,56 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
     return (
       <DatabaseHostContext.Provider value={slots}>
-        <DatabaseContext.Provider value={store}>
-          <div
-            ref={rootRef}
-            tabIndex={-1}
-            onPointerDownCapture={event => {
-              if (
-                event.target instanceof Node &&
-                rootRef.current?.contains(event.target) &&
-                !isEditableTarget(event.target)
-              ) {
-                rootRef.current.focus({ preventScroll: true });
-              }
-            }}
-            className={cn(
-              "relative flex h-full w-full flex-col overflow-hidden",
-              !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
-              className,
-              {
-                "cursor-col-resize select-none": isResizing,
-              }
-            )}
-          >
-            <div className="shrink-0">
-              <ViewTabs
-                pluginManager={pluginMgr}
-                onCreateView={handleCreateView}
-                onDeleteView={handleDeleteView}
-                onActiveViewIdChange={onActiveViewIdChange}
-                onRenameView={handleRenameView}
-                onUpdateView={handleUpdateView}
-                onReorderViews={handleReorderViews}
-                theme={finalTheme}
-                bare={bare}
+        <DatabaseWriteContext.Provider value={commitRowPatch}>
+          <DatabaseContext.Provider value={store}>
+            <div
+              ref={rootRef}
+              tabIndex={-1}
+              onPointerDownCapture={event => {
+                if (
+                  event.target instanceof Node &&
+                  rootRef.current?.contains(event.target) &&
+                  !isEditableTarget(event.target)
+                ) {
+                  rootRef.current.focus({ preventScroll: true });
+                }
+              }}
+              className={cn(
+                "relative flex h-full w-full flex-col overflow-hidden",
+                !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
+                className,
+                {
+                  "cursor-col-resize select-none": isResizing,
+                }
+              )}
+            >
+              <div className="shrink-0">
+                <ViewTabs
+                  pluginManager={pluginMgr}
+                  onCreateView={handleCreateView}
+                  onDeleteView={handleDeleteView}
+                  onActiveViewIdChange={onActiveViewIdChange}
+                  onRenameView={handleRenameView}
+                  onUpdateView={handleUpdateView}
+                  onReorderViews={handleReorderViews}
+                  theme={finalTheme}
+                  bare={bare}
+                />
+              </div>
+              <div className="min-h-0 w-full flex-1">{View}</div>
+              <ConfirmDialog
+                open={confirmDeleteViewId !== null}
+                onOpenChange={open => {
+                  if (!open) setConfirmDeleteViewId(null);
+                }}
+                title="确定删除此视图吗？"
+                danger
+                confirmText="删除"
+                onConfirm={() => handleConfirmDeleteView()}
               />
             </div>
-            <div className="min-h-0 w-full flex-1">{View}</div>
-            <ConfirmDialog
-              open={confirmDeleteViewId !== null}
-              onOpenChange={open => {
-                if (!open) setConfirmDeleteViewId(null);
-              }}
-              title="确定删除此视图吗？"
-              danger
-              confirmText="删除"
-              onConfirm={() => handleConfirmDeleteView()}
-            />
-          </div>
-        </DatabaseContext.Provider>
+          </DatabaseContext.Provider>
+        </DatabaseWriteContext.Provider>
       </DatabaseHostContext.Provider>
     );
   }
