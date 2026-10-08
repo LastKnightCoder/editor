@@ -164,7 +164,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
         {/* 添加按钮 */}
         {!readonly && (
           <div
-            className="bg-hover hover:bg-press text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
+            className="bg-surface-hover text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
             role="button"
             aria-label="添加连接"
             onClick={() => setSelectorModalVisible(true)}
