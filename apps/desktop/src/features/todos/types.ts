@@ -29,6 +29,9 @@ export interface TodoSnapshot {
 /** 议程时间段 */
 export type BucketKey = "overdue" | "today" | "tomorrow" | "week" | "later" | "none";
 
+/** 侧栏「文档中」子项占用的页面参数 id（项目 id 都是数字，不会冲突） */
+export const DOC_TASKS_NAV_ID = "docs";
+
 /** 热力格 / 周打卡点的单元状态 */
 export type HabitCellState = "done" | "skip" | "miss" | "off" | "today" | "future";
 

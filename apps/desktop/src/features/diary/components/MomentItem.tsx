@@ -29,7 +29,7 @@ import {
 } from "../model";
 import type { DiaryMutations } from "../queries";
 import { TagPicker } from "./TagPicker";
-import { parseEntityLocation } from "@/entity/locate";
+import { parseEntityLocation, resolveLocationNode } from "@/entity/locate";
 import { scrollToAndFlash } from "@/utils/flash-element";
 
 const ICON = { className: "size-[14px]", strokeWidth: 1.75 } as const;
@@ -64,12 +64,12 @@ export const MomentItem = memo(function MomentItem({
   const at = location?.moment === String(moment.id) ? location.at : undefined;
   useEffect(() => {
     const target = parseEntityLocation(at);
-    if (!target || !("block" in target) || editing) return;
+    if (!target || editing) return;
     let markedElement: HTMLElement | null = null;
     const frame = requestAnimationFrame(() => {
       const editor = readerRef.current?.getEditor();
       if (!editor) return;
-      const node = editor.children[target.block] ?? editor.children[0];
+      const node = resolveLocationNode(editor.children, target);
       if (node) {
         const element = ReactEditor.toDOMNode(editor, node);
         markedElement = element;

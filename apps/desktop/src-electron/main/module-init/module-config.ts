@@ -43,6 +43,7 @@ import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
 import knowledgeMapBuilder from "../modules/knowledge-map-builder";
 import entityContextModule from "../modules/entity-context";
+import docTasksModule from "../modules/doc-tasks";
 import contentAiQueueModule from "../modules/content-ai-queue";
 import contentInsightsModule from "../modules/content-insights";
 import knowledgeInsightsModule from "../modules/knowledge-insights-module";
@@ -329,6 +330,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => entityContextModule.init(),
+  },
+  {
+    name: "doc-tasks",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database"],
+    init: () => docTasksModule.init(),
   },
   {
     name: "content-ai-queue",

@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文档 checkbox → 待办 · 交互与 UI mockup</title>
+<!-- 【视觉参考，非导出源】（D-001） -->
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --surface-hover:#f3f8f3; --hover:rgba(46,61,49,.05);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7; --line-1:#dfe9df;
+    --accent:hsl(153 40% 33%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --danger:#b0584f; --danger-soft:#f5e3e0; --warn:#a38c4d; --ok:#4f7a5c;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --surface-hover:#252d28; --hover:rgba(224,234,227,.06);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612; --line-1:#29322d;
+    --accent:hsl(155 36% 58%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --danger:#df8a80; --danger-soft:#35211e; --warn:#c9b071; --ok:#8fbf9c;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --surface-hover:#f8f3ea; --hover:rgba(67,57,44,.05);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef; --line-1:#e9e1d2;
+    --accent:hsl(22 58% 42%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --danger:#b0564d; --danger-soft:#f6e3e0; --warn:#a38c4d; --ok:#61795f;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --surface-hover:#362f26; --hover:rgba(236,226,208,.06);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10; --line-1:#3a3227;
+    --accent:hsl(22 62% 65%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --danger:#d97e66; --danger-soft:#34201a; --warn:#c9b071; --ok:#9fb59c;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 200px; transition:background .2s; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:var(--hover); padding:1px 5px; border-radius:4px; }
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .switches { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  section { margin-top:64px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:96ch; margin:6px 0 22px; }
+  .desc b, .notes b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:96ch; }
+  .notes li { margin:5px 0; }
+  .grid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,1fr); gap:32px; align-items:start; }
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:28px; align-items:start; }
+  .lbl { font-size:13.5px; font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+  .sub { font-size:12.5px; color:var(--ink-2); margin-bottom:12px; }
+  .tag { font:500 11px/1 -apple-system,sans-serif; padding:3px 7px; border-radius:99px; background:var(--accent-soft); color:var(--accent-text); }
+  .tag.gray { background:var(--sunken); color:var(--ink-2); }
+  .pc { list-style:none; font-size:12.5px; color:var(--ink-2); margin-top:10px; }
+  .pc li { padding-left:16px; position:relative; margin:3px 0; }
+  .pc li::before { position:absolute; left:0; font-weight:700; }
+  .pc li.p::before { content:"+"; color:var(--accent-text); }
+  .pc li.c::before { content:"−"; color:var(--danger); }
+  .try { font-size:12.5px; color:var(--ink-2); background:var(--surface); border:1px dashed var(--line-1); border-radius:10px; padding:10px 14px; margin-bottom:14px; line-height:1.8; }
+  .try b { color:var(--accent-text); font-weight:600; }
+  .card { background:var(--surface); border-radius:16px; box-shadow:var(--shadow-card); position:relative; overflow:hidden; }
+
+  /* 勾选框（同 TodoCheck） */
+  .ck { width:16px; height:16px; border-radius:5px; border:1.5px solid var(--ink-3); flex:none; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:all .15s; background:var(--surface); margin-top:3px; }
+  .ck:hover { border-color:var(--accent); }
+  .ck svg { opacity:0; transition:opacity .12s; }
+  .done > .ck, .ck.on { background:var(--accent); border-color:var(--accent); }
+  .done > .ck svg, .ck.on svg { opacity:1; }
+  .done > .tx { color:var(--ink-3); text-decoration:line-through; text-decoration-color:var(--ink-3); }
+
+  /* 编辑器正文 */
+  .doc { padding:30px 40px 30px 56px; font-size:15px; line-height:1.85; }
+  .doc h3 { font-size:20px; font-weight:600; margin-bottom:6px; }
+  .doc .meta { font-size:12.5px; color:var(--ink-3); margin-bottom:14px; display:flex; gap:10px; align-items:center; }
+  .doc p { margin:4px 0; }
+  .cl { list-style:none; margin:4px 0; }
+  .cl .cl { margin:0 0 0 24px; }
+  .cli { display:flex; gap:9px; align-items:flex-start; position:relative; border-radius:6px; }
+  .cli .tx { flex:1; }
+  .due { font-size:12px; padding:0 6px; border-radius:5px; background:var(--accent-soft); color:var(--accent-text); white-space:nowrap; margin-left:4px; }
+  .due.over { background:var(--danger-soft); color:var(--danger); }
+  .flash { animation:flash 1.4s ease-out; }
+  @keyframes flash { 0%,30% { background:var(--accent-soft); } 100% { background:transparent; } }
+  .docbar { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); padding:8px 14px; border-radius:10px; background:var(--page); margin:10px 0 2px; }
+  .docbar b { color:var(--ink-1); font-weight:600; }
+  .docbar .sp { flex:1; }
+  .lnk { color:var(--accent-text); font-weight:500; font-size:12.5px; }
+  .lnk:hover { text-decoration:underline; }
+
+  /* 待办页 */
+  .page { display:grid; grid-template-columns:180px minmax(0,1fr); min-height:520px; }
+  .nav { background:var(--page); padding:16px 10px; font-size:13px; border-right:1px solid var(--line-1); }
+  .nav .h { font-size:11.5px; color:var(--ink-3); margin:12px 8px 4px; }
+  .nav a { display:flex; gap:8px; align-items:center; padding:5px 8px; border-radius:8px; color:var(--ink-2); cursor:pointer; }
+  .nav a:hover { background:var(--hover); }
+  .nav a.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .nav a .n { margin-left:auto; font-size:11.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+  .nav .dot { width:7px; height:7px; border-radius:2px; }
+  .main { padding:18px 26px 26px; position:relative; }
+  .main h4 { font-size:18px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  .main h4 small { font-size:12.5px; font-weight:400; color:var(--ink-2); }
+  .bucket { font-size:12.5px; font-weight:600; color:var(--ink-2); margin:18px 0 4px; display:flex; gap:8px; align-items:center; }
+  .bucket.over { color:var(--danger); }
+  .row { display:flex; gap:10px; align-items:flex-start; padding:6px 8px; border-radius:8px; font-size:13.5px; cursor:default; }
+  .row:hover { background:var(--hover); }
+  .row .tx { flex:1; min-width:0; }
+  .row .src { font-size:12px; color:var(--ink-3); display:inline-flex; align-items:center; gap:4px; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; }
+  .row .src:hover { color:var(--accent-text); }
+  .row .d { font-size:12px; color:var(--ink-2); white-space:nowrap; }
+  .row .d.over { color:var(--danger); }
+  .row.sub { padding-left:34px; }
+  .row.sel { background:var(--accent-soft); }
+  .dgrp { margin-top:16px; }
+  .dgrp-h { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; padding:4px 8px; }
+  .dgrp-h .kind { font-size:11px; font-weight:500; color:var(--ink-3); }
+  .dgrp-h .cnt { font-size:12px; color:var(--ink-3); font-weight:400; }
+  .dgrp-h .op { margin-left:auto; opacity:0; display:flex; gap:10px; transition:opacity .15s; }
+  .dgrp:hover .op { opacity:1; }
+  .ghost { font-size:12px; color:var(--ink-3); padding:4px 8px 0 34px; cursor:pointer; }
+  .ghost:hover { color:var(--ink-2); }
+
+  /* 抽屉 */
+  .drawer { position:absolute; top:10px; right:10px; bottom:10px; width:330px; background:var(--surface); border-radius:14px; box-shadow:var(--shadow-float); padding:18px 18px 16px; font-size:13px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--line-1); }
+  .drawer .ttl { display:flex; gap:10px; font-size:15px; font-weight:600; line-height:1.5; }
+  .drawer .k { font-size:11.5px; color:var(--ink-3); margin-bottom:4px; }
+  .ctx { background:var(--page); border-radius:10px; padding:10px 12px; font-size:12.5px; color:var(--ink-2); line-height:1.75; }
+  .ctx .me { color:var(--ink-1); background:var(--accent-soft); border-radius:4px; padding:0 3px; }
+  .btn { height:30px; padding:0 12px; border-radius:8px; font-size:12.5px; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line-1); background:var(--surface); color:var(--ink-1); }
+  .btn:hover { background:var(--surface-hover); }
+  .btn.pri { background:var(--accent); color:var(--ink-inv); border-color:transparent; }
+  .fld { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line-1); }
+  .fld span:first-child { color:var(--ink-2); }
+  .ro { font-size:12px; color:var(--ink-3); }
+
+  .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(20px); background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; padding:8px 14px; border-radius:10px; display:flex; gap:14px; align-items:center; opacity:0; transition:all .2s; pointer-events:none; white-space:nowrap; }
+  .toast.show { opacity:1; transform:translateX(-50%); pointer-events:auto; }
+  .toast button { color:var(--tip-ink); font-weight:600; text-decoration:underline; }
+  .state { display:flex; gap:10px; align-items:flex-start; font-size:13px; padding:14px 16px; }
+  .state .ic { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--sunken); color:var(--ink-2); flex:none; font-size:13px; }
+  .decide { counter-reset:q; list-style:none; max-width:100ch; }
+  .decide li { background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); padding:14px 18px; margin-bottom:12px; font-size:13.5px; }
+  .decide li::before { counter-increment:q; content:"Q" counter(q); font:600 12px ui-monospace,monospace; color:var(--accent-text); margin-right:8px; }
+  .decide .rec { display:block; margin-top:6px; font-size:12.5px; color:var(--ink-2); }
+  .decide .rec::before { content:"建议 · "; color:var(--accent-text); font-weight:600; }
+  table.cmp { border-collapse:collapse; font-size:13px; width:100%; max-width:1100px; background:var(--surface); border-radius:12px; overflow:hidden; box-shadow:var(--shadow-card); }
+  table.cmp th, table.cmp td { padding:9px 14px; border-bottom:1px solid var(--line-1); text-align:left; vertical-align:top; }
+  table.cmp th { background:var(--surface-hover); font-weight:600; font-size:12.5px; color:var(--ink-2); }
+  table.cmp tr:last-child td { border-bottom:0; }
+  .pj { display:inline-flex; align-items:center; gap:5px; font-size:12px; padding:0 7px; border-radius:5px; background:var(--hover); color:var(--ink-2); white-space:nowrap; margin-left:4px; cursor:pointer; }
+  .pj i, .pop-i i { width:7px; height:7px; border-radius:2px; display:inline-block; }
+  .pj:hover, .due.hov { box-shadow:0 0 0 1.5px var(--accent); }
+  .typing { color:var(--accent-text); }
+  .caret { display:inline-block; width:1.5px; height:1em; background:var(--accent); vertical-align:-2px; margin-left:1px; animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity:0; } }
+  .pop { position:absolute; left:150px; top:30px; width:230px; background:var(--surface); border:1px solid var(--line-1); border-radius:12px; box-shadow:var(--shadow-float); padding:6px; font-size:13px; z-index:4; }
+  .pop-h { font-size:11.5px; color:var(--ink-3); padding:2px 8px 4px; }
+  .pop-i { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:7px; cursor:pointer; }
+  .pop-i:hover { background:var(--hover); }
+  .pop-i.on { background:var(--accent-soft); color:var(--accent-text); }
+  .pop-i span { margin-left:auto; font-size:11px; color:var(--ink-3); }
+  .pop-i.new { color:var(--ink-2); border-top:1px solid var(--line-1); margin-top:4px; border-radius:0 0 7px 7px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div>
+    <h1>文档 checkbox → 待办 · 交互与 UI</h1>
+    <p>卡片、文章、日记、项目文档里的 <code>- [ ]</code> 自动汇总到待办页；在哪边勾都会同步到另一边。本页里的勾选框、标签页和抽屉都能点。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-theme"><button data-v="paper" class="on">paper</button><button data-v="mint">mint</button></div>
+    <div class="switch" id="sw-mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="no">01</span>数据归属：谁是真相源</h2>
+  <p class="desc">这是最根本的问题，决定后面所有的同步和交互。<b>推荐 C</b>：正文才是真相源，待办页只做镜像，而且<b>零配置</b>——写了 checkbox 就会被收集，不需要额外标记。只有当用户想给某一项加周期、番茄或日程时，才把它<b>转成独立待办</b>，转换后这一项归待办表所有。</p>
+  <table class="cmp">
+    <tr><th></th><th>A · 纯镜像（只读索引）</th><th>B · 实体化（每个 checkbox 对应一条 todo_item）</th><th>C · 镜像 + 按需转独立 <span class="tag">推荐</span></th></tr>
+    <tr><td>存储</td><td>索引库 <code>doc_tasks</code>，可整表重建</td><td>主库 <code>todo_item</code> 增加来源列</td><td>同 A；转独立时新建 todo_item，并用 todo_note_link 回指原文</td></tr>
+    <tr><td>同步方向</td><td>正文 → 索引；勾选时回写正文</td><td>双向：标题、完成状态、删除都要互相映射</td><td>只同步完成状态这一个字段</td></tr>
+    <tr><td>块身份</td><td>路径 + 文本指纹即可</td><td>必须给 check-list-item 加稳定 id（编辑器、协作、粘贴去重都要改）</td><td>同 A</td></tr>
+    <tr><td>周期 / 番茄 / 日程</td><td>✗</td><td>✓</td><td>转成独立待办后 ✓</td></tr>
+    <tr><td>主要风险</td><td>功能偏弱</td><td>双向冲突（同时改标题、删段落、撤销）、待办表被购物清单之类刷屏</td><td>两类条目能做的操作不同，UI 上要讲清楚</td></tr>
+    <tr><td>工作量</td><td>小</td><td>大</td><td>中偏小</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2><span class="no">02</span>编辑器一侧：几乎没有变化</h2>
+  <p class="desc">checkbox 的样式和行为保持原样。新增两处：一是行内日期<b>自动识别</b>，解析器沿用 quickAdd 的自然语言规则，识别出的日期渲染成小胶囊，原文本身不改；二是文档底部一条<b>收集状态条</b>，可以把整篇文档排除在收集之外，适用于模板、读书笔记里的示例清单等。</p>
+  <div class="grid">
+    <div class="card doc" id="doc">
+      <h3>Q4 发布准备</h3>
+      <div class="meta"><span>项目文档 · 发布</span><span>·</span><span>2 分钟前编辑</span></div>
+      <p>本周要收尾的事情：</p>
+      <ul class="cl">
+        <li class="cli" data-k="t1"><span class="ck"></span><span class="tx">整理变更日志</span></li>
+        <li class="cli done" data-k="t2"><span class="ck"></span><span class="tx">更新安装包签名证书</span></li>
+        <li class="cli" data-k="t3"><span class="ck"></span><span class="tx">回归测试数据库插件 <span class="due">周五</span></span></li>
+        <li><ul class="cl">
+          <li class="cli" data-k="t4"><span class="ck"></span><span class="tx">日历视图拖拽</span></li>
+          <li class="cli" data-k="t5"><span class="ck"></span><span class="tx">Web 宿主卸载保存</span></li>
+        </ul></li>
+        <li class="cli" data-k="t6"><span class="ck"></span><span class="tx">写升级公告 <span class="due over">昨天</span></span></li>
+      </ul>
+      <div class="docbar"><span>☐</span><span id="docState">本文 <b id="docLeft">5</b> 项未完成，已收集到待办</span><span class="sp"></span><button class="lnk" onclick="goTab('bydoc')">在待办中查看</button><span style="color:var(--ink-3)">·</span><button class="lnk" id="muteBtn">本文不收集</button></div>
+    </div>
+    <div>
+      <ul class="notes">
+        <li>在正文里勾选，<b>约 2 秒内</b>待办页就会更新。链路是主进程订阅 <code>onContentWritten</code>，防抖后重算这篇文档的条目，再广播 <code>doc-tasks:changed</code>。</li>
+        <li>行内日期只用来决定条目落在待办页哪个日期段。<b>不会删掉原文里的「周五」</b>，也不会自动换算成具体日期写回正文。</li>
+        <li>状态条只在文档里<b>至少有一个 checkbox</b> 时出现，平时看不到。</li>
+        <li>选「本文不收集」后，状态条变成「已排除 · 恢复」。这项设置存在索引侧，不写进正文。</li>
+        <li>子项单独收集，带上父项的上下文。父项勾选后子项不会自动跟着勾，与编辑器现有行为一致。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<section>
+  <h2><span class="no">02b</span>正文内的项目与日期：沿用 quickAdd 的写法</h2>
+  <p class="desc">项目和日期<b>写在正文里</b>，用的就是待办页快速添加的那套语法：<code>#项目名</code> 和「周五 / 明天 / 10月10日」。编辑器用装饰把它们渲染成胶囊，<b>底层仍是纯文本</b>，所以 markdown 导出、移动端、协作他人那边看到的都是原样文字。待办页对条目的项目和日期，就是读这段文字得来的。</p>
+  <div class="grid">
+    <div class="card doc">
+      <h3>周计划</h3>
+      <div class="meta"><span>日记</span></div>
+      <ul class="cl">
+        <li class="cli"><span class="ck"></span><span class="tx">整理插件文档 <span class="pj"><i style="background:var(--accent)"></i>笔记软件开发</span> <span class="due">周五</span></span></li>
+        <li class="cli"><span class="ck"></span><span class="tx">交水电费 <span class="pj"><i style="background:var(--warn)"></i>生活</span></span></li>
+        <li class="cli" style="position:relative"><span class="ck"></span><span class="tx">修复表格粘贴 <span class="typing">#笔<span class="caret"></span></span></span>
+          <div class="pop">
+            <div class="pop-h">移到项目</div>
+            <div class="pop-i on"><i style="background:var(--accent)"></i>笔记软件开发<span>回车</span></div>
+            <div class="pop-i"><i style="background:var(--ok)"></i>笔记整理</div>
+            <div class="pop-i new">＋ 新建项目「笔」</div>
+          </div>
+        </li>
+        <li class="cli" style="margin-top:96px;position:relative"><span class="ck"></span><span class="tx">写升级公告 <span class="pj"><i style="background:var(--accent)"></i>笔记软件开发</span> <span class="due over hov">昨天</span></span>
+          <div class="pop" style="left:200px;top:30px;width:220px">
+            <div class="pop-h">日期</div>
+            <div class="pop-i">今天</div><div class="pop-i">明天</div><div class="pop-i">下周一</div>
+            <div class="pop-i new">清除日期</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div>
+      <ul class="notes">
+        <li><b>输入 <code>#</code></b> 弹出项目候选（只在 checkbox 行触发，普通段落里 # 仍是文字）。回车后写入完整项目名，没有对应项目时可以就地新建。</li>
+        <li><b>点胶囊</b> 弹出小菜单，可以改日期、换项目、移除。本质是改这段文字，所以撤销（⌘Z）照常可用。</li>
+        <li>在待办页给文档条目改日期或项目，同样<b>回写成正文里的文字</b>，正文仍是唯一真相源，不存在「两边各存一份」。</li>
+        <li>项目改名后，正文里的 <code>#旧名</code> 会匹配不上，胶囊变成灰色虚线并提示「项目不存在 · 改为…」。这是纯文本方案的代价，详见回复里的取舍。</li>
+        <li>没写 <code>#项目</code> 的条目归入「文档中」，不进任何项目。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">03</span>待办页一侧：放在哪里</h2>
+  <p class="desc">下面两种呈现可以叠加使用。<b>推荐两者都做</b>：侧栏增加系统入口「文档中」，按文档分组列出所有条目；<b>带日期</b>的条目同时并入「按日期」议程，行尾显示来源。<b>没有日期的条目不进议程</b>，否则「无日期」段会被大量清单项淹没。</p>
+  <div class="try">试一试：点<b>勾选框</b>，同一份数据在两个标签页和 02 的正文里会联动；点<b>行文字</b>打开右侧抽屉；点<b>来源</b>会跳到 02 的正文并让那一项闪一下。</div>
+  <div class="switch" id="sw-tab" style="display:inline-flex;margin-bottom:14px"><button data-v="bydoc" class="on">A · 侧栏「文档中」</button><button data-v="agenda">B · 并入按日期议程</button></div>
+  <div class="card page">
+    <nav class="nav">
+      <a data-nav="agenda"><span>☀</span>按日期<span class="n">9</span></a>
+      <a><span>▦</span>按项目<span class="n"></span></a>
+      <div class="h">项目</div>
+      <a><span class="dot" style="background:var(--accent)"></span>工作<span class="n">6</span></a>
+      <a><span class="dot" style="background:var(--warn)"></span>生活<span class="n">3</span></a>
+      <div class="h">来源</div>
+      <a data-nav="bydoc"><span>☐</span>文档中<span class="n" id="navDocN">8</span></a>
+    </nav>
+    <div class="main" id="main"></div>
+  </div>
+  <ul class="pc" style="max-width:96ch">
+    <li class="p">A：按文档分组，顺序与正文一致，子项保留缩进。整理某篇文档里的清单时最顺手。</li>
+    <li class="p">B：有日期的文档条目和普通待办排在一起，「今天要做什么」只用看一处。</li>
+    <li class="c">B 的混排要让人一眼分出两类条目：文档条目行尾显示来源，不显示项目色点；也不能拖进日历，除非先转成独立待办。</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">04</span>条目抽屉：只读原文 + 三个动作</h2>
+  <p class="desc">文档条目的标题<b>不能在待办页里改</b>，要改就回原文改，这样可以避免双向编辑冲突。抽屉里展示条目在正文中的上下文（父项和前后各一行），并提供三个动作：<b>打开原文定位</b>、<b>转为独立待办</b>、<b>本文不收集</b>。</p>
+  <ul class="notes">
+    <li><b>转为独立待办</b>：新建一条 todo_item，标题、日期、子项一起复制过去，挂进「工作」等项目，并自动通过 todo_note_link 关联原文。原 checkbox <b>保持不变</b>。从此两者各自独立，避免一条事项出现两次，镜像里会把这一项标记为「已转」并隐藏。</li>
+    <li>完成、撤销完成都是乐观更新，同时弹出 Toast「已在《Q4 发布准备》中勾选 · 撤销」。删除不在这里做，删除只能去正文删。</li>
+  </ul>
+</section>
+
+<section>
+  <h2><span class="no">05</span>同步边界与异常态</h2>
+  <div class="grid3">
+    <div class="card state"><span class="ic">⟳</span><div><div class="lbl">文档正被编辑</div><div class="sub" style="margin:0">待办只调用内容层的 <code>patchContentNode(contentId, { taskId }, { checked })</code>。内容层自己决定怎么落地：有编辑会话就做一次属性级修改，和正在进行的输入合并；没有会话就改 JSON 后落库。待办模块不知道协作层的存在。</div></div></div>
+    <div class="card state"><span class="ic">≠</span><div><div class="lbl">该项已被删除</div><div class="sub" style="margin:0">按 id 找不到就放弃写入，Toast 提示「原文中已没有这一项」，并重建这篇文档的索引。插行、移动、改文字都不影响定位。</div></div></div>
+    <div class="card state"><span class="ic">🔒</span><div><div class="lbl">只读 / 协作他人文档</div><div class="sub" style="margin:0">勾选框禁用，悬停时提示「来自共享文档，只能在原文勾选」。</div></div></div>
+    <div class="card state"><span class="ic">🗑</span><div><div class="lbl">文档删除 / 进回收站</div><div class="sub" style="margin:0">对应条目随之消失，不做额外提示；文档恢复后条目也恢复，因为索引可以重建。</div></div></div>
+    <div class="card state"><span class="ic">∅</span><div><div class="lbl">「文档中」空态</div><div class="sub" style="margin:0">提示「在任意文档里输入 <code>[]</code> 加空格创建 checkbox，就会出现在这里」，不放演示数据。</div></div></div>
+    <div class="card state"><span class="ic">✓</span><div><div class="lbl">已完成项</div><div class="sub" style="margin:0">默认隐藏，每组底部提供「显示 N 项已完成」。勾选后 1.2 秒再淡出，留给用户误点后撤销的时间。</div></div></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">06</span>需要你拍板的点</h2>
+  <ol class="decide">
+    <li>数据归属选 A / B / C？<span class="rec">C。镜像零成本，复杂的事交给「转为独立待办」，不做双向实体同步。</span></li>
+    <li>收集范围：默认收集全部，还是只收集带日期 / 带 <code>#todo</code> 的？<span class="rec">默认全部收集，加上按文档「本文不收集」开关，符合零配置偏好。</span></li>
+    <li>没有日期的条目是否进「按日期」议程？<span class="rec">不进，只在「文档中」里出现。</span></li>
+    <li>移动端是否首期就做？<span class="rec">首期只做桌面端。数据在索引库，移动端二期复用同一份抽取函数。</span></li>
+    <li>块身份：check-list-item 自带 <code>taskId</code>，由 <code>@tau/editor-list</code> 规范化补齐（回车拆分、粘贴时去重），存量数据一次性升级补齐；不依赖协作层的 collabId。<span class="rec">可以。字段归 checkbox 自己，协作层怎么改都不影响待办。</span></li>
+  </ol>
+</section>
+<div class="toast" id="toast"><span id="toastTx"></span><button id="toastUndo">撤销</button></div>
+<script>
+const CHECK = '<svg width="10" height="10" viewBox="0 0 12 12"><path d="M2.5 6.2 5 8.6l4.6-5" fill="none" stroke="var(--ink-inv)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DOCS = { q4:{ title:"Q4 发布准备", kind:"项目文档" }, read:{ title:"《深度工作》读后整理", kind:"文章" }, diary:{ title:"10 月 6 日 日记", kind:"日记" } };
+// 文档条目（镜像）：k 对应 02 正文里的 data-k
+const docTasks = [
+  { k:"t1", doc:"q4", text:"整理变更日志", done:false },
+  { k:"t2", doc:"q4", text:"更新安装包签名证书", done:true },
+  { k:"t3", doc:"q4", text:"回归测试数据库插件", due:"周五", bucket:"week", done:false },
+  { k:"t4", doc:"q4", text:"日历视图拖拽", parent:"t3", done:false },
+  { k:"t5", doc:"q4", text:"Web 宿主卸载保存", parent:"t3", done:false },
+  { k:"t6", doc:"q4", text:"写升级公告", due:"昨天", bucket:"overdue", done:false },
+  { k:"r1", doc:"read", text:"把「深度工作时段」排进日历", due:"明天", bucket:"tomorrow", done:false },
+  { k:"r2", doc:"read", text:"关掉手机通知一周试试", done:false },
+  { k:"d1", doc:"diary", text:"给房东回邮件", due:"今天", bucket:"today", done:false },
+];
+// 普通待办（只在议程视图出现）
+const plain = [
+  { text:"季度复盘会议", bucket:"today", due:"14:00", group:"var(--accent)" },
+  { text:"交水电费", bucket:"today", group:"var(--warn)" },
+  { text:"准备周会材料", bucket:"tomorrow", group:"var(--accent)" },
+];
+const BUCKETS = [["overdue","逾期"],["today","今天"],["tomorrow","明天"],["week","本周"]];
+let tab = "bydoc", selected = null, showDone = {};
+
+const esc = s => s.replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" })[c]);
+function rowHtml(t, opts = {}) {
+  const sub = t.parent && opts.indent ? " sub" : "";
+  const src = opts.src ? `<span class="src" data-jump="${t.k}">☐ ${esc(DOCS[t.doc].title)}</span>` : "";
+  const due = t.due && !opts.src ? `<span class="d${t.bucket==="overdue"?" over":""}">${t.due}</span>` : "";
+  return `<div class="row${sub}${t.done?" done":""}${selected===t.k?" sel":""}" data-row="${t.k}"><span class="ck" data-ck="${t.k}">${CHECK}</span><span class="tx" data-open="${t.k}">${esc(t.text)}</span>${due}${src}</div>`;
+}
+function renderByDoc() {
+  let h = `<h4>文档中 <small>来自 ${Object.keys(DOCS).length} 篇文档 · 勾选会同步回原文</small></h4>`;
+  for (const [id, d] of Object.entries(DOCS)) {
+    const all = docTasks.filter(t => t.doc === id);
+    const open = all.filter(t => !t.done), done = all.filter(t => t.done);
+    h += `<div class="dgrp"><div class="dgrp-h"><span>☐</span><span>${esc(d.title)}</span><span class="kind">${d.kind}</span><span class="cnt">${open.length}</span><span class="op"><button class="lnk" data-jump="${all[0].k}">打开</button><button class="lnk" style="color:var(--ink-3)">不收集</button></span></div>`;
+    h += open.map(t => rowHtml(t, { indent:true })).join("");
+    if (done.length) h += showDone[id] ? done.map(t => rowHtml(t, { indent:true })).join("") : `<div class="ghost" data-showdone="${id}">显示 ${done.length} 项已完成</div>`;
+    h += `</div>`;
+  }
+  return h;
+}
+function renderAgenda() {
+  let h = `<h4>按日期 <small>文档里带日期的条目一并列出</small></h4>`;
+  for (const [b, name] of BUCKETS) {
+    const ps = plain.filter(p => p.bucket === b), ds = docTasks.filter(t => t.bucket === b && !t.done);
+    if (!ps.length && !ds.length) continue;
+    h += `<div class="bucket${b==="overdue"?" over":""}">${name}<span style="font-weight:400;color:var(--ink-3)">${ps.length+ds.length}</span></div>`;
+    h += ps.map(p => `<div class="row"><span class="ck" onclick="this.classList.toggle('on')">${CHECK}</span><span class="tx">${p.text}</span>${p.due?`<span class="d">${p.due}</span>`:""}<span class="dot" style="width:7px;height:7px;border-radius:2px;margin-top:8px;background:${p.group}"></span></div>`).join("");
+    h += ds.map(t => rowHtml(t, { src:true })).join("");
+  }
+  return h + `<div class="ghost" style="padding-left:8px;margin-top:14px">另有 ${docTasks.filter(t=>!t.bucket&&!t.done).length} 项无日期的文档条目 · 在「文档中」查看</div>`;
+}
+function renderDrawer() {
+  const t = docTasks.find(x => x.k === selected); if (!t) return "";
+  const sibs = docTasks.filter(x => x.doc === t.doc), i = sibs.indexOf(t);
+  const ctx = sibs.slice(Math.max(0,i-1), i+2).map(x => x === t ? `<div><span class="me">☐ ${esc(x.text)}</span></div>` : `<div>${x.done?"☑":"☐"} ${esc(x.text)}</div>`).join("");
+  return `<div class="drawer"><div class="ttl"><span class="ck${t.done?" on":""}" data-ck="${t.k}">${CHECK}</span><span>${esc(t.text)}</span><button style="margin-left:auto;color:var(--ink-3)" data-close>✕</button></div>
+    <div class="ro">标题只能在原文中修改</div>
+    <div><div class="k">来源</div><button class="lnk" data-jump="${t.k}">☐ ${esc(DOCS[t.doc].title)} · ${DOCS[t.doc].kind} ↗</button></div>
+    <div><div class="k">原文上下文</div><div class="ctx">${ctx}</div></div>
+    <div><div class="fld"><span>日期</span><span>${t.due ? t.due + "（识别自原文）" : "—"}</span></div><div class="fld"><span>项目</span><span class="ro">转为独立待办后可设置</span></div></div>
+    <div style="margin-top:auto;display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" data-jump="${t.k}">打开原文定位</button><button class="btn" data-promote="${t.k}">转为独立待办</button></div></div>`;
+}
+function render() {
+  document.getElementById("main").innerHTML = (tab === "bydoc" ? renderByDoc() : renderAgenda()) + renderDrawer();
+  document.querySelectorAll(".nav a[data-nav]").forEach(a => a.classList.toggle("on", a.dataset.nav === tab));
+  document.querySelectorAll("#sw-tab button").forEach(b => b.classList.toggle("on", b.dataset.v === tab));
+  document.querySelectorAll("#doc .cli").forEach(li => {
+    const t = docTasks.find(x => x.k === li.dataset.k); li.classList.toggle("done", t.done);
+    li.querySelector(".ck").innerHTML = CHECK;
+  });
+  const left = docTasks.filter(t => t.doc === "q4" && !t.done).length;
+  const leftEl = document.getElementById("docLeft"); if (leftEl) leftEl.textContent = left;
+  document.getElementById("navDocN").textContent = docTasks.filter(t => !t.done).length;
+}
+let toastTimer;
+function toast(msg, undo) {
+  const el = document.getElementById("toast"); document.getElementById("toastTx").textContent = msg;
+  document.getElementById("toastUndo").onclick = () => { undo(); el.classList.remove("show"); };
+  el.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 3500);
+}
+function toggle(k, fromDoc) {
+  const t = docTasks.find(x => x.k === k); t.done = !t.done; render();
+  if (!fromDoc) toast(`已在《${DOCS[t.doc].title}》中${t.done?"勾选":"取消勾选"}`, () => { t.done = !t.done; render(); });
+}
+function goTab(v) { tab = v; render(); document.getElementById("main").scrollIntoView({ behavior:"smooth", block:"center" }); }
+function jump(k) {
+  const li = document.querySelector(`#doc .cli[data-k="${k}"]`);
+  if (!li) { toast("将打开该文档并定位（mockup 只有 Q4 这一篇正文）", () => {}); return; }
+  li.scrollIntoView({ behavior:"smooth", block:"center" }); li.classList.remove("flash"); void li.offsetWidth; li.classList.add("flash");
+}
+document.addEventListener("click", e => {
+  const g = (a) => e.target.closest(`[${a}]`);
+  let el;
+  if ((el = g("data-ck"))) return toggle(el.dataset.ck, false);
+  if ((el = g("data-jump"))) return jump(el.dataset.jump);
+  if ((el = g("data-open"))) { selected = el.dataset.open; return render(); }
+  if (g("data-close")) { selected = null; return render(); }
+  if ((el = g("data-showdone"))) { showDone[el.dataset.showdone] = true; return render(); }
+  if ((el = g("data-promote"))) {
+    const t = docTasks.find(x => x.k === el.dataset.promote), idx = docTasks.indexOf(t);
+    docTasks.splice(idx, 1); selected = null; render();
+    return toast(`已转为独立待办「${t.text}」，原文保持不变`, () => { docTasks.splice(idx, 0, t); render(); });
+  }
+  if ((el = g("data-nav"))) { tab = el.dataset.nav; return render(); }
+  if ((el = e.target.closest("#doc .cli .ck"))) return toggle(el.parentElement.dataset.k, true);
+});
+document.getElementById("muteBtn").onclick = function () {
+  const muted = this.textContent === "本文不收集";
+  this.textContent = muted ? "恢复收集" : "本文不收集";
+  document.getElementById("docState").innerHTML = muted ? "本文已排除，不出现在待办中" : `本文 <b id="docLeft">${docTasks.filter(t=>t.doc==="q4"&&!t.done).length}</b> 项未完成，已收集到待办`;
+};
+function bindSwitch(id, fn) {
+  document.getElementById(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    e.currentTarget.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); fn(b.dataset.v);
+  });
+}
+bindSwitch("sw-theme", v => document.documentElement.dataset.theme = v);
+bindSwitch("sw-mode", v => document.documentElement.dataset.mode = v);
+bindSwitch("sw-tab", v => { tab = v; render(); });
+render();
+</script>
+</body>
+</html>

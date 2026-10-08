@@ -13,7 +13,7 @@ import type { IBlockPanelListItem, IConfigItem } from "../types";
 import { registerElementEmpty } from "./elementEmpty";
 import { registerBlockNavigationBoundaries } from "../utils/blockNavigation";
 import type { RegisteredCopy } from "../api/copy";
-import type { RegisteredMark } from "../api/marks";
+import type { RegisteredDecoration, RegisteredMark } from "../api/marks";
 import type { RegisteredLayer } from "../components/ExtensionLayers";
 
 /** 一个扩展贡献的插件：内核按扩展逐组应用，出错隔离到组（extensionGuard.ts） */
@@ -97,6 +97,7 @@ export class ExtensionAssembly {
   readonly behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>;
   readonly copyPolicies: ReadonlyMap<string, RegisteredCopy>;
   readonly marks: readonly RegisteredMark[];
+  readonly decorations: readonly RegisteredDecoration[];
   readonly layers: readonly RegisteredLayer[];
   private readonly renderers = new Map<string, ElementRenderer>();
   private readonly owners = new Map<string, EditorExtension>();
@@ -183,6 +184,16 @@ export class ExtensionAssembly {
       }
     }
     this.marks = marks;
+    const decorationIds = new Set<string>();
+    this.decorations = this.extensions.flatMap(extension =>
+      (extension.decorations ?? []).map(spec => {
+        if (!spec.id || decorationIds.has(spec.id)) {
+          throw new Error(`[editor] 装饰声明 id 缺失或重复：${spec.id}`);
+        }
+        decorationIds.add(spec.id);
+        return { owner: extension.id, spec };
+      })
+    );
     this.layers = this.extensions.flatMap(extension =>
       (extension.layers ?? []).map(component => ({ owner: extension.id, component }))
     );

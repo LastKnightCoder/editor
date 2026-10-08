@@ -23,6 +23,8 @@ import {
 import { ttsInsertSource } from "@/editor-providers/TtsPanel";
 import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIImagePanel";
 import { openExternal } from "@/commands/extra";
+import { IDocTaskGroups } from "@/editor-extensions/doc-tasks/service";
+import { desktopDocTaskGroups } from "./docTaskGroups";
 
 import {
   desktopTypstCompiler,
@@ -49,6 +51,9 @@ export const desktopEditorServices: ServiceRegistration = register => {
 
   // UI 插槽
   register(IEditorSlots, desktopEditorSlots);
+
+  // 勾选项里的 #项目 / 日期胶囊读写待办项目
+  register(IDocTaskGroups, desktopDocTaskGroups);
 
   // 媒体内容源（bilibili / youtube / remote 解析渲染与插入入口）
   register(IVideoContentProviders, desktopVideoContentProviders);

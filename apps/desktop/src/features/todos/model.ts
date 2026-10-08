@@ -12,29 +12,26 @@
 import dayjs from "dayjs";
 import type { TodoRecurrence } from "@/types";
 import { isDateScheduledForRecurrence } from "@/utils/recurrence";
+import {
+  DAY_MS,
+  dayDiff,
+  dayWord,
+  daysLeftInWeek,
+  isDateOnlyTs as isDateOnly,
+  startOfDay,
+} from "@/utils/dayWords";
 import type { BucketKey, HabitCell, HabitCellState, TodoEntry, TodoSnapshot } from "./types";
 
-export const DAY_MS = 86_400_000;
-export const WEEKDAY_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
-
-/* ---------- 日期基础 ---------- */
-
-export function startOfDay(ts: number): number {
-  const d = new Date(ts);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-/** ts 所在自然日相对 now 的天数差（今天 0、明天 1、昨天 -1） */
-export function dayDiff(ts: number, now: number): number {
-  return Math.round((startOfDay(ts) - startOfDay(now)) / DAY_MS);
-}
-
-/** 今天距本周日还有几天（周一起算的一周；周日为 0） */
-export function daysLeftInWeek(now: number): number {
-  const wd = new Date(now).getDay();
-  return wd === 0 ? 0 : 7 - wd;
-}
+/* 日期基础与文案归 utils/dayWords（编辑器日期胶囊共用），这里转出保持域内导入不变 */
+export {
+  DAY_MS,
+  WEEKDAY_CN,
+  dayDiff,
+  dayWord,
+  daysLeftInWeek,
+  monthDay,
+  startOfDay,
+} from "@/utils/dayWords";
 
 /** 本周一 0 点 */
 export function startOfWeek(now: number): number {
@@ -47,26 +44,7 @@ export function hm(ts: number): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-/** 时间部分为 0 = 只到日期（全天） */
-export function isDateOnly(ts: number): boolean {
-  return ts === startOfDay(ts);
-}
-
-export function monthDay(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
-}
-
-/** 相对日期词：今天 / 明天 / 后天 / 昨天 / 本周内用周几 / 其余用月日 */
-export function dayWord(ts: number, now: number): string {
-  const diff = dayDiff(ts, now);
-  if (diff === 0) return "今天";
-  if (diff === 1) return "明天";
-  if (diff === 2) return "后天";
-  if (diff === -1) return "昨天";
-  if (diff > 0 && diff <= daysLeftInWeek(now)) return WEEKDAY_CN[new Date(ts).getDay()];
-  return monthDay(ts);
-}
+export { isDateOnly };
 
 /** 日期 + 时刻（只到日期时省略时刻） */
 export function dateTimeWord(ts: number, now: number): string {
@@ -149,7 +127,7 @@ export function isOverdue(entry: TodoEntry, now: number): boolean {
 
 /* ---------- 议程分段与排序 ---------- */
 
-function bucketForDay(diff: number, now: number): BucketKey {
+export function bucketForDay(diff: number, now: number): BucketKey {
   if (diff < 0) return "overdue";
   if (diff === 0) return "today";
   if (diff === 1) return "tomorrow";

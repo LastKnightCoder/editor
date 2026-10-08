@@ -11,6 +11,7 @@ import {
   isCheckListItemElement,
   isParagraphAndEmpty,
 } from "../../utils";
+import { createTaskId, needsNewTaskId } from "./taskId";
 
 /** 勾选项内回车：空段落退出列表（嵌套时提升一级）；非空末尾插入未勾选新项；其余默认拆行 */
 const insertBreak: ElementBehaviors<CheckListItemElement>["insertBreak"] = editor => {
@@ -331,6 +332,11 @@ const normalizeItem: ElementBehaviors<CheckListItemElement>["normalize"] = (
   // @ts-ignore
   if (children.length === 0 || (children.length >= 1 && children[0].type !== "paragraph")) {
     Transforms.removeNodes(editor, { at: path });
+    return true;
+  }
+
+  if (needsNewTaskId(editor, node.taskId, path)) {
+    Transforms.setNodes(editor, { taskId: createTaskId() }, { at: path });
     return true;
   }
 

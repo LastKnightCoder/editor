@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useContentLocation } from "./useContentLocation";
+import { DocTasksStatusBar } from "./DocTasksStatusBar";
 import { Loader2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
@@ -219,6 +220,8 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
             }
           }}
         />
+        {/* 只给声明了编辑身份的正文（卡片 / 文章 / 项目文档 / 日记）；预览、描述等场景不出现 */}
+        {canRegisterEditing && <DocTasksStatusBar contentId={contentId} />}
       </>
     );
   }

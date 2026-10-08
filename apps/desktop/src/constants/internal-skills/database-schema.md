@@ -663,6 +663,19 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `recurrence_date`   | `INTEGER`             |
 | `create_time`       | `INTEGER NOT NULL`    |
 
+### `doc_task_settings`
+
+文档待办（正文勾选项）的用户设置：`kind='excluded'` 为整篇不收集（`task_id` 为空串），`kind='promoted'` 为该项已转为独立待办 `todo_item_id`。勾选项本身不在主库（以正文为准）。
+
+| 字段           | SQLite 定义                                            |
+| -------------- | ------------------------------------------------------ |
+| `id`           | `INTEGER PRIMARY KEY`                                  |
+| `content_id`   | `INTEGER NOT NULL`                                     |
+| `task_id`      | `TEXT NOT NULL DEFAULT ''`                             |
+| `kind`         | `TEXT NOT NULL CHECK(kind IN ('excluded','promoted'))` |
+| `todo_item_id` | `INTEGER`                                              |
+| `create_time`  | `INTEGER NOT NULL`                                     |
+
 ### `pomodoro_presets`
 
 | 字段           | SQLite 定义                   |
