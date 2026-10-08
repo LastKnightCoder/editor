@@ -25,6 +25,8 @@ export interface RegisteredMark {
 export interface DecorationSpec {
   id: string;
   decorate(editor: Editor, entry: NodeEntry): Range[];
+  /** 外部数据变化时使装饰重算，订阅随实例及服务作用域清理。 */
+  subscribe?(editor: Editor, invalidate: () => void): (() => void) | undefined;
 }
 
 export interface RegisteredDecoration {

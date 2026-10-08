@@ -15,9 +15,14 @@ import {
   isAbsoluteDateHint,
   parseDocTaskText,
   resolveDocTaskDue,
-  type DocTaskGroup,
+  type DocTaskGroupBinding,
+  formatDocTaskDate,
+  docTaskTokenSpans,
 } from "@/entity/doc-tasks";
+import { minimalTextEdit } from "@/entity/text-edits";
 import ContentTable from "../tables/content";
+import { listTaskGroups, rememberGroupNames, rewriteGroupAliases } from "./group-names";
+export { listTaskGroups } from "./group-names";
 
 export const RECONCILE_BATCH = 50;
 
@@ -25,6 +30,7 @@ export interface DocTaskIndexResult {
   processed: number;
   /** 勾选项有变化的正文数（大于 0 时需通知渲染端） */
   changed: number;
+  pending?: number[];
 }
 
 interface ContentRow {
@@ -46,12 +52,6 @@ interface StoredTask {
   date_hint: string | null;
   date_anchor: number | null;
   due_at: number | null;
-}
-
-export function listTaskGroups(mainDb: Database.Database): DocTaskGroup[] {
-  return mainDb
-    .prepare(`SELECT id, title FROM todo_group WHERE is_archived = 0 AND is_system = 0`)
-    .all() as DocTaskGroup[];
 }
 
 function readContents(mainDb: Database.Database, ids: number[]): Map<number, ContentRow> {
@@ -78,23 +78,7 @@ const parseContent = (raw: string | null): unknown => {
 
 /** 为缺 taskId 或重复的勾选项补 id（静默写回，不算编辑）；返回补上的个数 */
 export function backfillTaskIds(mainDb: Database.Database, contentId: number): number {
-  const seen = new Set<string>();
-  return ContentTable.patchNodes(
-    mainDb,
-    contentId,
-    node => {
-      if (node.type !== "check-list-item") return null;
-      const id = typeof node.taskId === "string" ? node.taskId : "";
-      if (id && !seen.has(id)) {
-        seen.add(id);
-        return null;
-      }
-      const next = crypto.randomUUID();
-      seen.add(next);
-      return { taskId: next };
-    },
-    { silent: true }
-  );
+  return ContentTable.ensureTaskIds(mainDb, contentId);
 }
 
 const sameTask = (a: StoredTask, b: StoredTask) =>
@@ -115,8 +99,10 @@ export function reindexDocTasks(
   now: number = Date.now()
 ): DocTaskIndexResult {
   const ids = [...new Set(contentIds.filter(id => Number.isSafeInteger(id) && id > 0))];
-  let rows = readContents(mainDb, ids);
+  rememberGroupNames(mainDb);
   const groups = listTaskGroups(mainDb);
+  let rows = readContents(mainDb, ids);
+  const pendingRenames = new Set<number>();
 
   // 先在主库补 id（不能放进索引库事务里），补过的重读
   const backfilled = ids.filter(id => {
@@ -129,6 +115,113 @@ export function reindexDocTasks(
   if (backfilled.length) {
     const fresh = readContents(mainDb, backfilled);
     rows = new Map([...rows, ...fresh]);
+  }
+
+  for (const id of ids) {
+    const row = rows.get(id);
+    if (!row?.content) continue;
+    const previous = new Map(
+      (
+        indexDb
+          .prepare(
+            `SELECT task_id, date_hint, date_anchor, group_id, group_token FROM doc_tasks WHERE content_id = ?`
+          )
+          .all(id) as Array<{
+          task_id: string;
+          date_hint: string | null;
+          date_anchor: number | null;
+          group_id: number | null;
+          group_token: string | null;
+        }>
+      ).map(task => [task.task_id, task])
+    );
+    try {
+      ContentTable.patchNodes(
+        mainDb,
+        id,
+        (node, context) => {
+          if (node.type !== "check-list-item") return null;
+          const prev = previous.get(String(node.taskId));
+          const existing = node.taskGroup as DocTaskGroupBinding | undefined;
+          const previousGroup =
+            prev?.group_id != null ? groups.find(group => group.id === prev.group_id) : undefined;
+          const binding =
+            existing ??
+            (previousGroup && prev?.group_token
+              ? {
+                  id: previousGroup.id,
+                  token: prev.group_token,
+                  createdAt: previousGroup.createdAt,
+                }
+              : undefined);
+          const parsed = parseDocTaskText(context.firstText, groups, new Date(now), binding);
+          const group = groups.find(candidate => candidate.id === parsed.groupId);
+          const nextGroup =
+            group && parsed.groupToken
+              ? { id: group.id, token: parsed.groupToken, createdAt: group.createdAt }
+              : null;
+          const patch: Record<string, unknown> = {};
+          if (JSON.stringify(node.taskGroup ?? null) !== JSON.stringify(nextGroup))
+            patch.taskGroup = nextGroup;
+          const hint = parsed.dateHint;
+          if (!hint || isAbsoluteDateHint(hint)) {
+            if (node.taskDateAnchor) patch.taskDateAnchor = null;
+            return Object.keys(patch).length ? patch : null;
+          }
+          const anchor = node.taskDateAnchor as
+            { hint?: string; at?: number; date?: string } | undefined;
+          const anchored =
+            anchor?.hint === hint && typeof anchor.at === "number" && Number.isFinite(anchor.at);
+          if (!(anchored && anchor.date && resolveDocTaskDue(anchor.date, now) != null)) {
+            const at = anchored
+              ? anchor.at!
+              : prev?.date_hint === hint && prev.date_anchor != null
+                ? prev.date_anchor
+                : now;
+            const due = resolveDocTaskDue(hint, at);
+            if (due != null) patch.taskDateAnchor = { hint, at, date: formatDocTaskDate(due) };
+          }
+          return Object.keys(patch).length ? patch : null;
+        },
+        {
+          canonical: true,
+          paragraph: (text, parent, index) => {
+            if (parent.type !== "check-list-item" || index !== 0) return [];
+            const anchor = parent.taskDateAnchor as { hint: string; date: string } | undefined;
+            if (!anchor?.date) return [];
+            const span = docTaskTokenSpans(
+              text,
+              groups,
+              new Date(now),
+              parent.taskGroup as DocTaskGroupBinding | undefined
+            ).find(
+              token =>
+                token.kind === "date" &&
+                token.hint === anchor.hint &&
+                !isAbsoluteDateHint(token.hint)
+            );
+            const edit = span
+              ? minimalTextEdit(text.slice(span.start, span.end), anchor.date)
+              : null;
+            return edit && span ? [{ ...edit, index: span.start + edit.index }] : [];
+          },
+        }
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !/COLLABORATION_WRITE_REQUIRED|CONTENT_SESSION_LOCKED/.test(error.message)
+      )
+        throw error;
+    }
+    rewriteGroupAliases(mainDb, [id], groups).forEach(contentId => pendingRenames.add(contentId));
+    const current = ContentTable.getContentById(mainDb, id);
+    if (current)
+      rows.set(id, {
+        id,
+        update_time: current.updateTime,
+        content: JSON.stringify(current.content),
+      });
   }
 
   const storedOf = indexDb.prepare(`SELECT * FROM doc_tasks WHERE content_id = ?`);
@@ -146,6 +239,7 @@ export function reindexDocTasks(
   );
 
   let changed = 0;
+  const pending: number[] = [];
   indexDb.transaction(() => {
     for (const id of ids) {
       const before = new Map((storedOf.all(id) as StoredTask[]).map(task => [task.task_id, task]));
@@ -163,9 +257,7 @@ export function reindexDocTasks(
         // 相对日期沿用上次的锚点，只有日期原文变化（或新出现）才以此刻为锚
         const anchor =
           task.dateHint && !isAbsoluteDateHint(task.dateHint)
-            ? prev && prev.date_hint === task.dateHint && prev.date_anchor
-              ? prev.date_anchor
-              : now
+            ? (task.dateAnchor ?? (prev?.date_hint === task.dateHint ? prev.date_anchor : null))
             : null;
         const next: StoredTask = {
           task_id: task.taskId,
@@ -178,7 +270,7 @@ export function reindexDocTasks(
           group_id: task.groupId,
           date_hint: task.dateHint,
           date_anchor: anchor,
-          due_at: resolveDocTaskDue(task.dateHint, anchor ?? now),
+          due_at: task.dueAt ?? (anchor != null ? resolveDocTaskDue(task.dateHint, anchor) : null),
         };
         if (!prev || !sameTask(prev, next)) differs = true;
         insertTask.run(
@@ -197,11 +289,18 @@ export function reindexDocTasks(
           next.due_at
         );
       }
-      upsertSource.run(id, row.update_time);
+      if (
+        pendingRenames.has(id) ||
+        extractDocTasks(parseContent(row.content), groups).missingIds > 0 ||
+        tasks.some(task => task.dateHint && !isAbsoluteDateHint(task.dateHint))
+      ) {
+        pending.push(id);
+        deleteSource.run(id);
+      } else upsertSource.run(id, row.update_time);
       if (differs) changed++;
     }
   })();
-  return { processed: ids.length, changed };
+  return { processed: ids.length, changed, ...(pending.length ? { pending } : {}) };
 }
 
 /**
@@ -253,12 +352,15 @@ export function diffDocTaskSources(
     ).map(row => [row.content_id, row.update_time])
   );
   const stale: number[] = [];
+  const version = indexDb
+    .prepare(`SELECT value FROM index_meta WHERE key = 'doc_tasks_version'`)
+    .get() as { value: string } | undefined;
   const contents = mainDb.prepare(`SELECT id, update_time FROM contents`).all() as Array<{
     id: number;
     update_time: number;
   }>;
   for (const { id, update_time } of contents) {
-    if (indexed.get(id) !== update_time) stale.push(id);
+    if (version?.value !== "2" || indexed.get(id) !== update_time) stale.push(id);
     indexed.delete(id);
   }
   stale.push(...indexed.keys());
@@ -271,16 +373,37 @@ const yieldToEventLoop = () => new Promise<void>(resolve => setImmediate(resolve
 export async function reconcileDocTasks(
   mainDb: Database.Database,
   indexDb: Database.Database,
-  isStale: () => boolean = () => false
+  isStale: () => boolean = () => false,
+  onError: (contentId: number, error: unknown) => void = (contentId, error) =>
+    console.error("文档待办对账失败", contentId, error),
+  onPending: (contentId: number) => void = () => undefined
 ): Promise<DocTaskIndexResult & { aborted: boolean }> {
   const stale = diffDocTaskSources(mainDb, indexDb);
   const total: DocTaskIndexResult = { processed: 0, changed: 0 };
+  let failed = false;
   for (let start = 0; start < stale.length; start += RECONCILE_BATCH) {
     if (isStale()) return { ...total, aborted: true };
-    const result = reindexDocTasks(mainDb, indexDb, stale.slice(start, start + RECONCILE_BATCH));
-    total.processed += result.processed;
-    total.changed += result.changed;
+    for (const contentId of stale.slice(start, start + RECONCILE_BATCH)) {
+      if (isStale()) return { ...total, aborted: true };
+      try {
+        const result = reindexDocTasks(mainDb, indexDb, [contentId]);
+        total.processed += result.processed;
+        total.changed += result.changed;
+        result.pending?.forEach(onPending);
+      } catch (error) {
+        failed = true;
+        onError(contentId, error);
+      }
+    }
     await yieldToEventLoop();
   }
+  if (isStale()) return { ...total, aborted: true };
+  if (!failed)
+    indexDb
+      .prepare(
+        `INSERT INTO index_meta (key,value,updated_at) VALUES ('doc_tasks_version','2',?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+      )
+      .run(Date.now());
   return { ...total, aborted: false };
 }

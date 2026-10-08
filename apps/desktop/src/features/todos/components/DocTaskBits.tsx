@@ -16,7 +16,10 @@ export function docTaskBucket(task: DocTaskItem, now: number): BucketKey {
 }
 
 export function openDocTask(source: DocTaskSource, task?: DocTaskItem) {
-  void openEntity(source.ref, task ? { at: { taskId: task.taskId } } : {});
+  void openEntity(source.ref, {
+    ...(task ? { at: { taskId: task.taskId } } : {}),
+    momentId: source.momentId,
+  });
 }
 
 export function DocTaskRow({

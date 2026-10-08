@@ -10,29 +10,52 @@ import { subscribeTodoMutationEvent } from "@/mcp/todo/events";
 import { TONE_OPTIONS, groupDotClass } from "@/utils/groupTone";
 import useSettingStore from "@/stores/useSettingStore";
 import type { TodoGroup } from "@/types";
+import { getDocTaskGroups } from "@/commands/doc-tasks";
+import type { DocTaskGroup } from "@/entity/doc-tasks";
+import { bindDatabaseCommands } from "./command-context";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
 
-let groups: TodoGroup[] = [];
+const EMPTY_GROUPS: Array<TodoGroup & DocTaskGroup> = [];
+interface GroupCache {
+  groups: Array<TodoGroup & DocTaskGroup>;
+  loaded: boolean;
+  revision: number;
+  loading: Promise<void> | null;
+}
+const caches = new Map<string, GroupCache>();
 const listeners = new Set<() => void>();
-let loading: Promise<void> | null = null;
-let loadedFor: string | null = null;
+const activeDatabase = () => useSettingStore.getState().setting.database.active;
+function cacheFor(database: string): GroupCache {
+  let cache = caches.get(database);
+  if (!cache) {
+    cache = { groups: EMPTY_GROUPS, loaded: false, revision: 0, loading: null };
+    caches.set(database, cache);
+  }
+  return cache;
+}
 
 const notify = () => listeners.forEach(listener => listener());
 
 function refresh() {
-  const database = useSettingStore.getState().setting.database.active;
-  loading = listTodoGroups()
-    .then(next => {
-      // 迟到的旧库结果不覆盖当前库
-      if (useSettingStore.getState().setting.database.active !== database) return;
-      groups = next.filter(g => !g.isSystem && !g.isArchived);
-      loadedFor = database;
+  const database = activeDatabase();
+  const cache = cacheFor(database);
+  const revision = ++cache.revision;
+  const commands = bindDatabaseCommands({ listTodoGroups }, { databaseName: database });
+  cache.loading = Promise.all([commands.listTodoGroups(), getDocTaskGroups(database)])
+    .then(([next, metadata]) => {
+      if (activeDatabase() !== database || cache.revision !== revision) return;
+      const aliases = new Map(metadata.map(group => [group.id, group.aliases]));
+      cache.groups = next
+        .filter(g => !g.isSystem && !g.isArchived)
+        .map(group => ({ ...group, aliases: aliases.get(group.id), createdAt: group.createTime }));
+      cache.loaded = true;
       notify();
     })
     .catch(() => {})
     .finally(() => {
-      loading = null;
+      if (cache.revision === revision) cache.loading = null;
     });
-  return loading;
+  return cache.loading;
 }
 
 let subscribed = false;
@@ -42,20 +65,30 @@ function ensureSubscribed() {
   subscribeTodoMutationEvent(event => {
     if (event.entityType === "group") void refresh();
   });
-  useSettingStore.subscribe(state => {
-    if (state.setting.database.active !== loadedFor) {
-      groups = [];
+  useSettingStore.subscribe((state, previous) => {
+    if (state.setting.database.active !== previous.setting.database.active) {
+      cacheFor(previous.setting.database.active).revision++;
+      const cache = cacheFor(activeDatabase());
+      cache.groups = EMPTY_GROUPS;
+      cache.loaded = false;
+      cache.loading = null;
       notify();
       void refresh();
     }
+  });
+  useGlobalStateStore.subscribe((state, previous) => {
+    const database = activeDatabase();
+    if (state.databaseStatus[database] === "ready" && previous.databaseStatus[database] !== "ready")
+      void refresh();
   });
 }
 
 export const desktopDocTaskGroups: DocTaskGroupsService = {
   list() {
     ensureSubscribed();
-    if (!loadedFor && !loading) void refresh();
-    return groups;
+    const cache = cacheFor(activeDatabase());
+    if (!cache.loaded && !cache.loading) void refresh();
+    return cache.groups;
   },
   subscribe(listener) {
     ensureSubscribed();
@@ -63,19 +96,25 @@ export const desktopDocTaskGroups: DocTaskGroupsService = {
     return () => listeners.delete(listener);
   },
   async create(title) {
-    const group = await createTodoGroup({ title, color: TONE_OPTIONS[4].color });
+    const database = activeDatabase();
+    const cache = cacheFor(database);
+    const revision = cache.revision;
+    const commands = bindDatabaseCommands({ createTodoGroup }, { databaseName: database });
+    const group = await commands.createTodoGroup({ title, color: TONE_OPTIONS[4].color });
+    if (activeDatabase() !== database || cache.revision !== revision)
+      throw new Error("项目数据已变化，请重新补全");
     emitTodoMutation({
       source: "doc-tasks",
       entityType: "group",
       action: TODO_MUTATION_ACTIONS.CREATE_GROUP,
       groupId: group.id,
     });
-    groups = [...groups, group];
+    cache.groups = [...cache.groups.filter(candidate => candidate.id !== group.id), group];
     notify();
     return { id: group.id, title: group.title };
   },
   dotClass(groupId) {
-    const group = groups.find(g => g.id === groupId);
+    const group = cacheFor(activeDatabase()).groups.find(g => g.id === groupId);
     return group ? groupDotClass(group.color) : "";
   },
 };

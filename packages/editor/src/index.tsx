@@ -394,12 +394,25 @@ const Index = memo(
     const reportExtensionRenderError = useMemoizedFn((owner: string, error: unknown) =>
       breaker.report(owner, "render", error)
     );
+    const [decorationRevision, setDecorationRevision] = useState(0);
+    useEffect(() => {
+      const cleanups: Array<() => void> = [];
+      for (const { owner, spec } of assembly.decorations) {
+        try {
+          const cleanup = spec.subscribe?.(editor, () => setDecorationRevision(value => value + 1));
+          if (cleanup) cleanups.push(cleanup);
+        } catch (error) {
+          breaker.record(owner, "decorate", error);
+        }
+      }
+      return () => cleanups.forEach(cleanup => cleanup());
+    }, [assembly, editor, registry, breaker]);
     // 扩展装饰与宿主 decorate 合并；单个扩展出错只丢它自己的装饰并计入熔断
     const mergedDecorate = useMemo(() => {
       const extensionDecorations = assembly.decorations;
       if (!extensionDecorations.length) return decorate;
       return (entry: NodeEntry): Range[] => {
-        const ranges = decorate ? decorate(entry as [Node, Path]) : [];
+        const ranges = decorate ? [...decorate(entry as [Node, Path])] : [];
         for (const { owner, spec } of extensionDecorations) {
           if (breaker.isDisabled(owner)) continue;
           try {
@@ -410,7 +423,7 @@ const Index = memo(
         }
         return ranges;
       };
-    }, [assembly, decorate, editor, breaker]);
+    }, [assembly, decorate, editor, breaker, decorationRevision]);
     const renderLeaf = useMemoizedFn((props: RenderLeafProps) => (
       <LeafRenderer
         {...props}

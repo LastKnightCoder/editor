@@ -72,7 +72,7 @@ function DocSection({
 }) {
   const [showDone, setShowDone] = useState(false);
   const all = useDocTasksOf(showDone ? source.contentId : null).data;
-  const rows = showDone && all ? all : open;
+  const rows = (showDone && all ? all : open).filter(task => !task.promoted);
   const isSelected = (task: DocTaskItem) =>
     selected?.contentId === task.contentId && selected.taskId === task.taskId;
 

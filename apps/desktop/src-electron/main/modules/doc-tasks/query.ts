@@ -3,8 +3,6 @@
  */
 
 import type Database from "better-sqlite3";
-import type { EntityRefKind } from "@/entity/ref";
-import type { EntityKind } from "@/types/entity";
 import type {
   DocTaskContentStatus,
   DocTaskItem,
@@ -16,13 +14,7 @@ import ContentTable from "../tables/content";
 import EntitySearchTable from "../tables/entity-search";
 import { reindexDocTasks } from "./indexer";
 import { excludedContentIds, isContentExcluded, promotedTaskKeys } from "./settings";
-
-const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
-  card: "card",
-  article: "article",
-  "project-item": "project_item",
-  diary: "diary",
-};
+import { resolveDocTaskSources } from "./sources";
 
 interface TaskRow {
   content_id: number;
@@ -72,26 +64,20 @@ export function getDocTaskSnapshot(
     else count.open++;
     counts.set(row.content_id, count);
   }
-  const located = EntitySearchTable.locateAll(mainDb, [...counts.keys()]);
+  const located = resolveDocTaskSources(mainDb, [...counts.keys()]);
   const sources: DocTaskSource[] = [];
   for (const [contentId, count] of counts) {
-    const ref = located.get(contentId)?.[0];
-    if (!ref) continue;
-    const candidate = EntitySearchTable.resolve(mainDb, PICKER_KIND[ref.kind], ref.id, 0);
+    const candidate = located.get(contentId);
     if (!candidate) continue;
-    const updateTime =
-      (
-        mainDb.prepare(`SELECT update_time FROM contents WHERE id = ?`).get(contentId) as
-          { update_time: number } | undefined
-      )?.update_time ?? 0;
     sources.push({
       contentId,
-      ref,
-      title: candidate.title,
+      ref: { kind: candidate.kind, id: candidate.id },
+      title: candidate.title ?? "日记",
       meta: candidate.meta,
-      updateTime,
+      updateTime: candidate.update_time,
       openCount: count.open,
       doneCount: count.done,
+      ...(candidate.moment_id != null ? { momentId: candidate.moment_id } : {}),
     });
   }
   sources.sort((a, b) => b.updateTime - a.updateTime);
@@ -136,8 +122,11 @@ export function toggleDocTask(
     patched = ContentTable.patchNodes(mainDb, contentId, node =>
       node.type === "check-list-item" && node.taskId === taskId ? { checked } : null
     );
-  } catch {
-    return "readonly";
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("COLLABORATION_WRITE_REQUIRED"))
+      return "readonly";
+    if (error instanceof Error && error.message.includes("CONTENT_SESSION_LOCKED")) return "busy";
+    throw error;
   }
   if (patched === 0) {
     reindexDocTasks(mainDb, indexDb, [contentId]);
@@ -162,5 +151,9 @@ export function getDocTaskContentStatus(
       .prepare(`SELECT task_id FROM doc_tasks WHERE content_id = ? AND checked = 0`)
       .all(contentId) as Array<{ task_id: string }>
   ).filter(row => !promoted.has(`${contentId}:${row.task_id}`)).length;
-  return { excluded: isContentExcluded(mainDb, contentId), openCount };
+  return {
+    excluded: isContentExcluded(mainDb, contentId),
+    openCount,
+    collectable: (EntitySearchTable.locateAll(mainDb, [contentId]).get(contentId)?.length ?? 0) > 0,
+  };
 }

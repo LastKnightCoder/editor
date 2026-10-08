@@ -71,6 +71,36 @@ afterEach(() => {
 });
 
 describe("getDocTaskSnapshot", () => {
+  it("文档数量增长时来源 SQL 按批执行，不回源读取全文", () => {
+    const ids = Array.from({ length: 420 }, (_, index) => {
+      const id = insertContent([list(item(`t${index}`, `任务 ${index}`))]);
+      insertArticle(id, `文章 ${index}`);
+      return id;
+    });
+    reindexDocTasks(mainDb, indexDb, ids);
+    const prepare = vi.spyOn(mainDb, "prepare");
+    expect(getDocTaskSnapshot(mainDb, indexDb).sources).toHaveLength(420);
+    expect(prepare.mock.calls.length).toBeLessThan(10);
+    prepare.mockRestore();
+  });
+
+  it("日记来源保留具体片段身份", () => {
+    const id = insertContent([list(item("diary-task", "日记待办"))]);
+    mainDb.exec(
+      `INSERT INTO diary_entries (id,type,date,create_time,update_time) VALUES (1,'daily','2026-10-08',1,1)`
+    );
+    mainDb
+      .prepare(
+        `INSERT INTO diary_segments (diary_id,content_id,create_time,update_time) VALUES (1,?,1,1)`
+      )
+      .run(id);
+    reindexDocTasks(mainDb, indexDb, [id]);
+    expect(getDocTaskSnapshot(mainDb, indexDb).sources[0]).toMatchObject({
+      ref: { kind: "diary", id: 1 },
+      momentId: 1,
+      title: "2026-10-08 日记",
+    });
+  });
   it("按文档汇总；只列未完成条目；不属于实体的正文与已删文章不出现", () => {
     const a = insertContent([list(item("a1", "甲"), item("a2", "乙", true))], 2_000);
     insertArticle(a, "Q4 发布准备");
@@ -146,6 +176,13 @@ describe("getDocTaskContentStatus", () => {
     expect(getDocTaskContentStatus(mainDb, indexDb, id)).toEqual({
       excluded: false,
       openCount: 1,
+      collectable: false,
     });
+  });
+  it("有实体的正文才可展示收集状态", () => {
+    const id = insertContent([list(item("a", "甲"))]);
+    insertCard(id);
+    reindexDocTasks(mainDb, indexDb, [id]);
+    expect(getDocTaskContentStatus(mainDb, indexDb, id).collectable).toBe(true);
   });
 });
