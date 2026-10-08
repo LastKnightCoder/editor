@@ -31,12 +31,11 @@ const end = (ref: EntityRef) => ({
   excerpt: "",
 });
 
-const card = (links: number[] = []) =>
+const card = () =>
   CardTable.createCard(db, {
     content: [{ type: "paragraph", children: [{ type: "formatted", text: "已有" }] }] as never,
     count: 2,
     tags: [],
-    links,
     isTop: false,
   }).id;
 
@@ -63,7 +62,23 @@ function savePattern(ends: EntityRef[], extra: Partial<KnowledgeMark> = {}) {
   }).id;
 }
 
-const linksOf = (id: number) => CardTable.getCardById(db, id)?.links ?? null;
+/** 与卡片显式连接的对方正文集合（content_links 无向边） */
+const contentOfCard = (id: number) => CardTable.getCardById(db, id)?.contentId ?? null;
+
+const linkedContentsOf = (id: number) => {
+  const contentId = CardTable.getCardById(db, id)?.contentId;
+  if (contentId == null) return null;
+  return new Set(
+    (
+      db
+        .prepare(
+          `SELECT target_content_id AS other FROM content_links WHERE content_id = ?
+           UNION SELECT content_id FROM content_links WHERE target_content_id = ?`
+        )
+        .all(contentId, contentId) as Array<{ other: number }>
+    ).map(row => row.other)
+  );
+};
 const statusOf = (nodeId: number) =>
   KnowledgeAiInsightsTable.get(db, nodeId)!.result.marks[0].status;
 const card$ = (id: number) => ({ kind: "card", id }) as const;
@@ -74,14 +89,16 @@ describe("同一思路写成卡片", () => {
     const b = card();
     const nodeId = savePattern([card$(a), card$(b), { kind: "article", id: 7 }]);
 
-    const { card: created, changed } = createPatternCard(db, nodeId, "p1");
+    const { card: created, linked } = createPatternCard(db, nodeId, "p1");
     expect(created.content).toEqual([
       { type: "paragraph", children: [{ type: "formatted", text: "" }] },
     ]);
-    expect(created.links.sort()).toEqual([a, b].sort());
-    expect(linksOf(a)).toEqual([created.id]);
-    expect(linksOf(b)).toEqual([created.id]);
-    expect(changed.sort()).toEqual([a, b].sort());
+    expect(linked).toBe(true);
+    expect(linkedContentsOf(a)).toEqual(new Set([created.contentId]));
+    expect(linkedContentsOf(b)).toEqual(new Set([created.contentId]));
+    expect(linkedContentsOf(created.id)).toEqual(
+      new Set([contentOfCard(a), contentOfCard(b)].filter((v): v is number => v != null))
+    );
     expect(EntityLineageTable.sourcesOf(db, [card$(created.id)])).toMatchObject([
       { node: { kind: "article", id: 7 }, relation: "distilled_from" },
     ]);
@@ -97,16 +114,15 @@ describe("同一思路写成卡片", () => {
     expect(CardTable.getAllCards(db)).toHaveLength(1);
   });
 
-  it("撤回还空着的卡片：解开链接、删谱系与卡片，标记回到未处理", () => {
-    const a = card([]);
+  it("撤回还空着的卡片：连接随正文释放、删谱系与卡片，标记回到未处理", () => {
+    const a = card();
     const nodeId = savePattern([card$(a), { kind: "project-item", id: 3 }]);
     const { card: created } = createPatternCard(db, nodeId, "p1");
 
     const result = discardPatternCard(db, nodeId, "p1", created.id);
     expect(result?.card.id).toBe(created.id);
-    expect(result?.changed).toEqual([a]);
     expect(CardTable.getCardById(db, created.id)).toBeFalsy();
-    expect(linksOf(a)).toEqual([]);
+    expect(linkedContentsOf(a)).toEqual(new Set());
     expect(EntityLineageTable.derivedOf(db, [{ kind: "project-item", id: 3 }])).toEqual([]);
     expect(statusOf(nodeId)).toBe("open");
   });
@@ -122,7 +138,7 @@ describe("同一思路写成卡片", () => {
 
     expect(discardPatternCard(db, nodeId, "p1", created.id)).toBeNull();
     expect(CardTable.getCardById(db, created.id)).toBeTruthy();
-    expect(linksOf(a)).toEqual([created.id]);
+    expect(linkedContentsOf(a)).toEqual(new Set([created.contentId]));
     expect(statusOf(nodeId)).toBe("linked");
   });
 });

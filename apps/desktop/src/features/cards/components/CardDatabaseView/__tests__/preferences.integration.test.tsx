@@ -1,5 +1,6 @@
 import { act, forwardRef, useImperativeHandle } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { DatabaseProps, DatabaseRef } from "@tau/database";
 import type { ICard } from "@/types/card";
@@ -27,6 +28,7 @@ vi.mock("@/features/shared/database/DesktopDatabase", () => ({
 }));
 
 let root: Root | undefined;
+let queryClient: QueryClient;
 let host: HTMLDivElement;
 const callbacks = {
   cards: [],
@@ -41,6 +43,7 @@ beforeEach(() => {
   dispatch.mockClear();
   host = document.createElement("div");
   document.body.append(host);
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   root = createRoot(host);
 });
 afterEach(() => {
@@ -51,7 +54,13 @@ afterEach(() => {
 });
 
 it("跨窗口配置刷新经 external 命令接入，切库后使用独立偏好", async () => {
-  await act(async () => root?.render(<CardDatabaseView {...callbacks} databaseName="a" />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} databaseName="a" />
+      </QueryClientProvider>
+    )
+  );
   expect(host.textContent).toBe("所有卡片");
   const previous = useCardsDatabasePreferencesStore.getState().byDatabase.a;
   const incoming = {
@@ -84,7 +93,13 @@ it("跨窗口配置刷新经 external 命令接入，切库后使用独立偏好
     "external"
   );
   expect(callbacks.onUpdateCard).not.toHaveBeenCalled();
-  await act(async () => root?.render(<CardDatabaseView {...callbacks} databaseName="b" />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} databaseName="b" />
+      </QueryClientProvider>
+    )
+  );
   expect(host.textContent).toBe("所有卡片");
   expect(useCardsDatabasePreferencesStore.getState().byDatabase.a.columnWidths.title).toBe(480);
 });
@@ -105,10 +120,22 @@ it("切库后旧实例迟到的视图回调只更新原库，不认领新库同 
     })),
   };
   useCardsDatabasePreferencesStore.setState({ legacyDefaults: snapshot });
-  await act(async () => root?.render(<CardDatabaseView {...callbacks} databaseName="a" />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} databaseName="a" />
+      </QueryClientProvider>
+    )
+  );
   const previous = mocks.props?.onActiveViewIdChange;
   if (!previous) throw new Error("视图回调未接线");
-  await act(async () => root?.render(<CardDatabaseView {...callbacks} databaseName="b" />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} databaseName="b" />
+      </QueryClientProvider>
+    )
+  );
   await act(async () => previous(2));
   expect(useCardsDatabasePreferencesStore.getState().byDatabase.a.activeViewId).toBe(2);
   expect(useCardsDatabasePreferencesStore.getState().byDatabase.b.activeViewId).toBe(1);
@@ -121,14 +148,20 @@ it("新建标签按名称保存，回读和重新挂载后仍使用名称", asyn
     content: [],
     count: 0,
     tags: ["HTML/form"],
-    links: [],
+    linkCount: 0,
     isTop: false,
     create_time: 0,
     update_time: 0,
   };
   const onUpdateCard = vi.fn(async (_id: number, patch: Partial<ICard>) => ({ ...card, ...patch }));
   const props = { ...callbacks, databaseName: "a", cards: [card], onUpdateCard };
-  await act(async () => root?.render(<CardDatabaseView {...props} />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...props} />
+      </QueryClientProvider>
+    )
+  );
   const database = mocks.props;
   if (!database) throw new Error("表格未挂载");
   const optionId = "58b62e04-70df-499e-9200-000000000001";
@@ -145,7 +178,7 @@ it("新建标签按名称保存，回读和重新挂载后仍使用名称", asyn
         }
       : column
   );
-  const rows = [{ id: "1", tags: ["HTML/form", optionId], links: [2] }];
+  const rows = [{ id: "1", tags: ["HTML/form", optionId] }];
   await act(async () =>
     database.onDataChange?.(
       { columns, rows },
@@ -154,16 +187,27 @@ it("新建标签按名称保存，回读和重新挂载后仍使用名称", asyn
   );
   expect(onUpdateCard).toHaveBeenCalledExactlyOnceWith(1, {
     tags: ["HTML/form", "安全"],
-    links: [2],
   });
   const saved = await onUpdateCard.mock.results[0].value;
-  await act(async () => root?.render(<CardDatabaseView {...props} cards={[saved]} />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...props} cards={[saved]} />
+      </QueryClientProvider>
+    )
+  );
   expect(dispatch).toHaveBeenCalledWith(
     { type: "rows.receive", rows: [expect.objectContaining({ tags: ["HTML/form", "安全"] })] },
     "external"
   );
   await act(async () => root?.render(null));
-  await act(async () => root?.render(<CardDatabaseView {...props} cards={[saved]} />));
+  await act(async () =>
+    root?.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...props} cards={[saved]} />
+      </QueryClientProvider>
+    )
+  );
   const reloaded = mocks.props;
   if (!reloaded) throw new Error("表格未重新挂载");
   expect(reloaded.columns.find(column => column.id === "tags")?.config).toEqual({

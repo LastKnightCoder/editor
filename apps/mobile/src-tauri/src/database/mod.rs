@@ -498,6 +498,104 @@ pub fn update_card_tags(
     query::query_card_detail(&conn, payload.id)
 }
 
+/// update_card_links 的核心差量：期望连接（目标卡 → 各自正文）与当前「有卡片投影」的邻居做差，
+/// 只增删涉及的边（无向边规范化单行）。抽出命令壳以便单测直接对内存库执行。
+fn apply_card_links(
+    conn: &mut rusqlite::Connection,
+    self_id: i64,
+    new_links: &[i64],
+    now: i64,
+) -> Result<(), String> {
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
+
+    let self_content: Option<i64> = tx
+        .query_row(
+            "SELECT content_id FROM cards WHERE id = ?1 LIMIT 1",
+            params![self_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to read card: {e}"))?;
+    let self_content =
+        self_content.ok_or_else(|| "CARD_NOT_FOUND: card does not exist".to_string())?;
+
+    // 期望连接的对方正文（目标卡必须存在；共用同一份正文的目标跳过——那就是自己）
+    let mut desired: Vec<i64> = Vec::with_capacity(new_links.len());
+    for target in new_links {
+        let content: Option<i64> = tx
+            .query_row(
+                "SELECT content_id FROM cards WHERE id = ?1 LIMIT 1",
+                params![target],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to validate linked card: {e}"))?;
+        match content {
+            None => {
+                return Err("CARD_LINK_INVALID: one or more linked cards do not exist".to_string())
+            }
+            Some(content) => {
+                if content != self_content && !desired.contains(&content) {
+                    desired.push(content);
+                }
+            }
+        }
+    }
+
+    // 只对「有卡片投影」的邻居做差量：没有卡片投影的连接（文章 / 项目文档）
+    // 移动端看不到，整表保存也不能因此误删
+    let current = query::card_backed_neighbor_contents(&tx, self_content);
+    let added: Vec<i64> = desired
+        .iter()
+        .filter(|content| !current.contains(content))
+        .cloned()
+        .collect();
+    let removed: Vec<i64> = current
+        .iter()
+        .filter(|content| !desired.contains(content))
+        .cloned()
+        .collect();
+
+    for other in added.iter().chain(removed.iter()) {
+        let (low, high) = if self_content < *other {
+            (self_content, *other)
+        } else {
+            (*other, self_content)
+        };
+        if added.contains(other) {
+            tx.execute(
+                "
+                INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
+                VALUES (?1, ?2, ?3)
+                ",
+                params![low, high, now],
+            )
+            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to add content link: {e}"))?;
+        } else {
+            tx.execute(
+                "DELETE FROM content_links WHERE content_id = ?1 AND target_content_id = ?2",
+                params![low, high],
+            )
+            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to remove content link: {e}"))?;
+        }
+    }
+    if !added.is_empty() || !removed.is_empty() {
+        tx.execute(
+            "
+            INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+            VALUES (?1, ?2, 'card', 'update')
+            ",
+            params![now, self_id],
+        )
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
+    }
+
+    tx.commit()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to commit transaction: {e}"))
+}
+
 #[tauri::command]
 pub fn update_card_links(
     app: AppHandle,
@@ -518,109 +616,7 @@ pub fn update_card_links(
         .map(|duration| duration.as_millis() as i64)
         .unwrap_or(0);
 
-    let tx = conn
-        .transaction()
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
-
-    if !new_links.is_empty() {
-        let placeholders = vec!["?"; new_links.len()].join(", ");
-        let sql = format!("SELECT COUNT(*) FROM cards WHERE id IN ({placeholders})");
-        let found: i64 = tx
-            .query_row(&sql, rusqlite::params_from_iter(new_links.iter()), |row| {
-                row.get(0)
-            })
-            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to validate linked cards: {e}"))?;
-        if found != new_links.len() as i64 {
-            return Err("CARD_LINK_INVALID: one or more linked cards do not exist".to_string());
-        }
-    }
-
-    let old_links_raw: Option<String> = tx
-        .query_row(
-            "SELECT links FROM cards WHERE id = ?1 LIMIT 1",
-            params![self_id],
-            |row| row.get(0),
-        )
-        .optional()
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to read card links: {e}"))?
-        .ok_or_else(|| "CARD_NOT_FOUND: card does not exist".to_string())?;
-    let old_links = query::parse_links_column(old_links_raw);
-
-    let serialized_new_links = serde_json::to_string(&new_links)
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to serialize links: {e}"))?;
-    tx.execute(
-        "
-        UPDATE cards
-        SET links = ?1, update_time = ?2
-        WHERE id = ?3
-        ",
-        params![serialized_new_links, now, self_id],
-    )
-    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to update card links: {e}"))?;
-    tx.execute(
-        "
-        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-        VALUES (?1, ?2, 'card', 'update')
-        ",
-        params![now, self_id],
-    )
-    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
-
-    // 双向同步：新增的关联，对方卡片补上自己；移除的关联，对方卡片删掉自己
-    let added: Vec<i64> = new_links
-        .iter()
-        .filter(|id| !old_links.contains(id))
-        .cloned()
-        .collect();
-    let removed: Vec<i64> = old_links
-        .iter()
-        .filter(|id| !new_links.contains(id))
-        .cloned()
-        .collect();
-
-    for other_id in added.iter().chain(removed.iter()) {
-        let other_raw: Option<String> = tx
-            .query_row(
-                "SELECT links FROM cards WHERE id = ?1 LIMIT 1",
-                params![other_id],
-                |row| row.get(0),
-            )
-            .optional()
-            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to read linked card: {e}"))?;
-        let Some(other_raw) = other_raw else {
-            continue;
-        };
-        let mut other_links = query::parse_links_column(Some(other_raw));
-        if added.contains(other_id) {
-            if !other_links.contains(&self_id) {
-                other_links.push(self_id);
-            }
-        } else {
-            other_links.retain(|id| *id != self_id);
-        }
-        let serialized_other = serde_json::to_string(&other_links)
-            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to serialize links: {e}"))?;
-        tx.execute(
-            "
-            UPDATE cards
-            SET links = ?1, update_time = ?2
-            WHERE id = ?3
-            ",
-            params![serialized_other, now, other_id],
-        )
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to sync linked card: {e}"))?;
-        tx.execute(
-            "
-            INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-            VALUES (?1, ?2, 'card', 'update')
-            ",
-            params![now, other_id],
-        )
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
-    }
-
-    tx.commit()
-        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
+    apply_card_links(&mut conn, self_id, &new_links, now)?;
 
     let setting = load_or_init_setting(&app)?;
     let db_name = get_active_database_name(&setting);
@@ -718,6 +714,12 @@ pub fn delete_card(app: AppHandle, id: i64) -> Result<i64, String> {
             .map_err(|e| format!("CARD_DELETE_FAILED: Failed to read content ref_count: {e}"))?;
 
         if matches!(ref_count, Some(count) if count <= 0) {
+            // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
+            tx.execute(
+                "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
+                params![content_id],
+            )
+            .map_err(|e| format!("CARD_DELETE_FAILED: Failed to release content links: {e}"))?;
             tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
                 .map_err(|e| format!("CARD_DELETE_FAILED: Failed to delete content: {e}"))?;
             tx.execute(
@@ -739,4 +741,121 @@ pub fn delete_card(app: AppHandle, id: i64) -> Result<i64, String> {
     reconcile::trigger_reconcile(&app, &db_name);
 
     Ok(changed as i64)
+}
+
+#[cfg(test)]
+mod content_link_tests {
+    use super::*;
+
+    fn setup() -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        migrator::ensure_main_schema(&conn).unwrap();
+        conn
+    }
+
+    fn insert_content(conn: &rusqlite::Connection, text: &str) -> i64 {
+        conn.query_row(
+            "INSERT INTO contents (create_time, update_time, content, count, ref_count)
+             VALUES (1, 1, json_quote(?1), ?2, 1) RETURNING id",
+            params![text, text.len() as i64],
+            |row| row.get(0),
+        )
+        .unwrap()
+    }
+
+    fn insert_card(conn: &rusqlite::Connection, content_id: i64) -> i64 {
+        conn.query_row(
+            "INSERT INTO cards (create_time, update_time, tags, links, content_id)
+             VALUES (1, 1, '[]', '[]', ?1) RETURNING id",
+            params![content_id],
+            |row| row.get(0),
+        )
+        .unwrap()
+    }
+
+    fn edge_count(conn: &rusqlite::Connection) -> i64 {
+        conn.query_row("SELECT COUNT(*) FROM content_links", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    fn has_edge(conn: &rusqlite::Connection, a: i64, b: i64) -> bool {
+        let (low, high) = (a.min(b), a.max(b));
+        conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM content_links WHERE content_id = ?1 AND target_content_id = ?2)",
+            params![low, high],
+            |r| r.get(0),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn update_card_links_differential_preserves_non_card_neighbors() {
+        let mut conn = setup();
+        let a = insert_content(&conn, "卡片A");
+        let b = insert_content(&conn, "卡片B");
+        let c = insert_content(&conn, "文章正文");
+        let card_a = insert_card(&conn, a);
+        let card_b = insert_card(&conn, b);
+        // A—文章（无卡片投影）与 A—B 两条边
+        conn.execute(
+            "INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?1, ?2, 1)",
+            params![a.min(c), a.max(c)],
+        )
+        .unwrap();
+
+        // 移动端整表保存只选了 B：文章侧的边不能被误删
+        apply_card_links(&mut conn, card_a, &[card_b], 2).unwrap();
+        assert!(has_edge(&conn, a, b));
+        assert!(has_edge(&conn, a, c), "无卡片投影的邻居（文章）不能被整表保存误删");
+        // 卡片详情只展示卡片投影邻居：此刻只有 B 可见（文章侧不可见）
+        assert_eq!(query::linked_card_ids(&conn, a), vec![card_b]);
+
+        // 清空选择：只删卡片侧的 B 边，文章边仍在
+        apply_card_links(&mut conn, card_a, &[], 3).unwrap();
+        assert!(!has_edge(&conn, a, b));
+        assert!(has_edge(&conn, a, c));
+        assert!(query::linked_card_ids(&conn, a).is_empty());
+    }
+
+    #[test]
+    fn update_card_links_rejects_missing_target_without_writes() {
+        let mut conn = setup();
+        let a = insert_content(&conn, "卡片A");
+        let card_a = insert_card(&conn, a);
+        let err = apply_card_links(&mut conn, card_a, &[999], 2).unwrap_err();
+        assert!(err.contains("CARD_LINK_INVALID"), "unexpected: {err}");
+        assert_eq!(edge_count(&conn), 0);
+    }
+
+    #[test]
+    fn update_card_links_skips_same_content_target() {
+        let mut conn = setup();
+        let shared = insert_content(&conn, "共用正文");
+        let card_a = insert_card(&conn, shared);
+        let card_b = insert_card(&conn, shared);
+        apply_card_links(&mut conn, card_a, &[card_b], 2).unwrap();
+        assert_eq!(edge_count(&conn), 0, "共用正文的身份之间不互连");
+    }
+
+    /// 引用归零删除正文时释放两侧边（common 路径；delete_card / diary / todo 是同一语句）。
+    /// delete_card / 删日记段是 tauri 命令无法直测，语句与 common.rs 完全一致。
+    #[test]
+    fn deleting_content_releases_content_links() {
+        let conn = setup();
+        let a = insert_content(&conn, "卡片A");
+        let b = insert_content(&conn, "卡片B");
+        conn.execute(
+            "INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?1, ?2, 1)",
+            params![a.min(b), a.max(b)],
+        )
+        .unwrap();
+        // a 是较大一侧（target 侧），验证 target 侧删除同样生效
+        let victim = a.max(b);
+
+        conn.execute("BEGIN", []).unwrap();
+        common::decrement_or_delete_content(&conn, victim).unwrap();
+        conn.execute("COMMIT", []).unwrap();
+
+        assert_eq!(edge_count(&conn), 0, "正文删除应释放两侧的边");
+    }
 }

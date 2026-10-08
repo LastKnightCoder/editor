@@ -19,6 +19,7 @@ import type {
 import type { Module } from "../types/module";
 import databaseModule from "./database";
 import { broadcastDatabaseChange } from "./database-notifications";
+import { ENTITY_CONTEXT_CHANGED } from "./entity-context";
 import knowledgeMapBuilder from "./knowledge-map-builder";
 import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
 import PiAiRuntimeModule from "./pi-ai-runtime";
@@ -139,15 +140,9 @@ class KnowledgeInsightsModule implements Module {
       "knowledge-insights:link-cards",
       async (event, input: { a: number; b: number }) => {
         const { mainDb, dbName } = await this.databases(event.sender);
-        const changed = linkCardsMutually(mainDb, Number(input?.a), Number(input?.b));
-        for (const cardId of changed) {
-          broadcastDatabaseChange("card:updated", dbName, { cardId });
-        }
-        // 引用索引、脉络与知识地图都订阅写事件
-        if (changed.length && databaseModule.getCurrentDatabaseName() === dbName) {
-          databaseModule.notifyExternalWrite("update-card");
-        }
-        return changed.length > 0;
+        const linked = linkCardsMutually(mainDb, Number(input?.a), Number(input?.b));
+        if (linked) this.afterContentLinksChanged(dbName);
+        return linked;
       }
     );
     // 同一思路「写成卡片」：建一张空卡片连上用到它的几处；离开时还空着就撤回
@@ -156,7 +151,7 @@ class KnowledgeInsightsModule implements Module {
       async (event, input: { id: number; itemId: string }) => {
         const { mainDb, dbName } = await this.databases(event.sender);
         const result = createPatternCard(mainDb, Number(input?.id), String(input?.itemId));
-        this.afterPatternCard(dbName, result.changed, "create-card");
+        this.afterPatternCard(dbName, "create-card", result.linked);
         return result.card;
       }
     );
@@ -170,7 +165,7 @@ class KnowledgeInsightsModule implements Module {
           String(input?.itemId),
           Number(input?.cardId)
         );
-        if (result) this.afterPatternCard(dbName, result.changed, "delete-card");
+        if (result) this.afterPatternCard(dbName, "delete-card", result.linked);
         return result?.card ?? null;
       }
     );
@@ -203,14 +198,19 @@ class KnowledgeInsightsModule implements Module {
   }
 
   /** 写成卡片 / 撤回之后：其他卡片的链接、标记状态、脉络与引用索引都要知道 */
-  private afterPatternCard(dbName: string, changed: number[], eventName: string) {
-    for (const cardId of changed) broadcastDatabaseChange("card:updated", dbName, { cardId });
+  private afterPatternCard(dbName: string, eventName: string, linked: boolean) {
     broadcastDatabaseChange(KNOWLEDGE_INSIGHTS_CHANGED_EVENT, dbName);
+    if (linked) this.afterContentLinksChanged(dbName);
     if (databaseModule.getCurrentDatabaseName() === dbName) {
       databaseModule.notifyExternalWrite(eventName);
-      if (changed.length) databaseModule.notifyExternalWrite("update-card");
       databaseModule.notifyExternalWrite("lineage:record");
     }
+  }
+
+  /** 正文显式连接变化：失效脉络与连接列表（不进 database.ts 表包装，无自动广播） */
+  private afterContentLinksChanged(dbName: string) {
+    broadcastDatabaseChange(ENTITY_CONTEXT_CHANGED, dbName);
+    broadcastDatabaseChange("content-links:changed", dbName);
   }
 
   private requireSlot(): LlmRef {

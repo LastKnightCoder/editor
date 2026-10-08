@@ -11,6 +11,7 @@ import type Database from "better-sqlite3";
 import { normalizeEntityRefKind, entityRefKey, type EntityRef } from "@/entity/ref";
 import type { ContextRelated } from "@/types/entity-context";
 import ContentAiMetaTable from "../tables/content-ai-meta";
+import ContentLinkTable from "../tables/content-link";
 import EntitySearchTable from "../tables/entity-search";
 import KnowledgeMapTable from "../tables/knowledge-map";
 
@@ -175,15 +176,6 @@ function contentIdOf(db: Database.Database, ref: EntityRef): number | null {
   return row?.content_id ?? null;
 }
 
-const parseIds = (raw: string | null): number[] => {
-  try {
-    const value = JSON.parse(raw ?? "[]");
-    return Array.isArray(value) ? value.filter((id): id is number => typeof id === "number") : [];
-  } catch {
-    return [];
-  }
-};
-
 /** 已经有关系的实体与正文：这些不再作为「相关」推荐 */
 export function relatedExclusions(
   mainDb: Database.Database,
@@ -199,17 +191,14 @@ export function relatedExclusions(
     if (normalized && Number.isSafeInteger(numeric)) keys.add(`${normalized}:${numeric}`);
   };
 
-  // 卡片双向链接（两侧都查，单向残留也算已连接）
-  for (const card of identities.filter(ref => ref.kind === "card")) {
-    const row = mainDb.prepare(`SELECT links FROM cards WHERE id = ?`).get(card.id) as
-      { links: string | null } | undefined;
-    for (const id of parseIds(row?.links ?? null)) addKey("card", id);
-    const reverse = mainDb
-      .prepare(
-        `SELECT c.id FROM cards c WHERE EXISTS (SELECT 1 FROM json_each(c.links) WHERE value = ?)`
-      )
-      .all(card.id) as Array<{ id: number }>;
-    for (const { id } of reverse) addKey("card", id);
+  // 正文显式连接（边无向：两侧都算已连接）
+  if (contentIds.length) {
+    const neighbors = ContentLinkTable.edgesOf(mainDb, contentIds);
+    const neighborIds = [...new Set([...neighbors.values()].flat())];
+    for (const ref of EntitySearchTable.locateAll(mainDb, neighborIds).values()) {
+      for (const other of ref) addKey(other.kind, other.id);
+    }
+    for (const id of neighborIds) contents.add(id);
   }
 
   // 引用了 / 被引用（引用索引覆盖全部正文）

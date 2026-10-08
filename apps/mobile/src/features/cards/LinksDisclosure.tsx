@@ -9,7 +9,7 @@ import type { CardListItem } from "../../types";
 import { getNavigator } from "../../router";
 
 type LinksDisclosureProps = {
-  /** 关联卡片 id 集合（cards.links，存 cardId） */
+  /** 关联卡片 id 集合（正文显式连接 content_links 的卡片投影，存 cardId） */
   links: number[];
   onError?: (error: unknown, fallback: string) => void;
 };

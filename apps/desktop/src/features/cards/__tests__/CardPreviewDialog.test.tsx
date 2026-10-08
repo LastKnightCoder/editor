@@ -130,7 +130,7 @@ beforeEach(async () => {
     content: [],
     count: 0,
     tags: [],
-    links: [],
+    linkCount: 0,
     isTop: false,
     create_time: 0,
     update_time: 0,

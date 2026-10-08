@@ -118,11 +118,12 @@ fn v4_database_with_flashcards() -> Connection {
 #[test]
 fn v4_database_migrates_flashcards_to_fsrs_columns() {
     let conn = v4_database_with_flashcards();
+    // v4 先升 v5（FSRS），再链式升 v6（卡片连接迁 content_links）
     ensure_main_schema(&conn).unwrap();
 
     assert_eq!(
         get_meta(&conn, "main_schema_version").unwrap().as_deref(),
-        Some("5")
+        Some("6")
     );
     // 旧调度列退役，新记忆状态列就位；已学卡按 SM-2 公式回填（0.9 保留率下稳定性=旧间隔天数）
     let (stability, difficulty): (Option<f64>, Option<f64>) = conn
@@ -180,4 +181,60 @@ fn migrated_flashcard_tables_match_fresh_schema_columns() {
         };
         assert_eq!(columns(&migrated), columns(&fresh), "table {table}");
     }
+}
+
+/// v5 库样本：cards.links（JSON 卡片 id 数组）里存着双向卡片连接
+fn v5_database_with_card_links() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+         INSERT INTO schema_meta VALUES ('main_schema_version', '5', 0);
+         CREATE TABLE cards(id INTEGER PRIMARY KEY, create_time INTEGER NOT NULL, update_time INTEGER NOT NULL,
+           tags TEXT, links TEXT, content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
+         INSERT INTO cards VALUES (1, 0, 0, '[]', '[2,3,6,8]', 11, 0, NULL);
+         INSERT INTO cards VALUES (2, 0, 0, '[]', '[1]', 12, 0, NULL);
+         INSERT INTO cards VALUES (3, 0, 0, '[]', '[1]', 13, 0, NULL);
+         INSERT INTO cards VALUES (4, 0, 0, '[]', '[]', 14, 0, NULL);
+         INSERT INTO cards VALUES (5, 0, 0, '[]', '[99]', 15, 0, NULL);
+         -- 6 与 1 共用正文 11：不互连；7 的 links 是坏 JSON：不产出边、不炸迁移；8 的 content_id 为 NULL：跳过
+         INSERT INTO cards VALUES (6, 0, 0, '[]', '[1]', 11, 0, NULL);
+         INSERT INTO cards VALUES (7, 0, 0, '[]', '{bad json', 17, 0, NULL);
+         INSERT INTO cards VALUES (8, 0, 0, '[]', '[1]', NULL, 0, NULL);",
+    )
+    .unwrap();
+    conn
+}
+
+#[test]
+fn v5_database_migrates_card_links_to_content_links() {
+    let conn = v5_database_with_card_links();
+    ensure_main_schema(&conn).unwrap();
+
+    assert_eq!(
+        get_meta(&conn, "main_schema_version").unwrap().as_deref(),
+        Some("6")
+    );
+    // 双边冗余写收敛为无向边单行（规范化小正文 id 在前）：1↔2、1↔3；悬空目标（卡 99）丢弃
+    let edges: Vec<(i64, i64)> = conn
+        .prepare("SELECT content_id, target_content_id FROM content_links ORDER BY content_id, target_content_id")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(edges, vec![(11, 12), (11, 13)]);
+    // cards.links 清空（列退役），重复打开幂等不再触发迁移写
+    let remaining: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM cards WHERE links IS NOT NULL AND links NOT IN ('[]', '', 'null')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(remaining, 0);
+    ensure_main_schema(&conn).unwrap();
+    let edges_after: i64 = conn
+        .query_row("SELECT COUNT(*) FROM content_links", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(edges_after, 2);
 }

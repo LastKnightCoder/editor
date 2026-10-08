@@ -24,6 +24,7 @@ import VideoNoteItemTable from "./tables/video-note-item";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import QuestionLinkTable from "./tables/question-link";
+import ContentLinkTable from "./tables/content-link";
 import EntitySearchTable from "./tables/entity-search";
 import QuestionEventTable from "./tables/question-event";
 import QuestionChatTable from "./tables/question-chat";
@@ -246,6 +247,7 @@ class DatabaseModule implements Module {
       QuestionEventTable,
       QuestionLinkTable,
       QuestionChatTable,
+      ContentLinkTable,
       EntitySearchTable,
       DataTableTable,
       DatabaseItemTable,
@@ -367,6 +369,7 @@ class DatabaseModule implements Module {
         QuestionGroupTable.ensureDefaultGroup(database);
         DiaryTable.ensureDefaultTagSettings(database);
         FlashcardTable.upgradeTable(database);
+        ContentLinkTable.migrateCardsLinks(database);
         TodoCalendarSyncTable.ensureTodoCalendars(database);
         try {
           TodoCalendarSyncTable.cleanupOrphanedEvents(database);

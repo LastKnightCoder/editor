@@ -28,6 +28,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync, readdirSync } from "fs";
 import log from "electron-log";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import CardTable from "./tables/card";
+import ContentLinkTable from "./tables/content-link";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import QuestionTable from "./tables/question";
@@ -44,6 +45,8 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
     getCardByIds: ids => CardTable.getCardByIds(db, ids),
     getCardById: id => CardTable.getCardById(db, id),
     getCardByContentId: contentId => CardTable.getCardByContentId(db, contentId),
+    getContentLinkTargetContentIds: contentId =>
+      ContentLinkTable.edgesOf(db, [contentId]).get(contentId) ?? [],
     getArticleByIds: ids => ArticleTable.getArticleByIds(db, ids),
     getArticleByContentId: contentId => ArticleTable.getArticleByContentId(db, contentId),
     getProject: id => ProjectTable.getProject(db, id),

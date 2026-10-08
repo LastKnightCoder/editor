@@ -165,6 +165,13 @@ pub(crate) fn decrement_or_delete_content(tx: &Connection, content_id: i64) -> R
     if matches!(ref_count, Some(v) if v <= 0) {
         // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
         super::collaboration::assert_content_local(tx, content_id)?;
+        // 正文删除时释放两侧的显式连接（与桌面 ContentTable.releaseContent 对齐），
+        // 避免 rowid 复用后悬空边变成幽灵连接
+        tx.execute(
+            "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
+            params![content_id],
+        )
+        .map_err(|e| db_err("CONTENT_DELETE_FAILED", "release content links", e))?;
         tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
             .map_err(|e| db_err("CONTENT_DELETE_FAILED", "delete content", e))?;
         write_operation(tx, "content", "delete", content_id, now)?;

@@ -428,6 +428,12 @@ fn decrement_or_delete_content(tx: &Transaction<'_>, content_id: i64) -> Result<
     if matches!(ref_count, Some(v) if v <= 0) {
         // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
         super::collaboration::assert_content_local(tx, content_id)?;
+        // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
+        tx.execute(
+            "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
+            params![content_id],
+        )
+        .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "release content links", e))?;
         tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
             .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "delete content", e))?;
     }

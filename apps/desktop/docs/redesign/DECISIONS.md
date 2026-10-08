@@ -1,5 +1,17 @@
 # 决策记录（轻量 ADR）
 
+## D-121 显式连接绑定 contentId：cards.links 迁至 content_links，文章与项目文档接入
+
+（2026-10-08，用户确认方案后实施；KL-018 卡片连接的存储泛化）
+
+- 动机：文章 / 项目文档此前只有派生关联（脉络的被引用 / 投影 / 谱系），没有用户亲手建立的显式连接；且「从卡片创建项目文档（refType='card' 共用正文）」带不走卡片的连接——cards.links 绑在卡片行上。
+- 存储：新主库表 `content_links`（无向边、一行一条、`content_id` 规范化为较小一侧、成对唯一索引）。连接绑定 `contents.id`：共用同一份正文的身份（卡片、文章、项目文档、日记及其投影）共享同一组连接，「从卡片创建项目文档连接带过去」由此免费实现；复制创建（新建正文）不带连接；同一正文的不同身份之间按 contentId 过滤自连。
+- 写入统一为单事务单行（database.ts 通用包装层 / 移动端单事务差量），取代旧 cards.links 的两次补丁双边写（顺带修复 CardDetailView 双边非原子与 CardDatabaseView 列编辑只写单边两个存量缺陷）。正文删除（引用计数归零）经 `ContentTable.releaseContent` 释放两侧边。
+- 迁移（一次性、幂等）：桌面 `ContentLinkTable.migrateCardsLinks`（maintenance 开库，护栏 = cards.links 全空即不再命中）；移动端 `MAIN_SCHEMA_VERSION` 5→6 的 `migrate_v5_to_v6`（v4 库链式先升 v5）。cards.links 与 articles.links 列物理保留不再读写，ICard.links 退役为 `linkCount`（轻表按正文计数子查询）。同步信封 `SYNC_MODEL_VERSION` 3→4（`packages/db-schema/src/sync-version.ts` 与移动端镜像），旧端互拒新旧快照，防止读写旧列造成分叉。
+- UI：脉络浮层内建「连接」分区（getEntityContext 的 `links` 载荷 = content_links 边 ∪ 正文内联引用，去重、显式在前），卡片 / 文章 / 项目文档 / 日记详情通用；ContextBadge 的 leading / hideOutlinks / onConnect 插槽机制随之退役（连接动作收口在脉络域）。添加走 ContentSelectorModal（四种内容实体互连，按 contentId 排除自身与已连）；「相关」分区的添加连接动作从仅卡片放开到四种实体。
+- 消费端全部切换：知识地图显式边（knowledge-map collectLinks）、脉络「相关」排除（context-related）、发布站点相关卡片、主题洞见连接（knowledge-insights:link-cards / pattern-card 写成卡片）、卡片库表格连接列（行值改「显式目标 ∪ 内联引用」结构，标题由主进程解析）与列表连接数徽标（linkCount）。移动端卡片连接 UI 形状不变（仍为卡片 id 列表），数据源与写入切到边表；没有卡片投影的邻居（文章 / 项目文档连接）移动端暂不展示、整表保存不误删，桌面脉络可见。
+- 口径备注：连接增删不再写 operation 行、不 bump 卡片 update_time（连接不是正文编辑，不进最近编辑与活动统计）；正文删除（引用归零）两端同事务释放两侧边；卡片轻表 linkCount 按正文双向计数（content_id 任一侧命中都算）。
+
 ## D-120 文档待办：正文是唯一真相源，待办页是镜像
 
 （2026-10-08，用户确认；方案与决策细目见 `docs/doc-tasks/01-方案.md`，mockup 见 `apps/desktop/mockups/doc-todos/index.html`）

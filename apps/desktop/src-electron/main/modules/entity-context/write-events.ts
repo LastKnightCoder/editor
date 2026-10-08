@@ -36,6 +36,9 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   // 日记
   "delete-diary-entry",
   "delete-diary-segment",
+  // 正文显式连接（连接是脉络「连接」分区的数据源）
+  "content-links:add",
+  "content-links:remove",
   // 问题与材料
   "question:link-targets",
   "question:unlink-target",

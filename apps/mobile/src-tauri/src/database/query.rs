@@ -38,39 +38,47 @@ fn parse_tags(raw_tags: Option<String>) -> Vec<String> {
     parse_string_array(raw_tags)
 }
 
-fn parse_number_array(raw_json: Option<String>) -> Vec<i64> {
-    let Some(raw) = raw_json else {
+/// 与正文显式连接、且有卡片投影的对方正文（content_links 无向边、绑定正文），
+/// 按连接建立时间排序。update_card_links 只对这些做差量：没有卡片投影的邻居
+/// （文章 / 项目文档）移动端看不到，不能因整表保存被误删。
+pub(super) fn card_backed_neighbor_contents(conn: &Connection, content_id: i64) -> Vec<i64> {
+    let Ok(mut stmt) = conn.prepare(
+        "
+        SELECT c2.content_id
+        FROM content_links cl
+        JOIN cards c2 ON c2.content_id IN (cl.content_id, cl.target_content_id)
+        WHERE (cl.content_id = ?1 OR cl.target_content_id = ?1)
+          AND c2.content_id != ?1
+        GROUP BY c2.content_id
+        ORDER BY MIN(cl.create_time)
+        ",
+    ) else {
         return vec![];
     };
-    let parsed = serde_json::from_str::<Value>(&raw);
-    let Ok(value) = parsed else {
-        return vec![];
-    };
-    value
-        .as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| {
-                    if let Some(v) = item.as_i64() {
-                        return Some(v);
-                    }
-                    if let Some(v) = item.as_u64() {
-                        return i64::try_from(v).ok();
-                    }
-                    item.as_str().and_then(|v| v.parse::<i64>().ok())
-                })
-                .collect::<Vec<i64>>()
-        })
+    stmt.query_map(params![content_id], |row| row.get::<_, i64>(0))
+        .map(|rows| rows.filter_map(Result::ok).collect())
         .unwrap_or_default()
 }
 
-fn parse_links(raw_links: Option<String>) -> Vec<i64> {
-    parse_number_array(raw_links)
-}
-
-/// 供 mod.rs 中的 links 双向同步复用
-pub(super) fn parse_links_column(raw_links: Option<String>) -> Vec<i64> {
-    parse_links(raw_links)
+/// 正文显式连接落到卡片身份的邻居：每个对方正文取一张卡片作代表（多卡共用取最小 id），
+/// 按连接建立时间排序。没有卡片投影的邻居在移动端不展示，桌面端脉络可见。
+pub(super) fn linked_card_ids(conn: &Connection, content_id: i64) -> Vec<i64> {
+    let Ok(mut stmt) = conn.prepare(
+        "
+        SELECT MIN(c2.id)
+        FROM content_links cl
+        JOIN cards c2 ON c2.content_id IN (cl.content_id, cl.target_content_id)
+        WHERE (cl.content_id = ?1 OR cl.target_content_id = ?1)
+          AND c2.content_id != ?1
+        GROUP BY c2.content_id
+        ORDER BY MIN(cl.create_time)
+        ",
+    ) else {
+        return vec![];
+    };
+    stmt.query_map(params![content_id], |row| row.get::<_, i64>(0))
+        .map(|rows| rows.filter_map(Result::ok).collect())
+        .unwrap_or_default()
 }
 
 fn parse_content(raw_content: Option<String>) -> Value {
@@ -265,7 +273,6 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
               c.create_time,
               c.update_time,
               c.tags,
-              c.links,
               ct.content,
               ct.count
             FROM cards c
@@ -302,13 +309,10 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
     let tags_raw: Option<String> = row
         .get(4)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail tags parse failed: {e}"))?;
-    let links_raw: Option<String> = row
-        .get(5)
-        .map_err(|e| format!("DB_OPEN_FAILED: card detail links parse failed: {e}"))?;
     let content_raw: Option<String> = row
-        .get(6)
+        .get(5)
         .map_err(|e| format!("DB_OPEN_FAILED: card detail content parse failed: {e}"))?;
-    let count: i64 = row.get(7).unwrap_or(0);
+    let count: i64 = row.get(6).unwrap_or(0);
 
     Ok(CardDetailResponse {
         id,
@@ -316,7 +320,7 @@ pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailRe
         create_time,
         update_time,
         tags: parse_tags(tags_raw),
-        links: parse_links(links_raw),
+        links: linked_card_ids(conn, content_id),
         content: parse_content(content_raw),
         count,
     })
@@ -338,8 +342,7 @@ pub fn query_content_detail(
               c.id,
               c.create_time,
               c.update_time,
-              c.tags,
-              c.links
+              c.tags
             FROM contents ct
             LEFT JOIN cards c ON c.content_id = ct.id
             WHERE ct.id = ?1
@@ -383,15 +386,12 @@ pub fn query_content_detail(
         let card_tags_raw: Option<String> = row
             .get(8)
             .map_err(|e| format!("DB_OPEN_FAILED: content detail card tags parse failed: {e}"))?;
-        let card_links_raw: Option<String> = row
-            .get(9)
-            .map_err(|e| format!("DB_OPEN_FAILED: content detail card links parse failed: {e}"))?;
         Some(ContentCardMeta {
             id: card_id,
             create_time: card_create_time,
             update_time: card_update_time,
             tags: parse_tags(card_tags_raw),
-            links: parse_links(card_links_raw),
+            links: linked_card_ids(conn, id),
         })
     } else {
         None

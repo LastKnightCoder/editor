@@ -4,7 +4,6 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { ICard } from "@/types";
 import { toItems } from "./fixtures";
 import { detectClusters, MIN_CLUSTER_SIZE } from "../core/cluster";
 import { clusterForce } from "../core/clusterForce";
@@ -12,18 +11,30 @@ import { buildScene } from "../core/graph";
 import { clusterColor } from "../core/palette";
 import type { GraphScene } from "../core/types";
 
-const card = (id: number, linkIds: number[], tags: string[] = [], text = `卡片${id}`): ICard =>
-  ({
-    id,
-    links: linkIds,
-    tags,
-    content: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
-    create_time: id,
-  }) as unknown as ICard;
+interface CardLike {
+  id: number;
+  links: number[];
+  tags: string[];
+  content: unknown[];
+  create_time: number;
+}
+
+const card = (
+  id: number,
+  linkIds: number[],
+  tags: string[] = [],
+  text = `卡片${id}`
+): CardLike => ({
+  id,
+  links: linkIds,
+  tags,
+  content: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
+  create_time: id,
+});
 
 /** k 个团，团内全连，团间一条桥；每团带自己的 tag */
 function topicCards(k: number, size: number, extraTags = true) {
-  const cards: ICard[] = [];
+  const cards: CardLike[] = [];
   for (let c = 0; c < k; c++) {
     const base = c * size + 1;
     for (let i = 0; i < size; i++) {
@@ -262,7 +273,7 @@ describe("clusterForce", () => {
   });
 
   it("100 个簇 × 2000 节点，单帧在 20ms 内（簇对是 O(簇²)，节点只走一遍）", () => {
-    const cards: ICard[] = [];
+    const cards: CardLike[] = [];
     for (let c = 0; c < 100; c++) {
       const base = c * 20 + 1;
       for (let i = 0; i < 20; i++) {
