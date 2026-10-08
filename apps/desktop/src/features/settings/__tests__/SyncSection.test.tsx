@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { download, getOriginDatabaseInfo } from "@/commands";
 import { ResourceSyncStatus } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
 import { SyncSection } from "../sections/SyncSection";
@@ -129,4 +130,57 @@ it("本地数据库 Tab：展示当前库与路径，其他库可删除，新建
   expect(text()).toContain("拉取远程数据库前，原文件会自动备份到 backup 文件夹");
   expect(container.querySelector('[aria-label="删除数据库：work"]')).not.toBeNull();
   expect(container.querySelector('[aria-label="删除数据库：notes"]')).toBeNull();
+});
+
+it("拉取远程后保留远程版本缓存", async () => {
+  useSettingStore.setState(s => ({
+    setting: {
+      ...s.setting,
+      database: {
+        active: "data.db",
+        databases: [{ name: "data.db", version: 1 }],
+      },
+    },
+  }));
+  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
+    isDatabaseInfoExist: true,
+    databaseInfo: { version: 2 },
+    databaseInfoObjectName: "database_data.db.json",
+  });
+  vi.mocked(download).mockImplementation(async () => {
+    useSettingStore.setState(s => ({
+      setting: {
+        ...s.setting,
+        database: {
+          ...s.setting.database,
+          databases: [{ name: "data.db", version: 2 }],
+        },
+      },
+    }));
+    return true;
+  });
+
+  render();
+  await vi.waitFor(() => {
+    expect(
+      [...container.querySelector("dl")!.querySelectorAll("dd")].map(node =>
+        node.textContent?.trim()
+      )
+    ).toEqual(["1", "2"]);
+  });
+
+  await act(async () => button("拉取远程").click());
+  await vi.waitFor(() => expect(document.body.textContent).toContain("下载更新"));
+  const confirmButton = [...document.body.querySelectorAll("button")].find(
+    node => node.textContent?.trim() === "下载"
+  ) as HTMLButtonElement;
+  await act(async () => confirmButton.click());
+
+  await vi.waitFor(() => {
+    expect(
+      [...container.querySelector("dl")!.querySelectorAll("dd")].map(node =>
+        node.textContent?.trim()
+      )
+    ).toEqual(["2", "2"]);
+  });
 });
