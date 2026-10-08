@@ -21,6 +21,7 @@ import {
 import { ContextMenu, cn } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
 import type { TodoGroup } from "@/types";
+import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
 import {
   bucketOf,
   dayDiff,
@@ -42,6 +43,7 @@ import {
 } from "../model";
 import type { BucketKey, TodoEntry, TodoSnapshot } from "../types";
 import { GroupDot, TodoCheck, TypeIcon } from "./TodoBits";
+import { DocTaskRow, docTaskBucket } from "./DocTaskBits";
 
 export type AgendaMode = "date" | "group";
 
@@ -75,8 +77,18 @@ interface Section {
   danger?: boolean;
   open: TodoEntry[];
   done: TodoEntry[];
+  /** 文档里的勾选项（只列未完成），排在本段待办之后 */
+  docs: DocTaskItem[];
   bucket?: BucketKey;
   groupId?: number;
+}
+
+export interface AgendaDocTasks {
+  items: DocTaskItem[];
+  sources: Map<number, DocTaskSource>;
+  selected: DocTaskItem | null;
+  onToggle(task: DocTaskItem): void;
+  onOpen(task: DocTaskItem): void;
 }
 
 export function AgendaPanel({
@@ -90,6 +102,7 @@ export function AgendaPanel({
   onOpen,
   onToggle,
   renderMenu,
+  docTasks,
 }: {
   /** 议程条目：按日期 = 顶层任务 + 带日期的子任务；按项目 = 顶层任务 */
   entries: TodoEntry[];
@@ -103,9 +116,11 @@ export function AgendaPanel({
   onOpen(entry: TodoEntry): void;
   onToggle(entry: TodoEntry): void;
   renderMenu(entry: TodoEntry): ReactNode;
+  docTasks?: AgendaDocTasks;
 }) {
   const [foldOpen, setFoldOpen] = useState<Set<string>>(() => new Set());
   const [doneShown, setDoneShown] = useState<Record<string, number>>({});
+  const docItems = docTasks?.items;
 
   const sections = useMemo<Section[]>(() => {
     const byTime = (a: TodoEntry, b: TodoEntry) =>
@@ -114,6 +129,9 @@ export function AgendaPanel({
       e.type === "recurring"
         ? scheduledToday(e, now) && doneToday(e, now)
         : e.isCompleted && e.completedAt != null && dayDiff(e.completedAt, now) === 0;
+    const docs = docItems ?? [];
+    const byDue = (a: DocTaskItem, b: DocTaskItem) =>
+      (a.dueAt ?? 0) - (b.dueAt ?? 0) || a.contentId - b.contentId || a.sortIndex - b.sortIndex;
 
     if (mode === "date") {
       return BUCKETS.map(({ key, label, hint }): Section => {
@@ -126,8 +144,9 @@ export function AgendaPanel({
           danger: key === "overdue",
           open: inBucket.filter(e => isOpen(e, now)).sort(byTime),
           done: inBucket.filter(completedToday),
+          docs: docs.filter(t => docTaskBucket(t, now) === key).sort(byDue),
         };
-      }).filter(s => s.key === "today" || s.open.length || s.done.length);
+      }).filter(s => s.key === "today" || s.open.length || s.done.length || s.docs.length);
     }
 
     return groups
@@ -147,10 +166,11 @@ export function AgendaPanel({
           done: own
             .filter(e => e.type !== "recurring" && e.isCompleted)
             .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)),
+          docs: docs.filter(t => t.groupId === group.id),
         };
       })
-      .filter(s => s.open.length || s.done.length || groups.length <= 1);
-  }, [entries, groups, mode, now]);
+      .filter(s => s.open.length || s.done.length || s.docs.length || groups.length <= 1);
+  }, [entries, groups, mode, now, docItems]);
 
   const toggleFold = (key: string) =>
     setFoldOpen(prev => {
@@ -224,12 +244,12 @@ export function AgendaPanel({
               </span>
               {section.hint && <span className="text-ink-3 text-[11.5px]">{section.hint}</span>}
               <span className="text-ink-3 ml-auto text-[11.5px] tabular-nums">
-                {section.open.length} 项
+                {section.open.length + section.docs.length} 项
                 {section.done.length > 0 && ` · ${section.done.length} 已完成`}
               </span>
             </header>
             <div className="-mx-1.5">
-              {section.open.length === 0 && (
+              {section.open.length === 0 && section.docs.length === 0 && (
                 <motion.p
                   layout="position"
                   transition={LAYOUT_TRANSITION}
@@ -247,6 +267,28 @@ export function AgendaPanel({
               {section.bucket === "today" && nowLineAt === -1 && section.open.length > 0 && (
                 <NowLine now={now} />
               )}
+              {docTasks &&
+                section.docs.map(task => (
+                  <motion.div
+                    key={`doc-${task.contentId}-${task.taskId}`}
+                    layoutId={`doc-row-${task.contentId}-${task.taskId}`}
+                    layout="position"
+                    transition={LAYOUT_TRANSITION}
+                  >
+                    <DocTaskRow
+                      task={task}
+                      source={docTasks.sources.get(task.contentId)}
+                      now={now}
+                      showSource
+                      selected={
+                        docTasks.selected?.contentId === task.contentId &&
+                        docTasks.selected.taskId === task.taskId
+                      }
+                      onToggle={docTasks.onToggle}
+                      onOpen={docTasks.onOpen}
+                    />
+                  </motion.div>
+                ))}
               {section.done.length > 0 && (
                 <>
                   <motion.button

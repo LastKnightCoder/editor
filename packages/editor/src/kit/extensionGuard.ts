@@ -19,7 +19,7 @@ export interface ExtensionCircuitBreaker {
   /** 记一次行为错误并上报，窗口内达到阈值即停用该扩展 */
   record(
     extension: string,
-    phase: "plugin" | "behavior" | "hotkey" | "command" | "ingest" | "copy",
+    phase: "plugin" | "behavior" | "hotkey" | "command" | "ingest" | "copy" | "decorate",
     error: unknown
   ): void;
   /** 只上报不计数：渲染错误由错误边界各自兜住，不牵连行为；内核自带逻辑也不熔断 */

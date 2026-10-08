@@ -5,12 +5,14 @@
  */
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Archive, ArchiveRestore, Pencil, Plus, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { ConfirmDialog, ContextMenu, Menu, cn, toast } from "@tau/ui";
 import { GroupDialog } from "@/components/GroupDialog";
 import type { TodoGroup } from "@/types";
+import { useDocTaskSnapshot } from "@/hooks/useDocTasks";
 import { groupDeletionIds, isOpen, liveEntries } from "../model";
 import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
+import { DOC_TASKS_NAV_ID } from "../types";
 import { GroupDot } from "./TodoBits";
 
 export function TodosNavGroups({
@@ -21,6 +23,7 @@ export function TodosNavGroups({
   onSelect: (id: string) => void;
 }) {
   const { snapshot } = useTodoSnapshot();
+  const { snapshot: docSnapshot } = useDocTaskSnapshot();
   const mutations = useTodoMutations();
   const now = useNow();
   const [dialog, setDialog] = useState<{ group: TodoGroup | null } | null>(null);
@@ -31,10 +34,13 @@ export function TodosNavGroups({
     for (const e of liveEntries(snapshot))
       if (e.parentId == null && isOpen(e, now))
         counts.set(e.groupId, (counts.get(e.groupId) ?? 0) + 1);
+    // 正文里写了 #项目 的勾选项也计入该项目
+    for (const task of docSnapshot?.open ?? [])
+      if (task.groupId != null) counts.set(task.groupId, (counts.get(task.groupId) ?? 0) + 1);
     return counts;
-  }, [snapshot, now]);
+  }, [snapshot, docSnapshot, now]);
   if (!snapshot) return null;
-  const current = selectedId ? Number(selectedId) : null;
+  const current = selectedId && selectedId !== DOC_TASKS_NAV_ID ? Number(selectedId) : null;
   const select = (groupId: number) => onSelect(groupId === current ? "" : String(groupId));
 
   const archive = (group: TodoGroup) =>
@@ -95,6 +101,18 @@ export function TodosNavGroups({
         className="text-ink-3"
         onClick={() => setDialog({ group: null })}
       />
+      {docSnapshot && docSnapshot.sources.length > 0 && (
+        <NavChild
+          active={selectedId === DOC_TASKS_NAV_ID}
+          label="文档中"
+          count={docSnapshot.open.length}
+          glyph={<FileText className="text-ink-2 size-[13px]" strokeWidth={1.75} />}
+          title={
+            selectedId === DOC_TASKS_NAV_ID ? "再点一次回到全部" : "文档里的勾选项，按文档分组"
+          }
+          onClick={() => onSelect(selectedId === DOC_TASKS_NAV_ID ? "" : DOC_TASKS_NAV_ID)}
+        />
+      )}
       {snapshot.archivedGroups.length > 0 && (
         <Menu
           align="start"

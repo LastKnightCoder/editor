@@ -47,13 +47,90 @@ export function contentRevision(session: RuntimeSession) {
   return createHash("sha256").update(Y.encodeStateAsUpdate(session.doc)).digest("hex");
 }
 
+function assertSessionWritable(session: RuntimeSession) {
+  if (session.info.frozen || session.info.leaving || session.info.status !== "active")
+    throw new Error("CONTENT_SESSION_LOCKED: 内容正在切换或已停止协作");
+}
+
+/** 元素属性补丁：返回 null 表示不改；遍历按文档序，与正文 JSON 的深度优先顺序一致 */
+export type NodeAttributePatcher = (
+  attributes: Record<string, unknown>
+) => Record<string, unknown> | null;
+
+/** 文本补丁：传入一段文字（同一格式的连续文本），返回改后的文字；null 表示不改 */
+export type TextPatcher = (text: string) => string | null;
+
+/** 把 from 改成 to 的最小编辑：公共前后缀不动，只删改中间一段（保留格式与并发输入） */
+export function minimalTextEdit(
+  from: string,
+  to: string
+): { index: number; remove: number; insert: string } | null {
+  if (from === to) return null;
+  let start = 0;
+  while (start < from.length && start < to.length && from[start] === to[start]) start++;
+  let end = 0;
+  while (
+    end < from.length - start &&
+    end < to.length - start &&
+    from[from.length - 1 - end] === to[to.length - 1 - end]
+  )
+    end++;
+  return {
+    index: start,
+    remove: from.length - start - end,
+    insert: to.slice(start, to.length - end),
+  };
+}
+
+/**
+ * 在会话文档上就地修改（一次事务，CRDT 增量操作），与正在进行的编辑合并；
+ * 返回改动的元素 / 文本段数。不整篇替换，因此不打断光标与撤销栈。
+ */
+export function patchSessionNodes(
+  session: RuntimeSession,
+  patcher: NodeAttributePatcher,
+  textPatcher?: TextPatcher
+): number {
+  assertSessionWritable(session);
+  let patched = 0;
+  const walk = (text: Y.XmlText) => {
+    let offset = 0;
+    const edits: Array<{ index: number; remove: number; insert: string; format?: object }> = [];
+    for (const part of text.toDelta() as Array<{ insert: unknown; attributes?: object }>) {
+      if (typeof part.insert === "string") {
+        const next = textPatcher?.(part.insert);
+        const edit = next == null ? null : minimalTextEdit(part.insert, next);
+        if (edit) edits.push({ ...edit, index: offset + edit.index, format: part.attributes });
+        offset += part.insert.length;
+        continue;
+      }
+      offset += 1;
+      if (!(part.insert instanceof Y.XmlText)) continue;
+      const element = part.insert;
+      const patch = patcher(element.getAttributes() as Record<string, unknown>);
+      if (patch) {
+        for (const [key, value] of Object.entries(patch)) element.setAttribute(key, value as never);
+        patched++;
+      }
+      walk(element);
+    }
+    // 从后往前改，前面的偏移不受影响
+    for (const edit of edits.reverse()) {
+      if (edit.remove) text.delete(edit.index, edit.remove);
+      if (edit.insert) text.insert(edit.index, edit.insert, edit.format as never);
+      patched++;
+    }
+  };
+  session.doc.transact(() => walk(getBody(session.doc)), "content-patch");
+  return patched;
+}
+
 export function replaceSessionContent(
   session: RuntimeSession,
   content: ContentNode[],
   expectedRevision?: string
 ) {
-  if (session.info.frozen || session.info.leaving || session.info.status !== "active")
-    throw new Error("CONTENT_SESSION_LOCKED: 内容正在切换或已停止协作");
+  assertSessionWritable(session);
   if (!expectedRevision || expectedRevision !== contentRevision(session))
     throw new Error("CONTENT_VERSION_CONFLICT: 内容已变化，请重新读取后重试");
   const value = readSharedContent(session.doc);

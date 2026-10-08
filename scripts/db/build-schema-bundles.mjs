@@ -27,6 +27,7 @@ const indexSegments = [
   "index/50_entity_refs.sql",
   "index/60_whiteboard_refs.sql",
   "index/70_content_sections.sql",
+  "index/80_doc_tasks.sql",
 ];
 
 function readSegment(relativePath) {

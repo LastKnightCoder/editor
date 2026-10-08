@@ -12,7 +12,7 @@ import {
   CSSProperties,
 } from "react";
 import { cn } from "@tau/ui";
-import type { Node, Path } from "slate";
+import type { Node, NodeEntry, Path } from "slate";
 import { createEditor, Descendant, Editor, Transforms, Range, Element } from "slate";
 import {
   Slate,
@@ -394,6 +394,23 @@ const Index = memo(
     const reportExtensionRenderError = useMemoizedFn((owner: string, error: unknown) =>
       breaker.report(owner, "render", error)
     );
+    // 扩展装饰与宿主 decorate 合并；单个扩展出错只丢它自己的装饰并计入熔断
+    const mergedDecorate = useMemo(() => {
+      const extensionDecorations = assembly.decorations;
+      if (!extensionDecorations.length) return decorate;
+      return (entry: NodeEntry): Range[] => {
+        const ranges = decorate ? decorate(entry as [Node, Path]) : [];
+        for (const { owner, spec } of extensionDecorations) {
+          if (breaker.isDisabled(owner)) continue;
+          try {
+            ranges.push(...spec.decorate(editor, entry));
+          } catch (error) {
+            breaker.record(owner, "decorate", error);
+          }
+        }
+        return ranges;
+      };
+    }, [assembly, decorate, editor, breaker]);
     const renderLeaf = useMemoizedFn((props: RenderLeafProps) => (
       <LeafRenderer
         {...props}
@@ -521,7 +538,7 @@ const Index = memo(
                   renderLeaf={renderLeaf}
                   renderChunk={renderChunk}
                   placeholder={placeHolder}
-                  decorate={decorate}
+                  decorate={mergedDecorate}
                   onKeyDown={event => {
                     registerHotKey(editor, event, finalHotkeys, commandDispatcher);
                   }}

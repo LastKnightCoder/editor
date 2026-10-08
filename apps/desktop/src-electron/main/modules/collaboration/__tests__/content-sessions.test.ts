@@ -14,6 +14,7 @@ import { withCollaboration } from "@tau/editor-collab";
 import {
   contentRevision,
   contentSession,
+  patchSessionNodes,
   projectContentTitle,
   projectLocalContent,
   registerContentSession,
@@ -27,11 +28,11 @@ const cleanup: (() => void)[] = [];
 afterEach(() => {
   for (const dispose of cleanup.splice(0).reverse()) dispose();
 });
-function runtime(): RuntimeSession {
+function runtime(content?: unknown[]): RuntimeSession {
   const doc = createSharedDocument(
     {
       title: "标题",
-      content: [
+      content: (content as never) ?? [
         { type: "paragraph", children: [{ text: "你好" }] },
         { type: "whiteboard", whiteBoardContentId: 12, children: [{ text: "" }] },
         { type: "image", url: "/tmp/local.png", children: [{ text: "" }] },
@@ -195,5 +196,58 @@ describe("本机内容会话", () => {
     db.exec("UPDATE contents SET create_time=200 WHERE id=7");
     expect(contentSession(db, 7)).toBeUndefined();
     expect(() => projectLocalContent(db, session.info.source!, [], 0)).toThrow("关联已变化");
+  });
+
+  it("按属性就地修改嵌套元素，与视图里并发的输入合并、不整篇替换", () => {
+    const item = (taskId: string, text: string) => ({
+      type: "check-list-item",
+      checked: false,
+      taskId,
+      children: [{ type: "paragraph", children: [{ text }] }],
+    });
+    const main = runtime([{ type: "check-list", children: [item("a", "甲"), item("b", "乙")] }]);
+
+    // 视图端在补丁之前分叉，随后在第一项的文字里输入
+    const view = new Y.Doc();
+    Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
+    // 找到第一个段落元素（承载文字的 XmlText）
+    const firstParagraph = (text: Y.XmlText): Y.XmlText | null => {
+      for (const part of text.toDelta() as Array<{ insert: unknown }>) {
+        if (!(part.insert instanceof Y.XmlText)) continue;
+        if (part.insert.getAttribute("type") === "paragraph") return part.insert;
+        const found = firstParagraph(part.insert);
+        if (found) return found;
+      }
+      return null;
+    };
+    firstParagraph(view.get("content", Y.XmlText))!.insert(1, "改");
+
+    const body = main.doc.get("content", Y.XmlText);
+    const listBefore = body.toDelta()[0].insert;
+    expect(
+      patchSessionNodes(main, attrs =>
+        attrs.type === "check-list-item" && attrs.taskId === "b" ? { checked: true } : null
+      )
+    ).toBe(1);
+    // 原元素仍在原位（就地改属性，不是删了重插）
+    expect(body.toDelta()[0].insert).toBe(listBefore);
+
+    Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(view));
+    Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
+    for (const doc of [main.doc, view]) {
+      const [list] = readSharedContent(doc).content as Array<{ children: any[] }>;
+      expect(list.children.map(child => [child.taskId, child.checked])).toEqual([
+        ["a", false],
+        ["b", true],
+      ]);
+      expect(list.children[0].children[0].children[0].text).toBe("甲改");
+    }
+    view.destroy();
+  });
+
+  it("会话冻结时拒绝属性修改", () => {
+    const session = runtime();
+    session.info.frozen = true;
+    expect(() => patchSessionNodes(session, () => ({ checked: true }))).toThrow("LOCKED");
   });
 });

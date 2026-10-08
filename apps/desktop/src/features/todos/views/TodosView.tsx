@@ -52,6 +52,19 @@ import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
 import { useAppContextProvider } from "@/hooks/useAppContextProvider";
 import { readSavedGroupFilter, readSavedMode, saveGroupFilter, saveMode } from "../preferences";
+import type { DocTaskItem, DocTaskSource } from "@/types/doc-tasks";
+import {
+  useDocTaskSnapshot,
+  usePromoteDocTask,
+  useSetDocTasksExcluded,
+  useToggleDocTask,
+} from "@/hooks/useDocTasks";
+import { DocTasksPanel } from "../components/DocTasksPanel";
+import { DocTaskDrawer } from "../components/DocTaskDrawer";
+import { docTaskBucket } from "../components/DocTaskBits";
+import { DOC_TASKS_NAV_ID } from "../types";
+
+const docTaskKey = (task: DocTaskItem) => `${task.contentId}:${task.taskId}`;
 
 const UNDO_MS = 5000;
 
@@ -79,6 +92,13 @@ export function TodosView() {
   // 项目筛选 = 侧栏子项选中的项目（0 = 全部）；项目被归档 / 删除后自然回到全部
   const groupFilter =
     params.id && snapshot?.groups.some(g => g.id === Number(params.id)) ? Number(params.id) : 0;
+  // 侧栏「文档中」子项：按文档分组看正文里的勾选项
+  const docView = params.id === DOC_TASKS_NAV_ID;
+  const { snapshot: docSnapshot } = useDocTaskSnapshot();
+  const toggleDocTask = useToggleDocTask();
+  const promoteDoc = usePromoteDocTask();
+  const setExcluded = useSetDocTasksExcluded();
+  const [selectedDocKey, setSelectedDocKey] = useState<string | null>(null);
   const setGroupFilter = (groupId: number) =>
     navigator.push("todos", { id: groupId ? String(groupId) : "" });
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -231,6 +251,25 @@ export function TodosView() {
   const selected = selectedId != null ? (snapshot.byId.get(selectedId) ?? null) : null;
   const groups = snapshot.groups;
 
+  /* ---------- 文档待办 ---------- */
+  const docSources = new Map<number, DocTaskSource>(
+    (docSnapshot?.sources ?? []).map(s => [s.contentId, s])
+  );
+  const docOpen = docSnapshot?.open ?? [];
+  const selectedDoc =
+    selectedDocKey != null ? (docOpen.find(t => docTaskKey(t) === selectedDocKey) ?? null) : null;
+  const openDoc = (task: DocTaskItem) => {
+    setSelectedId(null);
+    setTodayOpen(false);
+    setSelectedDocKey(docTaskKey(task));
+  };
+  const toggleDoc = (task: DocTaskItem) =>
+    void toggleDocTask(task, !task.checked, docSources.get(task.contentId)?.title ?? "原文");
+  // 议程只并入当前项目筛选内的文档条目
+  const agendaDocs = groupFilter ? docOpen.filter(t => t.groupId === groupFilter) : docOpen;
+  const docToday = agendaDocs.filter(t => docTaskBucket(t, now) === "today").length;
+  const docOverdue = agendaDocs.filter(t => docTaskBucket(t, now) === "overdue").length;
+
   /* ---------- 操作 ---------- */
 
   const toggle = (entry: TodoEntry) => {
@@ -369,6 +408,38 @@ export function TodosView() {
 
   const habitsDone = derived.habitsToday.filter(e => doneToday(e, now)).length;
   const currentGroup = groupFilter ? groups.find(g => g.id === groupFilter) : undefined;
+  const docDrawer = (
+    <DocTaskDrawer
+      task={selectedDoc}
+      source={selectedDoc ? docSources.get(selectedDoc.contentId) : undefined}
+      groupTitle={
+        selectedDoc?.groupId != null
+          ? groups.find(g => g.id === selectedDoc.groupId)?.title
+          : undefined
+      }
+      now={now}
+      onClose={() => setSelectedDocKey(null)}
+      onToggle={task => {
+        toggleDoc(task);
+        setSelectedDocKey(null);
+      }}
+      onPromote={async task => {
+        const todoId = await promoteDoc(task, groupFilter || groups[0]?.id || null);
+        if (todoId == null) return;
+        setSelectedDocKey(null);
+        // 转好的待办在项目视图里，回到全部再打开它
+        navigator.push("todos", { id: "", selectedId: todoId });
+        toast.success(`已转为独立待办「${task.title}」，原文保持不变`);
+      }}
+      onExclude={async source => {
+        await setExcluded(source.contentId, true);
+        setSelectedDocKey(null);
+        toast.info(`《${source.title}》不再收集`, {
+          action: { label: "撤销", onClick: () => void setExcluded(source.contentId, false) },
+        });
+      }}
+    />
+  );
 
   return (
     <MotionConfig reducedMotion="user">
@@ -379,14 +450,26 @@ export function TodosView() {
             {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
             <div className="mb-3 flex h-10 flex-none items-center gap-3">
               <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
-                {currentGroup ? currentGroup.title : "待办"}
+                {docView ? "文档中" : currentGroup ? currentGroup.title : "待办"}
               </h1>
               <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-                今天 <b className="text-ink-1 font-semibold">{derived.todayCount}</b> 项
-                {derived.overdueCount > 0 && (
+                {docView ? (
                   <>
-                    {" · "}
-                    <span className="text-danger font-medium">{derived.overdueCount} 项逾期</span>
+                    来自 <b className="text-ink-1 font-semibold">{docSources.size}</b> 篇文档 ·
+                    勾选会同步回原文
+                  </>
+                ) : (
+                  <>
+                    今天 <b className="text-ink-1 font-semibold">{derived.todayCount + docToday}</b>{" "}
+                    项
+                    {derived.overdueCount + docOverdue > 0 && (
+                      <>
+                        {" · "}
+                        <span className="text-danger font-medium">
+                          {derived.overdueCount + docOverdue} 项逾期
+                        </span>
+                      </>
+                    )}
                   </>
                 )}
                 {derived.habitsToday.length > 0 && (
@@ -398,33 +481,38 @@ export function TodosView() {
                   </>
                 )}
               </span>
-              <Button
-                variant={todayOpen ? "soft" : "ghost"}
-                size="sm"
-                icon={ListChecks}
-                aria-pressed={todayOpen}
-                title="今日打卡 · 本周负荷 · 最近完成"
-                className="shrink-0 whitespace-nowrap"
-                onClick={() => {
-                  setTodayOpen(open => !open);
-                  setSelectedId(null);
-                }}
-              >
-                今日
-              </Button>
-              <Segmented
-                label="分段方式"
-                value={mode}
-                onValueChange={(v: AgendaMode) => {
-                  setMode(v);
-                  saveMode(v);
-                }}
-              >
-                <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
-                <Segmented.Item value="group" icon={Folder} label="按项目" />
-              </Segmented>
+              {!docView && (
+                <Button
+                  variant={todayOpen ? "soft" : "ghost"}
+                  size="sm"
+                  icon={ListChecks}
+                  aria-pressed={todayOpen}
+                  title="今日打卡 · 本周负荷 · 最近完成"
+                  className="shrink-0 whitespace-nowrap"
+                  onClick={() => {
+                    setTodayOpen(open => !open);
+                    setSelectedId(null);
+                    setSelectedDocKey(null);
+                  }}
+                >
+                  今日
+                </Button>
+              )}
+              {!docView && (
+                <Segmented
+                  label="分段方式"
+                  value={mode}
+                  onValueChange={(v: AgendaMode) => {
+                    setMode(v);
+                    saveMode(v);
+                  }}
+                >
+                  <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
+                  <Segmented.Item value="group" icon={Folder} label="按项目" />
+                </Segmented>
+              )}
             </div>
-            {groups.length > 0 && (
+            {groups.length > 0 && !docView && (
               <QuickAddBar
                 groups={groups}
                 fallbackGroupId={groupFilter || groups[0].id}
@@ -435,7 +523,24 @@ export function TodosView() {
             )}
           </div>
 
-          {groups.length === 0 ? (
+          {docView ? (
+            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)]">
+              <div className="flex min-h-0 flex-col pl-2.5">
+                {docSnapshot ? (
+                  <DocTasksPanel
+                    snapshot={docSnapshot}
+                    now={now}
+                    selected={selectedDoc}
+                    onToggle={toggleDoc}
+                    onOpen={openDoc}
+                  />
+                ) : (
+                  <Loading />
+                )}
+              </div>
+              {docDrawer}
+            </div>
+          ) : groups.length === 0 ? (
             <EmptyGroups
               archivedGroups={snapshot.archivedGroups}
               onCreate={() => setGroupDialog({ group: null })}
@@ -453,13 +558,24 @@ export function TodosView() {
                   now={now}
                   showGroup={mode === "date" && groupFilter === 0}
                   selectedId={selectedId}
-                  onOpen={entry => setSelectedId(entry.id)}
+                  onOpen={entry => {
+                    setSelectedDocKey(null);
+                    setSelectedId(entry.id);
+                  }}
                   onToggle={toggle}
                   renderMenu={renderMenu}
+                  docTasks={{
+                    items: agendaDocs,
+                    sources: docSources,
+                    selected: selectedDoc,
+                    onToggle: toggleDoc,
+                    onOpen: openDoc,
+                  }}
                 />
               </div>
+              {docDrawer}
               <TodayDrawer
-                open={todayOpen && selected === null}
+                open={todayOpen && selected === null && selectedDoc === null}
                 onClose={() => setTodayOpen(false)}
                 subtitle={`${new Date(now).getMonth() + 1}月${new Date(now).getDate()}日 ${WEEKDAY_CN[new Date(now).getDay()]}`}
                 roots={derived.timed}

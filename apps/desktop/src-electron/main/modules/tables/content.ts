@@ -10,12 +10,15 @@ import WhiteBoardContentTable from "./white-board-content";
 import QuestionTable from "./question";
 import ContentAiMetaTable from "./content-ai-meta";
 import ContentAiInsightsTable from "./content-ai-insights";
-import { assertContentIsLocal } from "../collaboration-guard";
+import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
 import {
   contentSession,
   contentRevision,
+  patchSessionNodes,
   replaceSessionContent,
+  type NodeAttributePatcher,
+  type TextPatcher,
 } from "../collaboration/content-sessions";
 import { readSharedContent, type ContentNode } from "@tau/collaboration";
 
@@ -118,6 +121,70 @@ export default class ContentTable {
     ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });
     emitContentWritten(db, contentId, "update");
     return this.getContentById(db, contentId);
+  }
+
+  /**
+   * 就地修改正文（勾选、补身份、改写 `#项目` 文字等），不整篇替换；返回改动的元素 / 文本段数，
+   * 正文不存在为 0。patcher 看元素属性；text 看每段同格式的连续文字，返回改后的文字。
+   * 有编辑会话时在会话文档上做增量修改（文字只删改差异的一段），由会话投影落库；否则改 JSON 后写库。
+   *
+   * silent：不是用户编辑（如为存量勾选项补 taskId）——有会话时让给编辑器规范化、
+   * 协作内容不写，且不改 update_time、不记操作、不广播。
+   */
+  static patchNodes(
+    db: Database.Database,
+    contentId: number,
+    patcher: NodeAttributePatcher,
+    options: { silent?: boolean; text?: TextPatcher } = {},
+    ctx: CommandContext = fallbackCommandContext
+  ): number {
+    const session = contentSession(db, contentId);
+    if (session) return options.silent ? 0 : patchSessionNodes(session, patcher, options.text);
+    if (options.silent) {
+      if (findCollaborationBinding(db, contentId)) return 0;
+    } else assertContentIsLocal(db, contentId);
+
+    const row = db.prepare("SELECT content FROM contents WHERE id = ?").get(contentId) as
+      { content: string } | undefined;
+    if (!row) return 0;
+    const content = JSON.parse(row.content) as Descendant[];
+    let patched = 0;
+    dfs(content, node => {
+      const leaf = node as { text?: unknown };
+      // 文本叶子也带 type（formatted），与会话路径一致：叶子只交给文本补丁
+      if (typeof leaf.text === "string") {
+        const next = options.text?.(leaf.text);
+        if (next != null && next !== leaf.text) {
+          leaf.text = next;
+          patched++;
+        }
+        return;
+      }
+      const patch = patcher(node as unknown as Record<string, unknown>);
+      if (patch) {
+        Object.assign(node, patch);
+        patched++;
+      }
+    });
+    if (patched === 0) return 0;
+
+    if (options.silent) {
+      db.prepare("UPDATE contents SET content = ? WHERE id = ?").run(
+        JSON.stringify(content),
+        contentId
+      );
+      return patched;
+    }
+    const now = Date.now();
+    db.prepare("UPDATE contents SET update_time = ?, content = ? WHERE id = ?").run(
+      now,
+      JSON.stringify(content),
+      contentId
+    );
+    Operation.insertOperation(db, "content", "update", contentId, now);
+    ctx.broadcastAll("content:updated", { databaseName: basename(db.name), contentId });
+    emitContentWritten(db, contentId, "update");
+    return patched;
   }
 
   static deleteContent(db: Database.Database, contentId: number): number {

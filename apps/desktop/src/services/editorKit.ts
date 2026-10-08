@@ -25,6 +25,7 @@ import { mathExtensions } from "@tau/editor-math";
 import emojiExtension from "@tau/editor-emoji";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
+import docTasksExtension from "@/editor-extensions/doc-tasks";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { desktopEditorServices } from "./editorRegistry";
 
@@ -81,7 +82,7 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
  * 测高要和真实渲染的块集一致，否则量出来的高度不对（见 04 P6.5 与 P6.6）。
  */
 export function getContentKit(): EditorKit {
-  return createDesktopKit(requireHostExtensions());
+  return createDesktopKit([...requireHostExtensions(), docTasksExtension]);
 }
 
 /**

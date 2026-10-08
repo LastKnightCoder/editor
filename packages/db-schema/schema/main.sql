@@ -497,6 +497,17 @@ CREATE TABLE IF NOT EXISTS todo_calendar_mapping (
         create_time INTEGER NOT NULL,
         UNIQUE(todo_item_id, calendar_event_id, recurrence_date)
       );
+-- 文档待办的用户设置（镜像本身在索引库 doc_tasks，可重建；这里是不能丢的用户选择）：
+-- excluded = 整篇「本文不收集」（task_id 为空）；promoted = 某一项已转为独立待办 todo_item_id
+CREATE TABLE IF NOT EXISTS doc_task_settings (
+        id INTEGER PRIMARY KEY,
+        content_id INTEGER NOT NULL,
+        task_id TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL CHECK(kind IN ('excluded','promoted')),
+        todo_item_id INTEGER,
+        create_time INTEGER NOT NULL,
+        UNIQUE(content_id, task_id, kind)
+      );
 CREATE TABLE IF NOT EXISTS pomodoro_presets (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
