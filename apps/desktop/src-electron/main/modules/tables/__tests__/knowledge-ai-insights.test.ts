@@ -180,33 +180,45 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(KnowledgeAiInsightsTable.list(db).map(row => row.scope)).toEqual(["subtopic", "global"]);
   });
 
-  it("两张卡片互相连接：两边各补一条，已连着的不重复，卡片不存在时不写", () => {
-    const card = (links: number[]) =>
+  it("两张卡片互相连接：写一条无向边，已连着的不重复，卡片不存在时不写", () => {
+    const content = () =>
       Number(
         db
           .prepare(
-            `INSERT INTO cards (create_time, update_time, tags, links) VALUES (1, 1, '[]', ?)`
+            `INSERT INTO contents (create_time, update_time, content, count, ref_count) VALUES (1, 1, '[]', 0, 1)`
           )
-          .run(JSON.stringify(links)).lastInsertRowid
+          .run().lastInsertRowid
       );
-    const a = card([]);
-    const b = card([a]);
-    const linksOf = (id: number) =>
-      JSON.parse(
-        (db.prepare(`SELECT links FROM cards WHERE id = ?`).get(id) as { links: string }).links
+    const card = () =>
+      Number(
+        db
+          .prepare(
+            `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', '[]', ?)`
+          )
+          .run(content()).lastInsertRowid
       );
-    expect(linkCardsMutually(db, a, b, 9)).toEqual([a]);
-    expect(linksOf(a)).toEqual([b]);
-    expect(linksOf(b)).toEqual([a]);
-    expect(linkCardsMutually(db, a, b)).toEqual([]);
-    expect(linkCardsMutually(db, a, 404)).toEqual([]);
-    expect(linksOf(a)).toEqual([b]);
-    // 实际改动的卡片各记一条编辑记录，未改动与不存在的不再记
-    expect(
-      db
-        .prepare(`SELECT operation_id, operation_action, operation_time FROM operation ORDER BY id`)
-        .all()
-    ).toEqual([{ operation_id: a, operation_action: "update", operation_time: 9 }]);
+    const a = card();
+    const b = card();
+    const contentOf = (id: number) =>
+      (db.prepare(`SELECT content_id FROM cards WHERE id = ?`).get(id) as { content_id: number })
+        .content_id;
+    const edgesOf = (contentId: number) =>
+      (
+        db
+          .prepare(
+            `SELECT CASE WHEN content_id = ? THEN target_content_id ELSE content_id END AS other
+             FROM content_links WHERE content_id = ? OR target_content_id = ?`
+          )
+          .all(contentId, contentId, contentId) as Array<{ other: number }>
+      ).map(row => row.other);
+    expect(linkCardsMutually(db, a, b, 9)).toBe(true);
+    expect(edgesOf(contentOf(a))).toEqual([contentOf(b)]);
+    expect(edgesOf(contentOf(b))).toEqual([contentOf(a)]);
+    expect(linkCardsMutually(db, a, b)).toBe(false);
+    expect(linkCardsMutually(db, a, 404)).toBe(false);
+    expect(edgesOf(contentOf(a))).toEqual([contentOf(b)]);
+    // 连接不经卡片元数据，不写编辑记录
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM operation`).get()).toEqual({ n: 0 });
   });
 
   it("记下看过不动生成时间；重新生成后清空", () => {

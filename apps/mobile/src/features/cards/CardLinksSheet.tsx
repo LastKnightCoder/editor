@@ -167,7 +167,7 @@ export function CardLinksSheet({
               type="text"
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="搜索卡片 / 文章 / 日记…"
+              placeholder="搜索卡片…"
               className="input-base text-ink placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[14px]"
             />
           </div>

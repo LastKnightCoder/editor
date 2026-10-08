@@ -47,5 +47,13 @@ describe("脉络查询的缓存键与失效", () => {
     const spy = vi.spyOn(queryClient, "invalidateQueries");
     mocks.handlers.get("entity-context:changed")?.({}, { databaseName: "main.db" });
     expect(spy).toHaveBeenCalledWith({ queryKey: ["entity-context", "main"] });
+    // 删实体释放边只广播 entity-context:changed，连接列表（表格列）连带失效
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["content-links", "main"] });
+  });
+
+  it("收到主进程 content-links:changed 时失效该库连接列表", () => {
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    mocks.handlers.get("content-links:changed")?.({}, { databaseName: "main.db" });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ["content-links", "main"] });
   });
 });

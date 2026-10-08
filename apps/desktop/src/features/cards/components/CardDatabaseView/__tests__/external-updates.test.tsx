@@ -1,5 +1,6 @@
 import { act, forwardRef, useImperativeHandle, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { DatabaseRef } from "@tau/database";
 import CardDatabaseView from "..";
@@ -79,10 +80,12 @@ vi.mock("../../../databasePreferences", () => {
 
 let host: HTMLDivElement;
 let root: Root;
+let queryClient: QueryClient;
 beforeEach(() => {
   vi.clearAllMocks();
   host = document.createElement("div");
   document.body.append(host);
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   root = createRoot(host);
 });
 afterEach(async () => {
@@ -97,7 +100,7 @@ it("卡片宿主通过增量操作接入新增、筛选和删除", async () => {
     content: [],
     count: 0,
     tags: [],
-    links: [],
+    linkCount: 0,
     isTop: false,
     create_time: 0,
     update_time: 0,
@@ -111,16 +114,38 @@ it("卡片宿主通过增量操作接入新增、筛选和删除", async () => {
     onDeleteCard: vi.fn(),
     onUpdateCard: vi.fn(),
   };
-  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[first]} />));
+  await act(async () =>
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} cards={[first]} />
+      </QueryClientProvider>
+    )
+  );
   expect(host.textContent).toBe("1");
-  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[tagged, first]} />));
+  await act(async () =>
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} cards={[tagged, first]} />
+      </QueryClientProvider>
+    )
+  );
   expect(host.textContent).toBe("1,2");
   await act(async () =>
-    root.render(<CardDatabaseView {...callbacks} cards={[first, tagged]} tag="读书" />)
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} cards={[first, tagged]} tag="读书" />
+      </QueryClientProvider>
+    )
   );
   expect(host.textContent).toBe("2");
   expect(mocks.store!.getState().rows).toHaveLength(2);
-  await act(async () => root.render(<CardDatabaseView {...callbacks} cards={[tagged]} />));
+  await act(async () =>
+    root.render(
+      <QueryClientProvider client={queryClient}>
+        <CardDatabaseView {...callbacks} cards={[tagged]} />
+      </QueryClientProvider>
+    )
+  );
   expect(mocks.store!.getState().rows.map(row => row.id)).toEqual(["2"]);
   expect(callbacks.onUpdateCard).not.toHaveBeenCalled();
 });

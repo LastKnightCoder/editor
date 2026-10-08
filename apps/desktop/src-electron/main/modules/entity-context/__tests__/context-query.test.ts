@@ -16,6 +16,7 @@ vi.mock("../../video-note-index-queue", () => ({
 
 import ArticleTable from "../../tables/article";
 import CardTable from "../../tables/card";
+import ContentLinkTable from "../../tables/content-link";
 import DiaryTable from "../../tables/diary";
 import ProjectTable from "../../tables/project";
 import QuestionLinkTable from "../../tables/question-link";
@@ -155,10 +156,12 @@ describe("getEntityContext", () => {
       [q2, "not_started"],
     ]);
 
-    // 文章引用了卡片；卡片自己没有出链
+    // 文章引用了卡片（连接分区内联条目）；卡片自己没有出链
     const fromArticle = getEntityContext(mainDb, indexDb, { kind: "article", id: articleId })!;
-    expect(fromArticle.outlinks.map(e => e.ref)).toEqual([{ kind: "card", id: cardId }]);
-    expect(ctx.outlinks).toEqual([]);
+    expect(fromArticle.links.map(l => [l.entity.ref, l.inlineOnly])).toEqual([
+      [{ kind: "card", id: cardId }, true],
+    ]);
+    expect(ctx.links).toEqual([]);
 
     // 从项目文档看，同样能看到卡片身份与被引用
     const fromItem = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
@@ -235,18 +238,24 @@ describe("getEntityContext", () => {
     const cardContent = insertContent([p(text("期货"))]);
     const cardId = insertCard(cardContent);
     insertSegment(insertContent([p(text("上午"))]));
-    const secondContent = insertContent([p(text("前置内容")), p(link("card", cardId, "期货", cardContent))]);
+    const secondContent = insertContent([
+      p(text("前置内容")),
+      p(link("card", cardId, "期货", cardContent)),
+    ]);
     const second = insertSegment(secondContent);
     // 卡片反过来引用这一天的第二条
     mainDb
       .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
-      .run(JSON.stringify([p(link("diary-daily", diaryId, "11 月 13 日", secondContent))]), cardContent);
+      .run(
+        JSON.stringify([p(link("diary-daily", diaryId, "11 月 13 日", secondContent))]),
+        cardContent
+      );
     await reconcileRefs(mainDb, indexDb);
 
     const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
     const target = { page: "diary", date: "2025-11-13", momentId: second };
     expect(ctx.backlinks[0].source.open).toEqual({ ...target, at: { block: 1 } });
-    expect(ctx.outlinks[0].open).toEqual(target);
+    expect(ctx.links[0].entity.open).toEqual(target);
   });
 
   it("旧周记条目作为来源时按归属日显示，不出现「周记」，类型名只出现一次", async () => {
@@ -279,6 +288,47 @@ describe("getEntityContext", () => {
     });
   });
 
+  it("连接分区：显式连接绑定 contentId，共用正文（从卡片创建的项目文档）共享同一组连接", () => {
+    const cardContent = insertContent([p(text("重排与重绘"))]);
+    const cardId = insertCard(cardContent);
+    const articleContent = insertContent([p(text("浏览器渲染"))]);
+    const articleId = insertArticle("渲染笔记", articleContent);
+    const [low, high] =
+      cardContent < articleContent ? [cardContent, articleContent] : [articleContent, cardContent];
+    mainDb
+      .prepare(
+        `INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?, ?, ?)`
+      )
+      .run(low, high, clock++);
+    // 项目文档复用卡片正文（refType='card' 的创建路径）
+    const itemId = insertProjectItem("渲染篇", cardContent);
+
+    const fromCard = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    expect(fromCard.links.map(l => [l.entity.ref, l.inlineOnly])).toEqual([
+      [{ kind: "article", id: articleId }, false],
+    ]);
+    const fromItem = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
+    expect(fromItem.links.map(l => l.entity.ref)).toEqual([{ kind: "article", id: articleId }]);
+    // 反向：文章也看到卡片（代表身份）
+    const fromArticle = getEntityContext(mainDb, indexDb, { kind: "article", id: articleId })!;
+    expect(fromArticle.links.map(l => l.entity.ref)).toEqual([{ kind: "card", id: cardId }]);
+  });
+
+  it("连接分区：指向已无身份正文的悬空边被丢弃", () => {
+    const selfContent = insertContent([p(text("自己"))]);
+    const cardId = insertCard(selfContent);
+    const orphan = insertContent([p(text("孤儿"))]);
+    const [low, high] = selfContent < orphan ? [selfContent, orphan] : [orphan, selfContent];
+    mainDb
+      .prepare(
+        `INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?, ?, ?)`
+      )
+      .run(low, high, clock++);
+
+    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    expect(ctx.links).toEqual([]);
+  });
+
   it("出链去重，排除自身、共用正文的身份与已删除的目标", () => {
     const targetContent = insertContent([p(text("目标"))]);
     const targetId = insertArticle("目标文章", targetContent);
@@ -296,7 +346,7 @@ describe("getEntityContext", () => {
         selfContent
       );
     const ctx = getEntityContext(mainDb, indexDb, { kind: "project-item", id: itemId })!;
-    expect(ctx.outlinks.map(e => [e.ref, e.title])).toEqual([
+    expect(ctx.links.map(l => [l.entity.ref, l.entity.title])).toEqual([
       [{ kind: "article", id: targetId }, "目标文章"],
     ]);
   });
@@ -312,6 +362,7 @@ describe("CONTEXT_WRITE_EVENTS", () => {
       [
         ArticleTable,
         CardTable,
+        ContentLinkTable,
         DiaryTable,
         ProjectTable,
         QuestionLinkTable,
@@ -338,5 +389,11 @@ describe("CONTEXT_WRITE_EVENTS", () => {
       name => !registered.has(name)
     );
     expect(unknown).toEqual([]);
+  });
+
+  it("正文连接的写事件必须在白名单里（连接是「连接」分区的数据源）", () => {
+    // 反向守护：白名单漏登真实写事件时，增删连接不会广播 entity-context:changed
+    expect(CONTEXT_WRITE_EVENTS.has("content-links:add")).toBe(true);
+    expect(CONTEXT_WRITE_EVENTS.has("content-links:remove")).toBe(true);
   });
 });

@@ -18,6 +18,7 @@ import type {
 } from "@/knowledge-map/types";
 import { ENTITY_REF_PRIORITY, normalizeEntityRefKind, type EntityRefKind } from "@/entity/ref";
 import { contentTitles } from "./content-ai-meta";
+import ContentLinkTable from "./content-link";
 
 /** 地图基于哪个 embedding 指纹算的；指纹变了（换模型）就整体重算 */
 export const KNOWLEDGE_MAP_FINGERPRINT_KEY = "knowledge_map_fingerprint";
@@ -192,7 +193,7 @@ export default class KnowledgeMapTable {
     return entities.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   }
 
-  /** 显式边：卡片双向链接 + 引用索引 entity_refs（跨类型），按 entities 下标 */
+  /** 显式边：正文显式连接 content_links（跨类型）+ 引用索引 entity_refs，按 entities 下标 */
   private static collectLinks(
     mainDb: Database.Database,
     indexDb: Database.Database,
@@ -201,17 +202,13 @@ export default class KnowledgeMapTable {
     const indexOfKey = new Map(entities.map((entity, index) => [entity.key, index]));
     const indexOfContent = new Map(entities.map((entity, index) => [entity.contentId, index]));
     const links = entities.map(() => new Set<number>());
-    // 卡片的双向链接
-    for (const row of mainDb.prepare("SELECT id, links FROM cards").all() as Array<{
-      id: number;
-      links: string | null;
-    }>) {
-      const from = indexOfKey.get(`card:${row.id}`);
-      if (from === undefined) continue;
-      for (const id of parseJson<unknown[]>(row.links, [])) {
-        const to = typeof id === "number" ? indexOfKey.get(`card:${id}`) : undefined;
-        if (to !== undefined && to !== from) links[from].add(to);
-      }
+    // 正文显式连接（无向边，跨卡片/文章/项目文档/日记）
+    for (const edge of ContentLinkTable.allEdges(mainDb)) {
+      const from = indexOfContent.get(edge.contentId);
+      const to = indexOfContent.get(edge.targetContentId);
+      if (from === undefined || to === undefined || to === from) continue;
+      links[from].add(to);
+      links[to].add(from);
     }
     // 项目文档树：子文档连到最近的、在地图上的祖先（中间隔着空文档时跨过去）。
     // 这是用户亲手搭的结构，比语义近邻更可靠地说明「它们属于同一处」

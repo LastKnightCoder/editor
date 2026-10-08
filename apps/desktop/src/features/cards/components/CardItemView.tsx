@@ -82,7 +82,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
           {card.tags.length > 2 && <Tag title={card.tags.join("、")}>+{card.tags.length - 2}</Tag>}
         </div>
         <span className="text-ink-3 flex shrink-0 items-center gap-2 text-[10.5px] tabular-nums">
-          {card.links.length > 0 && <span className="text-info">{card.links.length} 连接</span>}
+          {card.linkCount > 0 && <span className="text-info">{card.linkCount} 连接</span>}
           <span>{card.count} 字</span>
           <span>{formatMonthDay(card.create_time)}</span>
         </span>

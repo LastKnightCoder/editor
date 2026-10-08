@@ -44,7 +44,7 @@ const card = (id: number, patch: Partial<ICard> = {}): ICard => ({
   create_time: 0,
   update_time: 0,
   tags: [],
-  links: [],
+  linkCount: 0,
   isTop: false,
   ...patch,
 });
@@ -150,11 +150,10 @@ describe("卡片派生", () => {
     expect(tree[0].children.map(node => node.count)).toEqual([2, 1]);
     expect(filterCards(cards, { tag: "读书" })).toHaveLength(2);
   });
-  it("筛选结果不改变关联解析使用的排序全集", () => {
-    const cards = [card(1, { links: [2] }), card(2)];
+  it("筛选与排序共用同一全集", () => {
+    const cards = [card(1, { linkCount: 2 }), card(2), card(3, { linkCount: 5 })];
     const all = sortCards(cards);
-    expect(filterCards(cards, { tag: "" })).toHaveLength(2);
-    expect(all.find(card => card.id === all[0].links[0])?.id).toBe(2);
+    expect(filterCards(cards, { tag: "" })).toHaveLength(all.length);
   });
 });
 

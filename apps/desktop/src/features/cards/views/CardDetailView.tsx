@@ -82,20 +82,9 @@ import {
 } from "@/utils";
 import type { ICard } from "@/types";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
-import {
-  cardsKey,
-  cardDetailKey,
-  useCardDetail,
-  useCardsFeed,
-  useCardsMutations,
-} from "../queries";
-import {
-  AddCardLinkDialog,
-  CardConnections,
-  cardConnectionCount,
-} from "../components/CardDetailLinks";
+import { cardsKey, cardDetailKey, useCardDetail, useCardsMutations } from "../queries";
+import { AddContentLinkDialog } from "@/features/context/components/ContextLinks";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
-import { openEntity } from "@/services/open-content";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
 import { useInsightsView } from "@/features/insights/useInsightsView";
 import { cardMorphKey } from "../morph";
@@ -124,7 +113,6 @@ export function CardDetailView() {
 
   const detailQuery = useCardDetail(Number.isFinite(id) ? id : null);
   const card = detailQuery.data ?? null;
-  const feed = useCardsFeed();
   const mutations = useCardsMutations();
   const queryClient = useQueryClient();
   const databaseName = useSettingStore(state => state.setting.database.active);
@@ -205,61 +193,6 @@ export function CardDetailView() {
     messages: { created: "播客已添加到卡片" },
   });
 
-  /* 双向链接双边写（等价 legacy useEditCard）：本卡与对方卡各提交一次补丁。
-     双侧非原子——对方侧失败或查不到时只 toast 不回滚（重连即可修复），不静默；
-     对方卡优先取轻表，未就绪时回查单卡兜底，避免留下单向链接 */
-  const resolveTarget = async (targetId: number) => {
-    const fromFeed = feed.cards.find(item => item.id === targetId);
-    if (fromFeed) return fromFeed;
-    return databaseName ? getScopedCard(databaseName, targetId) : null;
-  };
-  const linkCards = async (targetIds: number[]) => {
-    if (!card) return;
-    try {
-      await mutations.patch.mutateAsync({
-        id: card.id,
-        patch: { links: [...new Set([...card.links, ...targetIds])] },
-      });
-    } catch {
-      return; // patch 失败已 toast，本卡未写入，无需处理对方侧
-    }
-    for (const targetId of targetIds) {
-      try {
-        const target = await resolveTarget(targetId);
-        if (target && !target.links.includes(card.id)) {
-          await mutations.patch.mutateAsync({
-            id: targetId,
-            patch: { links: [...target.links, card.id] },
-          });
-        }
-      } catch {
-        toast.error("连接可能不完整（对方卡片写入失败），请重新连接");
-      }
-    }
-  };
-  const unlinkCard = async (targetId: number) => {
-    if (!card) return;
-    try {
-      await mutations.patch.mutateAsync({
-        id: card.id,
-        patch: { links: card.links.filter(link => link !== targetId) },
-      });
-    } catch {
-      return;
-    }
-    try {
-      const target = await resolveTarget(targetId);
-      if (target?.links.includes(card.id)) {
-        await mutations.patch.mutateAsync({
-          id: targetId,
-          patch: { links: target.links.filter(link => link !== card.id) },
-        });
-      }
-    } catch {
-      toast.error("解除可能不完整（对方卡片写入失败），请重试");
-    }
-  };
-
   /* 标题栏面包屑（静态，v2 无速切器）：「卡片库 / #12 首行」；须 useMemo 稳定化 */
   const breadcrumbNode = useMemo(() => {
     if (!card) return null;
@@ -319,36 +252,8 @@ export function CardDetailView() {
                   创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
                   {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
                 </span>
-                {/* 脉络入口：连接（links ∪ 内联引用）并入浮层首个分区（KL-018） */}
-                <ContextBadge
-                  entity={{ kind: "card", id: card.id }}
-                  hideOutlinks
-                  onConnect={ref => linkCards([ref.id])}
-                  leading={{
-                    count: cardConnectionCount(card),
-                    render: close => (
-                      <CardConnections
-                        card={card}
-                        cards={feed.cards}
-                        onNavigate={ref => {
-                          close();
-                          if (ref.kind === "card") {
-                            navigator.push("card-detail", { id: ref.id });
-                            return;
-                          }
-                          openEntity(ref).catch(error =>
-                            toast.error(error instanceof Error ? error.message : "无法打开内容")
-                          );
-                        }}
-                        onUnlink={targetId => void unlinkCard(targetId)}
-                        onOpenAddDialog={() => {
-                          close();
-                          setAddLinkOpen(true);
-                        }}
-                      />
-                    ),
-                  }}
-                />
+                {/* 脉络入口：浮层内建「连接」分区（显式连接 ∪ 内联引用） */}
+                <ContextBadge entity={{ kind: "card", id: card.id }} />
                 {insights.button}
 
                 {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
@@ -581,12 +486,11 @@ export function CardDetailView() {
       </div>
 
       {/* 添加连接：入口在 ⋯ 菜单与脉络浮层的「连接」分区 */}
-      <AddCardLinkDialog
+      <AddContentLinkDialog
         open={addLinkOpen}
-        card={card}
-        cards={feed.cards}
         onOpenChange={setAddLinkOpen}
-        onLink={targetIds => void linkCards(targetIds)}
+        from={{ kind: "card", id: card.id }}
+        excludeContentIds={[card.contentId]}
       />
 
       {/* 删除确认：确认后返回上一页 */}

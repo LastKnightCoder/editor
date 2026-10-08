@@ -139,7 +139,7 @@ export function CardPreviewDialog({
     return [
       `创建于 ${formatDate(editing.create_time, true)}`,
       `最后修改 ${formatDate(editing.update_time, true)}`,
-      editing.links.length > 0 ? `${editing.links.length} 连接` : null,
+      editing.linkCount > 0 ? `${editing.linkCount} 连接` : null,
       `${editing.count} 字`,
     ]
       .filter(Boolean)

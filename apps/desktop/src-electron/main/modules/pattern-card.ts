@@ -1,8 +1,10 @@
 /**
- * 同一思路「写成卡片」（KL-069）：新建一张空卡片当这个思路的枢纽，和用到它的几处连起来——卡片端互相加双向链接，
- * 文章 / 项目文档 / 日记端记谱系 distilled_from（那篇 → 新卡）；正文留空，由用户自己写。标记随之记为已连接。
+ * 同一思路「写成卡片」（KL-069）：新建一张空卡片当这个思路的枢纽，和用到它的几处连起来——卡片端
+ * 建正文显式连接，文章 / 项目文档 / 日记端记谱系 distilled_from（那篇 → 新卡）；正文留空，由用户自己写。
+ * 标记随之记为已连接。
  *
- * 写到一半放弃（离开时正文仍为空）就撤回：解开链接、删掉谱系与卡片，标记回到未处理。
+ * 写到一半放弃（离开时正文仍为空）就撤回：删掉卡片（其正文的显式连接随引用归零一并释放）、
+ * 谱系与卡片，标记回到未处理。
  */
 
 import type Database from "better-sqlite3";
@@ -12,12 +14,11 @@ import { isBlankCardContent } from "@/utils/card";
 import CardTable from "./tables/card";
 import EntityLineageTable from "./tables/entity-lineage";
 import KnowledgeAiInsightsTable, { linkCardsMutually } from "./tables/knowledge-ai-insights";
-import Operation from "./tables/operation";
 
 export interface PatternCardResult {
   card: ICard;
-  /** 链接有改动的其他卡片 */
-  changed: number[];
+  /** 是否建立了新的显式连接（卡片端）；谱系不在此列 */
+  linked: boolean;
 }
 
 export function createPatternCard(
@@ -36,21 +37,19 @@ export function createPatternCard(
       content: DEFAULT_CARD_CONTENT,
       count: 0,
       tags: [],
-      links: [],
       isTop: false,
     });
     const target = { kind: "card", id: created.id } as const;
-    const changed = new Set<number>();
+    let linked = false;
     for (const end of mark.ends) {
       if (end.ref.kind === "card") {
-        linkCardsMutually(db, created.id, end.ref.id).forEach(id => changed.add(id));
+        if (linkCardsMutually(db, created.id, end.ref.id)) linked = true;
       } else {
         EntityLineageTable.record(db, { src: end.ref, dst: target, relation: "distilled_from" });
       }
     }
-    changed.delete(created.id);
     KnowledgeAiInsightsTable.setStatus(db, nodeId, markId, "linked");
-    return { card: CardTable.getCardById(db, created.id) as ICard, changed: [...changed] };
+    return { card: CardTable.getCardById(db, created.id) as ICard, linked };
   })();
 }
 
@@ -59,33 +58,15 @@ export function discardPatternCard(
   db: Database.Database,
   nodeId: number,
   markId: string,
-  cardId: number,
-  now = Date.now()
+  cardId: number
 ): PatternCardResult | null {
   return db.transaction(() => {
     const card = CardTable.getCardById(db, cardId) as ICard | null;
     if (!card || !isBlankCardContent(card.content)) return null;
-    const read = db.prepare(`SELECT links FROM cards WHERE id = ?`);
-    const write = db.prepare(`UPDATE cards SET links = ?, update_time = ? WHERE id = ?`);
-    const changed: number[] = [];
-    for (const other of card.links) {
-      const row = read.get(other) as { links: string | null } | undefined;
-      if (!row) continue;
-      let links: number[];
-      try {
-        const parsed = JSON.parse(row.links || "[]");
-        links = Array.isArray(parsed) ? parsed.map(Number) : [];
-      } catch {
-        continue;
-      }
-      if (!links.includes(cardId)) continue;
-      write.run(JSON.stringify(links.filter(id => id !== cardId)), now, other);
-      Operation.insertOperation(db, "card", "update", other, now);
-      changed.push(other);
-    }
+    // 卡片正文的显式连接随 deleteCard 的引用归零一并释放，无需手工清理
     EntityLineageTable.removeToDst(db, { kind: "card", id: cardId }, "distilled_from");
     CardTable.deleteCard(db, cardId);
     KnowledgeAiInsightsTable.setStatus(db, nodeId, markId, "open");
-    return { card, changed };
+    return { card, linked: false };
   })();
 }

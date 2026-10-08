@@ -7,7 +7,7 @@
  */
 
 import type Database from "better-sqlite3";
-import Operation from "./operation";
+import ContentLinkTable from "./content-link";
 import type { InsightAsk, InsightStatus } from "@/types/content-insights";
 import type {
   KnowledgeInsightResult,
@@ -193,33 +193,23 @@ export function memberChange(previous: MemberSnapshot, next: MemberSnapshot): nu
 }
 
 /**
- * 两张卡片互相连接（卡片双向链接，KL-018）：一个事务里两边各补一条，已连着的不重复。
- * 返回实际改动的卡片 id；任一张不存在时不写。
+ * 两张卡片互相连接（正文显式连接，KL-018 的存储泛化）：无向边单行写入，已连着的不重复。
+ * 任一张不存在时返回 false。
  */
 export function linkCardsMutually(db: Database.Database, a: number, b: number, now = Date.now()) {
-  if (a === b) return [];
-  return db.transaction(() => {
-    const read = db.prepare(`SELECT links FROM cards WHERE id = ?`);
-    const rows = [a, b].map(id => read.get(id) as { links: string | null } | undefined);
-    if (rows.some(row => !row)) return [];
-    const write = db.prepare(`UPDATE cards SET links = ?, update_time = ? WHERE id = ?`);
-    const changed: number[] = [];
-    [a, b].forEach((id, index) => {
-      const other = index === 0 ? b : a;
-      let links: number[] = [];
-      try {
-        const parsed = JSON.parse(rows[index]!.links || "[]");
-        links = Array.isArray(parsed) ? parsed.map(Number).filter(Number.isSafeInteger) : [];
-      } catch {
-        links = [];
-      }
-      if (links.includes(other)) return;
-      write.run(JSON.stringify([...links, other]), now, id);
-      Operation.insertOperation(db, "card", "update", id, now);
-      changed.push(id);
-    });
-    return changed;
-  })();
+  if (a === b) return false;
+  const from = ContentLinkTable.canonicalContentIdOf(db, { kind: "card", id: a });
+  const to = ContentLinkTable.canonicalContentIdOf(db, { kind: "card", id: b });
+  if (from == null || to == null || from === to) return false;
+  const [low, high] = from < to ? [from, to] : [to, from];
+  return (
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
+         VALUES (?, ?, ?)`
+      )
+      .run(low, high, now).changes > 0
+  );
 }
 
 export default class KnowledgeAiInsightsTable {

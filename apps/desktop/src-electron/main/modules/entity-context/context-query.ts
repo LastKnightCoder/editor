@@ -1,8 +1,6 @@
 /**
- * 组装一个实体的脉络：引用了（解析自身正文）、共用正文的身份、被引用（索引库 entity_refs）、相关问题，
- * 以及来源、衍生、被使用（context-lineage）。
- *
- * 显式链接 cards.links 不在这里：卡片在浮层里有自己的「连接」分区（KL-014、KL-018）。
+ * 组装一个实体的脉络：连接（显式 content_links ∪ 内联引用）、共用正文的身份、被引用
+ * （索引库 entity_refs）、相关问题，以及来源、衍生、被使用（context-lineage）。
  */
 
 import type Database from "better-sqlite3";
@@ -19,12 +17,14 @@ import type { EntityKind } from "@/types/entity";
 import type {
   ContextBacklink,
   ContextEntity,
+  ContextLink,
   ContextOpenTarget,
   ContextQuestion,
   EntityContext,
 } from "@/types/entity-context";
 import type { QuestionLinkTargetType } from "@/types/question";
 import EntitySearchTable from "../tables/entity-search";
+import ContentLinkTable from "../tables/content-link";
 import { derivedOf, notebookProjectionsOf, sourcesOf, usagesOf } from "./context-lineage";
 
 /** 各分区最多返回的条数 */
@@ -47,28 +47,7 @@ const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = 
 
 /** 实体对应的正文；日记有多段，全部算作它的正文 */
 function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
-  const one = (sql: string) =>
-    (db.prepare(sql).get(ref.id) as { content_id: number | null } | undefined)?.content_id;
-  let ids: Array<number | null | undefined>;
-  switch (ref.kind) {
-    case "card":
-      ids = [one(`SELECT content_id FROM cards WHERE id = ?`)];
-      break;
-    case "article":
-      ids = [one(`SELECT content_id FROM articles WHERE id = ? AND is_delete = 0`)];
-      break;
-    case "project-item":
-      ids = [one(`SELECT content_id FROM project_item WHERE id = ?`)];
-      break;
-    case "diary":
-      ids = (
-        db
-          .prepare(`SELECT content_id FROM diary_segments WHERE diary_id = ? ORDER BY id`)
-          .all(ref.id) as Array<{ content_id: number | null }>
-      ).map(row => row.content_id);
-      break;
-  }
-  return ids.filter((id): id is number => typeof id === "number" && id > 0);
+  return ContentLinkTable.contentIdsOfEntity(db, ref);
 }
 
 function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
@@ -86,7 +65,10 @@ function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity |
 }
 
 /** 日记一天有多条（segment），按引用所在的正文定位到那一条 */
-function diaryMomentTarget(db: Database.Database, contentId: number): ContextOpenTarget | undefined {
+function diaryMomentTarget(
+  db: Database.Database,
+  contentId: number
+): ContextOpenTarget | undefined {
   const row = db
     .prepare(
       `SELECT s.id, s.create_time, e.date FROM diary_segments s
@@ -187,7 +169,8 @@ function backlinksOf(
     if (!source) continue;
     const locatedSource = withDiaryMoment(mainDb, source, group.contentId);
     if (locatedSource.open?.page === "diary") locatedSource.open.at = { block: group.block };
-    if (source.ref.kind !== "diary") locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
+    if (source.ref.kind !== "diary")
+      locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
     backlinks.push({ source: locatedSource, snippets: group.snippets });
   }
   return { backlinks, total: groups.size, unresolved: [...unresolved] };
@@ -233,38 +216,71 @@ function questionsOf(
   return [...seen.values()].slice(0, CONTEXT_LIMIT);
 }
 
-/** 自身正文里引用的实体；exclude 为自身与共用正文的身份，目标已不存在的丢弃 */
-function outlinksOf(
-  db: Database.Database,
-  contentIds: number[],
-  exclude: Set<string>
-): ContextEntity[] {
-  if (contentIds.length === 0) return [];
-  const marks = contentIds.map(() => "?").join(",");
-  const rows = db
-    .prepare(
-      `SELECT content FROM contents WHERE id IN (${marks}) AND instr(content, '"content-link"') > 0`
-    )
-    .all(...contentIds) as Array<{ content: string }>;
+/**
+ * 「连接」分区：显式 content_links 边 ∪ 自身正文里的内联引用，合并去重。
+ * exclude 为自身与共用正文的身份；显式连接的目标按代表身份展示（ENTITY_REF_PRIORITY），
+ * 目标正文已无任何身份（边残留）时丢弃；显式在前、内联在后，各按出现顺序。
+ */
+function linksOf(db: Database.Database, contentIds: number[], exclude: Set<string>): ContextLink[] {
+  const selfContents = new Set(contentIds);
   const seen = new Set(exclude);
-  const outlinks: ContextEntity[] = [];
-  for (const row of rows) {
-    let content: unknown;
-    try {
-      content = JSON.parse(row.content);
-    } catch {
-      continue;
-    }
-    for (const { dst, dstContentId } of extractInlineRefs(content)) {
-      const key = entityRefKey(dst);
-      if (seen.has(key)) continue;
+  const merged = new Map<string, ContextLink>();
+
+  const neighbors = ContentLinkTable.edgesOf(db, contentIds);
+  const targetContents = [...new Set([...neighbors.values()].flat())].filter(
+    id => !selfContents.has(id)
+  );
+  const located = EntitySearchTable.locateAll(db, targetContents);
+  explicit: for (const list of neighbors.values()) {
+    for (const targetContent of list) {
+      if (merged.size >= CONTEXT_LIMIT) break explicit;
+      const ref = located.get(targetContent)?.[0];
+      if (!ref) continue;
+      const key = entityRefKey(ref);
+      if (seen.has(key) || merged.has(key)) continue;
+      const entity = toContextEntity(db, ref);
+      if (!entity) continue;
       seen.add(key);
-      const entity = toContextEntity(db, dst);
-      if (entity) outlinks.push(withDiaryMoment(db, entity, dstContentId));
-      if (outlinks.length >= CONTEXT_LIMIT) return outlinks;
+      merged.set(key, {
+        entity: withDiaryMoment(db, entity, targetContent),
+        inlineOnly: false,
+        contentId: targetContent,
+      });
     }
   }
-  return outlinks;
+
+  if (contentIds.length) {
+    const marks = contentIds.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `SELECT content FROM contents WHERE id IN (${marks}) AND instr(content, '"content-link"') > 0`
+      )
+      .all(...contentIds) as Array<{ content: string }>;
+    outer: for (const row of rows) {
+      let content: unknown;
+      try {
+        content = JSON.parse(row.content);
+      } catch {
+        continue;
+      }
+      for (const { dst, dstContentId } of extractInlineRefs(content)) {
+        if (merged.size >= CONTEXT_LIMIT) break outer;
+        const key = entityRefKey(dst);
+        if (seen.has(key) || merged.has(key)) continue;
+        seen.add(key);
+        const entity = toContextEntity(db, dst);
+        if (entity) {
+          merged.set(key, {
+            entity: withDiaryMoment(db, entity, dstContentId ?? null),
+            inlineOnly: true,
+            contentId: dstContentId ?? null,
+          });
+        }
+      }
+    }
+  }
+
+  return [...merged.values()].slice(0, CONTEXT_LIMIT);
 }
 
 /** 实体不存在时返回 null */
@@ -296,7 +312,8 @@ export function getEntityContext(
   const toEntity = (other: EntityRef) => toContextEntity(mainDb, other);
   return {
     self,
-    outlinks: outlinksOf(mainDb, contentIds, seen),
+    selfContentIds: contentIds,
+    links: linksOf(mainDb, contentIds, seen),
     projections,
     backlinks,
     backlinkTotal: total,

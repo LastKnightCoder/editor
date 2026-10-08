@@ -79,7 +79,7 @@ export function CardListView({
       >
         <span>内容</span>
         <span>标签</span>
-        {head("links", "链接", "justify-self-end")}
+        {head("links", "连接", "justify-self-end")}
         {head("words", "字数", "justify-self-end")}
         {head("updated", "更新")}
         {head("created", "创建")}
@@ -140,10 +140,10 @@ function CardListRow({
       </div>
       <ListTags tags={card.tags} />
       <span className={cn(cell, "flex items-center justify-end gap-1")}>
-        {card.links.length > 0 ? (
+        {card.linkCount > 0 ? (
           <>
             <Link2 className="text-ink-3 size-3 shrink-0" strokeWidth={1.75} />
-            {card.links.length}
+            {card.linkCount}
           </>
         ) : (
           <span className="text-ink-3">—</span>

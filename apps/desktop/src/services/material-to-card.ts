@@ -29,7 +29,6 @@ export async function createCardFromMaterial(ref: MaterialRef): Promise<ICard> {
     content,
     count: getContentLength(content),
     tags: [],
-    links: [],
     isTop: false,
   });
   if (useSettingStore.getState().setting.database.active === databaseName) {

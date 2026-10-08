@@ -269,7 +269,7 @@ function FeaturedCard({
             ))}
           </div>
           <span className="flex shrink-0 items-center gap-2.5">
-            {card.links.length > 0 && <span className="text-info">⇄ {card.links.length}</span>}
+            {card.linkCount > 0 && <span className="text-info">⇄ {card.linkCount}</span>}
             <span>{card.count} 字</span>
             <span>{formatMonthDay(card.create_time)}</span>
           </span>

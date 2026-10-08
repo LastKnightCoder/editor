@@ -223,7 +223,6 @@ export function CardsView() {
         await mutations.create.mutateAsync({
           content,
           tags: [],
-          links: [],
           count: getContentLength(content),
           isTop: false,
         });

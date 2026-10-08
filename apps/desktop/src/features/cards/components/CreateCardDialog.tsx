@@ -54,7 +54,6 @@ export function CreateCardDialog({ open, onClose, onCreated }: CreateCardDialogP
       const card = await create.mutateAsync({
         content: value,
         tags: tags ?? [],
-        links: [],
         count: getContentLength(value),
         isTop: false,
       });

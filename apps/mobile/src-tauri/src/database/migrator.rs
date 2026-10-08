@@ -6,7 +6,7 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 5;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 6;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -174,7 +174,7 @@ fn has_user_tables(conn: &Connection) -> Result<bool, String> {
 }
 
 /// 数据基线门禁：低于 v4 且非空库的数据库来自未完成历史升级的旧版本，拒绝进入；
-/// v4 → v5 走 FSRS 表迁移（migrate_v4_to_v5）。
+/// v4 → v5 走 FSRS 表迁移（migrate_v4_to_v5），v5 → v6 走卡片连接迁移（migrate_v5_to_v6）。
 /// 后续 schema 演进 = 版本号递增 + 显式迁移代码；hash 变化只负责补建新表与新索引。
 /// v4 → v5：闪卡调度从自研间隔阶梯迁移到 FSRS——flashcards/flashcard_reviews 表重建
 /// （review_level/ease_factor 退役，新增 memory_stability/memory_difficulty 与历史快照列），
@@ -246,7 +246,8 @@ fn migrate_v4_to_v5(conn: &Connection) -> Result<(), String> {
         )
         .unwrap_or(false);
     if !has_ease_factor {
-        return set_meta(conn, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string());
+        // 写 v5 而非当前版本：cards.links 的 v5→v6 迁移仍需执行
+        return set_meta(conn, "main_schema_version", "5");
     }
 
     // 迁移输入须在旧表重建前读取：旧 ease 与最近一次调度的间隔
@@ -283,7 +284,7 @@ fn migrate_v4_to_v5(conn: &Connection) -> Result<(), String> {
                 .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: backfill memory state: {e}"))?;
             }
         }
-        set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+        set_meta(&tx, "main_schema_version", "5")?;
         tx.commit()
             .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v4->v5: {e}"))
     };
@@ -292,6 +293,53 @@ fn migrate_v4_to_v5(conn: &Connection) -> Result<(), String> {
     conn.execute_batch("PRAGMA foreign_keys = ON;")
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: restore foreign_keys: {e}"))?;
     result
+}
+
+/// v5 → v6：卡片显式连接从 cards.links（JSON 卡片 id 数组，双边冗余写）迁到 content_links
+/// （无向边、一行一条、绑定 contents.id）——共用正文的身份（如从卡片创建的项目文档）自此
+/// 共享同一组连接。cards.links 列退役不再读写，但物理保留（避免核心表重建）。
+/// 建表与索引语句同 packages/db-schema/schema/main/20_content.sql、90_indexes.sql；
+/// 桌面端等价实现在 apps/desktop/src-electron/main/modules/tables/content-link.ts 的 migrateCardsLinks。
+fn migrate_v5_to_v6(conn: &Connection) -> Result<(), String> {
+    // 自愈：上次迁移已提交但版本号未写入（cards.links 已全部清空）时直接补版本号
+    let pending: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM cards WHERE links IS NOT NULL AND links NOT IN ('[]', '', 'null'))",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(false);
+    if !pending {
+        return set_meta(conn, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string());
+    }
+
+    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v5->v6: {e}"))?;
+    tx.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS content_links (
+          content_id INTEGER NOT NULL,
+          target_content_id INTEGER NOT NULL,
+          create_time INTEGER NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_content_links_pair
+          ON content_links(content_id, target_content_id);
+        CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_content_id);
+
+        INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
+        SELECT MIN(c.content_id, t.content_id), MAX(c.content_id, t.content_id),
+               CAST(strftime('%s', 'now') AS INTEGER) * 1000
+        FROM cards c, json_each(CASE WHEN json_valid(c.links) THEN c.links ELSE '[]' END) je
+        JOIN cards t ON t.id = CAST(je.value AS INTEGER) AND t.content_id IS NOT NULL
+        WHERE c.content_id IS NOT NULL AND c.content_id != t.content_id;
+
+        UPDATE cards SET links = '[]';
+        ",
+    )
+    .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: migrate cards.links to content_links: {e}"))?;
+    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    tx.commit()
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v5->v6: {e}"))
 }
 
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
@@ -311,8 +359,11 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     if stored_version > MAIN_SCHEMA_VERSION {
         return Err("DB_SCHEMA_INCOMPATIBLE: 数据库来自更新的移动端，请先升级应用".into());
     }
-    if stored_version == MAIN_SCHEMA_VERSION - 1 && has_user_tables(conn)? {
+    if stored_version == 4 && has_user_tables(conn)? {
         migrate_v4_to_v5(conn)?;
+        migrate_v5_to_v6(conn)?;
+    } else if stored_version == MAIN_SCHEMA_VERSION - 1 && has_user_tables(conn)? {
+        migrate_v5_to_v6(conn)?;
     } else if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
         return Err(
             "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"
