@@ -30,7 +30,7 @@ const REF_TYPE_LABELS: Record<string, string> = {
   card: "卡片",
   article: "文章",
   "project-item": "项目项",
-  "diary-daily": "日记",
+  "diary-moment": "日记",
   default: "引用",
 };
 

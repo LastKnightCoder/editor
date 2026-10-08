@@ -20,7 +20,7 @@ const KIND_BY_TYPE: Partial<Record<SearchResult["type"], EntityRef["kind"]>> = {
   card: "card",
   article: "article",
   "project-item": "project-item",
-  "diary-daily": "diary",
+  "diary-moment": "diary-moment",
 };
 
 export interface AddContentLinkDialogProps {
@@ -59,7 +59,7 @@ export function AddContentLinkDialog({
           }
         );
       }}
-      contentType={["card", "article", "project-item", "diary-daily"]}
+      contentType={["card", "article", "project-item", "diary-moment"]}
       excludeContentIds={excludeContentIds}
       title="添加连接"
       subtitle="连接绑定正文：卡片、文章、项目文档与日记之间可互连"

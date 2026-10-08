@@ -169,6 +169,6 @@ describe("脉络「相关」", () => {
         .run(addContent("没有向量")).lastInsertRowid
     );
     expect(relatedOf(main, index, { kind: "card", id: noVector })).toEqual([]);
-    expect(relatedOf(main, index, { kind: "diary", id: 1 })).toEqual([]);
+    expect(relatedOf(main, index, { kind: "diary-moment", id: 1 })).toEqual([]);
   });
 });

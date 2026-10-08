@@ -31,14 +31,14 @@ describe("extractInlineRefs", () => {
     const refs = extractInlineRefs([
       p(
         link("project-item", 3, "渲染篇"),
-        link("diary-daily", 4, "9 月 18 日"),
+        link("diary-moment", 4, "9 月 18 日"),
         link("white-board", 5, "白板"),
         link("card", "7", "坏数据")
       ),
     ]);
     expect(refs.map(r => r.dst)).toEqual([
       { kind: "project-item", id: 3 },
-      { kind: "diary", id: 4 },
+      { kind: "diary-moment", id: 4 },
     ]);
     expect(refs[0].dstContentId).toBeNull();
   });
@@ -115,7 +115,10 @@ describe("extractInlineRefs：存量节点与独占一块的引用", () => {
       list(
         item(
           p(text("写作")),
-          list(item(p(text(""), bareLink(1, "期货的概念"), text(""))), item(p(bareLink(2, "预热大脑"))))
+          list(
+            item(p(text(""), bareLink(1, "期货的概念"), text(""))),
+            item(p(bareLink(2, "预热大脑")))
+          )
         )
       ),
     ]);

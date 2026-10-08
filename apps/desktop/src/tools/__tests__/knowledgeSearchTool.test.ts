@@ -92,7 +92,7 @@ describe("search_knowledge 覆盖外部材料（E2）", () => {
       "card",
       "article",
       "project-item",
-      "diary-daily",
+      "diary-moment",
       "excerpt",
       "pdf-annotation",
       "web-clip",

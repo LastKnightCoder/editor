@@ -67,7 +67,7 @@ vi.mock("../tables/project", () => ({
 
 vi.mock("../tables/diary", () => ({
   default: {
-    getDiaryEntryById: vi.fn(() => null),
+    getDiaryMoment: vi.fn(() => null),
   },
 }));
 

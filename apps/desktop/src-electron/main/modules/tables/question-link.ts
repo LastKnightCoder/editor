@@ -331,7 +331,7 @@ export default class QuestionLinkTable {
             ...(row.target_type === "answer"
               ? {
                   projections: (projections.get(row.target_id) ?? []).filter(
-                    r => r.kind !== "diary"
+                    r => r.kind !== "diary-moment"
                   ),
                 }
               : {}),

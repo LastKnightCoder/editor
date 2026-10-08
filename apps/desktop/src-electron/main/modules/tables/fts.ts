@@ -333,16 +333,16 @@ class FTSTable {
       });
     }
 
-    for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
-      const entryType: IndexType = "diary-daily";
-      if (!shouldIncludeType(entryType)) continue;
-      const text = getMarkdown(entry.content || []).trim();
+    for (const moment of DiaryTable.getAllDiarySegmentsFlat(mainDb)) {
+      const momentType: IndexType = "diary-moment";
+      if (!shouldIncludeType(momentType)) continue;
+      const text = getMarkdown(moment.content || []).trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
-        id: entry.id,
-        type: entryType,
+        id: moment.id,
+        type: momentType,
         source: "fts",
-        updateTime: Number(entry.updateTime || 0),
+        updateTime: Number(moment.updateTime || 0),
       });
     }
 
@@ -378,11 +378,7 @@ class FTSTable {
                ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) as rn
         FROM content_fts
         WHERE content_fts MATCH ?
-        ${
-          types && types.length > 0
-            ? ` AND type IN (${types.map(() => "?").join(",")}) AND rank < -2`
-            : ""
-        }
+        ${types && types.length > 0 ? ` AND type IN (${types.map(() => "?").join(",")})` : ""}
       ) WHERE rn = 1
       ORDER BY rank
       LIMIT ?

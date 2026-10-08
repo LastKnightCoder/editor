@@ -47,7 +47,7 @@ const REF_ICONS: Record<string, LucideIcon> = {
   card: Layers,
   article: FileText,
   "project-item": FolderKanban,
-  "diary-daily": PenLine,
+  "diary-moment": PenLine,
   excerpt: Highlighter,
   "pdf-annotation": FileText,
   "web-clip": Globe,

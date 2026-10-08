@@ -334,11 +334,12 @@ class Board {
 
     const supported = (item: PluginContextMenuItem): boolean => {
       if (
-        /^(create-card|create-whiteboard|create-webview|richtext-create-as|mind-link-note)/.test(
+        /^(create-document|create-whiteboard|create-webview|richtext-create-as|mind-link-note)/.test(
           item.key
         )
       )
         return Boolean(this.slots.Layers);
+      if (item.key === "open-document") return Boolean(this.slots.CanvasLayer);
       if (/(?:image-ai|audio-tts|video-bilibili|video-youtube)/.test(item.key))
         return Boolean(this.slots.Layers);
       if (/(?:image-local|video-local|audio-local)/.test(item.key))

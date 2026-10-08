@@ -53,8 +53,8 @@ describe("deleteEmptyRichText", () => {
     }
   });
 
-  it("卡片元素不走这条清理", () => {
-    const element = text({ type: "card", cardId: 9 });
+  it("非文本元素不走这条清理", () => {
+    const element = text({ type: "document", entityRef: { kind: "card", id: 9 } });
     const { board, apply } = makeBoard([element]);
 
     expect(deleteEmptyRichText(board, element)).toBe(false);

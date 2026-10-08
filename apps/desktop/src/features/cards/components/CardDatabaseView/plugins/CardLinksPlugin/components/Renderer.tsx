@@ -24,7 +24,7 @@ const KIND_BY_TYPE: Partial<Record<SearchResult["type"], EntityRef["kind"]>> = {
   card: "card",
   article: "article",
   "project-item": "project-item",
-  "diary-daily": "diary",
+  "diary-moment": "diary-moment",
 };
 
 const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(({ value, column, readonly }) => {
@@ -160,7 +160,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(({ value, colum
             }
           );
         }}
-        contentType={["card", "article", "project-item", "diary-daily"]}
+        contentType={["card", "article", "project-item", "diary-moment"]}
         title="添加连接"
         excludeContentIds={excludeContentIds}
         multiple={false}

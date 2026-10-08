@@ -147,7 +147,7 @@ export function diffSources(mainDb: Database.Database, indexDb: Database.Databas
  * 1 = 只有 content-link；2 = 加白板块（whiteboard_embeds）；
  * 3 = 链接文字为空时取显示文字、独占一块的引用以上一个文本块作前文
  */
-export const REF_INDEX_VERSION = "4";
+export const REF_INDEX_VERSION = "5";
 const REF_INDEX_VERSION_KEY = "entity-refs:version";
 
 function ensureIndexVersion(indexDb: Database.Database) {

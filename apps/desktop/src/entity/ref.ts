@@ -2,8 +2,8 @@
  * 统一实体地址：跨模块指向「一份正文的某个身份」（卡片、文章、项目文档、日记）。
  *
  * 纯 TypeScript，主进程与渲染端共用。存量各处的类型写法（question_link 的 project_item、
- * content-link / 索引的 project-item 与 diary-daily）经 normalizeEntityRefKind 收口；
- * 存量表与接口不改写，只在新代码里使用这里的写法。
+ * content-link / 索引的 project-item）经 normalizeEntityRefKind 收口；
+ * 日记正文身份为 diary-moment + 片段 id，存量日级引用在开库时转换。
  */
 
 /** 现阶段覆盖四类正文实体；后续按需扩展 */
@@ -16,8 +16,7 @@ const KIND_ALIASES: Record<string, EntityRefKind> = {
   article: "article",
   "project-item": "project-item",
   project_item: "project-item",
-  diary: "diary",
-  "diary-daily": "diary",
+  "diary-moment": "diary-moment",
 };
 
 /** 各处存量写法 → EntityRefKind；不认识的返回 null，由调用方丢弃 */
@@ -35,5 +34,5 @@ export const ENTITY_REF_PRIORITY: Record<EntityRefKind, number> = {
   card: 0,
   article: 1,
   "project-item": 2,
-  diary: 3,
+  "diary-moment": 3,
 };

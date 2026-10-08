@@ -44,7 +44,7 @@ export function getTypeBadge(type: string): { text: string; color: string } {
       return { text: "article", color: "cyan" };
     case "project-item":
       return { text: "project", color: "yellow" };
-    case "diary-daily":
+    case "diary-moment":
       return { text: "diary", color: "blue" };
     default:
       return { text: type, color: "gray" };
@@ -86,6 +86,15 @@ function loadDetails(ftsResults: FTSResult[], snippetWidth: number): SearchResul
         );
         title = row?.title || `ProjectItem #${r.id}`;
         content = row?.content ?? null;
+        break;
+      }
+      case "diary-moment": {
+        const row = da.queryOne<{ content: string | null }>(
+          "SELECT ct.content FROM diary_segments s JOIN contents ct ON ct.id = s.content_id WHERE s.id = ?",
+          r.id
+        );
+        content = row?.content ?? null;
+        title = truncateToWidth(extractPlainText(content), snippetWidth) || `Moment #${r.id}`;
         break;
       }
       default:
@@ -197,6 +206,26 @@ function searchByLike(
     }
   }
 
+  if (shouldInclude("diary-moment")) {
+    const rows = da.query<{ id: number; content: string | null; update_time: number }>(
+      `SELECT s.id, ct.content, MAX(s.update_time, ct.update_time) AS update_time
+       FROM diary_segments s JOIN contents ct ON ct.id = s.content_id
+       WHERE ct.content LIKE ? ORDER BY update_time DESC, s.id DESC LIMIT ?`,
+      likePattern,
+      limit
+    );
+    for (const row of rows) {
+      results.push({
+        id: row.id,
+        type: "diary-moment",
+        title: truncateToWidth(extractPlainText(row.content), snippetWidth) || `Diary #${row.id}`,
+        snippet: truncateToWidth(extractPlainText(row.content), snippetWidth),
+        updateTime: row.update_time,
+        source: "like",
+      });
+    }
+  }
+
   results.sort((a, b) => b.updateTime - a.updateTime);
   return results.slice(0, limit);
 }
@@ -290,6 +319,14 @@ function mergeAndLoadDetails(
       }
       default:
         title = `${item.type} #${item.id}`;
+        if (item.type === "diary-moment") {
+          const row = da.queryOne<{ content: string | null }>(
+            "SELECT ct.content FROM diary_segments s JOIN contents ct ON ct.id = s.content_id WHERE s.id = ?",
+            item.id
+          );
+          content = row?.content ?? null;
+          title = truncateToWidth(extractPlainText(content), snippetWidth) || `Diary #${item.id}`;
+        }
     }
 
     results.push({

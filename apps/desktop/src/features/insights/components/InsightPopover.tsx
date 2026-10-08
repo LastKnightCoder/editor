@@ -11,7 +11,7 @@ const TARGET_ICON = {
   card: Layers,
   article: FileText,
   "project-item": FolderKanban,
-  diary: FileText,
+  "diary-moment": FileText,
 };
 
 export interface InsightPopoverProps {

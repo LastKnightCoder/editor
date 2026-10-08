@@ -8,8 +8,8 @@ import {
   Network,
   PenLine,
   Presentation,
+  FileText,
   Shapes,
-  StickyNote,
   Type,
   Video,
   Box,
@@ -23,7 +23,7 @@ const META: Record<string, { label: string; icon: LucideIcon }> = {
   geometry: { label: "图形", icon: Shapes },
   arrow: { label: "箭头", icon: ArrowUpRight },
   richtext: { label: "文本", icon: Type },
-  card: { label: "卡片", icon: StickyNote },
+  document: { label: "文档", icon: FileText },
   image: { label: "图片", icon: Image },
   video: { label: "视频", icon: Video },
   audio: { label: "音频", icon: AudioLines },
@@ -67,6 +67,7 @@ function contentLabel(
       return richTextPlainText(element.text);
     case "frame":
     case "column":
+    case "document":
       return element.title || "";
     case "image":
       return element.description || "";

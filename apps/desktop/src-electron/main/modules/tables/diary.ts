@@ -1,5 +1,4 @@
 import { basename } from "node:path";
-import { normalizeDiaryDay } from "@/utils/diary-day";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import type { Descendant } from "slate";
@@ -134,11 +133,6 @@ export default class DiaryTable {
     return this.parseEntryDateMs(date, fallback);
   }
 
-  /** 日记只有按天的碎片；旧 weekly / monthly 条目按归属日显示，「周记」「月记」只是标签 */
-  static getDiarySearchTitle(entry: Pick<DiaryEntry, "date" | "createTime">) {
-    return `${normalizeDiaryDay(entry.date, entry.createTime)} 日记`;
-  }
-
   /**
    * 写命令包一层：成功后广播 diary:changed 通知其它窗口（渲染端据此失效 ["diary"] 查询，
    * 见 features/diary/queries.ts；flashcards:changed 同款）。派发层把 CommandContext
@@ -180,6 +174,7 @@ export default class DiaryTable {
       "create-diary-moment": write(this.createDiaryMoment),
       // 朋友圈流 + 标签设置
       "get-all-diary-segments-flat": this.getAllDiarySegmentsFlat.bind(this),
+      "get-diary-moment": this.getDiaryMoment.bind(this),
       "get-all-diary-tag-settings": this.getAllDiaryTagSettings.bind(this),
       "upsert-diary-tag-setting": write(this.upsertDiaryTagSetting),
       "delete-diary-tag-setting": write(this.deleteDiaryTagSetting),
@@ -839,13 +834,18 @@ export default class DiaryTable {
     return this.querySegmentsFlat(db, "", []);
   }
 
+  static getDiaryMoment(db: Database.Database, id: number): DiarySegmentItem | null {
+    return this.querySegmentsFlat(db, "WHERE s.id = ?", [id])[0] ?? null;
+  }
+
   private static querySegmentsFlat(
     db: Database.Database,
     where: string,
     params: unknown[]
   ): DiarySegmentItem[] {
     const stmt = db.prepare(`
-      SELECT s.id, s.diary_id, s.content_id, s.create_time, s.update_time,
+      SELECT s.id, s.diary_id, s.content_id, s.create_time,
+             MAX(s.update_time, COALESCE(c.update_time, 0)) AS update_time,
              c.content, c.count as word_count, s.tags,
              d.type as entry_type, d.date as entry_date, d.weather, d.mood
       FROM diary_segments s

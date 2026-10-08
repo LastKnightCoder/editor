@@ -194,7 +194,7 @@ describe("getEntityContext", () => {
     expect(ctx.questions.map(item => item.id)).toEqual([q]);
   });
 
-  it("日记以全部段落作为正文", async () => {
+  it("碎碎念只拥有自己的正文与反向引用，同一天其他条目独立", async () => {
     const seg1 = insertContent([p(text("上午"))]);
     const seg2 = insertContent([p(text("下午"))]);
     const diaryId = Number(
@@ -211,12 +211,25 @@ describe("getEntityContext", () => {
         )
         .run(clock, clock, diaryId, seg);
     }
-    const src = insertContent([p(link("diary-daily", diaryId, "9 月 18 日", seg1))]);
+    const first = (
+      mainDb.prepare("SELECT id FROM diary_segments WHERE content_id = ?").get(seg1) as {
+        id: number;
+      }
+    ).id;
+    const second = (
+      mainDb.prepare("SELECT id FROM diary_segments WHERE content_id = ?").get(seg2) as {
+        id: number;
+      }
+    ).id;
+    const src = insertContent([p(link("diary-moment", first, "9 月 18 日", seg1))]);
     insertCard(src);
     await reconcileRefs(mainDb, indexDb);
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "diary", id: diaryId })!;
+    const ctx = getEntityContext(mainDb, indexDb, { kind: "diary-moment", id: first })!;
     expect(ctx.backlinkTotal).toBe(1);
     expect(ctx.projections).toEqual([]);
+    expect(
+      getEntityContext(mainDb, indexDb, { kind: "diary-moment", id: second })!.backlinkTotal
+    ).toBe(0);
   });
 
   it("日记一天有多条时，被引用与引用了都打开到相关的那一条", async () => {
@@ -247,7 +260,7 @@ describe("getEntityContext", () => {
     mainDb
       .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
       .run(
-        JSON.stringify([p(link("diary-daily", diaryId, "11 月 13 日", secondContent))]),
+        JSON.stringify([p(link("diary-moment", second, "11 月 13 日", secondContent))]),
         cardContent
       );
     await reconcileRefs(mainDb, indexDb);
@@ -258,7 +271,7 @@ describe("getEntityContext", () => {
     expect(ctx.links[0].entity.open).toEqual(target);
   });
 
-  it("旧周记条目作为来源时按归属日显示，不出现「周记」，类型名只出现一次", async () => {
+  it("旧周记的碎碎念作为来源时按归属日定位，标题使用该条正文", async () => {
     const seg = insertContent([p(text("本周小结"), link("card", 0, "占位"))]);
     const diaryId = Number(
       mainDb
@@ -267,11 +280,13 @@ describe("getEntityContext", () => {
         )
         .run(clock, clock).lastInsertRowid
     );
-    mainDb
-      .prepare(
-        `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
-      )
-      .run(clock, clock, diaryId, seg);
+    const momentId = Number(
+      mainDb
+        .prepare(
+          `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
+        )
+        .run(clock, clock, diaryId, seg).lastInsertRowid
+    );
     const cardContent = insertContent([p(text("期货"))]);
     const cardId = insertCard(cardContent);
     mainDb
@@ -281,10 +296,10 @@ describe("getEntityContext", () => {
 
     const [backlink] = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!.backlinks;
     expect(backlink.source).toMatchObject({
-      ref: { kind: "diary", id: diaryId },
-      title: "2025-11-10",
-      meta: "日记",
-      open: { page: "diary", date: "2025-11-10" },
+      ref: { kind: "diary-moment", id: momentId },
+      title: expect.stringContaining("本周小结"),
+      meta: expect.stringContaining("2025-11-10"),
+      open: { page: "diary", date: "2025-11-10", momentId },
     });
   });
 

@@ -13,7 +13,7 @@ const VALID_TYPES: IndexType[] = [
   "card",
   "article",
   "project-item",
-  "diary-daily",
+  "diary-moment",
   "excerpt",
   "pdf-annotation",
   "web-clip",
@@ -45,7 +45,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
           enum: VALID_TYPES,
         },
         description:
-          "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、diary-daily（日记）、" +
+          "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、diary-moment（日记）、" +
           "excerpt（读书 / 网页划线）、pdf-annotation（PDF 标注）、web-clip（剪藏网页）",
       },
       limit: {

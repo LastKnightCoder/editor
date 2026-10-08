@@ -8,7 +8,7 @@ const SKETCHABLE_TYPES = new Set([
   "frame",
   "column",
   "richtext",
-  "card",
+  "document",
   "mind-node",
   "image",
   "video",
