@@ -1,7 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import Board from "../Board";
 import { Events } from "../types";
-import { ownsBoardEvent } from "../utils/events";
+import { ownsBoardEvent, isCanvasOverlayEvent } from "../utils/events";
 
 /**
  * 生成事件处理函数的 hook
@@ -10,6 +10,8 @@ const useEventHandlers = (board: Board) => {
   // 生成各种事件处理函数
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
     return (event: any) => {
+      // 画布容器内宿主浮层的事件经 React 冒泡到容器，不分发给画布
+      if (isCanvasOverlayEvent(event)) return;
       board[eventName](event);
     };
   });

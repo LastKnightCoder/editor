@@ -1,5 +1,16 @@
 # 决策记录（轻量 ADR）
 
+## D-121 白板文档卡：卡片 / 文章 / 项目文档以文档形态放进白板，展开编辑（居中 + 可停靠）
+
+（2026-10-08，用户确认 `apps/desktop/mockups/whiteboard-doc-cards/` 方案 C「居中展开 + 可停靠」，否决 A 只全屏 / B 只右侧面板；并要求卡片同样做成文档形态、与富文本区分）
+
+- 元素：新元素类型 `document`，只存 `entityRef: { kind: "card" | "article" | "project-item", id }` 与插入时的 `title` 快照，不存 `contentId`（白板保存按 contentId 计引用，见 `tables/white-board-content.ts`）。画布上是文档按版宽（卡片 460 / 文章与项目文档 620）排好后整体缩小的只读预览，底部渐隐、低缩放画标题与骨架线；双击、↵、属性条「展开」、右键「展开」打开。纸面统一 `bg-surface`，不再有 variant / tone 配色——文档卡与富文本（白板自己的字，就地编辑）在视觉与交互上彻底分开。
+- 阅读纸：居中（画布压暗；卡片展开成 560 宽、高度随内容的小纸，文章与项目文档 780 宽铺满高度）与停靠右侧（画布可操作，选中另一张文档卡即换篇，被面板挡住的卡片先平移出来）两种摆放，纸面右上角切换，记住上一次选择（全局偏好）。正文经 `ContentEditor` 实时保存、无「完成」按钮；Esc 经浮层仲裁、点纸外、收起按钮收回原位；「在详情页打开」先收起再跳转。标题与元信息本期只读，改标题去详情页。
+- 动效：阅读纸里的同一份文档 DOM 从卡片的位置与缩放放大到 1，纸面用 clip-path 从卡片揭开（临界阻尼弹簧采样成 CSS `linear()`），文字不重排；不用 View Transitions（截图放大糊、动画期间不可交互）。减少动效时直接出现。
+- 宿主边界：`@tau/whiteboard` 新增 `slots.CanvasLayer`（画布容器内、铺满画布区域的宿主层）与 `CANVAS_OVERLAY_ATTR`——带该属性的子树里的按键、剪贴板、指针、滚轮一律不归画布（否则在阅读纸里复制会被画布选区覆盖、滚动会缩放画布）。浮层不靠 stopPropagation 截断，以免饿死 document 上的 Esc 仲裁与编辑器弹层的外部点击。
+- 数据：原 `card` 元素（`cardId`，就地编辑且正文从未写回卡片）退役。开库时按数据判定把 `{ type: "card", cardId }` 改写为 `{ type: "document", entityRef: { kind: "card", id } }`（`whiteboard-document-upgrade.ts`；不改 update_time、单事务、失败不放行，D-091 口径；残留 contentId 释放引用），全部设备升级后随清洁版删除。白板引用解析去掉 `card` 分支，统一走 entityRef，`WHITEBOARD_REF_VERSION` 1→2。推翻 D-119「不改变数据格式」中关于卡片元素的部分；旧剪贴板里的卡片元素不再识别。
+- 不做：阅读纸内改标题 / 标签、按白板记忆摆放方式、日记作为文档卡、插入时排除已在画布上的文档（多类实体 id 会撞）。
+
 ## D-120 文档待办：正文是唯一真相源，待办页是镜像
 
 （2026-10-08，用户确认；方案与决策细目见 `docs/doc-tasks/01-方案.md`，mockup 见 `apps/desktop/mockups/doc-todos/index.html`）

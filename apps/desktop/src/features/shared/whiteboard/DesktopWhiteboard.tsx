@@ -24,14 +24,15 @@ import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import useSettingStore from "@/stores/useSettingStore";
 import { DesktopWhiteboardLayers } from "./DesktopWhiteboardLayers";
 import { useWhiteboardOutlineStore } from "./outlineStore";
-import Card from "./components/Card";
+import { DocumentCard } from "./components/Document/DocumentCard";
+import { DocumentReaderLayer } from "./components/Document/DocumentReader";
 import WhiteboardCard from "./components/WhiteBoardCard";
 import VideoElement from "./components/VideoElement";
 import WebviewElement from "./components/WebviewElement";
 import ImageTool from "./components/Toolbar/Image";
 import VideoTool from "./components/Toolbar/Video";
 import AudioTool from "./components/Toolbar/Audio";
-import CardTool from "./components/Toolbar/Card";
+import DocumentTool from "./components/Toolbar/Document";
 import WebviewTool from "./components/Toolbar/Webview";
 import WhiteboardTool from "./components/Toolbar/WhiteBoard";
 
@@ -65,16 +66,17 @@ const desktopSlots: WhiteboardSlots = {
   ContentSelector,
   Image: LocalImage,
   Layers: DesktopWhiteboardLayers,
+  CanvasLayer: DocumentReaderLayer,
   tools: {
     image: ImageTool,
     video: VideoTool,
     audio: AudioTool,
-    card: CardTool,
+    document: DocumentTool,
     webview: WebviewTool,
     whiteboard: WhiteboardTool,
   },
   elements: {
-    card: Card,
+    document: DocumentCard,
     whiteboard: WhiteboardCard,
     video: VideoElement,
     webview: WebviewElement,

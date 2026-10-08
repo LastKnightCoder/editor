@@ -238,7 +238,10 @@ export function useBoardCapture(board: Board): {
       // LocalImage / LocalVideo 在解析期间返回 null，需要轮询等待
       const hasAsyncMedia = elements.some(
         el =>
-          el.type === "image" || el.type === "card" || el.type === "video" || el.type === "audio"
+          el.type === "image" ||
+          el.type === "document" ||
+          el.type === "video" ||
+          el.type === "audio"
       );
       if (hasAsyncMedia) {
         await waitForMediaRender(captureTarget);
