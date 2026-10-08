@@ -193,7 +193,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
         if (!next) onCancel();
       }}
       title={column ? "编辑列" : "新建列"}
-      width={type === FORMULA_TYPE ? 760 : 400}
+      width={type === FORMULA_TYPE ? 880 : 400}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>

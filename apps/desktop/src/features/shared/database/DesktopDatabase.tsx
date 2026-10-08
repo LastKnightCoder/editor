@@ -20,6 +20,7 @@ import AttachmentPlugin from "./plugins/AttachmentPlugin";
 import RichTextPlugin from "./plugins/RichTextPlugin";
 import LinkRenderer from "./plugins/LinkRenderer";
 import { toDatabaseView } from "./viewAdapter";
+import { useFormulaAssist } from "./useFormulaAssist";
 
 const Image = ({ src, ...props }: DatabaseImageProps) => <LocalImage url={src} {...props} />;
 
@@ -77,6 +78,8 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
       () => bindDatabaseCommands({ deleteContent, patchDataTableRow }, { databaseName }),
       [databaseName]
     );
+    const formulaAssist = useFormulaAssist();
+
     const combinedPlugins = useMemo(() => [...desktopPlugins, ...(plugins ?? [])], [plugins]);
     const isCurrent = () => useSettingStore.getState().setting.database.active === databaseName;
     const saveData = useMemoizedFn<NonNullable<DatabaseProps["onDataChange"]>>((data, change) => {
@@ -113,7 +116,7 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
         onUpdateView={onUpdateView ? updateView : undefined}
         ref={attachRef}
         plugins={combinedPlugins}
-        slots={{ ...desktopDatabaseSlots, ...slots }}
+        slots={{ ...desktopDatabaseSlots, formulaAssist, ...slots }}
         onDataChange={saveData}
         onViewConfigChange={saveView}
         onDetachedRowPatch={async (rowId, patch, previousRow) => {

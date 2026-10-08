@@ -1,7 +1,6 @@
 import dayjs from "dayjs";
 import type { FormulaColumnConfig } from "@tau/shared/database-types";
 import type PluginManager from "../../PluginManager";
-import { SELECT_COLORS } from "../../constants";
 import type { ColumnDef, RowData } from "../../types";
 import { createFormulaContext } from "./context";
 import { evaluateExpr } from "./evaluate";
@@ -145,7 +144,7 @@ export function formulaEnumOf(expr: unknown): string[] | null {
   const values: string[] = [];
   const take = (leaf: Expr) => {
     if (leaf.kind !== "literal") return false;
-    if (typeof leaf.value === "string") values.push(leaf.value);
+    if (typeof leaf.value === "string") values.push(leaf.value.trim());
     return typeof leaf.value === "string" || leaf.value === null;
   };
   while (node.kind === "if") {
@@ -167,10 +166,16 @@ export function formulaEnumOfColumn(column: ColumnDef): string[] | null {
   return enums.get(config) ?? null;
 }
 
-/** 枚举值的标签色：按情况顺序取单选同一套色板，同一个词恒定同色 */
+/**
+ * 枚举标签色板：相邻两色色相尽量拉开（单选色板顺序里红 / 橙 / 黄在部分主题下几乎同色），
+ * 不用 gray（它表示「无分类」）。超过色板长度后循环。
+ */
+export const FORMULA_TAG_COLORS = ["blue", "orange", "green", "purple", "red", "yellow"] as const;
+
+/** 枚举值的标签色：按情况顺序分配，不同的词不同色，同一个词恒定同色 */
 export function enumTagColor(values: readonly string[] | null, value: Scalar) {
-  const index = values && typeof value === "string" ? values.indexOf(value) : -1;
-  return index < 0 ? null : SELECT_COLORS[index % SELECT_COLORS.length];
+  const index = values && typeof value === "string" ? values.indexOf(value.trim()) : -1;
+  return index < 0 ? null : FORMULA_TAG_COLORS[index % FORMULA_TAG_COLORS.length];
 }
 
 export const formulaTagColor = (column: ColumnDef, value: Scalar) =>

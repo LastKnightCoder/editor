@@ -259,8 +259,12 @@ describe("枚举型结果", () => {
     expect(formulaEnumOf({ ...priorityExpr, else: col("title") })).toBeNull();
     expect(formulaEnumOf(subtotalExpr)).toBeNull();
     const priority = columns[1];
-    expect(formulaTagColor(priority, "高")).toBe("red");
+    expect(formulaTagColor(priority, "高")).toBe("blue");
     expect(formulaTagColor(priority, "低")).toBe("orange");
+    expect(formulaTagColor(priority, "高 ")).toBe("blue");
+    const { enumTagColor } = await import("..");
+    const words = ["甲", "乙", "丙", "丁", "戊", "己"];
+    expect(new Set(words.map(word => enumTagColor(words, word))).size).toBe(6);
     expect(formulaTagColor(priority, "其他")).toBeNull();
 
     const sorted = projectDatabase(

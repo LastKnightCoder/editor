@@ -61,6 +61,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 - GalleryCover：接收行、列和画廊封面配置，提供正文或资源预览。
 - Image：提供图片地址解析与加载错误回调；缺省使用浏览器 img。
 - coverGradient：按行身份提供封面空态背景；缺省消费主题语义底色。
+- formulaAssist：把消息交给模型并返回回答文本，失败时抛错；提供时公式构造器顶部出现「用一句话描述」输入框。提示词、解析与校验在包内，消息只含列结构不含行数据；缺省不提供。
 
 `onRowCleanup` 接收删除前的行快照，宿主决定如何释放资源引用。只在实例 deleteRow 时调用，external 移除不重复清理；删除接口保持同步，异步清理错误单独报告。桌面持久化表的行清理由原子删除读取最新记录完成。富文本列清理沿用 CellPlugin.onColumnCleanup，每个持有引用分别释放。
 
