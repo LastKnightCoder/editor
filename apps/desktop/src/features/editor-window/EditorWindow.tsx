@@ -30,7 +30,7 @@ import {
 import type { EditorRef } from "@tau/editor";
 import { IconButton, Menu, Popover, cn, toast, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,

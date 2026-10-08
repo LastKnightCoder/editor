@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.54.0",
   "scripts": {
+    "check:whiteboard-boundaries": "node scripts/check-whiteboard-boundaries.mjs",
     "check:database-boundaries": "node scripts/check-database-boundaries.mjs",
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",

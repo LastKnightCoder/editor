@@ -16,7 +16,7 @@ import {
 import { isWinOrLinux } from "@/platform";
 import { usePage } from "@/page/PageProvider";
 import { getPageMeta } from "@/page/core/pageMeta";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import { IconButton } from "@tau/ui";
 import { nextAppearance, useThemeStore } from "@tau/themes/react";
 import { useSearchStore } from "@/features/search/searchStore";

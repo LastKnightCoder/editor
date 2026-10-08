@@ -13,13 +13,10 @@ import React, {
 import { getContentKit } from "@/services/editorKit";
 import clsx from "classnames";
 import { Editor, EditorThemeOverride } from "@tau/editor";
-import { MindUtil } from "@/components/WhiteBoard/utils/MindUtil";
-import { MindNodeElement } from "@/components/WhiteBoard/types/mind";
-import MindThemeUtil, {
-  type MindMode,
-  type MindNodeVisual,
-} from "@/components/WhiteBoard/utils/MindThemeUtil";
-import { useMindMode } from "@/components/WhiteBoard/hooks/useMindTheme";
+import { MindUtil } from "@tau/whiteboard";
+import { MindNodeElement } from "@tau/whiteboard";
+import { MindThemeUtil, type MindMode, type MindNodeVisual } from "@tau/whiteboard";
+import { useMindMode } from "@tau/whiteboard";
 import { MindMapNodeData, FlattenedMindMapNode } from "./types";
 import { useMindMapMeasurements } from "./useMindMapMeasurements";
 import { Descendant } from "slate";

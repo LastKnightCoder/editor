@@ -395,8 +395,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     useEffect(() => piChatRuntime.retain(sessionKey), [sessionKey]);
     useEffect(() => {
       void piChatRuntime
-        .restorePendingInteractions(sessionKey, chatScope, currentChat.id)
-        .catch(error => console.error("恢复待处理交互会话失败:", error));
+        .restoreSession(sessionKey, chatScope, currentChat.id)
+        .catch(error => console.error("恢复对话运行状态失败:", error));
     }, [sessionKey, chatScope, currentChat.id]);
 
     // 强制更新计数器，用于触发visibleMessages重新计算

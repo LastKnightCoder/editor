@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Archive, ArchiveRestore, Plus, Trash2 } from "lucide-react";
 import { Button, IconButton, Loading, Menu, toast } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import { isElectron } from "@/electron";
 import { openPomodoroImmersiveWindow } from "@/commands/window";
 import type { PomodoroPreset, PomodoroSession } from "@/types";

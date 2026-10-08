@@ -9,7 +9,7 @@ import { Captions } from "lucide-react";
 import { Button, Spinner } from "@tau/ui";
 import { VideoPlayer } from "@tau/shared";
 import LocalVideo from "@/components/LocalVideo";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
 import { formatTime, useTranscriptSync } from "@/components/MediaTranscript/useTranscriptSync";
 import type { useVideoNoteSource } from "@/components/VideoNotePanel/useVideoNoteSource";

@@ -161,6 +161,81 @@ describe("本机内容会话", () => {
     expect(readSharedContent(session.doc).title).toBe("新标题");
   });
 
+  it("整篇替换保留嵌套节点属性、格式与源码，并同步到已连接的编辑器", () => {
+    const session = runtime();
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(session.doc));
+    const awareness = new Awareness(doc);
+    const editor = withCollaboration(createEditor(), {
+      doc,
+      awareness,
+      origin: {},
+      mode: "local",
+      privateNodes: new Map(),
+      uploadResource: async () => "",
+      resolveResource: async url => url,
+    });
+    YjsEditor.connect(editor);
+    cleanup.push(() => {
+      YjsEditor.disconnect(editor);
+      awareness.destroy();
+      doc.destroy();
+    });
+    const replacement = [
+      { type: "header", level: 2, children: [{ type: "formatted", text: "标题" }] },
+      {
+        type: "blockquote",
+        children: [
+          {
+            type: "paragraph",
+            children: [{ type: "formatted", text: "加粗正文", bold: true }],
+          },
+        ],
+      },
+      { type: "code-block", language: "js", code: "const count = 1;", children: [{ text: "" }] },
+      { type: "image", url: "/tmp/new.png", children: [{ text: "" }] },
+    ];
+    replaceSessionContent(session, replacement, contentRevision(session));
+    Y.applyUpdate(doc, Y.encodeStateAsUpdate(session.doc), "ipc");
+
+    expect(readSharedContent(session.doc).content).toMatchObject(replacement);
+    expect(readSharedContent(doc)).toEqual(readSharedContent(session.doc));
+    expect(editor.children.slice(0, 2)).toMatchObject(replacement.slice(0, 2));
+    expect(editor.children[2]).toMatchObject({ type: "code-block", language: "js" });
+    expect(editor.children[3]).toMatchObject(replacement[3]);
+    Transforms.insertText(editor, "新", { at: { path: [0, 0], offset: 0 } });
+    YjsEditor.flushLocalChanges(editor);
+    Y.applyUpdate(session.doc, Y.encodeStateAsUpdate(doc), "ipc");
+    expect(readSharedContent(session.doc).content[0]).toMatchObject({
+      type: "header",
+      children: [{ text: "新标题" }],
+    });
+  });
+
+  it("共享正文替换保留私有块占位和本机真实节点", () => {
+    const session = runtime();
+    session.info.mode = "shared";
+    session.doc.getMap("meta").set("mode", "shared");
+    const replacement = [
+      { type: "paragraph", children: [{ text: "共享正文" }] },
+      {
+        type: "whiteboard",
+        collabId: "private-board",
+        whiteBoardContentId: 42,
+        children: [{ text: "" }],
+      },
+    ];
+    replaceSessionContent(session, replacement, contentRevision(session));
+
+    expect(() => validateDocument(session.doc)).not.toThrow();
+    expect(readSharedContent(session.doc).content[1]).toMatchObject({
+      type: "collaboration-placeholder",
+      collabId: "private-board",
+      label: "whiteboard",
+    });
+    expect(readSharedContent(session.doc, session.privateNodes).content).toMatchObject(replacement);
+  });
+
   it("标题回写所有文档类型，保留标签封面和卡片", () => {
     const db = database();
     db.exec(

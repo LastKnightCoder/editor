@@ -13,7 +13,7 @@ import { useMemoizedFn } from "ahooks";
 import { ConfirmDialog, IconButton, Menu, Popover, cn, toast } from "@tau/ui";
 
 import { EditText } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import type { EditTextHandle } from "@tau/ui";
 import type { ChatMessage } from "@/types";
 import type { ChatSessionRow } from "@/types/chat-session";

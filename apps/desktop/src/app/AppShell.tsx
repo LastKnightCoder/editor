@@ -96,9 +96,6 @@ function ShellBody() {
         {boot === "connecting" ? (
           <div className="col-span-full flex min-w-0 flex-col items-center justify-center p-6">
             <Loading label="正在连接数据库…" minHeight={0} className="h-auto" />
-            <p className="text-ink-2 text-tau-caption mt-3 max-w-md text-center">
-              首次打开较大数据库时需要备份与历史数据迁移，可能耗时数分钟，请勿强制退出
-            </p>
           </div>
         ) : (
           <div className="text-ink-1 p-6">

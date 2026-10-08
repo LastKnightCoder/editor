@@ -11,7 +11,7 @@
 
 import type { Flashcard, FlashcardDeck } from "@/types";
 import { Button, cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { Layers, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";

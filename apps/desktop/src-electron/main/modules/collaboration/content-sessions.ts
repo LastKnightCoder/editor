@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
+import { slateNodesToInsertDelta, yTextToSlateElement } from "@slate-yjs/core";
 import {
   createSharedDocument,
   getBody,
@@ -150,14 +151,8 @@ export function replaceSessionContent(
       body.delete(0, body.length);
       for (const [id, fields] of getFields(replacement))
         getFields(session.doc).set(id, fields.clone());
-      body.applyDelta(
-        getBody(replacement)
-          .toDelta()
-          .map((part: { insert: unknown; attributes?: Record<string, unknown> }) => ({
-            ...part,
-            insert: part.insert instanceof Y.AbstractType ? part.insert.clone() : part.insert,
-          }))
-      );
+      // Y.XmlText.clone() 会丢失节点属性，通过 Slate 转换保留整棵正文的类型与属性。
+      body.applyDelta(slateNodesToInsertDelta(yTextToSlateElement(getBody(replacement)).children));
     }, "content-replacement");
     if (replacements.size) {
       for (const [id, node] of replacements) session.privateNodes.set(id, node);

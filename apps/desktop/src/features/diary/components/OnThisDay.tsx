@@ -10,7 +10,7 @@ import { getContentKit } from "@/services/editorKit";
 import { History, X } from "lucide-react";
 import { Editor } from "@tau/editor";
 import { IconButton, Tag, cn, useEdgeFade } from "@tau/ui";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import {
   firstLine,

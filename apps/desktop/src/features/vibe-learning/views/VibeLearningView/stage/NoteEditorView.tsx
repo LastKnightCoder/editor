@@ -22,7 +22,7 @@ import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 import { EditorRef } from "@tau/editor";
 import Editor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import MindMapRenderer from "@/components/ChatSidebar/MindMapRenderer";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import { VLNote } from "@/types/vibe-learning";

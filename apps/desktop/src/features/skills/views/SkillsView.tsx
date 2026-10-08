@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { FolderSymlink, Plus, Search, Sparkles } from "lucide-react";
 import { Button, ConfirmDialog, FilterPill, Input, Switch, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import useSkillStore from "@/stores/useSkillStore";
 import { useSkillItems, SOURCE_LABEL, type SkillItem } from "../useSkills";
 import { ModeBadge, BudgetBar, SkillIcon, SourceTag, WarningText } from "../components/SkillVisual";

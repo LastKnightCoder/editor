@@ -1,10 +1,17 @@
 /**
  * 闪卡域纯函数：到期判定 / 复习队列 / 卡组统计 / 排期预估 / 作答判定 / 推荐评分。
  *
- * 排期预估与主进程 tables/flashcard.ts 的 calculateSchedule 同式（REVIEW_INTERVALS × (0.8 + ease × 0.2)），
- * 改动主进程排期时两处须同步——model.test.ts 以固定样例钉住。
+ * 排期预估与主进程 tables/flashcard.ts 的 calculateSchedule 同走
+ * @tau/shared/fsrs-schedule（FSRS-6，与移动端 fsrs crate 逐值对齐）。
  */
 
+import {
+  fsrsElapsedDays,
+  fsrsGradeOf,
+  fsrsIntervalMs,
+  fsrsSchedule,
+  type FsrsMemoryState,
+} from "@tau/shared/fsrs-schedule";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 import type {
   Flashcard,
@@ -72,41 +79,18 @@ export const RATING_LABEL: Record<FlashcardReviewRating, string> = {
 
 /* ---------- 排期预估 ---------- */
 
-const REVIEW_INTERVALS = [
-  5 * MINUTE_MS,
-  30 * MINUTE_MS,
-  12 * HOUR_MS,
-  DAY_MS,
-  2 * DAY_MS,
-  4 * DAY_MS,
-  7 * DAY_MS,
-  15 * DAY_MS,
-  30 * DAY_MS,
-  60 * DAY_MS,
-];
-const RATING_DELTA: Record<FlashcardReviewRating, number> = {
-  easy: 2,
-  normal: 1,
-  struggle: -1,
-  hard: -2,
-};
-const EASE_DELTA: Record<FlashcardReviewRating, number> = {
-  easy: 0.15,
-  normal: 0,
-  struggle: -0.1,
-  hard: -0.25,
-};
-
-/** 评分后的下次间隔（毫秒） */
+/** 评分后的下次间隔（毫秒），与主进程 calculateSchedule 同式（FSRS-6） */
 export function nextInterval(
-  card: Pick<Flashcard, "reviewLevel" | "easeFactor">,
-  rating: FlashcardReviewRating
+  card: Pick<Flashcard, "memoryStability" | "memoryDifficulty" | "lastReviewTime">,
+  rating: FlashcardReviewRating,
+  now: number = Date.now()
 ): number {
-  let level = card.reviewLevel + RATING_DELTA[rating];
-  if (rating === "struggle") level = Math.max(card.reviewLevel - 1, 0);
-  level = Math.max(0, Math.min(REVIEW_INTERVALS.length - 1, level));
-  const ease = Math.min(3.5, Math.max(1.3, card.easeFactor + EASE_DELTA[rating]));
-  return Math.round(REVIEW_INTERVALS[level] * (0.8 + ease * 0.2));
+  const memory: FsrsMemoryState | null =
+    card.memoryStability != null && card.memoryDifficulty != null
+      ? { stability: card.memoryStability, difficulty: card.memoryDifficulty }
+      : null;
+  const next = fsrsSchedule(memory, fsrsElapsedDays(card.lastReviewTime, now), fsrsGradeOf(rating));
+  return fsrsIntervalMs(next.intervalDays);
 }
 
 export function formatSpan(ms: number): string {
@@ -123,11 +107,11 @@ export function isDue(card: Flashcard, now: number): boolean {
   return card.status !== "suspended" && card.dueTime <= now;
 }
 
-/** 复习队列：与主进程 get-review-queue 同序（due 升序、level 升序），暂停的卡不入队 */
+/** 复习队列：与主进程 get-review-queue 同序（due 升序、稳定性升序、新卡在前），暂停的卡不入队 */
 export function reviewQueue(cards: Flashcard[], now: number, deckId?: number | null): Flashcard[] {
   return cards
     .filter(card => (deckId == null || card.deckId === deckId) && isDue(card, now))
-    .sort((a, b) => a.dueTime - b.dueTime || a.reviewLevel - b.reviewLevel);
+    .sort((a, b) => a.dueTime - b.dueTime || (a.memoryStability ?? 0) - (b.memoryStability ?? 0));
 }
 
 export type DueTone = "late" | "now" | "later" | "muted";
@@ -225,10 +209,10 @@ export function sortDecksByDue(decks: FlashcardDeck[], due: Map<number, number>)
   return [...decks].sort((a, b) => (due.get(b.id) ?? 0) - (due.get(a.id) ?? 0));
 }
 
-/** 暂停后恢复的状态：按复习次数还原（同主进程评分规则：≥3 次为巩固） */
+/** 暂停后恢复的状态：新卡为 new，已学卡按稳定性（≥1 天间隔为巩固，同主进程评分规则） */
 export function resumedStatus(card: Flashcard): FlashcardStatus {
-  if (card.reviewCount === 0) return "new";
-  return card.reviewCount >= 3 ? "review" : "learning";
+  if (card.reviewCount === 0 || card.memoryStability == null) return "new";
+  return card.memoryStability >= 1 ? "review" : "learning";
 }
 
 /* ---------- 作答 ---------- */
@@ -301,8 +285,8 @@ export function scoreToRating(score: number): FlashcardReviewRating {
 /** 评分前的排期快照（撤销评分时回写） */
 export function scheduleSnapshot(card: Flashcard) {
   return {
-    reviewLevel: card.reviewLevel,
-    easeFactor: card.easeFactor,
+    memoryStability: card.memoryStability,
+    memoryDifficulty: card.memoryDifficulty,
     dueTime: card.dueTime,
     lastReviewTime: card.lastReviewTime,
     reviewCount: card.reviewCount,

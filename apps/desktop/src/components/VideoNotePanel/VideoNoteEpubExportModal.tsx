@@ -28,7 +28,7 @@ import { Editor } from "@tau/editor";
 import { useLocalEditorDocument } from "@/hooks/useLocalEditorDocument";
 import { createHeaderExtension } from "@tau/editor-header";
 import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
 import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";

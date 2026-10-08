@@ -10,7 +10,7 @@ import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { useCardsMutations } from "../queries";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import { getContentLength } from "@/utils";

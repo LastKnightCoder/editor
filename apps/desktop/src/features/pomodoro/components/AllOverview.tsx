@@ -6,7 +6,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import { HOUR_MS, MINUTE_MS, formatDuration, startOfDay, weekdayLabel } from "../model";
 import { addDays, monthWindow, type DayWindow, type QuickKey } from "../range";

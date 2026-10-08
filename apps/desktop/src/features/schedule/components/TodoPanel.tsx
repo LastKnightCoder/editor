@@ -8,7 +8,7 @@
 import { useMemo, useState, type DragEvent } from "react";
 import { Search, X } from "lucide-react";
 import { IconButton, cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useTodoMutations, useTodoSnapshot } from "@/features/todos/queries";
 import {
   TODO_DRAG_TYPE,

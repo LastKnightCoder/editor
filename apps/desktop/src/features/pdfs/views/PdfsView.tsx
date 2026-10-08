@@ -19,7 +19,7 @@ import {
   SearchX,
 } from "lucide-react";
 import { Button, ConfirmDialog, FilterPill, Input, Loading, Menu, Segmented, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { showInFolder } from "@/commands";
 import { usePage } from "@/page/PageProvider";
 import {

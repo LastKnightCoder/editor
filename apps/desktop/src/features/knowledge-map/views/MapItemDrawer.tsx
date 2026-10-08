@@ -7,7 +7,7 @@
 import { ExternalLink, FileText, FolderKanban, Layers } from "lucide-react";
 import { Button, Drawer, useRetainedValue } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { serializeEntityLocation } from "@/entity/locate";
 import type { KnowledgeMapItem } from "@/knowledge-map/types";
 import { useOverlayDismiss } from "@/page/PageProvider";

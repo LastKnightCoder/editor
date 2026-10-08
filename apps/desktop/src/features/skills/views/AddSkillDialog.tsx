@@ -27,7 +27,7 @@ import {
   cn,
   toast,
 } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
 import useLLMConfig from "@/hooks/useLLMConfig";

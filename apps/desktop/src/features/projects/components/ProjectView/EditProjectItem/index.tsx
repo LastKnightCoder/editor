@@ -14,7 +14,7 @@ import ContentCollaborationControl, {
 } from "@/components/ContentCollaborationControl";
 import { EditTextHandle } from "@tau/ui";
 import EditText from "@/components/CollaborativeTitle";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import {
   ContentOutline,
   extractContentHeaders,

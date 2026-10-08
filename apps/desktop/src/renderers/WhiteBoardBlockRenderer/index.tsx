@@ -11,7 +11,7 @@ import { Spinner, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import { copyElementsToClipboard } from "@/utils/clipboardHelpers";
-import type { BoardElement, WhiteBoardRef } from "@/components/WhiteBoard";
+import type { BoardElement, WhiteBoardRef } from "@tau/whiteboard";
 import {
   defineBlockRenderer,
   type BlockInlineProps,
@@ -23,7 +23,7 @@ import { downloadBlob } from "@/features/previews/exportImage";
 import { sanitizeFileName } from "@/utils/file-name";
 import { convertWhiteboardToBoard, parseWhiteboardDsl, type WhiteboardDocument } from "./dsl";
 
-const WhiteBoard = lazy(() => import("@/components/WhiteBoard"));
+const WhiteBoard = lazy(() => import("@/features/shared/whiteboard/DesktopWhiteboard"));
 
 const INLINE_HEIGHT = 280;
 

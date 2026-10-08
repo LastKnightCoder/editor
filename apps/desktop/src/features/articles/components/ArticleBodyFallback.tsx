@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor";
 import { getContentKit } from "@/services/editorKit";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 
 const FIRST_SCREEN_BLOCKS = 24;
 

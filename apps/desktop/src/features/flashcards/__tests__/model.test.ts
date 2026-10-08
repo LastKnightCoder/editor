@@ -29,11 +29,11 @@ function card(patch: Partial<Flashcard> = {}): Flashcard {
     data: {},
     tags: [],
     difficulty: "standard",
-    reviewLevel: 0,
     dueTime: NOW,
     lastReviewTime: null,
     reviewCount: 0,
-    easeFactor: 2.5,
+    memoryStability: null,
+    memoryDifficulty: null,
     status: "new",
     references: [],
     createTime: NOW,
@@ -42,26 +42,37 @@ function card(patch: Partial<Flashcard> = {}): Flashcard {
   };
 }
 
-describe("排期预估（与主进程 calculateSchedule 同式）", () => {
-  it("按等级增减与熟练系数计算间隔", () => {
-    const c = card({ reviewLevel: 4, easeFactor: 2.5 });
-    // hard：level 2（12h）× (0.8 + 2.25 × 0.2)
-    expect(nextInterval(c, "hard")).toBe(Math.round(12 * HOUR_MS * 1.25));
-    // struggle：level 3（1 天）× (0.8 + 2.4 × 0.2)
-    expect(nextInterval(c, "struggle")).toBe(Math.round(DAY_MS * 1.28));
-    // normal：level 5（4 天）× 1.3
-    expect(nextInterval(c, "normal")).toBe(Math.round(4 * DAY_MS * 1.3));
-    // easy：level 6（7 天）× (0.8 + 2.65 × 0.2)
-    expect(nextInterval(c, "easy")).toBe(Math.round(7 * DAY_MS * 1.33));
+describe("排期预估（与主进程 calculateSchedule 同式，FSRS-6）", () => {
+  // 期望值与 @tau/shared 的 fsrs-schedule.fixture.json 对拍（fsrs-rs 权威输出）。
+  // ts-fsrs 为 f64、fsrs-rs 为 f32，毫秒值允许 ±0.001 天（86.4s）的浮点噪声。
+  const expectIntervalDays = (ms: number, expectedDays: number) => {
+    expect(ms).toBeGreaterThan((expectedDays - 0.001) * DAY_MS);
+    expect(ms).toBeLessThan((expectedDays + 0.001) * DAY_MS);
+  };
+
+  it("新卡首评：初始稳定性取 FSRS 默认参数 w[0..3]，间隔即稳定性", () => {
+    const c = card();
+    expectIntervalDays(nextInterval(c, "hard", NOW), 0.212);
+    expectIntervalDays(nextInterval(c, "struggle", NOW), 1.2931);
+    expectIntervalDays(nextInterval(c, "normal", NOW), 2.3065);
+    expectIntervalDays(nextInterval(c, "easy", NOW), 8.2956);
   });
 
-  it("等级与熟练系数都有上下限", () => {
-    expect(nextInterval(card({ reviewLevel: 0, easeFactor: 1.3 }), "hard")).toBe(
-      Math.round(5 * 60_000 * (0.8 + 1.3 * 0.2))
-    );
-    expect(nextInterval(card({ reviewLevel: 9, easeFactor: 3.5 }), "easy")).toBe(
-      Math.round(60 * DAY_MS * (0.8 + 3.5 * 0.2))
-    );
+  it("已学卡按记忆状态与经过天数推进（0.9 保留率下间隔 = 新稳定性）", () => {
+    const c = card({
+      memoryStability: 5,
+      memoryDifficulty: 5,
+      lastReviewTime: NOW - 3 * DAY_MS,
+    });
+    expectIntervalDays(nextInterval(c, "hard", NOW), 0.9057792592592593);
+    expectIntervalDays(nextInterval(c, "normal", NOW), 13.404757037037037);
+    expectIntervalDays(nextInterval(c, "easy", NOW), 20.74126962962963);
+  });
+
+  it("当天再评（elapsed=0）走 FSRS 短期分支：好评分不降低稳定性", () => {
+    const c = card({ memoryStability: 5, memoryDifficulty: 5, lastReviewTime: NOW - HOUR_MS });
+    expectIntervalDays(nextInterval(c, "normal", NOW), 5);
+    expectIntervalDays(nextInterval(c, "hard", NOW), 1.5968177777777777);
   });
 
   it("间隔文案", () => {
@@ -73,9 +84,9 @@ describe("排期预估（与主进程 calculateSchedule 同式）", () => {
 });
 
 describe("队列与分段", () => {
-  it("暂停的卡不入队，按到期时间与等级排序，可限定卡组", () => {
-    const a = card({ dueTime: NOW - 2 * HOUR_MS, reviewLevel: 3, status: "review" });
-    const b = card({ dueTime: NOW - 2 * HOUR_MS, reviewLevel: 1, status: "learning" });
+  it("暂停的卡不入队，按到期时间与稳定性排序（低稳定优先），可限定卡组", () => {
+    const a = card({ dueTime: NOW - 2 * HOUR_MS, memoryStability: 3, status: "review" });
+    const b = card({ dueTime: NOW - 2 * HOUR_MS, memoryStability: 1, status: "learning" });
     const c = card({ dueTime: NOW - DAY_MS, status: "suspended" });
     const d = card({ dueTime: NOW + HOUR_MS, status: "review" });
     const e = card({ dueTime: NOW - 10 * 60_000, deckId: 2 });
@@ -121,10 +132,10 @@ describe("队列与分段", () => {
     expect(stats.forecast).toEqual([2, 1, 0, 0, 0, 0, 0]);
   });
 
-  it("暂停恢复按复习次数还原状态", () => {
+  it("暂停恢复按稳定性还原状态", () => {
     expect(resumedStatus(card({ reviewCount: 0 }))).toBe("new");
-    expect(resumedStatus(card({ reviewCount: 2 }))).toBe("learning");
-    expect(resumedStatus(card({ reviewCount: 5 }))).toBe("review");
+    expect(resumedStatus(card({ reviewCount: 2, memoryStability: 0.5 }))).toBe("learning");
+    expect(resumedStatus(card({ reviewCount: 5, memoryStability: 5 }))).toBe("review");
   });
 });
 

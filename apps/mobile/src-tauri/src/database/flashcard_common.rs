@@ -20,9 +20,9 @@ pub(crate) const DECK_COLUMNS: &str =
     "id, name, description, cover_color, emoji, sort_order, meta, create_time, update_time";
 
 pub(crate) const CARD_COLUMNS: &str =
-    "id, deck_id, type, prompt, detail, data, tags, difficulty, review_level, \
-     due_time, last_review_time, review_count, ease_factor, status, reference_summary, \
-     create_time, update_time";
+    "id, deck_id, type, prompt, detail, data, tags, difficulty, \
+     due_time, last_review_time, review_count, memory_stability, memory_difficulty, status, \
+     reference_summary, create_time, update_time";
 
 /// 空白 Slate 段落（桌面端 textToDescendants 同构）
 pub(crate) fn empty_paragraph_text() -> Value {
@@ -84,11 +84,11 @@ pub(crate) fn parse_card_row(
         difficulty: row
             .get::<_, Option<String>>(7)?
             .unwrap_or_else(|| "standard".into()),
-        review_level: row.get::<_, Option<i64>>(8)?.unwrap_or(0),
-        due_time: row.get(9)?,
-        last_review_time: row.get(10)?,
-        review_count: row.get::<_, Option<i64>>(11)?.unwrap_or(0),
-        ease_factor: row.get::<_, Option<f64>>(12)?.unwrap_or(2.5),
+        due_time: row.get(8)?,
+        last_review_time: row.get(9)?,
+        review_count: row.get::<_, Option<i64>>(10)?.unwrap_or(0),
+        memory_stability: row.get(11)?,
+        memory_difficulty: row.get(12)?,
         status: row
             .get::<_, Option<String>>(13)?
             .unwrap_or_else(|| "new".into()),

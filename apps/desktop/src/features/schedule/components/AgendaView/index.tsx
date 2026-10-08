@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import dayjs from "dayjs";
 import { CalendarRange } from "lucide-react";
 import { cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useScheduleStore } from "../../uiStore";
 import { useCalendarCatalog, useCalendarEvents } from "../../queries";
 import type { CalendarEvent } from "@/types";

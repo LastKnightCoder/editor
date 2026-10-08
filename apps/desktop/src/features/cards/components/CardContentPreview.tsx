@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { getContentKit } from "@/services/editorKit";
 import { Editor } from "@tau/editor";
 import type { ICard } from "@/types";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { cn } from "@tau/ui";
 
 /**

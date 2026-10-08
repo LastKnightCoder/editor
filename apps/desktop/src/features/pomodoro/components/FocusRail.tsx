@@ -21,7 +21,7 @@ import {
   Square,
 } from "lucide-react";
 import { ConfirmDialog, ContextMenu, IconButton, Menu, Tooltip, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { isElectron } from "@/electron";
 import { openPomodoroImmersiveWindow, openPomodoroMiniWindow } from "@/commands/window";
 import type { PomodoroBindTarget, PomodoroPreset, PomodoroSession } from "@/types";

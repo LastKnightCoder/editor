@@ -1,4 +1,9 @@
 export * from "./cn";
+export { FadeScroll } from "./primitives/FadeScroll";
+export { default as If } from "./primitives/If";
+export { default as ErrorBoundary } from "./primitives/ErrorBoundary";
+export { default as PortalToBody } from "./primitives/PortalToBody";
+export { default as ResizableAndHideableSidebar } from "./primitives/ResizableAndHideableSidebar";
 export { EditText, type EditTextHandle } from "./primitives/EditText";
 export { EDIT_TEXT_PLACEHOLDER } from "./primitives/editTextClasses";
 export * from "./hooks";

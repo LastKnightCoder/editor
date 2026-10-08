@@ -5,8 +5,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
-import { cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll, cn } from "@tau/ui";
 import type { DocTaskItem, DocTaskSnapshot, DocTaskSource } from "@/types/doc-tasks";
 import { useDocTasksOf } from "@/hooks/useDocTasks";
 import { DocTaskRow, openDocTask } from "./DocTaskBits";

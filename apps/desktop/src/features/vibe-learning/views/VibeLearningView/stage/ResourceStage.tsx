@@ -9,9 +9,9 @@ import type { Descendant } from "slate";
 import { Button, IconButton, Menu, Tooltip, toast } from "@tau/ui";
 
 import Editor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { getContentById } from "@/commands";
 import type { NoteSourceMeta, VLResource } from "@/types/vibe-learning";
 

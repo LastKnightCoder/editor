@@ -85,9 +85,6 @@ export function OverviewBoard({
         {queue.length > 0 && (
           <Button variant="primary" icon={Play} onClick={() => onStart(null)}>
             开始复习
-            <kbd className="ml-1 rounded-[5px] bg-white/20 px-1.5 font-mono text-[11px] leading-[18px]">
-              R
-            </kbd>
           </Button>
         )}
       </div>
