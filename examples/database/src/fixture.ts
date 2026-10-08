@@ -1,4 +1,4 @@
-import type { ColumnDef, DataTableView, RowData, TableViewConfig } from "@tau/database";
+import type { ColumnDef, DatabaseView, RowData, TableViewConfig } from "@tau/database";
 
 export const columns: ColumnDef[] = [
   { id: "title", title: "任务", type: "text", isPrimary: true, width: 280 },
@@ -58,15 +58,12 @@ export const config: TableViewConfig = {
   },
 };
 
-export const views: DataTableView[] = (["table", "gallery", "calendar", "kanban"] as const).map(
+export const views: DatabaseView[] = (["table", "gallery", "calendar", "kanban"] as const).map(
   (type, index) => ({
     id: index + 1,
-    tableId: 1,
     name: ["表格", "画廊", "日历", "看板"][index],
     type,
     order: index,
     config: structuredClone(config),
-    createTime: 0,
-    updateTime: 0,
   })
 );

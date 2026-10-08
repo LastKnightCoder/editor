@@ -7,6 +7,14 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "multiSelect",
   name: "多选",
   editable: true,
+  valueType: "text",
+  toScalar: (value, column) => {
+    if (!Array.isArray(value)) return null;
+    const names = value
+      .map(id => column.config?.options?.find(option => option.id === id)?.name)
+      .filter(Boolean);
+    return names.length ? names.join(", ") : null;
+  },
   Renderer,
   // @ts-ignore
   Editor,

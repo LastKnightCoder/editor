@@ -49,8 +49,8 @@ interface RowDetailModalProps {
 /**
  * 行详情：左正文、右属性栏；弹窗内容宽度不足 960 时退化为单栏（标题 → 属性 → 正文），
  * 两种形态是同一棵树，只靠容器查询与 order / display:contents 重排，编辑器不会重挂载。
- * 属性与标题实时写回 store；没有正文内容 id 的行在离开
- * （关闭或切换行）时才创建内容并回写 detailContentId。上一条 / 下一条按当前视图投影后的行序。
+ * 属性与标题实时写回 store；正文由宿主提供，离开时调用 flush。
+ * 上一条 / 下一条按当前视图投影后的行序。
  */
 const RowDetailModal: React.FC<RowDetailModalProps> = memo(
   ({
@@ -255,7 +255,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     readonly={readonly}
                     isRowPresent={() => store.getState().rows.some(item => item.id === row.id)}
                     onRowChange={patch => {
-                      if (!store.getState().rows.some(item => item.id === row.id)) return;
+                      if (!store.getState().rows.some(item => item.id === row.id)) return false;
                       if (commitRowPatch) return commitRowPatch(row.id, patch);
                       for (const [field, value] of Object.entries(patch)) {
                         if (field !== "id") commitCell(row.id, field, value);

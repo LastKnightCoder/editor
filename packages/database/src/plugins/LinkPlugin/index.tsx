@@ -8,6 +8,7 @@ const LinkPlugin: CellPlugin<unknown> = {
   type: "link",
   name: "链接",
   editable: true,
+  valueType: "text",
   Renderer,
   Editor,
   Icon: ({ className }) => <Link2 className={className} />,

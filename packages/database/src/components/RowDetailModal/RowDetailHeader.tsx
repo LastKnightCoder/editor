@@ -1,11 +1,11 @@
 import { ChevronDown, ChevronRight, ChevronUp, Ellipsis, Table2, Trash2, X } from "lucide-react";
 import { IconButton, Menu, Tooltip } from "@tau/ui";
-import type { DataTableViewType } from "../../types";
+import type { DatabaseViewType } from "../../types";
 import { VIEW_TYPE_ICON } from "../../constants";
 
 interface RowDetailHeaderProps {
   viewName?: string;
-  viewType?: DataTableViewType;
+  viewType?: DatabaseViewType;
   title: string;
   /** 当前行在视图可见行序中的位置；-1 表示已被筛选出视图 */
   index: number;

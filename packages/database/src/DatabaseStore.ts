@@ -13,7 +13,7 @@ import {
   DatabaseCommand,
   DatabaseChange,
 } from "./types";
-import type { DataTableView, SortRule } from "./types";
+import type { DatabaseView, FooterSpec, SortRule } from "./types";
 import PluginManager from "./PluginManager";
 import { emptyQuery, projectDatabase, type DatabaseProjection } from "./core/projection";
 import { applyRowChanges, diffRows } from "./core/changes";
@@ -28,7 +28,7 @@ export enum Direction {
 interface TableState {
   columns: ColumnDef[];
   rows: RowData[];
-  views: DataTableView[];
+  views: DatabaseView[];
   viewConfig: TableViewConfig;
   activeViewId: number | null;
 
@@ -79,6 +79,8 @@ interface TableState {
   setGalleryConfig: (galleryConfig: TableViewConfig["galleryConfig"]) => void;
   setCalendarConfig: (calendarConfig: TableViewConfig["calendarConfig"]) => void;
   setKanbanConfig: (kanbanConfig: TableViewConfig["kanbanConfig"]) => void;
+  /** 设置一列的表尾汇总；传 null 取消 */
+  setFooter: (columnId: string, spec: FooterSpec | null) => void;
   setActiveViewId: (viewId: number | null) => void;
 }
 
@@ -104,7 +106,7 @@ export const createDatabaseStore = (
   initialColumns: ColumnDef[] = [],
   initialRows: RowData[] = [],
   initialViewConfig?: TableViewConfig,
-  initialViews?: DataTableView[],
+  initialViews?: DatabaseView[],
   activeViewId?: number,
   plugins = new PluginManager(),
   onRowCleanup?: (row: RowData) => void | Promise<void>
@@ -142,6 +144,7 @@ export const createDatabaseStore = (
     kanbanConfig: initialViewConfig?.kanbanConfig
       ? { ...initialViewConfig.kanbanConfig }
       : undefined,
+    footer: initialViewConfig?.footer ? { ...initialViewConfig.footer } : undefined,
   };
 
   let confirmedRows = initialRows;
@@ -181,7 +184,13 @@ export const createDatabaseStore = (
         editingCell: switchedView ? null : validCell(next.editingCell),
         lastChange:
           dataChanged || viewChanged
-            ? { source, dataChanged, viewChanged, rows: diffRows(before.rows, next.rows) }
+            ? {
+                source,
+                dataChanged,
+                viewChanged,
+                columnsChanged: next.columns !== before.columns,
+                rows: diffRows(before.rows, next.rows),
+              }
             : before.lastChange,
       });
     };
@@ -241,7 +250,7 @@ export const createDatabaseStore = (
             state => ({
               views: [...new Set([...command.ids, ...state.views.map(view => view.id)])]
                 .map(id => state.views.find(view => view.id === id))
-                .filter((view): view is DataTableView => Boolean(view))
+                .filter((view): view is DatabaseView => Boolean(view))
                 .map((view, order) => ({ ...view, order })),
             }),
             source
@@ -507,6 +516,10 @@ export const createDatabaseStore = (
               (id: string) => id !== columnId
             );
             delete state.columnWidths[columnId];
+            if (state.viewConfig.footer?.[columnId]) {
+              delete state.viewConfig.footer[columnId];
+              if (!Object.keys(state.viewConfig.footer).length) state.viewConfig.footer = undefined;
+            }
 
             // 从所有行中移除此列
             state.rows.forEach((row: RowData) => {
@@ -630,6 +643,7 @@ export const createDatabaseStore = (
               galleryConfig: config.galleryConfig ? { ...config.galleryConfig } : undefined,
               calendarConfig: config.calendarConfig ? { ...config.calendarConfig } : undefined,
               kanbanConfig: config.kanbanConfig ? { ...config.kanbanConfig } : undefined,
+              footer: config.footer ? { ...config.footer } : undefined,
             };
           })
         );
@@ -673,6 +687,16 @@ export const createDatabaseStore = (
         set(
           produce<TableState>((state: TableState) => {
             state.viewConfig.kanbanConfig = kanbanConfig ? { ...kanbanConfig } : undefined;
+          })
+        );
+      },
+      setFooter: (columnId, spec) => {
+        set(
+          produce<TableState>((state: TableState) => {
+            const footer = { ...state.viewConfig.footer };
+            if (spec) footer[columnId] = { ...spec };
+            else delete footer[columnId];
+            state.viewConfig.footer = Object.keys(footer).length ? footer : undefined;
           })
         );
       },

@@ -12,12 +12,13 @@ import { ConfirmDialog, cn, isEditableTarget } from "@tau/ui";
 import { useThemeStore } from "@tau/themes/react";
 import { DatabaseHostContext } from "./DatabaseHostContext";
 import { DatabaseWriteContext } from "./DatabaseWriteContext";
+import { DatabaseFocusContext } from "./DatabaseFocusContext";
 
 import {
   CellPlugin,
   DatabaseProps,
   RowData,
-  DataTableViewType,
+  DatabaseViewType,
   DatabaseQuery,
   DatabaseCommand,
   DatabaseChange,
@@ -63,6 +64,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       plugins = defaultPlugins,
       slots = {},
       onRowCleanup,
+      onDetachedRowPatch,
       onDataChange,
       onRowDetailOpen,
       onRowAdd,
@@ -75,6 +77,12 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     ref
   ): ReactNode => {
     const rootRef = useRef<HTMLDivElement>(null);
+    const restoreFocus = useMemoizedFn(() => {
+      const active = document.activeElement;
+      if (active === document.body || !active?.isConnected) {
+        rootRef.current?.focus({ preventScroll: true });
+      }
+    });
     const pluginMgr = useCreation(() => {
       const pluginMgr = new PluginManager();
       pluginMgr.registerPlugins(builtInPlugins as CellPlugin<unknown>[]);
@@ -102,7 +110,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     const subscriptionActive = useRef(false);
     const commitRowPatch = useMemoizedFn((rowId: string, patch: Partial<RowData>) => {
       const state = store.getState();
-      if (!state.rows.some(row => row.id === rowId)) return;
+      const previousRow = state.rows.find(row => row.id === rowId);
+      if (!previousRow) return false;
       const values: RowData = Object.assign(Object.create(null), { id: rowId });
       for (const [field, value] of Object.entries(patch)) {
         if (field === "id") continue;
@@ -112,14 +121,35 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
           : value;
       }
       if (Object.keys(values).length === 1) return;
+      if (!subscriptionActive.current) {
+        if (!onDetachedRowPatch) return false;
+        return onDetachedRowPatch(rowId, values, previousRow).then(applied => {
+          const current = store.getState().rows.find(row => row.id === rowId);
+          if (applied && current) {
+            const upsert: RowData = { id: rowId };
+            for (const field of Object.keys(values)) {
+              if (
+                field !== "id" &&
+                JSON.stringify(current[field]) === JSON.stringify(previousRow[field])
+              ) {
+                upsert[field] = values[field];
+              }
+            }
+            if (Object.keys(upsert).length > 1) {
+              store
+                .getState()
+                .dispatch(
+                  { type: "rows.apply", changes: { upsert: [upsert], remove: [] } },
+                  "external"
+                );
+            }
+          }
+          return applied;
+        });
+      }
       state.commitHistory();
       state.dispatch({ type: "rows.apply", changes: { upsert: [values], remove: [] } }, "user");
-      const updated = store.getState();
-      if (!subscriptionActive.current && updated.lastChange?.dataChanged) {
-        return Promise.resolve(
-          onDataChange?.({ columns: updated.columns, rows: updated.rows }, updated.lastChange)
-        );
-      }
+      return true;
     });
     const finalTheme = theme || systemTheme;
 
@@ -191,14 +221,12 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
     const handleCreateView = useMemoizedFn(
       async (
-        type: DataTableViewType,
+        type: DatabaseViewType,
         name: string,
         dateColumnId?: string,
         groupColumnId?: string
       ) => {
-        const { views, activeViewId, viewConfig } = store.getState();
-        const currentView = views.find(view => view.id === activeViewId);
-        if (!currentView) return;
+        const { views, viewConfig } = store.getState();
         const nextOrder = Math.max(0, ...views.map(view => view.order ?? 0)) + 1;
 
         // 构建视图配置
@@ -223,7 +251,6 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         }
 
         const result = await onCreateView?.({
-          tableId: currentView.tableId,
           type,
           config,
           name,
@@ -248,7 +275,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       const viewId = confirmDeleteViewId;
       if (viewId === null) return;
       const result = await onDeleteView?.(viewId);
-      if (result) {
+      if (result !== null && result !== undefined) {
         store.getState().dispatch({ type: "view.remove", id: viewId }, "external");
         onActiveViewIdChange?.(store.getState().activeViewId);
       }
@@ -338,56 +365,58 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
     return (
       <DatabaseHostContext.Provider value={slots}>
-        <DatabaseWriteContext.Provider value={commitRowPatch}>
-          <DatabaseContext.Provider value={store}>
-            <div
-              ref={rootRef}
-              tabIndex={-1}
-              onPointerDownCapture={event => {
-                if (
-                  event.target instanceof Node &&
-                  rootRef.current?.contains(event.target) &&
-                  !isEditableTarget(event.target)
-                ) {
-                  rootRef.current.focus({ preventScroll: true });
-                }
-              }}
-              className={cn(
-                "relative flex h-full w-full flex-col overflow-hidden",
-                !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
-                className,
-                {
-                  "cursor-col-resize select-none": isResizing,
-                }
-              )}
-            >
-              <div className="shrink-0">
-                <ViewTabs
-                  pluginManager={pluginMgr}
-                  onCreateView={handleCreateView}
-                  onDeleteView={handleDeleteView}
-                  onActiveViewIdChange={onActiveViewIdChange}
-                  onRenameView={handleRenameView}
-                  onUpdateView={handleUpdateView}
-                  onReorderViews={handleReorderViews}
-                  theme={finalTheme}
-                  bare={bare}
+        <DatabaseFocusContext.Provider value={restoreFocus}>
+          <DatabaseWriteContext.Provider value={commitRowPatch}>
+            <DatabaseContext.Provider value={store}>
+              <div
+                ref={rootRef}
+                tabIndex={-1}
+                onPointerDownCapture={event => {
+                  if (
+                    event.target instanceof Node &&
+                    rootRef.current?.contains(event.target) &&
+                    !isEditableTarget(event.target)
+                  ) {
+                    rootRef.current.focus({ preventScroll: true });
+                  }
+                }}
+                className={cn(
+                  "relative flex h-full w-full flex-col overflow-hidden",
+                  !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
+                  className,
+                  {
+                    "cursor-col-resize select-none": isResizing,
+                  }
+                )}
+              >
+                <div className="shrink-0">
+                  <ViewTabs
+                    pluginManager={pluginMgr}
+                    onCreateView={handleCreateView}
+                    onDeleteView={handleDeleteView}
+                    onActiveViewIdChange={onActiveViewIdChange}
+                    onRenameView={handleRenameView}
+                    onUpdateView={handleUpdateView}
+                    onReorderViews={handleReorderViews}
+                    theme={finalTheme}
+                    bare={bare}
+                  />
+                </div>
+                <div className="min-h-0 w-full flex-1">{View}</div>
+                <ConfirmDialog
+                  open={confirmDeleteViewId !== null}
+                  onOpenChange={open => {
+                    if (!open) setConfirmDeleteViewId(null);
+                  }}
+                  title="确定删除此视图吗？"
+                  danger
+                  confirmText="删除"
+                  onConfirm={() => handleConfirmDeleteView()}
                 />
               </div>
-              <div className="min-h-0 w-full flex-1">{View}</div>
-              <ConfirmDialog
-                open={confirmDeleteViewId !== null}
-                onOpenChange={open => {
-                  if (!open) setConfirmDeleteViewId(null);
-                }}
-                title="确定删除此视图吗？"
-                danger
-                confirmText="删除"
-                onConfirm={() => handleConfirmDeleteView()}
-              />
-            </div>
-          </DatabaseContext.Provider>
-        </DatabaseWriteContext.Provider>
+            </DatabaseContext.Provider>
+          </DatabaseWriteContext.Provider>
+        </DatabaseFocusContext.Provider>
       </DatabaseHostContext.Provider>
     );
   }
