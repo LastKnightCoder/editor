@@ -1,37 +1,51 @@
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
+import { toast } from "@tau/ui";
 import {
   DOCUMENT_DEFAULT_SIZE,
   ECreateBoardElementType,
   type Board,
   type DocumentElement,
-  type DocumentKind,
 } from "@tau/whiteboard";
-import ContentSelectorModal from "@/components/ContentSelectorModal";
-import type { SearchResult } from "@/types/search";
+import { EntityPicker } from "@/components/EntityPicker";
+import type { EntityCandidate, EntityKind } from "@/types";
 
-const DOCUMENT_KINDS: DocumentKind[] = ["card", "article", "project-item"];
+/** 可放进白板的实体：日记只能选某一条碎碎念，不能整天放入 */
+const PICKER_KINDS: EntityKind[] = ["card", "article", "project_item", "diary-moment"];
 const GAP = 32;
 
+type Placement = Pick<DocumentElement, "entityRef" | "title">;
+
+/** 检索候选的实体身份直接用于文档卡 */
+function toPlacement(candidate: EntityCandidate): Placement | null {
+  const title = candidate.title;
+  switch (candidate.kind) {
+    case "card":
+    case "article":
+    case "diary-moment":
+      return { entityRef: { kind: candidate.kind, id: candidate.id }, title };
+    case "project_item":
+      return { entityRef: { kind: "project-item", id: candidate.id }, title };
+    default:
+      return null;
+  }
+}
+
 /** 选中的文档在视口中央排成一行插入，并选中它们 */
-export function insertDocuments(board: Board, results: SearchResult[]) {
-  const picked = results.filter((result): result is SearchResult & { type: DocumentKind } =>
-    DOCUMENT_KINDS.includes(result.type as DocumentKind)
-  );
-  if (picked.length === 0) return;
-  const sizes = picked.map(result => DOCUMENT_DEFAULT_SIZE[result.type]);
+function insertDocuments(board: Board, placements: Placement[]) {
+  if (placements.length === 0) return;
+  const sizes = placements.map(item => DOCUMENT_DEFAULT_SIZE[item.entityRef.kind]);
   const rowWidth = sizes.reduce((sum, size) => sum + size.width, 0) + GAP * (sizes.length - 1);
   const { minX, minY, width, height } = board.viewPort;
   let x = minX + width / 2 - rowWidth / 2;
   const centerY = minY + height / 2;
 
-  const elements = picked.map((result, index): DocumentElement => {
+  const elements = placements.map((placement, index): DocumentElement => {
     const size = sizes[index];
     const element: DocumentElement = {
       id: getUuid(),
       type: "document",
-      entityRef: { kind: result.type, id: result.id },
-      title: result.title,
+      ...placement,
       x,
       y: centerY - size.height / 2,
       ...size,
@@ -63,27 +77,30 @@ export function DocumentSelectorModal({
   onClose(): void;
   board: Board;
 }) {
-  const handleSelect = useMemoizedFn((selected: SearchResult | SearchResult[]) => {
-    insertDocuments(board, Array.isArray(selected) ? selected : [selected]);
+  const close = useMemoizedFn(() => {
     board.currentCreateType = ECreateBoardElementType.None;
     onClose();
   });
 
-  const handleCancel = useMemoizedFn(() => {
-    board.currentCreateType = ECreateBoardElementType.None;
-    onClose();
+  const handleConfirm = useMemoizedFn((picked: EntityCandidate[]) => {
+    const canSubmit = board.captureSubmission();
+    const placements = picked.map(toPlacement).filter((item): item is Placement => item !== null);
+    if (!canSubmit()) return;
+    if (placements.length < picked.length) toast.error("部分内容已不存在，未放入");
+    insertDocuments(board, placements);
+    close();
   });
 
   return (
     <div className="contents" onClick={e => e.stopPropagation()}>
-      <ContentSelectorModal
+      <EntityPicker
         title="放入文档"
-        subtitle="卡片、文章或项目文档，可多选"
+        subtitle="卡片、文章、项目文档或日记，可多选"
         open={open}
-        onCancel={handleCancel}
-        onSelect={handleSelect}
-        contentType={DOCUMENT_KINDS}
-        multiple
+        onClose={close}
+        kinds={PICKER_KINDS}
+        confirmLabel="放入"
+        onConfirm={handleConfirm}
       />
     </div>
   );

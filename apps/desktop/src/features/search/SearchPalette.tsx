@@ -88,7 +88,7 @@ const WORD_TO_SCOPE: Record<string, PaletteScope> = {
   卡片: "card",
   文章: "article",
   项目: "project-item",
-  日记: "diary-daily",
+  日记: "diary-moment",
   命令: "cmd",
 };
 const PREFIX_RE = new RegExp(

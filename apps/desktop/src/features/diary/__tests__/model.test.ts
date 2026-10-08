@@ -70,12 +70,12 @@ describe("diary model", () => {
     ]);
   });
 
-  it("filterMoments 搜索：命中日内有字面匹配只留匹配条，纯语义命中整天保留", () => {
+  it("filterMoments 搜索：字面与语义召回均只返回命中的碎碎念", () => {
     const d1a = moment("2026-09-24", "读完置身事内");
     const d1b = moment("2026-09-24", "晚上跑步", { diaryId: d1a.diaryId });
     const d2 = moment("2026-09-23", "地方政府的土地财政");
     const miss = moment("2026-09-22", "置身事内开读");
-    const hits = new Set([d1a.diaryId, d2.diaryId]);
+    const hits = new Set([d1a.id, d2.id]);
     const out = filterMoments([d1a, d1b, d2, miss], {
       scope: parseScope(""),
       range: null,

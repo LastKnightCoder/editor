@@ -21,7 +21,7 @@
 import { extractInlineRefs } from "./inline-refs";
 import { normalizeEntityRefKind } from "./ref";
 
-export type WhiteboardRefKind = "card" | "article" | "project-item" | "diary" | "content";
+export type WhiteboardRefKind = "card" | "article" | "project-item" | "diary-moment" | "content";
 
 /**
  * richtext：文本块；mind-node：思维导图节点关联的笔记；

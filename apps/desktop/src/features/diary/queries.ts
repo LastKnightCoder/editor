@@ -25,6 +25,7 @@ import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
 import { searchContent } from "@/utils";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { getContentLength } from "@/utils/helper";
 import {
   nextTagColor,
@@ -187,38 +188,31 @@ export type DiaryMutations = ReturnType<typeof createMutations>;
 /* ───────── 搜索 ───────── */
 
 /**
- * 混合召回（FTS + 向量，日粒度）：去抖 300ms，返回命中的 diaryId 集合；空查询返回 null。
- * 查询变化即作废上一次（alive 标记），慢请求不会覆盖新结果。
+ * 混合召回（FTS + 向量，碎碎念粒度）：去抖 300ms，返回命中的片段 id 集合；空查询返回 null。
+ * 查询按关键字隔离缓存，片段修改与删除失效同一日记查询域。
  */
 export function useDiarySearch(query: string) {
-  const [state, setState] = useState<{ hits: Set<number> | null; searching: boolean }>({
-    hits: null,
-    searching: false,
-  });
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setState({ hits: null, searching: false });
-      return;
-    }
-    setState(prev => ({ ...prev, searching: true }));
-    let alive = true;
-    const timer = window.setTimeout(async () => {
+  const trimmed = query.trim();
+  const debounced = useDebouncedValue(trimmed, 300);
+  const search = useQuery({
+    queryKey: ["diary", "search", debounced],
+    queryFn: async () => {
       const modelInfo = resolveEmbeddingModelInfoFromSetting(useSettingStore.getState().setting);
       const results = await searchContent({
-        query: trimmed,
-        types: ["diary-daily"],
+        query: debounced,
+        types: ["diary-moment"],
         limit: 100,
         ...(modelInfo ? { modelInfo } : {}),
       });
-      if (alive) setState({ hits: new Set(results.map(r => r.id)), searching: false });
-    }, 300);
-    return () => {
-      alive = false;
-      window.clearTimeout(timer);
-    };
-  }, [query]);
-  return state;
+      return new Set(results.map(result => result.id));
+    },
+    enabled: Boolean(trimmed && debounced === trimmed),
+    refetchOnWindowFocus: true,
+  });
+  return {
+    hits: trimmed && debounced === trimmed ? (search.data ?? null) : null,
+    searching: Boolean(trimmed && (debounced !== trimmed || search.isFetching)),
+  };
 }
 
 /** 当前时刻（分钟级刷新）：「此刻 HH:mm」与今天的判定 */

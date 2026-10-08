@@ -76,12 +76,14 @@ describe("extractWhiteboardRefs", () => {
         children: [
           { id: "a", type: "article-embed", entityRef: { kind: "article", id: 8 } },
           { id: "p", type: "doc-card", entityRef: { kind: "project_item", id: 9 } },
+          { id: "d", type: "document", entityRef: { kind: "diary-moment", id: 5 } },
           { id: "x", type: "pdf", entityRef: { kind: "pdf", id: 1 } },
         ],
       })
     ).toEqual([
       { dstKind: "article", dstId: 8, via: "entity" },
       { dstKind: "project-item", dstId: 9, via: "entity" },
+      { dstKind: "diary-moment", dstId: 5, via: "entity" },
     ]);
   });
 

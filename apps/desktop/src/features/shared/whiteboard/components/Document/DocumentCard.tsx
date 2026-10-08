@@ -16,7 +16,8 @@ import {
 } from "@tau/whiteboard";
 import useContentDocument from "@/hooks/useContentDocument";
 import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
-import { DocumentPaper, DOCUMENT_PAPER_WIDTH } from "./DocumentPaper";
+import { DocumentPaper } from "./DocumentPaper";
+import { DOCUMENT_PAPER_WIDTH } from "./layout";
 import { useDocumentSource } from "./source";
 import { useDocumentReaderPreference, useDocumentReaderState } from "./readerStore";
 
@@ -43,7 +44,7 @@ function Skeleton({ title }: { title?: string }) {
 export const DocumentCard = memo(
   ({ element, sketch }: { element: DocumentElement; sketch: boolean }) => {
     const board = useBoard();
-    const { source, missing } = useDocumentSource(element.entityRef);
+    const { source, missing } = useDocumentSource(element);
     const { article } = useContentDocument(source?.contentId);
     const { zoom } = useViewPort();
     const { simplifiedRenderZoomThreshold } = useBoardState();

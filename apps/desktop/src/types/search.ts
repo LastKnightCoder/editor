@@ -4,7 +4,7 @@ import type { EmbeddingProviderType } from "./embedding";
 import type { ContentSection } from "@/entity/sections";
 
 /** 我的思考：卡片、文章、项目文档、日记 */
-export type ContentIndexType = "card" | "article" | "project-item" | "diary-daily";
+export type ContentIndexType = "card" | "article" | "project-item" | "diary-moment";
 /** 主库向量 / 全文索引的类型：正文实体 + 外部材料（摘录、PDF 标注、剪藏，KL-037） */
 export type IndexType = ContentIndexType | MaterialKind;
 /** 只进向量、不进全文与检索结果的类型：主对话里的用户提问（KL-064），id 为「会话 id#消息 id」 */

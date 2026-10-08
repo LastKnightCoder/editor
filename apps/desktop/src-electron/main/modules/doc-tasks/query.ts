@@ -21,7 +21,7 @@ const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
-  diary: "diary",
+  "diary-moment": "diary-moment",
 };
 
 interface TaskRow {

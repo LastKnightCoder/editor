@@ -46,7 +46,7 @@ const KIND_LABEL: Record<LineageNode["kind"], string> = {
   card: "卡片",
   article: "文章",
   "project-item": "项目文档",
-  diary: "日记",
+  "diary-moment": "日记",
   excerpt: "摘录",
   "pdf-annotation": "PDF 标注",
   "chat-session": "对话",
@@ -68,9 +68,8 @@ function resolveNode(
 ): ResolvedNode | null {
   switch (node.kind) {
     case "chat-session": {
-      const row = db
-        .prepare(`SELECT title, scope FROM chat_session WHERE id = ?`)
-        .get(node.id) as { title: string; scope: string } | undefined;
+      const row = db.prepare(`SELECT title, scope FROM chat_session WHERE id = ?`).get(node.id) as
+        { title: string; scope: string } | undefined;
       if (!row) return null;
       const scope = CHAT_SCOPE[row.scope];
       return {
@@ -110,9 +109,8 @@ function resolveNode(
       };
     }
     case "question": {
-      const row = db
-        .prepare(`SELECT question_content FROM questions WHERE id = ?`)
-        .get(node.id) as { question_content: string | null } | undefined;
+      const row = db.prepare(`SELECT question_content FROM questions WHERE id = ?`).get(node.id) as
+        { question_content: string | null } | undefined;
       return row
         ? {
             title: clip(row.question_content || "未命名问题"),

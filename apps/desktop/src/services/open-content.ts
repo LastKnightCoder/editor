@@ -1,4 +1,4 @@
-import { getDiaryEntryById } from "@/commands/diary";
+import { getDiaryMoment } from "@/commands/diary";
 import { getProjectItemById } from "@/commands/project";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import useSettingStore from "@/stores/useSettingStore";
@@ -38,18 +38,21 @@ export async function openEntity(ref: EntityRef, options: { at?: EntityLocation 
       openPage("project-detail", { id: projectId, itemId: id, ...position });
       return;
     }
-    case "diary": {
-      const entry = await getDiaryEntryById(id);
+    case "diary-moment": {
+      const moment = await getDiaryMoment(id);
       ensureDatabase();
-      if (!entry?.date) throw new Error("日记不存在");
-      // 旧 weekly / monthly 条目的 date 是 YYYY-Www / YYYY-MM，日记页按归属日定位
-      openPage("diary", { date: normalizeDiaryDay(entry.date, entry.createTime) });
+      if (!moment) throw new Error("碎碎念不存在");
+      openPage("diary", {
+        date: normalizeDiaryDay(moment.entryDate, moment.createTime),
+        moment: String(moment.id),
+        ...position,
+      });
       return;
     }
   }
 }
 
-/** 按存量类型写法（card / article / project-item / diary-daily 等）打开内容 */
+/** 按正文实体类型打开内容 */
 export async function openContent(type: string, id: number) {
   const kind = normalizeEntityRefKind(type);
   if (!kind) throw new Error(`暂不支持打开此内容类型：${type}`);

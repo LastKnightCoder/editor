@@ -200,7 +200,7 @@ describe("问题材料关联与探究轨迹", () => {
       "B+ 树扇出",
     ]);
   });
-  it("通用实体检索：日记按段落正文命中，关联落在首段", () => {
+  it("通用实体检索：日记命中第二条时，身份与正文均落在第二条", () => {
     const now = Date.now();
     const diaryId = Number(
       db
@@ -215,18 +215,19 @@ describe("问题材料关联与探究轨迹", () => {
       `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time) VALUES (?, ?, ?, ?)`
     );
     seg.run(diaryId, first, now, now);
-    seg.run(diaryId, second, now + 1, now + 1);
-    const [hit] = EntitySearchTable.search(db, { kind: "diary", keyword: "扇出" });
+    const secondId = Number(seg.run(diaryId, second, now + 1, now + 1).lastInsertRowid);
+    const [hit] = EntitySearchTable.search(db, { kind: "diary-moment", keyword: "扇出" });
     expect(hit).toMatchObject({
-      kind: "diary",
-      id: diaryId,
-      contentId: first,
-      title: "2026-09-20 日记",
+      kind: "diary-moment",
+      id: secondId,
+      contentId: second,
+      title: "下午写了扇出的笔记",
     });
-    expect(EntitySearchTable.search(db, { kind: "diary", keyword: "不存在" })).toEqual([]);
+    expect(EntitySearchTable.search(db, { kind: "diary-moment", keyword: "不存在" })).toEqual([]);
     expect(EntitySearchTable.locate(db, { contentId: second })).toEqual({
-      kind: "diary",
-      id: diaryId,
+      kind: "diary-moment",
+      id: secondId,
+      diaryId,
       date: "2026-09-20",
     });
     expect(EntitySearchTable.locate(db, { contentId: 999999 })).toBeNull();

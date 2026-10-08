@@ -77,6 +77,7 @@ import { recoverSessionDownload } from "./pi-session-store";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
+import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 
@@ -365,6 +366,8 @@ class DatabaseModule implements Module {
       const upgradedPages = upgradeWhiteboardCardElements(database);
       if (upgradedPages > 0)
         log.info(`[database] 白板卡片元素升级为文档卡: db=${name}, pages=${upgradedPages}`);
+
+      upgradeDiaryEntityReferences(database);
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();

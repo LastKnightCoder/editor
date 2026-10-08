@@ -28,7 +28,7 @@ const TYPE_META: Record<ContentIndexType, { label: string; icon: LucideIcon; sou
     card: { label: "卡片", icon: Layers, source: "card" },
     "project-item": { label: "项目文档", icon: FolderKanban, source: "project-item" },
     // 日记没有独立的来源类型，按通用内容共享
-    "diary-daily": { label: "日记", icon: PenLine, source: "content" },
+    "diary-moment": { label: "日记", icon: PenLine, source: "content" },
   };
 
 /** 候选只检索 SHAREABLE_TYPES（正文实体），不会出现外部材料 */

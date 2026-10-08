@@ -105,7 +105,7 @@ export function diffWhiteboardSources(
  * 解析口径的版本：extractWhiteboardRefs 的规则变化（如新增认识的元素类型）时加一，
  * 下次对账清空对账状态、全量重解析。按 update_time 对账发现不了「规则变了但画布没变」的页。
  */
-export const WHITEBOARD_REF_VERSION = "2";
+export const WHITEBOARD_REF_VERSION = "3";
 const WHITEBOARD_REF_VERSION_KEY = "whiteboard-refs:version";
 
 function ensureIndexVersion(indexDb: Database.Database) {

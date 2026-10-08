@@ -4,7 +4,7 @@ import { openContent, openEntity } from "../open-content";
 const mocks = vi.hoisted(() => ({
   openPage: vi.fn(),
   getProjectItemById: vi.fn(),
-  getDiaryEntryById: vi.fn(),
+  getDiaryMoment: vi.fn(),
   database: "main",
 }));
 vi.mock("../page-navigation", () => ({
@@ -14,7 +14,7 @@ vi.mock("../page-navigation", () => ({
   }),
 }));
 vi.mock("@/commands/project", () => ({ getProjectItemById: mocks.getProjectItemById }));
-vi.mock("@/commands/diary", () => ({ getDiaryEntryById: mocks.getDiaryEntryById }));
+vi.mock("@/commands/diary", () => ({ getDiaryMoment: mocks.getDiaryMoment }));
 vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: mocks.database } } }) },
 }));
@@ -40,27 +40,31 @@ describe("内容打开入口", () => {
     await openContent("project-item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
   });
-  it("日记按日期打开，存量写法 diary-daily 与 project_item 均可用", async () => {
-    mocks.getDiaryEntryById.mockResolvedValue({ date: "2026-09-18" });
-    await openEntity({ kind: "diary", id: 2 });
-    expect(mocks.openPage).toHaveBeenLastCalledWith("diary", { date: "2026-09-18" });
-    await openContent("diary-daily", 2);
-    expect(mocks.getDiaryEntryById).toHaveBeenLastCalledWith(2);
+  it("日记精确打开到命中的碎碎念，定位参数与片段 id 一起传入", async () => {
+    mocks.getDiaryMoment.mockResolvedValue({ id: 12, entryDate: "2026-09-18" });
+    await openEntity({ kind: "diary-moment", id: 12 }, { at: { block: 2 } });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("diary", {
+      date: "2026-09-18",
+      moment: "12",
+      at: '{"block":2}',
+    });
+    await openContent("diary-moment", 12);
+    expect(mocks.getDiaryMoment).toHaveBeenLastCalledWith(12);
     mocks.getProjectItemById.mockResolvedValue({ projects: [7] });
     await openContent("project_item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
   });
   it("旧周记条目按归属日（该周周一）打开", async () => {
-    mocks.getDiaryEntryById.mockResolvedValue({ date: "2025-W46", createTime: 0 });
-    await openEntity({ kind: "diary", id: 3 });
-    expect(mocks.openPage).toHaveBeenLastCalledWith("diary", { date: "2025-11-10" });
+    mocks.getDiaryMoment.mockResolvedValue({ id: 3, entryDate: "2025-W46", createTime: 0 });
+    await openEntity({ kind: "diary-moment", id: 3 });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("diary", { date: "2025-11-10", moment: "3" });
   });
   it("日记查询期间切库不导航", async () => {
-    mocks.getDiaryEntryById.mockImplementation(async () => {
+    mocks.getDiaryMoment.mockImplementation(async () => {
       mocks.database = "other";
-      return { date: "2026-09-18" };
+      return { id: 2, entryDate: "2026-09-18" };
     });
-    await expect(openEntity({ kind: "diary", id: 2 })).rejects.toThrow("数据库已切换");
+    await expect(openEntity({ kind: "diary-moment", id: 2 })).rejects.toThrow("数据库已切换");
     expect(mocks.openPage).not.toHaveBeenCalled();
   });
   it("退役类型明确拒绝打开", async () => {

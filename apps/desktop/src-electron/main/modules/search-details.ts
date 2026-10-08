@@ -2,6 +2,8 @@ import type Database from "better-sqlite3";
 import type { Descendant } from "slate";
 import type { MaterialInfo } from "@/entity/material";
 import type { IndexType } from "@/types";
+import { contentBlockLines } from "@/entity/text-digest";
+import { normalizeDiaryDay } from "@/utils/diary-day";
 import { isMaterialIndexType, materialSearchDetails } from "./material-index";
 import ArticleTable from "./tables/article";
 import CardTable from "./tables/card";
@@ -48,14 +50,14 @@ export function searchResultDetails(
       const item = ProjectTable.getProjectItem(db, id);
       return item ? { ...item, title: item.title || "", content: item.content || [] } : null;
     }
-    case "diary-daily": {
-      const entry = DiaryTable.getDiaryEntryById(db, id);
-      return entry
+    case "diary-moment": {
+      const moment = DiaryTable.getDiaryMoment(db, id);
+      return moment
         ? {
-            ...entry,
-            contentId: entry.segments[0]?.contentId ?? 0,
-            title: DiaryTable.getDiarySearchTitle(entry),
-            content: entry.content || [],
+            ...moment,
+            title: contentBlockLines(moment.content)[0]?.slice(0, 40) || "空白日记",
+            date: normalizeDiaryDay(moment.entryDate, moment.createTime),
+            content: moment.content || [],
           }
         : null;
     }

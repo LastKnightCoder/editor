@@ -43,7 +43,7 @@ const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> 
   card: "card",
   article: "article",
   "project-item": "project_item",
-  diary: null,
+  "diary-moment": null,
 };
 
 export interface InsightsViewOptions {

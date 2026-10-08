@@ -31,14 +31,14 @@ const INDEX_TO_KIND: Record<ContentIndexType, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
-  "diary-daily": "diary",
+  "diary-moment": "diary-moment",
 };
 
 const KIND_TO_INDEX: Partial<Record<EntityKind, ContentIndexType>> = {
   card: "card",
   article: "article",
   project_item: "project-item",
-  diary: "diary-daily",
+  "diary-moment": "diary-moment",
 };
 
 const toSearchResult = (candidate: EntityCandidate): SearchResult => ({
