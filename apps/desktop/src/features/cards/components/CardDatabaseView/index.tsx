@@ -9,6 +9,7 @@ import {
   DatabaseProps,
   DatabaseChange,
   FilterGroup,
+  SelectOption,
 } from "@tau/database";
 import { useCardDatabasePreferences } from "../../databasePreferences";
 import { ICard, DataTableView, CreateDataTableView } from "@/types";
@@ -290,6 +291,9 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
   });
 
   const handleDataChange = useMemoizedFn(async (data: DatabaseData, change: DatabaseChange) => {
+    const tagConfig = data.columns.find(column => column.id === "tags")?.config as
+      { options: SelectOption[] } | undefined;
+    const tagNames = new Map((tagConfig?.options ?? []).map(option => [option.id, option.name]));
     for (const column of data.columns) {
       if (column.width !== undefined && columnWidths[column.id] !== column.width)
         setColumnWidth(column.id, column.width);
@@ -299,7 +303,10 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       const card = cards.find(card => card.id === id);
       if (!card) continue;
       const patch: CardMetadataPatch = {};
-      if ("tags" in row) patch.tags = Array.isArray(row.tags) ? (row.tags as string[]) : [];
+      if ("tags" in row)
+        patch.tags = Array.isArray(row.tags)
+          ? (row.tags as string[]).map(id => tagNames.get(id) ?? id)
+          : [];
       if ("links" in row) patch.links = Array.isArray(row.links) ? (row.links as number[]) : [];
       if (!Object.keys(patch).length) continue;
       try {
