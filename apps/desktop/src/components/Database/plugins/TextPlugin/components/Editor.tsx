@@ -1,7 +1,7 @@
 import React, { memo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { CellValue, ColumnDef } from "../../../types";
-import EditText from "@/components/EditText";
+import { EditText } from "@tau/ui";
 
 interface TextEditorProps {
   value: CellValue;

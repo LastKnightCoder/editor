@@ -14,6 +14,7 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "ahooks": "^3.7.8",
     "@tau/themes": "workspace:*",
     "clsx": "^2.1.1",
     "lucide-react": "^0.399.0",

@@ -5,7 +5,7 @@ import Database, {
   TableViewConfig,
   DatabaseProps,
 } from "@/components/Database";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useEditDatabaseWithContext } from "@tau/shared";
 

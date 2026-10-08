@@ -2,7 +2,7 @@ import { useState, useMemo, memo, lazy, Suspense, useRef } from "react";
 import { Loading, cn, toast } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";

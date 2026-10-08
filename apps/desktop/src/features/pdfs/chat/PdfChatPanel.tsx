@@ -23,7 +23,7 @@ import "katex/dist/katex.min.css";
 import { PanelRightClose, SquarePen, X } from "lucide-react";
 import type { MessageContentItem } from "@tau/shared";
 import { IconButton, Loading, Spinner, Tooltip, toast } from "@tau/ui";
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";

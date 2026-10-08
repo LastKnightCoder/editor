@@ -56,7 +56,7 @@ import useChatSessionStore, {
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import { FADE_SCROLL_CLASS, Popover, cn, toast, useEdgeFade } from "@tau/ui";
 import { useConversationTree } from "@/features/chat/useConversationTree";
 import { ConversationTreePanel } from "@/features/chat/components/ConversationTreePanel";

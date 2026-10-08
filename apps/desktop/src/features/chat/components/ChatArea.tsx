@@ -16,7 +16,7 @@ import { AtSign, CircleHelp, CornerDownLeft, FileText, SquarePen, X } from "luci
 import { IconButton, Loading, toast } from "@tau/ui";
 import "katex/dist/katex.min.css";
 
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import { MAIN_CHAT_BUCKET } from "@/stores/useChatSessionStore";
 import { useScopedChat } from "@/hooks/useScopedChat";
 import useTheme from "@/hooks/useTheme";

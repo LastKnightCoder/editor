@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, memo } from "react";
 import { useMemoizedFn, useMutationObserver } from "ahooks";
-import { cn as cx } from "@tau/ui";
-import { EDIT_TEXT_PLACEHOLDER } from "@tau/shared/src/components/editTextClasses";
+import { cn as cx } from "../cn";
+import { EDIT_TEXT_PLACEHOLDER } from "./editTextClasses";
 
 interface IEditTextProps {
   id?: string;
@@ -34,7 +34,7 @@ export type EditTextHandle = {
   setContentEditable: (editable: boolean) => void;
 };
 
-const EditText = memo(
+export const EditText = memo(
   forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef) => {
     const {
       id,

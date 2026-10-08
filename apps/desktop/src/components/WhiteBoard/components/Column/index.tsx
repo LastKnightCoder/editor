@@ -12,7 +12,7 @@ import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
 import SketchStroke from "../SketchPaths/SketchStroke";
 import If from "@/components/If";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
 import { handTextClass } from "../../utils/sketch";

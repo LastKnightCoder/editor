@@ -1,7 +1,7 @@
 import React, { memo } from "react";
 import { CellValue, ColumnDef } from "../../../types";
 import { formatNumber, parseNumber } from "../utils/numberUtils";
-import EditText from "@/components/EditText";
+import { EditText } from "@tau/ui";
 import { useMemoizedFn, useUnmount } from "ahooks";
 
 interface NumberEditorProps {

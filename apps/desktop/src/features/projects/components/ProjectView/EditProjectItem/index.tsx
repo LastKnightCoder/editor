@@ -12,7 +12,7 @@ import AddTag from "@/components/AddTag";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
-import { EditTextHandle } from "@/components/EditText";
+import { EditTextHandle } from "@tau/ui";
 import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import {

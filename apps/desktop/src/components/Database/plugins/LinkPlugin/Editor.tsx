@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { CellValue, ColumnDef } from "../../types";
-import EditText from "@/components/EditText";
+import { EditText } from "@tau/ui";
 
 interface LinkEditorProps {
   value: CellValue;

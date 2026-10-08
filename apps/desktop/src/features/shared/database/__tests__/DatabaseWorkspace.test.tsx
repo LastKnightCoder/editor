@@ -15,8 +15,15 @@ vi.mock("@tau/shared", () => ({
 vi.mock("@/components/Database", () => ({
   default: (props: Record<string, unknown>) => <div data-database={String(props.activeViewId)} />,
 }));
-vi.mock("@/components/EditText", () => ({
-  default: ({ defaultValue, onPressEnter }: { defaultValue: string; onPressEnter: () => void }) => (
+vi.mock("@tau/ui", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/ui")>()),
+  EditText: ({
+    defaultValue,
+    onPressEnter,
+  }: {
+    defaultValue: string;
+    onPressEnter: () => void;
+  }) => (
     <input
       data-testid="title-input"
       defaultValue={defaultValue}

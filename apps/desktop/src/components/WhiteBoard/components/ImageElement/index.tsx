@@ -33,7 +33,7 @@ import {
   DEFAULT_DESCRIPTION_ALIGNMENT,
   DEFAULT_DESCRIPTION_FONT_SIZE,
 } from "../../constants/image";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import LocalImage from "@/components/LocalImage";
 import { handTextClass } from "../../utils/sketch";

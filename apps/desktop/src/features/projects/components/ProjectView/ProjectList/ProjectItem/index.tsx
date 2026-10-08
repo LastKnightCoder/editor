@@ -67,7 +67,7 @@ import {
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
 import { usePage } from "@/page/PageProvider";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
