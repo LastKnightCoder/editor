@@ -13,6 +13,7 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 
 import { minimalTextEdit } from "../../collaboration/content-sessions";
+import TodoCalendarSyncTable from "../../tables/todo-calendar-sync";
 import { reindexDocTasks } from "../indexer";
 import { getDocTaskSnapshot, getDocTasksOf } from "../query";
 import {
@@ -91,6 +92,60 @@ describe("本文不收集", () => {
 });
 
 describe("转为独立待办", () => {
+  it("日历同步失败不吞错，待办与转出登记一起回滚", () => {
+    const groupId = addGroup("发布");
+    const id = insertCardContent([list(item("a", "任务 2026年10月10日"))]);
+    reindexDocTasks(mainDb, indexDb, [id]);
+    const sync = vi.spyOn(TodoCalendarSyncTable, "syncTodoItem").mockImplementation(() => {
+      throw new Error("日历同步失败");
+    });
+    try {
+      expect(() => promoteDocTask(mainDb, indexDb, id, "a", groupId)).toThrow("日历同步失败");
+      expect(mainDb.prepare("SELECT COUNT(*) AS n FROM todo_item").get()).toEqual({ n: 0 });
+      expect(mainDb.prepare("SELECT COUNT(*) AS n FROM doc_task_settings").get()).toEqual({ n: 0 });
+    } finally {
+      sync.mockRestore();
+    }
+  });
+  it("建日历后事务失败回滚，下次不会使用失效日历缓存", () => {
+    const groupId = addGroup("发布");
+    const id = insertCardContent([list(item("a", "任务 2026年10月10日"))]);
+    reindexDocTasks(mainDb, indexDb, [id]);
+    mainDb.exec(
+      "CREATE TEMP TRIGGER fail_promotion BEFORE INSERT ON doc_task_settings BEGIN SELECT RAISE(ABORT,'测试回滚'); END;"
+    );
+    expect(() => promoteDocTask(mainDb, indexDb, id, "a", groupId)).toThrow("测试回滚");
+    expect(mainDb.prepare("SELECT COUNT(*) AS n FROM todo_item").get()).toEqual({ n: 0 });
+    mainDb.exec("DROP TRIGGER fail_promotion");
+    const result = promoteDocTask(mainDb, indexDb, id, "a", groupId);
+    expect(result.ok).toBe(true);
+    expect(TodoCalendarSyncTable.getTodoCalendars(mainDb).deadline).toBeGreaterThan(0);
+  });
+  it("转出使用当前正文，重复调用返回同一待办", () => {
+    const groupId = addGroup("发布");
+    const id = insertCardContent([list(item("a", "旧标题"))]);
+    reindexDocTasks(mainDb, indexDb, [id]);
+    mainDb
+      .prepare("UPDATE contents SET content = ?, update_time = 2 WHERE id = ?")
+      .run(JSON.stringify([list(item("a", "新标题"))]), id);
+    const first = promoteDocTask(mainDb, indexDb, id, "a", groupId);
+    const second = promoteDocTask(mainDb, indexDb, id, "a", groupId);
+    expect(second).toEqual(first);
+    expect(mainDb.prepare("SELECT title FROM todo_item").all()).toEqual([{ title: "新标题" }]);
+  });
+
+  it("先转子项再转父项，复用已有子任务", () => {
+    const groupId = addGroup("发布");
+    const id = insertCardContent([list(item("root", "父项", false, [item("child", "子项")]))]);
+    reindexDocTasks(mainDb, indexDb, [id]);
+    const child = promoteDocTask(mainDb, indexDb, id, "child", groupId);
+    const parent = promoteDocTask(mainDb, indexDb, id, "root", groupId);
+    expect(mainDb.prepare("SELECT count(*) AS n FROM todo_item").get()).toEqual({ n: 2 });
+    if (child.ok && parent.ok)
+      expect(
+        mainDb.prepare("SELECT parent_id FROM todo_item WHERE id = ?").get(child.todoId)
+      ).toEqual({ parent_id: parent.todoId });
+  });
   it("按原文项目与日期建待办，子项成为子任务，关联原文；镜像隐藏、原文不变", () => {
     const groupId = addGroup("发布");
     const id = insertCardContent([

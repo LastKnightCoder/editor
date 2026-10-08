@@ -9,12 +9,19 @@
 
 import type Database from "better-sqlite3";
 import type { EntityRefKind } from "@/entity/ref";
-import { matchGroupToken } from "@/entity/doc-tasks";
+import {
+  extractDocTasks,
+  groupTokenEdits,
+  matchGroupToken,
+  type DocTaskGroupBinding,
+} from "@/entity/doc-tasks";
 import ContentTable from "../tables/content";
 import EntitySearchTable from "../tables/entity-search";
 import TodoItemTable from "../tables/todo-item";
 import TodoNoteLinkTable from "../tables/todo-note-link";
-import { listTaskGroups } from "./indexer";
+import TodoCalendarSyncTable from "../tables/todo-calendar-sync";
+import { listTaskGroups, reindexDocTasks } from "./indexer";
+import { rememberGroupNames } from "./group-names";
 
 const NOTE_LINK_TYPE: Record<EntityRefKind, string> = {
   card: "card",
@@ -95,13 +102,33 @@ export function promoteDocTask(
   taskId: string,
   fallbackGroupId: number | null
 ): PromoteResult {
-  const rows = indexDb
-    .prepare(`SELECT * FROM doc_tasks WHERE content_id = ? ORDER BY sort_index`)
-    .all(contentId) as TaskRow[];
+  reindexDocTasks(mainDb, indexDb, [contentId]);
+  const content = ContentTable.getContentById(mainDb, contentId);
+  if (!content) return { ok: false, reason: "not-found" };
+  const now = Date.now();
+  const rows: TaskRow[] = extractDocTasks(
+    content.content,
+    listTaskGroups(mainDb),
+    new Date(now)
+  ).tasks.map(task => ({
+    task_id: task.taskId,
+    title: task.title,
+    checked: task.checked ? 1 : 0,
+    parent_task_id: task.parentTaskId,
+    sort_index: task.order,
+    group_id: task.groupId,
+    due_at: task.dueAt,
+  }));
   const root = rows.find(row => row.task_id === taskId);
   if (!root) return { ok: false, reason: "not-found" };
   const groupId = root.group_id ?? fallbackGroupId;
-  if (groupId == null) return { ok: false, reason: "no-group" };
+  if (
+    groupId == null ||
+    !mainDb
+      .prepare(`SELECT 1 FROM todo_group WHERE id = ? AND is_system = 0 AND is_archived = 0`)
+      .get(groupId)
+  )
+    return { ok: false, reason: "no-group" };
 
   const ref = EntitySearchTable.locateAll(mainDb, [contentId]).get(contentId)?.[0];
   const sourceTitle = ref
@@ -114,25 +141,66 @@ export function promoteDocTask(
     : "";
 
   return mainDb.transaction((): PromoteResult => {
-    const now = Date.now();
     const created = new Map<string, number>();
+    const existingOf =
+      mainDb.prepare(`SELECT s.todo_item_id FROM doc_task_settings s JOIN todo_item t ON t.id = s.todo_item_id
+      WHERE s.content_id = ? AND s.task_id = ? AND s.kind = 'promoted'`);
+    const existingRoot = existingOf.get(contentId, taskId) as { todo_item_id: number } | undefined;
+    if (existingRoot) return { ok: true, todoId: existingRoot.todo_item_id };
+    const children = new Map<string, TaskRow[]>();
+    for (const row of rows)
+      if (row.parent_task_id) {
+        const siblings = children.get(row.parent_task_id) ?? [];
+        siblings.push(row);
+        children.set(row.parent_task_id, siblings);
+      }
     const register = mainDb.prepare(
       `INSERT OR REPLACE INTO doc_task_settings (content_id, task_id, kind, todo_item_id, create_time)
        VALUES (?, ?, 'promoted', ?, ?)`
     );
     const build = (row: TaskRow, parentId: number | null) => {
-      const item = TodoItemTable.createItem(mainDb, {
-        groupId,
-        parentId,
-        title: row.title || "未命名任务",
-        type: row.due_at != null ? "deadline" : "normal",
-        dueAt: row.due_at,
-      });
+      const existing = existingOf.get(contentId, row.task_id) as
+        { todo_item_id: number } | undefined;
+      if (existing) {
+        TodoItemTable.moveAndReorder(mainDb, {
+          id: existing.todo_item_id,
+          toGroupId: groupId,
+          toParentId: parentId,
+        });
+        created.set(row.task_id, existing.todo_item_id);
+        return;
+      }
+      const item = TodoItemTable.createItem(
+        mainDb,
+        {
+          groupId,
+          parentId,
+          title: row.title || "未命名任务",
+          type: row.due_at != null ? "deadline" : "normal",
+          dueAt: row.due_at,
+        },
+        { syncCalendar: false }
+      );
       if (row.checked)
-        TodoItemTable.toggleCompleteCascade(mainDb, { id: item.id, isCompleted: true });
+        mainDb
+          .prepare(
+            `UPDATE todo_item SET is_completed = 1, completed_at = ?, update_time = ? WHERE id = ?`
+          )
+          .run(now, now, item.id);
+      if (
+        item.type === "deadline" &&
+        TodoCalendarSyncTable.syncTodoItem(mainDb, {
+          todoItem: {
+            ...item,
+            isCompleted: row.checked === 1,
+            completedAt: row.checked ? now : null,
+          },
+        }) == null
+      )
+        throw new Error("日程同步未完成，转出已回滚");
       created.set(row.task_id, item.id);
       register.run(contentId, row.task_id, item.id, now);
-      for (const child of rows.filter(r => r.parent_task_id === row.task_id)) build(child, item.id);
+      for (const child of children.get(row.task_id) ?? []) build(child, item.id);
     };
     build(root, null);
     const todoId = created.get(taskId)!;
@@ -147,8 +215,7 @@ export function promoteDocTask(
 }
 
 /**
- * 从索引推断项目改名：镜像里记着某项目的原文 `#旧名`（group_token），而该项目现在叫别的名字。
- * 写事件不带改名前的值，镜像正好是改名前的快照；已归档 / 删除的项目不算改名。
+ * 用主库曾用名找待重写的项目词；旧镜像只补充首次升级时尚未保存的历史。
  */
 export function detectGroupRenames(
   mainDb: Database.Database,
@@ -161,14 +228,19 @@ export function detectGroupRenames(
        WHERE group_id IS NOT NULL AND group_token IS NOT NULL`
     )
     .all() as Array<{ group_id: number; group_token: string }>;
-  const renames = new Map<number, { groupId: number; oldTitle: string; newTitle: string }>();
+  const remember =
+    mainDb.prepare(`INSERT OR IGNORE INTO doc_task_group_names (group_id, group_created_at, title)
+    SELECT id, create_time, ? FROM todo_group WHERE id = ?`);
   for (const { group_id, group_token } of tokens) {
-    const newTitle = current.get(group_id);
-    const oldTitle = group_token.slice(1);
-    if (newTitle && newTitle !== oldTitle && !renames.has(group_id))
-      renames.set(group_id, { groupId: group_id, oldTitle, newTitle });
+    if (current.has(group_id)) remember.run(group_token.slice(1), group_id);
   }
-  return [...renames.values()];
+  rememberGroupNames(mainDb);
+  const pending = new Set(tokens.map(token => `${token.group_id}:${token.group_token.slice(1)}`));
+  return listTaskGroups(mainDb).flatMap(group =>
+    (group.aliases ?? [])
+      .filter(oldTitle => pending.has(`${group.id}:${oldTitle}`))
+      .map(oldTitle => ({ groupId: group.id, oldTitle, newTitle: group.title }))
+  );
 }
 
 /**
@@ -177,35 +249,43 @@ export function detectGroupRenames(
  */
 export function renameGroupTokens(
   mainDb: Database.Database,
-  indexDb: Database.Database,
+  _indexDb: Database.Database,
   groupId: number,
   oldTitle: string,
   newTitle: string
 ): number {
   if (!oldTitle || oldTitle === newTitle) return 0;
   const contentIds = (
-    indexDb
-      .prepare(`SELECT DISTINCT content_id FROM doc_tasks WHERE group_id = ?`)
-      .all(groupId) as Array<{ content_id: number }>
-  ).map(row => row.content_id);
+    mainDb
+      .prepare(`SELECT id FROM contents WHERE instr(content, '"check-list-item"') > 0`)
+      .all() as Array<{ id: number }>
+  ).map(row => row.id);
   if (!contentIds.length) return 0;
   // 按改名前的项目表匹配，避免把「#笔记软件开发」里的「#笔记」误当成另一个项目改掉
   const groups = listTaskGroups(mainDb).map(g =>
-    g.id === groupId ? { ...g, title: oldTitle } : g
+    g.id === groupId ? { ...g, title: newTitle, aliases: [...(g.aliases ?? []), oldTitle] } : g
   );
   let changed = 0;
   for (const contentId of contentIds) {
     try {
       const patched = ContentTable.patchNodes(mainDb, contentId, () => null, {
-        text: text => {
-          if (!text.includes(oldTitle)) return null;
-          const next = replaceGroupToken(text, groups, groupId, newTitle);
-          return next === text ? null : next;
-        },
+        paragraph: (text, parent, index) =>
+          parent.type === "check-list-item" && index === 0
+            ? groupTokenEdits(
+                text,
+                groups,
+                new Map([[groupId, newTitle]]),
+                parent.taskGroup as DocTaskGroupBinding | undefined
+              )
+            : [],
       });
       if (patched) changed++;
-    } catch {
-      // 共享内容只能在编辑器里改，留给用户手动处理
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !/COLLABORATION_WRITE_REQUIRED|CONTENT_SESSION_LOCKED/.test(error.message)
+      )
+        throw error;
     }
   }
   return changed;

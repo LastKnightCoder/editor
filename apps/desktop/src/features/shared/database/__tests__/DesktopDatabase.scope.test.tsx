@@ -24,6 +24,7 @@ vi.mock("@/commands/content", () => ({ deleteContent: mocks.deleteContent }));
 vi.mock("@/commands/data-table", () => ({ patchDataTableRow: mocks.patchRow }));
 vi.mock("@/components/LocalImage", () => ({ default: () => null }));
 vi.mock("../RowDetailBody", () => ({ RowDetailBody: () => null }));
+vi.mock("../useFormulaAssist", () => ({ useFormulaAssist: () => undefined }));
 vi.mock("../GalleryCover", () => ({ GalleryCover: () => null }));
 vi.mock("../plugins/ImagePlugin", () => ({ default: { type: "image" } }));
 vi.mock("../plugins/AttachmentPlugin", () => ({ default: { type: "attachment" } }));

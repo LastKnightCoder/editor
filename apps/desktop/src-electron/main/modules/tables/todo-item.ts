@@ -18,7 +18,8 @@ export default class TodoItemTable {
     return {
       "todo:list-items": this.listItems.bind(this),
       "todo:list-items-by-type": this.listItemsByType.bind(this),
-      "todo:create-item": this.createItem.bind(this),
+      "todo:create-item": (db: Database.Database, payload: CreateTodoItem) =>
+        this.createItem(db, payload),
       "todo:create-item-relative": this.createItemRelative.bind(this),
       "todo:create-with-schedule": this.createWithSchedule.bind(this),
       "todo:update-item": this.updateItem.bind(this),
@@ -175,7 +176,11 @@ export default class TodoItemTable {
     return row?.max_idx ?? 0;
   }
 
-  static createItem(db: Database.Database, payload: CreateTodoItem): TodoItem {
+  static createItem(
+    db: Database.Database,
+    payload: CreateTodoItem,
+    options: { syncCalendar?: boolean } = {}
+  ): TodoItem {
     const now = Date.now();
     const sortIndex =
       this.getMaxSortIndexInParent(db, payload.parentId ?? null, payload.groupId) + 1024;
@@ -225,7 +230,7 @@ export default class TodoItemTable {
       )
       .get(id);
     const created = this.parse(row);
-    this.syncCalendar(db, created);
+    if (options.syncCalendar !== false) this.syncCalendar(db, created);
     return created;
   }
 

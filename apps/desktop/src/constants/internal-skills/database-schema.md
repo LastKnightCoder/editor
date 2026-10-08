@@ -686,6 +686,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `todo_item_id` | `INTEGER`                                              |
 | `create_time`  | `INTEGER NOT NULL`                                     |
 
+### `doc_task_group_names`
+
+项目曾用名随主库保存，用于镜像重建与同步下载后的正文改名；创建时间防止项目 ID 重用时误认旧名。
+
+| 字段               | SQLite 定义        |
+| ------------------ | ------------------ |
+| `group_id`         | `INTEGER NOT NULL` |
+| `group_created_at` | `INTEGER NOT NULL` |
+| `title`            | `TEXT NOT NULL`    |
+
 ### `pomodoro_presets`
 
 | 字段           | SQLite 定义                   |

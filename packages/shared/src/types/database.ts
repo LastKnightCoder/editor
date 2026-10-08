@@ -84,6 +84,47 @@ export interface TableViewConfig {
   galleryConfig?: GalleryViewConfig;
   calendarConfig?: CalendarViewConfig;
   kanbanConfig?: KanbanViewConfig;
+  /** 表尾汇总：列 id → 汇总方式；未登记的列不显示汇总值 */
+  footer?: Record<string, FooterSpec>;
+}
+
+// ============ Footer Types ============
+
+export type AggregateOp =
+  "sum" | "avg" | "median" | "min" | "max" | "countAll" | "countNonEmpty" | "countEmpty" | "unique";
+
+/** 单列汇总，或以各列汇总为叶子的组合表达式 */
+export type FooterSpec =
+  { kind: "aggregate"; op: AggregateOp } | { kind: "expr"; expr: FormulaExpr };
+
+// ============ Formula Types ============
+
+/** 公式参与运算的值类型；date 为毫秒时间戳 */
+export type FormulaValueType = "number" | "text" | "boolean" | "date";
+
+export type FormulaBinaryOp = "+" | "-" | "*" | "/";
+export type FormulaCompareOp = ">" | ">=" | "<" | "<=" | "==" | "!=" | "contains";
+
+/**
+ * 受限表达式树：只在存储与校验层使用，不向用户展示。
+ * column 只出现在单行公式里，aggregate 只出现在表尾组合表达式里。
+ */
+export type FormulaExpr =
+  | { kind: "literal"; value: number | string | boolean | null }
+  | { kind: "column"; columnId: string }
+  | { kind: "aggregate"; op: AggregateOp; columnId: string }
+  | { kind: "binary"; op: FormulaBinaryOp; left: FormulaExpr; right: FormulaExpr }
+  | { kind: "compare"; op: FormulaCompareOp; left: FormulaExpr; right: FormulaExpr }
+  | { kind: "logic"; op: "and" | "or"; operands: FormulaExpr[] }
+  | { kind: "not"; operand: FormulaExpr }
+  | { kind: "if"; test: FormulaExpr; then: FormulaExpr; else: FormulaExpr }
+  | { kind: "concat"; parts: FormulaExpr[] }
+  | { kind: "empty"; operand: FormulaExpr };
+
+/** 公式列的 ColumnDef.config；output 由校验推导后写入 */
+export interface FormulaColumnConfig {
+  expr: FormulaExpr;
+  output: FormulaValueType;
 }
 
 export interface DataTableView {

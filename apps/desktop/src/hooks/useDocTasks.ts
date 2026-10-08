@@ -43,7 +43,7 @@ export function useDocTaskSnapshot() {
   const connected = useDatabaseConnected();
   const query = useQuery({
     queryKey: docTaskKeys.snapshot(database),
-    queryFn: getDocTaskSnapshot,
+    queryFn: () => getDocTaskSnapshot(database),
     enabled: connected,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -57,7 +57,7 @@ export function useDocTasksOf(contentId: number | null) {
   const connected = useDatabaseConnected();
   return useQuery({
     queryKey: docTaskKeys.of(database, contentId ?? 0),
-    queryFn: () => getDocTasksOf(contentId!),
+    queryFn: () => getDocTasksOf(contentId!, database),
     enabled: connected && contentId != null,
     staleTime: 30_000,
   });
@@ -88,7 +88,7 @@ export function useToggleDocTask() {
       });
     const rollback = () => previous && client.setQueryData(key, previous);
     try {
-      const result = await toggleDocTask(task.contentId, task.taskId, checked);
+      const result = await toggleDocTask(task.contentId, task.taskId, checked, database);
       if (result === "readonly") {
         rollback();
         toast.info("这篇是共享内容，请在原文里勾选");
@@ -99,13 +99,24 @@ export function useToggleDocTask() {
         toast.info("原文中已没有这一项，已刷新");
         return;
       }
+      if (result === "busy") {
+        rollback();
+        toast.info("原文正在切换，请稍后重试");
+        return;
+      }
       if (checked)
-        toast.success(`已在《${sourceTitle}》中勾选`, {
-          action: {
-            label: "撤销",
-            onClick: () => void toggleDocTask(task.contentId, task.taskId, false),
-          },
-        });
+        if (useSettingStore.getState().setting.database.active === database)
+          toast.success(`已在《${sourceTitle}》中勾选`, {
+            action: {
+              label: "撤销",
+              onClick: () =>
+                void toggleDocTask(task.contentId, task.taskId, false, database)
+                  .then(result => {
+                    if (result !== "ok") toast.info("原文暂时无法撤销，请稍后重试");
+                  })
+                  .catch(error => toast.error(error instanceof Error ? error.message : "撤销失败")),
+            },
+          });
     } catch {
       rollback();
       toast.error("写回原文失败");
@@ -121,7 +132,7 @@ export function useDocTaskContentStatus(contentId: number | undefined) {
   const connected = useDatabaseConnected();
   return useQuery({
     queryKey: docTaskKeys.status(database, contentId ?? 0),
-    queryFn: () => getDocTaskContentStatus(contentId!),
+    queryFn: () => getDocTaskContentStatus(contentId!, database),
     enabled: connected && contentId != null && contentId > 0,
     staleTime: 10_000,
   });
@@ -131,8 +142,14 @@ export function useSetDocTasksExcluded() {
   const client = useQueryClient();
   const database = useActiveDatabase();
   return async (contentId: number, excluded: boolean) => {
-    await setDocTasksExcluded(contentId, excluded);
-    await client.invalidateQueries({ queryKey: docTaskKeys.root(database) });
+    try {
+      await setDocTasksExcluded(contentId, excluded, database);
+      await client.invalidateQueries({ queryKey: docTaskKeys.root(database) });
+      return useSettingStore.getState().setting.database.active === database;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "收集设置保存失败");
+      return false;
+    }
   };
 }
 
@@ -141,20 +158,26 @@ export function usePromoteDocTask() {
   const client = useQueryClient();
   const database = useActiveDatabase();
   return async (task: DocTaskItem, fallbackGroupId: number | null) => {
-    const result = await promoteDocTask(task.contentId, task.taskId, fallbackGroupId);
-    await client.invalidateQueries({ queryKey: docTaskKeys.root(database) });
-    if (!result.ok) {
-      toast.info(
-        result.reason === "no-group" ? "先建一个项目，或在原文里写 #项目名" : "原文中已没有这一项"
-      );
+    try {
+      const result = await promoteDocTask(task.contentId, task.taskId, fallbackGroupId, database);
+      await client.invalidateQueries({ queryKey: docTaskKeys.root(database) });
+      if (!result.ok) {
+        toast.info(
+          result.reason === "no-group" ? "先建一个项目，或在原文里写 #项目名" : "原文中已没有这一项"
+        );
+        return null;
+      }
+      if (useSettingStore.getState().setting.database.active !== database) return null;
+      emitTodoMutation({
+        source: "doc-tasks",
+        entityType: "item",
+        action: TODO_MUTATION_ACTIONS.CREATE_ITEM,
+        entityId: result.todoId,
+      });
+      return result.todoId;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "转为独立待办失败");
       return null;
     }
-    emitTodoMutation({
-      source: "doc-tasks",
-      entityType: "item",
-      action: TODO_MUTATION_ACTIONS.CREATE_ITEM,
-      entityId: result.todoId,
-    });
-    return result.todoId;
   };
 }

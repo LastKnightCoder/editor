@@ -24,6 +24,14 @@ const NO_GROUPS: never[] = [];
 export function DocTaskLayer({ readOnly }: ExtensionLayerProps) {
   const editor = useSlateStatic();
   const groups = docTaskGroupsOf(editor);
+  useEffect(() => {
+    const dismiss = () => {
+      if (useTagPickerStore.getState().editor === editor) closeTagPicker();
+      if (useChipMenuStore.getState().editor === editor) closeChipMenu();
+    };
+    if (readOnly) dismiss();
+    return dismiss;
+  }, [editor, readOnly]);
   if (!groups || readOnly) return null;
   return (
     <>
@@ -167,10 +175,13 @@ function ChipMenu() {
       closeChipMenu();
     };
     document.addEventListener("pointerdown", close, true);
-    document.addEventListener("keydown", closeChipMenu, true);
+    const closeOnInput = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" && !event.isComposing) closeChipMenu();
+    };
+    document.addEventListener("keydown", closeOnInput, true);
     return () => {
       document.removeEventListener("pointerdown", close, true);
-      document.removeEventListener("keydown", closeChipMenu, true);
+      document.removeEventListener("keydown", closeOnInput, true);
     };
   }, [open, anchor]);
 
@@ -216,7 +227,7 @@ function ChipMenu() {
                 key={g.id}
                 type="button"
                 className={item}
-                onClick={() => setChipGroup(g.title)}
+                onClick={() => setChipGroup(g.title, g.id)}
               >
                 <GroupDot groupId={g.id} />
                 <span className="min-w-0 truncate">{g.title}</span>

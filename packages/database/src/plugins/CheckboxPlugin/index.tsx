@@ -49,6 +49,7 @@ const CheckboxPlugin: CellPlugin<unknown> = {
   type: "checkbox",
   name: "复选框",
   editable: false,
+  valueType: "boolean",
   Renderer,
   Icon: ({ className }) => <SquareCheck className={className} />,
   beforeSave: value => Boolean(value),

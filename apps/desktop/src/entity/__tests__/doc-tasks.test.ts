@@ -36,10 +36,21 @@ describe("matchGroupToken", () => {
   it("全角井号也识别；未命中返回 null", () => {
     expect(matchGroupToken("交电费 ＃生活", GROUPS)?.token).toBe("＃生活");
     expect(matchGroupToken("看 #电影", GROUPS)).toBeNull();
+    expect(matchGroupToken("#笔记软件测试", [{ id: 1, title: "笔记" }])).toBeNull();
+    expect(
+      matchGroupToken("#旧名", [
+        { id: 1, title: "新版", aliases: ["旧名"] },
+        { id: 2, title: "旧名" },
+      ])?.group.id
+    ).toBe(2);
   });
 });
 
 describe("parseDocTaskText", () => {
+  it("不把普通中文词或无效日期拆成日期", () => {
+    for (const text of ["坐 3号线", "明天见", "周末活动", "2月30日", "2026年2月30日"])
+      expect(parseDocTaskText(text, GROUPS, NOW)).toMatchObject({ title: text, dateHint: null });
+  });
   it("摘除项目与日期，剩余为标题", () => {
     expect(parseDocTaskText("整理插件文档 #笔记软件开发 周五", GROUPS, NOW)).toEqual({
       title: "整理插件文档",

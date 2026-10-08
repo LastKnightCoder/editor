@@ -22,8 +22,6 @@ interface TodoCalendars {
 }
 
 export default class TodoCalendarSyncTable {
-  private static cachedCalendars: TodoCalendars | null = null;
-
   static getListenEvents() {
     return {
       "todo-calendar:sync-item": this.syncTodoItem.bind(this),
@@ -35,10 +33,6 @@ export default class TodoCalendarSyncTable {
 
   // 确保待办清单日历系统存在
   static ensureTodoCalendars(db: Database.Database): TodoCalendars {
-    if (this.cachedCalendars) {
-      return this.cachedCalendars;
-    }
-
     // 查找或创建待办清单分组（作为系统日历的子分组）
     let group: CalendarGroup | undefined;
     const existingGroups = CalendarGroupTable.getAllGroups(db);
@@ -123,8 +117,7 @@ export default class TodoCalendarSyncTable {
       calendars[config.type] = calendar.id;
     }
 
-    this.cachedCalendars = calendars as TodoCalendars;
-    return this.cachedCalendars;
+    return calendars as TodoCalendars;
   }
 
   // 获取待办清单日历 ID

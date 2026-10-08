@@ -58,6 +58,7 @@ import {
   usePromoteDocTask,
   useSetDocTasksExcluded,
   useToggleDocTask,
+  useDocTasksOf,
 } from "@/hooks/useDocTasks";
 import { DocTasksPanel } from "../components/DocTasksPanel";
 import { DocTaskDrawer } from "../components/DocTaskDrawer";
@@ -99,6 +100,8 @@ export function TodosView() {
   const promoteDoc = usePromoteDocTask();
   const setExcluded = useSetDocTasksExcluded();
   const [selectedDocKey, setSelectedDocKey] = useState<string | null>(null);
+  const selectedDocContentId = selectedDocKey ? Number(selectedDocKey.split(":")[0]) : null;
+  const selectedDocItems = useDocTasksOf(selectedDocContentId).data;
   const setGroupFilter = (groupId: number) =>
     navigator.push("todos", { id: groupId ? String(groupId) : "" });
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -257,7 +260,11 @@ export function TodosView() {
   );
   const docOpen = docSnapshot?.open ?? [];
   const selectedDoc =
-    selectedDocKey != null ? (docOpen.find(t => docTaskKey(t) === selectedDocKey) ?? null) : null;
+    selectedDocKey != null
+      ? ([...(selectedDocItems ?? []), ...docOpen].find(
+          t => !t.promoted && docTaskKey(t) === selectedDocKey
+        ) ?? null)
+      : null;
   const openDoc = (task: DocTaskItem) => {
     setSelectedId(null);
     setTodayOpen(false);
@@ -432,7 +439,7 @@ export function TodosView() {
         toast.success(`已转为独立待办「${task.title}」，原文保持不变`);
       }}
       onExclude={async source => {
-        await setExcluded(source.contentId, true);
+        if (!(await setExcluded(source.contentId, true))) return;
         setSelectedDocKey(null);
         toast.info(`《${source.title}》不再收集`, {
           action: { label: "撤销", onClick: () => void setExcluded(source.contentId, false) },

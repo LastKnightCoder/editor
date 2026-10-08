@@ -38,6 +38,13 @@ export interface DatabaseSlots {
   GalleryCover?: ComponentType<GalleryCoverProps>;
   Image?: ComponentType<DatabaseImageProps>;
   coverGradient?: (rowId: string) => string;
+  /** 把消息交给模型并返回回答文本；失败时抛错。未提供时公式构造器不显示 AI 输入框 */
+  formulaAssist?: (messages: FormulaAssistMessage[]) => Promise<string>;
+}
+
+export interface FormulaAssistMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
 export const DatabaseHostContext = createContext<DatabaseSlots>({});

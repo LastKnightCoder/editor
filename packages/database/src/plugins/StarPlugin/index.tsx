@@ -60,6 +60,10 @@ const StarPlugin: CellPlugin<StarConfig> = {
   type: "star",
   name: "评分",
   editable: false,
+  valueType: "number",
+  // 0 星即未评分，不参与平均
+  toScalar: value => (typeof value === "number" && value > 0 ? value : null),
+  formatScalar: value => String(Math.round(value * 10) / 10),
   Renderer,
   Icon: ({ className }) => <StarIcon className={className} />,
   beforeSave: (value, config) => normalize(value, config),

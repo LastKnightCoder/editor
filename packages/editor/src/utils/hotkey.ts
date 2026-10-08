@@ -18,6 +18,7 @@ export const registerHotKey = (
   resolved: readonly ResolvedHotkey[],
   dispatcher?: CommandDispatcher
 ) => {
+  if (event.nativeEvent?.isComposing || event.keyCode === 229) return;
   for (const entry of resolved) {
     if (event.defaultPrevented) {
       return;

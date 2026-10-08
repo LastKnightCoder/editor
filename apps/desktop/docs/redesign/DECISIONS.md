@@ -1,5 +1,17 @@
 # 决策记录（轻量 ADR）
 
+## D-124 显式连接绑定 contentId：cards.links 迁至 content_links，文章与项目文档接入
+
+（2026-10-08，用户确认方案后实施；KL-018 卡片连接的存储泛化；原编号 D-121，合并远程时与数据库汇总与公式撞号顺延）
+
+- 动机：文章 / 项目文档此前只有派生关联（脉络的被引用 / 投影 / 谱系），没有用户亲手建立的显式连接；且「从卡片创建项目文档（refType='card' 共用正文）」带不走卡片的连接——cards.links 绑在卡片行上。
+- 存储：新主库表 `content_links`（无向边、一行一条、`content_id` 规范化为较小一侧、成对唯一索引）。连接绑定 `contents.id`：共用同一份正文的身份（卡片、文章、项目文档、日记及其投影）共享同一组连接，「从卡片创建项目文档连接带过去」由此免费实现；复制创建（新建正文）不带连接；同一正文的不同身份之间按 contentId 过滤自连。
+- 写入统一为单事务单行（database.ts 通用包装层 / 移动端单事务差量），取代旧 cards.links 的两次补丁双边写（顺带修复 CardDetailView 双边非原子与 CardDatabaseView 列编辑只写单边两个存量缺陷）。正文删除（引用计数归零）经 `ContentTable.releaseContent` 释放两侧边。
+- 迁移（一次性、幂等）：桌面 `ContentLinkTable.migrateCardsLinks`（maintenance 开库，护栏 = cards.links 全空即不再命中）；移动端 `MAIN_SCHEMA_VERSION` 5→6 的 `migrate_v5_to_v6`（v4 库链式先升 v5）。cards.links 与 articles.links 列物理保留不再读写，ICard.links 退役为 `linkCount`（轻表按正文计数子查询）。同步信封 `SYNC_MODEL_VERSION` 3→4（`packages/db-schema/src/sync-version.ts` 与移动端镜像），旧端互拒新旧快照，防止读写旧列造成分叉。
+- UI：脉络浮层内建「连接」分区（getEntityContext 的 `links` 载荷 = content_links 边 ∪ 正文内联引用，去重、显式在前），卡片 / 文章 / 项目文档 / 日记详情通用；ContextBadge 的 leading / hideOutlinks / onConnect 插槽机制随之退役（连接动作收口在脉络域）。添加走 ContentSelectorModal（四种内容实体互连，按 contentId 排除自身与已连）；「相关」分区的添加连接动作从仅卡片放开到四种实体。
+- 消费端全部切换：知识地图显式边（knowledge-map collectLinks）、脉络「相关」排除（context-related）、发布站点相关卡片、主题洞见连接（knowledge-insights:link-cards / pattern-card 写成卡片）、卡片库表格连接列（行值改「显式目标 ∪ 内联引用」结构，标题由主进程解析）与列表连接数徽标（linkCount）。移动端卡片连接 UI 形状不变（仍为卡片 id 列表），数据源与写入切到边表；没有卡片投影的邻居（文章 / 项目文档连接）移动端暂不展示、整表保存不误删，桌面脉络可见。
+- 口径备注：连接增删不再写 operation 行、不 bump 卡片 update_time（连接不是正文编辑，不进最近编辑与活动统计）；正文删除（引用归零）两端同事务释放两侧边；卡片轻表 linkCount 按正文双向计数（content_id 任一侧命中都算）。
+
 ## D-123 日记正文身份统一为碎碎念，界面标签仍叫日记
 
 （2026-10-08，用户确认：日期容器不是正文实体，搜索、选择、关联与定位均落到某一条正文；界面 label 保持「日记」）
@@ -22,17 +34,18 @@
 - 不做：阅读纸内改标题 / 标签、按白板记忆摆放方式、插入时排除已在画布上的文档（多类实体 id 会撞）。
 - 追记（同日，用户要求日记也能放进白板，且选择某一条碎碎念）：日记文档卡 = **一条碎碎念**，实体身份与索引遵循 D-123，类型 label 仍为「日记」。白板选择器使用 EntityPicker，提供卡片 / 文章 / 项目文档 / 日记。纸面同卡片（无标题、版宽 460、居中纸高度随内容），头部是日期、时间与当天天气心情，后接段级标签。编辑经 ContentEditor（会话源 `content`，编辑上下文为片段 id），并像日记页一样节流调用 `updateDiarySegment` 同步字数与时间；主进程 `diary:changed` 只广播其他窗口，同窗口的日记缓存由阅读纸主动失效。「在日记页打开」定位到那一条。
 
-## D-121 显式连接绑定 contentId：cards.links 迁至 content_links，文章与项目文档接入
+## D-121 数据库汇总与公式：受限表达式树，不定义 DSL
 
-（2026-10-08，用户确认方案后实施；KL-018 卡片连接的存储泛化）
+（2026-10-08，用户确认；方案与决策细目见 `docs/database-calc/01-方案.md`，mockup 见 `apps/desktop/mockups/database-calc/index.html`）
 
-- 动机：文章 / 项目文档此前只有派生关联（脉络的被引用 / 投影 / 谱系），没有用户亲手建立的显式连接；且「从卡片创建项目文档（refType='card' 共用正文）」带不走卡片的连接——cards.links 绑在卡片行上。
-- 存储：新主库表 `content_links`（无向边、一行一条、`content_id` 规范化为较小一侧、成对唯一索引）。连接绑定 `contents.id`：共用同一份正文的身份（卡片、文章、项目文档、日记及其投影）共享同一组连接，「从卡片创建项目文档连接带过去」由此免费实现；复制创建（新建正文）不带连接；同一正文的不同身份之间按 contentId 过滤自连。
-- 写入统一为单事务单行（database.ts 通用包装层 / 移动端单事务差量），取代旧 cards.links 的两次补丁双边写（顺带修复 CardDetailView 双边非原子与 CardDatabaseView 列编辑只写单边两个存量缺陷）。正文删除（引用计数归零）经 `ContentTable.releaseContent` 释放两侧边。
-- 迁移（一次性、幂等）：桌面 `ContentLinkTable.migrateCardsLinks`（maintenance 开库，护栏 = cards.links 全空即不再命中）；移动端 `MAIN_SCHEMA_VERSION` 5→6 的 `migrate_v5_to_v6`（v4 库链式先升 v5）。cards.links 与 articles.links 列物理保留不再读写，ICard.links 退役为 `linkCount`（轻表按正文计数子查询）。同步信封 `SYNC_MODEL_VERSION` 3→4（`packages/db-schema/src/sync-version.ts` 与移动端镜像），旧端互拒新旧快照，防止读写旧列造成分叉。
-- UI：脉络浮层内建「连接」分区（getEntityContext 的 `links` 载荷 = content_links 边 ∪ 正文内联引用，去重、显式在前），卡片 / 文章 / 项目文档 / 日记详情通用；ContextBadge 的 leading / hideOutlinks / onConnect 插槽机制随之退役（连接动作收口在脉络域）。添加走 ContentSelectorModal（四种内容实体互连，按 contentId 排除自身与已连）；「相关」分区的添加连接动作从仅卡片放开到四种实体。
-- 消费端全部切换：知识地图显式边（knowledge-map collectLinks）、脉络「相关」排除（context-related）、发布站点相关卡片、主题洞见连接（knowledge-insights:link-cards / pattern-card 写成卡片）、卡片库表格连接列（行值改「显式目标 ∪ 内联引用」结构，标题由主进程解析）与列表连接数徽标（linkCount）。移动端卡片连接 UI 形状不变（仍为卡片 id 列表），数据源与写入切到边表；没有卡片投影的邻居（文章 / 项目文档连接）移动端暂不展示、整表保存不误删，桌面脉络可见。
-- 口径备注：连接增删不再写 operation 行、不 bump 卡片 update_time（连接不是正文编辑，不进最近编辑与活动统计）；正文删除（引用归零）两端同事务释放两侧边；卡片轻表 linkCount 按正文双向计数（content_id 任一侧命中都算）。
+- 表尾汇总（列相加等）与公式列（IF 判断）共用一棵受限 JSON 表达式树：白名单节点、无变量 / 循环 / 自定义函数 / eval。不定义文本 DSL，表达式结构不向用户展示（无公式文本框、JSON 视图、错误码），用户只面对构造器与 AI 输入框。
+- 求值在渲染端、与 `projectDatabase` 同层；不加主进程命令、不改 schema。公式值不落库。
+- 字段参与运算的口径由 `CellPlugin.valueType` / `toScalar` / `formatScalar` 声明，引擎不认识具体插件；未声明的字段只能计数，文本不隐式转数字。
+- 表尾配置按视图存 `TableViewConfig.footer`，主进程 `normalizeConfig` 白名单同步保留；汇总算筛选后的行。
+- 表达式与公式列配置属存储协议，类型在 `@tau/shared/database-types`；公式值只在投影中派生，store 行与保存回调不含公式值。
+- 构造器按意图分三种表单（计算 / 按条件显示 / 拼接文字），值可按需嵌套为计算或条件，最多 2 层；表单与表达式双向转换，超出形状的公式原样保留。
+- AI 入口经宿主 `slots.formulaAssist` 注入（桌面复用对话模型，配了即用），输出必须通过同一校验且能还原成表单才回填，只发列结构不发行数据。
+- 三个迭代均已实施。
 
 ## D-120 文档待办：正文是唯一真相源，待办页是镜像
 
@@ -44,6 +57,8 @@
 - 正文日期一律存带年份的绝对日期（编辑器里相对词按空格即改写）；不经编辑器写入的相对词以首次收集时刻为锚。
 - 用户选择（本文不收集、已转为独立待办）存主库 `doc_task_settings`，不进可重建的索引库。
 - 待办页不改文档条目的日期 / 项目：在原文胶囊菜单上改，少一条回写路径。
+
+审查修复追记（2026-10-08，用户要求在独立 worktree 修复审查问题）：日期首次收集最终写回绝对日期，编辑期间的锚点随正文保存；项目旧名进入主库并用正文归属提示消除旧名复用歧义，镜像可重建。身份由内容来源统一补齐，视图不竞争生成；稳定初始化键只用于首次分配，不作为待办身份。全段最小文本补丁、命令库名校验、幂等转出与失败重试见方案 DT-011 和 03 指南「文档待办」。
 
 ## D-118 闪卡复习调度退役自研算法，迁移 FSRS-6 官方库
 

@@ -80,6 +80,56 @@ afterEach(() => {
 });
 
 describe("reindexDocTasks", () => {
+  it("只有重复 ID 也能补齐，不使整批回滚", () => {
+    const id = insertContent([list(item("dup", "甲"), item("dup", "乙"))]);
+    const other = insertContent([list(item("other", "其它文档"))]);
+    reindexDocTasks(mainDb, indexDb, [id, other], NOW);
+    expect(new Set(tasksOf(id).map(task => task.task_id)).size).toBe(2);
+    expect(tasksOf(other)).toHaveLength(1);
+  });
+
+  it("首次收集写绝对日期，清空索引后仍能恢复", () => {
+    const id = insertContent([list(item("a", "回邮件 明天"))]);
+    reindexDocTasks(mainDb, indexDb, [id], NOW);
+    const first = tasksOf(id)[0].due_at;
+    indexDb.exec("DELETE FROM doc_tasks; DELETE FROM doc_task_sources;");
+    reindexDocTasks(mainDb, indexDb, [id], NOW + 7 * DAY);
+    expect(tasksOf(id)[0].due_at).toBe(first);
+    expect(contentOf(id).content).toContain("2026年10月9日");
+  });
+
+  it("项目在外部改名、镜像清空后，按主库旧名同步格式拆分的正文", () => {
+    const groupId = addGroup("发布");
+    const task = item("a", "");
+    task.children[0].children = [
+      { type: "formatted", text: "#发" },
+      { type: "formatted", text: "布", bold: true } as never,
+    ];
+    const id = insertContent([list(task)]);
+    reindexDocTasks(mainDb, indexDb, [id], NOW);
+    mainDb.prepare("UPDATE todo_group SET title = '上线' WHERE id = ?").run(groupId);
+    indexDb.exec("DELETE FROM doc_tasks; DELETE FROM doc_task_sources;");
+    reindexDocTasks(mainDb, indexDb, [id], NOW);
+    expect(tasksOf(id)[0]).toMatchObject({ group_id: groupId, title: "" });
+    const stored = JSON.parse(contentOf(id).content)[0].children[0].children[0].children;
+    expect(stored.map((leaf: { text: string }) => leaf.text).join("")).toBe("#上线");
+    expect(stored[1].bold).toBe(true);
+  });
+
+  it("旧名被新项目复用时保留原归属，镜像重建也不会误改新项目", () => {
+    const original = addGroup("发布");
+    const a = insertContent([list(item("a", "甲 #发布"))]);
+    reindexDocTasks(mainDb, indexDb, [a], NOW);
+    mainDb.prepare("UPDATE todo_group SET title = '上线' WHERE id = ?").run(original);
+    const replacement = addGroup("发布");
+    const b = insertContent([list(item("b", "乙 #发布"))]);
+    indexDb.exec("DELETE FROM doc_tasks; DELETE FROM doc_task_sources;");
+    reindexDocTasks(mainDb, indexDb, [a, b], NOW);
+    expect(tasksOf(a)[0].group_id).toBe(original);
+    expect(contentOf(a).content).toContain("#上线");
+    expect(tasksOf(b)[0].group_id).toBe(replacement);
+    expect(contentOf(b).content).toContain("#发布");
+  });
   it("收集勾选项，解析项目与日期", () => {
     const groupId = addGroup("笔记软件开发");
     const id = insertContent([
@@ -119,16 +169,21 @@ describe("reindexDocTasks", () => {
     const id = insertContent([list(item("a", "回邮件 明天"))]);
     reindexDocTasks(mainDb, indexDb, [id], NOW);
     const tomorrow = new Date(2026, 9, 9).getTime();
-    expect(tasksOf(id)[0]).toMatchObject({ date_anchor: NOW, due_at: tomorrow });
+    expect(tasksOf(id)[0]).toMatchObject({
+      date_hint: "2026年10月9日",
+      date_anchor: null,
+      due_at: tomorrow,
+    });
 
-    updateContent(id, [list(item("a", "回邮件给房东 明天"))]);
+    updateContent(id, [list(item("a", "回邮件给房东 2026年10月9日"))]);
     reindexDocTasks(mainDb, indexDb, [id], NOW + 5 * DAY);
-    expect(tasksOf(id)[0]).toMatchObject({ date_anchor: NOW, due_at: tomorrow });
+    expect(tasksOf(id)[0]).toMatchObject({ date_anchor: null, due_at: tomorrow });
 
     updateContent(id, [list(item("a", "回邮件给房东 后天"))]);
     reindexDocTasks(mainDb, indexDb, [id], NOW + 5 * DAY);
     expect(tasksOf(id)[0]).toMatchObject({
-      date_anchor: NOW + 5 * DAY,
+      date_hint: "2026年10月15日",
+      date_anchor: null,
       due_at: new Date(2026, 9, 15).getTime(),
     });
   });

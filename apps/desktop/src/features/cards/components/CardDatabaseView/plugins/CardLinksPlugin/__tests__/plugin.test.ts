@@ -8,10 +8,18 @@ import type { RowData } from "@tau/database";
 
 const cell = (items: unknown[]) => ({ self: { kind: "card", id: 1 }, selfContentId: 1, items });
 
+// filters 契约允许「数组或按列函数」两种形态，测试按数组消费前先归一
+const resolveFilters = () => {
+  if (plugin.filters == null) return undefined;
+  return typeof plugin.filters === "function"
+    ? plugin.filters({ id: "links" } as never)
+    : plugin.filters;
+};
+
 describe("CardLinksPlugin（连接列插件协议）", () => {
   it("filters 的 operator 沿用旧值「有链接/无链接」：已保存的视图偏好不因文案改名失效", () => {
-    expect(plugin.filters?.map(filter => filter.operator)).toEqual(["有链接", "无链接"]);
-    expect(plugin.filters?.map(filter => filter.label)).toEqual(["有连接", "无连接"]);
+    expect(resolveFilters()?.map(filter => filter.operator)).toEqual(["有链接", "无链接"]);
+    expect(resolveFilters()?.map(filter => filter.label)).toEqual(["有连接", "无连接"]);
   });
 
   it("getGroupKey 按条目数分组，容忍旧值/空值", () => {
@@ -38,7 +46,7 @@ describe("CardLinksPlugin（连接列插件协议）", () => {
   it("filters 按条目数判断有/无连接", () => {
     const row = (value: unknown) => ({ links: value }) as unknown as RowData;
     const column = { id: "links" } as never;
-    const [has, none] = plugin.filters!;
+    const [has, none] = resolveFilters()!;
     expect(has.filter(null, row(cell([{}])), column)).toBe(true);
     expect(has.filter(null, row(cell([])), column)).toBe(false);
     expect(none.filter(null, row(cell([])), column)).toBe(true);

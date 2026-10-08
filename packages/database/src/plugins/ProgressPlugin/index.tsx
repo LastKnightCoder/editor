@@ -7,6 +7,12 @@ const ProgressPlugin: CellPlugin<null> = {
   type: "progress",
   name: "进度",
   editable: true,
+  valueType: "number",
+  toScalar: value => {
+    const progress = value as ProgressValue | null;
+    return progress && progress.target > 0 ? progress.current / progress.target : null;
+  },
+  formatScalar: value => `${Math.round(value * 100)}%`,
   Renderer,
   Editor,
   Icon: ({ className }) => <TrendingUp className={className} />,
