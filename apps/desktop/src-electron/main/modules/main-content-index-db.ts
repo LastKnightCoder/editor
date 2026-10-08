@@ -247,6 +247,18 @@ class MainContentIndexDBManager {
       this.setMeta(indexDb, REBUILD_STATE_KEY, "pending");
     }
     this.ensureScopedRebuildStates(indexDb);
+    if (this.getMeta(indexDb, "diary_entity_version") !== "moment-1") {
+      indexDb.transaction(() => {
+        indexDb.prepare("DELETE FROM content_fts WHERE type = 'diary-daily'").run();
+        indexDb.prepare("DELETE FROM vec_documents WHERE type = 'diary-daily'").run();
+        indexDb
+          .prepare("DELETE FROM content_sections WHERE prefixed_id LIKE 'diary-daily:%'")
+          .run();
+        this.writeRebuildState(indexDb, "pending", "fts");
+        this.writeRebuildState(indexDb, "pending", "vec");
+        this.setMeta(indexDb, "diary_entity_version", "moment-1");
+      })();
+    }
     if (vecRecreated) {
       this.writeRebuildState(indexDb, "pending", "vec");
     }

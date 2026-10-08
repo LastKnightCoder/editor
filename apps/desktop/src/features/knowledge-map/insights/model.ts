@@ -195,7 +195,7 @@ const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> 
   card: "card",
   article: "article",
   "project-item": "project_item",
-  diary: null,
+  "diary-moment": null,
 };
 
 /** 记为问题时的来源与默认标题 */

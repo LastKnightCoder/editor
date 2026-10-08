@@ -26,7 +26,7 @@ const TYPE_LABELS: Record<EmbeddingIndexContentType, string> = {
   card: "卡片",
   article: "文章",
   "project-item": "项目文档",
-  "diary-daily": "日记",
+  "diary-moment": "日记",
   excerpt: "划线",
   "pdf-annotation": "PDF 标注",
   "web-clip": "剪藏",

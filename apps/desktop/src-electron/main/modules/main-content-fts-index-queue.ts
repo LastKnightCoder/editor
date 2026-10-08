@@ -187,13 +187,13 @@ class MainContentFtsIndexQueue implements Module {
     }
     await yieldToEventLoop();
 
-    for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
+    for (const moment of DiaryTable.getAllDiarySegmentsFlat(mainDb)) {
       removed += this.appendTask(indexDb, tasks, keep, {
-        id: entry.id,
-        type: "diary-daily",
-        content: getMarkdown(entry.content || []).trim(),
-        sections: splitSections(entry.content || [], DiaryTable.getDiarySearchTitle(entry)),
-        updateTime: Number(entry.updateTime || 0),
+        id: moment.id,
+        type: "diary-moment",
+        content: getMarkdown(moment.content || []).trim(),
+        sections: splitSections(moment.content || [], ""),
+        updateTime: Number(moment.updateTime || 0),
       });
       processed += 1;
       await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);

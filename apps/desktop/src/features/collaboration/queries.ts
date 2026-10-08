@@ -13,7 +13,7 @@ export const SHAREABLE_TYPES: ContentIndexType[] = [
   "article",
   "card",
   "project-item",
-  "diary-daily",
+  "diary-moment",
 ];
 
 const LIMIT = 30;

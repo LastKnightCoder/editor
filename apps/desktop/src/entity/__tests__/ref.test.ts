@@ -13,8 +13,9 @@ describe("normalizeEntityRefKind", () => {
     expect(normalizeEntityRefKind("article")).toBe("article");
     expect(normalizeEntityRefKind("project-item")).toBe("project-item");
     expect(normalizeEntityRefKind("project_item")).toBe("project-item");
-    expect(normalizeEntityRefKind("diary")).toBe("diary");
-    expect(normalizeEntityRefKind("diary-daily")).toBe("diary");
+    expect(normalizeEntityRefKind("diary-moment")).toBe("diary-moment");
+    expect(normalizeEntityRefKind("diary")).toBeNull();
+    expect(normalizeEntityRefKind("diary-daily")).toBeNull();
   });
 
   it("不认识的写法返回 null", () => {

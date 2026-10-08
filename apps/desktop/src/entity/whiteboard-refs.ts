@@ -2,8 +2,8 @@
  * 白板对笔记的使用：从白板页画布（white_board_contents.data 的 JSON）按元素类型提取，
  * 以及从文档正文里提取嵌入的白板块。纯函数，主进程（白板引用索引）与测试共用。
  *
- * 只认白板元素的字段（卡片元素的 cardId、文本块的 contentId / linkedCardId / linkedArticleId、
- * 思维导图节点关联的笔记、通用的 entityRef），不做通用 JSON 扫描：Slate 正文里的 content-link
+ * 只认白板元素的字段（文本块的 contentId / linkedCardId / linkedArticleId、思维导图节点关联的笔记、
+ * 通用的 entityRef——文档卡即经它指向卡片 / 文章 / 项目文档），不做通用 JSON 扫描：Slate 正文里的 content-link
  * 也带 contentId，通用扫描会误判。白板元素的 children 只装白板元素（框架、分栏、思维导图子节点），
  * Slate 正文在 text / content 字段里，元素文字中的内联引用经 extractInlineRefs 单独取。
  *
@@ -21,13 +21,13 @@
 import { extractInlineRefs } from "./inline-refs";
 import { normalizeEntityRefKind } from "./ref";
 
-export type WhiteboardRefKind = "card" | "article" | "project-item" | "diary" | "content";
+export type WhiteboardRefKind = "card" | "article" | "project-item" | "diary-moment" | "content";
 
 /**
- * card：卡片元素；richtext：文本块；mind-node：思维导图节点关联的笔记；
- * entity：元素的通用 entityRef；inline：元素文字里的内联引用
+ * richtext：文本块；mind-node：思维导图节点关联的笔记；
+ * entity：元素的通用 entityRef（文档卡等）；inline：元素文字里的内联引用
  */
-export type WhiteboardRefVia = "card" | "richtext" | "mind-node" | "entity" | "inline";
+export type WhiteboardRefVia = "richtext" | "mind-node" | "entity" | "inline";
 
 export interface WhiteboardRef {
   dstKind: WhiteboardRefKind;
@@ -39,7 +39,6 @@ interface BoardNode {
   type?: unknown;
   children?: unknown;
   text?: unknown;
-  cardId?: unknown;
   contentId?: unknown;
   linkedCardId?: unknown;
   linkedArticleId?: unknown;
@@ -71,9 +70,6 @@ export function extractWhiteboardRefs(data: unknown): WhiteboardRef[] {
     const node = asNode(value);
     if (!node) return;
     switch (node.type) {
-      case "card":
-        add("card", node.cardId, "card");
-        break;
       case "richtext":
         add("content", node.contentId, "richtext");
         add("card", node.linkedCardId, "richtext");

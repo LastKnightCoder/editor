@@ -80,6 +80,32 @@ describe("ContentLinkTable.migrateCardsLinks（与移动端 migrate_v5_to_v6 同
 });
 
 describe("ContentLinkTable 边操作", () => {
+  it("同一天两条日记各自连接到正文，解除其中一条不影响另一条", () => {
+    const cardContent = insertContent();
+    const firstContent = insertContent();
+    const secondContent = insertContent();
+    const cardId = insertCard(cardContent);
+    db.exec(
+      "INSERT INTO diary_entries (id, type, date, create_time, update_time) VALUES (5, 'daily', '2026-10-08', 1, 1)"
+    );
+    const insertMoment = db.prepare(
+      "INSERT INTO diary_segments (id, diary_id, content_id, create_time, update_time) VALUES (?, 5, ?, 1, 1)"
+    );
+    insertMoment.run(11, firstContent);
+    insertMoment.run(12, secondContent);
+    const card = { kind: "card" as const, id: cardId };
+    const first = { kind: "diary-moment" as const, id: 11 };
+    const second = { kind: "diary-moment" as const, id: 12 };
+    expect(ContentLinkTable.contentIdsOfEntity(db, second)).toEqual([secondContent]);
+    expect(ContentLinkTable.addLink(db, card, first)).toBe(true);
+    expect(ContentLinkTable.addLink(db, card, second)).toBe(true);
+    expect(
+      ContentLinkTable.listByContentIds(db, [cardContent])[0].targets.map(target => target.ref)
+    ).toEqual([first, second]);
+    expect(ContentLinkTable.removeLink(db, card, second)).toBe(true);
+    expect(ContentLinkTable.edgesOf(db, [cardContent]).get(cardContent)).toEqual([firstContent]);
+  });
+
   it("addLink 规范化落边、removeLink 双向精确删、同正文拒连", () => {
     const a = insertContent();
     const b = insertContent();
@@ -176,8 +202,7 @@ describe("ContentLinkTable.listByContentIds（表格连接列数据源）", () =
     expect(groups).toHaveLength(2);
   });
 
-  it("同一身份多份正文作目标时 contentId 逐边回填（缓存不串值）", () => {
-    // 日记两天各一段正文，都被同一张卡连接：目标是同一 diary 身份，但落点正文不同
+  it("同日两条日记的目标身份与 contentId 逐边回填，缓存不串值", () => {
     const seg1 = insertContent();
     const seg2 = insertContent();
     const src = insertContent();
@@ -190,13 +215,15 @@ describe("ContentLinkTable.listByContentIds（表格连接列数据源）", () =
         .run(clock, clock++).lastInsertRowid
     );
     const insertSegment = (contentId: number) =>
-      db
-        .prepare(
-          `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
-        )
-        .run(clock, clock++, diaryId, contentId);
-    insertSegment(seg1);
-    insertSegment(seg2);
+      Number(
+        db
+          .prepare(
+            `INSERT INTO diary_segments (create_time, update_time, diary_id, content_id) VALUES (?, ?, ?, ?)`
+          )
+          .run(clock, clock++, diaryId, contentId).lastInsertRowid
+      );
+    const first = insertSegment(seg1);
+    const second = insertSegment(seg2);
     db.prepare(
       `INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?, ?, ?)`
     ).run(Math.min(src, seg1), Math.max(src, seg1), clock++);
@@ -205,10 +232,11 @@ describe("ContentLinkTable.listByContentIds（表格连接列数据源）", () =
     ).run(Math.min(src, seg2), Math.max(src, seg2), clock++);
 
     const [group] = ContentLinkTable.listByContentIds(db, [src]);
-    // 两条边的目标身份都是 diary:<diaryId>，但 contentId 必须各自等于 seg1/seg2
-    expect(group.targets.map(target => [target.ref.kind, target.contentId])).toEqual([
-      ["diary", seg1],
-      ["diary", seg2],
-    ]);
+    expect(group.targets.map(target => [target.ref.kind, target.ref.id, target.contentId])).toEqual(
+      [
+        ["diary-moment", first, seg1],
+        ["diary-moment", second, seg2],
+      ]
+    );
   });
 });

@@ -20,7 +20,7 @@ const NOTE_LINK_TYPE: Record<EntityRefKind, string> = {
   card: "card",
   article: "article",
   "project-item": "project-item",
-  diary: "diary-daily",
+  "diary-moment": "diary-moment",
 };
 
 /** 整篇排除的正文 id */

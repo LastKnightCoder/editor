@@ -1,11 +1,4 @@
-import {
-  DEFAULT_CARD_STYLE,
-  DEFAULT_RICHTEXT_STYLE,
-  TEXT_TONES,
-  TextStyle,
-  TextTone,
-  TextVariant,
-} from "../constants";
+import { DEFAULT_RICHTEXT_STYLE, TEXT_TONES, TextStyle, TextTone, TextVariant } from "../constants";
 
 const VARIANTS: TextVariant[] = ["none", "plain", "band", "tinted"];
 
@@ -31,5 +24,4 @@ export class TextStyleStore {
   }
 }
 
-export const CardUtil = new TextStyleStore("whiteboard-card", DEFAULT_CARD_STYLE);
 export const RichTextUtil = new TextStyleStore("whiteboard-richtext", DEFAULT_RICHTEXT_STYLE);

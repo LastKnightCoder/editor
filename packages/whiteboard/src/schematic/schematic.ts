@@ -148,9 +148,9 @@ function textBars(ctx: Ctx, x: number, y: number, w: number, h: number, color = 
 
 function card(ctx: Ctx, e: AnyElement) {
   const r = Math.min(10, e.height / 4);
-  // 富文本 / 卡片走语义样式（含旧色值换算）；白板引用等其它类型按白卡画
+  // 富文本走语义样式（含旧色值换算）；文档卡、白板引用等其它类型按白卡画
   const style =
-    e.type === "richtext" || e.type === "card"
+    e.type === "richtext"
       ? resolveTextStyle(e as Parameters<typeof resolveTextStyle>[0])
       : { variant: "plain" as const };
   // 透明样式只画文字条
@@ -356,7 +356,7 @@ function element(ctx: Ctx, e: AnyElement) {
   grow(ctx, e.x, e.y, e.width, e.height);
   switch (e.type) {
     case "richtext":
-    case "card":
+    case "document":
       return card(ctx, e);
     case "geometry": {
       const fill = isColor(e.fill) ? e.fill : undefined;

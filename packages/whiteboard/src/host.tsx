@@ -35,14 +35,17 @@ export interface WhiteboardServices {
   captureBlob(element: Element, options: Record<string, unknown>): Promise<Blob>;
 }
 
-export type WhiteboardTool = "image" | "video" | "audio" | "card" | "webview" | "whiteboard";
+export type WhiteboardTool = "image" | "video" | "audio" | "document" | "webview" | "whiteboard";
 export interface WhiteboardSlots {
   Editor?: ComponentType<WhiteboardEditorProps>;
   ContentSnapshotObserver?: ComponentType<{
     contentId: number;
     onChange(value: Descendant[]): void;
   }>;
+  /** 画布容器外的宿主层（弹窗、抽屉） */
   Layers?: ComponentType;
+  /** 画布容器内、铺满画布区域的宿主层（如文档阅读纸）；指针与按键需自行用 stopCanvasEvents 截断 */
+  CanvasLayer?: ComponentType;
   ContentSelector?: ComponentType<any>;
   tools?: Partial<Record<WhiteboardTool, ComponentType>>;
   elements?: Partial<Record<string, ComponentType<any>>>;

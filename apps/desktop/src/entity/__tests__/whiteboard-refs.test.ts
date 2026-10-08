@@ -11,10 +11,10 @@ const link = (contentType: string, refId: number, contentId?: number) => ({
 });
 
 describe("extractWhiteboardRefs", () => {
-  it("按元素类型取卡片、文本块、思维导图深层节点关联的笔记", () => {
+  it("按元素类型取文档卡、文本块、思维导图深层节点关联的笔记", () => {
     const data = {
       children: [
-        { id: "a", type: "card", cardId: 12 },
+        { id: "a", type: "document", entityRef: { kind: "card", id: 12 } },
         { id: "b", type: "richtext", contentId: 30, linkedCardId: 13, linkedArticleId: 4 },
         {
           id: "c",
@@ -30,17 +30,21 @@ describe("extractWhiteboardRefs", () => {
             },
           ],
         },
-        { id: "f", type: "frame", children: [{ id: "g", type: "card", cardId: 14 }] },
+        {
+          id: "f",
+          type: "frame",
+          children: [{ id: "g", type: "document", entityRef: { kind: "card", id: 14 } }],
+        },
       ],
     };
     expect(extractWhiteboardRefs(data)).toEqual([
-      { dstKind: "card", dstId: 12, via: "card" },
+      { dstKind: "card", dstId: 12, via: "entity" },
       { dstKind: "content", dstId: 30, via: "richtext" },
       { dstKind: "card", dstId: 13, via: "richtext" },
       { dstKind: "article", dstId: 4, via: "richtext" },
       { dstKind: "content", dstId: 40, via: "mind-node" },
       { dstKind: "content", dstId: 41, via: "mind-node" },
-      { dstKind: "card", dstId: 14, via: "card" },
+      { dstKind: "card", dstId: 14, via: "entity" },
     ]);
   });
 
@@ -72,12 +76,14 @@ describe("extractWhiteboardRefs", () => {
         children: [
           { id: "a", type: "article-embed", entityRef: { kind: "article", id: 8 } },
           { id: "p", type: "doc-card", entityRef: { kind: "project_item", id: 9 } },
+          { id: "d", type: "document", entityRef: { kind: "diary-moment", id: 5 } },
           { id: "x", type: "pdf", entityRef: { kind: "pdf", id: 1 } },
         ],
       })
     ).toEqual([
       { dstKind: "article", dstId: 8, via: "entity" },
       { dstKind: "project-item", dstId: 9, via: "entity" },
+      { dstKind: "diary-moment", dstId: 5, via: "entity" },
     ]);
   });
 
@@ -87,13 +93,13 @@ describe("extractWhiteboardRefs", () => {
     expect(
       extractWhiteboardRefs({
         children: [
-          { type: "card", cardId: 3 },
-          { type: "card", cardId: 3 },
-          { type: "card", cardId: "x" },
+          { type: "document", entityRef: { kind: "card", id: 3 } },
+          { type: "document", entityRef: { kind: "card", id: 3 } },
+          { type: "document", entityRef: { kind: "card", id: "x" } },
           { type: "richtext", contentId: 0 },
         ],
       })
-    ).toEqual([{ dstKind: "card", dstId: 3, via: "card" }]);
+    ).toEqual([{ dstKind: "card", dstId: 3, via: "entity" }]);
   });
 });
 

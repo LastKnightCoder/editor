@@ -3,7 +3,7 @@ import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import { FoldHorizontal, FoldVertical } from "lucide-react";
 
-import { CardUtil, RichTextUtil } from "../../../utils";
+import { RichTextUtil } from "../../../utils";
 import {
   LEGACY_TEXT_STYLE_KEYS,
   TEXT_COLORS,
@@ -92,9 +92,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         delete (draft as Record<string, unknown>)[legacyKey];
       }
     });
-    // @ts-ignore
-    if (element.type === "card") CardUtil.save(next);
-    else if (element.type === "richtext") RichTextUtil.save(next);
+    if (element.type === "richtext") RichTextUtil.save(next);
     onChange(newElement);
   });
 

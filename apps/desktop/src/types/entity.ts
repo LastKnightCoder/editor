@@ -9,7 +9,8 @@ export type EntityKind =
   | "project_item"
   | "project"
   | "white_board"
-  | "diary"
+  // 日记里的一条碎碎念（diary_segments）：id 是片段 id，所属那一天见 EntityCandidate.diaryId
+  | "diary-moment"
   // 外部材料与对话：只供问题「关联已有」选择（问题材料 / 探究对话），没有正文
   | "excerpt"
   | "pdf-annotation"
@@ -30,6 +31,8 @@ export interface EntityCandidate {
   meta: string;
   /** 最近更新时间 */
   time: number;
+  /** 碎碎念所属的日期容器，不作为正文实体身份 */
+  diaryId?: number;
 }
 
 export interface EntitySearchParams {
@@ -47,4 +50,6 @@ export interface EntityLocation {
   projectId?: number | null;
   /** 日记日期键 */
   date?: string;
+  /** 碎碎念所属的日期容器 */
+  diaryId?: number;
 }

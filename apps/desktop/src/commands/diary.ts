@@ -270,6 +270,11 @@ export const getAllDiarySegmentsFlat = async (): Promise<DiarySegmentItem[]> => 
   return results.map(deserializeDiarySegmentItem);
 };
 
+export const getDiaryMoment = async (id: number): Promise<DiarySegmentItem | null> => {
+  const result = await invoke<RawDiarySegmentItem | null>("get-diary-moment", id);
+  return result ? deserializeDiarySegmentItem(result) : null;
+};
+
 export const getAllDiaryTagSettings = async (): Promise<DiaryTagSetting[]> => {
   const results = await invoke<RawDiaryTagSetting[]>("get-all-diary-tag-settings");
   return results.map(deserializeDiaryTagSetting);

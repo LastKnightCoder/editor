@@ -2,7 +2,7 @@ import { Descendant } from "slate";
 import type { PositionMapper } from "@tau/markdown";
 
 export type EntityType =
-  "card" | "article" | "project-item" | "diary" | "vl-note" | "vl-resource" | "whiteboard";
+  "card" | "article" | "project-item" | "diary-moment" | "vl-note" | "vl-resource" | "whiteboard";
 export type SnapshotSource = "active-session" | "database";
 
 export interface MarkdownPoint {

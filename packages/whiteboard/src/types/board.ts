@@ -17,7 +17,7 @@ export enum ECreateBoardElementType {
   Handwrite = "handwrite",
   Text = "text",
   Image = "image",
-  Card = "card",
+  Document = "document",
   MindMap = "mindMap",
   Webview = "webview",
   Frame = "frame",
@@ -182,7 +182,7 @@ export interface IBoardPlugin {
 
 // 右键菜单触发弹窗的事件 Payload
 export interface ContextMenuModalPayload {
-  type: "card" | "image" | "video" | "audio" | "webview" | "whiteboard" | "export-image";
+  type: "document" | "image" | "video" | "audio" | "webview" | "whiteboard" | "export-image";
   action?: string; // image: local/url/ai; video: local/url/bilibili/youtube; audio: local/url/tts; whiteboard: create/reference; export-image: board/selection
   selectedElementIds?: string[];
 }

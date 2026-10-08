@@ -188,14 +188,13 @@ export interface DiaryFilter {
   scope: DiaryScope;
   /** 闭区间 [from, to]，YYYY-MM-DD */
   range: [string, string] | null;
-  /** 搜索命中的 diaryId（混合召回，日粒度）；null = 未在搜索 */
+  /** 搜索命中的碎碎念 id；null = 未在搜索 */
   hits: ReadonlySet<number> | null;
   query: string;
 }
 
 /**
- * 筛选：频道 → 时间 → 搜索。搜索召回是日粒度（FTS / 向量按 entry 建索引），命中日内有
- * 字面匹配的条目时只留这些；整天都没有字面匹配（语义召回）则整天保留。
+ * 筛选：频道 → 时间 → 搜索，字面与语义召回均精确到一条碎碎念。
  */
 export function filterMoments(list: DiaryMoment[], f: DiaryFilter): DiaryMoment[] {
   let out = list;
@@ -209,14 +208,7 @@ export function filterMoments(list: DiaryMoment[], f: DiaryFilter): DiaryMoment[
   }
   if (f.hits) {
     const hits = f.hits;
-    const words = f.query.toLowerCase().split(/\s+/).filter(Boolean);
-    const literal = (m: DiaryMoment) => {
-      const text = plainText(m.content).toLowerCase();
-      return words.length > 0 && words.every(w => text.includes(w));
-    };
-    const inHitDays = out.filter(m => hits.has(m.diaryId));
-    const literalDays = new Set(inHitDays.filter(literal).map(m => m.diaryId));
-    out = inHitDays.filter(m => !literalDays.has(m.diaryId) || literal(m));
+    out = out.filter(m => hits.has(m.id));
   }
   return out;
 }

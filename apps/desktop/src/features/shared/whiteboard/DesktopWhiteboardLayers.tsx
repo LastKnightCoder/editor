@@ -10,7 +10,7 @@ import type {
   VideoElement,
 } from "@tau/whiteboard";
 import NotePanel from "./components/NotePanel";
-import CardSelectorModal from "./components/CardSelectorModal";
+import { DocumentSelectorModal } from "./components/Document/DocumentSelectorModal";
 import ImageSelectorModal from "./components/ImageSelectorModal";
 import WebviewSelectorModal from "./components/WebviewSelectorModal";
 import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
@@ -608,8 +608,8 @@ export function DesktopWhiteboardLayers() {
         )}
       </Drawer>
       {/* 右键菜单触发的弹窗 */}
-      <CardSelectorModal
-        open={contextMenuModal?.type === "card"}
+      <DocumentSelectorModal
+        open={contextMenuModal?.type === "document"}
         onClose={() => setContextMenuModal(null)}
         board={board}
       />

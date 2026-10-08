@@ -38,7 +38,7 @@ const mockContext = vi.hoisted(() => {
     cards: makeItems(30),
     articles: [],
     projects: [],
-    diaries: [],
+    diaries: [] as Array<{ id: number; diaryId: number; content: unknown[]; updateTime: number }>,
     videoRows: makeItems(25),
     databaseModuleMock: {
       ensureIndexDatabaseReady: vi.fn(async () => ({
@@ -104,7 +104,7 @@ vi.mock("../tables/project", () => ({
 
 vi.mock("../tables/diary", () => ({
   default: {
-    getAllDiaryEntries: () => mockContext.diaries,
+    getAllDiarySegmentsFlat: () => mockContext.diaries,
   },
 }));
 
@@ -150,6 +150,7 @@ import videoNoteIndexQueue from "../video-note-index-queue";
 
 describe("index recovery cooperative scheduling", () => {
   beforeEach(() => {
+    mockContext.diaries = [];
     mockContext.yieldEvery.mockClear();
     mockContext.yieldToEventLoop.mockClear();
     mockContext.videoNoteIndexDbMock.checkIndexExists.mockClear();
@@ -177,6 +178,26 @@ describe("index recovery cooperative scheduling", () => {
     expect(result.tasks).toHaveLength(30);
     expect(mockContext.yieldEvery).toHaveBeenCalledWith(25, 25);
     expect(mockContext.yieldToEventLoop).toHaveBeenCalled();
+  });
+
+  it("主内容全文与向量队列把同一天两条日记作为两个实体收集", async () => {
+    mockContext.diaries = [
+      { id: 11, diaryId: 5, content: [], updateTime: 7 },
+      { id: 12, diaryId: 5, content: [], updateTime: 8 },
+    ];
+    const vec = await (mainContentVecIndexQueue as any).collectTasks({}, {}, false);
+    const fts = await (mainContentFtsIndexQueue as any).collectTasks(
+      {},
+      { prepare: () => ({ get: () => undefined }) }
+    );
+    const expected = [
+      expect.objectContaining({ id: 11, type: "diary-moment", updateTime: 7 }),
+      expect.objectContaining({ id: 12, type: "diary-moment", updateTime: 8 }),
+    ];
+    expect(vec.filter((item: { type: string }) => item.type === "diary-moment")).toEqual(expected);
+    expect(fts.tasks.filter((item: { type: string }) => item.type === "diary-moment")).toEqual(
+      expected
+    );
   });
 
   it("视频笔记恢复扫描与重建会按批调用 yieldEvery", async () => {

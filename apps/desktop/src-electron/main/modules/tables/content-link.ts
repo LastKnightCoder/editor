@@ -20,7 +20,7 @@ const PICKER_KIND: Record<string, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
-  diary: "diary",
+  "diary-moment": "diary-moment",
 };
 
 interface EdgeRow {
@@ -46,7 +46,7 @@ export default class ContentLinkTable {
     } as const;
   }
 
-  /** 实体对应的全部正文（日记一天多条 segment 全算）；实体不存在为空 */
+  /** 实体对应的正文；日记精确到一条片段，实体不存在为空 */
   static contentIdsOfEntity(db: Database.Database, ref: EntityRef): number[] {
     const one = (sql: string) =>
       (db.prepare(sql).get(ref.id) as { content_id: number | null } | undefined)?.content_id;
@@ -61,18 +61,14 @@ export default class ContentLinkTable {
       case "project-item":
         ids = [one(`SELECT content_id FROM project_item WHERE id = ?`)];
         break;
-      case "diary":
-        ids = (
-          db
-            .prepare(`SELECT content_id FROM diary_segments WHERE diary_id = ? ORDER BY id`)
-            .all(ref.id) as Array<{ content_id: number | null }>
-        ).map(row => row.content_id);
+      case "diary-moment":
+        ids = [one(`SELECT content_id FROM diary_segments WHERE id = ?`)];
         break;
     }
     return ids.filter((id): id is number => typeof id === "number" && id > 0);
   }
 
-  /** 实体的代表正文（连接的落点）；日记取第一条 segment */
+  /** 实体的正文是连接的落点 */
   static canonicalContentIdOf(db: Database.Database, ref: EntityRef): number | null {
     return this.contentIdsOfEntity(db, ref)[0] ?? null;
   }

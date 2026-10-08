@@ -33,7 +33,7 @@ export const MAIN_CONTENT_INDEX_TYPES = [
   "card",
   "article",
   "project-item",
-  "diary-daily",
+  "diary-moment",
   ...MATERIAL_INDEX_TYPES,
 ] as const;
 export type MainContentIndexType = (typeof MAIN_CONTENT_INDEX_TYPES)[number];
@@ -635,13 +635,13 @@ class MainContentVecIndexQueue implements Module {
     }
     await yieldToEventLoop();
 
-    for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
+    for (const moment of DiaryTable.getAllDiarySegmentsFlat(mainDb)) {
       await handle({
-        id: entry.id,
-        type: "diary-daily",
-        content: getMarkdown(entry.content || []).trim(),
-        sections: splitSections(entry.content || [], DiaryTable.getDiarySearchTitle(entry)),
-        updateTime: Number(entry.updateTime || 0),
+        id: moment.id,
+        type: "diary-moment",
+        content: getMarkdown(moment.content || []).trim(),
+        sections: splitSections(moment.content || [], ""),
+        updateTime: Number(moment.updateTime || 0),
       });
     }
     await yieldToEventLoop();

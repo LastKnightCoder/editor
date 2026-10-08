@@ -36,7 +36,7 @@ const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
   card: "card",
   article: "article",
   "project-item": "project_item",
-  diary: "diary",
+  "diary-moment": "diary-moment",
 };
 
 const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = {
@@ -45,7 +45,7 @@ const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = 
   "project-item": "project_item",
 };
 
-/** 实体对应的正文；日记有多段，全部算作它的正文 */
+/** 一个正文实体对应的内容 id */
 function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
   return ContentLinkTable.contentIdsOfEntity(db, ref);
 }
@@ -53,14 +53,6 @@ function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
 function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
   const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
   if (!candidate) return null;
-  // 搜索标题是「YYYY-MM-DD 日记」；浮层行尾已有类型名，标题只留日期
-  if (ref.kind === "diary") {
-    return {
-      ref,
-      title: candidate.title.replace(/\s*日记$/, ""),
-      meta: candidate.meta ? `日记 · ${candidate.meta}` : "日记",
-    };
-  }
   return { ref, title: candidate.title, meta: candidate.meta };
 }
 
@@ -86,7 +78,7 @@ function withDiaryMoment(
   entity: ContextEntity,
   contentId: number | null
 ): ContextEntity {
-  if (entity.ref.kind !== "diary" || contentId == null) return entity;
+  if (entity.ref.kind !== "diary-moment" || contentId == null) return entity;
   const open = diaryMomentTarget(db, contentId);
   return open ? { ...entity, open } : entity;
 }
@@ -169,7 +161,7 @@ function backlinksOf(
     if (!source) continue;
     const locatedSource = withDiaryMoment(mainDb, source, group.contentId);
     if (locatedSource.open?.page === "diary") locatedSource.open.at = { block: group.block };
-    if (source.ref.kind !== "diary")
+    if (source.ref.kind !== "diary-moment")
       locatedSource.open = { page: "entity", ref: source.ref, at: { block: group.block } };
     backlinks.push({ source: locatedSource, snippets: group.snippets });
   }

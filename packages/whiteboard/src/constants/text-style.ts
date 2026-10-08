@@ -39,7 +39,6 @@ export const TEXT_COLORS = {
   line: "color-mix(in srgb, var(--tau-ink-1) 11%, transparent)",
 } as const;
 
-export const DEFAULT_CARD_STYLE: TextStyle = { variant: "plain" };
 export const DEFAULT_RICHTEXT_STYLE: TextStyle = { variant: "none" };
 
 export interface TextBoxPadding {
@@ -132,7 +131,7 @@ interface TextStyleSource {
 export function resolveTextStyle(element: TextStyleSource): TextStyle {
   if (element.variant) return { variant: element.variant, tone: element.tone };
 
-  const fallback = element.type === "card" ? DEFAULT_CARD_STYLE : DEFAULT_RICHTEXT_STYLE;
+  const fallback = DEFAULT_RICHTEXT_STYLE;
   const { background, topColor } = element;
 
   if (!isTransparent(topColor)) {

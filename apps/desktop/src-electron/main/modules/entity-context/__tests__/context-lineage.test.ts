@@ -270,7 +270,9 @@ describe("被使用", () => {
   it("白板：卡片元素、思维导图关联、文本块里的引用归到白板；孤儿页不显示", async () => {
     const cardContent = insertContent([p(text("重排"))]);
     const cardId = insertCard(cardContent);
-    const a = insertPage("第一页", [{ id: "c", type: "card", cardId }]);
+    const a = insertPage("第一页", [
+      { id: "c", type: "document", entityRef: { kind: "card", id: cardId } },
+    ]);
     insertBoard("前端图", [a]);
     const mindNote = insertContent([p(text("关联"))]);
     const b = insertPage("导图", [
@@ -287,7 +289,11 @@ describe("被使用", () => {
     mainDb
       .prepare(`UPDATE contents SET content = ? WHERE id = ?`)
       .run(JSON.stringify([p(link("card", cardId, "重排", cardContent))]), mindNote);
-    const orphan = insertPage("废弃", [{ id: "x", type: "card", cardId }], 0);
+    const orphan = insertPage(
+      "废弃",
+      [{ id: "x", type: "document", entityRef: { kind: "card", id: cardId } }],
+      0
+    );
     insertBoard("旧", [orphan]);
     await reindex();
 
@@ -296,7 +302,11 @@ describe("被使用", () => {
       ["whiteboard", "前端图", "白板"],
       ["whiteboard", "复习", "白板 · 导图"],
     ]);
-    expect(usages[0].open).toEqual({ page: "whiteboard-detail", id: expect.any(Number), pageId: a });
+    expect(usages[0].open).toEqual({
+      page: "whiteboard-detail",
+      id: expect.any(Number),
+      pageId: a,
+    });
     // 白板里的引用不进「被引用」
     expect(contextOf("card", cardId).backlinks).toEqual([]);
   });
@@ -304,10 +314,16 @@ describe("被使用", () => {
   it("白板：项目里的白板条目与文档里嵌入的白板块，归属是对应的实体", async () => {
     const cardContent = insertContent([p(text("重排"))]);
     const cardId = insertCard(cardContent);
-    const inProject = insertPage("项目页", [{ id: "c", type: "card", cardId }]);
+    const inProject = insertPage("项目页", [
+      { id: "c", type: "document", entityRef: { kind: "card", id: cardId } },
+    ]);
     const itemId = insertProjectItem("项目白板", null, inProject);
-    const embedded = insertPage("嵌入页", [{ id: "c", type: "card", cardId }]);
-    const host = insertContent([{ type: "whiteboard", whiteBoardContentId: embedded, children: [text("")] }]);
+    const embedded = insertPage("嵌入页", [
+      { id: "c", type: "document", entityRef: { kind: "card", id: cardId } },
+    ]);
+    const host = insertContent([
+      { type: "whiteboard", whiteBoardContentId: embedded, children: [text("")] },
+    ]);
     const hostItem = insertProjectItem("架构说明", host);
     await reindex();
 
