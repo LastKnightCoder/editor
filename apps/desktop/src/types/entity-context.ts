@@ -68,10 +68,21 @@ export interface ContextRelated {
   summary: string;
 }
 
+/** 「连接」分区的一条：显式连接或正文内联引用（合并去重） */
+export interface ContextLink {
+  entity: ContextEntity;
+  /** 只来自正文内联引用（不是显式连接），不可在这里解除 */
+  inlineOnly: boolean;
+  /** 连接落点的目标正文 id（内联引用的老节点可能缺失） */
+  contentId: number | null;
+}
+
 export interface EntityContext {
   self: ContextEntity;
-  /** 我在正文里引用了谁（不含自身与共用正文的身份）；最多 50 条 */
-  outlinks: ContextEntity[];
+  /** 自身（含共用正文身份）的正文 id，供连接选择器排除自己 */
+  selfContentIds: number[];
+  /** 连接：显式 content_links ∪ 我在正文里引用的实体，合并去重；最多 50 条 */
+  links: ContextLink[];
   /** 共用同一份正文的其他身份 */
   projections: ContextEntity[];
   /** 谁在正文里引用了我，按来源最近更新排序；最多 50 条 */

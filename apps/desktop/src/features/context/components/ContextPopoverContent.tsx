@@ -1,11 +1,10 @@
 /**
- * 脉络浮层内容，分区顺序（KL-023）：来源、调用方的前置分区（如卡片的「连接」）、引用了、
+ * 脉络浮层内容，分区顺序（KL-023）：来源、连接（显式 content_links ∪ 内联引用，含添加/解除）、
  * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、相关问题，
  * 末尾「相关」（KL-057，语义相近但还没有关系，不计入关联数）。
- * 只负责展示与点击回调，数据与开合由 ContextBadge 管理。
+ * 只负责展示与点击回调，数据与开合由 ContextBadge 管理；「连接」分区自带增删动作。
  */
 
-import type { ReactNode } from "react";
 import { CircleHelp, Link2 } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
@@ -22,20 +21,23 @@ import type {
 import { STATUS_META } from "@/features/questions/model";
 import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_ICON } from "../model";
 import { ContextRow as Row, ContextSection as Section } from "./ContextList";
+import { ContextLinksSection } from "./ContextLinks";
 
 interface ContextPopoverContentProps {
   context: EntityContext | null;
-  /** 排在最前的分区，由调用方提供 */
-  leading?: ReactNode;
-  /** 不显示「引用了」（卡片的「连接」分区已包含出链） */
-  hideOutlinks?: boolean;
+  /** 自身实体地址与正文（连接分区的动作落点与排除项） */
+  self: EntityRef;
   onOpenEntity: (ref: EntityRef) => void;
   onOpenQuestion: (questionId: number) => void;
   onOpenTarget: (target: ContextOpenTarget) => void;
   /** 「相关」分区；未取到时不显示 */
   related?: ContextRelated[];
-  /** 给「相关」里的卡片添加连接（只有卡片之间可连，KL-018）；缺省不显示动作 */
+  /** 给「相关」里的内容行添加连接；缺省不显示动作 */
   onConnect?: (ref: EntityRef) => void;
+  /** 关闭浮层（连接分区导航时使用） */
+  close: () => void;
+  /** 连接选择器弹窗开合上报（宿主浮层据此锁定，防外点误关） */
+  onDialogOpenChange?(open: boolean): void;
 }
 
 const STATUS_TONE: Record<ContextQuestion["status"], string> = {
@@ -133,8 +135,8 @@ function Snippet({ snippet }: { snippet: InlineRefSnippet }) {
   );
 }
 
-const EMPTY: Omit<EntityContext, "self"> = {
-  outlinks: [],
+const EMPTY: Omit<EntityContext, "self" | "selfContentIds"> = {
+  links: [],
   backlinks: [],
   backlinkTotal: 0,
   projections: [],
@@ -147,16 +149,18 @@ const EMPTY: Omit<EntityContext, "self"> = {
 
 export function ContextPopoverContent({
   context,
-  leading,
-  hideOutlinks = false,
+  self,
   onOpenEntity,
   onOpenQuestion,
   onOpenTarget,
   related = [],
   onConnect,
+  close,
+  onDialogOpenChange,
 }: ContextPopoverContentProps) {
   const {
-    outlinks,
+    selfContentIds,
+    links,
     backlinks,
     backlinkTotal,
     projections,
@@ -165,7 +169,7 @@ export function ContextPopoverContent({
     derived,
     notebookProjections,
     usages,
-  } = context ?? EMPTY;
+  } = context ?? { ...EMPTY, selfContentIds: [] };
   const hidden = backlinkTotal - backlinks.length;
   const openEntityRow = (entity: ContextEntity) =>
     entity.open ? onOpenTarget(entity.open) : onOpenEntity(entity.ref);
@@ -176,19 +180,14 @@ export function ContextPopoverContent({
           <LineageRows items={sources} onOpenTarget={onOpenTarget} />
         </Section>
       )}
-      {leading}
-      {!hideOutlinks && outlinks.length > 0 && (
-        <Section title="引用了">
-          {outlinks.map(entity => (
-            <Row
-              key={`${entity.ref.kind}:${entity.ref.id}`}
-              onClick={() => openEntityRow(entity)}
-            >
-              <SourceLine entity={entity} />
-            </Row>
-          ))}
-        </Section>
-      )}
+      <ContextLinksSection
+        self={self}
+        links={links}
+        selfContentIds={selfContentIds}
+        onOpenEntity={onOpenEntity}
+        close={close}
+        onDialogOpenChange={onDialogOpenChange}
+      />
       {backlinks.length > 0 && (
         <Section title="被引用">
           {backlinks.map(({ source, snippets }) => (
@@ -207,10 +206,7 @@ export function ContextPopoverContent({
       {projections.length + notebookProjections.length > 0 && (
         <Section title="也出现在">
           {projections.map(entity => (
-            <Row
-              key={`${entity.ref.kind}:${entity.ref.id}`}
-              onClick={() => openEntityRow(entity)}
-            >
+            <Row key={`${entity.ref.kind}:${entity.ref.id}`} onClick={() => openEntityRow(entity)}>
               <SourceLine entity={entity} />
             </Row>
           ))}
@@ -253,7 +249,7 @@ export function ContextPopoverContent({
               key={`${entity.ref.kind}:${entity.ref.id}`}
               onClick={() => openEntityRow(entity)}
               action={
-                onConnect && entity.ref.kind === "card" ? (
+                onConnect ? (
                   <button
                     type="button"
                     title="添加连接"

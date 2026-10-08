@@ -12,7 +12,7 @@ function card(id: number, patch: Partial<ICard> = {}): ICard {
     create_time: id * 1000,
     update_time: id * 1000,
     tags: [],
-    links: [],
+    linkCount: 0,
     content: [],
     count: 0,
     contentId: id,
@@ -23,10 +23,10 @@ function card(id: number, patch: Partial<ICard> = {}): ICard {
 
 describe("sortCardList", () => {
   const cards = [
-    card(1, { count: 300, links: [2, 3], update_time: 9000 }),
-    card(2, { count: 100, links: [], update_time: 8000 }),
-    card(3, { count: 300, links: [1], update_time: 7000 }),
-    card(4, { count: 50, links: [1, 2, 3], isTop: true }),
+    card(1, { count: 300, linkCount: 2, update_time: 9000 }),
+    card(2, { count: 100, linkCount: 0, update_time: 8000 }),
+    card(3, { count: 300, linkCount: 1, update_time: 7000 }),
+    card(4, { count: 50, linkCount: 3, isTop: true }),
   ];
   const ids = (list: ICard[]) => list.map(item => item.id);
 

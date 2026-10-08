@@ -1,5 +1,5 @@
 /**
- * 白板卡片元素升级为文档卡（D-121）：`{ type: "card", cardId }` → `{ type: "document", entityRef: { kind: "card", id } }`。
+ * 白板卡片元素升级为文档卡（D-122）：`{ type: "card", cardId }` → `{ type: "document", entityRef: { kind: "card", id } }`。
  * 开库时按实际数据判定（旧端写回会再转换），不改 update_time，单事务，失败抛错不放行（D-091 口径）。
  * 旧卡片的外观字段（variant / tone / 旧色值）随之丢弃：文档卡纸面统一 surface。
  * 全部设备升级后随下一次清洁版删除。

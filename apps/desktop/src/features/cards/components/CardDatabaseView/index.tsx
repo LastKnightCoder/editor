@@ -1,6 +1,7 @@
 import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
 import { memo, useMemo, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
+import { toast } from "@tau/ui";
 import {
   DatabaseRef,
   ColumnDef,
@@ -16,10 +17,16 @@ import { useCardDatabasePreferences } from "../../databasePreferences";
 import { ICard, DataTableView } from "@/types";
 import { toDatabaseView } from "@/features/shared/database/viewAdapter";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
+import type { CardLinksCellValue, LinkCellItem } from "./plugins/CardLinksPlugin/types";
 import { DateValue } from "@tau/database";
 import useTheme from "@/hooks/useTheme";
 import type { CardMetadataPatch } from "@/types/card";
 import { cardTitle } from "@/utils/card-title";
+import { useContentLinksByContentIds } from "@/features/context/queries";
+import { extractInlineRefs } from "@/entity/inline-refs";
+import { entityRefKey, type EntityRef } from "@/entity/ref";
+import { ENTITY_KIND_META } from "@/features/context/model";
+import { openEntity } from "@/services/open-content";
 
 interface CardDatabaseViewProps {
   databaseName: string;
@@ -105,17 +112,21 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       },
       {
         id: "links",
-        title: "链接",
+        title: "连接",
         type: "card-links",
         width: columnWidths["links"] || 250,
         config: {
-          allCards: cards,
-          currentCardId: 0, // 会在行数据中动态设置
-          onClickLink: (cardId: number) => {
-            const card = cards.find(c => c.id === cardId);
-            if (card) {
-              onCardClick(card);
+          onClickLink: (ref: EntityRef) => {
+            if (ref.kind === "card") {
+              const card = cards.find(c => c.id === ref.id);
+              if (card) {
+                onCardClick(card);
+                return;
+              }
             }
+            openEntity(ref).catch(error =>
+              toast.error(error instanceof Error ? error.message : "无法打开内容")
+            );
           },
         },
       },
@@ -136,13 +147,49 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     ];
   }, [allTags, cards, onCardClick, columnWidths]);
 
+  /* 连接列的行值：显式 content_links（标题已解析）∪ 正文内联引用（只读） */
+  const linksQuery = useContentLinksByContentIds(cards.map(card => card.contentId));
+  const linksByContent = useMemo(() => {
+    const map = new Map<number, LinkCellItem[]>();
+    for (const group of linksQuery.data ?? [])
+      map.set(
+        group.contentId,
+        group.targets.map(target => ({
+          ref: target.ref,
+          title: target.title,
+          inlineOnly: false,
+          contentId: target.contentId,
+        }))
+      );
+    return map;
+  }, [linksQuery.data]);
+
   const rows = useMemo((): RowData[] => {
     return cards.map(card => {
+      const explicit = linksByContent.get(card.contentId) ?? [];
+      const seen = new Set(explicit.map(item => entityRefKey(item.ref)));
+      const inline: LinkCellItem[] = [];
+      for (const { dst, snippet, dstContentId } of extractInlineRefs(card.content)) {
+        const key = entityRefKey(dst);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        inline.push({
+          ref: dst,
+          title: snippet.label || `${ENTITY_KIND_META[dst.kind].label} #${dst.id}`,
+          inlineOnly: true,
+          contentId: dstContentId ?? null,
+        });
+      }
+      const links: CardLinksCellValue = {
+        self: { kind: "card", id: card.id },
+        selfContentId: card.contentId,
+        items: [...explicit, ...inline],
+      };
       const row: RowData = {
         id: String(card.id),
         title: getCardText(card),
         tags: card.tags,
-        links: card.links,
+        links,
         create_time: {
           start: card.create_time,
           end: card.create_time,
@@ -154,7 +201,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       };
       return row;
     });
-  }, [cards, getCardText]);
+  }, [cards, getCardText, linksByContent]);
 
   const currentView = useMemo(() => {
     return views.find(v => v.id === activeViewId);
@@ -309,7 +356,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
         patch.tags = Array.isArray(row.tags)
           ? (row.tags as string[]).map(id => tagNames.get(id) ?? id)
           : [];
-      if ("links" in row) patch.links = Array.isArray(row.links) ? (row.links as number[]) : [];
       if (!Object.keys(patch).length) continue;
       try {
         await onUpdateCard(id, patch);

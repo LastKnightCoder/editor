@@ -1,16 +1,16 @@
 # 决策记录（轻量 ADR）
 
-## D-122 日记正文身份统一为碎碎念，界面标签仍叫日记
+## D-123 日记正文身份统一为碎碎念，界面标签仍叫日记
 
 （2026-10-08，用户确认：日期容器不是正文实体，搜索、选择、关联与定位均落到某一条正文；界面 label 保持「日记」）
 
 - `diary-moment` 的 id 是 `diary_segments.id`，contentId 指该条正文；diaryId、日期、天气与心情只是归属信息。EntityKind 与 EntityRefKind 均使用此身份，不再声明日级 `diary` 正文实体，也不新增 SearchableEntityKind 排除类型。`diary` 页面 key、日记容器 CRUD 与按天展示不变。
 - 实体检索、全文回退、FTS 与向量索引均逐条检索；命中节的块位置相对该条正文。类型筛选不使用固定 BM25 阈值，避免短正文的合法命中被过滤。日记页筛选使用片段 id，语义召回不再保留同日其他条目。
-- 白板文档卡直接存 `{ kind: "diary-moment", id: segmentId }`，不再存日级 entityRef + 额外 segmentId；打开经统一正文入口携带 date、moment 与块定位参数。推翻 D-121 追记中的日级引用方案。
+- 白板文档卡直接存 `{ kind: "diary-moment", id: segmentId }`，不再存日级 entityRef + 额外 segmentId；打开经统一正文入口携带 date、moment 与块定位参数。推翻 D-122 追记中的日级引用方案。
 - 开库单事务转换存量内容链接、白板文档卡、待办、闪卡与 Notebook 引用，不改正文编辑时间或引用计数；内容链接有 contentId 时精确反查，无 contentId 的旧链接沿用原先首段关联语义。原来指向整天的谱系关系展开为该日期容器的片段关系。不存在的目标保留原始数据，不猜测新目标。转换失败回滚、不放行；缓存 Yjs 会话打开时以属性增量转换，避免旧快照覆盖新身份。全部设备升级后删除转换代码。
 - 索引库清除旧 diary-daily 全文、向量与节索引并标记重建，保留其他类型的索引；内联引用与白板引用解析版本分别升到 5、3。CLI 共用桌面索引类型与片段详情；移动端独立索引协议不在本次桌面改动范围。
 
-## D-121 白板文档卡：卡片 / 文章 / 项目文档以文档形态放进白板，展开编辑（居中 + 可停靠）
+## D-122 白板文档卡：卡片 / 文章 / 项目文档以文档形态放进白板，展开编辑（居中 + 可停靠）
 
 （2026-10-08，用户确认 `apps/desktop/mockups/whiteboard-doc-cards/` 方案 C「居中展开 + 可停靠」，否决 A 只全屏 / B 只右侧面板；并要求卡片同样做成文档形态、与富文本区分）
 
@@ -20,7 +20,19 @@
 - 宿主边界：`@tau/whiteboard` 新增 `slots.CanvasLayer`（画布容器内、铺满画布区域的宿主层）与 `CANVAS_OVERLAY_ATTR`——带该属性的子树里的按键、剪贴板、指针、滚轮一律不归画布（否则在阅读纸里复制会被画布选区覆盖、滚动会缩放画布）。浮层不靠 stopPropagation 截断，以免饿死 document 上的 Esc 仲裁与编辑器弹层的外部点击。
 - 数据：原 `card` 元素（`cardId`，就地编辑且正文从未写回卡片）退役。开库时按数据判定把 `{ type: "card", cardId }` 改写为 `{ type: "document", entityRef: { kind: "card", id } }`（`whiteboard-document-upgrade.ts`；不改 update_time、单事务、失败不放行，D-091 口径；残留 contentId 释放引用），全部设备升级后随清洁版删除。白板引用解析去掉 `card` 分支，统一走 entityRef，`WHITEBOARD_REF_VERSION` 1→2。推翻 D-119「不改变数据格式」中关于卡片元素的部分；旧剪贴板里的卡片元素不再识别。
 - 不做：阅读纸内改标题 / 标签、按白板记忆摆放方式、插入时排除已在画布上的文档（多类实体 id 会撞）。
-- 追记（同日，用户要求日记也能放进白板，且选择某一条碎碎念）：日记文档卡 = **一条碎碎念**，实体身份与索引遵循 D-122，类型 label 仍为「日记」。白板选择器使用 EntityPicker，提供卡片 / 文章 / 项目文档 / 日记。纸面同卡片（无标题、版宽 460、居中纸高度随内容），头部是日期、时间与当天天气心情，后接段级标签。编辑经 ContentEditor（会话源 `content`，编辑上下文为片段 id），并像日记页一样节流调用 `updateDiarySegment` 同步字数与时间；主进程 `diary:changed` 只广播其他窗口，同窗口的日记缓存由阅读纸主动失效。「在日记页打开」定位到那一条。
+- 追记（同日，用户要求日记也能放进白板，且选择某一条碎碎念）：日记文档卡 = **一条碎碎念**，实体身份与索引遵循 D-123，类型 label 仍为「日记」。白板选择器使用 EntityPicker，提供卡片 / 文章 / 项目文档 / 日记。纸面同卡片（无标题、版宽 460、居中纸高度随内容），头部是日期、时间与当天天气心情，后接段级标签。编辑经 ContentEditor（会话源 `content`，编辑上下文为片段 id），并像日记页一样节流调用 `updateDiarySegment` 同步字数与时间；主进程 `diary:changed` 只广播其他窗口，同窗口的日记缓存由阅读纸主动失效。「在日记页打开」定位到那一条。
+
+## D-121 显式连接绑定 contentId：cards.links 迁至 content_links，文章与项目文档接入
+
+（2026-10-08，用户确认方案后实施；KL-018 卡片连接的存储泛化）
+
+- 动机：文章 / 项目文档此前只有派生关联（脉络的被引用 / 投影 / 谱系），没有用户亲手建立的显式连接；且「从卡片创建项目文档（refType='card' 共用正文）」带不走卡片的连接——cards.links 绑在卡片行上。
+- 存储：新主库表 `content_links`（无向边、一行一条、`content_id` 规范化为较小一侧、成对唯一索引）。连接绑定 `contents.id`：共用同一份正文的身份（卡片、文章、项目文档、日记及其投影）共享同一组连接，「从卡片创建项目文档连接带过去」由此免费实现；复制创建（新建正文）不带连接；同一正文的不同身份之间按 contentId 过滤自连。
+- 写入统一为单事务单行（database.ts 通用包装层 / 移动端单事务差量），取代旧 cards.links 的两次补丁双边写（顺带修复 CardDetailView 双边非原子与 CardDatabaseView 列编辑只写单边两个存量缺陷）。正文删除（引用计数归零）经 `ContentTable.releaseContent` 释放两侧边。
+- 迁移（一次性、幂等）：桌面 `ContentLinkTable.migrateCardsLinks`（maintenance 开库，护栏 = cards.links 全空即不再命中）；移动端 `MAIN_SCHEMA_VERSION` 5→6 的 `migrate_v5_to_v6`（v4 库链式先升 v5）。cards.links 与 articles.links 列物理保留不再读写，ICard.links 退役为 `linkCount`（轻表按正文计数子查询）。同步信封 `SYNC_MODEL_VERSION` 3→4（`packages/db-schema/src/sync-version.ts` 与移动端镜像），旧端互拒新旧快照，防止读写旧列造成分叉。
+- UI：脉络浮层内建「连接」分区（getEntityContext 的 `links` 载荷 = content_links 边 ∪ 正文内联引用，去重、显式在前），卡片 / 文章 / 项目文档 / 日记详情通用；ContextBadge 的 leading / hideOutlinks / onConnect 插槽机制随之退役（连接动作收口在脉络域）。添加走 ContentSelectorModal（四种内容实体互连，按 contentId 排除自身与已连）；「相关」分区的添加连接动作从仅卡片放开到四种实体。
+- 消费端全部切换：知识地图显式边（knowledge-map collectLinks）、脉络「相关」排除（context-related）、发布站点相关卡片、主题洞见连接（knowledge-insights:link-cards / pattern-card 写成卡片）、卡片库表格连接列（行值改「显式目标 ∪ 内联引用」结构，标题由主进程解析）与列表连接数徽标（linkCount）。移动端卡片连接 UI 形状不变（仍为卡片 id 列表），数据源与写入切到边表；没有卡片投影的邻居（文章 / 项目文档连接）移动端暂不展示、整表保存不误删，桌面脉络可见。
+- 口径备注：连接增删不再写 operation 行、不 bump 卡片 update_time（连接不是正文编辑，不进最近编辑与活动统计）；正文删除（引用归零）两端同事务释放两侧边；卡片轻表 linkCount 按正文双向计数（content_id 任一侧命中都算）。
 
 ## D-120 文档待办：正文是唯一真相源，待办页是镜像
 

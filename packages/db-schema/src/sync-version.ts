@@ -1,7 +1,7 @@
 import { assertCompatibleDataModel } from "./model-version";
 
 /** 同步信封版本；数据库内部的 schema 版本不变。旧端会在下载前拒绝新快照。 */
-export const SYNC_MODEL_VERSION = 3;
+export const SYNC_MODEL_VERSION = 4;
 
 export function assertCompatibleSync(info: {
   dataModelVersion?: unknown;

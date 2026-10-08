@@ -37,15 +37,21 @@ const content = (nodes: unknown[] = [p(text("正文"))], count = 2, updateTime =
       )
       .run(updateTime, updateTime, JSON.stringify(nodes), count).lastInsertRowid
   );
-const card = (contentId: number, tags: string[] = [], links: number[] = [], updateTime = clock) =>
+const card = (contentId: number, tags: string[] = [], updateTime = clock) =>
   Number(
     mainDb
       .prepare(
-        `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, ?, '[]', ?)`
       )
-      .run(updateTime, updateTime, JSON.stringify(tags), JSON.stringify(links), contentId)
-      .lastInsertRowid
+      .run(updateTime, updateTime, JSON.stringify(tags), contentId).lastInsertRowid
   );
+/** 两份正文之间建显式连接（content_links 无向边） */
+const linkContents = (a: number, b: number) =>
+  mainDb
+    .prepare(
+      `INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?, ?, ?)`
+    )
+    .run(Math.min(a, b), Math.max(a, b), clock++);
 const article = (contentId: number, tags: string[] = [], isDelete = 0) =>
   Number(
     mainDb
@@ -205,9 +211,9 @@ describe("KnowledgeMapTable.listEntities：节点范围与命名", () => {
   it("driftCount 数重算之后增量放置的与编辑过的节点（含只改了正文的），按键去重", () => {
     const computedAt = 10_000;
     KnowledgeMapTable.save(indexDb, { ...sample, computedAt }, "fp");
-    card(content(undefined, 2, computedAt - 500), [], [], computedAt - 500); // 都没动
-    card(content(undefined, 2, computedAt + 10), [], [], computedAt - 500); // 只改了正文
-    const fresh = card(content(undefined, 2, computedAt + 20), [], [], computedAt + 20); // 新建且已放置
+    card(content(undefined, 2, computedAt - 500), [], computedAt - 500); // 都没动
+    card(content(undefined, 2, computedAt + 10), [], computedAt - 500); // 只改了正文
+    const fresh = card(content(undefined, 2, computedAt + 20), [], computedAt + 20); // 新建且已放置
     KnowledgeMapTable.upsertNode(indexDb, {
       key: `card:${fresh}`,
       x: 0,
@@ -221,11 +227,13 @@ describe("KnowledgeMapTable.listEntities：节点范围与命名", () => {
 });
 
 describe("KnowledgeMapTable.readInputs", () => {
-  it("显式链接与跨类型的内联引用都成为边；下标按键排序，坏 JSON 不抛错", () => {
+  it("显式连接与跨类型的内联引用都成为边；下标按键排序，坏 JSON 不抛错", () => {
     const targetContent = content();
     const target = card(targetContent, ["甲"]);
-    const other = card(content(), [], []);
-    const linking = card(content(), ["乙"], [target, 999]);
+    const other = card(content(), []);
+    const linkingContent = content();
+    const linking = card(linkingContent, ["乙"]);
+    linkContents(linkingContent, targetContent);
     const articleContent = content([p(link("card", target, targetContent))]);
     const articleId = article(articleContent);
     const pid = project("项目");

@@ -82,7 +82,7 @@ it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛�
     })) as ICard["content"],
     count: 0,
     tags: [],
-    links: [],
+    linkCount: 0,
     isTop,
     create_time: Date.now(),
     update_time: 0,

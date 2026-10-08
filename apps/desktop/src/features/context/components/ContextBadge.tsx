@@ -1,10 +1,10 @@
 /**
  * 脉络入口：元信息行里的「N 处关联」，点开浮层（KL-015）。没有任何关联时不渲染。
- * 调用方可经 leading 在浮层最前加入自己域的分区（如卡片的「连接」，KL-018），其数量计入总数。
- * 浮层打开时才取「相关」（KL-057，不计入总数）；传 onConnect 时卡片行可直接添加连接。
+ * 浮层内建「连接」分区（显式连接 ∪ 内联引用，四种内容实体通用）；「相关」里的内容行
+ * 可直接添加连接（KL-057，连接动作在脉络域内完成，调用方无需注入）。
  */
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Waypoints } from "lucide-react";
 import { Popover, cn, toast } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
@@ -12,36 +12,22 @@ import { openPage } from "@/services/page-navigation";
 import type { ContextOpenTarget } from "@/types/entity-context";
 import { contextCount } from "../model";
 import { openContextTarget } from "../open";
-import { useEntityContext, useEntityRelated } from "../queries";
+import { useAddContentLink, useEntityContext, useEntityRelated } from "../queries";
 import { ContextPopoverContent } from "./ContextPopoverContent";
-
-export interface ContextLeading {
-  count: number;
-  /** close：分区内的导航操作先关闭浮层 */
-  render: (close: () => void) => ReactNode;
-}
 
 interface ContextBadgeProps {
   entity: EntityRef | null;
-  leading?: ContextLeading;
-  /** 不显示也不计入「引用了」：调用方的前置分区已包含出链（卡片的「连接」） */
-  hideOutlinks?: boolean;
-  /** 与「相关」里的卡片建立连接；成功后该条从「相关」移除 */
-  onConnect?: (ref: EntityRef) => Promise<void>;
   className?: string;
 }
 
-export function ContextBadge({
-  entity,
-  leading,
-  hideOutlinks,
-  onConnect,
-  className,
-}: ContextBadgeProps) {
+export function ContextBadge({ entity, className }: ContextBadgeProps) {
   const { data: context } = useEntityContext(entity);
   const [open, setOpen] = useState(false);
   const relatedQuery = useEntityRelated(entity, open);
-  const count = contextCount(context, { hideOutlinks }) + (leading?.count ?? 0);
+  const addLink = useAddContentLink();
+  /** 连接选择器弹窗期间锁定浮层：弹窗挂在 body，点击它会被判为浮层外点而误关 */
+  const [linksDialogOpen, setLinksDialogOpen] = useState(false);
+  const count = contextCount(context);
   if (count === 0) return null;
   const close = () => setOpen(false);
 
@@ -52,13 +38,16 @@ export function ContextBadge({
     );
   };
   const openRef = (ref: EntityRef) => openTarget({ page: "entity", ref });
-  const connect = onConnect
-    ? (ref: EntityRef) => {
-        onConnect(ref)
-          .then(() => relatedQuery.refetch())
-          .catch(error => toast.error(error instanceof Error ? error.message : "添加连接失败"));
+  const connect = (ref: EntityRef) => {
+    if (!entity) return;
+    addLink.mutate(
+      { from: entity, to: ref },
+      {
+        onSuccess: () => void relatedQuery.refetch(),
+        onError: error => toast.error(error instanceof Error ? error.message : "添加连接失败"),
       }
-    : undefined;
+    );
+  };
   const openQuestion = (questionId: number) => {
     close();
     openPage("questions", { selectedId: questionId });
@@ -68,6 +57,7 @@ export function ContextBadge({
     <Popover
       open={open}
       onOpenChange={setOpen}
+      locked={linksDialogOpen}
       placement="bottom-end"
       arrow={false}
       className="w-[380px]"
@@ -87,16 +77,19 @@ export function ContextBadge({
       }
     >
       <div className="max-h-[460px] overflow-y-auto">
-        <ContextPopoverContent
-          context={context ?? null}
-          leading={leading && leading.count > 0 ? leading.render(close) : undefined}
-          hideOutlinks={hideOutlinks}
-          onOpenEntity={openRef}
-          onOpenQuestion={openQuestion}
-          onOpenTarget={openTarget}
-          related={relatedQuery.data}
-          onConnect={connect}
-        />
+        {entity && (
+          <ContextPopoverContent
+            context={context ?? null}
+            self={entity}
+            onOpenEntity={openRef}
+            onOpenQuestion={openQuestion}
+            onOpenTarget={openTarget}
+            related={relatedQuery.data}
+            onConnect={connect}
+            close={close}
+            onDialogOpenChange={setLinksDialogOpen}
+          />
+        )}
       </div>
     </Popover>
   );

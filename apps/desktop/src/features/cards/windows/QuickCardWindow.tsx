@@ -90,7 +90,6 @@ export default function QuickCardWindow() {
             await createRef.current({
               content: DEFAULT_CARD_CONTENT,
               tags: [],
-              links: [],
               count: 0,
               isTop: false,
             })
