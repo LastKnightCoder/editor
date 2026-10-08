@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<title>公式构造器 v2 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5; --surface-hover:#f3f8f3;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df; --line-2:#e8f0e8;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --warn:#a07d3c; --warn-soft:#f6efdc;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-lift:0 2px 4px rgba(60,90,70,.07),0 16px 32px -14px rgba(60,90,70,.28);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a; --surface-hover:#252d28;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d; --line-2:#242c27;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --warn:#d8b26a; --warn-soft:#332a18;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3; --surface-hover:#f8f3ea;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2; --line-2:#f0e9dc;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --warn:#9a6f2e; --warn-soft:#f7eeda;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-lift:0 2px 4px rgba(120,100,70,.06),0 16px 32px -14px rgba(120,100,70,.26);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31; --surface-hover:#362f26;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227; --line-2:#322b21;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --warn:#d9b06a; --warn-soft:#322713;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 200px; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  input { font:inherit; color:inherit; }
+  code { font:12.5px ui-monospace,Menlo,monospace; background:var(--hover); padding:1px 5px; border-radius:4px; }
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switches { display:flex; gap:10px; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  section { margin-top:56px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:96ch; margin:6px 0 20px; }
+  .desc b, .notes b { color:var(--ink-1); font-weight:600; }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:96ch; }
+  .notes li { margin:6px 0; }
+
+  /* ── 弹窗外壳 ── */
+  .dlg { width:820px; max-width:100%; background:var(--surface); border-radius:14px; box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); }
+  .dlg-h { display:flex; align-items:center; gap:10px; padding:16px 20px 4px; font-weight:600; }
+  .dlg-b { padding:12px 20px 4px; display:flex; flex-direction:column; gap:14px; }
+  .dlg-f { display:flex; justify-content:flex-end; gap:8px; padding:14px 20px 16px; }
+  .btn { height:30px; padding:0 14px; border-radius:8px; font-size:13px; }
+  .btn.pri { background:var(--accent); color:var(--ink-inv); }
+  .btn.sec { box-shadow:inset 0 0 0 1px var(--line-1); }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field > span { font-size:12.5px; font-weight:500; color:var(--ink-2); }
+  .text-in { height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--line-1); background:var(--surface); outline:none; }
+  .text-in:focus { border-color:var(--accent); }
+  .row2 { display:grid; grid-template-columns:1fr 180px; gap:12px; }
+
+  /* ── 构造器 ── */
+  .fb { display:grid; grid-template-columns:minmax(0,1fr) 260px; border:1px solid var(--line-1); border-radius:12px; overflow:hidden; min-height:300px; }
+  .fb-main { padding:16px 18px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .fb-side { border-left:1px solid var(--line-1); background:var(--surface-hover); padding:14px 16px; display:flex; flex-direction:column; gap:10px; min-width:0; }
+  .fb-hd { display:flex; align-items:center; gap:8px; font-size:13px; }
+  .fb-hd b { font-weight:600; }
+  .link { color:var(--ink-3); font-size:12.5px; }
+  .link:hover { color:var(--ink-1); }
+  .muted { color:var(--ink-3); font-size:12.5px; }
+  .side-t { font-size:11.5px; font-weight:600; color:var(--ink-3); letter-spacing:.03em; }
+
+  /* 意图卡 */
+  .intents { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .intent { text-align:left; padding:14px; border-radius:10px; box-shadow:inset 0 0 0 1px var(--line-1); display:flex; flex-direction:column; gap:6px; transition:box-shadow .15s, background .15s; }
+  .intent:hover { box-shadow:inset 0 0 0 1.5px var(--accent); background:var(--accent-soft); }
+  .intent .ic { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; background:var(--hover); color:var(--accent-text); font-weight:700; }
+  .intent b { font-size:13.5px; }
+  .intent span { font-size:12px; color:var(--ink-2); line-height:1.6; }
+  .intent i { font-style:normal; font-size:12px; color:var(--ink-3); }
+
+  /* 控件：都是完整文字，不截断 */
+  .line { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .kw { font-size:13px; color:var(--ink-2); min-width:58px; }
+  .pk { height:32px; padding:0 8px 0 10px; border-radius:8px; border:1px solid var(--line-1); background:var(--surface); display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  .pk:hover { border-color:var(--accent); }
+  .pk .cv { color:var(--ink-3); font-size:10px; }
+  .pk.op { min-width:44px; justify-content:center; font-weight:600; padding:0 8px; }
+  .pk.empty { color:var(--ink-3); border-style:dashed; }
+  .vbox { height:32px; display:inline-flex; align-items:center; border-radius:8px; border:1px solid var(--line-1); background:var(--surface); padding-left:4px; }
+  .vbox:focus-within { border-color:var(--accent); }
+  .vbox input { border:0; outline:none; background:none; height:30px; width:120px; padding:0 6px; }
+  .vbox input[type=number] { width:90px; font-variant-numeric:tabular-nums; }
+  .vbox .tok { display:inline-flex; align-items:center; gap:4px; height:24px; padding:0 4px 0 8px; margin:0 2px; border-radius:6px; background:var(--accent-soft); color:var(--accent-text); white-space:nowrap; }
+  .vbox .tok button { width:16px; height:16px; border-radius:4px; display:grid; place-items:center; font-size:12px; opacity:.7; }
+  .vbox .tok button:hover { opacity:1; background:var(--hover); }
+  .vbox .dd { height:30px; padding:0 8px; color:var(--ink-3); font-size:12px; border-left:1px solid var(--line-1); }
+  .vbox .dd:hover { color:var(--ink-1); }
+  .del { width:24px; height:24px; border-radius:6px; color:var(--ink-3); display:grid; place-items:center; font-size:15px; }
+  .del:hover { background:var(--hover); color:var(--ink-1); }
+  .add { height:28px; padding:0 10px; border-radius:8px; color:var(--ink-2); font-size:12.5px; align-self:flex-start; }
+  .add:hover { background:var(--hover); color:var(--ink-1); }
+  .term { display:inline-flex; align-items:center; gap:6px; }
+
+  .case { border:1px solid var(--line-1); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+  .case-h { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-3); }
+  .case-h .del { margin-left:auto; }
+  .cond { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .join { height:24px; padding:0 8px; border-radius:6px; font-size:12px; color:var(--accent-text); background:var(--accent-soft); min-width:58px; }
+  .else { display:flex; align-items:center; gap:6px; padding:2px 13px; }
+
+  /* 嵌套：原地展开的小表单，层与层交替底色 */
+  .nest { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; padding:4px 4px 4px 8px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface-hover); }
+  .nest .nest { background:var(--surface); }
+  .nest.block { display:flex; flex-direction:column; align-items:stretch; flex-basis:100%; padding:8px 10px; gap:8px; }
+  .nest-t { font-size:11.5px; color:var(--ink-3); margin-right:2px; }
+  .mini { height:24px; padding:0 8px; border-radius:6px; color:var(--ink-2); font-size:12px; }
+  .mini:hover { background:var(--hover); color:var(--ink-1); }
+  .readback { font-size:12.5px; color:var(--ink-2); line-height:1.8; padding:8px 12px; border-radius:8px; background:var(--surface-hover); }
+  .readback b { color:var(--ink-1); font-weight:600; }
+  .err { font-size:12.5px; color:var(--danger); }
+
+  .pv { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .pv th { text-align:left; font-weight:500; color:var(--ink-3); padding:4px 4px 6px; border-bottom:1px solid var(--line-1); white-space:nowrap; }
+  .pv td { padding:5px 4px; border-bottom:1px dashed var(--line-1); white-space:nowrap; max-width:90px; overflow:hidden; text-overflow:ellipsis; }
+  .pv tr:last-child td { border-bottom:0; }
+  .pv td.r { font-weight:600; color:var(--ink-1); }
+  .pv td.n, .pv th.n { text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* 下拉：不设高度上限，平铺不嵌套 */
+  .pop { position:absolute; z-index:60; min-width:180px; padding:5px; border-radius:11px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); font-size:13px; display:none; }
+  .pop.on { display:block; }
+  .pop .it { display:flex; align-items:center; gap:9px; width:100%; height:30px; padding:0 10px; border-radius:7px; text-align:left; white-space:nowrap; }
+  .pop .it:hover { background:var(--hover); }
+  .pop .it .ty { margin-left:auto; padding-left:16px; font-size:11.5px; color:var(--ink-3); }
+  .pop .it.on { color:var(--accent-text); }
+  .pop .hd { font-size:11.5px; color:var(--ink-3); padding:5px 10px 3px; }
+  .pop .it.dis { color:var(--ink-3); cursor:default; font-size:12px; }
+  .pop .it.dis:hover { background:none; }
+  .pop .sep { height:1px; background:var(--line-1); margin:4px 6px; }
+
+  .cmp { display:grid; grid-template-columns:1fr 1fr; gap:20px; max-width:1000px; }
+  .cmp .card { background:var(--surface); border-radius:12px; box-shadow:var(--shadow-card); padding:14px 16px; font-size:13px; color:var(--ink-2); }
+  .cmp .card b { color:var(--ink-1); }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>公式构造器 v2 · 从「想算什么」开始</h1>
+    <p>v1 让用户在空位里拼表达式树，先算哪个、后算哪个都看不出来，本质上还是在写表达式。v2 先问意图，再给一张形状固定的表单：计算是一排数字项，条件判断是「如果…显示…」的情况列表，拼接是一串片段。下面两个弹窗都能直接操作，右侧预览会实时重算。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-theme"><button data-v="paper" class="on">paper</button><button data-v="mint">mint</button></div>
+    <div class="switch" id="sw-mode"><button data-v="light" class="on">浅色</button><button data-v="dark">深色</button></div>
+  </div>
+</div>
+
+<section>
+  <h2><span class="no">01</span>新建公式列</h2>
+  <p class="desc">类型选「公式」后先选意图（三张卡）。每种意图对应固定形状的表单，所有输入框都能直接填数字或文字，也能点 ▾ 改成「用某一列的值」。<b>不存在「空位」和「…」按钮</b>，下拉菜单只有一层、不设高度上限。底部的灰框用一句中文复述公式，填错能立刻看出来。</p>
+  <div class="dlg">
+    <div class="dlg-h">新建列</div>
+    <div class="dlg-b">
+      <div class="row2">
+        <label class="field"><span>列名</span><input class="text-in colname" value="优先级"></label>
+        <label class="field"><span>类型</span><button class="pk" style="justify-content:space-between">公式 <span class="cv">▾</span></button></label>
+      </div>
+      <div class="field"><span>公式</span><div class="fb" id="fb-row"></div></div>
+    </div>
+    <div class="dlg-f"><button class="btn sec">取消</button><button class="btn pri" id="save-row">保存</button></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">02</span>嵌套 · 任何一个值都能改成计算或条件</h2>
+  <p class="desc">点值框右边的 ▾（条件左侧点列名），菜单底部多了 <b>改成计算…</b> 和 <b>改成条件…</b>。选了之后在原地展开一个带边框的小表单，原来的值自动放成第一项，例如「成本」变成「成本 + □」。不需要的话点小表单上的「撤销」，退回只保留第一项。复述句会用括号标出先算的部分。根表单下面最多再套 2 层，到上限后菜单里的这两项会变灰，并提示拆成两列。下面这个例子的第一种情况，条件左侧就是「成本 × 数量」。</p>
+  <div class="dlg">
+    <div class="dlg-h">编辑列</div>
+    <div class="dlg-b">
+      <div class="row2">
+        <label class="field"><span>列名</span><input class="text-in colname" value="订单类型"></label>
+        <label class="field"><span>类型</span><button class="pk" style="justify-content:space-between">公式 <span class="cv">▾</span></button></label>
+      </div>
+      <div class="field"><span>公式</span><div class="fb" id="fb-nest"></div></div>
+    </div>
+    <div class="dlg-f"><button class="btn sec">取消</button><button class="btn pri">保存</button></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">03</span>表尾「公式…」</h2>
+  <p class="desc">和「计算」用同一张表单，只是每一项换成「哪一列 + 怎么汇总」，例如 <b>成本 · 求和 ÷ 任务 · 计数</b>。汇总方式只列出这一列可用的那几种。</p>
+  <div class="dlg" style="width:760px">
+    <div class="dlg-h">表尾公式 <span class="muted">· 成本</span></div>
+    <div class="dlg-b"><div class="fb" id="fb-foot"></div></div>
+    <div class="dlg-f"><button class="btn sec">取消</button><button class="btn pri">保存</button></div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="no">04</span>和 v1 比</h2>
+  <div class="cmp">
+    <div class="card"><b>v1：拼表达式树</b><ul class="notes" style="margin-top:6px">
+      <li>空白里只有「选择…」，用户不知道从哪开始</li>
+      <li>「成本 + □ 大于 500」看不出先算哪个</li>
+      <li>「…」按钮看起来像文字被截断</li>
+      <li>菜单嵌套三层，并且会出滚动条</li></ul></div>
+    <div class="card"><b>v2：选意图、填表单</b><ul class="notes" style="margin-top:6px">
+      <li>先选三种意图之一，每种都附例子</li>
+      <li>计算按「先乘除后加减」，复述句里写明</li>
+      <li>条件判断是一排「情况」，从上往下匹配，第一个满足的生效，和 Notion 的 ifs、Excel 的 IFS 一样</li>
+      <li>每个值框都能直接输入，▾ 用来改成某一列</li></ul></div>
+  </div>
+  <ul class="notes" style="margin-top:18px">
+    <li><b>嵌套按需展开</b>：默认是平的三种表单，只有用户主动选了「改成计算 / 条件」才会出现套娃，最多 2 层。更复杂的建议用公式列引用公式列来拆，例如先建「小计」，再建引用小计的「优先级」。</li>
+    <li><b>存储不变</b>：表单在保存时转成同一棵内部表达式树，引擎、校验、派生都不用改。打开已有公式时再从树还原成表单，AI 生成的结果也必须落在这三种形状里。</li>
+    <li><b>原生方式</b>：Notion 2.0 是带自动补全的公式输入框加函数说明面板。你之前定了不用 DSL，所以这里不做；以后如果要给熟练用户加「高级模式」，可以单独议。</li>
+  </ul>
+</section>
+
+<div class="pop" id="pop"></div>
+
+<script>
+const COLS = [
+  { id:"title",  name:"任务", type:"text" },
+  { id:"status", name:"状态", type:"select", options:["进行中","待开始","已完成"] },
+  { id:"cost",   name:"成本", type:"number" },
+  { id:"qty",    name:"数量", type:"number" },
+  { id:"done",   name:"完成", type:"checkbox" },
+  { id:"due",    name:"截止", type:"date" },
+];
+const ROWS = [
+  { title:"设计首页", status:"进行中", cost:220, qty:3, done:false, due:"2026-10-12" },
+  { title:"实现汇总", status:"待开始", cost:80,  qty:5, done:false, due:"2026-10-20" },
+  { title:"联调接口", status:"已完成", cost:640, qty:1, done:true,  due:"2026-10-05" },
+  { title:"写单测",   status:"进行中", cost:90,  qty:4, done:false, due:null },
+  { title:"补文档",   status:"已完成", cost:null,qty:2, done:true,  due:"2026-10-08" },
+];
+const TYPE_NAME = { text:"文本", select:"单选", number:"数字", checkbox:"复选框", date:"日期" };
+const col = id => COLS.find(c => c.id === id);
+const OPS = [ ["+","加"], ["-","减"], ["*","乘"], ["/","除"] ];
+const OP_SIGN = { "+":"+", "-":"−", "*":"×", "/":"÷" };
+const CMPS = {
+  number:  [["gt","大于"],["lt","小于"],["eq","等于"],["ne","不等于"],["ge","大于等于"],["le","小于等于"],["empty","为空"],["filled","不为空"]],
+  text:    [["eq","是"],["ne","不是"],["has","包含"],["empty","为空"],["filled","不为空"]],
+  select:  [["eq","是"],["ne","不是"],["empty","为空"],["filled","不为空"]],
+  checkbox:[["true","已勾选"],["false","未勾选"]],
+  date:    [["before","早于"],["after","晚于"],["eq","是"],["empty","为空"],["filled","不为空"]],
+};
+const NO_VALUE = new Set(["empty","filled","true","false"]);
+const AGG = { number:[["sum","求和"],["avg","平均"],["min","最小值"],["max","最大值"],["count","计数"]], other:[["count","计数"],["filled","非空"]] };
+const aggName = a => (AGG.number.concat(AGG.other).find(x => x[0] === a) || [, "汇总"])[1];
+/** 套娃上限：根表单之下最多再套 2 层 */
+const MAX_NEST = 2;
+
+/* ── 下拉：平铺一层，不限高 ── */
+const pop = document.getElementById("pop");
+function pick(anchor, items, onPick) {
+  pop.innerHTML = items.map((it, i) =>
+    it.sep ? '<div class="sep"></div>' : it.hd ? `<div class="hd">${it.hd}</div>` :
+    it.disabled ? `<div class="it dis">${it.label}</div>` :
+    `<button class="it${it.on ? " on" : ""}" data-i="${i}">${it.label}${it.ty ? `<span class="ty">${it.ty}</span>` : ""}</button>`).join("");
+  const box = anchor.getBoundingClientRect();
+  pop.classList.add("on");
+  pop.style.left = box.left + scrollX + "px";
+  pop.style.top = box.bottom + scrollY + 4 + "px";
+  pop.onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; closePop(); onPick(items[+b.dataset.i].value); };
+}
+const closePop = () => pop.classList.remove("on");
+document.addEventListener("mousedown", e => { if (!pop.contains(e.target) && !e.target.closest("[data-pick]")) closePop(); });
+
+const kindFor = type => type === "number" ? "num" : type === "date" ? "date" : type === "select" ? "opt" : "text";
+const emptyOf = kind => kind === "num" ? { num:"" } : kind === "date" ? { date:"" } : kind === "opt" ? { opt:"" } : { text:"" };
+const strip = node => { const { op, ...rest } = node; return rest; };
+
+/* ════ 构造器实例 ════ */
+function makeBuilder(el, scope, seed) {
+  const initial = {
+    calc: () => scope === "footer"
+      ? { calc:[{ col:"cost", agg:"sum" }, { op:"/", col:"title", agg:"count" }] }
+      : { calc:[{ col:"cost" }, { op:"*", col:"qty" }] },
+    if: () => ({ iff:{ cases:[
+      { join:"and", conds:[{ left:{ col:"cost" }, cmp:"gt", v:{ num:500 } }], out:{ text:"高" } },
+      { join:"and", conds:[{ left:{ col:"cost" }, cmp:"gt", v:{ num:200 } }], out:{ text:"中" } },
+    ], otherwise:{ text:"低" } } }),
+    concat: () => ({ concat:[{ col:"title" }, { text:" · " }, { col:"status" }] }),
+  };
+  const drafts = {};
+  const S = { mode:null, root:null };
+  const setMode = m => { S.mode = m; S.root = m ? (drafts[m] ??= initial[m]()) : null; };
+  if (seed) { S.mode = seed.mode; S.root = drafts[seed.mode] = seed.root; }
+  else setMode(scope === "footer" ? "calc" : null);
+
+  const get = path => path.split(".").reduce((o, k) => o[k], S);
+  const setv = (path, v) => { const ks = path.split("."); const last = ks.pop(); ks.reduce((o, k) => o[k], S)[last] = v; };
+  const keepOp = (path, node) => { const op = get(path).op; return op ? { op, ...node } : node; };
+
+  /* ── 类型 ── */
+  const typeOf = node =>
+    node.col ? col(node.col).type : node.calc ? "number" : node.iff ? typeOf(node.iff.cases[0].out) :
+    node.num !== undefined ? "number" : node.date !== undefined ? "date" : "text";
+
+  /* ── 求值 ── */
+  const aggOf = n => {
+    const vals = ROWS.map(r => r[n.col]).filter(x => x !== null && x !== "");
+    if (n.agg === "count") return ROWS.length;
+    if (n.agg === "filled") return vals.length;
+    const nums = vals.filter(x => typeof x === "number");
+    if (!nums.length) return null;
+    const s = nums.reduce((a, b) => a + b, 0);
+    return n.agg === "sum" ? s : n.agg === "avg" ? s / nums.length : n.agg === "min" ? Math.min(...nums) : Math.max(...nums);
+  };
+  function evalNode(n, row) {
+    if (n.col) return scope === "footer" ? aggOf(n) : row[n.col] ?? null;
+    if (n.calc) {
+      const vals = n.calc.map(t => evalNode(t, row));
+      if (vals.some(v => typeof v !== "number")) return null;
+      const sums = [vals[0]], ops = [];
+      n.calc.slice(1).forEach((t, i) => {
+        const v = vals[i + 1];
+        if (t.op === "*") sums[sums.length - 1] *= v;
+        else if (t.op === "/") sums[sums.length - 1] = v === 0 ? NaN : sums[sums.length - 1] / v;
+        else { ops.push(t.op); sums.push(v); }
+      });
+      let r = sums[0]; ops.forEach((o, i) => r = o === "+" ? r + sums[i + 1] : r - sums[i + 1]);
+      return Number.isFinite(r) ? r : null;
+    }
+    if (n.iff) {
+      for (const k of n.iff.cases) {
+        const hits = k.conds.map(c => test(c, row));
+        if (k.join === "and" ? hits.every(Boolean) : hits.some(Boolean)) return evalNode(k.out, row);
+      }
+      return evalNode(n.iff.otherwise, row);
+    }
+    if (n.concat) return n.concat.map(p => { const v = evalNode(p, row); return v === null ? "" : typeof v === "boolean" ? (v ? "是" : "否") : v; }).join("");
+    if (n.num !== undefined) return n.num === "" ? null : +n.num;
+    const v = n.text ?? n.date ?? n.opt;
+    return v === undefined || v === "" ? (n.text === "" ? "" : null) : v;
+  }
+  function test(c, row) {
+    const a = evalNode(c.left, row), type = typeOf(c.left);
+    switch (c.cmp) {
+      case "empty": return a === null || a === "";
+      case "filled": return !(a === null || a === "");
+      case "true": return a === true;
+      case "false": return a !== true;
+    }
+    const b = evalNode(c.v, row);
+    if (a === null || a === "" || b === null || b === "") return false;
+    if (type === "date") return c.cmp === "before" ? a < b : c.cmp === "after" ? a > b : a === b;
+    if (type === "number") { const x = +a, y = +b; return { gt:x>y, lt:x<y, eq:x===y, ne:x!==y, ge:x>=y, le:x<=y }[c.cmp]; }
+    return c.cmp === "has" ? String(a).includes(b) : c.cmp === "eq" ? String(a) === String(b) : String(a) !== String(b);
+  }
+  const fmt = v => v === null || v === undefined || v === "" ? "—" : typeof v === "number" ? (Number.isInteger(v) ? v.toLocaleString() : (Math.round(v * 100) / 100).toLocaleString()) : String(v);
+
+  /* ── 复述句：嵌套处用括号 ── */
+  const cmpName = c => CMPS[typeOf(c.left)].find(x => x[0] === c.cmp)?.[1] ?? "";
+  const condText = c => `${say(c.left, true)}${cmpName(c)}${NO_VALUE.has(c.cmp) ? "" : " " + say(c.v, true)}`;
+  function say(n, nested) {
+    if (n.col) return `<b>${col(n.col).name}</b>${scope === "footer" ? "的" + aggName(n.agg) : ""}`;
+    if (n.calc) { const s = n.calc.map((t, i) => (i ? ` ${OP_SIGN[t.op]} ` : "") + say(t, true)).join(""); return nested ? `（${s}）` : s; }
+    if (n.iff) {
+      const parts = n.iff.cases.map(k => `${k.conds.map(condText).join(k.join === "and" ? "且" : "或")}时为 ${say(k.out, true)}`);
+      return `（${parts.join("；")}；否则为 ${say(n.iff.otherwise, true)}）`;
+    }
+    if (n.num !== undefined) return n.num === "" ? "（未填）" : `<b>${n.num}</b>`;
+    if (n.opt !== undefined) return n.opt ? `「${n.opt}」` : "（未选）";
+    if (n.date !== undefined) return n.date ? `<b>${n.date}</b>` : "（未填）";
+    return n.text ? `「${n.text}」` : "空";
+  }
+  function readback() {
+    const n = S.root;
+    if (n.calc) {
+      const mixed = n.calc.some((t, i) => i && /[*/]/.test(t.op)) && n.calc.some((t, i) => i && /[+-]/.test(t.op));
+      const notes = [mixed && "先算乘除，再算加减", n.calc.some(t => t.calc) && "括号里的先算"].filter(Boolean);
+      return `结果 = ${say(n, false)}${notes.length ? `<br><span class="muted">${notes.join("；")}</span>` : ""}`;
+    }
+    if (n.iff) {
+      const lines = n.iff.cases.map(k => `如果 ${k.conds.map(condText).join(k.join === "and" ? "，并且" : "，或者")} → 显示 ${say(k.out, true)}`);
+      return lines.join("<br>") + `<br>都不满足 → 显示 ${say(n.iff.otherwise, true)}<br><span class="muted">从上往下，满足第一种就停</span>`;
+    }
+    return "把 " + n.concat.map(p => say(p, true)).join(" 和 ") + " 连起来";
+  }
+
+  /* ── 渲染 ── */
+  const caret = '<span class="cv">▾</span>';
+  /** 一个值的位置：普通值框，或已经展开成的计算 / 条件 */
+  function renderValue(path, node, kind, depth) {
+    if (node.calc) return renderCalc(path, node, depth + 1);
+    if (node.iff) return renderIf(path, node, depth + 1);
+    const menu = `data-pick data-act="vmenu" data-path="${path}" data-kind="${kind}" data-depth="${depth}"`;
+    if (scope === "footer" && node.col)
+      return `<button class="pk" ${menu}>${col(node.col).name} ${caret}</button><button class="pk" data-pick data-act="agg" data-path="${path}">${aggName(node.agg)} ${caret}</button>`;
+    if (node.col)
+      return `<span class="vbox"><span class="tok">${col(node.col).name}<button data-act="clear" data-path="${path}" data-kind="${kind}" title="改为直接输入">×</button></span><button class="dd" ${menu}>▾</button></span>`;
+    if (kind === "opt") return `<button class="pk${node.opt ? "" : " empty"}" ${menu}>${node.opt || "选择选项"} ${caret}</button>`;
+    const type = kind === "num" ? "number" : kind === "date" ? "date" : "text";
+    const val = node.num ?? node.text ?? node.date ?? "";
+    const ph = kind === "num" ? "数字" : kind === "date" ? "" : "文字";
+    return `<span class="vbox"><input type="${type}" placeholder="${ph}" value="${val}" data-act="vin" data-path="${path}" data-kind="${kind}"><button class="dd" ${menu} title="用某一列，或改成计算 / 条件">▾</button></span>`;
+  }
+
+  function renderCalc(path, node, depth) {
+    const terms = node.calc.map((t, i) => `<span class="term">
+      ${i ? `<button class="pk op" data-pick data-act="op" data-path="${path}.calc.${i}">${OP_SIGN[t.op]}</button>` : ""}
+      ${renderValue(`${path}.calc.${i}`, t, "num", depth)}
+      ${node.calc.length > 1 ? `<button class="del" data-act="rm" data-path="${path}.calc" data-i="${i}" title="移除这一项">×</button>` : ""}
+    </span>`).join("");
+    if (depth === 0)
+      return `<div class="line">${terms}</div><button class="add" data-pick data-act="addterm" data-path="${path}">＋ 再加一项</button>`;
+    return `<span class="nest" data-d="${depth}"><span class="nest-t">计算</span>${terms}
+      <button class="mini" data-pick data-act="addterm" data-path="${path}" title="再加一项">＋</button>
+      <button class="mini" data-act="unwrap" data-path="${path}" title="不再计算，只保留第一项">撤销</button></span>`;
+  }
+
+  function renderIf(path, node, depth) {
+    const outKind = node.iff.kind || "text";
+    const cases = node.iff.cases.map((k, ci) => {
+      const kp = `${path}.iff.cases.${ci}`;
+      return `<div class="case">
+        <div class="case-h">情况 ${ci + 1}${node.iff.cases.length > 1 ? `<button class="del" data-act="rm" data-path="${path}.iff.cases" data-i="${ci}" style="width:auto;padding:0 8px;font-size:12px">删除这种情况</button>` : ""}</div>
+        ${k.conds.map((c, i) => { const cp = `${kp}.conds.${i}`; const lt = typeOf(c.left); return `<div class="cond">
+          ${i ? `<button class="join" data-act="join" data-path="${kp}" title="点击切换">${k.join === "and" ? "并且" : "或者"}</button>` : `<span class="kw">如果</span>`}
+          ${c.left.calc ? renderCalc(`${cp}.left`, c.left, depth + 1)
+            : `<button class="pk" data-pick data-act="lmenu" data-path="${cp}" data-depth="${depth}">${col(c.left.col).name} ${caret}</button>`}
+          <button class="pk" data-pick data-act="cmp" data-path="${cp}">${cmpName(c)} ${caret}</button>
+          ${NO_VALUE.has(c.cmp) ? "" : renderValue(`${cp}.v`, c.v, kindFor(lt), depth)}
+          ${k.conds.length > 1 ? `<button class="del" data-act="rm" data-path="${kp}.conds" data-i="${i}" title="移除条件">×</button>` : ""}
+        </div>`; }).join("")}
+        <button class="add" data-act="addcond" data-path="${kp}" style="margin-left:58px">＋ 再加一个条件</button>
+        <div class="line"><span class="kw">显示</span>${renderValue(`${kp}.out`, k.out, outKind, depth)}</div>
+      </div>`;
+    }).join("");
+    const body = `${cases}
+      <button class="add" data-act="addcase" data-path="${path}">＋ 再加一种情况</button>
+      <div class="else"><span class="kw" style="min-width:auto">都不满足时显示</span>${renderValue(`${path}.iff.otherwise`, node.iff.otherwise, outKind, depth)}</div>`;
+    if (depth === 0) return body;
+    return `<div class="nest block" data-d="${depth}"><div class="fb-hd"><span class="nest-t">条件</span><button class="mini" data-act="unwrap" data-path="${path}" style="margin-left:auto" title="不用条件，只保留第一种情况的结果">撤销</button></div>${body}</div>`;
+  }
+
+  function renderForm() {
+    const main = el.querySelector(".fb-main");
+    if (!S.mode) {
+      main.innerHTML = `
+        <div class="fb-hd"><b>想算什么？</b></div>
+        <div class="intents">
+          <button class="intent" data-act="mode" data-v="calc"><span class="ic">±</span><b>计算</b><span>几列或数字之间加减乘除</span><i>例：成本 × 数量</i></button>
+          <button class="intent" data-act="mode" data-v="if"><span class="ic">?</span><b>按条件显示</b><span>满足某个条件就显示某个值</span><i>例：成本大于 500 显示「高」</i></button>
+          <button class="intent" data-act="mode" data-v="concat"><span class="ic">“</span><b>拼接文字</b><span>把几列的内容连成一段文字</span><i>例：任务 · 状态</i></button>
+        </div>`;
+      return;
+    }
+    const title = { calc:"计算", if:"按条件显示", concat:"拼接文字" }[S.mode];
+    let body;
+    if (S.root.calc) body = renderCalc("root", S.root, 0);
+    else if (S.root.iff) body = renderIf("root", S.root, 0);
+    else body = `<div class="line">${S.root.concat.map((p, i) => `<span class="term">${i ? `<span class="muted">＋</span>` : ""}${renderValue(`root.concat.${i}`, p, "text", 0)}${S.root.concat.length > 1 ? `<button class="del" data-act="rm" data-path="root.concat" data-i="${i}" title="移除这一段">×</button>` : ""}</span>`).join("")}</div>
+      <button class="add" data-act="addpart">＋ 再加一段</button>`;
+    main.innerHTML = `
+      <div class="fb-hd"><b>${title}</b>${scope === "footer" ? "" : `<button class="link" data-act="mode" data-v="" style="margin-left:auto">换一种</button>`}</div>
+      ${body}
+      <div class="readback" id="rb"></div>`;
+  }
+
+  const usedCols = (n, out = []) => {
+    if (!n || typeof n !== "object") return out;
+    if (n.col) out.push(n.col);
+    Object.values(n).forEach(v => Array.isArray(v) ? v.forEach(x => usedCols(x, out)) : typeof v === "object" && usedCols(v, out));
+    return out;
+  };
+  function renderSide() {
+    const side = el.querySelector(".fb-side");
+    const rb = el.querySelector("#rb");
+    if (rb) rb.innerHTML = readback();
+    if (!S.mode) { side.innerHTML = `<div class="side-t">预览</div><div class="muted">选好要算什么，这里显示前几行的结果</div>`; return; }
+    if (scope === "footer") { side.innerHTML = `<div class="side-t">预览 · 当前筛选的行</div><div style="font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">${fmt(evalNode(S.root))}</div>`; return; }
+    const shown = [...new Set(usedCols(S.root))].filter(id => id !== "title").slice(0, 2);
+    const name = el.closest(".dlg")?.querySelector(".colname")?.value || "结果";
+    side.innerHTML = `<div class="side-t">预览 · 前 ${ROWS.length} 行</div>
+      <table class="pv"><tr><th>任务</th>${shown.map(id => `<th class="${col(id).type === "number" ? "n" : ""}">${col(id).name}</th>`).join("")}<th class="n">${name}</th></tr>
+      ${ROWS.map(r => `<tr><td>${r.title}</td>${shown.map(id => `<td class="${col(id).type === "number" ? "n" : ""}">${fmt(r[id] === true ? "是" : r[id] === false ? "否" : r[id])}</td>`).join("")}<td class="r n">${fmt(evalNode(S.root, r))}</td></tr>`).join("")}</table>`;
+  }
+  const render = () => { renderForm(); renderSide(); };
+
+  /* ── 菜单项 ── */
+  const nestItems = (depth, allowIf) => {
+    const full = depth + 1 > MAX_NEST;
+    if (full) return [{ sep:true }, { label:`已经套了 ${MAX_NEST} 层，更复杂的请拆成两列`, disabled:true }];
+    return [{ sep:true }, { label:"改成计算…", ty:"例：成本 × 数量", value:"__calc" },
+      ...(allowIf ? [{ label:"改成条件…", ty:"例：满足…时为…", value:"__iff" }] : [])];
+  };
+  const colItems = (filter, current) => [{ hd:"用这一列的值" }, ...COLS.filter(filter).map(c => ({ label:c.name, ty:TYPE_NAME[c.type], value:c.id, on:c.id === current }))];
+
+  /* ── 交互 ── */
+  el.innerHTML = `<div class="fb-main"></div><div class="fb-side"></div>`;
+  el.addEventListener("input", e => {
+    const t = e.target; if (t.dataset.act !== "vin") return;
+    const k = t.dataset.kind;
+    setv(t.dataset.path, keepOp(t.dataset.path, k === "num" ? { num:t.value } : k === "date" ? { date:t.value } : { text:t.value }));
+    renderSide();
+  });
+  el.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const { act, path } = b.dataset;
+    const depth = +(b.dataset.depth || 0);
+    switch (act) {
+      case "mode": setMode(b.dataset.v || null); return render();
+      case "clear": setv(path, keepOp(path, emptyOf(b.dataset.kind))); return render();
+      case "vmenu": {
+        const kind = b.dataset.kind, node = get(path);
+        const base = kind === "opt"
+          ? [{ hd:"选项" }, ...col(get(path.replace(/\.v$/, "")).left.col).options.map(o => ({ label:o, value:"opt:" + o, on:node.opt === o }))]
+          : colItems(scope === "footer" ? () => true : kind === "num" ? c => c.type === "number" : kind === "date" ? c => c.type === "date" : () => true, node.col);
+        const extra = kind === "num" || kind === "text" ? nestItems(depth, scope !== "footer") : [];
+        const back = scope === "footer" && node.col ? [{ sep:true }, { label:"改成填数字", value:"__num" }] : [];
+        return pick(b, [...base, ...extra, ...back], v => {
+          const cur = strip(get(path));
+          const seedTerm = cur.col || cur.num || cur.text ? cur : emptyOf(kind === "text" ? "text" : "num");
+          if (v === "__calc") setv(path, keepOp(path, { calc:[seedTerm, { op:"+", num:"" }] }));
+          else if (v === "__iff") setv(path, keepOp(path, { iff:{ kind, cases:[{ join:"and", conds:[{ left:{ col:"cost" }, cmp:"gt", v:{ num:"" } }], out:seedTerm }], otherwise:emptyOf(kind) } }));
+          else if (v === "__num") setv(path, keepOp(path, { num:"" }));
+          else if (v.startsWith("opt:")) setv(path, { opt:v.slice(4) });
+          else setv(path, keepOp(path, scope === "footer" ? { col:v, agg:col(v).type === "number" ? "sum" : "count" } : { col:v }));
+          render();
+        });
+      }
+      case "lmenu": {
+        const c = get(path);
+        const items = [...colItems(() => true, c.left.col), ...nestItems(depth, false)];
+        return pick(b, items, v => {
+          c.left = v === "__calc" ? { calc:[{ col:c.left.col }, { op:"*", num:"" }] } : { col:v };
+          const t = typeOf(c.left);
+          if (!CMPS[t].some(x => x[0] === c.cmp)) c.cmp = CMPS[t][0][0];
+          c.v = emptyOf(kindFor(t));
+          render();
+        });
+      }
+      case "unwrap": {
+        const n = get(path);
+        const first = n.calc ? n.calc[0] : n.iff.cases[0].out;
+        if (path.endsWith(".left")) setv(path, first.col ? { col:first.col } : { col:"cost" });
+        else setv(path, keepOp(path, strip(first)));
+        return render();
+      }
+      case "op": return pick(b, OPS.map(([o, n]) => ({ label:`${OP_SIGN[o]}　${n}`, value:o, on:get(path).op === o })), o => { get(path).op = o; render(); });
+      case "agg": { const t = get(path); return pick(b, (col(t.col).type === "number" ? AGG.number : AGG.other).map(([a, n]) => ({ label:n, value:a, on:t.agg === a })), a => { t.agg = a; render(); }); }
+      case "addterm": return pick(b, OPS.map(([o, n]) => ({ label:`${OP_SIGN[o]}　${n}`, value:o })), o => { get(path).calc.push(scope === "footer" ? { op:o, col:"cost", agg:"sum" } : { op:o, num:"" }); render(); });
+      case "rm": { const arr = get(path); arr.splice(+b.dataset.i, 1); if (arr[0]?.op) delete arr[0].op; return render(); }
+      case "cmp": { const c = get(path); return pick(b, CMPS[typeOf(c.left)].map(([v, n]) => ({ label:n, value:v, on:c.cmp === v })), v => { c.cmp = v; render(); }); }
+      case "join": { const k = get(path); k.join = k.join === "and" ? "or" : "and"; return render(); }
+      case "addcond": get(path).conds.push({ left:{ col:"status" }, cmp:"eq", v:{ opt:"" } }); return render();
+      case "addcase": { const n = get(path); n.iff.cases.push({ join:"and", conds:[{ left:{ col:"cost" }, cmp:"gt", v:{ num:"" } }], out:emptyOf(n.iff.kind || "text") }); return render(); }
+      case "addpart": S.root.concat.push({ text:"" }); return render();
+    }
+  });
+  render();
+  return { render, state:S, evalNode };
+}
+
+const rowBuilder = makeBuilder(document.getElementById("fb-row"), "row");
+makeBuilder(document.getElementById("fb-foot"), "footer");
+const nestBuilder = makeBuilder(document.getElementById("fb-nest"), "row", {
+  mode:"if",
+  root:{ iff:{ cases:[
+    { join:"and", conds:[{ left:{ calc:[{ col:"cost" }, { op:"*", col:"qty" }] }, cmp:"gt", v:{ num:500 } }], out:{ text:"大单" } },
+    { join:"and", conds:[{ left:{ col:"status" }, cmp:"eq", v:{ opt:"已完成" } }], out:{ text:"已结" } },
+  ], otherwise:{ text:"常规" } } },
+});
+document.querySelectorAll(".colname").forEach(input => input.addEventListener("input", () => { rowBuilder.render(); nestBuilder.render(); }));
+
+function bindSwitch(id, fn) {
+  const el = document.getElementById(id);
+  el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return;
+    el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); fn(b.dataset.v); });
+}
+bindSwitch("sw-theme", v => document.documentElement.dataset.theme = v);
+bindSwitch("sw-mode", v => document.documentElement.dataset.mode = v);
+</script>
+</body>
+</html>

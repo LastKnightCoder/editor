@@ -23,7 +23,8 @@ export function createFormulaContext(
   const refs = new Map<string, ColumnRef | null>();
   for (const column of columns) {
     const plugin = plugins.getPlugin(column.type);
-    const valueType = plugins.hasPlugin(column.type) ? plugin?.valueType : undefined;
+    const declared = plugins.hasPlugin(column.type) ? plugin?.valueType : undefined;
+    const valueType = typeof declared === "function" ? declared(column) : declared;
     if (!plugin || !valueType) {
       refs.set(column.id, null);
       continue;

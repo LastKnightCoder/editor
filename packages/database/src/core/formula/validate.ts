@@ -1,9 +1,11 @@
+import { aggregatesFor } from "./aggregate";
 import {
   MAX_DEPTH,
   type Expr,
   type FormulaContext,
   type FormulaError,
   type FormulaResult,
+  type FormulaScope,
   type ValueType,
 } from "./types";
 
@@ -24,8 +26,8 @@ const OP_NAMES: Record<string, string> = {
   "-": "减",
   "*": "乘",
   "/": "除",
-  contains: "包含",
 };
+const INCOMPLETE = "还有没填完的地方";
 
 const fail = (code: FormulaError["code"], message: string) =>
   ({ ok: false, error: { code, message } }) as const;
@@ -40,10 +42,14 @@ const compatible = (a: InferredType, b: InferredType) => a === null || b === nul
  * 校验任意输入是否为合法表达式并推导结果类型。
  * 入参为 unknown：AI 产出与旧版本数据都必须经此才能求值。
  */
-export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult<InferredType> {
+export function validateExpr(
+  input: unknown,
+  ctx: FormulaContext,
+  scope: FormulaScope = "row"
+): FormulaResult<InferredType> {
   const visit = (node: unknown, depth: number): FormulaResult<InferredType> => {
     if (depth > MAX_DEPTH) return fail("depth", `嵌套太深（最多 ${MAX_DEPTH} 层）`);
-    if (!isRecord(node)) return fail("bad-ref", "公式结构不完整");
+    if (!isRecord(node)) return fail("bad-ref", INCOMPLETE);
 
     switch (node.kind) {
       case "literal": {
@@ -53,18 +59,29 @@ export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult
           return Number.isFinite(value) ? pass("number") : fail("bad-ref", "数值无效");
         if (typeof value === "string") return pass("text");
         if (typeof value === "boolean") return pass("boolean");
-        return fail("bad-ref", "公式结构不完整");
+        return fail("bad-ref", INCOMPLETE);
       }
       case "column": {
-        if (typeof node.columnId !== "string") return fail("bad-ref", "公式结构不完整");
+        if (typeof node.columnId !== "string") return fail("bad-ref", INCOMPLETE);
+        if (scope !== "row") return fail("bad-ref", "表尾公式只能引用各列的汇总");
         const ref = ctx.resolveColumn(node.columnId);
         if (ref === undefined) return fail("missing-column", "引用的列已被删除");
         if (ref === null) return fail("type", "这一列不能参与计算");
         return pass(ref.valueType);
       }
+      case "aggregate": {
+        if (typeof node.columnId !== "string" || typeof node.op !== "string")
+          return fail("bad-ref", INCOMPLETE);
+        if (scope !== "footer") return fail("bad-ref", "汇总只能用在表尾");
+        const ref = ctx.resolveColumn(node.columnId);
+        if (ref === undefined) return fail("missing-column", "引用的列已被删除");
+        if (!(aggregatesFor(ref?.valueType ?? null) as string[]).includes(node.op))
+          return fail("type", "这一列不是数字，只能计数");
+        return pass("number");
+      }
       case "binary": {
         if (typeof node.op !== "string" || !BINARY_OPS.has(node.op))
-          return fail("bad-ref", "公式结构不完整");
+          return fail("bad-ref", INCOMPLETE);
         const sides = visitPair(node.left, node.right, depth);
         if (!sides.ok) return sides;
         const [left, right] = sides.value;
@@ -74,7 +91,7 @@ export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult
       }
       case "compare": {
         if (typeof node.op !== "string" || !COMPARE_OPS.has(node.op))
-          return fail("bad-ref", "公式结构不完整");
+          return fail("bad-ref", INCOMPLETE);
         const sides = visitPair(node.left, node.right, depth);
         if (!sides.ok) return sides;
         const [left, right] = sides.value;
@@ -90,7 +107,7 @@ export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult
       }
       case "logic": {
         if ((node.op !== "and" && node.op !== "or") || !Array.isArray(node.operands))
-          return fail("bad-ref", "公式结构不完整");
+          return fail("bad-ref", INCOMPLETE);
         if (node.operands.length < 2) return fail("bad-ref", "「并且 / 或者」至少需要两个条件");
         for (const operand of node.operands) {
           const result = visit(operand, depth + 1);
@@ -119,7 +136,7 @@ export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult
       }
       case "concat": {
         if (!Array.isArray(node.parts) || node.parts.length === 0)
-          return fail("bad-ref", "公式结构不完整");
+          return fail("bad-ref", INCOMPLETE);
         for (const part of node.parts) {
           const result = visit(part, depth + 1);
           if (!result.ok) return result;
@@ -127,7 +144,7 @@ export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult
         return pass("text");
       }
       default:
-        return fail("bad-ref", "公式结构不完整");
+        return fail("bad-ref", INCOMPLETE);
     }
   };
 
@@ -146,7 +163,49 @@ export function validateExpr(input: unknown, ctx: FormulaContext): FormulaResult
   return visit(input, 0);
 }
 
-/** 校验通过后的类型收窄 */
-export function isValidExpr(input: unknown, ctx: FormulaContext): input is Expr {
-  return validateExpr(input, ctx).ok;
+/** 校验并要求结果类型确定（整棵树只有空值时无法决定结果怎么显示） */
+export function validateFormula(
+  input: unknown,
+  ctx: FormulaContext,
+  scope: FormulaScope = "row"
+): FormulaResult<ValueType> {
+  const result = validateExpr(input, ctx, scope);
+  if (!result.ok) return result;
+  if (result.value === null) return fail("type", "结果不能总是空");
+  return { ok: true, value: result.value };
+}
+
+/** 表达式直接引用的列 */
+export function referencedColumns(expr: Expr): string[] {
+  const ids = new Set<string>();
+  const visit = (node: Expr) => {
+    switch (node.kind) {
+      case "column":
+      case "aggregate":
+        ids.add(node.columnId);
+        return;
+      case "binary":
+      case "compare":
+        visit(node.left);
+        visit(node.right);
+        return;
+      case "logic":
+        node.operands.forEach(visit);
+        return;
+      case "concat":
+        node.parts.forEach(visit);
+        return;
+      case "not":
+      case "empty":
+        visit(node.operand);
+        return;
+      case "if":
+        visit(node.test);
+        visit(node.then);
+        visit(node.else);
+        return;
+    }
+  };
+  visit(expr);
+  return [...ids];
 }

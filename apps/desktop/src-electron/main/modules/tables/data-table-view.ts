@@ -9,17 +9,26 @@ import type {
 } from "@/types";
 import Operation from "./operation";
 
-/** 只保留形如 { kind: "aggregate", op } 的表尾配置；空表返回 undefined */
+type FooterSpec = NonNullable<DataTableViewConfig["footer"]>[string];
+
+/** 只保留两种表尾形态：单列汇总、组合表达式（表达式结构由渲染端校验）；空表返回 undefined */
+function normalizeFooterSpec(spec: unknown): FooterSpec | null {
+  if (!spec || typeof spec !== "object") return null;
+  const value = spec as Record<string, unknown>;
+  if (value.kind === "aggregate" && typeof value.op === "string")
+    return { kind: "aggregate", op: value.op as never };
+  if (value.kind === "expr" && value.expr && typeof value.expr === "object")
+    return { kind: "expr", expr: structuredClone(value.expr) as never };
+  return null;
+}
+
 function normalizeFooter(footer: DataTableViewConfig["footer"]): DataTableViewConfig["footer"] {
   if (!footer || typeof footer !== "object") return undefined;
-  const entries = Object.entries(footer).filter(
-    ([, spec]) => spec?.kind === "aggregate" && typeof spec.op === "string"
-  );
-  return entries.length
-    ? Object.fromEntries(
-        entries.map(([columnId, spec]) => [columnId, { kind: spec.kind, op: spec.op }])
-      )
-    : undefined;
+  const entries = Object.entries(footer).flatMap(([columnId, spec]) => {
+    const normalized = normalizeFooterSpec(spec);
+    return normalized ? [[columnId, normalized] as const] : [];
+  });
+  return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
 type ReorderPayload = {

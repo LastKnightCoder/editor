@@ -24,6 +24,11 @@ export function evaluateExpr(
           return { ok: false, error: { code: "type", message: "这一列不能参与计算" } };
         return ok(ref.read(row));
       }
+      case "aggregate": {
+        if (!ctx.aggregate)
+          return { ok: false, error: { code: "bad-ref", message: "汇总只能用在表尾" } };
+        return ctx.aggregate(node.columnId, node.op);
+      }
       case "binary": {
         const left = visit(node.left);
         if (!left.ok) return left;

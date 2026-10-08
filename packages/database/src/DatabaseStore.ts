@@ -17,6 +17,7 @@ import type { DatabaseView, FooterSpec, SortRule } from "./types";
 import PluginManager from "./PluginManager";
 import { emptyQuery, projectDatabase, type DatabaseProjection } from "./core/projection";
 import { applyRowChanges, diffRows } from "./core/changes";
+import { FORMULA_TYPE } from "./core/formula";
 
 export enum Direction {
   UP = "up",
@@ -500,9 +501,11 @@ export const createDatabaseStore = (
             state.viewConfig.columnOrder = [...state.viewConfig.columnOrder, columnId];
             state.columnWidths[columnId] = columnData.width || 200;
 
-            state.rows.forEach((row: RowData) => {
-              row[columnId] = null;
-            });
+            // 公式列的值只在投影里派生，存储行不留该列
+            if (newColumn.type !== FORMULA_TYPE)
+              state.rows.forEach((row: RowData) => {
+                row[columnId] = null;
+              });
           })
         );
         get().commitHistory();
@@ -588,6 +591,10 @@ export const createDatabaseStore = (
                 state.columnWidths[columnId] = Math.max(50, updates.width);
                 state.columns[columnIndex].width = Math.max(50, updates.width);
               }
+              if (updates.type === FORMULA_TYPE)
+                state.rows.forEach((row: RowData) => {
+                  delete row[columnId];
+                });
             }
           })
         );

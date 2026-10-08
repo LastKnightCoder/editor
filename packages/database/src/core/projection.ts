@@ -8,6 +8,7 @@ import type {
   SelectOption,
 } from "../types";
 import type PluginManager from "../PluginManager";
+import { deriveFormulaRows } from "./formula/derive";
 
 export interface RowGroup {
   key: string;
@@ -33,15 +34,16 @@ export const emptyQuery: DatabaseQuery = {
   grouping: "view",
 };
 
-/** 展示与交互共用这一份投影；这里不读取组件、数据库或宿主业务状态。 */
+/** 展示与交互共用这一份投影；公式列先派生再参与筛选 / 搜索 / 排序 / 分组。不读取组件、数据库或宿主业务状态。 */
 export function projectDatabase(
-  rows: RowData[],
+  sourceRows: RowData[],
   columns: ColumnDef[],
   view: TableViewConfig,
   query: DatabaseQuery,
   plugins: PluginManager,
   viewType = "table"
 ): DatabaseProjection {
+  const rows = deriveFormulaRows(sourceRows, columns, plugins);
   const columnMap = new Map(columns.map(column => [column.id, column]));
   const matches = (group: FilterGroup | null | undefined, row: RowData): boolean => {
     if (!group?.children?.length) return true;
@@ -50,8 +52,8 @@ export function projectDatabase(
       const column = condition.fieldId ? columnMap.get(condition.fieldId) : undefined;
       if (!column || !condition.operator) return true;
       const rule = plugins
-        .getPlugin(column.type)
-        ?.filters?.find(rule => rule.operator === condition.operator);
+        .getFilterDefinitions(column)
+        .find(rule => rule.operator === condition.operator);
       if (!rule) return true;
       try {
         return rule.filter(condition.value ?? null, row, column);
