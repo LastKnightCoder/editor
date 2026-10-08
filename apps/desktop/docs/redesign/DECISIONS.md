@@ -1,5 +1,16 @@
 # 决策记录（轻量 ADR）
 
+## D-118 闪卡复习调度退役自研算法，迁移 FSRS-6 官方库
+
+（2026-10-08，用户确认调研方案后实施）
+
+- 背景：自研「10 档固定间隔阶梯 + SM-2 式 ease」调度在桌面主进程、桌面渲染层、移动 Rust、移动 JS 四处人工同步（靠注释点名 + 单测钉住），且固定阶梯无个性化空间。调研确认 open-spaced-repetition 官方双实现（ts-fsrs / fsrs-rs，后者为 Anki 内置同款）默认参数逐值一致，遂以 FSRS-6 替换。
+- 契约（两端收敛的锚点）：FSRS-6 默认 21 参数显式锁定、期望保留率 0.9、fuzz 关闭、`elapsed_days` 取整数天（floor 毫秒差）、间隔为天（可为小数、fsrs-rs 语义不取整）；评分映射 hard=Again / struggle=Hard / normal=Good / easy=Easy；状态推导 间隔≥1 天→review 否则 learning（new/suspended 由应用层维护）。跨端一致性由 `packages/shared/fsrs-schedule.fixture.json` 对拍钉住：Rust `verify_fixture` 与 `@tau/shared` vitest 读同一份 fixture（fsrs-rs f32 与 ts-fsrs f64 的毫秒级浮点噪声按 1e-3 相对容差吸收）。
+- 实现落位：TS 侧统一封装 `@tau/shared/fsrs-schedule`（ts-fsrs `FSRSAlgorithm.next_state` 公式层，绕开其 scheduler 的取整/学习步骤），桌面主进程 `tables/flashcard.ts` 的 `calculateSchedule`、渲染层 `model.ts` 预览、移动 JS 预览三处共用；Rust 侧 `flashcard_schedule.rs` 用 `fsrs` crate（权威）。表计数与索引不变（parity 68/112）。
+- 数据迁移：`flashcards` 删 `review_level`/`ease_factor`、增 `memory_stability`/`memory_difficulty`（NULL=新卡）；`flashcard_reviews` 两旧快照列换成 `stability`/`difficulty`（历史行填 0——FSRS 优化器只需 rating+间隔序列，快照可重建）。存量已学卡记忆状态由 fsrs `memory_state_from_sm2`（sm2_retention=0.9，稳定性=旧间隔天数）回填。桌面 `FlashcardTable.upgradeTable`（开库 maintenance，按 `review_level` 列存在性幂等）；移动端 migrator `MAIN_SCHEMA_VERSION` 4→5 显式迁移（迁移后列结构与全新建库由测试钉住一致）。撤销凭据 previous 换 memory 双列。
+- 队列排序次级键 `review_level ASC` 换 `memory_stability ASC`（SQLite ASC 下 NULL 新卡排最前，与原语义一致）；「熟练度 level/9」展示改「稳定性 N 天」。
+- 后续（未做）：参数优化器用复习历史训练个性化参数（fsrs-rs Optimizer / ts-fsrs binding），期望保留率设置项。
+
 ## D-117 Database 组件包化与宿主适配
 
 （2026-10-08，用户确认迁移计划）

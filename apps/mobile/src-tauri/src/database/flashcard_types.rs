@@ -66,11 +66,12 @@ pub struct Flashcard {
     pub data: Value,
     pub tags: Vec<String>,
     pub difficulty: String, // foundation | standard | advanced
-    pub review_level: i64,
     pub due_time: i64,
     pub last_review_time: Option<i64>,
     pub review_count: i64,
-    pub ease_factor: f64,
+    /// FSRS 记忆状态（稳定性/难度），None = 新卡未学
+    pub memory_stability: Option<f64>,
+    pub memory_difficulty: Option<f64>,
     pub status: String, // new | learning | review | suspended
     pub reference_summary: Option<String>,
     pub references: Vec<FlashcardReference>,

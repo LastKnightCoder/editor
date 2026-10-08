@@ -6,6 +6,7 @@
   "exports": {
     "./database-types": "./database-types.ts",
     "./calendar-utils": "./calendar-utils.ts",
+    "./fsrs-schedule": "./fsrs-schedule.ts",
     "./chat-renderers": "./chat-renderers.ts",
     "./code-block-language": "./code-block-language.ts",
     "./service-contract": "./service-contract.ts",
@@ -45,12 +46,12 @@
     "slate": "^0.123.0"
   },
   "dependencies": {
-    "dayjs": "^1.11.13",
     "@tanstack/react-virtual": "^3.0.0",
     "@tau/db-schema": "workspace:*",
     "@tau/ui": "workspace:*",
     "ahooks": "^3.7.8",
     "classnames": "^2.3.2",
+    "dayjs": "^1.11.13",
     "lucide-react": "^0.468.0",
     "motion": "12.26.2",
     "react-icons": "^4.11.0",
@@ -60,6 +61,7 @@
     "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
+    "ts-fsrs": "^5.4.2",
     "unist-util-visit": "^5.0.0",
     "uuid": "^9.0.1"
   },

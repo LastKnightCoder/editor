@@ -93,7 +93,8 @@ export function CardEditorProperties({
             <dd>{dueText(card, now).text}</dd>
             <dt className="text-ink-3">已复习</dt>
             <dd className="tabular-nums">
-              {card.reviewCount} 次 · 熟练度 {card.reviewLevel}/9
+              {card.reviewCount} 次 · 稳定性{" "}
+              {card.memoryStability == null ? "—" : `${card.memoryStability.toFixed(1)} 天`}
             </dd>
           </dl>
           {card.status === "suspended" && (

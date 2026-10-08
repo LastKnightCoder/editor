@@ -844,11 +844,11 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `data`              | `TEXT NOT NULL`           |
 | `tags`              | `TEXT DEFAULT '[]'`       |
 | `difficulty`        | `TEXT DEFAULT 'standard'` |
-| `review_level`      | `INTEGER DEFAULT 0`       |
 | `due_time`          | `INTEGER NOT NULL`        |
 | `last_review_time`  | `INTEGER`                 |
 | `review_count`      | `INTEGER DEFAULT 0`       |
-| `ease_factor`       | `REAL DEFAULT 2.5`        |
+| `memory_stability`  | `REAL`                    |
+| `memory_difficulty` | `REAL`                    |
 | `status`            | `TEXT DEFAULT 'new'`      |
 | `reference_summary` | `TEXT`                    |
 | `create_time`       | `INTEGER NOT NULL`        |
@@ -856,17 +856,17 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `flashcard_reviews`
 
-| 字段           | SQLite 定义           |
-| -------------- | --------------------- |
-| `id`           | `INTEGER PRIMARY KEY` |
-| `card_id`      | `INTEGER NOT NULL`    |
-| `deck_id`      | `INTEGER NOT NULL`    |
-| `rating`       | `TEXT NOT NULL`       |
-| `review_time`  | `INTEGER NOT NULL`    |
-| `interval`     | `INTEGER NOT NULL`    |
-| `review_level` | `INTEGER NOT NULL`    |
-| `ease_factor`  | `REAL NOT NULL`       |
-| `notes`        | `TEXT`                |
+| 字段          | SQLite 定义               |
+| ------------- | ------------------------- |
+| `id`          | `INTEGER PRIMARY KEY`     |
+| `card_id`     | `INTEGER NOT NULL`        |
+| `deck_id`     | `INTEGER NOT NULL`        |
+| `rating`      | `TEXT NOT NULL`           |
+| `review_time` | `INTEGER NOT NULL`        |
+| `interval`    | `INTEGER NOT NULL`        |
+| `stability`   | `REAL NOT NULL DEFAULT 0` |
+| `difficulty`  | `REAL NOT NULL DEFAULT 0` |
+| `notes`       | `TEXT`                    |
 
 ### `flashcard_references`
 
