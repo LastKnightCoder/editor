@@ -6,7 +6,7 @@ import useTheme from "@/hooks/useTheme";
 import { VideoScreenshotElement } from "../../";
 import { AddParagraph } from "@tau/editor";
 import { Editor, Path, Transforms } from "slate";
-import EditText from "@/components/EditText";
+import { EditText } from "@tau/ui";
 
 interface VideoScreenshotProps {
   attributes: RenderElementProps["attributes"];

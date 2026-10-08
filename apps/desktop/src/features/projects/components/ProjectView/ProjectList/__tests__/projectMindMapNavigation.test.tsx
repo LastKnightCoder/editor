@@ -17,7 +17,10 @@ vi.mock("../useProjectTreeOperations", () => ({
   useProjectTreeOperations: () => ({ moveProjectItem: vi.fn() }),
 }));
 vi.mock("../ProjectItem/useProjectItemMoreActions", () => ({ default: vi.fn() }));
-vi.mock("@/components/EditText", () => ({ default: () => null }));
+vi.mock("@tau/ui", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/ui")>()),
+  EditText: () => null,
+}));
 vi.mock("@/components/MindMap", () => ({
   default: ({
     data,

@@ -5,7 +5,7 @@ import { SquarePen } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import type { BlockData } from "@/types/block-preview";
 
 import useChatSessionStore, { MAIN_CHAT_BUCKET, bucketKeyOf } from "@/stores/useChatSessionStore";

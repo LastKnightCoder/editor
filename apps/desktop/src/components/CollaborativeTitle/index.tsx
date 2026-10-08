@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useRef, type ComponentProps } from "react";
 import * as Y from "yjs";
 import { replaceText, type ContentSessionTarget, type SharedContent } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
-import EditText, { type EditTextHandle } from "@/components/EditText";
+import { EditText, type EditTextHandle } from "@tau/ui";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";

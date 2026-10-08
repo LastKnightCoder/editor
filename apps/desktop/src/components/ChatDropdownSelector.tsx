@@ -12,9 +12,9 @@ import {
 import { useMemoizedFn } from "ahooks";
 import { ConfirmDialog, IconButton, Menu, Popover, cn, toast } from "@tau/ui";
 
-import EditText from "@/components/EditText";
+import { EditText } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import type { ChatMessage } from "@/types";
 import type { ChatSessionRow } from "@/types/chat-session";
 import { isDraftChat } from "@/stores/useChatSessionStore";

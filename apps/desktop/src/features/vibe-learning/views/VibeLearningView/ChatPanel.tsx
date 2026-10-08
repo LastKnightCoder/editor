@@ -9,7 +9,7 @@ import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 import { SquarePen } from "lucide-react";
 
-import type { EditTextHandle } from "@/components/EditText";
+import type { EditTextHandle } from "@tau/ui";
 import ChatDropdownSelector from "@/components/ChatDropdownSelector";
 
 import useTheme from "@/hooks/useTheme";

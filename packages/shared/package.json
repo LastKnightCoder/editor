@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
+    "./database-types": "./database-types.ts",
+    "./calendar-utils": "./calendar-utils.ts",
     "./chat-renderers": "./chat-renderers.ts",
     "./code-block-language": "./code-block-language.ts",
     "./service-contract": "./service-contract.ts",
@@ -43,6 +45,7 @@
     "slate": "^0.123.0"
   },
   "dependencies": {
+    "dayjs": "^1.11.13",
     "@tanstack/react-virtual": "^3.0.0",
     "@tau/db-schema": "workspace:*",
     "@tau/ui": "workspace:*",

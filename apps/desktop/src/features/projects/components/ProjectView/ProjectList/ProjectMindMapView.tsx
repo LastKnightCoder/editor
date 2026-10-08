@@ -4,7 +4,7 @@ import { Menu, ContextMenu } from "@tau/ui";
 import { FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import classnames from "classnames";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 import MindMap from "@/components/MindMap";
 import type { MindMapNodeActionContext } from "@/components/MindMap";
 import { MindMapNodeData } from "@/components/MindMap/types";

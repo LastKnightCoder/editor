@@ -1,5 +1,5 @@
 import React, { memo, useRef, useState } from "react";
-import EditText from "@/components/EditText";
+import { EditText } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "@tau/ui";
 import { ColumnDef } from "../../../types";

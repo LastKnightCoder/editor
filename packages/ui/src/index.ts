@@ -1,4 +1,6 @@
 export * from "./cn";
+export { EditText, type EditTextHandle } from "./primitives/EditText";
+export { EDIT_TEXT_PLACEHOLDER } from "./primitives/editTextClasses";
 export * from "./hooks";
 export * from "./UiProvider";
 export * from "./primitives/Button";

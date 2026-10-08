@@ -10,7 +10,7 @@ import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
 import If from "@/components/If";
 import { cn as classnames } from "@tau/ui";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 
 import {
   SELECT_RECT_STROKE,

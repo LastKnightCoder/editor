@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, memo } from "react";
 import { useMemoizedFn, useMutationObserver } from "ahooks";
 import { cn as cx } from "@tau/ui";
-import { EDIT_TEXT_PLACEHOLDER } from "../editTextClasses";
+import { EDIT_TEXT_PLACEHOLDER } from "@tau/ui";
 
 interface IEditTextProps {
   id?: string;

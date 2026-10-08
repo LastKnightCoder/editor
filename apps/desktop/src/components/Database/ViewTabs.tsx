@@ -3,7 +3,7 @@ import { ArrowDownUp, Filter, Layers, MoreHorizontal, Plus, Search, Table2, X } 
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import { cn, Menu, Popover, Tooltip } from "@tau/ui";
-import EditText, { EditTextHandle } from "@/components/EditText";
+import { EditText, EditTextHandle } from "@tau/ui";
 import { DataTableView } from "@/types";
 import { useDatabaseStore } from "./hooks";
 import GroupPanel from "./GroupPanel";
