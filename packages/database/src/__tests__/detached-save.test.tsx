@@ -5,7 +5,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { expect, it, vi } from "vitest";
 import Database, { type DatabaseRef } from "../Database";
 import type { RowDetailBodyHandle, RowDetailBodyProps } from "../DatabaseHostContext";
-import type { ColumnDef, TableViewConfig } from "../types";
+import type { ColumnDef, RowData, TableViewConfig } from "../types";
 
 const columns: ColumnDef[] = [{ id: "title", title: "名称", type: "text", isPrimary: true }];
 const config: TableViewConfig = {
@@ -41,7 +41,7 @@ it.each([false, true])(
       ({ onRowChange, isRowPresent }, ref) => {
         const flush = () =>
           (pending ??= ready.then(async () => {
-            if (isRowPresent()) await onRowChange({ detailContentId: 71 });
+            if (isRowPresent()) await onRowChange({ noteRef: 71 });
           }));
         useImperativeHandle(ref, () => ({ flush }));
         useEffect(
@@ -54,6 +54,7 @@ it.each([false, true])(
       }
     );
     const save = vi.fn();
+    const patch = vi.fn(async () => true);
     const ref = createRef<DatabaseRef>();
     const host = document.createElement("div");
     document.body.append(host);
@@ -68,19 +69,17 @@ it.each([false, true])(
             views={[
               {
                 id: 1,
-                tableId: 1,
                 name: "表格",
                 type: "table",
                 order: 0,
                 config,
-                createTime: 0,
-                updateTime: 0,
               },
             ]}
             viewConfig={config}
             activeViewId={1}
             slots={{ RowDetailBody: Body }}
             onDataChange={save}
+            onDetachedRowPatch={patch}
           />
         </DndProvider>
       )
@@ -98,12 +97,108 @@ it.each([false, true])(
       resolve();
       await pending;
     });
-    if (deleted) expect(save).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    if (deleted) expect(patch).not.toHaveBeenCalled();
     else {
-      expect(save).toHaveBeenCalledTimes(1);
-      expect(save.mock.calls[0][0].rows).toEqual([{ id: "r", title: "原行", detailContentId: 71 }]);
-      expect(save.mock.calls[0][1].source).toBe("user");
+      expect(patch).toHaveBeenCalledExactlyOnceWith(
+        "r",
+        { id: "r", noteRef: 71 },
+        { id: "r", title: "原行" }
+      );
     }
     host.remove();
+  }
+);
+
+it.each([false, true])(
+  "重开同表后修改或删除行，旧实例的晚到补丁不提交整表快照（删除=%s）",
+  async deleted => {
+    let resolve!: () => void;
+    const ready = new Promise<void>(done => {
+      resolve = done;
+    });
+    let pending: Promise<void> | undefined;
+    let persisted: RowData[] = [{ id: "r", title: "原行" }];
+    const oldSnapshotSave = vi.fn();
+    const patch = vi.fn(async (id: string, values: Partial<RowData>) => {
+      if (!persisted.some(row => row.id === id)) return false;
+      persisted = persisted.map(row => (row.id === id ? { ...row, ...values } : row));
+      return true;
+    });
+    const Body = forwardRef<RowDetailBodyHandle, RowDetailBodyProps>(({ onRowChange }, ref) => {
+      const flush = () =>
+        (pending ??= ready.then(async () => {
+          await onRowChange({ noteRef: 71 });
+        }));
+      useImperativeHandle(ref, () => ({ flush }));
+      useEffect(
+        () => () => {
+          void flush();
+        },
+        []
+      );
+      return null;
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    let root = createRoot(host);
+    const props = {
+      columns,
+      data: persisted,
+      views: [{ id: 1, name: "表格", type: "table" as const, order: 0, config }],
+      viewConfig: config,
+      activeViewId: 1,
+    };
+    try {
+      await act(async () =>
+        root.render(
+          <DndProvider backend={HTML5Backend}>
+            <Database
+              {...props}
+              slots={{ RowDetailBody: Body }}
+              onDataChange={oldSnapshotSave}
+              onDetachedRowPatch={patch}
+            />
+          </DndProvider>
+        )
+      );
+      await act(async () => root.unmount());
+      root = createRoot(host);
+      const ref = createRef<DatabaseRef>();
+      await act(async () =>
+        root.render(
+          <DndProvider backend={HTML5Backend}>
+            <Database
+              {...props}
+              ref={ref}
+              onDataChange={data => {
+                persisted = data.rows;
+              }}
+            />
+          </DndProvider>
+        )
+      );
+      await act(async () =>
+        ref.current!.dispatch(
+          {
+            type: "rows.apply",
+            changes: {
+              upsert: deleted ? [] : [{ id: "r", title: "新实例标题" }],
+              remove: deleted ? ["r"] : [],
+            },
+          },
+          "user"
+        )
+      );
+      await act(async () => {
+        resolve();
+        await pending;
+      });
+      expect(oldSnapshotSave).not.toHaveBeenCalled();
+      expect(persisted).toEqual(deleted ? [] : [{ id: "r", title: "新实例标题", noteRef: 71 }]);
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
   }
 );

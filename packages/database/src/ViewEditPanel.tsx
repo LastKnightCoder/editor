@@ -1,5 +1,5 @@
 import React, { memo, useState, useEffect, useMemo } from "react";
-import { DataTableView, DataTableViewType } from "./types";
+import { DatabaseView, DatabaseViewType } from "./types";
 import {
   ColumnDef,
   GalleryViewConfig,
@@ -16,12 +16,12 @@ import {
 import { Button, Input, Checkbox, Radio, RadioGroup } from "@tau/ui";
 
 interface ViewEditPanelProps {
-  view: DataTableView | null;
+  view: DatabaseView | null;
   columns: ColumnDef[];
   onConfirm: (
     viewId: number,
     name: string,
-    type: DataTableViewType,
+    type: DatabaseViewType,
     galleryConfig?: GalleryViewConfig,
     calendarConfig?: CalendarViewConfig,
     kanbanConfig?: KanbanViewConfig
@@ -32,7 +32,7 @@ interface ViewEditPanelProps {
 const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
   ({ view, columns, onConfirm, onClose }) => {
     const [name, setName] = useState("");
-    const [viewType, setViewType] = useState<DataTableViewType>("table");
+    const [viewType, setViewType] = useState<DatabaseViewType>("table");
     const [coverType, setCoverType] = useState<"detail" | "image">("detail");
     const [coverImageColumnId, setCoverImageColumnId] = useState<string>("");
     const [dateColumnId, setDateColumnId] = useState<string>("");
@@ -274,7 +274,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           <RadioGroup
             label="视图类型"
             value={viewType}
-            onValueChange={value => setViewType(value as DataTableViewType)}
+            onValueChange={value => setViewType(value as DatabaseViewType)}
             orientation="vertical"
           >
             <Radio value="table" label="表格" />

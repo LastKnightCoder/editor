@@ -51,13 +51,10 @@ const props: DatabaseProps = {
   views: [
     {
       id: 1,
-      tableId: 0,
       name: "列表",
       type: "table",
       config,
       order: 0,
-      createTime: 0,
-      updateTime: 0,
     },
   ],
   activeViewId: 1,

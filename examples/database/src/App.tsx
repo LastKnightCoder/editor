@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import Database, { type DatabaseRef, type DatabaseProps, type DataTableView } from "@tau/database";
+import Database, { type DatabaseRef, type DatabaseProps, type DatabaseView } from "@tau/database";
 import { Button } from "@tau/ui";
 import { useThemeStore } from "@tau/themes/react";
 import * as fixture from "./fixture";
@@ -18,7 +18,7 @@ export function App() {
   const onUpdateView: NonNullable<DatabaseProps["onUpdateView"]> = async (id, updates) => {
     const current = snapshot.current.views.find(view => view.id === id);
     if (!current) return null;
-    const updated: DataTableView = {
+    const updated: DatabaseView = {
       ...current,
       name: updates.name ?? current.name,
       type: updates.type ?? current.type,
@@ -76,12 +76,10 @@ export function App() {
             if (id !== null) snapshot.current.activeViewId = id;
           }}
           onCreateView={async input => {
-            const view: DataTableView = {
+            const view: DatabaseView = {
               ...input,
               id: Math.max(...snapshot.current.views.map(view => view.id), 0) + 1,
               config: { ...fixture.config, ...input.config },
-              createTime: Date.now(),
-              updateTime: Date.now(),
             };
             snapshot.current.views = [...snapshot.current.views, view];
             return view;

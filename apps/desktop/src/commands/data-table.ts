@@ -4,6 +4,8 @@ import {
   DataTable,
   CreateDataTable,
   UpdateDataTable,
+  PatchDataTableRow,
+  ApplyDataTableChanges,
   DataTableView,
   CreateDataTableView,
   UpdateDataTableView,
@@ -23,6 +25,20 @@ export const updateDataTable = async (table: UpdateDataTable): Promise<DataTable
 
 export const getDataTableById = async (id: number): Promise<DataTable> => {
   return invoke("data-table:get-by-id", id);
+};
+
+export const patchDataTableRow = (input: PatchDataTableRow): Promise<boolean> => {
+  return invoke("data-table:patch-row", input);
+};
+
+export const updateDataTableChanges = async (
+  input: ApplyDataTableChanges
+): Promise<DataTable | null> => {
+  const result = await invoke<DataTable | null>("data-table:apply-changes", input);
+  if (result && (input.rows.remove.length || input.rows.inserted?.length)) {
+    void queryClient.invalidateQueries({ queryKey: ["databases", "list"] });
+  }
+  return result;
 };
 
 export const getDataTableDetail = async (

@@ -1,13 +1,19 @@
 import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
-import { parseNumber } from "./utils/numberUtils";
+import { formatNumber, parseNumber } from "./utils/numberUtils";
 import { Hash } from "lucide-react";
 
 const NumberPlugin: CellPlugin<any> = {
   type: "number",
   name: "数字",
   editable: true,
+  valueType: "number",
+  formatScalar: (value, column) =>
+    formatNumber(value, {
+      ...column.config,
+      precision: column.config?.precision ?? (Number.isInteger(value) ? undefined : 2),
+    }),
   Renderer,
   Editor,
   Icon: ({ className }) => <Hash className={className} />,

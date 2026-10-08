@@ -1,4 +1,5 @@
-import React, { memo, useState } from "react";
+import React, { memo, useContext, useRef, useState } from "react";
+import { DatabaseFocusContext } from "../../../DatabaseFocusContext";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
@@ -73,7 +74,7 @@ const MemoizedEditor = memo(
     value: CellValue;
     column: ColumnDef;
     onCellValueChange: (value: CellValue) => void;
-    onFinishEdit: () => void;
+    onFinishEdit: (restoreFocus?: boolean) => void;
     onColumnChange: (column: ColumnDef) => void;
     theme: "light" | "dark";
     readonly: boolean;
@@ -117,6 +118,8 @@ const Cell: React.FC<CellProps> = memo(
     row,
     onOpenRowDetail,
   }) => {
+    const restoreFocus = useContext(DatabaseFocusContext);
+    const finishing = useRef(false);
     // 检查列级别和全局 readonly
     const isColumnReadonly = Boolean(readonly || column.readonly);
 
@@ -142,14 +145,21 @@ const Cell: React.FC<CellProps> = memo(
     const [editingSession, setEditingSession] = useState(isEditing);
     if (isEditing !== editingSession) {
       setEditingSession(isEditing);
-      if (isEditing) startEditing();
+      if (isEditing) {
+        finishing.current = false;
+        startEditing();
+      }
     }
 
     // 处理失焦事件（保存单元格）
-    const handleFinishEdit = useMemoizedFn(() => {
+    const handleFinishEdit = useMemoizedFn((restore = false) => {
       if (isColumnReadonly) return;
-      finishEdit();
-      onStopEditing();
+      if (!finishing.current) {
+        finishing.current = true;
+        finishEdit();
+        onStopEditing();
+      }
+      if (restore) queueMicrotask(() => restoreFocus?.());
     });
 
     // 处理单击选择或编辑

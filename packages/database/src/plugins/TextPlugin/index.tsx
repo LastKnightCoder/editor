@@ -7,6 +7,7 @@ const TextPlugin: CellPlugin<any> = {
   type: "text",
   name: "文本",
   editable: true,
+  valueType: "text",
   Renderer,
   Editor,
   Icon: ({ className }: { className?: string }) => <Type className={className} />,

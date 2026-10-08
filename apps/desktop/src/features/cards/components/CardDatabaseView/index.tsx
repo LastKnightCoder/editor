@@ -10,9 +10,11 @@ import {
   DatabaseChange,
   FilterGroup,
   SelectOption,
+  CreateDatabaseView,
 } from "@tau/database";
 import { useCardDatabasePreferences } from "../../databasePreferences";
-import { ICard, DataTableView, CreateDataTableView } from "@/types";
+import { ICard, DataTableView } from "@/types";
+import { toDatabaseView } from "@/features/shared/database/viewAdapter";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
 import { DateValue } from "@tau/database";
 import useTheme from "@/hooks/useTheme";
@@ -259,7 +261,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       databaseRef.current?.dispatch(
         {
           type: "view.receive",
-          view: view.id === activeViewId ? { ...view, config: viewConfig } : view,
+          view: toDatabaseView(view.id === activeViewId ? { ...view, config: viewConfig } : view),
           activate: view.id === activeViewId,
         },
         "external"
@@ -324,7 +326,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
   });
 
   const handleCreateView = useMemoizedFn(
-    async (viewData: CreateDataTableView): Promise<DataTableView | null> => {
+    async (viewData: CreateDatabaseView): Promise<DataTableView | null> => {
       const newView: DataTableView = {
         id: Date.now(),
         tableId: 0,

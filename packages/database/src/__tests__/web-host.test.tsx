@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { afterEach, expect, it, vi } from "vitest";
-import Database, { type DatabaseRef, type DataTableView, type TableViewConfig } from "..";
+import Database, { type DatabaseRef, type DatabaseView, type TableViewConfig } from "..";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -27,15 +27,12 @@ it.each(["table", "gallery", "calendar", "kanban"] as const)(
       calendarConfig: { dateColumnId: "date" },
       kanbanConfig: { groupColumnId: "status" },
     };
-    const view: DataTableView = {
+    const view: DatabaseView = {
       id: 1,
-      tableId: 1,
       name: type,
       type,
       order: 0,
       config,
-      createTime: 0,
-      updateTime: 0,
     };
     const ref = createRef<DatabaseRef>();
     const save = vi.fn();

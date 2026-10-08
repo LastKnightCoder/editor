@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   active: "a",
   props: null as DatabaseProps | null,
   deleteContent: vi.fn(async () => 1),
+  patchRow: vi.fn(async () => true),
 }));
 vi.mock("@tau/database", () => ({
   LinkPlugin: { type: "link" },
@@ -20,6 +21,7 @@ vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: mocks.active } } }) },
 }));
 vi.mock("@/commands/content", () => ({ deleteContent: mocks.deleteContent }));
+vi.mock("@/commands/data-table", () => ({ patchDataTableRow: mocks.patchRow }));
 vi.mock("@/components/LocalImage", () => ({ default: () => null }));
 vi.mock("../RowDetailBody", () => ({ RowDetailBody: () => null }));
 vi.mock("../GalleryCover", () => ({ GalleryCover: () => null }));
@@ -71,6 +73,69 @@ it("保留原实例的回调在切库后不再保存或释放正文引用", asyn
     expect(save).toHaveBeenCalledTimes(1);
     expect(saveView).toHaveBeenCalledTimes(1);
     expect(mocks.deleteContent).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("持久化视图字段只留在宿主，创建视图和晚到补丁通过闭包绑定表身份", async () => {
+  mocks.active = "a";
+  mocks.patchRow.mockClear();
+  const config = { columnOrder: [], rowOrder: [], sorts: [], filters: null };
+  const stored = {
+    id: 3,
+    tableId: 9,
+    createTime: 11,
+    updateTime: 22,
+    name: "表格",
+    type: "table" as const,
+    order: 0,
+    config,
+  };
+  const create = vi.fn(async () => stored);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () =>
+      root.render(
+        <DesktopDatabase
+          tableId={9}
+          columns={[]}
+          data={[]}
+          views={[stored]}
+          activeViewId={3}
+          viewConfig={config}
+          onCreateView={create}
+        />
+      )
+    );
+    expect(mocks.props!.views[0]).toEqual({ id: 3, name: "表格", type: "table", order: 0, config });
+    const created = await mocks.props!.onCreateView!({
+      name: "新视图",
+      type: "table",
+      order: 1,
+      config,
+    });
+    expect(created).not.toHaveProperty("tableId");
+    expect(created).not.toHaveProperty("createTime");
+    await mocks.props!.onDetachedRowPatch!(
+      "r",
+      { detailContentId: 71 },
+      { id: "r", title: "旧标题" }
+    );
+    expect(mocks.patchRow).toHaveBeenCalledExactlyOnceWith({
+      tableId: 9,
+      rowId: "r",
+      patch: { detailContentId: 71 },
+      expected: { detailContentId: null },
+    });
+    mocks.active = "b";
+    expect(await mocks.props!.onDetachedRowPatch!("r", { detailContentId: 72 }, { id: "r" })).toBe(
+      false
+    );
+    expect(mocks.patchRow).toHaveBeenCalledTimes(1);
   } finally {
     await act(async () => root.unmount());
     host.remove();

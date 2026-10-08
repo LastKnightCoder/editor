@@ -4,7 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import { cn, Menu, Popover, Tooltip } from "@tau/ui";
 import { EditText, EditTextHandle } from "@tau/ui";
-import { DataTableView } from "./types";
+import { DatabaseView } from "./types";
 import { useDatabaseStore } from "./hooks";
 import GroupPanel from "./GroupPanel";
 import SortPanel from "./SortPanel";
@@ -13,7 +13,7 @@ import FilterPanel from "./FilterPanel";
 import { countFilterConditions } from "./core/filterTree";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
-import { DataTableViewType } from "./types";
+import { DatabaseViewType } from "./types";
 import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
 import { VIEW_TYPE_ICON } from "./constants";
 
@@ -25,7 +25,7 @@ interface DragItem {
 interface ViewTabsProps {
   pluginManager: PluginManager;
   onCreateView?: (
-    type: DataTableViewType,
+    type: DatabaseViewType,
     name: string,
     dateColumnId?: string,
     groupColumnId?: string
@@ -37,7 +37,7 @@ interface ViewTabsProps {
     viewId: number,
     updates: {
       name?: string;
-      type?: DataTableViewType;
+      type?: DatabaseViewType;
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
@@ -50,7 +50,7 @@ interface ViewTabsProps {
 }
 
 interface ViewTabItemProps {
-  view: DataTableView;
+  view: DatabaseView;
   index: number;
   isActive: boolean;
   isEditing: boolean;
@@ -65,7 +65,7 @@ interface ViewTabItemProps {
   onUpdateView?: (
     viewId: number,
     name: string,
-    type: DataTableViewType,
+    type: DatabaseViewType,
     galleryConfig?: GalleryViewConfig,
     calendarConfig?: CalendarViewConfig,
     kanbanConfig?: KanbanViewConfig
@@ -149,7 +149,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
       async (
         viewId: number,
         name: string,
-        type: DataTableViewType,
+        type: DatabaseViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
         kanbanConfig?: KanbanViewConfig
@@ -478,7 +478,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleCreateView = useMemoizedFn(
-      (type: DataTableViewType, name: string, dateColumnId?: string, groupColumnId?: string) => {
+      (type: DatabaseViewType, name: string, dateColumnId?: string, groupColumnId?: string) => {
         onCreateView?.(type, name, dateColumnId, groupColumnId);
         setShowViewTypeSelect(false);
       }
@@ -488,7 +488,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       async (
         viewId: number,
         name: string,
-        type: DataTableViewType,
+        type: DatabaseViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
         kanbanConfig?: KanbanViewConfig
