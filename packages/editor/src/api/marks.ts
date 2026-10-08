@@ -11,6 +11,11 @@ export interface MarkSpec {
   keys: readonly string[];
   /** 只包装 children；Slate 属性及文本承载由核心持有。 */
   render: ComponentType<MarkRenderProps>;
+  /**
+   * 非包含标记：光标落到这些标记的边缘时默认停在标记外侧（如行内代码）。
+   * 其余标记默认沿用光标左侧的格式；用户可用左右键切换偏向。
+   */
+  nonInclusiveKeys?: readonly string[];
 }
 
 export interface RegisteredMark {
