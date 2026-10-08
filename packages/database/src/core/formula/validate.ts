@@ -37,6 +37,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const compatible = (a: InferredType, b: InferredType) => a === null || b === null || a === b;
+/** 日期常量以毫秒数存储，日期与数字常量可以比较 */
+const dateWithStamp = (a: InferredType, b: InferredType) =>
+  (a === "date" && b === "number") || (a === "number" && b === "date");
 
 /**
  * 校验任意输入是否为合法表达式并推导结果类型。
@@ -98,7 +101,12 @@ export function validateExpr(
         if (node.op === "contains") {
           if (!compatible(left, "text") || !compatible(right, "text"))
             return fail("type", "「包含」两边都要是文本");
-        } else if (left !== null && right !== null && left !== right) {
+        } else if (
+          left !== null &&
+          right !== null &&
+          left !== right &&
+          !dateWithStamp(left, right)
+        ) {
           return fail("type", `${TYPE_NAMES[left]}不能和${TYPE_NAMES[right]}比较`);
         } else if (ORDER_OPS.has(node.op) && (left === "boolean" || right === "boolean")) {
           return fail("type", "是 / 否不能比较大小");

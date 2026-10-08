@@ -83,7 +83,7 @@ const FooterFormulaDialog: React.FC<{
       }}
       title="表尾公式"
       context={column.title}
-      width={720}
+      width={880}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onClose}>

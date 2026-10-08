@@ -1,4 +1,13 @@
-import React, { createContext, memo, useContext, useMemo, type ReactNode } from "react";
+import React, {
+  createContext,
+  memo,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { Sparkles } from "lucide-react";
 import { produce } from "immer";
 import { cn, Menu } from "@tau/ui";
 import type PluginManager from "../../PluginManager";
@@ -39,6 +48,8 @@ import {
   type ValueNode,
 } from "./model";
 import { describeForm } from "./describe";
+import { generateFormula } from "./assist";
+import { useDatabaseSlots } from "../../DatabaseHostContext";
 import SelectList from "../../views/TableView/components/SelectList";
 
 type Path = (string | number)[];
@@ -944,26 +955,111 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
 
   return (
     <BuilderContext.Provider value={builder}>
-      <div className="border-line-1 rounded-tau-md grid min-h-[280px] grid-cols-[minmax(0,1fr)_260px] overflow-hidden border">
+      <div className="border-line-1 rounded-tau-md flex flex-col overflow-hidden border">
         <div className="flex min-w-0 flex-col gap-3.5 p-4">
+          <AssistBar
+            scope={scope}
+            columns={columns}
+            rows={rows}
+            pluginManager={pluginManager}
+            selfColumnId={selfColumnId}
+            usable={builder.usable}
+            onGenerated={onChange}
+          />
           {main}
           {message && <p className="text-danger text-tau-sm">{message}</p>}
         </div>
-        <Preview
-          scope={scope}
-          draft={check?.ok ? (draft as Expr) : null}
-          output={check?.ok ? check.output : undefined}
-          footerText={check?.ok ? check.footerText : undefined}
-          columns={columns}
-          rows={rows}
-          ctx={ctx}
-          pluginManager={pluginManager}
-          selfColumnId={selfColumnId}
-          resultLabel={resultLabel}
-          hint={value ? "填完后在这里看结果" : "选好要算什么，这里显示前几行的结果"}
-        />
+        {value && value.kind !== "unsupported" && (
+          <Preview
+            scope={scope}
+            draft={check?.ok ? (draft as Expr) : null}
+            output={check?.ok ? check.output : undefined}
+            footerText={check?.ok ? check.footerText : undefined}
+            columns={columns}
+            rows={rows}
+            ctx={ctx}
+            pluginManager={pluginManager}
+            selfColumnId={selfColumnId}
+            resultLabel={resultLabel}
+            hint="填完后在这里看结果"
+          />
+        )}
       </div>
     </BuilderContext.Provider>
+  );
+};
+
+/** 一句话描述生成公式；宿主未提供模型能力时不显示 */
+const AssistBar: React.FC<{
+  scope: FormulaScope;
+  columns: ColumnDef[];
+  rows: RowData[];
+  pluginManager: PluginManager;
+  selfColumnId?: string;
+  usable: ColumnDef[];
+  onGenerated: (form: FormulaForm) => void;
+}> = ({ scope, columns, rows, pluginManager, selfColumnId, usable, onGenerated }) => {
+  const { formulaAssist } = useDatabaseSlots();
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const version = useRef(0);
+  if (!formulaAssist) return null;
+
+  const run = async () => {
+    if (!prompt.trim() || loading) return;
+    const current = ++version.current;
+    setLoading(true);
+    setError(null);
+    const result = await generateFormula({
+      prompt,
+      scope,
+      columns,
+      usable,
+      rows,
+      plugins: pluginManager,
+      selfColumnId,
+      ask: formulaAssist,
+    });
+    if (current !== version.current) return;
+    setLoading(false);
+    if (result.ok) onGenerated(result.form);
+    else setError(result.message);
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="border-line-1 bg-surface focus-within:border-accent rounded-tau-md flex h-10 items-center gap-2 border pl-3 pr-1">
+        <Sparkles className="text-ink-3 size-4 shrink-0" strokeWidth={1.75} />
+        <input
+          aria-label="用一句话描述公式"
+          value={prompt}
+          disabled={loading}
+          onChange={e => setPrompt(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void run();
+            }
+          }}
+          placeholder={
+            scope === "row"
+              ? "用一句话描述，例如：成本乘数量超过 500 就显示「高」"
+              : "用一句话描述，例如：成本总和除以任务数"
+          }
+          className="text-ink-1 placeholder:text-ink-3 text-tau-body min-w-0 flex-1 bg-transparent outline-none"
+        />
+        <button
+          type="button"
+          disabled={!prompt.trim() || loading}
+          onClick={() => void run()}
+          className="bg-accent text-ink-inverse hover:bg-accent-hover rounded-tau-sm text-tau-sm h-8 shrink-0 px-3 transition-colors disabled:opacity-40"
+        >
+          {loading ? "生成中…" : "生成"}
+        </button>
+      </div>
+      {error && <p className="text-danger text-tau-sm">{error}</p>}
+    </div>
   );
 };
 
@@ -1006,7 +1102,7 @@ const Preview: React.FC<{
         const ref = ctx.resolveColumn(id);
         return ref ? [ref] : [];
       })
-      .slice(0, 2);
+      .slice(0, 4);
     const enumValues = output === "text" ? formulaEnumOf(draft) : null;
     return {
       shown,
@@ -1047,7 +1143,7 @@ const Preview: React.FC<{
         <tbody>
           {table.rows.map(row => (
             <tr key={row.id} className="border-line-1 border-b border-dashed last:border-b-0">
-              <td className="text-ink-2 max-w-[80px] truncate py-1 pr-1">
+              <td className="text-ink-2 max-w-[240px] truncate py-1 pr-1">
                 {row.label || "未命名"}
               </td>
               {row.values.map((text, index) => (
@@ -1078,7 +1174,7 @@ const Preview: React.FC<{
     );
 
   return (
-    <div className="border-line-1 bg-surface-hover flex min-w-0 flex-col gap-2 border-l px-4 py-3.5">
+    <div className="border-line-1 bg-surface-hover flex min-w-0 flex-col gap-2 border-t px-4 py-3">
       <span className="text-ink-3 text-tau-tiny font-semibold tracking-[0.03em]">
         {scope === "row" ? `预览 · 前 ${PREVIEW_ROWS} 行` : "预览 · 当前筛选的行"}
       </span>

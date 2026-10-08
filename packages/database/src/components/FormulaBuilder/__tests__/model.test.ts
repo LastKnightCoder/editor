@@ -3,7 +3,7 @@ import PluginManager from "../../../PluginManager";
 import { builtInPlugins } from "../../../plugins";
 import type { CellPlugin, ColumnDef } from "../../../types";
 import type { Expr } from "../../../core/formula";
-import { createFormContext } from "../check";
+import { checkFormula, createFormContext } from "../check";
 import { dateToMs, exprToForm, formToExpr, hasHole, type FormulaForm } from "../model";
 
 const columns: ColumnDef[] = [
@@ -90,6 +90,10 @@ describe("按条件显示", () => {
       },
     };
     const form = roundTrip(expr, "text");
+    // 表单产出的公式（含日期常量）必须能通过校验
+    expect(checkFormula(formToExpr(form, "row"), "row", columns, [], plugins)).toMatchObject({
+      ok: true,
+    });
     expect(form).toMatchObject({
       kind: "if",
       cases: [
