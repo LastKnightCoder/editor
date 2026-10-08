@@ -1,5 +1,15 @@
 # 决策记录（轻量 ADR）
 
+## D-121 数据库汇总与公式：受限表达式树，不定义 DSL
+
+（2026-10-08，用户确认；方案与决策细目见 `docs/database-calc/01-方案.md`，mockup 见 `apps/desktop/mockups/database-calc/index.html`）
+
+- 表尾汇总（列相加等）与公式列（IF 判断）共用一棵受限 JSON 表达式树：白名单节点、无变量 / 循环 / 自定义函数 / eval。不定义文本 DSL，表达式结构不向用户展示（无公式文本框、JSON 视图、错误码），用户只面对构造器与 AI 输入框。
+- 求值在渲染端、与 `projectDatabase` 同层；不加主进程命令、不改 schema。公式值不落库。
+- 字段参与运算的口径由 `CellPlugin.valueType` / `toScalar` / `formatScalar` 声明，引擎不认识具体插件；未声明的字段只能计数，文本不隐式转数字。
+- 表尾配置按视图存 `TableViewConfig.footer`，主进程 `normalizeConfig` 白名单同步保留；汇总算筛选后的行。
+- 分三迭代：引擎 + 表尾汇总（已实施）→ 公式列与构造器 → AI 入口（经同一校验器）。
+
 ## D-120 文档待办：正文是唯一真相源，待办页是镜像
 
 （2026-10-08，用户确认；方案与决策细目见 `docs/doc-tasks/01-方案.md`，mockup 见 `apps/desktop/mockups/doc-todos/index.html`）

@@ -44,11 +44,14 @@ import Database, { type DatabaseRef } from "@tau/database";
 - 查询经 `ref.setQuery()` 接入；四种视图、键盘与拖拽共用内部 projection。
 - 键盘仅作用于事件目标所在实例，输入、输入法组合及导航组合键让行。
 - 行详情的卸载草稿和异步正文经 onDetachedRowPatch 提交行标识、字段补丁与原行预期值；父级订阅退出后不再调用整表 onDataChange。宿主检查最新目标并返回是否应用，缺少该能力或目标删除时拒绝提交。宿主只按实体身份建立实例，不按活动视图重挂载。
+- 表格视图底部有表尾汇总行，配置存 `viewConfig.footer`（列 id → `{ kind: "aggregate", op }`），按视图持久化；汇总输入是投影后（筛选后）的行。宿主持久化视图配置时须保留 `footer` 键。
 - 通用字段、查询配置经 shared 的纯类型入口复用；本包不消费持久化模型，也不访问 SQLite、Electron 或业务页面。插槽接收的行字段是不透明数据，不读取业务标识。
 
 ## 宿主能力
 
 `plugins` 属性追加或覆盖通用字段插件。图片、附件、富文本与卡片业务插件由宿主装配；缺失插件的字段不可编辑并保留原值。
+
+字段插件可选声明 `valueType`（number / text / boolean / date）、`toScalar`（存储值 → 参与运算的标量，空为 null）与 `formatScalar`（数值汇总的展示文本），以参与表尾汇总与公式。未声明 `valueType` 的字段只能计数。汇总与公式引擎在 `core/formula`，只经这三个成员读取字段，不认识具体插件。
 
 `slots` 按实例提供以下能力：
 
