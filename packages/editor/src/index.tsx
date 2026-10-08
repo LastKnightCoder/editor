@@ -50,6 +50,7 @@ import {
   withNormalizedCopy,
 } from "./plugins";
 import { withIngest, resolveFileDropPoint } from "./plugins/withIngest";
+import { withCaretAffinity } from "./plugins/withCaretAffinity";
 import type { AnyExtension } from "./api/legacy";
 import type { EditorRef } from "./types/editor";
 
@@ -61,6 +62,7 @@ import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
 import ConfirmHost from "./components/ConfirmHost";
 import LeafRenderer from "./components/LeafRenderer";
+import CaretAffinityIndicator from "./components/CaretAffinityIndicator";
 import type { MarkRenderProps } from "./api/marks";
 import type { ComponentType } from "react";
 import PromptHost from "./components/PromptHost";
@@ -181,6 +183,13 @@ const Index = memo(
     const registry = kit.registry;
     const registryRef = useRef(registry);
     registryRef.current = registry;
+    // 编辑器只在插件变化时重建，非包含标记随装配更新，经 ref 交给光标偏向插件
+    const nonInclusiveKeys = useMemo(
+      () => new Set(assembly.marks.flatMap(({ spec }) => spec.nonInclusiveKeys ?? [])),
+      [assembly]
+    );
+    const nonInclusiveKeysRef = useRef(nonInclusiveKeys);
+    nonInclusiveKeysRef.current = nonInclusiveKeys;
     const overlayContainerRef = useRef<HTMLDivElement>(null);
     // 文件拖拽的落点指示线：dragover 定位最内层块，drop 用同一落点插入（线在哪、插在哪）
     const fileDropLineRef = useRef<HTMLDivElement>(null);
@@ -275,7 +284,10 @@ const Index = memo(
         type => assembly.hasElement(type)
       );
 
-      const enhancedEditor = withBlockNavigation(finalEditor);
+      const enhancedEditor = withCaretAffinity(
+        withBlockNavigation(finalEditor),
+        () => nonInclusiveKeysRef.current
+      );
 
       // 启用 Chunking 优化大文档性能
       // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
@@ -576,6 +588,7 @@ const Index = memo(
                   onBlur={onBlur}
                 />
                 {binding?.renderOverlay?.(overlayContainerRef)}
+                {!readonly && <CaretAffinityIndicator />}
                 {/* 文件拖拽的落点指示线（与块拖拽的插入线同款；fixed 定位，位置由 dragover 直接写 style） */}
                 <div
                   ref={fileDropLineRef}

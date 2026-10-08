@@ -18,6 +18,7 @@ export const textFormattingExtension = defineExtension({
       id: "tau.text-formatting.render",
       keys: TEXT_FORMATTING_KEYS,
       render: FormattedText,
+      nonInclusiveKeys: ["code"],
     },
   ],
   toolbar,

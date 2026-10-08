@@ -1,6 +1,8 @@
 import { Component, createElement, Suspense, type ComponentType, type ReactNode } from "react";
-import type { RenderLeafProps } from "slate-react";
+import type { Text } from "slate";
+import { useSlateSelector, type RenderLeafProps } from "slate-react";
 import type { MarkRenderProps, RegisteredMark } from "../../api/marks";
+import { getCaretSpacerTarget, hasCaretSpacer } from "../../utils/caretAffinity";
 
 interface BoundaryProps extends MarkRenderProps {
   render: ComponentType<MarkRenderProps>;
@@ -40,7 +42,10 @@ class MarkBoundary extends Component<BoundaryProps, { failed: boolean }> {
   }
 }
 
-interface LeafRendererProps extends Pick<RenderLeafProps, "attributes" | "leaf" | "children"> {
+interface LeafRendererProps
+  extends
+    Pick<RenderLeafProps, "attributes" | "leaf" | "children" | "leafPosition">,
+    Partial<Pick<RenderLeafProps, "text">> {
   marks: readonly RegisteredMark[];
   wrapper?: ComponentType<MarkRenderProps>;
   onError: (owner: string, error: unknown) => void;
@@ -48,15 +53,44 @@ interface LeafRendererProps extends Pick<RenderLeafProps, "attributes" | "leaf" 
 
 const preventDrag = (event: React.DragEvent) => event.preventDefault();
 
+/**
+ * 带标记文本开头的不可编辑占位：光标停在文本开头时隔开前一个文本，让浏览器在 offset 0
+ * 处的输入留在本文本内（光标偏向的右侧槽位，见 utils/caretAffinity）。放在标记包装内侧，
+ * 光标显示在格式框里。
+ */
+const CaretSpacer = ({ text }: { text: Text }) => {
+  const active = useSlateSelector(editor => getCaretSpacerTarget(editor) === text);
+  if (!active) return null;
+  return (
+    <span contentEditable={false} className="text-[0px]">
+      {String.fromCodePoint(160)}
+    </span>
+  );
+};
+
 export default function LeafRenderer({
   attributes,
   leaf,
+  text,
+  leafPosition,
   children,
   marks,
   wrapper,
   onError,
 }: LeafRendererProps) {
-  let content = children;
+  // 零宽占位叶子（leaf.text 为空）与装饰切出的后续叶子不放 spacer
+  const spacerText =
+    text && leaf.text !== "" && (leafPosition?.start ?? 0) === 0 && hasCaretSpacer(text)
+      ? text
+      : null;
+  let content = spacerText ? (
+    <>
+      <CaretSpacer text={spacerText} />
+      {children}
+    </>
+  ) : (
+    children
+  );
   const values = leaf as unknown as Record<string, unknown>;
   for (const { owner, spec } of marks) {
     if (

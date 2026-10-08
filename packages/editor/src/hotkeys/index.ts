@@ -1,6 +1,6 @@
 import type { EditorCommand, EditorHotkey } from "../api/command";
 import { modMoveCommands, modMoveHotkeys } from "./modMove";
-import { inlineCommands, inlineHotkeys } from "./inline";
+import { caretMoveCommands, caretMoveHotkeys } from "./caretMove";
 import { slashCommandCommands, slashCommandHotkeys } from "./slashCommand";
 import { blockNavigationCommands, blockNavigationHotkeys } from "./blockNavigation";
 import { selectAllCommands, selectAllHotkeys } from "./selectAll";
@@ -14,15 +14,15 @@ import { selectAllCommands, selectAllHotkeys } from "./selectAll";
 export const builtinCommands: EditorCommand[] = [
   ...selectAllCommands,
   ...modMoveCommands,
-  ...inlineCommands,
   ...slashCommandCommands,
+  ...caretMoveCommands,
   ...blockNavigationCommands,
 ];
 
 export const builtinHotkeys: EditorHotkey[] = [
   ...selectAllHotkeys,
   ...modMoveHotkeys,
-  ...inlineHotkeys,
   ...slashCommandHotkeys,
+  ...caretMoveHotkeys,
   ...blockNavigationHotkeys,
 ];
