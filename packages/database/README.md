@@ -51,7 +51,9 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 `plugins` 属性追加或覆盖通用字段插件。图片、附件、富文本与卡片业务插件由宿主装配；缺失插件的字段不可编辑并保留原值。
 
-字段插件可选声明 `valueType`（number / text / boolean / date）、`toScalar`（存储值 → 参与运算的标量，空为 null）与 `formatScalar`（数值汇总的展示文本），以参与表尾汇总与公式。未声明 `valueType` 的字段只能计数。汇总与公式引擎在 `core/formula`，只经这三个成员读取字段，不认识具体插件。
+字段插件可选声明 `valueType`（number / text / boolean / date，可按列给出）、`toScalar`（存储值 → 参与运算的标量，空为 null）与 `formatScalar`（数值汇总的展示文本），以参与表尾汇总与公式。未声明 `valueType` 的字段只能计数。汇总与公式引擎在 `core/formula`，只经这三个成员读取字段，不认识具体插件。`filters` 也可按列给出，读取统一经 `PluginManager.getFilterDefinitions(column)`。
+
+内置 `formula` 字段：表达式存 `config`（`FormulaColumnConfig`），值只在投影中派生（`{ value, error? }`），不写入行数据；可筛选、排序、搜索、分组。表尾除单列汇总外支持以各列汇总为叶子的组合表达式（`FooterSpec` 的 `expr` 形态）。
 
 `slots` 按实例提供以下能力：
 

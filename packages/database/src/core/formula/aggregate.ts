@@ -1,5 +1,5 @@
-import type { AggregateOp, FooterSpec } from "@tau/shared/database-types";
-import type { FormulaContext, FormulaResult, Scalar, ValueType } from "./types";
+import type { AggregateOp } from "@tau/shared/database-types";
+import type { FormulaResult, Scalar, ValueType } from "./types";
 
 export const AGGREGATE_LABELS: Record<AggregateOp, string> = {
   sum: "求和",
@@ -62,30 +62,4 @@ export function aggregate(
               ? sorted[middle]
               : (sorted[middle - 1] + sorted[middle]) / 2;
   return { ok: true, value: { kind: "numeric", value } };
-}
-
-/** 计算一列的表尾汇总；输入行应为投影后（筛选后）的行 */
-export function evaluateFooter(
-  columnId: string,
-  spec: FooterSpec,
-  rows: readonly Record<string, unknown>[],
-  ctx: FormulaContext
-): FormulaResult<AggregateValue> {
-  const ref = ctx.resolveColumn(columnId);
-  if (ref === undefined)
-    return { ok: false, error: { code: "missing-column", message: "引用的列已被删除" } };
-  if (!aggregatesFor(ref?.valueType ?? null).includes(spec.op))
-    return { ok: false, error: { code: "type", message: "这一列不是数字，只能计数" } };
-  // 未声明值类型的列只能计数：以原始值是否为空判断
-  const values = rows.map(row => {
-    if (ref) return ref.read(row);
-    const raw = row[columnId];
-    return raw === undefined ||
-      raw === null ||
-      raw === "" ||
-      (Array.isArray(raw) && raw.length === 0)
-      ? null
-      : JSON.stringify(raw);
-  });
-  return aggregate(spec.op, values);
 }

@@ -1,28 +1,29 @@
 /**
  * 汇总与公式的内部表达式结构。只在存储与校验层使用，不向用户展示。
+ * 持久化形态定义在 @tau/shared/database-types，这里给引擎内的短名。
  */
 
-export type ValueType = "number" | "text" | "boolean" | "date";
+import type {
+  AggregateOp,
+  FormulaBinaryOp,
+  FormulaCompareOp,
+  FormulaExpr,
+  FormulaValueType,
+} from "@tau/shared/database-types";
+
+export type ValueType = FormulaValueType;
+export type BinaryOp = FormulaBinaryOp;
+export type CompareOp = FormulaCompareOp;
+export type Expr = FormulaExpr;
 
 /** 参与运算的标量；date 为毫秒时间戳，null 表示空 */
 export type Scalar = number | string | boolean | null;
 
-export type BinaryOp = "+" | "-" | "*" | "/";
-export type CompareOp = ">" | ">=" | "<" | "<=" | "==" | "!=" | "contains";
-
-export type Expr =
-  | { kind: "literal"; value: number | string | boolean | null }
-  | { kind: "column"; columnId: string }
-  | { kind: "binary"; op: BinaryOp; left: Expr; right: Expr }
-  | { kind: "compare"; op: CompareOp; left: Expr; right: Expr }
-  | { kind: "logic"; op: "and" | "or"; operands: Expr[] }
-  | { kind: "not"; operand: Expr }
-  | { kind: "if"; test: Expr; then: Expr; else: Expr }
-  | { kind: "concat"; parts: Expr[] }
-  | { kind: "empty"; operand: Expr };
+/** row：单行公式，可引用列；footer：表尾组合，只能引用各列汇总 */
+export type FormulaScope = "row" | "footer";
 
 /** 内部错误码：只用于映射提示文案与测试断言 */
-export type FormulaErrorCode = "type" | "div0" | "missing-column" | "depth" | "bad-ref";
+export type FormulaErrorCode = "type" | "div0" | "missing-column" | "depth" | "bad-ref" | "cycle";
 
 export interface FormulaError {
   code: FormulaErrorCode;
@@ -43,6 +44,8 @@ export interface ColumnRef {
 export interface FormulaContext {
   /** 列不存在返回 undefined；存在但不可参与运算（未声明 valueType）返回 null */
   resolveColumn: (columnId: string) => ColumnRef | null | undefined;
+  /** 表尾作用域下求某列的汇总值 */
+  aggregate?: (columnId: string, op: AggregateOp) => FormulaResult<number | null>;
 }
 
 export const MAX_DEPTH = 16;

@@ -1,4 +1,4 @@
-import { CellPlugin, CellValue, ColumnDef, RowData } from "./types";
+import { CellFilterDefinition, CellPlugin, CellValue, ColumnDef, RowData } from "./types";
 import { missingPlugin } from "./components/MissingPlugin";
 
 export class PluginManager {
@@ -83,8 +83,10 @@ export class PluginManager {
     }
   }
 
-  getFilterDefinitions(type: string) {
-    return this.getPlugin(type)?.filters ?? [];
+  /** 某列可用的筛选操作符；插件可按列给出（如公式列按结果类型） */
+  getFilterDefinitions(column: ColumnDef): CellFilterDefinition<unknown>[] {
+    const filters = this.getPlugin(column.type)?.filters;
+    return (typeof filters === "function" ? filters(column) : filters) ?? [];
   }
 
   executeSearch(

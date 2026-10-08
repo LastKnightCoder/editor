@@ -40,10 +40,24 @@ describe("数据表视图表尾汇总持久化", () => {
     expect(updated?.config.footer).toEqual({ qty: { kind: "aggregate", op: "avg" } });
   });
 
+  it("保留表尾组合表达式", () => {
+    const expr = {
+      kind: "binary",
+      op: "*",
+      left: { kind: "aggregate", op: "sum", columnId: "subtotal" },
+      right: { kind: "literal", value: 7 },
+    };
+    const view = createView({ subtotal: { kind: "expr", expr } });
+    expect(DataTableViewTable.getById(db, view.id)?.config.footer).toEqual({
+      subtotal: { kind: "expr", expr },
+    });
+  });
+
   it("丢弃结构非法的条目，空表不落键", () => {
     const view = createView({
       a: { kind: "aggregate", op: "max", extra: 1 },
       b: { kind: "expr" },
+      d: { kind: "expr", expr: "1 + 1" },
       c: null,
     });
     expect(view.config.footer).toEqual({ a: { kind: "aggregate", op: "max" } });

@@ -8,7 +8,8 @@
 - 求值在渲染端、与 `projectDatabase` 同层；不加主进程命令、不改 schema。公式值不落库。
 - 字段参与运算的口径由 `CellPlugin.valueType` / `toScalar` / `formatScalar` 声明，引擎不认识具体插件；未声明的字段只能计数，文本不隐式转数字。
 - 表尾配置按视图存 `TableViewConfig.footer`，主进程 `normalizeConfig` 白名单同步保留；汇总算筛选后的行。
-- 分三迭代：引擎 + 表尾汇总（已实施）→ 公式列与构造器 → AI 入口（经同一校验器）。
+- 表达式与公式列配置属存储协议，类型在 `@tau/shared/database-types`；公式值只在投影中派生，store 行与保存回调不含公式值。
+- 分三迭代：引擎 + 表尾汇总、公式列与构造器（均已实施）→ AI 入口（经同一校验器）。
 
 ## D-120 文档待办：正文是唯一真相源，待办页是镜像
 
