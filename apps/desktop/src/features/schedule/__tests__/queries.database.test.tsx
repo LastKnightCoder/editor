@@ -230,6 +230,30 @@ describe("日程数据隔离", () => {
     expect(client.getQueryState(api.scheduleKeys.catalog("a"))?.isInvalidated).toBe(false);
   });
 
+  it("全天待办安排绑定原库并刷新安排概况，切库后旧闭包拒绝创建", async () => {
+    await mount(<MutationProbe />);
+    const summaryKey = [...api.scheduleKeys.todoSchedules("a"), [3]];
+    client.setQueryData(summaryKey, {});
+    const input = {
+      todoItemId: 3,
+      startDate: new Date(2026, 9, 8).getTime(),
+      allDay: true,
+    } as const;
+    const created = { ...event("写报告"), todoItemId: 3, startDate: input.startDate };
+    invoke.mockResolvedValueOnce(created);
+    expect(await mutations.scheduleTodo(input)).toEqual(created);
+    expect(invoke).toHaveBeenCalledWith("calendar-event:create-for-todo", input, {
+      toolDatabaseName: "a",
+    });
+    expect(client.getQueryState(summaryKey)?.isInvalidated).toBe(true);
+
+    const previous = mutations;
+    await act(async () => switchDatabase("b"));
+    const calls = invoke.mock.calls.length;
+    await expect(previous.scheduleTodo(input)).rejects.toThrow("数据库已切换");
+    expect(invoke).toHaveBeenCalledTimes(calls);
+  });
+
   it("跨窗口通知只失效对应库的日程查询", () => {
     sharedClient.setQueryData(api.scheduleKeys.catalog("a"), {
       calendars: [calendar("a")],

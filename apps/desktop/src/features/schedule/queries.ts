@@ -27,6 +27,7 @@ import type {
   UpdateCalendar,
   CreateCalendarGroup,
   CreateCalendarEvent,
+  CreateTodoSchedule,
   UpdateCalendarEvent,
   PomodoroEventBinding,
   TodoCalendarEventSource,
@@ -267,13 +268,8 @@ export function useScheduleMutations() {
         refresh();
         return result;
       },
-      /** 把待办安排进某个时段（新建关联该待办的用户日历事件） */
-      async scheduleTodo(input: {
-        todoItemId: number;
-        startDate: number;
-        startTime: number;
-        endTime: number;
-      }) {
+      /** 新建关联待办的全天或定时安排。 */
+      async scheduleTodo(input: CreateTodoSchedule) {
         assertCurrentDatabase();
         const result = await commands.createCalendarEventForTodo(input);
         refresh();

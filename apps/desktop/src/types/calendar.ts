@@ -57,6 +57,16 @@ export interface CalendarEvent {
 export type CreateCalendarEvent = Omit<CalendarEvent, "id" | "createTime" | "updateTime">;
 export type UpdateCalendarEvent = Omit<CalendarEvent, "createTime" | "updateTime">;
 
+/** 待办的一次安排：全天只指定日期，定时指定起止分钟。 */
+export type CreateTodoSchedule = {
+  todoItemId: number;
+  startDate: number;
+  calendarId?: number;
+} & (
+  | { allDay: true; startTime?: never; endTime?: never }
+  | { allDay?: false; startTime: number; endTime: number }
+);
+
 // 视图类型
 export type CalendarViewType = "day" | "week" | "month" | "agenda";
 

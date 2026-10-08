@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types/calendar";
+import type { CreateTodoSchedule } from "@/types/calendar";
 import Operation from "./operation";
 import ContentTable from "./content";
 import CalendarTable from "./calendar";
@@ -91,17 +92,8 @@ export default class CalendarEventTable {
     );
   }
 
-  /** 把待办安排进某个时段：新建关联该待办的用户日历事件（标题取待办，备注不与待办描述共用） */
-  static createEventForTodo(
-    db: Database.Database,
-    data: {
-      todoItemId: number;
-      startDate: number;
-      startTime: number;
-      endTime: number;
-      calendarId?: number;
-    }
-  ): CalendarEvent {
+  /** 新建待办的全天或定时安排（标题取待办，备注不与待办描述共用）。 */
+  static createEventForTodo(db: Database.Database, data: CreateTodoSchedule): CalendarEvent {
     const todo = db.prepare("SELECT title FROM todo_item WHERE id = ?").get(data.todoItemId) as
       { title: string } | undefined;
     if (!todo) throw new Error(`Todo ${data.todoItemId} not found`);
@@ -113,10 +105,10 @@ export default class CalendarEventTable {
       detailContentId: 0,
       startDate: data.startDate,
       endDate: data.startDate,
-      startTime: data.startTime,
-      endTime: data.endTime,
+      startTime: data.allDay ? null : data.startTime,
+      endTime: data.allDay ? null : data.endTime,
       color: null,
-      allDay: false,
+      allDay: data.allDay ?? false,
       todoItemId: data.todoItemId,
     });
   }
