@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
+    "./media-types": "./media-types.ts",
+    "./color-utils": "./color-utils.ts",
+    "./rich-text-text": "./rich-text-text.ts",
+    "./entity-ref": "./entity-ref.ts",
     "./database-types": "./database-types.ts",
     "./calendar-utils": "./calendar-utils.ts",
     "./fsrs-schedule": "./fsrs-schedule.ts",

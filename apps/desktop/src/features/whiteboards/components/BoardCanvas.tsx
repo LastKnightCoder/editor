@@ -10,7 +10,8 @@ import { useEffect, useImperativeHandle, useMemo, useRef, type Ref } from "react
 import { useMemoizedFn } from "ahooks";
 import { debounce } from "lodash";
 import { Loading } from "@tau/ui";
-import WhiteBoard, { type WhiteBoardRef } from "@/components/WhiteBoard";
+import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
+import { type WhiteBoardRef } from "@tau/whiteboard";
 import type { WhiteBoardContent } from "@/types";
 import { useWhiteBoardContent } from "../queries";
 import { subscribeReveal, takeReveal } from "../navigation";
@@ -23,12 +24,14 @@ export function BoardCanvas({
   id,
   onLoaded,
   onPresentationModeChange,
+  onDockWidthChange,
   ref,
 }: {
   id: number;
   /** 页内容就绪（名称用于面包屑） */
   onLoaded?(content: WhiteBoardContent): void;
   onPresentationModeChange?(presenting: boolean): void;
+  onDockWidthChange?(width: number): void;
   ref?: Ref<BoardCanvasHandle>;
 }) {
   const { data: content, isPending, isError, save } = useWhiteBoardContent(id);
@@ -102,6 +105,7 @@ export function BoardCanvas({
         onChange={onChange}
         showSidebar
         onPresentationModeChange={onPresentationModeChange}
+        onDockWidthChange={onDockWidthChange}
       />
     </div>
   );

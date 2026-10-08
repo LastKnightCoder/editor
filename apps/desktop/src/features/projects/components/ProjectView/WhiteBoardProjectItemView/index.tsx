@@ -1,4 +1,4 @@
-import WhiteBoard from "@/components/WhiteBoard";
+import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
 import { getProjectItemById, getWhiteBoardContentById, updateWhiteBoardContent } from "@/commands";
 import { ProjectItem, WhiteBoardContent } from "@/types";
 import { useThrottleFn } from "ahooks";

@@ -8,7 +8,7 @@ import { matchesSelectionFilter, selectionFilterLabel } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
 import { SearchInput, SelectionSegment, SelectAllButton } from "../SearchToolbar";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { useSearch } from "../../hooks";
 
 interface QuestGroupItem {

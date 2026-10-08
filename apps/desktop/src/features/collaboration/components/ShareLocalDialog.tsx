@@ -18,7 +18,7 @@ import { Button, Dialog, DialogBody, Input, Loading, Segmented } from "@tau/ui";
 import type { CollaborationSession, SourceType } from "@tau/collaboration";
 import { createSharedContent } from "@/commands";
 import { InvitationCode } from "@/components/CollaborationUI";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
+import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 import type { ContentIndexType, SearchResult } from "@/types";
 import { useShareCandidates } from "../queries";
 

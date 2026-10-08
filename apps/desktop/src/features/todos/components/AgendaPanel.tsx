@@ -19,7 +19,7 @@ import {
   Repeat,
 } from "lucide-react";
 import { ContextMenu, cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import type { TodoGroup } from "@/types";
 import {
   bucketOf,

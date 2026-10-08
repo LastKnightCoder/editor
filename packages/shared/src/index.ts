@@ -1,7 +1,7 @@
-export { default as If } from "./components/If";
+export { If } from "@tau/ui";
 export { default as For } from "./components/For";
-export { default as PortalToBody } from "./components/PortalToBody";
-export { default as ErrorBoundary } from "./components/ErrorBoundary";
+export { PortalToBody } from "@tau/ui";
+export { ErrorBoundary } from "@tau/ui";
 export { default as EditText } from "./components/EditText";
 export { default as ResizeHandle } from "./components/ResizeHandle";
 export { default as ModernTabs } from "./components/ModernTabs";

@@ -5,7 +5,7 @@
 
 import { cn } from "@tau/ui";
 import { formatTime } from "@/utils/calendar";
-import { clampText, richTextPlainText } from "@/utils/richTextText";
+import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 import type { Calendar, CalendarEvent } from "@/types";
 import { TONE, eventToneStyle } from "../eventTone";
 import { EventTitle, type EventDecor } from "./EventTitle";

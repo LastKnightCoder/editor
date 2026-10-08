@@ -22,9 +22,9 @@ import {
 import { EditorThemeOverride } from "@tau/editor";
 import { cn, PortalScope } from "@tau/ui";
 import { StageHud, StageHudButton, StageHudDivider, useStageTheme } from "@/components/Stage";
-import PortalToBody from "@/components/PortalToBody";
+import { PortalToBody } from "@tau/ui";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { canToggleFullScreen, useFullScreenWhileMounted } from "@/hooks/useFullScreenWhileMounted";
 import { SINGLE_SCREEN, type CameraPlan } from "./cameraPlan";

@@ -1,4 +1,5 @@
-export type WebLinkSourceType = "remote" | "local";
+import type { WebLinkSourceType } from "@tau/shared/media-types";
+export type { WebLinkSourceType } from "@tau/shared/media-types";
 
 export interface WebLink {
   id: number;

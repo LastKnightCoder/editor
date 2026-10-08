@@ -9,7 +9,7 @@
  *     达不到阈值就沿 OKLCH 的 L 轴拟合，规则与思维导图主题一致（MindThemeUtil）。
  */
 
-import { contrast, fitTone, hexTone, oklch, type Tone } from "@/utils/oklch";
+import { contrast, fitTone, hexTone, oklch, type Tone } from "@tau/shared/color-utils";
 import type { GraphPalette } from "./types";
 
 /** 正文标签阈值（AA 小字） */

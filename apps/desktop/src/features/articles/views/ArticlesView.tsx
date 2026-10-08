@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Import, Plus, Search, X } from "lucide-react";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { morph, queryActivePageMorph } from "@/page/morph";
 import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";

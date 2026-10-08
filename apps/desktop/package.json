@@ -16,8 +16,8 @@
     "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build --configLoader runner && node scripts/run-electron-builder.mjs && node scripts/verify-native-runtime.mjs\"",
     "verify:native-runtime": "node scripts/verify-native-runtime.mjs",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "bench:whiteboard-hit": "cross-env WHITEBOARD_HIT_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/hit.benchmark.test.ts --reporter=verbose",
-    "bench:whiteboard-render-profile": "cross-env WHITEBOARD_RENDER_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/render-profile.benchmark.test.tsx --reporter=verbose"
+    "bench:whiteboard-hit": "pnpm --filter @tau/whiteboard bench:hit",
+    "bench:whiteboard-render-profile": "pnpm --filter @tau/whiteboard bench:render"
   },
   "dependencies": {
     "7zip-min": "^2.1.0",
@@ -135,6 +135,7 @@
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
     "@tau/ui": "workspace:*",
+    "@tau/whiteboard": "workspace:*",
     "@types/adm-zip": "^0.5.7",
     "@types/ali-oss": "^6.16.11",
     "@types/better-sqlite3": "^7.6.12",

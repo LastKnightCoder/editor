@@ -172,15 +172,15 @@ module.exports = {
     },
     {
       files: [
-        "apps/desktop/src/components/WhiteBoard/plugins/**/*.{ts,tsx}",
-        "apps/desktop/src/components/WhiteBoard/interactions/**/*.ts",
+        "packages/whiteboard/src/plugins/**/*.{ts,tsx}",
+        "packages/whiteboard/src/interactions/**/*.ts",
       ],
       excludedFiles: [
         // 领域知识归属宿主自身；测试桩需要模拟具体容器
-        "apps/desktop/src/components/WhiteBoard/plugins/FramePlugin.tsx",
-        "apps/desktop/src/components/WhiteBoard/plugins/MindPlugin.tsx",
-        "apps/desktop/src/components/WhiteBoard/plugins/ColumnPlugin.tsx",
-        "apps/desktop/src/components/WhiteBoard/plugins/__tests__/**",
+        "packages/whiteboard/src/plugins/FramePlugin.tsx",
+        "packages/whiteboard/src/plugins/MindPlugin.tsx",
+        "packages/whiteboard/src/plugins/ColumnPlugin.tsx",
+        "packages/whiteboard/src/plugins/__tests__/**",
       ],
       rules: {
         "no-restricted-syntax": ["error", ...whiteboardPluginIsolation],

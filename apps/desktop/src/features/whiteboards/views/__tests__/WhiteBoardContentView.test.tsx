@@ -31,7 +31,7 @@ vi.mock("../../queries", () => ({
     },
   }),
 }));
-vi.mock("@/components/WhiteBoard", () => ({
+vi.mock("@/features/shared/whiteboard/DesktopWhiteboard", () => ({
   default: ({ onChange }: { onChange: (data: unknown) => void }) => (
     <button onClick={() => onChange({ children: ["已编辑"] })}>编辑</button>
   ),

@@ -22,7 +22,7 @@ import { EditorThemeOverride, type EditorRef } from "@tau/editor";
 import type { AnyExtension } from "@tau/editor";
 import { cn, PortalScope } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
-import PortalToBody from "@/components/PortalToBody";
+import { PortalToBody } from "@tau/ui";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
 import { StageHud, StageHudButton, StageHudDivider, useStageTheme } from "@/components/Stage";
 import { useFullScreenWhileMounted } from "@/hooks/useFullScreenWhileMounted";

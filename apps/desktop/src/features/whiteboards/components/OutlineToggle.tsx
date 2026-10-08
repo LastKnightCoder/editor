@@ -5,7 +5,7 @@
 
 import { PanelLeft } from "lucide-react";
 import { IconButton, Tooltip } from "@tau/ui";
-import { useWhiteboardOutlineStore } from "@/components/WhiteBoard/components/Sidebar/outlineStore";
+import { useWhiteboardOutlineStore } from "@/features/shared/whiteboard/outlineStore";
 
 export function OutlineToggle() {
   const open = useWhiteboardOutlineStore(s => s.open);

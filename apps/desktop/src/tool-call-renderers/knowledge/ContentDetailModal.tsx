@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Descendant } from "slate";
 import { Dialog, DialogBody, Spinner } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { getContentById } from "@/commands/content";
 
 interface ContentDetailModalProps {

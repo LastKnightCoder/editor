@@ -10,7 +10,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { Button, ConfirmDialog, Loading, cn, toast } from "@tau/ui";
 import { CockpitGridCard, CockpitListRows, CockpitRecentCard } from "./EntityCards";
 import { CockpitToolbar } from "./CockpitToolbar";

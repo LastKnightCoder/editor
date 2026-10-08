@@ -37,7 +37,7 @@ import {
   toast,
 } from "@tau/ui";
 import { Editor } from "@tau/editor";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";

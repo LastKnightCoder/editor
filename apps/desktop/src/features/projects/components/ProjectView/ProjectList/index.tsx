@@ -5,9 +5,9 @@ import { ChevronDown } from "lucide-react";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
 import { ProjectReviewContext } from "../../../review/ProjectReviewContext";
-import If from "@/components/If";
+import { If } from "@tau/ui";
 import For from "@/components/For";
-import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { ResizableAndHideableSidebar as ResizeableAndHideableSidebar } from "@tau/ui";
 
 import {
   CreateProjectItem,

@@ -19,7 +19,7 @@ import {
   SearchX,
 } from "lucide-react";
 import { Button, FilterPill, Input, Loading, Menu, Segmented, cn } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import { useSettingsStore } from "@/app/settingsStore";
 import {

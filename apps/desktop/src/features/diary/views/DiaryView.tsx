@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { History, Loader2, PenLine, Search, SearchX, X } from "lucide-react";
 import { Button, IconButton, Loading, Tag, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import {
   buildContent,

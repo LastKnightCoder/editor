@@ -3,7 +3,7 @@
  * 「页」= 子白板（WhiteBoardContent）；列表接口已带回全部页数据，页数 / 元素数 / 演示序列都在这里派生。
  */
 
-import type { BoardElement } from "@/components/WhiteBoard/types";
+import type { BoardElement } from "@tau/whiteboard";
 import type { WhiteBoard } from "@/types";
 
 export interface WhiteboardPage {

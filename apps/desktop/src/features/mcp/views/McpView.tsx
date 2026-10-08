@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { Braces, Plug, Plus, Search } from "lucide-react";
 import { Button, ConfirmDialog, IconButton, Input, Switch, Tooltip, cn, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
+import { FadeScroll } from "@tau/ui";
 import useMCPStore from "@/stores/useMCPStore";
 import { serversToJson } from "../serverConfig";
 import {

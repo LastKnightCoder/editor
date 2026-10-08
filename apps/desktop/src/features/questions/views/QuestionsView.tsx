@@ -14,7 +14,7 @@ import { MotionConfig } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
 import { openChatInDock } from "@/features/chat/openInDock";

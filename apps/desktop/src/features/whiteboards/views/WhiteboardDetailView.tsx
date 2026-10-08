@@ -12,7 +12,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import { useWhiteboardOutlineStore } from "@/components/WhiteBoard/components/Sidebar/outlineStore";
 import { BoardCanvas, type BoardCanvasHandle } from "../components/BoardCanvas";
 import { SheetBar } from "../components/SheetBar";
 import { OutlineToggle } from "../components/OutlineToggle";
@@ -50,7 +49,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [presenting, setPresenting] = useState(false);
-  const dockWidth = useWhiteboardOutlineStore(s => s.dockWidth);
+  const [dockWidth, setDockWidth] = useState(0);
 
   const pages = useMemo(
     () => (board?.whiteBoardContentList ?? []).map(p => ({ id: p.id, name: p.name })),
@@ -159,6 +158,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
             id={activeId}
             ref={canvasRef}
             onPresentationModeChange={setPresenting}
+            onDockWidthChange={setDockWidth}
           />
         </WhiteboardNavContext>
 

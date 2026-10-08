@@ -9,7 +9,7 @@ import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor";
 import { Button, Dialog, toast } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
-import ErrorBoundary from "@/components/ErrorBoundary";
+import { ErrorBoundary } from "@tau/ui";
 import { getContentLength } from "@/utils";
 import { AnswerMetaBar } from "./AnswerMetaBar";
 
