@@ -31,7 +31,7 @@
 - `card` - 卡片
 - `article` - 文章
 - `project-item` - 项目条目
-- `diary-daily` - 日记
+- `diary-moment` - 日记（一条正文，id 为片段 ID）
 - `excerpt` - 划线（微信读书、浏览器插件的划线与想法）
 - `pdf-annotation` - PDF 标注
 - `web-clip` - 剪藏网页
@@ -79,7 +79,7 @@ query 参数是纯粹的**检索语句**，只包含要查找的主题内容，�
   - `card`
   - `article`
   - `project-item`
-  - `diary-daily`
+  - `diary-moment`
   - `excerpt`
   - `pdf-annotation`
   - `web-clip`
@@ -89,7 +89,7 @@ query 参数是纯粹的**检索语句**，只包含要查找的主题内容，�
 - :ref[这个卡片]{id=123 type=card} 提到了相关概念
 - 根据 :ref[项目文档]{id=456 type=project-item} 的说明
 - 在 :ref[这篇文章]{id=101 type=article} 中有详细讨论
-- 在 :ref[3月5日的日记]{id=201 type=diary-daily} 中记录过
+- 在 :ref[3月5日的日记]{id=201 type=diary-moment} 中记录过
 - 你在《置身事内》里划过 :ref[这句话]{id=88 type=excerpt}
 
 ### 注意事项
