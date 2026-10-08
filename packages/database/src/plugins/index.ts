@@ -7,6 +7,7 @@ import CheckboxPlugin from "./CheckboxPlugin";
 import LinkPlugin from "./LinkPlugin";
 import StarPlugin from "./StarPlugin";
 import ProgressPlugin from "./ProgressPlugin";
+import FormulaPlugin from "./FormulaPlugin";
 
 export const builtInPlugins = [
   TextPlugin,
@@ -18,6 +19,7 @@ export const builtInPlugins = [
   LinkPlugin,
   StarPlugin,
   ProgressPlugin,
+  FormulaPlugin,
 ];
 
 export {
@@ -30,4 +32,5 @@ export {
   LinkPlugin,
   StarPlugin,
   ProgressPlugin,
+  FormulaPlugin,
 };

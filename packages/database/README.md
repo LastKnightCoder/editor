@@ -44,11 +44,16 @@ import Database, { type DatabaseRef } from "@tau/database";
 - 查询经 `ref.setQuery()` 接入；四种视图、键盘与拖拽共用内部 projection。
 - 键盘仅作用于事件目标所在实例，输入、输入法组合及导航组合键让行。
 - 行详情的卸载草稿和异步正文经 onDetachedRowPatch 提交行标识、字段补丁与原行预期值；父级订阅退出后不再调用整表 onDataChange。宿主检查最新目标并返回是否应用，缺少该能力或目标删除时拒绝提交。宿主只按实体身份建立实例，不按活动视图重挂载。
+- 表格视图底部有表尾汇总行，配置存 `viewConfig.footer`（列 id → `{ kind: "aggregate", op }`），按视图持久化；汇总输入是投影后（筛选后）的行。宿主持久化视图配置时须保留 `footer` 键。
 - 通用字段、查询配置经 shared 的纯类型入口复用；本包不消费持久化模型，也不访问 SQLite、Electron 或业务页面。插槽接收的行字段是不透明数据，不读取业务标识。
 
 ## 宿主能力
 
 `plugins` 属性追加或覆盖通用字段插件。图片、附件、富文本与卡片业务插件由宿主装配；缺失插件的字段不可编辑并保留原值。
+
+字段插件可选声明 `valueType`（number / text / boolean / date，可按列给出）、`toScalar`（存储值 → 参与运算的标量，空为 null）与 `formatScalar`（数值汇总的展示文本），以参与表尾汇总与公式。未声明 `valueType` 的字段只能计数。汇总与公式引擎在 `core/formula`，只经这三个成员读取字段，不认识具体插件。`filters` 也可按列给出，读取统一经 `PluginManager.getFilterDefinitions(column)`。
+
+内置 `formula` 字段：表达式存 `config`（`FormulaColumnConfig`），值只在投影中派生（`{ value, error? }`），不写入行数据；可筛选、排序、搜索、分组。表尾除单列汇总外支持以各列汇总为叶子的组合表达式（`FooterSpec` 的 `expr` 形态）。
 
 `slots` 按实例提供以下能力：
 
@@ -56,6 +61,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 - GalleryCover：接收行、列和画廊封面配置，提供正文或资源预览。
 - Image：提供图片地址解析与加载错误回调；缺省使用浏览器 img。
 - coverGradient：按行身份提供封面空态背景；缺省消费主题语义底色。
+- formulaAssist：把消息交给模型并返回回答文本，失败时抛错；提供时公式构造器顶部出现「用一句话描述」输入框。提示词、解析与校验在包内，消息只含列结构不含行数据；缺省不提供。
 
 `onRowCleanup` 接收删除前的行快照，宿主决定如何释放资源引用。只在实例 deleteRow 时调用，external 移除不重复清理；删除接口保持同步，异步清理错误单独报告。桌面持久化表的行清理由原子删除读取最新记录完成。富文本列清理沿用 CellPlugin.onColumnCleanup，每个持有引用分别释放。
 

@@ -50,7 +50,7 @@ const createEmptyGroup = (): FilterGroup => ({
 const FilterPanel: React.FC<FilterPanelProps> = memo(
   ({ columns, filters, pluginManager, onChange, onClose, theme }) => {
     const filterableColumns = useMemo(() => {
-      return columns.filter(column => (pluginManager.getPlugin(column.type)?.filters ?? []).length);
+      return columns.filter(column => pluginManager.getFilterDefinitions(column).length);
     }, [columns, pluginManager]);
 
     const [localFilters, setLocalFilters] = useState<FilterGroup>(() => {
@@ -65,7 +65,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
     }, [filters]);
 
     const createCondition = (column: ColumnDef | undefined): FilterCondition => {
-      const definitions = column ? (pluginManager.getPlugin(column.type)?.filters ?? []) : [];
+      const definitions = column ? pluginManager.getFilterDefinitions(column) : [];
       const firstDefinition = definitions[0];
       return {
         id: uuidv4(),
@@ -128,7 +128,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           if (!condition) return;
           condition.fieldId = fieldId;
           const column = columns.find(col => col.id === fieldId);
-          const definitions = column ? (pluginManager.getPlugin(column.type)?.filters ?? []) : [];
+          const definitions = column ? pluginManager.getFilterDefinitions(column) : [];
           condition.operator = definitions[0]?.operator ?? null;
           condition.value =
             definitions[0]?.getInitialValue && column
@@ -146,7 +146,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           condition.operator = operator;
           const column = columns.find(col => col.id === condition.fieldId);
           if (!column) return;
-          const definitions = pluginManager.getPlugin(column.type)?.filters ?? [];
+          const definitions = pluginManager.getFilterDefinitions(column);
           const definition = definitions.find(item => item.operator === operator);
           if (definition?.getInitialValue) {
             condition.value = definition.getInitialValue(column);
@@ -227,7 +227,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
 
     const renderCondition = (condition: FilterCondition, group: FilterGroup) => {
       const column = columns.find(col => col.id === condition.fieldId) ?? null;
-      const definitions = column ? (pluginManager.getPlugin(column.type)?.filters ?? []) : [];
+      const definitions = column ? pluginManager.getFilterDefinitions(column) : [];
       const requiresValue = definitions.find(
         definition => definition.operator === condition.operator
       )?.requiresValue;

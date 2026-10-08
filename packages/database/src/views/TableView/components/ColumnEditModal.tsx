@@ -6,6 +6,17 @@ import SelectList from "./SelectList";
 import PluginManager from "../../../PluginManager";
 import { DatePluginConfig } from "../../../plugins/DatePlugin/index";
 import { Button, Dialog, DialogBody, Input, Select, Checkbox } from "@tau/ui";
+import type { FormulaColumnConfig } from "@tau/shared/database-types";
+import FormulaBuilder from "../../../components/FormulaBuilder";
+import { checkFormula, createFormContext } from "../../../components/FormulaBuilder/check";
+import {
+  exprToForm,
+  formToExpr,
+  hasHole,
+  type FormulaForm,
+} from "../../../components/FormulaBuilder/model";
+import { FORMULA_TYPE } from "../../../core/formula";
+import { useDatabaseStore } from "../../../hooks";
 
 interface ColumnEditModalProps {
   open: boolean;
@@ -35,6 +46,12 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   const [sortField, setSortField] = useState<"start" | "end">("start");
   const [groupField, setGroupField] = useState<"start" | "end">("start");
   const [titleError, setTitleError] = useState("");
+  const [formula, setFormula] = useState<FormulaForm>(null);
+  const [formulaError, setFormulaError] = useState<string | null>(null);
+  const { columns, rows } = useDatabaseStore(state => ({
+    columns: state.columns,
+    rows: state.rows,
+  }));
 
   const plugins = pluginManager.getAllPlugins();
   const pluginOptions = plugins.map(plugin => ({
@@ -61,6 +78,17 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
           setOptions([]);
         }
 
+        const formulaConfig = column.config as Partial<FormulaColumnConfig> | undefined;
+        setFormula(
+          column.type === FORMULA_TYPE && formulaConfig?.expr
+            ? exprToForm(
+                formulaConfig.expr,
+                formulaConfig.output,
+                createFormContext(columns, pluginManager, "row")
+              )
+            : null
+        );
+
         if (column.type === "date") {
           const dateConfig = column.config as DatePluginConfig;
           setShowTime(dateConfig?.showTime ?? false);
@@ -82,8 +110,10 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
         setIsRange(false);
         setSortField("start");
         setGroupField("start");
+        setFormula(null);
       }
       setTitleError("");
+      setFormulaError(null);
       setOptionInput("");
     }
   }, [open, column?.id]);
@@ -97,9 +127,33 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
     const rawWidth = typeof width === "number" ? width : Number(width);
     const normalizedWidth = Math.max(50, Math.min(500, Number.isFinite(rawWidth) ? rawWidth : 200));
 
-    const includeConfig = type === "select" || type === "multiSelect" || type === "date";
+    const includeConfig =
+      type === "select" || type === "multiSelect" || type === "date" || type === FORMULA_TYPE;
 
     let config: Record<string, unknown> | undefined;
+    if (type === FORMULA_TYPE) {
+      const saved = column?.config as Partial<FormulaColumnConfig> | undefined;
+      if (formula?.kind === "unsupported" && column?.type === FORMULA_TYPE && saved?.expr) {
+        // 构造器无法还原的公式原样保留
+        config = { ...saved };
+      } else {
+        if (!formula || formula.kind === "unsupported") {
+          setFormulaError("先选择要计算的内容");
+          return;
+        }
+        const expr = formToExpr(formula, "row");
+        if (hasHole(expr)) {
+          setFormulaError("还有没填完的地方");
+          return;
+        }
+        const check = checkFormula(expr, "row", columns, rows, pluginManager, column?.id);
+        if (!check.ok || expr.kind === "hole") {
+          setFormulaError(check.ok ? "还有没填完的地方" : check.message);
+          return;
+        }
+        config = { expr, output: check.output } satisfies FormulaColumnConfig;
+      }
+    }
     if (type === "select" || type === "multiSelect") {
       config = { options };
     } else if (type === "date") {
@@ -139,7 +193,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
         if (!next) onCancel();
       }}
       title={column ? "编辑列" : "新建列"}
-      width={400}
+      width={type === FORMULA_TYPE ? 880 : 400}
       footer={
         <>
           <Button variant="secondary" size="sm" onClick={onCancel}>
@@ -214,6 +268,27 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                   <SelectList options={options} onClear={removeOption} className="flex-wrap" />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* 公式配置 */}
+          {type === FORMULA_TYPE && (
+            <div className="flex flex-col gap-1.5">
+              <span className={labelClass}>公式</span>
+              <FormulaBuilder
+                scope="row"
+                value={formula}
+                onChange={next => {
+                  setFormula(next);
+                  setFormulaError(null);
+                }}
+                columns={columns}
+                rows={rows}
+                pluginManager={pluginManager}
+                selfColumnId={column?.id}
+                resultLabel={title}
+                error={formulaError}
+              />
             </div>
           )}
 

@@ -15,7 +15,10 @@ import type {
   FilterCondition,
   FilterLogicOperator,
   ValidationRule,
+  AggregateOp,
+  FooterSpec,
 } from "@tau/shared/database-types";
+import type { Scalar, ValueType } from "./core/formula/types";
 import { SELECT_COLORS } from "./constants";
 import type { DatabaseImage, DatabaseSlots } from "./DatabaseHostContext";
 
@@ -35,6 +38,8 @@ export type {
   FilterCondition,
   FilterLogicOperator,
   ValidationRule,
+  AggregateOp,
+  FooterSpec,
 };
 
 // Extend shared types with local specifics
@@ -185,8 +190,15 @@ export interface CellPlugin<T> {
   beforeSave?: (value: CellValue, config: T) => CellValue;
   afterLoad?: (value: CellValue, config: T) => CellValue;
   onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
-  filters?: CellFilterDefinition<T>[];
+  /** 可按列决定（如公式列按结果类型给出不同操作符）；读取经 PluginManager.getFilters */
+  filters?: CellFilterDefinition<T>[] | ((column: ColumnDef<T>) => CellFilterDefinition<T>[]);
   search?: (searchValue: string, cellValue: CellValue, column: ColumnDef, row: RowData) => boolean;
+  /** 参与汇总与公式时的值类型（可按列决定，如公式列取其结果类型）；不声明则该字段只能计数 */
+  valueType?: ValueType | ((column: ColumnDef<T>) => ValueType | undefined);
+  /** afterLoad 后的值 → 参与运算的标量；缺省按 valueType 取原值，取不到为 null（空） */
+  toScalar?: (value: CellValue, column: ColumnDef<T>) => Scalar;
+  /** 数值汇总结果的展示文本（如沿用数字列的小数位 / 前后缀、进度显示百分比） */
+  formatScalar?: (value: number, column: ColumnDef<T>) => string;
 }
 
 // ValidationRule is imported from @tau/shared

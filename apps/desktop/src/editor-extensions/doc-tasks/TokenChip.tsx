@@ -7,10 +7,10 @@ import type { MouseEvent } from "react";
 import { useReadOnly, useSlateStatic } from "slate-react";
 import { cn } from "@tau/ui";
 import type { MarkRenderProps } from "@tau/editor/api";
-import { resolveDocTaskDue } from "@/entity/doc-tasks";
+import { isAbsoluteDateHint, resolveDocTaskDue } from "@/entity/doc-tasks";
 import { dayDiff, dayWord, monthDay } from "@/utils/dayWords";
 import { docTaskGroupsOf } from "./service";
-import { useChipMenuStore } from "./chipMenu";
+import { openChipMenu } from "./chipMenu";
 import type { DocTaskTokenLeaf } from "./index";
 
 export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
@@ -19,11 +19,10 @@ export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
   const token = leaf as unknown as DocTaskTokenLeaf;
   const groups = docTaskGroupsOf(editor);
   const open = (event: MouseEvent<HTMLSpanElement>) => {
-    if (readOnly || !token.docTaskToken) return;
-    useChipMenuStore.setState({
-      editor,
-      anchor: event.currentTarget,
-      kind: token.docTaskToken,
+    if (readOnly || !token.docTaskToken || !token.docTaskRange || !token.docTaskTaskId) return;
+    openChipMenu(editor, event.currentTarget, token.docTaskToken, token.docTaskRange, {
+      taskId: token.docTaskTaskId,
+      text: token.docTaskTokenText,
     });
   };
 
@@ -48,7 +47,11 @@ export function DocTaskTokenChip({ leaf, children }: MarkRenderProps) {
 
   if (token.docTaskToken === "date" && token.docTaskDate) {
     const now = Date.now();
-    const due = resolveDocTaskDue(token.docTaskDate, now);
+    const due = isAbsoluteDateHint(token.docTaskDate)
+      ? resolveDocTaskDue(token.docTaskDate, now)
+      : token.docTaskAnchoredDate
+        ? resolveDocTaskDue(token.docTaskAnchoredDate, now)
+        : null;
     const overdue = due != null && dayDiff(due, now) < 0;
     const relative = due != null ? dayWord(due, now) : null;
     return (

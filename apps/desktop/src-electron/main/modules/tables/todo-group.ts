@@ -138,6 +138,13 @@ export default class TodoGroupTable {
       );
     } else {
       const title = payload.title ?? cur.title;
+      if (title !== cur.title) {
+        const remember =
+          db.prepare(`INSERT OR IGNORE INTO doc_task_group_names (group_id, group_created_at, title)
+          SELECT id, create_time, ? FROM todo_group WHERE id = ?`);
+        remember.run(cur.title, payload.id);
+        remember.run(title, payload.id);
+      }
       const color = (payload.color === undefined ? cur.color : payload.color) ?? null;
       const sortIndex = payload.sortIndex ?? cur.sort_index;
       const isArchived = payload.isArchived ?? Boolean(cur.is_archived);

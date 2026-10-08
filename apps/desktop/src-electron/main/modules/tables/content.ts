@@ -18,12 +18,30 @@ import {
   contentRevision,
   patchSessionNodes,
   replaceSessionContent,
+} from "../collaboration/content-sessions";
+import {
+  nodeText,
+  patchParagraph,
   type NodeAttributePatcher,
   type TextPatcher,
-} from "../collaboration/content-sessions";
+  type ParagraphPatcher,
+  type PatchNode,
+} from "../content-node-patches";
 import { readSharedContent, type ContentNode } from "@tau/collaboration";
+import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
 
 export default class ContentTable {
+  static ensureTaskIds(db: Database.Database, contentId: number): number {
+    const session = contentSession(db, contentId);
+    if (
+      session?.info.frozen ||
+      session?.info.leaving ||
+      (session && session.info.status !== "active")
+    )
+      return 0;
+    if (session && session.info.mode !== "local" && session.info.role !== "owner") return 0;
+    return this.patchNodes(db, contentId, createTaskIdPatcher(), { silent: !session });
+  }
   static getListenEvents() {
     return {
       "content:update": this.updateContent.bind(this),
@@ -129,18 +147,37 @@ export default class ContentTable {
    * 正文不存在为 0。patcher 看元素属性；text 看每段同格式的连续文字，返回改后的文字。
    * 有编辑会话时在会话文档上做增量修改（文字只删改差异的一段），由会话投影落库；否则改 JSON 后写库。
    *
-   * silent：不是用户编辑（如为存量勾选项补 taskId）——有会话时让给编辑器规范化、
-   * 协作内容不写，且不改 update_time、不记操作、不广播。
+   * silent 仅维护关闭正文的身份，不改时间及操作记录，通知视图刷新但不发写入事件。
+   * canonical 元信息不计用户操作；有视图编辑时暂缓文字规范化，实际改文字仍重算字数并发事件。
    */
   static patchNodes(
     db: Database.Database,
     contentId: number,
     patcher: NodeAttributePatcher,
-    options: { silent?: boolean; text?: TextPatcher } = {},
+    options: {
+      silent?: boolean;
+      canonical?: boolean;
+      text?: TextPatcher;
+      paragraph?: ParagraphPatcher;
+    } = {},
     ctx: CommandContext = fallbackCommandContext
   ): number {
     const session = contentSession(db, contentId);
-    if (session) return options.silent ? 0 : patchSessionNodes(session, patcher, options.text);
+    if (options.canonical && session?.info.mode !== "local" && session?.info.role === "editor")
+      return 0;
+    if (session) {
+      const editing =
+        options.canonical &&
+        [...session.awareness.getStates().values()].some(state => state.activity === "editing");
+      return options.silent
+        ? 0
+        : patchSessionNodes(
+            session,
+            patcher,
+            options.text,
+            editing ? undefined : options.paragraph
+          );
+    }
     if (options.silent) {
       if (findCollaborationBinding(db, contentId)) return 0;
     } else assertContentIsLocal(db, contentId);
@@ -150,36 +187,54 @@ export default class ContentTable {
     if (!row) return 0;
     const content = JSON.parse(row.content) as Descendant[];
     let patched = 0;
-    dfs(content, node => {
+    let textChanged = false;
+    const walk = (node: PatchNode, parent: Record<string, unknown>, index: number) => {
       const leaf = node as { text?: unknown };
       // 文本叶子也带 type（formatted），与会话路径一致：叶子只交给文本补丁
       if (typeof leaf.text === "string") {
         const next = options.text?.(leaf.text);
         if (next != null && next !== leaf.text) {
           leaf.text = next;
+          textChanged = true;
           patched++;
         }
         return;
       }
-      const patch = patcher(node as unknown as Record<string, unknown>);
+      const patch = patcher(node as unknown as Record<string, unknown>, {
+        get firstText() {
+          return nodeText(node.children?.[0]);
+        },
+      });
       if (patch) {
         Object.assign(node, patch);
         patched++;
       }
-    });
+      node.children?.forEach((child, childIndex) =>
+        walk(child, node as unknown as Record<string, unknown>, childIndex)
+      );
+      if (node.type === "paragraph" && options.paragraph) {
+        const changed = patchParagraph(node, options.paragraph(nodeText(node), parent, index));
+        textChanged ||= changed > 0;
+        patched += changed;
+      }
+    };
+    content.forEach((node, index) => walk(node as PatchNode, {}, index));
     if (patched === 0) return 0;
 
-    if (options.silent) {
+    if (options.silent || (options.canonical && !textChanged)) {
       db.prepare("UPDATE contents SET content = ? WHERE id = ?").run(
         JSON.stringify(content),
         contentId
       );
+      ctx.broadcastAll("content:updated", { databaseName: basename(db.name), contentId });
+      if (!options.silent) emitContentWritten(db, contentId, "update");
       return patched;
     }
     const now = Date.now();
-    db.prepare("UPDATE contents SET update_time = ?, content = ? WHERE id = ?").run(
+    db.prepare("UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?").run(
       now,
       JSON.stringify(content),
+      getContentLength(content),
       contentId
     );
     Operation.insertOperation(db, "content", "update", contentId, now);
@@ -206,6 +261,7 @@ export default class ContentTable {
     // 如果引用计数为0，则删除
     if (result && result.ref_count <= 0) {
       const deleteStmt = db.prepare("DELETE FROM contents WHERE id = ?");
+      db.prepare("DELETE FROM doc_task_settings WHERE content_id = ?").run(contentId);
       Operation.insertOperation(db, "content", "delete", contentId, Date.now());
       // 删除白板内容和问题
       const content = this.getContentById(db, contentId);

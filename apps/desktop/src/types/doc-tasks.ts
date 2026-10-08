@@ -35,6 +35,7 @@ export interface DocTaskItem {
 export interface DocTaskContentStatus {
   excluded: boolean;
   openCount: number;
+  collectable: boolean;
 }
 
 export type DocTaskPromoteResult =
@@ -46,4 +47,4 @@ export interface DocTaskSnapshot {
   open: DocTaskItem[];
 }
 
-export type DocTaskToggleResult = "ok" | "not-found" | "readonly";
+export type DocTaskToggleResult = "ok" | "not-found" | "readonly" | "busy";

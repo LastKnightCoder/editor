@@ -8,7 +8,7 @@
  * 项目列表与新建由宿主经 IDocTaskGroups 注入，扩展不依赖待办域；没注入时整个扩展不生效。
  */
 
-import { Editor, Element, Range, Text, Transforms, type NodeEntry, type Path } from "slate";
+import { Editor, Element, Range, Transforms, type NodeEntry, type Path } from "slate";
 import {
   defineExtension,
   type EditorCommand,
@@ -16,7 +16,12 @@ import {
   type ElementBehaviors,
 } from "@tau/editor/api";
 import type { ParagraphElement } from "@tau/editor";
-import { docTaskTokenSpans, formatDocTaskDate, isAbsoluteDateHint } from "@/entity/doc-tasks";
+import {
+  docTaskTokenSpans,
+  docTaskDateHint,
+  formatDocTaskDate,
+  isAbsoluteDateHint,
+} from "@/entity/doc-tasks";
 import { extractDateTime } from "@/utils/quickDateTime";
 import { docTaskGroupsOf } from "./service";
 import {
@@ -29,6 +34,7 @@ import {
 } from "./store";
 import { DocTaskTokenChip } from "./TokenChip";
 import { DocTaskLayer } from "./DocTaskLayer";
+import { paragraphText } from "./textRanges";
 
 export { IDocTaskGroups, type DocTaskGroupsService } from "./service";
 
@@ -37,6 +43,10 @@ export interface DocTaskTokenLeaf {
   docTaskToken?: "group" | "date";
   docTaskGroupId?: number;
   docTaskDate?: string;
+  docTaskRange?: Range;
+  docTaskAnchoredDate?: string;
+  docTaskTaskId?: string;
+  docTaskTokenText?: string;
 }
 
 /** 勾选项的首段（直接子段落里的第一个） */
@@ -53,32 +63,33 @@ export function taskParagraphAbove(editor: Editor, at: Path): NodeEntry | undefi
 }
 
 function decorate(editor: Editor, [node, path]: NodeEntry): Range[] {
-  if (!Text.isText(node) || !node.text) return [];
+  if (!Element.isElement(node) || node.type !== "paragraph" || path.at(-1) !== 0) return [];
   const groups = docTaskGroupsOf(editor);
   if (!groups) return [];
-  const paragraph = taskParagraphAbove(editor, path);
-  if (!paragraph) return [];
-  // 首段可能被格式拆成多个叶子：在整段文字上找，再截出落在本叶子里的部分
-  let offset = 0;
-  let own = -1;
-  let fullText = "";
-  for (const [leaf, leafPath] of Editor.nodes(editor, { at: paragraph[1], match: Text.isText })) {
-    if (leafPath.join() === path.join()) own = offset;
-    fullText += (leaf as Text).text;
-    offset += (leaf as Text).text.length;
-  }
-  if (own < 0) return [];
+  const [parent] = Editor.parent(editor, path);
+  if (!Element.isElement(parent) || parent.type !== "check-list-item") return [];
+  const paragraph = paragraphText(editor, path);
   const ranges: Range[] = [];
-  for (const span of docTaskTokenSpans(fullText, groups.list())) {
-    const start = Math.max(span.start, own);
-    const end = Math.min(span.end, own + node.text.length);
-    if (start >= end) continue;
+  for (const span of docTaskTokenSpans(
+    paragraph.text,
+    groups.list(),
+    new Date(),
+    parent.taskGroup
+  )) {
+    const range = paragraph.range(span.start, span.end);
+    if (!range) continue;
     ranges.push({
-      anchor: { path, offset: start - own },
-      focus: { path, offset: end - own },
+      ...range,
       docTaskToken: span.kind,
       docTaskGroupId: span.groupId,
       docTaskDate: span.hint,
+      docTaskRange: range,
+      docTaskTaskId: parent.taskId,
+      docTaskTokenText: paragraph.text.slice(span.start, span.end),
+      docTaskAnchoredDate:
+        span.kind === "date" && parent.taskDateAnchor?.hint === span.hint
+          ? parent.taskDateAnchor?.date
+          : undefined,
     } as Range);
   }
   return ranges;
@@ -89,14 +100,17 @@ export function absolutizeDateBeforeCursor(editor: Editor, now = new Date()): bo
   const { selection } = editor;
   if (!selection || !Range.isCollapsed(selection)) return false;
   const point = selection.anchor;
-  const [leaf] = Editor.leaf(editor, point);
-  const word = leaf.text.slice(0, point.offset).match(/(\S+)$/)?.[1];
+  const entry = taskParagraphAbove(editor, point.path);
+  if (!entry) return false;
+  const before = Editor.string(editor, { anchor: Editor.start(editor, entry[1]), focus: point });
+  const word = before.match(/(\S+)$/)?.[1];
   if (!word || isAbsoluteDateHint(word)) return false;
+  if (docTaskDateHint(word, now) !== word) return false;
   const match = extractDateTime(word, now);
   if (match.date == null || match.hints.date !== word) return false;
-  Transforms.insertText(editor, formatDocTaskDate(match.date), {
-    at: { anchor: { ...point, offset: point.offset - word.length }, focus: point },
-  });
+  const range = paragraphText(editor, entry[1]).range(before.length - word.length, before.length);
+  if (!range) return false;
+  Transforms.insertText(editor, formatDocTaskDate(match.date), { at: range });
   return true;
 }
 
@@ -172,7 +186,32 @@ const hotkeys: EditorHotkey[] = [
 export const docTasksExtension = defineExtension({
   id: "host.doc-tasks",
   marks: [{ id: "host.doc-tasks.token", keys: ["docTaskToken"], render: DocTaskTokenChip }],
-  decorations: [{ id: "host.doc-tasks.tokens", decorate }],
+  decorations: [
+    {
+      id: "host.doc-tasks.tokens",
+      decorate,
+      subscribe: (editor, invalidate) => {
+        const unsubscribe = docTaskGroupsOf(editor)?.subscribe(invalidate);
+        let timer: ReturnType<typeof setTimeout>;
+        const scheduleMidnight = () => {
+          const next = new Date();
+          next.setHours(24, 0, 0, 0);
+          timer = setTimeout(
+            () => {
+              invalidate();
+              scheduleMidnight();
+            },
+            Math.max(1_000, next.getTime() - Date.now())
+          );
+        };
+        scheduleMidnight();
+        return () => {
+          unsubscribe?.();
+          clearTimeout(timer);
+        };
+      },
+    },
+  ],
   behaviorsFor: { paragraph: paragraphBehaviors },
   commands,
   hotkeys,

@@ -21,6 +21,7 @@ import type PluginManager from "../../PluginManager";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import PropertyRow from "./PropertyRow";
+import { getRowDeriver } from "../../core/formula";
 import RowCover from "./RowCover";
 import { DatabaseWriteContext } from "../../DatabaseWriteContext";
 import RowDetailHeader from "./RowDetailHeader";
@@ -90,6 +91,12 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       updateCellValue: state.updateCellValue,
       activeView: state.views.find(view => view.id === state.activeViewId),
     }));
+
+    // 公式列的值只在派生行里；宿主正文仍拿存储行，避免派生值被当作补丁写回
+    const displayRow = useMemo(
+      () => (row ? (getRowDeriver(columns, pluginManager)?.(row) ?? row) : undefined),
+      [row, columns, pluginManager]
+    );
 
     const orderedColumns = useMemo(
       () => orderVisibleColumns(columns, columnOrder),
@@ -283,7 +290,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     key={`${row.id}:${column.id}`}
                     rowId={row.id}
                     column={column}
-                    value={row[column.id]}
+                    value={displayRow?.[column.id]}
                     pluginManager={pluginManager}
                     theme={theme}
                     readonly={readonly}

@@ -74,6 +74,32 @@ const mount = async (
 };
 
 describe("扩展装饰", () => {
+  it("外部订阅使装饰重算，宿主缓存的 Range 数组保持不变", async () => {
+    let enabled = false;
+    let invalidate = () => {};
+    const cached: Range[] = [];
+    const external = defineExtension({
+      ...tagExtension,
+      decorations: [
+        {
+          id: "test.external",
+          decorate: (_editor, [node, path]) => (enabled ? tagRanges(node, path) : []),
+          subscribe: (_editor, listener) => {
+            invalidate = listener;
+            return () => {};
+          },
+        },
+      ],
+    });
+    const { container } = await mount([external], { decorate: (() => cached) as never });
+    expect(container.querySelector("[data-tag]")).toBeNull();
+    await act(async () => {
+      enabled = true;
+      invalidate();
+    });
+    expect(container.querySelector("[data-tag]")).toBeTruthy();
+    expect(cached).toEqual([]);
+  });
   it("装饰属性渲染到叶子，但不进入文档", async () => {
     const { container, editor } = await mount([tagExtension]);
     expect(container.querySelector('[data-tag="#发布"]')?.textContent).toBe("#发布");

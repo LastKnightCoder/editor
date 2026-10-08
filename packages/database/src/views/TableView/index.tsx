@@ -8,6 +8,7 @@ import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
 import RowDetailModal from "../../components/RowDetailModal";
 import Row from "./components/Row";
+import FooterRow from "./components/FooterRow";
 import { Plus } from "lucide-react";
 import { Tooltip, ConfirmDialog } from "@tau/ui";
 
@@ -54,6 +55,8 @@ const TableView: React.FC<TableViewProps> = memo(
       moveColumn,
       moveRow,
       clearCellSelection,
+      footer,
+      setFooter,
     } = useDatabaseStore(state => ({
       selectedCell: state.selectedCell,
       editingCell: state.editingCell,
@@ -71,6 +74,8 @@ const TableView: React.FC<TableViewProps> = memo(
       moveColumn: state.moveColumn,
       moveRow: state.moveRow,
       clearCellSelection: state.clearCellSelection,
+      footer: state.viewConfig.footer,
+      setFooter: state.setFooter,
     }));
 
     const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
@@ -369,6 +374,16 @@ const TableView: React.FC<TableViewProps> = memo(
                 );
               })}
             </div>
+            <FooterRow
+              columns={storeColumns}
+              columnOrder={visibleColumnOrder}
+              columnWidths={columnWidths}
+              rows={projection.rows}
+              footer={footer}
+              pluginManager={pluginManager}
+              readonly={readonly}
+              onChange={setFooter}
+            />
           </div>
         </div>
         {!readonly && config?.allowAddRow !== false && (

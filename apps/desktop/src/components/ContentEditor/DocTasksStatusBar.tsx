@@ -10,7 +10,8 @@ import { useDocTaskContentStatus, useSetDocTasksExcluded } from "@/hooks/useDocT
 export function DocTasksStatusBar({ contentId }: { contentId: number | undefined }) {
   const { data: status } = useDocTaskContentStatus(contentId);
   const setExcluded = useSetDocTasksExcluded();
-  if (!contentId || !status || (!status.excluded && status.openCount === 0)) return null;
+  if (!contentId || !status?.collectable || (!status.excluded && status.openCount === 0))
+    return null;
 
   const link = "text-accent-text hover:underline font-medium";
   return (

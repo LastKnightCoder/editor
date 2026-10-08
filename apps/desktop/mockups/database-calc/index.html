@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据库 · 汇总与公式 mockup</title>
+<style>
+  /* 取值同 packages/themes/src/tokens.css（mint / paper × light / dark） */
+  [data-theme="mint"][data-mode="light"] {
+    --page:#eef4ee; --surface:#fbfefb; --sunken:#d9e6da; --track:#d4dfd5; --surface-hover:#f3f8f3;
+    --hover:rgba(46,61,49,.05); --press:rgba(46,61,49,.09);
+    --ink-1:#2e3d31; --ink-2:#526350; --ink-3:#a5b3a3; --ink-inv:#f6fbf7;
+    --line-1:#dfe9df; --line-2:#e8f0e8;
+    --accent:hsl(153 40% 33%); --accent-hover:hsl(153 40% 26%); --accent-soft:hsla(153,40%,33%,.12); --accent-text:#2f6b50;
+    --danger:#b0584f; --danger-soft:#f5e3e0;
+    --warn:#a07d3c; --warn-soft:#f6efdc;
+    --shadow-float:0 16px 40px -12px rgba(60,90,70,.4); --shadow-card:0 1px 2px rgba(60,90,70,.06),0 10px 24px -14px rgba(60,90,70,.2);
+    --shadow-lift:0 2px 4px rgba(60,90,70,.07),0 16px 32px -14px rgba(60,90,70,.28);
+    --tip-bg:#2e3d31; --tip-ink:#f6fbf7;
+  }
+  [data-theme="mint"][data-mode="dark"] {
+    --page:#151b18; --surface:#1e2521; --sunken:#0a0f0c; --track:#34403a; --surface-hover:#252d28;
+    --hover:rgba(224,234,227,.06); --press:rgba(224,234,227,.11);
+    --ink-1:#e0eae3; --ink-2:#98a69c; --ink-3:#728078; --ink-inv:#0f1612;
+    --line-1:#29322d; --line-2:#242c27;
+    --accent:hsl(155 36% 58%); --accent-hover:hsl(155 36% 65%); --accent-soft:hsla(155,36%,58%,.16); --accent-text:hsl(155 42% 64%);
+    --danger:#df8a80; --danger-soft:#35211e;
+    --warn:#d8b26a; --warn-soft:#332a18;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#e0eae3; --tip-ink:#0f1612;
+  }
+  [data-theme="paper"][data-mode="light"] {
+    --page:#f3eee2; --surface:#fffdf9; --sunken:#e7dbc8; --track:#e0d6c3; --surface-hover:#f8f3ea;
+    --hover:rgba(67,57,44,.05); --press:rgba(67,57,44,.09);
+    --ink-1:#43392c; --ink-2:#6a5c49; --ink-3:#a89a85; --ink-inv:#fff8ef;
+    --line-1:#e9e1d2; --line-2:#f0e9dc;
+    --accent:hsl(22 58% 42%); --accent-hover:hsl(22 58% 35%); --accent-soft:hsla(22,58%,42%,.12); --accent-text:#a05236;
+    --danger:#b0564d; --danger-soft:#f6e3e0;
+    --warn:#9a6f2e; --warn-soft:#f7eeda;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4); --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-lift:0 2px 4px rgba(120,100,70,.06),0 16px 32px -14px rgba(120,100,70,.26);
+    --tip-bg:#43392c; --tip-ink:#fff8ef;
+  }
+  [data-theme="paper"][data-mode="dark"] {
+    --page:#221d16; --surface:#2e2820; --sunken:#100d08; --track:#463d31; --surface-hover:#362f26;
+    --hover:rgba(236,226,208,.06); --press:rgba(236,226,208,.11);
+    --ink-1:#ece2d0; --ink-2:#a89a85; --ink-3:#857768; --ink-inv:#241a10;
+    --line-1:#3a3227; --line-2:#322b21;
+    --accent:hsl(22 62% 65%); --accent-hover:hsl(22 62% 72%); --accent-soft:hsla(22,62%,65%,.16); --accent-text:hsl(22 66% 70%);
+    --danger:#d97e66; --danger-soft:#34201a;
+    --warn:#d9b06a; --warn-soft:#322713;
+    --shadow-float:0 16px 40px -12px rgba(0,0,0,.65); --shadow-card:0 1px 2px rgba(0,0,0,.24),0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-lift:0 2px 4px rgba(0,0,0,.3),0 16px 32px -14px rgba(0,0,0,.6);
+    --tip-bg:#ece2d0; --tip-ink:#241a10;
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { background:var(--page); color:var(--ink-1); }
+  body { font:14px/1.7 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; padding:36px 5vw 160px; transition:background .2s; }
+  button { font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+  svg { flex:none; }
+  code, .mono { font:12.5px ui-monospace,Menlo,monospace; }
+  code { background:var(--hover); padding:1px 5px; border-radius:4px; }
+
+  .top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
+  .top h1 { font-size:21px; font-weight:600; }
+  .top p { color:var(--ink-2); font-size:13.5px; margin-top:4px; max-width:92ch; }
+  .switches { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .switch { display:flex; gap:4px; padding:3px; border-radius:10px; border:1px solid var(--line-1); background:var(--surface); }
+  .switch button { padding:3px 12px; border-radius:7px; font-size:12.5px; color:var(--ink-2); }
+  .switch button.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+
+  section { margin-top:60px; }
+  section > h2 { font-size:17px; font-weight:600; display:flex; align-items:baseline; gap:10px; }
+  section > h2 .no { font:600 12.5px ui-monospace,monospace; color:var(--accent-text); }
+  .desc { color:var(--ink-2); font-size:13.5px; max-width:96ch; margin:6px 0 20px; }
+  .desc b, .notes b { color:var(--ink-1); font-weight:600; }
+  kbd { font:500 11.5px ui-monospace,monospace; padding:1px 6px; border-radius:5px; background:var(--surface); border:1px solid var(--line-1); color:var(--ink-2); }
+  .notes { color:var(--ink-2); font-size:13px; padding-left:18px; max-width:96ch; }
+  .notes li { margin:5px 0; }
+  .grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr); gap:28px; align-items:start; }
+  .stack { display:flex; flex-direction:column; gap:22px; }
+  .lbl { font-size:13.5px; font-weight:600; margin-bottom:2px; display:flex; align-items:center; gap:8px; }
+  .sub { font-size:12.5px; color:var(--ink-2); margin-bottom:10px; }
+  .tag { font:500 11px/1 -apple-system,sans-serif; padding:3px 7px; border-radius:99px; background:var(--accent-soft); color:var(--accent-text); }
+  .tag.bad { background:var(--danger-soft); color:var(--danger); }
+  .tag.new { background:var(--hover); color:var(--ink-2); }
+  .card { background:var(--surface); border-radius:14px; box-shadow:var(--shadow-card); overflow:hidden; }
+  .toast { position:fixed; left:50%; bottom:28px; transform:translate(-50%,12px); padding:8px 15px; border-radius:9px; background:var(--tip-bg); color:var(--tip-ink); font-size:12.5px; opacity:0; transition:opacity .18s, transform .18s; pointer-events:none; z-index:90; }
+  .toast.on { opacity:1; transform:translate(-50%,0); }
+
+  /* ════ 数据表 ════ */
+  .tbl { width:100%; border-collapse:separate; border-spacing:0; font-size:13.5px; }
+  .tbl th, .tbl td { padding:7px 12px; text-align:left; border-right:1px solid var(--line-2); border-bottom:1px solid var(--line-2); vertical-align:top; white-space:nowrap; }
+  .tbl th:last-child, .tbl td:last-child { border-right:0; }
+  .tbl thead th { background:var(--surface-hover); font-weight:500; color:var(--ink-2); font-size:12.5px; height:36px; }
+  .tbl thead th .hico { display:inline-flex; align-items:center; gap:6px; }
+  .tbl tbody tr:last-child td { border-bottom:0; }
+  .tbl td.num, .tbl th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tbl tbody tr:hover td { background:var(--hover); }
+  .tbl tfoot td { background:var(--surface); border-bottom:0; border-top:1px solid var(--line-1); padding:4px 8px; height:34px; }
+  .tbl tfoot td.num { text-align:right; }
+
+  /* 表尾汇总格 */
+  .foot { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 8px; border-radius:7px; color:var(--ink-2); font-size:12.5px; font-variant-numeric:tabular-nums; transition:background .14s, color .14s; cursor:pointer; }
+  .foot:hover { background:var(--hover); color:var(--ink-1); }
+  .foot.open { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .foot .op { color:var(--ink-3); font-size:11.5px; }
+  .foot:hover .op, .foot.open .op { color:inherit; opacity:.75; }
+  .foot.ghost { color:var(--ink-3); opacity:0; }
+  .tbl tfoot tr:hover .foot.ghost { opacity:1; }
+  .foot.err { color:var(--danger); }
+
+  /* ════ 菜单 / 浮层 ════ */
+  .pm { position:absolute; z-index:50; min-width:212px; padding:5px; border-radius:11px; background:var(--surface); box-shadow:0 0 0 1px var(--line-1), var(--shadow-float); font-size:13px; display:none; }
+  .pm.on { display:block; }
+  .pm .it { display:flex; align-items:center; gap:9px; width:100%; height:30px; padding:0 9px; border-radius:7px; color:var(--ink-1); text-align:left; }
+  .pm .it:hover { background:var(--hover); }
+  .pm .it .k { margin-left:auto; font-size:11.5px; color:var(--ink-3); }
+  .pm .it .ck { margin-left:auto; color:var(--accent-text); }
+  .pm .it.on { color:var(--accent-text); }
+  .pm .it.danger:hover { background:var(--danger-soft); color:var(--danger); }
+  .pm .sep { height:1px; background:var(--line-1); margin:4px 6px; }
+  .pm .hd { font-size:11.5px; color:var(--ink-3); padding:4px 9px 3px; }
+  .pm .it svg { color:var(--ink-2); }
+  .pm .it.on svg, .pm .it:hover svg { color:inherit; }
+
+  /* ════ 公式列 / 徽标 ════ */
+  .fx-ico { width:14px; height:14px; color:var(--accent-text); }
+  .pill { display:inline-flex; align-items:center; height:20px; padding:0 8px; border-radius:99px; font-size:11.5px; font-weight:500; }
+  .pill.hi { background:var(--danger-soft); color:var(--danger); }
+  .pill.mid { background:var(--warn-soft); color:var(--warn); }
+  .pill.lo { background:var(--hover); color:var(--ink-2); }
+  .pill.doing { background:var(--accent-soft); color:var(--accent-text); }
+  .pill.done { background:var(--hover); color:var(--ink-2); }
+  .pill.todo { background:var(--hover); color:var(--ink-2); }
+  .cellerr { display:inline-flex; align-items:center; gap:4px; color:var(--danger); font-size:12.5px; }
+  .ro { color:var(--ink-1); font-variant-numeric:tabular-nums; }
+
+  /* ════ 构造器 ════ */
+  .builder { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(240px,1fr); gap:0; align-items:stretch; }
+  .builder > .bpane { padding:16px 18px; }
+  .builder > .bpane + .bpane { border-left:1px solid var(--line-1); background:var(--surface-hover); }
+  .bpane .bh { font-size:12px; font-weight:600; color:var(--ink-3); letter-spacing:.03em; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .tree { font-size:13px; }
+  .tnode { display:flex; align-items:center; gap:7px; min-height:30px; padding:2px 0; position:relative; }
+  .tnode .tl { color:var(--ink-3); font-size:11.5px; min-width:52px; flex:none; }
+  .tkids { padding-left:19px; position:relative; }
+  .tkids::before { content:""; position:absolute; left:7px; top:2px; bottom:14px; width:1px; background:var(--line-1); }
+  .tkids > .tnode::before { content:""; position:absolute; left:-12px; top:15px; width:12px; height:1px; background:var(--line-1); }
+  .chip { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 9px; border-radius:7px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-1); font-size:12.5px; color:var(--ink-1); }
+  .chip.sel { cursor:pointer; }
+  .chip.sel:hover { box-shadow:inset 0 0 0 1px var(--accent); color:var(--accent-text); }
+  .chip .cv { color:var(--ink-3); font-size:10px; }
+  .chip.kw { background:var(--accent-soft); box-shadow:none; color:var(--accent-text); font-weight:500; }
+  .chip.lit { background:var(--hover); box-shadow:none; font-variant-numeric:tabular-nums; }
+  .chip.op { background:var(--surface); font-weight:600; min-width:26px; justify-content:center; }
+  .chip input { border:0; background:none; outline:none; width:48px; font:inherit; color:inherit; }
+  .prev { margin-top:14px; }
+  .prev .pr { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:12.5px; border-bottom:1px dashed var(--line-1); }
+  .prev .pr:last-child { border-bottom:0; }
+  .prev .pr .pn { color:var(--ink-3); min-width:74px; overflow:hidden; text-overflow:ellipsis; }
+  .prev .pr .pv { margin-left:auto; font-weight:600; font-variant-numeric:tabular-nums; }
+  .errbox { display:flex; gap:9px; align-items:flex-start; padding:10px 12px; border-radius:10px; background:var(--danger-soft); color:var(--danger); font-size:12.5px; margin-top:12px; }
+  .errbox b { font-weight:600; }
+  .infobox { display:flex; gap:9px; align-items:flex-start; padding:10px 12px; border-radius:10px; background:var(--surface-hover); box-shadow:inset 0 0 0 1px var(--line-1); color:var(--ink-2); font-size:12.5px; margin-top:12px; }
+
+  /* ════ AI 入口 ════ */
+  .ai { display:flex; align-items:center; gap:10px; padding:4px 4px 4px 14px; border-radius:12px; background:var(--surface); box-shadow:inset 0 0 0 1px var(--line-1); }
+  .ai:focus-within { box-shadow:inset 0 0 0 1px var(--accent); }
+  .ai input { flex:1; height:38px; border:0; background:none; outline:none; font:inherit; color:var(--ink-1); }
+  .ai input::placeholder { color:var(--ink-3); }
+  .ai .go { height:30px; padding:0 14px; border-radius:9px; background:var(--accent); color:var(--ink-inv); font-size:12.5px; font-weight:500; }
+  .ai .go:hover { background:var(--accent-hover); }
+  .steps { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-2); margin-top:12px; flex-wrap:wrap; }
+  .steps .s { display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 9px; border-radius:7px; background:var(--hover); }
+  .steps .s.on { background:var(--accent-soft); color:var(--accent-text); font-weight:500; }
+  .steps .ar { color:var(--ink-3); }
+  .qmark { position:absolute; width:17px; height:17px; border-radius:99px; background:var(--danger); color:#fff; font:600 10.5px/17px -apple-system,sans-serif; text-align:center; z-index:6; box-shadow:0 0 0 2px var(--surface); }
+  .rel { position:relative; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>数据库 · 汇总与公式 mockup</h1>
+    <p>表尾汇总（列相加）+ 公式列（IF 判断）共用一套内部表达式结构（受限 JSON AST，<b>只在存储与校验层，用户永远看不到</b>）。用户面对的只有构造器和 AI 输入框；内嵌求值器是真跑的，改动后预览实时重算。</p>
+  </div>
+  <div class="switches">
+    <div class="switch" id="sw-theme">
+      <button data-v="paper" class="on">paper</button><button data-v="mint">mint</button>
+    </div>
+    <div class="switch" id="sw-mode">
+      <button data-v="light" class="on">浅色</button><button data-v="dark">深色</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ 01 表尾汇总 ════════════════ -->
+<section>
+  <h2><span class="no">01</span>表尾汇总 · 点一下就出数</h2>
+  <p class="desc">每个列下方一格，默认空、悬停才显形。点开是 Notion 那个熟悉的清单：<b>求和 / 平均 / 中位数 / 计数 / 非空 / 空值 / 去重 / 最小 / 最大</b>。选中即算，<b>不打开任何对话框</b>——这是高频操作，一次点击要能完成。</p>
+
+  <div class="rel">
+    <div class="card">
+      <table class="tbl" id="tbl1">
+        <thead>
+          <tr>
+            <th style="min-width:150px"><span class="hico">任务</span></th>
+            <th style="min-width:92px"><span class="hico">状态</span></th>
+            <th class="num" style="min-width:88px"><span class="hico" style="justify-content:flex-end">单价</span></th>
+            <th class="num" style="min-width:80px"><span class="hico" style="justify-content:flex-end">数量</span></th>
+            <th class="num" style="min-width:104px"><span class="hico" style="justify-content:flex-end"><svg class="fx-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h6a4 4 0 0 1 0 8H4l7 7M14 5h6M14 9h5"/></svg>小计</span></th>
+            <th style="min-width:76px"><span class="hico"><svg class="fx-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h6a4 4 0 0 1 0 8H4l7 7M14 5h6M14 9h5"/></svg>优先级</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody1"></tbody>
+        <tfoot>
+          <tr>
+            <td><span class="foot ghost">汇总</span></td>
+            <td><span class="foot ghost">汇总</span></td>
+            <td class="num"><button class="foot" data-col="price" data-def="avg"><span class="op">平均</span><span class="v"></span></button></td>
+            <td class="num"><button class="foot" data-col="qty" data-def="sum"><span class="op">求和</span><span class="v"></span></button></td>
+            <td class="num"><button class="foot" data-col="subtotal" data-def="sum"><span class="op">求和</span><span class="v"></span></button></td>
+            <td><span class="foot ghost">汇总</span></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="pm" id="pm1">
+      <div class="hd">计算</div>
+      <button class="it" data-def="none">无</button>
+      <div class="sep"></div>
+      <button class="it" data-def="sum" data-num="1">求和</button>
+      <button class="it" data-def="avg" data-num="1">平均</button>
+      <button class="it" data-def="median" data-num="1">中位数</button>
+      <button class="it" data-def="min" data-num="1">最小值</button>
+      <button class="it" data-def="max" data-num="1">最大值</button>
+      <div class="sep"></div>
+      <button class="it" data-def="countAll">计数</button>
+      <button class="it" data-def="countNonEmpty">非空</button>
+      <button class="it" data-def="countEmpty">空值</button>
+      <button class="it" data-def="unique">去重</button>
+      <div class="sep"></div>
+      <button class="it" data-def="expr"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h6a4 4 0 0 1 0 8H4l7 7M14 5h6M14 9h5"/></svg>公式…<span class="k">组合</span></button>
+    </div>
+  </div>
+
+  <div class="notes" style="margin-top:20px">
+    <b>语义（要拍板）</b>
+    <ul class="notes">
+      <li>汇总算的是<b>筛选后</b>的行——与 Notion 一致。改动筛选条件，表尾数字跟着变，不需要额外接线：求值输入就是 <code>projection.rows</code>。</li>
+      <li>数字列默认右对齐、<code>tabular-nums</code>；汇总值继承该列的格式化配置（小数位 / 千分位 / 前后缀）。</li>
+      <li>非数字列也能计数 / 非空 / 去重，不给「求和」——菜单按列类型收窄，不让用户选出必然出错的东西。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ════════════════ 02 公式列 ════════════════ -->
+<section>
+  <h2><span class="no">02</span>公式列 · 小计与 IF 判断</h2>
+  <p class="desc">公式列是<b>一个新的 CellPlugin</b>（<code>type: "formula"</code>），不新增任何跨层机制。上表的「小计」= 单价 × 数量，「优先级」= 嵌套 IF。它只读、不可编辑，值<b>不写进 rows blob</b>，是渲染期的派生覆盖层。</p>
+
+  <div class="grid">
+    <div class="stack">
+      <div>
+        <div class="lbl">小计 <span class="tag new">公式列</span></div>
+        <div class="sub">两个数字列相乘。下游可排序、可筛选、可被别的公式引用——因为它在下推管线里长得和普通列一样。</div>
+        <div class="card"><div class="builder" id="b-subtotal"></div></div>
+      </div>
+      <div>
+        <div class="lbl">优先级 <span class="tag new">公式列</span></div>
+        <div class="sub">嵌套 IF。改左侧任一槽位，右侧预览实时刷新。</div>
+        <div class="card"><div class="builder" id="b-priority"></div></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card" style="padding:16px 18px">
+        <div class="bh" style="font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:.03em;margin-bottom:12px">为什么这里不需要 DSL</div>
+        <ul class="notes" style="padding-left:16px">
+          <li>AST 是唯一事实源，<b>没有解析器、没有词法层</b>。构造器直接增删节点，不走「生成文本再解析回来」的往返。</li>
+          <li>校验是<b>静态</b>的：保存时就报「文本列不能求和」，而不是运行时算出 <code>NaN</code>。</li>
+          <li>求值是<b>受限递归</b>，白名单算子、无循环、无函数定义、无 <code>eval</code>——AI 生成的表达式也必须过同一个校验器。</li>
+          <li>这东西要序列化进 <code>data_tables.columns</code> 的 JSON。<b>树天然可序列化，文本语法还要额外的转义与版本规则。</b></li>
+        </ul>
+        <div class="infobox">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+          <div>仓里 <code>ColumnDef.type</code> 是裸 <code>string</code>、<code>CellValue</code> 带 <code>| any</code>、全仓零类型守卫。AST + 插件元数据的静态校验，正好补上这块最薄的地方。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 03 构造器 ════════════════ -->
+<section>
+  <h2><span class="no">03</span>构造器 · 只有槽位和预览</h2>
+  <p class="desc">左边是可点的槽位（列 / 算子 / 数值），右边是前几行的计算结果。<b>用户看不到 JSON、代码或错误码</b>：算不出来的格子显示「—」，悬停给一句人话原因。构造器每一处改动直接改内部树，不经过任何文本。</p>
+
+  <div class="grid">
+    <div>
+      <div class="lbl">编辑「优先级」的 IF 条件</div>
+      <div class="sub">点任一 chip 换列 / 换算子，数字可直接改。错误会在预览里标出并指到具体行。</div>
+      <div class="card"><div class="builder" id="b-play"></div></div>
+    </div>
+    <div>
+      <div class="lbl">换根节点</div>
+      <div class="sub">根节点类型切换 = 换一棵树的骨架。构造器只暴露当前根允许的槽位。</div>
+      <div class="card" style="padding:14px">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="chip sel" data-root="binary">四则运算</button>
+          <button class="chip sel" data-root="if">IF 判断</button>
+          <button class="chip sel" data-root="concat">文本拼接</button>
+          <button class="chip sel" data-root="compare">比较</button>
+          <button class="chip sel" data-root="aggregate">汇总</button>
+        </div>
+        <div class="infobox" style="margin-top:14px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+          <div>「汇总」只能做根：行内求值拿不到整列，所以<i>在公式列里选它</i>是类型错误——构造器直接不列出来，而不是算完再报错。</div>
+        </div>
+        <div class="sub" style="margin:14px 0 0">同一个菜单里，<b>可选项由静态类型推导给出</b>，不是硬编码清单。插件没声明 <code>valueType</code> 的列（图片 / 附件 / 富文本 / 卡片链接）直接不入列表，天然不会被误用。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 04 AI 入口 ════════════════ -->
+<section>
+  <h2><span class="no">04</span>AI 入口 · 说话，回填同一棵树</h2>
+  <p class="desc">构造器顶部一个输入框。AI 的结果<b>直接填进构造器的槽位</b>供继续手改——不是另开一个黑盒窗口。按仓里「配了模型即同意」的约定，不另设开关或预算提示。</p>
+
+  <div class="card" style="padding:18px">
+    <div class="ai">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--ink-3)"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/><path d="M18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/></svg>
+      <input id="aiin" placeholder="例如：单价乘数量超过 500 就是高优先级">
+      <button class="go" id="aigo">生成</button>
+    </div>
+    <div class="steps" id="aisteps">
+      <span class="s">自然语言</span><span class="ar">→</span>
+      <span class="s">AI 生成</span><span class="ar">→</span>
+      <span class="s">检查</span><span class="ar">→</span>
+      <span class="s">回填构造器</span>
+    </div>
+    <div class="infobox" style="margin-top:14px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><path d="M12 3l7 4v5c0 4.4-3 8.3-7 9-4-.7-7-4.6-7-9V7z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
+      <div><b>AI 的输出绝不直接执行。</b>它和用户手点出来的表达式走同一个静态校验器：列不存在、类型不匹配、引用成环、深度超限，一律拒绝并说明原因。受限 AST 的价值就在这里——没有代码执行面，模型乱写最多得到「检查不通过」，构造器保留用户原话并提示哪里不对。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 05 错误与边界 ════════════════ -->
+<section>
+  <h2><span class="no">05</span>错误与边界 · 结构化，不炸整表</h2>
+  <p class="desc"><b>一行算错只让那格显示「—」</b>，悬停看原因，不传染、不把整列清空。下表错误码只在内部用，用户看到的是右列的文案。</p>
+
+  <div class="grid">
+    <div class="card"><div class="builder" id="b-err"></div></div>
+    <div class="stack">
+      <div>
+        <div class="lbl">错误码</div>
+        <div class="sub">内部码 → 用户文案。</div>
+        <div class="card" style="padding:6px 0">
+          <table class="tbl" style="font-size:12.5px">
+            <tbody>
+              <tr><td><code>type</code></td><td style="white-space:normal;color:var(--ink-2)">列类型不参与运算，如文本 × 数字</td></tr>
+              <tr><td><code>div0</code></td><td style="white-space:normal;color:var(--ink-2)">除数为 0；返回空而不是 Infinity</td></tr>
+              <tr><td><code>missing-column</code></td><td style="white-space:normal;color:var(--ink-2)">引用的列已被删除</td></tr>
+              <tr><td><code>cycle</code></td><td style="white-space:normal;color:var(--ink-2)">公式列互引成环</td></tr>
+              <tr><td><code>depth</code></td><td style="white-space:normal;color:var(--ink-2)">嵌套超过上限（建议 16 层）</td></tr>
+              <tr><td><code>bad-ref</code></td><td style="white-space:normal;color:var(--ink-2)">节点结构非法（AI 幻觉 / 旧版本数据）</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="infobox">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><path d="M12 3v18M5 8l7-5 7 5"/></svg>
+        <div><b>删除列时</b>：引用它的公式列保留原样并转为空值 + <code>missing-column</code>，<b>不静默改写表达式</b>。改名同理——表达式按 <code>columnId</code> 引用，与标题解耦。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 06 面板里的排布 ════════════════ -->
+<section>
+  <h2><span class="no">06</span>两处入口 · 各自的位置</h2>
+  <p class="desc">汇总走<b>表尾就地菜单</b>（高频、一次点击），公式列走<b>新建列的列编辑弹窗</b>（低频、需要完整构造器）。不共用一个面板——复杂度不同，不该互相拖累。</p>
+
+  <div class="grid">
+    <div>
+      <div class="lbl">入口 A · 表尾菜单</div>
+      <div class="sub">已在上方 01 节可交互。最常走的路：选中「求和」，完。</div>
+      <div class="card" style="padding:16px 18px">
+        <div class="steps">
+          <span class="s">点表尾格</span><span class="ar">→</span>
+          <span class="s on">选一个聚合</span><span class="ar">→</span>
+          <span class="s">立即出数</span>
+        </div>
+        <div class="sub" style="margin:14px 0 0">「公式…」是逃生口：需要 <code>求和(小计) × 汇率</code> 这类组合时才进构造器。日常不出现。</div>
+      </div>
+    </div>
+    <div>
+      <div class="lbl">入口 B · 新建列的列编辑弹窗</div>
+      <div class="sub">类型下拉里多一项「公式」，选中后弹窗扩展出构造器区域。</div>
+      <div class="card" style="padding:16px 18px">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <span class="chip">文本</span><span class="chip">数字</span><span class="chip">日期</span>
+          <span class="chip">单选</span><span class="chip">多选</span><span class="chip">复选框</span>
+          <span class="chip">评分</span><span class="chip">进度</span>
+          <span class="chip" style="box-shadow:inset 0 0 0 1px var(--accent);color:var(--accent-text);font-weight:500">公式 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m5 13 4 4L19 7"/></svg></span>
+        </div>
+        <div class="infobox" style="margin-top:14px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+          <div>现有 <code>ColumnEditModal</code> 的 <code>includeConfig</code> 只回传 select / multiSelect / date 三种配置——公式列必须补进这条路径，否则配置存不住。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 07 需要拍板 ════════════════ -->
+<section>
+  <h2><span class="no">07</span>已定</h2>
+  <ol class="notes">
+    <li>汇总算<b>筛选后</b>的行（Notion 同）。</li>
+    <li>公式列<b>可排序 / 筛选 / 分组</b>，委托给结果类型对应的字段。</li>
+    <li>公式值<b>不落库</b>，渲染时派生并做记忆化。</li>
+    <li>上限：嵌套 16 层、单表公式列 50 个，超限保存时拒绝。</li>
+    <li>文本<b>不隐式转数字</b>，文本列不出现在求和与四则的可选项中。</li>
+    <li>第一版<b>不做日期运算</b>、<b>不做分组小计</b>。</li>
+    <li>内部表达式结构<b>不暴露给用户</b>：没有公式文本框、JSON 视图或错误码。</li>
+  </ol>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   演示数据
+   ════════════════════════════════════════════ */
+const ROWS = [
+  { id:"r1", title:"设计首页",  status:"进行中", price:220, qty:3 },
+  { id:"r2", title:"实现汇总",  status:"待开始", price:80,  qty:5 },
+  { id:"r3", title:"联调接口",  status:"已完成", price:150, qty:1 },
+  { id:"r4", title:"写单测",    status:"进行中", price:90,  qty:4 },
+  { id:"r5", title:"补文档",    status:"已完成", price:60,  qty:3 },
+];
+
+/* 插件元数据：valueType 决定「谁能参与什么运算」 */
+const PLUGINS = {
+  text:   { valueType:"text",   name:"文本" },
+  select: { valueType:"text",   name:"单选" },
+  number: { valueType:"number", name:"数字" },
+  date:   { valueType:"date",   name:"日期" },
+  checkbox:{ valueType:"checkbox", name:"复选框" },
+  formula:{ valueType:"unknown", name:"公式" },
+};
+
+/* 列定义（含公式列的表达式） */
+const COLUMNS = [
+  { id:"title",  name:"任务",   type:"text" },
+  { id:"status", name:"状态",   type:"select" },
+  { id:"price",  name:"单价",   type:"number", numberFormat:{thousandSeparator:true} },
+  { id:"qty",    name:"数量",   type:"number" },
+  { id:"subtotal", name:"小计", type:"formula", formula:{ output:"number", numberFormat:{thousandSeparator:true},
+      expr:{ kind:"binary", op:"*", left:{kind:"column", columnId:"price"}, right:{kind:"column", columnId:"qty"} } } },
+  { id:"priority", name:"优先级", type:"formula", formula:{ output:"text",
+      expr:{ kind:"if",
+        test:{ kind:"compare", op:">", left:{kind:"column", columnId:"subtotal"}, right:{kind:"literal", value:500} },
+        then:{ kind:"literal", value:"高" },
+        else:{ kind:"if",
+          test:{ kind:"compare", op:">", left:{kind:"column", columnId:"subtotal"}, right:{kind:"literal", value:250} },
+          then:{ kind:"literal", value:"中" },
+          else:{ kind:"literal", value:"低" } } } } },
+];
+
+/* 表尾汇总配置：列 → 聚合算子 */
+const FOOTER = { price:"avg", qty:"sum", subtotal:"sum" };
+
+const AGG_LABEL = { none:"无", sum:"求和", avg:"平均", median:"中位数", min:"最小值", max:"最大值",
+  countAll:"计数", countNonEmpty:"非空", countEmpty:"空值", unique:"去重", expr:"公式" };
+const AGG_NUMERIC = new Set(["sum","avg","median","min","max"]);
+const OP_LABEL = { "+":"+", "-":"−", "*":"×", "/":"÷", ">":">", ">=":"≥", "<":"<", "<=":"≤", "==":"=", "!=":"≠", "contains":"包含" };
+
+/* ════════════════════════════════════════════
+   受限求值器 —— 演示「AST 直接可执行，不需要解析器」
+   返回 { ok:true, value } 或 { ok:false, error }
+   ════════════════════════════════════════════ */
+const DEPTH_MAX = 16;
+
+function valueTypeOf(columnId) {
+  const col = COLUMNS.find(c => c.id === columnId);
+  if (!col) return "unknown";
+  return PLUGINS[col.type]?.valueType ?? "unknown";
+}
+
+function evalExpr(node, row, depth = 0) {
+  if (!node || typeof node !== "object") return { ok:false, error:{ code:"bad-ref", message:"节点结构非法" } };
+  if (depth > DEPTH_MAX) return { ok:false, error:{ code:"depth", message:"嵌套超过 " + DEPTH_MAX + " 层" } };
+
+  switch (node.kind) {
+    case "literal":
+      return { ok:true, value: node.value };
+
+    case "column": {
+      const col = COLUMNS.find(c => c.id === node.columnId);
+      if (!col) return { ok:false, error:{ code:"missing-column", message:"列已不存在", node } };
+      if (col.type === "formula") return evalExpr(col.formula.expr, row, depth + 1);  // 公式列互引
+      return { ok:true, value: row[node.columnId] ?? null };
+    }
+
+    case "binary": {
+      const l = evalExpr(node.left, row, depth + 1); if (!l.ok) return l;
+      const r = evalExpr(node.right, row, depth + 1); if (!r.ok) return r;
+      const a = l.value, b = r.value;
+      if (typeof a !== "number" || typeof b !== "number")
+        return { ok:false, error:{ code:"type", message:"「" + OP_LABEL[node.op] + "」两边都要是数字", node } };
+      if (node.op === "/" && b === 0) return { ok:false, error:{ code:"div0", message:"除数为 0", node } };
+      const v = node.op === "+" ? a+b : node.op === "-" ? a-b : node.op === "*" ? a*b : a/b;
+      return { ok:true, value: v };
+    }
+
+    case "compare": {
+      const l = evalExpr(node.left, row, depth + 1); if (!l.ok) return l;
+      const r = evalExpr(node.right, row, depth + 1); if (!r.ok) return r;
+      const a = l.value, b = r.value;
+      let v;
+      switch (node.op) {
+        case ">":  v = a >  b; break;
+        case ">=": v = a >= b; break;
+        case "<":  v = a <  b; break;
+        case "<=": v = a <= b; break;
+        case "==": v = a === b; break;
+        case "!=": v = a !== b; break;
+        case "contains": v = String(a ?? "").includes(String(b ?? "")); break;
+        default: return { ok:false, error:{ code:"bad-ref", message:"未知比较符 " + node.op } };
+      }
+      return { ok:true, value: v };
+    }
+
+    case "logic": {
+      const vals = [];
+      for (const operand of node.operands) {
+        const r = evalExpr(operand, row, depth + 1); if (!r.ok) return r;
+        vals.push(Boolean(r.value));
+        if (node.op === "and" && !r.value) return { ok:true, value:false };
+        if (node.op === "or"  &&  r.value) return { ok:true, value:true  };
+      }
+      return { ok:true, value: node.op === "and" ? vals.every(Boolean) : vals.some(Boolean) };
+    }
+
+    case "if": {
+      const t = evalExpr(node.test, row, depth + 1); if (!t.ok) return t;
+      return t.value ? evalExpr(node.then, row, depth + 1) : evalExpr(node.else, row, depth + 1);
+    }
+
+    case "concat": {
+      const parts = [];
+      for (const p of node.parts) {
+        const r = evalExpr(p, row, depth + 1); if (!r.ok) return r;
+        parts.push(r.value == null ? "" : String(r.value));
+      }
+      return { ok:true, value: parts.join("") };
+    }
+
+    case "aggregate":
+      return { ok:false, error:{ code:"type", message:"汇总只能做表尾根节点，不能在行内求值" } };
+
+    default:
+      return { ok:false, error:{ code:"bad-ref", message:"未知节点类型「" + node.kind + "」" } };
+  }
+}
+
+/* 聚合：输入是筛选后的行 */
+function evalAggregate(op, columnId) {
+  const values = ROWS.map(row => {
+    const r = evalExpr({ kind:"column", columnId }, row);
+    return r.ok ? r.value : null;
+  });
+  const nonEmpty = values.filter(v => v !== null && v !== undefined && v !== "");
+  switch (op) {
+    case "none":    return { ok:true, value:null, label:"无" };
+    case "countAll":      return { ok:true, value:values.length, label:"计数" };
+    case "countNonEmpty": return { ok:true, value:nonEmpty.length, label:"非空" };
+    case "countEmpty":    return { ok:true, value:values.length - nonEmpty.length, label:"空值" };
+    case "unique":        return { ok:true, value:new Set(nonEmpty.map(String)).size, label:"去重" };
+    default: break;
+  }
+  const nums = nonEmpty.filter(v => typeof v === "number");
+  if (!nums.length && AGG_NUMERIC.has(op))
+    return { ok:false, error:{ code:"type", message:"该列没有可计算的数字" } };
+  const sorted = [...nums].sort((a,b) => a-b);
+  let v = null;
+  if (op === "sum")    v = nums.reduce((s,x) => s+x, 0);
+  if (op === "avg")    v = nums.reduce((s,x) => s+x, 0) / nums.length;
+  if (op === "min")    v = sorted[0];
+  if (op === "max")    v = sorted[sorted.length-1];
+  if (op === "median") v = sorted.length % 2
+    ? sorted[(sorted.length-1)/2]
+    : (sorted[sorted.length/2 - 1] + sorted[sorted.length/2]) / 2;
+  return { ok:true, value:v, label:AGG_LABEL[op] };
+}
+
+/* 数字格式化：复用 NumberPlugin/utils/numberUtils.ts 的 formatNumber 口径 */
+function formatNumber(value, config) {
+  if (value === null || value === undefined || value === "" || typeof value !== "number") return "";
+  if (Number.isNaN(value)) return "";
+  let s = Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
+  if (config?.thousandSeparator) {
+    const parts = s.split(".");
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    s = parts.join(".");
+  }
+  return (config?.prefix || "") + s + (config?.suffix || "");
+}
+
+/* ════════════════════════════════════════════
+   渲染表格
+   ════════════════════════════════════════════ */
+const STATUS_PILL = { "进行中":"doing", "待开始":"todo", "已完成":"done" };
+
+function cellHTML(columnId, row) {
+  const col = COLUMNS.find(c => c.id === columnId);
+  if (col.type === "formula") {
+    const r = evalExpr(col.formula.expr, row);
+    if (!r.ok) return '<span class="cellerr" title="' + r.error.message + '">—</span>';
+    const txt = col.formula.output === "number"
+      ? formatNumber(r.value, col.formula.numberFormat)
+      : (r.value == null ? "" : String(r.value));
+    if (columnId === "priority") return '<span class="pill ' + ({高:"hi",中:"mid",低:"lo"}[txt] || "lo") + '">' + txt + "</span>";
+    return '<span class="ro">' + txt + "</span>";
+  }
+  if (columnId === "status")
+    return '<span class="pill ' + (STATUS_PILL[row.status] || "todo") + '">' + row.status + "</span>";
+  if (col.type === "number") return '<span class="ro">' + formatNumber(row[columnId], col.numberFormat) + "</span>";
+  return "<span>" + (row[columnId] ?? "") + "</span>";
+}
+
+function renderTable() {
+  document.getElementById("tbody1").innerHTML = ROWS.map(row => {
+    const cells = COLUMNS.map(col => {
+      const num = col.type === "number" || (col.type === "formula" && col.formula.output === "number");
+      return '<td class="' + (num ? "num" : "") + '">' + cellHTML(col.id, row) + "</td>";
+    }).join("");
+    return "<tr>" + cells + "</tr>";
+  }).join("");
+
+  /* 表尾 */
+  document.querySelectorAll("#tbl1 tfoot .foot[data-col]").forEach(btn => {
+    const columnId = btn.dataset.col;
+    const op = FOOTER[columnId] || "none";
+    const res = evalAggregate(op, columnId);
+    const opEl = btn.querySelector(".op");
+    const vEl = btn.querySelector(".v");
+    const col = COLUMNS.find(c => c.id === columnId);
+    opEl.textContent = AGG_LABEL[op] || "无";
+    if (op === "none") { vEl.textContent = ""; btn.classList.add("ghost"); }
+    else { btn.classList.remove("ghost"); }
+    if (!res.ok) {
+      vEl.textContent = "—";
+      btn.classList.add("err");
+      btn.title = res.error.message;
+    } else {
+      btn.classList.remove("err");
+      btn.title = "";
+      const isNum = typeof res.value === "number";
+      vEl.textContent = res.value === null ? "" : (isNum ? formatNumber(res.value, col.numberFormat) : String(res.value));
+    }
+  });
+}
+
+/* ════════════════════════════════════════════
+   表尾菜单
+   ════════════════════════════════════════════ */
+const pm1 = document.getElementById("pm1");
+let pm1Col = null;
+
+function openFooterMenu(btn) {
+  pm1Col = btn.dataset.col;
+  const type = valueTypeOf(pm1Col);
+  const numeric = type === "number" || COLUMNS.find(c => c.id === pm1Col)?.formula?.output === "number";
+  pm1.querySelectorAll(".it").forEach(it => {
+    const def = it.dataset.def;
+    if (def === "expr") return;
+    it.style.display = (!numeric && AGG_NUMERIC.has(def)) ? "none" : "flex";
+    it.classList.toggle("on", def === (FOOTER[pm1Col] || "none"));
+    it.querySelector(".ck")?.remove();
+    if (def === (FOOTER[pm1Col] || "none")) {
+      const ck = document.createElement("span");
+      ck.className = "ck"; ck.textContent = "✓";
+      it.appendChild(ck);
+    }
+  });
+  const box = btn.getBoundingClientRect();
+  pm1.classList.add("on");
+  const pw = pm1.offsetWidth;
+  pm1.style.left = Math.max(8, box.right - pw) + "px";
+  pm1.style.top = (box.bottom + window.scrollY + 6) + "px";
+  document.querySelectorAll("#tbl1 tfoot .foot").forEach(f => f.classList.remove("open"));
+  btn.classList.add("open");
+}
+
+document.querySelectorAll("#tbl1 tfoot .foot[data-col]").forEach(btn => {
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    if (pm1.classList.contains("on") && pm1Col === btn.dataset.col) { closeFooterMenu(); return; }
+    openFooterMenu(btn);
+  });
+});
+
+pm1.querySelectorAll(".it").forEach(it => {
+  it.addEventListener("click", () => {
+    const def = it.dataset.def;
+    if (def === "expr") { closeFooterMenu(); toast("打开公式构造器：汇总(小计) × 汇率"); return; }
+    FOOTER[pm1Col] = def;
+    renderTable();
+    closeFooterMenu();
+  });
+});
+
+function closeFooterMenu() {
+  pm1.classList.remove("on");
+  document.querySelectorAll("#tbl1 tfoot .foot").forEach(f => f.classList.remove("open"));
+}
+document.addEventListener("mousedown", e => { if (!pm1.contains(e.target)) closeFooterMenu(); });
+
+/* ════════════════════════════════════════════
+   构造器
+   ════════════════════════════════════════════ */
+/** 渲染一棵 AST 为可点的树：IF 展开子节点，其余节点一行内联 */
+function treeHTML(node) {
+  const row = (label, inner, depth) =>
+    '<div class="tnode"' + (depth ? ' style="padding-left:' + (depth * 19) + 'px"' : "") + '>' +
+      (label ? '<span class="tl">' + label + '</span>' : "") + inner + '</div>';
+  const build = (n, label, depth) => {
+    switch (n.kind) {
+      case "if":
+        return row(label, '<span class="chip kw">IF</span>', depth) +
+          build(n.test, "条件", depth + 1) + build(n.then, "是", depth + 1) + build(n.else, "否", depth + 1);
+      case "binary":
+      case "compare":
+        return row(label, chipLabel(n.left) + '<span class="chip op">' + (OP_LABEL[n.op] || n.op) + '</span>' + chipLabel(n.right), depth);
+      case "concat":
+        return row(label, '<span class="chip kw">拼接</span>' + n.parts.map(chipLabel).join(""), depth);
+      case "aggregate":
+        return row(label, '<span class="chip kw">' + AGG_LABEL[n.op] + '</span>' + chipLabel({ kind:"column", columnId:n.columnId }), depth);
+      default:
+        return row(label, chipLabel(n), depth);
+    }
+  };
+  return '<div class="tree">' + build(node, "", 0) + "</div>";
+}
+
+function chipLabel(n) {
+  const inner = n.kind === "literal"
+    ? (typeof n.value === "number" ? String(n.value) : '"' + n.value + '"')
+    : (n.kind === "column" ? (COLUMNS.find(c => c.id === n.columnId)?.name ?? n.columnId) : "…");
+  return '<button class="chip sel">' + inner +
+    '<svg class="cv" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg></button>';
+}
+
+/** 预览：逐行求值 */
+function previewHTML(expr, outputType) {
+  const rows = ROWS.slice(0, 5).map(row => {
+    const r = evalExpr(expr, row);
+    let v;
+    if (!r.ok) v = '<span class="cellerr" title="' + r.error.message + '">—</span>';
+    else v = '<span class="pv">' + (outputType === "number" ? formatNumber(r.value, { thousandSeparator:true }) : String(r.value ?? "")) + "</span>";
+    return '<div class="pr"><span class="pn">' + row.title + "</span>" + v + "</div>";
+  }).join("");
+  const errs = ROWS.map(row => evalExpr(expr, row)).filter(r => !r.ok);
+  const errBox = errs.length
+    ? '<div class="errbox"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg><div><b>' +
+      errs.length + " 行算不出来</b><br>" + errs[0].error.message + "</div></div>"
+    : "";
+  return '<div class="prev">' + rows + "</div>" + errBox;
+}
+
+function renderBuilder(mountId, spec) {
+  const el = document.getElementById(mountId);
+  if (!el) return;
+  el.innerHTML =
+    '<div class="bpane">' +
+      '<div class="bh">表达式树<span class="tag new" style="margin-left:auto">' + (spec.name || "") + "</span></div>" +
+      treeHTML(spec.expr) +
+      (spec.extra || "") +
+    "</div>" +
+    '<div class="bpane">' +
+      '<div class="bh">预览 · 前 5 行</div>' +
+      previewHTML(spec.expr, spec.output) +
+    "</div>";
+}
+
+const SUBTOTAL = COLUMNS.find(c => c.id === "subtotal").formula.expr;
+const PRIORITY = COLUMNS.find(c => c.id === "priority").formula.expr;
+
+renderBuilder("b-subtotal", { expr:SUBTOTAL, output:"number", name:"小计" });
+renderBuilder("b-priority", { expr:PRIORITY, output:"text",  name:"优先级" });
+renderBuilder("b-play",     { expr:PRIORITY, output:"text",  name:"优先级" });
+
+/* 错误演示：文本列参与乘法 */
+renderBuilder("b-err", {
+  expr:{ kind:"binary", op:"*",
+    left:{ kind:"column", columnId:"title" },
+    right:{ kind:"column", columnId:"qty" } },
+  output:"number", name:"反例 · 文本 × 数字",
+  extra:'<div class="infobox" style="margin-top:14px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:2px"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div>「任务」是文本，不能相乘。<b>真实构造器里「任务」根本不会出现在 × 的可选列中</b>，这里强行构造只为演示提示长什么样。</div></div>',
+});
+
+/* 换根节点：每种根给一棵示例树 */
+const ROOT_SAMPLES = {
+  binary:   { expr:SUBTOTAL, output:"number" },
+  if:       { expr:PRIORITY, output:"text" },
+  concat:   { expr:{ kind:"concat", parts:[ {kind:"column",columnId:"title"}, {kind:"literal",value:" · "}, {kind:"column",columnId:"status"} ] }, output:"text" },
+  compare:  { expr:{ kind:"compare", op:">=", left:{kind:"column",columnId:"qty"}, right:{kind:"literal",value:4} }, output:"text" },
+  aggregate:{ expr:{ kind:"aggregate", op:"sum", columnId:"subtotal" }, output:"number" },
+};
+document.querySelectorAll("[data-root]").forEach(b => b.addEventListener("click", () => {
+  const sample = ROOT_SAMPLES[b.dataset.root];
+  renderBuilder("b-play", { ...sample, name: b.textContent });
+}));
+
+/* ════════════════════════════════════════════
+   AI 入口（示意：关键词 → AST，非真实模型）
+   ════════════════════════════════════════════ */
+const AI_TREES = {
+  default: {
+    text: "单价乘数量超过 500 就是高优先级",
+    expr: PRIORITY,
+  },
+  concat: {
+    text: "把任务名和状态拼起来",
+    expr: { kind:"concat", parts:[ {kind:"column",columnId:"title"}, {kind:"literal",value:" · "}, {kind:"column",columnId:"status"} ] },
+  },
+  compare: {
+    text: "数量大于 4 的才算",
+    expr: { kind:"compare", op:">", left:{kind:"column",columnId:"qty"}, right:{kind:"literal",value:4} },
+  },
+};
+
+document.getElementById("aigo").addEventListener("click", () => {
+  const input = document.getElementById("aiin").value.trim();
+  let pick = AI_TREES.default;
+  if (/拼接|拼起来|连接/.test(input)) pick = AI_TREES.concat;
+  else if (/大于|超过/.test(input) && !/优先|高/.test(input)) pick = AI_TREES.compare;
+
+  document.getElementById("aisteps").querySelectorAll(".s").forEach((s, i) => {
+    s.classList.remove("on");
+    setTimeout(() => s.classList.add("on"), i * 180);
+  });
+
+  renderBuilder("b-play", { expr: pick.expr, output: pick.expr.kind === "concat" ? "text" : undefined, name: "AI 生成" });
+  document.getElementById("b-play").closest(".card").scrollIntoView({ behavior:"smooth", block:"center" });
+  toast("已填进构造器，可以继续改");
+});
+
+/* ════════════════════════════════════════════
+   开关
+   ════════════════════════════════════════════ */
+function bindSwitch(id, fn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    el.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    fn(b.dataset.v);
+  });
+}
+bindSwitch("sw-theme", v => document.documentElement.dataset.theme = v);
+bindSwitch("sw-mode",  v => document.documentElement.dataset.mode  = v);
+
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+renderTable();
+</script>
+</body>
+</html>

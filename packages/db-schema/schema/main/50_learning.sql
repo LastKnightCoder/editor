@@ -76,6 +76,13 @@ CREATE TABLE IF NOT EXISTS doc_task_settings (
         create_time INTEGER NOT NULL,
         UNIQUE(content_id, task_id, kind)
       );
+-- 项目旧名随主库保留，重建镜像与同步下载后仍可完成正文改名。
+CREATE TABLE IF NOT EXISTS doc_task_group_names (
+        group_id INTEGER NOT NULL,
+        group_created_at INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        PRIMARY KEY(group_id, group_created_at, title)
+      );
 CREATE TABLE IF NOT EXISTS pomodoro_presets (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,

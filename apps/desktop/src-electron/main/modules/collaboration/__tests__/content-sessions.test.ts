@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("electron", () => ({
+  BrowserWindow: { getAllWindows: () => [] },
+  ipcMain: { handle: vi.fn() },
+  app: { getPath: () => "/tmp" },
+}));
+vi.mock("../../video-note-index-queue", () => ({
+  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
+}));
 import Database from "better-sqlite3";
 import * as Y from "yjs";
 import {
@@ -22,6 +30,8 @@ import {
   unregisterContentSession,
 } from "../content-sessions";
 import type { RuntimeSession } from "../types";
+import ContentTable from "../../tables/content";
+import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 
 const cleanup: (() => void)[] = [];
@@ -85,6 +95,107 @@ function database() {
 }
 
 describe("本机内容会话", () => {
+  it("缺失身份的离线分叉得到相同 taskId，合并后身份不会换成另一随机值", () => {
+    const main = runtime([
+      {
+        type: "check-list",
+        children: [
+          {
+            type: "check-list-item",
+            checked: false,
+            children: [{ type: "paragraph", children: [{ text: "任务" }] }],
+          },
+        ],
+      },
+    ]);
+    const view = new Y.Doc();
+    Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
+    const other = { ...main, doc: view } as RuntimeSession;
+    patchSessionNodes(main, createTaskIdPatcher());
+    patchSessionNodes(other, createTaskIdPatcher());
+    const taskId = (readSharedContent(main.doc).content[0].children![0] as { taskId: string })
+      .taskId;
+    expect((readSharedContent(view).content[0].children![0] as { taskId: string }).taskId).toBe(
+      taskId
+    );
+    Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(view));
+    Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
+    expect((readSharedContent(main.doc).content[0].children![0] as { taskId: string }).taskId).toBe(
+      taskId
+    );
+    view.destroy();
+  });
+
+  it("格式和行内元素混排的全段补丁按正确偏移修改", () => {
+    const main = runtime([
+      {
+        type: "paragraph",
+        children: [
+          { text: "前 #发布 ", bold: true },
+          { type: "link", url: "https://example.com", children: [{ text: "中间" }] },
+          { text: " 后 #发布", italic: true },
+        ],
+      },
+    ]);
+    patchSessionNodes(
+      main,
+      () => null,
+      undefined,
+      text =>
+        [...text.matchAll(/#发布/g)].map(match => ({
+          index: match.index! + 1,
+          remove: 2,
+          insert: "上线",
+        }))
+    );
+    expect(readSharedContent(main.doc).content[0]).toMatchObject({
+      children: [
+        { text: "前 #上线 ", bold: true },
+        { type: "link", children: [{ text: "中间" }] },
+        { text: " 后 #上线", italic: true },
+      ],
+    });
+  });
+
+  it("冻结会话补身份会暂缓，不影响已有输入更新", () => {
+    const db = database();
+    const session = runtime([
+      {
+        type: "check-list",
+        children: [
+          {
+            type: "check-list-item",
+            checked: false,
+            children: [{ type: "paragraph", children: [{ text: "任务" }] }],
+          },
+        ],
+      },
+    ]);
+    registerContentSession(db, 7, session);
+    session.info.frozen = true;
+    expect(ContentTable.ensureTaskIds(db, 7)).toBe(0);
+    session.info.frozen = false;
+    expect(ContentTable.ensureTaskIds(db, 7)).toBe(1);
+  });
+  it("编辑期间不自动改日期文字，退出编辑后再就地写回", () => {
+    const db = database();
+    const session = runtime([{ type: "paragraph", children: [{ text: "明天" }] }]);
+    registerContentSession(db, 7, session);
+    session.awareness.setLocalState({ activity: "editing" });
+    const options = {
+      canonical: true,
+      paragraph: () => [{ index: 0, remove: 2, insert: "2026年10月9日" }],
+    };
+    expect(ContentTable.patchNodes(db, 7, () => null, options)).toBe(0);
+    expect(readSharedContent(session.doc).content[0]).toMatchObject({
+      children: [{ text: "明天" }],
+    });
+    session.awareness.setLocalState({ activity: "viewing" });
+    expect(ContentTable.patchNodes(db, 7, () => null, options)).toBe(1);
+    expect(readSharedContent(session.doc).content[0]).toMatchObject({
+      children: [{ text: "2026年10月9日" }],
+    });
+  });
   it("保留本地实体和资源，但禁止直接上传本机文档", () => {
     const { doc } = runtime();
     const content = readSharedContent(doc).content;
