@@ -1,0 +1,185 @@
+{
+  "cases": [
+    {
+      "difficulty": 6.413300037384033,
+      "elapsedDays": 0,
+      "intervalDays": 0.212,
+      "memoryDifficulty": null,
+      "memoryStability": null,
+      "name": "case-0-hard",
+      "rating": "hard",
+      "stability": 0.21199999749660492
+    },
+    {
+      "difficulty": 5.112170696258545,
+      "elapsedDays": 0,
+      "intervalDays": 1.2931,
+      "memoryDifficulty": null,
+      "memoryStability": null,
+      "name": "case-0-struggle",
+      "rating": "struggle",
+      "stability": 1.2930999994277954
+    },
+    {
+      "difficulty": 2.1181039810180664,
+      "elapsedDays": 0,
+      "intervalDays": 2.3065,
+      "memoryDifficulty": null,
+      "memoryStability": null,
+      "name": "case-0-normal",
+      "rating": "normal",
+      "stability": 2.30649995803833
+    },
+    {
+      "difficulty": 1.0,
+      "elapsedDays": 0,
+      "intervalDays": 8.2956,
+      "memoryDifficulty": null,
+      "memoryStability": null,
+      "name": "case-0-easy",
+      "rating": "easy",
+      "stability": 8.295599937438965
+    },
+    {
+      "difficulty": 8.34176254272461,
+      "elapsedDays": 3,
+      "intervalDays": 0.9057792592592593,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-1-hard",
+      "rating": "hard",
+      "stability": 0.905779242515564
+    },
+    {
+      "difficulty": 6.6659955978393555,
+      "elapsedDays": 3,
+      "intervalDays": 10.054621481481481,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-1-struggle",
+      "rating": "struggle",
+      "stability": 10.054621696472168
+    },
+    {
+      "difficulty": 4.990228176116943,
+      "elapsedDays": 3,
+      "intervalDays": 13.404757037037037,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-1-normal",
+      "rating": "normal",
+      "stability": 13.404756546020508
+    },
+    {
+      "difficulty": 3.3144614696502686,
+      "elapsedDays": 3,
+      "intervalDays": 20.74126962962963,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-1-easy",
+      "rating": "easy",
+      "stability": 20.741270065307617
+    },
+    {
+      "difficulty": 9.327841758728027,
+      "elapsedDays": 20,
+      "intervalDays": 2.1653783333333334,
+      "memoryDifficulty": 8.0,
+      "memoryStability": 30.0,
+      "name": "case-2-hard",
+      "rating": "hard",
+      "stability": 2.1653783321380615
+    },
+    {
+      "difficulty": 8.6575345993042,
+      "elapsedDays": 20,
+      "intervalDays": 42.22198222222222,
+      "memoryDifficulty": 8.0,
+      "memoryStability": 30.0,
+      "name": "case-2-struggle",
+      "rating": "struggle",
+      "stability": 42.221981048583984
+    },
+    {
+      "difficulty": 7.9872283935546875,
+      "elapsedDays": 20,
+      "intervalDays": 50.32255407407408,
+      "memoryDifficulty": 8.0,
+      "memoryStability": 30.0,
+      "name": "case-2-normal",
+      "rating": "normal",
+      "stability": 50.32255554199219
+    },
+    {
+      "difficulty": 7.316921710968018,
+      "elapsedDays": 20,
+      "intervalDays": 68.0621037037037,
+      "memoryDifficulty": 8.0,
+      "memoryStability": 30.0,
+      "name": "case-2-easy",
+      "rating": "easy",
+      "stability": 68.06210327148438
+    },
+    {
+      "difficulty": 8.34176254272461,
+      "elapsedDays": 0,
+      "intervalDays": 1.5968179629629629,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-3-hard",
+      "rating": "hard",
+      "stability": 1.596817970275879
+    },
+    {
+      "difficulty": 6.6659955978393555,
+      "elapsedDays": 0,
+      "intervalDays": 5.0,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-3-struggle",
+      "rating": "struggle",
+      "stability": 5.0
+    },
+    {
+      "difficulty": 4.990228176116943,
+      "elapsedDays": 0,
+      "intervalDays": 5.0,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-3-normal",
+      "rating": "normal",
+      "stability": 5.0
+    },
+    {
+      "difficulty": 3.3144614696502686,
+      "elapsedDays": 0,
+      "intervalDays": 8.12961037037037,
+      "memoryDifficulty": 5.0,
+      "memoryStability": 5.0,
+      "name": "case-3-easy",
+      "rating": "easy",
+      "stability": 8.129610061645508
+    },
+    {
+      "difficulty": 7.149778842926025,
+      "name": "sm2-2.5-7",
+      "sm2Ease": 2.5,
+      "sm2IntervalDays": 7.0,
+      "stability": 7.0
+    },
+    {
+      "difficulty": 10.0,
+      "name": "sm2-1.3-1",
+      "sm2Ease": 1.3,
+      "sm2IntervalDays": 1.0,
+      "stability": 1.0
+    },
+    {
+      "difficulty": 1.8213005065917969,
+      "name": "sm2-3.5-60",
+      "sm2Ease": 3.5,
+      "sm2IntervalDays": 60.0,
+      "stability": 60.0
+    }
+  ]
+}

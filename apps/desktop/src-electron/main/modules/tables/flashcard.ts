@@ -20,6 +20,16 @@ import {
   FlashcardReviewStats,
 } from "@/types";
 import ContentTable from "./content";
+import {
+  FSRS_DAY_MS,
+  fsrsElapsedDays,
+  fsrsGradeOf,
+  fsrsIntervalMs,
+  fsrsMemoryFromSm2,
+  fsrsSchedule,
+  fsrsStatusAfter,
+  type FsrsMemoryState,
+} from "@tau/shared/fsrs-schedule";
 
 type DeckRow = {
   id: number;
@@ -42,11 +52,11 @@ type CardRow = {
   data: string;
   tags: string;
   difficulty: string;
-  review_level: number;
   due_time: number;
   last_review_time: number | null;
   review_count: number;
-  ease_factor: number;
+  memory_stability: number | null;
+  memory_difficulty: number | null;
   status: string;
   reference_summary: string | null;
   create_time: number;
@@ -63,36 +73,8 @@ type ReferenceRow = {
   update_time: number;
 };
 
-const REVIEW_INTERVALS = [
-  5 * 60 * 1000, // 5分钟
-  30 * 60 * 1000, // 30分钟
-  12 * 60 * 60 * 1000, // 12小时
-  24 * 60 * 60 * 1000, // 1天
-  2 * 24 * 60 * 60 * 1000, // 2天
-  4 * 24 * 60 * 60 * 1000, // 4天
-  7 * 24 * 60 * 60 * 1000, // 1周
-  15 * 24 * 60 * 60 * 1000, // 15天
-  30 * 24 * 60 * 60 * 1000, // 1个月
-  60 * 24 * 60 * 60 * 1000, // 2个月
-];
-
-const RATING_DELTA: Record<FlashcardReviewRating, number> = {
-  easy: 2,
-  normal: 1,
-  struggle: -1,
-  hard: -2,
-};
-
-const EASE_DELTA: Record<FlashcardReviewRating, number> = {
-  easy: 0.15,
-  normal: 0,
-  struggle: -0.1,
-  hard: -0.25,
-};
-
 const DEFAULT_COLOR = "#2563eb";
 const DEFAULT_EMOJI = "🧠";
-const EASE_RANGE = { min: 1.3, max: 3.5 };
 
 class FlashcardTable {
   private static readonly reviewIdHighWater = new WeakMap<Database.Database, number>();
@@ -119,6 +101,102 @@ class FlashcardTable {
       "flashcard:undo-review": this.undoReview.bind(this),
       "flashcard:review-stats": this.getReviewStats.bind(this),
     };
+  }
+
+  /**
+   * 旧调度列（间隔阶梯+ease）→ FSRS 表结构迁移，开库维护阶段调用；幂等。
+   * 建表语句与 packages/db-schema/schema/main/50_learning.sql、90_indexes.sql 同步，
+   * 移动端等价实现在 src-tauri/src/database/migrator.rs 的 migrate_v4_to_v5。
+   */
+  static upgradeTable(db: Database.Database): void {
+    const columns = (db.pragma("table_info(flashcards)") as Array<{ name: string }>).map(
+      c => c.name
+    );
+    if (!columns.includes("review_level")) return;
+
+    // 迁移输入须在旧表重建前读取：旧 ease 与最近一次调度的间隔
+    const inputs = db
+      .prepare(
+        `SELECT f.id AS id, f.ease_factor AS ease,
+         COALESCE((SELECT r.interval FROM flashcard_reviews r WHERE r.card_id = f.id ORDER BY r.id DESC LIMIT 1), 0) AS last_interval
+         FROM flashcards f WHERE f.review_count > 0`
+      )
+      .all() as Array<{ id: number; ease: number; last_interval: number }>;
+
+    // 桌面主进程默认 foreign_keys = OFF，这里按原值恢复而非硬编码 ON，避免翻转连接语义
+    const foreignKeysBefore = db.pragma("foreign_keys", { simple: true }) as number;
+    db.pragma("foreign_keys = OFF");
+    try {
+      db.transaction(() => {
+        db.exec(`
+          CREATE TABLE flashcard_reviews_v5 (
+            id INTEGER PRIMARY KEY,
+            card_id INTEGER NOT NULL,
+            deck_id INTEGER NOT NULL,
+            rating TEXT NOT NULL,
+            review_time INTEGER NOT NULL,
+            interval INTEGER NOT NULL,
+            stability REAL NOT NULL DEFAULT 0,
+            difficulty REAL NOT NULL DEFAULT 0,
+            notes TEXT,
+            FOREIGN KEY(card_id) REFERENCES flashcards(id),
+            FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
+          );
+          INSERT INTO flashcard_reviews_v5 (id, card_id, deck_id, rating, review_time, interval, notes)
+            SELECT id, card_id, deck_id, rating, review_time, interval, notes FROM flashcard_reviews;
+          DROP TABLE flashcard_reviews;
+          ALTER TABLE flashcard_reviews_v5 RENAME TO flashcard_reviews;
+
+          CREATE TABLE flashcards_v5 (
+            id INTEGER PRIMARY KEY,
+            deck_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            prompt TEXT NOT NULL,
+            detail TEXT DEFAULT '',
+            data TEXT NOT NULL,
+            tags TEXT DEFAULT '[]',
+            difficulty TEXT DEFAULT 'standard',
+            due_time INTEGER NOT NULL,
+            last_review_time INTEGER,
+            review_count INTEGER DEFAULT 0,
+            memory_stability REAL,
+            memory_difficulty REAL,
+            status TEXT DEFAULT 'new',
+            reference_summary TEXT,
+            create_time INTEGER NOT NULL,
+            update_time INTEGER NOT NULL,
+            FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
+          );
+          INSERT INTO flashcards_v5 (id, deck_id, type, prompt, detail, data, tags, difficulty,
+            due_time, last_review_time, review_count, status, reference_summary, create_time, update_time)
+            SELECT id, deck_id, type, prompt, detail, data, tags, difficulty,
+            due_time, last_review_time, review_count, status, reference_summary, create_time, update_time
+            FROM flashcards;
+          DROP TABLE flashcards;
+          ALTER TABLE flashcards_v5 RENAME TO flashcards;
+
+          CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
+          CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
+          CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
+          CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
+        `);
+        const backfill = db.prepare(
+          `UPDATE flashcards SET memory_stability = ?, memory_difficulty = ? WHERE id = ?`
+        );
+        for (const { id, ease, last_interval } of inputs) {
+          const state = fsrsMemoryFromSm2(ease, last_interval / FSRS_DAY_MS);
+          backfill.run(state.stability, state.difficulty, id);
+        }
+      })();
+      // 只检查本次重建的两张表：全库扫描会被无关表的历史孤儿行阻断开库
+      const violations = db.pragma("foreign_key_check(flashcards)") as unknown[];
+      const reviewViolations = db.pragma("foreign_key_check(flashcard_reviews)") as unknown[];
+      if (violations.length > 0 || reviewViolations.length > 0) {
+        throw new Error("闪卡表 FSRS 迁移后存在外键违例");
+      }
+    } finally {
+      db.pragma(`foreign_keys = ${foreignKeysBefore ? "ON" : "OFF"}`);
+    }
   }
   private static parseJSON<T>(value: string | null | undefined, fallback: T): T {
     if (!value) return fallback;
@@ -226,11 +304,11 @@ class FlashcardTable {
       }),
       tags: this.parseJSON<string[]>(row.tags, []),
       difficulty: (row.difficulty || "standard") as Flashcard["difficulty"],
-      reviewLevel: row.review_level ?? 0,
       dueTime: row.due_time,
       lastReviewTime: row.last_review_time ?? null,
       reviewCount: row.review_count ?? 0,
-      easeFactor: row.ease_factor ?? 2.5,
+      memoryStability: row.memory_stability ?? null,
+      memoryDifficulty: row.memory_difficulty ?? null,
       status: (row.status || "new") as Flashcard["status"],
       referenceSummary: row.reference_summary ?? null,
       references,
@@ -639,12 +717,12 @@ class FlashcardTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO flashcards (
-        deck_id, type, prompt, detail, data, tags, difficulty, review_level,
-        due_time, last_review_time, review_count, ease_factor, status,
+        deck_id, type, prompt, detail, data, tags, difficulty,
+        due_time, last_review_time, review_count, memory_stability, memory_difficulty, status,
         reference_summary, create_time, update_time
       ) VALUES (
-        @deckId, @type, @prompt, @detail, @data, @tags, @difficulty, @reviewLevel,
-        @dueTime, @lastReviewTime, @reviewCount, @easeFactor, @status,
+        @deckId, @type, @prompt, @detail, @data, @tags, @difficulty,
+        @dueTime, @lastReviewTime, @reviewCount, @memoryStability, @memoryDifficulty, @status,
         @referenceSummary, @createTime, @updateTime
       )
     `);
@@ -663,11 +741,11 @@ class FlashcardTable {
       data: JSON.stringify(payload.data ?? {}),
       tags: JSON.stringify(payload.tags ?? []),
       difficulty: payload.difficulty ?? "standard",
-      reviewLevel: 0,
       dueTime: now,
       lastReviewTime: null,
       reviewCount: 0,
-      easeFactor: 2.5,
+      memoryStability: null,
+      memoryDifficulty: null,
       status: "new",
       referenceSummary: null,
       createTime: now,
@@ -772,7 +850,7 @@ class FlashcardTable {
       ORDER BY
         CASE WHEN due_time <= ${now} THEN 0 ELSE 1 END,
         due_time ASC,
-        review_level ASC
+        memory_stability ASC
     `;
     if (params.limit) {
       sql += " LIMIT ?";
@@ -787,25 +865,22 @@ class FlashcardTable {
     return rows.map(row => this.mapCardRow(row, referenceMap[row.id] ?? []));
   }
 
-  private static calculateSchedule(row: CardRow, rating: FlashcardReviewRating) {
-    const now = Date.now();
-    const delta = RATING_DELTA[rating] ?? 0;
-    let nextLevel = row.review_level + delta;
-    if (rating === "struggle" && delta >= 0) {
-      nextLevel = Math.max(row.review_level - 1, 0);
-    }
-    nextLevel = Math.max(0, Math.min(REVIEW_INTERVALS.length - 1, nextLevel));
-
-    const nextEase = Math.min(
-      EASE_RANGE.max,
-      Math.max(EASE_RANGE.min, row.ease_factor + (EASE_DELTA[rating] ?? 0))
-    );
-    const baseInterval = REVIEW_INTERVALS[nextLevel];
-    const dueTime = now + Math.round(baseInterval * (0.8 + nextEase * 0.2));
-    const interval = dueTime - now;
-    const reviewCount = (row.review_count ?? 0) + 1;
-    const status = reviewCount >= 3 && rating !== "hard" ? "review" : "learning";
-    return { nextLevel, nextEase, dueTime, interval, status };
+  /** FSRS 调度：由当前记忆状态与评分推下一次复习安排（与移动端 fsrs crate 逐值一致） */
+  private static calculateSchedule(row: CardRow, rating: FlashcardReviewRating, now: number) {
+    const memory: FsrsMemoryState | null =
+      row.memory_stability != null && row.memory_difficulty != null
+        ? { stability: row.memory_stability, difficulty: row.memory_difficulty }
+        : null;
+    const elapsedDays = fsrsElapsedDays(row.last_review_time ?? null, now);
+    const next = fsrsSchedule(memory, elapsedDays, fsrsGradeOf(rating));
+    const interval = fsrsIntervalMs(next.intervalDays);
+    return {
+      stability: next.stability,
+      difficulty: next.difficulty,
+      dueTime: now + interval,
+      interval,
+      status: fsrsStatusAfter(next.intervalDays),
+    };
   }
 
   static submitReview(
@@ -818,23 +893,24 @@ class FlashcardTable {
         CardRow | undefined;
       if (!row) return null;
 
-      const { nextLevel, nextEase, dueTime, interval, status } = this.calculateSchedule(
-        row,
-        payload.rating
-      );
       const now = Date.now();
+      const { stability, difficulty, dueTime, interval, status } = this.calculateSchedule(
+        row,
+        payload.rating,
+        now
+      );
 
       db.prepare(
         `UPDATE flashcards SET
-        review_level = ?,
         due_time = ?,
         last_review_time = ?,
         review_count = review_count + 1,
-        ease_factor = ?,
+        memory_stability = ?,
+        memory_difficulty = ?,
         status = ?,
         update_time = ?
        WHERE id = ?`
-      ).run(nextLevel, dueTime, now, nextEase, status, now, payload.cardId);
+      ).run(dueTime, now, stability, difficulty, status, now, payload.cardId);
 
       // INTEGER PRIMARY KEY 会复用刚撤销的最大 ID；会话内保留高水位，避免旧凭据命中新记录。
       const maxReviewId =
@@ -843,7 +919,7 @@ class FlashcardTable {
       const reviewId = Math.max(maxReviewId, this.reviewIdHighWater.get(db) ?? 0) + 1;
       this.reviewIdHighWater.set(db, reviewId);
       db.prepare(
-        `INSERT INTO flashcard_reviews (id, card_id, deck_id, rating, review_time, interval, review_level, ease_factor, notes)
+        `INSERT INTO flashcard_reviews (id, card_id, deck_id, rating, review_time, interval, stability, difficulty, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).run(
         reviewId,
@@ -852,8 +928,8 @@ class FlashcardTable {
         payload.rating,
         now,
         interval,
-        nextLevel,
-        nextEase,
+        stability,
+        difficulty,
         payload.notes ?? null
       );
 
@@ -864,8 +940,8 @@ class FlashcardTable {
           cardId: row.id,
           reviewId,
           previous: {
-            reviewLevel: row.review_level,
-            easeFactor: row.ease_factor,
+            memoryStability: row.memory_stability,
+            memoryDifficulty: row.memory_difficulty,
             dueTime: row.due_time,
             lastReviewTime: row.last_review_time,
             reviewCount: row.review_count,
@@ -893,18 +969,18 @@ class FlashcardTable {
       if (!row) return null;
       const latest = db
         .prepare(
-          `SELECT id, review_time, review_level, ease_factor FROM flashcard_reviews
+          `SELECT id, review_time, stability, difficulty FROM flashcard_reviews
          WHERE card_id = ? ORDER BY id DESC LIMIT 1`
         )
         .get(payload.cardId) as
-        { id: number; review_time: number; review_level: number; ease_factor: number } | undefined;
+        { id: number; review_time: number; stability: number; difficulty: number } | undefined;
       if (
         !latest ||
         latest.id !== payload.reviewId ||
         row.review_count !== previous.reviewCount + 1 ||
         row.last_review_time !== latest.review_time ||
-        row.review_level !== latest.review_level ||
-        row.ease_factor !== latest.ease_factor ||
+        row.memory_stability !== latest.stability ||
+        row.memory_difficulty !== latest.difficulty ||
         row.status === "suspended"
       ) {
         throw new Error("评分记录已变化，无法撤销");
@@ -915,20 +991,20 @@ class FlashcardTable {
       );
       db.prepare(
         `UPDATE flashcards SET
-          review_level = ?,
           due_time = ?,
           last_review_time = ?,
           review_count = ?,
-          ease_factor = ?,
+          memory_stability = ?,
+          memory_difficulty = ?,
           status = ?,
           update_time = ?
          WHERE id = ?`
       ).run(
-        previous.reviewLevel,
         previous.dueTime,
         previous.lastReviewTime,
         previous.reviewCount,
-        previous.easeFactor,
+        previous.memoryStability,
+        previous.memoryDifficulty,
         previous.status,
         Date.now(),
         payload.cardId

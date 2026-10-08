@@ -173,10 +173,10 @@ pub fn flashcard_create_card(
     }
     tx.execute(
         "INSERT INTO flashcards (\
-         deck_id, type, prompt, detail, data, tags, difficulty, review_level, \
-         due_time, last_review_time, review_count, ease_factor, status, \
+         deck_id, type, prompt, detail, data, tags, difficulty, \
+         due_time, last_review_time, review_count, memory_stability, memory_difficulty, status, \
          reference_summary, create_time, update_time) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, NULL, 0, 2.5, 'new', NULL, ?8, ?8)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, 0, NULL, NULL, 'new', NULL, ?8, ?8)",
         params![
             payload.deck_id,
             payload.card_type,
@@ -259,7 +259,7 @@ pub fn flashcard_update_card(
     }
     let changed = tx
         .execute(
-            // 不触碰调度列（status/review_level/ease_factor/due_time）：编辑内容不应重置复习进度
+            // 不触碰调度列（status/due_time/memory_*）：编辑内容不应重置复习进度
             "UPDATE flashcards SET \
              deck_id = ?1, type = ?2, prompt = ?3, detail = ?4, data = ?5, tags = ?6, \
              difficulty = ?7, update_time = ?8 \

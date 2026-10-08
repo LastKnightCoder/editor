@@ -14,14 +14,16 @@ use crate::database::schema;
 
 // ── 复习链路 ──
 
-/// 到期队列：due_time 升序 → review_level 升序（对齐桌面 getReviewQueue 的默认排序）
+/// 到期队列：due_time 升序 → memory_stability 升序（对齐桌面 getReviewQueue 的默认排序，
+/// NULL（新卡）在 SQLite ASC 下排在最前，与桌面一致）
 #[tauri::command]
 pub fn flashcard_get_review_queue(
     app: AppHandle,
     payload: FlashcardReviewQueuePayload,
 ) -> Result<Vec<Flashcard>, String> {
     let conn = schema::open_active_database(&app)?;
-    let mut conditions: Vec<String> = vec!["due_time <= ?".into()];
+    // 暂停的卡不进复习队列（对齐桌面 getReviewQueue 默认排除 suspended）
+    let mut conditions: Vec<String> = vec!["due_time <= ?".into(), "status != 'suspended'".into()];
     let mut values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now_millis())];
     if let Some(deck_id) = payload.deck_id {
         conditions.push("deck_id = ?".into());
@@ -32,7 +34,7 @@ pub fn flashcard_get_review_queue(
     );
     let sql = format!(
         "SELECT {CARD_COLUMNS} FROM flashcards WHERE {} \
-         ORDER BY due_time ASC, review_level ASC LIMIT ?",
+         ORDER BY due_time ASC, memory_stability ASC LIMIT ?",
         conditions.join(" AND ")
     );
     let mut stmt = conn
@@ -68,30 +70,30 @@ pub fn flashcard_submit_review(
     let card = query_card_by_id(&tx, payload.card_id)?
         .ok_or_else(|| "FLASHCARD_NOT_FOUND: 卡片不存在".to_string())?;
     let schedule = calculate_schedule(
-        card.review_level,
-        card.ease_factor,
-        card.review_count,
+        card.memory_stability,
+        card.memory_difficulty,
+        card.last_review_time,
         &payload.rating,
         now,
     )
     .ok_or_else(|| format!("FLASHCARD_INVALID_RATING: 未知评分 {}", payload.rating))?;
     tx.execute(
         "UPDATE flashcards SET \
-         review_level = ?1, due_time = ?2, last_review_time = ?3, review_count = review_count + 1, \
-         ease_factor = ?4, status = ?5, update_time = ?3 \
+         due_time = ?1, last_review_time = ?2, review_count = review_count + 1, \
+         memory_stability = ?3, memory_difficulty = ?4, status = ?5, update_time = ?2 \
          WHERE id = ?6",
         params![
-            schedule.level,
             schedule.due_ms,
             now,
-            schedule.ease,
+            schedule.stability,
+            schedule.difficulty,
             schedule.status,
             payload.card_id
         ],
     )
     .map_err(|e| format_db_error("FLASHCARD_REVIEW_FAILED", "update card schedule", e))?;
     tx.execute(
-        "INSERT INTO flashcard_reviews (card_id, deck_id, rating, review_time, interval, review_level, ease_factor, notes) \
+        "INSERT INTO flashcard_reviews (card_id, deck_id, rating, review_time, interval, stability, difficulty, notes) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             payload.card_id,
@@ -99,8 +101,8 @@ pub fn flashcard_submit_review(
             payload.rating,
             now,
             schedule.interval_ms,
-            schedule.level,
-            schedule.ease,
+            schedule.stability,
+            schedule.difficulty,
             payload.notes
         ],
     )

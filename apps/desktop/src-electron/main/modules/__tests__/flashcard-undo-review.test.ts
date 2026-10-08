@@ -49,8 +49,8 @@ describe("闪卡撤销评分", () => {
     });
     const first = FlashcardTable.submitReview(db, { cardId: card.id, deckId, rating: "normal" })!;
     const beforeSecond = {
-      reviewLevel: first.reviewLevel,
-      easeFactor: first.easeFactor,
+      memoryStability: first.memoryStability,
+      memoryDifficulty: first.memoryDifficulty,
       dueTime: first.dueTime,
       lastReviewTime: first.lastReviewTime,
       reviewCount: first.reviewCount,
@@ -81,8 +81,8 @@ describe("闪卡撤销评分", () => {
       cardId: card.id + 999,
       reviewId: 999,
       previous: {
-        reviewLevel: 0,
-        easeFactor: 2.5,
+        memoryStability: null,
+        memoryDifficulty: null,
         dueTime: 0,
         lastReviewTime: null,
         reviewCount: 0,
