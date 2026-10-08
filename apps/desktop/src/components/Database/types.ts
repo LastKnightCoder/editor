@@ -1,4 +1,4 @@
-import {
+import type {
   ColumnDef as SharedColumnDef,
   CellValue as SharedCellValue,
   RowData as SharedRowData,
@@ -21,9 +21,9 @@ import {
   FilterCondition,
   FilterLogicOperator,
   ValidationRule,
-} from "@tau/shared";
+} from "@tau/shared/database-types";
 import { SELECT_COLORS } from "./constants";
-import { ImageItem } from "./plugins/ImagePlugin/types";
+import type { DatabaseImage, DatabaseSlots } from "./DatabaseHostContext";
 
 // Re-export shared types
 export type {
@@ -49,7 +49,7 @@ export type {
 
 // Extend shared types with local specifics
 export type ColumnDef<T = unknown> = SharedColumnDef<T>;
-export type CellValue = SharedCellValue | ImageItem[];
+export type CellValue = SharedCellValue | DatabaseImage[];
 export type RowData = SharedRowData;
 export type DatabaseData = SharedDatabaseData;
 
@@ -99,6 +99,8 @@ export interface DatabaseProps {
   viewConfig: TableViewConfig;
   config?: DatabaseConfig;
   plugins?: CellPlugin<unknown>[];
+  slots?: DatabaseSlots;
+  onRowCleanup?: (row: RowData) => void | Promise<void>;
   onDataChange?: (data: DatabaseData, change: DatabaseChange) => void;
   onViewConfigChange?: (config: TableViewConfig) => void;
   onActiveViewIdChange?: (viewId: number | null) => Promise<void>;

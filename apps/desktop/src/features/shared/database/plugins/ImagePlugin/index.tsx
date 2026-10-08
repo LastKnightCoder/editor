@@ -1,4 +1,4 @@
-import { CellPlugin } from "../../types";
+import { CellPlugin } from "@/components/Database";
 import { Image } from "lucide-react";
 import { Renderer } from "./components";
 import { ImagePluginValue, ImagePluginConfig } from "./types";

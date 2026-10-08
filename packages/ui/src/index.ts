@@ -2,6 +2,7 @@ export * from "./cn";
 export { EditText, type EditTextHandle } from "./primitives/EditText";
 export { EDIT_TEXT_PLACEHOLDER } from "./primitives/editTextClasses";
 export * from "./hooks";
+export { isEditableTarget } from "./hooks/isEditableTarget";
 export * from "./UiProvider";
 export * from "./primitives/Button";
 export * from "./primitives/IconButton";

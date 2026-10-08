@@ -1,12 +1,13 @@
 import React, { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import type { Descendant } from "slate";
 import { cn, ConfirmDialog, Dialog, FADE_SCROLL_CLASS, ImagePreview, useEdgeFade } from "@tau/ui";
-import Editor from "@/components/ContentEditor";
-import LocalImage from "@/components/LocalImage";
-import { createContent } from "@/commands/content";
-import { isEditableTarget } from "@/page/dom";
+import { isEditableTarget } from "@tau/ui";
+import {
+  BrowserImage,
+  useDatabaseSlots,
+  type RowDetailBodyHandle,
+} from "../../DatabaseHostContext";
 import type { CellValue, ColumnDef } from "../../types";
 import type PluginManager from "../../PluginManager";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
@@ -18,28 +19,10 @@ import TitleField from "./TitleField";
 import {
   collectFoldedColumnIds,
   coverImagesOf,
-  isBlankDocument,
   isEmptyCellValue,
   neighborRowIds,
   orderVisibleColumns,
 } from "./utils";
-
-const DEFAULT_CONTENT: Descendant[] = [
-  {
-    type: "paragraph",
-    children: [{ type: "formatted", text: "" }],
-  },
-];
-
-const PreviewImage = ({
-  src,
-  alt,
-  className,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-}) => <LocalImage url={src} alt={alt} className={className} />;
 
 interface RowDetailModalProps {
   rowId: string;
@@ -73,6 +56,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     allowDeleteColumn = true,
   }) => {
     const [currentId, setCurrentId] = useState(rowId);
+    const store = useDatabaseStore();
+    const { RowDetailBody, Image = BrowserImage } = useDatabaseSlots();
+    const bodyRef = useRef<RowDetailBodyHandle>(null);
     const {
       row,
       rowIds,
@@ -133,18 +119,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       updateCellValue(targetRowId, columnId, next);
     });
 
-    const descriptionDraft = useRef<Descendant[] | null>(null);
-    const flushDescription = useMemoizedFn(async () => {
-      const draft = descriptionDraft.current;
-      descriptionDraft.current = null;
-      if (!row || (row.detailContentId ?? 0) > 0 || !draft || isBlankDocument(draft)) return;
-      try {
-        const contentId = await createContent(draft, 0);
-        if (contentId) updateCellValue(row.id, "detailContentId", contentId);
-      } catch (error) {
-        console.error("保存行详情正文失败:", error);
-      }
-    });
+    const flushDescription = () => bodyRef.current?.flush();
 
     const handleClose = useMemoizedFn(async () => {
       await flushDescription();
@@ -255,19 +230,23 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                   />
                 </div>
               )}
-              <div className="@min-[960px]/row-detail:order-none @min-[960px]/row-detail:mt-0 order-3 mt-7 max-w-[700px]">
-                <Editor
-                  key={row.id}
-                  contentId={row.detailContentId || undefined}
-                  initValue={DEFAULT_CONTENT}
-                  onChange={value => {
-                    descriptionDraft.current = value;
-                  }}
-                  readonly={readonly}
-                  placeHolder="添加详细描述…"
-                  className="min-h-[200px] break-words [overflow-wrap:anywhere]"
-                />
-              </div>
+              {RowDetailBody && (
+                <div className="@min-[960px]/row-detail:order-none @min-[960px]/row-detail:mt-0 order-3 mt-7 max-w-[700px]">
+                  <RowDetailBody
+                    key={row.id}
+                    ref={bodyRef}
+                    row={row}
+                    readonly={readonly}
+                    isRowPresent={() => store.getState().rows.some(item => item.id === row.id)}
+                    onRowChange={patch => {
+                      if (!store.getState().rows.some(item => item.id === row.id)) return;
+                      for (const [field, value] of Object.entries(patch)) {
+                        if (field !== "id") commitCell(row.id, field, value);
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <aside
@@ -335,7 +314,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
           onIndexChange={setPreviewIndex}
           open={previewIndex !== null}
           onOpenChange={open => !open && setPreviewIndex(null)}
-          ImageComponent={PreviewImage}
+          ImageComponent={Image}
         />
         {editingColumnData && (
           <ColumnEditModal

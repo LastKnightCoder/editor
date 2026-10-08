@@ -1,12 +1,7 @@
-import React, { memo, useEffect, useState, useRef, useMemo } from "react";
+import React, { memo } from "react";
 import { Trash2 } from "lucide-react";
-import { RowData, ColumnDef, CellValue } from "../../types";
-import { getContentById } from "@/commands/content";
-import { Descendant } from "slate";
-import { EditorRef } from "@tau/editor";
-import Editor from "@/components/ContentEditor";
-import { ImageItem } from "../../plugins/ImagePlugin/types";
-import { coverGradientOfKey } from "@/utils/cover";
+import type { RowData, ColumnDef } from "../../types";
+import { BrowserImage, useDatabaseSlots } from "../../DatabaseHostContext";
 
 interface GalleryCardProps {
   row: RowData;
@@ -21,38 +16,13 @@ interface GalleryCardProps {
 
 const GalleryCard: React.FC<GalleryCardProps> = memo(
   ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly }) => {
-    const [detailContent, setDetailContent] = useState<Descendant[] | null>(null);
-    const previewContent = useMemo(() => detailContent?.slice(0, 2), [detailContent]);
-    const [coverImage, setCoverImage] = useState<string | null>(null);
-    const editorRef = useRef<EditorRef>(null);
-
+    const { GalleryCover, Image = BrowserImage, coverGradient } = useDatabaseSlots();
     // 获取主列的值
     const primaryColumn = columns.find(col => col.isPrimary);
     const primaryValue = primaryColumn ? (row[primaryColumn.id] as string) : "";
 
-    // 加载详情内容
-    useEffect(() => {
-      if (coverType === "detail" && row.detailContentId) {
-        getContentById(row.detailContentId as number).then(content => {
-          if (content?.content) {
-            setDetailContent(content.content as Descendant[]);
-          }
-        });
-      }
-    }, [coverType, row.detailContentId]);
-
-    // 加载封面图片
-    useEffect(() => {
-      if (coverType === "image" && coverImageColumnId) {
-        const imageData = row[coverImageColumnId] as CellValue;
-        if (Array.isArray(imageData) && imageData.length > 0) {
-          const firstImage = imageData[0] as ImageItem;
-          if (firstImage?.url) {
-            setCoverImage(firstImage.url);
-          }
-        }
-      }
-    }, [coverType, coverImageColumnId, row]);
+    const images = coverImageColumnId ? row[coverImageColumnId] : null;
+    const image = coverType === "image" && Array.isArray(images) ? images[0] : null;
 
     return (
       <div
@@ -75,29 +45,23 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           </button>
         )}
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          {coverType === "detail" && detailContent && (
-            <div className="h-full w-full overflow-hidden p-3">
-              <Editor
-                ref={editorRef}
-                readonly
-                className="h-full text-sm leading-relaxed"
-                initValue={previewContent}
-              />
-            </div>
-          )}
-          {coverType === "image" && coverImage && (
-            <img
-              src={coverImage}
+          {GalleryCover ? (
+            <GalleryCover
+              row={row}
+              columns={columns}
+              coverType={coverType}
+              coverImageColumnId={coverImageColumnId}
+            />
+          ) : image?.url ? (
+            <Image
+              src={image.url}
               alt={primaryValue || "封面"}
               className="h-full w-full object-cover"
             />
-          )}
-          {/* 封面空态兜底：无详情内容 / 图片列未设置图片时按行 id 派生粉彩渐变（同文章卡） */}
-          {((coverType === "detail" && !detailContent) ||
-            (coverType === "image" && !coverImage)) && (
+          ) : (
             <div
-              className="absolute inset-0"
-              style={{ backgroundImage: coverGradientOfKey(row.id) }}
+              className="bg-accent-soft absolute inset-0"
+              style={{ backgroundImage: coverGradient?.(row.id) }}
             />
           )}
         </div>

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import LocalImage from "@/components/LocalImage";
 import useUploadResource from "@/hooks/useUploadResource";
-import { ColumnDef } from "../../../types";
+import { ColumnDef } from "@/components/Database";
 import { ImagePluginValue, ImageItem } from "../types";
 import ImageUpload from "./ImageUpload";
 import { v4 as uuid } from "uuid";

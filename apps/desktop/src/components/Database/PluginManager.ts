@@ -1,4 +1,5 @@
 import { CellPlugin, CellValue, ColumnDef, RowData } from "./types";
+import { missingPlugin } from "./components/MissingPlugin";
 
 export class PluginManager {
   private plugins: Map<string, CellPlugin<unknown>> = new Map();
@@ -12,11 +13,11 @@ export class PluginManager {
   }
 
   registerPlugins(plugins: CellPlugin<unknown>[]): void {
-    plugins.forEach((plugin) => this.registerPlugin(plugin));
+    plugins.forEach(plugin => this.registerPlugin(plugin));
   }
 
   getPlugin(type: string): CellPlugin<unknown> | undefined {
-    return this.plugins.get(type);
+    return this.plugins.get(type) ?? missingPlugin;
   }
 
   hasPlugin(type: string): boolean {
@@ -54,7 +55,7 @@ export class PluginManager {
   }
 
   unloadAllPlugins(): void {
-    Array.from(this.loadedPlugins).forEach((type) => this.unloadPlugin(type));
+    Array.from(this.loadedPlugins).forEach(type => this.unloadPlugin(type));
   }
 
   getAllPlugins(): CellPlugin<unknown>[] {

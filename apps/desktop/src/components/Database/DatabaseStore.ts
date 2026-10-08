@@ -13,8 +13,7 @@ import {
   DatabaseCommand,
   DatabaseChange,
 } from "./types";
-import { DataTableView, SortRule } from "@/types";
-import { deleteContent } from "@/commands";
+import type { DataTableView, SortRule } from "./types";
 import PluginManager from "./PluginManager";
 import { emptyQuery, projectDatabase, type DatabaseProjection } from "./core/projection";
 import { applyRowChanges, diffRows } from "./core/changes";
@@ -107,7 +106,8 @@ export const createDatabaseStore = (
   initialViewConfig?: TableViewConfig,
   initialViews?: DataTableView[],
   activeViewId?: number,
-  plugins = new PluginManager()
+  plugins = new PluginManager(),
+  onRowCleanup?: (row: RowData) => void | Promise<void>
 ) => {
   const baseColumnOrder = initialColumns.map(col => col.id);
 
@@ -455,9 +455,15 @@ export const createDatabaseStore = (
         const { rows } = get();
         const rowToDelete = rows.find(row => row.id === rowId);
 
-        // 如果行有 detailContentId，需要删除关联的内容
-        if (rowToDelete?.detailContentId && rowToDelete.detailContentId > 0) {
-          deleteContent(rowToDelete.detailContentId as number);
+        if (!rowToDelete) return;
+        if (onRowCleanup) {
+          try {
+            Promise.resolve(onRowCleanup(rowToDelete)).catch(error => {
+              console.error("清理行关联资源失败:", error);
+            });
+          } catch (error) {
+            console.error("清理行关联资源失败:", error);
+          }
         }
 
         set(

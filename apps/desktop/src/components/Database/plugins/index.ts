@@ -6,10 +6,7 @@ import MultiSelectPlugin from "./MultiSelectPlugin";
 import CheckboxPlugin from "./CheckboxPlugin";
 import LinkPlugin from "./LinkPlugin";
 import StarPlugin from "./StarPlugin";
-import ImagePlugin from "./ImagePlugin";
-import AttachmentPlugin from "./AttachmentPlugin";
 import ProgressPlugin from "./ProgressPlugin";
-import RichTextPlugin from "./RichTextPlugin";
 
 export const builtInPlugins = [
   TextPlugin,
@@ -20,10 +17,7 @@ export const builtInPlugins = [
   CheckboxPlugin,
   LinkPlugin,
   StarPlugin,
-  ImagePlugin,
-  AttachmentPlugin,
   ProgressPlugin,
-  RichTextPlugin,
 ];
 
 export {
@@ -35,8 +29,5 @@ export {
   CheckboxPlugin,
   LinkPlugin,
   StarPlugin,
-  ImagePlugin,
-  AttachmentPlugin,
   ProgressPlugin,
-  RichTextPlugin,
 };

@@ -1,6 +1,5 @@
-import { Element, Node, type Descendant } from "slate";
 import type { CellValue, ColumnDef, RowData } from "../../types";
-import type { ImageItem } from "../../plugins/ImagePlugin/types";
+import type { DatabaseImage } from "../../DatabaseHostContext";
 import type PluginManager from "../../PluginManager";
 
 /** 未填、空串、空数组视为空；0 与 false 是有效值 */
@@ -65,21 +64,11 @@ export function neighborRowIds(rowIds: readonly string[], rowId: string) {
 }
 
 /** 封面取第一个有图的图片列 */
-export function coverImagesOf(row: RowData, columns: readonly ColumnDef[]): ImageItem[] {
+export function coverImagesOf(row: RowData, columns: readonly ColumnDef[]): DatabaseImage[] {
   for (const column of columns) {
     if (column.type !== "image") continue;
     const value = row[column.id];
-    if (Array.isArray(value) && value.length > 0) return value as ImageItem[];
+    if (Array.isArray(value) && value.length > 0) return value as DatabaseImage[];
   }
   return [];
-}
-
-/** 只含空段落的正文视为没写 */
-export function isBlankDocument(value: readonly Descendant[]): boolean {
-  return value.every(
-    node =>
-      Element.isElement(node) &&
-      (node as { type?: string }).type === "paragraph" &&
-      Node.string(node) === ""
-  );
 }

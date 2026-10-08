@@ -1,6 +1,7 @@
+import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
 import { memo, useMemo, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import Database, {
+import {
   DatabaseRef,
   ColumnDef,
   RowData,

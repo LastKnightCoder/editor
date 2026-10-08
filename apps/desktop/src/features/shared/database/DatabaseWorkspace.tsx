@@ -1,10 +1,6 @@
+import { DesktopDatabase as Database } from "@/features/shared/database/DesktopDatabase";
 import { memo, useRef } from "react";
-import Database, {
-  RowData,
-  ColumnDef,
-  TableViewConfig,
-  DatabaseProps,
-} from "@/components/Database";
+import { RowData, ColumnDef, TableViewConfig, DatabaseProps } from "@/components/Database";
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useEditDatabaseWithContext } from "@tau/shared";

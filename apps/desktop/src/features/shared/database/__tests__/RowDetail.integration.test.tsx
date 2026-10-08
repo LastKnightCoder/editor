@@ -1,15 +1,20 @@
+import {
+  RowDetailModal,
+  createDatabaseStore,
+  PluginManager,
+  plugins,
+  DatabaseContext,
+  DatabaseHostContext,
+} from "@/components/Database";
+import { RowDetailBody, isBlankDocument } from "../RowDetailBody";
+const { builtInPlugins } = plugins;
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
-import RowDetailModal from "..";
-import { createDatabaseStore } from "../../../DatabaseStore";
-import PluginManager from "../../../PluginManager";
-import { builtInPlugins } from "../../../plugins";
-import { DatabaseContext } from "../../../DatabaseContext";
-import type { ColumnDef, RowData, TableViewConfig } from "../../../types";
+import type { ColumnDef, RowData, TableViewConfig } from "@/components/Database";
 import type { DataTableView } from "@/types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,8 +22,10 @@ import type { DataTableView } from "@/types";
 const createContent = vi.fn<(content: Descendant[], count: number) => Promise<number>>(
   async () => 42
 );
+const deleteContent = vi.fn(async (_id: number) => 1);
 vi.mock("@/commands/content", () => ({
   createContent: (content: Descendant[], count: number) => createContent(content, count),
+  deleteContent: (id: number) => deleteContent(id),
 }));
 
 // 正文编辑器依赖协作会话与 slate 全家桶，这里只需要它把输入回传给 onChange
@@ -40,6 +47,7 @@ let host: HTMLDivElement;
 
 beforeEach(() => {
   createContent.mockClear();
+  deleteContent.mockClear();
 });
 
 afterEach(async () => {
@@ -101,17 +109,19 @@ async function renderDetail(
   await act(async () => {
     root!.render(
       <DndProvider backend={HTML5Backend}>
-        <DatabaseContext.Provider value={fixture.store}>
-          <RowDetailModal
-            rowId={rowId}
-            columns={columns}
-            pluginManager={fixture.pluginManager}
-            theme="light"
-            onClose={onClose}
-            onDeleteRow={props.onDeleteRow}
-            readonly={props.readonly}
-          />
-        </DatabaseContext.Provider>
+        <DatabaseHostContext.Provider value={{ RowDetailBody }}>
+          <DatabaseContext.Provider value={fixture.store}>
+            <RowDetailModal
+              rowId={rowId}
+              columns={columns}
+              pluginManager={fixture.pluginManager}
+              theme="light"
+              onClose={onClose}
+              onDeleteRow={props.onDeleteRow}
+              readonly={props.readonly}
+            />
+          </DatabaseContext.Provider>
+        </DatabaseHostContext.Provider>
       </DndProvider>
     );
   });
@@ -146,6 +156,51 @@ const typeInto = (el: HTMLTextAreaElement, value: string) => {
 };
 
 describe("RowDetailModal", () => {
+  it("只有空段落的正文不创建内容，媒体节点视为有效正文", () => {
+    const paragraph = (text: string) => ({ type: "paragraph", children: [{ text }] }) as Descendant;
+    expect(isBlankDocument([paragraph("")])).toBe(true);
+    expect(isBlankDocument([paragraph("正文")])).toBe(false);
+    expect(isBlankDocument([{ type: "image", children: [{ text: "" }] } as Descendant])).toBe(
+      false
+    );
+  });
+
+  it("正文创建期间删除所属行，迟到结果释放引用且不恢复行", async () => {
+    let resolve!: (id: number) => void;
+    createContent.mockImplementationOnce(
+      () =>
+        new Promise<number>(done => {
+          resolve = done;
+        })
+    );
+    const { store } = await renderDetail("r1");
+    typeInto(card().querySelector<HTMLTextAreaElement>('[data-testid="description"]')!, "正文");
+    await act(async () => {
+      button("下一条").click();
+    });
+    expect(createContent).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      store.getState().deleteRow("r1");
+      resolve(73);
+    });
+    expect(store.getState().rows.some(row => row.id === "r1")).toBe(false);
+    expect(deleteContent).toHaveBeenCalledWith(73);
+  });
+
+  it("直接卸载仍提交未落库正文，并且重复关闭共用一次创建", async () => {
+    const { store } = await renderDetail("r1");
+    typeInto(
+      card().querySelector<HTMLTextAreaElement>('[data-testid="description"]')!,
+      "卸载前正文"
+    );
+    await act(async () => {
+      root!.unmount();
+      root = undefined;
+    });
+    expect(createContent).toHaveBeenCalledTimes(1);
+    expect(store.getState().rows.find(row => row.id === "r1")!.detailContentId).toBe(42);
+  });
+
   it("头部显示视图名与视图行序中的位置，上一条 / 下一条与 J / K 按投影顺序切换", async () => {
     await renderDetail("r1");
     expect(card().textContent).toContain("全部影片");
