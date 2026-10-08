@@ -15,6 +15,7 @@
  * 无组件生命周期的引用（store action / IPC command），组件卸载后调用依然安全。
  */
 import { produce } from "immer";
+import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { ChatMessage, ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
 // 类型导入（运行时不引入 @tau/shared，避免把编辑器包拉进测试模块图，见坑 9）
 import type { MessageContentItem } from "@tau/shared";
@@ -28,7 +29,11 @@ import {
 } from "@/services/assistantMessageBlocks";
 import { PiChatEventReducer } from "@/services/piChatEvents";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
-import { onPiSessionEvent } from "@/commands/piSession";
+import {
+  onPiSessionEvent,
+  piSessionFindByScope,
+  type PiSessionRecovery,
+} from "@/commands/piSession";
 import {
   initPiInteractions,
   setInteractionSessionReady,
@@ -86,6 +91,7 @@ interface ConversationEntry {
   /** 已提交给 pi、尚未送达的插话 */
   pendingSteers: PiPendingSteer[];
   sessionId: string | null;
+  eventRevision: number;
   reducer: PiChatEventReducer | null;
   unsubscribe: (() => void) | null;
   streaming: boolean;
@@ -103,14 +109,6 @@ interface ConversationEntry {
 
 /** 空闲条目最多保留几条（M4-e）：超出按最近使用淘汰；在跑、等待交互、有队列/插话、挂着的不计入也不淘汰 */
 export const MAX_IDLE_CONVERSATIONS = 20;
-
-/** 最后一条回答里有没有结果的工具调用（等待审批/作答，或中断在工具执行中） */
-const hasUnresolvedToolCall = (message: ResponseMessage): boolean =>
-  (message.assistant_blocks ?? []).some(
-    block =>
-      block.type === "tool_call" &&
-      (!block.execution || !["success", "failed", "cancelled"].includes(block.execution.status))
-  );
 
 /**
  * 投影回写容器：投影是事实源，但按位置沿用原 clientId（列表按 clientId 做 key，
@@ -158,6 +156,7 @@ class PiChatRuntime {
         queuePaused: false,
         pendingSteers: [],
         sessionId: null,
+        eventRevision: 0,
         reducer: null,
         unsubscribe: null,
         streaming: false,
@@ -254,7 +253,10 @@ class PiChatRuntime {
     if (lastMessage?.role === Role.Assistant) {
       entry.reducer.restoreToolExecutions(lastMessage as ResponseMessage);
     }
-    const unsubscribeEvents = onPiSessionEvent(sessionId, event => entry.reducer!.handle(event));
+    const unsubscribeEvents = onPiSessionEvent(sessionId, event => {
+      entry.eventRevision += 1;
+      entry.reducer!.handle(event);
+    });
     const applyInteractions = () => {
       const snapshot = usePiInteractionStore.getState().sessions[sessionId];
       if (!snapshot) return;
@@ -399,29 +401,70 @@ class PiChatRuntime {
   }
 
   /**
-   * 渲染层重载后恢复等待（审批/提问）：收养主进程仍持有的会话并接上归约订阅。
-   * 判定口径（M4）：JSONL 在等待期间只有带 toolCall 的 assistant message、还没有 toolResult，
-   * 投影出的工具卡没有 execution——所以看「最后一条回答里有没有结果的 tool_call」，
-   * 是不是真在等交给宿主交互快照决定（收养不到 = 主进程也重启了，卡片显示中断）。
+   * 渲染层重载后收养宿主并恢复续流，运行状态以主进程为准，不依赖落盘消息是否含工具调用。
    */
-  public async restorePendingInteractions(
-    key: string,
-    chatScope: string,
-    chatId: string
-  ): Promise<void> {
+  public async restoreSession(key: string, chatScope: string, chatId: string): Promise<void> {
     const entry = this.conversations.get(key);
-    if (!entry || entry.sessionId) return;
-    const message = entry.chat.current.messages.at(-1) as ResponseMessage | undefined;
-    if (message?.role !== Role.Assistant || !hasUnresolvedToolCall(message)) return;
-    initPiInteractions();
-    const { piChatSessionManager } = await import("./piChatSession");
-    const sessionId = await piChatSessionManager.adoptOrResolveSession(
-      chatScope,
-      chatId,
-      entry.chat.current.databaseName
-    );
-    if (sessionId && this.conversations.get(key) === entry && !entry.sessionId) {
-      this.bindSession(key, sessionId);
+    if (!entry || entry.sessionId || entry.pending) return;
+    entry.pending = true;
+    this.notify(key);
+    try {
+      initPiInteractions();
+      const { piChatSessionManager } = await import("./piChatSession");
+      const restored = await piChatSessionManager.adoptOrResolveSession(
+        chatScope,
+        chatId,
+        entry.chat.current.databaseName
+      );
+      if (!restored?.sessionId || this.conversations.get(key) !== entry || entry.sessionId) return;
+      this.applySessionRecovery(key, entry, restored);
+      if (restored.busy) {
+        // 订阅前可能已经结束；订阅后复核，期间收到新事件时以事件为准。
+        const revision = entry.eventRevision;
+        const current = await piSessionFindByScope(key);
+        if (
+          this.conversations.get(key) === entry &&
+          entry.sessionId === restored.sessionId &&
+          entry.eventRevision === revision &&
+          current.ok &&
+          current.sessionId === restored.sessionId &&
+          current.messages
+        ) {
+          this.applySessionRecovery(key, entry, current);
+        }
+      }
+    } finally {
+      if (this.conversations.get(key) === entry) {
+        entry.pending = false;
+        this.notify(key);
+      }
+    }
+  }
+
+  private applySessionRecovery(key: string, entry: ConversationEntry, snapshot: PiSessionRecovery) {
+    if (!snapshot.sessionId) return;
+    entry.reducer?.reset();
+    if (snapshot.messages)
+      entry.chat.current = adoptTranscript(entry.chat.current, snapshot.messages);
+    if (snapshot.busy && entry.chat.current.messages.at(-1)?.role !== Role.Assistant) {
+      entry.chat.current = {
+        ...entry.chat.current,
+        messages: [...entry.chat.current.messages, createAssistantMessage()],
+      };
+    }
+    entry.deps.publish(entry.chat.current);
+    this.bindSession(key, snapshot.sessionId);
+    const lastMessage = entry.chat.current.messages.at(-1);
+    if (lastMessage?.role === Role.Assistant)
+      entry.reducer!.restoreToolExecutions(lastMessage as ResponseMessage);
+    if (snapshot.busy !== undefined) entry.streaming = snapshot.busy;
+    if (snapshot.streamingMessage?.role === Role.Assistant) {
+      entry.reducer!.handle({ type: "message_start", message: snapshot.streamingMessage });
+      entry.reducer!.handle({
+        type: "message_update",
+        message: snapshot.streamingMessage,
+        assistantMessageEvent: { type: "start", partial: snapshot.streamingMessage },
+      } as AgentSessionEvent);
     }
   }
 

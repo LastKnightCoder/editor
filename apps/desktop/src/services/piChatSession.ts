@@ -19,6 +19,7 @@ import {
   piSessionDispose,
   piSessionSetActiveTools,
   piSessionSetSystemPrompt,
+  type PiSessionRecovery,
 } from "@/commands/piSession";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { resolveAgentSkills } from "@/agent/desktopSkillAdapter";
@@ -114,18 +115,17 @@ class PiChatSessionManager {
   }
 
   /**
-   * 渲染层重载后收养主进程仍持有的会话（待审批/待回答交互恢复等场景）：
-   * 把 find-by-scope 拿到的 sessionId 记回本地表并接上工具桥上下文。
+   * 渲染层重载后收养主进程仍持有的会话，接回工具桥并返回运行状态与回答快照。
    */
   public async adoptOrResolveSession(
     chatScope: string,
     chatId: string,
     databaseName = getChatDatabase()
-  ): Promise<string | undefined> {
+  ): Promise<PiSessionRecovery | undefined> {
     initPiToolBridge();
     const key = chatSessionKey(chatScope, chatId, databaseName);
     const local = this.sessions.get(key)?.sessionId;
-    if (local) return local;
+    if (local) return { ok: true, sessionId: local };
     const { piSessionFindByScope } = await import("@/commands/piSession");
     const found = await piSessionFindByScope(key);
     if (!found.ok || !found.sessionId || !found.modelRef) return undefined;
@@ -150,7 +150,7 @@ class PiChatSessionManager {
         .map(tool => ({ ...tool, executor: tool.execute })),
       conversationKey: key,
     });
-    return found.sessionId;
+    return found;
   }
 
   /**
