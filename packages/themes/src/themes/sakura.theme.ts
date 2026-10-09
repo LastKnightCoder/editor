@@ -78,6 +78,8 @@ export default defineTheme({
       "shadow-card": "0 1px 2px rgba(110, 70, 85, 0.06), 0 10px 24px -14px rgba(110, 70, 85, 0.2)",
       "shadow-lift": "0 1px 2px rgba(110, 70, 85, 0.07), 0 6px 16px -10px rgba(110, 70, 85, 0.24)",
       "shadow-float": "0 16px 40px -12px rgba(110, 70, 85, 0.4)",
+      "shadow-paper":
+        "0 0 0 1px rgba(110, 70, 85, 0.07), 0 2px 4px -1px rgba(110, 70, 85, 0.12), 0 22px 44px -18px rgba(110, 70, 85, 0.45)",
     }),
   },
   dark: {
@@ -148,6 +150,8 @@ export default defineTheme({
       "shadow-card": "0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5)",
       "shadow-lift": "0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52)",
       "shadow-float": "0 16px 40px -12px rgba(0, 0, 0, 0.65)",
+      "shadow-paper":
+        "0 0 0 1px rgba(255, 255, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.4), 0 24px 48px -16px rgba(0, 0, 0, 0.72)",
     }),
   },
 });

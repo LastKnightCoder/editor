@@ -1,6 +1,6 @@
 /**
- * 文档卡展开 / 收起的形变：阅读纸里的文档 DOM 从卡片的位置与缩放放大到 1，纸面同时用 clip-path 从卡片大小揭开。
- * 全程只合成 transform / clip-path，文字不重排、不糊。不用 View Transitions：截图放大会糊，且动画期间不能交互。
+ * 文档卡展开 / 收起的形变工具：纸面从卡片的盒子伸缩到阅读纸盒子，正文在纸面上淡入。
+ * 只动 transform / opacity。不用 View Transitions：截图放大会糊，且动画期间不能交互。
  */
 
 export interface Box {
@@ -52,9 +52,3 @@ export const boxStyle = (box: Box) => ({
   width: `${box.width}px`,
   height: `${box.height}px`,
 });
-
-/** 在 frame 盒子坐标系里裁出 box */
-export const insetOf = (box: Box, frame: Box, radius: number) =>
-  `inset(${box.top - frame.top}px ${frame.left + frame.width - box.left - box.width}px ${
-    frame.top + frame.height - box.top - box.height
-  }px ${box.left - frame.left}px round ${radius}px)`;

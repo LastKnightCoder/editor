@@ -1,6 +1,6 @@
 /**
- * 文档纸面排版：画布上的文档卡与展开后的阅读纸用同一份排版——卡片是它按版宽排好后整体缩小，
- * 展开动画只做 transform，文字不重排。正文由调用方传入（画布：只读首屏；阅读纸：ContentEditor）。
+ * 文档纸面排版：画布上的文档卡与展开后的阅读纸共用。卡片按版宽排好后整体缩小；阅读纸 fill 随容器宽排版，以阅读版心为上限水平居中。
+ * 正文由调用方传入（画布：只读首屏；阅读纸：ContentEditor）。
  */
 
 import { useState, type ReactNode } from "react";
@@ -10,7 +10,7 @@ import { cn } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
 import { coverGradientOf } from "@/utils/cover";
 import { DOCUMENT_KIND_LABEL, type DiaryMoment, type DocumentSource } from "./source";
-import { DOCUMENT_PAPER_WIDTH, isCompactDocument } from "./layout";
+import { DOCUMENT_PAPER_WIDTH, READER_PAPER_MAX_WIDTH, isCompactDocument } from "./layout";
 
 const PAPER_CLASS: Record<DocumentKind, string> = {
   card: "px-9 pb-12 pt-[30px]",
@@ -102,21 +102,25 @@ function DocumentMeta({ source, short }: { source: DocumentSource; short: boolea
   );
 }
 
-/** 一张纸：固定版宽，内边距随类型；children 是正文。短内容（卡片、碎碎念）元信息在正文之后 */
+/** 一张纸：固定版宽（fill 时随容器宽、不超阅读版心），内边距随类型；children 是正文。短内容（卡片、碎碎念）元信息在正文之后 */
 export function DocumentPaper({
   source,
   children,
   className,
+  fill,
 }: {
   source: DocumentSource;
   children: ReactNode;
   className?: string;
+  fill?: boolean;
 }) {
   const short = isCompactDocument(source.kind);
   return (
     <div
-      className={cn("text-ink-1", PAPER_CLASS[source.kind], className)}
-      style={{ width: DOCUMENT_PAPER_WIDTH[source.kind] }}
+      className={cn("text-ink-1", PAPER_CLASS[source.kind], fill && "mx-auto w-full", className)}
+      style={
+        fill ? { maxWidth: READER_PAPER_MAX_WIDTH } : { width: DOCUMENT_PAPER_WIDTH[source.kind] }
+      }
     >
       <DocumentHead source={source} />
       {!short && <DocumentMeta source={source} short={false} />}

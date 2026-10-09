@@ -75,10 +75,11 @@
   --radius-tau-md: var(--tau-radius-md);
   --radius-tau-lg: var(--tau-radius-lg);
 
-  /* 阴影三档（tokenContract float 组词）：card 静止 / lift 卡片 hover 轻抬 / float 浮层 */
+  /* 阴影（tokenContract float 组词）：card 静止 / lift 卡片 hover 轻抬 / float 浮层 / paper 画布上浮起的文档纸 */
   --shadow-card: var(--tau-shadow-card);
   --shadow-lift: var(--tau-shadow-lift);
   --shadow-float: var(--tau-shadow-float);
+  --shadow-paper: var(--tau-shadow-paper);
 
   /* 缓动 */
   --ease-tau-out: var(--tau-ease-out);

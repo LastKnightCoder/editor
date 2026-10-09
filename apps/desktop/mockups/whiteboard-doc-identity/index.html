@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 文档卡的「文档感」· 三方案</title>
+<!--
+  视觉参考，非导出源（D-001）。
+  画布上放同一组元素：无底色富文本、带底色富文本、矩形、卡片文档卡、文章文档卡，
+  对比现状与 A / B / C 三种文档标识，普通 / 手绘两种画风，100% / 50% 两档缩放。
+-->
+<link rel="stylesheet" href="../whiteboard-sketch/fonts/fonts.css">
+<style>
+  :root {
+    --bg-page: #f3eee2; --surface: #fffdf9; --hover: rgba(67,57,44,.06);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22,58%,42%,.12);
+    --line-1: #e9e1d2; --line-2: rgba(200,188,168,.45);
+    --canvas: #fbf7ef; --dot: rgba(67,57,44,.16);
+    --code: #f6f1e8;
+    --sheet-2: #f8f3ea; --sheet-3: #f2ecdf;
+    --fold: #efe6d6;
+    --card: 0 1px 2px rgba(120,100,70,.06), 0 10px 24px -14px rgba(120,100,70,.22);
+    --paper: 0 0 0 1px rgba(120,100,70,.07), 0 1px 2px rgba(120,100,70,.10), 0 14px 30px -14px rgba(120,100,70,.38);
+    --lift: 0 1px 2px rgba(120,100,70,.08), 0 6px 16px -8px rgba(120,100,70,.32);
+    --yellow: #f7ecc4; --yellow-line: #d9c27a; --red: #f6dcd6; --red-line: #d39a8c;
+    --hand: "SK Shantell", "KaiTi", "STKaiti", cursive;
+  }
+  :root[data-theme="cocoa"] {
+    --bg-page: #1f1a15; --surface: #2a241e; --hover: rgba(240,228,210,.07);
+    --ink-1: #efe6d8; --ink-2: #c7b9a4; --ink-3: #8a7c68;
+    --accent: hsl(24 62% 60%); --accent-text: #e3a17f; --accent-soft: hsla(24,62%,60%,.16);
+    --line-1: #3a3229; --line-2: rgba(240,228,210,.1);
+    --canvas: #241f1a; --dot: rgba(240,228,210,.11);
+    --code: #332c25;
+    --sheet-2: #262019; --sheet-3: #221c16;
+    --fold: #3a3128;
+    --card: 0 1px 2px rgba(0,0,0,.3), 0 10px 24px -12px rgba(0,0,0,.5);
+    --paper: 0 0 0 1px rgba(240,228,210,.06), 0 1px 2px rgba(0,0,0,.35), 0 16px 34px -14px rgba(0,0,0,.7);
+    --lift: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+    --yellow: #4a4128; --yellow-line: #8a7a45; --red: #4b302a; --red-line: #8f5a4d;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 -apple-system, "PingFang SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg { flex: none; }
+
+  /* ───────── 顶部控制 ───────── */
+  .top { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 18px; flex-wrap: wrap; }
+  .top h1 { font-size: 14px; font-weight: 600; margin-right: 6px; }
+  .seg { display: flex; gap: 2px; background: var(--hover); padding: 3px; border-radius: 10px; }
+  .seg button { height: 26px; padding: 0 12px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--lift); }
+  .sp { flex: 1; }
+  .ghost { height: 28px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); white-space: nowrap; }
+  .ghost:hover { background: var(--hover); color: var(--ink-1); }
+  .ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+
+  .main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 320px; gap: 14px; padding: 0 14px 14px; }
+  body.notes-off .main { grid-template-columns: 1fr; }
+  body.notes-off .notes { display: none; }
+
+  /* ───────── 画布 ───────── */
+  .stage { position: relative; min-height: 0; border-radius: 16px; overflow: hidden; background: var(--canvas); box-shadow: var(--card);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 22px 22px; }
+  .stage.grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--line-1); }
+  .pane { position: relative; overflow: hidden; background: var(--canvas);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 22px 22px; }
+  .pane-label { position: absolute; left: 12px; top: 10px; z-index: 5; font-size: 12px; color: var(--ink-2); background: var(--surface);
+    padding: 2px 9px; border-radius: 999px; box-shadow: var(--lift); }
+  .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; width: 1180px; height: 760px; }
+
+  /* 画布元素 */
+  .el { position: absolute; }
+  .rt { color: var(--ink-1); font-size: 14px; line-height: 1.7; }
+  .rt h3 { font-size: 22px; font-weight: 600; margin-bottom: 8px; letter-spacing: -.01em; }
+  .rt ul { padding-left: 18px; }
+  .rt li { margin: 3px 0; }
+  .rt code, .paper code { font: 12px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace; background: var(--code); border-radius: 4px; padding: 1px 5px; }
+  .rt.filled { background: var(--yellow); border-radius: 8px; padding: 14px 16px; }
+  .rt.filled.red { background: var(--red); }
+  .rt.framed { border: 1.5px solid var(--line-1); border-radius: 10px; padding: 14px 16px; background: var(--surface); }
+  .geo { display: flex; align-items: center; justify-content: center; text-align: center; font-size: 15px; color: var(--ink-1);
+    border: 2px solid var(--ink-2); border-radius: 6px; }
+  body.sketch .geo { border-color: transparent; }
+  body.sketch .rt.filled, body.sketch .rt.framed { background: transparent; border-color: transparent; }
+  body.sketch .rt, body.sketch .geo { font-family: var(--hand); }
+  body.sketch .rt h3 { font-weight: 500; }
+
+  /* ───────── 文档卡 ───────── */
+  .doc { position: absolute; }
+  .doc .body { position: absolute; inset: 0; background: var(--surface); border-radius: 10px; overflow: hidden; }
+  .doc .scaled { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+  .doc .fade { position: absolute; left: 0; right: 0; bottom: 0; height: 52px; background: linear-gradient(transparent, var(--surface)); }
+  .paper { color: var(--ink-1); font-size: 15px; line-height: 1.75; }
+  .paper.card { width: 460px; padding: 30px 36px 48px; }
+  .paper.article { width: 620px; padding: 40px 52px 72px; }
+  .paper .tags { display: flex; gap: 6px; margin-bottom: 14px; }
+  .paper .tag { background: var(--hover); color: var(--ink-2); border-radius: 6px; padding: 0 8px; font-size: 12px; line-height: 20px; }
+  .paper p { margin: 0 0 12px; }
+  .paper pre { background: var(--code); border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; font: 13px/1.6 ui-monospace, Consolas, monospace; color: var(--ink-2); }
+  .paper ul { padding-left: 20px; margin: 0 0 12px; }
+  .paper .cover { height: 190px; margin: -40px -52px 30px; background: linear-gradient(135deg, #e9c9a7, #d7b4c8 55%, #b9c7dd); }
+  :root[data-theme="cocoa"] .paper .cover { background: linear-gradient(135deg, #6b4f39, #5b4458 55%, #3f4c60); }
+  .paper h1 { font-size: 30px; line-height: 1.32; font-weight: 600; letter-spacing: -.01em; margin-bottom: 6px; }
+  .paper .meta { color: var(--ink-3); font-size: 13px; margin-bottom: 22px; }
+
+  /* 现状：白底圆角 + 卡片阴影；手绘时只有手绘框 */
+  .doc .body { box-shadow: var(--card); }
+  body.sketch .doc .body { box-shadow: none; }
+
+  /* 卡头（A / B / C） */
+  .doc .head { position: absolute; left: 0; right: 0; top: 0; height: 30px; display: none; align-items: center; gap: 6px; padding: 0 10px 0 11px;
+    border-bottom: 1px solid var(--line-1); background: var(--surface); z-index: 2; font-size: 11.5px; color: var(--ink-3); }
+  .doc .head .kind { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--accent-text); font-weight: 500; }
+  .doc .head .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font-weight: 500; }
+  .doc .head .open { margin-left: auto; flex: none; opacity: .7; }
+  .doc.with-head .head { display: flex; }
+  .doc.with-head .scaled { top: 30px; }
+  body.sketch .doc .head { border-bottom-color: transparent; background: transparent; font-family: var(--hand); font-size: 12.5px; }
+
+  /* 折角（A / C）。纸面整体（.face）用 drop-shadow 投影：box-shadow 会被 clip-path 裁掉，
+     drop-shadow 跟随裁切后的轮廓，切掉的角也有阴影，折角与纸面是同一张纸 */
+  .doc .face { position: absolute; inset: 0; }
+  .doc .fold { display: none; position: absolute; right: 0; top: 0; width: var(--fold-size); height: var(--fold-size); z-index: 3; }
+  .doc.with-fold .fold { display: block; }
+  .doc.with-fold .head { padding-right: calc(var(--fold-size) + 6px); }
+  body.sketch .doc .fold { display: none; }
+  :root { --fold-size: 18px; }
+
+  /* ① 同纸翻折：切掉右上角，翻下来的是纸背——与纸同色，靠折痕处一道很浅的阴影成形 */
+  body[data-fold="paper"] .doc.with-fold .body { clip-path: polygon(0 0, calc(100% - var(--fold-size)) 0, 100% var(--fold-size), 100% 100%, 0 100%); box-shadow: none; }
+  body[data-fold="paper"] .doc.with-fold .face { filter: drop-shadow(0 1px 1px rgba(120,100,70,.10)) drop-shadow(0 10px 14px rgba(120,100,70,.16)); }
+  body[data-fold="paper"] .doc.with-fold.with-paper-shadow .face { filter: drop-shadow(0 0 .5px rgba(120,100,70,.25)) drop-shadow(0 1px 1.5px rgba(120,100,70,.12)) drop-shadow(0 12px 16px rgba(120,100,70,.24)); }
+  /* 纸背（::after）压在纸面上，下面垫一层模糊的三角（::before）当作纸背落在纸面上的影子 */
+  body[data-fold="paper"] .doc .fold::before,
+  body[data-fold="paper"] .doc .fold::after,
+  body[data-fold="accent"] .doc .fold::before,
+  body[data-fold="accent"] .doc .fold::after { content: ""; position: absolute; inset: 0; clip-path: polygon(0 0, 100% 100%, 0 100%); }
+  body[data-fold="paper"] .doc .fold::before,
+  body[data-fold="accent"] .doc .fold::before { background: rgba(90,70,40,.22); transform: translate(-1px, 1.5px); filter: blur(1.5px); clip-path: none;
+    -webkit-mask: linear-gradient(45deg, #000 50%, transparent 50%); mask: linear-gradient(45deg, #000 50%, transparent 50%); }
+  body[data-fold="paper"] .doc .fold::after {
+    background: linear-gradient(45deg, var(--surface) 20%, color-mix(in srgb, var(--surface), var(--ink-1) 9%) 100%);
+    border-bottom-left-radius: 3px;
+  }
+
+  /* ② 折痕线：不切角，只在角上压一道折痕，折过去的那块略深一点——最安静 */
+  body[data-fold="crease"] .doc .fold {
+    background:
+      linear-gradient(225deg, transparent calc(50% - .5px), var(--line-1) 50%, transparent calc(50% + .5px)),
+      linear-gradient(225deg, color-mix(in srgb, var(--surface), var(--ink-1) 4%) 50%, transparent 50%);
+    border-top-right-radius: 10px;
+  }
+
+  /* ③ 类型色：同纸翻折，但翻下来的纸背染一点类型强调色，与卡头的类型名呼应 */
+  body[data-fold="accent"] .doc.with-fold .body { clip-path: polygon(0 0, calc(100% - var(--fold-size)) 0, 100% var(--fold-size), 100% 100%, 0 100%); box-shadow: none; }
+  body[data-fold="accent"] .doc.with-fold .face { filter: drop-shadow(0 1px 1px rgba(120,100,70,.10)) drop-shadow(0 10px 14px rgba(120,100,70,.16)); }
+  body[data-fold="accent"] .doc .fold::after {
+    background: linear-gradient(45deg, color-mix(in srgb, var(--surface), var(--accent) 10%) 20%, color-mix(in srgb, var(--surface), var(--accent) 24%) 100%);
+    border-bottom-left-radius: 3px;
+  }
+
+  /* 纸叠（B / C）：后面错开露出一到两张纸 */
+  .doc .sheet { display: none; position: absolute; inset: 0; border-radius: 10px; background: var(--sheet-2); box-shadow: var(--card); }
+  .doc .sheet.s2 { background: var(--sheet-3); }
+  .doc.with-stack .sheet { display: block; }
+  .doc.with-stack .sheet.s1 { transform: translate(5px, 5px) rotate(1.2deg); }
+  .doc.with-stack .sheet.s2 { transform: translate(9px, 9px) rotate(2.4deg); }
+  .doc.card-doc .sheet.s2 { display: none; }
+  body.sketch .doc .sheet { display: none; }
+
+  /* 双层阴影（C） */
+  .doc.with-paper-shadow .body { box-shadow: var(--paper); }
+  body.sketch .doc.with-paper-shadow .body { box-shadow: none; }
+
+  /* 圆角 + 阴影（D / E）：圆角放大一档，阴影分三层——贴边细描线、近处接触影、远处柔和投影，纸浮在画布上；
+     手绘模式也保留阴影（手绘框之外唯一的文档线索），纸面轮廓随之画成圆角 */
+  :root { --lift-paper: 0 0 0 1px rgba(120,100,70,.07), 0 2px 4px -1px rgba(120,100,70,.12), 0 22px 44px -18px rgba(120,100,70,.48); }
+  :root[data-theme="cocoa"] { --lift-paper: 0 0 0 1px rgba(240,228,210,.07), 0 2px 4px -1px rgba(0,0,0,.4), 0 24px 48px -16px rgba(0,0,0,.75); }
+  .doc.with-lift .body { border-radius: 16px; box-shadow: var(--lift-paper); }
+  body.sketch .doc.with-lift .body { box-shadow: var(--lift-paper); }
+
+  /* 低缩放：卡面只画骨架；卡头 / 折角仍在 */
+  .doc .skeleton { display: none; position: absolute; inset: 0; padding: 16px; flex-direction: column; gap: 12px; }
+  .doc.with-head .skeleton { top: 30px; }
+  .doc .skeleton b { font-size: 22px; line-height: 1.25; font-weight: 600; }
+  .doc .skeleton i { display: block; height: 10px; border-radius: 99px; background: var(--hover); }
+  body.low .doc .skeleton { display: flex; }
+  body.low .doc .scaled { display: none; }
+
+  /* 手绘层 */
+  .rough { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+  /* ───────── 说明 ───────── */
+  .notes { min-height: 0; overflow: auto; background: var(--surface); border-radius: 16px; box-shadow: var(--card); padding: 18px 18px 24px; }
+  .notes h2 { font-size: 14px; margin-bottom: 8px; }
+  .notes h3 { font-size: 13px; margin: 16px 0 6px; color: var(--accent-text); }
+  .notes p, .notes li { color: var(--ink-2); font-size: 12.5px; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 3px 0; }
+</style>
+</head>
+<body class="notes-off" data-fold="paper">
+  <div class="top">
+    <h1>文档卡的「文档感」</h1>
+    <div class="seg" id="variant">
+      <button data-v="now">现状</button>
+      <button data-v="d" aria-pressed="true">D · 圆角 + 阴影</button>
+      <button data-v="e">E · 圆角 + 阴影 + 卡头</button>
+      <button data-v="b">B · 卡头 + 纸叠</button>
+      <button data-v="all">四格对比</button>
+    </div>
+    <div class="seg" id="style">
+      <button data-s="plain" aria-pressed="true">普通</button>
+      <button data-s="sketch">手绘</button>
+    </div>
+    <div class="seg" id="zoom">
+      <button data-z="1" aria-pressed="true">100%</button>
+      <button data-z="0.5">50%（骨架）</button>
+    </div>
+    <div class="sp"></div>
+    <button class="ghost" id="theme">深色</button>
+    <button class="ghost" id="notes-toggle">方案说明</button>
+  </div>
+  <div class="main">
+    <div class="stage" id="stage"></div>
+    <aside class="notes">
+      <h2>要解决的问题</h2>
+      <p>文档卡现在是「白底 + 圆角 + 底部渐隐」，和带边框 / 底色的富文本、矩形差别很小，手绘模式下尤其分不出来。文档的本质是「一份放在别处的独立文件」，所以区分靠身份符号，而不只是阴影。</p>
+      <h3>现状</h3>
+      <ul><li>普通模式靠阴影勉强区分；手绘模式只剩手绘框，与带框富文本几乎一样。</li></ul>
+      <h3>D · 圆角 + 阴影</h3>
+      <ul>
+        <li>圆角放大到 16px，阴影三层：贴边细描线、近处接触影、远处柔和投影，像一张纸浮在画布上。</li>
+        <li>不加任何装饰，最干净；靠「浮起来」与贴在画布上的富文本拉开层次。</li>
+        <li>手绘模式也保留阴影，纸面手绘框画成圆角。</li>
+      </ul>
+      <h3>E · 圆角 + 阴影 + 卡头</h3>
+      <ul><li>在 D 的基础上加卡头（类型 + 标题），身份更明确，低缩放时也认得出是哪类文档。</li></ul>
+      <h3>B · 卡头 + 纸叠</h3>
+      <ul><li>保留作对照：后面错开露出纸张的边。</li></ul>
+      <h3>手绘模式</h3>
+      <ul><li>D / E 保留阴影；纸叠改用手绘线条，卡头文字用手写体。</li></ul>
+      <h3>50% 缩放</h3>
+      <ul><li>正文缩成骨架线；阴影与卡头仍保留。</li></ul>
+    </aside>
+  </div>
+
+<script src="../whiteboard-sketch/vendor/rough.js"></script>
+<script>
+(function () {
+  const VARIANTS = {
+    now: { label: "现状", head: false, fold: false, stack: false, paperShadow: false },
+    d: { label: "D · 圆角 + 阴影", head: false, fold: false, stack: false, paperShadow: false, lift: true },
+    e: { label: "E · 圆角 + 阴影 + 卡头", head: true, fold: false, stack: false, paperShadow: false, lift: true },
+    b: { label: "B · 卡头 + 纸叠", head: true, fold: false, stack: true, paperShadow: false },
+  };
+  const state = { variant: "d", style: "plain", zoom: 1, fold: "paper" };
+  const gen = rough.generator();
+  const FOLD = 18;
+  const HEAD = 30;
+
+  const ICON = {
+    card: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></svg>',
+    article: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg>',
+    open: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  };
+
+  const CARD_PAPER = `
+    <div class="paper card">
+      <div class="tags"><span class="tag">#CSS/句法</span></div>
+      <p>CSS 属性取值句法介绍，如下是典型案例。</p>
+      <pre>&lt;family-name&gt;#
+&lt;url&gt; || &lt;color&gt;
+&lt;url&gt;? &lt;color&gt; [/ &lt;color&gt;]?</pre>
+      <p>使用 <code>&lt;&gt;</code> 包括起来字符表示值的类型，例如 <code>&lt;color&gt;</code>，除了可以是值的类型，还可以是关键字取值。</p>
+      <ul><li>空格分隔的多个关键字，必须以规定的顺序给出</li><li>以 <code>|</code> 分隔的多个关键字，必须取其中一个值</li></ul>
+    </div>`;
+  const ARTICLE_PAPER = `
+    <div class="paper article">
+      <div class="cover"></div>
+      <h1>背景与层叠上下文：从 background 到 isolation</h1>
+      <div class="meta">文章 · 更新于 10月8日</div>
+      <p>背景是元素盒子最底层的绘制内容。理解 background 的各个子属性如何叠加，是理解层叠上下文的第一步。</p>
+      <p>本文从 background-attachment 讲起，逐步过渡到 z-index、isolation 与 mix-blend-mode 的关系。</p>
+    </div>`;
+
+  /** 一个画布场景：同一组元素，按方案渲染 */
+  function scene(variantKey) {
+    const v = VARIANTS[variantKey];
+    const world = document.createElement("div");
+    world.className = "world";
+    world.innerHTML = `
+      <div class="el rt" style="left:60px;top:60px;width:300px">
+        <h3>background-attachment</h3>
+        <ul><li><code>scroll</code>：背景相对于元素本身固定，默认值</li><li><code>fixed</code>：背景相对于视口固定</li><li><code>local</code>：背景相对于元素内容固定</li></ul>
+      </div>
+      <div class="el rt framed" data-rough="frame" style="left:60px;top:250px;width:300px">
+        <h3 style="font-size:17px">带边框的富文本</h3>
+        <p>边框 + 白底的富文本，和现状文档卡最容易混淆。</p>
+      </div>
+      <div class="el rt filled" data-rough="fill" style="left:60px;top:420px;width:300px">
+        <code>background-attachment</code> 在滚动的场景下讨论才有意义。
+        <ul><li>元素所在的容器可滚动</li><li>元素本身可以滚动</li></ul>
+      </div>
+      <div class="el geo" data-rough="geo" style="left:60px;top:600px;width:200px;height:90px">矩形 · 层叠上下文</div>
+      ${doc("card", { left: 430, top: 70, width: 260, height: 260 }, "CSS 属性值句法及 display 取值解析", CARD_PAPER, 460, v)}
+      ${doc("article", { left: 760, top: 70, width: 300, height: 380 }, "背景与层叠上下文：从 background 到 isolation", ARTICLE_PAPER, 620, v)}
+      ${doc("card", { left: 430, top: 400, width: 260, height: 240 }, "background-clip 与 origin", CARD_PAPER.replace("#CSS/句法", "#CSS/背景"), 460, v)}
+    `;
+    return world;
+  }
+
+  function doc(kind, box, title, paper, paperWidth, v) {
+    const cls = ["doc", kind === "card" ? "card-doc" : "article-doc",
+      v.head && "with-head", v.fold && "with-fold", v.stack && "with-stack", v.paperShadow && "with-paper-shadow", v.lift && "with-lift"].filter(Boolean).join(" ");
+    const innerWidth = box.width;
+    const scale = innerWidth / paperWidth;
+    return `
+      <div class="${cls}" data-kind="${kind}" style="left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px">
+        <div class="sheet s2"></div>
+        <div class="sheet s1"></div>
+        <div class="face">
+        <div class="body">
+          <div class="head">
+            <span class="kind">${ICON[kind]}${kind === "card" ? "卡片" : "文章"}</span>
+            <span class="title">${title}</span>
+            <span class="open">${ICON.open}</span>
+          </div>
+          <div class="scaled" style="transform:scale(${scale})">${paper}</div>
+          <div class="skeleton"><b>${title}</b><i style="width:100%"></i><i style="width:92%"></i><i style="width:96%"></i><i style="width:70%"></i></div>
+          <div class="fade"></div>
+        </div>
+        <div class="fold"></div>
+        </div>
+      </div>`;
+  }
+
+  // ───────── 手绘层 ─────────
+  function roughPaths(drawable, svg, extra = {}) {
+    for (const p of gen.toPaths(drawable)) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", p.d);
+      path.setAttribute("fill", p.fill || "none");
+      path.setAttribute("stroke", p.stroke);
+      path.setAttribute("stroke-width", p.strokeWidth);
+      path.setAttribute("stroke-linecap", "round");
+      for (const [k, val] of Object.entries(extra)) path.setAttribute(k, val);
+      svg.append(path);
+    }
+  }
+
+  const roundRect = (x, y, w, h, r) =>
+    `M${x + r} ${y} H${x + w - r} Q${x + w} ${y} ${x + w} ${y + r} V${y + h - r} Q${x + w} ${y + h} ${x + w - r} ${y + h} H${x + r} Q${x} ${y + h} ${x} ${y + h - r} V${y + r} Q${x} ${y} ${x + r} ${y} Z`;
+
+  function drawSketch(world, variantKey) {
+    const v = VARIANTS[variantKey];
+    const ink = getComputedStyle(document.documentElement).getPropertyValue("--ink-2").trim();
+    const soft = getComputedStyle(document.documentElement).getPropertyValue("--ink-3").trim();
+    const surface = getComputedStyle(document.documentElement).getPropertyValue("--surface").trim();
+    const yellow = getComputedStyle(document.documentElement).getPropertyValue("--yellow").trim();
+    const yellowLine = getComputedStyle(document.documentElement).getPropertyValue("--yellow-line").trim();
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "rough");
+    svg.setAttribute("width", 1180);
+    svg.setAttribute("height", 760);
+    let seed = 11;
+    const o = (more = {}) => ({ roughness: 0.6, bowing: 0.6, stroke: ink, strokeWidth: 1.6, seed: seed++, ...more });
+
+    for (const el of world.querySelectorAll("[data-rough]")) {
+      const x = el.offsetLeft, y = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+      const kind = el.dataset.rough;
+      if (kind === "fill")
+        roughPaths(gen.rectangle(x, y, w, h, o({ stroke: yellowLine, fill: yellow, fillStyle: "solid" })), svg);
+      else roughPaths(gen.rectangle(x, y, w, h, o()), svg);
+    }
+    for (const el of world.querySelectorAll(".doc")) {
+      const x = el.offsetLeft, y = el.offsetTop, w = el.offsetWidth, h = el.offsetHeight;
+      const layers = v.stack ? (el.dataset.kind === "card" ? 1 : 2) : 0;
+      // 纸叠：错开的纸只画露出来的右边与下边
+      for (let i = layers; i >= 1; i--) {
+        const d = i * 6;
+        roughPaths(gen.linearPath([[x + w + d, y + d + 6], [x + w + d, y + h + d], [x + d + 6, y + h + d]], o({ stroke: soft, strokeWidth: 1.3 })), svg);
+      }
+      // 纸面：折角时右上角斜切
+      const pts = v.fold
+        ? [[x, y], [x + w - FOLD, y], [x + w, y + FOLD], [x + w, y + h], [x, y + h]]
+        : [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+      if (v.lift) roughPaths(gen.path(roundRect(x, y, w, h, 16), o({ fill: surface, fillStyle: "solid" })), svg);
+      else roughPaths(gen.polygon(pts, o({ fill: surface, fillStyle: "solid" })), svg);
+      if (v.fold)
+        roughPaths(gen.linearPath([[x + w - FOLD, y], [x + w - FOLD, y + FOLD], [x + w, y + FOLD]], o({ strokeWidth: 1.3 })), svg);
+      if (v.head) roughPaths(gen.line(x + 6, y + HEAD, x + w - 6, y + HEAD, o({ stroke: soft, strokeWidth: 1.1 })), svg);
+    }
+    world.prepend(svg);
+    // 手绘时纸面底色由手绘多边形承担
+    for (const body of world.querySelectorAll(".doc .body")) body.style.background = "transparent";
+    for (const el of world.querySelectorAll(".doc .head, .doc .fade")) el.style.background = "transparent";
+  }
+
+  // ───────── 渲染 ─────────
+  const stage = document.getElementById("stage");
+  function fit(pane, world) {
+    const scale = Math.min(pane.clientWidth / 1180, pane.clientHeight / 760) * state.zoom;
+    world.style.transform = `scale(${scale})`;
+    world.style.left = `${Math.max(0, (pane.clientWidth - 1180 * scale) / 2)}px`;
+    world.style.top = `${Math.max(0, (pane.clientHeight - 760 * scale) / 2)}px`;
+  }
+  function render() {
+    document.body.classList.toggle("sketch", state.style === "sketch");
+    document.body.classList.toggle("low", state.zoom < 1);
+    document.body.dataset.fold = state.fold;
+    stage.replaceChildren();
+    const keys = state.variant === "all" ? ["now", "d", "e", "b"] : [state.variant];
+    stage.classList.toggle("grid", keys.length > 1);
+    for (const key of keys) {
+      const pane = keys.length > 1 ? document.createElement("div") : stage;
+      if (keys.length > 1) {
+        pane.className = "pane";
+        pane.innerHTML = `<span class="pane-label">${VARIANTS[key].label}</span>`;
+        stage.append(pane);
+      }
+      const world = scene(key);
+      pane.append(world);
+      if (state.style === "sketch") drawSketch(world, key);
+      fit(pane, world);
+    }
+  }
+
+  function bindSeg(id, key, attr, parse = x => x) {
+    const seg = document.getElementById(id);
+    seg.addEventListener("click", e => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      for (const b of seg.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === btn));
+      state[key] = parse(btn.dataset[attr]);
+      render();
+    });
+  }
+  bindSeg("variant", "variant", "v");
+  bindSeg("style", "style", "s");
+  bindSeg("zoom", "zoom", "z", Number);
+  document.getElementById("theme").addEventListener("click", e => {
+    const dark = document.documentElement.dataset.theme !== "cocoa";
+    document.documentElement.dataset.theme = dark ? "cocoa" : "";
+    e.currentTarget.textContent = dark ? "浅色" : "深色";
+    render();
+  });
+  document.getElementById("notes-toggle").addEventListener("click", e => {
+    const off = document.body.classList.toggle("notes-off");
+    e.currentTarget.setAttribute("aria-pressed", String(!off));
+    render();
+  });
+  addEventListener("resize", render);
+  document.fonts.ready.then(render);
+  render();
+})();
+</script>
+</body>
+</html>

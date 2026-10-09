@@ -150,6 +150,20 @@
       "port": 8831
     },
     {
+      "name": "whiteboard-doc-identity-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8816",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups"
+      ],
+      "port": 8816
+    },
+    {
       "name": "ext-sidepanel-mock",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8815", "--bind", "127.0.0.1", "-d", "."],
