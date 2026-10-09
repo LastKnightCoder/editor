@@ -1,107 +1,85 @@
 import type {
   ITTSProvider,
+  SpeechSynthesisCapability,
+  VoiceCloneCapability,
   TTSVoice,
   TTSSynthesizeOptions,
   VoiceCloneOptions,
 } from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
-import type { MinimaxSpeechModel, MinimaxVoice } from "@/types/minimax";
+import type { MinimaxSpeechModel } from "@/types/minimax";
+import { ttsCommands } from "@/commands/contracts/tts";
 import {
-  getVoiceList as minimaxGetVoiceList,
-  synthesizeSpeech as minimaxSynthesizeSpeech,
   uploadReferenceAudio as minimaxUploadReferenceAudio,
   cloneVoice as minimaxCloneVoice,
 } from "@/services/minimax";
 
 export interface IMinimaxConfig {
   apiKey: string;
+  baseUrl?: string;
   model: MinimaxSpeechModel;
 }
 
 /**
  * Minimax TTS Provider
- * 实现 ITTSProvider 接口，封装 Minimax TTS 服务
+ * 合成与音色列表经主进程 tts 模块执行（网络出口收敛主进程：免 CORS）；
+ * 声音克隆走 Minimax 自有的文件上传接口（本地音频直传，无需中转），
+ * 保留渲染端既有链路。
  */
-export class MinimaxTTSProvider implements ITTSProvider {
-  private config: IMinimaxConfig;
-
-  constructor(config: IMinimaxConfig) {
-    this.config = config;
-  }
-
-  getProviderName(): ETTSProvider {
-    return ETTSProvider.Minimax;
-  }
-
-  isConfigured(): boolean {
-    return !!this.config.apiKey;
-  }
-
-  supportsVoiceCloning(): boolean {
-    return true;
-  }
-
-  /**
-   * 将 Minimax 音色转换为统一的 TTSVoice 格式
-   */
-  private convertVoice(voice: MinimaxVoice): TTSVoice {
-    let type: TTSVoice["type"] = "system";
-    if (voice.voice_type === "voice_cloning") {
-      type = "cloned";
-    } else if (voice.voice_type === "voice_generation") {
-      type = "custom";
-    }
-
-    return {
-      id: voice.voice_id,
-      name: voice.voice_name || voice.voice_id,
-      description: voice.description?.join(", "),
-      type,
-      provider: ETTSProvider.Minimax,
-    };
-  }
-
-  async getVoiceList(): Promise<TTSVoice[]> {
-    if (!this.isConfigured()) {
+export function createMinimaxTTSProvider(config: IMinimaxConfig): ITTSProvider {
+  const assertConfigured = () => {
+    if (!config.apiKey) {
       throw new Error("Minimax API Key 未配置");
     }
+  };
 
-    const minimaxVoices = await minimaxGetVoiceList(this.config.apiKey);
-    return minimaxVoices.map((voice) => this.convertVoice(voice));
-  }
+  const synthesis: SpeechSynthesisCapability = {
+    async getVoiceList(): Promise<TTSVoice[]> {
+      assertConfigured();
+      return ttsCommands.voiceList.call({
+        providerType: ETTSProvider.Minimax,
+        apiKey: config.apiKey,
+        baseUrl: config.baseUrl,
+        model: config.model,
+      });
+    },
 
-  async synthesizeSpeech(
-    text: string,
-    voiceId: string,
-    _options?: TTSSynthesizeOptions,
-  ): Promise<ArrayBuffer> {
-    if (!this.isConfigured()) {
-      throw new Error("Minimax API Key 未配置");
-    }
+    async synthesizeSpeech(
+      text: string,
+      voiceId: string,
+      options?: TTSSynthesizeOptions
+    ): Promise<ArrayBuffer> {
+      assertConfigured();
+      const result = await ttsCommands.synthesize.call({
+        providerType: ETTSProvider.Minimax,
+        apiKey: config.apiKey,
+        baseUrl: config.baseUrl,
+        model: config.model,
+        text,
+        voiceId,
+        options,
+      });
+      // IPC 返回 Uint8Array；接口契约是 ArrayBuffer，拷贝出精确长度的缓冲
+      return result.audio.slice().buffer;
+    },
+  };
 
-    // Minimax synthesizeSpeech 已内置 speed, vol, pitch 参数
-    // 这里暂时使用默认值，后续可扩展支持自定义选项
-    return minimaxSynthesizeSpeech(
-      text,
-      voiceId,
-      this.config.apiKey,
-      this.config.model,
-    );
-  }
+  const cloning: VoiceCloneCapability = {
+    async uploadReferenceAudio(file: File): Promise<string> {
+      assertConfigured();
+      return minimaxUploadReferenceAudio(file, config.apiKey);
+    },
 
-  async uploadReferenceAudio(file: File): Promise<string> {
-    if (!this.isConfigured()) {
-      throw new Error("Minimax API Key 未配置");
-    }
+    async cloneVoice(fileId: string, options: VoiceCloneOptions): Promise<string | void> {
+      assertConfigured();
+      await minimaxCloneVoice(fileId, options.voiceId, config.apiKey);
+    },
+  };
 
-    return minimaxUploadReferenceAudio(file, this.config.apiKey);
-  }
-
-  async cloneVoice(fileId: string, options: VoiceCloneOptions): Promise<void> {
-    if (!this.isConfigured()) {
-      throw new Error("Minimax API Key 未配置");
-    }
-
-    await minimaxCloneVoice(fileId, options.voiceId, this.config.apiKey);
-  }
+  return {
+    getProviderName: () => ETTSProvider.Minimax,
+    isConfigured: () => Boolean(config.apiKey),
+    synthesis,
+    cloning,
+  };
 }

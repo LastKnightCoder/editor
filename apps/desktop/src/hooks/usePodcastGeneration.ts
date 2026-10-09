@@ -17,7 +17,6 @@ import { replacePodcastSegment, saveTempSegment } from "@/commands/podcast-audio
 import { readBinaryFile, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { TTSProviderFactory } from "@/utils/tts";
-import useSettingStore from "@/stores/useSettingStore";
 import { useMemoizedFn } from "ahooks";
 import { runGenerationTask } from "@/services/generation-orchestrator";
 
@@ -67,7 +66,6 @@ export const usePodcastGeneration = () => {
   const [voicesLoading, setVoicesLoading] = useState(false);
 
   const { provider, model } = useLLMConfig("podcastGeneration");
-  const podcastTTS = useSettingStore(state => state.setting.integration.podcastTTS);
   const uploadResource = useUploadResource();
 
   const addLog = useCallback((log: string) => {
@@ -83,22 +81,17 @@ export const usePodcastGeneration = () => {
 
   // 加载音色列表
   const loadVoices = useCallback(async () => {
-    const ttsProvider = TTSProviderFactory.getTTSProvider();
-    if (!ttsProvider) {
+    const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+    if (!synthesizer) {
       toast.error("请先配置 TTS 服务提供商");
-      return;
-    }
-
-    if (!ttsProvider.isConfigured()) {
-      toast.error("TTS 服务提供商配置不完整");
       return;
     }
 
     setVoicesLoading(true);
     try {
-      const voiceList = await ttsProvider.getVoiceList();
+      const voiceList = await synthesizer.getVoiceList();
       setVoices(voiceList);
-      addLog(`成功加载 ${voiceList.length} 个音色 (${ttsProvider.getProviderName()})`);
+      addLog(`成功加载 ${voiceList.length} 个音色 (${TTSProviderFactory.getActiveProviderType()})`);
     } catch (error) {
       console.error("加载音色列表失败:", error);
       toast.error("加载音色列表失败");
@@ -140,8 +133,7 @@ export const usePodcastGeneration = () => {
       } = params;
 
       // 验证参数
-      const ttsProvider = TTSProviderFactory.getTTSProvider();
-      if (!ttsProvider || !ttsProvider.isConfigured()) {
+      if (!TTSProviderFactory.getSpeechSynthesizer()) {
         return "请先配置 TTS 服务提供商";
       }
 
@@ -198,10 +190,8 @@ export const usePodcastGeneration = () => {
               sourceType: enableTools ? "vibe_learning" : "provided_content",
               taskPayload: {
                 speakers,
-                ttsPromptOptions: {
-                  provider: podcastTTS.active,
-                  minimaxModel: podcastTTS.minimaxModel,
-                },
+                // prompt 标签规则须与实际合成引擎对齐，从当前语音服务派生
+                ttsPromptOptions: TTSProviderFactory.getActiveTTSPromptOptions(),
                 durationMin,
                 durationMax,
               },
@@ -305,7 +295,10 @@ export const usePodcastGeneration = () => {
           );
 
           try {
-            const audioData = await ttsProvider.synthesizeSpeech(line.text, line.voiceId);
+            const audioData = await TTSProviderFactory.getSpeechSynthesizer()!.synthesizeSpeech(
+              line.text,
+              line.voiceId
+            );
             const segment = await loadSpeechSegment(audioContext, audioData);
 
             // 记录时间信息
@@ -403,14 +396,14 @@ export const usePodcastGeneration = () => {
   // 重新生成单个片段
   const regenerateSegment = useCallback(
     async (index: number, newText: string) => {
-      const ttsProvider = TTSProviderFactory.getTTSProvider();
-      if (!ttsProvider || !ttsProvider.isConfigured() || !state.audioUrl) return;
+      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+      if (!synthesizer || !state.audioUrl) return;
 
       try {
         addLog(`正在重新生成第 ${index + 1} 段语音...`);
 
         // 1. 合成新语音
-        const audioData = await ttsProvider.synthesizeSpeech(
+        const audioData = await synthesizer.synthesizeSpeech(
           newText,
           state.scriptLines[index].voiceId
         );

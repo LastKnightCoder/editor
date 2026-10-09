@@ -1087,10 +1087,10 @@ function MinimaxDialog({ open, onOpenChange }: DialogProps) {
       onOpenChange={onOpenChange}
       onAfterClose={() => setError("")}
       title="Minimax"
-      subtitle="配置 API Key 以使用 Minimax 语音合成"
+      subtitle="配置 API Key 以使用 Minimax 语音合成（凭据与「语音 · 语音合成」共享）"
       connected={minimax.enabled}
       busy={loading}
-      disconnectImpact="Minimax 语音合成将不可用"
+      disconnectImpact="将同时清除语音合成设置中 Minimax 的 API Key，语音合成与音色克隆不可用"
       onDisconnect={() => {
         updateApiKey("");
         setEnabled(false);

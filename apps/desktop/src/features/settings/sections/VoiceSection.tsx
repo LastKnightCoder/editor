@@ -5,12 +5,12 @@
  * 「语音转录 / 语音合成」两个 Tab：
  * - 语音转录：转录行为（断句粒度 / AI 优化断句 / 长视频分段）、转录程序（faster-whisper
  *   预编译程序，沿用 legacy 的 !isMac 判定）、转录模型（当前模型 / 下载源 / 模型目录 / 模型列表）
- * - 语音合成：Minimax 连接状态（未连接时跳「账号与连接」，修掉 legacy「前往配置」空实现）
- *   与语音模型
+ * - 语音合成：多服务商配置（ttsProviders，对齐大语言模型的 llmProviders 模式）+ 当前服务
+ *   （提供商 / 模型 / 音色），实现见 VoiceTtsPanel
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowRight, AudioLines, Cpu, Download, FolderOpen, RefreshCw } from "lucide-react";
+import { AudioLines, Cpu, Download, FolderOpen, RefreshCw } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
 import { Button, ConfirmDialog, IconButton, Select, Switch, toast } from "@tau/ui";
@@ -31,13 +31,12 @@ import {
   type ProgramInfo,
 } from "@/commands";
 import { isMac } from "@/platform";
-import { MINIMAX_SPEECH_MODELS } from "@/utils/tts/minimaxSpeech";
-import { useSettingsStore } from "@/app/settingsStore";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
+import { VoiceTtsPanel } from "./VoiceTtsPanel";
 
 type VoiceTab = "transcription" | "tts";
 
@@ -50,8 +49,6 @@ const SOURCE_OPTIONS: Array<{ value: DownloadSource; label: string }> = [
   { value: "modelscope", label: "ModelScope（国内推荐）" },
   { value: "huggingface", label: "HuggingFace（国际）" },
 ];
-
-const TTS_MODEL_OPTIONS = MINIMAX_SPEECH_MODELS.map(model => ({ value: model, label: model }));
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -68,7 +65,7 @@ export function VoiceSection() {
           { key: "tts", label: "语音合成" },
         ]}
       />
-      {tab === "transcription" ? <TranscriptionPanel /> : <TextToSpeechPanel />}
+      {tab === "transcription" ? <TranscriptionPanel /> : <VoiceTtsPanel />}
     </>
   );
 }
@@ -512,52 +509,5 @@ function DownloadRow({
       </div>
       <div className="flex flex-none items-center gap-2">{children}</div>
     </div>
-  );
-}
-
-function TextToSpeechPanel() {
-  const minimaxEnabled = useSettingStore(s => s.setting.integration.minimax.enabled);
-  const minimaxModel = useSettingStore(s => s.setting.integration.podcastTTS.minimaxModel);
-  const setMinimaxModel = useSettingStore(s => s.setPodcastTTSMinimaxModel);
-
-  return (
-    <>
-      <SettingsGroup title="服务">
-        <SettingRow
-          title="Minimax"
-          description={
-            minimaxEnabled ? "API Key 已在「账号与连接」配置" : "语音合成需要 Minimax 的 API Key"
-          }
-        >
-          {minimaxEnabled ? (
-            <StatusChip tone="ok">已连接</StatusChip>
-          ) : (
-            <>
-              <StatusChip>未连接</StatusChip>
-              <button
-                type="button"
-                className="text-tau-meta text-accent-text inline-flex items-center gap-1 font-medium hover:underline"
-                onClick={() => useSettingsStore.getState().openSettings("integration")}
-              >
-                去「账号与连接」连接
-                <ArrowRight size={13} strokeWidth={1.75} />
-              </button>
-            </>
-          )}
-        </SettingRow>
-      </SettingsGroup>
-
-      <SettingsGroup title="合成参数">
-        <SettingRow title="语音模型" description="生成播客时使用">
-          <Select
-            aria-label="语音模型"
-            className="w-[220px]"
-            value={minimaxModel}
-            options={TTS_MODEL_OPTIONS}
-            onValueChange={v => setMinimaxModel(v)}
-          />
-        </SettingRow>
-      </SettingsGroup>
-    </>
   );
 }

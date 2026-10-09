@@ -13,6 +13,7 @@ import { bindDatabaseCommands } from "@/services/command-context";
 import { runGenerationTask, type GenerationRequest } from "@/services/generation-orchestrator";
 import { parseScript } from "@/services/podcast";
 import useSettingStore from "@/stores/useSettingStore";
+import { TTSProviderFactory } from "@/utils/tts";
 import { invalidateQuizzes } from "../../../quizQueries";
 import { queryClient } from "@/queryClient";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
@@ -189,13 +190,13 @@ function buildRequest(input: VLTaskInput, currentHtml?: string): GenerationReque
     case "report_edit":
       return { ...base, taskType: input.kind, taskPayload: { currentHtml: currentHtml ?? "" } };
     case "podcast": {
-      const { podcastTTS } = useSettingStore.getState().setting.integration;
       return {
         ...base,
         taskType: "podcast",
         taskPayload: {
           speakers: input.podcast?.speakers ?? [],
-          ttsPromptOptions: { provider: podcastTTS.active, minimaxModel: podcastTTS.minimaxModel },
+          // prompt 标签规则须与实际合成引擎对齐，从当前语音服务派生
+          ttsPromptOptions: TTSProviderFactory.getActiveTTSPromptOptions(),
           durationMin: input.podcast?.durationMin,
           durationMax: input.podcast?.durationMax,
         },

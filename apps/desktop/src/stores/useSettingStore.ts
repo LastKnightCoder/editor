@@ -6,10 +6,11 @@ import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/edito
 import { EGithubCDN } from "@/constants/github";
 import type { WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
+import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
+import { MINIMAX_SPEECH_MODELS, MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import type { IPublishFaviconConfig } from "@/types/publish";
-import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import {
   DEFAULT_OPENAI_IMAGE_BASE_URL,
   DEFAULT_OPENAI_IMAGE_MODEL,
@@ -66,15 +67,89 @@ const normalizeImageGenerationConfig = (setting: Partial<ISetting>): void => {
   }
 };
 
+/** legacy TTS 配置（integration.minimax + integration.podcastTTS）一次性迁移为 ttsProviders 多服务商模式 */
+const migrateTTSProviders = (setting: ISetting): void => {
+  if (setting.misc.tts?.providersMigrated) {
+    return;
+  }
+  setting.misc.tts = {
+    ...(setting.misc.tts ?? { providersMigrated: false }),
+    providersMigrated: true,
+  };
+  const legacyMinimax = setting.integration?.minimax;
+  const legacyPodcastTTS = setting.integration?.podcastTTS;
+  if (setting.ttsProviders.length > 0 || !legacyMinimax?.apiKey?.trim()) {
+    return;
+  }
+  const modelId = legacyPodcastTTS?.minimaxModel || MINIMAX_DEFAULT_SPEECH_MODEL;
+  setting.ttsProviders = [
+    {
+      id: "minimax-legacy",
+      name: "Minimax",
+      providerType: ETTSProvider.Minimax,
+      apiKey: legacyMinimax.apiKey.trim(),
+      models: [modelId, ...MINIMAX_SPEECH_MODELS.filter(model => model !== modelId)].map(id => ({
+        id,
+      })),
+    },
+  ];
+  setting.ttsUsageSettings.default = {
+    providerId: "minimax-legacy",
+    modelId,
+    voiceId: legacyPodcastTTS?.currentVoiceId ?? "",
+  };
+};
+
+/**
+ * TTS 配置一致性修复（对齐 normalizeImageGenerationConfig）：当前用法指向
+ * 已不存在的服务商/模型时回落，避免手工编辑 setting.json 或旧同步快照恢复后
+ * 悬空指向静默失效（用户只看到"请先配置"而无自愈）。
+ */
+const normalizeTTSUsageConfig = (setting: ISetting): void => {
+  setting.ttsProviders = Array.isArray(setting.ttsProviders)
+    ? setting.ttsProviders
+        .filter(provider => Boolean(provider?.id))
+        // 手工编辑/损坏的 setting.json 可能缺 models，归一防止下游 some/length 抛错（启动路径无兜底）
+        .map(provider => ({
+          ...provider,
+          models: Array.isArray(provider.models) ? provider.models : [],
+        }))
+    : [];
+  const usage = setting.ttsUsageSettings.default;
+  if (!usage) {
+    return;
+  }
+  const provider = setting.ttsProviders.find(item => item.id === usage.providerId);
+  if (!provider || !provider.models.some(model => model.id === usage.modelId)) {
+    const fallback = provider ?? setting.ttsProviders.find(item => item.models.length > 0);
+    setting.ttsUsageSettings.default = fallback
+      ? {
+          providerId: fallback.id,
+          modelId: fallback.models[0]?.id ?? "",
+          voiceId: "",
+        }
+      : null;
+  }
+};
+
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
   const mergedSetting = structuredClone(defaultSetting);
   const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
+  // 数组语义与 merge 的索引级深合并冲突，整体替换（同 imageGeneration 的处理理由）
+  const ttsProviders = Array.isArray(setting.ttsProviders)
+    ? structuredClone(setting.ttsProviders)
+    : null;
   merge(mergedSetting, setting);
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
   }
+  if (ttsProviders) {
+    mergedSetting.ttsProviders = ttsProviders;
+  }
   normalizeImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
+  migrateTTSProviders(mergedSetting);
+  normalizeTTSUsageConfig(mergedSetting);
   return mergedSetting;
 };
 
@@ -153,6 +228,12 @@ export interface ISetting {
     device: "cuda" | "cpu";
   };
   llmProviders: LLMProviderSetting[];
+  /** TTS 服务商配置（多实例，对齐 llmProviders 模式） */
+  ttsProviders: TTSProviderSetting[];
+  /** TTS 当前用法：全局默认的提供商 + 模型 + 音色 */
+  ttsUsageSettings: {
+    default: TTSUsageConfig | null;
+  };
   imageGeneration: ImageGenerationStoreShape;
   /** 通用工具权限模式（D-060）：manual 手动确认 / acceptEdits 自动允许编辑 / bypass 跳过确认 */
   agentPermission: {
@@ -297,6 +378,10 @@ export interface ISetting {
       useLLMOptimization: boolean;
       enableLongVideoSegmentation: boolean; // 启用长视频分段转录（>30分钟）
     };
+    tts: {
+      /** legacy podcastTTS/minimax 配置是否已一次性迁移到 ttsProviders */
+      providersMigrated: boolean;
+    };
     update: {
       autoCheck: boolean;
     };
@@ -340,6 +425,7 @@ interface IActions {
     feature: keyof ISetting["llmUsageSettings"],
     config: LLMUsageConfigV2 | null
   ) => void;
+  updateTTSUsageSetting: (config: TTSUsageConfig | null) => void;
   setToolPermissionMode: (mode: ToolPermissionMode) => void;
   /** AI 执行命令用的 shell 路径（空串 = 交回自动检测） */
   setAgentShellPath: (path: string) => void;
@@ -372,9 +458,6 @@ interface IActions {
   setTranscriptionUseLLMOptimization: (enabled: boolean) => void;
   setTranscriptionSegmentationLevel: (level: "word" | "sentence") => void;
   setLongVideoSegmentationEnabled: (enabled: boolean) => void;
-  setPodcastTTSProvider: (provider: ETTSProvider) => void;
-  setPodcastTTSMinimaxModel: (model: MinimaxSpeechModel) => void;
-  setPodcastTTSCurrentVoiceId: (voiceId: string) => void;
 }
 
 interface SettingNotificationPayload {
@@ -558,6 +641,10 @@ const initialState: IState = {
       device: "cuda",
     },
     llmProviders: [],
+    ttsProviders: [],
+    ttsUsageSettings: {
+      default: null,
+    },
     imageGeneration: {
       currentProviderId: "default-openai",
       providers: [
@@ -668,6 +755,9 @@ const initialState: IState = {
     misc: {
       webClip: {
         translateToChinese: false,
+      },
+      tts: {
+        providersMigrated: false,
       },
       video: {
         autoCacheRemote: true,
@@ -873,6 +963,27 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.integration.minimax.apiKey = apiKey;
+        // 「账号与连接」的 Minimax 凭据与 ttsProviders 同步；若无 Minimax 实例
+        // （迁移标记之后才在集成页连接的用户）则补建一个，避免"集成页已连接、
+        // TTS 却提示未配置"的死胡同
+        const minimaxProviders = draft.ttsProviders.filter(
+          provider => provider.providerType === ETTSProvider.Minimax
+        );
+        if (minimaxProviders.length === 0) {
+          if (apiKey.trim()) {
+            draft.ttsProviders.push({
+              id: `minimax-${Date.now().toString(36)}`,
+              name: "Minimax",
+              providerType: ETTSProvider.Minimax,
+              apiKey,
+              models: MINIMAX_SPEECH_MODELS.map(id => ({ id })),
+            });
+          }
+          return;
+        }
+        for (const provider of minimaxProviders) {
+          provider.apiKey = apiKey;
+        }
       }),
     });
   },
@@ -1033,51 +1144,11 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
   },
-  setPodcastTTSProvider: provider => {
+  updateTTSUsageSetting: config => {
     const { setting } = get();
     set({
       setting: produce(setting, draft => {
-        if (!draft.integration.podcastTTS) {
-          draft.integration.podcastTTS = {
-            active: provider,
-            minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
-            currentVoiceId: "",
-          };
-        } else {
-          draft.integration.podcastTTS.active = provider;
-        }
-      }),
-    });
-  },
-  setPodcastTTSMinimaxModel: model => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.integration.podcastTTS) {
-          draft.integration.podcastTTS = {
-            active: ETTSProvider.Minimax,
-            minimaxModel: model,
-            currentVoiceId: "",
-          };
-        } else {
-          draft.integration.podcastTTS.minimaxModel = model;
-        }
-      }),
-    });
-  },
-  setPodcastTTSCurrentVoiceId: voiceId => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        if (!draft.integration.podcastTTS) {
-          draft.integration.podcastTTS = {
-            active: ETTSProvider.Minimax,
-            minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
-            currentVoiceId: voiceId,
-          };
-        } else {
-          draft.integration.podcastTTS.currentVoiceId = voiceId;
-        }
+        draft.ttsUsageSettings.default = config;
       }),
     });
   },

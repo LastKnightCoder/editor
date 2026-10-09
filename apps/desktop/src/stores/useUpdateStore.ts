@@ -79,7 +79,16 @@ export const useUpdateStore = create<UpdateState>()((set, get) => ({
     if (get().status === "downloading") return;
     set({ status: "downloading", progress: 0 });
     try {
-      await downloadUpdate();
+      const result = await downloadUpdate();
+      if (!result.started) return; // 已有下载在进行（如另一窗口触发），安装由先到者负责
+    } catch (error) {
+      set({ status: "error", errorMessage: getErrorMessage(error) });
+      return;
+    }
+    // 下载完成即重启安装（用户主动触发下载时已确认要更新）；
+    // 安装失败由 onInstallFailed 事件兜底转手动下载
+    try {
+      await installUpdate();
     } catch (error) {
       set({ status: "error", errorMessage: getErrorMessage(error) });
     }
