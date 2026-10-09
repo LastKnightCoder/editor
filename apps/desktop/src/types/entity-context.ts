@@ -32,7 +32,7 @@ export interface ContextQuestion {
 
 /** 点击脉络条目打开到哪里；正文实体走 openEntity，其余各自的页面 */
 export type ContextOpenTarget =
-  | { page: "entity"; ref: EntityRef; at?: EntityLocation }
+  | { page: "entity"; ref: EntityRef; at?: EntityLocation; compose?: boolean }
   | { page: "chat"; id: string }
   | { page: "vibe-learning-detail"; id: number }
   | { page: "review"; deckId: number }

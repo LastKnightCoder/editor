@@ -46,6 +46,7 @@ import entityContextModule from "../modules/entity-context";
 import docTasksModule from "../modules/doc-tasks";
 import contentAiQueueModule from "../modules/content-ai-queue";
 import contentInsightsModule from "../modules/content-insights";
+import composeGatherModule from "../modules/compose-gather";
 import knowledgeInsightsModule from "../modules/knowledge-insights-module";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
@@ -348,6 +349,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pi-ai"],
     init: () => contentInsightsModule.init(),
+  },
+  {
+    name: "compose-gather",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database", "pi-ai"],
+    init: () => composeGatherModule.init(),
   },
   {
     name: "topic-insights",

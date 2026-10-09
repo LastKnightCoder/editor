@@ -166,6 +166,33 @@ describe("content-insights", () => {
     expect(candidates.map(c => c.no)).toEqual(candidates.map((_, i) => i + 1));
   });
 
+  it("指定候选：不受近邻阈值约束、排在前面并标记，已有关系与本文仍排除", () => {
+    const article = addArticle();
+    const far = addCard("白板上的远亲", near(5));
+    const linked = addCard("已经连接的卡", near(0));
+    main
+      .prepare(
+        `INSERT INTO entity_lineage (src_kind, src_id, dst_kind, dst_id, relation, create_time) VALUES ('article', ?, 'card', ?, 'derived', 1)`
+      )
+      .run(String(article.ref.id), String(linked.id));
+    const self = {
+      ref: article.ref,
+      key: `article:${article.ref.id}`,
+      contentId: article.contentId,
+      title: "浏览器渲染",
+      content: article.blocks as never,
+    };
+    expect(findCandidates(main, index, self).candidates.map(c => c.target.ref.id)).not.toContain(
+      far.id
+    );
+    const { candidates } = findCandidates(main, index, self, {
+      seed: [{ kind: "card", id: far.id }, { kind: "card", id: linked.id }, article.ref],
+    });
+    expect(candidates[0]).toMatchObject({ seeded: true, target: { ref: { id: far.id } } });
+    expect(candidates.filter(c => c.seeded)).toHaveLength(1);
+    expect(candidates.map(c => c.target.ref.id)).not.toContain(linked.id);
+  });
+
   it("分析：一次调用，核对片段，保存结果；正文大改后标记为过期", async () => {
     const article = addArticle();
     const good = addCard("掉帧排查", near(0));

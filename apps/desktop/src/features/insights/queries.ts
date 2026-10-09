@@ -32,7 +32,7 @@ export function useInsightsEnabled() {
   return Boolean(slot?.providerId && slot.modelId);
 }
 
-export function useContentInsights(ref: EntityRef) {
+export function useContentInsights(ref: EntityRef, getSeed?: () => EntityRef[]) {
   const database = useSettingStore(state => state.setting.database.active);
   const connected = useDatabaseConnected();
   const enabled = useInsightsEnabled();
@@ -46,7 +46,7 @@ export function useContentInsights(ref: EntityRef) {
     staleTime: 0,
   });
   const analyze = useMutation({
-    mutationFn: () => analyzeContentInsights(ref),
+    mutationFn: () => analyzeContentInsights(ref, getSeed?.() ?? []),
     onSuccess: result => queryClient.setQueryData(key, result),
   });
   const setStatus = useMutation({

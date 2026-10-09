@@ -1,0 +1,170 @@
+/**
+ * 第一次进入创作模式时的意图卡：说说想写什么、从哪些类型里找；也可以跳过、空白白板开始。
+ * 正文上方的意图条：显示这一句，可以改（改了只影响以后的「再找一些」与检查连接）。
+ */
+
+import { useState } from "react";
+import { Pencil, Sparkles } from "lucide-react";
+import { Button, Textarea, cn } from "@tau/ui";
+import { useOverlayDismiss } from "@/page/PageProvider";
+import type { EntityRefKind } from "@/entity/ref";
+
+const KIND_OPTIONS: Array<{ kind: EntityRefKind; label: string }> = [
+  { kind: "card", label: "卡片" },
+  { kind: "article", label: "文章" },
+  { kind: "project-item", label: "项目文档" },
+  { kind: "diary-moment", label: "日记" },
+];
+
+export function IntentCard({
+  initialIntent,
+  canGather,
+  busy,
+  onStart,
+  onSkip,
+}: {
+  initialIntent: string;
+  /** 配了「AI 洞见」模型才能自动找资料 */
+  canGather: boolean;
+  busy: boolean;
+  onStart(intent: string, kinds: EntityRefKind[]): void;
+  onSkip(): void;
+}) {
+  const [intent, setIntent] = useState(initialIntent);
+  const [kinds, setKinds] = useState<EntityRefKind[]>(KIND_OPTIONS.map(option => option.kind));
+  useOverlayDismiss(onSkip, !busy);
+  const start = () => {
+    if (!intent.trim() || !kinds.length || busy) return;
+    onStart(intent.trim(), kinds);
+  };
+
+  return (
+    <div className="bg-overlay absolute inset-0 z-20 grid place-items-center p-6">
+      <div className="bg-surface shadow-float rounded-tau-lg w-full max-w-[520px] px-[22px] pb-4 pt-5">
+        <h3 className="text-ink-1 text-[16px] font-semibold">这篇想写什么？</h3>
+        <p className="text-ink-3 text-tau-meta mb-3.5 mt-1">
+          {canGather
+            ? "说说主题、想表达的观点或想回答的问题。我会从你的笔记里挑出相关的，分好组放到左边白板上。"
+            : "写下来留在正文上方作提醒。配置「AI 洞见」模型后，可以按这句话自动找资料。"}
+        </p>
+        <Textarea
+          autoFocus
+          rows={4}
+          value={intent}
+          placeholder="例如：解释间隔重复为什么有效，结合我这两个月做闪卡的体验，最后说说它的局限"
+          onChange={event => setIntent(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              if (canGather) start();
+            }
+          }}
+        />
+        {canGather && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {KIND_OPTIONS.map(option => {
+              const on = kinds.includes(option.kind);
+              return (
+                <button
+                  key={option.kind}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setKinds(current =>
+                      on ? current.filter(kind => kind !== option.kind) : [...current, option.kind]
+                    )
+                  }
+                  className={cn(
+                    "text-tau-meta inline-flex h-[26px] items-center rounded-full border px-2.5 transition-colors",
+                    on
+                      ? "bg-accent-soft text-accent-text border-transparent"
+                      : "border-line-1 text-ink-2 hover:bg-hover"
+                  )}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="mt-4 flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onSkip} disabled={busy}>
+            {canGather ? "跳过，空白白板" : "空白白板开始"}
+          </Button>
+          <div className="flex-1" />
+          {canGather ? (
+            <Button
+              variant="primary"
+              icon={Sparkles}
+              onClick={start}
+              loading={busy}
+              disabled={!intent.trim() || !kinds.length}
+            >
+              开始找资料
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={() => onStart(intent.trim(), [])}
+              loading={busy}
+              disabled={!intent.trim()}
+            >
+              开始
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function IntentBar({
+  intent,
+  onChange,
+}: {
+  intent: string;
+  onChange(intent: string): void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(intent);
+  if (!intent && !editing) return null;
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== intent) onChange(draft.trim());
+  };
+  return (
+    <div className="bg-page rounded-tau-md text-ink-2 text-tau-meta mb-5 flex items-start gap-2 px-3 py-2 leading-[1.6]">
+      <Sparkles className="text-accent-text mt-[3px] size-3.5 shrink-0" strokeWidth={1.75} />
+      {editing ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={event => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={event => {
+            if (event.key === "Enter" && !event.nativeEvent.isComposing) commit();
+          }}
+          className="text-ink-1 min-w-0 flex-1 bg-transparent outline-none"
+        />
+      ) : (
+        <span className="min-w-0 flex-1">
+          <b className="text-ink-1 mr-2 font-medium">写作意图</b>
+          {intent}
+        </span>
+      )}
+      {!editing && (
+        <button
+          type="button"
+          title="修改写作意图"
+          onClick={() => {
+            setDraft(intent);
+            setEditing(true);
+          }}
+          className="text-ink-3 hover:text-ink-1 mt-[2px] shrink-0"
+        >
+          <Pencil className="size-3.5" strokeWidth={1.75} />
+        </button>
+      )}
+    </div>
+  );
+}

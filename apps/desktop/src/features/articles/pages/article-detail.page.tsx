@@ -12,7 +12,12 @@ import {
 import { definePage } from "@/page/definePage";
 import { ArticleDetailView } from "../views/ArticleDetailView";
 
-const schema = createPageSchema({ id: paramNumber(), at: paramOptional(paramString()) });
+/** layout：compose = 创作模式（左白板右写作）；省略为普通详情 */
+const schema = createPageSchema({
+  id: paramNumber(),
+  at: paramOptional(paramString()),
+  layout: paramOptional(paramString()),
+});
 
 export default definePage({
   key: "article-detail",

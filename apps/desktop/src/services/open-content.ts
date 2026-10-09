@@ -7,7 +7,10 @@ import { getPageNavigation, openPage } from "./page-navigation";
 import { serializeEntityLocation, type EntityLocation } from "@/entity/locate";
 
 /** 打开一个实体对应的 Page；异步查询期间切库则放弃导航 */
-export async function openEntity(ref: EntityRef, options: { at?: EntityLocation } = {}) {
+export async function openEntity(
+  ref: EntityRef,
+  options: { at?: EntityLocation; compose?: boolean } = {}
+) {
   const position = options.at ? { at: serializeEntityLocation(options.at) } : {};
   const { kind, id } = ref;
   if (!Number.isSafeInteger(id) || id <= 0) throw new Error("内容 ID 无效");
@@ -22,7 +25,11 @@ export async function openEntity(ref: EntityRef, options: { at?: EntityLocation 
       openPage("card-detail", { id, ...position });
       return;
     case "article":
-      openPage("article-detail", { id, ...position });
+      openPage("article-detail", {
+        id,
+        ...position,
+        ...(options.compose ? { layout: "compose" } : {}),
+      });
       return;
     case "project-item": {
       const current = getPageNavigation().navigator.current();

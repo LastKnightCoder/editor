@@ -14,10 +14,10 @@ export function getContentInsights(ref: EntityRef) {
   );
 }
 
-/** 分析一次（同一篇同时只跑一次，重复调用拿到同一个结果） */
-export function analyzeContentInsights(ref: EntityRef) {
+/** 分析一次（同一篇同时只跑一次，重复调用拿到同一个结果）；seed 为一定进入候选的实体 */
+export function analyzeContentInsights(ref: EntityRef, seed: EntityRef[] = []) {
   return withModule("content-insights", () =>
-    invoke<ContentInsights>("content-insights:analyze", ref)
+    invoke<ContentInsights>("content-insights:analyze", ref, { seed })
   );
 }
 

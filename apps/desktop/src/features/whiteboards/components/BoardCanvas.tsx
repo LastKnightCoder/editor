@@ -11,7 +11,7 @@ import { useMemoizedFn } from "ahooks";
 import { debounce } from "lodash";
 import { Loading } from "@tau/ui";
 import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
-import { type WhiteBoardRef } from "@tau/whiteboard";
+import { type WhiteBoardRef, type WhiteboardSlots } from "@tau/whiteboard";
 import type { WhiteBoardContent } from "@/types";
 import { useWhiteBoardContent } from "../queries";
 import { subscribeReveal, takeReveal } from "../navigation";
@@ -25,6 +25,7 @@ export function BoardCanvas({
   onLoaded,
   onPresentationModeChange,
   onDockWidthChange,
+  slots,
   ref,
 }: {
   id: number;
@@ -32,6 +33,8 @@ export function BoardCanvas({
   onLoaded?(content: WhiteBoardContent): void;
   onPresentationModeChange?(presenting: boolean): void;
   onDockWidthChange?(width: number): void;
+  /** 宿主覆盖的白板插槽（如创作模式的画布层） */
+  slots?: WhiteboardSlots;
   ref?: Ref<BoardCanvasHandle>;
 }) {
   const { data: content, isPending, isError, save } = useWhiteBoardContent(id);
@@ -106,6 +109,7 @@ export function BoardCanvas({
         showSidebar
         onPresentationModeChange={onPresentationModeChange}
         onDockWidthChange={onDockWidthChange}
+        slots={slots}
       />
     </div>
   );

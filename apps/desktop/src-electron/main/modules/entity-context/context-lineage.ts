@@ -15,6 +15,7 @@ import type {
   ContextOpenTarget,
   ContextUsage,
 } from "@/types/entity-context";
+import ComposeBoardTable from "../tables/compose-board";
 import EntityLineageTable, { type LineageEdge } from "../tables/entity-lineage";
 import EntitySearchTable from "../tables/entity-search";
 import MaterialTable from "../tables/material";
@@ -333,7 +334,7 @@ function whiteboardUsagesOf(
   }
 
   // 项目里的白板条目与文档里嵌入的白板块：归属是一个正文实体
-  const hosts: Array<{ ref: EntityRef; meta: string }> = [];
+  const hosts: Array<{ ref: EntityRef; meta: string; compose?: boolean }> = [];
   const pending = live.filter(id => !owned.has(id));
   if (pending.length) {
     const items = mainDb
@@ -345,6 +346,20 @@ function whiteboardUsagesOf(
     for (const item of items) {
       owned.add(item.page_id);
       hosts.push({ ref: { kind: "project-item", id: item.id }, meta: "项目里的白板" });
+    }
+  }
+  // 创作模式的素材板：归属正在写的那份正文，优先落到文章身份
+  const composed = ComposeBoardTable.contentIdsOfPages(
+    mainDb,
+    live.filter(id => !owned.has(id))
+  );
+  if (composed.size) {
+    const located = EntitySearchTable.locateAll(mainDb, [...new Set(composed.values())]);
+    for (const [pageId, contentId] of composed) {
+      const refs = located.get(contentId) ?? [];
+      const ref = refs.find(item => item.kind === "article") ?? refs[0];
+      owned.add(pageId);
+      if (ref) hosts.push({ ref, meta: "创作白板", compose: true });
     }
   }
   const embedded = live.filter(id => !owned.has(id));
@@ -374,7 +389,7 @@ function whiteboardUsagesOf(
       key,
       title: entity.title,
       meta: host.meta,
-      open: { page: "entity", ref: host.ref },
+      open: { page: "entity", ref: host.ref, ...(host.compose ? { compose: true } : {}) },
     });
   }
   return [...usages.values()];

@@ -168,6 +168,20 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8815", "--bind", "127.0.0.1", "-d", "."],
       "port": 8815
+    },
+    {
+      "name": "compose-mode-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8817",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/compose-mode"
+      ],
+      "port": 8817
     }
   ]
 }

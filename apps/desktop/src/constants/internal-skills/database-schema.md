@@ -73,6 +73,19 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
+### `compose_boards`
+
+创作模式的素材板：一份正文（`contents.id`）对应一页白板画布（`white_board_contents.id`，不建 `white_boards` 行，不出现在白板列表）。`intent` 为写作意图；`dismissed` 为 JSON 字符串数组，记用户移走的 AI 召集资料（实体 key，如 `card:12`），再找时排除。
+
+| 字段          | SQLite 定义                  |
+| ------------- | ---------------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY`        |
+| `page_id`     | `INTEGER NOT NULL`           |
+| `intent`      | `TEXT NOT NULL DEFAULT ''`   |
+| `dismissed`   | `TEXT NOT NULL DEFAULT '[]'` |
+| `create_time` | `INTEGER NOT NULL`           |
+| `update_time` | `INTEGER NOT NULL`           |
+
 ### `knowledge_ai_insights`
 
 主题与全局层的 AI 洞见（后台按知识地图主题分层生成）与项目回顾。`scope` 取 `subtopic` / `topic` / `global` / `project`；`members` 为 JSON 成员快照 `[[contentId, 元信息指纹]]`（主题身份对应与变化量都靠它）；`overview` 为给上一层读的概述 JSON；`result` 为 JSON：`lead`、`marks`（呼应 / 问了没写 / 重复 / 矛盾 / 缺一环 / 同一思路 / 还缺 / 可能属于这里 / 还薄，带处理状态）、`asks`；`increments` 为连续增量改写的次数。

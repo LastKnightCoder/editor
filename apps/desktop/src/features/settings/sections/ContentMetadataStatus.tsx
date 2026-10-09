@@ -11,7 +11,12 @@ export function ContentMetadataDescription() {
 }
 
 export function ContentInsightsDescription() {
-  return <>在卡片、文章、项目文档里点「AI 洞见」时，对照你的其他笔记分析这一篇。</>;
+  return (
+    <>
+      在卡片、文章、项目文档里点「AI
+      洞见」时，对照你的其他笔记分析这一篇；创作模式里按写作意图找资料、摆上白板。
+    </>
+  );
 }
 
 export function ContentMetadataProgressRow() {

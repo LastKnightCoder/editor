@@ -122,3 +122,5 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_ai_insights_scope ON knowledge_ai_insig
 -- 正文显式连接：成对唯一 + 反向查（正向由成对唯一索引前缀覆盖）
 CREATE UNIQUE INDEX IF NOT EXISTS idx_content_links_pair ON content_links(content_id, target_content_id);
 CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_content_id);
+-- 创作模式素材板：一页画布只属于一份正文
+CREATE UNIQUE INDEX IF NOT EXISTS idx_compose_boards_page ON compose_boards(page_id);

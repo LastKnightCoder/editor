@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS content_ai_insights (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+CREATE TABLE IF NOT EXISTS compose_boards (
+        content_id INTEGER PRIMARY KEY,
+        page_id INTEGER NOT NULL,
+        intent TEXT NOT NULL DEFAULT '',
+        dismissed TEXT NOT NULL DEFAULT '[]',
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS knowledge_ai_insights (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         scope TEXT NOT NULL,

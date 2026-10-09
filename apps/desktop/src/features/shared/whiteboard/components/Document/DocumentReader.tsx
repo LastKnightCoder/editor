@@ -52,6 +52,7 @@ import {
   type DocumentReaderMode,
 } from "./readerStore";
 import { SPRING, boxStyle, prefersReducedMotion, relativeBox, type Box } from "./morph";
+import { useDocumentHost } from "./DocumentHostContext";
 
 /** 停靠纸面的圆角；铺满时贴合画布容器，由容器裁圆角 */
 const FRAME_RADIUS = 16;
@@ -169,7 +170,8 @@ interface ReaderProps {
   element: DocumentElement;
   source: DocumentSource;
   mode: DocumentReaderMode;
-  onModeChange(mode: DocumentReaderMode): void;
+  /** 宿主不允许停靠时不传，纸面上不出现切换按钮 */
+  onModeChange?(mode: DocumentReaderMode): void;
   onClosed(): void;
 }
 
@@ -424,15 +426,16 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
                 <b className="text-ink-2 truncate font-medium">{source.title || "无标题"}</b>
               </div>
               <div className="flex-1" />
-              {mode === "center" ? (
-                <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
-                  <PanelRight className="size-4" strokeWidth={1.75} />
-                </HeaderButton>
-              ) : (
-                <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
-                  <AppWindow className="size-4" strokeWidth={1.75} />
-                </HeaderButton>
-              )}
+              {onModeChange &&
+                (mode === "center" ? (
+                  <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
+                    <PanelRight className="size-4" strokeWidth={1.75} />
+                  </HeaderButton>
+                ) : (
+                  <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
+                    <AppWindow className="size-4" strokeWidth={1.75} />
+                  </HeaderButton>
+                ))}
               <HeaderButton
                 label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
                 onClick={openInPage}
@@ -458,7 +461,9 @@ export function DocumentReaderLayer() {
   const board = useBoard();
   const store = getDocumentReaderStore(board);
   const openId = useDocumentReaderState(board, state => state.openId);
-  const { mode, setMode } = useDocumentReaderPreference();
+  const { mode: preferred, setMode } = useDocumentReaderPreference();
+  const { allowDock } = useDocumentHost();
+  const mode = allowDock ? preferred : "center";
   const selection = useSelection();
   const element = openId
     ? (BoardUtil.getElementById(board, openId) as DocumentElement | null)
@@ -498,7 +503,7 @@ export function DocumentReaderLayer() {
       element={element}
       source={source}
       mode={mode}
-      onModeChange={setMode}
+      onModeChange={allowDock ? setMode : undefined}
       onClosed={closed}
     />
   );

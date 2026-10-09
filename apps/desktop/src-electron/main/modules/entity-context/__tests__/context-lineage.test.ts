@@ -335,6 +335,35 @@ describe("被使用", () => {
     ]);
   });
 
+  it("白板：创作模式的素材板归属正在写的那篇文章，打开回到创作模式", async () => {
+    const cardContent = insertContent([p(text("遗忘曲线"))]);
+    const cardId = insertCard(cardContent);
+    const draft = insertContent([p(text("间隔重复"))]);
+    const articleId = run(
+      `INSERT INTO articles (title, create_time, update_time, content_id) VALUES ('间隔重复为什么有效', 1, 1, ?)`,
+      draft
+    );
+    const page = insertPage("创作白板", [
+      { id: "c", type: "document", entityRef: { kind: "card", id: cardId } },
+    ]);
+    run(
+      `INSERT INTO compose_boards (content_id, page_id, intent, dismissed, create_time, update_time) VALUES (?, ?, '', '[]', 1, 1)`,
+      draft,
+      page
+    );
+    await reindex();
+
+    expect(
+      contextOf("card", cardId).usages.map(u => [u.title, "meta" in u ? u.meta : "", u.open])
+    ).toEqual([
+      [
+        "间隔重复为什么有效",
+        "创作白板",
+        { page: "entity", ref: { kind: "article", id: articleId }, compose: true },
+      ],
+    ]);
+  });
+
   it("待办（未归档）与 Notebook 资源", () => {
     const content = insertContent([p(text("卡"))]);
     const cardId = insertCard(content);
