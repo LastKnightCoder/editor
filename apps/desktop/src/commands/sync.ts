@@ -243,6 +243,7 @@ export const download = async (options?: SyncCommandOptions) => {
   emitProgress(options, 5, "正在检查远程版本...");
 
   const { databaseInfo } = await getOriginDatabaseInfo();
+  assertCompatibleSync(databaseInfo);
 
   const originVersion = Number(databaseInfo.version || 0);
   if (currentVersion > originVersion) {
@@ -383,7 +384,6 @@ export const getOriginDatabaseInfo = async () => {
     }
   }
 
-  assertCompatibleSync(databaseInfo);
   return {
     isDatabaseInfoExist,
     databaseInfo,

@@ -21,6 +21,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CloudUpload, Database, Download, RefreshCw } from "lucide-react";
 import { produce } from "immer";
+import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
 import { Button, ConfirmDialog, Input, Panel, Segmented, toast } from "@tau/ui";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
@@ -105,14 +106,16 @@ export function SyncSection() {
     queryKey: remoteKey,
     queryFn: async () => {
       const info = await getOriginDatabaseInfo();
-      return Number((info?.databaseInfo as { version?: number } | undefined)?.version) || 0;
+      return info.databaseInfo;
     },
     enabled: isConfigured,
     staleTime: Infinity,
     retry: false,
   });
   const remoteKnown = isConfigured && remoteQuery.data !== undefined;
-  const remoteVersion = remoteKnown ? remoteQuery.data : 0;
+  const remoteVersion = remoteQuery.data?.version ?? 0;
+  const needsProtocolUpgrade =
+    remoteKnown && remoteQuery.data?.dataModelVersion !== SYNC_MODEL_VERSION && remoteVersion > 0;
   const hasUpdate = remoteKnown && remoteVersion > localVersion;
 
   const doUpload = async () => {
@@ -120,7 +123,10 @@ export function SyncSection() {
     try {
       const ok = await upload();
       if (ok) {
-        queryClient.setQueryData(remoteKey, localVersion + 1);
+        queryClient.setQueryData(remoteKey, {
+          version: localVersion + 1,
+          dataModelVersion: SYNC_MODEL_VERSION,
+        });
         toast.success("同步成功");
         // 用量记录搭车同步，后台跑、失败只记在用量统计页
         void runUsageSync();
@@ -149,10 +155,11 @@ export function SyncSection() {
     setIsChecking(true);
     try {
       const info = await getOriginDatabaseInfo();
-      const originVersion =
-        Number((info?.databaseInfo as { version?: number } | undefined)?.version) || 0;
-      queryClient.setQueryData(remoteKey, originVersion);
-      if (localVersion < originVersion) {
+      const originVersion = info.databaseInfo.version;
+      queryClient.setQueryData(remoteKey, info.databaseInfo);
+      if (originVersion > 0 && info.databaseInfo.dataModelVersion !== SYNC_MODEL_VERSION) {
+        toast.warning("云端快照协议较旧，请从已升级且数据完整的客户端同步到云端");
+      } else if (localVersion < originVersion) {
         toast.success(`远程有新版本 v${originVersion}，可下载更新`);
       } else {
         toast.success("已是最新版本");
@@ -168,7 +175,7 @@ export function SyncSection() {
     try {
       const ok = await download();
       if (ok) {
-        queryClient.setQueryData(remoteKey, remoteVersion);
+        queryClient.setQueryData(remoteKey, remoteQuery.data);
         toast.success("更新成功，已刷新数据库，原文件已备份至 backup 文件夹");
       } else {
         toast.error("下载失败");
@@ -204,9 +211,13 @@ export function SyncSection() {
   ) : remoteQuery.isFetching ? (
     <StatusChip tone="accent">检查中</StatusChip>
   ) : remoteQuery.isError ? (
-    <StatusChip tone="danger">连接失败</StatusChip>
+    <StatusChip tone="danger">
+      {/DB_MODEL_INCOMPATIBLE/.test(String(remoteQuery.error)) ? "协议不兼容" : "检查失败"}
+    </StatusChip>
   ) : !remoteKnown ? (
     <StatusChip>未检查</StatusChip>
+  ) : needsProtocolUpgrade ? (
+    <StatusChip tone="warn">需升级云端</StatusChip>
   ) : hasUpdate ? (
     <StatusChip tone="warn">远程有更新</StatusChip>
   ) : (
@@ -261,6 +272,7 @@ export function SyncSection() {
                         variant="primary"
                         size="sm"
                         icon={Download}
+                        disabled={needsProtocolUpgrade}
                         onClick={() => setDownloadConfirmOpen(true)}
                       >
                         拉取远程

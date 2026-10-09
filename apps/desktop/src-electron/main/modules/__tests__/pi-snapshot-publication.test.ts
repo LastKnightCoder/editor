@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import {
   publishSnapshot,
+  assertCompatibleSync,
   readSnapshotHead,
   successorObject,
   type SnapshotPublicationProvider,
@@ -79,4 +80,35 @@ it("未知提交结果不会推进本地状态，坏链不能作为新版本使�
   );
   files.set(successorObject("head", 1), encode({ ...snapshot("bad"), parentVersion: 0 }));
   await expect(readSnapshotHead(provider, "head")).rejects.toThrow("版本链无效");
+});
+
+it("旧协议元信息可衔接升级，旧指针也能发现新提交", async () => {
+  const { files, provider } = backend();
+  const old = { ...snapshot("old", 743), dataModelVersion: 3 };
+  files.set("head", encode(old));
+  expect(await readSnapshotHead(provider, "head")).toEqual(old);
+  expect(() => assertCompatibleSync(old)).toThrow("DB_MODEL_INCOMPATIBLE");
+  provider.uploadFile = async () => false;
+  const next = snapshot("upgraded", 744);
+  await publishSnapshot(provider, "head", old, next);
+  expect(await readSnapshotHead(provider, "head")).toEqual(next);
+  expect(() => assertCompatibleSync(next)).not.toThrow();
+});
+
+it.each([undefined, 0, 1, 2, 3, 5, "4", -1, 4.5])(
+  "下载和发布拒绝非当前协议 %s",
+  async dataModelVersion => {
+    const { provider } = backend();
+    const invalid = { ...snapshot("bad"), dataModelVersion };
+    expect(() => assertCompatibleSync(invalid)).toThrow("DB_MODEL_INCOMPATIBLE");
+    await expect(publishSnapshot(provider, "head", { version: 1 }, invalid as any)).rejects.toThrow(
+      "DB_MODEL_INCOMPATIBLE"
+    );
+  }
+);
+
+it.each([5, "3", -1, 3.5])("元信息读取拒绝未来或无效协议 %s", async dataModelVersion => {
+  const { files, provider } = backend();
+  files.set("head", encode({ ...snapshot("bad"), dataModelVersion }));
+  await expect(readSnapshotHead(provider, "head")).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
 });

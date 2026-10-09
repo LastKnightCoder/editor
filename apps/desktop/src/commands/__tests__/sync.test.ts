@@ -114,7 +114,13 @@ vi.mock("@/commands/piSession", () => ({
   piSessionUnpack: mockContext.piSessionUnpack,
 }));
 
-import { download, upload } from "../sync";
+import { download, getOriginDatabaseInfo, upload } from "../sync";
+
+const snapshotInfo = (version: number, dataModelVersion = 4) => ({
+  version,
+  dataModelVersion,
+  databaseObject: "data.db",
+});
 
 describe("sync commands reconnect source", () => {
   beforeEach(() => {
@@ -129,6 +135,11 @@ describe("sync commands reconnect source", () => {
     mockContext.syncProvider.uploadFile.mockClear();
     mockContext.syncProvider.uploadFile.mockResolvedValue(true);
     mockContext.syncProvider.downloadFile.mockClear();
+    mockContext.syncProvider.downloadFile.mockImplementation(async objectName =>
+      objectName === "database_data.db.json"
+        ? new TextEncoder().encode(JSON.stringify(snapshotInfo(1)))
+        : new Uint8Array([1, 2, 3])
+    );
     mockContext.syncProvider.fileExists.mockClear();
     mockContext.syncProvider.fileExists.mockImplementation(async name => !name.includes(".next-"));
     mockContext.syncProvider.createFileIfAbsent.mockClear();
@@ -240,7 +251,7 @@ describe("sync commands reconnect source", () => {
   it("下载时解包远程会话包", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify({ version: 2 }));
+        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
       }
       return new Uint8Array([1, 2, 3]);
     });
@@ -259,10 +270,10 @@ describe("sync commands reconnect source", () => {
     );
   });
 
-  it("远程没有会话包（迁移前的远程）时不动本地会话目录", async () => {
+  it("当前协议未声明会话包且远程无包时不动本地会话目录", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify({ version: 2 }));
+        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
       }
       return new Uint8Array([1, 2, 3]);
     });
@@ -278,7 +289,7 @@ describe("sync commands reconnect source", () => {
   it("下载完成后使用维护模式重连以执行 schema 迁移", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify({ version: 2 }));
+        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
       }
       return new Uint8Array([1, 2, 3]);
     });
@@ -297,7 +308,7 @@ describe("sync commands reconnect source", () => {
   it("自动下载即将 reload 也必须先在锁内完成维护重连", async () => {
     mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
       if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify({ version: 2 }));
+        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
       }
       return new Uint8Array([1, 2, 3]);
     });
@@ -312,5 +323,48 @@ describe("sync commands reconnect source", () => {
       source: "sync_download_reconnect",
     });
     expect(mockContext.useGlobalStateStoreMock.setState).toHaveBeenCalled();
+  });
+
+  it("云端协议 3 可检查并通过本地上传升级到协议 4", async () => {
+    mockContext.syncProvider.downloadFile.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify(snapshotInfo(1, 3)))
+    );
+    expect((await getOriginDatabaseInfo()).databaseInfo).toMatchObject(snapshotInfo(1, 3));
+    expect(await upload()).toBe(true);
+    const published = mockContext.syncProvider.uploadFile.mock.calls[2];
+    expect(JSON.parse(new TextDecoder().decode(published[1]))).toMatchObject({
+      version: 2,
+      dataModelVersion: 4,
+      parentVersion: 1,
+    });
+  });
+
+  it("旧协议下载在关闭数据库或写入文件前拒绝", async () => {
+    mockContext.syncProvider.downloadFile.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify(snapshotInfo(2, 3)))
+    );
+    await expect(download()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+    expect(mockContext.closeDatabase).not.toHaveBeenCalled();
+    expect(mockContext.writeBinaryFile).not.toHaveBeenCalled();
+    expect(mockContext.piSessionUnpack).not.toHaveBeenCalled();
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+  });
+
+  it("远端旧协议版本高于本地时仍拒绝上传", async () => {
+    mockContext.syncProvider.downloadFile.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify(snapshotInfo(2, 3)))
+    );
+    expect(await upload()).toBe(false);
+    expect(mockContext.syncProvider.uploadFile).not.toHaveBeenCalled();
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+  });
+
+  it("未来协议不能被本地上传覆盖", async () => {
+    mockContext.syncProvider.downloadFile.mockResolvedValue(
+      new TextEncoder().encode(JSON.stringify(snapshotInfo(1, 5)))
+    );
+    await expect(upload()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+    expect(mockContext.closeDatabase).not.toHaveBeenCalled();
+    expect(mockContext.syncProvider.uploadFile).not.toHaveBeenCalled();
   });
 });

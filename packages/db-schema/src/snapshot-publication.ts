@@ -1,4 +1,4 @@
-import { assertCompatibleSync } from "./sync-version";
+import { assertCompatibleSync, assertReadableSyncMetadata } from "./sync-version";
 
 export interface SnapshotInfo {
   version: number;
@@ -23,7 +23,7 @@ const parseInfo = (data: Uint8Array): SnapshotInfo => {
   const info = JSON.parse(new TextDecoder().decode(data));
   if (!info || !Number.isSafeInteger(info.version) || info.version < 0)
     throw new Error("远端版本号无效");
-  assertCompatibleSync(info);
+  assertReadableSyncMetadata(info);
   return info;
 };
 

@@ -1,6 +1,10 @@
 import { writeFileSync, rmSync } from "node:fs";
 import Database from "better-sqlite3";
-import { installSessionDownload, validateDatabaseFile } from "@tau/db-schema/sync";
+import {
+  assertCompatibleSync,
+  installSessionDownload,
+  validateDatabaseFile,
+} from "@tau/db-schema/sync";
 import { DataAccess } from "../../../data-access/index.js";
 import { getActiveDatabase } from "../../../utils/settings.js";
 import { createSyncProvider } from "../../../utils/sync-providers/factory.js";
@@ -13,6 +17,7 @@ export async function runSyncPull() {
   const database = getActiveDatabase();
   await withSyncDatabase(database.name, "pull", async context => {
     const info = await readRemoteInfo(provider, database.name, true);
+    assertCompatibleSync(info);
     if (database.version > info.version) throw new Error("本地版本高于远端，请先上传");
     console.log(`正在下载 ${database.name} 的数据库与对话快照…`);
     const databaseBytes = await provider.downloadFile(info.databaseObject ?? database.name);

@@ -5,7 +5,6 @@ import { loadSqliteVec } from "../../../data-access/sqlite-vec.js";
 import {
   acquireDatabaseSyncLock,
   assertDatabaseSyncLockOwned,
-  assertCompatibleSync,
   recoverSessionDownload,
   sessionDirectoryOf,
   readSnapshotHead,
@@ -33,7 +32,6 @@ export async function readRemoteInfo(
     throw new Error("远端数据库不存在");
   if (!info || !Number.isSafeInteger(info.version) || info.version < 0)
     throw new Error("远端版本号无效");
-  assertCompatibleSync(info);
   return info;
 }
 
