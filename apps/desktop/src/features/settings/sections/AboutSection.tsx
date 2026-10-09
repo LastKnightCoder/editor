@@ -2,10 +2,10 @@
  * 关于与更新 —— 定稿初版（2026-09-24，mockups/settings/index.html 第三版「关于与更新」）。
  *
  * 移植 legacy AppAbout（数据库管理已迁到「同步 · 本地数据库」Tab）：
- * - 顶部应用卡：图标 / 名称 / 版本 + 更新状态签与对应动作（检查 / 下载 / 重启并安装），
- *   下载中显示进度条，有可用更新或出错时提供「手动下载」外链；状态全部来自 useUpdateStore
- *   （主进程事件由全局 AutoUpdateChecker 挂载，本页只读状态与触发动作）
- * - 有可用更新时在应用卡下方展示跨越版本的升级公告（来自 latest*.yml）
+ * - 顶部应用卡：图标 / 名称 / 版本 + 更新状态签与对应动作（检查 / 立即更新 / 重启并安装），
+ *   下载完成后自动重启安装，下载中显示进度条，有可用更新或出错时提供「手动下载」外链；
+ *   状态全部来自 useUpdateStore（主进程事件由全局 AutoUpdateChecker 挂载，本页只读状态与触发动作）
+ * - 有可用更新时在「更新」组提供新版本内容入口，经弹窗展示跨越版本的公告（来自 latest*.yml）
  * - 更新：自动检查更新开关（misc.update.autoCheck）；本版更新内容（安装包内置公告）
  * - 命令行工具：tau 命令安装状态与安装 / 卸载；legacy 无平台判定、取状态失败即视为不可用，
  *   这里同样以取状态成功为渲染条件
@@ -20,7 +20,6 @@ import { useUpdateStore, type UpdateStatus } from "@/stores/useUpdateStore";
 import { getCliStatus, getVersions, installCli, openExternal, uninstallCli } from "@/commands";
 import { platform } from "@/platform";
 import { bundledNotesBetween } from "@/features/release-notes/notes";
-import { ReleaseNotesContent } from "@/features/release-notes/ReleaseNotesContent";
 import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
@@ -124,7 +123,7 @@ export function AboutSection() {
                   icon={Download}
                   onClick={() => void useUpdateStore.getState().download()}
                 >
-                  下载更新
+                  立即更新
                 </Button>
               ) : status === "ready" ? (
                 <Button
@@ -163,18 +162,21 @@ export function AboutSection() {
         </Panel>
       </SettingsGroup>
 
-      {releaseNotes.length > 0 && (
-        <SettingsGroup title={`v${releaseNotes[0].version} 更新内容`}>
-          <Panel pad="none" className="rounded-[14px] px-5 py-4">
-            <ReleaseNotesContent notes={releaseNotes} />
-          </Panel>
-        </SettingsGroup>
-      )}
-
       <SettingsGroup title="更新">
         <SettingRow title="自动检查更新" description="启动时在后台检查，有新版本在这里提示">
           <Switch aria-label="自动检查更新" checked={autoCheck} onCheckedChange={setAutoCheck} />
         </SettingRow>
+        {releaseNotes.length > 0 && (
+          <SettingRow title="新版本更新内容" description={`v${releaseNotes[0].version} 带来的变化`}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => useReleaseNotesStore.getState().show(releaseNotes)}
+            >
+              查看
+            </Button>
+          </SettingRow>
+        )}
         {currentNotes.length > 0 && (
           <SettingRow title="本版更新内容" description={`v${version} 带来的变化`}>
             <Button
