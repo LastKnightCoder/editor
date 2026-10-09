@@ -97,7 +97,7 @@ class TelemetryModule implements Module {
   private collectable(): boolean {
     // 开发构建默认不上报（TAU_TELEMETRY_DEBUG=1 可强制），避免污染统计
     const packaged = app.isPackaged || process.env.TAU_TELEMETRY_DEBUG === "1";
-    return packaged && UMAMI_WEBSITE_ID !== "";
+    return packaged && UMAMI_WEBSITE_ID.length > 0;
   }
 
   private track(name: string, data?: Record<string, unknown>): void {
