@@ -146,16 +146,16 @@ export function VoiceTtsPanel() {
   const loadVoices = useCallback(async () => {
     // 入口先占票：早退分支也要作废在途请求，防止旧响应回灌过期音色
     const ticket = ++loadVoicesRef.current;
-    const provider = TTSProviderFactory.getTTSProvider();
+    const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
     const currentUsage = useSettingStore.getState().setting.ttsUsageSettings.default;
-    if (!provider || !currentUsage?.modelId) {
+    if (!synthesizer || !currentUsage?.modelId) {
       setVoices([]);
       setVoicesLoading(false);
       return;
     }
     setVoicesLoading(true);
     try {
-      const list = await provider.getVoiceList();
+      const list = await synthesizer.getVoiceList();
       if (ticket === loadVoicesRef.current) {
         setVoices(list);
       }
@@ -475,17 +475,14 @@ function QwenVoiceCloneSection({
       return;
     }
     const tts = TTSProviderFactory.createFromSetting(provider, modelId);
-    if (!tts) {
+    if (!tts?.cloning) {
       toast.error("语音服务实例创建失败，请检查配置");
       return;
     }
     setCloning(true);
     try {
-      if (!tts.uploadReferenceAudio || !tts.cloneVoice) {
-        throw new Error("该服务商不支持应用内复刻");
-      }
-      const audioUrl = await tts.uploadReferenceAudio(file);
-      const voiceId = await tts.cloneVoice(audioUrl, {
+      const audioUrl = await tts.cloning.uploadReferenceAudio(file);
+      const voiceId = await tts.cloning.cloneVoice(audioUrl, {
         voiceId: "",
         voiceName: voiceName.trim() || file.name,
       });

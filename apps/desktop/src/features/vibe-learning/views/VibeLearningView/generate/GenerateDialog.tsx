@@ -76,13 +76,13 @@ function usePodcastVoices(enabled: boolean) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (!enabled) return;
-    const tts = TTSProviderFactory.getTTSProvider();
-    if (!tts || !tts.isConfigured()) {
+    const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+    if (!synthesizer) {
       toast.error("请先在设置中配置 TTS 服务");
       return;
     }
     setLoading(true);
-    tts
+    synthesizer
       .getVoiceList()
       .then(list => setVoices(list as VoiceOption[]))
       .catch(() => toast.error("加载音色列表失败"))

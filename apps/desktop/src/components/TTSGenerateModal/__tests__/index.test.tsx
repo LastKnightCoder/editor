@@ -25,13 +25,18 @@ const voices = [
   },
 ];
 
+const synthesizer = {
+  getVoiceList: vi.fn(async () => voices),
+  synthesizeSpeech: vi.fn(async () => new ArrayBuffer(8)),
+};
+
 vi.mock("@/utils/tts/TTSProviderFactory", () => ({
   TTSProviderFactory: {
     getTTSProvider: vi.fn(() => ({
       isConfigured: () => true,
-      getVoiceList: vi.fn(async () => voices),
-      synthesizeSpeech: vi.fn(async () => new ArrayBuffer(8)),
+      synthesis: synthesizer,
     })),
+    getSpeechSynthesizer: vi.fn(() => synthesizer),
   },
 }));
 

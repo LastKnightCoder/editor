@@ -33,16 +33,16 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Check if TTS is configured via TTSProviderFactory
-  const isTTSConfigured = TTSProviderFactory.getTTSProvider()?.isConfigured() ?? false;
+  const isTTSConfigured = TTSProviderFactory.getSpeechSynthesizer() !== null;
 
   // Load voice list
   const loadVoices = useCallback(async () => {
     if (!isTTSConfigured) return;
     setVoicesLoading(true);
     try {
-      const provider = TTSProviderFactory.getTTSProvider();
-      if (!provider) return;
-      const voiceList = await provider.getVoiceList();
+      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+      if (!synthesizer) return;
+      const voiceList = await synthesizer.getVoiceList();
       if (voiceList && voiceList.length > 0) {
         setVoices(
           voiceList.map(v => ({
@@ -102,12 +102,12 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
     setError(null);
 
     try {
-      const provider = TTSProviderFactory.getTTSProvider();
-      if (!provider) {
+      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+      if (!synthesizer) {
         setError("TTS服务不可用");
         return;
       }
-      const audioBuffer = await provider.synthesizeSpeech(text.trim(), selectedVoiceId);
+      const audioBuffer = await synthesizer.synthesizeSpeech(text.trim(), selectedVoiceId);
       if (!audioBuffer) {
         setError("文本转语音失败，请重试");
         return;
