@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { download, getOriginDatabaseInfo } from "@/commands";
+import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { ResourceSyncStatus } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
 import { SyncSection } from "../sections/SyncSection";
@@ -49,6 +49,20 @@ const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
 
 beforeEach(() => {
+  vi.mocked(upload).mockReset();
+  vi.mocked(download).mockReset();
+  vi.mocked(getOriginDatabaseInfo).mockReset();
+  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
+    isDatabaseInfoExist: false,
+    databaseInfo: { version: 0 },
+    databaseInfoObjectName: "database_data.db.json",
+  });
+  useSettingStore.setState(s => ({
+    setting: {
+      ...s.setting,
+      database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
+    },
+  }));
   mocks.model = {
     progress: { status: "completed", totalFiles: 3, processedFiles: 3, currentFile: null },
     statusFile: { lastSyncTime: Date.now() },
@@ -144,7 +158,7 @@ it("拉取远程后保留远程版本缓存", async () => {
   }));
   vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
     isDatabaseInfoExist: true,
-    databaseInfo: { version: 2 },
+    databaseInfo: { version: 2, dataModelVersion: 4, databaseObject: "snapshot.db" },
     databaseInfoObjectName: "database_data.db.json",
   });
   vi.mocked(download).mockImplementation(async () => {
@@ -183,4 +197,42 @@ it("拉取远程后保留远程版本缓存", async () => {
       )
     ).toEqual(["2", "2"]);
   });
+});
+
+it("旧协议显示远程版本和升级状态，上传成功后清除升级状态", async () => {
+  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
+    isDatabaseInfoExist: true,
+    databaseInfo: { version: 1, dataModelVersion: 3, databaseObject: "old.db" },
+    databaseInfoObjectName: "database_data.db.json",
+  });
+  vi.mocked(upload).mockResolvedValue(true);
+  render();
+  await vi.waitFor(() => expect(text()).toContain("需升级云端"));
+  expect(text()).not.toContain("连接失败");
+  expect(
+    [...container.querySelector("dl")!.querySelectorAll("dd")].map(node => node.textContent?.trim())
+  ).toEqual(["1", "1"]);
+  await act(async () => button("同步到云端").click());
+  expect(upload).toHaveBeenCalledOnce();
+  await vi.waitFor(() => expect(text()).not.toContain("需升级云端"));
+});
+
+it("旧协议远程有更新时禁用拉取，保留真实版本", async () => {
+  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
+    isDatabaseInfoExist: true,
+    databaseInfo: { version: 2, dataModelVersion: 3, databaseObject: "old.db" },
+    databaseInfoObjectName: "database_data.db.json",
+  });
+  render();
+  await vi.waitFor(() => expect(text()).toContain("需升级云端"));
+  expect(button("拉取远程").disabled).toBe(true);
+  act(() => button("拉取远程").click());
+  expect(download).not.toHaveBeenCalled();
+});
+
+it("未来协议查询失败显示协议不兼容", async () => {
+  vi.mocked(getOriginDatabaseInfo).mockRejectedValue(new Error("DB_MODEL_INCOMPATIBLE"));
+  render();
+  await vi.waitFor(() => expect(text()).toContain("协议不兼容"));
+  expect(text()).not.toContain("连接失败");
 });

@@ -120,7 +120,7 @@ function seedRemote(chat = true) {
     infoKey,
     json({
       version: 2,
-      dataModelVersion: 2,
+      dataModelVersion: 4,
       databaseObject: "snapshot.db",
       sessionsObject: "snapshot.zip",
     })
@@ -203,7 +203,7 @@ it.each(["missing", "bad-zip", "missing-entry", "bad-db"])(
     expect(messages(sessionDirectoryOf(join(state.root, "data.db")))).toContain("local question");
   }
 );
-it("旧远端只有数据库时保留本地会话目录", async () => {
+it("旧协议下载被拒绝并保留本地数据库与会话目录", async () => {
   seedRemote(false);
   const remote = new Database(join(state.root, "remote.db"));
   remote.exec(
@@ -215,17 +215,10 @@ it("旧远端只有数据库时保留本地会话目录", async () => {
   remote.close();
   state.remote.set("data.db", readFileSync(join(state.root, "remote.db")));
   state.remote.set(infoKey, json({ version: 2, dataModelVersion: 1 }));
-  await runSyncPull();
-  expect(marker()).toBe("remote");
+  await expect(runSyncPull()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+  expect(marker()).toBe("local");
+  expect(version()).toBe(1);
   expect(messages(sessionDirectoryOf(join(state.root, "data.db")))).toContain("local question");
-  const local = new Database(join(state.root, "data.db"));
-  try {
-    expect(local.prepare("SELECT messages FROM chat_message").get()).toEqual({
-      messages: JSON.stringify([{ role: "user", content: "旧对话" }]),
-    });
-  } finally {
-    local.close();
-  }
 });
 it("CLI 启动会先恢复上次中断的数据库与会话提交", async () => {
   const path = join(state.root, "data.db");
@@ -302,4 +295,17 @@ it("状态读取接受新信封并拒绝未来版本", async () => {
   expect((await readRemoteInfo(createSyncProvider()!, "data.db")).version).toBe(2);
   state.remote.set(infoKey, json({ version: 3, dataModelVersion: 99 }));
   await expect(readRemoteInfo(createSyncProvider()!, "data.db")).rejects.toThrow();
+});
+
+it("协议 3 可读取版本并上传新快照，但不能下载旧快照", async () => {
+  seedRemote();
+  state.remote.set(
+    infoKey,
+    json({ ...decode(state.remote.get(infoKey)!), version: 1, dataModelVersion: 3 })
+  );
+  expect((await readRemoteInfo(createSyncProvider()!, "data.db")).version).toBe(1);
+  await expect(runSyncPull()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+  expect(marker()).toBe("local");
+  await runSyncPush();
+  expect(decode(state.remote.get(infoKey)!)).toMatchObject({ version: 2, dataModelVersion: 4 });
 });
