@@ -12,8 +12,10 @@ interface ReleaseNotesState {
   open: boolean;
   title: string;
   notes: ReleaseNote[];
+  /** 应答区提供「立即更新」主动作（发现新版本通知打开时）；升级后公告与关于页入口不带 */
+  updateAction: boolean;
   /** notes 从新到旧排列 */
-  show: (notes: ReleaseNote[]) => void;
+  show: (notes: ReleaseNote[], options?: { updateAction?: boolean }) => void;
   close: () => void;
 }
 
@@ -22,6 +24,13 @@ export const useReleaseNotesStore = create<ReleaseNotesState>()(set => ({
   open: false,
   title: "",
   notes: [],
-  show: notes => set({ open: true, title: releaseNotesTitle(notes), notes }),
-  close: () => set({ open: false }),
+  updateAction: false,
+  show: (notes, options) =>
+    set({
+      open: true,
+      title: releaseNotesTitle(notes),
+      notes,
+      updateAction: Boolean(options?.updateAction),
+    }),
+  close: () => set({ open: false, updateAction: false }),
 }));

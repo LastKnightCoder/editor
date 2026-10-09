@@ -85,7 +85,8 @@ const useAutoUpdateCheck = () => {
         releaseNotes.length > 0
           ? {
               label: "查看更新内容",
-              onClick: () => useReleaseNotesStore.getState().show(releaseNotes),
+              onClick: () =>
+                useReleaseNotesStore.getState().show(releaseNotes, { updateAction: true }),
             }
           : { label: "稍后" },
         {
