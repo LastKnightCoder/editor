@@ -38,6 +38,8 @@ export interface InsightMark {
   /** 重复与矛盾：双方各一句，并排显示 */
   mine?: string;
   theirs?: string;
+  /** 对方来自调用方指定的候选（创作模式白板上的资料） */
+  seeded?: boolean;
   status: InsightStatus;
 }
 

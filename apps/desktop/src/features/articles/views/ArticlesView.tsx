@@ -13,12 +13,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Import, Plus, Search, X } from "lucide-react";
+import { FileText, Import, PanelsLeftRight, Plus, Search, X } from "lucide-react";
 import { FadeScroll } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { morph, queryActivePageMorph } from "@/page/morph";
 import { useScrollTopOnChange } from "@/hooks/useScrollTopOnChange";
-import { Button, ConfirmDialog, Input, Loading, Spinner, cn, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Input, Loading, Menu, Spinner, cn, toast } from "@tau/ui";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
@@ -168,10 +168,19 @@ export function ArticlesView() {
 
   /* ---------- 工具栏：新建 / 导入 ---------- */
 
-  const handleCreate = useCallback(async () => {
-    const created = await createDefault();
-    if (created) navigator.push("article-detail", { id: created.id });
-  }, [createDefault, navigator]);
+  /** compose：直接进入创作模式（左白板右写作） */
+  const handleCreate = useCallback(
+    async (compose = false) => {
+      const created = await createDefault();
+      if (created) {
+        navigator.push("article-detail", {
+          id: created.id,
+          ...(compose ? { layout: "compose" } : {}),
+        });
+      }
+    },
+    [createDefault, navigator]
+  );
 
   const handleImport = useCallback(async () => {
     const paths = await selectFile({
@@ -286,16 +295,33 @@ export function ArticlesView() {
           >
             导入
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            disabled={busy}
-            className="shrink-0 whitespace-nowrap"
-            onClick={() => void handleCreate()}
+          <Menu
+            align="end"
+            trigger={
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Plus}
+                disabled={busy}
+                className="shrink-0 whitespace-nowrap"
+              >
+                新建
+              </Button>
+            }
           >
-            新建
-          </Button>
+            <Menu.Item
+              icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+              onSelect={() => void handleCreate()}
+            >
+              空白文章
+            </Menu.Item>
+            <Menu.Item
+              icon={<PanelsLeftRight className="size-[15px] shrink-0" strokeWidth={1.75} />}
+              onSelect={() => void handleCreate(true)}
+            >
+              在创作模式中新建
+            </Menu.Item>
+          </Menu>
         </div>
 
         {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8），离纸底 16px；

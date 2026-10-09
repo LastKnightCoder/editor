@@ -3,6 +3,7 @@
  * 逐条看时附一行快捷键提示。
  */
 
+import type { ReactNode } from "react";
 import { CircleHelp, FileText, FolderKanban, Layers, Link2, X } from "lucide-react";
 import { AnchoredPanel, Button, IconButton } from "@tau/ui";
 import type { InsightMark } from "@/types/content-insights";
@@ -22,6 +23,8 @@ export interface InsightPopoverProps {
   onQuestion(mark: InsightMark): void;
   onDismiss(mark: InsightMark): void;
   onOpenTarget(mark: InsightMark): void;
+  /** 对方标题旁的宿主动作（创作模式：放到白板） */
+  targetAction?(mark: InsightMark): ReactNode;
   /** 关闭气泡（逐条看时一并结束），与 Esc 第一层相同 */
   onClose(): void;
 }
@@ -36,6 +39,7 @@ export function InsightPopover({
   onQuestion,
   onDismiss,
   onOpenTarget,
+  targetAction,
   onClose,
 }: InsightPopoverProps) {
   const target = mark.target;
@@ -85,6 +89,7 @@ export function InsightPopover({
               <span className="text-ink-1 text-tau-meta flex min-w-0 items-center gap-1.5 font-medium">
                 <Icon className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
                 <span className="min-w-0 truncate">{targetName}</span>
+                {targetAction?.(mark)}
               </span>
               {target.excerpt && (
                 <span className="text-ink-2 text-tau-meta mt-0.5 line-clamp-3 block leading-[1.65]">

@@ -39,6 +39,8 @@ import { useContentInsights, useInsightsPhase } from "./queries";
 
 type ViewState = "off" | "reading" | "on";
 
+const EMPTY_MARKS: InsightMark[] = [];
+
 const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> = {
   card: "card",
   article: "article",
@@ -52,6 +54,14 @@ export interface InsightsViewOptions {
   /** 来源 chip 的文字：「卡片：xxx」「文章：xxx」 */
   sourceLabel: string;
   getEditor(): Editor | null | undefined;
+  /** 一定进入候选的实体（创作模式：白板上的资料） */
+  getSeed?(): EntityRef[];
+  /** 报告卡里宿主补充的一行 */
+  reportExtra?: ReactNode;
+  /** 气泡里对方标题旁的宿主动作 */
+  targetAction?(mark: InsightMark): ReactNode;
+  /** 宿主场景下的按钮文案（创作模式：「标出可引用处」） */
+  copy?: { label: string; title: string };
 }
 
 export function useInsightsView({
@@ -59,12 +69,21 @@ export function useInsightsView({
   contentId,
   sourceLabel,
   getEditor: getEditorProp,
+  getSeed,
+  reportExtra,
+  targetAction,
+  copy,
 }: InsightsViewOptions) {
   // 调用方未必稳定传入；用 ref 保住最新的，避免依赖它的 effect 每次渲染重跑
   const getEditorRef = useRef(getEditorProp);
   getEditorRef.current = getEditorProp;
   const getEditor = useCallback(() => getEditorRef.current(), []);
-  const { enabled, insights, analyze, setStatus } = useContentInsights(ref);
+  const getSeedRef = useRef(getSeed);
+  getSeedRef.current = getSeed;
+  const { enabled, insights, analyze, setStatus } = useContentInsights(
+    ref,
+    useCallback(() => getSeedRef.current?.() ?? [], [])
+  );
   const { data: context } = useEntityContext(enabled ? ref : null);
   const [view, setView] = useState<ViewState>("off");
   const [current, setCurrent] = useState<string | null>(null);
@@ -333,7 +352,7 @@ export function useInsightsView({
       type="button"
       onClick={() => (view === "off" ? enter() : exit())}
       disabled={view === "reading"}
-      title={view === "off" ? "让 AI 对照你的其他笔记读这一篇" : "退出洞见"}
+      title={view === "off" ? (copy?.title ?? "让 AI 对照你的其他笔记读这一篇") : "退出洞见视图"}
       className={cn(
         "text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-full px-2 transition-colors",
         view !== "off" &&
@@ -345,7 +364,13 @@ export function useInsightsView({
       ) : (
         <Sparkles className="size-[13px]" strokeWidth={1.75} />
       )}
-      {view === "reading" ? "正在读" : view === "on" ? "退出洞见" : "AI 洞见"}
+      {view === "reading"
+        ? "正在读"
+        : view === "on"
+          ? copy
+            ? "收起标注"
+            : "退出洞见"
+          : (copy?.label ?? "AI 洞见")}
       {view === "off" && hasOpen && <i className="bg-accent size-[5px] rounded-full opacity-70" />}
     </button>
   ) : null;
@@ -362,6 +387,7 @@ export function useInsightsView({
         onAsk={ask => question(ask, ask.text)}
         onReanalyze={reanalyze}
         onWalk={startWalk}
+        extra={reportExtra}
       />
     );
 
@@ -434,6 +460,7 @@ export function useInsightsView({
           onQuestion={questionMark}
           onDismiss={mark => resolveTo(mark, "dismissed")}
           onOpenTarget={openTarget}
+          targetAction={targetAction}
           onClose={() => {
             setWalking(false);
             setCurrent(null);
@@ -470,6 +497,9 @@ export function useInsightsView({
   return {
     enabled,
     view,
+    /** 洞见视图打开时还没处理的标记（宿主据此在别处画对应） */
+    openMarks: on ? openMarks : EMPTY_MARKS,
+    current: on ? current : null,
     button,
     report,
     frame,

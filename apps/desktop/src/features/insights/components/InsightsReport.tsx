@@ -3,6 +3,7 @@
  * 可以继续想的问题；读的过程中只显示一行真实的阶段说明。
  */
 
+import type { ReactNode } from "react";
 import { CircleHelp, ListChecks, Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@tau/ui";
 import type {
@@ -32,6 +33,8 @@ export interface InsightsReportProps {
   onAsk(ask: InsightAsk): void;
   onReanalyze(): void;
   onWalk(): void;
+  /** 宿主补充的开头一句（创作模式：可以引用几处、还有几份没用到），有它时 lead 退为次要 */
+  extra?: ReactNode;
 }
 
 const formatTime = (ts: number) => {
@@ -135,6 +138,7 @@ export function InsightsReport({
   onAsk,
   onReanalyze,
   onWalk,
+  extra,
 }: InsightsReportProps) {
   if (reading) {
     return (
@@ -160,7 +164,10 @@ export function InsightsReport({
       onMouseDown={event => event.stopPropagation()}
     >
       <div className="min-w-0">
-        <p className="text-tau-body-lg text-ink-1 leading-[1.8]">{result.lead}</p>
+        {extra}
+        <p className={cn("text-tau-body-lg leading-[1.8]", extra ? "text-ink-2" : "text-ink-1")}>
+          {result.lead}
+        </p>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {counts.length ? (
             counts.map(({ kind, n }) => (

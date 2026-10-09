@@ -21,6 +21,7 @@ import { DocumentPaper } from "./DocumentPaper";
 import { DOCUMENT_PAPER_WIDTH } from "./layout";
 import { useDocumentSource } from "./source";
 import { useDocumentReaderPreference, useDocumentReaderState } from "./readerStore";
+import { useDocumentHost } from "./DocumentHostContext";
 
 /** 卡面只渲染首屏的块数，长文不必整篇挂只读编辑器 */
 const PREVIEW_BLOCKS = 12;
@@ -51,7 +52,9 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
   const open = useDocumentReaderState(board, state => state.openId === element.id);
   // 收起动画一开始就去掉「编辑中」
   const closing = useDocumentReaderState(board, state => state.closing);
-  const mode = useDocumentReaderPreference(state => state.mode);
+  const host = useDocumentHost();
+  const preferred = useDocumentReaderPreference(state => state.mode);
+  const mode = host.allowDock ? preferred : "center";
 
   const content = (article?.content as Descendant[] | undefined) ?? source?.content ?? [];
   const lowZoom = zoom < simplifiedRenderZoomThreshold;
@@ -92,6 +95,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
           编辑中
         </span>
       )}
+      {host.cardAccessory?.(element)}
     </div>
   );
 });

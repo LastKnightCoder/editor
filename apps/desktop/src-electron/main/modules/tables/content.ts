@@ -11,6 +11,7 @@ import QuestionTable from "./question";
 import ContentAiMetaTable from "./content-ai-meta";
 import ContentAiInsightsTable from "./content-ai-insights";
 import ContentLinkTable from "./content-link";
+import ComposeBoardTable from "./compose-board";
 import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
 import {
@@ -290,6 +291,7 @@ export default class ContentTable {
       ContentAiMetaTable.delete(db, contentId);
       ContentAiInsightsTable.delete(db, contentId);
       ContentLinkTable.releaseContent(db, contentId);
+      ComposeBoardTable.releaseContent(db, contentId);
       const changes = deleteStmt.run(contentId).changes;
       emitContentWritten(db, contentId, "delete");
       return changes;

@@ -50,6 +50,9 @@ import userSettingModule from "./user-setting";
 
 export const CONTENT_INSIGHTS_SLOT = "contentInsights";
 export const CANDIDATE_LIMIT = 15;
+/** 指定候选（创作模式白板上的资料）的上限与合并后的总上限 */
+export const SEED_LIMIT = 24;
+export const SEEDED_CANDIDATE_LIMIT = 30;
 const PARSE_ATTEMPTS = 2;
 /** 每节查近邻的块数：长文多节，邻居也多节，多取再按实体去重 */
 const KNN_CHUNKS = 200;
@@ -136,14 +139,37 @@ export interface CandidateInfo {
   no: number;
   target: InsightTarget;
   similarity: number;
+  /** 来自调用方指定的候选（创作模式白板上的资料） */
+  seeded: boolean;
   prompt: InsightCandidate;
+}
+
+export interface FindCandidatesOptions {
+  /** 指定一定进入候选的实体：不受近邻阈值与条数约束，各取与本文最相近的一节 */
+  seed?: EntityRef[];
+}
+
+const toVector = (blob: Buffer) =>
+  new Float32Array(blob.buffer, blob.byteOffset, blob.byteLength / Float32Array.BYTES_PER_ELEMENT);
+
+function cosine(a: Float32Array, b: Float32Array): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
 }
 
 /** 本地候选（§1）：已有关系的数量与标题一并返回，写「位置」用 */
 export function findCandidates(
   mainDb: Database.Database,
   indexDb: Database.Database,
-  self: SelfInfo
+  self: SelfInfo,
+  options: FindCandidatesOptions = {}
 ): { candidates: CandidateInfo[]; linkedKeys: string[]; notes: number } {
   const identities = EntitySearchTable.locateAll(mainDb, [self.contentId]).get(self.contentId) ?? [
     self.ref,
@@ -188,10 +214,39 @@ export function findCandidates(
     return proseCache.get(id)!;
   };
 
-  const best = new Map<
-    number,
-    { key: string; chunk: number; updateTime: number; similarity: number }
-  >();
+  type Hit = { key: string; chunk: number; updateTime: number; similarity: number };
+  const seeded = new Map<number, Hit>();
+  const seedChunks = indexDb.prepare(
+    `SELECT chunk_index, update_time, vec_embedding FROM vec_documents WHERE prefixed_id = ?`
+  );
+  const ownVectors = own.map(chunk => toVector(chunk.vec_embedding));
+  for (const ref of options.seed ?? []) {
+    if (seeded.size >= SEED_LIMIT) break;
+    const key = entityRefKey(ref);
+    if (identityKeys.has(key) || exclusions.keys.has(key)) continue;
+    const contentId = contentIdOf(mainDb, ref);
+    if (contentId == null || contentId === self.contentId || exclusions.contents.has(contentId)) {
+      continue;
+    }
+    if (seeded.has(contentId)) continue;
+    let hit: Hit = { key, chunk: 0, updateTime: 0, similarity: 0 };
+    for (const row of seedChunks.all(key) as Array<{
+      chunk_index: number;
+      update_time: number;
+      vec_embedding: Buffer;
+    }>) {
+      const vector = toVector(row.vec_embedding);
+      for (const mine of ownVectors) {
+        const similarity = cosine(mine, vector);
+        if (similarity > hit.similarity) {
+          hit = { key, chunk: row.chunk_index, updateTime: row.update_time, similarity };
+        }
+      }
+    }
+    seeded.set(contentId, hit);
+  }
+
+  const best = new Map<number, Hit>();
   for (const chunk of own) {
     if (proseLength(self.key, chunk.update_time, chunk.chunk_index) < MIN_PROSE_CHARS) continue;
     const rows = knn.all(chunk.vec_embedding, KNN_CHUNKS) as Array<{
@@ -206,7 +261,12 @@ export function findCandidates(
       if (identityKeys.has(row.prefixed_id) || exclusions.keys.has(row.prefixed_id)) continue;
       const ref = parseKey(row.prefixed_id);
       const contentId = ref ? contentIdOf(mainDb, ref) : null;
-      if (contentId == null || contentId === self.contentId || exclusions.contents.has(contentId)) {
+      if (
+        contentId == null ||
+        contentId === self.contentId ||
+        exclusions.contents.has(contentId) ||
+        seeded.has(contentId)
+      ) {
         continue;
       }
       if (proseLength(row.prefixed_id, row.update_time, row.chunk_index) < MIN_PROSE_CHARS)
@@ -222,9 +282,10 @@ export function findCandidates(
     }
   }
 
-  const picked = [...best.entries()]
+  const nearest = [...best.entries()]
     .sort((a, b) => b[1].similarity - a[1].similarity)
-    .slice(0, CANDIDATE_LIMIT);
+    .slice(0, seeded.size ? SEEDED_CANDIDATE_LIMIT - seeded.size : CANDIDATE_LIMIT);
+  const picked = [...seeded.entries(), ...nearest];
   const metas = ContentAiMetaTable.getMany(
     mainDb,
     picked.map(([contentId]) => contentId)
@@ -239,8 +300,10 @@ export function findCandidates(
       0
     );
     if (!resolved) continue;
-    const section = sectionText.get(hit.key, Math.round(hit.updateTime), hit.chunk) as
-      { heading_path: string; block_start: number; text: string } | undefined;
+    const section = hit.updateTime
+      ? (sectionText.get(hit.key, Math.round(hit.updateTime), hit.chunk) as
+          { heading_path: string; block_start: number; text: string } | undefined)
+      : undefined;
     const meta = metas.get(contentId)?.meta;
     const excerpt = (section?.text ?? resolved.excerpt).replace(/\s+/g, " ").trim();
     const no = candidates.length + 1;
@@ -256,6 +319,7 @@ export function findCandidates(
       no,
       target,
       similarity: hit.similarity,
+      seeded: seeded.has(contentId),
       prompt: {
         no,
         kindLabel: KIND_LABEL[ref.kind] ?? "笔记",
@@ -300,13 +364,14 @@ export async function analyzeContent(
   ref: EntityRef,
   slot: LlmRef,
   onPhase: (phase: ContentInsightsPhase) => void = () => undefined,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options: FindCandidatesOptions = {}
 ): Promise<ContentInsights> {
   const self = selfOf(mainDb, ref);
   if (!self) throw new Error("内容不存在");
   const plain = contentPlainText(self.content);
   if (!plain.trim()) throw new Error("正文还没有文字");
-  const { candidates, linkedKeys, notes } = findCandidates(mainDb, indexDb, self);
+  const { candidates, linkedKeys, notes } = findCandidates(mainDb, indexDb, self, options);
   onPhase({ contentId: self.contentId, phase: "candidates", candidates: candidates.length, notes });
 
   const sections = promptSectionsOf(
@@ -356,8 +421,14 @@ export async function analyzeContent(
 
   const marks: InsightMark[] = parsed.marks.map((mark, index) => {
     const { candidate, ...rest } = mark;
-    const target = candidate != null ? byNo.get(candidate)?.target : undefined;
-    return { ...rest, id: `m${index + 1}`, ...(target ? { target } : {}), status: "open" as const };
+    const picked = candidate != null ? byNo.get(candidate) : undefined;
+    return {
+      ...rest,
+      id: `m${index + 1}`,
+      ...(picked ? { target: picked.target } : {}),
+      ...(picked?.seeded ? { seeded: true } : {}),
+      status: "open" as const,
+    };
   });
   const result: ContentInsightsResult = {
     lead: parsed.lead,
@@ -431,8 +502,17 @@ class ContentInsightsModule implements Module {
       const { mainDb } = await this.databases(event.sender);
       return readInsights(mainDb, this.parseRef(raw));
     });
-    ipcMain.handle("content-insights:analyze", async (event, raw: unknown) => {
+    ipcMain.handle("content-insights:analyze", async (event, raw: unknown, rawOptions: unknown) => {
       const ref = this.parseRef(raw);
+      const seed = Array.isArray((rawOptions as FindCandidatesOptions | null)?.seed)
+        ? (rawOptions as { seed: unknown[] }).seed.flatMap(item => {
+            try {
+              return [this.parseRef(item)];
+            } catch {
+              return [];
+            }
+          })
+        : [];
       if (!this.slot) throw new Error("还没有为「AI 洞见」配置模型");
       const { mainDb, indexDb } = await this.databases(event.sender);
       const contentId = contentIdOf(mainDb, ref);
@@ -455,7 +535,8 @@ class ContentInsightsModule implements Module {
         phase => {
           if (!sender.isDestroyed()) sender.send("content-insights:phase", phase);
         },
-        controller.signal
+        controller.signal,
+        { seed }
       )
         .then(result => {
           log.info(

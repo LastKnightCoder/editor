@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { VecDocument, IndexParams, SearchParams, SearchResult, IndexType } from "@/types";
 import type { ChatPromptIndexType, VecIndexParams } from "@/types/search";
 import type { EmbeddingProviderType } from "@/types/embedding";
+import type { ResolvedEmbeddingConfig } from "../../utils/embedding-config";
 import OpenAI from "openai";
 import log from "electron-log";
 import localInference from "../local-inference";
@@ -90,6 +91,21 @@ export default class VecDocumentTable {
     });
 
     return res.data.map(item => item.embedding);
+  }
+
+  /** 用当前嵌入配置嵌入查询文本（与索引同一模型，可直接与 vec_documents 里的向量比） */
+  static async embedQueries(texts: string[], config: ResolvedEmbeddingConfig): Promise<number[][]> {
+    return this.createEmbeddings(texts, {
+      configId: config.configId,
+      providerType: config.providerType,
+      key: config.apiKey,
+      baseUrl: config.baseUrl,
+      model: config.model,
+      dimensions: config.dimensions,
+      batchSize: config.batchSize,
+      devicePolicy: config.devicePolicy,
+      localModelDir: config.localModelDir,
+    } as NonNullable<IndexParams["modelInfo"]>);
   }
 
   private static hasTable(db: Database.Database, tableName: string): boolean {

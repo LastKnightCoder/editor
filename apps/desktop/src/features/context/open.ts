@@ -12,7 +12,12 @@ import { serializeEntityLocation } from "@/entity/locate";
 export async function openContextTarget(target: ContextOpenTarget): Promise<void> {
   switch (target.page) {
     case "entity":
-      return target.at ? openEntity(target.ref, { at: target.at }) : openEntity(target.ref);
+      return target.at || target.compose
+        ? openEntity(target.ref, {
+            ...(target.at ? { at: target.at } : {}),
+            ...(target.compose ? { compose: true } : {}),
+          })
+        : openEntity(target.ref);
     case "chat":
       return openPage("chat", { id: target.id });
     case "vibe-learning-detail":

@@ -78,7 +78,7 @@ import {
 } from "@/utils";
 import type { IArticle } from "@/types";
 import AddTag from "@/components/AddTag";
-import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
+import { ConfirmDialog, Loading, Menu, cn, toast } from "@tau/ui";
 
 import { useArticleMutations } from "../queries";
 import { ArticlePodcast } from "../components/ArticlePodcast";
@@ -94,6 +94,14 @@ import {
 } from "@/components/ContentOutline";
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { useInsightsView } from "@/features/insights/useInsightsView";
+import { ComposeBoard } from "@/features/compose/components/ComposeBoard";
+import { ComposeDropZone } from "@/features/compose/components/ComposeDropZone";
+import { ComposeLayout } from "@/features/compose/components/ComposeLayout";
+import { ComposeIntent, ComposeModeToggle } from "@/features/compose/components/ComposeModeToggle";
+import { useComposeInsightOptions, useComposeInsightSync } from "@/features/compose/insights";
+import { ComposeSessionContext, createComposeSession } from "@/features/compose/session";
+import { useComposeWriting } from "@/features/compose/useComposeWriting";
+import { getEditorText } from "@/utils/editor";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -113,7 +121,8 @@ function cloneRange(selection: Range | null): Range | null {
 export function ArticleDetailView() {
   const { navigator } = usePage();
   // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
-  const { id, at } = usePageParams<{ id: number; at?: string }>();
+  const { id, at, layout } = usePageParams<{ id: number; at?: string; layout?: string }>();
+  const composing = layout === "compose";
 
   const {
     editingArticle,
@@ -130,13 +139,19 @@ export function ArticleDetailView() {
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(editingArticle?.contentId);
-  /* AI 洞见：标题栏下元信息行入口 + 正文上方报告 + 就地标记（KL-058） */
+  const getEditor = useCallback(() => editorRef.current?.getEditor(), []);
+  /* 创作模式（KL-070）：白板与正文两栏共享的会话 */
+  const [composeSession] = useState(() => createComposeSession(getEditor));
+  /* AI 洞见：标题栏下元信息行入口 + 正文上方报告 + 就地标记（KL-058）；创作模式下白板资料进候选 */
   const insights = useInsightsView({
     ref: { kind: "article", id: editingArticle?.id ?? 0 },
     contentId: editingArticle?.contentId ?? 0,
     sourceLabel: `文章：${editingArticle?.title || "无标题文章"}`,
-    getEditor: useCallback(() => editorRef.current?.getEditor(), []),
+    getEditor,
+    ...useComposeInsightOptions(composeSession, composing),
   });
+  useComposeInsightSync(composeSession, composing, insights);
+  useComposeWriting(composeSession, { active: composing, content: editingArticle?.content });
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { remove } = useArticleMutations();
@@ -438,205 +453,243 @@ export function ArticleDetailView() {
 
   const headers = extractContentHeaders(editingArticle.content);
 
+  const setComposing = (next: boolean) =>
+    navigator.push("article-detail", {
+      id: editingArticle.id,
+      ...(next ? { layout: "compose" } : {}),
+    });
+  /* 意图卡预填：标题 + 正文开头 */
+  const initialIntent = [editingArticle.title, getEditorText(editingArticle.content, 120)]
+    .filter(Boolean)
+    .join("：");
+
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
-      {/* 一整张纸（同卡片详情）：封面内衬在纸顶，版心恒居中（hero 与正文列同轴）；
-          滚动区贴满纸面（不留上下外边距），封面才能与纸边等距 10px；面包屑由壳层槽位渲染 */}
-      {/* 纸面是形变目标（D-106）：文章读到才声明，切换文章的原位更新期间不认旧文章 */}
+    <ComposeSessionContext.Provider value={composeSession}>
       <div
-        data-morph-key={editingArticle.id === id ? articleMorphKey(id) : undefined}
-        className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
+        className={cn(
+          "mx-auto flex h-full min-h-0 w-full flex-col px-4 pb-4 pt-1",
+          !composing && "max-w-[1720px]"
+        )}
       >
-        <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 border-r-[3px]">
-          <ArticleHero
-            article={editingArticle}
-            onTitleChange={title => {
-              onTitleChange(title);
-            }}
-            onChangeCover={() => void handleChangeCover()}
-            changingCover={changingCover}
-            extraMeta={
-              <>
-                <ContextBadge entity={{ kind: "article", id: editingArticle.id }} />
-                {insights.button}
-              </>
-            }
-            actions={
-              <span className="flex items-center gap-1">
-                {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
-                <ContentCollaborationControl
-                  ref={collaborationRef}
-                  hideTrigger
-                  presence
-                  contentId={editingArticle.contentId}
-                  source={{
-                    sourceType: "article",
-                    sourceId: editingArticle.id,
-                    sourceTitle: editingArticle.title,
-                  }}
-                />
-                {moreMenuNode}
-              </span>
-            }
-          />
-
-          <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
-            <article className="col-start-2 min-w-0">
-              {insights.report && <div className="mb-6">{insights.report}</div>}
-              <ArticlePodcast
+        <ComposeLayout
+          active={composing}
+          board={
+            <ComposeBoard
+              contentId={editingArticle.contentId}
+              hostRef={{ kind: "article", id: editingArticle.id }}
+              initialIntent={initialIntent}
+            />
+          }
+        >
+          {/* 一整张纸（同卡片详情）：封面内衬在纸顶，版心恒居中（hero 与正文列同轴）；
+          滚动区贴满纸面（不留上下外边距），封面才能与纸边等距 10px；面包屑由壳层槽位渲染 */}
+          {/* 纸面是形变目标（D-106）：文章读到才声明，切换文章的原位更新期间不认旧文章 */}
+          <div
+            data-morph-key={editingArticle.id === id ? articleMorphKey(id) : undefined}
+            className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
+            <FadeScroll scrollRef={setScrollEl} className="min-h-0 flex-1 border-r-[3px]">
+              <ArticleHero
                 article={editingArticle}
-                modalOpen={podcastModalOpen}
-                onModalOpenChange={setPodcastModalOpen}
-                onUpdated={handlePodcastUpdated}
-              />
-
-              <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
-                {insights.frame(
-                  <ErrorBoundary>
-                    <ContentEditor
-                      at={at}
-                      ref={editorRef}
+                onTitleChange={title => {
+                  onTitleChange(title);
+                }}
+                onChangeCover={() => void handleChangeCover()}
+                changingCover={changingCover}
+                extraMeta={
+                  <>
+                    <ContextBadge entity={{ kind: "article", id: editingArticle.id }} />
+                    {insights.button}
+                    <ComposeModeToggle active={composing} onChange={setComposing} />
+                  </>
+                }
+                actions={
+                  <span className="flex items-center gap-1">
+                    {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
+                    <ContentCollaborationControl
+                      ref={collaborationRef}
+                      hideTrigger
+                      presence
                       contentId={editingArticle.contentId}
-                      key={`${editingArticle.id}-${editorRemountKey}`}
-                      initValue={editingArticle.content}
-                      fallback={<ArticleBodyFallback content={editingArticle.content} />}
-                      onInit={onInit}
-                      onChange={content => {
-                        onContentChange(content);
+                      source={{
+                        sourceType: "article",
+                        sourceId: editingArticle.id,
+                        sourceTitle: editingArticle.title,
                       }}
-                      readonly={false}
-                      editingContext={{ entityType: "article", entityId: editingArticle.id }}
-                      {...insights.editorProps}
                     />
-                  </ErrorBoundary>
-                )}
-              </div>
-
-              <AddTag
-                divided
-                tags={editingArticle.tags}
-                addTag={onAddTag}
-                removeTag={onDeleteTag}
-                editTag={(oldTag, newTag) =>
-                  onTagsChange(editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag)))
+                    {moreMenuNode}
+                  </span>
                 }
               />
-            </article>
 
-            {/* 目录：贴正文右缘 sticky（不参与版心计算） */}
-            <div className="sticky top-4 col-start-3 ml-7">
-              <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
-            </div>
+              <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
+                <article className="col-start-2 min-w-0">
+                  {composing && <ComposeIntent contentId={editingArticle.contentId} />}
+                  {insights.report && <div className="mb-6">{insights.report}</div>}
+                  <ArticlePodcast
+                    article={editingArticle}
+                    modalOpen={podcastModalOpen}
+                    onModalOpenChange={setPodcastModalOpen}
+                    onUpdated={handlePodcastUpdated}
+                  />
+
+                  <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
+                    {insights.frame(
+                      <ComposeDropZone enabled={composing} getEditor={getEditor}>
+                        <ErrorBoundary>
+                          <ContentEditor
+                            at={at}
+                            ref={editorRef}
+                            contentId={editingArticle.contentId}
+                            key={`${editingArticle.id}-${editorRemountKey}`}
+                            initValue={editingArticle.content}
+                            fallback={<ArticleBodyFallback content={editingArticle.content} />}
+                            onInit={onInit}
+                            onChange={content => {
+                              onContentChange(content);
+                            }}
+                            readonly={false}
+                            editingContext={{ entityType: "article", entityId: editingArticle.id }}
+                            {...insights.editorProps}
+                          />
+                        </ErrorBoundary>
+                      </ComposeDropZone>
+                    )}
+                  </div>
+
+                  <AddTag
+                    divided
+                    tags={editingArticle.tags}
+                    addTag={onAddTag}
+                    removeTag={onDeleteTag}
+                    editTag={(oldTag, newTag) =>
+                      onTagsChange(editingArticle.tags.map(tag => (tag === oldTag ? newTag : tag)))
+                    }
+                  />
+                </article>
+
+                {/* 目录：贴正文右缘 sticky（不参与版心计算）；创作模式正文栏窄，不显示 */}
+                {!composing && (
+                  <div className="sticky top-4 col-start-3 ml-7">
+                    <ContentOutline
+                      headers={headers}
+                      scrollEl={scrollEl}
+                      resolveAnchor={resolveAnchor}
+                    />
+                  </div>
+                )}
+              </div>
+            </FadeScroll>
           </div>
-        </FadeScroll>
-      </div>
+        </ComposeLayout>
 
-      {/* 导出弹窗（legacy 搬用；PdfExportModal 的开合 prop 是 visible） */}
-      <ContentExportModal
-        open={exportKind === "image"}
-        onClose={() => setExportKind(null)}
-        content={editingArticle.content}
-        title={editingArticle.title}
-      />
-      <EpubExportModal
-        open={exportKind === "epub"}
-        onClose={() => setExportKind(null)}
-        content={editingArticle.content}
-        title={editingArticle.title || `文章 #${editingArticle.id}`}
-      />
-      <PdfExportModal
-        visible={exportKind === "pdf"}
-        onClose={() => setExportKind(null)}
-        content={editingArticle.content}
-        title={editingArticle.title || `文章 #${editingArticle.id}`}
-      />
-
-      {/* 制卡四弹窗（legacy 搬用，useFlashcardCreation 已去 antd） */}
-      <DeckSelectorModal
-        open={flashcard.deckSelectorOpen}
-        onCancel={flashcard.closeDeckSelector}
-        onSelect={flashcard.handleDeckSelect}
-        title={
-          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
-        }
-      />
-      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
-        <FlashcardEditor
-          open={flashcard.flashcardEditorOpen}
-          activeDeckId={flashcard.selectedDeck.id}
-          onClose={flashcard.closeFlashcardEditor}
-          initialReferences={[flashcard.getReference()]}
+        {/* 导出弹窗（legacy 搬用；PdfExportModal 的开合 prop 是 visible） */}
+        <ContentExportModal
+          open={exportKind === "image"}
+          onClose={() => setExportKind(null)}
+          content={editingArticle.content}
+          title={editingArticle.title}
         />
-      )}
-      <FlashcardGenerationModal
-        open={flashcard.aiGenerationModalOpen}
-        onCancel={flashcard.handleCancelAiGeneration}
-        isGenerating={flashcard.isGenerating}
-        isPending={flashcard.isGenerationPending}
-        error={flashcard.generationError}
-        generatedCards={flashcard.generatedCards}
-        selectedDeck={flashcard.selectedDeck}
-        onToggleCard={flashcard.toggleCardSelection}
-        onSelectAll={flashcard.selectAll}
-        onDeselectAll={flashcard.deselectAll}
-        onConfirm={() => void flashcard.handleConfirmAiGeneration()}
-        onChangeDeck={flashcard.changeDeck}
-        onEditCard={flashcard.handleEditGeneratedCard}
-      />
-      <GeneratedFlashcardEditModal
-        open={flashcard.generatedCardEditModalOpen}
-        card={flashcard.editingGeneratedCard}
-        onSave={flashcard.handleSaveGeneratedCard}
-        onCancel={flashcard.closeGeneratedCardEditModal}
-        isDark={darkMode}
-      />
+        <EpubExportModal
+          open={exportKind === "epub"}
+          onClose={() => setExportKind(null)}
+          content={editingArticle.content}
+          title={editingArticle.title || `文章 #${editingArticle.id}`}
+        />
+        <PdfExportModal
+          visible={exportKind === "pdf"}
+          onClose={() => setExportKind(null)}
+          content={editingArticle.content}
+          title={editingArticle.title || `文章 #${editingArticle.id}`}
+        />
 
-      {/* 删除确认：确认后返回上一页 */}
-      <ConfirmDialog
-        open={pendingDelete}
-        onOpenChange={setPendingDelete}
-        title="删除文章"
-        context={editingArticle.title || `文章 #${editingArticle.id}`}
-        description="文章将移入回收语义删除，列表立即移除。"
-        impact="该文章的正文与关联卡片链接将不再可访问"
-        danger
-        confirmText="删除"
-        loading={deleting}
-        onConfirm={async () => {
-          setDeleting(true);
-          try {
-            await remove(editingArticle.id);
-            toast.success("已删除");
-            navigator.back();
-          } catch {
-            toast.error("删除失败");
-          } finally {
-            setDeleting(false);
-            setPendingDelete(false);
+        {/* 制卡四弹窗（legacy 搬用，useFlashcardCreation 已去 antd） */}
+        <DeckSelectorModal
+          open={flashcard.deckSelectorOpen}
+          onCancel={flashcard.closeDeckSelector}
+          onSelect={flashcard.handleDeckSelect}
+          title={
+            flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
           }
-        }}
-      />
+        />
+        {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
+          <FlashcardEditor
+            open={flashcard.flashcardEditorOpen}
+            activeDeckId={flashcard.selectedDeck.id}
+            onClose={flashcard.closeFlashcardEditor}
+            initialReferences={[flashcard.getReference()]}
+          />
+        )}
+        <FlashcardGenerationModal
+          open={flashcard.aiGenerationModalOpen}
+          onCancel={flashcard.handleCancelAiGeneration}
+          isGenerating={flashcard.isGenerating}
+          isPending={flashcard.isGenerationPending}
+          error={flashcard.generationError}
+          generatedCards={flashcard.generatedCards}
+          selectedDeck={flashcard.selectedDeck}
+          onToggleCard={flashcard.toggleCardSelection}
+          onSelectAll={flashcard.selectAll}
+          onDeselectAll={flashcard.deselectAll}
+          onConfirm={() => void flashcard.handleConfirmAiGeneration()}
+          onChangeDeck={flashcard.changeDeck}
+          onEditCard={flashcard.handleEditGeneratedCard}
+        />
+        <GeneratedFlashcardEditModal
+          open={flashcard.generatedCardEditModalOpen}
+          card={flashcard.editingGeneratedCard}
+          onSave={flashcard.handleSaveGeneratedCard}
+          onCancel={flashcard.closeGeneratedCardEditModal}
+          isDark={darkMode}
+        />
 
-      {/* 演示模式（legacy 搬用） */}
-      {presenting && <PresentationMode content={presenting} onExit={() => setPresenting(null)} />}
-
-      {/* 沉浸模式：退出回传选区，正文 remount 后由上方 effect 恢复光标 */}
-      {immersive && (
-        <ImmersiveEditorMode
-          contentId={editingArticle.contentId}
-          initValue={editingArticle.content}
-          initialSelection={immersiveEntrySelectionRef.current}
-          onChange={content => {
-            onContentChange(content);
-          }}
-          onInit={onInit}
-          onExit={payload => {
-            pendingSelectionRef.current = payload?.selection ?? null;
-            setImmersive(false);
-            setEditorRemountKey(key => key + 1);
+        {/* 删除确认：确认后返回上一页 */}
+        <ConfirmDialog
+          open={pendingDelete}
+          onOpenChange={setPendingDelete}
+          title="删除文章"
+          context={editingArticle.title || `文章 #${editingArticle.id}`}
+          description="文章将移入回收语义删除，列表立即移除。"
+          impact="该文章的正文与关联卡片链接将不再可访问"
+          danger
+          confirmText="删除"
+          loading={deleting}
+          onConfirm={async () => {
+            setDeleting(true);
+            try {
+              await remove(editingArticle.id);
+              toast.success("已删除");
+              navigator.back();
+            } catch {
+              toast.error("删除失败");
+            } finally {
+              setDeleting(false);
+              setPendingDelete(false);
+            }
           }}
         />
-      )}
-    </div>
+
+        {/* 演示模式（legacy 搬用） */}
+        {presenting && <PresentationMode content={presenting} onExit={() => setPresenting(null)} />}
+
+        {/* 沉浸模式：退出回传选区，正文 remount 后由上方 effect 恢复光标 */}
+        {immersive && (
+          <ImmersiveEditorMode
+            contentId={editingArticle.contentId}
+            initValue={editingArticle.content}
+            initialSelection={immersiveEntrySelectionRef.current}
+            onChange={content => {
+              onContentChange(content);
+            }}
+            onInit={onInit}
+            onExit={payload => {
+              pendingSelectionRef.current = payload?.selection ?? null;
+              setImmersive(false);
+              setEditorRemountKey(key => key + 1);
+            }}
+          />
+        )}
+      </div>
+    </ComposeSessionContext.Provider>
   );
 }
