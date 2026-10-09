@@ -21,6 +21,7 @@ import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
+import { trackEvent } from "@/commands";
 import { useThemeRuntime } from "./useThemeRuntime";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
@@ -53,6 +54,9 @@ export default function AppShell() {
   return <ShellBody key={databaseName} />;
 }
 
+// 首屏就绪上报标记：模块级，切库重建壳层（ShellBody remount）不重复计一次启动
+let startupReported = false;
+
 function ShellBody() {
   const settingInited = useSettingStore(state => state.inited);
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
@@ -71,6 +75,13 @@ function ShellBody() {
   useEffect(() => {
     if (settingInited) connect();
   }, [connect, settingInited]);
+
+  // 启动耗时口径 = 渲染进程加载到首屏可用（含数据库连接，即用户从启动到能用的等待）
+  useEffect(() => {
+    if (boot !== "ready" || startupReported) return;
+    startupReported = true;
+    void trackEvent("app_ready", { startup_ms: Math.round(performance.now()) });
+  }, [boot]);
 
   useEffect(() => initScrollbarAutoHide(), []);
 
@@ -152,6 +163,14 @@ function ShellLayout() {
     if (!isReplayableVisit(currentKey)) return; // 二级页只存 key 无法回跳（缺 id）
     recordVisit(currentKey);
   }, [currentKey, recordVisit]);
+
+  // 匿名埋点：栈顶页变化上报 screen_view（统计关闭或开发构建时主进程静默丢弃）
+  const lastTrackedPage = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentKey || lastTrackedPage.current === currentKey) return;
+    lastTrackedPage.current = currentKey;
+    void trackEvent("screen_view", { page: currentKey });
+  }, [currentKey]);
 
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
