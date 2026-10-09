@@ -7,7 +7,6 @@ import type { PodcastSpeaker, IPodcast, PodcastScriptLine } from "@/types/podcas
 import { SpeakerRole } from "@/types/podcast";
 import type { Descendant } from "slate";
 import { getMarkdown } from "@/utils/markdown";
-import useSettingStore from "@/stores/useSettingStore";
 import type { CloneVoiceItem, NoticeType, VoiceOption } from "./types";
 import { normalizeDurationRange } from "./utils";
 import { ScriptEditor } from "./ScriptEditor";
@@ -56,8 +55,6 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
 
     // 音频播放状态（用于关闭时清理）
     const currentAudioRef = useRef<HTMLAudioElement | null>(null);
-
-    const minimaxApiKey = useSettingStore(state => state.setting.integration.minimax.apiKey);
 
     const {
       status,
@@ -319,7 +316,6 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                     setCloneItems={setCloneItems}
                     cloneLoading={cloneLoading}
                     setCloneLoading={setCloneLoading}
-                    minimaxApiKey={minimaxApiKey}
                     voices={voices as VoiceOption[]}
                     addVoiceToList={addVoiceToList}
                     notify={notify}

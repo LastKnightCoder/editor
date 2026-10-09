@@ -48,53 +48,7 @@ export interface MinimaxVoiceCloneResponse {
 }
 
 export type MinimaxSpeechModel =
-  | "speech-2.8-hd"
-  | "speech-2.8-turbo"
-  | "speech-2.6-hd"
-  | "speech-2.6-turbo";
-
-export interface MinimaxTTSRequest {
-  model: MinimaxSpeechModel;
-  text: string;
-  stream?: boolean;
-  voice_setting: {
-    voice_id: string;
-    speed?: number;
-    vol?: number;
-    pitch?: number;
-    emotion?: string;
-  };
-  audio_setting?: {
-    sample_rate?: number;
-    bitrate?: number;
-    format?: string;
-    channel?: number;
-  };
-  subtitle_enable?: boolean;
-}
-
-export interface MinimaxTTSResponse {
-  data: {
-    audio: string; // hex 编码的音频数据
-    status: number;
-  };
-  extra_info: {
-    audio_length: number;
-    audio_sample_rate: number;
-    audio_size: number;
-    bitrate: number;
-    word_count: number;
-    invisible_character_ratio: number;
-    usage_characters: number;
-    audio_format: string;
-    audio_channel: number;
-  };
-  trace_id: string;
-  base_resp: {
-    status_code: number;
-    status_msg: string;
-  };
-}
+  "speech-2.8-hd" | "speech-2.8-turbo" | "speech-2.6-hd" | "speech-2.6-turbo";
 
 export interface MinimaxChatMessage {
   role: "system" | "user" | "assistant";
@@ -143,14 +97,7 @@ export interface MinimaxChatStreamChunk {
 }
 
 export interface PodcastGenerationProgress {
-  stage:
-    | "parsing"
-    | "script"
-    | "tts"
-    | "music"
-    | "merging"
-    | "upload"
-    | "complete";
+  stage: "parsing" | "script" | "tts" | "music" | "merging" | "upload" | "complete";
   stageProgress: number;
   ttsTotal?: number;
   ttsCompleted?: number;
