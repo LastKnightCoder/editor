@@ -1,20 +1,23 @@
 /**
- * 创作模式叠在白板文档卡上的内容：召集理由、已引用、检查连接时的编号与降淡、
- * 写作时亮起与「连到此段」、悬停时的拖进正文抓手与「插入到正文」。
+ * 创作模式叠在白板文档卡上的内容：召集理由、标出可引用处时的编号与降淡、写作时亮起与「连到此段」；
+ * 右上角一枚小签：没引用时悬停出现「引用」（插到正文光标处），引用了常驻「已引用」，点它撤掉正文里的链接。
  */
 
 import { useEffect, useState } from "react";
-import { Check, CornerDownLeft, GripVertical } from "lucide-react";
-import { cn, toast } from "@tau/ui";
+import { HistoryEditor } from "slate-history";
+import { Check, Quote, X } from "lucide-react";
+import { Tooltip, cn, toast } from "@tau/ui";
 import { CANVAS_OVERLAY_ATTR, useBoard, type DocumentElement } from "@tau/whiteboard";
 import { entityRefKey } from "@/entity/ref";
 import { useDocumentSource } from "@/features/shared/whiteboard/components/Document/source";
-import { ENTITY_DRAG_TYPE, insertEntityLink, type LinkTarget } from "../insert";
+import { insertEntityLink, removeEntityLinks, type LinkTarget } from "../insert";
 import type { ComposeDocumentElement } from "../model";
 import { useComposeSession, useComposeSessionApi } from "../session";
 
 const overlay = { [CANVAS_OVERLAY_ATTR]: "" };
 const FLASH_MS = 1200;
+const CHIP =
+  "absolute right-2 top-2 inline-flex h-5 items-center gap-0.5 rounded-full px-1.5 text-[11px] leading-5 transition-colors";
 
 export function ComposeCardAccessory({ element }: { element: DocumentElement }) {
   const board = useBoard();
@@ -58,6 +61,18 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
     }
   };
 
+  const uncite = () => {
+    const editor = session.getState().getEditor();
+    if (!editor) return;
+    const count = removeEntityLinks(editor, element.entityRef);
+    if (!count) return;
+    toast.success(count > 1 ? `已取消正文里的 ${count} 处引用` : "已取消引用", {
+      action: HistoryEditor.isHistoryEditor(editor)
+        ? { label: "撤销", onClick: () => editor.undo() }
+        : undefined,
+    });
+  };
+
   return (
     <>
       {checking && !number && !focused && (
@@ -81,12 +96,6 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
           {why}
         </div>
       )}
-      {cited && (
-        <span className="bg-ok-soft text-ok pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-0.5 rounded-full px-1.5 text-[11px] leading-5">
-          <Check className="size-3" strokeWidth={2} />
-          已引用
-        </span>
-      )}
       {glow && target && (
         <div
           {...overlay}
@@ -104,32 +113,40 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
           </button>
         </div>
       )}
-      {target && (
-        <div
-          {...overlay}
-          className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity [[data-document-card]:hover_&]:opacity-100"
-        >
+      {cited ? (
+        <Tooltip content="撤掉正文里指向它的链接">
           <button
             type="button"
-            title="插入到正文"
-            onClick={() => insert()}
-            className="bg-surface shadow-card text-ink-2 hover:text-ink-1 grid size-6 place-items-center rounded-[6px]"
+            {...overlay}
+            onClick={uncite}
+            className={cn(
+              CHIP,
+              "bg-ok-soft text-ok hover:bg-danger-soft hover:text-danger group/cite"
+            )}
           >
-            <CornerDownLeft className="size-3.5" strokeWidth={1.75} />
+            <Check className="size-3 group-hover/cite:hidden" strokeWidth={2} />
+            <X className="hidden size-3 group-hover/cite:block" strokeWidth={2} />
+            <span className="group-hover/cite:hidden">已引用</span>
+            <span className="hidden group-hover/cite:inline">取消引用</span>
           </button>
-          <span
-            draggable
-            title="拖进正文"
-            onDragStart={event => {
-              event.dataTransfer.setData(ENTITY_DRAG_TYPE, JSON.stringify(target));
-              event.dataTransfer.setData("text/plain", target.title);
-              event.dataTransfer.effectAllowed = "copy";
-            }}
-            className="bg-surface shadow-card text-ink-2 hover:text-ink-1 grid size-6 cursor-grab place-items-center rounded-[6px] active:cursor-grabbing"
-          >
-            <GripVertical className="size-3.5" strokeWidth={1.75} />
-          </span>
-        </div>
+        </Tooltip>
+      ) : (
+        target && (
+          <Tooltip content="在正文光标处插入指向它的链接">
+            <button
+              type="button"
+              {...overlay}
+              onClick={() => insert()}
+              className={cn(
+                CHIP,
+                "bg-surface shadow-card text-ink-2 hover:text-ink-1 opacity-0 transition-opacity focus-visible:opacity-100 [[data-document-card]:hover_&]:opacity-100"
+              )}
+            >
+              <Quote className="size-3" strokeWidth={1.75} />
+              引用
+            </button>
+          </Tooltip>
+        )
       )}
     </>
   );

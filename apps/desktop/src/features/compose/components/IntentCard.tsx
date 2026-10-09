@@ -1,11 +1,11 @@
 /**
  * 第一次进入创作模式时的意图卡：说说想写什么、从哪些类型里找；也可以跳过、空白白板开始。
- * 正文上方的意图条：显示这一句，可以改（改了只影响以后的「再找一些」与检查连接）。
+ * 白板右上角的意图按钮：点开看 / 改这一句（不在正文里常驻）。
  */
 
 import { useState } from "react";
 import { Pencil, Sparkles } from "lucide-react";
-import { Button, Textarea, cn } from "@tau/ui";
+import { Button, Popover, Textarea, cn } from "@tau/ui";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import type { EntityRefKind } from "@/entity/ref";
 
@@ -118,53 +118,68 @@ export function IntentCard({
   );
 }
 
-export function IntentBar({
+/** 白板右上角的意图入口：看 / 改写作意图（改了只影响以后的「再找一些」） */
+export function IntentButton({
   intent,
   onChange,
 }: {
   intent: string;
   onChange(intent: string): void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(intent);
-  if (!intent && !editing) return null;
-  const commit = () => {
-    setEditing(false);
+  const save = () => {
+    setOpen(false);
     if (draft.trim() !== intent) onChange(draft.trim());
   };
   return (
-    <div className="bg-page rounded-tau-md text-ink-2 text-tau-meta mb-5 flex items-start gap-2 px-3 py-2 leading-[1.6]">
-      <Sparkles className="text-accent-text mt-[3px] size-3.5 shrink-0" strokeWidth={1.75} />
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={event => setDraft(event.target.value)}
-          onBlur={commit}
-          onKeyDown={event => {
-            if (event.key === "Enter" && !event.nativeEvent.isComposing) commit();
-          }}
-          className="text-ink-1 min-w-0 flex-1 bg-transparent outline-none"
-        />
-      ) : (
-        <span className="min-w-0 flex-1">
-          <b className="text-ink-1 mr-2 font-medium">写作意图</b>
-          {intent}
-        </span>
-      )}
-      {!editing && (
+    <Popover
+      open={open}
+      onOpenChange={next => {
+        if (next) setDraft(intent);
+        setOpen(next);
+      }}
+      placement="bottom-end"
+      arrow={false}
+      className="w-[340px]"
+      trigger={
         <button
           type="button"
-          title="修改写作意图"
-          onClick={() => {
-            setDraft(intent);
-            setEditing(true);
-          }}
-          className="text-ink-3 hover:text-ink-1 mt-[2px] shrink-0"
+          title="写作意图"
+          aria-label="写作意图"
+          className={cn(
+            "bg-surface shadow-card text-ink-2 hover:text-ink-1 hover:bg-surface-hover grid size-[30px] place-items-center rounded-full",
+            open && "text-ink-1"
+          )}
         >
           <Pencil className="size-3.5" strokeWidth={1.75} />
         </button>
-      )}
-    </div>
+      }
+    >
+      <div className="p-3">
+        <p className="text-ink-3 text-tau-meta mb-2">写作意图 · 「再找一些」按它找资料</p>
+        <Textarea
+          autoFocus
+          rows={4}
+          value={draft}
+          placeholder="这篇想写什么"
+          onChange={event => setDraft(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              save();
+            }
+          }}
+        />
+        <div className="mt-2.5 flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            取消
+          </Button>
+          <Button variant="primary" size="sm" onClick={save}>
+            保存
+          </Button>
+        </div>
+      </div>
+    </Popover>
   );
 }

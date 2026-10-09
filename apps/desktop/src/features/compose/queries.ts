@@ -11,6 +11,7 @@ import {
   ensureComposeBoard,
   gatherComposeMaterials,
   getComposeBoard,
+  getComposeBoardSummary,
   onComposeGatherPhase,
   setComposeIntent,
 } from "@/commands/compose";
@@ -59,6 +60,18 @@ export function useComposeBoard(contentId: number) {
     setIntent,
     dismiss,
   };
+}
+
+/** 素材板上有几份资料；脉络浮层打开时取，每次打开都重新数 */
+export function useComposeBoardSummary(contentId: number) {
+  const database = useSettingStore(state => state.setting.database.active);
+  const connected = useDatabaseConnected();
+  return useQuery({
+    queryKey: [...composeBoardKey(database, contentId), "summary"],
+    queryFn: () => getComposeBoardSummary(contentId),
+    enabled: connected && contentId > 0,
+    staleTime: 0,
+  });
 }
 
 export function useGather(contentId: number) {

@@ -56,6 +56,25 @@ describe("compose_boards", () => {
     expect(board!.dismissed).toEqual(["card:1", "article:2", "card:3"]);
   });
 
+  it("摘要按实体去重数文档卡，含 frame 里的", () => {
+    expect(ComposeBoardTable.summary(db, contentId)).toBeNull();
+    const { pageId } = ComposeBoardTable.ensure(db, contentId);
+    expect(ComposeBoardTable.summary(db, contentId)).toEqual({ documents: 0 });
+    const doc = (kind: string, id: number) => ({ type: "document", entityRef: { kind, id } });
+    const data = {
+      children: [
+        doc("card", 1),
+        { type: "frame", children: [doc("card", 1), doc("article", 2)] },
+        { type: "text" },
+      ],
+    };
+    db.prepare(`UPDATE white_board_contents SET data = ? WHERE id = ?`).run(
+      JSON.stringify(data),
+      pageId
+    );
+    expect(ComposeBoardTable.summary(db, contentId)).toEqual({ documents: 2 });
+  });
+
   it("正文删除时释放绑定并对页减计数；对账清孤儿", () => {
     const { pageId } = ComposeBoardTable.ensure(db, contentId);
     expect(ComposeBoardTable.contentIdsOfPages(db, [pageId]).get(pageId)).toBe(contentId);

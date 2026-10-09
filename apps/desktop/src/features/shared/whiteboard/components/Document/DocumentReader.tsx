@@ -26,6 +26,7 @@ import { cn, FadeScroll, IconButton, toast, Tooltip } from "@tau/ui";
 import {
   BoardUtil,
   CANVAS_OVERLAY_ATTR,
+  DOCUMENT_CARD_RADIUS,
   DOCUMENT_OPEN_EVENT,
   ViewPortTransforms,
   isDocumentElement,
@@ -67,6 +68,13 @@ const KIND_ICON: Record<DocumentKind, typeof FileText> = {
   "project-item": FolderOpen,
   "diary-moment": Feather,
 };
+
+/** 盒子在图层上的裁切形状 */
+function clipOf(box: Box, layer: { width: number; height: number }, radius: number) {
+  const right = layer.width - box.left - box.width;
+  const bottom = layer.height - box.top - box.height;
+  return `inset(${box.top}px ${right}px ${bottom}px ${box.left}px round ${radius}px)`;
+}
 
 function computeBox(mode: DocumentReaderMode, layer: { width: number; height: number }): Box {
   const { width: W, height: H } = layer;
@@ -116,6 +124,11 @@ function HeaderButton({
 /** 碎碎念节流同步字数与时间（同日记页）；主进程的 diary:changed 只广播其他窗口，同窗口的日记缓存在这里失效 */
 const MOMENT_SYNC_WAIT = 800;
 
+/** 只读全文：编辑器会话就绪前的占位，与编辑器同排版（去掉预览自带的上下内边距），换上编辑器时不位移 */
+const BodyPreview = ({ source }: { source: DocumentSource }) => (
+  <CardContentPreview content={source.content} blocks={Infinity} className="py-0" />
+);
+
 /** 正文编辑器：正文经文档会话落库；碎碎念另外节流同步片段的字数与时间 */
 function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly: boolean }) {
   const client = useQueryClient();
@@ -149,8 +162,7 @@ function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly
       kit={getContentKit()}
       initValue={source.content}
       readonly={readonly}
-      // 会话就绪前的占位与编辑器同排版（去掉预览自带的上下内边距），换上编辑器时不位移
-      fallback={<CardContentPreview content={source.content} blocks={Infinity} className="py-0" />}
+      fallback={<BodyPreview source={source} />}
       {...(sessionSource ? { source: sessionSource } : {})}
       editingContext={{ entityType: source.kind, entityId: moment?.segmentId ?? source.id }}
       {...(moment
@@ -179,11 +191,14 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
   const layerRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const paperRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const ghostRef = useRef<HTMLDivElement>(null);
   const [layer, setLayer] = useState<{ width: number; height: number } | null>(null);
   const phase = useRef<"opening" | "open" | "closing">("opening");
+  /** 展开动画结束才挂编辑器：会话 IPC 与协作文档初始化是主线程长任务，会让纸面的 clip-path 动画停住 */
+  const [opened, setOpened] = useState(false);
   const store = getDocumentReaderStore(board);
 
   const box = layer ? computeBox(mode, layer) : null;
@@ -201,58 +216,77 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
   }, []);
 
   /**
-   * 纸面（底色 + 阴影）在 from（卡片）与 to（纸面盒子）之间伸缩；卡面替身随纸面放大到正文原大，
+   * 纸面铺满图层、用圆角 clip-path 从卡片的形状展开到纸面盒子：圆角全程是真圆角，替身与正文都裁在纸面里。
+   * 阴影另由 sheet 随纸面伸缩（阴影柔，横纵比例不一致看不出来）。卡面替身随纸面放大到正文原大，
    * 正文层（实底）在它上面淡入接手，看起来是卡片本身展开。reverse 为收起。
    * 替身始终不透明、只淡正文层：两层对淡时中段合成不透明度只有约 75%，会透出底下的画布。
-   * 只动 transform / opacity，由合成线程驱动；同一时刻挂编辑器的长任务只推迟首帧，不会让动画逐帧卡顿。
    */
   const morph = (cardEl: HTMLElement, from: Box, to: Box, reverse: boolean) => {
     const layerEl = layerRef.current!;
+    const size = { width: layerEl.clientWidth, height: layerEl.clientHeight };
     const duration = reverse ? SPRING.duration * 0.85 : SPRING.duration;
     const options: KeyframeAnimationOptions = { duration, easing: SPRING.easing, fill: "forwards" };
     const frames = <T,>(card: T, paper: T) => (reverse ? [paper, card] : [card, paper]);
-    const sheetAtCard = `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${
-      from.width / to.width
-    }, ${from.height / to.height})`;
+    // 卡片在 SVG foreignObject 里、由 viewBox 缩放；屏幕尺寸 / 画布尺寸即画布缩放
+    const zoom = from.width / element.width;
 
-    const sheet = sheetRef.current!.animate(
-      frames({ transform: sheetAtCard }, { transform: "none" }),
+    const paper = paperRef.current!.animate(
+      frames(
+        { clipPath: clipOf(from, size, DOCUMENT_CARD_RADIUS * zoom) },
+        { clipPath: clipOf(to, size, radius) }
+      ),
       options
     );
-    // 收起最后一段淡出，露出底下的卡片
+    sheetRef.current?.animate(
+      frames(
+        {
+          transform: `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${
+            from.width / to.width
+          }, ${from.height / to.height})`,
+        },
+        { transform: "none" }
+      ),
+      options
+    );
+    // 收起最后一段淡出，露出底下的卡片（替身盖着卡片的手绘边框与选中框，直接卸载会让它们突然冒出来）
     if (reverse)
-      sheetRef.current!.animate([{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], {
-        duration,
-        fill: "forwards",
-      });
+      for (const el of [paperRef.current, sheetRef.current])
+        el?.animate([{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], {
+          duration,
+          fill: "forwards",
+        });
 
-    // 卡面替身：卡片 DOM 的克隆，从卡片原位放大到正文的位置与原大（卡面是版宽排版按比例缩小的）
+    // 卡面替身：卡片 DOM 的克隆，从卡片原位放大到正文的位置与原大（卡面是版宽排版按比例缩小的）。
+    // 克隆出来后不再受 viewBox 缩放，故按画布单位（元素原尺寸）排版，画布缩放并进 transform
     const paperEl = scrollRef.current?.firstElementChild;
     const ghostLayer = ghostRef.current;
     if (paperEl && ghostLayer) {
-      const paper = relativeBox(paperEl, layerEl);
-      const scale = DOCUMENT_PAPER_WIDTH[source.kind] / from.width;
+      const target = relativeBox(paperEl, layerEl);
+      const scale = DOCUMENT_PAPER_WIDTH[source.kind] / element.width;
       const ghost = cardEl.cloneNode(true) as HTMLElement;
       ghost.removeAttribute("data-document-card");
-      ghost.querySelector("[data-document-badge]")?.remove();
+      ghost
+        .querySelectorAll("[data-document-badge], [data-document-accessory]")
+        .forEach(el => el.remove());
       ghost.classList.remove("shadow-paper");
-      Object.assign(ghost.style, boxStyle(from), { position: "absolute", transformOrigin: "0 0" });
+      Object.assign(ghost.style, {
+        position: "absolute",
+        left: `${from.left}px`,
+        top: `${from.top}px`,
+        width: `${element.width}px`,
+        height: `${element.height}px`,
+        transformOrigin: "0 0",
+      });
       ghostLayer.replaceChildren(ghost);
       ghost.animate(
         frames(
-          { transform: "none" },
+          { transform: `scale(${zoom})` },
           {
-            transform: `translate(${paper.left - from.left}px, ${paper.top - from.top}px) scale(${scale})`,
+            transform: `translate(${target.left - from.left}px, ${target.top - from.top}px) scale(${scale})`,
           }
         ),
         options
       );
-      // 收起最后一段与纸面一起淡出：替身盖着卡片的手绘边框与选中框，直接卸载会让它们突然冒出来
-      if (reverse)
-        ghost.animate([{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], {
-          duration,
-          fill: "forwards",
-        });
     }
     // 正文层不随纸面缩放：纸面基本铺开后在替身上淡入，收起时先淡出交给替身
     frameRef.current?.animate(
@@ -272,7 +306,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
         easing: "ease-out",
         fill: "forwards",
       });
-    return sheet.finished;
+    return paper.finished;
   };
 
   // 打开：等纸面盒子算出来后从卡片原位长出
@@ -286,7 +320,8 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     const settle = () => {
       if (phase.current !== "opening") return;
       phase.current = "open";
-      for (const el of [sheetRef, frameRef, scrimRef])
+      setOpened(true);
+      for (const el of [sheetRef, paperRef, frameRef, scrimRef])
         el.current?.getAnimations().forEach(animation => animation.cancel());
       ghostRef.current?.replaceChildren();
       frameRef.current?.focus({ preventScroll: true });
@@ -332,6 +367,13 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     const keyframes = [boxStyle(from), boxStyle(to)];
     frameRef.current?.animate(keyframes, options);
     sheetRef.current?.animate(keyframes, options);
+    if (layer) {
+      const fromRadius = mode === "center" ? FRAME_RADIUS : 0;
+      paperRef.current?.animate(
+        [{ clipPath: clipOf(from, layer, fromRadius) }, { clipPath: clipOf(to, layer, radius) }],
+        options
+      );
+    }
     scrimRef.current?.animate(
       mode === "center" ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }],
       { duration: 280, easing: "ease-out" }
@@ -397,58 +439,73 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
           onClick={close}
         />
       )}
-      {box && (
+      {box && layer && (
         <>
+          {/* 只投阴影：外阴影画在盒子之外，纸面圆角处不会露出方角 */}
           <div
             ref={sheetRef}
             className={cn(
-              "bg-surface shadow-float absolute origin-top-left",
+              "shadow-float absolute origin-top-left",
               mode === "dock" && "ring-line-2 ring-1"
             )}
             style={{ ...boxStyle(box), borderRadius: radius }}
           />
-          <div ref={ghostRef} className="pointer-events-none absolute inset-0" />
           <div
-            ref={frameRef}
-            tabIndex={-1}
-            className="bg-surface pointer-events-auto absolute flex flex-col overflow-hidden outline-none"
-            style={{ ...boxStyle(box), borderRadius: radius }}
+            ref={paperRef}
+            className="bg-surface absolute inset-0"
+            style={{ clipPath: clipOf(box, layer, radius) }}
           >
+            <div ref={ghostRef} className="absolute inset-0" />
             <div
-              className="flex shrink-0 items-center gap-1 pl-2.5 pr-2"
-              style={{ height: HEADER_HEIGHT }}
+              ref={frameRef}
+              tabIndex={-1}
+              className="bg-surface pointer-events-auto absolute flex flex-col overflow-hidden outline-none"
+              style={boxStyle(box)}
             >
-              {mode === "center" && closeButton}
-              <div className="text-ink-3 ml-1 flex min-w-0 items-center gap-1.5 text-[12.5px]">
-                <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
-                <span className="shrink-0">{crumb}</span>
-                <span className="shrink-0">/</span>
-                <b className="text-ink-2 truncate font-medium">{source.title || "无标题"}</b>
-              </div>
-              <div className="flex-1" />
-              {onModeChange &&
-                (mode === "center" ? (
-                  <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
-                    <PanelRight className="size-4" strokeWidth={1.75} />
-                  </HeaderButton>
-                ) : (
-                  <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
-                    <AppWindow className="size-4" strokeWidth={1.75} />
-                  </HeaderButton>
-                ))}
-              <HeaderButton
-                label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
-                onClick={openInPage}
+              <div
+                className="flex shrink-0 items-center gap-1 pl-2.5 pr-2"
+                style={{ height: HEADER_HEIGHT }}
               >
-                <ExternalLink className="size-4" strokeWidth={1.75} />
-              </HeaderButton>
-              {mode === "dock" && closeButton}
+                {mode === "center" && closeButton}
+                <div className="text-ink-3 ml-1 flex min-w-0 items-center gap-1.5 text-[12.5px]">
+                  <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+                  <span className="shrink-0">{crumb}</span>
+                  <span className="shrink-0">/</span>
+                  <b className="text-ink-2 truncate font-medium">{source.title || "无标题"}</b>
+                </div>
+                <div className="flex-1" />
+                {onModeChange &&
+                  (mode === "center" ? (
+                    <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
+                      <PanelRight className="size-4" strokeWidth={1.75} />
+                    </HeaderButton>
+                  ) : (
+                    <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
+                      <AppWindow className="size-4" strokeWidth={1.75} />
+                    </HeaderButton>
+                  ))}
+                <HeaderButton
+                  label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
+                  onClick={openInPage}
+                >
+                  <ExternalLink className="size-4" strokeWidth={1.75} />
+                </HeaderButton>
+                {mode === "dock" && closeButton}
+              </div>
+              <FadeScroll scrollRef={scrollRef} className="min-h-0 flex-1 overscroll-contain">
+                <DocumentPaper source={source} fill>
+                  {opened ? (
+                    <DocumentEditor
+                      key={source.contentId}
+                      source={source}
+                      readonly={board.readonly}
+                    />
+                  ) : (
+                    <BodyPreview source={source} />
+                  )}
+                </DocumentPaper>
+              </FadeScroll>
             </div>
-            <FadeScroll scrollRef={scrollRef} className="min-h-0 flex-1 overscroll-contain">
-              <DocumentPaper source={source} fill>
-                <DocumentEditor key={source.contentId} source={source} readonly={board.readonly} />
-              </DocumentPaper>
-            </FadeScroll>
           </div>
         </>
       )}

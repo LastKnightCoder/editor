@@ -1,10 +1,21 @@
 import { invoke, off, on } from "@/electron";
-import type { ComposeBoard, GatherInput, GatherPhase, GatherResult } from "@/types/compose";
+import type {
+  ComposeBoard,
+  ComposeBoardSummary,
+  GatherInput,
+  GatherPhase,
+  GatherResult,
+} from "@/types/compose";
 import { withModule } from "./module-init";
 
 /** 正文的素材板；从没进过创作模式为 null */
 export function getComposeBoard(contentId: number) {
   return invoke<ComposeBoard | null>("compose-board:get", contentId);
+}
+
+/** 素材板上有几份资料；没有素材板为 null */
+export function getComposeBoardSummary(contentId: number) {
+  return invoke<ComposeBoardSummary | null>("compose-board:summary", contentId);
 }
 
 /** 第一次进入创作模式时建板（已有原样返回） */

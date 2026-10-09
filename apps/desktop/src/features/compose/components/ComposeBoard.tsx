@@ -43,7 +43,7 @@ import {
 } from "../queries";
 import { useComposeSession, useComposeSessionApi } from "../session";
 import { ComposeCardAccessory } from "./ComposeCardAccessory";
-import { IntentCard } from "./IntentCard";
+import { IntentButton, IntentCard } from "./IntentCard";
 
 interface BoardActions {
   onRemoved(keys: string[]): void;
@@ -162,7 +162,7 @@ export function ComposeBoard({
   initialIntent: string;
 }) {
   const session = useComposeSessionApi();
-  const { board, loading, ensure, dismiss } = useComposeBoard(contentId);
+  const { board, loading, ensure, setIntent, dismiss } = useComposeBoard(contentId);
   const gather = useGather(contentId);
   const canGather = useGatherEnabled();
   const [status, setStatus] = useState<GatherStatus>({ state: "idle" });
@@ -282,16 +282,21 @@ export function ComposeBoard({
               }
             />
           )}
-          {board && canGather && status.state === "idle" && (
-            <button
-              type="button"
-              onClick={() => run(board.intent, [], true)}
-              title="按写作意图和已经写的内容再找一轮"
-              className="bg-surface shadow-card text-tau-meta text-accent-text hover:bg-surface-hover absolute right-3 top-3 z-[6] inline-flex items-center gap-1.5 rounded-full px-3 py-1.5"
-            >
-              <Sparkles className="size-3.5" strokeWidth={1.75} />
-              再找一些
-            </button>
+          {board && canGather && (
+            <div className="absolute right-3 top-3 z-[6] flex items-center gap-1.5">
+              <IntentButton intent={board.intent} onChange={intent => setIntent.mutate(intent)} />
+              {status.state === "idle" && (
+                <button
+                  type="button"
+                  onClick={() => run(board.intent, [], true)}
+                  title="按写作意图和已经写的内容再找一轮"
+                  className="bg-surface shadow-card text-tau-meta text-accent-text hover:bg-surface-hover inline-flex h-[30px] items-center gap-1.5 rounded-full px-3"
+                >
+                  <Sparkles className="size-3.5" strokeWidth={1.75} />
+                  再找一些
+                </button>
+              )}
+            </div>
           )}
           {status.state !== "idle" && (
             <div

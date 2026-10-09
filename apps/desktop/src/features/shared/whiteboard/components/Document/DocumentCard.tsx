@@ -95,7 +95,12 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
           编辑中
         </span>
       )}
-      {host.cardAccessory?.(element)}
+      {/* 宿主叠加物不进展开替身（DocumentReader 克隆卡面时按此标记剔除） */}
+      {host.cardAccessory && (
+        <div data-document-accessory className="contents">
+          {host.cardAccessory(element)}
+        </div>
+      )}
     </div>
   );
 });
