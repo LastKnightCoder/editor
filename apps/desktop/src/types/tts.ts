@@ -5,6 +5,34 @@
 
 export enum ETTSProvider {
   Minimax = "minimax",
+  Qwen = "qwen",
+}
+
+/**
+ * TTS 服务商配置（对齐 LLMProviderSetting 的多实例模式）
+ */
+export interface TTSProviderSetting {
+  id: string;
+  name: string;
+  providerType: ETTSProvider;
+  /** 服务地址覆盖；空则用 providerType 对应的官方默认域名 */
+  baseUrl?: string;
+  apiKey: string;
+  models: TTSModelSetting[];
+}
+
+/** 请求体里的模型条目：id 即 API 的 model 名，provider 内唯一 */
+export interface TTSModelSetting {
+  id: string;
+  /** 展示名，缺省同 id */
+  label?: string;
+}
+
+/** 当前使用的语音服务（对齐 LLMUsageConfigV2，多一个 voiceId） */
+export interface TTSUsageConfig {
+  providerId: string;
+  modelId: string;
+  voiceId: string;
 }
 
 /**
@@ -60,7 +88,7 @@ export interface ITTSProvider {
   synthesizeSpeech(
     text: string,
     voiceId: string,
-    options?: TTSSynthesizeOptions,
+    options?: TTSSynthesizeOptions
   ): Promise<ArrayBuffer>;
 
   /**
@@ -71,7 +99,7 @@ export interface ITTSProvider {
   /**
    * 上传参考音频用于声音克隆（可选）
    * @param file 音频文件
-   * @returns 文件 ID
+   * @returns 文件 ID（语义随提供商而异：文件上传 ID 或公网音频 URL）
    */
   uploadReferenceAudio?(file: File): Promise<string>;
 
@@ -79,8 +107,9 @@ export interface ITTSProvider {
    * 克隆音色（可选）
    * @param fileId 上传的参考音频文件 ID
    * @param options 克隆选项
+   * @returns 提供商生成的音色 ID；未返回时（如 Minimax 以自定义 voiceId 命名）为 undefined
    */
-  cloneVoice?(fileId: string, options: VoiceCloneOptions): Promise<void>;
+  cloneVoice?(fileId: string, options: VoiceCloneOptions): Promise<string | void>;
 
   /**
    * 检查是否支持声音克隆

@@ -10,7 +10,6 @@ import { useMemoizedFn } from "ahooks";
 import { Button, Dialog, DialogBody, Input, NumberInput, Textarea, toast } from "@tau/ui";
 
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
-import useSettingStore from "@/stores/useSettingStore";
 import { TTSProviderFactory } from "@/utils/tts";
 import { PPT_TEMPLATES, DEFAULT_TEMPLATE_ID } from "@/constants/ppt-templates";
 import { REPORT_TEMPLATES, DEFAULT_REPORT_TEMPLATE_ID } from "@/constants/report-templates";
@@ -134,7 +133,6 @@ export function GenerateDialog({
     { id: String(Date.now()), voiceId: "", voiceIdError: "", audioFiles: [] },
   ]);
   const [cloneLoading, setCloneLoading] = useState(false);
-  const minimaxApiKey = useSettingStore(s => s.setting.integration.minimax.apiKey);
   const podcastVoices = usePodcastVoices(kind === "podcast");
 
   // AI 编辑默认不带参考资料；生成默认全选（或「基于这份资料」预选的那一份）
@@ -320,7 +318,6 @@ export function GenerateDialog({
                   setCloneItems={setCloneItems}
                   cloneLoading={cloneLoading}
                   setCloneLoading={setCloneLoading}
-                  minimaxApiKey={minimaxApiKey}
                   voices={podcastVoices.voices}
                   addVoiceToList={podcastVoices.addVoice}
                   notify={notifyToast}
