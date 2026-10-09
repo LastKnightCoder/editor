@@ -16,6 +16,11 @@ export interface ComposeBoard {
   updateTime: number;
 }
 
+export interface ComposeBoardSummary {
+  /** 白板上的资料份数（按实体去重） */
+  documents: number;
+}
+
 /** AI 召集的一份资料 */
 export interface GatherItem {
   ref: EntityRef;

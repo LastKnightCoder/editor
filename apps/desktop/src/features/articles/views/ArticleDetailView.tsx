@@ -95,9 +95,9 @@ import {
 import { ContextBadge } from "@/features/context/components/ContextBadge";
 import { useInsightsView } from "@/features/insights/useInsightsView";
 import { ComposeBoard } from "@/features/compose/components/ComposeBoard";
-import { ComposeDropZone } from "@/features/compose/components/ComposeDropZone";
 import { ComposeLayout } from "@/features/compose/components/ComposeLayout";
-import { ComposeIntent, ComposeModeToggle } from "@/features/compose/components/ComposeModeToggle";
+import { ComposeBoardEntry } from "@/features/compose/components/ComposeBoardEntry";
+import { ComposeModeToggle } from "@/features/compose/components/ComposeModeToggle";
 import { useComposeInsightOptions, useComposeInsightSync } from "@/features/compose/insights";
 import { ComposeSessionContext, createComposeSession } from "@/features/compose/session";
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
@@ -498,7 +498,22 @@ export function ArticleDetailView() {
                 changingCover={changingCover}
                 extraMeta={
                   <>
-                    <ContextBadge entity={{ kind: "article", id: editingArticle.id }} />
+                    <ContextBadge
+                      entity={{ kind: "article", id: editingArticle.id }}
+                      extra={
+                        composing
+                          ? undefined
+                          : close => (
+                              <ComposeBoardEntry
+                                contentId={editingArticle.contentId}
+                                onOpen={() => {
+                                  close();
+                                  setComposing(true);
+                                }}
+                              />
+                            )
+                      }
+                    />
                     {insights.button}
                     <ComposeModeToggle active={composing} onChange={setComposing} />
                   </>
@@ -524,7 +539,6 @@ export function ArticleDetailView() {
 
               <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
                 <article className="col-start-2 min-w-0">
-                  {composing && <ComposeIntent contentId={editingArticle.contentId} />}
                   {insights.report && <div className="mb-6">{insights.report}</div>}
                   <ArticlePodcast
                     article={editingArticle}
@@ -535,25 +549,23 @@ export function ArticleDetailView() {
 
                   <div className={editingArticle.podcast ? "mt-[30px]" : undefined}>
                     {insights.frame(
-                      <ComposeDropZone enabled={composing} getEditor={getEditor}>
-                        <ErrorBoundary>
-                          <ContentEditor
-                            at={at}
-                            ref={editorRef}
-                            contentId={editingArticle.contentId}
-                            key={`${editingArticle.id}-${editorRemountKey}`}
-                            initValue={editingArticle.content}
-                            fallback={<ArticleBodyFallback content={editingArticle.content} />}
-                            onInit={onInit}
-                            onChange={content => {
-                              onContentChange(content);
-                            }}
-                            readonly={false}
-                            editingContext={{ entityType: "article", entityId: editingArticle.id }}
-                            {...insights.editorProps}
-                          />
-                        </ErrorBoundary>
-                      </ComposeDropZone>
+                      <ErrorBoundary>
+                        <ContentEditor
+                          at={at}
+                          ref={editorRef}
+                          contentId={editingArticle.contentId}
+                          key={`${editingArticle.id}-${editorRemountKey}`}
+                          initValue={editingArticle.content}
+                          fallback={<ArticleBodyFallback content={editingArticle.content} />}
+                          onInit={onInit}
+                          onChange={content => {
+                            onContentChange(content);
+                          }}
+                          readonly={false}
+                          editingContext={{ entityType: "article", entityId: editingArticle.id }}
+                          {...insights.editorProps}
+                        />
+                      </ErrorBoundary>
                     )}
                   </div>
 

@@ -4,7 +4,7 @@
  * 可直接添加连接（KL-057，连接动作在脉络域内完成，调用方无需注入）。
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Waypoints } from "lucide-react";
 import { Popover, cn, toast } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
@@ -18,9 +18,11 @@ import { ContextPopoverContent } from "./ContextPopoverContent";
 interface ContextBadgeProps {
   entity: EntityRef | null;
   className?: string;
+  /** 浮层末尾宿主补充的一行（如文章的创作白板入口）；不计入关联数 */
+  extra?: (close: () => void) => ReactNode;
 }
 
-export function ContextBadge({ entity, className }: ContextBadgeProps) {
+export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
   const { data: context } = useEntityContext(entity);
   const [open, setOpen] = useState(false);
   const relatedQuery = useEntityRelated(entity, open);
@@ -90,6 +92,7 @@ export function ContextBadge({ entity, className }: ContextBadgeProps) {
             onDialogOpenChange={setLinksDialogOpen}
           />
         )}
+        {extra?.(close)}
       </div>
     </Popover>
   );

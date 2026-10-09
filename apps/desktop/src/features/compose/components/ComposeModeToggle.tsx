@@ -1,12 +1,9 @@
 /**
  * 详情页的「创作模式」开关：点一下进入左白板右写作，再点一下回到普通详情。
- * 正文里的意图条：创作模式下显示素材板的写作意图。
  */
 
 import { PanelsLeftRight } from "lucide-react";
 import { cn } from "@tau/ui";
-import { useComposeBoard } from "../queries";
-import { IntentBar } from "./IntentCard";
 
 export function ComposeModeToggle({
   active,
@@ -30,10 +27,4 @@ export function ComposeModeToggle({
       {active ? "退出创作模式" : "创作模式"}
     </button>
   );
-}
-
-export function ComposeIntent({ contentId }: { contentId: number }) {
-  const { board, setIntent } = useComposeBoard(contentId);
-  if (!board) return null;
-  return <IntentBar intent={board.intent} onChange={intent => setIntent.mutate(intent)} />;
 }

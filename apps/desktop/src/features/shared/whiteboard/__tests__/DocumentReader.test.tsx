@@ -10,6 +10,7 @@ import WhiteBoard, {
 } from "@tau/whiteboard";
 import { DocumentCard } from "../components/Document/DocumentCard";
 import { DocumentReaderLayer } from "../components/Document/DocumentReader";
+import { DocumentHostContext } from "../components/Document/DocumentHostContext";
 import {
   getDocumentReaderStore,
   useDocumentReaderPreference,
@@ -146,21 +147,25 @@ beforeEach(async () => {
   await act(async () =>
     root.render(
       <QueryClientProvider client={client}>
-        <WhiteBoard
-          initData={[
-            doc("a", { kind: "card", id: 1 }),
-            doc("b", { kind: "article", id: 2 }, 400),
-            doc("c", { kind: "diary-moment", id: 32 }, 800),
-          ]}
-          showToolbar={false}
-          showAttributeSetter={false}
-          showStatusBar={false}
-          slots={{
-            Layers: Capture,
-            CanvasLayer: DocumentReaderLayer,
-            elements: { document: DocumentCard },
-          }}
-        />
+        <DocumentHostContext.Provider
+          value={{ allowDock: true, cardAccessory: () => <span data-testid="accessory" /> }}
+        >
+          <WhiteBoard
+            initData={[
+              doc("a", { kind: "card", id: 1 }),
+              doc("b", { kind: "article", id: 2 }, 400),
+              doc("c", { kind: "diary-moment", id: 32 }, 800),
+            ]}
+            showToolbar={false}
+            showAttributeSetter={false}
+            showStatusBar={false}
+            slots={{
+              Layers: Capture,
+              CanvasLayer: DocumentReaderLayer,
+              elements: { document: DocumentCard },
+            }}
+          />
+        </DocumentHostContext.Provider>
       </QueryClientProvider>
     )
   );
@@ -260,5 +265,40 @@ describe("文档阅读纸", () => {
     await flush();
     expect(mocks.openPage).toHaveBeenCalledWith("diary", { date: "2026-10-08", moment: "32" });
     expect(mocks.openEntity).not.toHaveBeenCalled();
+  });
+
+  it("展开形变：替身按画布单位排版并把画布缩放并进 transform，不带宿主叠加物", async () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    const calls: { el: Element; keyframes: Keyframe[] }[] = [];
+    Element.prototype.animate = vi.fn(function (this: Element, keyframes: Keyframe[]) {
+      calls.push({ el: this, keyframes });
+      return { finished: new Promise(() => {}), cancel() {} };
+    }) as unknown as Element["animate"];
+    // 画布缩放 50%：260 宽的元素在屏幕上是 130
+    const rect = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: Element
+    ) {
+      const isCard = this.hasAttribute("data-document-card");
+      return DOMRect.fromRect(isCard ? { x: 10, y: 20, width: 130, height: 120 } : {});
+    });
+
+    await act(async () => board.emit(DOCUMENT_OPEN_EVENT, "a"));
+    await flush();
+
+    const ghost = calls.find(({ el }) => (el as HTMLElement).style.transformOrigin === "0 0")!;
+    const el = ghost.el as HTMLElement;
+    expect(el.style.width).toBe("260px");
+    expect(ghost.keyframes[0].transform).toBe("scale(0.5)");
+    expect(ghost.keyframes[1].transform).toContain(`scale(${460 / 260})`);
+    expect(card("a")?.querySelector('[data-testid="accessory"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="accessory"]')).toBeNull();
+    // 纸面以卡片的形状（真圆角，16 × 缩放）起步，替身裁在纸面里
+    const paper = calls.find(({ keyframes }) => keyframes[0].clipPath)!;
+    expect(String(paper.keyframes[0].clipPath)).toMatch(/^inset\(20px .* 10px round 8px\)$/);
+    expect(paper.el.contains(el)).toBe(true);
+    // 动画期间正文是只读全文，不挂编辑器（主线程长任务会让裁切动画停住）
+    expect(host.querySelector('[data-testid="editor"]')).toBeNull();
+    expect(reader()?.querySelector('[data-testid="preview"]')).not.toBeNull();
+    rect.mockRestore();
   });
 });

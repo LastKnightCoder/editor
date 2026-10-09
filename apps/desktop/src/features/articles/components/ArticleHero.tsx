@@ -26,6 +26,16 @@ interface ArticleHeroProps {
   className?: string;
 }
 
+/** 元信息里跟在前一项后的一项：分隔点随项一起让位 */
+function MetaItem({ children }: { children: ReactNode }) {
+  return (
+    <span className="flex items-center gap-2.5">
+      <span className="bg-ink-3 size-[3px] rounded-full opacity-60" />
+      {children}
+    </span>
+  );
+}
+
 function objectPositionOf(position?: string): string {
   if (position === "top") return "center 0%";
   if (position === "bottom") return "center 100%";
@@ -99,14 +109,20 @@ export function ArticleHero({
           aria-label="文章标题"
           className="rounded-tau-sm text-ink-1 placeholder:text-ink-3 w-full bg-transparent text-[27px] font-semibold leading-[1.35] tracking-[-0.01em] outline-none"
         />
-        <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2.5 tabular-nums">
-          <span>{formatDate(article.create_time, true)} 创建</span>
-          <span className="bg-ink-3 size-[3px] rounded-full opacity-60" />
-          <span>{formatDate(article.update_time, true)} 编辑</span>
-          <span className="bg-ink-3 size-[3px] rounded-full opacity-60" />
-          <span>{words} 字</span>
-          {extraMeta}
-          {actions && <span className="ml-auto flex items-center">{actions}</span>}
+        {/* 元信息行恒为一行：操作（extraMeta + actions）不换行不收缩、⋯ 靠右；信息组固定一行高、可换行并裁掉溢出，
+            放不下的项落到看不见的第二行——按顺序先让出创建时间、再让字数，编辑时间最后（悬停可见创建时间） */}
+        <div className="text-tau-meta text-ink-3 mt-1.5 flex items-center gap-2.5 whitespace-nowrap tabular-nums">
+          <span className="flex h-[22px] min-w-0 shrink flex-wrap items-center gap-x-2.5 overflow-hidden leading-[22px]">
+            <span title={`${formatDate(article.create_time, true)} 创建`}>
+              {formatDate(article.update_time, true)} 编辑
+            </span>
+            <MetaItem>{words} 字</MetaItem>
+            <MetaItem>{formatDate(article.create_time, true)} 创建</MetaItem>
+          </span>
+          <span className="flex flex-[1_0_auto] items-center gap-2.5">
+            {extraMeta}
+            {actions && <span className="ml-auto flex items-center">{actions}</span>}
+          </span>
         </div>
       </div>
     </div>

@@ -7,7 +7,7 @@
  */
 
 import type Database from "better-sqlite3";
-import type { ComposeBoard } from "@/types/compose";
+import type { ComposeBoard, ComposeBoardSummary } from "@/types/compose";
 import WhiteBoardContentTable from "./white-board-content";
 
 interface RawRow {
@@ -17,6 +17,12 @@ interface RawRow {
   dismissed: string;
   create_time: number;
   update_time: number;
+}
+
+interface BoardNode {
+  type?: string;
+  entityRef?: { kind: string; id: number };
+  children?: unknown;
 }
 
 const PAGE_NAME = "创作白板";
@@ -58,6 +64,7 @@ export default class ComposeBoardTable {
       "compose-board:ensure": this.ensure.bind(this),
       "compose-board:set-intent": this.setIntent.bind(this),
       "compose-board:dismiss": this.dismiss.bind(this),
+      "compose-board:summary": this.summary.bind(this),
     } as const;
   }
 
@@ -107,6 +114,32 @@ export default class ComposeBoardTable {
       board.contentId
     );
     return this.get(db, contentId);
+  }
+
+  /** 素材板上有几份资料（文档卡按实体去重，含 frame 里的）；没有素材板为 null */
+  static summary(db: Database.Database, contentId: number): ComposeBoardSummary | null {
+    const row = db
+      .prepare(
+        `SELECT w.data FROM compose_boards c JOIN white_board_contents w ON w.id = c.page_id
+         WHERE c.content_id = ?`
+      )
+      .get(contentIdOf(contentId)) as { data: string } | undefined;
+    if (!row) return null;
+    const keys = new Set<string>();
+    const visit = (elements: unknown) => {
+      if (!Array.isArray(elements)) return;
+      for (const element of elements as BoardNode[]) {
+        const ref = element?.entityRef;
+        if (element?.type === "document" && ref) keys.add(`${ref.kind}:${ref.id}`);
+        visit(element?.children);
+      }
+    };
+    try {
+      visit(JSON.parse(row.data)?.children);
+    } catch {
+      // 画布数据损坏：按空板算
+    }
+    return { documents: keys.size };
   }
 
   /** 正文删除（引用归零）时释放素材板：删绑定并对页减计数（启动时清理，撤销可恢复） */
