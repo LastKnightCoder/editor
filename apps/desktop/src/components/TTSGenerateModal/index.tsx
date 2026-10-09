@@ -51,34 +51,42 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
             description: v.description,
           }))
         );
-        if (!selectedVoiceId) {
-          setSelectedVoiceId(voiceList[0].id);
-        }
+        // 函数式更新避免把 selectedVoiceId 收进 useCallback 依赖——
+        // 否则切换音色会重建 loadVoices，连带触发下方初始化 effect 重跑清空已输入的文本
+        setSelectedVoiceId(prev => prev || voiceList[0].id);
       }
     } catch (err) {
       console.error("Failed to load voices:", err);
     } finally {
       setVoicesLoading(false);
     }
-  }, [isTTSConfigured, selectedVoiceId]);
+  }, [isTTSConfigured]);
 
+  // 重置输入与产物：仅在弹窗重新打开时执行，不得随音色/音色列表变化重跑
   useEffect(() => {
-    if (open) {
-      setText("");
-      setAudioBlob(null);
-      setAudioUrl(null);
-      setError(null);
-      setIsPlaying(false);
-      if (isTTSConfigured && voices.length === 0) {
-        loadVoices();
-      }
+    if (!open) return;
+    setText("");
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setError(null);
+    setIsPlaying(false);
+  }, [open]);
+
+  // 打开且尚未加载过音色时拉取列表
+  useEffect(() => {
+    if (open && isTTSConfigured && voices.length === 0) {
+      loadVoices();
     }
+  }, [open, isTTSConfigured, voices.length, loadVoices]);
+
+  // 音频 URL 变化/卸载时释放旧资源
+  useEffect(() => {
     return () => {
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
     };
-  }, [open, isTTSConfigured, loadVoices, voices.length]);
+  }, [audioUrl]);
 
   const handleGenerate = useMemoizedFn(async () => {
     if (!text.trim()) {
