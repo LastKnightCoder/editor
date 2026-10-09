@@ -102,16 +102,11 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
         </Tooltip>
       </div>
 
-      {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动；边缘渐隐（base.css
-          的 edge-fade-scroll + useEdgeFade）提示可滚方向。 -mr/pr 借位（同
-          home-scroll 手法）：滚动条右移进侧栏右留白，落在列表右缘与拖拽热区
-          中间，条目宽度不受影响；收起态 nav 无右内边距，借位会压进拖拽热区，故不借 */}
+      {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动。滚动条始终隐藏
+          （scrollbar-hide），可滚方向由边缘渐隐（edge-fade-scroll + useEdgeFade）提示 */}
       <div
         ref={setScrollEl}
-        className={clsx(
-          "edge-fade-scroll min-h-0 flex-1 overflow-y-auto",
-          !collapsed && "-mr-[5px] pr-[5px]"
-        )}
+        className="edge-fade-scroll scrollbar-hide min-h-0 flex-1 overflow-y-auto"
       >
         {NAV_SECTIONS.map((section, sectionIndex) => {
           // 组折叠收纳：收起条目留组头 + 条目数，
