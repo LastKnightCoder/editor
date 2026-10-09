@@ -52,6 +52,7 @@ import knowledgeInsightsModule from "../modules/knowledge-insights-module";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
+import telemetryModule from "../modules/telemetry";
 
 /**
  * 所有模块配置
@@ -398,5 +399,11 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pdf-index-queue"],
     init: () => pdfIndexOrchestrator.init(),
+  },
+  {
+    name: "telemetry",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: () => telemetryModule.init(),
   },
 ];
