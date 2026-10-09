@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import useSettingStore from "@/stores/useSettingStore";
+import { ETTSProvider } from "@/types/tts";
 import { VoiceSection } from "../sections/VoiceSection";
 
 const mocks = vi.hoisted(() => ({ openSettings: vi.fn() }));
@@ -91,13 +92,31 @@ it("语音转录：渲染行为 / 程序 / 模型分组，「使用」切换当�
   expect(useSettingStore.getState().setting.transcription.currentModel).toBe("medium");
 });
 
-it("语音合成：Minimax 未连接时跳转「账号与连接」", async () => {
+it("语音合成：无服务商时显示空态，配置后展示多服务商面板", async () => {
   await render();
   const tab = container.querySelector('[role="tab"][data-tab="tts"]') as HTMLButtonElement;
   await act(async () => tab.click());
+  expect(text()).toContain("还没有服务商");
+  expect(text()).toContain("添加服务商");
+
+  await act(async () => {
+    useSettingStore.setState(s => ({
+      setting: {
+        ...s.setting,
+        ttsProviders: [
+          {
+            id: "p1",
+            name: "Minimax",
+            providerType: ETTSProvider.Minimax,
+            apiKey: "key",
+            models: [{ id: "speech-2.8-hd" }],
+          },
+        ],
+      },
+    }));
+  });
   expect(text()).toContain("Minimax");
-  expect(text()).toContain("未连接");
-  expect(text()).toContain("语音模型");
-  await act(async () => button("账号与连接").click());
-  expect(mocks.openSettings).toHaveBeenCalledWith("integration");
+  expect(text()).toContain("连接");
+  expect(text()).toContain("模型");
+  expect(text()).toContain("当前服务");
 });

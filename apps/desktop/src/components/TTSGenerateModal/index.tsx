@@ -33,16 +33,16 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
   const audioRef = useRef<HTMLAudioElement>(null);
 
   // Check if TTS is configured via TTSProviderFactory
-  const isTTSConfigured = TTSProviderFactory.getTTSProvider()?.isConfigured() ?? false;
+  const isTTSConfigured = TTSProviderFactory.getSpeechSynthesizer() !== null;
 
   // Load voice list
   const loadVoices = useCallback(async () => {
     if (!isTTSConfigured) return;
     setVoicesLoading(true);
     try {
-      const provider = TTSProviderFactory.getTTSProvider();
-      if (!provider) return;
-      const voiceList = await provider.getVoiceList();
+      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+      if (!synthesizer) return;
+      const voiceList = await synthesizer.getVoiceList();
       if (voiceList && voiceList.length > 0) {
         setVoices(
           voiceList.map(v => ({
@@ -51,34 +51,42 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
             description: v.description,
           }))
         );
-        if (!selectedVoiceId) {
-          setSelectedVoiceId(voiceList[0].id);
-        }
+        // 函数式更新避免把 selectedVoiceId 收进 useCallback 依赖——
+        // 否则切换音色会重建 loadVoices，连带触发下方初始化 effect 重跑清空已输入的文本
+        setSelectedVoiceId(prev => prev || voiceList[0].id);
       }
     } catch (err) {
       console.error("Failed to load voices:", err);
     } finally {
       setVoicesLoading(false);
     }
-  }, [isTTSConfigured, selectedVoiceId]);
+  }, [isTTSConfigured]);
 
+  // 重置输入与产物：仅在弹窗重新打开时执行，不得随音色/音色列表变化重跑
   useEffect(() => {
-    if (open) {
-      setText("");
-      setAudioBlob(null);
-      setAudioUrl(null);
-      setError(null);
-      setIsPlaying(false);
-      if (isTTSConfigured && voices.length === 0) {
-        loadVoices();
-      }
+    if (!open) return;
+    setText("");
+    setAudioBlob(null);
+    setAudioUrl(null);
+    setError(null);
+    setIsPlaying(false);
+  }, [open]);
+
+  // 打开且尚未加载过音色时拉取列表
+  useEffect(() => {
+    if (open && isTTSConfigured && voices.length === 0) {
+      loadVoices();
     }
+  }, [open, isTTSConfigured, voices.length, loadVoices]);
+
+  // 音频 URL 变化/卸载时释放旧资源
+  useEffect(() => {
     return () => {
       if (audioUrl) {
         URL.revokeObjectURL(audioUrl);
       }
     };
-  }, [open, isTTSConfigured, loadVoices, voices.length]);
+  }, [audioUrl]);
 
   const handleGenerate = useMemoizedFn(async () => {
     if (!text.trim()) {
@@ -94,12 +102,12 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
     setError(null);
 
     try {
-      const provider = TTSProviderFactory.getTTSProvider();
-      if (!provider) {
+      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+      if (!synthesizer) {
         setError("TTS服务不可用");
         return;
       }
-      const audioBuffer = await provider.synthesizeSpeech(text.trim(), selectedVoiceId);
+      const audioBuffer = await synthesizer.synthesizeSpeech(text.trim(), selectedVoiceId);
       if (!audioBuffer) {
         setError("文本转语音失败，请重试");
         return;

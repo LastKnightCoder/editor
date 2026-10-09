@@ -23,8 +23,8 @@ export async function synthesizePodcast(
     onPhase: (phase: string) => void;
   }
 ): Promise<PodcastAudioResult> {
-  const tts = TTSProviderFactory.getTTSProvider();
-  if (!tts || !tts.isConfigured()) throw new Error("请先配置 TTS 服务提供商");
+  const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+  if (!synthesizer) throw new Error("请先配置 TTS 服务提供商");
 
   const audioContext = new AudioContext();
   const segments: SpeechSegment[] = [];
@@ -34,7 +34,7 @@ export async function synthesizePodcast(
   for (let i = 0; i < timed.length; i++) {
     if (hooks.signal.aborted) throw new DOMException("已停止", "AbortError");
     try {
-      const data = await tts.synthesizeSpeech(timed[i].text, timed[i].voiceId);
+      const data = await synthesizer.synthesizeSpeech(timed[i].text, timed[i].voiceId);
       const segment = await loadSpeechSegment(audioContext, data);
       timed[i].startTime = cursor;
       timed[i].duration = segment.duration;

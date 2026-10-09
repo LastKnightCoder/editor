@@ -1,76 +1,52 @@
-import type { ITTSProvider } from "@/types/tts";
+import type {
+  ITTSProvider,
+  SpeechSynthesisCapability,
+  VoiceCloneCapability,
+  TTSProviderSetting,
+} from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
-import { MinimaxTTSProvider } from "./MinimaxTTSProvider";
+import type { MinimaxSpeechModel } from "@/types/minimax";
+import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
+import { createMinimaxTTSProvider } from "./MinimaxTTSProvider";
+import { createQwenTTSProvider } from "./QwenTTSProvider";
 import useSettingStore from "@/stores/useSettingStore";
 
 /**
  * TTS Provider Factory
- * 根据用户设置创建对应的 TTS 提供商实例
+ * 从 ttsProviders / ttsUsageSettings 解析当前语音服务并创建提供商实例。
+ * 合成类消费方（编辑器朗读、播客生成、Vibe Learning）经 getSpeechSynthesizer()
+ * 取朗读合成能力；克隆类消费方经 getVoiceCloner() 取克隆能力——面向能力编程，
+ * 不感知具体提供商。
  */
 export class TTSProviderFactory {
   /**
-   * 获取当前激活的 TTS 提供商实例
+   * 获取当前激活的 TTS 提供商实例（按 ttsUsageSettings.default 解析）
    */
   static getTTSProvider(): ITTSProvider | null {
     const { setting } = useSettingStore.getState();
-    const integration = setting.integration;
-    const podcastTTS = integration.podcastTTS;
-
-    if (!podcastTTS) {
-      // 如果没有 podcastTTS 配置，返回 null
+    const usage = setting.ttsUsageSettings.default;
+    if (!usage?.modelId) {
       return null;
     }
-
-    const active = podcastTTS.active;
-
-    switch (active) {
-      case ETTSProvider.Minimax: {
-        const minimaxConfig = integration.minimax;
-        if (!minimaxConfig?.apiKey || !podcastTTS.minimaxModel) {
-          return null;
-        }
-        return new MinimaxTTSProvider({
-          apiKey: minimaxConfig.apiKey,
-          model: podcastTTS.minimaxModel,
-        });
-      }
-
-      default:
-        return null;
+    const providerSetting = setting.ttsProviders.find(item => item.id === usage.providerId);
+    if (!providerSetting?.apiKey?.trim()) {
+      return null;
     }
+    return TTSProviderFactory.createFromSetting(providerSetting, usage.modelId);
   }
 
   /**
-   * 根据指定的提供商类型创建实例
+   * 当前服务的朗读合成能力（文本 + 音色 → 音频）；未配置或提供商不具备该能力时为 null
    */
-  static createProvider(providerType: ETTSProvider): ITTSProvider | null {
-    const { setting } = useSettingStore.getState();
-    const integration = setting.integration;
-
-    switch (providerType) {
-      case ETTSProvider.Minimax: {
-        const minimaxConfig = integration.minimax;
-        const minimaxModel = integration.podcastTTS?.minimaxModel;
-        if (!minimaxConfig?.apiKey || !minimaxModel) {
-          return null;
-        }
-        return new MinimaxTTSProvider({
-          apiKey: minimaxConfig.apiKey,
-          model: minimaxModel,
-        });
-      }
-
-      default:
-        return null;
-    }
+  static getSpeechSynthesizer(): SpeechSynthesisCapability | null {
+    return TTSProviderFactory.getTTSProvider()?.synthesis ?? null;
   }
 
   /**
-   * 检查指定提供商是否已配置
+   * 当前服务的声音克隆能力；未配置或提供商不具备该能力时为 null
    */
-  static isProviderConfigured(providerType: ETTSProvider): boolean {
-    const provider = TTSProviderFactory.createProvider(providerType);
-    return provider?.isConfigured() ?? false;
+  static getVoiceCloner(): VoiceCloneCapability | null {
+    return TTSProviderFactory.getTTSProvider()?.cloning ?? null;
   }
 
   /**
@@ -78,7 +54,58 @@ export class TTSProviderFactory {
    */
   static getActiveProviderType(): ETTSProvider | null {
     const { setting } = useSettingStore.getState();
-    return setting.integration.podcastTTS?.active ?? null;
+    const usage = setting.ttsUsageSettings.default;
+    if (!usage) {
+      return null;
+    }
+    const providerSetting = setting.ttsProviders.find(item => item.id === usage.providerId);
+    return providerSetting?.providerType ?? null;
+  }
+
+  /**
+   * 播客脚本 prompt 的 TTS 标签规则入参：从当前语音服务派生（provider 决定
+   * 是否允许 Minimax 标签，model 决定是否允许情绪标签），供 LLM 生成脚本时
+   * 与实际合成引擎对齐。结构兼容 services/podcast 的 PodcastTTSPromptOptions。
+   */
+  static getActiveTTSPromptOptions(): {
+    provider: ETTSProvider;
+    minimaxModel: MinimaxSpeechModel;
+  } {
+    const { setting } = useSettingStore.getState();
+    const usage = setting.ttsUsageSettings.default;
+    const providerSetting = setting.ttsProviders.find(item => item.id === usage?.providerId);
+    return {
+      provider: providerSetting?.providerType ?? ETTSProvider.Minimax,
+      minimaxModel: (usage?.modelId as MinimaxSpeechModel) || MINIMAX_DEFAULT_SPEECH_MODEL,
+    };
+  }
+
+  /**
+   * 按 provider 设置与模型创建实例
+   */
+  static createFromSetting(
+    providerSetting: TTSProviderSetting,
+    modelId: string
+  ): ITTSProvider | null {
+    if (!providerSetting.apiKey?.trim() || !modelId) {
+      return null;
+    }
+    switch (providerSetting.providerType) {
+      case ETTSProvider.Minimax:
+        return createMinimaxTTSProvider({
+          apiKey: providerSetting.apiKey,
+          baseUrl: providerSetting.baseUrl,
+          model: modelId as MinimaxSpeechModel,
+        });
+      case ETTSProvider.Qwen:
+        return createQwenTTSProvider({
+          apiKey: providerSetting.apiKey,
+          baseUrl: providerSetting.baseUrl,
+          model: modelId,
+        });
+      default:
+        return null;
+    }
   }
 }
 

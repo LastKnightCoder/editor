@@ -4,7 +4,7 @@ import { Button, IconButton, Input, cn } from "@tau/ui";
 import { Field } from "./ui";
 import type { CloneVoiceItem, NoticeType } from "./types";
 import type { VoiceOption } from "./types";
-import { uploadReferenceAudio, cloneVoice } from "@/services/minimax";
+import { TTSProviderFactory } from "@/utils/tts";
 
 export interface VoiceClonePanelProps {
   showCloneForm: boolean;
@@ -13,7 +13,6 @@ export interface VoiceClonePanelProps {
   setCloneItems: React.Dispatch<React.SetStateAction<CloneVoiceItem[]>>;
   cloneLoading: boolean;
   setCloneLoading: (loading: boolean) => void;
-  minimaxApiKey: string;
   voices: VoiceOption[];
   addVoiceToList: (voiceId: string, voiceName: string) => void;
   notify: (type: NoticeType, text: string) => void;
@@ -26,7 +25,6 @@ export const VoiceClonePanel = ({
   setCloneItems,
   cloneLoading,
   setCloneLoading,
-  minimaxApiKey,
   voices,
   addVoiceToList,
   notify,
@@ -191,8 +189,10 @@ export const VoiceClonePanel = ({
       return;
     }
 
-    if (!minimaxApiKey) {
-      notify("error", "请先配置 Minimax API Key");
+    // 克隆走当前 TTS 服务商的克隆能力（Minimax 直传文件；Qwen 经资源上传中转）
+    const cloner = TTSProviderFactory.getVoiceCloner();
+    if (!cloner) {
+      notify("error", "请先在「设置 · 语音」配置支持音色克隆的 TTS 服务商");
       return;
     }
 
@@ -211,6 +211,7 @@ export const VoiceClonePanel = ({
         try {
           notify("info", `[${voiceNum}/${totalVoices}] 开始处理音色: ${voiceId}`);
 
+          let clonedVoiceId = voiceId;
           for (let j = 0; j < item.audioFiles.length; j++) {
             const fileItem = item.audioFiles[j];
             const fileNum = j + 1;
@@ -220,15 +221,24 @@ export const VoiceClonePanel = ({
               `[${voiceNum}/${totalVoices}] 正在上传音频 ${fileNum}/${item.audioFiles.length}: ${fileItem.name}`
             );
 
-            const fileId = await uploadReferenceAudio(fileItem.file, minimaxApiKey);
+            // fileId 语义随提供商不同：Minimax 为文件上传 ID，Qwen 为公网音频 URL；
+            // 返回值同样随提供商不同：Qwen 返回服务端生成的真实音色 ID（与用户输入不同），
+            // 必须以返回值为准，否则后续合成必然失败；Minimax 返回 void，回落用户输入的 ID
+            const fileId = await cloner.uploadReferenceAudio(fileItem.file);
 
-            await cloneVoice(fileId, voiceId, minimaxApiKey);
+            clonedVoiceId =
+              (await cloner.cloneVoice(fileId, { voiceId, voiceName: voiceId })) || voiceId;
           }
 
-          addVoiceToList(voiceId, voiceId);
+          addVoiceToList(clonedVoiceId, voiceId);
 
           successCount++;
-          notify("success", `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`);
+          notify(
+            "success",
+            clonedVoiceId === voiceId
+              ? `[${voiceNum}/${totalVoices}] 音色 ${voiceId} 克隆成功`
+              : `[${voiceNum}/${totalVoices}] 音色克隆成功，实际音色 ID：${clonedVoiceId}`
+          );
         } catch (error) {
           const errorMsg = (error as Error).message || "";
           if (errorMsg.includes("已存在")) {
@@ -269,15 +279,7 @@ export const VoiceClonePanel = ({
     } finally {
       setCloneLoading(false);
     }
-  }, [
-    cloneItems,
-    minimaxApiKey,
-    addVoiceToList,
-    notify,
-    setCloneLoading,
-    setShowCloneForm,
-    setCloneItems,
-  ]);
+  }, [cloneItems, addVoiceToList, notify, setCloneLoading, setShowCloneForm, setCloneItems]);
 
   const cloneDisabled = cloneItems.some(
     item =>

@@ -39,13 +39,11 @@ function escapeRegExp(input: string): string {
 }
 
 const EMOTION_TAG_REGEX = new RegExp(
-  MINIMAX_EMOTION_TAGS.map((tag) => escapeRegExp(tag)).join("|"),
-  "g",
+  MINIMAX_EMOTION_TAGS.map(tag => escapeRegExp(tag)).join("|"),
+  "g"
 );
 
-function getModelVersion(
-  model: string,
-): { major: number; minor: number } | null {
+function getModelVersion(model: string): { major: number; minor: number } | null {
   const match = model.match(/^speech-(\d+)\.(\d+)-/);
   if (!match) {
     return null;
@@ -128,9 +126,8 @@ function sanitizePauseMarkers(text: string): string {
     return text;
   }
 
-  const resultTokens: Array<
-    { type: "text"; value: string } | { type: "pause"; value: string }
-  > = [];
+  const resultTokens: Array<{ type: "text"; value: string } | { type: "pause"; value: string }> =
+    [];
 
   for (let i = 0; i < normalizedTokens.length; i++) {
     const token = normalizedTokens[i];
@@ -141,12 +138,9 @@ function sanitizePauseMarkers(text: string): string {
 
     const prev = normalizedTokens[i - 1];
     const next = normalizedTokens[i + 1];
-    const hasPrevSpeakable =
-      prev?.type === "text" && hasSpeakableText(prev.value);
-    const hasNextSpeakable =
-      next?.type === "text" && hasSpeakableText(next.value);
-    const isConsecutivePause =
-      resultTokens[resultTokens.length - 1]?.type === "pause";
+    const hasPrevSpeakable = prev?.type === "text" && hasSpeakableText(prev.value);
+    const hasNextSpeakable = next?.type === "text" && hasSpeakableText(next.value);
+    const isConsecutivePause = resultTokens[resultTokens.length - 1]?.type === "pause";
 
     if (!hasPrevSpeakable || !hasNextSpeakable || isConsecutivePause) {
       continue;
@@ -155,17 +149,10 @@ function sanitizePauseMarkers(text: string): string {
     resultTokens.push(token);
   }
 
-  return resultTokens.map((token) => token.value).join("");
+  return resultTokens.map(token => token.value).join("");
 }
 
-export function stripPauseMarkersForNonMinimax(text: string): string {
-  return text.replace(PAUSE_TAG_REGEX, "");
-}
-
-export function normalizeMinimaxSpeechText(
-  text: string,
-  model: MinimaxSpeechModel,
-): string {
+export function normalizeMinimaxSpeechText(text: string, model: MinimaxSpeechModel): string {
   let normalized = sanitizePauseMarkers(text);
 
   if (!supportsMinimaxEmotionTag(model)) {
@@ -181,7 +168,7 @@ export function normalizeMinimaxSpeechText(
 
 export function buildMinimaxSpeechPromptRules(
   isMinimax: boolean,
-  model: MinimaxSpeechModel,
+  model: MinimaxSpeechModel
 ): string {
   if (!isMinimax) {
     return `TTS tags rule:

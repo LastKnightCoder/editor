@@ -44,12 +44,13 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-it("有可用更新：版本、状态签、下载更新与手动下载", async () => {
+it("有可用更新：状态签、立即更新、手动下载与新版本内容入口", async () => {
   const download = vi.fn(async () => {});
   useUpdateStore.setState({
     status: "available",
     newVersion: "3.9.0",
     fallbackUrl: "https://example.com/tau",
+    releaseNotes: [{ version: "3.9.0", note: "## 新特性" }],
     download,
   });
   await render();
@@ -57,7 +58,8 @@ it("有可用更新：版本、状态签、下载更新与手动下载", async (
   expect(text()).toContain("v3.8.2");
   expect(text()).toContain("v3.9.0 可更新");
   expect(text()).toContain("自动检查更新");
-  await act(async () => button("下载更新").click());
+  expect(text()).toContain("新版本更新内容");
+  await act(async () => button("立即更新").click());
   expect(download).toHaveBeenCalled();
   await act(async () => button("手动下载").click());
   expect(mocks.openExternal).toHaveBeenCalledWith("https://example.com/tau");
