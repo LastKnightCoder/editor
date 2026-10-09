@@ -189,14 +189,10 @@ export const VoiceClonePanel = ({
       return;
     }
 
-    // 克隆走当前 TTS 服务商（Minimax 直传文件；Qwen 经资源上传中转），不再绑定 legacy 凭据
-    const tts = TTSProviderFactory.getTTSProvider();
-    if (!tts) {
-      notify("error", "请先在「设置 · 语音」配置 TTS 服务商");
-      return;
-    }
-    if (!tts.supportsVoiceCloning() || !tts.uploadReferenceAudio || !tts.cloneVoice) {
-      notify("error", "当前 TTS 服务商不支持应用内音色克隆");
+    // 克隆走当前 TTS 服务商的克隆能力（Minimax 直传文件；Qwen 经资源上传中转）
+    const cloner = TTSProviderFactory.getVoiceCloner();
+    if (!cloner) {
+      notify("error", "请先在「设置 · 语音」配置支持音色克隆的 TTS 服务商");
       return;
     }
 
@@ -228,10 +224,10 @@ export const VoiceClonePanel = ({
             // fileId 语义随提供商不同：Minimax 为文件上传 ID，Qwen 为公网音频 URL；
             // 返回值同样随提供商不同：Qwen 返回服务端生成的真实音色 ID（与用户输入不同），
             // 必须以返回值为准，否则后续合成必然失败；Minimax 返回 void，回落用户输入的 ID
-            const fileId = await tts.uploadReferenceAudio(fileItem.file);
+            const fileId = await cloner.uploadReferenceAudio(fileItem.file);
 
             clonedVoiceId =
-              (await tts.cloneVoice(fileId, { voiceId, voiceName: voiceId })) || voiceId;
+              (await cloner.cloneVoice(fileId, { voiceId, voiceName: voiceId })) || voiceId;
           }
 
           addVoiceToList(clonedVoiceId, voiceId);

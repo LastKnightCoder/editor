@@ -1,15 +1,22 @@
-import type { ITTSProvider, TTSProviderSetting } from "@/types/tts";
+import type {
+  ITTSProvider,
+  SpeechSynthesisCapability,
+  VoiceCloneCapability,
+  TTSProviderSetting,
+} from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
-import { MinimaxTTSProvider } from "./MinimaxTTSProvider";
-import { QwenTTSProvider } from "./QwenTTSProvider";
+import { createMinimaxTTSProvider } from "./MinimaxTTSProvider";
+import { createQwenTTSProvider } from "./QwenTTSProvider";
 import useSettingStore from "@/stores/useSettingStore";
 
 /**
  * TTS Provider Factory
  * 从 ttsProviders / ttsUsageSettings 解析当前语音服务并创建提供商实例。
- * 消费方（编辑器朗读、播客生成、Vibe Learning）统一经 getTTSProvider() 取用。
+ * 合成类消费方（编辑器朗读、播客生成、Vibe Learning）经 getSpeechSynthesizer()
+ * 取朗读合成能力；克隆类消费方经 getVoiceCloner() 取克隆能力——面向能力编程，
+ * 不感知具体提供商。
  */
 export class TTSProviderFactory {
   /**
@@ -26,6 +33,20 @@ export class TTSProviderFactory {
       return null;
     }
     return TTSProviderFactory.createFromSetting(providerSetting, usage.modelId);
+  }
+
+  /**
+   * 当前服务的朗读合成能力（文本 + 音色 → 音频）；未配置或提供商不具备该能力时为 null
+   */
+  static getSpeechSynthesizer(): SpeechSynthesisCapability | null {
+    return TTSProviderFactory.getTTSProvider()?.synthesis ?? null;
+  }
+
+  /**
+   * 当前服务的声音克隆能力；未配置或提供商不具备该能力时为 null
+   */
+  static getVoiceCloner(): VoiceCloneCapability | null {
+    return TTSProviderFactory.getTTSProvider()?.cloning ?? null;
   }
 
   /**
@@ -71,13 +92,13 @@ export class TTSProviderFactory {
     }
     switch (providerSetting.providerType) {
       case ETTSProvider.Minimax:
-        return new MinimaxTTSProvider({
+        return createMinimaxTTSProvider({
           apiKey: providerSetting.apiKey,
           baseUrl: providerSetting.baseUrl,
           model: modelId as MinimaxSpeechModel,
         });
       case ETTSProvider.Qwen:
-        return new QwenTTSProvider({
+        return createQwenTTSProvider({
           apiKey: providerSetting.apiKey,
           baseUrl: providerSetting.baseUrl,
           model: modelId,

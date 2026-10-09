@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import useSettingStore, { mergeSettingWithDefaults } from "@/stores/useSettingStore";
 import { ETTSProvider } from "@/types/tts";
 import { TTSProviderFactory } from "@/utils/tts/TTSProviderFactory";
-import { MinimaxTTSProvider } from "@/utils/tts/MinimaxTTSProvider";
-import { QwenTTSProvider } from "@/utils/tts/QwenTTSProvider";
 
 describe("utils/tts/TTSProviderFactory", () => {
   const initialSetting = structuredClone(useSettingStore.getState().setting);
@@ -47,8 +45,11 @@ describe("utils/tts/TTSProviderFactory", () => {
     });
 
     const provider = TTSProviderFactory.getTTSProvider();
-    expect(provider).toBeInstanceOf(MinimaxTTSProvider);
     expect(provider?.getProviderName()).toBe(ETTSProvider.Minimax);
+    // 面向能力：合成与克隆能力均可取用（工厂每次新建实例，断言能力存在而非引用同一）
+    expect(provider?.synthesis?.synthesizeSpeech).toBeTypeOf("function");
+    expect(TTSProviderFactory.getSpeechSynthesizer()?.synthesizeSpeech).toBeTypeOf("function");
+    expect(TTSProviderFactory.getVoiceCloner()?.cloneVoice).toBeTypeOf("function");
     expect(TTSProviderFactory.getActiveProviderType()).toBe(ETTSProvider.Minimax);
   });
 
@@ -73,7 +74,8 @@ describe("utils/tts/TTSProviderFactory", () => {
     });
 
     const provider = TTSProviderFactory.getTTSProvider();
-    expect(provider).toBeInstanceOf(QwenTTSProvider);
+    expect(provider?.getProviderName()).toBe(ETTSProvider.Qwen);
+    expect(TTSProviderFactory.getSpeechSynthesizer()?.synthesizeSpeech).toBeTypeOf("function");
     expect(TTSProviderFactory.getActiveProviderType()).toBe(ETTSProvider.Qwen);
   });
 
@@ -145,6 +147,8 @@ describe("utils/tts/TTSProviderFactory", () => {
       },
     });
     expect(TTSProviderFactory.getTTSProvider()).toBeNull();
+    expect(TTSProviderFactory.getSpeechSynthesizer()).toBeNull();
+    expect(TTSProviderFactory.getVoiceCloner()).toBeNull();
   });
 });
 
