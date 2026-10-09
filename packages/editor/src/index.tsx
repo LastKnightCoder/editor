@@ -310,14 +310,17 @@ const Index = memo(
     }, [assembly.plugins, documentProp?.lineage, editorIdentity, externalHistory]);
 
     // 快照与 Slate 挂载键归实例所有；同谱系换绑保留，重建编辑器时一起复位。
-    const instance = useCreation(
-      () => ({
+    // 初始内容深拷贝成实例独占：Slate 按节点对象身份记录父节点（NODE_TO_PARENT），调用方的数据
+    // （查询缓存、共享常量）若同时交给多个编辑器，后渲染的会覆盖记录，其余编辑器 findPath 抛错
+    const instance = useCreation(() => {
+      const initialValue = structuredClone(initValue);
+      return {
         key: ++editorInstanceCounter,
-        value: initValue,
+        initialValue,
+        value: initialValue,
         selection: null as Range | null,
-      }),
-      [editor]
-    );
+      };
+    }, [editor]);
 
     useEffect(() => documentProp?.attach?.(editor), [documentProp, editor]);
 
@@ -535,15 +538,15 @@ const Index = memo(
     useEffect(() => {
       if (initializedEditor.current === editor) return;
       initializedEditor.current = editor;
-      onInit && onInit(editor, initValue);
-    }, [editor, initValue, onInit]);
+      onInit && onInit(editor, instance.initialValue);
+    }, [editor, instance, onInit]);
 
     const content = (
       <EditorThemeScope service={registry?.tryGet(IThemeService)}>
         {scope => (
           <Slate
             editor={editor}
-            initialValue={initValue}
+            initialValue={instance.initialValue}
             onChange={handleOnChange}
             key={instance.key}
           >
