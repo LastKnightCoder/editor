@@ -29,7 +29,7 @@ export const SCALE_WORDS = {
   ],
   fontFamily: ["tau", "tau-mono", "tau-hand"],
   radius: ["tau-sm", "tau-md", "tau-lg"],
-  shadow: ["card", "lift", "float"],
+  shadow: ["card", "lift", "float", "paper"],
   ease: ["tau-out"],
   animate: ["hm-pulse"],
 } as const;

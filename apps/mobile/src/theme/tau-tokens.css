@@ -68,4 +68,5 @@
   --tau-shadow-card: var(--shadow-card-raw);
   --tau-shadow-lift: var(--shadow-card-raw);
   --tau-shadow-float: var(--shadow-float-raw);
+  --tau-shadow-paper: var(--shadow-card-raw);
 }

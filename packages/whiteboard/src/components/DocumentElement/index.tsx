@@ -18,7 +18,7 @@ import {
 import { requestOpenDocument, type DocumentElement } from "../../plugins/DocumentPlugin";
 
 /** 画布上文档卡的圆角，宿主的纸面与选中框共用 */
-export const DOCUMENT_CARD_RADIUS = 10;
+export const DOCUMENT_CARD_RADIUS = 16;
 
 interface DocumentElementProps {
   element: DocumentElement;
@@ -65,7 +65,8 @@ const DocumentElementComponent = memo((props: DocumentElementProps) => {
 
   return (
     <>
-      <foreignObject x={x} y={y} width={width} height={height}>
+      {/* 纸面阴影落在元素盒子之外，foreignObject 默认裁切溢出 */}
+      <foreignObject x={x} y={y} width={width} height={height} style={{ overflow: "visible" }}>
         <div className="size-full cursor-move" onDoubleClick={handleDoubleClick}>
           {Paper ? (
             <Paper element={element} sketch={sketch.enabled} />

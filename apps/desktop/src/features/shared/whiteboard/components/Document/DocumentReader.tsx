@@ -1,8 +1,8 @@
 /**
  * 文档阅读纸（白板 slots.CanvasLayer）：文档卡双击 / ↵ / 「展开」后，从卡片原位展开成可编辑的纸。
- * - 居中：画布压暗，纸居中；卡片与碎碎念是短内容，展开成更小的纸、高度随内容；
+ * - 铺满：纸面盖住整个画布区域，正文在阅读版心里水平居中；
  * - 停靠右侧：画布可继续操作，选中另一张文档卡即换成那一篇；被面板挡住的卡片先平移出来；
- * - 两种摆放可在纸面右上角切换，记住上一次的选择；Esc / 点纸外 / 收起按钮收回原位。
+ * - 两种摆放可在纸面右上角切换，记住上一次的选择；Esc / 收起按钮收回原位。
  * 正文经 ContentEditor 实时保存；浮层根节点带 CANVAS_OVERLAY_ATTR，其中的按键、剪贴板、滚轮不归画布。
  */
 
@@ -22,11 +22,10 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import { cn, IconButton, toast, Tooltip } from "@tau/ui";
+import { cn, FadeScroll, IconButton, toast, Tooltip } from "@tau/ui";
 import {
   BoardUtil,
   CANVAS_OVERLAY_ATTR,
-  DOCUMENT_CARD_RADIUS,
   DOCUMENT_OPEN_EVENT,
   ViewPortTransforms,
   isDocumentElement,
@@ -44,7 +43,7 @@ import { openEntity } from "@/services/open-content";
 import { openPage } from "@/services/page-navigation";
 import { DesktopEditorOverlayDismiss } from "@/services/editorOverlayDismiss";
 import { DocumentPaper } from "./DocumentPaper";
-import { isCompactDocument } from "./layout";
+import { DOCUMENT_PAPER_WIDTH } from "./layout";
 import { DOCUMENT_KIND_LABEL, useDocumentSource, type DocumentSource } from "./source";
 import {
   getDocumentReaderStore,
@@ -52,8 +51,9 @@ import {
   useDocumentReaderState,
   type DocumentReaderMode,
 } from "./readerStore";
-import { SPRING, boxStyle, insetOf, prefersReducedMotion, relativeBox, type Box } from "./morph";
+import { SPRING, boxStyle, prefersReducedMotion, relativeBox, type Box } from "./morph";
 
+/** 停靠纸面的圆角；铺满时贴合画布容器，由容器裁圆角 */
 const FRAME_RADIUS = 16;
 const HEADER_HEIGHT = 46;
 const EDGE = 12;
@@ -67,21 +67,11 @@ const KIND_ICON: Record<DocumentKind, typeof FileText> = {
   "diary-moment": Feather,
 };
 
-function computeBox(
-  mode: DocumentReaderMode,
-  kind: DocumentKind,
-  layer: { width: number; height: number },
-  docHeight: number
-): Box {
+function computeBox(mode: DocumentReaderMode, layer: { width: number; height: number }): Box {
   const { width: W, height: H } = layer;
-  if (mode === "dock") {
-    const width = Math.min(W - EDGE * 2, Math.max(640, Math.min(720, W * 0.5)));
-    return { left: W - width - EDGE, top: EDGE, width, height: H - EDGE * 2 };
-  }
-  const compact = isCompactDocument(kind);
-  const width = Math.min(W - 64, compact ? 560 : 780);
-  const height = compact ? Math.min(H - 40, Math.max(320, docHeight + HEADER_HEIGHT)) : H - 40;
-  return { left: (W - width) / 2, top: (H - height) / 2, width, height };
+  if (mode === "center") return { left: 0, top: 0, width: W, height: H };
+  const width = Math.min(W - EDGE * 2, Math.max(640, Math.min(720, W * 0.5)));
+  return { left: W - width - EDGE, top: EDGE, width, height: H - EDGE * 2 };
 }
 
 const findCard = (layer: HTMLElement, id: string) =>
@@ -158,7 +148,8 @@ function DocumentEditor({ source, readonly }: { source: DocumentSource; readonly
       kit={getContentKit()}
       initValue={source.content}
       readonly={readonly}
-      fallback={<CardContentPreview content={source.content} blocks={Infinity} />}
+      // 会话就绪前的占位与编辑器同排版（去掉预览自带的上下内边距），换上编辑器时不位移
+      fallback={<CardContentPreview content={source.content} blocks={Infinity} className="py-0" />}
       {...(sessionSource ? { source: sessionSource } : {})}
       editingContext={{ entityType: source.kind, entityId: moment?.segmentId ?? source.id }}
       {...(moment
@@ -185,19 +176,16 @@ interface ReaderProps {
 function Reader({ board, element, source, mode, onModeChange, onClosed }: ReaderProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const scrimRef = useRef<HTMLDivElement>(null);
-  const shadowRef = useRef<HTMLDivElement>(null);
-  const clipRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-  const headRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const docRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLDivElement>(null);
   const [layer, setLayer] = useState<{ width: number; height: number } | null>(null);
-  // null = 尚未测量；卡片的居中纸高度随内容，要等测量后再展开
-  const [docHeight, setDocHeight] = useState<number | null>(null);
   const phase = useRef<"opening" | "open" | "closing">("opening");
   const store = getDocumentReaderStore(board);
 
-  const box = layer ? computeBox(mode, source.kind, layer, docHeight ?? 0) : null;
+  const box = layer ? computeBox(mode, layer) : null;
+  const radius = mode === "center" ? 0 : FRAME_RADIUS;
   const boxRef = useRef(box);
   boxRef.current = box;
 
@@ -210,104 +198,110 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     return () => observer.disconnect();
   }, []);
 
-  // 纸面挂上（图层测量完成）后才有文档 DOM 可测
-  const measured = layer !== null;
-  useLayoutEffect(() => {
-    const doc = docRef.current;
-    if (!doc) return;
-    setDocHeight(doc.offsetHeight);
-    const observer = new ResizeObserver(() => setDocHeight(doc.offsetHeight));
-    observer.observe(doc);
-    return () => observer.disconnect();
-  }, [measured]);
-
-  const setMorphing = (on: boolean) => {
-    if (clipRef.current) clipRef.current.dataset.morphing = on ? "true" : "false";
-    if (!on) clipRef.current?.style.removeProperty("clip-path");
-  };
-
-  /** 文档 DOM 在 from（卡片）与 to（纸面）之间形变；reverse 为收起 */
-  const morph = (from: Box, to: Box, reverse: boolean) => {
+  /**
+   * 纸面（底色 + 阴影）在 from（卡片）与 to（纸面盒子）之间伸缩；卡面替身随纸面放大到正文原大，
+   * 正文层（实底）在它上面淡入接手，看起来是卡片本身展开。reverse 为收起。
+   * 替身始终不透明、只淡正文层：两层对淡时中段合成不透明度只有约 75%，会透出底下的画布。
+   * 只动 transform / opacity，由合成线程驱动；同一时刻挂编辑器的长任务只推迟首帧，不会让动画逐帧卡顿。
+   */
+  const morph = (cardEl: HTMLElement, from: Box, to: Box, reverse: boolean) => {
     const layerEl = layerRef.current!;
-    const doc = docRef.current!;
-    const full = { left: 0, top: 0, width: layerEl.clientWidth, height: layerEl.clientHeight };
-    const scrollTop = scrollRef.current?.scrollTop ?? 0;
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
-    setMorphing(true);
-    const d = relativeBox(doc, layerEl);
-    const cardRadius = DOCUMENT_CARD_RADIUS * board.viewPort.zoom;
-    const atCard = `translate(${from.left - d.left}px, ${from.top - d.top}px) scale(${from.width / d.width})`;
-    const atPaper = reverse ? `translateY(${-scrollTop}px)` : "none";
     const duration = reverse ? SPRING.duration * 0.85 : SPRING.duration;
     const options: KeyframeAnimationOptions = { duration, easing: SPRING.easing, fill: "forwards" };
     const frames = <T,>(card: T, paper: T) => (reverse ? [paper, card] : [card, paper]);
+    const sheetAtCard = `translate(${from.left - to.left}px, ${from.top - to.top}px) scale(${
+      from.width / to.width
+    }, ${from.height / to.height})`;
 
-    doc.animate(frames({ transform: atCard }, { transform: atPaper }), options);
-    shadowRef.current?.animate(
-      frames(
-        { ...boxStyle(from), borderRadius: `${cardRadius}px`, opacity: 0.4 },
-        { ...boxStyle(to), borderRadius: `${FRAME_RADIUS}px`, opacity: 1 }
-      ),
+    const sheet = sheetRef.current!.animate(
+      frames({ transform: sheetAtCard }, { transform: "none" }),
       options
     );
-    headRef.current?.animate(
+    // 收起最后一段淡出，露出底下的卡片
+    if (reverse)
+      sheetRef.current!.animate([{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], {
+        duration,
+        fill: "forwards",
+      });
+
+    // 卡面替身：卡片 DOM 的克隆，从卡片原位放大到正文的位置与原大（卡面是版宽排版按比例缩小的）
+    const paperEl = scrollRef.current?.firstElementChild;
+    const ghostLayer = ghostRef.current;
+    if (paperEl && ghostLayer) {
+      const paper = relativeBox(paperEl, layerEl);
+      const scale = DOCUMENT_PAPER_WIDTH[source.kind] / from.width;
+      const ghost = cardEl.cloneNode(true) as HTMLElement;
+      ghost.removeAttribute("data-document-card");
+      ghost.querySelector("[data-document-badge]")?.remove();
+      ghost.classList.remove("shadow-paper");
+      Object.assign(ghost.style, boxStyle(from), { position: "absolute", transformOrigin: "0 0" });
+      ghostLayer.replaceChildren(ghost);
+      ghost.animate(
+        frames(
+          { transform: "none" },
+          {
+            transform: `translate(${paper.left - from.left}px, ${paper.top - from.top}px) scale(${scale})`,
+          }
+        ),
+        options
+      );
+      // 收起最后一段与纸面一起淡出：替身盖着卡片的手绘边框与选中框，直接卸载会让它们突然冒出来
+      if (reverse)
+        ghost.animate([{ opacity: 1 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], {
+          duration,
+          fill: "forwards",
+        });
+    }
+    // 正文层不随纸面缩放：纸面基本铺开后在替身上淡入，收起时先淡出交给替身
+    frameRef.current?.animate(
       reverse
-        ? [{ opacity: 1 }, { opacity: 0, offset: 0.3 }, { opacity: 0 }]
-        : [{ opacity: 0 }, { opacity: 0, offset: 0.45 }, { opacity: 1 }],
+        ? [{ opacity: 1 }, { opacity: 0, offset: 0.25 }, { opacity: 0 }]
+        : [
+            { opacity: 0 },
+            { opacity: 0, offset: 0.45 },
+            { opacity: 1, offset: 0.8 },
+            { opacity: 1 },
+          ],
       { duration, fill: "forwards" }
     );
     if (mode === "center")
       scrimRef.current?.animate(frames({ opacity: 0 }, { opacity: 1 }), {
-        duration: duration * 0.8,
+        duration: duration * 0.5,
         easing: "ease-out",
         fill: "forwards",
       });
-    const clip = clipRef.current!.animate(
-      frames(
-        { clipPath: insetOf(from, full, cardRadius) },
-        { clipPath: insetOf(to, full, FRAME_RADIUS) }
-      ),
-      options
-    );
-    // 收起的最后一段淡出，露出底下已复位的卡片，交接帧不闪
-    if (reverse)
-      clipRef.current!.animate([{ opacity: 1 }, { opacity: 1, offset: 0.82 }, { opacity: 0 }], {
-        duration,
-        fill: "forwards",
-      });
-    return clip.finished;
+    return sheet.finished;
   };
 
   // 打开：等纸面盒子算出来后从卡片原位长出
-  const ready = box !== null && (!isCompactDocument(source.kind) || docHeight !== null);
+  const ready = box !== null;
   useLayoutEffect(() => {
     if (!ready || phase.current !== "opening") return;
     const layerEl = layerRef.current!;
     const to = boxRef.current!;
     const cardEl = findCard(layerEl, element.id);
-    let from = cardEl ? relativeBox(cardEl, layerEl) : null;
+    const from = cardEl ? relativeBox(cardEl, layerEl) : null;
     const settle = () => {
       if (phase.current !== "opening") return;
       phase.current = "open";
-      setMorphing(false);
-      for (const el of [docRef, shadowRef, headRef, scrimRef, clipRef])
+      for (const el of [sheetRef, frameRef, scrimRef])
         el.current?.getAnimations().forEach(animation => animation.cancel());
+      ghostRef.current?.replaceChildren();
       frameRef.current?.focus({ preventScroll: true });
     };
-    if (from && mode === "dock" && from.left + from.width > to.left - DOCK_CLEARANCE) {
-      const shift = Math.max(
-        to.left - DOCK_CLEARANCE - (from.left + from.width),
-        DOCK_CLEARANCE - from.left
+    // 被停靠面板挡住的卡片平移出来；纸面从卡片当前所在处长出，卡片在纸面下随画布移开
+    if (from && mode === "dock" && from.left + from.width > to.left - DOCK_CLEARANCE)
+      panBoard(
+        board,
+        Math.max(to.left - DOCK_CLEARANCE - (from.left + from.width), DOCK_CLEARANCE - from.left),
+        SPRING.duration
       );
-      panBoard(board, shift, SPRING.duration);
-      from = { ...from, left: from.left + shift };
-    }
-    if (!from || prefersReducedMotion()) {
+    if (!cardEl || !from || prefersReducedMotion()) {
       frameRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], 120);
       settle();
       return;
     }
-    void morph(from, to, false).then(settle, settle);
+    void morph(cardEl, from, to, false).then(settle, settle);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 只在首次就绪时展开一次
   }, [ready]);
 
@@ -320,7 +314,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     const cardEl = layerEl ? findCard(layerEl, element.id) : null;
     if (!layerEl || !to || !cardEl || prefersReducedMotion()) return onClosed();
     (document.activeElement as HTMLElement | null)?.blur?.();
-    void morph(relativeBox(cardEl, layerEl), to, true).then(onClosed, onClosed);
+    void morph(cardEl, relativeBox(cardEl, layerEl), to, true).then(onClosed, onClosed);
   });
 
   // 居中 ⇄ 停靠：纸面在两个盒子之间 FLIP
@@ -335,7 +329,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
     const options = { duration: 420, easing: SPRING.easing };
     const keyframes = [boxStyle(from), boxStyle(to)];
     frameRef.current?.animate(keyframes, options);
-    shadowRef.current?.animate(keyframes, options);
+    sheetRef.current?.animate(keyframes, options);
     scrimRef.current?.animate(
       mode === "center" ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }],
       { duration: 280, easing: "ease-out" }
@@ -404,70 +398,54 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
       {box && (
         <>
           <div
-            ref={shadowRef}
-            className="shadow-float absolute"
-            style={{ ...boxStyle(box), borderRadius: FRAME_RADIUS }}
+            ref={sheetRef}
+            className={cn(
+              "bg-surface shadow-float absolute origin-top-left",
+              mode === "dock" && "ring-line-2 ring-1"
+            )}
+            style={{ ...boxStyle(box), borderRadius: radius }}
           />
+          <div ref={ghostRef} className="pointer-events-none absolute inset-0" />
           <div
-            ref={clipRef}
-            data-morphing="false"
-            className="data-[morphing=true]:bg-surface group absolute inset-0"
+            ref={frameRef}
+            tabIndex={-1}
+            className="bg-surface pointer-events-auto absolute flex flex-col overflow-hidden outline-none"
+            style={{ ...boxStyle(box), borderRadius: radius }}
           >
             <div
-              ref={frameRef}
-              tabIndex={-1}
-              className={cn(
-                "bg-surface pointer-events-auto absolute flex flex-col overflow-hidden outline-none",
-                "group-data-[morphing=true]:overflow-visible group-data-[morphing=true]:bg-transparent",
-                mode === "dock" && "ring-line-2 ring-1"
-              )}
-              style={{ ...boxStyle(box), borderRadius: FRAME_RADIUS }}
+              className="flex shrink-0 items-center gap-1 pl-2.5 pr-2"
+              style={{ height: HEADER_HEIGHT }}
             >
-              <div
-                ref={headRef}
-                className="flex shrink-0 items-center gap-1 pl-2.5 pr-2"
-                style={{ height: HEADER_HEIGHT }}
-              >
-                {mode === "center" && closeButton}
-                <div className="text-ink-3 ml-1 flex min-w-0 items-center gap-1.5 text-[12.5px]">
-                  <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
-                  <span className="shrink-0">{crumb}</span>
-                  <span className="shrink-0">/</span>
-                  <b className="text-ink-2 truncate font-medium">{source.title || "无标题"}</b>
-                </div>
-                <div className="flex-1" />
-                {mode === "center" ? (
-                  <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
-                    <PanelRight className="size-4" strokeWidth={1.75} />
-                  </HeaderButton>
-                ) : (
-                  <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
-                    <AppWindow className="size-4" strokeWidth={1.75} />
-                  </HeaderButton>
-                )}
-                <HeaderButton
-                  label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
-                  onClick={openInPage}
-                >
-                  <ExternalLink className="size-4" strokeWidth={1.75} />
+              {mode === "center" && closeButton}
+              <div className="text-ink-3 ml-1 flex min-w-0 items-center gap-1.5 text-[12.5px]">
+                <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+                <span className="shrink-0">{crumb}</span>
+                <span className="shrink-0">/</span>
+                <b className="text-ink-2 truncate font-medium">{source.title || "无标题"}</b>
+              </div>
+              <div className="flex-1" />
+              {mode === "center" ? (
+                <HeaderButton label="停靠到右侧" onClick={() => onModeChange("dock")}>
+                  <PanelRight className="size-4" strokeWidth={1.75} />
                 </HeaderButton>
-                {mode === "dock" && closeButton}
-              </div>
-              <div
-                ref={scrollRef}
-                className="min-h-0 flex-1 overflow-auto overscroll-contain group-data-[morphing=true]:overflow-visible"
+              ) : (
+                <HeaderButton label="居中展开" onClick={() => onModeChange("center")}>
+                  <AppWindow className="size-4" strokeWidth={1.75} />
+                </HeaderButton>
+              )}
+              <HeaderButton
+                label={`在${source.moment ? "日记" : DOCUMENT_KIND_LABEL[source.kind]}页打开`}
+                onClick={openInPage}
               >
-                <div ref={docRef} className="mx-auto w-fit origin-top-left">
-                  <DocumentPaper source={source}>
-                    <DocumentEditor
-                      key={source.contentId}
-                      source={source}
-                      readonly={board.readonly}
-                    />
-                  </DocumentPaper>
-                </div>
-              </div>
+                <ExternalLink className="size-4" strokeWidth={1.75} />
+              </HeaderButton>
+              {mode === "dock" && closeButton}
             </div>
+            <FadeScroll scrollRef={scrollRef} className="min-h-0 flex-1 overscroll-contain">
+              <DocumentPaper source={source} fill>
+                <DocumentEditor key={source.contentId} source={source} readonly={board.readonly} />
+              </DocumentPaper>
+            </FadeScroll>
           </div>
         </>
       )}

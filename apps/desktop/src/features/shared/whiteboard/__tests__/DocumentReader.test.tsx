@@ -175,19 +175,17 @@ afterEach(async () => {
 });
 
 describe("文档阅读纸", () => {
-  it("居中展开：卡片原位隐藏，正文进编辑器；收起后复位", async () => {
+  it("居中展开：正文进编辑器，收起后复位", async () => {
     expect(card("a")?.textContent).not.toContain("编辑中");
     await act(async () => board.emit(DOCUMENT_OPEN_EVENT, "a"));
     await flush();
 
     expect(reader()).not.toBeNull();
     expect(host.querySelector('[data-testid="editor"]')?.textContent).toBe("101");
-    expect(card("a")?.className).toContain("invisible");
 
     await act(async () => button("收起  Esc").click());
     await flush();
     expect(reader()).toBeNull();
-    expect(card("a")?.className).not.toContain("invisible");
     expect(getDocumentReaderStore(board).getState()).toEqual({ openId: null, closing: false });
   });
 

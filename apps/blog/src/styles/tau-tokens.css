@@ -65,6 +65,7 @@
   --tau-shadow-card: var(--shadow-card);
   --tau-shadow-lift: var(--shadow-card-hover);
   --tau-shadow-float: var(--shadow-dropdown);
+  --tau-shadow-paper: var(--shadow-card-hover);
 }
 
 [data-theme="dark"] {

@@ -32,7 +32,7 @@ export const tokenContract = {
     "tag-5",
     "tag-5-soft",
   ],
-  float: ["overlay", "shadow-card", "shadow-lift", "shadow-float"],
+  float: ["overlay", "shadow-card", "shadow-lift", "shadow-float", "shadow-paper"],
 } as const;
 
 /** 全部词汇的平铺联合类型 */
