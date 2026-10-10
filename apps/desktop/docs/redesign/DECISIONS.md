@@ -1223,6 +1223,8 @@
 - **追记（2026-09-29，项目域 PDF 引用收编）**：用户指出项目域（新架构）仍引用旧件——「关联已有 PDF」弹窗 `components/SelectPdfModal`（antd + legacy `pages/PdfView/PdfCard`）与建记录用的 zustand `usePdfsStore`（与 PDF 域 react-query 各读各的库，列表页改名 / 新增互不同步）。裁决：选择弹窗重写为 `features/pdfs/components/SelectPdfDialog`（`@tau/ui` Dialog；与列表页同一份 `pdf:library` 数据、封面与信息行；按最近打开排序、文件名过滤、单选，双击 / ↵ 直接关联；选中态归弹窗，`useAddRefPdf` 只管开合与排除项）；PDF 域导出 `useCreatePdfRecord` 给项目域建记录（写后失效 `["pdfs"]`，本地文件顺带生成缩略图）；`PdfProjectItemView` 改 react-query（条目 + `usePdfDetail`）；删除 `SelectPdfModal`、`PdfCard`、`usePdfsStore` 与目录树里只为预选而下传的 `pdfs` prop。项目域经 `@/features/pdfs/...` 引用 PDF 域的组件与 query，依赖方向为「PDF 归 PDF 域、项目只存 refId」。
 - **追记（2026-09-30，实机校准）**：① 底部 HUD 取消「滚动时变淡」，常驻不透明（半透明叠在正文上显得乱）；② 纸内对话栏可拖宽（320–560，默认 380，双击恢复，本机偏好 `readerPrefs.chatWidth`）——壳层停靠栏原有的拖宽热区抽为 `@tau/ui` 的 `ResizeHandle`（停靠栏与 PDF 对话栏共用，样板间已建档）；③ 阅读区视口挂 `FADE_SCROLL_CLASS` + `useEdgeFade`（细滚动条上下内缩 10px、边缘渐隐），页面加 line-1 细边、末页下留 HUD 高度的空白；④ 每页等整页位图加载完再显示标注与叠加层；⑤ 点浮层以外任意处（捕获阶段、先于引擎）收起所有工具条 / 钉住的卡与标注选中，新选区与标注工具条互斥；⑥ Alt 框选松手后用虚线框标出选中区域，直到存为标注或关闭；⑦ **恢复抓手工具**（推翻一轮的「抓手工具去掉」，用户反馈「只有选中的模式，缺少变小手拖拽的模式」）：HUD 加抓手开关（H），常开时拖动平移、再点回到选择文字；按住空格仍是临时平移，松开回到当前工具；⑧ 左面板缩略图列表接 FadeScroll（引擎面板经 `data-pdf-thumbs` 取元素），缩略图插件 `paddingY: 10`，选中页的外侧 accent 框不再被滚动容器裁掉；⑨ **Ctrl/⌘+F 查找接管**：全局页内查找条 `GlobalFindBar` 在 document 捕获阶段拦截 Ctrl/⌘+F 并阻止传播，PDF 阅读器与设置弹窗的分区搜索都收不到。新增 `components/GlobalFindBar/findOwner.ts`：自带查找的区域在生效期间 `useFindOwner(open, active)` 注册，全局查找条交给最后注册的接管者（LIFO，浮层优先于底下的页面），没有接管者才打开页内文本查找；阅读器与设置弹窗改走它，各自不再监听 Ctrl/⌘+F。
 
+- **追记（2026-10-10，阅读工作区宽度）**：PDF 阅读页取消外层 1720px 最大宽度，目录、阅读区与纸内对话共同铺满壳层可用宽度，仅保留页面边缘留白；PDF 页面尺寸仍由适宽 / 适页 / 手动缩放控制，列表页宽度约束不变。
+
 ## D-071 侧栏分组重排（日常 / 知识 / 学习 / AI / 分享）
 
 （2026-09-30，已定；用户裁决）
