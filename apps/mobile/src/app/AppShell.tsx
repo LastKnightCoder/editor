@@ -27,6 +27,7 @@ import * as tauri from "../services/tauri";
 import { initThemeRuntime } from "../theme/themeStore";
 import { normalizeEditorContent } from "../features/cards/editorContentUtils";
 import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
+import { setupEntityRefsRebuild } from "../features/context/refIndex";
 import type { CardsOverviewResponse } from "../types";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
@@ -293,6 +294,9 @@ function AppShellInner() {
   useEffect(() => {
     initThemeRuntime();
   }, []);
+
+  // entity_refs 引用索引对账：启动一次 + 监听主进程 reconcile 就绪事件（保存、同步下载、切库）
+  useEffect(() => setupEntityRefsRebuild(), []);
 
   // 内容编辑广播：更新卡片列表缓存
   useEffect(() => {

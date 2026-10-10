@@ -91,7 +91,7 @@ fn parse_content(raw_content: Option<String>) -> Value {
     }
 }
 
-fn find_first_text(value: &Value) -> Option<String> {
+pub(super) fn find_first_text(value: &Value) -> Option<String> {
     match value {
         Value::Object(map) => {
             if let Some(text) = map.get("text").and_then(|v| v.as_str()) {

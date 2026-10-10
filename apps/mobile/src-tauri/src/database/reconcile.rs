@@ -498,6 +498,9 @@ fn run_reconcile(app: &AppHandle, db_name: &str) -> Result<(), String> {
                 stats.skipped_up_to_date,
                 started_at.elapsed().as_millis()
             );
+            // FTS 就绪后通知前端对账 entity_refs（解析器在 JS 侧，与桌面同一份代码）
+            use tauri::Emitter;
+            let _ = app.emit("entity-refs:rebuild", ());
             Ok(())
         }
         Err(err) => {

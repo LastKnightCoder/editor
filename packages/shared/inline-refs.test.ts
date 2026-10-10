@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractInlineRefs, inlineCardIds } from "../inline-refs";
+import { extractInlineRefs, inlineCardIds } from "./inline-refs";
 
 const text = (t: string) => ({ type: "formatted", text: t });
 const link = (contentType: string, refId: unknown, title: string, contentId?: number) => ({

@@ -87,6 +87,7 @@ function ArticleEditorScreen() {
         }}
         tags={article.tags}
         refreshKey={refreshRev}
+        contextEntity={{ kind: "article", id: article.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
           collab.onCollaborationEnded();

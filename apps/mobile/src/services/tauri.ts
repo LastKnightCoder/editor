@@ -69,6 +69,7 @@ import type {
 } from "../features/calendar/types";
 import { logPerf } from "../utils/perf";
 import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
+import type { ContextEntity, EntityContext, PendingRefBatch } from "../features/context/types";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
 function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -328,6 +329,39 @@ export function updateCardLinks(params: { id: number; links: number[] }) {
     }),
     "更新卡片关联"
   );
+}
+
+export function entityContextGet(kind: string, id: number) {
+  return trackedInvoke<EntityContext>("entity_context_get", { kind, id });
+}
+
+export function entityContextResolveEntities(refs: Array<{ kind: string; id: number }>) {
+  return trackedInvoke<Array<ContextEntity | null>>("entity_context_resolve_entities", {
+    payload: { refs },
+  });
+}
+
+export function entityRefsPending(limit: number) {
+  return trackedInvoke<PendingRefBatch>("entity_refs_pending", { limit });
+}
+
+export function entityRefsApply(payload: {
+  applied: Array<{
+    contentId: number;
+    updateTime: number;
+    refs: Array<{
+      dstKind: string;
+      dstId: number;
+      dstContentId: number | null;
+      snippetBefore: string;
+      snippetLabel: string;
+      snippetAfter: string;
+      srcBlock: number;
+    }>;
+  }>;
+  removed: number[];
+}) {
+  return trackedInvoke<void>("entity_refs_apply", { payload });
 }
 
 export function getCardsByIds(ids: number[]) {
