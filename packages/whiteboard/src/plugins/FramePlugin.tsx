@@ -9,9 +9,9 @@ import {
   Operation,
   ContextMenuContext,
   PluginContextMenuItem,
-  ECreateBoardElementType,
   IElementCapabilities,
 } from "../types";
+import { FRAME_TOOL_ID } from "../constants/tools";
 import {
   SnapBehavior,
   ContainmentBehavior,
@@ -167,7 +167,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         icon: <FrameIcon size={14} />,
         priority: 180,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.Frame;
+          ctx.board.setActiveTool(FRAME_TOOL_ID);
         },
       });
     }

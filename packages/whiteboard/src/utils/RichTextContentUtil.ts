@@ -2,7 +2,6 @@ import type { TextExtensionOptions } from "../extensions/text";
 import { Descendant } from "slate";
 
 import { getContentLength } from "./text";
-import type Board from "../Board";
 
 export const createEmptyRichTextContent = (): Descendant[] => [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] } as unknown as Descendant,
@@ -11,6 +10,13 @@ export const createEmptyRichTextContent = (): Descendant[] => [
 export const isRichTextContentEmpty = (content: Descendant[] | undefined) =>
   !content || getContentLength(content) === 0;
 
+/** 结构化的提交守门宿主：Board 与扩展 WhiteboardAPI 都满足 */
+interface SubmissionHost {
+  readonly readonly: boolean;
+  readonly isDestroyed: boolean;
+  captureSubmission?(): () => boolean;
+}
+
 /**
  * 新建富文本前先建好 content：ContentEditor 以 contentId 为 key，
  * 元素落位后再补 contentId 会重挂编辑器、丢掉刚拿到的焦点。
@@ -18,7 +24,7 @@ export const isRichTextContentEmpty = (content: Descendant[] | undefined) =>
  */
 export const createRichTextContentId = async (
   content: Descendant[],
-  board: Board,
+  board: SubmissionHost,
   binding: Pick<TextExtensionOptions, "create" | "release"> = {}
 ): Promise<number | undefined> => {
   const canSubmit = board.captureSubmission?.() ?? (() => !board.readonly && !board.isDestroyed);

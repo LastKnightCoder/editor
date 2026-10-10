@@ -12,9 +12,9 @@ import CurveArrow from "../../components/Arrow/CurveArrow";
 import SketchRect from "../SketchPaths/SketchRect";
 import { hashSeed } from "../../utils/sketch";
 import {
+  useActiveTool,
   useArrowMove,
   useBoard,
-  useCreateElementType,
   useElementMoving,
   useInertControl,
   useSelectState,
@@ -24,7 +24,8 @@ import { BoardUtil, MindThemeUtil, MindUtil, PathUtil } from "../../utils";
 import { useMindMode, useMindTheme } from "../../hooks/useMindTheme";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
-import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../types";
+import { EMarkerType, MindNodeElement } from "../../types";
+import { SELECT_TOOL_ID } from "../../constants/tools";
 import { useTextExtension } from "../../extensions/text";
 import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
 type SearchResult = { contentId: number; title: string };
@@ -79,7 +80,7 @@ const MindNode = (props: MindNodeProps) => {
   useEditingElementCleanup(id);
   const textBinding = useTextExtension();
   const isArrowMoving = useArrowMove();
-  const createBoardElementType = useCreateElementType();
+  const activeTool = useActiveTool();
 
   const root = useMemo(() => MindUtil.getRoot(board, element), [board, element, board.children]);
   const mindTheme = useMindTheme(root);
@@ -115,7 +116,7 @@ const MindNode = (props: MindNodeProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { isSelected, isSelecting } = useSelectState(id);
-  const isCreatingElement = createBoardElementType !== ECreateBoardElementType.None;
+  const isCreatingElement = activeTool !== SELECT_TOOL_ID;
   const shouldInert = isArrowMoving || isMoving || isSelecting || isCreatingElement;
 
   useInertControl(containerRef, shouldInert);

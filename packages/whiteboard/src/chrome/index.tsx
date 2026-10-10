@@ -63,6 +63,12 @@ export function ChromeGap({ className }: { className?: string }) {
   return <span aria-hidden className={cn("size-2 flex-none", className)} />;
 }
 
+/**
+ * 工具栏语境：激活态由滑动指示块承载底色，按钮只改文字色（悬停不加背景）；
+ * 工具栏以外的 ChromeButton（属性条 / 状态栏）保持 accent-soft 底色的原激活态。
+ */
+export const ToolbarContext = createContext(false);
+
 export interface ChromeButtonProps extends ComponentProps<"button"> {
   /** 提示与无障碍名 */
   label: string;
@@ -90,6 +96,7 @@ export function ChromeButton({
   ...rest
 }: ChromeButtonProps) {
   const expanded = rest["aria-expanded"] === true;
+  const inToolbar = useContext(ToolbarContext);
   return (
     <Tooltip
       content={
@@ -118,7 +125,10 @@ export function ChromeButton({
           "hover:bg-hover hover:text-ink-1 aria-expanded:bg-press aria-expanded:text-ink-1",
           "disabled:pointer-events-none disabled:opacity-35",
           "[&_svg]:size-4 [&_svg]:shrink-0",
-          active && "bg-accent-soft text-accent-text hover:bg-accent-soft hover:text-accent-text",
+          active &&
+            (inToolbar
+              ? "text-accent-text hover:text-accent-text hover:bg-transparent"
+              : "bg-accent-soft text-accent-text hover:bg-accent-soft hover:text-accent-text"),
           className
         )}
       >

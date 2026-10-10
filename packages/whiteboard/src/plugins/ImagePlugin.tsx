@@ -12,7 +12,6 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   IElementCapabilities,
-  ECreateBoardElementType,
 } from "../types";
 import {
   SnapBehavior,
@@ -198,7 +197,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
     if (
       e.button !== 0 ||
-      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.isCreating() ||
       board.presentationManager.isPresentationMode ||
       board.presentationManager.isCreatingSequence
     ) {

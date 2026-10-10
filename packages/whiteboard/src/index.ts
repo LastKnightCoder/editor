@@ -23,7 +23,7 @@ export * from "./types/presentation";
 export * from "./types/frame";
 export * from "./types/sketch";
 export * from "./types/column";
-export { ECreateBoardElementType } from "./types/board";
+export { SELECT_TOOL_ID } from "./constants/tools";
 export type {
   BoardElement,
   ElementBounds,

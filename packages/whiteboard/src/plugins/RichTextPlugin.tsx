@@ -1,12 +1,10 @@
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { DOMSizeMeasurer } from "../extensions/DOMSizeMeasurer";
 import { Descendant } from "slate";
-import { v4 as getUuid } from "uuid";
 import { Type, CreditCard, FileText, FolderOpen } from "lucide-react";
 
 import {
   Board,
-  ECreateBoardElementType,
   EHandlerPosition,
   Point,
   ContextMenuContext,
@@ -19,14 +17,15 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { BoardUtil, PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
-import { createEmptyRichTextContent, createRichTextContentId } from "../utils/RichTextContentUtil";
+import { BoardUtil, PathUtil, PointUtil, getResizedBBox } from "../utils";
+import { buildRichTextElement } from "../extensions/creators/text";
 
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { SelectTransforms } from "../transforms";
 import { TextTone, TextVariant, getTextBoxPadding, resolveTextStyle } from "../constants";
 import { handTextClass, resolveSketch } from "../utils/sketch";
+import { RICHTEXT_TOOL_ID } from "../constants/tools";
 
 export interface RichTextElement extends CommonElement {
   type: "richtext";
@@ -115,7 +114,7 @@ export class RichTextPlugin extends CommonPlugin {
         icon: <Type size={14} />,
         priority: 120,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.Text;
+          ctx.board.setActiveTool(RICHTEXT_TOOL_ID);
         },
       });
     }
@@ -187,28 +186,10 @@ export class RichTextPlugin extends CommonPlugin {
     void this.insertRichText(board, x, y);
   }
 
-  /** content 先建后插（见 createRichTextContentId），故为异步；调用方不等待 */
+  /** content 先建后插（见 createRichTextContentId），故为异步；调用方不等待；双击空白创建共用此入口 */
   private async insertRichText(board: Board, x: number, y: number) {
     const canSubmit = board.captureSubmission();
-    if (!canSubmit()) return;
-    const content = createEmptyRichTextContent();
-    const element: RichTextElement = {
-      id: getUuid(),
-      type: "richtext",
-      x,
-      y,
-      width: 180,
-      height: 72,
-      maxWidth: 300,
-      maxHeight: 1000,
-      readonly: false,
-      resized: false,
-      content,
-      contentId: await createRichTextContentId(content, board, this.text),
-      autoFocus: true,
-      ...RichTextUtil.load(),
-    };
-
+    const element = await buildRichTextElement(x, y, this.text, board);
     if (!canSubmit()) return;
 
     board.apply({
@@ -216,26 +197,6 @@ export class RichTextPlugin extends CommonPlugin {
       path: [board.children.length],
       node: element,
     });
-  }
-
-  onClick(e: MouseEvent, board: Board) {
-    if (board.currentCreateType !== ECreateBoardElementType.Text) {
-      return;
-    }
-
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!currentPoint) return;
-
-    const { x, y } = currentPoint;
-    // 创建态先关掉，避免 content 建好前的重复点击又插一个
-    board.currentCreateType = ECreateBoardElementType.None;
-
-    SelectTransforms.updateSelectArea(board, {
-      selectArea: null,
-      selectedElements: [],
-    });
-
-    void this.insertRichText(board, x, y);
   }
 
   onResize(

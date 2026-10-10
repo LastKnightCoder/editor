@@ -55,6 +55,11 @@ export class ColumnUtil {
    * Similar to MindUtil.layout, this is the core layout algorithm
    */
   static layout(_board: Board, column: ColumnElement): ColumnElement {
+    return this.layoutColumn(column);
+  }
+
+  /** layout 的纯函数形态（board 参数从未参与计算），创建手势等无 Board 场合复用 */
+  static layoutColumn(column: ColumnElement): ColumnElement {
     const titleHeight = TITLE_HEIGHT;
     const contentWidth = column.width - COLUMN_DEFAULTS.padding * 2;
 

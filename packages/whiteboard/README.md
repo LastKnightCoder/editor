@@ -66,6 +66,46 @@ const stamp = defineElement<StampData>({
     },
   },
   render: ({ element }) => <text>{element.data.label}</text>,
+  // 声明创建规格后即可注册创建型工具，在画布上手势创建
+  create: {
+    gesture: "drag", // click / drag / 自定义手势对象
+    defaultSize: [160, 80], // 单击时以此尺寸创建，缺省单击不创建
+    after: "select", // 创建后选中并回到选择工具（默认）
+    build: ctx => ({
+      id: crypto.randomUUID(),
+      type: "demo.stamp",
+      x: ctx.rect.x,
+      y: ctx.rect.y,
+      width: ctx.rect.width,
+      height: ctx.rect.height,
+      data: { label: `印章 ${ctx.options?.label ?? ""}` },
+    }),
+  },
+});
+```
+
+创建型工具随扩展贡献：`tools` 里给 `element` 字段指向该元素 type 并声明 `label` 与 `icon`，激活后画布按 `create` 规格执行手势；工具参数经 `api.setActiveTool(id, options)` 传入 `build` 的 `options`。第三方工具统一进入「扩展工具」菜单，不占工具栏位。
+
+```tsx
+import { defineWhiteboardExtension } from "@tau/whiteboard/extensions";
+import { Stamp } from "./icons";
+
+const stampExtension = defineWhiteboardExtension({
+  id: "demo.board",
+  name: "演示扩展", // 可选展示名（「来自 xxx」）
+  create: () => ({
+    elements: [stamp],
+    tools: [
+      {
+        id: "demo.stamp.create",
+        element: "demo.stamp",
+        label: "印章",
+        icon: Stamp,
+        order: 10,
+        group: "drawing",
+      },
+    ],
+  }),
 });
 ```
 

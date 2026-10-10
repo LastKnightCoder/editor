@@ -1,5 +1,6 @@
 export * from "./map";
 export * from "./select";
+export * from "./tools";
 export * from "./arrow";
 export * from "./resize";
 export * from "./geometry";

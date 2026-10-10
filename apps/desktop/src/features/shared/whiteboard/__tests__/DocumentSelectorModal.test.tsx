@@ -44,6 +44,7 @@ describe("白板日记选择", () => {
       children: [],
       viewPort: { minX: 0, minY: 0, width: 1200, height: 800 },
       captureSubmission: () => () => true,
+      setActiveTool: vi.fn(),
       apply,
     } as unknown as Board;
     act(() => root.render(<DocumentSelectorModal open board={board} onClose={close} />));
@@ -64,7 +65,11 @@ describe("白板日记选择", () => {
 
   it("白板已不可提交时不会插入日记", () => {
     const apply = vi.fn();
-    const board = { captureSubmission: () => () => false, apply } as unknown as Board;
+    const board = {
+      captureSubmission: () => () => false,
+      setActiveTool: vi.fn(),
+      apply,
+    } as unknown as Board;
     act(() => root.render(<DocumentSelectorModal open board={board} onClose={vi.fn()} />));
     picker.confirm?.([moment(12)]);
     expect(apply).not.toHaveBeenCalled();

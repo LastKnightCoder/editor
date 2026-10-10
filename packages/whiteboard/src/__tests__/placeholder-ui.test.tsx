@@ -134,6 +134,8 @@ const toolbarExtension = defineWhiteboardExtension({
         command: "acme.ui.ping",
         order: 1,
         group: "acme",
+        label: "测试工具",
+        icon: () => null,
         component: () => <i data-acme-tool />,
       },
     ],
@@ -162,18 +164,20 @@ describe("文档版本过高的只读提示条", () => {
     expect(notice).toBeTruthy();
     expect(notice?.textContent).toContain("只读");
     expect(notice?.textContent).toContain("此白板由更新版本的应用保存，更新应用后即可编辑");
-    expect(container.querySelector("[data-acme-tool]")).toBeNull();
+    expect(container.querySelector('[aria-label="扩展工具"]')).toBeNull();
   });
 
   it("version=3 即使显式 showToolbar 也不渲染工具栏", async () => {
     const container = await mountBoard({ version: 3, showToolbar: true });
-    expect(container.querySelector("[data-acme-tool]")).toBeNull();
+    expect(container.querySelector('[aria-label="扩展工具"]')).toBeNull();
     expect(container.querySelector('[role="status"]')).toBeTruthy();
   });
 
-  it("version=2 可编辑时渲染工具栏、无提示条", async () => {
+  it("version=2 可编辑时渲染工具栏（第三方工具收进扩展工具入口）、无提示条", async () => {
     const container = await mountBoard({ version: 2 });
-    expect(container.querySelector("[data-acme-tool]")).toBeTruthy();
+    // 第三方工具不直接出现在工具栏上，而是经「扩展工具」入口进入
+    expect(container.querySelector("[data-acme-tool]")).toBeNull();
+    expect(container.querySelector('[aria-label="扩展工具"]')).toBeTruthy();
     expect(container.querySelector('[role="status"]')).toBeNull();
   });
 

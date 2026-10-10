@@ -1,4 +1,4 @@
-import { IBoardPlugin, Board, ECreateBoardElementType, ViewPort } from "../types";
+import { IBoardPlugin, Board, ViewPort } from "../types";
 import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM, FIT_VIEW_PADDING } from "../constants";
 import { ViewPortTransforms } from "../transforms";
 import { isEditableTarget } from "@tau/ui";
@@ -30,11 +30,7 @@ export class ViewPortPlugin implements IBoardPlugin {
   }
 
   onWheel(e: WheelEvent, board: Board) {
-    if (
-      board.currentCreateType !== ECreateBoardElementType.None ||
-      board.presentationManager.isPresentationMode
-    )
-      return;
+    if (board.isCreating() || board.presentationManager.isPresentationMode) return;
 
     const now = Date.now();
     if (now - this.lastWheelTime < 100) return;

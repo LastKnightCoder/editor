@@ -40,12 +40,14 @@ import {
   DEFAULT_PAGE_SKETCH,
 } from "./types";
 import Toolbar from "./components/Toolbar";
+import CreateToolHint from "./components/CreateToolHint";
 import ReadonlyNotice from "./components/ReadonlyNotice";
 import AttributeSetter from "./components/AttributeSetter";
 import PresentationCreator from "./components/PresentationCreator";
 import PresentationMode from "./components/PresentationMode";
 import StatusBar from "./components/StatusBar";
 import BoardContent from "./components/BoardContent";
+import { CreationPreviewBadge } from "./components/CreationPreview";
 import Sidebar from "./components/Sidebar";
 import {
   useViewPortControls,
@@ -56,6 +58,7 @@ import {
   ArrowMoveContext,
   useElementsMoving,
   usePreventTextSelection,
+  useCreateToolCursor,
 } from "./hooks";
 import ContextMenuLayer, {
   type ContextMenuItem,
@@ -238,6 +241,7 @@ const WhiteBoard = memo(
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
     const { markInteracting } = usePreventTextSelection(containerRef);
+    const createToolCursor = useCreateToolCursor(board);
 
     const buildContextMenuItems = useMemoizedFn(
       ({
@@ -452,6 +456,12 @@ const WhiteBoard = memo(
       (event: React.PointerEvent<HTMLDivElement>) => {
         if (!ownsBoardPointerEvent(board, event.nativeEvent)) return;
         setPointerViewport(event);
+        // 创建手势高频驱动（手写采样等）：绕过 25ms 节流，并取消挂起的节流调用避免旧位置晚到
+        if (board.interactions.isCreateGestureActive()) {
+          cancelPointerMove();
+          nonThrottledHandleOnPointerMove(event);
+          return;
+        }
         handleOnPointerMove(event);
       }
     );
@@ -672,6 +682,7 @@ const WhiteBoard = memo(
                           tabIndex={0}
                           className={cn(
                             "[:fullscreen]:w-screen [:fullscreen]:h-screen [:fullscreen]:bg-surface relative h-full min-w-0 flex-1",
+                            createToolCursor,
                             className
                           )}
                           style={style}
@@ -699,6 +710,7 @@ const WhiteBoard = memo(
                             ) : documentTooNew ? (
                               <ReadonlyNotice />
                             ) : null}
+                            {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
 
                             <BoardContent
                               ref={svgRef}
@@ -711,6 +723,8 @@ const WhiteBoard = memo(
                               gridVisible={gridVisible}
                               connectPointOverlayRef={connectPointOverlayRef}
                             />
+
+                            <CreationPreviewBadge board={board} />
 
                             {attributeSetterVisible && <AttributeSetter />}
                           </div>

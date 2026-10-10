@@ -2,7 +2,7 @@ import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
 import PathUtil from "./PathUtil.ts";
-import { Board, MindNodeElement, MindDragTarget } from "../types";
+import { Board, ElementBounds, MindNodeElement, MindDragTarget } from "../types";
 import MindThemeUtil from "./MindThemeUtil.ts";
 
 const MARGIN_X = 36;
@@ -178,6 +178,40 @@ export class MindUtil {
         }
       }
     }
+  }
+
+  /** 可见子树（跳过折叠分支）的包围盒；与 MindPlugin.getBounds 同一规则 */
+  static getSubtreeBounds(node: MindNodeElement): ElementBounds {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    this.dfs(
+      node,
+      {
+        before: current => {
+          minX = Math.min(minX, current.x);
+          minY = Math.min(minY, current.y);
+          maxX = Math.max(maxX, current.x + current.width);
+          maxY = Math.max(maxY, current.y + current.height);
+        },
+      },
+      null,
+      0,
+      true
+    );
+
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
+      return {
+        minX: node.x,
+        minY: node.y,
+        maxX: node.x + node.width,
+        maxY: node.y + node.height,
+      };
+    }
+
+    return { minX, minY, maxX, maxY };
   }
 
   static dfs(
