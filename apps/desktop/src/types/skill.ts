@@ -58,6 +58,17 @@ export interface SkillLinkedDir {
   preset?: boolean;
   exists?: boolean;
   count?: number;
+  /** 已启用的 skill 数（从未选择过时等于 count） */
+  selectedCount?: number;
+  /** 白名单原始状态：undefined = 从未选择（全部生效）；空数组 = 明确全不选 */
+  selectedSkills?: string[];
+  /** 目录内的 skill 摘要（目录存在时返回）；selected = 当前是否生效 */
+  skills?: Array<{
+    folderName: string;
+    name: string;
+    description?: string;
+    selected: boolean;
+  }>;
 }
 
 export type SkillImportSource =

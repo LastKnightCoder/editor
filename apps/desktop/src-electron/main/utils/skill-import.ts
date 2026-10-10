@@ -143,3 +143,21 @@ export const zipDirectory = (dir: string): Buffer => {
   zip.addLocalFolder(dir, path.basename(dir));
   return zip.toBuffer();
 };
+
+/** 关联目录白名单清洗：非数组归一为 undefined（从未选择 = 全部生效）；数组去重、trim、滤空 */
+export const cleanSelectedSkills = (raw: unknown): string[] | undefined =>
+  Array.isArray(raw)
+    ? [
+        ...new Set(
+          raw
+            .filter((s): s is string => typeof s === "string" && s.trim() !== "")
+            .map(s => s.trim())
+        ),
+      ]
+    : undefined;
+
+/** 白名单三态判断：undefined = 从未选择（全部生效）；数组只生效列出的（空数组 = 全不选） */
+export const isSelectedSkill = (
+  folderName: string,
+  selectedSkills: string[] | undefined
+): boolean => selectedSkills === undefined || selectedSkills.includes(folderName);
