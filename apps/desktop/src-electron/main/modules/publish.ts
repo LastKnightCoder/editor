@@ -25,6 +25,7 @@ import {
 } from "@/types/publish";
 import { join, resolve, dirname } from "path";
 import { existsSync, mkdirSync, rmSync, writeFileSync, readdirSync } from "fs";
+import { recordSyncIo } from "./perf-record";
 import log from "electron-log";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import CardTable from "./tables/card";
@@ -230,7 +231,9 @@ class PublishModule implements Module {
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
+      const syncIoStart = Date.now();
       writeFileSync(filePath, file.content);
+      recordSyncIo(`write:${filePath}`, file.content.length, Date.now() - syncIoStart);
     }
 
     return files.map(file => join(targetDir, file.path));
