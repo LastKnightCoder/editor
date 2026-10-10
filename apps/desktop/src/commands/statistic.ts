@@ -1,13 +1,14 @@
 import { invoke } from "@/electron";
-import { Operation, StatisticData } from "@/types";
+import { StatisticData } from "@/types";
 
 export interface ICalendarHeatmapDataItem {
   time: string;
-  operation_list: Operation[];
+  /** 当天去重操作数（同 operation_id 只计一次），由主进程 SQL 聚合产出 */
+  count: number;
 }
 
 export const getCalendarHeatmap = async (year: number): Promise<ICalendarHeatmapDataItem[]> => {
-  return await invoke("get-operation-records-by-year", year);
+  return await invoke("get-operation-daily-counts", year);
 };
 
 export const getStatisticByDate = async (date: string): Promise<StatisticData | undefined> => {

@@ -22,6 +22,9 @@ const EXPORT_CHANNEL = "perf-monitor:export-snapshot";
 const SLOW_IPC_MS = 100;
 const SLOW_SQL_MS = 50;
 const RING_CAP = 600;
+// 事件循环直方图分辨率：同时是测量噪声下限（Windows 时钟量化会把它抬到该值附近），
+// 导出到 meta 供分析侧把低于它的均值当噪声剔除；调小可降噪声但增采样开销
+const EVENT_LOOP_RESOLUTION_MS = 10;
 
 interface Timestamped {
   t: number;
@@ -59,7 +62,7 @@ interface MemorySample extends Timestamped {
 
 interface RendererWindowData {
   title: string;
-  eventLoop: Array<Timestamped & { delayMs: number; hidden: boolean }>;
+  eventLoop: Array<Timestamped & { delayMs: number }>;
   longTasks: Array<Timestamped & { durationMs: number; source: string }>;
   jankSpans: Array<Timestamped & { durationMs: number; worstFrameMs: number; avgFps: number }>;
   heap: Array<Timestamped & { usedMB: number; totalMB: number }>;
@@ -153,7 +156,6 @@ function recordRendererEvent(
       pushCapped(data.eventLoop, {
         t,
         delayMs: payload.delayMs as number,
-        hidden: !!payload.hidden,
       });
       break;
     case "longtask":
@@ -255,6 +257,7 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
       uptimeSec: Math.round(process.uptime()),
       exportedAt: new Date().toISOString(),
       windowCount: BrowserWindow.getAllWindows().length,
+      eventLoopResolutionMs: EVENT_LOOP_RESOLUTION_MS,
     },
     main: {
       eventLoop: eventLoopSamples,
@@ -287,7 +290,7 @@ export function notifySnapshotExported(result: PerfSnapshotResult): void {
 // --- 模块生命周期 ---
 
 const init = async (): Promise<void> => {
-  histogram = monitorEventLoopDelay({ resolution: 20 });
+  histogram = monitorEventLoopDelay({ resolution: EVENT_LOOP_RESOLUTION_MS });
   histogram.enable();
   lastCpu = process.cpuUsage();
   lastWallMs = performance.now();
