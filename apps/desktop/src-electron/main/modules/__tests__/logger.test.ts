@@ -98,7 +98,7 @@ describe("logger 模块", () => {
     expect(rendererLogMock.info).toHaveBeenCalledTimes(1);
   });
 
-  it("清理超过 3 天的 session 日志与旧版 notes.log，保留近期文件", async () => {
+  it("清理超过 3 天的 session 日志（含轮转产物），保留近期文件", async () => {
     const expiredSession = path.join(logsDir, "session-2026-01-01_00-00-00-abcd.log");
     const rotatedExpired = path.join(logsDir, "session-2026-01-01_00-00-00-abcd.old.log");
     const freshSession = path.join(logsDir, "session-2099-01-01_00-00-00-ffff.log");
@@ -115,9 +115,10 @@ describe("logger 模块", () => {
 
     expect(fs.existsSync(expiredSession)).toBe(false);
     expect(fs.existsSync(rotatedExpired)).toBe(false);
-    expect(fs.existsSync(legacyNotes)).toBe(false);
     expect(fs.existsSync(freshSession)).toBe(true);
     // 非 session 前缀的文件不清理
     expect(fs.existsSync(unrelated)).toBe(true);
+    // 清洁版（D-091）收尾后旧版单文件日志的清理兼容已删除，logs 目录外的遗留文件不再动
+    expect(fs.existsSync(legacyNotes)).toBe(true);
   });
 });
