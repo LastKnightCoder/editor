@@ -1,3 +1,4 @@
+import ViewportUtil from "./ViewportUtil";
 import { v4 as uuidv4 } from "uuid";
 import EventEmitter from "eventemitter3";
 import { BoardElement, ViewPort, Board, PresentationSequence, PresentationFrame } from "../types";
@@ -371,28 +372,20 @@ export class PresentationManager {
 
   // 检查元素是否在视口中
   isElementInViewport(element: BoardElement, viewPort: ViewPort): boolean {
-    // 对于具有起点终点的元素（如箭头），检查端点是否在视口中
-    if (
-      element.x1 !== undefined &&
-      element.y1 !== undefined &&
-      element.x2 !== undefined &&
-      element.y2 !== undefined
-    ) {
-      const { x1, y1, x2, y2 } = element;
-      return this.isPointInViewport(x1, y1, viewPort) || this.isPointInViewport(x2, y2, viewPort);
-    }
-
-    // 对于其他元素，检查元素的边界框是否与视口相交
-    const { x, y, width, height } = element;
-    const { minX, minY, width: vpWidth, height: vpHeight } = viewPort;
-
-    return x + width >= minX && x <= minX + vpWidth && y + height >= minY && y <= minY + vpHeight;
-  }
-
-  // 检查点是否在视口中
-  isPointInViewport(x: number, y: number, viewPort: ViewPort): boolean {
-    const { minX, minY, width, height } = viewPort;
-    return x >= minX && x <= minX + width && y >= minY && y <= minY + height;
+    const bounds = this.board.getBounds(element);
+    return (
+      !!bounds &&
+      ViewportUtil.isRectInViewport(
+        {
+          x: bounds.minX,
+          y: bounds.minY,
+          width: bounds.maxX - bounds.minX,
+          height: bounds.maxY - bounds.minY,
+        },
+        viewPort,
+        0
+      )
+    );
   }
 
   // 获取视口中的元素

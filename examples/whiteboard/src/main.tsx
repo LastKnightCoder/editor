@@ -7,6 +7,8 @@ import { initThemeRuntime, useThemeStore } from "@tau/themes/react";
 import WhiteBoard, { type BoardElement, type WhiteboardSnapshot } from "@tau/whiteboard";
 import "@tau/ui/styles.css";
 import "./style.css";
+import { createStandardWhiteboardExtensions } from "@tau/whiteboard/extensions";
+const extensions = createStandardWhiteboardExtensions();
 
 const initial = (): BoardElement[] => [
   {
@@ -67,6 +69,7 @@ function App() {
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
           <WhiteBoard
+            extensions={extensions}
             initData={initial()}
             readonly={readonly}
             showSidebar={outline}
@@ -75,7 +78,7 @@ function App() {
         </div>
         {dual && (
           <div className="border-line-1 min-w-0 flex-1 border-l">
-            <WhiteBoard initData={initial()} showSidebar={outline} />
+            <WhiteBoard extensions={extensions} initData={initial()} showSidebar={outline} />
           </div>
         )}
       </div>

@@ -16,7 +16,7 @@ import { ArrowConnectPointGroup as ArrowConnectPointGroup } from "@tau/whiteboar
 import { ArrowDropConnectPoint as ArrowDropConnectPoint } from "@tau/whiteboard";
 import { SketchRect as SketchRect } from "@tau/whiteboard";
 
-import { Board, EHandlerPosition, Point, VideoElement } from "@tau/whiteboard";
+import { EHandlerPosition, Point, VideoElement } from "@tau/whiteboard";
 import { PointUtil } from "@tau/whiteboard";
 import { useBoard, useSelectState, useDropArrow, useSketch } from "@tau/whiteboard";
 import {
@@ -34,7 +34,6 @@ interface VideoElementProps {
   element: VideoElement;
   onResizeStart?: (element: VideoElement, startPoint: Point) => void;
   onResize: (
-    board: Board,
     element: VideoElement,
     position: EHandlerPosition,
     startPoint: Point,
@@ -43,7 +42,6 @@ interface VideoElementProps {
     isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
-    board: Board,
     element: VideoElement,
     position: EHandlerPosition,
     startPoint: Point,
@@ -129,13 +127,13 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
       isPreserveRatio?: boolean,
       isAdsorb?: boolean
     ) => {
-      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+      onResize(element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
     }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-      onResizeEnd?.(board, element, position, startPoint, endPoint);
+      onResizeEnd?.(element, position, startPoint, endPoint);
     }
   );
 

@@ -8,7 +8,6 @@ import {
   SnapBounds,
   SnapGuide,
   SnapResizeEdges,
-  hasSnapBounds,
   snapMove,
   snapMoveToGrid,
   snapResize,
@@ -214,15 +213,17 @@ export class SnapManager {
     const candidates: SnapBounds[] = [];
     BoardUtil.dfs(this.board, element => {
       if (BoardUtil.isBoard(element) || excluded.has(element.id)) return;
-      if (!hasSnapBounds(element)) return;
       if (!capabilityService.shouldParticipateInRefLines(element)) return;
-      if (!ViewportUtil.isRectInViewport(element, viewPort, 0)) return;
-      candidates.push({
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-      });
+      const bounds = this.board.getBounds(element);
+      if (!bounds) return;
+      const rect = {
+        x: bounds.minX,
+        y: bounds.minY,
+        width: bounds.maxX - bounds.minX,
+        height: bounds.maxY - bounds.minY,
+      };
+      if (!ViewportUtil.isRectInViewport(rect, viewPort, 0)) return;
+      candidates.push(rect);
     });
 
     this.candidateCache = { excludeKey, viewPort, candidates };

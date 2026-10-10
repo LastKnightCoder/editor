@@ -1,3 +1,6 @@
+import { useMemo, useEffect } from "react";
+import { useTextExtension } from "../../../extensions/text";
+import { DOMSizeMeasurer } from "../../../extensions/DOMSizeMeasurer";
 import { RichTextElement } from "../../../plugins";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
@@ -77,6 +80,9 @@ const STYLE_GROUPS = [
 
 const RichTextSetter = (props: RichTextSetterProps) => {
   const board = useBoard();
+  const textBinding = useTextExtension();
+  const measurer = useMemo(() => new DOMSizeMeasurer(board, textBinding.kit), [board, textBinding]);
+  useEffect(() => () => measurer.cleanup(), [measurer]);
   const { element, onChange } = props;
   const current = resolveTextStyle(element);
   const textClassName = handTextClass(useSketch(element));
@@ -99,7 +105,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
   const handleFitHeight = useMemoizedFn(async () => {
     // 离屏按当前宽度测量内容高度：在屏编辑器受 maxHeight 与 overflow 约束，长高时量不出真实高度
     const contentHeight = Math.ceil(
-      await board.measurer.measureRichTextHeight(
+      await measurer.measureRichTextHeight(
         element.id,
         element.content,
         element.width,
@@ -119,7 +125,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
   const handleFitWidth = useMemoizedFn(async () => {
     const padding = getTextBoxPadding(current);
     // 离屏测量文字真实自然宽度，避免在屏测量被父容器/旧 maxWidth 封顶
-    const naturalWidth = await board.measurer.measureRichTextWidth(
+    const naturalWidth = await measurer.measureRichTextWidth(
       element.id,
       element.content,
       padding,
@@ -130,7 +136,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     const targetWidth = naturalWidth + 2;
     // 非编辑态编辑器尺寸变化不回写元素，宽度变了高度需在这里一并重算
     const contentHeight = Math.ceil(
-      await board.measurer.measureRichTextHeight(
+      await measurer.measureRichTextHeight(
         element.id,
         element.content,
         targetWidth,

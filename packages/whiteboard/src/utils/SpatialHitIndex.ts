@@ -38,17 +38,6 @@ const BOUNDS_PADDING = 12;
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
-const normalizeBounds = (x: number, y: number, width: number, height: number): SpatialBounds => {
-  const maxX = x + width;
-  const maxY = y + height;
-  return {
-    minX: Math.min(x, maxX),
-    minY: Math.min(y, maxY),
-    maxX: Math.max(x, maxX),
-    maxY: Math.max(y, maxY),
-  };
-};
-
 const expandBounds = (bounds: SpatialBounds, padding: number): SpatialBounds => {
   return {
     minX: bounds.minX - padding,
@@ -56,22 +45,6 @@ const expandBounds = (bounds: SpatialBounds, padding: number): SpatialBounds => 
     maxX: bounds.maxX + padding,
     maxY: bounds.maxY + padding,
   };
-};
-
-const hasBoundsCoordinates = (
-  element: BoardElement
-): element is BoardElement & {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-} => {
-  return (
-    isFiniteNumber(element.x) &&
-    isFiniteNumber(element.y) &&
-    isFiniteNumber(element.width) &&
-    isFiniteNumber(element.height)
-  );
 };
 
 export class SpatialHitIndex {
@@ -153,10 +126,6 @@ export class SpatialHitIndex {
   }
 
   private resolveElementBounds(board: Board, element: BoardElement): SpatialBounds | null {
-    if (hasBoundsCoordinates(element)) {
-      return normalizeBounds(element.x, element.y, element.width, element.height);
-    }
-
     try {
       const pluginBounds = board.getBounds(element);
       if (!pluginBounds) return null;

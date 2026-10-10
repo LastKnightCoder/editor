@@ -37,8 +37,12 @@ export const isValid = <T>(value: T | null | undefined): value is T =>
 export const executeSequence = (fns: EventHandler[], event: Event, board: Board): boolean => {
   for (let i = 0; i < fns.length; i++) {
     const fn = fns[i];
-    const result = fn(event, board);
-    if (result === false) return false;
+    try {
+      const result = fn(event, board);
+      if (result === false) return false;
+    } catch (error) {
+      console.error("白板输入处理器失败", error);
+    }
   }
   return true;
 };

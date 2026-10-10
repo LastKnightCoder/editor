@@ -1,24 +1,38 @@
 # @tau/whiteboard
 
-私有源码工作区包，包含通用画布、交互、基础文字、脑图、演示和导出。桌面通过 DesktopWhiteboard 注入业务能力。
+私有源码工作区包，包含通用画布、交互、基础文字、脑图、演示和导出。桌面通过 DesktopWhiteboard 显式组合受信任扩展。
 
 ## 接入
 
-从根入口导入 WhiteBoard、WhiteBoardRef、WhiteboardSnapshot、插件及工具；CSS 使用 `@tau/whiteboard/styles.css`，禁止私有深引。宿主提供 UiProvider、DndProvider 和主题运行时，Tailwind 扫描白板、UI、编辑器及格式/链接扩展源码。React、Slate 与 DnD 使用同一份运行时，完整配置参考 `examples/whiteboard`。
+从根入口导入画布、defineWhiteboardExtension、受控 API 与通用组件，从 `@tau/whiteboard/extensions` 导入通用扩展工厂；CSS 使用 `@tau/whiteboard/styles.css`，禁止私有深引。宿主提供 UiProvider、DndProvider 和主题运行时，Tailwind 扫描白板、UI、编辑器及格式/链接扩展源码。React、Slate 与 DnD 使用同一份运行时，完整配置参考 `examples/whiteboard`。
 
-初始化参数只作为初始值；更换文档身份时由宿主更换 key，编辑经 onChange 回传。Ref 提供视口适应、缩放、元素读取和定位。
+初始化参数只作为初始值；更换文档身份时由宿主更换 key，编辑经 onChange 回传。extensions 必须显式提供且在会话期间保持同一集合。Ref 提供视口适应、缩放、只读元素快照和定位。
 
-## 宿主边界
+```tsx
+import WhiteBoard from "@tau/whiteboard";
+import { createStandardWhiteboardExtensions } from "@tau/whiteboard/extensions";
 
-- services：正文创建与引用、上传/下载、文字 Kit、Markdown 导入和导出捕获。
-- slots：正文编辑、低缩放快照订阅、业务元素、工具按钮、弹窗层（`Layers`，画布容器外）与画布内宿主层（`CanvasLayer`）；编辑、预览和测量必须共用 Kit 与正文绑定。`CanvasLayer` 的浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布。
-- 文档卡（`document` 元素，指向卡片 / 文章 / 项目文档 / 一条日记；日记的 `entityRef` 为 `{ kind: "diary-moment", id: 片段id }`）：包内只负责外壳与展开请求（`DOCUMENT_OPEN_EVENT`），纸面由 `slots.elements.document` 渲染，展开后的阅读 / 编辑由宿主在 `CanvasLayer` 实现；未提供 `CanvasLayer` 时右键「展开」隐藏。
+const extensions = createStandardWhiteboardExtensions();
+<WhiteBoard extensions={extensions} initData={[]} onChange={save} />;
+```
+
+## 扩展边界
+
+- 声明包含唯一 id、apiVersion 和 create(api)。一个扩展可以贡献多个元素、命令、工具、菜单、快捷键、属性面板、导入规则和界面层。重复注册或未解析命令报错；安装失败清理已创建的扩展，不留下半套元素注册。
+- 正文、媒体与导出依赖由对应扩展闭包持有，不设置全局宿主服务集合。正文编辑、低缩放订阅和离屏测量共用 Kit 与文档绑定。界面层 position 为 canvas 或 outside；canvas 浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的输入不归画布。
+- 文档卡仍使用现有 entityRef 与 title 字段，由 createDocumentExtension 组合纸面与阅读层；已有元素 type 和数据格式不变。
 - outline：受控开关与宽度；实际占宽回调归所属页面，避免实例串扰。
-- Board.captureSubmission：异步操作开始时捕获，提交前验证；只读切换、隐藏、卸载和目标删除使旧操作失效。
+- API.captureSubmission：异步操作开始时捕获，提交前验证；只读切换、隐藏、卸载和目标删除使旧操作失效。
 
 默认基础文字依赖 @tau/editor；URL 媒体可插入。业务能力缺失时隐藏创建入口，已有业务元素保留数据并显示占位。通用容器仅消费 @tau/ui。
 
-本地上传入口要求上传服务与选择器同时就绪，选择器当前由 slots.Layers 承载；只注入上传服务仍可处理文件拖入，但不会展示无法完成的本地上传菜单。隐藏时结束临时交互并清理 pointerId 归属，恢复后保持原数据和撤销历史。
+本地上传入口由媒体扩展的 actions 显式声明，选择器通过扩展界面层装配；文件导入为单独扩展。隐藏时结束临时交互并清理 pointerId 归属，执行 activate 返回的清理函数；恢复重新激活，真正卸载执行 dispose。
+
+工具组件只接收 run(payload)，执行声明的命令。菜单与快捷键引用命令 ID；导入规则按集合顺序认领，失败不交给后续规则重复插入。submit 支持 historyGroup，异步结果验证后一次同步提交，不跨 await 持有事务。
+
+useBoard/useWhiteboardAPI 返回受控接口，不返回内核 Board。快照不可写且按对象身份共享副本；元素查询返回副本，修改走 updateElement 或操作提交。元素、界面层与回调异常独立隔离，先提交快照再通知。未知元素保留原始字段与子树，使用占位和元素树管理。
+
+本轮只支持受信任扩展，不提供动态安装、沙箱或权限机制。
 
 ## 验证
 

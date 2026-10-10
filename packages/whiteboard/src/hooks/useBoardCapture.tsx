@@ -195,7 +195,12 @@ const prepareCaptureNode = async (captureTarget: Element) => {
   );
 };
 
-export function useBoardCapture(board: Board): {
+export type CaptureBlob = (element: Element, options: Record<string, unknown>) => Promise<Blob>;
+
+export function useBoardCapture(
+  board: Board,
+  captureBlob: CaptureBlob
+): {
   /** 元素为空或无法计算范围时返回 null；同一时刻只跑一次，重入返回 null */
   capture: (options: BoardCaptureOptions) => Promise<Blob | null>;
   layer: ReactNode;
@@ -251,7 +256,7 @@ export function useBoardCapture(board: Board): {
       await waitDoubleRaf();
 
       const ratio = typeof dpr === "function" ? dpr(viewPort) : dpr;
-      return await board.services.captureBlob(captureTarget, {
+      return await captureBlob(captureTarget, {
         dpr: ratio > 0 ? ratio : 1,
         type,
         quality,

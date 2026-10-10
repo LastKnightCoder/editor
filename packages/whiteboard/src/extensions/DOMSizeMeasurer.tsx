@@ -1,3 +1,4 @@
+import type { EditorKit } from "@tau/editor";
 import type Board from "../Board";
 import { BOARD_TO_CONTAINER } from "../constants";
 import { createRoot } from "react-dom/client";
@@ -55,14 +56,15 @@ const DEFAULT_PADDING: TextBoxPadding = {
  * 否则远端资源解析不出来、块尺寸与屏上不同，测出的高度偏小。
  */
 
-// 服务注册表内的服务实现均为惰性单例，无需额外缓存
-
 /**
- * DOM 尺寸测量服务
+ * 文本扩展的 DOM 尺寸测量
  * 在隐藏的 DOM 中渲染/克隆元素，测量其在指定宽度下的高度或文字自然宽度
  */
 export class DOMSizeMeasurer {
-  constructor(private board: Board) {}
+  constructor(
+    private board: Board,
+    private readonly kit: (contentId?: number) => EditorKit
+  ) {}
   private container: HTMLDivElement | null = null;
   private static measurementId = 0;
 
@@ -322,11 +324,7 @@ export class DOMSizeMeasurer {
               ["--block-distance" as string]: RICH_TEXT_BLOCK_DISTANCE,
             }}
           >
-            <Editor
-              kit={this.board.services.getContentKit(contentId)}
-              initValue={content}
-              readonly={true}
-            />
+            <Editor kit={this.kit(contentId)} initValue={content} readonly={true} />
           </div>
         </DndProvider>
       );
@@ -465,11 +463,7 @@ export class DOMSizeMeasurer {
               ["--block-distance" as string]: RICH_TEXT_BLOCK_DISTANCE,
             }}
           >
-            <Editor
-              kit={this.board.services.getContentKit(contentId)}
-              initValue={content}
-              readonly={true}
-            />
+            <Editor kit={this.kit(contentId)} initValue={content} readonly={true} />
           </div>
         </DndProvider>
       );

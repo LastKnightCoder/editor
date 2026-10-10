@@ -229,7 +229,6 @@ describe("Column 折叠", () => {
     const board = {
       ...boardStub,
       boardFlag: BoardClass.boardFlag,
-      services: {},
       children: [column],
       apply,
     } as unknown as Board;
@@ -259,7 +258,6 @@ describe("ColumnUtil.appendRichText", () => {
     const board = {
       ...boardStub,
       boardFlag: BoardClass.boardFlag,
-      services: {},
       children: [column],
       apply,
       capabilityService: { measureElementHeight },

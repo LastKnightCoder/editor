@@ -1,3 +1,4 @@
+import { mediaMenu, browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
 import { Video, Link, Download, Upload, MonitorPlay, Youtube, FileText } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -18,13 +19,13 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
+import { DOMSizeMeasurer } from "../extensions/DOMSizeMeasurer";
 import VideoElementComponent from "../components/VideoElement";
 
 export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
   name = "video";
 
-  constructor() {
+  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {
     super();
   }
 
@@ -159,7 +160,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         priority: 51,
         onSelect: async () => {
           try {
-            await context.board.services.downloadFile?.(videoElement.src);
+            await this.media.download?.(videoElement.src);
             toast.success("视频下载成功");
           } catch (error: any) {
             // 用户取消下载不显示错误
@@ -172,11 +173,13 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
       });
     }
 
-    return items;
+    return mediaMenu(items, "video", this.media);
   }
 
   onPaste(event: ClipboardEvent, board: Board) {
     if (board.isEditingElements.length > 0) return;
+    const canSubmit = board.captureSubmission();
+    if (!canSubmit()) return;
     const items = event.clipboardData?.items;
     if (!items) return;
 
@@ -194,63 +197,72 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
     if (videoFiles.length === 0) return;
 
     Promise.all(
-      videoFiles.map(file =>
-        Promise.all([board.services.getVideoInfo(file), Promise.resolve(file)])
-      )
-    ).then(async videos => {
-      const uploadingToast = toast.loading("正在处理视频，请稍候…");
-      let insertPath = board.children.length;
-      const { minX, minY, width, height } = board.viewPort;
-      const center = {
-        x: minX + width / 2,
-        y: minY + height / 2,
-      };
-      const ops: Operation[] = [];
-      for (const video of videos) {
-        const [info, file] = video;
+      videoFiles.map(file => Promise.all([this.media.videoInfo(file), Promise.resolve(file)]))
+    )
+      .then(async videos => {
+        const uploadingToast = toast.loading("正在处理视频，请稍候…");
+        try {
+          let insertPath = board.children.length;
+          const { minX, minY, width, height } = board.viewPort;
+          const center = {
+            x: minX + width / 2,
+            y: minY + height / 2,
+          };
+          const ops: Operation[] = [];
+          for (const video of videos) {
+            const [info, file] = video;
 
-        let naturalWidth = 100;
-        let naturalHeight = 100;
-        if (info && info.width && info.height) {
-          naturalWidth = info.width;
-          naturalHeight = info.height;
-        }
+            let naturalWidth = 100;
+            let naturalHeight = 100;
+            if (info && info.width && info.height) {
+              naturalWidth = info.width;
+              naturalHeight = info.height;
+            }
 
-        // 计算显示尺寸，保持宽高比
-        let width = naturalWidth;
-        let height = naturalHeight;
-        const ratio = naturalWidth / naturalHeight;
-        if (width > 720) {
-          width = 720;
-          height = width / ratio;
-        }
+            // 计算显示尺寸，保持宽高比
+            let width = naturalWidth;
+            let height = naturalHeight;
+            const ratio = naturalWidth / naturalHeight;
+            if (width > 720) {
+              width = 720;
+              height = width / ratio;
+            }
 
-        const videoPath = await board.services.uploadResource?.(file);
-        if (videoPath) {
-          ops.push({
-            type: "insert_node",
-            path: [insertPath],
-            node: {
-              id: getUuid(),
-              type: "video",
-              src: videoPath,
-              x: center.x - width / 2,
-              y: center.y - height / 2,
-              width,
-              height,
-              naturalWidth,
-              naturalHeight,
-            },
-          });
+            const videoPath = await this.media.upload?.(file);
+            if (videoPath) {
+              ops.push({
+                type: "insert_node",
+                path: [insertPath],
+                node: {
+                  id: getUuid(),
+                  type: "video",
+                  src: videoPath,
+                  x: center.x - width / 2,
+                  y: center.y - height / 2,
+                  width,
+                  height,
+                  naturalWidth,
+                  naturalHeight,
+                },
+              });
+            }
+            insertPath++;
+          }
+          if (ops.length > 0 && canSubmit()) {
+            ops.forEach(op => {
+              if (op.type === "insert_node") op.path = [board.children.length];
+            });
+            board.apply(ops);
+            toast.success("视频粘贴成功");
+          }
+        } finally {
+          toast.dismiss(uploadingToast);
         }
-        insertPath++;
-      }
-      if (ops.length > 0) {
-        board.apply(ops);
-        toast.success("视频粘贴成功");
-      }
-      toast.dismiss(uploadingToast);
-    });
+      })
+      .catch(error => {
+        console.error("白板媒体粘贴失败", error);
+        toast.error("媒体粘贴失败");
+      });
   }
 
   render(_board: Board, { element }: { element: VideoElement }) {

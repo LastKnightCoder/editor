@@ -1,3 +1,4 @@
+import { mediaMenu, browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
 import { Image, Copy, Link, Download, Sparkles, Upload } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -19,7 +20,7 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
+import { DOMSizeMeasurer } from "../extensions/DOMSizeMeasurer";
 import ImageElementComponent from "../components/ImageElement";
 import {
   DEFAULT_DESCRIPTION,
@@ -35,7 +36,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   private previewCandidateImage: ImageElement | null = null;
   private previewMoved = false;
 
-  constructor() {
+  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {
     super();
   }
 
@@ -176,7 +177,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
         priority: 52,
         onSelect: async () => {
           try {
-            await context.board.services.downloadFile?.(imageElement.src);
+            await this.media.download?.(imageElement.src);
             toast.success("图片下载成功");
           } catch (error: any) {
             // 用户取消下载不显示错误
@@ -189,7 +190,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       });
     }
 
-    return items;
+    return mediaMenu(items, "image", this.media);
   }
 
   onPointerDown(e: PointerEvent, board: Board) {
@@ -262,6 +263,8 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
   onPaste(event: ClipboardEvent, board: Board) {
     if (board.isEditingElements.length > 0) return;
+    const canSubmit = board.captureSubmission();
+    if (!canSubmit()) return;
     // 如果粘贴的是图片
     // 检查剪贴板中是否包含图片
     const items = event.clipboardData?.items;
@@ -281,69 +284,78 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     if (imageFiles.length === 0) return;
 
     Promise.all(
-      imageFiles.map(file =>
-        Promise.all([board.services.getImageInfo(file), Promise.resolve(file)])
-      )
-    ).then(async images => {
-      const uploadingToast = toast.loading("正在处理图片，请稍候…");
-      let insertPath = board.children.length;
-      const { minX, minY, width, height } = board.viewPort;
-      const center = {
-        x: minX + width / 2,
-        y: minY + height / 2,
-      };
-      const ops: Operation[] = [];
-      for (const image of images) {
-        const [info, file] = image;
+      imageFiles.map(file => Promise.all([this.media.imageInfo(file), Promise.resolve(file)]))
+    )
+      .then(async images => {
+        const uploadingToast = toast.loading("正在处理图片，请稍候…");
+        try {
+          let insertPath = board.children.length;
+          const { minX, minY, width, height } = board.viewPort;
+          const center = {
+            x: minX + width / 2,
+            y: minY + height / 2,
+          };
+          const ops: Operation[] = [];
+          for (const image of images) {
+            const [info, file] = image;
 
-        let naturalWidth = 100;
-        let naturalHeight = 100;
-        if (info && info.width && info.height) {
-          naturalWidth = info.width;
-          naturalHeight = info.height;
-        }
+            let naturalWidth = 100;
+            let naturalHeight = 100;
+            if (info && info.width && info.height) {
+              naturalWidth = info.width;
+              naturalHeight = info.height;
+            }
 
-        // 计算显示尺寸，保持宽高比
-        let width = naturalWidth;
-        let height = naturalHeight;
-        const ratio = naturalWidth / naturalHeight;
-        if (width > 300) {
-          width = 300;
-          height = width / ratio;
-        }
+            // 计算显示尺寸，保持宽高比
+            let width = naturalWidth;
+            let height = naturalHeight;
+            const ratio = naturalWidth / naturalHeight;
+            if (width > 300) {
+              width = 300;
+              height = width / ratio;
+            }
 
-        const imagePath = await board.services.uploadResource?.(file);
-        if (imagePath) {
-          ops.push({
-            type: "insert_node",
-            path: [insertPath],
-            node: {
-              id: getUuid(),
-              type: "image",
-              src: imagePath,
-              x: center.x - width / 2,
-              y: center.y - height / 2,
-              width,
-              height,
-              naturalWidth,
-              naturalHeight,
-              description: DEFAULT_DESCRIPTION,
-              descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
-              descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
-              descriptionStyle: {
-                fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
-              },
-            },
-          });
+            const imagePath = await this.media.upload?.(file);
+            if (imagePath) {
+              ops.push({
+                type: "insert_node",
+                path: [insertPath],
+                node: {
+                  id: getUuid(),
+                  type: "image",
+                  src: imagePath,
+                  x: center.x - width / 2,
+                  y: center.y - height / 2,
+                  width,
+                  height,
+                  naturalWidth,
+                  naturalHeight,
+                  description: DEFAULT_DESCRIPTION,
+                  descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
+                  descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
+                  descriptionStyle: {
+                    fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
+                  },
+                },
+              });
+            }
+            insertPath++;
+          }
+          if (ops.length > 0 && canSubmit()) {
+            ops.forEach(op => {
+              if (op.type === "insert_node") op.path = [board.children.length];
+            });
+            board.apply(ops);
+            toast.success("图片粘贴成功");
+          }
+        } finally {
+          toast.dismiss(uploadingToast);
         }
-        insertPath++;
-      }
-      if (ops.length > 0) {
-        board.apply(ops);
-        toast.success("图片粘贴成功");
-      }
-      toast.dismiss(uploadingToast);
-    });
+      })
+      .catch(error => {
+        console.error("白板媒体粘贴失败", error);
+        toast.error("媒体粘贴失败");
+      });
   }
 
   render(_board: Board, { element }: { element: ImageElement }) {

@@ -1,28 +1,56 @@
+import {
+  createArrowExtension,
+  createGeometryExtension,
+  createHandwriteExtension,
+  createRichTextExtension,
+  createMindExtension,
+  createDocumentExtension,
+  createWhiteboardReferenceExtension,
+  createWebviewExtension,
+  createImageExtension,
+  createVideoExtension,
+  createAudioExtension,
+  createFrameExtension,
+  createColumnExtension,
+  createFileImportExtension,
+  createInteractionExtension,
+  createClipboardExtension,
+  createExportExtension,
+  createPresentationExtension,
+  createImagePreviewExtension,
+  type WhiteboardTextEditorProps,
+  type TextExtensionOptions,
+} from "@tau/whiteboard/extensions";
+import { desktopMedia } from "./media";
 import { forwardRef, useEffect, useMemo, useState } from "react";
 import WhiteBoard from "@tau/whiteboard";
 import {
   type WhiteBoardProps,
   type WhiteBoardRef,
-  type WhiteboardSlots,
-  type WhiteboardEditorProps,
+  type WhiteboardExtension,
+  defineWhiteboardExtension,
 } from "@tau/whiteboard";
 import type { Descendant } from "slate";
 import ContentEditor from "@/components/ContentEditor";
 import ContentSelector from "@/components/ContentSelectorModal";
-import LocalImage from "@/components/LocalImage";
 import useContentDocument from "@/hooks/useContentDocument";
 import { getContentKit, getDescriptionKit, getArrowLabelKit } from "@/services/editorKit";
 import { collaborationKit } from "@/hooks/useCollaborationKit";
 import { getContentBinding } from "@/services/contentBindings";
 import { bindDatabaseCommands } from "@/services/command-context";
 import * as contentCommands from "@/commands/content";
-import { getImageInfo, getVideoInfo } from "@/utils";
 import { importFromMarkdown } from "@/utils/markdown";
-import { uploadResource } from "@/hooks/useUploadResource";
-import { downloadFile } from "@/utils/download";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 import useSettingStore from "@/stores/useSettingStore";
-import { DesktopWhiteboardLayers } from "./DesktopWhiteboardLayers";
+import { NoteLayers } from "./NoteLayers";
+import { RichTextActionsLayer } from "./RichTextActionsLayer";
+import { selectorLayer } from "./selectorLayer";
+import { DocumentSelectorModal } from "./components/Document/DocumentSelectorModal";
+import ImageSelectorModal from "./components/ImageSelectorModal";
+import VideoSelectorModal from "./components/VideoSelectorModal";
+import AudioSelectorModal from "./components/AudioSelectorModal";
+import WebviewSelectorModal from "./components/WebviewSelectorModal";
+import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
 import { useWhiteboardOutlineStore } from "./outlineStore";
 import { DocumentCard } from "./components/Document/DocumentCard";
 import { DocumentReaderLayer } from "./components/Document/DocumentReader";
@@ -36,7 +64,7 @@ import DocumentTool from "./components/Toolbar/Document";
 import WebviewTool from "./components/Toolbar/Webview";
 import WhiteboardTool from "./components/Toolbar/WhiteBoard";
 
-function DesktopEditor({ editingContext, ...props }: WhiteboardEditorProps) {
+function DesktopEditor({ editingContext, ...props }: WhiteboardTextEditorProps) {
   return (
     <ContentEditor
       {...props}
@@ -60,69 +88,94 @@ function ContentSnapshotObserver({
   return null;
 }
 
-const desktopSlots: WhiteboardSlots = {
-  Editor: DesktopEditor,
-  ContentSnapshotObserver,
-  ContentSelector,
-  Image: LocalImage,
-  Layers: DesktopWhiteboardLayers,
-  CanvasLayer: DocumentReaderLayer,
-  tools: {
-    image: ImageTool,
-    video: VideoTool,
-    audio: AudioTool,
-    document: DocumentTool,
-    webview: WebviewTool,
-    whiteboard: WhiteboardTool,
-  },
-  elements: {
-    document: DocumentCard,
-    whiteboard: WhiteboardCard,
-    video: VideoElement,
-    webview: WebviewElement,
-  },
+const NO_EXTENSIONS: readonly WhiteboardExtension[] = [];
+export type DesktopWhiteboardProps = Omit<WhiteBoardProps, "extensions"> & {
+  extensions?: readonly WhiteboardExtension[];
+  onDockWidthChange?(width: number): void;
 };
-
-export type DesktopWhiteboardProps = WhiteBoardProps & { onDockWidthChange?(width: number): void };
 export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProps>((props, ref) => {
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
   const preferences = useWhiteboardOutlineStore();
-  const services = useMemo(() => {
+  const additionalExtensions = props.extensions ?? NO_EXTENSIONS;
+  const extensions = useMemo(() => {
     const commands = bindDatabaseCommands(contentCommands, { databaseName });
     const current = () => useSettingStore.getState().setting.database.active === databaseName;
-    return {
-      getContentKit: (contentId?: number) =>
-        collaborationKit(getContentBinding(contentId), getContentKit()),
-      getDescriptionKit,
-      getArrowLabelKit,
-      createContent: async (...args: Parameters<typeof commands.createContent>) =>
+    const text: TextExtensionOptions = {
+      Editor: DesktopEditor,
+      Observer: ContentSnapshotObserver,
+      Selector: ContentSelector,
+      kit: (contentId?: number) => collaborationKit(getContentBinding(contentId), getContentKit()),
+      create: async (...args: Parameters<typeof commands.createContent>) =>
         current() ? commands.createContent(...args) : null,
-      updateContent: async (...args: Parameters<typeof commands.updateContent>) => {
+      update: async (...args: Parameters<typeof commands.updateContent>) => {
         if (current()) return commands.updateContent(...args);
       },
-      deleteContent: async (id: number) => {
-        if (current()) return commands.deleteContent(id);
+      release: async (id: number) => {
+        return commands.deleteContent(id);
       },
-      incrementContentRefCount: async (id: number) => {
+      retain: async (id: number) => {
         if (current()) return commands.incrementContentRefCount(id);
       },
-      decrementContentRefCount: async (id: number) => {
-        if (current()) return commands.decrementContentRefCount(id);
+      unretain: async (id: number) => {
+        return commands.decrementContentRefCount(id);
       },
-      uploadResource,
-      downloadFile,
-      getImageInfo,
-      getVideoInfo,
-      importFromMarkdown,
-      captureBlob: captureBlobWithSnapdom,
+      importMarkdown: importFromMarkdown,
     };
-  }, [databaseName]);
+    return [
+      createArrowExtension({ kit: getArrowLabelKit }),
+      createGeometryExtension({ kit: getDescriptionKit }),
+      createHandwriteExtension(),
+      createDocumentExtension({
+        Body: DocumentCard,
+        Tool: DocumentTool,
+        layers: [
+          { id: "tau.document.reader", position: "canvas", component: DocumentReaderLayer },
+          selectorLayer("document", DocumentSelectorModal),
+        ],
+      }),
+      createWhiteboardReferenceExtension({
+        Body: WhiteboardCard,
+        Tool: WhiteboardTool,
+        layers: [selectorLayer("whiteboard", WhiteBoardSelectorModal)],
+      }),
+      createRichTextExtension(text, [
+        { id: "tau.richtext.actions", position: "outside", component: RichTextActionsLayer },
+      ]),
+      createImageExtension(desktopMedia, ImageTool, [selectorLayer("image", ImageSelectorModal)]),
+      createVideoExtension(desktopMedia, {
+        Body: VideoElement,
+        Tool: VideoTool,
+        layers: [selectorLayer("video", VideoSelectorModal)],
+      }),
+      createAudioExtension(desktopMedia, AudioTool, [selectorLayer("audio", AudioSelectorModal)]),
+      createMindExtension(text),
+      createWebviewExtension({
+        Body: WebviewElement,
+        Tool: WebviewTool,
+        layers: [selectorLayer("webview", WebviewSelectorModal)],
+      }),
+      createFrameExtension(),
+      createColumnExtension(),
+      createFileImportExtension(desktopMedia),
+      createInteractionExtension(),
+      createClipboardExtension(text),
+      createExportExtension(captureBlobWithSnapdom),
+      createPresentationExtension(),
+      createImagePreviewExtension(desktopMedia),
+      defineWhiteboardExtension({
+        id: "tau.desktop-notes",
+        create: () => ({
+          layers: [{ id: "tau.desktop-notes.panels", position: "outside", component: NoteLayers }],
+        }),
+      }),
+      ...additionalExtensions,
+    ];
+  }, [databaseName, additionalExtensions]);
   return (
     <WhiteBoard
       {...props}
       ref={ref}
-      services={{ ...services, ...props.services }}
-      slots={{ ...desktopSlots, ...props.slots }}
+      extensions={extensions}
       outline={
         props.outline ?? {
           open: preferences.open,

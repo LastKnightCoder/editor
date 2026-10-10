@@ -1,3 +1,5 @@
+import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
+import { DOMSizeMeasurer } from "../extensions/DOMSizeMeasurer";
 import { Descendant } from "slate";
 import { v4 as getUuid } from "uuid";
 import { Type, CreditCard, FileText, FolderOpen } from "lucide-react";
@@ -49,7 +51,14 @@ export interface RichTextElement extends CommonElement {
 export class RichTextPlugin extends CommonPlugin {
   name = "richtext";
 
-  constructor() {
+  private readonly measurers = new Map<Board, DOMSizeMeasurer>();
+
+  dispose() {
+    this.measurers.forEach(measurer => measurer.cleanup());
+    this.measurers.clear();
+  }
+
+  constructor(private readonly text: TextExtensionOptions = embeddedTextOptions) {
     super();
     this.onDblClick = this.onDblClick.bind(this);
     this.onEditorSizeChange = this.onEditorSizeChange.bind(this);
@@ -76,7 +85,12 @@ export class RichTextPlugin extends CommonPlugin {
       measurement: {
         measureHeightForWidth: async (element, targetWidth, board) => {
           const richText = element as RichTextElement;
-          return board.measurer.measureRichTextHeight(
+          let measurer = this.measurers.get(board);
+          if (!measurer) {
+            measurer = new DOMSizeMeasurer(board, this.text.kit);
+            this.measurers.set(board, measurer);
+          }
+          return measurer.measureRichTextHeight(
             richText.id,
             richText.content,
             targetWidth,
@@ -106,7 +120,7 @@ export class RichTextPlugin extends CommonPlugin {
       });
     }
 
-    if (targetElements.length === 1 && targetElements[0].type === "richtext") {
+    if (this.text.create && targetElements.length === 1 && targetElements[0].type === "richtext") {
       const richText = targetElements[0] as RichTextElement;
       items.push({
         key: `richtext-create-as-${richText.id}`,
@@ -190,7 +204,7 @@ export class RichTextPlugin extends CommonPlugin {
       readonly: false,
       resized: false,
       content,
-      contentId: await createRichTextContentId(content, board),
+      contentId: await createRichTextContentId(content, board, this.text),
       autoFocus: true,
       ...RichTextUtil.load(),
     };

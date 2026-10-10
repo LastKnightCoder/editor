@@ -16,12 +16,8 @@ export enum ECreateBoardElementType {
   StraightArrow = "straightArrow",
   Handwrite = "handwrite",
   Text = "text",
-  Image = "image",
-  Document = "document",
   MindMap = "mindMap",
-  Webview = "webview",
   Frame = "frame",
-  WhiteBoard = "whiteboard",
   Column = "column",
 }
 
@@ -113,6 +109,7 @@ export type Events =
   | "onDragLeave";
 
 export interface IBoardPlugin {
+  dispose?(): void;
   name: string;
   /**
    * 元素类型自定义指针手势声明：pointerdown 命中该类型元素时由交互内核

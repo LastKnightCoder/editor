@@ -80,7 +80,7 @@ describe("文档卡", () => {
       board!.getContextMenu(menuContext(targets)).map(item => item.key);
     expect(keys([doc])).not.toContain("open-document");
     expect(keys([])).not.toContain("create-document");
-    board.slots = { CanvasLayer: () => null, Layers: () => null };
+    board.addPlugin(new DocumentPlugin({ create: true, open: true }));
     expect(keys([doc])).toContain("open-document");
     expect(keys([])).toContain("create-document");
   });

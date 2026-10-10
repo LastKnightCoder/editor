@@ -4,7 +4,7 @@ import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
-import { useWhiteboardHost } from "../../host";
+import { useElementContent } from "../../extensions/elementContent";
 import { Board, EHandlerPosition, Point } from "../../types";
 import { PointUtil } from "../../utils";
 import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
@@ -41,13 +41,13 @@ interface DocumentElementProps {
   ) => void;
 }
 
-/** 文档卡的画布外壳：纸面内容由宿主 slots.elements.document 渲染，这里负责选中、缩放、连线与展开 */
+/** 文档卡外壳负责选中、缩放和连线，纸面由文档扩展的渲染闭包提供。 */
 const DocumentElementComponent = memo((props: DocumentElementProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
   const { id, x, y, width, height } = element;
   const board = useBoard();
   const sketch = useSketch(element);
-  const Paper = useWhiteboardHost().slots.elements?.document;
+  const Paper = useElementContent();
   const { isSelected } = useSelectState(id);
   const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
     useDropArrow(element);

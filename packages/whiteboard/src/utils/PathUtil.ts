@@ -1,4 +1,5 @@
-import { InsertNodeOperation, Path as SlatePath } from "slate";
+import type { InsertNodeOperation } from "../types/operation";
+import { TreePath as SlatePath } from "./TreePath";
 import { BoardElement, Board, Operation } from "../types";
 import BoardUtil from "./BoardUtil.ts";
 

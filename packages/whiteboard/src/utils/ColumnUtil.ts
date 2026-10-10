@@ -5,7 +5,7 @@ import { COLUMN_DEFAULTS } from "../types/column";
 import { PathUtil } from "./PathUtil";
 import BoardUtil from "./BoardUtil";
 import { RichTextUtil } from "./TextStyleStore";
-import { createEmptyRichTextContent, createRichTextContentId } from "./RichTextContentUtil";
+import { createEmptyRichTextContent } from "./RichTextContentUtil";
 import type { RichTextElement } from "../plugins/RichTextPlugin";
 
 const TITLE_HEIGHT = COLUMN_DEFAULTS.titleHeight;
@@ -278,7 +278,10 @@ export class ColumnUtil {
       resizable: false,
       autoHeight: true,
       content: createEmptyRichTextContent(),
-      contentId: await createRichTextContentId(createEmptyRichTextContent(), board),
+      contentId: (await board.extensions?.execute(
+        "tau.richtext.create-content",
+        createEmptyRichTextContent()
+      )) as number | undefined,
       autoFocus: true,
       ...RichTextUtil.load(),
     };

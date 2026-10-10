@@ -1,10 +1,13 @@
+import { extensionsWithLayer } from "./extensions.fixture";
+import { createRichTextExtension } from "../extensions/builtins";
+import { embeddedTextOptions } from "../extensions/text";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WhiteBoard from "../WhiteBoard";
 import { useBoard } from "../hooks/useBoard";
 import type Board from "../Board";
-import type { WhiteboardEditorProps } from "../host";
+import type { WhiteboardTextEditorProps as WhiteboardEditorProps } from "../extensions/text";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -79,7 +82,10 @@ beforeEach(async () => {
         showToolbar={false}
         showAttributeSetter={false}
         showStatusBar={false}
-        slots={{ Editor: DelayedEditor, Layers: Capture }}
+        extensions={[
+          ...extensionsWithLayer(Capture).filter(item => item.id !== "tau.richtext"),
+          createRichTextExtension({ ...embeddedTextOptions, Editor: DelayedEditor }),
+        ]}
       />
     )
   );

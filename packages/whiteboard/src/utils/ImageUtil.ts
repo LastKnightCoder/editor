@@ -1,3 +1,4 @@
+import type { MediaExtensionOptions } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 import {
@@ -32,10 +33,10 @@ export class ImageUtil {
     return { shadowSize } as const;
   }
 
-  static async insertImage(file: File, board: Board) {
+  static async insertImage(file: File, board: Board, media: MediaExtensionOptions) {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
-    const info = await board.services.getImageInfo(file);
+    const info = await media.imageInfo(file);
     const { minX, minY, width, height } = board.viewPort;
     const center = {
       x: minX + width / 2,
@@ -60,7 +61,7 @@ export class ImageUtil {
       imageHeight = imageWidth / ratio;
     }
 
-    const imagePath = await board.services.uploadResource?.(file);
+    const imagePath = await media.upload?.(file);
 
     if (imagePath) {
       ops.push({

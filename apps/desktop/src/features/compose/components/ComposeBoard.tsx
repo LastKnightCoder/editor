@@ -16,10 +16,9 @@ import {
   useViewPort,
   type BoardElement,
   type DocumentElement,
-  type WhiteboardSlots,
+  defineWhiteboardExtension,
 } from "@tau/whiteboard";
 import { BoardCanvas } from "@/features/whiteboards/components/BoardCanvas";
-import { DocumentReaderLayer } from "@/features/shared/whiteboard/components/Document/DocumentReader";
 import {
   DocumentHostContext,
   type DocumentHost,
@@ -80,7 +79,6 @@ function ComposeCanvasLayer() {
 
   return (
     <>
-      <DocumentReaderLayer />
       <GlowPointer />
     </>
   );
@@ -115,7 +113,14 @@ function GlowPointer() {
   );
 }
 
-const slots: WhiteboardSlots = { CanvasLayer: ComposeCanvasLayer };
+const extensions = [
+  defineWhiteboardExtension({
+    id: "tau.compose",
+    create: () => ({
+      layers: [{ id: "tau.compose.canvas", position: "canvas", component: ComposeCanvasLayer }],
+    }),
+  }),
+];
 
 type GatherStatus =
   | { state: "idle" }
@@ -262,7 +267,7 @@ export function ComposeBoard({
       <BoardActionsContext.Provider value={actions}>
         <div className="relative h-full w-full">
           {board ? (
-            <BoardCanvas id={board.pageId} slots={slots} />
+            <BoardCanvas id={board.pageId} extensions={extensions} />
           ) : (
             <div className="bg-page h-full w-full bg-[radial-gradient(var(--tau-line-1)_1px,transparent_1.2px)] [background-size:20px_20px]" />
           )}

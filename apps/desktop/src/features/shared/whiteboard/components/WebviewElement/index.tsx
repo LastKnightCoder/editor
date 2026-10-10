@@ -13,7 +13,7 @@ import { convertFileSrc, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
-import { Board, EHandlerPosition, Point, WebviewElement } from "@tau/whiteboard";
+import { EHandlerPosition, Point, WebviewElement } from "@tau/whiteboard";
 import { PointUtil } from "@tau/whiteboard";
 import {
   useBoard,
@@ -46,7 +46,6 @@ interface WebviewElementProps {
   element: WebviewElement;
   onResizeStart?: (element: WebviewElement, startPoint: Point) => void;
   onResize: (
-    board: Board,
     element: WebviewElement,
     position: EHandlerPosition,
     startPoint: Point,
@@ -55,7 +54,6 @@ interface WebviewElementProps {
     isAdsorb?: boolean
   ) => void;
   onResizeEnd?: (
-    board: Board,
     element: WebviewElement,
     position: EHandlerPosition,
     startPoint: Point,
@@ -111,14 +109,14 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
       isPreserveRatio?: boolean,
       isAdsorb?: boolean
     ) => {
-      onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+      onResize(element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
     }
   );
 
   const handleOnResizeEnd = useMemoizedFn(
     (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
       setIsResizing(false);
-      onResizeEnd?.(board, element, position, startPoint, endPoint);
+      onResizeEnd?.(element, position, startPoint, endPoint);
     }
   );
 

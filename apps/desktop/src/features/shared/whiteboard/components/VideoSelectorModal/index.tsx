@@ -1,3 +1,4 @@
+import { desktopMedia } from "../../media";
 import React, { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -64,7 +65,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
     if (file) {
       const toastId = toast.loading("正在处理视频，请稍候…");
       try {
-        await VideoUtil.insertVideo(file, board);
+        await VideoUtil.insertVideo(file, board, desktopMedia);
       } finally {
         toast.dismiss(toastId);
       }

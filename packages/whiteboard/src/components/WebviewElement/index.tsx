@@ -1,11 +1,11 @@
-import { useWhiteboardHost } from "../../host";
-import HostElement, { type HostElementProps } from "../HostElement";
-export default function WebviewElement({ element, ...props }: HostElementProps) {
-  const Component = useWhiteboardHost().slots.elements?.webview;
+import { useElementContent } from "../../extensions/elementContent";
+import ElementFrame, { type ElementFrameProps } from "../ElementFrame";
+export default function WebviewElement({ element, ...props }: ElementFrameProps) {
+  const Component = useElementContent();
   if (Component) return <Component element={element} {...props} />;
   return (
-    <HostElement element={element} {...props}>
+    <ElementFrame element={element} {...props}>
       网页内容需要宿主支持
-    </HostElement>
+    </ElementFrame>
   );
 }

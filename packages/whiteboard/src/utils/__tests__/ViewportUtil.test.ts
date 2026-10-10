@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import ViewportUtil from "../ViewportUtil";
+import Board from "../../Board";
+import { ArrowPlugin } from "../../plugins/ArrowPlugin";
+import type { BoardElement } from "../../types";
+const visibleInViewport = (element: BoardElement, viewPort: Board["viewPort"]) => {
+  const board = new Board([element], viewPort, { selectedElements: [], selectArea: null }, [
+    new ArrowPlugin(),
+  ]);
+  try {
+    return board.filterElementsInViewport([element], 0).length > 0;
+  } finally {
+    board.destroy();
+  }
+};
 
 const viewPort = {
   minX: 100,
@@ -26,7 +38,7 @@ describe("ViewportUtil", () => {
       style: {},
     };
 
-    const visible = ViewportUtil.isElementInViewport(handwrite, viewPort, 0);
+    const visible = visibleInViewport(handwrite, viewPort);
     expect(visible).toBe(true);
   });
 
@@ -46,7 +58,7 @@ describe("ViewportUtil", () => {
       style: {},
     };
 
-    const visible = ViewportUtil.isElementInViewport(handwrite, viewPort, 0);
+    const visible = visibleInViewport(handwrite, viewPort);
     expect(visible).toBe(false);
   });
 
@@ -68,7 +80,7 @@ describe("ViewportUtil", () => {
       lineWidth: 2,
     };
 
-    const visible = ViewportUtil.isElementInViewport(arrow, viewPort, 0);
+    const visible = visibleInViewport(arrow, viewPort);
     expect(visible).toBe(true);
   });
 
@@ -87,7 +99,7 @@ describe("ViewportUtil", () => {
       lineWidth: 2,
     };
 
-    const visible = ViewportUtil.isElementInViewport(arrow, viewPort, 0);
+    const visible = visibleInViewport(arrow, viewPort);
     expect(visible).toBe(false);
   });
 });

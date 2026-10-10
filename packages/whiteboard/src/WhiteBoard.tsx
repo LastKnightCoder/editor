@@ -4,7 +4,6 @@ import React, {
   useMemo,
   useRef,
   useSyncExternalStore,
-  useState,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -12,28 +11,6 @@ import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import { cn } from "@tau/ui";
 
 import Board from "./Board";
-import {
-  ViewPortPlugin,
-  HistoryPlugin,
-  CopyPastePlugin,
-  DocumentPlugin,
-  SelectPlugin,
-  GeometryPlugin,
-  HandwritePlugin,
-  RichTextPlugin,
-  ArrowPlugin,
-  ImagePlugin,
-  VideoPlugin,
-  AudioPlugin,
-  MindPlugin,
-  PresentationPlugin,
-  WebviewPlugin,
-  FramePlugin,
-  WhiteBoardPlugin,
-  ColumnPlugin,
-  FileDragDropPlugin,
-  ExportImagePlugin,
-} from "./plugins";
 
 import {
   BoardContext,
@@ -59,7 +36,6 @@ import {
   Selection,
   PresentationSequence,
   PluginContextMenuItem,
-  ContextMenuModalPayload,
   PageSketch,
   DEFAULT_PAGE_SKETCH,
 } from "./types";
@@ -87,8 +63,6 @@ import ContextMenuLayer, {
 import { ViewPortTransforms } from "./transforms";
 import { BoardUtil, PointUtil } from "./utils";
 
-import ExportImageModal from "./components/ExportImageModal";
-import ImagePreviewModal from "./components/ImagePreviewModal";
 import {
   ownsBoardEvent,
   claimBoardPointer,
@@ -100,20 +74,13 @@ import {
   isCanvasOverlayEvent,
 } from "./utils/events";
 import { isEditableTarget } from "@tau/ui";
-import MediaUrlDialog from "./components/MediaUrlDialog";
-import {
-  WhiteboardHostContext,
-  type WhiteboardServices,
-  type WhiteboardSlots,
-  type WhiteboardOutline,
-  type WhiteboardSnapshot,
-} from "./host";
+import type { WhiteboardExtension, WhiteboardOutline, WhiteboardSnapshot } from "./extensions/api";
+import { WhiteboardAPIProvider } from "./extensions/runtime";
 
 const simplifiedRenderZoomThreshold = 0.3;
 
 export interface WhiteBoardProps {
-  services?: Partial<WhiteboardServices>;
-  slots?: WhiteboardSlots;
+  extensions: readonly WhiteboardExtension[];
   outline?: WhiteboardOutline;
   className?: string;
   style?: React.CSSProperties;
@@ -173,23 +140,12 @@ const WhiteBoard = memo(
       showAttributeSetter,
       showStatusBar = true,
       onPresentationModeChange,
-      services,
-      slots = {},
+      extensions,
       outline,
     } = props;
 
     const toolbarVisible = showToolbar ?? !readonly;
     const attributeSetterVisible = showAttributeSetter ?? !readonly;
-
-    const [imagePreview, setImagePreview] = useState<{
-      open: boolean;
-      src: string;
-      alt?: string;
-    }>({
-      open: false,
-      src: "",
-      alt: undefined,
-    });
 
     // 引用
     const containerRef = useRef<HTMLDivElement>(null);
@@ -241,64 +197,26 @@ const WhiteBoard = memo(
 
     // 创建画板实例
     const board = useCreation<Board>(() => {
-      const plugins = [
-        new ArrowPlugin(),
-        new GeometryPlugin(),
-        new HandwritePlugin(),
-        new DocumentPlugin(),
-        new WhiteBoardPlugin(),
-        new RichTextPlugin(),
-        new ImagePlugin(),
-        new VideoPlugin(),
-        new AudioPlugin(),
-        new MindPlugin(),
-        new WebviewPlugin(),
-        new FramePlugin(),
-        new ColumnPlugin(),
-        new FileDragDropPlugin(),
-        new HistoryPlugin(),
-        new SelectPlugin(),
-        new ViewPortPlugin(),
-        new CopyPastePlugin(),
-        new ExportImagePlugin(),
-        new PresentationPlugin(),
-      ];
-      return new Board(
+      const instance = new Board(
         initData,
         initViewPort,
         initSelection,
-        plugins,
+        [],
         initPresentationSequences,
         readonly,
-        initSketch,
-        services
+        initSketch
       );
+      instance.installExtensions(extensions);
+      return instance;
     }, []);
-
-    // @ts-ignore
-    // window.board = board;
-
-    board.slots = slots;
+    const initialExtensions = useRef(extensions);
+    if (extensions !== initialExtensions.current) throw new Error("白板扩展集合必须稳定");
     useEffect(() => {
       board.readonly = readonly ?? false;
     }, [board, readonly]);
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
     const { markInteracting } = usePreventTextSelection(containerRef);
-
-    // 右键菜单触发的弹窗状态
-    const [contextMenuModal, setContextMenuModal] = useState<ContextMenuModalPayload | null>(null);
-
-    // 监听右键菜单弹窗事件
-    useEffect(() => {
-      const handleOpenModal = (payload: ContextMenuModalPayload) => {
-        setContextMenuModal(payload);
-      };
-      board.on("context-menu:open-modal", handleOpenModal);
-      return () => {
-        board.off("context-menu:open-modal", handleOpenModal);
-      };
-    }, [board]);
 
     const buildContextMenuItems = useMemoizedFn(
       ({
@@ -427,7 +345,7 @@ const WhiteBoard = memo(
         fitAllElements: (padding = FIT_VIEW_PADDING, animate = true) => {
           ViewPortTransforms.fitAllElements(board, padding, animate);
         },
-        getElements: () => board.children,
+        getElements: () => board.extensions!.api.children,
         zoomIn: () => handleZoomIn(),
         zoomOut: () => handleZoomOut(),
         zoomTo: (zoomValue: number) => handleZoomTo(zoomValue),
@@ -541,7 +459,7 @@ const WhiteBoard = memo(
     // 监听数据变化
     useEffect(() => {
       const handleChange = () => {
-        onChange?.(board.getSnapshot());
+        onChange?.(board.extensions!.api.getSnapshot());
       };
       board.on("change", handleChange);
 
@@ -566,21 +484,6 @@ const WhiteBoard = memo(
     useEffect(() => {
       board.snap.setGridSize(gridVisible ? DEFAULT_GRID_SIZE : null);
     }, [board, gridVisible]);
-
-    useEffect(() => {
-      const handleOpenImagePreview = (payload: { src: string; alt?: string }) => {
-        if (!payload?.src) return;
-        setImagePreview({
-          open: true,
-          src: payload.src,
-          alt: payload.alt,
-        });
-      };
-      board.on("image:preview:open", handleOpenImagePreview);
-      return () => {
-        board.off("image:preview:open", handleOpenImagePreview);
-      };
-    }, [board]);
 
     // 设置容器，添加和清理事件监听器
     useEffect(() => {
@@ -721,16 +624,8 @@ const WhiteBoard = memo(
       board.presentationManager.deleteSequence(sequenceId);
     });
 
-    const handleCloseImagePreview = useMemoizedFn(() => {
-      setImagePreview({
-        open: false,
-        src: "",
-        alt: undefined,
-      });
-    });
-
     return (
-      <WhiteboardHostContext value={{ services: board.services, slots, outline }}>
+      <WhiteboardAPIProvider value={board.extensions!.api}>
         <BoardContext.Provider value={board}>
           <SelectionContext.Provider value={selection}>
             <ViewPortContext.Provider value={viewPort}>
@@ -747,7 +642,7 @@ const WhiteBoard = memo(
                     <PointerViewportStoreContext.Provider value={pointerViewportStore}>
                       <div className="relative flex h-full">
                         {/* 元素树停靠栏：纸面内左栏，开关在宿主页面的面包屑 */}
-                        {showSidebar && !isPresentationMode && <Sidebar />}
+                        {showSidebar && !isPresentationMode && <Sidebar outline={outline} />}
                         <div
                           ref={containerRef}
                           data-whiteboard-root
@@ -820,32 +715,10 @@ const WhiteBoard = memo(
                             readonly={readonly}
                             buildMenuItems={buildContextMenuItems}
                           />
-                          {slots.CanvasLayer && <slots.CanvasLayer />}
+                          {board.extensions!.renderLayers("canvas")}
                         </div>
 
-                        <ExportImageModal
-                          open={contextMenuModal?.type === "export-image"}
-                          onClose={() => setContextMenuModal(null)}
-                          board={board}
-                          action={contextMenuModal?.action}
-                          selectedElementIds={contextMenuModal?.selectedElementIds}
-                        />
-
-                        <ImagePreviewModal
-                          open={imagePreview.open}
-                          src={imagePreview.src}
-                          alt={imagePreview.alt}
-                          onClose={handleCloseImagePreview}
-                        />
-                        {slots.Layers && <slots.Layers />}
-                        {!slots.Layers &&
-                          contextMenuModal &&
-                          ["image", "video", "audio"].includes(contextMenuModal.type) && (
-                            <MediaUrlDialog
-                              modal={contextMenuModal}
-                              onClose={() => setContextMenuModal(null)}
-                            />
-                          )}
+                        {board.extensions!.renderLayers("outside")}
                       </div>
                     </PointerViewportStoreContext.Provider>
                   </ArrowConnectPointOverlayContext.Provider>
@@ -854,7 +727,7 @@ const WhiteBoard = memo(
             </ViewPortContext.Provider>
           </SelectionContext.Provider>
         </BoardContext.Provider>
-      </WhiteboardHostContext>
+      </WhiteboardAPIProvider>
     );
   })
 );

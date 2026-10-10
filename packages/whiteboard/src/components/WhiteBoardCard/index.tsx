@@ -1,4 +1,4 @@
-import { useWhiteboardHost } from "../../host";
+import { useElementContent } from "../../extensions/elementContent";
 import type { BoardElement } from "../../types";
 export default function WhiteBoardCard({
   element,
@@ -7,7 +7,7 @@ export default function WhiteBoardCard({
   element: BoardElement;
   [key: string]: any;
 }) {
-  const Component = useWhiteboardHost().slots.elements?.whiteboard;
+  const Component = useElementContent();
   if (Component) return <Component element={element} {...props} />;
   return (
     <foreignObject x={element.x} y={element.y} width={element.width} height={element.height || 80}>

@@ -10,15 +10,14 @@ import { ResizableAndHideableSidebar as ResizeableAndHideableSidebar } from "@ta
 import ElementTree from "./tree/ElementTree";
 import Node from "./tree/Node";
 import { elementLabel } from "./tree/typeMeta";
-import { useWhiteboardHost } from "../../host";
+import type { WhiteboardOutline } from "../../extensions/api";
 
 /**
  * 元素树停靠栏：画布纸面内的左栏，和项目文档树同构（同一张纸、右缘淡线兼拖拽边界）。
  * 开关钉在标题栏面包屑（useWhiteboardOutlineStore），这里不放收起按钮。
  */
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<{ outline?: WhiteboardOutline }> = ({ outline }) => {
   const [localWidth, setLocalWidth] = useState(260);
-  const outline = useWhiteboardHost().outline;
   const open = outline?.open ?? true;
   const width = outline?.width ?? localWidth;
   const setWidth = outline?.onWidthChange ?? setLocalWidth;

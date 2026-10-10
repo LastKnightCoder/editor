@@ -4,7 +4,7 @@ import { PathUtil } from "./PathUtil";
 import { BoardUtil } from "./BoardUtil";
 import { isValid } from "./common";
 import { ColumnUtil } from "./ColumnUtil";
-import { deleteRichTextContent, isRichTextContentEmpty } from "./RichTextContentUtil";
+import { isRichTextContentEmpty } from "./RichTextContentUtil";
 import type { ColumnElement } from "../types/column";
 import type { RichTextElement } from "../plugins/RichTextPlugin";
 
@@ -95,7 +95,10 @@ export const deleteEmptyRichText = (board: Board, element: BoardElement): boolea
     const latestColumn = BoardUtil.getElementById(board, parentColumn.id) as ColumnElement | null;
     if (latestColumn) ColumnUtil.relayout(board, latestColumn);
   }
-  void deleteRichTextContent(latest.contentId, board);
+  if (latest.contentId)
+    void board.extensions
+      ?.execute("tau.richtext.release-content", latest.contentId)
+      .catch(error => console.error("释放空白正文失败", error));
   return true;
 };
 
