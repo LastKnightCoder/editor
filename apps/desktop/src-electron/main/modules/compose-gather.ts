@@ -109,13 +109,17 @@ function selfOf(mainDb: Database.Database, contentId: number): SelfDoc {
   const content = ContentTable.getContentById(mainDb, contentId);
   if (!content) throw new Error("正文不存在");
   const identities = EntitySearchTable.locateAll(mainDb, [contentId]).get(contentId) ?? [];
+  // 按实体优先级取代表身份的标题：文章 > 项目文档
   const article = identities.find(ref => ref.kind === "article");
+  const projectItem = identities.find(ref => ref.kind === "project-item");
+  const titleRow = (table: string, id: number) =>
+    mainDb.prepare(`SELECT title FROM ${table} WHERE id = ?`).get(id) as
+      { title: string } | undefined;
   const title = article
-    ? ((
-        mainDb.prepare(`SELECT title FROM articles WHERE id = ?`).get(article.id) as
-          { title: string } | undefined
-      )?.title ?? "")
-    : "";
+    ? (titleRow("articles", article.id)?.title ?? "")
+    : projectItem
+      ? (titleRow("project_item", projectItem.id)?.title ?? "")
+      : "";
   return {
     contentId,
     identityKeys: new Set(identities.map(entityRefKey)),
