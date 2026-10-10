@@ -21,9 +21,27 @@ export interface WhiteboardAPI {
   /** 只读原因：文档版本高于当前应用时为 "document-too-new"，普通只读为 null */
   readonly readonlyReason: "document-too-new" | null;
   readonly isDestroyed: boolean;
-  currentCreateType: string;
+  /** 当前激活工具 id（"tau.select" 表示非创建模式） */
+  readonly activeTool: string;
+  /** 当前工具参数（如 geometry 的形状参数）；无参数为 null */
+  readonly activeToolOptions: Readonly<Record<string, unknown>> | null;
+  /**
+   * 设置当前工具；id 必须是已注册工具 id 或 "tau.select"，否则抛错。
+   * 只读画布下非 select 的设置被忽略并返回 false。
+   */
+  setActiveTool(id: string, options?: Record<string, unknown>): boolean;
+  /** 订阅工具切换；返回取消函数，扩展作用域内随扩展卸载自动清理 */
+  onActiveToolChange(
+    listener: (id: string, options: Readonly<Record<string, unknown>> | null) => void
+  ): () => void;
+  /** 屏幕（client）坐标 → 画布坐标；容器未挂载时抛错 */
+  screenToCanvas(point: { x: number; y: number }): { x: number; y: number };
+  /** 画布坐标 → 屏幕（client）坐标；容器未挂载时抛错 */
+  canvasToScreen(point: { x: number; y: number }): { x: number; y: number };
   getSnapshot(): WhiteboardSnapshot;
   getElement(id: string): BoardElement | undefined;
+  /** 查询元素能否被指定类型的容器收纳（委托能力系统的 containment 声明，供创建手势等尚无容器实例的场合） */
+  canContain(containerType: string, element: BoardElement): boolean;
   /** 数据不合规时抛 WhiteboardValidationError 且不应用任何变更 */
   submit(operations: readonly Operation[], options?: { historyGroup?: string }): void;
   /** 数据不合规时抛 WhiteboardValidationError 且不应用任何变更 */
@@ -63,6 +81,110 @@ export interface WhiteboardElementDefinition<TData = unknown> {
   migrate?: Record<number, (element: ElementParam<TData>) => BoardElement>;
   /** 约束 element.data 的 Standard Schema v1；提交与迁移产物校验均要求同步返回结果 */
   schema?: StandardSchemaV1<unknown, TData>;
+  /** 创建规格：声明后可注册创建型工具（element 工具），在画布上手势创建该元素 */
+  create?: ElementCreateSpec<TData>;
+}
+
+/** 创建手势中的画布坐标点 */
+export interface CreatePoint {
+  x: number;
+  y: number;
+}
+
+/** 创建手势的指针上下文（画布坐标 + 修饰键 + 当前缩放） */
+export interface CreatePointerContext {
+  /** 当前指针（画布坐标） */
+  point: CreatePoint;
+  /** 按下点（画布坐标） */
+  start: CreatePoint;
+  shift: boolean;
+  alt: boolean;
+  zoom: number;
+  /** 当前指针压力（PointerEvent.pressure 原始值；无压感设备为 0/0.5，由手势自行归一） */
+  pressure: number;
+  api: WhiteboardAPI;
+}
+
+/** 预览附加项：需要高亮包围盒的已有元素 id（如框架收纳提示） */
+export interface CreatePreviewOptions {
+  highlight?: readonly string[];
+  /** 是否绘制预览元素的包围盒描边（默认 true；手写笔迹等不宜描边的元素传 false） */
+  bounds?: boolean;
+}
+
+/** 手势产出：单个元素，或元素 + 与插入同属一个撤销步的附加操作 */
+export type CreateResult =
+  BoardElement | { element: BoardElement; operations?: readonly Operation[] };
+
+/** build 的产出：与 CreateResult 同构（元素或元素 + 附加操作），可异步 */
+export type CreateBuildResult<TData = unknown> =
+  ElementParam<TData> | { element: ElementParam<TData>; operations?: readonly Operation[] };
+
+/**
+ * 一次创建手势会话：begin 之后由内核驱动 move/end/cancel。
+ * end 与内置手势的 build 可返回 Promise：等待期间内核忽略新的创建手势
+ * （工具保持但按下被吞掉），完成后按废弃守门（captureSubmission + 工具一致）决定提交或丢弃。
+ */
+export interface CreateGestureSession {
+  move(ctx: CreatePointerContext): void;
+  end(
+    ctx: CreatePointerContext & { moved: boolean }
+  ): CreateResult | null | Promise<CreateResult | null>;
+  cancel?(): void;
+}
+
+/** 自定义创建手势：begin 返回 null 表示不接管本次按下 */
+export interface CustomCreateGesture {
+  begin(
+    ctx: CreatePointerContext & {
+      /** 设置预览元素（null 清除）；预览不进入文档、快照与历史 */
+      preview(element: BoardElement | null, options?: CreatePreviewOptions): void;
+    }
+  ): CreateGestureSession | null;
+}
+
+/** 传给 build 的构造上下文：rect/start/end 均已应用约束 */
+export interface CreateBuildContext {
+  /** 画布坐标包围盒，已应用 Shift/Alt 约束 */
+  rect: { x: number; y: number; width: number; height: number };
+  /** 已应用约束的起止点 */
+  start: CreatePoint;
+  end: CreatePoint;
+  /** 是否为单击（未拖动） */
+  click: boolean;
+  shift: boolean;
+  alt: boolean;
+  /** 激活工具时的参数（activeToolOptions） */
+  options: Readonly<Record<string, unknown>> | null;
+  api: WhiteboardAPI;
+}
+
+/** 元素创建规格 */
+export interface ElementCreateSpec<TData = unknown> {
+  /** "click"/"drag" 为内置手势；传对象则完全自定义 */
+  gesture: "click" | "drag" | CustomCreateGesture;
+  /** 仅 drag 生效：box = Shift 等比、Alt 从中心；line = Shift 吸附 45°。默认 box */
+  constrain?: "box" | "line";
+  /** click 必填；drag 单击时按此尺寸以按下点为中心创建，缺省则单击不创建 */
+  defaultSize?: readonly [number, number];
+  /** drag 生成的 rect 宽或高小于此值则不创建（line 约束改为检查长度），默认 [4,4]，画布单位 */
+  minSize?: readonly [number, number];
+  /** click/drag 必填：由构造上下文产出待插入元素（或元素 + 附加操作），返回 null 则不创建；可异步 */
+  build?(
+    ctx: CreateBuildContext
+  ): CreateBuildResult<TData> | null | Promise<CreateBuildResult<TData> | null>;
+  /** 创建后动作：select = 选中（默认）；edit = 选中并进入编辑；none = 不改选区 */
+  after?: "select" | "edit" | "none";
+  /** 创建后保持当前工具（默认 false，回到 tau.select） */
+  stay?: boolean;
+  /** 创建模式光标，默认 crosshair */
+  cursor?: "crosshair" | "text";
+  /**
+   * 提示胶囊文案（激活创建工具时画布底部显示）；第一段为主提示。
+   * 缺省时按手势兜底：click = 「点击放置 + label」，其它 = 「拖拽绘制 + label」。
+   */
+  hint?:
+    readonly string[] | ((options: Readonly<Record<string, unknown>> | null) => readonly string[]);
 }
 
 /** 元素定义的声明辅助（恒等函数）：传入 schema 时 TData 由其输出类型推断 */
@@ -78,10 +200,21 @@ export interface WhiteboardToolProps {
 
 export interface WhiteboardToolContribution {
   id: string;
-  command: string;
+  /** 提示与无障碍名（菜单项/提示胶囊文案也用它）；空串或空白会被拒绝装配 */
+  label: string;
+  /** 工具图标（lucide 图标组件即可） */
+  icon: ComponentType<{ className?: string }>;
+  /** 命令型工具：点击执行该命令（与 element 恰好二选一） */
+  command?: string;
+  /** 创建型工具：激活后在画布上手势创建该元素；须是本扩展声明且带 create 的元素 type */
+  element?: string;
   order: number;
   group: string;
-  component: ComponentType<WhiteboardToolProps>;
+  /**
+   * 工具按钮组件；仅 tau 命名空间工具在工具栏上渲染，
+   * 第三方工具统一进入「扩展工具」菜单（菜单项由 label + icon 生成，component 被忽略）
+   */
+  component?: ComponentType<WhiteboardToolProps>;
 }
 
 export interface WhiteboardLayerContribution {
@@ -120,6 +253,8 @@ export interface WhiteboardContributions {
 
 export interface WhiteboardExtension {
   readonly id: string;
+  /** 展示名（UI 显示"来自 xxx"用）；内置扩展可不填 */
+  readonly name?: string;
   readonly apiVersion: 1;
   create(api: WhiteboardAPI): WhiteboardContributions;
 }

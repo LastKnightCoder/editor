@@ -1,5 +1,5 @@
 import React from "react";
-import { ErrorBoundary } from "@tau/ui";
+import { ErrorBoundary, isEditableTarget } from "@tau/ui";
 import { UnknownElement, type UnknownElementReason } from "./components/UnknownElement";
 import EventEmitter from "eventemitter3";
 import curry from "lodash/curry";
@@ -15,7 +15,6 @@ import {
   IBoardPlugin,
   BoardElement,
   ViewPort,
-  ECreateBoardElementType,
   PresentationSequence,
   ElementBounds,
   BoardContextMenuPayload,
@@ -32,6 +31,7 @@ import { CapabilityService } from "./services/CapabilityService";
 import { InteractionManager } from "./interactions/InteractionManager";
 
 import { BOARD_TO_CONTAINER } from "./constants/map";
+import { SELECT_TOOL_ID, builtinCreateToolIds } from "./constants/tools";
 import { createMindThemePreviewStore } from "./utils/MindThemePreviewStore";
 import { ExtensionRuntime } from "./extensions/runtime";
 import type { WhiteboardExtension, WhiteboardExtensionError } from "./extensions/api";
@@ -159,10 +159,52 @@ class Board {
     version: number;
   };
 
-  private _currentCreateType: string = ECreateBoardElementType.None;
+  /** 当前工具（"tau.select" 表示非创建模式） */
+  private _activeTool: string = SELECT_TOOL_ID;
+  private _activeToolOptions: Readonly<Record<string, unknown>> | null = null;
 
-  // 要创建哪种几何图形，放在这里是不是不太合理？放在插件里更合理
-  public createOptions: any = null;
+  /**
+   * 创建手势的预览覆盖层状态：预览元素从不进入 children、快照、onChange 与历史；
+   * 变化时 emit("creation-preview:change")。leaving 表示取消退场中（120ms 后清空）。
+   */
+  public creationPreview: {
+    element: BoardElement;
+    highlight: readonly string[];
+    leaving: boolean;
+    /** 尺寸徽标文本（drag 已移动时由内核计算，line 约束显示长度） */
+    sizeLabel?: string;
+    /** 是否绘制包围盒描边（手写笔迹等传 false） */
+    bounds: boolean;
+  } | null = null;
+
+  /** 设置/清除创建预览；element 为 null 时清除 */
+  setCreationPreview(
+    element: BoardElement | null,
+    options?: { highlight?: readonly string[]; sizeLabel?: string; bounds?: boolean }
+  ): void {
+    if (!element) {
+      if (this.creationPreview) {
+        this.creationPreview = null;
+        this.emit("creation-preview:change");
+      }
+      return;
+    }
+    this.creationPreview = {
+      element,
+      highlight: options?.highlight ?? [],
+      leaving: false,
+      sizeLabel: options?.sizeLabel,
+      bounds: options?.bounds ?? true,
+    };
+    this.emit("creation-preview:change");
+  }
+
+  /** 标记预览进入取消退场（渲染层播放 120ms 淡出） */
+  markCreationPreviewLeaving(): void {
+    if (!this.creationPreview || this.creationPreview.leaving) return;
+    this.creationPreview = { ...this.creationPreview, leaving: true };
+    this.emit("creation-preview:change");
+  }
 
   constructor(
     children: BoardElement[],
@@ -450,8 +492,31 @@ class Board {
       return;
     if (this.extensions?.onKeyDown(event)) return;
     if (this.interactions.routeKeyDown(event)) return;
+    if (this.exitCreateToolOnEscape(event)) return;
     const fns = this.plugins.map(bindHandler("onKeyDown")).filter(isValid);
     executeSequence(fns, event, this);
+  }
+
+  /**
+   * Esc 只承担退出创建模式（浮层退场语义之外无其它角色）。让位规则：
+   * 输入法组合在 onKeyDown 入口已让位；元素编辑中、演示态与编辑上下文
+   * （输入框/可编辑节点）让位；portal 浮层的事件本就不归属画布（ownsBoardEvent），
+   * 天然优先于本处理。
+   */
+  private exitCreateToolOnEscape(event: KeyboardEvent): boolean {
+    if (event.key !== "Escape") return false;
+    if (
+      !this.isCreating() ||
+      this.isEditingElements.length > 0 ||
+      this.presentationManager.isPresentationMode ||
+      this.presentationManager.isCreatingSequence ||
+      isEditableTarget(event.target)
+    )
+      return false;
+    event.preventDefault();
+    event.stopPropagation();
+    this.setActiveTool(SELECT_TOOL_ID);
+    return true;
   }
 
   onKeyUp(event: KeyboardEvent) {
@@ -461,6 +526,8 @@ class Board {
   }
 
   onPointerDown(event: PointerEvent) {
+    // 创建型工具最优先接管：整个创建手势不进入 claimed gesture、插件广播与常规手势
+    if (this.interactions.tryStartCreateGesture(event)) return;
     // 元素类型自定义手势优先（原插件 return false 抢占的显式化）
     if (this.interactions.tryStartClaimedGesture(event)) return;
     const fns = this.plugins.map(bindHandler("onPointerDown")).filter(isValid);
@@ -907,13 +974,39 @@ class Board {
     return this.elementVersion;
   }
 
-  get currentCreateType(): string {
-    return this._currentCreateType;
+  get activeTool(): string {
+    return this._activeTool;
   }
 
-  set currentCreateType(value: string) {
-    this._currentCreateType = value;
-    this.emit("onCurrentCreateTypeChange");
+  get activeToolOptions(): Readonly<Record<string, unknown>> | null {
+    return this._activeToolOptions;
+  }
+
+  /** 是否处于创建模式（非"选择"工具激活） */
+  isCreating(): boolean {
+    return this._activeTool !== SELECT_TOOL_ID;
+  }
+
+  /**
+   * 设置当前工具；id 必须是已注册工具 id 或 "tau.select"，否则抛错。
+   * 只读画布下非 select 的设置被忽略并返回 false。未传 options 视为清空参数。
+   */
+  setActiveTool(id: string, options?: Record<string, unknown>): boolean {
+    const registered =
+      id === SELECT_TOOL_ID ||
+      builtinCreateToolIds.has(id) ||
+      (this.extensions?.tools.some(tool => tool.id === id) ?? false);
+    if (!registered) throw new Error(`未注册的白板工具：${id}`);
+    if (this._readonly && id !== SELECT_TOOL_ID) return false;
+    this.applyToolChange(id, options ?? null);
+    return true;
+  }
+
+  /** 写齐字段后统一发事件 */
+  private applyToolChange(id: string, options: Readonly<Record<string, unknown>> | null) {
+    this._activeTool = id;
+    this._activeToolOptions = options;
+    this.emit("active-tool:change", id, options);
   }
 
   // 获取插件实例

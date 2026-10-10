@@ -1,6 +1,6 @@
 import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
-import type { Board, BoardElement } from "../types/board";
+import type { Board, BoardElement, ElementBounds } from "../types/board";
 import type { Operation } from "../types/operation";
 import {
   FRAME_DEFAULT_STYLES,
@@ -200,7 +200,23 @@ export class FrameUtil {
     frame: FrameElement,
     children: BoardElement[] = frame.children
   ) {
-    if (children.length === 0) {
+    return this.calculateFrameBoundsFromBounds(
+      frame,
+      children
+        .map(child => board.getBounds(child))
+        .filter((bounds): bounds is ElementBounds => !!bounds)
+    );
+  }
+
+  /**
+   * calculateFrameBounds 的纯函数形态：子元素包围盒由调用方提供
+   * （创建手势等无 Board 实例的场合复用同一套边界扩张规则）。
+   */
+  static calculateFrameBoundsFromBounds(
+    frame: FrameElement,
+    childBounds: readonly ElementBounds[]
+  ) {
+    if (childBounds.length === 0) {
       return {
         x: frame.x,
         y: frame.y,
@@ -209,15 +225,12 @@ export class FrameUtil {
       };
     }
 
-    // 计算所有子元素的边界
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    children.forEach((child: BoardElement) => {
-      const bounds = board.getBounds(child);
-      if (!bounds) return;
+    childBounds.forEach(bounds => {
       minX = Math.min(minX, bounds.minX);
       minY = Math.min(minY, bounds.minY);
       maxX = Math.max(maxX, bounds.maxX);

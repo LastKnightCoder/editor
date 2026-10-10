@@ -456,6 +456,8 @@ describe("不兼容元素按占位渲染", () => {
               command: "acme.missing.run",
               order: 1,
               group: "acme",
+              label: "测试",
+              icon: () => null,
               component: () => null,
             },
           ],

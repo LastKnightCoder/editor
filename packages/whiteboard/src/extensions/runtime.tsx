@@ -4,15 +4,17 @@ import { isKeyHotkey } from "is-hotkey";
 import type Board from "../Board";
 import { BoardUtil } from "../utils/BoardUtil";
 import { PathUtil } from "../utils/PathUtil";
+import { PointUtil } from "../utils/PointUtil";
 import BoardOperations from "../utils/BoardOperations";
 import type {
+  ElementCreateSpec,
   WhiteboardAPI,
   WhiteboardContributions,
   WhiteboardElementDefinition,
   WhiteboardExtension,
   WhiteboardExtensionError,
 } from "./api";
-import { createInternalPlugins } from "./internal";
+import { createInternalPlugins, type InternalContributions } from "./internal";
 import { registerBoardAccess } from "./access";
 import { createSnapshotReader } from "./snapshot";
 import { createExtensionScope } from "./scope";
@@ -22,6 +24,7 @@ import {
   readElementSchemaVersion,
   type MigrationFailure,
 } from "./migration";
+import { SELECT_TOOL_ID } from "../constants/tools";
 import {
   collectChangedElementProblems,
   formatProblems,
@@ -65,6 +68,42 @@ function defaultBounds(node: BoardElement): ElementBounds | null {
   return null;
 }
 
+/** 读内部 creators 通道（内置扩展为内部插件元素类型登记的创建规格；公共贡献无此字段） */
+function readCreators(value: WhiteboardContributions): Record<string, ElementCreateSpec> {
+  return (value as InternalContributions).creators ?? {};
+}
+
+const isPositiveSizePair = (value: unknown): value is [number, number] =>
+  Array.isArray(value) &&
+  value.length === 2 &&
+  value.every(item => typeof item === "number" && Number.isFinite(item) && item > 0);
+
+/** 装配期校验元素的 create 规格；返回中文错误信息表示不通过 */
+function inspectCreateSpec(type: string, spec: ElementCreateSpec | undefined): string | undefined {
+  if (spec === undefined) return `元素 ${type} 未声明 create 规格`;
+  if (spec.constrain !== undefined && !["box", "line"].includes(spec.constrain))
+    return `元素 ${type} 的 create.constrain 只支持 "box" 或 "line"：${String(spec.constrain)}`;
+  if (spec.defaultSize !== undefined && !isPositiveSizePair(spec.defaultSize))
+    return `元素 ${type} 的 create.defaultSize 必须为正数二元组`;
+  if (spec.minSize !== undefined && !isPositiveSizePair(spec.minSize))
+    return `元素 ${type} 的 create.minSize 必须为正数二元组`;
+  const gesture = spec.gesture;
+  if (gesture === "click") {
+    if (spec.defaultSize === undefined)
+      return `元素 ${type} 的 click 手势必须声明 create.defaultSize`;
+    if (typeof spec.build !== "function") return `元素 ${type} 的 click 手势必须提供 create.build`;
+  } else if (gesture === "drag") {
+    if (typeof spec.build !== "function") return `元素 ${type} 的 drag 手势必须提供 create.build`;
+  } else if (
+    typeof gesture !== "object" ||
+    gesture === null ||
+    typeof gesture.begin !== "function"
+  ) {
+    return `元素 ${type} 的 create.gesture 必须是 "click"、"drag" 或带 begin 的自定义手势`;
+  }
+  return undefined;
+}
+
 /** 与 Board.moveElement 的无插件兜底一致：只平移 x/y，子元素按各自插件递归移动 */
 function genericMove(board: Board, node: BoardElement, dx: number, dy: number): BoardElement {
   return {
@@ -90,6 +129,12 @@ export class ExtensionRuntime {
   private readonly rejectedErrors: WhiteboardExtensionError[] = [];
   /** 已装配扩展声明的元素定义（含版本与迁移函数），type → 定义 */
   private readonly elementDefinitions = new Map<string, WhiteboardElementDefinition>();
+  /** 创建型工具 id → 元素 type（工具与元素同扩展装配校验） */
+  private readonly createTools = new Map<string, string>();
+  /** 工具 id → 所属扩展 id（「扩展工具」菜单显示"来自 {name}"用） */
+  private readonly toolOwners = new Map<string, string>();
+  /** 扩展 id → 展示名（WhiteboardExtension.name） */
+  private readonly extensionNames = new Map<string, string>();
   /** create 成功后被拒的扩展声明的元素 type → 扩展 id（用于占位原因 "disabled"） */
   private readonly rejectedTypeOwners = new Map<string, string>();
   /** 每个扩展每次装配只汇总报告一次迁移失败 */
@@ -103,8 +148,18 @@ export class ExtensionRuntime {
     return this.rejectedErrors;
   }
 
+  /** 扩展展示名（未声明或已禁用的扩展返回 undefined） */
+  getExtensionName(id: string): string | undefined {
+    return this.extensionNames.get(id);
+  }
+
   ownerOf(type: string) {
     return this.owners.get(type) ?? type;
+  }
+
+  /** 工具所属扩展 id；未注册或已被禁用的工具返回 undefined */
+  toolOwner(toolId: string): string | undefined {
+    return this.toolOwners.get(toolId);
   }
   beginMenu() {
     this.menuActions.clear();
@@ -164,16 +219,38 @@ export class ExtensionRuntime {
       get isDestroyed() {
         return board.isDestroyed;
       },
-      get currentCreateType() {
-        return board.currentCreateType;
+      get activeTool() {
+        return board.activeTool;
       },
-      set currentCreateType(value) {
-        board.currentCreateType = value;
+      get activeToolOptions() {
+        return board.activeToolOptions;
+      },
+      setActiveTool: (id, options) => board.setActiveTool(id, options),
+      onActiveToolChange: listener => {
+        const onToolChange = (id: string, options: Readonly<Record<string, unknown>> | null) => {
+          listener(id, options);
+        };
+        board.on("active-tool:change", onToolChange);
+        return () => {
+          board.off("active-tool:change", onToolChange);
+        };
+      },
+      screenToCanvas: point => {
+        const result = PointUtil.screenToViewPort(board, point.x, point.y);
+        if (!result) throw new Error("白板容器尚未挂载，无法转换屏幕坐标");
+        return result;
+      },
+      canvasToScreen: point => {
+        const result = PointUtil.viewPortToScreen(board, point.x, point.y);
+        if (!result) throw new Error("白板容器尚未挂载，无法转换画布坐标");
+        return result;
       },
       getElement: (id: string) => {
         const element = BoardUtil.getElementById(board, id);
         return element ? clone(element) : undefined;
       },
+      canContain: (containerType, element) =>
+        board.capabilityService.canBeContainedByType(element, containerType),
       submit: (ops, options) => {
         if (board.captureSubmission()()) board.apply(clone([...ops]), true, options?.historyGroup);
       },
@@ -383,6 +460,33 @@ export class ExtensionRuntime {
           if (existing) return clash(commandId, existing);
           ownedCommands.add(commandId);
         }
+        for (const tool of value.tools ?? []) {
+          if (typeof tool?.label !== "string" || !tool.label.trim())
+            return invalidDefinition(
+              `扩展 ${id} 的工具 ${tool?.id} 缺少 label（工具提示与菜单项需要它）`
+            );
+          const icon = tool?.icon;
+          if ((typeof icon !== "function" && typeof icon !== "object") || icon === null)
+            return invalidDefinition(`扩展 ${id} 的工具 ${tool?.id} 缺少 icon（工具菜单项需要它）`);
+          const hasCommand = tool?.command !== undefined;
+          const elementType = tool?.element;
+          const hasElement = elementType !== undefined;
+          if (hasCommand === hasElement)
+            return invalidDefinition(
+              `扩展 ${id} 的工具 ${tool?.id} 的 command 与 element 必须恰好提供一个`
+            );
+          if (!hasElement) continue;
+          // 创建型工具的 element 必须是本扩展声明且带 create 的元素类型，或登记在内部 creators 通道
+          const definition = (value.elements ?? []).find(item => item?.type === elementType);
+          const creatorSpec = readCreators(value)[elementType];
+          if (!definition && creatorSpec === undefined)
+            return invalidDefinition(
+              `扩展 ${id} 的工具 ${tool.id} 的 element ${elementType} 不是本扩展声明的元素类型`,
+              elementType
+            );
+          const createProblem = inspectCreateSpec(elementType, definition?.create ?? creatorSpec);
+          if (createProblem) return invalidDefinition(createProblem, elementType);
+        }
         for (const contribution of [
           ...(value.tools ?? []),
           ...(value.layers ?? []),
@@ -418,6 +522,21 @@ export class ExtensionRuntime {
           const existing = elementTypeOwners.get(name);
           if (existing) return clash(name, existing);
           ownedTypes.add(name);
+        }
+        // 内部 creators 通道：key 必须是本扩展（公共元素或内部插件）提供的类型，规格走同一校验
+        for (const [type, spec] of Object.entries(readCreators(value))) {
+          if ((value.elements ?? []).some(element => element?.type === type))
+            return invalidDefinition(
+              `扩展 ${id} 的 creators 键 ${type} 已是公共元素定义，应改用 element.create 声明`,
+              type
+            );
+          if (!ownedTypes.has(type))
+            return invalidDefinition(
+              `扩展 ${id} 的 creators 键 ${type} 不是本扩展内部插件提供的元素类型`,
+              type
+            );
+          const createProblem = inspectCreateSpec(type, spec);
+          if (createProblem) return invalidDefinition(createProblem, type);
         }
         for (const key of Object.keys(value.inspectors ?? {})) {
           if (!reserved && !key.startsWith(`${namespace}.`) && !ownedTypes.has(key))
@@ -459,12 +578,20 @@ export class ExtensionRuntime {
         continue;
       }
       extensionIds.add(id);
+      if (extension.name) this.extensionNames.set(id, extension.name);
       for (const type of ownedTypes) elementTypeOwners.set(type, id);
       for (const command of ownedCommands) commandOwners.set(command, id);
       for (const contribution of ownedContributions) contributionOwners.set(contribution, id);
       for (const inspector of ownedInspectors) inspectorOwners.set(inspector, id);
       for (const element of value.elements ?? [])
         this.elementDefinitions.set(element.type, element);
+      // creators 通道并入同一注册表：伪定义只承载 create（渲染仍由内部插件负责）
+      for (const [type, spec] of Object.entries(readCreators(value)))
+        this.elementDefinitions.set(type, { type, render: () => null, create: spec });
+      for (const tool of value.tools ?? []) {
+        this.toolOwners.set(tool.id, id);
+        if (tool.element !== undefined) this.createTools.set(tool.id, tool.element);
+      }
       const plugins = [...internalPlugins];
       for (const element of value.elements ?? []) {
         const currentVersion = readDefinitionSchemaVersion(element);
@@ -520,29 +647,33 @@ export class ExtensionRuntime {
       });
     }
 
-    // 引用不存在的命令同样禁用引用方；剔除后其命令不再可被引用，需循环至收敛
+    // 引用不存在的命令同样禁用引用方；剔除后其命令不再可被引用，需循环至收敛。
+    // 创建型工具（element 字段）没有 command，不参与 missing-command 校验
+    const commandRefs = (value: WhiteboardContributions) => [
+      ...(value.menus ?? []),
+      ...(value.hotkeys ?? []),
+      ...(value.tools ?? []),
+    ];
     for (;;) {
       const offender = assembled.find(item =>
-        [
-          ...(item.value.menus ?? []),
-          ...(item.value.hotkeys ?? []),
-          ...(item.value.tools ?? []),
-        ].some(ref => !commandOwners.has(ref.command))
+        commandRefs(item.value).some(
+          ref => ref.command !== undefined && !commandOwners.has(ref.command)
+        )
       );
       if (!offender) break;
-      const missing = [
-        ...(offender.value.menus ?? []),
-        ...(offender.value.hotkeys ?? []),
-        ...(offender.value.tools ?? []),
-      ]
+      const missing = commandRefs(offender.value)
         .map(ref => ref.command)
-        .find(command => !commandOwners.has(command))!;
+        .find(command => command !== undefined && !commandOwners.has(command))!;
       assembled.splice(assembled.indexOf(offender), 1);
       offender.types.forEach(type => {
         elementTypeOwners.delete(type);
         this.rejectedTypeOwners.set(type, offender.id);
         this.elementDefinitions.delete(type);
       });
+      for (const tool of offender.value.tools ?? []) {
+        this.toolOwners.delete(tool.id);
+        if (tool.element !== undefined) this.createTools.delete(tool.id);
+      }
       offender.commands.forEach(command => commandOwners.delete(command));
       offender.contributions.forEach(contribution => contributionOwners.delete(contribution));
       offender.inspectors.forEach(inspector => inspectorOwners.delete(inspector));
@@ -800,6 +931,29 @@ export class ExtensionRuntime {
 
   get tools() {
     return this.entries.flatMap(entry => entry.value.tools ?? []).sort((a, b) => a.order - b.order);
+  }
+
+  /** 创建型工具查询：id 对应的元素 type 与定义（含 create 规格）；非创建型工具返回 null */
+  getCreateTool(
+    toolId: string
+  ): { elementType: string; definition: WhiteboardElementDefinition } | null {
+    const elementType = this.createTools.get(toolId);
+    if (elementType === undefined) return null;
+    const definition = this.elementDefinitions.get(elementType);
+    return definition?.create ? { elementType, definition } : null;
+  }
+
+  /** 工具点击入口：创建型工具切换激活（同工具无参数时切回选择），命令型工具执行命令 */
+  runTool(tool: { id: string; command?: string; element?: string }, payload?: unknown): void {
+    if (tool.element !== undefined) {
+      if (this.board.activeTool === tool.id && payload === undefined) {
+        this.board.setActiveTool(SELECT_TOOL_ID);
+      } else {
+        this.board.setActiveTool(tool.id, payload as Record<string, unknown> | undefined);
+      }
+      return;
+    }
+    if (tool.command !== undefined) void this.execute(tool.command, payload).catch(() => {});
   }
   get layers() {
     return this.entries.flatMap(entry => entry.value.layers ?? []);

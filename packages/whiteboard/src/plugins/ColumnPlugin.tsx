@@ -8,10 +8,10 @@ import {
   ColumnElement,
   ContextMenuContext,
   PluginContextMenuItem,
-  ECreateBoardElementType,
   IElementCapabilities,
   CustomOffset,
 } from "../types";
+import { COLUMN_TOOL_ID } from "../constants/tools";
 import {
   SnapBehavior,
   ContainmentBehavior,
@@ -258,7 +258,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
         icon: <Columns3 size={14} />,
         priority: 185,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.Column;
+          ctx.board.setActiveTool(COLUMN_TOOL_ID);
         },
       });
     }

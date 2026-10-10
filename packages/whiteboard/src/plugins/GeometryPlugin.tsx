@@ -1,11 +1,6 @@
 import { Shapes } from "lucide-react";
-import {
-  Board,
-  ContextMenuContext,
-  PluginContextMenuItem,
-  ECreateBoardElementType,
-  SketchFillStyle,
-} from "../types";
+import { Board, ContextMenuContext, PluginContextMenuItem, SketchFillStyle } from "../types";
+import { GEOMETRY_TOOL_ID } from "../constants/tools";
 import Geometry from "../components/Geometry";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { Descendant } from "slate";
@@ -71,12 +66,11 @@ export class GeometryPlugin extends CommonPlugin {
           ),
           priority: index,
           onSelect: (ctx: ContextMenuContext) => {
-            ctx.board.createOptions = {
+            ctx.board.setActiveTool(GEOMETRY_TOOL_ID, {
               ...item,
               geometryType: item.geometryType,
               defaultExtraInfo: item.defaultExtraInfo || {},
-            };
-            ctx.board.currentCreateType = ECreateBoardElementType.Geometry;
+            });
           },
         })),
         onSelect: () => {},

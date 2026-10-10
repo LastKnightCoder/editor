@@ -1,6 +1,5 @@
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { useSyncExternalStore, type ReactNode } from "react";
-import { v4 as getUuid } from "uuid";
 import {
   Network,
   LayoutGrid,
@@ -27,7 +26,6 @@ import {
   MindDragState,
   ContextMenuContext,
   PluginContextMenuItem,
-  ECreateBoardElementType,
   IElementCapabilities,
   SnapBehavior,
   ContainmentBehavior,
@@ -46,6 +44,7 @@ import {
 import { SelectTransforms } from "../transforms";
 import MindNode from "../components/MindNode";
 import { BOARD_TO_CONTAINER, getMindDragSourceId } from "../constants";
+import { MIND_TOOL_ID } from "../constants/tools";
 import type { InteractionState } from "../interactions/InteractionState";
 import MindThemeUtil from "../utils/MindThemeUtil";
 import { useThemeStore } from "@tau/themes/react";
@@ -187,7 +186,7 @@ export class MindPlugin implements IBoardPlugin {
         icon: <Network size={14} />,
         priority: 130,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.MindMap;
+          ctx.board.setActiveTool(MIND_TOOL_ID);
         },
       });
     }
@@ -609,36 +608,7 @@ export class MindPlugin implements IBoardPlugin {
   }
 
   getBounds(_board: Board, element: MindNodeElement) {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    MindUtil.dfs(
-      element,
-      {
-        before: node => {
-          minX = Math.min(minX, node.x);
-          minY = Math.min(minY, node.y);
-          maxX = Math.max(maxX, node.x + node.width);
-          maxY = Math.max(maxY, node.y + node.height);
-        },
-      },
-      null,
-      0,
-      true
-    );
-
-    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
-      return {
-        minX: element.x,
-        minY: element.y,
-        maxX: element.x + element.width,
-        maxY: element.y + element.height,
-      };
-    }
-
-    return { minX, minY, maxX, maxY };
+    return MindUtil.getSubtreeBounds(element);
   }
 
   isElementSelected(
@@ -676,74 +646,6 @@ export class MindPlugin implements IBoardPlugin {
       this.dragState.isDragging &&
       this.dragState.draggedNode?.id === nodeId
     );
-  }
-
-  private createMindRoot(board: Board, x: number, y: number): MindNodeElement {
-    const fontSize = board.getFontSize();
-    const lineHeight = fontSize * 1.57;
-    const totalHeight = lineHeight + 16 * 2;
-
-    return {
-      id: getUuid(),
-      type: "mind-node",
-      x,
-      y,
-      width: 24,
-      height: totalHeight,
-      actualHeight: totalHeight,
-      level: 1,
-      leftChildrenHeight: 0,
-      rightChildrenHeight: 0,
-      childrenHeight: 0,
-      direction: "right",
-      text: [
-        {
-          type: "paragraph",
-          children: [
-            {
-              type: "formatted",
-              text: "",
-              bold: true,
-            },
-          ],
-        },
-      ],
-      children: [],
-      defaultFocus: true,
-      isLeftFold: false,
-      isRightFold: false,
-      themeId: MindThemeUtil.getDefaultThemeId(),
-      themeStyle: MindThemeUtil.getDefaultThemeStyle(),
-    };
-  }
-
-  onClick(e: MouseEvent, board: Board) {
-    if (board.currentCreateType !== ECreateBoardElementType.MindMap) {
-      return;
-    }
-
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!currentPoint) return;
-
-    const mindRoot = this.createMindRoot(board, currentPoint.x, currentPoint.y);
-
-    board.apply([
-      {
-        type: "set_selection",
-        properties: board.selection,
-        newProperties: {
-          selectArea: null,
-          selectedElements: [],
-        },
-      },
-      {
-        type: "insert_node",
-        path: [board.children.length],
-        node: mindRoot,
-      },
-    ]);
-
-    board.currentCreateType = ECreateBoardElementType.None;
   }
 
   /**

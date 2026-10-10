@@ -1,8 +1,22 @@
 import { useEffect, useState, type ComponentType } from "react";
-import { Type, Image, Video, AudioLines } from "lucide-react";
+import {
+  Type,
+  Image,
+  Video,
+  AudioLines,
+  MousePointer2,
+  Shapes,
+  ArrowUpRight,
+  PenLine,
+  Network,
+  Frame as FrameIcon,
+  Columns3,
+  FileText,
+  Globe,
+  Presentation,
+} from "lucide-react";
 import type Board from "../Board";
 import type { IBoardPlugin, ContextMenuModalPayload } from "../types";
-import { ECreateBoardElementType } from "../types";
 import {
   defineWhiteboardExtension,
   type WhiteboardAPI,
@@ -14,12 +28,29 @@ import {
 } from "./api";
 import { resolveBoardAccess } from "./access";
 import { createSnapshotReader } from "./snapshot";
-import { withInternalPlugins } from "./internal";
+import { withInternalPlugins, type InternalContributions } from "./internal";
+import { geometryCreateSpec } from "./creators/geometry";
+import { arrowCreateSpec } from "./creators/arrow";
+import { handwriteCreateSpec } from "./creators/handwrite";
+import { frameCreateSpec } from "./creators/frame";
+import { columnCreateSpec } from "./creators/column";
+import { textCreateSpec } from "./creators/text";
+import { mindCreateSpec } from "./creators/mind";
 import { TextExtensionContext, embeddedTextOptions, type TextExtensionOptions } from "./text";
 import { MediaExtensionContext, browserMediaOptions, type MediaExtensionOptions } from "./media";
 import { ElementContentContext } from "./elementContent";
-import { useBoard, useCreateElementType } from "../hooks";
+import { useBoard, useActiveTool } from "../hooks";
 import { ChromeButton } from "../chrome";
+import {
+  SELECT_TOOL_ID,
+  GEOMETRY_TOOL_ID,
+  ARROW_TOOL_ID,
+  HANDWRITE_TOOL_ID,
+  RICHTEXT_TOOL_ID,
+  MIND_TOOL_ID,
+  FRAME_TOOL_ID,
+  COLUMN_TOOL_ID,
+} from "../constants/tools";
 import {
   ArrowPlugin,
   GeometryPlugin,
@@ -45,6 +76,7 @@ import {
 import GeometryTool from "../components/Toolbar/Geometry";
 import ArrowTool from "../components/Toolbar/Arrow";
 import HandwriteTool from "../components/Toolbar/Handwrite";
+import ArrowSourceSnapPreview from "../components/ArrowSourceSnapPreview";
 import MindTool from "../components/Toolbar/MindMap";
 import FrameTool from "../components/Toolbar/Frame";
 import ColumnTool from "../components/Toolbar/Column";
@@ -66,8 +98,15 @@ import type { CaptureBlob } from "../hooks/useBoardCapture";
 import { getContentLength } from "../utils/text";
 import type { Descendant } from "slate";
 
-type BuiltinContributions = Omit<WhiteboardContributions, "tools"> & {
-  tools?: readonly (WhiteboardToolContribution & { execute: WhiteboardCommand["execute"] })[];
+type BuiltinContributions = Omit<InternalContributions, "tools"> & {
+  // 命令型工具收窄 command/execute 为必填；创建型工具（element）经内部 creators 通道登记规格
+  tools?: readonly (
+    | (Omit<WhiteboardToolContribution, "command" | "element"> & {
+        command: string;
+        execute: WhiteboardCommand["execute"];
+      })
+    | (Omit<WhiteboardToolContribution, "command"> & { element: string })
+  )[];
 };
 function builtin(
   id: string,
@@ -83,13 +122,22 @@ function builtin(
           ...value,
           commands: [
             ...(value.commands ?? []),
-            ...(value.tools ?? []).map(item => ({
-              id: item.command,
-              execute: item.execute,
-              enabled: (api: WhiteboardAPI) => !api.readonly,
-            })),
+            ...(value.tools ?? []).flatMap(item => {
+              if (!("command" in item)) return [];
+              return [
+                {
+                  id: item.command,
+                  execute: item.execute,
+                  enabled: (api: WhiteboardAPI) => !api.readonly,
+                },
+              ];
+            }),
           ],
-          tools: value.tools?.map(({ execute: _execute, ...item }) => item),
+          tools: value.tools?.map(item => {
+            if (!("command" in item)) return item;
+            const { execute: _execute, ...rest } = item;
+            return rest;
+          }),
         };
       },
     }),
@@ -144,14 +192,11 @@ const tool = (
   id: string,
   order: number,
   group: string,
+  label: string,
+  icon: ComponentType<{ className?: string }>,
   component: ComponentType<WhiteboardToolProps>,
   execute: WhiteboardCommand["execute"]
-) => ({ id, command: id, order, group, component, execute });
-const activate =
-  (type: ECreateBoardElementType): WhiteboardCommand["execute"] =>
-  api => {
-    api.currentCreateType = api.currentCreateType === type ? ECreateBoardElementType.None : type;
-  };
+) => ({ id, command: id, order, group, label, icon, component, execute });
 const open =
   (type: ContextMenuModalPayload["type"]): WhiteboardCommand["execute"] =>
   (api, action) => {
@@ -160,18 +205,9 @@ const open =
       action: typeof action === "string" ? action : undefined,
     });
   };
-const chooseGeometry: WhiteboardCommand["execute"] = (api, options) => {
-  const board = resolveBoardAccess(api);
-  if (!options) {
-    board.currentCreateType = ECreateBoardElementType.None;
-    return;
-  }
-  board.createOptions = options;
-  board.currentCreateType = ECreateBoardElementType.Geometry;
-};
 
 function TextTool({ run }: WhiteboardToolProps) {
-  const active = useCreateElementType() === ECreateBoardElementType.Text;
+  const active = useActiveTool() === RICHTEXT_TOOL_ID;
   return (
     <ChromeButton label="文本" active={active} onClick={() => run()}>
       <Type strokeWidth={1.75} />
@@ -179,36 +215,69 @@ function TextTool({ run }: WhiteboardToolProps) {
   );
 }
 
+function SelectTool({ run }: WhiteboardToolProps) {
+  const active = useActiveTool() === SELECT_TOOL_ID;
+  return (
+    <ChromeButton label="选择" active={active} onClick={() => run()}>
+      <MousePointer2 strokeWidth={1.75} />
+    </ChromeButton>
+  );
+}
+
 export function createGeometryExtension(text = embeddedTextOptions) {
   return builtin("tau.geometry", () => [withText(new GeometryPlugin(), text)], {
-    tools: [tool("tau.geometry.create", 10, "drawing", GeometryTool, chooseGeometry)],
+    creators: { geometry: geometryCreateSpec },
+    tools: [
+      {
+        id: GEOMETRY_TOOL_ID,
+        element: "geometry",
+        order: 10,
+        group: "drawing",
+        label: "形状",
+        icon: Shapes,
+        component: GeometryTool,
+      },
+    ],
     inspectors: { geometry: GeometrySetter },
   });
 }
 export function createArrowExtension(text = embeddedTextOptions) {
   return builtin("tau.arrow", () => [withText(new ArrowPlugin(), text)], {
+    creators: { arrow: arrowCreateSpec },
     tools: [
-      tool(
-        "tau.arrow.create",
-        20,
-        "drawing",
-        ArrowTool,
-        activate(ECreateBoardElementType.StraightArrow)
-      ),
+      {
+        id: ARROW_TOOL_ID,
+        element: "arrow",
+        order: 20,
+        group: "drawing",
+        label: "箭头",
+        icon: ArrowUpRight,
+        component: ArrowTool,
+      },
+    ],
+    layers: [
+      {
+        id: "tau.arrow.source-snap-preview",
+        position: "canvas",
+        component: ArrowSourceSnapPreview,
+      },
     ],
     inspectors: { arrow: ArrowSetter },
   });
 }
 export function createHandwriteExtension() {
   return builtin("tau.handwrite", () => [new HandwritePlugin()], {
+    creators: { handwrite: handwriteCreateSpec },
     tools: [
-      tool(
-        "tau.handwrite.create",
-        30,
-        "drawing",
-        HandwriteTool,
-        activate(ECreateBoardElementType.Handwrite)
-      ),
+      {
+        id: HANDWRITE_TOOL_ID,
+        element: "handwrite",
+        order: 30,
+        group: "drawing",
+        label: "手写",
+        icon: PenLine,
+        component: HandwriteTool,
+      },
     ],
     inspectors: { handwrite: HandwriteSetter },
   });
@@ -219,8 +288,17 @@ export function createRichTextExtension(
 ) {
   return builtin("tau.richtext", () => [withText(new RichTextPlugin(text), text)], {
     layers,
+    creators: { richtext: textCreateSpec(text) },
     tools: [
-      tool("tau.richtext.create", 40, "drawing", TextTool, activate(ECreateBoardElementType.Text)),
+      {
+        id: RICHTEXT_TOOL_ID,
+        element: "richtext",
+        order: 40,
+        group: "drawing",
+        label: "文本",
+        icon: Type,
+        component: TextTool,
+      },
     ],
     inspectors: { richtext: textInspector(RichTextSetter, text) },
     commands: [
@@ -248,36 +326,51 @@ export function createRichTextExtension(
 }
 export function createMindExtension(text = embeddedTextOptions) {
   return builtin("tau.mind", () => [withText(new MindPlugin(text), text)], {
+    creators: { "mind-node": mindCreateSpec },
     tools: [
-      tool("tau.mind.create", 50, "drawing", MindTool, activate(ECreateBoardElementType.MindMap)),
+      {
+        id: MIND_TOOL_ID,
+        element: "mind-node",
+        order: 50,
+        group: "drawing",
+        label: "思维导图",
+        icon: Network,
+        component: MindTool,
+      },
     ],
     inspectors: { "mind-node": textInspector(MindSetter, text) },
   });
 }
 export function createFrameExtension() {
   return builtin("tau.frame", () => [new FramePlugin()], {
+    creators: { frame: frameCreateSpec },
     tools: [
-      tool(
-        "tau.frame.create",
-        120,
-        "container",
-        FrameTool,
-        activate(ECreateBoardElementType.Frame)
-      ),
+      {
+        id: FRAME_TOOL_ID,
+        element: "frame",
+        order: 120,
+        group: "container",
+        label: "画框",
+        icon: FrameIcon,
+        component: FrameTool,
+      },
     ],
     inspectors: { frame: FrameSetter },
   });
 }
 export function createColumnExtension() {
   return builtin("tau.column", () => [new ColumnPlugin()], {
+    creators: { column: columnCreateSpec },
     tools: [
-      tool(
-        "tau.column.create",
-        130,
-        "container",
-        ColumnTool,
-        activate(ECreateBoardElementType.Column)
-      ),
+      {
+        id: COLUMN_TOOL_ID,
+        element: "column",
+        order: 130,
+        group: "container",
+        label: "分栏",
+        icon: Columns3,
+        component: ColumnTool,
+      },
     ],
     inspectors: { column: ColumnSetter },
   });
@@ -297,7 +390,17 @@ export function createDocumentExtension(options: ReferencedElementOptions) {
     ],
     {
       tools: options.Tool
-        ? [tool("tau.document.create", 100, "reference", options.Tool, open("document"))]
+        ? [
+            tool(
+              "tau.document.create",
+              100,
+              "reference",
+              "文档",
+              FileText,
+              options.Tool,
+              open("document")
+            ),
+          ]
         : [],
       inspectors: { document: DocumentSetter },
       layers: options.layers,
@@ -315,6 +418,8 @@ export function createWhiteboardReferenceExtension(options: ReferencedElementOpt
               "tau.whiteboard-reference.create",
               110,
               "reference",
+              "白板",
+              Presentation,
               options.Tool,
               open("whiteboard")
             ),
@@ -328,7 +433,7 @@ export function createWhiteboardReferenceExtension(options: ReferencedElementOpt
 export function createWebviewExtension(options: ReferencedElementOptions) {
   return builtin("tau.webview", () => [withBody(new WebviewPlugin(), options.Body)], {
     tools: options.Tool
-      ? [tool("tau.webview.create", 90, "media", options.Tool, open("webview"))]
+      ? [tool("tau.webview.create", 90, "media", "网页", Globe, options.Tool, open("webview"))]
       : [],
     inspectors: { webview: MediaSetter },
     layers: options.layers,
@@ -366,7 +471,7 @@ export function createImageExtension(
     },
     {
       layers,
-      tools: [tool("tau.image.create", 60, "media", Tool, open("image"))],
+      tools: [tool("tau.image.create", 60, "media", "图片", Image, Tool, open("image"))],
       inspectors: { image: ImageSetter },
     }
   );
@@ -376,7 +481,17 @@ export function createVideoExtension(
   options: ReferencedElementOptions = {}
 ) {
   return builtin("tau.video", () => [withBody(new VideoPlugin(media), options.Body)], {
-    tools: [tool("tau.video.create", 70, "media", options.Tool ?? urlTool("video"), open("video"))],
+    tools: [
+      tool(
+        "tau.video.create",
+        70,
+        "media",
+        "视频",
+        Video,
+        options.Tool ?? urlTool("video"),
+        open("video")
+      ),
+    ],
     inspectors: { video: MediaSetter },
     layers: options.layers,
   });
@@ -388,7 +503,7 @@ export function createAudioExtension(
 ) {
   return builtin("tau.audio", () => [new AudioPlugin(media)], {
     layers,
-    tools: [tool("tau.audio.create", 80, "media", Tool, open("audio"))],
+    tools: [tool("tau.audio.create", 80, "media", "音频", AudioLines, Tool, open("audio"))],
     inspectors: { audio: MediaSetter },
   });
 }
@@ -436,6 +551,11 @@ export function createInteractionExtension() {
     "tau.interaction",
     () => [new HistoryPlugin(), new SelectPlugin(), new ViewPortPlugin()],
     {
+      tools: [
+        tool("tau.select", 0, "base", "选择", MousePointer2, SelectTool, api => {
+          api.setActiveTool(SELECT_TOOL_ID);
+        }),
+      ],
       inspectors: { multiselect: MultiSelectSetter },
     }
   );

@@ -42,6 +42,10 @@ export function createExtensionScope(base: WhiteboardAPI, owner: string) {
     );
   };
   const off: WhiteboardAPI["off"] = (event, listener) => events.get(event)?.get(listener)?.();
+  const onActiveToolChange: WhiteboardAPI["onActiveToolChange"] = listener => {
+    if (disposed) return () => {};
+    return track(base.onActiveToolChange(guarded(listener)));
+  };
   const subscribe: WhiteboardAPI["subscribe"] = listener => {
     if (disposed) return () => {};
     return track(base.subscribe(guarded(listener)));
@@ -50,6 +54,7 @@ export function createExtensionScope(base: WhiteboardAPI, owner: string) {
     Object.create(base, {
       on: { value: on },
       off: { value: off },
+      onActiveToolChange: { value: onActiveToolChange },
       subscribe: { value: subscribe },
       captureSubmission: {
         value: (target?: string | import("../types").BoardElement) => {

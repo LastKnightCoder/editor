@@ -2,6 +2,7 @@ import type Board from "../Board";
 import type { IBoardPlugin } from "../types";
 import { BoardUtil, PointUtil } from "../utils";
 import type { InteractionState } from "./InteractionState";
+import { CreatingState } from "./states/CreatingState";
 import { DraggingState } from "./states/DraggingState";
 import { KeyboardMoveState } from "./states/KeyboardMoveState";
 import { ViewportMoveState } from "./states/ViewportMoveState";
@@ -33,6 +34,23 @@ export class InteractionManager {
 
   get activeKeyState(): InteractionState | null {
     return this.keyState;
+  }
+
+  /** 创建手势进行中：高频 pointermove 需绕过容器节流直驱手势（供渲染层入口判断） */
+  isCreateGestureActive(): boolean {
+    return this.pointerState instanceof CreatingState;
+  }
+
+  /**
+   * pointerdown 最前置仲裁：创建型工具（element 字段）激活时由创建手势接管，
+   * 整个手势消费指针事件，不进入 claimed gesture、插件广播与常规手势。
+   */
+  tryStartCreateGesture(event: PointerEvent): boolean {
+    if (this.pointerState) return false;
+    const state = CreatingState.tryStart(this.board, event);
+    if (!state) return false;
+    this.pointerState = state;
+    return true;
   }
 
   /**

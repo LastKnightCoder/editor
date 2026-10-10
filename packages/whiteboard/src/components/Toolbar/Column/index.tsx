@@ -2,16 +2,12 @@ import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { Columns3 } from "lucide-react";
 
-import { ECreateBoardElementType } from "../../../types";
-import { useCreateElementType } from "../../../hooks";
+import { useActiveTool } from "../../../hooks";
 import { ChromeButton } from "../../../chrome";
-import useCreateColumn from "./useCreateColumn";
+import { COLUMN_TOOL_ID } from "../../../constants/tools";
 
 const Column = memo(({ run }: WhiteboardToolProps) => {
-  const createType = useCreateElementType();
-  const active = createType === ECreateBoardElementType.Column;
-
-  useCreateColumn();
+  const active = useActiveTool() === COLUMN_TOOL_ID;
 
   return (
     <ChromeButton

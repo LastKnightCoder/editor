@@ -1,5 +1,5 @@
 import type Board from "../../Board";
-import { BoardElement, ECreateBoardElementType } from "../../types";
+import { BoardElement } from "../../types";
 import {
   BoardUtil,
   PointUtil,
@@ -37,7 +37,7 @@ export class SelectingState implements InteractionState {
   /** pointerdown 仲裁（原 SelectPlugin.onPointerDown） */
   static tryStart(board: Board, e: PointerEvent): SelectingState | null {
     if (
-      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.isCreating() ||
       board.presentationManager.isPresentationMode ||
       board.presentationManager.isCreatingSequence
     ) {

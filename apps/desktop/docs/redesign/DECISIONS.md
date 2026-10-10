@@ -1,5 +1,16 @@
 # 决策记录（轻量 ADR）
 
+## D-130 白板创建交互开放（P1）
+
+（2026-10-11，用户确认方案）
+
+- 创建方式收敛为元素声明：扩展在元素定义上通过 `create` 声明创建规格（`gesture: "click" | "drag" | 自定义手势`，附约束、尺寸门槛、build、创建后动作与提示文案）；状态机、Shift/Alt 约束、预览、提交与撤销统一由交互内核负责，创建预览不写入文档、快照与历史。
+- 工具模型以 activeTool 取代 `currentCreateType` / `ECreateBoardElementType`（兼容层已删除）：新增显式的选择工具 `tau.select` 作为非创建模式的哨兵；Esc 依次取消进行中的创建手势、再退回选择工具；不设工具快捷键。
+- 创建后默认选中并回到选择工具；画笔保持当前工具连续绘制；框架与分栏改为松手时收纳候选元素。
+- 第三方工具收进「扩展工具」入口，不在工具栏占位；工具必须声明名称与图标；扩展可声明展示名（「来自 xxx」）。
+- 新增公共 API：坐标转换（`screenToCanvas` / `canvasToScreen`）、容器能力查询（`canContain`）与 activeTool 相关（`activeTool` / `activeToolOptions` / `setActiveTool` / `onActiveToolChange`）。
+- 遗留：`claimPointerGesture` 与内置元素的内部插件通道（`withInternalPlugins` / `creators`）仍未公开，留待后续阶段；第三方元素声明收纳能力的接口待定。
+
 ## D-129 白板第三方扩展的数据契约（P0）
 
 （2026-10-10，用户确认方案）
@@ -11,7 +22,7 @@
 - 元素版本与迁移：元素定义声明 `schemaVersion` + `migrate[n]`（n→n+1），元素 `schemaVersion` 缺省 1；装配后对已加载数据迁移一次（不进历史、不发 change，随下次编辑落库），插入（粘贴/submit/导入）先迁移再插入；数据版本高于扩展或迁移失败时占位渲染、数据原样保留。
 - data 字段归属与写入校验：第三方私有数据一律收敛在 `element.data`，顶层字段归内核，内置元素格式不变；`defineElement` 可带 Standard Schema v1 schema（仅同步）约束 `element.data`。提交时校验（操作树产出后、状态提交前，只校验变化元素），不合规抛 `WhiteboardValidationError` 且整批不应用；undo/redo 重放不校验，加载只校验迁移产物（不合规回退原样并计入迁移失败），粘贴不合规放弃本次粘贴。
 - 未知元素原样保留：占位原因分 missing / too-new / migration-failed / disabled，数据与子树不丢失（roundtrip 测试锁定）。
-- 后续阶段：P1 公开创建手势并移除 `ECreateBoardElementType` / `currentCreateType`、宿主能力服务化；P2 事件命名空间与快捷键仲裁；P3 操作级持久化。
+- 后续阶段：P1 已完成（D-130）；P2 事件命名空间与快捷键仲裁；P3 操作级持久化。
 
 ## D-128 今日洞见卡改为直接展开的列表，每条带理由与证据
 

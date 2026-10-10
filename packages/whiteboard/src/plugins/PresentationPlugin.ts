@@ -1,4 +1,4 @@
-import { Board, IBoardPlugin, BoardElement, ECreateBoardElementType } from "../types";
+import { Board, IBoardPlugin, BoardElement } from "../types";
 import { BoardUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 import { BOARD_TO_CONTAINER } from "../constants";
@@ -18,10 +18,7 @@ export class PresentationPlugin implements IBoardPlugin {
   // 处理指针按下事件
   onPointerDown(e: PointerEvent, board: Board) {
     // 如果不是在创建序列模式或者当前有其他创建类型，则不处理
-    if (
-      !board.presentationManager.isCreatingSequence ||
-      board.currentCreateType !== ECreateBoardElementType.None
-    ) {
+    if (!board.presentationManager.isCreatingSequence || board.isCreating()) {
       return;
     }
 
