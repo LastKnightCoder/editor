@@ -42,7 +42,12 @@ export async function openEntity(
         currentProjectId && item.projects.includes(currentProjectId)
           ? currentProjectId
           : item.projects[0];
-      openPage("project-detail", { id: projectId, itemId: id, ...position });
+      openPage("project-detail", {
+        id: projectId,
+        itemId: id,
+        ...position,
+        ...(options.compose ? { layout: "compose" } : {}),
+      });
       return;
     }
     case "diary-moment": {
