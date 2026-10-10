@@ -8,6 +8,8 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import log from "electron-log";
+// 渲染端 performance.memory 默认数值粗粒度且更新滞后，诊断内存泄漏需要精确采样
+app.commandLine.appendSwitch("enable-precise-memory-info");
 import {
   createMainWindow,
   createQuickCardWindow,
