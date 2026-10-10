@@ -42,6 +42,12 @@ const useSearchWarmUp = () => {
 
     const warmup = async () => {
       try {
+        // 多窗口同时就绪会并发预热，同步搜索在主进程串行排队互相拖慢，随机抖动错开首查
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1500));
+        if (cancelled) {
+          return;
+        }
+
         let embeddingModelInfo: NonNullable<typeof modelInfo> | undefined;
 
         if (canWarmUpLocalEmbedding) {

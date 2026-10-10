@@ -6,7 +6,7 @@ export default class OperationTable {
   static getListenEvents() {
     return {
       "create-operation": this.createOperation.bind(this),
-      "get-operation-records-by-year": this.getOperationRecordsByYear.bind(this),
+      "get-operation-daily-counts": this.getOperationDailyCounts.bind(this),
       "analyze-operations": this.analyzeOperations.bind(this),
     };
   }
@@ -37,39 +37,31 @@ export default class OperationTable {
     return this.parseOperation(operation);
   }
 
-  static getOperationRecordsByYear(
+  /** 热力图数据：按天聚合的每日去重操作数（同天同 operation_id 只计一次；NULL 互为同值计 1，
+   *  故用 COALESCE 哨兵——COUNT(DISTINCT) 本身会忽略 NULL）。
+   *  SQL 端聚合替代全量拉取——旧实现把全年记录搬过 IPC 只为在渲染端数个数，10 万行量级时
+   *  findIndex 分组 O(n²) 会阻塞主进程约 2 秒 */
+  static getOperationDailyCounts(
     db: Database.Database,
     year: number
   ): Array<{
     time: string;
-    operation_list: Operation[];
+    count: number;
   }> {
     const stmt = db.prepare(`
-      SELECT * FROM operation
+      SELECT strftime('%Y-%m-%d', operation_time / 1000, 'unixepoch', 'localtime') AS time,
+             COUNT(DISTINCT COALESCE(operation_id, -1)) AS count
+      FROM operation
       WHERE operation_time >= ? AND operation_time < ?
-      ORDER BY operation_time DESC 
+      GROUP BY time
+      ORDER BY time DESC
     `);
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-    const res = stmt.all(startOfYear.getTime(), endOfYear.getTime()).map(this.parseOperation);
-
-    const returnValue = [];
-    for (const item of res) {
-      const date = dayjs(item.operation_time).format("YYYY-MM-DD");
-      const index = returnValue.findIndex(item => item.time === date);
-      if (index === -1) {
-        returnValue.push({
-          time: date,
-          operation_list: [item],
-        });
-      } else {
-        if (returnValue[index].operation_list.every(op => op.operation_id !== item.operation_id)) {
-          returnValue[index].operation_list.push(item);
-        }
-      }
-    }
-
-    return returnValue;
+    return stmt.all(startOfYear.getTime(), endOfYear.getTime()) as Array<{
+      time: string;
+      count: number;
+    }>;
   }
 
   static insertOperation(

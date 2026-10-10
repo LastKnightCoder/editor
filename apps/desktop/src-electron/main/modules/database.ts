@@ -3,7 +3,7 @@ import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { join } from "node:path";
 import log from "electron-log";
-import { recordSqlCall } from "./perf-monitor";
+import { recordIpcCall, recordSqlCall } from "./perf-monitor";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
 import { Table } from "../types/table";
@@ -746,14 +746,17 @@ class DatabaseModule implements Module {
             createWindowCommandContext(win)
           );
           db.exec("COMMIT");
-          recordSqlCall(dbName, eventName, Date.now() - startedAt, true);
+          const elapsedMs = Date.now() - startedAt;
+          recordSqlCall(dbName, eventName, elapsedMs, true);
+          // database 事件是主要 IPC 流量，计入速率统计供洪水检测（聚焦刷新风暴等）
+          recordIpcCall(eventName, elapsedMs, true);
           this.notifyDatabaseWrite(dbName, eventName);
-          log.info(
-            `database ${dbName} event ${eventName} done elapsedMs=${Date.now() - startedAt}`
-          );
+          log.info(`database ${dbName} event ${eventName} done elapsedMs=${elapsedMs}`);
           return res;
         } catch (e) {
-          recordSqlCall(dbName, eventName, Date.now() - startedAt, false);
+          const elapsedMs = Date.now() - startedAt;
+          recordSqlCall(dbName, eventName, elapsedMs, false);
+          recordIpcCall(eventName, elapsedMs, false);
           log.error(
             `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - startedAt}`,
             e
@@ -814,7 +817,9 @@ class DatabaseModule implements Module {
             ...args,
             createWindowCommandContext(win)
           );
-          recordSqlCall(dbName, eventName, Date.now() - startedAt, true);
+          const elapsedMs = Date.now() - startedAt;
+          recordSqlCall(dbName, eventName, elapsedMs, true);
+          recordIpcCall(eventName, elapsedMs, true);
           logIndexDone();
           return res;
         }
@@ -830,11 +835,15 @@ class DatabaseModule implements Module {
           );
           indexDb.exec("COMMIT");
           mainDb.exec("COMMIT");
-          recordSqlCall(dbName, eventName, Date.now() - startedAt, true);
+          const elapsedMs = Date.now() - startedAt;
+          recordSqlCall(dbName, eventName, elapsedMs, true);
+          recordIpcCall(eventName, elapsedMs, true);
           logIndexDone();
           return res;
         } catch (e) {
-          recordSqlCall(dbName, eventName, Date.now() - startedAt, false);
+          const elapsedMs = Date.now() - startedAt;
+          recordSqlCall(dbName, eventName, elapsedMs, false);
+          recordIpcCall(eventName, elapsedMs, false);
           log.error(
             `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - indexStartedAt}`,
             e

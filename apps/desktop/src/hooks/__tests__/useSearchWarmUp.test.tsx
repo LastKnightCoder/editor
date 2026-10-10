@@ -32,7 +32,12 @@ vi.mock("@/utils/search", () => ({
   searchContent: vi.fn(async () => []),
 }));
 
-const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
+// 预热带 0~1500ms 随机抖动（多窗口错峰），用 fake timers 推过抖动窗口再断言；
+// 先空推一拍让 effect 完成注册，避免与 timer 注册竞态
+const flushPromises = async () => {
+  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(2_000);
+};
 
 const HookHarness = () => {
   useSearchWarmUp();
@@ -49,6 +54,7 @@ describe("useSearchWarmUp", () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -73,6 +79,7 @@ describe("useSearchWarmUp", () => {
     act(() => {
       root.unmount();
     });
+    vi.useRealTimers();
     container.remove();
     useSettingStore.setState(state => ({
       ...state,
@@ -158,6 +165,8 @@ describe("useSearchWarmUp", () => {
 
     await act(async () => {
       root.render(<HookHarness />);
+    });
+    await act(async () => {
       await flushPromises();
     });
 

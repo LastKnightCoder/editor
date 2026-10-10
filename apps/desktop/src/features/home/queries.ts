@@ -254,7 +254,7 @@ function fetchTodayStats(index: SnapshotIndex, diaryWords: Map<string, number>) 
 export function deriveHeatmapStats(items: ICalendarHeatmapDataItem[]): HeatmapStats {
   const days = (items ?? []).map(item => ({
     date: item.time,
-    count: Array.isArray(item.operation_list) ? item.operation_list.length : 0,
+    count: item.count ?? 0,
   }));
   const countByDate = new Map(days.map(d => [d.date, d.count]));
   const prev = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);

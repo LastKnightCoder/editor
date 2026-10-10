@@ -35,15 +35,17 @@ function report(payload: Record<string, unknown>): void {
 }
 
 // --- 事件循环延迟（心跳法） ---
-// 后台窗口被 Chromium 节流时心跳间隔会被系统性拉长，属正常现象，标注 hidden 供分析侧剔除
+// 后台/失焦窗口的 timer 会被 Chromium 节流（1Hz 乃至每分钟一次），期间的心跳偏差是
+// 节流假象而非真实阻塞，直接丢弃——否则深度节流的几十秒假延迟会占满主进程 ring buffer
 function watchEventLoopDelay(): void {
   let last = performance.now();
   window.setInterval(() => {
     const now = performance.now();
     const delayMs = now - last - HEARTBEAT_MS;
     last = now;
+    if (document.hidden || !document.hasFocus()) return;
     if (delayMs >= EVENT_LOOP_THRESHOLD_MS) {
-      report({ kind: "event-loop", delayMs: Math.round(delayMs), hidden: document.hidden });
+      report({ kind: "event-loop", delayMs: Math.round(delayMs) });
     }
   }, HEARTBEAT_MS);
 }
@@ -93,8 +95,8 @@ function watchJank(): void {
   const frame = (now: number) => {
     const delta = now - last;
     last = now;
-    if (document.hidden) {
-      // rAF 在隐藏时停摆，恢复后首帧间隔无意义
+    if (document.hidden || !document.hasFocus()) {
+      // rAF 在隐藏/遮挡/失焦窗口被节流到 ~1Hz，帧间隔是节流档位不是掉帧，恢复后首帧同样无意义
       reset();
       requestAnimationFrame(frame);
       return;
