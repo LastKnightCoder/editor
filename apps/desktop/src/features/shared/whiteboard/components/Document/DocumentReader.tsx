@@ -1,5 +1,5 @@
 /**
- * 文档阅读纸（白板 slots.CanvasLayer）：文档卡双击 / ↵ / 「展开」后，从卡片原位展开成可编辑的纸。
+ * 文档扩展的画布内阅读层：文档卡双击 / ↵ / 「展开」后，从卡片原位展开成可编辑的纸。
  * - 铺满：纸面盖住整个画布区域，正文在阅读版心里水平居中；
  * - 停靠右侧：画布可继续操作，选中另一张文档卡即换成那一篇；被面板挡住的卡片先平移出来；
  * - 两种摆放可在纸面右上角切换，记住上一次的选择；Esc / 收起按钮收回原位。
@@ -513,7 +513,7 @@ function Reader({ board, element, source, mode, onModeChange, onClosed }: Reader
   );
 }
 
-/** slots.CanvasLayer：监听展开请求，停靠时跟随选中换篇 */
+/** 文档扩展界面层：监听展开请求，停靠时跟随选中换篇 */
 export function DocumentReaderLayer() {
   const board = useBoard();
   const store = getDocumentReaderStore(board);

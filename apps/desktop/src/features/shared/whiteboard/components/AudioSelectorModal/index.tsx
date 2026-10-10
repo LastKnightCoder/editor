@@ -1,3 +1,4 @@
+import { desktopMedia } from "../../media";
 import React, { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -52,7 +53,7 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
     if (file) {
       const toastId = toast.loading("正在处理音频，请稍候…");
       try {
-        await AudioUtil.insertAudio(file, board);
+        await AudioUtil.insertAudio(file, board, desktopMedia);
       } finally {
         toast.dismiss(toastId);
       }
@@ -75,7 +76,7 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
   const handleTTSConfirm = useMemoizedFn(async (audioBlob: Blob, text: string) => {
     const toastId = toast.loading("正在保存音频…");
     try {
-      await AudioUtil.insertAudioFromTTS(audioBlob, text, board);
+      await AudioUtil.insertAudioFromTTS(audioBlob, text, board, desktopMedia);
       setTTSModalOpen(false);
       handleClose();
       toast.success("音频添加成功");

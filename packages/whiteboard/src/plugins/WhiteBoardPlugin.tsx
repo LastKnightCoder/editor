@@ -42,7 +42,7 @@ export interface WhiteBoardElement extends CommonElement {
 export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
   name = "whiteboard";
 
-  constructor() {
+  constructor(private readonly canCreate = false) {
     super();
     this.onResize = this.onResize.bind(this);
   }
@@ -76,7 +76,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     const items: PluginContextMenuItem[] = [];
 
     // 右键空白区域 → 添加「白板」菜单（带二级子菜单）
-    if (targetElements.length === 0) {
+    if (this.canCreate && targetElements.length === 0) {
       items.push({
         key: "create-whiteboard",
         label: "白板",

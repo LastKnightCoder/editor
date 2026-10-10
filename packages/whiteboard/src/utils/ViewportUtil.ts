@@ -1,4 +1,4 @@
-import { BoardElement, ViewPort, ArrowElement, Point } from "../types";
+import type { ViewPort } from "../types";
 
 class ViewportUtil {
   static isRectInViewport(
@@ -30,52 +30,6 @@ class ViewportUtil {
     // 4. 元素完全在视口下边
     // 取反即为相交条件
     return !(elemRight < vpLeft || elemLeft > vpRight || elemBottom < vpTop || elemTop > vpBottom);
-  }
-
-  static getArrowBoundingBox(arrow: ArrowElement): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null {
-    if (!arrow.points || arrow.points.length === 0) return null;
-
-    const xs = arrow.points.map((p: Point) => p.x);
-    const ys = arrow.points.map((p: Point) => p.y);
-
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-    };
-  }
-
-  static isElementInViewport(
-    element: BoardElement,
-    viewPort: ViewPort,
-    expandPixels = 100
-  ): boolean {
-    // 仅箭头元素使用 points 计算包围盒，避免其他元素（如 handwrite）使用归一化点误判
-    if (element.type === "arrow" && element.points && Array.isArray(element.points)) {
-      const boundingBox = this.getArrowBoundingBox(element as ArrowElement);
-      if (!boundingBox) return false;
-      return this.isRectInViewport(boundingBox, viewPort, expandPixels);
-    }
-
-    // 其他元素：使用 x, y, width, height
-    const { x, y, width, height } = element;
-    if (x === undefined || y === undefined || width === undefined || height === undefined) {
-      // 如果元素没有位置信息，默认渲染
-      return true;
-    }
-
-    return this.isRectInViewport({ x, y, width, height }, viewPort, expandPixels);
   }
 }
 

@@ -11,7 +11,7 @@ import { useMemoizedFn } from "ahooks";
 import { debounce } from "lodash";
 import { Loading } from "@tau/ui";
 import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
-import { type WhiteBoardRef, type WhiteboardSlots } from "@tau/whiteboard";
+import { type WhiteBoardRef, type WhiteboardExtension } from "@tau/whiteboard";
 import type { WhiteBoardContent } from "@/types";
 import { useWhiteBoardContent } from "../queries";
 import { subscribeReveal, takeReveal } from "../navigation";
@@ -25,7 +25,7 @@ export function BoardCanvas({
   onLoaded,
   onPresentationModeChange,
   onDockWidthChange,
-  slots,
+  extensions,
   ref,
 }: {
   id: number;
@@ -34,7 +34,7 @@ export function BoardCanvas({
   onPresentationModeChange?(presenting: boolean): void;
   onDockWidthChange?(width: number): void;
   /** 宿主覆盖的白板插槽（如创作模式的画布层） */
-  slots?: WhiteboardSlots;
+  extensions?: readonly WhiteboardExtension[];
   ref?: Ref<BoardCanvasHandle>;
 }) {
   const { data: content, isPending, isError, save } = useWhiteBoardContent(id);
@@ -71,7 +71,9 @@ export function BoardCanvas({
 
   const persist = useMemoizedFn((data: WhiteBoardContent["data"]) => {
     if (!content) return;
-    savingRef.current = save.mutateAsync({ ...content, data }).catch(() => undefined);
+    savingRef.current = save.mutateAsync({ ...content, data });
+    // 后台保存由 mutation 提示错误，显式 flush 仍须收到原始拒绝。
+    void savingRef.current.catch(() => undefined);
   });
   const onChange = useMemo(() => debounce(persist, 400), [persist]);
   useEffect(
@@ -109,7 +111,7 @@ export function BoardCanvas({
         showSidebar
         onPresentationModeChange={onPresentationModeChange}
         onDockWidthChange={onDockWidthChange}
-        slots={slots}
+        extensions={extensions}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import type { MediaExtensionOptions } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 
 import { Board, Operation, AudioElement } from "../types";
@@ -7,10 +8,10 @@ export class AudioUtil {
   /**
    * Insert audio from a local file
    */
-  static async insertAudio(file: File, board: Board): Promise<void> {
+  static async insertAudio(file: File, board: Board, media: MediaExtensionOptions): Promise<void> {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
-    const audioPath = await board.services.uploadResource?.(file);
+    const audioPath = await media.upload?.(file);
     if (!audioPath) return;
 
     const { minX, minY, width, height } = board.viewPort;
@@ -128,7 +129,12 @@ export class AudioUtil {
   /**
    * Insert audio from text-to-speech
    */
-  static async insertAudioFromTTS(audioBlob: Blob, text: string, board: Board): Promise<void> {
+  static async insertAudioFromTTS(
+    audioBlob: Blob,
+    text: string,
+    board: Board,
+    media: MediaExtensionOptions
+  ): Promise<void> {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     // Convert blob to file and upload
@@ -136,7 +142,7 @@ export class AudioUtil {
       type: "audio/mp3",
     });
 
-    const audioPath = await board.services.uploadResource?.(file);
+    const audioPath = await media.upload?.(file);
     if (!audioPath) return;
 
     const { minX, minY, width, height } = board.viewPort;

@@ -1,15 +1,15 @@
-import { useWhiteboardHost } from "../../host";
-import HostElement, { type HostElementProps } from "../HostElement";
-export default function VideoElement({ element, ...props }: HostElementProps) {
-  const Component = useWhiteboardHost().slots.elements?.video;
+import { useElementContent } from "../../extensions/elementContent";
+import ElementFrame, { type ElementFrameProps } from "../ElementFrame";
+export default function VideoElement({ element, ...props }: ElementFrameProps) {
+  const Component = useElementContent();
   if (Component) return <Component element={element} {...props} />;
   return (
-    <HostElement element={element} {...props}>
+    <ElementFrame element={element} {...props}>
       {element.metaInfo?.type === "bilibili" || element.metaInfo?.type === "youtube" ? (
         "视频平台内容需要宿主支持"
       ) : (
         <video src={element.src} controls className="size-full" />
       )}
-    </HostElement>
+    </ElementFrame>
   );
 }

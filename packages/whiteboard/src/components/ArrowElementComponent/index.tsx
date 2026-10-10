@@ -1,3 +1,5 @@
+import { useTextExtension } from "../../extensions/text";
+import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
 import { If as If } from "@tau/ui";
 
 import { Editor, EditorRef } from "@tau/editor";
@@ -127,6 +129,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   } = element;
 
   const board = useBoard();
+  useEditingElementCleanup(id);
+  const text = useTextExtension();
   const { isSelected } = useSelectState(element.id);
   const sketch = useSketch(element);
   const { isDark } = useTheme();
@@ -610,7 +614,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
               onBlur={handleDescriptionBlur}
               readonly={!isEditingDescription}
               hotkeyConfigs={descriptionHotkeyConfigs}
-              kit={board.services.getArrowLabelKit()}
+              kit={text.kit()}
               className={classNames(styles.descriptionEditor, handTextClass(sketch))}
               style={descriptionEditorStyle}
             />

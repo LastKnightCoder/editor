@@ -25,7 +25,8 @@ import { useMindMode, useMindTheme } from "../../hooks/useMindTheme";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { ECreateBoardElementType, EMarkerType, MindNodeElement } from "../../types";
-import { useWhiteboardHost } from "../../host";
+import { useTextExtension } from "../../extensions/text";
+import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
 type SearchResult = { contentId: number; title: string };
 const EmptySelector = () => null;
 import { handTextClass } from "../../utils/sketch";
@@ -75,6 +76,8 @@ const MindNode = (props: MindNodeProps) => {
     element;
 
   const board = useBoard();
+  useEditingElementCleanup(id);
+  const textBinding = useTextExtension();
   const isArrowMoving = useArrowMove();
   const createBoardElementType = useCreateElementType();
 
@@ -201,10 +204,10 @@ const MindNode = (props: MindNodeProps) => {
   }, [handleAutoFocus]);
 
   const handleBlur = useMemoizedFn(() => {
+    board.isEditingElements = board.isEditingElements.filter(eid => eid !== id);
     handleResize.flush();
     setTimeout(() => {
       setIsEditing(false);
-      board.isEditingElements = board.isEditingElements.filter(eid => eid !== id);
     }, 100);
 
     // TODO 应该可以直接快速的知道 Root 是什么，不要每次都查
@@ -300,13 +303,13 @@ const MindNode = (props: MindNodeProps) => {
     board.apply(ops);
   });
 
-  const ContentSelectorModal = useWhiteboardHost().slots.ContentSelector ?? EmptySelector;
+  const ContentSelectorModal = useTextExtension().Selector ?? EmptySelector;
   const handleCreateNote = useMemoizedFn(async () => {
     const canSubmit = board.captureSubmission(element);
-    const contentId = await board.services.createContent?.(DEFAULT_CONTENT, 0);
+    const contentId = await textBinding.create?.(DEFAULT_CONTENT, 0);
     if (!contentId) return;
     if (!canSubmit()) {
-      await board.services.deleteContent?.(contentId);
+      await textBinding.release?.(contentId);
       return;
     }
 
@@ -343,9 +346,9 @@ const MindNode = (props: MindNodeProps) => {
     }
 
     const canSubmit = board.captureSubmission(element);
-    await board.services.incrementContentRefCount?.(item.contentId);
+    await textBinding.retain?.(item.contentId);
     if (!canSubmit()) {
-      await board.services.decrementContentRefCount?.(item.contentId);
+      await textBinding.unretain?.(item.contentId);
       return;
     }
     const path = PathUtil.getPathByElement(board, element);
@@ -538,7 +541,7 @@ const MindNode = (props: MindNodeProps) => {
             />
             <EditorThemeOverride mode={editorTheme}>
               <Editor
-                kit={board.services.getContentKit()}
+                kit={textBinding.kit()}
                 ref={editorRef}
                 initValue={text}
                 readonly={!isEditing}

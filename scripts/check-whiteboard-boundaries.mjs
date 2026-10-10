@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, statSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,11 @@ const files = directory =>
   });
 const inside = (file, directory) => file.startsWith(directory + sep);
 const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
-assert.deepEqual(Object.keys(manifest.exports), [".", "./styles.css"], "Whiteboard 仅公开根入口");
+assert.deepEqual(
+  Object.keys(manifest.exports),
+  [".", "./extensions", "./styles.css"],
+  "Whiteboard 仅公开画布、扩展和样式入口"
+);
 const declared = new Set(
   Object.keys({
     ...manifest.dependencies,
@@ -50,9 +54,9 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
       if (!inside(file, packageRoot)) {
         assert(
           (!specifier.startsWith("@tau/whiteboard/") ||
-            specifier === "@tau/whiteboard/styles.css") &&
+            ["@tau/whiteboard/extensions", "@tau/whiteboard/styles.css"].includes(specifier)) &&
             !(local && inside(local, packageRoot)),
-          "消费者使用 @tau/whiteboard 根入口：" + label
+          "消费者使用 @tau/whiteboard 公开入口：" + label
         );
       }
       if (!inPackage) return;
@@ -82,6 +86,18 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
       }
     };
     const visit = node => {
+      if (inPackage && ts.isIdentifier(node)) {
+        assert(
+          ![
+            "WhiteboardServices",
+            "WhiteboardSlots",
+            "WhiteboardHostContext",
+            "useWhiteboardHost",
+            "defaultWhiteboardServices",
+          ].includes(node.text),
+          "白板宿主协议不得回流：" + relative(root, file)
+        );
+      }
       if (
         (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
         node.moduleSpecifier &&
@@ -116,6 +132,60 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
     visit(ast);
   }
 }
+
+// 按转译后的运行时模块图检查，类型引用不视作加载领域实现。
+const visited = new Set();
+const inspectCore = (file, trail = []) => {
+  if (visited.has(file)) return;
+  visited.add(file);
+  const source = ts.transpileModule(readFileSync(file, "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+    },
+  }).outputText;
+  const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+  const inspectImport = specifier => {
+    const chain = [...trail, relative(packageRoot, file), specifier].join(" → ");
+    assert(
+      !/^(slate(?:-react)?|@tau\/editor(?:$|[-/])|@tau\/markdown|@zumer\/snapdom)/.test(specifier),
+      "画布核心不得加载文本或导出实现：" + chain
+    );
+    if (!specifier.startsWith(".")) return;
+    const candidate = resolve(dirname(file), specifier);
+    const target = [
+      candidate,
+      candidate + ".ts",
+      candidate + ".tsx",
+      resolve(candidate, "index.ts"),
+      resolve(candidate, "index.tsx"),
+    ].find(path => existsSync(path) && statSync(path).isFile());
+    if (!target || !inside(target, packageRoot)) return;
+    assert(!target.endsWith("extensions/builtins.tsx"), "核心不得反向加载扩展装配：" + chain);
+    inspectCore(target, [...trail, relative(packageRoot, file)]);
+  };
+  const visit = node => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    )
+      inspectImport(node.moduleSpecifier.text);
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments[0] &&
+      ts.isStringLiteral(node.arguments[0])
+    )
+      inspectImport(node.arguments[0].text);
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+};
+inspectCore(resolve(packageRoot, "src/WhiteBoard.tsx"));
+inspectCore(resolve(packageRoot, "src/Board.tsx"));
+inspectCore(resolve(packageRoot, "src/index.ts"));
 console.log(
-  "Whiteboard 边界通过：无宿主依赖、无私有深引、共享类型与纯工具仅经公开入口、直接依赖已声明"
+  "Whiteboard 边界通过：旧宿主协议清零、核心不加载文本与导出实现、无宿主依赖或私有深引、直接依赖已声明"
 );

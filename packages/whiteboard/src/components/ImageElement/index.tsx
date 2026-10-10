@@ -35,7 +35,7 @@ import {
 } from "../../constants/image";
 import { EditText, EditTextHandle } from "@tau/ui";
 import useTheme from "../../hooks/useTheme";
-import LocalImage from "../HostImage";
+import LocalImage from "../MediaImage";
 import { handTextClass } from "../../utils/sketch";
 
 const styles = {

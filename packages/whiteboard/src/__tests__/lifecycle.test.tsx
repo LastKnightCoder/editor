@@ -1,3 +1,4 @@
+import { extensionsWithLayer } from "./extensions.fixture";
 import { Activity, act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -49,7 +50,7 @@ describe("白板挂载与事件归属", () => {
           showToolbar={false}
           showAttributeSetter={false}
           showStatusBar={false}
-          slots={{ Layers: Capture }}
+          extensions={extensionsWithLayer(Capture)}
         />
       </Activity>
     );
@@ -108,14 +109,14 @@ describe("白板挂载与事件归属", () => {
               showToolbar={false}
               showAttributeSetter={false}
               showStatusBar={false}
-              slots={{ Layers: First }}
+              extensions={extensionsWithLayer(First)}
             />
             <WhiteBoard
               initData={[]}
               showToolbar={false}
               showAttributeSetter={false}
               showStatusBar={false}
-              slots={{ Layers: Second }}
+              extensions={extensionsWithLayer(Second)}
             />
           </>
         )
@@ -173,14 +174,14 @@ describe("白板挂载与事件归属", () => {
               showToolbar={false}
               showAttributeSetter={false}
               showStatusBar={false}
-              slots={{ Layers: First }}
+              extensions={extensionsWithLayer(First)}
             />
             <WhiteBoard
               initData={[]}
               showToolbar={false}
               showAttributeSetter={false}
               showStatusBar={false}
-              slots={{ Layers: Second }}
+              extensions={extensionsWithLayer(Second)}
             />
           </>
         )
@@ -228,7 +229,7 @@ describe("白板挂载与事件归属", () => {
           showToolbar={false}
           showAttributeSetter={false}
           showStatusBar={false}
-          slots={{ Layers: Capture }}
+          extensions={extensionsWithLayer(Capture)}
         />
       </Activity>
     );
@@ -267,7 +268,7 @@ describe("白板挂载与事件归属", () => {
           showToolbar={false}
           showAttributeSetter={false}
           showStatusBar={false}
-          slots={{ Layers: Capture }}
+          extensions={extensionsWithLayer(Capture)}
         />
       </Activity>
     );

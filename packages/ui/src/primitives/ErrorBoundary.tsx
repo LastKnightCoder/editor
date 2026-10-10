@@ -3,6 +3,7 @@ import React from "react";
 interface IErrorBoundaryProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  onError?(error: Error): void;
   key?: React.Key;
 }
 
@@ -19,6 +20,7 @@ class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryS
   componentDidCatch(error: Error) {
     this.setState({ error: `${error.name}: ${error.message}` });
     console.error(`${error.name}: ${error.message}`);
+    this.props.onError?.(error);
   }
 
   render() {

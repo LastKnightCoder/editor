@@ -7,11 +7,12 @@ import { DocumentPlugin } from "../plugins/DocumentPlugin";
 import { WhiteBoardPlugin } from "../plugins/WhiteBoardPlugin";
 import { ImageUtil } from "../utils/ImageUtil";
 import { createRichTextContentId } from "../utils/RichTextContentUtil";
-import type { WhiteboardServices } from "../host";
+import { browserMediaOptions } from "../extensions/media";
+import { embeddedTextOptions } from "../extensions/text";
 import { DEFAULT_PAGE_SKETCH } from "../types";
 
 const viewport = { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 };
-const createBoard = (services: Partial<WhiteboardServices> = {}) =>
+const createBoard = () =>
   new Board(
     [],
     viewport,
@@ -19,8 +20,7 @@ const createBoard = (services: Partial<WhiteboardServices> = {}) =>
     [],
     [],
     false,
-    DEFAULT_PAGE_SKETCH,
-    services
+    DEFAULT_PAGE_SKETCH
   );
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -36,7 +36,7 @@ describe("白板宿主能力与实例边界", () => {
     ["video", VideoPlugin],
     ["audio", AudioPlugin],
   ] as const)("%s 本地上传需要上传服务和选择器同时就绪", (type, Plugin) => {
-    const board = createBoard({ uploadResource: async () => "uploaded" });
+    const board = createBoard();
     board.initPlugins([new Plugin()]);
     const context = {
       clientX: 0,
@@ -54,7 +54,13 @@ describe("白板宿主能力与实例边界", () => {
         ?.children?.map(item => item.key);
     expect(keys()).not.toContain(`${type}-local`);
     expect(keys()).toContain(`${type}-url`);
-    board.slots = { Layers: () => null };
+    board.addPlugin(
+      new Plugin({
+        ...browserMediaOptions,
+        upload: async () => "uploaded",
+        actions: [`${type}-local`, `${type}-url`],
+      })
+    );
     expect(keys()).toContain(`${type}-local`);
     board.destroy();
   });
@@ -102,11 +108,13 @@ describe("白板宿主能力与实例边界", () => {
 
   it("上传期间只读切换后恢复编辑，旧结果仍不能插入", async () => {
     const upload = deferred<string>();
-    const board = createBoard({
-      getImageInfo: async () => ({ width: 100, height: 80 }),
-      uploadResource: () => upload.promise,
-    });
-    const inserting = ImageUtil.insertImage(new File(["image"], "image.png"), board);
+    const board = createBoard();
+    const media = {
+      ...browserMediaOptions,
+      imageInfo: async () => ({ width: 100, height: 80 }),
+      upload: () => upload.promise,
+    };
+    const inserting = ImageUtil.insertImage(new File(["image"], "image.png"), board, media);
     await Promise.resolve();
     board.readonly = true;
     board.readonly = false;
@@ -117,15 +125,17 @@ describe("白板宿主能力与实例边界", () => {
   });
 
   it("上传真实失败继续抛出，画布不增加占位元素", async () => {
-    const board = createBoard({
-      getImageInfo: async () => null,
-      uploadResource: async () => {
+    const board = createBoard();
+    const media = {
+      ...browserMediaOptions,
+      imageInfo: async () => null,
+      upload: async () => {
         throw new Error("上传失败");
       },
-    });
-    await expect(ImageUtil.insertImage(new File(["image"], "image.png"), board)).rejects.toThrow(
-      "上传失败"
-    );
+    };
+    await expect(
+      ImageUtil.insertImage(new File(["image"], "image.png"), board, media)
+    ).rejects.toThrow("上传失败");
     expect(board.children).toEqual([]);
     board.destroy();
   });
@@ -133,8 +143,9 @@ describe("白板宿主能力与实例边界", () => {
   it("隐藏期间创建的正文会被回收，恢复后不会认领旧结果", async () => {
     const creation = deferred<number>();
     const cleanup = vi.fn().mockResolvedValue(undefined);
-    const board = createBoard({ createContent: () => creation.promise, deleteContent: cleanup });
-    const creating = createRichTextContentId([], board);
+    const board = createBoard();
+    const binding = { ...embeddedTextOptions, create: () => creation.promise, release: cleanup };
+    const creating = createRichTextContentId([], board, binding);
     board.setActive(false);
     board.setActive(true);
     creation.resolve(7);

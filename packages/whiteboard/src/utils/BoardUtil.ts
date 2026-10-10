@@ -2,7 +2,7 @@ import { BoardElement, Operation, Selection, SetNodePatch } from "../types";
 import Board from "../Board";
 import BoardOperations from "./BoardOperations";
 import SpatialHitIndex, { getHitTestChildren } from "./SpatialHitIndex";
-import { Path as SlatePath } from "slate";
+import { TreePath as SlatePath } from "./TreePath";
 
 export class BoardUtil {
   private static hitIndexCache = new WeakMap<

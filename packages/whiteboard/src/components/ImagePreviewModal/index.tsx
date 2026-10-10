@@ -3,7 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import { X } from "lucide-react";
 import { IconButton } from "@tau/ui";
 import { PortalToBody, usePortalContainer } from "@tau/ui";
-import LocalImage from "../HostImage";
+import LocalImage from "../MediaImage";
 
 interface ImagePreviewModalProps {
   open: boolean;

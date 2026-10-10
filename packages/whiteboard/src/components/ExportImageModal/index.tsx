@@ -25,6 +25,7 @@ import {
 } from "../../utils";
 
 interface ExportImageModalProps {
+  captureBlob: import("../../hooks/useBoardCapture").CaptureBlob;
   open: boolean;
   onClose: () => void;
   board: Board;
@@ -53,7 +54,7 @@ const CHECKER_STYLE: CSSProperties = {
 const ExportImageModal = (props: ExportImageModalProps) => {
   const { open, onClose, board, action, selectedElementIds } = props;
   const { isDark } = useTheme();
-  const { capture, layer } = useBoardCapture(board);
+  const { capture, layer } = useBoardCapture(board, props.captureBlob);
 
   const [background, setBackground] = useState<ExportImageBackgroundMode>(
     isDark ? "dark" : "light"

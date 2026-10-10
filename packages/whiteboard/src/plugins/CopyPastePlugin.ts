@@ -1,3 +1,4 @@
+import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import {
   Board,
   BoardElement,
@@ -28,7 +29,7 @@ import { Descendant } from "slate";
 export class CopyPastePlugin implements IBoardPlugin {
   name = "copy-paste";
 
-  constructor() {
+  constructor(private readonly text: TextExtensionOptions = embeddedTextOptions) {
     this.onCopy = this.onCopy.bind(this);
     this.onCut = this.onCut.bind(this);
     this.onPaste = this.onPaste.bind(this);
@@ -96,11 +97,11 @@ export class CopyPastePlugin implements IBoardPlugin {
     return counts;
   }
 
-  private syncPastedContentRefs(elements: BoardElement[], board: Board) {
+  private syncPastedContentRefs(elements: BoardElement[]) {
     const counts = this.collectReferencedContentIds(elements);
     counts.forEach((count, contentId) => {
       for (let index = 0; index < count; index += 1) {
-        void board.services.incrementContentRefCount?.(contentId).catch(error => {
+        void this.text.retain?.(contentId).catch(error => {
           console.error("Failed to increment pasted content ref count:", error);
         });
       }
@@ -346,7 +347,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     });
 
     board.apply(ops);
-    this.syncPastedContentRefs(elements, board);
+    this.syncPastedContentRefs(elements);
     ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
 
     e.preventDefault();
@@ -363,8 +364,8 @@ export class CopyPastePlugin implements IBoardPlugin {
     if (!text || text.trim().length === 0) return false;
 
     const content =
-      isMarkdownLikeText(text) && board.services.importFromMarkdown
-        ? board.services.importFromMarkdown(text)
+      isMarkdownLikeText(text) && this.text.importMarkdown
+        ? this.text.importMarkdown(text)
         : this.buildPlainTextContent(text);
 
     const { minX, minY, width, height } = board.viewPort;

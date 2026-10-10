@@ -1,3 +1,4 @@
+import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo, useState } from "react";
 import { Shapes } from "lucide-react";
 import { Popover } from "@tau/ui";
@@ -11,7 +12,7 @@ import { transformPath } from "../../../utils";
 import { ChromeButton, stopCanvasEvents } from "../../../chrome";
 
 /** 形状：点开是四格图块（矩形 / 圆形 / 心形 / 三角形），选中后在画布上拖出 */
-const Geometry = memo(() => {
+const Geometry = memo(({ run }: WhiteboardToolProps) => {
   const board = useBoard();
   const [open, setOpen] = useState(false);
   const createType = useCreateElementType();
@@ -20,12 +21,11 @@ const Geometry = memo(() => {
   useCreateGeometry();
 
   const pick = (item: GeometryItemConfig) => {
-    board.createOptions = {
+    run({
       ...item,
       geometryType: item.geometryType,
       defaultExtraInfo: item.defaultExtraInfo || {},
-    };
-    board.currentCreateType = ECreateBoardElementType.Geometry;
+    });
     setOpen(false);
   };
 
@@ -35,8 +35,7 @@ const Geometry = memo(() => {
       onOpenChange={v => {
         setOpen(v);
         // 再点一次已激活的形状工具 = 取消
-        if (!v && active && !board.createOptions)
-          board.currentCreateType = ECreateBoardElementType.None;
+        if (!v && active && !board.createOptions) run();
       }}
       placement="bottom"
       arrow={false}
@@ -49,7 +48,7 @@ const Geometry = memo(() => {
           onClick={e => {
             if (active) {
               e.preventDefault();
-              board.currentCreateType = ECreateBoardElementType.None;
+              run();
             }
           }}
         >

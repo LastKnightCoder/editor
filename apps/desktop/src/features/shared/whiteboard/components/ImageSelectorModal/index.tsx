@@ -1,3 +1,4 @@
+import { desktopMedia } from "../../media";
 import { useRef, useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -39,7 +40,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
     if (file) {
       const toastId = toast.loading("正在处理图片，请稍候…");
       try {
-        await ImageUtil.insertImage(file, board);
+        await ImageUtil.insertImage(file, board, desktopMedia);
       } finally {
         toast.dismiss(toastId);
       }

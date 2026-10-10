@@ -1,3 +1,7 @@
+import {
+  createStandardWhiteboardExtensions,
+  createDocumentExtension,
+} from "@tau/whiteboard/extensions";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -159,11 +163,20 @@ beforeEach(async () => {
             showToolbar={false}
             showAttributeSetter={false}
             showStatusBar={false}
-            slots={{
-              Layers: Capture,
-              CanvasLayer: DocumentReaderLayer,
-              elements: { document: DocumentCard },
-            }}
+            extensions={[
+              ...createStandardWhiteboardExtensions(),
+              createDocumentExtension({
+                Body: DocumentCard,
+                layers: [
+                  {
+                    id: "test.document.reader",
+                    position: "canvas",
+                    component: DocumentReaderLayer,
+                  },
+                  { id: "test.capture", position: "outside", component: Capture },
+                ],
+              }),
+            ]}
           />
         </DocumentHostContext.Provider>
       </QueryClientProvider>

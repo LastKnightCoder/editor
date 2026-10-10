@@ -1,3 +1,4 @@
+import { mediaMenu, browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
 import { Music2, Link, Download, Upload, Mic } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -27,7 +28,7 @@ import { PathUtil } from "../utils";
 export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
   name = "audio";
 
-  constructor() {
+  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {
     super();
   }
 
@@ -136,7 +137,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         priority: 51,
         onSelect: async () => {
           try {
-            await context.board.services.downloadFile?.(audioElement.src);
+            await this.media.download?.(audioElement.src);
             toast.success("音频下载成功");
           } catch (error: any) {
             // 用户取消下载不显示错误
@@ -149,11 +150,13 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
       });
     }
 
-    return items;
+    return mediaMenu(items, "audio", this.media);
   }
 
   onPaste(event: ClipboardEvent, board: Board) {
     if (board.isEditingElements.length > 0) return;
+    const canSubmit = board.captureSubmission();
+    if (!canSubmit()) return;
     const items = event.clipboardData?.items;
     if (!items) return;
 
@@ -169,47 +172,58 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
 
     if (audioFiles.length === 0) return;
 
-    Promise.all(audioFiles.map(file => Promise.resolve(file))).then(async files => {
-      const uploadingToast = toast.loading("正在处理音频，请稍候…");
+    Promise.all(audioFiles.map(file => Promise.resolve(file)))
+      .then(async files => {
+        const uploadingToast = toast.loading("正在处理音频，请稍候…");
 
-      let insertPath = board.children.length;
-      const { minX, minY, width, height } = board.viewPort;
-      const center = {
-        x: minX + width / 2,
-        y: minY + height / 2,
-      };
+        try {
+          let insertPath = board.children.length;
+          const { minX, minY, width, height } = board.viewPort;
+          const center = {
+            x: minX + width / 2,
+            y: minY + height / 2,
+          };
 
-      const ops: Operation[] = [];
-      let offsetY = 0;
+          const ops: Operation[] = [];
+          let offsetY = 0;
 
-      for (const file of files) {
-        const audioPath = await board.services.uploadResource?.(file);
-        if (audioPath) {
-          ops.push({
-            type: "insert_node",
-            path: [insertPath],
-            node: {
-              id: getUuid(),
-              type: "audio",
-              src: audioPath,
-              x: center.x - AUDIO_DEFAULT_WIDTH / 2,
-              y: center.y + offsetY - AUDIO_CARD_HEIGHT / 2,
-              width: AUDIO_DEFAULT_WIDTH,
-              height: AUDIO_CARD_HEIGHT,
-              title: file.name.replace(/\.[^/.]+$/, ""),
-            },
-          });
-          offsetY += AUDIO_CARD_HEIGHT + 20;
+          for (const file of files) {
+            const audioPath = await this.media.upload?.(file);
+            if (audioPath) {
+              ops.push({
+                type: "insert_node",
+                path: [insertPath],
+                node: {
+                  id: getUuid(),
+                  type: "audio",
+                  src: audioPath,
+                  x: center.x - AUDIO_DEFAULT_WIDTH / 2,
+                  y: center.y + offsetY - AUDIO_CARD_HEIGHT / 2,
+                  width: AUDIO_DEFAULT_WIDTH,
+                  height: AUDIO_CARD_HEIGHT,
+                  title: file.name.replace(/\.[^/.]+$/, ""),
+                },
+              });
+              offsetY += AUDIO_CARD_HEIGHT + 20;
+            }
+            insertPath++;
+          }
+
+          if (ops.length > 0 && canSubmit()) {
+            ops.forEach(op => {
+              if (op.type === "insert_node") op.path = [board.children.length];
+            });
+            board.apply(ops);
+            toast.success("音频粘贴成功");
+          }
+        } finally {
+          toast.dismiss(uploadingToast);
         }
-        insertPath++;
-      }
-
-      if (ops.length > 0) {
-        board.apply(ops);
-        toast.success("音频粘贴成功");
-      }
-      toast.dismiss(uploadingToast);
-    });
+      })
+      .catch(error => {
+        console.error("白板媒体粘贴失败", error);
+        toast.error("媒体粘贴失败");
+      });
   }
 
   // Override onResize to keep height constant (only allow horizontal resizing)

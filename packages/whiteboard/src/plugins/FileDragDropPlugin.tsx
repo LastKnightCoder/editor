@@ -1,3 +1,4 @@
+import { browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
 
@@ -13,6 +14,8 @@ import { AUDIO_CARD_HEIGHT, AUDIO_DEFAULT_WIDTH } from "../constants/audio";
 
 export class FileDragDropPlugin implements IBoardPlugin {
   name = "file-drag-drop";
+
+  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {}
 
   // 拖拽进入时阻止默认行为
   onDragEnter(e: DragEvent, _board: Board) {
@@ -48,7 +51,10 @@ export class FileDragDropPlugin implements IBoardPlugin {
     if (!dropPoint) return;
 
     // 处理所有拖入的文件
-    this.handleDroppedFiles(files, board, dropPoint);
+    void this.handleDroppedFiles(files, board, dropPoint).catch(error => {
+      console.error("白板文件导入失败", error);
+      toast.error("文件导入失败");
+    });
   }
 
   private async handleDroppedFiles(
@@ -56,6 +62,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
     board: Board,
     dropPoint: { x: number; y: number }
   ) {
+    const canSubmit = board.captureSubmission();
     const imageFiles: File[] = [];
     const videoFiles: File[] = [];
     const audioFiles: File[] = [];
@@ -74,208 +81,222 @@ export class FileDragDropPlugin implements IBoardPlugin {
 
     // 处理图片文件
     if (imageFiles.length > 0) {
-      await this.handleImageFiles(imageFiles, board, dropPoint);
+      await this.handleImageFiles(imageFiles, board, dropPoint, canSubmit);
     }
 
     // 处理视频文件
     if (videoFiles.length > 0) {
-      await this.handleVideoFiles(videoFiles, board, dropPoint);
+      await this.handleVideoFiles(videoFiles, board, dropPoint, canSubmit);
     }
 
     // 处理音频文件
     if (audioFiles.length > 0) {
-      await this.handleAudioFiles(audioFiles, board, dropPoint);
+      await this.handleAudioFiles(audioFiles, board, dropPoint, canSubmit);
     }
   }
 
   private async handleImageFiles(
     imageFiles: File[],
     board: Board,
-    dropPoint: { x: number; y: number }
+    dropPoint: { x: number; y: number },
+    canSubmit: () => boolean
   ) {
-    const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     // 获取所有图片信息
     const imageInfos = await Promise.all(
-      imageFiles.map(file =>
-        Promise.all([board.services.getImageInfo(file), Promise.resolve(file)])
-      )
+      imageFiles.map(file => Promise.all([this.media.imageInfo(file), Promise.resolve(file)]))
     );
 
     const uploadingToast = toast.loading("正在处理图片，请稍候…");
 
-    const ops: Operation[] = [];
-    let offsetY = 0;
+    try {
+      const ops: Operation[] = [];
+      let offsetY = 0;
 
-    for (const [info, file] of imageInfos) {
-      // 上传文件
-      const imagePath = await board.services.uploadResource?.(file);
-      if (!imagePath) continue;
+      for (const [info, file] of imageInfos) {
+        // 上传文件
+        const imagePath = await this.media.upload?.(file);
+        if (!imagePath) continue;
 
-      let naturalWidth = 100;
-      let naturalHeight = 100;
-      if (info && info.width && info.height) {
-        naturalWidth = info.width;
-        naturalHeight = info.height;
+        let naturalWidth = 100;
+        let naturalHeight = 100;
+        if (info && info.width && info.height) {
+          naturalWidth = info.width;
+          naturalHeight = info.height;
+        }
+
+        // 计算缩放尺寸（参考 ImagePlugin 的实现）
+        let displayWidth = naturalWidth;
+        let displayHeight = naturalHeight;
+        const ratio = naturalWidth / naturalHeight;
+
+        if (displayWidth > 300) {
+          displayWidth = 300;
+          displayHeight = displayWidth / ratio;
+        }
+
+        // 创建图片元素（在放置点创建，多个文件垂直排列）
+        ops.push({
+          type: "insert_node",
+          path: [board.children.length],
+          node: {
+            id: getUuid(),
+            type: "image",
+            src: imagePath,
+            x: dropPoint.x - displayWidth / 2,
+            y: dropPoint.y + offsetY - displayHeight / 2,
+            width: displayWidth,
+            height: displayHeight,
+            naturalWidth,
+            naturalHeight,
+            description: DEFAULT_DESCRIPTION,
+            descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
+            descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
+            descriptionStyle: {
+              fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
+            },
+          } as ImageElement,
+        });
+
+        offsetY += displayHeight + 20; // 垂直间距
       }
 
-      // 计算缩放尺寸（参考 ImagePlugin 的实现）
-      let displayWidth = naturalWidth;
-      let displayHeight = naturalHeight;
-      const ratio = naturalWidth / naturalHeight;
-
-      if (displayWidth > 300) {
-        displayWidth = 300;
-        displayHeight = displayWidth / ratio;
+      if (ops.length > 0) {
+        if (!canSubmit()) return;
+        ops.forEach(op => {
+          if (op.type === "insert_node") op.path = [board.children.length];
+        });
+        board.apply(ops);
+        toast.success("图片上传成功");
       }
-
-      // 创建图片元素（在放置点创建，多个文件垂直排列）
-      ops.push({
-        type: "insert_node",
-        path: [board.children.length],
-        node: {
-          id: getUuid(),
-          type: "image",
-          src: imagePath,
-          x: dropPoint.x - displayWidth / 2,
-          y: dropPoint.y + offsetY - displayHeight / 2,
-          width: displayWidth,
-          height: displayHeight,
-          naturalWidth,
-          naturalHeight,
-          description: DEFAULT_DESCRIPTION,
-          descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
-          descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
-          descriptionStyle: {
-            fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
-          },
-        } as ImageElement,
-      });
-
-      offsetY += displayHeight + 20; // 垂直间距
+    } finally {
+      toast.dismiss(uploadingToast);
     }
-
-    if (ops.length > 0) {
-      if (!canSubmit()) return;
-      board.apply(ops);
-      toast.success("图片上传成功");
-    }
-    toast.dismiss(uploadingToast);
   }
 
   private async handleVideoFiles(
     videoFiles: File[],
     board: Board,
-    dropPoint: { x: number; y: number }
+    dropPoint: { x: number; y: number },
+    canSubmit: () => boolean
   ) {
-    const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     // 获取所有视频信息
     const videoInfos = await Promise.all(
-      videoFiles.map(file =>
-        Promise.all([board.services.getVideoInfo(file), Promise.resolve(file)])
-      )
+      videoFiles.map(file => Promise.all([this.media.videoInfo(file), Promise.resolve(file)]))
     );
 
     const uploadingToast = toast.loading("正在处理视频，请稍候…");
 
-    const ops: Operation[] = [];
-    let offsetY = 0;
+    try {
+      const ops: Operation[] = [];
+      let offsetY = 0;
 
-    for (const [info, file] of videoInfos) {
-      // 上传文件
-      const videoPath = await board.services.uploadResource?.(file);
-      if (!videoPath) continue;
+      for (const [info, file] of videoInfos) {
+        // 上传文件
+        const videoPath = await this.media.upload?.(file);
+        if (!videoPath) continue;
 
-      let naturalWidth = 100;
-      let naturalHeight = 100;
-      if (info && info.width && info.height) {
-        naturalWidth = info.width;
-        naturalHeight = info.height;
+        let naturalWidth = 100;
+        let naturalHeight = 100;
+        if (info && info.width && info.height) {
+          naturalWidth = info.width;
+          naturalHeight = info.height;
+        }
+
+        // 计算缩放尺寸（参考 VideoPlugin 的实现）
+        let displayWidth = naturalWidth;
+        let displayHeight = naturalHeight;
+        const ratio = naturalWidth / naturalHeight;
+
+        if (displayWidth > 720) {
+          displayWidth = 720;
+          displayHeight = displayWidth / ratio;
+        }
+
+        // 创建视频元素
+        ops.push({
+          type: "insert_node",
+          path: [board.children.length],
+          node: {
+            id: getUuid(),
+            type: "video",
+            src: videoPath,
+            x: dropPoint.x - displayWidth / 2,
+            y: dropPoint.y + offsetY - displayHeight / 2,
+            width: displayWidth,
+            height: displayHeight,
+            naturalWidth,
+            naturalHeight,
+            metaInfo: {
+              type: "local",
+            },
+          } as VideoElement,
+        });
+
+        offsetY += displayHeight + 20; // 垂直间距
       }
 
-      // 计算缩放尺寸（参考 VideoPlugin 的实现）
-      let displayWidth = naturalWidth;
-      let displayHeight = naturalHeight;
-      const ratio = naturalWidth / naturalHeight;
-
-      if (displayWidth > 720) {
-        displayWidth = 720;
-        displayHeight = displayWidth / ratio;
+      if (ops.length > 0) {
+        if (!canSubmit()) return;
+        ops.forEach(op => {
+          if (op.type === "insert_node") op.path = [board.children.length];
+        });
+        board.apply(ops);
+        toast.success("视频上传成功");
       }
-
-      // 创建视频元素
-      ops.push({
-        type: "insert_node",
-        path: [board.children.length],
-        node: {
-          id: getUuid(),
-          type: "video",
-          src: videoPath,
-          x: dropPoint.x - displayWidth / 2,
-          y: dropPoint.y + offsetY - displayHeight / 2,
-          width: displayWidth,
-          height: displayHeight,
-          naturalWidth,
-          naturalHeight,
-          metaInfo: {
-            type: "local",
-          },
-        } as VideoElement,
-      });
-
-      offsetY += displayHeight + 20; // 垂直间距
+    } finally {
+      toast.dismiss(uploadingToast);
     }
-
-    if (ops.length > 0) {
-      if (!canSubmit()) return;
-      board.apply(ops);
-      toast.success("视频上传成功");
-    }
-    toast.dismiss(uploadingToast);
   }
 
   private async handleAudioFiles(
     audioFiles: File[],
     board: Board,
-    dropPoint: { x: number; y: number }
+    dropPoint: { x: number; y: number },
+    canSubmit: () => boolean
   ) {
-    const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     const uploadingToast = toast.loading("正在处理音频，请稍候…");
 
-    const ops: Operation[] = [];
-    let offsetY = 0;
+    try {
+      const ops: Operation[] = [];
+      let offsetY = 0;
 
-    for (const file of audioFiles) {
-      // 上传文件
-      const audioPath = await board.services.uploadResource?.(file);
-      if (!audioPath) continue;
+      for (const file of audioFiles) {
+        // 上传文件
+        const audioPath = await this.media.upload?.(file);
+        if (!audioPath) continue;
 
-      // 创建音频元素（固定高度）
-      ops.push({
-        type: "insert_node",
-        path: [board.children.length],
-        node: {
-          id: getUuid(),
-          type: "audio",
-          src: audioPath,
-          x: dropPoint.x - AUDIO_DEFAULT_WIDTH / 2,
-          y: dropPoint.y + offsetY - AUDIO_CARD_HEIGHT / 2,
-          width: AUDIO_DEFAULT_WIDTH,
-          height: AUDIO_CARD_HEIGHT,
-          title: file.name.replace(/\.[^/.]+$/, ""),
-        } as AudioElement,
-      });
+        // 创建音频元素（固定高度）
+        ops.push({
+          type: "insert_node",
+          path: [board.children.length],
+          node: {
+            id: getUuid(),
+            type: "audio",
+            src: audioPath,
+            x: dropPoint.x - AUDIO_DEFAULT_WIDTH / 2,
+            y: dropPoint.y + offsetY - AUDIO_CARD_HEIGHT / 2,
+            width: AUDIO_DEFAULT_WIDTH,
+            height: AUDIO_CARD_HEIGHT,
+            title: file.name.replace(/\.[^/.]+$/, ""),
+          } as AudioElement,
+        });
 
-      offsetY += AUDIO_CARD_HEIGHT + 20; // 垂直间距
+        offsetY += AUDIO_CARD_HEIGHT + 20; // 垂直间距
+      }
+
+      if (ops.length > 0) {
+        if (!canSubmit()) return;
+        ops.forEach(op => {
+          if (op.type === "insert_node") op.path = [board.children.length];
+        });
+        board.apply(ops);
+        toast.success("音频上传成功");
+      }
+    } finally {
+      toast.dismiss(uploadingToast);
     }
-
-    if (ops.length > 0) {
-      if (!canSubmit()) return;
-      board.apply(ops);
-      toast.success("音频上传成功");
-    }
-    toast.dismiss(uploadingToast);
   }
 }

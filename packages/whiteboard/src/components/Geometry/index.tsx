@@ -1,3 +1,5 @@
+import { useTextExtension } from "../../extensions/text";
+import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMemoizedFn } from "ahooks";
@@ -80,6 +82,8 @@ const Geometry = memo((props: GeometryProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   const board = useBoard();
+  useEditingElementCleanup(id);
+  const textBinding = useTextExtension();
   const { isSelected } = useSelectState(id);
   const sketch = useSketch(element);
   const geometryRef = useRef<SVGGElement>(null);
@@ -286,7 +290,7 @@ const Geometry = memo((props: GeometryProps) => {
           {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
           <EditorThemeOverride mode={theme}>
             <Editor
-              kit={board.services.getDescriptionKit()}
+              kit={textBinding.kit()}
               ref={textRef}
               initValue={textContent}
               onFocus={handleOnFocus}

@@ -1,3 +1,4 @@
+import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { v4 as getUuid } from "uuid";
 import {
@@ -102,6 +103,8 @@ const MindNodeTree = ({
 
 export class MindPlugin implements IBoardPlugin {
   name = "mind-node";
+
+  constructor(private readonly text: TextExtensionOptions = embeddedTextOptions) {}
 
   getCapabilities(): IElementCapabilities {
     return {
@@ -525,10 +528,16 @@ export class MindPlugin implements IBoardPlugin {
                   el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
-                const contentId = await ctx.board.services.createContent?.(DEFAULT_CONTENT, 0);
+                const canSubmit = ctx.board.captureSubmission(node);
+                if (!canSubmit()) return;
+                const contentId = await this.text.create?.(DEFAULT_CONTENT, 0);
                 if (!contentId) return;
-                const nodePath = PathUtil.getPathByElement(ctx.board, node);
-                if (!nodePath) return;
+                const current = BoardUtil.getElementById(ctx.board, node.id);
+                const nodePath = current && PathUtil.getPathByElement(ctx.board, current);
+                if (!canSubmit() || !nodePath || current?.contentId !== node.contentId) {
+                  await this.text.release?.(contentId);
+                  return;
+                }
                 ctx.board.apply({
                   type: "set_node",
                   path: nodePath,

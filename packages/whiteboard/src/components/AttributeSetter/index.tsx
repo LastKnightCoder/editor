@@ -2,12 +2,12 @@ import { useMemoizedFn } from "ahooks";
 import { useBoard, useSelection, usePresentationState } from "../../hooks";
 import { BoardElement, Operation, FrameElement } from "../../types";
 import { BoardUtil, FrameUtil, PathUtil } from "../../utils";
-import setterConfig from "./setter-config.ts";
 import FloatingAttrBar from "./FloatingAttrBar";
 
 const AttributeSetter = () => {
   const selection = useSelection();
   const board = useBoard();
+  const inspectors = board.extensions?.inspectors ?? {};
 
   const { isPresentationMode } = usePresentationState();
 
@@ -94,7 +94,8 @@ const AttributeSetter = () => {
 
   // 多选元素的情况：对齐 / 均分只作用于可对齐元素，笔触作用于全部选中元素（含连线）
   if (validElements.length > 1) {
-    const MultiSelectComponent = setterConfig.multiselect.component;
+    const MultiSelectComponent = inspectors.multiselect;
+    if (!MultiSelectComponent) return null;
     return (
       <FloatingAttrBar elements={validElements}>
         <MultiSelectComponent
@@ -110,11 +111,9 @@ const AttributeSetter = () => {
   if (validElements.length === 1) {
     const element = validElements[0];
 
-    // @ts-ignore
-    const config = setterConfig[element.type];
+    const Component = inspectors[element.type];
 
-    if (config && config.component) {
-      const Component = config.component;
+    if (Component) {
       return (
         <FloatingAttrBar elements={[element]}>
           <Component onChange={onElementChange} element={element} />

@@ -53,7 +53,7 @@ export const requestOpenDocument = (board: Board, elementId: string) =>
 export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
   name = "document";
 
-  constructor() {
+  constructor(private readonly actions = { create: false, open: false }) {
     super();
     this.onResize = this.onResize.bind(this);
   }
@@ -73,7 +73,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
 
   getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
     const { targetElements } = context;
-    if (targetElements.length === 0) {
+    if (this.actions.create && targetElements.length === 0) {
       return [
         {
           key: "create-document",
@@ -86,7 +86,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
         },
       ];
     }
-    if (targetElements.length === 1 && isDocumentElement(targetElements[0])) {
+    if (this.actions.open && targetElements.length === 1 && isDocumentElement(targetElements[0])) {
       return [
         {
           key: "open-document",

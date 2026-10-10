@@ -35,7 +35,11 @@ const renderMindMapToolbar = async () => {
       <BoardContext.Provider value={board}>
         <div onClick={event => board.onClick(event.nativeEvent)}>
           <div data-testid="toolbar" onClick={event => event.stopPropagation()}>
-            <MindMap />
+            <MindMap
+              run={() => {
+                board.currentCreateType = ECreateBoardElementType.MindMap;
+              }}
+            />
           </div>
           <svg data-whiteboard-canvas="true" />
         </div>

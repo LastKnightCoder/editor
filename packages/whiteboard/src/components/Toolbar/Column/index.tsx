@@ -1,13 +1,13 @@
+import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { Columns3 } from "lucide-react";
 
 import { ECreateBoardElementType } from "../../../types";
-import { useBoard, useCreateElementType } from "../../../hooks";
+import { useCreateElementType } from "../../../hooks";
 import { ChromeButton } from "../../../chrome";
 import useCreateColumn from "./useCreateColumn";
 
-const Column = memo(() => {
-  const board = useBoard();
+const Column = memo(({ run }: WhiteboardToolProps) => {
   const createType = useCreateElementType();
   const active = createType === ECreateBoardElementType.Column;
 
@@ -18,9 +18,7 @@ const Column = memo(() => {
       label="分栏"
       active={active}
       onClick={() => {
-        board.currentCreateType = active
-          ? ECreateBoardElementType.None
-          : ECreateBoardElementType.Column;
+        run();
       }}
     >
       <Columns3 strokeWidth={1.75} className="rotate-90" />

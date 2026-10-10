@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { EditorRef } from "@tau/editor";
-import Editor from "../HostContentEditor";
-import { useWhiteboardHost } from "../../host";
-import { getContentLength } from "../../utils/text";
+import { TextEditor as Editor } from "../../extensions/text";
+import { useTextExtension } from "../../extensions/text";
+import { useEditingElementCleanup } from "../../hooks/useEditingElementCleanup";
+import { bindTextContent } from "../../extensions/textBinding";
 import { If as If } from "@tau/ui";
 import { ErrorBoundary as ErrorBoundary } from "@tau/ui";
 import ResizeCircle from "../ResizeCircle";
@@ -105,7 +106,7 @@ function ContentSnapshotObserver({
   contentId: number;
   onChange(value: Descendant[]): void;
 }) {
-  const Observer = useWhiteboardHost().slots.ContentSnapshotObserver;
+  const Observer = useTextExtension().Observer;
   return Observer ? <Observer contentId={contentId} onChange={onChange} /> : null;
 }
 
@@ -151,6 +152,8 @@ const Richtext = (props: RichTextProps) => {
   const pendingContentIdPromiseRef = useRef<Promise<number | undefined> | null>(null);
   const [focus, setFocus] = useState(false);
   const board = useBoard();
+  useEditingElementCleanup(elementId);
+  const text = useTextExtension();
   const isArrowMoving = useArrowMove();
   const createBoardElementType = useCreateElementType();
   const isMoving = useElementMoving(elementId);
@@ -210,34 +213,17 @@ const Richtext = (props: RichTextProps) => {
 
   const ensureContentId = useMemoizedFn(async () => {
     if (contentId) return contentId;
-    if (!board.services.createContent) return undefined;
+    if (!text.create) return undefined;
     if (pendingContentIdPromiseRef.current) {
       return pendingContentIdPromiseRef.current;
     }
 
-    const pendingPromise = (async () => {
-      const canSubmit = board.captureSubmission(element);
-      const currentContent = latestContentRef.current;
-      const newContentId = await board.services.createContent?.(
-        currentContent,
-        getContentLength(currentContent)
-      );
-
-      if (!newContentId) {
-        throw new Error("创建内容失败");
-      }
-
-      await board.services.updateContent?.(newContentId, latestContentRef.current);
-      if (!canSubmit()) {
-        await board.services.deleteContent?.(newContentId);
-        return undefined;
-      }
-      onElementChange?.(board, element, {
-        contentId: newContentId,
-        content: latestContentRef.current,
-      });
-      return newContentId;
-    })();
+    const pendingPromise = bindTextContent(
+      board.extensions!.api,
+      element.id,
+      text,
+      () => latestContentRef.current
+    );
 
     pendingContentIdPromiseRef.current = pendingPromise;
     try {
@@ -275,13 +261,13 @@ const Richtext = (props: RichTextProps) => {
   });
 
   const handleBlur = useMemoizedFn(() => {
+    board.isEditingElements = board.isEditingElements.filter(eid => eid !== elementId);
     if (readonly) return;
     handleResize.flush();
     setTimeout(() => {
       setFocus(false);
       // 一个字都没打就点走：元素连同 content 一起回收。仍被选中说明用户是去点属性栏，留着
       if (!isSelected && deleteEmptyRichText(board, element)) return;
-      board.isEditingElements = board.isEditingElements.filter(eid => eid !== elementId);
       // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
       // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
       // editorRef.current?.deselect();

@@ -1,3 +1,4 @@
+import { browserMediaOptions } from "../../extensions/media";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../components/ImageElement", () => ({
@@ -31,7 +32,10 @@ const getCreateImageMenu = (items: PluginContextMenuItem[]) => {
 
 describe("ImagePlugin", () => {
   it("右键空白区域展示完整图片插入菜单", () => {
-    const plugin = new ImagePlugin();
+    const plugin = new ImagePlugin({
+      ...browserMediaOptions,
+      actions: ["image-local", "image-url", "image-ai"],
+    });
     const items = plugin.getContextMenu(createContext());
     const menu = getCreateImageMenu(items);
 
@@ -39,7 +43,10 @@ describe("ImagePlugin", () => {
   });
 
   it("图片插入菜单应触发对应 action", () => {
-    const plugin = new ImagePlugin();
+    const plugin = new ImagePlugin({
+      ...browserMediaOptions,
+      actions: ["image-local", "image-url", "image-ai"],
+    });
     const ctx = createContext();
     const menu = getCreateImageMenu(plugin.getContextMenu(ctx));
 

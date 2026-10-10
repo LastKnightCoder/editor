@@ -1,4 +1,6 @@
 import React from "react";
+import { ErrorBoundary } from "@tau/ui";
+import { UnknownElement } from "./components/UnknownElement";
 import EventEmitter from "eventemitter3";
 import curry from "lodash/curry";
 import SnapManager from "./utils/snap/SnapManager";
@@ -28,11 +30,11 @@ import { isValid, executeSequence, BoardUtil } from "./utils";
 import BoardOperations from "./utils/BoardOperations";
 import { CapabilityService } from "./services/CapabilityService";
 import { InteractionManager } from "./interactions/InteractionManager";
-import { defaultWhiteboardServices, type WhiteboardServices, type WhiteboardSlots } from "./host";
 
-import { DOMSizeMeasurer } from "./services/DOMSizeMeasurer";
 import { BOARD_TO_CONTAINER } from "./constants/map";
 import { createMindThemePreviewStore } from "./utils/MindThemePreviewStore";
+import { ExtensionRuntime } from "./extensions/runtime";
+import type { WhiteboardExtension } from "./extensions/api";
 
 const boardFlag = Symbol("board");
 interface VisibleElementTree {
@@ -54,16 +56,22 @@ class Board {
   public snap: SnapManager;
   public capabilityService: CapabilityService;
   public interactions: InteractionManager;
-  public services: WhiteboardServices;
-  public slots: WhiteboardSlots = {};
   public mindThemePreviewStore = createMindThemePreviewStore();
   private active = true;
+  public extensions?: ExtensionRuntime;
+  private historyGroup: string | undefined;
+  installExtensions(extensions: readonly WhiteboardExtension[]) {
+    if (this.extensions) throw new Error("白板扩展集合不能在运行中替换");
+    this.extensions = new ExtensionRuntime(this, extensions);
+  }
   private submissionVersion = 0;
   private removedElementVersions = new Map<string, number>();
   setActive(active: boolean) {
     if (this.active !== active) this.submissionVersion++;
     this.active = active;
+    this.extensions?.setActive(active);
     if (!active) {
+      this.isEditingElements = [];
       this.interactions.cancel();
       this.snap.end();
       this.emit("element:move-end");
@@ -81,7 +89,6 @@ class Board {
         ((this.removedElementVersions.get(element.id) ?? 0) === elementVersion &&
           BoardUtil.getElementById(this, element.id)?.type === element.type));
   }
-  public measurer = new DOMSizeMeasurer(this);
   public getFontSize() {
     const root = BOARD_TO_CONTAINER.get(this);
     return root ? parseFloat(getComputedStyle(root).fontSize) || 13 : 13;
@@ -108,7 +115,7 @@ class Board {
     sketch: PageSketch;
   };
 
-  private _currentCreateType: ECreateBoardElementType = ECreateBoardElementType.None;
+  private _currentCreateType: string = ECreateBoardElementType.None;
 
   // 要创建哪种几何图形，放在这里是不是不太合理？放在插件里更合理
   public createOptions: any = null;
@@ -120,10 +127,8 @@ class Board {
     plugins: IBoardPlugin[] = [],
     presentationSequences: PresentationSequence[] = [],
     readonly = false,
-    sketch: PageSketch = DEFAULT_PAGE_SKETCH,
-    services: Partial<WhiteboardServices> = {}
+    sketch: PageSketch = DEFAULT_PAGE_SKETCH
   ) {
-    this.services = { ...defaultWhiteboardServices, ...services };
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
     this.children = children;
@@ -179,16 +184,31 @@ class Board {
   }
 
   emit(event: string, ...args: any[]) {
-    this.eventEmitter.emit(event, ...args);
+    for (const listener of this.eventEmitter.listeners(event)) {
+      try {
+        const result: unknown = listener(...args);
+        if (result instanceof Promise) {
+          void result.catch(error => console.error(`白板事件 ${event} 监听器失败`, error));
+        }
+      } catch (error) {
+        console.error(`白板事件 ${event} 监听器失败`, error);
+      }
+    }
   }
 
   once(event: string, listener: (...args: any[]) => void) {
-    this.eventEmitter.once(event, listener);
+    const once = (...args: any[]) => {
+      this.off(event, once);
+      listener(...args);
+    };
+    this.on(event, once);
   }
 
   destroy() {
+    if (this.isDestroyed) return;
     this.isDestroyed = true;
-    this.measurer.cleanup();
+    this.extensions?.dispose();
+    this.plugins.forEach(plugin => plugin.dispose?.());
     this.snap.dispose();
     this.interactions.destroy();
     this.eventEmitter.removeAllListeners();
@@ -217,17 +237,39 @@ class Board {
     } else {
       this.plugins.push(plugin);
     }
+    this.capabilityService?.clearCache(plugin.name);
   }
 
   isHit(element: BoardElement, x: number, y: number): boolean {
     const plugin = this.plugins.find(p => p.name === element.type);
-    if (!plugin) return false;
+    if (!plugin) {
+      const bounds = this.getBounds(element);
+      return (
+        !!bounds && x >= bounds.minX && x <= bounds.maxX && y >= bounds.minY && y <= bounds.maxY
+      );
+    }
     return !!plugin.isHit?.(this, element, x, y);
   }
 
-  moveElement(element: BoardElement, offsetX: number, offsetY: number) {
+  moveElement(
+    element: BoardElement,
+    offsetX: number,
+    offsetY: number
+  ): BoardElement | null | undefined {
     const plugin = this.plugins.find(p => p.name === element.type);
-    if (!plugin) return;
+    if (!plugin)
+      return {
+        ...element,
+        ...(Number.isFinite(element.x) ? { x: element.x + offsetX } : {}),
+        ...(Number.isFinite(element.y) ? { y: element.y + offsetY } : {}),
+        ...(element.children
+          ? {
+              children: element.children.map(
+                child => this.moveElement(child, offsetX, offsetY) ?? child
+              ),
+            }
+          : {}),
+      } as BoardElement;
     return plugin.moveElement?.(this, element, offsetX, offsetY);
   }
 
@@ -324,34 +366,31 @@ class Board {
   getContextMenu(context: BoardContextMenuPayload): PluginContextMenuItem[] {
     const fullContext: ContextMenuContext = { ...context, board: this };
     const allItems: PluginContextMenuItem[] = [];
+    this.extensions?.beginMenu();
 
     for (const plugin of this.plugins) {
       if (plugin.getContextMenu) {
         const items = plugin.getContextMenu(fullContext);
-        allItems.push(...items);
+        allItems.push(
+          ...(this.extensions ? this.extensions.registerMenu(plugin.name, items) : items)
+        );
       }
     }
 
-    const supported = (item: PluginContextMenuItem): boolean => {
-      if (
-        /^(create-document|create-whiteboard|create-webview|richtext-create-as|mind-link-note)/.test(
-          item.key
-        )
-      )
-        return Boolean(this.slots.Layers);
-      if (item.key === "open-document") return Boolean(this.slots.CanvasLayer);
-      if (/(?:image-ai|audio-tts|video-bilibili|video-youtube)/.test(item.key))
-        return Boolean(this.slots.Layers);
-      if (/(?:image-local|video-local|audio-local)/.test(item.key))
-        return Boolean(this.services.uploadResource && this.slots.Layers);
-      if (/^download-/.test(item.key)) return Boolean(this.services.downloadFile);
-      return true;
-    };
-    const filter = (items: PluginContextMenuItem[]): PluginContextMenuItem[] =>
-      items
-        .filter(supported)
-        .map(item => ({ ...item, children: item.children ? filter(item.children) : undefined }));
-    return filter(allItems).sort((a, b) => a.priority - b.priority);
+    for (const { value } of this.extensions?.entries ?? []) {
+      for (const menu of value.menus ?? []) {
+        if (menu.when && !menu.when(this.extensions!.api)) continue;
+        allItems.push({
+          key: menu.id,
+          label: menu.label,
+          priority: menu.order,
+          onSelect: () => {
+            void this.extensions!.execute(menu.command, context).catch(() => {});
+          },
+        });
+      }
+    }
+    return allItems.sort((a, b) => a.priority - b.priority);
   }
 
   onWheel(event: WheelEvent) {
@@ -362,6 +401,7 @@ class Board {
   onKeyDown(event: KeyboardEvent) {
     if (event.isComposing || (event.altKey && ["ArrowLeft", "ArrowRight"].includes(event.key)))
       return;
+    if (this.extensions?.onKeyDown(event)) return;
     if (this.interactions.routeKeyDown(event)) return;
     const fns = this.plugins.map(bindHandler("onKeyDown")).filter(isValid);
     executeSequence(fns, event, this);
@@ -420,6 +460,7 @@ class Board {
 
   onPaste(event: ClipboardEvent) {
     if (this.readonly) return;
+    if (this.extensions?.ingest("paste", event)) return;
     const fns = this.plugins.map(bindHandler("onPaste")).filter(isValid);
     executeSequence(fns, event, this);
   }
@@ -437,12 +478,18 @@ class Board {
 
   onDrop(event: DragEvent) {
     if (this.readonly) return;
+    if (this.extensions?.ingest("drop", event)) return;
     const fns = this.plugins.map(bindHandler("onDrop")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onDragOver(event: DragEvent) {
     if (this.readonly) return;
+    if (this.extensions?.acceptsDrop(event)) {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      return;
+    }
     const fns = this.plugins.map(bindHandler("onDragOver")).filter(isValid);
     executeSequence(fns, event, this);
   }
@@ -459,7 +506,7 @@ class Board {
     executeSequence(fns, event, this);
   }
 
-  apply(ops: Operation | Operation[], updateHistory = true) {
+  apply(ops: Operation | Operation[], updateHistory = true, historyGroup?: string) {
     if (!Array.isArray(ops)) {
       ops = [ops];
     }
@@ -576,7 +623,12 @@ class Board {
       const timeDiff = currentTimestamp - this.lastUndoTimestamp;
 
       // 如果距离上次创建新 undo entry 小于 1 秒，且 undos 不为空，则合并到最后一个 undo entry
-      if (timeDiff < 1000 && this.undos.length > 0) {
+      if (
+        this.undos.length > 0 &&
+        (historyGroup !== undefined
+          ? historyGroup === this.historyGroup
+          : this.historyGroup === undefined && timeDiff < 1000)
+      ) {
         // 将操作添加到最后一个 undo entry
         const lastUndoEntry = this.undos[this.undos.length - 1];
         lastUndoEntry.push(...processedOps);
@@ -585,6 +637,7 @@ class Board {
         this.undos.push(processedOps);
         this.lastUndoTimestamp = currentTimestamp;
       }
+      this.historyGroup = historyGroup;
 
       if (this.undos.length > 100) {
         this.undos.shift();
@@ -592,6 +645,21 @@ class Board {
       this.redos = [];
     }
 
+    if (metadata.removedElements.length > 0) {
+      const removedIds = new Set(metadata.removedElements.map(element => element.id));
+      this.isEditingElements = this.isEditingElements.filter(id => !removedIds.has(id));
+    }
+
+    // 先发布完整快照，再通知观察者，监听器不能截断提交。
+    if (changed) {
+      this.snapshot = {
+        children: this.children,
+        selection: this.selection,
+        viewPort: this.viewPort,
+        presentationSequences: this.presentationManager.sequences,
+        sketch: this.sketch,
+      };
+    }
     // 发出事件
     try {
       if (childrenChanged) {
@@ -643,23 +711,66 @@ class Board {
 
   isElementSelected(element: BoardElement, selectArea?: Selection["selectArea"]): boolean {
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
+    if (!plugin?.isElementSelected && selectArea) {
+      const bounds = this.getBounds(element);
+      return (
+        !!bounds &&
+        bounds.minX <= Math.max(selectArea.anchor.x, selectArea.focus.x) &&
+        bounds.maxX >= Math.min(selectArea.anchor.x, selectArea.focus.x) &&
+        bounds.minY <= Math.max(selectArea.anchor.y, selectArea.focus.y) &&
+        bounds.maxY >= Math.min(selectArea.anchor.y, selectArea.focus.y)
+      );
+    }
     return plugin?.isElementSelected?.(this, element, selectArea) ?? false;
   }
 
   renderElement(element: BoardElement): React.ReactElement | null | undefined {
     const { children } = element;
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
-    if (!plugin) return null;
+    if (!plugin)
+      return (
+        <UnknownElement key={element.id} element={element}>
+          {this.renderElements(children)}
+        </UnknownElement>
+      );
 
     // 折叠等渲染期过滤由元素的 render 能力决定
     const visibleChildren = children
       ? this.capabilityService.getVisibleChildren(element, children)
       : children;
 
-    return plugin.render?.(this, {
+    return this.renderPluginElement(
+      plugin,
       element,
-      children: this.renderElements(visibleChildren).filter(isValid),
-    });
+      this.renderElements(visibleChildren).filter(isValid)
+    );
+  }
+
+  private renderPluginElement(
+    plugin: IBoardPlugin,
+    element: BoardElement,
+    children: React.ReactElement[]
+  ) {
+    const fallback = <UnknownElement element={element}>{children}</UnknownElement>;
+    try {
+      return (
+        <ErrorBoundary
+          key={element.id}
+          fallback={fallback}
+          onError={error =>
+            console.error(
+              `白板扩展 ${this.extensions?.ownerOf(plugin.name) ?? plugin.name} 的元素 ${element.id} 失败`,
+              error
+            )
+          }
+        >
+          {plugin.render?.(this, { element, children }) ?? fallback}
+        </ErrorBoundary>
+      );
+    } catch (error) {
+      console.error(`白板元素扩展 ${plugin.name} 渲染失败`, error);
+      return <React.Fragment key={element.id}>{fallback}</React.Fragment>;
+    }
   }
 
   renderElements(value?: BoardElement[]) {
@@ -710,11 +821,11 @@ class Board {
     return this.elementVersion;
   }
 
-  get currentCreateType(): ECreateBoardElementType {
+  get currentCreateType(): string {
     return this._currentCreateType;
   }
 
-  set currentCreateType(value: ECreateBoardElementType) {
+  set currentCreateType(value: string) {
     this._currentCreateType = value;
     this.emit("onCurrentCreateTypeChange");
   }
@@ -731,7 +842,19 @@ class Board {
     const result: VisibleElementTree[] = [];
 
     for (const element of elements) {
-      const isInViewport = ViewportUtil.isElementInViewport(element, this.viewPort, expandPixels);
+      const bounds = this.getBounds(element);
+      const isInViewport =
+        !bounds ||
+        ViewportUtil.isRectInViewport(
+          {
+            x: bounds.minX,
+            y: bounds.minY,
+            width: bounds.maxX - bounds.minX,
+            height: bounds.maxY - bounds.minY,
+          },
+          this.viewPort,
+          expandPixels
+        );
 
       let visibleChildren: VisibleElementTree[] = [];
 
@@ -758,7 +881,12 @@ class Board {
     return elements
       .map(({ element, children }) => {
         const plugin = this.plugins.find(plugin => plugin.name === element.type);
-        if (!plugin) return null;
+        if (!plugin)
+          return (
+            <UnknownElement key={element.id} element={element}>
+              {this.renderVisibleElements(children)}
+            </UnknownElement>
+          );
 
         // 折叠等渲染期过滤由元素的 render 能力决定
         const processedChildren =
@@ -768,18 +896,16 @@ class Board {
                   element,
                   children.map(({ element: childElement }) => childElement)
                 )
-                .map((childElement, index) => ({
+                .map(childElement => ({
                   element: childElement,
-                  children: children[index].children,
+                  children:
+                    children.find(child => child.element.id === childElement.id)?.children ?? [],
                 }))
             : children;
 
         const renderedChildren = this.renderVisibleElements(processedChildren).filter(isValid);
 
-        return plugin.render?.(this, {
-          element,
-          children: renderedChildren,
-        });
+        return this.renderPluginElement(plugin, element, renderedChildren);
       })
       .filter(isValid);
   }

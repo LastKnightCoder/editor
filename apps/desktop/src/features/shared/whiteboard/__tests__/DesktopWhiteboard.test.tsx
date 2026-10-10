@@ -1,3 +1,4 @@
+import type { WhiteboardAPI } from "@tau/whiteboard";
 import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -11,7 +12,8 @@ const mocks = vi.hoisted(() => ({
   decrementContentRefCount: vi.fn(async () => {}),
   settingsReads: 0,
 }));
-vi.mock("@tau/whiteboard", () => ({
+vi.mock("@tau/whiteboard", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/whiteboard")>()),
   default: (props: WhiteBoardProps) => {
     mocks.renders(props);
     return null;
@@ -48,7 +50,16 @@ vi.mock("@/components/ContentEditor", () => ({ default: () => null }));
 vi.mock("@/components/ContentSelectorModal", () => ({ default: () => null }));
 vi.mock("@/components/LocalImage", () => ({ default: () => null }));
 vi.mock("@/hooks/useContentDocument", () => ({ default: () => ({ article: null }) }));
-vi.mock("../DesktopWhiteboardLayers", () => ({ DesktopWhiteboardLayers: () => null }));
+vi.mock("../NoteLayers", () => ({ NoteLayers: () => null }));
+vi.mock("../RichTextActionsLayer", () => ({ RichTextActionsLayer: () => null }));
+vi.mock("../components/Document/DocumentSelectorModal", () => ({
+  DocumentSelectorModal: () => null,
+}));
+vi.mock("../components/ImageSelectorModal", () => ({ default: () => null }));
+vi.mock("../components/VideoSelectorModal", () => ({ default: () => null }));
+vi.mock("../components/AudioSelectorModal", () => ({ default: () => null }));
+vi.mock("../components/WebviewSelectorModal", () => ({ default: () => null }));
+vi.mock("../components/WhiteBoardSelectorModal", () => ({ default: () => null }));
 vi.mock("../components/Document/DocumentCard", () => ({ DocumentCard: () => null }));
 vi.mock("../components/Document/DocumentReader", () => ({ DocumentReaderLayer: () => null }));
 vi.mock("../components/WhiteBoardCard", () => ({ default: () => null }));
@@ -83,16 +94,15 @@ it("真实桌面适配器只挂载一次包组件，并传递 ref、初始值和
     expect(props.initData).toBe(initial);
     expect(props.ref).toBe(ref);
     expect(props.onChange).toBe(changed);
-    expect(props.slots?.Layers).toBeTypeOf("function");
-    expect(props.slots?.Editor).toBeTypeOf("function");
-    expect(props.slots?.CanvasLayer).toBeTypeOf("function");
-    expect(props.slots?.elements?.document).toBeTypeOf("function");
-    expect(props.services?.uploadResource).toBeTypeOf("function");
-    await props.services!.updateContent!(7, []);
-    expect(mocks.updateContent).toHaveBeenCalledTimes(1);
-    mocks.active = "b";
-    await props.services!.updateContent!(7, []);
-    expect(mocks.updateContent).toHaveBeenCalledTimes(1);
+    expect(props.extensions.map(extension => extension.id)).toEqual(
+      expect.arrayContaining(["tau.document", "tau.richtext", "tau.image", "tau.desktop-notes"])
+    );
+    const api = {} as WhiteboardAPI;
+    const contributions = props.extensions.flatMap(extension => extension.create(api).layers ?? []);
+    expect(contributions.some(layer => layer.id === "tau.document.reader")).toBe(true);
+    expect(contributions.some(layer => layer.id === "tau.desktop-notes.panels")).toBe(true);
+    expect(props).not.toHaveProperty("services");
+    expect(props).not.toHaveProperty("slots");
   } finally {
     await act(async () => root.unmount());
     host.remove();

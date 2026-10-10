@@ -17,6 +17,7 @@ import {
 import { AttrBarContext, AttrPopover, ChromeButton, Field, Seg } from "../../../chrome";
 import ThemeThumbnail from "./ThemeThumbnail";
 import SketchPopover from "../SketchPopover";
+import { useTextExtension } from "../../../extensions/text";
 
 interface MindMapSetterProps {
   element: MindNodeElement;
@@ -28,7 +29,8 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
   const board = useBoard();
   const { side } = useContext(AttrBarContext);
   const linked = !!element.contentId;
-  if (!board.slots.Layers) return null;
+  const text = useTextExtension();
+  if (!text.create && !text.Selector) return null;
 
   return (
     <Menu

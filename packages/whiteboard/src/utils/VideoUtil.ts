@@ -1,12 +1,13 @@
+import type { MediaExtensionOptions } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 import type { VideoElement } from "../types";
 import type { StreamOption } from "../types/video";
 export class VideoUtil {
-  static async insertVideo(file: File, board: Board) {
+  static async insertVideo(file: File, board: Board, media: MediaExtensionOptions) {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
-    const info = await board.services.getVideoInfo(file);
+    const info = await media.videoInfo(file);
     const { minX, minY, width, height } = board.viewPort;
     const center = {
       x: minX + width / 2,
@@ -32,7 +33,7 @@ export class VideoUtil {
       videoHeight = videoWidth / ratio;
     }
 
-    const videoPath = await board.services.uploadResource?.(file);
+    const videoPath = await media.upload?.(file);
 
     if (videoPath) {
       ops.push({

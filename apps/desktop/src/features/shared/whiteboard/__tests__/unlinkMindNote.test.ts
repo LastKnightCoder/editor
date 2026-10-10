@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Board } from "@tau/whiteboard";
+import { createWhiteboardSession, type Board } from "@tau/whiteboard";
 import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
 import { unlinkMindNote } from "../unlinkMindNote";
 
-const boards: Board[] = [];
+const sessions: ReturnType<typeof createWhiteboardSession>[] = [];
 const createBoard = () => {
-  const board = new Board(
-    [{ id: "mind", type: "mind-node", contentId: 7, contentTitle: "笔记", children: [] }],
-    { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
-    { selectedElements: [], selectArea: null }
-  );
-  boards.push(board);
-  return board;
+  const session = createWhiteboardSession({
+    children: [{ id: "mind", type: "mind-node", contentId: 7, contentTitle: "笔记", children: [] }],
+    viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
+    selection: { selectedElements: [], selectArea: null },
+  });
+  sessions.push(session);
+  return session.api;
 };
 const deferred = () => {
   let resolve!: () => void;
@@ -21,7 +21,7 @@ const deferred = () => {
   return { promise, resolve };
 };
 afterEach(() => {
-  boards.splice(0).forEach(board => board.destroy());
+  sessions.splice(0).forEach(session => session.dispose());
 });
 
 describe("脑图取消关联的引用一致性", () => {
@@ -40,11 +40,11 @@ describe("脑图取消关联的引用一致性", () => {
     };
     const pending = unlinkMindNote(board, "mind", commands);
     if (mode === "隐藏后恢复") {
-      board.setActive(false);
-      board.setActive(true);
+      sessions.at(-1)!.setActive(false);
+      sessions.at(-1)!.setActive(true);
     } else {
-      board.readonly = true;
-      board.readonly = false;
+      sessions.at(-1)!.setReadonly(true);
+      sessions.at(-1)!.setReadonly(false);
     }
     gate.resolve();
     expect(await pending).toBeNull();
@@ -68,12 +68,14 @@ describe("脑图取消关联的引用一致性", () => {
 
   it("画布写入未成功时补偿引用并向调用方报告失败", async () => {
     const board = createBoard();
-    vi.spyOn(board, "apply").mockImplementation(() => {});
+    const failingBoard: Board = { ...board, apply: () => {} };
     const commands = {
       decrementContentRefCount: vi.fn(async () => {}),
       incrementContentRefCount: vi.fn(async () => {}),
     };
-    await expect(unlinkMindNote(board, "mind", commands)).rejects.toThrow("取消关联笔记失败");
+    await expect(unlinkMindNote(failingBoard, "mind", commands)).rejects.toThrow(
+      "取消关联笔记失败"
+    );
     expect(commands.incrementContentRefCount).toHaveBeenCalledExactlyOnceWith(7);
     expect(board.children[0].contentId).toBe(7);
   });
@@ -132,7 +134,7 @@ describe("脑图取消关联的引用一致性", () => {
     );
     const pending = unlinkMindNote(board, "mind", commands);
     active = "b";
-    board.setActive(false);
+    sessions.at(-1)!.setActive(false);
     gate.resolve();
     expect(await pending).toBeNull();
     expect(counts).toEqual({ a: 2, b: 9 });

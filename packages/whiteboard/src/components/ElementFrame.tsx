@@ -12,7 +12,7 @@ import ResizeCircle from "./ResizeCircle";
 import ArrowConnectPointGroup from "./ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "./ArrowDropConnectPoint";
 
-export interface HostElementProps {
+export interface ElementFrameProps {
   element: BoardElement;
   children?: ReactNode;
   onResizeStart?(element: any, point: Point): void;
@@ -35,13 +35,13 @@ export interface HostElementProps {
   [key: string]: any;
 }
 
-export default function HostElement({
+export default function ElementFrame({
   element,
   children,
   onResize,
   onResizeStart,
   onResizeEnd,
-}: HostElementProps) {
+}: ElementFrameProps) {
   const board = useBoard();
   const { isSelected } = useSelectState(element.id);
   const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =

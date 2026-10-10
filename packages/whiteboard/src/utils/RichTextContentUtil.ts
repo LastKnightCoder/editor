@@ -1,3 +1,4 @@
+import type { TextExtensionOptions } from "../extensions/text";
 import { Descendant } from "slate";
 
 import { getContentLength } from "./text";
@@ -17,28 +18,19 @@ export const isRichTextContentEmpty = (content: Descendant[] | undefined) =>
  */
 export const createRichTextContentId = async (
   content: Descendant[],
-  board: Board
+  board: Board,
+  binding: Pick<TextExtensionOptions, "create" | "release"> = {}
 ): Promise<number | undefined> => {
   const canSubmit = board.captureSubmission?.() ?? (() => !board.readonly && !board.isDestroyed);
   try {
-    const contentId = await board.services.createContent?.(content, getContentLength(content));
+    const contentId = await binding.create?.(content, getContentLength(content));
     if (contentId && !canSubmit()) {
-      await board.services.deleteContent?.(contentId);
+      await binding.release?.(contentId);
       return undefined;
     }
     return contentId ?? undefined;
   } catch (error) {
     console.error("Failed to create rich text content:", error);
     return undefined;
-  }
-};
-
-/** 删除空白富文本时顺手回收它的 content，避免留下孤立行 */
-export const deleteRichTextContent = async (contentId: number | undefined, board: Board) => {
-  if (!contentId) return;
-  try {
-    await board.services.deleteContent?.(contentId);
-  } catch (error) {
-    console.error("Failed to delete rich text content:", error);
   }
 };
