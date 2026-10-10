@@ -3,6 +3,7 @@ import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { join } from "node:path";
 import log from "electron-log";
+import { recordSqlCall } from "./perf-monitor";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
 import { Table } from "../types/table";
@@ -745,12 +746,14 @@ class DatabaseModule implements Module {
             createWindowCommandContext(win)
           );
           db.exec("COMMIT");
+          recordSqlCall(dbName, eventName, Date.now() - startedAt, true);
           this.notifyDatabaseWrite(dbName, eventName);
           log.info(
             `database ${dbName} event ${eventName} done elapsedMs=${Date.now() - startedAt}`
           );
           return res;
         } catch (e) {
+          recordSqlCall(dbName, eventName, Date.now() - startedAt, false);
           log.error(
             `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - startedAt}`,
             e
@@ -803,6 +806,7 @@ class DatabaseModule implements Module {
             `database ${dbName} index event ${eventName} done elapsedMs=${Date.now() - indexStartedAt}`
           );
 
+        const startedAt = Date.now();
         if (readOnlyIndexEvents.has(eventName)) {
           const res = await this.indexEventAndHandlers[eventName](
             mainDb,
@@ -810,6 +814,7 @@ class DatabaseModule implements Module {
             ...args,
             createWindowCommandContext(win)
           );
+          recordSqlCall(dbName, eventName, Date.now() - startedAt, true);
           logIndexDone();
           return res;
         }
@@ -825,9 +830,11 @@ class DatabaseModule implements Module {
           );
           indexDb.exec("COMMIT");
           mainDb.exec("COMMIT");
+          recordSqlCall(dbName, eventName, Date.now() - startedAt, true);
           logIndexDone();
           return res;
         } catch (e) {
+          recordSqlCall(dbName, eventName, Date.now() - startedAt, false);
           log.error(
             `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - indexStartedAt}`,
             e

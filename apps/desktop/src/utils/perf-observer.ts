@@ -1,0 +1,167 @@
+import { send } from "@/electron";
+import { queryClient } from "@/queryClient";
+
+/**
+ * 渲染端性能采集：事件循环延迟 / 长任务 / 掉帧片段 / JS 堆内存 / react-query 刷新频率。
+ * 全部为被动低频采样，事件经独立 IPC 通道（不走 logger 的 sendLog，避免限流与日志污染）
+ * 汇聚到主进程 perf-monitor 的 ring buffer，由「导出性能快照」落盘。
+ * 在 init.ts 最早安装；非 Electron 环境（测试 / 浏览器预览）不启动。
+ */
+
+const RENDERER_EVENT_CHANNEL = "perf-monitor:renderer-event";
+
+// 事件循环心跳：250ms 预期间隔，实测偏差超 120ms 视为一次阻塞
+const HEARTBEAT_MS = 250;
+const EVENT_LOOP_THRESHOLD_MS = 120;
+// 掉帧聚合：单帧 >50ms（<20fps）记坏帧，连续 ≥5 帧坏帧聚成一个 jank 片段；
+// 片段超 2s 先行上报并重新累计——持续冻结时不能等到恢复才留下记录
+const BAD_FRAME_MS = 50;
+const JANK_MIN_FRAMES = 5;
+const JANK_FLUSH_MS = 2_000;
+const HEAP_SAMPLE_MS = 30_000;
+const QUERY_RATE_MS = 60_000;
+
+interface PerformanceMemoryLike {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+}
+
+interface LongTaskEntry extends PerformanceEntry {
+  attribution?: Array<{ sourceURL?: string }>;
+}
+
+function report(payload: Record<string, unknown>): void {
+  send(RENDERER_EVENT_CHANNEL, payload);
+}
+
+// --- 事件循环延迟（心跳法） ---
+// 后台窗口被 Chromium 节流时心跳间隔会被系统性拉长，属正常现象，标注 hidden 供分析侧剔除
+function watchEventLoopDelay(): void {
+  let last = performance.now();
+  window.setInterval(() => {
+    const now = performance.now();
+    const delayMs = now - last - HEARTBEAT_MS;
+    last = now;
+    if (delayMs >= EVENT_LOOP_THRESHOLD_MS) {
+      report({ kind: "event-loop", delayMs: Math.round(delayMs), hidden: document.hidden });
+    }
+  }, HEARTBEAT_MS);
+}
+
+// --- 长任务（PerformanceObserver longtask，带脚本归因） ---
+function watchLongTasks(): void {
+  if (typeof PerformanceObserver === "undefined") return;
+  try {
+    const observer = new PerformanceObserver(list => {
+      for (const raw of list.getEntries()) {
+        const entry = raw as LongTaskEntry;
+        const source = entry.attribution?.[0]?.sourceURL ?? "";
+        report({ kind: "longtask", durationMs: Math.round(entry.duration), source });
+      }
+    });
+    observer.observe({ entryTypes: ["longtask"] });
+  } catch {
+    // longtask 不受支持时静默降级（事件循环心跳与掉帧片段仍可诊断渲染端阻塞）
+  }
+}
+
+// --- 掉帧片段（rAF 帧间隔聚合） ---
+function watchJank(): void {
+  let last = performance.now();
+  let badFrames = 0;
+  let spanStart = 0;
+  let worstFrameMs = 0;
+  let frameSum = 0;
+
+  const reset = () => {
+    badFrames = 0;
+    worstFrameMs = 0;
+    frameSum = 0;
+  };
+
+  const flushSpan = (end: number) => {
+    const durationMs = end - spanStart;
+    report({
+      kind: "jank",
+      durationMs: Math.round(durationMs),
+      worstFrameMs: Math.round(worstFrameMs),
+      avgFps: Math.round((badFrames / Math.max(frameSum, 1)) * 1000),
+    });
+    reset();
+  };
+
+  const frame = (now: number) => {
+    const delta = now - last;
+    last = now;
+    if (document.hidden) {
+      // rAF 在隐藏时停摆，恢复后首帧间隔无意义
+      reset();
+      requestAnimationFrame(frame);
+      return;
+    }
+    if (delta >= BAD_FRAME_MS) {
+      if (badFrames === 0) {
+        spanStart = now - delta;
+        worstFrameMs = delta;
+        frameSum = delta;
+      } else {
+        worstFrameMs = Math.max(worstFrameMs, delta);
+        frameSum += delta;
+      }
+      badFrames += 1;
+      if (badFrames >= JANK_MIN_FRAMES && now - spanStart >= JANK_FLUSH_MS) {
+        flushSpan(now);
+      }
+    } else if (badFrames >= JANK_MIN_FRAMES) {
+      flushSpan(now);
+    } else if (badFrames > 0) {
+      reset();
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+// --- JS 堆内存趋势（泄漏检测） ---
+function watchHeap(): void {
+  const memory = (performance as unknown as { memory?: PerformanceMemoryLike }).memory;
+  if (!memory) return;
+  window.setInterval(() => {
+    report({
+      kind: "heap",
+      usedMB: Math.round(memory.usedJSHeapSize / 1024 / 1024),
+      totalMB: Math.round(memory.totalJSHeapSize / 1024 / 1024),
+    });
+  }, HEAP_SAMPLE_MS);
+}
+
+// --- react-query 刷新频率（刷新风暴检测） ---
+function watchQueryRate(): void {
+  const fetchesByKey = new Map<string, number>();
+  queryClient.getQueryCache().subscribe(event => {
+    if (event.type !== "updated" || event.action.type !== "fetch") return;
+    const key = JSON.stringify(event.query.queryKey).slice(0, 120);
+    fetchesByKey.set(key, (fetchesByKey.get(key) ?? 0) + 1);
+  });
+  window.setInterval(() => {
+    let total = 0;
+    for (const count of fetchesByKey.values()) total += count;
+    if (total > 0) {
+      const topQueryKeys = [...fetchesByKey.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([key, count]) => `${key}×${count}`);
+      report({ kind: "query-rate", eventsPerMin: total, topQueryKeys });
+    }
+    fetchesByKey.clear();
+  }, QUERY_RATE_MS);
+}
+
+export function startPerfObserver(): void {
+  if (!window.electron) return;
+  watchEventLoopDelay();
+  watchLongTasks();
+  watchJank();
+  watchHeap();
+  watchQueryRate();
+}

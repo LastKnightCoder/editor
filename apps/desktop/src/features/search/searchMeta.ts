@@ -20,6 +20,7 @@ import {
   ListPlus,
   FileDown,
   Command,
+  Activity,
   type LucideIcon,
   Map as MapIcon,
 } from "lucide-react";
@@ -105,7 +106,8 @@ export interface PaletteCommand {
     | "capture-todo"
     | "capture-event"
     | "toggle-assist"
-    | "open-markdown";
+    | "open-markdown"
+    | "export-perf-snapshot";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -209,6 +211,15 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "markdown md open folder file 打开 本地 文件夹 typora",
       kind: "action",
       action: "open-markdown",
+    },
+    {
+      id: "action:export-perf-snapshot",
+      label: "导出性能快照",
+      section: "动作",
+      icon: Activity,
+      keywords: "perf performance lag jank snapshot diagnose 卡顿 性能 诊断 日志",
+      kind: "action",
+      action: "export-perf-snapshot",
     },
   ];
   return cached;

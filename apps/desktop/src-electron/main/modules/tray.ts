@@ -3,6 +3,7 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import log from "electron-log";
 import { createMainWindow, showOrCreateMainWindow } from "../windows";
+import { exportSnapshot, notifySnapshotExported } from "./perf-monitor";
 
 let tray: Tray | null = null;
 
@@ -107,6 +108,12 @@ function createDockMenu() {
         createMainWindow();
       },
     },
+    {
+      label: "导出性能快照",
+      click: () => {
+        void exportPerfSnapshotFromMenu();
+      },
+    },
   ]);
 
   app.dock?.setMenu(dockMenu);
@@ -170,6 +177,13 @@ function createTray(preloadPath: string) {
   }
 }
 
+// 托盘/Dock 菜单的快照导出：渲染端冻结时命令面板不可用，这里是兜底入口
+function exportPerfSnapshotFromMenu() {
+  exportSnapshot()
+    .then(notifySnapshotExported)
+    .catch(error => log.error("[tray] 导出性能快照失败:", error));
+}
+
 // 更新托盘菜单
 function updateTrayMenu() {
   if (!tray) {
@@ -183,6 +197,12 @@ function updateTrayMenu() {
       click: () => {
         log.info("从托盘菜单打开新窗口");
         createMainWindow();
+      },
+    },
+    {
+      label: "导出性能快照",
+      click: () => {
+        exportPerfSnapshotFromMenu();
       },
     },
     { type: "separator" },

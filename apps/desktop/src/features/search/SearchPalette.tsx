@@ -63,6 +63,7 @@ import { toggleAssistFor } from "@/app/assistOwner";
 import { useThemeStore } from "@tau/themes/react";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
+import { exportPerfSnapshot } from "@/commands/perf";
 import type { SearchResult } from "@/types";
 import { openMaterialTarget } from "@/services/open-material";
 import { captureQuestion } from "@/commands/question";
@@ -222,6 +223,13 @@ export function SearchPalette() {
       enterCapture("event");
     } else if (action === "open-markdown") {
       closeAnd(() => void openMarkdownInNewWindow());
+    } else if (action === "export-perf-snapshot") {
+      // 快照路径由主进程统一发系统通知（与托盘入口同一提示通道）
+      closeAnd(() => {
+        exportPerfSnapshot().catch(error =>
+          toast.error(error instanceof Error ? error.message : "导出性能快照失败")
+        );
+      });
     }
   };
 
