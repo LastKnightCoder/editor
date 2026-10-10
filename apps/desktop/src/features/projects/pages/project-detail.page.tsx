@@ -20,6 +20,8 @@ const schema = createPageSchema({
   at: paramOptional(paramString()),
   // "1"：打开时展开项目回顾（今日页「洞见」卡的「打开回顾」）
   review: paramOptional(paramString()),
+  // "compose"：当前文档进创作模式（省略 = 普通详情，口径同 article-detail）
+  layout: paramOptional(paramString()),
 });
 
 export default definePage({
