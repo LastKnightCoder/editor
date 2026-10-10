@@ -8,6 +8,7 @@
     "./color-utils": "./color-utils.ts",
     "./rich-text-text": "./rich-text-text.ts",
     "./entity-ref": "./entity-ref.ts",
+    "./inline-refs": "./inline-refs.ts",
     "./database-types": "./database-types.ts",
     "./calendar-utils": "./calendar-utils.ts",
     "./task-assistant": "./task-assistant.ts",

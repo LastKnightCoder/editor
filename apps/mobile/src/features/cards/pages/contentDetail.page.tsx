@@ -131,6 +131,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
       <ContentDetailPage
         contentId={card.contentId}
         refreshKey={props.refreshKey + linksRev}
+        contextEntity={{ kind: "card", id: card.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={collab.onCollaborationEnded}
         headerRight={

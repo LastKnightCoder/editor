@@ -109,6 +109,7 @@ function ProjectDocEditorScreen() {
         contentId={item.contentId ?? 0}
         contentTitle={item.title}
         refreshKey={refreshRev}
+        contextEntity={{ kind: "project-item", id: params.itemId }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
           collab.onCollaborationEnded();

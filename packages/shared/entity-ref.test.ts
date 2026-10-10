@@ -5,7 +5,7 @@ import {
   entityRefKey,
   isSameEntityRef,
   normalizeEntityRefKind,
-} from "../ref";
+} from "./entity-ref";
 
 describe("normalizeEntityRefKind", () => {
   it("收口各处存量写法", () => {
