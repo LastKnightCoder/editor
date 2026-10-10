@@ -5,7 +5,14 @@ import path from "node:path";
 import AdmZip from "adm-zip";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseAllowedTools, parseSkillFrontMatter } from "../skill-frontmatter";
-import { extractZip, findSkillDirs, parseGithubUrl, sanitizeFolderName } from "../skill-import";
+import {
+  cleanSelectedSkills,
+  extractZip,
+  findSkillDirs,
+  isSelectedSkill,
+  parseGithubUrl,
+  sanitizeFolderName,
+} from "../skill-import";
 import { resolveScriptPath, runSkillScript } from "../skill-script-runner";
 
 let dir = "";
@@ -78,6 +85,22 @@ describe("导入", () => {
   it("文件夹名保留中文、去掉符号", () => {
     expect(sanitizeFolderName(" Meeting Notes! ")).toBe("meeting-notes");
     expect(sanitizeFolderName("会议纪要")).toBe("会议纪要");
+  });
+});
+
+describe("关联目录白名单", () => {
+  it("清洗：非数组归一为 undefined，数组去重、trim、滤空", () => {
+    expect(cleanSelectedSkills(undefined)).toBeUndefined();
+    expect(cleanSelectedSkills("not-array")).toBeUndefined();
+    expect(cleanSelectedSkills([])).toEqual([]);
+    expect(cleanSelectedSkills([" a ", "a", "", "b"])).toEqual(["a", "b"]);
+  });
+
+  it("三态：undefined = 全部生效，数组只生效列出的，空数组 = 全不选", () => {
+    expect(isSelectedSkill("any", undefined)).toBe(true);
+    expect(isSelectedSkill("a", ["a", "b"])).toBe(true);
+    expect(isSelectedSkill("c", ["a", "b"])).toBe(false);
+    expect(isSelectedSkill("a", [])).toBe(false);
   });
 });
 

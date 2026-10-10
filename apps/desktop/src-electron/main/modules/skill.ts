@@ -8,12 +8,14 @@ import { Module } from "../types/module";
 import { parseSkillFrontMatter } from "../utils/skill-frontmatter";
 import {
   SKILL_README,
+  cleanSelectedSkills,
   copyDir,
   countFiles,
   createStageDir,
   describeCandidates,
   extractZip,
   findSkillDirs,
+  isSelectedSkill,
   parseGithubUrl,
   sanitizeFolderName,
   zipDirectory,
@@ -58,6 +60,8 @@ ${body ?? `# ${name}\n\n## 步骤\n\n1. \n`}`;
 interface StoredLink {
   path: string;
   enabled: boolean;
+  /** 只生效列出的 skill（文件夹名）；undefined = 从未选择，全部生效 */
+  selectedSkills?: string[];
 }
 
 class SkillModule implements Module {
@@ -122,30 +126,36 @@ class SkillModule implements Module {
       const raw = JSON.parse(await fs.readFile(this.linksFile, "utf-8")) as {
         links?: StoredLink[];
       };
-      return Array.isArray(raw.links) ? raw.links : [];
+      return Array.isArray(raw.links)
+        ? raw.links.map(l => ({ ...l, selectedSkills: cleanSelectedSkills(l.selectedSkills) }))
+        : [];
     } catch {
       return [];
     }
   }
 
-  private async enabledLinkRoots(): Promise<string[]> {
+  private async enabledLinkRoots(): Promise<
+    Array<{ root: string; selected: Set<string> | undefined }>
+  > {
     const links = await this.readStoredLinks();
     return links
       .filter(l => l.enabled)
-      .map(l => resolve(expandHome(l.path)))
-      .filter(p => existsSync(p) && !isInside(this.skillsDir, p));
+      .map(l => ({
+        root: resolve(expandHome(l.path)),
+        selected: l.selectedSkills ? new Set(l.selectedSkills) : undefined,
+      }))
+      .filter(l => existsSync(l.root) && !isInside(this.skillsDir, l.root));
   }
 
-  /** 可读根：我的 + 已启用的关联目录 */
-  private async readableRoots(): Promise<string[]> {
-    return [this.skillsDir, ...(await this.enabledLinkRoots())];
-  }
-
+  /** 可读：我的目录，或已启用关联目录里勾选了的 skill 子树 */
   private async assertReadable(target: string): Promise<void> {
-    const roots = await this.readableRoots();
-    if (!roots.some(root => isInside(root, target))) {
-      throw new Error("路径不在 Skill 目录内");
-    }
+    if (isInside(this.skillsDir, target)) return;
+    const ok = (await this.enabledLinkRoots()).some(({ root, selected }) => {
+      const rel = relative(resolve(root), resolve(target));
+      if (rel.startsWith("..") || isAbsolute(rel)) return false;
+      return selected === undefined || rel === "" || selected.has(rel.split(sep)[0]);
+    });
+    if (!ok) throw new Error("路径不在 Skill 目录内");
   }
 
   private assertWritable(target: string): void {
@@ -154,11 +164,15 @@ class SkillModule implements Module {
     }
   }
 
-  /** 路径必须是某个根下的一级 Skill 目录 */
+  /** 路径必须是某个根下的一级 Skill 目录（关联目录还要在白名单内） */
   private async assertSkillDir(skillPath: string): Promise<void> {
-    const roots = await this.readableRoots();
-    const ok = roots.some(root => resolve(join(skillPath, "..")) === resolve(root));
-    if (!ok || !existsSync(join(skillPath, SKILL_README))) {
+    const inMine = resolve(join(skillPath, "..")) === resolve(this.skillsDir);
+    const inLinked = (await this.enabledLinkRoots()).some(
+      ({ root, selected }) =>
+        resolve(join(skillPath, "..")) === resolve(root) &&
+        (selected === undefined || selected.has(basename(skillPath)))
+    );
+    if ((!inMine && !inLinked) || !existsSync(join(skillPath, SKILL_README))) {
       throw new Error("不是有效的 Skill 目录");
     }
   }
@@ -177,10 +191,24 @@ class SkillModule implements Module {
       .map(l => ({ path: l.path, enabled: l.enabled, preset: false }));
     return Promise.all(
       [...presets, ...custom].map(async link => {
+        const selectedSkills = byPath.get(link.path)?.selectedSkills;
         const abs = resolve(expandHome(link.path));
         const exists = existsSync(abs);
-        const count = exists ? (await this.scanRoot(abs, "linked")).length : 0;
-        return { ...link, exists, count };
+        if (!exists) return { ...link, exists, count: 0 };
+        const skills = (await this.scanRoot(abs, "linked")).map(s => ({
+          folderName: s.folderName,
+          name: s.name,
+          description: s.description,
+          selected: isSelectedSkill(s.folderName, selectedSkills),
+        }));
+        return {
+          ...link,
+          exists,
+          count: skills.length,
+          selectedCount: skills.filter(s => s.selected).length,
+          selectedSkills,
+          skills,
+        };
       })
     );
   }
@@ -188,7 +216,11 @@ class SkillModule implements Module {
   async setLinks(links: StoredLink[]): Promise<void> {
     const clean = links
       .filter(l => typeof l.path === "string" && l.path.trim())
-      .map(l => ({ path: l.path.trim(), enabled: Boolean(l.enabled) }));
+      .map(l => ({
+        path: l.path.trim(),
+        enabled: Boolean(l.enabled),
+        selectedSkills: cleanSelectedSkills(l.selectedSkills),
+      }));
     await fs.writeFile(this.linksFile, JSON.stringify({ links: clean }, null, 2), "utf-8");
   }
 
@@ -231,7 +263,13 @@ class SkillModule implements Module {
     await fs.mkdir(this.skillsDir, { recursive: true });
     const mine = await this.scanRoot(this.skillsDir, "mine");
     const linked = (
-      await Promise.all((await this.enabledLinkRoots()).map(root => this.scanRoot(root, "linked")))
+      await Promise.all(
+        (await this.enabledLinkRoots()).map(async ({ root, selected }) =>
+          (await this.scanRoot(root, "linked")).filter(
+            s => selected === undefined || selected.has(s.folderName)
+          )
+        )
+      )
     ).flat();
     return [...mine, ...linked];
   }

@@ -5,6 +5,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ChevronDown,
+  ChevronUp,
   FileArchive,
   FolderOpen,
   FolderPlus,
@@ -359,52 +361,143 @@ function ImportPane({
 
 function LinkPane({
   links,
-  onChange,
+  onUpdate,
   onAddCustom,
 }: {
   links: SkillLinkedDir[];
-  onChange: (path: string, enabled: boolean) => void;
+  /** selectedSkills：null = 回到「全部生效」（目录新增的自动出现）；不传 = 保持原样 */
+  onUpdate: (path: string, patch: { enabled?: boolean; selectedSkills?: string[] | null }) => void;
   onAddCustom: () => void;
 }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const toggleSkill = (link: SkillLinkedDir, folderName: string, checked: boolean) => {
+    const current = new Set(link.selectedSkills ?? link.skills?.map(s => s.folderName) ?? []);
+    if (checked) current.add(folderName);
+    else current.delete(folderName);
+    onUpdate(link.path, { selectedSkills: [...current] });
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <p className="text-tau-meta text-ink-2 m-0 mb-1">
         和其它 AI 工具共用同一份 Skill：关联后<b className="font-semibold">只读</b>
-        显示在「关联目录」分组，原文件改了这里自动更新；想改就「复制为我的」。
+        显示在「关联目录」分组，原文件改了这里自动更新；开启后勾选要启用的，想改就「复制为我的」。
       </p>
-      {links.map(link => (
-        <div
-          key={link.path}
-          className="border-line-1 flex items-center gap-3 rounded-[12px] border px-3.5 py-2.5"
-        >
-          <span
-            className={cn(
-              "grid size-[30px] shrink-0 place-items-center rounded-[9px]",
-              link.enabled ? "bg-accent-soft text-accent-text" : "bg-hover text-ink-2"
+      {links.map(link => {
+        const open = expanded === link.path;
+        const canPick = link.enabled && link.exists && (link.skills?.length ?? 0) > 0;
+        const skills = [...(link.skills ?? [])].sort((a, b) =>
+          a.selected === b.selected ? a.name.localeCompare(b.name) : a.selected ? -1 : 1
+        );
+        return (
+          <div key={link.path} className="border-line-1 rounded-[12px] border">
+            <div className="flex items-center gap-3 px-3.5 py-2.5">
+              <span
+                className={cn(
+                  "grid size-[30px] shrink-0 place-items-center rounded-[9px]",
+                  link.enabled ? "bg-accent-soft text-accent-text" : "bg-hover text-ink-2"
+                )}
+              >
+                <FolderSymlink className="size-[15px]" strokeWidth={1.75} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <b className="text-tau-meta block font-semibold">
+                  {link.label ?? link.path.split("/").filter(Boolean).pop()}
+                </b>
+                <span className="font-tau-mono text-ink-3 block truncate text-[11.5px]">
+                  {link.path}
+                </span>
+              </span>
+              <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
+                {!link.exists
+                  ? "目录不存在"
+                  : link.selectedCount === link.count
+                    ? `共 ${link.count ?? 0} 个`
+                    : `已启用 ${link.selectedCount ?? 0} / ${link.count ?? 0}`}
+              </span>
+              {canPick && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0"
+                  icon={open ? ChevronUp : ChevronDown}
+                  aria-expanded={open}
+                  onClick={() => setExpanded(open ? null : link.path)}
+                >
+                  选择
+                </Button>
+              )}
+              <Switch
+                size="sm"
+                aria-label={link.enabled ? `取消关联 ${link.path}` : `关联 ${link.path}`}
+                checked={link.enabled}
+                disabled={!link.exists && !link.enabled}
+                onCheckedChange={v => {
+                  onUpdate(
+                    link.path,
+                    v
+                      ? { enabled: true, selectedSkills: link.selectedSkills ?? [] }
+                      : { enabled: false }
+                  );
+                  if (v) setExpanded(link.path);
+                }}
+              />
+            </div>
+            {open && canPick && (
+              <div className="border-line-1 border-t px-2.5 py-2">
+                <div className="flex items-center gap-3 px-1 pb-1.5">
+                  <span className="text-tau-sm text-ink-3 min-w-0 flex-1">
+                    勾选的才会出现在 Skill 页；目录那边新增或更新，这里即时生效
+                  </span>
+                  <button
+                    type="button"
+                    className="text-tau-sm text-ink-2 hover:text-ink-1 shrink-0"
+                    onClick={() => onUpdate(link.path, { selectedSkills: null })}
+                  >
+                    全选
+                  </button>
+                  <button
+                    type="button"
+                    className="text-tau-sm text-ink-2 hover:text-ink-1 shrink-0"
+                    onClick={() => onUpdate(link.path, { selectedSkills: [] })}
+                  >
+                    全不选
+                  </button>
+                </div>
+                <ul className="m-0 flex list-none flex-col p-1">
+                  {skills.map(s => (
+                    <li
+                      key={s.folderName}
+                      className={cn(
+                        "text-tau-meta hover:bg-hover flex items-center gap-2.5 rounded-[9px] px-2.5 py-2",
+                        !s.selected && "opacity-60"
+                      )}
+                    >
+                      <Checkbox
+                        aria-label={`启用 ${s.name}`}
+                        checked={s.selected}
+                        onChange={e => toggleSkill(link, s.folderName, e.target.checked)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <b className="truncate font-semibold">{s.name}</b>
+                          <span className="font-tau-mono text-ink-3 truncate text-[11px]">
+                            {s.folderName}
+                          </span>
+                        </span>
+                        <span className="text-tau-sm text-ink-3 block truncate">
+                          {s.description || "（没有描述）"}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
-          >
-            <FolderSymlink className="size-[15px]" strokeWidth={1.75} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <b className="text-tau-meta block font-semibold">
-              {link.label ?? link.path.split("/").filter(Boolean).pop()}
-            </b>
-            <span className="font-tau-mono text-ink-3 block truncate text-[11.5px]">
-              {link.path}
-            </span>
-          </span>
-          <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
-            {link.exists ? `发现 ${link.count ?? 0} 个` : "目录不存在"}
-          </span>
-          <Switch
-            size="sm"
-            aria-label={link.enabled ? `取消关联 ${link.path}` : `关联 ${link.path}`}
-            checked={link.enabled}
-            disabled={!link.exists && !link.enabled}
-            onCheckedChange={v => onChange(link.path, v)}
-          />
-        </div>
-      ))}
+          </div>
+        );
+      })}
       <button
         type="button"
         onClick={onAddCustom}
@@ -552,9 +645,28 @@ export function AddSkillDialog({
   };
 
   const saveLinks = async (next: SkillLinkedDir[]) => {
-    await setLinkedSkillDirs(next.map(l => ({ path: l.path, enabled: l.enabled })));
+    await setLinkedSkillDirs(
+      next.map(l => ({ path: l.path, enabled: l.enabled, selectedSkills: l.selectedSkills }))
+    );
     setLinks(await getLinkedSkillDirs());
     await useSkillStore.getState().loadSkills();
+  };
+
+  /** 更新单个关联目录；selectedSkills 传 null 表示回到「全部生效」，不传则保持原样 */
+  const updateLink = (
+    path: string,
+    patch: { enabled?: boolean; selectedSkills?: string[] | null }
+  ) => {
+    void saveLinks(
+      links.map(l => {
+        if (l.path !== path) return l;
+        const selectedSkills =
+          patch.selectedSkills === undefined
+            ? l.selectedSkills
+            : (patch.selectedSkills ?? undefined);
+        return { ...l, enabled: patch.enabled ?? l.enabled, selectedSkills };
+      })
+    );
   };
 
   const submit = async () => {
@@ -656,14 +768,12 @@ export function AddSkillDialog({
           {current === "link" && (
             <LinkPane
               links={links}
-              onChange={(path, enabled) =>
-                void saveLinks(links.map(l => (l.path === path ? { ...l, enabled } : l)))
-              }
+              onUpdate={updateLink}
               onAddCustom={async () => {
                 const dir = await selectDirectoryWithDialog();
                 if (!dir) return;
                 if (links.some(l => l.path === dir)) return;
-                await saveLinks([...links, { path: dir, enabled: true }]);
+                await saveLinks([...links, { path: dir, enabled: true, selectedSkills: [] }]);
               }}
             />
           )}
