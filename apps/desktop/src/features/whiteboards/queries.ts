@@ -23,6 +23,7 @@ import {
 } from "@/commands";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
+import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import type { WhiteBoard, WhiteBoardContent } from "@/types";
 import { toast } from "@tau/ui";
 import { normalizeTags, toItem, type WhiteboardItem } from "./model";
@@ -78,6 +79,7 @@ const emptyPage = (name: string) => ({
     viewPort: { zoom: 1, minX: 0, minY: 0, width: 0, height: 0 },
     selection: { selectArea: null, selectedElements: [] },
     presentationSequences: [],
+    version: WHITEBOARD_DOCUMENT_VERSION,
   },
 });
 

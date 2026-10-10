@@ -2,6 +2,7 @@ import { useContext, useEffect, useState, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
+import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
 import { ProjectReviewContext } from "../../../review/ProjectReviewContext";
@@ -438,6 +439,7 @@ const Project = () => {
             selectedElements: [],
           },
           presentationSequences: [],
+          version: WHITEBOARD_DOCUMENT_VERSION,
         },
       });
       const createProjectItem: CreateProjectItem = {

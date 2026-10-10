@@ -39,6 +39,8 @@ export interface BoardElement {
   entityRef?: EntityRef;
   /** 手绘覆盖（D-107）：未设置时跟随页面画风 */
   sketch?: ElementSketch;
+  /** 元素数据结构版本（缺省视为 1）；低于所属扩展定义版本时由运行时迁移 */
+  schemaVersion?: number;
   [key: string]: any;
 }
 

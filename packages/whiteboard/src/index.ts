@@ -1,6 +1,11 @@
 export { default, default as WhiteBoard } from "./WhiteBoard";
 export type { WhiteBoardProps, WhiteBoardRef } from "./WhiteBoard";
 export * from "./extensions/api";
+export {
+  WHITEBOARD_DOCUMENT_VERSION,
+  getDocumentVersion,
+  isDocumentVersionSupported,
+} from "./document-version";
 export { useWhiteboardAPI } from "./extensions/runtime";
 export * from "./types/selection";
 export * from "./types/point";
