@@ -2,8 +2,7 @@
  * 全年活动热力图（圆点）—— 今日页回顾段的自绘图表
  * （圆点、色阶随 scale 递增、周列贴底对齐、hover 呼吸、全宽自适应；
  * 图例含连续活跃天数角标）。
- * 零业务依赖：输入为 {date, count}[] 纯数据；色板为暖纸主题陶土橙阶
- * （accent 的 alpha 派生，随主题换肤时需同步调整）。
+ * 零业务依赖：输入为 {date, count}[] 纯数据；色阶为 accent 的 alpha 派生，随主题换肤。
  */
 
 import clsx from "clsx";
@@ -21,7 +20,7 @@ function prevDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
 }
 
-/** 热力点色阶：0 → 淡底，s1-s4 → 陶土橙 alpha 递增 + 尺寸递增（模板 1:1） */
+/** 热力点色阶：0 → 淡底，s1-s4 → accent alpha 递增 + 尺寸递增（模板 1:1） */
 const DOT_LEVELS = [
   "bg-accent/10 scale-[0.72]",
   "bg-accent/30 scale-[0.78]",
