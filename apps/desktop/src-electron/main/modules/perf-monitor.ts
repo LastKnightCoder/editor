@@ -4,9 +4,21 @@ import path from "node:path";
 import fs from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
+import {
+  flushIpcRate,
+  ipcRateSamples,
+  pushCapped,
+  slowIpc,
+  slowSql,
+  slowSyncIo,
+  type Timestamped,
+} from "./perf-record";
+
+// 计时记录侧（electron-free）在 perf-record.ts，这里 re-export 保持既有接入方 import 路径不变
+export { recordIpcCall, recordSqlCall, recordSyncIo } from "./perf-record";
 
 /**
- * 卡顿诊断采集器：主进程事件循环/内存采样 + IPC/SQL 慢调用记录 + 渲染端性能事件汇聚。
+ * 卡顿诊断采集器：主进程事件循环/内存采样 + 渲染端性能事件汇聚 + 快照导出。
  * 数据只存内存 ring buffer（约最近 1 小时），用户「导出性能快照」时才落盘一个 JSON，
  * 由人把快照文件交给分析方按主/渲染两侧指标对照定位卡顿层。
  *
@@ -18,35 +30,9 @@ import PathUtil from "../utils/PathUtil";
 const RENDERER_EVENT_CHANNEL = "perf-monitor:renderer-event";
 const EXPORT_CHANNEL = "perf-monitor:export-snapshot";
 
-// 阈值与容量按「导出时刻回看最近一小时」取舍：明细只记异常，趋势类低频全记
-const SLOW_IPC_MS = 100;
-const SLOW_SQL_MS = 50;
-const RING_CAP = 600;
 // 事件循环直方图分辨率：同时是测量噪声下限（Windows 时钟量化会把它抬到该值附近），
 // 导出到 meta 供分析侧把低于它的均值当噪声剔除；调小可降噪声但增采样开销
 const EVENT_LOOP_RESOLUTION_MS = 10;
-
-interface Timestamped {
-  t: number;
-}
-
-interface IpcCallSample extends Timestamped {
-  channel: string;
-  ms: number;
-  ok: boolean;
-}
-
-interface SqlCallSample extends Timestamped {
-  db: string;
-  event: string;
-  ms: number;
-  ok: boolean;
-}
-
-interface IpcRateSample extends Timestamped {
-  callsPerMin: number;
-  topChannels: Array<{ channel: string; count: number }>;
-}
 
 interface EventLoopSample extends Timestamped {
   meanMs: number;
@@ -57,70 +43,28 @@ interface EventLoopSample extends Timestamped {
 interface MemorySample extends Timestamped {
   rssMB: number;
   heapUsedMB: number;
+  // 堆外分配口径：RSS 跳涨而 heapUsed 平稳时，用来确认 Buffer / 原生内存来源
+  externalMB: number;
+  arrayBuffersMB: number;
   cpuPercent: number;
+}
+
+// 主进程之外的 Electron 进程（renderer / GPU / utility）资源占用，
+// 用于把整机内存增长归属到具体进程，而非只看主进程自身 RSS
+interface ProcessMetricsSample extends Timestamped {
+  processes: Array<{ type: string; pid: number; memoryMB: number; cpuPercent: number }>;
 }
 
 interface RendererWindowData {
   title: string;
   eventLoop: Array<Timestamped & { delayMs: number }>;
   longTasks: Array<Timestamped & { durationMs: number; source: string }>;
+  // Event Timing 慢交互：longtask 在 Chromium 拿不到脚本归因（source 恒空），
+  // 交互事件自带目标元素，能回答「哪次操作卡了多久」
+  slowInteractions: Array<Timestamped & { durationMs: number; name: string; target: string }>;
   jankSpans: Array<Timestamped & { durationMs: number; worstFrameMs: number; avgFps: number }>;
   heap: Array<Timestamped & { usedMB: number; totalMB: number }>;
   queryRate: Array<Timestamped & { eventsPerMin: number; topQueryKeys: string[] }>;
-}
-
-function pushCapped<T>(buffer: T[], item: T): void {
-  buffer.push(item);
-  if (buffer.length > RING_CAP) {
-    buffer.splice(0, buffer.length - RING_CAP);
-  }
-}
-
-// --- 模块级记录状态（import 期可用，供 command-bridge / database 计时接入） ---
-
-const slowIpc: IpcCallSample[] = [];
-const ipcRateByMinute = new Map<number, Map<string, number>>();
-const ipcRateSamples: IpcRateSample[] = [];
-const slowSql: SqlCallSample[] = [];
-
-function bucketOf(timeMs: number): number {
-  return Math.floor(timeMs / 60_000);
-}
-
-/** 每分钟聚合一次 IPC 调用速率（洪水检测：比单次慢调用更常见的卡因） */
-function flushIpcRate(): void {
-  const currentBucket = bucketOf(Date.now());
-  for (const [bucket, byChannel] of ipcRateByMinute) {
-    if (bucket >= currentBucket) continue;
-    let total = 0;
-    for (const count of byChannel.values()) total += count;
-    const topChannels = [...byChannel.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([channel, count]) => ({ channel, count }));
-    pushCapped(ipcRateSamples, { t: bucket * 60_000, callsPerMin: total, topChannels });
-    ipcRateByMinute.delete(bucket);
-  }
-}
-
-export function recordIpcCall(channel: string, ms: number, ok: boolean): void {
-  const now = Date.now();
-  if (ms >= SLOW_IPC_MS) {
-    pushCapped(slowIpc, { t: now, channel, ms, ok });
-  }
-  const bucket = bucketOf(now);
-  let byChannel = ipcRateByMinute.get(bucket);
-  if (!byChannel) {
-    byChannel = new Map();
-    ipcRateByMinute.set(bucket, byChannel);
-  }
-  byChannel.set(channel, (byChannel.get(channel) ?? 0) + 1);
-}
-
-export function recordSqlCall(db: string, event: string, ms: number, ok: boolean): void {
-  if (ms >= SLOW_SQL_MS) {
-    pushCapped(slowSql, { t: Date.now(), db, event, ms, ok });
-  }
 }
 
 // --- 渲染端事件汇聚（按窗口分组，sender webContents id 为键） ---
@@ -134,6 +78,7 @@ function rendererDataOf(senderId: number, title: string): RendererWindowData {
       title,
       eventLoop: [],
       longTasks: [],
+      slowInteractions: [],
       jankSpans: [],
       heap: [],
       queryRate: [],
@@ -163,6 +108,14 @@ function recordRendererEvent(
         t,
         durationMs: payload.durationMs as number,
         source: String(payload.source ?? "").slice(0, 200),
+      });
+      break;
+    case "event-timing":
+      pushCapped(data.slowInteractions, {
+        t,
+        durationMs: payload.durationMs as number,
+        name: String(payload.name ?? "").slice(0, 60),
+        target: String(payload.target ?? "").slice(0, 120),
       });
       break;
     case "jank":
@@ -201,6 +154,7 @@ function recordRendererEvent(
 
 const eventLoopSamples: EventLoopSample[] = [];
 const memorySamples: MemorySample[] = [];
+const processMetricsSamples: ProcessMetricsSample[] = [];
 
 let histogram: IntervalHistogram | null = null;
 let lastCpu = process.cpuUsage();
@@ -225,11 +179,27 @@ function sampleMemory(): void {
     t: Date.now(),
     rssMB: memory.rss / 1024 / 1024,
     heapUsedMB: memory.heapUsed / 1024 / 1024,
+    externalMB: memory.external / 1024 / 1024,
+    arrayBuffersMB: memory.arrayBuffers / 1024 / 1024,
     // 区间平均 CPU 占比：进程 CPU 时间 / 墙钟时间（单核口径，可 >100%）
     cpuPercent: Math.min(1000, (elapsedCpuUs / Math.max(elapsedWallUs, 1)) * 100),
   });
   lastCpu = cpu;
   lastWallMs = nowMs;
+}
+
+function sampleProcessMetrics(): void {
+  // 主进程自身已有 memory 采样，这里只记其余进程；渲染端自报 heap 之外的口径
+  const processes = app
+    .getAppMetrics()
+    .filter(metric => metric.type !== "Browser")
+    .map(metric => ({
+      type: metric.type,
+      pid: metric.pid,
+      memoryMB: metric.memory.workingSetSize / 1024,
+      cpuPercent: metric.cpu.percentCPUUsage,
+    }));
+  pushCapped(processMetricsSamples, { t: Date.now(), processes });
 }
 
 // --- 快照导出 ---
@@ -262,9 +232,11 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
     main: {
       eventLoop: eventLoopSamples,
       memory: memorySamples,
+      processMetrics: processMetricsSamples,
       slowIpc,
       ipcRate: ipcRateSamples,
       slowSql,
+      slowSyncIo,
     },
     renderer: Object.fromEntries([...rendererWindows.entries()].map(([id, data]) => [id, data])),
   };
@@ -300,6 +272,7 @@ const init = async (): Promise<void> => {
     sampleEventLoop();
     sampleMemory();
   }, 15_000);
+  setInterval(sampleProcessMetrics, 30_000);
   setInterval(flushIpcRate, 60_000);
 
   ipcMain.on(RENDERER_EVENT_CHANNEL, (event, payload: { kind: string }) => {

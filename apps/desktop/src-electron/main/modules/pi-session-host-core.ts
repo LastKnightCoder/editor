@@ -8,6 +8,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
+import { recordSyncIo } from "./perf-record";
 import { fauxProvider } from "@earendil-works/pi-ai";
 import type { Provider } from "@earendil-works/pi-ai";
 import {
@@ -366,10 +367,11 @@ export const createRequestDumpExtension = (dumpDir: string): InlineExtension => 
     pi.on("before_provider_request", event => {
       counter += 1;
       try {
-        writeFileSync(
-          join(dumpDir, `req-${Date.now()}-${counter}.json`),
-          JSON.stringify(sanitizePayload(event.payload), null, 2)
-        );
+        const dumpPath = join(dumpDir, `req-${Date.now()}-${counter}.json`);
+        const dump = JSON.stringify(sanitizePayload(event.payload), null, 2);
+        const syncIoStart = Date.now();
+        writeFileSync(dumpPath, dump);
+        recordSyncIo(`write:${dumpPath}`, dump.length, Date.now() - syncIoStart);
       } catch (error) {
         console.error("[PiSessionHost] 请求 dump 写入失败:", error);
       }

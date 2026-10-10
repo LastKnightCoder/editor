@@ -20,6 +20,7 @@ const JANK_MIN_FRAMES = 5;
 const JANK_FLUSH_MS = 2_000;
 const HEAP_SAMPLE_MS = 30_000;
 const QUERY_RATE_MS = 60_000;
+const SLOW_INTERACTION_MS = 200;
 
 interface PerformanceMemoryLike {
   usedJSHeapSize: number;
@@ -28,6 +29,11 @@ interface PerformanceMemoryLike {
 
 interface LongTaskEntry extends PerformanceEntry {
   attribution?: Array<{ sourceURL?: string }>;
+}
+
+interface EventTimingEntry extends PerformanceEntry {
+  interactionId: number;
+  target: Node | null;
 }
 
 function report(payload: Record<string, unknown>): void {
@@ -39,11 +45,21 @@ function report(payload: Record<string, unknown>): void {
 // 节流假象而非真实阻塞，直接丢弃——否则深度节流的几十秒假延迟会占满主进程 ring buffer
 function watchEventLoopDelay(): void {
   let last = performance.now();
+  let throttled = false;
   window.setInterval(() => {
     const now = performance.now();
     const delayMs = now - last - HEARTBEAT_MS;
     last = now;
-    if (document.hidden || !document.hasFocus()) return;
+    if (document.hidden || !document.hasFocus()) {
+      throttled = true;
+      return;
+    }
+    if (throttled) {
+      // 焦点/可见性恢复后的首个 tick 仍携带节流期积压的定时器偏差（可达数十秒），
+      // 属节流假象：上一个 tick 距今跨过了整段节流窗口
+      throttled = false;
+      return;
+    }
     if (delayMs >= EVENT_LOOP_THRESHOLD_MS) {
       report({ kind: "event-loop", delayMs: Math.round(delayMs) });
     }
@@ -64,6 +80,45 @@ function watchLongTasks(): void {
     observer.observe({ entryTypes: ["longtask"] });
   } catch {
     // longtask 不受支持时静默降级（事件循环心跳与掉帧片段仍可诊断渲染端阻塞）
+  }
+}
+
+// --- 慢交互（Event Timing API，带事件目标归因） ---
+// longtask 在 Chromium 拿不到脚本归因（attribution 恒空），交互时长条目自带目标元素，
+// 能回答「哪次操作卡了多久」；interactionId 为 0 的是非交互事件（程序触发），跳过
+function describeTarget(node: Node | null): string {
+  if (!(node instanceof Element)) return "";
+  const id = node.id ? `#${node.id}` : "";
+  const classes =
+    typeof node.className === "string" && node.className
+      ? `.${node.className.trim().split(/\s+/).slice(0, 3).join(".")}`
+      : "";
+  return `${node.tagName.toLowerCase()}${id}${classes}`.slice(0, 120);
+}
+
+function watchSlowInteractions(): void {
+  if (typeof PerformanceObserver === "undefined") return;
+  try {
+    const observer = new PerformanceObserver(list => {
+      for (const raw of list.getEntries()) {
+        const entry = raw as EventTimingEntry;
+        if (!entry.interactionId) continue;
+        report({
+          kind: "event-timing",
+          durationMs: Math.round(entry.duration),
+          name: entry.name,
+          target: describeTarget(entry.target),
+        });
+      }
+    });
+    // durationThreshold 尚未进入 lib.dom 的 PerformanceObserverInit，显式扩展而非 as any
+    const init: PerformanceObserverInit & { durationThreshold?: number } = {
+      type: "event",
+      durationThreshold: SLOW_INTERACTION_MS,
+    };
+    observer.observe(init);
+  } catch {
+    // Event Timing 不受支持时静默降级（longtask 与事件循环心跳仍可诊断渲染端阻塞）
   }
 }
 
@@ -163,6 +218,7 @@ export function startPerfObserver(): void {
   if (!window.electron) return;
   watchEventLoopDelay();
   watchLongTasks();
+  watchSlowInteractions();
   watchJank();
   watchHeap();
   watchQueryRate();
