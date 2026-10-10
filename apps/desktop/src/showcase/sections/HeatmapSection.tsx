@@ -5,7 +5,7 @@
 
 import { useMemo } from "react";
 import { YearHeatmap, type YearHeatmapDay } from "@tau/ui";
-import { CanvasCard, DocHead, Note } from "../kit";
+import { CanvasCard, DocHead } from "../kit";
 
 function demoDays(): YearHeatmapDay[] {
   // 线性同余伪随机（固定 seed，刷新稳定）：今年 1/1 → 今天
@@ -34,11 +34,6 @@ export default function HeatmapSection() {
       <CanvasCard cap="LIVE" note="确定性演示数据 · hover 呼吸" stageClassName="block">
         <YearHeatmap days={days} caption="演示数据（确定性伪随机）" />
       </CanvasCard>
-
-      <Note>
-        色阶为固定暖橙（<em>rgba(217,119,87,α)</em> 硬编码派生），不随主题换肤——切到深色主题后
-        仍是同一组橙。
-      </Note>
     </>
   );
 }

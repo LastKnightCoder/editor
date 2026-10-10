@@ -79,8 +79,8 @@ export function RetroTrend({ trend }: { trend: TrendDay[] }) {
         >
           <defs>
             <linearGradient id="stats-trend-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="rgba(217,119,87,0.25)" />
-              <stop offset="1" stopColor="rgba(217,119,87,0.02)" />
+              <stop offset="0" stopColor="var(--tau-accent)" stopOpacity="0.25" />
+              <stop offset="1" stopColor="var(--tau-accent)" stopOpacity="0.02" />
             </linearGradient>
           </defs>
           <path d={geo.area} fill="url(#stats-trend-fill)" />
