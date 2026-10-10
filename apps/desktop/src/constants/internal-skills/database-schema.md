@@ -701,7 +701,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `doc_task_group_names`
 
-项目曾用名随主库保存，用于镜像重建与同步下载后的正文改名；创建时间防止项目 ID 重用时误认旧名。
+项目曾用名随主库保存，用于镜像重建与同步下载后的正文改名；创建时间防止项目 ID 重用时误认旧名。全库唯一复合主键表：`(group_id, group_created_at, title)` 三字段联合主键，即同一项目同一时点只存一份曾用名。
 
 | 字段               | SQLite 定义        |
 | ------------------ | ------------------ |
