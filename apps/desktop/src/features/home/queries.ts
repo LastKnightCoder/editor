@@ -275,6 +275,25 @@ async function fetchHeatmap(): Promise<HeatmapStats> {
 
 /* ---------- 汇总 ---------- */
 
+/** 快照查询兜底超时：IPC 挂起（主进程阻塞/响应丢失）时把"永远 loading"变成显式失败并落日志 */
+const SNAPSHOT_TIMEOUT_MS = 30_000;
+
+export function withSnapshotTimeout<T>(
+  promise: Promise<T>,
+  label: string,
+  ms = SNAPSHOT_TIMEOUT_MS
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        console.error(`[home] ${label} ${ms}ms 未返回，疑似 IPC 挂起`);
+        reject(new Error(`${label} 超时（${ms}ms）`));
+      }, ms);
+    }),
+  ]);
+}
+
 export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
   // statistic 表为每日全量快照，一次拉全量（getAllStatistic 会实时补算今天），todayStats 由快照差分派生；
   // 日记走 diary_entries（word_count 即当天字数），与 diaries 相关的分项共用一次全量拉取
@@ -337,7 +356,7 @@ export function useHomeSnapshot(): {
 } {
   const query = useQuery({
     queryKey: ["home", "snapshot"],
-    queryFn: fetchHomeSnapshot,
+    queryFn: () => withSnapshotTimeout(fetchHomeSnapshot(), "今日页快照"),
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   });

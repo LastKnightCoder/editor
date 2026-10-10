@@ -735,6 +735,8 @@ class DatabaseModule implements Module {
         if (!db) throw new Error("No database found");
 
         log.info(`database ${dbName} event ${eventName}`);
+        // 完成日志与开始日志成对出现：排查 IPC 挂起时，缺 done 的最后一条 event 即卡住点
+        const startedAt = Date.now();
         try {
           db.exec("BEGIN");
           const res = await this.eventAndHandlers[eventName](
@@ -744,9 +746,15 @@ class DatabaseModule implements Module {
           );
           db.exec("COMMIT");
           this.notifyDatabaseWrite(dbName, eventName);
+          log.info(
+            `database ${dbName} event ${eventName} done elapsedMs=${Date.now() - startedAt}`
+          );
           return res;
         } catch (e) {
-          log.error(`[database] event failed: db=${dbName}, event=${eventName}`, e);
+          log.error(
+            `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - startedAt}`,
+            e
+          );
           db.exec("ROLLBACK");
           throw e;
         }
@@ -789,14 +797,21 @@ class DatabaseModule implements Module {
         if (!indexDb) throw new Error("No index database found");
 
         log.info(`database ${dbName} index event ${eventName}`);
+        const indexStartedAt = Date.now();
+        const logIndexDone = () =>
+          log.info(
+            `database ${dbName} index event ${eventName} done elapsedMs=${Date.now() - indexStartedAt}`
+          );
 
         if (readOnlyIndexEvents.has(eventName)) {
-          return await this.indexEventAndHandlers[eventName](
+          const res = await this.indexEventAndHandlers[eventName](
             mainDb,
             indexDb,
             ...args,
             createWindowCommandContext(win)
           );
+          logIndexDone();
+          return res;
         }
 
         try {
@@ -810,9 +825,13 @@ class DatabaseModule implements Module {
           );
           indexDb.exec("COMMIT");
           mainDb.exec("COMMIT");
+          logIndexDone();
           return res;
         } catch (e) {
-          log.error(`[database] index event failed: db=${dbName}, event=${eventName}`, e);
+          log.error(
+            `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - indexStartedAt}`,
+            e
+          );
           try {
             indexDb.exec("ROLLBACK");
           } catch {
