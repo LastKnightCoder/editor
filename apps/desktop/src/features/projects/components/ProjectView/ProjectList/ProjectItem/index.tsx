@@ -22,6 +22,7 @@ import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import { SelectPdfDialog } from "@/features/pdfs/components/SelectPdfDialog";
 import { useCreatePdfRecord } from "@/features/pdfs/queries";
+import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { useDraggingStore } from "@/stores/useDraggingStore";
 import useSettingStore from "@/stores/useSettingStore";
@@ -500,6 +501,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             selectedElements: [],
           },
           presentationSequences: [],
+          version: WHITEBOARD_DOCUMENT_VERSION,
         },
       });
       const createProjectItem: CreateProjectItem = {

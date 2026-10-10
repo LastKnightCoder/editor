@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import Board from "../Board";
-import { defineWhiteboardExtension } from "../extensions/api";
+import {
+  defineWhiteboardExtension,
+  type WhiteboardExtension,
+  type WhiteboardExtensionError,
+} from "../extensions/api";
 import { createWhiteboardSession } from "../public";
+import { WHITEBOARD_DOCUMENT_VERSION } from "../document-version";
 import { buildClipboardPayload } from "../utils/ClipboardUtil";
 
 const viewport = { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 };
@@ -13,31 +18,46 @@ const create = () => {
   boards.push(board);
   return board;
 };
+const install = (board: Board, extensions: readonly WhiteboardExtension[]) => {
+  const errors: WhiteboardExtensionError[] = [];
+  board.installExtensions(extensions, error => errors.push(error));
+  return errors;
+};
 afterEach(() => {
   boards.splice(0).forEach(board => board.destroy());
   vi.restoreAllMocks();
 });
 
 describe("白板扩展契约", () => {
-  it("拒绝重复扩展、元素类型与命令，不静默覆盖", () => {
+  it("重复扩展、元素类型与命令按先到先得禁用后来者", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const empty = defineWhiteboardExtension({ id: "test.empty", create: () => ({}) });
-    expect(() => create().installExtensions([empty, empty])).toThrow("重复白板注册");
+    let board = create();
+    let errors = install(board, [empty, empty]);
+    expect(errors).toMatchObject([
+      { extensionId: "test.empty", reason: "duplicate-extension", conflictWith: "test.empty" },
+    ]);
+    expect(board.extensions!.getRejectedExtensions()).toHaveLength(1);
     const element = (id: string) =>
       defineWhiteboardExtension({
         id,
-        create: () => ({ elements: [{ type: "same", render: () => null }] }),
+        create: () => ({ elements: [{ type: "test.same", render: () => null }] }),
       });
-    expect(() => create().installExtensions([element("test.a"), element("test.b")])).toThrow(
-      "same"
-    );
+    board = create();
+    errors = install(board, [element("test.a"), element("test.b")]);
+    expect(errors).toMatchObject([
+      { extensionId: "test.b", reason: "conflict", target: "test.same", conflictWith: "test.a" },
+    ]);
     const command = (id: string) =>
       defineWhiteboardExtension({
         id,
         create: () => ({ commands: [{ id: "test.command", execute: () => {} }] }),
       });
-    expect(() => create().installExtensions([command("test.a"), command("test.b")])).toThrow(
-      "test.command"
-    );
+    board = create();
+    errors = install(board, [command("test.a"), command("test.b")]);
+    expect(errors).toMatchObject([
+      { extensionId: "test.b", reason: "conflict", target: "test.command", conflictWith: "test.a" },
+    ]);
   });
 
   it("同一扩展声明在不同 Board 上创建独立状态，暂停与卸载各清理一次", () => {
@@ -218,17 +238,24 @@ describe("白板扩展契约", () => {
     expect(second).not.toHaveBeenCalled();
   });
 
-  it("注册失败不会留下前面已处理的元素插件", () => {
+  it("命名空间违规的扩展被整体禁用，不注册任何贡献", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const board = create();
-    const extension = defineWhiteboardExtension({
-      id: "test.duplicate",
-      create: () => ({ elements: [{ type: "test-node", render: () => null }] }),
-    });
-    expect(() => board.installExtensions([extension, extension])).toThrow();
+    const errors = install(board, [
+      defineWhiteboardExtension({
+        id: "test.rogue",
+        create: () => ({
+          elements: [{ type: "test-node", render: () => null }],
+          commands: [{ id: "test.rogue.ok", execute: () => {} }],
+        }),
+      }),
+    ]);
+    expect(errors).toMatchObject([{ extensionId: "test.rogue", reason: "invalid-namespace" }]);
     expect(board.getPlugin("test-node")).toBeUndefined();
   });
 
-  it("安装失败清理扩展订阅并废弃其异步提交", () => {
+  it("被禁用扩展的订阅被清理且异步提交废弃", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const board = create();
     const listener = vi.fn();
     let valid!: () => boolean;
@@ -240,7 +267,14 @@ describe("白板扩展契约", () => {
         throw new Error("安装失败");
       },
     });
-    expect(() => board.installExtensions([extension])).toThrow("安装失败");
+    const errors = install(board, [extension]);
+    expect(errors).toMatchObject([
+      {
+        extensionId: "test.failed",
+        reason: "create-failed",
+        message: expect.stringContaining("安装失败"),
+      },
+    ]);
     board.emit("change");
     expect(listener).not.toHaveBeenCalled();
     expect(valid()).toBe(false);
@@ -264,13 +298,14 @@ describe("白板扩展契约", () => {
 
   it("视口裁剪优先消费扩展的几何边界", () => {
     const board = create();
+    board.children = [{ ...node(), type: "test.offscreen" }];
     board.installExtensions([
       defineWhiteboardExtension({
         id: "test.bounds",
         create: () => ({
           elements: [
             {
-              type: "unknown",
+              type: "test.offscreen",
               render: () => null,
               getBounds: () => ({ minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 }),
             },
@@ -286,6 +321,7 @@ describe("白板扩展契约", () => {
       children: [node()],
       viewPort: viewport,
       selection: { selectedElements: [], selectArea: null },
+      version: WHITEBOARD_DOCUMENT_VERSION,
     });
     expect(session.api.children).toHaveLength(1);
     session.setReadonly(true);

@@ -1,6 +1,6 @@
 import React from "react";
 import { ErrorBoundary } from "@tau/ui";
-import { UnknownElement } from "./components/UnknownElement";
+import { UnknownElement, type UnknownElementReason } from "./components/UnknownElement";
 import EventEmitter from "eventemitter3";
 import curry from "lodash/curry";
 import SnapManager from "./utils/snap/SnapManager";
@@ -34,7 +34,8 @@ import { InteractionManager } from "./interactions/InteractionManager";
 import { BOARD_TO_CONTAINER } from "./constants/map";
 import { createMindThemePreviewStore } from "./utils/MindThemePreviewStore";
 import { ExtensionRuntime } from "./extensions/runtime";
-import type { WhiteboardExtension } from "./extensions/api";
+import type { WhiteboardExtension, WhiteboardExtensionError } from "./extensions/api";
+import { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
 
 const boardFlag = Symbol("board");
 interface VisibleElementTree {
@@ -60,9 +61,51 @@ class Board {
   private active = true;
   public extensions?: ExtensionRuntime;
   private historyGroup: string | undefined;
-  installExtensions(extensions: readonly WhiteboardExtension[]) {
+  /** undo/redo 重放标记：重放历史操作不进提交校验（数据提交时已校验过） */
+  private replayingHistory = false;
+  installExtensions(
+    extensions: readonly WhiteboardExtension[],
+    onExtensionError?: (error: WhiteboardExtensionError) => void
+  ) {
     if (this.extensions) throw new Error("白板扩展集合不能在运行中替换");
-    this.extensions = new ExtensionRuntime(this, extensions);
+    this.extensions = new ExtensionRuntime(this, extensions, onExtensionError);
+    // 装配完成后立即把既有数据迁移到扩展当前版本（不进历史、不发事件）
+    this.extensions.migrateLoadedElements();
+  }
+
+  /** 加载期迁移落盘：替换 children 并重建快照，不进 undo 历史、不 emit change */
+  replaceChildrenSilently(children: BoardElement[]) {
+    this.children = children;
+    // selection.selectedElements 持有的是元素快照，children 替换后需重新绑定，避免旧字段被写回
+    const selectedElements = this.selection?.selectedElements;
+    if (selectedElements?.length) {
+      const selectedIds = new Set(selectedElements.map(element => element?.id).filter(isValid));
+      if (selectedIds.size > 0) {
+        const resolved = new Map<string, BoardElement>();
+        const stack = [...this.children];
+        while (stack.length > 0 && resolved.size < selectedIds.size) {
+          const current = stack.pop() as BoardElement;
+          if (selectedIds.has(current.id)) resolved.set(current.id, current);
+          const childElements = current.children;
+          if (Array.isArray(childElements) && childElements.length > 0)
+            stack.push(...childElements);
+        }
+        this.selection = {
+          ...this.selection,
+          selectedElements: selectedElements
+            .map(element => resolved.get(element.id))
+            .filter(isValid),
+        };
+      }
+    }
+    this.snapshot = {
+      children: this.children,
+      selection: this.selection,
+      viewPort: this.viewPort,
+      presentationSequences: this.presentationManager.sequences,
+      sketch: this.sketch,
+      version: WHITEBOARD_DOCUMENT_VERSION,
+    };
   }
   private submissionVersion = 0;
   private removedElementVersions = new Map<string, number>();
@@ -113,6 +156,7 @@ class Board {
     selection: Selection;
     presentationSequences: PresentationSequence[];
     sketch: PageSketch;
+    version: number;
   };
 
   private _currentCreateType: string = ECreateBoardElementType.None;
@@ -144,6 +188,7 @@ class Board {
       selection: this.selection,
       presentationSequences: presentationSequences,
       sketch: this.sketch,
+      version: WHITEBOARD_DOCUMENT_VERSION,
     };
 
     this.initPlugins(plugins);
@@ -164,6 +209,8 @@ class Board {
 
   // 只读属性
   private _readonly = false;
+  /** 文档版本过高导致的强制只读原因；普通只读为 null。宿主（WhiteBoard 组件）负责设置。 */
+  public readonlyReason: "document-too-new" | null = null;
 
   get readonly(): boolean {
     return this._readonly;
@@ -513,6 +560,9 @@ class Board {
 
     if (this.isDestroyed) return;
     if (ops.length === 0) return;
+    // 粘贴 / api.submit / 外部导入的插入数据先迁移到扩展当前版本；
+    // undo/redo 重放的 insert_node 数据已是新版本，此处为 no-op，不破坏历史正确性
+    const submittedOps = this.extensions ? this.extensions.migrateInsertedOperations(ops) : ops;
 
     // 使用抽离的核心逻辑进行操作应用
     const result = BoardOperations.applyOperations(
@@ -522,13 +572,20 @@ class Board {
         selection: this.selection,
         sketch: this.sketch,
       },
-      ops,
+      submittedOps,
       {
         readonly: this.readonly,
       }
     );
 
     const { data, metadata, operations: executedOps } = result;
+
+    // 执行结果上校验第三方元素 data（引用比较，天然覆盖 insert/set/move 混排）；
+    // 不合规抛 WhiteboardValidationError，此时尚未提交任何状态，整批不应用（原子）。
+    // undo/redo 重放（replayingHistory）不校验；其余调用（含 updateHistory=false 的内部提交）均校验
+    if (this.extensions && !this.replayingHistory) {
+      this.extensions.validateChangedElements(this.children, data.children);
+    }
 
     // 如果没有变化，直接返回
     if (!metadata.hasChanges) {
@@ -617,7 +674,7 @@ class Board {
     if (updateHistory) {
       // 使用 applyOperations 返回的已执行操作，确保历史记录与实际同步
       const processedOps =
-        executedOps.length > 0 ? executedOps : BoardOperations.preprocessOperations(ops);
+        executedOps.length > 0 ? executedOps : BoardOperations.preprocessOperations(submittedOps);
 
       const currentTimestamp = Date.now();
       const timeDiff = currentTimestamp - this.lastUndoTimestamp;
@@ -658,6 +715,7 @@ class Board {
         viewPort: this.viewPort,
         presentationSequences: this.presentationManager.sequences,
         sketch: this.sketch,
+        version: WHITEBOARD_DOCUMENT_VERSION,
       };
     }
     // 发出事件
@@ -701,6 +759,7 @@ class Board {
           viewPort: this.viewPort,
           presentationSequences: this.presentationManager.sequences,
           sketch: this.sketch,
+          version: WHITEBOARD_DOCUMENT_VERSION,
         };
         this.emit("change");
       }
@@ -727,12 +786,19 @@ class Board {
   renderElement(element: BoardElement): React.ReactElement | null | undefined {
     const { children } = element;
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
-    if (!plugin)
+    if (!plugin) {
+      const unknown = this.extensions?.unknownElementReason(element);
       return (
-        <UnknownElement key={element.id} element={element}>
+        <UnknownElement
+          key={element.id}
+          element={element}
+          reason={unknown?.reason}
+          extensionId={unknown?.extensionId}
+        >
           {this.renderElements(children)}
         </UnknownElement>
       );
+    }
 
     // 折叠等渲染期过滤由元素的 render 能力决定
     const visibleChildren = children
@@ -751,12 +817,22 @@ class Board {
     element: BoardElement,
     children: React.ReactElement[]
   ) {
-    const fallback = <UnknownElement element={element}>{children}</UnknownElement>;
+    const unknown = this.extensions?.unknownElementReason(element);
+    // 作者 render 缺失或返回空：按扩展判定原因占位；render 抛错被兜底时固定 error
+    const render = (reason?: UnknownElementReason) => (
+      <UnknownElement
+        element={element}
+        reason={reason ?? unknown?.reason}
+        extensionId={unknown?.extensionId}
+      >
+        {children}
+      </UnknownElement>
+    );
     try {
       return (
         <ErrorBoundary
           key={element.id}
-          fallback={fallback}
+          fallback={render("error")}
           onError={error =>
             console.error(
               `白板扩展 ${this.extensions?.ownerOf(plugin.name) ?? plugin.name} 的元素 ${element.id} 失败`,
@@ -764,12 +840,12 @@ class Board {
             )
           }
         >
-          {plugin.render?.(this, { element, children }) ?? fallback}
+          {plugin.render?.(this, { element, children }) ?? render()}
         </ErrorBoundary>
       );
     } catch (error) {
       console.error(`白板元素扩展 ${plugin.name} 渲染失败`, error);
-      return <React.Fragment key={element.id}>{fallback}</React.Fragment>;
+      return <React.Fragment key={element.id}>{render("error")}</React.Fragment>;
     }
   }
 
@@ -791,7 +867,12 @@ class Board {
     const inverseOps = undo.map(item => BoardUtil.inverseOperation(item)).reverse();
 
     inverseOps.forEach(op => BoardOperations.markAsNormalized(op));
-    this.apply(inverseOps, false);
+    this.replayingHistory = true;
+    try {
+      this.apply(inverseOps, false);
+    } finally {
+      this.replayingHistory = false;
+    }
     this.redos.push(undo);
   }
 
@@ -801,7 +882,12 @@ class Board {
     const redo = this.redos.pop();
     if (!redo) return;
     redo.forEach(op => BoardOperations.markAsNormalized(op));
-    this.apply(redo, false);
+    this.replayingHistory = true;
+    try {
+      this.apply(redo, false);
+    } finally {
+      this.replayingHistory = false;
+    }
     this.undos.push(redo);
   }
 
@@ -881,12 +967,19 @@ class Board {
     return elements
       .map(({ element, children }) => {
         const plugin = this.plugins.find(plugin => plugin.name === element.type);
-        if (!plugin)
+        if (!plugin) {
+          const unknown = this.extensions?.unknownElementReason(element);
           return (
-            <UnknownElement key={element.id} element={element}>
+            <UnknownElement
+              key={element.id}
+              element={element}
+              reason={unknown?.reason}
+              extensionId={unknown?.extensionId}
+            >
               {this.renderVisibleElements(children)}
             </UnknownElement>
           );
+        }
 
         // 折叠等渲染期过滤由元素的 render 能力决定
         const processedChildren =

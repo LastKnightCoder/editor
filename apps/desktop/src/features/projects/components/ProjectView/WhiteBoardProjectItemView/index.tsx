@@ -1,5 +1,6 @@
 import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
 import { getProjectItemById, getWhiteBoardContentById, updateWhiteBoardContent } from "@/commands";
+import { getDocumentVersion } from "@tau/whiteboard";
 import { ProjectItem, WhiteBoardContent } from "@/types";
 import { useThrottleFn } from "ahooks";
 import { memo, useState, useEffect } from "react";
@@ -61,6 +62,7 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
       initViewPort={data.viewPort}
       initPresentationSequences={data.presentationSequences}
       initSketch={data.sketch}
+      version={getDocumentVersion(data)}
       onChange={onWhiteBoardChange}
     />
   );

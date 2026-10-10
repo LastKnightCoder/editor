@@ -18,7 +18,7 @@ const extensions = createStandardWhiteboardExtensions();
 
 ## 扩展边界
 
-- 声明包含唯一 id、apiVersion 和 create(api)。一个扩展可以贡献多个元素、命令、工具、菜单、快捷键、属性面板、导入规则和界面层。重复注册或未解析命令报错；安装失败清理已创建的扩展，不留下半套元素注册。
+- 声明包含唯一 id、apiVersion 和 create(api)。一个扩展可以贡献多个元素、命令、工具、菜单、快捷键、属性面板、导入规则和界面层。装配逐扩展先校验后提交，重复声明、命名空间非法、create 抛错或引用不存在的命令时只禁用该扩展并清理其贡献（先到先得），不中断整板装配。
 - 正文、媒体与导出依赖由对应扩展闭包持有，不设置全局宿主服务集合。正文编辑、低缩放订阅和离屏测量共用 Kit 与文档绑定。界面层 position 为 canvas 或 outside；canvas 浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的输入不归画布。
 - 文档卡仍使用现有 entityRef 与 title 字段，由 createDocumentExtension 组合纸面与阅读层；已有元素 type 和数据格式不变。
 - outline：受控开关与宽度；实际占宽回调归所属页面，避免实例串扰。
@@ -32,7 +32,42 @@ const extensions = createStandardWhiteboardExtensions();
 
 useBoard/useWhiteboardAPI 返回受控接口，不返回内核 Board。快照不可写且按对象身份共享副本；元素查询返回副本，修改走 updateElement 或操作提交。元素、界面层与回调异常独立隔离，先提交快照再通知。未知元素保留原始字段与子树，使用占位和元素树管理。
 
-本轮只支持受信任扩展，不提供动态安装、沙箱或权限机制。
+本轮只支持受信任扩展（同进程装配，Obsidian 式），不提供动态安装、沙箱或权限机制。扩展 API 按「将来可迁入 Worker」设计：数据读写一经受控 api、命令参数可序列化、不暴露内部对象引用。
+
+## 第三方扩展数据契约
+
+- 命名空间：扩展 id 必须形如 `<命名空间>.<名称>`，命名空间仅限小写字母、数字与连字符。`tau` 为保留命名空间（内置扩展，其元素可用无点裸 type）；其它命名空间声明的元素 type、命令 id 与贡献 id 必须以 `<命名空间>.` 开头。
+- 数据归属：第三方元素的私有数据一律放 `element.data`，顶层字段（id/type/children 等）归内核，内置元素格式不变；`TypedBoardElement<TData>` 提供带类型的元素视图。
+- 版本与迁移：元素定义声明 `schemaVersion`（正整数，缺省 1）与 `migrate[n]`（n→n+1，须覆盖 [1, schemaVersion) 全部步骤）。装配后对已加载数据迁移一次（不进历史、不发 change，随下次编辑落库）；插入路径（粘贴/submit/导入）先迁移再插入；数据版本高于扩展或迁移失败时占位渲染、数据原样保留。
+- 写入校验：定义可带 `schema`（Standard Schema v1，仅同步返回，zod / valibot 可直接传入），只校验 `element.data`。提交时校验变化元素，不合规抛 `WhiteboardValidationError` 且整批操作不应用；undo/redo 重放不校验；加载只校验迁移产物（不合规回退迁移前原样）；粘贴不合规放弃本次粘贴。
+- 冲突与错误报告：任一扩展装配失败只禁用该扩展并清理其 scope，先到先得；经 `WhiteBoard` 的 `onExtensionError` 回调与 console.error 报告（`WhiteboardExtensionError.reason` 见 api.ts），`getRejectedExtensions()` 可查被拒清单。
+- 占位原因：未知或异常元素渲染占位并输出 `data-unknown-reason`，取值 missing（类型未注册）/ too-new（数据版本高于扩展）/ migration-failed / disabled（所属扩展被禁用），原始数据与子树保留。
+
+```tsx
+import { defineElement } from "@tau/whiteboard/extensions";
+
+interface StampData {
+  label: string;
+}
+
+const stamp = defineElement<StampData>({
+  type: "demo.stamp", // 必须以扩展命名空间开头
+  schemaVersion: 2, // 数据结构版本，缺省 1
+  migrate: { 1: el => ({ ...el, data: { ...el.data, label: String(el.data.label ?? "") } }) },
+  schema: {
+    // Standard Schema v1，手写示意；zod / valibot 实例可直接传入
+    "~standard": {
+      version: 1,
+      vendor: "demo",
+      validate: value =>
+        typeof (value as StampData).label === "string"
+          ? { value: value as StampData }
+          : { issues: [{ message: "label 必须为字符串" }] },
+    },
+  },
+  render: ({ element }) => <text>{element.data.label}</text>,
+});
+```
 
 ## 验证
 

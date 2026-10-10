@@ -1,4 +1,5 @@
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
+import { WhiteboardValidationError } from "../extensions/validation";
 import {
   Board,
   BoardElement,
@@ -346,7 +347,18 @@ export class CopyPastePlugin implements IBoardPlugin {
       },
     });
 
-    board.apply(ops);
+    try {
+      board.apply(ops);
+    } catch (error) {
+      // 剪贴板可能携带第三方元素，数据不合规时放弃本次粘贴（不落入文本粘贴兜底）
+      if (error instanceof WhiteboardValidationError) {
+        console.error(`粘贴的白板元素数据不合规，已放弃：${error.message}`);
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return true;
+      }
+      throw error;
+    }
     this.syncPastedContentRefs(elements);
     ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
 

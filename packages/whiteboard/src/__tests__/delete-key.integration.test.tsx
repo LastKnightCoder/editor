@@ -40,7 +40,7 @@ it.each([
       create: () => ({
         elements: [
           {
-            type: "shape",
+            type: "test.shape",
             render: ({ element }) => (
               <rect
                 data-test-shape
@@ -64,7 +64,7 @@ it.each([
       root.render(
         <WhiteBoard
           extensions={extensions}
-          initData={[{ id: "shape", type: "shape", x: 10, y: 10, width: 100, height: 80 }]}
+          initData={[{ id: "shape", type: "test.shape", x: 10, y: 10, width: 100, height: 80 }]}
           initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
           showToolbar={false}
           showAttributeSetter={false}

@@ -36,6 +36,7 @@ import { subscribeQuestionMutationEvent } from "@/mcp/question/events";
 import { createArticle } from "@/commands/article";
 import { createProject } from "@/commands/project";
 import { createWhiteBoard } from "@/commands/white-board";
+import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import type {
   QuestionChatTarget,
@@ -204,6 +205,7 @@ export async function createMaterialFor(
           viewPort: { zoom: 1, minX: 0, minY: 0, width: 0, height: 0 },
           selection: { selectArea: null, selectedElements: [] },
           presentationSequences: [],
+          version: WHITEBOARD_DOCUMENT_VERSION,
         },
       },
     ],

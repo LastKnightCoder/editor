@@ -44,6 +44,7 @@ it("flush 传播保存失败，依赖保存的后续动作不会继续", async (
       children: [],
       selection: { selectedElements: [], selectArea: null },
       viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
+      version: 2,
     });
     const afterSave = async () => {
       await ref.current!.flush();
