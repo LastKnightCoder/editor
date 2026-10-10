@@ -92,6 +92,45 @@ describe("QuestPage", () => {
     expect(container.textContent).toContain("原文");
   });
 
+  it("应渲染研究概览、探索过程与分组的参考资料", async () => {
+    await act(async () => {
+      root.render(<QuestPage />);
+    });
+
+    const stats = container.querySelector('[data-testid="quest-stats"]');
+    expect(stats?.textContent).toContain("参考 3 份资料");
+    expect(stats?.textContent).toContain("写下 1 条笔记");
+    expect(stats?.textContent).toContain("与 AI 讨论 1 次");
+
+    expect(container.textContent).toContain("探索过程");
+    expect(container.textContent).toContain("一开始怀疑是防抖更新导致");
+    expect(
+      container.querySelector('[data-cite-scope="trail"][data-cite-index="1"]')
+    ).not.toBeNull();
+
+    const references = container.querySelector('[data-testid="quest-references"]');
+    expect(references?.textContent).toContain("外部资料");
+    expect(references?.textContent).toContain("我的笔记");
+    expect(references?.textContent).toContain("讨论");
+    expect(container.querySelector("#ref-1 a")?.getAttribute("rel")).toBe("noopener nofollow");
+    expect(container.querySelector("#ref-3")?.textContent).toContain("↩ 径");
+  });
+
+  it("没有资料与轨迹时不渲染径和据", async () => {
+    window._INIT_DATA_ = {
+      ...mockQuestPageData,
+      content: { ...mockQuestPageData.content, materials: [], trail: [] },
+    };
+
+    await act(async () => {
+      root.render(<QuestPage />);
+    });
+
+    expect(container.textContent).not.toContain("探索过程");
+    expect(container.querySelector('[data-testid="quest-references"]')).toBeNull();
+    expect(container.querySelector('[data-testid="quest-stats"]')).toBeNull();
+  });
+
   it("description 为空时不应渲染补充说明", async () => {
     window._INIT_DATA_ = {
       ...mockQuestPageData,

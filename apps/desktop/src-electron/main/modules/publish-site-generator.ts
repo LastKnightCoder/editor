@@ -24,7 +24,7 @@ import type {
 import type { ICard } from "@/types/card";
 import type { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
-import type { IQuestion, IAnswer } from "@/types/question";
+import type { IQuestion, IAnswer, QuestionDetail } from "@/types/question";
 import type { QuestionGroup } from "./tables/question-group";
 import {
   buildSelectionContentLinkTargets,
@@ -39,6 +39,12 @@ import {
 } from "./publish-search-index";
 import { scopeRuntimeTailwindCss } from "./publish-tailwind-scope";
 import { resolveQuestActivityTime } from "./publish-quest-time";
+import {
+  buildQuestMaterials,
+  buildQuestTrail,
+  type IQuestMaterialEntry,
+  type IQuestTrailEntry,
+} from "./publish-quest-research";
 
 /** 生成所需的只读数据访问（主进程直连数据库；worker 内经同步 RPC 转发到主进程） */
 export interface PublishDataSource {
@@ -55,6 +61,8 @@ export interface PublishDataSource {
   listQuestionGroups(): QuestionGroup[];
   listQuestionsByGroup(groupId: number, filter: "all", search: string): IQuestion[];
   getQuestionAnswerById(id: number): IAnswer | null;
+  /** 问题的探究材料、对话与轨迹 */
+  getQuestionDetail(questionId: number): QuestionDetail | null;
 }
 
 export interface PublishSelectionInput {
@@ -154,6 +162,10 @@ interface IQuestEntry {
   groupColor?: string;
   status: IPublishQuestStatus;
   answers: IQuestAnswerEntry[];
+  /** 参考资料（据），编号即 index */
+  materials: IQuestMaterialEntry[];
+  /** 探索过程（径） */
+  trail: IQuestTrailEntry[];
   description?: Descendant[];
   createTime: number;
   updateTime: number;
@@ -1229,7 +1241,14 @@ export class PublishSiteGenerator {
       if (!group) continue;
       const questions = this.loadSelectedQuestQuestions(db, group.id, scopes.get(group.id));
       for (const question of questions) {
-        const entry = this.createQuestEntry(db, question, group, publishedCards, publishedArticles);
+        const entry = this.createQuestEntry(
+          db,
+          question,
+          group,
+          publishedCards,
+          publishedArticles,
+          contentLinkTargets
+        );
         entries.push(entry);
       }
     }
@@ -1285,10 +1304,17 @@ export class PublishSiteGenerator {
     question: IQuestion,
     group: QuestionGroup,
     publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>
+    publishedArticles: Map<number, IArticle>,
+    contentLinkTargets?: IPublishInitData["contentLinkTargets"]
   ): IQuestEntry {
-    const answers = question.answers
-      .map(answerId => db.getQuestionAnswerById(answerId))
+    const detail = db.getQuestionDetail(question.id);
+    // 只有独立答案进「解」；关联的卡片 / 文章等是资料，进「据」
+    const answerContentIds = (detail?.materials ?? [])
+      .filter(material => material.targetType === "answer" && !material.missing)
+      .map(material => material.contentId)
+      .filter((id): id is number => id != null);
+    const answers = answerContentIds
+      .map(contentId => db.getQuestionAnswerById(contentId))
       .filter((answer): answer is IAnswer => Boolean(answer))
       .map(answer => this.createQuestAnswerEntry(db, answer, publishedCards, publishedArticles));
 
@@ -1302,6 +1328,10 @@ export class PublishSiteGenerator {
       createTime: question.createTime,
       answers,
     });
+    const { materials, indexByKey } = buildQuestMaterials(
+      detail ?? { materials: [], chats: [] },
+      contentLinkTargets
+    );
 
     return {
       id: question.id,
@@ -1313,6 +1343,8 @@ export class PublishSiteGenerator {
       groupColor: group.color,
       status: question.status,
       answers,
+      materials,
+      trail: buildQuestTrail(detail?.events ?? [], indexByKey),
       description: question.description,
       createTime: question.createTime,
       updateTime: activityTime,

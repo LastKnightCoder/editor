@@ -33,6 +33,7 @@ import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import QuestionTable from "./tables/question";
 import QuestionGroupTable from "./tables/question-group";
+import QuestionLinkTable from "./tables/question-link";
 import publishTemplateManager from "./publish-template-manager";
 import type { ISiteMeta, PublishDataSource, PublishSelectionInput } from "./publish-site-generator";
 import {
@@ -56,6 +57,7 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
     listQuestionsByGroup: (groupId, filter, search) =>
       QuestionTable.listByGroup(db, groupId, filter, search),
     getQuestionAnswerById: id => QuestionTable.getAnswerById(db, id),
+    getQuestionDetail: questionId => QuestionLinkTable.getDetail(db, questionId),
   };
 }
 
