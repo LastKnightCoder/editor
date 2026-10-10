@@ -26,6 +26,7 @@ import type { PomodoroSession } from "@/types";
 import { listPomodoroSessions } from "@/commands/pomodoro";
 import { getAllProjectItems } from "@/commands/project";
 import { getFlashcardReviewStats } from "@/commands/flashcard";
+import { withSnapshotTimeout } from "./queries";
 import type { RetroRange, RetroSnapshot, RetroTotals, RangeSummary, FocusRhythm } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -188,7 +189,7 @@ export function useRetroSnapshot(
 } {
   const query = useQuery({
     queryKey: ["home", "retro", range],
-    queryFn: () => fetchRetroSnapshot(range),
+    queryFn: () => withSnapshotTimeout(fetchRetroSnapshot(range), "今日页回顾段"),
     enabled,
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: true,
