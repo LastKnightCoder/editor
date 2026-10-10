@@ -1,4 +1,4 @@
-import { ipcMain, app, BrowserWindow, Notification } from "electron";
+import { ipcMain, app, BrowserWindow, Notification, shell } from "electron";
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import path from "node:path";
 import fs from "node:fs";
@@ -267,6 +267,7 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
   };
 
   await fs.promises.writeFile(target, JSON.stringify(snapshot, null, 2), "utf-8");
+  shell.showItemInFolder(target);
   log.info(`[perf-monitor] 性能快照已导出: ${target}`);
   return { path: target };
 }
