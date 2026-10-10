@@ -80,7 +80,7 @@ export function PdfDetailView() {
   if (loading) return <Loading />;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="flex h-full min-h-0 w-full flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 overflow-hidden">
         {pdf ? (
           <PdfReaderPage pdf={pdf} annotationId={annotation ?? null} />
