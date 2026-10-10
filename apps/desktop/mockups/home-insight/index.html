@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今日页 · 洞见 · 列表式三方案</title>
+<!-- 视觉参考，非导出源（D-001）。数据为按 KnowledgeMark 真实字段（why / prompts / ends / claims）编的示例。 -->
+<style>
+  :root {
+    --bg-page: #f3eee2; --surface: #fffdf9; --hover: rgba(67,57,44,.05); --press: rgba(67,57,44,.1);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22,58%,42%,.12);
+    --line-1: #e9e1d2; --line-2: rgba(200,188,168,.45);
+    --info: #4f74a8; --info-soft: rgba(79,116,168,.12);
+    --warn: #a87a22; --warn-soft: rgba(176,131,44,.14);
+    --danger: #b0553f; --danger-soft: rgba(176,85,63,.12);
+    --ok: #5f7a5d; --ok-soft: rgba(95,122,93,.13);
+    --card: 0 1px 2px rgba(120,100,70,.06), 0 10px 24px -14px rgba(120,100,70,.22);
+    --lift: 0 1px 2px rgba(120,100,70,.08), 0 6px 16px -8px rgba(120,100,70,.32);
+  }
+  :root[data-theme="cocoa"] {
+    --bg-page: #1f1a15; --surface: #2a241e; --hover: rgba(240,228,210,.06); --press: rgba(240,228,210,.12);
+    --ink-1: #efe6d8; --ink-2: #c7b9a4; --ink-3: #8a7c68;
+    --accent: hsl(24 62% 60%); --accent-text: #e3a17f; --accent-soft: hsla(24,62%,60%,.16);
+    --line-1: #3a3229; --line-2: rgba(240,228,210,.1);
+    --info: #8eaee0; --info-soft: rgba(142,174,224,.14);
+    --warn: #d9b26a; --warn-soft: rgba(217,178,106,.14);
+    --danger: #e0907a; --danger-soft: rgba(224,144,122,.14);
+    --ok: #9cb79a; --ok-soft: rgba(156,183,154,.14);
+    --card: 0 1px 2px rgba(0,0,0,.3), 0 10px 24px -12px rgba(0,0,0,.5);
+    --lift: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 -apple-system, "PingFang SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: left; }
+  svg { flex: none; width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ───── 顶部切换 ───── */
+  .top { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 18px; }
+  .top h1 { font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .seg { display: flex; gap: 2px; background: var(--hover); padding: 3px; border-radius: 10px; }
+  .seg button { height: 26px; padding: 0 12px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; white-space: nowrap; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--lift); }
+  .sp { flex: 1; }
+  .ghost { height: 28px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); white-space: nowrap; }
+  .ghost:hover { background: var(--hover); color: var(--ink-1); }
+  .ghost[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); }
+
+  .main { flex: 1; min-height: 0; display: flex; gap: 14px; padding: 0 14px 14px; }
+  .stage-wrap { flex: 1; min-width: 0; position: relative; overflow: hidden; }
+  .notes { width: 360px; flex: none; background: var(--surface); border-radius: 14px; box-shadow: var(--card); padding: 18px 20px; overflow: auto; display: none; }
+  body.notes-on .notes { display: block; }
+  .notes h2 { font-size: 14px; margin-bottom: 8px; }
+  .notes h3 { font-size: 12.5px; margin: 14px 0 4px; }
+  .notes p, .notes li { color: var(--ink-2); font-size: 12.5px; line-height: 1.75; }
+  .notes ul { padding-left: 18px; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent-text); margin-left: 4px; }
+
+  /* ───── 模拟窗口（整体缩放适配视口）───── */
+  .win { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; transform-origin: 0 0; display: flex; flex-direction: column; padding: 4px 16px 16px; }
+  .paper { flex: 1; min-height: 0; background: var(--surface); border-radius: 16px; box-shadow: var(--card); display: flex; flex-direction: column; overflow: hidden; }
+  .hero { display: flex; align-items: baseline; gap: 16px; padding: 24px 32px 8px; }
+  .hero h2 { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+  .hero .date { color: var(--ink-2); }
+  .hero .nums { margin-left: auto; color: var(--ink-2); }
+  .hero .nums b { color: var(--accent-text); font-weight: 600; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; padding: 4px 32px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .sec { display: flex; align-items: center; gap: 12px; color: var(--ink-3); font-size: 13.5px; padding-top: 6px; }
+  .sec::after { content: ""; flex: 1; height: 1px; background: var(--line-1); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .panel { border: 1px solid var(--line-2); border-radius: 14px; padding: 12px 16px; }
+  .ptitle { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; margin-bottom: 8px; }
+  .ptitle small { color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .ptitle .pa { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; color: var(--ink-2); font-weight: 400; font-size: 12.5px; padding: 2px 6px; border-radius: 6px; }
+  .ptitle .pa:hover { background: var(--hover); color: var(--ink-1); }
+  .row { display: flex; gap: 10px; align-items: center; padding: 5px 6px; }
+  .row .bar { height: 8px; border-radius: 4px; background: var(--hover); flex: 1; }
+  .row .bar.s { flex: .5; }
+
+  .btn { height: 28px; padding: 0 11px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; transition: background .16s, color .16s; }
+  .btn.soft { background: var(--accent-soft); color: var(--accent-text); }
+  .btn.soft:hover { background: hsla(22,58%,42%,.2); }
+  .btn.quiet { color: var(--ink-2); }
+  .btn.quiet:hover { background: var(--press); color: var(--ink-1); }
+  .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+
+  /* 类型色：只表意 */
+  .k-asked { --k: var(--warn); --ks: var(--warn-soft); }
+  .k-bridge { --k: var(--info); --ks: var(--info-soft); }
+  .k-review { --k: var(--ok); --ks: var(--ok-soft); }
+  .k-conflict { --k: var(--danger); --ks: var(--danger-soft); }
+  .k-chain { --k: var(--ink-2); --ks: var(--hover); }
+  .kico { width: 30px; height: 30px; border-radius: 9px; background: var(--ks); color: var(--k); display: grid; place-items: center; flex: none; }
+  .kico svg { width: 15px; height: 15px; }
+  .klabel { color: var(--k); font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .meta { color: var(--ink-3); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* 通用行 */
+  .list { display: flex; flex-direction: column; gap: 2px; margin: 0 -8px; }
+  .it { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; padding: 10px 8px; border-radius: 10px; transition: background .16s; }
+  .it:hover { background: var(--hover); }
+  .it .tt { font-size: 14px; font-weight: 500; line-height: 1.6; color: var(--ink-1); }
+  .it .ds { font-size: 12.5px; color: var(--ink-2); line-height: 1.65; margin-top: 1px; }
+  .it .line1 { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  .it .line1 .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .it.gone { opacity: .4; }
+  .it.gone .tt { text-decoration: line-through; }
+
+  /* L1：行尾操作，悬停原位替换元信息 */
+  .l1 .it { grid-template-columns: auto minmax(0, 1fr) 260px; align-items: center; }
+  .l1 .slot { position: relative; height: 28px; justify-self: end; width: 100%; }
+  .l1 .slot > * { position: absolute; right: 0; top: 0; height: 28px; display: flex; align-items: center; gap: 4px; transition: opacity .16s; }
+  .l1 .slot .acts { opacity: 0; }
+  .l1 .it:hover .slot .acts, .l1 .it:focus-within .slot .acts { opacity: 1; }
+  .l1 .it:hover .slot .info, .l1 .it:focus-within .slot .info { opacity: 0; }
+  .l1 .ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* L2：手风琴 */
+  .l2 .it { cursor: pointer; }
+  .l2 .it .chev { color: var(--ink-3); transition: transform .2s; }
+  .l2 .it[aria-expanded="true"] { background: var(--hover); cursor: default; }
+  .l2 .it[aria-expanded="true"] .chev { transform: rotate(90deg); }
+  .l2 .it:not([aria-expanded="true"]) .ds { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .l2 .body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .24s ease; }
+  .l2 .it[aria-expanded="true"] .body { grid-template-rows: 1fr; }
+  .l2 .body > div { overflow: hidden; }
+  .l2 .body-in { padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* L3：舒展，全部展开、操作常驻 */
+  .l3 .list { gap: 6px; }
+  .l3 .it { padding: 12px 10px; }
+  .l3 .foot { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+  .l3 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .full .list { gap: 10px; }
+  .full .ev-wrap { margin-top: 8px; }
+  .full .ev { background: transparent; padding: 4px 10px; box-shadow: inset 2px 0 0 var(--line-1); border-radius: 0 6px 6px 0; }
+  .full .ev:hover { background: var(--hover); box-shadow: inset 2px 0 0 var(--k); }
+  .full .claims .ev { padding: 6px 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; max-width: 360px; height: 24px; padding: 0 8px; border-radius: 7px; border: 1px solid var(--line-1); color: var(--ink-2); font-size: 12px; white-space: nowrap; transition: background .16s; }
+  .chip span { overflow: hidden; text-overflow: ellipsis; }
+  .chip svg { width: 12px; height: 12px; color: var(--ink-3); }
+  .chip:hover { background: var(--surface); color: var(--ink-1); }
+  .more { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-size: 12.5px; padding: 4px 8px; border-radius: 7px; }
+  .more:hover { background: var(--hover); color: var(--ink-1); }
+
+  /* 证据（L2 展开区用） */
+  .evs { display: flex; flex-direction: column; gap: 2px; }
+  .ev { display: flex; align-items: flex-start; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; width: 100%; }
+  .ev:hover { color: var(--ink-1); box-shadow: 0 0 0 1px var(--line-1); }
+  .ev svg { margin-top: 3px; color: var(--ink-3); }
+  .ev .t { flex: 1; min-width: 0; }
+  .ev b { font-weight: 500; color: var(--ink-1); margin-right: 6px; }
+  .claims { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .claims .ev { flex-direction: column; gap: 2px; }
+  .acts-row { display: flex; gap: 4px; align-items: center; }
+
+  .fade { animation: fade .2s ease-out; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* 现状 */
+  .cur { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; border: 1px solid var(--line-2); border-radius: 14px; padding: 12px 14px 12px 16px; }
+  .cur .h { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; margin-bottom: 6px; }
+  .cur .h svg { color: var(--accent); }
+  .cur .h small { color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .cur .h .pg { color: var(--ink-3); font-weight: 400; font-size: 12px; margin-left: 8px; }
+  .cur p { font-size: 14px; }
+  .cur p .lb { color: var(--ink-3); font-size: 11.5px; margin-right: 8px; }
+  .cur em { font-style: normal; background: linear-gradient(var(--warn), var(--warn)) bottom / 100% 2px no-repeat; }
+  .cur .pbtn { background: var(--accent); color: var(--surface); }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>今日页 · 洞见</h1>
+  <div class="seg" id="plan">
+    <button data-p="cur">现状</button>
+    <button data-p="full" aria-pressed="true">直接展开 · 完整证据</button>
+    <button data-p="l3">直接展开 · 证据 chips</button>
+    <button data-p="l2">（对照）点击展开</button>
+  </div>
+  <div class="sp"></div>
+  <button class="ghost" id="reset">重置</button>
+  <button class="ghost" id="theme">深色</button>
+  <button class="ghost" id="notesBtn">方案说明</button>
+</div>
+<div class="main">
+  <div class="stage-wrap" id="wrap">
+    <div class="win" id="win">
+      <div class="paper">
+        <div class="hero">
+          <h2>下午好</h2><span class="date">10 月 10 日 · 星期六</span>
+          <span class="nums">已专注 <b>1h 25m</b> · 3 番茄 · 写下 <b>1,284</b> 字 · 新建 <b>4</b> 条 · 连续活跃 <b>12</b> 天</span>
+        </div>
+        <div class="scroll">
+          <div class="sec">今天</div>
+          <div class="grid3">
+            <div class="panel"><div class="ptitle">复习<small>18 张到期 · 2 个卡组</small></div><div class="row"><span class="bar"></span></div><div class="row"><span class="bar s"></span></div></div>
+            <div class="panel"><div class="ptitle">待办<small>5 项未完成</small></div><div class="row"><span class="bar"></span></div><div class="row"><span class="bar s"></span></div></div>
+            <div class="panel"><div class="ptitle">日程<small>2 项</small></div><div class="row"><span class="bar"></span></div><div class="row"><span class="bar s"></span></div></div>
+          </div>
+          <div class="sec">继续</div>
+          <div id="slot"></div>
+          <div class="panel"><div class="ptitle">最近编辑<small>卡片 · 文章 · 日记 · 项目</small></div>
+            <div class="grid3"><div><div class="row"><span class="bar"></span></div><div class="row"><span class="bar s"></span></div></div><div><div class="row"><span class="bar"></span></div><div class="row"><span class="bar s"></span></div></div><div><div class="row"><span class="bar s"></span></div><div class="row"><span class="bar"></span></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes" id="notes"></aside>
+</div>
+
+<script>
+const I = {
+  spark: '<svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 3v4M17 5h4"/></svg>',
+  map: '<svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>',
+  chat: '<svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+  ask: '<svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.8 9.5a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 2-2.2 2M12 15.5h.01"/></svg>',
+  link: '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
+  flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+  split: '<svg viewBox="0 0 24 24"><path d="M12 3v6M12 9l-6 6v6M12 9l6 6v6"/></svg>',
+  chain: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h3M14 12h3" /><path d="M12 10v4" stroke-dasharray="1 2"/></svg>',
+  doc: '<svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>',
+  pen: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  r: '<svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+};
+
+// 标题 = 结论；描述 = 为什么这么说（mark.why / 上下文）；证据 = prompts / ends / claims
+const ITEMS = [
+  { kind: "asked", icon: "ask", label: "问了没写", scope: "全局", time: "10月6日",
+    title: "词法环境、执行上下文与作用域链是什么关系？",
+    desc: "你在对话里问过 2 次，最近一次是 10 月 6 日，但笔记里还没有一篇写到它。",
+    chips: [["chat", "“闭包里引用外层变量，到底是从执行上下文拿还是从词法环境拿？”"], ["chat", "“作用域链和执行上下文栈是一回事吗”"]],
+    ev: { type: "list", items: [
+      { icon: "chat", b: "10月6日", t: "闭包里引用外层变量，到底是从执行上下文拿还是从词法环境拿？" },
+      { icon: "chat", b: "9月28日", t: "作用域链和执行上下文栈是一回事吗" } ] },
+    acts: [["pen", "写一张卡片"], ["map", "在地图上看"]] },
+  { kind: "bridge", icon: "link", label: "呼应", scope: "跨主题", time: "今天",
+    title: "闭包和所有权在说同一件事：变量活多久，由谁还引用着它决定",
+    desc: "「JavaScript › 闭包」和「Rust › 所有权」各自写得很完整，但两个主题之间还没有一条连接。",
+    chips: [["doc", "《闭包与内存泄漏》"], ["doc", "《借用检查器笔记》"]],
+    ev: { type: "list", items: [
+      { icon: "doc", b: "《闭包与内存泄漏》", t: "只要内部函数还被持有，外层作用域的变量就不会被回收……" },
+      { icon: "doc", b: "《借用检查器笔记》", t: "引用的生命周期不能长于被引用值的作用域……" } ] },
+    acts: [["map", "在地图上看"]] },
+  { kind: "review", icon: "flag", label: "结项回顾", scope: "项目", time: "昨天",
+    title: "「浏览器渲染原理」已结项：关键渲染路径能拆成五个可以单独度量的阶段",
+    desc: "14 篇文档里，这两篇最能代表核心观点；结论适合归入进行中的「前端性能手册」。",
+    chips: [["doc", "《从 HTML 到像素》"], ["doc", "《合成层与 will-change》"]],
+    ev: { type: "list", items: [
+      { icon: "doc", b: "《从 HTML 到像素》", t: "解析 → 样式 → 布局 → 绘制 → 合成，每一步都有对应的 Performance 面板指标……" },
+      { icon: "doc", b: "《合成层与 will-change》", t: "提升合成层的收益和内存代价……" } ] },
+    acts: [["folder", "打开回顾"]], dismiss: "知道了" },
+  { kind: "conflict", icon: "split", label: "说法对不上", scope: "React 渲染", time: "10月8日",
+    title: "两篇笔记对 useEffect 的执行时机说法相反",
+    desc: "一篇说总在绘制之后，另一篇说某些更新里会在绘制之前同步刷新，至少有一篇需要修正。",
+    chips: [["doc", "《useEffect 执行时机》"], ["doc", "《React 18 并发渲染》"]],
+    ev: { type: "claims", items: [
+      { b: "《useEffect 执行时机》", t: "useEffect 总在浏览器绘制之后执行。" },
+      { b: "《React 18 并发渲染》", t: "离散事件触发的更新里，effect 会在绘制前同步刷新。" } ] },
+    acts: [["map", "在地图上看"]] },
+  { kind: "chain", icon: "chain", label: "缺一环", scope: "数据库", time: "10月5日",
+    title: "「事务隔离」这条线上缺了 MVCC 的可见性判断",
+    desc: "从「隔离级别」直接跳到了「幻读与间隙锁」，中间解释快照为什么看得见、看不见的那一步没写。",
+    chips: [["doc", "《隔离级别》"], ["doc", "《幻读与间隙锁》"]],
+    ev: { type: "list", items: [
+      { icon: "doc", b: "《隔离级别》", t: "RC 与 RR 的区别在于快照的创建时机……" },
+      { icon: "doc", b: "《幻读与间隙锁》", t: "RR 下用 next-key lock 防止幻读……" } ] },
+    acts: [["map", "在地图上看"]] },
+];
+
+let plan = "full", open = 0, showAll = false;
+const gone = new Set();
+
+const btns = (it, i, size = "") => it.acts.map(([ic, l], n) =>
+  `<button class="btn ${n ? "quiet" : "soft"} ${size}">${I[ic]}${l}</button>`).join("")
+  + `<button class="btn quiet ${size}" data-dismiss="${i}" title="${it.dismiss ? "" : "以后不再提这一条"}">${it.dismiss ?? "不相关"}</button>`;
+const head = n => `<div class="ptitle"><span style="color:var(--accent);display:flex">${I.spark}</span>洞见<small>${n} 条新发现</small>
+  <button class="pa">在地图上看全部${I.r}</button></div>`;
+const evidence = it => it.ev.type === "claims"
+  ? `<div class="claims">${it.ev.items.map(c => `<button class="ev"><b>${c.b}</b><span>${c.t}</span></button>`).join("")}</div>`
+  : `<div class="evs">${it.ev.items.map(e => `<button class="ev">${I[e.icon]}<span class="t"><b>${e.b}</b>${e.t}</span></button>`).join("")}</div>`;
+const count = () => ITEMS.length - gone.size;
+
+function renderCur() {
+  const it = ITEMS[0];
+  return `<div class="cur"><div><div class="h">${I.spark}洞见<small>AI 从你的知识版图里看到的</small><span class="pg">‹ 1 / 5 ›</span></div>
+    <p><span class="lb">问了没写</span>你在对话里问过 2 次<em>${it.title}</em> 笔记里还没写</p></div>
+    <div style="display:flex;gap:6px"><button class="btn pbtn">${I.map}在地图上看</button><button class="btn quiet">不相关</button></div></div>`;
+}
+function renderL1() {
+  return `<div class="panel l1">${head(count())}<div class="list">${ITEMS.map((it, i) => `
+    <div class="it k-${it.kind} ${gone.has(i) ? "gone" : ""}">
+      <span class="kico">${I[it.icon]}</span>
+      <div style="min-width:0"><div class="tt" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${it.title}</div><div class="ds">${it.desc}</div></div>
+      <div class="slot">
+        <div class="info"><span class="klabel">${it.label}</span><span class="meta">· ${it.scope} · ${it.time}</span></div>
+        ${gone.has(i) ? "" : `<div class="acts">${btns(it, i, "sm")}</div>`}
+      </div>
+    </div>`).join("")}</div></div>`;
+}
+function renderL2() {
+  return `<div class="panel l2">${head(count())}<div class="list">${ITEMS.map((it, i) => {
+    const ex = open === i && !gone.has(i);
+    return `<div class="it k-${it.kind} ${gone.has(i) ? "gone" : ""}" aria-expanded="${ex}" data-open="${i}">
+      <span class="kico">${I[it.icon]}</span>
+      <div style="min-width:0">
+        <div class="line1"><span class="tt">${it.title}</span><span class="klabel">${it.label}</span><span class="meta">${it.scope} · ${it.time}</span><span class="chev">${I.r}</span></div>
+        <div class="ds">${it.desc}</div>
+        <div class="body"><div><div class="body-in">${evidence(it)}<div class="acts-row">${btns(it, i)}</div></div></div></div>
+      </div></div>`;
+  }).join("")}</div></div>`;
+}
+function renderFull() {
+  const shown = showAll ? ITEMS : ITEMS.slice(0, 3);
+  return `<div class="panel l3 full">${head(count())}<div class="list">${shown.map((it, i) => `
+    <div class="it k-${it.kind} ${gone.has(i) ? "gone" : ""}">
+      <span class="kico">${I[it.icon]}</span>
+      <div style="min-width:0">
+        <div class="line1"><span class="tt" style="white-space:normal">${it.title}</span><span class="klabel">${it.label}</span><span class="meta">${it.scope} · ${it.time}</span></div>
+        <div class="ds">${it.desc}</div>
+        ${gone.has(i) ? "" : `<div class="ev-wrap">${evidence(it)}</div><div class="foot">${btns(it, i, "sm")}</div>`}
+      </div></div>`).join("")}</div>
+    ${showAll ? "" : `<button class="more" data-more>${I.down}还有 ${ITEMS.length - 3} 条</button>`}</div>`;
+}
+function renderL3() {
+  const shown = showAll ? ITEMS : ITEMS.slice(0, 3);
+  return `<div class="panel l3">${head(count())}<div class="list">${shown.map((it, i) => `
+    <div class="it k-${it.kind} ${gone.has(i) ? "gone" : ""}">
+      <span class="kico">${I[it.icon]}</span>
+      <div style="min-width:0">
+        <div class="line1"><span class="tt" style="white-space:normal">${it.title}</span><span class="klabel">${it.label}</span><span class="meta">${it.scope} · ${it.time}</span></div>
+        <div class="ds">${it.desc}</div>
+        <div class="chips">${it.chips.map(([ic, t]) => `<button class="chip">${I[ic]}<span>${t}</span></button>`).join("")}</div>
+        ${gone.has(i) ? "" : `<div class="foot">${btns(it, i, "sm")}</div>`}
+      </div></div>`).join("")}</div>
+    ${showAll ? "" : `<button class="more" data-more>${I.down}还有 ${ITEMS.length - 3} 条</button>`}</div>`;
+}
+
+const NOTES = {
+  cur: `<h2>现状</h2><p>一次只露一条，标题行挤，结论没有证据，宽屏中间空着一大片。</p>`,
+  l1: `<h2>L1 · 紧凑列表</h2><p>一条一行：图标、标题、一行描述，行尾是类型和时间。</p>
+    <h3>操作</h3><p>悬停（或键盘聚焦）时，行尾的类型和时间原位淡出，换成操作按钮。用的是固定槽位叠放，不会把行宽顶开。</p>
+    <h3>取舍</h3><p>最省高度，5 条约 300px，扫起来最快。但描述只有一行，证据看不到，操作也要悬停才出现。</p>`,
+  l2: `<h2>L2 · 展开列表 <span class="tag">推荐</span></h2><p>默认每条两行：标题加类型和时间、一行描述。点一下展开：描述完整显示，下面出证据（问过的原话 / 两端摘录 / 矛盾双方），再下面一排操作。</p>
+    <h3>为什么推荐</h3><ul>
+    <li>收起时是干净的列表，5 条全部可见。</li>
+    <li>展开后有证据、有操作，都在同一列里往下排，不左右分栏。</li>
+    <li>第一条默认展开，打开首页就能直接动手。</li>
+    <li>处理掉的条目留在原位，划掉变淡，等下次刷新再消失，列表不跳动。</li></ul>
+    <h3>细节</h3><ul><li>一次只展开一条，点别的行就切过去。</li><li>证据每条都能点：笔记直达命中位置；对话要确认 chat 页能不能接 sessionId 参数。</li></ul>`,
+  full: `<h2>直接展开 · 完整证据</h2><p>每条都铺开：标题加类型和时间、完整描述、证据、常驻操作。默认露 3 条，「还有 N 条」展开其余。</p>
+    <h3>证据</h3><p>每行左边一道细竖线，悬停时换成类型色。问了没写列问过的原话加日期；呼应、回顾、缺一环列笔记标题加摘录；矛盾把两边的说法并排放。每行都能点，直达对话或笔记里的命中位置。</p>
+    <h3>取舍</h3><p>信息最全，不用点。代价是高度：每条约 170px，露 3 条时面板约 610px。如果嫌高，可以默认只露 2 条。</p>`,
+  l3: `<h2>直接展开 · 证据 chips</h2><p>每条都完整展示：标题、完整描述、证据 chips、常驻操作。默认露 3 条，「还有 N 条」展开其余。</p>
+    <h3>取舍</h3><p>不用点就能看到全部信息，操作也一直在。但每条约 130px，3 条就接近 400px，会把「最近编辑」推到首屏外。</p>`,
+};
+
+function render() {
+  document.getElementById("slot").innerHTML = ({ cur: renderCur, full: renderFull, l1: renderL1, l2: renderL2, l3: renderL3 })[plan]();
+  document.getElementById("notes").innerHTML = NOTES[plan];
+  document.querySelectorAll("#plan button").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === plan));
+}
+document.getElementById("plan").onclick = e => { const b = e.target.closest("button"); if (!b) return; plan = b.dataset.p; render(); };
+document.getElementById("slot").onclick = e => {
+  const d = e.target.closest("[data-dismiss]");
+  if (d) { gone.add(+d.dataset.dismiss); const next = ITEMS.findIndex((_, j) => !gone.has(j)); if (gone.has(open)) open = next; render(); return; }
+  if (e.target.closest("[data-more]")) { showAll = true; render(); return; }
+  if (e.target.closest("button")) return;
+  const o = e.target.closest("[data-open]");
+  if (o && !gone.has(+o.dataset.open) && open !== +o.dataset.open) { open = +o.dataset.open; render(); }
+};
+document.getElementById("reset").onclick = () => { gone.clear(); open = 0; showAll = false; render(); };
+document.getElementById("theme").onclick = e => {
+  const dark = document.documentElement.dataset.theme === "cocoa";
+  document.documentElement.dataset.theme = dark ? "" : "cocoa"; e.target.textContent = dark ? "深色" : "浅色";
+};
+document.getElementById("notesBtn").onclick = e => { document.body.classList.toggle("notes-on"); e.target.setAttribute("aria-pressed", document.body.classList.contains("notes-on")); fit(); };
+function fit() {
+  const w = document.getElementById("wrap"), win = document.getElementById("win");
+  win.style.transform = `scale(${Math.min(w.clientWidth / 1440, w.clientHeight / 900, 1)})`;
+}
+addEventListener("resize", fit);
+render(); fit();
+</script>
+</body>
+</html>
