@@ -15,6 +15,7 @@ export function TodoCheck({
   size = "md",
   label,
   onToggle,
+  disabled = false,
   className,
 }: {
   checked: boolean;
@@ -23,12 +24,14 @@ export function TodoCheck({
   size?: "sm" | "md" | "lg";
   label: string;
   onToggle(): void;
+  disabled?: boolean;
   className?: string;
 }) {
   return (
     <button
       type="button"
       role="checkbox"
+      disabled={disabled}
       aria-checked={checked}
       aria-label={label}
       title={label}
@@ -37,7 +40,7 @@ export function TodoCheck({
         onToggle();
       }}
       className={cn(
-        "ease-tau-out relative grid shrink-0 cursor-pointer place-items-center rounded-full border-[1.5px] outline-none transition-[background-color,border-color,color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+        "ease-tau-out relative grid shrink-0 cursor-pointer place-items-center rounded-full border-[1.5px] outline-none transition-[background-color,border-color,color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50",
         // 命中面积外扩（视觉 17px，热区 ≥ 24px）
         "after:absolute after:-inset-[5px] after:content-['']",
         size === "sm" && "size-[15px]",

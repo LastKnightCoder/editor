@@ -232,6 +232,7 @@ class CollaborationManager {
       }
     );
     this.sessions.set(info.id, session);
+    session.persistTaskChanges = () => this.store.compact(session.info.id, session.doc);
     doc.on("update", (update: Uint8Array, origin: unknown) => {
       if (origin !== "renderer-persisted") this.store.append(session.info.id, update);
       session.dirty = true;

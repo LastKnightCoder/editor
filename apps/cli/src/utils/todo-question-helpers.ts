@@ -3,11 +3,7 @@ import { getActiveDbName } from "./path.js";
 import { notifyApp } from "../data-access/notify.js";
 
 export type TodoMutationAction =
-  | "create-item"
-  | "update-item"
-  | "complete-item"
-  | "uncomplete-item"
-  | "delete-item-cascade";
+  "create-item" | "update-item" | "complete-item" | "uncomplete-item" | "delete-item-cascade";
 
 export interface TodoMutationEvent {
   source: string;
@@ -61,7 +57,7 @@ export function queryTodoGroupsWithStats(): TodoGroupStats[] {
     WHERE tg.is_archived = 0 AND tg.is_system = 0
     GROUP BY tg.id
     ORDER BY tg.sort_index ASC`,
-    now,
+    now
   );
 
   const systemGroupRows = da.query<{
@@ -70,10 +66,10 @@ export function queryTodoGroupsWithStats(): TodoGroupStats[] {
     color: string | null;
     system_type: string | null;
   }>(
-    `SELECT id, title, color, system_type FROM todo_group WHERE is_system = 1 AND is_archived = 0 ORDER BY sort_index ASC`,
+    `SELECT id, title, color, system_type FROM todo_group WHERE is_system = 1 AND is_archived = 0 ORDER BY sort_index ASC`
   );
 
-  const systemGroups: TodoGroupStats[] = systemGroupRows.map((sg) => {
+  const systemGroups: TodoGroupStats[] = systemGroupRows.map(sg => {
     let total = 0,
       pending = 0,
       overdue = 0;
@@ -88,7 +84,7 @@ export function queryTodoGroupsWithStats(): TodoGroupStats[] {
                 COALESCE(SUM(CASE WHEN is_completed = 0 THEN 1 ELSE 0 END), 0) AS pending,
                 COALESCE(SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END), 0) AS overdue
          FROM todo_item WHERE is_archived = 0`,
-        now,
+        now
       );
       if (row) {
         total = row.total;
@@ -106,7 +102,7 @@ export function queryTodoGroupsWithStats(): TodoGroupStats[] {
                 COALESCE(SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END), 0) AS overdue
          FROM todo_item WHERE is_archived = 0 AND type = ?`,
         now,
-        sg.system_type,
+        sg.system_type
       );
       if (row) {
         total = row.total;
@@ -144,16 +140,20 @@ export function deleteTodoCascade(itemId: number): void {
     }>(
       `WITH RECURSIVE desc(id, group_id, description_content_id) AS (
         SELECT id, group_id, description_content_id FROM todo_item WHERE id = ?
-        UNION ALL
+        UNION
         SELECT ti.id, ti.group_id, ti.description_content_id FROM todo_item ti JOIN desc d ON ti.parent_id = d.id
       )
       SELECT id, group_id, description_content_id FROM desc`,
-      itemId,
+      itemId
     );
-    const ids = descendants.map((d) => d.id);
+    const ids = descendants.map(d => d.id);
+    if (!ids.length) {
+      db.exec("COMMIT");
+      return;
+    }
     const groupId = descendants[0]?.group_id ?? null;
     const contentIds = descendants
-      .map((d) => d.description_content_id)
+      .map(d => d.description_content_id)
       .filter((id): id is number => id != null);
     const placeholders = ids.map(() => "?").join(",");
 
@@ -165,79 +165,83 @@ export function deleteTodoCascade(itemId: number): void {
       `SELECT ce.id, ce.detail_content_id FROM calendar_event ce
        JOIN todo_calendar_mapping tcm ON tcm.calendar_event_id = ce.id
        WHERE tcm.todo_item_id IN (${placeholders})`,
-      ...ids,
+      ...ids
     );
 
     if (calendarEvents.length > 0) {
-      const calEventIds = calendarEvents.map((e) => e.id);
-      const calContentIds = calendarEvents
-        .map((e) => e.detail_content_id)
-        .filter((id): id is number => id != null);
-
-      // Decrement ref_count for calendar event detail content
-      if (calContentIds.length > 0) {
-        const ccp = calContentIds.map(() => "?").join(",");
-        da.exec(
-          `UPDATE contents SET ref_count = ref_count - 1 WHERE id IN (${ccp})`,
-          ...calContentIds,
-        );
-        da.exec(
-          `DELETE FROM contents WHERE id IN (${ccp}) AND ref_count <= 0`,
-          ...calContentIds,
-        );
-      }
+      const calEventIds = calendarEvents.map(e => e.id);
+      // 系统任务标记借用描述，不持有独立正文引用。
 
       const cep = calEventIds.map(() => "?").join(",");
-      da.exec(
-        `DELETE FROM calendar_event WHERE id IN (${cep})`,
-        ...calEventIds,
-      );
+      da.exec(`DELETE FROM calendar_event WHERE id IN (${cep})`, ...calEventIds);
     }
 
-    da.exec(
-      `DELETE FROM todo_calendar_mapping WHERE todo_item_id IN (${placeholders})`,
+    da.exec(`DELETE FROM todo_calendar_mapping WHERE todo_item_id IN (${placeholders})`, ...ids);
+    const schedules = da.query<{ id: number; detail_content_id: number | null }>(
+      `SELECT id,detail_content_id FROM calendar_event WHERE todo_item_id IN (${placeholders}) AND start_date+COALESCE(start_time,0)*60000>?`,
       ...ids,
+      Date.now()
+    );
+    for (const event of schedules) {
+      if (event.detail_content_id) contentIds.push(event.detail_content_id);
+      da.exec("DELETE FROM todo_schedule_occurrence WHERE calendar_event_id=?", event.id);
+      da.exec("DELETE FROM calendar_event WHERE id=?", event.id);
+    }
+    da.exec(
+      `DELETE FROM todo_schedule_occurrence WHERE calendar_event_id IN (SELECT id FROM calendar_event WHERE todo_item_id IN (${placeholders}))`,
+      ...ids
     );
     da.exec(
-      `DELETE FROM todo_note_link WHERE todo_id IN (${placeholders})`,
-      ...ids,
+      `UPDATE calendar_event SET todo_item_id=NULL WHERE todo_item_id IN (${placeholders})`,
+      ...ids
     );
+    const notes = da.query<{ content_id: number }>(
+      `SELECT content_id FROM todo_note_link WHERE todo_id IN (${placeholders})`,
+      ...ids
+    );
+    contentIds.push(...notes.map(note => note.content_id));
+    da.exec(`DELETE FROM todo_note_link WHERE todo_id IN (${placeholders})`, ...ids);
 
     // Clean up recurrence completions before deleting recurrences
     const recurrenceIds = da
       .query<{
         id: number;
-      }>(
-        `SELECT id FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`,
-        ...ids,
-      )
-      .map((r) => r.id);
+      }>(`SELECT id FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`, ...ids)
+      .map(r => r.id);
 
     if (recurrenceIds.length > 0) {
       const rp = recurrenceIds.map(() => "?").join(",");
       da.exec(
         `DELETE FROM todo_recurrence_completion WHERE recurrence_id IN (${rp})`,
-        ...recurrenceIds,
+        ...recurrenceIds
       );
     }
 
-    da.exec(
-      `DELETE FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`,
-      ...ids,
-    );
+    da.exec(`DELETE FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`, ...ids);
     da.exec(`DELETE FROM todo_item WHERE id IN (${placeholders})`, ...ids);
+    da.exec(`DELETE FROM todo_recurrence_history WHERE todo_item_id IN (${placeholders})`, ...ids);
+    da.exec(`DELETE FROM todo_occurrence_override WHERE todo_item_id IN (${placeholders})`, ...ids);
 
     // Decrement ref_count for description content
     if (contentIds.length > 0) {
-      const cp = contentIds.map(() => "?").join(",");
-      da.exec(
-        `UPDATE contents SET ref_count = ref_count - 1 WHERE id IN (${cp})`,
-        ...contentIds,
-      );
-      da.exec(
-        `DELETE FROM contents WHERE id IN (${cp}) AND ref_count <= 0`,
-        ...contentIds,
-      );
+      for (const contentId of contentIds) {
+        da.exec("UPDATE contents SET ref_count=ref_count-1 WHERE id=?", contentId);
+        const row = da.queryOne<{ ref_count: number }>(
+          "SELECT ref_count FROM contents WHERE id=?",
+          contentId
+        );
+        if (row && row.ref_count <= 0) {
+          if (da.queryOne("SELECT 1 FROM collaboration_bindings WHERE content_id=?", contentId))
+            throw new Error("共享正文不能由待办删除路径释放");
+          da.exec(
+            "DELETE FROM content_links WHERE content_id=? OR target_content_id=?",
+            contentId,
+            contentId
+          );
+          da.exec("DELETE FROM doc_task_settings WHERE content_id=?", contentId);
+          da.exec("DELETE FROM contents WHERE id=?", contentId);
+        }
+      }
     }
 
     db.exec("COMMIT");
@@ -284,7 +288,7 @@ export function fetchAnswerContents(answerIds: number[]): AnswerContent[] {
   const placeholders = answerIds.map(() => "?").join(",");
   const rows = da.query<AnswerContent>(
     `SELECT id, content, create_time, update_time FROM contents WHERE id IN (${placeholders})`,
-    ...answerIds,
+    ...answerIds
   );
   const orderMap = new Map(answerIds.map((id, i) => [id, i]));
   rows.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));

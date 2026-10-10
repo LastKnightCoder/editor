@@ -1,7 +1,56 @@
 import Database from "better-sqlite3";
+import TodoRecurrenceTable from "./todo-recurrence";
 import { TodoRecurrenceCompletion } from "@/types";
 
 export default class TodoRecurrenceCompletionTable {
+  private static originalDate(
+    db: Database.Database,
+    params: { recurrenceId: number; scheduledDate: number; originalOccurrence?: boolean }
+  ) {
+    if (params.originalOccurrence) return params;
+    const day = new Date(params.scheduledDate);
+    day.setHours(0, 0, 0, 0);
+    const rows = db
+      .prepare(
+        `SELECT occurrence_date,state_json FROM todo_occurrence_override
+      WHERE todo_item_id IN (SELECT todo_item_id FROM todo_recurrence WHERE id=?)`
+      )
+      .all(params.recurrenceId) as Array<{ occurrence_date: string; state_json: string }>;
+    const matches = rows.filter(row => {
+      const state = JSON.parse(row.state_json) as { scheduledAt?: string };
+      if (!state.scheduledAt) return false;
+      const date = new Date(
+        state.scheduledAt.length === 10 ? `${state.scheduledAt}T00:00:00` : state.scheduledAt
+      );
+      date.setHours(0, 0, 0, 0);
+      return date.getTime() === day.getTime();
+    });
+    const rule = matches.length
+      ? TodoRecurrenceTable.getRecurrence(db, { id: params.recurrenceId })
+      : null;
+    if (
+      matches.length > 1 ||
+      (rule &&
+        TodoRecurrenceTable.getOccurrencesInRange(rule, day.getTime(), day.getTime()).length > 1)
+    )
+      throw new Error("OCCURRENCE_AMBIGUOUS: 当天有多个改期实例，请在助理中指定原始实例");
+    return matches.length
+      ? { ...params, scheduledDate: new Date(`${matches[0].occurrence_date}T00:00:00`).getTime() }
+      : params;
+  }
+  private static syncOverride(
+    db: Database.Database,
+    params: { recurrenceId: number; scheduledDate: number },
+    completedAt: number | null,
+    skipped: boolean
+  ) {
+    const day = new Date(params.scheduledDate);
+    const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    db.prepare(
+      `UPDATE todo_occurrence_override SET state_json=json_set(state_json,'$.completedAt',?,'$.skipped',json(?)),update_time=?
+      WHERE todo_item_id IN (SELECT todo_item_id FROM todo_recurrence WHERE id=?) AND occurrence_date=?`
+    ).run(completedAt, JSON.stringify(skipped), Date.now(), params.recurrenceId, date);
+  }
   static getListenEvents() {
     return {
       "todo:get-recurrence-completions": this.getCompletions.bind(this),
@@ -99,9 +148,11 @@ export default class TodoRecurrenceCompletionTable {
   // 标记周期任务为已完成
   static completeRecurrence(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number }
+    params: { recurrenceId: number; scheduledDate: number; originalOccurrence?: boolean }
   ): TodoRecurrenceCompletion {
+    params = this.originalDate(db, params);
     const now = Date.now();
+    this.syncOverride(db, params, now, false);
 
     // 使用 upsert 逻辑
     const existing = this.getCompletion(db, params);
@@ -124,8 +175,10 @@ export default class TodoRecurrenceCompletionTable {
   // 取消周期任务的完成状态
   static uncompleteRecurrence(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number }
+    params: { recurrenceId: number; scheduledDate: number; originalOccurrence?: boolean }
   ): number {
+    params = this.originalDate(db, params);
+    this.syncOverride(db, params, null, false);
     const res = db
       .prepare(
         `DELETE FROM todo_recurrence_completion WHERE recurrence_id = ? AND scheduled_date = ?`
@@ -137,9 +190,11 @@ export default class TodoRecurrenceCompletionTable {
   // 跳过周期任务
   static skipRecurrence(
     db: Database.Database,
-    params: { recurrenceId: number; scheduledDate: number }
+    params: { recurrenceId: number; scheduledDate: number; originalOccurrence?: boolean }
   ): TodoRecurrenceCompletion {
+    params = this.originalDate(db, params);
     const now = Date.now();
+    this.syncOverride(db, params, null, true);
 
     // 使用 upsert 逻辑
     const existing = this.getCompletion(db, params);

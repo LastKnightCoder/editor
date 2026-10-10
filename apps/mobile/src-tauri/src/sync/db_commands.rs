@@ -12,7 +12,7 @@ use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
 use super::context::{build_sync_context, SyncProvider};
 use super::error::AppError;
-const SYNC_MODEL_VERSION: u64 = 4;
+const SYNC_MODEL_VERSION: u64 = 5;
 
 async fn read_remote_info(
     provider: &SyncProvider,

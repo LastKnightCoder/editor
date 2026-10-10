@@ -32,10 +32,17 @@ const TodoRowCard = ({ item, onToggleComplete }: TodoRowCardProps) => {
       <TodoCheck
         className="mt-[2px]"
         checked={item.isCompleted}
+        disabled={!onToggleComplete}
         recurring={item.type === "recurring"}
         overdue={overdueStatus}
-        label={item.isCompleted ? "标记为未完成" : "标记为已完成"}
-        onToggle={() => void onToggleComplete(item)}
+        label={
+          !onToggleComplete
+            ? `历史状态：${item.isCompleted ? "已完成" : "未完成"}`
+            : item.isCompleted
+              ? "标记为未完成"
+              : "标记为已完成"
+        }
+        onToggle={() => void onToggleComplete?.(item)}
       />
 
       <div className="min-w-0 flex-1">

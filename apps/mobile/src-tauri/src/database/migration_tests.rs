@@ -123,7 +123,7 @@ fn v4_database_migrates_flashcards_to_fsrs_columns() {
 
     assert_eq!(
         get_meta(&conn, "main_schema_version").unwrap().as_deref(),
-        Some("6")
+        Some(MAIN_SCHEMA_VERSION.to_string()).as_deref()
     );
     // 旧调度列退役，新记忆状态列就位；已学卡按 SM-2 公式回填（0.9 保留率下稳定性=旧间隔天数）
     let (stability, difficulty): (Option<f64>, Option<f64>) = conn
@@ -212,7 +212,7 @@ fn v5_database_migrates_card_links_to_content_links() {
 
     assert_eq!(
         get_meta(&conn, "main_schema_version").unwrap().as_deref(),
-        Some("6")
+        Some(MAIN_SCHEMA_VERSION.to_string()).as_deref()
     );
     // 双边冗余写收敛为无向边单行（规范化小正文 id 在前）：1↔2、1↔3；悬空目标（卡 99）丢弃
     let edges: Vec<(i64, i64)> = conn

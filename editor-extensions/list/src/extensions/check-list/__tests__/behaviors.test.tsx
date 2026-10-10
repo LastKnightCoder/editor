@@ -352,4 +352,25 @@ describe("check-list-item taskId", () => {
     expect(new Set(ids).size).toBe(ids.length);
     await done();
   });
+  it("跨正文粘贴也分配新身份并清除原实例历史", async () => {
+    const { editor, done } = await mount([createParagraph("")]);
+    await selectTextStart(editor, [0, 0]);
+    await act(async () =>
+      editor.insertFragment([
+        createCheckList([
+          {
+            ...createCheckListItem("跨正文副本"),
+            taskId: "other-document-task",
+            taskOccurrenceState: { "series/2026-10-10": { completedAt: 42 } },
+            taskCompletedAt: 42,
+          },
+        ]),
+      ])
+    );
+    expect(collectTaskIds(editor.children)).toHaveLength(1);
+    expect(collectTaskIds(editor.children)).not.toContain("other-document-task");
+    expect(JSON.stringify(editor.children)).toContain('"taskOccurrenceState":{}');
+    expect(JSON.stringify(editor.children)).not.toContain('"completedAt":42');
+    await done();
+  });
 });

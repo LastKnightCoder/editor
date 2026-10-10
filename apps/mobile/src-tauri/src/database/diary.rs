@@ -271,10 +271,15 @@ fn insert_content(
         .map_err(|e| format_db_error("DIARY_CONTENT_INVALID", "serialize content", e))?;
     tx.execute(
         "
-        INSERT INTO contents (create_time, update_time, content, count, ref_count)
-        VALUES (?1, ?1, ?2, ?3, 1)
+        INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
+        VALUES (?4, ?1, ?1, ?2, ?3, 1)
         ",
-        params![now, serialized, count.max(0)],
+        params![
+            now,
+            serialized,
+            count.max(0),
+            super::assistant_tasks::next_id(tx, "contents")?
+        ],
     )
     .map_err(|e| format_db_error("DIARY_CONTENT_CREATE_FAILED", "insert content", e))?;
     Ok(tx.last_insert_rowid())
@@ -304,6 +309,7 @@ fn decrement_or_delete_content(
         .optional()
         .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "query ref_count", e))?;
     if matches!(ref_count, Some(v) if v <= 0) {
+        super::assistant_tasks::reconcile_document_links(tx, id, None)?;
         // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
         super::collaboration::assert_content_local(tx, id)?;
         // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
@@ -586,6 +592,7 @@ fn upsert_entry(
         if changed == 0 {
             return Err("DIARY_CONTENT_NOT_FOUND: 日记内容不存在".into());
         }
+        super::assistant_tasks::reconcile_document_links(&tx, content_id, Some(&content))?;
         tx.execute(
             "UPDATE diary_segments SET update_time=?1 WHERE content_id=?2",
             params![now, content_id],

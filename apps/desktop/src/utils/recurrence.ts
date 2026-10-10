@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import { TodoRecurrence } from "@/types";
+import { taskOccurrencesInRange } from "@tau/shared/task-assistant";
 
 /**
  * Check if a specific date is scheduled for a recurrence pattern
@@ -8,6 +9,13 @@ export const isDateScheduledForRecurrence = (
   recurrence: TodoRecurrence,
   day: dayjs.Dayjs
 ): boolean => {
+  if (recurrence.segments?.length)
+    return taskOccurrencesInRange(
+      recurrence.segments,
+      recurrence.occurrenceState ?? {},
+      day.format("YYYY-MM-DD"),
+      day.format("YYYY-MM-DD")
+    ).some(entry => !entry.state.skipped);
   const date = day.startOf("day");
   const start = dayjs(recurrence.startDate).startOf("day");
   const end = recurrence.endDate ? dayjs(recurrence.endDate).startOf("day") : null;

@@ -130,3 +130,13 @@ CREATE TABLE IF NOT EXISTS doc_task_sources (
         content_id INTEGER PRIMARY KEY,
         update_time INTEGER NOT NULL
       );
+
+CREATE TABLE IF NOT EXISTS doc_task_attributes (
+        content_id INTEGER NOT NULL,
+        task_id TEXT NOT NULL,
+        attributes_json TEXT NOT NULL,
+        archived INTEGER NOT NULL DEFAULT 0,
+        recurring INTEGER NOT NULL DEFAULT 0,
+        reminder_at TEXT,
+        PRIMARY KEY(content_id, task_id)
+      );

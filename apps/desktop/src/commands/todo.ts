@@ -187,16 +187,26 @@ export const getRecurrenceCompletion = async (
 
 export const completeRecurrence = async (
   recurrenceId: number,
-  scheduledDate: number
+  scheduledDate: number,
+  originalOccurrence = false
 ): Promise<TodoRecurrenceCompletion> => {
-  return invoke("todo:complete-recurrence", { recurrenceId, scheduledDate });
+  return invoke("todo:complete-recurrence", {
+    recurrenceId,
+    scheduledDate,
+    ...(originalOccurrence ? { originalOccurrence: true } : {}),
+  });
 };
 
 export const uncompleteRecurrence = async (
   recurrenceId: number,
-  scheduledDate: number
+  scheduledDate: number,
+  originalOccurrence = false
 ): Promise<number> => {
-  return invoke("todo:uncomplete-recurrence", { recurrenceId, scheduledDate });
+  return invoke("todo:uncomplete-recurrence", {
+    recurrenceId,
+    scheduledDate,
+    ...(originalOccurrence ? { originalOccurrence: true } : {}),
+  });
 };
 
 export const skipRecurrence = async (
@@ -335,7 +345,8 @@ export const cleanupOrphanedCalendarEvents = async (): Promise<number> => {
 // ==================== Reminders ====================
 
 export interface PendingReminder {
-  todoItem: TodoItem;
+  todoItem: TodoItem | null;
+  taskRef?: import("@tau/shared/task-assistant").TaskRef;
   recurrenceDate?: number;
   remindAt: number;
 }

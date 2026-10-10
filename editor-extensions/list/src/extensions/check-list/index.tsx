@@ -9,6 +9,7 @@ import CheckListItem from "./components/CheckListItem";
 import { checkListBehaviors, checkListItemBehaviors } from "./behaviors";
 import { checkListCommands, checkListHotkeys } from "./commands";
 import blockPanelItems from "./block-panel-items";
+import { withTaskFragmentIdentity } from "./withTaskFragmentIdentity";
 
 /** 勾选列表容器：子项（勾选项）参与拖拽，容器自身不拖 */
 export const checkListExtension = defineExtension({
@@ -39,6 +40,7 @@ export const checkListExtension = defineExtension({
  */
 export const checkListItemExtension = defineExtension({
   id: "tau.check-list-item",
+  plugins: [withTaskFragmentIdentity],
   elements: [
     defineElement<CheckListItemElement>({
       type: "check-list-item",

@@ -231,6 +231,103 @@ fn generate_occurrences_in_window(
     results
 }
 
+pub(crate) fn assistant_occurrences(
+    tx: &Transaction<'_>,
+    todo_id: i64,
+    start: i64,
+    end: i64,
+    zone: CalendarTimeZone,
+    holidays: &HolidayDays,
+) -> Result<Option<std::collections::BTreeMap<i64, i64>>, String> {
+    let metadata = super::assistant_tasks::recurrence_state(tx, todo_id)?;
+    let Some(segments) = metadata["segments"]
+        .as_array()
+        .filter(|values| !values.is_empty())
+    else {
+        return Ok(None);
+    };
+    let date_index = |value: &str| -> Result<i64, String> {
+        let date =
+            chrono::NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|e| e.to_string())?;
+        Ok(date
+            .signed_duration_since(chrono::NaiveDate::from_ymd_opt(1970, 1, 1).unwrap())
+            .num_days())
+    };
+    let mut result = std::collections::BTreeMap::new();
+    for (index, segment) in segments.iter().enumerate() {
+        let rule = &segment["rule"];
+        if rule.is_null() {
+            continue;
+        }
+        let series = segment["seriesId"].as_str().ok_or("周期身份缺失")?;
+        let effective = date_index(segment["effectiveDate"].as_str().ok_or("周期日期缺失")?)?;
+        let next = segments
+            .get(index + 1)
+            .and_then(|value| value["effectiveDate"].as_str())
+            .map(date_index)
+            .transpose()?;
+        let recurrence = RecurrenceRow {
+            item_type: rule["type"].as_str().ok_or("周期类型缺失")?.to_string(),
+            interval: rule["interval"].as_i64().unwrap_or(1),
+            weekdays: rule["weekdays"]
+                .as_array()
+                .map(|values| values.iter().filter_map(Value::as_i64).collect()),
+            month_day: rule["monthDay"].as_i64(),
+            year_month: rule["yearMonth"].as_i64(),
+            year_day: rule["yearDay"].as_i64(),
+            start_date: zone.day_start(date_index(
+                rule["startDate"].as_str().ok_or("周期起始日期缺失")?,
+            )?),
+            end_date: rule["endDate"]
+                .as_str()
+                .map(date_index)
+                .transpose()?
+                .map(|day| zone.day_start(day)),
+            max_occurrences: rule["maxOccurrences"].as_i64(),
+            exclude_holidays: rule["excludeHolidays"].as_bool().unwrap_or(false),
+        };
+        let mut candidates: std::collections::BTreeSet<i64> =
+            generate_occurrences_in_window(&recurrence, start, end, zone, holidays)
+                .into_iter()
+                .collect();
+        if let Some(states) = metadata["occurrenceState"].as_object() {
+            for key in states.keys() {
+                if let Some(day) = key.strip_prefix(&format!("{series}/")) {
+                    candidates.insert(date_index(day)?);
+                }
+            }
+        }
+        for original in candidates {
+            if original < effective || next.is_some_and(|until| original >= until) {
+                continue;
+            }
+            let (year, month, day) = civil_from_days(original);
+            let state =
+                &metadata["occurrenceState"][format!("{series}/{year:04}-{month:02}-{day:02}")];
+            if state["skipped"].as_bool().unwrap_or(false) {
+                continue;
+            }
+            let actual = if let Some(value) = state["scheduledAt"].as_str() {
+                if value.len() == 10 {
+                    date_index(value)?
+                } else {
+                    zone.day(
+                        chrono::DateTime::parse_from_rfc3339(value)
+                            .map_err(|e| e.to_string())?
+                            .timestamp_millis(),
+                    )
+                }
+            } else {
+                original
+            };
+            if actual >= start && actual <= end {
+                result.insert(original, actual);
+            }
+        }
+    }
+    Ok(Some(result))
+}
+
 fn load_todo_row(tx: &Transaction<'_>, todo_id: i64) -> Result<Option<TodoRow>, String> {
     tx.query_row(
         "
@@ -408,8 +505,8 @@ fn create_calendar_event(tx: &Transaction<'_>, data: &CalendarEventData) -> Resu
     tx.execute(
         "
         INSERT INTO calendar_event
-        (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
-        VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9)
+        (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+        VALUES (?10, ?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9)
         ",
         params![
             now,
@@ -420,7 +517,8 @@ fn create_calendar_event(tx: &Transaction<'_>, data: &CalendarEventData) -> Resu
             data.end_date,
             data.start_time,
             data.end_time,
-            if data.all_day { 1 } else { 0 }
+            if data.all_day { 1 } else { 0 },
+            super::assistant_tasks::next_id(tx,"calendar_event")?
         ],
     )
     .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to create calendar event: {e}"))?;
@@ -558,21 +656,16 @@ pub fn rematerialize_recurring_item(
     let today_index = wall_day_index(now_millis(), zone);
     let window_start_index = today_index - WINDOW_BEFORE_DAYS;
     let window_end_index = today_index + WINDOW_AFTER_DAYS;
-    let occurrences = generate_occurrences_in_window(
-        &recurrence,
-        window_start_index,
-        window_end_index,
+    sync_recurring_tasks_with_calendars(
+        tx,
+        todo_item_id,
+        &calendars,
+        zone.day_start(window_start_index),
+        zone.day_start(window_end_index),
         zone,
         &HolidayDays::new(),
-    );
-
-    for day_index in occurrences {
-        let occurrence = day_index_start(day_index, zone);
-        let event_data = build_event_for_recurring(&todo, &calendars, occurrence);
-        let event_id = create_calendar_event(tx, &event_data)?;
-        create_mapping(tx, todo_item_id, event_id, "recurring", Some(occurrence))?;
-    }
-    Ok(())
+    )
+    .map(|_| ())
 }
 
 // 对齐桌面 syncTodoItem 的 upsert 语义 + 范围物化编排：
@@ -622,13 +715,25 @@ pub(crate) fn sync_recurring_tasks_with_calendars(
     let zone = time_zone;
     let range_start_day = wall_day_index(range_start, zone);
     let range_end_day = wall_day_index(range_end, zone);
-    let expected =
-        generate_occurrences_in_window(&recurrence, range_start_day, range_end_day, zone, holidays);
+    let expected = assistant_occurrences(
+        tx,
+        todo_item_id,
+        range_start_day,
+        range_end_day,
+        zone,
+        holidays,
+    )?
+    .unwrap_or_else(|| {
+        generate_occurrences_in_window(&recurrence, range_start_day, range_end_day, zone, holidays)
+            .into_iter()
+            .map(|day| (day, day))
+            .collect()
+    });
 
     let mut stmt = tx
         .prepare(
             "
-            SELECT m.id, m.calendar_event_id, e.start_date, e.title, e.calendar_id, e.all_day, e.detail_content_id
+            SELECT m.id, m.calendar_event_id, e.start_date, e.title, e.calendar_id, e.all_day, e.detail_content_id, m.recurrence_date
             FROM todo_calendar_mapping m
             JOIN calendar_event e ON e.id = m.calendar_event_id
             WHERE m.todo_item_id = ?1 AND m.sync_type = 'recurring'
@@ -647,6 +752,7 @@ pub(crate) fn sync_recurring_tasks_with_calendars(
                 row.get::<_, i64>(4)?,
                 row.get::<_, i64>(5)?,
                 row.get::<_, i64>(6)?,
+                row.get::<_, Option<i64>>(7)?,
             ))
         })
         .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to query range sync: {e}"))?;
@@ -654,15 +760,24 @@ pub(crate) fn sync_recurring_tasks_with_calendars(
     let mut kept_by_day = std::collections::HashMap::new();
     let mut stale: Vec<(i64, i64)> = Vec::new();
     for row in rows {
-        let (mapping_id, event_id, start_date, title, calendar_id, all_day, detail_content_id) =
-            row.map_err(|e| {
-                format!("TODO_CALENDAR_SYNC_FAILED: Failed to parse range sync row: {e}")
-            })?;
+        let (
+            mapping_id,
+            event_id,
+            start_date,
+            title,
+            calendar_id,
+            all_day,
+            detail_content_id,
+            recurrence_date,
+        ) = row.map_err(|e| {
+            format!("TODO_CALENDAR_SYNC_FAILED: Failed to parse range sync row: {e}")
+        })?;
         let day = wall_day_index(start_date, zone);
-        if day < range_start_day || day > range_end_day {
+        let original = wall_day_index(recurrence_date.unwrap_or(start_date), zone);
+        if (day < range_start_day || day > range_end_day) && !expected.contains_key(&original) {
             continue;
         }
-        let matches = expected.contains(&day)
+        let matches = expected.get(&original)==Some(&day)
             && start_date == day_index_start(day, zone)
             && title == todo.title
             && calendar_id == calendars.recurring
@@ -670,8 +785,8 @@ pub(crate) fn sync_recurring_tasks_with_calendars(
             // 描述引用变了也要重建（否则窗口外留存事件指向已删除的内容，详情显示为空）
             && detail_content_id == todo.description_content_id.unwrap_or(0);
         // 同日既有重复 mapping（历史脏数据）只保留一条，其余进 stale 收敛
-        if matches && !kept_by_day.contains_key(&day) {
-            kept_by_day.insert(day, event_id);
+        if matches && !kept_by_day.contains_key(&original) {
+            kept_by_day.insert(original, event_id);
         } else {
             stale.push((mapping_id, event_id));
         }
@@ -688,15 +803,21 @@ pub(crate) fn sync_recurring_tasks_with_calendars(
     }
 
     let mut event_ids_by_day: Vec<(i64, i64)> = Vec::with_capacity(expected.len());
-    for day in expected {
-        if let Some(&event_id) = kept_by_day.get(&day) {
+    for (original, day) in expected {
+        if let Some(&event_id) = kept_by_day.get(&original) {
             event_ids_by_day.push((day, event_id));
             continue;
         }
         let occurrence = day_index_start(day, zone);
         let event_data = build_event_for_recurring(&todo, &calendars, occurrence);
         let event_id = create_calendar_event(tx, &event_data)?;
-        create_mapping(tx, todo_item_id, event_id, "recurring", Some(occurrence))?;
+        create_mapping(
+            tx,
+            todo_item_id,
+            event_id,
+            "recurring",
+            Some(day_index_start(original, zone)),
+        )?;
         event_ids_by_day.push((day, event_id));
     }
     event_ids_by_day.sort_by_key(|(day, _)| *day);
@@ -777,7 +898,7 @@ mod tests {
             CREATE TABLE todo_item (
                 id INTEGER PRIMARY KEY, title TEXT, type TEXT,
                 description_content_id INTEGER, start_at INTEGER, due_at INTEGER,
-                is_archived INTEGER DEFAULT 0
+                is_archived INTEGER DEFAULT 0, create_time INTEGER DEFAULT 0
             );
             CREATE TABLE todo_recurrence (
                 id INTEGER PRIMARY KEY, todo_item_id INTEGER NOT NULL,
@@ -792,6 +913,11 @@ mod tests {
             );
         ",
             )
+            .unwrap();
+        connection
+            .execute_batch(include_str!(
+                "../../../../../packages/db-schema/schema/main/51_task_assistant.sql"
+            ))
             .unwrap();
         connection
     }
@@ -812,6 +938,53 @@ mod tests {
             )
             .unwrap();
         1
+    }
+
+    #[test]
+    fn assistant_reschedule_keeps_original_occurrence_identity() {
+        use chrono::TimeZone;
+        let mut connection = database();
+        let start = TZ_UTC8
+            .0
+            .with_ymd_and_hms(2026, 10, 10, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        insert_daily_recurring_todo(&connection, start);
+        connection
+            .execute(
+                "INSERT INTO todo_recurrence_history VALUES('series',1,0,'2026-10-10',?1,1)",
+                [
+                    serde_json::json!({"type":"daily","interval":1,"startDate":"2026-10-10"})
+                        .to_string(),
+                ],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO todo_occurrence_override VALUES(1,0,'series','2026-10-10',?1,1)",
+                [serde_json::json!({"scheduledAt":"2026-10-12"}).to_string()],
+            )
+            .unwrap();
+        let tx = connection.transaction().unwrap();
+        let day = TZ_UTC8
+            .0
+            .with_ymd_and_hms(2026, 10, 12, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let ids = sync_recurring_tasks_for_range(&tx, 1, day, day, TZ_UTC8).unwrap();
+        assert_eq!(ids.len(), 2);
+        let original: i64 = tx
+            .query_row(
+                "SELECT MIN(recurrence_date) FROM todo_calendar_mapping",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(original, start);
+        assert_eq!(
+            sync_recurring_tasks_for_range(&tx, 1, day, day, TZ_UTC8).unwrap(),
+            ids
+        );
     }
 
     #[test]

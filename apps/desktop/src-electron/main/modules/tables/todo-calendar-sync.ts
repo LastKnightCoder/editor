@@ -7,6 +7,8 @@ import TodoCalendarMappingTable from "./todo-calendar-mapping";
 import TodoRecurrenceTable from "./todo-recurrence";
 import { CreateCalendarEvent } from "@/types/calendar";
 import holidayServiceModule from "../holiday-service";
+import { taskOccurrencesInRange } from "@tau/shared/task-assistant";
+import { dateTime, localDate } from "../task-assistant/common";
 
 // 待办清单日历配置
 const TODO_CALENDAR_GROUP_NAME = "待办清单";
@@ -169,13 +171,15 @@ export default class TodoCalendarSyncTable {
 
     if (existingMapping) {
       // 更新现有事件
-      try {
+      if (
+        db.prepare("SELECT id FROM calendar_event WHERE id=?").get(existingMapping.calendarEventId)
+      ) {
         CalendarEventTable.updateEvent(db, {
           id: existingMapping.calendarEventId,
           ...eventData,
         });
         eventId = existingMapping.calendarEventId;
-      } catch (e) {
+      } else {
         // 如果事件不存在，创建新的
         const newEvent = CalendarEventTable.createEvent(db, eventData);
         eventId = newEvent.id;
@@ -280,11 +284,8 @@ export default class TodoCalendarSyncTable {
       });
 
       if (mapping) {
-        try {
-          CalendarEventTable.deleteEvent(db, mapping.calendarEventId);
-        } catch (e) {
-          // 事件可能已经被删除
-        }
+        // 系统标记没有独立正文引用，不经用户日程的正文释放路径。
+        db.prepare("DELETE FROM calendar_event WHERE id=?").run(mapping.calendarEventId);
         return TodoCalendarMappingTable.deleteMapping(db, { id: mapping.id });
       }
       return 0;
@@ -296,11 +297,7 @@ export default class TodoCalendarSyncTable {
     });
 
     for (const mapping of mappings) {
-      try {
-        CalendarEventTable.deleteEvent(db, mapping.calendarEventId);
-      } catch (e) {
-        // 事件可能已经被删除
-      }
+      db.prepare("DELETE FROM calendar_event WHERE id=?").run(mapping.calendarEventId);
     }
 
     return TodoCalendarMappingTable.deleteMappingsByTodoId(db, { todoItemId });
@@ -386,7 +383,7 @@ export default class TodoCalendarSyncTable {
     }
 
     // 计算日期范围内的所有周期日期
-    const occurrences = TodoRecurrenceTable.getOccurrencesInRange(
+    const dates = TodoRecurrenceTable.getOccurrencesInRange(
       recurrence,
       startDate,
       endDate,
@@ -395,13 +392,32 @@ export default class TodoCalendarSyncTable {
 
     const eventIds: number[] = [];
 
-    // 为每个周期日期同步事件
-    for (const occurrence of occurrences) {
+    const instances = recurrence.segments?.length
+      ? taskOccurrencesInRange(
+          recurrence.segments,
+          recurrence.occurrenceState ?? {},
+          localDate(startDate),
+          localDate(endDate),
+          holidays
+        ).filter(entry => !entry.state.skipped)
+      : dates.map(day => ({
+          occurrence: { occurrenceDate: localDate(day) },
+          scheduledAt: localDate(day),
+          state: {},
+        }));
+    // 来源映射保留原始日期，改期只改变标记展示位置。
+    for (const instance of instances) {
       const eventId = this.syncTodoItem(db, {
         todoItem: parsedItem,
-        recurrenceDate: occurrence,
+        recurrenceDate: dateTime(instance.occurrence.occurrenceDate),
       });
       if (eventId) {
+        if (instance.scheduledAt.slice(0, 10) !== instance.occurrence.occurrenceDate) {
+          const date = dateTime(localDate(dateTime(instance.scheduledAt)));
+          db.prepare(
+            "UPDATE calendar_event SET start_date=?,end_date=?,update_time=? WHERE id=?"
+          ).run(date, date, Date.now(), eventId);
+        }
         eventIds.push(eventId);
       }
     }

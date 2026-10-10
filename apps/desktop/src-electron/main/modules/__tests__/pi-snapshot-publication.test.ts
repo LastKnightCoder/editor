@@ -4,6 +4,7 @@ import {
   assertCompatibleSync,
   readSnapshotHead,
   successorObject,
+  SYNC_MODEL_VERSION,
   type SnapshotPublicationProvider,
 } from "@tau/db-schema/sync-protocol";
 
@@ -33,7 +34,7 @@ const snapshot = (id: string, parent = 1) => ({
   version: parent + 1,
   parentVersion: parent,
   commitId: id,
-  dataModelVersion: 4,
+  dataModelVersion: SYNC_MODEL_VERSION,
   databaseObject: `${id}.db`,
   sessionsObject: `${id}.zip`,
 });
@@ -95,7 +96,7 @@ it("旧协议元信息可衔接升级，旧指针也能发现新提交", async (
   expect(() => assertCompatibleSync(next)).not.toThrow();
 });
 
-it.each([undefined, 0, 1, 2, 3, 5, "4", -1, 4.5])(
+it.each([undefined, 0, 1, 2, 3, 4, SYNC_MODEL_VERSION + 1, "5", -1, 4.5])(
   "下载和发布拒绝非当前协议 %s",
   async dataModelVersion => {
     const { provider } = backend();
@@ -107,8 +108,11 @@ it.each([undefined, 0, 1, 2, 3, 5, "4", -1, 4.5])(
   }
 );
 
-it.each([5, "3", -1, 3.5])("元信息读取拒绝未来或无效协议 %s", async dataModelVersion => {
-  const { files, provider } = backend();
-  files.set("head", encode({ ...snapshot("bad"), dataModelVersion }));
-  await expect(readSnapshotHead(provider, "head")).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
-});
+it.each([SYNC_MODEL_VERSION + 1, "3", -1, 3.5])(
+  "元信息读取拒绝未来或无效协议 %s",
+  async dataModelVersion => {
+    const { files, provider } = backend();
+    files.set("head", encode({ ...snapshot("bad"), dataModelVersion }));
+    await expect(readSnapshotHead(provider, "head")).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+  }
+);

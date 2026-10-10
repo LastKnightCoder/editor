@@ -21,6 +21,8 @@ import {
 } from "@/entity/doc-tasks";
 import { minimalTextEdit } from "@/entity/text-edits";
 import ContentTable from "../tables/content";
+import type { TaskContentNode } from "../content-task-patches";
+import { documentTaskIsChecked } from "@tau/shared/task-assistant";
 import { listTaskGroups, rememberGroupNames, rewriteGroupAliases } from "./group-names";
 export { listTaskGroups } from "./group-names";
 
@@ -226,6 +228,8 @@ export function reindexDocTasks(
 
   const storedOf = indexDb.prepare(`SELECT * FROM doc_tasks WHERE content_id = ?`);
   const deleteTasks = indexDb.prepare(`DELETE FROM doc_tasks WHERE content_id = ?`);
+  const deleteAttributes = indexDb.prepare(`DELETE FROM doc_task_attributes WHERE content_id = ?`);
+  const insertAttributes = indexDb.prepare(`INSERT INTO doc_task_attributes VALUES (?,?,?,?,?,?)`);
   const deleteSource = indexDb.prepare(`DELETE FROM doc_task_sources WHERE content_id = ?`);
   const insertTask = indexDb.prepare(
     `INSERT INTO doc_tasks
@@ -244,15 +248,39 @@ export function reindexDocTasks(
     for (const id of ids) {
       const before = new Map((storedOf.all(id) as StoredTask[]).map(task => [task.task_id, task]));
       deleteTasks.run(id);
+      deleteAttributes.run(id);
       const row = rows.get(id);
       if (!row) {
         deleteSource.run(id);
         if (before.size) changed++;
         continue;
       }
-      const { tasks } = extractDocTasks(parseContent(row.content), groups, new Date(now));
+      const parsed = parseContent(row.content);
+      const tree = (Array.isArray(parsed) ? parsed : []) as TaskContentNode[];
+      const nodes = new Map<string, TaskContentNode>();
+      const collect = (node: TaskContentNode) => {
+        if (!node || typeof node !== "object") return;
+        if (typeof node.taskId === "string") nodes.set(node.taskId, node);
+        if (Array.isArray(node.children)) node.children.forEach(collect);
+      };
+      tree.forEach(collect);
+      const { tasks } = extractDocTasks(tree, groups, new Date(now));
       let differs = tasks.length !== before.size;
       for (const task of tasks) {
+        const node = nodes.get(task.taskId);
+        const attributes = Object.fromEntries(
+          Object.entries(node ?? {}).filter(([key]) => key.startsWith("task") && key !== "taskId")
+        );
+        const reminder = attributes.taskReminder as { at?: string } | undefined;
+        const recurrence = attributes.taskRecurrence as { segments?: unknown[] } | undefined;
+        insertAttributes.run(
+          id,
+          task.taskId,
+          JSON.stringify(attributes),
+          attributes.taskArchived ? 1 : 0,
+          recurrence?.segments?.length ? 1 : 0,
+          reminder?.at ?? null
+        );
         const prev = before.get(task.taskId);
         // 相对日期沿用上次的锚点，只有日期原文变化（或新出现）才以此刻为锚
         const anchor =
@@ -263,7 +291,13 @@ export function reindexDocTasks(
           task_id: task.taskId,
           title: task.title,
           text: task.text,
-          checked: task.checked ? 1 : 0,
+          checked: node
+            ? documentTaskIsChecked(node, new Date(now))
+              ? 1
+              : 0
+            : task.checked
+              ? 1
+              : 0,
           depth: task.depth,
           parent_task_id: task.parentTaskId,
           sort_index: task.order,
@@ -360,7 +394,7 @@ export function diffDocTaskSources(
     update_time: number;
   }>;
   for (const { id, update_time } of contents) {
-    if (version?.value !== "2" || indexed.get(id) !== update_time) stale.push(id);
+    if (version?.value !== "3" || indexed.get(id) !== update_time) stale.push(id);
     indexed.delete(id);
   }
   stale.push(...indexed.keys());
@@ -401,7 +435,7 @@ export async function reconcileDocTasks(
   if (!failed)
     indexDb
       .prepare(
-        `INSERT INTO index_meta (key,value,updated_at) VALUES ('doc_tasks_version','2',?)
+        `INSERT INTO index_meta (key,value,updated_at) VALUES ('doc_tasks_version','3',?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
       )
       .run(Date.now());

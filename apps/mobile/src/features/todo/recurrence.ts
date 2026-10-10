@@ -1,4 +1,5 @@
 import type { TodoRecurrence } from "../../types";
+import { taskOccurrencesInRange } from "@tau/shared/task-assistant";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -40,6 +41,16 @@ export function isDateScheduledForRecurrence(
   recurrence: TodoRecurrence,
   day: number | Date
 ): boolean {
+  if (recurrence.segments?.length) {
+    const value = new Date(day),
+      date = `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+    return taskOccurrencesInRange(
+      recurrence.segments,
+      recurrence.occurrenceState ?? {},
+      date,
+      date
+    ).some(entry => !entry.state.skipped);
+  }
   const date = startOfDayTimestamp(day);
   const startDate = startOfDayTimestamp(recurrence.startDate);
   const endDate = recurrence.endDate ? startOfDayTimestamp(recurrence.endDate) : null;

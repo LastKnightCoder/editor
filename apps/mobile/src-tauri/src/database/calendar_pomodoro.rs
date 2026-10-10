@@ -125,8 +125,8 @@ pub fn create_calendar_events_for_session(
         tx.execute(
             "
             INSERT INTO calendar_event
-            (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
-            VALUES (?1, ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, NULL, 0)
+            (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+            VALUES (?8, ?1, ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, NULL, 0)
             ",
             params![
                 now,
@@ -136,6 +136,7 @@ pub fn create_calendar_events_for_session(
                 segment.end_date,
                 segment.start_time,
                 segment.end_time,
+                crate::database::assistant_tasks::next_id(tx,"calendar_event")?,
             ],
         )
         .map_err(|e| format!("POMODORO_CALENDAR_FAILED: Failed to create session event: {e}"))?;

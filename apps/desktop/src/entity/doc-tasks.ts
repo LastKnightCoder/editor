@@ -146,7 +146,8 @@ export function groupTokenEdits(
 }
 
 /** 带年份的绝对日期（正文规范写法 `2026年10月10日`，兼容 `2026-10-10` / `2026/10/10`） */
-const ABSOLUTE_DATE = /(\d{4})(?:年|[-/.])(\d{1,2})(?:月|[-/.])(\d{1,2})[日号]?/;
+const ABSOLUTE_DATE =
+  /(\d{4})(?:年|[-/.])(\d{1,2})(?:月|[-/.])(\d{1,2})[日号]?(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|[+-]\d{2}:\d{2})?)?/;
 
 function absoluteDate(text: string): { date: number } | null {
   const m = text.match(ABSOLUTE_DATE);
@@ -155,6 +156,19 @@ function absoluteDate(text: string): { date: number } | null {
   const date = new Date(year, month - 1, day);
   // 拒绝 2 月 30 日这类会被 Date 进位的日期
   if (date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  if (m[4] !== undefined) {
+    const hour = Number(m[4]),
+      minute = Number(m[5]),
+      second = Number(m[6] ?? 0);
+    if (hour > 23 || minute > 59 || second > 59) return null;
+    if (m[8]) {
+      const value = Date.parse(
+        `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}T${m[4]}:${m[5]}:${String(second).padStart(2, "0")}${m[7] ? `.${m[7]}` : ""}${m[8]}`
+      );
+      return Number.isFinite(value) ? { date: value } : null;
+    }
+    date.setHours(hour, minute, second, Number((m[7] ?? "").padEnd(3, "0")));
+  }
   return { date: date.getTime() };
 }
 

@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
 import {
   acquireDatabaseSyncLock,
   isDatabaseSyncLocked,
@@ -120,7 +121,7 @@ function seedRemote(chat = true) {
     infoKey,
     json({
       version: 2,
-      dataModelVersion: 4,
+      dataModelVersion: SYNC_MODEL_VERSION,
       databaseObject: "snapshot.db",
       sessionsObject: "snapshot.zip",
     })
@@ -159,7 +160,7 @@ it("上传不可变配对对象，最后发布版本，旧对象保持原样", a
     `${infoKey}.next-1`,
     infoKey,
   ]);
-  expect(info).toMatchObject({ version: 2, dataModelVersion: 4 });
+  expect(info).toMatchObject({ version: 2, dataModelVersion: SYNC_MODEL_VERSION });
   expect(state.remote.get("old.db")).toEqual(Buffer.from("旧快照"));
   expect(version()).toBe(2);
   expect(isDatabaseSyncLocked(join(state.root, "data.db"))).toBe(false);
@@ -307,5 +308,8 @@ it("协议 3 可读取版本并上传新快照，但不能下载旧快照", asyn
   await expect(runSyncPull()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
   expect(marker()).toBe("local");
   await runSyncPush();
-  expect(decode(state.remote.get(infoKey)!)).toMatchObject({ version: 2, dataModelVersion: 4 });
+  expect(decode(state.remote.get(infoKey)!)).toMatchObject({
+    version: 2,
+    dataModelVersion: SYNC_MODEL_VERSION,
+  });
 });

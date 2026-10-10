@@ -28,7 +28,7 @@ function firstHolderPath(editor: Editor, taskId: string): Path | null {
 export function normalizeTaskIds(editor: Editor): boolean {
   if (ReactEditor.isReadOnly(editor)) return false;
   const seen = new Set<string>();
-  const patches: Array<{ path: Path; id: string }> = [];
+  const patches: Array<{ path: Path; id: string; resetState: boolean }> = [];
   for (const [node, path] of Editor.nodes(editor, {
     at: [],
     match: n => SlateElement.isElement(n) && n.type === "check-list-item",
@@ -38,11 +38,20 @@ export function normalizeTaskIds(editor: Editor): boolean {
     else {
       const next = createTaskId();
       seen.add(next);
-      patches.push({ path, id: next });
+      patches.push({
+        path,
+        id: next,
+        resetState: "taskOccurrenceState" in node || "taskCompletedAt" in node,
+      });
     }
   }
   Editor.withoutNormalizing(editor, () => {
-    for (const { path, id } of patches) Transforms.setNodes(editor, { taskId: id }, { at: path });
+    for (const { path, id, resetState } of patches)
+      Transforms.setNodes(
+        editor,
+        { taskId: id, ...(resetState ? { taskOccurrenceState: {}, taskCompletedAt: null } : {}) },
+        { at: path }
+      );
   });
   return patches.length > 0;
 }

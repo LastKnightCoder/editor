@@ -2,15 +2,20 @@ import { ipcMain, Notification, BrowserWindow } from "electron";
 import { Module } from "../types/module";
 import databaseModule from "./database";
 import log from "electron-log";
+import { assistantReminders, assistantReminderKey } from "./task-assistant/reminders";
+import { taskKey, type TaskRef, type TaskOccurrenceRef } from "@tau/shared/task-assistant";
 
 interface PendingReminder {
   todoItem: any; // TodoItem 对象
   recurrenceDate?: number; // 对于周期任务，这是具体的计划日期
   remindAt: number;
+  taskRef?: TaskRef;
 }
 
 interface InternalReminder {
-  todoId: number;
+  todoId?: number;
+  taskRef?: TaskRef;
+  occurrence?: TaskOccurrenceRef;
   title: string;
   dueAt: number;
   remindAt: number;
@@ -86,7 +91,9 @@ class TodoReminderModule implements Module {
     const pendingReminders = this.getInternalRemindersFromDb(db, now);
 
     for (const reminder of pendingReminders) {
-      const reminderId = `${reminder.todoId}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
+      const reminderId = reminder.taskRef
+        ? assistantReminderKey({ ...reminder, taskRef: reminder.taskRef })
+        : `${reminder.todoId}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
 
       // 跳过已提醒的
       if (this.remindedItems.has(reminderId)) {
@@ -146,6 +153,14 @@ class TodoReminderModule implements Module {
         }
       }
 
+      const name = databaseModule.getCurrentDatabaseName();
+      const indexDb = name ? databaseModule.getIndexDatabase(name) : undefined;
+      for (const reminder of assistantReminders(db, indexDb, now))
+        reminders.push({
+          ...reminder,
+          todoId: reminder.taskRef.kind === "todo" ? reminder.taskRef.todoId : undefined,
+          type: reminder.occurrence ? "recurring" : "deadline",
+        });
       return reminders;
     } catch (error) {
       log.error("Failed to get pending reminders:", error);
@@ -183,7 +198,7 @@ class TodoReminderModule implements Module {
     // 发送应用内提醒到渲染进程
     this.sendToRenderer("todo-reminder:show", reminder);
 
-    log.info(`Sent reminder for todo ${reminder.todoId}: ${reminder.title}`);
+    log.info("Sent task reminder", reminder.taskRef ? taskKey(reminder.taskRef) : reminder.todoId);
   }
 
   private getNotificationTitle(reminder: InternalReminder): string {
@@ -227,13 +242,16 @@ class TodoReminderModule implements Module {
 
     for (const reminder of internalReminders) {
       // 获取完整的 TodoItem
-      const todoItem = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(reminder.todoId);
+      const todoItem = reminder.todoId
+        ? db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(reminder.todoId)
+        : null;
 
-      if (todoItem) {
+      if (todoItem || reminder.taskRef) {
         pendingReminders.push({
           todoItem,
           recurrenceDate: reminder.recurrenceDate,
           remindAt: reminder.remindAt,
+          taskRef: reminder.taskRef,
         });
       }
     }
@@ -258,9 +276,12 @@ class TodoReminderModule implements Module {
   }
 
   private dismissAllReminders(): void {
-    const pendingReminders = this.getPendingReminders();
-    for (const reminder of pendingReminders) {
-      const reminderId = `${reminder.todoItem.id}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
+    const db = databaseModule.getCurrentDatabase();
+    if (!db) return;
+    for (const reminder of this.getInternalRemindersFromDb(db, Date.now())) {
+      const reminderId = reminder.taskRef
+        ? assistantReminderKey({ ...reminder, taskRef: reminder.taskRef })
+        : `${reminder.todoId}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
       this.remindedItems.add(reminderId);
     }
   }

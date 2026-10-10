@@ -57,3 +57,22 @@ export function getNextModuleEntityId(db: Database.Database): number {
 
   return nextId;
 }
+
+/** 可被持久化工具身份引用的实体不复用删除后的编号。 */
+export function getNextTaskEntityId(
+  db: Database.Database,
+  table: "todo_item" | "calendar_event" | "contents"
+): number {
+  ensureMigrationMetaTable(db);
+  const key = `task:id-seq:${table}`;
+  const row = db
+    .prepare(
+      `SELECT MAX(COALESCE((SELECT MAX(id) FROM ${table}),0),
+    COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key=?),0))+1 AS id`
+    )
+    .get(key) as { id: number };
+  db.prepare(
+    "INSERT INTO migration_meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+  ).run(key, String(row.id));
+  return row.id;
+}

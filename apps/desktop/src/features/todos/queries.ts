@@ -107,6 +107,21 @@ async function fetchTodoSnapshot(): Promise<TodoSnapshot> {
       if (c.skipped) occurrences.set(startOfDay(c.scheduledDate), "skip");
       else if (c.completedAt) occurrences.set(startOfDay(c.scheduledDate), "done");
     }
+    for (const [key, state] of Object.entries(recurrence?.occurrenceState ?? {})) {
+      const original = key.slice(key.lastIndexOf("/") + 1);
+      const day = startOfDay(new Date(`${original}T00:00:00`).getTime());
+      if (state.scheduledAt) occurrences.delete(day);
+      const actual = state.scheduledAt
+        ? startOfDay(
+            new Date(
+              state.scheduledAt.length === 10 ? `${state.scheduledAt}T00:00:00` : state.scheduledAt
+            ).getTime()
+          )
+        : day;
+      if (state.skipped) occurrences.set(actual, "skip");
+      else if (state.completedAt) occurrences.set(actual, "done");
+      else occurrences.delete(actual);
+    }
     return {
       ...item,
       recurrence,

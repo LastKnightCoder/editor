@@ -11,6 +11,7 @@ import type {
   DocTaskToggleResult,
 } from "@/types/doc-tasks";
 import ContentTable from "../tables/content";
+import { documentTaskCheck } from "@tau/shared/task-assistant";
 import EntitySearchTable from "../tables/entity-search";
 import { reindexDocTasks } from "./indexer";
 import { excludedContentIds, isContentExcluded, promotedTaskKeys } from "./settings";
@@ -119,7 +120,9 @@ export function toggleDocTask(
   let patched: number;
   try {
     patched = ContentTable.patchNodes(mainDb, contentId, node =>
-      node.type === "check-list-item" && node.taskId === taskId ? { checked } : null
+      node.type === "check-list-item" && node.taskId === taskId
+        ? documentTaskCheck(node, checked)
+        : null
     );
   } catch (error) {
     if (error instanceof Error && error.message.includes("COLLABORATION_WRITE_REQUIRED"))

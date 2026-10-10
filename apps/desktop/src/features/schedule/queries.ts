@@ -349,8 +349,9 @@ export function useToggleTodoEvent() {
       const next = !source.isCompleted;
       if (source.syncType === "recurring") {
         if (source.recurrenceId == null || source.recurrenceDate == null) return;
-        if (next) await commands.completeRecurrence(source.recurrenceId, source.recurrenceDate);
-        else await commands.uncompleteRecurrence(source.recurrenceId, source.recurrenceDate);
+        if (next)
+          await commands.completeRecurrence(source.recurrenceId, source.recurrenceDate, true);
+        else await commands.uncompleteRecurrence(source.recurrenceId, source.recurrenceDate, true);
         return;
       }
       await commands.toggleCompleteCascade(source.todoItemId, next);

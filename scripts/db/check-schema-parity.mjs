@@ -12,8 +12,8 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 72;
-const MAIN_INDEX_COUNT = 115;
+const MAIN_TABLE_COUNT = 78;
+const MAIN_INDEX_COUNT = 120;
 const INDEX_CORE_TABLES = [
   "content_fts",
   "vec_index_meta",
@@ -28,6 +28,7 @@ const INDEX_CORE_TABLES = [
   "content_sections",
   "doc_tasks",
   "doc_task_sources",
+  "doc_task_attributes",
 ];
 // 与运行时门禁（packages/db-schema/src/legacy-table-guard.ts）共用同一份黑名单
 const REMOVED_TABLES = JSON.parse(
