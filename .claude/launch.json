@@ -182,6 +182,20 @@
         "apps/desktop/mockups/compose-mode"
       ],
       "port": 8817
+    },
+    {
+      "name": "blog-quest-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8832",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/blog/mockups/quest-detail"
+      ],
+      "port": 8832
     }
   ]
 }
