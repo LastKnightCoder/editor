@@ -129,7 +129,6 @@ pub fn todo_create_recurrence(
     )
     .map_err(|e| format_db_error("TODO_RECURRENCE_CREATE_FAILED", "insert recurrence", e))?;
     let id = tx.last_insert_rowid();
-    todo_calendar_sync::rematerialize_recurring_item(&tx, payload.todo_item_id, time_zone)?;
     let recurrence = tx
         .query_row(
             "
@@ -157,6 +156,8 @@ pub fn todo_create_recurrence(
             },
         )
         .map_err(|e| format_db_error("TODO_RECURRENCE_CREATE_FAILED", "query created recurrence", e))?;
+    super::super::assistant_tasks::record_rule_change(&tx, &recurrence, time_zone)?;
+    todo_calendar_sync::rematerialize_recurring_item(&tx, payload.todo_item_id, time_zone)?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_CREATE_FAILED", "commit transaction", e))?;
     Ok(recurrence)
@@ -239,7 +240,6 @@ pub fn todo_update_recurrence(
         ],
     )
     .map_err(|e| format_db_error("TODO_RECURRENCE_UPDATE_FAILED", "update recurrence", e))?;
-    todo_calendar_sync::rematerialize_recurring_item(&tx, current.todo_item_id, time_zone)?;
     let recurrence = tx
         .query_row(
             "
@@ -267,13 +267,19 @@ pub fn todo_update_recurrence(
             },
         )
         .map_err(|e| format_db_error("TODO_RECURRENCE_UPDATE_FAILED", "query updated recurrence", e))?;
+    super::super::assistant_tasks::record_rule_change(&tx, &recurrence, time_zone)?;
+    todo_calendar_sync::rematerialize_recurring_item(&tx, current.todo_item_id, time_zone)?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_UPDATE_FAILED", "commit transaction", e))?;
     Ok(recurrence)
 }
 
 #[tauri::command]
-pub fn todo_delete_recurrence(app: AppHandle, payload: TodoIdPayload) -> Result<i64, String> {
+pub fn todo_delete_recurrence(
+    app: AppHandle,
+    payload: TodoIdPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
+) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -287,6 +293,7 @@ pub fn todo_delete_recurrence(app: AppHandle, payload: TodoIdPayload) -> Result<
         .optional()
         .map_err(|e| format_db_error("TODO_RECURRENCE_DELETE_FAILED", "query recurrence", e))?
         .ok_or_else(|| "TODO_RECURRENCE_NOT_FOUND: recurrence does not exist".to_string())?;
+    super::super::assistant_tasks::stop_rule(&tx, todo_item_id, time_zone)?;
     tx.execute(
         "DELETE FROM todo_recurrence_completion WHERE recurrence_id = ?1",
         params![payload.id],
@@ -314,6 +321,7 @@ pub fn todo_delete_recurrence(app: AppHandle, payload: TodoIdPayload) -> Result<
 pub fn todo_delete_recurrence_by_item(
     app: AppHandle,
     payload: TodoItemIdPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
@@ -336,6 +344,7 @@ pub fn todo_delete_recurrence_by_item(
     let Some(id) = recurrence_id else {
         return Ok(0);
     };
+    super::super::assistant_tasks::stop_rule(&tx, payload.todo_item_id, time_zone)?;
     tx.execute(
         "DELETE FROM todo_recurrence_completion WHERE recurrence_id = ?1",
         params![id],
@@ -466,13 +475,28 @@ pub fn todo_get_recurrence_completion(
 #[tauri::command]
 pub fn todo_complete_recurrence(
     app: AppHandle,
-    payload: RecurrenceCompletionPayload,
+    mut payload: RecurrenceCompletionPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoRecurrenceCompletion, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "begin transaction", e))?;
+    payload.scheduled_date = super::super::assistant_tasks::original_date(
+        &tx,
+        payload.recurrence_id,
+        payload.scheduled_date,
+        time_zone,
+    )?;
     let now = now_millis();
+    super::super::assistant_tasks::sync_completion(
+        &tx,
+        payload.recurrence_id,
+        payload.scheduled_date,
+        Some(now),
+        false,
+        time_zone,
+    )?;
     let existing_id = tx
         .query_row(
             "
@@ -536,27 +560,59 @@ pub fn todo_complete_recurrence(
 #[tauri::command]
 pub fn todo_uncomplete_recurrence(
     app: AppHandle,
-    payload: RecurrenceCompletionPayload,
+    mut payload: RecurrenceCompletionPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<i64, String> {
-    let conn = schema::open_active_database(&app)?;
-    let changed = conn
+    let mut conn = schema::open_active_database(&app)?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    payload.scheduled_date = super::super::assistant_tasks::original_date(
+        &tx,
+        payload.recurrence_id,
+        payload.scheduled_date,
+        time_zone,
+    )?;
+    super::super::assistant_tasks::sync_completion(
+        &tx,
+        payload.recurrence_id,
+        payload.scheduled_date,
+        None,
+        false,
+        time_zone,
+    )?;
+    let changed = tx
         .execute(
             "DELETE FROM todo_recurrence_completion WHERE recurrence_id = ?1 AND scheduled_date = ?2",
             params![payload.recurrence_id, payload.scheduled_date],
         )
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "delete completion", e))?;
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(changed as i64)
 }
 
 #[tauri::command]
 pub fn todo_skip_recurrence(
     app: AppHandle,
-    payload: RecurrenceCompletionPayload,
+    mut payload: RecurrenceCompletionPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoRecurrenceCompletion, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "begin transaction", e))?;
+    payload.scheduled_date = super::super::assistant_tasks::original_date(
+        &tx,
+        payload.recurrence_id,
+        payload.scheduled_date,
+        time_zone,
+    )?;
+    super::super::assistant_tasks::sync_completion(
+        &tx,
+        payload.recurrence_id,
+        payload.scheduled_date,
+        None,
+        true,
+        time_zone,
+    )?;
     let existing_id = tx
         .query_row(
             "

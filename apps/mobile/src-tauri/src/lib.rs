@@ -108,6 +108,7 @@ pub fn run() {
             database::todo_delete_item,
             database::todo_delete_item_cascade,
             database::todo_get_recurrence,
+            database::todo_get_assistant_states,
             database::todo_get_recurrence_by_item,
             database::todo_create_recurrence,
             database::todo_update_recurrence,

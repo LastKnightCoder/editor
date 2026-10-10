@@ -13,6 +13,7 @@ use crate::setting::{
 };
 
 mod article;
+mod assistant_tasks;
 mod calendar;
 mod calendar_holidays;
 mod calendar_time;
@@ -33,6 +34,7 @@ mod todo;
 mod todo_calendar_sync;
 
 pub use article::*;
+pub use assistant_tasks::*;
 pub use calendar::*;
 pub use collaboration::*;
 pub use diary::*;
@@ -114,6 +116,7 @@ fn write_content_snapshot(
     if content_changed == 0 {
         return Err("CONTENT_NOT_FOUND: content does not exist".to_string());
     }
+    assistant_tasks::reconcile_document_links(tx, content_id, Some(&normalized_content))?;
 
     let mut linked_card_ids: Vec<i64> = vec![];
     {
@@ -358,10 +361,16 @@ pub fn create_quick_card(
 
     tx.execute(
         "
-        INSERT INTO contents (create_time, update_time, content, count, ref_count)
-        VALUES (?1, ?2, ?3, ?4, 1)
+        INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
+        VALUES (?5, ?1, ?2, ?3, ?4, 1)
         ",
-        params![now, now, serialized_content, normalized_count],
+        params![
+            now,
+            now,
+            serialized_content,
+            normalized_count,
+            assistant_tasks::next_id(&tx, "contents")?
+        ],
     )
     .map_err(|e| format!("CARD_CREATE_FAILED: Failed to insert content: {e}"))?;
     let content_id = tx.last_insert_rowid();
@@ -714,6 +723,7 @@ pub fn delete_card(app: AppHandle, id: i64) -> Result<i64, String> {
             .map_err(|e| format!("CARD_DELETE_FAILED: Failed to read content ref_count: {e}"))?;
 
         if matches!(ref_count, Some(count) if count <= 0) {
+            assistant_tasks::reconcile_document_links(&tx, content_id, None)?;
             // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
             tx.execute(
                 "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
@@ -806,7 +816,10 @@ mod content_link_tests {
         // 移动端整表保存只选了 B：文章侧的边不能被误删
         apply_card_links(&mut conn, card_a, &[card_b], 2).unwrap();
         assert!(has_edge(&conn, a, b));
-        assert!(has_edge(&conn, a, c), "无卡片投影的邻居（文章）不能被整表保存误删");
+        assert!(
+            has_edge(&conn, a, c),
+            "无卡片投影的邻居（文章）不能被整表保存误删"
+        );
         // 卡片详情只展示卡片投影邻居：此刻只有 B 可见（文章侧不可见）
         assert_eq!(query::linked_card_ids(&conn, a), vec![card_b]);
 

@@ -93,8 +93,8 @@ fn create_item_with_payload(
     tx.execute(
         "
         INSERT INTO todo_item
-        (group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
-        VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, NULL, ?9, 0, ?10, ?10)
+        (id, group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
+        VALUES (?11, ?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8, NULL, ?9, 0, ?10, ?10)
         ",
         params![
             payload.group_id,
@@ -106,7 +106,8 @@ fn create_item_with_payload(
             payload.due_at,
             payload.remind_before,
             sort_index,
-            now
+            now,
+            super::super::assistant_tasks::next_id(tx,"todo_item")?
         ],
     )
     .map_err(|e| format_db_error("TODO_CREATE_FAILED", "insert todo item", e))?;

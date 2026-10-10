@@ -12,6 +12,7 @@ import TodoCalendarSyncTable from "./todo-calendar-sync";
 import CalendarEventTable from "./calendar-event";
 import TodoNoteLinkTable from "./todo-note-link";
 import { Descendant } from "slate";
+import { getNextTaskEntityId } from "./module-entity-id";
 
 export default class TodoItemTable {
   static getListenEvents() {
@@ -55,6 +56,7 @@ export default class TodoItemTable {
       detail_content_id: number | null;
     }>;
     for (const event of events) {
+      db.prepare("DELETE FROM todo_schedule_occurrence WHERE calendar_event_id=?").run(event.id);
       const startMs = event.start_date + (event.all_day ? 0 : (event.start_time ?? 0)) * 60_000;
       if (startMs > now) CalendarEventTable.deleteEvent(db, event.id);
       else db.prepare(`UPDATE calendar_event SET todo_item_id = NULL WHERE id = ?`).run(event.id);
@@ -80,18 +82,14 @@ export default class TodoItemTable {
   /**
    * 日历一致性：截止任务在增改后写入「待办清单」日历；类型变更先清旧映射再按新类型重建。
    * 周期任务的日历事件由日历读取时按规则即时生成（calendar-event.getEventsByDateRange），这里不写。
-   * 同步失败不阻断待办本身的增改（与 deleteItemCascade 的清理口径一致）。
+   * 必要同步失败向事务调用方传播，避免提交不一致的待办与标记。
    */
   static syncCalendar(db: Database.Database, item: TodoItem, previousType?: TodoItemType) {
-    try {
-      if (previousType && previousType !== item.type) {
-        TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: item.id });
-      }
-      if (item.type === "deadline") {
-        TodoCalendarSyncTable.syncTodoItem(db, { todoItem: item });
-      }
-    } catch (e) {
-      console.error("[TodoItem] 同步日历失败:", e);
+    if (previousType && previousType !== item.type) {
+      TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: item.id });
+    }
+    if (item.type === "deadline") {
+      TodoCalendarSyncTable.syncTodoItem(db, { todoItem: item });
     }
   }
 
@@ -202,10 +200,11 @@ export default class TodoItemTable {
     const type = payload.type || "normal";
 
     const insert = db.prepare(
-      `INSERT INTO todo_item (group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, 0, ?, ?)`
+      `INSERT INTO todo_item (id, group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, 0, ?, ?)`
     );
     const res = insert.run(
+      getNextTaskEntityId(db, "todo_item"),
       payload.groupId,
       payload.parentId ?? null,
       payload.title,
@@ -297,11 +296,7 @@ export default class TodoItemTable {
 
   static deleteItem(db: Database.Database, id: number): number {
     // 先清日历映射与事件（映射表无外键，不清会残留到下次启动的孤儿清理）
-    try {
-      TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: id });
-    } catch (e) {
-      // 忽略清理日历事件时的错误
-    }
+    TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: id });
     this.releaseSchedules(db, id);
 
     // 获取 description_content_id
@@ -508,17 +503,15 @@ export default class TodoItemTable {
         .get(id) as { description_content_id: number | null } | undefined;
       if (!row) continue;
 
-      try {
-        TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: id });
-      } catch (e) {
-        // 忽略清理日历事件时的错误
-      }
+      TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: id });
       this.releaseSchedules(db, id);
       db.prepare(
         `DELETE FROM todo_recurrence_completion
          WHERE recurrence_id IN (SELECT id FROM todo_recurrence WHERE todo_item_id = ?)`
       ).run(id);
       db.prepare(`DELETE FROM todo_recurrence WHERE todo_item_id = ?`).run(id);
+      db.prepare("DELETE FROM todo_recurrence_history WHERE todo_item_id=?").run(id);
+      db.prepare("DELETE FROM todo_occurrence_override WHERE todo_item_id=?").run(id);
       const links = db.prepare(`SELECT id FROM todo_note_link WHERE todo_id = ?`).all(id) as Array<{
         id: number;
       }>;

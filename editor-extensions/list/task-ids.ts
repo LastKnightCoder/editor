@@ -17,6 +17,11 @@ export function createTaskIdPatcher() {
     }
     const next = context?.identityKey ? `task-${context.identityKey}` : crypto.randomUUID();
     seen.add(next);
-    return { taskId: next };
+    return {
+      taskId: next,
+      ...(id && ("taskOccurrenceState" in node || "taskCompletedAt" in node)
+        ? { taskOccurrenceState: {}, taskCompletedAt: null }
+        : {}),
+    };
   };
 }

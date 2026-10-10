@@ -121,24 +121,53 @@ export default class TodoCalendarMappingTable {
     // 安排：用户日历里关联待办的事件（calendar_event.todo_item_id）
     const linked = db
       .prepare(
-        `SELECT e.id AS calendar_event_id, e.todo_item_id, ti.is_completed
+        `SELECT e.id AS calendar_event_id, e.todo_item_id, ti.is_completed,
+          o.series_id,o.occurrence_date,r.id AS recurrence_id,override.state_json
         FROM calendar_event e
         JOIN todo_item ti ON ti.id = e.todo_item_id
+        LEFT JOIN todo_schedule_occurrence o ON o.calendar_event_id=e.id
+        LEFT JOIN todo_recurrence r ON r.todo_item_id=ti.id
+        LEFT JOIN todo_occurrence_override override ON override.todo_item_id=ti.id AND override.todo_created_at=ti.create_time
+          AND override.series_id=o.series_id AND override.occurrence_date=o.occurrence_date
         WHERE e.id IN (${placeholders})`
       )
       .all(...ids) as Array<{
       calendar_event_id: number;
       todo_item_id: number;
       is_completed: number;
+      series_id: string | null;
+      occurrence_date: string | null;
+      recurrence_id: number | null;
+      state_json: string | null;
     }>;
     for (const row of linked) {
+      const date = row.occurrence_date
+        ? new Date(`${row.occurrence_date}T00:00:00`).getTime()
+        : null;
+      const completion =
+        date != null && row.recurrence_id != null
+          ? (db
+              .prepare(
+                "SELECT completed_at,skipped FROM todo_recurrence_completion WHERE recurrence_id=? AND scheduled_date=?"
+              )
+              .get(row.recurrence_id, date) as
+              { completed_at: number | null; skipped: number } | undefined)
+          : undefined;
+      const state = row.state_json
+        ? (JSON.parse(row.state_json) as { completedAt?: number | null; skipped?: boolean })
+        : undefined;
       result[row.calendar_event_id] ??= {
         calendarEventId: row.calendar_event_id,
         todoItemId: row.todo_item_id,
-        syncType: "linked",
-        recurrenceDate: null,
-        recurrenceId: null,
-        isCompleted: Boolean(row.is_completed),
+        syncType: date == null ? "linked" : "recurring",
+        recurrenceDate: date,
+        recurrenceId: date == null ? null : row.recurrence_id,
+        isCompleted:
+          date == null
+            ? Boolean(row.is_completed)
+            : state
+              ? state.completedAt != null && !state.skipped
+              : completion?.completed_at != null && !completion.skipped,
       };
     }
     return result;

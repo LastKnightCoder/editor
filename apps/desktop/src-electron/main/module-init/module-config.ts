@@ -45,6 +45,7 @@ import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator"
 import knowledgeMapBuilder from "../modules/knowledge-map-builder";
 import entityContextModule from "../modules/entity-context";
 import docTasksModule from "../modules/doc-tasks";
+import taskAssistantModule from "../modules/task-assistant";
 import contentAiQueueModule from "../modules/content-ai-queue";
 import contentInsightsModule from "../modules/content-insights";
 import composeGatherModule from "../modules/compose-gather";
@@ -346,6 +347,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => docTasksModule.init(),
+  },
+  {
+    name: "task-assistant",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger", "database", "doc-tasks", "collaboration"],
+    init: () => taskAssistantModule.init(),
   },
   {
     name: "content-ai-queue",

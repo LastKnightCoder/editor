@@ -378,6 +378,8 @@ export interface TodoGroup {
 }
 
 export interface TodoRecurrence {
+  segments?: import("@tau/shared/task-assistant").TaskRecurrenceSegment[];
+  occurrenceState?: Record<string, import("@tau/shared/task-assistant").TaskOccurrenceState>;
   id: number;
   todoItemId: number;
   type: RecurrenceType;

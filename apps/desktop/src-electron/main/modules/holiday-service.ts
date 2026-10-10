@@ -265,6 +265,22 @@ class HolidayServiceModule implements Module {
     return results;
   }
 
+  /** 事务内只消费已加载年份，缺数据时明确失败，不降级成普通工作日规则。 */
+  cachedHolidayWindow(start: number, end: number): Set<number> {
+    const result = new Set<number>();
+    const date = new Date(start);
+    date.setHours(0, 0, 0, 0);
+    while (date.getTime() <= end) {
+      const year = this.cache.get(date.getFullYear());
+      if (!year) throw new Error("HOLIDAY_DATA_UNAVAILABLE: 节假日数据尚未就绪，请稍后重试");
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      const kind = year.data[key];
+      if (kind === 1 || kind === 2) result.add(date.getTime());
+      date.setDate(date.getDate() + 1);
+    }
+    return result;
+  }
+
   /**
    * 清除所有缓存
    */

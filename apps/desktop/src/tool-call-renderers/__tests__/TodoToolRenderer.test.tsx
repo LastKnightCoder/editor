@@ -150,7 +150,7 @@ describe("TodoToolRenderer", () => {
     vi.mocked(todoCommands.listTodoGroups).mockResolvedValue(groups);
   });
 
-  it("只保留完成切换的轻交互", async () => {
+  it("旧协议结果只读，不按旧编号修改当前数据库", async () => {
     const execution = createExecution();
     const { root, container } = await mount(
       <TodoToolRenderer
@@ -170,15 +170,16 @@ describe("TodoToolRenderer", () => {
     expect(container.textContent).not.toContain("删除");
 
     const toggleButton = container.querySelector(
-      "button[aria-label='标记为已完成']"
+      "button[role='checkbox']"
     ) as HTMLButtonElement | null;
     expect(toggleButton).toBeTruthy();
+    expect(toggleButton?.disabled).toBe(true);
     await act(async () => {
       toggleButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(todoCommands.toggleCompleteCascade).toHaveBeenCalledWith(1, true);
-    expect(todoMutation.emitTodoMutation).toHaveBeenCalled();
+    expect(todoCommands.toggleCompleteCascade).not.toHaveBeenCalled();
+    expect(todoMutation.emitTodoMutation).not.toHaveBeenCalled();
 
     await unmount(root, container);
   });

@@ -8,6 +8,7 @@ import TodoCalendarSyncTable from "./todo-calendar-sync";
 import TodoItemTable from "./todo-item";
 import log from "electron-log";
 import { getMarkdown } from "@/utils/markdown.ts";
+import { getNextTaskEntityId } from "./module-entity-id";
 
 export default class CalendarEventTable {
   static getListenEvents() {
@@ -61,11 +62,12 @@ export default class CalendarEventTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar_event
-      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, todo_item_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, todo_item_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
+      getNextTaskEntityId(db, "calendar_event"),
       now,
       now,
       data.calendarId,
@@ -192,6 +194,8 @@ export default class CalendarEventTable {
     if (event && event.detailContentId) {
       ContentTable.deleteContent(db, event.detailContentId);
     }
+    db.prepare("DELETE FROM doc_task_calendar_link WHERE calendar_event_id=?").run(id);
+    db.prepare("DELETE FROM todo_schedule_occurrence WHERE calendar_event_id=?").run(id);
 
     const stmt = db.prepare("DELETE FROM calendar_event WHERE id = ?");
     Operation.insertOperation(db, "calendar_event", "delete", id, Date.now());

@@ -1,5 +1,6 @@
 import { Descendant } from "slate";
 import type { CalendarEvent } from "./calendar";
+import type { TaskRecurrenceSegment, TaskOccurrenceState } from "@tau/shared/task-assistant";
 
 // 任务类型（「计划任务」已退役：计划时段改由关联待办的日历事件表达，见 D-114）
 export type TodoItemType = "normal" | "deadline" | "recurring";
@@ -56,6 +57,8 @@ export interface TodoItem {
 
 // 周期规则
 export interface TodoRecurrence {
+  segments?: TaskRecurrenceSegment[];
+  occurrenceState?: Record<string, TaskOccurrenceState>;
   id: number;
   todoItemId: number;
   type: RecurrenceType;

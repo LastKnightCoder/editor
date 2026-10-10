@@ -17,9 +17,10 @@ export async function runTodoDone(id: number) {
       title: string;
       is_completed: number;
       group_id: number;
+      type: string;
     }>(
-      `SELECT id, title, is_completed, group_id FROM todo_item WHERE id = ? AND is_archived = 0`,
-      id,
+      `SELECT id, title, type, is_completed, group_id FROM todo_item WHERE id = ? AND is_archived = 0`,
+      id
     );
 
     if (!item) {
@@ -31,19 +32,23 @@ export async function runTodoDone(id: number) {
       console.log(`Task #${id} is already completed.`);
       return;
     }
+    if (item.type === "recurring") {
+      console.log("周期待办必须指定具体实例，请通过待办助理完成该次任务。");
+      return;
+    }
 
     const now = Date.now();
     da.exec(
       `WITH RECURSIVE descendants(id) AS (
         SELECT id FROM todo_item WHERE id = ?
-        UNION ALL
+        UNION
         SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id WHERE ti.is_archived = 0
       )
       UPDATE todo_item SET is_completed = 1, completed_at = ?, update_time = ?
-      WHERE id IN (SELECT id FROM descendants) AND is_completed = 0`,
+      WHERE id IN (SELECT id FROM descendants) AND is_completed = 0 AND type <> 'recurring'`,
       id,
       now,
-      now,
+      now
     );
 
     emitTodoMutation({

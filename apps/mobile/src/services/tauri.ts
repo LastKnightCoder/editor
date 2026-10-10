@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
 import type {
   ActiveDatabaseResponse,
   ArchiveTodoGroupPayload,
@@ -434,11 +435,28 @@ export function todoGetSystemGroupStats() {
 }
 
 export function todoListItems(payload: ListTodoItemsPayload) {
-  return trackedInvoke<TodoItem[]>("todo_list_items", { payload });
+  return trackedInvoke<TodoItem[]>("todo_list_items", { payload }).then(withAssistantItems);
 }
 
 export function todoListItemsByType(payload: ListTodoItemsByTypePayload) {
-  return trackedInvoke<TodoItem[]>("todo_list_items_by_type", { payload });
+  return trackedInvoke<TodoItem[]>("todo_list_items_by_type", { payload }).then(withAssistantItems);
+}
+
+async function withAssistantItems(items: TodoItem[]): Promise<TodoItem[]> {
+  const ids = items.filter(item => item.recurrence).map(item => item.id);
+  const states: Record<string, Pick<TodoRecurrence, "segments" | "occurrenceState">> = {};
+  for (let offset = 0; offset < ids.length; offset += 500)
+    Object.assign(
+      states,
+      await trackedInvoke<typeof states>("todo_get_assistant_states", {
+        ids: ids.slice(offset, offset + 500),
+      })
+    );
+  return items.map(item =>
+    item.recurrence
+      ? { ...item, recurrence: { ...item.recurrence, ...states[String(item.id)] } }
+      : item
+  );
 }
 
 export function todoCreateItem(payload: CreateTodoItemPayload) {
@@ -488,13 +506,23 @@ export function todoDeleteItemCascade(id: number) {
 export function todoGetRecurrence(id: number) {
   return trackedInvoke<TodoRecurrence | null>("todo_get_recurrence", {
     payload: { id },
-  });
+  }).then(withAssistantRecurrence);
 }
 
 export function todoGetRecurrenceByItem(todoItemId: number) {
   return trackedInvoke<TodoRecurrence | null>("todo_get_recurrence_by_item", {
     payload: { todoItemId },
-  });
+  }).then(withAssistantRecurrence);
+}
+
+async function withAssistantRecurrence(
+  value: TodoRecurrence | null
+): Promise<TodoRecurrence | null> {
+  if (!value) return null;
+  const states = await trackedInvoke<
+    Record<string, Pick<TodoRecurrence, "segments" | "occurrenceState">>
+  >("todo_get_assistant_states", { ids: [value.todoItemId] });
+  return { ...value, ...states[String(value.todoItemId)] };
 }
 
 export function todoCreateRecurrence(payload: CreateTodoRecurrencePayload) {
@@ -514,46 +542,64 @@ export function todoUpdateRecurrence(payload: UpdateTodoRecurrencePayload) {
 export function todoDeleteRecurrence(id: number) {
   return trackedInvoke<number>("todo_delete_recurrence", {
     payload: { id },
+    timeZone: localTimeZone(),
   });
 }
 
 export function todoDeleteRecurrenceByItem(todoItemId: number) {
   return trackedInvoke<number>("todo_delete_recurrence_by_item", {
     payload: { todoItemId },
+    timeZone: localTimeZone(),
   });
 }
 
-export function todoGetRecurrenceCompletions(
+export async function todoGetRecurrenceCompletions(
   recurrenceId: number,
   startDate?: number,
   endDate?: number
 ) {
-  return trackedInvoke<TodoRecurrenceCompletion[]>("todo_get_recurrence_completions", {
-    payload: { recurrenceId, startDate, endDate },
-  });
+  const dates = occurrenceDateMap(await todoGetRecurrence(recurrenceId));
+  const records = await trackedInvoke<TodoRecurrenceCompletion[]>(
+    "todo_get_recurrence_completions",
+    {
+      payload: {
+        recurrenceId,
+        startDate: dates.size ? undefined : startDate,
+        endDate: dates.size ? undefined : endDate,
+      },
+    }
+  );
+  return projectCompletions(records, dates, startDate, endDate);
 }
 
-export function todoGetRecurrenceCompletion(recurrenceId: number, scheduledDate: number) {
-  return trackedInvoke<TodoRecurrenceCompletion | null>("todo_get_recurrence_completion", {
-    payload: { recurrenceId, scheduledDate },
-  });
+export async function todoGetRecurrenceCompletion(recurrenceId: number, scheduledDate: number) {
+  const dates = occurrenceDateMap(await todoGetRecurrence(recurrenceId));
+  const original = originalOccurrenceDate(scheduledDate, dates);
+  const record = await trackedInvoke<TodoRecurrenceCompletion | null>(
+    "todo_get_recurrence_completion",
+    { payload: { recurrenceId, scheduledDate: original } }
+  );
+  return record ? projectCompletions([record], dates)[0] : null;
 }
 
 export function todoCompleteRecurrence(recurrenceId: number, scheduledDate: number) {
   return trackedInvoke<TodoRecurrenceCompletion>("todo_complete_recurrence", {
     payload: { recurrenceId, scheduledDate },
+    timeZone: localTimeZone(),
   });
 }
 
 export function todoUncompleteRecurrence(recurrenceId: number, scheduledDate: number) {
   return trackedInvoke<number>("todo_uncomplete_recurrence", {
     payload: { recurrenceId, scheduledDate },
+    timeZone: localTimeZone(),
   });
 }
 
 export function todoSkipRecurrence(recurrenceId: number, scheduledDate: number) {
   return trackedInvoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
     payload: { recurrenceId, scheduledDate },
+    timeZone: localTimeZone(),
   });
 }
 

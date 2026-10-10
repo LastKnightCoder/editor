@@ -415,8 +415,8 @@ pub(crate) fn insert_event_in_tx(
     tx.execute(
         "
         INSERT INTO calendar_event
-        (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
-        VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+        (id, create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+        VALUES (?11, ?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
         ",
         params![
             now,
@@ -429,6 +429,7 @@ pub(crate) fn insert_event_in_tx(
             payload.end_time,
             payload.color,
             if payload.all_day { 1 } else { 0 },
+            super::super::assistant_tasks::next_id(tx,"calendar_event")?,
         ],
     )
     .map_err(|e| db_err("CALENDAR_EVENT_CREATE_FAILED", "insert event", e))?;
@@ -535,6 +536,16 @@ pub(crate) fn delete_event_in_tx(tx: &Transaction<'_>, event_id: i64) -> Result<
         decrement_or_delete_content(tx, content_id)?;
     }
     write_operation(tx, "calendar_event", "delete", event_id, now_millis())?;
+    tx.execute(
+        "DELETE FROM todo_schedule_occurrence WHERE calendar_event_id=?1",
+        [event_id],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM doc_task_calendar_link WHERE calendar_event_id=?1",
+        [event_id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.execute(
         "DELETE FROM calendar_event WHERE id = ?1",
         params![event_id],

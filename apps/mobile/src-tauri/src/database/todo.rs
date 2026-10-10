@@ -390,10 +390,15 @@ fn insert_content_record(tx: &Transaction<'_>, content: &Value, count: i64) -> R
     let now = now_millis();
     tx.execute(
         "
-        INSERT INTO contents (create_time, update_time, content, count, ref_count)
-        VALUES (?1, ?1, ?2, ?3, 1)
+        INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
+        VALUES (?4, ?1, ?1, ?2, ?3, 1)
         ",
-        params![now, serialized, count.max(0)],
+        params![
+            now,
+            serialized,
+            count.max(0),
+            super::assistant_tasks::next_id(tx, "contents")?
+        ],
     )
     .map_err(|e| format_db_error("CONTENT_CREATE_FAILED", "insert content", e))?;
     let content_id = tx.last_insert_rowid();
@@ -426,6 +431,7 @@ fn decrement_or_delete_content(tx: &Transaction<'_>, content_id: i64) -> Result<
         .optional()
         .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "query ref_count", e))?;
     if matches!(ref_count, Some(v) if v <= 0) {
+        super::assistant_tasks::reconcile_document_links(tx, content_id, None)?;
         // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
         super::collaboration::assert_content_local(tx, content_id)?;
         // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
@@ -441,9 +447,20 @@ fn decrement_or_delete_content(tx: &Transaction<'_>, content_id: i64) -> Result<
 }
 
 fn cleanup_todo_dependencies_in_tx(tx: &Transaction<'_>, todo_item_id: i64) -> Result<(), String> {
+    super::assistant_tasks::release_todo_schedules(tx, todo_item_id)?;
     todo_items::delete_recurrence_by_item_in_tx(tx, todo_item_id)?;
     todo_calendar_sync::remove_all_by_todo(tx, todo_item_id)?;
     delete_note_links_by_todo_in_tx(tx, todo_item_id)?;
+    tx.execute(
+        "DELETE FROM todo_recurrence_history WHERE todo_item_id=?1",
+        [todo_item_id],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM todo_occurrence_override WHERE todo_item_id=?1",
+        [todo_item_id],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 

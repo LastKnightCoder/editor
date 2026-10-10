@@ -33,7 +33,14 @@ export function calendarOccurrencesInRange(
   const limit = Math.max(0, rule.maxOccurrences ?? Infinity);
   const result: number[] = [];
   let count = 0;
-  for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+  const first = new Date(start);
+  // 无限规则只扫描目标窗口；节假日顺延最多回看一年，计次规则仍从锚点计数。
+  if (rule.maxOccurrences == null && windowStart > first) {
+    first.setTime(windowStart.getTime());
+    if (rule.excludeHolidays) first.setDate(first.getDate() - 365);
+    if (first < start) first.setTime(start.getTime());
+  }
+  for (const date = first; date <= end; date.setDate(date.getDate() + 1)) {
     const days = dayOrdinal(date) - dayOrdinal(start);
     let matches: boolean;
     switch (rule.type) {

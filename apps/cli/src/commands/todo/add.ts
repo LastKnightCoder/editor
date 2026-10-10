@@ -45,17 +45,15 @@ export async function runTodoAdd(title: string, options: AddOptions) {
         `SELECT ti.id, ti.group_id FROM todo_item ti
          JOIN todo_group tg ON ti.group_id = tg.id
          WHERE ti.id = ? AND ti.is_archived = 0 AND tg.is_archived = 0 AND tg.is_system = 0`,
-        parentId,
+        parentId
       );
       if (!parent) {
-        console.log(
-          `Error: Parent task #${parentId} not found or is archived.`,
-        );
+        console.log(`Error: Parent task #${parentId} not found or is archived.`);
         return;
       }
       if (resolvedGroupId && resolvedGroupId !== parent.group_id) {
         console.log(
-          `Error: --group conflicts with parent's group. Parent belongs to group #${parent.group_id}.`,
+          `Error: --group conflicts with parent's group. Parent belongs to group #${parent.group_id}.`
         );
         return;
       }
@@ -65,7 +63,7 @@ export async function runTodoAdd(title: string, options: AddOptions) {
     // Resolve or validate group
     if (!resolvedGroupId) {
       const defaultGroup = da.queryOne<{ id: number }>(
-        `SELECT id FROM todo_group WHERE is_system = 0 AND is_archived = 0 ORDER BY sort_index ASC LIMIT 1`,
+        `SELECT id FROM todo_group WHERE is_system = 0 AND is_archived = 0 ORDER BY sort_index ASC LIMIT 1`
       );
       if (!defaultGroup) {
         console.log("Error: No task groups found. Create a group first.");
@@ -75,7 +73,7 @@ export async function runTodoAdd(title: string, options: AddOptions) {
     } else if (!parentId) {
       const group = da.queryOne<{ id: number }>(
         `SELECT id FROM todo_group WHERE id = ? AND is_system = 0 AND is_archived = 0`,
-        resolvedGroupId,
+        resolvedGroupId
       );
       if (!group) {
         console.log(`Error: Group #${resolvedGroupId} not found.`);
@@ -98,22 +96,32 @@ export async function runTodoAdd(title: string, options: AddOptions) {
     const maxSort = da.queryOne<{ m: number | null }>(
       `SELECT MAX(sort_index) AS m FROM todo_item WHERE group_id = ? AND parent_id IS ?`,
       resolvedGroupId,
-      parentId,
+      parentId
     );
     const sortIndex = (maxSort?.m ?? 0) + 1;
 
-    const result = da.exec(
-      `INSERT INTO todo_item (group_id, parent_id, title, type, is_completed, due_at, sort_index, is_archived, create_time, update_time)
-       VALUES (?, ?, ?, ?, 0, ?, ?, 0, ?, ?)`,
-      resolvedGroupId,
-      parentId,
-      title,
-      type,
-      dueAt,
-      sortIndex,
-      now,
-      now,
-    );
+    const result = da.getDatabase().transaction(() => {
+      const id = da.queryOne<{ id: number }>(
+        `SELECT MAX(COALESCE((SELECT MAX(id) FROM todo_item),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='task:id-seq:todo_item'),0))+1 AS id`
+      )!.id;
+      da.exec(
+        "INSERT INTO migration_meta(key,value) VALUES('task:id-seq:todo_item',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        String(id)
+      );
+      return da.exec(
+        `INSERT INTO todo_item (id, group_id, parent_id, title, type, is_completed, due_at, sort_index, is_archived, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, ?, ?)`,
+        id,
+        resolvedGroupId,
+        parentId,
+        title,
+        type,
+        dueAt,
+        sortIndex,
+        now,
+        now
+      );
+    })();
 
     emitTodoMutation({
       entityId: Number(result.lastInsertRowid),

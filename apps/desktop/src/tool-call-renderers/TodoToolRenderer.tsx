@@ -1,16 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
-import { Button } from "@tau/ui";
+import { useMemo, useState } from "react";
 import type { ToolCallCustomRendererProps } from "./types";
-import type { TodoQueryItem, TodoQueryRequest } from "@/types";
-import { toggleCompleteCascade } from "@/commands/todo";
-import { subscribeTodoMutationEvent } from "@/mcp/todo/events";
-import { executeTodoQuery, getTodoDashboardData } from "@/mcp/todo/query";
-import {
-  emitTodoMutation,
-  shouldRefreshTodoQueryResult,
-  TODO_MUTATION_ACTIONS,
-} from "@/mcp/todo/mutation";
+import type { TodoQueryItem } from "@/types";
 import {
   ToolCard,
   ToolCardBody,
@@ -22,79 +12,15 @@ import {
   ToolSectionTitle,
 } from "./ui";
 import TodoRowCard from "./todo/TodoRowCard";
-import { parseTodoRendererOutput, type TodoRendererData } from "./todo/utils";
+import { parseTodoRendererOutput } from "./todo/utils";
 
-const TodoToolRenderer = ({
-  execution,
-  isDark,
-  parsedInput,
-  renderDefault,
-}: ToolCallCustomRendererProps) => {
-  const initialData = useMemo(() => parseTodoRendererOutput(execution.output), [execution.output]);
-  const [data, setData] = useState<TodoRendererData>(initialData);
-  const [loading, setLoading] = useState(false);
+const TodoToolRenderer = ({ execution, isDark, renderDefault }: ToolCallCustomRendererProps) => {
+  const data = useMemo(() => parseTodoRendererOutput(execution.output), [execution.output]);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const querySpec = useMemo(
-    () => (execution.toolName === "query_todos" ? ((parsedInput ?? {}) as TodoQueryRequest) : null),
-    [execution.toolName, parsedInput]
-  );
-
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const next =
-        execution.toolName === "get_todo_dashboard"
-          ? await getTodoDashboardData()
-          : await executeTodoQuery(querySpec ?? {});
-      setData(next);
-    } catch (error) {
-      console.error("[todo-renderer] refresh failed", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setData(initialData);
-  }, [initialData]);
-
-  useEffect(() => {
-    return subscribeTodoMutationEvent(event => {
-      if (data?.type === "todo-dashboard") {
-        void refresh();
-        return;
-      }
-
-      const currentQueryResult = data?.type === "todo-query-result" ? data : null;
-      if (
-        shouldRefreshTodoQueryResult({
-          event,
-          query: querySpec,
-          currentResult: currentQueryResult,
-        })
-      ) {
-        void refresh();
-      }
-    });
-  }, [data, execution.toolName, querySpec]);
 
   if (!data) {
     return <>{renderDefault()}</>;
   }
-
-  const handleToggleComplete = async (item: TodoQueryItem) => {
-    await toggleCompleteCascade(item.id, !item.isCompleted);
-    emitTodoMutation({
-      source: "todo-renderer",
-      entityType: "item",
-      entityId: item.id,
-      groupId: item.groupId,
-      action: item.isCompleted
-        ? TODO_MUTATION_ACTIONS.UNCOMPLETE_ITEM
-        : TODO_MUTATION_ACTIONS.COMPLETE_ITEM,
-      changedFields: ["isCompleted", "completedAt"],
-    });
-  };
 
   const renderItems = (items: TodoQueryItem[]) => {
     if (items.length === 0) {
@@ -107,7 +33,7 @@ const TodoToolRenderer = ({
       <ToolDividerList isDark={isDark}>
         {items.map(item => (
           <ToolDividerListItem key={item.id} isDark={isDark}>
-            <TodoRowCard item={item} isDark={isDark} onToggleComplete={handleToggleComplete} />
+            <TodoRowCard item={item} isDark={isDark} />
           </ToolDividerListItem>
         ))}
       </ToolDividerList>
@@ -175,23 +101,10 @@ const TodoToolRenderer = ({
   return (
     <ToolCard isDark={isDark}>
       <ToolCardHeader isDark={isDark}>
-        <ToolSectionTitle
-          isDark={isDark}
-          action={
-            <Button
-              size="sm"
-              variant="ghost"
-              icon={RefreshCw}
-              loading={loading}
-              loadingText="刷新中..."
-              onClick={() => void refresh()}
-            >
-              刷新
-            </Button>
-          }
-        >
+        <ToolSectionTitle isDark={isDark}>
           {data.type === "todo-dashboard" ? "任务列表总览" : "任务列表查询结果"}
         </ToolSectionTitle>
+        <ToolMutedText>历史查询快照；请重新查询后操作。</ToolMutedText>
         <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
           共 {summary.totalCount} 项，未完成 {summary.pendingCount}，已完成 {summary.completedCount}
           ，逾期 {summary.overdueCount}

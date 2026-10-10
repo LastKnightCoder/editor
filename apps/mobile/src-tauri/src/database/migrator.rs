@@ -6,7 +6,7 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 6;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 7;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -310,7 +310,11 @@ fn migrate_v5_to_v6(conn: &Connection) -> Result<(), String> {
         )
         .unwrap_or(false);
     if !pending {
-        return set_meta(conn, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string());
+        return set_meta(
+            conn,
+            "main_schema_version",
+            &MAIN_SCHEMA_VERSION.to_string(),
+        );
     }
 
     let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
@@ -336,7 +340,9 @@ fn migrate_v5_to_v6(conn: &Connection) -> Result<(), String> {
         UPDATE cards SET links = '[]';
         ",
     )
-    .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: migrate cards.links to content_links: {e}"))?;
+    .map_err(|e| {
+        format!("DB_SCHEMA_MIGRATION_FAILED: migrate cards.links to content_links: {e}")
+    })?;
     set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
     tx.commit()
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v5->v6: {e}"))
@@ -362,8 +368,10 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     if stored_version == 4 && has_user_tables(conn)? {
         migrate_v4_to_v5(conn)?;
         migrate_v5_to_v6(conn)?;
-    } else if stored_version == MAIN_SCHEMA_VERSION - 1 && has_user_tables(conn)? {
+    } else if stored_version == 5 && has_user_tables(conn)? {
         migrate_v5_to_v6(conn)?;
+    } else if stored_version == 6 && has_user_tables(conn)? {
+        // 任务扩展仅新增表与索引，由下方统一 schema 演进事务补齐。
     } else if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
         return Err(
             "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"

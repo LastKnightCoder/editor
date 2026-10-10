@@ -13,11 +13,84 @@
 ```sql
 SELECT id, title, content_id, update_time FROM cards ORDER BY update_time DESC LIMIT 20;
 SELECT id, title, content_id, create_time FROM articles WHERE create_time >= :start_time LIMIT 200;
-SELECT i.id, i.title, i.completed, g.title AS group_title FROM todo_item i LEFT JOIN todo_group g ON g.id=i.group_id WHERE i.archived=0 LIMIT 200;
+SELECT i.id, i.title, i.is_completed, g.title AS group_title FROM todo_item i LEFT JOIN todo_group g ON g.id=i.group_id WHERE i.is_archived=0 LIMIT 200;
 SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_event e LEFT JOIN calendar c ON c.id=e.calendar_id WHERE e.start_date >= :start_date LIMIT 200;
 ```
 
 ## 表和字段
+
+### `task_assistant_operation`
+
+助理业务操作的执行回执与撤销材料；不要将快照列整列返回模型。
+
+| 字段               | SQLite 定义            |
+| ------------------ | ---------------------- |
+| `id`               | `TEXT PRIMARY KEY`     |
+| `batch_id`         | `TEXT NOT NULL`        |
+| `request_id`       | `TEXT NOT NULL UNIQUE` |
+| `tool_name`        | `TEXT NOT NULL`        |
+| `request_hash`     | `TEXT NOT NULL`        |
+| `request_json`     | `TEXT`                 |
+| `conversation_key` | `TEXT`                 |
+| `status`           | `TEXT NOT NULL`        |
+| `phase`            | `TEXT NOT NULL`        |
+| `before_json`      | `TEXT`                 |
+| `after_json`       | `TEXT`                 |
+| `result_json`      | `TEXT`                 |
+| `error_json`       | `TEXT`                 |
+| `create_time`      | `INTEGER NOT NULL`     |
+| `update_time`      | `INTEGER NOT NULL`     |
+| `undo_until`       | `INTEGER NOT NULL`     |
+
+### `task_assistant_content_pin`
+
+| 字段                 | SQLite 定义        |
+| -------------------- | ------------------ |
+| `operation_id`       | `TEXT NOT NULL`    |
+| `content_id`         | `INTEGER NOT NULL` |
+| `content_created_at` | `INTEGER NOT NULL` |
+
+### `doc_task_calendar_link`
+
+| 字段                 | SQLite 定义           |
+| -------------------- | --------------------- |
+| `calendar_event_id`  | `INTEGER PRIMARY KEY` |
+| `content_id`         | `INTEGER NOT NULL`    |
+| `content_created_at` | `INTEGER NOT NULL`    |
+| `task_id`            | `TEXT NOT NULL`       |
+| `series_id`          | `TEXT`                |
+| `occurrence_date`    | `TEXT`                |
+| `create_time`        | `INTEGER NOT NULL`    |
+
+### `todo_recurrence_history`
+
+| 字段              | SQLite 定义        |
+| ----------------- | ------------------ |
+| `series_id`       | `TEXT PRIMARY KEY` |
+| `todo_item_id`    | `INTEGER NOT NULL` |
+| `todo_created_at` | `INTEGER NOT NULL` |
+| `effective_date`  | `TEXT NOT NULL`    |
+| `rule_json`       | `TEXT`             |
+| `create_time`     | `INTEGER NOT NULL` |
+
+### `todo_occurrence_override`
+
+| 字段              | SQLite 定义        |
+| ----------------- | ------------------ |
+| `todo_item_id`    | `INTEGER NOT NULL` |
+| `todo_created_at` | `INTEGER NOT NULL` |
+| `series_id`       | `TEXT NOT NULL`    |
+| `occurrence_date` | `TEXT NOT NULL`    |
+| `state_json`      | `TEXT NOT NULL`    |
+| `update_time`     | `INTEGER NOT NULL` |
+
+### `todo_schedule_occurrence`
+
+| 字段                | SQLite 定义           |
+| ------------------- | --------------------- |
+| `calendar_event_id` | `INTEGER PRIMARY KEY` |
+| `series_id`         | `TEXT NOT NULL`       |
+| `occurrence_date`   | `TEXT NOT NULL`       |
 
 ### `podcasts`
 

@@ -30,6 +30,7 @@ import {
 } from "../content-node-patches";
 import { readSharedContent, type ContentNode } from "@tau/collaboration";
 import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
+import { getNextTaskEntityId } from "./module-entity-id";
 
 export default class ContentTable {
   static ensureTaskIds(db: Database.Database, contentId: number): number {
@@ -100,11 +101,12 @@ export default class ContentTable {
     const { content, count } = contentData;
 
     const stmt = db.prepare(
-      "INSERT INTO contents (create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, ?)"
+      "INSERT INTO contents (id, create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const actualCount = count || (content ? getContentLength(content) : 0);
     const res = stmt.run(
+      getNextTaskEntityId(db, "contents"),
       now,
       now,
       JSON.stringify(content || []),

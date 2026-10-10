@@ -131,10 +131,15 @@ pub(crate) fn insert_content_record(
         .map_err(|e| db_err("CONTENT_INVALID", "serialize content", e))?;
     tx.execute(
         "
-        INSERT INTO contents (create_time, update_time, content, count, ref_count)
-        VALUES (?1, ?1, ?2, ?3, 1)
+        INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
+        VALUES (?4, ?1, ?1, ?2, ?3, 1)
         ",
-        params![now, serialized, count.max(0)],
+        params![
+            now,
+            serialized,
+            count.max(0),
+            super::assistant_tasks::next_id(tx, "contents")?
+        ],
     )
     .map_err(|e| db_err("CONTENT_CREATE_FAILED", "insert content", e))?;
     let content_id = tx.last_insert_rowid();
@@ -163,6 +168,7 @@ pub(crate) fn decrement_or_delete_content(tx: &Connection, content_id: i64) -> R
         .optional()
         .map_err(|e| db_err("CONTENT_DELETE_FAILED", "query ref_count", e))?;
     if matches!(ref_count, Some(v) if v <= 0) {
+        super::assistant_tasks::reconcile_document_links(tx, content_id, None)?;
         // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
         super::collaboration::assert_content_local(tx, content_id)?;
         // 正文删除时释放两侧的显式连接（与桌面 ContentTable.releaseContent 对齐），

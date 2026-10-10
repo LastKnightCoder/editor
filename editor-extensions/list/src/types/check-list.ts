@@ -1,6 +1,7 @@
 import type { ParagraphElement } from "@tau/editor/api";
+import type { DocumentTaskAttributes } from "@tau/shared/task-assistant";
 
-export interface CheckListItemElement {
+export interface CheckListItemElement extends DocumentTaskAttributes {
   type: "check-list-item";
   checked: boolean;
   /** 勾选项的稳定身份（文档内唯一），供文档待办定位与回写；缺失或重复时由规范化补齐 */

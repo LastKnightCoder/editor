@@ -20,6 +20,8 @@ export interface RuntimeSession {
   dirty: boolean;
   projectionDirty?: boolean;
   drainingViews?: Set<string>;
+  /** 助理节点写入在返回成功前同步持久化会话，失败可由操作回执恢复。 */
+  persistTaskChanges?: () => void;
 }
 
 export interface CollaborationIpcContext {
