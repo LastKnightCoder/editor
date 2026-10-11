@@ -5,7 +5,6 @@ import EventEmitter from "eventemitter3";
 import curry from "lodash/curry";
 import SnapManager from "./utils/snap/SnapManager";
 import { PresentationManager } from "./utils/PresentationManager";
-import ViewportUtil from "./utils/ViewportUtil";
 
 import {
   Operation,
@@ -25,6 +24,7 @@ import {
   DEFAULT_PAGE_SKETCH,
 } from "./types";
 import { isValid, executeSequence, BoardUtil } from "./utils";
+import ViewportUtil from "./utils/ViewportUtil";
 
 import BoardOperations from "./utils/BoardOperations";
 import { CapabilityService } from "./services/CapabilityService";
@@ -152,6 +152,29 @@ class Board {
   public isEditingElements: string[] = [];
   private lastUndoTimestamp = 0; // 记录上次创建新 undo entry 的时间戳
   private elementVersion = 0;
+  private containerRectCache: { x: number; y: number } | null = null;
+
+  /**
+   * 容器视口矩形（缓存）：指针热路径（每次 pointermove 的坐标转换）高频读取，
+   * getBoundingClientRect 在上一帧 DOM 写入后会把整文档强制重排（大页面百 ms 级）。
+   * 平移/手势期间容器几何不变，缓存恒命中；布局变化经 invalidateContainerRect 失效
+   * （容器 ResizeObserver 与窗口滚动捕获，见 WhiteBoard 接线）。
+   */
+  getContainerRect(): { x: number; y: number } | null {
+    const container = BOARD_TO_CONTAINER.get(this);
+    if (!container) return null;
+    if (!this.containerRectCache) {
+      const { x, y } = container.getBoundingClientRect();
+      this.containerRectCache = { x, y };
+    }
+    return this.containerRectCache;
+  }
+
+  invalidateContainerRect(): void {
+    this.containerRectCache = null;
+  }
+  /** 剔除滞回的上一轮保留集合（见 filterElementsInViewport 的宽退出盒说明） */
+  private cullRetainedIds = new Set<string>();
   private snapshot: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -830,7 +853,11 @@ class Board {
           sketch: this.sketch,
           version: WHITEBOARD_DOCUMENT_VERSION,
         };
-        this.emit("change");
+        // 仅选区变化是查看状态：快照照常发布（渲染订阅者需更新），
+        // 落库通知方（onChange）据此跳过，避免点选/框选触发全文档保存。
+        this.emit("change", {
+          selectionOnly: selectionChanged && !childrenChanged && !viewPortChanged && !sketchChanged,
+        });
       }
     } catch (e) {
       console.error("Board apply error:", e);
@@ -881,11 +908,7 @@ class Board {
     );
   }
 
-  private renderPluginElement(
-    plugin: IBoardPlugin,
-    element: BoardElement,
-    children: React.ReactElement[]
-  ) {
+  renderPluginElement(plugin: IBoardPlugin, element: BoardElement, children: React.ReactElement[]) {
     const unknown = this.extensions?.unknownElementReason(element);
     // 作者 render 缺失或返回空：按扩展判定原因占位；render 抛错被兜底时固定 error
     const render = (reason?: UnknownElementReason) => (
@@ -1020,45 +1043,52 @@ class Board {
     elements: BoardElement[],
     expandPixels = 100
   ): VisibleElementTree[] {
-    const result: VisibleElementTree[] = [];
+    const vp = this.viewPort;
+    // 剔除滞回：进入用紧盒（调用方缓冲），退出用宽盒（约半屏）。
+    // 文档等重元素滑过剔除边界时若进出同盒，来回平移会反复卸载/重挂（首渲百 ms 级）；
+    // 上一轮保留的元素直到离开宽盒才真正卸载，边界附近的小幅平移零重挂。
+    const exitMargin = expandPixels > 0 ? Math.max(expandPixels * 3, vp.width * 0.5) : expandPixels;
+    const previous = this.cullRetainedIds;
+    const current = new Set<string>();
 
-    for (const element of elements) {
+    const keepElement = (element: BoardElement): boolean => {
       const bounds = this.getBounds(element);
-      const isInViewport =
-        !bounds ||
-        ViewportUtil.isRectInViewport(
-          {
-            x: bounds.minX,
-            y: bounds.minY,
-            width: bounds.maxX - bounds.minX,
-            height: bounds.maxY - bounds.minY,
-          },
-          this.viewPort,
-          expandPixels
-        );
+      if (!bounds) return true;
+      const rect = {
+        x: bounds.minX,
+        y: bounds.minY,
+        width: bounds.maxX - bounds.minX,
+        height: bounds.maxY - bounds.minY,
+      };
+      if (ViewportUtil.isRectInViewport(rect, vp, expandPixels)) return true;
+      return previous.has(element.id) && ViewportUtil.isRectInViewport(rect, vp, exitMargin);
+    };
 
-      let visibleChildren: VisibleElementTree[] = [];
+    const visit = (nodes: BoardElement[]): VisibleElementTree[] => {
+      const visited: VisibleElementTree[] = [];
+      for (const element of nodes) {
+        const visibleChildren =
+          element.children && element.children.length > 0 ? visit(element.children) : [];
 
-      if (element.children && element.children.length > 0) {
-        visibleChildren = this.filterElementsInViewport(element.children, expandPixels);
+        if (keepElement(element) || visibleChildren.length > 0) {
+          current.add(element.id);
+          visited.push({ element, children: visibleChildren });
+        }
       }
+      return visited;
+    };
 
-      if (isInViewport || visibleChildren.length > 0) {
-        result.push({
-          element,
-          children: visibleChildren,
-        });
-      }
-    }
-
-    return result;
+    const trees = visit(elements);
+    this.cullRetainedIds = current;
+    return trees;
   }
 
   public renderVisibleElements(
     elements?: VisibleElementTree[]
   ): Array<React.ReactElement | null | undefined> {
     if (!elements) return [];
-
+    // 元素统一经 memo 的 ElementHost 包装：视口/选区帧剔除与 JSX 包装重建时，
+    // 子元素集合未变的子树按 props 浅比较整体 bail out（见 ElementHost 的比较函数）
     return elements
       .map(({ element, children }) => {
         const plugin = this.plugins.find(plugin => plugin.name === element.type);
@@ -1093,10 +1123,58 @@ class Board {
 
         const renderedChildren = this.renderVisibleElements(processedChildren).filter(isValid);
 
-        return this.renderPluginElement(plugin, element, renderedChildren);
+        return (
+          <ElementHost
+            key={element.id}
+            board={this}
+            plugin={plugin}
+            element={element}
+            children={renderedChildren}
+          />
+        );
       })
       .filter(isValid);
   }
+}
+
+/**
+ * 元素渲染宿主：视口剔除/选区分层每帧重建包装 JSX 时，元素与子元素集合未变
+ * （element 引用经不可变树稳定）的子树在此短路，不再逐帧重渲整棵元素树。
+ */
+const ElementHost = React.memo(
+  function ElementHost({
+    board,
+    plugin,
+    element,
+    children,
+  }: {
+    board: Board;
+    plugin: IBoardPlugin;
+    element: BoardElement;
+    children: React.ReactNode;
+  }) {
+    return board.renderPluginElement(plugin, element, children as React.ReactElement[]);
+  },
+  (prev, next) =>
+    prev.board === next.board &&
+    prev.plugin === next.plugin &&
+    prev.element === next.element &&
+    sameRenderedChildren(prev.children, next.children)
+);
+
+/** 子元素集合比较：逐项按 ElementHost 的 element 引用判等（O(子数)，远低于重渲子树） */
+function sameRenderedChildren(a: React.ReactNode, b: React.ReactNode): boolean {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  return a.every((item, index) => {
+    const other = b[index];
+    if (item === other) return true;
+    if (!React.isValidElement(item) || !React.isValidElement(other)) return false;
+    return (
+      (item.props as { element?: BoardElement }).element ===
+      (other.props as { element?: BoardElement }).element
+    );
+  });
 }
 
 export default Board;

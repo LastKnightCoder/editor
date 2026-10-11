@@ -1,14 +1,13 @@
 import { Board, EHandlerPosition, Point, BBox } from "../types";
-import { BOARD_TO_CONTAINER } from "../constants";
 
 export class PointUtil {
+  /** 指针热路径坐标转换：走 Board 的容器矩形缓存，避免每次 pointermove 强制整文档重排 */
   static screenToViewPort(board: Board, x: number, y: number) {
-    const container = BOARD_TO_CONTAINER.get(board);
-    if (!container) return null;
+    const rect = board.getContainerRect();
+    if (!rect) return null;
     const { viewPort } = board;
-    const { x: containerX, y: containerY } = container.getBoundingClientRect();
-    const offsetX = x - containerX;
-    const offsetY = y - containerY;
+    const offsetX = x - rect.x;
+    const offsetY = y - rect.y;
     const { minX, minY, zoom } = viewPort;
 
     return {
@@ -19,14 +18,13 @@ export class PointUtil {
 
   /** screenToViewPort 的反向：画布坐标 → 屏幕（client）坐标；容器未挂载返回 null */
   static viewPortToScreen(board: Board, x: number, y: number) {
-    const container = BOARD_TO_CONTAINER.get(board);
-    if (!container) return null;
+    const rect = board.getContainerRect();
+    if (!rect) return null;
     const { minX, minY, zoom } = board.viewPort;
-    const { x: containerX, y: containerY } = container.getBoundingClientRect();
 
     return {
-      x: (x - minX) * zoom + containerX,
-      y: (y - minY) * zoom + containerY,
+      x: (x - minX) * zoom + rect.x,
+      y: (y - minY) * zoom + rect.y,
     };
   }
 
