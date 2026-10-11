@@ -199,6 +199,23 @@ it("外部 rows.apply 后撤销栈清空，Cmd+Z 不回滚外部数据", async (
   expect(save).toHaveBeenCalledTimes(1);
 });
 
+it("宿主保存后回写相同数据（rows.receive）不清空撤销栈", async () => {
+  const { ref, owner } = await mount();
+  await click("[data-edit]");
+  expect(rows()[0].value).toBe("改后");
+
+  // 桌面宿主保存成功后把落库结果作为 external rows.receive 回写，内容与当前一致
+  await act(async () => {
+    ref.current?.dispatch(
+      { type: "rows.receive", rows: rows().map(row => ({ ...row })) },
+      "external"
+    );
+  });
+
+  cmdZ(owner);
+  expect(rows()[0].value).toBe("原值");
+});
+
 it("移动列只改视图 order，不污染撤销历史", async () => {
   const { owner } = await mount();
   await click("[data-edit]");
