@@ -220,6 +220,9 @@ export interface CellPlugin<T> {
 export interface TableSnapshot {
   columns: ColumnDef[];
   rows: RowData[];
+  /** 仅用于把恢复的行列放回原位，不回滚视图顺序 */
+  columnOrder: string[];
+  rowOrder: string[];
 }
 
 export interface CellCoord {
