@@ -497,17 +497,42 @@ const WhiteBoard = memo(
       noStopPropagationOnWheel(e);
     });
 
-    // 监听数据变化
+    // 监听数据变化；拖拽/键盘连续移动的手势帧（element:move 持续发）只记脏标，
+    // 手势结束（element:move-end）统一取一次快照，避免高频帧反复组装快照并重置宿主的落库防抖。
+    // 首个手势帧先于 element:move 到达时会漏抑制一次，属可接受的一次性开销。
     useEffect(() => {
-      const handleChange = () => {
+      let inMoveGesture = false;
+      let gestureDirty = false;
+      const emitChange = () => {
         // 文档版本过高：视口/选区等查看性变化也不写回，避免旧版本数据覆盖新版本文档
-        if (documentTooNew) return;
-        onChange?.(board.extensions!.api.getSnapshot());
+        if (!documentTooNew) onChange?.(board.extensions!.api.getSnapshot());
+      };
+      const handleChange = (payload?: { selectionOnly?: boolean }) => {
+        if (inMoveGesture) {
+          gestureDirty = true;
+          return;
+        }
+        // 点选/框选是查看状态，不触发落库（selection 仍随下一次内容保存一并持久化）
+        if (payload?.selectionOnly) return;
+        emitChange();
+      };
+      const handleMove = () => {
+        inMoveGesture = true;
+      };
+      const handleMoveEnd = () => {
+        inMoveGesture = false;
+        if (!gestureDirty) return;
+        gestureDirty = false;
+        emitChange();
       };
       board.on("change", handleChange);
+      board.on("element:move", handleMove);
+      board.on("element:move-end", handleMoveEnd);
 
       return () => {
         board.off("change", handleChange);
+        board.off("element:move", handleMove);
+        board.off("element:move-end", handleMoveEnd);
       };
     }, [board, onChange, documentTooNew]);
     useEffect(() => {
@@ -605,8 +630,15 @@ const WhiteBoard = memo(
       };
       document.addEventListener("pointercancel", scopedHandleOnGlobalPointerCancel, true);
 
-      const observer = new ResizeObserver(handleContainerResize);
+      const observer = new ResizeObserver(() => {
+        // 容器几何变化（窗口缩放/侧栏拖宽）时失效坐标缓存（见 Board.getContainerRect）
+        board.invalidateContainerRect();
+        handleContainerResize();
+      });
       observer.observe(container);
+      // 捕获任意滚动：容器可能随文档滚动移位而尺寸不变，此时缓存需失效
+      const invalidateRect = () => board.invalidateContainerRect();
+      window.addEventListener("scroll", invalidateRect, { capture: true, passive: true });
 
       const statusBar = statusBarRef.current;
 
@@ -641,6 +673,9 @@ const WhiteBoard = memo(
         }
 
         observer.disconnect();
+        window.removeEventListener("scroll", invalidateRect, {
+          capture: true,
+        } as EventListenerOptions);
         cancelPointerMove();
         board.setActive(false);
         releaseBoardPointers(board);

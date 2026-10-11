@@ -4,10 +4,14 @@ import { useSelection } from "../../hooks";
 
 const SelectArea = memo(() => {
   const selection = useSelection();
+  const selectArea = selection?.selectArea ?? null;
 
-  if (!selection || !selection.selectArea) return null;
+  // 常驻节点、仅切换可见性：选区从无到有的首帧只改属性，不再挂载子树——
+  // 挂载属 DOM childList 变更，会触发滚动容器 MutationObserver 的同帧布局测量，
+  // 每次框选首帧因此卡顿百 ms 级（出现后仅改属性，故而跟手）
+  if (!selectArea) return <rect visibility="hidden" pointerEvents="none" />;
 
-  const { anchor, focus } = selection.selectArea;
+  const { anchor, focus } = selectArea;
 
   return (
     <rect

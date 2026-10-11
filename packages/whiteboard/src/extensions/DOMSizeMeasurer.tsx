@@ -56,9 +56,25 @@ const DEFAULT_PADDING: TextBoxPadding = {
  * 否则远端资源解析不出来、块尺寸与屏上不同，测出的高度偏小。
  */
 
+/** 内容数组引用 → 稳定编号（引用不可变树语义，引用相同即内容相同），用于组成缓存键 */
+const contentKeyIndex = new WeakMap<object, number>();
+let nextContentKey = 0;
+const contentKeyOf = (content: Descendant[]): number => {
+  let key = contentKeyIndex.get(content);
+  if (key === undefined) {
+    key = ++nextContentKey;
+    contentKeyIndex.set(content, key);
+  }
+  return key;
+};
+
 /**
  * 文本扩展的 DOM 尺寸测量
- * 在隐藏的 DOM 中渲染/克隆元素，测量其在指定宽度下的高度或文字自然宽度
+ * 在隐藏的 DOM 中渲染/克隆元素，测量其在指定宽度下的高度或文字自然宽度。
+ *
+ * 结果按「元素 id + 目标宽度 + 内容引用」缓存：克隆 DOM 要等两帧布局，
+ * 离屏渲染更要挂一个完整 Slate Editor 的独立 root——元素随视口剔除反复进出时
+ * （平移/缩放），无缓存的重复测量会在主线程制造连绵的长帧。
  */
 export class DOMSizeMeasurer {
   constructor(
@@ -67,6 +83,39 @@ export class DOMSizeMeasurer {
   ) {}
   private container: HTMLDivElement | null = null;
   private static measurementId = 0;
+  private readonly heightCache = new Map<string, number>();
+  private readonly widthCache = new Map<string, number>();
+  private static readonly CACHE_LIMIT = 2000;
+
+  private cacheKey(
+    elementId: string,
+    targetWidth: number | null,
+    content: Descendant[],
+    contentId?: number,
+    textClassName?: string
+  ): string {
+    return [
+      elementId,
+      targetWidth === null ? "natural" : Math.round(targetWidth),
+      contentId ?? 0,
+      contentKeyOf(content),
+      textClassName ?? "",
+    ].join("|");
+  }
+
+  private rememberHeight(key: string, height: number): void {
+    if (this.heightCache.size >= DOMSizeMeasurer.CACHE_LIMIT) {
+      this.heightCache.delete(this.heightCache.keys().next().value as string);
+    }
+    this.heightCache.set(key, height);
+  }
+
+  private rememberWidth(key: string, width: number): void {
+    if (this.widthCache.size >= DOMSizeMeasurer.CACHE_LIMIT) {
+      this.widthCache.delete(this.widthCache.keys().next().value as string);
+    }
+    this.widthCache.set(key, width);
+  }
 
   /**
    * 获取或创建测量容器
@@ -104,6 +153,10 @@ export class DOMSizeMeasurer {
     /** 手绘字体等文字容器类名，仅离屏渲染用；克隆时直接继承在屏容器 */
     textClassName = ""
   ): Promise<number> {
+    const key = this.cacheKey(elementId, targetWidth, content, contentId, textClassName);
+    const cachedHeight = this.heightCache.get(key);
+    if (cachedHeight !== undefined) return cachedHeight;
+
     // 策略1：尝试克隆已存在的 DOM 元素
     // 修复：使用正确的 ID 格式 rich-text-container-${elementId}
     const existingHeight = await this.measureByCloning(
@@ -111,11 +164,20 @@ export class DOMSizeMeasurer {
       targetWidth
     );
     if (existingHeight !== null) {
+      this.rememberHeight(key, existingHeight);
       return existingHeight;
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureByRendering(content, targetWidth, padding, contentId, textClassName);
+    const renderedHeight = await this.measureByRendering(
+      content,
+      targetWidth,
+      padding,
+      contentId,
+      textClassName
+    );
+    this.rememberHeight(key, renderedHeight);
+    return renderedHeight;
   }
 
   /**
@@ -136,17 +198,29 @@ export class DOMSizeMeasurer {
     contentId?: number,
     textClassName = ""
   ): Promise<number> {
+    const key = this.cacheKey(elementId, null, content, contentId, textClassName);
+    const cachedWidth = this.widthCache.get(key);
+    if (cachedWidth !== undefined) return cachedWidth;
+
     // 策略1：尝试克隆已存在的 DOM 元素
     const existingWidth = await this.measureWidthByCloning(
       `rich-text-container-${elementId}`,
       padding
     );
     if (existingWidth !== null) {
+      this.rememberWidth(key, existingWidth);
       return existingWidth;
     }
 
     // 策略2：使用 Editor 渲染测量
-    return this.measureWidthByRendering(content, padding, contentId, textClassName);
+    const renderedWidth = await this.measureWidthByRendering(
+      content,
+      padding,
+      contentId,
+      textClassName
+    );
+    this.rememberWidth(key, renderedWidth);
+    return renderedWidth;
   }
 
   /**
@@ -300,7 +374,9 @@ export class DOMSizeMeasurer {
         if (resolved) return;
         resolved = true;
         resizeObserver?.disconnect();
-        root.unmount();
+        // 延迟卸载：测量可能紧跟主树渲染被清理，同步 unmount 独立 root 会废弃
+        // 当帧渲染工作（React 警告 "unmount a root while React was already rendering"）
+        queueMicrotask(() => root.unmount());
         if (wrapper.parentNode) {
           container.removeChild(wrapper);
         }
@@ -439,7 +515,9 @@ export class DOMSizeMeasurer {
         if (resolved) return;
         resolved = true;
         resizeObserver?.disconnect();
-        root.unmount();
+        // 延迟卸载：测量可能紧跟主树渲染被清理，同步 unmount 独立 root 会废弃
+        // 当帧渲染工作（React 警告 "unmount a root while React was already rendering"）
+        queueMicrotask(() => root.unmount());
         if (wrapper.parentNode) {
           container.removeChild(wrapper);
         }
