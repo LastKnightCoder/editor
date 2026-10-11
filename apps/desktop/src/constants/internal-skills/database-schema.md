@@ -517,6 +517,15 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
+### `data_table_pending_releases`
+
+引用计数归零但暂缓删除的数据表登记（`data_tables.id`）。开库时先按实际引用对账（database_item / project_item / 正文 database 节点 / 本机协作私有块），仍被引用的按引用数复活，超过宽限期且无引用才物理删除表与视图。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `table_id`    | `INTEGER PRIMARY KEY` |
+| `released_at` | `INTEGER NOT NULL`    |
+
 ### `database_item`
 
 | 字段             | SQLite 定义                  |

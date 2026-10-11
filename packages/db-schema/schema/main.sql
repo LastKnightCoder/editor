@@ -318,6 +318,11 @@ CREATE TABLE IF NOT EXISTS data_table_views (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+-- 引用归零的数据表：开库对账实际引用后回收超过宽限期且无引用的表（D-129）
+CREATE TABLE IF NOT EXISTS data_table_pending_releases (
+        table_id INTEGER PRIMARY KEY,
+        released_at INTEGER NOT NULL
+      );
 
 -- 项目域表
 CREATE TABLE IF NOT EXISTS project (
