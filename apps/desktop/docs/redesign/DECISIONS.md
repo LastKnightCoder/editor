@@ -11,6 +11,7 @@
 - 字段配置加版本：列定义带 `configVersion`，字段 model 声明当前版本与逐级 `migrateConfig`，在读取（afterLoad 之前）时升级；升级结果随下次保存落库。
 - 扩展可贡献聚合算子（表尾汇总，声明适用的 valueType 与计算函数）与命令（列头菜单、行菜单、工具栏，经受控的表格 API 读取与提交）。公式不开放自定义函数，D-121 保持不变。
 - 残留类型名判断随对应阶段清理：`GroupRule.strategy` 写入列类型名（持久化），改为不写；ColumnEditModal 的字段配置编辑改由字段声明配置面板；SortPanel 方向提示改由 valueType 推导。
+- 追记（2026-10-11，聚合/命令/残留清理阶段完成）：聚合算子经每实例 `AggregateRegistry` 与内置 9 个同构登记（op 带命名空间，撞名报错），表尾菜单在内置分组后追加扩展组、按 valueType 过滤，未登记算子显示为空且配置保留；公式路径不开放扩展算子（`FooterSpec.op` 放宽为 string，`FormulaExpr` 的 aggregate 节点仍限内置 `AggregateOp`）。命令经受控 `DatabaseCommandApi`（批量 `updateCells`/`deleteRows` 一次撤销步，readonly 不显示不写入），行项排「删除」前、列头项排「编辑」后「删除」前，run 失败走 toast；toolbar 因 ViewTabs 无现成溢出菜单承载点，类型保留、本阶段不渲染（新按钮视觉由用户另行裁决）。残留清理：`GroupRule.strategy` 停写并标 deprecated（无读取方）；SortPanel 方向提示改按 valueType（公式列按结果类型）；看板卡片字段改按「声明 model.toText 且非公式列」判定、优先级字段改按「config 带 options 数组」判定（内置集合与旧白名单逐类一致）；SelectEditor 的单/多选改由插件包装传 `multiple`。
 
 ## D-129 数据表正文引用由数据层按差集维护，释放延迟回收
 

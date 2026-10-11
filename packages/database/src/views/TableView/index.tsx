@@ -10,6 +10,7 @@ import Row from "./components/Row";
 import FooterRow from "./components/FooterRow";
 import { Plus } from "lucide-react";
 import { Tooltip, ConfirmDialog } from "@tau/ui";
+import { builtInAggregateRegistry } from "../../core/formula";
 import type { DatabaseViewComponentProps } from "../types";
 
 type TableViewProps = DatabaseViewComponentProps;
@@ -25,6 +26,8 @@ const emptyStartResize = () => {
 const TableView: React.FC<TableViewProps> = memo(
   ({
     pluginManager,
+    aggregateRegistry,
+    commands,
     startResize = emptyStartResize,
     theme,
     readonly,
@@ -254,6 +257,7 @@ const TableView: React.FC<TableViewProps> = memo(
                 theme={theme}
                 readonly={readonly}
                 allowDeleteColumn={allowDeleteColumn}
+                commands={commands}
               />
             );
           })}
@@ -364,6 +368,7 @@ const TableView: React.FC<TableViewProps> = memo(
                       theme={theme}
                       readonly={readonly}
                       onOpenRowDetail={openRowDetail}
+                      commands={commands}
                     />
                   </div>
                 );
@@ -376,6 +381,7 @@ const TableView: React.FC<TableViewProps> = memo(
               rows={projection.rows}
               footer={footer}
               pluginManager={pluginManager}
+              aggregateRegistry={aggregateRegistry ?? builtInAggregateRegistry}
               readonly={readonly}
               onChange={setFooter}
             />

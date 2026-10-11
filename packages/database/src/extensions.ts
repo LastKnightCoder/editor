@@ -1,9 +1,15 @@
 import type { DatabaseSlots } from "./DatabaseHostContext";
 import PluginManager from "./PluginManager";
 import type { CellPlugin } from "./types";
+import type { DatabaseCommandDefinition } from "./commands";
 import type { DatabaseViewDefinition } from "./views/types";
 import { ViewRegistry } from "./views/ViewRegistry";
 import { builtInViewDefinitions } from "./views/builtInViews";
+import {
+  AggregateRegistry,
+  type DatabaseAggregateDefinition,
+} from "./core/formula/aggregateRegistry";
+import { builtInAggregateDefinitions } from "./core/formula/aggregate";
 
 export interface DatabaseFieldOverride {
   /** 目标字段类型，必须已由内置或其它扩展注册 */
@@ -17,6 +23,10 @@ export interface DatabaseContributions {
   fieldOverrides?: readonly DatabaseFieldOverride[];
   /** 扩展贡献的视图；type 必须带命名空间（含 "."），与内置或其它扩展重复报错 */
   views?: readonly DatabaseViewDefinition[];
+  /** 扩展贡献的表尾聚合算子；op 必须带命名空间（含 "."），与内置 9 个或其它扩展重复报错 */
+  aggregates?: readonly DatabaseAggregateDefinition[];
+  /** 扩展贡献的命令；id 必须带命名空间（含 "."），与其它扩展重复报错 */
+  commands?: readonly DatabaseCommandDefinition[];
   slots?: DatabaseSlots;
   /** 每个 Database 实例挂载时启动，返回的清理函数在卸载时执行 */
   activate?(): void | (() => void);
@@ -38,6 +48,8 @@ export function defineDatabaseExtension(
 export interface DatabaseExtensionRuntime {
   pluginManager: PluginManager;
   viewRegistry: ViewRegistry;
+  aggregateRegistry: AggregateRegistry;
+  commands: readonly DatabaseCommandDefinition[];
   slots: DatabaseSlots;
   activators: NonNullable<DatabaseContributions["activate"]>[];
 }
@@ -52,6 +64,9 @@ export function installDatabaseExtensions(
 
   const viewRegistry = new ViewRegistry();
   viewRegistry.registerAll(builtInViewDefinitions);
+
+  const aggregateRegistry = new AggregateRegistry();
+  aggregateRegistry.registerAll(builtInAggregateDefinitions);
 
   const extensionIds = new Set<string>();
   const contributions: { id: string; value: DatabaseContributions }[] = [];
@@ -79,6 +94,36 @@ export function installDatabaseExtensions(
       if (viewRegistry.has(definition.type))
         throw new Error(`Database 扩展 ${id} 注册了已存在的视图类型：${definition.type}`);
       viewRegistry.register(definition);
+    }
+  }
+
+  const aggregateOwners = new Map<string, string>();
+  for (const { id, value } of contributions) {
+    for (const definition of value.aggregates ?? []) {
+      // 先查重（内置 9 个不带命名空间，撞名优先报「已存在」），再查命名空间
+      const owner = aggregateOwners.get(definition.op);
+      if (owner !== undefined)
+        throw new Error(`Database 聚合算子 ${definition.op} 被多个扩展注册：${owner} 与 ${id}`);
+      if (aggregateRegistry.has(definition.op))
+        throw new Error(`Database 扩展 ${id} 注册了已存在的聚合算子：${definition.op}`);
+      if (!definition.op.includes("."))
+        throw new Error(`Database 扩展 ${id} 的聚合算子必须带命名空间（含 "."）：${definition.op}`);
+      aggregateOwners.set(definition.op, id);
+      aggregateRegistry.register(definition);
+    }
+  }
+
+  const commands: DatabaseCommandDefinition[] = [];
+  const commandOwners = new Map<string, string>();
+  for (const { id, value } of contributions) {
+    for (const command of value.commands ?? []) {
+      if (!command.id.includes("."))
+        throw new Error(`Database 扩展 ${id} 的命令 id 必须带命名空间（含 "."）：${command.id}`);
+      const owner = commandOwners.get(command.id);
+      if (owner !== undefined)
+        throw new Error(`Database 命令 ${command.id} 被多个扩展注册：${owner} 与 ${id}`);
+      commandOwners.set(command.id, id);
+      commands.push(command);
     }
   }
 
@@ -113,5 +158,5 @@ export function installDatabaseExtensions(
     .map(({ value }) => value.activate)
     .filter((activate): activate is NonNullable<typeof activate> => activate !== undefined);
 
-  return { pluginManager, viewRegistry, slots, activators };
+  return { pluginManager, viewRegistry, aggregateRegistry, commands, slots, activators };
 }

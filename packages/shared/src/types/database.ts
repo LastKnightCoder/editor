@@ -102,9 +102,12 @@ export interface TableViewConfig {
 export type AggregateOp =
   "sum" | "avg" | "median" | "min" | "max" | "countAll" | "countNonEmpty" | "countEmpty" | "unique";
 
-/** 单列汇总，或以各列汇总为叶子的组合表达式 */
-export type FooterSpec =
-  { kind: "aggregate"; op: AggregateOp } | { kind: "expr"; expr: FormulaExpr };
+/**
+ * 单列汇总，或以各列汇总为叶子的组合表达式。
+ * aggregate.op 放宽为 string：内置 9 个见 AggregateOp（公式仍只认这些），
+ * 扩展可贡献带命名空间的表尾算子（D-130）；主进程对该值只校验字符串、原样保留。
+ */
+export type FooterSpec = { kind: "aggregate"; op: string } | { kind: "expr"; expr: FormulaExpr };
 
 // ============ Formula Types ============
 
@@ -192,6 +195,7 @@ export type GroupGranularity = "day" | "week" | "month";
 export interface GroupRule {
   id: string;
   fieldId: string;
+  /** @deprecated 不再写入，读取方不存在；存量数据中的该键被忽略 */
   strategy?: "text" | "select" | "multiSelect" | "checkbox" | "star" | string;
   granularity?: GroupGranularity;
 }

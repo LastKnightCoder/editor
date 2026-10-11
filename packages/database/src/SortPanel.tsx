@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ChevronDown, GripVertical, Plus, X } from "lucide-r
 import { cn, Button } from "@tau/ui";
 import { ColumnDef } from "./types";
 import { SortRule } from "./types";
+import type { ValueType } from "./core/formula/types";
 import ColumnIcon from "./ColumnIcon";
 import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
@@ -15,11 +16,13 @@ interface SortPanelProps {
   pluginManager: PluginManager;
 }
 
-/** 方向的人话提示：按字段类型 + 方向映射，消除「升序是哪边」的歧义 */
-const directionHint = (columnType: string, direction: SortRule["direction"]): string => {
-  if (columnType === "date") return direction === "asc" ? "旧→新" : "新→旧";
-  if (columnType === "number" || columnType === "progress")
-    return direction === "asc" ? "0→9" : "9→0";
+/** 方向的人话提示：按字段值类型 + 方向映射，消除「升序是哪边」的歧义；公式列按结果类型推导 */
+export const directionHint = (
+  valueType: ValueType | null,
+  direction: SortRule["direction"]
+): string => {
+  if (valueType === "date") return direction === "asc" ? "旧→新" : "新→旧";
+  if (valueType === "number") return direction === "asc" ? "0→9" : "9→0";
   return direction === "asc" ? "A→Z" : "Z→A";
 };
 
@@ -241,7 +244,9 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                     )}
                   </button>
                   <span className="text-ink-3 w-[38px] shrink-0 text-right text-[10.5px] tabular-nums">
-                    {column ? directionHint(column.type, sort.direction) : ""}
+                    {column
+                      ? directionHint(pluginManager.getValueType(column) ?? null, sort.direction)
+                      : ""}
                   </span>
                   <button
                     type="button"

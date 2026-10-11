@@ -8,10 +8,16 @@ import type {
   RowData,
 } from "../types";
 import type PluginManager from "../PluginManager";
+import type { DatabaseCommandsRuntime } from "../commands";
+import type { AggregateRegistry } from "../core/formula/aggregateRegistry";
 
 /** 四个视图组件统一的 props：共用字段必填，各视图专用字段可选（不用的视图忽略） */
 export interface DatabaseViewComponentProps {
   pluginManager: PluginManager;
+  /** 表尾聚合登记表（内置 9 个与扩展算子同路径，D-130）；表格视图消费 */
+  aggregateRegistry?: AggregateRegistry;
+  /** 扩展命令运行时（受控 API + 定义）；readonly 实例不提供，视图随之不显示扩展命令 */
+  commands?: DatabaseCommandsRuntime;
   theme: "light" | "dark";
   readonly: boolean;
   onRowDetailOpen?: (row: RowData) => void;

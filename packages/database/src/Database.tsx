@@ -28,6 +28,7 @@ import { builtInPlugins } from "./plugins";
 import { upgradeColumns } from "./model/config-version";
 import type { DatabaseFieldModel } from "./model/field-model";
 import { installDatabaseExtensions, type DatabaseExtension } from "./extensions";
+import { createCommandApi } from "./commands";
 import { useColumnResize, useKeyboardNavigation, useUndoRedoShortcut } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
 import { ViewRegistryContext } from "./views/ViewRegistryContext";
@@ -85,6 +86,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     const {
       pluginManager: pluginMgr,
       viewRegistry,
+      aggregateRegistry,
+      commands: commandDefinitions,
       slots,
       activators,
     } = useCreation(
@@ -121,6 +124,17 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
           onRowCleanup
         ),
       []
+    );
+
+    // 扩展命令的受控 API：readonly 跟随 prop，写方法在只读实例直接返回
+    const readonlyRef = useRef(!!readonly);
+    readonlyRef.current = !!readonly;
+    const commands = useCreation(
+      () => ({
+        api: createCommandApi(store, pluginMgr, () => readonlyRef.current),
+        definitions: commandDefinitions,
+      }),
+      [store, pluginMgr, commandDefinitions]
     );
 
     const systemTheme = useThemeStore(state => state.mode);
@@ -340,6 +354,9 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
       const viewProps = {
         pluginManager: pluginMgr,
+        aggregateRegistry,
+        // readonly 实例不显示任何扩展命令
+        commands: readonly ? undefined : commands,
         theme: finalTheme,
         readonly: !!readonly,
         onRowDetailOpen,
@@ -356,6 +373,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       storeViews,
       viewRegistry,
       pluginMgr,
+      aggregateRegistry,
+      commands,
       startResize,
       finalTheme,
       readonly,

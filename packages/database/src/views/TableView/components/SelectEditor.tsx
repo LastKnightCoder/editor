@@ -18,6 +18,8 @@ interface SelectEditorProps {
   onColumnChange: (column: ColumnDef<{ options: SelectOption[] }>) => void;
   theme: "light" | "dark";
   autoOpen?: boolean;
+  /** 由插件包装传入：多选（multiSelect）还是单选（select），编辑器不再按列类型名特判 */
+  multiple: boolean;
 }
 
 const SelectEditor: React.FC<SelectEditorProps> = ({
@@ -27,6 +29,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   onCellValueChange,
   onFinishEdit,
   autoOpen = false,
+  multiple,
 }) => {
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,7 +42,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     return SELECT_COLORS[(options.length + 1) % SELECT_COLORS.length];
   }, [options]);
 
-  const isMultiSelect = column.type === "multiSelect";
+  const isMultiSelect = multiple;
 
   const initOptions = useMemoizedFn(() => {
     const config = column.config || { options: [] };

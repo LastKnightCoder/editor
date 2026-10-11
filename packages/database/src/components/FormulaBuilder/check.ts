@@ -1,6 +1,7 @@
 import type PluginManager from "../../PluginManager";
 import type { ColumnDef, RowData } from "../../types";
 import {
+  builtInAggregateRegistry,
   createFormulaContext,
   evaluateFooter,
   FORMULA_TYPE,
@@ -48,10 +49,18 @@ export function checkFormula(
   if (draft.kind === "hole") return { ok: false, message: "先选择要计算的内容" };
   const ctx = createFormulaContext(columns, plugins);
   if (scope === "footer") {
-    const result = evaluateFooter("", { kind: "expr", expr: draft }, rows, ctx);
+    // 公式只认内置算子（D-121），预览经内置登记表求值
+    const result = evaluateFooter(
+      "",
+      { kind: "expr", expr: draft },
+      rows,
+      ctx,
+      builtInAggregateRegistry
+    );
     if (!result.ok) return { ok: false, message: result.error.message };
-    const { value } = result.value;
-    const output = result.value.kind === "expr" ? result.value.valueType : "number";
+    const footer = result.value;
+    const output = footer.kind === "expr" ? footer.valueType : "number";
+    const value = footer.kind === "expr" || footer.kind === "numeric" ? footer.value : null;
     return { ok: true, output, footerText: formatScalar(value, output) || "—" };
   }
   const valid = validateFormula(draft, ctx);

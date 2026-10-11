@@ -53,6 +53,8 @@ interface TableState {
   historyIndex: number;
 
   updateCellValue: (rowId: string, columnId: string, value: CellValue) => void;
+  /** 批量修改单元格（受控命令 API 使用）：一次 produce、一次 commitHistory */
+  updateCells: (patches: readonly { rowId: string; columnId: string; value: CellValue }[]) => void;
   resizeColumn: (columnId: string, width: number) => void;
   moveColumn: (columnId: string, targetId: string) => void;
   moveRow: (rowId: string, targetId: string) => void;
@@ -69,6 +71,8 @@ interface TableState {
 
   addRow: (row?: Partial<RowData>) => void;
   deleteRow: (rowId: string) => void;
+  /** 批量删除行（受控命令 API 使用）：每行触发 onRowCleanup，一次 produce、一次 commitHistory */
+  deleteRows: (rowIds: readonly string[]) => void;
   addColumn: (column: Partial<ColumnDef>) => void;
   deleteColumn: (columnId: string) => void;
   editColumn: (columnId: string, updates: Partial<ColumnDef>) => void; // 编辑列属性
@@ -406,6 +410,21 @@ export const createDatabaseStore = (
         get().commitHistory();
       },
 
+      updateCells: patches => {
+        if (!patches.length) return;
+        set(
+          produce<TableState>(state => {
+            for (const { rowId, columnId, value } of patches) {
+              const rowIndex = state.rows.findIndex(r => r.id === rowId);
+              if (rowIndex !== -1) {
+                state.rows[rowIndex][columnId] = value;
+              }
+            }
+          })
+        );
+        get().commitHistory();
+      },
+
       resizeColumn: (columnId, width) => {
         const { columns } = get();
         set(
@@ -531,6 +550,30 @@ export const createDatabaseStore = (
           produce<TableState>(state => {
             state.rows = state.rows.filter((row: RowData) => row.id !== rowId);
             state.viewConfig.rowOrder = state.viewConfig.rowOrder.filter(id => id !== rowId);
+          })
+        );
+        get().commitHistory();
+      },
+
+      deleteRows: rowIds => {
+        const ids = new Set(rowIds);
+        const targets = get().rows.filter(row => ids.has(row.id));
+        if (!targets.length) return;
+        if (onRowCleanup) {
+          for (const row of targets) {
+            try {
+              Promise.resolve(onRowCleanup(row)).catch(error => {
+                console.error("清理行关联资源失败:", error);
+              });
+            } catch (error) {
+              console.error("清理行关联资源失败:", error);
+            }
+          }
+        }
+        set(
+          produce<TableState>(state => {
+            state.rows = state.rows.filter((row: RowData) => !ids.has(row.id));
+            state.viewConfig.rowOrder = state.viewConfig.rowOrder.filter(id => !ids.has(id));
           })
         );
         get().commitHistory();

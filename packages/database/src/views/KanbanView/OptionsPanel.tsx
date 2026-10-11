@@ -4,7 +4,11 @@ import { Checkbox, Radio, RadioGroup } from "@tau/ui";
 import ColumnDropdown from "../../ColumnDropdown";
 import type { ColumnDef, KanbanCardTemplate, KanbanViewConfig } from "../../types";
 import type { ViewOptionsPanelProps } from "../types";
-import { getTemplateDefaultCardDisplay, resolveKanbanCardDisplay } from "./cardDisplayConfig";
+import {
+  createCardFieldPredicate,
+  getTemplateDefaultCardDisplay,
+  resolveKanbanCardDisplay,
+} from "./cardDisplayConfig";
 
 /** 看板视图的专属配置区块（受控，viewOptions.kanban）：分组列、卡片模板、完成列与可见字段 */
 const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = memo(
@@ -12,6 +16,7 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
     const isBooleanColumn = useMemoizedFn((column: ColumnDef) =>
       pluginManager.hasCapability(column.type, "boolean")
     );
+    const isCardField = useMemoizedFn(createCardFieldPredicate(pluginManager));
     const primaryColumnId = useMemo(() => columns.find(column => column.isPrimary)?.id, [columns]);
     // props.columns 已按当前视图列序排列，等价于原面板里 view.config.columnOrder 的重排结果
     const viewConfig = useMemo(
@@ -29,8 +34,9 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
           primaryColumnId,
           groupColumnId: groupColumnId || undefined,
           isBooleanColumn,
+          isCardField,
         }),
-      [columns, viewConfig, options, primaryColumnId, groupColumnId, isBooleanColumn]
+      [columns, viewConfig, options, primaryColumnId, groupColumnId, isBooleanColumn, isCardField]
     );
 
     useEffect(() => {
@@ -60,6 +66,7 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
         groupColumnId: groupColumnId || undefined,
         primaryColumnId,
         doneColumnId: kanbanDisplay.doneColumnId,
+        isCardField,
       });
       patchCardDisplay({ template, visibleFieldIds: preset.visibleFieldIds });
     });
@@ -82,6 +89,7 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
         primaryColumnId,
         groupColumnId: nextGroupColumnId || undefined,
         isBooleanColumn,
+        isCardField,
       });
       onChange({
         groupColumnId: nextGroupColumnId,
@@ -112,6 +120,7 @@ const KanbanOptionsPanel: React.FC<ViewOptionsPanelProps<KanbanViewConfig>> = me
         primaryColumnId,
         groupColumnId: groupColumnId || undefined,
         isBooleanColumn,
+        isCardField,
       });
       patchCardDisplay({
         doneColumnId: nextDoneColumnId || undefined,

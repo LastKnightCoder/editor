@@ -5,6 +5,8 @@ import {
   KanbanViewConfig,
   TableViewConfig,
 } from "../../types";
+import { FORMULA_TYPE } from "../../core/formula";
+import type PluginManager from "../../PluginManager";
 
 export const DEFAULT_KANBAN_TEMPLATE: KanbanCardTemplate = "task";
 export const DEFAULT_SHOW_FIELD_LABELS = false;
@@ -15,19 +17,18 @@ const TEMPLATE_DEFAULT_FIELD_LIMIT: Record<KanbanCardTemplate, number> = {
   detail: 4,
 };
 
-const TASK_PRIORITY_TYPES = new Set(["select", "multiSelect"]);
+/** 选项类字段（任务模板的优先展示项）：列 config 带选项数组（单选 / 多选，含扩展选项类字段） */
+const isOptionColumn = (column: ColumnDef): boolean =>
+  Array.isArray((column.config as { options?: unknown } | undefined | null)?.options);
 
-export const KANBAN_CARD_SUPPORTED_FIELD_TYPES = new Set([
-  "text",
-  "number",
-  "date",
-  "select",
-  "multiSelect",
-  "checkbox",
-  "star",
-  "progress",
-  "link",
-]);
+/**
+ * 卡片可内联展示的字段判定（D-130）：插件声明了 model.toText（值有纯文本口径）。
+ * 公式列的值只在投影中派生、不落 store 行，维持排除（与 DatabaseStore 的公式列特判同语义）。
+ */
+export const createCardFieldPredicate =
+  (pluginManager: PluginManager) =>
+  (column: ColumnDef): boolean =>
+    Boolean(pluginManager.getModel(column.type)) && column.type !== FORMULA_TYPE;
 
 export interface ResolveKanbanCardDisplayParams {
   columns: ColumnDef[];
@@ -37,6 +38,8 @@ export interface ResolveKanbanCardDisplayParams {
   groupColumnId?: string;
   /** 完成列判定：由调用方传入字段能力查询（值为布尔的列可作看板「完成」列） */
   isBooleanColumn: (column: ColumnDef) => boolean;
+  /** 卡片可展示字段判定：由调用方传入（createCardFieldPredicate(pluginManager)） */
+  isCardField: (column: ColumnDef) => boolean;
 }
 
 export interface ResolvedKanbanCardDisplay {
@@ -91,9 +94,10 @@ const resolveDoneColumnId = (
   return orderedColumns.find(column => isBooleanColumn(column) && !column.hidden)?.id;
 };
 
+/** 任务模板的默认字段把选项类字段（单选 / 多选）排前面 */
 const sortByTaskPriority = (columns: ColumnDef[]): ColumnDef[] => {
-  const prioritized = columns.filter(column => TASK_PRIORITY_TYPES.has(column.type));
-  const others = columns.filter(column => !TASK_PRIORITY_TYPES.has(column.type));
+  const prioritized = columns.filter(isOptionColumn);
+  const others = columns.filter(column => !isOptionColumn(column));
   return [...prioritized, ...others];
 };
 
@@ -113,14 +117,16 @@ const getTemplateDefaultFieldIds = (
 const getCandidateFields = ({
   orderedColumns,
   excludedColumnIds,
+  isCardField,
 }: {
   orderedColumns: ColumnDef[];
   excludedColumnIds: Set<string>;
+  isCardField: (column: ColumnDef) => boolean;
 }): ColumnDef[] => {
   return orderedColumns.filter(column => {
     if (column.hidden) return false;
     if (excludedColumnIds.has(column.id)) return false;
-    return KANBAN_CARD_SUPPORTED_FIELD_TYPES.has(column.type);
+    return isCardField(column);
   });
 };
 
@@ -142,6 +148,7 @@ export const resolveKanbanCardDisplay = ({
   primaryColumnId,
   groupColumnId,
   isBooleanColumn,
+  isCardField,
 }: ResolveKanbanCardDisplayParams): ResolvedKanbanCardDisplay => {
   const cardDisplay = kanban?.cardDisplay;
   const template = normalizeTemplate(cardDisplay?.template);
@@ -160,6 +167,7 @@ export const resolveKanbanCardDisplay = ({
   const candidateFields = getCandidateFields({
     orderedColumns,
     excludedColumnIds,
+    isCardField,
   });
   const configuredVisibleFieldIds = normalizeVisibleFieldIds(
     cardDisplay?.visibleFieldIds,
@@ -189,6 +197,7 @@ export const getTemplateDefaultCardDisplay = ({
   groupColumnId,
   primaryColumnId,
   doneColumnId,
+  isCardField,
 }: {
   template: KanbanCardTemplate;
   columns: ColumnDef[];
@@ -196,6 +205,7 @@ export const getTemplateDefaultCardDisplay = ({
   groupColumnId?: string;
   primaryColumnId?: string;
   doneColumnId?: string;
+  isCardField: (column: ColumnDef) => boolean;
 }): { template: KanbanCardTemplate; visibleFieldIds: string[] } => {
   const orderedColumns = getOrderedColumns(columns, viewConfig.columnOrder || []);
   const excludedColumnIds = new Set<string>();
@@ -206,6 +216,7 @@ export const getTemplateDefaultCardDisplay = ({
   const candidateFields = getCandidateFields({
     orderedColumns,
     excludedColumnIds,
+    isCardField,
   });
   return {
     template,

@@ -8,7 +8,7 @@ import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { cn, ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
-import { resolveKanbanCardDisplay } from "./cardDisplayConfig";
+import { resolveKanbanCardDisplay, createCardFieldPredicate } from "./cardDisplayConfig";
 import type { DatabaseViewComponentProps } from "../types";
 
 type KanbanViewProps = DatabaseViewComponentProps;
@@ -75,6 +75,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     const isBooleanColumn = useMemoizedFn((column: ColumnDef) =>
       pluginManager.hasCapability(column.type, "boolean")
     );
+    const isCardField = useMemoizedFn(createCardFieldPredicate(pluginManager));
     const cardDisplay = useMemo(
       () =>
         resolveKanbanCardDisplay({
@@ -84,8 +85,9 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
           primaryColumnId: primaryColumn?.id,
           groupColumnId,
           isBooleanColumn,
+          isCardField,
         }),
-      [columns, viewConfig, kanban, primaryColumn?.id, groupColumnId, isBooleanColumn]
+      [columns, viewConfig, kanban, primaryColumn?.id, groupColumnId, isBooleanColumn, isCardField]
     );
 
     const projection = useDatabaseStore(state => state.projection);

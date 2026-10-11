@@ -67,6 +67,28 @@ const acmeExtension = defineDatabaseExtension({
     fieldTypes: [RatingPlugin], // 新增类型，与内置或其它扩展重复即报错
     fieldOverrides: [{ type: "link", patch: { Renderer: LinkRenderer } }], // 浅合并改造已有类型
     views: [timelineViewDefinition], // 贡献视图（见下），与内置或其它扩展重复即报错
+    aggregates: [
+      {
+        op: "acme.range", // 必须带命名空间，与内置 9 个或其它扩展重复即报错
+        label: "极差",
+        valueTypes: ["number"], // 缺省表示适用所有类型（含未声明值类型的列）
+        resultKind: "numeric", // count：整数不按列格式化；numeric：按列 formatScalar 格式化
+        compute: values => {
+          const numbers = values.filter((v): v is number => typeof v === "number");
+          return numbers.length ? Math.max(...numbers) - Math.min(...numbers) : null;
+        },
+      },
+    ],
+    commands: [
+      {
+        id: "acme.markDone", // 必须带命名空间，与其它扩展重复即报错
+        label: "标记完成",
+        placement: "row", // row：行菜单；column：列头菜单；toolbar 暂无承载点
+        when: ({ api, rowId }) => Boolean(rowId && api.getRow(rowId)),
+        run: ({ api, rowId }) =>
+          api.updateCells([{ rowId: rowId!, columnId: "done", value: true }]),
+      },
+    ],
     slots: { RowDetailBody }, // 每个插槽键只能由一个扩展提供
     activate: () => () => {}, // 每实例挂载启动，返回值在卸载时清理
   }),
@@ -76,6 +98,10 @@ const extensions = [acmeExtension];
 ```
 
 `create()` 每个实例调用一次，实例级状态放在其闭包内。覆盖在全部 `fieldTypes` 注册后应用；目标不存在、同一类型被两个扩展覆盖均报错。扩展不从本包获得文件、导航或模型等宿主能力，所需能力由宿主侧扩展自行持有。图片、附件、富文本与卡片业务字段由宿主扩展提供；缺失插件的字段不可编辑并保留原值。
+
+扩展可贡献表尾聚合算子（D-130）：算子经每实例的 `AggregateRegistry` 登记（内置 9 个走同一结构同一注册路径），表尾菜单在内置分组后追加扩展算子组、按列 valueType 过滤，计算经登记表求值。只有表尾使用扩展算子——`FooterSpec` 的 `op` 放宽为 string，公式（含表尾组合表达式的 aggregate 节点）仍只认内置 `AggregateOp`（D-121），`FormulaBuilder` 与公式校验不开放扩展算子。配置了未登记算子（扩展被移除）的表尾格显示为空、菜单不选中，配置原样保留不清除；主进程 `normalizeFooter` 对 op 只校验字符串。
+
+扩展可贡献命令（D-130）：`commands` 声明出现位置（`row` 行菜单、`column` 列头菜单、`toolbar` 工具栏），经 `CommandContext` 收到受控的 `DatabaseCommandApi`（`getColumns`/`getRows` 返回副本；`updateCells`/`deleteRows` 批量提交且只产生一次撤销步；readonly 实例写方法直接返回、不显示任何扩展命令）。行菜单扩展项排在「删除」之前、列头扩展项排在「编辑」之后「删除」之前，与内置项之间有分隔线；内置的编辑/删除保持原确认流程，不改为命令。`run` 抛错或 reject 经 `@tau/ui` toast 报错，不影响表格。toolbar 当前没有现成的溢出菜单承载点，placement 类型保留、暂不渲染。
 
 插槽 `useFormulaAssist` 是 hook：返回调用模型的函数，返回 undefined 时公式构造器不显示 AI 输入框。
 
