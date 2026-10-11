@@ -3,12 +3,13 @@ import { Link2 } from "lucide-react";
 import Renderer from "./Renderer";
 import Editor from "./Editor";
 import { normalizeUrl } from "./utils";
+import { linkFieldModel } from "./model";
 
 const LinkPlugin: CellPlugin<unknown> = {
-  type: "link",
+  type: linkFieldModel.type,
   name: "链接",
   editable: true,
-  valueType: "text",
+  valueType: linkFieldModel.valueType,
   Renderer,
   Editor,
   Icon: ({ className }) => <Link2 className={className} />,

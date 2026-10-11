@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,28 @@ const files = directory =>
   });
 const inside = (file, directory) => file.startsWith(directory + sep);
 const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
-assert.deepEqual(Object.keys(manifest.exports), ["."], "Database 仅公开根入口");
+assert.deepEqual(
+  Object.keys(manifest.exports),
+  [".", "./model"],
+  "Database 仅公开根入口与 model 子入口"
+);
+assert.equal(
+  manifest.exports["./model"],
+  "./src/model/index.ts",
+  "./model 子入口指向 src/model/index.ts"
+);
+/** import/export-from 是否整条 type-only（不含默认名与值绑定） */
+const importIsTypeOnly = node => {
+  const clause = node.importClause;
+  return (
+    node.isTypeOnly ||
+    clause?.isTypeOnly ||
+    (clause?.namedBindings &&
+      ts.isNamedImports(clause.namedBindings) &&
+      !clause.name &&
+      clause.namedBindings.elements.every(item => item.isTypeOnly))
+  );
+};
 const declared = new Set(
   Object.keys({
     ...manifest.dependencies,
@@ -35,6 +56,71 @@ const declared = new Set(
     ...manifest.devDependencies,
   })
 );
+
+// model 子入口不可达 React（D-130）：从入口沿相对 import（含 re-export）求运行时闭包，
+// type-only 导入不计入；闭包内不得出现 .tsx，也不得 import React 家族 / UI / 状态库。
+const forbiddenForModel =
+  /^(react|react-dom|lucide-react|@tau\/ui|@tau\/themes|zustand|ahooks)(\/|$)|^@tanstack\//;
+const resolveModule = (fromFile, specifier) => {
+  const base = resolve(dirname(fromFile), specifier);
+  const candidates = [
+    base,
+    ...[".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].map(ext => base + ext),
+    ...["/index.ts", "/index.tsx", "/index.js"].map(ext => base + ext),
+  ];
+  return candidates.find(path => existsSync(path) && statSync(path).isFile()) ?? null;
+};
+const moduleSpecifiers = file => {
+  const ast = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+  const specs = [];
+  const visit = node => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      specs.push({ specifier: node.moduleSpecifier.text, typeOnly: importIsTypeOnly(node) });
+    }
+    if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        node.expression.getText(ast) === "require") &&
+      node.arguments[0] &&
+      ts.isStringLiteral(node.arguments[0])
+    ) {
+      specs.push({ specifier: node.arguments[0].text, typeOnly: false });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  return specs;
+};
+{
+  const entry = resolve(packageRoot, manifest.exports["./model"]);
+  const parents = new Map([[entry, null]]);
+  const queue = [entry];
+  while (queue.length) {
+    const file = queue.shift();
+    const chain = [];
+    for (let cursor = file; cursor; cursor = parents.get(cursor))
+      chain.unshift(relative(root, cursor));
+    assert.ok(!file.endsWith(".tsx"), "model 子入口不可达 .tsx：" + chain.join(" -> "));
+    for (const { specifier, typeOnly } of moduleSpecifiers(file)) {
+      assert.ok(
+        !forbiddenForModel.test(specifier),
+        "model 子入口不可达 React/UI 库（" + specifier + "）：" + chain.join(" -> ")
+      );
+      if (!typeOnly && specifier.startsWith(".")) {
+        const target = resolveModule(file, specifier);
+        assert.ok(target, "model 依赖可解析：" + relative(root, file) + ": " + specifier);
+        if (!parents.has(target)) {
+          parents.set(target, file);
+          queue.push(target);
+        }
+      }
+    }
+  }
+}
 
 for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
   for (const file of files(resolve(root, directory))) {
@@ -46,8 +132,9 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
       const local = specifier.startsWith(".") ? resolve(dirname(file), specifier) : undefined;
       if (!inside(file, packageRoot)) {
         assert(
-          !specifier.startsWith("@tau/database/") && !(local && inside(local, packageRoot)),
-          "消费者使用 @tau/database 根入口：" + label
+          !(specifier.startsWith("@tau/database/") && specifier !== "@tau/database/model") &&
+            !(local && inside(local, packageRoot)),
+          "消费者使用 @tau/database 根入口或 model 子入口：" + label
         );
       }
       if (!inPackage) return;
@@ -112,13 +199,7 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
             );
           }
         }
-        const typeOnly =
-          node.isTypeOnly ||
-          clause?.isTypeOnly ||
-          (clause?.namedBindings &&
-            ts.isNamedImports(clause.namedBindings) &&
-            !clause.name &&
-            clause.namedBindings.elements.every(item => item.isTypeOnly));
+        const typeOnly = importIsTypeOnly(node);
         check(node.moduleSpecifier.text, typeOnly);
       }
       if (

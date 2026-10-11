@@ -2,12 +2,13 @@ import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
 import { Type } from "lucide-react";
+import { textFieldModel } from "./model";
 
 const TextPlugin: CellPlugin<any> = {
-  type: "text",
+  type: textFieldModel.type,
   name: "文本",
   editable: true,
-  valueType: "text",
+  valueType: textFieldModel.valueType,
   Renderer,
   Editor,
   Icon: ({ className }: { className?: string }) => <Type className={className} />,

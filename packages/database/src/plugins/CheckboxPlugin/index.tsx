@@ -2,6 +2,7 @@ import React from "react";
 import { CellPlugin, CellValue, ColumnDef } from "../../types";
 import { Checkbox } from "@tau/ui";
 import { SquareCheck } from "lucide-react";
+import { checkboxFieldModel } from "./model";
 
 const Renderer: React.FC<{
   value: CellValue;
@@ -46,11 +47,11 @@ const Renderer: React.FC<{
 };
 
 const CheckboxPlugin: CellPlugin<unknown> = {
-  type: "checkbox",
+  type: checkboxFieldModel.type,
   name: "复选框",
   editable: false,
   capabilities: { boolean: true },
-  valueType: "boolean",
+  valueType: checkboxFieldModel.valueType,
   Renderer,
   Icon: ({ className }) => <SquareCheck className={className} />,
   beforeSave: value => Boolean(value),

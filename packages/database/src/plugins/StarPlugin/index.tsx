@@ -2,11 +2,7 @@ import React from "react";
 import { CellPlugin, CellValue, ColumnDef } from "../../types";
 import Star from "./Star";
 import { Star as StarIcon } from "lucide-react";
-
-interface StarConfig {
-  max?: number; // 默认 5
-  step?: 0.5 | 1; // 默认 0.5
-}
+import { starFieldModel, type StarConfig } from "./model";
 
 const clamp = (val: number, min: number, max: number) => Math.min(max, Math.max(min, val));
 
@@ -57,12 +53,12 @@ const Renderer: React.FC<{
 };
 
 const StarPlugin: CellPlugin<StarConfig> = {
-  type: "star",
+  type: starFieldModel.type,
   name: "评分",
   editable: false,
-  valueType: "number",
+  valueType: starFieldModel.valueType,
   // 0 星即未评分，不参与平均
-  toScalar: value => (typeof value === "number" && value > 0 ? value : null),
+  toScalar: starFieldModel.toScalar,
   formatScalar: value => String(Math.round(value * 10) / 10),
   Renderer,
   Icon: ({ className }) => <StarIcon className={className} />,

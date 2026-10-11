@@ -2,19 +2,14 @@ import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../views/TableView/components/SelectEditor";
 import { ListChecks } from "lucide-react";
+import { multiSelectFieldModel } from "./model";
 
 const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
-  type: "multiSelect",
+  type: multiSelectFieldModel.type,
   name: "多选",
   editable: true,
-  valueType: "text",
-  toScalar: (value, column) => {
-    if (!Array.isArray(value)) return null;
-    const names = value
-      .map(id => column.config?.options?.find(option => option.id === id)?.name)
-      .filter(Boolean);
-    return names.length ? names.join(", ") : null;
-  },
+  valueType: multiSelectFieldModel.valueType,
+  toScalar: multiSelectFieldModel.toScalar,
   Renderer,
   // @ts-ignore
   Editor,
