@@ -148,9 +148,9 @@ export function RichTextActionsLayer() {
       }
     };
 
-    board.on("richtext:create-as", handleRichTextCreateAs);
+    board.on("tau.richtext.create-as", handleRichTextCreateAs);
     return () => {
-      board.off("richtext:create-as", handleRichTextCreateAs);
+      board.off("tau.richtext.create-as", handleRichTextCreateAs);
     };
   }, [board, ensureRichTextContentId]);
 

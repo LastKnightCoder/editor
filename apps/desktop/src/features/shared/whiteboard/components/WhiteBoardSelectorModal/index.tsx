@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 
-import { Board as Board } from "@tau/whiteboard";
-import { ECreateBoardElementType } from "@tau/whiteboard";
+import { Board as Board, SELECT_TOOL_ID } from "@tau/whiteboard";
 import { WhiteBoardElement } from "@tau/whiteboard";
 import { WhiteBoard as IWhiteBoard } from "@/types";
 import { getAllWhiteBoards } from "@/commands/white-board";
@@ -84,7 +83,7 @@ const WhiteBoardSelectorModal = ({
   });
 
   const handleCancel = useMemoizedFn(() => {
-    board.currentCreateType = ECreateBoardElementType.None;
+    board.setActiveTool(SELECT_TOOL_ID);
     onClose();
   });
 

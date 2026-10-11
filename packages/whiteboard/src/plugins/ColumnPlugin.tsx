@@ -8,10 +8,10 @@ import {
   ColumnElement,
   ContextMenuContext,
   PluginContextMenuItem,
-  ECreateBoardElementType,
   IElementCapabilities,
   CustomOffset,
 } from "../types";
+import { COLUMN_TOOL_ID } from "../constants/tools";
 import {
   SnapBehavior,
   ContainmentBehavior,
@@ -34,8 +34,8 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       containment: {
         asContainer: ContainmentBehavior.Restricted,
         canBeContained: false,
-        // 准入由子方声明反转决定：各元素在自己的 canBeContainedBy 中
-        // 声明可入 column（见 CapabilityService.canContain 的 Restricted 分支）
+        // 布局类受限容器：准入由子方 joins 声明裁决（见 CapabilityService.canContain 的 Restricted 分支）
+        kind: "layout",
 
         // 有序容器：子元素位置由 Column 布局管理，拖拽反馈由本插件维护
         orderedChildren: true,
@@ -258,7 +258,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
         icon: <Columns3 size={14} />,
         priority: 185,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.Column;
+          ctx.board.setActiveTool(COLUMN_TOOL_ID);
         },
       });
     }

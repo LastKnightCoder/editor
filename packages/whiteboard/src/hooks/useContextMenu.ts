@@ -14,9 +14,9 @@ export const useContextMenu = (board: Board) => {
     const handler = (payload: BoardContextMenuPayload) => {
       setContext(payload);
     };
-    board.on("context-menu", handler);
+    board.on("internal:context-menu", handler);
     return () => {
-      board.off("context-menu", handler);
+      board.off("internal:context-menu", handler);
     };
   }, [board]);
 
@@ -32,9 +32,9 @@ export const useContextMenu = (board: Board) => {
 
   useEffect(() => {
     const handleReadonlyChange = () => hide();
-    board.on("readonlyChange", handleReadonlyChange);
+    board.on("readonly:change", handleReadonlyChange);
     return () => {
-      board.off("readonlyChange", handleReadonlyChange);
+      board.off("readonly:change", handleReadonlyChange);
     };
   }, [board, hide]);
 

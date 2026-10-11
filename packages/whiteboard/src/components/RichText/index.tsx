@@ -20,7 +20,8 @@ import {
   RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
-import { Board, ECreateBoardElementType, EHandlerPosition, Point } from "../../types";
+import { Board, EHandlerPosition, Point } from "../../types";
+import { SELECT_TOOL_ID } from "../../constants/tools";
 import { RichTextElement, CommonElement } from "../../plugins";
 import { PointUtil, deleteEmptyRichText, isRichTextContentEmpty } from "../../utils";
 import {
@@ -38,7 +39,7 @@ import {
   useSelectState,
   useDropArrow,
   useArrowMove,
-  useCreateElementType,
+  useActiveTool,
   useInertControl,
   useSketch,
 } from "../../hooks";
@@ -155,12 +156,12 @@ const Richtext = (props: RichTextProps) => {
   useEditingElementCleanup(elementId);
   const text = useTextExtension();
   const isArrowMoving = useArrowMove();
-  const createBoardElementType = useCreateElementType();
+  const activeTool = useActiveTool();
   const isMoving = useElementMoving(elementId);
   const viewPort = useViewPort();
   const boardState = useBoardState();
 
-  const isCreatingElement = createBoardElementType !== ECreateBoardElementType.None;
+  const isCreatingElement = activeTool !== SELECT_TOOL_ID;
   const { isSelected, isSelecting } = useSelectState(elementId);
   const shouldInert = isArrowMoving || isMoving || isSelecting || isSelected || isCreatingElement;
 

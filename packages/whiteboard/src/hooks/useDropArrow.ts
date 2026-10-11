@@ -59,12 +59,12 @@ export const useDropArrow = (
     wasClosingRef.current = isDropTarget;
     setIsMoveArrowClosing(isDropTarget);
     if (isDropTarget) {
-      board.emit("arrow:add-closing-elements", {
+      board.emit("tau.arrow.add-closing-elements", {
         element,
         connectPoints: arrowConnectPoints,
       });
     } else if (wasClosing) {
-      board.emit("arrow:remove-closing-elements", {
+      board.emit("tau.arrow.remove-closing-elements", {
         element,
         connectPoints: arrowConnectPoints,
       });
@@ -89,14 +89,14 @@ export const useDropArrow = (
   );
 
   useEffect(() => {
-    board.on("arrow:update", handleArrowMove);
-    board.on("arrow:move-end", handleArrowMoveEnd);
-    board.on("arrow:drop", handleArrowDroped);
+    board.on("tau.arrow.update", handleArrowMove);
+    board.on("tau.arrow.move-end", handleArrowMoveEnd);
+    board.on("tau.arrow.drop", handleArrowDroped);
 
     return () => {
-      board.off("arrow:update", handleArrowMove);
-      board.off("arrow:move-end", handleArrowMoveEnd);
-      board.off("arrow:drop", handleArrowDroped);
+      board.off("tau.arrow.update", handleArrowMove);
+      board.off("tau.arrow.move-end", handleArrowMoveEnd);
+      board.off("tau.arrow.drop", handleArrowDroped);
     };
   }, [handleArrowMove, handleArrowMoveEnd, handleArrowDroped, board]);
 

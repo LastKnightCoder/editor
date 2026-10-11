@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方案 A · 论文式脚注 — 求索录</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .stats { margin-top: 26px; display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--ink-3); }
+  .stats b { color: var(--ink-1); font-weight: 600; font-family: var(--mono); margin-right: 2px; }
+
+  /* 径：探索过程 */
+  .trail { list-style: none; margin: 0; padding: 0; position: relative; }
+  .trail::before { content: ""; position: absolute; left: 76px; top: 8px; bottom: 8px; width: 1px; background: var(--line); }
+  .trail li { display: grid; grid-template-columns: 64px 1fr; gap: 24px; padding: 6px 0; position: relative; }
+  .trail .d { font-size: 12px; color: var(--ink-3); text-align: right; font-family: var(--mono); padding-top: 3px; }
+  .trail li::after { content: ""; position: absolute; left: 73px; top: 15px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--bg-page); border: 1px solid var(--ink-4); }
+  .trail li.milestone::after { background: var(--ink-1); border-color: var(--ink-1); }
+  .trail li.done::after { background: var(--ok); border-color: var(--ok); }
+  .trail .e { font-size: 14px; color: var(--ink-2); }
+  .trail .e b { color: var(--ink-1); font-weight: 600; }
+  .trail .note {
+    margin-top: 6px; padding: 10px 14px; background: var(--bg-container); border-radius: 8px;
+    box-shadow: 0 0 0 1px var(--line-soft); font-size: 14px; line-height: 1.9; color: var(--ink-1);
+  }
+  .trail .note .lbl { font-size: 11px; color: var(--accent); letter-spacing: .1em; display: block; }
+  .trail .note.detour .lbl { color: #b0493d; }
+  .trail .note s { color: var(--ink-3); }
+
+  /* 据：参考资料 */
+  .refgroup { font-size: 12px; color: var(--ink-3); letter-spacing: .12em; margin: 28px 0 8px; }
+  .refs { list-style: none; margin: 0; padding: 0; }
+  .refs li { display: grid; grid-template-columns: 36px 1fr; gap: 6px; padding: 14px 8px; border-top: 1px solid var(--line-soft); scroll-margin-top: 120px; }
+  .refs .n { font-family: var(--mono); font-size: 13px; color: var(--accent); padding-top: 2px; }
+  .refs .t { font-weight: 600; font-size: 15px; }
+  .refs .t a { border-bottom: 1px solid var(--line); }
+  .refs .t a:hover { border-color: var(--accent); }
+  .refs .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 2px; }
+  .refs .back { font-size: 12px; color: var(--ink-4); }
+  .refs .back a { color: var(--accent); margin-left: 6px; }
+  .refs .excerpt { font-size: 13.5px; }
+  .chatq { font-family: inherit !important; font-size: 13px !important; }
+  .chatq p { margin: 4px 0; }
+  .chatq .who { font-size: 11px; color: var(--ink-3); margin-right: 6px; }
+</style>
+</head>
+<body>
+<div data-header></div>
+
+<article class="column">
+  <header>
+    <div class="meta-row" style="margin-bottom:22px">
+      <span class="tag">数据库</span>
+      <span class="tag ok">已解决</span>
+      <span>10月1日 提出 · 10月9日 解答 · 约 6 分钟</span>
+    </div>
+    <div class="kicker">问</div>
+    <h1 class="title">SQLite 开启 WAL 后，为什么读不再阻塞写？</h1>
+    <p class="lead">桌面端把数据库切到 WAL 后，后台同步写入时界面查询不再卡顿。我知道「WAL 提升并发」这个结论，但说不清它到底让谁不必等谁，也不确定代价是什么。</p>
+    <div class="stats">
+      <span>探索 <b>9</b> 天</span>
+      <span>参考 <b>7</b> 份资料</span>
+      <span>写下 <b>2</b> 条笔记</span>
+      <span>与 AI 讨论 <b>2</b> 次</span>
+    </div>
+  </header>
+
+  <section class="section">
+    <hr class="rule" />
+    <div class="kicker">解 <small>2026年10月9日</small></div>
+    <div class="prose">
+      <p>关键在于：写操作不再原地修改数据库文件。WAL 模式下，提交只是把被修改的整页追加到 <code>-wal</code> 文件末尾<a class="cite" data-ref="1"></a><a class="cite" data-ref="4"></a>，主文件在 checkpoint 之前保持不变。</p>
+      <p>读事务开始时会记下 WAL 中最后一个有效 frame 的位置（end mark）<a class="cite" data-ref="6"></a>，之后只读取这个位置之前的内容。于是读者看到的是一份一致的快照，写者可以继续往后追加，两者互不等待。这其实就是快照隔离的思路<a class="cite" data-ref="2"></a><a class="cite" data-ref="3"></a>——只不过 SQLite 以「页」为粒度、靠 WAL 位置实现，而不是行级多版本。</p>
+      <pre><code>PRAGMA journal_mode = WAL;
+PRAGMA wal_autocheckpoint = 1000;  -- 每 1000 页尝试一次 checkpoint</code></pre>
+      <p>代价有两点：同一时刻仍然只能有一个写者<a class="cite" data-ref="5"></a>；而长时间不结束的读事务会挡住 checkpoint 回收 WAL，文件因此持续变大<a class="cite" data-ref="7"></a>。所以后台任务里要避免持有长读事务。</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <hr class="rule" />
+    <div class="kicker">径 <small>探索过程</small></div>
+    <ol class="trail">
+      <li class="milestone"><span class="d">10/01</span><div class="e"><b>提出问题</b></div></li>
+      <li><span class="d">10/01</span><div class="e">剪藏官方文档 <a class="cite" data-ref="1"></a>，进入探究</div></li>
+      <li><span class="d">10/02</span><div class="e">在 DDIA 第 7 章划线 <a class="cite" data-ref="2"></a>
+        <div class="note detour"><span class="lbl">走过的弯路</span>一开始以为 SQLite 像 PostgreSQL 一样做<s>行级 MVCC</s>，翻了一圈文档发现根本没有行版本，「快照」是靠 WAL 里的位置实现的。</div></div></li>
+      <li class="milestone"><span class="d">10/04</span><div class="e"><b>写下两张卡片</b> <a class="cite" data-ref="4"></a> <a class="cite" data-ref="6"></a></div></li>
+      <li><span class="d">10/06</span><div class="e">读论文并标注 <a class="cite" data-ref="3"></a>
+        <div class="note"><span class="lbl">笔记</span>论文给快照隔离下的定义正好对上：事务读取的是「开始那一刻」已提交数据的快照。end mark 就是那一刻。</div></div></li>
+      <li><span class="d">10/07</span><div class="e">和 AI 讨论两次 checkpoint 饥饿 <a class="cite" data-ref="7"></a></div></li>
+      <li class="milestone"><span class="d">10/08</span><div class="e"><b>写了文章</b> <a class="cite" data-ref="5"></a></div></li>
+      <li class="done"><span class="d">10/09</span><div class="e"><b>写下结论，标为已解决</b></div></li>
+    </ol>
+  </section>
+
+  <section class="section">
+    <hr class="rule" />
+    <div class="kicker">据 <small>参考资料</small></div>
+
+    <div class="refgroup">外部资料</div>
+    <ol class="refs">
+      <li id="ref-1"><span class="n">[1]</span><div>
+        <div class="t"><a href="https://sqlite.org/wal.html" target="_blank" rel="noopener nofollow">Write-Ahead Logging ↗</a></div>
+        <div class="row"><span class="kind" data-k="clip"><i></i>剪藏 · sqlite.org</span><span class="back">引用于<a href="#" data-jump="cite-1-1">↩ 解</a><a href="#" data-jump="cite-1-2">↩ 径</a></span></div>
+        <p class="excerpt">WAL provides more concurrency as readers do not block writers and a writer does not block readers.</p></div></li>
+      <li id="ref-2"><span class="n">[2]</span><div>
+        <div class="t">《数据密集型应用系统设计》第 7 章 · 快照隔离</div>
+        <div class="row"><span class="kind" data-k="mark"><i></i>划线 · Martin Kleppmann</span><span class="back">引用于<a href="#" data-jump="cite-2-1">↩ 解</a><a href="#" data-jump="cite-2-2">↩ 径</a></span></div>
+        <p class="excerpt">快照隔离的一个关键原则是：读不阻塞写，写不阻塞读。</p></div></li>
+      <li id="ref-3"><span class="n">[3]</span><div>
+        <div class="t">A Critique of ANSI SQL Isolation Levels <span style="font-weight:400;color:var(--ink-3)">p.6</span></div>
+        <div class="row"><span class="kind" data-k="pdf"><i></i>PDF 标注 · Berenson et al., 1995</span><span class="back">引用于<a href="#" data-jump="cite-3-1">↩ 解</a><a href="#" data-jump="cite-3-2">↩ 径</a></span></div>
+        <p class="excerpt">Each transaction reads data from a snapshot of the (committed) data as of the time the transaction started.</p></div></li>
+    </ol>
+
+    <div class="refgroup">我的笔记</div>
+    <ol class="refs">
+      <li id="ref-4"><span class="n">[4]</span><div>
+        <div class="t"><a href="#">WAL 文件里的 frame 与 checkpoint</a></div>
+        <div class="row"><span class="kind" data-k="card"><i></i>卡片 · 10月4日</span><span class="back">引用于<a href="#" data-jump="cite-4-1">↩ 解</a><a href="#" data-jump="cite-4-2">↩ 径</a></span></div></div></li>
+      <li id="ref-5"><span class="n">[5]</span><div>
+        <div class="t"><a href="#">SQLite 锁状态机笔记</a></div>
+        <div class="row"><span class="kind" data-k="article"><i></i>文章 · 3.2k 字 · 10月8日</span><span class="back">引用于<a href="#" data-jump="cite-5-1">↩ 解</a><a href="#" data-jump="cite-5-2">↩ 径</a></span></div></div></li>
+      <li id="ref-6"><span class="n">[6]</span><div>
+        <div class="t">读事务的 end mark</div>
+        <div class="row"><span class="kind" data-k="card"><i></i>卡片 · 10月4日</span><span class="private">未公开 · 仅摘录</span><span class="back">引用于<a href="#" data-jump="cite-6-1">↩ 解</a><a href="#" data-jump="cite-6-2">↩ 径</a></span></div>
+        <p class="excerpt">读事务开始时在 wal-index 中记录 mxFrame，此后只读取 ≤ mxFrame 的 frame；后续追加的 frame 对它不可见。</p></div></li>
+    </ol>
+
+    <div class="refgroup">讨论</div>
+    <ol class="refs">
+      <li id="ref-7"><span class="n">[7]</span><div>
+        <div class="t">长读事务为何让 WAL 一直变大</div>
+        <div class="row"><span class="kind" data-k="chat"><i></i>与 AI 的对话 · 摘选 2 条</span><span class="back">引用于<a href="#" data-jump="cite-7-1">↩ 解</a><a href="#" data-jump="cite-7-2">↩ 径</a></span></div>
+        <div class="excerpt chatq">
+          <p><span class="who">我</span>为什么 autocheckpoint 开着，WAL 还是涨到了几百 MB？</p>
+          <p><span class="who">AI</span>checkpoint 只能回写到最老读者的 end mark 为止；有读事务停在旧位置，WAL 就无法从头复用。</p>
+        </div></div></li>
+    </ol>
+  </section>
+</article>
+
+<a class="back-home" href="index.html">← 方案总览</a>
+<details class="notes">
+  <summary>方案 A 设计说明</summary>
+  <div class="body">
+    <p><b>论文式：问 → 解 → 径 → 据。</b>结论先行，研究过程与资料作为「方法」和「参考文献」附在后面。</p>
+    <ul>
+      <li>沿用「问 / 解」的宋体单字标签，新增「径」（探索过程）和「据」（参考资料），四字一体。</li>
+      <li>正文 <code>[n]</code> 悬停预览资料，点击跳到「据」并高亮；资料行的「↩ 解 / ↩ 径」跳回引用处。</li>
+      <li>资料按「外部资料 / 我的笔记 / 讨论」分组；外部资料直接展示划线原文，未公开卡片只给摘录。</li>
+      <li>轨迹只保留里程碑与手写笔记，「走过的弯路」单独标出，强调研究过程。</li>
+      <li>优点：最朴素、最贴近现有页面，移动端无需特殊处理。缺点：资料离正文远，要靠浮层弥补。</li>
+    </ul>
+  </div>
+</details>
+
+<script src="shared.js"></script>
+<script>QuestMock.header(); QuestMock.citations();</script>
+</body>
+</html>

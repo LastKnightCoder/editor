@@ -8,7 +8,6 @@ import {
   SelectArea,
   ContextMenuContext,
   PluginContextMenuItem,
-  ECreateBoardElementType,
   EArrowLineType,
   IElementCapabilities,
   SnapBehavior,
@@ -17,6 +16,7 @@ import {
   ChildrenRenderOrder,
 } from "../types";
 import ArrowElementComponent from "../components/ArrowElementComponent";
+import { ARROW_TOOL_ID } from "../constants/tools";
 import { ArrowUtil, BoardUtil, CanvasUtil, PointUtil, selectAreaToRect, PathUtil } from "../utils";
 
 export class ArrowPlugin implements IBoardPlugin {
@@ -60,7 +60,7 @@ export class ArrowPlugin implements IBoardPlugin {
         icon: <MoveRight size={14} />,
         priority: 110,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.StraightArrow;
+          ctx.board.setActiveTool(ARROW_TOOL_ID);
         },
       });
     }
@@ -194,7 +194,7 @@ export class ArrowPlugin implements IBoardPlugin {
     const topElement = hitElements[hitElements.length - 1];
     if (!topElement || topElement.type !== "arrow") return;
 
-    board.emit("arrow:description:edit", { id: topElement.id });
+    board.emit("tau.arrow.description-edit", { id: topElement.id });
     return false;
   }
 

@@ -17,8 +17,8 @@ export function selectorLayer(
       const open = (payload: ContextMenuModalPayload) => {
         if (payload.type === type) setRequest(payload);
       };
-      board.on("context-menu:open-modal", open);
-      return () => board.off("context-menu:open-modal", open);
+      board.on("tau.modal.open", open);
+      return () => board.off("tau.modal.open", open);
     }, [board]);
     return (
       <Selector

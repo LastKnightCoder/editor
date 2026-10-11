@@ -129,7 +129,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
         }
         createdArrow.current = updateArrowElement;
         // 让其他元素监听，是否显示 arrow drop connect point
-        board.emit("arrow:update", {
+        board.emit("tau.arrow.update", {
           arrow: createdArrow.current,
           path: createdArrowPath.current,
           currentPoint: currentPoint.current,
@@ -190,7 +190,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     createdArrow.current = null;
     createdArrowPath.current = null;
 
-    board.emit("arrow:move-end");
+    board.emit("tau.arrow.move-end");
     removeDragListeners(handlePointerUp);
   });
 

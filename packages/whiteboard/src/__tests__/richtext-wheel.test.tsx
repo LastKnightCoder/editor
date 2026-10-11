@@ -1,6 +1,7 @@
 import { extensionsWithLayer } from "./extensions.fixture";
 import { createRichTextExtension } from "../extensions/builtins";
-import { embeddedTextOptions } from "../extensions/text";
+import { createServiceRegistry } from "../extensions";
+import { IWhiteboardRichText, embeddedTextOptions } from "../extensions/text";
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -84,8 +85,11 @@ beforeEach(async () => {
         showStatusBar={false}
         extensions={[
           ...extensionsWithLayer(Capture).filter(item => item.id !== "tau.richtext"),
-          createRichTextExtension({ ...embeddedTextOptions, Editor: DelayedEditor }),
+          createRichTextExtension(),
         ]}
+        services={createServiceRegistry(register =>
+          register(IWhiteboardRichText, { Editor: DelayedEditor, kit: embeddedTextOptions.kit })
+        )}
       />
     )
   );

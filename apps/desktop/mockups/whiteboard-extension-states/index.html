@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 扩展占位四态 + 只读提示</title>
+<!-- 视觉参考，非导出源（D-001）。实现时改组件 Tailwind 类。 -->
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67,57,44,.06);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent-soft: hsla(22,58%,42%,.12); --accent-text: #a05236;
+    --info: hsl(212 38% 46%); --warn: hsl(36 62% 40%);
+    --line-1: #e9e1d2; --line-2: rgba(200,188,168,.45);
+    --canvas: #fbf7ef; --dot: rgba(67,57,44,.26);
+    --lift: 0 1px 2px rgba(120,100,70,.08), 0 6px 16px -8px rgba(120,100,70,.32);
+    --el-a: #dbe8fb; --el-b: #e4f1ea; --el-c: #f6e3cf;
+    --ease-out: cubic-bezier(.2,.8,.2,1);
+  }
+  :root[data-theme="cocoa"] {
+    --bg-page: #1f1a15; --bg-surface: #2a241e; --bg-hover: rgba(240,228,210,.07);
+    --ink-1: #efe6d8; --ink-2: #c7b9a4; --ink-3: #8a7c68;
+    --accent-soft: hsla(24,62%,60%,.16); --accent-text: #e3a17f;
+    --info: hsl(212 45% 68%); --warn: hsl(38 70% 62%);
+    --line-1: #3a3229; --line-2: rgba(240,228,210,.1);
+    --canvas: #241f1a; --dot: rgba(240,228,210,.17);
+    --lift: 0 1px 2px rgba(0,0,0,.3), 0 8px 20px -8px rgba(0,0,0,.55);
+    --el-a: #2f3b4d; --el-b: #2d3d34; --el-c: #4a3828;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 -apple-system, "PingFang SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  .top { flex: none; display: flex; align-items: center; gap: 12px; padding: 10px 18px; flex-wrap: wrap; }
+  .top h1 { font-size: 14px; font-weight: 600; margin-right: 6px; }
+  .seg { display: flex; gap: 2px; background: var(--bg-hover); padding: 3px; border-radius: 10px; }
+  .seg button { height: 26px; padding: 0 11px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; }
+  .seg button[aria-pressed="true"] { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--lift); }
+  .top label { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 12.5px; }
+  .top .sp { flex: 1; }
+
+  .sheet { position: relative; flex: 1; margin: 0 14px 14px; border-radius: 16px; overflow: hidden; background: var(--canvas);
+    box-shadow: 0 0 0 1px var(--line-2);
+    background-image: radial-gradient(var(--dot) 1px, transparent 1.2px); background-size: 20px 20px; }
+  .world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+
+  /* 普通元素（上下文） */
+  .el { position: absolute; border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--ink-1); }
+  .el.a { background: var(--el-a); } .el.b { background: var(--el-b); } .el.c { background: var(--el-c); border-radius: 999px; display: grid; place-items: center; }
+  .cap { position: absolute; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+
+  /* ───────── 占位元素 ─────────
+     实现映射（foreignObject 内的 div）：
+     rounded-tau-md border border-dashed border-ink-3/45 bg-surface/80 + 斜纹（::before，D-087 复杂伪元素允许手写）
+     @container 尺寸查询：宽 <140 隐藏说明行；宽 <72 或 高 <52 只留图标
+  */
+  .ph { position: absolute; container-type: size; border-radius: 8px; border: 1px dashed color-mix(in srgb, var(--ink-3) 45%, transparent);
+    background: color-mix(in srgb, var(--bg-surface) 80%, transparent); overflow: hidden; cursor: default;
+    transition: border-color .16s var(--ease-out); }
+  .ph::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(135deg, transparent 0 9px, color-mix(in srgb, var(--ink-3) 10%, transparent) 9px 10px); }
+  .ph:hover { border-color: color-mix(in srgb, var(--ink-3) 80%, transparent); }
+  .ph.sel { border-style: solid; border-color: var(--accent-text); box-shadow: 0 0 0 1px var(--accent-text); }
+  .ph .in { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; padding: 8px 10px; text-align: center; }
+  .ph .ic { width: 18px; height: 18px; flex: none; color: var(--ink-3); margin-bottom: 2px; }
+  .ph[data-reason="too-new"] .ic { color: var(--info); }
+  .ph[data-reason="migration-failed"] .ic { color: var(--warn); }
+  .ph .t { font-size: 12.5px; font-weight: 500; color: var(--ink-2); line-height: 1.4; }
+  .ph .d { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; max-width: 26em; }
+  .ph code { font: 11px ui-monospace, Consolas, monospace; color: var(--ink-2); background: var(--bg-hover); border-radius: 4px; padding: 0 4px; }
+  @container (max-width: 140px) { .ph .d { display: none; } }
+  @container (max-width: 72px) { .ph .t { display: none; } .ph .ic { margin: 0; } }
+  @container (max-height: 52px) { .ph .t, .ph .d { display: none; } .ph .ic { margin: 0; } }
+
+  /* ───────── 只读提示条 ─────────
+     实现映射：复用 ChromeBar（左右居中、top-3，占工具栏位——只读时工具栏本就隐藏）
+     入场：opacity 0→1 + translateY(-6px→0)，200ms ease-tau-out，延迟 120ms（让画布先就位）；
+     prefers-reduced-motion 只做透明度
+  */
+  .ro { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 8px;
+    height: 38px; padding: 0 14px 0 11px; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--lift), 0 0 0 1px var(--line-2);
+    white-space: nowrap; user-select: none; }
+  .ro.enter { animation: roIn .2s var(--ease-out) .12s both; }
+  @keyframes roIn { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  @media (prefers-reduced-motion: reduce) { .ro.enter { animation-name: roFade; } @keyframes roFade { from { opacity: 0; } } }
+  .ro svg { width: 15px; height: 15px; color: var(--ink-2); flex: none; }
+  .ro .m { color: var(--ink-1); font-size: 12.5px; font-weight: 500; }
+  .ro .s { color: var(--ink-3); font-size: 12px; }
+  .ro .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); opacity: .7; }
+
+  /* 普通工具栏（可编辑时占同一位置） */
+  .tool { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 6; display: flex; gap: 2px; padding: 4px;
+    background: var(--bg-surface); border-radius: 12px; box-shadow: var(--lift), 0 0 0 1px var(--line-2); }
+  .tool i { width: 30px; height: 30px; border-radius: 8px; display: block; background: var(--bg-hover); opacity: .55; }
+
+  details.notes { position: absolute; right: 12px; bottom: 12px; z-index: 7; max-width: 380px; background: var(--bg-surface);
+    border-radius: 12px; box-shadow: var(--lift), 0 0 0 1px var(--line-2); padding: 8px 14px; font-size: 12.5px; color: var(--ink-2); }
+  details.notes summary { cursor: pointer; color: var(--ink-1); font-weight: 500; }
+  details.notes ul { padding-left: 18px; margin-top: 6px; } details.notes li + li { margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>扩展占位四态 · 只读提示</h1>
+  <div class="seg" id="theme"><button aria-pressed="true" data-v="paper">浅色</button><button aria-pressed="false" data-v="cocoa">深色</button></div>
+  <div class="seg" id="mode"><button aria-pressed="false" data-v="edit">可编辑</button><button aria-pressed="true" data-v="ro">文档版本过高（只读）</button></div>
+  <label>缩放 <input id="zoom" type="range" min="40" max="140" value="100"> <span id="zv">100%</span></label>
+  <span class="sp"></span>
+  <button class="seg" id="replay" style="padding:3px 10px;height:32px">重播入场</button>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="world" id="world">
+    <!-- 上下文元素 -->
+    <div class="el a" style="left:60px;top:90px;width:180px;height:96px">产品路线图</div>
+    <div class="el b" style="left:60px;top:220px;width:180px;height:70px">用户访谈要点</div>
+    <div class="el c" style="left:880px;top:110px;width:120px;height:120px">里程碑</div>
+
+    <!-- 大尺寸：四态 -->
+    <div class="ph" data-reason="missing" style="left:290px;top:90px;width:260px;height:150px"></div>
+    <div class="cap" style="left:290px;top:246px">missing · 未安装</div>
+    <div class="ph" data-reason="too-new" style="left:580px;top:90px;width:260px;height:150px"></div>
+    <div class="cap" style="left:580px;top:246px">too-new · 数据比扩展新</div>
+    <div class="ph" data-reason="migration-failed" style="left:290px;top:290px;width:260px;height:150px"></div>
+    <div class="cap" style="left:290px;top:446px">migration-failed · 升级失败</div>
+    <div class="ph sel" data-reason="disabled" style="left:580px;top:290px;width:260px;height:150px"></div>
+    <div class="cap" style="left:580px;top:446px">disabled · 冲突被停用（选中态）</div>
+
+    <!-- 中、小、窄条：尺寸自适应 -->
+    <div class="ph" data-reason="too-new" style="left:880px;top:290px;width:130px;height:110px"></div>
+    <div class="cap" style="left:880px;top:406px">宽 &lt;140：去掉说明</div>
+    <div class="ph" data-reason="missing" style="left:60px;top:330px;width:60px;height:60px"></div>
+    <div class="ph" data-reason="migration-failed" style="left:132px;top:330px;width:60px;height:60px"></div>
+    <div class="cap" style="left:60px;top:396px">宽 &lt;72：只留图标</div>
+    <div class="ph" data-reason="disabled" style="left:60px;top:440px;width:180px;height:40px"></div>
+    <div class="cap" style="left:60px;top:486px">高 &lt;52：只留图标</div>
+  </div>
+
+  <div class="ro enter" id="ro">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <span class="m">只读</span><span class="dot"></span>
+    <span class="s">此白板由更新版本的应用保存，更新应用后即可编辑</span>
+  </div>
+  <div class="tool" id="tool" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <details class="notes">
+    <summary>设计说明</summary>
+    <ul>
+      <li>占位只解释"为什么看不到"，不提供操作——P0 没有安装/更新能力，放按钮就是空头承诺。</li>
+      <li>四态共用一个骨架（虚线框 + 极淡斜纹 = "这里有东西，但暂不可显示"），只用图标和色调区分：未安装、停用为中性灰；数据过新偏信息蓝；升级失败偏警示黄。不用红色，因为数据都完好保留。</li>
+      <li>文案里一律强调数据安全，让用户放心别删。</li>
+      <li>画布上的占位不做动效（避免大文档成片闪动）；hover 只加深虚线边框，160ms。</li>
+      <li>只读提示占工具栏的位置（只读时工具栏本就隐藏），不可关闭，因为它描述的是一种持续状态；入场 200ms 下落淡入。</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+const ICONS = {
+  missing: '<path d="M19.439 7.85c-.049.322.059.648.289.878l1.568 1.568c.47.47.706 1.087.706 1.704s-.235 1.233-.706 1.704l-1.611 1.611a.98.98 0 0 1-.837.276c-.47-.07-.802-.48-.968-.925a2.501 2.501 0 1 0-3.214 3.214c.446.166.855.497.925.968a.979.979 0 0 1-.276.837l-1.61 1.61a2.404 2.404 0 0 1-1.705.707 2.402 2.402 0 0 1-1.704-.706l-1.568-1.568a1.026 1.026 0 0 0-.877-.29c-.493.074-.84.504-1.02.968a2.5 2.5 0 1 1-3.237-3.237c.464-.18.894-.527.967-1.02a1.026 1.026 0 0 0-.289-.877l-1.568-1.568A2.402 2.402 0 0 1 1.998 12c0-.617.236-1.234.706-1.704L4.23 8.77c.24-.24.581-.353.917-.303.515.077.877.528 1.073 1.01a2.5 2.5 0 1 0 3.259-3.259c-.482-.196-.933-.558-1.01-1.073-.05-.336.062-.676.303-.917l1.525-1.525A2.402 2.402 0 0 1 12 1.998c.617 0 1.234.236 1.704.706l1.568 1.568c.23.23.556.338.877.29.493-.074.84-.504 1.02-.968a2.5 2.5 0 1 1 3.237 3.237c-.464.18-.894.527-.967 1.02Z"/>',
+  "too-new": '<circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4"/><path d="M12 16V8"/>',
+  "migration-failed": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  disabled: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+};
+const TEXT = {
+  missing: ["缺少扩展", '需要支持 <code>acme.sticky</code> 的扩展才能显示，数据已完整保留'],
+  "too-new": ["需要更新扩展", '此元素由更新版本的 <code>acme.notes</code> 创建，数据已完整保留'],
+  "migration-failed": ["数据升级失败", '<code>acme.notes</code> 无法升级此元素，原始数据已保留'],
+  disabled: ["扩展已停用", '<code>acme.notes</code> 与其他扩展冲突，数据已完整保留'],
+};
+document.querySelectorAll(".ph").forEach(el => {
+  const r = el.dataset.reason;
+  el.title = TEXT[r][0];
+  el.innerHTML = `<div class="in"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[r]}</svg><div class="t">${TEXT[r][0]}</div><div class="d">${TEXT[r][1]}</div></div>`;
+  el.addEventListener("click", () => { document.querySelectorAll(".ph.sel").forEach(x => x.classList.remove("sel")); el.classList.add("sel"); });
+});
+const seg = (id, fn) => document.getElementById(id).addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  [...e.currentTarget.children].forEach(x => x.setAttribute("aria-pressed", x === b)); fn(b.dataset.v);
+});
+seg("theme", v => document.documentElement.dataset.theme = v === "cocoa" ? "cocoa" : "");
+const ro = document.getElementById("ro"), tool = document.getElementById("tool");
+const replay = () => { ro.classList.remove("enter"); void ro.offsetWidth; ro.classList.add("enter"); };
+seg("mode", v => { ro.hidden = v !== "ro"; tool.hidden = v === "ro"; if (v === "ro") replay(); });
+document.getElementById("replay").onclick = replay;
+const world = document.getElementById("world"), zv = document.getElementById("zv");
+document.getElementById("zoom").oninput = e => { world.style.transform = `scale(${e.target.value / 100})`; zv.textContent = e.target.value + "%"; };
+</script>
+</body>
+</html>

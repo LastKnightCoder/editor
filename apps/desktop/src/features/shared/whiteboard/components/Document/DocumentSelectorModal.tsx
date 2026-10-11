@@ -3,7 +3,7 @@ import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
 import {
   DOCUMENT_DEFAULT_SIZE,
-  ECreateBoardElementType,
+  SELECT_TOOL_ID,
   type Board,
   type DocumentElement,
 } from "@tau/whiteboard";
@@ -78,7 +78,7 @@ export function DocumentSelectorModal({
   board: Board;
 }) {
   const close = useMemoizedFn(() => {
-    board.currentCreateType = ECreateBoardElementType.None;
+    board.setActiveTool(SELECT_TOOL_ID);
     onClose();
   });
 

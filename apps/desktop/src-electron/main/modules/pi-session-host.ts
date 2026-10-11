@@ -55,6 +55,7 @@ import {
   type HostedSessionState,
 } from "./pi-session-lifecycle";
 import { conversationTreeOf, type DesktopDisplayData } from "./pi-session-files";
+import { recordSyncIo } from "./perf-record";
 import {
   checkoutWorkspaceBranch,
   listWorkspaceBranches,
@@ -1215,7 +1216,9 @@ async function readPromptImage(
       return null;
     }
     if (image.path && existsSync(image.path)) {
+      const syncIoStart = Date.now();
       const buffer = readFileSync(image.path);
+      recordSyncIo(`read:${image.path}`, buffer.byteLength, Date.now() - syncIoStart);
       const extension = image.path.slice(image.path.lastIndexOf(".")).toLowerCase();
       return {
         type: "image",

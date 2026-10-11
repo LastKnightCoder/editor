@@ -61,7 +61,7 @@ export const exportSkillZip = async (skillPath: string): Promise<Uint8Array> =>
 export const getLinkedSkillDirs = async (): Promise<SkillLinkedDir[]> => invoke("skill:links:get");
 
 export const setLinkedSkillDirs = async (
-  links: Array<{ path: string; enabled: boolean }>
+  links: Array<{ path: string; enabled: boolean; selectedSkills?: string[] }>
 ): Promise<void> => invoke("skill:links:set", links);
 
 export const inspectSkillImport = async (

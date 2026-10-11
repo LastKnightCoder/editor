@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createWhiteboardSession, type Board } from "@tau/whiteboard";
+import { createWhiteboardSession, WHITEBOARD_DOCUMENT_VERSION, type Board } from "@tau/whiteboard";
 import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
 import { unlinkMindNote } from "../unlinkMindNote";
 
@@ -9,6 +9,7 @@ const createBoard = () => {
     children: [{ id: "mind", type: "mind-node", contentId: 7, contentTitle: "笔记", children: [] }],
     viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
     selection: { selectedElements: [], selectArea: null },
+    version: WHITEBOARD_DOCUMENT_VERSION,
   });
   sessions.push(session);
   return session.api;

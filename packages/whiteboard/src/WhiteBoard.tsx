@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import { cn } from "@tau/ui";
+import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
 
 import Board from "./Board";
 
@@ -40,11 +41,14 @@ import {
   DEFAULT_PAGE_SKETCH,
 } from "./types";
 import Toolbar from "./components/Toolbar";
+import CreateToolHint from "./components/CreateToolHint";
+import ReadonlyNotice from "./components/ReadonlyNotice";
 import AttributeSetter from "./components/AttributeSetter";
 import PresentationCreator from "./components/PresentationCreator";
 import PresentationMode from "./components/PresentationMode";
 import StatusBar from "./components/StatusBar";
 import BoardContent from "./components/BoardContent";
+import { CreationPreviewBadge } from "./components/CreationPreview";
 import Sidebar from "./components/Sidebar";
 import {
   useViewPortControls,
@@ -55,6 +59,7 @@ import {
   ArrowMoveContext,
   useElementsMoving,
   usePreventTextSelection,
+  useCreateToolCursor,
 } from "./hooks";
 import ContextMenuLayer, {
   type ContextMenuItem,
@@ -74,8 +79,14 @@ import {
   isCanvasOverlayEvent,
 } from "./utils/events";
 import { isEditableTarget } from "@tau/ui";
-import type { WhiteboardExtension, WhiteboardOutline, WhiteboardSnapshot } from "./extensions/api";
+import type {
+  WhiteboardExtension,
+  WhiteboardExtensionError,
+  WhiteboardOutline,
+  WhiteboardSnapshot,
+} from "./extensions/api";
 import { WhiteboardAPIProvider } from "./extensions/runtime";
+import { isDocumentVersionSupported } from "./document-version";
 
 const simplifiedRenderZoomThreshold = 0.3;
 
@@ -90,6 +101,8 @@ export interface WhiteBoardProps {
   initPresentationSequences?: PresentationSequence[];
   /** 页级画风（D-107），缺省为普通 */
   initSketch?: PageSketch;
+  /** 加载的文档版本（getDocumentVersion(data)），缺省视为 1；高于支持范围时强制只读且不写回 */
+  version?: number;
   readonly?: boolean;
   onChange?: (data: WhiteboardSnapshot) => void;
   showSidebar?: boolean;
@@ -98,9 +111,15 @@ export interface WhiteBoardProps {
   showStatusBar?: boolean;
   /** 进出演示模式（宿主页面据此收起画布外的浮动件，如页签条） */
   onPresentationModeChange?: (presenting: boolean) => void;
+  /** 扩展被禁用时回调（命名空间违规、冲突、创建失败等），画布继续运行 */
+  onExtensionError?: (error: WhiteboardExtensionError) => void;
+  /** 宿主服务注册表：扩展经 requires/optional 声明后从扩展 api 获取；缺省为空注册表 */
+  services?: ServiceRegistry;
 }
 
 const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
+/** 未传 services 时的共享空注册表：无注册项，声明了 requires 的扩展会被拒绝装配 */
+const EMPTY_SERVICE_REGISTRY = createServiceRegistry();
 const DEFAULT_VIEW_PORT: ViewPort = {
   minX: 0,
   minY: 0,
@@ -134,18 +153,24 @@ const WhiteBoard = memo(
       initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
       initSketch = DEFAULT_PAGE_SKETCH,
       readonly,
+      version,
       onChange,
       showSidebar = false,
       showToolbar,
       showAttributeSetter,
       showStatusBar = true,
       onPresentationModeChange,
+      onExtensionError,
       extensions,
       outline,
+      services,
     } = props;
 
-    const toolbarVisible = showToolbar ?? !readonly;
-    const attributeSetterVisible = showAttributeSetter ?? !readonly;
+    // 文档版本过高时强制只读：工具栏/属性条一律隐藏，只留只读提示条
+    const documentVersion = version ?? 1;
+    const documentTooNew = !isDocumentVersionSupported(documentVersion);
+    const toolbarVisible = !documentTooNew && (showToolbar ?? !readonly);
+    const attributeSetterVisible = !documentTooNew && (showAttributeSetter ?? !readonly);
 
     // 引用
     const containerRef = useRef<HTMLDivElement>(null);
@@ -196,6 +221,9 @@ const WhiteBoard = memo(
     const { gridVisible, handleGridVisibleChange } = useGridSettings();
 
     // 创建画板实例
+    const notifyExtensionError = useMemoizedFn((error: WhiteboardExtensionError) =>
+      onExtensionError?.(error)
+    );
     const board = useCreation<Board>(() => {
       const instance = new Board(
         initData,
@@ -203,20 +231,27 @@ const WhiteBoard = memo(
         initSelection,
         [],
         initPresentationSequences,
-        readonly,
+        documentTooNew || readonly,
         initSketch
       );
-      instance.installExtensions(extensions);
+      instance.readonlyReason = documentTooNew ? "document-too-new" : null;
+      instance.installExtensions(
+        extensions,
+        notifyExtensionError,
+        services ?? EMPTY_SERVICE_REGISTRY
+      );
       return instance;
     }, []);
     const initialExtensions = useRef(extensions);
     if (extensions !== initialExtensions.current) throw new Error("白板扩展集合必须稳定");
     useEffect(() => {
-      board.readonly = readonly ?? false;
-    }, [board, readonly]);
+      board.readonlyReason = documentTooNew ? "document-too-new" : null;
+      board.readonly = documentTooNew || (readonly ?? false);
+    }, [board, readonly, documentTooNew]);
     const isArrowMoving = useListenArrowMove(board);
     const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
     const { markInteracting } = usePreventTextSelection(containerRef);
+    const createToolCursor = useCreateToolCursor(board);
 
     const buildContextMenuItems = useMemoizedFn(
       ({
@@ -431,6 +466,12 @@ const WhiteBoard = memo(
       (event: React.PointerEvent<HTMLDivElement>) => {
         if (!ownsBoardPointerEvent(board, event.nativeEvent)) return;
         setPointerViewport(event);
+        // 创建手势高频驱动（手写采样等）：绕过 25ms 节流，并取消挂起的节流调用避免旧位置晚到
+        if (board.interactions.isCreateGestureActive()) {
+          cancelPointerMove();
+          nonThrottledHandleOnPointerMove(event);
+          return;
+        }
         handleOnPointerMove(event);
       }
     );
@@ -459,6 +500,8 @@ const WhiteBoard = memo(
     // 监听数据变化
     useEffect(() => {
       const handleChange = () => {
+        // 文档版本过高：视口/选区等查看性变化也不写回，避免旧版本数据覆盖新版本文档
+        if (documentTooNew) return;
         onChange?.(board.extensions!.api.getSnapshot());
       };
       board.on("change", handleChange);
@@ -466,7 +509,7 @@ const WhiteBoard = memo(
       return () => {
         board.off("change", handleChange);
       };
-    }, [board, onChange]);
+    }, [board, onChange, documentTooNew]);
     useEffect(() => {
       const handleWindowBlur = () => {
         clearPointerViewport();
@@ -649,6 +692,7 @@ const WhiteBoard = memo(
                           tabIndex={0}
                           className={cn(
                             "[:fullscreen]:w-screen [:fullscreen]:h-screen [:fullscreen]:bg-surface relative h-full min-w-0 flex-1",
+                            createToolCursor,
                             className
                           )}
                           style={style}
@@ -671,7 +715,12 @@ const WhiteBoard = memo(
                           onDragLeave={handleOnDragLeave}
                         >
                           <div className="relative h-full w-full">
-                            {toolbarVisible && <Toolbar />}
+                            {toolbarVisible ? (
+                              <Toolbar />
+                            ) : documentTooNew ? (
+                              <ReadonlyNotice />
+                            ) : null}
+                            {toolbarVisible && <CreateToolHint visible={toolbarVisible} />}
 
                             <BoardContent
                               ref={svgRef}
@@ -684,6 +733,8 @@ const WhiteBoard = memo(
                               gridVisible={gridVisible}
                               connectPointOverlayRef={connectPointOverlayRef}
                             />
+
+                            <CreationPreviewBadge board={board} />
 
                             {attributeSetterVisible && <AttributeSetter />}
                           </div>

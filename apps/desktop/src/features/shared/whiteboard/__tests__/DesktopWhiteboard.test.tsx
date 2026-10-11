@@ -3,6 +3,8 @@ import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import type { WhiteBoardProps, WhiteBoardRef } from "@tau/whiteboard";
+import { IWhiteboardRichText } from "@tau/whiteboard/extensions";
+import { IResourceService } from "@tau/shared/host-services";
 import { DesktopWhiteboard } from "../DesktopWhiteboard";
 
 const mocks = vi.hoisted(() => ({
@@ -97,11 +99,14 @@ it("真实桌面适配器只挂载一次包组件，并传递 ref、初始值和
     expect(props.extensions.map(extension => extension.id)).toEqual(
       expect.arrayContaining(["tau.document", "tau.richtext", "tau.image", "tau.desktop-notes"])
     );
-    const api = {} as WhiteboardAPI;
+    const api = { tryGetService: () => undefined } as unknown as WhiteboardAPI;
     const contributions = props.extensions.flatMap(extension => extension.create(api).layers ?? []);
     expect(contributions.some(layer => layer.id === "tau.document.reader")).toBe(true);
     expect(contributions.some(layer => layer.id === "tau.desktop-notes.panels")).toBe(true);
-    expect(props).not.toHaveProperty("services");
+    // 宿主能力经服务注册表下发：富文本与上传服务都已注册
+    expect(props.services?.tryGet(IWhiteboardRichText)?.Editor).toBeDefined();
+    expect(props.services?.tryGet(IWhiteboardRichText)?.content?.create).toBeDefined();
+    expect(props.services?.tryGet(IResourceService)?.upload).toBeDefined();
     expect(props).not.toHaveProperty("slots");
   } finally {
     await act(async () => root.unmount());

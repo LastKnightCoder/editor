@@ -11,7 +11,7 @@ import { useMemoizedFn } from "ahooks";
 import { debounce } from "lodash";
 import { Loading } from "@tau/ui";
 import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
-import { type WhiteBoardRef, type WhiteboardExtension } from "@tau/whiteboard";
+import { getDocumentVersion, type WhiteBoardRef, type WhiteboardExtension } from "@tau/whiteboard";
 import type { WhiteBoardContent } from "@/types";
 import { useWhiteBoardContent } from "../queries";
 import { subscribeReveal, takeReveal } from "../navigation";
@@ -107,6 +107,7 @@ export function BoardCanvas({
         initViewPort={content.data.viewPort}
         initPresentationSequences={content.data.presentationSequences}
         initSketch={content.data.sketch}
+        version={getDocumentVersion(content.data)}
         onChange={onChange}
         showSidebar
         onPresentationModeChange={onPresentationModeChange}

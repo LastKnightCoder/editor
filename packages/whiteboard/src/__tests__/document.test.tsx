@@ -5,6 +5,7 @@ import {
   DocumentPlugin,
   type DocumentElement,
 } from "../plugins/DocumentPlugin";
+import { createDocumentExtension } from "../extensions/builtins";
 import { BOARD_TO_CONTAINER } from "../constants/map";
 import { CANVAS_OVERLAY_ATTR, ownsBoardEvent } from "../utils/events";
 import { DEFAULT_PAGE_SKETCH } from "../types";
@@ -19,7 +20,8 @@ const doc: DocumentElement = {
   height: 360,
 };
 
-const createBoard = (selected: DocumentElement[] = []) => {
+/** Enter 打开文档卡走 tau.document 扩展的快捷键命令；右键菜单用插件直挂的旧路径 */
+const createBoard = (selected: DocumentElement[] = [], withExtension = false) => {
   const board = new Board(
     [doc],
     { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
@@ -29,7 +31,8 @@ const createBoard = (selected: DocumentElement[] = []) => {
     false,
     DEFAULT_PAGE_SKETCH
   );
-  board.initPlugins([new DocumentPlugin()]);
+  if (withExtension) board.installExtensions([createDocumentExtension({})]);
+  else board.initPlugins([new DocumentPlugin()]);
   return board;
 };
 
@@ -52,25 +55,29 @@ afterEach(() => {
 
 describe("文档卡", () => {
   it("选中一张文档卡时 ↵ 请求展开", () => {
-    board = createBoard([doc]);
+    board = createBoard([doc], true);
     const open = vi.fn();
     board.on(DOCUMENT_OPEN_EVENT, open);
-    board.onKeyDown(new KeyboardEvent("keydown", { key: "Enter" }));
+    board.onKeyDown(
+      new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, which: 13, cancelable: true })
+    );
     expect(open).toHaveBeenCalledWith("doc");
   });
 
   it("焦点在可编辑区域或未选中时 ↵ 不展开", () => {
-    board = createBoard([doc]);
+    board = createBoard([doc], true);
     const open = vi.fn();
     board.on(DOCUMENT_OPEN_EVENT, open);
-    const event = new KeyboardEvent("keydown", { key: "Enter" });
+    const event = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
     Object.defineProperty(event, "target", { value: document.createElement("input") });
     board.onKeyDown(event);
     board.destroy();
 
-    board = createBoard([]);
+    board = createBoard([], true);
     board.on(DOCUMENT_OPEN_EVENT, open);
-    board.onKeyDown(new KeyboardEvent("keydown", { key: "Enter" }));
+    board.onKeyDown(
+      new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, which: 13, cancelable: true })
+    );
     expect(open).not.toHaveBeenCalled();
   });
 

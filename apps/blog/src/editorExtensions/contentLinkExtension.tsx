@@ -6,6 +6,7 @@ import { RenderElementProps } from "slate-react";
 import { Editor } from "@tau/editor";
 import { joinPath, getInitData } from "@blog/utils";
 import type { ContentLinkTarget } from "@blog/types";
+import { CiteMark, useCitationIndex } from "@blog/components/Citation";
 import {
   createContentLinkPreviewLoader,
   resolveContentLinkTarget,
@@ -125,6 +126,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
   const shouldCompactLabel =
     !readText(element.contentTitle) && inlineLabel === DEFAULT_CONTENT_LINK_LABEL;
   const targetHref = target ? joinPath(site.basePath, target.href, { raw: true }) : "";
+  const citationIndex = useCitationIndex(`${element.contentType}:${element.refId}`);
   const canPreview = enablePreview && !!target && !!targetHref;
   const [open, setOpen] = useState(false);
   const requestIdRef = useRef(0);
@@ -206,11 +208,20 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
     </a>
   );
 
+  const citeMark = citationIndex != null ? <CiteMark index={citationIndex} /> : null;
+
   if (!enablePreview || !target || !targetHref) {
-    return linkNode;
+    return citeMark ? (
+      <>
+        {linkNode}
+        {citeMark}
+      </>
+    ) : (
+      linkNode
+    );
   }
 
-  return (
+  const previewLink = (
     <Tooltip
       open={open}
       onOpenChange={setOpen}
@@ -222,6 +233,15 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
     >
       {linkNode}
     </Tooltip>
+  );
+
+  return citeMark ? (
+    <>
+      {previewLink}
+      {citeMark}
+    </>
+  ) : (
+    previewLink
   );
 });
 

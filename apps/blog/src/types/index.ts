@@ -111,6 +111,42 @@ export interface QuestAnswerData {
   };
 }
 
+export type QuestMaterialKind =
+  | "card"
+  | "article"
+  | "project_item"
+  | "project"
+  | "white_board"
+  | "excerpt"
+  | "pdf-annotation"
+  | "web-clip"
+  | "chat-session";
+
+/** 参考资料（据）：index 即正文与轨迹里的引用编号 */
+export interface QuestMaterialData {
+  index: number;
+  kind: QuestMaterialKind;
+  group: "external" | "note" | "discussion";
+  title: string;
+  meta: string;
+  excerpt: string;
+  note?: string;
+  /** 站内已发布页面 */
+  href?: string;
+  /** 外部原处 */
+  url?: string;
+  /** 与正文 content-link 对账的键（contentType:refId） */
+  citeKey?: string;
+}
+
+/** 探索过程（径）的一个节点 */
+export interface QuestTrailEntry {
+  time: number;
+  tone: "start" | "milestone" | "plain" | "note" | "done";
+  text: string;
+  refs: number[];
+}
+
 export interface QuestData {
   id: number;
   title: string;
@@ -121,6 +157,8 @@ export interface QuestData {
   groupColor?: string;
   status: QuestStatus;
   answers: QuestAnswerData[];
+  materials?: QuestMaterialData[];
+  trail?: QuestTrailEntry[];
   description?: Descendant[];
   createTime: number;
   updateTime: number;

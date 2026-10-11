@@ -98,7 +98,7 @@ describe("Board.apply - Selection Rebind", () => {
     expect(board.selection.selectedElements[0]).toBe(a);
   });
 
-  it("set_node 应触发 onValueChange 与 change，并在选中元素重绑时触发 onSelectionChange", () => {
+  it("set_node 应触发 value:change 与 change，并在选中元素重绑时触发 selection:change", () => {
     const a = createRect("a");
     const board = new Board(
       [a],
@@ -108,14 +108,14 @@ describe("Board.apply - Selection Rebind", () => {
       []
     );
 
-    const onValueChange = vi.fn();
-    const onSelectionChange = vi.fn();
-    const onViewPortChange = vi.fn();
+    const onValueChangeEvent = vi.fn();
+    const onSelectionChangeEvent = vi.fn();
+    const onViewPortChangeEvent = vi.fn();
     const onChange = vi.fn();
 
-    board.on("onValueChange", onValueChange);
-    board.on("onSelectionChange", onSelectionChange);
-    board.on("onViewPortChange", onViewPortChange);
+    board.on("value:change", onValueChangeEvent);
+    board.on("selection:change", onSelectionChangeEvent);
+    board.on("viewport:change", onViewPortChangeEvent);
     board.on("change", onChange);
 
     board.apply(
@@ -128,13 +128,13 @@ describe("Board.apply - Selection Rebind", () => {
       false
     );
 
-    expect(onValueChange).toHaveBeenCalledTimes(1);
-    expect(onSelectionChange).toHaveBeenCalledTimes(1);
-    expect(onViewPortChange).toHaveBeenCalledTimes(0);
+    expect(onValueChangeEvent).toHaveBeenCalledTimes(1);
+    expect(onSelectionChangeEvent).toHaveBeenCalledTimes(1);
+    expect(onViewPortChangeEvent).toHaveBeenCalledTimes(0);
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it("仅 set_viewport 时只触发 onViewPortChange 与 change", () => {
+  it("仅 set_viewport 时只触发 onViewPortChangeEvent 与 change", () => {
     const a = createRect("a");
     const board = new Board(
       [a],
@@ -144,14 +144,14 @@ describe("Board.apply - Selection Rebind", () => {
       []
     );
 
-    const onValueChange = vi.fn();
-    const onSelectionChange = vi.fn();
-    const onViewPortChange = vi.fn();
+    const onValueChangeEvent = vi.fn();
+    const onSelectionChangeEvent = vi.fn();
+    const onViewPortChangeEvent = vi.fn();
     const onChange = vi.fn();
 
-    board.on("onValueChange", onValueChange);
-    board.on("onSelectionChange", onSelectionChange);
-    board.on("onViewPortChange", onViewPortChange);
+    board.on("value:change", onValueChangeEvent);
+    board.on("selection:change", onSelectionChangeEvent);
+    board.on("viewport:change", onViewPortChangeEvent);
     board.on("change", onChange);
 
     board.apply(
@@ -163,13 +163,13 @@ describe("Board.apply - Selection Rebind", () => {
       false
     );
 
-    expect(onValueChange).toHaveBeenCalledTimes(0);
-    expect(onSelectionChange).toHaveBeenCalledTimes(0);
-    expect(onViewPortChange).toHaveBeenCalledTimes(1);
+    expect(onValueChangeEvent).toHaveBeenCalledTimes(0);
+    expect(onSelectionChangeEvent).toHaveBeenCalledTimes(0);
+    expect(onViewPortChangeEvent).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it("无效路径操作不应触发 change/onValueChange/onSelectionChange", () => {
+  it("无效路径操作不应触发 change/onValueChangeEvent/onSelectionChangeEvent", () => {
     const a = createRect("a");
     const board = new Board(
       [a],
@@ -179,12 +179,12 @@ describe("Board.apply - Selection Rebind", () => {
       []
     );
 
-    const onValueChange = vi.fn();
-    const onSelectionChange = vi.fn();
+    const onValueChangeEvent = vi.fn();
+    const onSelectionChangeEvent = vi.fn();
     const onChange = vi.fn();
 
-    board.on("onValueChange", onValueChange);
-    board.on("onSelectionChange", onSelectionChange);
+    board.on("value:change", onValueChangeEvent);
+    board.on("selection:change", onSelectionChangeEvent);
     board.on("change", onChange);
 
     board.apply(
@@ -197,8 +197,8 @@ describe("Board.apply - Selection Rebind", () => {
       false
     );
 
-    expect(onValueChange).toHaveBeenCalledTimes(0);
-    expect(onSelectionChange).toHaveBeenCalledTimes(0);
+    expect(onValueChangeEvent).toHaveBeenCalledTimes(0);
+    expect(onSelectionChangeEvent).toHaveBeenCalledTimes(0);
     expect(onChange).toHaveBeenCalledTimes(0);
   });
 });

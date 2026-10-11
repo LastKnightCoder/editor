@@ -8,8 +8,8 @@ import { resolveSketch } from "../utils/sketch";
 export function usePageSketch(): PageSketch {
   const board = useBoard();
   const subscribe = useMemoizedFn((callback: () => void) => {
-    board.on("sketchChange", callback);
-    return () => board.off("sketchChange", callback);
+    board.on("sketch:change", callback);
+    return () => board.off("sketch:change", callback);
   });
   const getSnapshot = useMemoizedFn(() => board.sketch);
   return useSyncExternalStore(subscribe, getSnapshot);

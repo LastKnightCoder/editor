@@ -2,16 +2,16 @@ import { useSyncExternalStore } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useBoard } from "./useBoard";
 
-export const useCreateElementType = () => {
+export const useActiveTool = () => {
   const board = useBoard();
   const getSnapshot = useMemoizedFn(() => {
-    return board.currentCreateType;
+    return board.activeTool;
   });
 
   const subscribe = useMemoizedFn((callback: () => void) => {
-    board.on("onCurrentCreateTypeChange", callback);
+    board.on("active-tool:change", callback);
     return () => {
-      board.off("onCurrentCreateTypeChange", callback);
+      board.off("active-tool:change", callback);
     };
   });
 

@@ -1,16 +1,12 @@
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { Frame as FrameIcon } from "lucide-react";
-import { ECreateBoardElementType } from "../../../types";
-import { useCreateElementType } from "../../../hooks";
+import { useActiveTool } from "../../../hooks";
 import { ChromeButton } from "../../../chrome";
-import useCreateFrame from "./useCreateFrame";
+import { FRAME_TOOL_ID } from "../../../constants/tools";
 
 const Frame = memo(({ run }: WhiteboardToolProps) => {
-  const createType = useCreateElementType();
-  const active = createType === ECreateBoardElementType.Frame;
-
-  useCreateFrame();
+  const active = useActiveTool() === FRAME_TOOL_ID;
 
   return (
     <ChromeButton

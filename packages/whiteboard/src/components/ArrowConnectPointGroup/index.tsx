@@ -3,13 +3,9 @@ import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
 
 import { ARROW_CONNECT_POINT_FILL, ARROW_CONNECT_POINT_RADIUS } from "../../constants";
-import {
-  useBoardState,
-  useCreateElementType,
-  usePresentationState,
-  useSelection,
-} from "../../hooks";
-import { ECreateBoardElementType, type BoardElement, type Point } from "../../types";
+import { SELECT_TOOL_ID } from "../../constants/tools";
+import { useActiveTool, useBoardState, usePresentationState, useSelection } from "../../hooks";
+import type { BoardElement, Point } from "../../types";
 import ArrowConnectPoint from "../ArrowConnectPoint";
 import { ArrowConnectPointOverlayContext } from "../../context";
 
@@ -167,13 +163,13 @@ const ArrowConnectPointGroup = memo((props: ArrowConnectPointGroupProps) => {
 
   const supportsHover = useSupportsHoverPointer();
   const overlayRef = useContext(ArrowConnectPointOverlayContext);
-  const createElementType = useCreateElementType();
+  const activeTool = useActiveTool();
   const { isPresentationMode } = usePresentationState();
   const selection = useSelection();
   const hasSelectedArrow = (selection?.selectedElements ?? []).some(
     selectedElement => selectedElement.type === "arrow"
   );
-  const isCreatingElement = createElementType !== ECreateBoardElementType.None;
+  const isCreatingElement = activeTool !== SELECT_TOOL_ID;
   const isInteractionSuppressed = hasSelectedArrow || isCreatingElement;
   const isConnectPointDisabled = disabled || isPresentationMode;
   const {

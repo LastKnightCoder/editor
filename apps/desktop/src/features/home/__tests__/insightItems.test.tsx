@@ -99,23 +99,74 @@ describe("今日洞见卡的内容", () => {
       "topic:2:t1",
     ]);
     expect(items[0]).toMatchObject({
+      label: "结项回顾",
+      scope: "项目",
       before: "「项目8」已结项：",
       em: "留下了三个观点",
+      desc: "还有两个问题没解决。",
+      evidence: { type: "ends", ends: [] },
       open: { page: "project-detail", projectId: 80 },
       dismiss: { type: "seen", nodeId: 8 },
     });
     expect(items[1]).toMatchObject({
       before: "「学习方法」和「LeetCode」其实在说同一件事：",
       em: "主动回想比重读记得牢",
+      desc: "理由",
+      scope: "跨主题",
+      time: 100,
       open: { page: "knowledge-map", insight: "global:b1" },
     });
-    expect(items[2]).toMatchObject({ before: "你在对话里问过 1 次", em: "组播地址怎么分配" });
+    expect(items[1].evidence).toMatchObject({
+      type: "ends",
+      ends: [{ title: "卡1" }, { title: "卡2" }],
+    });
+    expect(items[2]).toMatchObject({
+      before: "你在对话里问过 1 次",
+      em: "组播地址怎么分配",
+      after: "，笔记里还没写",
+      scope: "全局",
+      evidence: { type: "prompts", prompts: [{ sessionId: "s", messageId: "m" }] },
+    });
     expect(items[4]).toMatchObject({
-      before: "「JavaScript」里有 2 处发现：",
+      label: "缺一环",
+      scope: "JavaScript · 2 处发现",
+      before: "",
       em: "一条线上缺了「渲染时机」这一环",
       open: { page: "knowledge-map", insight: "topic:5:t1" },
       dismiss: { type: "status", nodeId: 2, itemId: "t1" },
     });
+  });
+
+  it("矛盾附两边说法；证据最多 3 处；问句结尾不再接逗号", () => {
+    const data = payload();
+    data.topics = [
+      node(
+        4,
+        "topic",
+        [
+          mark("c1", "conflict", {
+            ends: [end(1, "A"), end(2, "A")],
+            claims: ["总在绘制之后", "有时在绘制之前"],
+          }),
+        ],
+        { topicId: 9, label: "React" }
+      ),
+      node(
+        5,
+        "topic",
+        [mark("p1", "pattern", { text: "倒推", ends: [1, 2, 3, 4].map(i => end(i, "B")) })],
+        { topicId: 10, label: "算法" }
+      ),
+    ];
+    data.global!.result.marks = [mark("a2", "asked", { text: "为什么会这样？", prompts: [] })];
+    data.projects = [];
+    const [asked, conflict, pattern] = todayInsights(data);
+    expect(asked.after).toBe(" 笔记里还没写");
+    expect(conflict).toMatchObject({
+      label: "矛盾",
+      evidence: { type: "ends", claims: ["总在绘制之后", "有时在绘制之前"] },
+    });
+    expect(pattern.evidence.type === "ends" && pattern.evidence.ends).toHaveLength(3);
   });
 
   it("回顾看过之后又重新写了，算没看过；最多 5 条", () => {
@@ -137,11 +188,13 @@ const mocks = vi.hoisted(() => ({
   items: [] as TodayInsight[],
   dismiss: vi.fn(),
   push: vi.fn(),
+  openEntity: vi.fn(() => Promise.resolve()),
 }));
 vi.mock("../insightQueries", () => ({
   useTodayInsights: () => ({ items: mocks.items, dismiss: mocks.dismiss }),
 }));
 vi.mock("@/page/PageProvider", () => ({ usePage: () => ({ navigator: { push: mocks.push } }) }));
+vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
 import { InsightCard } from "../views/InsightCard";
 
@@ -163,23 +216,36 @@ describe("今日洞见卡", () => {
       b => b.textContent?.includes(text) || b.getAttribute("aria-label") === text
     );
 
-  it("没有内容时整块不出现；一次一条，换条、去看看、不相关", () => {
+  it("没有内容时整块不出现；默认露两条，其余展开可见", () => {
     act(() => root.render(<InsightCard />));
     expect(host.querySelector("[data-today-insight]")).toBeNull();
 
     mocks.items = todayInsights(payload());
     act(() => root.render(<InsightCard />));
-    expect(host.textContent).toContain("1 / 5");
-    expect(host.textContent).toContain("已结项");
+    expect(host.textContent).toContain("5 条新发现");
+    expect(host.querySelectorAll("li")).toHaveLength(2);
+    expect(host.querySelector("em")?.textContent).toBe("留下了三个观点");
+    act(() => button("还有 3 条")!.click());
+    expect(host.querySelectorAll("li")).toHaveLength(5);
+    act(() => button("收起")!.click());
+    expect(host.querySelectorAll("li")).toHaveLength(2);
+  });
+
+  it("去看看、不相关、证据跳转", () => {
+    mocks.items = todayInsights(payload());
+    act(() => root.render(<InsightCard />));
     act(() => button("打开回顾")!.click());
     expect(mocks.push).toHaveBeenCalledWith("project-detail", { id: 80, review: "1" });
     act(() => button("知道了")!.click());
     expect(mocks.dismiss).toHaveBeenCalledWith(mocks.items[0]);
 
-    act(() => button("下一条")!.click());
-    expect(host.textContent).toContain("2 / 5");
-    expect(host.querySelector("em")?.textContent).toBe("主动回想比重读记得牢");
     act(() => button("在地图上看")!.click());
     expect(mocks.push).toHaveBeenLastCalledWith("knowledge-map", { insight: "global:b1" });
+    act(() => button("《卡2》")!.click());
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "card", id: 2 }, { at: { block: 0 } });
+
+    act(() => button("还有 3 条")!.click());
+    act(() => button("x")!.click());
+    expect(mocks.push).toHaveBeenLastCalledWith("chat", { id: "s" });
   });
 });

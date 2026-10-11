@@ -11,7 +11,8 @@ setCommandBridge({
       const startedAt = Date.now();
       try {
         const result = await (handler as CommandHandler)(event, ...args);
-        recordIpcCall(channel, Date.now() - startedAt, true);
+        // 慢调用附带 result 供估算传输大小（结构化克隆大对象会阻塞主进程）
+        recordIpcCall(channel, Date.now() - startedAt, true, result);
         return result;
       } catch (error) {
         recordIpcCall(channel, Date.now() - startedAt, false);

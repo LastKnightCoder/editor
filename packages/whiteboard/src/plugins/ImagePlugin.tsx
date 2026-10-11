@@ -1,4 +1,4 @@
-import { mediaMenu, browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
+import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { Image, Copy, Link, Download, Sparkles, Upload } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -12,7 +12,6 @@ import {
   ContextMenuContext,
   PluginContextMenuItem,
   IElementCapabilities,
-  ECreateBoardElementType,
 } from "../types";
 import {
   SnapBehavior,
@@ -36,7 +35,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   private previewCandidateImage: ImageElement | null = null;
   private previewMoved = false;
 
-  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {
+  constructor(private readonly media: MediaCapabilities = browserMediaInfo) {
     super();
   }
 
@@ -52,8 +51,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       containment: {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
-        // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
-        canBeContainedBy: container => container.type === "column",
+        joins: ["layout"],
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {
@@ -92,7 +90,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "image",
                 action: "local",
               });
@@ -104,7 +102,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "image",
                 action: "url",
               });
@@ -116,7 +114,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Sparkles size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "image",
                 action: "ai",
               });
@@ -198,7 +196,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
     if (
       e.button !== 0 ||
-      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.isCreating() ||
       board.presentationManager.isPresentationMode ||
       board.presentationManager.isCreatingSequence
     ) {
@@ -255,7 +253,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
     if (!shouldPreview) return;
 
-    board.emit("image:preview:open", {
+    board.emit("tau.image.preview-open", {
       src: previewImage.src,
       alt: previewImage.description?.trim() || "图片",
     });

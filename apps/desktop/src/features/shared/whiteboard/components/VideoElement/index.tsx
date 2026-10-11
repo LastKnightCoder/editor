@@ -93,7 +93,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const sketch = useSketch(element);
   const setVideoRef = useCallback(
     (video: HTMLVideoElement | null) => {
-      board.emit("video-note:element-ref", {
+      board.emit("tau.video-note.element-ref", {
         elementId: id,
         video,
       });
@@ -140,7 +140,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const handleOpenVideoNote = useMemoizedFn((event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    board.emit("video-note:open", element);
+    board.emit("tau.video-note.open", element);
   });
 
   return (

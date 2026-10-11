@@ -6,7 +6,12 @@ import { defineWhiteboardExtension, type WhiteboardAPI } from "../extensions/api
 import { useWhiteboardAPI } from "../extensions/runtime";
 import { createInteractionExtension, createClipboardExtension } from "../extensions/builtins";
 import { createRichTextExtension } from "../extensions/builtins";
-import { embeddedTextOptions, type WhiteboardTextEditorProps } from "../extensions/text";
+import { createServiceRegistry } from "../extensions";
+import {
+  IWhiteboardRichText,
+  embeddedTextOptions,
+  type WhiteboardTextEditorProps,
+} from "../extensions/text";
 import { useBoard } from "../hooks/useBoard";
 import type Board from "../Board";
 
@@ -40,7 +45,7 @@ it.each([
       create: () => ({
         elements: [
           {
-            type: "shape",
+            type: "test.shape",
             render: ({ element }) => (
               <rect
                 data-test-shape
@@ -64,7 +69,7 @@ it.each([
       root.render(
         <WhiteBoard
           extensions={extensions}
-          initData={[{ id: "shape", type: "shape", x: 10, y: 10, width: 100, height: 80 }]}
+          initData={[{ id: "shape", type: "test.shape", x: 10, y: 10, width: 100, height: 80 }]}
           initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
           showToolbar={false}
           showAttributeSetter={false}
@@ -119,7 +124,7 @@ it.each(["blur", "unmount"])("富文本退出编辑（%s）后释放标记，编
   }
   const extensions = [
     createInteractionExtension(),
-    createRichTextExtension({ ...embeddedTextOptions, Editor: TextEditor }),
+    createRichTextExtension(),
     defineWhiteboardExtension({
       id: "test.capture",
       create: () => ({
@@ -147,6 +152,9 @@ it.each(["blur", "unmount"])("富文本退出编辑（%s）后释放标记，编
       root.render(
         <WhiteBoard
           extensions={extensions}
+          services={createServiceRegistry(register =>
+            register(IWhiteboardRichText, { Editor: TextEditor, kit: embeddedTextOptions.kit })
+          )}
           initData={[text, shape]}
           initSelection={{ selectedElements: [shape], selectArea: null }}
           initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}

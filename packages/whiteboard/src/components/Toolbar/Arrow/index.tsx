@@ -1,16 +1,12 @@
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { ArrowUpRight } from "lucide-react";
-import useCreateArrow from "./useCreateArrow";
-import { useCreateElementType } from "../../../hooks";
-import { ECreateBoardElementType } from "../../../types";
+import { useActiveTool } from "../../../hooks";
+import { ARROW_TOOL_ID } from "../../../constants/tools";
 import { ChromeButton } from "../../../chrome";
 
 const Arrow = memo(({ run }: WhiteboardToolProps) => {
-  const createType = useCreateElementType();
-  const active = createType === ECreateBoardElementType.StraightArrow;
-
-  useCreateArrow();
+  const active = useActiveTool() === ARROW_TOOL_ID;
 
   return (
     <ChromeButton

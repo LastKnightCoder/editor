@@ -1,16 +1,12 @@
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { memo } from "react";
 import { PenLine } from "lucide-react";
-import { ECreateBoardElementType } from "../../../types";
-import { useCreateElementType } from "../../../hooks";
+import { useActiveTool } from "../../../hooks";
+import { HANDWRITE_TOOL_ID } from "../../../constants/tools";
 import { ChromeButton } from "../../../chrome";
-import useCreateHandwrite from "./useCreateHandwrite";
 
 const Handwrite = memo(({ run }: WhiteboardToolProps) => {
-  const createType = useCreateElementType();
-  const active = createType === ECreateBoardElementType.Handwrite;
-
-  useCreateHandwrite();
+  const active = useActiveTool() === HANDWRITE_TOOL_ID;
 
   return (
     <ChromeButton

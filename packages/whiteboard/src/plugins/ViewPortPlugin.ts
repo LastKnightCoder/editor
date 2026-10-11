@@ -1,20 +1,10 @@
-import { IBoardPlugin, Board, ECreateBoardElementType, ViewPort } from "../types";
-import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM, FIT_VIEW_PADDING } from "../constants";
+import { IBoardPlugin, Board } from "../types";
+import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM } from "../constants";
 import { ViewPortTransforms } from "../transforms";
-import { isEditableTarget } from "@tau/ui";
-import isHotkey from "is-hotkey";
-
-const VIEW_ANIMATION_MS = 300;
-
-const isSameViewport = (a: ViewPort, b: ViewPort) =>
-  (["minX", "minY", "width", "height", "zoom"] as const).every(
-    key => Math.abs(a[key] - b[key]) <= 1e-6 * Math.max(1, Math.abs(b[key]))
-  );
 
 /**
- * 视口的滚轮缩放/平移与缩放快捷键：
- * mod+= / mod+- 缩放、mod+o 全览（有选区时全览选区）、
- * Z 全览 ↔ 回到原视角、shift+1 适应全部、shift+2 适应选中、shift+0 实际大小。
+ * 视口的滚轮缩放/平移与右键菜单默认行为：
+ * 缩放/全览快捷键已迁入 tau.interaction 扩展（extensions/interactionCommands.ts），
  * 右键拖拽平移已迁入交互内核（interactions/states/PanningState），
  * 方向键平移已迁入 interactions/states/ViewportMoveState。
  */
@@ -22,19 +12,13 @@ export class ViewPortPlugin implements IBoardPlugin {
   name = "viewport-plugin";
 
   private lastWheelTime = 0;
-  /** Z 全览前的视角与全览目标；视角离开全览目标（手动平移 / 缩放）后再按 Z 重新全览 */
-  private quickFit: { from: ViewPort; to: ViewPort } | null = null;
 
   onContextMenu(e: MouseEvent) {
     e.preventDefault();
   }
 
   onWheel(e: WheelEvent, board: Board) {
-    if (
-      board.currentCreateType !== ECreateBoardElementType.None ||
-      board.presentationManager.isPresentationMode
-    )
-      return;
+    if (board.isCreating() || board.presentationManager.isPresentationMode) return;
 
     const now = Date.now();
     if (now - this.lastWheelTime < 100) return;
@@ -81,97 +65,5 @@ export class ViewPortPlugin implements IBoardPlugin {
 
       ViewPortTransforms.moveViewPort(board, newX, newY);
     }
-  }
-
-  onKeyDown(e: KeyboardEvent, board: Board) {
-    // 画板接管的快捷键需同时阻止默认行为（Electron/Chromium 的窗口缩放角色
-    // 在 renderer 标记事件已处理后才触发）与冒泡（md 导入等功能监听在 window 层）
-    if (isHotkey("mod+=", e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
-      ViewPortTransforms.updateZoom(board, newZoom);
-    } else if (isHotkey("mod+-", e)) {
-      e.preventDefault();
-      e.stopPropagation();
-      const newZoom = Math.max(board.viewPort.zoom / 1.1, 0.1);
-      ViewPortTransforms.updateZoom(board, newZoom);
-    } else if (isHotkey("mod+o", e)) {
-      // 添加mod+o快捷键支持，用于全览
-      e.preventDefault();
-      e.stopPropagation();
-
-      // 获取当前选中的元素并创建副本
-      const selectedElements = [...board.selection.selectedElements];
-
-      if (selectedElements.length > 0) {
-        // 如果有选中的元素，则全览选中的元素
-        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, selectedElements);
-
-        // 在下一个事件循环中恢复选中状态，避免被全局事件处理器清除
-        setTimeout(() => {
-          if (selectedElements.length > 0) {
-            board.apply(
-              {
-                type: "set_selection",
-                properties: board.selection,
-                newProperties: {
-                  selectArea: null,
-                  selectedElements: selectedElements,
-                },
-              },
-              false
-            );
-          }
-        }, 0);
-      } else {
-        // 否则全览所有元素
-        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
-      }
-    } else if (this.canUseViewKeys(e, board)) {
-      this.handleViewKeys(e, board);
-    }
-  }
-
-  /** 单键 / shift+数字 在文字编辑、输入法组合与演示中让位 */
-  private canUseViewKeys(e: KeyboardEvent, board: Board) {
-    return (
-      !e.isComposing &&
-      board.isEditingElements.length === 0 &&
-      !isEditableTarget(e.target) &&
-      !board.presentationManager.isPresentationMode
-    );
-  }
-
-  private handleViewKeys(e: KeyboardEvent, board: Board) {
-    if (isHotkey("z", e)) {
-      this.toggleQuickFit(board);
-    } else if (isHotkey("shift+1", e)) {
-      ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
-    } else if (isHotkey("shift+2", e)) {
-      const selected = board.selection.selectedElements;
-      if (selected.length === 0) return;
-      ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [...selected]);
-    } else if (isHotkey("shift+0", e)) {
-      ViewPortTransforms.updateZoom(board, 1);
-    } else {
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  private toggleQuickFit(board: Board) {
-    const current = { ...board.viewPort };
-    if (this.quickFit && isSameViewport(current, this.quickFit.to)) {
-      const { from } = this.quickFit;
-      this.quickFit = null;
-      ViewPortTransforms.animateToViewport(board, current, from, VIEW_ANIMATION_MS);
-      return;
-    }
-    const to = ViewPortTransforms.getFitViewport(board, FIT_VIEW_PADDING);
-    if (!to) return;
-    this.quickFit = { from: current, to };
-    ViewPortTransforms.animateToViewport(board, current, to, VIEW_ANIMATION_MS);
   }
 }
