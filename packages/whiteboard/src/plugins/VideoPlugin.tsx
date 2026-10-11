@@ -75,7 +75,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "video",
                 action: "local",
               });
@@ -87,7 +87,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "video",
                 action: "url",
               });
@@ -99,7 +99,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <MonitorPlay size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "video",
                 action: "bilibili",
               });
@@ -111,7 +111,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Youtube size={14} />,
             priority: 4,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "video",
                 action: "youtube",
               });
@@ -133,7 +133,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         icon: <FileText size={14} />,
         priority: 49,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.emit("video-note:open", videoElement);
+          ctx.board.emit("tau.video-note.open", videoElement);
         },
       });
 

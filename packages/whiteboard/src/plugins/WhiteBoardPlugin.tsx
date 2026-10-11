@@ -89,7 +89,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Plus size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "whiteboard",
                 action: "create",
               });
@@ -101,7 +101,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Link2 size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "whiteboard",
                 action: "reference",
               });

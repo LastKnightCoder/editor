@@ -51,13 +51,13 @@ export class ArrowConnectTracker {
 
   /** 订阅连接点候选事件；返回取消订阅函数 */
   attach(): () => void {
-    this.bus.on("arrow:add-closing-elements", this.handleAddClosingElements);
-    this.bus.on("arrow:remove-closing-elements", this.handleRemoveClosingElements);
-    this.bus.on("arrow:move-end", this.handleArrowMoveEnd);
+    this.bus.on("tau.arrow.add-closing-elements", this.handleAddClosingElements);
+    this.bus.on("tau.arrow.remove-closing-elements", this.handleRemoveClosingElements);
+    this.bus.on("tau.arrow.move-end", this.handleArrowMoveEnd);
     return () => {
-      this.bus.off("arrow:add-closing-elements", this.handleAddClosingElements);
-      this.bus.off("arrow:remove-closing-elements", this.handleRemoveClosingElements);
-      this.bus.off("arrow:move-end", this.handleArrowMoveEnd);
+      this.bus.off("tau.arrow.add-closing-elements", this.handleAddClosingElements);
+      this.bus.off("tau.arrow.remove-closing-elements", this.handleRemoveClosingElements);
+      this.bus.off("tau.arrow.move-end", this.handleArrowMoveEnd);
     };
   }
 
@@ -68,9 +68,9 @@ export class ArrowConnectTracker {
   private emitCustomSnap = (): void => {
     const top = this.candidateConnectPoints[0];
     if (top && top.connectId === ARROW_CONNECT_ID.CUSTOM) {
-      this.bus.emit("arrow:custom-snap", { point: top.point });
+      this.bus.emit("tau.arrow.custom-snap", { point: top.point });
     } else {
-      this.bus.emit("arrow:custom-snap", null);
+      this.bus.emit("tau.arrow.custom-snap", null);
     }
   };
 
@@ -108,7 +108,7 @@ export class ArrowConnectTracker {
     }
 
     // 非 alt 模式：清除自定义吸附可视化，沿用 5 点距离吸附
-    this.bus.emit("arrow:custom-snap", null);
+    this.bus.emit("tau.arrow.custom-snap", null);
     const point = this.state.currentPoint();
     this.candidateConnectPoints = this.closingConnectElements
       .map(item => {
@@ -167,7 +167,7 @@ export class ArrowConnectTracker {
     this.candidateConnectPoints = [];
     this.closingConnectElements = [];
     this.altMode = false;
-    this.bus.emit("arrow:custom-snap", null);
+    this.bus.emit("tau.arrow.custom-snap", null);
   };
 
   getUpdateArrowElement = (
@@ -193,7 +193,7 @@ export class ArrowConnectTracker {
         newTarget.connectId = undefined;
         newTarget.customOffset = undefined;
       }
-      this.bus.emit("arrow:drop", {
+      this.bus.emit("tau.arrow.drop", {
         elementId: "",
         connectId: "",
       });
@@ -205,7 +205,7 @@ export class ArrowConnectTracker {
         newSource.connectId = connectId;
         newSource.customOffset = customOffset;
         newPoints[0] = point;
-        this.bus.emit("arrow:drop", {
+        this.bus.emit("tau.arrow.drop", {
           elementId,
           connectId,
         });
@@ -214,13 +214,13 @@ export class ArrowConnectTracker {
         newTarget.connectId = connectId;
         newTarget.customOffset = customOffset;
         newPoints[points.length - 1] = point;
-        this.bus.emit("arrow:drop", {
+        this.bus.emit("tau.arrow.drop", {
           elementId,
           connectId,
         });
       } else {
         newPoints[movedPointIndex] = currentPoint;
-        this.bus.emit("arrow:drop", {
+        this.bus.emit("tau.arrow.drop", {
           elementId: "",
           connectId: "",
         });

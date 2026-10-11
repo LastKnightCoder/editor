@@ -32,7 +32,7 @@ function Headline({ session }: { session: ComposeSession }) {
   const unused = documents.filter(doc => !cited.has(doc.key) && !numbers.has(doc.key));
   const flash = () => {
     const board = session.getState().board;
-    unused.forEach(doc => board?.emit("element:flash", doc.elementId));
+    unused.forEach(doc => board?.flashElement(doc.elementId));
   };
   return (
     <p className="text-tau-body-lg text-ink-1 mb-1.5 font-medium leading-[1.8]">

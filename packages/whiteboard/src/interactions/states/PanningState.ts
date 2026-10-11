@@ -96,7 +96,7 @@ export class PanningState implements InteractionState {
     );
     const targetElements = isHitSelected ? selectedElements : hitElement ? [hitElement] : [];
 
-    board.emit("context-menu", {
+    board.emit("internal:context-menu", {
       clientX: event.clientX,
       clientY: event.clientY,
       viewPortPoint,

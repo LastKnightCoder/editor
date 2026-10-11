@@ -109,6 +109,31 @@ const stampExtension = defineWhiteboardExtension({
 });
 ```
 
+### 事件
+
+事件分三层（D-131）：内核事件带类型、只有内核能发，扩展只能经 `api.on` 监听，数据类事件（`value:change` / `selection:change` / `viewport:change` / `element:change` / `element:insert` / `element:remove`）的载荷为冻结快照，清单见 api.ts 的 `WhiteboardKernelEvents`；扩展事件形如 `<命名空间>.<名称>`，扩展只能 emit 自己命名空间下的事件、任何扩展都可以监听（`tau.*` 归内置扩展）；`internal:` 前缀事件只在包内使用，订阅与发出都会在运行时抛错。
+
+```tsx
+create: api => ({
+  activate: () => {
+    api.on("element:insert", elements => track(elements)); // 内核事件，载荷为冻结快照
+    api.on("demo.stamp.copied", id => reload(id)); // 任意命名空间的扩展事件
+    api.emit("demo.stamp.copied", stampId); // 只能发自己命名空间下的事件
+  },
+});
+```
+
+### 快捷键
+
+快捷键经贡献 `hotkeys: [{ key, command }]` 声明（is-hotkey 键串，按 event.key 匹配），只是「按键 → 命令」的绑定：命令 `enabled` 不满足时不拦截按键。仲裁按「内置（tau）优先、第三方按装配顺序」取第一条 enabled 的命令执行，全部不可用则放行；输入法组合、编辑上下文、元素编辑中与演示态一律不响应。mod+k / mod+p / mod+j、alt+left / alt+right、escape 为宿主保留键，声明即拒绝装配。界面上的快捷键文字统一用 `api.getShortcut(commandId)` 获取（按平台格式化），不要自行拼写。
+
+```tsx
+create: () => ({
+  commands: [{ id: "demo.stamp.duplicate", execute: api => duplicate(api) }],
+  hotkeys: [{ key: "mod+d", command: "demo.stamp.duplicate" }], // 键串解析失败也会拒绝装配
+});
+```
+
 ## 验证
 
 运行 `pnpm --filter @tau/whiteboard check`、`test`、`bench:hit`、`bench:render`；边界检查为 `pnpm check:whiteboard-boundaries`。独立示例使用 `pnpm --filter @example/whiteboard build`。视觉验收由用户完成。

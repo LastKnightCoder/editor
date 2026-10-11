@@ -54,7 +54,7 @@ export function buildArrowElement(
 
 /**
  * 箭头创建手势（CustomCreateGesture）：拖动中以预览呈现箭头并按旧事件协议
- * （arrow:update / arrow:drop / arrow:custom-snap / arrow:move-end）驱动连接点覆盖层；
+ * （tau.arrow.update / tau.arrow.drop / tau.arrow.custom-snap / tau.arrow.move-end）驱动连接点覆盖层；
  * Shift 将终点吸附到 45° 方向（新增能力），Alt 启用自定义连接点吸附；
  * 松手返回最后状态的箭头（含端点绑定字段），单击不创建且工具保持。
  */
@@ -117,7 +117,7 @@ export const arrowCreateGesture: CustomCreateGesture = {
         arrow = tracker.getUpdateArrowElement(arrow, end, arrow.points.length - 1);
         ctx.preview(arrow);
         // 让其他元素监听，是否显示 arrow drop connect point
-        ctx.api.emit("arrow:update", {
+        ctx.api.emit("tau.arrow.update", {
           arrow,
           path: [ctx.api.children.length],
           currentPoint: end,
@@ -125,12 +125,12 @@ export const arrowCreateGesture: CustomCreateGesture = {
       },
       end: () => {
         detachTracker();
-        ctx.api.emit("arrow:move-end");
+        ctx.api.emit("tau.arrow.move-end");
         return arrow;
       },
       cancel: () => {
         detachTracker();
-        ctx.api.emit("arrow:move-end");
+        ctx.api.emit("tau.arrow.move-end");
       },
     };
     return session;

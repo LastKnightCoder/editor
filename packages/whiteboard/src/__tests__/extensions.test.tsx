@@ -118,7 +118,7 @@ describe("白板扩展契约", () => {
     const board = create();
     const saved = vi.fn();
     vi.spyOn(console, "error").mockImplementation(() => {});
-    board.on("onValueChange", () => {
+    board.on("value:change", () => {
       expect(board.getSnapshot().children[0].x).toBe(30);
       throw new Error("扩展损坏");
     });

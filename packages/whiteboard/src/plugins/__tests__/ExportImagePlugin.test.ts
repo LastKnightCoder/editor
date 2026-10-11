@@ -60,7 +60,7 @@ describe("ExportImagePlugin", () => {
     expect(item).toBeTruthy();
     item?.onSelect(ctx);
 
-    expect(ctx.board.emit).toHaveBeenCalledWith("context-menu:open-modal", {
+    expect(ctx.board.emit).toHaveBeenCalledWith("tau.modal.open", {
       type: "export-image",
       action: "selection",
       selectedElementIds: ["a", "b"],

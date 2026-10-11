@@ -1,6 +1,12 @@
 export { default, default as WhiteBoard } from "./WhiteBoard";
 export type { WhiteBoardProps, WhiteBoardRef } from "./WhiteBoard";
 export * from "./extensions/api";
+export type {
+  WhiteboardKernelEvents,
+  KernelEventName,
+  ExtensionEventName,
+} from "./extensions/events";
+export { KERNEL_EVENT_NAMES } from "./extensions/events";
 export {
   WHITEBOARD_DOCUMENT_VERSION,
   getDocumentVersion,

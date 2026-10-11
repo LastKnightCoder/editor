@@ -109,9 +109,9 @@ export function NoteLayers() {
       setActiveVideoNote(null);
       setActiveNoteTitle(contentTitle);
     };
-    board.on("open-note", handleOpenNote);
+    board.on("tau.note.open", handleOpenNote);
     return () => {
-      board.off("open-note", handleOpenNote);
+      board.off("tau.note.open", handleOpenNote);
     };
   }, [board]);
 
@@ -239,13 +239,13 @@ export function NoteLayers() {
       });
     };
 
-    board.on("video-note:open", handleOpenVideoNote);
+    board.on("tau.video-note.open", handleOpenVideoNote);
     board.on("element:remove", handleElementRemove);
-    board.on("video-note:element-ref", handleVideoElementRef);
+    board.on("tau.video-note.element-ref", handleVideoElementRef);
     return () => {
-      board.off("video-note:open", handleOpenVideoNote);
+      board.off("tau.video-note.open", handleOpenVideoNote);
       board.off("element:remove", handleElementRemove);
-      board.off("video-note:element-ref", handleVideoElementRef);
+      board.off("tau.video-note.element-ref", handleVideoElementRef);
     };
   }, [board]);
 
@@ -256,9 +256,9 @@ export function NoteLayers() {
       if (!node?.contentId) return;
       setUnlinkNodeId(nodeId);
     };
-    board.on("mind:confirm-unlink-note", handleConfirmUnlinkNote);
+    board.on("tau.mind.confirm-unlink-note", handleConfirmUnlinkNote);
     return () => {
-      board.off("mind:confirm-unlink-note", handleConfirmUnlinkNote);
+      board.off("tau.mind.confirm-unlink-note", handleConfirmUnlinkNote);
     };
   }, [board]);
 

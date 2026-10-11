@@ -10,9 +10,9 @@ export const useReadonly = () => {
   });
 
   const subscribe = useMemoizedFn((callback: () => void) => {
-    board.on("readonlyChange", callback);
+    board.on("readonly:change", callback);
     return () => {
-      board.off("readonlyChange", callback);
+      board.off("readonly:change", callback);
     };
   });
   return useSyncExternalStore(subscribe, getSnapshot);

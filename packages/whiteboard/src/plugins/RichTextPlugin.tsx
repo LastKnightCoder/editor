@@ -134,7 +134,7 @@ export class RichTextPlugin extends CommonPlugin {
                 icon: <CreditCard size={14} />,
                 priority: 261,
                 onSelect: (ctx: ContextMenuContext) => {
-                  ctx.board.emit("richtext:create-as", {
+                  ctx.board.emit("tau.richtext.create-as", {
                     elementId: richText.id,
                     mode: "card",
                   });
@@ -148,7 +148,7 @@ export class RichTextPlugin extends CommonPlugin {
                 icon: <FileText size={14} />,
                 priority: 262,
                 onSelect: (ctx: ContextMenuContext) => {
-                  ctx.board.emit("richtext:create-as", {
+                  ctx.board.emit("tau.richtext.create-as", {
                     elementId: richText.id,
                     mode: "article",
                   });
@@ -161,7 +161,7 @@ export class RichTextPlugin extends CommonPlugin {
             icon: <FolderOpen size={14} />,
             priority: 264,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("richtext:create-as", {
+              ctx.board.emit("tau.richtext.create-as", {
                 elementId: richText.id,
                 mode: "project",
               });

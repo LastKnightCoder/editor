@@ -1,5 +1,17 @@
 # 决策记录（轻量 ADR）
 
+## D-131 白板事件分层与快捷键仲裁（P2）
+
+（2026-10-11，用户确认方案）
+
+- 事件分三层：内核事件公共且带类型（`WhiteboardKernelEvents`），只有内核能发、扩展只能经 `api.on` 监听，共 13 个：`change`、`value:change`、`selection:change`、`viewport:change`、`sketch:change`、`readonly:change`、`element:change`、`element:insert`、`element:remove`、`element:move`、`element:move-end`、`element:flash`、`active-tool:change`（数据类事件经扩展 API 监听时载荷替换为冻结快照，`element:flash` 的公开触发入口是 `api.flashElement(id)`）；扩展事件形如 `<命名空间>.<名称>`，扩展只能发自己命名空间（扩展 id 第一段）下的事件，任何扩展都可以监听，`tau.*` 归内置扩展；`internal:` 前缀事件只在包内使用，订阅与发出都在运行时抛错（现有 4 个：creation-preview-change、create-gesture-start、create-gesture-cancel、context-menu）。
+- 统一命名：事件名的驼峰写法改为冒号分隔；会触发界面操作的事件改为 `tau.*` 扩展事件（如 `tau.modal.open`），只有内置扩展能发出；不保留旧名。
+- 快捷键只是「按键 → 命令」的绑定：命令 `enabled` 不满足时不拦截按键；按「内置（tau）优先、第三方按装配顺序」取第一条 enabled 的命令拦截并执行，全部不可用则放行。输入法组合、编辑上下文、元素编辑中与演示态一律不响应，按键交给正文编辑器（编辑器自带 slate-history，撤销 / 全选因此在编辑态让位）。
+- 预留应用级快捷键，第三方与内置扩展都不能绑定：mod+k / mod+p（命令面板）、mod+j（停靠栏）、alt+left / alt+right（前进后退）、escape（浮层退场）。
+- 内置快捷键改为 `tau.*` 扩展的 hotkeys + 命令（原 HistoryPlugin / SelectPlugin 的 onKeyDown 硬编码已删除）：撤销 mod+z、重做 mod+shift+z 与新增 mod+y、全选 mod+a、删除 delete / backspace、缩放 mod+= / mod+-、全览 mod+o 与 z、shift+数字（shift+1 / shift+2 / shift+0 走包内键码通道按 event.code 匹配，仅内置可用）、回车打开文档 enter。
+- 快捷键显示文字只有一个来源：`api.getShortcut(commandId)`（内部经 `formatHotkey` 按平台格式化）。
+- 未纳入：思维导图节点键盘导航、方向键移动、演示翻页仍是模式内交互，留在交互层；思维导图依赖「监听器抢先注册 + 阻断后续监听」实现键盘优先级，记为遗留。
+
 ## D-130 白板创建交互开放（P1）
 
 （2026-10-11，用户确认方案）
@@ -22,7 +34,7 @@
 - 元素版本与迁移：元素定义声明 `schemaVersion` + `migrate[n]`（n→n+1），元素 `schemaVersion` 缺省 1；装配后对已加载数据迁移一次（不进历史、不发 change，随下次编辑落库），插入（粘贴/submit/导入）先迁移再插入；数据版本高于扩展或迁移失败时占位渲染、数据原样保留。
 - data 字段归属与写入校验：第三方私有数据一律收敛在 `element.data`，顶层字段归内核，内置元素格式不变；`defineElement` 可带 Standard Schema v1 schema（仅同步）约束 `element.data`。提交时校验（操作树产出后、状态提交前，只校验变化元素），不合规抛 `WhiteboardValidationError` 且整批不应用；undo/redo 重放不校验，加载只校验迁移产物（不合规回退原样并计入迁移失败），粘贴不合规放弃本次粘贴。
 - 未知元素原样保留：占位原因分 missing / too-new / migration-failed / disabled，数据与子树不丢失（roundtrip 测试锁定）。
-- 后续阶段：P1 已完成（D-130）；P2 事件命名空间与快捷键仲裁；P3 操作级持久化。
+- 后续阶段：P1 已完成（D-130）；P2 已完成（D-131）；P3 操作级持久化。
 
 ## D-128 今日洞见卡改为直接展开的列表，每条带理由与证据
 

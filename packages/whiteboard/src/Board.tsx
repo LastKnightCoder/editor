@@ -143,7 +143,7 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
-  /** 页级画风（D-107）；变化时 emit("sketchChange") */
+  /** 页级画风（D-107）；变化时 emit("sketch:change") */
   public sketch: PageSketch;
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
@@ -165,7 +165,7 @@ class Board {
 
   /**
    * 创建手势的预览覆盖层状态：预览元素从不进入 children、快照、onChange 与历史；
-   * 变化时 emit("creation-preview:change")。leaving 表示取消退场中（120ms 后清空）。
+   * 变化时 emit("internal:creation-preview-change")。leaving 表示取消退场中（120ms 后清空）。
    */
   public creationPreview: {
     element: BoardElement;
@@ -185,7 +185,7 @@ class Board {
     if (!element) {
       if (this.creationPreview) {
         this.creationPreview = null;
-        this.emit("creation-preview:change");
+        this.emit("internal:creation-preview-change");
       }
       return;
     }
@@ -196,14 +196,14 @@ class Board {
       sizeLabel: options?.sizeLabel,
       bounds: options?.bounds ?? true,
     };
-    this.emit("creation-preview:change");
+    this.emit("internal:creation-preview-change");
   }
 
   /** 标记预览进入取消退场（渲染层播放 120ms 淡出） */
   markCreationPreviewLeaving(): void {
     if (!this.creationPreview || this.creationPreview.leaving) return;
     this.creationPreview = { ...this.creationPreview, leaving: true };
-    this.emit("creation-preview:change");
+    this.emit("internal:creation-preview-change");
   }
 
   constructor(
@@ -261,7 +261,7 @@ class Board {
   set readonly(value: boolean) {
     if (value !== this._readonly) this.submissionVersion++;
     this._readonly = value;
-    this.emit("readonlyChange", value);
+    this.emit("readonly:change", value);
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -788,16 +788,16 @@ class Board {
     // 发出事件
     try {
       if (childrenChanged) {
-        this.emit("onValueChange", this.children);
+        this.emit("value:change", this.children);
       }
       if (viewPortChanged) {
-        this.emit("onViewPortChange", this.viewPort);
+        this.emit("viewport:change", this.viewPort);
       }
       if (selectionChanged) {
-        this.emit("onSelectionChange", this.selection);
+        this.emit("selection:change", this.selection);
       }
       if (sketchChanged) {
-        this.emit("sketchChange", this.sketch);
+        this.emit("sketch:change", this.sketch);
       }
 
       if (metadata.changedElements.length > 0) {

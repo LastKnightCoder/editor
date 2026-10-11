@@ -296,10 +296,10 @@ describe("arrow 创建工具", () => {
 
     await fire("pointerdown", 100, 150);
     await sleep(30);
-    // 超过阈值：创建箭头（尚无 arrow:update）
+    // 超过阈值：创建箭头（尚无 tau.arrow.update）
     await fire("pointermove", 150, 150);
     await sleep(30);
-    // 端点移到右边连接点上：发出 arrow:update，元素进入候选
+    // 端点移到右边连接点上：发出 tau.arrow.update，元素进入候选
     await fire("pointermove", 300, 150);
     await sleep(30);
     // 下一帧吸附到候选连接点
@@ -319,7 +319,7 @@ describe("arrow 创建工具", () => {
   it("拖动中按住 Alt：终点吸附自定义连接点（射线-边缘交点）并发出 custom-snap 事件", async () => {
     const { board, fire, unmount } = await renderWhiteBoard([richtextSeed("text-a", 200, 100)]);
     const customSnapSpy = vi.fn();
-    board.on("arrow:custom-snap", customSnapSpy);
+    board.on("tau.arrow.custom-snap", customSnapSpy);
     board.setActiveTool(ARROW_TOOL_ID);
 
     await fire("pointerdown", 100, 150);
@@ -353,14 +353,14 @@ describe("arrow 创建工具", () => {
     await unmount();
   });
 
-  it("拖动中发出与旧实现一致的事件（arrow:update / arrow:drop / arrow:move-end）", async () => {
+  it("拖动中发出与旧实现一致的事件（tau.arrow.update / tau.arrow.drop / tau.arrow.move-end）", async () => {
     const { board, fire, unmount } = await renderWhiteBoard([richtextSeed("text-a", 200, 100)]);
     const updateSpy = vi.fn();
     const dropSpy = vi.fn();
     const moveEndSpy = vi.fn();
-    board.on("arrow:update", updateSpy);
-    board.on("arrow:drop", dropSpy);
-    board.on("arrow:move-end", moveEndSpy);
+    board.on("tau.arrow.update", updateSpy);
+    board.on("tau.arrow.drop", dropSpy);
+    board.on("tau.arrow.move-end", moveEndSpy);
     board.setActiveTool(ARROW_TOOL_ID);
 
     await fire("pointerdown", 100, 150);

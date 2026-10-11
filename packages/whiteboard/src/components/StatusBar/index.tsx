@@ -61,12 +61,20 @@ const StatusBar = memo((props: StatusBarProps) => {
   // 序列列表直接订阅 presentationManager（父组件不会因序列增删而重渲染，prop 只作初值兜底）
   const { isPresentationMode, sequences: liveSequences } = usePresentationState();
   const hasSelection = (useSelection()?.selectedElements.length ?? 0) > 0;
+  const board = useBoard();
+  // 按钮与菜单的快捷键文字统一取自命令绑定（无扩展运行时或未绑定时收起）
+  const kbdOf = (commandId: string) => board.extensions?.api.getShortcut(commandId) ?? undefined;
   if (isPresentationMode) return null;
 
   return (
     <ChromeBar ref={ref} className="bottom-3 right-3 text-[12px]">
       <SketchEntry />
-      <ChromeButton label="缩小" kbd="⌘−" tooltipPlacement="top" onClick={onZoomOut}>
+      <ChromeButton
+        label="缩小"
+        kbd={kbdOf("tau.viewport.zoom-out")}
+        tooltipPlacement="top"
+        onClick={onZoomOut}
+      >
         <Minus strokeWidth={1.75} />
       </ChromeButton>
       <Menu
@@ -83,10 +91,14 @@ const StatusBar = memo((props: StatusBarProps) => {
           </button>
         }
       >
-        <Menu.Item kbd="⇧1" onSelect={onFitAll}>
+        <Menu.Item kbd={kbdOf("tau.viewport.fit-all")} onSelect={onFitAll}>
           适应全部
         </Menu.Item>
-        <Menu.Item kbd="⇧2" disabled={!hasSelection} onSelect={onFitSelection}>
+        <Menu.Item
+          kbd={kbdOf("tau.viewport.fit-selection")}
+          disabled={!hasSelection}
+          onSelect={onFitSelection}
+        >
           适应选中
         </Menu.Item>
         <Menu.Separator />
@@ -96,7 +108,11 @@ const StatusBar = memo((props: StatusBarProps) => {
           onValueChange={v => onZoomTo(Number(v))}
         >
           {ZOOM_PRESETS.map(z => (
-            <Menu.RadioItem key={z} value={String(z)} kbd={z === 1 ? "⇧0" : undefined}>
+            <Menu.RadioItem
+              key={z}
+              value={String(z)}
+              kbd={z === 1 ? kbdOf("tau.viewport.zoom-reset") : undefined}
+            >
               {Math.round(z * 100)}%
             </Menu.RadioItem>
           ))}
@@ -106,10 +122,20 @@ const StatusBar = memo((props: StatusBarProps) => {
           显示点阵
         </Menu.CheckboxItem>
       </Menu>
-      <ChromeButton label="放大" kbd="⌘＋" tooltipPlacement="top" onClick={onZoomIn}>
+      <ChromeButton
+        label="放大"
+        kbd={kbdOf("tau.viewport.zoom-in")}
+        tooltipPlacement="top"
+        onClick={onZoomIn}
+      >
         <Plus strokeWidth={1.75} />
       </ChromeButton>
-      <ChromeButton label="全览" kbd="Z" tooltipPlacement="top" onClick={onFitAll}>
+      <ChromeButton
+        label="全览"
+        kbd={kbdOf("tau.viewport.toggle-fit")}
+        tooltipPlacement="top"
+        onClick={onFitAll}
+      >
         <Maximize strokeWidth={1.75} />
       </ChromeButton>
       <ChromeGap className="w-1" />

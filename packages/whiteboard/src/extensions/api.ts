@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { BoardElement, ElementBounds, Operation, Selection, ViewPort } from "../types";
 import type { StandardSchemaV1 } from "./standard-schema";
+import type { ExtensionEventName, WhiteboardKernelEvents } from "./events";
 
 export interface WhiteboardSnapshot {
   children: BoardElement[];
@@ -52,9 +53,21 @@ export interface WhiteboardAPI {
   captureSubmission(target?: string | BoardElement): () => boolean;
   subscribe(listener: () => void): () => void;
   execute(command: string, payload?: unknown): Promise<unknown>;
-  on(event: string, listener: (...args: any[]) => void): void;
+  /** 命令第一个绑定快捷键的展示文字（按仲裁顺序，tau 扩展优先）；无绑定返回 null */
+  getShortcut(commandId: string): string | null;
+  /** 让指定元素闪烁提示（内核事件 element:flash 的公开触发入口） */
+  flashElement(id: string): void;
+  /** 订阅内核事件（按 WhiteboardKernelEvents 推断参数）或扩展事件（<命名空间>.<名称>） */
+  on<K extends keyof WhiteboardKernelEvents>(
+    event: K,
+    listener: (...args: WhiteboardKernelEvents[K]) => void
+  ): void;
+  /** 扩展事件载荷由发送方自定义，不做静态约束（any[] 使具体类型监听器可直接传入） */
+  on(event: ExtensionEventName, listener: (...args: any[]) => void): void;
+  /** 非法事件名（internal: 前缀、未知裸名）在运行时抛错 */
   off(event: string, listener: (...args: any[]) => void): void;
-  emit(event: string, ...args: any[]): void;
+  /** 只能发出扩展事件（<命名空间>.<名称>）；内核事件与 internal: 前缀事件在运行时抛错 */
+  emit(event: ExtensionEventName, ...args: unknown[]): void;
 }
 
 export interface WhiteboardCommand {
@@ -245,6 +258,7 @@ export interface WhiteboardContributions {
   layers?: readonly WhiteboardLayerContribution[];
   inspectors?: Readonly<Record<string, ComponentType<any>>>;
   menus?: readonly WhiteboardMenuContribution[];
+  /** 快捷键（is-hotkey 键串，按 event.key 匹配）：tau 扩展优先于第三方同键声明，第一条 enabled 的命令执行；宿主保留键（mod+k/p/j、alt+方向、escape）不可声明 */
   hotkeys?: readonly { key: string; command: string }[];
   /** 每次激活启动，返回的清理函数在隐藏或卸载时执行。 */
   activate?(): void | (() => void);

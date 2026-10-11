@@ -482,9 +482,9 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       startEditingDescription();
     };
 
-    board.on("arrow:description:edit", handleOpenDescriptionEditor);
+    board.on("tau.arrow.description-edit", handleOpenDescriptionEditor);
     return () => {
-      board.off("arrow:description:edit", handleOpenDescriptionEditor);
+      board.off("tau.arrow.description-edit", handleOpenDescriptionEditor);
     };
   }, [board, id, startEditingDescription]);
 

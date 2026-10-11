@@ -1,9 +1,17 @@
 import type { WhiteboardAPI } from "./api";
+import { resolveBoardAccess } from "./access";
+import {
+  assertEmittableEventName,
+  assertSubscribableEventName,
+  type KernelEventName,
+} from "./events";
 
 /** 订阅归扩展所有，安装失败或卸载后不能留下监听器。 */
 export function createExtensionScope(base: WhiteboardAPI, owner: string) {
   type Listener = (...args: any[]) => unknown;
   const cleanups = new Set<() => void>();
+  // 扩展可发出的事件命名空间：扩展 id 第一段（如 "tau.arrow" → "tau"）
+  const namespace = owner.slice(0, owner.indexOf("."));
   const events = new Map<string, Map<Listener, () => void>>();
   let disposed = false;
   const guarded =
@@ -26,13 +34,15 @@ export function createExtensionScope(base: WhiteboardAPI, owner: string) {
     cleanups.add(cleanup);
     return cleanup;
   };
-  const on: WhiteboardAPI["on"] = (event, listener) => {
+  const on = (event: string, listener: (...args: any[]) => unknown): void => {
     if (disposed) return;
+    assertSubscribableEventName(event);
     let group = events.get(event);
     if (!group) events.set(event, (group = new Map()));
     if (group.has(listener)) return;
     const wrapped = guarded(listener);
-    base.on(event, wrapped);
+    // assertSubscribableEventName 已校验过事件名；两条重载签名互斥，统一按内核事件名收窄
+    base.on(event as KernelEventName, wrapped);
     group.set(
       listener,
       track(() => {
@@ -42,6 +52,12 @@ export function createExtensionScope(base: WhiteboardAPI, owner: string) {
     );
   };
   const off: WhiteboardAPI["off"] = (event, listener) => events.get(event)?.get(listener)?.();
+  const emit = (event: `${string}.${string}`, ...args: unknown[]): void => {
+    if (disposed) return;
+    assertEmittableEventName(event, namespace);
+    // 不经主 API 转发（其 emit 限定 tau 命名空间），校验通过后直接走内核事件总线
+    resolveBoardAccess(base).emit(event, ...args);
+  };
   const onActiveToolChange: WhiteboardAPI["onActiveToolChange"] = listener => {
     if (disposed) return () => {};
     return track(base.onActiveToolChange(guarded(listener)));
@@ -81,11 +97,7 @@ export function createExtensionScope(base: WhiteboardAPI, owner: string) {
           if (!disposed) base.select(...args);
         },
       },
-      emit: {
-        value: (...args: Parameters<WhiteboardAPI["emit"]>) => {
-          if (!disposed) base.emit(...args);
-        },
-      },
+      emit: { value: emit },
       execute: {
         value: (...args: Parameters<WhiteboardAPI["execute"]>) =>
           disposed ? Promise.reject(new Error("扩展已卸载")) : base.execute(...args),

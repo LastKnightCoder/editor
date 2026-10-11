@@ -44,13 +44,13 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
         <>
           <Menu.Item
             icon={<ExternalLink />}
-            onSelect={() => board.emit("open-note", element.contentId, element.contentTitle)}
+            onSelect={() => board.emit("tau.note.open", element.contentId, element.contentTitle)}
           >
             打开笔记
           </Menu.Item>
           <Menu.Item
             icon={<FileSearch />}
-            onSelect={() => board.emit("mind:select-note", element.id)}
+            onSelect={() => board.emit("tau.mind.select-note", element.id)}
           >
             更换笔记
           </Menu.Item>
@@ -58,7 +58,7 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
           <Menu.Item
             danger
             icon={<Unlink />}
-            onSelect={() => board.emit("mind:confirm-unlink-note", element.id)}
+            onSelect={() => board.emit("tau.mind.confirm-unlink-note", element.id)}
           >
             取消关联
           </Menu.Item>
@@ -67,13 +67,13 @@ function NoteSetter({ element }: { element: MindNodeElement }) {
         <>
           <Menu.Item
             icon={<FilePlus />}
-            onSelect={() => board.emit("mind:create-note", element.id)}
+            onSelect={() => board.emit("tau.mind.create-note", element.id)}
           >
             新建笔记
           </Menu.Item>
           <Menu.Item
             icon={<FileSearch />}
-            onSelect={() => board.emit("mind:select-note", element.id)}
+            onSelect={() => board.emit("tau.mind.select-note", element.id)}
           >
             选择笔记
           </Menu.Item>

@@ -335,7 +335,7 @@ const MindNode = (props: MindNodeProps) => {
     });
 
     // 自动打开笔记
-    board.emit("open-note", contentId, "");
+    board.emit("tau.note.open", contentId, "");
   });
 
   const onSelectContent = useMemoizedFn(async (items: SearchResult | SearchResult[]) => {
@@ -404,11 +404,11 @@ const MindNode = (props: MindNodeProps) => {
         handleCreateNote();
       }
     };
-    board.on("mind:select-note", handleSelectNote);
-    board.on("mind:create-note", handleCreateNoteEvent);
+    board.on("tau.mind.select-note", handleSelectNote);
+    board.on("tau.mind.create-note", handleCreateNoteEvent);
     return () => {
-      board.off("mind:select-note", handleSelectNote);
-      board.off("mind:create-note", handleCreateNoteEvent);
+      board.off("tau.mind.select-note", handleSelectNote);
+      board.off("tau.mind.create-note", handleCreateNoteEvent);
     };
   }, [board, element.id, handleCreateNote]);
 

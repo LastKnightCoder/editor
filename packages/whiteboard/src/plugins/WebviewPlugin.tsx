@@ -30,7 +30,7 @@ export class WebviewPlugin extends CommonPlugin implements IBoardPlugin {
         icon: <Globe size={14} />,
         priority: 170,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.emit("context-menu:open-modal", { type: "webview" });
+          ctx.board.emit("tau.modal.open", { type: "webview" });
         },
       });
     }
