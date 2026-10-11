@@ -1,23 +1,16 @@
 import React, { memo, useState, useMemo, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
-import PluginManager from "../../PluginManager";
-import { RowData, ColumnDef, CellValue, SelectOption, DatabaseConfig } from "../../types";
+import { RowData, ColumnDef, CellValue, SelectOption } from "../../types";
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { cn, ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
 import { resolveKanbanCardDisplay } from "./cardDisplayConfig";
-interface KanbanViewProps {
-  pluginManager: PluginManager;
-  theme: "light" | "dark";
-  readonly: boolean;
-  onRowDetailOpen?: (row: RowData) => void;
-  onRowAdd?: (defaultData?: Partial<RowData>) => void;
-  onRowDelete?: (rowId: string) => void | Promise<void>;
-  config?: DatabaseConfig;
-}
+import type { DatabaseViewComponentProps } from "../registry";
+
+type KanbanViewProps = DatabaseViewComponentProps;
 
 const KanbanView: React.FC<KanbanViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
@@ -78,6 +71,9 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       return columns.find(col => col.id === groupColumnId);
     }, [columns, groupColumnId]);
     const primaryColumn = useMemo(() => columns.find(column => column.isPrimary), [columns]);
+    const isBooleanColumn = useMemoizedFn((column: ColumnDef) =>
+      pluginManager.hasCapability(column.type, "boolean")
+    );
     const cardDisplay = useMemo(
       () =>
         resolveKanbanCardDisplay({
@@ -86,8 +82,9 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
           kanbanConfig,
           primaryColumnId: primaryColumn?.id,
           groupColumnId,
+          isBooleanColumn,
         }),
-      [columns, viewConfig, kanbanConfig, primaryColumn?.id, groupColumnId]
+      [columns, viewConfig, kanbanConfig, primaryColumn?.id, groupColumnId, isBooleanColumn]
     );
 
     const projection = useDatabaseStore(state => state.projection);
@@ -129,7 +126,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     const handleMoveColumn = useMemoizedFn(
       (dragGroupValue: CellValue, hoverGroupValue: CellValue) => {
         // 更新列顺序配置
-        if (!groupColumn || groupColumn.type !== "select") return;
+        if (!groupColumn || !pluginManager.hasCapability(groupColumn.type, "singleOption")) return;
 
         const selectConfig = groupColumn.config as { options?: SelectOption[] };
         const options = selectConfig?.options || [];
@@ -186,7 +183,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       setEditingColumnId(null);
     });
 
-    if (!groupColumn || groupColumn.type !== "select") {
+    if (!groupColumn || !pluginManager.hasCapability(groupColumn.type, "singleOption")) {
       return (
         <div className="text-ink-2 flex h-full w-full items-center justify-center">
           <div className="text-center">

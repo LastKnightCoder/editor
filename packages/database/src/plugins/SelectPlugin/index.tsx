@@ -7,6 +7,7 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "select",
   name: "单选",
   editable: true,
+  capabilities: { singleOption: true },
   valueType: "text",
   toScalar: (value, column) =>
     column.config?.options?.find(option => option.id === value)?.name ?? null,

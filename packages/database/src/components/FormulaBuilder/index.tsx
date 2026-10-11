@@ -832,7 +832,7 @@ const FormulaBuilder: React.FC<FormulaBuilderProps> = ({
   const builder = useMemo<BuilderContextValue>(() => {
     const familyOf = (columnId: string): CompareFamily | undefined => {
       const column = columns.find(item => item.id === columnId);
-      if (column?.type === "select") return "select";
+      if (column && pluginManager.hasCapability(column.type, "singleOption")) return "select";
       return ctx.resolveColumn(columnId)?.valueType;
     };
     return {
@@ -999,12 +999,13 @@ const AssistBar: React.FC<{
   usable: ColumnDef[];
   onGenerated: (form: FormulaForm) => void;
 }> = ({ scope, columns, rows, pluginManager, selfColumnId, usable, onGenerated }) => {
-  const { formulaAssist } = useDatabaseSlots();
+  const slots = useDatabaseSlots();
+  const assist = slots.useFormulaAssist?.();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const version = useRef(0);
-  if (!formulaAssist) return null;
+  if (!assist) return null;
 
   const run = async () => {
     if (!prompt.trim() || loading) return;
@@ -1019,7 +1020,7 @@ const AssistBar: React.FC<{
       rows,
       plugins: pluginManager,
       selfColumnId,
-      ask: formulaAssist,
+      ask: assist,
     });
     if (current !== version.current) return;
     setLoading(false);

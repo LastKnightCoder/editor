@@ -7,6 +7,7 @@ const ImagePlugin: CellPlugin<ImagePluginConfig> = {
   type: "image",
   name: "图片",
   editable: false,
+  capabilities: { images: true },
   Renderer,
   Icon: ({ className }) => <Image className={className} />,
 

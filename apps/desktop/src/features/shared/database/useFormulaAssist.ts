@@ -8,7 +8,7 @@ import type { Role } from "@/constants";
  * 「一句话生成公式」的模型能力：配了对话模型即提供，不另设开关。
  * 只转发构造器给出的消息（列结构，不含行数据）。
  */
-export function useFormulaAssist(): DatabaseSlots["formulaAssist"] {
+export function useFormulaAssist(): ReturnType<NonNullable<DatabaseSlots["useFormulaAssist"]>> {
   const usage = useSettingStore(state => state.setting.llmUsageSettings.chat);
   const providers = useSettingStore(state => state.setting.llmProviders);
   return useMemo(() => {

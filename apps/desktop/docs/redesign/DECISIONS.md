@@ -1,5 +1,15 @@
 # 决策记录（轻量 ADR）
 
+## D-128 Database 走声明式扩展协议，先做内部收敛
+
+（2026-10-11，用户确认分阶段方案）
+
+- 目标形态对齐 D-127：`defineDatabaseExtension({ id, apiVersion, create(api) })` 贡献字段类型、视图、公式函数、聚合与命令；扩展只经受控 API 取宿主能力，不 import 宿主模块。将来与白板统一接应用级插件运行时，本轮不做动态安装、权限或沙箱。
+- 分阶段：P0 内部收敛（本条落地范围）→ P1 扩展 API 与桌面插件吃狗粮 → P2 字段 model/ui 拆分、资源声明与 config 迁移 → P3 公式/聚合注册与 i18n。后续阶段开工前追记本条。
+- P0 约束：视图类型由包内视图注册表单一来源驱动渲染、选择列表与图标，不再有 if 链与散落 union；core 与面板不按列类型名特判，改读字段能力声明；字段类型、视图重复注册报错，不再静默覆盖。
+- P0 不改持久化格式：视图配置字段（galleryConfig/calendarConfig/kanbanConfig）、列 type 字符串与主进程迁移保持不变；通用视图配置推迟到 P2 随迁移一并处理（D-091）。
+- P1 追记（2026-10-11）：`Database` 的 `plugins`/`slots` 两个入口由 `extensions`（稳定集合，变更即报错）取代，扩展经 `create()` 贡献 `fieldTypes`（新增类型，重复报错）、`fieldOverrides`（显式改造已有类型，目标缺失或被两个扩展覆盖均报错）、`slots`（每个插槽键只能由一个扩展提供）与 `activate()`（每实例挂载启动、卸载清理）。`CellPlugin.onMount/onUnmount` 无使用方，随之删除。`formulaAssist` 改为 hook 插槽 `useFormulaAssist`，以保持随设置变化。修正原规划：Database 包不提供文件、导航、模型等宿主能力，可信的桌面扩展直接使用宿主模块；第三方插件的宿主能力由将来的应用级插件运行时统一提供。列 type 字符串暂不加命名空间（会改变持久化格式）。
+
 ## D-127 白板以声明式扩展装配，移除宿主 services 与业务 slots
 
 （2026-10-10，用户确认完整迁移方案）

@@ -12,6 +12,13 @@ import {
 
 const pluginManager = new PluginManager();
 pluginManager.registerPlugins(builtInPlugins as never);
+// image 插件由宿主提供，这里注册一个只声明能力的桩
+pluginManager.registerPlugin({
+  type: "image",
+  name: "图片",
+  Renderer: () => null,
+  capabilities: { images: true },
+} as never);
 
 const column = (id: string, type: string, extra: Partial<ColumnDef> = {}): ColumnDef => ({
   id,
@@ -63,12 +70,14 @@ describe("RowDetailModal utils", () => {
   });
 
   it("coverImagesOf 取第一个有图的图片列", () => {
+    const isImagesColumn = (col: ColumnDef) => pluginManager.hasCapability(col.type, "images");
     const columns = [column("empty", "image"), column("cover", "image"), column("more", "image")];
     const images = coverImagesOf(
       { id: "r", empty: [], cover: [{ id: "1", url: "a.png" }], more: [{ id: "2", url: "b.png" }] },
-      columns
+      columns,
+      isImagesColumn
     );
     expect(images.map(image => image.url)).toEqual(["a.png"]);
-    expect(coverImagesOf({ id: "r" }, columns)).toEqual([]);
+    expect(coverImagesOf({ id: "r" }, columns, isImagesColumn)).toEqual([]);
   });
 });

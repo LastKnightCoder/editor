@@ -51,7 +51,9 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
     for (const column of supportedColumns) {
       const getGroupKey = pluginManager.getPlugin(column.type)?.getGroupKey;
       if (!getGroupKey) continue;
-      const effectiveGranularity = column.type === "date" ? granularity : undefined;
+      const effectiveGranularity = pluginManager.hasCapability(column.type, "date")
+        ? granularity
+        : undefined;
       const keys = new Set<string>();
       for (const row of rows) {
         keys.add(getGroupKey(row, column, effectiveGranularity));
@@ -76,7 +78,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
       id: selectedColumn.id,
       fieldId: selectedColumn.id,
       strategy: selectedColumn.type,
-      ...(selectedColumn.type === "date" ? { granularity } : {}),
+      ...(pluginManager.hasCapability(selectedColumn.type, "date") ? { granularity } : {}),
     });
     onClose();
   };
@@ -127,7 +129,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
                   <Check className="text-accent-text size-3.5 shrink-0" strokeWidth={2.4} />
                 )}
               </button>
-              {active && column.type === "date" && (
+              {active && pluginManager.hasCapability(column.type, "date") && (
                 <div className="bg-hover rounded-tau-sm ml-7 flex w-[176px] p-0.5">
                   {GRANULARITY_OPTIONS.map(option => (
                     <button

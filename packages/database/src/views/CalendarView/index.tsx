@@ -4,25 +4,15 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
-import PluginManager from "../../PluginManager";
-import { RowData, ColumnDef, DatabaseConfig } from "../../types";
+import { RowData, ColumnDef } from "../../types";
 import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { Button, ConfirmDialog, cn } from "@tau/ui";
+import type { DatabaseViewComponentProps } from "../registry";
 
-interface CalendarViewProps {
-  pluginManager: PluginManager;
-  theme: "light" | "dark";
-  readonly: boolean;
-  onRowDetailOpen?: (row: RowData) => void;
-  onRowAdd?: (defaultData?: Partial<RowData>) => void;
-  onRowDelete?: (rowId: string) => void | Promise<void>;
-  config?: DatabaseConfig;
-  /** 铺在页面纸上：工具栏左右内距对齐页签条（px-8） */
-  bare?: boolean;
-}
+type CalendarViewProps = DatabaseViewComponentProps;
 
 const CalendarView: React.FC<CalendarViewProps> = memo(
   ({
@@ -66,9 +56,9 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       if (dateColumnId) {
         return columns.find(col => col.id === dateColumnId);
       }
-      // 如果没有配置，使用第一个日期类型的列
-      return columns.find(col => col.type === "date");
-    }, [columns, dateColumnId]);
+      // 如果没有配置，使用第一个具备日期能力的列
+      return columns.find(col => pluginManager.hasCapability(col.type, "date"));
+    }, [columns, dateColumnId, pluginManager]);
 
     // 获取主列
     const primaryColumn = columns.find(col => col.isPrimary);

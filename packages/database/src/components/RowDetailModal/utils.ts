@@ -63,10 +63,14 @@ export function neighborRowIds(rowIds: readonly string[], rowId: string) {
   };
 }
 
-/** 封面取第一个有图的图片列 */
-export function coverImagesOf(row: RowData, columns: readonly ColumnDef[]): DatabaseImage[] {
+/** 封面取第一个有图的图片列；isImagesColumn 由调用方传入字段能力查询 */
+export function coverImagesOf(
+  row: RowData,
+  columns: readonly ColumnDef[],
+  isImagesColumn: (column: ColumnDef) => boolean
+): DatabaseImage[] {
   for (const column of columns) {
-    if (column.type !== "image") continue;
+    if (!isImagesColumn(column)) continue;
     const value = row[column.id];
     if (Array.isArray(value) && value.length > 0) return value as DatabaseImage[];
   }

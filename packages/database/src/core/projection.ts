@@ -105,7 +105,7 @@ export function projectDatabase(
   let groups: RowGroup[] = [{ key: "__all__", label: "全部", rows: ordered, column: null }];
   if (viewType === "kanban") {
     const column = columnMap.get(view.kanbanConfig?.groupColumnId ?? "");
-    if (!column || column.type !== "select") groups = [];
+    if (!column || !plugins.hasCapability(column.type, "singleOption")) groups = [];
     else {
       const options = (column.config as { options?: SelectOption[] } | undefined)?.options ?? [];
       const optionMap = new Map(options.map(option => [option.id, option]));

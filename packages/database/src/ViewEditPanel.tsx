@@ -9,15 +9,18 @@ import {
 } from "./types";
 import { useMemoizedFn } from "ahooks";
 import ColumnDropdown from "./ColumnDropdown";
+import PluginManager from "./PluginManager";
 import {
   getTemplateDefaultCardDisplay,
   resolveKanbanCardDisplay,
 } from "./views/KanbanView/cardDisplayConfig";
 import { Button, Input, Checkbox, Radio, RadioGroup } from "@tau/ui";
+import { VIEW_TYPES } from "./views/registry";
 
 interface ViewEditPanelProps {
   view: DatabaseView | null;
   columns: ColumnDef[];
+  pluginManager: PluginManager;
   onConfirm: (
     viewId: number,
     name: string,
@@ -30,7 +33,7 @@ interface ViewEditPanelProps {
 }
 
 const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
-  ({ view, columns, onConfirm, onClose }) => {
+  ({ view, columns, pluginManager, onConfirm, onClose }) => {
     const [name, setName] = useState("");
     const [viewType, setViewType] = useState<DatabaseViewType>("table");
     const [coverType, setCoverType] = useState<"detail" | "image">("detail");
@@ -64,6 +67,10 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     }, [columns, view]);
     const primaryColumnId = useMemo(() => columns.find(column => column.isPrimary)?.id, [columns]);
 
+    const isBooleanColumn = useMemoizedFn((column: ColumnDef) =>
+      pluginManager.hasCapability(column.type, "boolean")
+    );
+
     useEffect(() => {
       if (view) {
         const galleryConfig = view.config.galleryConfig;
@@ -75,6 +82,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           kanbanConfig,
           primaryColumnId,
           groupColumnId: kanbanConfig?.groupColumnId,
+          isBooleanColumn,
         });
 
         setName(view.name);
@@ -88,7 +96,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         setKanbanVisibleFieldIds(resolvedKanbanDisplay.visibleFieldIds);
         setKanbanShowFieldLabels(resolvedKanbanDisplay.showFieldLabels);
       }
-    }, [view, columns, primaryColumnId]);
+    }, [view, columns, primaryColumnId, isBooleanColumn]);
 
     const handleOk = useMemoizedFn(async () => {
       if (!view || !name.trim()) return;
@@ -125,6 +133,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             : undefined,
         primaryColumnId,
         groupColumnId: groupColumnId || undefined,
+        isBooleanColumn,
       });
 
       const kanbanConfig: KanbanViewConfig | undefined =
@@ -144,10 +153,14 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       onClose();
     });
 
-    const imageColumns = orderedColumns.filter(col => col.type === "image");
-    const dateColumns = orderedColumns.filter(col => col.type === "date");
-    const selectColumns = orderedColumns.filter(col => col.type === "select");
-    const checkboxColumns = orderedColumns.filter(col => col.type === "checkbox" && !col.hidden);
+    const imageColumns = orderedColumns.filter(col =>
+      pluginManager.hasCapability(col.type, "images")
+    );
+    const dateColumns = orderedColumns.filter(col => pluginManager.hasCapability(col.type, "date"));
+    const selectColumns = orderedColumns.filter(col =>
+      pluginManager.hasCapability(col.type, "singleOption")
+    );
+    const checkboxColumns = orderedColumns.filter(col => isBooleanColumn(col) && !col.hidden);
     const effectiveViewConfig = view?.config ?? {
       columnOrder: orderedColumns.map(column => column.id),
     };
@@ -168,6 +181,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         : undefined,
       primaryColumnId,
       groupColumnId: groupColumnId || undefined,
+      isBooleanColumn,
     });
 
     const handleTemplateChange = useMemoizedFn((template: KanbanCardTemplate) => {
@@ -201,6 +215,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           : undefined,
         primaryColumnId,
         groupColumnId: nextGroupColumnId || undefined,
+        isBooleanColumn,
       });
       setKanbanDoneColumnId(resolved.doneColumnId || "");
       setKanbanVisibleFieldIds(resolved.visibleFieldIds);
@@ -224,6 +239,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           : undefined,
         primaryColumnId,
         groupColumnId: groupColumnId || undefined,
+        isBooleanColumn,
       });
       setKanbanVisibleFieldIds(resolved.visibleFieldIds);
     });
@@ -277,10 +293,9 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             onValueChange={value => setViewType(value as DatabaseViewType)}
             orientation="vertical"
           >
-            <Radio value="table" label="表格" />
-            <Radio value="gallery" label="画廊" />
-            <Radio value="calendar" label="日历" />
-            <Radio value="kanban" label="看板" />
+            {VIEW_TYPES.map(definition => (
+              <Radio key={definition.type} value={definition.type} label={definition.name} />
+            ))}
           </RadioGroup>
 
           {/* Gallery Config */}

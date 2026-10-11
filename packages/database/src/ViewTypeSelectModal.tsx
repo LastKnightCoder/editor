@@ -1,90 +1,67 @@
 import React, { memo, useEffect, useState } from "react";
-import { CalendarDays, LayoutGrid, SquareKanban, Table2 } from "lucide-react";
 import { cn, Button, Dialog, DialogBody, Input, Select } from "@tau/ui";
 import { DatabaseViewType } from "./types";
-
-interface ViewType {
-  type: DatabaseViewType | string;
-  name: string;
-  icon: typeof Table2;
-  disabled?: boolean;
-  disabledReason?: string;
-}
+import { VIEW_TYPES, getViewType, type ViewTypeDefinition } from "./views/registry";
+import type PluginManager from "./PluginManager";
 
 interface ViewTypeSelectModalProps {
   open: boolean;
   onCancel: () => void;
-  onConfirm: (
-    type: DatabaseViewType,
-    name: string,
-    dateColumnId?: string,
-    groupColumnId?: string
-  ) => void;
+  onConfirm: (type: DatabaseViewType, name: string, columnId?: string) => void;
   columns: Array<{ id: string; title: string; type: string }>;
+  pluginManager: PluginManager;
   theme: "light" | "dark";
 }
 
+/** 该视图创建时是否有可选的必需列（按注册表声明的字段能力过滤） */
+const requiredColumnCandidates = (
+  definition: ViewTypeDefinition,
+  columns: ViewTypeSelectModalProps["columns"],
+  pluginManager: PluginManager
+) =>
+  definition.requiredColumn
+    ? columns.filter(col =>
+        pluginManager.hasCapability(col.type, definition.requiredColumn!.capability)
+      )
+    : null;
+
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
-  ({ open, onCancel, onConfirm, columns }) => {
+  ({ open, onCancel, onConfirm, columns, pluginManager }) => {
     const [selectedType, setSelectedType] = useState<DatabaseViewType | null>(null);
     const [name, setName] = useState("");
-    const [dateColumnId, setDateColumnId] = useState<string | null>(null);
-    const [groupColumnId, setGroupColumnId] = useState<string | null>(null);
+    const [columnId, setColumnId] = useState<string | null>(null);
     const [userModifiedName, setUserModifiedName] = useState(false);
 
-    // 检查是否有日期列
-    const dateColumns = columns.filter(col => col.type === "date");
-
-    // 检查是否有单选列
-    const selectColumns = columns.filter(col => col.type === "select");
-
-    // 动态生成视图类型列表
-    const viewTypes: ViewType[] = [
-      { type: "table", name: "表格", icon: Table2 },
-      { type: "gallery", name: "画廊", icon: LayoutGrid },
-      {
-        type: "calendar",
-        name: "日历",
-        icon: CalendarDays,
-        disabled: dateColumns.length === 0,
-        disabledReason: "需要至少一个日期列",
-      },
-      {
-        type: "kanban",
-        name: "看板",
-        icon: SquareKanban,
-        disabled: selectColumns.length === 0,
-        disabledReason: "需要至少一个单选列",
-      },
-    ];
+    const selectedDefinition = selectedType ? getViewType(selectedType) : undefined;
+    const requiredColumns = selectedDefinition
+      ? requiredColumnCandidates(selectedDefinition, columns, pluginManager)
+      : null;
 
     useEffect(() => {
       if (!open) {
         setSelectedType(null);
         setUserModifiedName(false);
         setName("");
-        setDateColumnId(null);
-        setGroupColumnId(null);
+        setColumnId(null);
       }
     }, [open]);
 
     const handleSelectType = (type: DatabaseViewType) => {
+      // 切换类型时重置已选列：不同类型的必需列候选不同
+      if (type !== selectedType) setColumnId(null);
       setSelectedType(type);
       // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
       if (!userModifiedName) {
-        setName(viewTypes.find(v => v.type === type)?.name || "");
+        setName(getViewType(type)?.name ?? "");
       }
     };
 
     const canConfirm =
-      Boolean(selectedType) &&
-      name.trim().length > 0 &&
-      (selectedType !== "calendar" || Boolean(dateColumnId)) &&
-      (selectedType !== "kanban" || Boolean(groupColumnId));
+      Boolean(selectedType) && name.trim().length > 0 && (!requiredColumns || Boolean(columnId));
 
     const handleOk = () => {
       if (!selectedType || !canConfirm) return;
-      onConfirm(selectedType, name.trim(), dateColumnId ?? undefined, groupColumnId ?? undefined);
+      onConfirm(selectedType, name.trim(), columnId ?? undefined);
     };
 
     return (
@@ -109,19 +86,23 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         <DialogBody>
           <div className="flex flex-col gap-5 py-1">
             <div className="grid grid-cols-2 gap-3">
-              {viewTypes.map(viewType => {
-                const Icon = viewType.icon;
-                const selected = selectedType === viewType.type;
+              {VIEW_TYPES.map(definition => {
+                const Icon = definition.icon;
+                const selected = selectedType === definition.type;
+                const disabled = definition.requiredColumn
+                  ? requiredColumnCandidates(definition, columns, pluginManager)?.length === 0
+                  : false;
+                const disabledReason = definition.requiredColumn?.unavailableReason;
                 return (
                   <button
-                    key={viewType.type}
+                    key={definition.type}
                     type="button"
-                    disabled={viewType.disabled}
-                    title={viewType.disabled ? viewType.disabledReason : undefined}
-                    onClick={() => handleSelectType(viewType.type as DatabaseViewType)}
+                    disabled={disabled}
+                    title={disabled ? disabledReason : undefined}
+                    onClick={() => handleSelectType(definition.type)}
                     className={cn(
                       "ease-tau-out rounded-tau-md flex flex-col items-center justify-center gap-1.5 border p-5 transition-colors duration-[160ms]",
-                      viewType.disabled
+                      disabled
                         ? "text-ink-3 border-line-2 bg-page cursor-not-allowed opacity-60"
                         : selected
                           ? "border-accent bg-accent-soft text-accent-text cursor-pointer"
@@ -135,10 +116,10 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                     <span
                       className={cn("text-tau-body font-medium", selected && "text-accent-text")}
                     >
-                      {viewType.name}
+                      {definition.name}
                     </span>
-                    {viewType.disabled && viewType.disabledReason && (
-                      <span className="text-tau-micro text-ink-3">{viewType.disabledReason}</span>
+                    {disabled && disabledReason && (
+                      <span className="text-tau-micro text-ink-3">{disabledReason}</span>
                     )}
                   </button>
                 );
@@ -159,26 +140,19 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                   />
                 </div>
 
-                {selectedType === "calendar" && (
+                {selectedDefinition?.requiredColumn && (
                   <div className="flex flex-col gap-1.5">
-                    <span className="text-tau-meta text-ink-2 font-medium">日期列</span>
+                    <span className="text-tau-meta text-ink-2 font-medium">
+                      {selectedDefinition.requiredColumn.columnLabel}
+                    </span>
                     <Select
-                      value={dateColumnId}
-                      onValueChange={setDateColumnId}
-                      placeholder="选择用于日历的日期列"
-                      options={dateColumns.map(col => ({ value: col.id, label: col.title }))}
-                    />
-                  </div>
-                )}
-
-                {selectedType === "kanban" && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-tau-meta text-ink-2 font-medium">分组列</span>
-                    <Select
-                      value={groupColumnId}
-                      onValueChange={setGroupColumnId}
-                      placeholder="选择用于看板分组的单选列"
-                      options={selectColumns.map(col => ({ value: col.id, label: col.title }))}
+                      value={columnId}
+                      onValueChange={setColumnId}
+                      placeholder={selectedDefinition.requiredColumn.columnPlaceholder}
+                      options={(requiredColumns ?? []).map(col => ({
+                        value: col.id,
+                        label: col.title,
+                      }))}
                     />
                   </div>
                 )}

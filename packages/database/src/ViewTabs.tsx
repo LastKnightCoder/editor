@@ -15,7 +15,7 @@ import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DatabaseViewType } from "./types";
 import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
-import { VIEW_TYPE_ICON } from "./constants";
+import { getViewType } from "./views/registry";
 
 interface DragItem {
   type: "view-tab";
@@ -24,12 +24,7 @@ interface DragItem {
 
 interface ViewTabsProps {
   pluginManager: PluginManager;
-  onCreateView?: (
-    type: DatabaseViewType,
-    name: string,
-    dateColumnId?: string,
-    groupColumnId?: string
-  ) => void;
+  onCreateView?: (type: DatabaseViewType, name: string, columnId?: string) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
   onRenameView?: (viewId: number, name: string) => Promise<void>;
@@ -56,6 +51,7 @@ interface ViewTabItemProps {
   isEditing: boolean;
   allowDelete: boolean;
   columns: { id: string; title: string; type: string }[];
+  pluginManager: PluginManager;
   getOrderedIds: () => number[];
   onActivate: (viewId: number) => void;
   onStartEdit: (viewId: number, currentName: string) => void;
@@ -80,6 +76,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     isEditing,
     allowDelete,
     columns,
+    pluginManager,
     getOrderedIds,
     onActivate,
     onStartEdit,
@@ -91,7 +88,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     const editRef = useRef<EditTextHandle | null>(null);
     const [showEditPopover, setShowEditPopover] = useState(false);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
-    const ViewIcon = VIEW_TYPE_ICON[view.type] ?? Table2;
+    const ViewIcon = getViewType(view.type)?.icon ?? Table2;
 
     useEffect(() => {
       if (isEditing) {
@@ -229,6 +226,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           <ViewEditPanel
             view={view}
             columns={columns}
+            pluginManager={pluginManager}
             onConfirm={handleUpdateView}
             onClose={() => setShowEditPopover(false)}
           />
@@ -478,8 +476,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleCreateView = useMemoizedFn(
-      (type: DatabaseViewType, name: string, dateColumnId?: string, groupColumnId?: string) => {
-        onCreateView?.(type, name, dateColumnId, groupColumnId);
+      (type: DatabaseViewType, name: string, columnId?: string) => {
+        onCreateView?.(type, name, columnId);
         setShowViewTypeSelect(false);
       }
     );
@@ -521,6 +519,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               isEditing={editingId === view.id}
               allowDelete={views.length > 1}
               columns={columns}
+              pluginManager={pluginManager}
               getOrderedIds={() => orderedIdsRef.current}
               onActivate={handleActivate}
               onStartEdit={handleStartEdit}
@@ -618,6 +617,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           onCancel={() => setShowViewTypeSelect(false)}
           onConfirm={handleCreateView}
           columns={columns}
+          pluginManager={pluginManager}
           theme={theme}
         />
       </div>

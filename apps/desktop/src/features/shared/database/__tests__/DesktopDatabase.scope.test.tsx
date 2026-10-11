@@ -1,8 +1,10 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import type { DatabaseProps } from "@tau/database";
+import type { DatabaseExtension, DatabaseProps } from "@tau/database";
+import { defineDatabaseExtension } from "@tau/database";
 import { DesktopDatabase } from "../DesktopDatabase";
+import { desktopDatabaseExtension } from "../desktopExtension";
 
 const mocks = vi.hoisted(() => ({
   active: "a",
@@ -12,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@tau/database", () => ({
   LinkPlugin: { type: "link" },
+  defineDatabaseExtension: (definition: Omit<DatabaseExtension, "apiVersion">) => definition,
   default: (props: DatabaseProps) => {
     mocks.props = props;
     return null;
@@ -137,6 +140,37 @@ it("持久化视图字段只留在宿主，创建视图和晚到补丁通过闭�
       false
     );
     expect(mocks.patchRow).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("扩展集经稳定合并传入：桌面扩展在前、调用方扩展跟随，未传时为桌面扩展常量", async () => {
+  mocks.active = "a";
+  const extra = defineDatabaseExtension({ id: "test.extra", create: () => ({}) });
+  const config = { columnOrder: [], rowOrder: [], sorts: [], filters: null };
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const render = (extensions?: readonly DatabaseExtension[]) =>
+    act(async () =>
+      root.render(
+        <DesktopDatabase
+          columns={[]}
+          data={[]}
+          views={[]}
+          activeViewId={1}
+          viewConfig={config}
+          extensions={extensions}
+        />
+      )
+    );
+  try {
+    await render([extra]);
+    expect(mocks.props!.extensions).toEqual([desktopDatabaseExtension, extra]);
+    await render();
+    expect(mocks.props!.extensions).toEqual([desktopDatabaseExtension]);
   } finally {
     await act(async () => root.unmount());
     host.remove();

@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, ChevronUp, Ellipsis, Table2, Trash2, X } from "lucide-react";
 import { IconButton, Menu, Tooltip } from "@tau/ui";
 import type { DatabaseViewType } from "../../types";
-import { VIEW_TYPE_ICON } from "../../constants";
+import { getViewType } from "../../views/registry";
 
 interface RowDetailHeaderProps {
   viewName?: string;
@@ -31,7 +31,7 @@ const RowDetailHeader = ({
   onDeleteRow,
   onClose,
 }: RowDetailHeaderProps) => {
-  const ViewIcon = (viewType && VIEW_TYPE_ICON[viewType]) || Table2;
+  const ViewIcon = (viewType && getViewType(viewType)?.icon) || Table2;
   return (
     <div className="flex h-[50px] shrink-0 items-center gap-0.5 pl-5 pr-3">
       <div className="text-ink-3 text-tau-meta flex min-w-0 items-center gap-1.5">

@@ -2,27 +2,19 @@ import React, { memo, useState, useRef, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
-import PluginManager from "../../PluginManager";
-import { RowData, ColumnDef, CellValue, DatabaseConfig } from "../../types";
+import { RowData, ColumnDef, CellValue } from "../../types";
 import GalleryCard from "./GalleryCard";
 import AddCard from "./AddCard";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
+import type { DatabaseViewComponentProps } from "../registry";
 const emptyOnCellChange = () => {
   // no-op
 };
 
-interface GalleryViewProps {
-  pluginManager: PluginManager;
-  theme: "light" | "dark";
-  readonly: boolean;
-  onRowDetailOpen?: (row: RowData) => void;
-  onRowAdd?: (defaultData?: Partial<RowData>) => void;
-  onRowDelete?: (rowId: string) => void | Promise<void>;
-  config?: DatabaseConfig;
-}
+type GalleryViewProps = DatabaseViewComponentProps;
 
 const GalleryView: React.FC<GalleryViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {

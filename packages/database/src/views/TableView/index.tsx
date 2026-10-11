@@ -1,36 +1,31 @@
 import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ColumnDef, CellValue, RowData, DatabaseConfig } from "../../types";
+import { ColumnDef, CellValue, RowData } from "../../types";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
 import ColumnHeader from "./components/ColumnHeader";
-import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
 import RowDetailModal from "../../components/RowDetailModal";
 import Row from "./components/Row";
 import FooterRow from "./components/FooterRow";
 import { Plus } from "lucide-react";
 import { Tooltip, ConfirmDialog } from "@tau/ui";
+import type { DatabaseViewComponentProps } from "../registry";
 
-interface TableViewProps {
-  pluginManager: PluginManager;
-  startResize: (columnId: string, startX: number, startWidth: number) => void;
-  theme: "light" | "dark";
-  readonly: boolean;
-  onRowDetailOpen?: (row: RowData) => void;
-  onRowAdd?: (defaultData?: Partial<RowData>) => void;
-  onRowDelete?: (rowId: string) => Promise<void>;
-  config?: DatabaseConfig;
-}
+type TableViewProps = DatabaseViewComponentProps;
 
 const emptyOnCellChange = () => {
+  // no-op
+};
+
+const emptyStartResize = () => {
   // no-op
 };
 
 const TableView: React.FC<TableViewProps> = memo(
   ({
     pluginManager,
-    startResize,
+    startResize = emptyStartResize,
     theme,
     readonly,
     onRowDetailOpen,
@@ -51,7 +46,7 @@ const TableView: React.FC<TableViewProps> = memo(
       addColumn,
       editColumn,
       updateCellValue,
-      deleteColumnWithCleanup,
+      deleteColumn,
       moveColumn,
       moveRow,
       clearCellSelection,
@@ -70,7 +65,7 @@ const TableView: React.FC<TableViewProps> = memo(
       addColumn: state.addColumn,
       editColumn: state.editColumn,
       updateCellValue: state.updateCellValue,
-      deleteColumnWithCleanup: state.deleteColumnWithCleanup,
+      deleteColumn: state.deleteColumn,
       moveColumn: state.moveColumn,
       moveRow: state.moveRow,
       clearCellSelection: state.clearCellSelection,
@@ -161,9 +156,9 @@ const TableView: React.FC<TableViewProps> = memo(
       updateCellValue(rowId, columnId, transformed);
     });
 
-    const handleDeleteColumn = useMemoizedFn(async (columnId: string) => {
+    const handleDeleteColumn = useMemoizedFn((columnId: string) => {
       if (!allowDeleteColumn) return;
-      await deleteColumnWithCleanup(columnId, pluginManager);
+      deleteColumn(columnId);
     });
 
     const handleCellDoubleClick = useMemoizedFn((rowId: string, columnId: string) => {
