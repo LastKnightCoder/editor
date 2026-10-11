@@ -15,7 +15,9 @@
     "./chat-renderers": "./chat-renderers.ts",
     "./code-block-language": "./code-block-language.ts",
     "./service-contract": "./service-contract.ts",
+    "./service-registry": "./service-registry.ts",
     "./host-services": "./host-services.ts",
+    "./media-services": "./media-services.ts",
     "./runtime-style": "./runtime-style.ts",
     "./markdown-directives": "./markdown-directives.ts",
     ".": {

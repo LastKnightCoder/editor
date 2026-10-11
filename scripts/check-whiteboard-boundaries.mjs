@@ -74,8 +74,12 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
         assert(
           specifier === "@tau/shared/color-utils" ||
             specifier === "@tau/shared/rich-text-text" ||
+            specifier === "@tau/shared/service-contract" ||
+            specifier === "@tau/shared/service-registry" ||
+            specifier === "@tau/shared/host-services" ||
+            specifier === "@tau/shared/media-services" ||
             (["@tau/shared/entity-ref", "@tau/shared/media-types"].includes(specifier) && typeOnly),
-          "shared 仅允许公开纯工具与 type-only 实体地址：" + label
+          "shared 仅允许公开纯工具、服务契约（标识/注册表/宿主服务）与 type-only 实体地址：" + label
         );
       }
       if (!local && !specifier.startsWith("node:")) {

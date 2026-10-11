@@ -9,7 +9,6 @@ import {
   type WhiteboardExtension,
 } from "../extensions/api";
 import { createVideoExtension } from "../extensions/builtins";
-import { browserMediaOptions } from "../extensions/media";
 import type { BoardElement } from "../types";
 
 const viewport = { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 };
@@ -183,7 +182,7 @@ describe("事件命名空间", () => {
     );
     let bodyApi!: WhiteboardAPI;
     const extensions = [
-      createVideoExtension(browserMediaOptions, {
+      createVideoExtension({
         Body: (props: any) => {
           bodyApi = props.board;
           return <g data-test-video />;

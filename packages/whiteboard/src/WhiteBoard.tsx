@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import { cn } from "@tau/ui";
+import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
 
 import Board from "./Board";
 
@@ -112,9 +113,13 @@ export interface WhiteBoardProps {
   onPresentationModeChange?: (presenting: boolean) => void;
   /** 扩展被禁用时回调（命名空间违规、冲突、创建失败等），画布继续运行 */
   onExtensionError?: (error: WhiteboardExtensionError) => void;
+  /** 宿主服务注册表：扩展经 requires/optional 声明后从扩展 api 获取；缺省为空注册表 */
+  services?: ServiceRegistry;
 }
 
 const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
+/** 未传 services 时的共享空注册表：无注册项，声明了 requires 的扩展会被拒绝装配 */
+const EMPTY_SERVICE_REGISTRY = createServiceRegistry();
 const DEFAULT_VIEW_PORT: ViewPort = {
   minX: 0,
   minY: 0,
@@ -158,6 +163,7 @@ const WhiteBoard = memo(
       onExtensionError,
       extensions,
       outline,
+      services,
     } = props;
 
     // 文档版本过高时强制只读：工具栏/属性条一律隐藏，只留只读提示条
@@ -229,7 +235,11 @@ const WhiteBoard = memo(
         initSketch
       );
       instance.readonlyReason = documentTooNew ? "document-too-new" : null;
-      instance.installExtensions(extensions, notifyExtensionError);
+      instance.installExtensions(
+        extensions,
+        notifyExtensionError,
+        services ?? EMPTY_SERVICE_REGISTRY
+      );
       return instance;
     }, []);
     const initialExtensions = useRef(extensions);

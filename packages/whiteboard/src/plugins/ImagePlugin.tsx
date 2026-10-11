@@ -1,4 +1,4 @@
-import { mediaMenu, browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
+import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { Image, Copy, Link, Download, Sparkles, Upload } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -35,7 +35,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   private previewCandidateImage: ImageElement | null = null;
   private previewMoved = false;
 
-  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {
+  constructor(private readonly media: MediaCapabilities = browserMediaInfo) {
     super();
   }
 

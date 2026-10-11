@@ -1,4 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
+import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import type {
   BoardElement,
   ContainerKind,
@@ -64,6 +65,17 @@ export interface WhiteboardAPI {
   getShortcut(commandId: string): string | null;
   /** 让指定元素闪烁提示（内核事件 element:flash 的公开触发入口） */
   flashElement(id: string): void;
+  /**
+   * 获取必选宿主服务：只能取扩展 requires 声明过的 id；
+   * 取未声明的 id 或对 optional 声明的 id 调用均抛错（编程错误）。
+   * 仅扩展作用域的 api 提供，主 api 调用即抛错。
+   */
+  getService<T>(id: ServiceIdentifier<T>): T;
+  /**
+   * 获取可选宿主服务：只能取扩展 requires/optional 声明过的 id，
+   * 未注册返回 undefined；取未声明的 id 抛错（编程错误）。
+   */
+  tryGetService<T>(id: ServiceIdentifier<T>): T | undefined;
   /** 订阅内核事件（按 WhiteboardKernelEvents 推断参数）或扩展事件（<命名空间>.<名称>） */
   on<K extends keyof WhiteboardKernelEvents>(
     event: K,
@@ -287,6 +299,16 @@ export interface WhiteboardExtension {
   /** 展示名（UI 显示"来自 xxx"用）；内置扩展可不填 */
   readonly name?: string;
   readonly apiVersion: 1;
+  /**
+   * 必选宿主服务：任一服务在宿主注册表中不存在时扩展被拒（reason "missing-service"）。
+   * 声明过的 id 才能经 api.getService / api.tryGetService 获取。
+   */
+  readonly requires?: readonly ServiceIdentifier<unknown>[];
+  /**
+   * 可选宿主服务：缺失不影响装配，经 api.tryGetService 获取（返回 undefined 表示未提供）。
+   * 对 optional 中的 id 调用 getService 会抛错。
+   */
+  readonly optional?: readonly ServiceIdentifier<unknown>[];
   create(api: WhiteboardAPI): WhiteboardContributions;
 }
 
@@ -297,6 +319,7 @@ export type WhiteboardExtensionErrorReason =
   | "invalid-namespace"
   | "conflict"
   | "missing-command"
+  | "missing-service"
   | "invalid-definition"
   | "create-failed"
   | "migration-failed";
@@ -307,7 +330,7 @@ export interface WhiteboardExtensionError {
   message: string;
   /** 冲突对方扩展 id */
   conflictWith?: string;
-  /** 冲突的元素 type / 命令 / 贡献 id */
+  /** 冲突的元素 type / 命令 / 贡献 id，或缺失的宿主服务 id */
   target?: string;
 }
 

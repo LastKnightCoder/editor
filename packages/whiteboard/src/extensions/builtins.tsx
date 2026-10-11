@@ -15,6 +15,9 @@ import {
   Globe,
   Presentation,
 } from "lucide-react";
+import type { ServiceIdentifier } from "@tau/shared/service-contract";
+import { IResourceService } from "@tau/shared/host-services";
+import { IDownloadService, IMediaInfoService } from "@tau/shared/media-services";
 import type Board from "../Board";
 import type { IBoardPlugin, ContextMenuModalPayload } from "../types";
 import {
@@ -36,8 +39,20 @@ import { frameCreateSpec } from "./creators/frame";
 import { columnCreateSpec } from "./creators/column";
 import { textCreateSpec } from "./creators/text";
 import { mindCreateSpec } from "./creators/mind";
-import { TextExtensionContext, embeddedTextOptions, type TextExtensionOptions } from "./text";
-import { MediaExtensionContext, browserMediaOptions, type MediaExtensionOptions } from "./media";
+import {
+  IWhiteboardRichText,
+  TextExtensionContext,
+  createEmbeddedRichTextService,
+  embeddedTextOptions,
+  textOptionsFromService,
+  type TextExtensionOptions,
+} from "./text";
+import {
+  MediaExtensionContext,
+  mediaCapabilitiesFromServices,
+  type MediaCapabilities,
+  type MediaExtensionOptions,
+} from "./media";
 import { ElementContentContext } from "./elementContent";
 import { useBoard, useActiveTool } from "../hooks";
 import { useWhiteboardAPI } from "./runtime";
@@ -111,12 +126,14 @@ type BuiltinContributions = Omit<InternalContributions, "tools"> & {
 };
 function builtin(
   id: string,
-  plugins: (board: Board) => IBoardPlugin[],
-  contributions: BuiltinContributions | ((api: WhiteboardAPI) => BuiltinContributions) = {}
+  plugins: (board: Board, api: WhiteboardAPI) => IBoardPlugin[],
+  contributions: BuiltinContributions | ((api: WhiteboardAPI) => BuiltinContributions) = {},
+  optional?: readonly ServiceIdentifier<unknown>[]
 ) {
   return withInternalPlugins(
     defineWhiteboardExtension({
       id,
+      optional,
       create: api => {
         const value = typeof contributions === "function" ? contributions(api) : contributions;
         return {
@@ -144,6 +161,30 @@ function builtin(
     }),
     plugins
   );
+}
+
+/** 内置媒体扩展的可选宿主服务：上传、信息探测与下载，缺失时各自降级 */
+const MEDIA_SERVICES: readonly ServiceIdentifier<unknown>[] = [
+  IResourceService,
+  IMediaInfoService,
+  IDownloadService,
+];
+
+/** richtext/mind/clipboard 共用：优先宿主注册的富文本服务，缺失时退回嵌入式实现（每扩展解析一次） */
+function lazyTextOptions(Selector?: TextExtensionOptions["Selector"]) {
+  let resolved: TextExtensionOptions | undefined;
+  return (api: WhiteboardAPI): TextExtensionOptions =>
+    (resolved ??= textOptionsFromService(
+      api.tryGetService(IWhiteboardRichText) ?? createEmbeddedRichTextService(),
+      Selector
+    ));
+}
+
+/** 媒体扩展共用：从 optional 服务构造插件运行时能力（每扩展解析一次） */
+function lazyMediaCapabilities(actions?: readonly string[]) {
+  let resolved: MediaCapabilities | undefined;
+  return (api: WhiteboardAPI): MediaCapabilities =>
+    (resolved ??= mediaCapabilitiesFromServices(api, actions));
 }
 
 function withText(plugin: IBoardPlugin, text: TextExtensionOptions) {
@@ -227,8 +268,10 @@ function SelectTool({ run }: WhiteboardToolProps) {
   );
 }
 
-export function createGeometryExtension(text = embeddedTextOptions) {
-  return builtin("tau.geometry", () => [withText(new GeometryPlugin(), text)], {
+export function createGeometryExtension(
+  kit: TextExtensionOptions["kit"] = embeddedTextOptions.kit
+) {
+  return builtin("tau.geometry", () => [withText(new GeometryPlugin(), { kit })], {
     creators: { geometry: geometryCreateSpec },
     tools: [
       {
@@ -244,8 +287,8 @@ export function createGeometryExtension(text = embeddedTextOptions) {
     inspectors: { geometry: GeometrySetter },
   });
 }
-export function createArrowExtension(text = embeddedTextOptions) {
-  return builtin("tau.arrow", () => [withText(new ArrowPlugin(), text)], {
+export function createArrowExtension(kit: TextExtensionOptions["kit"] = embeddedTextOptions.kit) {
+  return builtin("tau.arrow", () => [withText(new ArrowPlugin(), { kit })], {
     creators: { arrow: arrowCreateSpec },
     tools: [
       {
@@ -285,64 +328,84 @@ export function createHandwriteExtension() {
     inspectors: { handwrite: HandwriteSetter },
   });
 }
-export function createRichTextExtension(
-  text = embeddedTextOptions,
-  layers: WhiteboardContributions["layers"] = []
-) {
-  return builtin("tau.richtext", () => [withText(new RichTextPlugin(text), text)], {
-    layers,
-    creators: { richtext: textCreateSpec(text) },
-    tools: [
-      {
-        id: RICHTEXT_TOOL_ID,
-        element: "richtext",
-        order: 40,
-        group: "drawing",
-        label: "文本",
-        icon: Type,
-        component: TextTool,
-      },
-    ],
-    inspectors: { richtext: textInspector(RichTextSetter, text) },
-    commands: [
-      {
-        id: "tau.richtext.create-content",
-        async execute(api, value) {
-          if (!text.create) return undefined;
-          const content = value as Descendant[];
-          const valid = api.captureSubmission();
-          if (!valid()) return undefined;
-          const id = await text.create(content, getContentLength(content));
-          if (id && !valid()) {
-            await text.release?.(id);
-            return undefined;
-          }
-          return id ?? undefined;
-        },
-      },
-      {
-        id: "tau.richtext.release-content",
-        execute: (_api, id) => (typeof id === "number" ? text.release?.(id) : undefined),
-      },
-    ],
-  });
+export interface RichTextFactoryOptions {
+  /** @ 选内容弹窗（桌面业务弹窗），不进服务 */
+  Selector?: TextExtensionOptions["Selector"];
+  layers?: WhiteboardContributions["layers"];
 }
-export function createMindExtension(text = embeddedTextOptions) {
-  return builtin("tau.mind", () => [withText(new MindPlugin(text), text)], {
-    creators: { "mind-node": mindCreateSpec },
-    tools: [
-      {
-        id: MIND_TOOL_ID,
-        element: "mind-node",
-        order: 50,
-        group: "drawing",
-        label: "思维导图",
-        icon: Network,
-        component: MindTool,
-      },
-    ],
-    inspectors: { "mind-node": textInspector(MindSetter, text) },
-  });
+
+export function createRichTextExtension(options: RichTextFactoryOptions = {}) {
+  const { Selector, layers = [] } = options;
+  const text = lazyTextOptions(Selector);
+  return builtin(
+    "tau.richtext",
+    (_board, api) => [withText(new RichTextPlugin(text(api)), text(api))],
+    api => ({
+      layers,
+      creators: { richtext: textCreateSpec(text(api)) },
+      tools: [
+        {
+          id: RICHTEXT_TOOL_ID,
+          element: "richtext",
+          order: 40,
+          group: "drawing",
+          label: "文本",
+          icon: Type,
+          component: TextTool,
+        },
+      ],
+      inspectors: { richtext: textInspector(RichTextSetter, text(api)) },
+      commands: [
+        {
+          id: "tau.richtext.create-content",
+          async execute(api, value) {
+            const binding = text(api);
+            if (!binding.create) return undefined;
+            const content = value as Descendant[];
+            const valid = api.captureSubmission();
+            if (!valid()) return undefined;
+            const id = await binding.create(content, getContentLength(content));
+            if (id && !valid()) {
+              await binding.release?.(id);
+              return undefined;
+            }
+            return id ?? undefined;
+          },
+        },
+        {
+          id: "tau.richtext.release-content",
+          execute: (api, id) => {
+            const binding = text(api);
+            return typeof id === "number" ? binding.release?.(id) : undefined;
+          },
+        },
+      ],
+    }),
+    [IWhiteboardRichText]
+  );
+}
+export function createMindExtension(Selector?: TextExtensionOptions["Selector"]) {
+  const text = lazyTextOptions(Selector);
+  return builtin(
+    "tau.mind",
+    (_board, api) => [withText(new MindPlugin(text(api)), text(api))],
+    api => ({
+      creators: { "mind-node": mindCreateSpec },
+      tools: [
+        {
+          id: MIND_TOOL_ID,
+          element: "mind-node",
+          order: 50,
+          group: "drawing",
+          label: "思维导图",
+          icon: Network,
+          component: MindTool,
+        },
+      ],
+      inspectors: { "mind-node": textInspector(MindSetter, text(api)) },
+    }),
+    [IWhiteboardRichText]
+  );
 }
 export function createFrameExtension() {
   return builtin("tau.frame", () => [new FramePlugin()], {
@@ -471,18 +534,26 @@ function urlTool(kind: "image" | "video" | "audio") {
   };
 }
 
+export interface MediaFactoryOptions extends MediaExtensionOptions {
+  Tool?: ComponentType<WhiteboardToolProps>;
+  layers?: WhiteboardContributions["layers"];
+}
+
 export function createImageExtension(
-  media = browserMediaOptions,
-  Tool = urlTool("image"),
-  layers: WhiteboardContributions["layers"] = []
+  options: MediaFactoryOptions = {},
+  Tool: ComponentType<WhiteboardToolProps> = urlTool("image")
 ) {
+  const { actions, Image: ImageComponent, layers = [] } = options;
+  const media = lazyMediaCapabilities(actions);
   return builtin(
     "tau.image",
-    () => {
-      const plugin = new ImagePlugin(media);
+    (_board, api) => {
+      const plugin = new ImagePlugin(media(api));
       const render = plugin.render.bind(plugin);
       plugin.render = (board, props) => (
-        <MediaExtensionContext value={media}>{render(board, props)}</MediaExtensionContext>
+        <MediaExtensionContext value={{ Image: ImageComponent }}>
+          {render(board, props)}
+        </MediaExtensionContext>
       );
       return [plugin];
     },
@@ -490,56 +561,69 @@ export function createImageExtension(
       layers,
       tools: [tool("tau.image.create", 60, "media", "图片", Image, Tool, open("image"))],
       inspectors: { image: ImageSetter },
-    }
+    },
+    MEDIA_SERVICES
   );
 }
-export function createVideoExtension(
-  media = browserMediaOptions,
-  options: ReferencedElementOptions = {}
-) {
-  return builtin("tau.video", () => [withBody(new VideoPlugin(media), options.Body)], {
-    tools: [
-      tool(
-        "tau.video.create",
-        70,
-        "media",
-        "视频",
-        Video,
-        options.Tool ?? urlTool("video"),
-        open("video")
-      ),
-    ],
-    inspectors: { video: MediaSetter },
-    layers: options.layers,
-  });
+export function createVideoExtension(options: MediaFactoryOptions & ReferencedElementOptions = {}) {
+  const { actions, Body } = options;
+  const media = lazyMediaCapabilities(actions);
+  return builtin(
+    "tau.video",
+    (_board, api) => [withBody(new VideoPlugin(media(api)), Body)],
+    {
+      tools: [
+        tool(
+          "tau.video.create",
+          70,
+          "media",
+          "视频",
+          Video,
+          options.Tool ?? urlTool("video"),
+          open("video")
+        ),
+      ],
+      inspectors: { video: MediaSetter },
+      layers: options.layers,
+    },
+    MEDIA_SERVICES
+  );
 }
 export function createAudioExtension(
-  media = browserMediaOptions,
-  Tool = urlTool("audio"),
-  layers: WhiteboardContributions["layers"] = []
+  options: MediaFactoryOptions = {},
+  Tool: ComponentType<WhiteboardToolProps> = urlTool("audio")
 ) {
-  return builtin("tau.audio", () => [new AudioPlugin(media)], {
-    layers,
-    tools: [tool("tau.audio.create", 80, "media", "音频", AudioLines, Tool, open("audio"))],
-    inspectors: { audio: MediaSetter },
-  });
+  const { actions, layers = [] } = options;
+  const media = lazyMediaCapabilities(actions);
+  return builtin(
+    "tau.audio",
+    (_board, api) => [new AudioPlugin(media(api))],
+    {
+      layers,
+      tools: [tool("tau.audio.create", 80, "media", "音频", AudioLines, Tool, open("audio"))],
+      inspectors: { audio: MediaSetter },
+    },
+    MEDIA_SERVICES
+  );
 }
-export function createFileImportExtension(media: MediaExtensionOptions) {
+export function createFileImportExtension() {
+  const media = lazyMediaCapabilities();
   return builtin(
     "tau.file-import",
     () => [],
     api => {
-      const drop = new FileDragDropPlugin(media);
-      const images = new ImagePlugin(media),
-        videos = new VideoPlugin(media),
-        audio = new AudioPlugin(media);
+      const capabilities = media(api);
+      const drop = new FileDragDropPlugin(capabilities);
+      const images = new ImagePlugin(capabilities),
+        videos = new VideoPlugin(capabilities),
+        audio = new AudioPlugin(capabilities);
       return {
         ingest: [
           {
             id: "tau.file-import.drop",
             source: "drop",
             accepts: event =>
-              !!media.upload &&
+              !!capabilities.upload &&
               Array.from((event as DragEvent).dataTransfer?.types ?? []).includes("Files"),
             run: (_api, event) => drop.onDrop(event as DragEvent, resolveBoardAccess(api)),
           },
@@ -547,7 +631,7 @@ export function createFileImportExtension(media: MediaExtensionOptions) {
             id: "tau.file-import.paste",
             source: "paste",
             accepts: event =>
-              !!media.upload &&
+              !!capabilities.upload &&
               Array.from((event as ClipboardEvent).clipboardData?.items ?? []).some(item =>
                 /^(image|video|audio)\//.test(item.type)
               ),
@@ -560,7 +644,8 @@ export function createFileImportExtension(media: MediaExtensionOptions) {
           },
         ],
       };
-    }
+    },
+    MEDIA_SERVICES
   );
 }
 export function createInteractionExtension() {
@@ -583,12 +668,13 @@ export function createInteractionExtension() {
     }
   );
 }
-export function createClipboardExtension(text = embeddedTextOptions) {
+export function createClipboardExtension() {
+  const text = lazyTextOptions();
   return builtin(
     "tau.clipboard",
-    () => [new CopyPastePlugin(text)],
+    (_board, api) => [new CopyPastePlugin(text(api))],
     api => {
-      const clipboard = new CopyPastePlugin(text);
+      const clipboard = new CopyPastePlugin(text(api));
       return {
         ingest: [
           {
@@ -610,7 +696,8 @@ export function createClipboardExtension(text = embeddedTextOptions) {
           },
         ],
       };
-    }
+    },
+    [IWhiteboardRichText]
   );
 }
 export function createPresentationExtension() {
@@ -647,7 +734,7 @@ export function createExportExtension(captureBlob: CaptureBlob = browserCapture)
     layers: [{ id: "tau.export.dialog", position: "outside", component: ExportLayer }],
   });
 }
-export function createImagePreviewExtension(media = browserMediaOptions) {
+export function createImagePreviewExtension(options: MediaExtensionOptions = {}) {
   function PreviewLayer() {
     const board = useBoard();
     const [preview, setPreview] = useState<{ src: string; alt?: string } | null>(null);
@@ -656,7 +743,7 @@ export function createImagePreviewExtension(media = browserMediaOptions) {
       return () => board.off("tau.image.preview-open", setPreview);
     }, [board]);
     return (
-      <MediaExtensionContext value={media}>
+      <MediaExtensionContext value={{ Image: options.Image }}>
         <ImagePreviewModal
           open={!!preview}
           src={preview?.src ?? ""}
@@ -666,9 +753,14 @@ export function createImagePreviewExtension(media = browserMediaOptions) {
       </MediaExtensionContext>
     );
   }
-  return builtin("tau.image-preview", () => [], {
-    layers: [{ id: "tau.image-preview.dialog", position: "outside", component: PreviewLayer }],
-  });
+  return builtin(
+    "tau.image-preview",
+    () => [],
+    {
+      layers: [{ id: "tau.image-preview.dialog", position: "outside", component: PreviewLayer }],
+    },
+    MEDIA_SERVICES
+  );
 }
 export function createMediaUrlExtension() {
   function UrlLayer() {
@@ -683,9 +775,15 @@ export function createMediaUrlExtension() {
     }, [board]);
     return modal && <MediaUrlDialog modal={modal} onClose={() => setModal(null)} />;
   }
-  return builtin("tau.media-url", () => [], {
-    layers: [{ id: "tau.media-url.dialog", position: "outside", component: UrlLayer }],
-  });
+  return builtin(
+    "tau.media-url",
+    () => [],
+    {
+      layers: [{ id: "tau.media-url.dialog", position: "outside", component: UrlLayer }],
+    },
+    // 与其它内置媒体扩展保持同一服务声明面；弹窗本身不消费宿主服务
+    MEDIA_SERVICES
+  );
 }
 
 export function createStandardWhiteboardExtensions(): WhiteboardExtension[] {
