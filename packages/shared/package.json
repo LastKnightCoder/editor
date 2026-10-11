@@ -19,7 +19,6 @@
     "./host-services": "./host-services.ts",
     "./runtime-style": "./runtime-style.ts",
     "./markdown-directives": "./markdown-directives.ts",
-    "./data-table-content-refs": "./data-table-content-refs.ts",
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

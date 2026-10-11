@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectDataTableContentRefs } from "@tau/shared/data-table-content-refs";
+import { collectContentRefs } from "@tau/database/model";
 import { desktopFieldModels } from "../desktopFieldModels";
 import type { ColumnDef, RowData } from "@tau/database/model";
 
@@ -9,29 +9,8 @@ const modelOf = (type: string) => {
   return model;
 };
 
-/** 对整表按字段 model 的 contentRefs 汇总（多重集合，每次出现计一次） */
-function collectByModel(columns: ColumnDef[], rows: RowData[]): Map<number, number> {
-  const refs = new Map<number, number>();
-  const modelsByColumn = new Map(
-    columns.map(column => [
-      column.id,
-      desktopFieldModels.find(model => model.type === column.type) ?? null,
-    ])
-  );
-  for (const row of rows) {
-    for (const column of columns) {
-      const model = modelsByColumn.get(column.id);
-      if (!model?.contentRefs) continue;
-      for (const id of model.contentRefs(row[column.id], column)) {
-        refs.set(id, (refs.get(id) ?? 0) + 1);
-      }
-    }
-  }
-  return refs;
-}
-
 describe("desktopFieldModels", () => {
-  it("rich-text 的 contentRefs 汇总与 shared 的 collectDataTableContentRefs 口径一致", () => {
+  it("rich-text 的 contentRefs 经 model 子入口的 collectContentRefs 按多重集合汇总", () => {
     const columns: ColumnDef[] = [
       { id: "title", title: "标题", type: "text" },
       { id: "docs", title: "文档", type: "rich-text" },
@@ -60,15 +39,9 @@ describe("desktopFieldModels", () => {
       { id: "r4", title: "第四行", docs: "不是数组" },
     ];
 
-    // 行不带 detailContentId 时 shared 的收集结果全部来自 rich-text 单元格
-    const byShared = collectDataTableContentRefs(columns, rows);
-    const byModel = collectByModel(columns, rows);
-    expect([...byModel.entries()].sort()).toEqual([...byShared.entries()].sort());
-    expect(byModel.get(101)).toBe(2);
-    expect(byModel.get(202)).toBe(1);
-    expect(byModel.has(0)).toBe(false);
-    expect(byModel.has(-3)).toBe(false);
-    expect(byModel.has(1.5)).toBe(false);
+    // 行不带 detailContentId 时收集结果全部来自 rich-text 单元格
+    const refs = collectContentRefs(columns, rows, desktopFieldModels);
+    expect(Object.fromEntries(refs)).toEqual({ 101: 2, 202: 1 });
   });
 
   it("rich-text 的 contentRefs 声明在 model 上，其余桌面字段不声明", () => {

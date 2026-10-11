@@ -6,12 +6,13 @@ import {
   PatchDataTableRow,
   ApplyDataTableChanges,
 } from "@/types";
-import { collectDataTableContentRefs, diffContentRefs } from "@tau/shared/data-table-content-refs";
+import { collectContentRefs, diffContentRefs } from "@tau/database/model";
 import { dfs } from "@/utils/helper.ts";
 import type { Descendant } from "slate";
 import Operation from "./operation";
 import DataTableViewTable from "./data-table-view";
 import ContentTable from "./content";
+import { dataFieldModels } from "./field-models";
 
 export default class DataTableTable {
   static upgradePrimaryColumn(db: Database.Database) {
@@ -86,6 +87,21 @@ export default class DataTableTable {
   }
 
   /**
+   * 数据表当前引用的正文（多重集合）：单元格按字段 model 的 contentRefs 声明收集
+   * （D-130），行 detailContentId 各计一次（D-129，持久化语义留在主进程侧）。
+   */
+  private static collectTableRefs(table: Pick<DataTable, "columns" | "rows">): Map<number, number> {
+    const refs = collectContentRefs(table.columns, table.rows, dataFieldModels);
+    for (const row of table.rows) {
+      const contentId = row?.detailContentId;
+      if (typeof contentId === "number" && Number.isInteger(contentId) && contentId > 0) {
+        refs.set(contentId, (refs.get(contentId) ?? 0) + 1);
+      }
+    }
+    return refs;
+  }
+
+  /**
    * 同一事务内按「写入前 vs 写入后」的正文引用差集同步：新增 retain（撤销待回收），
    * 减少 releaseDeferred（归零只登记不硬删）。调用方须保证表存活（ref_count > 0），
    * 已删除的表不持有任何引用（D-129）。
@@ -95,8 +111,8 @@ export default class DataTableTable {
     before: Pick<DataTable, "columns" | "rows"> | null,
     after: Pick<DataTable, "columns" | "rows"> | null
   ) {
-    const beforeRefs = before ? collectDataTableContentRefs(before.columns, before.rows) : null;
-    const afterRefs = after ? collectDataTableContentRefs(after.columns, after.rows) : null;
+    const beforeRefs = before ? this.collectTableRefs(before) : null;
+    const afterRefs = after ? this.collectTableRefs(after) : null;
     const { retain, release } = diffContentRefs(beforeRefs ?? new Map(), afterRefs ?? new Map());
     retain.forEach(contentId => ContentTable.retain(db, contentId));
     release.forEach(contentId => ContentTable.releaseDeferred(db, contentId));
