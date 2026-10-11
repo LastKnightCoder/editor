@@ -19,7 +19,7 @@ const view = (id: number, name = "已保存视图"): DataTableView => ({
     sorts: [],
     filters: null,
     groupBy: null,
-    galleryConfig: { coverType: "detail" },
+    viewOptions: { gallery: { coverType: "detail" } },
   },
 });
 const legacy = () => ({
@@ -109,5 +109,79 @@ describe("卡片数据库视图偏好", () => {
     actions.setActiveViewId("a", second.id);
     actions.deleteView("a", second.id);
     expect(store.getState().byDatabase.a.activeViewId).toBe(initial.id);
+  });
+
+  it("v1 存量视图配置的旧三键按开库升级同规则迁入 viewOptions", () => {
+    const legacyView = (id: number) => ({
+      id,
+      tableId: 0,
+      name: "旧视图",
+      type: "gallery",
+      order: 0,
+      createTime: 10,
+      updateTime: 20,
+      config: {
+        columnOrder: ["title"],
+        rowOrder: [],
+        sorts: [],
+        filters: null,
+        groupBy: null,
+        galleryConfig: { coverType: "image", coverImageColumnId: "cover" },
+        calendarConfig: {},
+        kanbanConfig: null,
+      },
+    });
+    localStorage.setItem(
+      CARD_DATABASE_PREFERENCES_KEY,
+      JSON.stringify({
+        version: 1,
+        state: {
+          byDatabase: {
+            a: {
+              views: [
+                legacyView(1),
+                {
+                  ...legacyView(2),
+                  config: {
+                    ...legacyView(2).config,
+                    viewOptions: { gallery: { coverType: "detail" } },
+                  },
+                },
+              ],
+              activeViewId: 1,
+              columnWidths: {},
+            },
+          },
+          legacyDefaults: { views: [legacyView(3)], activeViewId: 3, columnWidths: {} },
+        },
+      })
+    );
+    const store = createCardDatabasePreferencesStore(localStorage);
+    const migrated = store.getState().byDatabase.a.views[0].config;
+    expect(migrated).toEqual({
+      columnOrder: ["title"],
+      rowOrder: [],
+      sorts: [],
+      filters: null,
+      groupBy: null,
+      // 只移动非空对象；已有同名子键（视图 2）以已有为准；空对象/非对象旧键删除不迁移
+      viewOptions: { gallery: { coverType: "image", coverImageColumnId: "cover" } },
+    });
+    expect(store.getState().byDatabase.a.views[1].config.viewOptions).toEqual({
+      gallery: { coverType: "detail" },
+    });
+    expect(store.getState().legacyDefaults?.views[0].config.viewOptions).toEqual({
+      gallery: { coverType: "image", coverImageColumnId: "cover" },
+    });
+  });
+
+  it("已是当前版本（v2）的状态不重复迁移", () => {
+    const current = { views: [view(7)], activeViewId: 7, columnWidths: {} };
+    localStorage.setItem(
+      CARD_DATABASE_PREFERENCES_KEY,
+      JSON.stringify({ version: 2, state: { byDatabase: { a: current }, legacyDefaults: null } })
+    );
+    const store = createCardDatabasePreferencesStore(localStorage);
+    expect(store.getState().byDatabase.a).toEqual(current);
   });
 });

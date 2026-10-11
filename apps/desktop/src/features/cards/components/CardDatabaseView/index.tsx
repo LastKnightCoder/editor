@@ -256,9 +256,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
         sorts: [],
         filters: null,
         groupBy: null,
-        galleryConfig: undefined,
-        calendarConfig: undefined,
-        kanbanConfig: undefined,
       };
       return fallbackConfig;
     }
@@ -299,9 +296,6 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       sorts: config.sorts || [],
       filters: config.filters || null,
       groupBy: config.groupBy || null,
-      galleryConfig: config.galleryConfig,
-      calendarConfig: config.calendarConfig,
-      kanbanConfig: config.kanbanConfig,
     };
     return normalizedConfig;
   }, [currentView, columns, rows]);
@@ -435,16 +429,11 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       const nextConfig = { ...currentView.config };
       let shouldUpdateConfig = false;
 
-      if ("galleryConfig" in updates) {
-        nextConfig.galleryConfig = updates.galleryConfig;
-        shouldUpdateConfig = true;
-      }
-      if ("calendarConfig" in updates) {
-        nextConfig.calendarConfig = updates.calendarConfig;
-        shouldUpdateConfig = true;
-      }
-      if ("kanbanConfig" in updates) {
-        nextConfig.kanbanConfig = updates.kanbanConfig;
+      // updates.viewOptions = 目标视图类型的专属配置；切换类型后只保留新类型子键
+      if ("viewOptions" in updates) {
+        const targetType = updates.type ?? currentView.type;
+        nextConfig.viewOptions =
+          updates.viewOptions !== undefined ? { [targetType]: updates.viewOptions } : undefined;
         shouldUpdateConfig = true;
       }
 

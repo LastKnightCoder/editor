@@ -48,7 +48,7 @@ describe("视图类型注册表", () => {
       columnPlaceholder: "选择用于日历的日期列",
     });
     expect(calendar.createConfig!("col-date")).toStrictEqual({
-      calendarConfig: { dateColumnId: "col-date" },
+      viewOptions: { calendar: { dateColumnId: "col-date" } },
     });
   });
 
@@ -61,9 +61,11 @@ describe("视图类型注册表", () => {
       columnPlaceholder: "选择用于看板分组的单选列",
     });
     expect(kanban.createConfig!("col-status")).toStrictEqual({
-      kanbanConfig: {
-        groupColumnId: "col-status",
-        cardDisplay: { template: "task", showFieldLabels: false },
+      viewOptions: {
+        kanban: {
+          groupColumnId: "col-status",
+          cardDisplay: { template: "task", showFieldLabels: false },
+        },
       },
     });
   });

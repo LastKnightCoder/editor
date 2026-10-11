@@ -140,9 +140,8 @@ export interface DatabaseProps {
     updates: {
       name?: string;
       type?: DatabaseViewType;
-      galleryConfig?: GalleryViewConfig;
-      calendarConfig?: CalendarViewConfig;
-      kanbanConfig?: KanbanViewConfig;
+      /** 目标视图类型的专属配置对象，宿主写入 viewOptions[type] */
+      viewOptions?: unknown;
     }
   ) => Promise<DatabaseView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;

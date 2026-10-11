@@ -9,6 +9,8 @@ import type {
 } from "../types";
 import type PluginManager from "../PluginManager";
 import { deriveFormulaRows } from "./formula/derive";
+import { getViewOptions } from "./viewOptions";
+import type { KanbanViewConfig } from "../types";
 
 export interface RowGroup {
   key: string;
@@ -104,7 +106,8 @@ export function projectDatabase(
       : undefined;
   let groups: RowGroup[] = [{ key: "__all__", label: "全部", rows: ordered, column: null }];
   if (viewType === "kanban") {
-    const column = columnMap.get(view.kanbanConfig?.groupColumnId ?? "");
+    const kanban = getViewOptions<KanbanViewConfig>(view, "kanban");
+    const column = columnMap.get(kanban?.groupColumnId ?? "");
     if (!column || !plugins.hasCapability(column.type, "singleOption")) groups = [];
     else {
       const options = (column.config as { options?: SelectOption[] } | undefined)?.options ?? [];
@@ -118,7 +121,7 @@ export function projectDatabase(
       groups = uncategorized.length
         ? [{ key: "__uncategorized__", label: "未分类", rows: uncategorized, column, value: null }]
         : [];
-      for (const id of new Set([...(view.kanbanConfig?.columnOrder ?? []), ...optionMap.keys()])) {
+      for (const id of new Set([...(kanban?.columnOrder ?? []), ...optionMap.keys()])) {
         const option = optionMap.get(id);
         if (option)
           groups.push({ key: id, label: option.name, rows: buckets.get(id)!, column, value: id });

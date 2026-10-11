@@ -14,6 +14,7 @@ import {
   getTemplateDefaultCardDisplay,
   resolveKanbanCardDisplay,
 } from "./views/KanbanView/cardDisplayConfig";
+import { getViewOptions } from "./core/viewOptions";
 import { Button, Input, Checkbox, Radio, RadioGroup } from "@tau/ui";
 import { VIEW_TYPES } from "./views/registry";
 
@@ -25,9 +26,7 @@ interface ViewEditPanelProps {
     viewId: number,
     name: string,
     type: DatabaseViewType,
-    galleryConfig?: GalleryViewConfig,
-    calendarConfig?: CalendarViewConfig,
-    kanbanConfig?: KanbanViewConfig
+    viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
   ) => void;
   onClose: () => void;
 }
@@ -73,24 +72,24 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
 
     useEffect(() => {
       if (view) {
-        const galleryConfig = view.config.galleryConfig;
-        const calendarConfig = view.config.calendarConfig;
-        const kanbanConfig = view.config.kanbanConfig;
+        const gallery = getViewOptions<GalleryViewConfig>(view.config, "gallery");
+        const calendar = getViewOptions<CalendarViewConfig>(view.config, "calendar");
+        const kanban = getViewOptions<KanbanViewConfig>(view.config, "kanban");
         const resolvedKanbanDisplay = resolveKanbanCardDisplay({
           columns,
           viewConfig: view.config,
-          kanbanConfig,
+          kanban,
           primaryColumnId,
-          groupColumnId: kanbanConfig?.groupColumnId,
+          groupColumnId: kanban?.groupColumnId,
           isBooleanColumn,
         });
 
         setName(view.name);
         setViewType(view.type);
-        setCoverType(galleryConfig?.coverType || "detail");
-        setCoverImageColumnId(galleryConfig?.coverImageColumnId || "");
-        setDateColumnId(calendarConfig?.dateColumnId || "");
-        setGroupColumnId(kanbanConfig?.groupColumnId || "");
+        setCoverType(gallery?.coverType || "detail");
+        setCoverImageColumnId(gallery?.coverImageColumnId || "");
+        setDateColumnId(calendar?.dateColumnId || "");
+        setGroupColumnId(kanban?.groupColumnId || "");
         setKanbanTemplate(resolvedKanbanDisplay.template);
         setKanbanDoneColumnId(resolvedKanbanDisplay.doneColumnId || "");
         setKanbanVisibleFieldIds(resolvedKanbanDisplay.visibleFieldIds);
@@ -101,7 +100,8 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     const handleOk = useMemoizedFn(async () => {
       if (!view || !name.trim()) return;
 
-      const galleryConfig: GalleryViewConfig | undefined =
+      // 只提交当前视图类型的专属配置，由宿主写入 viewOptions[viewType]
+      const gallery: GalleryViewConfig | undefined =
         viewType === "gallery"
           ? {
               coverType,
@@ -109,7 +109,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             }
           : undefined;
 
-      const calendarConfig: CalendarViewConfig | undefined =
+      const calendar: CalendarViewConfig | undefined =
         viewType === "calendar"
           ? {
               dateColumnId,
@@ -119,7 +119,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       const resolvedKanbanDisplay = resolveKanbanCardDisplay({
         columns,
         viewConfig: view.config,
-        kanbanConfig:
+        kanban:
           viewType === "kanban" && groupColumnId
             ? {
                 groupColumnId,
@@ -136,7 +136,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         isBooleanColumn,
       });
 
-      const kanbanConfig: KanbanViewConfig | undefined =
+      const kanban: KanbanViewConfig | undefined =
         viewType === "kanban"
           ? {
               groupColumnId: groupColumnId!,
@@ -149,7 +149,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
             }
           : undefined;
 
-      onConfirm(view.id, name.trim(), viewType, galleryConfig, calendarConfig, kanbanConfig);
+      onConfirm(view.id, name.trim(), viewType, gallery ?? calendar ?? kanban);
       onClose();
     });
 
@@ -168,7 +168,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     const kanbanDisplay = resolveKanbanCardDisplay({
       columns,
       viewConfig: effectiveViewConfig,
-      kanbanConfig: groupColumnId
+      kanban: groupColumnId
         ? {
             groupColumnId,
             cardDisplay: {
@@ -202,7 +202,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       const resolved = resolveKanbanCardDisplay({
         columns,
         viewConfig: effectiveViewConfig,
-        kanbanConfig: nextGroupColumnId
+        kanban: nextGroupColumnId
           ? {
               groupColumnId: nextGroupColumnId,
               cardDisplay: {
@@ -226,7 +226,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       const resolved = resolveKanbanCardDisplay({
         columns,
         viewConfig: effectiveViewConfig,
-        kanbanConfig: groupColumnId
+        kanban: groupColumnId
           ? {
               groupColumnId,
               cardDisplay: {

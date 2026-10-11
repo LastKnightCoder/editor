@@ -198,19 +198,11 @@ export function useEditDatabase(
     // 确定最终的类型
     const finalType = updates.type ?? target.type;
 
-    // 根据类型决定各种配置
+    // 切换视图类型后只保留新类型的 viewOptions 子键（等价旧「非当前类型 config 置 undefined」）
+    const finalViewOptions = updates.viewOptions ?? target.config.viewOptions?.[finalType];
     const finalConfig = {
       ...target.config,
-      galleryConfig:
-        finalType === "gallery"
-          ? (updates.galleryConfig ?? target.config.galleryConfig)
-          : undefined,
-      calendarConfig:
-        finalType === "calendar"
-          ? (updates.calendarConfig ?? target.config.calendarConfig)
-          : undefined,
-      kanbanConfig:
-        finalType === "kanban" ? (updates.kanbanConfig ?? target.config.kanbanConfig) : undefined,
+      viewOptions: finalViewOptions !== undefined ? { [finalType]: finalViewOptions } : undefined,
     };
 
     const updated = await deps

@@ -23,9 +23,11 @@ it.each(["table", "gallery", "calendar", "kanban"] as const)(
       rowOrder: ["row-a"],
       sorts: [],
       filters: null,
-      galleryConfig: { coverType: "detail" },
-      calendarConfig: { dateColumnId: "date" },
-      kanbanConfig: { groupColumnId: "status" },
+      viewOptions: {
+        gallery: { coverType: "detail" },
+        calendar: { dateColumnId: "date" },
+        kanban: { groupColumnId: "status" },
+      },
     };
     const view: DatabaseView = {
       id: 1,

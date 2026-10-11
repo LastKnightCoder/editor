@@ -17,6 +17,7 @@ import type { DatabaseView, FooterSpec, SortRule } from "./types";
 import PluginManager from "./PluginManager";
 import { emptyQuery, projectDatabase, type DatabaseProjection } from "./core/projection";
 import { applyRowChanges, diffRows } from "./core/changes";
+import { cloneViewOptions, setViewOptions } from "./core/viewOptions";
 import { FORMULA_TYPE } from "./core/formula";
 import { upgradeColumnConfig } from "./model/config-version";
 
@@ -77,9 +78,8 @@ interface TableState {
   setGroupBy: (groupConfig: TableViewConfig["groupBy"]) => void;
   setSorts: (sorts: SortRule[]) => void;
   setFilters: (filters: FilterGroup | null) => void;
-  setGalleryConfig: (galleryConfig: TableViewConfig["galleryConfig"]) => void;
-  setCalendarConfig: (calendarConfig: TableViewConfig["calendarConfig"]) => void;
-  setKanbanConfig: (kanbanConfig: TableViewConfig["kanbanConfig"]) => void;
+  /** 写入某视图类型的专属配置（viewOptions[type]）；options 为 undefined 时移除该子键 */
+  setViewOptions: (type: string, options: unknown) => void;
   /** 设置一列的表尾汇总；传 null 取消 */
   setFooter: (columnId: string, spec: FooterSpec | null) => void;
   setActiveViewId: (viewId: number | null) => void;
@@ -156,16 +156,8 @@ export const createDatabaseStore = (
     groupBy: initialViewConfig?.groupBy ?? null,
     sorts: initialViewConfig?.sorts?.length ? [...initialViewConfig.sorts] : [],
     filters: initialViewConfig?.filters ? cloneFilters(initialViewConfig.filters) : null,
-    // 复制画廊、日历、看板配置
-    galleryConfig: initialViewConfig?.galleryConfig
-      ? { ...initialViewConfig.galleryConfig }
-      : undefined,
-    calendarConfig: initialViewConfig?.calendarConfig
-      ? { ...initialViewConfig.calendarConfig }
-      : undefined,
-    kanbanConfig: initialViewConfig?.kanbanConfig
-      ? { ...initialViewConfig.kanbanConfig }
-      : undefined,
+    // 各视图专属配置按视图类型收在 viewOptions（浅拷贝各子对象）
+    viewOptions: cloneViewOptions(initialViewConfig?.viewOptions),
     footer: initialViewConfig?.footer ? { ...initialViewConfig.footer } : undefined,
   };
 
@@ -627,8 +619,14 @@ export const createDatabaseStore = (
                 else delete state.columns[columnIndex].configVersion;
               }
               if (typeof updates.width === "number") {
-                state.columnWidths[columnId] = Math.max(50, updates.width);
-                state.columns[columnIndex].width = Math.max(50, updates.width);
+                const nextWidth = Math.max(50, updates.width);
+                state.columnWidths[columnId] = nextWidth;
+                state.columns[columnIndex].width = nextWidth;
+                // 列宽已持久化进视图配置（D-130 白名单），三处必须同步写，避免加载时旧值覆盖列定义
+                state.viewConfig.columnWidths = {
+                  ...state.viewConfig.columnWidths,
+                  [columnId]: nextWidth,
+                };
               }
               if (updates.type === FORMULA_TYPE)
                 state.rows.forEach((row: RowData) => {
@@ -687,9 +685,7 @@ export const createDatabaseStore = (
               groupBy: config.groupBy ?? null,
               sorts: [...config.sorts],
               filters: cloneFilters(config.filters ?? null),
-              galleryConfig: config.galleryConfig ? { ...config.galleryConfig } : undefined,
-              calendarConfig: config.calendarConfig ? { ...config.calendarConfig } : undefined,
-              kanbanConfig: config.kanbanConfig ? { ...config.kanbanConfig } : undefined,
+              viewOptions: cloneViewOptions(config.viewOptions),
               footer: config.footer ? { ...config.footer } : undefined,
             };
           })
@@ -716,24 +712,10 @@ export const createDatabaseStore = (
           })
         );
       },
-      setGalleryConfig: galleryConfig => {
+      setViewOptions: (type, options) => {
         set(
           produce<TableState>((state: TableState) => {
-            state.viewConfig.galleryConfig = galleryConfig ? { ...galleryConfig } : undefined;
-          })
-        );
-      },
-      setCalendarConfig: calendarConfig => {
-        set(
-          produce<TableState>((state: TableState) => {
-            state.viewConfig.calendarConfig = calendarConfig ? { ...calendarConfig } : undefined;
-          })
-        );
-      },
-      setKanbanConfig: kanbanConfig => {
-        set(
-          produce<TableState>((state: TableState) => {
-            state.viewConfig.kanbanConfig = kanbanConfig ? { ...kanbanConfig } : undefined;
+            state.viewConfig = setViewOptions(state.viewConfig, type, options);
           })
         );
       },

@@ -58,7 +58,7 @@ export const VIEW_TYPES: readonly ViewTypeDefinition[] = [
       columnLabel: "日期列",
       columnPlaceholder: "选择用于日历的日期列",
     },
-    createConfig: columnId => ({ calendarConfig: { dateColumnId: columnId } }),
+    createConfig: columnId => ({ viewOptions: { calendar: { dateColumnId: columnId } } }),
   },
   {
     type: "kanban",
@@ -71,9 +71,11 @@ export const VIEW_TYPES: readonly ViewTypeDefinition[] = [
       columnPlaceholder: "选择用于看板分组的单选列",
     },
     createConfig: columnId => ({
-      kanbanConfig: {
-        groupColumnId: columnId,
-        cardDisplay: { template: "task", showFieldLabels: false },
+      viewOptions: {
+        kanban: {
+          groupColumnId: columnId,
+          cardDisplay: { template: "task", showFieldLabels: false },
+        },
       },
     }),
   },

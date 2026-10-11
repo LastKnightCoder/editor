@@ -24,7 +24,7 @@ describe("cardDisplayConfig", () => {
     const result = resolveKanbanCardDisplay({
       columns,
       viewConfig,
-      kanbanConfig: { groupColumnId: "status" },
+      kanban: { groupColumnId: "status" },
       primaryColumnId: "title",
       groupColumnId: "status",
       isBooleanColumn,
@@ -40,7 +40,7 @@ describe("cardDisplayConfig", () => {
     const result = resolveKanbanCardDisplay({
       columns,
       viewConfig,
-      kanbanConfig: {
+      kanban: {
         groupColumnId: "status",
         cardDisplay: {
           template: "task",
@@ -70,7 +70,7 @@ describe("cardDisplayConfig", () => {
   });
 
   it("会清理无效字段 id 并过滤不支持类型", () => {
-    const kanbanConfig: KanbanViewConfig = {
+    const kanban: KanbanViewConfig = {
       groupColumnId: "status",
       cardDisplay: {
         template: "detail",
@@ -81,7 +81,7 @@ describe("cardDisplayConfig", () => {
     const result = resolveKanbanCardDisplay({
       columns,
       viewConfig,
-      kanbanConfig,
+      kanban,
       primaryColumnId: "title",
       groupColumnId: "status",
       isBooleanColumn,
