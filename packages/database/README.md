@@ -27,6 +27,10 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 字段的纯数据部分与 React 组件分文件（D-130）：`defineFieldModel` 声明 `DatabaseFieldModel`（`toText` 值转纯文本、可选 `contentRefs` 资源声明、`valueType` / `toScalar`），内置十个字段经 `builtInFieldModels` 提供；根入口的 CellPlugin 从同一份 model 组装纯成员，行为不变。主进程与 MCP 等非 UI 消费方只依赖该子入口。子入口的运行时依赖闭包不可达 React / DOM 与 UI、状态库（type-only 导入不计入），由 `scripts/check-database-boundaries.mjs` 守护；新增成员时保持 model 文件零 `.tsx`、零 UI 导入。
 
+字段还可声明 `ConfigPanel`（列配置编辑面板，受控组件，ColumnEditModal 在类型区下方渲染；未声明的字段保存时不改动 config）与可选 `validateConfig` 保存前最终校验；面板需要更宽弹窗时在组件上挂 `dialogWidth` 静态属性（如公式构造器 880）。
+
+字段配置带版本（D-130）：列定义的 `configVersion` 缺省视为 1，字段 model 声明 `configVersion` 与逐级 `migrateConfig`（声明 >1 却缺迁移函数在 `defineFieldModel` 时抛错）；model 子入口的 `upgradeColumnConfig` / `upgradeColumns` 把旧版本配置逐级升到当前版本，列版本更高时原样保留不降级。Database 初始化与外部 `column.configure` 到达时升级，升级不立即触发保存，随用户下次修改一并落库；新建列写入 model 声明的当前版本。
+
 宿主 Tailwind v4 入口导入主题 token、主题 Tailwind 桥接和 UI 公共样式，并显式扫描本包与 UI 源码：
 
 ```css

@@ -25,6 +25,8 @@ import {
 } from "./types";
 import { createDatabaseStore } from "./DatabaseStore";
 import { builtInPlugins } from "./plugins";
+import { upgradeColumns } from "./model/config-version";
+import type { DatabaseFieldModel } from "./model/field-model";
 import { installDatabaseExtensions, type DatabaseExtension } from "./extensions";
 import { useColumnResize, useKeyboardNavigation, useUndoRedoShortcut } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
@@ -101,7 +103,14 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     const store = useCreation(
       () =>
         createDatabaseStore(
-          columns,
+          // 初始列先按字段 model 升级配置版本（D-130）：升级不触发保存，随用户下次修改落库
+          upgradeColumns(
+            columns,
+            pluginMgr
+              .getAllPlugins()
+              .map(plugin => plugin.model)
+              .filter((model): model is DatabaseFieldModel => Boolean(model))
+          ),
           data,
           viewConfig,
           views,

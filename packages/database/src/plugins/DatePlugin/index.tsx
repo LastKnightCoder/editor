@@ -1,6 +1,7 @@
 import { CellPlugin, GroupGranularity } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
+import DateConfigPanel from "./ConfigPanel";
 import { CalendarDays } from "lucide-react";
 import { startOfWeek } from "@tau/shared/calendar-utils";
 import { dateFieldModel } from "./model";
@@ -42,10 +43,12 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
   name: "日期",
   editable: true,
   capabilities: { date: true },
+  model: dateFieldModel,
   valueType: dateFieldModel.valueType,
   toScalar: dateFieldModel.toScalar,
   Renderer,
   Editor,
+  ConfigPanel: DateConfigPanel,
   Icon: ({ className }) => <CalendarDays className={className} />,
 
   // 保存前转换为统一格式 { start, end }

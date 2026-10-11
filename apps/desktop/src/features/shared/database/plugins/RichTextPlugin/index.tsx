@@ -2,11 +2,13 @@ import { CellPlugin } from "@tau/database";
 import { FileText } from "lucide-react";
 import { Renderer } from "./components/index";
 import { RichTextPluginValue, RichTextPluginConfig } from "./types";
+import { richTextFieldModel } from "./model";
 
 const RichTextPlugin: CellPlugin<RichTextPluginConfig> = {
   type: "rich-text",
   name: "富文本",
   editable: false, // 无编辑器模式，通过渲染器直接操作
+  model: richTextFieldModel,
   Renderer,
   Icon: ({ className }) => <FileText className={className} />,
 

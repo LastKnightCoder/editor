@@ -10,8 +10,17 @@ export interface DatabaseFieldModel<TConfig = unknown> {
   contentRefs?(value: CellValue, column: ColumnDef<TConfig>): number[];
   valueType?: ValueType | ((column: ColumnDef<TConfig>) => ValueType | undefined);
   toScalar?(value: CellValue, column: ColumnDef<TConfig>): Scalar;
+  /** 当前配置版本；未声明视为 1。列定义的 configVersion 缺省视为 1 */
+  configVersion?: number;
+  /** 把 fromVersion 版本的配置升级一级（到 fromVersion+1）；逐级调用直到当前版本 */
+  migrateConfig?(config: unknown, fromVersion: number): unknown;
 }
 
 export function defineFieldModel<T>(model: DatabaseFieldModel<T>): DatabaseFieldModel<T> {
+  if ((model.configVersion ?? 1) > 1 && typeof model.migrateConfig !== "function") {
+    throw new Error(
+      `字段 ${model.type} 声明了 configVersion=${model.configVersion} 却没有 migrateConfig，缺少逐级迁移函数`
+    );
+  }
   return Object.freeze(model);
 }

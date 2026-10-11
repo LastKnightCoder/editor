@@ -1,6 +1,7 @@
 import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../views/TableView/components/SelectEditor";
+import OptionsConfigPanel from "../SelectPlugin/ConfigPanel";
 import { ListChecks } from "lucide-react";
 import { multiSelectFieldModel } from "./model";
 
@@ -8,9 +9,11 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: multiSelectFieldModel.type,
   name: "多选",
   editable: true,
+  model: multiSelectFieldModel,
   valueType: multiSelectFieldModel.valueType,
   toScalar: multiSelectFieldModel.toScalar,
   Renderer,
+  ConfigPanel: OptionsConfigPanel,
   // @ts-ignore
   Editor,
   Icon: ({ className }) => <ListChecks className={className} />,

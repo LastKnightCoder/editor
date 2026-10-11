@@ -7,6 +7,7 @@ import { Hash } from "lucide-react";
 
 const NumberPlugin: CellPlugin<any> = {
   type: numberFieldModel.type,
+  model: numberFieldModel,
   name: "数字",
   editable: true,
   valueType: numberFieldModel.valueType,

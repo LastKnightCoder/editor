@@ -11,6 +11,7 @@ import {
   type Scalar,
 } from "../../core/formula";
 import { formulaFieldModel } from "./model";
+import FormulaConfigPanel, { validateFormulaConfig } from "./ConfigPanel";
 import TextEditor from "../TextPlugin/components/Editor";
 import NumberEditor from "../NumberPlugin/components/Editor";
 import DatePlugin from "../DatePlugin";
@@ -138,9 +139,12 @@ const FormulaPlugin: CellPlugin<FormulaColumnConfig> = {
   type: formulaFieldModel.type,
   name: "公式",
   editable: false,
+  model: formulaFieldModel,
   Renderer,
   Editor: FilterValueEditor,
   Icon: ({ className }) => <Sigma className={className} />,
+  ConfigPanel: FormulaConfigPanel,
+  validateConfig: validateFormulaConfig,
   valueType: formulaFieldModel.valueType,
   toScalar: formulaFieldModel.toScalar,
   formatScalar: (value, column) => formatScalar(value, outputOf(column)),

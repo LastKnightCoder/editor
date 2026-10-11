@@ -7,6 +7,7 @@ import { linkFieldModel } from "./model";
 
 const LinkPlugin: CellPlugin<unknown> = {
   type: linkFieldModel.type,
+  model: linkFieldModel,
   name: "链接",
   editable: true,
   valueType: linkFieldModel.valueType,

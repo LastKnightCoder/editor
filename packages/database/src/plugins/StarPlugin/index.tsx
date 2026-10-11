@@ -54,6 +54,7 @@ const Renderer: React.FC<{
 
 const StarPlugin: CellPlugin<StarConfig> = {
   type: starFieldModel.type,
+  model: starFieldModel,
   name: "评分",
   editable: false,
   valueType: starFieldModel.valueType,

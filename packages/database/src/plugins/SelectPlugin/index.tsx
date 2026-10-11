@@ -1,6 +1,7 @@
 import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../views/TableView/components/SelectEditor";
+import OptionsConfigPanel from "./ConfigPanel";
 import { CircleChevronDown } from "lucide-react";
 import { selectFieldModel } from "./model";
 
@@ -9,9 +10,11 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   name: "单选",
   editable: true,
   capabilities: { singleOption: true },
+  model: selectFieldModel,
   valueType: selectFieldModel.valueType,
   toScalar: selectFieldModel.toScalar,
   Renderer,
+  ConfigPanel: OptionsConfigPanel,
   // @ts-ignore
   Editor,
   Icon: ({ className }) => <CircleChevronDown className={className} />,
