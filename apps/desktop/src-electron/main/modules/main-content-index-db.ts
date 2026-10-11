@@ -7,6 +7,10 @@ import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
 import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
 import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
+import {
+  KNOWLEDGE_MAP_COMPUTED_AT_KEY,
+  KNOWLEDGE_MAP_FINGERPRINT_KEY,
+} from "./tables/knowledge-map";
 
 export type IndexRebuildState = "pending" | "building" | "ready" | "failed";
 export type IndexRebuildTarget = "aggregate" | "fts" | "vec";
@@ -223,9 +227,26 @@ class MainContentIndexDBManager {
     return true;
   }
 
+  /** 可再生的派生表结构不符时丢弃重建（如旧版知识地图表以 card_id 为主键，CREATE IF NOT EXISTS 改不了它） */
+  private dropLegacyKnowledgeMapTables(indexDb: Database.Database) {
+    const table = indexDb
+      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'knowledge_map_nodes'")
+      .get();
+    if (!table) return;
+    const columns = indexDb.pragma("table_info(knowledge_map_nodes)") as Array<{ name: string }>;
+    if (columns.some(column => column.name === "node_key")) return;
+    indexDb.exec("DROP TABLE knowledge_map_nodes; DROP TABLE IF EXISTS knowledge_map_topics;");
+    if (indexDb.prepare("SELECT 1 FROM sqlite_master WHERE name = 'index_meta'").get()) {
+      indexDb
+        .prepare("DELETE FROM index_meta WHERE key IN (?, ?)")
+        .run(KNOWLEDGE_MAP_FINGERPRINT_KEY, KNOWLEDGE_MAP_COMPUTED_AT_KEY);
+    }
+  }
+
   private initSchema(indexDb: Database.Database) {
     const startedAt = Date.now();
     const schemaStartAt = Date.now();
+    this.dropLegacyKnowledgeMapTables(indexDb);
     indexDb.exec(INDEX_SCHEMA_SQL);
     log.info(
       `[MainContentIndexDB] initSchema base schema done: elapsedMs=${Date.now() - schemaStartAt}`

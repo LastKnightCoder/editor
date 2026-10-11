@@ -5,10 +5,15 @@
 import Database from "better-sqlite3";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import * as sqliteVec from "sqlite-vec";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { reindexContents } from "../../entity-context/ref-indexer";
-import KnowledgeMapTable, { KNOWLEDGE_MAP_FINGERPRINT_KEY } from "../knowledge-map";
+import indexManager from "../../main-content-index-db";
+import KnowledgeMapTable, {
+  KNOWLEDGE_MAP_COMPUTED_AT_KEY,
+  KNOWLEDGE_MAP_FINGERPRINT_KEY,
+} from "../knowledge-map";
 
 const SCHEMA_DIR = resolve(__dirname, "../../../../../../../packages/db-schema/schema");
 const MAIN_SQL = readFileSync(resolve(SCHEMA_DIR, "main.sql"), "utf8");
@@ -267,5 +272,69 @@ describe("KnowledgeMapTable.readInputs", () => {
     expect(byKey.get(`project-item:${leaf}`)!.links).toEqual([rootIndex]);
     expect(byKey.get(`project-item:${child}`)!.links).toEqual([rootIndex]);
     expect(byKey.get(`project-item:${root}`)!.links).toEqual([]);
+  });
+});
+
+describe("initSchema：旧版知识地图表丢弃重建", () => {
+  const manager = indexManager as unknown as {
+    initSchema(db: Database.Database): void;
+    resolveVecDimensionsFromSetting(): number;
+  };
+
+  beforeEach(() => {
+    sqliteVec.load(indexDb);
+    vi.spyOn(manager, "resolveVecDimensionsFromSetting").mockReturnValue(3);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("card_id 结构的表连同 topics、指纹键一起清除，重建为 node_key 结构", () => {
+    indexDb.exec(
+      `DROP TABLE knowledge_map_nodes;
+       CREATE TABLE knowledge_map_nodes (
+         card_id INTEGER PRIMARY KEY,
+         x REAL NOT NULL,
+         y REAL NOT NULL,
+         topic INTEGER NOT NULL DEFAULT -1,
+         subtopic INTEGER NOT NULL DEFAULT -1,
+         update_time INTEGER NOT NULL
+       );
+       INSERT INTO knowledge_map_nodes (card_id, x, y, update_time) VALUES (1, 0.5, 1, 111);`
+    );
+    const setMeta = indexDb.prepare(
+      "INSERT INTO index_meta (key, value, updated_at) VALUES (?, ?, 0)"
+    );
+    setMeta.run(KNOWLEDGE_MAP_FINGERPRINT_KEY, "fp-old");
+    setMeta.run(KNOWLEDGE_MAP_COMPUTED_AT_KEY, "111");
+
+    manager.initSchema(indexDb);
+
+    const columns = (
+      indexDb.pragma("table_info(knowledge_map_nodes)") as Array<{ name: string }>
+    ).map(column => column.name);
+    expect(columns).toContain("node_key");
+    expect(columns).not.toContain("card_id");
+    expect(indexDb.prepare("SELECT COUNT(*) AS n FROM knowledge_map_nodes").get()).toEqual({
+      n: 0,
+    });
+    expect(indexDb.prepare("SELECT COUNT(*) AS n FROM knowledge_map_topics").get()).toEqual({
+      n: 0,
+    });
+    expect(
+      indexDb
+        .prepare("SELECT COUNT(*) AS n FROM index_meta WHERE key IN (?, ?)")
+        .get(KNOWLEDGE_MAP_FINGERPRINT_KEY, KNOWLEDGE_MAP_COMPUTED_AT_KEY)
+    ).toEqual({ n: 0 });
+    KnowledgeMapTable.save(indexDb, sample, "fp-new");
+    expect(sortedNodes(KnowledgeMapTable.load(indexDb)!)).toEqual(sample.nodes);
+  });
+
+  it("已是 node_key 结构的表与指纹不受影响", () => {
+    KnowledgeMapTable.save(indexDb, sample, "fp-keep");
+    manager.initSchema(indexDb);
+    expect(sortedNodes(KnowledgeMapTable.load(indexDb)!)).toEqual(sample.nodes);
+    expect(KnowledgeMapTable.storedFingerprint(indexDb)).toBe("fp-keep");
   });
 });
