@@ -66,15 +66,15 @@ export function orderFormulaColumns(columns: readonly ColumnDef[]): {
 type RowDeriver = (row: RowData) => RowData;
 
 /**
- * 给行补上公式列的值。表达式在建立时校验一次；
- * 同一源行对象复用同一派生结果，未改动的行不重算、引用稳定。
+ * 给行补上公式列的值（按现成的求值上下文；表达式在建立时校验一次，
+ * 同一源行对象复用同一派生结果，未改动的行不重算、引用稳定）。
+ * model 子入口按字段 model 构造上下文后复用同一派生逻辑（D-130）。
  */
-function createRowDeriver(
+export function createRowDeriverFromContext(
   columns: readonly ColumnDef[],
-  plugins: PluginManager
+  ctx: FormulaContext
 ): RowDeriver | null {
   if (!columns.some(column => column.type === FORMULA_TYPE)) return null;
-  const ctx: FormulaContext = createFormulaContext(columns, plugins);
   const { order, cyclic } = orderFormulaColumns(columns);
   const fixed = new Map<string, FormulaCellValue>();
   for (const id of cyclic) fixed.set(id, { value: null, error: "公式之间互相引用了" });
@@ -106,6 +106,14 @@ function createRowDeriver(
     cache.set(row, derived);
     return derived;
   };
+}
+
+function createRowDeriver(
+  columns: readonly ColumnDef[],
+  plugins: PluginManager
+): RowDeriver | null {
+  if (!columns.some(column => column.type === FORMULA_TYPE)) return null;
+  return createRowDeriverFromContext(columns, createFormulaContext(columns, plugins));
 }
 
 const derivers = new WeakMap<

@@ -7,6 +7,7 @@
 - 只查询当前主库；`sql_query` 只允许单条 SELECT/WITH/EXPLAIN 或受限结构 PRAGMA。
 - 优先显式列名、必要 JOIN、WHERE 和 LIMIT；默认最多返回 200 行。
 - `contents` 保存富文本编辑器结构，正文 Markdown、编辑快照和语义检索继续调用专用工具，不要把整列内容直接返回。
+- 读取数据表内容优先使用 `list_data_tables` 与 `read_data_table`（单元格已按字段模型转纯文本、公式列现算）；`sql_query` 查询 `data_tables` 只用于统计聚合，`columns`/`rows` 是 JSON 列，不要整列返回。
 
 ## 常用查询
 
