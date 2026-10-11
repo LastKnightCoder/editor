@@ -8,9 +8,10 @@ import WhiteBoard, { type BoardElement, type WhiteboardSnapshot } from "@tau/whi
 import "@tau/ui/styles.css";
 import "./style.css";
 import { createStandardWhiteboardExtensions } from "@tau/whiteboard/extensions";
+import { dockerProcessGroup } from "./scenes/dockerProcessGroup";
 const extensions = createStandardWhiteboardExtensions();
 
-const initial = (): BoardElement[] => [
+const basic = (): BoardElement[] => [
   {
     id: "example-text",
     type: "richtext",
@@ -33,7 +34,11 @@ const initial = (): BoardElement[] => [
   },
 ];
 
+const scenes = { basic, docker: dockerProcessGroup };
+type SceneKey = keyof typeof scenes;
+
 function App() {
+  const [scene, setScene] = useState<SceneKey>("basic");
   const [readonly, setReadonly] = useState(false);
   const [dual, setDual] = useState(false);
   const [outline, setOutline] = useState(false);
@@ -43,6 +48,9 @@ function App() {
     <div className="bg-page text-ink-1 flex h-full flex-col">
       <div className="border-line-1 flex flex-wrap items-center gap-2 border-b p-3">
         <span className="mr-auto font-semibold">Whiteboard 独立示例</span>
+        <Button onClick={() => setScene(value => (value === "basic" ? "docker" : "basic"))}>
+          {scene === "basic" ? "架构图示例" : "基础示例"}
+        </Button>
         <Button onClick={() => setReadonly(value => !value)}>
           {readonly ? "切换编辑" : "切换只读"}
         </Button>
@@ -69,8 +77,9 @@ function App() {
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
           <WhiteBoard
+            key={scene}
             extensions={extensions}
-            initData={initial()}
+            initData={scenes[scene]()}
             readonly={readonly}
             showSidebar={outline}
             onChange={setLatest}
@@ -78,7 +87,12 @@ function App() {
         </div>
         {dual && (
           <div className="border-line-1 min-w-0 flex-1 border-l">
-            <WhiteBoard extensions={extensions} initData={initial()} showSidebar={outline} />
+            <WhiteBoard
+              key={scene}
+              extensions={extensions}
+              initData={scenes[scene]()}
+              showSidebar={outline}
+            />
           </div>
         )}
       </div>

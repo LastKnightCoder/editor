@@ -40,6 +40,32 @@ const pctOfHour = (hour: number) =>
 /** 行高达到该值即切换「周视图」 */
 const TALL_ROW_PX = 52;
 
+/**
+ * 暂停段的挖空遮罩（相对色块自身的百分比）：宽度 ≤0.05% 的暂停不画（与原缺口一致）。
+ * 无可见暂停段时返回 undefined，色块不加 mask。
+ */
+function pauseMask(
+  s: PomodoroSession,
+  dayStart: number,
+  left: number,
+  width: number,
+  now: number
+): string | undefined {
+  const stops: string[] = [];
+  for (const p of s.pauses) {
+    const pl = axisPercent(p.start, dayStart);
+    const pr = axisPercent(p.end ?? now, dayStart);
+    if (pr - pl <= 0.05) continue;
+    const rel = (axis: number) =>
+      Math.max(0, Math.min(100, +(((axis - left) / width) * 100).toFixed(2)));
+    const a = rel(pl);
+    const b = rel(pr);
+    stops.push(`#000 ${a}%`, `transparent ${a}%`, `transparent ${b}%`, `#000 ${b}%`);
+  }
+  if (!stops.length) return undefined;
+  return `linear-gradient(to right, #000 0%, ${stops.join(", ")}, #000 100%)`;
+}
+
 export function Ledger({
   window: win,
   nav,
@@ -329,61 +355,51 @@ function DayRow({
     const preset = presetsById.get(s.presetId);
     const name = preset?.name ?? DELETED_PRESET_NAME;
     const key = isLive ? "live" : s.id;
+    // 暂停段用 mask 挖成透明缺口（而非盖一层底色）：缺口随色块一起缩放，行 hover/选中的底色直接透出
+    const mask = pauseMask(s, dayStart, left, width, now);
     return (
-      <div key={key}>
-        {/* 进行中不可点但不设 disabled：Tooltip 对 disabled 子元素包 inline wrapper，绝对定位的色块会让锚点落空 */}
-        <Tooltip
-          disabled={muted === key}
-          delay={200}
-          content={
-            <span className="tabular-nums">
-              <b className="font-semibold">{name}</b>
-              <span className="block opacity-75">
-                {isLive
-                  ? `${formatHM(s.startTime)} 开始 · 进行中`
-                  : `${formatHM(s.startTime)}–${formatHM(end)} · ${formatDurationCN(s.focusMs)}${s.pauseCount ? ` · 暂停 ${s.pauseCount} 次` : ""}`}
-              </span>
+      // 进行中不可点但不设 disabled：Tooltip 对 disabled 子元素包 inline wrapper，绝对定位的色块会让锚点落空
+      <Tooltip
+        key={key}
+        disabled={muted === key}
+        delay={200}
+        content={
+          <span className="tabular-nums">
+            <b className="font-semibold">{name}</b>
+            <span className="block opacity-75">
+              {isLive
+                ? `${formatHM(s.startTime)} 开始 · 进行中`
+                : `${formatHM(s.startTime)}–${formatHM(end)} · ${formatDurationCN(s.focusMs)}${s.pauseCount ? ` · 暂停 ${s.pauseCount} 次` : ""}`}
             </span>
-          }
-        >
-          <button
-            type="button"
-            data-block
-            data-hl={highlight === s.presetId || undefined}
-            aria-label={`${name} ${formatHM(s.startTime)}–${isLive ? "进行中" : formatHM(end)}`}
-            aria-disabled={isLive || undefined}
-            onClick={e => {
-              e.stopPropagation();
-              if (isLive) return;
-              setMuted(key);
-              onOpenSession(s, e.currentTarget);
-            }}
-            onPointerLeave={() => setMuted(m => (m === key ? null : m))}
-            className={cn(
-              "absolute min-w-1 transition-[opacity,transform] duration-150",
-              isLive ? "animate-pulse cursor-default" : "hover:scale-y-[1.2]",
-              inset,
-              presetDotClass(s.presetId, !!preset)
-            )}
-            style={{ left: `${left}%`, width: `${width}%` }}
-          />
-        </Tooltip>
-        {s.pauses.map((p, i) => {
-          const pl = axisPercent(p.start, dayStart);
-          const pr = axisPercent(p.end ?? now, dayStart);
-          return pr - pl > 0.05 ? (
-            <span
-              key={i}
-              aria-hidden
-              className={cn(
-                "bg-surface pointer-events-none absolute opacity-85",
-                tall ? "bottom-[24%] top-[24%]" : "bottom-2.5 top-2.5"
-              )}
-              style={{ left: `${pl}%`, width: `${pr - pl}%` }}
-            />
-          ) : null;
-        })}
-      </div>
+          </span>
+        }
+      >
+        <button
+          type="button"
+          data-block
+          data-hl={highlight === s.presetId || undefined}
+          aria-label={`${name} ${formatHM(s.startTime)}–${isLive ? "进行中" : formatHM(end)}`}
+          aria-disabled={isLive || undefined}
+          onClick={e => {
+            e.stopPropagation();
+            if (isLive) return;
+            setMuted(key);
+            onOpenSession(s, e.currentTarget);
+          }}
+          onPointerLeave={() => setMuted(m => (m === key ? null : m))}
+          className={cn(
+            "absolute min-w-1 transition-[opacity,transform] duration-150",
+            isLive ? "animate-pulse cursor-default" : "hover:scale-y-[1.2]",
+            inset,
+            presetDotClass(s.presetId, !!preset)
+          )}
+          style={{
+            left: `${left}%`,
+            width: `${width}%`,
+            ...(mask ? { WebkitMaskImage: mask, maskImage: mask } : null),
+          }}
+        />
+      </Tooltip>
     );
   };
 
