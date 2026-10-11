@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createDatabaseStore } from "../../DatabaseStore";
 import PluginManager from "../../PluginManager";
+import { builtInViewRegistry } from "../../views/builtInViewRegistry";
 import type { CellPlugin, ColumnDef, FilterGroup, RowData, TableViewConfig } from "../../types";
 
 function fixture() {
@@ -43,7 +44,7 @@ function fixture() {
     groupBy: null,
   };
   return {
-    store: createDatabaseStore(columns, rows, config, [], undefined, plugins),
+    store: createDatabaseStore(columns, rows, config, [], undefined, plugins, builtInViewRegistry),
     plugins,
     rows,
   };
@@ -137,6 +138,36 @@ describe("统一查询投影", () => {
     store.getState().moveRow("a", "c");
     expect(store.getState().projection.rowIds).toEqual(["c", "a", "b", "d"]);
   });
+
+  it("日历视图禁用通用分组：groupBy 已设置也不产出分组，切回表格恢复", () => {
+    const { store } = fixture();
+    store.getState().setGroupBy({ id: "grouping", fieldId: "group" });
+    expect(store.getState().projection.grouped).toBe(true);
+
+    const view = {
+      id: 1,
+      name: "日历",
+      type: "calendar" as const,
+      order: 0,
+      config: store.getState().viewConfig,
+    };
+    store.getState().dispatch({ type: "view.receive", view, activate: true }, "external");
+    expect(store.getState().projection.grouped).toBe(false);
+    expect(store.getState().projection.groups).toHaveLength(1);
+    expect(store.getState().projection.groups[0].key).toBe("__all__");
+
+    store.getState().dispatch(
+      {
+        type: "view.receive",
+        view: { ...view, id: 2, name: "表格", type: "table" as const },
+        activate: true,
+      },
+      "external"
+    );
+    expect(store.getState().projection.grouped).toBe(true);
+    expect(store.getState().projection.groups.map(group => group.key)).toEqual(["X", "Y"]);
+  });
+
   it("过滤、文本搜索、排序、隐藏列与键盘消费同一结果", () => {
     const { store } = fixture();
     store.getState().setFilters(filter("group", "Y"));

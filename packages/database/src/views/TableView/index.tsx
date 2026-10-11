@@ -10,7 +10,7 @@ import Row from "./components/Row";
 import FooterRow from "./components/FooterRow";
 import { Plus } from "lucide-react";
 import { Tooltip, ConfirmDialog } from "@tau/ui";
-import type { DatabaseViewComponentProps } from "../registry";
+import type { DatabaseViewComponentProps } from "../types";
 
 type TableViewProps = DatabaseViewComponentProps;
 

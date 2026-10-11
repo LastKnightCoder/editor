@@ -11,7 +11,7 @@ import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { Button, ConfirmDialog, cn } from "@tau/ui";
-import type { DatabaseViewComponentProps } from "../registry";
+import type { DatabaseViewComponentProps } from "../types";
 
 type CalendarViewProps = DatabaseViewComponentProps;
 

@@ -142,6 +142,8 @@ export {
 
 export { APPEARANCE_METHODS, type AppearanceThemePayload } from "./appearanceProtocol";
 
+export { BUILT_IN_VIEW_TYPES } from "./types/database";
+
 export type {
   ColumnDef,
   CellValue,
