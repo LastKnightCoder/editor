@@ -13,7 +13,7 @@ import {
 import { toast } from "@tau/ui";
 import { v4 as getUuid } from "uuid";
 import { BoardElement } from "../../../index";
-import { useViewPort, useBoard } from "../../../hooks";
+import { useBoard, useZoom } from "../../../hooks";
 import {
   applyHandwriteGroupIdPatch,
   getSharedHandwriteGroupId,
@@ -36,7 +36,7 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const { elements, sketchTargets, onChange } = props;
   const canAlign = elements.length > 1;
 
-  const { zoom } = useViewPort();
+  const zoom = useZoom();
   const board = useBoard();
   const canMergeHandwrite = isMergeableHandwriteSelection(elements);
   const sharedHandwriteGroupId = getSharedHandwriteGroupId(elements);

@@ -4,7 +4,7 @@ import { v4 as getUuid } from "uuid";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
-import { useBoard, useViewPort } from "../../hooks";
+import { useBoard, useZoom } from "../../hooks";
 import { BoardUtil, PointUtil } from "../../utils";
 import type { ArrowElement, Point, BoardElement } from "../../types";
 import { useMoveArrow } from "../../hooks/useMoveArrow";
@@ -39,7 +39,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
   } = props;
 
   const board = useBoard();
-  const { zoom } = useViewPort();
+  const zoom = useZoom();
 
   const ref = useRef<SVGCircleElement>(null);
   const isMoved = useRef(false);

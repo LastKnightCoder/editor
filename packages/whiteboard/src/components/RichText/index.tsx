@@ -44,7 +44,7 @@ import {
   useSketch,
 } from "../../hooks";
 import { useBoardState } from "../../hooks/useBoardState";
-import { useViewPort } from "../../hooks/useViewPort";
+import { useZoom } from "../../hooks/useZoom";
 import { cn, toast, useEdgeFade } from "@tau/ui";
 
 const styles = {
@@ -158,7 +158,7 @@ const Richtext = (props: RichTextProps) => {
   const isArrowMoving = useArrowMove();
   const activeTool = useActiveTool();
   const isMoving = useElementMoving(elementId);
-  const viewPort = useViewPort();
+  const zoom = useZoom();
   const boardState = useBoardState();
 
   const isCreatingElement = activeTool !== SELECT_TOOL_ID;
@@ -181,10 +181,9 @@ const Richtext = (props: RichTextProps) => {
 
   // 判断是否使用简化渲染
   const useSimplifiedRender = useMemo(() => {
-    const { zoom } = viewPort;
     const { simplifiedRenderZoomThreshold } = boardState;
     return zoom < simplifiedRenderZoomThreshold && !focus && !isSelected;
-  }, [viewPort, boardState, focus, isSelected]);
+  }, [zoom, boardState, focus, isSelected]);
 
   const simplifiedSkeletonMeta = useMemo(() => {
     if (!useSimplifiedRender) return null;
