@@ -77,7 +77,6 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
     onSubmit({
       id: selectedColumn.id,
       fieldId: selectedColumn.id,
-      strategy: selectedColumn.type,
       ...(pluginManager.hasCapability(selectedColumn.type, "date") ? { granularity } : {}),
     });
     onClose();

@@ -60,3 +60,25 @@ describe("PluginManager 注册与替换", () => {
     expect(() => manager.replacePlugin(stubPlugin({ type: "missing" }))).toThrowError("missing");
   });
 });
+
+describe("PluginManager.getValueType", () => {
+  it("内置字段按声明返回；公式列按结果类型推导；未声明返回 undefined", () => {
+    const manager = new PluginManager();
+    manager.registerPlugins(builtInPlugins as CellPlugin<unknown>[]);
+
+    expect(manager.getValueType({ id: "c1", title: "数字", type: "number" })).toBe("number");
+    expect(manager.getValueType({ id: "c2", title: "日期", type: "date" })).toBe("date");
+    expect(manager.getValueType({ id: "c3", title: "进度", type: "progress" })).toBe("number");
+    expect(manager.getValueType({ id: "c4", title: "星级", type: "star" })).toBe("number");
+    expect(manager.getValueType({ id: "c5", title: "文本", type: "text" })).toBe("text");
+    expect(
+      manager.getValueType({
+        id: "c6",
+        title: "公式",
+        type: "formula",
+        config: { expr: { kind: "literal", value: 1 }, output: "number" },
+      })
+    ).toBe("number");
+    expect(manager.getValueType({ id: "c7", title: "未知", type: "ghost" })).toBeUndefined();
+  });
+});

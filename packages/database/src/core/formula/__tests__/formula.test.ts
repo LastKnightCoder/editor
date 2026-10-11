@@ -6,6 +6,7 @@ import type { CellPlugin, ColumnDef, RowData, TableViewConfig } from "../../../t
 import {
   aggregate,
   aggregatesFor,
+  builtInAggregateRegistry,
   createFormulaContext,
   evaluateExpr,
   evaluateFooter,
@@ -207,7 +208,7 @@ describe("单行求值", () => {
 describe("汇总", () => {
   const { ctx } = setup();
   const footer = (columnId: string, op: Parameters<typeof aggregate>[0]) =>
-    evaluateFooter(columnId, { kind: "aggregate", op }, rows, ctx);
+    evaluateFooter(columnId, { kind: "aggregate", op }, rows, ctx, builtInAggregateRegistry);
 
   it("数值汇总忽略空值", () => {
     expect(footer("price", "sum")).toEqual({ ok: true, value: { kind: "numeric", value: 300 } });
@@ -246,6 +247,22 @@ describe("汇总", () => {
     expect(footer("ghost", "countAll")).toMatchObject({
       ok: false,
       error: { code: "missing-column" },
+    });
+  });
+
+  it("公式（含表尾组合表达式）仍只认内置算子，扩展算子被校验拒绝", () => {
+    const footerCtx = { ...ctx, aggregate: () => ({ ok: true as const, value: null }) };
+    expect(
+      validateExpr(
+        { kind: "aggregate", op: "acme.range", columnId: "qty" } as unknown as Expr,
+        footerCtx,
+        "footer"
+      )
+    ).toMatchObject({ ok: false, error: { code: "type" } });
+    // FooterSpec.op 放宽为 string 后，未登记算子走表尾路径显示为空（D-130）
+    expect(footer("qty", "acme.range" as Parameters<typeof aggregate>[0])).toEqual({
+      ok: true,
+      value: { kind: "unregistered" },
     });
   });
 });

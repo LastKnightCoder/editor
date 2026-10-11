@@ -9,6 +9,7 @@ import type { CellPlugin, ColumnDef, RowData, TableViewConfig } from "../../../t
 import {
   createFormulaContext,
   evaluateFooter,
+  builtInAggregateRegistry,
   getRowDeriver,
   orderFormulaColumns,
   validateExpr,
@@ -197,7 +198,9 @@ describe("作用域与表尾组合", () => {
       left: { kind: "aggregate", op: "sum", columnId: "subtotal" },
       right: { kind: "aggregate", op: "countAll", columnId: "title" },
     };
-    expect(evaluateFooter("subtotal", { kind: "expr", expr }, derivedRows, ctx)).toEqual({
+    expect(
+      evaluateFooter("subtotal", { kind: "expr", expr }, derivedRows, ctx, builtInAggregateRegistry)
+    ).toEqual({
       ok: true,
       value: { kind: "expr", value: 1060 / 3, valueType: "number" },
     });
@@ -212,7 +215,15 @@ describe("作用域与表尾组合", () => {
       then: lit("超量"),
       else: lit("正常"),
     };
-    expect(evaluateFooter("qty", { kind: "expr", expr: text }, derivedRows, ctx)).toEqual({
+    expect(
+      evaluateFooter(
+        "qty",
+        { kind: "expr", expr: text },
+        derivedRows,
+        ctx,
+        builtInAggregateRegistry
+      )
+    ).toEqual({
       ok: true,
       value: { kind: "expr", value: "超量", valueType: "text" },
     });

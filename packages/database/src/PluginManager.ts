@@ -6,6 +6,7 @@ import {
   FieldCapabilities,
   RowData,
 } from "./types";
+import type { ValueType } from "./core/formula/types";
 import type { DatabaseFieldModel } from "./model/field-model";
 import { missingPlugin } from "./components/MissingPlugin";
 
@@ -47,6 +48,13 @@ export class PluginManager {
   /** 字段的纯数据 model（值口径与配置版本迁移，D-130）；未注册或插件未挂 model 时返回 undefined */
   getModel(type: string): DatabaseFieldModel | undefined {
     return this.plugins.get(type)?.model;
+  }
+
+  /** 某列参与运算的值类型：插件可按列声明（如公式列取结果类型）；未注册或未声明返回 undefined */
+  getValueType(column: ColumnDef): ValueType | undefined {
+    const plugin = this.plugins.get(column.type);
+    const declared = plugin?.valueType;
+    return typeof declared === "function" ? declared(column) : declared;
   }
 
   getAllPlugins(): CellPlugin<unknown>[] {

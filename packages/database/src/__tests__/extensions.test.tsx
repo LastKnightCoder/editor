@@ -118,6 +118,72 @@ describe("installDatabaseExtensions", () => {
       /Image.*test\.a.*test\.b/
     );
   });
+
+  it("聚合算子登记到注册表，无命名空间或重名报错（带扩展 id）", () => {
+    const registry = () => installDatabaseExtensions(builtInPlugins as CellPlugin<unknown>[], []);
+    expect(registry().aggregateRegistry.has("sum")).toBe(true);
+    expect(registry().aggregateRegistry.list()).toHaveLength(9);
+
+    expect(() =>
+      install([
+        defineDatabaseExtension({
+          id: "test.agg",
+          create: () => ({
+            aggregates: [
+              { op: "range", label: "极差", resultKind: "numeric", compute: () => null },
+            ],
+          }),
+        }),
+      ])
+    ).toThrowError(/test\.agg.*命名空间.*range/);
+
+    expect(() =>
+      install([
+        defineDatabaseExtension({
+          id: "test.agg",
+          create: () => ({
+            aggregates: [
+              { op: "sum", label: "撞内置", resultKind: "numeric", compute: () => null },
+            ],
+          }),
+        }),
+      ])
+    ).toThrowError(/test\.agg.*已存在的聚合算子.*sum/);
+
+    const extensionAggregate = (id: string, op: string) =>
+      defineDatabaseExtension({
+        id,
+        create: () => ({
+          aggregates: [{ op, label: op, resultKind: "numeric" as const, compute: () => null }],
+        }),
+      });
+    expect(() =>
+      install([
+        extensionAggregate("test.a", "acme.range"),
+        extensionAggregate("test.b", "acme.range"),
+      ])
+    ).toThrowError(/acme\.range.*test\.a.*test\.b/);
+  });
+
+  it("命令贡献登记，无命名空间或 id 冲突报错（带扩展 id）", () => {
+    const command = (id: string, commandId: string) =>
+      defineDatabaseExtension({
+        id,
+        create: () => ({
+          commands: [{ id: commandId, label: commandId, placement: "row", run: () => undefined }],
+        }),
+      });
+
+    const { commands } = install([command("test.cmd", "acme.duplicate")]);
+    expect(commands.map(item => item.id)).toEqual(["acme.duplicate"]);
+
+    expect(() => install([command("test.cmd", "duplicate")])).toThrowError(
+      /test\.cmd.*命名空间.*duplicate/
+    );
+    expect(() =>
+      install([command("test.a", "acme.dup"), command("test.b", "acme.dup")])
+    ).toThrowError(/acme\.dup.*test\.a.*test\.b/);
+  });
 });
 
 const baseConfig = {

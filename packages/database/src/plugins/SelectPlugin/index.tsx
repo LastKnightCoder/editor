@@ -1,9 +1,23 @@
-import { CellPlugin, SelectOption } from "../../types";
+import React from "react";
+import { CellPlugin, ColumnDef, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
-import Editor from "../../views/TableView/components/SelectEditor";
+import SelectEditor from "../../views/TableView/components/SelectEditor";
 import OptionsConfigPanel from "./ConfigPanel";
 import { CircleChevronDown } from "lucide-react";
 import { selectFieldModel } from "./model";
+
+type EditorProps = React.ComponentProps<
+  NonNullable<CellPlugin<{ options: SelectOption[] }>["Editor"]>
+>;
+
+// 单选编辑器：SelectEditor 由单选 / 多选共用，multiple 经包装显式传入
+const Editor: React.FC<EditorProps> = props => (
+  <SelectEditor
+    {...props}
+    column={props.column as ColumnDef<{ options: SelectOption[] }>}
+    multiple={false}
+  />
+);
 
 const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: selectFieldModel.type,
@@ -15,7 +29,6 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   toScalar: selectFieldModel.toScalar,
   Renderer,
   ConfigPanel: OptionsConfigPanel,
-  // @ts-ignore
   Editor,
   Icon: ({ className }) => <CircleChevronDown className={className} />,
 

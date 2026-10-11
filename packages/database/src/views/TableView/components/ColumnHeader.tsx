@@ -5,7 +5,10 @@ import { Menu, ConfirmDialog } from "@tau/ui";
 
 import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import { ColumnDef } from "../../../types";
+import type { DatabaseCommandsRuntime } from "../../../commands";
+import { visibleCommands } from "../../../commands";
 import PluginManager from "../../../PluginManager";
+import CommandMenuItems from "../../../components/CommandMenuItems";
 import classNames from "classnames";
 import ColumnIcon from "../../../ColumnIcon";
 
@@ -22,6 +25,8 @@ interface ColumnHeaderProps {
   readonly: boolean;
   onDelete?: (columnId: string) => void;
   allowDeleteColumn?: boolean; // 是否允许删除列，默认 true
+  /** 扩展命令运行时；扩展项排在「编辑」之后、「删除」之前，与内置项之间有分隔线 */
+  commands?: DatabaseCommandsRuntime;
 }
 
 interface DragItem {
@@ -40,6 +45,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     readonly,
     onDelete,
     allowDeleteColumn = true,
+    commands,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -101,6 +107,14 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
 
     drag(drop(ref));
 
+    const columnCommands = commands
+      ? visibleCommands(commands.definitions, "column", {
+          api: commands.api,
+          columnId: column.id,
+        })
+      : [];
+    const showDelete = !column.isPrimary && allowDeleteColumn;
+
     // 列标题样式
     const headerStyle = {
       width: `${width}px`,
@@ -154,7 +168,18 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
               >
                 编辑
               </Menu.Item>
-              {!column.isPrimary && allowDeleteColumn && (
+              {columnCommands.length > 0 && commands && (
+                <>
+                  <Menu.Separator />
+                  <CommandMenuItems
+                    items={columnCommands}
+                    api={commands.api}
+                    columnId={column.id}
+                  />
+                  {showDelete && <Menu.Separator />}
+                </>
+              )}
+              {showDelete && (
                 <Menu.Item
                   danger
                   onSelect={() => {

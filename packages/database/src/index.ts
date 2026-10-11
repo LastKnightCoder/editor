@@ -6,7 +6,15 @@ import { DatabaseContext, DatabaseStoreType } from "./DatabaseContext";
 import * as hooks from "./hooks";
 import { defineDatabaseExtension } from "./extensions";
 import type { DatabaseExtension, DatabaseContributions, DatabaseFieldOverride } from "./extensions";
+import type {
+  CommandContext,
+  DatabaseCommandApi,
+  DatabaseCommandDefinition,
+  DatabaseCommandsRuntime,
+} from "./commands";
 import { ViewRegistry } from "./views/ViewRegistry";
+import { AggregateRegistry } from "./core/formula/aggregateRegistry";
+import type { DatabaseAggregateDefinition } from "./core/formula/aggregateRegistry";
 import type {
   DatabaseProps,
   DatabaseConfig,
@@ -60,11 +68,17 @@ export type {
   ViewOptionsPanelProps,
   ViewGroupingContext,
   RowGroup,
+  CommandContext,
+  DatabaseCommandApi,
+  DatabaseCommandDefinition,
+  DatabaseCommandsRuntime,
+  DatabaseAggregateDefinition,
 };
 
 export {
   PluginManager,
   ViewRegistry,
+  AggregateRegistry,
   plugins,
   createDatabaseStore,
   DatabaseContext,

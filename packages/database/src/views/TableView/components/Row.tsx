@@ -5,8 +5,11 @@ import { GripVertical } from "lucide-react";
 import { Menu } from "@tau/ui";
 
 import { ColumnDef, RowData, CellCoord, CellValue } from "../../../types";
+import type { DatabaseCommandsRuntime } from "../../../commands";
+import { visibleCommands } from "../../../commands";
 import Cell from "./Cell";
 import PluginManager from "../../../PluginManager";
+import CommandMenuItems from "../../../components/CommandMenuItems";
 
 const ROW_TYPE = "tableRow";
 
@@ -35,6 +38,8 @@ interface RowProps {
   moveRow?: (rowId: string, targetId: string) => void;
   deleteRow: (rowId: string) => void;
   onOpenRowDetail?: (row: RowData) => void;
+  /** 扩展命令运行时；扩展项排在「删除」之前，二者之间有分隔线 */
+  commands?: DatabaseCommandsRuntime;
 }
 
 const Row: React.FC<RowProps> = memo(
@@ -58,6 +63,7 @@ const Row: React.FC<RowProps> = memo(
     theme,
     deleteRow,
     onOpenRowDetail,
+    commands,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
 
@@ -99,6 +105,10 @@ const Row: React.FC<RowProps> = memo(
       drag(drop(ref));
     }
 
+    const rowCommands = commands
+      ? visibleCommands(commands.definitions, "row", { api: commands.api, rowId: row.id })
+      : [];
+
     return (
       <div
         ref={ref}
@@ -121,6 +131,12 @@ const Row: React.FC<RowProps> = memo(
                 </button>
               }
             >
+              {rowCommands.length > 0 && commands && (
+                <>
+                  <CommandMenuItems items={rowCommands} api={commands.api} rowId={row.id} />
+                  <Menu.Separator />
+                </>
+              )}
               <Menu.Item danger onSelect={() => deleteRow(row.id)}>
                 删除
               </Menu.Item>
