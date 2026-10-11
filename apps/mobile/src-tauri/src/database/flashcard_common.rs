@@ -19,8 +19,7 @@ pub(crate) fn format_db_error(code: &str, context: &str, error: impl std::fmt::D
 pub(crate) const DECK_COLUMNS: &str =
     "id, name, description, cover_color, emoji, sort_order, meta, create_time, update_time";
 
-pub(crate) const CARD_COLUMNS: &str =
-    "id, deck_id, type, prompt, detail, data, tags, difficulty, \
+pub(crate) const CARD_COLUMNS: &str = "id, deck_id, type, prompt, detail, data, tags, difficulty, \
      due_time, last_review_time, review_count, memory_stability, memory_difficulty, status, \
      reference_summary, create_time, update_time";
 

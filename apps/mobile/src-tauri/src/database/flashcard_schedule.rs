@@ -3,7 +3,7 @@
 // packages/shared/fsrs-schedule.fixture.json 对拍钉住——同一张卡在两端复习的
 // 调度结果才会收敛。修改 FSRS_WEIGHTS / DESIRED_RETENTION 前先跨端同步。
 
-use fsrs::{FSRS, MemoryState};
+use fsrs::{MemoryState, FSRS};
 
 /// 与 fsrs-rs DEFAULT_PARAMETERS（FSRS-6，21 参数）逐值一致，锁定跨端基线
 pub(crate) const FSRS_WEIGHTS: [f32; 21] = [
@@ -62,7 +62,11 @@ pub(crate) fn calculate_schedule(
     };
     let fsrs = FSRS::new(&FSRS_WEIGHTS).ok()?;
     let states = fsrs
-        .next_states(current, DESIRED_RETENTION, elapsed_days(last_review_ms, now_ms))
+        .next_states(
+            current,
+            DESIRED_RETENTION,
+            elapsed_days(last_review_ms, now_ms),
+        )
         .ok()?;
     let item = match grade {
         1 => &states.again,
@@ -73,7 +77,11 @@ pub(crate) fn calculate_schedule(
     // 间隔 ≥1 天为巩固，否则学习中（fsrs-rs 的 interval 为天、可为小数，不取整）；
     // 毫秒换算用 f64，与桌面 ts-fsrs 口径一致避免两端毫秒偏差
     let interval_ms = (item.interval as f64 * DAY_MS as f64).round() as i64;
-    let status = if item.interval >= 1.0 { "review" } else { "learning" };
+    let status = if item.interval >= 1.0 {
+        "review"
+    } else {
+        "learning"
+    };
     Some(NextSchedule {
         stability: item.memory.stability as f64,
         difficulty: item.memory.difficulty as f64,
@@ -168,7 +176,10 @@ mod tests {
             }));
         }
         println!("===FSRS-FIXTURE===");
-        println!("{}", serde_json::to_string_pretty(&json!({ "cases": cases })).unwrap());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json!({ "cases": cases })).unwrap()
+        );
     }
 
     /// 对拍 fixture：权威输出（fsrs crate，本文件）与已提交的跨端 fixture 必须逐值一致，
@@ -198,7 +209,12 @@ mod tests {
             );
             let sched = calculate_schedule(s, d, Some(NOW - elapsed as i64 * DAY_MS), rating, NOW)
                 .unwrap_or_else(|| panic!("{name}: 调度失败"));
-            assert_eq_rel(name, "stability", sched.stability, case["stability"].as_f64().unwrap());
+            assert_eq_rel(
+                name,
+                "stability",
+                sched.stability,
+                case["stability"].as_f64().unwrap(),
+            );
             assert_eq_rel(
                 name,
                 "difficulty",
