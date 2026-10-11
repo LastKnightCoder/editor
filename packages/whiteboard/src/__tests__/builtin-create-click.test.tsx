@@ -19,7 +19,12 @@ import {
   defineElement,
   type WhiteboardExtension,
 } from "../extensions/api";
-import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
+import {
+  IWhiteboardRichText,
+  createEmbeddedRichTextService,
+  embeddedTextOptions,
+} from "../extensions/text";
+import { createServiceRegistry, type ServiceRegistry } from "../extensions";
 import { buildMindRootElement } from "../extensions/creators/mind";
 import { RichTextUtil } from "../utils/TextStyleStore";
 import { createEmptyRichTextContent } from "../utils/RichTextContentUtil";
@@ -88,7 +93,8 @@ interface RenderResult {
 
 const renderClickBoard = async (
   extensions: readonly WhiteboardExtension[],
-  initData: BoardElement[] = []
+  initData: BoardElement[] = [],
+  services?: ServiceRegistry
 ): Promise<RenderResult> => {
   vi.stubGlobal(
     "ResizeObserver",
@@ -116,6 +122,7 @@ const renderClickBoard = async (
     root.render(
       <WhiteBoard
         extensions={[...extensions, capture]}
+        services={services}
         initData={initData}
         initViewPort={{ minX: 0, minY: 0, width: 800, height: 600, zoom: 1 }}
         showToolbar={false}
@@ -166,14 +173,22 @@ const baseExtensions = () => [
 /** 可控时序的正文绑定：create 返回手动 resolve 的 Promise */
 const deferredTextOptions = () => {
   const resolvers: Array<(id: number | null) => void> = [];
-  const options: TextExtensionOptions = {
-    kit: embeddedTextOptions.kit,
-    create: () =>
-      new Promise<number | null>(resolve => {
-        resolvers.push(resolve);
-      }),
-  };
-  return { options, resolveNext: (id: number | null) => resolvers.shift()!(id) };
+  const services = createServiceRegistry(register =>
+    register(IWhiteboardRichText, {
+      ...createEmbeddedRichTextService(),
+      content: {
+        create: () =>
+          new Promise<number | null>(resolve => {
+            resolvers.push(resolve);
+          }),
+        update: async () => {},
+        release: async () => {},
+        retain: async () => {},
+        unretain: async () => {},
+      },
+    })
+  );
+  return { services, resolveNext: (id: number | null) => resolvers.shift()!(id) };
 };
 
 const emptyMenuContext = (board: Board): ContextMenuContext => ({
@@ -263,10 +278,11 @@ describe("richtext 创建工具（click 手势）", () => {
 
   it("异步等待期间再次按下被忽略；完成后照常提交并可继续创建", async () => {
     const deferred = deferredTextOptions();
-    const { board, fire, flush, unmount } = await renderClickBoard([
-      createInteractionExtension(),
-      createRichTextExtension(deferred.options),
-    ]);
+    const { board, fire, flush, unmount } = await renderClickBoard(
+      [createInteractionExtension(), createRichTextExtension()],
+      [],
+      deferred.services
+    );
     board.setActiveTool(RICHTEXT_TOOL_ID);
 
     await fire("pointerdown", 100, 100);
@@ -293,10 +309,11 @@ describe("richtext 创建工具（click 手势）", () => {
 
   it("等待期间切换工具 → 丢弃结果不插入", async () => {
     const deferred = deferredTextOptions();
-    const { board, fire, flush, unmount } = await renderClickBoard([
-      createInteractionExtension(),
-      createRichTextExtension(deferred.options),
-    ]);
+    const { board, fire, flush, unmount } = await renderClickBoard(
+      [createInteractionExtension(), createRichTextExtension()],
+      [],
+      deferred.services
+    );
     board.setActiveTool(RICHTEXT_TOOL_ID);
     await fire("pointerdown", 100, 100);
     board.setActiveTool(SELECT_TOOL_ID);
@@ -309,10 +326,11 @@ describe("richtext 创建工具（click 手势）", () => {
 
   it("等待期间卸载画布 → 丢弃结果不插入", async () => {
     const deferred = deferredTextOptions();
-    const { board, fire, flush, unmount } = await renderClickBoard([
-      createInteractionExtension(),
-      createRichTextExtension(deferred.options),
-    ]);
+    const { board, fire, flush, unmount } = await renderClickBoard(
+      [createInteractionExtension(), createRichTextExtension()],
+      [],
+      deferred.services
+    );
     board.setActiveTool(RICHTEXT_TOOL_ID);
     await fire("pointerdown", 100, 100);
     await fire("pointerup", 100, 100);

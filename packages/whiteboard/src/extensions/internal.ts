@@ -1,21 +1,33 @@
 import type Board from "../Board";
 import type { IBoardPlugin } from "../types";
-import type { ElementCreateSpec, WhiteboardContributions, WhiteboardExtension } from "./api";
+import type {
+  ElementCreateSpec,
+  WhiteboardAPI,
+  WhiteboardContributions,
+  WhiteboardExtension,
+} from "./api";
 import type { HotkeyCodeSpec } from "./hotkeys";
 
 /** 内置元素复用交互实现的私有装配口，不从公共入口导出。 */
-const factories = new WeakMap<WhiteboardExtension, (board: Board) => IBoardPlugin[]>();
+const factories = new WeakMap<
+  WhiteboardExtension,
+  (board: Board, api: WhiteboardAPI) => IBoardPlugin[]
+>();
 
 export function withInternalPlugins(
   extension: WhiteboardExtension,
-  create: (board: Board) => IBoardPlugin[]
+  create: (board: Board, api: WhiteboardAPI) => IBoardPlugin[]
 ): WhiteboardExtension {
   factories.set(extension, create);
   return extension;
 }
 
-export function createInternalPlugins(extension: WhiteboardExtension, board: Board) {
-  return factories.get(extension)?.(board) ?? [];
+export function createInternalPlugins(
+  extension: WhiteboardExtension,
+  board: Board,
+  api: WhiteboardAPI
+) {
+  return factories.get(extension)?.(board, api) ?? [];
 }
 
 /**

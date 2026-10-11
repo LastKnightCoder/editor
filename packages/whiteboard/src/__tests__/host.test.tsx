@@ -7,7 +7,7 @@ import { DocumentPlugin } from "../plugins/DocumentPlugin";
 import { WhiteBoardPlugin } from "../plugins/WhiteBoardPlugin";
 import { ImageUtil } from "../utils/ImageUtil";
 import { createRichTextContentId } from "../utils/RichTextContentUtil";
-import { browserMediaOptions } from "../extensions/media";
+import { browserMediaInfo } from "../extensions/media";
 import { embeddedTextOptions } from "../extensions/text";
 import { DEFAULT_PAGE_SKETCH } from "../types";
 
@@ -56,7 +56,7 @@ describe("白板宿主能力与实例边界", () => {
     expect(keys()).toContain(`${type}-url`);
     board.addPlugin(
       new Plugin({
-        ...browserMediaOptions,
+        ...browserMediaInfo,
         upload: async () => "uploaded",
         actions: [`${type}-local`, `${type}-url`],
       })
@@ -110,7 +110,7 @@ describe("白板宿主能力与实例边界", () => {
     const upload = deferred<string>();
     const board = createBoard();
     const media = {
-      ...browserMediaOptions,
+      ...browserMediaInfo,
       imageInfo: async () => ({ width: 100, height: 80 }),
       upload: () => upload.promise,
     };
@@ -127,7 +127,7 @@ describe("白板宿主能力与实例边界", () => {
   it("上传真实失败继续抛出，画布不增加占位元素", async () => {
     const board = createBoard();
     const media = {
-      ...browserMediaOptions,
+      ...browserMediaInfo,
       imageInfo: async () => null,
       upload: async () => {
         throw new Error("上传失败");

@@ -1,4 +1,4 @@
-import { mediaMenu, browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
+import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { Music2, Link, Download, Upload, Mic } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -28,7 +28,7 @@ import { PathUtil } from "../utils";
 export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
   name = "audio";
 
-  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {
+  constructor(private readonly media: MediaCapabilities = browserMediaInfo) {
     super();
   }
 

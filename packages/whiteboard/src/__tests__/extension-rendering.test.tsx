@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import WhiteBoard from "../WhiteBoard";
 import { createVideoExtension } from "../extensions/builtins";
-import { browserMediaOptions } from "../extensions/media";
 import { EHandlerPosition } from "../types";
 import type { WhiteboardAPI } from "../extensions/api";
 
@@ -29,8 +28,8 @@ it("业务渲染仅收到受控 API，缩放回调在扩展内部绑定内核", 
     onResizeEnd: (...args: any[]) => void;
   };
   const extensions = [
-    createVideoExtension(browserMediaOptions, {
-      Body: props => {
+    createVideoExtension({
+      Body: (props: any) => {
         body = props as typeof body;
         return <g data-test-video />;
       },

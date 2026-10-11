@@ -7,7 +7,7 @@ import { ImageUtil as InternalImage } from "./utils/ImageUtil";
 import { VideoUtil as InternalVideo } from "./utils/VideoUtil";
 import { AudioUtil as InternalAudio } from "./utils/AudioUtil";
 import type { BoardElement } from "./types";
-import type { MediaExtensionOptions } from "./extensions/media";
+import type { MediaCapabilities } from "./extensions/media";
 import { FrameUtil as InternalFrame } from "./utils/FrameUtil";
 import { PointUtil as InternalPoint } from "./utils/PointUtil";
 import { MindUtil as InternalMind } from "./utils/MindUtil";
@@ -95,13 +95,13 @@ export const ViewPortTransforms = {
   ) => InternalViewport.moveViewPort(resolveBoardAccess(api), ...args),
 };
 export const ImageUtil = {
-  insertImage: (file: File, api: WhiteboardAPI, media: MediaExtensionOptions) =>
+  insertImage: (file: File, api: WhiteboardAPI, media: MediaCapabilities) =>
     InternalImage.insertImage(file, resolveBoardAccess(api), media),
   insertImageFromPath: (path: string, api: WhiteboardAPI) =>
     InternalImage.insertImageFromPath(path, resolveBoardAccess(api)),
 };
 export const VideoUtil = {
-  insertVideo: (file: File, api: WhiteboardAPI, media: MediaExtensionOptions) =>
+  insertVideo: (file: File, api: WhiteboardAPI, media: MediaCapabilities) =>
     InternalVideo.insertVideo(file, resolveBoardAccess(api), media),
   insertVideoFromUrl: (url: string, api: WhiteboardAPI) =>
     InternalVideo.insertVideoFromUrl(url, resolveBoardAccess(api)),
@@ -111,14 +111,10 @@ export const VideoUtil = {
   ) => InternalVideo.insertVideoFromMeta(resolveBoardAccess(api), meta),
 };
 export const AudioUtil = {
-  insertAudio: (file: File, api: WhiteboardAPI, media: MediaExtensionOptions) =>
+  insertAudio: (file: File, api: WhiteboardAPI, media: MediaCapabilities) =>
     InternalAudio.insertAudio(file, resolveBoardAccess(api), media),
   insertAudioFromUrl: (url: string, api: WhiteboardAPI) =>
     InternalAudio.insertAudioFromUrl(url, resolveBoardAccess(api)),
-  insertAudioFromTTS: (
-    blob: Blob,
-    text: string,
-    api: WhiteboardAPI,
-    media: MediaExtensionOptions
-  ) => InternalAudio.insertAudioFromTTS(blob, text, resolveBoardAccess(api), media),
+  insertAudioFromTTS: (blob: Blob, text: string, api: WhiteboardAPI, media: MediaCapabilities) =>
+    InternalAudio.insertAudioFromTTS(blob, text, resolveBoardAccess(api), media),
 };

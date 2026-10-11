@@ -18,10 +18,15 @@ import {
   createExportExtension,
   createPresentationExtension,
   createImagePreviewExtension,
+  createServiceRegistry,
+  IWhiteboardRichText,
   type WhiteboardTextEditorProps,
-  type TextExtensionOptions,
 } from "@tau/whiteboard/extensions";
-import { desktopMedia } from "./media";
+import { IResourceService } from "@tau/shared/host-services";
+import { IDownloadService, IMediaInfoService } from "@tau/shared/media-services";
+import { desktopMedia, desktopMediaActions, desktopMediaImage } from "./media";
+import { uploadResource } from "@/hooks/useUploadResource";
+import { downloadFile } from "@/utils/download";
 import { forwardRef, useEffect, useMemo, useState } from "react";
 import WhiteBoard from "@tau/whiteboard";
 import {
@@ -89,7 +94,7 @@ function ContentSnapshotObserver({
 }
 
 const NO_EXTENSIONS: readonly WhiteboardExtension[] = [];
-export type DesktopWhiteboardProps = Omit<WhiteBoardProps, "extensions"> & {
+export type DesktopWhiteboardProps = Omit<WhiteBoardProps, "extensions" | "services"> & {
   extensions?: readonly WhiteboardExtension[];
   onDockWidthChange?(width: number): void;
 };
@@ -97,33 +102,48 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
   const preferences = useWhiteboardOutlineStore();
   const additionalExtensions = props.extensions ?? NO_EXTENSIONS;
-  const extensions = useMemo(() => {
+  // 宿主服务注册表：与 extensions 同随 databaseName 重建（切库后正文命令必须指向新库）
+  const services = useMemo(() => {
     const commands = bindDatabaseCommands(contentCommands, { databaseName });
     const current = () => useSettingStore.getState().setting.database.active === databaseName;
-    const text: TextExtensionOptions = {
-      Editor: DesktopEditor,
-      Observer: ContentSnapshotObserver,
-      Selector: ContentSelector,
-      kit: (contentId?: number) => collaborationKit(getContentBinding(contentId), getContentKit()),
-      create: async (...args: Parameters<typeof commands.createContent>) =>
-        current() ? commands.createContent(...args) : null,
-      update: async (...args: Parameters<typeof commands.updateContent>) => {
-        if (current()) return commands.updateContent(...args);
-      },
-      release: async (id: number) => {
-        return commands.deleteContent(id);
-      },
-      retain: async (id: number) => {
-        if (current()) return commands.incrementContentRefCount(id);
-      },
-      unretain: async (id: number) => {
-        return commands.decrementContentRefCount(id);
-      },
-      importMarkdown: importFromMarkdown,
-    };
+    return createServiceRegistry(
+      register =>
+        register(IWhiteboardRichText, {
+          Editor: DesktopEditor,
+          Observer: ContentSnapshotObserver,
+          kit: (contentId?: number) =>
+            collaborationKit(getContentBinding(contentId), getContentKit()),
+          content: {
+            create: async (...args: Parameters<typeof commands.createContent>) =>
+              current() ? commands.createContent(...args) : null,
+            update: async (...args: Parameters<typeof commands.updateContent>) => {
+              if (current()) return commands.updateContent(...args);
+            },
+            release: async (id: number) => {
+              return commands.deleteContent(id);
+            },
+            retain: async (id: number) => {
+              if (current()) return commands.incrementContentRefCount(id);
+            },
+            unretain: async (id: number) => {
+              return commands.decrementContentRefCount(id);
+            },
+          },
+          importMarkdown: importFromMarkdown,
+        }),
+      // uploadResource 失败返回 null，按 shared 契约归一为空串
+      register =>
+        register(IResourceService, {
+          upload: async file => (await uploadResource(file)) ?? "",
+        }),
+      register => register(IMediaInfoService, desktopMedia),
+      register => register(IDownloadService, { download: url => downloadFile(url) })
+    );
+  }, [databaseName]);
+  const extensions = useMemo(() => {
     return [
-      createArrowExtension({ kit: getArrowLabelKit }),
-      createGeometryExtension({ kit: getDescriptionKit }),
+      createArrowExtension(getArrowLabelKit),
+      createGeometryExtension(getDescriptionKit),
       createHandwriteExtension(),
       createDocumentExtension({
         Body: DocumentCard,
@@ -138,17 +158,30 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
         Tool: WhiteboardTool,
         layers: [selectorLayer("whiteboard", WhiteBoardSelectorModal)],
       }),
-      createRichTextExtension(text, [
-        { id: "tau.richtext.actions", position: "outside", component: RichTextActionsLayer },
-      ]),
-      createImageExtension(desktopMedia, ImageTool, [selectorLayer("image", ImageSelectorModal)]),
-      createVideoExtension(desktopMedia, {
+      createRichTextExtension({
+        Selector: ContentSelector,
+        layers: [
+          { id: "tau.richtext.actions", position: "outside", component: RichTextActionsLayer },
+        ],
+      }),
+      createImageExtension({
+        actions: desktopMediaActions,
+        Image: desktopMediaImage,
+        Tool: ImageTool,
+        layers: [selectorLayer("image", ImageSelectorModal)],
+      }),
+      createVideoExtension({
+        actions: desktopMediaActions,
         Body: VideoElement,
         Tool: VideoTool,
         layers: [selectorLayer("video", VideoSelectorModal)],
       }),
-      createAudioExtension(desktopMedia, AudioTool, [selectorLayer("audio", AudioSelectorModal)]),
-      createMindExtension(text),
+      createAudioExtension({
+        actions: desktopMediaActions,
+        Tool: AudioTool,
+        layers: [selectorLayer("audio", AudioSelectorModal)],
+      }),
+      createMindExtension(ContentSelector),
       createWebviewExtension({
         Body: WebviewElement,
         Tool: WebviewTool,
@@ -156,12 +189,12 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       }),
       createFrameExtension(),
       createColumnExtension(),
-      createFileImportExtension(desktopMedia),
+      createFileImportExtension(),
       createInteractionExtension(),
-      createClipboardExtension(text),
+      createClipboardExtension(),
       createExportExtension(captureBlobWithSnapdom),
       createPresentationExtension(),
-      createImagePreviewExtension(desktopMedia),
+      createImagePreviewExtension({ Image: desktopMediaImage }),
       defineWhiteboardExtension({
         id: "tau.desktop-notes",
         create: () => ({
@@ -170,12 +203,13 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       }),
       ...additionalExtensions,
     ];
-  }, [databaseName, additionalExtensions]);
+  }, [additionalExtensions]);
   return (
     <WhiteBoard
       {...props}
       ref={ref}
       extensions={extensions}
+      services={services}
       outline={
         props.outline ?? {
           open: preferences.open,

@@ -1,5 +1,7 @@
 import { createContext, createElement, useContext } from "react";
 import { ErrorBoundary, isEditableTarget } from "@tau/ui";
+import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
+import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import type Board from "../Board";
 import { BoardUtil } from "../utils/BoardUtil";
 import { PathUtil } from "../utils/PathUtil";
@@ -204,7 +206,8 @@ export class ExtensionRuntime {
   constructor(
     board: Board,
     extensions: readonly WhiteboardExtension[],
-    onExtensionError?: (error: WhiteboardExtensionError) => void
+    onExtensionError?: (error: WhiteboardExtensionError) => void,
+    services: ServiceRegistry = createServiceRegistry()
   ) {
     if (!Array.isArray(extensions)) throw new TypeError("白板扩展集合必须是数组");
     this.board = board;
@@ -313,6 +316,13 @@ export class ExtensionRuntime {
       execute: (command, payload) => this.execute(command, payload),
       getShortcut: commandId => this.getShortcut(commandId),
       flashElement: id => board.emit("element:flash", id),
+      // 服务访问只经扩展作用域提供（scope 内按声明过滤），主 api 不承载宿主服务
+      getService: id => {
+        throw new Error(`主 API 不提供宿主服务访问：${id.id}`);
+      },
+      tryGetService: id => {
+        throw new Error(`主 API 不提供宿主服务访问：${id.id}`);
+      },
       on: (event: string, listener: (...args: any[]) => void) => {
         assertSubscribableEventName(event);
         let group = listeners.get(event);
@@ -404,7 +414,60 @@ export class ExtensionRuntime {
       }
       const namespace = id.slice(0, id.indexOf("."));
       const reserved = isReservedNamespace(namespace);
-      const scope = createExtensionScope(this.api, id);
+      // 服务依赖：requires/optional 条目必须是服务标识（createServiceId 产物），
+      // requires 中的任一服务在宿主注册表中不存在则拒绝装配；optional 缺失不影响
+      const requiredServices: ServiceIdentifier<unknown>[] = [];
+      const optionalServices: ServiceIdentifier<unknown>[] = [];
+      let declarationFailure: WhiteboardExtensionError | undefined;
+      const readDeclaredServices = (
+        declarations: readonly ServiceIdentifier<unknown>[] | undefined,
+        field: "requires" | "optional"
+      ) => {
+        if (declarations === undefined) return;
+        if (!Array.isArray(declarations)) {
+          declarationFailure = {
+            extensionId: id,
+            reason: "invalid-definition",
+            message: `白板扩展 ${id} 的 ${field} 必须是服务标识数组`,
+          };
+          return;
+        }
+        const bucket = field === "requires" ? requiredServices : optionalServices;
+        for (const candidate of declarations) {
+          const serviceId = (candidate as { id?: unknown } | null | undefined)?.id;
+          if (typeof serviceId !== "string") {
+            declarationFailure = {
+              extensionId: id,
+              reason: "invalid-definition",
+              message: `白板扩展 ${id} 的 ${field} 条目必须是服务标识（createServiceId 产物）：${String(candidate)}`,
+              target: typeof candidate === "string" ? candidate : undefined,
+            };
+            return;
+          }
+          bucket.push(candidate);
+        }
+      };
+      readDeclaredServices(extension.requires, "requires");
+      readDeclaredServices(extension.optional, "optional");
+      if (declarationFailure) {
+        report(declarationFailure);
+        continue;
+      }
+      const missingService = requiredServices.find(service => !services.has(service));
+      if (missingService) {
+        report({
+          extensionId: id,
+          reason: "missing-service",
+          message: `白板扩展 ${id} 必需的宿主服务未注册：${missingService.id}`,
+          target: missingService.id,
+        });
+        continue;
+      }
+      const scope = createExtensionScope(this.api, id, {
+        registry: services,
+        requires: requiredServices,
+        optional: optionalServices,
+      });
       let value: WhiteboardContributions;
       try {
         registerBoardAccess(scope.api, board);
@@ -579,7 +642,7 @@ export class ExtensionRuntime {
           if (existing) return clash(contributionId, existing);
           ownedContributions.add(contributionId);
         }
-        internalPlugins.push(...createInternalPlugins(extension, board));
+        internalPlugins.push(...createInternalPlugins(extension, board, scope.api));
         for (const plugin of internalPlugins) {
           const name = plugin?.name;
           if (typeof name !== "string") return invalid(`扩展 ${id} 的内部插件缺少名称`, name);
