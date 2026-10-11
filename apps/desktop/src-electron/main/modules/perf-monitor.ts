@@ -62,6 +62,17 @@ interface RendererWindowData {
   // Event Timing 慢交互：longtask 在 Chromium 拿不到脚本归因（source 恒空），
   // 交互事件自带目标元素，能回答「哪次操作卡了多久」
   slowInteractions: Array<Timestamped & { durationMs: number; name: string; target: string }>;
+  // 长动画帧分解：scriptMs 是 JS，renderMs/styleLayoutMs/paintMs 是渲染管线
+  longAnimFrames: Array<
+    Timestamped & {
+      durationMs: number;
+      scriptMs: number;
+      renderMs: number;
+      styleLayoutMs: number;
+      paintMs: number;
+      source: string;
+    }
+  >;
   jankSpans: Array<Timestamped & { durationMs: number; worstFrameMs: number; avgFps: number }>;
   heap: Array<Timestamped & { usedMB: number; totalMB: number }>;
   queryRate: Array<Timestamped & { eventsPerMin: number; topQueryKeys: string[] }>;
@@ -79,6 +90,7 @@ function rendererDataOf(senderId: number, title: string): RendererWindowData {
       eventLoop: [],
       longTasks: [],
       slowInteractions: [],
+      longAnimFrames: [],
       jankSpans: [],
       heap: [],
       queryRate: [],
@@ -107,7 +119,7 @@ function recordRendererEvent(
       pushCapped(data.longTasks, {
         t,
         durationMs: payload.durationMs as number,
-        source: String(payload.source ?? "").slice(0, 200),
+        source: String(payload.source ?? "").slice(0, 400),
       });
       break;
     case "event-timing":
@@ -116,6 +128,17 @@ function recordRendererEvent(
         durationMs: payload.durationMs as number,
         name: String(payload.name ?? "").slice(0, 60),
         target: String(payload.target ?? "").slice(0, 120),
+      });
+      break;
+    case "loaf":
+      pushCapped(data.longAnimFrames, {
+        t,
+        durationMs: payload.durationMs as number,
+        scriptMs: payload.scriptMs as number,
+        renderMs: payload.renderMs as number,
+        styleLayoutMs: payload.styleLayoutMs as number,
+        paintMs: payload.paintMs as number,
+        source: String(payload.source ?? "").slice(0, 400),
       });
       break;
     case "jank":

@@ -83,6 +83,68 @@ function watchLongTasks(): void {
   }
 }
 
+// --- 长动画帧（Long Animation Frame API：每帧 script / style+layout / paint 分解） ---
+// longtask 只说"JS 跑了多久"，回答不了"卡是 JS 还是渲染管线"；LoAF 把一帧拆成
+// scriptDuration 与 renderingDuration（含 style/layout/paint），直接定位瓶颈侧
+interface LoafEntry extends PerformanceEntry {
+  renderStart?: number;
+  styleAndLayoutStart?: number;
+  styleAndLayoutDuration?: number;
+  paintDuration?: number;
+  renderingDuration?: number;
+  scripts?: Array<{
+    duration?: number;
+    invoker?: string;
+    invokerType?: string;
+    sourceURL?: string;
+    functionName?: string;
+  }>;
+}
+
+const loafScriptLabel = (script: {
+  invoker?: string;
+  invokerType?: string;
+  sourceURL?: string;
+  functionName?: string;
+}): string => {
+  const file = script.sourceURL?.split("/").pop()?.split("?")[0] ?? "";
+  const who = script.functionName || script.invoker || script.invokerType || "";
+  return `${who}@${file}`.slice(0, 80);
+};
+
+function watchLongAnimationFrames(): void {
+  if (typeof PerformanceObserver === "undefined") return;
+  try {
+    const observer = new PerformanceObserver(list => {
+      for (const raw of list.getEntries()) {
+        const entry = raw as LoafEntry;
+        const script = entry.scripts?.reduce((sum, s) => sum + (s.duration ?? 0), 0) ?? 0;
+        // top3 脚本归因（时长 + 函数名/调用方@文件），定位周期性任务的具体来源
+        const topScripts =
+          entry.scripts
+            ?.slice()
+            .sort((a, b) => (b.duration ?? 0) - (a.duration ?? 0))
+            .slice(0, 3)
+            .map(s => `${loafScriptLabel(s)}:${Math.round(s.duration ?? 0)}ms`)
+            .join("; ")
+            .slice(0, 240) ?? "";
+        report({
+          kind: "loaf",
+          durationMs: Math.round(entry.duration),
+          scriptMs: Math.round(script),
+          renderMs: Math.round(entry.renderingDuration ?? entry.styleAndLayoutDuration ?? 0),
+          styleLayoutMs: Math.round(entry.styleAndLayoutDuration ?? 0),
+          paintMs: Math.round(entry.paintDuration ?? 0),
+          source: topScripts,
+        });
+      }
+    });
+    observer.observe({ entryTypes: ["long-animation-frame"] });
+  } catch {
+    // LoAF 不受支持时静默降级
+  }
+}
+
 // --- 慢交互（Event Timing API，带事件目标归因） ---
 // longtask 在 Chromium 拿不到脚本归因（attribution 恒空），交互时长条目自带目标元素，
 // 能回答「哪次操作卡了多久」；interactionId 为 0 的是非交互事件（程序触发），跳过
@@ -218,6 +280,7 @@ export function startPerfObserver(): void {
   if (!window.electron) return;
   watchEventLoopDelay();
   watchLongTasks();
+  watchLongAnimationFrames();
   watchSlowInteractions();
   watchJank();
   watchHeap();
