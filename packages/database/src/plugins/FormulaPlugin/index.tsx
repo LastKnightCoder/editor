@@ -3,7 +3,6 @@ import { Sigma } from "lucide-react";
 import type { CellFilterDefinition, CellPlugin, CellValue, ColumnDef } from "../../types";
 import type { FormulaColumnConfig } from "@tau/shared/database-types";
 import {
-  FORMULA_TYPE,
   formatScalar,
   formulaConfigOf,
   formulaEnumOfColumn,
@@ -11,6 +10,7 @@ import {
   isFormulaCell,
   type Scalar,
 } from "../../core/formula";
+import { formulaFieldModel } from "./model";
 import TextEditor from "../TextPlugin/components/Editor";
 import NumberEditor from "../NumberPlugin/components/Editor";
 import DatePlugin from "../DatePlugin";
@@ -135,14 +135,14 @@ function compareScalars(a: Scalar, b: Scalar, direction: "asc" | "desc"): number
  * 筛选 / 排序 / 搜索 / 分组按公式结果类型工作。
  */
 const FormulaPlugin: CellPlugin<FormulaColumnConfig> = {
-  type: FORMULA_TYPE,
+  type: formulaFieldModel.type,
   name: "公式",
   editable: false,
   Renderer,
   Editor: FilterValueEditor,
   Icon: ({ className }) => <Sigma className={className} />,
-  valueType: column => outputOf(column),
-  toScalar: value => scalarOf(value),
+  valueType: formulaFieldModel.valueType,
+  toScalar: formulaFieldModel.toScalar,
   formatScalar: (value, column) => formatScalar(value, outputOf(column)),
   beforeSave: () => undefined,
   filters: column => FILTERS[outputOf(column) ?? "text"] ?? [],

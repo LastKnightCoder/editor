@@ -2,17 +2,15 @@ import { CellPlugin } from "../../types";
 import { TrendingUp } from "lucide-react";
 import { Renderer, Editor } from "./components";
 import { ProgressValue } from "./types";
+import { formatProgressRatio, progressFieldModel } from "./model";
 
 const ProgressPlugin: CellPlugin<null> = {
-  type: "progress",
+  type: progressFieldModel.type,
   name: "进度",
   editable: true,
-  valueType: "number",
-  toScalar: value => {
-    const progress = value as ProgressValue | null;
-    return progress && progress.target > 0 ? progress.current / progress.target : null;
-  },
-  formatScalar: value => `${Math.round(value * 100)}%`,
+  valueType: progressFieldModel.valueType,
+  toScalar: progressFieldModel.toScalar,
+  formatScalar: formatProgressRatio,
   Renderer,
   Editor,
   Icon: ({ className }) => <TrendingUp className={className} />,

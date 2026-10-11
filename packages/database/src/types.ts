@@ -20,7 +20,7 @@ import type {
   FooterSpec,
 } from "@tau/shared/database-types";
 import type { Scalar, ValueType } from "./core/formula/types";
-import { SELECT_COLORS } from "./constants";
+import type { SELECT_COLORS } from "./constants";
 import type { DatabaseImage } from "./DatabaseHostContext";
 import type { DatabaseExtension } from "./extensions";
 

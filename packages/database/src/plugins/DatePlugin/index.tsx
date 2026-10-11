@@ -3,6 +3,7 @@ import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
 import { CalendarDays } from "lucide-react";
 import { startOfWeek } from "@tau/shared/calendar-utils";
+import { dateFieldModel } from "./model";
 
 // 日期插件配置类型
 export interface DatePluginConfig {
@@ -37,15 +38,12 @@ const weekKey = (date: Date) => {
 };
 
 const DatePlugin: CellPlugin<DatePluginConfig> = {
-  type: "date",
+  type: dateFieldModel.type,
   name: "日期",
   editable: true,
   capabilities: { date: true },
-  valueType: "date",
-  toScalar: value => {
-    const start = (value as DateValue | null)?.start;
-    return typeof start === "number" && Number.isFinite(start) ? start : null;
-  },
+  valueType: dateFieldModel.valueType,
+  toScalar: dateFieldModel.toScalar,
   Renderer,
   Editor,
   Icon: ({ className }) => <CalendarDays className={className} />,

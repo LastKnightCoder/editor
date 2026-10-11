@@ -23,6 +23,10 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 所有组件、类型、插件管理、store、Context、hooks、DateValue 与 DatePluginConfig 均从根入口导入；不深引 src。视图协议为 DatabaseView / CreateDatabaseView，只含界面需要的标识、名称、类型、顺序与配置；表身份、时间戳、引用计数和正文身份均由宿主掌握。根入口导出内置通用字段插件及 builtInPlugins。
 
+## 字段 model 子入口（`@tau/database/model`）
+
+字段的纯数据部分与 React 组件分文件（D-130）：`defineFieldModel` 声明 `DatabaseFieldModel`（`toText` 值转纯文本、可选 `contentRefs` 资源声明、`valueType` / `toScalar`），内置十个字段经 `builtInFieldModels` 提供；根入口的 CellPlugin 从同一份 model 组装纯成员，行为不变。主进程与 MCP 等非 UI 消费方只依赖该子入口。子入口的运行时依赖闭包不可达 React / DOM 与 UI、状态库（type-only 导入不计入），由 `scripts/check-database-boundaries.mjs` 守护；新增成员时保持 model 文件零 `.tsx`、零 UI 导入。
+
 宿主 Tailwind v4 入口导入主题 token、主题 Tailwind 桥接和 UI 公共样式，并显式扫描本包与 UI 源码：
 
 ```css

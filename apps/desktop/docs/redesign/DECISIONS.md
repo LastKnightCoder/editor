@@ -1,5 +1,17 @@
 # 决策记录（轻量 ADR）
 
+## D-130 Database 扩展点第二阶段：字段 model、通用视图配置、扩展视图、聚合与命令
+
+（2026-10-11，用户确认；承接 D-128，多语言不在本条范围）
+
+- 字段拆为两半：`DatabaseFieldModel`（纯数据、零 React，放 `@tau/database/model` 子入口：值转文本、资源声明、配置版本与迁移、可选的 valueType/toScalar）与现有 UI 成员。主进程与 MCP 只依赖 model；内置字段与桌面字段的 model 必须与 React 组件分文件，子入口由边界脚本守护「不可达 React」。
+- 第一批 model 消费方：D-129 的正文引用改由各字段 model 声明资源（取代 `RICH_TEXT_FIELD_TYPE` 硬编码）；新增只读 MCP 数据表工具，按字段 model 把表格转成 Markdown。搜索索引不在本条范围。
+- 视图配置改为通用结构：公共键（columnOrder / rowOrder / filters / sorts / groupBy / footer）保留在顶层，视图专属配置收进 `viewOptions[viewType]`；主进程 `normalizeConfig` 对 `viewOptions` 只校验为 JSON 对象并按视图类型原样保留，不认识具体视图。存量 galleryConfig/calendarConfig/kanbanConfig 由当前版本一次性升级（D-091），卡片视图 localStorage 同步升级版本；`columnWidths` 进入白名单持久化。
+- 扩展可贡献视图：视图注册表开放给 `DatabaseContributions.views`，元数据（名称、图标、创建所需列能力、初始配置、配置面板组件）与组件一起声明；内置四视图走同一注册路径。
+- 字段配置加版本：列定义带 `configVersion`，字段 model 声明当前版本与逐级 `migrateConfig`，在读取（afterLoad 之前）时升级；升级结果随下次保存落库。
+- 扩展可贡献聚合算子（表尾汇总，声明适用的 valueType 与计算函数）与命令（列头菜单、行菜单、工具栏，经受控的表格 API 读取与提交）。公式不开放自定义函数，D-121 保持不变。
+- 残留类型名判断随对应阶段清理：`GroupRule.strategy` 写入列类型名（持久化），改为不写；ColumnEditModal 的字段配置编辑改由字段声明配置面板；SortPanel 方向提示改由 valueType 推导。
+
 ## D-129 数据表正文引用由数据层按差集维护，释放延迟回收
 
 （2026-10-11，用户确认；取代 D-128 规划中 P2 的「字段 model/ui 拆分、视图配置通用化」，二者无当前消费方，推迟到开放扩展视图或出现非 UI 消费方时再议）
