@@ -88,7 +88,7 @@ class CollaborationManager {
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private quitting = false;
 
-  /** 数据表回收对账（D-129）：私有块树里 database 节点按 tableId 计数，含嵌套子节点 */
+  /** 数据表回收对账（D-136）：私有块树里 database 节点按 tableId 计数，含嵌套子节点 */
   private collectPrivateTableRefs(databaseName: string): Map<number, number> {
     const counts = new Map<number, number>();
     const walk = (node: ContentNode) => {

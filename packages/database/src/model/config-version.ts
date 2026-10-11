@@ -2,7 +2,7 @@ import type { ColumnDef } from "../types";
 import type { DatabaseFieldModel } from "./field-model";
 
 /**
- * 列配置升级（D-130）：列的 configVersion 低于 model 当前版本时逐级调用
+ * 列配置升级（D-137）：列的 configVersion 低于 model 当前版本时逐级调用
  * migrateConfig（fromVersion → fromVersion+1），返回带新 config 与新 configVersion
  * 的列对象。版本相等、model 未声明版本或列版本更高（来自更新版本的数据，不降级）
  * 时原样返回（引用相等）。升级结果不立即触发保存，随用户下次修改一并落库。

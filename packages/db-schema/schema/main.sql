@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS content_ai_insights (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
--- 引用计数归零但暂缓删除的正文：开库回收超过宽限期且仍为 0 的条目（D-129）
+-- 引用计数归零但暂缓删除的正文：开库回收超过宽限期且仍为 0 的条目（D-136）
 CREATE TABLE IF NOT EXISTS content_pending_releases (
         content_id INTEGER PRIMARY KEY,
         released_at INTEGER NOT NULL
@@ -318,7 +318,7 @@ CREATE TABLE IF NOT EXISTS data_table_views (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
--- 引用归零的数据表：开库对账实际引用后回收超过宽限期且无引用的表（D-129）
+-- 引用归零的数据表：开库对账实际引用后回收超过宽限期且无引用的表（D-136）
 CREATE TABLE IF NOT EXISTS data_table_pending_releases (
         table_id INTEGER PRIMARY KEY,
         released_at INTEGER NOT NULL

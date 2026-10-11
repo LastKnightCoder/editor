@@ -337,7 +337,7 @@ export const createDatabaseStore = (
         if (command.type === "column.configure") {
           const target = get().columns.find(column => column.id === command.id);
           if (!target) return;
-          // 到达的 config 按列当前 configVersion 落位后升级（D-130）；命令不携带版本号
+          // 到达的 config 按列当前 configVersion 落位后升级（D-137）；命令不携带版本号
           const next = upgradeColumnConfig(
             { ...target, config: command.config },
             plugins.getModel(target.type)
@@ -590,7 +590,7 @@ export const createDatabaseStore = (
               type: columnData.type || "text",
               ...columnData,
             };
-            // 新建列写入字段 model 声明的当前配置版本（D-130）
+            // 新建列写入字段 model 声明的当前配置版本（D-137）
             const configVersion = plugins.getModel(newColumn.type)?.configVersion;
             if (configVersion) newColumn.configVersion = configVersion;
 
@@ -674,7 +674,7 @@ export const createDatabaseStore = (
                 const nextWidth = Math.max(50, updates.width);
                 state.columnWidths[columnId] = nextWidth;
                 state.columns[columnIndex].width = nextWidth;
-                // 列宽已持久化进视图配置（D-130 白名单），三处必须同步写，避免加载时旧值覆盖列定义
+                // 列宽已持久化进视图配置（D-137 白名单），三处必须同步写，避免加载时旧值覆盖列定义
                 state.viewConfig.columnWidths = {
                   ...state.viewConfig.columnWidths,
                   [columnId]: nextWidth,

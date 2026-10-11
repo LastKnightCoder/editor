@@ -3,7 +3,7 @@ import type { DatabaseStoreType } from "./DatabaseContext";
 import type { CellValue, ColumnDef, RowData } from "./types";
 
 /**
- * 受控表格 API（D-130）：扩展命令经此读取与提交，不暴露 store。
+ * 受控表格 API（D-137）：扩展命令经此读取与提交，不暴露 store。
  * getColumns / getRows 返回浅拷贝副本（store 行不含公式派生值）；写入产生 user 变更触发宿主保存。
  */
 export interface DatabaseCommandApi {

@@ -156,7 +156,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
             />
           </div>
 
-          {/* 字段配置：由字段插件声明（D-130），未声明的类型不显示也不改动 config */}
+          {/* 字段配置：由字段插件声明（D-137），未声明的类型不显示也不改动 config */}
           {ConfigPanel && (
             <ConfigPanel
               config={draftConfig as never}

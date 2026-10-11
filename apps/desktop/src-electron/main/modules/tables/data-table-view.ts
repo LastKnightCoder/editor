@@ -34,7 +34,7 @@ function normalizeFooter(footer: DataTableViewConfig["footer"]): DataTableViewCo
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
-/** 视图专属配置：按视图类型原样保留（值须为普通对象），不认识任何具体视图类型（D-130） */
+/** 视图专属配置：按视图类型原样保留（值须为普通对象），不认识任何具体视图类型（D-137） */
 function normalizeViewOptions(viewOptions: unknown): Record<string, unknown> | undefined {
   if (!isPlainObject(viewOptions)) return undefined;
   const entries = Object.entries(viewOptions).filter(([, value]) => isPlainObject(value));

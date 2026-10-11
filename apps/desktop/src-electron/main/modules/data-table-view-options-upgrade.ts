@@ -1,5 +1,5 @@
 /**
- * 数据表视图专属配置收进通用 viewOptions（D-130）：
+ * 数据表视图专属配置收进通用 viewOptions（D-137）：
  * `galleryConfig/calendarConfig/kanbanConfig` → `viewOptions.gallery/calendar/kanban`。
  * 开库时按实际数据判定（旧端写回会再转换），不改 update_time，单事务，失败抛错不放行（D-091 口径）。
  * 全部设备升级后随下一次清洁版删除。

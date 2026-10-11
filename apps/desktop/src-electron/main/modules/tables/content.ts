@@ -32,7 +32,7 @@ import { readSharedContent, type ContentNode } from "@tau/collaboration";
 import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
 import { getNextTaskEntityId } from "./module-entity-id";
 
-/** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-129） */
+/** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */
 export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default class ContentTable {
@@ -105,7 +105,7 @@ export default class ContentTable {
     return this.insertContent(db, contentData, 1);
   }
 
-  /** 以待回收状态创建正文（ref_count 0 + 登记待回收），首次保存进表时由差集 retain（D-129） */
+  /** 以待回收状态创建正文（ref_count 0 + 登记待回收），首次保存进表时由差集 retain（D-136） */
   static createPendingContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
     const contentId = this.insertContent(db, contentData, 0);
     db.prepare("INSERT INTO content_pending_releases (content_id, released_at) VALUES (?, ?)").run(
@@ -342,7 +342,7 @@ export default class ContentTable {
     stmt.run(contentId);
   }
 
-  /** 撤销登记并重新引用：宽限期内把正文从待回收救回（D-129） */
+  /** 撤销登记并重新引用：宽限期内把正文从待回收救回（D-136） */
   static retain(db: Database.Database, contentId: number): void {
     db.prepare("UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?").run(contentId);
     db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);

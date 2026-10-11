@@ -20,7 +20,7 @@ const RICH_TEXT_COLUMN = { id: "rt", title: "富文本", type: "rich-text" };
 /** 富文本单元格值：数组每项一个 contentId 引用 */
 const cell = (contentId: number) => [{ contentId, title: `t${contentId}` }];
 
-describe("data_table_pending_releases 物理回收（D-129 追记）", () => {
+describe("data_table_pending_releases 物理回收（D-136 追记）", () => {
   let db: Database.Database;
 
   beforeEach(() => {

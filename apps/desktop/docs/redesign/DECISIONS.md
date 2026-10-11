@@ -1,11 +1,11 @@
 # 决策记录（轻量 ADR）
 
-## D-130 Database 扩展点第二阶段：字段 model、通用视图配置、扩展视图、聚合与命令
+## D-137 Database 扩展点第二阶段：字段 model、通用视图配置、扩展视图、聚合与命令
 
-（2026-10-11，用户确认；承接 D-128，多语言不在本条范围）
+（2026-10-11，用户确认；承接 D-135，多语言不在本条范围）
 
 - 字段拆为两半：`DatabaseFieldModel`（纯数据、零 React，放 `@tau/database/model` 子入口：值转文本、资源声明、配置版本与迁移、可选的 valueType/toScalar）与现有 UI 成员。主进程与 MCP 只依赖 model；内置字段与桌面字段的 model 必须与 React 组件分文件，子入口由边界脚本守护「不可达 React」。
-- 第一批 model 消费方：D-129 的正文引用改由各字段 model 声明资源（取代 `RICH_TEXT_FIELD_TYPE` 硬编码）；新增只读 MCP 数据表工具，按字段 model 把表格转成 Markdown。搜索索引不在本条范围。
+- 第一批 model 消费方：D-136 的正文引用改由各字段 model 声明资源（取代 `RICH_TEXT_FIELD_TYPE` 硬编码）；新增只读 MCP 数据表工具，按字段 model 把表格转成 Markdown。搜索索引不在本条范围。
 - 视图配置改为通用结构：公共键（columnOrder / rowOrder / filters / sorts / groupBy / footer）保留在顶层，视图专属配置收进 `viewOptions[viewType]`；主进程 `normalizeConfig` 对 `viewOptions` 只校验为 JSON 对象并按视图类型原样保留，不认识具体视图。存量 galleryConfig/calendarConfig/kanbanConfig 由当前版本一次性升级（D-091），卡片视图 localStorage 同步升级版本；`columnWidths` 进入白名单持久化。
 - 扩展可贡献视图：视图注册表开放给 `DatabaseContributions.views`，元数据（名称、图标、创建所需列能力、初始配置、配置面板组件）与组件一起声明；内置四视图走同一注册路径。
 - 字段配置加版本：列定义带 `configVersion`，字段 model 声明当前版本与逐级 `migrateConfig`，在读取（afterLoad 之前）时升级；升级结果随下次保存落库。
@@ -13,9 +13,9 @@
 - 残留类型名判断随对应阶段清理：`GroupRule.strategy` 写入列类型名（持久化），改为不写；ColumnEditModal 的字段配置编辑改由字段声明配置面板；SortPanel 方向提示改由 valueType 推导。
 - 追记（2026-10-11，聚合/命令/残留清理阶段完成）：聚合算子经每实例 `AggregateRegistry` 与内置 9 个同构登记（op 带命名空间，撞名报错），表尾菜单在内置分组后追加扩展组、按 valueType 过滤，未登记算子显示为空且配置保留；公式路径不开放扩展算子（`FooterSpec.op` 放宽为 string，`FormulaExpr` 的 aggregate 节点仍限内置 `AggregateOp`）。命令经受控 `DatabaseCommandApi`（批量 `updateCells`/`deleteRows` 一次撤销步，readonly 不显示不写入），行项排「删除」前、列头项排「编辑」后「删除」前，run 失败走 toast；toolbar 因 ViewTabs 无现成溢出菜单承载点，类型保留、本阶段不渲染（新按钮视觉由用户另行裁决）。残留清理：`GroupRule.strategy` 停写并标 deprecated（无读取方）；SortPanel 方向提示改按 valueType（公式列按结果类型）；看板卡片字段改按「声明 model.toText 且非公式列」判定、优先级字段改按「config 带 options 数组」判定（内置集合与旧白名单逐类一致）；SelectEditor 的单/多选改由插件包装传 `multiple`。
 
-## D-129 数据表正文引用由数据层按差集维护，释放延迟回收
+## D-136 数据表正文引用由数据层按差集维护，释放延迟回收
 
-（2026-10-11，用户确认；取代 D-128 规划中 P2 的「字段 model/ui 拆分、视图配置通用化」，二者无当前消费方，推迟到开放扩展视图或出现非 UI 消费方时再议）
+（2026-10-11，用户确认；取代 D-135 规划中 P2 的「字段 model/ui 拆分、视图配置通用化」，二者无当前消费方，推迟到开放扩展视图或出现非 UI 消费方时再议）
 
 - 问题：富文本列删除时渲染端立即 `deleteContent`，撤销恢复的单元格指向已硬删正文；持久表删行只释放 `detailContentId`，富文本单元格与被删列的正文引用永不释放；撤销删行同样悬空。
 - 数据表（`data_tables`）引用的正文——富文本单元格 contentId 与行 `detailContentId`——由 `@tau/shared` 的纯函数按字段类型收集（多重集合，每次出现计一次）。主进程每条数据表写路径在同一事务内对比新旧引用：新增 `retain`，减少 `releaseDeferred`。渲染端不再增减或删除这类正文引用；`CellPlugin.onColumnCleanup` 随之删除。
@@ -24,9 +24,9 @@
 - 不做存量对账：已泄漏的正文保持现状，不改历史 ref_count。图片/附件文件回收不在本条范围；卡片视图（无 tableId）行不带 detailContentId，原「无 tableId 删除行正文」分支不可达，已删除；数据表物理删除见下方追记。
 - 资源声明暂放 shared 按类型收集，而非字段插件成员：主进程不能引入含 React 的插件；第三方字段的资源声明随应用级插件运行时另议。
 - 追记（2026-10-11，数据表物理回收）：`data_tables.ref_count` 不可单独作为删除依据——协作会话中撤销删块不回加计数、`remove` 可减为负、删除正文与项目条目不减计数。表引用归零只登记 `data_table_pending_releases`；开库回收超过宽限期的登记前，先以实际引用对账：`database_item.data_table_id`、`project_item(ref_type='data-table')`、正文 JSON 中 `database` 节点的 `tableId`、本机协作会话的私有块。仍被引用的表按引用数复活（重新持有正文引用），无引用才删除表与视图。表回收先于正文回收执行，使复活能救回同批待回收正文。物理删除不再释放正文（1→0 时已释放；存量表不做对账，宁可泄漏）。存量 ref_count ≤ 0 且未登记的表在首次回收时登记，宽限期从此刻起算。`remove` 下限为 0。
-- 追记（2026-10-11）：收集口径改由字段 model 的 contentRefs 声明（D-130）。
+- 追记（2026-10-11）：收集口径改由字段 model 的 contentRefs 声明（D-137）。
 
-## D-128 Database 走声明式扩展协议，先做内部收敛
+## D-135 Database 走声明式扩展协议，先做内部收敛
 
 （2026-10-11，用户确认分阶段方案）
 

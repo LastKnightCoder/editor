@@ -57,7 +57,7 @@ const declared = new Set(
   })
 );
 
-// model 子入口不可达 React（D-130）：从入口沿相对 import（含 re-export）求运行时闭包，
+// model 子入口不可达 React（D-137）：从入口沿相对 import（含 re-export）求运行时闭包，
 // type-only 导入不计入；闭包内不得出现 .tsx，也不得 import React 家族 / UI / 状态库。
 const forbiddenForModel =
   /^(react|react-dom|lucide-react|@tau\/ui|@tau\/themes|zustand|ahooks)(\/|$)|^@tanstack\//;
