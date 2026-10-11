@@ -737,6 +737,20 @@
     }
   }
 
+  /* 求索录引用跳转的落点高亮 */
+  .citation-flash {
+    animation: citationFlash 1.6s ease-out;
+  }
+
+  @keyframes citationFlash {
+    from {
+      background-color: var(--color-accent-subtle);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+
   .stagger-1 {
     animation-delay: 0.05s;
   }

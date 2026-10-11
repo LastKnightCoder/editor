@@ -1,6 +1,7 @@
 import { Editor } from "slate";
 import { setOrInsertNode } from "@tau/editor";
 import { v4 as getId } from "uuid";
+import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import {
   createWhiteBoardContent,
   incrementWhiteBoardContentRefCount,
@@ -20,6 +21,7 @@ export const insertWhiteboard = async (editor: Editor) => {
       viewPort: { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 },
       selection: { selectArea: null, selectedElements: [] },
       presentationSequences: [],
+      version: WHITEBOARD_DOCUMENT_VERSION,
     },
     name: "白板",
     imgUrl: "",

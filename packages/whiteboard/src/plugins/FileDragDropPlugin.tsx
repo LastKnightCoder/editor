@@ -1,4 +1,4 @@
-import { browserMediaOptions, type MediaExtensionOptions } from "../extensions/media";
+import { browserMediaInfo, type MediaCapabilities } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
 
@@ -15,7 +15,7 @@ import { AUDIO_CARD_HEIGHT, AUDIO_DEFAULT_WIDTH } from "../constants/audio";
 export class FileDragDropPlugin implements IBoardPlugin {
   name = "file-drag-drop";
 
-  constructor(private readonly media: MediaExtensionOptions = browserMediaOptions) {}
+  constructor(private readonly media: MediaCapabilities = browserMediaInfo) {}
 
   // 拖拽进入时阻止默认行为
   onDragEnter(e: DragEvent, _board: Board) {

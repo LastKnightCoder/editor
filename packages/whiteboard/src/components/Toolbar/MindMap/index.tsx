@@ -1,13 +1,12 @@
 import type { WhiteboardToolProps } from "../../../extensions/api";
 import { Network } from "lucide-react";
 
-import { useCreateElementType } from "../../../hooks";
-import { ECreateBoardElementType } from "../../../types";
+import { useActiveTool } from "../../../hooks";
+import { MIND_TOOL_ID } from "../../../constants/tools";
 import { ChromeButton } from "../../../chrome";
 
 const MindMap = ({ run }: WhiteboardToolProps) => {
-  const createType = useCreateElementType();
-  const active = createType === ECreateBoardElementType.MindMap;
+  const active = useActiveTool() === MIND_TOOL_ID;
 
   return (
     <ChromeButton

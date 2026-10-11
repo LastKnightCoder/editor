@@ -5,12 +5,12 @@ import {
   Board,
   BoardElement,
   ContextMenuContext,
-  ECreateBoardElementType,
   IBoardPlugin,
   IElementCapabilities,
   Operation,
   PluginContextMenuItem,
 } from "../types";
+import { HANDWRITE_TOOL_ID } from "../constants/tools";
 import {
   ChildrenRenderOrder,
   ContainmentBehavior,
@@ -154,7 +154,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
         icon: <PenLine size={14} />,
         priority: 115,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.currentCreateType = ECreateBoardElementType.Handwrite;
+          ctx.board.setActiveTool(HANDWRITE_TOOL_ID);
         },
       });
     }

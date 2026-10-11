@@ -10,17 +10,6 @@ import type { ElementSketch } from "./sketch.ts";
 
 export { default as Board } from "../Board.tsx";
 
-export enum ECreateBoardElementType {
-  None = "none",
-  Geometry = "geometry",
-  StraightArrow = "straightArrow",
-  Handwrite = "handwrite",
-  Text = "text",
-  MindMap = "mindMap",
-  Frame = "frame",
-  Column = "column",
-}
-
 /**
  * 白板元素。指向笔记（卡片、文章、项目文档、日记）的元素要能出现在脉络「被使用 · 白板」里，
  * 字段按 src/entity/whiteboard-refs.ts 文件头的接入约定写（优先用通用的 entityRef）。
@@ -39,6 +28,8 @@ export interface BoardElement {
   entityRef?: EntityRef;
   /** 手绘覆盖（D-107）：未设置时跟随页面画风 */
   sketch?: ElementSketch;
+  /** 元素数据结构版本（缺省视为 1）；低于所属扩展定义版本时由运行时迁移 */
+  schemaVersion?: number;
   [key: string]: any;
 }
 

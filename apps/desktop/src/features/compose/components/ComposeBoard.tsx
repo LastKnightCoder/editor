@@ -70,9 +70,9 @@ function ComposeCanvasLayer() {
       const removed = removedGatheredKeys(before, after);
       if (removed.length) onRemoved(removed);
     };
-    board.on("onValueChange", onValueChange);
+    board.on("value:change", onValueChange);
     return () => {
-      board.off("onValueChange", onValueChange);
+      board.off("value:change", onValueChange);
       if (session.getState().board === board) session.setState({ board: null, documents: [] });
     };
   }, [board, session, onRemoved]);

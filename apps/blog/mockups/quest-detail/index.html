@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>求索录详情页重设计 · 方案总览</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+  .plan { display: block; padding: 20px; border-radius: 10px; background: var(--bg-container); box-shadow: 0 0 0 1px var(--line-soft); }
+  .plan:hover { box-shadow: 0 0 0 1px var(--accent); color: inherit; }
+  .plan .k { font-family: var(--serif); font-size: 22px; font-weight: 600; }
+  .plan .s { font-size: 12px; color: var(--ink-3); margin: 2px 0 10px; }
+  .plan p { font-size: 13px; color: var(--ink-2); margin: 0; line-height: 1.8; }
+  .plan .order { font-family: var(--serif); font-size: 14px; margin-top: 12px; color: var(--ink-1); }
+  h2 { font-size: 18px; margin: 56px 0 12px; }
+  .ops { font-size: 14px; line-height: 1.95; color: var(--ink-2); padding-left: 20px; }
+  .ops li { margin-bottom: 10px; }
+  .ops b { color: var(--ink-1); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  td, th { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-weight: 600; color: var(--ink-3); font-size: 12px; }
+  @media (max-width: 860px) { .plans { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div data-header></div>
+<main class="column" style="max-width:960px">
+  <div class="kicker">求索录详情页 · 重设计</div>
+  <h1 class="title" style="font-size:32px">让读者看到「怎么得出」的，而不只是「得出了什么」</h1>
+  <p class="lead">现状只有「问 → 解」。桌面端的问题其实已经记录了材料（question_link）、对话（question_chat）和轨迹（question_event），这些都没发布出去。三套方案在博客原有的朴素风格上补出「径（探索过程）」与「据（引用资料）」，区别在于过程与证据摆在哪里。示例问题相同，便于对比；右上角 ◐ 可切换明暗。</p>
+
+  <div class="plans">
+    <a class="plan" href="plan-a.html"><div class="k">A · 论文式</div><div class="s">脚注 + 参考文献</div>
+      <p>结论先行，探索过程和资料作为「方法」与「参考文献」附在后面。改动最小，最朴素。</p>
+      <div class="order">问 → 解 → 径 → 据</div></a>
+    <a class="plan" href="plan-b.html"><div class="k">B · 旁注式</div><div class="s">资料贴在正文边上</div>
+      <p>资料以旁注形式与引用处对齐，顶部有研究概览，「径」是九天节奏图。证据感最强。</p>
+      <div class="order">问 → 概览 → 解 ‖ 旁注 → 径 → 据</div></a>
+    <a class="plan" href="plan-c.html"><div class="k">C · 研究日志</div><div class="s">过程即正文</div>
+      <p>按天展开研究日志，资料作为引文卡嵌在发生的那一天，顶部给结论速览。最强调研究过程。</p>
+      <div class="order">问 → 速览 → 径 → 解 → 据</div></a>
+  </div>
+
+  <h2>我的推荐</h2>
+  <p class="lead" style="margin-top:0">以 <b>A 为骨架、吸收 C 的两个元素</b>：顶部「结论速览」和「弯路 / 想通了」笔记标记。理由：A 对内容质量没有要求（只有自动轨迹也不难看），可以作为所有问题的默认模板；C 的日志体验最好，但需要你在探究时勤写笔记，适合作为「轨迹足够丰富时」自动切换的形态，而不是默认。B 的旁注很漂亮，但要做避让排布和窄屏降级，性价比最低，可以以后再加。</p>
+
+  <h2>需要你拍板的几个问题</h2>
+  <ol class="ops">
+    <li><b>正文里的 [n] 从哪来？</b>答案正文目前没有「引用」这种节点。三个选项：① 自动——答案里已有的 content-link 若指向本问题的材料，就编号成引用；② 新增一个行内「引用」元素，在编辑器里从材料列表挑；③ 不在正文编号，只在文末列资料。我建议 ①，零额外操作，后续再考虑 ②。</li>
+    <li><b>未公开的资料怎么展示？</b>现在的发布策略是「引用不等于公开」。我建议：已公开的卡片/文章 → 链接；划线、PDF 标注、剪藏本身就是摘录 → 直接展示原文 + 外部出处；未公开的卡片 → 只给标题和前一两句摘录，并标「未公开」。也可以做成发布时逐条勾选。</li>
+    <li><b>AI 对话公开到什么程度？</b>完整对话通常太长且涉及隐私。建议默认只显示「与 AI 讨论 N 次」，发布时可以手动挑选 1–3 条消息作为摘选（question_chat.message_ids 已经能记录具体消息）。</li>
+    <li><b>轨迹是否全部展示？</b>自动事件（关联、状态变更）很密，建议发布时只保留：提出、里程碑（写卡片/文章）、手写笔记、解决；关联事件合并到当天一行。</li>
+    <li><b>「弯路」要不要成为正式类型？</b>question_event 的 note 现在只有一种。如果给 note 加一个可选标记（弯路 / 想通了 / 疑问），研究过程的叙事性会强很多，桌面端也能用上。</li>
+  </ol>
+
+  <h2>其他建议</h2>
+  <ol class="ops">
+    <li><b>反向链接：</b>卡片、文章详情页底部加「被这些求索引用」，资料与问题双向可达，博客会更像一张知识网。</li>
+    <li><b>列表页同步：</b>求索录列表每行可以加一行灰字「9 天 · 7 份资料」，让读者知道哪些问题研究得深。</li>
+    <li><b>外链安全：</b>剪藏等外部链接统一 <code>rel="noopener nofollow"</code> 并带 ↗ 标识，与站内跳转（→）区分。</li>
+    <li><b>进行中的问题：</b>没有「解」时，C 方案的日志反而最合适——页面变成「正在研究的公开笔记」，比现在的「仍在路上」空态更有内容。</li>
+    <li><b>发布体积：</b>资料只导出摘录（截断到 ~200 字），不内嵌完整卡片正文，避免页面膨胀，也与现有「引用不等于公开」的策略一致。</li>
+  </ol>
+
+  <h2>数据改动预估</h2>
+  <table>
+    <tr><th>项</th><th>现状</th><th>需要</th></tr>
+    <tr><td>Schema</td><td>question_link / question_chat / question_event 已存在</td><td>无需改表（若加 note 标记，只是 payload 字段）</td></tr>
+    <tr><td>发布器</td><td>createQuestEntry 只导出 answers</td><td>追加 materials（类型、标题、摘录、href/外链）、筛选后的 events、对话摘选</td></tr>
+    <tr><td>博客类型</td><td>QuestData 只有 answers</td><td>QuestData 增加 materials / trail 字段</td></tr>
+    <tr><td>模板</td><td>QuestPage 问 + 解</td><td>新增「径 / 据」两节、引用浮层、跳转高亮</td></tr>
+  </table>
+</main>
+<script src="shared.js"></script>
+<script>QuestMock.header();</script>
+</body>
+</html>

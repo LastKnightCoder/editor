@@ -162,12 +162,18 @@ export class CapabilityService {
         return false;
       case ContainmentBehavior.Any:
         // Any 容器（如 frame）接受一切可被包含的元素，由容器方黑名单兜底；
-        // 子方 canBeContainedBy 声明只用于向 Restricted 容器 opt-in，
+        // 子方 canBeContainedBy / joins 声明只用于向受限容器 opt-in，
         // 不构成对 Any 容器的排他限制
         return containerCaps.canContain?.(child) ?? true;
       case ContainmentBehavior.Restricted:
-        // Restricted 容器（如 column/mind-node）的准入由子方声明反转决定，
-        // 子方未声明时回退容器方的 canContain
+        // Restricted 容器（如 column/mind-node）的准入由子方声明反转决定：
+        // 声明了 kind 的容器（如 column 的 "layout"）按子方 joins 裁决，
+        // 再叠加容器方 canContain；未声明 kind 时子方 canBeContainedBy 优先，
+        // 子方未声明则回退容器方的 canContain
+        if (containerCaps.kind) {
+          if (!childCaps.joins?.includes(containerCaps.kind)) return false;
+          return containerCaps.canContain?.(child) ?? true;
+        }
         if (childCaps.canBeContainedBy) {
           return childCaps.canBeContainedBy(container);
         }

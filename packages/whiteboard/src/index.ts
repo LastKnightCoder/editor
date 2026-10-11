@@ -1,6 +1,17 @@
 export { default, default as WhiteBoard } from "./WhiteBoard";
 export type { WhiteBoardProps, WhiteBoardRef } from "./WhiteBoard";
 export * from "./extensions/api";
+export type {
+  WhiteboardKernelEvents,
+  KernelEventName,
+  ExtensionEventName,
+} from "./extensions/events";
+export { KERNEL_EVENT_NAMES } from "./extensions/events";
+export {
+  WHITEBOARD_DOCUMENT_VERSION,
+  getDocumentVersion,
+  isDocumentVersionSupported,
+} from "./document-version";
 export { useWhiteboardAPI } from "./extensions/runtime";
 export * from "./types/selection";
 export * from "./types/point";
@@ -18,7 +29,7 @@ export * from "./types/presentation";
 export * from "./types/frame";
 export * from "./types/sketch";
 export * from "./types/column";
-export { ECreateBoardElementType } from "./types/board";
+export { SELECT_TOOL_ID } from "./constants/tools";
 export type {
   BoardElement,
   ElementBounds,

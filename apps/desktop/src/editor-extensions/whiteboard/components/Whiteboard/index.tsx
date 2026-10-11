@@ -8,7 +8,7 @@ import { AddParagraph, type ElementRenderProps } from "@tau/editor/api";
 
 import { If } from "@tau/shared";
 import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
-import { ViewPort } from "@tau/whiteboard";
+import { ViewPort, getDocumentVersion } from "@tau/whiteboard";
 import { getWhiteBoardContentById, updateSubWhiteBoard } from "@/commands";
 import { WhiteBoardContent } from "@/types";
 
@@ -244,6 +244,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                 initSelection={whiteboardData.selection}
                 initPresentationSequences={whiteboardData.presentationSequences || []}
                 initSketch={whiteboardData.sketch}
+                version={getDocumentVersion(whiteboardData)}
                 style={{ width: "100%", height: "100%" }}
                 readonly={readOnly}
                 onChange={handleWhiteboardChange}
@@ -280,6 +281,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
                   initSelection={whiteboardData.selection}
                   initPresentationSequences={whiteboardData.presentationSequences || []}
                   initSketch={whiteboardData.sketch}
+                  version={getDocumentVersion(whiteboardData)}
                   style={{ width: "100%", height: "100%" }}
                   readonly={readOnly}
                   onChange={handleWhiteboardChange}

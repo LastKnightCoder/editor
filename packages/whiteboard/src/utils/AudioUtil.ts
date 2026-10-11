@@ -1,4 +1,4 @@
-import type { MediaExtensionOptions } from "../extensions/media";
+import type { MediaCapabilities } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 
 import { Board, Operation, AudioElement } from "../types";
@@ -8,7 +8,7 @@ export class AudioUtil {
   /**
    * Insert audio from a local file
    */
-  static async insertAudio(file: File, board: Board, media: MediaExtensionOptions): Promise<void> {
+  static async insertAudio(file: File, board: Board, media: MediaCapabilities): Promise<void> {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     const audioPath = await media.upload?.(file);
@@ -133,7 +133,7 @@ export class AudioUtil {
     audioBlob: Blob,
     text: string,
     board: Board,
-    media: MediaExtensionOptions
+    media: MediaCapabilities
   ): Promise<void> {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;

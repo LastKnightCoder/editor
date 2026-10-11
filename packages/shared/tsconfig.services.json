@@ -1,5 +1,5 @@
 {
   "extends": "../markdown/tsconfig.json",
-  "include": ["service-contract.ts", "runtime-style.ts"],
+  "include": ["service-contract.ts", "service-registry.ts", "runtime-style.ts"],
   "exclude": []
 }

@@ -4,6 +4,16 @@ import Operation from "./operation";
 import ContentTable from "./content";
 // import log from "electron-log";
 
+/**
+ * 与 packages/whiteboard/src/document-version.ts 的 getDocumentVersion 保持一致
+ * （主进程不依赖渲染包，避免拉入 React）；两边常量由 __tests__/white-board-content.test.ts 对账。
+ */
+function getDocumentVersion(data: unknown): number {
+  if (!data || typeof data !== "object") return 1;
+  const version = (data as { version?: unknown }).version;
+  return typeof version === "number" && Number.isInteger(version) && version > 0 ? version : 1;
+}
+
 export default class WhiteboardTable {
   private static collectElementContentIdCounts(children: unknown[]): Map<number, number> {
     const counts = new Map<number, number>();
@@ -153,6 +163,14 @@ export default class WhiteboardTable {
     whiteboard: Omit<WhiteBoardContent, "createTime" | "updateTime" | "refCount">
   ): WhiteBoardContent {
     const currentWhiteboard = this.getWhiteboardContent(db, whiteboard.id);
+    // 库中文档版本更高时拒绝写入，防止旧版本应用覆盖新版本文档
+    if (getDocumentVersion(currentWhiteboard?.data) > getDocumentVersion(whiteboard.data)) {
+      throw new Error(
+        `白板页 ${whiteboard.id} 由更新版本的应用创建（文档版本 ${getDocumentVersion(
+          currentWhiteboard.data
+        )} > ${getDocumentVersion(whiteboard.data)}），当前版本不能覆盖`
+      );
+    }
     this.acquireAddedContentRefs(
       db,
       currentWhiteboard?.data?.children || [],

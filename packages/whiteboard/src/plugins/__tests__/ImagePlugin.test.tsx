@@ -1,4 +1,4 @@
-import { browserMediaOptions } from "../../extensions/media";
+import { browserMediaInfo } from "../../extensions/media";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../components/ImageElement", () => ({
@@ -33,7 +33,7 @@ const getCreateImageMenu = (items: PluginContextMenuItem[]) => {
 describe("ImagePlugin", () => {
   it("右键空白区域展示完整图片插入菜单", () => {
     const plugin = new ImagePlugin({
-      ...browserMediaOptions,
+      ...browserMediaInfo,
       actions: ["image-local", "image-url", "image-ai"],
     });
     const items = plugin.getContextMenu(createContext());
@@ -44,7 +44,7 @@ describe("ImagePlugin", () => {
 
   it("图片插入菜单应触发对应 action", () => {
     const plugin = new ImagePlugin({
-      ...browserMediaOptions,
+      ...browserMediaInfo,
       actions: ["image-local", "image-url", "image-ai"],
     });
     const ctx = createContext();
@@ -60,7 +60,7 @@ describe("ImagePlugin", () => {
       const item = menu.children?.find(child => child.key === key);
       expect(item).toBeTruthy();
       item?.onSelect(ctx);
-      expect(ctx.board.emit).toHaveBeenLastCalledWith("context-menu:open-modal", {
+      expect(ctx.board.emit).toHaveBeenLastCalledWith("tau.modal.open", {
         type: "image",
         action,
       });

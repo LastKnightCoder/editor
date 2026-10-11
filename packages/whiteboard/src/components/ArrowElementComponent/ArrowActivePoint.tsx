@@ -87,7 +87,7 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
           false
         );
 
-        board.emit("arrow:update", {
+        board.emit("tau.arrow.update", {
           arrow: lastArrowElement.current,
           path: pathRef.current,
           currentPoint: currentPoint.current,
@@ -134,7 +134,7 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
     lastArrowElement.current = arrowElement;
     originalArrowElement.current = arrowElement;
 
-    board.emit("arrow:move-end");
+    board.emit("tau.arrow.move-end");
 
     const boardContainer = BOARD_TO_CONTAINER.get(board);
     document.removeEventListener("pointerup", handlePointerUp);

@@ -12,6 +12,7 @@ export * from "./common";
 export * from "./snap/SnapGeometry";
 export * from "./ArrowUtil.ts";
 export * from "./ConnectPointUtil.ts";
+export * from "./ArrowConnectTracker.ts";
 export * from "./MindUtil.ts";
 export * from "./MindThemeUtil.ts";
 export * from "./FrameUtil.ts";

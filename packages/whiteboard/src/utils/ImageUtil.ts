@@ -1,4 +1,4 @@
-import type { MediaExtensionOptions } from "../extensions/media";
+import type { MediaCapabilities } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 import {
@@ -33,7 +33,7 @@ export class ImageUtil {
     return { shadowSize } as const;
   }
 
-  static async insertImage(file: File, board: Board, media: MediaExtensionOptions) {
+  static async insertImage(file: File, board: Board, media: MediaCapabilities) {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     const info = await media.imageInfo(file);

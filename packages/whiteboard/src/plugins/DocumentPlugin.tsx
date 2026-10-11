@@ -1,6 +1,4 @@
-import { isKeyHotkey } from "is-hotkey";
 import { FileText, Maximize2 } from "lucide-react";
-import { isEditableTarget } from "@tau/ui";
 import {
   Board,
   BoardElement,
@@ -33,7 +31,7 @@ export interface DocumentElement extends CommonElement {
 }
 
 /** 展开请求：宿主监听后打开阅读纸 */
-export const DOCUMENT_OPEN_EVENT = "document:open";
+export const DOCUMENT_OPEN_EVENT = "tau.document.open";
 
 /** 新建时的默认尺寸：卡片与碎碎念短，文章与项目文档竖版 */
 export const DOCUMENT_DEFAULT_SIZE: Record<DocumentKind, { width: number; height: number }> = {
@@ -64,7 +62,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
       containment: {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
-        canBeContainedBy: (container: BoardElement) => container.type === "column",
+        joins: ["layout"],
       },
       movement: { behavior: MovementBehavior.Normal },
       refLine: { participatesInRefLines: true },
@@ -81,7 +79,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
           icon: <FileText size={14} />,
           priority: 140,
           onSelect: (ctx: ContextMenuContext) => {
-            ctx.board.emit("context-menu:open-modal", { type: "document" });
+            ctx.board.emit("tau.modal.open", { type: "document" });
           },
         },
       ];
@@ -100,15 +98,6 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
       ];
     }
     return [];
-  }
-
-  onKeyDown(e: KeyboardEvent, board: Board) {
-    if (!isKeyHotkey("enter", e) || isEditableTarget(e.target)) return;
-    const selected = board.selection.selectedElements;
-    if (selected.length !== 1 || !isDocumentElement(selected[0])) return;
-    e.preventDefault();
-    requestOpenDocument(board, selected[0].id);
-    return false;
   }
 
   onResize(

@@ -19,7 +19,7 @@ const DocumentSetter = memo(({ element, onChange }: DocumentSetterProps) => {
     <>
       <ChromeButton
         label="展开"
-        kbd="↵"
+        kbd={board.extensions?.api.getShortcut("tau.document.open") ?? undefined}
         tooltipPlacement={side}
         onClick={() => requestOpenDocument(board, element.id)}
       >

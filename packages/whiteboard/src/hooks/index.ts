@@ -1,6 +1,7 @@
 export { useBoard } from "./useBoard";
+export { useActiveTool } from "./useActiveTool";
+export { useCreateToolCursor } from "./useCreateToolCursor";
 export { useBoardState } from "./useBoardState";
-export { useCreateElementType } from "./useCreateElementType";
 export { useDropArrow } from "./useDropArrow";
 export { useMoveArrow } from "./useMoveArrow";
 export { usePresentationState } from "./usePresentationState";

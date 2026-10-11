@@ -17,6 +17,19 @@ export class PointUtil {
     };
   }
 
+  /** screenToViewPort 的反向：画布坐标 → 屏幕（client）坐标；容器未挂载返回 null */
+  static viewPortToScreen(board: Board, x: number, y: number) {
+    const container = BOARD_TO_CONTAINER.get(board);
+    if (!container) return null;
+    const { minX, minY, zoom } = board.viewPort;
+    const { x: containerX, y: containerY } = container.getBoundingClientRect();
+
+    return {
+      x: (x - minX) * zoom + containerX,
+      y: (y - minY) * zoom + containerY,
+    };
+  }
+
   static getResizePointFromRect(rect: BBox) {
     const { x, y } = rect;
     // 获取矩形的 8 个可 resize 的圆点，保证圆心在线上

@@ -9,6 +9,8 @@ import { QuestAnswerData, QuestData } from "@blog/types";
 import DndProvider from "@blog/components/DndProvider";
 import { getBlogKit } from "@blog/services/editorKit";
 import { fadeUp, defaultTransition } from "@blog/utils/motion";
+import { CitationProvider, CitationScope } from "@blog/components/Citation";
+import { QuestReferences, QuestTrail, ResearchSection, ResearchStats } from "./QuestResearch";
 
 const statusLabels: Record<QuestData["status"], string> = {
   not_started: "未开始",
@@ -142,14 +144,19 @@ const AnswerContent = memo(
 
 AnswerContent.displayName = "AnswerContent";
 
-const SectionKicker = memo(({ label, className = "" }: { label: string; className?: string }) => (
-  <div
-    className={`${serifLabelClass} ${className} mb-5 inline-flex items-center gap-3 text-lg font-semibold text-[var(--color-text-primary)]`}
-  >
-    <span>{label}</span>
-    <span className="h-px w-10 bg-[var(--color-border-ring-heavy)]" />
-  </div>
-));
+const SectionKicker = memo(
+  ({ label, hint, className = "" }: { label: string; hint?: string; className?: string }) => (
+    <div
+      className={`${serifLabelClass} ${className} mb-5 inline-flex items-center gap-3 text-lg font-semibold text-[var(--color-text-primary)]`}
+    >
+      <span>{label}</span>
+      {hint && (
+        <span className="text-[13px] font-normal text-[var(--color-text-tertiary)]">{hint}</span>
+      )}
+      <span className="h-px w-10 bg-[var(--color-border-ring-heavy)]" />
+    </div>
+  )
+);
 
 SectionKicker.displayName = "SectionKicker";
 
@@ -217,6 +224,8 @@ const QuestPage = memo(() => {
   const docCollections = initData.docCollections || [];
   const blogSettings = initData.settings;
   const hasDescription = Boolean(quest.description && getPlainText(quest.description).trim());
+  const materials = quest.materials ?? [];
+  const trail = quest.trail ?? [];
 
   const readingTime = useMemo(() => {
     const answerContent = quest.answers.flatMap(answer => answer.content || []);
@@ -246,72 +255,89 @@ const QuestPage = memo(() => {
       <main className="min-h-0 flex-1 overflow-hidden">
         <div className="h-full min-h-0 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
           <div className="panel-scroll-area" data-primary-scroll-container>
-            <article className="wide-prose-column">
-              <motion.header
-                className="mb-10"
-                initial={fadeUp.hidden}
-                animate={fadeUp.visible}
-                transition={defaultTransition}
-              >
-                <div className="mb-5 flex flex-wrap items-center gap-2">
-                  <Tag name={quest.groupTitle} size="sm" />
-                  <span className="tag">{statusLabels[quest.status]}</span>
-                  <span className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
-                    {formatDate(quest.updateTime)} · 约 {readingTime} 分钟
-                  </span>
-                </div>
-                <SectionKicker label="问" className="mb-4" />
-                <h1 className="text-4xl font-bold leading-[1.08] text-[var(--color-text-primary)] sm:text-5xl">
-                  {quest.title}
-                </h1>
-                {hasDescription && quest.description && (
-                  <div
-                    className="mt-6 max-w-[68ch] text-[15px] leading-8 text-[var(--color-text-tertiary)]"
-                    data-testid="quest-description"
-                  >
-                    <DndProvider>
-                      <Editor
-                        initValue={quest.description}
-                        readonly
-                        className="text-[var(--color-text-tertiary)]"
-                      />
-                    </DndProvider>
+            <CitationProvider materials={materials} basePath={site.basePath}>
+              <article className="wide-prose-column">
+                <motion.header
+                  className="mb-10"
+                  initial={fadeUp.hidden}
+                  animate={fadeUp.visible}
+                  transition={defaultTransition}
+                >
+                  <div className="mb-5 flex flex-wrap items-center gap-2">
+                    <Tag name={quest.groupTitle} size="sm" />
+                    <span className="tag">{statusLabels[quest.status]}</span>
+                    <span className="text-xs font-medium uppercase tracking-[0.15em] text-[var(--color-text-tertiary)]">
+                      {formatDate(quest.updateTime)} · 约 {readingTime} 分钟
+                    </span>
                   </div>
-                )}
-              </motion.header>
-
-              <section className="space-y-14">
-                {quest.answers.length > 0 ? (
-                  quest.answers.map((answer, index) => (
-                    <section key={answer.id}>
-                      <AnswerHeader
-                        answer={answer}
-                        basePath={site.basePath}
-                        index={index}
-                        showDivider={hasDescription || index > 0}
-                        total={quest.answers.length}
-                      />
-                      <AnswerContent
-                        answer={answer}
-                        basePath={site.basePath}
-                        settings={blogSettings}
-                      />
-                    </section>
-                  ))
-                ) : (
-                  <div>
-                    <p
-                      className={`${serifLabelClass} text-lg font-semibold text-[var(--color-text-secondary)]`}
+                  <SectionKicker label="问" className="mb-4" />
+                  <h1 className="text-4xl font-bold leading-[1.08] text-[var(--color-text-primary)] sm:text-5xl">
+                    {quest.title}
+                  </h1>
+                  {hasDescription && quest.description && (
+                    <div
+                      className="mt-6 max-w-[68ch] text-[15px] leading-8 text-[var(--color-text-tertiary)]"
+                      data-testid="quest-description"
                     >
-                      仍在路上
-                    </p>
-                    <p className="mt-2 max-w-[42ch] text-sm leading-7 text-[var(--color-text-tertiary)]">
-                      这条求索暂时还没有整理出答案。
-                    </p>
-                  </div>
+                      <DndProvider>
+                        <Editor
+                          initValue={quest.description}
+                          readonly
+                          className="text-[var(--color-text-tertiary)]"
+                        />
+                      </DndProvider>
+                    </div>
+                  )}
+                  <ResearchStats quest={quest} />
+                </motion.header>
+
+                <CitationScope name="answer">
+                  <section className="space-y-14">
+                    {quest.answers.length > 0 ? (
+                      quest.answers.map((answer, index) => (
+                        <section key={answer.id}>
+                          <AnswerHeader
+                            answer={answer}
+                            basePath={site.basePath}
+                            index={index}
+                            showDivider={hasDescription || index > 0}
+                            total={quest.answers.length}
+                          />
+                          <AnswerContent
+                            answer={answer}
+                            basePath={site.basePath}
+                            settings={blogSettings}
+                          />
+                        </section>
+                      ))
+                    ) : (
+                      <div>
+                        <p
+                          className={`${serifLabelClass} text-lg font-semibold text-[var(--color-text-secondary)]`}
+                        >
+                          仍在路上
+                        </p>
+                        <p className="mt-2 max-w-[42ch] text-sm leading-7 text-[var(--color-text-tertiary)]">
+                          这条求索暂时还没有整理出答案。
+                        </p>
+                      </div>
+                    )}
+                  </section>
+                </CitationScope>
+
+                {trail.length > 0 && (
+                  <ResearchSection kicker={<SectionKicker label="径" hint="探索过程" />}>
+                    <QuestTrail trail={trail} />
+                  </ResearchSection>
                 )}
-              </section>
-            </article>
+
+                {materials.length > 0 && (
+                  <ResearchSection kicker={<SectionKicker label="据" hint="参考资料" />}>
+                    <QuestReferences materials={materials} basePath={site.basePath} />
+                  </ResearchSection>
+                )}
+              </article>
+            </CitationProvider>
           </div>
         </div>
       </main>

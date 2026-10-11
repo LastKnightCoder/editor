@@ -13,7 +13,7 @@ export class ExportImagePlugin implements IBoardPlugin {
       icon: <Download size={14} />,
       priority: 320,
       onSelect: (ctx: ContextMenuContext) => {
-        ctx.board.emit("context-menu:open-modal", {
+        ctx.board.emit("tau.modal.open", {
           type: "export-image",
           action: "board",
         });
@@ -27,7 +27,7 @@ export class ExportImagePlugin implements IBoardPlugin {
         icon: <Download size={14} />,
         priority: 321,
         onSelect: (ctx: ContextMenuContext) => {
-          ctx.board.emit("context-menu:open-modal", {
+          ctx.board.emit("tau.modal.open", {
             type: "export-image",
             action: "selection",
             selectedElementIds: ctx.targetElements.map(element => element.id),

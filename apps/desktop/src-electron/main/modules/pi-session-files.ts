@@ -18,6 +18,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
+import { recordSyncIo } from "./perf-record";
 import {
   CURRENT_SESSION_VERSION,
   SessionManager,
@@ -92,10 +93,11 @@ export function writeSessionFile(options: {
       parentId = displayId;
     }
   }
-  writeFileSync(
-    join(options.sessionDir, fileName),
-    `${lines.map(line => JSON.stringify(line)).join("\n")}\n`
-  );
+  const sessionFilePath = join(options.sessionDir, fileName);
+  const content = `${lines.map(line => JSON.stringify(line)).join("\n")}\n`;
+  const syncIoStart = Date.now();
+  writeFileSync(sessionFilePath, content);
+  recordSyncIo(`write:${sessionFilePath}`, content.length, Date.now() - syncIoStart);
   return fileName;
 }
 
@@ -413,15 +415,19 @@ function ensureFlushed(manager: SessionManager): void {
   if (existsSync(file)) return;
   const header = manager.getHeader();
   const entries = [header, ...manager.getEntries()].filter(Boolean);
-  writeFileSync(file, `${entries.map(entry => JSON.stringify(entry)).join("\n")}\n`, {
-    flag: "wx",
-  });
+  const content = `${entries.map(entry => JSON.stringify(entry)).join("\n")}\n`;
+  const syncIoStart = Date.now();
+  writeFileSync(file, content, { flag: "wx" });
+  recordSyncIo(`write:${file}`, content.length, Date.now() - syncIoStart);
   manager.setSessionFile(file);
 }
 
 /** 解析会话文件（纯读，供测试与诊断） */
 export function readSessionEntries(sessionFile: string): RawEntry[] {
-  return parseSessionEntries(readFileSync(sessionFile, "utf8")) as unknown as RawEntry[];
+  const syncIoStart = Date.now();
+  const raw = readFileSync(sessionFile, "utf8");
+  recordSyncIo(`read:${sessionFile}`, raw.length, Date.now() - syncIoStart);
+  return parseSessionEntries(raw) as unknown as RawEntry[];
 }
 
 /** 追加一行原始 entry（测试辅助：模拟外部写入） */

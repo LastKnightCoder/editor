@@ -3,7 +3,9 @@ import { toast } from "@tau/ui";
 import Board from "../Board";
 import { bindTextContent } from "../extensions/textBinding";
 import { createFileImportExtension } from "../extensions/builtins";
-import { browserMediaOptions } from "../extensions/media";
+import { createServiceRegistry } from "../extensions";
+import { IResourceService } from "@tau/shared/host-services";
+import { IMediaInfoService } from "@tau/shared/media-services";
 
 const boards: Board[] = [];
 const create = () => {
@@ -98,13 +100,18 @@ it("媒体粘贴只上传一次，隐藏恢复后丢弃旧结果并关闭加载�
   const gate = deferred<string>();
   const upload = vi.fn(() => gate.promise);
   const dismiss = vi.spyOn(toast, "dismiss");
-  board.installExtensions([
-    createFileImportExtension({
-      ...browserMediaOptions,
-      imageInfo: async () => ({ width: 100, height: 80 }),
-      upload,
-    }),
-  ]);
+  board.installExtensions(
+    [createFileImportExtension()],
+    undefined,
+    createServiceRegistry(
+      register => register(IResourceService, { upload: async () => upload() }),
+      register =>
+        register(IMediaInfoService, {
+          imageInfo: async () => ({ width: 100, height: 80 }),
+          videoInfo: async () => null,
+        })
+    )
+  );
   const event = new Event("paste", { cancelable: true }) as ClipboardEvent;
   Object.defineProperty(event, "clipboardData", {
     value: {
