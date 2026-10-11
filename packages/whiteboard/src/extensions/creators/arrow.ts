@@ -111,11 +111,11 @@ export const arrowCreateGesture: CustomCreateGesture = {
 
         if (!arrow) {
           arrow = buildArrowElement(preset, startPoint, end, sourceSnap);
-          ctx.preview(arrow);
+          ctx.preview(arrow, { bounds: false });
           return;
         }
         arrow = tracker.getUpdateArrowElement(arrow, end, arrow.points.length - 1);
-        ctx.preview(arrow);
+        ctx.preview(arrow, { bounds: false });
         // 让其他元素监听，是否显示 arrow drop connect point
         ctx.api.emit("tau.arrow.update", {
           arrow,

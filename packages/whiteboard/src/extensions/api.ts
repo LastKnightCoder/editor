@@ -1,5 +1,12 @@
 import type { ComponentType, ReactNode } from "react";
-import type { BoardElement, ElementBounds, Operation, Selection, ViewPort } from "../types";
+import type {
+  BoardElement,
+  ContainerKind,
+  ElementBounds,
+  Operation,
+  Selection,
+  ViewPort,
+} from "../types";
 import type { StandardSchemaV1 } from "./standard-schema";
 import type { ExtensionEventName, WhiteboardKernelEvents } from "./events";
 
@@ -82,6 +89,14 @@ export type TypedBoardElement<TData> = BoardElement & { data: TData };
 /** TData 恰为 unknown（缺省）时退化为 BoardElement，保证不带泛型参数的旧定义完全兼容 */
 type ElementParam<TData> = unknown extends TData ? BoardElement : TypedBoardElement<TData>;
 
+/** 元素收纳声明（子元素一侧）：能否被容器收纳，以及愿意进入的受限容器类别 */
+export interface ElementContainmentSpec {
+  /** 能否被任何容器收纳，默认 true */
+  canBeContained?: boolean;
+  /** 愿意进入的受限容器类别；目前只有 "layout"（子元素位置由容器布局决定，例如分栏） */
+  joins?: readonly ContainerKind[];
+}
+
 export interface WhiteboardElementDefinition<TData = unknown> {
   type: string;
   render: ComponentType<{ element: ElementParam<TData>; children?: ReactNode }>;
@@ -94,6 +109,8 @@ export interface WhiteboardElementDefinition<TData = unknown> {
   migrate?: Record<number, (element: ElementParam<TData>) => BoardElement>;
   /** 约束 element.data 的 Standard Schema v1；提交与迁移产物校验均要求同步返回结果 */
   schema?: StandardSchemaV1<unknown, TData>;
+  /** 收纳声明：未声明时可被容器收纳（能进 frame，不能进 layout 类受限容器） */
+  containment?: ElementContainmentSpec;
   /** 创建规格：声明后可注册创建型工具（element 工具），在画布上手势创建该元素 */
   create?: ElementCreateSpec<TData>;
 }

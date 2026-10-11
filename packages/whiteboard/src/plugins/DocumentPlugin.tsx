@@ -62,7 +62,7 @@ export class DocumentPlugin extends CommonPlugin implements IBoardPlugin {
       containment: {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
-        canBeContainedBy: (container: BoardElement) => container.type === "column",
+        joins: ["layout"],
       },
       movement: { behavior: MovementBehavior.Normal },
       refLine: { participatesInRefLines: true },

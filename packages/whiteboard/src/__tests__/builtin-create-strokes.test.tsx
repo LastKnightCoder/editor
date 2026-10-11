@@ -232,8 +232,8 @@ afterEach(() => {
 });
 
 describe("arrow 创建工具", () => {
-  it("拖动创建：字段与旧构造逻辑一致、单撤销步、创建后选中并回到选择工具，拖动中文档不变", async () => {
-    const { board, fire, unmount } = await renderWhiteBoard([]);
+  it("拖动创建：字段与旧构造逻辑一致、单撤销步、创建后选中并回到选择工具，拖动中文档不变且预览不画描边", async () => {
+    const { board, host, fire, unmount } = await renderWhiteBoard([]);
     board.setActiveTool(ARROW_TOOL_ID);
 
     const childrenBefore = board.children;
@@ -242,6 +242,7 @@ describe("arrow 创建工具", () => {
     await fire("pointermove", 200, 160);
     expect(board.children).toBe(childrenBefore);
     expect(board.creationPreview?.element.type).toBe("arrow");
+    expect(host.querySelector("[data-creation-preview-bounds]")).toBeNull();
 
     await fire("pointerup", 200, 160);
     expect(board.children).toHaveLength(1);

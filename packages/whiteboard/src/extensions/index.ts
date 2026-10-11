@@ -2,6 +2,7 @@ export * from "./builtins";
 export type { WhiteboardExtensionError, WhiteboardExtensionErrorReason } from "./api";
 export { defineElement } from "./api";
 export type { TypedBoardElement, WhiteboardElementDefinition } from "./api";
+export type { ElementContainmentSpec } from "./api";
 export type {
   CreatePoint,
   CreatePointerContext,
