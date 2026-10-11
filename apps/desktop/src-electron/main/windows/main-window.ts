@@ -14,6 +14,7 @@ const mainWindows = new Set<BrowserWindow>();
 export function createMainWindow(): BrowserWindow {
   const win = createWindow({
     route: "",
+    role: "main",
     width: 1200,
     height: 800,
     minWidth: CONTENT_MIN_WIDTH,
