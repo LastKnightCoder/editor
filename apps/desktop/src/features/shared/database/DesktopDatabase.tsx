@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import Database, { type DatabaseProps, type DatabaseRef } from "@tau/database";
-import { deleteContent } from "@/commands/content";
 import { patchDataTableRow } from "@/commands/data-table";
 import { bindDatabaseCommands } from "@/services/command-context";
 import useSettingStore from "@/stores/useSettingStore";
@@ -48,7 +47,7 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
         instance.current?.dispatch({ type: "rows.receive", rows: props.data }, "external");
     }, [props.data, tableId]);
     const commands = useMemo(
-      () => bindDatabaseCommands({ deleteContent, patchDataTableRow }, { databaseName }),
+      () => bindDatabaseCommands({ patchDataTableRow }, { databaseName }),
       [databaseName]
     );
     const combinedExtensions = useMemo(
@@ -104,10 +103,7 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
           });
         }}
         onRowCleanup={async row => {
-          if (!isCurrent()) return;
-          if (!tableId && row.detailContentId && row.detailContentId > 0)
-            await commands.deleteContent(row.detailContentId);
-          await onRowCleanup?.(row);
+          if (isCurrent()) await onRowCleanup?.(row);
         }}
       />
     );

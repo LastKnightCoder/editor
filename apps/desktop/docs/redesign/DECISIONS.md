@@ -8,7 +8,7 @@
 - 数据表（`data_tables`）引用的正文——富文本单元格 contentId 与行 `detailContentId`——由 `@tau/shared` 的纯函数按字段类型收集（多重集合，每次出现计一次）。主进程每条数据表写路径在同一事务内对比新旧引用：新增 `retain`，减少 `releaseDeferred`。渲染端不再增减或删除这类正文引用；`CellPlugin.onColumnCleanup` 随之删除。
 - 新建正文以「待回收」状态创建（ref_count 0 + 登记待回收），首次保存进表时由差集 retain；未保存即崩溃的正文由回收清理。
 - 释放到 0 不立即硬删，登记 `content_pending_releases`；开库时回收释放超过宽限期且仍为 0 的正文，删除级联沿用原 `releaseContent` 逻辑。撤销在宽限期内重新引用即撤销登记。其它模块的 `deleteContent` 语义不变。
-- 不做存量对账：已泄漏的正文保持现状，不改历史 ref_count。图片/附件文件回收与卡片视图（无 tableId）路径不在本条范围；数据表物理删除见下方追记。
+- 不做存量对账：已泄漏的正文保持现状，不改历史 ref_count。图片/附件文件回收不在本条范围；卡片视图（无 tableId）行不带 detailContentId，原「无 tableId 删除行正文」分支不可达，已删除；数据表物理删除见下方追记。
 - 资源声明暂放 shared 按类型收集，而非字段插件成员：主进程不能引入含 React 的插件；第三方字段的资源声明随应用级插件运行时另议。
 - 追记（2026-10-11，数据表物理回收）：`data_tables.ref_count` 不可单独作为删除依据——协作会话中撤销删块不回加计数、`remove` 可减为负、删除正文与项目条目不减计数。表引用归零只登记 `data_table_pending_releases`；开库回收超过宽限期的登记前，先以实际引用对账：`database_item.data_table_id`、`project_item(ref_type='data-table')`、正文 JSON 中 `database` 节点的 `tableId`、本机协作会话的私有块。仍被引用的表按引用数复活（重新持有正文引用），无引用才删除表与视图。表回收先于正文回收执行，使复活能救回同批待回收正文。物理删除不再释放正文（1→0 时已释放；存量表不做对账，宁可泄漏）。存量 ref_count ≤ 0 且未登记的表在首次回收时登记，宽限期从此刻起算。`remove` 下限为 0。
 
