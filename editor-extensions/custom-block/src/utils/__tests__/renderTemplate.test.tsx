@@ -102,6 +102,37 @@ const Component = () => <div className="p-2">新模板</div>;
   });
 
   it(
+    "元素重挂载（新容器、同模板）：复用编译缓存，直接渲染且主题正确",
+    { timeout: 20000 },
+    async () => {
+      const code = `
+const Component = () => {
+  const { color } = useTokens();
+  return <div data-color={color("accent")}>缓存复用</div>;
+};
+`;
+      const first = await renderTemplate(code);
+      expect(first.textContent).toBe("缓存复用");
+
+      // 卸载首块后，模拟元素重挂载：全新容器 + 同模板（视口剔除进出的场景）
+      await act(async () => {
+        cleanup?.();
+      });
+      cleanup = undefined;
+
+      const remounted = document.createElement("div");
+      document.body.appendChild(remounted);
+      await act(async () => {
+        cleanup = await compileAndExecuteCustomBlock(code, createTheme(true), remounted);
+      });
+      expect(remounted.textContent).toBe("缓存复用");
+      expect(remounted.querySelector("[data-color]")?.getAttribute("data-color")).toBe(
+        "dark:accent"
+      );
+    }
+  );
+
+  it(
     "模板可用 ui 子集、icons 与 toast，主题切换后 useTokens 取色随之刷新",
     { timeout: 20000 },
     async () => {

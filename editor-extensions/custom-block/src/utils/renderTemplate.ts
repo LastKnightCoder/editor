@@ -18,6 +18,36 @@ const CUSTOM_BLOCK_RUNTIME_KEY = "__customBlockRuntime__";
 // 编译未完成时暂存最新主题，由首次渲染消费
 const CUSTOM_BLOCK_PENDING_THEME_KEY = "__customBlockPendingTheme__";
 
+/** 编译产物：模板组件 + 运行时样式。按模板源码缓存，跨挂载复用 */
+interface CompiledBlock {
+  Component: import("react").ComponentType<Record<string, never>>;
+  runtimeCss: string;
+}
+
+/**
+ * 编译缓存：同一模板的 Babel 编译（JSX/TS 转换，百 ms 级）与 Tailwind 运行时样式编译
+ * 只做一次。custom-block 所在的元素随视口剔除反复卸载/重挂（白板平移、滚动）时，
+ * 重挂载命中缓存直接渲染；内容不变就不再进编译器。
+ */
+const compiledCache = new Map<string, CompiledBlock>();
+const COMPILED_CACHE_LIMIT = 50;
+
+type TemplateReact = typeof import("react");
+
+// 首次编译时创建并复用：ThemeContext 单例保证缓存组件跨主题/跨挂载可用（主题经 Provider value 下发）
+let themeContextSingleton: import("react").Context<TemplateTheme> | null = null;
+let useTokensSingleton: (() => TemplateTheme) | null = null;
+const ensureTemplateHooks = (React: TemplateReact) => {
+  if (!themeContextSingleton) {
+    themeContextSingleton = React.createContext<TemplateTheme>({
+      isDark: false,
+      color: () => "",
+    });
+    useTokensSingleton = () => React.useContext(themeContextSingleton!);
+  }
+  return { ThemeContext: themeContextSingleton, useTokens: useTokensSingleton! };
+};
+
 interface CustomBlockRuntime {
   root?: Root;
   renderWithTheme?: (theme: CustomBlockTheme) => void;
@@ -153,9 +183,83 @@ export const compileAndExecuteCustomBlock = async (
   };
 
   try {
-    const runtimeCss = compilerService
-      ? await compilerService.compile({ source: content, language: "tsx" })
-      : "";
+    let runtimeCss: string;
+    let Component: CompiledBlock["Component"] | undefined;
+
+    const cached = compiledCache.get(content);
+    if (cached) {
+      runtimeCss = cached.runtimeCss;
+      Component = cached.Component;
+    } else {
+      runtimeCss = compilerService
+        ? await compilerService.compile({ source: content, language: "tsx" })
+        : "";
+
+      if (shouldAbort()) {
+        return undefined;
+      }
+
+      // 动态导入编译期依赖（渲染用的 react/react-dom 在缓存命中路径外按需导入）
+      const [React, Babel, TauUi, icons] = await Promise.all([
+        import("react"),
+        import("@babel/standalone"),
+        import("@tau/ui"),
+        import("lucide-react"),
+      ]);
+
+      if (shouldAbort()) {
+        return undefined;
+      }
+
+      const { useTokens } = ensureTemplateHooks(React);
+
+      const compiledCode =
+        Babel.transform(content, {
+          presets: [
+            Babel.availablePresets["react"],
+            [
+              Babel.availablePresets["typescript"],
+              {
+                onlyRemoveTypeImports: true,
+                allExtensions: true,
+                isTSX: true,
+              },
+            ],
+          ],
+        }).code || "";
+
+      if (shouldAbort()) {
+        return undefined;
+      }
+
+      const AsyncFunction = Object.getPrototypeOf(
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
+        async function () {}
+      ).constructor;
+
+      const fn = new AsyncFunction(
+        "React",
+        "ui",
+        "toast",
+        "useTokens",
+        "icons",
+        compiledCode + "\nreturn typeof Component === 'function' ? Component : undefined;"
+      );
+
+      if (shouldAbort()) {
+        return undefined;
+      }
+
+      Component = await fn(React, pickTemplateUi(TauUi), TauUi.toast, useTokens, icons);
+
+      if (typeof Component === "function") {
+        if (compiledCache.size >= COMPILED_CACHE_LIMIT) {
+          compiledCache.delete(compiledCache.keys().next().value as string);
+        }
+        compiledCache.set(content, { Component, runtimeCss });
+      }
+    }
+
     if (runtimeCss && typeof document !== "undefined") {
       const styleElement = document.createElement("style");
       styleElement.dataset.customBlockTailwind = "runtime";
@@ -166,68 +270,13 @@ export const compileAndExecuteCustomBlock = async (
       };
     }
 
-    if (shouldAbort()) {
-      return undefined;
-    }
-
-    // 动态导入依赖
-    const [React, ReactDOM, Babel, TauUi, icons] = await Promise.all([
-      import("react"),
-      import("react-dom/client"),
-      import("@babel/standalone"),
-      import("@tau/ui"),
-      import("lucide-react"),
-    ]);
-
-    if (shouldAbort()) {
-      return undefined;
-    }
-
     // 编译期间主题可能已变化，优先消费等待生效的最新主题
     const effectiveTheme = container[CUSTOM_BLOCK_PENDING_THEME_KEY] ?? theme;
     delete container[CUSTOM_BLOCK_PENDING_THEME_KEY];
 
-    const ThemeContext = React.createContext(toTemplateTheme(effectiveTheme));
-    const useTokens = () => React.useContext(ThemeContext);
-
-    const compiledCode =
-      Babel.transform(content, {
-        presets: [
-          Babel.availablePresets["react"],
-          [
-            Babel.availablePresets["typescript"],
-            {
-              onlyRemoveTypeImports: true,
-              allExtensions: true,
-              isTSX: true,
-            },
-          ],
-        ],
-      }).code || "";
-
-    if (shouldAbort()) {
-      return undefined;
-    }
-
-    const AsyncFunction = Object.getPrototypeOf(
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      async function () {}
-    ).constructor;
-
-    const fn = new AsyncFunction(
-      "React",
-      "ui",
-      "toast",
-      "useTokens",
-      "icons",
-      compiledCode + "\nreturn typeof Component === 'function' ? Component : undefined;"
-    );
-
-    if (shouldAbort()) {
-      return undefined;
-    }
-
-    const Component = await fn(React, pickTemplateUi(TauUi), TauUi.toast, useTokens, icons);
+    const React = await import("react");
+    const ReactDOM = await import("react-dom/client");
+    const ThemeContext = ensureTemplateHooks(React).ThemeContext;
 
     if (typeof Component !== "function") {
       return undefined;
