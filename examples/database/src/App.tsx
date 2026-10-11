@@ -18,15 +18,18 @@ export function App() {
   const onUpdateView: NonNullable<DatabaseProps["onUpdateView"]> = async (id, updates) => {
     const current = snapshot.current.views.find(view => view.id === id);
     if (!current) return null;
+    const type = updates.type ?? current.type;
     const updated: DatabaseView = {
       ...current,
       name: updates.name ?? current.name,
-      type: updates.type ?? current.type,
+      type,
       config: {
         ...current.config,
-        galleryConfig: updates.galleryConfig ?? current.config.galleryConfig,
-        calendarConfig: updates.calendarConfig ?? current.config.calendarConfig,
-        kanbanConfig: updates.kanbanConfig ?? current.config.kanbanConfig,
+        // 宿主按目标视图类型把专属配置写入 viewOptions[type]，其余子键保留
+        viewOptions:
+          updates.viewOptions === undefined
+            ? current.config.viewOptions
+            : { ...current.config.viewOptions, [type]: updates.viewOptions },
       },
     };
     snapshot.current.views = snapshot.current.views.map(view => (view.id === id ? updated : view));

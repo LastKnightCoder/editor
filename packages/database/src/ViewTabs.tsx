@@ -14,8 +14,8 @@ import { countFilterConditions } from "./core/filterTree";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DatabaseViewType } from "./types";
-import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
-import { getViewType } from "./views/registry";
+import { builtInViewRegistry } from "./views/builtInViewRegistry";
+import type { ViewRegistry } from "./views/ViewRegistry";
 
 interface DragItem {
   type: "view-tab";
@@ -24,6 +24,8 @@ interface DragItem {
 
 interface ViewTabsProps {
   pluginManager: PluginManager;
+  /** 运行时视图注册表；缺省为仅含内置四视图的注册表 */
+  viewRegistry?: ViewRegistry;
   onCreateView?: (type: DatabaseViewType, name: string, columnId?: string) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
@@ -50,6 +52,7 @@ interface ViewTabItemProps {
   allowDelete: boolean;
   columns: { id: string; title: string; type: string }[];
   pluginManager: PluginManager;
+  viewRegistry: ViewRegistry;
   getOrderedIds: () => number[];
   onActivate: (viewId: number) => void;
   onStartEdit: (viewId: number, currentName: string) => void;
@@ -60,7 +63,7 @@ interface ViewTabItemProps {
     viewId: number,
     name: string,
     type: DatabaseViewType,
-    viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
+    viewOptions?: unknown
   ) => Promise<void>;
 }
 
@@ -73,6 +76,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     allowDelete,
     columns,
     pluginManager,
+    viewRegistry,
     getOrderedIds,
     onActivate,
     onStartEdit,
@@ -84,7 +88,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     const editRef = useRef<EditTextHandle | null>(null);
     const [showEditPopover, setShowEditPopover] = useState(false);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
-    const ViewIcon = getViewType(view.type)?.icon ?? Table2;
+    const ViewIcon = viewRegistry.get(view.type)?.icon ?? Table2;
 
     useEffect(() => {
       if (isEditing) {
@@ -139,12 +143,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     });
 
     const handleUpdateView = useMemoizedFn(
-      async (
-        viewId: number,
-        name: string,
-        type: DatabaseViewType,
-        viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
-      ) => {
+      async (viewId: number, name: string, type: DatabaseViewType, viewOptions?: unknown) => {
         await onUpdateView?.(viewId, name, type, viewOptions);
         setShowEditPopover(false);
       }
@@ -221,6 +220,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
             view={view}
             columns={columns}
             pluginManager={pluginManager}
+            viewRegistry={viewRegistry}
             onConfirm={handleUpdateView}
             onClose={() => setShowEditPopover(false)}
           />
@@ -349,6 +349,7 @@ const CollapsibleSearch = ({
 const ViewTabs: React.FC<ViewTabsProps> = memo(
   ({
     pluginManager,
+    viewRegistry = builtInViewRegistry,
     onCreateView,
     onDeleteView,
     onActiveViewIdChange,
@@ -477,12 +478,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     );
 
     const handleUpdateView = useMemoizedFn(
-      async (
-        viewId: number,
-        name: string,
-        type: DatabaseViewType,
-        viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
-      ) => {
+      async (viewId: number, name: string, type: DatabaseViewType, viewOptions?: unknown) => {
         if (!onUpdateView) return;
         await onUpdateView(viewId, {
           name,
@@ -510,6 +506,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               allowDelete={views.length > 1}
               columns={columns}
               pluginManager={pluginManager}
+              viewRegistry={viewRegistry}
               getOrderedIds={() => orderedIdsRef.current}
               onActivate={handleActivate}
               onStartEdit={handleStartEdit}
@@ -608,6 +605,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           onConfirm={handleCreateView}
           columns={columns}
           pluginManager={pluginManager}
+          viewRegistry={viewRegistry}
           theme={theme}
         />
       </div>

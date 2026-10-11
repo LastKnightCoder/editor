@@ -50,11 +50,13 @@ export const config: TableViewConfig = {
   rowOrder: rows.map(row => row.id),
   sorts: [],
   filters: null,
-  galleryConfig: { coverType: "detail" },
-  calendarConfig: { dateColumnId: "date" },
-  kanbanConfig: {
-    groupColumnId: "status",
-    cardDisplay: { template: "task", doneColumnId: "done" },
+  viewOptions: {
+    gallery: { coverType: "detail" },
+    calendar: { dateColumnId: "date" },
+    kanban: {
+      groupColumnId: "status",
+      cardDisplay: { template: "task", doneColumnId: "done" },
+    },
   },
 };
 

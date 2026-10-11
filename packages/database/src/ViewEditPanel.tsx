@@ -1,48 +1,30 @@
-import React, { memo, useState, useEffect, useMemo } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { DatabaseView, DatabaseViewType } from "./types";
-import {
-  ColumnDef,
-  GalleryViewConfig,
-  CalendarViewConfig,
-  KanbanCardTemplate,
-  KanbanViewConfig,
-} from "./types";
+import { ColumnDef } from "./types";
 import { useMemoizedFn } from "ahooks";
-import ColumnDropdown from "./ColumnDropdown";
 import PluginManager from "./PluginManager";
-import {
-  getTemplateDefaultCardDisplay,
-  resolveKanbanCardDisplay,
-} from "./views/KanbanView/cardDisplayConfig";
 import { getViewOptions } from "./core/viewOptions";
-import { Button, Input, Checkbox, Radio, RadioGroup } from "@tau/ui";
-import { VIEW_TYPES } from "./views/registry";
+import { Button, Input, Radio, RadioGroup } from "@tau/ui";
+import { builtInViewRegistry } from "./views/builtInViewRegistry";
+import type { ViewRegistry } from "./views/ViewRegistry";
 
 interface ViewEditPanelProps {
   view: DatabaseView | null;
   columns: ColumnDef[];
   pluginManager: PluginManager;
-  onConfirm: (
-    viewId: number,
-    name: string,
-    type: DatabaseViewType,
-    viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
-  ) => void;
+  /** 运行时视图注册表；缺省为仅含内置四视图的注册表 */
+  viewRegistry?: ViewRegistry;
+  onConfirm: (viewId: number, name: string, type: DatabaseViewType, viewOptions?: unknown) => void;
   onClose: () => void;
 }
 
 const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
-  ({ view, columns, pluginManager, onConfirm, onClose }) => {
+  ({ view, columns, pluginManager, viewRegistry = builtInViewRegistry, onConfirm, onClose }) => {
     const [name, setName] = useState("");
     const [viewType, setViewType] = useState<DatabaseViewType>("table");
-    const [coverType, setCoverType] = useState<"detail" | "image">("detail");
-    const [coverImageColumnId, setCoverImageColumnId] = useState<string>("");
-    const [dateColumnId, setDateColumnId] = useState<string>("");
-    const [groupColumnId, setGroupColumnId] = useState<string>("");
-    const [kanbanTemplate, setKanbanTemplate] = useState<KanbanCardTemplate>("task");
-    const [kanbanDoneColumnId, setKanbanDoneColumnId] = useState<string>("");
-    const [kanbanVisibleFieldIds, setKanbanVisibleFieldIds] = useState<string[]>([]);
-    const [kanbanShowFieldLabels, setKanbanShowFieldLabels] = useState(false);
+    // 各视图类型的专属配置草稿互不干扰：切换类型再切回，未保存的编辑保留（同旧面板的分区状态）
+    const [optionsByType, setOptionsByType] = useState<Record<string, unknown>>({});
+    const [optionsCanSave, setOptionsCanSave] = useState(true);
 
     const orderedColumns = useMemo(() => {
       if (!view) return columns;
@@ -64,207 +46,40 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
 
       return ordered;
     }, [columns, view]);
-    const primaryColumnId = useMemo(() => columns.find(column => column.isPrimary)?.id, [columns]);
 
-    const isBooleanColumn = useMemoizedFn((column: ColumnDef) =>
-      pluginManager.hasCapability(column.type, "boolean")
-    );
-
+    // 视图对象会随保存回写重建（引用变、身份不变）：编辑中的草稿只按视图身份重置
+    const viewId = view?.id;
     useEffect(() => {
-      if (view) {
-        const gallery = getViewOptions<GalleryViewConfig>(view.config, "gallery");
-        const calendar = getViewOptions<CalendarViewConfig>(view.config, "calendar");
-        const kanban = getViewOptions<KanbanViewConfig>(view.config, "kanban");
-        const resolvedKanbanDisplay = resolveKanbanCardDisplay({
-          columns,
-          viewConfig: view.config,
-          kanban,
-          primaryColumnId,
-          groupColumnId: kanban?.groupColumnId,
-          isBooleanColumn,
-        });
+      if (!view) return;
+      setName(view.name);
+      setViewType(view.type);
+      setOptionsByType({ [view.type]: getViewOptions(view.config, view.type) });
+      setOptionsCanSave(true);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewId]);
 
-        setName(view.name);
-        setViewType(view.type);
-        setCoverType(gallery?.coverType || "detail");
-        setCoverImageColumnId(gallery?.coverImageColumnId || "");
-        setDateColumnId(calendar?.dateColumnId || "");
-        setGroupColumnId(kanban?.groupColumnId || "");
-        setKanbanTemplate(resolvedKanbanDisplay.template);
-        setKanbanDoneColumnId(resolvedKanbanDisplay.doneColumnId || "");
-        setKanbanVisibleFieldIds(resolvedKanbanDisplay.visibleFieldIds);
-        setKanbanShowFieldLabels(resolvedKanbanDisplay.showFieldLabels);
-      }
-    }, [view, columns, primaryColumnId, isBooleanColumn]);
+    const handleTypeChange = useMemoizedFn((type: DatabaseViewType) => {
+      if (type === viewType) return;
+      setViewType(type);
+      setOptionsCanSave(true);
+      // 首次切到某类型时，从视图已有配置装载该类型的草稿
+      setOptionsByType(previous =>
+        type in previous ? previous : { ...previous, [type]: getViewOptions(view?.config, type) }
+      );
+    });
+
+    const OptionsPanel = viewRegistry.get(viewType)?.OptionsPanel;
 
     const handleOk = useMemoizedFn(async () => {
       if (!view || !name.trim()) return;
-
       // 只提交当前视图类型的专属配置，由宿主写入 viewOptions[viewType]
-      const gallery: GalleryViewConfig | undefined =
-        viewType === "gallery"
-          ? {
-              coverType,
-              coverImageColumnId,
-            }
-          : undefined;
-
-      const calendar: CalendarViewConfig | undefined =
-        viewType === "calendar"
-          ? {
-              dateColumnId,
-            }
-          : undefined;
-
-      const resolvedKanbanDisplay = resolveKanbanCardDisplay({
-        columns,
-        viewConfig: view.config,
-        kanban:
-          viewType === "kanban" && groupColumnId
-            ? {
-                groupColumnId,
-                cardDisplay: {
-                  template: kanbanTemplate,
-                  doneColumnId: kanbanDoneColumnId || undefined,
-                  visibleFieldIds: kanbanVisibleFieldIds,
-                  showFieldLabels: kanbanShowFieldLabels,
-                },
-              }
-            : undefined,
-        primaryColumnId,
-        groupColumnId: groupColumnId || undefined,
-        isBooleanColumn,
-      });
-
-      const kanban: KanbanViewConfig | undefined =
-        viewType === "kanban"
-          ? {
-              groupColumnId: groupColumnId!,
-              cardDisplay: {
-                template: resolvedKanbanDisplay.template,
-                doneColumnId: resolvedKanbanDisplay.doneColumnId,
-                visibleFieldIds: resolvedKanbanDisplay.visibleFieldIds,
-                showFieldLabels: resolvedKanbanDisplay.showFieldLabels,
-              },
-            }
-          : undefined;
-
-      onConfirm(view.id, name.trim(), viewType, gallery ?? calendar ?? kanban);
+      onConfirm(view.id, name.trim(), viewType, optionsByType[viewType]);
       onClose();
-    });
-
-    const imageColumns = orderedColumns.filter(col =>
-      pluginManager.hasCapability(col.type, "images")
-    );
-    const dateColumns = orderedColumns.filter(col => pluginManager.hasCapability(col.type, "date"));
-    const selectColumns = orderedColumns.filter(col =>
-      pluginManager.hasCapability(col.type, "singleOption")
-    );
-    const checkboxColumns = orderedColumns.filter(col => isBooleanColumn(col) && !col.hidden);
-    const effectiveViewConfig = view?.config ?? {
-      columnOrder: orderedColumns.map(column => column.id),
-    };
-
-    const kanbanDisplay = resolveKanbanCardDisplay({
-      columns,
-      viewConfig: effectiveViewConfig,
-      kanban: groupColumnId
-        ? {
-            groupColumnId,
-            cardDisplay: {
-              template: kanbanTemplate,
-              doneColumnId: kanbanDoneColumnId || undefined,
-              visibleFieldIds: kanbanVisibleFieldIds,
-              showFieldLabels: kanbanShowFieldLabels,
-            },
-          }
-        : undefined,
-      primaryColumnId,
-      groupColumnId: groupColumnId || undefined,
-      isBooleanColumn,
-    });
-
-    const handleTemplateChange = useMemoizedFn((template: KanbanCardTemplate) => {
-      setKanbanTemplate(template);
-      const preset = getTemplateDefaultCardDisplay({
-        template,
-        columns,
-        viewConfig: effectiveViewConfig,
-        groupColumnId: groupColumnId || undefined,
-        primaryColumnId,
-        doneColumnId: kanbanDoneColumnId || undefined,
-      });
-      setKanbanVisibleFieldIds(preset.visibleFieldIds);
-    });
-
-    const handleGroupColumnChange = useMemoizedFn((nextGroupColumnId: string) => {
-      setGroupColumnId(nextGroupColumnId);
-      const resolved = resolveKanbanCardDisplay({
-        columns,
-        viewConfig: effectiveViewConfig,
-        kanban: nextGroupColumnId
-          ? {
-              groupColumnId: nextGroupColumnId,
-              cardDisplay: {
-                template: kanbanTemplate,
-                doneColumnId: kanbanDoneColumnId || undefined,
-                visibleFieldIds: kanbanVisibleFieldIds,
-                showFieldLabels: kanbanShowFieldLabels,
-              },
-            }
-          : undefined,
-        primaryColumnId,
-        groupColumnId: nextGroupColumnId || undefined,
-        isBooleanColumn,
-      });
-      setKanbanDoneColumnId(resolved.doneColumnId || "");
-      setKanbanVisibleFieldIds(resolved.visibleFieldIds);
-    });
-
-    const handleDoneColumnChange = useMemoizedFn((nextDoneColumnId: string) => {
-      setKanbanDoneColumnId(nextDoneColumnId);
-      const resolved = resolveKanbanCardDisplay({
-        columns,
-        viewConfig: effectiveViewConfig,
-        kanban: groupColumnId
-          ? {
-              groupColumnId,
-              cardDisplay: {
-                template: kanbanTemplate,
-                doneColumnId: nextDoneColumnId || undefined,
-                visibleFieldIds: kanbanVisibleFieldIds,
-                showFieldLabels: kanbanShowFieldLabels,
-              },
-            }
-          : undefined,
-        primaryColumnId,
-        groupColumnId: groupColumnId || undefined,
-        isBooleanColumn,
-      });
-      setKanbanVisibleFieldIds(resolved.visibleFieldIds);
-    });
-
-    const handleVisibleFieldToggle = useMemoizedFn((fieldId: string) => {
-      const candidateOrder = new Map(
-        kanbanDisplay.candidateFields.map((field, index) => [field.id, index])
-      );
-      const currentIds = new Set(kanbanVisibleFieldIds);
-      if (currentIds.has(fieldId)) {
-        currentIds.delete(fieldId);
-      } else {
-        currentIds.add(fieldId);
-      }
-      const nextVisibleFieldIds = Array.from(currentIds).sort(
-        (idA, idB) =>
-          (candidateOrder.get(idA) ?? Number.MAX_SAFE_INTEGER) -
-          (candidateOrder.get(idB) ?? Number.MAX_SAFE_INTEGER)
-      );
-      setKanbanVisibleFieldIds(nextVisibleFieldIds);
     });
 
     if (!view) return null;
 
-    const canSave = name.trim() && (viewType !== "kanban" || groupColumnId);
+    const canSave = name.trim() !== "" && optionsCanSave;
 
     return (
       <div
@@ -290,147 +105,25 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           <RadioGroup
             label="视图类型"
             value={viewType}
-            onValueChange={value => setViewType(value as DatabaseViewType)}
+            onValueChange={value => handleTypeChange(value as DatabaseViewType)}
             orientation="vertical"
           >
-            {VIEW_TYPES.map(definition => (
+            {viewRegistry.list().map(definition => (
               <Radio key={definition.type} value={definition.type} label={definition.name} />
             ))}
           </RadioGroup>
 
-          {/* Gallery Config */}
-          {viewType === "gallery" && (
-            <>
-              <RadioGroup
-                label="封面类型"
-                value={coverType}
-                onValueChange={value => setCoverType(value as "detail" | "image")}
-                orientation="vertical"
-              >
-                <Radio value="detail" label="详情" />
-                <Radio
-                  value="image"
-                  disabled={imageColumns.length === 0}
-                  label={imageColumns.length === 0 ? "图片（无图片列）" : "图片"}
-                />
-              </RadioGroup>
-
-              {coverType === "image" && imageColumns.length > 0 && (
-                <ColumnDropdown
-                  columns={imageColumns}
-                  selectedId={coverImageColumnId}
-                  onSelect={setCoverImageColumnId}
-                  placeholder="选择图片列"
-                  label="图片列"
-                />
-              )}
-            </>
-          )}
-
-          {/* Calendar Config */}
-          {viewType === "calendar" && (
-            <>
-              <ColumnDropdown
-                columns={dateColumns}
-                selectedId={dateColumnId}
-                onSelect={setDateColumnId}
-                placeholder={
-                  dateColumns.length === 0 ? "无日期列" : "选择日期列（默认使用第一个日期列）"
-                }
-                disabled={dateColumns.length === 0}
-                allowClear
-                label="日期列"
-              />
-              {dateColumns.length === 0 && (
-                <div className="text-tau-sm text-ink-3">请先添加一个日期类型的列</div>
-              )}
-            </>
-          )}
-
-          {/* Kanban Config */}
-          {viewType === "kanban" && (
-            <>
-              <RadioGroup
-                label="卡片模板"
-                value={kanbanTemplate}
-                onValueChange={value => handleTemplateChange(value as KanbanCardTemplate)}
-                orientation="vertical"
-              >
-                <Radio value="compact" label="简洁（仅标题）" />
-                <Radio value="task" label="任务（标题 + 完成 + 2属性）" />
-                <Radio value="detail" label="详情（标题 + 完成 + 4属性）" />
-              </RadioGroup>
-
-              <ColumnDropdown
-                columns={selectColumns}
-                selectedId={groupColumnId}
-                onSelect={handleGroupColumnChange}
-                placeholder={selectColumns.length === 0 ? "无单选列" : "选择用于看板分组的单选列"}
-                disabled={selectColumns.length === 0}
-                label="分组列"
-              />
-              {selectColumns.length === 0 && (
-                <div className="text-tau-sm text-ink-3">请先添加一个单选类型的列</div>
-              )}
-
-              <ColumnDropdown
-                columns={checkboxColumns}
-                selectedId={kanbanDoneColumnId}
-                onSelect={handleDoneColumnChange}
-                placeholder={
-                  checkboxColumns.length === 0
-                    ? "无复选框列"
-                    : "自动选择第一个复选框列（可手动指定）"
-                }
-                disabled={checkboxColumns.length === 0}
-                allowClear
-                label="完成状态列"
-              />
-              {checkboxColumns.length === 0 && (
-                <div className="text-tau-sm text-ink-3">当前没有复选框列，卡片将不显示完成状态</div>
-              )}
-
-              <div className="flex flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">卡片属性字段</span>
-                {kanbanTemplate === "compact" ? (
-                  <div className="bg-page text-tau-sm text-ink-3 rounded-tau-md px-3 py-2">
-                    简洁模板不展示属性字段
-                  </div>
-                ) : (
-                  <div className="bg-page rounded-tau-md max-h-44 overflow-y-auto p-1.5">
-                    {kanbanDisplay.candidateFields.length === 0 ? (
-                      <div className="text-tau-sm text-ink-3 px-2 py-1">暂无可显示字段</div>
-                    ) : (
-                      kanbanDisplay.candidateFields.map(field => {
-                        const checked = kanbanVisibleFieldIds.includes(field.id);
-                        return (
-                          <label
-                            key={field.id}
-                            className="rounded-tau-sm hover:bg-hover flex cursor-pointer items-center px-1.5 py-1"
-                          >
-                            <Checkbox
-                              checked={checked}
-                              onChange={() => handleVisibleFieldToggle(field.id)}
-                            />
-                            <span className="text-tau-sm text-ink-1 ml-2">{field.title}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <label className="bg-page rounded-tau-md flex cursor-pointer items-center justify-between px-3 py-2">
-                <span className="text-tau-sm text-ink-1">显示字段标签</span>
-                <Checkbox
-                  checked={kanbanShowFieldLabels}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                    setKanbanShowFieldLabels(event.target.checked)
-                  }
-                />
-              </label>
-            </>
+          {/* 视图专属配置区：由各视图定义的 OptionsPanel 提供 */}
+          {OptionsPanel && (
+            <OptionsPanel
+              options={optionsByType[viewType]}
+              onChange={nextOptions =>
+                setOptionsByType(previous => ({ ...previous, [viewType]: nextOptions }))
+              }
+              columns={orderedColumns}
+              pluginManager={pluginManager}
+              setCanSave={setOptionsCanSave}
+            />
           )}
         </div>
 

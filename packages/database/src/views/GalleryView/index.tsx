@@ -10,7 +10,7 @@ import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 import { ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
-import type { DatabaseViewComponentProps } from "../registry";
+import type { DatabaseViewComponentProps } from "../types";
 const emptyOnCellChange = () => {
   // no-op
 };

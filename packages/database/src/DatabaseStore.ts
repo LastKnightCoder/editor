@@ -20,6 +20,7 @@ import { applyRowChanges, diffRows } from "./core/changes";
 import { cloneViewOptions, setViewOptions } from "./core/viewOptions";
 import { FORMULA_TYPE } from "./core/formula";
 import { upgradeColumnConfig } from "./model/config-version";
+import { ViewRegistry } from "./views/ViewRegistry";
 
 export enum Direction {
   UP = "up",
@@ -131,6 +132,7 @@ export const createDatabaseStore = (
   initialViews?: DatabaseView[],
   activeViewId?: number,
   plugins = new PluginManager(),
+  viewRegistry: ViewRegistry = new ViewRegistry(),
   onRowCleanup?: (row: RowData) => void | Promise<void>
 ) => {
   const baseColumnOrder = initialColumns.map(col => col.id);
@@ -188,7 +190,14 @@ export const createDatabaseStore = (
         next.activeViewId !== before.activeViewId || viewType !== previousViewType;
       const projection =
         dataChanged || viewChanged || next.query !== before.query || switchedView
-          ? projectDatabase(next.rows, next.columns, next.viewConfig, next.query, plugins, viewType)
+          ? projectDatabase(
+              next.rows,
+              next.columns,
+              next.viewConfig,
+              next.query,
+              plugins,
+              viewRegistry.get(viewType ?? "")
+            )
           : before.projection;
       const validCell = (cell: CellCoord | null) =>
         cell &&
@@ -276,7 +285,7 @@ export const createDatabaseStore = (
         viewConfig,
         emptyQuery,
         plugins,
-        initialViews?.find(view => view.id === activeViewId)?.type
+        viewRegistry.get(initialViews?.find(view => view.id === activeViewId)?.type ?? "")
       ),
       lastChange: null,
       setQuery: query => set(state => ({ query: { ...state.query, ...query } })),

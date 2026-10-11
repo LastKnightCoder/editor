@@ -6,6 +6,7 @@ import { DatabaseContext, DatabaseStoreType } from "./DatabaseContext";
 import * as hooks from "./hooks";
 import { defineDatabaseExtension } from "./extensions";
 import type { DatabaseExtension, DatabaseContributions, DatabaseFieldOverride } from "./extensions";
+import { ViewRegistry } from "./views/ViewRegistry";
 import type {
   DatabaseProps,
   DatabaseConfig,
@@ -23,6 +24,14 @@ import type {
   DatabaseChange,
   RowChanges,
 } from "./types";
+import type {
+  DatabaseViewComponentProps,
+  DatabaseViewDefinition,
+  RequiredColumnSpec,
+  ViewOptionsPanelProps,
+  ViewGroupingContext,
+} from "./views/types";
+import type { RowGroup } from "./core/projection";
 
 export type {
   DatabaseProps,
@@ -45,10 +54,17 @@ export type {
   DatabaseCommand,
   DatabaseChange,
   RowChanges,
+  DatabaseViewComponentProps,
+  DatabaseViewDefinition,
+  RequiredColumnSpec,
+  ViewOptionsPanelProps,
+  ViewGroupingContext,
+  RowGroup,
 };
 
 export {
   PluginManager,
+  ViewRegistry,
   plugins,
   createDatabaseStore,
   DatabaseContext,

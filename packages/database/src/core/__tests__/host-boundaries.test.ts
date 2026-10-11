@@ -13,6 +13,7 @@ describe("宿主边界", () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       cleanup
     );
     store.getState().deleteRow("r");
@@ -35,11 +36,13 @@ describe("宿主边界", () => {
       undefined,
       undefined,
       undefined,
+      undefined,
       cleanupA
     );
     const b = createDatabaseStore(
       [],
       [{ id: "r" }],
+      undefined,
       undefined,
       undefined,
       undefined,

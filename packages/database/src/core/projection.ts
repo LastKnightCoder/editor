@@ -1,24 +1,10 @@
-import type {
-  ColumnDef,
-  RowData,
-  FilterGroup,
-  TableViewConfig,
-  DatabaseQuery,
-  CellValue,
-  SelectOption,
-} from "../types";
+import type { ColumnDef, RowData, FilterGroup, TableViewConfig, DatabaseQuery } from "../types";
 import type PluginManager from "../PluginManager";
 import { deriveFormulaRows } from "./formula/derive";
 import { getViewOptions } from "./viewOptions";
-import type { KanbanViewConfig } from "../types";
+import type { DatabaseViewDefinition, RowGroup } from "../views/types";
 
-export interface RowGroup {
-  key: string;
-  label: string;
-  rows: RowData[];
-  column: ColumnDef | null;
-  value?: CellValue;
-}
+export type { RowGroup };
 
 export interface DatabaseProjection {
   rows: RowData[];
@@ -43,7 +29,7 @@ export function projectDatabase(
   view: TableViewConfig,
   query: DatabaseQuery,
   plugins: PluginManager,
-  viewType = "table"
+  viewDefinition?: DatabaseViewDefinition
 ): DatabaseProjection {
   const rows = deriveFormulaRows(sourceRows, columns, plugins);
   const columnMap = new Map(columns.map(column => [column.id, column]));
@@ -100,33 +86,20 @@ export function projectDatabase(
     }
     return (ranks.get(a.id) ?? Infinity) - (ranks.get(b.id) ?? Infinity) || 0;
   });
+  const grouping = viewDefinition?.grouping;
   const groupColumn =
-    query.grouping === "view" && viewType !== "kanban" && viewType !== "calendar"
+    grouping === undefined && query.grouping === "view"
       ? columnMap.get(view.groupBy?.fieldId ?? "")
       : undefined;
   let groups: RowGroup[] = [{ key: "__all__", label: "全部", rows: ordered, column: null }];
-  if (viewType === "kanban") {
-    const kanban = getViewOptions<KanbanViewConfig>(view, "kanban");
-    const column = columnMap.get(kanban?.groupColumnId ?? "");
-    if (!column || !plugins.hasCapability(column.type, "singleOption")) groups = [];
-    else {
-      const options = (column.config as { options?: SelectOption[] } | undefined)?.options ?? [];
-      const optionMap = new Map(options.map(option => [option.id, option]));
-      const buckets = new Map(options.map(option => [option.id, [] as RowData[]]));
-      const uncategorized: RowData[] = [];
-      for (const row of ordered) {
-        const bucket = buckets.get(String(row[column.id]));
-        (bucket ?? uncategorized).push(row);
-      }
-      groups = uncategorized.length
-        ? [{ key: "__uncategorized__", label: "未分类", rows: uncategorized, column, value: null }]
-        : [];
-      for (const id of new Set([...(kanban?.columnOrder ?? []), ...optionMap.keys()])) {
-        const option = optionMap.get(id);
-        if (option)
-          groups.push({ key: id, label: option.name, rows: buckets.get(id)!, column, value: id });
-      }
-    }
+  if (viewDefinition && typeof viewDefinition.grouping === "function") {
+    groups = viewDefinition.grouping({
+      rows: ordered,
+      columns,
+      columnMap,
+      options: getViewOptions(view, viewDefinition.type),
+      plugins,
+    });
   } else if (groupColumn) {
     const granularity = view.groupBy?.granularity;
     const buckets = new Map<string, RowData[]>();
@@ -150,7 +123,7 @@ export function projectDatabase(
     rowIds: projectedRows.map(row => row.id),
     columnIds,
     groups,
-    grouped: Boolean(groupColumn) || viewType === "kanban",
+    grouped: typeof grouping === "function" || grouping === "view" || Boolean(groupColumn),
     canReorder: query.searchResults === null && rules.length === 0,
   };
 }

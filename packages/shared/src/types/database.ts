@@ -50,7 +50,15 @@ export interface DatabaseDataChange {
 
 // ============ View Types ============
 
-export type DataTableViewType = "table" | "gallery" | "calendar" | "kanban";
+/**
+ * 数据表视图类型：内置四值为 BUILT_IN_VIEW_TYPES（"table" / "gallery" / "calendar" / "kanban"）；
+ * 扩展贡献的视图要求带命名空间（如 "acme.timeline"，含 "."），以免与内置及其它扩展冲突。
+ * 持久化列 data_table_views.type 为 TEXT，不约束取值。
+ */
+export type DataTableViewType = string;
+
+/** 内置视图类型（顺序即创建弹窗与类型下拉的展示顺序） */
+export const BUILT_IN_VIEW_TYPES = ["table", "gallery", "calendar", "kanban"] as const;
 
 export interface GalleryViewConfig {
   coverType: "detail" | "image";

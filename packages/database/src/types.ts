@@ -59,7 +59,11 @@ export interface DatabaseData {
   rows: RowData[];
 }
 
-/** 视图类型 union：与持久化模型共用 @tau/shared 的单一来源 */
+/**
+ * 视图类型：与持久化模型共用 @tau/shared 的单一来源（string）。
+ * 内置四值为 @tau/shared 的 BUILT_IN_VIEW_TYPES（与包内 builtInViewDefinitions 由测试对账）；
+ * 扩展视图要求带命名空间（含 "."）。
+ */
 export type DatabaseViewType = DataTableViewType;
 
 export interface DatabaseView {

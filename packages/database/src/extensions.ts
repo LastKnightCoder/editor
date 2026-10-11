@@ -1,6 +1,9 @@
 import type { DatabaseSlots } from "./DatabaseHostContext";
 import PluginManager from "./PluginManager";
 import type { CellPlugin } from "./types";
+import type { DatabaseViewDefinition } from "./views/types";
+import { ViewRegistry } from "./views/ViewRegistry";
+import { builtInViewDefinitions } from "./views/builtInViews";
 
 export interface DatabaseFieldOverride {
   /** 目标字段类型，必须已由内置或其它扩展注册 */
@@ -12,6 +15,8 @@ export interface DatabaseFieldOverride {
 export interface DatabaseContributions {
   fieldTypes?: readonly CellPlugin<any>[];
   fieldOverrides?: readonly DatabaseFieldOverride[];
+  /** 扩展贡献的视图；type 必须带命名空间（含 "."），与内置或其它扩展重复报错 */
+  views?: readonly DatabaseViewDefinition[];
   slots?: DatabaseSlots;
   /** 每个 Database 实例挂载时启动，返回的清理函数在卸载时执行 */
   activate?(): void | (() => void);
@@ -32,6 +37,7 @@ export function defineDatabaseExtension(
 
 export interface DatabaseExtensionRuntime {
   pluginManager: PluginManager;
+  viewRegistry: ViewRegistry;
   slots: DatabaseSlots;
   activators: NonNullable<DatabaseContributions["activate"]>[];
 }
@@ -43,6 +49,9 @@ export function installDatabaseExtensions(
 ): DatabaseExtensionRuntime {
   const pluginManager = new PluginManager();
   pluginManager.registerPlugins([...builtInPlugins]);
+
+  const viewRegistry = new ViewRegistry();
+  viewRegistry.registerAll(builtInViewDefinitions);
 
   const extensionIds = new Set<string>();
   const contributions: { id: string; value: DatabaseContributions }[] = [];
@@ -58,6 +67,18 @@ export function installDatabaseExtensions(
       if (pluginManager.hasPlugin(plugin.type))
         throw new Error(`Database 扩展 ${id} 注册了已存在的字段类型：${plugin.type}`);
       pluginManager.registerPlugin(plugin);
+    }
+  }
+
+  for (const { id, value } of contributions) {
+    for (const definition of value.views ?? []) {
+      if (!definition.type.includes("."))
+        throw new Error(
+          `Database 扩展 ${id} 的视图类型必须带命名空间（含 "."）：${definition.type}`
+        );
+      if (viewRegistry.has(definition.type))
+        throw new Error(`Database 扩展 ${id} 注册了已存在的视图类型：${definition.type}`);
+      viewRegistry.register(definition);
     }
   }
 
@@ -92,5 +113,5 @@ export function installDatabaseExtensions(
     .map(({ value }) => value.activate)
     .filter((activate): activate is NonNullable<typeof activate> => activate !== undefined);
 
-  return { pluginManager, slots, activators };
+  return { pluginManager, viewRegistry, slots, activators };
 }

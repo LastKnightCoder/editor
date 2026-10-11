@@ -1,7 +1,9 @@
 import React, { memo, useEffect, useState } from "react";
 import { cn, Button, Dialog, DialogBody, Input, Select } from "@tau/ui";
 import { DatabaseViewType } from "./types";
-import { VIEW_TYPES, getViewType, type ViewTypeDefinition } from "./views/registry";
+import { builtInViewRegistry } from "./views/builtInViewRegistry";
+import type { ViewRegistry } from "./views/ViewRegistry";
+import type { DatabaseViewDefinition } from "./views/types";
 import type PluginManager from "./PluginManager";
 
 interface ViewTypeSelectModalProps {
@@ -10,12 +12,14 @@ interface ViewTypeSelectModalProps {
   onConfirm: (type: DatabaseViewType, name: string, columnId?: string) => void;
   columns: Array<{ id: string; title: string; type: string }>;
   pluginManager: PluginManager;
+  /** 运行时视图注册表；缺省为仅含内置四视图的注册表 */
+  viewRegistry?: ViewRegistry;
   theme: "light" | "dark";
 }
 
-/** 该视图创建时是否有可选的必需列（按注册表声明的字段能力过滤） */
+/** 该视图创建时是否有可选的必需列（按视图定义声明的字段能力过滤） */
 const requiredColumnCandidates = (
-  definition: ViewTypeDefinition,
+  definition: DatabaseViewDefinition,
   columns: ViewTypeSelectModalProps["columns"],
   pluginManager: PluginManager
 ) =>
@@ -26,13 +30,14 @@ const requiredColumnCandidates = (
     : null;
 
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
-  ({ open, onCancel, onConfirm, columns, pluginManager }) => {
+  ({ open, onCancel, onConfirm, columns, pluginManager, viewRegistry = builtInViewRegistry }) => {
     const [selectedType, setSelectedType] = useState<DatabaseViewType | null>(null);
     const [name, setName] = useState("");
     const [columnId, setColumnId] = useState<string | null>(null);
     const [userModifiedName, setUserModifiedName] = useState(false);
 
-    const selectedDefinition = selectedType ? getViewType(selectedType) : undefined;
+    const definitions = viewRegistry.list();
+    const selectedDefinition = selectedType ? viewRegistry.get(selectedType) : undefined;
     const requiredColumns = selectedDefinition
       ? requiredColumnCandidates(selectedDefinition, columns, pluginManager)
       : null;
@@ -52,7 +57,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
       setSelectedType(type);
       // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
       if (!userModifiedName) {
-        setName(getViewType(type)?.name ?? "");
+        setName(viewRegistry.get(type)?.name ?? "");
       }
     };
 
@@ -86,7 +91,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         <DialogBody>
           <div className="flex flex-col gap-5 py-1">
             <div className="grid grid-cols-2 gap-3">
-              {VIEW_TYPES.map(definition => {
+              {definitions.map(definition => {
                 const Icon = definition.icon;
                 const selected = selectedType === definition.type;
                 const disabled = definition.requiredColumn

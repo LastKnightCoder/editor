@@ -30,8 +30,8 @@ import type { DatabaseFieldModel } from "./model/field-model";
 import { installDatabaseExtensions, type DatabaseExtension } from "./extensions";
 import { useColumnResize, useKeyboardNavigation, useUndoRedoShortcut } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
-import { getViewType } from "./views/registry";
-import { getViewComponent } from "./views/components";
+import { ViewRegistryContext } from "./views/ViewRegistryContext";
+import MissingView from "./components/MissingView";
 import ViewTabs from "./ViewTabs";
 
 const emptyExtensions: readonly DatabaseExtension[] = [];
@@ -84,6 +84,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     });
     const {
       pluginManager: pluginMgr,
+      viewRegistry,
       slots,
       activators,
     } = useCreation(
@@ -116,6 +117,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
           views,
           activeViewId,
           pluginMgr,
+          viewRegistry,
           onRowCleanup
         ),
       []
@@ -248,20 +250,16 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         const { views, viewConfig } = store.getState();
         const nextOrder = Math.max(0, ...views.map(view => view.order ?? 0)) + 1;
 
-        // 构建视图配置：选定列时按注册表的 createConfig 追加该类型专有配置；
-        // viewOptions 子键逐个合并，避免整体覆盖当前视图已有的其它类型配置
-        const createConfigFragment = columnId
-          ? getViewType(type)?.createConfig?.(columnId)
-          : undefined;
-        const mergedViewOptions = {
-          ...viewConfig.viewOptions,
-          ...createConfigFragment?.viewOptions,
-        };
-        const config = {
-          ...viewConfig,
-          ...createConfigFragment,
-          viewOptions: Object.keys(mergedViewOptions).length ? mergedViewOptions : undefined,
-        };
+        // 构建视图配置：视图定义声明 createOptions 时写入 viewOptions[type]，
+        // 其余子键保持不动，避免整体覆盖当前视图已有的其它类型配置
+        const createdOptions = viewRegistry.get(type)?.createOptions?.(columnId);
+        const config =
+          createdOptions === undefined
+            ? { ...viewConfig }
+            : {
+                ...viewConfig,
+                viewOptions: { ...viewConfig.viewOptions, [type]: createdOptions },
+              };
 
         const result = await onCreateView?.({
           type,
@@ -336,8 +334,9 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       const activeView = storeViews.find(view => view.id === storeActiveViewId);
       if (!activeView) return null;
 
-      const ViewComponent = getViewComponent(activeView.type);
-      if (!ViewComponent) return null;
+      // 视图类型未注册（如扩展被移除）：渲染通用占位，数据与 viewOptions 原样保留
+      const definition = viewRegistry.get(activeView.type);
+      if (!definition) return <MissingView key={activeView.id} type={activeView.type} />;
 
       const viewProps = {
         pluginManager: pluginMgr,
@@ -351,10 +350,11 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         bare,
       };
 
-      return <ViewComponent key={activeView.id} {...viewProps} />;
+      return <definition.Component key={activeView.id} {...viewProps} />;
     }, [
       storeActiveViewId,
       storeViews,
+      viewRegistry,
       pluginMgr,
       startResize,
       finalTheme,
@@ -372,52 +372,55 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         <DatabaseFocusContext.Provider value={restoreFocus}>
           <DatabaseWriteContext.Provider value={commitRowPatch}>
             <DatabaseContext.Provider value={store}>
-              <div
-                ref={rootRef}
-                tabIndex={-1}
-                onPointerDownCapture={event => {
-                  if (
-                    event.target instanceof Node &&
-                    rootRef.current?.contains(event.target) &&
-                    !isEditableTarget(event.target)
-                  ) {
-                    rootRef.current.focus({ preventScroll: true });
-                  }
-                }}
-                className={cn(
-                  "relative flex h-full w-full flex-col overflow-hidden",
-                  !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
-                  className,
-                  {
-                    "cursor-col-resize select-none": isResizing,
-                  }
-                )}
-              >
-                <div className="shrink-0">
-                  <ViewTabs
-                    pluginManager={pluginMgr}
-                    onCreateView={handleCreateView}
-                    onDeleteView={handleDeleteView}
-                    onActiveViewIdChange={onActiveViewIdChange}
-                    onRenameView={handleRenameView}
-                    onUpdateView={handleUpdateView}
-                    onReorderViews={handleReorderViews}
-                    theme={finalTheme}
-                    bare={bare}
+              <ViewRegistryContext.Provider value={viewRegistry}>
+                <div
+                  ref={rootRef}
+                  tabIndex={-1}
+                  onPointerDownCapture={event => {
+                    if (
+                      event.target instanceof Node &&
+                      rootRef.current?.contains(event.target) &&
+                      !isEditableTarget(event.target)
+                    ) {
+                      rootRef.current.focus({ preventScroll: true });
+                    }
+                  }}
+                  className={cn(
+                    "relative flex h-full w-full flex-col overflow-hidden",
+                    !bare && "bg-surface border-line-1 shadow-card rounded-tau-md border",
+                    className,
+                    {
+                      "cursor-col-resize select-none": isResizing,
+                    }
+                  )}
+                >
+                  <div className="shrink-0">
+                    <ViewTabs
+                      pluginManager={pluginMgr}
+                      viewRegistry={viewRegistry}
+                      onCreateView={handleCreateView}
+                      onDeleteView={handleDeleteView}
+                      onActiveViewIdChange={onActiveViewIdChange}
+                      onRenameView={handleRenameView}
+                      onUpdateView={handleUpdateView}
+                      onReorderViews={handleReorderViews}
+                      theme={finalTheme}
+                      bare={bare}
+                    />
+                  </div>
+                  <div className="min-h-0 w-full flex-1">{View}</div>
+                  <ConfirmDialog
+                    open={confirmDeleteViewId !== null}
+                    onOpenChange={open => {
+                      if (!open) setConfirmDeleteViewId(null);
+                    }}
+                    title="确定删除此视图吗？"
+                    danger
+                    confirmText="删除"
+                    onConfirm={() => handleConfirmDeleteView()}
                   />
                 </div>
-                <div className="min-h-0 w-full flex-1">{View}</div>
-                <ConfirmDialog
-                  open={confirmDeleteViewId !== null}
-                  onOpenChange={open => {
-                    if (!open) setConfirmDeleteViewId(null);
-                  }}
-                  title="确定删除此视图吗？"
-                  danger
-                  confirmText="删除"
-                  onConfirm={() => handleConfirmDeleteView()}
-                />
-              </div>
+              </ViewRegistryContext.Provider>
             </DatabaseContext.Provider>
           </DatabaseWriteContext.Provider>
         </DatabaseFocusContext.Provider>

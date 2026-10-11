@@ -58,7 +58,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 ## 宿主能力
 
-宿主经 `extensions` 装配字段与插槽，集合在实例内必须引用稳定（模块级常量或 useMemo），变化即报错（D-128）：
+宿主经 `extensions` 装配字段、视图与插槽，集合在实例内必须引用稳定（模块级常量或 useMemo），变化即报错（D-128）：
 
 ```tsx
 const acmeExtension = defineDatabaseExtension({
@@ -66,6 +66,7 @@ const acmeExtension = defineDatabaseExtension({
   create: () => ({
     fieldTypes: [RatingPlugin], // 新增类型，与内置或其它扩展重复即报错
     fieldOverrides: [{ type: "link", patch: { Renderer: LinkRenderer } }], // 浅合并改造已有类型
+    views: [timelineViewDefinition], // 贡献视图（见下），与内置或其它扩展重复即报错
     slots: { RowDetailBody }, // 每个插槽键只能由一个扩展提供
     activate: () => () => {}, // 每实例挂载启动，返回值在卸载时清理
   }),
@@ -80,7 +81,29 @@ const extensions = [acmeExtension];
 
 字段插件经 `capabilities`（`FieldCapabilities`：date / singleOption / boolean / images）静态声明值格式与内置同名字段兼容，视图与面板只经 `PluginManager.hasCapability` 判定可用性（日历日期列、看板分组列与完成列、日期分组粒度、封面图片列），不按列类型名特判。能力不从 `valueType` 推断：公式列结果为日期也不能作日历列。
 
-视图类型元数据（名称、图标、创建所需列及初始配置片段）集中在 `views/registry.ts`，视图组件映射在 `views/components.ts`（仅根组件消费，分开以免视图组件与元数据循环依赖）。视图专属配置字段（gallery / calendar / kanban）与编辑面板配置区块暂未进入注册表（D-128）。
+扩展可贡献视图（D-130）：视图定义把元数据与组件合一（`DatabaseViewDefinition`），内置四视图（table / gallery / calendar / kanban）走同一注册路径。
+
+```tsx
+import type { DatabaseViewDefinition } from "@tau/database";
+
+interface TimelineOptions {
+  granularity: "day" | "week" | "month";
+}
+
+const timelineViewDefinition: DatabaseViewDefinition<TimelineOptions> = {
+  type: "acme.timeline", // 扩展视图必须带命名空间（含 "."），否则装配时报错
+  name: "时间线",
+  icon: TimelineIcon, // ComponentType<{ className?: string }>，不限定 lucide 图标
+  Component: TimelineView, // 接收 DatabaseViewComponentProps（pluginManager/theme/readonly/行回调等）
+  createOptions: () => ({ granularity: "month" }), // 创建视图时写入 viewOptions[type]
+  OptionsPanel: TimelineOptionsPanel, // 编辑面板的专属配置区块（受控，可经 setCanSave 阻止保存）
+  grouping: "none", // 投影行为：缺省走通用 groupBy；"none" 禁用通用分组；"view"/函数由视图自带分组
+};
+```
+
+视图注册表（`ViewRegistry`）是每个 Database 实例的运行时对象，由 `installDatabaseExtensions` 装配内置与扩展视图；重复 type、扩展视图缺命名空间均报错。`ViewOptionsPanelProps` 的 `setCanSave` 供「必须选分组列才能保存」类校验（看板用它）。内置视图定义在各视图目录（`views/<View>/definition.ts` + `OptionsPanel.tsx`），`views/builtInViews.ts` 聚合——视图组件只 import `views/types` 的类型，不与定义聚合形成环；`ViewTabs`、`ViewTypeSelectModal`、`ViewEditPanel` 经 props（如同 pluginManager）、`RowDetailHeader` 经 `ViewRegistryContext` 读取注册表实例，不静态 import 定义。
+
+视图类型不再受内置枚举限制（`DatabaseViewType` 为 string，内置四值见 `@tau/shared` 的 `BUILT_IN_VIEW_TYPES`）。残留的未知视图类型（如扩展被移除）渲染通用占位（「此视图类型不可用」）：标签仍可见、可删除、可改为其它类型，数据与 `viewOptions` 原样保留。
 
 字段插件可选声明 `valueType`（number / text / boolean / date，可按列给出）、`toScalar`（存储值 → 参与运算的标量，空为 null）与 `formatScalar`（数值汇总的展示文本），以参与表尾汇总与公式。未声明 `valueType` 的字段只能计数。汇总与公式引擎在 `core/formula`，只经这三个成员读取字段，不认识具体插件。`filters` 也可按列给出，读取统一经 `PluginManager.getFilterDefinitions(column)`。
 
