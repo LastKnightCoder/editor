@@ -3,6 +3,38 @@ import { WhiteBoard, WhiteBoardContent } from "@/types";
 import Operation from "./operation";
 import Project from "./project";
 import WhiteBoardContentTable from "./white-board-content";
+
+/** 列表投影剔除的元素字段：媒体地址可能内嵌 dataURL，而缩略示意图只画几何与样式 */
+const LIST_STRIPPED_ELEMENT_FIELDS = new Set(["src", "url"]);
+
+/**
+ * 列表数据投影：全库列表会随窗口焦点反复拉取，页数据只保留列表消费的字段——
+ * 元素结构（缩略示意图）、演示序列、页名与时间；选区置空、剔除媒体地址。
+ * 打开画布走单页全量通道（getWhiteBoardById / white-board-content:get-by-id），不依赖列表数据。
+ */
+function toListContent(content: WhiteBoardContent): WhiteBoardContent {
+  return {
+    ...content,
+    data: {
+      ...content.data,
+      selection: { selectArea: null, selectedElements: [] },
+      children: content.data.children?.map(toListElement),
+    },
+  };
+}
+
+function toListElement(element: any): any {
+  if (!element || typeof element !== "object") return element;
+  if (Array.isArray(element)) return element.map(toListElement);
+  const out: Record<string, any> = {};
+  for (const key of Object.keys(element)) {
+    if (LIST_STRIPPED_ELEMENT_FIELDS.has(key)) continue;
+    const value = element[key];
+    out[key] = value && typeof value === "object" ? toListElement(value) : value;
+  }
+  return out;
+}
+
 export default class WhiteboardTable {
   static getListenEvents() {
     return {
@@ -453,12 +485,12 @@ export default class WhiteboardTable {
 
     const whiteboards = stmt.all();
 
-    // 为每个白板加载内容列表
+    // 为每个白板加载内容列表；列表只喂元信息与缩略示意图，页数据转投影减载
     return whiteboards.map(whiteboard => {
       // 使用类型断言确保类型安全
       const wb = whiteboard as Record<string, any>;
       const contentIds = JSON.parse(wb.white_board_content_ids || "[]");
-      const contentList = this.buildOrderedContentList(db, contentIds);
+      const contentList = this.buildOrderedContentList(db, contentIds).map(toListContent);
 
       wb.white_board_content_list = contentList;
 
