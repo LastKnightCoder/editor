@@ -216,6 +216,36 @@ it("宿主保存后回写相同数据（rows.receive）不清空撤销栈", asyn
   expect(rows()[0].value).toBe("原值");
 });
 
+it("宿主推送相同列配置（column.configure）不清空撤销栈，配置变化仍清空", async () => {
+  const { ref, owner } = await mount({
+    columns: [
+      { id: "value", title: "值", type: "text", config: { options: ["甲"] } },
+      { id: "extra", title: "备注", type: "text" },
+    ],
+  });
+  await click("[data-edit]");
+
+  // 卡片视图每次刷新都推送列配置，内容不变
+  await act(async () => {
+    ref.current?.dispatch(
+      { type: "column.configure", id: "value", config: { options: ["甲"] } },
+      "external"
+    );
+  });
+  cmdZ(owner);
+  expect(rows()[0].value).toBe("原值");
+
+  await click("[data-edit]");
+  await act(async () => {
+    ref.current?.dispatch(
+      { type: "column.configure", id: "value", config: { options: ["甲", "乙"] } },
+      "external"
+    );
+  });
+  cmdZ(owner);
+  expect(rows()[0].value).toBe("改后");
+});
+
 it("移动列只改视图 order，不污染撤销历史", async () => {
   const { owner } = await mount();
   await click("[data-edit]");

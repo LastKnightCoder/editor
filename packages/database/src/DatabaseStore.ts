@@ -329,6 +329,9 @@ export const createDatabaseStore = (
           return;
         }
         if (command.type === "column.configure") {
+          const target = get().columns.find(column => column.id === command.id);
+          // 与当前配置一致时不提交：宿主每次刷新都会推送列配置，提交会把外部变更当真、清空撤销栈
+          if (!target || JSON.stringify(target.config) === JSON.stringify(command.config)) return;
           commit(
             state => ({
               columns: state.columns.map(column =>
