@@ -6,6 +6,7 @@ import { textFieldModel } from "./model";
 
 const TextPlugin: CellPlugin<any> = {
   type: textFieldModel.type,
+  model: textFieldModel,
   name: "文本",
   editable: true,
   valueType: textFieldModel.valueType,

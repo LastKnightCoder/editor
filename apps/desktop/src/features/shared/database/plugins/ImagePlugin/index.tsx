@@ -2,12 +2,14 @@ import { CellPlugin } from "@tau/database";
 import { Image } from "lucide-react";
 import { Renderer } from "./components";
 import { ImagePluginValue, ImagePluginConfig } from "./types";
+import { imageFieldModel } from "./model";
 
 const ImagePlugin: CellPlugin<ImagePluginConfig> = {
   type: "image",
   name: "图片",
   editable: false,
   capabilities: { images: true },
+  model: imageFieldModel,
   Renderer,
   Icon: ({ className }) => <Image className={className} />,
 

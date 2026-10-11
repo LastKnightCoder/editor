@@ -6,6 +6,7 @@ import { formatProgressRatio, progressFieldModel } from "./model";
 
 const ProgressPlugin: CellPlugin<null> = {
   type: progressFieldModel.type,
+  model: progressFieldModel,
   name: "进度",
   editable: true,
   valueType: progressFieldModel.valueType,

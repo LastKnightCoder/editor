@@ -2,6 +2,7 @@ import { CellPlugin, type CellValue } from "@tau/database";
 import { Link2 } from "lucide-react";
 import Renderer from "./components/Renderer";
 import { CardLinksCellValue, CardLinksPluginConfig } from "./types";
+import { cardLinksFieldModel } from "./model";
 
 const itemCount = (value: CellValue): number => {
   const cell = value as Partial<CardLinksCellValue> | null | undefined;
@@ -12,6 +13,7 @@ const CardLinksPlugin: CellPlugin<CardLinksPluginConfig> = {
   type: "card-links",
   name: "连接",
   editable: false, // 无编辑器模式，通过渲染器直接操作
+  model: cardLinksFieldModel,
   Renderer: Renderer as any,
   Icon: ({ className }) => <Link2 className={className} strokeWidth={1.75} />,
 

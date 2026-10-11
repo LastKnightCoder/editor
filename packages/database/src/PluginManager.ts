@@ -6,6 +6,7 @@ import {
   FieldCapabilities,
   RowData,
 } from "./types";
+import type { DatabaseFieldModel } from "./model/field-model";
 import { missingPlugin } from "./components/MissingPlugin";
 
 export class PluginManager {
@@ -41,6 +42,11 @@ export class PluginManager {
   /** 字段能力查询：未注册类型或未声明该能力均返回 false */
   hasCapability(type: string, capability: keyof FieldCapabilities): boolean {
     return this.plugins.get(type)?.capabilities?.[capability] === true;
+  }
+
+  /** 字段的纯数据 model（值口径与配置版本迁移，D-130）；未注册或插件未挂 model 时返回 undefined */
+  getModel(type: string): DatabaseFieldModel | undefined {
+    return this.plugins.get(type)?.model;
   }
 
   getAllPlugins(): CellPlugin<unknown>[] {

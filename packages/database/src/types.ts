@@ -23,6 +23,8 @@ import type { Scalar, ValueType } from "./core/formula/types";
 import type { SELECT_COLORS } from "./constants";
 import type { DatabaseImage } from "./DatabaseHostContext";
 import type { DatabaseExtension } from "./extensions";
+import type { DatabaseFieldModel } from "./model/field-model";
+import type PluginManager from "./PluginManager";
 
 // Re-export shared types
 export type {
@@ -165,11 +167,43 @@ export interface FieldCapabilities {
   images?: boolean;
 }
 
+/** 列配置编辑面板的受控 props：ColumnEditModal 在类型区下方渲染，draftConfig 由面板经 onChange 写回 */
+export interface FieldConfigPanelProps<T> {
+  config: T | undefined;
+  onChange(config: T): void;
+  /** 正在编辑的列；新建时为 null */
+  column: ColumnDef<T> | null;
+  columns: ColumnDef[];
+  rows: RowData[];
+  pluginManager: PluginManager;
+  /** 弹窗当前列标题草稿（如公式预览表头的名字） */
+  title: string;
+  /** 保存校验失败的错误文本，与 setError 配对；面板决定展示位置 */
+  error: string | null;
+  setError(message: string | null): void;
+}
+
+/** validateConfig 的上下文：与列配置校验所需的环境一致（正在编辑的列、全表与插件管理器） */
+export interface FieldConfigValidationContext {
+  column: ColumnDef | null;
+  columns: ColumnDef[];
+  rows: RowData[];
+  pluginManager: PluginManager;
+}
+
+/** 列配置编辑面板组件：可带 dialogWidth 静态属性声明弹窗宽度 */
+export type FieldConfigPanelComponent<T> = React.ComponentType<FieldConfigPanelProps<T>> & {
+  /** 配置面板需要更宽弹窗时声明（如公式构造器 880）；缺省 400 */
+  dialogWidth?: number;
+};
+
 export interface CellPlugin<T> {
   type: string;
   name: string;
   /** 字段能力：声明该字段的值与内置同名格式兼容，视图与面板据此决定是否可用；静态声明，不从 valueType 推断 */
   capabilities?: FieldCapabilities;
+  /** 字段的纯数据 model（值口径与配置版本迁移，D-130）；PluginManager 经 getModel 读取 */
+  model?: DatabaseFieldModel<T>;
   // 列头显示的图标
   Icon?: React.ComponentType<{ className?: string }>;
   Renderer: React.ComponentType<{
@@ -212,6 +246,13 @@ export interface CellPlugin<T> {
   toScalar?: (value: CellValue, column: ColumnDef<T>) => Scalar;
   /** 数值汇总结果的展示文本（如沿用数字列的小数位 / 前后缀、进度显示百分比） */
   formatScalar?: (value: number, column: ColumnDef<T>) => string;
+  /** 列配置编辑面板：受控组件，ColumnEditModal 在类型区下方渲染；未声明的字段保存时不改动 config */
+  ConfigPanel?: FieldConfigPanelComponent<T>;
+  /** 保存前的最终校验（如公式的完整性检查）；失败时 ColumnEditModal 显示错误并中止保存 */
+  validateConfig?(
+    config: T | undefined,
+    ctx: FieldConfigValidationContext
+  ): { ok: true; config: T } | { ok: false; message: string };
 }
 
 // ValidationRule is imported from @tau/shared

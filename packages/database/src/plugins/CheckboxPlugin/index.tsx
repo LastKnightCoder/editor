@@ -48,6 +48,7 @@ const Renderer: React.FC<{
 
 const CheckboxPlugin: CellPlugin<unknown> = {
   type: checkboxFieldModel.type,
+  model: checkboxFieldModel,
   name: "复选框",
   editable: false,
   capabilities: { boolean: true },
