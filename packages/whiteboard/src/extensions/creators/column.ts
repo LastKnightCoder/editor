@@ -14,7 +14,7 @@ export const COLUMN_CREATE_MIN_WIDTH = 50;
 
 /**
  * 分栏创建的收纳判定（纯函数）：只看根层候选，准入由能力系统裁决
- * （api.canContain("column", element)，即各插件 containment.canBeContainedBy 对 column 的声明），
+ * （api.canContain("column", element)，即子元素 containment.joins 对 layout 类别的声明），
  * 元素中心点落在拖出的矩形内算被放入。
  */
 export function collectColumnChildren(

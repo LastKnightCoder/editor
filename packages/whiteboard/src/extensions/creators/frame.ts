@@ -4,6 +4,7 @@ import type {
   CreatePointerContext,
   CustomCreateGesture,
   ElementCreateSpec,
+  WhiteboardAPI,
 } from "../api";
 import type {
   BoardElement,
@@ -21,11 +22,12 @@ export const FRAME_CREATE_MIN_SIZE = 10;
 
 /**
  * 旧 useCreateFrame 的收纳判定（纯函数）：只看根层候选，排除 frame 与 arrow，
+ * 并按能力查询（api.canContain("frame", …)）排除声明 canBeContained:false 的元素，
  * 与 frame（含 padding 容差）交集占元素面积 50% 以上算被框住（containmentPolicy "partial"）。
- * 不改用 api.canContain("frame", …)：column 声明 canBeContained:false，能力查询会把它拒之门外，
- * 与旧创建规则（column 可被新框收纳）不一致。
+ * column 的 canBeContained:false 与"新框架可收纳 column"的旧规则冲突，此处例外放行。
  */
 export function collectFrameChildren(
+  api: WhiteboardAPI,
   rootChildren: readonly BoardElement[],
   frame: FrameElement
 ): BoardElement[] {
@@ -33,6 +35,7 @@ export function collectFrameChildren(
     element =>
       element.type !== "frame" &&
       element.type !== "arrow" &&
+      (element.type === "column" || api.canContain("frame", element)) &&
       FrameUtil.isElementInFrame(element, frame)
   );
 }
@@ -85,7 +88,7 @@ export const frameCreateGesture: CustomCreateGesture = {
       const tooSmall = underMinSize(rect.width, rect.height);
       return {
         frame,
-        captured: tooSmall ? [] : collectFrameChildren(ctx.api.children, frame),
+        captured: tooSmall ? [] : collectFrameChildren(ctx.api, ctx.api.children, frame),
         tooSmall,
       };
     };

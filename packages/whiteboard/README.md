@@ -134,6 +134,15 @@ create: () => ({
 });
 ```
 
+### 收纳
+
+元素经 `containment` 声明自己作为子元素的收纳能力（D-133），不点名具体容器：`canBeContained`（默认 true）为 false 时不进入任何容器；`joins` 列出愿意进入的受限容器类别，目前只有 `"layout"`——子元素位置由容器布局决定（如分栏），进入后宽度随布局变化，元素渲染需要能适应宽度。框架这类自由容器默认接收所有可被收纳的元素。扩展暂不能声明容器。
+
+```tsx
+defineElement({ type: "demo.card", containment: { joins: ["layout"] }, render: Card });
+defineElement({ type: "demo.stamp", containment: { canBeContained: false }, render: Stamp });
+```
+
 ## 验证
 
 运行 `pnpm --filter @tau/whiteboard check`、`test`、`bench:hit`、`bench:render`；边界检查为 `pnpm check:whiteboard-boundaries`。独立示例使用 `pnpm --filter @example/whiteboard build`。视觉验收由用户完成。

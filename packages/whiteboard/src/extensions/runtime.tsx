@@ -40,6 +40,11 @@ import {
   WhiteboardValidationError,
 } from "./validation";
 import { UnknownElement } from "../components/UnknownElement";
+import {
+  CONTAINER_KINDS,
+  ContainmentBehavior,
+  type IElementCapabilities,
+} from "../types/capabilities";
 import type {
   IBoardPlugin,
   PluginContextMenuItem,
@@ -472,6 +477,13 @@ export class ExtensionRuntime {
                 type
               );
           }
+          for (const kind of element.containment?.joins ?? []) {
+            if (!CONTAINER_KINDS.includes(kind))
+              return invalidDefinition(
+                `扩展 ${id} 的元素 ${type} 的 containment.joins 含未知容器类别：${String(kind)}`,
+                type
+              );
+          }
           ownedTypes.add(type);
         }
         for (const command of value.commands ?? []) {
@@ -657,6 +669,18 @@ export class ExtensionRuntime {
         const currentVersion = readDefinitionSchemaVersion(element);
         const isVersionCompatible = (node: BoardElement) =>
           readElementSchemaVersion(node) === currentVersion;
+        // 声明了 containment 才提供能力：第三方元素只能声明子元素一侧，
+        // 版本不兼容（占位渲染）时收纳能力不随渲染降级
+        const containmentSpec = element.containment;
+        const declaredCapabilities: IElementCapabilities | undefined = containmentSpec
+          ? {
+              containment: {
+                asContainer: ContainmentBehavior.None,
+                canBeContained: containmentSpec.canBeContained ?? true,
+                joins: containmentSpec.joins,
+              },
+            }
+          : undefined;
         // 版本不兼容（数据比扩展新，或迁移失败停在旧版本）时按占位渲染，不调用作者实现
         plugins.push({
           name: element.type,
@@ -675,6 +699,7 @@ export class ExtensionRuntime {
                   },
                   props.children
                 ),
+          getCapabilities: declaredCapabilities ? () => declaredCapabilities : undefined,
           getBounds: element.getBounds
             ? (_board, node) =>
                 isVersionCompatible(node) ? element.getBounds!(clone(node)) : defaultBounds(node)

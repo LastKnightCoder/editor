@@ -31,6 +31,12 @@ export enum ContainmentBehavior {
   Restricted = "restricted",
 }
 
+/** 受限容器的类别清单；子元素以 joins 声明愿意进入的容器分组 */
+export const CONTAINER_KINDS = ["layout"] as const;
+
+/** 受限容器类别（目前只有 "layout"：子元素位置由容器布局决定，如分栏） */
+export type ContainerKind = (typeof CONTAINER_KINDS)[number];
+
 /**
  * 移动行为类型
  */
@@ -100,6 +106,17 @@ export interface IContainmentCapability {
 
   /** 作为子元素时是否可以被包含 */
   canBeContained: boolean;
+
+  /**
+   * 受限容器的类别（如 column 为 "layout"）。声明了 kind 的容器按子方 joins
+   * 声明裁决准入；未声明 kind 的 Restricted 容器仍走子方 canBeContainedBy。
+   */
+  kind?: ContainerKind;
+
+  /**
+   * 愿意进入的受限容器类别；容器声明了 kind 时，准入 = 本列表包含该 kind
+   */
+  joins?: readonly ContainerKind[];
 
   /**
    * 对于 Restricted 或 Any 类型，检查是否可以包含指定元素
