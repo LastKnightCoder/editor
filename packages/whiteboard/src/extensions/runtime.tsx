@@ -1,6 +1,5 @@
 import { createContext, createElement, useContext } from "react";
 import { ErrorBoundary, isEditableTarget } from "@tau/ui";
-import { isKeyHotkey } from "is-hotkey";
 import type Board from "../Board";
 import { BoardUtil } from "../utils/BoardUtil";
 import { PathUtil } from "../utils/PathUtil";
@@ -9,6 +8,7 @@ import BoardOperations from "../utils/BoardOperations";
 import type {
   ElementCreateSpec,
   WhiteboardAPI,
+  WhiteboardCommand,
   WhiteboardContributions,
   WhiteboardElementDefinition,
   WhiteboardExtension,
@@ -17,7 +17,15 @@ import type {
 import { createInternalPlugins, type InternalContributions } from "./internal";
 import { registerBoardAccess } from "./access";
 import { createSnapshotReader } from "./snapshot";
+import { assertEmittableEventName, assertSubscribableEventName } from "./events";
 import { createExtensionScope } from "./scope";
+import {
+  createHotkeyMatcher,
+  isReservedHotkey,
+  type HotkeyEntry,
+  type HotkeyCodeSpec,
+} from "./hotkeys";
+import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 import {
   migrateElementTree,
   readDefinitionSchemaVersion,
@@ -71,6 +79,13 @@ function defaultBounds(node: BoardElement): ElementBounds | null {
 /** 读内部 creators 通道（内置扩展为内部插件元素类型登记的创建规格；公共贡献无此字段） */
 function readCreators(value: WhiteboardContributions): Record<string, ElementCreateSpec> {
   return (value as InternalContributions).creators ?? {};
+}
+
+/** 读内部键码快捷键通道（shift+数字等 event.key 随布局漂移的组合；仅 tau 扩展可声明） */
+function readHotkeyCodes(
+  value: WhiteboardContributions
+): readonly (HotkeyCodeSpec & { command: string })[] {
+  return (value as InternalContributions).hotkeyCodes ?? [];
 }
 
 const isPositiveSizePair = (value: unknown): value is [number, number] =>
@@ -139,6 +154,8 @@ export class ExtensionRuntime {
   private readonly rejectedTypeOwners = new Map<string, string>();
   /** 每个扩展每次装配只汇总报告一次迁移失败 */
   private readonly migrationReported = new Set<string>();
+  /** 快捷键条目：tau 扩展在前（内置键优先），其余按装配顺序，同一扩展内按声明顺序 */
+  private readonly hotkeyEntries: HotkeyEntry[] = [];
   private readonly menuActions = new Map<
     string,
     { owner: string; run: PluginContextMenuItem["onSelect"] }
@@ -289,16 +306,19 @@ export class ExtensionRuntime {
       },
       subscribe: listener => board.subscribe(listener),
       execute: (command, payload) => this.execute(command, payload),
-      on: (event, listener) => {
+      getShortcut: commandId => this.getShortcut(commandId),
+      flashElement: id => board.emit("element:flash", id),
+      on: (event: string, listener: (...args: any[]) => void) => {
+        assertSubscribableEventName(event);
         let group = listeners.get(event);
         if (!group) listeners.set(event, (group = new Map()));
         if (group.has(listener)) return;
         const wrapped = (...args: any[]) =>
           listener(
             ...([
-              "onValueChange",
-              "onSelectionChange",
-              "onViewPortChange",
+              "value:change",
+              "selection:change",
+              "viewport:change",
               "element:change",
               "element:insert",
               "element:remove",
@@ -315,7 +335,12 @@ export class ExtensionRuntime {
         if (wrapped) board.off(event, wrapped);
         group?.delete(listener);
       },
-      emit: (event, ...args) => board.emit(event, ...args),
+      // 主 API 只在包内使用（WhiteboardAPIProvider 兜底与 createWhiteboardSession 暴露），
+      // 包内扩展均属 tau 命名空间，emit 只允许 tau. 前缀，防止冒充其它命名空间
+      emit: (event: string, ...args: unknown[]) => {
+        assertEmittableEventName(event, "tau");
+        board.emit(event, ...args);
+      },
     } satisfies WhiteboardAPI);
     registerBoardAccess(this.api, board);
 
@@ -459,6 +484,41 @@ export class ExtensionRuntime {
           const existing = commandOwners.get(commandId);
           if (existing) return clash(commandId, existing);
           ownedCommands.add(commandId);
+        }
+        // 快捷键：键串必须可解析且不得占用宿主应用保留键（tau 扩展同样受限），
+        // 同一扩展内不得重复声明同一 key + command
+        const declaredHotkeys = new Set<string>();
+        for (const hotkey of value.hotkeys ?? []) {
+          const key = hotkey?.key;
+          if (typeof key !== "string")
+            return invalidDefinition(
+              `扩展 ${id} 的快捷键 key 必须是字符串：${String(key)}`,
+              String(key)
+            );
+          if (!createHotkeyMatcher(key))
+            return invalidDefinition(`无法解析的快捷键键串：${key}`, key);
+          if (isReservedHotkey(key))
+            return invalidDefinition(`快捷键 ${key} 保留给宿主应用，扩展不能声明`, key);
+          const pair = `${key}→${hotkey.command}`;
+          if (declaredHotkeys.has(pair))
+            return invalidDefinition(`扩展 ${id} 重复声明快捷键 ${key} → ${hotkey.command}`, key);
+          declaredHotkeys.add(pair);
+        }
+        for (const hotkey of readHotkeyCodes(value)) {
+          if (!reserved)
+            return invalidDefinition(
+              `扩展 ${id} 不能声明键码快捷键（仅内置扩展使用）：${String(hotkey?.code)}`,
+              hotkey?.command
+            );
+          if (!createHotkeyMatcher(hotkey))
+            return invalidDefinition(
+              `扩展 ${id} 的键码快捷键形态不合法：${JSON.stringify(hotkey)}`,
+              hotkey?.command
+            );
+          const pair = `${hotkey.code}${hotkey.shift ? "+shift" : ""}→${hotkey.command}`;
+          if (declaredHotkeys.has(pair))
+            return invalidDefinition(`扩展 ${id} 重复声明快捷键条目 ${pair}`, hotkey.command);
+          declaredHotkeys.add(pair);
         }
         for (const tool of value.tools ?? []) {
           if (typeof tool?.label !== "string" || !tool.label.trim())
@@ -652,6 +712,7 @@ export class ExtensionRuntime {
     const commandRefs = (value: WhiteboardContributions) => [
       ...(value.menus ?? []),
       ...(value.hotkeys ?? []),
+      ...readHotkeyCodes(value),
       ...(value.tools ?? []),
     ];
     for (;;) {
@@ -686,6 +747,31 @@ export class ExtensionRuntime {
         target: missing,
       });
     }
+
+    // 快捷键仲裁序：tau 扩展在前（内置键优先于第三方同键声明），其余按装配顺序；
+    // 同一扩展内先公共字符串键、后内部键码键，均保持声明顺序
+    const arbitrationOrder = [
+      ...assembled.filter(item => item.id.startsWith("tau.")),
+      ...assembled.filter(item => !item.id.startsWith("tau.")),
+    ];
+    this.hotkeyEntries.push(
+      ...arbitrationOrder.flatMap((entry, order) => [
+        ...(entry.value.hotkeys ?? []).map(hotkey => ({
+          key: hotkey.key,
+          command: hotkey.command,
+          extensionId: entry.id,
+          order,
+          match: createHotkeyMatcher(hotkey.key)!,
+        })),
+        ...readHotkeyCodes(entry.value).map(hotkey => ({
+          key: `${hotkey.code}${hotkey.shift ? "+shift" : ""}`,
+          command: hotkey.command,
+          extensionId: entry.id,
+          order,
+          match: createHotkeyMatcher(hotkey)!,
+        })),
+      ])
+    );
 
     for (const { id, value, scope, plugins } of assembled) {
       this.scopes.push(scope);
@@ -764,6 +850,12 @@ export class ExtensionRuntime {
     );
     this.reportMigrationFailures(failures);
     if (changed) this.board.replaceChildrenSilently(children);
+  }
+
+  /** 命令第一个绑定快捷键的展示文字：hotkeyEntries 已按「tau 优先 + 装配顺序」排列，无绑定返回 null */
+  getShortcut(commandId: string): string | null {
+    const entry = this.hotkeyEntries.find(item => item.command === commandId);
+    return entry ? formatHotkey(entry.key, detectHotkeyPlatform()) : null;
   }
 
   /**
@@ -858,6 +950,17 @@ export class ExtensionRuntime {
     this.scopes.forEach(scope => scope.dispose());
   }
 
+  /** 按命令 id 查找归属扩展与命令定义（装配顺序优先） */
+  private findCommand(
+    id: string
+  ): { owner: string; api: WhiteboardAPI; command: WhiteboardCommand } | undefined {
+    for (const entry of this.entries) {
+      const command = entry.value.commands?.find(command => command.id === id);
+      if (command) return { owner: entry.id, api: entry.api, command };
+    }
+    return undefined;
+  }
+
   async execute(id: string, payload?: unknown) {
     if (this.disposed) throw new Error("白板已卸载");
     const menu = this.menuActions.get(id);
@@ -869,30 +972,48 @@ export class ExtensionRuntime {
         throw error;
       }
     }
-    for (const entry of this.entries) {
-      const command = entry.value.commands?.find(command => command.id === id);
-      if (!command) continue;
-      try {
-        if (command.enabled && !command.enabled(entry.api)) return;
-        return await command.execute(entry.api, payload);
-      } catch (error) {
-        console.error(`白板扩展 ${entry.id} 的命令 ${id} 失败`, error);
-        throw error;
-      }
+    const found = this.findCommand(id);
+    if (!found) throw new Error(`未注册白板命令：${id}`);
+    try {
+      if (found.command.enabled && !found.command.enabled(found.api)) return;
+      return await found.command.execute(found.api, payload);
+    } catch (error) {
+      console.error(`白板扩展 ${found.owner} 的命令 ${id} 失败`, error);
+      throw error;
     }
-    throw new Error(`未注册白板命令：${id}`);
   }
 
+  /**
+   * 快捷键仲裁：按「tau 优先 + 装配顺序」找全部键匹配的条目，第一条 enabled 的命令
+   * 才拦截（preventDefault + stopPropagation）并执行；全部不可用则放行给后续链。
+   * 输入法组合、编辑上下文、元素编辑中与演示态整体让位（命令 enabled 仍可自行收紧）。
+   */
   onKeyDown(event: KeyboardEvent) {
-    if (isEditableTarget(event.target) || event.isComposing) return false;
-    for (const { value } of this.entries)
-      for (const hotkey of value.hotkeys ?? []) {
-        if (!isKeyHotkey(hotkey.key, event)) continue;
-        event.preventDefault();
-        void this.execute(hotkey.command).catch(() => {});
-        return true;
+    if (
+      event.isComposing ||
+      isEditableTarget(event.target) ||
+      this.board.isEditingElements.length > 0 ||
+      this.board.presentationManager.isPresentationMode
+    )
+      return false;
+    const matched = this.hotkeyEntries.filter(entry => entry.match(event));
+    if (matched.length === 0) return false;
+    const winner = matched.find(entry => {
+      const found = this.findCommand(entry.command);
+      if (!found) return false;
+      try {
+        return !found.command.enabled || found.command.enabled(found.api);
+      } catch (error) {
+        console.error(`白板扩展 ${found.owner} 的命令 ${entry.command} enabled 判断失败`, error);
+        return false;
       }
-    return false;
+    });
+    if (!winner) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    // 命令抛错或 rejected Promise 由 execute 内部 console.error，按键已消费不再外溢
+    void this.execute(winner.command).catch(() => {});
+    return true;
   }
 
   ingest(source: "paste" | "drop", event: ClipboardEvent | DragEvent) {

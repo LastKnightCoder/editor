@@ -19,9 +19,9 @@ const ArrowCustomSnapOverlay = memo(() => {
 
   useEffect(() => {
     const handle = (data: SnapState) => setSnap(data);
-    board.on("arrow:custom-snap", handle);
+    board.on("tau.arrow.custom-snap", handle);
     return () => {
-      board.off("arrow:custom-snap", handle);
+      board.off("tau.arrow.custom-snap", handle);
     };
   }, [board]);
 

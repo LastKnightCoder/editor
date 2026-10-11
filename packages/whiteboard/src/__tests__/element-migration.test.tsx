@@ -297,7 +297,7 @@ describe("加载迁移", () => {
     });
     const board = createBoard([source]);
     board.on("change", changeSpy);
-    board.on("onValueChange", valueChangeSpy);
+    board.on("value:change", valueChangeSpy);
 
     const errors = install(board, [
       cardExtension({

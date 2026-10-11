@@ -1,6 +1,4 @@
 export * from "./ViewPortPlugin";
-export * from "./SelectPlugin";
-export * from "./HistoryPlugin";
 export * from "./CopyPastePlugin";
 
 export * from "./RichTextPlugin";

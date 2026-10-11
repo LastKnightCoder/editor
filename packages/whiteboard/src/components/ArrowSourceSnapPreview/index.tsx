@@ -8,7 +8,7 @@ import type { Point } from "../../types";
 
 /**
  * 箭头创建工具激活时的自定义连接点悬停预览（自旧 useCreateArrow 抽出）：
- * 按住 Alt 悬停时显示最近的自定义连接点吸附位置（arrow:custom-snap 事件），
+ * 按住 Alt 悬停时显示最近的自定义连接点吸附位置（tau.arrow.custom-snap 事件），
  * 拖动开始后（存在创建预览时）让位给创建手势内的吸附反馈。
  */
 const ArrowSourceSnapPreview = memo(() => {
@@ -27,7 +27,7 @@ const ArrowSourceSnapPreview = memo(() => {
   hoverStateRef.current = { pointer: pointerViewport, zoom };
 
   const clearPreview = useMemoizedFn(() => {
-    board.emit("arrow:custom-snap", null);
+    board.emit("tau.arrow.custom-snap", null);
   });
 
   const updateSourceSnapPreview = useMemoizedFn(() => {
@@ -52,7 +52,7 @@ const ArrowSourceSnapPreview = memo(() => {
       return;
     }
 
-    board.emit("arrow:custom-snap", { point: candidate.point });
+    board.emit("tau.arrow.custom-snap", { point: candidate.point });
   });
 
   // 按键与激活态监听：Alt 按下/抬起即时刷新，失焦与失活清理

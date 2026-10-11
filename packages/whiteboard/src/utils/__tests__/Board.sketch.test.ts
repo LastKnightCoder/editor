@@ -43,11 +43,11 @@ describe("Board 页级画风（set_sketch）", () => {
     });
   });
 
-  it("应用后更新画风、快照，并发出 sketchChange 与 change", () => {
+  it("应用后更新画风、快照，并发出 sketch:change 与 change", () => {
     const board = createBoard();
     const onSketch = vi.fn();
     const onChange = vi.fn();
-    board.on("sketchChange", onSketch);
+    board.on("sketch:change", onSketch);
     board.on("change", onChange);
 
     toSketch(board, "sketch");

@@ -13,9 +13,9 @@ const BADGE_OFFSET_SCREEN = 8;
 const useCreationPreview = (board: Board) => {
   const subscribe = useCallback(
     (listener: () => void) => {
-      board.on("creation-preview:change", listener);
+      board.on("internal:creation-preview-change", listener);
       return () => {
-        board.off("creation-preview:change", listener);
+        board.off("internal:creation-preview-change", listener);
       };
     },
     [board]

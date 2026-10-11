@@ -40,6 +40,7 @@ import { TextExtensionContext, embeddedTextOptions, type TextExtensionOptions } 
 import { MediaExtensionContext, browserMediaOptions, type MediaExtensionOptions } from "./media";
 import { ElementContentContext } from "./elementContent";
 import { useBoard, useActiveTool } from "../hooks";
+import { useWhiteboardAPI } from "./runtime";
 import { ChromeButton } from "../chrome";
 import {
   SELECT_TOOL_ID,
@@ -56,6 +57,7 @@ import {
   GeometryPlugin,
   HandwritePlugin,
   DocumentPlugin,
+  isDocumentElement,
   WhiteBoardPlugin,
   RichTextPlugin,
   ImagePlugin,
@@ -66,13 +68,12 @@ import {
   FramePlugin,
   ColumnPlugin,
   FileDragDropPlugin,
-  HistoryPlugin,
-  SelectPlugin,
   ViewPortPlugin,
   CopyPastePlugin,
   ExportImagePlugin,
   PresentationPlugin,
 } from "../plugins";
+import { createInteractionContributions } from "./interactionCommands";
 import GeometryTool from "../components/Toolbar/Geometry";
 import ArrowTool from "../components/Toolbar/Arrow";
 import HandwriteTool from "../components/Toolbar/Handwrite";
@@ -169,11 +170,13 @@ function withBody(plugin: IBoardPlugin, Body?: ComponentType<any>) {
   const Content = Body
     ? function ElementContent({ board: _board, element, onResize, onResizeEnd, ...props }: any) {
         const board = useBoard();
+        // Body 收到当前扩展的作用域 API（插件 render 外层的 APIContext），发事件受命名空间校验
+        const api = useWhiteboardAPI();
         return (
           <Body
             {...props}
             element={read(element)}
-            board={board.extensions!.api}
+            board={api}
             onResize={(...args: unknown[]) => onResize?.(board, ...args)}
             onResizeEnd={(...args: unknown[]) => onResizeEnd?.(board, ...args)}
           />
@@ -200,7 +203,7 @@ const tool = (
 const open =
   (type: ContextMenuModalPayload["type"]): WhiteboardCommand["execute"] =>
   (api, action) => {
-    api.emit("context-menu:open-modal", {
+    api.emit("tau.modal.open", {
       type,
       action: typeof action === "string" ? action : undefined,
     });
@@ -389,6 +392,20 @@ export function createDocumentExtension(options: ReferencedElementOptions) {
       withBody(new DocumentPlugin({ create: !!options.Tool, open: !!options.Body }), options.Body),
     ],
     {
+      commands: [
+        {
+          id: "tau.document.open",
+          enabled: api => {
+            const selected = api.selection.selectedElements;
+            return selected.length === 1 && isDocumentElement(selected[0]);
+          },
+          execute: api => {
+            const element = api.selection.selectedElements[0];
+            if (element) api.emit("tau.document.open", element.id);
+          },
+        },
+      ],
+      hotkeys: [{ key: "enter", command: "tau.document.open" }],
       tools: options.Tool
         ? [
             tool(
@@ -549,14 +566,20 @@ export function createFileImportExtension(media: MediaExtensionOptions) {
 export function createInteractionExtension() {
   return builtin(
     "tau.interaction",
-    () => [new HistoryPlugin(), new SelectPlugin(), new ViewPortPlugin()],
-    {
-      tools: [
-        tool("tau.select", 0, "base", "选择", MousePointer2, SelectTool, api => {
-          api.setActiveTool(SELECT_TOOL_ID);
-        }),
-      ],
-      inspectors: { multiselect: MultiSelectSetter },
+    () => [new ViewPortPlugin()],
+    () => {
+      const { commands, hotkeys, hotkeyCodes } = createInteractionContributions();
+      return {
+        commands,
+        hotkeys,
+        hotkeyCodes,
+        tools: [
+          tool("tau.select", 0, "base", "选择", MousePointer2, SelectTool, api => {
+            api.setActiveTool(SELECT_TOOL_ID);
+          }),
+        ],
+        inspectors: { multiselect: MultiSelectSetter },
+      };
     }
   );
 }
@@ -606,8 +629,8 @@ export function createExportExtension(captureBlob: CaptureBlob = browserCapture)
       const open = (payload: ContextMenuModalPayload) => {
         if (payload.type === "export-image") setModal(payload);
       };
-      board.on("context-menu:open-modal", open);
-      return () => board.off("context-menu:open-modal", open);
+      board.on("tau.modal.open", open);
+      return () => board.off("tau.modal.open", open);
     }, [board]);
     return (
       <ExportImageModal
@@ -629,8 +652,8 @@ export function createImagePreviewExtension(media = browserMediaOptions) {
     const board = useBoard();
     const [preview, setPreview] = useState<{ src: string; alt?: string } | null>(null);
     useEffect(() => {
-      board.on("image:preview:open", setPreview);
-      return () => board.off("image:preview:open", setPreview);
+      board.on("tau.image.preview-open", setPreview);
+      return () => board.off("tau.image.preview-open", setPreview);
     }, [board]);
     return (
       <MediaExtensionContext value={media}>
@@ -655,8 +678,8 @@ export function createMediaUrlExtension() {
       const open = (payload: ContextMenuModalPayload) => {
         if (["image", "video", "audio"].includes(payload.type)) setModal(payload);
       };
-      board.on("context-menu:open-modal", open);
-      return () => board.off("context-menu:open-modal", open);
+      board.on("tau.modal.open", open);
+      return () => board.off("tau.modal.open", open);
     }, [board]);
     return modal && <MediaUrlDialog modal={modal} onClose={() => setModal(null)} />;
   }

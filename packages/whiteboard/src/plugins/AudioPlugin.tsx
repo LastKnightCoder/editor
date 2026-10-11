@@ -74,7 +74,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "audio",
                 action: "local",
               });
@@ -86,7 +86,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "audio",
                 action: "url",
               });
@@ -98,7 +98,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Mic size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "audio",
                 action: "tts",
               });

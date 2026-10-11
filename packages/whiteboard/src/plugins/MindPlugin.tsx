@@ -494,7 +494,7 @@ export class MindPlugin implements IBoardPlugin {
           onSelect: (ctx: ContextMenuContext) => {
             const node = ctx.targetElements.find(el => el.type === "mind-node") as MindNodeElement;
             if (!node?.contentId) return;
-            ctx.board.emit("open-note", node.contentId, node.contentTitle);
+            ctx.board.emit("tau.note.open", node.contentId, node.contentTitle);
           },
         });
 
@@ -507,7 +507,7 @@ export class MindPlugin implements IBoardPlugin {
           onSelect: (ctx: ContextMenuContext) => {
             const node = ctx.targetElements.find(el => el.type === "mind-node") as MindNodeElement;
             if (!node?.contentId) return;
-            ctx.board.emit("mind:confirm-unlink-note", node.id);
+            ctx.board.emit("tau.mind.confirm-unlink-note", node.id);
           },
         });
       } else {
@@ -549,7 +549,7 @@ export class MindPlugin implements IBoardPlugin {
                     contentTitle: "",
                   },
                 });
-                ctx.board.emit("open-note", contentId, "");
+                ctx.board.emit("tau.note.open", contentId, "");
               },
             },
             {
@@ -562,7 +562,7 @@ export class MindPlugin implements IBoardPlugin {
                   el => el.type === "mind-node"
                 ) as MindNodeElement;
                 if (!node) return;
-                ctx.board.emit("mind:select-note", node.id);
+                ctx.board.emit("tau.mind.select-note", node.id);
               },
             },
           ],

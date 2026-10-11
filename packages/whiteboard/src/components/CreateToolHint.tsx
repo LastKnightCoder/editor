@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@tau/ui";
 import { useBoard, usePresentationState, useReadonly } from "../hooks";
 import { SELECT_TOOL_ID } from "../constants/tools";
+import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 import type { ElementCreateSpec } from "../extensions/api";
 
 /** 提示胶囊延迟显示的时长：激活工具后 / Esc 取消后 */
@@ -70,11 +71,11 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
       window.clearTimeout(timer.current);
       setShown(false);
     };
-    board.on("create-gesture:start", onStart);
-    board.on("create-gesture:cancel", arm);
+    board.on("internal:create-gesture-start", onStart);
+    board.on("internal:create-gesture-cancel", arm);
     return () => {
-      board.off("create-gesture:start", onStart);
-      board.off("create-gesture:cancel", arm);
+      board.off("internal:create-gesture-start", onStart);
+      board.off("internal:create-gesture-cancel", arm);
       window.clearTimeout(timer.current);
     };
   }, [board]);
@@ -104,7 +105,7 @@ const CreateToolHint = memo(function CreateToolHint({ visible }: { visible: bool
       ))}
       <Dot />
       <kbd className="bg-hover font-tau-mono text-ink-2 rounded-[4px] px-[5px] py-0.5 text-[10.5px] leading-none">
-        Esc
+        {formatHotkey("escape", detectHotkeyPlatform())}
       </kbd>
       退出
     </div>

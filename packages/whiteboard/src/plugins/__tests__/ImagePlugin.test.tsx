@@ -60,7 +60,7 @@ describe("ImagePlugin", () => {
       const item = menu.children?.find(child => child.key === key);
       expect(item).toBeTruthy();
       item?.onSelect(ctx);
-      expect(ctx.board.emit).toHaveBeenLastCalledWith("context-menu:open-modal", {
+      expect(ctx.board.emit).toHaveBeenLastCalledWith("tau.modal.open", {
         type: "image",
         action,
       });

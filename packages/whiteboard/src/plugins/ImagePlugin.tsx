@@ -91,7 +91,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Upload size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "image",
                 action: "local",
               });
@@ -103,7 +103,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Link size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "image",
                 action: "url",
               });
@@ -115,7 +115,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Sparkles size={14} />,
             priority: 3,
             onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
+              ctx.board.emit("tau.modal.open", {
                 type: "image",
                 action: "ai",
               });
@@ -254,7 +254,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
 
     if (!shouldPreview) return;
 
-    board.emit("image:preview:open", {
+    board.emit("tau.image.preview-open", {
       src: previewImage.src,
       alt: previewImage.description?.trim() || "图片",
     });

@@ -194,7 +194,7 @@ export class ArrowPlugin implements IBoardPlugin {
     const topElement = hitElements[hitElements.length - 1];
     if (!topElement || topElement.type !== "arrow") return;
 
-    board.emit("arrow:description:edit", { id: topElement.id });
+    board.emit("tau.arrow.description-edit", { id: topElement.id });
     return false;
   }
 

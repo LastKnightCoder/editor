@@ -19,6 +19,7 @@ import {
   executeLayerOrderAction,
 } from "../utils";
 import { SelectTransforms, ViewPortTransforms } from "../transforms";
+import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
 
 import { v4 as getUuid } from "uuid";
 import React from "react";
@@ -113,9 +114,11 @@ export class CopyPastePlugin implements IBoardPlugin {
     const { targetElements, board } = context;
     const items: PluginContextMenuItem[] = [];
     const targetCount = targetElements.length;
-    const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
-    const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
-    const deleteShortcut = isMac ? "⌘⌫" : "Delete";
+    // 复制不走 hotkeys 仲裁（监听 clipboard 事件），文字仅按平台生成
+    const copyShortcut = formatHotkey("mod+c", detectHotkeyPlatform());
+    const deleteShortcut =
+      board.extensions?.api.getShortcut("tau.selection.delete") ??
+      formatHotkey("delete", detectHotkeyPlatform());
 
     // 复制菜单项
     if (targetCount === 0) {

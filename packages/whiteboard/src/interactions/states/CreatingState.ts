@@ -293,7 +293,10 @@ export class CreatingState implements InteractionState {
     state.elementType = createTool.elementType;
     state.definition = createTool.definition;
     state.spec = spec;
-    state.api = extensions.api;
+    // 创建手势的 api 取工具所属扩展的作用域：手势中经 api.emit 发出的事件按该扩展命名空间校验
+    const owner = extensions.toolOwner(board.activeTool);
+    const ownerApi = owner ? extensions.entries.find(entry => entry.id === owner)?.api : undefined;
+    state.api = ownerApi ?? extensions.api;
     state.pointerId = event.pointerId;
     state.startPoint = { ...start };
     state.startScreen = { x: event.clientX, y: event.clientY };
@@ -319,7 +322,7 @@ export class CreatingState implements InteractionState {
     state.session = session;
     state.capturePointer(event);
     state.watchInterruptions();
-    board.emit("create-gesture:start", state.toolId);
+    board.emit("internal:create-gesture-start", state.toolId);
     return state;
   }
 
@@ -573,7 +576,7 @@ export class CreatingState implements InteractionState {
       // 退场定时器独立于状态存活（onExit 不清理）
       setTimeout(() => board.setCreationPreview(null), PREVIEW_LEAVE_MS);
     }
-    board.emit("create-gesture:cancel", this.toolId);
+    board.emit("internal:create-gesture-cancel", this.toolId);
     this.isFinished = true;
   }
 
@@ -583,7 +586,7 @@ export class CreatingState implements InteractionState {
     this.settled = true;
     this.session?.cancel?.();
     this.board.setCreationPreview(null);
-    this.board.emit("create-gesture:cancel", this.toolId);
+    this.board.emit("internal:create-gesture-cancel", this.toolId);
     this.isFinished = true;
   }
 
@@ -596,10 +599,10 @@ export class CreatingState implements InteractionState {
       if (value) this.cancelSilently();
     };
     board.on("active-tool:change", onToolChange);
-    board.on("readonlyChange", onReadonlyChange);
+    board.on("readonly:change", onReadonlyChange);
     this.offListeners.push(
       () => board.off("active-tool:change", onToolChange),
-      () => board.off("readonlyChange", onReadonlyChange)
+      () => board.off("readonly:change", onReadonlyChange)
     );
   }
 

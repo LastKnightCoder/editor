@@ -24,12 +24,12 @@ export const useListenArrowMove = (board: Board) => {
   };
 
   useEffect(() => {
-    board.on("arrow:update", handleArrowMove);
-    board.on("arrow:move-end", handleArrowMoveEnd);
+    board.on("tau.arrow.update", handleArrowMove);
+    board.on("tau.arrow.move-end", handleArrowMoveEnd);
 
     return () => {
-      board.off("arrow:update", handleArrowMove);
-      board.off("arrow:move-end", handleArrowMoveEnd);
+      board.off("tau.arrow.update", handleArrowMove);
+      board.off("tau.arrow.move-end", handleArrowMoveEnd);
     };
   }, [board]);
 
