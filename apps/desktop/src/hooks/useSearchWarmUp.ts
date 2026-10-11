@@ -7,6 +7,11 @@ import { searchContent } from "@/utils/search";
 
 const SEARCH_WARMUP_QUERY = "__tau_search_warmup__";
 
+/** 预热只在主窗口跑：搜索/embedding 在主进程串行执行，多窗口并发预热会互相拖慢
+ * 并把主进程事件循环打满（窗口角色由主进程经 additionalArguments 注入） */
+const isMainWindow = () =>
+  typeof process !== "undefined" && process.argv.includes("--tau-window-role=main");
+
 const useSearchWarmUp = () => {
   const modelInfo = useEmbeddingConfig();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
@@ -17,7 +22,7 @@ const useSearchWarmUp = () => {
   const warmingKeysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!activeDatabase || databaseStatus !== "ready") {
+    if (!activeDatabase || databaseStatus !== "ready" || !isMainWindow()) {
       return;
     }
 

@@ -16,6 +16,8 @@ export interface CreateWindowOptions extends BrowserWindowConstructorOptions {
   chrome?: WindowChrome;
   /** 开发模式下是否自动打开 DevTools（隐藏窗口须关掉，否则 DevTools 会把窗口带出来） */
   devTools?: boolean;
+  /** 窗口角色（渲染端经 process.argv 识别）：主窗口 = main，预热/常驻任务只在主窗口跑 */
+  role?: "main" | "markdown" | "editor" | "utility";
 }
 
 function chromeOptions(chrome: WindowChrome): BrowserWindowConstructorOptions {
@@ -54,6 +56,7 @@ export function createWindow({
   route,
   chrome = "custom",
   devTools = true,
+  role,
   webPreferences,
   ...options
 }: CreateWindowOptions): BrowserWindow {
@@ -63,7 +66,13 @@ export function createWindow({
     icon,
     ...chromeOptions(chrome),
     ...options,
-    webPreferences: { preload, spellcheck: false, ...webPreferences },
+    webPreferences: {
+      preload,
+      spellcheck: false,
+      // additionalArguments 会拼进渲染进程 argv：preload / 渲染端据此识别窗口角色
+      ...(role ? { additionalArguments: [`--tau-window-role=${role}`] } : {}),
+      ...webPreferences,
+    },
   });
 
   forwardWindowEvents(win);

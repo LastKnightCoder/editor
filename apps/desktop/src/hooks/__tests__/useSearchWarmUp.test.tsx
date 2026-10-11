@@ -52,12 +52,15 @@ describe("useSearchWarmUp", () => {
 
   let container: HTMLDivElement;
   let root: Root;
+  // 预热只在主窗口跑（process.argv 的 --tau-window-role=main），测试模拟主窗口身份
+  let argvSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
+    argvSpy = vi.spyOn(process, "argv", "get").mockReturnValue(["--tau-window-role=main"]);
     vi.clearAllMocks();
     useSettingStore.setState(state => ({
       ...state,
@@ -79,6 +82,7 @@ describe("useSearchWarmUp", () => {
     act(() => {
       root.unmount();
     });
+    argvSpy.mockRestore();
     vi.useRealTimers();
     container.remove();
     useSettingStore.setState(state => ({
