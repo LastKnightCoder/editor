@@ -20,12 +20,13 @@ import type { RowDetailBodyHandle, RowDetailBodyProps } from "@tau/database";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const createContent = vi.fn<(content: Descendant[], count: number) => Promise<number>>(
+const createPendingContent = vi.fn<(content: Descendant[], count?: number) => Promise<number>>(
   async () => 42
 );
 const deleteContent = vi.fn(async (_id: number) => 1);
 vi.mock("@/commands/content", () => ({
-  createContent: (content: Descendant[], count: number) => createContent(content, count),
+  createPendingContent: (content: Descendant[], count?: number) =>
+    createPendingContent(content, count),
   deleteContent: (id: number) => deleteContent(id),
 }));
 
@@ -47,7 +48,7 @@ let root: Root | undefined;
 let host: HTMLDivElement;
 
 beforeEach(() => {
-  createContent.mockClear();
+  createPendingContent.mockClear();
   deleteContent.mockClear();
 });
 
@@ -162,15 +163,15 @@ const typeInto = (el: HTMLTextAreaElement, value: string) => {
 };
 
 describe("RowDetailModal", () => {
-  it("持久化拒绝已删除行的晚到正文补丁时释放新内容，不改变旧内存行", async () => {
+  it("持久化拒绝晚到正文补丁时不硬删新内容，不改变旧内存行", async () => {
     const Body = forwardRef<RowDetailBodyHandle, RowDetailBodyProps>((props, ref) => (
       <RowDetailBody {...props} ref={ref} onRowChange={async () => false} />
     ));
     const { store } = await renderDetail("r1", { Body });
     typeInto(card().querySelector<HTMLTextAreaElement>('[data-testid="description"]')!, "晚到正文");
     await press(card(), "j");
-    expect(createContent).toHaveBeenCalledTimes(1);
-    expect(deleteContent).toHaveBeenCalledExactlyOnceWith(42);
+    expect(createPendingContent).toHaveBeenCalledTimes(1);
+    expect(deleteContent).not.toHaveBeenCalled();
     expect(store.getState().rows.find(row => row.id === "r1")?.detailContentId).toBeUndefined();
   });
   it("只有空段落的正文不创建内容，媒体节点视为有效正文", () => {
@@ -182,9 +183,9 @@ describe("RowDetailModal", () => {
     );
   });
 
-  it("正文创建期间删除所属行，迟到结果释放引用且不恢复行", async () => {
+  it("正文创建期间删除所属行，迟到结果不恢复行也不硬删", async () => {
     let resolve!: (id: number) => void;
-    createContent.mockImplementationOnce(
+    createPendingContent.mockImplementationOnce(
       () =>
         new Promise<number>(done => {
           resolve = done;
@@ -195,13 +196,13 @@ describe("RowDetailModal", () => {
     await act(async () => {
       button("下一条").click();
     });
-    expect(createContent).toHaveBeenCalledTimes(1);
+    expect(createPendingContent).toHaveBeenCalledTimes(1);
     await act(async () => {
       store.getState().deleteRow("r1");
       resolve(73);
     });
     expect(store.getState().rows.some(row => row.id === "r1")).toBe(false);
-    expect(deleteContent).toHaveBeenCalledWith(73);
+    expect(deleteContent).not.toHaveBeenCalled();
   });
 
   it("直接卸载仍提交未落库正文", async () => {
@@ -214,7 +215,7 @@ describe("RowDetailModal", () => {
       root!.unmount();
       root = undefined;
     });
-    expect(createContent).toHaveBeenCalledTimes(1);
+    expect(createPendingContent).toHaveBeenCalledTimes(1);
     expect(store.getState().rows.find(row => row.id === "r1")!.detailContentId).toBe(42);
   });
 
@@ -292,7 +293,7 @@ describe("RowDetailModal", () => {
     const description = card().querySelector<HTMLTextAreaElement>('[data-testid="description"]')!;
     typeInto(description, "老派港式动作片");
     await press(card(), "j");
-    expect(createContent).toHaveBeenCalledTimes(1);
+    expect(createPendingContent).toHaveBeenCalledTimes(1);
     expect(store.getState().rows.find(r => r.id === "r1")!.detailContentId).toBe(42);
     expect(titleInput().value).toBe("酱园弄");
   });
@@ -301,7 +302,7 @@ describe("RowDetailModal", () => {
     const onClose = vi.fn();
     await renderDetail("r1", { onClose });
     await click(button("关闭"));
-    expect(createContent).not.toHaveBeenCalled();
+    expect(createPendingContent).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

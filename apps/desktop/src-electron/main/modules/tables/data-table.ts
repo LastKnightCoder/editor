@@ -6,6 +6,7 @@ import {
   PatchDataTableRow,
   ApplyDataTableChanges,
 } from "@/types";
+import { collectDataTableContentRefs, diffContentRefs } from "@tau/shared/data-table-content-refs";
 import Operation from "./operation";
 import DataTableViewTable from "./data-table-view";
 import ContentTable from "./content";
@@ -82,6 +83,23 @@ export default class DataTableTable {
     } as const;
   }
 
+  /**
+   * 同一事务内按「写入前 vs 写入后」的正文引用差集同步：新增 retain（撤销待回收），
+   * 减少 releaseDeferred（归零只登记不硬删）。调用方须保证表存活（ref_count > 0），
+   * 已删除的表不持有任何引用（D-129）。
+   */
+  private static syncContentRefs(
+    db: Database.Database,
+    before: Pick<DataTable, "columns" | "rows"> | null,
+    after: Pick<DataTable, "columns" | "rows"> | null
+  ) {
+    const beforeRefs = before ? collectDataTableContentRefs(before.columns, before.rows) : null;
+    const afterRefs = after ? collectDataTableContentRefs(after.columns, after.rows) : null;
+    const { retain, release } = diffContentRefs(beforeRefs ?? new Map(), afterRefs ?? new Map());
+    retain.forEach(contentId => ContentTable.retain(db, contentId));
+    release.forEach(contentId => ContentTable.releaseDeferred(db, contentId));
+  }
+
   static parse(row: Record<string, unknown>): DataTable {
     return {
       id: row.id as number,
@@ -133,6 +151,12 @@ export default class DataTableTable {
     const id = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "data-table", "insert", id, now);
 
+    // 新表 ref_count 为 1：持有初始 rows 中的全部正文引用（D-129）
+    this.syncContentRefs(db, null, {
+      columns: table.columns || [],
+      rows: table.rows || [],
+    });
+
     const view = DataTableViewTable.createDefaultView(
       db,
       id,
@@ -162,6 +186,7 @@ export default class DataTableTable {
       WHERE id = ?
     `);
     const now = Date.now();
+    const before = this.getById(db, table.id);
     stmt.run(
       now,
       JSON.stringify(table.columns || []),
@@ -170,6 +195,14 @@ export default class DataTableTable {
       table.id
     );
     Operation.insertOperation(db, "data-table", "update", table.id, now);
+
+    // 全量替换的引用差集：表存活才持有引用，已删除的表不同步（D-129）
+    if (before && (before.refCount ?? 0) > 0) {
+      this.syncContentRefs(db, before, {
+        columns: table.columns || [],
+        rows: table.rows || [],
+      });
+    }
 
     DataTableViewTable.syncViewsWithTable(db, table.id, table.columns || [], table.rows || []);
 
@@ -204,6 +237,8 @@ export default class DataTableTable {
         table.id
       );
       Operation.insertOperation(db, "data-table", "update", table.id, now);
+      // 补丁可能改 detailContentId 或 rich-text 单元格：同一事务内按差集同步引用（D-129）
+      this.syncContentRefs(db, table, { columns: table.columns, rows });
       return true;
     })();
   }
@@ -220,11 +255,7 @@ export default class DataTableTable {
         column => !columns.some(next => next.id === column.id)
       );
       const rows = table.rows
-        .filter(row => {
-          if (!removed.has(row.id)) return true;
-          if (row.detailContentId) ContentTable.deleteContent(db, row.detailContentId);
-          return false;
-        })
+        .filter(row => !removed.has(row.id))
         .map(row => {
           const patch = patches.get(row.id);
           patches.delete(row.id);
@@ -249,6 +280,8 @@ export default class DataTableTable {
         now,
         table.id
       );
+      // 删除行 / 删除列的正文引用随差集进入延迟回收，撤销重加即恢复（D-129）
+      this.syncContentRefs(db, table, { columns, rows });
       DataTableViewTable.syncViewsWithTable(db, table.id, columns, rows);
       Operation.insertOperation(db, "data-table", "update", table.id, now);
       return this.getById(db, table.id);
@@ -256,66 +289,45 @@ export default class DataTableTable {
   }
 
   static remove(db: Database.Database, id: number): number {
-    // 先获取表数据，删除所有行的 detailContentId 关联的内容
-    const table = this.getById(db, id);
-    if (table) {
-      table.rows.forEach(row => {
-        if (row.detailContentId && row.detailContentId > 0) {
-          ContentTable.deleteContent(db, row.detailContentId as number);
-        }
-      });
-    }
+    // 读-改-写同事务：剪切/删除数据库块只减引用，撤销/粘贴经 incrementRefCount 复活，
+    // 因此不硬删任何正文；引用由 >0 变 <=0 时才把当前全部引用交给延迟回收（D-129）
+    return db.transaction(() => {
+      const table = this.getById(db, id);
+      const stmt = db.prepare(`
+        UPDATE data_tables SET ref_count = ref_count - 1 WHERE id = ?
+      `);
+      const changes = stmt.run(id).changes;
 
-    const stmt = db.prepare(`
-      UPDATE data_tables SET ref_count = ref_count - 1 WHERE id = ?
-    `);
-    const changes = stmt.run(id).changes;
+      Operation.insertOperation(db, "data-table", "delete", id, Date.now());
 
-    Operation.insertOperation(db, "data-table", "delete", id, Date.now());
+      if (table && (table.refCount ?? 0) > 0 && (table.refCount ?? 0) - 1 <= 0) {
+        this.syncContentRefs(db, table, null);
+      }
 
-    // this.deleteDataTableWhenRefCountIsZero(db);
-
-    return changes;
+      return changes;
+    })();
   }
 
   static incrementRefCount(db: Database.Database, id: number): number {
-    const stmt = db.prepare(`
-      UPDATE data_tables SET ref_count = ref_count + 1 WHERE id = ?
-    `);
-    const changes = stmt.run(id).changes;
-
-    if (changes > 0) {
-      const updateTimeStmt = db.prepare(`UPDATE data_tables SET update_time = ? WHERE id = ?`);
-      updateTimeStmt.run(Date.now(), id);
-    }
-
-    return changes;
-  }
-
-  static deleteDataTableWhenRefCountIsZero(db: Database.Database) {
-    const selectStmt = db.prepare(`SELECT id FROM data_tables WHERE ref_count <= 0`);
-    const ids = selectStmt.all() as Array<{ id: number }>;
-    if (!ids.length) return;
-
-    const deleteViewsStmt = db.prepare(`DELETE FROM data_table_views WHERE table_id = ?`);
-    const deleteTableStmt = db.prepare(`DELETE FROM data_tables WHERE id = ?`);
-
-    const now = Date.now();
-    ids.forEach(({ id }) => {
-      // 删除表前，先删除所有行的 detailContentId 关联的内容
+    // 读-改-写同事务：撤销/粘贴让已删除的表复活（<=0 变 >0）时重新持有全部引用（D-129）
+    return db.transaction(() => {
       const table = this.getById(db, id);
-      if (table) {
-        table.rows.forEach(row => {
-          if (row.detailContentId && row.detailContentId > 0) {
-            ContentTable.deleteContent(db, row.detailContentId as number);
-          }
-        });
+      const stmt = db.prepare(`
+        UPDATE data_tables SET ref_count = ref_count + 1 WHERE id = ?
+      `);
+      const changes = stmt.run(id).changes;
+
+      if (changes > 0) {
+        const updateTimeStmt = db.prepare(`UPDATE data_tables SET update_time = ? WHERE id = ?`);
+        updateTimeStmt.run(Date.now(), id);
+        // 只在恰好由 0 变 1 时复活：重复 remove 留下的负值加一后仍是已删除表
+        if (table && (table.refCount ?? 0) === 0) {
+          this.syncContentRefs(db, null, table);
+        }
       }
 
-      deleteViewsStmt.run(id);
-      deleteTableStmt.run(id);
-      Operation.insertOperation(db, "data-table", "delete", id, now);
-    });
+      return changes;
+    })();
   }
 
   static setActiveView(

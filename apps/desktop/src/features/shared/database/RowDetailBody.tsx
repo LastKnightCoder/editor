@@ -40,11 +40,11 @@ export const RowDetailBody = forwardRef<RowDetailBodyHandle, RowDetailBodyProps>
       }
       const task = (async () => {
         try {
-          const contentId = await commands.createContent(value, 0);
+          const contentId = await commands.createPendingContent(value, 0);
           if (!contentId) return;
           draft.current = null;
-          const applied = isCurrent() && (await onRowChange({ detailContentId: contentId }));
-          if (applied === false) await commands.deleteContent(contentId);
+          // 补丁被拒不硬删：待回收正文无人引用时由开库回收清理
+          if (isCurrent()) await onRowChange({ detailContentId: contentId });
         } catch (error) {
           console.error("保存行详情正文失败:", error);
         } finally {

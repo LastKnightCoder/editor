@@ -12,6 +12,17 @@ export const createContent = async (
   });
 };
 
+/** 以待回收状态创建正文（ref_count 0），首次保存进表时由差集 retain */
+export const createPendingContent = async (
+  content: Descendant[],
+  count?: number
+): Promise<number | null> => {
+  return await invoke("content:create-pending", {
+    content,
+    count,
+  });
+};
+
 export const updateContent = async (
   contentId: number,
   content: Descendant[],

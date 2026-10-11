@@ -1,13 +1,21 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const { cleanup } = vi.hoisted(() => ({ cleanup: vi.fn() }));
-vi.mock("../tables/content", () => ({ default: { deleteContent: cleanup } }));
+const { cleanup, retain, releaseDeferred } = vi.hoisted(() => ({
+  cleanup: vi.fn(),
+  retain: vi.fn(),
+  releaseDeferred: vi.fn(),
+}));
+vi.mock("../tables/content", () => ({
+  default: { deleteContent: cleanup, retain, releaseDeferred },
+}));
 import DataTableTable from "../tables/data-table";
 
 let db: Database.Database;
 beforeEach(() => {
   db = new Database(":memory:");
   cleanup.mockClear();
+  retain.mockClear();
+  releaseDeferred.mockClear();
   db.exec(`CREATE TABLE data_tables (id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
     columns TEXT, rows TEXT, active_view_id INTEGER, ref_count INTEGER);
     CREATE TABLE data_table_views (id INTEGER PRIMARY KEY, table_id INTEGER, sort_order INTEGER, config TEXT, update_time INTEGER);
@@ -34,6 +42,7 @@ const attach = () =>
 it("晚到正文只合并字段补丁，保留新实例的标题、其他行、列配置和活动视图", () => {
   db.exec("BEGIN");
   expect(attach()).toBe(true);
+  expect(retain).toHaveBeenCalledExactlyOnceWith(db, 71);
   db.exec("COMMIT");
   const table = DataTableTable.getById(db, 1)!;
   expect(table.rows).toEqual([
@@ -103,10 +112,11 @@ it("晚到补丁先落库，新实例随后编辑的差量仍保留正文引用�
   expect(table.columns[0].width).toBe(600);
 });
 
-it("常规删除从最新持久化行释放正文一次，旧实例的后续编辑不恢复行", () => {
+it("常规删除把行正文交给延迟回收，旧实例的后续编辑不恢复行", () => {
   expect(attach()).toBe(true);
   DataTableTable.applyChanges(db, { id: 1, rows: { upsert: [], remove: ["r"] } });
-  expect(cleanup).toHaveBeenCalledExactlyOnceWith(db, 71);
+  expect(releaseDeferred).toHaveBeenCalledExactlyOnceWith(db, 71);
+  expect(cleanup).not.toHaveBeenCalled();
   const table = DataTableTable.applyChanges(db, {
     id: 1,
     rows: { upsert: [{ id: "r", title: "旧编辑" }], remove: [] },

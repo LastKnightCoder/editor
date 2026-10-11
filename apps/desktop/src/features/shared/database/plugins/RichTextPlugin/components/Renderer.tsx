@@ -9,7 +9,7 @@ import { RichTextPluginValue, RichTextItem } from "../types";
 import { DropdownMenu } from "./index";
 import { ContentEditDialog } from "@/components/ContentEditDialog";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import { createContent, deleteContent, incrementContentRefCount } from "@/commands/content";
+import { createPendingContent } from "@/commands/content";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import { defaultCardEventBus } from "@/utils";
 import { SearchResult } from "@/types";
@@ -76,9 +76,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       const itemToDelete = confirmDeleteItem;
       if (!itemToDelete) return;
       try {
-        // 删除 content 记录（会自动减少引用计数）
-        await deleteContent(itemToDelete.contentId);
-
+        // 正文引用由数据表保存时按差集维护，这里只更新单元格值
         const newValue = richTextList.filter(item => item.id !== itemToDelete.id);
         onCellValueChange(newValue);
         toast.success("文档删除成功");
@@ -99,14 +97,14 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       setAddPopoverVisible(false);
 
       try {
-        // 创建新的内容记录
         const emptyContent: Descendant[] = [
           {
             type: "paragraph",
             children: [{ type: "formatted", text: "" }],
           },
         ];
-        const contentId = await createContent(emptyContent, 0);
+        // 以待回收状态创建正文，保存进表时由主进程按差集 retain
+        const contentId = await createPendingContent(emptyContent, 0);
 
         if (contentId) {
           const newRichTextItem: RichTextItem = {
@@ -146,9 +144,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       }
 
       try {
-        // 增加 content 的引用计数
-        await incrementContentRefCount(item.contentId);
-
+        // 引用计数由数据表保存时按差集维护，这里只更新单元格值
         const newRichTextItem: RichTextItem = {
           id: uuid(),
           contentId: item.contentId,
