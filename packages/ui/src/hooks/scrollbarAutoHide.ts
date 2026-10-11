@@ -28,6 +28,7 @@ export function initScrollbarAutoHide(owner: Document = document): () => void {
   const runtime = {
     users: 1,
     dispose: () => {
+      if (hoverRaf) cancelAnimationFrame(hoverRaf);
       abort.abort();
       hideNow();
       runtimes.delete(owner);
@@ -62,30 +63,50 @@ export function initScrollbarAutoHide(owner: Document = document): () => void {
   };
 
   /** 从事件目标向上找最近的可滚祖先（含自身）：纵向或横向可滚都算——横向滚动条同样
-   *  hover 才显形，不识别横向会让无触控板的用户找不到可拖的滚动条 */
+   *  hover 才显形，不识别横向会让无触控板的用户找不到可拖的滚动条。
+   *  结果按起始元素缓存：解析要对祖先链逐层读 getComputedStyle 与 scrollHeight/clientHeight
+   * （强制布局读取，画布等每帧写 DOM 的页面里单次可达百 ms），同元素链只解析一次；
+   * 容器后续变得可滚的场景由 scroll 事件路径兜底（直接 show，不走这里） */
+  const scrollAncestorCache = new WeakMap<Element, Element | null>();
   const findScrollable = (from: Element | null): Element | null => {
+    if (!from) return null;
+    const cached = scrollAncestorCache.get(from);
+    if (cached !== undefined) return cached;
     const scrolls = (overflow: string) => overflow === "auto" || overflow === "scroll";
-    for (let el = from; el && el !== document.documentElement; el = el.parentElement) {
+    let found: Element | null = null;
+    for (
+      let el: Element | null = from;
+      el && el !== document.documentElement;
+      el = el.parentElement
+    ) {
       const { overflowX, overflowY } = getComputedStyle(el);
       if (
         (scrolls(overflowY) && el.scrollHeight > el.clientHeight) ||
         (scrolls(overflowX) && el.scrollWidth > el.clientWidth)
       ) {
-        return el;
+        found = el;
+        break;
       }
     }
-    return null;
+    scrollAncestorCache.set(from, found);
+    return found;
   };
 
-  owner.addEventListener(
-    "mouseover",
-    e => {
-      const el = findScrollable(e.target as Element | null);
+  // mouseover 高频（指针划过密集元素时每帧多次），合帧到每帧至多一次、取最新目标
+  let hoverRaf = 0;
+  let latestHoverTarget: Element | null = null;
+  const handleHover = (e: Event) => {
+    latestHoverTarget = e.target as Element | null;
+    if (hoverRaf) return;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      const el = findScrollable(latestHoverTarget);
       if (el) show(el);
       else if (live) scheduleHide(); // 移入非滚动区，计时隐藏
-    },
-    { signal: abort.signal }
-  );
+    });
+  };
+
+  owner.addEventListener("mouseover", handleHover, { signal: abort.signal });
 
   // scroll 不冒泡，capture 捕获所有内部滚动（含键盘滚动）
   owner.addEventListener(
