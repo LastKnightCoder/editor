@@ -91,17 +91,33 @@ const cloneFilters = (filters: FilterGroup | null | undefined): FilterGroup | nu
 /** 撤销历史（含基线快照）的条数上限 */
 const HISTORY_LIMIT = 50;
 
-const createSnapshot = (state: Pick<TableState, "columns" | "rows">): TableSnapshot => ({
+const createSnapshot = (
+  state: Pick<TableState, "columns" | "rows"> & {
+    viewConfig: Pick<TableViewConfig, "columnOrder" | "rowOrder">;
+  }
+): TableSnapshot => ({
   columns: JSON.parse(JSON.stringify(state.columns)),
   rows: JSON.parse(JSON.stringify(state.rows)),
+  columnOrder: [...state.viewConfig.columnOrder],
+  rowOrder: [...state.viewConfig.rowOrder],
 });
 
-/** 恢复数据后修补视图 order：去掉已消失的 id，新出现的 id 追加到末尾。 */
-const reconcileOrder = (order: string[], validIds: string[]): string[] => {
+/**
+ * 恢复数据后修补视图 order：去掉已消失的 id，仍存在的 id 保持当前顺序（不抵消之后的拖动）；
+ * 恢复出现的 id 插回快照中的位置——紧跟其前方最近的仍存在的邻居，没有邻居则放到最前；快照里也没有的追加末尾。
+ */
+const reconcileOrder = (order: string[], validIds: string[], snapshotOrder: string[]): string[] => {
   const valid = new Set(validIds);
-  const kept = order.filter(id => valid.has(id));
-  const keptSet = new Set(kept);
-  return [...kept, ...validIds.filter(id => !keptSet.has(id))];
+  const result = order.filter(id => valid.has(id));
+  const placed = new Set(result);
+  snapshotOrder.forEach((id, index) => {
+    if (!valid.has(id) || placed.has(id)) return;
+    let anchor = -1;
+    for (let i = index - 1; i >= 0 && anchor === -1; i--) anchor = result.indexOf(snapshotOrder[i]);
+    result.splice(anchor + 1, 0, id);
+    placed.add(id);
+  });
+  return [...result, ...validIds.filter(id => !placed.has(id))];
 };
 
 const sameOrder = (a: string[], b: string[]) =>
@@ -154,7 +170,11 @@ export const createDatabaseStore = (
 
   let confirmedRows = initialRows;
   // 基线快照保证第一次数据修改即可撤销
-  const baselineSnapshot = createSnapshot({ columns: initialColumns, rows: initialRows });
+  const baselineSnapshot = createSnapshot({
+    columns: initialColumns,
+    rows: initialRows,
+    viewConfig,
+  });
   return create<TableState>((setState, get) => {
     const commit = (
       update: Parameters<typeof setState>[0],
@@ -224,14 +244,16 @@ export const createDatabaseStore = (
           for (const column of state.columns)
             if (!(column.id in columnWidths)) columnWidths[column.id] = column.width || 200;
           state.columnWidths = columnWidths;
-          // 视图 order 只做一致性修补：去掉已消失 id、新 id 追加末尾；无变化时不动 viewConfig
+          // 视图 order 只做一致性修补，恢复的行列回到删除前的位置；无变化时不动 viewConfig
           const columnOrder = reconcileOrder(
             state.viewConfig.columnOrder,
-            state.columns.map(column => column.id)
+            state.columns.map(column => column.id),
+            snapshot.columnOrder
           );
           const rowOrder = reconcileOrder(
             state.viewConfig.rowOrder,
-            state.rows.map(row => row.id)
+            state.rows.map(row => row.id),
+            snapshot.rowOrder
           );
           if (
             !sameOrder(columnOrder, state.viewConfig.columnOrder) ||
