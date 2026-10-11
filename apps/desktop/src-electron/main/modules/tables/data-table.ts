@@ -7,6 +7,8 @@ import {
   ApplyDataTableChanges,
 } from "@/types";
 import { collectDataTableContentRefs, diffContentRefs } from "@tau/shared/data-table-content-refs";
+import { dfs } from "@/utils/helper.ts";
+import type { Descendant } from "slate";
 import Operation from "./operation";
 import DataTableViewTable from "./data-table-view";
 import ContentTable from "./content";
@@ -289,12 +291,13 @@ export default class DataTableTable {
   }
 
   static remove(db: Database.Database, id: number): number {
-    // 读-改-写同事务：剪切/删除数据库块只减引用，撤销/粘贴经 incrementRefCount 复活，
-    // 因此不硬删任何正文；引用由 >0 变 <=0 时才把当前全部引用交给延迟回收（D-129）
+    // 读-改-写同事务：剪切/删除数据库块只减引用（下限 0），撤销/粘贴经
+    // incrementRefCount 复活，因此不硬删任何正文；引用由 >0 变 0 时才把当前
+    // 全部引用交给延迟回收并登记表待回收（D-129）
     return db.transaction(() => {
       const table = this.getById(db, id);
       const stmt = db.prepare(`
-        UPDATE data_tables SET ref_count = ref_count - 1 WHERE id = ?
+        UPDATE data_tables SET ref_count = MAX(ref_count - 1, 0) WHERE id = ?
       `);
       const changes = stmt.run(id).changes;
 
@@ -302,6 +305,9 @@ export default class DataTableTable {
 
       if (table && (table.refCount ?? 0) > 0 && (table.refCount ?? 0) - 1 <= 0) {
         this.syncContentRefs(db, table, null);
+        db.prepare(
+          "INSERT OR IGNORE INTO data_table_pending_releases (table_id, released_at) VALUES (?, ?)"
+        ).run(id, Date.now());
       }
 
       return changes;
@@ -309,7 +315,7 @@ export default class DataTableTable {
   }
 
   static incrementRefCount(db: Database.Database, id: number): number {
-    // 读-改-写同事务：撤销/粘贴让已删除的表复活（<=0 变 >0）时重新持有全部引用（D-129）
+    // 读-改-写同事务：撤销/粘贴让已删除的表复活（0 变 1）时重新持有全部引用（D-129）
     return db.transaction(() => {
       const table = this.getById(db, id);
       const stmt = db.prepare(`
@@ -320,14 +326,138 @@ export default class DataTableTable {
       if (changes > 0) {
         const updateTimeStmt = db.prepare(`UPDATE data_tables SET update_time = ? WHERE id = ?`);
         updateTimeStmt.run(Date.now(), id);
-        // 只在恰好由 0 变 1 时复活：重复 remove 留下的负值加一后仍是已删除表
+        // 只在恰好由 0 变 1 时复活：负计数（存量数据）加一后仍是已删除表，由回收对账归正
         if (table && (table.refCount ?? 0) === 0) {
           this.syncContentRefs(db, null, table);
+          db.prepare("DELETE FROM data_table_pending_releases WHERE table_id = ?").run(id);
         }
       }
 
       return changes;
     })();
+  }
+
+  /**
+   * 扫描全部正文中 database 节点按 tableId 的出现次数（一次调用只扫一遍，供
+   * collectPendingTables 复用）。SQL 先按 LIKE 预筛可能含 database 块的正文，
+   * 再 JSON 解析深度遍历；解析失败的正文跳过并告警（正文本身已不可读，不应
+   * 因此永久阻塞表回收，详见 D-129）。
+   */
+  private static collectContentDatabaseNodeRefs(db: Database.Database): Map<number, number> {
+    const counts = new Map<number, number>();
+    let parseFailures = 0;
+    const rows = db
+      .prepare(`SELECT id, content FROM contents WHERE content LIKE '%"database"%'`)
+      .all() as Array<{ id: number; content: string }>;
+    for (const row of rows) {
+      let nodes: Descendant[];
+      try {
+        nodes = JSON.parse(row.content) as Descendant[];
+      } catch {
+        parseFailures++;
+        continue;
+      }
+      dfs(nodes, node => {
+        const typed = node as { type?: unknown; tableId?: unknown };
+        if (typed.type === "database" && typeof typed.tableId === "number") {
+          counts.set(typed.tableId, (counts.get(typed.tableId) ?? 0) + 1);
+        }
+      });
+    }
+    if (parseFailures > 0)
+      console.warn(`[data-table] ${parseFailures} 篇正文 JSON 解析失败，其数据库块引用未计入对账`);
+    return counts;
+  }
+
+  /**
+   * 回收引用归零且超过宽限期的数据表（D-129 追记）：
+   * 1) 存量补登记：ref_count <= 0 且未登记的表从当下起算宽限期，负计数归 0（不释放
+   *    正文——存量表不做对账，宁可泄漏）；
+   * 2) 到期登记先按实际引用对账（database_item、project_item、正文 database 节点、
+   *    extraTableRefs 协作私有块），仍被引用的按引用数复活并重新持有正文引用（计数
+   *    漂移信号记日志），无引用才删除表与视图（正文引用在 1→0 时已释放，不重复处理）。
+   * extraTableRefs 抛错说明协作引用无法确认，本次不删任何表。返回删除的表数。
+   */
+  static collectPendingTables(
+    db: Database.Database,
+    options: { now: number; graceMs: number; extraTableRefs?: () => Map<number, number> }
+  ): number {
+    const stockRows = db
+      .prepare(
+        `SELECT id, ref_count FROM data_tables
+         WHERE ref_count <= 0
+           AND NOT EXISTS (SELECT 1 FROM data_table_pending_releases WHERE table_id = data_tables.id)`
+      )
+      .all() as Array<{ id: number; ref_count: number }>;
+    for (const row of stockRows) {
+      db.transaction(() => {
+        db.prepare(
+          "INSERT OR IGNORE INTO data_table_pending_releases (table_id, released_at) VALUES (?, ?)"
+        ).run(row.id, options.now);
+        if (row.ref_count < 0)
+          db.prepare("UPDATE data_tables SET ref_count = 0 WHERE id = ?").run(row.id);
+      })();
+    }
+
+    const dueRows = db
+      .prepare("SELECT table_id FROM data_table_pending_releases WHERE released_at <= ?")
+      .all(options.now - options.graceMs) as Array<{ table_id: number }>;
+    if (!dueRows.length) return 0;
+
+    let extraRefs: Map<number, number>;
+    try {
+      extraRefs = options.extraTableRefs?.() ?? new Map();
+    } catch (error) {
+      console.warn("[data-table] 协作私有块不可用，本次跳过数据表回收", error);
+      return 0;
+    }
+    const contentRefs = this.collectContentDatabaseNodeRefs(db);
+
+    let collected = 0;
+    for (const { table_id: id } of dueRows) {
+      try {
+        // better-sqlite3 事务可嵌套（自动降级为 savepoint），外层已有事务时也能安全调用
+        collected += db.transaction(() => {
+          const table = this.getById(db, id);
+          if (!table) {
+            db.prepare("DELETE FROM data_table_pending_releases WHERE table_id = ?").run(id);
+            return 0;
+          }
+          const databaseItemCount = (
+            db
+              .prepare("SELECT COUNT(*) AS count FROM database_item WHERE data_table_id = ?")
+              .get(id) as { count: number }
+          ).count;
+          const projectItemCount = (
+            db
+              .prepare(
+                "SELECT COUNT(*) AS count FROM project_item WHERE ref_type = 'data-table' AND ref_id = ?"
+              )
+              .get(id) as { count: number }
+          ).count;
+          const refs =
+            databaseItemCount +
+            projectItemCount +
+            (contentRefs.get(id) ?? 0) +
+            (extraRefs.get(id) ?? 0);
+
+          if (refs > 0) {
+            db.prepare("UPDATE data_tables SET ref_count = ? WHERE id = ?").run(refs, id);
+            if ((table.refCount ?? 0) === 0) this.syncContentRefs(db, null, table);
+            db.prepare("DELETE FROM data_table_pending_releases WHERE table_id = ?").run(id);
+            console.warn(`[data-table] 表计数漂移，按实际引用复活: tableId=${id}, refs=${refs}`);
+            return 0;
+          }
+          db.prepare("DELETE FROM data_table_views WHERE table_id = ?").run(id);
+          db.prepare("DELETE FROM data_tables WHERE id = ?").run(id);
+          db.prepare("DELETE FROM data_table_pending_releases WHERE table_id = ?").run(id);
+          return 1;
+        })();
+      } catch (error) {
+        console.error(`[data-table] 回收待释放数据表失败: tableId=${id}`, error);
+      }
+    }
+    return collected;
   }
 
   static setActiveView(

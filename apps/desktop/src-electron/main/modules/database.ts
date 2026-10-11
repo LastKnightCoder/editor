@@ -83,6 +83,7 @@ import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
 import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
+import { getExtraTableRefsProvider } from "./extra-table-refs";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -386,6 +387,24 @@ class DatabaseModule implements Module {
           TodoCalendarSyncTable.cleanupOrphanedEvents(database);
         } catch (error) {
           log.error("[database] 清理孤立日历事件失败:", error);
+        }
+        try {
+          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文（D-129）。
+          // 协作私有块是表引用的事实来源之一，来源未就绪或读取失败就不能确认无引用，跳过本次
+          const extraTableRefs = getExtraTableRefsProvider();
+          if (extraTableRefs) {
+            const collectedTables = DataTableTable.collectPendingTables(database, {
+              now: Date.now(),
+              graceMs: CONTENT_RELEASE_GRACE_MS,
+              extraTableRefs: () => extraTableRefs(name),
+            });
+            if (collectedTables > 0)
+              log.info(`[database] 回收超宽限期数据表: db=${name}, count=${collectedTables}`);
+          } else {
+            log.warn(`[database] 协作模块未就绪，本次跳过数据表回收: db=${name}`);
+          }
+        } catch (error) {
+          log.error("[database] 回收待释放数据表失败:", error);
         }
         try {
           const purgedContents = ContentTable.collectPendingReleases(database, {

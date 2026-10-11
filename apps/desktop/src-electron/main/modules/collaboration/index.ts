@@ -31,6 +31,7 @@ import {
 import PathUtil from "../../utils/PathUtil";
 import databaseModule from "../database";
 import ContentTable from "../tables/content";
+import { setExtraTableRefsProvider } from "../extra-table-refs";
 import {
   bindingMatches,
   planClosedReshare,
@@ -86,6 +87,23 @@ class CollaborationManager {
   private autoFlushInterval: ReturnType<typeof setInterval> | null = null;
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private quitting = false;
+
+  /** 数据表回收对账（D-129）：私有块树里 database 节点按 tableId 计数，含嵌套子节点 */
+  private collectPrivateTableRefs(databaseName: string): Map<number, number> {
+    const counts = new Map<number, number>();
+    const walk = (node: ContentNode) => {
+      if (node.type === "database" && typeof node.tableId === "number")
+        counts.set(node.tableId, (counts.get(node.tableId) ?? 0) + 1);
+      node.children?.forEach(walk);
+    };
+    // 共享正文里数据库块的真实节点只存在 private_nodes；会话按 source.databaseName
+    // 归属主库（与 databaseModule 的库名同口径），内存会话恒为最新（初始化时已全量恢复）
+    for (const session of this.sessions.values()) {
+      if (session.info.source?.databaseName !== databaseName) continue;
+      for (const node of session.privateNodes.values()) walk(node);
+    }
+    return counts;
+  }
 
   private get serverUrl() {
     return getDevelopmentServerUrl() || DEFAULT_COLLABORATION_URL;
@@ -1074,6 +1092,7 @@ class CollaborationManager {
       finishLeave: this.finishLeave.bind(this),
       flushResources: this.flushResources.bind(this),
     });
+    setExtraTableRefsProvider(databaseName => this.collectPrivateTableRefs(databaseName));
     for (const window of BrowserWindow.getAllWindows()) this.registerWindow(window);
     app.on("browser-window-created", (_event, window) => this.registerWindow(window));
     this.autoFlushInterval = setInterval(() => {
