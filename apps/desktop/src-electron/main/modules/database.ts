@@ -22,7 +22,7 @@ import VecDocumentTable from "./tables/vec-document";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
-import ContentTable from "./tables/content";
+import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "./tables/content";
 import QuestionTable from "./tables/question";
 import QuestionLinkTable from "./tables/question-link";
 import ContentLinkTable from "./tables/content-link";
@@ -386,6 +386,16 @@ class DatabaseModule implements Module {
           TodoCalendarSyncTable.cleanupOrphanedEvents(database);
         } catch (error) {
           log.error("[database] 清理孤立日历事件失败:", error);
+        }
+        try {
+          const purgedContents = ContentTable.collectPendingReleases(database, {
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (purgedContents > 0)
+            log.info(`[database] 回收超宽限期正文: db=${name}, count=${purgedContents}`);
+        } catch (error) {
+          log.error("[database] 回收待释放正文失败:", error);
         }
         StatisticTable.doStatistic(database);
         log.info(

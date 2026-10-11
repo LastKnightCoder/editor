@@ -146,6 +146,15 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
+### `content_pending_releases`
+
+引用计数归零但暂缓删除的正文登记（`contents.id`）。开库时回收超过宽限期且引用仍为 0 的正文，撤销重新引用时删除登记。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `released_at` | `INTEGER NOT NULL`    |
+
 ### `compose_boards`
 
 创作模式的素材板：一份正文（`contents.id`）对应一页白板画布（`white_board_contents.id`，不建 `white_boards` 行，不出现在白板列表）。`intent` 为写作意图；`dismissed` 为 JSON 字符串数组，记用户移走的 AI 召集资料（实体 key，如 `card:12`），再找时排除。

@@ -32,6 +32,9 @@ import { readSharedContent, type ContentNode } from "@tau/collaboration";
 import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
 import { getNextTaskEntityId } from "./module-entity-id";
 
+/** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-129） */
+export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export default class ContentTable {
   static ensureTaskIds(db: Database.Database, contentId: number): number {
     const session = contentSession(db, contentId);
@@ -48,6 +51,7 @@ export default class ContentTable {
     return {
       "content:update": this.updateContent.bind(this),
       "content:create": this.createContent.bind(this),
+      "content:create-pending": this.createPendingContent.bind(this),
       "content:get-by-id": this.getContentById.bind(this),
       "content:delete": this.deleteContent.bind(this),
       "content:increment-ref-count": this.incrementRefCount.bind(this),
@@ -98,6 +102,24 @@ export default class ContentTable {
   }
 
   static createContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
+    return this.insertContent(db, contentData, 1);
+  }
+
+  /** 以待回收状态创建正文（ref_count 0 + 登记待回收），首次保存进表时由差集 retain（D-129） */
+  static createPendingContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
+    const contentId = this.insertContent(db, contentData, 0);
+    db.prepare("INSERT INTO content_pending_releases (content_id, released_at) VALUES (?, ?)").run(
+      contentId,
+      Date.now()
+    );
+    return contentId;
+  }
+
+  private static insertContent(
+    db: Database.Database,
+    contentData: Partial<ICreateContent>,
+    initialRefCount: number
+  ): number {
     const { content, count } = contentData;
 
     const stmt = db.prepare(
@@ -111,7 +133,7 @@ export default class ContentTable {
       now,
       JSON.stringify(content || []),
       actualCount,
-      1 // 初始引用计数为1
+      initialRefCount
     );
     const createdContentId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "content", "insert", createdContentId, now);
@@ -263,43 +285,49 @@ export default class ContentTable {
 
     // 如果引用计数为0，则删除
     if (result && result.ref_count <= 0) {
-      const deleteStmt = db.prepare("DELETE FROM contents WHERE id = ?");
-      db.prepare("DELETE FROM doc_task_settings WHERE content_id = ?").run(contentId);
-      Operation.insertOperation(db, "content", "delete", contentId, Date.now());
-      // 删除白板内容和问题
-      const content = this.getContentById(db, contentId);
-      const whiteBoardContentId: number[] = [];
-      const questionId: number[] = [];
-
-      // 遍历内容，释放嵌入白板和问题的引用
-      dfs(content?.content || [], node => {
-        if (node.type === "whiteboard" && node.whiteBoardContentId) {
-          whiteBoardContentId.push(node.whiteBoardContentId);
-        }
-        // @ts-ignore
-        if (node.type === "question" && node.questionId) {
-          // @ts-ignore
-          questionId.push(node.questionId);
-        }
-      });
-
-      whiteBoardContentId.forEach(id => {
-        WhiteBoardContentTable.deleteWhiteboard(db, id);
-      });
-      questionId.forEach(id => {
-        QuestionTable.deleteQuestion(db, id);
-      });
-
-      ContentAiMetaTable.delete(db, contentId);
-      ContentAiInsightsTable.delete(db, contentId);
-      ContentLinkTable.releaseContent(db, contentId);
-      ComposeBoardTable.releaseContent(db, contentId);
-      const changes = deleteStmt.run(contentId).changes;
-      emitContentWritten(db, contentId, "delete");
-      return changes;
+      return this.purgeContent(db, contentId);
     }
 
     return 0;
+  }
+
+  /** 真正删除正文并级联清理关联行（不检查引用计数），releaseContent 硬删与延迟回收共用 */
+  private static purgeContent(db: Database.Database, contentId: number): number {
+    const deleteStmt = db.prepare("DELETE FROM contents WHERE id = ?");
+    db.prepare("DELETE FROM doc_task_settings WHERE content_id = ?").run(contentId);
+    db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);
+    Operation.insertOperation(db, "content", "delete", contentId, Date.now());
+    // 删除白板内容和问题
+    const content = this.getContentById(db, contentId);
+    const whiteBoardContentId: number[] = [];
+    const questionId: number[] = [];
+
+    // 遍历内容，释放嵌入白板和问题的引用
+    dfs(content?.content || [], node => {
+      if (node.type === "whiteboard" && node.whiteBoardContentId) {
+        whiteBoardContentId.push(node.whiteBoardContentId);
+      }
+      // @ts-ignore
+      if (node.type === "question" && node.questionId) {
+        // @ts-ignore
+        questionId.push(node.questionId);
+      }
+    });
+
+    whiteBoardContentId.forEach(id => {
+      WhiteBoardContentTable.deleteWhiteboard(db, id);
+    });
+    questionId.forEach(id => {
+      QuestionTable.deleteQuestion(db, id);
+    });
+
+    ContentAiMetaTable.delete(db, contentId);
+    ContentAiInsightsTable.delete(db, contentId);
+    ContentLinkTable.releaseContent(db, contentId);
+    ComposeBoardTable.releaseContent(db, contentId);
+    const changes = deleteStmt.run(contentId).changes;
+    emitContentWritten(db, contentId, "delete");
+    return changes;
   }
 
   static incrementRefCount(db: Database.Database, contentId: number): void {
@@ -312,6 +340,53 @@ export default class ContentTable {
       "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0"
     );
     stmt.run(contentId);
+  }
+
+  /** 撤销登记并重新引用：宽限期内把正文从待回收救回（D-129） */
+  static retain(db: Database.Database, contentId: number): void {
+    db.prepare("UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?").run(contentId);
+    db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);
+  }
+
+  /** 延迟释放：引用减 1（不低于 0），归零只登记待回收不删正文；已登记则保留更早的 released_at */
+  static releaseDeferred(db: Database.Database, contentId: number): void {
+    db.prepare("UPDATE contents SET ref_count = ref_count - 1 WHERE id = ? AND ref_count > 0").run(
+      contentId
+    );
+    const row = db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
+      { ref_count: number } | undefined;
+    if (!row || row.ref_count > 0) return;
+    db.prepare(
+      "INSERT OR IGNORE INTO content_pending_releases (content_id, released_at) VALUES (?, ?)"
+    ).run(contentId, Date.now());
+  }
+
+  /** 回收超过宽限期且引用仍为 0 的待回收正文，返回实际删除的正文数；单条失败只记日志不阻断 */
+  static collectPendingReleases(
+    db: Database.Database,
+    options: { now: number; graceMs: number }
+  ): number {
+    const dueRows = db
+      .prepare("SELECT content_id FROM content_pending_releases WHERE released_at <= ?")
+      .all(options.now - options.graceMs) as Array<{ content_id: number }>;
+    let purged = 0;
+    for (const { content_id: contentId } of dueRows) {
+      try {
+        // better-sqlite3 事务可嵌套（自动降级为 savepoint），外层已有事务时也能安全调用
+        purged += db.transaction(() => {
+          const row = db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
+            { ref_count: number } | undefined;
+          if (!row || row.ref_count > 0) {
+            db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);
+            return 0;
+          }
+          return this.purgeContent(db, contentId);
+        })();
+      } catch (error) {
+        console.error(`[content] 回收待释放正文失败: contentId=${contentId}`, error);
+      }
+    }
+    return purged;
   }
 
   static searchContentByText(db: Database.Database, text: string, limit = 100): IContent[] {
