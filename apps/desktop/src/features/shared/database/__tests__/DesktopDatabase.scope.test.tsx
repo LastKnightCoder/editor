@@ -34,11 +34,12 @@ vi.mock("../plugins/AttachmentPlugin", () => ({ default: { type: "attachment" } 
 vi.mock("../plugins/RichTextPlugin", () => ({ default: { type: "rich-text" } }));
 vi.mock("../plugins/LinkRenderer", () => ({ default: () => null }));
 
-it("保留原实例的回调在切库后不再保存或释放正文引用", async () => {
+it("保留原实例的回调在切库后不再保存或转发行清理，且不自行删除行正文", async () => {
   mocks.active = "a";
   mocks.deleteContent.mockClear();
   const save = vi.fn();
   const saveView = vi.fn();
+  const cleanup = vi.fn();
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -60,6 +61,7 @@ it("保留原实例的回调在切库后不再保存或释放正文引用", asyn
           viewConfig={config}
           onDataChange={save}
           onViewConfigChange={saveView}
+          onRowCleanup={cleanup}
         />
       )
     );
@@ -69,14 +71,15 @@ it("保留原实例的回调在切库后不再保存或释放正文引用", asyn
     await old.onRowCleanup?.({ id: "r", detailContentId: 17 });
     expect(save).toHaveBeenCalledTimes(1);
     expect(saveView).toHaveBeenCalledTimes(1);
-    expect(mocks.deleteContent).toHaveBeenCalledExactlyOnceWith(17);
+    expect(cleanup).toHaveBeenCalledTimes(1);
     mocks.active = "b";
     old.onDataChange?.({ columns: [], rows: [] }, change);
     old.onViewConfigChange?.(config);
     await old.onRowCleanup?.({ id: "r", detailContentId: 17 });
     expect(save).toHaveBeenCalledTimes(1);
     expect(saveView).toHaveBeenCalledTimes(1);
-    expect(mocks.deleteContent).toHaveBeenCalledTimes(1);
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(mocks.deleteContent).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());
     host.remove();
