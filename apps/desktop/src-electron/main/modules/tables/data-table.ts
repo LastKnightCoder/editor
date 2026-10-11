@@ -88,7 +88,7 @@ export default class DataTableTable {
 
   /**
    * 数据表当前引用的正文（多重集合）：单元格按字段 model 的 contentRefs 声明收集
-   * （D-130），行 detailContentId 各计一次（D-129，持久化语义留在主进程侧）。
+   * （D-137），行 detailContentId 各计一次（D-136，持久化语义留在主进程侧）。
    */
   private static collectTableRefs(table: Pick<DataTable, "columns" | "rows">): Map<number, number> {
     const refs = collectContentRefs(table.columns, table.rows, dataFieldModels);
@@ -104,7 +104,7 @@ export default class DataTableTable {
   /**
    * 同一事务内按「写入前 vs 写入后」的正文引用差集同步：新增 retain（撤销待回收），
    * 减少 releaseDeferred（归零只登记不硬删）。调用方须保证表存活（ref_count > 0），
-   * 已删除的表不持有任何引用（D-129）。
+   * 已删除的表不持有任何引用（D-136）。
    */
   private static syncContentRefs(
     db: Database.Database,
@@ -169,7 +169,7 @@ export default class DataTableTable {
     const id = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "data-table", "insert", id, now);
 
-    // 新表 ref_count 为 1：持有初始 rows 中的全部正文引用（D-129）
+    // 新表 ref_count 为 1：持有初始 rows 中的全部正文引用（D-136）
     this.syncContentRefs(db, null, {
       columns: table.columns || [],
       rows: table.rows || [],
@@ -214,7 +214,7 @@ export default class DataTableTable {
     );
     Operation.insertOperation(db, "data-table", "update", table.id, now);
 
-    // 全量替换的引用差集：表存活才持有引用，已删除的表不同步（D-129）
+    // 全量替换的引用差集：表存活才持有引用，已删除的表不同步（D-136）
     if (before && (before.refCount ?? 0) > 0) {
       this.syncContentRefs(db, before, {
         columns: table.columns || [],
@@ -255,7 +255,7 @@ export default class DataTableTable {
         table.id
       );
       Operation.insertOperation(db, "data-table", "update", table.id, now);
-      // 补丁可能改 detailContentId 或 rich-text 单元格：同一事务内按差集同步引用（D-129）
+      // 补丁可能改 detailContentId 或 rich-text 单元格：同一事务内按差集同步引用（D-136）
       this.syncContentRefs(db, table, { columns: table.columns, rows });
       return true;
     })();
@@ -298,7 +298,7 @@ export default class DataTableTable {
         now,
         table.id
       );
-      // 删除行 / 删除列的正文引用随差集进入延迟回收，撤销重加即恢复（D-129）
+      // 删除行 / 删除列的正文引用随差集进入延迟回收，撤销重加即恢复（D-136）
       this.syncContentRefs(db, table, { columns, rows });
       DataTableViewTable.syncViewsWithTable(db, table.id, columns, rows);
       Operation.insertOperation(db, "data-table", "update", table.id, now);
@@ -309,7 +309,7 @@ export default class DataTableTable {
   static remove(db: Database.Database, id: number): number {
     // 读-改-写同事务：剪切/删除数据库块只减引用（下限 0），撤销/粘贴经
     // incrementRefCount 复活，因此不硬删任何正文；引用由 >0 变 0 时才把当前
-    // 全部引用交给延迟回收并登记表待回收（D-129）
+    // 全部引用交给延迟回收并登记表待回收（D-136）
     return db.transaction(() => {
       const table = this.getById(db, id);
       const stmt = db.prepare(`
@@ -331,7 +331,7 @@ export default class DataTableTable {
   }
 
   static incrementRefCount(db: Database.Database, id: number): number {
-    // 读-改-写同事务：撤销/粘贴让已删除的表复活（0 变 1）时重新持有全部引用（D-129）
+    // 读-改-写同事务：撤销/粘贴让已删除的表复活（0 变 1）时重新持有全部引用（D-136）
     return db.transaction(() => {
       const table = this.getById(db, id);
       const stmt = db.prepare(`
@@ -357,7 +357,7 @@ export default class DataTableTable {
    * 扫描全部正文中 database 节点按 tableId 的出现次数（一次调用只扫一遍，供
    * collectPendingTables 复用）。SQL 先按 LIKE 预筛可能含 database 块的正文，
    * 再 JSON 解析深度遍历；解析失败的正文跳过并告警（正文本身已不可读，不应
-   * 因此永久阻塞表回收，详见 D-129）。
+   * 因此永久阻塞表回收，详见 D-136）。
    */
   private static collectContentDatabaseNodeRefs(db: Database.Database): Map<number, number> {
     const counts = new Map<number, number>();
@@ -386,7 +386,7 @@ export default class DataTableTable {
   }
 
   /**
-   * 回收引用归零且超过宽限期的数据表（D-129 追记）：
+   * 回收引用归零且超过宽限期的数据表（D-136 追记）：
    * 1) 存量补登记：ref_count <= 0 且未登记的表从当下起算宽限期，负计数归 0（不释放
    *    正文——存量表不做对账，宁可泄漏）；
    * 2) 到期登记先按实际引用对账（database_item、project_item、正文 database 节点、

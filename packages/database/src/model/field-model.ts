@@ -1,7 +1,7 @@
 import type { Scalar, ValueType } from "../core/formula/types";
 import type { CellValue, ColumnDef } from "../types";
 
-/** 字段的纯数据部分：零 React / DOM 依赖，主进程与 MCP 可直接使用（D-130） */
+/** 字段的纯数据部分：零 React / DOM 依赖，主进程与 MCP 可直接使用（D-137） */
 export interface DatabaseFieldModel<TConfig = unknown> {
   type: string;
   /** 单元格值转纯文本（用于 Markdown/AI/搜索）；空值返回 "" */

@@ -68,7 +68,7 @@ type RowDeriver = (row: RowData) => RowData;
 /**
  * 给行补上公式列的值（按现成的求值上下文；表达式在建立时校验一次，
  * 同一源行对象复用同一派生结果，未改动的行不重算、引用稳定）。
- * model 子入口按字段 model 构造上下文后复用同一派生逻辑（D-130）。
+ * model 子入口按字段 model 构造上下文后复用同一派生逻辑（D-137）。
  */
 export function createRowDeriverFromContext(
   columns: readonly ColumnDef[],

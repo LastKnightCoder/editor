@@ -205,7 +205,7 @@ export interface CellPlugin<T> {
   name: string;
   /** 字段能力：声明该字段的值与内置同名格式兼容，视图与面板据此决定是否可用；静态声明，不从 valueType 推断 */
   capabilities?: FieldCapabilities;
-  /** 字段的纯数据 model（值口径与配置版本迁移，D-130）；PluginManager 经 getModel 读取 */
+  /** 字段的纯数据 model（值口径与配置版本迁移，D-137）；PluginManager 经 getModel 读取 */
   model?: DatabaseFieldModel<T>;
   // 列头显示的图标
   Icon?: React.ComponentType<{ className?: string }>;

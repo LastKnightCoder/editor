@@ -8,7 +8,7 @@ import type { DataTable, ProjectItem } from "@/types";
 import type { ToolParameterSchema } from "@/types";
 import type { MCPProviderDefinition } from "./types";
 
-/** 只读消费的字段 model 登记：内置 + 桌面私有字段（D-130） */
+/** 只读消费的字段 model 登记：内置 + 桌面私有字段（D-137） */
 const dataFieldModels = [...builtInFieldModels, ...desktopFieldModels];
 
 const DEFAULT_MAX_ROWS = 100;

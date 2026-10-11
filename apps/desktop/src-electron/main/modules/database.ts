@@ -394,7 +394,7 @@ class DatabaseModule implements Module {
           log.error("[database] 清理孤立日历事件失败:", error);
         }
         try {
-          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文（D-129）。
+          // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文（D-136）。
           // 协作私有块是表引用的事实来源之一，来源未就绪或读取失败就不能确认无引用，跳过本次
           const extraTableRefs = getExtraTableRefsProvider();
           if (extraTableRefs) {

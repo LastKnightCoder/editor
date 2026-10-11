@@ -198,7 +198,7 @@ export function createCardDatabasePreferencesStore(storage: Storage) {
         name: CARD_DATABASE_PREFERENCES_KEY,
         version: 2,
         storage: createJSONStorage(() => storage),
-        // v1 视图 config 里的旧三键收进 viewOptions（D-130）；全部设备升级后随清洁版删除
+        // v1 视图 config 里的旧三键收进 viewOptions（D-137）；全部设备升级后随清洁版删除
         migrate: (state, version) => {
           if (version >= 2 || !isPlainObject(state)) return state as never;
           const next = { ...state };

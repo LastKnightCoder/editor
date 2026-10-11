@@ -6,7 +6,7 @@ export interface ColumnDef<T = unknown> {
   type: string;
   width?: number;
   config?: T;
-  /** 字段配置版本；缺省视为 1，由字段 model 的 configVersion / migrateConfig 逐级升级（D-130） */
+  /** 字段配置版本；缺省视为 1，由字段 model 的 configVersion / migrateConfig 逐级升级（D-137） */
   configVersion?: number;
   validation?: ValidationRule;
   hidden?: boolean;
@@ -91,7 +91,7 @@ export interface TableViewConfig {
   groupBy?: GroupRule | null;
   sorts: SortRule[];
   filters?: FilterGroup | null;
-  /** 视图专属配置：键为视图 type 字符串，值由该视图自行解释；主进程只校验为 JSON 对象（D-130） */
+  /** 视图专属配置：键为视图 type 字符串，值由该视图自行解释；主进程只校验为 JSON 对象（D-137） */
   viewOptions?: Record<string, unknown>;
   /** 表尾汇总：列 id → 汇总方式；未登记的列不显示汇总值 */
   footer?: Record<string, FooterSpec>;
@@ -105,7 +105,7 @@ export type AggregateOp =
 /**
  * 单列汇总，或以各列汇总为叶子的组合表达式。
  * aggregate.op 放宽为 string：内置 9 个见 AggregateOp（公式仍只认这些），
- * 扩展可贡献带命名空间的表尾算子（D-130）；主进程对该值只校验字符串、原样保留。
+ * 扩展可贡献带命名空间的表尾算子（D-137）；主进程对该值只校验字符串、原样保留。
  */
 export type FooterSpec = { kind: "aggregate"; op: string } | { kind: "expr"; expr: FormulaExpr };
 

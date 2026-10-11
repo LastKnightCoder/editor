@@ -100,7 +100,7 @@ function computeOf(op: AggregateOp): DatabaseAggregateDefinition["compute"] {
 }
 
 /**
- * 内置 9 个算子以扩展同构声明（D-130）：表尾经登记表求值，公式仍走上面的 aggregate()。
+ * 内置 9 个算子以扩展同构声明（D-137）：表尾经登记表求值，公式仍走上面的 aggregate()。
  * 取值口径与 aggregate() 逐值一致；唯一差异是 numeric 算子遇到非全数字值时
  * aggregate() 报错、compute 返回 null（两者在表尾都显示「—」）。
  */

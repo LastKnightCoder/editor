@@ -107,7 +107,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     const store = useCreation(
       () =>
         createDatabaseStore(
-          // 初始列先按字段 model 升级配置版本（D-130）：升级不触发保存，随用户下次修改落库
+          // 初始列先按字段 model 升级配置版本（D-137）：升级不触发保存，随用户下次修改落库
           upgradeColumns(
             columns,
             pluginMgr

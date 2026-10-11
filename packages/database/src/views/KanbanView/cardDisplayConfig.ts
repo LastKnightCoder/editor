@@ -22,7 +22,7 @@ const isOptionColumn = (column: ColumnDef): boolean =>
   Array.isArray((column.config as { options?: unknown } | undefined | null)?.options);
 
 /**
- * 卡片可内联展示的字段判定（D-130）：插件声明了 model.toText（值有纯文本口径）。
+ * 卡片可内联展示的字段判定（D-137）：插件声明了 model.toText（值有纯文本口径）。
  * 公式列的值只在投影中派生、不落 store 行，维持排除（与 DatabaseStore 的公式列特判同语义）。
  */
 export const createCardFieldPredicate =

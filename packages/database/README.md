@@ -25,11 +25,11 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 ## 字段 model 子入口（`@tau/database/model`）
 
-字段的纯数据部分与 React 组件分文件（D-130）：`defineFieldModel` 声明 `DatabaseFieldModel`（`toText` 值转纯文本、可选 `contentRefs` 资源声明、`valueType` / `toScalar`），内置十个字段经 `builtInFieldModels` 提供；根入口的 CellPlugin 从同一份 model 组装纯成员，行为不变。主进程与 MCP 等非 UI 消费方只依赖该子入口。子入口的运行时依赖闭包不可达 React / DOM 与 UI、状态库（type-only 导入不计入），由 `scripts/check-database-boundaries.mjs` 守护；新增成员时保持 model 文件零 `.tsx`、零 UI 导入。
+字段的纯数据部分与 React 组件分文件（D-137）：`defineFieldModel` 声明 `DatabaseFieldModel`（`toText` 值转纯文本、可选 `contentRefs` 资源声明、`valueType` / `toScalar`），内置十个字段经 `builtInFieldModels` 提供；根入口的 CellPlugin 从同一份 model 组装纯成员，行为不变。主进程与 MCP 等非 UI 消费方只依赖该子入口。子入口的运行时依赖闭包不可达 React / DOM 与 UI、状态库（type-only 导入不计入），由 `scripts/check-database-boundaries.mjs` 守护；新增成员时保持 model 文件零 `.tsx`、零 UI 导入。
 
 字段还可声明 `ConfigPanel`（列配置编辑面板，受控组件，ColumnEditModal 在类型区下方渲染；未声明的字段保存时不改动 config）与可选 `validateConfig` 保存前最终校验；面板需要更宽弹窗时在组件上挂 `dialogWidth` 静态属性（如公式构造器 880）。
 
-字段配置带版本（D-130）：列定义的 `configVersion` 缺省视为 1，字段 model 声明 `configVersion` 与逐级 `migrateConfig`（声明 >1 却缺迁移函数在 `defineFieldModel` 时抛错）；model 子入口的 `upgradeColumnConfig` / `upgradeColumns` 把旧版本配置逐级升到当前版本，列版本更高时原样保留不降级。Database 初始化与外部 `column.configure` 到达时升级，升级不立即触发保存，随用户下次修改一并落库；新建列写入 model 声明的当前版本。
+字段配置带版本（D-137）：列定义的 `configVersion` 缺省视为 1，字段 model 声明 `configVersion` 与逐级 `migrateConfig`（声明 >1 却缺迁移函数在 `defineFieldModel` 时抛错）；model 子入口的 `upgradeColumnConfig` / `upgradeColumns` 把旧版本配置逐级升到当前版本，列版本更高时原样保留不降级。Database 初始化与外部 `column.configure` 到达时升级，升级不立即触发保存，随用户下次修改一并落库；新建列写入 model 声明的当前版本。
 
 宿主 Tailwind v4 入口导入主题 token、主题 Tailwind 桥接和 UI 公共样式，并显式扫描本包与 UI 源码：
 
@@ -58,7 +58,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 ## 宿主能力
 
-宿主经 `extensions` 装配字段、视图与插槽，集合在实例内必须引用稳定（模块级常量或 useMemo），变化即报错（D-128）：
+宿主经 `extensions` 装配字段、视图与插槽，集合在实例内必须引用稳定（模块级常量或 useMemo），变化即报错（D-135）：
 
 ```tsx
 const acmeExtension = defineDatabaseExtension({
@@ -99,15 +99,15 @@ const extensions = [acmeExtension];
 
 `create()` 每个实例调用一次，实例级状态放在其闭包内。覆盖在全部 `fieldTypes` 注册后应用；目标不存在、同一类型被两个扩展覆盖均报错。扩展不从本包获得文件、导航或模型等宿主能力，所需能力由宿主侧扩展自行持有。图片、附件、富文本与卡片业务字段由宿主扩展提供；缺失插件的字段不可编辑并保留原值。
 
-扩展可贡献表尾聚合算子（D-130）：算子经每实例的 `AggregateRegistry` 登记（内置 9 个走同一结构同一注册路径），表尾菜单在内置分组后追加扩展算子组、按列 valueType 过滤，计算经登记表求值。只有表尾使用扩展算子——`FooterSpec` 的 `op` 放宽为 string，公式（含表尾组合表达式的 aggregate 节点）仍只认内置 `AggregateOp`（D-121），`FormulaBuilder` 与公式校验不开放扩展算子。配置了未登记算子（扩展被移除）的表尾格显示为空、菜单不选中，配置原样保留不清除；主进程 `normalizeFooter` 对 op 只校验字符串。
+扩展可贡献表尾聚合算子（D-137）：算子经每实例的 `AggregateRegistry` 登记（内置 9 个走同一结构同一注册路径），表尾菜单在内置分组后追加扩展算子组、按列 valueType 过滤，计算经登记表求值。只有表尾使用扩展算子——`FooterSpec` 的 `op` 放宽为 string，公式（含表尾组合表达式的 aggregate 节点）仍只认内置 `AggregateOp`（D-121），`FormulaBuilder` 与公式校验不开放扩展算子。配置了未登记算子（扩展被移除）的表尾格显示为空、菜单不选中，配置原样保留不清除；主进程 `normalizeFooter` 对 op 只校验字符串。
 
-扩展可贡献命令（D-130）：`commands` 声明出现位置（`row` 行菜单、`column` 列头菜单、`toolbar` 工具栏），经 `CommandContext` 收到受控的 `DatabaseCommandApi`（`getColumns`/`getRows` 返回副本；`updateCells`/`deleteRows` 批量提交且只产生一次撤销步；readonly 实例写方法直接返回、不显示任何扩展命令）。行菜单扩展项排在「删除」之前、列头扩展项排在「编辑」之后「删除」之前，与内置项之间有分隔线；内置的编辑/删除保持原确认流程，不改为命令。`run` 抛错或 reject 经 `@tau/ui` toast 报错，不影响表格。toolbar 当前没有现成的溢出菜单承载点，placement 类型保留、暂不渲染。
+扩展可贡献命令（D-137）：`commands` 声明出现位置（`row` 行菜单、`column` 列头菜单、`toolbar` 工具栏），经 `CommandContext` 收到受控的 `DatabaseCommandApi`（`getColumns`/`getRows` 返回副本；`updateCells`/`deleteRows` 批量提交且只产生一次撤销步；readonly 实例写方法直接返回、不显示任何扩展命令）。行菜单扩展项排在「删除」之前、列头扩展项排在「编辑」之后「删除」之前，与内置项之间有分隔线；内置的编辑/删除保持原确认流程，不改为命令。`run` 抛错或 reject 经 `@tau/ui` toast 报错，不影响表格。toolbar 当前没有现成的溢出菜单承载点，placement 类型保留、暂不渲染。
 
 插槽 `useFormulaAssist` 是 hook：返回调用模型的函数，返回 undefined 时公式构造器不显示 AI 输入框。
 
 字段插件经 `capabilities`（`FieldCapabilities`：date / singleOption / boolean / images）静态声明值格式与内置同名字段兼容，视图与面板只经 `PluginManager.hasCapability` 判定可用性（日历日期列、看板分组列与完成列、日期分组粒度、封面图片列），不按列类型名特判。能力不从 `valueType` 推断：公式列结果为日期也不能作日历列。
 
-扩展可贡献视图（D-130）：视图定义把元数据与组件合一（`DatabaseViewDefinition`），内置四视图（table / gallery / calendar / kanban）走同一注册路径。
+扩展可贡献视图（D-137）：视图定义把元数据与组件合一（`DatabaseViewDefinition`），内置四视图（table / gallery / calendar / kanban）走同一注册路径。
 
 ```tsx
 import type { DatabaseViewDefinition } from "@tau/database";

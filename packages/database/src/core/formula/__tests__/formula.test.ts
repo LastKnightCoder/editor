@@ -259,7 +259,7 @@ describe("汇总", () => {
         "footer"
       )
     ).toMatchObject({ ok: false, error: { code: "type" } });
-    // FooterSpec.op 放宽为 string 后，未登记算子走表尾路径显示为空（D-130）
+    // FooterSpec.op 放宽为 string 后，未登记算子走表尾路径显示为空（D-137）
     expect(footer("qty", "acme.range" as Parameters<typeof aggregate>[0])).toEqual({
       ok: true,
       value: { kind: "unregistered" },

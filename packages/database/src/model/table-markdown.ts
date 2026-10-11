@@ -1,5 +1,5 @@
 /**
- * 数据表转 Markdown（D-130）：按字段 model 把列值转成纯文本，
+ * 数据表转 Markdown（D-137）：按字段 model 把列值转成纯文本，
  * 供只读 MCP 数据表工具等非 UI 消费方使用。零 React / DOM 依赖。
  */
 

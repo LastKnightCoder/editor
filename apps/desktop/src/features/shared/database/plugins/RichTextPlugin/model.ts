@@ -5,7 +5,7 @@ import type { RichTextPluginValue } from "./types";
 const itemsOf = (value: CellValue): RichTextPluginValue =>
   Array.isArray(value) ? (value as RichTextPluginValue) : [];
 
-/** 富文本字段的纯数据部分：标题文本与正文引用（与 D-129 shared 收集口径一致） */
+/** 富文本字段的纯数据部分：标题文本与正文引用（与 D-136 shared 收集口径一致） */
 export const richTextFieldModel = defineFieldModel({
   type: "rich-text",
   toText: value =>

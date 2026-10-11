@@ -1,5 +1,5 @@
 /**
- * 数据表正文引用的收集与差集（D-129 / D-130）。
+ * 数据表正文引用的收集与差集（D-136 / D-137）。
  *
  * 纯函数零依赖：按字段 model 的 contentRefs 声明统计数据表单元格引用的正文，
  * 按出现次数计数（同一 id 出现 N 次计 N 份）。行级正文引用（如数据表持久化行
@@ -36,7 +36,7 @@ function isPositiveInteger(value: unknown): value is number {
 /**
  * 统计数据表单元格引用的正文：声明了 contentRefs 的字段按各 model 收集，
  * 按出现次数计（多重集合）；model 返回的非法值（非正整数）忽略。
- * 收集口径由字段 model 声明（D-129 / D-130）。
+ * 收集口径由字段 model 声明（D-136 / D-137）。
  */
 export function collectContentRefs(
   columns: readonly ColumnDef[] | null | undefined,

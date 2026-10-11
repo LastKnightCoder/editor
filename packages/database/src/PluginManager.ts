@@ -45,7 +45,7 @@ export class PluginManager {
     return this.plugins.get(type)?.capabilities?.[capability] === true;
   }
 
-  /** 字段的纯数据 model（值口径与配置版本迁移，D-130）；未注册或插件未挂 model 时返回 undefined */
+  /** 字段的纯数据 model（值口径与配置版本迁移，D-137）；未注册或插件未挂 model 时返回 undefined */
   getModel(type: string): DatabaseFieldModel | undefined {
     return this.plugins.get(type)?.model;
   }
