@@ -10,7 +10,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useMemoizedFn } from "ahooks";
 import Board from "../Board";
 import BoardContent from "../components/BoardContent";
-import { SelectionContext } from "../context";
+import { SelectionContext, StaticSelectionContext } from "../context";
 import type { BoardElement, Selection, ViewPort } from "../types";
 import { calculateExportBounds, createExportViewPort } from "../utils";
 import { isInteriorConnectElement } from "../utils/ConnectPointUtil";
@@ -274,19 +274,23 @@ export function useBoardCapture(
   const layer = useMemo(() => {
     if (!state) return null;
     const content = (
-      <BoardContent
-        board={board}
-        viewPort={state.viewPort}
-        centerConnectArrows={state.centerConnectArrows}
-        noneCenterConnectArrows={state.noneCenterConnectArrows}
-        centerConnectAndSelectedArrows={state.centerConnectAndSelectedArrows}
-        gridVisible={false}
-        disableViewportFilter={true}
-        isolateStaticSelection={state.isolateSelection}
-        showAssistLayers={false}
-        backgroundColor={state.backgroundColor}
-        renderElementsOverride={state.elements}
-      />
+      // 截图静态树强制无选区：元素级选中订阅（useSelectState）读真实选区，
+      // 隔离 Provider 挂在截图树根（交互树的静态层不挂，避免选区变化时的 context 传播）
+      <StaticSelectionContext.Provider value={state.isolateSelection}>
+        <BoardContent
+          board={board}
+          viewPort={state.viewPort}
+          centerConnectArrows={state.centerConnectArrows}
+          noneCenterConnectArrows={state.noneCenterConnectArrows}
+          centerConnectAndSelectedArrows={state.centerConnectAndSelectedArrows}
+          gridVisible={false}
+          disableViewportFilter={true}
+          isolateStaticSelection={state.isolateSelection}
+          showAssistLayers={false}
+          backgroundColor={state.backgroundColor}
+          renderElementsOverride={state.elements}
+        />
+      </StaticSelectionContext.Provider>
     );
     return (
       <div

@@ -10,6 +10,7 @@ export { useResize } from "./useResize";
 export { useSelection } from "./useSelection";
 export { useSelectState } from "./useSelectState";
 export { useViewPort } from "./useViewPort";
+export { useZoom } from "./useZoom";
 export { usePointerViewport } from "./usePointerViewport";
 export { default as useEventHandlers } from "./useEventHandlers";
 export { default as useViewPortControls } from "./useViewPortControls";

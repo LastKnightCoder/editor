@@ -2,7 +2,7 @@ import { memo, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 
 import { ARROW_TOOL_ID } from "../../constants/tools";
-import { useActiveTool, useBoard, usePointerViewport, useViewPort } from "../../hooks";
+import { useActiveTool, useBoard, usePointerViewport, useZoom } from "../../hooks";
 import { getNearestCustomConnectCandidate } from "../../utils";
 import type { Point } from "../../types";
 
@@ -15,7 +15,7 @@ const ArrowSourceSnapPreview = memo(() => {
   const board = useBoard();
   const active = useActiveTool() === ARROW_TOOL_ID;
   const pointerViewport = usePointerViewport();
-  const { zoom } = useViewPort();
+  const zoom = useZoom();
   const altKeyRef = useRef(false);
   // 拖动中（存在创建预览）保持沉默，吸附反馈由创建手势内的追踪器负责
   const draggingRef = useRef(false);

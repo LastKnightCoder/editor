@@ -12,6 +12,8 @@ export interface PointerViewportStore {
 
 export const BoardContext = createContext<Board | null>(null);
 export const SelectionContext = createContext<Selection | null>(null);
+/** 静态元素层（选中的箭头/内部连接元素已提升到交互层时）强制无选区；元素级选中订阅据此短路 */
+export const StaticSelectionContext = createContext(false);
 export const ViewPortContext = createContext<ViewPort>({
   minX: 0,
   minY: 0,

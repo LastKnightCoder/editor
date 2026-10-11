@@ -1,4 +1,4 @@
-import { memo, SVGProps, forwardRef, useMemo, useContext } from "react";
+import { memo, SVGProps, forwardRef, useMemo, useContext, useDeferredValue } from "react";
 import type { RefObject } from "react";
 import { BoardElement, Selection, ViewPort } from "../../types";
 import Grid from "../Grid";
@@ -33,6 +33,30 @@ const STATIC_LAYER_SELECTION: Selection = {
 };
 
 /**
+ * 静态元素层（底两层）。独立 memo：BoardContent 因顶层选区 context 穿透重渲时，
+ * 两层数组引用不变即整体跳过——内部 Provider 不重建，元素级选中订阅（useSelectState）
+ * 不产生无谓的传播。截图树的选区隔离由宿主在树根挂 StaticSelectionContext（见 useBoardCapture）。
+ */
+const StaticLayers = memo(function StaticLayers({
+  staticLayerSelection,
+  visibleCenterConnectArrows,
+  visibleNoneCenterConnectArrows,
+}: {
+  staticLayerSelection: Selection | null;
+  visibleCenterConnectArrows: React.ReactNode;
+  visibleNoneCenterConnectArrows: React.ReactNode;
+}) {
+  return (
+    <SelectionContext.Provider value={staticLayerSelection}>
+      {/* 1. 中心连接且未选中的箭头（最底层） */}
+      <g data-layer="center-connect-arrows">{visibleCenterConnectArrows}</g>
+      {/* 2. 非中心连接的元素（中间层） */}
+      <g data-layer="main-elements">{visibleNoneCenterConnectArrows}</g>
+    </SelectionContext.Provider>
+  );
+});
+
+/**
  * 渲染画板内容的组件
  */
 const BoardContent = memo(
@@ -59,6 +83,10 @@ const BoardContent = memo(
 
     const elementsToRender = renderElementsOverride ?? noneCenterConnectArrows;
 
+    // 剔除用滞后视口：平移/缩放帧只紧急更新 svg viewBox（一个属性）保证跟手，
+    // 全树剔除与 JSX 重建以低优先级并发追赶；剔除盒带 100px 缓冲，滞后不可感知
+    const cullViewPort = useDeferredValue(viewPort);
+
     // 过滤视口内的元素（性能优化）
     const visibleCenterConnectArrows = useMemo(() => {
       if (disableViewportFilter) {
@@ -66,7 +94,7 @@ const BoardContent = memo(
       }
       const visibleElements = board.filterElementsInViewport(centerConnectArrows, 100);
       return board.renderVisibleElements(visibleElements);
-    }, [board, centerConnectArrows, disableViewportFilter, viewPort]);
+    }, [board, centerConnectArrows, disableViewportFilter, cullViewPort]);
 
     const visibleNoneCenterConnectArrows = useMemo(() => {
       if (disableViewportFilter) {
@@ -74,7 +102,7 @@ const BoardContent = memo(
       }
       const visibleElements = board.filterElementsInViewport(elementsToRender, 100);
       return board.renderVisibleElements(visibleElements);
-    }, [board, disableViewportFilter, elementsToRender, viewPort]);
+    }, [board, disableViewportFilter, elementsToRender, cullViewPort]);
 
     const visibleCenterConnectAndSelectedArrows = useMemo(() => {
       if (disableViewportFilter) {
@@ -82,7 +110,7 @@ const BoardContent = memo(
       }
       const visibleElements = board.filterElementsInViewport(centerConnectAndSelectedArrows, 100);
       return board.renderVisibleElements(visibleElements);
-    }, [board, centerConnectAndSelectedArrows, disableViewportFilter, viewPort]);
+    }, [board, centerConnectAndSelectedArrows, disableViewportFilter, cullViewPort]);
 
     return (
       <svg
@@ -98,12 +126,11 @@ const BoardContent = memo(
         )}
         <ArrowMarkers />
         <Grid visible={gridVisible} />
-        <SelectionContext.Provider value={staticLayerSelection}>
-          {/* 1. 中心连接且未选中的箭头（最底层） */}
-          <g data-layer="center-connect-arrows">{visibleCenterConnectArrows}</g>
-          {/* 2. 非中心连接的元素（中间层） */}
-          <g data-layer="main-elements">{visibleNoneCenterConnectArrows}</g>
-        </SelectionContext.Provider>
+        <StaticLayers
+          staticLayerSelection={staticLayerSelection}
+          visibleCenterConnectArrows={visibleCenterConnectArrows}
+          visibleNoneCenterConnectArrows={visibleNoneCenterConnectArrows}
+        />
         {/* 连接点覆盖层（位于中间层之上，但低于选中箭头层） */}
         <g ref={connectPointOverlayRef} data-layer="connect-point-overlay" />
         {/* 自定义连接点：常驻标记 + 拖拽时吸附反馈，通过 overlay 上下文 portal 到上方覆盖层 */}
