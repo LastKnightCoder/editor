@@ -40,8 +40,8 @@ const contentKey = (database: string, id: number) => ["whiteboard-content", data
 /* ───────── 列表 ───────── */
 
 /**
- * 全部白板（含各页数据，列表接口原样返回）。写入口不止本页（项目条目、AI 工具、画布页），
- * 没有变更广播：画布页保存后与本页写入后主动失效，另开窗口回来时按焦点刷新。
+ * 全部白板（含各页摘要数据，列表接口原样返回）。写入口不止本页（项目条目、AI 工具、画布页），
+ * 没有变更广播：本页写入后局部 patch 列表缓存，其余写入口主动失效，另开窗口回来时按焦点刷新。
  */
 export function useWhiteboards() {
   const database = useSettingStore(state => state.setting.database.active);
@@ -297,8 +297,24 @@ export function useWhiteBoardContent(id: number) {
     },
     onSuccess: content => {
       queryClient.setQueryData(queryKey, content);
-      // 列表的元素数 / 更新时间随之变化
-      void invalidateList(queryClient);
+      // 画布保存是高频操作（拖动停 400ms 即落库）：失效整表会让侧栏/列表随每次停顿全量重拉，
+      // 与画布渲染争抢主线程。改为就地 patch 该页的元素数与更新时间；页内元素结构（缩略示意图）
+      // 留待列表自然刷新（staleTime / 窗口焦点）时更新。
+      queryClient.setQueryData<WhiteboardItem[]>(listKey(database), prev =>
+        prev?.map(item => {
+          const page = item.pages.find(p => p.id === content.id);
+          if (!page) return item;
+          const elementCount = content.data.children?.length ?? 0;
+          return {
+            ...item,
+            updateTime: Math.max(item.updateTime, content.updateTime),
+            elementCount: item.elementCount - page.elementCount + elementCount,
+            pages: item.pages.map(p =>
+              p.id === content.id ? { ...p, elementCount, updateTime: content.updateTime } : p
+            ),
+          };
+        })
+      );
     },
     onError: () => toast.error("白板保存失败，请重试"),
   });
