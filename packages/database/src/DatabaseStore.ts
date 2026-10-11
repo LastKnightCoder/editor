@@ -42,8 +42,10 @@ interface TableState {
   projection: DatabaseProjection;
   lastChange: DatabaseChange | null;
   setQuery(query: Partial<DatabaseQuery>): void;
+  /** 外部（source="external"）数据变更会清空撤销/重做栈并以当前数据重建基线 */
   dispatch(command: DatabaseCommand, source?: DatabaseChange["source"]): void;
 
+  /** 撤销历史（含创建时的基线快照），只覆盖行与列数据 */
   history: TableSnapshot[];
   historyIndex: number;
 
@@ -58,6 +60,7 @@ interface TableState {
   clearCellSelection: () => void; // 清除单元格选择
 
   commitHistory: () => void;
+  /** 撤销只恢复行与列数据并产生 source=user 变更（触发宿主保存）；视图配置不回滚 */
   undo: () => void;
   redo: () => void;
 
@@ -85,19 +88,24 @@ const cloneFilters = (filters: FilterGroup | null | undefined): FilterGroup | nu
   return filters ? JSON.parse(JSON.stringify(filters)) : null;
 };
 
-const createSnapshot = (
-  state: Pick<TableState, "columns" | "rows" | "viewConfig" | "columnWidths">
-): TableSnapshot => ({
+/** 撤销历史（含基线快照）的条数上限 */
+const HISTORY_LIMIT = 50;
+
+const createSnapshot = (state: Pick<TableState, "columns" | "rows">): TableSnapshot => ({
   columns: JSON.parse(JSON.stringify(state.columns)),
   rows: JSON.parse(JSON.stringify(state.rows)),
-  viewConfig: {
-    columnOrder: [...state.viewConfig.columnOrder],
-    rowOrder: [...state.viewConfig.rowOrder],
-    groupBy: state.viewConfig.groupBy ?? null,
-    sorts: [...state.viewConfig.sorts],
-    filters: cloneFilters(state.viewConfig.filters ?? null),
-  },
 });
+
+/** 恢复数据后修补视图 order：去掉已消失的 id，新出现的 id 追加到末尾。 */
+const reconcileOrder = (order: string[], validIds: string[]): string[] => {
+  const valid = new Set(validIds);
+  const kept = order.filter(id => valid.has(id));
+  const keptSet = new Set(kept);
+  return [...kept, ...validIds.filter(id => !keptSet.has(id))];
+};
+
+const sameOrder = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((id, index) => id === b[index]);
 
 export const createDatabaseStore = (
   initialColumns: ColumnDef[] = [],
@@ -145,6 +153,8 @@ export const createDatabaseStore = (
   };
 
   let confirmedRows = initialRows;
+  // 基线快照保证第一次数据修改即可撤销
+  const baselineSnapshot = createSnapshot({ columns: initialColumns, rows: initialRows });
   return create<TableState>((setState, get) => {
     const commit = (
       update: Parameters<typeof setState>[0],
@@ -173,8 +183,14 @@ export const createDatabaseStore = (
         projection.columnIds.includes(cell.columnId)
           ? cell
           : null;
+      // 外部数据变更以新数据重建撤销基线，撤销不回滚外部更新
+      const externalReset =
+        dataChanged && source === "external"
+          ? { history: [createSnapshot(next)], historyIndex: 0 }
+          : undefined;
       setState({
         ...patch,
+        ...(externalReset ?? {}),
         views: next.views,
         projection,
         selectedCell: switchedView ? null : validCell(next.selectedCell),
@@ -192,6 +208,41 @@ export const createDatabaseStore = (
       });
     };
     const set = (update: Parameters<typeof setState>[0]) => commit(update);
+    const restoreSnapshot = (snapshot: TableSnapshot, historyIndex: number) => {
+      commit(
+        produce<TableState>(state => {
+          // 列宽属视图配置：恢复的列保留当前列宽，缺 width 记录的按快照值补齐
+          const currentWidthOf = new Map(
+            state.columns.map(column => [column.id, column.width] as const)
+          );
+          state.columns = snapshot.columns.map(column => ({
+            ...column,
+            width: currentWidthOf.get(column.id) ?? column.width,
+          }));
+          state.rows = snapshot.rows;
+          const columnWidths = { ...state.columnWidths };
+          for (const column of state.columns)
+            if (!(column.id in columnWidths)) columnWidths[column.id] = column.width || 200;
+          state.columnWidths = columnWidths;
+          // 视图 order 只做一致性修补：去掉已消失 id、新 id 追加末尾；无变化时不动 viewConfig
+          const columnOrder = reconcileOrder(
+            state.viewConfig.columnOrder,
+            state.columns.map(column => column.id)
+          );
+          const rowOrder = reconcileOrder(
+            state.viewConfig.rowOrder,
+            state.rows.map(row => row.id)
+          );
+          if (
+            !sameOrder(columnOrder, state.viewConfig.columnOrder) ||
+            !sameOrder(rowOrder, state.viewConfig.rowOrder)
+          )
+            state.viewConfig = { ...state.viewConfig, columnOrder, rowOrder };
+          state.historyIndex = historyIndex;
+        }),
+        "user"
+      );
+    };
     return {
       columns: initialColumns,
       rows: initialRows,
@@ -214,6 +265,7 @@ export const createDatabaseStore = (
       ),
       lastChange: null,
       setQuery: query => set(state => ({ query: { ...state.query, ...query } })),
+      /** 外部（source="external"）数据变更不进撤销历史：到达时清空撤销/重做栈，以当前数据重建基线。 */
       dispatch: (command, source = "user") => {
         if (command.type === "view.receive") {
           commit(state => {
@@ -296,12 +348,10 @@ export const createDatabaseStore = (
           commit(state => ({ rows: applyRowChanges(state.rows, changes) }), source);
       },
 
-      history: [],
-      historyIndex: -1,
+      history: [baselineSnapshot],
+      historyIndex: 0,
 
       updateCellValue: (rowId, columnId, value) => {
-        get().commitHistory();
-
         set(
           produce<TableState>(state => {
             const rowIndex = state.rows.findIndex(r => r.id === rowId);
@@ -310,6 +360,7 @@ export const createDatabaseStore = (
             }
           })
         );
+        get().commitHistory();
       },
 
       resizeColumn: (columnId, width) => {
@@ -339,7 +390,6 @@ export const createDatabaseStore = (
         const fromIndex = order.indexOf(columnId);
         const toIndex = order.indexOf(targetId);
         if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
-        get().commitHistory();
 
         set(
           produce<TableState>(state => {
@@ -371,66 +421,28 @@ export const createDatabaseStore = (
       },
 
       commitHistory: () => {
-        const currentState = get();
-        const newSnapshot = createSnapshot(currentState);
-
-        set(
-          produce<TableState>(state => {
-            if (state.historyIndex < state.history.length - 1) {
-              state.history = state.history.slice(0, state.historyIndex + 1);
-            }
-
-            state.history.push(newSnapshot);
-
-            if (state.history.length > 50) {
-              state.history = state.history.slice(state.history.length - 50);
-            }
-
-            state.historyIndex = state.history.length - 1;
-          })
-        );
+        const snapshot = createSnapshot(get());
+        setState(state => {
+          const history =
+            state.historyIndex < state.history.length - 1
+              ? state.history.slice(0, state.historyIndex + 1)
+              : state.history;
+          let next = [...history, snapshot];
+          if (next.length > HISTORY_LIMIT) next = next.slice(next.length - HISTORY_LIMIT);
+          return { history: next, historyIndex: next.length - 1 };
+        });
       },
 
       undo: () => {
-        const { historyIndex, history } = get();
-
-        if (historyIndex > 0) {
-          const previousSnapshot = history[historyIndex - 1];
-          set(
-            produce<TableState>(state => {
-              state.columns = previousSnapshot.columns;
-              state.rows = previousSnapshot.rows;
-              state.viewConfig = {
-                columnOrder: [...previousSnapshot.viewConfig.columnOrder],
-                rowOrder: [...previousSnapshot.viewConfig.rowOrder],
-                groupBy: previousSnapshot.viewConfig.groupBy ?? null,
-                sorts: [...previousSnapshot.viewConfig.sorts],
-              };
-              state.historyIndex--;
-            })
-          );
-        }
+        const { history, historyIndex } = get();
+        if (historyIndex <= 0) return;
+        restoreSnapshot(history[historyIndex - 1], historyIndex - 1);
       },
 
       redo: () => {
-        const { historyIndex, history } = get();
-
-        if (historyIndex < history.length - 1) {
-          const nextSnapshot = history[historyIndex + 1];
-          set(
-            produce<TableState>(state => {
-              state.columns = nextSnapshot.columns;
-              state.rows = nextSnapshot.rows;
-              state.viewConfig = {
-                columnOrder: [...nextSnapshot.viewConfig.columnOrder],
-                rowOrder: [...nextSnapshot.viewConfig.rowOrder],
-                groupBy: nextSnapshot.viewConfig.groupBy ?? null,
-                sorts: [...nextSnapshot.viewConfig.sorts],
-              };
-              state.historyIndex++;
-            })
-          );
-        }
+        const { history, historyIndex } = get();
+        if (historyIndex >= history.length - 1) return;
+        restoreSnapshot(history[historyIndex + 1], historyIndex + 1);
       },
 
       addRow: (rowData = {}) => {
@@ -544,7 +556,6 @@ export const createDatabaseStore = (
           )
         )
           return;
-        get().commitHistory();
         const ids = new Set(rows.map(row => row.id));
         const order = [...new Set([...viewConfig.rowOrder, ...rows.map(row => row.id)])].filter(
           id => ids.has(id) && id !== rowId
@@ -554,8 +565,6 @@ export const createDatabaseStore = (
       },
 
       editColumn: (columnId, updates) => {
-        get().commitHistory();
-
         set(
           produce<TableState>(state => {
             const columnIndex = state.columns.findIndex(c => c.id === columnId);
@@ -575,6 +584,7 @@ export const createDatabaseStore = (
             }
           })
         );
+        get().commitHistory();
       },
 
       moveCellSelection: direction => {

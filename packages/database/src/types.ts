@@ -216,10 +216,10 @@ export interface CellPlugin<T> {
 
 // ValidationRule is imported from @tau/shared
 
+/** 撤销快照只覆盖数据（行与列）；视图配置不进撤销。 */
 export interface TableSnapshot {
   columns: ColumnDef[];
   rows: RowData[];
-  viewConfig: TableViewConfig;
 }
 
 export interface CellCoord {

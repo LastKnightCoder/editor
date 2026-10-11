@@ -16,6 +16,7 @@ vi.mock("../plugins", async () => {
 vi.mock("../hooks", () => ({
   useColumnResize: () => ({ isResizing: false, startResize: () => {} }),
   useKeyboardNavigation: () => {},
+  useUndoRedoShortcut: () => {},
 }));
 vi.mock("../ViewTabs", () => ({ default: () => null }));
 vi.mock("../views/GalleryView", () => ({ default: () => null }));

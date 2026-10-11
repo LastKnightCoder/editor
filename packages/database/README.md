@@ -43,6 +43,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 - 外部确认更新经 `ref.dispatch(command, "external")`，不触发保存回调；使用 rows.apply 提交字段差量，rows.receive 提交确认快照。
 - 查询经 `ref.setQuery()` 接入；四种视图、键盘与拖拽共用内部 projection。
 - 键盘仅作用于事件目标所在实例，输入、输入法组合及导航组合键让行。
+- Cmd/Ctrl+Z 撤销、Shift+Cmd/Ctrl+Z 或 Ctrl+Y 重做，只覆盖行与列数据（经 user 变更落库，视图配置不回滚）；外部确认更新到达时撤销栈以新数据重建基线。
 - 行详情的卸载草稿和异步正文经 onDetachedRowPatch 提交行标识、字段补丁与原行预期值；父级订阅退出后不再调用整表 onDataChange。宿主检查最新目标并返回是否应用，缺少该能力或目标删除时拒绝提交。宿主只按实体身份建立实例，不按活动视图重挂载。
 - 表格视图底部有表尾汇总行，配置存 `viewConfig.footer`（列 id → `{ kind: "aggregate", op }`），按视图持久化；汇总输入是投影后（筛选后）的行。宿主持久化视图配置时须保留 `footer` 键。
 - 通用字段、查询配置经 shared 的纯类型入口复用；本包不消费持久化模型，也不访问 SQLite、Electron 或业务页面。插槽接收的行字段是不透明数据，不读取业务标识。

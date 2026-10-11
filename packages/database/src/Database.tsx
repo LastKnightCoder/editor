@@ -26,7 +26,7 @@ import {
 import { createDatabaseStore } from "./DatabaseStore";
 import { builtInPlugins } from "./plugins";
 import { installDatabaseExtensions, type DatabaseExtension } from "./extensions";
-import { useColumnResize, useKeyboardNavigation } from "./hooks";
+import { useColumnResize, useKeyboardNavigation, useUndoRedoShortcut } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
 import { getViewType } from "./views/registry";
 import { getViewComponent } from "./views/components";
@@ -153,8 +153,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
           return applied;
         });
       }
-      state.commitHistory();
       state.dispatch({ type: "rows.apply", changes: { upsert: [values], remove: [] } }, "user");
+      state.commitHistory();
       return true;
     });
     const finalTheme = theme || systemTheme;
@@ -173,11 +173,11 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       },
       updateRow: (rowId: string, data: Partial<RowData>) => {
         if (!store.getState().rows.some(row => row.id === rowId)) return;
-        store.getState().commitHistory();
         store.getState().dispatch({
           type: "rows.apply",
           changes: { upsert: [{ ...data, id: rowId }], remove: [] },
         });
+        store.getState().commitHistory();
       },
       getRows: () => {
         return store.getState().rows;
@@ -223,6 +223,15 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         }
       },
       rootRef
+    );
+
+    useUndoRedoShortcut(
+      () => store.getState().undo(),
+      () => store.getState().redo(),
+      {
+        enabled: () => !readonly && !store.getState().editingCell,
+        scope: rootRef,
+      }
     );
 
     const handleCreateView = useMemoizedFn(
