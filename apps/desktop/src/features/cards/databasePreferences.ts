@@ -14,6 +14,38 @@ export interface CardDatabasePreferences {
 
 const EMPTY: CardDatabasePreferences = { views: [], activeViewId: null, columnWidths: {} };
 
+/** 旧顶层键 → 视图 type 子键（与开库升级 data-table-view-options-upgrade.ts 同规则，渲染端各自实现） */
+const LEGACY_VIEW_CONFIG_KEYS: Record<string, string> = {
+  galleryConfig: "gallery",
+  calendarConfig: "calendar",
+  kanbanConfig: "kanban",
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+/** v1 → v2：把每个视图 config 的旧三键移入 viewOptions（只移动非空对象，已有同名子键以已有为准；与开库升级 data-table-view-options-upgrade.ts 同规则） */
+function migratePreferences(preferences: unknown): unknown {
+  if (!isPlainObject(preferences) || !Array.isArray(preferences.views)) return preferences;
+  return { ...preferences, views: preferences.views.map(migrateViewConfigKeys) };
+}
+
+function migrateViewConfigKeys(view: unknown): unknown {
+  if (!isPlainObject(view) || !isPlainObject(view.config)) return view;
+  const config = { ...view.config };
+  let viewOptions = isPlainObject(config.viewOptions) ? { ...config.viewOptions } : undefined;
+  for (const [legacyKey, typeKey] of Object.entries(LEGACY_VIEW_CONFIG_KEYS)) {
+    const legacyValue = config[legacyKey];
+    if (legacyValue === undefined) continue;
+    delete config[legacyKey];
+    if (!isPlainObject(legacyValue) || Object.keys(legacyValue).length === 0) continue;
+    viewOptions ??= {};
+    if (viewOptions[typeKey] === undefined) viewOptions[typeKey] = legacyValue;
+  }
+  if (viewOptions) config.viewOptions = viewOptions;
+  return { ...view, config };
+}
+
 interface PreferencesState {
   byDatabase: Record<string, CardDatabasePreferences>;
   legacyDefaults: CardDatabasePreferences | null;
@@ -164,8 +196,22 @@ export function createCardDatabasePreferencesStore(storage: Storage) {
       },
       {
         name: CARD_DATABASE_PREFERENCES_KEY,
-        version: 1,
+        version: 2,
         storage: createJSONStorage(() => storage),
+        // v1 视图 config 里的旧三键收进 viewOptions（D-130）；全部设备升级后随清洁版删除
+        migrate: (state, version) => {
+          if (version >= 2 || !isPlainObject(state)) return state as never;
+          const next = { ...state };
+          if (isPlainObject(next.byDatabase)) {
+            const migrated: Record<string, unknown> = {};
+            for (const [database, value] of Object.entries(next.byDatabase))
+              migrated[database] = migratePreferences(value);
+            next.byDatabase = migrated;
+          }
+          if (next.legacyDefaults != null)
+            next.legacyDefaults = migratePreferences(next.legacyDefaults);
+          return next as never;
+        },
         partialize: state => ({
           byDatabase: state.byDatabase,
           legacyDefaults: state.legacyDefaults,

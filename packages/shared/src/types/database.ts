@@ -83,9 +83,8 @@ export interface TableViewConfig {
   groupBy?: GroupRule | null;
   sorts: SortRule[];
   filters?: FilterGroup | null;
-  galleryConfig?: GalleryViewConfig;
-  calendarConfig?: CalendarViewConfig;
-  kanbanConfig?: KanbanViewConfig;
+  /** 视图专属配置：键为视图 type 字符串，值由该视图自行解释；主进程只校验为 JSON 对象（D-130） */
+  viewOptions?: Record<string, unknown>;
   /** 表尾汇总：列 id → 汇总方式；未登记的列不显示汇总值 */
   footer?: Record<string, FooterSpec>;
 }
@@ -216,9 +215,8 @@ export interface DatabaseHookResult {
     updates: {
       name?: string;
       type?: DataTableViewType;
-      galleryConfig?: GalleryViewConfig;
-      calendarConfig?: CalendarViewConfig;
-      kanbanConfig?: KanbanViewConfig;
+      /** 目标视图类型的专属配置对象，宿主写入 viewOptions[type] */
+      viewOptions?: unknown;
     }
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;

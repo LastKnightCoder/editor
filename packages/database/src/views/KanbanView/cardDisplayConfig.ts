@@ -32,7 +32,7 @@ export const KANBAN_CARD_SUPPORTED_FIELD_TYPES = new Set([
 export interface ResolveKanbanCardDisplayParams {
   columns: ColumnDef[];
   viewConfig: Pick<TableViewConfig, "columnOrder">;
-  kanbanConfig?: KanbanViewConfig;
+  kanban?: KanbanViewConfig;
   primaryColumnId?: string;
   groupColumnId?: string;
   /** 完成列判定：由调用方传入字段能力查询（值为布尔的列可作看板「完成」列） */
@@ -138,12 +138,12 @@ const normalizeVisibleFieldIds = (
 export const resolveKanbanCardDisplay = ({
   columns,
   viewConfig,
-  kanbanConfig,
+  kanban,
   primaryColumnId,
   groupColumnId,
   isBooleanColumn,
 }: ResolveKanbanCardDisplayParams): ResolvedKanbanCardDisplay => {
-  const cardDisplay = kanbanConfig?.cardDisplay;
+  const cardDisplay = kanban?.cardDisplay;
   const template = normalizeTemplate(cardDisplay?.template);
   const orderedColumns = getOrderedColumns(columns, viewConfig.columnOrder || []);
   const doneColumnId = resolveDoneColumnId(

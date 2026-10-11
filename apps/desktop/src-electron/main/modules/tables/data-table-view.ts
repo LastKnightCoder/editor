@@ -31,6 +31,27 @@ function normalizeFooter(footer: DataTableViewConfig["footer"]): DataTableViewCo
   return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+/** 视图专属配置：按视图类型原样保留（值须为普通对象），不认识任何具体视图类型（D-130） */
+function normalizeViewOptions(viewOptions: unknown): Record<string, unknown> | undefined {
+  if (!isPlainObject(viewOptions)) return undefined;
+  const entries = Object.entries(viewOptions).filter(([, value]) => isPlainObject(value));
+  if (!entries.length) return undefined;
+  return Object.fromEntries(entries.map(([key, value]) => [key, structuredClone(value)]));
+}
+
+/** 列宽持久化：只保留有限数字 */
+function normalizeColumnWidths(input: unknown): Record<string, number> | undefined {
+  if (!isPlainObject(input)) return undefined;
+  const widths: Record<string, number> = {};
+  for (const [columnId, value] of Object.entries(input)) {
+    if (typeof value === "number" && Number.isFinite(value)) widths[columnId] = value;
+  }
+  return Object.keys(widths).length ? widths : undefined;
+}
+
 type ReorderPayload = {
   tableId: number;
   orderedIds: number[];
@@ -64,38 +85,11 @@ export default class DataTableViewTable {
     return {
       columnOrder: config?.columnOrder ? [...config.columnOrder] : [],
       rowOrder: config?.rowOrder ? [...config.rowOrder] : [],
+      columnWidths: normalizeColumnWidths(config?.columnWidths),
       filters: config?.filters ? structuredClone(config.filters) : null,
       sorts: config?.sorts ? [...config.sorts] : [],
       groupBy: config?.groupBy ?? null,
-      galleryConfig: config?.galleryConfig
-        ? {
-            coverType: config.galleryConfig.coverType,
-            coverImageColumnId: config.galleryConfig.coverImageColumnId,
-          }
-        : undefined,
-      calendarConfig: config?.calendarConfig
-        ? {
-            dateColumnId: config.calendarConfig.dateColumnId,
-          }
-        : undefined,
-      kanbanConfig: config?.kanbanConfig
-        ? {
-            groupColumnId: config.kanbanConfig.groupColumnId,
-            columnOrder: config.kanbanConfig.columnOrder
-              ? [...config.kanbanConfig.columnOrder]
-              : undefined,
-            cardDisplay: config.kanbanConfig.cardDisplay
-              ? {
-                  template: config.kanbanConfig.cardDisplay.template,
-                  doneColumnId: config.kanbanConfig.cardDisplay.doneColumnId,
-                  visibleFieldIds: config.kanbanConfig.cardDisplay.visibleFieldIds
-                    ? [...config.kanbanConfig.cardDisplay.visibleFieldIds]
-                    : undefined,
-                  showFieldLabels: config.kanbanConfig.cardDisplay.showFieldLabels,
-                }
-              : undefined,
-          }
-        : undefined,
+      viewOptions: normalizeViewOptions(config?.viewOptions),
       footer: normalizeFooter(config?.footer),
     };
   }

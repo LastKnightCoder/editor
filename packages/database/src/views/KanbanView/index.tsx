@@ -1,7 +1,8 @@
 import React, { memo, useState, useMemo, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
-import { RowData, ColumnDef, CellValue, SelectOption } from "../../types";
+import { RowData, ColumnDef, CellValue, SelectOption, KanbanViewConfig } from "../../types";
+import { getViewOptions } from "../../core/viewOptions";
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
@@ -25,7 +26,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       editColumn,
       columnWidths,
       moveRow,
-      setKanbanConfig,
+      setViewOptions,
       deleteRow,
     } = useDatabaseStore(state => ({
       columns: state.columns,
@@ -36,7 +37,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
       moveRow: state.moveRow,
-      setKanbanConfig: state.setKanbanConfig,
+      setViewOptions: state.setViewOptions,
       deleteRow: state.deleteRow,
     }));
 
@@ -63,8 +64,8 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     }, []);
 
     // 获取看板配置
-    const kanbanConfig = viewConfig.kanbanConfig;
-    const groupColumnId = kanbanConfig?.groupColumnId;
+    const kanban = getViewOptions<KanbanViewConfig>(viewConfig, "kanban");
+    const groupColumnId = kanban?.groupColumnId;
 
     // 获取分组列
     const groupColumn = useMemo(() => {
@@ -79,12 +80,12 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         resolveKanbanCardDisplay({
           columns,
           viewConfig,
-          kanbanConfig,
+          kanban,
           primaryColumnId: primaryColumn?.id,
           groupColumnId,
           isBooleanColumn,
         }),
-      [columns, viewConfig, kanbanConfig, primaryColumn?.id, groupColumnId, isBooleanColumn]
+      [columns, viewConfig, kanban, primaryColumn?.id, groupColumnId, isBooleanColumn]
     );
 
     const projection = useDatabaseStore(state => state.projection);
@@ -132,7 +133,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         const options = selectConfig?.options || [];
 
         // 获取当前的 columnOrder
-        const currentOrder = kanbanConfig?.columnOrder || options.map(opt => opt.id);
+        const currentOrder = kanban?.columnOrder || options.map(opt => opt.id);
 
         // 找到拖拽和悬停的索引
         const dragIndex = currentOrder.indexOf(String(dragGroupValue));
@@ -145,7 +146,11 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         const [removed] = newOrder.splice(dragIndex, 1);
         newOrder.splice(hoverIndex, 0, removed);
 
-        setKanbanConfig({ ...kanbanConfig, groupColumnId: groupColumn.id, columnOrder: newOrder });
+        setViewOptions("kanban", {
+          ...kanban,
+          groupColumnId: groupColumn.id,
+          columnOrder: newOrder,
+        });
       }
     );
 

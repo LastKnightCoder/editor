@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
-import { RowData, ColumnDef } from "../../types";
+import { RowData, ColumnDef, CalendarViewConfig } from "../../types";
+import { getViewOptions } from "../../core/viewOptions";
 import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
@@ -48,8 +49,8 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     const groupedRows = projection.groups;
 
     // 获取日历视图配置的日期列
-    const calendarConfig = viewConfig.calendarConfig;
-    const dateColumnId = calendarConfig?.dateColumnId;
+    const calendar = getViewOptions<CalendarViewConfig>(viewConfig, "calendar");
+    const dateColumnId = calendar?.dateColumnId;
 
     // 找到日期列
     const dateColumn = useMemo(() => {

@@ -2,7 +2,8 @@ import React, { memo, useState, useRef, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDatabaseStore, useRowDetail } from "../../hooks";
-import { RowData, ColumnDef, CellValue } from "../../types";
+import { RowData, ColumnDef, CellValue, GalleryViewConfig } from "../../types";
+import { getViewOptions } from "../../core/viewOptions";
 import GalleryCard from "./GalleryCard";
 import AddCard from "./AddCard";
 import RowDetailModal from "../../components/RowDetailModal";
@@ -41,7 +42,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const projection = useDatabaseStore(state => state.projection);
     const { groups: groupedRows, grouped: isGrouped } = projection;
 
-    const galleryConfig = viewConfig.galleryConfig ?? {
+    const gallery = getViewOptions<GalleryViewConfig>(viewConfig, "gallery") ?? {
       coverType: "detail" as const,
     };
 
@@ -265,8 +266,8 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                         key={row.id}
                         row={row}
                         columns={columns}
-                        coverType={galleryConfig.coverType}
-                        coverImageColumnId={galleryConfig.coverImageColumnId}
+                        coverType={gallery.coverType}
+                        coverImageColumnId={gallery.coverImageColumnId}
                         onClick={() => openRowDetail(row)}
                         onDelete={readonly ? undefined : () => handleDeleteRow(row.id)}
                         readonly={readonly}

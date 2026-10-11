@@ -33,9 +33,7 @@ interface ViewTabsProps {
     updates: {
       name?: string;
       type?: DatabaseViewType;
-      galleryConfig?: GalleryViewConfig;
-      calendarConfig?: CalendarViewConfig;
-      kanbanConfig?: KanbanViewConfig;
+      viewOptions?: unknown;
     }
   ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
@@ -62,9 +60,7 @@ interface ViewTabItemProps {
     viewId: number,
     name: string,
     type: DatabaseViewType,
-    galleryConfig?: GalleryViewConfig,
-    calendarConfig?: CalendarViewConfig,
-    kanbanConfig?: KanbanViewConfig
+    viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
   ) => Promise<void>;
 }
 
@@ -147,11 +143,9 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         viewId: number,
         name: string,
         type: DatabaseViewType,
-        galleryConfig?: GalleryViewConfig,
-        calendarConfig?: CalendarViewConfig,
-        kanbanConfig?: KanbanViewConfig
+        viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
       ) => {
-        await onUpdateView?.(viewId, name, type, galleryConfig, calendarConfig, kanbanConfig);
+        await onUpdateView?.(viewId, name, type, viewOptions);
         setShowEditPopover(false);
       }
     );
@@ -487,17 +481,13 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         viewId: number,
         name: string,
         type: DatabaseViewType,
-        galleryConfig?: GalleryViewConfig,
-        calendarConfig?: CalendarViewConfig,
-        kanbanConfig?: KanbanViewConfig
+        viewOptions?: GalleryViewConfig | CalendarViewConfig | KanbanViewConfig
       ) => {
         if (!onUpdateView) return;
         await onUpdateView(viewId, {
           name,
           type,
-          galleryConfig,
-          calendarConfig,
-          kanbanConfig,
+          viewOptions,
         });
       }
     );

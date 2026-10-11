@@ -122,7 +122,7 @@ describe("统一查询投影", () => {
       order: 0,
       config: {
         ...store.getState().viewConfig,
-        kanbanConfig: { groupColumnId: "group", columnOrder: ["Y", "X", "Z"] },
+        viewOptions: { kanban: { groupColumnId: "group", columnOrder: ["Y", "X", "Z"] } },
       },
     };
     store.getState().dispatch({ type: "view.receive", view, activate: true }, "external");

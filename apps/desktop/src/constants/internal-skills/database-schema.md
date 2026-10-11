@@ -507,6 +507,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `data_table_views`
 
+数据表视图。`config` 为 JSON：公共键（columnOrder / rowOrder / columnWidths / groupBy / sorts / filters / footer）在顶层，视图专属配置在 `viewOptions`（键为视图 type：gallery / calendar / kanban…，值由该视图解释）；查询时不要整列返回。
+
 | 字段          | SQLite 定义           |
 | ------------- | --------------------- |
 | `id`          | `INTEGER PRIMARY KEY` |

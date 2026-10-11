@@ -248,10 +248,19 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         const { views, viewConfig } = store.getState();
         const nextOrder = Math.max(0, ...views.map(view => view.order ?? 0)) + 1;
 
-        // 构建视图配置：选定列时按注册表的 createConfig 追加该类型专有配置
+        // 构建视图配置：选定列时按注册表的 createConfig 追加该类型专有配置；
+        // viewOptions 子键逐个合并，避免整体覆盖当前视图已有的其它类型配置
+        const createConfigFragment = columnId
+          ? getViewType(type)?.createConfig?.(columnId)
+          : undefined;
+        const mergedViewOptions = {
+          ...viewConfig.viewOptions,
+          ...createConfigFragment?.viewOptions,
+        };
         const config = {
           ...viewConfig,
-          ...(columnId ? getViewType(type)?.createConfig?.(columnId) : undefined),
+          ...createConfigFragment,
+          viewOptions: Object.keys(mergedViewOptions).length ? mergedViewOptions : undefined,
         };
 
         const result = await onCreateView?.({
