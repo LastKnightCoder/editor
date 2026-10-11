@@ -1,53 +1,26 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import Database, {
-  LinkPlugin,
-  type DatabaseProps,
-  type DatabaseRef,
-  type DatabaseImageProps,
-  type DatabaseSlots,
-} from "@tau/database";
-import LocalImage from "@/components/LocalImage";
+import Database, { type DatabaseProps, type DatabaseRef } from "@tau/database";
 import { deleteContent } from "@/commands/content";
 import { patchDataTableRow } from "@/commands/data-table";
 import { bindDatabaseCommands } from "@/services/command-context";
 import useSettingStore from "@/stores/useSettingStore";
-import { coverGradientOfKey } from "@/utils/cover";
-import { RowDetailBody } from "./RowDetailBody";
-import { GalleryCover } from "./GalleryCover";
-import ImagePlugin from "./plugins/ImagePlugin";
-import AttachmentPlugin from "./plugins/AttachmentPlugin";
-import RichTextPlugin from "./plugins/RichTextPlugin";
-import LinkRenderer from "./plugins/LinkRenderer";
 import { toDatabaseView } from "./viewAdapter";
-import { useFormulaAssist } from "./useFormulaAssist";
+import { desktopDatabaseExtension } from "./desktopExtension";
 
-const Image = ({ src, ...props }: DatabaseImageProps) => <LocalImage url={src} {...props} />;
-
-export const desktopDatabaseSlots: DatabaseSlots = {
-  RowDetailBody,
-  GalleryCover,
-  Image,
-  coverGradient: coverGradientOfKey,
-};
-
-const desktopPlugins = [
-  ImagePlugin,
-  AttachmentPlugin,
-  RichTextPlugin,
-  { ...LinkPlugin, Renderer: LinkRenderer },
-] as NonNullable<DatabaseProps["plugins"]>;
+const desktopOnlyExtensions: NonNullable<DatabaseProps["extensions"]> = [desktopDatabaseExtension];
 
 export interface DesktopDatabaseProps extends DatabaseProps {
   tableId?: number;
+  /** 调用方传入的 extensions 必须引用稳定（模块级常量或 useMemo）：Database 实例生命周期内变更会抛错 */
+  extensions?: DatabaseProps["extensions"];
 }
 
 export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
   (
     {
       tableId,
-      plugins,
-      slots,
+      extensions,
       onRowCleanup,
       onDataChange,
       onViewConfigChange,
@@ -78,9 +51,10 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
       () => bindDatabaseCommands({ deleteContent, patchDataTableRow }, { databaseName }),
       [databaseName]
     );
-    const formulaAssist = useFormulaAssist();
-
-    const combinedPlugins = useMemo(() => [...desktopPlugins, ...(plugins ?? [])], [plugins]);
+    const combinedExtensions = useMemo(
+      () => (extensions ? [desktopDatabaseExtension, ...extensions] : desktopOnlyExtensions),
+      [extensions]
+    );
     const isCurrent = () => useSettingStore.getState().setting.database.active === databaseName;
     const saveData = useMemoizedFn<NonNullable<DatabaseProps["onDataChange"]>>((data, change) => {
       if (isCurrent()) return onDataChange?.(data, change);
@@ -115,8 +89,7 @@ export const DesktopDatabase = forwardRef<DatabaseRef, DesktopDatabaseProps>(
         onRenameView={onRenameView ? renameView : undefined}
         onUpdateView={onUpdateView ? updateView : undefined}
         ref={attachRef}
-        plugins={combinedPlugins}
-        slots={{ ...desktopDatabaseSlots, formulaAssist, ...slots }}
+        extensions={combinedExtensions}
         onDataChange={saveData}
         onViewConfigChange={saveView}
         onDetachedRowPatch={async (rowId, patch, previousRow) => {

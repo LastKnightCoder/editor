@@ -4,6 +4,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { expect, it, vi } from "vitest";
 import Database, { type DatabaseRef } from "../Database";
+import { defineDatabaseExtension } from "../extensions";
 import type { RowDetailBodyHandle, RowDetailBodyProps } from "../DatabaseHostContext";
 import type { ColumnDef, RowData, TableViewConfig } from "../types";
 
@@ -59,6 +60,10 @@ it.each([false, true])(
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
+    const rowDetailExtension = defineDatabaseExtension({
+      id: "test.row-detail",
+      create: () => ({ slots: { RowDetailBody: Body } }),
+    });
     await act(async () =>
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -77,7 +82,7 @@ it.each([false, true])(
             ]}
             viewConfig={config}
             activeViewId={1}
-            slots={{ RowDetailBody: Body }}
+            extensions={[rowDetailExtension]}
             onDataChange={save}
             onDetachedRowPatch={patch}
           />
@@ -139,6 +144,10 @@ it.each([false, true])(
       );
       return null;
     });
+    const rowDetailExtension = defineDatabaseExtension({
+      id: "test.row-detail",
+      create: () => ({ slots: { RowDetailBody: Body } }),
+    });
     const host = document.createElement("div");
     document.body.append(host);
     let root = createRoot(host);
@@ -155,7 +164,7 @@ it.each([false, true])(
           <DndProvider backend={HTML5Backend}>
             <Database
               {...props}
-              slots={{ RowDetailBody: Body }}
+              extensions={[rowDetailExtension]}
               onDataChange={oldSnapshotSave}
               onDetachedRowPatch={patch}
             />

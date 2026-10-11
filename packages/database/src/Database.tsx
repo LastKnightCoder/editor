@@ -25,16 +25,14 @@ import {
 } from "./types";
 import { createDatabaseStore } from "./DatabaseStore";
 import { builtInPlugins } from "./plugins";
-import PluginManager from "./PluginManager";
+import { installDatabaseExtensions, type DatabaseExtension } from "./extensions";
 import { useColumnResize, useKeyboardNavigation } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
-import TableView from "./views/TableView";
-import GalleryView from "./views/GalleryView";
-import CalendarView from "./views/CalendarView";
-import KanbanView from "./views/KanbanView";
+import { getViewType } from "./views/registry";
+import { getViewComponent } from "./views/components";
 import ViewTabs from "./ViewTabs";
 
-const defaultPlugins: DatabaseProps["plugins"] = [];
+const emptyExtensions: readonly DatabaseExtension[] = [];
 
 export interface DatabaseRef {
   deleteRow: (rowId: string) => void;
@@ -61,8 +59,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       onReorderViews,
       views,
       config,
-      plugins = defaultPlugins,
-      slots = {},
+      extensions = emptyExtensions,
       onRowCleanup,
       onDetachedRowPatch,
       onDataChange,
@@ -83,15 +80,24 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         rootRef.current?.focus({ preventScroll: true });
       }
     });
-    const pluginMgr = useCreation(() => {
-      const pluginMgr = new PluginManager();
-      pluginMgr.registerPlugins(builtInPlugins as CellPlugin<unknown>[]);
-      if (plugins.length > 0) {
-        pluginMgr.registerPlugins(plugins);
-      }
-      pluginMgr.loadAllPlugins();
-      return pluginMgr;
-    }, []);
+    const {
+      pluginManager: pluginMgr,
+      slots,
+      activators,
+    } = useCreation(
+      () => installDatabaseExtensions(builtInPlugins as CellPlugin<unknown>[], extensions),
+      []
+    );
+    const initialExtensions = useRef(extensions);
+    if (extensions !== initialExtensions.current) throw new Error("Database 扩展集合必须稳定");
+    useEffect(() => {
+      const cleanups = activators
+        .map(activate => activate())
+        .filter((cleanup): cleanup is () => void => cleanup !== undefined);
+      return () => {
+        for (const cleanup of cleanups.reverse()) cleanup();
+      };
+    }, [activators]);
     const store = useCreation(
       () =>
         createDatabaseStore(
@@ -220,35 +226,15 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     );
 
     const handleCreateView = useMemoizedFn(
-      async (
-        type: DatabaseViewType,
-        name: string,
-        dateColumnId?: string,
-        groupColumnId?: string
-      ) => {
+      async (type: DatabaseViewType, name: string, columnId?: string) => {
         const { views, viewConfig } = store.getState();
         const nextOrder = Math.max(0, ...views.map(view => view.order ?? 0)) + 1;
 
-        // 构建视图配置
-        const config = { ...viewConfig };
-
-        // 如果是日历视图，添加日期列配置
-        if (type === "calendar" && dateColumnId) {
-          config.calendarConfig = {
-            dateColumnId,
-          };
-        }
-
-        // 如果是看板视图，添加分组列配置
-        if (type === "kanban" && groupColumnId) {
-          config.kanbanConfig = {
-            groupColumnId,
-            cardDisplay: {
-              template: "task",
-              showFieldLabels: false,
-            },
-          };
-        }
+        // 构建视图配置：选定列时按注册表的 createConfig 追加该类型专有配置
+        const config = {
+          ...viewConfig,
+          ...(columnId ? getViewType(type)?.createConfig?.(columnId) : undefined),
+        };
 
         const result = await onCreateView?.({
           type,
@@ -323,6 +309,9 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       const activeView = storeViews.find(view => view.id === storeActiveViewId);
       if (!activeView) return null;
 
+      const ViewComponent = getViewComponent(activeView.type);
+      if (!ViewComponent) return null;
+
       const viewProps = {
         pluginManager: pluginMgr,
         theme: finalTheme,
@@ -331,23 +320,11 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         onRowAdd,
         onRowDelete,
         config,
+        startResize,
+        bare,
       };
 
-      if (activeView.type === "table") {
-        return <TableView key={activeView.id} {...viewProps} startResize={startResize} />;
-      }
-
-      if (activeView.type === "gallery") {
-        return <GalleryView key={activeView.id} {...viewProps} />;
-      }
-
-      if (activeView.type === "calendar") {
-        return <CalendarView key={activeView.id} {...viewProps} bare={bare} />;
-      }
-
-      if (activeView.type === "kanban") {
-        return <KanbanView key={activeView.id} {...viewProps} />;
-      }
+      return <ViewComponent key={activeView.id} {...viewProps} />;
     }, [
       storeActiveViewId,
       storeViews,

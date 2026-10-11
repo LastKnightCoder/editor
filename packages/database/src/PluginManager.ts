@@ -1,13 +1,27 @@
-import { CellFilterDefinition, CellPlugin, CellValue, ColumnDef, RowData } from "./types";
+import {
+  CellFilterDefinition,
+  CellPlugin,
+  CellValue,
+  ColumnDef,
+  FieldCapabilities,
+  RowData,
+} from "./types";
 import { missingPlugin } from "./components/MissingPlugin";
 
 export class PluginManager {
   private plugins: Map<string, CellPlugin<unknown>> = new Map();
-  private loadedPlugins: Set<string> = new Set();
 
   registerPlugin(plugin: CellPlugin<unknown>): void {
     if (this.plugins.has(plugin.type)) {
-      console.warn(`类型为"${plugin.type}"的插件已经注册。它将被覆盖。`);
+      throw new Error(`类型为"${plugin.type}"的插件已经注册，如需覆盖请使用 replacePlugin。`);
+    }
+    this.plugins.set(plugin.type, plugin);
+  }
+
+  /** 替换已注册插件（如扩展经 fieldOverrides 改造内置类型）；要求该类型已存在 */
+  replacePlugin(plugin: CellPlugin<unknown>): void {
+    if (!this.plugins.has(plugin.type)) {
+      throw new Error(`类型为"${plugin.type}"的插件尚未注册，无法替换，请先 registerPlugin。`);
     }
     this.plugins.set(plugin.type, plugin);
   }
@@ -24,46 +38,13 @@ export class PluginManager {
     return this.plugins.has(type);
   }
 
-  loadPlugin(type: string): void {
-    if (this.loadedPlugins.has(type)) return;
-
-    const plugin = this.getPlugin(type);
-    if (!plugin) {
-      console.warn(`无法加载类型为"${type}"的插件：未找到插件。`);
-      return;
-    }
-
-    plugin.onMount?.();
-    this.loadedPlugins.add(type);
-  }
-
-  unloadPlugin(type: string): void {
-    if (!this.loadedPlugins.has(type)) return;
-
-    const plugin = this.getPlugin(type);
-    if (!plugin) {
-      console.warn(`无法卸载类型为"${type}"的插件：未找到插件。`);
-      return;
-    }
-
-    plugin.onUnmount?.();
-    this.loadedPlugins.delete(type);
-  }
-
-  loadAllPlugins(): void {
-    this.plugins.forEach((_, type) => this.loadPlugin(type));
-  }
-
-  unloadAllPlugins(): void {
-    Array.from(this.loadedPlugins).forEach(type => this.unloadPlugin(type));
+  /** 字段能力查询：未注册类型或未声明该能力均返回 false */
+  hasCapability(type: string, capability: keyof FieldCapabilities): boolean {
+    return this.plugins.get(type)?.capabilities?.[capability] === true;
   }
 
   getAllPlugins(): CellPlugin<unknown>[] {
     return Array.from(this.plugins.values());
-  }
-
-  isPluginLoaded(type: string): boolean {
-    return this.loadedPlugins.has(type);
   }
 
   transformBeforeSave(type: string, value: CellValue, config: unknown): any {
@@ -74,13 +55,6 @@ export class PluginManager {
   transformAfterLoad(type: string, value: CellValue, config: unknown): any {
     const plugin = this.getPlugin(type);
     return plugin?.afterLoad ? plugin.afterLoad(value, config) : value;
-  }
-
-  async executeColumnCleanup(type: string, columnData: CellValue[]): Promise<void> {
-    const plugin = this.getPlugin(type);
-    if (plugin?.onColumnCleanup) {
-      await plugin.onColumnCleanup(columnData);
-    }
   }
 
   /** 某列可用的筛选操作符；插件可按列给出（如公式列按结果类型） */

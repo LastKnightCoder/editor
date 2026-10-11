@@ -38,8 +38,8 @@ export interface DatabaseSlots {
   GalleryCover?: ComponentType<GalleryCoverProps>;
   Image?: ComponentType<DatabaseImageProps>;
   coverGradient?: (rowId: string) => string;
-  /** 把消息交给模型并返回回答文本；失败时抛错。未提供时公式构造器不显示 AI 输入框 */
-  formulaAssist?: (messages: FormulaAssistMessage[]) => Promise<string>;
+  /** hook 插槽：在组件内调用，取得把消息交给模型并返回回答文本的函数（失败时抛错），返回 undefined 时公式构造器不显示 AI 输入框。插槽在实例内必须稳定 */
+  useFormulaAssist?: () => ((messages: FormulaAssistMessage[]) => Promise<string>) | undefined;
 }
 
 export interface FormulaAssistMessage {

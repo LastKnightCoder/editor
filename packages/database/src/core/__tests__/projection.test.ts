@@ -16,6 +16,13 @@ function fixture() {
       { operator: "is", label: "等于", filter: (value, row, column) => row[column.id] === value },
     ],
   } as CellPlugin<unknown>);
+  // 看板分组按 singleOption 字段能力判定，注册一个只声明能力的单选插件
+  plugins.registerPlugin({
+    type: "select",
+    name: "单选",
+    Renderer: () => null,
+    capabilities: { singleOption: true },
+  } as CellPlugin<unknown>);
   const columns: ColumnDef[] = [
     { id: "name", type: "value", title: "名称" },
     { id: "hidden", type: "value", title: "隐藏", hidden: true },

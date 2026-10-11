@@ -21,7 +21,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 />;
 ```
 
-所有组件、类型、插件管理、store、Context、hooks、DateValue 与 DatePluginConfig 均从根入口导入；不深引 src。视图协议为 DatabaseView / CreateDatabaseView，只含界面需要的标识、名称、类型、顺序与配置；表身份、时间戳、引用计数和正文身份均由宿主掌握。`plugins` 命名空间包含九类通用字段及 builtInPlugins。
+所有组件、类型、插件管理、store、Context、hooks、DateValue 与 DatePluginConfig 均从根入口导入；不深引 src。视图协议为 DatabaseView / CreateDatabaseView，只含界面需要的标识、名称、类型、顺序与配置；表身份、时间戳、引用计数和正文身份均由宿主掌握。根入口导出内置通用字段插件及 builtInPlugins。
 
 宿主 Tailwind v4 入口导入主题 token、主题 Tailwind 桥接和 UI 公共样式，并显式扫描本包与 UI 源码：
 
@@ -49,7 +49,29 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 ## 宿主能力
 
-`plugins` 属性追加或覆盖通用字段插件。图片、附件、富文本与卡片业务插件由宿主装配；缺失插件的字段不可编辑并保留原值。
+宿主经 `extensions` 装配字段与插槽，集合在实例内必须引用稳定（模块级常量或 useMemo），变化即报错（D-128）：
+
+```tsx
+const acmeExtension = defineDatabaseExtension({
+  id: "acme.fields", // 必须带命名空间
+  create: () => ({
+    fieldTypes: [RatingPlugin], // 新增类型，与内置或其它扩展重复即报错
+    fieldOverrides: [{ type: "link", patch: { Renderer: LinkRenderer } }], // 浅合并改造已有类型
+    slots: { RowDetailBody }, // 每个插槽键只能由一个扩展提供
+    activate: () => () => {}, // 每实例挂载启动，返回值在卸载时清理
+  }),
+});
+const extensions = [acmeExtension];
+<Database extensions={extensions} {...props} />;
+```
+
+`create()` 每个实例调用一次，实例级状态放在其闭包内。覆盖在全部 `fieldTypes` 注册后应用；目标不存在、同一类型被两个扩展覆盖均报错。扩展不从本包获得文件、导航或模型等宿主能力，所需能力由宿主侧扩展自行持有。图片、附件、富文本与卡片业务字段由宿主扩展提供；缺失插件的字段不可编辑并保留原值。
+
+插槽 `useFormulaAssist` 是 hook：返回调用模型的函数，返回 undefined 时公式构造器不显示 AI 输入框。
+
+字段插件经 `capabilities`（`FieldCapabilities`：date / singleOption / boolean / images）静态声明值格式与内置同名字段兼容，视图与面板只经 `PluginManager.hasCapability` 判定可用性（日历日期列、看板分组列与完成列、日期分组粒度、封面图片列），不按列类型名特判。能力不从 `valueType` 推断：公式列结果为日期也不能作日历列。
+
+视图类型元数据（名称、图标、创建所需列及初始配置片段）集中在 `views/registry.ts`，视图组件映射在 `views/components.ts`（仅根组件消费，分开以免视图组件与元数据循环依赖）。视图专属配置字段（gallery / calendar / kanban）与编辑面板配置区块暂未进入注册表（D-128）。
 
 字段插件可选声明 `valueType`（number / text / boolean / date，可按列给出）、`toScalar`（存储值 → 参与运算的标量，空为 null）与 `formatScalar`（数值汇总的展示文本），以参与表尾汇总与公式。未声明 `valueType` 的字段只能计数。汇总与公式引擎在 `core/formula`，只经这三个成员读取字段，不认识具体插件。`filters` 也可按列给出，读取统一经 `PluginManager.getFilterDefinitions(column)`。
 
@@ -63,7 +85,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 - coverGradient：按行身份提供封面空态背景；缺省消费主题语义底色。
 - formulaAssist：把消息交给模型并返回回答文本，失败时抛错；提供时公式构造器顶部出现「用一句话描述」输入框。提示词、解析与校验在包内，消息只含列结构不含行数据；缺省不提供。
 
-`onRowCleanup` 接收删除前的行快照，宿主决定如何释放资源引用。只在实例 deleteRow 时调用，external 移除不重复清理；删除接口保持同步，异步清理错误单独报告。桌面持久化表的行清理由原子删除读取最新记录完成。富文本列清理沿用 CellPlugin.onColumnCleanup，每个持有引用分别释放。
+`onRowCleanup` 接收删除前的行快照，宿主决定如何释放资源引用。只在实例 deleteRow 时调用，external 移除不重复清理；删除接口保持同步，异步清理错误单独报告。桌面持久化表的行清理由原子删除读取最新记录完成。字段正文引用由宿主数据层在保存时按差集维护，组件不做资源清理。
 
 桌面统一使用 `features/shared/database/DesktopDatabase` 装配已有能力。业务页面、持久化 hook、卡片偏好与 SQLite 留在宿主。
 

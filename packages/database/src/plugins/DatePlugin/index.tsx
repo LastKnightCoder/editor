@@ -40,6 +40,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
   type: "date",
   name: "日期",
   editable: true,
+  capabilities: { date: true },
   valueType: "date",
   toScalar: value => {
     const start = (value as DateValue | null)?.start;

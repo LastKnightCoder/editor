@@ -75,7 +75,8 @@ export function createFormContext(
   return {
     scope,
     familyOf: columnId => {
-      if (columns.find(column => column.id === columnId)?.type === "select") return "select";
+      const column = columns.find(column => column.id === columnId);
+      if (column && plugins.hasCapability(column.type, "singleOption")) return "select";
       return ctx.resolveColumn(columnId)?.valueType;
     },
   };

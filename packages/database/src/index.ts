@@ -4,6 +4,8 @@ import * as plugins from "./plugins";
 import { createDatabaseStore } from "./DatabaseStore";
 import { DatabaseContext, DatabaseStoreType } from "./DatabaseContext";
 import * as hooks from "./hooks";
+import { defineDatabaseExtension } from "./extensions";
+import type { DatabaseExtension, DatabaseContributions, DatabaseFieldOverride } from "./extensions";
 import type {
   DatabaseProps,
   DatabaseConfig,
@@ -11,6 +13,7 @@ import type {
   RowData,
   CellValue,
   CellPlugin,
+  FieldCapabilities,
   ValidationRule,
   DatabaseData,
   TableViewConfig,
@@ -29,9 +32,13 @@ export type {
   RowData,
   CellValue,
   CellPlugin,
+  FieldCapabilities,
   ValidationRule,
   DatabaseData,
   DatabaseStoreType,
+  DatabaseExtension,
+  DatabaseContributions,
+  DatabaseFieldOverride,
   TableViewConfig,
   FilterGroup,
   DatabaseQuery,
@@ -40,7 +47,14 @@ export type {
   RowChanges,
 };
 
-export { PluginManager, plugins, createDatabaseStore, DatabaseContext, hooks };
+export {
+  PluginManager,
+  plugins,
+  createDatabaseStore,
+  DatabaseContext,
+  hooks,
+  defineDatabaseExtension,
+};
 
 export default Database;
 export { DatabaseHostContext } from "./DatabaseHostContext";

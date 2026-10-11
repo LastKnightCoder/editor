@@ -12,12 +12,20 @@ import {
   FilterGroup,
   SelectOption,
   CreateDatabaseView,
+  defineDatabaseExtension,
 } from "@tau/database";
 import { useCardDatabasePreferences } from "../../databasePreferences";
 import { ICard, DataTableView } from "@/types";
 import { toDatabaseView } from "@/features/shared/database/viewAdapter";
 import CardLinksPlugin from "./plugins/CardLinksPlugin";
 import type { CardLinksCellValue, LinkCellItem } from "./plugins/CardLinksPlugin/types";
+
+/** 卡片库表格的连接列：经扩展注册，随桌面扩展一起装配进 Database */
+const cardDatabaseExtension = defineDatabaseExtension({
+  id: "tau.cards",
+  create: () => ({ fieldTypes: [CardLinksPlugin] }),
+});
+const cardDatabaseExtensions = [cardDatabaseExtension] as const;
 import { DateValue } from "@tau/database";
 import useTheme from "@/hooks/useTheme";
 import type { CardMetadataPatch } from "@/types/card";
@@ -513,7 +521,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
           allowAddColumn: false,
           allowDeleteColumn: false,
         }}
-        plugins={[CardLinksPlugin as any]}
+        extensions={cardDatabaseExtensions}
         onDataChange={handleDataChange}
         onViewConfigChange={handleViewConfigChange}
         onRowAdd={handleRowAdd}

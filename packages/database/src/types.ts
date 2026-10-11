@@ -1,6 +1,7 @@
 import type {
   ColumnDef as SharedColumnDef,
   CellValue as SharedCellValue,
+  DataTableViewType,
   TableViewConfig,
   GalleryViewConfig,
   CalendarViewConfig,
@@ -20,7 +21,8 @@ import type {
 } from "@tau/shared/database-types";
 import type { Scalar, ValueType } from "./core/formula/types";
 import { SELECT_COLORS } from "./constants";
-import type { DatabaseImage, DatabaseSlots } from "./DatabaseHostContext";
+import type { DatabaseImage } from "./DatabaseHostContext";
+import type { DatabaseExtension } from "./extensions";
 
 // Re-export shared types
 export type {
@@ -55,7 +57,8 @@ export interface DatabaseData {
   rows: RowData[];
 }
 
-export type DatabaseViewType = "table" | "gallery" | "calendar" | "kanban";
+/** 视图类型 union：与持久化模型共用 @tau/shared 的单一来源 */
+export type DatabaseViewType = DataTableViewType;
 
 export interface DatabaseView {
   id: number;
@@ -116,8 +119,8 @@ export interface DatabaseProps {
   activeViewId: number;
   viewConfig: TableViewConfig;
   config?: DatabaseConfig;
-  plugins?: CellPlugin<unknown>[];
-  slots?: DatabaseSlots;
+  /** 声明式扩展集合；引用在实例生命周期内必须稳定，变更会抛错 */
+  extensions?: readonly DatabaseExtension[];
   onRowCleanup?: (row: RowData) => void | Promise<void>;
   onDetachedRowPatch?: (
     rowId: string,
@@ -134,7 +137,7 @@ export interface DatabaseProps {
     viewId: number,
     updates: {
       name?: string;
-      type?: "table" | "gallery" | "calendar" | "kanban";
+      type?: DatabaseViewType;
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
@@ -151,9 +154,22 @@ export interface DatabaseProps {
   className?: string;
 }
 
+export interface FieldCapabilities {
+  /** 值为内置日期格式且可写回：可作日历日期列、按日期粒度分组、排序面板的日期快捷项 */
+  date?: boolean;
+  /** 列 config 带选项列表且值为单个选项 id：可作看板分组列、公式中按选项比较 */
+  singleOption?: boolean;
+  /** 值为布尔：可作看板「完成」列 */
+  boolean?: boolean;
+  /** 值为图片列表（DatabaseImage[]）：可作画廊/行详情封面来源 */
+  images?: boolean;
+}
+
 export interface CellPlugin<T> {
   type: string;
   name: string;
+  /** 字段能力：声明该字段的值与内置同名格式兼容，视图与面板据此决定是否可用；静态声明，不从 valueType 推断 */
+  capabilities?: FieldCapabilities;
   // 列头显示的图标
   Icon?: React.ComponentType<{ className?: string }>;
   Renderer: React.ComponentType<{
@@ -185,11 +201,8 @@ export interface CellPlugin<T> {
     rowB: RowData;
   }) => number;
   editable?: boolean;
-  onMount?: () => void;
-  onUnmount?: () => void;
   beforeSave?: (value: CellValue, config: T) => CellValue;
   afterLoad?: (value: CellValue, config: T) => CellValue;
-  onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
   /** 可按列决定（如公式列按结果类型给出不同操作符）；读取经 PluginManager.getFilters */
   filters?: CellFilterDefinition<T>[] | ((column: ColumnDef<T>) => CellFilterDefinition<T>[]);
   search?: (searchValue: string, cellValue: CellValue, column: ColumnDef, row: RowData) => boolean;

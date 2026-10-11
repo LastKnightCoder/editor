@@ -17,6 +17,8 @@ const viewConfig = {
   columnOrder: ["title", "status", "tags", "done", "notes", "priority", "hiddenText", "cover"],
 };
 
+const isBooleanColumn = (column: ColumnDef) => column.type === "checkbox";
+
 describe("cardDisplayConfig", () => {
   it("老配置缺失 cardDisplay 时使用 task 默认配置", () => {
     const result = resolveKanbanCardDisplay({
@@ -25,6 +27,7 @@ describe("cardDisplayConfig", () => {
       kanbanConfig: { groupColumnId: "status" },
       primaryColumnId: "title",
       groupColumnId: "status",
+      isBooleanColumn,
     });
 
     expect(result.template).toBe("task");
@@ -46,6 +49,7 @@ describe("cardDisplayConfig", () => {
       },
       primaryColumnId: "title",
       groupColumnId: "status",
+      isBooleanColumn,
     });
 
     expect(result.doneColumnId).toBe("done");
@@ -80,6 +84,7 @@ describe("cardDisplayConfig", () => {
       kanbanConfig,
       primaryColumnId: "title",
       groupColumnId: "status",
+      isBooleanColumn,
     });
 
     expect(result.visibleFieldIds).toEqual(["notes", "priority"]);

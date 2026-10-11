@@ -76,7 +76,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       columnOrder,
       moveColumn,
       editColumn,
-      deleteColumnWithCleanup,
+      deleteColumn,
       columnWidths,
       updateCellValue,
       activeView,
@@ -86,7 +86,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       columnOrder: state.viewConfig.columnOrder,
       moveColumn: state.moveColumn,
       editColumn: state.editColumn,
-      deleteColumnWithCleanup: state.deleteColumnWithCleanup,
+      deleteColumn: state.deleteColumn,
       columnWidths: state.columnWidths,
       updateCellValue: state.updateCellValue,
       activeView: state.views.find(view => view.id === state.activeViewId),
@@ -196,7 +196,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
       foldedIds.has(column.id) && isEmptyCellValue(row[column.id]);
     const hiddenCount = propertyColumns.filter(isHidden).length;
     const visibleColumns = showEmpty ? propertyColumns : propertyColumns.filter(c => !isHidden(c));
-    const cover = coverImagesOf(row, propertyColumns);
+    const cover = coverImagesOf(row, propertyColumns, column =>
+      pluginManager.hasCapability(column.type, "images")
+    );
 
     return (
       <Dialog
@@ -360,9 +362,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
           impact="删除属性将移除该列的所有数据"
           danger
           confirmText="删除"
-          onConfirm={async () => {
+          onConfirm={() => {
             const column = confirmDeleteColumn;
-            if (column) await deleteColumnWithCleanup(column.id, pluginManager);
+            if (column) deleteColumn(column.id);
           }}
         />
       </Dialog>

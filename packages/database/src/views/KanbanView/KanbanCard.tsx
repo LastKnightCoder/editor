@@ -98,13 +98,11 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
 
     const columnMap = useMemo(() => new Map(columns.map(column => [column.id, column])), [columns]);
     const primaryColumn = useMemo(() => columns.find(column => column.isPrimary), [columns]);
-    const doneColumn = useMemo(
-      () =>
-        doneColumnId && columnMap.get(doneColumnId)?.type === "checkbox"
-          ? columnMap.get(doneColumnId)
-          : undefined,
-      [columnMap, doneColumnId]
-    );
+    const doneColumn = useMemo(() => {
+      if (!doneColumnId) return undefined;
+      const column = columnMap.get(doneColumnId);
+      return column && pluginManager.hasCapability(column.type, "boolean") ? column : undefined;
+    }, [columnMap, doneColumnId, pluginManager]);
     const fieldColumns = useMemo(
       () =>
         visibleFieldIds

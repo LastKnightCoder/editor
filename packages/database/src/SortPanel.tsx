@@ -125,8 +125,11 @@ const SortPanel: React.FC<SortPanelProps> = memo(
 
     /** 空态推荐：优先日期列（更新时间/创建时间天然高频），点 ＋ 直接补一条规则 */
     const suggestColumns = useMemo(
-      () => availableColumns.filter(column => column.type === "date").slice(0, 2),
-      [availableColumns]
+      () =>
+        availableColumns
+          .filter(column => pluginManager.hasCapability(column.type, "date"))
+          .slice(0, 2),
+      [availableColumns, pluginManager]
     );
 
     const appendRule = (fieldId: string) => {

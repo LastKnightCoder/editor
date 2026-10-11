@@ -162,7 +162,7 @@ describe("AI 生成公式", () => {
     const formulaAssist = vi.fn().mockResolvedValue(JSON.stringify({ expr: priority }));
     act(() =>
       root.render(
-        <DatabaseHostContext.Provider value={{ formulaAssist }}>
+        <DatabaseHostContext.Provider value={{ useFormulaAssist: () => formulaAssist }}>
           <Host />
         </DatabaseHostContext.Provider>
       )

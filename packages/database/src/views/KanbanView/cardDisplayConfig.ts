@@ -35,6 +35,8 @@ export interface ResolveKanbanCardDisplayParams {
   kanbanConfig?: KanbanViewConfig;
   primaryColumnId?: string;
   groupColumnId?: string;
+  /** 完成列判定：由调用方传入字段能力查询（值为布尔的列可作看板「完成」列） */
+  isBooleanColumn: (column: ColumnDef) => boolean;
 }
 
 export interface ResolvedKanbanCardDisplay {
@@ -74,18 +76,19 @@ const getOrderedColumns = (columns: ColumnDef[], columnOrder: string[]): ColumnD
 
 const resolveDoneColumnId = (
   orderedColumns: ColumnDef[],
-  preferredDoneColumnId?: string
+  preferredDoneColumnId: string | undefined,
+  isBooleanColumn: (column: ColumnDef) => boolean
 ): string | undefined => {
   if (preferredDoneColumnId) {
     const doneColumn = orderedColumns.find(
-      column => column.id === preferredDoneColumnId && column.type === "checkbox" && !column.hidden
+      column => column.id === preferredDoneColumnId && isBooleanColumn(column) && !column.hidden
     );
     if (doneColumn) {
       return doneColumn.id;
     }
   }
 
-  return orderedColumns.find(column => column.type === "checkbox" && !column.hidden)?.id;
+  return orderedColumns.find(column => isBooleanColumn(column) && !column.hidden)?.id;
 };
 
 const sortByTaskPriority = (columns: ColumnDef[]): ColumnDef[] => {
@@ -138,11 +141,16 @@ export const resolveKanbanCardDisplay = ({
   kanbanConfig,
   primaryColumnId,
   groupColumnId,
+  isBooleanColumn,
 }: ResolveKanbanCardDisplayParams): ResolvedKanbanCardDisplay => {
   const cardDisplay = kanbanConfig?.cardDisplay;
   const template = normalizeTemplate(cardDisplay?.template);
   const orderedColumns = getOrderedColumns(columns, viewConfig.columnOrder || []);
-  const doneColumnId = resolveDoneColumnId(orderedColumns, cardDisplay?.doneColumnId);
+  const doneColumnId = resolveDoneColumnId(
+    orderedColumns,
+    cardDisplay?.doneColumnId,
+    isBooleanColumn
+  );
 
   const excludedColumnIds = new Set<string>();
   if (primaryColumnId) excludedColumnIds.add(primaryColumnId);
