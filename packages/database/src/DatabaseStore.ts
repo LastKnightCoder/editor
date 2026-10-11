@@ -366,8 +366,12 @@ export const createDatabaseStore = (
           command.type === "rows.receive" ? diffRows(confirmedRows, command.rows) : command.changes;
         if (command.type === "rows.receive") confirmedRows = command.rows;
         else if (source === "external") confirmedRows = applyRowChanges(confirmedRows, changes);
-        if (changes.upsert.length || changes.remove.length)
-          commit(state => ({ rows: applyRowChanges(state.rows, changes) }), source);
+        if (!changes.upsert.length && !changes.remove.length) return;
+        const current = get().rows;
+        const next = applyRowChanges(current, changes);
+        // 宿主保存后的回写与当前数据一致时不提交，否则每次保存都会把外部变更当真、清空撤销栈
+        const effective = diffRows(current, next);
+        if (effective.upsert.length || effective.remove.length) commit({ rows: next }, source);
       },
 
       history: [baselineSnapshot],
