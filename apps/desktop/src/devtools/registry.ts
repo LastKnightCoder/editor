@@ -15,6 +15,8 @@ export interface DevAction {
   group: string;
   label: string;
   description?: string;
+  /** 紧凑小按钮：组内横向换行排（动作多、label 短的调试组用），description 转为悬停提示 */
+  compact?: boolean;
   /** 返回的字符串作为成功提示；抛错显示为失败提示 */
   run: () => Promise<string | void> | string | void;
 }

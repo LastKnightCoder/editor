@@ -5,7 +5,12 @@ const mocks = vi.hoisted(() => ({
   handlers: new Map<string, (data: unknown) => void>(),
   resolvePublish: (_: unknown) => {},
   executePublish: vi.fn(),
-  notify: vi.fn(),
+  // appNotify 会触达 notify 的完整命令式 API（isActive / update / dismiss）
+  notify: Object.assign(vi.fn(), {
+    update: vi.fn(),
+    dismiss: vi.fn(),
+    isActive: vi.fn((): boolean => false),
+  }),
   openPage: vi.fn(),
 }));
 
@@ -33,6 +38,10 @@ type Notice = {
   actions?: { label: string; onClick?: () => unknown }[];
 };
 const lastNotice = () => mocks.notify.mock.calls.at(-1)?.[0] as Notice;
+// appNotify 经 platform.notification.route 裁决后异步入栈（web 下恒 in-app）
+const flush = async () => {
+  for (let i = 0; i < 4; i++) await Promise.resolve();
+};
 
 const { usePublishRunStore } = await import("../publishRunStore");
 
@@ -70,6 +79,7 @@ it("发布中再次 start 被忽略，进度经常驻 handler 写入", async () 
 
   mocks.resolvePublish({ success: true, uploaded: ["a"], failed: [], deleted: [], skipped: [] });
   await first;
+  await flush();
   expect(usePublishRunStore.getState().run.kind).toBe("done");
   expect(usePublishRunStore.getState().finishSeq).toBe(1);
   expect(lastNotice()).toMatchObject({ title: "站点已发布", tone: "ok" });
@@ -85,6 +95,7 @@ it("部分失败与异常：常驻 danger 通知，异常转 error 态", async (
     skipped: [],
   });
   await usePublishRunStore.getState().start(params);
+  await flush();
   expect(lastNotice()).toMatchObject({
     title: "发布完成，部分文件失败",
     tone: "danger",
@@ -93,6 +104,7 @@ it("部分失败与异常：常驻 danger 通知，异常转 error 态", async (
 
   mocks.executePublish.mockRejectedValueOnce(new Error("boom"));
   await usePublishRunStore.getState().start(params);
+  await flush();
   expect(usePublishRunStore.getState().run).toEqual({ kind: "error", message: "boom" });
   expect(lastNotice()).toMatchObject({
     title: "发布失败",
@@ -105,6 +117,7 @@ it("部分失败与异常：常驻 danger 通知，异常转 error 态", async (
 it("失败通知：重试按上次参数重跑，查看详情打开发布页", async () => {
   mocks.executePublish.mockRejectedValueOnce(new Error("boom"));
   await usePublishRunStore.getState().start(params);
+  await flush();
   const actions = lastNotice().actions ?? [];
   const click = (label: string) => actions.find(a => a.label === label)?.onClick?.();
 
@@ -123,5 +136,6 @@ it("失败通知：重试按上次参数重跑，查看详情打开发布页", a
   expect(mocks.executePublish).toHaveBeenLastCalledWith(
     expect.objectContaining({ providerType: params.active })
   );
+  await flush();
   expect(lastNotice().title).toBe("站点已发布");
 });

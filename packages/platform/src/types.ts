@@ -45,6 +45,104 @@ export interface WindowState {
   isFullScreen: boolean;
 }
 
+/* ---------- 通知 ---------- */
+
+/** 跨 IPC 的通知按钮：onClick 留在来源端执行，这里只传可序列化的文案 */
+export interface SystemNotificationAction {
+  label: string;
+  /** 主动作（accent 实心），至多一个 */
+  primary?: boolean;
+  /** 作答成功后的结果行文案；不给则直接退场 */
+  resolvedText?: string;
+}
+
+/** 通知载荷：主进程裁决路由后在系统通知窗口 / 应用内卡栈 / 原窗口之间传递 */
+export interface SystemNotificationPayload {
+  /** 必填：路由前由调用方生成；同 id 再推 = 原位更新 */
+  id: string;
+  title: string;
+  body?: string;
+  /** 来源标签（如「协作」），展示在标题右侧 */
+  source?: string;
+  /** lucide 图标名的注册键：两端各自维护名字到组件的映射，函数/组件不可跨 IPC */
+  icon?: string;
+  /** 人发起的通知：头像文字，优先于 icon */
+  avatar?: string;
+  /** 头像取色种子（同人恒同色） */
+  avatarSeed?: string;
+  tone?: "neutral" | "ok" | "danger";
+  /** 至多 2 个 */
+  actions?: SystemNotificationAction[];
+  /** 需作答：常驻到有答案为止 */
+  sticky?: boolean;
+  /** 事件发生时间（毫秒） */
+  timestamp?: number;
+}
+
+/** 通知去向：应用内卡栈（调用方渲染端自行入栈）或系统通知窗口（失焦时） */
+export type NotificationRoute = "in-app" | "system";
+
+/** route 的可选参数：force 覆盖主进程的焦点分流；供调试工具直发系统通知窗口，业务不要传 */
+export interface NotificationRouteOptions {
+  force?: NotificationRoute;
+}
+
+/** 系统窗口转发给原窗口的按钮执行请求；原窗口执行后经 action-result 回报 */
+export interface NotificationRunActionRequest {
+  requestId: string;
+  id: string;
+  index: number;
+}
+
+/** action-result 回报体 */
+export interface NotificationActionResult {
+  requestId: string;
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * 通知能力：路由裁决 + 系统通知窗口（/notification-host）与原窗口之间的桥接通道。
+ *
+ * 视角约定：route / inAppAction / inAppClosed / onRunAction / onInApp 由业务窗口调用，
+ * 其余方法与订阅由系统通知窗口调用；Web 下无系统窗口概念，route 恒返回 "in-app"。
+ */
+export interface NotificationApi {
+  /** 请主进程裁决该通知去向；返回 "in-app" 时调用方自行入栈（不推送） */
+  route(
+    payload: SystemNotificationPayload,
+    options?: NotificationRouteOptions
+  ): Promise<NotificationRoute>;
+  /** 关闭系统窗口中的一条通知（业务侧撤销/收敛时用） */
+  dismiss(id: string): Promise<void>;
+  /** 系统窗口：执行通知卡按钮，等待原窗口回报结果后才 settle */
+  action(id: string, index: number): Promise<void>;
+  /** 系统窗口：某张卡关闭/退场完成时上报，主进程清理登记 */
+  closed(id: string): Promise<void>;
+  /** 系统窗口：点击卡片主体，激活来源窗口 */
+  activate(id: string): Promise<void>;
+  /** 系统窗口：切换整窗点击穿透（卡片可交互区域 hover 时关闭穿透） */
+  setInteractive(interactive: boolean): Promise<void>;
+  /** 系统窗口：栈已清空，隐藏窗口并恢复穿透 */
+  empty(): Promise<void>;
+  /** 系统窗口：渲染端就绪，冲 flush 主进程排队的通知 */
+  ready(): Promise<void>;
+  /** 主窗口：执行主进程来源 in-app 卡的按钮 */
+  inAppAction(id: string, index: number): Promise<void>;
+  /** 主窗口：主进程来源 in-app 卡关闭时清理主进程侧登记 */
+  inAppClosed(id: string): Promise<void>;
+  /** 系统窗口：订阅新通知推送；返回取消订阅函数 */
+  onPush(callback: (payload: SystemNotificationPayload) => void): () => void;
+  /** 系统窗口：订阅关闭指令（不传 id = 全部关闭）；返回取消订阅函数 */
+  onDismiss(callback: (id?: string) => void): () => void;
+  /** 原窗口：订阅系统窗口转发的按钮执行请求，回调（可 async）完成后封装层自动回报结果 */
+  onRunAction(
+    callback: (request: NotificationRunActionRequest) => Promise<void> | void
+  ): () => void;
+  /** 主窗口：订阅主进程直投的应用内通知；返回取消订阅函数 */
+  onInApp(callback: (payload: SystemNotificationPayload) => void): () => void;
+}
+
 export interface DirectoryEntry {
   name: string;
   path: string;
@@ -164,4 +262,5 @@ export interface Platform {
   readonly localFile: LocalFileApi;
   readonly shell: ShellApi;
   readonly system: SystemApi;
+  readonly notification: NotificationApi;
 }

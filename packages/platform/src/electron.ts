@@ -3,11 +3,17 @@ import type {
   DirectoryEntry,
   FileSelectOptions,
   LocalFileApi,
+  NotificationActionResult,
+  NotificationApi,
+  NotificationRunActionRequest,
+  NotificationRoute,
+  NotificationRouteOptions,
   Platform,
   PlatformOs,
   SaveFilePayload,
   SaveFileResult,
   EditorWindowTarget,
+  SystemNotificationPayload,
   TextFileChangedPayload,
   WindowState,
 } from "./types";
@@ -121,5 +127,57 @@ export function createElectronPlatform(rpc: PlatformInvoker, os: PlatformOs): Pl
       getAppDir: () => invoke<string>("get-app-dir"),
       getUserDataDir: () => invoke<string>("get-user-data-dir"),
     },
+    notification: {
+      route: (payload: SystemNotificationPayload, options?: NotificationRouteOptions) =>
+        invoke<NotificationRoute>("notification:route", payload, options),
+      dismiss: (id: string) => invoke<void>("notification:dismiss", id),
+      action: (id: string, index: number) => invoke<void>("notification:action", id, index),
+      closed: (id: string) => invoke<void>("notification:closed", id),
+      activate: (id: string) => invoke<void>("notification:activate", id),
+      setInteractive: (interactive: boolean) =>
+        invoke<void>("notification-window:set-interactive", interactive),
+      empty: () => invoke<void>("notification-window:empty"),
+      ready: () => invoke<void>("notification-window:ready"),
+      inAppAction: (id: string, index: number) =>
+        invoke<void>("notification:in-app-action", id, index),
+      inAppClosed: (id: string) => invoke<void>("notification:in-app-closed", id),
+      onPush: (callback: (payload: SystemNotificationPayload) => void) =>
+        subscribe("notification-window:push", (...args) =>
+          callback(args[1] as SystemNotificationPayload)
+        ),
+      onDismiss: (callback: (id?: string) => void) =>
+        subscribe("notification-window:dismiss", (...args) =>
+          callback(args[1] as string | undefined)
+        ),
+      onRunAction: (callback: (request: NotificationRunActionRequest) => Promise<void> | void) =>
+        subscribe("notification:run-action", (...args) => {
+          const request = args[1] as NotificationRunActionRequest;
+          // 回调由调用方执行，成败都在此回报，调用方无须感知 action-result 通道
+          Promise.resolve(callback(request)).then(
+            () =>
+              invoke<void>("notification:action-result", {
+                requestId: request.requestId,
+                ok: true,
+              } satisfies NotificationActionResult).catch(() => undefined),
+            error => {
+              const message =
+                error instanceof Error && error.message
+                  ? error.message
+                  : typeof error === "string" && error
+                    ? error
+                    : "操作失败";
+              invoke<void>("notification:action-result", {
+                requestId: request.requestId,
+                ok: false,
+                error: message,
+              } satisfies NotificationActionResult).catch(() => undefined);
+            }
+          );
+        }),
+      onInApp: (callback: (payload: SystemNotificationPayload) => void) =>
+        subscribe("notification:in-app", (...args) =>
+          callback(args[1] as SystemNotificationPayload)
+        ),
+    } satisfies NotificationApi,
   };
 }

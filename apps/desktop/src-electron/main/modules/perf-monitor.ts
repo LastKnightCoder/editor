@@ -1,4 +1,4 @@
-import { ipcMain, app, BrowserWindow, Notification, shell } from "electron";
+import { ipcMain, app, BrowserWindow, shell } from "electron";
 import { monitorEventLoopDelay, type IntervalHistogram } from "node:perf_hooks";
 import path from "node:path";
 import fs from "node:fs";
@@ -270,18 +270,6 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
   return { path: target };
 }
 
-export function notifySnapshotExported(result: PerfSnapshotResult): void {
-  if (Notification.isSupported()) {
-    const notification = new Notification({
-      title: "性能快照已导出",
-      body: result.path,
-    });
-    notification.show();
-  } else {
-    log.info(`[perf-monitor] 快照路径: ${result.path}`);
-  }
-}
-
 // --- 模块生命周期 ---
 
 const init = async (): Promise<void> => {
@@ -303,11 +291,7 @@ const init = async (): Promise<void> => {
     recordRendererEvent(event.sender.id, event.sender.getTitle(), payload);
   });
 
-  ipcMain.handle(EXPORT_CHANNEL, async () => {
-    const result = await exportSnapshot();
-    notifySnapshotExported(result);
-    return result;
-  });
+  ipcMain.handle(EXPORT_CHANNEL, exportSnapshot);
 
   log.info("[perf-monitor] 卡顿诊断采集已启动");
 };

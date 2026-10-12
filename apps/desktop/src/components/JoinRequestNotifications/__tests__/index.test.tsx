@@ -117,11 +117,12 @@ describe("JoinRequestNotifications", () => {
     expect(cards()).toHaveLength(0);
   });
 
-  it("运行期新到达的申请弹出通知，展示昵称、文档标题与头像", () => {
+  it("运行期新到达的申请弹出通知，展示昵称、文档标题与头像", async () => {
     setStore({ sessions: [makeSession("doc-1", "产品需求文档")], synced: true });
     expect(cards()).toHaveLength(0);
 
     setStore({ requests: [makeRequest("req-new", "李四")] });
+    await flush(); // appNotify 经 route 裁决后异步入栈
     const text = cards()[0].textContent;
     expect(text).toContain("李四请求加入协作");
     expect(text).toContain("「产品需求文档」");
@@ -131,6 +132,7 @@ describe("JoinRequestNotifications", () => {
   it("点击同意调用 collaboration:decide，收成结果行后退场", async () => {
     setStore({ synced: true });
     setStore({ requests: [makeRequest("req-approve", "李四")] });
+    await flush();
 
     act(() => button(cards()[0], "同意").click());
     await flush();
@@ -144,6 +146,7 @@ describe("JoinRequestNotifications", () => {
   it("点击拒绝调用 collaboration:decide，收成结果行后退场", async () => {
     setStore({ synced: true });
     setStore({ requests: [makeRequest("req-reject", "王五")] });
+    await flush();
 
     act(() => button(cards()[0], "拒绝").click());
     await flush();
@@ -158,6 +161,7 @@ describe("JoinRequestNotifications", () => {
     invokeMock.mockImplementation(() => Promise.reject(new Error("申请已过期")));
     setStore({ synced: true });
     setStore({ requests: [makeRequest("req-fail", "赵六")] });
+    await flush();
 
     act(() => button(cards()[0], "同意").click());
     await flush();
@@ -165,9 +169,10 @@ describe("JoinRequestNotifications", () => {
     expect(button(cards()[0], "同意").disabled).toBe(false);
   });
 
-  it("申请在别处被处理后（不再 pending）通知自动关闭", () => {
+  it("申请在别处被处理后（不再 pending）通知自动关闭", async () => {
     setStore({ synced: true });
     setStore({ requests: [makeRequest("req-gone", "赵六")] });
+    await flush();
     expect(cards()).toHaveLength(1);
 
     setStore({ requests: [] });
@@ -180,6 +185,7 @@ describe("JoinRequestNotifications", () => {
     invokeMock.mockImplementation(() => new Promise<void>(resolve => (settle = resolve)));
     setStore({ synced: true });
     setStore({ requests: [makeRequest("req-busy", "李四")] });
+    await flush();
 
     act(() => button(cards()[0], "同意").click());
     await flush();
@@ -193,20 +199,22 @@ describe("JoinRequestNotifications", () => {
     expect(cards()[0].textContent).toBe("已同意李四加入协作");
   });
 
-  it("手动关闭后同一申请不再弹出", () => {
+  it("手动关闭后同一申请不再弹出", async () => {
     setStore({ synced: true });
     setStore({ requests: [makeRequest("req-closed", "李四")] });
+    await flush();
     act(() => button(cards()[0], "").click()); // 关闭钮只有图标
     advance(LEAVE_BUFFER);
     setStore({ requests: [makeRequest("req-closed", "李四")] });
     expect(cards()).toHaveLength(0);
   });
 
-  it("多条申请：最新的在最上方，超过 3 张的进入叠层", () => {
+  it("多条申请：最新的在最上方，超过 3 张的进入叠层", async () => {
     setStore({ synced: true });
     setStore({
       requests: Array.from({ length: 4 }, (_, i) => makeRequest(`req-${i + 1}`, `用户${i + 1}`)),
     });
+    await flush();
 
     expect(cards()).toHaveLength(4);
     // 服务端按申请时间升序返回，最新申请排在最上方

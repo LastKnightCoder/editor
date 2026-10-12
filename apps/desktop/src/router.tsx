@@ -10,6 +10,10 @@ const PomodoroMiniPage = loadable(() => import("@/features/pomodoro/windows/Mini
 const PomodoroImmersivePage = loadable(() => import("@/features/pomodoro/windows/ImmersiveWindow"));
 const BackgroundAudioPage = loadable(() => import("@/features/pomodoro/windows/BackgroundAudio"));
 
+const NotificationHostWindow = loadable(
+  () => import("@/features/notifications/windows/NotificationHostWindow")
+);
+
 // 主窗口壳层
 const AppShell = loadable(() => import("@/app/AppShell"));
 
@@ -41,6 +45,11 @@ const routes = [
   {
     path: "/pomodoro/immersive",
     element: <PomodoroImmersivePage />,
+  },
+  {
+    // 系统通知窗口：透明置顶常驻窗（主进程 notification-window 创建），承载失焦通知
+    path: "/notification-host",
+    element: <NotificationHostWindow />,
   },
   {
     path: "/shell",

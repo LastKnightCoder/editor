@@ -23,12 +23,10 @@ import useWeReadSessionBootstrap from "@/hooks/useWeReadSessionBootstrap";
 import { useInitChatData } from "@/hooks/useInitChatData";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import AutoSyncManager from "@/components/AutoSyncManager";
-import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import { MediaModalHost } from "@/editor-providers/mediaModalHost";
 import ConversationFlashcardModal from "@/features/flashcards/components/ConversationFlashcardDialog";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import GlobalFindBar from "@/components/GlobalFindBar";
-import JoinRequestNotifications from "@/components/JoinRequestNotifications";
 import useSettingStore from "@/stores/useSettingStore";
 
 import { on, off } from "@/electron";
@@ -204,13 +202,11 @@ const Application = () => {
                 }}
               >
                 <AutoSyncManager />
-                <AutoUpdateChecker />
                 <MediaModalHost />
                 <ConversationFlashcardModal />
                 <ExtNoteInsertModal />
                 <DndProvider backend={HTML5Backend}>
                   <GlobalFindBar />
-                  <JoinRequestNotifications />
                   <RouterProvider router={router} />
                 </DndProvider>
               </div>

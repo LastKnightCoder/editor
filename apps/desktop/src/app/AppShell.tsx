@@ -33,6 +33,9 @@ import {
   SIDEBAR_EXPAND_W,
 } from "./shellStore";
 import { ensureDatabaseReady } from "./databaseReady";
+import { useNotificationBridge } from "@/features/notifications/useNotificationBridge";
+import JoinRequestNotifications from "@/components/JoinRequestNotifications";
+import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import "./base.css";
 import "../pages";
 
@@ -172,6 +175,9 @@ function ShellLayout() {
     void trackEvent("screen_view", { page: currentKey });
   }, [currentKey]);
 
+  // 跨窗口通知桥：系统窗口转发的按钮执行 + 主进程直投卡与卡栈生命周期的回报
+  const onNotificationItemsChange = useNotificationBridge();
+
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
       <Sidebar resizing={sidebarResizing} />
@@ -200,7 +206,11 @@ function ShellLayout() {
       {/* 全窗口设置页（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}
       <SettingsScreen />
       {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
-      <NotificationHost />
+      <NotificationHost onItemsChange={onNotificationItemsChange} />
+      {/* 通知产生端只在主窗口壳层运行：其余窗口无卡栈可显示，且 App 根运行会绕过
+          路由直投（如系统通知窗口自带 Host 会双显） */}
+      <JoinRequestNotifications />
+      <AutoUpdateChecker />
       {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
       <ToastHost />
       {DevFloatingBall && (

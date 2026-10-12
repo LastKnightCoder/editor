@@ -12,7 +12,7 @@ vi.mock("@/stores/useGlobalStateStore", async () => {
   const { create } = await import("zustand");
   return { default: create(() => ({ databaseStatus: {} })) };
 });
-vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn() }));
+vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn(), trackEvent: vi.fn() }));
 vi.mock("@/page/PageProvider", () => ({
   PageProvider: () => <div>页面已就绪</div>,
   usePage: vi.fn(),
@@ -33,6 +33,12 @@ vi.mock("../useThemeRuntime", () => ({ useThemeRuntime: vi.fn() }));
 vi.mock("../Sidebar", () => ({ Sidebar: () => null }));
 vi.mock("../Titlebar", () => ({ Titlebar: () => null }));
 vi.mock("../AssistDock", () => ({ AssistDock: () => null }));
+// 通知产生端与跨窗口桥不属于启动流程的关注点，空挂避免拉入其依赖树
+vi.mock("@/features/notifications/useNotificationBridge", () => ({
+  useNotificationBridge: () => vi.fn(),
+}));
+vi.mock("@/components/JoinRequestNotifications", () => ({ default: () => null }));
+vi.mock("@/components/AutoUpdateChecker", () => ({ default: () => null }));
 vi.mock("@/pages", () => ({}));
 
 import AppShell from "../AppShell";

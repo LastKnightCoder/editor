@@ -17,7 +17,7 @@ export interface CreateWindowOptions extends BrowserWindowConstructorOptions {
   /** 开发模式下是否自动打开 DevTools（隐藏窗口须关掉，否则 DevTools 会把窗口带出来） */
   devTools?: boolean;
   /** 窗口角色（渲染端经 process.argv 识别）：主窗口 = main，预热/常驻任务只在主窗口跑 */
-  role?: "main" | "markdown" | "editor" | "utility";
+  role?: "main" | "markdown" | "editor" | "utility" | "notification";
 }
 
 function chromeOptions(chrome: WindowChrome): BrowserWindowConstructorOptions {

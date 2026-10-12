@@ -7,6 +7,7 @@ import {
   RpcResponseMessage,
 } from "@/types";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
+import { routeNotification } from "../windows";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import databaseModule from "./database";
@@ -470,6 +471,22 @@ class PomodoroModule {
       }
     } catch (e) {
       console.error("Failed to create calendar event:", e);
+    }
+
+    // 会话结束回报经通知分流；发在模块层而非 tables 层（tables 拉进窗口模块图会成环）
+    try {
+      routeNotification(
+        {
+          id: "pomodoro-session-end",
+          title: status === "completed" ? "番茄完成" : "专注结束",
+          body: `专注 ${Math.round(focusMs / 60000)} 分钟`,
+          icon: "timer",
+          sticky: true,
+        },
+        { kind: "main" }
+      );
+    } catch (_e) {
+      // 通知失败不影响会话落库
     }
 
     this.activeSession = null;

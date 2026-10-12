@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-import { RotateCw, Sparkles } from "lucide-react";
-import { notify } from "@tau/ui";
+import { appNotify } from "@/features/notifications/notify";
 import useSettingStore from "@/stores/useSettingStore";
 import { initUpdateListeners, useUpdateStore } from "@/stores/useUpdateStore";
 import { takeVersionChange } from "@/commands/updater";
@@ -25,12 +24,12 @@ async function notifyIfUpgraded() {
   const notes = bundledNotesBetween(change.previousVersion || null, change.currentVersion);
   if (notes.length === 0) return;
 
-  notify({
+  appNotify({
     id: UPGRADED_NOTICE_ID,
     title: `已更新到 v${change.currentVersion}`,
     body: "看看这次更新带来了哪些变化。",
     source: "应用更新",
-    icon: Sparkles,
+    icon: "sparkles",
     sticky: true,
     actions: [
       { label: "稍后" },
@@ -75,12 +74,12 @@ const useAutoUpdateCheck = () => {
     notifiedRef.current = true;
 
     const { releaseNotes } = useUpdateStore.getState();
-    notify({
+    appNotify({
       id: NOTICE_ID,
       title: `新版本 v${newVersion} 已就绪`,
       body: `已在后台下载完成，随时可以更新到 v${newVersion}。`,
       source: "应用更新",
-      icon: RotateCw,
+      icon: "rotateCw",
       sticky: true,
       actions: [
         releaseNotes.length > 0

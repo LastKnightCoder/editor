@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import { notify } from "@tau/ui";
 import type { JoinRequest } from "@tau/collaboration";
 import { decideJoinRequest } from "@/commands";
+import { appNotify } from "@/features/notifications/notify";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 
 const noticeId = (requestId: string) => `join-request:${requestId}`;
@@ -35,7 +35,7 @@ export default function JoinRequestNotifications() {
     for (const id of shown) {
       if (decidingRef.current.has(id) || pending.some(request => request.id === id)) continue;
       shown.delete(id);
-      notify.dismiss(noticeId(id));
+      appNotify.dismiss(noticeId(id));
     }
 
     const decide = (id: string, approve: boolean) => {
@@ -70,7 +70,7 @@ function showRequest(
   const title = useCollaborationStore
     .getState()
     .sessions.find(session => session.id === request.documentId)?.title;
-  notify({
+  appNotify({
     id: noticeId(request.id),
     title: `${request.nickname}请求加入协作`,
     body: title ? `「${title}」` : "请求加入你的协作文档",

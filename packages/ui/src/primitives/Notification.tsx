@@ -8,7 +8,8 @@
  * （标题与「来源 · 相对时间」同行，说明至多 2 行）+ 横跨整卡的等宽按钮条（主按钮放最右，
  * 次要统一描边——等分格里每格都要看得出是按钮）。不描边，ring + lift + float 三层影；
  * 关闭钮悬停/聚焦时出现在左上外沿，不与时间抢右上角。
- * 卡栈：新的在上，展开 3 张，更多按底边缩放露 8px 纸边叠 2 层；点叠层展开、移出收起。
+ * 卡栈：新的在上，只完整显示最新 3 张，更多按底边缩放露 8px 纸边叠 2 层；关掉一张
+ * 后面的依次补位，计数标签只报数不可点，另有「全部清除」。
  * 停留：sticky（需作答）常驻；否则 8s 自动关，悬停与作答中冻结。
  * 作答：onClick 返回 promise 时该按钮 loading、整条锁定；兑现 → 有 resolvedText 收成
  * 结果行 1.6s 后退场，否则直接退场；拒绝 → 说明位换成错误文案、按钮解锁。
@@ -16,7 +17,11 @@
  * 层级 z-[190]：Toast（200）压在通知之上，回执不被卡栈挡住。
  *
  * 用法：壳层挂载 <NotificationHost /> 一次；任意处 notify({...}) 返回 id，
- * notify.update(id, patch) / notify.dismiss(id?)。同 id 再次 notify = 原位更新（去重）。
+ * notify.update(id, patch) / notify.dismiss(id?) / notify.isActive(id)。同 id 再次
+ * notify = 原位更新（去重）。
+ * 锚定角默认右上，可传 placement="bottom-right" 纯镜像到右下；系统通知独立窗口另可
+ * 传 autoDismiss={false} 关掉自动关闭、className 覆盖容器贴边定位，并用 onItemsChange
+ * （id 列表增减）与 onCardClick（卡主体点击）把卡栈生命周期桥接到宿主窗口。
  */
 
 import {
@@ -92,7 +97,7 @@ const MAX_EXPANDED = 3;
 const MAX_LAYERS = 2;
 const GAP = 10;
 const EDGE = 8;
-/** 卡片在栈容器内的内边距：给阴影与左上外沿的关闭钮留位，展开滚动时不被裁 */
+/** 卡片在栈容器内的内边距：给阴影与左上外沿的关闭钮留位 */
 const PAD = 12;
 
 /* ---------- store ---------- */
@@ -187,6 +192,12 @@ notify.dismiss = (id?: string) => {
   const { items, leave } = useNotificationStore.getState();
   if (id !== undefined) return leave(id);
   items.forEach(i => leave(i.id));
+};
+
+/** 该 id 是否仍在栈中展示：已 dismiss（含退场动画中）与已移除都算不在 */
+notify.isActive = (id: string) => {
+  const item = useNotificationStore.getState().items.find(i => i.id === id);
+  return item !== undefined && !item.leaving;
 };
 
 /* ---------- 卡片（纯展示件） ---------- */
@@ -366,15 +377,19 @@ function HostedCard({
   slot,
   index,
   now,
+  placement,
+  autoDismiss,
   onHeight,
-  onExpand,
+  onCardClick,
 }: {
   item: NotificationItem;
   slot: Slot;
   index: number;
   now: number;
+  placement: "top-right" | "bottom-right";
+  autoDismiss: boolean;
   onHeight: (id: string, h: number) => void;
-  onExpand: () => void;
+  onCardClick?: (id: string) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [entered, setEntered] = useState(false);
@@ -402,8 +417,10 @@ function HostedCard({
     return () => ro.disconnect();
   }, [item.id, onHeight]);
 
-  // 自动关闭 + 悬停冻结：只对纯告知、未作答、未收尾的卡计时（剩余时间跨暂停累计）
-  const timed = !item.sticky && item.busy === undefined && !item.resolvedText && !item.leaving;
+  // 自动关闭 + 悬停冻结：只对纯告知、未作答、未收尾的卡计时（剩余时间跨暂停累计）；
+  // autoDismiss=false（系统通知窗口）下一律不计时
+  const timed =
+    autoDismiss && !item.sticky && item.busy === undefined && !item.resolvedText && !item.leaving;
   const remainRef = useRef(item.duration);
   const hoveredRef = useRef(false);
   const timerRef = useRef<number | null>(null);
@@ -433,8 +450,10 @@ function HostedCard({
   }, [item.timestamp, item.duration]);
 
   const dx = item.leaving ? 32 : entered ? 0 : 28;
+  // bottom 锚定是排布的纯镜像：slot.y 改解释为「卡片底边到容器内底边的距离」，取负即向上排
+  const dy = placement === "bottom-right" ? -slot.y : slot.y;
   const style: CSSProperties = {
-    transform: `translate(${dx}px, ${slot.y}px) scale(${slot.scale})`,
+    transform: `translate(${dx}px, ${dy}px) scale(${slot.scale})`,
     opacity: item.leaving || !entered ? 0 : slot.opacity,
     zIndex: 100 - index,
   };
@@ -448,10 +467,12 @@ function HostedCard({
       aria-hidden={slot.layer || undefined}
       style={style}
       className={cn(
-        "absolute left-[12px] top-[12px] origin-bottom",
+        placement === "bottom-right"
+          ? "absolute bottom-[12px] left-[12px] origin-top"
+          : "absolute left-[12px] top-[12px] origin-bottom",
         "ease-tau-out transition-[transform,opacity] duration-300",
         item.leaving || slot.opacity === 0 ? "pointer-events-none" : "pointer-events-auto",
-        slot.layer && "cursor-pointer [&>*]:opacity-0"
+        slot.layer ? "[&>*]:opacity-0" : onCardClick && "cursor-pointer"
       )}
       onMouseEnter={() => {
         hoveredRef.current = true;
@@ -461,20 +482,49 @@ function HostedCard({
         hoveredRef.current = false;
         start();
       }}
-      onClick={slot.layer ? onExpand : undefined}
+      onClick={
+        slot.layer
+          ? undefined
+          : e => {
+              // 按钮与链接内的点击归控件自身，不算卡主体点击
+              if (onCardClick && !(e.target as Element).closest("button,a")) onCardClick(item.id);
+            }
+      }
       onAction={i => runAction(item.id, i)}
       onClose={() => useNotificationStore.getState().leave(item.id)}
     />
   );
 }
 
-export function NotificationHost() {
+export interface NotificationHostProps {
+  /** 卡栈锚定角，默认 "top-right" */
+  placement?: "top-right" | "bottom-right";
+  /** false 时所有卡都不自动关闭（系统通知窗口用），默认 true */
+  autoDismiss?: boolean;
+  /** 覆盖容器定位类（例如独立窗口里贴边 top-0/bottom-0 right-0），经 cn() 合并 */
+  className?: string;
+  /**
+   * store 内 id 列表变化时回报（按「已从 store 移除」口径：退场动画中的卡仍在列表里，
+   * 直到 LEAVE_MS 后真正移除才消失）；挂载时回报一次当前列表。经 id 串比较去抖，
+   * 原位更新等内容变化不会触发。
+   */
+  onItemsChange?: (ids: string[]) => void;
+  /** 非叠层卡主体被点击（卡内 button/a 上的点击不触发）；叠层卡不响应点击 */
+  onCardClick?: (id: string) => void;
+}
+
+export function NotificationHost({
+  placement = "top-right",
+  autoDismiss = true,
+  className,
+  onItemsChange,
+  onCardClick,
+}: NotificationHostProps) {
   const items = useNotificationStore(s => s.items);
-  const [expanded, setExpanded] = useState(false);
   const [heights, setHeights] = useState<Record<string, number>>({});
   const [now, setNow] = useState(() => Date.now());
   const lastSlots = useRef(new Map<string, Slot>());
-  const collapseTimer = useRef<number | null>(null);
+  const isBottom = placement === "bottom-right";
 
   // 相对时间刷新
   useEffect(() => {
@@ -482,25 +532,31 @@ export function NotificationHost() {
     return () => clearInterval(t);
   }, []);
 
+  // id 列表回报：以拼接串为依赖，只有成员增减才回调（渲染频率与回调频率解耦）
+  const onItemsChangeRef = useRef(onItemsChange);
+  onItemsChangeRef.current = onItemsChange;
+  const ids = items.map(i => i.id);
+  const idsKey = ids.join("\n");
+  useEffect(() => {
+    onItemsChangeRef.current?.(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey]);
+
   const onHeight = useRef((id: string, h: number) =>
     setHeights(prev => (prev[id] === h ? prev : { ...prev, [id]: h }))
   ).current;
 
   const live = items.filter(i => !i.leaving);
-  const canExpand = live.length > MAX_EXPANDED;
-  const isExpanded = expanded && canExpand;
-  useEffect(() => {
-    if (!canExpand) setExpanded(false);
-  }, [canExpand]);
+  const hasOverflow = live.length > MAX_EXPANDED;
 
-  // 排布：展开区逐张下排；叠层与上一张底边对齐后下探 EDGE、按底边缩放，只露一条纸边
+  // 排布：完整显示的卡逐张下排；叠层与上一张底边对齐后下探 EDGE、按底边缩放，只露一条纸边
   const slots = new Map<string, Slot>();
   let y = 0;
   let lastTop = 0;
   let lastH = 0;
   live.forEach((item, i) => {
     const h = heights[item.id] ?? 0;
-    if (isExpanded || i < MAX_EXPANDED) {
+    if (i < MAX_EXPANDED) {
       slots.set(item.id, { y, scale: 1, opacity: 1, layer: false });
       lastTop = y;
       lastH = h;
@@ -525,33 +581,23 @@ export function NotificationHost() {
   }
 
   const extra = live.length - MAX_EXPANDED;
-  const moreTop = isExpanded
-    ? y + 2
-    : lastTop + lastH + Math.min(Math.max(extra, 0), MAX_LAYERS) * EDGE + 12;
-  const stackHeight = PAD * 2 + (canExpand ? moreTop + 26 : Math.max(y - GAP, 0));
+  const moreTop = lastTop + lastH + Math.min(Math.max(extra, 0), MAX_LAYERS) * EDGE + 12;
+  const stackHeight = PAD * 2 + (hasOverflow ? moreTop + 26 : Math.max(y - GAP, 0));
 
   if (!items.length) return null;
-
-  const cancelCollapse = () => {
-    if (collapseTimer.current !== null) clearTimeout(collapseTimer.current);
-    collapseTimer.current = null;
-  };
 
   return (
     <div
       role="region"
       aria-label="通知"
       className={cn(
-        "fixed right-[6px] top-[42px] z-[190] max-h-[calc(100vh-56px)] w-[380px]",
-        isExpanded ? "pointer-events-auto overflow-y-auto" : "pointer-events-none"
+        isBottom
+          ? "fixed bottom-[6px] right-[6px] z-[190] w-[380px]"
+          : "fixed right-[6px] top-[42px] z-[190] w-[380px]",
+        "pointer-events-none",
+        className
       )}
-      style={{ height: stackHeight, scrollbarWidth: "none" }}
-      onMouseEnter={cancelCollapse}
-      onMouseLeave={() => {
-        if (!isExpanded) return;
-        // 延迟收起：穿过卡片间隙时不误收
-        collapseTimer.current = window.setTimeout(() => setExpanded(false), 300);
-      }}
+      style={{ height: stackHeight }}
     >
       {items.map((item, index) => (
         <HostedCard
@@ -559,35 +605,35 @@ export function NotificationHost() {
           item={item}
           index={index}
           now={now}
+          placement={placement}
+          autoDismiss={autoDismiss}
           slot={
             slots.get(item.id) ??
             lastSlots.current.get(item.id) ?? { y: 0, scale: 1, opacity: 1, layer: false }
           }
           onHeight={onHeight}
-          onExpand={() => setExpanded(true)}
+          onCardClick={onCardClick}
         />
       ))}
 
-      {canExpand && (
+      {hasOverflow && (
         <div
-          className="text-tau-sm text-ink-2 ease-tau-out pointer-events-auto absolute right-[14px] flex gap-1 transition-[top] duration-300"
-          style={{ top: PAD + moreTop }}
+          className={cn(
+            "text-tau-sm text-ink-2 ease-tau-out pointer-events-auto absolute right-[14px] flex gap-1 duration-300",
+            isBottom ? "transition-[bottom]" : "transition-[top]"
+          )}
+          style={isBottom ? { bottom: PAD + moreTop } : { top: PAD + moreTop }}
         >
-          {[
-            isExpanded
-              ? { label: "收起", run: () => setExpanded(false) }
-              : { label: `还有 ${extra} 条`, run: () => setExpanded(true) },
-            { label: "全部清除", run: () => notify.dismiss() },
-          ].map(b => (
-            <button
-              key={b.label}
-              type="button"
-              onClick={b.run}
-              className="bg-surface hover:text-ink-1 cursor-pointer rounded-full px-2.5 py-0.5 shadow-[var(--tau-shadow-lift)] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
-            >
-              {b.label}
-            </button>
-          ))}
+          <span className="bg-surface rounded-full px-2.5 py-0.5 shadow-[var(--tau-shadow-lift)]">
+            还有 {extra} 条
+          </span>
+          <button
+            type="button"
+            onClick={() => notify.dismiss()}
+            className="bg-surface hover:text-ink-1 cursor-pointer rounded-full px-2.5 py-0.5 shadow-[var(--tau-shadow-lift)] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+          >
+            全部清除
+          </button>
         </div>
       )}
     </div>

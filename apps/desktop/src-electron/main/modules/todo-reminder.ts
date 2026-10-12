@@ -1,4 +1,5 @@
-import { ipcMain, Notification, BrowserWindow } from "electron";
+import { ipcMain, BrowserWindow } from "electron";
+import { routeNotification } from "../windows";
 import { Module } from "../types/module";
 import databaseModule from "./database";
 import log from "electron-log";
@@ -91,9 +92,7 @@ class TodoReminderModule implements Module {
     const pendingReminders = this.getInternalRemindersFromDb(db, now);
 
     for (const reminder of pendingReminders) {
-      const reminderId = reminder.taskRef
-        ? assistantReminderKey({ ...reminder, taskRef: reminder.taskRef })
-        : `${reminder.todoId}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
+      const reminderId = this.reminderKey(reminder);
 
       // 跳过已提醒的
       if (this.remindedItems.has(reminderId)) {
@@ -106,6 +105,13 @@ class TodoReminderModule implements Module {
         this.remindedItems.add(reminderId);
       }
     }
+  }
+
+  /** 提醒去重键：assistant 来源用共享 key，普通截止任务用 todoId + 提醒时间 */
+  private reminderKey(reminder: InternalReminder): string {
+    return reminder.taskRef
+      ? assistantReminderKey({ ...reminder, taskRef: reminder.taskRef })
+      : `${reminder.todoId}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
   }
 
   private getInternalRemindersFromDb(
@@ -169,31 +175,35 @@ class TodoReminderModule implements Module {
   }
 
   private sendReminder(reminder: InternalReminder): void {
-    // 发送系统通知
-    if (Notification.isSupported()) {
-      const notification = new Notification({
+    // 系统级提醒经通知分流（失焦进系统通知窗口）：sticky 常驻到用户处理；
+    // 「查看」沿用原原生通知的 click 行为（通知渲染端 + 聚焦窗口）
+    routeNotification(
+      {
+        id: `todo-reminder:${this.reminderKey(reminder)}`,
         title: this.getNotificationTitle(reminder),
         body: reminder.title,
-        urgency: "critical",
-        timeoutType: "never",
-      });
-
-      notification.on("click", () => {
-        // 点击通知时，发送事件到渲染进程
-        this.sendToRenderer("todo-reminder:clicked", reminder);
-        // 聚焦到应用窗口
-        const windows = BrowserWindow.getAllWindows();
-        if (windows.length > 0) {
-          const win = windows[0];
-          if (win.isMinimized()) {
-            win.restore();
-          }
-          win.focus();
-        }
-      });
-
-      notification.show();
-    }
+        icon: "calendarClock",
+        tone: "neutral",
+        sticky: true,
+        actions: [{ label: "查看", primary: true }],
+      },
+      {
+        kind: "main",
+        handlers: [
+          () => {
+            this.sendToRenderer("todo-reminder:clicked", reminder);
+            const windows = BrowserWindow.getAllWindows();
+            if (windows.length > 0) {
+              const win = windows[0];
+              if (win.isMinimized()) {
+                win.restore();
+              }
+              win.focus();
+            }
+          },
+        ],
+      }
+    );
 
     // 发送应用内提醒到渲染进程
     this.sendToRenderer("todo-reminder:show", reminder);
@@ -279,10 +289,7 @@ class TodoReminderModule implements Module {
     const db = databaseModule.getCurrentDatabase();
     if (!db) return;
     for (const reminder of this.getInternalRemindersFromDb(db, Date.now())) {
-      const reminderId = reminder.taskRef
-        ? assistantReminderKey({ ...reminder, taskRef: reminder.taskRef })
-        : `${reminder.todoId}-${reminder.remindAt}${reminder.recurrenceDate ? `-${reminder.recurrenceDate}` : ""}`;
-      this.remindedItems.add(reminderId);
+      this.remindedItems.add(this.reminderKey(reminder));
     }
   }
 
