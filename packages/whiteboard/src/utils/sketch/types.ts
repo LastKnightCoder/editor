@@ -11,8 +11,8 @@ export interface SketchPath {
   opacity?: number;
   /** 限制在此轮廓内（线类填充） */
   clip?: string;
-  /** 虚线遮罩：沿中心线描粗虚线，墨迹只露出虚线段 */
-  dashMask?: DashMask;
+  /** 虚线遮罩：沿中心线描粗虚线，墨迹只露出虚线段；可多段（各自节奏） */
+  dashMask?: DashMask[];
 }
 
 export interface DashMask {
@@ -20,4 +20,6 @@ export interface DashMask {
   width: number;
   dash: number;
   gap: number;
+  /** stroke-dashoffset，缺省 0 */
+  offset?: number;
 }

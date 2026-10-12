@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { EMarkerType } from "../../../types/arrow";
 import { DEFAULT_PAGE_SKETCH } from "../../../types/sketch";
+import { roundedRectSides } from "../../dash";
 import { flattenPath, polylineToD, resample, wobble, type Vec } from "../geometry";
+import { inkSize } from "../levels";
 import { createRandom, hashSeed } from "../random";
 import { hatchGap, sketchShape, type SketchShapeInput } from "../shape";
 import { markerLength, sketchArrow, type SketchArrowInput } from "../arrow";
@@ -166,6 +168,66 @@ describe("sketchShape", () => {
     expect(hatchGap(1, 100, 100)).toBeLessThanOrEqual(hatchGap(2, 100, 100));
     expect(hatchGap(2, 100, 100)).toBeLessThanOrEqual(hatchGap(4, 100, 100));
   });
+
+  it("rect 虚线：逐边 4 段遮罩、整数个周期、offset 为半段墨", () => {
+    const input = shape({
+      outline: { kind: "rect", cornerRadius: 8 },
+      width: 300,
+      height: 200,
+      stroke: "#000",
+      level: "neat",
+      seed: 1,
+      strokeDash: "dashed",
+    });
+    const masks = sketchShape(input).find(p => p.role === "ink")!.dashMask!;
+    expect(masks).toHaveLength(4);
+    roundedRectSides(300, 200, 8).forEach((side, i) => {
+      expect(masks[i].width).toBeCloseTo(inkSize(2) * 3, 5);
+      const cycles = side.length / (masks[i].dash + masks[i].gap);
+      expect(cycles).toBeCloseTo(Math.round(cycles), 5);
+      expect(masks[i].offset).toBeCloseTo(masks[i].dash / 2, 5);
+    });
+  });
+
+  it("rect 点线：dash 为 0、遮罩更细", () => {
+    const masks = sketchShape(
+      shape({
+        outline: { kind: "rect", cornerRadius: 8 },
+        level: "neat",
+        seed: 1,
+        strokeDash: "dotted",
+      })
+    ).find(p => p.role === "ink")!.dashMask!;
+    expect(masks).toHaveLength(4);
+    for (const mask of masks) {
+      expect(mask.dash).toBe(0);
+      expect(mask.width).toBeCloseTo(inkSize(2) * 1.3, 5);
+    }
+  });
+
+  it("不传 strokeDash 与显式 undefined 输出完全相同，实线描边项无 dashMask", () => {
+    const solid = sketchShape(shape({ level: "neat", seed: 3 }));
+    expect(sketchShape(shape({ level: "neat", seed: 3, strokeDash: undefined }))).toEqual(solid);
+    expect(solid.find(p => p.role === "ink")!.dashMask).toBeUndefined();
+  });
+
+  it("椭圆不响应 strokeDash（无遮罩）", () => {
+    const ink = sketchShape(shape({ outline: { kind: "ellipse" }, strokeDash: "dashed" })).find(
+      p => p.role === "ink"
+    )!;
+    expect(ink.dashMask).toBeUndefined();
+  });
+
+  it("虚线框同输入同输出（确定性）", () => {
+    const input = () =>
+      shape({
+        outline: { kind: "rect", cornerRadius: 8 },
+        level: "neat",
+        seed: 5,
+        strokeDash: "dashed",
+      });
+    expect(sketchShape(input())).toEqual(sketchShape(input()));
+  });
 });
 
 describe("sketchArrow", () => {
@@ -178,7 +240,8 @@ describe("sketchArrow", () => {
     const dashed = sketchArrow(arrow({ dashed: true }));
     expect(dashed.paths[0].d).toEqual(solid.paths[0].d);
     expect(solid.paths[0].dashMask).toBeUndefined();
-    expect(dashed.paths[0].dashMask).toMatchObject({ d: dashed.centerline });
+    expect(dashed.paths[0].dashMask).toHaveLength(1);
+    expect(dashed.paths[0].dashMask?.[0]).toMatchObject({ d: dashed.centerline });
   });
 
   it("端点标记按类型输出，none 不输出", () => {

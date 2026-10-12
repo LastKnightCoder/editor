@@ -159,12 +159,14 @@ export function sketchArrow(input: SketchArrowInput): SketchArrowOutput {
     const [dashBase = 5, gapBase = 5] = input.dashArray ?? [];
     // 手绘段比普通虚线略长，空隙要扣掉圆头遮罩向两侧伸出的部分
     const maskWidth = size * 3;
-    bodyPath.dashMask = {
-      d: centerline,
-      width: maskWidth,
-      dash: Math.max(dashBase, strokeWidth * 4 + 7),
-      gap: Math.max(gapBase, strokeWidth * 2.5 + 4) + maskWidth,
-    };
+    bodyPath.dashMask = [
+      {
+        d: centerline,
+        width: maskWidth,
+        dash: Math.max(dashBase, strokeWidth * 4 + 7),
+        gap: Math.max(gapBase, strokeWidth * 2.5 + 4) + maskWidth,
+      },
+    ];
   }
 
   return {

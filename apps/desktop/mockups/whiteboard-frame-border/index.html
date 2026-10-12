@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板画框 · 边框线型</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<style>
+  body { padding: 28px 40px 60px; background: var(--bg-page); color: var(--ink-1); }
+  h1 { font-size: 20px; font-weight: 600; }
+  .sub { color: var(--ink-2); margin-top: 4px; font-size: 13.5px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-3); font-size: 12.5px; margin-bottom: 10px; }
+  .canvas { display: block; background-color: #fbf7ef; background-image: radial-gradient(rgba(67, 57, 44, 0.13) 1px, transparent 1.2px);
+    background-size: 16px 16px; border-radius: 16px; box-shadow: var(--shadow-card); overflow: visible; }
+  .chip-wrap { display: flex; width: fit-content; height: 100%; align-items: center; }
+  .chip { color: #fff; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25); white-space: nowrap; }
+  .chip.inline { display: flex; height: 100%; align-items: center; padding-right: 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.025em; }
+  .chip.top { padding: 4px 8px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+  .chip.hand { font-family: "Kaiti SC", "STKaiti", "KaiTi", cursive; font-size: 14px; font-weight: 500; }
+  .dragged { filter: drop-shadow(0 6px 12px rgba(120, 100, 70, 0.28)); opacity: 0.92; }
+  .row { display: flex; gap: 28px; align-items: flex-start; }
+  .bar { display: inline-flex; gap: 2px; padding: 4px; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow-float); }
+  .btn { width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--ink-2); display: grid; place-items: center; }
+  .btn.on { background: var(--bg-hover); color: var(--ink-1); }
+  .btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); box-shadow: inset 0 0 0 2px #10b981, 0 0 0 1px var(--line-2); }
+  .fb-pop { display: block; width: 240px; margin-top: 8px; padding: 12px 14px 14px; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow-float); }
+  .fb-head { height: 20px; margin-bottom: 10px; font-size: 12.5px; font-weight: 600; }
+  .fb-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+  .fb-opt { height: 32px; border: 0; border-radius: 8px; background: none; color: var(--ink-2); font-size: 12px; display: inline-flex;
+    align-items: center; justify-content: center; gap: 6px; box-shadow: inset 0 0 0 1px var(--line-1); }
+  .fb-opt.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .fb-opt svg { width: 24px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+  .note { color: var(--ink-2); font-size: 12.5px; line-height: 1.7; max-width: 60ch; }
+</style>
+</head>
+<body>
+<h1>画框 · 边框线型</h1>
+<p class="sub">实线 / 虚线 / 点线。虚线、点线逐边排布，四个角永远落在一段墨上；内嵌标题盖住它所在的那段边框。</p>
+
+<h2>普通画风</h2>
+<p>线宽 2：虚线 8 实 6 空，点线 5 一个点；周期按每条边的长度微调成整数个。</p>
+<svg id="s1" class="canvas" width="1040" height="550"></svg>
+
+<h2>手绘画风</h2>
+<p>一笔连续墨迹被逐边遮罩切成段（与手绘连线的虚线同一做法），起笔接缝藏在上边的空隙里。</p>
+<svg id="s2" class="canvas" width="1040" height="270"></svg>
+
+<h2>拖入反馈</h2>
+<p>线宽 +1，整圈虚线顺时针流动（24px/s）；实线框借用虚线节奏，点线框保持点线。系统「减弱动态效果」时静止。</p>
+<svg id="s3" class="canvas" width="1040" height="270"></svg>
+
+<h2>细节 ×3</h2>
+<p>角部与内嵌标题的衔接：左为普通，右为手绘。</p>
+<svg id="s4" class="canvas" width="1040" height="330"></svg>
+
+<h2>属性条</h2>
+<p>新增「边框」，位于「画框样式」之后；与配色预设互不影响，最近一次选择作为新建画框的默认值。</p>
+<div class="row">
+  <div>
+    <div class="bar">
+      <button class="btn" aria-label="画框样式"><span class="dot"></span></button>
+      <button class="btn on" aria-label="边框"><svg viewBox="0 0 24 24"><path d="M5 3a2 2 0 0 0-2 2M19 3a2 2 0 0 1 2 2M21 19a2 2 0 0 1-2 2M5 21a2 2 0 0 1-2-2M9 3h1M9 21h1M14 3h1M14 21h1M3 9v1M21 9v1M3 14v1M21 14v1"/></svg></button>
+      <button class="btn" aria-label="标题位置"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg></button>
+      <button class="btn" aria-label="适应内容"><svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg></button>
+      <button class="btn" aria-label="解散画框"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="8" height="6" rx="1"/><rect x="11" y="14" width="8" height="6" rx="1"/></svg></button>
+      <button class="btn" aria-label="笔触"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+    </div>
+    <div class="fb-pop">
+      <div class="fb-head">边框</div>
+      <div class="fb-grid">
+        <button class="fb-opt"><svg viewBox="0 0 28 14"><path d="M3 7H25"/></svg>实线</button>
+        <button class="fb-opt on"><svg viewBox="0 0 28 14"><path d="M3 7H25" stroke-dasharray="4 4"/></svg>虚线</button>
+        <button class="fb-opt"><svg viewBox="0 0 28 14"><path d="M3 7H25" stroke-dasharray="0 3.6"/></svg>点线</button>
+      </div>
+    </div>
+  </div>
+  <p class="note">图标用 lucide <b>BoxSelect</b>（0.399 版的虚线方框，静态，和连线的「虚线」入口一样不随取值变化）。弹层为单选三格，图示 + 文字，复用 OptionGrid；不加开关，三选一一步到位。</p>
+</div>
+
+<script src="../whiteboard-sketch/vendor/perfect-freehand.js"></script>
+<script src="border.js"></script>
+<script>
+  const C = {
+    blue: ["rgba(59, 130, 246, 0.1)", "#3b82f6"], green: ["rgba(16, 185, 129, 0.1)", "#10b981"],
+    purple: ["rgba(139, 92, 246, 0.1)", "#8b5cf6"], orange: ["rgba(245, 158, 11, 0.1)", "#f59e0b"],
+  };
+  function card(parent, x, y, cls) {
+    const g = FB.el("g", { transform: `translate(${x} ${y})`, class: cls }, parent);
+    FB.el("rect", { width: 120, height: 56, rx: 8, fill: "#fffdf9", stroke: "#e9e1d2" }, g);
+    FB.el("rect", { x: 12, y: 16, width: 74, height: 7, rx: 3.5, fill: "#d9cfbe" }, g);
+    FB.el("rect", { x: 12, y: 31, width: 48, height: 7, rx: 3.5, fill: "#e9e1d2" }, g);
+  }
+  function F(parent, o) {
+    const [bg, color] = C[o.c];
+    FB.frame(parent, { bw: 2, r: 8, bg, color, titlePos: "inline", ...o });
+    if (o.cards !== false) { card(parent, o.x + 24, o.y + 56); card(parent, o.x + o.w - 144, o.y + o.h - 76); }
+  }
+  const $ = id => document.getElementById(id);
+  const row = (svg, y, extra) => [["blue", "solid", "用户侧"], ["green", "dashed", "可选模块"], ["purple", "dotted", "草稿区"]]
+    .forEach(([c, style, title], i) => F(svg, { x: 30 + i * 340, y, w: 300, h: 200, c, style, title, seed: 11 + i * 7, ...extra }));
+
+  row($("s1"), 30);
+  F($("s1"), { x: 30, y: 330, w: 300, h: 190, c: "orange", style: "dashed", titlePos: "top", title: "外部服务" });
+  F($("s1"), { x: 370, y: 330, w: 300, h: 190, c: "blue", style: "dotted", titlePos: "top", title: "待定" });
+  F($("s1"), { x: 710, y: 330, w: 150, h: 100, c: "green", style: "dashed", title: "小框", cards: false });
+  F($("s1"), { x: 890, y: 330, w: 120, h: 190, c: "purple", style: "dotted", title: "窄", cards: false });
+  row($("s2"), 34, { sketch: true });
+  row($("s3"), 34, { dropping: true, cards: false });
+  [0, 1, 2].forEach(i => card($("s3"), 30 + i * 340 + 150, 34 + 116, "dragged"));
+  const z = FB.el("g", { transform: "scale(3)" }, $("s4"));
+  F(z, { x: 12, y: 12, w: 150, h: 90, c: "green", style: "dashed", title: "可选", cards: false });
+  F(z, { x: 182, y: 12, w: 150, h: 90, c: "green", style: "dashed", title: "可选", cards: false, sketch: true, seed: 5 });
+</script>
+</body>
+</html>

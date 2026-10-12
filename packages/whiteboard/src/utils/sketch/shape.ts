@@ -1,4 +1,5 @@
 import type { SketchFillStyle, SketchLevel } from "../../types/sketch";
+import { fitDash, roundedRectSides, type DashRhythm } from "../dash";
 import {
   clamp,
   distance,
@@ -31,6 +32,8 @@ export interface SketchShapeInput {
   fill?: string;
   fillOpacity?: number;
   fillStyle?: SketchFillStyle;
+  /** 描边线型：只对圆角矩形生效；缺省实线 */
+  strokeDash?: "dashed" | "dotted";
   /** 淡涂叠在纸上的不透明度系数，缺省 WASH_ALPHA；底色承载文字对比度时（导图节点）传 1 */
   washAlpha?: number;
   level: SketchLevel;
@@ -40,6 +43,12 @@ export interface SketchShapeInput {
 /** 淡涂叠在纸上的不透明度系数（再乘元素自身的 fillOpacity） */
 const WASH_ALPHA = 0.7;
 const HATCH_ANGLE = -41;
+
+/** 手绘虚线 / 点线的节奏（随线宽缩放）：段比普通画风更长、更疏，像笔一段段画出来 */
+const SKETCH_DASH_RHYTHM: Record<"dashed" | "dotted", (strokeWidth: number) => DashRhythm> = {
+  dashed: w => ({ visible: 7 * w, pitch: 11.5 * w }),
+  dotted: w => ({ visible: 0, pitch: 5 * w }),
+};
 
 function roundedRect(width: number, height: number, radius: number): Vec[] {
   const r = Math.min(radius, width / 2, height / 2);
@@ -123,6 +132,50 @@ export function loopStroke(
     return [p[0] + (dx / len) * k, p[1] + (dy / len) * k];
   });
   return wobble(ring.concat([ring[0]], tail), amplitude, random);
+}
+
+/** 手绘虚线 / 点线矩形：无搭接的一笔闭合墨迹 × 逐边虚线遮罩，起笔接缝藏进上边中段的空隙 */
+function dashedRectStroke(
+  width: number,
+  height: number,
+  radius: number,
+  style: "dashed" | "dotted",
+  stroke: string,
+  input: SketchShapeInput,
+  random: () => number
+): SketchPath {
+  const { strokeWidth, level } = input;
+  const r = Math.max(0, Math.min(radius, width / 2, height / 2));
+  const size = inkSize(strokeWidth);
+  const maskWidth = style === "dotted" ? size * 1.3 : size * 3;
+  const sides = roundedRectSides(width, height, r);
+  const fits = sides.map(s => fitDash(s.length, SKETCH_DASH_RHYTHM[style](strokeWidth), maskWidth));
+  const seamX = r - (Math.PI * r) / 4 + (Math.floor((fits[0].count - 1) / 2) + 0.5) * fits[0].pitch;
+  const base = resample(roundedRect(width, height, r), 3);
+  base.pop();
+  let si = 0;
+  base.forEach((p, i) => {
+    if (distance(p, [seamX, 0]) < distance(base[si], [seamX, 0])) si = i;
+  });
+  const ring = base.slice(si).concat(base.slice(0, si));
+  ring.push(ring[0]);
+  const d = inkOutline(wobble(ring, WOBBLE_AMPLITUDE[level], random), size, random, {
+    taperStart: 0,
+    taperEnd: 0,
+  });
+  return {
+    role: "ink",
+    d,
+    color: stroke,
+    opacity: input.strokeOpacity,
+    dashMask: sides.map((s, i) => ({
+      d: s.d,
+      width: maskWidth,
+      dash: fits[i].dash,
+      gap: fits[i].gap,
+      offset: fits[i].dash / 2,
+    })),
+  };
 }
 
 /** 覆盖 width×height 的平行线，angle 为排线方向（度） */
@@ -232,18 +285,32 @@ export function sketchShape(input: SketchShapeInput): SketchPath[] {
   }
 
   if (stroke && stroke !== "none" && stroke !== "transparent" && strokeWidth > 0) {
-    const size = inkSize(strokeWidth);
-    const d = polylines
-      .map(line =>
-        line.closed
-          ? inkOutline(loopStroke(line.points, amplitude, random), size, random, {
-              taperStart: strokeWidth * 3,
-              taperEnd: strokeWidth * 9,
-            })
-          : inkOutline(wobble(resample(line.points, 3), amplitude, random), size, random)
-      )
-      .join(" ");
-    result.push({ role: "ink", d, color: stroke, opacity: input.strokeOpacity });
+    if (input.strokeDash && input.outline.kind === "rect") {
+      result.push(
+        dashedRectStroke(
+          width,
+          height,
+          input.outline.cornerRadius ?? 0,
+          input.strokeDash,
+          stroke,
+          input,
+          random
+        )
+      );
+    } else {
+      const size = inkSize(strokeWidth);
+      const d = polylines
+        .map(line =>
+          line.closed
+            ? inkOutline(loopStroke(line.points, amplitude, random), size, random, {
+                taperStart: strokeWidth * 3,
+                taperEnd: strokeWidth * 9,
+              })
+            : inkOutline(wobble(resample(line.points, 3), amplitude, random), size, random)
+        )
+        .join(" ");
+      result.push({ role: "ink", d, color: stroke, opacity: input.strokeOpacity });
+    }
   }
   return result;
 }

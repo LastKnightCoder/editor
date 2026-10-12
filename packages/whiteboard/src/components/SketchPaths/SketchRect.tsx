@@ -15,6 +15,8 @@ interface SketchRectProps {
   fillOpacity?: number;
   fillStyle?: SketchFillStyle;
   washAlpha?: number;
+  /** 描边线型：只对圆角矩形生效；缺省实线 */
+  strokeDash?: "dashed" | "dotted";
   level: SketchLevel;
   seed: number;
 }
@@ -22,7 +24,7 @@ interface SketchRectProps {
 /** 手绘圆角矩形框：画框、分栏、文本底板、导图节点共用；不接收指针事件，命中仍由原图形承担 */
 const SketchRect = memo((props: SketchRectProps) => {
   const { x, y, width, height, radius = 0, stroke, strokeWidth } = props;
-  const { fill, fillOpacity, fillStyle, washAlpha, level, seed } = props;
+  const { fill, fillOpacity, fillStyle, washAlpha, strokeDash, level, seed } = props;
   const paths = useMemo(
     () =>
       sketchShape({
@@ -35,6 +37,7 @@ const SketchRect = memo((props: SketchRectProps) => {
         fillOpacity,
         fillStyle,
         washAlpha,
+        strokeDash,
         level,
         seed,
       }),
@@ -48,6 +51,7 @@ const SketchRect = memo((props: SketchRectProps) => {
       fillOpacity,
       fillStyle,
       washAlpha,
+      strokeDash,
       level,
       seed,
     ]

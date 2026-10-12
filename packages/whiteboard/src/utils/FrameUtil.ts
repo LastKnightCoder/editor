@@ -3,11 +3,13 @@ import { v4 as getUuid } from "uuid";
 import type { Board, BoardElement, ElementBounds } from "../types/board";
 import type { Operation } from "../types/operation";
 import {
+  FRAME_DEFAULT_BORDER_STYLE,
   FRAME_DEFAULT_STYLES,
   FRAME_DEFAULT_TITLE_POSITION,
   FRAME_INLINE_TITLE_HEIGHT,
   FRAME_TITLE_GAP,
   FRAME_TITLE_HEIGHT,
+  type FrameBorderStyle,
   type FrameElement,
   type FrameTitlePosition,
 } from "../types/frame";
@@ -71,6 +73,14 @@ export class FrameUtil {
     return FRAME_DEFAULT_TITLE_POSITION;
   }
 
+  static getPrevBorderStyle(): FrameBorderStyle {
+    const stored = this.getLocalStorage("borderStyle");
+    if (stored === "solid" || stored === "dashed" || stored === "dotted") {
+      return stored;
+    }
+    return FRAME_DEFAULT_BORDER_STYLE;
+  }
+
   static createFrame(
     x: number,
     y: number,
@@ -94,6 +104,7 @@ export class FrameUtil {
       borderColor: prevStyle.borderColor,
       borderWidth: prevStyle.borderWidth,
       borderRadius: prevStyle.borderRadius,
+      borderStyle: this.getPrevBorderStyle(),
       padding: 20,
       containmentPolicy: "partial",
       removalPolicy: "partial",

@@ -8,6 +8,10 @@ export type FrameTitlePosition = "top" | "inline";
 
 export const FRAME_DEFAULT_TITLE_POSITION: FrameTitlePosition = "top";
 
+export type FrameBorderStyle = "solid" | "dashed" | "dotted";
+
+export const FRAME_DEFAULT_BORDER_STYLE: FrameBorderStyle = "solid";
+
 export const FRAME_INLINE_TITLE_HEIGHT = 32;
 
 export interface FrameElement extends CommonElement {
@@ -19,6 +23,8 @@ export interface FrameElement extends CommonElement {
   borderColor: string;
   borderWidth: number;
   borderRadius: number;
+  /** 边框线型，缺省为实线 */
+  borderStyle?: FrameBorderStyle;
   padding: number;
   containmentPolicy: "full" | "partial";
   removalPolicy: "full" | "partial";
