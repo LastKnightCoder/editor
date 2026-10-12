@@ -2,8 +2,9 @@
  * 关于与更新 —— 定稿初版（2026-09-24，mockups/settings/index.html 第三版「关于与更新」）。
  *
  * 移植 legacy AppAbout（数据库管理已迁到「同步 · 本地数据库」Tab）：
- * - 顶部应用卡：图标 / 名称 / 版本 + 更新状态签与对应动作（检查 / 立即更新 / 重启并安装），
- *   下载完成后自动重启安装，下载中显示进度条，有可用更新或出错时提供「手动下载」外链；
+ * - 顶部应用卡：图标 / 名称 / 版本 + 更新状态签与对应动作（检查 / 重启并安装），
+ *   检测到新版本即在后台自动下载，下载中显示进度条，就绪后一键重启安装；
+ *   出错或需要手动获取时提供「手动下载」外链；
  *   状态全部来自 useUpdateStore（主进程事件由全局 AutoUpdateChecker 挂载，本页只读状态与触发动作）
  * - 有可用更新时在「更新」组提供新版本内容入口，经弹窗展示跨越版本的公告（来自 latest*.yml）
  * - 更新：自动检查更新开关（misc.update.autoCheck）；本版更新内容（安装包内置公告）
@@ -163,7 +164,7 @@ export function AboutSection() {
       </SettingsGroup>
 
       <SettingsGroup title="更新">
-        <SettingRow title="自动检查更新" description="启动时在后台检查，有新版本在这里提示">
+        <SettingRow title="自动检查更新" description="启动时在后台检查并自动下载新版本">
           <Switch aria-label="自动检查更新" checked={autoCheck} onCheckedChange={setAutoCheck} />
         </SettingRow>
         {releaseNotes.length > 0 && (

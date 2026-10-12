@@ -66,6 +66,9 @@ export const useUpdateStore = create<UpdateState>()((set, get) => ({
             : [],
         autoChecked: Boolean(options?.silent),
       });
+      // 检测到新版本即在后台开始下载，下载完成（ready）才通知用户，
+      // 把更新源的下载耗时留在后台而不是让用户等待
+      if (result.available) void get().download();
     } catch (error) {
       // 静默检查（启动自动检查）失败不打扰用户
       set(
@@ -80,15 +83,8 @@ export const useUpdateStore = create<UpdateState>()((set, get) => ({
     set({ status: "downloading", progress: 0 });
     try {
       const result = await downloadUpdate();
-      if (!result.started) return; // 已有下载在进行（如另一窗口触发），安装由先到者负责
-    } catch (error) {
-      set({ status: "error", errorMessage: getErrorMessage(error) });
-      return;
-    }
-    // 下载完成即重启安装（用户主动触发下载时已确认要更新）；
-    // 安装失败由 onInstallFailed 事件兜底转手动下载
-    try {
-      await installUpdate();
+      // started=false 表示已有下载在进行，等待 update-downloaded 事件转入 ready
+      if (!result.started) return;
     } catch (error) {
       set({ status: "error", errorMessage: getErrorMessage(error) });
     }

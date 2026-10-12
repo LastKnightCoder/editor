@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
-import { Download, Sparkles } from "lucide-react";
+import { RotateCw, Sparkles } from "lucide-react";
 import { notify } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
-import { useSettingsStore } from "@/app/settingsStore";
 import { initUpdateListeners, useUpdateStore } from "@/stores/useUpdateStore";
 import { takeVersionChange } from "@/commands/updater";
 import { bundledNotesBetween } from "@/features/release-notes/notes";
@@ -69,17 +68,19 @@ const useAutoUpdateCheck = () => {
   }, []);
 
   useEffect(() => {
-    if (status !== "available" || !autoChecked || !newVersion) return;
+    // 下载完成（ready）才通知：新版本在启动静默检查后已自动后台下载，
+    // 用户点「立即更新」时直接重启安装，无需经历等待下载的过程
+    if (status !== "ready" || !autoChecked || !newVersion) return;
     if (notifiedRef.current) return;
     notifiedRef.current = true;
 
     const { releaseNotes } = useUpdateStore.getState();
     notify({
       id: NOTICE_ID,
-      title: `发现新版本 v${newVersion}`,
-      body: `Tau v${newVersion} 已发布，建议更新到最新版本。`,
+      title: `新版本 v${newVersion} 已就绪`,
+      body: `已在后台下载完成，随时可以更新到 v${newVersion}。`,
       source: "应用更新",
-      icon: Download,
+      icon: RotateCw,
       sticky: true,
       actions: [
         releaseNotes.length > 0
@@ -90,9 +91,9 @@ const useAutoUpdateCheck = () => {
             }
           : { label: "稍后" },
         {
-          label: "前往更新",
+          label: "立即更新",
           primary: true,
-          onClick: () => useSettingsStore.getState().openSettings("app"),
+          onClick: () => void useUpdateStore.getState().install(),
         },
       ],
     });
