@@ -156,32 +156,52 @@ export function DevFloatingBall() {
               {[...groups].map(([group, list]) => (
                 <section key={group} className="flex flex-col gap-1">
                   <h3 className="text-ink-3 text-tau-caption px-1 font-medium">{group}</h3>
-                  {list.map(action => (
-                    <button
-                      key={action.id}
-                      type="button"
-                      disabled={running !== null}
-                      onClick={() => void run(action)}
-                      className={cn(
-                        "rounded-tau-sm flex flex-col items-start gap-0.5 px-2 py-1.5 text-left",
-                        "hover:bg-hover transition-colors duration-150 disabled:opacity-50"
-                      )}
-                    >
-                      <span className="text-ink-1 text-tau-sm flex items-center gap-1.5">
-                        {running === action.id && (
-                          <Loader2
-                            className="size-3.5 animate-spin"
-                            strokeWidth={1.75}
-                            aria-hidden
-                          />
+                  {list.every(action => action.compact) ? (
+                    <div className="flex flex-wrap gap-1 px-1">
+                      {list.map(action => (
+                        <button
+                          key={action.id}
+                          type="button"
+                          disabled={running !== null}
+                          title={action.description}
+                          onClick={() => void run(action)}
+                          className={cn(
+                            "rounded-tau-sm text-ink-1 text-tau-sm px-2 py-1",
+                            "hover:bg-hover transition-colors duration-150 disabled:opacity-50"
+                          )}
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    list.map(action => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        disabled={running !== null}
+                        onClick={() => void run(action)}
+                        className={cn(
+                          "rounded-tau-sm flex flex-col items-start gap-0.5 px-2 py-1.5 text-left",
+                          "hover:bg-hover transition-colors duration-150 disabled:opacity-50"
                         )}
-                        {action.label}
-                      </span>
-                      {action.description && (
-                        <span className="text-ink-3 text-tau-caption">{action.description}</span>
-                      )}
-                    </button>
-                  ))}
+                      >
+                        <span className="text-ink-1 text-tau-sm flex items-center gap-1.5">
+                          {running === action.id && (
+                            <Loader2
+                              className="size-3.5 animate-spin"
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                          )}
+                          {action.label}
+                        </span>
+                        {action.description && (
+                          <span className="text-ink-3 text-tau-caption">{action.description}</span>
+                        )}
+                      </button>
+                    ))
+                  )}
                 </section>
               ))}
             </div>

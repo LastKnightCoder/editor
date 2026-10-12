@@ -1,5 +1,22 @@
 # 决策记录（轻量 ADR）
 
+## D-138 系统通知窗口：失焦分流 + 独立卡栈
+
+（2026-10-12，已定）
+
+- 背景：D-038 将 OS 层通知排除在 Notification 之外，Electron 原生通知与应用视觉割裂，且无法作答（按钮回调出不了系统通知）。
+- 选择：
+  - 通知按来源窗口焦点分流：来源窗口聚焦时进应用内卡栈，否则进系统通知窗口；主进程来源以任一应用窗口聚焦为准。
+  - 两栈互不同步，出生地归属不迁移（回焦后系统窗口里的卡原地保留）；同 id 原位更新沿出生地生效。
+  - 系统通知窗口为透明、置顶、不可聚焦、不进任务栏的常驻隐藏单例，showInactive 不抢焦点；整窗默认点击穿透，渲染端按鼠标命中临时切换；位置 Windows 右下、macOS 右上；折叠规则与应用内一致，但不自动关闭（没有操作中心兜底，须用户关闭或「全部清除」）。
+  - 点卡片主体聚焦来源窗口，无待答按钮的卡随即关闭。
+  - 作答跨进程中继：系统窗口点按钮 → 主进程 → 来源窗口执行原 onClick，结果回传驱动 loading / 结果行 / 报错；来源窗口已关闭报「原窗口已关闭」。
+  - 待办提醒、番茄钟结束迁出 Electron 原生通知，统一走分流；性能快照导出会直接打开所在文件夹，删除其通知。
+  - JoinRequestNotifications 与 AutoUpdateChecker 从 App 根移入 AppShell，避免在每个窗口重复运行。
+- 排除：Electron 原生通知（视觉割裂、不可作答、无法复用卡栈）；回焦迁移卡片到应用内栈（作答中状态迁移复杂，收益低）。
+- 代价：不进入 Windows 操作中心 / macOS 通知中心，不受系统勿扰模式管理。
+- 影响：`packages/ui` Notification（placement / autoDismiss / className / onItemsChange / onCardClick、notify.isActive）、`packages/platform` notification API、主进程 `windows/notification-window.ts` / `windows/notification-router.ts` / `windows/ipc.ts`、渲染端 `features/notifications/*`（appNotify 分流、useNotificationBridge、NotificationHostWindow）、`/notification-host` 路由、主进程迁移（todo-reminder 原地替换；perf-monitor 删除导出通知；番茄结束通知从 tables/pomodoro-session 上提到调用方 modules/pomodoro——tables 层拉进窗口模块图会成环）。
+
 ## D-137 Database 扩展点第二阶段：字段 model、通用视图配置、扩展视图、聚合与命令
 
 （2026-10-11，用户确认；承接 D-135，多语言不在本条范围）
@@ -989,7 +1006,7 @@
 - 行为：sticky（需作答）常驻；纯告知 8s 自动关，悬停和作答中暂停计时。onClick 返回 promise 时由组件托管 loading 和整条锁定：兑现后收成 resolvedText 结果行，1.6s 后退场；拒绝则在说明位显示错误并解锁按钮。同 id 再次 notify 原位更新。role=status 不抢焦点，不接 Esc；z-[190] 放在 Toast（200）之下。与 Toast 分工：Toast 是操作回执，Notification 是事件与作答。
 - 排除：B 与 C 承载（本轮只做基础件，接入另议）；V2 悬停才出按钮（紧迫感弱）；V3 纯文字（卡片最高，来源辨识度弱）。
 - 影响：`packages/ui/src/primitives/Notification.tsx`（`notify` / `NotificationHost` / `NotificationCard`）、`__tests__/notification.test.tsx`（8 例）、样板间「Notification」档案（ShowcaseApp 根挂载 NotificationHost）。业务接入见下方追记。
-- 追记（同日，业务接入）：壳层 AppShell 挂载 NotificationHost（`/legacy` 已无入口，不挂；QuickOpen 小窗不弹通知）。接入三处：① 应用更新（`hooks/useAutoUpdateCheck`）：antd `notification` 改 `notify`（id `app-update-available`，sticky）；「前往更新」打开新设置弹窗的「关于与更新」分区，消解 D-036 遗留的「仍打开旧设置弹窗」。② 协作加入申请（`components/JoinRequestNotifications`）：删除自研 motion 卡栈，只保留监听逻辑。新申请经 `notify` 弹出（头像取昵称首字，按 deviceId 派生色），同意 / 拒绝托管给作答流程（结果行或卡内报错）。别处处理后同步关闭，作答中的不打断。存量申请静默、手动关闭后不再弹，这两条保持原行为。③ 发布结果（`features/publish/publishRunStore`）：结束回报由 toast 改 `notify`（后台任务结果归 Notification，修订 D-035 追记），固定 id `publish-run`，同 id 原位替换。成功类纯告知自动关；部分失败与异常常驻，带「查看详情」（openPage publish）与「重试」（按上次参数重跑）。Electron 系统通知（待办提醒、番茄钟）属 OS 层，窗口不在前台也要可见，不在本组件范围。
+- 追记（同日，业务接入）：壳层 AppShell 挂载 NotificationHost（`/legacy` 已无入口，不挂；QuickOpen 小窗不弹通知）。接入三处：① 应用更新（`hooks/useAutoUpdateCheck`）：antd `notification` 改 `notify`（id `app-update-available`，sticky）；「前往更新」打开新设置弹窗的「关于与更新」分区，消解 D-036 遗留的「仍打开旧设置弹窗」。② 协作加入申请（`components/JoinRequestNotifications`）：删除自研 motion 卡栈，只保留监听逻辑。新申请经 `notify` 弹出（头像取昵称首字，按 deviceId 派生色），同意 / 拒绝托管给作答流程（结果行或卡内报错）。别处处理后同步关闭，作答中的不打断。存量申请静默、手动关闭后不再弹，这两条保持原行为。③ 发布结果（`features/publish/publishRunStore`）：结束回报由 toast 改 `notify`（后台任务结果归 Notification，修订 D-035 追记），固定 id `publish-run`，同 id 原位替换。成功类纯告知自动关；部分失败与异常常驻，带「查看详情」（openPage publish）与「重试」（按上次参数重跑）。Electron 系统通知（待办提醒、番茄钟）属 OS 层，窗口不在前台也要可见，不在本组件范围。追记（2026-10-12）：OS 层通知已由 D-138 接管。追记（2026-10-12）：卡栈取消展开——展开后超出可视高度需滚动，滚动容器顶边会裁掉卡片与关闭钮；改为始终显示最新 3 张 + 2 层纸边，关闭后依次补位，计数标签不可点击，保留「全部清除」。
 
 ## D-039 知识库全面合并到项目
 

@@ -2,6 +2,8 @@ import { supportsWith, unsupported, unsupportedSync, type CapabilityId } from ".
 import type {
   FileDialogApi,
   LocalFileApi,
+  NotificationApi,
+  NotificationRoute,
   Platform,
   PlatformOs,
   ShellApi,
@@ -123,6 +125,32 @@ class WebSystemApi implements SystemApi {
   getUserDataDir = unsupported("system.user-data-dir");
 }
 
+/**
+ * Web 下无系统通知窗口：通知恒留在应用内（route 恒 "in-app"），
+ * 其余通道均无对端，静默 no-op 而非抛错——通知是旁路体验，不应打断 Web 功能。
+ */
+const noopAsync = (): Promise<void> => Promise.resolve();
+const noopSubscribe = (): (() => void) => () => undefined;
+
+class WebNotificationApi implements NotificationApi {
+  async route(): Promise<NotificationRoute> {
+    return "in-app";
+  }
+  dismiss = noopAsync;
+  action = noopAsync;
+  closed = noopAsync;
+  activate = noopAsync;
+  setInteractive = noopAsync;
+  empty = noopAsync;
+  ready = noopAsync;
+  inAppAction = noopAsync;
+  inAppClosed = noopAsync;
+  onPush = noopSubscribe;
+  onDismiss = noopSubscribe;
+  onRunAction = noopSubscribe;
+  onInApp = noopSubscribe;
+}
+
 export const webPlatform: Platform = {
   kind: "web",
   os: detectWebOs(),
@@ -132,4 +160,5 @@ export const webPlatform: Platform = {
   localFile: new WebLocalFileApi(),
   shell: new WebShellApi(),
   system: new WebSystemApi(),
+  notification: new WebNotificationApi(),
 };

@@ -3,7 +3,7 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import log from "electron-log";
 import { createMainWindow, showOrCreateMainWindow } from "../windows";
-import { exportSnapshot, notifySnapshotExported } from "./perf-monitor";
+import { exportSnapshot } from "./perf-monitor";
 
 let tray: Tray | null = null;
 
@@ -179,9 +179,7 @@ function createTray(preloadPath: string) {
 
 // 托盘/Dock 菜单的快照导出：渲染端冻结时命令面板不可用，这里是兜底入口
 function exportPerfSnapshotFromMenu() {
-  exportSnapshot()
-    .then(notifySnapshotExported)
-    .catch(error => log.error("[tray] 导出性能快照失败:", error));
+  exportSnapshot().catch(error => log.error("[tray] 导出性能快照失败:", error));
 }
 
 // 更新托盘菜单

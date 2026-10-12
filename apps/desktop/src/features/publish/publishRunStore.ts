@@ -9,7 +9,8 @@
  */
 
 import { create } from "zustand";
-import { notify, type NotificationAction } from "@tau/ui";
+import type { NotificationAction } from "@tau/ui";
+import { appNotify } from "@/features/notifications/notify";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import { downloadPublishTemplate, executePublish } from "@/commands";
@@ -108,7 +109,7 @@ function notifyFinished(run: RunState) {
   if (run.kind === "done") {
     const { uploaded, failed } = run.result;
     if (failed.length === 0) {
-      notify({
+      appNotify({
         id: NOTICE_ID,
         title: "站点已发布",
         body: `${uploaded.length} 个文件已上传 · 用时 ${seconds(run.duration)} 秒`,
@@ -117,7 +118,7 @@ function notifyFinished(run: RunState) {
         actions: [view],
       });
     } else {
-      notify({
+      appNotify({
         id: NOTICE_ID,
         title: "发布完成，部分文件失败",
         body: `${failed.length} 个文件上传失败，其余 ${uploaded.length} 个已上传`,
@@ -128,7 +129,7 @@ function notifyFinished(run: RunState) {
       });
     }
   } else if (run.kind === "exported") {
-    notify({
+    appNotify({
       id: NOTICE_ID,
       title: "静态站点已导出",
       body: run.targetDir,
@@ -137,7 +138,7 @@ function notifyFinished(run: RunState) {
       actions: [view],
     });
   } else if (run.kind === "error") {
-    notify({
+    appNotify({
       id: NOTICE_ID,
       title: "发布失败",
       body: run.message,

@@ -230,6 +230,78 @@ module.exports = {
       },
     },
     {
+      // 通知分流守护（D-138）：渲染端业务通知一律走 appNotify（apps/desktop
+      // features/notifications/notify.ts）。features/notifications 自身、showcase 样板间
+      // 与测试（用 notify.dismiss 清场 / 断言装置）豁免。
+      // 注意 override 整体覆盖根规则的 patterns，须原样保留。
+      files: ["apps/desktop/src/**/*.{ts,tsx}"],
+      excludedFiles: [
+        "apps/desktop/src/features/notifications/**",
+        "apps/desktop/src/showcase/**",
+        "apps/desktop/src/**/__tests__/**",
+      ],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "@tau/ui",
+                importNames: ["notify"],
+                message:
+                  "业务通知走 appNotify（features/notifications/notify.ts），icon 传注册表键；详见 03 指南 §2.6",
+              },
+            ],
+            patterns: [
+              {
+                group: ["@tau/editor/src", "@tau/editor/src/*", "@tau/editor/src/**"],
+                message:
+                  "编辑器使用公开根入口、api、markdown 或 toolbar；私有夹具仅供测试以仓库路径引用",
+              },
+              { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
+              {
+                group: ["antd", "antd/*", "@ant-design/*"],
+                message: "antd 已退役且无豁免：UI 用 @tau/ui + Tailwind，图标用 lucide-react",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
+      // 通知分流守护（D-138）：主进程通知统一走 routeNotification（windows/），
+      // 系统通知窗口已取代 Electron 原生通知。
+      // 注意 override 整体覆盖根规则的 patterns，须原样保留。
+      files: ["apps/desktop/src-electron/**/*.ts"],
+      rules: {
+        "no-restricted-imports": [
+          "error",
+          {
+            paths: [
+              {
+                name: "electron",
+                importNames: ["Notification"],
+                message:
+                  "主进程通知统一走 routeNotification（windows/notification-router.ts），原生通知已由系统通知窗口接管（D-138）",
+              },
+            ],
+            patterns: [
+              {
+                group: ["@tau/editor/src", "@tau/editor/src/*", "@tau/editor/src/**"],
+                message:
+                  "编辑器使用公开根入口、api、markdown 或 toolbar；私有夹具仅供测试以仓库路径引用",
+              },
+              { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
+              {
+                group: ["antd", "antd/*", "@ant-design/*"],
+                message: "antd 已退役且无豁免：UI 用 @tau/ui + Tailwind，图标用 lucide-react",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
       // 扩展的 markdown.ts 是 headless 代码（宿主把它与 @tau/markdown 一起合成 codec 列表，
       // Electron 主进程共用，01 §8.3）：不许引 React / UI / 编辑器运行时
       files: [

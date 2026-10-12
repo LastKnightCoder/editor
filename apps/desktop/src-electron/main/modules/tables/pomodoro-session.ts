@@ -7,7 +7,6 @@ import type {
   PomodoroSession,
   PomodoroStatus,
 } from "@/types";
-import { Notification } from "electron";
 import CalendarEventTable from "./calendar-event";
 import PomodoroPresetTable from "./pomodoro-preset";
 import PomodoroCalendarMappingTable from "./pomodoro-calendar-mapping";
@@ -203,15 +202,6 @@ class PomodoroSessionTable {
       id: number | bigint;
     };
     const id = Number(inserted.id);
-
-    // 发送系统通知
-    try {
-      const title = session.status === "completed" ? "番茄完成" : "专注结束";
-      const body = `专注 ${Math.round(session.focusMs / 60000)} 分钟`;
-      new Notification({ title, body }).show();
-    } catch (_e) {
-      // ignore
-    }
 
     const res = this.getById(db, id);
     if (!res) throw new Error("failed to fetch inserted pomodoro session");
