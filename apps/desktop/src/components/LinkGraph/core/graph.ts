@@ -122,7 +122,7 @@ function seedComponents(components: number[][], nodeById: Map<number, GraphNode>
   }
 }
 
-export function buildScene(items: GraphItem[]): GraphScene {
+export function buildTopology(items: GraphItem[]): GraphScene {
   const ids = new Set(items.map(item => item.id));
   const adjacency = new Map<number, Set<number>>();
   for (const id of ids) adjacency.set(id, new Set());
@@ -172,6 +172,12 @@ export function buildScene(items: GraphItem[]): GraphScene {
     adjacency,
   };
 
+  return scene;
+}
+
+export function buildScene(items: GraphItem[]): GraphScene {
+  const scene = buildTopology(items);
+  const { nodes, nodeById } = scene;
   // 社区发现要先有边表与邻接表，拿到划分后回填到节点上
   const detected = detectClusters(scene, items);
   scene.clusters = detected.clusters;

@@ -15,11 +15,16 @@ const TOLERANCE = 6;
 export class NodePicker {
   private tree: Quadtree<GraphNode> | null = null;
   private builtAt = 0;
+  private maxRadius = 0;
 
-  constructor(private scene: GraphScene) {}
+  constructor(
+    private scene: GraphScene,
+    private dynamic = true
+  ) {}
 
-  replaceScene(scene: GraphScene) {
+  replaceScene(scene: GraphScene, dynamic = this.dynamic) {
     this.scene = scene;
+    this.dynamic = dynamic;
     this.tree = null;
   }
 
@@ -32,18 +37,18 @@ export class NodePicker {
    * @param scale 当前缩放，用于把像素容差换算回世界尺度
    */
   pick(worldX: number, worldY: number, scale: number, now = performance.now()): GraphNode | null {
-    if (!this.tree || now - this.builtAt > 16) {
+    if (!this.tree || (this.dynamic && now - this.builtAt > 16)) {
       this.tree = quadtree<GraphNode>()
         .x(node => node.x)
         .y(node => node.y)
         .addAll(this.scene.nodes);
       this.builtAt = now;
+      this.maxRadius = 0;
+      for (const node of this.scene.nodes) this.maxRadius = Math.max(this.maxRadius, node.radius);
     }
     const tolerance = TOLERANCE / Math.max(0.0001, scale);
     // 搜索半径取最大节点半径 + 容差，保证 find 不会漏掉大节点
-    let maxRadius = 0;
-    for (const node of this.scene.nodes) maxRadius = Math.max(maxRadius, node.radius);
-    const candidate = this.tree.find(worldX, worldY, maxRadius + tolerance);
+    const candidate = this.tree.find(worldX, worldY, this.maxRadius + tolerance);
     if (!candidate) return null;
     const dx = candidate.x - worldX;
     const dy = candidate.y - worldY;

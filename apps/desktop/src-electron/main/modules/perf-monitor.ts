@@ -11,6 +11,7 @@ import {
   slowIpc,
   slowSql,
   slowSyncIo,
+  stages,
   type Timestamped,
 } from "./perf-record";
 
@@ -57,6 +58,7 @@ interface ProcessMetricsSample extends Timestamped {
 
 interface RendererWindowData {
   title: string;
+  stages: Array<Timestamped & { label: string; ms: number; count?: number }>;
   eventLoop: Array<Timestamped & { delayMs: number }>;
   longTasks: Array<Timestamped & { durationMs: number; source: string }>;
   // Event Timing 慢交互：longtask 在 Chromium 拿不到脚本归因（source 恒空），
@@ -67,9 +69,9 @@ interface RendererWindowData {
     Timestamped & {
       durationMs: number;
       scriptMs: number;
-      renderMs: number;
-      styleLayoutMs: number;
-      paintMs: number;
+      renderMs: number | null;
+      styleLayoutMs: number | null;
+      paintMs: number | null;
       source: string;
     }
   >;
@@ -87,6 +89,7 @@ function rendererDataOf(senderId: number, title: string): RendererWindowData {
   if (!data) {
     data = {
       title,
+      stages: [],
       eventLoop: [],
       longTasks: [],
       slowInteractions: [],
@@ -107,8 +110,16 @@ function recordRendererEvent(
   payload: { kind: string; [key: string]: unknown }
 ): void {
   const data = rendererDataOf(senderId, title);
-  const t = Date.now();
+  const t = typeof payload.t === "number" && Number.isFinite(payload.t) ? payload.t : Date.now();
   switch (payload.kind) {
+    case "stage":
+      pushCapped(data.stages, {
+        t,
+        label: String(payload.label).slice(0, 100),
+        ms: Number(payload.ms),
+        count: payload.count as number | undefined,
+      });
+      break;
     case "event-loop":
       pushCapped(data.eventLoop, {
         t,
@@ -260,6 +271,7 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
       ipcRate: ipcRateSamples,
       slowSql,
       slowSyncIo,
+      stages,
     },
     renderer: Object.fromEntries([...rendererWindows.entries()].map(([id, data]) => [id, data])),
   };

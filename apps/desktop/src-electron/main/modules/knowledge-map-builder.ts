@@ -30,6 +30,7 @@ import type { Module } from "../types/module";
 import type { KnowledgeMapWorkerResult } from "../workers/knowledge-map.worker";
 import databaseModule from "./database";
 import KnowledgeMapTable from "./tables/knowledge-map";
+import { recordIpcCall } from "./perf-record";
 
 const WORKER_PATH = join(__dirname, "knowledge-map-worker.js");
 const NEIGHBORS = 8;
@@ -66,9 +67,17 @@ class KnowledgeMapBuilder implements Module {
   private building = new Map<string, Promise<KnowledgeMap>>();
 
   async init() {
-    ipcMain.handle("knowledge-map:get", (event, options?: { rebuild?: boolean }) =>
-      this.handleGet(event.sender, options?.rebuild === true)
-    );
+    ipcMain.handle("knowledge-map:get", async (event, options?: { rebuild?: boolean }) => {
+      const startedAt = performance.now();
+      try {
+        const result = await this.handleGet(event.sender, options?.rebuild === true);
+        recordIpcCall("knowledge-map:get", performance.now() - startedAt, true);
+        return result;
+      } catch (error) {
+        recordIpcCall("knowledge-map:get", performance.now() - startedAt, false);
+        throw error;
+      }
+    });
     log.info("[KnowledgeMapBuilder] Module initialized");
   }
 

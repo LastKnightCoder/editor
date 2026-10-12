@@ -2,7 +2,9 @@
  * 离线地图 → 渲染场景，以及地图模式下的渲染决策。
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import * as clustering from "../core/cluster";
+import { clusterGeometry, mapSubtopicGeometry } from "../core/clusterGeometry";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type { ICard } from "@/types";
 import { toItems } from "./fixtures";
@@ -38,6 +40,53 @@ const map: KnowledgeMap = {
 };
 
 describe("buildMapScene", () => {
+  it("离线地图不执行社区发现，静态几何按场景身份缓存", () => {
+    const detect = vi.spyOn(clustering, "detectClusters");
+    const first = buildMapScene(toItems([card(1), card(2), card(3)]), map);
+    expect(detect).not.toHaveBeenCalled();
+    expect(clusterGeometry(first)).toBe(clusterGeometry(first));
+    expect(mapSubtopicGeometry(first)).toBe(mapSubtopicGeometry(first));
+    const next = buildMapScene(toItems([card(1)]), map);
+    expect(clusterGeometry(next)).not.toBe(clusterGeometry(first));
+    detect.mockRestore();
+  });
+
+  it("两万节点离线地图保持完整拓扑，建图与首次几何计算在一秒内", () => {
+    const count = 20000;
+    const items = Array.from({ length: count }, (_, id) => ({
+      id,
+      key: `card:${id}`,
+      contentId: id,
+      label: `卡片${id}`,
+      createdAt: id,
+      tags: [],
+      links: id + 1 < count ? [id + 1] : [],
+    }));
+    const largeMap: KnowledgeMap = {
+      computedAt: 1,
+      nodes: items.map(item => ({
+        key: item.key,
+        x: item.id % 200,
+        y: Math.floor(item.id / 200),
+        topic: 0,
+        subtopic: 1,
+      })),
+      topics: [
+        { id: 0, parent: -1, label: "主题", colorSlot: 0, size: count },
+        { id: 1, parent: 0, label: "子主题", colorSlot: 0, size: count },
+      ],
+    };
+    const start = performance.now();
+    const scene = buildMapScene(items, largeMap);
+    clusterGeometry(scene);
+    mapSubtopicGeometry(scene);
+    const elapsed = performance.now() - start;
+    expect(scene.nodes).toHaveLength(count);
+    expect(scene.edges).toHaveLength(count - 1);
+    expect(scene.subtopics[0].members).toHaveLength(count);
+    expect(elapsed).toBeLessThan(1000);
+    console.info(`离线地图 20000 节点建图与几何：${elapsed.toFixed(1)}ms`);
+  });
   const cards = [card(1, [2]), card(2), card(3), card(4), card(5), card(6, [4])];
   const scene = buildMapScene(toItems(cards), map);
 

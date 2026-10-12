@@ -11,7 +11,7 @@
 import { mapNodeRadius } from "@/knowledge-map/compute";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type { ClusterInfo } from "./cluster";
-import { buildScene } from "./graph";
+import { buildTopology } from "./graph";
 import type { GraphScene, GraphItem } from "./types";
 
 /** 子主题（渲染层用于中等缩放下的标签） */
@@ -35,7 +35,7 @@ const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
 export function buildMapScene(items: GraphItem[], map: KnowledgeMap): MapScene {
   // 复用链接图的建图（边、邻接、度数、标签），再用地图覆盖坐标与归属
-  const base = buildScene(items);
+  const base = buildTopology(items);
   // 地图节点以 "card:12" 为键，按条目的 key 对回场景里的数值 id
   const idOfKey = new Map(items.map(item => [item.key, item.id]));
   const byCard = new Map<number, (typeof map.nodes)[number]>();
@@ -105,15 +105,19 @@ export function buildMapScene(items: GraphItem[], map: KnowledgeMap): MapScene {
     };
   });
 
+  const subtopicMembers = new Map<number, number[]>();
+  for (const [id, node] of byCard) {
+    const members = subtopicMembers.get(node.subtopic) ?? [];
+    members.push(id);
+    subtopicMembers.set(node.subtopic, members);
+  }
   const subtopics: MapSubtopic[] = map.topics
     .filter(topic => topic.parent !== -1 && topic.label)
     .map(topic => ({
       id: topic.id,
       cluster: topicCluster.get(topic.parent) ?? -1,
       label: topic.label,
-      members: [...byCard]
-        .filter(([id, node]) => node.subtopic === topic.id && base.nodeById.has(id))
-        .map(([id]) => id),
+      members: subtopicMembers.get(topic.id) ?? [],
     }))
     .filter(sub => sub.cluster >= 0 && sub.members.length > 0);
 

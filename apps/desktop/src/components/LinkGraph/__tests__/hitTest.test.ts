@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NodePicker } from "../core/hitTest";
 import type { GraphNode, GraphScene } from "../core/types";
 
@@ -28,6 +28,19 @@ const sceneOf = (nodes: GraphNode[]): GraphScene => ({
 });
 
 describe("NodePicker", () => {
+  it("静态地图跨帧复用索引，失效后重新读取坐标和半径", () => {
+    const fixed = node(1, 0, 0);
+    const readRadius = vi.fn(() => 10);
+    Object.defineProperty(fixed, "radius", { get: readRadius });
+    const picker = new NodePicker(sceneOf([fixed]), false);
+    picker.pick(0, 0, 1, 0);
+    readRadius.mockClear();
+    picker.pick(0, 0, 0.5, 1000);
+    expect(readRadius).toHaveBeenCalledTimes(1);
+    fixed.x = 500;
+    picker.invalidate();
+    expect(picker.pick(500, 0, 1, 2000)?.id).toBe(1);
+  });
   it("命中圆内的点", () => {
     const picker = new NodePicker(sceneOf([node(1, 0, 0)]));
     expect(picker.pick(5, 5, 1, 0)?.id).toBe(1);

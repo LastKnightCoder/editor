@@ -83,6 +83,32 @@ vi.mock("../../utils/event-loop-yield", () => ({
 vi.mock("../database", () => ({
   default: mockContext.databaseModuleMock,
 }));
+vi.mock("../index-content-client", () => ({
+  IndexContentClient: class {
+    prepare = async () => ({ content: "mock-markdown", sections: [] });
+    dispose = async () => {};
+  },
+}));
+vi.mock("../index-candidates", () => ({
+  listContentIndexCandidates: () => [
+    ...mockContext.cards.map(row => ({
+      id: row.id,
+      type: "card",
+      updateTime: row.update_time,
+      read: () => ({ raw: "[]" }),
+    })),
+    ...mockContext.diaries.map(row => ({
+      id: row.id,
+      type: "diary-moment",
+      updateTime: row.updateTime,
+      read: () => ({ raw: "[]" }),
+    })),
+  ],
+}));
+vi.mock("../chat-prompt-index", () => ({
+  CHAT_PROMPT_TYPE: "chat-prompt",
+  listChatPromptDocs: () => [],
+}));
 
 vi.mock("../tables/card", () => ({
   default: {
@@ -119,6 +145,7 @@ vi.mock("../tables/vec-document", () => ({
 vi.mock("../material-index", () => ({
   MATERIAL_INDEX_TYPES: ["excerpt", "pdf-annotation", "web-clip"],
   listMaterialIndexDocs: () => [],
+  listMaterialIndexCandidates: () => [],
 }));
 
 vi.mock("../video-note-index-db", () => ({
@@ -162,7 +189,12 @@ describe("index recovery cooperative scheduling", () => {
   });
 
   it("主内容向量任务收集会按批调用 yieldEvery", async () => {
-    const tasks = await (mainContentVecIndexQueue as any).collectTasks({}, {}, false);
+    const { tasks } = await (mainContentVecIndexQueue as any).collectSnapshot(
+      {},
+      { prepare: () => ({ get: () => undefined }) },
+      false,
+      true
+    );
 
     expect(tasks).toHaveLength(30);
     expect(mockContext.yieldEvery).toHaveBeenCalledWith(25, 25);
@@ -185,7 +217,12 @@ describe("index recovery cooperative scheduling", () => {
       { id: 11, diaryId: 5, content: [], updateTime: 7 },
       { id: 12, diaryId: 5, content: [], updateTime: 8 },
     ];
-    const vec = await (mainContentVecIndexQueue as any).collectTasks({}, {}, false);
+    const { tasks: vec } = await (mainContentVecIndexQueue as any).collectSnapshot(
+      {},
+      { prepare: () => ({ get: () => undefined }) },
+      false,
+      true
+    );
     const fts = await (mainContentFtsIndexQueue as any).collectTasks(
       {},
       { prepare: () => ({ get: () => undefined }) }

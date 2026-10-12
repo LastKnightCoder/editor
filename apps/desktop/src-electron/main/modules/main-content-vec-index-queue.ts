@@ -2,15 +2,13 @@ import log from "electron-log";
 import type Database from "better-sqlite3";
 import { Module } from "../types/module";
 import databaseModule from "./database";
-import CardTable from "./tables/card";
-import ArticleTable from "./tables/article";
-import ProjectTable from "./tables/project";
-import DiaryTable from "./tables/diary";
 import VecDocumentTable from "./tables/vec-document";
-import { listMaterialIndexDocs, MATERIAL_INDEX_TYPES } from "./material-index";
+import { listMaterialIndexCandidates, MATERIAL_INDEX_TYPES } from "./material-index";
 import { CHAT_PROMPT_TYPE, listChatPromptDocs } from "./chat-prompt-index";
-import { getMarkdown } from "@/utils/markdown.ts";
-import { splitSections, type ContentSection } from "@/entity/sections";
+import type { ContentSection } from "@/entity/sections";
+import { listContentIndexCandidates, type IndexCandidate } from "./index-candidates";
+import { IndexContentClient } from "./index-content-client";
+import { recordStage } from "./perf-record";
 import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
 import type { IndexType } from "@/types";
 import type { ChatPromptIndexType } from "@/types/search";
@@ -133,6 +131,7 @@ class MainContentVecIndexQueue implements Module {
   private currentProgress: MainContentVecIndexProgress | null = null;
   private progressListeners = new Set<(progress: MainContentVecIndexProgress) => void>();
   private lastEmitAt = 0;
+  private emptyRevisions = new WeakMap<Database.Database, Map<string, number>>();
 
   async init() {
     log.info("[MainContentVecIndexQueue] Module initialized");
@@ -182,13 +181,16 @@ class MainContentVecIndexQueue implements Module {
       return null;
     }
 
-    return this.computeStats(mainDb, indexDb);
+    return (await this.collectSnapshot(mainDb, indexDb, false, false)).stats;
   }
 
-  private async computeStats(
+  private async collectSnapshot(
     mainDb: Database.Database,
-    indexDb: Database.Database
-  ): Promise<MainContentIndexStats> {
+    indexDb: Database.Database,
+    forceReindex: boolean,
+    prepareTasks: boolean,
+    isCurrent: () => boolean = () => true
+  ) {
     const emptyCounts = (): MainContentIndexCounts => ({
       total: 0,
       indexed: 0,
@@ -203,22 +205,84 @@ class MainContentVecIndexQueue implements Module {
     };
 
     const indexedTimes = this.loadIndexedUpdateTimes(indexDb);
-    await this.forEachCandidate(mainDb, task => {
-      const bucket = stats.byType[task.type as MainContentIndexType];
-      const indexedTime = indexedTimes.get(`${task.type}:${task.id}`);
-      const key: keyof MainContentIndexCounts =
-        indexedTime === undefined
-          ? "unindexed"
-          : indexedTime < task.updateTime
-            ? "outdated"
-            : "indexed";
-      stats.total += 1;
-      stats[key] += 1;
-      bucket.total += 1;
-      bucket[key] += 1;
-    });
-
-    return stats;
+    const tasks: MainContentVecIndexTask[] = [];
+    const candidates = new Set<string>();
+    const client = new IndexContentClient();
+    const emptyRevisions = this.emptyRevisions.get(mainDb) ?? new Map<string, number>();
+    this.emptyRevisions.set(mainDb, emptyRevisions);
+    const alive = new Set<string>();
+    const startedAt = performance.now();
+    try {
+      await this.forEachCandidate(
+        mainDb,
+        async candidate => {
+          if (!isCurrent()) throw new Error("索引扫描已失效");
+          const id = `${candidate.type}:${candidate.id}`;
+          alive.add(id);
+          if (emptyRevisions.get(id) === candidate.updateTime) return;
+          const indexedTime = indexedTimes.get(id);
+          const changed =
+            forceReindex || indexedTime === undefined || indexedTime < candidate.updateTime;
+          if (changed) {
+            const input = candidate.read();
+            const result =
+              "raw" in input
+                ? await client.prepare({
+                    raw: input.raw,
+                    title: candidate.title ?? "",
+                    whole: input.whole ?? false,
+                    sections: prepareTasks,
+                  })
+                : input;
+            if (!isCurrent()) throw new Error("索引扫描已失效");
+            if (!result.content.trim()) {
+              emptyRevisions.set(id, candidate.updateTime);
+              return;
+            }
+            emptyRevisions.delete(id);
+            if (prepareTasks)
+              tasks.push({
+                id: candidate.id,
+                type: candidate.type,
+                updateTime: candidate.updateTime,
+                title: candidate.title,
+                ...result,
+                content:
+                  "raw" in input && input.prefixTitle
+                    ? [candidate.title, result.content].filter(Boolean).join("\n")
+                    : result.content,
+              });
+          }
+          candidates.add(id);
+          if (candidate.type === CHAT_PROMPT_TYPE) return;
+          const bucket = stats.byType[candidate.type as MainContentIndexType];
+          const key: keyof MainContentIndexCounts =
+            indexedTime === undefined
+              ? "unindexed"
+              : indexedTime < candidate.updateTime
+                ? "outdated"
+                : "indexed";
+          stats.total += 1;
+          stats[key] += 1;
+          bucket.total += 1;
+          bucket[key] += 1;
+        },
+        prepareTasks
+      );
+      if (!isCurrent()) throw new Error("索引扫描已失效");
+      for (const id of emptyRevisions.keys()) if (!alive.has(id)) emptyRevisions.delete(id);
+      if (prepareTasks) {
+        const removed = VecDocumentTable.removeIndexesNotIn(indexDb, candidates, [
+          ...MAIN_CONTENT_INDEX_TYPES,
+          CHAT_PROMPT_TYPE,
+        ]);
+        if (removed) log.info(`[MainContentVecIndexQueue] Removed stale vectors: ${removed}`);
+      }
+      return { tasks, stats, indexedTimes };
+    } finally {
+      recordStage("vec-index:collect", performance.now() - startedAt, alive.size);
+      await client.dispose();
+    }
   }
 
   /**
@@ -348,9 +412,20 @@ class MainContentVecIndexQueue implements Module {
     };
 
     try {
-      const tasks = await this.collectTasks(mainDb, indexDb, params.fingerprintChanged);
-      const stats = await this.computeStats(mainDb, indexDb);
-      const previouslyIndexed = this.loadIndexedUpdateTimes(indexDb);
+      const {
+        tasks,
+        stats,
+        indexedTimes: previouslyIndexed,
+      } = await this.collectSnapshot(
+        mainDb,
+        indexDb,
+        params.fingerprintChanged,
+        true,
+        () =>
+          !this.isStale(generation) &&
+          databaseModule.getDatabase(params.mainDbName) === mainDb &&
+          databaseModule.getIndexDatabase(params.mainDbName) === indexDb
+      );
       this.updateProgress({ phase: "indexing", queued: tasks.length, stats }, true);
       let indexed = 0;
       let failed = 0;
@@ -430,6 +505,26 @@ class MainContentVecIndexQueue implements Module {
         autoIndex: true,
       };
     } catch (error) {
+      if (
+        this.isStale(generation) ||
+        databaseModule.getDatabase(params.mainDbName) !== mainDb ||
+        databaseModule.getIndexDatabase(params.mainDbName) !== indexDb
+      ) {
+        if (databaseModule.getIndexDatabase(params.mainDbName) === indexDb) {
+          databaseModule.setIndexRebuildState(params.mainDbName, "pending", "vec");
+        }
+        this.finishProgress(indexDb, { phase: "aborted" });
+        return {
+          generation,
+          reason: params.reason,
+          reinitialized,
+          queued: 0,
+          indexed: 0,
+          failed: 0,
+          stale: true,
+          autoIndex: true,
+        };
+      }
       databaseModule.setIndexRebuildState(params.mainDbName, "failed", "vec");
       this.finishProgress(indexDb, {
         phase: "failed",
@@ -554,105 +649,25 @@ class MainContentVecIndexQueue implements Module {
     }
   }
 
-  private async collectTasks(
-    mainDb: Database.Database,
-    indexDb: Database.Database,
-    forceReindex: boolean
-  ): Promise<MainContentVecIndexTask[]> {
-    const tasks: MainContentVecIndexTask[] = [];
-    const candidates = new Set<string>();
-    await this.forEachCandidate(
-      mainDb,
-      task => {
-        candidates.add(`${task.type}:${task.id}`);
-        if (forceReindex) {
-          tasks.push(task);
-          return;
-        }
-        const indexInfo = VecDocumentTable.checkIndexExists(indexDb, task.id, task.type);
-        if (!indexInfo || indexInfo.updateTime < task.updateTime) {
-          tasks.push(task);
-        }
-      },
-      { withChatPrompts: true }
-    );
-    // 已不是候选的（实体已删、摘录软删、剪藏变孤儿、正文清空、对话已删）删掉，检索不再命中
-    const removed = VecDocumentTable.removeIndexesNotIn(indexDb, candidates, [
-      ...MAIN_CONTENT_INDEX_TYPES,
-      CHAT_PROMPT_TYPE,
-    ]);
-    if (removed) log.info(`[MainContentVecIndexQueue] Removed stale vectors: ${removed}`);
-    return tasks;
-  }
-
-  /** 遍历全部有正文的主内容（卡片 / 文章 / 项目文档 / 日记）与外部材料，期间定期让出事件循环 */
+  /** 元数据按批让出事件循环，正文转换在工作线程等待期间不占用主进程。 */
   private async forEachCandidate(
     mainDb: Database.Database,
-    visit: (task: MainContentVecIndexTask) => void,
-    options: { withChatPrompts?: boolean } = {}
+    visit: (candidate: IndexCandidate) => Promise<void>,
+    withChatPrompts: boolean
   ) {
     let processed = 0;
-    const handle = async (task: MainContentVecIndexTask) => {
-      if (task.content) {
-        visit(task);
-      }
+    const handle = async (candidate: IndexCandidate) => {
+      await visit(candidate);
       processed += 1;
       await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
     };
-
-    for (const card of CardTable.getAllCards(mainDb)) {
-      await handle({
-        id: card.id,
-        type: "card",
-        content: getMarkdown(card.content || []).trim(),
-        sections: splitSections(card.content || [], "", true),
-        updateTime: Number(card.update_time || 0),
-      });
-    }
+    for (const candidate of listContentIndexCandidates(mainDb)) await handle(candidate);
     await yieldToEventLoop();
-
-    for (const article of ArticleTable.getAllArticles(mainDb)) {
-      await handle({
-        id: article.id,
-        type: "article",
-        content: getMarkdown(article.content || []).trim(),
-        title: article.title,
-        sections: splitSections(article.content || [], article.title || ""),
-        updateTime: Number(article.update_time || 0),
-      });
-    }
-    await yieldToEventLoop();
-
-    for (const item of ProjectTable.getAllProjectItems(mainDb)) {
-      await handle({
-        id: item.id,
-        type: "project-item",
-        content: getMarkdown(item.content || []).trim(),
-        title: item.title,
-        sections: splitSections(item.content || [], item.title || ""),
-        updateTime: Number(item.updateTime || 0),
-      });
-    }
-    await yieldToEventLoop();
-
-    for (const moment of DiaryTable.getAllDiarySegmentsFlat(mainDb)) {
-      await handle({
-        id: moment.id,
-        type: "diary-moment",
-        content: getMarkdown(moment.content || []).trim(),
-        sections: splitSections(moment.content || [], ""),
-        updateTime: Number(moment.updateTime || 0),
-      });
-    }
-    await yieldToEventLoop();
-
-    for (const doc of listMaterialIndexDocs(mainDb)) {
-      await handle(doc);
-    }
-    if (!options.withChatPrompts) return;
+    for (const candidate of listMaterialIndexCandidates(mainDb)) await handle(candidate);
+    if (!withChatPrompts) return;
     await yieldToEventLoop();
     for (const doc of listChatPromptDocs(mainDb)) {
-      await handle(doc);
+      await handle({ ...doc, read: () => doc });
     }
   }
 }

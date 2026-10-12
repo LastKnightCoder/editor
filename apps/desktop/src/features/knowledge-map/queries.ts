@@ -6,6 +6,7 @@ import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { getKnowledgeMap, type KnowledgeMapPayload } from "@/commands/knowledge-map";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import useSettingStore from "@/stores/useSettingStore";
+import { recordPerfStage } from "@/utils/perf-observer";
 
 export const knowledgeMapKey = (databaseName: string) => ["knowledge-map", databaseName] as const;
 
@@ -38,8 +39,11 @@ export function useKnowledgeMap(enabled: boolean) {
     queryKey: knowledgeMapKey(databaseName),
     queryFn: async () => {
       if (typeof window === "undefined" || !window.electron) return null;
+      const startedAt = performance.now();
       try {
-        return await getKnowledgeMap();
+        const payload = await getKnowledgeMap();
+        recordPerfStage("knowledge-map:load", startedAt, payload?.items.length);
+        return payload;
       } catch {
         return null;
       }

@@ -54,6 +54,11 @@ export const slowIpc: IpcCallSample[] = [];
 export const ipcRateSamples: IpcRateSample[] = [];
 export const slowSql: SqlCallSample[] = [];
 export const slowSyncIo: SyncIoSample[] = [];
+export const stages: Array<Timestamped & { label: string; ms: number; count?: number }> = [];
+
+export function recordStage(label: string, ms: number, count?: number) {
+  pushCapped(stages, { t: Date.now(), label, ms, count });
+}
 
 const ipcRateByMinute = new Map<number, Map<string, number>>();
 

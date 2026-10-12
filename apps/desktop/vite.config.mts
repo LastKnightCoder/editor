@@ -77,6 +77,7 @@ export default defineConfig(() => {
             "publish-generator-worker": "src-electron/main/workers/publish-generator.worker.ts",
             // 知识地图离线计算（向量近邻 + 主题划分 + 布局）跑在 worker_threads 里（modules/knowledge-map-builder）
             "knowledge-map-worker": "src-electron/main/workers/knowledge-map.worker.ts",
+            "index-content-worker": "src-electron/main/workers/index-content.worker.ts",
           },
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {

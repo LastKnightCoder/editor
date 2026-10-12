@@ -37,7 +37,14 @@ interface EventTimingEntry extends PerformanceEntry {
 }
 
 function report(payload: Record<string, unknown>): void {
-  send(RENDERER_EVENT_CHANNEL, payload);
+  send(RENDERER_EVENT_CHANNEL, { t: Date.now(), ...payload });
+}
+
+/** 只上报阶段名、耗时和规模，不包含正文或节点标题。 */
+export function recordPerfStage(label: string, startedAt: number, count?: number, thresholdMs = 0) {
+  if (!window.electron) return;
+  const ms = performance.now() - startedAt;
+  if (ms >= thresholdMs) report({ kind: "stage", label, ms, count });
 }
 
 // --- 事件循环延迟（心跳法） ---
@@ -74,7 +81,12 @@ function watchLongTasks(): void {
       for (const raw of list.getEntries()) {
         const entry = raw as LongTaskEntry;
         const source = entry.attribution?.[0]?.sourceURL ?? "";
-        report({ kind: "longtask", durationMs: Math.round(entry.duration), source });
+        report({
+          kind: "longtask",
+          t: performance.timeOrigin + entry.startTime,
+          durationMs: Math.round(entry.duration),
+          source,
+        });
       }
     });
     observer.observe({ entryTypes: ["longtask"] });
@@ -98,6 +110,7 @@ interface LoafEntry extends PerformanceEntry {
     invokerType?: string;
     sourceURL?: string;
     functionName?: string;
+    sourceFunctionName?: string;
   }>;
 }
 
@@ -106,9 +119,11 @@ const loafScriptLabel = (script: {
   invokerType?: string;
   sourceURL?: string;
   functionName?: string;
+  sourceFunctionName?: string;
 }): string => {
   const file = script.sourceURL?.split("/").pop()?.split("?")[0] ?? "";
-  const who = script.functionName || script.invoker || script.invokerType || "";
+  const who =
+    script.sourceFunctionName || script.functionName || script.invoker || script.invokerType || "";
   return `${who}@${file}`.slice(0, 80);
 };
 
@@ -130,11 +145,16 @@ function watchLongAnimationFrames(): void {
             .slice(0, 240) ?? "";
         report({
           kind: "loaf",
+          t: performance.timeOrigin + entry.startTime,
           durationMs: Math.round(entry.duration),
           scriptMs: Math.round(script),
-          renderMs: Math.round(entry.renderingDuration ?? entry.styleAndLayoutDuration ?? 0),
-          styleLayoutMs: Math.round(entry.styleAndLayoutDuration ?? 0),
-          paintMs: Math.round(entry.paintDuration ?? 0),
+          renderMs: entry.renderStart
+            ? Math.round(entry.startTime + entry.duration - entry.renderStart)
+            : null,
+          styleLayoutMs: entry.styleAndLayoutStart
+            ? Math.round(entry.startTime + entry.duration - entry.styleAndLayoutStart)
+            : null,
+          paintMs: entry.paintDuration === undefined ? null : Math.round(entry.paintDuration),
           source: topScripts,
         });
       }
@@ -167,6 +187,7 @@ function watchSlowInteractions(): void {
         if (!entry.interactionId) continue;
         report({
           kind: "event-timing",
+          t: performance.timeOrigin + entry.startTime,
           durationMs: Math.round(entry.duration),
           name: entry.name,
           target: describeTarget(entry.target),
@@ -243,9 +264,9 @@ function watchJank(): void {
 
 // --- JS 堆内存趋势（泄漏检测） ---
 function watchHeap(): void {
-  const memory = (performance as unknown as { memory?: PerformanceMemoryLike }).memory;
-  if (!memory) return;
   window.setInterval(() => {
+    const memory = (performance as unknown as { memory?: PerformanceMemoryLike }).memory;
+    if (!memory) return;
     report({
       kind: "heap",
       usedMB: Math.round(memory.usedJSHeapSize / 1024 / 1024),
