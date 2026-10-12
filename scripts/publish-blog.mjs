@@ -1,19 +1,20 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
-import OSS from "ali-oss";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-// 桌面端 publish-template-manager.ts 硬编码从该地址拉取版本信息，bucket/region 不可变更
-const OSS_REGION = "oss-cn-shanghai";
-const OSS_BUCKET = "release-bin";
+// 桌面端 publish-template-manager.ts 硬编码从 dl.xiongtao.life（R2）拉取版本信息；
+// OSS 侧清单已冻结在迁移前版本（见 scripts/migrate-oss-to-r2.mjs），服务旧客户端长尾
+const R2_BUCKET = "tau-release";
+const PUBLIC_BASE_URL = "https://dl.xiongtao.life";
 const LATEST_OBJECT_KEY = "publish-template-latest.json";
 const ZIP_OBJECT_KEY = version => `publish-template/blog-template-${version}.zip`;
-const PUBLIC_BASE_URL = `https://${OSS_BUCKET}.${OSS_REGION}.aliyuncs.com`;
 
 // 必需文件清单与桌面端 REQUIRED_TEMPLATE_FILES 保持一致
 const REQUIRED_TEMPLATE_FILES = [
@@ -33,7 +34,7 @@ const packageFile = join(blogDir, "package.json");
 function printHelp() {
   console.log(`用法: pnpm publish:blog [选项]
 
-构建 apps/blog 并将模板 zip 发布到 OSS，更新桌面端拉取的 publish-template-latest.json。
+构建 apps/blog 并将模板 zip 发布到 R2（${PUBLIC_BASE_URL}），更新桌面端拉取的 publish-template-latest.json。
 默认将 apps/blog/package.json 的版本号 patch +1，全部成功后才回写版本号。
 
 选项:
@@ -44,8 +45,9 @@ function printHelp() {
   -h, --help       显示帮助
 
 环境变量:
-  ALI_OSS_ACCESS_ID   必填，阿里云 AccessKeyId
-  ALI_OSS_ACCESS_KEY  必填，阿里云 AccessKeySecret`);
+  R2_ACCOUNT_ID        必填，Cloudflare Account ID
+  R2_ACCESS_KEY_ID     必填，R2 API Token 的 Access Key ID
+  R2_SECRET_ACCESS_KEY 必填，R2 API Token 的 Secret Access Key`);
 }
 
 function parseArgs(argv) {
@@ -82,7 +84,7 @@ function requiredEnv(name) {
 
 function nextPatch(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
-  if (!match) throw new Error(`blog/package.json 版本号格式无效: ${version}`);
+  if (!match) throw new Error("blog/package.json 版本号格式无效: " + version);
   return `${match[1]}.${match[2]}.${Number(match[3]) + 1}`;
 }
 
@@ -112,12 +114,26 @@ function createZip(zipPath) {
   };
 }
 
+function createR2Client() {
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${requiredEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: requiredEnv("R2_ACCESS_KEY_ID"),
+      secretAccessKey: requiredEnv("R2_SECRET_ACCESS_KEY"),
+    },
+  });
+}
+
 async function fetchRemoteVersion(client) {
   try {
-    const result = await client.get(LATEST_OBJECT_KEY);
-    return JSON.parse(result.content.toString("utf8")).version ?? null;
+    const result = await client.send(
+      new GetObjectCommand({ Bucket: R2_BUCKET, Key: LATEST_OBJECT_KEY })
+    );
+    const json = JSON.parse(await result.Body.transformToString("utf8"));
+    return json.version ?? null;
   } catch (error) {
-    if (error?.status === 404 || error?.code === "NoSuchKey") return null;
+    if (error?.$metadata?.httpStatusCode === 404 || error?.name === "NoSuchKey") return null;
     throw error;
   }
 }
@@ -126,8 +142,9 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   // 提前校验凭据，避免构建打包完成后才发现无法上传
   if (!options.dryRun) {
-    requiredEnv("ALI_OSS_ACCESS_ID");
-    requiredEnv("ALI_OSS_ACCESS_KEY");
+    requiredEnv("R2_ACCOUNT_ID");
+    requiredEnv("R2_ACCESS_KEY_ID");
+    requiredEnv("R2_SECRET_ACCESS_KEY");
   }
 
   const pkg = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -137,7 +154,7 @@ async function main() {
   );
 
   if (!options.skipBuild) {
-    console.log("▶ 构建 blog ...");
+    console.log(`▶ 构建 blog ...`);
     execFileSync("pnpm", ["--filter", "blog", "build"], {
       cwd: root,
       stdio: "inherit",
@@ -155,18 +172,11 @@ async function main() {
     );
 
     if (options.dryRun) {
-      console.log("▶ --dry-run: 本地流程全部通过，跳过上传与版本号回写");
+      console.log(`▶ --dry-run: 本地流程全部通过，跳过上传与版本号回写`);
       return;
     }
 
-    const client = new OSS({
-      region: OSS_REGION,
-      bucket: OSS_BUCKET,
-      accessKeyId: requiredEnv("ALI_OSS_ACCESS_ID"),
-      accessKeySecret: requiredEnv("ALI_OSS_ACCESS_KEY"),
-      secure: true,
-      timeout: 5 * 60_000,
-    });
+    const client = createR2Client();
 
     const remoteVersion = await fetchRemoteVersion(client);
     if (remoteVersion === version && !options.force) {
@@ -176,9 +186,13 @@ async function main() {
     }
 
     console.log(`▶ 上传 ${ZIP_OBJECT_KEY(version)}（远端当前 ${remoteVersion ?? "无版本"}）...`);
-    await client.put(ZIP_OBJECT_KEY(version), zipPath, {
-      headers: { "Cache-Control": "public, max-age=31536000, immutable" },
-    });
+    await client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: ZIP_OBJECT_KEY(version),
+      Body: createReadStream(zipPath),
+      ContentType: "application/zip",
+      CacheControl: "public, max-age=31536000, immutable",
+    }));
 
     // 先传 zip 再写 latest.json，保证 latest.json 指向的产物一定已存在
     const latestJson = `${JSON.stringify(
@@ -187,14 +201,18 @@ async function main() {
       2
     )}\n`;
     console.log(`▶ 上传 ${LATEST_OBJECT_KEY} ...`);
-    await client.put(LATEST_OBJECT_KEY, Buffer.from(latestJson), {
-      headers: { "Cache-Control": "no-cache" },
-    });
+    await client.send(new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: LATEST_OBJECT_KEY,
+      Body: latestJson,
+      ContentType: "application/json",
+      CacheControl: "no-cache",
+    }));
 
     pkg.version = version;
     writeFileSync(packageFile, `${JSON.stringify(pkg, null, 2)}\n`);
 
-    console.log("✔ 发布完成");
+    console.log(`✔ 发布完成`);
     console.log(`  版本: ${version}`);
     console.log(`  模板: ${PUBLIC_BASE_URL}/${ZIP_OBJECT_KEY(version)}`);
     console.log(`  版本信息: ${PUBLIC_BASE_URL}/${LATEST_OBJECT_KEY}`);
