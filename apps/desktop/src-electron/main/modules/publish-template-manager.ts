@@ -8,7 +8,7 @@ import AdmZip from "adm-zip";
 import log from "electron-log";
 
 const PUBLISH_TEMPLATE_LATEST_JSON_URL =
-  "https://release-bin.oss-cn-shanghai.aliyuncs.com/publish-template-latest.json";
+  "https://dl.xiongtao.life/publish-template-latest.json";
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 5;
 

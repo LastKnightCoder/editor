@@ -115,6 +115,6 @@ linux:
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 publish:
-  # electron-updater 从该地址拉取 latest*.yml 与更新包，产物由 scripts/publish-desktop.mjs 上传
+  # electron-updater 从该地址拉取 latest*.yml 与更新包；过渡版本仍经 --target oss 发到 OSS 服务存量客户端
   - provider: "generic"
-    url: "https://release-bin.oss-cn-shanghai.aliyuncs.com/desktop"
+    url: "https://dl.xiongtao.life/desktop"

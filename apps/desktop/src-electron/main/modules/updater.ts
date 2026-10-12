@@ -10,7 +10,7 @@ import PathUtil from "../utils/PathUtil";
 const { autoUpdater } = electronUpdaterPkg;
 
 // 与 electron-builder.yml 的 publish url 保持一致，用于组装手动下载兜底地址
-const UPDATE_FEED_URL = "https://release-bin.oss-cn-shanghai.aliyuncs.com/desktop";
+const UPDATE_FEED_URL = "https://dl.xiongtao.life/desktop";
 
 export interface ReleaseNote {
   version: string;
@@ -73,8 +73,8 @@ export interface UpdateDownloadProgressPayload {
 
 /**
  * 应用自动更新模块
- * 更新源由 electron-builder 的 app-update.yml 内置（OSS generic provider），
- * 渲染端在关于页手动检查，或按设置开关在启动时静默检查后引导用户下载。
+ * 更新源由 electron-builder 的 app-update.yml 内置（generic provider），
+ * 渲染端检测到新版本即在后台自动下载，下载完成后通知用户一键重启安装。
  */
 class UpdaterModule implements Module {
   name = "updater";

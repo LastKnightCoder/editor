@@ -14,7 +14,7 @@ import PathUtil from "./PathUtil";
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT_MS = 60_000;
 const FFMPEG_DEFAULT_LATEST_JSON_URL =
-  "https://release-bin.oss-cn-shanghai.aliyuncs.com/ffmpeg-services-latest.json";
+  "https://dl.xiongtao.life/ffmpeg-services-latest.json";
 
 interface FfmpegAsset {
   url: string;
