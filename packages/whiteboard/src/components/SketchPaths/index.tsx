@@ -42,24 +42,28 @@ const SketchPaths = memo(({ paths, dashFlowDuration }: SketchPathsProps) => {
                 width={200000}
                 height={200000}
               >
-                <path
-                  d={mask.d}
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth={mask.width}
-                  strokeLinecap="round"
-                  strokeDasharray={`${mask.dash} ${mask.gap}`}
-                >
-                  {dashFlowDuration && (
-                    <animate
-                      attributeName="stroke-dashoffset"
-                      from={0}
-                      to={-(mask.dash + mask.gap)}
-                      dur={`${dashFlowDuration}s`}
-                      repeatCount="indefinite"
-                    />
-                  )}
-                </path>
+                {mask.map((m, maskIndex) => (
+                  <path
+                    key={maskIndex}
+                    d={m.d}
+                    fill="none"
+                    stroke="#fff"
+                    strokeWidth={m.width}
+                    strokeLinecap="round"
+                    strokeDasharray={`${m.dash} ${m.gap}`}
+                    strokeDashoffset={m.offset}
+                  >
+                    {dashFlowDuration && (
+                      <animate
+                        attributeName="stroke-dashoffset"
+                        from={m.offset ?? 0}
+                        to={(m.offset ?? 0) - (m.dash + m.gap)}
+                        dur={`${dashFlowDuration}s`}
+                        repeatCount="indefinite"
+                      />
+                    )}
+                  </path>
+                ))}
               </mask>
             )}
             <path

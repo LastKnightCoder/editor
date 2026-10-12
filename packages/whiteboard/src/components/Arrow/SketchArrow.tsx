@@ -56,7 +56,7 @@ const SketchArrow = memo((props: SketchArrowProps) => {
   );
 
   const speed = animationSpeed || 3;
-  const mask = paths[0]?.dashMask;
+  const mask = paths[0]?.dashMask?.[0];
   const dashFlowDuration =
     animated && mask ? (mask.dash + mask.gap) / (DASH_PX_PER_SPEED * speed) : undefined;
 

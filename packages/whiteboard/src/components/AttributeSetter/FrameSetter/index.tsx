@@ -1,12 +1,18 @@
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { PanelTop, Scan, Ungroup } from "lucide-react";
+import { BoxSelect, PanelTop, Scan, Ungroup } from "lucide-react";
 import { produce } from "immer";
 
-import { FrameElement, FRAME_DEFAULT_STYLES, FrameTitlePosition } from "../../../types";
+import {
+  FrameBorderStyle,
+  FrameElement,
+  FrameTitlePosition,
+  FRAME_DEFAULT_BORDER_STYLE,
+  FRAME_DEFAULT_STYLES,
+} from "../../../types";
 import { useBoard } from "../../../hooks";
 import { FrameUtil } from "../../../utils";
-import { AttrAction, AttrPopover, Seg, SwatchRow } from "../../../chrome";
+import { AttrAction, AttrPopover, Glyph, OptionGrid, Seg, SwatchRow } from "../../../chrome";
 import SketchPopover from "../SketchPopover";
 
 interface FrameSetterProps {
@@ -15,6 +21,12 @@ interface FrameSetterProps {
 }
 
 const STYLE_NAMES = ["蓝", "绿", "黄", "橙", "红", "紫", "粉", "灰", "青", "靛"];
+
+const BORDER_STYLES: { value: FrameBorderStyle; label: string; dash?: string }[] = [
+  { value: "solid", label: "实线" },
+  { value: "dashed", label: "虚线", dash: "4 4" },
+  { value: "dotted", label: "点线", dash: "0 3.6" },
+];
 
 const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
   const board = useBoard();
@@ -41,6 +53,11 @@ const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
   const handleTitlePositionChange = useMemoizedFn((pos: FrameTitlePosition) => {
     onChange(produce(element, draft => void (draft.titlePosition = pos)));
     FrameUtil.setLocalStorage("titlePosition", pos);
+  });
+
+  const handleBorderStyleChange = useMemoizedFn((style: FrameBorderStyle) => {
+    onChange(produce(element, draft => void (draft.borderStyle = style)));
+    FrameUtil.setLocalStorage("borderStyle", style);
   });
 
   const handleFitContent = useMemoizedFn(() => {
@@ -71,6 +88,22 @@ const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
           }))}
           value={currentStyleIndex >= 0 ? String(currentStyleIndex) : null}
           onChange={k => handleStyleChange(Number(k))}
+        />
+      </AttrPopover>
+      <AttrPopover label="边框" icon={<BoxSelect strokeWidth={1.75} />} width={240}>
+        <OptionGrid<FrameBorderStyle>
+          options={BORDER_STYLES.map(s => ({
+            value: s.value,
+            label: s.label,
+            glyph: (
+              <Glyph>
+                <path d="M3 7H25" strokeDasharray={s.dash} />
+              </Glyph>
+            ),
+            showLabel: true,
+          }))}
+          value={element.borderStyle ?? FRAME_DEFAULT_BORDER_STYLE}
+          onChange={handleBorderStyleChange}
         />
       </AttrPopover>
       <AttrPopover label="标题位置" icon={<PanelTop strokeWidth={1.75} />} width={220}>

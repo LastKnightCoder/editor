@@ -1,13 +1,19 @@
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 
-import { EHandlerPosition, Point, Board, FrameElement } from "../../types";
+import {
+  EHandlerPosition,
+  Point,
+  Board,
+  FrameElement,
+  FRAME_DEFAULT_BORDER_STYLE,
+} from "../../types";
 import { useBoard, useSelectState, useDropArrow, useSketch } from "../../hooks";
 import { FrameUtil, PathUtil, PointUtil } from "../../utils";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
-import SketchRect from "../SketchPaths/SketchRect";
+import FrameBorder from "./FrameBorder";
 import { If as If } from "@tau/ui";
 import { cn as classnames } from "@tau/ui";
 import { EditText, EditTextHandle } from "@tau/ui";
@@ -20,6 +26,7 @@ import {
   RESIZE_CIRCLE_RADIUS,
 } from "../../constants";
 import { handTextClass } from "../../utils/sketch";
+import { inkSize, WOBBLE_AMPLITUDE } from "../../utils/sketch/levels";
 
 const getReadableTextColor = (hex: string): string => {
   const m = hex.replace("#", "");
@@ -79,13 +86,12 @@ const Frame = memo(
       borderColor,
       borderWidth,
       borderRadius,
+      borderStyle = FRAME_DEFAULT_BORDER_STYLE,
       isChildMoveIn,
     } = element;
 
     const { isSelected: isFrameSelected } = useSelectState(element.id);
     const sketch = useSketch(element);
-    // 拖入子元素时的虚线高亮是交互反馈，保持普通描边
-    const sketchBorder = sketch.enabled && !isChildMoveIn;
     const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
       useDropArrow(element, { container: true });
 
@@ -155,14 +161,18 @@ const Frame = memo(
     }, [isEditingTitle]);
 
     const isInlineTitle = element.titlePosition === "inline";
-    const effectiveBorderWidth = isChildMoveIn ? borderWidth + 1 : borderWidth;
-    const borderInset = effectiveBorderWidth / 2;
+    const borderInset = borderWidth / 2;
+    // 内嵌标题盖住所在那段边框：手绘时还要盖住墨迹宽度与抖动
+    const titleCover = sketch.enabled
+      ? inkSize(borderWidth) / 2 + WOBBLE_AMPLITUDE.neat
+      : borderInset;
     const INLINE_TITLE_HEIGHT = FrameUtil.INLINE_TITLE_HEIGHT;
-    const inlineRadius = Math.max(0, borderRadius - borderInset);
     const titleTextColor = getReadableTextColor(borderColor);
-    const titleHeight = isInlineTitle ? INLINE_TITLE_HEIGHT : FrameUtil.TITLE_HEIGHT;
-    const titleY = isInlineTitle ? y + borderInset : FrameUtil.getTitleY(element);
-    const titleObjectX = isInlineTitle ? x + borderInset : x;
+    const titleHeight = isInlineTitle
+      ? INLINE_TITLE_HEIGHT + borderInset + titleCover
+      : FrameUtil.TITLE_HEIGHT;
+    const titleY = isInlineTitle ? y - titleCover : FrameUtil.getTitleY(element);
+    const titleObjectX = isInlineTitle ? x - titleCover : x;
 
     return (
       <g ref={frameRef}>
@@ -173,27 +183,26 @@ const Frame = memo(
           width={width}
           height={height}
           fill={backgroundColor}
-          stroke={sketchBorder ? "none" : borderColor}
-          strokeWidth={isChildMoveIn ? borderWidth + 1 : borderWidth}
-          strokeDasharray={isChildMoveIn ? "8 8" : "0"}
+          stroke="transparent"
+          strokeWidth={borderWidth}
           rx={borderRadius}
           ry={borderRadius}
           onClick={handleFrameClick}
           onDoubleClick={handleFrameDoubleClick}
         />
-        {sketchBorder && (
-          <SketchRect
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            radius={borderRadius}
-            stroke={borderColor}
-            strokeWidth={borderWidth}
-            level="neat"
-            seed={sketch.seed}
-          />
-        )}
+        <FrameBorder
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          radius={borderRadius}
+          color={borderColor}
+          borderWidth={borderWidth}
+          borderStyle={borderStyle}
+          dropping={!!isChildMoveIn}
+          sketchEnabled={sketch.enabled}
+          sketchSeed={sketch.seed}
+        />
 
         {/* 标题区域 - 移到选中状态之前，避免遮挡箭头连接点 */}
         <foreignObject
@@ -226,14 +235,17 @@ const Frame = memo(
               defaultValue={title || "Frame"}
               className={classnames(
                 isInlineTitle
-                  ? "flex h-full w-fit min-w-5 cursor-pointer select-none items-center pl-2.5 pr-3 text-center text-xs font-semibold tracking-wide outline-none hover:opacity-95"
+                  ? "flex h-full w-fit min-w-5 cursor-pointer select-none items-center pr-3 text-center text-xs font-semibold tracking-wide outline-none hover:opacity-95"
                   : "flex h-full w-fit min-w-5 cursor-pointer select-none items-center rounded-lg px-2 py-1 text-center text-sm font-medium outline-none hover:opacity-90",
                 handTextClass(sketch)
               )}
               style={{
                 background: borderColor,
                 color: titleTextColor,
-                borderRadius: isInlineTitle ? `${inlineRadius}px 0px 6px 0px` : undefined,
+                borderRadius: isInlineTitle
+                  ? `${borderRadius + titleCover}px 0px 6px 0px`
+                  : undefined,
+                paddingLeft: isInlineTitle ? 10 + borderInset + titleCover : undefined,
                 textShadow:
                   titleTextColor === "#ffffff"
                     ? "0 1px 1px rgba(0,0,0,0.25)"

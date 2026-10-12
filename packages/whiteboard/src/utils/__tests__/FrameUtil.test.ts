@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // FrameUtil 静态导入会经 PathUtil -> BoardUtil -> Board 拉到依赖 Electron bridge 的模块，
 
 import {
+  FRAME_DEFAULT_BORDER_STYLE,
   FRAME_DEFAULT_TITLE_POSITION,
   FRAME_INLINE_TITLE_HEIGHT,
   FRAME_TITLE_GAP,
@@ -68,6 +69,39 @@ describe("FrameUtil.getPrevTitlePosition", () => {
   it("非法存储值回退为默认位置", () => {
     FrameUtil.setLocalStorage("titlePosition", "diagonal");
     expect(FrameUtil.getPrevTitlePosition()).toBe(FRAME_DEFAULT_TITLE_POSITION);
+  });
+});
+
+describe("FrameUtil.getPrevBorderStyle", () => {
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("无存储时返回默认线型 solid", () => {
+    expect(FrameUtil.getPrevBorderStyle()).toBe(FRAME_DEFAULT_BORDER_STYLE);
+  });
+
+  it("读取已持久化的 dashed 偏好", () => {
+    FrameUtil.setLocalStorage("borderStyle", "dashed");
+    expect(FrameUtil.getPrevBorderStyle()).toBe("dashed");
+  });
+
+  it("非法存储值回退为默认线型", () => {
+    FrameUtil.setLocalStorage("borderStyle", "wavy");
+    expect(FrameUtil.getPrevBorderStyle()).toBe(FRAME_DEFAULT_BORDER_STYLE);
+  });
+});
+
+describe("FrameUtil.createFrame", () => {
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("沿用已持久化的 dotted 线型", () => {
+    FrameUtil.setLocalStorage("borderStyle", "dotted");
+    expect(FrameUtil.createFrame(0, 0, 100, 100).borderStyle).toBe("dotted");
   });
 });
 
