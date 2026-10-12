@@ -15,6 +15,7 @@ import { getMarkdown } from "@/utils/markdown.ts";
 import { splitSections, type ContentSection } from "@/entity/sections";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
+import type { IndexCandidate } from "./index-candidates";
 
 export const MATERIAL_INDEX_TYPES = MATERIAL_KINDS;
 
@@ -74,14 +75,41 @@ const ATTACHED_WEB_CLIP_SQL = `
 /** 全部材料候选；剪藏正文逐条读，不一次把所有解析文档读进内存 */
 export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexDoc[] {
   const docs: MaterialIndexDoc[] = [];
-
-  for (const excerpt of ExcerptTable.listActive(mainDb)) {
+  for (const candidate of listMaterialIndexCandidates(mainDb)) {
+    const input = candidate.read();
+    if (!("raw" in input)) {
+      docs.push({
+        ...input,
+        id: Number(candidate.id),
+        type: candidate.type as MaterialKind,
+        updateTime: candidate.updateTime,
+      });
+      continue;
+    }
+    const nodes = parseContent(input.raw);
+    const body = getMarkdown(nodes).trim();
+    if (!body) continue;
     docs.push({
+      id: Number(candidate.id),
+      type: candidate.type as MaterialKind,
+      title: candidate.title,
+      updateTime: candidate.updateTime,
+      content: joinLines(candidate.title ?? "", body),
+      sections: splitSections(nodes, candidate.title ?? ""),
+    });
+  }
+  return docs;
+}
+
+/** 候选先提供修订号，剪藏全文仅在调用 read 时读取。 */
+export function* listMaterialIndexCandidates(mainDb: Database.Database): Generator<IndexCandidate> {
+  for (const excerpt of ExcerptTable.listActive(mainDb)) {
+    yield {
       id: excerpt.id,
       type: "excerpt",
-      content: excerptIndexText(excerpt),
+      read: () => ({ content: excerptIndexText(excerpt) }),
       updateTime: excerpt.updateTime,
-    });
+    };
   }
 
   const annotations = mainDb
@@ -101,16 +129,18 @@ export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexD
     const quote = pdfAnnotationQuote(row.annotation_payload);
     const note = pdfAnnotationNote(row.notes);
     if (!quote && !note) continue;
-    docs.push({
+    yield {
       id: row.id,
       type: "pdf-annotation",
-      content: joinLines(
-        `${row.file_name} · 第 ${row.page_num + 1} 页`,
-        quote,
-        note ? `批注：${note}` : ""
-      ),
+      read: () => ({
+        content: joinLines(
+          `${row.file_name} · 第 ${row.page_num + 1} 页`,
+          quote,
+          note ? `批注：${note}` : ""
+        ),
+      }),
       updateTime: Number(row.update_time || 0),
-    });
+    };
   }
 
   const clips = mainDb.prepare(ATTACHED_WEB_CLIP_SQL).all() as Array<{
@@ -122,19 +152,19 @@ export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexD
   }>;
   const readContent = mainDb.prepare(`SELECT content FROM contents WHERE id = ?`);
   for (const clip of clips) {
-    const row = readContent.get(clip.content_id) as { content: string | null } | undefined;
-    const body = getMarkdown(parseContent(row?.content ?? null)).trim();
-    if (!body) continue;
-    docs.push({
+    yield {
       id: clip.id,
       type: "web-clip",
       title: clip.title || hostOf(clip.url),
-      sections: splitSections(parseContent(row?.content ?? null), clip.title || hostOf(clip.url)),
-      content: joinLines(clip.title || hostOf(clip.url), body),
+      read: () => ({
+        raw:
+          (readContent.get(clip.content_id) as { content: string | null } | undefined)?.content ??
+          "[]",
+        prefixTitle: true,
+      }),
       updateTime: Number(clip.update_time || 0),
-    });
+    };
   }
-  return docs;
 }
 
 const paragraph = (text: string): Descendant =>

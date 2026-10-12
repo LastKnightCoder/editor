@@ -9,7 +9,7 @@
  */
 
 import type { Camera } from "../core/camera";
-import { clusterGeometry } from "../core/clusterGeometry";
+import { clusterGeometry, mapSubtopicGeometry } from "../core/clusterGeometry";
 import { isMapScene, type MapScene } from "../core/mapScene";
 import type { GraphNode, GraphPalette, GraphScene } from "../core/types";
 import { withAlpha } from "../core/palette";
@@ -321,7 +321,15 @@ export class Canvas2DRenderer {
     // 主题名是地图的底层信息，不随悬停出现/消失：鼠标在密集的岛上扫过时悬停在
     // 「有 / 无」之间来回切，主题名跟着一亮一灭就是整屏闪烁（用户反馈过）
     if (mapMode && scale < MAP_CARD_LABEL_SCALE) {
-      this.drawMapLabels(scene, camera, palette, geometry, scale, reserved, shown);
+      this.drawMapLabels(
+        scene,
+        camera,
+        palette,
+        geometry,
+        scale,
+        reserved,
+        reveal ? shown : undefined
+      );
       if (hoveredNode) this.drawNodeLabels([hoveredNode], camera, palette, state);
       ctx.restore();
       return;
@@ -434,7 +442,7 @@ export class Canvas2DRenderer {
     geometry: Map<number, { x: number; y: number; radius: number }>,
     scale: number,
     reserved: Box[],
-    shown: (id: number) => number = () => 1
+    shown?: (id: number) => number
   ) {
     const ctx = this.ctx;
     ctx.textAlign = "center";
@@ -443,6 +451,7 @@ export class Canvas2DRenderer {
     // 播放中：名字随主题一起长出来。位置仍按全部成员算（按已出现的算，名字会跟着质心一路漂），
     // 只按已出现的比例决定出不出现、多淡——前几张卡出现时名字还很淡，岛长到一定规模才清楚
     const presence = (members: readonly number[]) => {
+      if (!shown) return members.length ? 1 : 0;
       let sum = 0;
       for (const id of members) sum += shown(id);
       return members.length === 0 ? 0 : Math.min(1, (sum / members.length) * 3);
@@ -501,30 +510,13 @@ export class Canvas2DRenderer {
     }
 
     if (!showSubtopics) return;
-    const subtopics = [...scene.subtopics].sort((a, b) => b.members.length - a.members.length);
-    for (const sub of subtopics) {
-      let sumX = 0;
-      let sumY = 0;
-      let count = 0;
-      for (const id of sub.members) {
-        const node = scene.nodeById.get(id);
-        if (!node) continue;
-        sumX += node.x;
-        sumY += node.y;
-        count += 1;
-      }
-      if (count < 3) continue;
+    const subtopics = new Map(scene.subtopics.map(sub => [sub.id, sub]));
+    for (const [id, shape] of mapSubtopicGeometry(scene)) {
+      const sub = subtopics.get(id)!;
+      if (shape.count < 3) continue;
       const alpha = presence(sub.members);
       if (alpha <= 0) continue;
-      draw(
-        sub.label,
-        sumX / count,
-        sumY / count,
-        12,
-        500,
-        withAlpha(palette.label, 0.85 * alpha),
-        false
-      );
+      draw(sub.label, shape.x, shape.y, 12, 500, withAlpha(palette.label, 0.85 * alpha), false);
     }
   }
 

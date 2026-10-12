@@ -36,9 +36,11 @@ const mockContext = vi.hoisted(() => {
     meta,
     state,
     indexDb,
+    mainDb: {},
+    prepareContent: vi.fn(async (input: { raw: string }) => ({ content: input.raw, sections: [] })),
     databaseModuleMock: {
       ensureIndexDatabaseReady: vi.fn(async () => ({ migrationState: "done" })),
-      getDatabase: vi.fn(() => ({})),
+      getDatabase: vi.fn(() => mockContext.mainDb),
       getIndexDatabase: vi.fn(() => indexDb),
       setIndexRebuildState: vi.fn(),
     },
@@ -60,6 +62,32 @@ vi.mock("../../utils/event-loop-yield", () => ({
   yieldToEventLoop: vi.fn(async () => undefined),
 }));
 vi.mock("../database", () => ({ default: mockContext.databaseModuleMock }));
+vi.mock("../index-content-client", () => ({
+  IndexContentClient: class {
+    prepare = mockContext.prepareContent;
+    dispose = async () => {};
+  },
+}));
+vi.mock("../index-candidates", () => ({
+  listContentIndexCandidates: () => [
+    ...mockContext.state.cards.map(row => ({
+      ...row,
+      type: "card",
+      updateTime: row.update_time,
+      read: () => ({ raw: row.content }),
+    })),
+    ...mockContext.state.articles.map(row => ({
+      ...row,
+      type: "article",
+      updateTime: row.update_time,
+      read: () => ({ raw: row.content }),
+    })),
+  ],
+}));
+vi.mock("../chat-prompt-index", () => ({
+  CHAT_PROMPT_TYPE: "chat-prompt",
+  listChatPromptDocs: () => [],
+}));
 vi.mock("../tables/card", () => ({ default: { getAllCards: () => mockContext.state.cards } }));
 vi.mock("../tables/article", () => ({
   default: { getAllArticles: () => mockContext.state.articles },
@@ -69,7 +97,9 @@ vi.mock("../tables/diary", () => ({ default: { getAllDiarySegmentsFlat: () => []
 vi.mock("../tables/vec-document", () => ({ default: mockContext.vecTableMock }));
 vi.mock("../material-index", () => ({
   MATERIAL_INDEX_TYPES: ["excerpt", "pdf-annotation", "web-clip"],
-  listMaterialIndexDocs: () => [{ id: 9, type: "excerpt", content: "一句划线", updateTime: 10 }],
+  listMaterialIndexCandidates: () => [
+    { id: 9, type: "excerpt", read: () => ({ content: "一句划线" }), updateTime: 10 },
+  ],
 }));
 vi.mock("@/utils/markdown.ts", () => ({
   getMarkdown: (content: unknown) => (typeof content === "string" ? content : ""),
@@ -90,6 +120,7 @@ const embeddingConfig = {
 describe("MainContentVecIndexQueue 索引状态", () => {
   beforeEach(() => {
     mockContext.meta.clear();
+    mockContext.mainDb = {};
     mockContext.state.cards = [
       { id: 1, content: "已索引", update_time: 100 },
       { id: 2, content: "索引后又改过", update_time: 300 },
@@ -103,6 +134,7 @@ describe("MainContentVecIndexQueue 索引状态", () => {
       { prefixed_id: "article:1", update_time: 50 },
     ];
     mockContext.vecTableMock.indexContent.mockClear();
+    mockContext.prepareContent.mockClear();
   });
 
   it("统计按 已索引 / 待更新 / 未索引 分桶，空正文不计入", async () => {
@@ -112,6 +144,22 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     expect(stats?.byType.card).toEqual({ total: 3, indexed: 1, outdated: 1, unindexed: 1 });
     expect(stats?.byType.excerpt).toEqual({ total: 1, indexed: 0, outdated: 0, unindexed: 1 });
     expect(stats?.byType.article).toEqual({ total: 1, indexed: 1, outdated: 0, unindexed: 0 });
+  });
+
+  it("一万篇未变正文不读取或转换，覆盖率仍正确", async () => {
+    mockContext.state.cards = Array.from({ length: 10000 }, (_, index) => ({
+      id: index + 1,
+      content: "长正文",
+      update_time: 100,
+    }));
+    mockContext.state.articles = [];
+    mockContext.state.indexedRows = mockContext.state.cards.map(row => ({
+      prefixed_id: `card:${row.id}`,
+      update_time: 100,
+    }));
+    const stats = await mainContentVecIndexQueue.getIndexStats("data.db");
+    expect(stats?.byType.card).toEqual({ total: 10000, indexed: 10000, outdated: 0, unindexed: 0 });
+    expect(mockContext.prepareContent).not.toHaveBeenCalled();
   });
 
   it("手动索引只处理待更新与未索引文档，并推送进度、记录上一轮", async () => {
@@ -129,6 +177,11 @@ describe("MainContentVecIndexQueue 索引状态", () => {
 
     expect(result).toMatchObject({ queued: 3, indexed: 3, stale: false });
     expect(mockContext.vecTableMock.indexContent).toHaveBeenCalledTimes(3);
+    expect(mockContext.prepareContent.mock.calls.map(([input]) => input.raw)).toEqual([
+      "索引后又改过",
+      "从未索引",
+      "",
+    ]);
     // 对账清理：候选集合（含材料）之外的向量被删
     const [, keep, types] = mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1)!;
     expect([...keep].sort()).toEqual(["article:1", "card:1", "card:2", "card:3", "excerpt:9"]);
@@ -171,6 +224,41 @@ describe("MainContentVecIndexQueue 索引状态", () => {
     expect(lastRun?.failed).toBe(3);
     expect(lastRun?.error).toContain("连续失败");
     mockContext.vecTableMock.indexContent.mockResolvedValue(true);
+  });
+
+  it("转换期间取消扫描，不清理索引也不进入嵌入", async () => {
+    mockContext.vecTableMock.removeIndexesNotIn.mockClear();
+    mockContext.prepareContent.mockImplementationOnce(async () => {
+      mainContentVecIndexQueue.abortCurrentRun();
+      return { content: "变化正文", sections: [] };
+    });
+    const result = await mainContentVecIndexQueue.reconcileByPolicy({
+      mainDbName: "data.db",
+      embeddingConfig,
+      fingerprintChanged: false,
+      autoIndex: true,
+      reason: "manual",
+    });
+    expect(result.stale).toBe(true);
+    expect(mockContext.vecTableMock.removeIndexesNotIn).not.toHaveBeenCalled();
+    expect(mockContext.vecTableMock.indexContent).not.toHaveBeenCalled();
+  });
+
+  it("清空已索引正文后移出候选，统计无需重复转换未变化的空正文", async () => {
+    mockContext.state.cards[0].content = "";
+    mockContext.state.cards[0].update_time = 101;
+    await mainContentVecIndexQueue.reconcileByPolicy({
+      mainDbName: "data.db",
+      embeddingConfig,
+      fingerprintChanged: false,
+      autoIndex: true,
+      reason: "manual",
+    });
+    const [, keep] = mockContext.vecTableMock.removeIndexesNotIn.mock.calls.at(-1)!;
+    expect(keep.has("card:1")).toBe(false);
+    mockContext.prepareContent.mockClear();
+    await mainContentVecIndexQueue.getIndexStats("data.db");
+    expect(mockContext.prepareContent.mock.calls.every(([input]) => input.raw !== "")).toBe(true);
   });
 
   it("部分失败保留 pending，重试不会重嵌已成功的实体", async () => {

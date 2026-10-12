@@ -5,8 +5,21 @@
  */
 
 import type { GraphScene } from "./types";
+import { isMapScene, type MapScene } from "./mapScene";
+
+const mapGeometry = new WeakMap<GraphScene, ReturnType<typeof computeClusterGeometry>>();
 
 export function clusterGeometry(scene: GraphScene) {
+  if (!isMapScene(scene)) return computeClusterGeometry(scene);
+  let geometry = mapGeometry.get(scene);
+  if (!geometry) {
+    geometry = computeClusterGeometry(scene);
+    mapGeometry.set(scene, geometry);
+  }
+  return geometry;
+}
+
+function computeClusterGeometry(scene: GraphScene) {
   const groups = new Map<number, { x: number; y: number; radius: number }>();
   if (scene.clusters.length === 0) return groups;
 
@@ -34,4 +47,31 @@ export function clusterGeometry(scene: GraphScene) {
     groups.set(cluster.id, { x, y, radius: percentile * 1.35 + 24 });
   }
   return groups;
+}
+
+const subtopicGeometry = new WeakMap<
+  MapScene,
+  Map<number, { x: number; y: number; count: number }>
+>();
+
+/** 离线场景的世界坐标不随平移、缩放或显现动画变化。 */
+export function mapSubtopicGeometry(scene: MapScene) {
+  const cached = subtopicGeometry.get(scene);
+  if (cached) return cached;
+  const shapes = new Map<number, { x: number; y: number; count: number }>();
+  for (const sub of [...scene.subtopics].sort((a, b) => b.members.length - a.members.length)) {
+    let x = 0;
+    let y = 0;
+    let count = 0;
+    for (const id of sub.members) {
+      const node = scene.nodeById.get(id);
+      if (!node) continue;
+      x += node.x;
+      y += node.y;
+      count++;
+    }
+    if (count) shapes.set(sub.id, { x: x / count, y: y / count, count });
+  }
+  subtopicGeometry.set(scene, shapes);
+  return shapes;
 }

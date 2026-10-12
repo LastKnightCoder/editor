@@ -10,9 +10,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
+import { recordPerfStage } from "@/utils/perf-observer";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import { Camera } from "./core/camera";
-import { clusterGeometry } from "./core/clusterGeometry";
+import { clusterGeometry, mapSubtopicGeometry } from "./core/clusterGeometry";
 import type { ClusterInfo } from "./core/cluster";
 import { createLayout } from "./core/createLayout";
 import { buildScene, inheritPositions, sceneBounds } from "./core/graph";
@@ -396,6 +397,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
     if (!renderer || !scene || !camera || !palette) return;
     const hoveredId = hoveredRef.current;
     const focusId = focusRef.current;
+    const startedAt = performance.now();
     renderer.draw(scene, camera, palette, {
       hoveredId,
       focusId,
@@ -407,6 +409,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       clusterColors: clusterColorsRef.current,
     });
     for (const listener of frameListenersRef.current) listener();
+    recordPerfStage("knowledge-map:draw", startedAt, scene.nodes.length, 50);
   });
 
   /** 推进悬停强调的渐变；还没到终点返回 true，raf 循环据此继续画 */
@@ -445,16 +448,18 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
 
   useEffect(() => {
     const previous = sceneRef.current;
+    const startedAt = performance.now();
     const scene = knowledgeMap
       ? buildMapScene(itemsRef.current, knowledgeMap)
       : buildScene(itemsRef.current);
+    recordPerfStage("knowledge-map:build-scene", startedAt, scene.nodes.length);
     if (previous && !knowledgeMap) inheritPositions(scene, previous);
     sceneRef.current = scene;
     // 卡片集变了，旧时间轴对不上新节点：结束播放，回到完整的图
     stopPlayback();
 
-    pickerRef.current?.replaceScene(scene);
-    pickerRef.current ??= new NodePicker(scene);
+    pickerRef.current?.replaceScene(scene, !knowledgeMap);
+    pickerRef.current ??= new NodePicker(scene, !knowledgeMap);
     rebuildClusterColors();
     emitClusters({
       clusters: scene.clusters,
@@ -757,7 +762,7 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       if (drag.node) {
         // 拖过的节点固定在落点：用户摆过的位置就是他要的位置
         layoutRef.current?.endDrag(drag.node, drag.moved);
-        pickerRef.current?.invalidate();
+        if (layoutRef.current) pickerRef.current?.invalidate();
       }
       if (drag.moved) {
         dirtyRef.current = true;
@@ -787,7 +792,6 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
       // deltaY 归一化成指数因子，触控板与滚轮手感一致
       const factor = Math.exp(-event.deltaY * 0.0015);
       cameraRef.current?.zoomAt(x, y, factor);
-      pickerRef.current?.invalidate();
       dirtyRef.current = true;
       clearHover();
     };
@@ -884,20 +888,9 @@ export function useGraphEngine(options: GraphEngineOptions): GraphEngineHandle {
         const scene = sceneRef.current;
         const camera = cameraRef.current;
         if (!scene || !camera || !isMapScene(scene)) return null;
-        const sub = scene.subtopics.find(item => item.id === subtopicId);
-        if (!sub?.members.length) return null;
-        let sumX = 0;
-        let sumY = 0;
-        let count = 0;
-        for (const id of sub.members) {
-          const node = scene.nodeById.get(id);
-          if (!node) continue;
-          sumX += node.x;
-          sumY += node.y;
-          count += 1;
-        }
-        if (!count) return null;
-        const [x, y] = camera.toCanvas(sumX / count, sumY / count);
+        const shape = mapSubtopicGeometry(scene).get(subtopicId);
+        if (!shape) return null;
+        const [x, y] = camera.toCanvas(shape.x, shape.y);
         return { x, y };
       },
       scale: () => cameraRef.current?.scale ?? 1,
