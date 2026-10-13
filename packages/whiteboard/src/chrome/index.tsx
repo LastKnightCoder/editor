@@ -16,7 +16,15 @@ import {
   type ReactNode,
   type SyntheticEvent,
 } from "react";
-import { Popover, Segmented, Switch, Tooltip, cn, type TooltipPlacement } from "@tau/ui";
+import {
+  NumberInput,
+  Popover,
+  Segmented,
+  Switch,
+  Tooltip,
+  cn,
+  type TooltipPlacement,
+} from "@tau/ui";
 
 const stop = (e: SyntheticEvent) => e.stopPropagation();
 /**
@@ -274,7 +282,7 @@ export function Field({
   return (
     <div className={cn("[&+&]:mt-3", className)}>
       {label != null && (
-        <div className="text-ink-3 mb-1.5 flex items-center text-[11.5px]">
+        <div className="text-ink-3 mb-1.5 flex min-h-[22px] items-center text-[11.5px]">
           <span className="flex-1">{label}</span>
           {value != null && <span className="text-ink-2 tabular-nums">{value}</span>}
         </div>
@@ -428,6 +436,70 @@ export function Slider({
   );
 }
 
+/** 步进对齐 + 边界钳制；toPrecision 消掉小数 step 累加的浮点残渣（0.1 + 0.2） */
+function snapStep(value: number, min: number, max: number, step: number) {
+  const snapped = min + Math.round((value - min) / step) * step;
+  return Number(Math.min(max, Math.max(min, snapped)).toPrecision(6));
+}
+
+/**
+ * 步进器：− 按钮 / 数值输入 / + 按钮（档位按钮之外的精确微调）。
+ * 单位后缀走 unit 文字：NumberInput 事前拦截只放行数字，后缀进输入框会被剥掉。
+ */
+export function Stepper({
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+  label,
+  unit,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (v: number) => void;
+  label: string;
+  /** 输入框右侧紧贴的单位字（如 "%"） */
+  unit?: string;
+}) {
+  return (
+    <span className="bg-hover inline-flex h-[22px] items-center rounded-[7px]">
+      <button
+        type="button"
+        aria-label={`减小${label}`}
+        disabled={value <= min}
+        onClick={() => onChange(snapStep(value - step, min, max, step))}
+        className="text-ink-2 hover:text-ink-1 flex h-full w-5 cursor-pointer items-center justify-center text-[13px] disabled:pointer-events-none disabled:opacity-35"
+      >
+        −
+      </button>
+      <NumberInput
+        variant="bare"
+        size="sm"
+        value={value}
+        aria-label={label}
+        onValueChange={v => {
+          if (v != null) onChange(snapStep(v, min, max, step));
+        }}
+        wrapperClassName="w-[30px]"
+        className="text-ink-1 text-center text-[12px] font-medium tabular-nums"
+      />
+      {unit && <span className="text-ink-3 pr-0.5 text-[11px]">{unit}</span>}
+      <button
+        type="button"
+        aria-label={`增大${label}`}
+        disabled={value >= max}
+        onClick={() => onChange(snapStep(value + step, min, max, step))}
+        className="text-ink-2 hover:text-ink-1 flex h-full w-5 cursor-pointer items-center justify-center text-[13px] disabled:pointer-events-none disabled:opacity-35"
+      >
+        +
+      </button>
+    </span>
+  );
+}
+
 export interface OptionItem<V extends string> {
   value: V;
   label: string;
@@ -531,5 +603,41 @@ export function Glyph({ children }: { children: ReactNode }) {
     <svg className="g" viewBox="0 0 28 14" aria-hidden>
       {children}
     </svg>
+  );
+}
+
+/* 档位图示（OptionGrid 的 glyph 槽）：span + currentColor——OptionGrid 会给 svg.g
+   强制 stroke，span 不受影响，选中态随按钮文字自动变 accent。 */
+
+/** 线宽档位：横条高度 = 线宽（封顶 8px） */
+export function LineWeightGlyph({ width }: { width: number }) {
+  return (
+    <span
+      aria-hidden
+      className="block w-6 rounded-full bg-current"
+      style={{ height: Math.min(width, 8) }}
+    />
+  );
+}
+
+/** 圆角档位：左上折角的圆角 = radius / 2（封顶 10px）；0 即直角 */
+export function CornerGlyph({ radius }: { radius: number }) {
+  return (
+    <span
+      aria-hidden
+      className="block size-3.5 border-l-2 border-t-2 border-current"
+      style={{ borderTopLeftRadius: Math.min(radius / 2, 10) }}
+    />
+  );
+}
+
+/** 不透明度档位：色块浓度 = currentColor 与透明的混合 + 内嵌细描边 */
+export function OpacityGlyph({ opacity }: { opacity: number }) {
+  return (
+    <span
+      aria-hidden
+      className="ring-current/40 block size-3.5 rounded-[4px] ring-1 ring-inset"
+      style={{ background: `color-mix(in srgb, currentColor ${opacity * 100}%, transparent)` }}
+    />
   );
 }

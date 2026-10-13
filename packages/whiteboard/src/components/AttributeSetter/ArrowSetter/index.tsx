@@ -7,8 +7,18 @@ import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
 import { getArrowDisplayColor } from "../../../utils/color";
 import { saveArrowStylePresetFromElement } from "../../../utils";
 import { THEME_COLORS, getDefaultThemeColorId } from "../../../constants/theme-colors";
-import { AttrPopover, AttrToggle, Field, OptionGrid, Slider, SwatchRow } from "../../../chrome";
-import { DashIcon, LineWidthIcon, MarkerEndIcon, MarkerStartIcon } from "../../../chrome/icons";
+import {
+  AttrPopover,
+  AttrToggle,
+  Field,
+  Glyph,
+  LineWeightGlyph,
+  OptionGrid,
+  Stepper,
+  SwatchRow,
+  type OptionItem,
+} from "../../../chrome";
+import { MarkerEndIcon } from "../../../chrome/icons";
 import SketchPopover from "../SketchPopover";
 
 interface ArrowSetterProps {
@@ -37,6 +47,41 @@ const DASH_PATTERNS = [
   { label: "长虚线", value: [10, 5] },
   { label: "点划线", value: [10, 3, 2, 3] },
   { label: "密集虚线", value: [3, 3] },
+];
+
+const LINE_WIDTH_OPTIONS: OptionItem<string>[] = [
+  { value: "1", label: "细", glyph: <LineWeightGlyph width={1} /> },
+  { value: "2", label: "标准", glyph: <LineWeightGlyph width={2} /> },
+  { value: "4", label: "粗", glyph: <LineWeightGlyph width={4} /> },
+  { value: "6", label: "特粗", glyph: <LineWeightGlyph width={6} /> },
+];
+
+/** 线条档：实线 + 原虚线 5 档，value 复用原 dashArray key */
+const LINE_STYLE_OPTIONS: OptionItem<string>[] = [
+  {
+    value: "solid",
+    label: "实线",
+    glyph: (
+      <Glyph>
+        <path d="M2 7H26" />
+      </Glyph>
+    ),
+  },
+  ...DASH_PATTERNS.map(p => ({
+    value: p.value.join(","),
+    label: p.label,
+    glyph: (
+      <Glyph>
+        <path d="M2 7H26" strokeDasharray={p.value.map(v => v * 0.6).join(" ")} />
+      </Glyph>
+    ),
+  })),
+];
+
+const SPEED_OPTIONS: OptionItem<string>[] = [
+  { value: "1", label: "慢" },
+  { value: "3", label: "中" },
+  { value: "6", label: "快" },
 ];
 
 /** 图示：直接用画布的 Arrow 画法，墨色随 currentColor */
@@ -73,6 +118,28 @@ function ArrowGlyph({
   );
 }
 
+/** 端点弹层里的单侧箭头档位（起点 / 终点共用选项与图示） */
+function markerGrid(
+  end: "source" | "target",
+  marker: EMarkerType,
+  onChange: (v: EMarkerType) => void
+) {
+  return (
+    <OptionGrid
+      options={MARKERS.map(m => ({
+        value: m.type,
+        label: m.label,
+        glyph: end === "target" ? <ArrowGlyph target={m.type} /> : <ArrowGlyph source={m.type} />,
+      }))}
+      value={marker}
+      onChange={onChange}
+    />
+  );
+}
+
+const gridValue = (options: OptionItem<string>[], value: number): string | null =>
+  options.some(o => o.value === String(value)) ? String(value) : null;
+
 const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
   const { isDark } = useTheme();
   const set = (recipe: (draft: ArrowElement) => void) => {
@@ -82,6 +149,8 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
   };
 
   const color = getArrowDisplayColor(element, isDark);
+  const lineWidth = element.lineWidth || 2;
+  const animationSpeed = element.animationSpeed || 3;
   const dashKey = (element.dashArray ?? [5, 5]).join(",");
 
   return (
@@ -98,73 +167,65 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           onChange={v => set(d => void (d.lineType = v))}
         />
       </AttrPopover>
-      <AttrPopover label="起点箭头" icon={<MarkerStartIcon />} width={264}>
-        <OptionGrid
-          options={MARKERS.map(m => ({
-            value: m.type,
-            label: m.label,
-            glyph: <ArrowGlyph source={m.type} />,
-          }))}
-          value={element.source.marker}
-          onChange={v => set(d => void (d.source.marker = v))}
-        />
+      <AttrPopover label="端点" icon={<MarkerEndIcon />} width={264}>
+        <Field label="起点">
+          {markerGrid("source", element.source.marker, v => set(d => void (d.source.marker = v)))}
+        </Field>
+        <Field label="终点">
+          {markerGrid("target", element.target.marker, v => set(d => void (d.target.marker = v)))}
+        </Field>
       </AttrPopover>
-      <AttrPopover label="终点箭头" icon={<MarkerEndIcon />} width={264}>
-        <OptionGrid
-          options={MARKERS.map(m => ({
-            value: m.type,
-            label: m.label,
-            glyph: <ArrowGlyph target={m.type} />,
-          }))}
-          value={element.target.marker}
-          onChange={v => set(d => void (d.target.marker = v))}
-        />
-      </AttrPopover>
-      <AttrPopover label="颜色" swatch={{ fill: color, stroke: color }} width={264}>
-        {/* 主题色随深浅色模式取对应色值（数据色，保留现状 12 色） */}
-        <SwatchRow
-          options={THEME_COLORS.map(c => ({
-            key: c.id,
-            label: c.label,
-            fill: isDark ? c.dark : c.light,
-            stroke: isDark ? c.dark : c.light,
-          }))}
-          value={element.themeColorId || getDefaultThemeColorId()}
-          onChange={id => set(d => void (d.themeColorId = id))}
-        />
-        <div className="text-ink-3 mt-2.5 text-[11px]">主题颜色会随深浅色模式自动调整</div>
-      </AttrPopover>
-      <AttrPopover label="粗细" icon={<LineWidthIcon />} width={240}>
-        <Slider
-          label="粗细"
-          min={1}
-          max={10}
-          unit="px"
-          value={element.lineWidth || 2}
-          onChange={v => set(d => void (d.lineWidth = v))}
-        />
-      </AttrPopover>
-      <AttrPopover
-        label="虚线"
-        icon={<DashIcon />}
-        width={264}
-        toggle={{ checked: !!element.dashed, onChange: v => set(d => void (d.dashed = v)) }}
-      >
-        {element.dashed && (
-          <OptionGrid
-            options={DASH_PATTERNS.map(p => ({
-              value: p.value.join(","),
-              label: p.label,
-              glyph: (
-                <svg className="g" viewBox="0 0 28 14" aria-hidden>
-                  <path d="M2 7H26" strokeDasharray={p.value.map(v => v * 0.6).join(" ")} />
-                </svg>
-              ),
+      <AttrPopover label="样式" swatch={{ fill: color, stroke: color }} width={288}>
+        <Field label="颜色">
+          {/* 主题色随深浅色模式取对应色值（数据色，保留现状 12 色） */}
+          <SwatchRow
+            options={THEME_COLORS.map(c => ({
+              key: c.id,
+              label: c.label,
+              fill: isDark ? c.dark : c.light,
+              stroke: isDark ? c.dark : c.light,
             }))}
-            value={dashKey}
-            onChange={v => set(d => void (d.dashArray = v.split(",").map(Number)))}
+            value={element.themeColorId || getDefaultThemeColorId()}
+            onChange={id => set(d => void (d.themeColorId = id))}
           />
-        )}
+          <div className="text-ink-3 mt-2.5 text-[11px]">主题颜色会随深浅色模式自动调整</div>
+        </Field>
+        <Field
+          label="粗细"
+          value={
+            <Stepper
+              label="粗细"
+              min={1}
+              max={10}
+              step={1}
+              value={lineWidth}
+              onChange={v => set(d => void (d.lineWidth = v))}
+            />
+          }
+        >
+          <OptionGrid
+            options={LINE_WIDTH_OPTIONS}
+            value={gridValue(LINE_WIDTH_OPTIONS, lineWidth)}
+            onChange={v => set(d => void (d.lineWidth = Number(v)))}
+          />
+        </Field>
+        <Field label="线条">
+          <OptionGrid
+            cols={6}
+            options={LINE_STYLE_OPTIONS}
+            value={element.dashed ? dashKey : "solid"}
+            onChange={v =>
+              set(d => {
+                if (v === "solid") {
+                  d.dashed = false;
+                } else {
+                  d.dashed = true;
+                  d.dashArray = v.split(",").map(Number);
+                }
+              })
+            }
+          />
+        </Field>
       </AttrPopover>
       {element.animated ? (
         <AttrPopover
@@ -173,19 +234,12 @@ const ArrowSetter = ({ element, onChange }: ArrowSetterProps) => {
           width={240}
           toggle={{ checked: true, onChange: v => set(d => void (d.animated = v)) }}
         >
-          <Field label="动画速度">
-            <Slider
-              label="动画速度"
-              min={1}
-              max={10}
-              value={element.animationSpeed || 3}
-              onChange={v => set(d => void (d.animationSpeed = v))}
+          <Field label="速度">
+            <OptionGrid
+              options={SPEED_OPTIONS}
+              value={gridValue(SPEED_OPTIONS, animationSpeed)}
+              onChange={v => set(d => void (d.animationSpeed = Number(v)))}
             />
-            <div className="text-ink-3 mt-1 flex justify-between text-[11px]">
-              <span>慢</span>
-              <span>中</span>
-              <span>快</span>
-            </div>
             <div className="text-ink-3 mt-1.5 text-[11px]">
               {element.dashed ? "虚线将显示流动效果" : "实线将显示流动点"}
             </div>
