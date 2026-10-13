@@ -6,6 +6,8 @@ import type {
   PluginDefinition,
   PluginInstance,
   PluginEditorContribution,
+  PluginSettingsDefinition,
+  PluginSettingsHandle,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
@@ -22,6 +24,10 @@ export interface PagesAdapter {
 
 export interface EditorAdapter {
   register(context: PluginContext, contribution: PluginEditorContribution): Disposable;
+}
+
+export interface SettingsAdapter {
+  register(context: PluginContext, definition: PluginSettingsDefinition): PluginSettingsHandle;
 }
 
 export type PluginState = "disabled" | "activating" | "active" | "deactivating" | "failed";
@@ -75,6 +81,7 @@ export class PluginHost {
       storage: StorageAdapter;
       pages?: PagesAdapter;
       editor?: EditorAdapter;
+      settings?: SettingsAdapter;
     }
   ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
@@ -236,6 +243,31 @@ export class PluginHost {
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,
+      settings: Object.freeze({
+        register: (definition: PluginSettingsDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
+          if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
+          const handle = this.options.settings.register(context, Object.freeze({ ...definition }));
+          let disposed = false;
+          const resource = register({
+            dispose: () => {
+              disposed = true;
+              return handle.dispose();
+            },
+          });
+          return Object.freeze({
+            id: handle.id,
+            open: async () => {
+              this.assertActive(entry, activation);
+              if (disposed) throw new Error("设置分区已注销");
+              await handle.open();
+            },
+            dispose: resource.dispose,
+          });
+        },
+      }),
       editor: Object.freeze({
         register: (contribution: PluginEditorContribution) => {
           this.assertActive(entry, activation);

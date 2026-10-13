@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { ResourceSyncStatus } from "@/types";
@@ -158,7 +159,11 @@ it("拉取远程后保留远程版本缓存", async () => {
   }));
   vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
     isDatabaseInfoExist: true,
-    databaseInfo: { version: 2, dataModelVersion: 4, databaseObject: "snapshot.db" },
+    databaseInfo: {
+      version: 2,
+      dataModelVersion: SYNC_MODEL_VERSION,
+      databaseObject: "snapshot.db",
+    },
     databaseInfoObjectName: "database_data.db.json",
   });
   vi.mocked(download).mockImplementation(async () => {

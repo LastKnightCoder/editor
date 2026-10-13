@@ -4,7 +4,7 @@
 
 ## 入口
 
-面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面和开发台编辑器契约。
+面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置和开发台编辑器契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
@@ -25,6 +25,14 @@
 插件只通过注入的 `PluginContext` 注册命令和使用自己的存储。`register` 管理订阅等资源；命令自动登记清理。`deactivate` 用于释放业务资源，调用时 signal 已取消，不能用它进行新的存储写入。应在正常操作期间完成保存。
 
 停用立即取消旧实例信号，随后执行 deactivate 和逆序清理；一个清理失败不阻止其他清理。重新启用创建新上下文，旧回调无法通过上下文继续操作。激活失败也回收已有贡献，之后可以再次启用。unregister 删除定义但保留数据；dispose 停止整个工作区宿主。
+
+## 自定义设置
+
+`context.settings.register({ id, title, description?, component })` 注册设置分区，返回自动回收的 `PluginSettingsHandle`（id/open/dispose）。组件从 `PluginSettingsProps.context` 取得实例作用域，读写使用既有 context.storage；无需直接导入桌面设置 store，也没有重复的 settings.get/set。
+
+同一插件内局部 id 不得重复；打开已注销/停用的句柄或在无适配器宿主注册会报错。桌面分区位于现有设置窗口，不是 Page。关闭、切换、停用或注销时卸载组件和 Portal；保留已保存值，重新启用后重新读取。每次挂载拥有独立查询缓存与局部错误边界，防止旧异步结果污染新分区。
+
+首个样本采用即时保存，保存成功后更新 UI，失败显示错误并可重试。这里只保存本机工作区偏好，没有通用未保存草稿守卫、同步或凭证服务。见 [C05](../../docs/plugin-system/14-C05自定义设置接入.md)。
 
 ## 编辑器
 

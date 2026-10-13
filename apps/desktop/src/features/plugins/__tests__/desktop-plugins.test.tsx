@@ -8,6 +8,7 @@ import { PageProvider, usePage, type Navigator } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { definePage } from "@/page/definePage";
 import { DesktopPluginProvider } from "@/app/plugins/PluginProvider";
+import { useSettingsStore } from "@/app/settingsStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { DesktopPluginRuntime, PLUGIN_WORKBENCH_KEY } from "@/app/plugins/runtime";
 import { pluginPaletteCommands } from "@/features/search/searchMeta";
@@ -115,6 +116,23 @@ afterEach(async () => {
 });
 
 describe("桌面插件完整路径", () => {
+  it("开发宿主按需加载设置样本，命令打开真实设置选择并随停用撤销", async () => {
+    const host = currentRuntime().host;
+    expect(host.getState("example.settings")).toBe("disabled");
+    await act(async () => host.enable("example.settings"));
+    const command = pluginPaletteCommands(host).find(item => item.label === "打开插件设置示例");
+    expect(command).toBeDefined();
+    await act(async () => command?.run?.());
+    expect(useSettingsStore.getState()).toMatchObject({
+      open: true,
+      section: "plugin:example.settings:reading",
+    });
+    await act(async () => host.disable("example.settings"));
+    expect(currentRuntime().listSettings()).toEqual([]);
+    expect(pluginPaletteCommands(host)).toEqual([]);
+    useSettingsStore.getState().closeSettings();
+  });
+
   it("从开发台停用保活页面，后退不复活旧组件，重启用不重复命令", async () => {
     await click("启用");
     await click("打开插件页面示例");
