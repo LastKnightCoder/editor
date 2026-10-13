@@ -6,7 +6,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "build": "node build.mjs",
-    "demo": "node build.mjs && node dist/main.js"
+    "demo": "node build.mjs && node demo.mjs"
   },
   "dependencies": {
     "@tau/plugins": "workspace:*"
