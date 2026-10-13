@@ -4,7 +4,7 @@
 
 ## 入口
 
-面向插件作者只有 `@tau/plugins` 根入口。当前它提供基础契约；后续受支持的页面、UI、编辑器等能力也从这里导出，内部可继续分包，作者无需直接导入 `@tau/ui` 或 `@tau/editor/api`。这些新增能力目前尚未接入，不能按目标示例直接调用。
+面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础契约，页面/编辑器按实施阶段接入，不预先声明可用。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
