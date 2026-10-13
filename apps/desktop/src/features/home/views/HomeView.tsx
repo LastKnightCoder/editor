@@ -1,14 +1,15 @@
 /**
- * 今日视图（原统计页并入）—— 一页滚动，按时间方向分三段：
+ * 今日视图（原统计页并入）—— 一页滚动，按时间方向分四段：
  *   hero（只放今天的数字）→ 今天（复习/待办/日程，内容等量）→
- *   继续（AI 洞见卡 / 最近编辑三栏 / 探究中的问题）→ 回顾（RetroSection：热力图 + 窗口化统计，懒加载）。
+ *   继续（AI 洞见卡 / 最近编辑三栏 / 探究中的问题）→
+ *   重温（今日漫步牌堆，每天固定几张旧内容，翻完即止）→ 回顾（RetroSection：热力图 + 窗口化统计，懒加载）。
  * 同一份数据全页只出现一次；每一行点击都落到具体项（卡组 / 任务 / 日程 / 卡片 / 文章 / 日记 / 问题），
  * 目标页经页面参数定位并选中高亮。
  *
  * 模块分工：专注 = 番茄钟（pomodoro 页 / pomodoro 命令）；
  * 日程 = calendar 命令 + schedule page。两者独立，勿混用。
  *
- * 外壳为一整张纸（同文章 / 卡片库 / 白板）：纸顶固定问候与今天的数字，三段在纸内 FadeScroll 滚动，
+ * 外壳为一整张纸（同文章 / 卡片库 / 白板）：纸顶固定问候与今天的数字，各段在纸内 FadeScroll 滚动，
  * 纸上的卡片用细描边（Panel variant="outline"），不再叠阴影。
  *
  * 容器查询响应式（@container 在根、@max-[…] 断点在行容器）：1180/860 两档。
@@ -27,6 +28,7 @@ import { Composition, GroupDot, StatusRing } from "@/features/questions/componen
 import { describeEvent, relativeDay } from "@/features/questions/model";
 import { RetroSection } from "./RetroSection";
 import { InsightCard } from "./InsightCard";
+import { WalkDeckPanel } from "./WalkDeckPanel";
 import { SectionHeading } from "./SectionHeading";
 import "../home.css";
 
@@ -273,6 +275,9 @@ export function HomeView() {
               </EmptyNote>
             )}
           </Panel>
+
+          {/* ━━ 重温：今日漫步牌堆（每天几张旧内容，翻完即止；空池整段不渲染） ━━ */}
+          <WalkDeckPanel />
 
           {/* ━━ 回顾：做过了什么（原统计页） ━━ */}
           <RetroSection heatmap={data.heatmap} scrollRoot={scrollEl} />
