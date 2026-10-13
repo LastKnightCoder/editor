@@ -1,3 +1,13 @@
+import type { PluginPages } from "./pages";
+
+export type {
+  PluginPageDefinition,
+  PluginPageHandle,
+  PluginPageParams,
+  PluginPageProps,
+  PluginPages,
+} from "./pages";
+
 export type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -24,6 +34,7 @@ export interface PluginContext {
   readonly signal: AbortSignal;
   readonly commands: { register(command: PluginCommand): Disposable };
   readonly storage: PluginStorage;
+  readonly pages: PluginPages;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

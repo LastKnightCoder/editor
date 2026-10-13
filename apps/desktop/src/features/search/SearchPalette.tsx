@@ -47,6 +47,7 @@ import {
   CONTENT_TYPES,
   SCOPE_ORDER,
   paletteCommands,
+  pluginPaletteCommands,
   matchCommands,
   scopeLabel,
   scopeIcon,
@@ -58,6 +59,7 @@ import {
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
+import { useDesktopPlugins } from "@/app/plugins/context";
 import { useShellStore } from "@/app/shellStore";
 import { toggleAssistFor } from "@/app/assistOwner";
 import { useThemeStore } from "@tau/themes/react";
@@ -182,7 +184,12 @@ export function SearchPalette() {
   }, [scopes]);
 
   const contentQuery = useSearchContent(debouncedQ, activeTypes);
-  const commands = useMemo(() => matchCommands(paletteCommands(), lowerQ), [lowerQ]);
+  const plugins = useDesktopPlugins();
+  const pluginCommands = plugins ? pluginPaletteCommands(plugins.host) : null;
+  const commands = useMemo(
+    () => matchCommands([...paletteCommands(), ...(pluginCommands ?? [])], lowerQ),
+    [lowerQ, pluginCommands]
+  );
 
   // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
   const todoGroups = useTodoGroups(open);
@@ -201,8 +208,14 @@ export function SearchPalette() {
     fn();
   };
 
-  const runCommand = ({ pageKey, action }: PaletteCommand) => {
-    if (pageKey) {
+  const runCommand = ({ pageKey, action, run }: PaletteCommand) => {
+    if (run) {
+      closeAnd(() => {
+        void Promise.resolve()
+          .then(run)
+          .catch(error => toast.error(error instanceof Error ? error.message : "插件命令执行失败"));
+      });
+    } else if (pageKey) {
       closeAnd(() => navigator.push(pageKey));
     } else if (action === "cycle-theme") {
       // 深浅直切（不经过 system）：循环切到 system 时若系统深浅与当前一致，视觉无变化

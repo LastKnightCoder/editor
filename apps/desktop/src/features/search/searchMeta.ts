@@ -28,6 +28,7 @@ import { NAV_SECTIONS, NAV_FOOTER } from "@/app/navigation";
 import { getPageMeta } from "@/page/core/pageMeta";
 import { isMaterialKind, MATERIAL_KINDS } from "@/entity/material";
 import type { ContentIndexType, IndexType } from "@/types";
+import type { PluginHost } from "@tau/plugins/host";
 
 /** 内容实体类型 → 面板呈现（标签/类型色/图标）与跳转目标模块 */
 export const CONTENT_TYPES: Record<
@@ -97,7 +98,8 @@ export interface PaletteCommand {
   icon: LucideIcon;
   /** 英文别名（小写包含匹配） */
   keywords?: string;
-  kind: "page" | "action";
+  kind: "page" | "action" | "plugin";
+  run?: () => void | Promise<unknown>;
   pageKey?: string;
   action?:
     | "cycle-theme"
@@ -111,6 +113,19 @@ export interface PaletteCommand {
 }
 
 let cached: PaletteCommand[] | null = null;
+
+export function pluginPaletteCommands(
+  host: Pick<PluginHost, "listCommands" | "executeCommand">
+): PaletteCommand[] {
+  return host.listCommands().map(command => ({
+    id: `plugin:${command.id}`,
+    label: command.title,
+    section: "插件",
+    icon: Command,
+    kind: "plugin",
+    run: () => host.executeCommand(command.id),
+  }));
+}
 
 export function paletteCommands(): PaletteCommand[] {
   if (cached) return cached;
@@ -148,6 +163,19 @@ export function paletteCommands(): PaletteCommand[] {
   ];
   cached = [
     ...pages,
+    ...(import.meta.env.DEV
+      ? [
+          {
+            id: "page:plugin-workbench",
+            label: "插件开发台",
+            section: "开发",
+            icon: Command,
+            keywords: "plugin 插件 开发 启用 停用",
+            kind: "page" as const,
+            pageKey: "plugin-workbench",
+          },
+        ]
+      : []),
     {
       // 知识地图入口在标题栏，不在侧边栏（D-095）
       id: "page:knowledge-map",

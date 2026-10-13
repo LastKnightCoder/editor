@@ -131,6 +131,7 @@
     "@tau/editor-webview": "workspace:*",
     "@tau/markdown": "workspace:*",
     "@tau/platform": "workspace:*",
+    "@tau/plugins": "workspace:*",
     "@tau/rpc": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
