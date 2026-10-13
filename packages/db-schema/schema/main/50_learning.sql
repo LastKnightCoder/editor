@@ -325,3 +325,22 @@ CREATE TABLE IF NOT EXISTS vl_quiz_record (
         create_time INTEGER NOT NULL,
         FOREIGN KEY(quiz_set_id) REFERENCES vl_quiz_set(id)
       );
+-- 漫步重温记录：按实体地址（kind + entity_id）记录上次被漫步到的时间与屏蔽状态
+CREATE TABLE IF NOT EXISTS walk_visits (
+        kind TEXT NOT NULL,
+        entity_id INTEGER NOT NULL,
+        last_seen_time INTEGER NOT NULL,
+        seen_count INTEGER NOT NULL DEFAULT 0,
+        muted INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        PRIMARY KEY (kind, entity_id)
+      );
+-- 今日漫步牌堆：按本地日期缓存当天抽出的 5 张（items 为 WalkItem JSON），保证当天重进不换牌；cursor 为已翻过的张数
+CREATE TABLE IF NOT EXISTS walk_daily_decks (
+        date TEXT PRIMARY KEY NOT NULL,
+        items TEXT NOT NULL,
+        cursor INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );

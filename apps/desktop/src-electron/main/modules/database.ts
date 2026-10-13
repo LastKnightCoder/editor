@@ -60,6 +60,7 @@ import MaterialTable from "./tables/material";
 import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
+import RandomWalkTable from "./tables/random-walk";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
@@ -282,6 +283,7 @@ class DatabaseModule implements Module {
       WeReadNotebookTable,
       WeReadConfigTable,
       FlashcardTable,
+      RandomWalkTable,
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,
