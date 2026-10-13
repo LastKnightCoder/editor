@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Panel } from "@tau/ui";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import type { PluginState } from "@tau/plugins/host";
+import { PluginEditorWorkbench } from "./PluginEditorWorkbench";
 
 const labels: Record<PluginState, string> = {
   disabled: "已停用",
@@ -83,6 +84,7 @@ export function PluginWorkbenchView() {
           </div>
         </Panel>
       ))}
+      <PluginEditorWorkbench runtime={runtime} />
     </div>
   );
 }

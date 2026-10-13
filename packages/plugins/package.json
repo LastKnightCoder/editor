@@ -11,13 +11,18 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "tsc --outDir dist",
+    "build": "esbuild src/index.ts src/host.ts src/file-storage.ts --bundle --packages=external --platform=node --format=esm --outdir=dist",
     "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
+    "esbuild": "^0.25.12",
     "@types/node": "^20.2.1",
     "@types/react": "19.2.0",
     "typescript": "^5.0.4",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@tau/editor": "workspace:*",
+    "@tau/markdown": "workspace:*"
   }
 }

@@ -1,4 +1,6 @@
 import type { PluginPages } from "./pages";
+import type { PluginEditor } from "./editor";
+export * from "./editor";
 
 export type {
   PluginPageDefinition,
@@ -35,6 +37,7 @@ export interface PluginContext {
   readonly commands: { register(command: PluginCommand): Disposable };
   readonly storage: PluginStorage;
   readonly pages: PluginPages;
+  readonly editor: PluginEditor;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

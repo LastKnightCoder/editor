@@ -3,9 +3,11 @@ import type {
   PluginDefinition,
   PluginPageDefinition,
   PluginPageHandle,
+  PluginEditorContribution,
 } from "@tau/plugins";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
+import { ReactEditor } from "slate-react";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
@@ -20,6 +22,10 @@ export interface RegisteredPluginPage {
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
   private readonly pages = new Map<string, RegisteredPluginPage>();
+  private readonly editorContributions = new Map<
+    string,
+    { context: PluginContext; contribution: PluginEditorContribution }
+  >();
   private readonly listeners = new Set<() => void>();
   private revision = 0;
   private disposed = false;
@@ -31,12 +37,16 @@ export class DesktopPluginRuntime {
       storage: StorageAdapter;
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
+      validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
     }
   ) {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
       storage: options.storage,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
+      editor: options.validateEditor
+        ? { register: (context, contribution) => this.registerEditor(context, contribution) }
+        : undefined,
     });
     this.unsubscribe = this.host.subscribe(this.publish);
     options.plugins.forEach(plugin => this.host.registerTrusted(plugin));
@@ -62,6 +72,57 @@ export class DesktopPluginRuntime {
     return page;
   }
 
+  getEditorContributions(): PluginEditorContribution[] {
+    if (this.disposed) return [];
+    return [...this.editorContributions.values()]
+      .filter(
+        ({ context }) =>
+          !context.signal.aborted && this.host.getState(context.pluginId) === "active"
+      )
+      .map(item => item.contribution);
+  }
+
+  private registerEditor(context: PluginContext, contribution: PluginEditorContribution) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = contribution.extension.id;
+    if (this.editorContributions.has(id)) throw new Error(`编辑器扩展已注册：${id}`);
+    const snapshot = Object.freeze({
+      ...contribution,
+      extension: Object.freeze({
+        ...contribution.extension,
+        commands: contribution.extension.commands?.map(command => ({
+          ...command,
+          when: (editor: Parameters<NonNullable<typeof command.when>>[0]) =>
+            !this.disposed &&
+            this.editorContributions.get(id)?.contribution === snapshot &&
+            !context.signal.aborted &&
+            this.host.getState(context.pluginId) === "active" &&
+            !ReactEditor.isReadOnly(editor) &&
+            (command.when?.(editor) ?? true),
+        })),
+      }),
+      codecs: Object.freeze([...(contribution.codecs ?? [])]),
+    });
+    const validateEditor = this.options.validateEditor;
+    if (!validateEditor) throw new Error("当前宿主不支持编辑器扩展");
+    validateEditor(
+      [...this.editorContributions.values()].map(item => item.contribution).concat(snapshot)
+    );
+    const entry = { context, contribution: snapshot };
+    this.editorContributions.set(id, entry);
+    const revoke = () => this.publish();
+    context.signal.addEventListener("abort", revoke, { once: true });
+    this.publish();
+    return {
+      dispose: () => {
+        context.signal.removeEventListener("abort", revoke);
+        if (this.editorContributions.get(id) !== entry) return;
+        this.editorContributions.delete(id);
+        this.publish();
+      },
+    };
+  }
+
   async dispose() {
     if (this.disposed) return;
     this.disposed = true;
@@ -70,6 +131,7 @@ export class DesktopPluginRuntime {
       await this.host.dispose();
     } finally {
       this.pages.clear();
+      this.editorContributions.clear();
       this.unsubscribe();
       this.publish();
       this.listeners.clear();

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./api": "./api.ts",
+    "./contracts": "./contracts.ts",
     "./api/services": "./api/services.ts",
     "./api/paragraph": "./api/paragraph.ts",
     "./markdown": "./markdown.ts",
