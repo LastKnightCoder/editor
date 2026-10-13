@@ -372,7 +372,11 @@ class VideoNoteIndexQueue implements Module {
     }
   }
 
-  private async embedTexts(texts: string[], embeddingConfig: EmbeddingConfig): Promise<number[][]> {
+  private async embedTexts(
+    texts: string[],
+    embeddingConfig: EmbeddingConfig,
+    interactive = false
+  ): Promise<number[][]> {
     if (!texts.length) {
       return [];
     }
@@ -383,6 +387,7 @@ class VideoNoteIndexQueue implements Module {
         modelName: embeddingConfig.model,
         batchSize: embeddingConfig.batchSize,
         devicePolicy: embeddingConfig.devicePolicy,
+        priority: interactive ? "interactive" : "background",
       });
       return result.embeddings || [];
     }
@@ -582,7 +587,7 @@ class VideoNoteIndexQueue implements Module {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
                   try {
-                    const res = await this.embedTexts([queryText], embeddingConfig);
+                    const res = await this.embedTexts([queryText], embeddingConfig, true);
                     return res[0] || null;
                   } catch (error) {
                     log.error(`[VideoNoteIndexQueue] embed query failed: ${error}`);

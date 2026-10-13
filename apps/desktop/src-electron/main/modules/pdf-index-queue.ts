@@ -348,7 +348,8 @@ class PdfIndexQueue implements Module {
   private async embedTexts(
     texts: string[],
     embeddingConfig: ResolvedPdfEmbeddingConfig,
-    onProgress?: (current: number, total: number) => void
+    onProgress?: (current: number, total: number) => void,
+    interactive = false
   ): Promise<number[][]> {
     if (embeddingConfig.providerType === "local_python") {
       const result = await localInference.embedTexts(texts, {
@@ -356,6 +357,7 @@ class PdfIndexQueue implements Module {
         modelName: embeddingConfig.model,
         batchSize: embeddingConfig.batchSize || 8,
         devicePolicy: embeddingConfig.devicePolicy || "auto",
+        priority: interactive ? "interactive" : "background",
       });
       onProgress?.(texts.length, texts.length);
       return result.embeddings || [];
@@ -841,7 +843,12 @@ class PdfIndexQueue implements Module {
             ? {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
-                  const embeddings = await this.embedTexts([queryText], embeddingConfig);
+                  const embeddings = await this.embedTexts(
+                    [queryText],
+                    embeddingConfig,
+                    undefined,
+                    true
+                  );
                   return embeddings[0] || null;
                 },
               }
