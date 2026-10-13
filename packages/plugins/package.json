@@ -1,0 +1,21 @@
+{
+  "name": "@tau/plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "应用插件契约与受信任开发宿主",
+  "exports": {
+    ".": "./src/index.ts",
+    "./host": "./src/host.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "build": "tsc --outDir dist",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.2.1",
+    "typescript": "^5.0.4",
+    "vitest": "^3.2.4"
+  }
+}
