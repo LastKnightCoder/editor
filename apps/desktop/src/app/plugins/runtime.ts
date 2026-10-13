@@ -4,6 +4,8 @@ import type {
   PluginPageDefinition,
   PluginPageHandle,
   PluginEditorContribution,
+  PluginSettingsDefinition,
+  PluginSettingsHandle,
 } from "@tau/plugins";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
@@ -19,9 +21,18 @@ export interface RegisteredPluginPage {
   mountId: number;
 }
 
+export type PluginSettingsKey = `plugin:${string}:${string}`;
+export interface RegisteredPluginSettings {
+  key: PluginSettingsKey;
+  definition: PluginSettingsDefinition;
+  context: PluginContext;
+  mountId: number;
+}
+
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
   private readonly pages = new Map<string, RegisteredPluginPage>();
+  private readonly settings = new Map<string, RegisteredPluginSettings>();
   private readonly editorContributions = new Map<
     string,
     { context: PluginContext; contribution: PluginEditorContribution }
@@ -38,12 +49,16 @@ export class DesktopPluginRuntime {
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
+      openSettings?: (key: PluginSettingsKey) => void;
     }
   ) {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
       storage: options.storage,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
+      settings: options.openSettings
+        ? { register: (context, definition) => this.registerSettings(context, definition) }
+        : undefined,
       editor: options.validateEditor
         ? { register: (context, contribution) => this.registerEditor(context, contribution) }
         : undefined,
@@ -80,6 +95,40 @@ export class DesktopPluginRuntime {
           !context.signal.aborted && this.host.getState(context.pluginId) === "active"
       )
       .map(item => item.contribution);
+  }
+
+  listSettings(): RegisteredPluginSettings[] {
+    if (this.disposed) return [];
+    return [...this.settings.values()].filter(
+      ({ context }) => !context.signal.aborted && this.host.getState(context.pluginId) === "active"
+    );
+  }
+
+  private registerSettings(
+    context: PluginContext,
+    definition: PluginSettingsDefinition
+  ): PluginSettingsHandle {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const key: PluginSettingsKey = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.settings.has(key)) throw new Error(`设置分区已注册：${definition.id}`);
+    const section = { key, context, definition, mountId: ++nextMountId };
+    this.settings.set(key, section);
+    const revoke = () => this.publish();
+    context.signal.addEventListener("abort", revoke, { once: true });
+    this.publish();
+    return {
+      id: key,
+      open: async () => {
+        if (!this.listSettings().includes(section)) throw new Error("插件设置不可用");
+        this.options.openSettings?.(key);
+      },
+      dispose: () => {
+        context.signal.removeEventListener("abort", revoke);
+        if (this.settings.get(key) !== section) return;
+        this.settings.delete(key);
+        this.publish();
+      },
+    };
   }
 
   private registerEditor(context: PluginContext, contribution: PluginEditorContribution) {
@@ -131,6 +180,7 @@ export class DesktopPluginRuntime {
       await this.host.dispose();
     } finally {
       this.pages.clear();
+      this.settings.clear();
       this.editorContributions.clear();
       this.unsubscribe();
       this.publish();

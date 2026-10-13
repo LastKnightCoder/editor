@@ -9,13 +9,16 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SettingsSectionKey } from "@/features/settings/sections";
+import type { PluginSettingsKey } from "./plugins/runtime";
+
+export type SettingsLocation = SettingsSectionKey | PluginSettingsKey;
 
 interface SettingsUiStore {
   open: boolean;
-  section: SettingsSectionKey;
-  openSettings: (section?: SettingsSectionKey) => void;
+  section: SettingsLocation;
+  openSettings: (section?: SettingsLocation) => void;
   closeSettings: () => void;
-  setSection: (section: SettingsSectionKey) => void;
+  setSection: (section: SettingsLocation) => void;
 }
 
 export const useSettingsStore = create<SettingsUiStore>()(

@@ -4,6 +4,7 @@ import { usePage } from "@/page/PageProvider";
 import useSettingStore from "@/stores/useSettingStore";
 import { DesktopPluginRuntime } from "./runtime";
 import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
+import { useSettingsStore } from "../settingsStore";
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   const { navigator } = usePage();
@@ -18,15 +19,17 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       import("@/features/plugins/example/notesPlugin"),
       import("@/features/plugins/example/editorPlugin"),
       import("./editorComposition"),
+      import("@/features/plugins/example/settingsPlugin"),
     ])
-      .then(([{ notesPlugin }, { editorPlugin }, { composePluginEditor }]) => {
+      .then(([{ notesPlugin }, { editorPlugin }, { composePluginEditor }, { settingsPlugin }]) => {
         if (cancelled) return;
         current = new DesktopPluginRuntime({
           workspaceId,
           navigator,
           storage: createBrowserStorage(window.localStorage),
-          plugins: [notesPlugin, editorPlugin],
+          plugins: [notesPlugin, editorPlugin, settingsPlugin],
           validateEditor: composePluginEditor,
+          openSettings: key => useSettingsStore.getState().openSettings(key),
         });
         setRuntime(current);
       })

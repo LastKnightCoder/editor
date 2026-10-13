@@ -10,12 +10,14 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plug } from "lucide-react";
 import clsx from "clsx";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { useEdgeFade } from "@tau/ui";
 import { isMac, isWinOrLinux } from "@/platform";
-import { useSettingsStore } from "@/app/settingsStore";
+import { useSettingsStore, type SettingsLocation } from "@/app/settingsStore";
+import { useDesktopPlugins } from "@/app/plugins/context";
+import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
 import { MacTrafficLights, WindowControls } from "@/app/WindowControls";
 import { useFullScreen } from "@/app/useFullScreen";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
@@ -28,6 +30,10 @@ export function SettingsScreen() {
   const section = useSettingsStore(s => s.section);
   const setSection = useSettingsStore(s => s.setSection);
   const fullScreen = useFullScreen();
+  const runtime = useDesktopPlugins();
+  const pluginSections = runtime?.listSettings() ?? [];
+  const activePlugin = pluginSections.find(item => item.key === section);
+  const isPluginSection = typeof section === "string" && section.startsWith("plugin:");
   const rootRef = useRef<HTMLDivElement>(null);
 
   useOverlayDismiss(closeSettings, open);
@@ -75,7 +81,7 @@ export function SettingsScreen() {
   // 切换分区回到页顶
   useEffect(() => {
     if (scrollEl) scrollEl.scrollTop = 0;
-  }, [activeDef.key, scrollEl]);
+  }, [section, scrollEl]);
 
   return (
     <div
@@ -127,13 +133,28 @@ export function SettingsScreen() {
                   <SectionNavButton
                     key={def.key}
                     def={def}
-                    active={def.key === activeDef.key}
+                    active={!isPluginSection && def.key === activeDef.key}
                     onSelect={() => setSection(def.key)}
                   />
                 ))}
               </div>
             </div>
           ))}
+          {pluginSections.length > 0 && (
+            <div className="mt-3">
+              <div className="text-tau-tiny text-ink-3 px-2.5 pb-1.5">插件</div>
+              <div className="space-y-0.5">
+                {pluginSections.map(item => (
+                  <SectionNavButton
+                    key={item.key}
+                    def={{ key: item.key, label: item.definition.title, icon: Plug }}
+                    active={item.key === section}
+                    onSelect={() => setSection(item.key)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -152,10 +173,20 @@ export function SettingsScreen() {
         >
           <div className="mx-auto w-full max-w-[880px] px-10 pb-16 pt-6">
             <header className="mb-7">
-              <h1 className="text-tau-title-lg text-ink-1 font-semibold">{activeDef.label}</h1>
-              <p className="text-tau-meta text-ink-2 mt-1">{activeDef.description}</p>
+              <h1 className="text-tau-title-lg text-ink-1 font-semibold">
+                {isPluginSection
+                  ? (activePlugin?.definition.title ?? "插件设置暂不可用")
+                  : activeDef.label}
+              </h1>
+              <p className="text-tau-meta text-ink-2 mt-1">
+                {isPluginSection ? activePlugin?.definition.description : activeDef.description}
+              </p>
             </header>
-            <ActiveSection key={activeDef.key} />
+            {isPluginSection ? (
+              open && <PluginSettingsView section={activePlugin} />
+            ) : (
+              <ActiveSection key={activeDef.key} />
+            )}
           </div>
         </FadeScroll>
       </div>
@@ -173,7 +204,7 @@ function SectionNavButton({
   active,
   onSelect,
 }: {
-  def: SettingsSectionDef;
+  def: Pick<SettingsSectionDef, "label" | "icon"> & { key: SettingsLocation };
   active: boolean;
   onSelect: () => void;
 }) {

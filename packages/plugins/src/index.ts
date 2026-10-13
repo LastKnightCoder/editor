@@ -1,5 +1,12 @@
 import type { PluginPages } from "./pages";
 import type { PluginEditor } from "./editor";
+import type { PluginSettings } from "./settings";
+export type {
+  PluginSettings,
+  PluginSettingsDefinition,
+  PluginSettingsProps,
+  PluginSettingsHandle,
+} from "./settings";
 export * from "./editor";
 
 export type {
@@ -38,6 +45,7 @@ export interface PluginContext {
   readonly storage: PluginStorage;
   readonly pages: PluginPages;
   readonly editor: PluginEditor;
+  readonly settings: PluginSettings;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }
