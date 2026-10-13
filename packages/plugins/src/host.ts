@@ -8,9 +8,16 @@ import type {
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
+import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
 
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
+export { createBrowserStorage } from "./browser-storage";
+export { normalizePageParams } from "./pages";
+
+export interface PagesAdapter {
+  register(context: PluginContext, definition: PluginPageDefinition): PluginPageHandle;
+}
 
 export type PluginState = "disabled" | "activating" | "active" | "deactivating" | "failed";
 
@@ -18,6 +25,13 @@ export interface CommandInfo {
   id: string;
   pluginId: string;
   title: string;
+}
+
+export interface PluginInfo {
+  id: string;
+  name: string;
+  version: string;
+  state: PluginState;
 }
 
 interface Activation {
@@ -47,11 +61,25 @@ export class PluginHost {
   private readonly commands = new Map<string, RegisteredCommand>();
   private closed = false;
   private disposal?: Promise<void>;
+  private revision = 0;
+  private readonly listeners = new Set<() => void>();
 
-  constructor(private readonly options: { workspaceId: string; storage: StorageAdapter }) {
+  constructor(
+    private readonly options: { workspaceId: string; storage: StorageAdapter; pages?: PagesAdapter }
+  ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
     this.options = Object.freeze({ ...options });
   }
+
+  getRevision = (): number => this.revision;
+
+  subscribe = (listener: () => void): (() => void) => {
+    if (this.closed) return () => undefined;
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
 
   registerTrusted(definition: PluginDefinition): void {
     this.assertOpen();
@@ -64,10 +92,20 @@ export class PluginHost {
       state: "disabled",
       pending: Promise.resolve(),
     });
+    this.changed();
   }
 
   getState(id: string): PluginState {
     return this.entry(id).state;
+  }
+
+  listPlugins(): PluginInfo[] {
+    return [...this.entries.values()].map(({ definition, state }) => ({
+      id: definition.id,
+      name: definition.name,
+      version: definition.version,
+      state,
+    }));
   }
 
   enable(id: string): Promise<void> {
@@ -78,6 +116,7 @@ export class PluginHost {
       if (entry.removing) throw new Error("插件正在注销");
       if (entry.state === "active") return;
       entry.state = "activating";
+      this.changed();
       try {
         const activation: Activation = {
           controller: new AbortController(),
@@ -88,9 +127,11 @@ export class PluginHost {
         await activation.instance.activate(this.context(entry, activation));
         this.assertActive(entry, activation);
         entry.state = "active";
+        this.changed();
       } catch (error) {
         const errors = await this.cleanup(entry);
         entry.state = "failed";
+        this.changed();
         if (errors.length) throw new AggregateError([error, ...errors], "插件激活与回收失败");
         throw error;
       }
@@ -100,10 +141,12 @@ export class PluginHost {
   disable(id: string): Promise<void> {
     const entry = this.entry(id);
     entry.activation?.controller.abort();
+    this.changed();
     return this.enqueue(entry, async () => {
       entry.state = "deactivating";
       const errors = await this.cleanup(entry);
       entry.state = "disabled";
+      this.changed();
       if (errors.length) throw new AggregateError(errors, "插件已停用，但部分清理失败");
     });
   }
@@ -115,6 +158,7 @@ export class PluginHost {
       await this.disable(id);
     } finally {
       if (this.entries.get(id) === entry) this.entries.delete(id);
+      this.changed();
     }
   }
 
@@ -145,6 +189,7 @@ export class PluginHost {
         [...this.entries.keys()].map(id => this.disable(id))
       );
       this.entries.clear();
+      this.listeners.clear();
       const errors = results.flatMap(result =>
         result.status === "rejected" ? [result.reason] : []
       );
@@ -176,7 +221,7 @@ export class PluginHost {
       this.assertActive(entry, activation);
       assertLocalId(key);
     };
-    return Object.freeze({
+    const context: PluginContext = {
       pluginId: scope.pluginId,
       workspaceId: scope.workspaceId,
       signal: scope.signal,
@@ -195,9 +240,11 @@ export class PluginHost {
             run: command.run,
           };
           this.commands.set(id, value);
+          this.changed();
           return register({
             dispose: () => {
               if (this.commands.get(id) === value) this.commands.delete(id);
+              this.changed();
             },
           });
         },
@@ -218,7 +265,51 @@ export class PluginHost {
           await this.options.storage.delete(scope, key);
         },
       }),
-    });
+      pages: Object.freeze({
+        register: (definition: PluginPageDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (!definition.title.trim()) throw new Error("页面标题不能为空");
+          if (
+            definition.match !== undefined &&
+            definition.match !== "single" &&
+            definition.match !== "params"
+          ) {
+            throw new Error("不支持的页面匹配方式");
+          }
+          if (!this.options.pages) throw new Error("当前宿主不支持页面");
+          const handle = this.options.pages.register(context, Object.freeze({ ...definition }));
+          let disposed = false;
+          const resource = register({
+            dispose: () => {
+              disposed = true;
+              return handle.dispose();
+            },
+          });
+          return Object.freeze({
+            id: handle.id,
+            open: async (params = {}) => {
+              this.assertActive(entry, activation);
+              if (disposed) throw new Error("页面已注销");
+              await handle.open(normalizePageParams(params));
+            },
+            dispose: resource.dispose,
+          });
+        },
+      }),
+    };
+    return Object.freeze(context);
+  }
+
+  private changed() {
+    this.revision++;
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch (error) {
+        console.error("插件状态订阅失败", error);
+      }
+    }
   }
 
   private async cleanup(entry: Entry): Promise<unknown[]> {

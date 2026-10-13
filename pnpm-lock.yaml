@@ -885,6 +885,9 @@ importers:
       '@tau/platform':
         specifier: workspace:*
         version: link:../../packages/platform
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../../packages/plugins
       '@tau/rpc':
         specifier: workspace:*
         version: link:../../packages/rpc
@@ -3734,6 +3737,9 @@ importers:
       '@types/node':
         specifier: ^20.2.1
         version: 20.19.41
+      '@types/react':
+        specifier: 19.2.0
+        version: 19.2.0
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
