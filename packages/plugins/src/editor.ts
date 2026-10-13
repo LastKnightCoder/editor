@@ -1,0 +1,50 @@
+import { defineExtension } from "@tau/editor/contracts";
+import type { EditorExtension as InternalExtension } from "@tau/editor/contracts";
+import type { MarkdownCodec } from "@tau/markdown";
+import type { Disposable } from "./index";
+
+export { defineElement as defineEditorElement } from "@tau/editor/contracts";
+export type { ElementRenderProps as EditorElementRenderProps } from "@tau/editor/contracts";
+export type { MarkdownCodec as EditorMarkdownCodec } from "@tau/markdown";
+
+/** 作者通过模块增强登记自定义节点，无需引用编辑器内部包。 */
+declare const elementMapBrand: unique symbol;
+declare const inlineMapBrand: unique symbol;
+export interface EditorElementMap {
+  [elementMapBrand]: never;
+}
+export interface EditorInlineElementMap {
+  [inlineMapBrand]: never;
+}
+declare module "@tau/editor/api" {
+  interface ExtensionElementMap extends EditorElementMap {
+    [elementMapBrand]: never;
+  }
+  interface ExtensionInlineElementMap extends EditorInlineElementMap {
+    [inlineMapBrand]: never;
+  }
+}
+
+export type PluginEditorExtension = Pick<
+  InternalExtension,
+  "id" | "apiVersion" | "elements" | "commands" | "hotkeys" | "menu"
+> & { plugins?: never };
+
+export function defineEditorExtension(
+  definition: Omit<PluginEditorExtension, "apiVersion">
+): PluginEditorExtension {
+  if ("plugins" in definition) throw new Error("应用插件不支持原始 Slate 包装器");
+  return defineExtension(definition) as PluginEditorExtension;
+}
+
+export interface PluginEditorContribution {
+  /** 目前只有开发台场景；其他场景需宿主明确接入后开放。 */
+  scene: "workbench";
+  extension: PluginEditorExtension;
+  /** 纯函数定义可由主进程独立导入，本次只在开发台装配。 */
+  codecs?: readonly MarkdownCodec[];
+}
+
+export interface PluginEditor {
+  register(contribution: PluginEditorContribution): Disposable;
+}

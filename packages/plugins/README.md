@@ -4,7 +4,7 @@
 
 ## 入口
 
-面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础和页面契约，编辑器能力尚未接入。
+面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面和开发台编辑器契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
@@ -25,6 +25,16 @@
 插件只通过注入的 `PluginContext` 注册命令和使用自己的存储。`register` 管理订阅等资源；命令自动登记清理。`deactivate` 用于释放业务资源，调用时 signal 已取消，不能用它进行新的存储写入。应在正常操作期间完成保存。
 
 停用立即取消旧实例信号，随后执行 deactivate 和逆序清理；一个清理失败不阻止其他清理。重新启用创建新上下文，旧回调无法通过上下文继续操作。激活失败也回收已有贡献，之后可以再次启用。unregister 删除定义但保留数据；dispose 停止整个工作区宿主。
+
+## 编辑器
+
+`context.editor.register({ scene: "workbench", extension, codecs? })` 返回自动回收的 Disposable。扩展通过根入口的 `defineEditorExtension`、`defineEditorElement` 与 `EditorElementRenderProps` 定义，沿用现有编辑器协议。当前开放节点、命令、热键和节点菜单；不开放原始 Slate 包装器，也不承诺内部扩展接口全集。Slate/React 仍是作者声明的生态依赖。
+
+扩展 ID、节点 type、命令 ID 和 codec type 使用 `插件ID.` 前缀，避免碰撞内核及其他插件。自定义节点可增强根入口 `EditorElementMap`，行内类型同时登记 `EditorInlineElementMap`。纯 codec 的类型为 `EditorMarkdownCodec`，定义放在独立文件，避免执行端加载 UI。
+
+宿主缺少编辑器适配器或场景不受支持时明确报错。桌面开发台统一检查注册冲突，并为编辑器命令补上只读和旧插件作用域守卫；异步任务仍须主动取消，不能持有旧编辑器在 await 后直接写入。生产正文、Y.Doc 协作、外部历史和异步编辑提交 API 尚未接入。
+
+开发台按贡献集合变化重建 Slate 实例，保存并恢复原始正文、历史与选区；组件本地状态、焦点和在途操作不迁移。详情及可复现路径见 [C04](../../docs/plugin-system/13-C04编辑器扩展接入.md)。
 
 ## 数据和并发
 
@@ -48,3 +58,5 @@ pnpm --filter @example/plugin-workbench demo
 ```
 
 示例插件在 [plugin-workbench](../../examples/plugin-workbench/README.md)，只依赖公开契约。包仍为工作区 private，不发布 npm，不承诺稳定的第三方 SDK 版本。
+
+包内 `build` 使用 esbuild 生成内部 ESM 验证产物，workspace 包保持 external；类型由 `check` 单独验证，当前 exports 仍指向源码。原来的 tsc 单目录输出不适用于跨包编辑器类型图，现阶段不生成可发布声明包。独立 SDK 的声明打包、共享依赖和无私有路径构建属于 P6，不能把这里的 dist 当作可独立安装的 npm 包。

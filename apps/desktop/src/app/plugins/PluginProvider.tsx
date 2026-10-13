@@ -14,14 +14,19 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     if (!import.meta.env.DEV) return;
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
-    void import("@/features/plugins/example/notesPlugin")
-      .then(({ notesPlugin }) => {
+    void Promise.all([
+      import("@/features/plugins/example/notesPlugin"),
+      import("@/features/plugins/example/editorPlugin"),
+      import("./editorComposition"),
+    ])
+      .then(([{ notesPlugin }, { editorPlugin }, { composePluginEditor }]) => {
         if (cancelled) return;
         current = new DesktopPluginRuntime({
           workspaceId,
           navigator,
           storage: createBrowserStorage(window.localStorage),
-          plugins: [notesPlugin],
+          plugins: [notesPlugin, editorPlugin],
+          validateEditor: composePluginEditor,
         });
         setRuntime(current);
       })

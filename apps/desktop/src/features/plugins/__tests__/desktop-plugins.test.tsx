@@ -1,5 +1,7 @@
 import { act, StrictMode, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PageProvider, usePage, type Navigator } from "@/page/PageProvider";
@@ -43,11 +45,13 @@ function Capture() {
 function App() {
   const workspaceId = useSettingStore(s => s.setting.database.active);
   return (
-    <PageProvider key={workspaceId} initialKey={PLUGIN_WORKBENCH_KEY}>
-      <DesktopPluginProvider>
-        <Capture />
-      </DesktopPluginProvider>
-    </PageProvider>
+    <DndProvider backend={HTML5Backend}>
+      <PageProvider key={workspaceId} initialKey={PLUGIN_WORKBENCH_KEY}>
+        <DesktopPluginProvider>
+          <Capture />
+        </DesktopPluginProvider>
+      </PageProvider>
+    </DndProvider>
   );
 }
 

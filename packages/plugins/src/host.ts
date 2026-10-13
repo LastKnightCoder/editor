@@ -5,6 +5,7 @@ import type {
   PluginContext,
   PluginDefinition,
   PluginInstance,
+  PluginEditorContribution,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
@@ -17,6 +18,10 @@ export { normalizePageParams } from "./pages";
 
 export interface PagesAdapter {
   register(context: PluginContext, definition: PluginPageDefinition): PluginPageHandle;
+}
+
+export interface EditorAdapter {
+  register(context: PluginContext, contribution: PluginEditorContribution): Disposable;
 }
 
 export type PluginState = "disabled" | "activating" | "active" | "deactivating" | "failed";
@@ -65,7 +70,12 @@ export class PluginHost {
   private readonly listeners = new Set<() => void>();
 
   constructor(
-    private readonly options: { workspaceId: string; storage: StorageAdapter; pages?: PagesAdapter }
+    private readonly options: {
+      workspaceId: string;
+      storage: StorageAdapter;
+      pages?: PagesAdapter;
+      editor?: EditorAdapter;
+    }
   ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
     this.options = Object.freeze({ ...options });
@@ -226,6 +236,27 @@ export class PluginHost {
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,
+      editor: Object.freeze({
+        register: (contribution: PluginEditorContribution) => {
+          this.assertActive(entry, activation);
+          if (!this.options.editor) throw new Error("当前宿主不支持编辑器扩展");
+          if (contribution.scene !== "workbench") throw new Error("不支持的编辑器场景");
+          if (contribution.extension.apiVersion !== 1 || "plugins" in contribution.extension)
+            throw new Error("不支持的编辑器扩展协议");
+          assertLocalId(contribution.extension.id);
+          if (!contribution.extension.id.startsWith(`${scope.pluginId}.`))
+            throw new Error("编辑器扩展 ID 必须使用插件命名空间");
+          for (const id of [
+            ...(contribution.extension.elements ?? []).map(element => element.type),
+            ...(contribution.extension.commands ?? []).map(command => command.id),
+            ...(contribution.codecs ?? []).map(codec => codec.type),
+          ]) {
+            if (!id.startsWith(`${scope.pluginId}.`))
+              throw new Error("编辑器节点、命令与 codec 必须使用插件命名空间");
+          }
+          return register(this.options.editor.register(context, contribution));
+        },
+      }),
       commands: Object.freeze({
         register: (command: PluginCommand) => {
           this.assertActive(entry, activation);
