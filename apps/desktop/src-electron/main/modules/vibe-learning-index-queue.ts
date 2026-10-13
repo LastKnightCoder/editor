@@ -343,7 +343,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
-  private async embedTexts(texts: string[], embeddingConfig: EmbeddingConfig): Promise<number[][]> {
+  private async embedTexts(
+    texts: string[],
+    embeddingConfig: EmbeddingConfig,
+    interactive = false
+  ): Promise<number[][]> {
     if (!texts.length) {
       return [];
     }
@@ -354,6 +358,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         modelName: embeddingConfig.model,
         batchSize: embeddingConfig.batchSize,
         devicePolicy: embeddingConfig.devicePolicy,
+        priority: interactive ? "interactive" : "background",
       });
 
       return res.embeddings || [];
@@ -2887,7 +2892,9 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
                   try {
-                    const queryEmbedding = (await this.embedTexts([queryText], embeddingConfig))[0];
+                    const queryEmbedding = (
+                      await this.embedTexts([queryText], embeddingConfig, true)
+                    )[0];
                     return queryEmbedding || null;
                   } catch (error) {
                     log.error(`[VibeLearningIndexQueue] Vec query embedding failed: ${error}`);

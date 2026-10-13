@@ -42,7 +42,8 @@ export default class VecDocumentTable {
 
   private static async createEmbeddings(
     texts: string[],
-    modelInfo: NonNullable<IndexParams["modelInfo"]>
+    modelInfo: NonNullable<IndexParams["modelInfo"]>,
+    interactive = false
   ): Promise<number[][]> {
     if (!texts.length) {
       return [];
@@ -59,6 +60,7 @@ export default class VecDocumentTable {
         modelName: modelInfo.model,
         batchSize: modelInfo.batchSize || 8,
         devicePolicy: modelInfo.devicePolicy || "auto",
+        priority: interactive ? "interactive" : "background",
       });
 
       const embeddings = result.embeddings || [];
@@ -95,17 +97,21 @@ export default class VecDocumentTable {
 
   /** 用当前嵌入配置嵌入查询文本（与索引同一模型，可直接与 vec_documents 里的向量比） */
   static async embedQueries(texts: string[], config: ResolvedEmbeddingConfig): Promise<number[][]> {
-    return this.createEmbeddings(texts, {
-      configId: config.configId,
-      providerType: config.providerType,
-      key: config.apiKey,
-      baseUrl: config.baseUrl,
-      model: config.model,
-      dimensions: config.dimensions,
-      batchSize: config.batchSize,
-      devicePolicy: config.devicePolicy,
-      localModelDir: config.localModelDir,
-    } as NonNullable<IndexParams["modelInfo"]>);
+    return this.createEmbeddings(
+      texts,
+      {
+        configId: config.configId,
+        providerType: config.providerType,
+        key: config.apiKey,
+        baseUrl: config.baseUrl,
+        model: config.model,
+        dimensions: config.dimensions,
+        batchSize: config.batchSize,
+        devicePolicy: config.devicePolicy,
+        localModelDir: config.localModelDir,
+      } as NonNullable<IndexParams["modelInfo"]>,
+      true
+    );
   }
 
   private static hasTable(db: Database.Database, tableName: string): boolean {
@@ -415,7 +421,7 @@ export default class VecDocumentTable {
 
     if (modelInfo && modelInfo.model) {
       try {
-        const embeddings = await this.createEmbeddings([query], modelInfo);
+        const embeddings = await this.createEmbeddings([query], modelInfo, true);
         const queryEmbedding = embeddings[0];
         if (!queryEmbedding || queryEmbedding.length === 0) {
           log.warn("[VecDocument] embedding 生成为空");
