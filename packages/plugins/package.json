@@ -6,7 +6,8 @@
   "description": "应用插件契约与受信任开发宿主",
   "exports": {
     ".": "./src/index.ts",
-    "./host": "./src/host.ts"
+    "./host": "./src/host.ts",
+    "./node": "./src/file-storage.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
