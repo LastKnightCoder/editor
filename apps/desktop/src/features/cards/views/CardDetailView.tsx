@@ -231,6 +231,8 @@ export function CardDetailView() {
       </div>
     );
 
+  const cardMetaText = `创建于 ${formatDate(card.create_time, true)} · 最后修改 ${formatDate(card.update_time, true)} · ${card.count.toLocaleString("zh-CN")} 字`;
+
   return (
     <div
       ref={rootRef}
@@ -248,9 +250,11 @@ export function CardDetailView() {
               {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
                 （2026-09-21 裁决，详情页不做） */}
               <div className="mb-5 flex items-center gap-2.5">
-                <span className="text-tau-meta text-ink-3 tabular-nums">
-                  创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
-                  {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
+                <span
+                  className="text-tau-meta text-ink-3 min-w-0 truncate tabular-nums"
+                  title={cardMetaText}
+                >
+                  {cardMetaText}
                 </span>
                 {/* 脉络入口：浮层内建「连接」分区（显式连接 ∪ 内联引用） */}
                 <ContextBadge entity={{ kind: "card", id: card.id }} />
