@@ -37,6 +37,7 @@ function createEditorRef(
     focus: vi.fn(),
     deselect: vi.fn(),
     getEditor: () => editor,
+    getEditableElement: () => null,
     isFocus: vi.fn(() => options?.isFocus?.() ?? true),
   };
   return {
