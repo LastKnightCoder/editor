@@ -172,6 +172,17 @@ const TableView: React.FC<TableViewProps> = memo(
     const projection = useDatabaseStore(state => state.projection);
     const { groups: groupedRows, grouped: isGrouped, columnIds: visibleColumnOrder } = projection;
 
+    const searchActive = useDatabaseStore(state => state.query.searchResults !== null);
+    const sortCount = useDatabaseStore(state => state.viewConfig.sorts.length);
+    // 排序/搜索/只读时投影禁用手动排序（canReorder），手柄需给出原因而非假装可拖
+    const reorderDisabledReason = readonly
+      ? "只读模式下无法调整行顺序"
+      : searchActive
+        ? "搜索结果中无法手动调整行顺序"
+        : sortCount > 0
+          ? "已应用排序规则，无法手动调整行顺序"
+          : undefined;
+
     const flatItems = useMemo(() => {
       const items: Array<
         | {
@@ -365,6 +376,7 @@ const TableView: React.FC<TableViewProps> = memo(
                       onColumnChange={onColumnChange}
                       deleteRow={handleDeleteRow}
                       moveRow={projection.canReorder ? handleMoveRow : undefined}
+                      reorderDisabledReason={reorderDisabledReason}
                       theme={theme}
                       readonly={readonly}
                       onOpenRowDetail={openRowDetail}
