@@ -7,6 +7,9 @@ import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { useSettingsStore } from "../settingsStore";
 import { desktopFetch } from "@/commands/fetch";
 
+const restartRequired = new Set<string>();
+let pendingCleanup: Promise<void> = Promise.resolve();
+
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   const { navigator } = usePage();
   const workspaceId = useSettingStore(state => state.setting.database.active);
@@ -24,13 +27,14 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       import("@/features/plugins/weread/plugin"),
     ])
       .then(
-        ([
+        async ([
           { notesPlugin },
           { editorPlugin },
           { composePluginEditor },
           { settingsPlugin },
           { createWeReadPlugin },
         ]) => {
+          await pendingCleanup;
           if (cancelled) return;
           current = new DesktopPluginRuntime({
             workspaceId,
@@ -45,6 +49,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
               ),
             ],
             fetch: desktopFetch,
+            restartRequired,
             validateEditor: composePluginEditor,
             openSettings: key => useSettingsStore.getState().openSettings(key),
           });
@@ -57,7 +62,11 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       if (current)
-        void current.dispose().catch(error => console.error("插件运行时清理失败", error));
+        pendingCleanup = Promise.allSettled([pendingCleanup, current.dispose()]).then(results => {
+          for (const result of results) {
+            if (result.status === "rejected") console.error("插件运行时清理失败", result.reason);
+          }
+        });
     };
   }, [workspaceId, navigator]);
   return (

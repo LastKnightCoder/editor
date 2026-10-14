@@ -22,6 +22,8 @@
 
 宿主可通过 subscribe/getRevision 响应状态与命令变化，listPlugins/listCommands 供开发台和命令面板使用；这些不是作者的公共业务 API。
 
+C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长原期限。deactivate 和全部逆序资源清理共用 5 秒预算，超时后仍调用其余清理函数。激活超时或清理失败进入 restart-required，普通激活错误且清理成功仍可重试；listPlugins 的 error 保留失败原因。宿主重建时通过内部 restartRequired 集合共享隔离身份，不能通过注销/重新登记绕过；桌面在窗口内保留该集合，并等旧宿主收尾后建立新宿主。提前调用 dispose 的资源仍跟踪其 Promise，不把未决清理当成成功。详见 [C08](../../docs/plugin-system/18-C08生命周期与管理收口.md)。
+
 插件只通过注入的 `PluginContext` 注册命令和使用自己的存储。`register` 管理订阅等资源；命令自动登记清理。`deactivate` 用于释放业务资源，调用时 signal 已取消，不能用它进行新的存储写入。应在正常操作期间完成保存。
 
 停用立即取消旧实例信号，随后执行 deactivate 和逆序清理；一个清理失败不阻止其他清理。重新启用创建新上下文，旧回调无法通过上下文继续操作。激活失败也回收已有贡献，之后可以再次启用。unregister 删除定义但保留数据；dispose 停止整个工作区宿主。

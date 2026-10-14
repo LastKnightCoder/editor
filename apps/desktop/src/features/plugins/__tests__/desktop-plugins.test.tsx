@@ -238,6 +238,39 @@ describe("桌面插件完整路径", () => {
     );
   });
 
+  it("切库等待旧宿主有界回收，不能在新工作区重新启用清理挂起的插件", async () => {
+    const failed = definePlugin({
+      id: "example.hanging-workspace",
+      name: "切库挂起样本",
+      version: "1.0.0",
+      create: () => ({ activate: () => undefined, deactivate: () => new Promise(() => undefined) }),
+    });
+    const previous = currentRuntime();
+    await act(async () => {
+      previous.host.registerTrusted(failed);
+      await previous.host.enable(failed.id);
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.useFakeTimers();
+    try {
+      await act(async () => setWorkspace("B"));
+      await act(async () => vi.dynamicImportSettled());
+      expect(activePage().textContent).toContain("正在准备插件开发台");
+      await act(async () => vi.advanceTimersByTimeAsync(5_000));
+    } finally {
+      vi.useRealTimers();
+      error.mockRestore();
+    }
+    await settle();
+    const next = currentRuntime();
+    expect(next).not.toBe(previous);
+    await act(async () => next.host.registerTrusted(failed));
+    expect(next.host.getState(failed.id)).toBe("restart-required");
+    await expect(next.host.enable(failed.id)).rejects.toThrow("重启应用");
+    await act(async () => next.host.enable(pluginId));
+    expect(next.host.getState(pluginId)).toBe("active");
+  });
+
   it("切库销毁旧宿主，新库偏好独立，返回原库仍可读取", async () => {
     await act(async () => currentRuntime().host.enable(pluginId));
     await click("打开插件页面示例");
