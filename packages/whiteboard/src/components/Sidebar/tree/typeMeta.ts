@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
 import type { BoardElement } from "../../../types";
+import { geometryItems } from "../../Toolbar/Geometry/config";
 
 /** 元素类型 → 中文名 + 中性图标（元素树 / 右键菜单共用；不按类型配色） */
 const META: Record<string, { label: string; icon: LucideIcon }> = {
@@ -39,12 +40,9 @@ export function elementTypeMeta(type: string) {
   return META[type] ?? { label: type, icon: Box };
 }
 
-const GEOMETRY_LABEL: Record<string, string> = {
-  rectangle: "矩形",
-  circle: "圆形",
-  triangle: "三角形",
-  heart: "心形",
-};
+const GEOMETRY_LABEL: Record<string, string> = Object.fromEntries(
+  geometryItems.map(item => [item.geometryType, item.name])
+);
 const MAX_LABEL = 40;
 
 /** 创建时写入的默认名（各类型名与几何具体名）不算手动命名，让位给内容派生名 */
