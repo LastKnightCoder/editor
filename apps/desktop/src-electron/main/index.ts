@@ -1,5 +1,6 @@
 // 必须置于所有 import 之首：在模块单例（import 期/初始化期注册契约）之前装配契约桥
 import "./rpc/command-bridge-install";
+import "./startup-cpu-profile";
 // 紧随其后安装日志（session 文件 + console 代理），保证后续模块的所有输出都能落盘
 import "./modules/logger";
 import { app, BrowserWindow, protocol, globalShortcut } from "electron";

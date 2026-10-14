@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { Operation } from "@/types";
 import dayjs from "dayjs";
+import { setImmediate } from "node:timers/promises";
 
 export default class OperationTable {
   static getListenEvents() {
@@ -37,31 +38,72 @@ export default class OperationTable {
     return this.parseOperation(operation);
   }
 
-  /** 热力图数据：按天聚合的每日去重操作数（同天同 operation_id 只计一次；NULL 互为同值计 1，
-   *  故用 COALESCE 哨兵——COUNT(DISTINCT) 本身会忽略 NULL）。
-   *  SQL 端聚合替代全量拉取——旧实现把全年记录搬过 IPC 只为在渲染端数个数，10 万行量级时
-   *  findIndex 分组 O(n²) 会阻塞主进程约 2 秒 */
+  private static dailyCountsInFlight = new WeakMap<
+    Database.Database,
+    Map<number, Promise<Array<{ time: string; count: number }>>>
+  >();
+
+  /** 主键分页限制单次同步工作量，批次间让出主线程；IPC 只返回每日计数。 */
   static getOperationDailyCounts(
     db: Database.Database,
     year: number
-  ): Array<{
-    time: string;
-    count: number;
-  }> {
+  ): Promise<Array<{ time: string; count: number }>> {
+    let pending = this.dailyCountsInFlight.get(db);
+    if (!pending) {
+      pending = new Map();
+      this.dailyCountsInFlight.set(db, pending);
+    }
+    const existing = pending.get(year);
+    if (existing) return existing;
+    const task = this.collectOperationDailyCounts(db, year).finally(() => pending.delete(year));
+    pending.set(year, task);
+    return task;
+  }
+
+  private static async collectOperationDailyCounts(
+    db: Database.Database,
+    year: number
+  ): Promise<Array<{ time: string; count: number }>> {
+    if (!Number.isInteger(year) || year < 100 || year > 9998) {
+      throw new Error("无效的统计年份");
+    }
+    const start = new Date(year, 0, 1).getTime();
+    const end = new Date(year + 1, 0, 1).getTime();
+    const upperId = (
+      db.prepare("SELECT MAX(id) AS id FROM operation").get() as { id: number | null }
+    ).id;
+    if (upperId === null) return [];
+    // 不在分页 SQL 中过滤年份：没有时间索引时，稀疏年份也必须保持每批扫描有界。
     const stmt = db.prepare(`
-      SELECT strftime('%Y-%m-%d', operation_time / 1000, 'unixepoch', 'localtime') AS time,
-             COUNT(DISTINCT COALESCE(operation_id, -1)) AS count
-      FROM operation
-      WHERE operation_time >= ? AND operation_time < ?
-      GROUP BY time
-      ORDER BY time DESC
+      SELECT id, operation_time, operation_id FROM operation
+      WHERE id > ? AND id <= ? ORDER BY id LIMIT 1000
     `);
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-    return stmt.all(startOfYear.getTime(), endOfYear.getTime()) as Array<{
-      time: string;
-      count: number;
-    }>;
+    const days = new Map<string, Set<number>>();
+    let afterId = Number.MIN_SAFE_INTEGER;
+    while (afterId < upperId) {
+      await setImmediate();
+      const rows = stmt.all(afterId, upperId) as Array<{
+        id: number;
+        operation_time: number;
+        operation_id: number | null;
+      }>;
+      if (!rows.length) break;
+      for (const row of rows) {
+        if (row.operation_time < start || row.operation_time >= end) continue;
+        const date = new Date(row.operation_time);
+        const time = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        let ids = days.get(time);
+        if (!ids) {
+          ids = new Set();
+          days.set(time, ids);
+        }
+        ids.add(row.operation_id ?? -1);
+      }
+      afterId = rows[rows.length - 1].id;
+    }
+    return [...days]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([time, ids]) => ({ time, count: ids.size }));
   }
 
   static insertOperation(

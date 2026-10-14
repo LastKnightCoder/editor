@@ -774,14 +774,16 @@ class DatabaseModule implements Module {
         log.info(`database ${dbName} event ${eventName}`);
         // 完成日志与开始日志成对出现：排查 IPC 挂起时，缺 done 的最后一条 event 即卡住点
         const startedAt = Date.now();
+        // 分批只读统计会让出事件循环，不能跨批持有共享连接的事务。
+        const transactional = eventName !== "get-operation-daily-counts";
         try {
-          db.exec("BEGIN");
+          if (transactional) db.exec("BEGIN");
           const res = await this.eventAndHandlers[eventName](
             db,
             ...args,
             createWindowCommandContext(win)
           );
-          db.exec("COMMIT");
+          if (transactional) db.exec("COMMIT");
           const elapsedMs = Date.now() - startedAt;
           recordSqlCall(dbName, eventName, elapsedMs, true);
           // database 事件是主要 IPC 流量，计入速率统计供洪水检测（聚焦刷新风暴等）
@@ -797,7 +799,7 @@ class DatabaseModule implements Module {
             `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - startedAt}`,
             e
           );
-          db.exec("ROLLBACK");
+          if (transactional) db.exec("ROLLBACK");
           throw e;
         }
       });

@@ -51,11 +51,13 @@ describe("useWeReadSessionBootstrap", () => {
   let container: HTMLDivElement | null = null;
 
   beforeEach(() => {
+    vi.stubGlobal("electron", { windowRole: "main" });
     ensureModuleMock.mockResolvedValue(undefined);
     validateSessionMock.mockResolvedValue(true);
   });
 
   afterEach(async () => {
+    vi.unstubAllGlobals();
     validateSessionMock.mockReset();
     ensureModuleMock.mockReset();
     if (root && container) {
@@ -88,6 +90,25 @@ describe("useWeReadSessionBootstrap", () => {
 
     await renderHarness();
 
+    expect(validateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("辅助窗口不初始化模块或校验会话", async () => {
+    vi.stubGlobal("electron", { windowRole: "utility" });
+    enableWereadAutoValidation();
+    await renderHarness();
+    expect(ensureModuleMock).not.toHaveBeenCalled();
+    expect(validateSessionMock).not.toHaveBeenCalled();
+  });
+
+  it("等待模块时卸载，不再发出校验请求", async () => {
+    let ready!: () => void;
+    ensureModuleMock.mockReturnValue(new Promise<void>(resolve => (ready = resolve)));
+    enableWereadAutoValidation();
+    await renderHarness();
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => ready());
     expect(validateSessionMock).not.toHaveBeenCalled();
   });
 
