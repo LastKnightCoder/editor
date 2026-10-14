@@ -51,12 +51,14 @@ export class DesktopPluginRuntime {
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
       openSettings?: (key: PluginSettingsKey) => void;
       fetch?: typeof globalThis.fetch;
+      restartRequired?: Set<string>;
     }
   ) {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
       storage: options.storage,
       fetch: options.fetch,
+      restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
       settings: options.openSettings
         ? { register: (context, definition) => this.registerSettings(context, definition) }

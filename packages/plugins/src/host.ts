@@ -10,6 +10,12 @@ import type {
   PluginSettingsHandle,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import {
+  ACTIVATION_TIMEOUT_MS,
+  CLEANUP_TIMEOUT_MS,
+  LifecycleTimeoutError,
+  waitForLifecycle,
+} from "./lifecycle";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
 export { createMemoryStorage } from "./storage";
@@ -31,7 +37,8 @@ export interface SettingsAdapter {
   register(context: PluginContext, definition: PluginSettingsDefinition): PluginSettingsHandle;
 }
 
-export type PluginState = "disabled" | "activating" | "active" | "deactivating" | "failed";
+export type PluginState =
+  "disabled" | "activating" | "active" | "deactivating" | "failed" | "restart-required";
 
 export interface CommandInfo {
   id: string;
@@ -44,6 +51,7 @@ export interface PluginInfo {
   name: string;
   version: string;
   state: PluginState;
+  error?: string;
 }
 
 interface Activation {
@@ -58,6 +66,7 @@ interface Entry {
   activation?: Activation;
   pending: Promise<void>;
   removing?: boolean;
+  error?: string;
 }
 
 interface RegisteredCommand {
@@ -75,6 +84,7 @@ export class PluginHost {
   private disposal?: Promise<void>;
   private revision = 0;
   private readonly listeners = new Set<() => void>();
+  private readonly restartRequired: Set<string>;
 
   constructor(
     private readonly options: {
@@ -84,10 +94,13 @@ export class PluginHost {
       editor?: EditorAdapter;
       settings?: SettingsAdapter;
       fetch?: typeof globalThis.fetch;
+      /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
+      restartRequired?: Set<string>;
     }
   ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
     this.options = Object.freeze({ ...options });
+    this.restartRequired = options.restartRequired ?? new Set();
   }
 
   getRevision = (): number => this.revision;
@@ -108,7 +121,7 @@ export class PluginHost {
     if (this.entries.has(definition.id)) throw new Error(`插件已注册：${definition.id}`);
     this.entries.set(definition.id, {
       definition: Object.freeze({ ...definition }),
-      state: "disabled",
+      state: this.restartRequired.has(definition.id) ? "restart-required" : "disabled",
       pending: Promise.resolve(),
     });
     this.changed();
@@ -119,11 +132,12 @@ export class PluginHost {
   }
 
   listPlugins(): PluginInfo[] {
-    return [...this.entries.values()].map(({ definition, state }) => ({
+    return [...this.entries.values()].map(({ definition, state, error }) => ({
       id: definition.id,
       name: definition.name,
       version: definition.version,
       state,
+      ...(error === undefined ? {} : { error }),
     }));
   }
 
@@ -133,7 +147,9 @@ export class PluginHost {
     return this.enqueue(entry, async () => {
       this.assertOpen();
       if (entry.removing) throw new Error("插件正在注销");
+      if (this.restartRequired.has(id)) throw new Error("插件清理未能确认完成，请重启应用后再启用");
       if (entry.state === "active") return;
+      entry.error = undefined;
       entry.state = "activating";
       this.changed();
       try {
@@ -143,13 +159,20 @@ export class PluginHost {
           instance: entry.definition.create(),
         };
         entry.activation = activation;
-        await activation.instance.activate(this.context(entry, activation));
+        await waitForLifecycle(
+          () => activation.instance.activate(this.context(entry, activation)),
+          Date.now() + ACTIVATION_TIMEOUT_MS,
+          "激活",
+          activation.controller.signal
+        );
         this.assertActive(entry, activation);
         entry.state = "active";
         this.changed();
       } catch (error) {
+        if (error instanceof LifecycleTimeoutError) this.restartRequired.add(id);
         const errors = await this.cleanup(entry);
-        entry.state = "failed";
+        entry.state = this.restartRequired.has(id) ? "restart-required" : "failed";
+        entry.error = error instanceof Error ? error.message : "插件激活失败";
         this.changed();
         if (errors.length) throw new AggregateError([error, ...errors], "插件激活与回收失败");
         throw error;
@@ -164,7 +187,9 @@ export class PluginHost {
     return this.enqueue(entry, async () => {
       entry.state = "deactivating";
       const errors = await this.cleanup(entry);
-      entry.state = "disabled";
+      entry.state = this.restartRequired.has(id) ? "restart-required" : "disabled";
+      if (errors.length) entry.error = "插件部分清理失败，需要重启应用";
+      else if (entry.state === "disabled") entry.error = undefined;
       this.changed();
       if (errors.length) throw new AggregateError(errors, "插件已停用，但部分清理失败");
     });
@@ -226,11 +251,19 @@ export class PluginHost {
     const register = (resource: Disposable): Disposable => {
       this.assertActive(entry, activation);
       let disposed = false;
+      let disposal: Promise<void> | undefined;
       const owned = {
         dispose: () => {
-          if (disposed) return;
+          if (disposed) return disposal;
           disposed = true;
-          return resource.dispose();
+          try {
+            disposal = Promise.resolve(resource.dispose());
+          } catch (error) {
+            disposal = Promise.reject(error);
+          }
+          // 作者提前调用 dispose 后，宿主仍需跟踪未完成或失败的清理。
+          void disposal.catch(() => undefined);
+          return disposal;
         },
       };
       activation.resources.push(owned);
@@ -397,19 +430,21 @@ export class PluginHost {
     if (!activation) return [];
     activation.controller.abort();
     const errors: unknown[] = [];
+    const deadline = Date.now() + CLEANUP_TIMEOUT_MS;
     try {
-      await activation.instance.deactivate?.();
+      await waitForLifecycle(() => activation.instance.deactivate?.(), deadline, "停用");
     } catch (error) {
       errors.push(error);
     }
-    for (const resource of activation.resources.reverse()) {
+    for (const resource of activation.resources.splice(0).reverse()) {
       try {
-        await resource.dispose();
+        await waitForLifecycle(() => resource.dispose(), deadline, "资源清理");
       } catch (error) {
         errors.push(error);
       }
     }
     entry.activation = undefined;
+    if (errors.length) this.restartRequired.add(entry.definition.id);
     return errors;
   }
 

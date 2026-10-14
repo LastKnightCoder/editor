@@ -133,6 +133,38 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+it("激活挂起后管理显示重启要求，重新进入详情仍不能启用", async () => {
+  const plugin = definePlugin({
+    id: "example.hanging-ui",
+    name: "挂起插件",
+    version: "1.0.0",
+    create: () => ({ activate: () => new Promise(() => undefined) }),
+  });
+  register(plugin);
+  await act(async () => useSettingsStore.getState().openSettings(`plugin:${plugin.id}:`));
+  await settle();
+  vi.useFakeTimers();
+  try {
+    const button = container.querySelector<HTMLButtonElement>(`[aria-label="启用 ${plugin.name}"]`);
+    if (!button) throw new Error("缺少启用按钮");
+    await act(async () => button.click());
+    await act(async () => vi.advanceTimersByTimeAsync(10_000));
+    expect(container.textContent).toContain("请重启应用后再启用");
+    expect(button.disabled).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+  await click("返回插件列表");
+  await click(plugin.name);
+  expect(container.textContent).toContain("请重启应用后再启用");
+  expect(
+    container.querySelector<HTMLButtonElement>(`[aria-label="启用 ${plugin.name}"]`)?.disabled
+  ).toBe(true);
+  expect(runtime.host.listPlugins().find(item => item.id === plugin.id)?.error).toContain(
+    "激活超时"
+  );
+});
+
 it("实际设置窗口注册、保存、停用清理分区与 Portal，再启用恢复", async () => {
   expect(container.textContent).not.toContain("阅读偏好（示例）");
   await open();

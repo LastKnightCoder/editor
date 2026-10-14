@@ -15,6 +15,7 @@ const labels: Record<PluginState, string> = {
   active: "已启用",
   deactivating: "正在停用",
   failed: "操作失败",
+  "restart-required": "需要重启",
 };
 
 export function PluginManagerView() {
@@ -176,15 +177,22 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
         <span className="text-tau-meta text-ink-2">{labels[plugin.state]}</span>
         <Button
           aria-label={`${plugin.state === "active" ? "停用" : "启用"} ${plugin.name}`}
-          disabled={busy || plugin.state === "activating" || plugin.state === "deactivating"}
+          disabled={
+            busy ||
+            plugin.state === "activating" ||
+            plugin.state === "deactivating" ||
+            plugin.state === "restart-required"
+          }
           onClick={() => void change()}
         >
           {plugin.state === "active" ? "停用" : "启用"}
         </Button>
       </div>
-      {error && (
+      {(error || plugin.error || plugin.state === "restart-required") && (
         <p role="alert" className="text-tau-meta text-danger">
-          {error}
+          {plugin.state === "restart-required"
+            ? "插件清理未能确认完成，请重启应用后再启用。已保存的数据保留。"
+            : error || plugin.error}
         </p>
       )}
     </div>
