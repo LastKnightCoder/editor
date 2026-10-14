@@ -46,6 +46,7 @@ it("按新信息架构渲染全部分区，页头取分区 label + description",
     "嵌入模型",
     "图片生成",
     "语音",
+    "插件",
     "关于与更新",
   ]);
   expect(header()).toContain("外观");

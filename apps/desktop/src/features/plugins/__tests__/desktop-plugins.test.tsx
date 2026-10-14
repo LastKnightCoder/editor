@@ -116,6 +116,14 @@ afterEach(async () => {
 });
 
 describe("桌面插件完整路径", () => {
+  it("开发台将启停入口交给统一插件管理", async () => {
+    expect(
+      [...activePage().querySelectorAll("button")].some(button => button.textContent === "启用")
+    ).toBe(false);
+    await click("打开插件管理");
+    expect(useSettingsStore.getState()).toMatchObject({ open: true, section: "plugins" });
+    useSettingsStore.getState().closeSettings();
+  });
   it("开发宿主按需加载设置样本，命令打开真实设置选择并随停用撤销", async () => {
     const host = currentRuntime().host;
     expect(host.getState("example.settings")).toBe("disabled");
@@ -133,11 +141,11 @@ describe("桌面插件完整路径", () => {
     useSettingsStore.getState().closeSettings();
   });
 
-  it("从开发台停用保活页面，后退不复活旧组件，重启用不重复命令", async () => {
-    await click("启用");
+  it("停用保活页面，后退不复活旧组件，重启用不重复命令", async () => {
+    await act(async () => currentRuntime().host.enable(pluginId));
     await click("打开插件页面示例");
     await act(async () => navigator.push(PLUGIN_WORKBENCH_KEY));
-    await click("停用");
+    await act(async () => currentRuntime().host.disable(pluginId));
     await act(async () => navigator.back());
     expect(activePage().textContent).toContain("插件页面暂不可用");
     await act(async () => currentRuntime().host.enable(pluginId));
@@ -183,9 +191,9 @@ describe("桌面插件完整路径", () => {
     }
   });
 
-  it("开发台启用后从真实命令源打开，页面按参数去重并沿用后退前进", async () => {
+  it("宿主启用后从真实命令源打开，页面按参数去重并沿用后退前进", async () => {
     expect(pluginPaletteCommands(currentRuntime().host)).toEqual([]);
-    await click("启用");
+    await act(async () => currentRuntime().host.enable(pluginId));
     const [command] = pluginPaletteCommands(currentRuntime().host);
     expect(command.label).toBe("打开插件页面示例");
     await act(async () => {
@@ -209,7 +217,7 @@ describe("桌面插件完整路径", () => {
   });
 
   it("偏好落盘，停用移除页面与浮层，再启用恢复当前页面", async () => {
-    await click("启用");
+    await act(async () => currentRuntime().host.enable(pluginId));
     await click("打开插件页面示例");
     const toggle = activePage().querySelector<HTMLButtonElement>('[role="switch"]');
     if (!toggle) throw new Error("缺少偏好开关");
@@ -231,7 +239,7 @@ describe("桌面插件完整路径", () => {
   });
 
   it("切库销毁旧宿主，新库偏好独立，返回原库仍可读取", async () => {
-    await click("启用");
+    await act(async () => currentRuntime().host.enable(pluginId));
     await click("打开插件页面示例");
     const oldRuntime = currentRuntime();
     const oldContext = oldRuntime.getPage(pluginId, "overview")?.context;
@@ -242,14 +250,14 @@ describe("桌面插件完整路径", () => {
     expect(oldContext.signal.aborted).toBe(true);
     await expect(oldContext.storage.set("compact", false)).rejects.toThrow();
     expect(oldRuntime.host.listCommands()).toEqual([]);
-    await click("启用");
+    await act(async () => currentRuntime().host.enable(pluginId));
     await click("打开插件页面示例");
     expect(activePage().querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe(
       "false"
     );
     await act(async () => setWorkspace("A"));
     await settle();
-    await click("启用");
+    await act(async () => currentRuntime().host.enable(pluginId));
     await click("打开插件页面示例");
     expect(activePage().querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe(
       "true"
