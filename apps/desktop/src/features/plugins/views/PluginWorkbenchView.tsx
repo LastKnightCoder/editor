@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { Button, Panel } from "@tau/ui";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
-import type { PluginState } from "@tau/plugins/host";
+import { useSettingsStore } from "@/app/settingsStore";
 import { PluginEditorWorkbench } from "./PluginEditorWorkbench";
-
-const labels: Record<PluginState, string> = {
-  disabled: "已停用",
-  activating: "正在启用",
-  active: "已启用",
-  deactivating: "正在停用",
-  failed: "启用失败",
-};
 
 export function PluginWorkbenchView() {
   const runtime = useDesktopPlugins();
@@ -38,8 +30,11 @@ export function PluginWorkbenchView() {
     <div className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-tau-title text-ink-1">插件开发台</h1>
       <p className="text-tau-body text-ink-2">
-        这里运行随开发构建提供的可信示例，不安装第三方插件。
+        这里提供可信示例的调试命令与实验编辑器。请在插件管理中启用需要的插件。
       </p>
+      <Button onClick={() => useSettingsStore.getState().openSettings("plugins")}>
+        打开插件管理
+      </Button>
       {error && (
         <p role="alert" className="text-danger text-tau-body">
           {error}
@@ -51,21 +46,9 @@ export function PluginWorkbenchView() {
             <div>
               <h2 className="text-tau-body text-ink-1 font-semibold">{plugin.name}</h2>
               <p className="text-tau-meta text-ink-2">
-                {plugin.id} · {plugin.version} · {labels[plugin.state]}
+                {plugin.id} · {plugin.version}
               </p>
             </div>
-            <Button
-              disabled={busy}
-              onClick={() =>
-                void run(() =>
-                  plugin.state === "active"
-                    ? runtime.host.disable(plugin.id)
-                    : runtime.host.enable(plugin.id)
-                )
-              }
-            >
-              {plugin.state === "active" ? "停用" : "启用"}
-            </Button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {runtime.host

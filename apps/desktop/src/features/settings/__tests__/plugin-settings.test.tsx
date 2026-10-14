@@ -11,7 +11,8 @@ import { definePage } from "@/page/definePage";
 import { settingsPlugin } from "@/features/plugins/example/settingsPlugin";
 import { SettingsScreen } from "../SettingsScreen";
 
-vi.mock("../sections", () => {
+vi.mock("../sections", async () => {
+  const { PluginManagerView } = await import("@/features/plugins/views/PluginManagerView");
   const appearance = {
     key: "appearance",
     label: "外观",
@@ -20,8 +21,31 @@ vi.mock("../sections", () => {
     component: () => <div>内置设置仍可用</div>,
   };
   return {
-    SETTINGS_SECTIONS: [appearance],
-    SETTINGS_GROUPS: [{ label: "通用", sections: [appearance] }],
+    SETTINGS_SECTIONS: [
+      appearance,
+      {
+        key: "plugins",
+        label: "插件",
+        description: "插件管理",
+        icon: () => null,
+        component: PluginManagerView,
+      },
+    ],
+    SETTINGS_GROUPS: [
+      {
+        label: "通用",
+        sections: [
+          appearance,
+          {
+            key: "plugins",
+            label: "插件",
+            description: "插件管理",
+            icon: () => null,
+            component: PluginManagerView,
+          },
+        ],
+      },
+    ],
   };
 });
 vi.mock("@/app/useFullScreen", () => ({ useFullScreen: () => false }));
@@ -113,9 +137,7 @@ it("实际设置窗口注册、保存、停用清理分区与 Portal，再启用
   expect(container.textContent).not.toContain("阅读偏好（示例）");
   await open();
   expect(useSettingsStore.getState()).toMatchObject({ open: true, section: settingKey });
-  expect(container.querySelector('nav [aria-current="page"]')?.textContent).toBe(
-    "阅读偏好（示例）"
-  );
+  expect(container.querySelector('nav [aria-current="page"]')?.textContent).toBe("插件");
   await act(async () => toggle().click());
   await settle();
   expect(toggle().getAttribute("aria-checked")).toBe("true");
@@ -335,7 +357,8 @@ it("相同局部 ID 按插件区分，重复注册拒绝，单项注销不影响
   expect(runtime.listSettings()).toHaveLength(1);
   expect(container.textContent).toContain("插件设置暂不可用");
   await expect(handle.open()).rejects.toThrow();
-  await click("阅读偏好（示例）");
+  await click("返回插件列表");
+  await click("自定义设置示例");
   expect(toggle().disabled).toBe(false);
 });
 
@@ -381,4 +404,119 @@ it("插件异步停用尚未完成时，设置组件与导航已经撤销", asyn
       await stopping;
     });
   }
+});
+
+it("统一管理入口在停用后仍可访问，通过管理页重新启用恢复保存值", async () => {
+  await act(async () => useSettingsStore.getState().openSettings("plugins"));
+  expect(
+    [...container.querySelectorAll('nav[aria-label="设置分区"] button')].filter(
+      button => button.textContent === "插件"
+    )
+  ).toHaveLength(1);
+  await click("自定义设置示例");
+  expect(container.querySelector("h2")?.textContent).toBe("自定义设置示例");
+  expect(container.textContent).toContain("已停用");
+  await click("启用");
+  await act(async () => toggle().click());
+  await settle();
+  await click("停用");
+  expect(container.querySelector('[role="switch"]')).toBeNull();
+  expect(container.querySelector("h2")?.textContent).toBe("自定义设置示例");
+  await click("返回插件列表");
+  expect(container.textContent).toContain("自定义设置示例");
+  expect(container.textContent).toContain("已停用");
+  await click("自定义设置示例");
+  await click("启用");
+  expect(toggle().getAttribute("aria-checked")).toBe("true");
+  expect(runtime.listSettings()).toHaveLength(1);
+});
+
+it("多分组只出现在插件详情，原 open 仍准确定位指定分组", async () => {
+  let second!: PluginSettingsHandle;
+  register(
+    definePlugin({
+      id: "grouped",
+      name: "分组插件",
+      version: "1",
+      create: () => ({
+        activate(ctx) {
+          ctx.settings.register({
+            id: "first",
+            title: "基础偏好",
+            component: () => <div>基础偏好内容</div>,
+          });
+          second = ctx.settings.register({
+            id: "second",
+            title: "高级偏好",
+            component: () => <div>高级偏好内容</div>,
+          });
+        },
+      }),
+    })
+  );
+  await act(async () => {
+    await runtime.host.enable("grouped");
+    await second.open();
+  });
+  expect(container.textContent).toContain("高级偏好内容");
+  expect(container.querySelector('nav[aria-label="设置分区"]')?.textContent).not.toContain(
+    "高级偏好"
+  );
+  expect(
+    container.querySelector('nav[aria-label="插件设置分组"] [aria-current="page"]')?.textContent
+  ).toBe("高级偏好");
+  await click("基础偏好");
+  expect(container.textContent).toContain("基础偏好内容");
+  expect(container.textContent).not.toContain("高级偏好内容");
+  await click("停用");
+  expect(container.querySelector('nav[aria-label="插件设置分组"]')).toBeNull();
+  await click("启用");
+  expect(container.textContent).toContain("基础偏好内容");
+});
+
+it("没有设置的插件也能管理，打开管理详情不执行插件代码，注销后仍能返回列表", async () => {
+  const activate = vi.fn();
+  register(
+    definePlugin({ id: "plain", name: "无设置插件", version: "2", create: () => ({ activate }) })
+  );
+  await act(async () => useSettingsStore.getState().openSettings("plugins"));
+  await click("无设置插件");
+  expect(activate).not.toHaveBeenCalled();
+  await click("启用");
+  expect(activate).toHaveBeenCalledTimes(1);
+  expect(container.textContent).toContain("此插件没有自定义设置");
+  await act(async () => runtime.host.unregister("plain"));
+  expect(container.textContent).toContain("此插件已不可用");
+  await click("返回插件列表");
+  expect(container.textContent).toContain("自定义设置示例");
+});
+
+it("激活失败后管理页保留错误与重试入口，不遗留半注册设置", async () => {
+  let fail = true;
+  register(
+    definePlugin({
+      id: "retry",
+      name: "可重试插件",
+      version: "1",
+      create: () => ({
+        activate(ctx) {
+          ctx.settings.register({
+            id: "main",
+            title: "重试设置",
+            component: () => <div>重试设置已恢复</div>,
+          });
+          if (fail) throw new Error("初始化失败");
+        },
+      }),
+    })
+  );
+  await act(async () => useSettingsStore.getState().openSettings("plugins"));
+  await click("可重试插件");
+  await click("启用");
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe("初始化失败");
+  expect(runtime.listSettings()).toEqual([]);
+  fail = false;
+  await click("启用");
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(container.textContent).toContain("重试设置已恢复");
 });
