@@ -37,6 +37,7 @@ import { EditText, EditTextHandle } from "@tau/ui";
 import useTheme from "../../hooks/useTheme";
 import LocalImage from "../MediaImage";
 import { handTextClass } from "../../utils/sketch";
+import { detectImageTransparency, isSvgUrl } from "../../utils/imageTransparency";
 
 const styles = {
   descriptionContainer: "flex size-full items-center overflow-visible",
@@ -100,6 +101,29 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
   const board = useBoard();
   const { isSelected } = useSelectState(id);
   const sketch = useSketch(element);
+
+  // 手绘外框只给不透明图片：透明图（SVG、带 alpha 的位图）叠框会框出一块空白；判定出来之前不画框
+  const [loaded, setLoaded] = useState<{ url: string; resolved: string } | null>(null);
+  const [transparency, setTransparency] = useState<{ url: string; value: boolean } | null>(null);
+  const svg = isSvgUrl(src);
+  const showSketchFrame =
+    sketch.enabled && !svg && transparency?.url === src && !transparency.value;
+
+  useEffect(() => {
+    if (!sketch.enabled || svg || loaded?.url !== src) return;
+    let alive = true;
+    detectImageTransparency(loaded.resolved).then(value => {
+      if (alive) setTransparency({ url: loaded.url, value });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [sketch.enabled, svg, loaded, src]);
+
+  const handleImageLoad = useMemoizedFn((event: React.SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
+    setLoaded({ url: src, resolved: image.currentSrc || image.src });
+  });
 
   const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } =
     useDropArrow(element);
@@ -285,6 +309,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
       >
         <LocalImage
           url={src}
+          onLoad={handleImageLoad}
           alt={description}
           width={width}
           height={height}
@@ -297,7 +322,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           }}
         />
       </foreignObject>
-      {sketch.enabled && (
+      {showSketchFrame && (
         <SketchRect
           x={x}
           y={y}
