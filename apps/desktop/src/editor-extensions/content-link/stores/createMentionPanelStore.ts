@@ -3,10 +3,7 @@ import { Editor } from "slate";
 import { SearchResult } from "@/types";
 import { wrapContentLink } from "../components/utils";
 import { cleanupMentionPanel } from "../plugins/withMentionCommands";
-import {
-  IMentionPanelState,
-  IMentionPanelActions,
-} from "./MentionPanelContext";
+import { IMentionPanelState, IMentionPanelActions } from "./MentionPanelContext";
 
 const defaultPanelState: IMentionPanelState = {
   mentionPanelVisible: false,
@@ -16,6 +13,7 @@ const defaultPanelState: IMentionPanelState = {
   },
   activeIndex: 0,
   inputValue: "",
+  trigger: "@",
   searchResults: [],
   loading: false,
 };
@@ -46,14 +44,13 @@ export const createMentionPanelStore = (editor: Editor) => {
         });
       } else {
         set({
-          activeIndex:
-            (activeIndex + searchResults.length - 1) % searchResults.length,
+          activeIndex: (activeIndex + searchResults.length - 1) % searchResults.length,
         });
       }
     },
 
     selectItem: (selectIndex: number) => {
-      const { searchResults, inputValue, reset } = get();
+      const { searchResults, inputValue, trigger, reset } = get();
       if (searchResults.length === 0) return;
 
       const deleteCount = inputValue.length;
@@ -62,15 +59,8 @@ export const createMentionPanelStore = (editor: Editor) => {
       }
 
       const item = searchResults[selectIndex];
-      const displayText = item.title || inputValue.slice(1);
-      wrapContentLink(
-        editor,
-        item.contentId,
-        item.type,
-        item.title,
-        item.id,
-        displayText,
-      );
+      const displayText = item.title || inputValue.slice(trigger.length);
+      wrapContentLink(editor, item.contentId, item.type, item.title, item.id, displayText);
 
       reset();
       // 卸载面板
