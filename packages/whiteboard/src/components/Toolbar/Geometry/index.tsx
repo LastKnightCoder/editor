@@ -28,7 +28,7 @@ function ShapeGlyph({ geometryType }: { geometryType: string }) {
   );
 }
 
-/** 形状：点开是四格图块（矩形 / 圆形 / 心形 / 三角形），选中后在画布上拖出 */
+/** 形状：点开是形状图块（每行 5 格），选中后在画布上拖出 */
 const Geometry = memo(({ run }: WhiteboardToolProps) => {
   const board = useBoard();
   const [open, setOpen] = useState(false);
@@ -81,7 +81,7 @@ const Geometry = memo(({ run }: WhiteboardToolProps) => {
         </ChromeButton>
       }
     >
-      <div {...stopCanvasEvents} className="grid grid-cols-4 gap-1 p-1.5">
+      <div {...stopCanvasEvents} className="grid grid-cols-5 gap-1 p-1.5">
         {geometryItems.map(item => (
           <button
             key={item.geometryType}
