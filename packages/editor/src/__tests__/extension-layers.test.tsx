@@ -27,6 +27,7 @@ it("无服务的最小 Kit 可输入、清空回补段落，不安装产品能�
     const editor = ref.current?.getEditor();
     if (!editor) throw new Error("编辑器未挂载");
     expect(host.querySelector("[data-slate-editor]")?.getAttribute("contenteditable")).toBe("true");
+    expect(ref.current?.getEditableElement()).toBe(host.querySelector("[data-slate-editor]"));
     await act(async () => {
       Transforms.select(editor, SlateEditor.start(editor, []));
       editor.insertText("基础输入");
