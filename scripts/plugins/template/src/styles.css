@@ -1,0 +1,9 @@
+/* 资源随 CSS 内联，不依赖宿主扫描插件源码或访问作者文件目录。 */
+.example-counter::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: var(--tau-accent);
+  mask: url("./counter.svg") center / contain no-repeat;
+}

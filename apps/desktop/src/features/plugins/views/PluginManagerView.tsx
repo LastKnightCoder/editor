@@ -5,6 +5,9 @@ import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import { useSettingsStore } from "@/app/settingsStore";
 import { PluginSettingsView } from "./PluginSettingsView";
+import { isElectron } from "@/electron";
+import { chooseDevelopmentPlugin } from "@/commands/plugin-development";
+import { registerDevelopmentPlugin } from "@/app/plugins/development-loader";
 
 const labels: Record<PluginState, string> = {
   disabled: "已停用",
@@ -39,6 +42,7 @@ export function PluginManagerView() {
   if (!plugin)
     return (
       <div className="space-y-4">
+        {import.meta.env.DEV && isElectron && <DevelopmentPluginImport runtime={runtime} />}
         {plugins.length === 0 && <p className="text-tau-body text-ink-2">当前没有可管理的插件</p>}
         {plugins.map(item => (
           <Panel key={item.id}>
@@ -111,6 +115,43 @@ export function PluginManagerView() {
         </>
       )}
     </div>
+  );
+}
+
+function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const choose = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const artifact = await chooseDevelopmentPlugin();
+      if (artifact)
+        registerDevelopmentPlugin(
+          runtime.host,
+          artifact,
+          async () => (await import("@/app/plugins/shared-modules")).sharedPluginModules
+        );
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "读取插件失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Panel>
+      <p className="text-tau-body text-ink-2 mb-3">
+        开发插件与应用共享运行环境，仅选择你信任的代码。选择目录后默认停用，启用时才执行。
+      </p>
+      <Button loading={busy} onClick={() => void choose()}>
+        选择开发插件目录
+      </Button>
+      {error && (
+        <p role="alert" className="text-tau-meta text-danger mt-2">
+          {error}
+        </p>
+      )}
+    </Panel>
   );
 }
 
