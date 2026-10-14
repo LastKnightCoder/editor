@@ -5,8 +5,8 @@
  * 可选动作；无关闭钮——整条点击关闭（Sonner 惯例），悬停冻结自动关闭，
  * 同一位置上限 4 条（挤掉最老）。
  * 位置四选一：top-center（默认）/ top-right / bottom-right / bottom-center，
- * 全局默认可经 toast.config 调整、单条可覆写；层级 z-[200]，高于命令面板
- * （z-[101]），搜索报错等反馈在面板打开时仍可见。不接 Esc（浮层退场注册表
+ * 全局默认可经 toast.config 调整、单条可覆写；层级 z-[360]，高于命令面板
+ * （z-[101]）与 Dialog / Drawer（z-[340]），面板或弹窗打开时操作反馈仍可见。不接 Esc（浮层退场注册表
  * 只登记阻断后退的浮层，见 D-003）。
  *
  * 用法：app 壳层挂载 <ToastHost /> 一次；任意处调用 toast.success("已保存")、
@@ -201,7 +201,7 @@ export function ToastHost() {
           <div
             key={pos}
             className={clsx(
-              "pointer-events-none fixed z-[200] flex flex-col gap-[9px]",
+              "pointer-events-none fixed z-[360] flex flex-col gap-[9px]",
               POSITION_ZONE[pos]
             )}
           >

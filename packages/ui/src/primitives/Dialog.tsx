@@ -30,7 +30,7 @@
  *
  * 尺寸档是预设不是牢笼（D-011）：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖；
  * 高度默认随内容（上限 78vh），height 定高（仍不超 82vh）。
- * 层级：遮罩容器 z-[340]（Toast 200 < Select/Menu 250 < Tooltip 300 之上）。
+ * 层级：遮罩容器 z-[340]（Select/Menu 250 < Tooltip 300 之上，Toast 360 之下——弹窗里的操作反馈须可见）。
  */
 
 import {
