@@ -1,5 +1,5 @@
 import type { ToolParameterSchema } from "@/types";
-import { nodeFetch } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import type { MCPProviderDefinition } from "./types";
 
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
@@ -39,15 +39,13 @@ const bytesToBase64 = (bytes: Uint8Array) => {
 };
 
 const readRemoteImage = async (url: string) => {
-  const response = (await nodeFetch(url, {
-    method: "GET",
-    responseType: "arraybuffer",
-    isRaw: true,
-  })) as { data?: ArrayBuffer | Uint8Array; headers?: Record<string, string> };
-  const data = response.data ?? (response as unknown as ArrayBuffer);
-  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
-  const contentType =
-    response.headers?.["content-type"] || response.headers?.["Content-Type"] || "";
+  const response = await desktopFetch(url);
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(`图片下载失败: ${response.status}`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const contentType = response.headers.get("content-type") ?? "";
   const mimeType = contentType
     .split(";")[0]
     .trim()

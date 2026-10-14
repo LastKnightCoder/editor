@@ -7,7 +7,7 @@ import {
   readTextFile,
   getFileBaseName,
   getSep,
-  nodeFetch,
+  desktopFetch,
   getHomeDir,
   generateCacheKey,
   webdavDownload,
@@ -136,9 +136,8 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   } else {
     console.log("使用普通 HTTP 下载:", url);
     // 使用普通 HTTP 下载
-    remoteContent = (await nodeFetch(url, {
+    const response = await desktopFetch(url, {
       method: "GET",
-      responseType: "arraybuffer",
       // 微信公众号图片，需要特殊处理
       headers: url.startsWith("https://mmbiz.qpic.cn")
         ? {
@@ -146,7 +145,12 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
             Referer: "https://mp.weixin.qq.com/",
           }
         : undefined,
-    })) as unknown as ArrayBuffer;
+    });
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(`资源下载失败: ${response.status}`);
+    }
+    remoteContent = await response.arrayBuffer();
   }
 
   const ext = await getFileExtension(url);

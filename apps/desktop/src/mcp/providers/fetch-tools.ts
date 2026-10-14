@@ -1,13 +1,6 @@
 import type { ToolParameterSchema } from "@/types";
-import { nodeFetch } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import type { MCPProviderDefinition } from "./types";
-
-interface AxiosResponse {
-  data: unknown;
-  status: number;
-  statusText: string;
-  headers: Record<string, string>;
-}
 
 export const fetchToolsProvider: MCPProviderDefinition = {
   id: "fetch-tools",
@@ -44,25 +37,21 @@ export const fetchToolsProvider: MCPProviderDefinition = {
         }
         try {
           const method = (args.method as string | undefined) ?? "GET";
-          const options: Record<string, unknown> = {
+          const options: RequestInit = {
             method,
             headers: (args.headers as Record<string, string> | undefined) ?? {},
-            timeout: (args.timeout as number | undefined) ?? 30000,
-            isRaw: true,
+            signal: AbortSignal.timeout((args.timeout as number | undefined) ?? 30000),
           };
-          if (args.body && !["GET", "HEAD"].includes(method)) options.data = args.body;
-          const response = (await nodeFetch(url, options)) as AxiosResponse;
+          if (args.body && !["GET", "HEAD"].includes(method)) options.body = String(args.body);
+          const response = await desktopFetch(url, options);
           return {
             content: JSON.stringify(
               {
-                success: true,
+                success: response.ok,
                 status: response.status,
                 statusText: response.statusText,
-                headers: response.headers,
-                body:
-                  typeof response.data === "string"
-                    ? response.data
-                    : JSON.stringify(response.data, null, 2),
+                headers: Object.fromEntries(response.headers),
+                body: await response.text(),
               },
               null,
               2

@@ -46,6 +46,7 @@ export interface PluginContext {
   readonly pages: PluginPages;
   readonly editor: PluginEditor;
   readonly settings: PluginSettings;
+  readonly fetch: typeof globalThis.fetch;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

@@ -6,6 +6,7 @@ import settingModule from "../modules/setting";
 import resourceModule from "../modules/resource";
 import fileModule from "../modules/file";
 import extraModule from "../modules/extra";
+import fetchModule from "../modules/fetch";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
@@ -117,6 +118,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     dependencies: ["logger"],
     init: () => extraModule.init(),
   },
+  { name: "fetch", layer: InitLayer.BACKGROUND, dependencies: [], init: () => fetchModule.init() },
 
   // === 应用级能力：与窗口无关，随应用后台并行初始化 ===
   // 初始化只注册 handler/建目录，重活延后执行，不依赖窗口入口。

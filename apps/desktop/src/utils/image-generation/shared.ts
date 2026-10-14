@@ -1,5 +1,5 @@
 import { getFileExtension, readBinaryFile } from "@/commands/file";
-import { nodeFetch } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import { resolveLocalMediaPath } from "../localMediaPath";
 import type { ImageProviderConfig, ImageResult } from "@/types/imageGeneration";
 
@@ -127,15 +127,13 @@ export const createImageFile = (
 };
 
 export const fetchRemoteImage = async (url: string) => {
-  const response = (await nodeFetch(url, {
-    method: "GET",
-    responseType: "arraybuffer",
-    isRaw: true,
-  })) as { data?: ArrayBuffer | Uint8Array; headers?: Record<string, string> };
-  const data = response.data ?? (response as unknown as ArrayBuffer);
-  const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
-  const contentType =
-    response.headers?.["content-type"] || response.headers?.["Content-Type"] || "";
+  const response = await desktopFetch(url);
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(`图片下载失败: ${response.status}`);
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const contentType = response.headers.get("content-type") ?? "";
   const mimeType = contentType.split(";")[0].trim().toLowerCase();
   if (!extensionFromMimeType(mimeType)) {
     throw new Error("远程图片格式不受支持，仅支持 png、jpeg、webp");

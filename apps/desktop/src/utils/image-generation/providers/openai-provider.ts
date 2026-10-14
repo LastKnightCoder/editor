@@ -5,7 +5,7 @@ import type {
   ImageGenerateParams,
   ImageEditParams,
 } from "@/types/imageGeneration";
-import { nodeFetch } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import {
   bananaLog,
   buildOpenAIImageRequest,
@@ -13,71 +13,7 @@ import {
   parseOpenAIImageResponse,
 } from "@/utils/image-generation/shared";
 
-interface NodeFetchRawResponse {
-  data?: unknown;
-  status?: number;
-  statusText?: string;
-  headers?: Record<string, string | string[] | undefined>;
-}
-
 const IMAGE_REQUEST_TIMEOUT_MS = 300_000;
-
-const toResponseBody = (data: unknown): BodyInit => {
-  if (data instanceof Uint8Array) {
-    // IPC 数据必为 ArrayBuffer 背景，收窄以满足 BodyInit
-    return data as Uint8Array<ArrayBuffer>;
-  }
-  if (data instanceof ArrayBuffer) {
-    return data;
-  }
-  if (Array.isArray(data)) {
-    return new Uint8Array(data);
-  }
-  if (data && typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
-    return new Uint8Array((data as { data: number[] }).data);
-  }
-  if (typeof data === "string") {
-    return data;
-  }
-  return JSON.stringify(data ?? "");
-};
-
-const normalizeHeaders = (headers: NodeFetchRawResponse["headers"] = {}): Headers => {
-  const normalized = new Headers();
-  Object.entries(headers).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
-      normalized.set(key, value.join(", "));
-      return;
-    }
-    if (typeof value === "string") {
-      normalized.set(key, value);
-    }
-  });
-  return normalized;
-};
-
-const createResponseFromNodeFetch = (raw: NodeFetchRawResponse): Response =>
-  new Response(toResponseBody(raw.data), {
-    status: raw.status ?? 200,
-    statusText: raw.statusText ?? "",
-    headers: normalizeHeaders(raw.headers),
-  });
-
-const arrayBufferToBase64 = (arrayBuffer: ArrayBuffer) => {
-  const bytes = new Uint8Array(arrayBuffer);
-  let binary = "";
-  for (let index = 0; index < bytes.length; index += 1) {
-    binary += String.fromCharCode(bytes[index]);
-  }
-  return btoa(binary);
-};
-
-const fileToMultipartPayload = async (file: File, index: number) => ({
-  fieldName: "image[]",
-  fileName: file.name || `image-${index + 1}.png`,
-  mimeType: file.type || "application/octet-stream",
-  base64: arrayBufferToBase64(await file.arrayBuffer()),
-});
 
 /**
  * OpenAI 兼容 API 的图片生成提供商实现
@@ -105,20 +41,17 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       apiKeyConfigured: Boolean(config.apiKey?.trim()),
     });
 
-    const rawResponse = (await nodeFetch(request.url, {
+    const response = await desktopFetch(request.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
       },
-      data: JSON.stringify(request.body),
-      responseType: "arraybuffer",
-      isRaw: true,
-      allowHttpErrorStatus: true,
-      timeoutMs: IMAGE_REQUEST_TIMEOUT_MS,
-      signal,
-    })) as NodeFetchRawResponse;
-    const response = createResponseFromNodeFetch(rawResponse);
+      body: JSON.stringify(request.body),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+        : AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS),
+    });
 
     const { payload, rawText, binaryResult } = await parseImageHttpResponse(response);
 
@@ -178,24 +111,21 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       apiKeyConfigured: Boolean(config.apiKey?.trim()),
     });
 
-    const rawResponse = (await nodeFetch(request.url, {
+    const body = new FormData();
+    Object.entries(request.body).forEach(([key, value]) => body.append(key, String(value)));
+    imageFiles.forEach((file, index) =>
+      body.append("image[]", file, file.name || `image-${index + 1}.png`)
+    );
+    const response = await desktopFetch(request.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
       },
-      multipart: {
-        fields: Object.fromEntries(
-          Object.entries(request.body).map(([key, value]) => [key, String(value)])
-        ),
-        files: await Promise.all(imageFiles.map(fileToMultipartPayload)),
-      },
-      responseType: "arraybuffer",
-      isRaw: true,
-      allowHttpErrorStatus: true,
-      timeoutMs: IMAGE_REQUEST_TIMEOUT_MS,
-      signal,
-    })) as NodeFetchRawResponse;
-    const response = createResponseFromNodeFetch(rawResponse);
+      body,
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+        : AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS),
+    });
 
     const { payload, rawText, binaryResult } = await parseImageHttpResponse(response);
 

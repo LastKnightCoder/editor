@@ -44,6 +44,14 @@
 
 开发台按贡献集合变化重建 Slate 实例，保存并恢复原始正文、历史与选区；组件本地状态、焦点和在途操作不迁移。详情及可复现路径见 [C04](../../docs/plugin-system/13-C04编辑器扩展接入.md)。
 
+## 标准 fetch
+
+context.fetch 的类型直接是 typeof globalThis.fetch，使用 RequestInit、Request、Headers、FormData、Response 与 AbortSignal。非 2xx 正常返回，正文通过 json/text/blob/arrayBuffer/formData 或 body 流读取；超时由调用方使用 AbortSignal.timeout。没有 PluginHttpMethod、JSON DTO、连接 ID 或额外传输限制。
+
+宿主注入 fetch 执行器；SDK 只将激活期 signal 与调用方信号合并，停用取消请求及响应流。桌面底层使用主进程原生 fetch，通过内部 IPC 按需传输；旧 nodeFetch 及其选项/IPC/消费者已迁移，不保留兼容层。内部 hasBody 等元信息不导出为作者 API。
+
+执行环境是宿主 Node，不自动继承页面 Cookie/CORS；认证由业务负责。微信读书样本通过业务依赖取得已有账号配置并以标准请求头认证，不在 SDK 增加全局凭证接口。支持二进制、multipart 与流，见 [C06](../../docs/plugin-system/15-C06真实服务API与微信读书书单.md)。实际账号尚未联调。
+
 ## 数据和并发
 
 存储只有异步 get/set/delete，数据是 JSON 副本，按工作区和插件隔离。当前不提供通用事务、SQL 或全局设置对象。get 后 set 不承诺原子读改写；如果将来需要并发计数等场景，再设计相应的版本检查或事务 API，不伪造保证。

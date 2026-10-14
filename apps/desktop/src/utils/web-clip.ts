@@ -1,4 +1,4 @@
-import { nodeFetch } from "@/commands";
+import { desktopFetch } from "@/commands";
 import { RequestMessage } from "@/types";
 import { CONVERT_PROMPT, Role } from "@/constants";
 import { piCompleteChat } from "@/services/piLLM";
@@ -78,11 +78,15 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
 };
 
 export const webClipFromUrl = async (url: string): Promise<WebClipResult> => {
-  const res = await nodeFetch(url, {
+  const res = await desktopFetch(url, {
     method: "GET",
   });
 
-  const html = getContentHTML(res as string);
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw new Error(`网页读取失败: ${res.status}`);
+  }
+  const html = getContentHTML(await res.text());
   const convertRes = await convertHTMLToMarkdown(html);
 
   if (!convertRes)
