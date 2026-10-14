@@ -14,6 +14,7 @@ import {
   FileText,
   Globe,
   Presentation,
+  PersonStanding,
 } from "lucide-react";
 import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import { IResourceService } from "@tau/shared/host-services";
@@ -33,6 +34,7 @@ import { resolveBoardAccess } from "./access";
 import { createSnapshotReader } from "./snapshot";
 import { withInternalPlugins, type InternalContributions } from "./internal";
 import { geometryCreateSpec } from "./creators/geometry";
+import { stickmanCreateSpec } from "./creators/stickman";
 import { arrowCreateSpec } from "./creators/arrow";
 import { handwriteCreateSpec } from "./creators/handwrite";
 import { frameCreateSpec } from "./creators/frame";
@@ -60,6 +62,7 @@ import { ChromeButton } from "../chrome";
 import {
   SELECT_TOOL_ID,
   GEOMETRY_TOOL_ID,
+  STICKMAN_TOOL_ID,
   ARROW_TOOL_ID,
   HANDWRITE_TOOL_ID,
   RICHTEXT_TOOL_ID,
@@ -70,6 +73,7 @@ import {
 import {
   ArrowPlugin,
   GeometryPlugin,
+  StickmanPlugin,
   HandwritePlugin,
   DocumentPlugin,
   isDocumentElement,
@@ -90,6 +94,7 @@ import {
 } from "../plugins";
 import { createInteractionContributions } from "./interactionCommands";
 import GeometryTool from "../components/Toolbar/Geometry";
+import StickmanTool from "../components/Toolbar/Stickman";
 import ArrowTool from "../components/Toolbar/Arrow";
 import HandwriteTool from "../components/Toolbar/Handwrite";
 import ArrowSourceSnapPreview from "../components/ArrowSourceSnapPreview";
@@ -98,6 +103,7 @@ import FrameTool from "../components/Toolbar/Frame";
 import ColumnTool from "../components/Toolbar/Column";
 import RichTextSetter from "../components/AttributeSetter/RichTextSetter";
 import GeometrySetter from "../components/AttributeSetter/GeometrySetter";
+import StickmanSetter from "../components/AttributeSetter/StickmanSetter";
 import ArrowSetter from "../components/AttributeSetter/ArrowSetter";
 import HandwriteSetter from "../components/AttributeSetter/HandwriteSetter";
 import MindSetter from "../components/AttributeSetter/MindMapSetter";
@@ -285,6 +291,24 @@ export function createGeometryExtension(
       },
     ],
     inspectors: { geometry: GeometrySetter },
+  });
+}
+/** 人物（火柴人）：姿态数据现算图形，跟随页级手绘与主题明暗 */
+export function createStickmanExtension() {
+  return builtin("tau.stickman", () => [new StickmanPlugin()], {
+    creators: { stickman: stickmanCreateSpec },
+    tools: [
+      {
+        id: STICKMAN_TOOL_ID,
+        element: "stickman",
+        order: 15,
+        group: "drawing",
+        label: "人物",
+        icon: PersonStanding,
+        component: StickmanTool,
+      },
+    ],
+    inspectors: { stickman: StickmanSetter },
   });
 }
 export function createArrowExtension(kit: TextExtensionOptions["kit"] = embeddedTextOptions.kit) {
@@ -790,6 +814,7 @@ export function createStandardWhiteboardExtensions(): WhiteboardExtension[] {
   return [
     createArrowExtension(),
     createGeometryExtension(),
+    createStickmanExtension(),
     createHandwriteExtension(),
     createRichTextExtension(),
     createImageExtension(),
