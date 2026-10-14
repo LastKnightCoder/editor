@@ -20,6 +20,7 @@ export * from "./white-board";
 export * from "./chat-message";
 export * from "./vec-document";
 export * from "./extra";
+export * from "./fetch";
 export * from "./window";
 export * from "./operation";
 export * from "./fts";

@@ -1,6 +1,5 @@
-import { invoke, send } from "@/electron";
+import { invoke } from "@/electron";
 import { platform } from "@/platform";
-import { v4 as uuidv4 } from "uuid";
 import type { SaveFileWithDialogPayload, SaveFileWithDialogResult } from "@/types";
 
 export const openExternal = async (url: string) => {
@@ -10,56 +9,6 @@ export const openExternal = async (url: string) => {
 /** 通知主进程渲染侧退出准备完成，可以继续退出流程 */
 export const notifyAppQuittingReady = async () => {
   return await invoke("app:quitting-ready");
-};
-
-const createAbortError = () => {
-  const error = new Error("nodeFetch aborted");
-  error.name = "AbortError";
-  return error;
-};
-
-const createNodeFetchRequestId = () => `node-fetch:${uuidv4()}`;
-
-export interface NodeFetchRawResponse<T = unknown> {
-  data: T;
-  status: number;
-  statusText: string;
-  headers: Record<string, string | string[] | number | boolean | null>;
-  finalUrl: string;
-}
-
-export const nodeFetch = async <T = unknown>(
-  url: string,
-  options: Record<string, unknown> & { signal?: AbortSignal } = {}
-): Promise<T> => {
-  const { signal, ...serializableOptions } = options;
-  if (!signal) {
-    return await invoke("node-fetch", url, serializableOptions);
-  }
-
-  if (signal.aborted) {
-    throw createAbortError();
-  }
-
-  const requestId = createNodeFetchRequestId();
-  const handleAbort = () => {
-    send("node-fetch:abort", { requestId });
-  };
-
-  signal.addEventListener("abort", handleAbort, { once: true });
-  try {
-    return await invoke("node-fetch", url, {
-      ...serializableOptions,
-      requestId,
-    });
-  } catch (error) {
-    if (signal.aborted) {
-      throw createAbortError();
-    }
-    throw error;
-  } finally {
-    signal.removeEventListener("abort", handleAbort);
-  }
 };
 
 export const getVersions = async () => {

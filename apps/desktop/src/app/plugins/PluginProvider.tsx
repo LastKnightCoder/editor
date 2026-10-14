@@ -5,6 +5,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { DesktopPluginRuntime } from "./runtime";
 import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { useSettingsStore } from "../settingsStore";
+import { desktopFetch } from "@/commands/fetch";
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   const { navigator } = usePage();
@@ -20,19 +21,36 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       import("@/features/plugins/example/editorPlugin"),
       import("./editorComposition"),
       import("@/features/plugins/example/settingsPlugin"),
+      import("@/features/plugins/weread/plugin"),
     ])
-      .then(([{ notesPlugin }, { editorPlugin }, { composePluginEditor }, { settingsPlugin }]) => {
-        if (cancelled) return;
-        current = new DesktopPluginRuntime({
-          workspaceId,
-          navigator,
-          storage: createBrowserStorage(window.localStorage),
-          plugins: [notesPlugin, editorPlugin, settingsPlugin],
-          validateEditor: composePluginEditor,
-          openSettings: key => useSettingsStore.getState().openSettings(key),
-        });
-        setRuntime(current);
-      })
+      .then(
+        ([
+          { notesPlugin },
+          { editorPlugin },
+          { composePluginEditor },
+          { settingsPlugin },
+          { createWeReadPlugin },
+        ]) => {
+          if (cancelled) return;
+          current = new DesktopPluginRuntime({
+            workspaceId,
+            navigator,
+            storage: createBrowserStorage(window.localStorage),
+            plugins: [
+              notesPlugin,
+              editorPlugin,
+              settingsPlugin,
+              createWeReadPlugin(() =>
+                useSettingStore.getState().setting.integration.weread.apiKey.trim()
+              ),
+            ],
+            fetch: desktopFetch,
+            validateEditor: composePluginEditor,
+            openSettings: key => useSettingsStore.getState().openSettings(key),
+          });
+          setRuntime(current);
+        }
+      )
       .catch(error => {
         if (!cancelled) setError(error instanceof Error ? error.message : "插件开发台初始化失败");
       });

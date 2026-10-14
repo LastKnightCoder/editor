@@ -12,7 +12,6 @@ import type {
 import { assertLocalId, copyJson } from "./values";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
-
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage } from "./browser-storage";
@@ -82,6 +81,7 @@ export class PluginHost {
       pages?: PagesAdapter;
       editor?: EditorAdapter;
       settings?: SettingsAdapter;
+      fetch?: typeof globalThis.fetch;
     }
   ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
@@ -243,6 +243,21 @@ export class PluginHost {
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,
+      fetch: async (input, init) => {
+        this.assertActive(entry, activation);
+        const execute = this.options.fetch;
+        if (!execute) throw new Error("当前宿主不支持 fetch");
+        const source =
+          init?.signal === undefined && input instanceof Request ? input.signal : init?.signal;
+        const signal = AbortSignal.any([scope.signal, ...(source ? [source] : [])]);
+        const response = await execute(input, { ...init, signal });
+        if (signal.aborted) {
+          void response.body?.cancel().catch(() => undefined);
+          signal.throwIfAborted();
+        }
+        this.assertActive(entry, activation);
+        return response;
+      },
       settings: Object.freeze({
         register: (definition: PluginSettingsDefinition) => {
           this.assertActive(entry, activation);

@@ -1,6 +1,27 @@
 if (typeof window !== "undefined") await import("vitest-canvas-mock");
 import log from "electron-log";
 
+// JSDOM 尚缺 AbortSignal.any；生产 Electron 使用原生实现。
+if (typeof window !== "undefined" && typeof AbortSignal.any !== "function") {
+  AbortSignal.any = (signals: AbortSignal[]) => {
+    const controller = new AbortController();
+    const cleanups: Array<() => void> = [];
+    for (const signal of signals) {
+      const abort = () => {
+        controller.abort(signal.reason);
+        cleanups.forEach(cleanup => cleanup());
+      };
+      if (signal.aborted) {
+        abort();
+        break;
+      }
+      signal.addEventListener("abort", abort, { once: true });
+      cleanups.push(() => signal.removeEventListener("abort", abort));
+    }
+    return controller.signal;
+  };
+}
+
 // React 18+ act() 环境声明：集中配置，测试文件不再各自散落重复
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

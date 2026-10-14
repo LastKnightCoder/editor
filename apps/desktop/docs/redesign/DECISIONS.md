@@ -1,5 +1,15 @@
 # 决策记录（轻量 ADR）
 
+## D-144 统一标准 fetch，移除旧 nodeFetch 与中间 HTTP 契约
+
+（2026-10-14，按用户最终确认调整 C06 未提交草案）
+
+- 公共 API 仅为 context.fetch，类型使用原生 fetch/RequestInit/Response；移除 PluginHttpMethod、连接认证、JSON DTO 和额外传输限制，不建立另一套 HTTP 协议。
+- 新 BACKGROUND fetch 模块调用主进程原生 fetch，内部 IPC 按需传输请求/响应流与元信息；renderer 使用原生 Request/Response 编解码并恢复 URL、redirected 与宿主完整响应头。取消传到执行端；普通窗口退出回收，keepalive 按显式意图完成。hasBody 只在内部自动表示是否有流，不进入 SDK。
+- 旧 nodeFetch 函数、DTO、IPC 与 Axios 包装删除，微信读书、B 站、图片、资源、剪藏、学习资料及 MCP 调用直接迁移，不保留兼容层。业务超时使用 AbortSignal.timeout，二进制/FormData/流使用标准 Body API。
+- 执行环境为宿主 Node，不自动继承渲染页面 Cookie/CORS；显式 Cookie/Referer 与 Set-Cookie 不能被 Chromium 构造阶段过滤丢失，采用真实 Electron 隐藏窗口行为测试守护，不做视觉走查。
+- 微信读书最小样本仅手动读取笔记书单、分页/刷新/取消；通过业务依赖取得已有账号配置并自行设置 Authorization，公共 SDK 不提供全局凭证或连接体系。不迁移业务数据和凭证，第三方隔离与授权仍属后续阶段。
+
 ## D-143 插件管理常驻，插件设置收拢到各自详情页
 
 （2026-10-14，用户确认，调整 D-142 的入口组织）

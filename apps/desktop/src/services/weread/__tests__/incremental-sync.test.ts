@@ -3,8 +3,13 @@ import useSettingStore from "@/stores/useSettingStore";
 import type { Metadata } from "@/types/weread";
 import weReadService from "..";
 
-const { nodeFetchMock } = vi.hoisted(() => ({ nodeFetchMock: vi.fn() }));
-vi.mock("@/commands/extra", () => ({ nodeFetch: nodeFetchMock }));
+const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }));
+vi.mock("@/commands/fetch", () => ({
+  desktopFetch: async (...args: unknown[]) => {
+    const result = await fetchMock(...args);
+    return new Response(JSON.stringify(result.data), { status: result.status });
+  },
+}));
 
 type Body = { api_name: string; bookId?: string };
 
@@ -54,7 +59,8 @@ const cachedMeta = (
 let failDetail = new Set<string>();
 
 function route() {
-  nodeFetchMock.mockImplementation(async (_url: string, { data }: { data: Body }) => {
+  fetchMock.mockImplementation(async (_url: string, { body }: { body: string }) => {
+    const data: Body = JSON.parse(body);
     switch (data.api_name) {
       case "/shelf/sync":
         return { status: 200, data: shelf };
@@ -79,8 +85,8 @@ function route() {
 }
 
 const detailCalls = () =>
-  nodeFetchMock.mock.calls
-    .map(([, arg]) => arg.data as Body)
+  fetchMock.mock.calls
+    .map(([, arg]) => JSON.parse(arg.body) as Body)
     .filter(b => b.api_name === "/book/info")
     .map(b => b.bookId)
     .sort();

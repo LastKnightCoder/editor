@@ -17,7 +17,7 @@ import { EntityPicker } from "@/components/EntityPicker";
 import type { EntityCandidate, EntityKind } from "@/types/entity";
 import { createVLResource, addVLIndexTask, ensureVLNoteResource } from "@/commands/vibe-learning";
 import { uploadResource } from "@/hooks/useUploadResource";
-import { nodeFetch } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import { createSmartExtractProvider } from "@/utils/web-clipper/providers";
 import { collectClipStream } from "@/utils/web-clipper/stream";
 import { Webview } from "@tau/shared";
@@ -385,9 +385,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       let html: string | null = null;
       let pageTitle: string | null = null;
 
-      // 1. 先尝试使用 nodeFetch 快速获取网页内容
+      // 1. 先尝试使用 desktopFetch 快速获取网页内容
       try {
-        const response = await nodeFetch(url.trim(), {
+        const response = await desktopFetch(url.trim(), {
           method: "GET",
           headers: {
             "User-Agent":
@@ -397,14 +397,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           },
         });
 
-        // nodeFetch 默认返回 res.data，对于 HTML 请求就是字符串
-        const fetchedHtml = typeof response === "string" ? response : String(response);
+        if (!response.ok) {
+          await response.body?.cancel();
+          throw new Error(`网页读取失败: ${response.status}`);
+        }
+        const fetchedHtml = await response.text();
         if (fetchedHtml && fetchedHtml.trim().length > 0) {
           html = fetchedHtml;
           pageTitle = extractTitleFromHtml(html);
         }
       } catch (fetchErr) {
-        console.log("nodeFetch failed, will try webview:", fetchErr);
+        console.log("desktopFetch failed, will try webview:", fetchErr);
       }
 
       // 2. 如果 fetch 失败或内容过少（可能是 SPA），使用 Webview 加载

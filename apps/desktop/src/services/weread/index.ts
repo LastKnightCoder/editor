@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import useSettingStore from "@/stores/useSettingStore";
-import { nodeFetch } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import {
   chaptersFromHighlights,
   parseChapterHighlightReview,
@@ -45,13 +45,6 @@ type GatewayEnvelope<T> = T & {
 
 type WeReadBookDetail = BookDetailResponse & {
   wordCount?: number;
-};
-
-type NodeFetchRawResponse<T> = {
-  data: T;
-  status: number;
-  statusText?: string;
-  headers?: Record<string, unknown>;
 };
 
 type ShelfSyncResponse = {
@@ -977,22 +970,22 @@ class WeReadService {
     if (!apiKey) {
       throw new WeReadNotLoggedInError();
     }
+    if (/[\r\n]/.test(apiKey)) throw new Error("API Key 格式无效，请检查账号与连接配置");
 
-    const response = (await nodeFetch(WEREAD_GATEWAY_URL, {
+    const response = await desktopFetch(WEREAD_GATEWAY_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      data: {
+      body: JSON.stringify({
         api_name: apiName,
         skill_version: SKILL_VERSION,
         ...params,
-      },
-      isRaw: true,
-      allowHttpErrorStatus: true,
-    })) as NodeFetchRawResponse<GatewayEnvelope<T>>;
+      }),
+    });
 
+    if (!response.ok) await response.body?.cancel();
     if (response.status === 401 || response.status === 403) {
       throw new WeReadSessionExpiredError();
     }
@@ -1003,7 +996,7 @@ class WeReadService {
       throw new Error(`WeRead 请求失败: ${response.status}`);
     }
 
-    const data = response.data;
+    const data = (await response.json()) as GatewayEnvelope<T>;
 
     // 网关附带 upgrade_info 时业务数据仍正常返回，仅降级为警告，
     // 避免官方每发布一个 Skill 新版本就中断本地同步

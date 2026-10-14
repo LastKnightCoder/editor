@@ -2,12 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import useSettingStore from "@/stores/useSettingStore";
 import weReadService from "..";
 
-const { nodeFetchMock } = vi.hoisted(() => ({
-  nodeFetchMock: vi.fn(),
+const { fetchMock } = vi.hoisted(() => ({
+  fetchMock: vi.fn(),
 }));
 
-vi.mock("@/commands/extra", () => ({
-  nodeFetch: nodeFetchMock,
+vi.mock("@/commands/fetch", () => ({
+  desktopFetch: async (...args: unknown[]) => {
+    const result = await fetchMock(...args);
+    return new Response(JSON.stringify(result.data), { status: result.status });
+  },
 }));
 
 describe("services/weread validateSession", () => {
@@ -37,7 +40,7 @@ describe("services/weread validateSession", () => {
       },
     }));
 
-    nodeFetchMock.mockResolvedValue({
+    fetchMock.mockResolvedValue({
       status: 200,
       data: {
         apis: [],
@@ -46,7 +49,7 @@ describe("services/weread validateSession", () => {
 
     await expect(weReadService.validateSession()).resolves.toBe(true);
 
-    expect(nodeFetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       "https://i.weread.qq.com/api/agent/gateway",
       expect.objectContaining({
         method: "POST",
@@ -54,12 +57,7 @@ describe("services/weread validateSession", () => {
           Authorization: "Bearer wrk-test-key",
           "Content-Type": "application/json",
         },
-        data: {
-          api_name: "/_list",
-          skill_version: "1.0.4",
-        },
-        isRaw: true,
-        allowHttpErrorStatus: true,
+        body: JSON.stringify({ api_name: "/_list", skill_version: "1.0.4" }),
       })
     );
 
@@ -85,7 +83,7 @@ describe("services/weread validateSession", () => {
     }));
 
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    nodeFetchMock.mockResolvedValue({
+    fetchMock.mockResolvedValue({
       status: 200,
       data: {
         bookId: "book-1",
@@ -153,7 +151,7 @@ describe("services/weread validateSession", () => {
     }));
 
     let resolveResponse: (value: any) => void = () => {};
-    nodeFetchMock.mockReturnValue(
+    fetchMock.mockReturnValue(
       new Promise(resolve => {
         resolveResponse = resolve;
       })
@@ -162,7 +160,7 @@ describe("services/weread validateSession", () => {
     const firstValidation = weReadService.validateSession();
     const secondValidation = weReadService.validateSession();
 
-    expect(nodeFetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     resolveResponse({
       status: 200,
@@ -189,7 +187,7 @@ describe("services/weread validateSession", () => {
       },
     }));
 
-    nodeFetchMock
+    fetchMock
       .mockResolvedValueOnce({
         status: 200,
         data: {
@@ -280,7 +278,7 @@ describe("services/weread validateSession", () => {
       },
     }));
 
-    nodeFetchMock.mockResolvedValue({
+    fetchMock.mockResolvedValue({
       status: 200,
       data: {
         bookId: "book-with-reading-time",
@@ -318,7 +316,7 @@ describe("services/weread validateSession", () => {
 
     const progressUpdates: Array<{ completed: number; total: number }> = [];
 
-    nodeFetchMock
+    fetchMock
       .mockResolvedValueOnce({
         status: 200,
         data: {
@@ -387,7 +385,7 @@ describe("services/weread validateSession", () => {
       },
     }));
 
-    nodeFetchMock
+    fetchMock
       .mockResolvedValueOnce({
         status: 200,
         data: {
@@ -466,7 +464,7 @@ describe("services/weread validateSession", () => {
       ],
     });
 
-    expect(nodeFetchMock).toHaveBeenCalledTimes(8);
+    expect(fetchMock).toHaveBeenCalledTimes(8);
   });
 
   it("评论分页游标不前进时应停止继续请求", async () => {
@@ -484,7 +482,7 @@ describe("services/weread validateSession", () => {
       },
     }));
 
-    nodeFetchMock.mockResolvedValue({
+    fetchMock.mockResolvedValue({
       status: 200,
       data: {
         reviews: [
@@ -506,7 +504,7 @@ describe("services/weread validateSession", () => {
 
     const result = await weReadService.getNotebookReviews("book-1");
 
-    expect(nodeFetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.reviews).toHaveLength(1);
     expect(result.hasMore).toBe(0);
   });
