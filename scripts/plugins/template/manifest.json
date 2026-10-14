@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "id": "example.external-counter",
+  "name": "独立计数插件",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js"
+}

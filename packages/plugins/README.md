@@ -75,4 +75,6 @@ pnpm --filter @example/plugin-workbench demo
 
 示例插件在 [plugin-workbench](../../examples/plugin-workbench/README.md)，只依赖公开契约。包仍为工作区 private，不发布 npm，不承诺稳定的第三方 SDK 版本。
 
-包内 `build` 使用 esbuild 生成内部 ESM 验证产物，workspace 包保持 external；类型由 `check` 单独验证，当前 exports 仍指向源码。原来的 tsc 单目录输出不适用于跨包编辑器类型图，现阶段不生成可发布声明包。独立 SDK 的声明打包、共享依赖和无私有路径构建属于 P6，不能把这里的 dist 当作可独立安装的 npm 包。
+包内 `build` 使用 esbuild 生成内部 ESM 验证产物，workspace 包保持 external；类型由 `check` 单独验证，当前工作区 exports 仍指向源码，不把这里的 dist 当作独立 npm 包。
+
+C07 已提供仓库根 `node scripts/plugins/package-sdk.mjs`，生成独立安装的 @tau/plugins/@tau/ui 开发契约压缩包：声明闭包随包交付、只开放根入口，运行实现由桌面宿主提供。作者模板在 scripts/plugins/template，完整步骤和边界见 [C07](../../docs/plugin-system/17-C07独立插件开发与加载.md)。`node scripts/plugins/verify-external.mjs` 在临时仓库外目录完成安装、构建与真实 Electron 验证；尚未发布公共 npm、开放生产安装或实现开发重载。
