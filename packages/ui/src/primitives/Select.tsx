@@ -19,7 +19,7 @@
  *    D-003 全局注册表（那是命令面板等壳层浮层的仲裁，ui 基础件不反向依赖 page/）
  *
  * 表单控件家族口径：触发器与弹层内搜索框 = surface 亮底 + line-1 描边 + radius-sm——「浮起物」语感，白卡上同底靠描边显形。
- * 层级 z-[250]（命令面板 101 < Toast 200 < Select/Menu 250 < Tooltip 300）。
+ * 层级 z-[250]（命令面板 101 < Select/Menu 250 < Tooltip 300 < Dialog 340 < Toast 360）。
  *
  * 明确不做（M0）：多选/标签模式（M1 value: V[]）· 异步 loading prop（换数组即异步，
  * 过渡态用 emptyText）· 虚拟化（M1）· renderOption 逃生舱（label: ReactNode 已覆盖
