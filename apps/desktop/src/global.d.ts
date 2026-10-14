@@ -5,6 +5,7 @@ declare module "plantuml-encoder";
 interface ElectronAPI {
   // invoke/send/on/off/sendLog 的类型声明见 src/rpc/electron-bridge.d.ts
   platform: string;
+  windowRole?: string;
 }
 
 interface Window {

@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.send("logger:renderer-log", { level, message });
   },
   platform: process.platform,
+  windowRole: process.argv.find(arg => arg.startsWith("--tau-window-role="))?.split("=")[1],
 });

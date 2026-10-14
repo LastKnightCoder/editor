@@ -54,6 +54,7 @@ class UserSettingModule {
   private backendServer: BackendWebSocketServer | null = null;
   private userSetting: UserSetting = {};
   private settingLoaded = false;
+  private settingLoadPromise: Promise<UserSetting> | null = null;
   private settingChangeListeners: Set<SettingChangedListener> = new Set();
   /** 落盘串行链：并发写会互相截断文件（见 saveSetting） */
   private savingChain: Promise<void> = Promise.resolve();
@@ -100,9 +101,18 @@ class UserSettingModule {
     if (this.settingLoaded) {
       return this.userSetting;
     }
-    this.userSetting = await this.loadSetting();
-    this.settingLoaded = true;
-    return this.userSetting;
+    if (!this.settingLoadPromise) {
+      this.settingLoadPromise = this.loadSetting()
+        .then(setting => {
+          this.userSetting = setting;
+          this.settingLoaded = true;
+          return setting;
+        })
+        .finally(() => {
+          this.settingLoadPromise = null;
+        });
+    }
+    return this.settingLoadPromise;
   }
 
   async init(backendServer: BackendWebSocketServer) {
