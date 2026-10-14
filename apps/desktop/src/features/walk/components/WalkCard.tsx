@@ -76,7 +76,11 @@ export function WalkCard({
             </>
           ) : (
             item.content && (
-              <CardContentPreview content={item.content as Descendant[]} blocks={Infinity} />
+              <CardContentPreview
+                content={item.content as Descendant[]}
+                blocks={Infinity}
+                interactive
+              />
             )
           )}
         </FadeScroll>
