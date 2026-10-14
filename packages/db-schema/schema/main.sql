@@ -999,3 +999,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_content_links_pair ON content_links(conten
 CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_content_id);
 -- 创作模式素材板：一页画布只属于一份正文
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compose_boards_page ON compose_boards(page_id);
+-- 首页热力图按年聚合操作流水（get-operation-daily-counts）；带 operation_id 形成覆盖索引，聚合免回表
+CREATE INDEX IF NOT EXISTS idx_operation_time ON operation(operation_time, operation_id);
