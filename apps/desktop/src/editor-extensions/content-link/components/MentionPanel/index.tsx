@@ -47,6 +47,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     mentionPanelVisible,
     position,
     inputValue,
+    trigger,
     searchResults,
     loading,
     setSearchResults,
@@ -56,6 +57,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     mentionPanelVisible: state.mentionPanelVisible,
     position: state.position,
     inputValue: state.inputValue,
+    trigger: state.trigger,
     searchResults: state.searchResults,
     loading: state.loading,
     setSearchResults: state.setSearchResults,
@@ -109,8 +111,9 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
   useEffect(() => {
     if (!mentionPanelVisible) return;
 
-    if (inputValue === "@") {
-      // 只有 @ 时，显示所有最近的文档
+    const query = inputValue.slice(trigger.length);
+    if (!query) {
+      // 只有触发词时，显示所有最近的文档
       setLoading(true);
       getAllIndexResults()
         .then(results => {
@@ -123,12 +126,11 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
         .finally(() => {
           setLoading(false);
         });
-    } else if (inputValue.length > 1) {
+    } else {
       // 有关键字时进行搜索
-      const query = inputValue.slice(1); // 移除 @
       debouncedSearch(query);
     }
-  }, [inputValue, mentionPanelVisible, debouncedSearch, setSearchResults, setLoading]);
+  }, [inputValue, trigger, mentionPanelVisible, debouncedSearch, setSearchResults, setLoading]);
 
   // 定位：对话输入框里贴外框上沿，否则跟随光标
   useLayoutEffect(() => {
@@ -170,7 +172,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
 
   if (!mentionPanelVisible) return null;
 
-  const query = inputValue.slice(1);
+  const query = inputValue.slice(trigger.length);
 
   return createPortal(
     <ComposerPanel
@@ -183,7 +185,8 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
         <span className="min-w-0 truncate">
           {query ? (
             <>
-              @<span className="text-accent-text">{query}</span>
+              {trigger}
+              <span className="text-accent-text">{query}</span>
             </>
           ) : (
             <span className="text-ink-3">最近内容</span>
