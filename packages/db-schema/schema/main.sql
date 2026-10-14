@@ -192,6 +192,10 @@ CREATE TABLE IF NOT EXISTS operation (
             operation_content_type TEXT,
             operation_action TEXT
         );
+CREATE TABLE IF NOT EXISTS operation_daily_counts (
+            date TEXT PRIMARY KEY,
+            count INTEGER NOT NULL
+        );
 CREATE TABLE IF NOT EXISTS statistic (
         id INTEGER PRIMARY KEY,
         date TEXT NOT NULL,

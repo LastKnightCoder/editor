@@ -37,7 +37,9 @@ export default class OperationTable {
     return this.parseOperation(operation);
   }
 
-  /** 依赖 idx_operation_time 走索引范围扫描，COUNT(DISTINCT) 在 SQL 层完成按日去重。 */
+  /** 每日操作数物化：昨天及以前的聚合结果落库复用，仅实时聚合当年物化水位之后的少量行（通常是今天）。
+   *  安全前提：operation 流水纯追加且时间戳恒为写入时刻，历史日期不会落入新行；
+   *  当年无物化记录时退化为全年实时聚合并惰性回填（一次性）。 */
   static getOperationDailyCounts(
     db: Database.Database,
     year: number
@@ -45,18 +47,45 @@ export default class OperationTable {
     if (!Number.isInteger(year) || year < 100 || year > 9998) {
       throw new Error("无效的统计年份");
     }
-    const start = new Date(year, 0, 1).getTime();
-    const end = new Date(year + 1, 0, 1).getTime();
-    return db
+    const yearStart = new Date(year, 0, 1).getTime();
+    const yearEnd = new Date(year + 1, 0, 1).getTime();
+    const yearStartStr = dayjs(yearStart).format("YYYY-MM-DD");
+    const yearEndStr = dayjs(yearEnd).format("YYYY-MM-DD");
+
+    const yearMaterializedMax = (
+      db
+        .prepare("SELECT MAX(date) AS d FROM operation_daily_counts WHERE date >= ? AND date < ?")
+        .get(yearStartStr, yearEndStr) as { d: string | null }
+    ).d;
+    const liveFrom =
+      yearMaterializedMax === null ? yearStart : dayjs(yearMaterializedMax).add(1, "day").valueOf();
+
+    const archived = db
+      .prepare("SELECT date, count FROM operation_daily_counts WHERE date >= ? AND date < ?")
+      .all(yearStartStr, yearEndStr) as Array<{ date: string; count: number }>;
+
+    const live = db
       .prepare(
         `SELECT date(operation_time / 1000, 'unixepoch', 'localtime') AS time,
                 COUNT(DISTINCT COALESCE(operation_id, -1)) AS count
          FROM operation
          WHERE operation_time >= ? AND operation_time < ?
-         GROUP BY time
-         ORDER BY time DESC`
+         GROUP BY time`
       )
-      .all(start, end) as Array<{ time: string; count: number }>;
+      .all(liveFrom, yearEnd) as Array<{ time: string; count: number }>;
+
+    const todayStr = dayjs().format("YYYY-MM-DD");
+    const upsert = db.prepare(
+      `INSERT INTO operation_daily_counts (date, count) VALUES (?, ?)
+       ON CONFLICT(date) DO UPDATE SET count = excluded.count`
+    );
+    for (const row of live) {
+      if (row.time < todayStr) upsert.run(row.time, row.count);
+    }
+
+    return [...archived.map(row => ({ time: row.date, count: row.count })), ...live].sort((a, b) =>
+      b.time.localeCompare(a.time)
+    );
   }
 
   static insertOperation(

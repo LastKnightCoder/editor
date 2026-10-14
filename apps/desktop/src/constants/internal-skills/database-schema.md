@@ -354,6 +354,13 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `operation_content_type` | `TEXT`                |
 | `operation_action`       | `TEXT`                |
 
+### `operation_daily_counts`
+
+| 字段    | SQLite 定义        |
+| ------- | ------------------ |
+| `date`  | `TEXT PRIMARY KEY` |
+| `count` | `INTEGER NOT NULL` |
+
 ### `statistic`
 
 | 字段             | SQLite 定义           |
