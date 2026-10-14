@@ -13,15 +13,18 @@ import {
   Type,
   Video,
   Box,
+  PersonStanding,
   type LucideIcon,
 } from "lucide-react";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
 import type { BoardElement } from "../../../types";
 import { geometryItems } from "../../Toolbar/Geometry/config";
+import { STICK_POSES, getStickPose } from "../../../utils/stickman";
 
 /** 元素类型 → 中文名 + 中性图标（元素树 / 右键菜单共用；不按类型配色） */
 const META: Record<string, { label: string; icon: LucideIcon }> = {
   geometry: { label: "图形", icon: Shapes },
+  stickman: { label: "人物", icon: PersonStanding },
   arrow: { label: "箭头", icon: ArrowUpRight },
   richtext: { label: "文本", icon: Type },
   document: { label: "文档", icon: FileText },
@@ -49,6 +52,7 @@ const MAX_LABEL = 40;
 const GENERIC_NAMES = new Set([
   ...Object.values(META).map(m => m.label),
   ...Object.values(GEOMETRY_LABEL),
+  ...STICK_POSES.map(pose => pose.name),
 ]);
 
 /** 元素自身内容派生的名字（不含手动命名 / 类型名兜底）；取不到返回空串 */
@@ -63,6 +67,8 @@ function contentLabel(
       return richTextPlainText(element.text?.content) || GEOMETRY_LABEL[element.geometryType] || "";
     case "mind-node":
       return richTextPlainText(element.text);
+    case "stickman":
+      return getStickPose(element.pose)?.name ?? "";
     case "frame":
     case "column":
     case "document":
