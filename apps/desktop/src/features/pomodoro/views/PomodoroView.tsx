@@ -70,6 +70,8 @@ type LedgerView = { kind: "all" } | { kind: "days"; key: QuickKey | null; manual
 function useMinuteNow(): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    // 页面停驻（Activity hidden）期间 interval 已销毁；恢复时先对齐一次，不等 60s 后的首跳
+    setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
