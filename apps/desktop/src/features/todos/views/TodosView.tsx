@@ -110,13 +110,14 @@ export function TodosView() {
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
 
-  /* 删除暂存：立即从视图消失，UNDO_MS 后真正落库；撤销即取消；离开页面时立刻落库。
+  /* 删除暂存：立即从视图消失，撤销 toast 关闭时真正落库；撤销即取消；离开页面时立刻落库。
+     落库挂在 toast 的 onClose 上：悬停冻结自动关闭会连带延长撤销窗口，不会有死按钮。
      落库成功后不清暂存——条目由失效重拉从快照中消失，提前清除会在重拉完成前闪现（列表抖动） */
   const [pendingDelete, setPendingDelete] = useState<ReadonlySet<number>>(() => new Set());
-  const deleteTimers = useRef(new Map<number, number>());
+  const pendingCommits = useRef(new Set<number>());
   const commitDelete = (id: number) => {
-    window.clearTimeout(deleteTimers.current.get(id));
-    deleteTimers.current.delete(id);
+    if (!pendingCommits.current.has(id)) return;
+    pendingCommits.current.delete(id);
     mutations.remove(id).catch(() => {
       toast.error("删除失败");
       setPendingDelete(prev => {
@@ -130,7 +131,7 @@ export function TodosView() {
   commitRef.current = commitDelete;
   useEffect(
     () => () => {
-      for (const id of [...deleteTimers.current.keys()]) commitRef.current(id);
+      for (const id of [...pendingCommits.current]) commitRef.current(id);
     },
     []
   );
@@ -138,18 +139,16 @@ export function TodosView() {
   const scheduleDelete = (entry: TodoEntry) => {
     if (selectedId === entry.id || entry.childIds.includes(selectedId ?? -1)) setSelectedId(null);
     setPendingDelete(prev => new Set(prev).add(entry.id));
-    deleteTimers.current.set(
-      entry.id,
-      window.setTimeout(() => commitRef.current(entry.id), UNDO_MS)
-    );
+    pendingCommits.current.add(entry.id);
     const children = entry.childIds.length;
     toast.info(`已删除「${entry.title}」${children ? `及 ${children} 个子任务` : ""}`, {
       duration: UNDO_MS,
+      onClose: () => commitRef.current(entry.id),
       action: {
         label: "撤销",
         onClick: () => {
-          window.clearTimeout(deleteTimers.current.get(entry.id));
-          deleteTimers.current.delete(entry.id);
+          // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
+          pendingCommits.current.delete(entry.id);
           setPendingDelete(prev => {
             const next = new Set(prev);
             next.delete(entry.id);
