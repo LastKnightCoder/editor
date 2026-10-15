@@ -1,5 +1,13 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-const { readFileSync, existsSync } = require("node:fs");
+const {
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  cpSync,
+  writeFileSync,
+  renameSync,
+} = require("node:fs");
+const { randomUUID } = require("node:crypto");
 const path = require("node:path");
 const assert = require("node:assert/strict");
 
@@ -49,6 +57,7 @@ app
     if (process.env.TAU_PLUGIN_TEST_PHASE !== "initial") {
       const snapshot = await run("pluginVerification.snapshot()");
       assert.equal(snapshot.plugins.length, 2);
+      assert.equal(snapshot.watching, false);
       if (process.env.TAU_PLUGIN_TEST_PHASE === "skip") {
         assert.equal(snapshot.commands.length, 0);
         assert.equal(snapshot.styles, 0);
@@ -170,6 +179,65 @@ app
       before: heapBefore,
       after: await run("performance.memory?.usedJSHeapSize ?? null"),
     });
+    const autoRoot = path.join(directory, "automatic-builds");
+    mkdirSync(autoRoot);
+    cpSync(process.env.TAU_PLUGIN_TEST_ARTIFACT, path.join(autoRoot, "old"), { recursive: true });
+    cpSync(process.env.TAU_PLUGIN_TEST_REPLACEMENT, path.join(autoRoot, "good"), {
+      recursive: true,
+    });
+    cpSync(process.env.TAU_PLUGIN_TEST_FAILING, path.join(autoRoot, "bad"), { recursive: true });
+    selected = path.join(autoRoot, "good");
+    await click("重载构建");
+    await wait("!pluginVerification.snapshot().reloading");
+    await click("监听构建");
+    await wait(
+      "pluginVerification.snapshot().watching && !pluginVerification.snapshot().reloading"
+    );
+    const initialMount = (await run("pluginVerification.snapshot()")).mountId;
+    mkdirSync(path.join(autoRoot, ".building-partial"));
+    writeFileSync(path.join(autoRoot, ".building-partial/main.js"), "partial");
+    await new Promise(resolve => setTimeout(resolve, 250));
+    assert.equal((await run("pluginVerification.snapshot()")).mountId, initialMount);
+    const publish = name => {
+      const temporary = path.join(autoRoot, "pointer.tmp");
+      writeFileSync(
+        temporary,
+        JSON.stringify({
+          formatVersion: 1,
+          id: "example.external-counter",
+          buildId: randomUUID(),
+          directory: name,
+        })
+      );
+      renameSync(temporary, path.join(autoRoot, "tau-build-example.external-counter.json"));
+    };
+    publish("old");
+    await wait(
+      "pluginVerification.snapshot().plugins.find(item => item.id === 'example.external-counter').version === '1.0.0' && !pluginVerification.snapshot().reloading"
+    );
+    publish("bad");
+    await wait(
+      "document.body.innerText.includes('已恢复旧版本') && !pluginVerification.snapshot().reloading"
+    );
+    assert.equal((await run("pluginVerification.snapshot()")).watching, true);
+    publish("good");
+    await wait(
+      "pluginVerification.snapshot().plugins.find(item => item.id === 'example.external-counter').version === '1.1.0' && !pluginVerification.snapshot().reloading"
+    );
+    assert.equal((await run("pluginVerification.snapshot()")).styles, 2);
+    await click("停止监听");
+    await wait(
+      "!pluginVerification.snapshot().watching && !pluginVerification.snapshot().reloading"
+    );
+    const stoppedMount = (await run("pluginVerification.snapshot()")).mountId;
+    publish("old");
+    await new Promise(resolve => setTimeout(resolve, 250));
+    assert.equal((await run("pluginVerification.snapshot()")).mountId, stoppedMount);
+    console.log("[plugin-watch] 暂存不触发/完整发布自动重载/失败回退/后续恢复/停止监听通过");
+    await click("监听构建");
+    await wait(
+      "pluginVerification.snapshot().watching && !pluginVerification.snapshot().reloading"
+    );
     await run("pluginVerification.stop()");
     assert.equal((await run("pluginVerification.snapshot()")).styles, 0);
     window.destroy();

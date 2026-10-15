@@ -1,9 +1,10 @@
-import { invoke } from "@/electron";
+import { invoke, on, off } from "@/electron";
 import { withModule } from "./module-init";
 import type {
   DevelopmentSession,
   RestoredDevelopmentPlugin,
   PreparedDevelopmentReload,
+  DevelopmentBuildEvent,
 } from "@/types/plugin-development";
 
 export function chooseDevelopmentPlugin(token: string): Promise<RestoredDevelopmentPlugin | null> {
@@ -38,11 +39,28 @@ export function retireDevelopmentWorkspace(name: string): Promise<void> {
 
 export function prepareDevelopmentReload(
   token: string,
-  id: string
+  id: string,
+  buildId?: string
 ): Promise<PreparedDevelopmentReload | null> {
   return withModule("plugin-development", () =>
-    invoke("plugin-development:prepare-reload", token, id)
+    invoke("plugin-development:prepare-reload", token, id, buildId)
   );
+}
+
+export function watchDevelopmentBuilds(
+  token: string,
+  id: string,
+  watchId: string,
+  enabled: boolean
+): Promise<void> {
+  return withModule("plugin-development", () =>
+    invoke("plugin-development:watch", token, id, watchId, enabled)
+  );
+}
+export function subscribeDevelopmentBuilds(listener: (event: DevelopmentBuildEvent) => void) {
+  const receive = (_event: unknown, build: DevelopmentBuildEvent) => listener(build);
+  on("plugin-development:build", receive);
+  return () => off("plugin-development:build", receive);
 }
 export function commitDevelopmentReload(
   token: string,

@@ -79,4 +79,4 @@ pnpm --filter @example/plugin-workbench demo
 
 包内 `build` 使用 esbuild 生成内部 ESM 验证产物，workspace 包保持 external；类型由 `check` 单独验证，当前工作区 exports 仍指向源码，不把这里的 dist 当作独立 npm 包。
 
-C07 已提供仓库根 `node scripts/plugins/package-sdk.mjs`，生成独立安装的 @tau/plugins/@tau/ui 开发契约压缩包：声明闭包随包交付、只开放根入口，运行实现由桌面宿主提供。作者模板在 scripts/plugins/template，完整步骤和边界见 [C07](../../docs/plugin-system/17-C07独立插件开发与加载.md)。`node scripts/plugins/verify-external.mjs` 在临时仓库外目录完成安装、构建与真实 Electron 验证；C09-A 已接手动重载与失败恢复，尚未发布公共 npm、开放生产安装或实现自动监听。
+C07 已提供仓库根 `node scripts/plugins/package-sdk.mjs`，生成独立安装的 @tau/plugins/@tau/ui 开发契约压缩包：声明闭包随包交付、只开放根入口，运行实现由桌面宿主提供。作者模板在 scripts/plugins/template，完整步骤和边界见 [C07](../../docs/plugin-system/17-C07独立插件开发与加载.md)。`node scripts/plugins/verify-external.mjs` 在临时仓库外目录完成安装、构建与真实 Electron 验证；C09 已接手动重载、失败恢复和完整构建自动监听，尚未发布公共 npm 或开放生产安装。

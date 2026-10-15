@@ -7,6 +7,7 @@ import {
 } from "../services/plugin-registry";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import { PluginBuildWatcher } from "../services/plugin-build-watcher";
 import type {
   DevelopmentPluginRecord,
   RestoredDevelopmentPlugin,
@@ -22,6 +23,7 @@ interface Session {
     string,
     { ticket: string; previous: DevelopmentPluginRecord; next: RestoredDevelopmentPlugin }
   >;
+  watchers: Map<string, { watchId: string; watcher: PluginBuildWatcher }>;
 }
 
 export default {
@@ -63,9 +65,12 @@ export default {
         reserved,
         release: () => undefined,
         reloads: new Map(),
+        watchers: new Map(),
       };
       sessions.set(window.id, session);
       const release = () => {
+        for (const item of session.watchers.values()) item.watcher.close();
+        session.watchers.clear();
         if (sessions.get(window.id) === session) sessions.delete(window.id);
         event.sender.removeListener("destroyed", release);
       };
@@ -137,17 +142,25 @@ export default {
     });
     ipcMain.handle(
       "plugin-development:prepare-reload",
-      async (event, token: string, id: string) => {
+      async (event, token: string, id: string, buildId?: string) => {
         const session = sessionFor(event, token);
         const previous = await store().get(session.workspaceId, id);
-        const result = await dialog.showOpenDialog(windowFor(event), {
-          title: "选择此插件的新构建目录",
-          properties: ["openDirectory"],
-        });
-        sessionFor(event, token);
-        if (result.canceled || !result.filePaths[0]) return null;
-        const directory = result.filePaths[0];
-        const artifact = await readDevelopmentPlugin(directory);
+        let directory: string;
+        let artifact;
+        if (buildId !== undefined) {
+          const build = session.watchers.get(id)?.watcher.get(buildId);
+          if (!build) return null;
+          ({ directory, artifact } = build);
+        } else {
+          const result = await dialog.showOpenDialog(windowFor(event), {
+            title: "选择此插件的新构建目录",
+            properties: ["openDirectory"],
+          });
+          sessionFor(event, token);
+          if (result.canceled || !result.filePaths[0]) return null;
+          directory = result.filePaths[0];
+          artifact = await readDevelopmentPlugin(directory);
+        }
         sessionFor(event, token);
         if (artifact.manifest.id !== id) throw new Error("新构建的插件 ID 与当前插件不一致");
         const next = { ...previous, directory, manifest: artifact.manifest, artifact };
@@ -183,5 +196,42 @@ export default {
       for (const [id, reload] of session.reloads)
         if (reload.ticket === ticket) session.reloads.delete(id);
     });
+    ipcMain.handle(
+      "plugin-development:watch",
+      async (event, token: string, id: string, watchId: string, enabled: boolean) => {
+        const session = sessionFor(event, token);
+        if (typeof watchId !== "string" || !watchId || typeof enabled !== "boolean")
+          throw new Error("监听请求无效");
+        const existing = session.watchers.get(id);
+        if (!enabled) {
+          if (existing?.watchId === watchId) {
+            existing.watcher.close();
+            session.watchers.delete(id);
+          }
+          return;
+        }
+        const record = await store().get(session.workspaceId, id);
+        sessionFor(event, token);
+        const windowId = windowFor(event).id;
+        existing?.watcher.close();
+        const watcher = new PluginBuildWatcher(path.dirname(record.directory), id, result => {
+          if (session.watchers.get(id)?.watcher !== watcher || sessions.get(windowId) !== session)
+            return;
+          if (result.stopped) session.watchers.delete(id);
+          if (!event.sender.isDestroyed())
+            event.sender.send("plugin-development:build", { token, id, watchId, ...result });
+        });
+        const owned = { watchId, watcher };
+        session.watchers.set(id, owned);
+        try {
+          await watcher.start();
+          sessionFor(event, token);
+        } catch (error) {
+          watcher.close();
+          if (session.watchers.get(id) === owned) session.watchers.delete(id);
+          throw error;
+        }
+      }
+    );
   },
 };
