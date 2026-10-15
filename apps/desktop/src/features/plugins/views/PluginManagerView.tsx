@@ -24,7 +24,7 @@ export function PluginManagerView() {
   if (!runtime)
     return (
       <p role={startupError ? "alert" : undefined} className="text-tau-body text-ink-2">
-        {startupError || (import.meta.env.DEV ? "正在准备插件管理…" : "当前没有可管理的插件")}
+        {startupError || "正在准备插件管理…"}
       </p>
     );
   const plugins = runtime.host.listPlugins();

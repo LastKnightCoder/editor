@@ -10,6 +10,8 @@ import { isElectron } from "@/electron";
 import { openDevelopmentPlugins, closeDevelopmentPlugins } from "@/commands/plugin-development";
 import { migratePluginPreferences } from "./development-manager";
 import type { DevelopmentSession } from "@/types/plugin-development";
+import type { PluginDefinition } from "@tau/plugins";
+import { themePlugin } from "./builtin/themePlugin";
 
 const restartRequired = new Set<string>();
 const reloadCounts = new Map<string, number>();
@@ -21,70 +23,71 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!import.meta.env.DEV) return;
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
     const previousCleanup = pendingCleanup;
-    const preparation = Promise.all([
-      import("@/features/plugins/example/notesPlugin"),
-      import("@/features/plugins/example/editorPlugin"),
-      import("./editorComposition"),
-      import("@/features/plugins/example/settingsPlugin"),
-      import("@/features/plugins/weread/plugin"),
-    ])
-      .then(
-        async ([
-          { notesPlugin },
-          { editorPlugin },
-          { composePluginEditor },
-          { settingsPlugin },
-          { createWeReadPlugin },
-        ]) => {
-          await previousCleanup;
-          if (cancelled) return;
-          const plugins = [
+    const preparation = (
+      import.meta.env.DEV
+        ? Promise.all([
+            import("@/features/plugins/example/notesPlugin"),
+            import("@/features/plugins/example/editorPlugin"),
+            import("./editorComposition"),
+            import("@/features/plugins/example/settingsPlugin"),
+            import("@/features/plugins/weread/plugin"),
+          ])
+        : Promise.resolve(null)
+    )
+      .then(async modules => {
+        await previousCleanup;
+        if (cancelled) return;
+        const plugins: PluginDefinition[] = [themePlugin];
+        const composePluginEditor = modules?.[2].composePluginEditor;
+        if (modules) {
+          const [{ notesPlugin }, { editorPlugin }, , { settingsPlugin }, { createWeReadPlugin }] =
+            modules;
+          plugins.push(
             notesPlugin,
             editorPlugin,
             settingsPlugin,
             createWeReadPlugin(() =>
               useSettingStore.getState().setting.integration.weread.apiKey.trim()
-            ),
-          ];
-          let session: DevelopmentSession | undefined;
-          if (isElectron) {
-            session = await openDevelopmentPlugins(
-              workspaceId,
-              plugins.map(plugin => plugin.id)
-            );
-            if (cancelled) {
-              await closeDevelopmentPlugins(session.token);
-              return;
-            }
-            try {
-              migratePluginPreferences(window.localStorage, workspaceId, session.workspaceId);
-            } catch (error) {
-              await closeDevelopmentPlugins(session.token);
-              throw error;
-            }
-          }
-          current = new DesktopPluginRuntime({
-            workspaceId: session?.workspaceId ?? workspaceId,
-            navigator,
-            storage: createBrowserStorage(window.localStorage),
-            plugins,
-            fetch: desktopFetch,
-            restartRequired,
-            reloadCounts,
-            validateEditor: composePluginEditor,
-            openSettings: key => useSettingsStore.getState().openSettings(key),
-          });
-          const development = session ? current.attachDevelopment(session) : undefined;
-          setRuntime(current);
-          if (development) void development.restore();
+            )
+          );
         }
-      )
+        let session: DevelopmentSession | undefined;
+        if (import.meta.env.DEV && isElectron) {
+          session = await openDevelopmentPlugins(
+            workspaceId,
+            plugins.map(plugin => plugin.id)
+          );
+          if (cancelled) {
+            await closeDevelopmentPlugins(session.token);
+            return;
+          }
+          try {
+            migratePluginPreferences(window.localStorage, workspaceId, session.workspaceId);
+          } catch (error) {
+            await closeDevelopmentPlugins(session.token);
+            throw error;
+          }
+        }
+        current = new DesktopPluginRuntime({
+          workspaceId: session?.workspaceId ?? workspaceId,
+          navigator,
+          storage: createBrowserStorage(window.localStorage),
+          plugins,
+          fetch: desktopFetch,
+          restartRequired,
+          reloadCounts,
+          validateEditor: composePluginEditor,
+          openSettings: key => useSettingsStore.getState().openSettings(key),
+        });
+        const development = session ? current.attachDevelopment(session) : undefined;
+        setRuntime(current);
+        if (development) void development.restore();
+      })
       .catch(error => {
-        if (!cancelled) setError(error instanceof Error ? error.message : "插件开发台初始化失败");
+        if (!cancelled) setError(error instanceof Error ? error.message : "插件初始化失败");
       });
     return () => {
       cancelled = true;
