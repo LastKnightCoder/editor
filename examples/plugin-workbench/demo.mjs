@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const directory = mkdtempSync(join(tmpdir(), "tau-plugin-demo-"));
 try {
-  for (const mode of ["write", "read"]) {
+  for (const mode of ["write", "read", "delete", "verify-delete"]) {
     const result = spawnSync(
       process.execPath,
       [fileURLToPath(new URL("dist/main.js", import.meta.url)), mode, directory],

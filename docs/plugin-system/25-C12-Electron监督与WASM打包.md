@@ -1,15 +1,17 @@
 # C12-B Electron 进程监督、WASM 打包与生命周期
 
+**历史实验，已暂停。** 按用户最新要求，当前代码树已撤下 QuickJS 运行时及依赖，回到 TS 主干的可信流程，见 [26](26-C12-TS主干与可信流程闭环.md)。以下源码路径与命令仅对应历史提交 `361be27e7`，不作为当前入口或选型结论。
+
 日期：2026-10-15。基线 `7185a04ad`。本单元承接 [24](24-C12最小权限执行边界.md)，验证真实 Electron 的 utilityProcess 和独立安装包；不扩展作者 API，不接生产插件管理、不恢复发布平台。
 
 ## 实现与复用
 
-- [supervisor.mjs](../../scripts/plugins/restricted/supervisor.mjs) 继续负责授权、身份绑定、预算、请求验证与撤销；只增加内部进程启动适配点，不复制权限判断。
-- [worker-core.mjs](../../scripts/plugins/restricted/worker-core.mjs) 收口 C12-A 客体解释器和有界字符串桥；Node 与 Electron 入口共用。`probe.read` 仍只读取夹具，未导出 SDK。
-- [electron-supervisor.mjs](../../scripts/plugins/restricted/electron-supervisor.mjs) 适配 utilityProcess 的 postMessage、spawn、exit 和 kill；在宿主销毁时收回活动实例，在独立测试应用退出时等待回收。
-- [electron-worker.mjs](../../scripts/plugins/restricted/electron-worker.mjs) 经 process.parentPort 收发固定协议；消息取 event.data，不把事件对象或端口交给客体。
-- [electron-main.mjs](../../scripts/plugins/restricted/electron-main.mjs) 是独立真实 Electron 测试主入口；没有测试桩替代 utilityProcess，也不启动完整业务 App。
-- [verify-restricted-electron.mjs](../../scripts/plugins/verify-restricted-electron.mjs) 构建、打包、启动四个独立应用进程并生成报告。没有新增依赖，使用仓库现有 esbuild、electron-builder 和 Electron。
+- `supervisor.mjs`（历史源码） 继续负责授权、身份绑定、预算、请求验证与撤销；只增加内部进程启动适配点，不复制权限判断。
+- `worker-core.mjs`（历史源码） 收口 C12-A 客体解释器和有界字符串桥；Node 与 Electron 入口共用。`probe.read` 仍只读取夹具，未导出 SDK。
+- `electron-supervisor.mjs`（历史源码） 适配 utilityProcess 的 postMessage、spawn、exit 和 kill；在宿主销毁时收回活动实例，在独立测试应用退出时等待回收。
+- `electron-worker.mjs`（历史源码） 经 process.parentPort 收发固定协议；消息取 event.data，不把事件对象或端口交给客体。
+- `electron-main.mjs`（历史源码） 是独立真实 Electron 测试主入口；没有测试桩替代 utilityProcess，也不启动完整业务 App。
+- `verify-restricted-electron.mjs`（历史源码） 构建、打包、启动四个独立应用进程并生成报告。没有新增依赖，使用仓库现有 esbuild、electron-builder 和 Electron。
 
 ## 进程与生命周期
 
