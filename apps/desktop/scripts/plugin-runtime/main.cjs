@@ -1,11 +1,12 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
-const { readFileSync } = require("node:fs");
+const { readFileSync, existsSync } = require("node:fs");
 const path = require("node:path");
 const assert = require("node:assert/strict");
 
 const directory = process.env.TAU_PLUGIN_TEST_DIRECTORY;
 app.setPath("userData", path.join(directory, "profile"));
 process.env.VITE_DEV_SERVER_URL = "http://localhost/verification";
+process.env.TAU_DISABLE_DEV_PLUGINS = process.env.TAU_PLUGIN_TEST_PHASE === "skip" ? "1" : "0";
 
 app
   .whenReady()
@@ -44,6 +45,46 @@ app
       await run(`${expression}.click()`);
     }
     await wait("Boolean(window.pluginVerification)");
+    await wait("pluginVerification.snapshot().ready");
+    if (process.env.TAU_PLUGIN_TEST_PHASE !== "initial") {
+      const snapshot = await run("pluginVerification.snapshot()");
+      assert.equal(snapshot.plugins.length, 2);
+      if (process.env.TAU_PLUGIN_TEST_PHASE === "skip") {
+        assert.equal(snapshot.commands.length, 0);
+        assert.equal(snapshot.styles, 0);
+      } else if (process.env.TAU_PLUGIN_TEST_PHASE === "disabled") {
+        assert.equal(
+          snapshot.plugins.find(item => item.id === "example.external-counter").state,
+          "disabled"
+        );
+        assert.equal(
+          snapshot.plugins.find(item => item.id === "example.external-other").state,
+          "active"
+        );
+      } else {
+        assert.equal(snapshot.commands.length, 2);
+        await run("pluginVerification.settings('example.external-counter')");
+        await wait("document.body.innerText.includes('已保存计数：2')");
+        await click("移除登记");
+        await wait("pluginVerification.snapshot().plugins.length === 1");
+        assert.equal(existsSync(path.join(process.env.TAU_PLUGIN_TEST_ARTIFACT, "main.js")), true);
+        await run("pluginVerification.list()");
+        await click("选择开发插件目录");
+        await wait("pluginVerification.snapshot().plugins.length === 2");
+        await click("启用");
+        await run("pluginVerification.settings('example.external-counter')");
+        await wait("document.body.innerText.includes('已保存计数：2')");
+        await click("停用");
+        await wait(
+          "pluginVerification.snapshot().plugins.find(item => item.id === 'example.external-counter').state === 'disabled'"
+        );
+      }
+      await run("pluginVerification.stop()");
+      window.destroy();
+      console.log(`[plugin-runtime] 独立进程恢复验证通过：${process.env.TAU_PLUGIN_TEST_PHASE}`);
+      app.quit();
+      return;
+    }
     // 同 URL 在 revoke 后仍命中模块缓存；裸宿主导入也不能直接解析。
     const esm = await run(
       `(async()=>{const url=URL.createObjectURL(new Blob(['export const token = {}'],{type:'text/javascript'}));const first=await import(url);URL.revokeObjectURL(url);const second=await import(url);let bareRejected=false;try{await import('@tau/plugins')}catch{bareRejected=true}return {cached:first===second,bareRejected};})()`

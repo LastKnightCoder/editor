@@ -10,6 +10,8 @@ import type {
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
+import { DevelopmentPluginManager } from "./development-manager";
+import type { DevelopmentSession } from "@/types/plugin-development";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
@@ -31,6 +33,7 @@ export interface RegisteredPluginSettings {
 
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
+  development?: DevelopmentPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
   private readonly settings = new Map<string, RegisteredPluginSettings>();
   private readonly editorContributions = new Map<
@@ -72,6 +75,17 @@ export class DesktopPluginRuntime {
   }
 
   getRevision = () => this.revision;
+  attachDevelopment(session: DevelopmentSession) {
+    this.development = new DevelopmentPluginManager(
+      this.host,
+      session,
+      async () => (await import("./shared-modules")).sharedPluginModules,
+      undefined,
+      this.publish
+    );
+    this.publish();
+    return this.development;
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -179,6 +193,7 @@ export class DesktopPluginRuntime {
   async dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.development?.cancel();
     this.publish();
     try {
       await this.host.dispose();
@@ -189,6 +204,7 @@ export class DesktopPluginRuntime {
       this.unsubscribe();
       this.publish();
       this.listeners.clear();
+      await this.development?.close();
     }
   }
 

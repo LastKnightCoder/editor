@@ -47,25 +47,27 @@ try {
   };
   delete env.ELECTRON_RUN_AS_NODE;
   const executable = createRequire(path.join(root, "package.json"))("electron");
-  const code = await new Promise((resolve, reject) => {
-    const child = spawn(executable, [path.join(root, "scripts/plugin-runtime/main.cjs")], {
-      env,
-      stdio: "inherit",
+  for (const phase of ["initial", "restore", "disabled", "skip"]) {
+    const code = await new Promise((resolve, reject) => {
+      const child = spawn(executable, [path.join(root, "scripts/plugin-runtime/main.cjs")], {
+        env: { ...env, TAU_PLUGIN_TEST_PHASE: phase },
+        stdio: "inherit",
+      });
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error("Electron 插件验证超时"));
+      }, 60000);
+      child.once("error", error => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      child.once("exit", code => {
+        clearTimeout(timer);
+        resolve(code);
+      });
     });
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error("Electron 插件验证超时"));
-    }, 60000);
-    child.once("error", error => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.once("exit", code => {
-      clearTimeout(timer);
-      resolve(code);
-    });
-  });
-  if (code !== 0) throw new Error(`Electron 插件验证失败：${code}`);
+    if (code !== 0) throw new Error(`Electron 插件验证失败：${code}`);
+  }
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

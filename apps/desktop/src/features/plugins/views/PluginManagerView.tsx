@@ -6,8 +6,6 @@ import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context"
 import { useSettingsStore } from "@/app/settingsStore";
 import { PluginSettingsView } from "./PluginSettingsView";
 import { isElectron } from "@/electron";
-import { chooseDevelopmentPlugin } from "@/commands/plugin-development";
-import { registerDevelopmentPlugin } from "@/app/plugins/development-loader";
 
 const labels: Record<PluginState, string> = {
   disabled: "已停用",
@@ -43,7 +41,14 @@ export function PluginManagerView() {
   if (!plugin)
     return (
       <div className="space-y-4">
-        {import.meta.env.DEV && isElectron && <DevelopmentPluginImport runtime={runtime} />}
+        {import.meta.env.DEV && isElectron && runtime.development && (
+          <DevelopmentPluginImport runtime={runtime} />
+        )}
+        {startupError && (
+          <p role="alert" className="text-tau-body text-danger">
+            {startupError}
+          </p>
+        )}
         {plugins.length === 0 && <p className="text-tau-body text-ink-2">当前没有可管理的插件</p>}
         {plugins.map(item => (
           <Panel key={item.id}>
@@ -126,13 +131,7 @@ function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime })
     setBusy(true);
     setError("");
     try {
-      const artifact = await chooseDevelopmentPlugin();
-      if (artifact)
-        registerDevelopmentPlugin(
-          runtime.host,
-          artifact,
-          async () => (await import("@/app/plugins/shared-modules")).sharedPluginModules
-        );
+      await runtime.development?.choose();
     } catch (error) {
       setError(error instanceof Error ? error.message : "读取插件失败");
     } finally {
@@ -143,6 +142,7 @@ function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime })
     <Panel>
       <p className="text-tau-body text-ink-2 mb-3">
         开发插件与应用共享运行环境，仅选择你信任的代码。选择目录后默认停用，启用时才执行。
+        移除登记保留插件数据和作者目录。
       </p>
       <Button loading={busy} onClick={() => void choose()}>
         选择开发插件目录
@@ -159,40 +159,63 @@ function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime })
 function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plugin: PluginInfo }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const enabled = plugin.state === "active" || runtime.development?.enabled(plugin.id);
   const change = async () => {
     setBusy(true);
     setError("");
     try {
-      if (plugin.state === "active") await runtime.host.disable(plugin.id);
-      else await runtime.host.enable(plugin.id);
+      const manager = runtime.development?.owns(plugin.id) ? runtime.development : runtime.host;
+      if (enabled) await manager.disable(plugin.id);
+      else await manager.enable(plugin.id);
     } catch (error) {
       setError(error instanceof Error ? error.message : "操作失败");
     } finally {
       setBusy(false);
     }
   };
+  const remove = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await runtime.development?.remove(plugin.id);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "移除失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const managementError = runtime.development?.error(plugin.id);
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
         <span className="text-tau-meta text-ink-2">{labels[plugin.state]}</span>
         <Button
-          aria-label={`${plugin.state === "active" ? "停用" : "启用"} ${plugin.name}`}
+          aria-label={`${enabled ? "停用" : "启用"} ${plugin.name}`}
           disabled={
             busy ||
             plugin.state === "activating" ||
             plugin.state === "deactivating" ||
-            plugin.state === "restart-required"
+            (plugin.state === "restart-required" && !enabled)
           }
           onClick={() => void change()}
         >
-          {plugin.state === "active" ? "停用" : "启用"}
+          {enabled ? "停用" : "启用"}
         </Button>
+        {runtime.development?.owns(plugin.id) && (
+          <Button
+            variant="ghost"
+            disabled={busy || plugin.state === "activating" || plugin.state === "deactivating"}
+            onClick={() => void remove()}
+          >
+            移除登记
+          </Button>
+        )}
       </div>
-      {(error || plugin.error || plugin.state === "restart-required") && (
+      {(error || managementError || plugin.error || plugin.state === "restart-required") && (
         <p role="alert" className="text-tau-meta text-danger">
           {plugin.state === "restart-required"
             ? "插件清理未能确认完成，请重启应用后再启用。已保存的数据保留。"
-            : error || plugin.error}
+            : error || managementError || plugin.error}
         </p>
       )}
     </div>
