@@ -7,6 +7,10 @@ import {
 } from "../services/plugin-registry";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type {
+  DevelopmentPluginRecord,
+  RestoredDevelopmentPlugin,
+} from "@/types/plugin-development";
 
 interface Session {
   token: string;
@@ -14,6 +18,10 @@ interface Session {
   name: string;
   reserved: string[];
   release: () => void;
+  reloads: Map<
+    string,
+    { ticket: string; previous: DevelopmentPluginRecord; next: RestoredDevelopmentPlugin }
+  >;
 }
 
 export default {
@@ -54,6 +62,7 @@ export default {
         name: normalized,
         reserved,
         release: () => undefined,
+        reloads: new Map(),
       };
       sessions.set(window.id, session);
       const release = () => {
@@ -125,6 +134,54 @@ export default {
       if ([...sessions.values()].some(value => value.name === normalized))
         throw new Error("请先关闭此数据库的插件管理窗口");
       await store().retire(normalized);
+    });
+    ipcMain.handle(
+      "plugin-development:prepare-reload",
+      async (event, token: string, id: string) => {
+        const session = sessionFor(event, token);
+        const previous = await store().get(session.workspaceId, id);
+        const result = await dialog.showOpenDialog(windowFor(event), {
+          title: "选择此插件的新构建目录",
+          properties: ["openDirectory"],
+        });
+        sessionFor(event, token);
+        if (result.canceled || !result.filePaths[0]) return null;
+        const directory = result.filePaths[0];
+        const artifact = await readDevelopmentPlugin(directory);
+        sessionFor(event, token);
+        if (artifact.manifest.id !== id) throw new Error("新构建的插件 ID 与当前插件不一致");
+        const next = { ...previous, directory, manifest: artifact.manifest, artifact };
+        const ticket = randomUUID();
+        session.reloads.set(id, { ticket, previous, next });
+        return { ticket, record: next };
+      }
+    );
+    ipcMain.handle(
+      "plugin-development:commit-reload",
+      async (
+        event,
+        token: string,
+        ticket: string,
+        target: string,
+        enabled: boolean,
+        starting: boolean
+      ) => {
+        const session = sessionFor(event, token);
+        const reload = [...session.reloads.values()].find(item => item.ticket === ticket);
+        if (
+          !reload ||
+          (target !== "next" && target !== "previous") ||
+          typeof enabled !== "boolean" ||
+          typeof starting !== "boolean"
+        )
+          throw new Error("插件重载事务已失效");
+        await store().replace(session.workspaceId, { ...reload[target], enabled, starting });
+      }
+    );
+    ipcMain.handle("plugin-development:discard-reload", (event, token: string, ticket: string) => {
+      const session = sessionFor(event, token);
+      for (const [id, reload] of session.reloads)
+        if (reload.ticket === ticket) session.reloads.delete(id);
     });
   },
 };

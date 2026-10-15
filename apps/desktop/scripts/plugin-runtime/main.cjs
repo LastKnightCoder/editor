@@ -63,6 +63,10 @@ app
         );
       } else {
         assert.equal(snapshot.commands.length, 2);
+        assert.equal(
+          snapshot.plugins.find(item => item.id === "example.external-counter").version,
+          "1.1.0"
+        );
         await run("pluginVerification.settings('example.external-counter')");
         await wait("document.body.innerText.includes('已保存计数：2')");
         await click("移除登记");
@@ -128,6 +132,44 @@ app
     await wait("pluginVerification.snapshot().commands.length === 2");
     await run("pluginVerification.settings('example.external-other')");
     await wait("document.body.innerText.includes('已保存计数：0')");
+    await run("pluginVerification.settings('example.external-counter')");
+    const heapBefore = await run("performance.memory?.usedJSHeapSize ?? null");
+    selected = process.env.TAU_PLUGIN_TEST_REPLACEMENT;
+    await click("重载构建");
+    await wait("!pluginVerification.snapshot().reloading");
+    assert.equal(
+      (await run("pluginVerification.snapshot()")).plugins.find(
+        item => item.id === "example.external-counter"
+      ).version,
+      "1.1.0"
+    );
+    await wait("document.body.innerText.includes('已保存计数：2')");
+    selected = process.env.TAU_PLUGIN_TEST_FAILING;
+    await click("重载构建");
+    await wait("document.body.innerText.includes('已恢复旧版本')");
+    await wait("!pluginVerification.snapshot().reloading");
+    assert.equal(
+      (await run("pluginVerification.snapshot()")).plugins.find(
+        item => item.id === "example.external-counter"
+      ).state,
+      "active"
+    );
+    selected = process.env.TAU_PLUGIN_TEST_SECOND;
+    await click("重载构建");
+    await wait("document.body.innerText.includes('ID 与当前插件不一致')");
+    selected = process.env.TAU_PLUGIN_TEST_REPLACEMENT;
+    for (let index = 0; index < 10; index++) {
+      await click("重载构建");
+      await wait("!pluginVerification.snapshot().reloading");
+      const snapshot = await run("pluginVerification.snapshot()");
+      assert.equal(snapshot.commands.length, 2);
+      assert.equal(snapshot.styles, 2);
+      assert.equal(snapshot.settingsCount, 2);
+    }
+    console.log("[plugin-reload] 重载/失败恢复/ID 拒绝/连续 10 次贡献与 CSS 数量通过；堆观察", {
+      before: heapBefore,
+      after: await run("performance.memory?.usedJSHeapSize ?? null"),
+    });
     await run("pluginVerification.stop()");
     assert.equal((await run("pluginVerification.snapshot()")).styles, 0);
     window.destroy();

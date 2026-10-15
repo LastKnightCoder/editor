@@ -67,7 +67,7 @@ export class DevelopmentPluginRegistry {
   private pending: Promise<unknown> = Promise.resolve();
   constructor(private readonly filename: string) {}
 
-  private transact<T>(operation: (registry: Registry) => T): Promise<T> {
+  private transact<T>(operation: (registry: Registry) => T, save = true): Promise<T> {
     const result = this.pending.then(async () => {
       let registry: Registry;
       try {
@@ -77,6 +77,7 @@ export class DevelopmentPluginRegistry {
         registry = { version: 1, workspaces: [] };
       }
       const value = operation(registry);
+      if (!save) return structuredClone(value);
       await mkdir(path.dirname(this.filename), { recursive: true });
       const temporary = `${this.filename}.${randomUUID()}.tmp`;
       try {
@@ -134,6 +135,30 @@ export class DevelopmentPluginRegistry {
     return this.transact(registry => {
       const workspace = this.workspace(registry, workspaceId);
       workspace.plugins = workspace.plugins.filter(item => item.manifest.id !== id);
+    });
+  }
+
+  get(workspaceId: string, id: string) {
+    return this.transact(registry => {
+      const record = this.workspace(registry, workspaceId).plugins.find(
+        item => item.manifest.id === id
+      );
+      if (!record) throw new Error("插件登记已不存在");
+      return record;
+    }, false);
+  }
+
+  replace(workspaceId: string, record: DevelopmentPluginRecord) {
+    return this.transact(registry => {
+      const workspace = this.workspace(registry, workspaceId);
+      const index = workspace.plugins.findIndex(item => item.manifest.id === record.manifest.id);
+      if (index < 0) throw new Error("插件登记已不存在");
+      workspace.plugins[index] = {
+        manifest: validatePluginManifest(record.manifest),
+        directory: record.directory,
+        enabled: record.enabled,
+        starting: record.starting,
+      };
     });
   }
 

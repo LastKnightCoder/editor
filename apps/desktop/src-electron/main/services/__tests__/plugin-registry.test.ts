@@ -94,6 +94,27 @@ it("损坏的登记文件不覆盖，修复后同一实例可重试", async () =
   expect((await registry.open("A")).plugins).toEqual([]);
 });
 
+it("替换提交只存清单和目录，可按旧快照恢复；重载前标记不覆盖旧版本", async () => {
+  const workspace = await registry.open("A");
+  const previous = await fixture();
+  await registry.add(workspace.id, previous);
+  await registry.state(workspace.id, previous.manifest.id, true, true);
+  expect((await registry.get(workspace.id, previous.manifest.id)).manifest.version).toBe("1.0.0");
+  const next = {
+    ...previous,
+    manifest: { ...previous.manifest, version: "2.0.0" },
+    enabled: true,
+    artifact: { code: "不能写入登记文件" },
+  };
+  await registry.replace(workspace.id, next);
+  expect(
+    (await new DevelopmentPluginRegistry(filename).open("A")).plugins[0].manifest.version
+  ).toBe("2.0.0");
+  expect(await readFile(filename, "utf8")).not.toContain("不能写入登记文件");
+  await registry.replace(workspace.id, previous);
+  expect((await registry.get(workspace.id, previous.manifest.id)).manifest.version).toBe("1.0.0");
+});
+
 it("写入失败不返回成功，解除故障后可重试", async () => {
   const blocked = path.join(directory, "blocked");
   await writeFile(blocked, "占位文件");
