@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, version as reactVersion } from "react";
+import { version as reactDomVersion } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserStorage } from "@tau/plugins/host";
@@ -15,6 +16,8 @@ import type { DevelopmentSession } from "../../src/types/plugin-development";
 
 definePage({ key: "home", label: "插件管理验证", params: {}, component: PluginManagerView });
 useSettingsStore.getState().setSection("plugins");
+const restartRequired = new Set<string>();
+const reloadCounts = new Map<string, number>();
 
 export function Harness({ session }: { session: DevelopmentSession }) {
   const { navigator, state } = usePage();
@@ -25,6 +28,8 @@ export function Harness({ session }: { session: DevelopmentSession }) {
         navigator,
         storage: createBrowserStorage(localStorage),
         plugins: [],
+        restartRequired,
+        reloadCounts,
         openSettings: key => useSettingsStore.getState().setSection(key),
       })
   );
@@ -44,12 +49,41 @@ export function Harness({ session }: { session: DevelopmentSession }) {
         watching: runtime.development?.watching("example.external-counter") ?? false,
         mountId: runtime.getPage("example.external-counter", "counter")?.mountId,
         settingsCount: runtime.listSettings().length,
+        workspaceId: session.workspaceId,
+        versions: { react: reactVersion, reactDom: reactDomVersion },
+        errors: Object.fromEntries(
+          runtime.host
+            .listPlugins()
+            .map(plugin => [plugin.id, runtime.development?.error(plugin.id) ?? plugin.error])
+        ),
+        enabled: Object.fromEntries(
+          runtime.host
+            .listPlugins()
+            .map(plugin => [plugin.id, runtime.development?.enabled(plugin.id)])
+        ),
       }),
       open: (id: string) => runtime.host.executeCommand(id + ":open"),
       back: () => navigator.back(),
       settings: (id: string) => useSettingsStore.getState().setSection(`plugin:${id}:`),
       list: () => useSettingsStore.getState().setSection("plugins"),
       stop: () => runtime.dispose(),
+      switchWorkspace: async (name: string) => {
+        const context = runtime.getPage("example.external-counter", "counter")?.context;
+        await runtime.dispose();
+        const result = {
+          aborted: context?.signal.aborted,
+          commands: runtime.host.listCommands().length,
+          styles: document.querySelectorAll("style[data-tau-plugin]").length,
+          lateWriteRejected: context
+            ? await context.storage.set("late", 1).then(
+                () => false,
+                () => true
+              )
+            : undefined,
+        };
+        await mountWorkspace(name);
+        return result;
+      },
     },
   });
   return (
@@ -62,12 +96,15 @@ export function Harness({ session }: { session: DevelopmentSession }) {
 const container = document.getElementById("root");
 if (!container) throw new Error("验证容器缺失");
 const root = createRoot(container);
-void openDevelopmentPlugins("c07-verification", []).then(session =>
+async function mountWorkspace(name: string) {
+  const session = await openDevelopmentPlugins(name, []);
+  useSettingsStore.getState().setSection("plugins");
   root.render(
-    <QueryClientProvider client={new QueryClient()}>
+    <QueryClientProvider key={session.workspaceId} client={new QueryClient()}>
       <PageProvider initialKey="home">
         <Harness session={session} />
       </PageProvider>
     </QueryClientProvider>
-  )
-);
+  );
+}
+void mountWorkspace("c07-verification");
