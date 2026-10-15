@@ -171,6 +171,7 @@ export function SearchPalette() {
   const [captureSource, setCaptureSource] = useState<QuestionCaptureDraft | null>(null);
   const openPalette = useSearchStore(s => s.openPalette);
   const [sel, setSel] = useState(0);
+  const selectionSource = useRef<"pointer" | "keyboard" | "results">("results");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -185,7 +186,13 @@ export function SearchPalette() {
 
   const contentQuery = useSearchContent(debouncedQ, activeTypes);
   const plugins = useDesktopPlugins();
-  const pluginCommands = plugins ? pluginPaletteCommands(plugins.host) : null;
+  const pluginRevision = plugins?.getRevision() ?? 0;
+  const pluginCommands = useMemo(
+    () => (plugins ? pluginPaletteCommands(plugins.host) : []),
+    // 宿主实例不变时仍须按修订号更新命令快照。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plugins, pluginRevision]
+  );
   const commands = useMemo(
     () => matchCommands([...paletteCommands(), ...(pluginCommands ?? [])], lowerQ),
     [lowerQ, pluginCommands]
@@ -596,10 +603,21 @@ export function SearchPalette() {
 
   /* ---------- 选中态 / 滚动联动 ---------- */
 
+  // 只有查询、筛选或结果身份变化才重置；新数组和鼠标悬停不代表新结果。
+  const selectionKey = JSON.stringify([
+    open,
+    trimmedQ,
+    [...scopes],
+    capture,
+    flat.map(row => row.key),
+  ]);
   useEffect(() => {
+    selectionSource.current = "results";
     setSel(0);
-  }, [flat]);
+    if (listRef.current) listRef.current.scrollTop = 0;
+  }, [selectionKey]);
   useEffect(() => {
+    if (selectionSource.current === "pointer") return;
     listRef.current?.querySelector(`[data-idx="${sel}"]`)?.scrollIntoView({ block: "nearest" });
   }, [sel]);
 
@@ -705,9 +723,11 @@ export function SearchPalette() {
     if (e.nativeEvent.isComposing) return; // 输入法组合期间让位（确认候选等）
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      selectionSource.current = "keyboard";
       if (flat.length) setSel(s => (s + 1) % flat.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      selectionSource.current = "keyboard";
       if (flat.length) setSel(s => (s - 1 + flat.length) % flat.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -926,7 +946,10 @@ export function SearchPalette() {
                         data-idx={idx}
                         role="option"
                         aria-selected={idx === sel}
-                        onMouseMove={() => setSel(cur => (cur === idx ? cur : idx))}
+                        onMouseMove={() => {
+                          selectionSource.current = "pointer";
+                          setSel(cur => (cur === idx ? cur : idx));
+                        }}
                         onClick={() => activate(row)}
                         className={clsx(
                           "flex w-full cursor-pointer items-center gap-3 rounded-[10px] px-2.5 text-left",

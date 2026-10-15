@@ -10,7 +10,6 @@ import { isElectron } from "@/electron";
 import { openDevelopmentPlugins, closeDevelopmentPlugins } from "@/commands/plugin-development";
 import { migratePluginPreferences } from "./development-manager";
 import type { DevelopmentSession } from "@/types/plugin-development";
-import type { PluginDefinition } from "@tau/plugins";
 import { themePlugin } from "./builtin/themePlugin";
 
 const restartRequired = new Set<string>();
@@ -31,33 +30,13 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     };
     const previousCleanup = pendingCleanup;
     const preparation = (
-      import.meta.env.DEV
-        ? Promise.all([
-            import("@/features/plugins/example/notesPlugin"),
-            import("@/features/plugins/example/editorPlugin"),
-            import("./editorComposition"),
-            import("@/features/plugins/example/settingsPlugin"),
-            import("@/features/plugins/weread/plugin"),
-          ])
-        : Promise.resolve(null)
+      import.meta.env.DEV ? import("./editorComposition") : Promise.resolve(null)
     )
       .then(async modules => {
         await previousCleanup;
         if (cancelled) return;
-        const plugins: PluginDefinition[] = [themePlugin];
-        const composePluginEditor = modules?.[2].composePluginEditor;
-        if (modules) {
-          const [{ notesPlugin }, { editorPlugin }, , { settingsPlugin }, { createWeReadPlugin }] =
-            modules;
-          plugins.push(
-            notesPlugin,
-            editorPlugin,
-            settingsPlugin,
-            createWeReadPlugin(() =>
-              useSettingStore.getState().setting.integration.weread.apiKey.trim()
-            )
-          );
-        }
+        const plugins = [themePlugin];
+        const composePluginEditor = modules?.composePluginEditor;
         let session: DevelopmentSession | undefined;
         if (import.meta.env.DEV && isElectron) {
           session = await openDevelopmentPlugins(

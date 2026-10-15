@@ -8,7 +8,7 @@ import { PluginRuntimeContext } from "@/app/plugins/context";
 import { PageProvider, usePage, type Navigator } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { definePage } from "@/page/definePage";
-import { createWeReadPlugin } from "../weread/plugin";
+import { createWeReadPlugin } from "./fixtures/weread/plugin";
 import "../pages/plugin-page.page";
 
 const fetchMock = vi.fn();

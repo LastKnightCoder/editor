@@ -216,3 +216,23 @@ it("损坏记录在管理入口显示错误，用户启用后修复并可恢复"
   await remount();
   expect(getRuntime().host.getState("core.theme")).toBe("active");
 });
+
+it("开发构建也只默认装配主题插件，不自动添加验证样本", async () => {
+  vi.stubEnv("DEV", true);
+  vi.mocked(openDevelopmentPlugins).mockResolvedValue({
+    token: "dev-test",
+    workspaceId: "dev-A",
+    plugins: [],
+    skipStartup: false,
+  });
+  await remount();
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
+  expect(
+    getRuntime()
+      .host.listPlugins()
+      .map(plugin => plugin.id)
+  ).toEqual(["core.theme"]);
+  expect(openDevelopmentPlugins).toHaveBeenCalledWith("A", ["core.theme"]);
+});
