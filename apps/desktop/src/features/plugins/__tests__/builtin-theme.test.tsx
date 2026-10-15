@@ -9,6 +9,7 @@ import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { PluginManagerView } from "../views/PluginManagerView";
 import { pluginPaletteCommands } from "@/features/search/searchMeta";
 import { useSettingsStore } from "@/app/settingsStore";
+import { builtinPluginStateKey } from "@/app/plugins/builtin-manager";
 
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
@@ -52,14 +53,7 @@ async function click(text: string) {
   if (!button) throw new Error(`找不到按钮：${text}`);
   await act(async () => button.click());
 }
-beforeEach(async () => {
-  vi.stubEnv("DEV", false);
-  localStorage.clear();
-  runtime = null;
-  useSettingsStore.getState().setSection("plugins");
-  stopTheme = initThemeRuntime();
-  container = document.createElement("div");
-  document.body.append(container);
+async function mount() {
   root = createRoot(container);
   await act(async () =>
     root.render(
@@ -70,6 +64,24 @@ beforeEach(async () => {
       </StrictMode>
     )
   );
+}
+async function remount() {
+  await act(async () => root.unmount());
+  runtime = null;
+  await mount();
+}
+beforeEach(async () => {
+  vi.stubEnv("DEV", false);
+  localStorage.clear();
+  runtime = null;
+  useSettingStore.setState(state => ({
+    setting: { ...state.setting, database: { ...state.setting.database, active: "A" } },
+  }));
+  useSettingsStore.getState().setSection("plugins");
+  stopTheme = initThemeRuntime();
+  container = document.createElement("div");
+  document.body.append(container);
+  await mount();
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -128,7 +140,7 @@ it("正式构建装配内置插件，管理启停与命令面板真实修改同�
   expect(useThemeStore.getState().appearance).toBe("light");
 });
 
-it("切库回收旧插件实例，主题偏好仍为应用级且新实例不重复命令", async () => {
+it("切库回收旧实例并恢复启用，主动停用也在工作区间保持", async () => {
   await click("启用");
   const old = getRuntime();
   await act(async () => {
@@ -142,8 +154,65 @@ it("切库回收旧插件实例，主题偏好仍为应用级且新实例不重�
   );
   expect(runtime).not.toBe(old);
   expect(old.host.listCommands()).toEqual([]);
-  expect(getRuntime().host.getState("core.theme")).toBe("disabled");
+  expect(getRuntime().host.getState("core.theme")).toBe("active");
   expect(useThemeStore.getState().theme).toBe(theme);
-  await click("启用");
   expect(getRuntime().host.listCommands()).toHaveLength(2);
+  await click("停用");
+  await act(async () =>
+    useSettingStore.setState(state => ({
+      setting: { ...state.setting, database: { ...state.setting.database, active: "A" } },
+    }))
+  );
+  expect(getRuntime().host.getState("core.theme")).toBe("disabled");
+  expect(getRuntime().host.listCommands()).toEqual([]);
+});
+
+it("重建 Provider 从保存记录恢复启用，停用后再次重建仍停用", async () => {
+  await click("启用");
+  expect(localStorage.getItem(builtinPluginStateKey("core.theme"))).toBe("true");
+  const previous = getRuntime();
+  await remount();
+  expect(previous.host.listCommands()).toEqual([]);
+  expect(getRuntime().host.getState("core.theme")).toBe("active");
+  expect(getRuntime().host.listCommands()).toHaveLength(2);
+  await click("停用");
+  expect(localStorage.getItem(builtinPluginStateKey("core.theme"))).toBe("false");
+  await remount();
+  expect(getRuntime().host.getState("core.theme")).toBe("disabled");
+});
+
+it("同源窗口的启停和清空偏好通知会同步到当前实例", async () => {
+  const key = builtinPluginStateKey("core.theme");
+  await act(async () => {
+    localStorage.setItem(key, "true");
+    window.dispatchEvent(
+      new StorageEvent("storage", { key, newValue: "true", storageArea: localStorage })
+    );
+  });
+  expect(getRuntime().host.getState("core.theme")).toBe("active");
+  await act(async () => {
+    localStorage.setItem(key, "false");
+    window.dispatchEvent(
+      new StorageEvent("storage", { key, newValue: "false", storageArea: localStorage })
+    );
+  });
+  expect(getRuntime().host.getState("core.theme")).toBe("disabled");
+  await click("启用");
+  await act(async () => {
+    localStorage.clear();
+    window.dispatchEvent(new StorageEvent("storage", { key: null, storageArea: localStorage }));
+  });
+  expect(getRuntime().host.listCommands()).toEqual([]);
+});
+
+it("损坏记录在管理入口显示错误，用户启用后修复并可恢复", async () => {
+  localStorage.setItem(builtinPluginStateKey("core.theme"), "broken");
+  await remount();
+  expect(container.textContent).toContain("启用状态损坏");
+  expect(getRuntime().host.getState("core.theme")).toBe("disabled");
+  await click("启用");
+  expect(container.textContent).not.toContain("启用状态损坏");
+  expect(getRuntime().host.getState("core.theme")).toBe("active");
+  await remount();
+  expect(getRuntime().host.getState("core.theme")).toBe("active");
 });

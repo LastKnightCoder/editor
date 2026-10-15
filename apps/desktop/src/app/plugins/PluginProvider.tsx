@@ -25,6 +25,10 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea && event.storageArea !== window.localStorage) return;
+      void current?.builtin?.restore(event.key);
+    };
     const previousCleanup = pendingCleanup;
     const preparation = (
       import.meta.env.DEV
@@ -83,7 +87,10 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           openSettings: key => useSettingsStore.getState().openSettings(key),
         });
         const development = session ? current.attachDevelopment(session) : undefined;
+        const builtin = current.attachBuiltins([themePlugin.id], window.localStorage);
+        window.addEventListener("storage", onStorage);
         setRuntime(current);
+        void builtin.restore();
         if (development) void development.restore();
       })
       .catch(error => {
@@ -91,6 +98,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       cancelled = true;
+      window.removeEventListener("storage", onStorage);
       pendingCleanup = Promise.allSettled([
         previousCleanup,
         current ? current.dispose() : preparation,
