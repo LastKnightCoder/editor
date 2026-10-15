@@ -8,7 +8,7 @@ import { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { useSettingsStore } from "@/app/settingsStore";
 import { PageProvider } from "@/page/PageProvider";
 import { definePage } from "@/page/definePage";
-import { settingsPlugin } from "@/features/plugins/example/settingsPlugin";
+import { settingsPlugin } from "@/features/plugins/__tests__/fixtures/example/settingsPlugin";
 import { SettingsScreen } from "../SettingsScreen";
 
 vi.mock("../sections", async () => {

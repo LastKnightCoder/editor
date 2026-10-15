@@ -17,8 +17,8 @@ import {
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { PluginEditorSession } from "@/app/plugins/editorSession";
 import { composePluginEditor } from "@/app/plugins/editorComposition";
-import { editorPlugin } from "../example/editorPlugin";
-import { reminderCodec } from "../example/reminderCodec";
+import { editorPlugin } from "./fixtures/example/editorPlugin";
+import { reminderCodec } from "./fixtures/example/reminderCodec";
 import { PluginEditorWorkbench } from "../views/PluginEditorWorkbench";
 
 let runtime: DesktopPluginRuntime;

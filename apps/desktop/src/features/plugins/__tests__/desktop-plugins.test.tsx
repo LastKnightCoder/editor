@@ -16,6 +16,8 @@ import type { StackMachineState } from "@/page/core/stackMachine";
 import { definePlugin, type PluginPageHandle } from "@tau/plugins";
 import "../pages/plugin-page.page";
 import "../pages/plugin-workbench.page";
+import { notesPlugin } from "./fixtures/example/notesPlugin";
+import { settingsPlugin } from "./fixtures/example/settingsPlugin";
 
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
@@ -36,6 +38,8 @@ function Capture() {
   const value = usePage();
   const plugins = useDesktopPlugins();
   useEffect(() => {
+    if (plugins && !plugins.host.listPlugins().some(plugin => plugin.id === notesPlugin.id))
+      plugins.host.registerTrusted(notesPlugin);
     runtime = plugins;
     navigator = value.navigator;
     state = value.state;
@@ -124,7 +128,8 @@ describe("桌面插件完整路径", () => {
     expect(useSettingsStore.getState()).toMatchObject({ open: true, section: "plugins" });
     useSettingsStore.getState().closeSettings();
   });
-  it("开发宿主按需加载设置样本，命令打开真实设置选择并随停用撤销", async () => {
+  it("显式注入设置夹具，命令打开真实设置选择并随停用撤销", async () => {
+    currentRuntime().host.registerTrusted(settingsPlugin);
     const host = currentRuntime().host;
     expect(host.getState("example.settings")).toBe("disabled");
     await act(async () => host.enable("example.settings"));
