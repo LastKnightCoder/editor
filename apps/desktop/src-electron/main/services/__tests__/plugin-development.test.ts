@@ -20,23 +20,35 @@ afterEach(() => {
   electron.app.isPackaged = false;
 });
 describe("开发插件选择入口", () => {
-  async function invoke() {
+  const channels = [
+    "open",
+    "close",
+    "choose",
+    "state",
+    "remove",
+    "retire",
+    "prepare-reload",
+    "commit-reload",
+    "discard-reload",
+    "watch",
+  ];
+  async function invoke(channel = "choose") {
     await module.init();
     const handler = electron.ipcMain.handle.mock.calls.find(
-      call => call[0] === "plugin-development:choose"
+      call => call[0] === `plugin-development:${channel}`
     )?.[1];
     if (!handler) throw new Error("测试通道不存在");
     return handler({ sender: {} });
   }
-  it("安装版即使设置开发 URL 也不开放", async () => {
+  it.each(channels)("安装版即使设置开发 URL 也不开放 %s", async channel => {
     vi.stubEnv("VITE_DEV_SERVER_URL", "http://localhost");
     electron.app.isPackaged = true;
-    await expect(invoke()).rejects.toThrow("仅在桌面开发环境");
+    await expect(invoke(channel)).rejects.toThrow("仅在桌面开发环境");
     expect(electron.dialog.showOpenDialog).not.toHaveBeenCalled();
   });
-  it("非开发启动不开放", async () => {
+  it.each(channels)("非开发启动不开放 %s", async channel => {
     vi.stubEnv("VITE_DEV_SERVER_URL", "");
-    await expect(invoke()).rejects.toThrow("仅在桌面开发环境");
+    await expect(invoke(channel)).rejects.toThrow("仅在桌面开发环境");
   });
   it("取消目录选择不登记任何包", async () => {
     vi.stubEnv("VITE_DEV_SERVER_URL", "http://localhost");
