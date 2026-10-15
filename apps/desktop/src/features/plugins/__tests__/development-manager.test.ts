@@ -44,6 +44,11 @@ function setup(options: { starting?: boolean; error?: string; skipStartup?: bool
     closeDevelopmentPlugins: vi.fn(async () => undefined),
     removeDevelopmentPlugin: vi.fn(async () => undefined),
     chooseDevelopmentPlugin: vi.fn(async () => null),
+    prepareDevelopmentReload: vi.fn<
+      () => Promise<import("@/types/plugin-development").PreparedDevelopmentReload | null>
+    >(async () => null),
+    commitDevelopmentReload: vi.fn(async (): Promise<void> => undefined),
+    discardDevelopmentReload: vi.fn(async () => undefined),
   };
   const manager = new DevelopmentPluginManager(
     host,
@@ -56,8 +61,182 @@ function setup(options: { starting?: boolean; error?: string; skipStartup?: bool
     async () => ({}),
     client
   );
-  return { host, manager, client };
+  return { host, manager, client, record };
 }
+
+function replacement(record: RestoredDevelopmentPlugin, fail = false) {
+  if (!record.artifact) throw new Error("测试产物缺失");
+  const manifest = { ...record.manifest, version: "2.0.0" };
+  return {
+    ticket: "reload-ticket",
+    record: {
+      ...record,
+      manifest,
+      directory: "/new-author",
+      artifact: {
+        manifest,
+        code: record.artifact.code
+          .replace("version:'1.0.0'", "version:'2.0.0'")
+          .replace("run:()=>1", "run:()=>2")
+          .replace(
+            "activate(ctx){",
+            fail ? "activate(ctx){throw new Error('新版本失败');" : "activate(ctx){"
+          ),
+      },
+    },
+  };
+}
+
+it("重载校验失败或取消保留旧实例；成功后替换代码并提交新登记", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  client.prepareDevelopmentReload.mockRejectedValueOnce(new Error("产物不完整"));
+  await expect(manager.reload(id)).rejects.toThrow("产物不完整");
+  expect(await host.executeCommand(id + ":run")).toBe(1);
+  await manager.reload(id);
+  expect(client.commitDevelopmentReload).not.toHaveBeenCalled();
+  client.prepareDevelopmentReload.mockResolvedValueOnce(replacement(record));
+  await manager.reload(id);
+  expect(await host.executeCommand(id + ":run")).toBe(2);
+  expect(host.listPlugins()[0].version).toBe("2.0.0");
+  expect(client.commitDevelopmentReload).toHaveBeenLastCalledWith(
+    "session",
+    "reload-ticket",
+    "next",
+    true,
+    false
+  );
+  expect(client.discardDevelopmentReload).toHaveBeenCalledWith("session", "reload-ticket");
+});
+
+it.each(["activation", "commit"])("新版本 %s 失败恢复旧代码与登记", async failure => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  client.prepareDevelopmentReload.mockResolvedValueOnce(
+    replacement(record, failure === "activation")
+  );
+  if (failure === "commit")
+    client.commitDevelopmentReload.mockRejectedValueOnce(new Error("提交失败"));
+  await expect(manager.reload(id)).rejects.toThrow("已恢复旧版本");
+  expect(await host.executeCommand(id + ":run")).toBe(1);
+  expect(host.listPlugins()[0].version).toBe("1.0.0");
+  expect(client.commitDevelopmentReload).toHaveBeenLastCalledWith(
+    "session",
+    "reload-ticket",
+    "previous",
+    true,
+    false
+  );
+});
+
+it("旧版清理失败禁止运行新代码并保存停用状态", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  await host.unregister(id);
+  host.registerTrusted({
+    ...record.manifest,
+    create: () => ({
+      activate: () => undefined,
+      deactivate() {
+        throw new Error("旧版清理失败");
+      },
+    }),
+  });
+  await host.enable(id);
+  client.prepareDevelopmentReload.mockResolvedValueOnce(replacement(record));
+  await expect(manager.reload(id)).rejects.toThrow("重载与恢复失败");
+  expect(host.getState(id)).toBe("restart-required");
+  expect(host.listCommands()).toHaveLength(0);
+  expect(client.commitDevelopmentReload).toHaveBeenLastCalledWith(
+    "session",
+    "reload-ticket",
+    "previous",
+    false,
+    true
+  );
+});
+
+it("恢复提交也失败时明确停止，不伪报旧版已恢复", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  client.prepareDevelopmentReload.mockResolvedValueOnce(replacement(record, true));
+  client.commitDevelopmentReload.mockRejectedValue(new Error("磁盘故障"));
+  await expect(manager.reload(id)).rejects.toThrow("重载与恢复失败");
+  expect(host.listCommands()).toHaveLength(0);
+  expect(manager.enabled(id)).toBe(false);
+});
+
+it("新版本激活超时不重新执行旧代码，保留需要重启状态", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  const next = replacement(record);
+  next.record.artifact.code = next.record.artifact.code.replace(
+    "activate(ctx){",
+    "activate(ctx){return new Promise(()=>{});"
+  );
+  client.prepareDevelopmentReload.mockResolvedValueOnce(next);
+  vi.useFakeTimers();
+  try {
+    const rejected = expect(manager.reload(id)).rejects.toThrow("重载与恢复失败");
+    await vi.advanceTimersByTimeAsync(10_000);
+    await rejected;
+    expect(host.getState(id)).toBe("restart-required");
+    expect(host.listCommands()).toHaveLength(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("停用插件重载只更新定义，不执行代码", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.disable(id);
+  client.prepareDevelopmentReload.mockResolvedValueOnce(replacement(record, true));
+  await manager.reload(id);
+  expect(host.getState(id)).toBe("disabled");
+  expect(host.listPlugins()[0].version).toBe("2.0.0");
+  expect(client.commitDevelopmentReload).toHaveBeenLastCalledWith(
+    "session",
+    "reload-ticket",
+    "next",
+    false,
+    false
+  );
+});
+
+it("选择新构建期间关闭会话不替换旧定义，并释放重载票据", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  const next = replacement(record);
+  let release!: (value: typeof next) => void;
+  client.prepareDevelopmentReload.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        release = resolve;
+      })
+  );
+  const reloading = expect(manager.reload(id)).rejects.toThrow("已关闭");
+  await Promise.resolve();
+  await Promise.resolve();
+  manager.cancel();
+  release(next);
+  await reloading;
+  expect(host.listPlugins()[0].version).toBe("1.0.0");
+  expect(client.commitDevelopmentReload).not.toHaveBeenCalled();
+  expect(client.discardDevelopmentReload).toHaveBeenCalledOnce();
+});
+
+it("连续重载不累积命令，达到窗口上限后旧实例仍可用", async () => {
+  const { host, manager, client, record } = setup();
+  await manager.restore();
+  const next = replacement(record);
+  client.prepareDevelopmentReload.mockResolvedValue(next);
+  for (let i = 0; i < 20; i++) {
+    await manager.reload(id);
+    expect(host.listCommands()).toHaveLength(1);
+  }
+  await expect(manager.reload(id)).rejects.toThrow("20 次");
+  expect(await host.executeCommand(id + ":run")).toBe(2);
+});
 
 it("恢复先保存启动标记再执行，成功提交启用意图，停用写入关闭状态", async () => {
   const { host, manager, client } = setup();

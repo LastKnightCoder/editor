@@ -55,6 +55,7 @@ export class DesktopPluginRuntime {
       openSettings?: (key: PluginSettingsKey) => void;
       fetch?: typeof globalThis.fetch;
       restartRequired?: Set<string>;
+      reloadCounts?: Map<string, number>;
     }
   ) {
     this.host = new PluginHost({
@@ -81,7 +82,8 @@ export class DesktopPluginRuntime {
       session,
       async () => (await import("./shared-modules")).sharedPluginModules,
       undefined,
-      this.publish
+      this.publish,
+      this.options.reloadCounts
     );
     this.publish();
     return this.development;

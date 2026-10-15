@@ -41,12 +41,36 @@ try {
   );
   await run("npm", ["run", "build"], author);
   const second = (await readdir(path.join(author, "dist"))).find(name => name !== first);
+  const beforeReload = await readdir(path.join(author, "dist"));
+  await writeFile(
+    path.join(author, "manifest.json"),
+    JSON.stringify({ ...manifest, version: "1.1.0" })
+  );
+  await run("npm", ["run", "build"], author);
+  const replacement = (await readdir(path.join(author, "dist"))).find(
+    name => !beforeReload.includes(name)
+  );
+  const beforeFailure = await readdir(path.join(author, "dist"));
+  const source = path.join(author, "src/index.tsx");
+  await writeFile(
+    source,
+    (await readFile(source, "utf8")).replace(
+      "activate(context) {",
+      "activate(context) { throw new Error('重载验证故障');"
+    )
+  );
+  await run("npm", ["run", "build"], author);
+  const failing = (await readdir(path.join(author, "dist"))).find(
+    name => !beforeFailure.includes(name)
+  );
   await run(
     process.execPath,
     [
       "apps/desktop/scripts/verify-plugin-runtime.mjs",
       path.join(author, "dist", first),
       path.join(author, "dist", second),
+      path.join(author, "dist", replacement),
+      path.join(author, "dist", failing),
     ],
     root
   );

@@ -160,6 +160,7 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const enabled = plugin.state === "active" || runtime.development?.enabled(plugin.id);
+  const managing = busy || runtime.development?.busy(plugin.id);
   const change = async () => {
     setBusy(true);
     setError("");
@@ -185,6 +186,17 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
     }
   };
   const managementError = runtime.development?.error(plugin.id);
+  const reload = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await runtime.development?.reload(plugin.id);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "重载失败");
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3">
@@ -192,7 +204,7 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
         <Button
           aria-label={`${enabled ? "停用" : "启用"} ${plugin.name}`}
           disabled={
-            busy ||
+            managing ||
             plugin.state === "activating" ||
             plugin.state === "deactivating" ||
             (plugin.state === "restart-required" && !enabled)
@@ -204,7 +216,21 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
         {runtime.development?.owns(plugin.id) && (
           <Button
             variant="ghost"
-            disabled={busy || plugin.state === "activating" || plugin.state === "deactivating"}
+            disabled={
+              managing ||
+              plugin.state === "activating" ||
+              plugin.state === "deactivating" ||
+              plugin.state === "restart-required"
+            }
+            onClick={() => void reload()}
+          >
+            重载构建
+          </Button>
+        )}
+        {runtime.development?.owns(plugin.id) && (
+          <Button
+            variant="ghost"
+            disabled={managing || plugin.state === "activating" || plugin.state === "deactivating"}
             onClick={() => void remove()}
           >
             移除登记

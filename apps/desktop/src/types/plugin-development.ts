@@ -20,3 +20,8 @@ export interface DevelopmentSession {
   plugins: RestoredDevelopmentPlugin[];
   skipStartup: boolean;
 }
+
+export interface PreparedDevelopmentReload {
+  ticket: string;
+  record: RestoredDevelopmentPlugin;
+}

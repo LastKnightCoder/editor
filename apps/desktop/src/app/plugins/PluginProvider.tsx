@@ -12,6 +12,7 @@ import { migratePluginPreferences } from "./development-manager";
 import type { DevelopmentSession } from "@/types/plugin-development";
 
 const restartRequired = new Set<string>();
+const reloadCounts = new Map<string, number>();
 let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
@@ -73,6 +74,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
             plugins,
             fetch: desktopFetch,
             restartRequired,
+            reloadCounts,
             validateEditor: composePluginEditor,
             openSettings: key => useSettingsStore.getState().openSettings(key),
           });

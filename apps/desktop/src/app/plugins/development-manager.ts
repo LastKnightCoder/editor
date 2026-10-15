@@ -18,14 +18,21 @@ export class DevelopmentPluginManager {
       | "saveDevelopmentPluginState"
       | "removeDevelopmentPlugin"
       | "closeDevelopmentPlugins"
+      | "prepareDevelopmentReload"
+      | "commitDevelopmentReload"
+      | "discardDevelopmentReload"
     > = commands,
-    private readonly notify: () => void = () => undefined
+    private readonly notify: () => void = () => undefined,
+    private readonly reloadCounts: Map<string, number> = new Map()
   ) {
     for (const record of session.plugins) this.register(record);
   }
 
   owns(id: string) {
     return this.records.has(id);
+  }
+  busy(id: string) {
+    return this.pending.has(id);
   }
   enabled(id: string) {
     return this.records.get(id)?.enabled ?? false;
@@ -97,6 +104,87 @@ export class DevelopmentPluginManager {
     });
   }
 
+  reload(id: string) {
+    return this.run(id, async previous => {
+      if (this.host.getState(id) === "restart-required") throw new Error("请重启应用后再重载");
+      if ((this.reloadCounts.get(id) ?? 0) >= 20)
+        throw new Error("当前窗口已重载此插件 20 次，请重启应用后继续");
+      const prepared = await this.client.prepareDevelopmentReload(this.session.token, id);
+      if (!prepared) return;
+      const { ticket, record: next } = prepared;
+      try {
+        this.assertOpen();
+        if (!next.artifact || next.manifest.id !== id) throw new Error("重载产物无效");
+        const active = this.host.getState(id) === "active";
+        // 提交新版本前保留旧登记；中断时跳过自动启动。
+        await this.client.saveDevelopmentPluginState(this.session.token, id, active, true);
+        this.assertOpen();
+        try {
+          await this.host.disable(id);
+          this.assertOpen();
+          await this.host.unregister(id);
+          this.define(next);
+          this.reloadCounts.set(id, (this.reloadCounts.get(id) ?? 0) + 1);
+          if (active) await this.host.enable(id);
+          this.assertOpen();
+          await this.client.commitDevelopmentReload(
+            this.session.token,
+            ticket,
+            "next",
+            active,
+            false
+          );
+          Object.assign(previous, next, { enabled: active, starting: false, error: undefined });
+        } catch (error) {
+          this.assertOpen();
+          try {
+            let cleanupError: unknown;
+            if (this.host.listPlugins().some(item => item.id === id)) {
+              try {
+                await this.host.unregister(id);
+              } catch (failure) {
+                cleanupError = failure;
+              }
+            }
+            this.define(previous);
+            if (cleanupError || this.host.getState(id) === "restart-required")
+              throw new Error("清理未能确认完成，需要重启应用");
+            if (active) await this.host.enable(id);
+            this.assertOpen();
+            await this.client.commitDevelopmentReload(
+              this.session.token,
+              ticket,
+              "previous",
+              active,
+              false
+            );
+            previous.enabled = active;
+            previous.starting = false;
+          } catch (recoveryError) {
+            await this.host.disable(id).catch(() => undefined);
+            previous.enabled = false;
+            previous.starting = true;
+            await this.client
+              .commitDevelopmentReload(this.session.token, ticket, "previous", false, true)
+              .catch(() => undefined);
+            throw new AggregateError(
+              [error, recoveryError],
+              "重载与恢复失败，插件已停止；请检查登记文件并重启应用，必要时跳过自动启动"
+            );
+          }
+          throw new Error(
+            `重载失败，已恢复旧版本：${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      } finally {
+        // 票据只持有内存快照，连接失效时由会话释放兜底。
+        await this.client
+          .discardDevelopmentReload(this.session.token, ticket)
+          .catch(() => undefined);
+      }
+    });
+  }
+
   cancel() {
     this.closed = true;
   }
@@ -110,6 +198,10 @@ export class DevelopmentPluginManager {
     this.records.set(record.manifest.id, record);
     if (record.starting && !record.error)
       record.error = "上次启动未完成，已跳过自动启用；可手动重试或移除";
+    this.define(record);
+  }
+
+  private define(record: RestoredDevelopmentPlugin) {
     if (record.artifact) registerDevelopmentPlugin(this.host, record.artifact, this.getModules);
     else
       this.host.registerTrusted({
@@ -144,9 +236,11 @@ export class DevelopmentPluginManager {
         }
       });
     this.pending.set(id, next);
+    this.notify();
     void next
       .finally(() => {
         if (this.pending.get(id) === next) this.pending.delete(id);
+        this.notify();
       })
       .catch(() => undefined);
     return next;

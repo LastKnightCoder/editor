@@ -40,6 +40,8 @@ export function Harness({ session }: { session: DevelopmentSession }) {
         commands: runtime.host.listCommands(),
         styles: document.querySelectorAll("style[data-tau-plugin]").length,
         ready,
+        reloading: runtime.development?.busy("example.external-counter") ?? false,
+        settingsCount: runtime.listSettings().length,
       }),
       open: (id: string) => runtime.host.executeCommand(id + ":open"),
       back: () => navigator.back(),

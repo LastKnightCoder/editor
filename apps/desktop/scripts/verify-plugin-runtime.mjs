@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-if (!process.argv[2] || !process.argv[3]) throw new Error("需要两个独立构建的插件目录");
+if (process.argv.length < 6) throw new Error("需要两个插件及成功/失败重载构建的目录");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-plugin-runtime-"));
 try {
   await Promise.all([
@@ -44,6 +44,8 @@ try {
     TAU_PLUGIN_TEST_DIRECTORY: directory,
     TAU_PLUGIN_TEST_ARTIFACT: path.resolve(process.argv[2]),
     TAU_PLUGIN_TEST_SECOND: path.resolve(process.argv[3]),
+    TAU_PLUGIN_TEST_REPLACEMENT: path.resolve(process.argv[4]),
+    TAU_PLUGIN_TEST_FAILING: path.resolve(process.argv[5]),
   };
   delete env.ELECTRON_RUN_AS_NODE;
   const executable = createRequire(path.join(root, "package.json"))("electron");
