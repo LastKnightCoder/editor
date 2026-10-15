@@ -6,7 +6,7 @@
  * 账本窗口由标题旁的时间导航决定（翻页、快捷范围含「全部」、任意起止）。
  *
  * 计时在主进程：页面只镜像会话（timerStore），离开页面计时照常，侧栏入口挂实时计时。
- * 删除（记录 / 预设）不二次确认：立即从视图消失 + Toast 撤销，UNDO_MS 后才落库，离开页面立即落库。
+ * 删除（记录 / 预设）不二次确认：立即从视图消失 + Toast 撤销，toast 关闭后才落库，离开页面立即落库。
  * 键盘（仅本页在栈顶、焦点不在输入 / 按钮上）：空格暂停继续、1–9 开始第 N 个预设、I 进入沉浸。
  * 「专注于…」的选择在开始前暂存在本页（随保活保留），任何开始入口都带上它，开始后清空。
  */
@@ -78,10 +78,10 @@ function useMinuteNow(): number {
   return now;
 }
 
-/** 延迟落库的删除：立即隐藏，UNDO_MS 后执行 commit；撤销即取消；卸载时立即落库 */
+/** 延迟落库的删除：立即隐藏，撤销 toast 关闭时执行 commit（悬停冻结连带延长撤销窗口，无死按钮）；撤销即取消；卸载时立即落库 */
 function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: string) {
   const [pending, setPending] = useState<ReadonlySet<number>>(() => new Set());
-  const timers = useRef(new Map<number, number>());
+  const pendingCommits = useRef(new Set<number>());
   const commitRef = useRef(commit);
   commitRef.current = commit;
 
@@ -92,8 +92,8 @@ function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: 
       return next;
     });
   const flush = (id: number) => {
-    window.clearTimeout(timers.current.get(id));
-    timers.current.delete(id);
+    if (!pendingCommits.current.has(id)) return;
+    pendingCommits.current.delete(id);
     commitRef
       .current(id)
       .catch(() => toast.error(errorText))
@@ -103,24 +103,22 @@ function useDeferredDelete(commit: (id: number) => Promise<unknown>, errorText: 
   flushRef.current = flush;
   useEffect(
     () => () => {
-      for (const id of [...timers.current.keys()]) flushRef.current(id);
+      for (const id of [...pendingCommits.current]) flushRef.current(id);
     },
     []
   );
 
   const schedule = (id: number, message: string) => {
     setPending(prev => new Set(prev).add(id));
-    timers.current.set(
-      id,
-      window.setTimeout(() => flushRef.current(id), UNDO_MS)
-    );
+    pendingCommits.current.add(id);
     toast.info(message, {
       duration: UNDO_MS,
+      onClose: () => flushRef.current(id),
       action: {
         label: "撤销",
         onClick: () => {
-          window.clearTimeout(timers.current.get(id));
-          timers.current.delete(id);
+          // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
+          pendingCommits.current.delete(id);
           drop(id);
         },
       },

@@ -2,6 +2,7 @@
  * Toast 时长策略单测 —— 载入中常驻只由 type 判断，duration 只约束落定后的停留：
  * resolve / reject 都必须让胶囊按 duration 自动离场（曾因 loading 的 duration 被兜成 0
  * 而永久赖着不走），载入期则恒不离场；悬停冻结要跨过载入→落定的切换。
+ * onClose 覆盖到时 / 动作点击 / 挤出上限 / 悬停冻结延后，且只触发一次（延迟删除的落库挂在上面）。
  * jsdom 无布局：rAF 入场与 220ms 退场缓冲都由 fake timers 推进。
  */
 
@@ -147,5 +148,67 @@ describe("Toast 载入态的时长策略", () => {
     });
     advance(DEFAULT_DURATION + LEAVE_BUFFER);
     expect(texts()).toEqual([]);
+  });
+});
+
+describe("Toast onClose 关闭回调", () => {
+  it("到时自动关闭触发一次，退场移除不重复触发", () => {
+    const onClose = vi.fn();
+    act(() => {
+      void toast.info("已删除", { onClose });
+    });
+    advance(DEFAULT_DURATION);
+    expect(onClose).toHaveBeenCalledOnce();
+    advance(LEAVE_BUFFER);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("悬停冻结延后自动关闭：挂在 onClose 上的撤销窗口随之延长", () => {
+    const onClose = vi.fn();
+    act(() => {
+      void toast.info("已删除", { onClose });
+    });
+    const pill = document.querySelector<HTMLElement>('[role="status"]')!;
+    act(() => {
+      pill.dispatchEvent(
+        new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body })
+      );
+    });
+    advance(DEFAULT_DURATION * 2);
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => {
+      pill.dispatchEvent(
+        new MouseEvent("mouseout", { bubbles: true, relatedTarget: document.body })
+      );
+    });
+    advance(DEFAULT_DURATION);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("动作点击：action.onClick 先于 onClose（撤销先摘掉待落库条目，onClose 空转）", () => {
+    const order: string[] = [];
+    act(() => {
+      void toast.info("已删除", {
+        onClose: () => order.push("close"),
+        action: { label: "撤销", onClick: () => order.push("undo") },
+      });
+    });
+    act(() => {
+      document.querySelector<HTMLElement>('[role="status"] button')!.click();
+    });
+    expect(order).toEqual(["undo", "close"]);
+  });
+
+  it("同位置超限被挤出时也触发（撤销入口没了即落库）", () => {
+    const onClose = vi.fn();
+    act(() => {
+      void toast.info("第 1 条", { onClose, duration: 0 });
+    });
+    // 分开渲染：首条先挂载，再挤进来 4 条把它顶出
+    act(() => {
+      for (let i = 2; i <= 5; i++) void toast.info(`第 ${i} 条`, { duration: 0 });
+    });
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

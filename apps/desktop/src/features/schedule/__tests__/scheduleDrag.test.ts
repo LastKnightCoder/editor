@@ -1,16 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { toastInfo } = vi.hoisted(() => ({ toastInfo: vi.fn() }));
 vi.mock("@tau/ui", () => ({ toast: { info: toastInfo, error: vi.fn() } }));
 
 import { dragTarget } from "@/hooks/useEventDrag";
 import { dropMinutes } from "../todoDrop";
-import {
-  UNDO_MS,
-  flushEventDeletes,
-  scheduleEventDelete,
-  usePendingDeletes,
-} from "../pendingDeleteStore";
+import { flushEventDeletes, scheduleEventDelete, usePendingDeletes } from "../pendingDeleteStore";
 import type { CalendarEvent } from "@/types";
 
 const CELL = 12; // 15 分钟
@@ -61,29 +56,28 @@ it("dropMinutes：落点吸附到 15 分钟，不越界", () => {
 describe("延迟删除", () => {
   const event = { id: 7, title: "评审会" } as CalendarEvent;
   beforeEach(() => {
-    vi.useFakeTimers();
     toastInfo.mockReset();
     usePendingDeletes.setState({ ids: new Set() });
   });
-  afterEach(() => vi.useRealTimers());
 
-  it("立即隐藏，到时才落库", async () => {
+  it("立即隐藏，toast 关闭才落库", async () => {
     const commit = vi.fn().mockResolvedValue(1);
     scheduleEventDelete(event, commit);
     expect(usePendingDeletes.getState().ids.has(7)).toBe(true);
     expect(commit).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(UNDO_MS);
+    const { onClose } = toastInfo.mock.calls[0][1] as { onClose(): void };
+    onClose();
     expect(commit).toHaveBeenCalledOnce();
-    expect(usePendingDeletes.getState().ids.has(7)).toBe(false);
+    await vi.waitFor(() => expect(usePendingDeletes.getState().ids.has(7)).toBe(false));
   });
 
-  it("撤销：不落库并恢复显示", async () => {
+  it("撤销：不落库并恢复显示，随后的 toast 关闭空转", () => {
     const commit = vi.fn().mockResolvedValue(1);
     scheduleEventDelete(event, commit);
-    const { action } = toastInfo.mock.calls[0][1] as { action: { onClick(): void } };
-    action.onClick();
+    const opts = toastInfo.mock.calls[0][1] as { action: { onClick(): void }; onClose(): void };
+    opts.action.onClick();
     expect(usePendingDeletes.getState().ids.size).toBe(0);
-    await vi.advanceTimersByTimeAsync(UNDO_MS);
+    opts.onClose();
     expect(commit).not.toHaveBeenCalled();
   });
 

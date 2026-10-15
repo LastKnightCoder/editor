@@ -125,7 +125,7 @@ export function FlashcardsView() {
   const endReview = (reviewed: number) => {
     const scopeId = review?.scopeId ?? null;
     setReview(null);
-    invalidateFlashcardViews(queryClient);
+    void invalidateFlashcardViews(queryClient);
     if (reviewed && derived) {
       const left = reviewQueue(derived.cards, Date.now(), scopeId).length;
       toast.success(

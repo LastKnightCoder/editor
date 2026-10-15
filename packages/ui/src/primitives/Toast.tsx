@@ -27,6 +27,8 @@ export interface ToastOptions {
   position?: ToastPosition;
   /** 落定后的停留毫秒数；0 = 落定后也常驻（只靠点击关闭）。载入中恒常驻，与本值无关 */
   duration?: number;
+  /** 关闭时回调（自动到时 / 点击整条 / 动作点击 / 同位置超限被挤出 / Host 卸载）；动作 onClick 先于它触发 */
+  onClose?: () => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export interface ToastItem {
   action?: ToastOptions["action"];
   position: ToastPosition;
   duration: number;
+  onClose?: ToastOptions["onClose"];
 }
 
 const MAX_VISIBLE = 4;
@@ -88,6 +91,7 @@ export const toast = {
       // loading 的常驻由 ToastPill 按 type 判断，不走 duration——落定（resolve / reject）
       // 后要靠 duration 排自动关闭，这里再兜 0 会让 success/error 永久赖着不走
       duration: opts.duration ?? defaults.duration,
+      onClose: opts.onClose,
     });
     return id;
   },
@@ -220,12 +224,32 @@ export function ToastPill({ item }: { item: ToastItem }) {
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const Icon = TYPE_ICON[item.type];
+  const closedRef = useRef(false);
+  const onCloseRef = useRef(item.onClose);
+  onCloseRef.current = item.onClose;
+
+  const notifyClosed = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onCloseRef.current?.();
+  };
 
   const close = () => {
     if (leaving) return;
     setLeaving(true);
+    notifyClosed();
     setTimeout(() => remove(item.id), 220);
   };
+
+  // 未走 close 的消失（同位置超限被挤出、Host 卸载）同样计为关闭
+  useEffect(
+    () => () => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      onCloseRef.current?.();
+    },
+    []
+  );
 
   // 入场（双 rAF 让初始 transform 先落帧）
   useEffect(() => {

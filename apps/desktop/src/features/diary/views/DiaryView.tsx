@@ -91,10 +91,10 @@ export function DiaryView() {
 
   /* ---------- 删除暂存（撤销窗口） ---------- */
   const [pendingDelete, setPendingDelete] = useState<ReadonlySet<number>>(() => new Set());
-  const deleteTimers = useRef(new Map<number, number>());
+  const pendingCommits = useRef(new Set<number>());
   const commitDelete = useRef((id: number) => {
-    window.clearTimeout(deleteTimers.current.get(id));
-    deleteTimers.current.delete(id);
+    if (!pendingCommits.current.has(id)) return;
+    pendingCommits.current.delete(id);
     mutations
       .remove(id)
       .catch(() => toast.error("删除失败"))
@@ -107,25 +107,23 @@ export function DiaryView() {
       );
   });
   useEffect(() => {
-    const timers = deleteTimers.current;
+    const armed = pendingCommits.current;
     const commit = commitDelete.current;
     return () => {
-      for (const id of [...timers.keys()]) commit(id);
+      for (const id of [...armed]) commit(id);
     };
   }, []);
   const scheduleDelete = useCallback((moment: DiaryMoment) => {
     setPendingDelete(prev => new Set(prev).add(moment.id));
-    deleteTimers.current.set(
-      moment.id,
-      window.setTimeout(() => commitDelete.current(moment.id), UNDO_MS)
-    );
+    pendingCommits.current.add(moment.id);
     toast.info("已删除 1 条碎碎念", {
       duration: UNDO_MS,
+      onClose: () => commitDelete.current(moment.id),
       action: {
         label: "撤销",
         onClick: () => {
-          window.clearTimeout(deleteTimers.current.get(moment.id));
-          deleteTimers.current.delete(moment.id);
+          // 撤销先于 onClose 触发：摘掉待落库条目后，随后的 onClose 空转
+          pendingCommits.current.delete(moment.id);
           setPendingDelete(prev => {
             const next = new Set(prev);
             next.delete(moment.id);
