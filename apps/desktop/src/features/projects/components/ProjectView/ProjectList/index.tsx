@@ -692,7 +692,7 @@ const Project = () => {
               </Menu>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="group/tree flex min-h-0 flex-1 flex-col gap-[2px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {sidebarView === "mindmap" ? (
               treeLoading ? (
                 <div className="flex h-full items-center justify-center text-sm opacity-60">
@@ -734,6 +734,7 @@ const Project = () => {
                       parentChildren={project.children}
                       cards={cards}
                       whiteBoards={whiteBoards}
+                      activeAncestorIds={revealAncestorIds}
                       refreshProject={refresh}
                     />
                   )}

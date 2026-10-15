@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>项目文档树 · 层级与文件夹区分方案</title>
+<style>
+  :root {
+    --page: #f3eee2; --surface: #fffdf9; --sunk: #e7dbc8;
+    --hover: rgba(67, 57, 44, 0.05); --press: rgba(67, 57, 44, 0.09);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2;
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --info: #5c7d99; --info-soft: #e2ebf3;
+    --danger: #b0564d; --ok: #61795f;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --page: #221d16; --surface: #2e2820; --sunk: #100d08;
+    --hover: rgba(236, 226, 208, 0.06); --press: rgba(236, 226, 208, 0.11);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768;
+    --line-1: #3a3227;
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --info: #83aecf; --info-soft: #1e2a35;
+    --danger: #d97e66; --ok: #8cab87;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --stage: #17130e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--stage); color: var(--ink-1);
+    font: 14px/1.7 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 4vw 100px; transition: background .2s;
+  }
+  header { display: flex; gap: 24px; align-items: flex-start; }
+  header h1 { font-size: 22px; font-weight: 650; }
+  header p { color: var(--ink-2); max-width: 92ch; margin-top: 6px; font-size: 13.5px; }
+  .toggle { margin-left: auto; flex: none; border: 1px solid var(--line-1); background: var(--surface); color: var(--ink-1); border-radius: 99px; padding: 4px 14px; font: inherit; font-size: 12.5px; cursor: pointer; }
+
+  .diag { margin-top: 22px; background: var(--surface); border-radius: 14px; padding: 16px 22px; box-shadow: var(--shadow-card); max-width: 120ch; }
+  .diag h2 { font-size: 15px; margin-bottom: 6px; }
+  .diag ol { padding-left: 20px; color: var(--ink-2); font-size: 13px; }
+  .diag b { color: var(--ink-1); }
+  .diag code { font: 12px ui-monospace, monospace; background: var(--hover); padding: 0 5px; border-radius: 4px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 36px 28px; margin-top: 40px; }
+  .card h2 { font-size: 15.5px; font-weight: 650; display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+  .card h2 .no { font: 600 12.5px ui-monospace, monospace; color: var(--accent-text); }
+  .card h2 .tag { font-size: 11px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 0 9px; }
+  .desc { color: var(--ink-2); font-size: 12.5px; margin-top: 12px; }
+  .pros { font-size: 12px; margin-top: 8px; display: grid; gap: 4px; }
+  .pros .g { color: var(--ok); } .pros .b { color: var(--danger); }
+
+  /* ---------- 文档树面板（模拟项目详情左栏） ---------- */
+  .pane { width: 100%; max-width: 300px; height: 640px; overflow: auto; background: var(--page); border-radius: 14px; padding: 10px 8px; box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); transition: background .2s; }
+  .pane .head { display: flex; align-items: center; gap: 6px; padding: 2px 8px 10px; font-weight: 600; font-size: 13.5px; }
+  .pane .head small { margin-left: auto; color: var(--ink-3); font-weight: 400; font-size: 11.5px; }
+
+  .ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .row { position: relative; display: flex; align-items: center; cursor: pointer; color: var(--ink-1); user-select: none; }
+  .row .tw, .row .icon { display: grid; place-items: center; flex: none; }
+  .row .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .count { flex: none; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .row .acts { display: flex; flex: none; color: var(--ink-2); }
+  .row .acts i { display: grid; place-items: center; border-radius: 6px; }
+  .row .acts i:hover { background: var(--press); }
+  .row .ic-doc { display: none; }
+  .row.open .ic-closed, .row:not(.open) .ic-open { display: none; }
+  .row .pdf { color: var(--danger); }
+  .kids { position: relative; }
+  .kids.closed { display: none; }
+
+  /* ---------- 现状 ---------- */
+  .v-cur .row { min-height: 38px; padding: 4px 8px 4px calc(8px + var(--d) * 16px); gap: 8px; border-radius: 8px; margin-bottom: 4px; font-size: 13.5px; }
+  .v-cur .row:hover { background: var(--hover); }
+  .v-cur .row.on { background: var(--accent-soft); color: var(--accent-text); }
+  .v-cur .tw, .v-cur .count { display: none; }
+  .v-cur .icon { width: 30px; height: 30px; border-radius: 99px; }
+  .v-cur .row .ic-open { display: block !important; } .v-cur .row .ic-closed { display: none !important; }
+  .v-cur .acts i { width: 28px; height: 28px; border-radius: 99px; }
+
+  /* ---------- A/B/C/D 共用骨架：折叠箭头列 + 对齐缩进 + 悬停才出操作 ---------- */
+  .v-new { --base: 6px; --indent: 18px; }
+  .v-new .row { height: 30px; padding: 0 4px 0 calc(var(--base) + var(--d) * var(--indent)); gap: 6px; border-radius: 6px; font-size: 13px; }
+  .v-new .row:hover { background: var(--hover); }
+  .v-new .tw { width: 16px; height: 16px; color: var(--ink-3); border-radius: 4px; }
+  .v-new .tw:hover { color: var(--ink-1); background: var(--press); }
+  .v-new .tw .ic { width: 13px; height: 13px; transition: transform .15s ease-out; }
+  .v-new .row.open .tw .ic { transform: rotate(90deg); }
+  .v-new .icon { width: 16px; height: 16px; color: var(--ink-3); }
+  .v-new .row.parent .title { color: var(--ink-1); font-weight: 500; }
+  .v-new .row.leaf .title { color: var(--ink-2); }
+  .v-new .row.on { background: var(--accent-soft); }
+  .v-new .row.on .title { color: var(--accent-text); font-weight: 500; }
+  .v-new .row.on .icon { color: var(--accent-text); }
+  .v-new .acts { display: none; }
+  .v-new .row:hover .acts { display: flex; }
+  .v-new .row:hover .count { display: none; }
+  .v-new .acts i { width: 22px; height: 22px; }
+  .v-new .acts .ic { width: 14px; height: 14px; }
+  .v-new .count { display: none; }
+  /* 引导线：落在父级折叠箭头的中轴上 */
+  .v-new .kids::before { content: ""; position: absolute; top: 0; bottom: 4px; width: 1px; left: calc(var(--base) + var(--d) * var(--indent) + 7.5px); background: var(--line-1); transition: background .2s; }
+  .v-new:hover .kids::before { background: color-mix(in srgb, var(--ink-3) 40%, transparent); }
+  .v-new .kids.path::before { background: color-mix(in srgb, var(--accent) 45%, transparent) !important; }
+
+  /* ---------- B 深度色阶 ---------- */
+  .v-b .row.parent[data-depth="0"] .icon { color: var(--info); }
+  .v-b .row.parent[data-depth="0"] .icon .ic { fill: var(--info-soft); }
+  .v-b .row.parent[data-depth="0"] .title { font-weight: 600; }
+  .v-b .row.parent[data-depth="1"] .icon { color: color-mix(in srgb, var(--info) 55%, var(--ink-3)); }
+  .v-b .row.parent[data-depth="2"] .icon, .v-b .row.parent[data-depth="3"] .icon { color: var(--ink-2); }
+  .v-b .kids[style*="--d:0"]::before { background: color-mix(in srgb, var(--info) 35%, transparent); }
+  .v-b .kids[style*="--d:1"]::before { background: color-mix(in srgb, var(--info) 18%, transparent); }
+
+  /* ---------- B2 主题色色阶 ---------- */
+  .v-b2 .row.parent[data-depth="0"] .icon { color: var(--accent-text); }
+  .v-b2 .row.parent[data-depth="0"] .icon .ic { fill: var(--accent-soft); }
+  .v-b2 .row.parent[data-depth="0"] .title { font-weight: 600; }
+  .v-b2 .row.parent[data-depth="1"] .icon { color: color-mix(in srgb, var(--accent-text) 50%, var(--ink-3)); }
+  .v-b2 .row.parent[data-depth="2"] .icon, .v-b2 .row.parent[data-depth="3"] .icon { color: var(--ink-2); }
+  .v-b2 .kids[style*="--d:0"]::before { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+  .v-b2 .kids[style*="--d:1"]::before { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .v-b2 .kids.path::before { background: var(--accent) !important; }
+  .v-b2 .row.on .title { font-weight: 600; }
+
+  /* ---------- C 顶层分区卡片 ---------- */
+  .v-c .node.d0 { background: var(--surface); border-radius: 10px; box-shadow: var(--shadow-card); margin: 6px 0 8px; padding: 3px 0 5px; }
+  .v-c .node.d0 > .row { height: 34px; }
+  .v-c .node.d0 > .row .title { font-weight: 600; font-size: 13.5px; }
+  .v-c .node.d0 > .row .icon { color: var(--accent-text); }
+  .v-c .node.d0 > .row .count { display: block; padding-right: 6px; }
+  .v-c .node.d0 > .kids::before { display: none; }
+  .v-c .node.d0 > .row:hover, .v-c .node.d0 .row:hover { background: var(--hover); }
+
+  /* ---------- D 文档化（Notion 式） ---------- */
+  .v-d { --indent: 20px; }
+  .v-d .tw { display: none; }
+  .v-d .row.parent .ic-open, .v-d .row.parent .ic-closed { display: none !important; }
+  .v-d .row.parent .ic-doc { display: block; }
+  .v-d .row.parent:hover .icon { display: none; }
+  .v-d .row.parent:hover .tw { display: grid; }
+  .v-d .count { display: block; min-width: 18px; text-align: center; border-radius: 99px; background: var(--hover); padding: 0 6px; margin-right: 4px; }
+  .v-d .row.parent:not(.open) .count { color: var(--accent-text); background: var(--accent-soft); }
+  .v-d .kids::before { display: none; }
+
+  .rec { margin-top: 56px; background: var(--surface); border-radius: 14px; padding: 20px 26px; box-shadow: var(--shadow-card); border-left: 3px solid var(--accent); max-width: 120ch; }
+  .rec h2 { font-size: 16px; margin-bottom: 8px; }
+  .rec p, .rec li { color: var(--ink-2); font-size: 13.5px; }
+  .rec ul { padding-left: 20px; margin-top: 6px; }
+  .rec b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>项目文档树 · 层级与文件夹区分方案</h1>
+    <p>用户反馈：文件一多就分不清层级，文件夹和文件也难区分。四个方案都在同一棵 27 节点、4 层深的样例树上演示，可点击折叠箭头收起/展开，悬停行可看到操作按钮。右上角可切换深色主题，检查着色在深色下是否成立。</p>
+  </div>
+  <button class="toggle" id="theme">切换深色</button>
+</header>
+
+<div class="diag">
+  <h2>先看根因（来自 <code>ProjectItem/index.tsx</code>）</h2>
+  <ol>
+    <li><b>缩进比图标还窄</b>：每层只缩进 <code>pl-[16px]</code>，而图标占位是 30px，子级图标落在父级图标中间，眼睛对不齐列，层级"糊"在一起。</li>
+    <li><b>没有展开状态</b>：有子项一律显示 <code>FolderOpen</code>，收起时也是"打开的文件夹"，也没有折叠箭头；文件夹和文件只靠图标形状区分。</li>
+    <li><b>右侧操作列比层级更抢眼</b>：每行常驻 <code>…</code> 和 <code>+</code>，形成两条整齐的竖列，视觉重心在右边，左侧的层级反而成了背景。</li>
+    <li><b>行高 38px + 间距 4px</b>：一屏只放十几行，长树需要大量滚动，进一步削弱整体结构感。</li>
+  </ol>
+  <p style="color:var(--ink-2);font-size:13px;margin-top:8px">另外要注意：这里的"文件夹"其实是<b>带子文档的文档</b>，点它会打开自身内容。这决定了"文件夹 vs 文件"的区分不必依赖图标，可以用箭头、字重、计数来表达，方案 D 就是沿这个思路。</p>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="rec">
+  <h2>推荐：A 作为基线，叠加 B 或 B2 的"仅顶层着色"</h2>
+  <ul>
+    <li><b>A 的四项改动解决的是根因</b>（缩进对齐、折叠箭头、悬停才出操作、行高收紧），不论选哪个方案都应该做，成本也最低，只改 <code>ProjectItem</code> 一个组件的类名和结构。</li>
+    <li><b>用户要的"颜色分层"可以采纳一半</b>：只给顶层文件夹图标上色，第二层降饱和，更深层回到中性，三层以上不再细分颜色。颜色可以用灰蓝 <code>--tau-info</code>（B，和选中态天然分开），也可以用主题强调色（B2，随主题变化、更统一，但要靠背景块区分选中）。</li>
+    <li><b>C 适合"顶层就是章节"的项目</b>，结构感最强，但侧栏里堆卡片会显得重，建议作为后续可选的视图样式，而不是默认。</li>
+    <li><b>D 最贴合数据语义</b>，但收起状态只能靠计数徽标暗示，对"文件一多"的用户不如引导线直观。</li>
+    <li>落地时层级色与引导线直接用现有语义色加 Tailwind 透明度修饰（如 <code>text-accent-text/60</code>、<code>before:bg-accent/30</code>），无需新增 token，各主题自动适配。</li>
+  </ul>
+</div>
+
+<script>
+  const ICONS = {
+    chev: '<path d="m9 18 6-6-6-6"/>',
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    folderOpen: '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+    doc: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+    table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 3v18"/>',
+    board: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m7 15 3-3 2 2 5-5"/>',
+    globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+    more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+    plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  };
+  const svg = (name, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24">${ICONS[name]}</svg>`;
+
+  const TREE = [
+    { t: "JSX 语法" },
+    { t: "组件与模块", c: [
+      { t: "类", c: [
+        { t: "#类中 this 指向", active: true },
+        { t: "静态属性与方法" },
+      ] },
+      { t: "组件", c: [
+        { t: "函数组件" },
+        { t: "Props 与 children" },
+        { t: "组件通信", c: [ { t: "状态提升" }, { t: "Context 跨层传递" } ] },
+      ] },
+      { t: "模块导入导出" },
+    ] },
+    { t: "Hooks", c: [
+      { t: "useState" },
+      { t: "useEffect", c: [ { t: "依赖数组" }, { t: "清理函数" } ] },
+      { t: "自定义 Hook" },
+      { t: "Hooks 速查表", k: "table" },
+    ] },
+    { t: "React 生态", closed: true, c: [ { t: "路由" }, { t: "状态管理" }, { t: "服务端渲染" } ] },
+    { t: "知识结构白板", k: "board" },
+    { t: "官方文档", k: "globe" },
+    { t: "React 设计原理.pdf", k: "pdf" },
+    { t: "新文档" },
+  ];
+
+  const hasActive = n => !!n.active || (n.c || []).some(hasActive);
+  const leafIcon = k => k === "pdf" ? svg("doc", "pdf") : svg(k || "doc");
+
+  function renderNodes(nodes, d) {
+    return nodes.map(n => {
+      const parent = !!n.c;
+      const open = parent && !n.closed;
+      const cls = ["row", parent ? "parent" : "leaf", open && "open", n.active && "on"].filter(Boolean).join(" ");
+      const row = `<div class="${cls}" data-depth="${Math.min(d, 3)}" style="--d:${d}">
+        <span class="tw">${parent ? svg("chev") : ""}</span>
+        <span class="icon">${parent ? svg("folder", "ic-closed") + svg("folderOpen", "ic-open") + svg("doc", "ic-doc") : leafIcon(n.k)}</span>
+        <span class="title">${n.t}</span>
+        ${parent ? `<span class="count">${n.c.length}</span>` : ""}
+        <span class="acts"><i>${svg("more")}</i><i>${svg("plus")}</i></span>
+      </div>`;
+      if (!parent) return row;
+      return `<div class="node d${d}">${row}<div class="kids${hasActive(n) ? " path" : ""}${open ? "" : " closed"}" style="--d:${d}">${renderNodes(n.c, d + 1)}</div></div>`;
+    }).join("");
+  }
+
+  const VARIANTS = [
+    { cls: "v-cur", no: "现状", name: "当前实现", tag: "对照",
+      desc: "缩进 16px、无折叠箭头、操作常驻。注意子级图标与父级图标几乎重叠，右侧两列按钮成了最醒目的元素。", pros: [] },
+    { cls: "v-new v-a", no: "A", name: "引导线 + 折叠箭头", tag: "推荐基线",
+      desc: "VS Code / Finder 的成熟语言：箭头列表达可展开与展开状态，文件夹图标随开合切换；缩进 18px 让每层图标正好错开一个箭头宽；引导线落在父级箭头中轴，平时极淡，鼠标进入面板时加深，当前文档所在分支的竖线染成强调色。父级标题用 500 字重、叶子用次级墨色。",
+      pros: ["+ 解决全部根因，改动集中在一个组件", "+ 当前位置的祖先链一眼可见", "- 层级本身不带颜色，顶层章节的分量感一般"] },
+    { cls: "v-new v-b", no: "B", name: "深度色阶（用户建议的克制版）", tag: "可叠加到 A",
+      desc: "在 A 的骨架上：顶层文件夹图标用灰蓝 --tau-info 并填充浅底，标题 600 字重；第二层图标降饱和；更深层回到中性墨色，叶子保持灰。引导线也跟随所属层级着色（类似代码编辑器的彩虹缩进，但只有两档）。",
+      pros: ["+ 回应了用户诉求，顶层章节最容易扫到", "+ 只用已有色板，深色主题有对应值", "- 颜色超过两档就会变吵，需要克制", "- 需新增语义 token，不能直接写色值"] },
+    { cls: "v-new v-b2", no: "B2", name: "主题色色阶", tag: "可叠加到 A",
+      desc: "与 B 相同的两档结构，但颜色换成主题强调色：顶层文件夹图标用强调色并填充浅底，第二层把强调色和灰色对半混合，更深层回到中性。为了不和选中态混淆，层级色只落在图标和竖线上，不碰行背景和标题；当前分支的竖线用满色强调色，比层级竖线更实。",
+      pros: ["+ 随主题自动变化，不需要为每个主题挑层级色", "+ 和应用整体色调统一", "- 与选中态同色系，只能靠「背景块 + 标题色」区分选中", "- 当前分支竖线的提示作用比 A/B 弱一些"] },
+    { cls: "v-new v-c", no: "C", name: "顶层分区卡片", tag: "章节型项目",
+      desc: "把顶层文件夹渲染成浮起的纸面卡片，卡片标题带子项计数；卡片内部再用 A 的引导线表达更深层级。顶层单篇文档仍是普通行，自然落在卡片之间。",
+      pros: ["+ 结构感最强，长树里像翻目录", "+ 顶层与内部层级用不同手段表达，不靠颜色", "- 侧栏偏重，卡片与选中态、拖拽指示需要重新协调"] },
+    { cls: "v-new v-d", no: "D", name: "文档化（Notion 式）", tag: "贴合语义",
+      desc: "承认\"文件夹就是带子文档的文档\"：所有节点都显示文档类型图标，悬停父级时图标变成折叠箭头；父级用字重加子项计数徽标区分，收起时徽标染强调色，提示里面还有内容。不画引导线，缩进加大到 20px。",
+      pros: ["+ 最干净，图标不再承担两种含义", "+ 与\"点父级会打开它自己\"的行为一致", "- 不悬停时看不出展开状态，深层级仍主要靠缩进"] },
+  ];
+
+  document.getElementById("grid").innerHTML = VARIANTS.map(v => `
+    <div class="card">
+      <h2><span class="no">${v.no}</span>${v.name}<span class="tag">${v.tag}</span></h2>
+      <div class="pane ${v.cls}">
+        <div class="head">React 学习<small>27 篇</small></div>
+        ${renderNodes(TREE, 0)}
+      </div>
+      <p class="desc">${v.desc}</p>
+      <div class="pros">${v.pros.map(p => `<div class="${p[0] === "+" ? "g" : "b"}">${p}</div>`).join("")}</div>
+    </div>`).join("");
+
+  document.addEventListener("click", e => {
+    const hit = e.target.closest(".tw, .v-cur .row.parent .icon");
+    if (!hit) return;
+    const row = hit.closest(".row");
+    const kids = row && row.nextElementSibling;
+    if (!kids || !kids.classList.contains("kids")) return;
+    row.classList.toggle("open");
+    kids.classList.toggle("closed");
+  });
+
+  const themeBtn = document.getElementById("theme");
+  themeBtn.addEventListener("click", () => {
+    const dark = document.documentElement.dataset.theme === "dark";
+    document.documentElement.dataset.theme = dark ? "" : "dark";
+    themeBtn.textContent = dark ? "切换深色" : "切换浅色";
+  });
+</script>
+</body>
+</html>
