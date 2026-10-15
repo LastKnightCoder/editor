@@ -11,6 +11,7 @@ import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugi
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
 import { DevelopmentPluginManager } from "./development-manager";
+import { BuiltinPluginManager } from "./builtin-manager";
 import type { DevelopmentSession } from "@/types/plugin-development";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
@@ -34,6 +35,7 @@ export interface RegisteredPluginSettings {
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
   development?: DevelopmentPluginManager;
+  builtin?: BuiltinPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
   private readonly settings = new Map<string, RegisteredPluginSettings>();
   private readonly editorContributions = new Map<
@@ -76,6 +78,11 @@ export class DesktopPluginRuntime {
   }
 
   getRevision = () => this.revision;
+  attachBuiltins(ids: readonly string[], preferences: Pick<Storage, "getItem" | "setItem">) {
+    if (this.disposed || this.builtin) throw new Error("内置插件管理无法重复装配");
+    this.builtin = new BuiltinPluginManager(this.host, ids, preferences, this.publish);
+    return this.builtin;
+  }
   attachDevelopment(session: DevelopmentSession) {
     this.development = new DevelopmentPluginManager(
       this.host,
@@ -195,6 +202,7 @@ export class DesktopPluginRuntime {
   async dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.builtin?.cancel();
     this.development?.cancel();
     this.publish();
     try {

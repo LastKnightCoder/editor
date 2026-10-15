@@ -159,13 +159,20 @@ function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime })
 function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plugin: PluginInfo }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const enabled = plugin.state === "active" || runtime.development?.enabled(plugin.id);
-  const managing = busy || runtime.development?.busy(plugin.id);
+  const enabled =
+    plugin.state === "active" ||
+    runtime.development?.enabled(plugin.id) ||
+    runtime.builtin?.enabled(plugin.id);
+  const managing = busy || runtime.development?.busy(plugin.id) || runtime.builtin?.busy(plugin.id);
   const change = async () => {
     setBusy(true);
     setError("");
     try {
-      const manager = runtime.development?.owns(plugin.id) ? runtime.development : runtime.host;
+      const manager = runtime.development?.owns(plugin.id)
+        ? runtime.development
+        : runtime.builtin?.owns(plugin.id)
+          ? runtime.builtin
+          : runtime.host;
       if (enabled) await manager.disable(plugin.id);
       else await manager.enable(plugin.id);
     } catch (error) {
@@ -185,7 +192,8 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
       setBusy(false);
     }
   };
-  const managementError = runtime.development?.error(plugin.id);
+  const managementError =
+    runtime.development?.error(plugin.id) ?? runtime.builtin?.error(plugin.id);
   const watching = runtime.development?.watching(plugin.id) ?? false;
   const toggleWatch = async () => {
     setBusy(true);
