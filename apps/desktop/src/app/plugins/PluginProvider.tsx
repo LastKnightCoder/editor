@@ -6,6 +6,10 @@ import { DesktopPluginRuntime } from "./runtime";
 import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { useSettingsStore } from "../settingsStore";
 import { desktopFetch } from "@/commands/fetch";
+import { isElectron } from "@/electron";
+import { openDevelopmentPlugins, closeDevelopmentPlugins } from "@/commands/plugin-development";
+import { migratePluginPreferences } from "./development-manager";
+import type { DevelopmentSession } from "@/types/plugin-development";
 
 const restartRequired = new Set<string>();
 let pendingCleanup: Promise<void> = Promise.resolve();
@@ -19,7 +23,8 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     if (!import.meta.env.DEV) return;
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
-    void Promise.all([
+    const previousCleanup = pendingCleanup;
+    const preparation = Promise.all([
       import("@/features/plugins/example/notesPlugin"),
       import("@/features/plugins/example/editorPlugin"),
       import("./editorComposition"),
@@ -34,26 +39,46 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           { settingsPlugin },
           { createWeReadPlugin },
         ]) => {
-          await pendingCleanup;
+          await previousCleanup;
           if (cancelled) return;
+          const plugins = [
+            notesPlugin,
+            editorPlugin,
+            settingsPlugin,
+            createWeReadPlugin(() =>
+              useSettingStore.getState().setting.integration.weread.apiKey.trim()
+            ),
+          ];
+          let session: DevelopmentSession | undefined;
+          if (isElectron) {
+            session = await openDevelopmentPlugins(
+              workspaceId,
+              plugins.map(plugin => plugin.id)
+            );
+            if (cancelled) {
+              await closeDevelopmentPlugins(session.token);
+              return;
+            }
+            try {
+              migratePluginPreferences(window.localStorage, workspaceId, session.workspaceId);
+            } catch (error) {
+              await closeDevelopmentPlugins(session.token);
+              throw error;
+            }
+          }
           current = new DesktopPluginRuntime({
-            workspaceId,
+            workspaceId: session?.workspaceId ?? workspaceId,
             navigator,
             storage: createBrowserStorage(window.localStorage),
-            plugins: [
-              notesPlugin,
-              editorPlugin,
-              settingsPlugin,
-              createWeReadPlugin(() =>
-                useSettingStore.getState().setting.integration.weread.apiKey.trim()
-              ),
-            ],
+            plugins,
             fetch: desktopFetch,
             restartRequired,
             validateEditor: composePluginEditor,
             openSettings: key => useSettingsStore.getState().openSettings(key),
           });
+          const development = session ? current.attachDevelopment(session) : undefined;
           setRuntime(current);
+          if (development) void development.restore();
         }
       )
       .catch(error => {
@@ -61,12 +86,14 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       cancelled = true;
-      if (current)
-        pendingCleanup = Promise.allSettled([pendingCleanup, current.dispose()]).then(results => {
-          for (const result of results) {
-            if (result.status === "rejected") console.error("插件运行时清理失败", result.reason);
-          }
-        });
+      pendingCleanup = Promise.allSettled([
+        previousCleanup,
+        current ? current.dispose() : preparation,
+      ]).then(results => {
+        for (const result of results) {
+          if (result.status === "rejected") console.error("插件运行时清理失败", result.reason);
+        }
+      });
     };
   }, [workspaceId, navigator]);
   return (

@@ -28,6 +28,8 @@ import { closeDatabase, getDatabasePath, removeFile } from "@/commands";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
+import { isElectron } from "@/electron";
+import { retireDevelopmentWorkspace } from "@/commands/plugin-development";
 
 const displayName = (name: string) => name.replace(/\.db$/i, "");
 const normalizeName = (name: string) => (name.endsWith(".db") ? name : `${name}.db`);
@@ -74,6 +76,16 @@ export function LocalDatabasePanel() {
   const handleDelete = async () => {
     const name = deleteTarget;
     if (!name || name === active) return;
+    if (import.meta.env.DEV && isElectron) {
+      try {
+        await retireDevelopmentWorkspace(name);
+      } catch (error) {
+        toast.error(
+          `删除数据库前解除插件登记失败：${error instanceof Error ? error.message : String(error)}`
+        );
+        return;
+      }
+    }
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => {
         draft.database.databases = draft.database.databases.filter(db => db.name !== name);
