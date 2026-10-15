@@ -186,6 +186,18 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
     }
   };
   const managementError = runtime.development?.error(plugin.id);
+  const watching = runtime.development?.watching(plugin.id) ?? false;
+  const toggleWatch = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await runtime.development?.setWatching(plugin.id, !watching);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "监听失败");
+    } finally {
+      setBusy(false);
+    }
+  };
   const reload = async () => {
     setBusy(true);
     setError("");
@@ -216,6 +228,16 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
         {runtime.development?.owns(plugin.id) && (
           <Button
             variant="ghost"
+            aria-pressed={watching}
+            disabled={managing || plugin.state === "restart-required"}
+            onClick={() => void toggleWatch()}
+          >
+            {watching ? "停止监听" : "监听构建"}
+          </Button>
+        )}
+        {runtime.development?.owns(plugin.id) && (
+          <Button
+            variant="ghost"
             disabled={
               managing ||
               plugin.state === "activating" ||
@@ -237,6 +259,11 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
           </Button>
         )}
       </div>
+      {watching && (
+        <p className="text-tau-meta text-ink-2">
+          监听当前构建的上级输出目录，只加载后续完整发布；切库或关闭应用后停止。
+        </p>
+      )}
       {(error || managementError || plugin.error || plugin.state === "restart-required") && (
         <p role="alert" className="text-tau-meta text-danger">
           {plugin.state === "restart-required"

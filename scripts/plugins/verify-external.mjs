@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
+import assert from "node:assert/strict";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-independent-author-"));
@@ -19,6 +20,10 @@ try {
   const sdk = path.join(directory, "sdk");
   await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   const author = path.join(directory, "author");
+  const versions = async () =>
+    (await readdir(path.join(author, "dist"), { withFileTypes: true }))
+      .filter(item => item.isDirectory() && !item.name.startsWith("."))
+      .map(item => item.name);
   await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
   await run(
     "npm",
@@ -33,36 +38,38 @@ try {
     author
   );
   await run("npm", ["run", "build"], author);
-  const [first] = await readdir(path.join(author, "dist"));
+  const [first] = await versions();
   const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   await writeFile(
     path.join(author, "manifest.json"),
     JSON.stringify({ ...manifest, id: "example.external-other", name: "独立计数插件二" })
   );
   await run("npm", ["run", "build"], author);
-  const second = (await readdir(path.join(author, "dist"))).find(name => name !== first);
-  const beforeReload = await readdir(path.join(author, "dist"));
+  const second = (await versions()).find(name => name !== first);
+  const beforeReload = await versions();
   await writeFile(
     path.join(author, "manifest.json"),
     JSON.stringify({ ...manifest, version: "1.1.0" })
   );
   await run("npm", ["run", "build"], author);
-  const replacement = (await readdir(path.join(author, "dist"))).find(
-    name => !beforeReload.includes(name)
-  );
-  const beforeFailure = await readdir(path.join(author, "dist"));
+  const replacement = (await versions()).find(name => !beforeReload.includes(name));
+  const beforeFailure = await versions();
   const source = path.join(author, "src/index.tsx");
+  const validSource = await readFile(source, "utf8");
+  const pointer = path.join(author, "dist", `tau-build-${manifest.id}.json`);
+  const published = await readFile(pointer, "utf8");
+  await writeFile(source, "export default = ;");
+  await assert.rejects(run("npm", ["run", "build"], author));
+  assert.equal(await readFile(pointer, "utf8"), published);
   await writeFile(
     source,
-    (await readFile(source, "utf8")).replace(
+    validSource.replace(
       "activate(context) {",
       "activate(context) { throw new Error('重载验证故障');"
     )
   );
   await run("npm", ["run", "build"], author);
-  const failing = (await readdir(path.join(author, "dist"))).find(
-    name => !beforeFailure.includes(name)
-  );
+  const failing = (await versions()).find(name => !beforeFailure.includes(name));
   await run(
     process.execPath,
     [

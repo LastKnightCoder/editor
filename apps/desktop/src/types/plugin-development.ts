@@ -25,3 +25,12 @@ export interface PreparedDevelopmentReload {
   ticket: string;
   record: RestoredDevelopmentPlugin;
 }
+
+export interface DevelopmentBuildEvent {
+  token: string;
+  id: string;
+  watchId: string;
+  buildId?: string;
+  error?: string;
+  stopped?: boolean;
+}

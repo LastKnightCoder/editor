@@ -49,6 +49,12 @@ function setup(options: { starting?: boolean; error?: string; skipStartup?: bool
     >(async () => null),
     commitDevelopmentReload: vi.fn(async (): Promise<void> => undefined),
     discardDevelopmentReload: vi.fn(async () => undefined),
+    watchDevelopmentBuilds: vi.fn<
+      typeof import("@/commands/plugin-development").watchDevelopmentBuilds
+    >(async () => undefined),
+    subscribeDevelopmentBuilds: vi.fn<
+      typeof import("@/commands/plugin-development").subscribeDevelopmentBuilds
+    >(() => () => undefined),
   };
   const manager = new DevelopmentPluginManager(
     host,
@@ -107,6 +113,64 @@ it("重载校验失败或取消保留旧实例；成功后替换代码并提交�
     false
   );
   expect(client.discardDevelopmentReload).toHaveBeenCalledWith("session", "reload-ticket");
+});
+
+it("自动构建按会话身份处理，等待期间合并为最新版本，停用后拒绝旧事件", async () => {
+  const { manager, host, client, record } = setup();
+  await manager.restore();
+  await manager.setWatching(id, true);
+  const receive = client.subscribeDevelopmentBuilds.mock.calls[0][0];
+  const watchId = client.watchDevelopmentBuilds.mock.calls[0][2];
+  const event = { token: "session", id, watchId };
+  client.prepareDevelopmentReload.mockResolvedValue(replacement(record));
+  receive({ ...event, token: "old", buildId: "ignored" });
+  receive({ ...event, buildId: "first" });
+  receive({ ...event, buildId: "latest" });
+  await vi.waitFor(() => expect(host.listPlugins()[0].version).toBe("2.0.0"));
+  await vi.waitFor(() => expect(manager.busy(id)).toBe(false));
+  expect(client.prepareDevelopmentReload).toHaveBeenCalledTimes(1);
+  expect(client.prepareDevelopmentReload).toHaveBeenCalledWith("session", id, "latest");
+  await manager.disable(id);
+  expect(manager.watching(id)).toBe(false);
+  receive({ ...event, buildId: "after-stop" });
+  await Promise.resolve();
+  expect(client.prepareDevelopmentReload).toHaveBeenCalledTimes(1);
+  expect(client.watchDevelopmentBuilds).toHaveBeenLastCalledWith("session", id, watchId, false);
+});
+
+it("不完整构建只显示错误，普通激活失败回退后继续等待新的发布", async () => {
+  const { manager, host, client, record } = setup();
+  await manager.restore();
+  await manager.setWatching(id, true);
+  const receive = client.subscribeDevelopmentBuilds.mock.calls[0][0];
+  const watchId = client.watchDevelopmentBuilds.mock.calls[0][2];
+  receive({ token: "session", id, watchId, error: "不完整构建" });
+  expect(manager.error(id)).toBe("不完整构建");
+  expect(await host.executeCommand(id + ":run")).toBe(1);
+  client.prepareDevelopmentReload.mockResolvedValueOnce(replacement(record, true));
+  receive({ token: "session", id, watchId, buildId: "bad" });
+  await vi.waitFor(() => expect(manager.error(id)).toContain("已恢复旧版本"));
+  expect(manager.watching(id)).toBe(true);
+  client.prepareDevelopmentReload.mockResolvedValueOnce(replacement(record));
+  receive({ token: "session", id, watchId, buildId: "fixed" });
+  await vi.waitFor(() => expect(host.listPlugins()[0].version).toBe("2.0.0"));
+  await vi.waitFor(() => expect(manager.busy(id)).toBe(false));
+  expect(manager.error(id)).toBeUndefined();
+  await manager.close();
+});
+
+it("自动重载达到共享次数上限后停止监听，当前实例保持可用", async () => {
+  const { manager, host, client, record } = setup();
+  await manager.restore();
+  client.prepareDevelopmentReload.mockResolvedValue(replacement(record));
+  for (let index = 0; index < 19; index++) await manager.reload(id);
+  await manager.setWatching(id, true);
+  const receive = client.subscribeDevelopmentBuilds.mock.calls[0][0];
+  const watchId = client.watchDevelopmentBuilds.mock.calls[0][2];
+  receive({ token: "session", id, watchId, buildId: "last" });
+  await vi.waitFor(() => expect(manager.watching(id)).toBe(false));
+  expect(await host.executeCommand(id + ":run")).toBe(2);
+  expect(manager.error(id)).toContain("20 次");
 });
 
 it.each(["activation", "commit"])("新版本 %s 失败恢复旧代码与登记", async failure => {
@@ -215,8 +279,7 @@ it("选择新构建期间关闭会话不替换旧定义，并释放重载票据"
       })
   );
   const reloading = expect(manager.reload(id)).rejects.toThrow("已关闭");
-  await Promise.resolve();
-  await Promise.resolve();
+  await vi.waitFor(() => expect(client.prepareDevelopmentReload).toHaveBeenCalledOnce());
   manager.cancel();
   release(next);
   await reloading;

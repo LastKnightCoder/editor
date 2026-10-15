@@ -15,6 +15,8 @@ const shared = [
 ];
 await mkdir("dist", { recursive: true });
 const staging = await mkdtemp(path.resolve("dist/.building-"));
+const buildId = randomUUID();
+const pointer = path.resolve("dist", `.building-pointer-${buildId}`);
 try {
   const result = await build({
     entryPoints: ["src/index.tsx"],
@@ -51,10 +53,22 @@ try {
     path.join(staging, "manifest.json"),
     JSON.stringify({ ...manifest, integrity, ...(styles ? { styles: "main.css" } : {}) }, null, 2)
   );
-  const destination = path.resolve("dist", `${manifest.version}-${randomUUID()}`);
+  const destination = path.resolve("dist", `${manifest.version}-${buildId}`);
   await rename(staging, destination);
+  await writeFile(
+    pointer,
+    JSON.stringify({
+      formatVersion: 1,
+      id: manifest.id,
+      buildId,
+      directory: path.basename(destination),
+    })
+  );
+  await rename(pointer, path.resolve("dist", `tau-build-${manifest.id}.json`));
   console.log(`构建完成，在 Tau 中选择此目录：\n${destination}`);
 } catch (error) {
   await rm(staging, { recursive: true, force: true });
   throw error;
+} finally {
+  await rm(pointer, { force: true });
 }

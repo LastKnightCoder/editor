@@ -1,5 +1,9 @@
 import type { PluginHost } from "@tau/plugins/host";
-import type { DevelopmentSession, RestoredDevelopmentPlugin } from "@/types/plugin-development";
+import type {
+  DevelopmentSession,
+  RestoredDevelopmentPlugin,
+  DevelopmentBuildEvent,
+} from "@/types/plugin-development";
 import * as commands from "@/commands/plugin-development";
 import { registerDevelopmentPlugin, type SharedPluginModules } from "./development-loader";
 
@@ -7,6 +11,11 @@ export class DevelopmentPluginManager {
   private readonly records = new Map<string, RestoredDevelopmentPlugin>();
   private readonly pending = new Map<string, Promise<void>>();
   private closed = false;
+  private readonly watches = new Map<string, string>();
+  private readonly latestBuilds = new Map<string, string>();
+  private readonly watchErrors = new Map<string, string>();
+  private readonly draining = new Set<string>();
+  private unsubscribeBuilds?: () => void;
 
   constructor(
     private readonly host: PluginHost,
@@ -21,6 +30,8 @@ export class DevelopmentPluginManager {
       | "prepareDevelopmentReload"
       | "commitDevelopmentReload"
       | "discardDevelopmentReload"
+      | "watchDevelopmentBuilds"
+      | "subscribeDevelopmentBuilds"
     > = commands,
     private readonly notify: () => void = () => undefined,
     private readonly reloadCounts: Map<string, number> = new Map()
@@ -34,11 +45,111 @@ export class DevelopmentPluginManager {
   busy(id: string) {
     return this.pending.has(id);
   }
+  watching(id: string) {
+    return this.watches.has(id);
+  }
+
+  setWatching(id: string, enabled: boolean) {
+    return this.run(id, async () => {
+      if (!enabled) {
+        await this.stopWatching(id);
+        return;
+      }
+      if (this.watches.has(id)) return;
+      if (this.host.getState(id) === "restart-required" || (this.reloadCounts.get(id) ?? 0) >= 20)
+        throw new Error("请重启应用后再监听构建");
+      this.unsubscribeBuilds ??= this.client.subscribeDevelopmentBuilds(event =>
+        this.receiveBuild(event)
+      );
+      const watchId = crypto.randomUUID();
+      this.watchErrors.delete(id);
+      this.watches.set(id, watchId);
+      try {
+        await this.client.watchDevelopmentBuilds(this.session.token, id, watchId, true);
+      } catch (error) {
+        this.watches.delete(id);
+        this.releaseBuildSubscription();
+        throw error;
+      }
+    });
+  }
+
+  private async stopWatching(id: string) {
+    const watchId = this.watches.get(id);
+    this.watches.delete(id);
+    this.latestBuilds.delete(id);
+    this.watchErrors.delete(id);
+    this.releaseBuildSubscription();
+    this.notify();
+    if (watchId) await this.client.watchDevelopmentBuilds(this.session.token, id, watchId, false);
+  }
+
+  private receiveBuild(event: DevelopmentBuildEvent) {
+    if (
+      this.closed ||
+      event.token !== this.session.token ||
+      this.watches.get(event.id) !== event.watchId
+    )
+      return;
+    if (event.error) {
+      this.latestBuilds.delete(event.id);
+      this.watchErrors.set(event.id, event.error);
+      if (event.stopped) this.watches.delete(event.id);
+      this.releaseBuildSubscription();
+      this.notify();
+      return;
+    }
+    if (event.buildId) {
+      this.watchErrors.delete(event.id);
+      this.latestBuilds.set(event.id, event.buildId);
+      void this.drainBuilds(event.id);
+    }
+  }
+
+  private async drainBuilds(id: string) {
+    if (this.draining.has(id)) return;
+    this.draining.add(id);
+    try {
+      while (!this.closed && this.watches.has(id)) {
+        await this.pending.get(id)?.catch(() => undefined);
+        if (this.closed || !this.watches.has(id)) break;
+        const buildId = this.latestBuilds.get(id);
+        if (!buildId) break;
+        this.latestBuilds.delete(id);
+        try {
+          await this.reload(id, buildId);
+          if (!this.closed && (this.reloadCounts.get(id) ?? 0) >= 20) {
+            await this.stopWatching(id);
+            const record = this.records.get(id);
+            if (record) record.error = "当前窗口已重载此插件 20 次，监听已停止；请重启应用后继续";
+            this.notify();
+          }
+        } catch {
+          if (
+            !this.closed &&
+            this.watches.has(id) &&
+            (this.host.listPlugins().find(item => item.id === id)?.state !== "active" ||
+              (this.reloadCounts.get(id) ?? 0) >= 20)
+          )
+            await this.stopWatching(id).catch(() => undefined);
+        }
+      }
+    } finally {
+      this.draining.delete(id);
+    }
+  }
+
+  private releaseBuildSubscription() {
+    if (this.watches.size === 0) {
+      this.unsubscribeBuilds?.();
+      this.unsubscribeBuilds = undefined;
+    }
+  }
   enabled(id: string) {
     return this.records.get(id)?.enabled ?? false;
   }
   error(id: string) {
-    return this.records.get(id)?.error;
+    return this.watchErrors.get(id) ?? this.records.get(id)?.error;
   }
 
   async restore() {
@@ -85,6 +196,7 @@ export class DevelopmentPluginManager {
 
   disable(id: string) {
     return this.run(id, async record => {
+      await this.stopWatching(id);
       await this.client.saveDevelopmentPluginState(this.session.token, id, false, false);
       record.enabled = false;
       record.starting = false;
@@ -94,6 +206,7 @@ export class DevelopmentPluginManager {
 
   remove(id: string) {
     return this.run(id, async record => {
+      await this.stopWatching(id);
       await this.client.saveDevelopmentPluginState(this.session.token, id, false, false);
       record.enabled = false;
       record.starting = false;
@@ -104,12 +217,14 @@ export class DevelopmentPluginManager {
     });
   }
 
-  reload(id: string) {
+  reload(id: string, buildId?: string) {
     return this.run(id, async previous => {
+      if (buildId === undefined) await this.stopWatching(id);
+      else if (!this.watches.has(id)) return;
       if (this.host.getState(id) === "restart-required") throw new Error("请重启应用后再重载");
       if ((this.reloadCounts.get(id) ?? 0) >= 20)
         throw new Error("当前窗口已重载此插件 20 次，请重启应用后继续");
-      const prepared = await this.client.prepareDevelopmentReload(this.session.token, id);
+      const prepared = await this.client.prepareDevelopmentReload(this.session.token, id, buildId);
       if (!prepared) return;
       const { ticket, record: next } = prepared;
       try {
@@ -187,6 +302,10 @@ export class DevelopmentPluginManager {
 
   cancel() {
     this.closed = true;
+    this.unsubscribeBuilds?.();
+    this.unsubscribeBuilds = undefined;
+    this.watches.clear();
+    this.latestBuilds.clear();
   }
   async close() {
     this.cancel();
