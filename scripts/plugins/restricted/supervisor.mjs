@@ -7,7 +7,7 @@ export function sourceDigest(source) {
 }
 
 // 只供边界实证；授权来自宿主，不从客体消息推导安装身份。
-export function startRestrictedProbe({ source, identity, declared, grant, read }) {
+export function startRestrictedProbe({ source, identity, declared, grant, read }, launch) {
   if (!boundedText(source, LIMITS.sourceBytes)) throw new Error("INVALID_SOURCE");
   if (
     !exactKeys(identity, ["installationId", "workspaceId", "generation"]) ||
@@ -41,12 +41,14 @@ export function startRestrictedProbe({ source, identity, declared, grant, read }
   const binding = Object.freeze({ ...identity, digest: grant.digest });
   const allowed = declared.includes("probe.read") && grant.permissions.includes("probe.read");
   const controller = new AbortController();
-  const child = fork(new URL("./worker.mjs", import.meta.url), [], {
-    execArgv: ["--max-old-space-size=64"],
-    env: {},
-    stdio: ["ignore", "ignore", "ignore", "ipc"],
-    serialization: "json",
-  });
+  const child = launch
+    ? launch()
+    : fork(new URL("./worker.mjs", import.meta.url), [], {
+        execArgv: ["--max-old-space-size=64"],
+        env: {},
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
+        serialization: "json",
+      });
   let active = true;
   let pending = 0;
   let sequence = 0;
@@ -77,11 +79,16 @@ export function startRestrictedProbe({ source, identity, declared, grant, read }
 
   child.once("error", () => finish({ ok: false, code: "PROCESS_FAILED" }));
   // 结果在进程真正退出后交付，调用方不会误以为死循环已被清理。
-  child.once("close", () => {
+  child.once("close", error => {
     clearTimeout(deadline);
     active = false;
     controller.abort();
-    resolveResult({ ...(outcome ?? { ok: false, code: "PROCESS_FAILED" }), pid: child.pid });
+    resolveResult({
+      ...(error instanceof Error
+        ? { ok: false, code: "PROCESS_FAILED" }
+        : (outcome ?? { ok: false, code: "PROCESS_FAILED" })),
+      pid: child.pid,
+    });
   });
   child.on("message", message => {
     if (!active) return;
@@ -146,7 +153,9 @@ export function startRestrictedProbe({ source, identity, declared, grant, read }
       });
   });
   return Object.freeze({
-    pid: child.pid,
+    get pid() {
+      return child.pid;
+    },
     result,
     revoke: () => finish({ ok: false, code: "INSTANCE_REVOKED" }),
   });
