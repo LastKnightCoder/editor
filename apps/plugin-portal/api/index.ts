@@ -39,7 +39,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
         : new HttpError(500, "INTERNAL_ERROR", "服务处理失败，请重试");
     response = Response.json(
       {
-        error: { code: issue.code, message: issue.message, requestId: crypto.randomUUID() },
+        error: {
+          code: issue.code,
+          message: issue.message,
+          ...(issue.fields ? { fields: issue.fields } : {}),
+          requestId: crypto.randomUUID(),
+        },
       } satisfies ApiError,
       { status: issue.status }
     );

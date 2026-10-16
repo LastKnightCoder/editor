@@ -46,36 +46,46 @@ export function validateListing(input: unknown, complete = false): Listing {
     commit: 40,
     supportUrl: 2000,
   };
+  const labels = {
+    summary: "简介",
+    description: "详细介绍",
+    changelog: "更新说明",
+    repository: "源码仓库",
+    commit: "源码提交",
+    supportUrl: "反馈链接",
+  };
+  const fields: Record<string, string> = {};
   for (const [field, limit] of Object.entries(limits)) {
     if (
       typeof value[field] !== "string" ||
       (value[field] as string).length > limit ||
       (complete && !(value[field] as string).trim())
     )
-      fail(400, "INVALID_INPUT", `${field} 内容缺失或超过长度限制`);
+      fields[field] = `${labels[field as keyof typeof labels]}不能为空且不能超过 ${limit} 个字符`;
   }
+  if (value.iconUploadId !== null && typeof value.iconUploadId !== "string")
+    fields.iconUploadId = "图标引用无效，请重新上传";
   if (
-    (value.iconUploadId !== null && typeof value.iconUploadId !== "string") ||
     !Array.isArray(value.screenshotUploadIds) ||
     value.screenshotUploadIds.length > LIMITS.screenshots ||
     value.screenshotUploadIds.some(x => typeof x !== "string") ||
     new Set(value.screenshotUploadIds).size !== value.screenshotUploadIds.length
   )
-    fail(400, "INVALID_INPUT", "图片引用无效");
+    fields.screenshotUploadIds = "截图引用无效，最多支持五张且不能重复";
   if (complete) {
-    if (!value.iconUploadId) fail(400, "INVALID_INPUT", "请上传插件图标");
-    if (
-      !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(String(value.repository)) ||
-      !/^[a-f0-9]{40}$/i.test(String(value.commit))
-    )
-      fail(400, "INVALID_INPUT", "仓库地址或完整 commit SHA 无效");
+    if (!value.iconUploadId) fields.iconUploadId = "请上传插件图标";
+    if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(String(value.repository)))
+      fields.repository = "请填写 https://github.com/作者/仓库 格式的源码地址";
+    if (!/^[a-f0-9]{40}$/i.test(String(value.commit)))
+      fields.commit = "请填写完整的 40 位源码提交 SHA";
     try {
       const url = new URL(String(value.supportUrl));
       if (url.protocol !== "https:" || url.username || url.password) throw new Error();
     } catch {
-      fail(400, "INVALID_INPUT", "反馈链接必须为 HTTPS 地址");
+      fields.supportUrl = "反馈链接必须为不包含用户名或密码的 HTTPS 地址";
     }
   }
+  if (Object.keys(fields).length) fail(400, "INVALID_INPUT", Object.values(fields)[0], fields);
   return Object.fromEntries(
     [...Object.keys(limits), "iconUploadId", "screenshotUploadIds"].map(key => [key, value[key]])
   ) as unknown as Listing;
@@ -114,7 +124,7 @@ export async function submissionRoute(
     const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM submissions WHERE publisher_id=?")
       .bind(owner)
       .first<{ n: number }>();
-    if ((count?.n ?? 0) >= 100) fail(409, "CONFLICT", "提交记录已达首期上限，请联系维护者");
+    if ((count?.n ?? 0) >= 100) fail(409, "LIMIT_EXCEEDED", "提交记录已达首期上限，请联系维护者");
     const id = crypto.randomUUID();
     const time = new Date().toISOString();
     await env.DB.prepare(
@@ -168,8 +178,10 @@ export async function submissionRoute(
   if (!match[2] && request.method === "GET") return json(current);
   if (!match[2] && request.method === "PATCH") {
     const input = await body(request);
-    if (current.status !== "draft" || input.revision !== current.revision)
-      fail(409, "CONFLICT", "记录已更新或已提交，请重新读取");
+    if (current.status !== "draft")
+      fail(409, "SUBMISSION_LOCKED", "该记录已提交审核，请查看只读详情");
+    if (input.revision !== current.revision)
+      fail(409, "REVISION_CONFLICT", "草稿已在其他窗口更新，请读取最新版本后比较修改");
     const listing = validateListing(input.listing);
     if (input.packageUploadId !== null && typeof input.packageUploadId !== "string")
       fail(400, "INVALID_INPUT", "插件包引用无效");
@@ -190,13 +202,19 @@ export async function submissionRoute(
         current.revision
       )
       .run();
-    if (!result.meta.changes) fail(409, "CONFLICT", "记录已更新，请重新读取");
+    if (!result.meta.changes) {
+      const latest = await getSubmission(env, owner, current.id);
+      if (latest.status !== "draft")
+        fail(409, "SUBMISSION_LOCKED", "该记录已提交审核，请查看只读详情");
+      fail(409, "REVISION_CONFLICT", "草稿已在其他窗口更新，请读取最新版本后比较修改");
+    }
     return json(await getSubmission(env, owner, current.id));
   }
   if (match[2] && request.method === "POST") {
     const input = await body(request);
     if (current.status === "pending_review") return json(current);
-    if (input.revision !== current.revision) fail(409, "CONFLICT", "记录已更新，请重新读取");
+    if (input.revision !== current.revision)
+      fail(409, "REVISION_CONFLICT", "草稿已更新，请读取最新版本后重新确认提交");
     const listing = validateListing(current.listing, true);
     if (!current.packageUploadId || !current.manifest)
       fail(400, "INVALID_INPUT", "请先上传插件包并保存");
@@ -231,11 +249,21 @@ export async function submissionRoute(
       if (!results[1].meta.changes) {
         const latest = await getSubmission(env, owner, current.id);
         if (latest.status === "pending_review") return json(latest);
-        fail(409, "CONFLICT", "记录已变化，或插件 ID 已绑定其他作者/仓库");
+        if (latest.revision !== current.revision)
+          fail(409, "REVISION_CONFLICT", "草稿已更新，请读取最新版本后重新确认提交");
+        fail(
+          409,
+          "PLUGIN_OWNERSHIP_CONFLICT",
+          "插件 ID 已绑定其他作者或仓库，请更换 ID 或联系维护者"
+        );
       }
     } catch (error) {
       if (String(error).includes("UNIQUE constraint failed"))
-        fail(409, "CONFLICT", "该插件版本已有待审核提交");
+        fail(
+          409,
+          "VERSION_ALREADY_SUBMITTED",
+          "该插件版本已有待审核提交，请在我的提交中查看已有记录"
+        );
       throw error;
     }
     return json(await getSubmission(env, owner, current.id));

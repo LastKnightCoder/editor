@@ -9,8 +9,12 @@
   "scripts": {
     "dev:api": "wrangler dev --config infra/wrangler.jsonc",
     "db:local": "wrangler d1 migrations apply plugin-portal --local --config infra/wrangler.jsonc",
-    "check": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts",
+    "check": "pnpm check:api && pnpm check:web",
+    "check:api": "tsc --noEmit",
+    "check:web": "tsc --noEmit -p web/tsconfig.json",
+    "test": "pnpm test:api && pnpm test:web",
+    "test:api": "vitest run --config vitest.config.ts",
+    "test:web": "vitest run --config web/vitest.config.ts",
     "build:api": "wrangler deploy --dry-run --config infra/wrangler.jsonc --outdir dist/api",
     "dev:web": "vite --config web/vite.config.ts",
     "build:web": "vite build --config web/vite.config.ts"
@@ -27,6 +31,9 @@
     "adm-zip": "0.5.16"
   },
   "devDependencies": {
+    "jsdom": "^24.1.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/dom": "^10.4.1",
     "@cloudflare/workers-types": "5.20261016.1",
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^24.0.0",

@@ -357,6 +357,82 @@ describe("发布门户第一期", () => {
     );
     expect(second.nextCursor).toBeNull();
   });
+  it("字段错误返回结构化中文提示，可一次定位多个输入项", async () => {
+    await login();
+    const record = await completeDraft();
+    const response = await request(`/v1/submissions/${record.id}`, "PATCH", {
+      revision: record.revision,
+      packageUploadId: record.packageUploadId,
+      listing: { ...record.listing, summary: "长".repeat(161), description: 123 },
+    });
+    expect(response.status).toBe(400);
+    const { error } = await response.json();
+    expect(error.code).toBe("INVALID_INPUT");
+    expect(error.fields.summary).toContain("简介");
+    expect(error.fields.description).toContain("详细介绍");
+    expect(error.requestId).toBeTruthy();
+  });
+  it("旧revision、冻结、重复版本与归属冲突有不同错误码", async () => {
+    await login();
+    const record = await completeDraft();
+    const duplicate = await completeDraft();
+    const stale = await request(`/v1/submissions/${record.id}/submit`, "POST", { revision: 0 });
+    expect((await stale.json()).error.code).toBe("REVISION_CONFLICT");
+    await request(`/v1/submissions/${record.id}/submit`, "POST", { revision: record.revision });
+    const locked = await request(`/v1/submissions/${record.id}`, "PATCH", {
+      revision: record.revision,
+      listing: record.listing,
+      packageUploadId: record.packageUploadId,
+    });
+    expect((await locked.json()).error.code).toBe("SUBMISSION_LOCKED");
+    const conflict = await request(`/v1/submissions/${duplicate.id}/submit`, "POST", {
+      revision: duplicate.revision,
+    });
+    expect((await conflict.json()).error.code).toBe("VERSION_ALREADY_SUBMITTED");
+    fixture.sqlite.exec(
+      "INSERT INTO publishers VALUES ('other','other',''); UPDATE plugins SET publisher_id='other'"
+    );
+    const ownership = await request(`/v1/submissions/${duplicate.id}/submit`, "POST", {
+      revision: duplicate.revision,
+    });
+    expect((await ownership.json()).error.code).toBe("PLUGIN_OWNERSHIP_CONFLICT");
+  });
+  it("上传过期直接失败，已完成产物即使ticket过期也可查询恢复", async () => {
+    await login();
+    const image = await upload(png, "icon");
+    fixture.sqlite
+      .prepare("UPDATE uploads SET created_at=? WHERE id=?")
+      .run(new Date(Date.now() - 7200000).toISOString(), image.id);
+    const completed = await request(`/v1/uploads/${image.id}/content`, "PUT", png);
+    expect((await completed.json()).error.code).toBe("UPLOAD_STATE_CONFLICT");
+    const ticket = (
+      await (
+        await request("/v1/uploads", "POST", {
+          kind: "icon",
+          size: png.length,
+          fileName: "icon.png",
+        })
+      ).json()
+    ).data;
+    fixture.sqlite
+      .prepare("UPDATE uploads SET created_at=? WHERE id=?")
+      .run(new Date(Date.now() - 7200000).toISOString(), ticket.upload.id);
+    const expired = await request(new URL(ticket.uploadUrl).pathname, "PUT", png);
+    expect((await expired.json()).error.code).toBe("UPLOAD_EXPIRED");
+    expect(fixture.objects.size).toBe(1);
+  });
+  it("PUT/PATCH预检允许凭据与CSRF头，同站Cookie保持Lax", async () => {
+    const preflight = await request("/v1/uploads", "OPTIONS", undefined, {
+      "Access-Control-Request-Method": "PUT",
+      "Access-Control-Request-Headers": "content-type,x-csrf-token",
+    });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("Access-Control-Allow-Methods")).toContain("PATCH");
+    expect(preflight.headers.get("Access-Control-Allow-Headers")).toContain("X-CSRF-Token");
+    expect(preflight.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+    const start = await request("/v1/auth/github");
+    expect(start.headers.get("Set-Cookie")).toContain("SameSite=Lax");
+  });
   it("中断的checking记录超时可恢复为明确失败", async () => {
     await login();
     const ticket = (
