@@ -57,6 +57,9 @@ try {
 
   await mkdir(output, { recursive: true });
   for (const [index, name] of ["plugins", "ui"].entries()) {
+    const { version } = JSON.parse(
+      await readFile(path.join(root, `packages/${name}/package.json`), "utf8")
+    );
     const directory = path.join(staging, name);
     const visited = new Set();
     const dependencies = { "@types/react": "19.2.0", "@types/react-dom": "19.2.0" };
@@ -129,7 +132,7 @@ try {
       JSON.stringify(
         {
           name: `@xiongtao.xt/tau-${name}`,
-          version: name === "plugins" ? "0.3.0" : "0.1.0",
+          version,
           license: "MIT",
           repository: { type: "git", url: "git+https://github.com/LastKnightCoder/editor.git" },
           publishConfig: { access: "public", registry: "https://registry.npmjs.org" },
