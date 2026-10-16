@@ -1,9 +1,13 @@
 import { build } from "esbuild";
+import AdmZip from "adm-zip";
 import { mkdir, readFile, writeFile, mkdtemp, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
+if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.id))
+  throw new Error("插件 ID 应为小写字母、数字及点或连字符组成的命名空间");
+if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Error("插件版本无效");
 const shared = [
   "@tau/plugins",
   "@tau/ui",
@@ -65,7 +69,13 @@ try {
     })
   );
   await rename(pointer, path.resolve("dist", `tau-build-${manifest.id}.json`));
-  console.log(`构建完成，在 Tau 中选择此目录：\n${destination}`);
+  const zip = new AdmZip();
+  zip.addLocalFolder(destination, manifest.id);
+  const archive = path.resolve("dist", `${manifest.id}-${manifest.version}.zip`);
+  zip.writeZip(archive);
+  console.log(
+    `构建完成：${archive}\n运行 npm run install:local，或将 ZIP 解压至 ~/.editor/plugins，然后在插件管理中刷新列表并启用。`
+  );
 } catch (error) {
   await rm(staging, { recursive: true, force: true });
   throw error;
