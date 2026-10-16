@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FileText, Import, PanelsLeftRight, Plus, Search, X } from "lucide-react";
+import { FileText, FolderInput, Import, PanelsLeftRight, Plus, Search, X } from "lucide-react";
 import { FadeScroll } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { morph, queryActivePageMorph } from "@/page/morph";
@@ -41,6 +41,8 @@ import type { ArticleItemActions } from "../components/ArticleItemOps";
 import { ArticleCard, formatWords } from "./ArticleCard";
 import { articleMorphKey } from "../morph";
 import { exportContentAsMarkdown, importMarkdownFiles } from "@/services/content-transfer";
+import { useTransferStore } from "@/app/transferStore";
+import { useImportDrop } from "@/features/transfer/useImportDrop";
 
 const LOAD_MORE_THRESHOLD = 700;
 /** 搜索框停顿多久再查询（逐字下推会每键一次 IPC） */
@@ -182,6 +184,7 @@ export function ArticlesView() {
     [createDefault, navigator]
   );
 
+  const importDrop = useImportDrop("article");
   const handleImport = useCallback(async () => {
     setBusy(true);
     try {
@@ -227,7 +230,11 @@ export function ArticlesView() {
   return (
     <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸：工具栏固定在纸顶，月段在纸内滚动 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        {...importDrop.dropProps}
+      >
+        {importDrop.overlay}
         {/* 工具栏：标题 / 当前标签 + 摘要 + 标题搜索 + 导入 / 新建 */}
         <div className="mb-3 mt-5 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
@@ -273,17 +280,34 @@ export function ArticlesView() {
           <LayoutMenu value={layout} onChange={next => updatePreferences({ layout: next })} />
           {/* 导入：带文字的次要按钮（同 Skill 页「关联目录 + 添加」），不用裸图标——
               下箭头落横线是通用的「下载 / 导出」语义，且裸图标夹在搜索框与主按钮之间分量不齐 */}
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={Import}
-            disabled={busy}
-            title="从本地 Markdown 文件导入"
-            className="shrink-0 whitespace-nowrap"
-            onClick={() => void handleImport()}
+          <Menu
+            align="end"
+            trigger={
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Import}
+                disabled={busy}
+                title="从本地 Markdown 导入"
+                className="shrink-0 whitespace-nowrap"
+              >
+                导入
+              </Button>
+            }
           >
-            导入
-          </Button>
+            <Menu.Item
+              icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+              onSelect={() => void handleImport()}
+            >
+              Markdown 文件…
+            </Menu.Item>
+            <Menu.Item
+              icon={<FolderInput className="size-[15px] shrink-0" strokeWidth={1.75} />}
+              onSelect={() => useTransferStore.getState().openImportWizard({ target: "article" })}
+            >
+              文件夹或压缩包…
+            </Menu.Item>
+          </Menu>
           <Menu
             align="end"
             trigger={

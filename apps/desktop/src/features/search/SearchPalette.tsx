@@ -224,6 +224,8 @@ export function SearchPalette() {
       enterCapture("event");
     } else if (action === "open-markdown") {
       closeAnd(() => void openMarkdownInNewWindow());
+    } else if (action === "import-batch") {
+      closeAnd(() => useTransferStore.getState().openImportWizard());
     } else if (action === "export-project") {
       // 在项目详情页唤起时直接导出当前项目，否则先选项目
       const current = pageState.back[pageState.back.length - 1];
