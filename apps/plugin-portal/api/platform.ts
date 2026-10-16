@@ -14,13 +14,19 @@ export class HttpError extends Error {
   constructor(
     public status: number,
     public code: ErrorCode,
-    message: string
+    message: string,
+    public fields?: Record<string, string>
   ) {
     super(message);
   }
 }
-export function fail(status: number, code: ErrorCode, message: string): never {
-  throw new HttpError(status, code, message);
+export function fail(
+  status: number,
+  code: ErrorCode,
+  message: string,
+  fields?: Record<string, string>
+): never {
+  throw new HttpError(status, code, message, fields);
 }
 export function json<T>(data: T, status = 200): Response {
   return Response.json({ data } satisfies ApiResult<T>, { status });

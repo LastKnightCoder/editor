@@ -79,7 +79,7 @@ export async function uploadRoute(
     )
       .bind(owner, new Date(Date.now() - 86400000).toISOString())
       .first<{ n: number }>();
-    if ((count?.n ?? 0) >= 100) fail(409, "CONFLICT", "今日上传次数已达上限");
+    if ((count?.n ?? 0) >= 100) fail(409, "LIMIT_EXCEEDED", "今日上传次数已达上限，请明天再试");
     const id = crypto.randomUUID();
     await env.DB.prepare(
       "INSERT INTO uploads(id,publisher_id,kind,status,file_name,size,created_at) VALUES (?,?,?,'awaiting_upload',?,?,?)"
@@ -113,14 +113,17 @@ export async function uploadRoute(
     });
   }
   if (match[2] && request.method === "PUT") {
+    if (row.status !== "awaiting_upload")
+      fail(409, "UPLOAD_STATE_CONFLICT", "上传正在处理或已经结束，请查询状态");
     if (Date.parse(row.created_at) < Date.now() - 3600000)
-      fail(409, "CONFLICT", "上传地址已过期，请重新申请");
+      fail(409, "UPLOAD_EXPIRED", "上传地址已过期，请重新选择文件并申请上传");
     const claim = await env.DB.prepare(
       "UPDATE uploads SET status='checking',processing_at=? WHERE id=? AND publisher_id=? AND status='awaiting_upload'"
     )
       .bind(Date.now(), row.id, owner)
       .run();
-    if (!claim.meta.changes) fail(409, "CONFLICT", "上传正在处理或已经完成，请查询状态");
+    if (!claim.meta.changes)
+      fail(409, "UPLOAD_STATE_CONFLICT", "上传正在处理或已经结束，请查询状态");
     const objectKey = `${owner}/${row.id}`;
     try {
       const bytes = await readLimited(request, row.size);
@@ -136,7 +139,7 @@ export async function uploadRoute(
         .run();
       if (!complete.meta.changes) {
         await env.PENDING.delete(objectKey);
-        fail(409, "CONFLICT", "上传处理已过期，请重新上传");
+        fail(409, "UPLOAD_EXPIRED", "上传处理已过期，请重新上传");
       }
       return json(uploadDto(await getUpload(env, owner, row.id)));
     } catch (error) {
