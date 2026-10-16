@@ -20,7 +20,6 @@ import {
 import type { ArticlePageItem, IArticle } from "@/types";
 import { isElectron } from "@/electron";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
-import { downloadMarkdown, getMarkdown } from "@/utils";
 import useSettingStore from "@/stores/useSettingStore";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
@@ -28,6 +27,7 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import { IconButton, Menu, Popover, cn } from "@tau/ui";
 
 import { ARTICLE_PAGE_SIZE, bucketByMonths, useArticleFeed, useArticleMutations } from "../queries";
+import { exportContentAsMarkdown } from "@/services/content-transfer";
 
 type ExportKind = "image" | "epub" | "pdf";
 
@@ -90,7 +90,12 @@ export function ArticleSwitcher({
 
   const handleExportMarkdown = async (item: ArticlePageItem) => {
     const full = await findOneArticle(item.id);
-    if (full) downloadMarkdown(getMarkdown(full.content), full.title || `文章-${full.id}`);
+    if (full) {
+      await exportContentAsMarkdown({
+        title: full.title || `文章-${full.id}`,
+        content: full.content,
+      });
+    }
   };
 
   const openExportModal = async (item: ArticlePageItem, kind: ExportKind) => {

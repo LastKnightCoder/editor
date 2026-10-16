@@ -33,8 +33,6 @@ import {
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
   defaultProjectItemEventBus,
-  downloadMarkdown,
-  getMarkdown,
 } from "@/utils";
 import { EProjectItemType, ProjectItem } from "@/types";
 import { useMemoizedFn } from "ahooks";
@@ -42,6 +40,7 @@ import useContentShared from "@/hooks/useContentShared";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
 import { toast } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
+import { exportContentAsMarkdown } from "@/services/content-transfer";
 
 interface UseProjectItemMoreActionsOptions {
   projectId: number;
@@ -259,8 +258,10 @@ export const useProjectItemMoreActions = (
     } else if (key === "copy-wechat") {
       await copyWechatHtmlToClipboard(projectItem.content, toast);
     } else if (key === "export-markdown") {
-      const markdown = getMarkdown(projectItem.content);
-      downloadMarkdown(markdown, projectItem.title);
+      await exportContentAsMarkdown({
+        title: projectItem.title,
+        content: projectItem.content,
+      });
     } else if (key === "export-image") {
       setExportModalOpen(true);
     } else if (key === "export-epub") {
