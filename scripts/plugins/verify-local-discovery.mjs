@@ -10,7 +10,8 @@ const require = createRequire(path.join(root, "apps/desktop/package.json"));
 const { build } = require("esbuild");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-local-discovery-"));
 const report = { status: "running", platform: process.platform, arch: process.arch, phases: [] };
-const installed = process.argv.includes("--installed");
+const water = process.argv.includes("--water");
+const installed = process.argv.includes("--installed") || water;
 try {
   await mkdir(path.join(directory, "profile"));
   await writeFile(
@@ -19,7 +20,14 @@ try {
   );
   for (const [entry, output, platform, format] of [
     ["scripts/plugin-runtime/local-main.ts", "main.cjs", "node", "cjs"],
-    ["scripts/plugin-runtime/local-renderer.tsx", "renderer.js", "browser", "iife"],
+    [
+      water
+        ? "scripts/plugin-runtime/water-renderer.tsx"
+        : "scripts/plugin-runtime/local-renderer.tsx",
+      "renderer.js",
+      "browser",
+      "iife",
+    ],
     ["src-electron/preload/index.ts", "preload.cjs", "node", "cjs"],
   ])
     await build({
@@ -43,9 +51,11 @@ try {
         },
       ],
     });
-  for (const phase of installed
-    ? ["author", "author-restore"]
-    : ["initial", "refresh", "reinstall", "disabled"]) {
+  for (const phase of water
+    ? ["water", "water-restore", "water-disabled"]
+    : installed
+      ? ["author", "author-restore"]
+      : ["initial", "refresh", "reinstall", "disabled"]) {
     const env = {
       ...process.env,
       TAU_LOCAL_TEST_APP_DIR: installed
@@ -85,7 +95,11 @@ try {
   await writeFile(
     path.join(
       root,
-      installed ? "output/installed-author-report.json" : "output/local-discovery-report.json"
+      water
+        ? "output/water-author-report.json"
+        : installed
+          ? "output/installed-author-report.json"
+          : "output/local-discovery-report.json"
     ),
     JSON.stringify(report, null, 2)
   );
