@@ -7,7 +7,10 @@ import localModule from "../../src-electron/main/modules/plugin-local";
 
 const [phase, directory] = process.argv.slice(2);
 app.setPath("userData", path.join(directory, "profile"));
-const plugins = path.join(directory, "app-data/plugins");
+const plugins = path.join(
+  process.env.TAU_LOCAL_TEST_APP_DIR ?? path.join(directory, "app-data"),
+  "plugins"
+);
 async function put(version = "1.0.0") {
   const location = path.join(plugins, "example.local");
   await mkdir(location, { recursive: true });
@@ -79,7 +82,20 @@ app
     await click("打开插件目录");
     await wait("!document.querySelector('button[disabled]')");
     assert.equal(opens, 1);
-    if (phase === "initial") {
+    if (phase === "author" || phase === "author-restore") {
+      const state = await run(
+        "localTest.snapshot().plugins.find(p=>p.id==='example.external-counter')?.state"
+      );
+      assert.equal(state, phase === "author" ? "disabled" : "active");
+      if (phase === "author") await click("启用 独立计数插件");
+      await wait("localTest.snapshot().commands.some(c=>c.id==='example.external-counter:open')");
+      await run("localTest.openAuthor()");
+      await wait(`document.body.innerText.includes('已保存计数：${phase === "author" ? 0 : 1}')`);
+      if (phase === "author") {
+        await click("增加并保存");
+        await wait("document.body.innerText.includes('已保存计数：1')");
+      }
+    } else if (phase === "initial") {
       assert.equal(
         await run("localTest.snapshot().plugins.find(p=>p.id==='example.local').state"),
         "disabled"
