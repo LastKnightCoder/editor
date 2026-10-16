@@ -1,6 +1,8 @@
 import { assertLocalId } from "./ids";
 import { comparePluginVersions } from "./version";
 
+export { comparePluginVersions } from "./version";
+
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
   "@tau/ui",

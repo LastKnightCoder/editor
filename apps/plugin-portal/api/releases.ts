@@ -1,4 +1,12 @@
-import type { PackageContent, Release } from "../contracts";
+import { comparePluginVersions } from "@tau/plugins/package";
+import type {
+  Catalog,
+  CatalogEntry,
+  CatalogVersion,
+  PackageContent,
+  PublicRelease,
+  Release,
+} from "../contracts";
 import { fail, json, sha256, type Env } from "./platform";
 
 export interface ReleaseRow {
@@ -12,6 +20,8 @@ export interface ReleaseRow {
   sha256: string;
   size: number;
   content_json: string;
+  repository: string;
+  source_commit: string;
   state: Release["state"];
   error: string | null;
   published_at: string | null;
@@ -78,12 +88,80 @@ export async function publishRelease(env: Env, row: ReleaseRow): Promise<void> {
   }
 }
 
+interface CatalogRow {
+  id: string;
+  plugin_id: string;
+  version: string;
+  name: string;
+  description: string;
+  min_app_version: string;
+  repository: string;
+  size: number;
+  sha256: string;
+  published_at: string;
+  login: string;
+  avatar_url: string;
+}
+const catalogVersion = (row: CatalogRow, env: Env): CatalogVersion => ({
+  releaseId: row.id,
+  version: row.version,
+  minAppVersion: row.min_app_version,
+  publishedAt: row.published_at,
+  size: row.size,
+  sha256: row.sha256,
+  downloadUrl: `${env.API_ORIGIN}/v1/releases/${row.id}/download`,
+});
+
+async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
+  const appVersion = params.get("appVersion") ?? "";
+  try {
+    comparePluginVersions(appVersion, appVersion);
+  } catch {
+    fail(400, "INVALID_INPUT", "appVersion必须是有效的客户端版本号", { appVersion: "版本号无效" });
+  }
+  const query = (params.get("q") ?? "").trim().toLowerCase();
+  const rows = await env.DB.prepare(
+    "SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published'"
+  ).all<CatalogRow>();
+  const versions = new Map<string, CatalogRow[]>();
+  for (const row of rows.results)
+    versions.set(row.plugin_id, [...(versions.get(row.plugin_id) ?? []), row]);
+  const items: CatalogEntry[] = [];
+  for (const list of versions.values()) {
+    list.sort((a, b) => comparePluginVersions(b.version, a.version));
+    const latest = list[0];
+    const text = `${latest.plugin_id}\n${latest.name}\n${latest.description}`.toLowerCase();
+    if (query && !text.includes(query)) continue;
+    const compatible = list.find(
+      row => comparePluginVersions(appVersion, row.min_app_version) >= 0
+    );
+    items.push({
+      pluginId: latest.plugin_id,
+      name: latest.name,
+      description: latest.description,
+      publisher: { login: latest.login, avatarUrl: latest.avatar_url },
+      repository: latest.repository,
+      latest: catalogVersion(latest, env),
+      compatible: compatible ? catalogVersion(compatible, env) : null,
+    });
+  }
+  items.sort((a, b) =>
+    a.latest.publishedAt === b.latest.publishedAt
+      ? a.pluginId.localeCompare(b.pluginId)
+      : a.latest.publishedAt < b.latest.publishedAt
+        ? 1
+        : -1
+  );
+  return { items };
+}
+
 export async function publicReleaseRoute(
   request: Request,
   env: Env,
   path: string
 ): Promise<Response | null> {
   if (request.method !== "GET") return null;
+  if (path === "/v1/catalog") return json(await catalog(env, new URL(request.url).searchParams));
   if (path === "/v1/releases") {
     const params = new URL(request.url).searchParams,
       plugin = params.get("pluginId"),
@@ -124,11 +202,20 @@ export async function publicReleaseRoute(
   }
   const match = /^\/v1\/releases\/([\w-]+)(\/download)?$/.exec(path);
   if (!match) return null;
-  const row = await env.DB.prepare("SELECT * FROM releases WHERE id=? AND state='published'")
+  const row = await env.DB.prepare(
+    "SELECT r.*,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.id=? AND r.state='published'"
+  )
     .bind(match[1])
-    .first<ReleaseRow>();
+    .first<ReleaseRow & { login: string; avatar_url: string }>();
   if (!row) fail(404, "NOT_FOUND", "该版本尚未发布");
-  if (!match[2]) return json({ ...releaseDto(row, env), content: JSON.parse(row.content_json) });
+  if (!match[2])
+    return json<PublicRelease>({
+      ...releaseDto(row, env),
+      content: JSON.parse(row.content_json),
+      repository: row.repository,
+      commit: row.source_commit,
+      publisher: { login: row.login, avatarUrl: row.avatar_url },
+    });
   const object = await env.RELEASES.get(row.object_key);
   if (!object) fail(503, "SERVICE_UNAVAILABLE", "发布文件暂不可用");
   return new Response(await object.arrayBuffer(), {
