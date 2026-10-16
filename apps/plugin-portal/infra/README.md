@@ -1,5 +1,7 @@
 # 配置与运行
 
+日常操作的权威入口：[运维与接手手册](运维手册.md)。本文维护资源清单和初始配置背景；重复部署、备份、回滚与排错统一按手册及 `ops.mjs` 执行。
+
 2026-10-16 已配置线上基础设施；前端尚未部署。不要复用已有 `tau-release`。`wrangler.jsonc` 仅供本地模拟，正式部署使用已纳入Git的 `wrangler.production.jsonc`（只含非秘密资源ID）。
 
 ## 已配置资源
@@ -40,7 +42,7 @@ pnpm exec wrangler deploy --config infra/wrangler.production.jsonc
 
 ## 本地
 
-Node.js 24+。UI专家只需 `pnpm --filter @tau/plugin-portal dev:web`（web交付后）和显式模拟模式即可开发，无需提前配置GitHub/R2。后端检查命令：`pnpm --filter @tau/plugin-portal check`、`test`、`build:api`（只构建，不部署）。
+Node.js 24+。完整web已提交，使用 `pnpm --filter @tau/plugin-portal dev:web` 和显式模拟模式即可开发，无需提前配置GitHub/R2。`check`与`test`覆盖前后端，`check:api`/`test:api`可单独检查后端，`build:api`只构建不部署。
 
 在仓库根运行 `pnpm --filter @tau/plugin-portal db:local`、`pnpm --filter @tau/plugin-portal dev:api`。Wrangler本地模拟D1/R2，不访问云端桶。真实GitHub登录需独立开发OAuth App：Homepage `http://localhost:5173`，callback `http://localhost:8787/v1/auth/github/callback`。复制本目录 `.dev.vars.example` 为 `.dev.vars` 并在本机填写，不能提交。
 
@@ -48,7 +50,7 @@ TOKEN_ENCRYPTION_KEY 为32随机字节的base64。可以用本机密码管理器
 
 ## 线上配置顺序（由后端agent执行，需账号授权）
 
-1. Cloudflare登录授权Worker/D1/R2管理；检查 xiongtao.life 已接入的Zone和现有DNS，不能覆盖已有域名。
+1. Cloudflare登录授权Worker/D1/R2管理；检查 taunote.app 已接入的Zone和现有DNS，不能覆盖已有域名。
 2. 创建私有R2桶 `tau-plugin-pending`。Worker直接绑定，无需另外生成R2 Access Key；首期上传经过Worker，浏览器不直连R2，不需要桶CORS。
 3. 创建D1数据库 `plugin-portal`，保存真实database_id。
 4. 正式配置已保存为wrangler.production.jsonc；其资源ID与域名可以提交，密钥只放Cloudflare Secrets。新环境需独立核对database_id和域名。生产关闭workers.dev和preview_urls。

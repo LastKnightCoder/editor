@@ -1,5 +1,7 @@
 # taunote.app 域名配置
 
+日常维护入口：[插件平台运维手册](../apps/plugin-portal/infra/运维手册.md)。本页记录产品域名及服务器映射。
+
 2026-10-16。Cloudflare account沿用原账号，新Zone为 `dc2d5737af67a3f10974706ca9476992`。本轮新增域名入口，不迁移数据。
 
 | 域名                    | 目标                                   | 状态                                                                |
