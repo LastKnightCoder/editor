@@ -51,7 +51,6 @@ export * from "./web-clip";
 export * from "./lineage";
 export * from "./web-note";
 export * from "./web-view-preference";
-export * from "./weread";
 export * from "./flashcard";
 export * from "./resource-sync-blacklist";
 export * from "./publish";

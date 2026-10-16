@@ -27,7 +27,6 @@ vi.mock("../../video-note-index-queue", () => ({
 import type { EntityRef } from "@/entity/ref";
 import { listMaterialIndexDocs } from "../../material-index";
 import QuestionLinkTable from "../../tables/question-link";
-import { backfillWeReadExcerpts } from "../../tables/weread-excerpts";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { reconcileWhiteboardRefs } from "../whiteboard-indexer";
@@ -55,7 +54,6 @@ it.skipIf(!MAIN)(
     await timed("引用索引首次对账", () => reconcileRefs(main, index));
     await timed("白板索引首次对账", () => reconcileWhiteboardRefs(main, index));
     await timed("白板索引再次对账（无变化）", () => reconcileWhiteboardRefs(main, index));
-    await timed("微信读书摘录回填（是否有变化）", () => backfillWeReadExcerpts(main));
     await timed("外部材料索引候选（按类型计数）", () =>
       listMaterialIndexDocs(main).reduce<Record<string, number>>((counts, doc) => {
         counts[doc.type] = (counts[doc.type] ?? 0) + 1;

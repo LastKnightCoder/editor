@@ -7,7 +7,6 @@
 import Database from "better-sqlite3";
 import { describe, expect, it, vi } from "vitest";
 import schema from "@tau/db-schema/schema/main.sql?raw";
-import type { Highlight, Notebook } from "@/types/weread";
 
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -20,50 +19,24 @@ vi.mock("../../video-note-index-queue", () => ({
 
 import { listMaterialIndexDocs } from "../../material-index";
 import ExcerptTable from "../excerpt";
-import { backfillWeReadExcerpts } from "../weread-excerpts";
-import WeReadNotebookTable from "../weread-notebook";
 
 const BOOKS = 1000;
 const PER_BOOK = 50;
 const WEB_PAGE = 2000;
 
-const notebook = (bookId: string, count: number, salt = ""): Notebook => {
-  const highlights: Highlight[] = Array.from({ length: count }, (_, i) => ({
-    bookmarkId: `bm${i}`,
-    created: 1_700_000_000 + i,
-    createTime: "",
-    chapterUid: i % 20,
-    chapterIdx: i % 20,
-    chapterTitle: `第 ${i % 20} 章`,
-    markText: `第 ${i} 条划线的原文，长度接近真实的一两句话。${salt}\n   第二段`,
-    style: 1,
-    colorStyle: (i % 5) + 1,
-    reviewContent: i % 4 === 0 ? `想法 ${i}` : undefined,
-    range: `${i * 100}-${i * 100 + 60}`,
-  }));
-  return {
-    metaData: {
-      bookId,
-      title: `书 ${bookId}`,
-      author: "",
-      cover: "",
-      bookType: 0,
-      publishTime: "",
-      noteCount: count,
-      reviewCount: 0,
-      lastReadDate: "",
-    },
-    chapterHighlights: Array.from({ length: 20 }, (_, c) => ({
-      chapterUid: c,
-      chapterIdx: c,
-      chapterTitle: `第 ${c} 章`,
-      level: 1,
-      isMPChapter: 0,
-      highlights: highlights.filter(h => h.chapterUid === c),
-    })),
-    bookReview: { chapterReviews: [], bookReviews: [] },
-  };
-};
+/** 一本书的提供方快照：每条带位置与私有定位，体量接近真实划线 */
+const book = (bookId: string, count: number, salt = "") => ({
+  source: { key: bookId, title: `书 ${bookId}`, url: `https://example.com/${bookId}` },
+  items: Array.from({ length: count }, (_, i) => ({
+    externalId: `${bookId}:bm${i}`,
+    quote: `第 ${i} 条划线的原文，长度接近真实的一两句话。${salt}\n第二段`,
+    ...(i % 4 === 0 ? { note: `想法 ${i}` } : {}),
+    location: `第 ${i % 20} 章`,
+    anchor: { chapterUid: i % 20, chapterIdx: i % 20, range: `${i * 100}-${i * 100 + 60}` },
+    color: String((i % 5) + 1),
+    time: 1_700_000_000_000 + i,
+  })),
+});
 
 const time = <T>(label: string, fn: () => T): T => {
   const start = performance.now();
@@ -76,18 +49,19 @@ describe.skipIf(!process.env.KL_EXCERPT_SCALE)("摘录规模实测", () => {
   it(`${BOOKS} 本书 × ${PER_BOOK} 条划线；单页 ${WEB_PAGE} 条插件划线`, () => {
     const db = new Database(":memory:");
     db.exec(schema);
-    const books = Array.from({ length: BOOKS }, (_, i) => notebook(`b${i}`, PER_BOOK));
+    const books = Array.from({ length: BOOKS }, (_, i) => book(`b${i}`, PER_BOOK));
+    const replaceAll = () =>
+      db.transaction(() => {
+        for (const { source, items } of books)
+          ExcerptTable.replaceFromProvider(db, "x.reader", source, items);
+      })();
 
-    time("首次保存（含展开与写摘录）", () => WeReadNotebookTable.saveMany(db, books));
-    time("书架同步原样写回（划线文本不变，跳过展开）", () =>
-      WeReadNotebookTable.saveMany(db, books)
-    );
+    time("提供方首次全量写入", replaceAll);
+    time("全量同步原样重发（全部无变化）", replaceAll);
+    const changed = book("b0", PER_BOOK, "改");
     time("单本书重新拉取、每条都变", () =>
-      WeReadNotebookTable.save(db, notebook("b0", PER_BOOK, "改"))
+      ExcerptTable.replaceFromProvider(db, "x.reader", changed.source, changed.items)
     );
-
-    db.exec("DELETE FROM excerpt; DELETE FROM weread_config;");
-    time("连库回填全部", () => backfillWeReadExcerpts(db));
     expect(db.prepare("SELECT COUNT(*) AS n FROM excerpt").get()).toEqual({ n: BOOKS * PER_BOOK });
 
     const page = Array.from({ length: WEB_PAGE }, (_, i) => ({

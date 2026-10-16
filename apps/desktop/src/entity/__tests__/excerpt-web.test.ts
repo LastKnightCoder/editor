@@ -29,6 +29,8 @@ describe("parseWebPagePayload", () => {
         externalId: "h1",
         quote: "原文",
         note: "想法",
+        location: "",
+        url: "https://a.com/x#tau-hl=h1",
         anchor: { startXPath: "/p", startOffset: 0, endXPath: "/p", endOffset: 2 },
         color: "pink",
         sourceTime: 5,

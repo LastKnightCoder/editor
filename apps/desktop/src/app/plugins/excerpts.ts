@@ -1,5 +1,5 @@
 import type { ExcerptsAdapter, MaterialsAdapter } from "@tau/plugins/host";
-import type { PluginContext } from "@tau/plugins";
+import type { PluginContext, PluginExcerptEntry } from "@tau/plugins";
 import * as excerptCommands from "@/commands/excerpt";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { registerExcerptOpener } from "@/services/excerpt-providers";
@@ -55,6 +55,13 @@ export function createDesktopExcerpts(databaseName: string): {
       return rows.map(row => ({
         ref: { kind: "excerpt", id: row.id },
         externalId: row.externalId,
+        quote: row.quote,
+        note: row.note,
+        location: row.location,
+        url: row.url,
+        anchor: row.anchor as PluginExcerptEntry["anchor"],
+        color: row.color,
+        time: row.sourceTime,
         deleted: row.isDeleted,
       }));
     },
