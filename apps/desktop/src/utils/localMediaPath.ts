@@ -25,8 +25,7 @@ const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
 const isWindowsAbsolutePath = (value: string) =>
   /^[a-zA-Z]:[\\/]/.test(value) || /^\\\\/.test(value);
 
-const isAbsoluteFilePath = (value: string) =>
-  value.startsWith("/") || isWindowsAbsolutePath(value);
+const isAbsoluteFilePath = (value: string) => value.startsWith("/") || isWindowsAbsolutePath(value);
 
 const normalizeSlash = (value: string) => value.replace(/\\/g, "/");
 
@@ -36,13 +35,10 @@ const isSubPath = (value: string, basePath: string) => {
   if (!normalizedBase) {
     return false;
   }
-  return (
-    normalizedValue === normalizedBase ||
-    normalizedValue.startsWith(`${normalizedBase}/`)
-  );
+  return normalizedValue === normalizedBase || normalizedValue.startsWith(`${normalizedBase}/`);
 };
 
-const getMediaMimeType = (ext: string): string => {
+export const getMediaMimeType = (ext: string): string => {
   const mimeTypes: Record<string, string> = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -68,7 +64,7 @@ const getMediaMimeType = (ext: string): string => {
 export type LocalMediaPreviewMethod = "app-protocol" | "blob";
 
 export const toLocalMediaPreviewUrl = async (
-  absolutePath: string,
+  absolutePath: string
 ): Promise<{ url: string; method: LocalMediaPreviewMethod }> => {
   const editorDir = await getEditorDir();
   if (isSubPath(absolutePath, editorDir)) {
@@ -86,7 +82,7 @@ export const isDirectMediaUrl = (value: string) => {
   if (!value) {
     return false;
   }
-  return DIRECT_PREFIXES.some((prefix) => value.startsWith(prefix));
+  return DIRECT_PREFIXES.some(prefix => value.startsWith(prefix));
 };
 
 const getSearchParamsFromLocation = () => {

@@ -17,7 +17,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { morph, queryActivePageMorph } from "@/page/morph";
-import { Import, Layers, Plus, X } from "lucide-react";
+import { FileText, FolderInput, Import, Layers, Plus, X } from "lucide-react";
 import type { Descendant } from "slate";
 import "../cards.css";
 import { type ICard } from "@/types";
@@ -29,9 +29,8 @@ import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
-import { readTextFile, selectFile } from "@/commands";
-import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
-import { Button, ConfirmDialog, Loading, toast } from "@tau/ui";
+import { getContentLength } from "@/utils";
+import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import {
   cardDetailKey,
   filterCards,
@@ -54,6 +53,9 @@ import {
   type CardsViewMode,
 } from "../preferences";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
+import { exportContentAsMarkdown, importMarkdownFiles } from "@/services/content-transfer";
+import { useTransferStore } from "@/app/transferStore";
+import { useImportDrop } from "@/features/transfer/useImportDrop";
 
 /** 悬停预取的新鲜期：鼠标在墙上来回划过时不重复读取 */
 const PREFETCH_STALE_MS = 30_000;
@@ -191,8 +193,7 @@ export function CardsView() {
     onExportMarkdown: card => {
       void requireFullCard(card).then(full => {
         if (!full) return;
-        downloadMarkdown(getMarkdown(full.content), String(full.id));
-        toast.success("已导出 Markdown");
+        void exportContentAsMarkdown({ title: String(full.id), content: full.content });
       });
     },
     onExportImage: card => {
@@ -210,27 +211,18 @@ export function CardsView() {
   };
 
   /* 导入与新建共用数据库作用域，切库后中止旧任务。 */
+  const importDrop = useImportDrop("card");
   const handleImport = async () => {
-    const paths = await selectFile({
-      properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
-    });
-    if (!paths?.length) return;
-    try {
-      for (const path of paths) {
-        const markdown = await readTextFile(path);
-        const content = importFromMarkdown(markdown, ["yaml"]);
-        await mutations.create.mutateAsync({
+    await importMarkdownFiles(
+      ({ content }) =>
+        mutations.create.mutateAsync({
           content,
           tags: [],
           count: getContentLength(content),
           isTop: false,
-        });
-      }
-      toast.success(`已导入 ${paths.length} 张卡片`);
-    } catch {
-      toast.error("导入失败");
-    }
+        }),
+      { unit: "张卡片" }
+    );
   };
 
   if (feed.loading) return <Loading />;
@@ -248,7 +240,11 @@ export function CardsView() {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸：工具栏固定在纸顶，视图在纸内滚动 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        {...importDrop.dropProps}
+      >
+        {importDrop.overlay}
         {/* 工具栏：标题 / 当前标签 + 摘要 + 导入 / 新建 */}
         <div className="mb-2 mt-5 flex h-10 flex-none items-center gap-3 px-8">
           <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
@@ -271,16 +267,33 @@ export function CardsView() {
             <b className="text-ink-1 font-semibold">{totalWords.toLocaleString("zh-CN")}</b> 字
           </span>
           {/* 导入：带文字的次要按钮（同文章页），不用「下载」语义的裸图标 */}
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={Import}
-            title="从本地 Markdown 文件导入"
-            className="shrink-0 whitespace-nowrap"
-            onClick={() => void handleImport()}
+          <Menu
+            align="end"
+            trigger={
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Import}
+                title="从本地 Markdown 导入"
+                className="shrink-0 whitespace-nowrap"
+              >
+                导入
+              </Button>
+            }
           >
-            导入
-          </Button>
+            <Menu.Item
+              icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+              onSelect={() => void handleImport()}
+            >
+              Markdown 文件…
+            </Menu.Item>
+            <Menu.Item
+              icon={<FolderInput className="size-[15px] shrink-0" strokeWidth={1.75} />}
+              onSelect={() => useTransferStore.getState().openImportWizard({ target: "card" })}
+            >
+              文件夹或压缩包…
+            </Menu.Item>
+          </Menu>
           <Button
             variant="primary"
             size="sm"

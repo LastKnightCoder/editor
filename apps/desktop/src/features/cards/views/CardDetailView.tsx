@@ -76,9 +76,7 @@ import {
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
   defaultCardEventBus,
-  downloadMarkdown,
   formatDate,
-  getMarkdown,
 } from "@/utils";
 import type { ICard } from "@/types";
 import { Button, ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
@@ -90,6 +88,7 @@ import { useInsightsView } from "@/features/insights/useInsightsView";
 import { cardMorphKey } from "../morph";
 import { usePatternCardDraft } from "../usePatternCardDraft";
 import { CardContentPreview } from "../components/CardContentPreview";
+import { exportContentAsMarkdown } from "@/services/content-transfer";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -358,8 +357,10 @@ export function CardDetailView() {
                     >
                       <Menu.Item
                         onSelect={() => {
-                          downloadMarkdown(getMarkdown(card.content), cardTitle);
-                          toast.success("已导出 Markdown");
+                          void exportContentAsMarkdown({
+                            title: cardTitle,
+                            content: card.content,
+                          });
                         }}
                         icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >

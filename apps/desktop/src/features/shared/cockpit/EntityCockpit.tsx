@@ -8,7 +8,7 @@
  * 语义检索走全局 Ctrl+K，空态引导同一入口）。
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type HTMLAttributes, type ReactNode } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { FadeScroll } from "@tau/ui";
 import { Button, ConfirmDialog, Loading, cn, toast } from "@tau/ui";
@@ -45,6 +45,8 @@ export interface EntityCockpitProps {
   onCreated?(created: { id: number }): void;
   /** 整体导出弹窗（仅项目支持，其余模块不传则菜单项隐去） */
   renderExport?: (item: CockpitItem, close: () => void) => ReactNode;
+  /** 纸面拖入（仅项目支持：拖入文件夹导入为项目）：挂在纸面上的拖拽处理器与遮罩 */
+  paperDrop?: { dropProps: HTMLAttributes<HTMLDivElement>; overlay: ReactNode };
 }
 
 export function EntityCockpit({
@@ -57,6 +59,7 @@ export function EntityCockpit({
   onOpen,
   onCreated,
   renderExport,
+  paperDrop,
 }: EntityCockpitProps) {
   const { layout, sort, setLayout, setSort } = useCockpitPrefs(prefsKey);
   const [archivedOpen, setArchivedOpen] = useState(false);
@@ -117,7 +120,11 @@ export function EntityCockpit({
   return (
     <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸：工具栏固定在纸顶，段落在纸内滚动 */}
-      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        {...paperDrop?.dropProps}
+      >
+        {paperDrop?.overlay}
         <div className="flex flex-none flex-col px-8 pt-5">
           {/* 工具栏：标题 + 摘要 + 排序 / 视图 + 唯一的「新建」 */}
           <div className="flex h-10 flex-none items-center gap-3.5">

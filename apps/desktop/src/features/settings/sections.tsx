@@ -5,7 +5,7 @@
  * 「杂项」→ 剪藏与缓存、「集成」→ 账号与连接、「关于软件」→ 关于与更新；文字转语音与
  * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 系统。
  * 页头（标题 + 说明）由 SettingsScreen 按 label / description 统一渲染，子页不再自绘。
- * 10 个分区已落地（D-036；「功能模块」分区随模块开关退役移除）；本文件即设置导航的唯一修改点。
+ * 11 个分区已落地（D-036；「功能模块」分区随模块开关退役移除）；本文件即设置导航的唯一修改点。
  */
 
 import type { ComponentType } from "react";
@@ -19,6 +19,7 @@ import {
   AudioLines,
   Plug,
   Archive,
+  ArrowLeftRight,
   Info,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import { ResourceSection } from "./sections/ResourceSection";
 import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
 import { CacheSection } from "./sections/CacheSection";
+import { TransferSection } from "./sections/TransferSection";
 import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
@@ -38,6 +40,7 @@ export type SettingsSectionKey =
   | "sync"
   | "imageBed"
   | "cache"
+  | "transfer"
   | "integration"
   | "llm"
   | "embedding"
@@ -95,6 +98,13 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         description: "网页剪藏行为、远程媒体的自动缓存与空间占用",
         icon: Archive,
         component: CacheSection,
+      },
+      {
+        key: "transfer",
+        label: "导入与导出",
+        description: "从其它笔记工具迁入，或把内容连同图片打包带走",
+        icon: ArrowLeftRight,
+        component: TransferSection,
       },
     ],
   },
