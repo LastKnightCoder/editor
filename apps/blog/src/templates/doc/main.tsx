@@ -1,9 +1,7 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import { mountBlogPage } from "@blog/services/bootstrap";
 import { ToastHost } from "@tau/ui";
 import DocPage from "./DocPage";
 import "@blog/styles/global.css";
-import { initTheme } from "@blog/utils";
 
 // 开发环境使用 mock 数据
 if (import.meta.env.DEV) {
@@ -11,19 +9,19 @@ if (import.meta.env.DEV) {
     const params = new URLSearchParams(window.location.search);
     const demo = params.get("demo");
     window._INIT_DATA_ = getMockDocPageData(demo);
-    initTheme();
-    createRoot(document.getElementById("root")!).render(
-      <StrictMode>
+    void mountBlogPage(
+      <>
+        {" "}
         <ToastHost />
-        <DocPage />
-      </StrictMode>,
+        <DocPage />{" "}
+      </>
     );
   });
 } else {
-  initTheme();
-  createRoot(document.getElementById("root")!).render(
-    <StrictMode>
-      <DocPage />
-    </StrictMode>,
+  void mountBlogPage(
+    <>
+      {" "}
+      <DocPage />{" "}
+    </>
   );
 }

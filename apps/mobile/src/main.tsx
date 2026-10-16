@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { initializeContentPlugins } from "./services/contentPlugins";
 import { initPerfObservers } from "./utils/perf";
 // 方案 B：内置 MiSans（离线可用；先于全局样式加载）。
 // 注意各字面声明的字重是 330/380/520/630/700——Heavy(700) 必须加载，
@@ -67,8 +68,16 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
 
 initPerfObservers();
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <AppErrorBoundary>
-    <App />
-  </AppErrorBoundary>
-);
+void initializeContentPlugins()
+  .then(() =>
+    ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+      <AppErrorBoundary>
+        <App />
+      </AppErrorBoundary>
+    )
+  )
+  .catch(error => {
+    const root = document.getElementById("root")!;
+    root.setAttribute("role", "alert");
+    root.textContent = `插件初始化失败：${String(error)}`;
+  });

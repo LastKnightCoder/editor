@@ -16,7 +16,6 @@ import { textFormattingExtension } from "@tau/editor-text-formatting";
 import { default as link } from "@tau/editor-link";
 import { standardExtensions } from "../../../../editor-extensions/standard";
 import { inlineMathExtension as inlineMath } from "@tau/editor-math";
-import customBlockExtension from "@tau/editor-custom-block";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
@@ -28,6 +27,7 @@ import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import docTasksExtension from "@/editor-extensions/doc-tasks";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { desktopEditorServices } from "./editorRegistry";
+import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 
 /** 异步装载的宿主扩展必须先就位：kit 只建一次，少拿了就整个应用少几种块，且不会报错 */
 function requireHostExtensions(): AnyExtension[] {
@@ -61,7 +61,6 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
         codeBlockExtension,
         ...mathExtensions,
         emojiExtension,
-        customBlockExtension,
         ...createDesktopEditorExtensions(),
         ...extras,
       ],
@@ -71,7 +70,8 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
     });
     byExtras.set(key, kit);
   }
-  return kit;
+  const contributed = desktopContentPlugins.extensions;
+  return contributed.length ? kit.extend({ extensions: contributed }) : kit;
 }
 
 /**

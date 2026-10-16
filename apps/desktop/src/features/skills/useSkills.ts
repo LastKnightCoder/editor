@@ -110,6 +110,7 @@ export function setSkillMode(skill: Skill, mode: SkillMode) {
 export const SOURCE_LABEL: Record<SkillSource, string> = {
   mine: "我的",
   builtin: "内置",
+  plugin: "插件",
   linked: "关联目录",
 };
 

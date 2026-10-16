@@ -125,7 +125,7 @@ try {
     await copyDeclaration(entries[index]);
     await writeFile(
       path.join(directory, "runtime.js"),
-      'throw new Error("Tau 插件模块由桌面宿主提供，请在插件构建中设为 external");\n'
+      'throw new Error("Tau 插件模块由宿主提供，请在插件构建中设为 external");\n'
     );
     await writeFile(
       path.join(directory, "package.json"),
@@ -137,7 +137,7 @@ try {
           repository: { type: "git", url: "git+https://github.com/LastKnightCoder/editor.git" },
           publishConfig: { access: "public", registry: "https://registry.npmjs.org" },
           type: "module",
-          description: "Tau 桌面开发插件契约；运行时由宿主提供",
+          description: "Tau 插件作者类型契约；运行时由宿主提供",
           exports: { ".": { types: "./" + targetOf(entries[index]), default: "./runtime.js" } },
           dependencies,
           peerDependencies: { react: "19.2.0", "react-dom": "19.2.0" },
@@ -152,9 +152,13 @@ try {
     );
     await writeFile(
       path.join(directory, "README.md"),
-      `# Tau ${name} 作者契约\n\n通过 npm 别名安装为 \`@tau/${name}\`。运行时由 Tau 桌面宿主提供，构建时必须 external；不可在普通 Node.js 程序中直接执行。\n\n模板与使用说明：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，要求 Tau 0.59.0 及以上。\n" : ""}`
+      `# Tau ${name} 作者契约\n\n通过 npm 别名安装为 \`@tau/${name}\`。运行时由 Tau 宿主提供，构建时必须 external；不可在普通 Node.js 程序中直接执行。\n\n模板与使用说明：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，要求 Tau 0.59.0 及以上。\n" : ""}`
     );
     if (name === "plugins") {
+      await writeFile(
+        path.join(directory, "EDITOR.md"),
+        await readFile(path.join(root, "scripts/plugins/template/EDITOR.md"))
+      );
       await writeFile(
         path.join(directory, "SERVICES.md"),
         await readFile(path.join(root, "scripts/plugins/template/SERVICES.md"))

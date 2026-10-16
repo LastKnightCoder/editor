@@ -15,7 +15,7 @@ import type { Skill } from "@/types";
 export async function copySkillToMine(skill: Skill): Promise<void> {
   const store = useSkillStore.getState();
   try {
-    if (skill.isInternal) {
+    if (skill.readmeContent !== undefined) {
       const { body } = splitSkillDocument(skill.readmeContent ?? "");
       await store.createSkill({ name: skill.name, description: skill.description, body });
     } else {
@@ -28,9 +28,9 @@ export async function copySkillToMine(skill: Skill): Promise<void> {
       await commitSkillImport(inspection.token, [{ relPath: candidate.relPath }]);
       await store.loadSkills();
     }
-    if (skill.isInternal) {
+    if (skill.readmeContent !== undefined) {
       store.setEnabled(skill.folderName, false);
-      toast.success("已复制为「我的」Skill，内置原件已停用");
+      toast.success("已复制为「我的」Skill，只读原件已停用");
     } else {
       toast.success("已复制为「我的」Skill");
     }

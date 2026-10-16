@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
@@ -8,6 +8,12 @@
     ".": "./src/index.ts",
     "./host": "./src/host.ts",
     "./package": "./src/package.ts",
+    "./rendering": "./src/rendering.ts",
+    "./content": "./src/content.ts",
+    "./portable": "./src/portable.ts",
+    "./distribution": "./src/distribution.ts",
+    "./shared-modules": "./src/shared-modules.ts",
+    "./source-editor-host": "./src/source-editor-host.tsx",
     "./node": "./src/file-storage.ts"
   },
   "scripts": {
@@ -19,10 +25,18 @@
     "esbuild": "^0.25.12",
     "@types/node": "^20.2.1",
     "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
     "typescript": "^5.0.4",
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@tau/ui": "workspace:*",
+    "react-dom": "19.2.0",
+    "lucide-react": "^0.399.0",
+    "@tau/editor-source-view": "workspace:*",
+    "@tau/shared": "workspace:*",
+    "react": "19.2.0",
+    "slate-react": "0.126.4",
     "slate": "0.126.2",
     "@tau/editor": "workspace:*",
     "@tau/markdown": "workspace:*"

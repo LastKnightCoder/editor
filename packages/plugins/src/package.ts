@@ -1,7 +1,8 @@
-import { assertLocalId } from "./ids";
-import { comparePluginVersions } from "./version";
+import { assertLocalId } from "./ids.ts";
+export { assertLocalId } from "./ids.ts";
+import { comparePluginVersions } from "./version.ts";
 
-export { comparePluginVersions } from "./version";
+export { comparePluginVersions } from "./version.ts";
 
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
@@ -24,6 +25,8 @@ export interface PluginManifest {
   format: "cjs";
   main: string;
   styles?: string;
+  /** 静态编辑器贡献在窗口启动时装配，启停需重启。 */
+  editor?: true;
   integrity: Record<string, string>;
 }
 
@@ -70,6 +73,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     comparePluginVersions(item.minAppVersion, item.minAppVersion);
   }
   const styles = item.styles === undefined ? undefined : file(item.styles, ".css");
+  if (item.editor !== undefined && item.editor !== true) throw new Error("editor 只能声明为 true");
   const integrity: Record<string, string> = {};
   for (const name of [main, ...(styles ? [styles] : [])]) {
     const hash =
@@ -90,6 +94,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     platform: "desktop",
     format: "cjs",
     main,
+    ...(item.editor === true ? { editor: true as const } : {}),
     integrity: Object.freeze(integrity),
     ...(styles === undefined ? {} : { styles }),
   });

@@ -10,7 +10,7 @@ import { headerCodec } from "@tau/editor-header/markdown";
  * （markdown-codecs.ts）的 codec 合成一次（01 §8.2）。渲染进程与 Electron 主进程都从这里取，
  * 保证两边解析规则一致。
  */
-import { createMarkdownProcessor } from "@tau/markdown";
+import { createPluginMarkdownProcessor } from "@tau/plugins/content";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { linkCodec } from "@tau/editor-link/markdown";
 import { annotationCodec } from "@tau/editor-annotation/markdown";
@@ -21,7 +21,6 @@ import { mediaMarkdownCodecs } from "@tau/editor-media/markdown";
 import { underlineCodec } from "@tau/editor-underline/markdown";
 import { styledTextCodec } from "@tau/editor-styled-text/markdown";
 import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
-import { customBlockCodec } from "@tau/editor-custom-block/markdown";
 import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
 import { htmlMarkdownCodecs } from "@tau/editor-html/markdown";
 import { codeBlockCodec } from "@tau/editor-code-block/markdown";
@@ -29,6 +28,7 @@ import { mathMarkdownCodecs } from "@tau/editor-math/markdown";
 import { emojiCodec } from "@tau/editor-emoji/markdown";
 import { webviewCodec } from "@tau/editor-webview/markdown";
 import { desktopMarkdownCodecs } from "./markdown-codecs.ts";
+import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 
 export const desktopCodecComposition = [
   ...editorMarkdownCodecs,
@@ -52,14 +52,16 @@ export const desktopCodecComposition = [
   ...mathMarkdownCodecs,
   ...htmlMarkdownCodecs,
   ...diagramMarkdownCodecs,
-  customBlockCodec,
   webviewCodec,
   ...desktopMarkdownCodecs,
 ];
-export const desktopMarkdown = createMarkdownProcessor({
-  codecs: desktopCodecComposition,
-  textCodecs: [textFormattingCodec],
-});
+export const desktopMarkdown = createPluginMarkdownProcessor(
+  {
+    codecs: desktopCodecComposition,
+    textCodecs: [textFormattingCodec],
+  },
+  desktopContentPlugins
+);
 
 export const importFromMarkdown = desktopMarkdown.importFromMarkdown;
 export const importFromMarkdownWithPositions = desktopMarkdown.importFromMarkdownWithPositions;

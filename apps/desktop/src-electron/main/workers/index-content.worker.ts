@@ -1,8 +1,11 @@
-import { parentPort } from "node:worker_threads";
+import { parentPort, workerData } from "node:worker_threads";
+import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
+import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { getMarkdown } from "@/utils/markdown";
 import { splitSections } from "@/entity/sections";
 import type { IndexContentInput, IndexContentReply } from "../modules/index-content-protocol";
 
+desktopContentPlugins.load(workerData?.editorPlugins ?? [], sharedPluginModules);
 parentPort!.on("message", (input: IndexContentInput) => {
   let reply: IndexContentReply;
   try {

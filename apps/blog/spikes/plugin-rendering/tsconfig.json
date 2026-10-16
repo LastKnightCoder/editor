@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["vite/client", "node"],
+    "typeRoots": [
+      "../../../desktop/node_modules/@types",
+      "../../../desktop/node_modules",
+      "../../node_modules/@types",
+      "../../node_modules"
+    ],
+    "paths": {
+      "@blog/*": ["../../src/*"],
+      "@tau/editor": ["../../../../packages/editor/src/index.ts"],
+      "@tau/editor/*": ["../../../../packages/editor/*"],
+      "@tau/shared": ["../../../../packages/shared/src/index.ts"],
+      "@tau/shared/*": ["../../../../packages/shared/*"],
+      "@tau/plugins": ["../../../../packages/plugins/src/index.ts"],
+      "@tau/plugins/host": ["../../../../packages/plugins/src/host.ts"],
+      "electron": ["../../../desktop/node_modules/electron"]
+    }
+  },
+  "include": ["*.ts", "*.tsx", "../../src/vite-env.d.ts"]
+}

@@ -27,8 +27,17 @@ declare module "@tau/editor/api" {
 
 export type PluginEditorExtension = Pick<
   InternalExtension,
-  "id" | "apiVersion" | "elements" | "commands" | "hotkeys" | "menu"
-> & { plugins?: never };
+  "id" | "apiVersion" | "elements" | "commands" | "hotkeys" | "menu" | "blockPanel" | "behaviorsFor"
+> & {
+  plugins?: never;
+  /** 发布时从节点字段收集 Tailwind 源码，复用宿主编译器。 */
+  styleSources?: readonly { type: string; field: string; language: "html" | "tsx" }[];
+  /** 静态 HTML/EPUB 导出；博客始终使用 elements.render，不经过这里。 */
+  htmlSerializers?: readonly {
+    type: string;
+    toHtml(element: Record<string, unknown>): string;
+  }[];
+};
 
 export function defineEditorExtension(
   definition: Omit<PluginEditorExtension, "apiVersion">

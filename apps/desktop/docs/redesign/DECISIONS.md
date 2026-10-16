@@ -1,5 +1,21 @@
 # 决策记录（轻量 ADR）
 
+## D-165 静态编辑器贡献在桌面与预编译博客共用单入口
+
+- 质量收尾：贡献聚合只保留 ContentPluginRegistry 一套实现；应用显式拥有实例，SDK 不持有后台全局状态。桌面共用状态放 shared，不让通用转换服务引用渲染层 app/plugins；四端转换器缓存统一，跨端包启动与回滚统一。作者 API 与包格式不变。
+
+（2026-10-17，插件专题 C23）
+
+- `definePlugin` 提供静态 `editorExtensions` 与可选 `editorCodecs`，纯编辑器插件可省略生命周期；manifest 的 editor 标志进入包校验。作者不维护第二份 render.js。
+- 桌面在首次创建编辑器前装配贡献，主进程启动快照保证各窗口一致。启停完整重启后生效，避免替换正文编辑器的历史、选区与协作实例。原开发台动态注册不自动升级成正式贡献。
+- 发布器核对当前已加载版本和磁盘 JS/CSS 摘要，复制实际使用的包并注入节点归属清单；原文节点不转成另一套博客结构。发布 worker 读取同一包的定义和纯 codec，用于搜索摘要等转换，不调用组件或生命周期。
+- 博客模板只增加通用加载入口，复用同一个插件主文件、React/UI/SDK 共享模块及 EditorKit；只读渲染不调用桌面生命周期。旧模板不支持时明确要求升级，不静默发布缺块页面。
+- custom-block 实现与 Skill 统一移至 `plugins/custom-block`，节点类型与 content 字段不变，不迁移用户数据。桌面启动把随应用分发的普通插件包首次安装到约定目录并默认启用；不覆盖已安装版本，不重新安装用户已卸载的包。普通插件管理、启动快照和发布规则均适用，不设专用运行时。
+- SDK 的 SourceBlockEditor 复用已有 PreviewWithEditor，宿主提供同一编辑器上下文和主题服务；作者只引用 SDK，不打包第二份 Slate React。`styleSources` 是发布前 Tailwind 源字段声明；`htmlSerializers` 只处理静态 HTML/EPUB，博客不经过该转换，继续使用 elements.render。
+- `definePlugin.skills` 提供只读单文档技能，宿主按插件 ID 命名空间登记到既有 Skill 与 AI 读取链路，激活失败/停用回收，偏好保留；首版不包含脚本与附件。
+- 移动端/扩展端通过通用分发加载器装配插件包。构建工具机械包装同一个 main.js，加载器不依赖 eval；宿主没有具体插件源码依赖，作者不提供第二个 render.js。
+- 无界面转换从已启用包加载定义与纯 codec，headless-codecs.ts 已删除。启用意图移到主进程 .editor-enabled.json，database 依赖 plugin-local 初始化；索引/发布线程接收包快照并保留函数闭包。模块顶层需无环境副作用，后台不调用 render/create/activate。
+
 ## D-164 插件中心与管理改为独立页面，设置弹窗只留跳转入口
 
 （2026-10-17，插件专题 PS-036）

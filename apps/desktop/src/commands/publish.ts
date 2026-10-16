@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { getContentPluginPublishContext } from "@/app/plugins/content-plugin-state";
 import {
   IPublishSelection,
   IPublishHistory,
@@ -115,14 +116,17 @@ export async function exportPublishOutput(options: {
   };
   settings?: IPublishAppearanceSettings;
 }): Promise<string[]> {
-  return invoke("export-publish-output", options);
+  return invoke("export-publish-output", {
+    ...options,
+    editorContext: getContentPluginPublishContext(),
+  });
 }
 
 /**
  * 预览发布计划
  */
 export async function previewPublishPlan(): Promise<IPublishPlanPreview> {
-  return invoke("preview-publish-plan");
+  return invoke("preview-publish-plan", getContentPluginPublishContext());
 }
 
 /**
@@ -144,7 +148,7 @@ export async function executePublish(config: {
     concurrency?: number;
   };
 }): Promise<IPublishResult> {
-  return invoke("execute-publish", config);
+  return invoke("execute-publish", { ...config, editorContext: getContentPluginPublishContext() });
 }
 
 /**
