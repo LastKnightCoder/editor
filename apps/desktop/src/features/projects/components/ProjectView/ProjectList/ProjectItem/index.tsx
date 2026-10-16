@@ -133,11 +133,12 @@ const INSIDE_DROP_INDICATOR_CLASS = [
   "bg-accent-soft",
 ].join(" ");
 
-// 引导线落在父级折叠箭头的中轴：行左内边距 4px + 边框 1px + 箭头半宽 8px
+// 引导线位于父级折叠箭头中轴(4px 内边距 + 1px 边框 + 8px 半宽 = 13px)偏左 5px 处,
+// 与子项背景左缘(缩进 12px)留出间隙,避免相贴
 const GUIDE_LINE_CLASS = [
   "before:content-['']",
   "before:absolute",
-  "before:left-[13px]",
+  "before:left-[8px]",
   "before:top-0",
   "before:bottom-[4px]",
   "before:w-px",
@@ -152,10 +153,10 @@ const getFolderToneClass = (depth: number) => {
 };
 
 const getGuideToneClass = (depth: number, onActivePath: boolean) => {
-  if (onActivePath) return "before:bg-accent";
-  if (depth === 0) return "before:bg-accent/30";
-  if (depth === 1) return "before:bg-accent/15";
-  return "before:bg-line-1 group-hover/tree:before:bg-ink-3/40";
+  if (onActivePath) return "before:bg-accent/40";
+  if (depth === 0) return "before:bg-accent/20";
+  if (depth === 1) return "before:bg-accent/10";
+  return "before:bg-line-1 group-hover/tree:before:bg-ink-3/25";
 };
 
 interface IProjectItemProps {
@@ -796,26 +797,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         >
           <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] overflow-hidden">
             {hasChildren ? (
-              <Tooltip content={folderOpen ? "收起" : "展开"} delay={1000}>
-                <button
-                  type="button"
-                  aria-label={folderOpen ? "收起" : "展开"}
-                  className="text-ink-3 hover:text-ink-1 hover:bg-press flex size-4 flex-none items-center justify-center rounded-[4px] transition-colors duration-200"
-                  onClick={e => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setOpen(databaseName, projectItemId, !folderOpen);
-                  }}
-                >
-                  <ChevronRight
-                    className={classnames("size-[13px] transition-transform duration-150", {
-                      "rotate-90": folderOpen,
-                    })}
-                    strokeWidth={2}
-                  />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                aria-label={folderOpen ? "收起" : "展开"}
+                className="text-ink-1 flex size-4 flex-none items-center justify-center opacity-45 transition-opacity duration-200 hover:opacity-100"
+                onClick={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(databaseName, projectItemId, !folderOpen);
+                }}
+              >
+                <ChevronRight
+                  className={classnames("size-[13px] transition-transform duration-150", {
+                    "rotate-90": folderOpen,
+                  })}
+                  strokeWidth={2}
+                />
+              </button>
             ) : (
+              // 叶子节点保留箭头槽位:与同层文件夹图标对齐,并维持相对父级的缩进层级
               <span className="size-4 flex-none" aria-hidden />
             )}
             <span className="flex size-4 flex-none items-center justify-center">
@@ -930,14 +930,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           className={classnames(
             "grid overflow-hidden transition-[grid-template-rows] duration-300",
             {
-              "grid-rows-[1fr]": folderOpen && hasChildren,
+              // mt 让首个子项背景与父行背景隔开,与兄弟条目间距一致
+              "mt-[2px] grid-rows-[1fr]": folderOpen && hasChildren,
               "my-0 grid-rows-[0fr]": !folderOpen || !hasChildren,
             }
           )}
         >
           <div
             className={classnames(
-              "relative flex min-h-0 w-full min-w-0 flex-col gap-[2px] pl-[18px]",
+              "relative flex min-h-0 w-full min-w-0 flex-col gap-[2px] pl-[12px]",
               GUIDE_LINE_CLASS,
               getGuideToneClass(depth, activeAncestorIds?.has(projectItem.id) ?? false)
             )}
