@@ -1,4 +1,4 @@
-/* 资源随 CSS 内联，不依赖宿主扫描插件源码或访问作者文件目录。 */
+/* SVG 随样式内联，安装后无需额外复制资源。 */
 .example-counter::before {
   content: "";
   display: block;

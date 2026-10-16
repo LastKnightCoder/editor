@@ -1,14 +1,4 @@
-import {
-  mkdtemp,
-  cp,
-  readFile,
-  writeFile,
-  readdir,
-  rm,
-  realpath,
-  lstat,
-  mkdir,
-} from "node:fs/promises";
+import { mkdtemp, cp, readFile, writeFile, readdir, rm, realpath, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,13 +37,14 @@ try {
       .filter(item => item.isDirectory() && !item.name.startsWith("."))
       .map(item => item.name);
   await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await cp(
+    path.join(root, "scripts/plugins/fixtures/author-contract-check.ts"),
+    path.join(author, "src/contract-check.ts")
+  );
   await run(
-    "npm",
+    "pnpm",
     [
-      "install",
-      "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
+      "add",
       "@tau/plugins@file:" + path.join(sdk, "xiongtao.xt-tau-plugins-0.1.0.tgz"),
       "@tau/ui@file:" + path.join(sdk, "xiongtao.xt-tau-ui-0.1.0.tgz"),
     ],
@@ -62,7 +53,6 @@ try {
   const installed = {};
   for (const name of ["@tau/plugins", "@tau/ui", "react", "react-dom", "typescript", "esbuild"]) {
     const location = path.join(author, "node_modules", name);
-    assert.equal((await lstat(location)).isSymbolicLink(), false, `${name} 不得链接到工作区`);
     const resolved = await realpath(location);
     assert.equal(resolved.startsWith((await realpath(author)) + path.sep), true);
     const info = JSON.parse(await readFile(path.join(location, "package.json"), "utf8"));
@@ -86,21 +76,21 @@ try {
     packages: installed,
     skipLibCheck: true,
   };
-  await run("npm", ["run", "build"], author);
+  await run("pnpm", ["build"], author);
   const [first] = await versions();
   const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   await writeFile(
     path.join(author, "manifest.json"),
     JSON.stringify({ ...manifest, id: "example.external-other", name: "独立计数插件二" })
   );
-  await run("npm", ["run", "build"], author);
+  await run("pnpm", ["build"], author);
   const second = (await versions()).find(name => name !== first);
   const beforeReload = await versions();
   await writeFile(
     path.join(author, "manifest.json"),
     JSON.stringify({ ...manifest, version: "1.1.0" })
   );
-  await run("npm", ["run", "build"], author);
+  await run("pnpm", ["build"], author);
   const replacement = (await versions()).find(name => !beforeReload.includes(name));
   const beforeFailure = await versions();
   const source = path.join(author, "src/index.tsx");
@@ -108,7 +98,7 @@ try {
   const pointer = path.join(author, "dist", `tau-build-${manifest.id}.json`);
   const published = await readFile(pointer, "utf8");
   await writeFile(source, "export default = ;");
-  await assert.rejects(run("npm", ["run", "build"], author));
+  await assert.rejects(run("pnpm", ["build"], author));
   assert.equal(await readFile(pointer, "utf8"), published);
   await writeFile(
     source,
@@ -117,7 +107,7 @@ try {
       "activate(context) { throw new Error('重载验证故障');"
     )
   );
-  await run("npm", ["run", "build"], author);
+  await run("pnpm", ["build"], author);
   const failing = (await versions()).find(name => !beforeFailure.includes(name));
   const beforeHanging = await versions();
   await writeFile(
@@ -127,7 +117,7 @@ try {
       "activate(context) { return new Promise<void>(() => undefined);"
     )
   );
-  await run("npm", ["run", "build"], author);
+  await run("pnpm", ["build"], author);
   const hanging = (await versions()).find(name => !beforeHanging.includes(name));
   const beforeCleanup = await versions();
   await writeFile(
@@ -137,7 +127,7 @@ try {
       "deactivate() { throw new Error('清理验证故障'); }, activate(context) {"
     )
   );
-  await run("npm", ["run", "build"], author);
+  await run("pnpm", ["build"], author);
   const cleanup = (await versions()).find(name => !beforeCleanup.includes(name));
   const runtimeReport = path.join(directory, "runtime-report.json");
   await run(

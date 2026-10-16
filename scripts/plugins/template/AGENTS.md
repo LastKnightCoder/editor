@@ -1,11 +1,13 @@
 # AI 开发指南
 
-- 先阅读 README.md、API.md、manifest.json 和 src/index.tsx。
-- 只使用已发布 SDK 类型中存在的接口；不要猜测主题、文件系统或客户端内部 API。
-- 运行时代码使用 TypeScript/TSX；根目录 mjs 仅用于构建和安装编排。
-- 保持 SDK、React 和 ReactDOM 的 external 配置，不打包第二份 React。
-- 通过 manifest 修改插件身份，入口复用 **PLUGIN_META**；不要手写生成的完整性哈希。
-- 异步任务注意 context.signal；资源通过 context.register 回收。
-- 修改后执行 npm run build。安装会修改用户 ~/.editor/plugins，先确认插件 ID；不要覆盖用户已有目录。
-- 不在插件产物中放密钥、令牌或绝对本机路径。
-- 不宣称仅构建通过等同于客户端验证；功能验收必须在 Tau 内执行命令并验证持久化。
+- 先阅读 README.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
+- 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
+- 功能代码使用 TypeScript/TSX。优先使用 API.md 中说明的能力，结合已安装 SDK 的类型提示确认参数，不编造接口。
+- 插件身份在 manifest.json 中修改，入口沿用 `__PLUGIN_META__`。插件 ID 变更会改变数据归属，不要为日常升级修改 ID。
+- 数据通过 context.storage 保存；读取后校验类型，提供缺省值与错误反馈。
+- 异步任务处理取消和失败；自定义订阅、计时器等通过 context.register 回收。
+- 使用模板已有的构建配置与依赖版本。只有任务需要时才调整构建工具。
+- 完成修改后执行 `pnpm build`。说明实际验证结果，不能把构建成功描述成客户端功能验收成功。
+- 安装到用户目录前检查目标插件 ID。已有目录须先停用、备份，不得静默覆盖。
+- 在 Tau 中验证启用、命令、页面或设置、数据保存、停用和重启恢复。未验证的项目如实列出。
+- 不把密钥、令牌或机器特定路径写入源码与插件包。
