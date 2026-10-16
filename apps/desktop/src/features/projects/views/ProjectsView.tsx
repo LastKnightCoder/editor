@@ -11,6 +11,7 @@ import BatchExportModal from "@/components/BatchExportModal";
 import { EntityCockpit } from "@/features/shared/cockpit/EntityCockpit";
 import type { CockpitCopy, CockpitItem, CockpitVisual } from "@/features/shared/cockpit/types";
 import { useProjectsSnapshot, useProjectMutations } from "../queries";
+import { useImportDrop } from "@/features/transfer/useImportDrop";
 
 /* 模块色沿用原 projectTypeMeta 的文档树青蓝（设计定稿的数据色，不进主题词表） */
 const VISUAL: CockpitVisual = {
@@ -41,6 +42,7 @@ export function ProjectsView() {
   const { navigator } = usePage();
   const snapshot = useProjectsSnapshot();
   const mutations = useProjectMutations();
+  const paperDrop = useImportDrop("project");
 
   const items: CockpitItem[] = useMemo(
     () => snapshot.projects.map(project => ({ ...project, metric: project.itemCount })),
@@ -66,6 +68,7 @@ export function ProjectsView() {
       mutations={mutations}
       onOpen={open}
       onCreated={created => navigator.push("project-detail", { id: created.id })}
+      paperDrop={paperDrop}
       renderExport={(item, close) => (
         <BatchExportModal
           open

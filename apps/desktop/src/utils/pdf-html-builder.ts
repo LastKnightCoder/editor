@@ -1,5 +1,6 @@
 import type { Descendant } from "slate";
 import { htmlSerializerRegistry } from "@/utils/html-serializers";
+import { inlineLocalImages } from "@/utils/content-transfer/assets";
 
 /**
  * PDF 导出的基础样式
@@ -349,9 +350,11 @@ export const buildPdfHtml = async (options: {
 }): Promise<{ html: string; styles: string }> => {
   const { content, additionalStyles = "" } = options;
 
-  // 1. 使用 htmlSerializerRegistry 序列化内容
+  // 1. 使用 htmlSerializerRegistry 序列化内容（PDF 页面从 data: 地址加载，本机图片须先内联）
+  const { content: printable, warnings } = await inlineLocalImages(content);
+  if (warnings.length > 0) console.warn("PDF 图片内联警告:", warnings);
   const tailwindCssCollector: string[] = [];
-  const bodyHtml = await htmlSerializerRegistry.serializeAsync(content, {
+  const bodyHtml = await htmlSerializerRegistry.serializeAsync(printable, {
     theme: "light",
     tailwindCssCollector,
   });
