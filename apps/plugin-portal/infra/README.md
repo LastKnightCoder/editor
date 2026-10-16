@@ -11,10 +11,10 @@
 | 资源     | 实际配置                                                                                              |
 | -------- | ----------------------------------------------------------------------------------------------------- |
 | R2       | `tau-plugin-pending`，私有，r2.dev关闭，无自定义域名                                                  |
-| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001/0002 migration已执行                 |
+| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001/0002/0003 migration已执行            |
 | Worker   | `tau-plugin-portal-api`，绑定D1与R2                                                                   |
 | API域名  | `https://plugins-api.taunote.app`，健康检查200、会话200、GitHub跳转302                                |
-| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，已部署e22377bd                     |
+| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，已部署863b1aa2                     |
 | 前端域名 | `plugins.taunote.app`，CNAME指向 `tau-plugin-portal.pages.dev`，代理开启；Pages验证与域名状态均active |
 | Secrets  | GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY已配置                                    |
 
