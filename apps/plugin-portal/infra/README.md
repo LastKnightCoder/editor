@@ -4,15 +4,15 @@
 
 ## 已配置资源
 
-| 资源     | 实际配置                                                                                                |
-| -------- | ------------------------------------------------------------------------------------------------------- |
-| R2       | `tau-plugin-pending`，私有，r2.dev关闭，无自定义域名                                                    |
-| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001 migration已执行                        |
-| Worker   | `tau-plugin-portal-api`，绑定D1与R2                                                                     |
-| API域名  | `https://plugins-api.xiongtao.life`，健康检查200、会话200、GitHub跳转302                                |
-| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，无前端部署                           |
-| 前端域名 | `plugins.xiongtao.life`，CNAME指向 `tau-plugin-portal.pages.dev`，代理开启；Pages验证与域名状态均active |
-| Secrets  | GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY已配置                                      |
+| 资源     | 实际配置                                                                                              |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| R2       | `tau-plugin-pending`，私有，r2.dev关闭，无自定义域名                                                  |
+| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001 migration已执行                      |
+| Worker   | `tau-plugin-portal-api`，绑定D1与R2                                                                   |
+| API域名  | `https://plugins-api.taunote.app`，健康检查200、会话200、GitHub跳转302                                |
+| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，无前端部署                         |
+| 前端域名 | `plugins.taunote.app`，CNAME指向 `tau-plugin-portal.pages.dev`，代理开启；Pages验证与域名状态均active |
+| Secrets  | GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY已配置                                    |
 
 GitHub密钥源于用户 `~/.zshrc` 的 `TAU_PLUGIN_GITHUB_CLIENT_ID` / `TAU_PLUGIN_GITHUB_CLIENT_SECRET`，仅经进程内存传入Wrangler标准输入。加密密钥备份在 `~/.config/tau/plugin-portal/token-encryption-key`（0600），不可提交或随意重建，否则现有会话无法解密。云端Secrets不依赖worktree存在。
 
@@ -23,7 +23,7 @@ Wrangler OAuth的DNS API请求返回403；前端CNAME已通过登录的Cloudflar
 Pages为Direct Upload，不监听editor仓库自动发布。在本包目录执行：
 
 ```sh
-VITE_API_BASE_URL=https://plugins-api.xiongtao.life VITE_MOCK_API=false pnpm build:web
+VITE_API_BASE_URL=https://plugins-api.taunote.app VITE_MOCK_API=false pnpm build:web
 pnpm exec wrangler pages deploy web/dist --project-name tau-plugin-portal --branch master --force
 ```
 
@@ -52,9 +52,9 @@ TOKEN_ENCRYPTION_KEY 为32随机字节的base64。可以用本机密码管理器
 2. 创建私有R2桶 `tau-plugin-pending`。Worker直接绑定，无需另外生成R2 Access Key；首期上传经过Worker，浏览器不直连R2，不需要桶CORS。
 3. 创建D1数据库 `plugin-portal`，保存真实database_id。
 4. 正式配置已保存为wrangler.production.jsonc；其资源ID与域名可以提交，密钥只放Cloudflare Secrets。新环境需独立核对database_id和域名。生产关闭workers.dev和preview_urls。
-5. GitHub Settings → Developer settings → OAuth Apps，新建生产App：Homepage `https://plugins.xiongtao.life`，callback `https://plugins-api.xiongtao.life/v1/auth/github/callback`。第一期只登录和验证公开仓库，不申请写代码、私有仓库或邮件权限。第二期审核机器人另配GitHub App，不复用用户登录令牌发平台审核消息。
+5. GitHub Settings → Developer settings → OAuth Apps，生产App：Homepage `https://plugins.taunote.app`，callback `https://plugins-api.taunote.app/v1/auth/github/callback`。用户已确认修改GitHub配置。第一期只登录和验证公开仓库，不申请写代码、私有仓库或邮件权限。第二期审核机器人另配GitHub App，不复用用户登录令牌发平台审核消息。
 6. 经wrangler secret put配置GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY，均使用production config；不把值写入Git。应用D1 migrations到明确的production config，再部署Worker。
-7. UI交付后创建Cloudflare Pages项目，构建命令 `pnpm --filter @tau/plugin-portal build:web`，输出 `apps/plugin-portal/web/dist`。生产VITE_API_BASE_URL指向API域名，禁用VITE_MOCK_API；绑定plugins.xiongtao.life。
+7. UI交付后部署到已创建的Cloudflare Pages项目，构建命令 `pnpm --filter @tau/plugin-portal build:web`，输出 `apps/plugin-portal/web/dist`。生产VITE_API_BASE_URL指向新API域名，禁用VITE_MOCK_API；绑定plugins.taunote.app。
 8. 真实登录、上传、保存、提交、刷新验收。未完成此步不能称线上闭环完成。
 
 未来第二期再创建公开发布桶和plugins-cdn域名，第一期不需要。
