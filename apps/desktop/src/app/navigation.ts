@@ -34,7 +34,7 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { SIDEBAR_GROUPS } from "@tau/plugins";
+import { SIDEBAR_GROUPS, type PluginSidebarIcon } from "@tau/plugins";
 import type { PluginSidebarSnapshot } from "./plugins/runtime";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
@@ -51,10 +51,10 @@ export type NavItemChildren =
   | "question-groups"
   | "chat-sessions";
 
-export interface NavItem {
+export interface NavItem<Icon = PluginSidebarIcon> {
   key: string;
   label: string;
-  icon: LucideIcon;
+  icon: Icon;
   /** 徽标数据源标识（review-due = 待复习闪卡数；pomodoro-live = 专注中的实时计时；
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
@@ -66,14 +66,14 @@ export interface NavItem {
   plugin?: PluginSidebarSnapshot["items"][number];
 }
 
-export interface NavSection {
+export interface NavSection<Icon = PluginSidebarIcon> {
   id: string;
   label: string;
   collapseKey?: string;
-  items: NavItem[];
+  items: NavItem<Icon>[];
 }
 
-export const NAV_SECTIONS: NavSection[] = [
+export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
   {
     // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴（D-071）
     id: SIDEBAR_GROUPS.daily,
@@ -142,14 +142,17 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export const NAV_FOOTER: NavItem[] = [
+export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
 
 export function composeNavSections(snapshot?: PluginSidebarSnapshot): NavSection[] {
   if (!snapshot) return NAV_SECTIONS;
-  const sections = NAV_SECTIONS.map(section => ({ ...section, items: [...section.items] }));
+  const sections: NavSection[] = NAV_SECTIONS.map(section => ({
+    ...section,
+    items: [...section.items],
+  }));
   for (const group of snapshot.groups) {
     sections.push({ id: group.id, label: group.title, collapseKey: group.id, items: [] });
   }
@@ -162,7 +165,7 @@ export function composeNavSections(snapshot?: PluginSidebarSnapshot): NavSection
   sections.push(fallback);
   for (const item of snapshot.items) {
     const section = sections.find(section => section.id === item.group) ?? fallback;
-    section.items.push({ key: item.id, label: item.title, icon: Plug, plugin: item });
+    section.items.push({ key: item.id, label: item.title, icon: item.icon ?? Plug, plugin: item });
   }
   return sections.filter(section => section.items.length > 0);
 }

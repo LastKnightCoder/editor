@@ -86,6 +86,14 @@ app
       const sidebarButton = `document.querySelector('nav button[aria-label="喝水打卡"]')`;
       const openWaterSidebar = async () => {
         await wait(`Boolean(${sidebarButton})`);
+        assert.equal(
+          await run(`${sidebarButton}.querySelector('svg path')?.getAttribute('d')`),
+          "M12 3C9 7 5 11 5 15a7 7 0 0 0 14 0c0-4-4-8-7-12Z"
+        );
+        assert.equal(
+          await run(`${sidebarButton}.querySelector('svg')?.getAttribute('stroke')`),
+          "currentColor"
+        );
         await run(`${sidebarButton}.click()`);
         await wait(`${sidebarButton}?.getAttribute('aria-current') === 'page'`);
       };

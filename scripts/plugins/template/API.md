@@ -217,15 +217,46 @@ context.sidebar.registerItem({ id: "counter", title: "计数", group: group.id, 
 
 `registerItem(definition)` 返回 `Disposable`：
 
-| 字段     | 类型                     | 说明                                                        |
-| -------- | ------------------------ | ----------------------------------------------------------- |
-| `id`     | `string`                 | 插件内唯一条目 ID                                           |
-| `title`  | `string`                 | 非空的入口名称                                              |
-| `group`  | `string`，可选           | 公开分组常量或本插件分组句柄的 id；缺省或不存在时归入“插件” |
-| `page`   | `PluginPageHandle`       | 本插件本次启用注册的有效页面句柄                            |
-| `params` | `PluginPageParams`，可选 | 点击时传给页面的参数，缺省为空对象                          |
+| 字段     | 类型                      | 说明                                                        |
+| -------- | ------------------------- | ----------------------------------------------------------- |
+| `id`     | `string`                  | 插件内唯一条目 ID                                           |
+| `title`  | `string`                  | 非空的入口名称                                              |
+| `icon`   | `PluginSidebarIcon`，可选 | SVG 图标组件，省略时使用默认插件图标（SDK 0.3.0 起）        |
+| `group`  | `string`，可选            | 公开分组常量或本插件分组句柄的 id；缺省或不存在时归入“插件” |
+| `page`   | `PluginPageHandle`        | 本插件本次启用注册的有效页面句柄                            |
+| `params` | `PluginPageParams`，可选  | 点击时传给页面的参数，缺省为空对象                          |
 
-条目追加在所在分组末尾，使用统一的插件图标。参数页面按页面实例高亮，单实例页面按页面身份高亮；通过命令面板打开相同页面也会高亮侧边栏入口。条目与页面 ID 分别独立，可以为同一个参数页面注册多个入口。
+条目追加在所在分组末尾。参数页面按页面实例高亮，单实例页面按页面身份高亮；通过命令面板打开相同页面也会高亮侧边栏入口。条目与页面 ID 分别独立，可以为同一个参数页面注册多个入口。
+
+### 自定义图标
+
+SDK 0.3.0 起，`icon` 接收组件本身，例如 `icon: CounterIcon`，不是 `<CounterIcon />`、图片地址或图标名称字符串。模板的 `src/CounterIcon.tsx` 是可直接修改的 SVG 示例：
+
+```tsx
+import type { PluginSidebarIconProps } from "@tau/plugins";
+
+export function WaterDropIcon({ size = 24, strokeWidth = 2, ...props }: PluginSidebarIconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      {...props}
+    >
+      <path d="M12 3C9 7 5 11 5 15a7 7 0 0 0 14 0c0-4-4-8-7-12Z" />
+    </svg>
+  );
+}
+```
+
+在插件入口导入图标后，将其传给 `context.sidebar.registerItem({ id: "water", title: "喝水打卡", page, icon: WaterDropIcon })`。
+
+`PluginSidebarIconProps` 包含标准 SVG 属性及可选的 `size: number | string`。侧边栏传入 `size`、`strokeWidth`、`className` 和 `aria-hidden`，图标应透传这些属性；用 `currentColor` 跟随明暗主题及选中颜色，不写死宽高或颜色。展开和收起状态使用同一个图标，图标不承担按钮点击或业务状态管理。
+
+也可以使用满足该属性约定的 React 图标库组件，依赖通过 pnpm 添加；无须额外配置打包。使用自定义图标需要更新到支持图标的 Tau 客户端，较旧的侧边栏实现会显示默认插件图标。
 
 提前调用条目的 `dispose()` 会移除入口；注销页面也会隐藏关联入口。提前注销分组后，剩余条目归入“插件”；当最后一个条目移除后，空分组不显示。注册重复 ID 会报错，不覆盖已有条目。插件只能管理自己注册的分组和条目，不能向其他插件的分组插入，也不能引用其他插件或上一次启用的页面句柄。
 

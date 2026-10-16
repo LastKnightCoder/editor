@@ -264,7 +264,7 @@ function NavItemButton({
       aria-current={active ? "page" : undefined}
     >
       {/* 图标随字号档位（em）：17px 锚定 fontSize 16 的既有观感，大字号下不被文字甩开 */}
-      <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} />
+      <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} aria-hidden="true" />
       {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
       {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
       {BadgeSlot && <BadgeSlot collapsed={collapsed} />}
