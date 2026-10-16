@@ -3,4 +3,3 @@
 !.dev.vars.example
 .env*
 !.env.example
-infra/wrangler.production.jsonc
