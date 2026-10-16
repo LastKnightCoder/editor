@@ -18,42 +18,31 @@ CREATE TABLE oauth_states (
   expires_at INTEGER NOT NULL
 );
 CREATE TABLE uploads (
-  id TEXT PRIMARY KEY,
-  publisher_id TEXT NOT NULL REFERENCES publishers(id),
-  kind TEXT NOT NULL CHECK(kind IN ('package','icon','screenshot')),
-  status TEXT NOT NULL CHECK(status IN ('awaiting_upload','ready','invalid','checking')),
-  processing_at INTEGER,
-  file_name TEXT NOT NULL,
-  size INTEGER NOT NULL,
-  object_key TEXT,
-  sha256 TEXT,
-  manifest_json TEXT,
-  error_json TEXT,
-  created_at TEXT NOT NULL
+  id TEXT PRIMARY KEY, publisher_id TEXT NOT NULL REFERENCES publishers(id),
+  status TEXT NOT NULL CHECK(status IN ('awaiting_upload','checking','ready','invalid')),
+  processing_at INTEGER, file_name TEXT NOT NULL, size INTEGER NOT NULL,
+  object_key TEXT, sha256 TEXT, content_json TEXT, error_json TEXT, created_at TEXT NOT NULL
 );
 CREATE INDEX uploads_owner ON uploads(publisher_id);
 CREATE TABLE plugins (
-  id TEXT PRIMARY KEY,
-  publisher_id TEXT NOT NULL REFERENCES publishers(id),
-  repository_id TEXT NOT NULL
+  id TEXT PRIMARY KEY, publisher_id TEXT NOT NULL REFERENCES publishers(id),
+  repository_id TEXT NOT NULL, repository TEXT NOT NULL
 );
 CREATE TABLE submissions (
-  id TEXT PRIMARY KEY,
-  publisher_id TEXT NOT NULL REFERENCES publishers(id),
-  client_request_id TEXT NOT NULL,
-  revision INTEGER NOT NULL DEFAULT 1,
+  id TEXT PRIMARY KEY, publisher_id TEXT NOT NULL REFERENCES publishers(id),
+  client_request_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','pending_review')),
-  package_upload_id TEXT REFERENCES uploads(id),
-  manifest_json TEXT,
-  listing_json TEXT NOT NULL,
-  plugin_id TEXT,
-  plugin_version TEXT,
-  repository_id TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  submitted_at TEXT,
+  package_upload_id TEXT REFERENCES uploads(id), content_json TEXT,
+  repository TEXT NOT NULL DEFAULT '', source_commit TEXT, repository_id TEXT,
+  plugin_id TEXT, plugin_version TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, submitted_at TEXT,
   UNIQUE(publisher_id,client_request_id)
 );
-CREATE INDEX submissions_owner ON submissions(publisher_id,id);
-CREATE UNIQUE INDEX submissions_pending_version ON submissions(plugin_id,plugin_version)
-  WHERE status = 'pending_review';
+CREATE INDEX submissions_owner ON submissions(publisher_id,created_at,id);
+CREATE UNIQUE INDEX submissions_pending_version ON submissions(plugin_id,plugin_version) WHERE status='pending_review';
+CREATE TABLE submission_feedback (
+  id TEXT PRIMARY KEY, submission_id TEXT NOT NULL REFERENCES submissions(id),
+  publisher_id TEXT NOT NULL REFERENCES publishers(id), client_request_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK(role IN ('author','reviewer')), message TEXT NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(submission_id,publisher_id,client_request_id)
+);
+CREATE INDEX feedback_submission ON submission_feedback(submission_id,created_at,id);

@@ -7,9 +7,6 @@ export function testEnvironment() {
   sqlite.exec(
     readFileSync(new URL("../infra/migrations/0001_submissions.sql", import.meta.url), "utf8")
   );
-  sqlite.exec(
-    readFileSync(new URL("../infra/migrations/0002_package_content.sql", import.meta.url), "utf8")
-  );
   class Statement {
     constructor(
       readonly sql: string,
