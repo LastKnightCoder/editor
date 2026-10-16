@@ -3,6 +3,7 @@ import { authRoute, githubToken, requireSession } from "./auth";
 import { fail, HttpError, json, type Env } from "./platform";
 import { uploadRoute } from "./uploads";
 import { submissionRoute } from "./submissions";
+import { feedbackRoute } from "./feedback";
 
 export async function handle(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin");
@@ -22,6 +23,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
         const session = await requireSession(request, env);
         response =
           (await uploadRoute(request, env, session.publisher_id, path)) ??
+          (await feedbackRoute(request, env, session.publisher_id, path)) ??
           (await submissionRoute(
             request,
             env,

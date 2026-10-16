@@ -1,4 +1,4 @@
-import type { Upload, UploadKind } from "../../../../contracts";
+import type { Upload } from "../../../../contracts";
 import { asPortalError, hasCode } from "../../api/errors";
 import type { PortalApi } from "../../api/types";
 
@@ -60,14 +60,13 @@ export async function confirmUpload(
 
 export async function runUpload(
   api: PortalApi,
-  kind: UploadKind,
   file: File,
   { signal, onPhase }: { signal: AbortSignal; onPhase: (phase: UploadPhase) => void }
 ): Promise<UploadOutcome> {
   onPhase({ phase: "preparing" });
   let ticket;
   try {
-    ticket = await api.createUpload({ kind, fileName: file.name, size: file.size });
+    ticket = await api.createUpload({ fileName: file.name, size: file.size });
   } catch (error) {
     return { type: "failed", message: asPortalError(error).message };
   }
@@ -89,9 +88,9 @@ export async function runUpload(
   } catch (error) {
     if (hasCode(error, "ABORTED")) return confirmUpload(api, uploadId, "canceled");
     // 网络中断或 409（服务端已在处理该上传）：结果未知，读取核对
-    if (hasCode(error, "NETWORK_ERROR", "CONFLICT", "UPLOAD_STATE_CONFLICT"))
+    if (hasCode(error, "NETWORK_ERROR", "UPLOAD_STATE_CONFLICT"))
       return confirmUpload(api, uploadId, "unknown");
-    if (hasCode(error, "INVALID_PACKAGE", "INVALID_IMAGE")) {
+    if (hasCode(error, "INVALID_PACKAGE")) {
       return { type: "invalid", message: asPortalError(error).message };
     }
     return { type: "failed", message: asPortalError(error).message };

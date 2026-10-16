@@ -8,9 +8,9 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-// 迁移源：OSS release-bin（公开读，匿名下载即可）；迁移目的地经 dl.xiongtao.life（R2 自定义域）对外
+// 迁移源：OSS release-bin（公开读，匿名下载即可）；迁移目的地经 dl.taunote.app（R2 自定义域）对外
 const OSS_BASE_URL = "https://release-bin.oss-cn-shanghai.aliyuncs.com";
-const R2_PUBLIC_BASE_URL = "https://dl.xiongtao.life";
+const R2_PUBLIC_BASE_URL = "https://dl.taunote.app";
 const MANIFEST_KEYS = ["ffmpeg-services-latest.json", "publish-template-latest.json"];
 
 const CONTENT_TYPES = {
@@ -134,7 +134,8 @@ async function main() {
 
   // publish-template 清单带 zip 的 sha256，用它校验下载完整性
   const templateManifest = manifests.find(m => m.key === "publish-template-latest.json");
-  const templateZipKey = templateManifest.rewritten.asset?.url?.slice(R2_PUBLIC_BASE_URL.length + 1) ?? null;
+  const templateZipKey =
+    templateManifest.rewritten.asset?.url?.slice(R2_PUBLIC_BASE_URL.length + 1) ?? null;
 
   const plan = [
     ...[...assetKeys].map(key => ({
@@ -192,19 +193,19 @@ async function main() {
     // 先传资源再传清单，保证清单指向的产物一定已存在（与 publish 脚本同一约定）
     console.log(`▶ 上传到 R2 bucket ${options.bucket} ...`);
     for (const item of plan) {
-      const cacheControl = item.isManifest
-        ? "no-cache"
-        : "public, max-age=31536000, immutable";
+      const cacheControl = item.isManifest ? "no-cache" : "public, max-age=31536000, immutable";
       const body = item.isManifest
         ? JSON.stringify(item.rewritten, null, 2)
         : createReadStream(item.filePath);
-      await client.send(new PutObjectCommand({
-        Bucket: options.bucket,
-        Key: item.key,
-        Body: body,
-        ContentType: CONTENT_TYPES[extname(item.key)] ?? "application/octet-stream",
-        CacheControl: cacheControl,
-      }));
+      await client.send(
+        new PutObjectCommand({
+          Bucket: options.bucket,
+          Key: item.key,
+          Body: body,
+          ContentType: CONTENT_TYPES[extname(item.key)] ?? "application/octet-stream",
+          CacheControl: cacheControl,
+        })
+      );
       console.log(`  ✔ ${item.key}`);
     }
 

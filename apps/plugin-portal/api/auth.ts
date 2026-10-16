@@ -1,5 +1,14 @@
 import type { Session } from "../contracts";
-import { cookie, fail, json, randomToken, setCookie, sha256, type Env } from "./platform";
+import {
+  cookie,
+  fail,
+  isReviewer,
+  json,
+  randomToken,
+  setCookie,
+  sha256,
+  type Env,
+} from "./platform";
 import { github } from "./github";
 
 interface SessionRow {
@@ -75,6 +84,7 @@ export async function authRoute(
         ? { id: session.publisher_id, login: session.login, avatarUrl: session.avatar_url }
         : null,
       csrfToken: session?.csrf_token ?? null,
+      reviewer: session ? isReviewer(env, session.publisher_id) : false,
     });
   }
   if (path === "/v1/logout" && request.method === "POST") {

@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronRight, CloudOff, PackagePlus, Plus } from "lucide-react";
 import { Button, Loading, Panel } from "@tau/ui";
@@ -7,7 +8,7 @@ import { queryKeys, useApi } from "../app/api";
 import { PageHeader, StatusTag } from "../components/PageHeader";
 import { ErrorState, StateBlock } from "../components/states";
 import { formatTime } from "../components/format";
-import { UploadImage } from "../features/submission/UploadImage";
+import { useSession } from "../app/session";
 
 function NewButton() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function NewButton() {
 }
 
 function SubmissionRow({ submission }: { submission: Submission }) {
-  const { manifest, listing } = submission;
+  const manifest = submission.content?.manifest;
   const pending = submission.status === "pending_review";
   return (
     <li>
@@ -27,17 +28,9 @@ function SubmissionRow({ submission }: { submission: Submission }) {
         to={`/submissions/${encodeURIComponent(submission.id)}`}
         className="hover:bg-surface-hover focus-visible:bg-surface-hover flex items-center gap-4 px-5 py-4 outline-none transition-colors"
       >
-        {listing.iconUploadId ? (
-          <UploadImage
-            id={listing.iconUploadId}
-            alt=""
-            className="border-line-1 size-11 shrink-0 border"
-          />
-        ) : (
-          <span className="bg-hover text-ink-3 rounded-tau-sm grid size-11 shrink-0 place-items-center">
-            <PackagePlus size={18} strokeWidth={1.6} />
-          </span>
-        )}
+        <span className="bg-hover text-ink-3 rounded-tau-sm grid size-11 shrink-0 place-items-center">
+          <PackagePlus size={18} strokeWidth={1.6} />
+        </span>
         <div className="min-w-0 flex-1">
           <p className="flex items-baseline gap-2">
             <span className="text-tau-body text-ink-1 truncate font-medium">
@@ -49,7 +42,9 @@ function SubmissionRow({ submission }: { submission: Submission }) {
               </span>
             )}
           </p>
-          <p className="text-tau-sm text-ink-2 truncate">{listing.summary || "还没有填写简介"}</p>
+          <p className="text-tau-sm text-ink-2 truncate">
+            {manifest?.description || "上传插件包后自动读取简介"}
+          </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <StatusTag status={submission.status} />
@@ -67,9 +62,11 @@ function SubmissionRow({ submission }: { submission: Submission }) {
 
 export function SubmissionsPage() {
   const api = useApi();
+  const session = useSession();
+  const [review, setReview] = useState(false);
   const query = useInfiniteQuery({
-    queryKey: queryKeys.submissions,
-    queryFn: ({ pageParam }) => api.listSubmissions(pageParam),
+    queryKey: [...queryKeys.submissions, review],
+    queryFn: ({ pageParam }) => api.listSubmissions(pageParam, review),
     initialPageParam: null as string | null,
     getNextPageParam: page => page.nextCursor,
     refetchOnWindowFocus: true,
@@ -91,7 +88,7 @@ export function SubmissionsPage() {
   else if (items.length === 0)
     body = (
       <StateBlock icon={PackagePlus} title="还没有提交" actions={<NewButton />}>
-        上传构建好的插件 ZIP，填写介绍与源码信息，即可提交审核。
+        上传包含 README.md 的插件 ZIP，关联源码仓库即可提交审核。
       </StateBlock>
     );
   else
@@ -122,10 +119,15 @@ export function SubmissionsPage() {
   return (
     <>
       <PageHeader
-        title="我的提交"
-        meta="草稿保存后可继续编辑；提交后进入待审核，内容冻结。"
+        title={review ? "待审提交" : "我的提交"}
+        meta="介绍与使用说明来自插件包；审核意见直接在站内交流。"
         actions={items.length > 0 && <NewButton />}
       />
+      {session.data?.reviewer && (
+        <Button onClick={() => setReview(value => !value)}>
+          {review ? "查看我的提交" : "查看待审队列"}
+        </Button>
+      )}
       {body}
     </>
   );

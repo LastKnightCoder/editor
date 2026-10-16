@@ -4,7 +4,7 @@
 
 ## 当前配置
 
-- 公网地址：`https://collab.xiongtao.life`。
+- 公网地址：`https://collab.taunote.app`。
 - 部署目录：`/opt/tau/editor/apps/collaboration-server`。
 - 数据目录：`/srv/tau-collab/data`，挂载到容器 `/data`，所有者为 `10001:10001`。
 - 镜像版本：`tau-collaboration:20260906-102208-bc0f3b5d`，架构 `linux/amd64`。
@@ -35,7 +35,7 @@ cd /opt/tau/editor/apps/collaboration-server
 docker compose ps
 docker compose logs --tail=100 collaboration
 docker compose exec -T collaboration node dist/admin.js status
-curl -fsS https://collab.xiongtao.life/health/ready
+curl -fsS https://collab.taunote.app/health/ready
 ```
 
 ## 后续更新

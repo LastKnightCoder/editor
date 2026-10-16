@@ -1,5 +1,7 @@
 # UI 专家开工任务
 
+历史交接稿，已被“包资料优先”的提交流程取代。不要再按下文恢复介绍表单、截图上传或外部反馈地址；当前实现与协议见 `协议.md`、`contracts/index.ts` 和 `SubmissionView.tsx`。
+
 ```text
 请在 /Users/t.xiong/.codex/worktrees/plugin-system/editor 工作区实现 Tau 插件发布门户第一期前端。
 

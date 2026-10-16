@@ -5,8 +5,7 @@ import { Button, Loading } from "@tau/ui";
 import { hasCode } from "../api/errors";
 import { queryKeys, useApi } from "../app/api";
 import { ErrorState } from "../components/states";
-import { DraftEditor } from "../features/submission/DraftEditor";
-import { SubmissionReadOnly } from "../features/submission/SubmissionReadOnly";
+import { SubmissionView } from "../features/submission/SubmissionView";
 
 export function SubmissionDetailPage() {
   const { id = "" } = useParams();
@@ -43,9 +42,5 @@ export function SubmissionDetailPage() {
     );
   }
   const submission = query.data;
-  return submission.status === "draft" ? (
-    <DraftEditor key={submission.id} server={submission} />
-  ) : (
-    <SubmissionReadOnly submission={submission} />
-  );
+  return <SubmissionView key={submission.id} submission={submission} />;
 }

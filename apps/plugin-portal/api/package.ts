@@ -1,7 +1,7 @@
 import AdmZip from "adm-zip";
 import { inflateRawSync } from "node:zlib";
 import { validatePluginManifest } from "@tau/plugins/package";
-import { LIMITS, type PackageManifest } from "../contracts";
+import { LIMITS, type PackageContent } from "../contracts";
 import { fail, sha256 } from "./platform";
 
 function unpack(entry: AdmZip.IZipEntry): Buffer {
@@ -16,7 +16,7 @@ function unpack(entry: AdmZip.IZipEntry): Buffer {
   return bytes;
 }
 
-export async function inspectPackage(bytes: Uint8Array): Promise<PackageManifest> {
+export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent> {
   try {
     if (bytes.length > LIMITS.zipBytes) throw new Error("ZIP 超过8MiB");
     const zip = new AdmZip(Buffer.from(bytes));
@@ -43,7 +43,14 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageManifest
     const manifests = entries.filter(e => /^[^/]+\/manifest\.json$/.test(e.entryName));
     if (manifests.length !== 1) throw new Error("ZIP 必须包含单层插件目录与 manifest.json");
     if (manifests[0].header.size > 65536) throw new Error("manifest 过大");
-    const manifest = validatePluginManifest(JSON.parse(unpack(manifests[0]).toString("utf8")));
+    const raw = JSON.parse(unpack(manifests[0]).toString("utf8"));
+    const manifest = validatePluginManifest(raw);
+    if (
+      typeof raw.description !== "string" ||
+      !raw.description.trim() ||
+      raw.description.length > LIMITS.summary
+    )
+      throw new Error("manifest.description必须为1至160字的简介");
     if (!manifest.minAppVersion) throw new Error("发布包必须声明最低客户端版本");
     if (manifest.id === "web" || manifest.id.startsWith("core."))
       throw new Error("不能使用内置插件保留ID");
@@ -63,16 +70,28 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageManifest
       if (name === manifest.main && !content.toString("utf8").trim())
         throw new Error("插件入口为空");
     }
-    return { ...manifest, minAppVersion: manifest.minAppVersion };
+    const readDocument = (name: string, required: boolean) => {
+      const entry = zip.getEntry(`${manifest.id}/${name}`);
+      if (!entry) {
+        if (required) throw new Error(`插件包缺少${name}`);
+        return null;
+      }
+      if (entry.isDirectory || entry.header.size > LIMITS.readmeBytes)
+        throw new Error(`${name}必须是128KiB以内的文本文件`);
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(unpack(entry));
+      if (!text.trim()) throw new Error(`${name}不能为空`);
+      return text;
+    };
+    return {
+      manifest: {
+        ...manifest,
+        minAppVersion: manifest.minAppVersion,
+        description: raw.description.trim(),
+      },
+      readme: readDocument("README.md", true)!,
+      changelog: readDocument("CHANGELOG.md", false),
+    };
   } catch (error) {
     return fail(422, "INVALID_PACKAGE", error instanceof Error ? error.message : "无效插件包");
   }
-}
-
-export function imageMime(bytes: Uint8Array): string {
-  const hex = Buffer.from(bytes.subarray(0, 12)).toString("hex");
-  if (hex.startsWith("89504e470d0a1a0a")) return "image/png";
-  if (hex.startsWith("ffd8ff")) return "image/jpeg";
-  if (hex.startsWith("52494646") && hex.slice(16) === "57454250") return "image/webp";
-  return fail(422, "INVALID_IMAGE", "仅支持 PNG、JPEG 和 WebP 图片");
 }

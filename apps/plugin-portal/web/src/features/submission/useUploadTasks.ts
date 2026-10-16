@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { Upload, UploadKind } from "../../../../contracts";
+import type { Upload } from "../../../../contracts";
 import { queryKeys, useApi } from "../../app/api";
 import { confirmUpload, runUpload, type UploadOutcome, type UploadPhase } from "./uploadFlow";
 
@@ -9,7 +9,6 @@ export type TaskView =
 
 export interface UploadTask {
   key: string;
-  kind: UploadKind;
   fileName: string;
   size: number;
   view: TaskView;
@@ -24,7 +23,7 @@ export const isTaskActive = (task: UploadTask) => task.view.phase !== "settled";
  * 上传任务队列：每个文件一条任务，成功后交给 onReady 并移出队列；
  * 失败、取消、待核对的任务留在队列中展示，由用户处理。
  */
-export function useUploadTasks(onReady: (kind: UploadKind, upload: Upload) => void) {
+export function useUploadTasks(onReady: (upload: Upload) => void) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [tasks, setTasks] = useState<UploadTask[]>([]);
@@ -49,7 +48,7 @@ export function useUploadTasks(onReady: (kind: UploadKind, upload: Upload) => vo
   const deliver = useCallback(
     (task: UploadTask, upload: Upload) => {
       queryClient.setQueryData(queryKeys.upload(upload.id), upload);
-      onReadyRef.current(task.kind, upload);
+      onReadyRef.current(upload);
       remove(task.key);
     },
     [queryClient, remove]
@@ -84,10 +83,9 @@ export function useUploadTasks(onReady: (kind: UploadKind, upload: Upload) => vo
   recheckRef.current = recheck;
 
   const start = useCallback(
-    (kind: UploadKind, file: File) => {
+    (file: File) => {
       const task: UploadTask = {
         key: `task-${++seq.current}`,
-        kind,
         fileName: file.name,
         size: file.size,
         view: { phase: "preparing" },
@@ -95,7 +93,7 @@ export function useUploadTasks(onReady: (kind: UploadKind, upload: Upload) => vo
       const controller = new AbortController();
       controllers.current.set(task.key, controller);
       setTasks(list => [...list, task]);
-      void runUpload(api, kind, file, {
+      void runUpload(api, file, {
         signal: controller.signal,
         onPhase: view => {
           if (!controller.signal.aborted) setView(task.key, view);

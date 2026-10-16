@@ -152,6 +152,13 @@ try {
         throw new Error("Secrets上传失败；未打印密钥或子进程输入，请在Cloudflare检查配置");
       }
       console.log("三个Secrets已上传，值未输出。");
+    } else if (args.includes("export") && args.includes("d1")) {
+      try {
+        execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: ["inherit", "pipe", "pipe"] });
+      } catch {
+        throw new Error("D1备份失败，已停止；未输出可能包含临时下载凭据的CLI响应");
+      }
+      console.log(`D1备份已保存：${backupFile}`);
     } else execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: "inherit" });
   }
   if (action === "smoke") await smoke();
@@ -210,13 +217,8 @@ async function smoke() {
       options.headers.get("access-control-allow-headers")?.toLowerCase().includes("x-csrf-token"),
     "CORS预检失败"
   );
-  const bodies = [];
-  for (const domain of ["dl.taunote.app", "dl.xiongtao.life"]) {
-    const response = await get(`https://${domain}/publish-template-latest.json`);
-    assert(response.status === 200, `${domain}下载检查失败`);
-    bodies.push(await response.text());
-  }
-  assert(bodies[0] === bodies[1], "新旧下载域名清单不一致");
+  const download = await get("https://dl.taunote.app/publish-template-latest.json");
+  assert(download.status === 200 && typeof (await download.json()) === "object", "下载清单不可用");
   const ready = await get("https://collab.taunote.app/health/ready");
   assert(ready.status === 200 && (await ready.json()).ok === true, "协作服务未就绪");
   for (const pathname of ["/ws", "/events"])

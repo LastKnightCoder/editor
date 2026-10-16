@@ -42,6 +42,16 @@ await mkdir("dist", { recursive: true });
 const staging = await mkdtemp(path.resolve("dist/.building-"));
 const buildId = randomUUID();
 try {
+  const readme = await readFile("README.md", "utf8");
+  if (!readme.trim()) throw new Error("README.md 不能为空");
+  await writeFile(path.join(staging, "README.md"), readme);
+  for (const name of ["LICENSE", "CHANGELOG.md"]) {
+    try {
+      await writeFile(path.join(staging, name), await readFile(name));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
   const result = await build({
     entryPoints: ["src/index.tsx"],
     outfile: path.join(staging, "main.js"),

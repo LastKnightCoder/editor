@@ -11,6 +11,7 @@
   "vars": {
     "WEB_ORIGIN": "https://plugins.taunote.app",
     "API_ORIGIN": "https://plugins-api.taunote.app",
+    "REVIEWER_GITHUB_IDS": "29890094",
   },
   "d1_databases": [
     {
