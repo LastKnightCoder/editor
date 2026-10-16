@@ -11,6 +11,7 @@ import type { Submission, Upload } from "../contracts";
 function zip(
   options: {
     version?: string;
+    minAppVersion?: string;
     readme?: string | null;
     description?: string;
     corrupt?: boolean;
@@ -26,7 +27,7 @@ function zip(
         name: "阅读插件",
         description: options.description ?? "同步阅读摘录",
         version: options.version ?? "1.0.0",
-        minAppVersion: "0.59.0",
+        minAppVersion: options.minAppVersion ?? "0.59.0",
         formatVersion: 1,
         apiVersion: 1,
         platform: "desktop",
@@ -122,8 +123,8 @@ describe("包资料与站内反馈", () => {
       await (await req("/v1/submissions", "POST", { clientRequestId: crypto.randomUUID() })).json()
     ).data;
   }
-  async function ready(version = "1.0.0"): Promise<Submission> {
-    const up = await upload(zip({ version })),
+  async function ready(version = "1.0.0", minAppVersion?: string): Promise<Submission> {
+    const up = await upload(zip({ version, minAppVersion })),
       record = await draft();
     const response = await req(`/v1/submissions/${record.id}`, "PATCH", {
       revision: record.revision,
@@ -576,11 +577,77 @@ describe("包资料与站内反馈", () => {
       )
     ).toEqual(["1.0.0"]);
   });
+  it("目录每个插件一条，按客户端版本选兼容版本，并公开发布者与仓库", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    for (const [version, min] of [
+      ["1.0.0", "0.58.0"],
+      ["1.1.0", "0.60.0"],
+    ]) {
+      const record = (await (await submit(await ready(version, min))).json()).data;
+      await req(`/v1/submissions/${record.id}/review`, "POST", {
+        revision: record.revision,
+        decision: "approve",
+        comment: "",
+      });
+    }
+    cookie = "";
+    const list = async (query: string) => (await (await req(`/v1/catalog?${query}`)).json()).data;
+    const [entry] = (await list("appVersion=0.59.0")).items;
+    expect(entry).toMatchObject({
+      pluginId: "test.reader",
+      name: "阅读插件",
+      description: "同步阅读摘录",
+      publisher: { login: "author" },
+      repository: "https://github.com/author/plugin",
+      latest: { version: "1.1.0", minAppVersion: "0.60.0" },
+      compatible: { version: "1.0.0", minAppVersion: "0.58.0" },
+    });
+    expect((await list("appVersion=0.60.0-beta.1")).items[0].compatible.version).toBe("1.0.0");
+    expect((await list("appVersion=0.57.0")).items[0].compatible).toBeNull();
+    expect((await list("appVersion=0.60.0&q=阅读")).items[0].compatible.version).toBe("1.1.0");
+    expect((await list("appVersion=0.60.0&q=日历")).items).toHaveLength(0);
+    expect((await req("/v1/catalog")).status).toBe(400);
+    expect((await req("/v1/catalog?appVersion=latest")).status).toBe(400);
+    const detail = (await (await req(`/v1/releases/${entry.latest.releaseId}`)).json()).data;
+    expect(detail).toMatchObject({
+      version: "1.1.0",
+      commit: "a".repeat(40),
+      repository: "https://github.com/author/plugin",
+      publisher: { login: "author", avatarUrl: "" },
+    });
+    expect(detail.content.readme).toContain("阅读插件");
+  });
   it("预检允许PUT/PATCH与凭据", async () => {
     const r = await req("/v1/uploads", "OPTIONS");
     expect(r.status).toBe(204);
     expect(r.headers.get("Access-Control-Allow-Methods")).toContain("PATCH");
     expect(r.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+  });
+  it("0004为已有发布记录回填目录资料列", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      const run = (name: string) =>
+        db.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));
+      run("0001_submissions.sql");
+      run("0003_review_release.sql");
+      db.exec("PRAGMA foreign_keys=OFF");
+      db.prepare(
+        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,state,created_at) VALUES('r','p','1.0.0','s','u','42','k','h',1,?,'repo','c','published','t')"
+      ).run(
+        JSON.stringify({
+          manifest: { name: "旧插件", description: "旧简介", minAppVersion: "0.58.0" },
+        })
+      );
+      run("0004_release_catalog.sql");
+      expect(db.prepare("SELECT name,description,min_app_version FROM releases").get()).toEqual({
+        name: "旧插件",
+        description: "旧简介",
+        min_app_version: "0.58.0",
+      });
+    } finally {
+      db.close();
+    }
   });
   it("新库单步初始化得到当前结构，误重复初始化不会清空已有数据", () => {
     const db = new DatabaseSync(":memory:");

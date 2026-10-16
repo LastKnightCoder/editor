@@ -113,6 +113,37 @@ export interface Release {
   publishedAt: string | null;
   downloadUrl: string | null;
 }
+export type PublicPublisher = Pick<User, "login" | "avatarUrl">;
+/** 匿名公开的已发布版本详情。 */
+export interface PublicRelease extends Release {
+  content: PackageContent;
+  repository: string;
+  commit: string;
+  publisher: PublicPublisher;
+}
+export interface CatalogVersion {
+  releaseId: string;
+  version: string;
+  minAppVersion: string;
+  publishedAt: string;
+  size: number;
+  sha256: string;
+  downloadUrl: string;
+}
+/** 插件中心目录项：每个插件一条，资料取自最高已发布版本。 */
+export interface CatalogEntry {
+  pluginId: string;
+  name: string;
+  description: string;
+  publisher: PublicPublisher;
+  repository: string;
+  latest: CatalogVersion;
+  /** 当前客户端可安装的最高版本；没有兼容版本时为 null，不回退到 latest。 */
+  compatible: CatalogVersion | null;
+}
+export interface Catalog {
+  items: CatalogEntry[];
+}
 export interface ReviewDetails {
   reviews: ReviewRecord[];
   release: Release | null;
