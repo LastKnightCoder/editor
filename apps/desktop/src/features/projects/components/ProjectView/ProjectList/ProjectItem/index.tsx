@@ -756,8 +756,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         ? "text-ink-1 font-semibold"
         : "text-ink-1 font-medium"
       : "text-ink-2";
+  // 与折叠箭头同一原则:行已有 hover 背景,按钮只用透明度反馈,避免双重背景
   const actionButtonClass =
-    "hover:bg-press flex size-[22px] cursor-pointer items-center justify-center rounded-[6px] transition-colors duration-200";
+    "flex size-[22px] cursor-pointer items-center justify-center opacity-60 transition-opacity duration-200 hover:opacity-100";
 
   const renderItemIcon = () => {
     if (hasChildren) {
