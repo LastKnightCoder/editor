@@ -5,7 +5,12 @@ import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import { useSettingsStore } from "@/app/settingsStore";
 import { PluginSettingsView } from "./PluginSettingsView";
-import { openPluginDirectory } from "@/commands/plugin-local";
+import {
+  openPluginDirectory,
+  stagePluginZip,
+  restoreLocalPlugin,
+  cancelLocalPluginUpdate,
+} from "@/commands/plugin-local";
 
 const labels: Record<PluginState, string> = {
   disabled: "已停用",
@@ -142,10 +147,24 @@ function LocalPluginDirectory({ runtime }: { runtime: DesktopPluginRuntime }) {
         将插件解压到下列目录，每个插件一个同名子目录，内含
         manifest.json。启动时自动发现，新插件默认停用。
       </p>
+      <p className="text-tau-meta text-ink-2 mb-3">
+        安装和更新将在下次完整启动时生效；更新保留上一版，可安排恢复。恢复只替换插件代码，不回退已保存的数据。
+      </p>
       <p className="text-tau-meta text-ink-2 mb-3 break-all">
         {runtime.local?.directory || "~/.editor/plugins"}
       </p>
       <div className="flex gap-2">
+        <Button
+          disabled={busy || runtime.local?.busy()}
+          onClick={() =>
+            void run(async () => {
+              await stagePluginZip();
+              await runtime.local?.refresh();
+            })
+          }
+        >
+          安装或更新 ZIP
+        </Button>
         <Button disabled={busy} onClick={() => void run(openPluginDirectory)}>
           打开插件目录
         </Button>
@@ -170,6 +189,49 @@ function LocalPluginDirectory({ runtime }: { runtime: DesktopPluginRuntime }) {
         <p key={entry.id} role="alert" className="text-tau-meta text-danger mt-2">
           {entry.id}：{entry.error}
         </p>
+      ))}
+      {runtime.local?.updates.map(update => (
+        <div key={update.id} className="mt-3 space-y-2">
+          <p className="text-tau-meta text-ink-2">
+            {update.id}
+            {update.pendingVersion
+              ? `：已暂存 ${update.pendingVersion}，请完全退出并重启客户端`
+              : ""}
+          </p>
+          {update.error && (
+            <p role="alert" className="text-tau-meta text-danger">
+              {update.error}
+            </p>
+          )}
+          <div className="flex gap-2">
+            {update.pending && (
+              <Button
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    await cancelLocalPluginUpdate(update.id);
+                    await runtime.local?.refresh();
+                  })
+                }
+              >
+                取消待更新
+              </Button>
+            )}
+            {update.previousVersion && (
+              <Button
+                disabled={busy || update.pending || update.blocked}
+                onClick={() =>
+                  void run(async () => {
+                    await restoreLocalPlugin(update.id);
+                    await runtime.local?.refresh();
+                  })
+                }
+              >
+                恢复上一版 {update.previousVersion}
+              </Button>
+            )}
+          </div>
+        </div>
       ))}
     </Panel>
   );

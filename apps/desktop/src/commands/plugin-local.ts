@@ -8,3 +8,9 @@ export const scanLocalPlugins = (): Promise<LocalPluginScan> =>
   withModule("plugin-local", () => invoke("plugin-local:scan"));
 export const openPluginDirectory = (): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:open-directory"));
+export const stagePluginZip = (): Promise<{ id: string; version: string } | null> =>
+  withModule("plugin-local", () => invoke("plugin-local:stage-zip"));
+export const restoreLocalPlugin = (id: string): Promise<{ id: string; version: string }> =>
+  withModule("plugin-local", () => invoke("plugin-local:restore", id));
+export const cancelLocalPluginUpdate = (id: string): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:cancel-update", id));

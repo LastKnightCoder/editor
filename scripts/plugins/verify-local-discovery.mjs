@@ -11,6 +11,7 @@ const { build } = require("esbuild");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-local-discovery-"));
 const report = { status: "running", platform: process.platform, arch: process.arch, phases: [] };
 const water = process.argv.includes("--water");
+const updates = process.argv.includes("--updates");
 const installed = process.argv.includes("--installed") || water;
 try {
   await mkdir(path.join(directory, "profile"));
@@ -67,11 +68,13 @@ try {
         },
       ],
     });
-  for (const phase of water
-    ? ["water", "water-restore", "water-disabled"]
-    : installed
-      ? ["author", "author-restore"]
-      : ["initial", "refresh", "reinstall", "disabled"]) {
+  for (const phase of updates
+    ? ["update-start", "update-applied", "update-restored", "update-failed", "update-recovered"]
+    : water
+      ? ["water", "water-restore", "water-disabled"]
+      : installed
+        ? ["author", "author-restore"]
+        : ["initial", "refresh", "reinstall", "disabled"]) {
     const env = {
       ...process.env,
       TAU_LOCAL_TEST_APP_DIR: installed
@@ -111,11 +114,13 @@ try {
   await writeFile(
     path.join(
       root,
-      water
-        ? "output/water-author-report.json"
-        : installed
-          ? "output/installed-author-report.json"
-          : "output/local-discovery-report.json"
+      updates
+        ? "output/local-update-report.json"
+        : water
+          ? "output/water-author-report.json"
+          : installed
+            ? "output/installed-author-report.json"
+            : "output/local-discovery-report.json"
     ),
     JSON.stringify(report, null, 2)
   );

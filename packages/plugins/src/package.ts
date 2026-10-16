@@ -1,4 +1,5 @@
 import { assertLocalId } from "./values";
+import { comparePluginVersions } from "./version";
 
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
@@ -15,6 +16,7 @@ export interface PluginManifest {
   id: string;
   name: string;
   version: string;
+  minAppVersion?: string;
   apiVersion: 1;
   platform: "desktop";
   format: "cjs";
@@ -61,6 +63,10 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     return input;
   };
   const main = file(item.main, ".js");
+  if (item.minAppVersion !== undefined) {
+    if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
+    comparePluginVersions(item.minAppVersion, item.minAppVersion);
+  }
   const styles = item.styles === undefined ? undefined : file(item.styles, ".css");
   const integrity: Record<string, string> = {};
   for (const name of [main, ...(styles ? [styles] : [])]) {
@@ -77,6 +83,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     id: item.id,
     name: item.name,
     version: item.version,
+    ...(typeof item.minAppVersion === "string" ? { minAppVersion: item.minAppVersion } : {}),
     apiVersion: 1,
     platform: "desktop",
     format: "cjs",
