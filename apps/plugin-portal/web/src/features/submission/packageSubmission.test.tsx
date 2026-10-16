@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { ApiProvider, createQueryClient, queryKeys } from "../../app/api";
@@ -47,6 +47,29 @@ async function setup(pending = false) {
   return { api, draft, client };
 }
 describe("ZIP资料提交交互", () => {
+  it("其他窗口提交后只展示已冻结包，不把本地未保存包当成提交内容", async () => {
+    const { client, draft } = await setup();
+    fireEvent.change(screen.getByLabelText("插件ZIP"), {
+      target: { files: [new File(["x"], "local.zip")] },
+    });
+    await screen.findByText("整理阅读摘录");
+    act(() =>
+      client.setQueryData(queryKeys.submission(draft.id), {
+        ...draft,
+        status: "pending_review",
+        revision: 2,
+        canEdit: false,
+        content: {
+          ...content,
+          readme: "# 已冻结的说明",
+          manifest: { ...content.manifest, name: "已冻结版本" },
+        },
+      })
+    );
+    await screen.findByText("已冻结的说明");
+    expect(screen.queryByLabelText("插件ZIP")).toBeNull();
+    expect(screen.queryByRole("button", { name: "保留本地修改" })).toBeNull();
+  });
   it("只上传ZIP与关联仓库即可提交，README只读，无截图或介绍输入", async () => {
     const { api, draft } = await setup();
     expect(screen.queryByLabelText("简介")).toBeNull();
