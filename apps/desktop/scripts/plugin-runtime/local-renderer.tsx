@@ -35,6 +35,7 @@ async function start() {
         issues: local.issues.map(item => item.error),
         directory: local.directory,
         workspaceId,
+        updates: local.updates,
       }),
       run: () => runtime.host.executeCommand("example.local:run"),
       openAuthor: async () => {

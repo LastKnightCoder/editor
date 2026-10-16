@@ -1,9 +1,17 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { validatePluginManifest, type DevelopmentPluginPackage } from "@tau/plugins/host";
+import {
+  validatePluginManifest,
+  assertPluginCompatibility,
+  type DevelopmentPluginPackage,
+} from "@tau/plugins/host";
+import client from "../../../package.json";
 
-export async function readPluginPackage(directory: string): Promise<DevelopmentPluginPackage> {
+export async function readPluginPackage(
+  directory: string,
+  clientVersion = client.version
+): Promise<DevelopmentPluginPackage> {
   const root = await realpath(directory);
   async function read(relative: string) {
     const target = await realpath(path.resolve(root, relative));
@@ -19,6 +27,7 @@ export async function readPluginPackage(directory: string): Promise<DevelopmentP
   }
   const manifestText = await read("manifest.json");
   const manifest = validatePluginManifest(JSON.parse(manifestText));
+  assertPluginCompatibility(manifest, clientVersion);
   const code = await read(manifest.main);
   const css = manifest.styles ? await read(manifest.styles) : undefined;
   for (const [name, content] of [

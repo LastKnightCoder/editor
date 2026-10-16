@@ -26,6 +26,7 @@ export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage } from "./browser-storage";
 export { normalizePageParams } from "./pages";
 export { validatePluginManifest, PLUGIN_SHARED_MODULES } from "./package";
+export { comparePluginVersions, assertPluginCompatibility } from "./version";
 export type { PluginManifest, DevelopmentPluginPackage } from "./package";
 
 export interface PagesAdapter {

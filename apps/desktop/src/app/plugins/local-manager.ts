@@ -1,5 +1,5 @@
 import type { DevelopmentPluginPackage, PluginHost } from "@tau/plugins/host";
-import type { LocalPluginEntry, LocalPluginScan } from "@/types/plugin-local";
+import type { LocalPluginEntry, LocalPluginScan, LocalPluginUpdate } from "@/types/plugin-local";
 import { PluginActivationManager } from "./activation-manager";
 import { registerPluginPackage, type SharedPluginModules } from "./package-loader";
 
@@ -9,6 +9,8 @@ export class LocalPluginManager {
   directory = "";
   scanError = "";
   issues: readonly LocalPluginEntry[] = [];
+  updates: readonly LocalPluginUpdate[] = [];
+  clientVersion = "";
   private readonly records = new Map<string, DevelopmentPluginPackage>();
   private states: PluginActivationManager;
   private pending: Promise<unknown> = Promise.resolve();
@@ -45,6 +47,8 @@ export class LocalPluginManager {
         const snapshot = await this.scan();
         this.assertOpen();
         this.directory = snapshot.directory;
+        this.updates = snapshot.updates ?? [];
+        this.clientVersion = snapshot.clientVersion ?? "";
         this.scanError = "";
         const issues: LocalPluginEntry[] = [];
         const present = new Set(snapshot.entries.map(entry => entry.id));

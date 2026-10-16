@@ -10,4 +10,15 @@ export interface LocalPluginEntry {
 export interface LocalPluginScan {
   directory: string;
   entries: LocalPluginEntry[];
+  updates?: LocalPluginUpdate[];
+  clientVersion?: string;
+}
+
+export interface LocalPluginUpdate {
+  id: string;
+  pending?: boolean;
+  pendingVersion?: string;
+  previousVersion?: string;
+  error?: string;
+  blocked?: boolean;
 }

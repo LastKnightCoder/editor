@@ -3,7 +3,10 @@ import path from "node:path";
 import type { LocalPluginEntry, LocalPluginScan } from "@/types/plugin-local";
 import { readPluginPackage } from "./plugin-package";
 
-export async function discoverPlugins(directory: string): Promise<LocalPluginScan> {
+export async function discoverPlugins(
+  directory: string,
+  clientVersion?: string
+): Promise<LocalPluginScan> {
   await mkdir(directory, { recursive: true });
   const folders = (await readdir(directory, { withFileTypes: true }))
     .filter(entry => !entry.name.startsWith(".") && (entry.isDirectory() || entry.isSymbolicLink()))
@@ -12,7 +15,7 @@ export async function discoverPlugins(directory: string): Promise<LocalPluginSca
   for (const folder of folders) {
     const location = path.join(directory, folder.name);
     try {
-      const artifact = await readPluginPackage(location);
+      const artifact = await readPluginPackage(location, clientVersion);
       if (artifact.manifest.id !== folder.name)
         throw new Error("插件目录名必须与 manifest.id 一致");
       entries.push({ id: folder.name, directory: location, artifact });
