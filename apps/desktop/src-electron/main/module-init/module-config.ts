@@ -9,6 +9,7 @@ import extraModule from "../modules/extra";
 import fetchModule from "../modules/fetch";
 import pluginDevelopmentModule from "../modules/plugin-development";
 import pluginLocalModule from "../modules/plugin-local";
+import pluginServicesModule from "../modules/plugin-services";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
@@ -89,6 +90,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => resourceModule.init(),
   },
   // === BACKGROUND 层：后台启动核心服务 ===
+  {
+    name: "plugin-services",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: () => pluginServicesModule.init(),
+  },
   {
     name: "server",
     layer: InitLayer.BACKGROUND,

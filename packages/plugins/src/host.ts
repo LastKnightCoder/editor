@@ -22,6 +22,7 @@ import type {
   PluginMaterialRef,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import { bindPluginServices, type PluginServices } from "./services";
 import {
   ACTIVATION_TIMEOUT_MS,
   CLEANUP_TIMEOUT_MS,
@@ -143,6 +144,7 @@ export class PluginHost {
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       fetch?: typeof globalThis.fetch;
+      services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
       restartRequired?: Set<string>;
     }
@@ -341,6 +343,9 @@ export class PluginHost {
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,
+      services: bindPluginServices(this.options.services, scope.signal, () =>
+        this.assertActive(entry, activation)
+      ),
       fetch: async (input, init) => {
         this.assertActive(entry, activation);
         const execute = this.options.fetch;

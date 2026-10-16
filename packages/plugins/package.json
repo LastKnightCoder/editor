@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
@@ -23,6 +23,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "slate": "0.126.2",
     "@tau/editor": "workspace:*",
     "@tau/markdown": "workspace:*"
   }

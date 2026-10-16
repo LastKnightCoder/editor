@@ -1,4 +1,5 @@
 import type { PluginPages } from "./pages";
+import type { PluginServices } from "./services";
 import type { PluginEditor } from "./editor";
 import type { PluginSettings } from "./settings";
 import type { PluginSidebar } from "./sidebar";
@@ -37,6 +38,7 @@ export interface PluginContext {
   readonly excerpts: PluginExcerpts;
   readonly materials: PluginMaterials;
   readonly fetch: typeof globalThis.fetch;
+  readonly services: PluginServices;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

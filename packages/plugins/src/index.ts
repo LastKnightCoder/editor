@@ -17,6 +17,7 @@ export type {
 export * from "./editor";
 export * from "./sidebar";
 export type * from "./excerpts";
+export type * from "./services";
 
 export type {
   PluginPageDefinition,

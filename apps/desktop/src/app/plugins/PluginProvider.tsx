@@ -10,6 +10,7 @@ import { getPluginWorkspace } from "@/commands/plugin-local";
 import { migratePluginPreferences } from "./development-manager";
 import { themePlugin } from "./builtin/themePlugin";
 import { createDesktopExcerpts } from "./excerpts";
+import { desktopPluginServices } from "./services";
 
 const restartRequired = new Set<string>();
 const reloadCounts = new Map<string, number>();
@@ -49,6 +50,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           storage: createBrowserStorage(window.localStorage),
           plugins,
           fetch: desktopFetch,
+          services: desktopPluginServices,
           ...createDesktopExcerpts(workspaceId),
           restartRequired,
           reloadCounts,

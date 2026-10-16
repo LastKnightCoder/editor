@@ -20,6 +20,7 @@ const runtimeDependencyExternals = [
   "@firecrawl/anydoc",
   "turndown",
   "@myriaddreamin/typst-ts-node-compiler",
+  "@ffprobe-installer/ffprobe",
   "@node-rs/jieba",
   "@node-rs/jieba/dict",
   "@silvia-odwyer/photon-node",
@@ -73,6 +74,7 @@ export default defineConfig(() => {
         main: {
           entry: {
             index: "src-electron/main/index.ts",
+            "plugin-typst-worker": "src-electron/main/workers/plugin-typst.worker.ts",
             // 发布站点生成跑在 worker_threads 里（modules/publish-generator-client）
             "publish-generator-worker": "src-electron/main/workers/publish-generator.worker.ts",
             // 知识地图离线计算（向量近邻 + 主题划分 + 布局）跑在 worker_threads 里（modules/knowledge-map-builder）
@@ -115,16 +117,6 @@ export default defineConfig(() => {
                   "cheerio",
                 ],
                 plugins: [
-                  {
-                    name: "copy-typst-worker",
-                    closeBundle() {
-                      fs.ensureDirSync("dist-electron/main/workers");
-                      fs.copySync(
-                        "src-electron/main/workers/typst-worker.js",
-                        "dist-electron/main/workers/typst-worker.js"
-                      );
-                    },
-                  },
                   {
                     name: "copy-tailwind-runtime-worker",
                     closeBundle() {

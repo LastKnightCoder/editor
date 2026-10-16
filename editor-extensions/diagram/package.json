@@ -12,7 +12,8 @@
     "./renderers": "./renderers.tsx",
     "./mermaid": "./src/renderers/mermaid-render-core.ts",
     "./abc": "./src/renderers/abc-html.ts",
-    "./plantuml": "./src/renderers/plantuml-source.ts"
+    "./plantuml": "./src/renderers/plantuml-source.ts",
+    "./tikz": "./src/renderers/TikZ/compile.ts"
   },
   "scripts": {
     "test": "vitest run",

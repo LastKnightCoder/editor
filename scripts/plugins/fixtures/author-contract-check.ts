@@ -2,6 +2,27 @@
 import { defineEditorElement, type EditorElementRenderProps } from "@tau/plugins";
 import type { PluginContext, PluginExcerptItem, PluginExcerptSource } from "@tau/plugins";
 
+export async function checkServices(context: PluginContext) {
+  const { nodes } = await context.services.markdown.deserialize("# 标题");
+  await context.services.markdown.serialize(nodes);
+  await context.services.markdown.render("**文字**");
+  await context.services.tailwind.compile({ source: '<div class="p-4" />', language: "tsx" });
+  await context.services.typst.compile({ source: "= 标题", format: "html" });
+  await context.services.tikz.compile({
+    source: "\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}",
+  });
+  const file = { name: "input.wav", data: new Blob() };
+  await context.services.ffmpeg.probe(file);
+  await context.services.ffmpeg.run(
+    {
+      files: [file],
+      args: ["-i", "input.wav", "out.wav"],
+      outputs: [{ name: "out.wav", mimeType: "audio/wav" }],
+    },
+    { onProgress: progress => void progress.time }
+  );
+}
+
 export async function checkExcerptContract(context: PluginContext) {
   const source: PluginExcerptSource = { key: "book-1", title: "示例书籍" };
   const item: PluginExcerptItem = { externalId: "book-1:note-1", quote: "示例划线" };

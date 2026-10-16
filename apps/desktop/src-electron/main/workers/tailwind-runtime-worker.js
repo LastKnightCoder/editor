@@ -40,7 +40,7 @@ async function runJob(job) {
   const content = job.content ?? "";
   const extension = normalizeExtension(job.extension);
   const nonce = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const tempFilePath = path.join(tempDir, `custom-block-${nonce}.${extension}`);
+  const tempFilePath = path.join(job.tempDir ?? tempDir, `custom-block-${nonce}.${extension}`);
   const normalizedPath = tempFilePath.replace(/\\/g, "/");
   const runtimeCss = `${buildBaseCss(job.themeCss)}\n@source "${normalizedPath}";\n`;
 
