@@ -109,7 +109,7 @@ export interface PaletteCommand {
     | "capture-event"
     | "toggle-assist"
     | "open-markdown"
-    | "export-project"
+    | "export-markdown"
     | "import-batch"
     | "export-perf-snapshot";
 }
@@ -227,14 +227,14 @@ export function paletteCommands(): PaletteCommand[] {
       action: "import-batch",
     },
     {
-      id: "action:export-project",
-      label: "导出项目…",
+      id: "action:export-markdown",
+      label: "导出为 Markdown 压缩包…",
       section: "动作",
       icon: PackageOpen,
       keywords:
-        "export zip markdown pdf epub backup migrate 导出 打包 压缩包 备份 迁移 迁出 项目 资源 图片",
+        "export zip markdown obsidian backup migrate 导出 打包 压缩包 备份 迁移 迁出 项目 文章 卡片 全部 资源 图片",
       kind: "action",
-      action: "export-project",
+      action: "export-markdown",
     },
     {
       id: "action:export-perf-snapshot",

@@ -172,7 +172,7 @@ it("从卡片页进入时目标锁定，拖入来源时挂载即扫描", async (
   mocks.scanImport.mockResolvedValue(makePlan());
   await act(async () =>
     root.render(
-      <ImportWizard request={{ target: "card", sourcePath: "/drop/x.zip" }} onClose={() => {}} />
+      <ImportWizard request={{ target: "card", sourcePath: "/drop/x.zip" }} onClose={vi.fn()} />
     )
   );
   expect(mocks.scanImport).toHaveBeenCalledTimes(1);
@@ -187,7 +187,7 @@ it("扫描失败与空来源原位提示，不能进入下一步", async () => {
   mocks.selectFile.mockResolvedValue(["/x"]);
   mocks.scanImport.mockRejectedValueOnce(new Error("文件超过 20000 个"));
   await act(async () =>
-    root.render(<ImportWizard request={{ target: "article" }} onClose={() => {}} />)
+    root.render(<ImportWizard request={{ target: "article" }} onClose={vi.fn()} />)
   );
   await click("选择文件夹");
   expect(document.querySelector('[role="alert"]')?.textContent).toBe("文件超过 20000 个");
@@ -203,7 +203,7 @@ it("来源格式显示识别结果，切换后用已读入的来源重新扫描"
   const plan = makePlan();
   mocks.scanImport.mockResolvedValue(plan);
   mocks.rescanImport.mockResolvedValue({ ...plan, dialect: "obsidian" });
-  await act(async () => root.render(<ImportWizard request={{}} onClose={() => {}} />));
+  await act(async () => root.render(<ImportWizard request={{}} onClose={vi.fn()} />));
   await click("选择文件夹");
   expect(button("通用 Markdown")?.getAttribute("aria-pressed")).toBe("true");
   expect(document.body.textContent).toContain("已自动识别");

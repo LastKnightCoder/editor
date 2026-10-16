@@ -226,12 +226,12 @@ export function SearchPalette() {
       closeAnd(() => void openMarkdownInNewWindow());
     } else if (action === "import-batch") {
       closeAnd(() => useTransferStore.getState().openImportWizard());
-    } else if (action === "export-project") {
+    } else if (action === "export-markdown") {
       // 在项目详情页唤起时直接导出当前项目，否则先选项目
       const current = pageState.back[pageState.back.length - 1];
       const projectId =
         current?.key === "project-detail" ? Number(current.params?.id) || undefined : undefined;
-      closeAnd(() => useTransferStore.getState().openProjectExport(projectId));
+      closeAnd(() => useTransferStore.getState().openMarkdownExport({ projectId }));
     } else if (action === "export-perf-snapshot") {
       // 快照路径由主进程统一发系统通知（与托盘入口同一提示通道）
       closeAnd(() => {

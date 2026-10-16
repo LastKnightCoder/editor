@@ -18,7 +18,7 @@ import { PageNavigationBridge } from "./PageNavigationBridge";
 import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
-import { ProjectExportHost } from "@/features/transfer/ProjectExportHost";
+import { MarkdownExportHost } from "@/features/transfer/MarkdownExportHost";
 import { ImportWizardHost } from "@/features/transfer/ImportWizardHost";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
@@ -207,8 +207,8 @@ function ShellLayout() {
       <SearchPalette />
       {/* 全窗口设置页（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}
       <SettingsScreen />
-      {/* 项目整体导出与批量导入向导（命令面板 / 设置 / 页面导入菜单入口，app/transferStore） */}
-      <ProjectExportHost />
+      {/* Markdown 导出与批量导入向导（命令面板 / 设置 / 页面导入菜单入口，app/transferStore） */}
+      <MarkdownExportHost />
       <ImportWizardHost />
       {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
       <NotificationHost onItemsChange={onNotificationItemsChange} />

@@ -27,7 +27,7 @@ vi.mock("@tau/ui", () => ({
 }));
 vi.mock("@/features/search/SearchPalette", () => ({ SearchPalette: () => null }));
 vi.mock("@/features/settings/SettingsScreen", () => ({ SettingsScreen: () => null }));
-vi.mock("@/features/transfer/ProjectExportHost", () => ({ ProjectExportHost: () => null }));
+vi.mock("@/features/transfer/MarkdownExportHost", () => ({ MarkdownExportHost: () => null }));
 vi.mock("@/features/transfer/ImportWizardHost", () => ({ ImportWizardHost: () => null }));
 vi.mock("@/features/search/searchStore", () => ({ useSearchStore: vi.fn() }));
 vi.mock("@/features/search/searchMeta", () => ({ isReplayableVisit: vi.fn() }));

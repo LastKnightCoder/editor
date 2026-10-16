@@ -19,6 +19,7 @@ import {
   defaultAssetIo,
   extensionOf,
   isPortableAssetSource,
+  isRemoteUrl,
   mapAssetUrls,
   readAssetBytes,
   type AssetIo,
@@ -66,7 +67,12 @@ const createUniqueAssetNamer = () => {
  */
 export const collectBundleAssets = async (
   contents: Descendant[][],
-  options: { io?: AssetIo; onProgress?: (processed: number, total: number) => void } = {}
+  options: {
+    io?: AssetIo;
+    onProgress?: (processed: number, total: number) => void;
+    /** 传入即同时打包远程资源：下载到本机缓存并返回本机路径 */
+    fetchRemote?: (url: string) => Promise<string>;
+  } = {}
 ): Promise<BundleAssets> => {
   const io = options.io ?? defaultAssetIo;
   const sources = [
@@ -74,7 +80,7 @@ export const collectBundleAssets = async (
       contents.flatMap(content =>
         collectAssetUrls(content)
           .map(ref => ref.url)
-          .filter(isPortableAssetSource)
+          .filter(url => isPortableAssetSource(url) || (!!options.fetchRemote && isRemoteUrl(url)))
       )
     ),
   ];
@@ -84,7 +90,9 @@ export const collectBundleAssets = async (
   const warnings: string[] = [];
   for (const [index, source] of sources.entries()) {
     try {
-      const { bytes, fileName } = await readAssetBytes(source, io);
+      const local =
+        options.fetchRemote && isRemoteUrl(source) ? await options.fetchRemote(source) : source;
+      const { bytes, fileName } = await readAssetBytes(local, io);
       const path = `${ASSET_DIR}/${nameAsset(toAssetFileName(fileName))}`;
       paths.set(source, path);
       files.push({ path, data: bytes });
@@ -122,13 +130,23 @@ export const relativeBundlePath = (fromDir: string[], toPath: string[]) => {
   return [...Array(fromDir.length - common).fill(".."), ...toPath.slice(common)].join("/");
 };
 
+/** 应用内链接的导出写法：相对 .md 链接（通用）/ [[文件名]]（Obsidian）/ 纯文字 */
+export type LinkStyle = "relative" | "wiki" | "text";
+
 export interface LocalizeOptions {
   assets: Map<string, string>;
   /** 当前文件所在目录（包内路径段），资源与链接据此算相对路径 */
   dir: string[];
   /** content-link 目标在包内时返回其包内路径段（含 .md 文件名），否则 null */
   resolveLink?: (ref: EntityRef) => string[] | null;
+  /** 缺省 relative；包外目标一律降为标题文字 */
+  linkStyle?: LinkStyle;
+  /** wiki 写法下文件名在包内是否唯一；不唯一时写包内完整路径 */
+  isUniqueStem?: (stem: string) => boolean;
 }
+
+const WIKI_SCHEME = "tau-wikilink:";
+const stemOfFile = (fileName: string) => fileName.replace(/\.md$/i, "");
 
 const textOf = (node: unknown): string => {
   if (!node || typeof node !== "object") return "";
@@ -143,14 +161,25 @@ const localizeLinks = (node: unknown, options: LocalizeOptions): unknown => {
   if (record.type === "content-link") {
     const title = String(record.contentTitle || "").trim() || textOf(record) || "未命名";
     const kind = normalizeEntityRefKind(record.contentType);
-    const target = kind ? options.resolveLink?.({ kind, id: Number(record.refId) }) : null;
-    return target
-      ? {
-          type: "link",
-          url: encodeMarkdownPath(relativeBundlePath(options.dir, target)),
-          children: [{ type: "formatted", text: title }],
-        }
-      : { type: "formatted", text: title };
+    const style = options.linkStyle ?? "relative";
+    const target =
+      kind && style !== "text" ? options.resolveLink?.({ kind, id: Number(record.refId) }) : null;
+    if (!target) return { type: "formatted", text: title };
+    if (style === "wiki") {
+      const stem = stemOfFile(target[target.length - 1]);
+      const name = options.isUniqueStem?.(stem) === false ? stemOfFile(target.join("/")) : stem;
+      // 占位链接，序列化后在 toPortableMarkdown 里换成 [[…]]（直接写文字会被转义）
+      return {
+        type: "link",
+        url: WIKI_SCHEME + encodeURIComponent(name),
+        children: [{ type: "formatted", text: title }],
+      };
+    }
+    return {
+      type: "link",
+      url: encodeMarkdownPath(relativeBundlePath(options.dir, target)),
+      children: [{ type: "formatted", text: title }],
+    };
   }
   if (!Array.isArray(record.children)) return record;
   return { ...record, children: record.children.map(child => localizeLinks(child, options)) };
@@ -165,8 +194,20 @@ export const localizeContent = (content: Descendant[], options: LocalizeOptions)
   return withAssets.map(node => localizeLinks(node, options) as Descendant);
 };
 
-export const toPortableMarkdown = (content: Descendant[], options: LocalizeOptions) =>
-  getMarkdown(localizeContent(content, options)).trim() + "\n";
+const WIKI_PLACEHOLDER_RE = /\[((?:\\.|[^\]\\])*)\]\(tau-wikilink:([^)\s]+)\)/g;
+
+/** 占位链接 → [[名称]] / [[名称|显示文字]]；显示文字里的 | ] 会截断维基链接，替换掉 */
+const restoreWikiLinks = (markdown: string) =>
+  markdown.replace(WIKI_PLACEHOLDER_RE, (_, rawText: string, rawName: string) => {
+    const text = rawText.replace(/\\(.)/g, "$1").replace(/[|\]]/g, " ").trim();
+    const name = decodeURIComponent(rawName);
+    return text && text !== name.split("/").pop() ? `[[${name}|${text}]]` : `[[${name}]]`;
+  });
+
+export const toPortableMarkdown = (content: Descendant[], options: LocalizeOptions) => {
+  const markdown = getMarkdown(localizeContent(content, options)).trim() + "\n";
+  return options.linkStyle === "wiki" ? restoreWikiLinks(markdown) : markdown;
+};
 
 export const zipBundle = async (files: BundleFile[]): Promise<Uint8Array> => {
   configureZip({ useWebWorkers: false });
