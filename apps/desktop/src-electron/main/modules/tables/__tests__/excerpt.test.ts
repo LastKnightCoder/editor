@@ -8,6 +8,8 @@ const input = (externalId: string, quote: string, extra: Partial<ExcerptInput> =
   externalId,
   quote,
   note: "",
+  location: "",
+  url: null,
   anchor: null,
   color: null,
   sourceTime: null,
@@ -101,5 +103,102 @@ describe("ExcerptTable", () => {
     expect(ExcerptTable.listActive(db)[0].anchor).toEqual(anchor);
     expect(ExcerptTable.deleteSource(db, "weread", "b1")).toBe(1);
     expect(ExcerptTable.listActive(db)).toEqual([]);
+  });
+
+  describe("插件提供方", () => {
+    const source = { key: "b1", title: "书", url: "https://example.com/b1" };
+    const ids = () =>
+      Object.fromEntries(
+        (
+          db.prepare("SELECT external_id, id FROM excerpt ORDER BY id").all() as {
+            external_id: string;
+            id: number;
+          }[]
+        ).map(row => [row.external_id, row.id])
+      );
+
+    it("快照覆盖与已有行合并：id 不变、条目缺省 url 取来源外链，字段顺序不同的 anchor 不算变化", () => {
+      ExcerptTable.syncSource(db, "weread", "b1", "书", [
+        input("b1:1", "甲", { anchor: { chapterUid: 1, range: "1-2" } }),
+      ]);
+      const before = ids();
+      expect(
+        ExcerptTable.replaceFromProvider(db, "weread", source, [
+          { externalId: "b1:1", quote: "甲", anchor: { range: "1-2", chapterUid: 1 } },
+          { externalId: "b1:2", quote: "乙", location: "第二章", url: "https://example.com/b1#2" },
+        ])
+      ).toEqual({ inserted: 1, updated: 1, deleted: 0 });
+      expect(ids()["b1:1"]).toBe(before["b1:1"]);
+      const [first, second] = ExcerptTable.listItemsOfProvider(db, "weread", "b1");
+      expect(first.url).toBe("https://example.com/b1");
+      expect(second).toMatchObject({ location: "第二章", url: "https://example.com/b1#2" });
+      expect(
+        ExcerptTable.replaceFromProvider(db, "weread", source, [
+          { externalId: "b1:1", quote: "甲", anchor: { chapterUid: 1, range: "1-2" } },
+          { externalId: "b1:2", quote: "乙", location: "第二章", url: "https://example.com/b1#2" },
+        ])
+      ).toEqual({ inserted: 0, updated: 0, deleted: 0 });
+    });
+
+    it("增量只改给出的条目，删除为软删除，来源改名同步其余条目", () => {
+      ExcerptTable.replaceFromProvider(db, "x.reader", source, [
+        { externalId: "1", quote: "甲" },
+        { externalId: "2", quote: "乙" },
+      ]);
+      expect(
+        ExcerptTable.patchFromProvider(
+          db,
+          "x.reader",
+          { ...source, title: "新书名" },
+          {
+            upsert: [{ externalId: "3", quote: "丙" }],
+            remove: ["1", "missing"],
+          }
+        )
+      ).toEqual({ inserted: 1, updated: 1, deleted: 1 });
+      const rows = ExcerptTable.listItemsOfProvider(db, "x.reader", "b1");
+      expect(rows.map(row => [row.externalId, row.sourceTitle, row.isDeleted])).toEqual([
+        ["1", "新书名", true],
+        ["2", "新书名", false],
+        ["3", "新书名", false],
+      ]);
+      expect(ExcerptTable.listSourcesOfProvider(db, "x.reader")).toEqual([
+        { key: "b1", title: "新书名", count: 2 },
+      ]);
+    });
+
+    it("来源类型隔离：只读写本提供方，内置名保留；非法参数整批拒绝不写库", () => {
+      ExcerptTable.syncSource(db, "web", "https://a.com", "A", [input("u1", "网页")]);
+      expect(ExcerptTable.listSourcesOfProvider(db, "x.reader")).toEqual([]);
+      expect(() => ExcerptTable.replaceFromProvider(db, "web", source, [])).toThrow("保留名");
+      expect(() => ExcerptTable.registerProvider(db, "web", "网页")).toThrow("保留名");
+      expect(() =>
+        ExcerptTable.replaceFromProvider(db, "x.reader", source, [
+          { externalId: "1", quote: "甲" },
+          { externalId: "1", quote: "重复" },
+        ])
+      ).toThrow("重复");
+      expect(() =>
+        ExcerptTable.replaceFromProvider(db, "x.reader", source, [
+          { externalId: "1", quote: "甲", url: "javascript:alert(1)" },
+        ])
+      ).toThrow("http(s)");
+      expect(() =>
+        ExcerptTable.patchFromProvider(db, "x.reader", source, {
+          upsert: [{ externalId: "1", quote: "甲" }],
+          remove: ["1"],
+        })
+      ).toThrow("同时");
+      expect(() => ExcerptTable.replaceFromProvider(db, "x.reader", { key: "" }, [])).toThrow();
+      expect(ExcerptTable.listSourcesOfProvider(db, "x.reader")).toEqual([]);
+    });
+
+    it("登记提供方名称：插入与改名", () => {
+      ExcerptTable.registerProvider(db, "x.reader", "阅读器");
+      ExcerptTable.registerProvider(db, "x.reader", "阅读器");
+      ExcerptTable.registerProvider(db, "x.reader", "新阅读器");
+      expect(ExcerptTable.providerLabels(db).get("x.reader")).toBe("新阅读器");
+      expect(() => ExcerptTable.registerProvider(db, "x.reader", " ")).toThrow("不能为空");
+    });
   });
 });

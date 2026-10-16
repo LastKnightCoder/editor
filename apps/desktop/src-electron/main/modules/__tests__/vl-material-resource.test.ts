@@ -19,6 +19,7 @@ describe("Notebook 外部材料资源", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(schema);
+    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
   });
   afterEach(() => db.close());
 
@@ -31,6 +32,8 @@ describe("Notebook 外部材料资源", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
       {
         externalId: "b1:2",
@@ -39,6 +42,8 @@ describe("Notebook 外部材料资源", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
     ]);
     const [a, b] = ExcerptTable.listActive(db);
@@ -50,6 +55,8 @@ describe("Notebook 外部材料资源", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
     ]);
     const markdown = buildMaterialResourceMarkdown(db, {
@@ -61,8 +68,8 @@ describe("Notebook 外部材料资源", () => {
       ],
     });
     expect(markdown).toBe(
-      "# 为什么 · 摘录\n\n> 土地财政\n\n想法\n\n—— 微信读书 · 《置身事内》\n\n---\n\n" +
-        "> 招商引资\n\n—— 微信读书 · 《置身事内》（原划线已删除）\n"
+      "# 为什么 · 摘录\n\n> 土地财政\n\n想法\n\n—— 微信读书 · 置身事内\n\n---\n\n" +
+        "> 招商引资\n\n—— 微信读书 · 置身事内（原划线已删除）\n"
     );
   });
 

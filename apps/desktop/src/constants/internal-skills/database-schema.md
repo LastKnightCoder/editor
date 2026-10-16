@@ -940,7 +940,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `excerpt`
 
-摘录：微信读书与浏览器插件的划线，一条一行；`is_deleted = 1` 表示源端已删除（保留原文）。
+摘录：外部来源的划线，一条一行，由提供方写入——`source_type` 为 `web`（浏览器插件网页划线）或插件 ID（如 `weread`）；`is_deleted = 1` 表示源端已删除（保留原文）。展示用提供方名称（`excerpt_provider.label`）· `source_title` · `location`；`anchor` 是提供方私有定位。
 
 | 字段           | SQLite 定义                         |
 | -------------- | ----------------------------------- |
@@ -957,6 +957,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time`  | `INTEGER NOT NULL`                  |
 | `update_time`  | `INTEGER NOT NULL`                  |
 | `is_deleted`   | `INTEGER NOT NULL DEFAULT 0`        |
+| `location`     | `TEXT NOT NULL DEFAULT ''`          |
+| `url`          | `TEXT`                              |
+
+### `excerpt_provider`
+
+摘录提供方名称，按 `source_type` 一行；插件停用或卸载后仍用于显示来源。
+
+| 字段          | SQLite 定义        |
+| ------------- | ------------------ |
+| `source_type` | `TEXT PRIMARY KEY` |
+| `label`       | `TEXT NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL` |
 
 ### `flashcard_decks`
 

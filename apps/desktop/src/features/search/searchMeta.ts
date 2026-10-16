@@ -33,7 +33,7 @@ import type { PluginHost } from "@tau/plugins/host";
 /** 内容实体类型 → 面板呈现（标签/类型色/图标）与跳转目标模块 */
 export const CONTENT_TYPES: Record<
   IndexType,
-  { label: string; navKey: string; tag: string; icon: LucideIcon }
+  { label: string; navKey?: string; tag: string; icon: LucideIcon }
 > = {
   card: { label: "卡片", navKey: "cards", tag: "bg-ok-soft text-ok", icon: Layers },
   article: { label: "文章", navKey: "articles", tag: "bg-info-soft text-info", icon: FileText },
@@ -44,8 +44,8 @@ export const CONTENT_TYPES: Record<
     icon: FolderKanban,
   },
   "diary-moment": { label: "日记", navKey: "diary", tag: "bg-warn-soft text-warn", icon: PenLine },
-  // 外部材料：命中后经 openMaterialTarget 打开到原处，navKey 只在无法定位时兜底
-  excerpt: { label: "划线", navKey: "weread", tag: "bg-tag-2-soft text-tag-2", icon: Highlighter },
+  // 外部材料：命中后经 openMaterialTarget 打开到原处，navKey 只在无法定位时兜底；摘录没有固定入口
+  excerpt: { label: "划线", tag: "bg-tag-2-soft text-tag-2", icon: Highlighter },
   "pdf-annotation": {
     label: "PDF 标注",
     navKey: "pdfs",

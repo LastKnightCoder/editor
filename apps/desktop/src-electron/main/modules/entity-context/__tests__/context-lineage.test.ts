@@ -101,6 +101,7 @@ const contextOf = (kind: "card" | "project-item", id: number) =>
 beforeEach(() => {
   mainDb = new Database(":memory:");
   mainDb.exec(MAIN_SQL);
+  mainDb.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
   indexDb = new Database(":memory:");
   indexDb.exec(INDEX_SQL);
 });
@@ -119,6 +120,8 @@ describe("来源与衍生", () => {
       anchor: { chapterUid: 1, chapterIdx: 1, chapterTitle: "第一章", range: "1-2" },
       color: null,
       sourceTime: null,
+      location: "第一章",
+      url: null,
     };
     ExcerptTable.syncSource(mainDb, "weread", "b1", "置身事内", [input]);
     const [excerpt] = ExcerptTable.listActive(mainDb);
@@ -134,11 +137,18 @@ describe("来源与衍生", () => {
         node: { kind: "excerpt", id: excerpt.id },
         relation: "excerpt_of",
         title: "地方政府的事权",
-        meta: "微信读书 · 《置身事内》 · 第一章",
+        meta: "微信读书 · 置身事内 · 第一章",
         missing: false,
         open: {
           page: "material",
-          target: { page: "weread-book", bookId: "b1", bookmark: "bm" },
+          target: {
+            page: "excerpt-provider",
+            sourceType: "weread",
+            sourceKey: "b1",
+            externalId: "b1:bm",
+            label: "微信读书",
+            url: null,
+          },
         },
       },
     ]);
@@ -147,7 +157,7 @@ describe("来源与衍生", () => {
     expect(contextOf("card", cardId).sources).toEqual([
       expect.objectContaining({
         title: "地方政府的事权",
-        meta: "微信读书 · 《置身事内》 · 第一章 · 原划线已删除",
+        meta: "微信读书 · 置身事内 · 第一章 · 原划线已删除",
         missing: false,
         open: null,
       }),

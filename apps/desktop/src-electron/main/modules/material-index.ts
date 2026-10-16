@@ -9,6 +9,7 @@
 import type Database from "better-sqlite3";
 import type { Descendant } from "slate";
 import type { Excerpt } from "@/entity/excerpt/types";
+import { excerptIndexHeader } from "@/entity/excerpt/display";
 import { MATERIAL_KINDS, type MaterialInfo, type MaterialKind } from "@/entity/material";
 import { pdfAnnotationNote, pdfAnnotationQuote } from "@/entity/pdf-annotation-text";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -39,16 +40,11 @@ const hostOf = (url: string) => {
 const joinLines = (...lines: string[]) => lines.filter(line => line.trim()).join("\n");
 
 export function excerptIndexText(excerpt: Excerpt): string {
-  const header =
-    excerpt.sourceType === "weread"
-      ? [
-          `《${excerpt.sourceTitle}》`,
-          excerpt.anchor && "chapterTitle" in excerpt.anchor ? excerpt.anchor.chapterTitle : "",
-        ]
-          .filter(Boolean)
-          .join(" › ")
-      : `${excerpt.sourceTitle || hostOf(excerpt.sourceKey)}（${hostOf(excerpt.sourceKey)}）`;
-  return joinLines(header, excerpt.quote, excerpt.note ? `想法：${excerpt.note}` : "");
+  return joinLines(
+    excerptIndexHeader(excerpt),
+    excerpt.quote,
+    excerpt.note ? `想法：${excerpt.note}` : ""
+  );
 }
 
 const parseContent = (raw: string | null): Descendant[] => {

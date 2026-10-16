@@ -2,11 +2,13 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha1::{Digest, Sha1};
 
 const MAIN_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/main.sql");
+const EXCERPT_PROVIDER_UPGRADE_SQL: &str =
+    include_str!("../../../../../packages/db-schema/schema/upgrades/excerpt-provider.sql");
 const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/index.sql");
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 7;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 8;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -310,11 +312,7 @@ fn migrate_v5_to_v6(conn: &Connection) -> Result<(), String> {
         )
         .unwrap_or(false);
     if !pending {
-        return set_meta(
-            conn,
-            "main_schema_version",
-            &MAIN_SCHEMA_VERSION.to_string(),
-        );
+        return set_meta(conn, "main_schema_version", "6");
     }
 
     let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
@@ -343,9 +341,42 @@ fn migrate_v5_to_v6(conn: &Connection) -> Result<(), String> {
     .map_err(|e| {
         format!("DB_SCHEMA_MIGRATION_FAILED: migrate cards.links to content_links: {e}")
     })?;
-    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    set_meta(&tx, "main_schema_version", "6")?;
     tx.commit()
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v5->v6: {e}"))
+}
+
+/// v7 → v8：摘录改由提供方驱动展示——excerpt 增加 location / url 两列，新增 excerpt_provider 名称表，
+/// 存量行按共享升级脚本回填（packages/db-schema/schema/upgrades/excerpt-provider.sql，桌面开库同一份）。
+/// 列已存在时跳过补列（桌面已升级过的库），脚本本身幂等。
+fn migrate_v7_to_v8(conn: &Connection) -> Result<(), String> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v7->v8: {e}"))?;
+    // 先按当前 schema 补齐缺失的表（含 excerpt_provider；更早版本的库可能还没有 excerpt）
+    tx.execute_batch(MAIN_SCHEMA_SQL)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: apply schema v8: {e}"))?;
+    let columns: Vec<String> = {
+        let mut stmt = tx
+            .prepare("SELECT name FROM pragma_table_info('excerpt')")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())?
+    };
+    for (name, definition) in [("location", "TEXT NOT NULL DEFAULT ''"), ("url", "TEXT")] {
+        if !columns.iter().any(|column| column == name) {
+            tx.execute_batch(&format!(
+                "ALTER TABLE excerpt ADD COLUMN {name} {definition}"
+            ))
+            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: add excerpt.{name}: {e}"))?;
+        }
+    }
+    tx.execute_batch(EXCERPT_PROVIDER_UPGRADE_SQL)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: backfill excerpt providers: {e}"))?;
+    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    tx.commit()
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v7->v8: {e}"))
 }
 
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
@@ -368,10 +399,13 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     if stored_version == 4 && has_user_tables(conn)? {
         migrate_v4_to_v5(conn)?;
         migrate_v5_to_v6(conn)?;
+        migrate_v7_to_v8(conn)?;
     } else if stored_version == 5 && has_user_tables(conn)? {
         migrate_v5_to_v6(conn)?;
-    } else if stored_version == 6 && has_user_tables(conn)? {
-        // 任务扩展仅新增表与索引，由下方统一 schema 演进事务补齐。
+        migrate_v7_to_v8(conn)?;
+    } else if (stored_version == 6 || stored_version == 7) && has_user_tables(conn)? {
+        // v6 的任务扩展仅新增表与索引，由 v8 迁移里的 schema 补齐一并完成。
+        migrate_v7_to_v8(conn)?;
     } else if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
         return Err(
             "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"

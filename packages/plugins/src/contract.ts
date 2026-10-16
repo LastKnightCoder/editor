@@ -2,6 +2,7 @@ import type { PluginPages } from "./pages";
 import type { PluginEditor } from "./editor";
 import type { PluginSettings } from "./settings";
 import type { PluginSidebar } from "./sidebar";
+import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 
 export type JsonValue =
   null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
@@ -33,6 +34,8 @@ export interface PluginContext {
   readonly editor: PluginEditor;
   readonly settings: PluginSettings;
   readonly sidebar: PluginSidebar;
+  readonly excerpts: PluginExcerpts;
+  readonly materials: PluginMaterials;
   readonly fetch: typeof globalThis.fetch;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;

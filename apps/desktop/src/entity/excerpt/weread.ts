@@ -20,7 +20,8 @@ const reviewText = (review: Review) => normalizeWeReadText(review.content || rev
 
 export function expandWeReadExcerpts(
   bookId: string,
-  chapters: ChapterHighlightReview[]
+  chapters: ChapterHighlightReview[],
+  url: string | null = null
 ): ExcerptInput[] {
   const result: ExcerptInput[] = [];
   for (const chapter of chapters) {
@@ -33,6 +34,8 @@ export function expandWeReadExcerpts(
         externalId: `${bookId}:${highlight.bookmarkId}`,
         quote,
         note: normalizeWeReadText(highlight.reviewContent),
+        location: chapterTitle || highlight.chapterTitle || "",
+        url,
         anchor: {
           chapterUid: highlight.chapterUid ?? chapter.chapterUid ?? 0,
           chapterIdx: highlight.chapterIdx ?? chapter.chapterIdx ?? 0,
@@ -59,6 +62,8 @@ export function expandWeReadExcerpts(
         externalId: `${bookId}:review:${review.reviewId}`,
         quote,
         note: text,
+        location: chapterTitle,
+        url,
         anchor: {
           chapterUid: review.chapterUid ?? chapter.chapterUid ?? 0,
           chapterIdx: chapter.chapterIdx ?? 0,

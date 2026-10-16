@@ -82,6 +82,7 @@ import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
 import { upgradeDataTableViewOptions } from "./data-table-view-options-upgrade";
 import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
+import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 import { getExtraTableRefsProvider } from "./extra-table-refs";
@@ -379,6 +380,9 @@ class DatabaseModule implements Module {
         log.info(`[database] 数据表视图配置收进 viewOptions: db=${name}, views=${upgradedViews}`);
 
       upgradeDiaryEntityReferences(database);
+
+      if (upgradeExcerptProviders(database))
+        log.info(`[database] 摘录补齐位置、外链与提供方: db=${name}`);
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();

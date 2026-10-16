@@ -11,6 +11,15 @@ import type {
   PluginSidebarGroupDefinition,
   PluginSidebarGroupHandle,
   PluginSidebarItemDefinition,
+  PluginExcerptChange,
+  PluginExcerptEntry,
+  PluginExcerptItem,
+  PluginExcerptProviderDefinition,
+  PluginExcerptSource,
+  PluginExcerptSourceSummary,
+  PluginExcerptSyncResult,
+  PluginMaterialAction,
+  PluginMaterialRef,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import {
@@ -51,6 +60,27 @@ export interface SidebarAdapter {
     definition: PluginSidebarItemDefinition,
     pageId: string
   ): Disposable;
+}
+
+/** 宿主负责命名空间（来源类型即插件 ID）与工作区绑定；参数已复制为 JSON。 */
+export interface ExcerptsAdapter {
+  register(context: PluginContext, definition: PluginExcerptProviderDefinition): Disposable;
+  replace(
+    context: PluginContext,
+    source: PluginExcerptSource,
+    items: PluginExcerptItem[]
+  ): Promise<PluginExcerptSyncResult>;
+  patch(
+    context: PluginContext,
+    source: PluginExcerptSource,
+    change: PluginExcerptChange
+  ): Promise<PluginExcerptSyncResult>;
+  sources(context: PluginContext): Promise<PluginExcerptSourceSummary[]>;
+  items(context: PluginContext, sourceKey: string): Promise<PluginExcerptEntry[]>;
+}
+
+export interface MaterialsAdapter {
+  actions(context: PluginContext, ref: PluginMaterialRef): Promise<PluginMaterialAction[]>;
 }
 
 export type PluginState =
@@ -110,6 +140,8 @@ export class PluginHost {
       editor?: EditorAdapter;
       settings?: SettingsAdapter;
       sidebar?: SidebarAdapter;
+      excerpts?: ExcerptsAdapter;
+      materials?: MaterialsAdapter;
       fetch?: typeof globalThis.fetch;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
       restartRequired?: Set<string>;
@@ -291,6 +323,19 @@ export class PluginHost {
       this.assertActive(entry, activation);
       assertLocalId(key);
     };
+    let excerptProvider: Disposable | undefined;
+    const excerptsAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.excerpts) throw new Error("当前宿主不支持摘录");
+      return this.options.excerpts;
+    };
+    const excerptWrite = async <T>(write: (adapter: ExcerptsAdapter) => Promise<T>) => {
+      const adapter = excerptsAdapter();
+      if (!excerptProvider) throw new Error("写入摘录前须先注册摘录提供方");
+      const result = await write(adapter);
+      this.assertActive(entry, activation);
+      return copyJson(result) as T;
+    };
     const context: PluginContext = {
       pluginId: scope.pluginId,
       workspaceId: scope.workspaceId,
@@ -394,6 +439,73 @@ export class PluginHost {
         delete: async (key: string) => {
           prepareStorage(key);
           await this.options.storage.delete(scope, key);
+        },
+      }),
+      excerpts: Object.freeze({
+        register: (definition: PluginExcerptProviderDefinition) => {
+          const adapter = excerptsAdapter();
+          if (excerptProvider) throw new Error("摘录提供方已注册");
+          if (typeof definition.label !== "string" || !definition.label.trim())
+            throw new Error("摘录提供方名称不能为空");
+          if (definition.open !== undefined && typeof definition.open !== "function")
+            throw new Error("摘录提供方 open 必须是函数");
+          const handle = adapter.register(context, Object.freeze({ ...definition }));
+          const owned = register({
+            dispose: () => {
+              if (excerptProvider === owned) excerptProvider = undefined;
+              return handle.dispose();
+            },
+          });
+          excerptProvider = owned;
+          return owned;
+        },
+        replace: (source: PluginExcerptSource, items: PluginExcerptItem[]) =>
+          excerptWrite(adapter =>
+            adapter.replace(
+              context,
+              copyJson(source) as unknown as PluginExcerptSource,
+              copyJson(items) as unknown as PluginExcerptItem[]
+            )
+          ),
+        patch: (source: PluginExcerptSource, change: PluginExcerptChange) =>
+          excerptWrite(adapter =>
+            adapter.patch(
+              context,
+              copyJson(source) as unknown as PluginExcerptSource,
+              copyJson(change) as unknown as PluginExcerptChange
+            )
+          ),
+        sources: async () => {
+          const result = await excerptsAdapter().sources(context);
+          this.assertActive(entry, activation);
+          return copyJson(result) as unknown as PluginExcerptSourceSummary[];
+        },
+        items: async (sourceKey: string) => {
+          if (typeof sourceKey !== "string" || !sourceKey) throw new Error("摘录来源无效");
+          const result = await excerptsAdapter().items(context, sourceKey);
+          this.assertActive(entry, activation);
+          return copyJson(result) as unknown as PluginExcerptEntry[];
+        },
+      }),
+      materials: Object.freeze({
+        actions: async (ref: PluginMaterialRef) => {
+          this.assertActive(entry, activation);
+          if (!this.options.materials) throw new Error("当前宿主不支持材料动作");
+          const actions = await this.options.materials.actions(
+            context,
+            copyJson(ref) as unknown as PluginMaterialRef
+          );
+          this.assertActive(entry, activation);
+          return actions.map(action =>
+            Object.freeze({
+              id: action.id,
+              label: action.label,
+              run: async () => {
+                this.assertActive(entry, activation);
+                await action.run();
+              },
+            })
+          );
         },
       }),
       sidebar: Object.freeze({
