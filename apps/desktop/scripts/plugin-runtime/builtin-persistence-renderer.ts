@@ -1,5 +1,8 @@
 import { PluginHost, createMemoryStorage } from "@tau/plugins/host";
-import { BuiltinPluginManager, builtinPluginStateKey } from "../../src/app/plugins/builtin-manager";
+import {
+  PluginActivationManager,
+  builtinPluginStateKey,
+} from "../../src/app/plugins/activation-manager";
 import { themePlugin } from "../../src/app/plugins/builtin/themePlugin";
 import { initThemeRuntime } from "@tau/themes/react";
 
@@ -11,7 +14,12 @@ async function verify(phase: string) {
   const stopTheme = initThemeRuntime();
   const host = new PluginHost({ workspaceId: phase, storage: createMemoryStorage() });
   host.registerTrusted(themePlugin);
-  const manager = new BuiltinPluginManager(host, [themePlugin.id], localStorage, () => undefined);
+  const manager = new PluginActivationManager(
+    host,
+    [themePlugin.id],
+    localStorage,
+    () => undefined
+  );
   const key = builtinPluginStateKey(themePlugin.id);
   try {
     await manager.restore();

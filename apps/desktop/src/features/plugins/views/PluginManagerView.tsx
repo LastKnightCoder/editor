@@ -5,7 +5,7 @@ import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import { useSettingsStore } from "@/app/settingsStore";
 import { PluginSettingsView } from "./PluginSettingsView";
-import { isElectron } from "@/electron";
+import { openPluginDirectory } from "@/commands/plugin-local";
 
 const labels: Record<PluginState, string> = {
   disabled: "已停用",
@@ -41,9 +41,7 @@ export function PluginManagerView() {
   if (!plugin)
     return (
       <div className="space-y-4">
-        {import.meta.env.DEV && isElectron && runtime.development && (
-          <DevelopmentPluginImport runtime={runtime} />
-        )}
+        {runtime.local && <LocalPluginDirectory runtime={runtime} />}
         {startupError && (
           <p role="alert" className="text-tau-body text-danger">
             {startupError}
@@ -124,14 +122,14 @@ export function PluginManagerView() {
   );
 }
 
-function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime }) {
+function LocalPluginDirectory({ runtime }: { runtime: DesktopPluginRuntime }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const choose = async () => {
+  const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
     setError("");
     try {
-      await runtime.development?.choose();
+      await action();
     } catch (error) {
       setError(error instanceof Error ? error.message : "读取插件失败");
     } finally {
@@ -141,17 +139,38 @@ function DevelopmentPluginImport({ runtime }: { runtime: DesktopPluginRuntime })
   return (
     <Panel>
       <p className="text-tau-body text-ink-2 mb-3">
-        开发插件与应用共享运行环境，仅选择你信任的代码。选择目录后默认停用，启用时才执行。
-        移除登记保留插件数据和作者目录。
+        将插件解压到下列目录，每个插件一个同名子目录，内含
+        manifest.json。启动时自动发现，新插件默认停用。
       </p>
-      <Button loading={busy} onClick={() => void choose()}>
-        选择开发插件目录
-      </Button>
-      {error && (
+      <p className="text-tau-meta text-ink-2 mb-3 break-all">
+        {runtime.local?.directory || "~/.editor/plugins"}
+      </p>
+      <div className="flex gap-2">
+        <Button disabled={busy} onClick={() => void run(openPluginDirectory)}>
+          打开插件目录
+        </Button>
+        <Button
+          loading={runtime.local?.busy()}
+          disabled={busy}
+          onClick={() =>
+            void run(async () => {
+              await runtime.local?.refresh();
+            })
+          }
+        >
+          刷新列表
+        </Button>
+      </div>
+      {(error || runtime.local?.scanError) && (
         <p role="alert" className="text-tau-meta text-danger mt-2">
-          {error}
+          {error || runtime.local?.scanError}
         </p>
       )}
+      {runtime.local?.issues.map(entry => (
+        <p key={entry.id} role="alert" className="text-tau-meta text-danger mt-2">
+          {entry.id}：{entry.error}
+        </p>
+      ))}
     </Panel>
   );
 }
@@ -162,17 +181,24 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
   const enabled =
     plugin.state === "active" ||
     runtime.development?.enabled(plugin.id) ||
+    runtime.local?.enabled(plugin.id) ||
     runtime.builtin?.enabled(plugin.id);
-  const managing = busy || runtime.development?.busy(plugin.id) || runtime.builtin?.busy(plugin.id);
+  const managing =
+    busy ||
+    runtime.development?.busy(plugin.id) ||
+    runtime.builtin?.busy(plugin.id) ||
+    runtime.local?.busy();
   const change = async () => {
     setBusy(true);
     setError("");
     try {
       const manager = runtime.development?.owns(plugin.id)
         ? runtime.development
-        : runtime.builtin?.owns(plugin.id)
-          ? runtime.builtin
-          : runtime.host;
+        : runtime.local?.owns(plugin.id)
+          ? runtime.local
+          : runtime.builtin?.owns(plugin.id)
+            ? runtime.builtin
+            : runtime.host;
       if (enabled) await manager.disable(plugin.id);
       else await manager.enable(plugin.id);
     } catch (error) {
@@ -193,7 +219,9 @@ function PluginActions({ runtime, plugin }: { runtime: DesktopPluginRuntime; plu
     }
   };
   const managementError =
-    runtime.development?.error(plugin.id) ?? runtime.builtin?.error(plugin.id);
+    runtime.development?.error(plugin.id) ??
+    runtime.builtin?.error(plugin.id) ??
+    (runtime.local?.owns(plugin.id) ? runtime.local.error(plugin.id) : undefined);
   const watching = runtime.development?.watching(plugin.id) ?? false;
   const toggleWatch = async () => {
     setBusy(true);

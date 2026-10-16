@@ -5,7 +5,7 @@ import type {
   DevelopmentBuildEvent,
 } from "@/types/plugin-development";
 import * as commands from "@/commands/plugin-development";
-import { registerDevelopmentPlugin, type SharedPluginModules } from "./development-loader";
+import { registerPluginPackage, type SharedPluginModules } from "./package-loader";
 
 export class DevelopmentPluginManager {
   private readonly records = new Map<string, RestoredDevelopmentPlugin>();
@@ -321,7 +321,7 @@ export class DevelopmentPluginManager {
   }
 
   private define(record: RestoredDevelopmentPlugin) {
-    if (record.artifact) registerDevelopmentPlugin(this.host, record.artifact, this.getModules);
+    if (record.artifact) registerPluginPackage(this.host, record.artifact, this.getModules);
     else
       this.host.registerTrusted({
         ...record.manifest,

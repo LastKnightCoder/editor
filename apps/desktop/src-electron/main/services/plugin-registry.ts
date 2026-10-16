@@ -6,7 +6,7 @@ import type {
   DevelopmentPluginRecord,
   RestoredDevelopmentPlugin,
 } from "@/types/plugin-development";
-import { readDevelopmentPlugin } from "./plugin-package";
+import { readPluginPackage } from "./plugin-package";
 
 interface Workspace {
   name: string;
@@ -181,7 +181,7 @@ export async function restoreDevelopmentPlugin(
   record: DevelopmentPluginRecord
 ): Promise<RestoredDevelopmentPlugin> {
   try {
-    const artifact = await readDevelopmentPlugin(record.directory);
+    const artifact = await readPluginPackage(record.directory);
     if (
       JSON.stringify(artifact.manifest) !== JSON.stringify(validatePluginManifest(record.manifest))
     )

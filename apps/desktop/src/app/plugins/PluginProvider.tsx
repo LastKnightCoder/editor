@@ -7,9 +7,8 @@ import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { useSettingsStore } from "../settingsStore";
 import { desktopFetch } from "@/commands/fetch";
 import { isElectron } from "@/electron";
-import { openDevelopmentPlugins, closeDevelopmentPlugins } from "@/commands/plugin-development";
+import { getPluginWorkspace } from "@/commands/plugin-local";
 import { migratePluginPreferences } from "./development-manager";
-import type { DevelopmentSession } from "@/types/plugin-development";
 import { themePlugin } from "./builtin/themePlugin";
 
 const restartRequired = new Set<string>();
@@ -27,6 +26,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     const onStorage = (event: StorageEvent) => {
       if (event.storageArea && event.storageArea !== window.localStorage) return;
       void current?.builtin?.restore(event.key);
+      void current?.local?.restore(event.key).catch(() => undefined);
     };
     const previousCleanup = pendingCleanup;
     const preparation = (
@@ -37,25 +37,14 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const plugins = [themePlugin];
         const composePluginEditor = modules?.composePluginEditor;
-        let session: DevelopmentSession | undefined;
-        if (import.meta.env.DEV && isElectron) {
-          session = await openDevelopmentPlugins(
-            workspaceId,
-            plugins.map(plugin => plugin.id)
-          );
-          if (cancelled) {
-            await closeDevelopmentPlugins(session.token);
-            return;
-          }
-          try {
-            migratePluginPreferences(window.localStorage, workspaceId, session.workspaceId);
-          } catch (error) {
-            await closeDevelopmentPlugins(session.token);
-            throw error;
-          }
-        }
+        const persistentWorkspaceId = isElectron
+          ? await getPluginWorkspace(workspaceId)
+          : workspaceId;
+        if (cancelled) return;
+        if (isElectron)
+          migratePluginPreferences(window.localStorage, workspaceId, persistentWorkspaceId);
         current = new DesktopPluginRuntime({
-          workspaceId: session?.workspaceId ?? workspaceId,
+          workspaceId: persistentWorkspaceId,
           navigator,
           storage: createBrowserStorage(window.localStorage),
           plugins,
@@ -65,12 +54,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           validateEditor: composePluginEditor,
           openSettings: key => useSettingsStore.getState().openSettings(key),
         });
-        const development = session ? current.attachDevelopment(session) : undefined;
+        const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         const builtin = current.attachBuiltins([themePlugin.id], window.localStorage);
         window.addEventListener("storage", onStorage);
         setRuntime(current);
         void builtin.restore();
-        if (development) void development.restore();
+        if (local) void local.refresh().catch(() => undefined);
       })
       .catch(error => {
         if (!cancelled) setError(error instanceof Error ? error.message : "插件初始化失败");

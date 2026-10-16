@@ -34,6 +34,7 @@ export function Harness({ session }: { session: DevelopmentSession }) {
       })
   );
   const [ready, setReady] = useState(false);
+  const [importError, setImportError] = useState("");
   useEffect(() => {
     const manager = runtime.attachDevelopment(session);
     void manager.restore().then(() => setReady(true));
@@ -88,6 +89,15 @@ export function Harness({ session }: { session: DevelopmentSession }) {
   });
   return (
     <PluginRuntimeContext.Provider value={runtime}>
+      <button
+        onClick={() => {
+          setImportError("");
+          void runtime.development?.choose().catch(error => setImportError(String(error)));
+        }}
+      >
+        选择开发插件目录
+      </button>
+      {importError && <p role="alert">{importError}</p>}
       <PageHost state={state} />
     </PluginRuntimeContext.Provider>
   );

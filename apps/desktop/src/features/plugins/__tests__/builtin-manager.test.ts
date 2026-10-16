@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { definePlugin } from "@tau/plugins";
 import { PluginHost, createMemoryStorage } from "@tau/plugins/host";
-import { BuiltinPluginManager, builtinPluginStateKey } from "@/app/plugins/builtin-manager";
+import { PluginActivationManager, builtinPluginStateKey } from "@/app/plugins/activation-manager";
 
 const hosts: PluginHost[] = [];
 function preferences() {
@@ -40,7 +40,7 @@ function setup(
       })
     );
   const notify = vi.fn();
-  const manager = new BuiltinPluginManager(host, ["core.a", "core.b"], store, notify);
+  const manager = new PluginActivationManager(host, ["core.a", "core.b"], store, notify);
   return { host, manager, creates, notify };
 }
 afterEach(async () => {
@@ -175,7 +175,7 @@ it("只恢复已装配内置 ID，按单键更新并支持清空偏好", async (
   const { manager, host } = setup(store);
   await manager.restore();
   expect(host.listCommands()).toEqual([]);
-  await expect(manager.enable("unknown")).rejects.toThrow("不是内置插件");
+  await expect(manager.enable("unknown")).rejects.toThrow("不是受管插件");
   await manager.enable("core.a");
   await manager.enable("core.b");
   store.values.set(builtinPluginStateKey("core.a"), "false");

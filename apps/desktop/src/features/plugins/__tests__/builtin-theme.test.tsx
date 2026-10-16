@@ -9,7 +9,7 @@ import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { PluginManagerView } from "../views/PluginManagerView";
 import { pluginPaletteCommands } from "@/features/search/searchMeta";
 import { useSettingsStore } from "@/app/settingsStore";
-import { builtinPluginStateKey } from "@/app/plugins/builtin-manager";
+import { builtinPluginStateKey } from "@/app/plugins/activation-manager";
 
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
@@ -24,9 +24,15 @@ vi.mock("@/commands/plugin-development", () => ({
   closeDevelopmentPlugins: vi.fn(),
 }));
 vi.mock("@/commands/fetch", () => ({ desktopFetch: vi.fn() }));
+vi.mock("@/commands/plugin-local", () => ({
+  getPluginWorkspace: vi.fn(async (name: string) => name),
+  scanLocalPlugins: vi.fn(async () => ({ directory: "/test/.editor/plugins", entries: [] })),
+  openPluginDirectory: vi.fn(),
+}));
 vi.mock("@/electron", () => ({ isElectron: true }));
 import useSettingStore from "@/stores/useSettingStore";
 import { openDevelopmentPlugins } from "@/commands/plugin-development";
+import { getPluginWorkspace, scanLocalPlugins, openPluginDirectory } from "@/commands/plugin-local";
 
 let runtime: DesktopPluginRuntime | null;
 let root: Root;
@@ -72,6 +78,10 @@ async function remount() {
 }
 beforeEach(async () => {
   vi.stubEnv("DEV", false);
+  vi.mocked(scanLocalPlugins).mockResolvedValue({
+    directory: "/test/.editor/plugins",
+    entries: [],
+  });
   localStorage.clear();
   runtime = null;
   useSettingStore.setState(state => ({
@@ -99,6 +109,14 @@ it("正式构建装配内置插件，管理启停与命令面板真实修改同�
   ).toEqual(["core.theme"]);
   expect(getRuntime().development).toBeUndefined();
   expect(openDevelopmentPlugins).not.toHaveBeenCalled();
+  expect(getPluginWorkspace).toHaveBeenCalledWith("A");
+  expect(scanLocalPlugins).toHaveBeenCalled();
+  expect(container.textContent).not.toContain("选择开发插件目录");
+  await click("打开插件目录");
+  expect(openPluginDirectory).toHaveBeenCalledOnce();
+  const scans = vi.mocked(scanLocalPlugins).mock.calls.length;
+  await click("刷新列表");
+  expect(vi.mocked(scanLocalPlugins).mock.calls.length).toBe(scans + 1);
   expect(getRuntime().host.listCommands()).toEqual([]);
   await click("启用");
   const commands = pluginPaletteCommands(getRuntime().host);
@@ -219,12 +237,6 @@ it("损坏记录在管理入口显示错误，用户启用后修复并可恢复"
 
 it("开发构建也只默认装配主题插件，不自动添加验证样本", async () => {
   vi.stubEnv("DEV", true);
-  vi.mocked(openDevelopmentPlugins).mockResolvedValue({
-    token: "dev-test",
-    workspaceId: "dev-A",
-    plugins: [],
-    skipStartup: false,
-  });
   await remount();
   await act(async () => {
     await vi.dynamicImportSettled();
@@ -234,5 +246,58 @@ it("开发构建也只默认装配主题插件，不自动添加验证样本", a
       .host.listPlugins()
       .map(plugin => plugin.id)
   ).toEqual(["core.theme"]);
-  expect(openDevelopmentPlugins).toHaveBeenCalledWith("A", ["core.theme"]);
+  expect(openDevelopmentPlugins).not.toHaveBeenCalled();
+  expect(scanLocalPlugins).toHaveBeenCalled();
+});
+
+it("正式 Provider 启动发现本地包，管理启用后重建恢复，刷新移除缺失目录", async () => {
+  vi.mocked(scanLocalPlugins).mockResolvedValue({
+    directory: "/test/.editor/plugins",
+    entries: [
+      {
+        id: "test.local",
+        directory: "/test/.editor/plugins/test.local",
+        artifact: {
+          manifest: {
+            formatVersion: 1,
+            apiVersion: 1,
+            platform: "desktop",
+            format: "cjs",
+            id: "test.local",
+            name: "本地插件",
+            version: "1.0.0",
+            main: "main.js",
+            integrity: { "main.js": "a".repeat(64) },
+          },
+          code: "module.exports.default=require('@tau/plugins').definePlugin({id:'test.local',name:'本地插件',version:'1.0.0',create:()=>({activate(ctx){ctx.commands.register({id:'run',title:'本地执行',run:()=>42});}})});",
+        },
+      },
+    ],
+  });
+  await remount();
+  expect(getRuntime().host.getState("test.local")).toBe("disabled");
+  expect(getRuntime().host.listCommands()).toEqual([]);
+  const enable = container.querySelector<HTMLButtonElement>('button[aria-label="启用 本地插件"]');
+  if (!enable) throw new Error("未显示本地插件启用入口");
+  await act(async () => {
+    enable.click();
+    await vi.dynamicImportSettled();
+  });
+  expect(await getRuntime().host.executeCommand("test.local:run")).toBe(42);
+  await remount();
+  await act(async () => {
+    await vi.dynamicImportSettled();
+  });
+  expect(getRuntime().host.getState("test.local")).toBe("active");
+  vi.mocked(scanLocalPlugins).mockResolvedValue({
+    directory: "/test/.editor/plugins",
+    entries: [],
+  });
+  await click("刷新列表");
+  expect(
+    getRuntime()
+      .host.listPlugins()
+      .some(plugin => plugin.id === "test.local")
+  ).toBe(false);
+  expect(getRuntime().host.listCommands()).toEqual([]);
 });

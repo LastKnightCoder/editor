@@ -1,13 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
-import { readDevelopmentPlugin } from "../services/plugin-package";
-import {
-  DevelopmentPluginRegistry,
-  pluginWorkspaceName,
-  restoreDevelopmentPlugin,
-} from "../services/plugin-registry";
+import { readPluginPackage } from "../services/plugin-package";
+import { pluginWorkspaceName, restoreDevelopmentPlugin } from "../services/plugin-registry";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { PluginBuildWatcher } from "../services/plugin-build-watcher";
+import { getPluginRegistry } from "../services/plugin-workspaces";
 import type {
   DevelopmentPluginRecord,
   RestoredDevelopmentPlugin,
@@ -30,11 +27,7 @@ export default {
   name: "plugin-development",
   async init() {
     const sessions = new Map<number, Session>();
-    let registry: DevelopmentPluginRegistry | undefined;
-    const store = () =>
-      (registry ??= new DevelopmentPluginRegistry(
-        path.join(app.getPath("userData"), "plugin-development", "registry.json")
-      ));
+    const store = getPluginRegistry;
     const windowFor = (event: Electron.IpcMainInvokeEvent) => {
       if (app.isPackaged || !process.env.VITE_DEV_SERVER_URL)
         throw new Error("外部开发插件仅在桌面开发环境可用");
@@ -108,7 +101,7 @@ export default {
       if (result.canceled || !result.filePaths[0]) return null;
       const session = sessionFor(event, token);
       const directory = result.filePaths[0];
-      const artifact = await readDevelopmentPlugin(directory);
+      const artifact = await readPluginPackage(directory);
       sessionFor(event, token);
       if (session.reserved.includes(artifact.manifest.id)) throw new Error("插件已注册为内置样本");
       const record = await store().add(session.workspaceId, {
@@ -159,7 +152,7 @@ export default {
           sessionFor(event, token);
           if (result.canceled || !result.filePaths[0]) return null;
           directory = result.filePaths[0];
-          artifact = await readDevelopmentPlugin(directory);
+          artifact = await readPluginPackage(directory);
         }
         sessionFor(event, token);
         if (artifact.manifest.id !== id) throw new Error("新构建的插件 ID 与当前插件不一致");
