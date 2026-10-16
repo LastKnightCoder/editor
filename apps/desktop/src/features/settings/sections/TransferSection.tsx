@@ -29,6 +29,7 @@ const recordMeta = (record: ImportRecord) =>
     }),
     record.target === "project" ? `${record.docCount} 篇` : "",
     `${record.assetCount} 个资源`,
+    record.databaseIds?.length ? `${record.databaseIds.length} 个数据库` : "",
     record.stopped ? "未完成" : "",
     record.warnings.length > 0 ? `${record.warnings.length} 条提醒` : "",
   ]
@@ -133,8 +134,8 @@ export function TransferSection() {
         context={undoing ? recordTitle(undoing) : undefined}
         description={
           undoing?.target === "project"
-            ? "将删除这次导入建出的项目及其全部文档，导入后做的修改也会一并删除。"
-            : "将删除这次导入的全部内容，导入后做的修改也会一并删除。"
+            ? `将删除这次导入建出的项目及其全部文档${undoing.databaseIds?.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
+            : `将删除这次导入的全部内容${undoing?.databaseIds?.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
         }
         impact="已上传的图片与附件文件保留"
         confirmText="撤销导入"

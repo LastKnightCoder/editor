@@ -19,6 +19,8 @@ export interface TransferSource {
   rootPath: string;
   /** 全部文件的相对路径（已排除隐藏目录与系统垃圾文件） */
   files: string[];
+  /** 根目录下被跳过的隐藏条目名（.obsidian 等），供方言识别 */
+  markers: string[];
   has: (relativePath: string) => boolean;
   readBytes: (relativePath: string) => Promise<Uint8Array>;
   readText: (relativePath: string) => Promise<string>;
@@ -71,11 +73,15 @@ export const openFolderSource = async (
   deps: SourceDeps = defaultDeps
 ): Promise<TransferSource> => {
   const files: string[] = [];
+  const markers: string[] = [];
   const absoluteOf = new Map<string, string>();
   const walk = async (dirPath: string, prefix: string) => {
     const entries = await deps.readDirectory(dirPath);
     for (const entry of entries) {
-      if (isIgnoredSegment(entry.name, entry.isDirectory)) continue;
+      if (isIgnoredSegment(entry.name, entry.isDirectory)) {
+        if (!prefix) markers.push(entry.name);
+        continue;
+      }
       const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory) {
         await walk(entry.path, relative);
@@ -100,6 +106,7 @@ export const openFolderSource = async (
     name: await deps.getFileBaseName(rootPath),
     rootPath,
     files,
+    markers,
     has: path => absoluteOf.has(path),
     readBytes,
     readText: async path => decoder.decode(await readBytes(path)),
@@ -116,10 +123,15 @@ export const openZipSource = async (
   await reader.close();
 
   const byPath = new Map<string, (typeof entries)[number]>();
+  const ignoredPaths: string[] = [];
   for (const entry of entries) {
-    if (entry.directory) continue;
     const path = normalizeRelativePath(entry.filename);
-    if (!path || isIgnoredPath(path)) continue;
+    if (!path) continue;
+    if (isIgnoredPath(path)) {
+      ignoredPaths.push(path);
+      continue;
+    }
+    if (entry.directory) continue;
     if (byPath.size >= MAX_SOURCE_FILES) {
       throw new Error(`压缩包内文件超过 ${MAX_SOURCE_FILES} 个`);
     }
@@ -132,6 +144,14 @@ export const openZipSource = async (
   const strip =
     roots.size === 1 && files.every(path => path.includes("/")) ? `${[...roots][0]}/` : "";
   if (strip) files = files.map(path => path.slice(strip.length));
+  const markers = [
+    ...new Set(
+      ignoredPaths
+        .filter(path => !strip || path.startsWith(strip))
+        .map(path => path.slice(strip.length).split("/")[0])
+        .filter(Boolean)
+    ),
+  ];
 
   const readBytes = async (relativePath: string) => {
     const entry = byPath.get(strip + relativePath);
@@ -144,6 +164,7 @@ export const openZipSource = async (
     name: strip ? strip.slice(0, -1) : zipName,
     rootPath: zipPath,
     files,
+    markers,
     has: path => byPath.has(strip + path),
     readBytes,
     readText: async path => decoder.decode(await readBytes(path)),

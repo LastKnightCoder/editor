@@ -46,6 +46,7 @@ const memorySource = (files: Record<string, string>, kind: "folder" | "zip" = "f
     name: "vault",
     rootPath: "/vault",
     files: Object.keys(files),
+    markers: [],
     has: path => path in files,
     readBytes: async path => encoder.encode(files[path]),
     readText: async path => files[path],
@@ -88,6 +89,10 @@ const fakeDeps = () => {
     },
     updateContent: async (contentId, content) => {
       updates.set(contentId, content);
+    },
+    createDatabase: async ({ title, headers, rows }) => {
+      calls.push(`database:${title}[${headers.join(",")}]x${rows.length}`);
+      return 500;
     },
   };
   return { deps, calls, updates };
@@ -233,7 +238,8 @@ describe("执行", () => {
         target: "project",
         projectTitle: "我的库",
         selected: new Set(plan.docs.map(doc => doc.key)),
-        useFrontmatterTags: true,
+        useSourceTags: true,
+        importTables: false,
       },
       deps
     );
@@ -273,7 +279,8 @@ describe("执行", () => {
         target: "article",
         projectTitle: "",
         selected: new Set([principle.key, essay.key]),
-        useFrontmatterTags: true,
+        useSourceTags: true,
+        importTables: false,
       },
       deps
     );
@@ -291,7 +298,13 @@ describe("执行", () => {
     const { deps, calls } = fakeDeps();
     await runImport(
       plan,
-      { target: "card", projectTitle: "", selected: new Set([0]), useFrontmatterTags: false },
+      {
+        target: "card",
+        projectTitle: "",
+        selected: new Set([0]),
+        useSourceTags: false,
+        importTables: false,
+      },
       deps
     );
     expect(calls).toEqual(["card[a/b]"]);
@@ -307,7 +320,8 @@ describe("执行", () => {
         target: "card",
         projectTitle: "",
         selected: new Set(plan.docs.map(d => d.key)),
-        useFrontmatterTags: false,
+        useSourceTags: false,
+        importTables: false,
       },
       deps,
       {
@@ -323,7 +337,13 @@ describe("执行", () => {
     controller.abort();
     const canceled = await runImport(
       plan,
-      { target: "card", projectTitle: "", selected: new Set([0]), useFrontmatterTags: false },
+      {
+        target: "card",
+        projectTitle: "",
+        selected: new Set([0]),
+        useSourceTags: false,
+        importTables: false,
+      },
       fakeDeps().deps,
       { signal: controller.signal }
     );
@@ -340,7 +360,13 @@ describe("执行", () => {
     deps.upload = async () => null;
     const result = await runImport(
       plan,
-      { target: "card", projectTitle: "", selected: new Set([0]), useFrontmatterTags: false },
+      {
+        target: "card",
+        projectTitle: "",
+        selected: new Set([0]),
+        useSourceTags: false,
+        importTables: false,
+      },
       deps
     );
     expect(result.assetCount).toBe(0);

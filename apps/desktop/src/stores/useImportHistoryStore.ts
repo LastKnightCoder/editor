@@ -18,6 +18,8 @@ export interface ImportRecord {
   projectTitle?: string;
   /** 文章或卡片 id */
   entityIds: number[];
+  /** CSV 建出的数据库 id（旧记录缺省） */
+  databaseIds?: number[];
   docCount: number;
   assetCount: number;
   linkCount: number;

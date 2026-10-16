@@ -10,7 +10,7 @@ import { Button, ConfirmDialog, Dialog, Input, Switch, cn, toast } from "@tau/ui
 import { selectFile } from "@/commands";
 import { CheckTree, type CheckTreeTag } from "@/components/CheckTree";
 import { usePage } from "@/page/PageProvider";
-import { executeImport, scanImport, undoImport } from "@/services/batch-import";
+import { executeImport, rescanImport, scanImport, undoImport } from "@/services/batch-import";
 import useSettingStore from "@/stores/useSettingStore";
 import { useImportHistoryStore } from "@/stores/useImportHistoryStore";
 import { PROVIDER_LABELS } from "@/features/settings/sections/ResourceSection";
@@ -24,6 +24,7 @@ import {
   type PlanDoc,
   type PlanNode,
 } from "@/utils/content-transfer/batch-import";
+import { DIALECTS, type DialectKey } from "@/utils/content-transfer/dialects";
 
 const TARGETS: Array<{ key: ImportTarget; label: string; hint: string; icon: LucideIcon }> = [
   { key: "project", label: "项目", hint: "保持目录树，文件夹成为分组文档", icon: FolderKanban },
@@ -37,7 +38,10 @@ const PHASES: Array<{ key: ImportPhase; label: string }> = [
   { key: "assets", label: "上传资源" },
   { key: "docs", label: "创建文档" },
   { key: "links", label: "回填内部链接" },
+  { key: "tables", label: "导入表格" },
 ];
+
+const DIALECT_ORDER: DialectKey[] = ["generic", "obsidian", "notion", "logseq"];
 
 interface TreeItem {
   id: number;
@@ -96,6 +100,28 @@ function Stat({
   );
 }
 
+function ToggleRow({
+  title,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  hint: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="border-line-1 rounded-tau-md flex items-center gap-3 border px-3.5 py-2.5">
+      <div className="min-w-0 flex-1">
+        <div className="text-ink-1 text-tau-body font-medium">{title}</div>
+        <div className={hintClass}>{hint}</div>
+      </div>
+      <Switch size="sm" checked={checked} aria-label={title} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
 type Step = "source" | "preview" | "running" | "done";
 
 export function ImportWizard({
@@ -114,7 +140,10 @@ export function ImportWizard({
   const [scanError, setScanError] = useState<string>();
   const [projectTitle, setProjectTitle] = useState("");
   const [checkedKeys, setCheckedKeys] = useState<number[]>([]);
-  const [useFrontmatterTags, setUseFrontmatterTags] = useState(true);
+  const [useSourceTags, setUseSourceTags] = useState(true);
+  const [importTables, setImportTables] = useState(true);
+  /** 用户手动选的来源格式；null = 用自动识别结果 */
+  const [dialectOverride, setDialectOverride] = useState<DialectKey | null>(null);
   const [progress, setProgress] = useState<{
     phase: ImportPhase;
     done: number;
@@ -127,13 +156,15 @@ export function ImportWizard({
   const abortRef = useRef<AbortController | null>(null);
   const startedRef = useRef(false);
 
-  const scan = async (path: string) => {
+  const runScan = async (
+    scanner: (onProgress: (done: number, total: number) => void) => Promise<ImportPlan>
+  ) => {
     const scanId = ++scanIdRef.current;
     setPlan(null);
     setScanError(undefined);
     setScanning({ done: 0, total: 0 });
     try {
-      const next = await scanImport(path, (done, total) => {
+      const next = await scanner((done, total) => {
         if (scanId === scanIdRef.current) setScanning({ done, total });
       });
       if (scanId !== scanIdRef.current) return;
@@ -148,6 +179,18 @@ export function ImportWizard({
     } finally {
       if (scanId === scanIdRef.current) setScanning(null);
     }
+  };
+
+  const scan = (path: string) => {
+    setDialectOverride(null);
+    return runScan(onProgress => scanImport(path, onProgress));
+  };
+
+  const switchDialect = (dialect: DialectKey) => {
+    if (!plan || dialect === plan.dialect) return;
+    const source = plan.source;
+    setDialectOverride(dialect);
+    void runScan(onProgress => rescanImport(source, dialect, onProgress));
   };
 
   // 拖入时来源已知，挂载即扫描（ref 防 StrictMode 重放）
@@ -184,7 +227,8 @@ export function ImportWizard({
         target,
         projectTitle: projectTitle.trim() || plan.source.name,
         selected,
-        useFrontmatterTags,
+        useSourceTags,
+        importTables: importTables && plan.tables.length > 0,
       },
       {
         signal: controller.signal,
@@ -238,6 +282,7 @@ export function ImportWizard({
                 </div>
                 <div className={hintClass}>
                   {plan.docs.length} 个 Markdown · {plan.assets.size} 个被引用的资源
+                  {plan.tables.length > 0 && ` · ${plan.tables.length} 个 CSV 表格`}
                   {plan.otherFileCount > 0 && ` · ${plan.otherFileCount} 个其它文件不导入`}
                 </div>
               </>
@@ -278,6 +323,36 @@ export function ImportWizard({
           </p>
         )}
       </section>
+
+      {plan && (
+        <section className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className={labelClass}>来源格式</span>
+            <span className={hintClass}>
+              {dialectOverride ? "已手动指定" : "已自动识别"}，换一种会重新扫描
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {DIALECT_ORDER.map(key => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={plan.dialect === key}
+                disabled={!!scanning}
+                onClick={() => switchDialect(key)}
+                className={cn(
+                  "text-tau-sm rounded-full border px-3 py-0.5",
+                  plan.dialect === key
+                    ? "border-accent bg-accent-soft text-accent-text"
+                    : "border-line-1 text-ink-2 hover:bg-hover"
+                )}
+              >
+                {DIALECTS[key].label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <span className={labelClass}>导入为</span>
@@ -366,29 +441,33 @@ export function ImportWizard({
             `；${summary.unresolvedLinkCount} 处指向本批之外，保留为普通链接`}
         </Stat>
         {target !== "project" && (
-          <div className="border-line-1 rounded-tau-md flex items-center gap-3 border px-3.5 py-2.5">
-            <div className="min-w-0 flex-1">
-              <div className="text-ink-1 text-tau-body font-medium">frontmatter 标签</div>
-              <div className={hintClass}>
-                tags 字段写进{target === "card" ? "卡片" : "文章"}标签
-              </div>
-            </div>
-            <Switch
-              size="sm"
-              checked={useFrontmatterTags}
-              aria-label="frontmatter 标签"
-              onCheckedChange={setUseFrontmatterTags}
-            />
-          </div>
+          <ToggleRow
+            title="原有标签"
+            hint={`frontmatter tags、正文 #标签写进${target === "card" ? "卡片" : "文章"}标签`}
+            checked={useSourceTags}
+            onCheckedChange={setUseSourceTags}
+          />
+        )}
+        {plan.tables.length > 0 && (
+          <ToggleRow
+            title={`${plan.tables.length} 个表格`}
+            hint={`CSV 导入为数据库（${plan.tables.map(table => table.title).join("、")}），列均为文本`}
+            checked={importTables}
+            onCheckedChange={setImportTables}
+          />
         )}
       </div>
     </div>
   );
 
+  const phases = PHASES.filter(
+    phase => phase.key !== "tables" || (importTables && (plan?.tables.length ?? 0) > 0)
+  );
+
   const runningStep = (
     <div className="flex flex-col gap-3 px-6 pb-6 pt-4">
-      {PHASES.map((phase, index) => {
-        const currentIndex = progress ? PHASES.findIndex(p => p.key === progress.phase) : 0;
+      {phases.map((phase, index) => {
+        const currentIndex = progress ? phases.findIndex(p => p.key === progress.phase) : 0;
         const state = index < currentIndex ? "done" : index === currentIndex ? "active" : "pending";
         return (
           <div key={phase.key} className="flex flex-col gap-1.5">
@@ -437,6 +516,8 @@ export function ImportWizard({
       </p>
       <p className={hintClass}>
         {outcome.result.assetCount} 个资源已入库 · {outcome.result.linkCount} 处链接已转为应用内链接
+        {outcome.result.databaseIds.length > 0 &&
+          ` · ${outcome.result.databaseIds.length} 个表格已导入为数据库`}
         {outcome.result.error && `；原因：${outcome.result.error}`}
       </p>
       {outcome.result.warnings.length > 0 && (
@@ -486,7 +567,7 @@ export function ImportWizard({
         <Button
           variant="primary"
           size="sm"
-          disabled={!summary || summary.docCount === 0}
+          disabled={!summary || (summary.docCount === 0 && !(importTables && plan?.tables.length))}
           onClick={() => void run()}
         >
           导入 {summary?.docCount ?? 0} {unit}
@@ -551,8 +632,8 @@ export function ImportWizard({
         title="撤销本次导入"
         description={
           outcome?.result.target === "project"
-            ? "将删除导入建出的项目及其全部文档，导入后做的修改也会一并删除。"
-            : `将删除本次导入的 ${outcome?.result.docCount ?? 0} ${TARGET_UNIT[outcome?.result.target ?? "article"]}内容，导入后做的修改也会一并删除。`
+            ? `将删除导入建出的项目及其全部文档${outcome.result.databaseIds.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
+            : `将删除本次导入的 ${outcome?.result.docCount ?? 0} ${TARGET_UNIT[outcome?.result.target ?? "article"]}内容${outcome?.result.databaseIds.length ? "与数据库" : ""}，导入后做的修改也会一并删除。`
         }
         impact="已上传的图片与附件文件保留"
         confirmText="撤销导入"
