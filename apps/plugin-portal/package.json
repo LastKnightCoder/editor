@@ -7,6 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
+    "ops": "node infra/ops.mjs",
     "dev:api": "wrangler dev --config infra/wrangler.jsonc",
     "db:local": "wrangler d1 migrations apply plugin-portal --local --config infra/wrangler.jsonc",
     "check": "pnpm check:api && pnpm check:web",
