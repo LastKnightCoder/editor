@@ -29,8 +29,8 @@ import {
   updateArticleBannerBg,
   createArticle as createArticleCommand,
 } from "@/commands/article";
-import { getFileBaseName, readTextFile, readBinaryFile, selectFile } from "@/commands";
-import { getMarkdown, downloadMarkdown, importFromMarkdown, getContentLength } from "@/utils";
+import { getFileBaseName, readBinaryFile, selectFile } from "@/commands";
+import { getContentLength } from "@/utils";
 import type { Descendant } from "slate";
 import type { ArticlePageItem } from "@/types";
 import { LayoutMenu } from "@/features/shared/list/ListControls";
@@ -40,6 +40,7 @@ import { ArticleListRows } from "../components/ArticleListRows";
 import type { ArticleItemActions } from "../components/ArticleItemOps";
 import { ArticleCard, formatWords } from "./ArticleCard";
 import { articleMorphKey } from "../morph";
+import { exportContentAsMarkdown, importMarkdownFiles } from "@/services/content-transfer";
 
 const LOAD_MORE_THRESHOLD = 700;
 /** 搜索框停顿多久再查询（逐字下推会每键一次 IPC） */
@@ -132,8 +133,7 @@ export function ArticlesView() {
   const handleExportMarkdown = useCallback(async (article: ArticlePageItem) => {
     try {
       const full = await findOneArticle(article.id);
-      downloadMarkdown(getMarkdown(full.content), full.title);
-      toast.success("已导出 Markdown");
+      await exportContentAsMarkdown({ title: full.title, content: full.content });
     } catch {
       toast.error("导出失败");
     }
@@ -183,19 +183,11 @@ export function ArticlesView() {
   );
 
   const handleImport = useCallback(async () => {
-    const paths = await selectFile({
-      properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Markdown", extensions: ["md"] }],
-    });
-    if (!paths?.length) return;
     setBusy(true);
     try {
-      for (const path of paths) {
-        const markdown = await readTextFile(path);
-        const content = importFromMarkdown(markdown, ["yaml"]);
-        const fileName = await getFileBaseName(path, true);
-        await createArticleCommand({
-          title: fileName,
+      const imported = await importMarkdownFiles(({ title, content }) =>
+        createArticleCommand({
+          title,
           bannerBg: "",
           bannerPosition: "center",
           isTop: false,
@@ -205,12 +197,9 @@ export function ArticlesView() {
           tags: [],
           links: [],
           count: getContentLength(content),
-        });
-      }
-      feed.refresh();
-      toast.success(`已导入 ${paths.length} 篇`);
-    } catch {
-      toast.error("导入失败");
+        })
+      );
+      if (imported > 0) feed.refresh();
     } finally {
       setBusy(false);
     }

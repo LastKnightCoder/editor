@@ -5,7 +5,6 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
 import {
   getFileBaseName,
-  readTextFile,
   selectFile,
   getProjectItemById,
   getProjectItemsByIds,
@@ -71,12 +70,7 @@ import {
   Video,
   Table,
 } from "lucide-react";
-import {
-  getContentLength,
-  getEditorText,
-  importFromMarkdown,
-  defaultProjectItemEventBus,
-} from "@/utils";
+import { getContentLength, getEditorText, defaultProjectItemEventBus } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
 import { EditText, EditTextHandle } from "@tau/ui";
@@ -91,6 +85,7 @@ import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebVi
 import { createProjectCardListExtension } from "@/editor-extensions";
 import useProjectItemMoreActions from "./useProjectItemMoreActions";
 import { toast, Tooltip, Menu } from "@tau/ui";
+import { importMarkdownFiles } from "@/services/content-transfer";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -652,25 +647,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       openSelectWhiteBoardModal();
     } else if (key === "import-markdown") {
       if (!projectItem) return;
-      const filePath = await selectFile({
-        properties: ["openFile", "multiSelections"],
-        filters: [
-          {
-            name: "Markdown",
-            extensions: ["md"],
-          },
-        ],
-      }).catch(e => {
-        console.error(e);
-        return null;
-      });
-      if (!filePath) return;
-      for (const path of filePath) {
-        const markdown = await readTextFile(path);
-        const content = importFromMarkdown(markdown, ["yaml"]);
-        const fileName = await getFileBaseName(path, true);
+      await importMarkdownFiles(async ({ title, content }) => {
         const [parentProjectItem] = await addChildProjectItem(projectItemId, {
-          title: fileName,
+          title,
           content,
           children: [],
           refType: "",
@@ -683,7 +662,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           setProjectItem(parentProjectItem);
           projectItemEventBus.publishProjectItemEvent("project-item:updated", parentProjectItem);
         }
-      }
+      });
     }
   });
 

@@ -29,8 +29,7 @@ import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
-import { readTextFile, selectFile } from "@/commands";
-import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
+import { getContentLength } from "@/utils";
 import { Button, ConfirmDialog, Loading, toast } from "@tau/ui";
 import {
   cardDetailKey,
@@ -54,6 +53,7 @@ import {
   type CardsViewMode,
 } from "../preferences";
 import { cardTitle as titleOfCard } from "@/utils/card-title";
+import { exportContentAsMarkdown, importMarkdownFiles } from "@/services/content-transfer";
 
 /** 悬停预取的新鲜期：鼠标在墙上来回划过时不重复读取 */
 const PREFETCH_STALE_MS = 30_000;
@@ -191,8 +191,7 @@ export function CardsView() {
     onExportMarkdown: card => {
       void requireFullCard(card).then(full => {
         if (!full) return;
-        downloadMarkdown(getMarkdown(full.content), String(full.id));
-        toast.success("已导出 Markdown");
+        void exportContentAsMarkdown({ title: String(full.id), content: full.content });
       });
     },
     onExportImage: card => {
@@ -211,26 +210,16 @@ export function CardsView() {
 
   /* 导入与新建共用数据库作用域，切库后中止旧任务。 */
   const handleImport = async () => {
-    const paths = await selectFile({
-      properties: ["openFile", "multiSelections"],
-      filters: [{ name: "Markdown", extensions: ["md", "markdown"] }],
-    });
-    if (!paths?.length) return;
-    try {
-      for (const path of paths) {
-        const markdown = await readTextFile(path);
-        const content = importFromMarkdown(markdown, ["yaml"]);
-        await mutations.create.mutateAsync({
+    await importMarkdownFiles(
+      ({ content }) =>
+        mutations.create.mutateAsync({
           content,
           tags: [],
           count: getContentLength(content),
           isTop: false,
-        });
-      }
-      toast.success(`已导入 ${paths.length} 张卡片`);
-    } catch {
-      toast.error("导入失败");
-    }
+        }),
+      { unit: "张卡片" }
+    );
   };
 
   if (feed.loading) return <Loading />;

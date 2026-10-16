@@ -22,7 +22,15 @@ import { processEpubAssets } from "@/utils/epub-export/assets";
 import { isMeaningfulHtmlFragment } from "@/utils/epub-export/chaptering";
 import { PDF_BASE_STYLES, PDF_TOC_STYLES, processCodeBlocks } from "@/utils/pdf-html-builder";
 import { getMarkdown } from "@/utils/markdown";
-import { TextReader, Uint8ArrayWriter, ZipWriter, configure as configureZip } from "@zip.js/zip.js";
+import { inlineLocalImages } from "@/utils/content-transfer/assets";
+import {
+  ASSET_DIR,
+  collectBundleAssets,
+  localizeContent,
+  toPortableMarkdown,
+  zipBundle,
+  type BundleFile,
+} from "@/utils/content-transfer/bundle";
 
 /**
  * 整体导出选择树的节点（嵌套结构，与项目树同序）
@@ -223,7 +231,10 @@ export const buildBatchPdfPayload = async (input: {
       input.onProgress?.(index + 1, input.chapters.length);
       continue;
     }
-    const serialized = await htmlSerializerRegistry.serializeAsync(chapter.content || [], {
+    // PDF 页面从 data: 地址加载，本机图片须先内联
+    const { content: printable, warnings } = await inlineLocalImages(chapter.content || []);
+    if (warnings.length > 0) console.warn("PDF 图片内联警告:", warnings);
+    const serialized = await htmlSerializerRegistry.serializeAsync(printable, {
       theme: "light",
       tailwindCssCollector,
     });
@@ -414,8 +425,8 @@ export const buildMergedMarkdown = (
 };
 
 /** 同级去重：首次保留原名，重名依次追加 -2、-3 */
-const createUniqueNamer = () => {
-  const counts = new Map<string, number>();
+const createUniqueNamer = (reserved: string[] = []) => {
+  const counts = new Map<string, number>(reserved.map(name => [name, 1]));
   return (name: string) => {
     const count = counts.get(name) || 0;
     counts.set(name, count + 1);
@@ -424,19 +435,36 @@ const createUniqueNamer = () => {
 };
 
 /**
+ * 合并导出前的资源处理：各章节引用的本机资源收进 assets/，正文改为相对路径；
+ * 章节之间的应用内链接降为标题文本（合并后没有独立文件可链）。
+ */
+export const localizeChaptersForMerge = async (
+  chapters: BatchExportChapter[]
+): Promise<{ chapters: BatchExportChapter[]; assetFiles: BundleFile[]; warnings: string[] }> => {
+  const assets = await collectBundleAssets(chapters.map(chapter => chapter.content || []));
+  return {
+    chapters: chapters.map(chapter => ({
+      ...chapter,
+      content: localizeContent(chapter.content || [], { assets: assets.paths, dir: [] }),
+    })),
+    assetFiles: assets.files,
+    warnings: assets.warnings,
+  };
+};
+
+/**
  * 构建保持目录层级的 Markdown ZIP：
  * 每个选中的文档一个 .md 文件，子级放在同名文件夹下；
  * 未选中、无正文或非文档条目在存在选中后代时只作为文件夹保留层级，
  * 选中但无正文且无选中后代的文档导出为空文件。
+ * 本机资源收进包根 assets/；指向包内文档的应用内链接改为相对 .md 链接，其余降为标题文本。
  * ZIP 按目录分文件，导出规则（分页/标题）不适用，文件名即标题
  */
 export const buildMarkdownZipBytes = async (
   tree: BatchExportTreeNode[],
   selectedIds: Set<number>,
   onProgress?: BatchProgressListener
-): Promise<Uint8Array> => {
-  configureZip({ useWebWorkers: false });
-  const zipWriter = new ZipWriter(new Uint8ArrayWriter());
+): Promise<{ bytes: Uint8Array; warnings: string[] }> => {
   const includedNodeIds = new Set<number>();
   const fileNodeIds = new Set<number>();
 
@@ -457,13 +485,13 @@ export const buildMarkdownZipBytes = async (
   };
   markIncludedNodes(tree);
 
-  const totalFiles = fileNodeIds.size;
-  let processedFiles = 0;
-
-  const walk = async (nodes: BatchExportTreeNode[], dirSegments: string[]): Promise<void> => {
-    const uniqueDirName = createUniqueNamer();
-    const uniqueFileName = createUniqueNamer();
-
+  // 先定好每篇的包内路径，链接改写需要全部目标就位
+  const files: Array<{ node: BatchExportTreeNode; dir: string[]; path: string[] }> = [];
+  const assignPaths = (nodes: BatchExportTreeNode[], dirSegments: string[]) => {
+    // 包根预留 assets，同名文档的 .md 与子目录一起改名，保持文件与目录同名
+    const reserved = dirSegments.length === 0 ? [ASSET_DIR] : [];
+    const uniqueDirName = createUniqueNamer(reserved);
+    const uniqueFileName = createUniqueNamer(reserved);
     for (const node of nodes) {
       if (!includedNodeIds.has(node.id)) {
         continue;
@@ -471,15 +499,32 @@ export const buildMarkdownZipBytes = async (
       const dirName = uniqueDirName(sanitizeFileName(node.title, UNTITLED_FILE_NAME));
       if (fileNodeIds.has(node.id)) {
         const fileName = uniqueFileName(sanitizeFileName(node.title, UNTITLED_FILE_NAME));
-        const markdown = node.empty ? "" : getMarkdown(node.content || []).trim() + "\n";
-        await zipWriter.add([...dirSegments, `${fileName}.md`].join("/"), new TextReader(markdown));
-        processedFiles += 1;
-        onProgress?.(processedFiles, totalFiles, node.title);
+        files.push({ node, dir: dirSegments, path: [...dirSegments, `${fileName}.md`] });
       }
-      await walk(node.children, [...dirSegments, dirName]);
+      assignPaths(node.children, [...dirSegments, dirName]);
     }
   };
+  assignPaths(tree, []);
 
-  await walk(tree, []);
-  return await zipWriter.close();
+  const pathById = new Map(files.map(file => [file.node.id, file.path]));
+  const assets = await collectBundleAssets(
+    files.filter(file => !file.node.empty).map(file => file.node.content || [])
+  );
+  const bundleFiles: BundleFile[] = [];
+  for (const [index, { node, dir, path }] of files.entries()) {
+    const markdown = node.empty
+      ? ""
+      : toPortableMarkdown(node.content || [], {
+          assets: assets.paths,
+          dir,
+          resolveLink: ref => (ref.kind === "project-item" ? (pathById.get(ref.id) ?? null) : null),
+        });
+    bundleFiles.push({ path: path.join("/"), data: markdown });
+    onProgress?.(index + 1, files.length, node.title);
+  }
+
+  return {
+    bytes: await zipBundle([...bundleFiles, ...assets.files]),
+    warnings: assets.warnings,
+  };
 };

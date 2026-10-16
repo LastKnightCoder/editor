@@ -18,6 +18,7 @@ import { PageNavigationBridge } from "./PageNavigationBridge";
 import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
+import { ProjectExportHost } from "@/features/transfer/ProjectExportHost";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
@@ -205,6 +206,8 @@ function ShellLayout() {
       <SearchPalette />
       {/* 全窗口设置页（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式，铺满窗口含侧栏 */}
       <SettingsScreen />
+      {/* 项目整体导出（命令面板 / 设置「导入与导出」入口，app/transferStore） */}
+      <ProjectExportHost />
       {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
       <NotificationHost onItemsChange={onNotificationItemsChange} />
       {/* 通知产生端只在主窗口壳层运行：其余窗口无卡栈可显示，且 App 根运行会绕过

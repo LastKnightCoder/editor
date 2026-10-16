@@ -21,6 +21,7 @@ import {
   FileDown,
   Command,
   Activity,
+  PackageOpen,
   type LucideIcon,
   Map as MapIcon,
 } from "lucide-react";
@@ -107,6 +108,7 @@ export interface PaletteCommand {
     | "capture-event"
     | "toggle-assist"
     | "open-markdown"
+    | "export-project"
     | "export-perf-snapshot";
 }
 
@@ -211,6 +213,16 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "markdown md open folder file 打开 本地 文件夹 typora",
       kind: "action",
       action: "open-markdown",
+    },
+    {
+      id: "action:export-project",
+      label: "导出项目…",
+      section: "动作",
+      icon: PackageOpen,
+      keywords:
+        "export zip markdown pdf epub backup migrate 导出 打包 压缩包 备份 迁移 迁出 项目 资源 图片",
+      kind: "action",
+      action: "export-project",
     },
     {
       id: "action:export-perf-snapshot",
