@@ -1,4 +1,4 @@
-import { assertLocalId } from "./values";
+import { assertLocalId } from "./ids";
 import { comparePluginVersions } from "./version";
 
 export const PLUGIN_SHARED_MODULES = [
