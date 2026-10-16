@@ -339,6 +339,243 @@ describe("包资料与站内反馈", () => {
       ).toBe(400);
     expect((await (await req(`/v1/submissions/${d.id}`)).json()).data.content).toEqual(d.content);
   });
+  it("普通作者不能审核或发布，未批准包不可公开下载", async () => {
+    await login();
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    expect(
+      (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).status
+    ).toBe(403);
+    expect((await req(`/v1/submissions/${d.id}/publish`, "POST")).status).toBe(403);
+    expect((await (await req("/v1/releases")).json()).data.items).toHaveLength(0);
+    expect((await req(`/v1/releases/${d.id}/download`)).status).toBe(404);
+  });
+  it("批准绑定当前修订，发布后匿名可下载，重复审核不会重复发布", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    const decision = { revision: pending.revision, decision: "approve", comment: "已验证功能" };
+    const result = await req(`/v1/submissions/${d.id}/review`, "POST", decision);
+    expect(result.status).toBe(200);
+    const detail = (await result.json()).data;
+    expect(detail.release.state).toBe("published");
+    expect(detail.reviews[0]).toMatchObject({
+      revision: pending.revision,
+      decision: "approve",
+      reviewer: { id: "42" },
+    });
+    expect((await req(`/v1/submissions/${d.id}/review`, "POST", decision)).status).toBe(200);
+    expect(f.published.size).toBe(1);
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM submission_reviews").get()?.n).toBe(1);
+    cookie = "";
+    const download = await req(new URL(detail.release.downloadUrl).pathname);
+    expect(download.status).toBe(200);
+    expect(
+      createHash("sha256")
+        .update(Buffer.from(await download.arrayBuffer()))
+        .digest("hex")
+    ).toBe(detail.release.sha256);
+    expect((await (await req("/v1/releases")).json()).data.items).toHaveLength(1);
+  });
+  it("要求修改必须给原因，作者可同版本修订重提，旧审核不可沿用", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    expect(
+      (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "request_changes",
+          comment: " ",
+        })
+      ).status
+    ).toBe(400);
+    await req(`/v1/submissions/${d.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "request_changes",
+      comment: "补充使用步骤",
+    });
+    const editable = (await (await req(`/v1/submissions/${d.id}`)).json()).data;
+    expect(editable).toMatchObject({ status: "changes_requested", canEdit: true });
+    const up = await upload(zip({ readme: "# 新使用步骤" }));
+    const saved = (
+      await (
+        await req(`/v1/submissions/${d.id}`, "PATCH", {
+          revision: editable.revision,
+          packageUploadId: up.id,
+          repository: editable.repository,
+        })
+      ).json()
+    ).data;
+    const again = (await (await submit(saved)).json()).data;
+    expect(again.status).toBe("pending_review");
+    expect(
+      (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).status
+    ).toBe(409);
+    const result = (
+      await (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: again.revision,
+          decision: "approve",
+          comment: "已修复",
+        })
+      ).json()
+    ).data;
+    expect(result.release.sha256).toBe(up.sha256);
+    expect(result.reviews).toHaveLength(2);
+    expect(result.reviews[1].packageUploadId).toBe(d.packageUploadId);
+  });
+  it("拒绝后内容只读且不进入公开目录，反馈仍可使用", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    await req(`/v1/submissions/${d.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "reject",
+      comment: "功能不符合要求",
+    });
+    const result = (await (await req(`/v1/submissions/${d.id}`)).json()).data;
+    expect(result).toMatchObject({ status: "rejected", canEdit: false });
+    expect((await submit(result)).status).toBe(409);
+    expect((await req(`/v1/submissions/${d.id}/feedback`)).status).toBe(200);
+    expect((await (await req("/v1/releases")).json()).data.items).toHaveLength(0);
+  });
+  it("并发互斥的审核只有一个生效", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    const responses = await Promise.all(
+      ["approve", "reject"].map(decision =>
+        req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision,
+          comment: "并发审核",
+        })
+      )
+    );
+    expect(responses.map(r => r.status).sort()).toEqual([200, 409]);
+    expect(f.sqlite.prepare("SELECT count(*) AS n FROM submission_reviews").get()?.n).toBe(1);
+  });
+  it("发布失败不撤销批准，不公开半成品，可重试同一个产物", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    vi.spyOn(f.env.RELEASES, "put").mockRejectedValueOnce(new Error("unavailable"));
+    const result = (
+      await (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).json()
+    ).data;
+    expect(result.release.state).toBe("failed");
+    expect((await req(`/v1/releases/${result.release.id}/download`)).status).toBe(404);
+    expect((await (await req(`/v1/submissions/${d.id}`)).json()).data.status).toBe("approved");
+    const retried = (await (await req(`/v1/submissions/${d.id}/publish`, "POST")).json()).data;
+    expect(retried.release.state).toBe("published");
+    expect(retried.release.sha256).toBe(result.release.sha256);
+    expect(retried.reviews).toHaveLength(1);
+  });
+  it("被替换的R2产物不能发布；过期发布租约允许恢复", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    const key = [...f.objects.keys()][0],
+      original = f.objects.get(key)!;
+    f.objects.set(key, { ...original, bytes: Buffer.from("tampered") });
+    const result = (
+      await (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).json()
+    ).data;
+    expect(result.release.state).toBe("failed");
+    expect(f.published.size).toBe(0);
+    f.objects.set(key, original);
+    f.sqlite
+      .prepare("UPDATE releases SET state='publishing',lease_until=?,attempt_id='stuck'")
+      .run(Date.now() - 1);
+    expect(
+      (await (await req(`/v1/submissions/${d.id}/publish`, "POST")).json()).data.release.state
+    ).toBe("published");
+  });
+  it("有记录的旧数据库迁移保留提交和反馈且外键有效", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      db.exec(
+        readFileSync(new URL("../infra/migrations/0001_submissions.sql", import.meta.url), "utf8")
+      );
+      db.exec(
+        "INSERT INTO publishers VALUES ('1','a',''); INSERT INTO submissions(id,publisher_id,client_request_id,status,created_at,updated_at,submitted_at) VALUES ('s','1','r','pending_review','now','now','now'); INSERT INTO submission_feedback VALUES ('f','s','1','r','author','已有意见','now')"
+      );
+      db.exec(
+        readFileSync(
+          new URL("../infra/migrations/0003_review_release.sql", import.meta.url),
+          "utf8"
+        )
+      );
+      expect(db.prepare("SELECT status FROM submissions WHERE id='s'").get()?.status).toBe(
+        "pending_review"
+      );
+      expect(
+        db.prepare("SELECT message FROM submission_feedback WHERE id='f'").get()?.message
+      ).toBe("已有意见");
+      expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+  it("拒绝新版本不影响已发布版本", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const first = await ready(),
+      a = (await (await submit(first)).json()).data;
+    const published = (
+      await (
+        await req(`/v1/submissions/${a.id}/review`, "POST", {
+          revision: a.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).json()
+    ).data.release;
+    const second = await ready("1.1.0"),
+      b = (await (await submit(second)).json()).data;
+    await req(`/v1/submissions/${b.id}/review`, "POST", {
+      revision: b.revision,
+      decision: "reject",
+      comment: "新版暂不通过",
+    });
+    expect((await req(new URL(published.downloadUrl).pathname)).status).toBe(200);
+    expect(
+      (await (await req("/v1/releases")).json()).data.items.map(
+        (x: { version: string }) => x.version
+      )
+    ).toEqual(["1.0.0"]);
+  });
   it("预检允许PUT/PATCH与凭据", async () => {
     const r = await req("/v1/uploads", "OPTIONS");
     expect(r.status).toBe(204);

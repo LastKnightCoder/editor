@@ -81,7 +81,42 @@ export interface UploadTicket {
   method: "PUT";
   headers: { "Content-Type": "application/octet-stream" };
 }
-export type SubmissionStatus = "draft" | "pending_review";
+export type SubmissionStatus =
+  "draft" | "pending_review" | "changes_requested" | "rejected" | "approved";
+export type ReviewDecision = "approve" | "request_changes" | "reject";
+export interface ReviewRequest {
+  revision: number;
+  decision: ReviewDecision;
+  comment: string;
+}
+export interface ReviewRecord {
+  id: string;
+  revision: number;
+  packageUploadId: string;
+  sha256: string;
+  manifest: PackageManifest;
+  repository: string;
+  commit: string;
+  reviewer: User;
+  decision: ReviewDecision;
+  comment: string;
+  createdAt: string;
+}
+export interface Release {
+  id: string;
+  pluginId: string;
+  version: string;
+  state: "pending" | "publishing" | "published" | "failed";
+  sha256: string;
+  size: number;
+  error: string | null;
+  publishedAt: string | null;
+  downloadUrl: string | null;
+}
+export interface ReviewDetails {
+  reviews: ReviewRecord[];
+  release: Release | null;
+}
 export interface Submission {
   id: string;
   revision: number;

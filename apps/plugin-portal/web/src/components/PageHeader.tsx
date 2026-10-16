@@ -43,6 +43,9 @@ export function PageHeader({
 const STATUS: Record<SubmissionStatus, { label: string; color: "gray" | "yellow" }> = {
   draft: { label: "草稿", color: "gray" },
   pending_review: { label: "待审核", color: "yellow" },
+  changes_requested: { label: "需修改", color: "yellow" },
+  rejected: { label: "已拒绝", color: "gray" },
+  approved: { label: "已批准", color: "gray" },
 };
 
 export function StatusTag({ status }: { status: SubmissionStatus }) {

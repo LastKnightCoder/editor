@@ -66,6 +66,7 @@ const plans = {
     ["exec", "wrangler", "pages", "deployment", "list", "--project-name", "tau-plugin-portal"],
     cf("d1", "migrations", "list", "plugin-portal", "--remote"),
     cf("r2", "bucket", "dev-url", "get", "tau-plugin-pending"),
+    cf("r2", "bucket", "dev-url", "get", "tau-plugin-releases"),
     cf("secret", "list"),
   ],
   backup: [backup],
@@ -197,6 +198,11 @@ async function smoke() {
     fetch(url, { ...init, signal: AbortSignal.timeout(15000), redirect: "manual" });
   const health = await get(api + "/health");
   assert(health.status === 200 && (await health.json()).data?.ok === true, "API健康检查失败");
+  const releases = await get(api + "/v1/releases");
+  assert(
+    releases.status === 200 && Array.isArray((await releases.json()).data?.items),
+    "公开版本目录检查失败"
+  );
   const session = await get(api + "/v1/session", { headers: { Origin: web } });
   assert(session.status === 200 && (await session.json()).data?.user === null, "匿名会话检查失败");
   const options = await get(api + "/v1/uploads", {

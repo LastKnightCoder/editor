@@ -5,6 +5,7 @@
 - [接口协议](docs/协议.md)：前后端字段、状态、错误处理。
 - [配置与资源](infra/README.md)：Worker/D1/R2/Pages实际绑定、域名、密钥来源。
 - [阶段计划](../../docs/plugin-system/36-C19发布门户第一期.md)：已完成证据与剩余任务。
+- [审核与发布](../../docs/plugin-system/37-C20审核与批准发布.md)：审核者操作、发布状态与验证证据。
 - [前端开发](web/README.md)：页面、模拟模式和测试。
 - [域名与服务器](../../docs/taunote-domain-migration.md)：下载、协作、统计服务。
 

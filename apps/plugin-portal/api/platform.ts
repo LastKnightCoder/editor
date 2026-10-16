@@ -4,6 +4,7 @@ import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 export interface Env {
   DB: D1Database;
   PENDING: R2Bucket;
+  RELEASES: R2Bucket;
   WEB_ORIGIN: string;
   API_ORIGIN: string;
   GITHUB_CLIENT_ID: string;

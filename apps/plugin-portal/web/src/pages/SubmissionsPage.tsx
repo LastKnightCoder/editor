@@ -119,13 +119,13 @@ export function SubmissionsPage() {
   return (
     <>
       <PageHeader
-        title={review ? "待审提交" : "我的提交"}
+        title={review ? "审核管理" : "我的提交"}
         meta="介绍与使用说明来自插件包；审核意见直接在站内交流。"
         actions={items.length > 0 && <NewButton />}
       />
       {session.data?.reviewer && (
         <Button onClick={() => setReview(value => !value)}>
-          {review ? "查看我的提交" : "查看待审队列"}
+          {review ? "查看我的提交" : "进入审核管理"}
         </Button>
       )}
       {body}

@@ -28,5 +28,9 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
     submitSubmission: (id, revision) => watch(api.submitSubmission(id, revision)),
     listFeedback: (id, cursor) => watch(api.listFeedback(id, cursor)),
     sendFeedback: (id, message, requestId) => watch(api.sendFeedback(id, message, requestId)),
+    getReviews: id => watch(api.getReviews(id)),
+    reviewSubmission: (id, input) => watch(api.reviewSubmission(id, input)),
+    retryPublish: id => watch(api.retryPublish(id)),
+    packageDownloadUrl: api.packageDownloadUrl,
   };
 }
