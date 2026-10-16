@@ -1,0 +1,132 @@
+import { Link, useNavigate } from "react-router-dom";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { ChevronRight, CloudOff, PackagePlus, Plus } from "lucide-react";
+import { Button, Loading, Panel } from "@tau/ui";
+import type { Submission } from "../../../contracts";
+import { queryKeys, useApi } from "../app/api";
+import { PageHeader, StatusTag } from "../components/PageHeader";
+import { ErrorState, StateBlock } from "../components/states";
+import { formatTime } from "../components/format";
+import { UploadImage } from "../features/submission/UploadImage";
+
+function NewButton() {
+  const navigate = useNavigate();
+  return (
+    <Button variant="primary" icon={Plus} onClick={() => navigate("/submissions/new")}>
+      新建提交
+    </Button>
+  );
+}
+
+function SubmissionRow({ submission }: { submission: Submission }) {
+  const { manifest, listing } = submission;
+  const pending = submission.status === "pending_review";
+  return (
+    <li>
+      <Link
+        to={`/submissions/${encodeURIComponent(submission.id)}`}
+        className="hover:bg-surface-hover focus-visible:bg-surface-hover flex items-center gap-4 px-5 py-4 outline-none transition-colors"
+      >
+        {listing.iconUploadId ? (
+          <UploadImage
+            id={listing.iconUploadId}
+            alt=""
+            className="border-line-1 size-11 shrink-0 border"
+          />
+        ) : (
+          <span className="bg-hover text-ink-3 rounded-tau-sm grid size-11 shrink-0 place-items-center">
+            <PackagePlus size={18} strokeWidth={1.6} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline gap-2">
+            <span className="text-tau-body text-ink-1 truncate font-medium">
+              {manifest?.name ?? "未上传插件包"}
+            </span>
+            {manifest && (
+              <span className="text-tau-micro text-ink-3 font-tau-mono shrink-0">
+                v{manifest.version}
+              </span>
+            )}
+          </p>
+          <p className="text-tau-sm text-ink-2 truncate">{listing.summary || "还没有填写简介"}</p>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <StatusTag status={submission.status} />
+          <span className="text-tau-micro text-ink-3">
+            {pending
+              ? `提交于 ${formatTime(submission.submittedAt)}`
+              : `更新于 ${formatTime(submission.updatedAt)}`}
+          </span>
+        </div>
+        <ChevronRight size={16} className="text-ink-3 shrink-0" />
+      </Link>
+    </li>
+  );
+}
+
+export function SubmissionsPage() {
+  const api = useApi();
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.submissions,
+    queryFn: ({ pageParam }) => api.listSubmissions(pageParam),
+    initialPageParam: null as string | null,
+    getNextPageParam: page => page.nextCursor,
+    refetchOnWindowFocus: true,
+  });
+  const items = query.data?.pages.flatMap(page => page.items) ?? [];
+
+  let body;
+  if (query.isPending) body = <Loading minHeight={240} />;
+  else if (query.isError && !query.data)
+    body = (
+      <ErrorState
+        icon={CloudOff}
+        title="无法加载提交列表"
+        error={query.error}
+        onRetry={() => void query.refetch()}
+        retrying={query.isRefetching}
+      />
+    );
+  else if (items.length === 0)
+    body = (
+      <StateBlock icon={PackagePlus} title="还没有提交" actions={<NewButton />}>
+        上传构建好的插件 ZIP，填写介绍与源码信息，即可提交审核。
+      </StateBlock>
+    );
+  else
+    body = (
+      <>
+        <Panel pad="none" className="overflow-hidden">
+          <ul className="divide-line-1 flex flex-col divide-y">
+            {items.map(item => (
+              <SubmissionRow key={item.id} submission={item} />
+            ))}
+          </ul>
+        </Panel>
+        {query.isFetchNextPageError && (
+          <p className="text-tau-sm text-danger mt-3 text-center">
+            加载更多失败：{query.error?.message}
+          </p>
+        )}
+        {query.hasNextPage && (
+          <div className="mt-4 flex justify-center">
+            <Button loading={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
+              加载更多
+            </Button>
+          </div>
+        )}
+      </>
+    );
+
+  return (
+    <>
+      <PageHeader
+        title="我的提交"
+        meta="草稿保存后可继续编辑；提交后进入待审核，内容冻结。"
+        actions={items.length > 0 && <NewButton />}
+      />
+      {body}
+    </>
+  );
+}
