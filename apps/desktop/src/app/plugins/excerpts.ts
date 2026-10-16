@@ -68,10 +68,10 @@ export function createDesktopExcerpts(databaseName: string): {
   };
 
   const materials: MaterialsAdapter = {
-    async actions(_context, ref) {
+    async actions(context, ref) {
       // 动作依赖卡片、问题等业务模块，按需加载，不拖重插件宿主的启动
       const { materialActions, parseMaterialRef } = await import("@/services/material-actions");
-      return materialActions(parseMaterialRef(ref));
+      return materialActions(parseMaterialRef(ref), { databaseName, signal: context.signal });
     },
   };
   return { excerpts, materials };

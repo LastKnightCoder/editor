@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   recordLineage: vi.fn(),
   resolveMaterials: vi.fn(),
   publishCardEvent: vi.fn(),
+  databaseName: "main",
 }));
 vi.mock("@/commands/card", () => ({ createScopedCard: mocks.createScopedCard }));
 vi.mock("@/commands/lineage", () => ({ recordLineage: mocks.recordLineage }));
@@ -16,14 +17,71 @@ vi.mock("@/utils/event-bus/card-event-bus", () => ({
 vi.mock("@/utils/markdown", () => ({ importFromMarkdown: (md: string) => [{ md }] }));
 vi.mock("@/utils/helper", () => ({ getContentLength: () => 3 }));
 vi.mock("@/stores/useSettingStore", () => ({
-  default: { getState: () => ({ setting: { database: { active: "main" } } }) },
+  default: { getState: () => ({ setting: { database: { active: mocks.databaseName } } }) },
 }));
 
 import { createCardFromMaterial, materialCardMarkdown } from "../material-to-card";
+import { currentCommandScope } from "../command-context";
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.databaseName = "main";
+});
 
 describe("外部材料转为卡片（E4）", () => {
+  it("材料读取期间切库或取消，不创建卡片", async () => {
+    let finish!: (value: unknown[]) => void;
+    mocks.resolveMaterials.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const controller = new AbortController();
+    const pending = createCardFromMaterial(
+      { kind: "excerpt", id: 3 },
+      { databaseName: "main", signal: controller.signal }
+    );
+    const rejected = expect(pending).rejects.toThrow();
+    mocks.databaseName = "other";
+    controller.abort();
+    finish([{ quote: "原文", note: "", meta: "来源" }]);
+    await rejected;
+    expect(mocks.createScopedCard).not.toHaveBeenCalled();
+    expect(mocks.recordLineage).not.toHaveBeenCalled();
+  });
+
+  it("创建已提交后切库，谱系仍关联原库且不通知新工作区", async () => {
+    mocks.resolveMaterials.mockResolvedValue([{ quote: "原文", note: "", meta: "来源" }]);
+    let finish!: (value: unknown) => void;
+    let started!: () => void;
+    const began = new Promise<void>(resolve => {
+      started = resolve;
+    });
+    const scopes: unknown[] = [];
+    mocks.createScopedCard.mockImplementation(() => {
+      scopes.push(currentCommandScope()?.databaseName);
+      started();
+      return new Promise(resolve => {
+        finish = resolve;
+      });
+    });
+    mocks.recordLineage.mockImplementation(async () => {
+      scopes.push(currentCommandScope()?.databaseName);
+    });
+    const controller = new AbortController();
+    const pending = createCardFromMaterial(
+      { kind: "excerpt", id: 3 },
+      { databaseName: "main", signal: controller.signal }
+    );
+    await began;
+    mocks.databaseName = "other";
+    controller.abort();
+    finish({ id: 42 });
+    await pending;
+    expect(scopes).toEqual(["main", "main"]);
+    expect(mocks.publishCardEvent).not.toHaveBeenCalled();
+  });
   it("引用块原文 + 想法 + 出处", () => {
     expect(
       materialCardMarkdown({

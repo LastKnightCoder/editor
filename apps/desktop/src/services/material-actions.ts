@@ -7,6 +7,8 @@ import { toast } from "@tau/ui";
 import { isMaterialKind, type MaterialRef } from "@/entity/material";
 import { convertMaterialToCard } from "./material-to-card";
 import { requestMaterialQuestionCapture } from "./question-capture";
+import { captureMaterialActionScope } from "./material-action-scope";
+import type { CommandScope } from "./command-context";
 
 export interface MaterialAction {
   id: string;
@@ -21,15 +23,16 @@ export function parseMaterialRef(value: unknown): MaterialRef {
   return { kind, id };
 }
 
-export function materialActions(ref: MaterialRef): MaterialAction[] {
+export function materialActions(ref: MaterialRef, options?: CommandScope): MaterialAction[] {
+  const scope = captureMaterialActionScope(options);
   return [
-    { id: "card", label: "转为卡片", run: () => convertMaterialToCard(ref) },
+    { id: "card", label: "转为卡片", run: () => convertMaterialToCard(ref, scope) },
     {
       id: "question",
       label: "转为问题",
       run: async () => {
         try {
-          await requestMaterialQuestionCapture(ref);
+          await requestMaterialQuestionCapture(ref, scope);
         } catch (error) {
           toast.error(error instanceof Error ? error.message : "这条材料已不存在");
         }

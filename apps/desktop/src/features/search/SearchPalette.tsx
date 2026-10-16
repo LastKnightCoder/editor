@@ -59,6 +59,7 @@ import {
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
+import useSettingStore from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { useShellStore } from "@/app/shellStore";
 import { toggleAssistFor } from "@/app/assistOwner";
@@ -276,19 +277,38 @@ export function SearchPalette() {
       hint: !title,
       run: () => {
         if (!title) return;
+        const databaseName = useSettingStore.getState().setting.database.active;
+        const signal =
+          source && (source.source.kind === "material" || source.source.kind === "materials")
+            ? source.source.signal
+            : undefined;
         closeAnd(() => {
           (source
             ? submitQuestionCapture(source.source, title, groupHint)
             : captureQuestion(title, groupHint)
           )
-            .then(({ question, groupTitle }) =>
+            .then(({ question, groupTitle }) => {
+              if (
+                signal?.aborted ||
+                useSettingStore.getState().setting.database.active !== databaseName
+              )
+                return;
               toast.success(`已收集到「${groupTitle}」`, {
                 action: {
                   label: "查看",
-                  onClick: () => navigator.push("questions", { selectedId: question.id }),
+                  onClick: () => {
+                    if (
+                      signal?.aborted ||
+                      useSettingStore.getState().setting.database.active !== databaseName
+                    ) {
+                      toast.error("数据库已切换，请在原工作区查看问题");
+                      return;
+                    }
+                    navigator.push("questions", { selectedId: question.id });
+                  },
                 },
-              })
-            )
+              });
+            })
             .catch(error =>
               toast.error(
                 error instanceof Error && error.message === "来源已不存在"

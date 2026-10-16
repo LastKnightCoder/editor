@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/electron", () => ({ invoke: mocks.invoke, isElectron: true }));
 vi.mock("@/commands/extra", () => ({ openExternal: mocks.openExternal }));
+vi.mock("@/stores/useSettingStore", () => ({
+  default: { getState: () => ({ setting: { database: { active: "A.db" } } }) },
+}));
 vi.mock("@/services/material-to-card", () => ({ convertMaterialToCard: mocks.convert }));
 vi.mock("@/services/question-capture", () => ({ requestMaterialQuestionCapture: mocks.question }));
 
@@ -138,8 +141,9 @@ describe("桌面摘录提供方适配", () => {
     expect(actions.map(action => action.id)).toEqual(["card", "question"]);
     await actions[0].run();
     await actions[1].run();
-    expect(mocks.convert).toHaveBeenCalledWith({ kind: "excerpt", id: 7 });
-    expect(mocks.question).toHaveBeenCalledWith({ kind: "excerpt", id: 7 });
+    const scope = { databaseName: "A.db", signal: context().signal };
+    expect(mocks.convert).toHaveBeenCalledWith({ kind: "excerpt", id: 7 }, scope);
+    expect(mocks.question).toHaveBeenCalledWith({ kind: "excerpt", id: 7 }, scope);
     await expect(context().materials.actions({ kind: "card", id: 1 })).rejects.toThrow(
       "材料地址无效"
     );
