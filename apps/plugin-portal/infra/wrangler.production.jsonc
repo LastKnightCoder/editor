@@ -7,10 +7,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "plugins-api.xiongtao.life", "custom_domain": true }],
+  "routes": [{ "pattern": "plugins-api.taunote.app", "custom_domain": true }],
   "vars": {
-    "WEB_ORIGIN": "https://plugins.xiongtao.life",
-    "API_ORIGIN": "https://plugins-api.xiongtao.life",
+    "WEB_ORIGIN": "https://plugins.taunote.app",
+    "API_ORIGIN": "https://plugins-api.taunote.app",
   },
   "d1_databases": [
     {
