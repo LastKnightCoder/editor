@@ -65,7 +65,7 @@ TOKEN_ENCRYPTION_KEY 为32随机字节的base64。可以用本机密码管理器
 
 只上传ZIP（8MiB），不再单独上传图片；README和可选CHANGELOG各128KiB，作为包内用户说明。Worker静态检查ZIP，不运行作者代码。R2对象使用随机上传ID，只写一次；数据库是提交状态事实源。未引用上传可能残留，清理时检查submissions.package_upload_id，不得按对象年龄删除已引用的待审文件。会话7天过期，上传等待记录1小时后不可写，过期会话和OAuth状态应定期清理。
 
-0002_package_content迁移替换空的开发期业务表，遇到已有上传/提交/插件记录会拒绝执行。站内反馈在submission_feedback中；审核者配置REVIEWER_GITHUB_IDS，目前为29890094（LastKnightCoder）。反馈属于提交的作者/审核者私有交流，不需要外部反馈地址。
+当前初始化仅保留0001_submissions.sql，包含包资料和站内反馈的最终结构。一次性0002重置脚本已删除；线上仍保留原0001/0002执行记录，不再执行初始化或修改历史记录。后续新增迁移从0003起。站内反馈在submission_feedback中；审核者配置REVIEWER_GITHUB_IDS，目前为29890094（LastKnightCoder），反馈仅作者与审核者可见。
 
 当前配置引用：
 

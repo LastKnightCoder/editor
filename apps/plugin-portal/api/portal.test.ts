@@ -345,23 +345,32 @@ describe("包资料与站内反馈", () => {
     expect(r.headers.get("Access-Control-Allow-Methods")).toContain("PATCH");
     expect(r.headers.get("Access-Control-Allow-Credentials")).toBe("true");
   });
-  it("非空旧库不能被重置迁移清空", () => {
+  it("新库单步初始化得到当前结构，误重复初始化不会清空已有数据", () => {
     const db = new DatabaseSync(":memory:");
     try {
-      db.exec(
-        readFileSync(new URL("../infra/migrations/0001_submissions.sql", import.meta.url), "utf8")
+      const schema = readFileSync(
+        new URL("../infra/migrations/0001_submissions.sql", import.meta.url),
+        "utf8"
       );
+      db.exec(schema);
+      const columns = db
+        .prepare("PRAGMA table_info(submissions)")
+        .all()
+        .map(row => row.name);
+      expect(columns).toContain("content_json");
+      expect(columns).toContain("source_commit");
+      expect(columns).not.toContain("listing_json");
+      expect(
+        db
+          .prepare("PRAGMA table_info(uploads)")
+          .all()
+          .map(row => row.name)
+      ).not.toContain("kind");
+      expect(db.prepare("SELECT count(*) AS n FROM submission_feedback").get()?.n).toBe(0);
       db.exec(
-        "INSERT INTO publishers VALUES ('1','a',''); INSERT INTO uploads(id,publisher_id,kind,status,file_name,size,created_at) VALUES ('u','1','package','ready','a',1,'now')"
+        "INSERT INTO publishers VALUES ('1','a',''); INSERT INTO uploads(id,publisher_id,status,file_name,size,created_at) VALUES ('u','1','ready','a',1,'now')"
       );
-      expect(() =>
-        db.exec(
-          readFileSync(
-            new URL("../infra/migrations/0002_package_content.sql", import.meta.url),
-            "utf8"
-          )
-        )
-      ).toThrow();
+      expect(() => db.exec(schema)).toThrow();
       expect(db.prepare("SELECT count(*) AS n FROM uploads").get()?.n).toBe(1);
     } finally {
       db.close();
