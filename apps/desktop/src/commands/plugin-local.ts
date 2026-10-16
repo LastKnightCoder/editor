@@ -1,6 +1,7 @@
 import { invoke } from "@/electron";
 import { withModule } from "./module-init";
 import type { LocalPluginScan } from "@/types/plugin-local";
+import type { PluginCatalog, PluginRelease } from "@/types/plugin-center";
 
 export const getPluginWorkspace = (name: string): Promise<string> =>
   withModule("plugin-local", () => invoke("plugin-local:workspace", name));
@@ -14,3 +15,12 @@ export const restoreLocalPlugin = (id: string): Promise<{ id: string; version: s
   withModule("plugin-local", () => invoke("plugin-local:restore", id));
 export const cancelLocalPluginUpdate = (id: string): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:cancel-update", id));
+export const fetchPluginCatalog = (query?: string): Promise<PluginCatalog> =>
+  withModule("plugin-local", () => invoke("plugin-local:catalog", query));
+export const fetchPluginRelease = (id: string): Promise<PluginRelease> =>
+  withModule("plugin-local", () => invoke("plugin-local:release", id));
+/** 下载、核对并暂存插件中心版本，下次完整启动生效。 */
+export const stagePluginRelease = (id: string): Promise<{ id: string; version: string }> =>
+  withModule("plugin-local", () => invoke("plugin-local:stage-release", id));
+export const uninstallLocalPlugin = (id: string): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:uninstall", id));

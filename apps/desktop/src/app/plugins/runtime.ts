@@ -23,7 +23,7 @@ import { ReactEditor } from "slate-react";
 import { DevelopmentPluginManager } from "./development-manager";
 import { PluginActivationManager } from "./activation-manager";
 import { LocalPluginManager } from "./local-manager";
-import { scanLocalPlugins } from "@/commands/plugin-local";
+import { scanLocalPlugins, uninstallLocalPlugin } from "@/commands/plugin-local";
 import type { DevelopmentSession } from "@/types/plugin-development";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
@@ -137,7 +137,7 @@ export class DesktopPluginRuntime {
   }
 
   getRevision = () => this.revision;
-  attachLocal(preferences: Pick<Storage, "getItem" | "setItem">) {
+  attachLocal(preferences: Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">) {
     if (this.disposed || this.local) throw new Error("本地插件管理无法重复装配");
     this.local = new LocalPluginManager(
       this.host,
@@ -145,7 +145,8 @@ export class DesktopPluginRuntime {
       scanLocalPlugins,
       async () => (await import("./shared-modules")).sharedPluginModules,
       preferences,
-      this.publish
+      this.publish,
+      uninstallLocalPlugin
     );
     return this.local;
   }

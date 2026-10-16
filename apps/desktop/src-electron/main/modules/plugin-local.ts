@@ -5,6 +5,11 @@ import PathUtil from "../utils/PathUtil";
 import { discoverPlugins } from "../services/plugin-discovery";
 import { getPluginRegistry } from "../services/plugin-workspaces";
 import { PluginUpdates } from "../services/plugin-updates";
+import {
+  downloadPluginRelease,
+  fetchPluginCatalog,
+  fetchPluginRelease,
+} from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
 
@@ -20,15 +25,17 @@ export default {
     ipcMain.handle("plugin-local:scan", async () => {
       const maintenance = await updates.list();
       const result = await discoverPlugins(directory(), app.getVersion());
+      const sources = await updates.sources(result.entries.map(entry => entry.id));
       return {
         ...result,
         clientVersion: app.getVersion(),
         updates: maintenance,
         entries: result.entries.map(entry => {
           const blocked = maintenance.find(item => item.id === entry.id && item.blocked);
+          const sourced = { ...entry, source: sources[entry.id] };
           return blocked
-            ? { ...entry, artifact: undefined, error: blocked.error ?? "更新尚未恢复，暂不加载" }
-            : entry;
+            ? { ...sourced, artifact: undefined, error: blocked.error ?? "更新尚未恢复，暂不加载" }
+            : sourced;
         }),
       };
     });
@@ -43,6 +50,15 @@ export default {
       if (selected.canceled || !selected.filePaths[0]) return null;
       return updates.stageZip(selected.filePaths[0]);
     });
+    ipcMain.handle("plugin-local:catalog", (_event, query?: string) =>
+      fetchPluginCatalog(app.getVersion(), query)
+    );
+    ipcMain.handle("plugin-local:release", (_event, id: string) => fetchPluginRelease(id));
+    ipcMain.handle("plugin-local:stage-release", async (_event, id: string) => {
+      const { bytes, source } = await downloadPluginRelease(id);
+      return updates.stageRelease(bytes, source);
+    });
+    ipcMain.handle("plugin-local:uninstall", (_event, id: string) => updates.uninstall(id));
     ipcMain.handle("plugin-local:restore", (_event, id: string) => updates.restore(id));
     ipcMain.handle("plugin-local:cancel-update", (_event, id: string) => updates.cancel(id));
     ipcMain.handle("plugin-local:open-directory", async () => {

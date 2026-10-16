@@ -3,14 +3,20 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import AdmZip from "adm-zip";
 import { comparePluginVersions, validatePluginManifest } from "@tau/plugins/host";
-import type { LocalPluginUpdate } from "@/types/plugin-local";
+import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local";
+
+type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
 import { readPluginPackage } from "./plugin-package";
 
 interface UpdateRecord {
   id: string;
   baseline: string | null;
   phase: "queued" | "prepared" | "committed";
+  /** 提交后写入的安装来源；恢复上一版不改变来源，因此省略。 */
+  source?: LocalPluginSource;
 }
+/** 发布门户要求或允许随包附带的说明文件，只保存不执行。 */
+const DOCUMENT_FILES = ["README.md", "CHANGELOG.md", "LICENSE"];
 const exists = async (file: string) => {
   try {
     await lstat(file);
@@ -41,7 +47,7 @@ export class PluginUpdates {
   }
   private async setup() {
     await mkdir(this.directory, { recursive: true });
-    for (const name of ["pending", "backups", "transactions", "errors", "failed"])
+    for (const name of ["pending", "backups", "transactions", "errors", "failed", "sources"])
       await mkdir(path.join(this.root, name), { recursive: true });
   }
   private async folders(kind: string) {
@@ -74,6 +80,21 @@ export class PluginUpdates {
       throw new Error("更新事务记录无效，请保留目录并检查");
     return value;
   }
+  private async saveSource(id: string, source: LocalPluginSource) {
+    const file = this.location("sources", id) + ".json";
+    if (source.kind === "zip") return rm(file, { force: true });
+    await writeFile(file + ".tmp", JSON.stringify(source));
+    await rename(file + ".tmp", file);
+  }
+  private async readSource(id: string): Promise<LocalPluginSource> {
+    try {
+      const value = JSON.parse(await readFile(this.location("sources", id) + ".json", "utf8"));
+      if (value?.kind === "center" && typeof value.releaseId === "string") return value;
+    } catch {
+      // 缺失或损坏的来源记录按本地包处理，只影响在线更新检查。
+    }
+    return { kind: "zip" };
+  }
   private async error(id: string, error: unknown) {
     await writeFile(
       this.location("errors", id),
@@ -81,6 +102,8 @@ export class PluginUpdates {
     );
   }
   private async finish(id: string, transaction: string) {
+    const { source } = await this.record(transaction, id);
+    if (source) await this.saveSource(id, source);
     const previous = path.join(transaction, "previous");
     if (await exists(previous)) {
       const backup = this.location("backups", id);
@@ -152,7 +175,7 @@ export class PluginUpdates {
       }
     });
   }
-  private async queue(packageDirectory: string, restore: boolean) {
+  private async queue(packageDirectory: string, restore: boolean, source?: LocalPluginSource) {
     const artifact = await readPluginPackage(packageDirectory, this.clientVersion);
     const id = artifact.manifest.id;
     this.id(id);
@@ -172,7 +195,7 @@ export class PluginUpdates {
     try {
       await cp(packageDirectory, path.join(staging, "package"), { recursive: true });
       await readPluginPackage(path.join(staging, "package"), this.clientVersion);
-      await this.saveRecord(staging, { id, baseline, phase: "queued" });
+      await this.saveRecord(staging, { id, baseline, phase: "queued", source });
       await rename(staging, pending);
       await rm(this.location("errors", id), { force: true });
     } finally {
@@ -181,43 +204,76 @@ export class PluginUpdates {
     return { id, version: artifact.manifest.version };
   }
   stageZip(file: string) {
+    return this.serial(async () => this.stageArchive(await readFile(file), { kind: "zip" }));
+  }
+  /** 来自插件中心的包：调用方已按发布记录核对大小与 SHA-256。 */
+  stageRelease(bytes: Buffer, source: CenterSource) {
+    return this.serial(() => this.stageArchive(bytes, source));
+  }
+  /** 移除包、备份与来源；私有数据属于渲染端偏好，由调用方决定是否删除。 */
+  uninstall(id: string) {
     return this.serial(async () => {
       await this.setup();
-      const archive = new AdmZip(await readFile(file));
-      const files = archive.getEntries().filter(e => !e.isDirectory);
-      const manifestEntry = files.find(e => /^[^/]+\/manifest\.json$/.test(e.entryName));
-      if (!manifestEntry) throw new Error("ZIP 必须包含插件 ID 目录和 manifest.json");
-      const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
-      this.id(manifest.id);
-      const allowed = new Set(
-        ["manifest.json", manifest.main, ...(manifest.styles ? [manifest.styles] : [])].map(
-          name => manifest.id + "/" + name
-        )
-      );
-      const seen = new Set<string>();
-      for (const entry of files) {
-        if (
-          !allowed.has(entry.entryName) ||
-          seen.has(entry.entryName) ||
-          ((entry.attr >>> 16) & 0xf000) === 0xa000
-        )
-          throw new Error("ZIP 文件路径、重复项或链接不符合插件约定");
-        seen.add(entry.entryName);
-      }
-      const staging = path.join(this.root, `.unpack-${randomUUID()}`);
-      await mkdir(staging);
-      try {
-        for (const entry of files) {
-          const relative = entry.entryName.slice(manifest.id.length + 1);
-          const target = path.join(staging, relative);
-          await mkdir(path.dirname(target), { recursive: true });
-          await writeFile(target, entry.getData());
-        }
-        return await this.queue(staging, false);
-      } finally {
-        await rm(staging, { recursive: true, force: true });
-      }
+      if (await exists(this.location("transactions", id)))
+        throw new Error("该插件有未完成的更新，请重启应用后再卸载");
+      for (const kind of ["pending", "backups", "errors"])
+        await rm(this.location(kind, id), { recursive: true, force: true });
+      await rm(this.location("sources", id) + ".json", { force: true });
+      await rm(path.join(this.directory, id), { recursive: true, force: true });
     });
+  }
+  sources(ids: readonly string[]) {
+    return this.serial(async () => {
+      await this.setup();
+      const result: Record<string, LocalPluginSource> = {};
+      for (const id of ids) result[id] = await this.readSource(id);
+      return result;
+    });
+  }
+  private async stageArchive(bytes: Buffer, source: LocalPluginSource) {
+    await this.setup();
+    const archive = new AdmZip(bytes);
+    const files = archive.getEntries().filter(e => !e.isDirectory);
+    const manifestEntry = files.find(e => /^[^/]+\/manifest\.json$/.test(e.entryName));
+    if (!manifestEntry) throw new Error("ZIP 必须包含插件 ID 目录和 manifest.json");
+    const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
+    this.id(manifest.id);
+    if (
+      source.kind === "center" &&
+      (manifest.id !== source.pluginId || manifest.version !== source.version)
+    )
+      throw new Error("下载的插件包与发布记录不一致，已丢弃");
+    const allowed = new Set(
+      [
+        "manifest.json",
+        manifest.main,
+        ...(manifest.styles ? [manifest.styles] : []),
+        ...DOCUMENT_FILES,
+      ].map(name => manifest.id + "/" + name)
+    );
+    const seen = new Set<string>();
+    for (const entry of files) {
+      if (
+        !allowed.has(entry.entryName) ||
+        seen.has(entry.entryName) ||
+        ((entry.attr >>> 16) & 0xf000) === 0xa000
+      )
+        throw new Error("ZIP 文件路径、重复项或链接不符合插件约定");
+      seen.add(entry.entryName);
+    }
+    const staging = path.join(this.root, `.unpack-${randomUUID()}`);
+    await mkdir(staging);
+    try {
+      for (const entry of files) {
+        const relative = entry.entryName.slice(manifest.id.length + 1);
+        const target = path.join(staging, relative);
+        await mkdir(path.dirname(target), { recursive: true });
+        await writeFile(target, entry.getData());
+      }
+      return await this.queue(staging, false, source);
+    } finally {
+      await rm(staging, { recursive: true, force: true });
+    }
   }
   restore(id: string) {
     return this.serial(async () => {
