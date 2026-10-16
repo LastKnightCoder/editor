@@ -6,7 +6,7 @@
 
 | 域名                    | 目标                                   | 状态                                                                |
 | ----------------------- | -------------------------------------- | ------------------------------------------------------------------- |
-| plugins.taunote.app     | tau-plugin-portal.pages.dev，代理CNAME | Pages域名active，等待前端首发                                       |
+| plugins.taunote.app     | tau-plugin-portal.pages.dev，代理CNAME | Pages域名active，包资料流程已首发                                   |
 | plugins-api.taunote.app | Worker tau-plugin-portal-api           | HTTPS健康200、CORS新门户、OAuth redirect_uri新域名                  |
 | dl.taunote.app          | R2 tau-release，最低TLS1.2             | 新旧域名读取publish-template-latest.json均200，SHA256一致           |
 | collab.taunote.app      | A 101.133.166.30，仅DNS                | Nginx转127.0.0.1:3210，/health/ready为200，/ws与/events WSS握手通过 |

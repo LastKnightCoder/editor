@@ -2,17 +2,17 @@
 
 日常操作的权威入口：[运维与接手手册](运维手册.md)。本文维护资源清单和初始配置背景；重复部署、备份、回滚与排错统一按手册及 `ops.mjs` 执行。
 
-2026-10-16 已配置线上基础设施；前端尚未部署。不要复用已有 `tau-release`。`wrangler.jsonc` 仅供本地模拟，正式部署使用已纳入Git的 `wrangler.production.jsonc`（只含非秘密资源ID）。
+2026-10-16 已配置线上基础设施；前端已部署新的包资料提交流程。不要复用已有 `tau-release`。`wrangler.jsonc` 仅供本地模拟，正式部署使用已纳入Git的 `wrangler.production.jsonc`（只含非秘密资源ID）。
 
 ## 已配置资源
 
 | 资源     | 实际配置                                                                                              |
 | -------- | ----------------------------------------------------------------------------------------------------- |
 | R2       | `tau-plugin-pending`，私有，r2.dev关闭，无自定义域名                                                  |
-| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001 migration已执行                      |
+| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001/0002 migration已执行                 |
 | Worker   | `tau-plugin-portal-api`，绑定D1与R2                                                                   |
 | API域名  | `https://plugins-api.taunote.app`，健康检查200、会话200、GitHub跳转302                                |
-| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，无前端部署                         |
+| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，已部署e22377bd                     |
 | 前端域名 | `plugins.taunote.app`，CNAME指向 `tau-plugin-portal.pages.dev`，代理开启；Pages验证与域名状态均active |
 | Secrets  | GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY已配置                                    |
 
@@ -29,7 +29,7 @@ VITE_API_BASE_URL=https://plugins-api.taunote.app VITE_MOCK_API=false pnpm build
 pnpm exec wrangler pages deploy web/dist --project-name tau-plugin-portal --branch master --force
 ```
 
-当前Wrangler 4.151.1默认Pages命令会委托到新版Workers路径；`--force`选择经典Pages项目。生产环境也已保存API地址和禁用模拟设置，但Direct Upload的本地Vite构建必须显式传变量。未部署前网页不可用。
+当前Wrangler 4.151.1默认Pages命令会委托到新版Workers路径；`--force`选择经典Pages项目。生产环境也已保存API地址和禁用模拟设置，但Direct Upload的本地Vite构建必须显式传变量。当前前端已首发，后续按本流程更新。
 
 后端后续部署：
 
@@ -38,7 +38,7 @@ pnpm exec wrangler d1 migrations apply plugin-portal --remote --config infra/wra
 pnpm exec wrangler deploy --config infra/wrangler.production.jsonc
 ```
 
-尚待：前端首发、真实GitHub回调和上传联调；令牌自动刷新和会话过期协调仍需按已约定补齐后验证。
+尚待：真实GitHub回调和上传联调；令牌自动刷新和会话过期协调仍需按已约定补齐后验证。
 
 ## 本地
 
