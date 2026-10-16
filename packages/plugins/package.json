@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./host": "./src/host.ts",
+    "./package": "./src/package.ts",
     "./node": "./src/file-storage.ts"
   },
   "scripts": {
