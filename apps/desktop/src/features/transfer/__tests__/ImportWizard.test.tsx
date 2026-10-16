@@ -7,6 +7,7 @@ import { ImportWizard } from "../ImportWizard";
 const mocks = vi.hoisted(() => ({
   selectFile: vi.fn(),
   scanImport: vi.fn(),
+  rescanImport: vi.fn(),
   executeImport: vi.fn(),
   undoImport: vi.fn(),
   push: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("@/commands", () => ({ selectFile: mocks.selectFile }));
 vi.mock("@/services/batch-import", () => ({
   scanImport: mocks.scanImport,
   executeImport: mocks.executeImport,
+  rescanImport: mocks.rescanImport,
   undoImport: mocks.undoImport,
 }));
 vi.mock("@/page/PageProvider", () => ({
@@ -37,7 +39,9 @@ const doc = (key: number, path: string, extra: Partial<PlanDoc> = {}): PlanDoc =
   title: path.replace(/^.*\//, "").replace(/\.md$/, ""),
   folder: path.split("/").slice(0, -1),
   content: [],
-  frontmatterTags: [],
+  dir: path.split("/").slice(0, -1),
+  sourceTags: [],
+  notes: [],
   assets: new Map(),
   missingAssets: [],
   links: new Map(),
@@ -57,11 +61,14 @@ const makePlan = (): ImportPlan => {
       name: "vault",
       rootPath: "/notes/vault",
       files: [],
+      markers: [],
       has: () => false,
       readBytes: vi.fn(),
       readText: vi.fn(),
     },
+    dialect: "generic",
     docs: [principle, essay],
+    tables: [],
     tree: [
       {
         key: 2,
@@ -115,6 +122,7 @@ it("选择文件夹 → 预览统计 → 取消勾选后导入选中范围 → �
       target: "project",
       projectId: 7,
       entityIds: [],
+      databaseIds: [],
       docCount: 1,
       assetCount: 1,
       linkCount: 0,
@@ -188,4 +196,20 @@ it("扫描失败与空来源原位提示，不能进入下一步", async () => {
   await click("选择文件夹");
   expect(document.querySelector('[role="alert"]')?.textContent).toBe("没有找到 Markdown 文件");
   expect(button("下一步")?.disabled).toBe(true);
+});
+
+it("来源格式显示识别结果，切换后用已读入的来源重新扫描", async () => {
+  mocks.selectFile.mockResolvedValue(["/notes/vault"]);
+  const plan = makePlan();
+  mocks.scanImport.mockResolvedValue(plan);
+  mocks.rescanImport.mockResolvedValue({ ...plan, dialect: "obsidian" });
+  await act(async () => root.render(<ImportWizard request={{}} onClose={() => {}} />));
+  await click("选择文件夹");
+  expect(button("通用 Markdown")?.getAttribute("aria-pressed")).toBe("true");
+  expect(document.body.textContent).toContain("已自动识别");
+
+  await click("Obsidian");
+  expect(mocks.rescanImport).toHaveBeenCalledWith(plan.source, "obsidian", expect.any(Function));
+  expect(button("Obsidian")?.getAttribute("aria-pressed")).toBe("true");
+  expect(document.body.textContent).toContain("已手动指定");
 });

@@ -7,6 +7,8 @@ import { v4 as uuid } from "uuid";
 import { createArticle, deleteArticle } from "@/commands/article";
 import { createScopedCard, deleteScopedCard } from "@/commands/card";
 import { updateContent } from "@/commands/content";
+import { getDataTableById, updateDataTable } from "@/commands/data-table";
+import { createDatabaseItem, deleteDatabaseItem } from "@/commands/database-item";
 import { getHomeDir, pathExists, readBinaryFile, resolvePathFrom } from "@/commands/file";
 import {
   addChildProjectItem,
@@ -28,20 +30,30 @@ import {
   type ImportPlan,
   type ImportResult,
 } from "@/utils/content-transfer/batch-import";
-import { openTransferSource } from "@/utils/content-transfer/source";
+import type { DialectKey } from "@/utils/content-transfer/dialects";
+import { openTransferSource, type TransferSource } from "@/utils/content-transfer/source";
 
 const activeDatabase = () => useSettingStore.getState().setting.database.active;
+
+const scanDeps = { pathExists, getHomeDir, resolvePathFrom };
 
 export const scanImport = async (
   path: string,
   onProgress?: (done: number, total: number) => void
 ): Promise<ImportPlan> => {
   const source = await openTransferSource(path);
-  return scanImportSource(source, { pathExists, getHomeDir, resolvePathFrom }, onProgress);
+  return scanImportSource(source, scanDeps, onProgress);
 };
 
+/** 换一种来源格式重新扫描（来源已读入，不再读目录 / 解压） */
+export const rescanImport = (
+  source: TransferSource,
+  dialect: DialectKey,
+  onProgress?: (done: number, total: number) => void
+) => scanImportSource(source, scanDeps, onProgress, dialect);
+
 const refreshLists = () => {
-  for (const key of ["cards", "articles", "projects"]) {
+  for (const key of ["cards", "articles", "projects", "databases"]) {
     void queryClient.invalidateQueries({ queryKey: [key] });
   }
 };
@@ -112,6 +124,29 @@ export const executeImport = async (
         return { id: card.id, contentId: card.contentId };
       },
       updateContent: (contentId, content) => updateContent(contentId, content),
+      createDatabase: async ({ title, headers, rows }) => {
+        const item = await createDatabaseItem({ title });
+        const table = await getDataTableById(item.dataTableId);
+        // 沿用新表的默认主列 id，默认视图的列配置继续有效
+        const primaryId = table.columns.find(column => column.isPrimary)?.id ?? uuid();
+        const columns = headers.map((header, index) => ({
+          id: index === 0 ? primaryId : uuid(),
+          title: header,
+          type: "text",
+          width: 200,
+          ...(index === 0 ? { isPrimary: true } : {}),
+        }));
+        await updateDataTable({
+          id: table.id,
+          columns,
+          rows: rows.map(row => ({
+            id: uuid(),
+            ...Object.fromEntries(columns.map((column, index) => [column.id, row[index] ?? ""])),
+          })),
+          activeViewId: table.activeViewId,
+        });
+        return item.id;
+      },
     },
     {
       ...hooks,
@@ -122,7 +157,9 @@ export const executeImport = async (
   );
   refreshLists();
 
-  if (result.docCount === 0 && result.projectId === undefined) return { result };
+  if (result.docCount === 0 && result.projectId === undefined && result.databaseIds.length === 0) {
+    return { result };
+  }
   const record: ImportRecord = {
     id: uuid(),
     database,
@@ -133,6 +170,7 @@ export const executeImport = async (
     projectId: result.projectId,
     projectTitle: result.target === "project" ? options.projectTitle : undefined,
     entityIds: result.entityIds,
+    databaseIds: result.databaseIds,
     docCount: result.docCount,
     assetCount: result.assetCount,
     linkCount: result.linkCount,
@@ -144,7 +182,7 @@ export const executeImport = async (
 };
 
 /**
- * 整批撤销：删除本次导入建出的项目（连同文档树）/ 文章 / 卡片。
+ * 整批撤销：删除本次导入建出的项目（连同文档树）/ 文章 / 卡片，以及 CSV 建出的数据库。
  * 导入后改过的内容一并删除；已上传的资源文件保留。已被删除的条目跳过。
  */
 export const undoImport = async (record: ImportRecord) => {
@@ -162,6 +200,11 @@ export const undoImport = async (record: ImportRecord) => {
         console.warn(`撤销导入时删除失败（${record.target} ${id}）:`, error);
       }
     }
+  }
+  for (const id of record.databaseIds ?? []) {
+    await deleteDatabaseItem(id).catch(error =>
+      console.warn(`撤销导入时删除数据库失败（${id}）:`, error)
+    );
   }
   useImportHistoryStore.getState().remove(record.id);
   refreshLists();
