@@ -109,6 +109,7 @@ describe("services/weread syncMetadata（增量同步）", () => {
     expect(detailCalls()).toEqual(["B", "C"]);
     expect(result.requested).toBe(2);
     expect(result.removedBookIds).toEqual(["D"]);
+    expect(result.presentBookIds.sort()).toEqual(["A", "B", "C"]);
 
     const byId = new Map(result.metadataList.map(m => [m.bookId, m]));
     expect(byId.get("A")).toMatchObject({
@@ -130,6 +131,15 @@ describe("services/weread syncMetadata（增量同步）", () => {
   it("full 时全部重新补拉", async () => {
     await weReadService.syncMetadata(cached, { full: true });
     expect(detailCalls()).toEqual(["A", "B", "C"]);
+  });
+
+  it("分页未结束却返回空页或游标停滞时拒绝不完整书单", async () => {
+    fetchMock.mockResolvedValue({ status: 200, data: { books: [], hasMore: 1 } });
+    await expect(weReadService.getNotebookSummaries()).rejects.toThrow("分页未完成");
+    fetchMock.mockResolvedValue({ status: 200, data: { ...notebooks, hasMore: 1 } });
+    await expect(weReadService.getNotebookSummaries()).rejects.toThrow("分页未完成");
+    fetchMock.mockResolvedValue({ status: 200, data: {} });
+    await expect(weReadService.getNotebookSummaries()).rejects.toThrow("书单不完整");
   });
 
   it("补拉失败时保留缓存详情、不更新指纹，下次同步会重试", async () => {

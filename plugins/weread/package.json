@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugin-weread",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "微信读书插件：书架、划线与想法同步为 Tau 摘录",

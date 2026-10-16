@@ -15,35 +15,70 @@ import { getContentLength } from "@/utils/helper";
 import { importFromMarkdown } from "@/utils/markdown";
 import { openEntity } from "./open-content";
 import { resolveMaterials } from "./open-material";
+import { bindDatabaseCommands, type CommandScope } from "./command-context";
+import { assertMaterialActionActive, captureMaterialActionScope } from "./material-action-scope";
 
 /** 卡片正文的 Markdown：引用块原文，空一行写想法，末行出处 */
 export const materialCardMarkdown = (info: Pick<MaterialInfo, "quote" | "note" | "meta">) =>
   materialQuoteMarkdown(info);
 
-export async function createCardFromMaterial(ref: MaterialRef): Promise<ICard> {
-  const databaseName = useSettingStore.getState().setting.database.active;
-  const [info] = await resolveMaterials([ref]);
+export async function createCardFromMaterial(
+  ref: MaterialRef,
+  options?: CommandScope
+): Promise<ICard> {
+  const scope = captureMaterialActionScope(options);
+  assertMaterialActionActive(scope);
+  const { databaseName } = scope;
+  const [info] = await bindDatabaseCommands({ resolveMaterials }, scope).resolveMaterials([ref]);
+  assertMaterialActionActive(scope);
   if (!info || (!info.quote && !info.note)) throw new Error("这条划线没有可转的文字");
   const content = importFromMarkdown(materialCardMarkdown(info));
-  const card = await createScopedCard(databaseName, {
+  const commands = bindDatabaseCommands({ createScopedCard, recordLineage }, { databaseName });
+  const card = await commands.createScopedCard(databaseName, {
     content,
     count: getContentLength(content),
     tags: [],
     isTop: false,
   });
-  if (useSettingStore.getState().setting.database.active === databaseName) {
+  if (
+    !scope.signal?.aborted &&
+    useSettingStore.getState().setting.database.active === databaseName
+  ) {
     defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
   }
-  await recordLineage({ src: ref, dst: { kind: "card", id: card.id }, relation: "excerpt_of" });
+  await commands.recordLineage({
+    src: ref,
+    dst: { kind: "card", id: card.id },
+    relation: "excerpt_of",
+  });
   return card;
 }
 
 /** 界面入口：转为卡片并提示，提示上带「打开」 */
-export async function convertMaterialToCard(ref: MaterialRef): Promise<void> {
+export async function convertMaterialToCard(
+  ref: MaterialRef,
+  options?: CommandScope
+): Promise<void> {
+  const scope = captureMaterialActionScope(options);
   try {
-    const card = await createCardFromMaterial(ref);
+    const card = await createCardFromMaterial(ref, scope);
+    if (
+      scope.signal?.aborted ||
+      useSettingStore.getState().setting.database.active !== scope.databaseName
+    )
+      return;
     toast.success("已转为卡片", {
-      action: { label: "打开", onClick: () => void openEntity({ kind: "card", id: card.id }) },
+      action: {
+        label: "打开",
+        onClick: () => {
+          try {
+            assertMaterialActionActive(scope);
+            void openEntity({ kind: "card", id: card.id });
+          } catch (error) {
+            toast.error(error instanceof Error ? error.message : "当前无法打开卡片");
+          }
+        },
+      },
     });
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "转为卡片失败");

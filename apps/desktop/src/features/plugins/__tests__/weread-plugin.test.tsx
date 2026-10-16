@@ -43,6 +43,7 @@ const runtimes: DesktopPluginRuntime[] = [];
 afterEach(async () => {
   for (const runtime of runtimes.splice(0)) await runtime.dispose();
   invoke.mockClear();
+  vi.unstubAllGlobals();
 });
 
 async function setup() {
@@ -80,6 +81,54 @@ async function setup() {
 }
 
 describe("微信读书插件", () => {
+  it("未建立私有书架缓存也能通过真实单书组件展示迁移保留的摘录", async () => {
+    // jsdom 没有 CSS.escape；本例只使用无需转义的 bm_1。
+    const escape = vi.fn((value: string) => value);
+    vi.stubGlobal("CSS", { escape });
+    invoke.mockImplementation(async (channel: unknown) => {
+      if (channel === "excerpt:sources") return [{ key: "b1", title: "迁移保留的书", count: 1 }];
+      if (channel === "excerpt:items")
+        return [
+          {
+            id: 7,
+            externalId: "b1:bm_1",
+            quote: "迁移保留的原文",
+            note: "想法",
+            location: "第一章",
+            url: null,
+            anchor: { chapterUid: 1, chapterIdx: 1, range: "1-5" },
+            color: null,
+            sourceTime: null,
+            isDeleted: false,
+          },
+        ];
+      return undefined;
+    });
+    const { runtime } = await setup();
+    const page = runtime.getPage("weread", "book");
+    if (!page) throw new Error("单书页未注册");
+    const Component = page.definition.component;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const view = createRoot(host);
+    try {
+      await act(async () =>
+        view.render(
+          <Component context={page.context} params={{ bookId: "b1", bookmark: "bm_1" }} />
+        )
+      );
+      await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+      expect(host.textContent).toContain("迁移保留的书");
+      expect(host.textContent).toContain("迁移保留的原文");
+      expect(host.querySelector('[data-note-id="bm_1"]')).not.toBeNull();
+      expect(escape).toHaveBeenCalledWith("bm_1");
+      expect(host.textContent).not.toContain("书架上找不到这本书");
+    } finally {
+      act(() => view.unmount());
+      host.remove();
+      invoke.mockImplementation(async () => undefined);
+    }
+  });
   it("启用后贡献书架与单书页、学习分组入口、设置分区、命令和摘录提供方", async () => {
     const { runtime } = await setup();
     expect(runtime.host.getState("weread")).toBe("active");

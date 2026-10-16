@@ -259,6 +259,14 @@ export class WeReadRuntime {
   private async saveShelf(books: Metadata[], lastSyncedAt: number | null) {
     await this.context.storage.set(SHELF_KEY, toJson({ version: 1, books, lastSyncedAt }));
     this.set({ books, lastSyncedAt });
+    // 已打开的缺失书籍页面不能在元数据到达后继续缓存空结果。
+    void this.queryClient.invalidateQueries({
+      predicate: query =>
+        query.queryKey[0] === "book" &&
+        query.state.data === null &&
+        query.state.fetchStatus === "idle" &&
+        books.some(book => book.bookId === query.queryKey[1]),
+    });
   }
 
   /**
@@ -283,7 +291,7 @@ export class WeReadRuntime {
 
       const notes = await this.syncNotes(books, result.noteFingerprints, full, onProgress);
       books = notes.books;
-      await this.retireMissingSources(books, cached);
+      await this.retireMissingSources(result.presentBookIds, cached);
       await this.saveShelf(books, Date.now());
       const failed = result.failedBookIds.length + notes.failed;
       return { total: books.length, updated: result.requested - failed, failed };
@@ -357,8 +365,8 @@ export class WeReadRuntime {
   }
 
   /** 书架与笔记本里都不再有的书：它的摘录整本下架（软删除，书回来时原样复位） */
-  private async retireMissingSources(books: Metadata[], cached: Metadata[]) {
-    const present = new Set(books.map(meta => meta.bookId));
+  private async retireMissingSources(presentBookIds: string[], cached: Metadata[]) {
+    const present = new Set(presentBookIds);
     const titles = new Map(cached.map(meta => [meta.bookId, meta]));
     for (const source of await this.context.excerpts.sources()) {
       if (present.has(source.key) || source.count === 0) continue;
@@ -372,9 +380,26 @@ export class WeReadRuntime {
 
   /** 单书：已连接时拉最新详情并写回摘录，否则从摘录还原 */
   async loadBook(bookId: string): Promise<BookDetail | null> {
-    const meta = this.state.books.find(book => book.bookId === bookId);
-    if (!meta) return null;
     const entries = await this.context.excerpts.items(bookId);
+    let meta = this.state.books.find(book => book.bookId === bookId);
+    if (!meta) {
+      const source = (await this.context.excerpts.sources()).find(item => item.key === bookId);
+      if (!source) return null;
+      const active = entries.filter(entry => !entry.deleted);
+      const reviews = active.filter(entry => entry.externalId.startsWith(`${bookId}:review:`));
+      meta = {
+        bookId,
+        title: source.title,
+        author: "",
+        cover: "",
+        bookType: 0,
+        publishTime: "",
+        lastReadDate: "",
+        noteCount: active.length - reviews.length,
+        reviewCount: reviews.length,
+        webUrl: active.find(entry => entry.url)?.url,
+      };
+    }
     const cached = notebookFromEntries(meta, entries);
     if (this.state.connection !== "valid")
       return { notebook: cached, fresh: false, error: null, entries };
@@ -382,7 +407,7 @@ export class WeReadRuntime {
       const fetched = await this.client.fetchNotebookDetail({ metaData: meta, ...emptyNotes });
       // 详情带回最新元数据；笔记指纹归书架同步维护
       const updated = { ...fetched.metaData, synckeys: meta.synckeys };
-      const books = this.state.books.map(book => (book.bookId === bookId ? updated : book));
+      const books = mergeMetadata(this.state.books, [updated], new Set());
       await this.saveShelf(books, this.state.lastSyncedAt);
       const notebook = preferNonEmpty(cached, { ...fetched, metaData: updated });
       if (hasNotes(fetched)) {

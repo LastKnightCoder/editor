@@ -8,6 +8,7 @@ import type {
 } from "@tau/plugins";
 import { WeReadRuntime, notebookFromEntries } from "../src/runtime";
 import type { ChapterHighlightReview, Metadata } from "../src/service/types";
+import { WeReadSessionExpiredError } from "../src/service/errors";
 
 /** 与宿主同语义的内存摘录：按 externalId 合并，缺席软删除，id 稳定 */
 function fakeContext() {
@@ -123,9 +124,74 @@ beforeEach(async () => {
 });
 
 describe("WeReadRuntime", () => {
+  it("首次迁移补拉会话失效时，不把远端仍存在的书下架", async () => {
+    await fake.excerpts.replace({ key: "A", title: "旧书" }, [
+      { externalId: "A:bm1", quote: "已有划线" },
+    ]);
+    fake.excerpts.replace.mockClear();
+    vi.spyOn(runtime.client, "getShelfData").mockResolvedValue({
+      books: [],
+      archives: [],
+      bookArchiveMap: new Map(),
+    });
+    vi.spyOn(runtime.client, "getNotebookSummaries").mockResolvedValue([
+      {
+        bookId: "A",
+        book: { title: "旧书", author: "作者", cover: "" },
+        sort: 1,
+        noteCount: 1,
+        reviewCount: 0,
+        bookmarkCount: 0,
+      },
+    ]);
+    vi.spyOn(runtime.client, "getBookDetail").mockRejectedValue(new WeReadSessionExpiredError());
+    vi.spyOn(runtime.client, "getBookProgress").mockResolvedValue(null);
+    await runtime.sync();
+    expect(fake.excerpts.replace).not.toHaveBeenCalled();
+    expect(fake.rows.get("A:bm1")?.deleted).toBe(false);
+  });
+
+  it("私有书架为空时仍可从正式摘录离线恢复书籍与定位", async () => {
+    await runtime.saveApiKey("");
+    await fake.excerpts.replace({ key: "A", title: "保留的书" }, [
+      {
+        externalId: "A:bm1",
+        quote: "原文",
+        location: "第一章",
+        anchor: { chapterUid: 3, chapterIdx: 1, range: "1-5" },
+      },
+    ]);
+    const fetch = vi.spyOn(runtime.client, "fetchNotebookDetail");
+    const detail = await runtime.loadBook("A");
+    expect(detail?.notebook.metaData.title).toBe("保留的书");
+    expect(detail?.notebook.chapterHighlights[0].highlights?.[0].bookmarkId).toBe("bm1");
+    expect(detail?.entries[0].ref.id).toBe(fake.rows.get("A:bm1")?.ref.id);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await runtime.loadBook("missing")).toBeNull();
+  });
+
+  it("部分详情失败只保留失败书籍，真正不在远端的来源仍下架", async () => {
+    for (const id of ["A", "B", "C"])
+      await fake.excerpts.replace({ key: id, title: id }, [{ externalId: `${id}:bm1`, quote: id }]);
+    vi.spyOn(runtime.client, "syncMetadata").mockResolvedValue({
+      metadataList: [meta("A")],
+      presentBookIds: ["A", "B"],
+      failedBookIds: ["B"],
+      bookArchiveInfo: {},
+      removedBookIds: [],
+      requested: 2,
+      noteFingerprints: { A: { sort: 1, count: 1 }, B: { sort: 1, count: 1 } },
+    });
+    vi.spyOn(runtime.client, "fetchNotes").mockResolvedValue(notes([chapter("bm1", "A")]));
+    await runtime.sync();
+    expect(fake.rows.get("A:bm1")?.deleted).toBe(false);
+    expect(fake.rows.get("B:bm1")?.deleted).toBe(false);
+    expect(fake.rows.get("C:bm1")?.deleted).toBe(true);
+  });
   it("同步：写入元数据缓存；指纹变化的书按书写摘录，来源带书名与网页链接", async () => {
     vi.spyOn(runtime.client, "syncMetadata").mockResolvedValue({
       metadataList: [meta("A"), meta("B")],
+      presentBookIds: ["A", "B"],
       failedBookIds: [],
       bookArchiveInfo: {},
       removedBookIds: [],
@@ -148,6 +214,7 @@ describe("WeReadRuntime", () => {
     fake.excerpts.replace.mockClear();
     vi.spyOn(runtime.client, "syncMetadata").mockResolvedValue({
       metadataList: [meta("A")],
+      presentBookIds: ["A"],
       failedBookIds: [],
       bookArchiveInfo: {},
       removedBookIds: [],
@@ -166,6 +233,7 @@ describe("WeReadRuntime", () => {
     const ids = [...fake.rows.values()].map(row => row.ref.id);
     vi.spyOn(runtime.client, "syncMetadata").mockResolvedValue({
       metadataList: [meta("A")],
+      presentBookIds: ["A"],
       failedBookIds: [],
       bookArchiveInfo: {},
       removedBookIds: ["B"],
@@ -222,6 +290,21 @@ describe("WeReadRuntime", () => {
     expect(detail?.entries.map(entry => entry.externalId)).toEqual(["A:bm1"]);
     expect(runtime.getState().books[0].title).toBe("新书名");
     expect(fake.replaced).toContain("A");
+  });
+
+  it("书架补齐后使已缓存的空单书查询失效", async () => {
+    runtime.queryClient.setQueryData(["book", "A", "valid"], null);
+    vi.spyOn(runtime.client, "syncMetadata").mockResolvedValue({
+      metadataList: [meta("A")],
+      presentBookIds: ["A"],
+      failedBookIds: [],
+      bookArchiveInfo: {},
+      removedBookIds: [],
+      requested: 1,
+      noteFingerprints: {},
+    });
+    await runtime.sync();
+    expect(runtime.queryClient.getQueryState(["book", "A", "valid"])?.isInvalidated).toBe(true);
   });
 
   it("偏好与 Key 落在插件存储；非法偏好回落默认值", async () => {

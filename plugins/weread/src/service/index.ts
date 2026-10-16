@@ -137,6 +137,8 @@ export interface MetadataListResult {
 }
 
 export interface IncrementalSyncResult extends MetadataListResult {
+  /** 完整远端成员清单，不受逐本详情补拉成功与否影响。 */
+  presentBookIds: string[];
   /** 已不在书架与笔记本里的书 */
   removedBookIds: string[];
   /** 本次逐本补拉详情的书数 */
@@ -187,7 +189,8 @@ export class WeReadClient {
         ...(typeof lastSort === "number" ? { lastSort } : {}),
       });
 
-      const pageBooks = response.books ?? [];
+      if (!Array.isArray(response.books)) throw new Error("笔记书单不完整，请重新同步");
+      const pageBooks = response.books;
       books.push(
         ...pageBooks.map(book => ({
           bookId: book.bookId,
@@ -206,8 +209,18 @@ export class WeReadClient {
         }))
       );
 
-      hasMore = response.hasMore === 1 && pageBooks.length > 0;
-      lastSort = hasMore ? pageBooks[pageBooks.length - 1]?.sort : undefined;
+      hasMore = response.hasMore === 1;
+      if (hasMore) {
+        const next = pageBooks.at(-1)?.sort;
+        if (
+          typeof next !== "number" ||
+          !Number.isFinite(next) ||
+          next < 0 ||
+          (lastSort !== undefined && next >= lastSort)
+        )
+          throw new Error("笔记书单分页未完成，请重新同步");
+        lastSort = next;
+      }
     }
 
     return books;
@@ -398,6 +411,7 @@ export class WeReadClient {
       failedBookIds: [...retryLater],
       bookArchiveInfo: archiveInfo,
       removedBookIds: cached.map(m => m.bookId).filter(bookId => !bookIds.has(bookId)),
+      presentBookIds: [...bookIds],
       requested: toEnrich.length,
       noteFingerprints: Object.fromEntries(
         summaries
