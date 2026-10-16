@@ -61,18 +61,58 @@ const tryDecode = (value: string) => {
   }
 };
 
-/** 资源地址 → 本机绝对路径（相对路径以 .md 所在目录为基准） */
-const toAbsolutePath = async (raw: string, baseDir: string, io: ImportIo) => {
-  let value = raw.replace(/^<|>$/g, "");
+export type LocalReference =
+  | { kind: "absolute"; path: string }
+  | { kind: "home"; path: string }
+  | { kind: "relative"; path: string };
+
+/**
+ * 解析 Markdown 里的本机资源地址：file:// 与绝对路径、~ 开头、相对路径；
+ * 去掉 <> 包裹与查询串，URL 编码还原。
+ */
+export const parseLocalReference = (raw: string): LocalReference => {
+  const value = raw.trim().replace(/^<|>$/g, "");
   if (/^file:\/\//i.test(value)) {
-    value = tryDecode(new URL(value).pathname).replace(/^\/([a-zA-Z]:\/)/, "$1");
-  } else {
-    value = tryDecode(value.split(/[?#]/)[0]);
+    try {
+      const path = tryDecode(new URL(value).pathname).replace(/^\/([a-zA-Z]:\/)/, "$1");
+      return { kind: "absolute", path };
+    } catch {
+      return { kind: "absolute", path: value.replace(/^file:\/\//i, "") };
+    }
   }
-  if (value === "~" || value.startsWith("~/") || value.startsWith("~\\")) {
-    value = (await io.getHomeDir()) + value.slice(1);
+  const path = tryDecode(value.split(/[?#]/)[0]);
+  if (path === "~" || path.startsWith("~/") || path.startsWith("~\\")) {
+    return { kind: "home", path: path.slice(1).replace(/^[\\/]/, "") };
   }
-  return io.resolvePathFrom(baseDir, value);
+  if (path.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(path) || path.startsWith("\\\\")) {
+    return { kind: "absolute", path };
+  }
+  return { kind: "relative", path };
+};
+
+/** 资源地址 → 本机绝对路径（相对路径以 baseDir 为基准） */
+export const toAbsolutePath = async (
+  raw: string,
+  baseDir: string,
+  io: Pick<ImportIo, "getHomeDir" | "resolvePathFrom">
+) => {
+  const ref = parseLocalReference(raw);
+  if (ref.kind === "home") return io.resolvePathFrom(await io.getHomeDir(), ref.path || ".");
+  return io.resolvePathFrom(baseDir, ref.path);
+};
+
+/** 字节按文件名包成 File 上传到资源存储，返回写进正文的地址 */
+export const uploadAssetBytes = async (
+  bytes: Uint8Array,
+  fileName: string,
+  upload: ImportIo["upload"]
+) => {
+  const file = new File([bytes as Uint8Array<ArrayBuffer>], fileName, {
+    type: mimeTypeOf(fileName),
+  });
+  const target = await upload(file);
+  if (!target) throw new Error("上传失败");
+  return target;
 };
 
 /** 把正文引用的本机资源上传到当前资源存储，地址改写为上传结果 */
@@ -88,13 +128,7 @@ export const ingestLocalAssets = async (
     try {
       const path = await toAbsolutePath(url, baseDir, io);
       const bytes = await io.readBinaryFile(path);
-      const fileName = baseNameOf(path) || "file";
-      const file = new File([bytes as Uint8Array<ArrayBuffer>], fileName, {
-        type: mimeTypeOf(fileName),
-      });
-      const target = await io.upload(file);
-      if (!target) throw new Error("上传失败");
-      uploaded.set(url, target);
+      uploaded.set(url, await uploadAssetBytes(bytes, baseNameOf(path) || "file", io.upload));
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       warnings.push(`资源未导入（${url}）：${reason}`);

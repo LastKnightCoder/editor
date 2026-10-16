@@ -11,7 +11,7 @@
 | 阶段 | 内容                                                                                                                                                                                            | 状态                 |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | P1   | 导出：本机资源打包进 `assets/` + 相对路径；项目 Markdown 包内文档互链改相对 .md；PDF 内联本机图片；既有 Markdown 导入解析相对路径并经资源存储入库；全部调用点收口到 `services/content-transfer` | 已完成（2026-10-16） |
-| P2   | 文件夹 / 压缩包导入向导：来源与去向 → 干跑扫描预览（缺失资源、未解析链接、同名冲突）→ 先建全部文档再回填链接 → 报告 + 按批次撤销；卡片 / 文章「导入」改下拉、拖入文件夹直达                     | 待做                 |
+| P2   | 文件夹 / 压缩包导入向导：来源与去向 → 干跑扫描预览（缺失资源、未解析链接；同名不判冲突，并存）→ 先建全部文档再回填链接 → 报告 + 按批次撤销；卡片 / 文章「导入」改下拉、拖入文件夹直达           | 已完成（2026-10-16） |
 | P3   | 来源方言：Obsidian（`[[ ]]`、`![[ ]]`、附件目录）→ Notion（id 文件名、CSV 数据库）→ Logseq                                                                                                      | 待做                 |
 | P4   | 导出范围扩到文章标签 / 卡片 / 全部，`[[标题]]` 方言输出                                                                                                                                         | 待做                 |
 
@@ -23,9 +23,15 @@
 - `apps/desktop/src/services/content-transfer.ts` —— 单篇导出 / Markdown 文件导入的统一入口（保存对话框、toast）
 - `apps/desktop/src/utils/batch-export/index.ts` —— 项目整体导出（PDF / EPUB / 合并 Markdown / Markdown 包）
 - `apps/desktop/src/features/transfer/ProjectExportHost.tsx` + `app/transferStore.ts` —— 命令面板与设置入口的壳层承载
+- `apps/desktop/src/utils/content-transfer/source.ts` —— 批量导入来源（文件夹 / .zip 统一为相对路径读取）
+- `apps/desktop/src/utils/content-transfer/batch-import.ts` —— 扫描成计划（只读）+ 三遍执行（资源 → 文档 → 回填互链）
+- `apps/desktop/src/services/batch-import.ts` + `stores/useImportHistoryStore.ts` —— 宿主接线、导入记录与整批撤销（D-141）
+- `apps/desktop/src/features/transfer/ImportWizard.tsx` / `useImportDrop.tsx` —— 向导与页面拖入
 
 ## 已知边界
 
 - 单篇与合并导出里的 `content-link` 降为标题文本（没有独立文件可链）；只有项目 Markdown 包内的项目文档互链能保留。
 - 远程资源（图床 URL）导出时不下载，保持原地址；P4 再考虑「同时下载远程图片」开关。
-- 导入暂不识别文档之间的互链（`[x](other.md)` 仍是普通链接），P2 的两遍写入负责回填。
+- 单文件导入（「导入 › Markdown 文件…」）不回填互链；批量导入只回填本批之内的 .md 链接。
+- 批量导入撤销不删除已上传的资源文件；导入记录只存在本机。
+- 拖入只取第一个文件 / 文件夹；拖入单个 .md 只提示，单文件请用「导入 › Markdown 文件…」。

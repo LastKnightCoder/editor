@@ -22,6 +22,7 @@ import {
   Command,
   Activity,
   PackageOpen,
+  FolderInput,
   type LucideIcon,
   Map as MapIcon,
 } from "lucide-react";
@@ -109,6 +110,7 @@ export interface PaletteCommand {
     | "toggle-assist"
     | "open-markdown"
     | "export-project"
+    | "import-batch"
     | "export-perf-snapshot";
 }
 
@@ -213,6 +215,16 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "markdown md open folder file 打开 本地 文件夹 typora",
       kind: "action",
       action: "open-markdown",
+    },
+    {
+      id: "action:import-batch",
+      label: "批量导入文件夹 / 压缩包…",
+      section: "动作",
+      icon: FolderInput,
+      keywords:
+        "import folder zip markdown obsidian typora migrate 导入 批量 文件夹 压缩包 迁移 迁入 笔记",
+      kind: "action",
+      action: "import-batch",
     },
     {
       id: "action:export-project",

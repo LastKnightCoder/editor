@@ -6,6 +6,8 @@ interface ElectronAPI {
   // invoke/send/on/off/sendLog 的类型声明见 src/rpc/electron-bridge.d.ts
   platform: string;
   windowRole?: string;
+  /** 拖入文件的本机路径；非 Electron 环境缺省 */
+  getPathForFile?: (file: File) => string;
 }
 
 interface Window {
