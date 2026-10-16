@@ -28,6 +28,7 @@ vi.mock("@/commands/plugin-local", () => ({
   getPluginWorkspace: vi.fn(async (name: string) => name),
   scanLocalPlugins: vi.fn(async () => ({ directory: "/test/.editor/plugins", entries: [] })),
   openPluginDirectory: vi.fn(),
+  uninstallLocalPlugin: vi.fn(),
 }));
 vi.mock("@/electron", () => ({ isElectron: true }));
 import useSettingStore from "@/stores/useSettingStore";

@@ -32,7 +32,7 @@ import { assertStorageActive, type StorageAdapter, type StorageScope } from "./s
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
-export { createBrowserStorage } from "./browser-storage";
+export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
 export { normalizePageParams } from "./pages";
 export { validatePluginManifest, PLUGIN_SHARED_MODULES } from "./package";
 export { comparePluginVersions, assertPluginCompatibility } from "./version";

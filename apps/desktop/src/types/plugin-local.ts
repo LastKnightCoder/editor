@@ -1,8 +1,14 @@
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
 
+/** 安装来源：只有插件中心来源参与在线更新与首次自动启用。 */
+export type LocalPluginSource =
+  | { kind: "zip" }
+  | { kind: "center"; releaseId: string; pluginId: string; version: string; sha256: string };
+
 export interface LocalPluginEntry {
   id: string;
   directory: string;
+  source?: LocalPluginSource;
   artifact?: DevelopmentPluginPackage;
   error?: string;
 }

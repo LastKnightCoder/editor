@@ -176,3 +176,84 @@ it("损坏事务保持阻断，损坏待更新仍能取消", async () => {
   expect((await s.service.list())[0].blocked).toBe(true);
   expect(await s.version()).toBe("1.0.0");
 });
+
+const center = (version: string) => ({
+  kind: "center" as const,
+  releaseId: `release-${version}`,
+  pluginId: id,
+  version,
+  sha256: "c".repeat(64),
+});
+async function documented(root: string, version: string, extra?: string) {
+  const archive = new AdmZip(await zip(root, version));
+  archive.addFile(id + "/README.md", Buffer.from("# 更新测试"));
+  archive.addFile(id + "/CHANGELOG.md", Buffer.from("## " + version));
+  archive.addFile(id + "/LICENSE", Buffer.from("MIT"));
+  if (extra) archive.addFile(id + "/" + extra, Buffer.from("x"));
+  return archive.toBuffer();
+}
+
+it("门户规范 ZIP 的说明文件随包保存，其他额外文件仍拒绝", async () => {
+  const s = await setup();
+  await expect(
+    s.service.stageRelease(await documented(s.root, "1.0.0", "notes.txt"), center("1.0.0"))
+  ).rejects.toThrow("不符合插件约定");
+  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  await s.restart();
+  expect(await readFile(path.join(s.directory, id, "README.md"), "utf8")).toBe("# 更新测试");
+  expect((await discoverPlugins(s.directory, "0.58.0")).entries[0].artifact).toBeDefined();
+});
+
+it("中心来源在提交后记录，恢复上一版保留来源，本地 ZIP 更新清除来源", async () => {
+  const s = await setup();
+  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  expect((await s.service.sources([id]))[id]).toEqual({ kind: "zip" });
+  await s.restart();
+  expect((await s.service.sources([id]))[id]).toEqual(center("1.0.0"));
+  await s.service.stageRelease(await documented(s.root, "1.1.0"), center("1.1.0"));
+  await s.restart();
+  await s.service.restore(id);
+  await s.restart();
+  expect(await s.version()).toBe("1.0.0");
+  expect((await s.service.sources([id]))[id]).toEqual(center("1.1.0"));
+  await s.service.stageZip(await zip(s.root, "1.2.0"));
+  await s.restart();
+  expect((await s.service.sources([id]))[id]).toEqual({ kind: "zip" });
+});
+
+it("提交后中断恢复时补写中心来源", async () => {
+  const s = await setup();
+  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  const transaction = path.join(s.root, "plugin-updates/transactions", id);
+  await rename(path.join(s.root, "plugin-updates/pending", id), transaction);
+  const recordPath = path.join(transaction, "record.json");
+  const record = JSON.parse(await readFile(recordPath, "utf8"));
+  await rename(path.join(transaction, "package"), path.join(s.directory, id));
+  await writeFile(recordPath, JSON.stringify({ ...record, phase: "committed" }));
+  await s.restart();
+  expect((await s.service.sources([id]))[id]).toEqual(center("1.0.0"));
+});
+
+it("下载包与发布记录身份不符时不暂存", async () => {
+  const s = await setup();
+  await expect(
+    s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.1"))
+  ).rejects.toThrow("不一致");
+  expect(await s.service.list()).toEqual([]);
+});
+
+it("卸载移除包、备份、待更新与来源，有未完成事务时拒绝", async () => {
+  const s = await setup();
+  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  await s.restart();
+  await s.service.stageRelease(await documented(s.root, "1.1.0"), center("1.1.0"));
+  await s.restart();
+  await s.service.stageZip(await zip(s.root, "1.2.0"));
+  await s.service.uninstall(id);
+  expect((await discoverPlugins(s.directory)).entries).toEqual([]);
+  expect(await s.service.list()).toEqual([]);
+  expect((await s.service.sources([id]))[id]).toEqual({ kind: "zip" });
+  await mkdir(path.join(s.root, "plugin-updates/transactions", id));
+  await expect(s.service.uninstall(id)).rejects.toThrow("未完成的更新");
+  await expect(s.service.uninstall("core.theme")).rejects.toThrow("内置");
+});

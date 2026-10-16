@@ -22,7 +22,11 @@ function artifact(id = "test.local", version = "1.0.0"): DevelopmentPluginPackag
     code: `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'${id}',version:'${version}',create:()=>({activate(ctx){ctx.commands.register({id:'run',title:'执行',run:()=> '${version}'});}})});`,
   };
 }
-function setup(scan: () => Promise<LocalPluginScan>, workspaceId = "A") {
+function setup(
+  scan: () => Promise<LocalPluginScan>,
+  workspaceId = "A",
+  remove = vi.fn<(id: string) => Promise<void>>(async () => undefined)
+) {
   const host = new PluginHost({ workspaceId, storage: createMemoryStorage() });
   hosts.push(host);
   host.registerTrusted(
@@ -40,10 +44,11 @@ function setup(scan: () => Promise<LocalPluginScan>, workspaceId = "A") {
     scan,
     modules,
     localStorage,
-    vi.fn()
+    vi.fn(),
+    remove
   );
   managers.push(manager);
-  return { host, manager, modules };
+  return { host, manager, modules, remove };
 }
 const snapshot = (...artifacts: DevelopmentPluginPackage[]): LocalPluginScan => ({
   directory: "/test/plugins",
@@ -74,6 +79,56 @@ it("发现只登记，启用才执行，重新创建工作区宿主恢复启用�
   expect(second.host.getState("test.local")).toBe("active");
   expect(second.host.listCommands()).toHaveLength(1);
   await second.manager.disable("test.local");
+  expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("false");
+});
+it("插件中心首次安装自动启用，用户停用后不再覆盖；本地 ZIP 仍默认停用", async () => {
+  const center = {
+    kind: "center" as const,
+    releaseId: "r1",
+    pluginId: "test.center",
+    version: "1.0.0",
+    sha256: "b".repeat(64),
+  };
+  const entries = snapshot(artifact(), artifact("test.center"));
+  entries.entries[1].source = center;
+  const { host, manager } = setup(async () => entries);
+  await manager.refresh();
+  expect(host.getState("test.center")).toBe("active");
+  expect(host.getState("test.local")).toBe("disabled");
+  expect(manager.source("test.center")).toEqual(center);
+  await manager.disable("test.center");
+  await manager.refresh();
+  expect(host.getState("test.center")).toBe("disabled");
+});
+it("卸载先停用再移除包，默认保留私有数据，勾选后清除所有工作区数据", async () => {
+  let entries = snapshot(artifact(), artifact("test.second"));
+  const { host, manager, remove } = setup(async () => entries);
+  await manager.refresh();
+  await manager.enable("test.local");
+  const data = (workspace: string, plugin: string) =>
+    `tau-plugin-prefs:${JSON.stringify([workspace, plugin, "count"])}`;
+  for (const key of [data("A", "test.local"), data("B", "test.local"), data("A", "test.second")])
+    localStorage.setItem(key, "1");
+  remove.mockImplementation(async (id: string) => {
+    entries = { ...entries, entries: entries.entries.filter(entry => entry.id !== id) };
+  });
+  await manager.uninstall("test.second", false);
+  expect(remove).toHaveBeenCalledWith("test.second");
+  expect(host.listPlugins().some(item => item.id === "test.second")).toBe(false);
+  expect(localStorage.getItem(data("A", "test.second"))).toBe("1");
+  await manager.uninstall("test.local", true);
+  expect(host.listCommands()).toEqual([]);
+  expect(localStorage.getItem(localPluginStateKey("test.local"))).toBeNull();
+  expect(localStorage.getItem(data("A", "test.local"))).toBeNull();
+  expect(localStorage.getItem(data("B", "test.local"))).toBeNull();
+  expect(localStorage.getItem(data("A", "test.second"))).toBe("1");
+});
+it("卸载失败不清除启用偏好与数据", async () => {
+  const { manager, remove } = setup(async () => snapshot(artifact()));
+  await manager.refresh();
+  await manager.enable("test.local");
+  remove.mockRejectedValueOnce(new Error("该插件有未完成的更新"));
+  await expect(manager.uninstall("test.local", true)).rejects.toThrow("未完成");
   expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("false");
 });
 it("扫描新增与删除目录，删除回收命令且保留启用偏好", async () => {
