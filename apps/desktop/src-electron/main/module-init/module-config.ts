@@ -8,6 +8,7 @@ import fileModule from "../modules/file";
 import extraModule from "../modules/extra";
 import fetchModule from "../modules/fetch";
 import pluginDevelopmentModule from "../modules/plugin-development";
+import pluginLocalModule from "../modules/plugin-local";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
@@ -120,6 +121,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => extraModule.init(),
   },
   { name: "fetch", layer: InitLayer.BACKGROUND, dependencies: [], init: () => fetchModule.init() },
+  {
+    name: "plugin-local",
+    layer: InitLayer.BACKGROUND,
+    dependencies: [],
+    init: () => pluginLocalModule.init(),
+  },
   {
     name: "plugin-development",
     layer: InitLayer.BACKGROUND,

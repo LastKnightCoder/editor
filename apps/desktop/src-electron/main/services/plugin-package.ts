@@ -3,7 +3,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { validatePluginManifest, type DevelopmentPluginPackage } from "@tau/plugins/host";
 
-export async function readDevelopmentPlugin(directory: string): Promise<DevelopmentPluginPackage> {
+export async function readPluginPackage(directory: string): Promise<DevelopmentPluginPackage> {
   const root = await realpath(directory);
   async function read(relative: string) {
     const target = await realpath(path.resolve(root, relative));
@@ -14,7 +14,7 @@ export async function readDevelopmentPlugin(directory: string): Promise<Developm
       path.isAbsolute(contained) ||
       !(await stat(target)).isFile()
     )
-      throw new Error("插件文件必须位于所选目录内");
+      throw new Error("插件文件必须位于插件目录内");
     return readFile(target, "utf8");
   }
   const manifestText = await read("manifest.json");
@@ -30,7 +30,7 @@ export async function readDevelopmentPlugin(directory: string): Promise<Developm
       content !== undefined &&
       createHash("sha256").update(content).digest("hex") !== manifest.integrity[name]
     )
-      throw new Error("插件产物不完整或已变化，请重新构建后选择完整目录");
+      throw new Error("插件产物不完整或已变化，请完成构建后刷新列表");
   }
   if (!code.trim()) throw new Error("插件入口为空");
   if ((await read("manifest.json")) !== manifestText)

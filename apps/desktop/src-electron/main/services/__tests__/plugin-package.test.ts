@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { readDevelopmentPlugin } from "../plugin-package";
+import { readPluginPackage } from "../plugin-package";
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -35,7 +35,7 @@ async function fixture(overrides = {}) {
 
 describe("开发插件包读取", () => {
   it("检查产物后返回快照，读取不执行 JS", async () => {
-    const result = await readDevelopmentPlugin(await fixture());
+    const result = await readPluginPackage(await fixture());
     expect(result.manifest.id).toBe("example.fixture");
     expect(result.code).toContain("目录扫描不能执行");
   });
@@ -51,20 +51,20 @@ describe("开发插件包读取", () => {
     { styles: "../other.css" },
     { integrity: {} },
   ])("拒绝无效清单 %j", async overrides => {
-    await expect(readDevelopmentPlugin(await fixture(overrides))).rejects.toThrow();
+    await expect(readPluginPackage(await fixture(overrides))).rejects.toThrow();
   });
   it("拒绝缺文件和构建后发生变化的产物", async () => {
     const directory = await fixture();
     await writeFile(path.join(directory, "main.js"), "changed");
-    await expect(readDevelopmentPlugin(directory)).rejects.toThrow("产物不完整");
+    await expect(readPluginPackage(directory)).rejects.toThrow("产物不完整");
     await rm(path.join(directory, "main.js"));
-    await expect(readDevelopmentPlugin(directory)).rejects.toThrow();
+    await expect(readPluginPackage(directory)).rejects.toThrow();
   });
   it("拒绝指向目录外的符号链接", async () => {
     const directory = await fixture();
     const outside = await fixture();
     await rm(path.join(directory, "main.js"));
     await symlink(path.join(outside, "main.js"), path.join(directory, "main.js"));
-    await expect(readDevelopmentPlugin(directory)).rejects.toThrow("所选目录内");
+    await expect(readPluginPackage(directory)).rejects.toThrow("插件目录内");
   });
 });

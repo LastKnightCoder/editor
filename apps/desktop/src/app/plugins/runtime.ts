@@ -11,7 +11,9 @@ import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugi
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
 import { DevelopmentPluginManager } from "./development-manager";
-import { BuiltinPluginManager } from "./builtin-manager";
+import { PluginActivationManager } from "./activation-manager";
+import { LocalPluginManager } from "./local-manager";
+import { scanLocalPlugins } from "@/commands/plugin-local";
 import type { DevelopmentSession } from "@/types/plugin-development";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
@@ -35,7 +37,8 @@ export interface RegisteredPluginSettings {
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
   development?: DevelopmentPluginManager;
-  builtin?: BuiltinPluginManager;
+  builtin?: PluginActivationManager;
+  local?: LocalPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
   private readonly settings = new Map<string, RegisteredPluginSettings>();
   private readonly editorContributions = new Map<
@@ -78,9 +81,21 @@ export class DesktopPluginRuntime {
   }
 
   getRevision = () => this.revision;
+  attachLocal(preferences: Pick<Storage, "getItem" | "setItem">) {
+    if (this.disposed || this.local) throw new Error("本地插件管理无法重复装配");
+    this.local = new LocalPluginManager(
+      this.host,
+      this.options.plugins.map(plugin => plugin.id),
+      scanLocalPlugins,
+      async () => (await import("./shared-modules")).sharedPluginModules,
+      preferences,
+      this.publish
+    );
+    return this.local;
+  }
   attachBuiltins(ids: readonly string[], preferences: Pick<Storage, "getItem" | "setItem">) {
     if (this.disposed || this.builtin) throw new Error("内置插件管理无法重复装配");
-    this.builtin = new BuiltinPluginManager(this.host, ids, preferences, this.publish);
+    this.builtin = new PluginActivationManager(this.host, ids, preferences, this.publish);
     return this.builtin;
   }
   attachDevelopment(session: DevelopmentSession) {
@@ -203,6 +218,7 @@ export class DesktopPluginRuntime {
     if (this.disposed) return;
     this.disposed = true;
     this.builtin?.cancel();
+    this.local?.cancel();
     this.development?.cancel();
     this.publish();
     try {

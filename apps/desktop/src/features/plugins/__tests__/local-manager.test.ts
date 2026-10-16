@@ -1,0 +1,161 @@
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { definePlugin } from "@tau/plugins";
+import { createMemoryStorage, PluginHost, type DevelopmentPluginPackage } from "@tau/plugins/host";
+import { LocalPluginManager, localPluginStateKey } from "@/app/plugins/local-manager";
+import type { LocalPluginScan } from "@/types/plugin-local";
+
+const hosts: PluginHost[] = [];
+const managers: LocalPluginManager[] = [];
+function artifact(id = "test.local", version = "1.0.0"): DevelopmentPluginPackage {
+  return {
+    manifest: {
+      formatVersion: 1,
+      apiVersion: 1,
+      platform: "desktop",
+      format: "cjs",
+      id,
+      name: id,
+      version,
+      main: "main.js",
+      integrity: { "main.js": "a".repeat(64) },
+    },
+    code: `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'${id}',version:'${version}',create:()=>({activate(ctx){ctx.commands.register({id:'run',title:'执行',run:()=> '${version}'});}})});`,
+  };
+}
+function setup(scan: () => Promise<LocalPluginScan>, workspaceId = "A") {
+  const host = new PluginHost({ workspaceId, storage: createMemoryStorage() });
+  hosts.push(host);
+  host.registerTrusted(
+    definePlugin({
+      id: "core.theme",
+      name: "主题",
+      version: "1.0.0",
+      create: () => ({ activate: () => undefined }),
+    })
+  );
+  const modules = vi.fn(async () => ({ "@tau/plugins": { definePlugin } }));
+  const manager = new LocalPluginManager(
+    host,
+    ["core.theme"],
+    scan,
+    modules,
+    localStorage,
+    vi.fn()
+  );
+  managers.push(manager);
+  return { host, manager, modules };
+}
+const snapshot = (...artifacts: DevelopmentPluginPackage[]): LocalPluginScan => ({
+  directory: "/test/plugins",
+  entries: artifacts.map(artifact => ({
+    id: artifact.manifest.id,
+    directory: "/test/plugins/" + artifact.manifest.id,
+    artifact,
+  })),
+});
+beforeEach(() => localStorage.clear());
+afterEach(async () => {
+  managers.splice(0).forEach(manager => manager.cancel());
+  await Promise.all(hosts.splice(0).map(host => host.dispose()));
+});
+
+it("发现只登记，启用才执行，重新创建工作区宿主恢复启用意图", async () => {
+  const scan = vi.fn(async () => snapshot(artifact()));
+  const first = setup(scan);
+  await first.manager.refresh();
+  expect(first.host.getState("test.local")).toBe("disabled");
+  expect(first.modules).not.toHaveBeenCalled();
+  await first.manager.enable("test.local");
+  expect(await first.host.executeCommand("test.local:run")).toBe("1.0.0");
+  first.manager.cancel();
+  await first.host.dispose();
+  const second = setup(scan, "B");
+  await second.manager.refresh();
+  expect(second.host.getState("test.local")).toBe("active");
+  expect(second.host.listCommands()).toHaveLength(1);
+  await second.manager.disable("test.local");
+  expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("false");
+});
+it("扫描新增与删除目录，删除回收命令且保留启用偏好", async () => {
+  let entries = snapshot(artifact());
+  const { host, manager } = setup(async () => entries);
+  await manager.refresh();
+  await manager.enable("test.local");
+  entries = snapshot(artifact(), artifact("test.second"));
+  await manager.refresh();
+  expect(host.listPlugins()).toHaveLength(3);
+  expect(host.getState("test.second")).toBe("disabled");
+  entries = snapshot(artifact("test.second"));
+  await manager.refresh();
+  expect(host.listCommands()).toEqual([]);
+  expect(host.listPlugins().some(item => item.id === "test.local")).toBe(false);
+  expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("true");
+});
+it("更新活动包不热替换，停用后刷新加载新包", async () => {
+  let entries = snapshot(artifact());
+  const { host, manager } = setup(async () => entries);
+  await manager.refresh();
+  await manager.enable("test.local");
+  entries = snapshot(artifact("test.local", "1.1.0"));
+  await manager.refresh();
+  expect(await host.executeCommand("test.local:run")).toBe("1.0.0");
+  expect(manager.error("test.local")).toContain("重启");
+  await manager.disable("test.local");
+  await manager.refresh();
+  await manager.enable("test.local");
+  expect(await host.executeCommand("test.local:run")).toBe("1.1.0");
+  expect(host.listCommands()).toHaveLength(1);
+});
+it("坏包和内置 ID 冲突显示错误，根目录读取失败保留当前实例", async () => {
+  let fail = false;
+  const scan = async () => {
+    if (fail) throw Error("目录不可读");
+    const result = snapshot(artifact(), artifact("core.theme"));
+    result.entries.push({ id: "bad", directory: "/test/plugins/bad", error: "清单无效" });
+    return result;
+  };
+  const { host, manager } = setup(scan);
+  await manager.refresh();
+  expect(manager.issues).toHaveLength(2);
+  expect(manager.error("core.theme")).toContain("冲突");
+  await manager.enable("test.local");
+  fail = true;
+  await expect(manager.refresh()).rejects.toThrow("目录不可读");
+  expect(manager.scanError).toBe("目录不可读");
+  expect(host.getState("test.local")).toBe("active");
+});
+it("关闭期间迟到扫描不登记插件，后续操作拒绝", async () => {
+  let release!: (value: LocalPluginScan) => void;
+  const scan = vi.fn(
+    () =>
+      new Promise<LocalPluginScan>(resolve => {
+        release = resolve;
+      })
+  );
+  const { host, manager } = setup(scan);
+  const refresh = manager.refresh();
+  await vi.waitFor(() => expect(scan).toHaveBeenCalled());
+  const rejected = expect(refresh).rejects.toThrow("关闭");
+  manager.cancel();
+  await host.dispose();
+  release(snapshot(artifact()));
+  await rejected;
+  expect(host.listPlugins()).toEqual([]);
+  await expect(manager.refresh()).rejects.toThrow("关闭");
+});
+it("损坏后刷新保留当前快照，修复后能重新发现", async () => {
+  let entries = snapshot(artifact());
+  const { host, manager } = setup(async () => entries);
+  await manager.refresh();
+  await manager.enable("test.local");
+  entries = {
+    directory: "/test/plugins",
+    entries: [{ id: "test.local", directory: "/test/plugins/test.local", error: "构建不完整" }],
+  };
+  await manager.refresh();
+  expect(manager.error("test.local")).toContain("构建不完整");
+  expect(await host.executeCommand("test.local:run")).toBe("1.0.0");
+  entries = snapshot(artifact());
+  await manager.refresh();
+  expect(manager.error("test.local")).toBeUndefined();
+});

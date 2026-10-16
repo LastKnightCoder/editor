@@ -3,7 +3,7 @@ import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
-import { readDevelopmentPlugin } from "./plugin-package";
+import { readPluginPackage } from "./plugin-package";
 
 interface ReadyBuild {
   buildId: string;
@@ -114,7 +114,7 @@ export class PluginBuildWatcher {
         path.isAbsolute(relative)
       )
         throw new Error("构建目录越出监听范围");
-      const artifact = await readDevelopmentPlugin(directory);
+      const artifact = await readPluginPackage(directory);
       if (artifact.manifest.id !== this.id) throw new Error("构建的插件 ID 不一致");
       if ((await this.pointer()) !== raw) {
         this.again = true;

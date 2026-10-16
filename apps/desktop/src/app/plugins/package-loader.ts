@@ -8,13 +8,13 @@ import {
 
 export type SharedPluginModules = Readonly<Record<string, unknown>>;
 
-export function registerDevelopmentPlugin(
+export function registerPluginPackage(
   host: PluginHost,
   artifact: DevelopmentPluginPackage,
   getModules: () => Promise<SharedPluginModules>
 ) {
   const manifest = validatePluginManifest(artifact.manifest);
-  // 登记只使用静态元信息；用户启用时才执行所选可信代码。
+  // 登记只使用静态元信息，启用时才执行包快照。
   host.registerTrusted({
     ...manifest,
     create() {
