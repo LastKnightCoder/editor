@@ -152,8 +152,14 @@ try {
     );
     await writeFile(
       path.join(directory, "README.md"),
-      `# Tau ${name} 作者契约\n\n通过 npm 别名安装为 \`@tau/${name}\`。运行时由 Tau 桌面宿主提供，构建时必须 external；不可在普通 Node.js 程序中直接执行。\n\n模板与使用说明：https://github.com/LastKnightCoder/tau-plugin-template\n`
+      `# Tau ${name} 作者契约\n\n通过 npm 别名安装为 \`@tau/${name}\`。运行时由 Tau 桌面宿主提供，构建时必须 external；不可在普通 Node.js 程序中直接执行。\n\n模板与使用说明：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，要求 Tau 0.59.0 及以上。\n" : ""}`
     );
+    if (name === "plugins") {
+      await writeFile(
+        path.join(directory, "SERVICES.md"),
+        await readFile(path.join(root, "scripts/plugins/template/SERVICES.md"))
+      );
+    }
     execFileSync("npm", ["pack", "--ignore-scripts", "--pack-destination", output], {
       cwd: directory,
       stdio: "pipe",

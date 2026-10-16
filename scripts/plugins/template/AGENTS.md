@@ -1,6 +1,7 @@
 # AI 开发指南
 
 - 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
+- 编译与转换接口见 SERVICES.md；使用前确认 SDK 至少为 0.5.0、minAppVersion 至少为 0.59.0，不把生成结果当作已保存文件或已写入笔记。
 - README.md只写面向用户的功能和使用说明，随ZIP打包；manifest.description填写简短介绍，平台自动读取，不另填网页介绍或截图。CHANGELOG.md可选。
 - 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
 - 功能代码使用 TypeScript/TSX。优先使用 API.md 中说明的能力，结合已安装 SDK 的类型提示确认参数，不编造接口。

@@ -330,6 +330,20 @@ exports.default = async context => {
 
   const platform = context.electronPlatformName;
 
+  // 二进制包通过 postinstall 设置执行位；跨平台打包补拉的文件也需在签名前设置。
+  ensurePlatformSubPackages(nodeModulesDir, "@ffprobe-installer/ffprobe", platform);
+  const probeScope = path.join(nodeModulesDir, "@ffprobe-installer");
+  if (fs.existsSync(probeScope)) {
+    for (const name of fs.readdirSync(probeScope)) {
+      if (name !== "ffprobe" && !name.startsWith(`${platform}-`)) {
+        fs.rmSync(path.join(probeScope, name), { recursive: true, force: true });
+        continue;
+      }
+      const binary = path.join(probeScope, name, "ffprobe");
+      if (platform !== "win32" && fs.existsSync(binary)) fs.chmodSync(binary, 0o755);
+    }
+  }
+
   syncNodeLlamaCppUnpackedDeps(nodeModulesDir, platform);
 
   // ripgrep 主包已 asarUnpack（与平台包同在 unpacked 真实文件系统），

@@ -1,5 +1,6 @@
 import type {
   PluginContext,
+  PluginServices,
   PluginDefinition,
   PluginPageDefinition,
   PluginPageHandle,
@@ -108,6 +109,7 @@ export class DesktopPluginRuntime {
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
       openSettings?: (key: PluginSettingsKey) => void;
       fetch?: typeof globalThis.fetch;
+      services?: PluginServices;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       restartRequired?: Set<string>;
@@ -118,6 +120,7 @@ export class DesktopPluginRuntime {
       workspaceId: options.workspaceId,
       storage: options.storage,
       fetch: options.fetch,
+      services: options.services,
       excerpts: options.excerpts,
       materials: options.materials,
       restartRequired: options.restartRequired,
