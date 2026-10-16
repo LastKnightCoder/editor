@@ -50,10 +50,16 @@ export function resample(points: Vec[], step: number): Vec[] {
 /**
  * 沿法线方向的低频摆动：两段正弦按弧长叠加，相位由 random 决定。
  * 摆动是弧长的连续函数，端点移动时线形连续变化，不会整体跳变。
+ * waveScale 缩放波长：尺寸很小的图形（火柴人等）传 <1，否则一整笔都落在半个波长内、看不出手抖。
  */
-export function wobble(points: Vec[], amplitude: number, random: () => number): Vec[] {
-  const longWave = (Math.PI * 2) / (110 + random() * 90);
-  const shortWave = (Math.PI * 2) / (28 + random() * 18);
+export function wobble(
+  points: Vec[],
+  amplitude: number,
+  random: () => number,
+  waveScale = 1
+): Vec[] {
+  const longWave = (Math.PI * 2) / ((110 + random() * 90) * waveScale);
+  const shortWave = (Math.PI * 2) / ((28 + random() * 18) * waveScale);
   const longPhase = random() * Math.PI * 2;
   const shortPhase = random() * Math.PI * 2;
   if (amplitude <= 0) return points.map(p => [p[0], p[1]]);

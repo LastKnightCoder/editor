@@ -60,16 +60,18 @@ export const scheduleKeys = {
 };
 
 export function invalidateSchedule(client: QueryClient, database: string) {
-  void client.invalidateQueries({
-    queryKey: scheduleKeys.root(database),
-    // 备注是表单快照，通知刷新不能覆盖尚未保存的编辑。
-    predicate: query => query.queryKey[2] !== "content",
-  });
-  void client.invalidateQueries({ queryKey: ["home"] });
+  return Promise.all([
+    client.invalidateQueries({
+      queryKey: scheduleKeys.root(database),
+      // 备注是表单快照，通知刷新不能覆盖尚未保存的编辑。
+      predicate: query => query.queryKey[2] !== "content",
+    }),
+    client.invalidateQueries({ queryKey: ["home"] }),
+  ]);
 }
 
 on("schedule:changed", (_event, { databaseName }: { databaseName: string }) => {
-  invalidateSchedule(queryClient, databaseName);
+  void invalidateSchedule(queryClient, databaseName);
 });
 
 export function useScheduleCommands() {
@@ -285,7 +287,8 @@ export function useScheduleMutations() {
         assertCurrentDatabase();
         const result = await commands.deleteCalendarEvent(id);
         if (!result) throw new Error("日程已不存在");
-        refresh();
+        // 延迟删除在 resolve 后放开 pending（pendingDeleteStore）：等重拉落地，避免已删日程闪回
+        await refresh();
         return result;
       },
       async mergeCalendars(sourceIds: number[], targetId: number) {
@@ -357,7 +360,7 @@ export function useToggleTodoEvent() {
       await commands.toggleCompleteCascade(source.todoItemId, next);
     },
     onSuccess: (_result, source) => {
-      invalidateSchedule(queryClient, database);
+      void invalidateSchedule(queryClient, database);
       // 待办页 / 待安排面板读待办快照：经待办变更事件统一失效
       emitTodoMutation({
         source: "schedule",

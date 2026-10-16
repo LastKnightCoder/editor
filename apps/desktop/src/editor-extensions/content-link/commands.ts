@@ -34,10 +34,10 @@ export const mentionCommands: EditorCommand[] = [
     run: editor => {
       const store = getEditorStore(editor);
       if (!store) return;
-      const { mentionPanelVisible, inputValue, setState, reset } = store.getState();
+      const { mentionPanelVisible, inputValue, trigger, setState, reset } = store.getState();
       if (!mentionPanelVisible) return;
-      if (inputValue.length <= 1) {
-        // 只剩 @ 时，关闭面板、让字符正常删除，并卸载面板
+      if (inputValue.length <= trigger.length) {
+        // 只剩触发词时，关闭面板、让字符正常删除，并卸载面板
         reset();
         setTimeout(() => {
           cleanupMentionPanel(editor);

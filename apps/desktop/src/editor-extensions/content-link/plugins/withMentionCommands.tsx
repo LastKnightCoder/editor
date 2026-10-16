@@ -64,68 +64,6 @@ function destroyPanel(editor: Editor) {
   }
 }
 
-export const withMentionCommands = (editor: Editor) => {
-  const { insertText } = editor;
-
-  editor.insertText = text => {
-    if (text === "@") {
-      // 动态创建面板
-      const { store } = createPanel(editor);
-      const state = store.getState();
-
-      if (!state.mentionPanelVisible) {
-        // 获取当前光标的位置
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          const position = {
-            x: rect.left,
-            y: rect.top + rect.height,
-          };
-          store.setState({
-            mentionPanelVisible: true,
-            position,
-            inputValue: "@",
-          });
-        }
-      }
-    } else {
-      // 如果面板已存在，更新输入
-      const panelInfo = editorPanels.get(editor);
-      if (panelInfo) {
-        const { store } = panelInfo;
-        const state = store.getState();
-        const { mentionPanelVisible, inputValue } = state;
-
-        if (mentionPanelVisible) {
-          if (text === " ") {
-            store.getState().reset();
-          } else {
-            const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0) {
-              const range = selection.getRangeAt(0);
-              const rect = range.getBoundingClientRect();
-              const position = {
-                x: rect.left,
-                y: rect.top + rect.height,
-              };
-              store.setState({
-                inputValue: inputValue + text,
-                position,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    insertText(text);
-  };
-
-  return editor;
-};
-
 // 导出清理函数，供外部在需要时调用
 export const cleanupMentionPanel = (editor: Editor) => {
   destroyPanel(editor);

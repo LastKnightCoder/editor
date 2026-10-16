@@ -4,7 +4,7 @@
  * 点问题在右侧打开非模态详情抽屉（同待办），再点同一行或 Esc 关闭。
  * 分组作为子项嵌在全局侧栏「问题管理」入口下（QuestionsNav），经页面参数 id 筛选。
  *
- * 删除问题、解除关联不二次确认：立即隐藏 + Toast 撤销，5 秒后落库；改状态可撤销（删除对应轨迹事件）。
+ * 删除问题、解除关联不二次确认：立即隐藏 + Toast 撤销，toast 关闭后落库；改状态可撤销（删除对应轨迹事件）。
  * 键盘（本页在栈顶、焦点不在输入 / 按钮 / 浮层内）：↑↓ 切换、1/2/3 设状态、L 关联材料。
  */
 
@@ -163,26 +163,33 @@ export function QuestionsView() {
   const move = (question: { id: number; groupId: number }, groupId: number) =>
     moveQuestion(question, groupId, derived?.groupMap.get(groupId)?.title ?? "");
 
+  /* 落库后等重拉落地再放开 pending：否则旧快照里的已删条目会闪回（撤销 toast 消失瞬间列表抖动） */
+  const invalidateQuestions = () => queryClient.invalidateQueries({ queryKey: ["questions"] });
+
   const remove = (question: { id: number; questionContent: string }) =>
-    deferred.schedule(`q:${question.id}`, "已删除问题（材料本身不受影响）", () =>
-      questionMutations.remove(question.id)
-    );
+    deferred.schedule(`q:${question.id}`, "已删除问题（材料本身不受影响）", async () => {
+      await questionMutations.remove(question.id);
+      await invalidateQuestions();
+    });
 
   const unlink = (material: QuestionMaterial) =>
     deferred.schedule(
       `m:${material.id}`,
       material.targetType === "answer" ? "已删除答案" : "已解除关联（材料仍保留在库中）",
-      () =>
-        questionMutations.unlink(material.questionId, {
+      async () => {
+        await questionMutations.unlink(material.questionId, {
           targetType: material.targetType,
           targetId: material.targetId,
-        })
+        });
+        await invalidateQuestions();
+      }
     );
 
   const unlinkChat = (chat: QuestionChat) =>
-    deferred.schedule(`c:${chat.id}`, "已解除关联（对话仍保留）", () =>
-      questionMutations.unlinkChat(chat.questionId, chat.sessionId)
-    );
+    deferred.schedule(`c:${chat.id}`, "已解除关联（对话仍保留）", async () => {
+      await questionMutations.unlinkChat(chat.questionId, chat.sessionId);
+      await invalidateQuestions();
+    });
 
   // 点对话：在右侧停靠栏打开，留在问题页接着聊
   const openChat = (chat: QuestionChat) => {

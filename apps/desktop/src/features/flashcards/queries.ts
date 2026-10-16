@@ -151,10 +151,12 @@ function patchCard(queryClient: QueryClient, database: string, card: Flashcard) 
 
 /** 复习结束 / 离开页面时调用：刷新卡组计数、评分分布及今日页（含回顾段） */
 export function invalidateFlashcardViews(queryClient: QueryClient, database?: string) {
-  void queryClient.invalidateQueries({
-    queryKey: database ? flashcardKeys.root(database) : ["flashcards"],
-  });
-  void queryClient.invalidateQueries({ queryKey: ["home"] });
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: database ? flashcardKeys.root(database) : ["flashcards"],
+    }),
+    queryClient.invalidateQueries({ queryKey: ["home"] }),
+  ]);
 }
 
 export function useFlashcardMutations() {
@@ -185,7 +187,8 @@ export function useFlashcardMutations() {
     async deleteCard(id: number) {
       assertCurrentDatabase();
       if (!(await commands.deleteFlashcard(id))) throw new Error("闪卡已不存在");
-      refresh();
+      // 延迟删除在 resolve 后放开 pending（useDeferredCardDelete）：等重拉落地，避免已删卡片闪回
+      await refresh();
     },
     async setSuspended(card: Flashcard, suspended: boolean) {
       assertCurrentDatabase();

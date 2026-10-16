@@ -1,8 +1,9 @@
-import { Editor, Element, Transforms } from "slate";
+import { Editor, Element, Range, Transforms } from "slate";
 import type { ParagraphElement } from "@tau/editor";
 import type { ElementBehaviors } from "@tau/editor";
 
 import type { ContentLinkElement } from "./types";
+import { resolveMentionTrigger } from "./triggers";
 import { editorPanels, createPanel } from "./plugins/withMentionCommands";
 
 /** content-link 不在 paragraph 里时包进 paragraph（行内元素的标准归位） */
@@ -22,12 +23,23 @@ const normalize: ElementBehaviors<ContentLinkElement>["normalize"] = (editor, [n
   return false;
 };
 
+/** 光标前一个字符（可跨文本节点），用于识别 [[ / 【【 的成对输入 */
+const getCharBeforeCursor = (editor: Editor): string => {
+  const { selection } = editor;
+  if (!selection || !Range.isCollapsed(selection)) return "";
+  const before = Editor.before(editor, selection, { unit: "character" });
+  if (!before) return "";
+  return Editor.string(editor, { anchor: before, focus: selection.anchor }).slice(-1);
+};
+
 /**
- * 段落里输入 @ 打开提及面板；面板已开时其他输入更新面板、空格关闭。
+ * 段落里输入 @ / [[ / 【【 打开提及面板；面板已开时其他输入更新面板、空格关闭
+ * （wiki 触发词允许空格进搜索词，对齐 Obsidian）。
  * 文本插入本身交给默认行为（返回 false），这里只管面板。
  */
 const insertMention: ElementBehaviors<ParagraphElement>["insertText"] = (editor, _entry, text) => {
-  if (text === "@") {
+  const trigger = resolveMentionTrigger(text, getCharBeforeCursor(editor));
+  if (trigger) {
     // 动态创建面板
     const { store } = createPanel(editor);
     const state = store.getState();
@@ -45,7 +57,8 @@ const insertMention: ElementBehaviors<ParagraphElement>["insertText"] = (editor,
         store.setState({
           mentionPanelVisible: true,
           position,
-          inputValue: "@",
+          inputValue: trigger,
+          trigger,
         });
       }
     }
@@ -57,10 +70,10 @@ const insertMention: ElementBehaviors<ParagraphElement>["insertText"] = (editor,
   if (panelInfo) {
     const { store } = panelInfo;
     const state = store.getState();
-    const { mentionPanelVisible, inputValue } = state;
+    const { mentionPanelVisible, inputValue, trigger: activeTrigger } = state;
 
     if (mentionPanelVisible) {
-      if (text === " ") {
+      if (text === " " && activeTrigger === "@") {
         store.getState().reset();
       } else {
         const selection = window.getSelection();

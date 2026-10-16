@@ -10,6 +10,8 @@ export interface IMentionPanelState {
   };
   activeIndex: number;
   inputValue: string;
+  /** 本次面板的触发词（@ / [[ / 【【），inputValue 以它开头 */
+  trigger: string;
   searchResults: SearchResult[];
   loading: boolean;
 }
@@ -23,10 +25,6 @@ export interface IMentionPanelActions {
   setState: (state: Partial<IMentionPanelState>) => void;
 }
 
-export type MentionPanelStoreType = StoreApi<
-  IMentionPanelState & IMentionPanelActions
->;
+export type MentionPanelStoreType = StoreApi<IMentionPanelState & IMentionPanelActions>;
 
-export const MentionPanelContext = createContext<MentionPanelStoreType | null>(
-  null,
-);
+export const MentionPanelContext = createContext<MentionPanelStoreType | null>(null);

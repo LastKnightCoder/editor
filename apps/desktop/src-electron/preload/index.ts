@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, webFrame } from "electron";
+import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 contextBridge.exposeInMainWorld("electron", {
   invoke: (channel: string, ...args: unknown[]) => {
@@ -19,5 +19,8 @@ contextBridge.exposeInMainWorld("electron", {
   sendLog: (level: string, message: string) => {
     ipcRenderer.send("logger:renderer-log", { level, message });
   },
+  // 拖入文件的本机路径（Electron 32 起 File.path 已移除，只能在 preload 经 webUtils 取）
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
   platform: process.platform,
+  windowRole: process.argv.find(arg => arg.startsWith("--tau-window-role="))?.split("=")[1],
 });

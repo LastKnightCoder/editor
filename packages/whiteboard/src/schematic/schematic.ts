@@ -12,6 +12,8 @@ import MindThemeUtil from "../utils/MindThemeUtil";
 import { getThemeColorById } from "../constants/theme-colors";
 import { outlineToSvgPath } from "../utils/HandwriteUtil";
 import { getTextBandColor, getTextSurface, resolveTextStyle } from "../constants/text-style";
+import { STICK_PADDING } from "../constants/stickman";
+import { buildStickStrokes, getStickPose, stickNaturalSize } from "../utils/stickman";
 
 /** 纯色，或由 CSS linear-gradient 解析出的渐变（文本卡片常用渐变底） */
 export type SchematicFill =
@@ -345,6 +347,37 @@ function arrow(ctx: Ctx, e: AnyElement) {
   }
 }
 
+/** 人物：线稿按姿态画布归一化后放进元素框（只画线，不画着色） */
+function stickman(ctx: Ctx, e: AnyElement) {
+  const pose = getStickPose(e.pose);
+  if (!pose) return;
+  const [w, h] = stickNaturalSize(pose);
+  // 归一化坐标保留 4 位小数，2 位会把小圆头削成多边形
+  const unitD = (points: [number, number][], closed: boolean) =>
+    "M" +
+    points
+      .map(
+        ([px, py]) =>
+          `${((px + STICK_PADDING) / w).toFixed(4)} ${((py + STICK_PADDING) / h).toFixed(4)}`
+      )
+      .join(" L") +
+    (closed ? " Z" : "");
+  const box = { x: e.x, y: e.y, w: e.width, h: e.height };
+  const style = { body: e.body ?? "classic", tint: "mono" as const, flip: e.flip };
+  for (const stroke of buildStickStrokes(pose, style)) {
+    if (stroke.kind === "text") continue;
+    const solid = stroke.kind === "shape" && stroke.fill === "ink";
+    ctx.shapes.push({
+      kind: "path",
+      d: unitD(stroke.points, stroke.kind === "shape"),
+      fill: solid ? INK : undefined,
+      stroke: solid ? undefined : INK,
+      strokeWidth: 1,
+      box,
+    });
+  }
+}
+
 /* ───────── 分派 ───────── */
 
 function element(ctx: Ctx, e: AnyElement) {
@@ -374,6 +407,8 @@ function element(ctx: Ctx, e: AnyElement) {
       }
       return;
     }
+    case "stickman":
+      return stickman(ctx, e);
     case "handwrite": {
       if (!Array.isArray(e.outline) || e.outline.length === 0) return;
       ctx.shapes.push({

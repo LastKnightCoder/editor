@@ -15,6 +15,7 @@ import {
   Layers,
   FileText,
   BookMarked,
+  Footprints,
   Presentation,
   PenLine,
   Repeat,
@@ -111,6 +112,7 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
       }, // 问题分组嵌在侧栏入口下（D-089）
       { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
       { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
+      { key: "walk", label: "漫步", icon: Footprints }, // features/walk（随机抽旧内容重温，顺岔路走到相邻内容）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
     ],
   },

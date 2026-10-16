@@ -5,7 +5,6 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
 import {
   getFileBaseName,
-  readTextFile,
   selectFile,
   getProjectItemById,
   getProjectItemsByIds,
@@ -59,13 +58,19 @@ import {
   SearchResult,
 } from "@/types";
 import { importLocalPdf } from "../../shared/utils/bookImport";
-import { FileText, FolderOpen, MoreHorizontal, Plus, Globe, Video, Table } from "lucide-react";
 import {
-  getContentLength,
-  getEditorText,
-  importFromMarkdown,
-  defaultProjectItemEventBus,
-} from "@/utils";
+  BookMarked,
+  ChevronRight,
+  FileText,
+  Folder,
+  FolderOpen,
+  MoreHorizontal,
+  Plus,
+  Globe,
+  Video,
+  Table,
+} from "lucide-react";
+import { getContentLength, getEditorText, defaultProjectItemEventBus } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
 import { EditText, EditTextHandle } from "@tau/ui";
@@ -80,6 +85,9 @@ import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebVi
 import { createProjectCardListExtension } from "@/editor-extensions";
 import useProjectItemMoreActions from "./useProjectItemMoreActions";
 import { toast, Tooltip, Menu } from "@tau/ui";
+import { importMarkdownFiles } from "@/services/content-transfer";
+
+const NO_CHILDREN: number[] = [];
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -122,6 +130,32 @@ const INSIDE_DROP_INDICATOR_CLASS = [
   "bg-accent-soft",
 ].join(" ");
 
+// 引导线位于父级折叠箭头中轴(4px 内边距 + 1px 边框 + 8px 半宽 = 13px)偏左 5px 处,
+// 与子项背景左缘(缩进 12px)留出间隙,避免相贴
+const GUIDE_LINE_CLASS = [
+  "before:content-['']",
+  "before:absolute",
+  "before:left-[8px]",
+  "before:top-0",
+  "before:bottom-[4px]",
+  "before:w-px",
+  "before:transition-colors",
+].join(" ");
+
+// 层级色只分两档，更深层回到中性，避免与选中态的强调色争抢
+const getFolderToneClass = (depth: number) => {
+  if (depth === 0) return "text-accent-text fill-accent-soft";
+  if (depth === 1) return "text-accent-text/60";
+  return "text-ink-2";
+};
+
+const getGuideToneClass = (depth: number, onActivePath: boolean) => {
+  if (onActivePath) return "before:bg-accent/40";
+  if (depth === 0) return "before:bg-accent/20";
+  if (depth === 1) return "before:bg-accent/10";
+  return "before:bg-line-1 group-hover/tree:before:bg-ink-3/25";
+};
+
 interface IProjectItemProps {
   projectItemId: number;
   parentProjectItemId: number;
@@ -130,6 +164,8 @@ interface IProjectItemProps {
   parentChildren: number[];
   cards: ICard[];
   whiteBoards: WhiteBoard[];
+  /** 当前激活文档的祖先集合，用于高亮其所在分支的引导线 */
+  activeAncestorIds?: ReadonlySet<number>;
   onOpenChange?: (open: boolean) => void;
   refreshProject?: () => void;
 }
@@ -143,6 +179,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
     cards,
     whiteBoards,
+    activeAncestorIds,
     onOpenChange,
     refreshProject,
   } = props;
@@ -418,18 +455,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     }
   });
 
-  const { drag, drop, isDragging, dropContainerRef, dragPosition, isOver, canDrop } =
-    useDragAndDrop({
+  // 拖拽项与子级 path 引用稳定化：内联对象/数组会在每次渲染时重建，既让
+  // getEditorText 全量遍历文档 content 重复执行，又击穿子级 memo——展开/收起
+  // 一次就级联重渲染整棵子树
+  const dragItem = useMemo(
+    () => ({
       itemId: projectItemId,
       parentId: parentProjectItemId,
       isRoot,
       path,
       onDrop,
-      children: projectItem?.children || [],
+      children: projectItem?.children ?? NO_CHILDREN,
       parentChildren,
       chatContentReference: projectItem?.contentId
         ? {
-            entityType: "project-item",
+            entityType: "project-item" as const,
             entityId: projectItem.id,
             contentId: projectItem.contentId,
             title:
@@ -439,7 +479,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             previewText: getEditorText(projectItem.content, 160),
           }
         : undefined,
-    });
+    }),
+    [
+      projectItemId,
+      parentProjectItemId,
+      isRoot,
+      path,
+      onDrop,
+      parentChildren,
+      projectItem,
+      projectItemTitle,
+    ]
+  );
+  const { drag, drop, isDragging, dropContainerRef, dragPosition, isOver, canDrop } =
+    useDragAndDrop(dragItem);
+
+  const childPaths = useMemo(
+    () => (projectItem?.children ?? NO_CHILDREN).map((_, index) => [...path, index]),
+    [projectItem, path]
+  );
 
   const { moreMenuItems, handleMoreMenuClick, moreActionModals } = useProjectItemMoreActions({
     projectId,
@@ -613,25 +671,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       openSelectWhiteBoardModal();
     } else if (key === "import-markdown") {
       if (!projectItem) return;
-      const filePath = await selectFile({
-        properties: ["openFile", "multiSelections"],
-        filters: [
-          {
-            name: "Markdown",
-            extensions: ["md"],
-          },
-        ],
-      }).catch(e => {
-        console.error(e);
-        return null;
-      });
-      if (!filePath) return;
-      for (const path of filePath) {
-        const markdown = await readTextFile(path);
-        const content = importFromMarkdown(markdown, ["yaml"]);
-        const fileName = await getFileBaseName(path, true);
+      await importMarkdownFiles(async ({ title, content }) => {
         const [parentProjectItem] = await addChildProjectItem(projectItemId, {
-          title: fileName,
+          title,
           content,
           children: [],
           refType: "",
@@ -644,7 +686,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           setProjectItem(parentProjectItem);
           projectItemEventBus.publishProjectItemEvent("project-item:updated", parentProjectItem);
         }
-      }
+      });
     }
   });
 
@@ -682,6 +724,47 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   if (!projectItem) return null;
 
+  const depth = path.length - 1;
+  const hasChildren = projectItem.children.length > 0;
+  const isActive = itemId === projectItem.id;
+  const leafIconClass = classnames("size-4", isActive ? "text-accent-text" : "text-ink-3");
+  const titleToneClass = isActive
+    ? "text-accent-text font-semibold"
+    : hasChildren
+      ? depth === 0
+        ? "text-ink-1 font-semibold"
+        : "text-ink-1 font-medium"
+      : "text-ink-2";
+  // 与折叠箭头同一原则:行已有 hover 背景,按钮只用透明度反馈,避免双重背景
+  const actionButtonClass =
+    "flex size-[22px] cursor-pointer items-center justify-center opacity-60 transition-opacity duration-200 hover:opacity-100";
+
+  const renderItemIcon = () => {
+    if (hasChildren) {
+      const FolderIcon = folderOpen ? FolderOpen : Folder;
+      return (
+        <FolderIcon
+          className={classnames("size-4", getFolderToneClass(depth))}
+          strokeWidth={1.75}
+        />
+      );
+    }
+    switch (projectItem.projectItemType) {
+      case EProjectItemType.WhiteBoard:
+        return <SVG src={whiteBoardIcon} className={leafIconClass} />;
+      case EProjectItemType.VideoNote:
+        return <Video className={leafIconClass} strokeWidth={1.75} />;
+      case EProjectItemType.WebView:
+        return <Globe className={leafIconClass} strokeWidth={1.75} />;
+      case EProjectItemType.TableView:
+        return <Table className={leafIconClass} strokeWidth={1.75} />;
+      case EProjectItemType.Pdf:
+        return <BookMarked className={leafIconClass} strokeWidth={1.75} />;
+      default:
+        return <FileText className={leafIconClass} strokeWidth={1.75} />;
+    }
+  };
+
   return (
     <>
       <div
@@ -698,10 +781,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             drop(node);
           }}
           className={classnames(
-            "relative flex min-w-0 cursor-pointer items-center justify-between rounded-[8px] border border-transparent px-[8px] py-[4px] transition-all duration-200",
+            "group/row relative flex min-w-0 cursor-pointer items-center justify-between rounded-[6px] border border-transparent pl-[4px] pr-[2px] transition-all duration-200",
             {
-              [activeClass]: itemId === projectItem.id,
-              [hoverClass]: itemId !== projectItem.id,
+              [activeClass]: isActive,
+              [hoverClass]: !isActive,
               [TOP_DROP_INDICATOR_CLASS]: isOver && canDrop && dragPosition === EDragPosition.Top,
               [BOTTOM_DROP_INDICATOR_CLASS]:
                 isOver && canDrop && dragPosition === EDragPosition.Bottom,
@@ -715,43 +798,32 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             navigator.push("project-detail", { id: projectId, itemId: projectItem.id });
           }}
         >
-          <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[8px] overflow-hidden">
-            <Tooltip
-              content={projectItem.children.length > 0 ? (folderOpen ? "收起" : "展开") : undefined}
-              disabled={projectItem.children.length === 0}
-              delay={1000}
-            >
-              <div
-                className={classnames(
-                  "flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full transition-colors duration-200",
-                  {
-                    [`cursor-pointer ${hoverClass}`]: projectItem.children.length > 0,
-                  }
-                )}
+          <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[6px] overflow-hidden">
+            {hasChildren ? (
+              <button
+                type="button"
+                aria-label={folderOpen ? "收起" : "展开"}
+                className="text-ink-1 flex size-4 flex-none items-center justify-center opacity-45 transition-opacity duration-200 hover:opacity-100"
                 onClick={e => {
                   e.preventDefault();
                   e.stopPropagation();
-                  if (projectItem.children.length === 0) return;
                   setOpen(databaseName, projectItemId, !folderOpen);
                 }}
               >
-                {projectItem.children.length > 0 ? (
-                  <FolderOpen className="size-4" strokeWidth={1.75} />
-                ) : projectItem.projectItemType === EProjectItemType.WhiteBoard ? (
-                  <SVG src={whiteBoardIcon} />
-                ) : projectItem.projectItemType === EProjectItemType.VideoNote ? (
-                  <Video className="size-4" strokeWidth={1.75} />
-                ) : projectItem.projectItemType === EProjectItemType.WebView ? (
-                  <Globe className="size-4" strokeWidth={1.75} />
-                ) : projectItem.projectItemType === EProjectItemType.TableView ? (
-                  <Table className="size-4" strokeWidth={1.75} />
-                ) : projectItem.projectItemType === EProjectItemType.Pdf ? (
-                  <FileText className="size-4 text-red-500" strokeWidth={1.75} />
-                ) : (
-                  <FileText className="size-4" strokeWidth={1.75} />
-                )}
-              </div>
-            </Tooltip>
+                <ChevronRight
+                  className={classnames("size-[13px] transition-transform duration-150", {
+                    "rotate-90": folderOpen,
+                  })}
+                  strokeWidth={2}
+                />
+              </button>
+            ) : (
+              // 叶子节点保留箭头槽位:与同层文件夹图标对齐,并维持相对父级的缩进层级
+              <span className="size-4 flex-none" aria-hidden />
+            )}
+            <span className="flex size-4 flex-none items-center justify-center">
+              {renderItemIcon()}
+            </span>
             <div className="min-w-0 flex-1 overflow-hidden">
               <Tooltip
                 content={
@@ -767,9 +839,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   className={classnames("min-w-0 max-w-full", titleEditable ? "w-full" : "w-fit")}
                 >
                   <EditText
-                    className={classnames("w-full min-w-0 max-w-full truncate leading-[32px]", {
-                      [`rounded border ${borderClass} whitespace-normal px-2`]: titleEditable,
-                    })}
+                    className={classnames(
+                      "w-full min-w-0 max-w-full truncate leading-[30px]",
+                      titleToneClass,
+                      {
+                        [`rounded border ${borderClass} whitespace-normal px-2`]: titleEditable,
+                      }
+                    )}
                     key={projectItem.id}
                     ref={titleRef}
                     defaultValue={
@@ -824,15 +900,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             onClick={e => {
               e.stopPropagation();
             }}
-            className="flex flex-none items-center"
+            className={[
+              "text-ink-2 pointer-events-none flex flex-none items-center opacity-0 transition-opacity",
+              "group-hover/row:pointer-events-auto group-hover/row:opacity-100",
+              // 菜单展开期间鼠标已离开行，靠触发器的 aria-expanded 保持可见，避免锚点消失
+              "has-[[aria-expanded=true]]:pointer-events-auto has-[[aria-expanded=true]]:opacity-100",
+            ].join(" ")}
           >
             <Menu
               align="end"
               trigger={
-                <div
-                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
-                >
-                  <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                <div className={actionButtonClass}>
+                  <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
                 </div>
               }
             >
@@ -841,10 +920,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             <Menu
               align="end"
               trigger={
-                <div
-                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
-                >
-                  <Plus className="size-4" strokeWidth={1.75} />
+                <div className={actionButtonClass}>
+                  <Plus className="size-[14px]" strokeWidth={1.75} />
                 </div>
               }
             >
@@ -854,14 +931,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         </div>
         <div
           className={classnames(
-            "grid overflow-hidden transition-[grid-template-rows] duration-300",
+            "grid overflow-hidden transition-[grid-template-rows] duration-150",
             {
-              "grid-rows-[1fr]": folderOpen && projectItem.children.length > 0,
-              "my-0 grid-rows-[0fr]": !folderOpen || projectItem.children.length === 0,
+              // mt 让首个子项背景与父行背景隔开,与兄弟条目间距一致
+              "mt-[2px] grid-rows-[1fr]": folderOpen && hasChildren,
+              "my-0 grid-rows-[0fr]": !folderOpen || !hasChildren,
             }
           )}
         >
-          <div className="flex min-h-0 w-full min-w-0 flex-col gap-[4px] pl-[16px]">
+          <div
+            className={classnames(
+              "relative flex min-h-0 w-full min-w-0 flex-col gap-[2px] pl-[12px]",
+              GUIDE_LINE_CLASS,
+              getGuideToneClass(depth, activeAncestorIds?.has(projectItem.id) ?? false)
+            )}
+          >
             <For
               data={projectItem.children}
               renderItem={(projectItemId, index) => (
@@ -870,10 +954,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   projectItemId={projectItemId}
                   parentProjectItemId={projectItem.id}
                   isRoot={false}
-                  path={[...path, index]}
+                  path={childPaths[index]}
                   parentChildren={projectItem.children}
                   cards={cards}
                   whiteBoards={whiteBoards}
+                  activeAncestorIds={activeAncestorIds}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
                 />
