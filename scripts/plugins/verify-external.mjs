@@ -54,8 +54,8 @@ try {
       "--ignore-scripts",
       "--no-audit",
       "--no-fund",
-      path.join(sdk, "tau-plugins-0.1.0.tgz"),
-      path.join(sdk, "tau-ui-0.1.0.tgz"),
+      "@tau/plugins@file:" + path.join(sdk, "xiongtao.xt-tau-plugins-0.1.0.tgz"),
+      "@tau/ui@file:" + path.join(sdk, "xiongtao.xt-tau-ui-0.1.0.tgz"),
     ],
     author
   );

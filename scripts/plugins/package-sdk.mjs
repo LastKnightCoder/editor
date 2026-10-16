@@ -128,8 +128,11 @@ try {
       path.join(directory, "package.json"),
       JSON.stringify(
         {
-          name: `@tau/${name}`,
+          name: `@xiongtao.xt/tau-${name}`,
           version: "0.1.0",
+          license: "MIT",
+          repository: { type: "git", url: "git+https://github.com/LastKnightCoder/editor.git" },
+          publishConfig: { access: "public", registry: "https://registry.npmjs.org" },
           type: "module",
           description: "Tau 桌面开发插件契约；运行时由宿主提供",
           exports: { ".": { types: "./" + targetOf(entries[index]), default: "./runtime.js" } },
@@ -139,6 +142,14 @@ try {
         null,
         2
       )
+    );
+    await writeFile(
+      path.join(directory, "LICENSE"),
+      await readFile(path.join(root, "scripts/plugins/template/LICENSE"))
+    );
+    await writeFile(
+      path.join(directory, "README.md"),
+      `# Tau ${name} 作者契约\n\n通过 npm 别名安装为 \`@tau/${name}\`。运行时由 Tau 桌面宿主提供，构建时必须 external；不可在普通 Node.js 程序中直接执行。\n\n模板与使用说明：https://github.com/LastKnightCoder/tau-plugin-template\n`
     );
     execFileSync("npm", ["pack", "--ignore-scripts", "--pack-destination", output], {
       cwd: directory,
