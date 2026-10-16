@@ -1,5 +1,13 @@
 # 决策记录（轻量 ADR）
 
+## D-155 插件侧边栏图标使用可选 SVG 组件
+
+（2026-10-16）
+
+- registerItem 增加可选 icon: PluginSidebarIcon，组件属性为标准 SVGProps 加 size；SDK 版本 0.3.0。
+- 作者传组件引用，构建时随插件打包，React 继续使用既有共享模块，不增加图标名称注册表或图片 URL 加载协议。
+- 运行时传递图标引用，navigation 合并时缺省回落 Plug；Sidebar 统一传 size、strokeWidth、className、aria-hidden，作者使用 currentColor 继承主题和选中颜色。既有内置 Lucide 图标保持不变。
+
 ## D-154 插件侧边栏贡献复用页面与壳层导航
 
 （2026-10-16）

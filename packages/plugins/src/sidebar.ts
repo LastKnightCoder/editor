@@ -1,5 +1,9 @@
 import type { Disposable } from "./contract";
 import type { PluginPageHandle, PluginPageParams } from "./pages";
+import type { ComponentType, SVGProps } from "react";
+
+export type PluginSidebarIconProps = SVGProps<SVGSVGElement> & { size?: number | string };
+export type PluginSidebarIcon = ComponentType<PluginSidebarIconProps>;
 
 export const SIDEBAR_GROUPS = Object.freeze({
   daily: "daily",
@@ -22,6 +26,8 @@ export interface PluginSidebarGroupHandle extends Disposable {
 export interface PluginSidebarItemDefinition {
   id: string;
   title: string;
+  /** 传入 SVG 组件本身；缺省使用插件图标。 */
+  icon?: PluginSidebarIcon;
   /** 缺省或分组不存在时归入默认插件分组。 */
   group?: string;
   page: PluginPageHandle;

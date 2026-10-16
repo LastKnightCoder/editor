@@ -23,14 +23,15 @@ pnpm install:local
 3. 在 `src/index.tsx` 中实现功能，在 `src/styles.css` 中编写样式。
 4. 执行 `pnpm build`，按下面的更新步骤重新安装并验收。
 
-| 文件                              | 用途                                             |
-| --------------------------------- | ------------------------------------------------ |
-| `manifest.json`                   | 插件身份与版本                                   |
-| `src/index.tsx`                   | 插件入口，以及示例页面、设置与命令               |
-| `src/styles.css`                  | 插件样式                                         |
-| `API.md`                          | API 参数、返回值、示例与使用约束                 |
-| `AGENTS.md`                       | AI 编程助手的项目指引                            |
-| `build.mjs` / `install-local.mjs` | 已配置的打包与本地安装工具，日常开发通常无需修改 |
+| 文件                              | 用途                                              |
+| --------------------------------- | ------------------------------------------------- |
+| `manifest.json`                   | 插件身份与版本                                    |
+| `src/index.tsx`                   | 插件入口，以及示例页面、设置与命令                |
+| `src/styles.css`                  | 插件样式                                          |
+| `src/CounterIcon.tsx`             | 自定义侧边栏 SVG 图标，使用 currentColor 跟随主题 |
+| `API.md`                          | API 参数、返回值、示例与使用约束                  |
+| `AGENTS.md`                       | AI 编程助手的项目指引                             |
+| `build.mjs` / `install-local.mjs` | 已配置的打包与本地安装工具，日常开发通常无需修改  |
 
 入口使用 `definePlugin`，元信息从 manifest 自动获得。完整接口见 [API 文档](API.md)，可直接对照示例修改。开发时保持模板中 React 和 SDK 的依赖版本，插件需要在 Tau 中运行和测试。
 

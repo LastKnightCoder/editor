@@ -46,7 +46,7 @@ try {
     "pnpm",
     [
       "add",
-      "@tau/plugins@file:" + path.join(sdk, "xiongtao.xt-tau-plugins-0.2.0.tgz"),
+      "@tau/plugins@file:" + path.join(sdk, "xiongtao.xt-tau-plugins-0.3.0.tgz"),
       "@tau/ui@file:" + path.join(sdk, "xiongtao.xt-tau-ui-0.1.0.tgz"),
     ],
     author

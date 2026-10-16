@@ -9,6 +9,7 @@ import type {
   PluginSidebarGroupDefinition,
   PluginSidebarItemDefinition,
   PluginPageParams,
+  PluginSidebarIcon,
 } from "@tau/plugins";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
@@ -37,6 +38,7 @@ export interface PluginSidebarSnapshot {
   items: {
     id: string;
     title: string;
+    icon?: PluginSidebarIcon;
     group?: string;
     pluginId: string;
     pageId: string;
@@ -207,6 +209,7 @@ export class DesktopPluginRuntime {
         .map(([id, entry]) => ({
           id,
           title: entry.definition.title,
+          icon: entry.definition.icon,
           group: entry.definition.group,
           pluginId: entry.context.pluginId,
           pageId: entry.pageId,

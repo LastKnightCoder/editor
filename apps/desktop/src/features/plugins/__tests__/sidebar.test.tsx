@@ -1,7 +1,13 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { definePlugin, SIDEBAR_GROUPS, type PluginContext } from "@tau/plugins";
+import {
+  definePlugin,
+  SIDEBAR_GROUPS,
+  type PluginContext,
+  type PluginSidebarIconProps,
+} from "@tau/plugins";
+import { Plug } from "lucide-react";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { composeNavSections, isNavItemActive } from "@/app/navigation";
@@ -81,6 +87,11 @@ describe("插件侧边栏", () => {
     b.sidebar.registerItem({ id: "custom", title: "B", group: gb.id, page: pb });
     a.sidebar.registerItem({ id: "unknown", title: "回落", group: "missing", page: pa });
     const sections = () => composeNavSections(runtime.listSidebar());
+    expect(
+      sections()
+        .find(s => s.id === "daily")
+        ?.items.at(-1)?.icon
+    ).toBe(Plug);
     expect(
       sections()
         .find(s => s.id === "daily")
@@ -225,6 +236,18 @@ describe("插件侧边栏", () => {
           ctx.sidebar.registerItem({
             id: "entry",
             title: "插件入口",
+            icon: ({ size, strokeWidth, ...props }: PluginSidebarIconProps) => (
+              <svg
+                data-testid="custom-icon"
+                width={size}
+                height={size}
+                stroke="currentColor"
+                strokeWidth={strokeWidth}
+                {...props}
+              >
+                <path d="M12 3L4 20h16Z" />
+              </svg>
+            ),
             group: SIDEBAR_GROUPS.daily,
             page,
           });
@@ -238,6 +261,11 @@ describe("插件侧边栏", () => {
         entry.click();
       };
       expect(button()?.getAttribute("aria-current")).toBeNull();
+      expect(button()?.querySelector('svg[data-testid="custom-icon"]')?.getAttribute("width")).toBe(
+        "1.06em"
+      );
+      expect(button()?.querySelector("svg")?.getAttribute("stroke-width")).toBe("1.75");
+      expect(button()?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
       await act(async () => clickEntry());
       expect(container.textContent).toContain("插件正文");
       expect(button()?.getAttribute("aria-current")).toBe("page");
@@ -248,6 +276,7 @@ describe("插件侧边栏", () => {
       });
       expect(button()?.getAttribute("aria-current")).toBeNull();
       await act(async () => useShellStore.getState().setSidebarCollapsed(true));
+      expect(button()?.querySelector('svg[data-testid="custom-icon"]')).not.toBeNull();
       await act(async () => clickEntry());
       expect(button()?.getAttribute("aria-current")).toBe("page");
       await act(async () => runtime.host.disable("ui"));

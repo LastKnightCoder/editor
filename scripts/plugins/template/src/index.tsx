@@ -15,6 +15,7 @@ import {
 } from "@tau/plugins";
 import { Button, Panel, Dialog, DialogBody } from "@tau/ui";
 import "./styles.css";
+import { CounterIcon } from "./CounterIcon";
 
 declare const __PLUGIN_META__: { id: string; name: string; version: string };
 
@@ -91,6 +92,7 @@ export default definePlugin({
       context.sidebar.registerItem({
         id: "counter",
         title: "独立计数",
+        icon: CounterIcon,
         group: SIDEBAR_GROUPS.daily,
         page,
       });
