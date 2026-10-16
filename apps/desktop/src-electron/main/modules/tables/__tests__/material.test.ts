@@ -11,6 +11,8 @@ const input = (externalId: string, quote: string) => ({
   anchor: { chapterUid: 1, chapterIdx: 1, chapterTitle: "第一章", range: "1-2" },
   color: null,
   sourceTime: null,
+  location: "第一章",
+  url: null,
 });
 
 describe("MaterialTable.resolve", () => {
@@ -19,12 +21,13 @@ describe("MaterialTable.resolve", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(schema);
+    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
   });
   afterEach(() => db.close());
 
-  it("微信读书摘录：打开到单书页对应条目（划线或想法）；软删除不可打开", () => {
+  it("摘录按提供方名称、来源与位置展示，打开交给提供方并带外链兜底；软删除不可打开", () => {
     ExcerptTable.syncSource(db, "weread", "b1", "置身事内", [
-      input("b1:bm_1", "一句话"),
+      { ...input("b1:bm_1", "一句话"), url: "https://weread.qq.com/web/reader/x" },
       input("b1:review:r9", "摘要"),
     ]);
     const [hl, review] = ExcerptTable.listActive(db);
@@ -34,12 +37,19 @@ describe("MaterialTable.resolve", () => {
     ]);
     expect(a).toMatchObject({
       title: "一句话",
-      meta: "微信读书 · 《置身事内》 · 第一章",
+      meta: "微信读书 · 置身事内 · 第一章",
       note: "想法",
       deleted: false,
-      open: { page: "weread-book", bookId: "b1", bookmark: "bm_1" },
+      open: {
+        page: "excerpt-provider",
+        sourceType: "weread",
+        sourceKey: "b1",
+        externalId: "b1:bm_1",
+        label: "微信读书",
+        url: "https://weread.qq.com/web/reader/x",
+      },
     });
-    expect(b.open).toEqual({ page: "weread-book", bookId: "b1", bookmark: "r9" });
+    expect(b.open).toMatchObject({ externalId: "b1:review:r9", url: null });
 
     ExcerptTable.deleteSource(db, "weread", "b1");
     expect(MaterialTable.resolveOne(db, { kind: "excerpt", id: hl.id })).toMatchObject({
@@ -49,14 +59,25 @@ describe("MaterialTable.resolve", () => {
     });
   });
 
-  it("网页摘录打开浏览器并带划线 hash", () => {
-    ExcerptTable.syncSource(db, "web", "https://a.com/p", "", [
-      { ...input("u-1", "网页里的话"), anchor: null },
+  it("未登记名称的提供方以来源类型显示；网页摘录无标题时显示域名并带划线外链", () => {
+    ExcerptTable.syncSource(db, "example.kindle", "k-book", "书", [
+      { ...input("k1", "一句"), location: "位置 12" },
     ]);
-    const [excerpt] = ExcerptTable.listActive(db);
-    expect(MaterialTable.resolveOne(db, { kind: "excerpt", id: excerpt.id })).toMatchObject({
+    ExcerptTable.syncSource(db, "web", "https://a.com/p", "", [
+      {
+        ...input("u-1", "网页里的话"),
+        anchor: null,
+        location: "",
+        url: "https://a.com/p#tau-hl=u-1",
+      },
+    ]);
+    const [kindle, web] = ExcerptTable.listActive(db);
+    expect(MaterialTable.resolveOne(db, { kind: "excerpt", id: kindle.id })?.meta).toBe(
+      "example.kindle · 书 · 位置 12"
+    );
+    expect(MaterialTable.resolveOne(db, { kind: "excerpt", id: web.id })).toMatchObject({
       meta: "网页 · a.com",
-      open: { page: "external-url", url: "https://a.com/p#tau-hl=u-1" },
+      open: { page: "excerpt-provider", sourceType: "web", url: "https://a.com/p#tau-hl=u-1" },
     });
   });
 

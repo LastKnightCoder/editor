@@ -27,6 +27,7 @@ describe("外部材料进索引（KL-037）", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(mainSchema);
+    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
   });
   afterEach(() => db.close());
 
@@ -39,6 +40,8 @@ describe("外部材料进索引（KL-037）", () => {
         anchor: { chapterUid: 1, chapterIdx: 1, chapterTitle: "第一章", range: "1-2" },
         color: null,
         sourceTime: null,
+        location: "第一章",
+        url: null,
       },
       {
         externalId: "b1:2",
@@ -47,6 +50,8 @@ describe("外部材料进索引（KL-037）", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
     ]);
     ExcerptTable.syncSource(db, "weread", "b1", "置身事内", [
@@ -57,6 +62,8 @@ describe("外部材料进索引（KL-037）", () => {
         anchor: { chapterUid: 1, chapterIdx: 1, chapterTitle: "第一章", range: "1-2" },
         color: null,
         sourceTime: null,
+        location: "第一章",
+        url: null,
       },
     ]);
     db.prepare(
@@ -93,7 +100,7 @@ describe("外部材料进索引（KL-037）", () => {
       "pdf-annotation:1",
       "web-clip:3",
     ]);
-    expect(docs[0].content).toBe("《置身事内》 › 第一章\n地方政府\n想法：关键");
+    expect(docs[0].content).toBe("置身事内 › 第一章\n地方政府\n想法：关键");
     expect(docs[1].content).toBe("论文.pdf · 第 1 页\n高亮");
     expect(docs[2]).toMatchObject({ content: "剪藏标题\n解析后的正文", updateTime: 50 });
   });
@@ -104,7 +111,10 @@ describe("外部材料进索引（KL-037）", () => {
     expect(excerpt).toMatchObject({
       contentId: 0,
       title: "地方政府",
-      material: { meta: "微信读书 · 《置身事内》 · 第一章", open: { page: "weread-book" } },
+      material: {
+        meta: "微信读书 · 置身事内 · 第一章",
+        open: { page: "excerpt-provider", sourceType: "weread", sourceKey: "b1" },
+      },
     });
     expect(searchResultDetails(db, "excerpt", 2)).toBeNull();
     expect(searchResultDetails(db, "web-clip", 3)).toMatchObject({

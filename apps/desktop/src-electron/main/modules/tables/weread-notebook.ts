@@ -41,7 +41,11 @@ class WeReadNotebookTable implements Table {
       "weread",
       bookId,
       title ?? "",
-      expandWeReadExcerpts(bookId, notebook.chapterHighlights ?? [])
+      expandWeReadExcerpts(
+        bookId,
+        notebook.chapterHighlights ?? [],
+        notebook.metaData.webUrl || null
+      )
     );
   }
 

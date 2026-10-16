@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import type { Excerpt } from "@/entity/excerpt/types";
+import { excerptMeta } from "@/entity/excerpt/display";
 import type { MaterialInfo, MaterialOpenTarget, MaterialRef } from "@/entity/material";
 import { pdfAnnotationNote, pdfAnnotationQuote } from "@/entity/pdf-annotation-text";
 import ExcerptTable from "./excerpt";
@@ -19,37 +20,20 @@ const hostOf = (url: string) => {
   }
 };
 
-/** 网页摘录打开时带上划线 uuid，插件据此滚到那条划线 */
-export const WEB_HIGHLIGHT_HASH = "tau-hl";
-
-function excerptInfo(excerpt: Excerpt): MaterialInfo {
-  const ref: MaterialRef = { kind: "excerpt", id: excerpt.id };
-  let meta: string;
-  let open: MaterialOpenTarget;
-  if (excerpt.sourceType === "weread") {
-    const chapter =
-      excerpt.anchor && "chapterTitle" in excerpt.anchor ? excerpt.anchor.chapterTitle : "";
-    meta = ["微信读书", `《${excerpt.sourceTitle || "未知书名"}》`, chapter]
-      .filter(Boolean)
-      .join(" · ");
-    // external_id = bookId:bookmarkId 或 bookId:review:reviewId；单书页以 bookmarkId / reviewId 标识每条
-    const rest = excerpt.externalId.slice(excerpt.sourceKey.length + 1).replace(/^review:/, "");
-    open = {
-      page: "weread-book",
-      bookId: excerpt.sourceKey,
-      ...(rest ? { bookmark: rest } : {}),
-    };
-  } else {
-    meta = `网页 · ${excerpt.sourceTitle || hostOf(excerpt.sourceKey)}`;
-    open = {
-      page: "external-url",
-      url: `${excerpt.sourceKey}#${WEB_HIGHLIGHT_HASH}=${encodeURIComponent(excerpt.externalId)}`,
-    };
-  }
+function excerptInfo(excerpt: Excerpt, labels: Map<string, string>): MaterialInfo {
+  const label = labels.get(excerpt.sourceType) ?? excerpt.sourceType;
+  const open: MaterialOpenTarget = {
+    page: "excerpt-provider",
+    sourceType: excerpt.sourceType,
+    sourceKey: excerpt.sourceKey,
+    externalId: excerpt.externalId,
+    label,
+    url: excerpt.url,
+  };
   return {
-    ref,
+    ref: { kind: "excerpt", id: excerpt.id },
     title: clip(excerpt.quote),
-    meta,
+    meta: excerptMeta(excerpt, label),
     quote: excerpt.quote,
     note: excerpt.note,
     deleted: excerpt.isDeleted,
@@ -109,7 +93,11 @@ export default class MaterialTable {
     const found = new Map<string, MaterialInfo>();
     const put = (info: MaterialInfo) => found.set(`${info.ref.kind}:${info.ref.id}`, info);
 
-    for (const excerpt of ExcerptTable.getByIds(db, ids("excerpt"))) put(excerptInfo(excerpt));
+    const excerpts = ExcerptTable.getByIds(db, ids("excerpt"));
+    if (excerpts.length) {
+      const labels = ExcerptTable.providerLabels(db);
+      for (const excerpt of excerpts) put(excerptInfo(excerpt, labels));
+    }
 
     const annotationIds = ids("pdf-annotation");
     if (annotationIds.length) {

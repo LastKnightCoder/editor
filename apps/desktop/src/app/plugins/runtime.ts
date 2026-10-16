@@ -11,7 +11,13 @@ import type {
   PluginPageParams,
   PluginSidebarIcon,
 } from "@tau/plugins";
-import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
+import {
+  PluginHost,
+  normalizePageParams,
+  type ExcerptsAdapter,
+  type MaterialsAdapter,
+  type StorageAdapter,
+} from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
 import { DevelopmentPluginManager } from "./development-manager";
@@ -100,6 +106,8 @@ export class DesktopPluginRuntime {
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
       openSettings?: (key: PluginSettingsKey) => void;
       fetch?: typeof globalThis.fetch;
+      excerpts?: ExcerptsAdapter;
+      materials?: MaterialsAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -108,6 +116,8 @@ export class DesktopPluginRuntime {
       workspaceId: options.workspaceId,
       storage: options.storage,
       fetch: options.fetch,
+      excerpts: options.excerpts,
+      materials: options.materials,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
       sidebar: {

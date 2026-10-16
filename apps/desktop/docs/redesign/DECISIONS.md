@@ -1,5 +1,14 @@
 # 决策记录（轻量 ADR）
 
+## D-157 摘录改为提供方驱动，插件可成为摘录来源
+
+（2026-10-16，插件专题 PS-035）
+
+- `excerpt` 的展示与打开不再按来源类型分支：增加 `location`（给人看的位置）、`url`（外链兜底）两列和 `excerpt_provider` 名称表；材料 meta 统一为「提供方名称 · 来源标题 · 位置」，不再给书名加《》。`anchor` 降为提供方私有 JSON，宿主不解读，比较前按键名规范化。
+- 打开目标统一为 `excerpt-provider`：提供方登记了打开函数（`services/excerpt-providers.ts`）则交给它，否则用 `url` 外部打开，都没有时提示启用提供方。内置网页划线是 `web` 提供方，走同一路径。
+- 插件经 `context.excerpts` 写入，来源类型即插件 ID，宿主把写入固定到创建宿主时的数据库；材料动作（转卡片 / 转问题）经 `context.materials.actions` 复用 `services/material-actions.ts`。
+- 存量升级由共享脚本 `packages/db-schema/schema/upgrades/excerpt-provider.sql` 完成（桌面开库、移动端 v7→v8），摘录 id 与修改时间不变；全部设备升级后随清洁版删除。
+
 ## D-156 本地插件兼容检查与重启升级
 
 （2026-10-16）

@@ -440,7 +440,11 @@ export function SearchPalette() {
         meta: relativeTime(r.updateTime),
         run: () =>
           closeAnd(() => {
-            if (!material.open) return navigator.push(meta.navKey);
+            if (!material.open) {
+              if (meta.navKey) navigator.push(meta.navKey);
+              else toast.error(material.deleted ? "原划线已删除" : "无法打开到原处");
+              return;
+            }
             openMaterialTarget(
               material.open,
               r.section && locatesSection(r.type) ? { block: r.section.blockStart } : undefined
@@ -459,7 +463,7 @@ export function SearchPalette() {
       run: () =>
         closeAnd(() => {
           const kind = normalizeEntityRefKind(r.type);
-          if (!kind) return navigator.push(meta.navKey);
+          if (!kind) return meta.navKey && navigator.push(meta.navKey);
           void openEntity(
             { kind, id: r.id },
             r.section && locatesSection(r.type) ? { at: { block: r.section.blockStart } } : {}

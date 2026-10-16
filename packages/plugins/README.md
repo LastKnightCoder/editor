@@ -6,7 +6,7 @@
 
 核心与协议全部由 TypeScript 维护：`src/contract.ts` 是作者生命周期、命令和私有存储契约，`src/index.ts` 保留原公开导出；`src/host.ts` 是桌面和示例共用的正式宿主，`src/lifecycle.ts`、`src/storage.ts`、`src/file-storage.ts` 承担清理和存储。`scripts/` 只做构建/启动/验收编排，不维护第二套宿主。QuickJS/WASM 选型与权限隔离暂停，历史实验见专题 24/25，当前流程不依赖它们。
 
-面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置和开发台编辑器契约。
+面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和开发台编辑器契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
@@ -55,6 +55,14 @@ context.fetch 的类型直接是 typeof globalThis.fetch，使用 RequestInit、
 宿主注入 fetch 执行器；SDK 只将激活期 signal 与调用方信号合并，停用取消请求及响应流。桌面底层使用主进程原生 fetch，通过内部 IPC 按需传输；旧 nodeFetch 及其选项/IPC/消费者已迁移，不保留兼容层。内部 hasBody 等元信息不导出为作者 API。
 
 执行环境是宿主 Node，不自动继承页面 Cookie/CORS；认证由业务负责。微信读书样本通过业务依赖取得已有账号配置并以标准请求头认证，不在 SDK 增加全局凭证接口。支持二进制、multipart 与流，见 [C06](../../docs/plugin-system/15-C06真实服务API与微信读书书单.md)。实际账号尚未联调。
+
+## 摘录提供方与材料动作
+
+`context.excerpts` 让插件成为 Tau 外部摘录的提供方：先 `register({ label, open? })`（每次激活一次，随停用回收），再用 `replace(source, items)` 以全集覆盖一个来源（缺席条目软删除），或 `patch(source, { upsert, remove })` 增量写入；`sources()` / `items(sourceKey)` 读回本插件的来源与条目。来源类型由宿主取插件 ID，插件只能读写自己的摘录；写入落到宿主绑定的工作区，停用后拒绝。
+
+契约：`externalId` 在插件内唯一且稳定，它不变则 Tau 中的引用一直有效；摘录归用户，插件停用、卸载后照常可搜索、引用、展示（名称 `label` 持久化），只能软删除。`anchor` 是插件私有定位，宿主只存储、按键名规范化后比较；展示只用 `label`、来源 `title` 与条目 `location`。打开原处时先交给已启用提供方的 `open`，否则打开条目或来源的 `url`（仅 http(s)）。内容不变的重复同步返回 `updated: 0`。
+
+`context.materials.actions(ref)` 返回客户端对一条材料可执行的动作（目前为转为卡片、转为问题），`ref` 来自 `items()`，对插件不透明。动作自带结果提示，客户端新增动作时插件自动获得。
 
 ## 数据和并发
 

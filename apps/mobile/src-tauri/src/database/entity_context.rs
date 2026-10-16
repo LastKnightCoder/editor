@@ -874,67 +874,43 @@ struct ResolvedNode {
     meta: String,
 }
 
-fn host_of(url: &str) -> String {
-    url.split_once("://")
-        .map(|(_, rest)| rest.split('/').next().unwrap_or_default().to_string())
-        .filter(|host| !host.is_empty())
-        .unwrap_or_else(|| url.to_string())
-}
-
+/// 摘录按提供方名称、来源标题与位置展示（与桌面 entity/excerpt/display.ts 同口径），不读提供方私有定位
 fn excerpt_node(conn: &Connection, id: i64) -> Option<ResolvedNode> {
     let row = conn
         .query_row(
-            "SELECT source_type, source_key, source_title, quote, anchor, is_deleted
-             FROM excerpt WHERE id = ?1",
+            "SELECT e.source_type, COALESCE(p.label, e.source_type), e.source_key, e.source_title,
+                    e.quote, e.location, e.url, e.is_deleted
+             FROM excerpt e LEFT JOIN excerpt_provider p ON p.source_type = e.source_type
+             WHERE e.id = ?1",
             params![id],
             |row| {
                 Ok((
-                    row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
                     row.get::<_, String>(3)?,
-                    row.get::<_, Option<String>>(4)?,
-                    row.get::<_, i64>(5)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                    row.get::<_, i64>(7)?,
                 ))
             },
         )
         .ok()?;
-    let (source_type, source_key, source_title, quote, anchor, is_deleted) = row;
-    let mut meta = if source_type == "weread" {
-        let chapter = anchor
-            .as_deref()
-            .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
-            .and_then(|value| {
-                value
-                    .get("chapterTitle")
-                    .and_then(Value::as_str)
-                    .map(str::to_string)
-            })
-            .unwrap_or_default();
-        [
-            "微信读书".to_string(),
-            format!(
-                "《{}》",
-                if source_title.is_empty() {
-                    "未知书名"
-                } else {
-                    &source_title
-                }
-            ),
-            chapter,
-        ]
+    let (label, source_key, source_title, quote, location, url, is_deleted) = row;
+    let source = if !source_title.trim().is_empty() {
+        source_title.trim().to_string()
+    } else {
+        [url.as_deref().unwrap_or(""), source_key.as_str()]
+            .into_iter()
+            .map(host_of_url)
+            .find(|host| !host.is_empty())
+            .unwrap_or_else(|| "未知来源".to_string())
+    };
+    let mut meta = [label, source, location.trim().to_string()]
         .into_iter()
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
-        .join(" · ")
-    } else {
-        let source = if source_title.is_empty() {
-            host_of(&source_key)
-        } else {
-            source_title
-        };
-        format!("网页 · {source}")
-    };
+        .join(" · ");
     if is_deleted != 0 {
         meta.push_str(" · 原划线已删除");
     }
@@ -942,6 +918,16 @@ fn excerpt_node(conn: &Connection, id: i64) -> Option<ResolvedNode> {
         title: clip_title(&quote),
         meta,
     })
+}
+
+/// 只认 http(s) 地址的域名，非地址返回空串
+fn host_of_url(value: &str) -> String {
+    let rest = value
+        .strip_prefix("https://")
+        .or_else(|| value.strip_prefix("http://"));
+    rest.and_then(|rest| rest.split(['/', '?', '#']).next())
+        .map(str::to_string)
+        .unwrap_or_default()
 }
 
 fn pdf_annotation_node(conn: &Connection, id: i64) -> Option<ResolvedNode> {
