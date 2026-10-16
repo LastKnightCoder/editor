@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "id": "weread",
+  "name": "微信读书",
+  "version": "1.0.0",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js"
+}

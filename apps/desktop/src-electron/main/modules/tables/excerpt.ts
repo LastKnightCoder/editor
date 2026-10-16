@@ -65,16 +65,12 @@ const toExcerpt = (row: ExcerptRow): Excerpt => ({
   isDeleted: row.is_deleted === 1,
 });
 
-/** 微信读书保存 / 删书后摘录有变化时补发的写事件（微信读书走自有 IPC，不经 eventAndHandlers） */
-export const WEREAD_EXCERPTS_CHANGED_EVENT = "weread:excerpts-changed";
-
 /** 摘录写入事件：索引编排与脉络刷新只订阅这一份清单 */
 export const EXCERPT_WRITE_EVENTS = [
   "excerpt:sync-web-page",
   "excerpt:register-provider",
   "excerpt:replace",
   "excerpt:patch",
-  WEREAD_EXCERPTS_CHANGED_EVENT,
 ] as const;
 
 const rowChanged = (row: ExcerptRow, title: string, input: ExcerptInput) =>

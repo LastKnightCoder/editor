@@ -30,7 +30,6 @@ import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
 import podcastAudioModule from "../modules/podcast-audio";
 import ttsModule from "../modules/tts";
-import wereadModule from "../modules/weread";
 import publishModule from "../modules/publish";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
@@ -286,12 +285,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
 
   // 集成模块
-  {
-    name: "weread",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "setting", "database"],
-    init: () => wereadModule.init(),
-  },
   {
     name: "publish",
     layer: InitLayer.BACKGROUND,

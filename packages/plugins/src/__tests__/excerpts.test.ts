@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { definePlugin, type PluginContext } from "../index";
 import { createMemoryStorage, PluginHost, type ExcerptsAdapter } from "../host";
 
+const entry = {
+  ref: { kind: "excerpt", id: 7 },
+  externalId: "b1:1",
+  quote: "甲",
+  note: "",
+  location: "",
+  url: null,
+  anchor: null,
+  color: null,
+  time: null,
+  deleted: false,
+};
+
 function setup(adapter?: Partial<ExcerptsAdapter>) {
   const calls: unknown[][] = [];
   const excerpts: ExcerptsAdapter = {
@@ -19,7 +32,7 @@ function setup(adapter?: Partial<ExcerptsAdapter>) {
       deleted: change.remove?.length ?? 0,
     }),
     sources: async () => [{ key: "b1", title: "书", count: 1 }],
-    items: async () => [{ ref: { kind: "excerpt", id: 7 }, externalId: "b1:1", deleted: false }],
+    items: async () => [entry],
     ...adapter,
   };
   let context!: PluginContext;
@@ -70,9 +83,7 @@ describe("摘录提供方", () => {
       updated: 0,
       deleted: 1,
     });
-    expect(await context().excerpts.items("b1")).toEqual([
-      { ref: { kind: "excerpt", id: 7 }, externalId: "b1:1", deleted: false },
-    ]);
+    expect(await context().excerpts.items("b1")).toEqual([entry]);
     const old = context();
     await host.disable("weread");
     expect(calls.at(-1)).toEqual(["unregister", "weread"]);

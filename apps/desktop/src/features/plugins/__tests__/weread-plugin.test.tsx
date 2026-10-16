@@ -1,0 +1,139 @@
+/**
+ * plugins/weread 的真实入口经桌面运行时加载：与本地插件同一条打包 → 延迟加载 → 启用路径，
+ * 验证页面、侧边栏、设置、命令与摘录提供方的接线，以及打开原处回到插件单书页。
+ */
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { createMemoryStorage, PLUGIN_SHARED_MODULES } from "@tau/plugins/host";
+import { DesktopPluginRuntime, PLUGIN_PAGE_KEY } from "@/app/plugins/runtime";
+import { registerPluginPackage } from "@/app/plugins/package-loader";
+import { createDesktopExcerpts } from "@/app/plugins/excerpts";
+import { sharedPluginModules } from "@/app/plugins/shared-modules";
+import { openExcerptAtProvider } from "@/services/excerpt-providers";
+
+const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined as unknown));
+vi.mock("@/electron", () => ({ invoke, isElectron: true }));
+
+const root = path.resolve(__dirname, "../../../../../../plugins/weread");
+let code = "";
+
+// jsdom 下不能直接调用 esbuild API（TextEncoder 不一致），在子进程里打包
+beforeAll(() => {
+  const esbuild = path.resolve(__dirname, "../../../../node_modules/.bin/esbuild");
+  code = execFileSync(
+    esbuild,
+    [
+      path.join(root, "src/index.tsx"),
+      "--bundle",
+      "--platform=browser",
+      "--format=cjs",
+      "--jsx=automatic",
+      "--loader:.css=empty",
+      `--define:__PLUGIN_META__=${JSON.stringify({ id: "weread", name: "微信读书", version: "1.0.0" })}`,
+      ...PLUGIN_SHARED_MODULES.map(name => `--external:${name}`),
+    ],
+    { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
+  );
+}, 60_000);
+
+const runtimes: DesktopPluginRuntime[] = [];
+afterEach(async () => {
+  for (const runtime of runtimes.splice(0)) await runtime.dispose();
+  invoke.mockClear();
+});
+
+async function setup() {
+  const push = vi.fn();
+  const openSettings = vi.fn();
+  const runtime = new DesktopPluginRuntime({
+    workspaceId: "w",
+    storage: createMemoryStorage(),
+    navigator: { push },
+    plugins: [],
+    openSettings,
+    ...createDesktopExcerpts("data.db"),
+  });
+  runtimes.push(runtime);
+  registerPluginPackage(
+    runtime.host,
+    {
+      manifest: {
+        formatVersion: 1,
+        apiVersion: 1,
+        platform: "desktop",
+        format: "cjs",
+        id: "weread",
+        name: "微信读书",
+        version: "1.0.0",
+        main: "main.js",
+        integrity: { "main.js": "a".repeat(64) },
+      },
+      code,
+    },
+    async () => sharedPluginModules
+  );
+  await runtime.host.enable("weread");
+  return { runtime, push, openSettings };
+}
+
+describe("微信读书插件", () => {
+  it("启用后贡献书架与单书页、学习分组入口、设置分区、命令和摘录提供方", async () => {
+    const { runtime } = await setup();
+    expect(runtime.host.getState("weread")).toBe("active");
+    expect(runtime.listSidebar().items).toMatchObject([
+      { title: "微信读书", group: "learning", pluginId: "weread", pageId: "shelf" },
+    ]);
+    expect(runtime.getPage("weread", "book")).toBeTruthy();
+    expect(runtime.listSettings().map(item => item.definition.title)).toEqual(["账号与连接"]);
+    expect(runtime.host.listCommands().map(command => command.id)).toEqual([
+      "weread:open",
+      "weread:sync",
+    ]);
+    expect(invoke).toHaveBeenCalledWith("excerpt:register-provider", "weread", "微信读书");
+  });
+
+  it("从脉络、搜索打开摘录：交给插件单书页并定位到划线或想法", async () => {
+    const { push } = await setup();
+    const target = {
+      page: "excerpt-provider" as const,
+      sourceType: "weread",
+      sourceKey: "b1",
+      label: "微信读书",
+      url: null,
+    };
+    await openExcerptAtProvider({ ...target, externalId: "b1:bm_1" });
+    await openExcerptAtProvider({ ...target, externalId: "b1:review:r9" });
+    expect(push.mock.calls.map(([key, params]) => [key, params.pageId, params.params])).toEqual([
+      [PLUGIN_PAGE_KEY, "book", JSON.stringify({ bookId: "b1", bookmark: "bm_1" })],
+      [PLUGIN_PAGE_KEY, "book", JSON.stringify({ bookId: "b1", bookmark: "r9" })],
+    ]);
+  });
+
+  it("首次未配置时书架引导填写 API Key；停用后打开原处回落外链", async () => {
+    const { runtime } = await setup();
+    const page = runtime.getPage("weread", "shelf")!;
+    const Component = page.definition.component;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const view = createRoot(host);
+    await act(async () => view.render(<Component context={page.context} params={{}} />));
+    await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+    expect(host.textContent).toContain("把微信读书的书架和笔记带进来");
+    act(() => view.unmount());
+    host.remove();
+    await runtime.host.disable("weread");
+    await expect(
+      openExcerptAtProvider({
+        page: "excerpt-provider",
+        sourceType: "weread",
+        sourceKey: "b1",
+        externalId: "b1:1",
+        label: "微信读书",
+        url: null,
+      })
+    ).rejects.toThrow("需启用「微信读书」插件");
+  });
+});

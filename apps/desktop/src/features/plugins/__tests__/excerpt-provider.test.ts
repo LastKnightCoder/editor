@@ -51,7 +51,20 @@ beforeEach(() => {
   mocks.invoke.mockImplementation(async (channel: string) => {
     scopes.push(currentCommandScope()?.databaseName);
     if (channel === "excerpt:items")
-      return [{ id: 7, externalId: "b1:1", isDeleted: false, quote: "甲" }];
+      return [
+        {
+          id: 7,
+          externalId: "b1:1",
+          isDeleted: false,
+          quote: "甲",
+          note: "",
+          location: "第一章",
+          url: null,
+          anchor: { range: "1-2" },
+          color: null,
+          sourceTime: 5,
+        },
+      ];
     if (channel === "excerpt:replace") return { inserted: 1, updated: 0, deleted: 0 };
     return undefined;
   });
@@ -76,7 +89,18 @@ describe("桌面摘录提供方适配", () => {
     ]);
     expect(scopes).toEqual(["A.db", "A.db"]);
     expect(await context().excerpts.items("b1")).toEqual([
-      { ref: { kind: "excerpt", id: 7 }, externalId: "b1:1", deleted: false },
+      {
+        ref: { kind: "excerpt", id: 7 },
+        externalId: "b1:1",
+        quote: "甲",
+        note: "",
+        location: "第一章",
+        url: null,
+        anchor: { range: "1-2" },
+        color: null,
+        time: 5,
+        deleted: false,
+      },
     ]);
   });
 

@@ -57,8 +57,6 @@ import WebViewPreferenceTable from "./tables/web-view-preference";
 import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
-import WeReadNotebookTable from "./tables/weread-notebook";
-import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
@@ -280,8 +278,6 @@ class DatabaseModule implements Module {
       EntityLineageTable,
       ExcerptTable,
       MaterialTable,
-      WeReadNotebookTable,
-      WeReadConfigTable,
       FlashcardTable,
       ResourceSyncBlacklistTable,
       PublishSelectionTable,

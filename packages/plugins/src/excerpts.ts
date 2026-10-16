@@ -44,9 +44,17 @@ export interface PluginExcerptSourceSummary {
   count: number;
 }
 
+/** 读回的条目：写入时的字段（含缺省后的外链）加上 Tau 中的地址与删除状态 */
 export interface PluginExcerptEntry {
   ref: PluginMaterialRef;
   externalId: string;
+  quote: string;
+  note: string;
+  location: string;
+  url: string | null;
+  anchor: { [key: string]: JsonValue } | null;
+  color: string | null;
+  time: number | null;
   /** 已从来源消失（软删除）；引文保留，引用仍可解析 */
   deleted: boolean;
 }

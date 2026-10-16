@@ -58,9 +58,9 @@ context.fetch 的类型直接是 typeof globalThis.fetch，使用 RequestInit、
 
 ## 摘录提供方与材料动作
 
-`context.excerpts` 让插件成为 Tau 外部摘录的提供方：先 `register({ label, open? })`（每次激活一次，随停用回收），再用 `replace(source, items)` 以全集覆盖一个来源（缺席条目软删除），或 `patch(source, { upsert, remove })` 增量写入；`sources()` / `items(sourceKey)` 读回本插件的来源与条目。来源类型由宿主取插件 ID，插件只能读写自己的摘录；写入落到宿主绑定的工作区，停用后拒绝。
+`context.excerpts` 让插件成为 Tau 外部摘录的提供方：先 `register({ label, open? })`（每次激活一次，随停用回收），再用 `replace(source, items)` 以全集覆盖一个来源（缺席条目软删除），或 `patch(source, { upsert, remove })` 增量写入；`sources()` / `items(sourceKey)` 读回本插件的来源与条目（条目含写入字段、`ref` 与删除状态，可据此离线还原）。来源类型由宿主取插件 ID，插件只能读写自己的摘录；写入落到宿主绑定的工作区，停用后拒绝。
 
-契约：`externalId` 在插件内唯一且稳定，它不变则 Tau 中的引用一直有效；摘录归用户，插件停用、卸载后照常可搜索、引用、展示（名称 `label` 持久化），只能软删除。`anchor` 是插件私有定位，宿主只存储、按键名规范化后比较；展示只用 `label`、来源 `title` 与条目 `location`。打开原处时先交给已启用提供方的 `open`，否则打开条目或来源的 `url`（仅 http(s)）。内容不变的重复同步返回 `updated: 0`。
+契约：`externalId` 在插件内唯一且稳定，它不变则 Tau 中的引用一直有效；摘录归用户，插件停用、卸载后照常可搜索、引用、展示（名称 `label` 持久化），只能软删除。`anchor` 是插件私有定位，宿主只存储、按键名规范化后比较；展示只用 `label`、来源 `title` 与条目 `location`。打开原处时先交给已启用提供方的 `open`，否则打开条目或来源的 `url`（仅 http(s)）。内容不变的重复同步返回 `updated: 0`。外链在桌面经 `window.open` 交给系统浏览器。
 
 `context.materials.actions(ref)` 返回客户端对一条材料可执行的动作（目前为转为卡片、转为问题），`ref` 来自 `items()`，对插件不透明。动作自带结果提示，客户端新增动作时插件自动获得。
 

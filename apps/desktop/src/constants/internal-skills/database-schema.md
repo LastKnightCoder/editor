@@ -893,6 +893,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `weread_notebook`
 
+已停用：微信读书改为插件后不再读写，下一版本删除；划线以 `excerpt`（`source_type = 'weread'`）为准。
+
 | 字段                 | SQLite 定义         |
 | -------------------- | ------------------- |
 | `book_id`            | `TEXT PRIMARY KEY`  |
@@ -931,6 +933,8 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `updated_at`         | `INTEGER NOT NULL`  |
 
 ### `weread_config`
+
+已停用，同 `weread_notebook`。
 
 | 字段         | SQLite 定义        |
 | ------------ | ------------------ |

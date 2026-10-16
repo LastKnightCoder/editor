@@ -161,10 +161,7 @@ class UserSettingModule {
       return;
     }
 
-    console.info("[UserSettingModule] 保存用户设置", {
-      clientId: clientId || "unknown",
-      weread: summarizeWeReadSetting(newSettings),
-    });
+    console.info("[UserSettingModule] 保存用户设置", { clientId: clientId || "unknown" });
     this.saveSetting(JSON.stringify(newSettings, null, 2));
     if (this.backendServer) {
       this.backendServer.sendNotification("user-setting-changed", {
@@ -188,9 +185,7 @@ class UserSettingModule {
     try {
       const parsedSetting = JSON.parse(setting);
       this.userSetting = parsedSetting;
-      console.info("[UserSettingModule] 读取用户设置", {
-        weread: summarizeWeReadSetting(parsedSetting),
-      });
+      console.info("[UserSettingModule] 读取用户设置");
       return parsedSetting;
     } catch (e) {
       console.error("[UserSettingModule] 设置文件解析失败，尝试抢救", e);
@@ -267,18 +262,5 @@ class UserSettingModule {
     return Object.prototype.hasOwnProperty.call(params, "setting");
   }
 }
-
-const summarizeWeReadSetting = (setting: UserSetting) => {
-  const weread = setting?.integration?.weread;
-  if (!weread || typeof weread !== "object") {
-    return null;
-  }
-  return {
-    enabled: Boolean(weread.enabled),
-    hasApiKey: typeof weread.apiKey === "string" && weread.apiKey.length > 0,
-    connectionStatus: typeof weread.connectionStatus === "string" ? weread.connectionStatus : "",
-    lastValidatedAt: typeof weread.lastValidatedAt === "number" ? weread.lastValidatedAt : 0,
-  };
-};
 
 export default new UserSettingModule();

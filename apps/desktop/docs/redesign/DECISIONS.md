@@ -1,5 +1,12 @@
 # 决策记录（轻量 ADR）
 
+## D-158 微信读书改为独立插件，主窗口外链交给系统浏览器
+
+（2026-10-16，插件专题 PS-035）
+
+- 内置微信读书（`features/weread`、`services/weread`、主进程 `weread` 模块、设置页「微信读书」行）删除，功能由仓库内 `plugins/weread` 插件提供，需按本地插件流程安装。已有摘录按 D-157 原样保留，插件以同一 `externalId` 写入，引用不变；`integration.weread` 设置字段丢弃，API Key 由插件按工作区保存。`weread_notebook` / `weread_config` 不再读写，下一版本删除。
+- 主窗口 `setWindowOpenHandler`：http(s) 交给系统浏览器，其余拒绝，不再创建子窗口（子窗口会继承 preload 与 IPC）。插件与共享组件打开外链直接用 `window.open`，不需要额外 API。
+
 ## D-157 摘录改为提供方驱动，插件可成为摘录来源
 
 （2026-10-16，插件专题 PS-035）
