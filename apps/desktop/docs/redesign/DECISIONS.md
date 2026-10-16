@@ -7,6 +7,8 @@
 - 新增 `features/plugins/pages/plugins.page.tsx`（发现 / 已安装 / 更新）与 `plugin-detail.page.tsx`（`match: "params"`，参数 pluginId）；`app/navigation.ts` 底部在「设置」上方增加「插件」入口，徽标为可更新数。
 - 插件声明的设置从设置弹窗迁到详情页「设置」标签；设置弹窗「系统 → 插件」分节只显示概要与「打开插件页」，点击关闭弹窗后 push，不再承载列表。
 - 视觉参考 `apps/desktop/mockups/plugins/index.html`。
+- 设置弹窗不再承载插件设置，`SettingsLocation` 移除 `plugin:*`；持久化的旧值按未知分区回落外观，不做转换。插件的 `settings.open()` 打开详情页设置标签。
+- 从插件中心安装后自动启用（仅在从未设置启用偏好时），卸载默认保留私有数据。侧栏可更新徽标随在线更新单元另做，避免启动即请求插件中心。
 
 ## D-163 Markdown 导出包：范围扩到文章 / 卡片 / 全部，包内目录即选择树
 

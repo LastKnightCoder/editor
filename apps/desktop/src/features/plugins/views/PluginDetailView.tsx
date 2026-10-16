@@ -1,0 +1,497 @@
+import { useState, type ReactNode } from "react";
+import { Github, Layers, PanelLeft, ShieldAlert, SlidersHorizontal, Terminal } from "lucide-react";
+import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
+import { usePage, usePageParams } from "@/page/PageProvider";
+import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
+import {
+  PLUGIN_DETAIL_KEY,
+  type DesktopPluginRuntime,
+  type PluginSettingsKey,
+} from "@/app/plugins/runtime";
+import { openExternal } from "@/commands/extra";
+import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
+import {
+  STATE_LABELS,
+  formatSize,
+  installState,
+  installedPlugins,
+  pendingCount,
+  type InstalledPlugin,
+} from "../model";
+import { usePluginCatalog, usePluginRelease } from "../queries";
+import { usePluginControl } from "../usePluginControl";
+import { PluginIcon } from "../components/PluginIcon";
+import { PluginMarkdown } from "../components/PluginMarkdown";
+import {
+  InstallButton,
+  RestartBar,
+  SourceChip,
+  StagedChip,
+  UninstallDialog,
+} from "../components/PluginParts";
+import { PluginSettingsView } from "./PluginSettingsView";
+import { PluginMenu } from "./PluginsView";
+
+type DetailTab = "readme" | "settings" | "changelog" | "versions";
+export type PluginDetailParams = {
+  pluginId: string;
+  tab?: string;
+  section?: string;
+};
+
+export function PluginDetailView() {
+  const runtime = useDesktopPlugins();
+  const startupError = useDesktopPluginError();
+  const { navigator } = usePage();
+  const params = usePageParams<PluginDetailParams>();
+  const catalog = usePluginCatalog();
+  const entry = catalog.data?.items.find(item => item.pluginId === params.pluginId);
+  const installed = runtime
+    ? installedPlugins(runtime).find(item => item.info.id === params.pluginId)
+    : undefined;
+  const release = usePluginRelease(installed?.releaseId ?? entry?.latest.releaseId);
+
+  if (!runtime)
+    return (
+      <Paper>
+        <p role={startupError ? "alert" : undefined} className="text-tau-body text-ink-2">
+          {startupError || "正在准备插件管理…"}
+        </p>
+      </Paper>
+    );
+  if (!installed && !entry)
+    return (
+      <Paper>
+        <p className="text-tau-body text-ink-2 mb-3">
+          {catalog.loading ? "正在读取插件资料…" : "此插件已不可用。"}
+        </p>
+        {!catalog.loading && (
+          <Button onClick={() => navigator.push("plugins", { tab: "installed" })}>
+            返回插件列表
+          </Button>
+        )}
+      </Paper>
+    );
+
+  const setTab = (tab: DetailTab, section?: string) =>
+    navigator.push(PLUGIN_DETAIL_KEY, { pluginId: params.pluginId, tab, section });
+  const changelog = release.data?.content.changelog;
+  const tabs: { key: DetailTab; label: string; children: ReactNode }[] = [
+    {
+      key: "readme",
+      label: "介绍",
+      children: release.data ? (
+        <PluginMarkdown source={release.data.content.readme} />
+      ) : (
+        <p className="text-tau-body text-ink-2">
+          {release.isPending && (installed?.releaseId || entry)
+            ? "正在读取说明…"
+            : release.error
+              ? "暂时读取不到插件说明。"
+              : "此插件没有提供说明。"}
+        </p>
+      ),
+    },
+  ];
+  if (installed)
+    tabs.push({
+      key: "settings",
+      label: "设置",
+      children: (
+        <SettingsTab
+          runtime={runtime}
+          plugin={installed}
+          section={params.section}
+          onSection={key => setTab("settings", key)}
+        />
+      ),
+    });
+  if (changelog)
+    tabs.push({
+      key: "changelog",
+      label: "更新日志",
+      children: <PluginMarkdown source={changelog} />,
+    });
+  tabs.push({
+    key: "versions",
+    label: "版本",
+    children: <VersionsTab runtime={runtime} plugin={installed} entry={entry} />,
+  });
+  const tab = tabs.find(item => item.key === params.tab)?.key ?? "readme";
+
+  return (
+    <Paper>
+      <div className="mb-4 empty:hidden">
+        <RestartBar count={pendingCount(runtime)} />
+      </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-10">
+        <div className="min-w-0">
+          <Header runtime={runtime} id={params.pluginId} plugin={installed} entry={entry} />
+          <Tabs<DetailTab>
+            className="mt-5"
+            activeKey={tab}
+            onChange={key => setTab(key)}
+            items={tabs}
+          />
+        </div>
+        <Aside
+          runtime={runtime}
+          id={params.pluginId}
+          plugin={installed}
+          entry={entry}
+          release={release.data}
+        />
+      </div>
+    </Paper>
+  );
+}
+
+function Paper({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-9 pr-[30px] pt-6">{children}</FadeScroll>
+      </div>
+    </div>
+  );
+}
+
+function Header({
+  runtime,
+  id,
+  plugin,
+  entry,
+}: {
+  runtime: DesktopPluginRuntime;
+  id: string;
+  plugin?: InstalledPlugin;
+  entry?: PluginCatalogEntry;
+}) {
+  const name = plugin?.info.name ?? entry?.name ?? id;
+  return (
+    <>
+      <div className="flex items-center gap-[18px]">
+        <PluginIcon id={id} name={name} builtin={plugin?.source === "builtin"} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-[22px] font-semibold leading-[1.3]">{name}</h1>
+          <div className="text-tau-meta text-ink-2 mt-1 flex flex-wrap items-center gap-2">
+            {entry && <span>@{entry.publisher.login}</span>}
+            <span className="tabular-nums">{plugin?.info.version ?? entry?.latest.version}</span>
+            {plugin && <SourceChip source={plugin.source} />}
+            {plugin && <span>{STATE_LABELS[plugin.info.state]}</span>}
+          </div>
+        </div>
+        {plugin ? (
+          <InstalledActions runtime={runtime} plugin={plugin} entry={entry} />
+        ) : (
+          entry && (
+            <InstallButton
+              name={entry.name}
+              state={installState(
+                entry,
+                undefined,
+                runtime.local?.updates.find(u => u.id === id)
+              )}
+            />
+          )
+        )}
+      </div>
+      {entry && <p className="text-tau-body text-ink-2 mt-3 max-w-[70ch]">{entry.description}</p>}
+    </>
+  );
+}
+
+function InstalledActions({
+  runtime,
+  plugin,
+  entry,
+}: {
+  runtime: DesktopPluginRuntime;
+  plugin: InstalledPlugin;
+  entry?: PluginCatalogEntry;
+}) {
+  const control = usePluginControl(runtime, plugin);
+  const [uninstalling, setUninstalling] = useState(false);
+  const { navigator } = usePage();
+  const state = entry ? installState(entry, plugin, plugin.update) : undefined;
+  const error =
+    plugin.info.state === "restart-required"
+      ? plugin.error
+      : control.error || plugin.error || plugin.update?.error;
+  return (
+    <div className="flex flex-none flex-col items-end gap-1.5">
+      <div className="flex items-center gap-2">
+        {plugin.update?.pendingVersion ? (
+          <StagedChip version={plugin.update.pendingVersion} />
+        ) : (
+          state?.kind === "update" && <InstallButton name={plugin.info.name} state={state} />
+        )}
+        <Switch
+          aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
+          checked={plugin.enabled}
+          disabled={!control.canToggle}
+          onCheckedChange={() => void control.toggle()}
+        />
+        <PluginMenu
+          runtime={runtime}
+          plugin={plugin}
+          control={control}
+          onUninstall={() => setUninstalling(true)}
+        />
+      </div>
+      {error && (
+        <p role="alert" className="text-tau-meta text-danger max-w-[320px] text-right">
+          {error}
+        </p>
+      )}
+      <UninstallDialog
+        name={plugin.info.name}
+        open={uninstalling}
+        onOpenChange={setUninstalling}
+        onConfirm={async purge => {
+          await control.uninstall(purge);
+          navigator.push("plugins", { tab: "installed" });
+        }}
+      />
+    </div>
+  );
+}
+
+/** 插件声明的设置：只在启用时挂载，按分组切换，停用后保留已保存的值。 */
+function SettingsTab({
+  runtime,
+  plugin,
+  section,
+  onSection,
+}: {
+  runtime: DesktopPluginRuntime;
+  plugin: InstalledPlugin;
+  section?: string;
+  onSection: (key: PluginSettingsKey) => void;
+}) {
+  if (plugin.info.state !== "active")
+    return (
+      <p className="text-tau-body text-ink-2">
+        插件设置暂不可用。启用后可恢复设置，已保存的偏好仍然保留。
+      </p>
+    );
+  const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
+  const active = section ? sections.find(item => item.key === section) : sections[0];
+  return (
+    <div className="max-w-[720px]">
+      {sections.length > 1 && (
+        <nav aria-label="插件设置分组" className="mb-4 flex flex-wrap gap-2">
+          {sections.map(item => (
+            <Button
+              key={item.key}
+              size="sm"
+              variant={item === active ? "soft" : "ghost"}
+              aria-current={item === active ? "page" : undefined}
+              onClick={() => onSection(item.key)}
+            >
+              {item.definition.title}
+            </Button>
+          ))}
+        </nav>
+      )}
+      {active ? (
+        <section aria-label={active.definition.title}>
+          <h3 className="text-tau-body text-ink-1 mb-1 font-semibold">{active.definition.title}</h3>
+          {active.definition.description && (
+            <p className="text-tau-meta text-ink-2 mb-4">{active.definition.description}</p>
+          )}
+          <PluginSettingsView section={active} />
+        </section>
+      ) : section ? (
+        <PluginSettingsView />
+      ) : (
+        <p className="text-tau-body text-ink-2">此插件没有自定义设置。</p>
+      )}
+    </div>
+  );
+}
+
+function VersionsTab({
+  runtime,
+  plugin,
+  entry,
+}: {
+  runtime: DesktopPluginRuntime;
+  plugin?: InstalledPlugin;
+  entry?: PluginCatalogEntry;
+}) {
+  return (
+    <div className="max-w-[640px]">
+      {plugin && <InstalledVersions runtime={runtime} plugin={plugin} />}
+      {entry && entry.latest.version !== plugin?.info.version && (
+        <VersionRow
+          version={entry.latest.version}
+          note={`插件中心最新 · 需要客户端 ≥ ${entry.latest.minAppVersion}`}
+        />
+      )}
+      <p className="text-tau-sm text-ink-3 mt-3">切换版本只替换插件代码，不回退已保存的数据。</p>
+    </div>
+  );
+}
+
+function InstalledVersions({
+  runtime,
+  plugin,
+}: {
+  runtime: DesktopPluginRuntime;
+  plugin: InstalledPlugin;
+}) {
+  const control = usePluginControl(runtime, plugin);
+  const update = plugin.update;
+  return (
+    <>
+      {update?.pendingVersion && (
+        <VersionRow version={update.pendingVersion} note="已下载，重启后生效">
+          <Button variant="ghost" size="sm" onClick={() => void control.cancelUpdate()}>
+            取消
+          </Button>
+        </VersionRow>
+      )}
+      <VersionRow version={plugin.info.version} note="当前使用" />
+      {update?.previousVersion && (
+        <VersionRow version={update.previousVersion} note="上一版备份">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={update.pending || update.blocked}
+            onClick={() => void control.restorePrevious()}
+          >
+            恢复此版本
+          </Button>
+        </VersionRow>
+      )}
+      {control.error && (
+        <p role="alert" className="text-tau-meta text-danger mt-2">
+          {control.error}
+        </p>
+      )}
+    </>
+  );
+}
+
+function VersionRow({
+  version,
+  note,
+  children,
+}: {
+  version: string;
+  note: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-1 py-3 shadow-[0_1px_0_var(--tau-line-2)]">
+      <b className="w-20 text-[13.5px] font-semibold tabular-nums">{version}</b>
+      <span className="text-tau-meta text-ink-2 flex-1">{note}</span>
+      {children}
+    </div>
+  );
+}
+
+function Aside({
+  runtime,
+  id,
+  plugin,
+  entry,
+  release,
+}: {
+  runtime: DesktopPluginRuntime;
+  id: string;
+  plugin?: InstalledPlugin;
+  entry?: PluginCatalogEntry;
+  release?: PluginRelease;
+}) {
+  const active = plugin?.info.state === "active";
+  const contributions = active
+    ? [
+        {
+          icon: PanelLeft,
+          count: runtime.listSidebar().items.filter(item => item.pluginId === id).length,
+          label: "侧边栏入口",
+        },
+        {
+          icon: Terminal,
+          count: runtime.host.listCommands().filter(item => item.pluginId === id).length,
+          label: "命令",
+        },
+        {
+          icon: SlidersHorizontal,
+          count: runtime.listSettings().filter(item => item.context.pluginId === id).length,
+          label: "设置分组",
+        },
+      ].filter(item => item.count > 0)
+    : [];
+  const info: [string, ReactNode][] = [
+    ["插件 ID", <span className="font-tau-mono text-[12px]">{id}</span>],
+  ];
+  if (plugin) info.push(["当前版本", plugin.info.version]);
+  if (entry) {
+    info.push(["需要客户端", `≥ ${(entry.compatible ?? entry.latest).minAppVersion}`]);
+    info.push(["大小", formatSize((entry.compatible ?? entry.latest).size)]);
+    info.push(["发布于", new Date(entry.latest.publishedAt).toLocaleDateString()]);
+  }
+  if (release?.repository)
+    info.push([
+      "源码",
+      <button
+        type="button"
+        className="text-accent-text inline-flex items-center gap-1 truncate"
+        onClick={() => void openExternal(release.repository)}
+      >
+        <Github className="size-3.5 flex-none" strokeWidth={1.75} />
+        <span className="truncate">
+          {release.repository.replace(/^https:\/\/github\.com\//, "")}
+        </span>
+      </button>,
+    ]);
+  if (release)
+    info.push([
+      "SHA-256",
+      <span className="font-tau-mono text-[12px]">{release.sha256.slice(0, 12)}…</span>,
+    ]);
+  return (
+    <aside className="flex flex-col gap-6 pt-1">
+      <div>
+        <h4 className="text-tau-sm text-ink-3 mb-2 font-medium">信息</h4>
+        <dl className="text-tau-meta grid grid-cols-[84px_minmax(0,1fr)] gap-y-2">
+          {info.map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt className="text-ink-2">{label}</dt>
+              <dd className="min-w-0 truncate">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      {plugin && (
+        <div>
+          <h4 className="text-tau-sm text-ink-3 mb-2 font-medium">此插件提供</h4>
+          {contributions.length ? (
+            <ul className="text-tau-meta flex flex-col gap-1.5">
+              {contributions.map(({ icon: Icon, count, label }) => (
+                <li key={label} className="flex items-center gap-2">
+                  <Icon className="text-ink-3 size-3.5" strokeWidth={1.75} />
+                  {label} {count}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-tau-meta text-ink-3 flex items-center gap-2">
+              <Layers className="size-3.5" strokeWidth={1.75} />
+              {active ? "没有登记界面入口" : "启用后可见"}
+            </p>
+          )}
+        </div>
+      )}
+      <div className="bg-warn-soft text-tau-sm text-ink-2 flex gap-2.5 rounded-[var(--tau-radius-md)] p-3 leading-[1.6]">
+        <ShieldAlert className="text-warn mt-0.5 size-4 flex-none" strokeWidth={1.75} />
+        <span>
+          插件在完整应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。
+        </span>
+      </div>
+    </aside>
+  );
+}

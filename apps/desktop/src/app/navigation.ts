@@ -29,6 +29,7 @@ import {
   MessageCircle,
   Sparkles,
   Plug,
+  Blocks,
   FlaskConical,
   Users,
   SlidersHorizontal,
@@ -144,6 +145,8 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
 
 export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
+  // 插件中心与已安装管理（D-164）；插件设置在详情页，设置弹窗只留跳转
+  { key: "plugins", label: "插件", icon: Blocks },
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
 
