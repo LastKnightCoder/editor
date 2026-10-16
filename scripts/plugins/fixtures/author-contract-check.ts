@@ -1,3 +1,4 @@
+// 此文件只注入独立作者验证工程，不随公开模板分发。
 import { defineEditorElement, type EditorElementRenderProps } from "@tau/plugins";
 
 declare module "@tau/plugins" {

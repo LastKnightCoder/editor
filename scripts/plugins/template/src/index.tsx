@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components -- 插件入口导出定义，由宿主创建实例。 */
+/* eslint-disable react-refresh/only-export-components -- 插件入口默认导出插件定义。 */
 import { useState } from "react";
 import {
   QueryClient,

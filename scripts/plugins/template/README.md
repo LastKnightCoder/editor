@@ -1,31 +1,66 @@
 # Tau 插件模板
 
-独立编写、构建并安装 Tau 桌面插件。使用 Node.js 22+ 和 npm，无需克隆客户端仓库。
+使用 TypeScript 和 React 开发 Tau 桌面插件。模板包含一个可运行的计数器，演示命令、页面、设置和数据保存。
 
 ## 开始
 
-在 GitHub 点击 Use this template 创建自己的仓库，或下载本仓库。然后运行：
+准备 Node.js 22+、pnpm 11.9.0，以及在设置中提供“插件管理”的 Tau 桌面客户端。
+
+在 GitHub 点击 **Use this template** 创建自己的仓库，克隆后进入项目目录：
 
 ```sh
-npm install
-npm run build
-npm run install:local
+pnpm install
+pnpm build
+pnpm install:local
 ```
 
-安装目录固定为 `~/.editor/plugins/<manifest.id>/`。打开客户端的插件管理，点击“刷新列表”并启用“独立计数插件”，通过 Ctrl+K 执行“打开独立计数插件”。点击“增加并保存”，停用再启用后计数应保留。启用意图在客户端重启后恢复；计数数据按工作区隔离。
+打开 Tau 的插件管理，点击“刷新列表”，启用“独立计数插件”。通过 Ctrl+K 搜索并执行“打开独立计数插件”，点击“增加并保存”。重启客户端后，插件会恢复启用；在同一工作区打开页面，计数仍然保留。
 
 ## 编写自己的插件
 
-修改 `manifest.json` 的 id、name、version，以及 package.json 的名称。插件 ID 必须唯一，例如 `yourname.counter`。编辑 `src/index.tsx`；入口默认导出 `definePlugin`，构建自动注入 manifest 的身份信息。不要手写第二份 ID。
+1. 修改 `manifest.json` 的 `id`、`name`、`version`。ID 使用你自己的唯一名称，例如 `yourname.counter`；不要与其他插件重复。
+2. 修改 `package.json` 的项目名称和版本。
+3. 在 `src/index.tsx` 中实现功能，在 `src/styles.css` 中编写样式。
+4. 执行 `pnpm build`，按下面的更新步骤重新安装并验收。
 
-`npm run build` 先做类型检查，再生成 CJS、CSS 和 SHA-256 校验信息。发布产物为 `dist/<id>-<version>.zip`，ZIP 内含 `<id>/manifest.json`、`main.js` 和可选 `main.css`。用户可以自行解压到 `~/.editor/plugins/`。
+| 文件                              | 用途                                             |
+| --------------------------------- | ------------------------------------------------ |
+| `manifest.json`                   | 插件身份与版本                                   |
+| `src/index.tsx`                   | 插件入口，以及示例页面、设置与命令               |
+| `src/styles.css`                  | 插件样式                                         |
+| `API.md`                          | API 参数、返回值、示例与使用约束                 |
+| `AGENTS.md`                       | AI 编程助手的项目指引                            |
+| `build.mjs` / `install-local.mjs` | 已配置的打包与本地安装工具，日常开发通常无需修改 |
 
-安装脚本直接安装本次 ZIP，目标存在时停止，不覆盖已有插件。更新时先在客户端停用插件，将旧插件目录备份到插件根目录之外，再安装新 ZIP 并刷新列表。当前不提供自动升级、失败回滚或客户端最低版本协议。
+入口使用 `definePlugin`，元信息从 manifest 自动获得。完整接口见 [API 文档](API.md)，可直接对照示例修改。开发时保持模板中 React 和 SDK 的依赖版本，插件需要在 Tau 中运行和测试。
 
-## SDK 与兼容范围
+## 打包与安装
 
-API 版本为 1，需要包含固定目录发现功能的 Tau 桌面客户端（C13 及后续实现）。React/ReactDOM 为 19.2.0。npm 上的 `@xiongtao.xt/tau-plugins` 和 `@xiongtao.xt/tau-ui` 通过 npm alias 安装为 `@tau/plugins`、`@tau/ui`；代码导入保持稳定。
+`pnpm build` 先检查类型，再生成 `dist/<id>-<version>.zip`。这个 ZIP 就是可分发的插件包，分享时无需附带源码或 node_modules。
 
-这两个 npm 包提供作者类型契约，执行实现由桌面宿主提供。构建必须保留模板中的 external 配置，不能直接在普通 Node.js 中运行 SDK。其他普通 npm 依赖会打包进入 main.js。
+`pnpm install:local` 把 ZIP 安装到 `~/.editor/plugins/<id>/`。也可以手动解压到 `~/.editor/plugins/`；确认最终结构为：
 
-详见 [API.md](API.md) 和面向 AI 的 [AGENTS.md](AGENTS.md)。SDK 与本模板采用 MIT 许可。插件市场、上传审核及权限隔离不属于当前模板能力。
+```text
+~/.editor/plugins/yourname.counter/
+  manifest.json
+  main.js
+  main.css       # 使用 CSS 时生成
+```
+
+更新已有插件时：先在 Tau 中停用，将旧插件目录移到插件目录之外备份，运行 `pnpm install:local`，再刷新列表并启用。安装工具拒绝覆盖已有目录。保持插件 ID 不变，同一工作区的已保存数据会保留；修改 ID 会被视为新插件。
+
+## 开发命令与排错
+
+| 命令                 | 用途                       |
+| -------------------- | -------------------------- |
+| `pnpm check`         | 检查 TypeScript 类型       |
+| `pnpm build`         | 检查类型并生成 ZIP         |
+| `pnpm install:local` | 安装最近构建的当前版本 ZIP |
+
+- **列表里没有插件**：刷新列表，确认没有多套一层解压目录，并查看插件管理中的错误提示。
+- **提示目标已存在**：先停用并备份旧目录，再安装；不要直接覆盖运行中的插件。
+- **修改没有生效**：重新构建和安装，然后刷新并启用。
+- **启用失败**：查看错误提示，检查 `activate` 中是否抛出异常；定位后重新构建。若客户端提示需要重启，先重启再启用。
+- **类型检查通过但功能异常**：类型检查不能替代客户端测试。至少验证启用、命令执行、保存数据、停用和重启恢复。
+
+本模板采用 [MIT 许可](LICENSE)。

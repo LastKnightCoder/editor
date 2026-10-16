@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "license": "MIT",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "check": "tsc --noEmit",
-    "build": "npm run check && node build.mjs",
+    "build": "pnpm check && node build.mjs",
     "install:local": "node install-local.mjs"
   },
   "dependencies": {

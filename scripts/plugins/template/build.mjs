@@ -44,7 +44,7 @@ try {
   for (const output of Object.values(result.metafile.outputs)) {
     for (const dependency of output.imports) {
       if (dependency.external && !shared.includes(dependency.path))
-        throw new Error(`未支持的宿主模块：${dependency.path}`);
+        throw new Error(`插件构建包含未支持的外部依赖：${dependency.path}`);
     }
   }
   const styles = Object.keys(result.metafile.outputs).some(file => file.endsWith("main.css"));
@@ -74,7 +74,7 @@ try {
   const archive = path.resolve("dist", `${manifest.id}-${manifest.version}.zip`);
   zip.writeZip(archive);
   console.log(
-    `构建完成：${archive}\n运行 npm run install:local，或将 ZIP 解压至 ~/.editor/plugins，然后在插件管理中刷新列表并启用。`
+    `构建完成：${archive}\n运行 pnpm install:local，或将 ZIP 解压至 ~/.editor/plugins，然后在插件管理中刷新列表并启用。`
   );
 } catch (error) {
   await rm(staging, { recursive: true, force: true });
