@@ -14,6 +14,7 @@ async function start() {
     storage: createBrowserStorage(localStorage),
     navigator: { push: () => undefined },
     plugins: [themePlugin],
+    openSettings: () => undefined,
   });
   const local = runtime.attachLocal(localStorage);
   useSettingsStore.getState().setSection("plugins");
@@ -36,6 +37,13 @@ async function start() {
         workspaceId,
       }),
       run: () => runtime.host.executeCommand("example.local:run"),
+      openAuthor: async () => {
+        await runtime.host.executeCommand("example.external-counter:open");
+        const page = runtime.getPage("example.external-counter", "counter");
+        if (!page) throw new Error("作者页面未注册");
+        const Component = page.definition.component;
+        root.render(<Component context={page.context} params={{}} />);
+      },
       stop: async () => {
         await runtime.dispose();
         root.unmount();

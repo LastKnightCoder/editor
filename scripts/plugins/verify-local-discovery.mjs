@@ -10,6 +10,7 @@ const require = createRequire(path.join(root, "apps/desktop/package.json"));
 const { build } = require("esbuild");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-local-discovery-"));
 const report = { status: "running", platform: process.platform, arch: process.arch, phases: [] };
+const installed = process.argv.includes("--installed");
 try {
   await mkdir(path.join(directory, "profile"));
   await writeFile(
@@ -42,8 +43,15 @@ try {
         },
       ],
     });
-  for (const phase of ["initial", "refresh", "reinstall", "disabled"]) {
-    const env = { ...process.env, TAU_LOCAL_TEST_APP_DIR: path.join(directory, "app-data") };
+  for (const phase of installed
+    ? ["author", "author-restore"]
+    : ["initial", "refresh", "reinstall", "disabled"]) {
+    const env = {
+      ...process.env,
+      TAU_LOCAL_TEST_APP_DIR: installed
+        ? path.join((await import("node:os")).homedir(), ".editor")
+        : path.join(directory, "app-data"),
+    };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_OPTIONS;
     delete env.NODE_PATH;
@@ -75,7 +83,10 @@ try {
 } finally {
   await mkdir(path.join(root, "output"), { recursive: true });
   await writeFile(
-    path.join(root, "output/local-discovery-report.json"),
+    path.join(
+      root,
+      installed ? "output/installed-author-report.json" : "output/local-discovery-report.json"
+    ),
     JSON.stringify(report, null, 2)
   );
   await rm(directory, { recursive: true, force: true });
