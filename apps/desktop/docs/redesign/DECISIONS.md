@@ -1,5 +1,13 @@
 # 决策记录（轻量 ADR）
 
+## D-164 插件中心与管理改为独立页面，设置弹窗只留跳转入口
+
+（2026-10-17，插件专题 PS-036）
+
+- 新增 `features/plugins/pages/plugins.page.tsx`（发现 / 已安装 / 更新）与 `plugin-detail.page.tsx`（`match: "params"`，参数 pluginId）；`app/navigation.ts` 底部在「设置」上方增加「插件」入口，徽标为可更新数。
+- 插件声明的设置从设置弹窗迁到详情页「设置」标签；设置弹窗「系统 → 插件」分节只显示概要与「打开插件页」，点击关闭弹窗后 push，不再承载列表。
+- 视觉参考 `apps/desktop/mockups/plugins/index.html`。
+
 ## D-163 Markdown 导出包：范围扩到文章 / 卡片 / 全部，包内目录即选择树
 
 （2026-10-16，已定）
