@@ -60,6 +60,7 @@ app
       archive.writeZip(path.join(directory, "failing.zip"));
     }
     let selectedZip = path.join(directory, "update.zip");
+    if (phase.startsWith("water-upgrade-")) selectedZip = path.join(directory, "water-update.zip");
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selectedZip] });
     if (phase === "initial") {
       await put();
@@ -108,7 +109,76 @@ app
     await click("打开插件目录");
     await wait("!document.querySelector('button[disabled]')");
     assert.equal(opens, 1);
-    if (phase.startsWith("update-")) {
+    let upgradeCheck:
+      | {
+          version: string;
+          cups: number;
+          state: string;
+          sidebarSelected: boolean;
+          waterIcon: boolean;
+        }
+      | undefined;
+    if (phase.startsWith("water-upgrade-")) {
+      const first = phase === "water-upgrade-start";
+      const version = phase === "water-upgrade-applied" ? "1.3.0" : "1.2.0";
+      const plugin = "localTest.snapshot().plugins.find(p=>p.id==='lastknight.water-checkin')";
+      const sidebar = `document.querySelector('nav button[aria-label="喝水打卡"]')`;
+      assert.equal(await run(`${plugin}.version`), version);
+      assert.equal(await run(`${plugin}.state`), first ? "disabled" : "active");
+      if (first) await click("启用 喝水打卡");
+      const openWater = async (cups: number) => {
+        await wait(`Boolean(${sidebar})`);
+        await run(`${sidebar}.click()`);
+        await wait(`${sidebar}?.getAttribute('aria-current')==='page'`);
+        await wait(`document.body.innerText.includes('已喝水：${cups} 杯')`);
+        assert.equal(
+          await run(`${sidebar}.querySelector('svg path')?.getAttribute('d')`),
+          "M12 3C9 7 5 11 5 15a7 7 0 0 0 14 0c0-4-4-8-7-12Z"
+        );
+        assert.equal(
+          await run(`Boolean(document.querySelector('nav button[title="收起「习惯」"]'))`),
+          true
+        );
+      };
+      await openWater(first ? 0 : phase === "water-upgrade-applied" ? 3 : 4);
+      if (first) {
+        for (let count = 1; count <= 3; count++) {
+          await click("喝了一杯");
+          await wait(`document.body.innerText.includes('已喝水：${count} 杯')`);
+        }
+        await run("localTest.list()");
+        await click("安装或更新 ZIP");
+        await wait(
+          "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pendingVersion==='1.3.0')"
+        );
+        assert.equal(await run(`${plugin}.version`), "1.2.0");
+        await openWater(3);
+      } else if (phase === "water-upgrade-applied") {
+        await click("喝了一杯");
+        await wait("document.body.innerText.includes('已喝水：4 杯')");
+        await run("localTest.list()");
+        await click("恢复上一版 1.2.0");
+        await wait(
+          "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pendingVersion==='1.2.0')"
+        );
+        assert.equal(await run(`${plugin}.version`), "1.3.0");
+        await openWater(4);
+      } else {
+        assert.equal(
+          await run(
+            "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pending)"
+          ),
+          false
+        );
+      }
+      upgradeCheck = {
+        version,
+        cups: first ? 3 : 4,
+        state: await run(`${plugin}.state`),
+        sidebarSelected: await run(`${sidebar}.getAttribute('aria-current')==='page'`),
+        waterIcon: true,
+      };
+    } else if (phase.startsWith("update-")) {
       if (phase === "update-start") {
         await click("启用 本地验证");
         await wait("localTest.snapshot().commands.length===1");
@@ -288,7 +358,12 @@ app
     window.webContents.session.flushStorageData();
     await writeFile(
       path.join(directory, phase + ".json"),
-      JSON.stringify({ phase, electron: process.versions.electron, snapshot })
+      JSON.stringify({
+        phase,
+        electron: process.versions.electron,
+        snapshot,
+        ...(upgradeCheck ? { upgradeCheck } : {}),
+      })
     );
     window.destroy();
     app.quit();
