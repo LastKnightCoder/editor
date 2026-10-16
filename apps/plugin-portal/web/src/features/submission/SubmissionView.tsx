@@ -19,7 +19,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const revision = useRef(submission.revision);
-  const content = upload?.content ?? submission.content;
+  const content = submission.canEdit ? (upload?.content ?? submission.content) : submission.content;
   const dirty = repository !== submission.repository || !!upload;
   useEffect(() => {
     if (revision.current !== submission.revision) {
@@ -100,7 +100,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
         )}
         {content && (
           <Section title="插件资料">
-            <PackageFacts manifest={content.manifest} upload={upload} />
+            <PackageFacts manifest={content.manifest} upload={submission.canEdit ? upload : null} />
             <p className="text-ink-2 text-tau-sm">{content.manifest.description}</p>
           </Section>
         )}
@@ -142,7 +142,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
             {error}
           </p>
         )}
-        {conflict && (
+        {submission.canEdit && conflict && (
           <Section title="草稿已在其他窗口更新">
             <p>本地输入仍保留，请核对后选择处理方式。</p>
             <Button
