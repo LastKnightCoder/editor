@@ -12,13 +12,17 @@ import { useEdgeFade, IconButton, Tooltip } from "@tau/ui";
 import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { useSettingsStore } from "./settingsStore";
-import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
+import { NAV_FOOTER, composeNavSections, isNavItemActive, type NavItem } from "./navigation";
+import { useDesktopPlugins } from "./plugins/context";
+import { appNotify } from "@/features/notifications/notify";
 import { NAV_BADGE_SLOTS, NAV_CHILDREN_SLOTS, useNavChildrenContent } from "./navSlots";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
 
 export function Sidebar({ resizing }: { resizing: boolean }) {
   const { navigator, state } = usePage();
+  const plugins = useDesktopPlugins();
+  const sections = composeNavSections(plugins?.listSidebar());
   const collapsed = useShellStore(s => s.sidebarCollapsed);
   const toggle = useShellStore(s => s.toggleSidebar);
   const navSectionCollapsed = useShellStore(s => s.navSectionCollapsed);
@@ -108,13 +112,14 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
         ref={setScrollEl}
         className="edge-fade-scroll scrollbar-hide min-h-0 flex-1 overflow-y-auto"
       >
-        {NAV_SECTIONS.map((section, sectionIndex) => {
+        {sections.map((section, sectionIndex) => {
           // 组折叠收纳：收起条目留组头 + 条目数，
           // grid-rows 0fr↔1fr 过渡；侧栏收起态（图标列）无组头，强制展开不受影响
-          const folded = !collapsed && (navSectionCollapsed[section.label] ?? false);
+          const collapseKey = section.collapseKey ?? section.label;
+          const folded = !collapsed && (navSectionCollapsed[collapseKey] ?? false);
           return (
             <div
-              key={section.label}
+              key={section.id}
               // 首组收起态无 mt：与头部的间距由头部 pb 承担，避免 mt 堆叠出大空隙
               className={clsx(collapsed && sectionIndex === 0 ? "mt-0" : "mt-3")}
             >
@@ -122,7 +127,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                 <button
                   type="button"
                   className="ease-tau-out rounded-tau-sm text-tau-tiny text-ink-3 hover:text-ink-2 flex w-full items-center gap-1 px-2.5 pb-1.5 transition-colors duration-[160ms]"
-                  onClick={() => toggleNavSection(section.label)}
+                  onClick={() => toggleNavSection(collapseKey)}
                   aria-expanded={!folded}
                   title={folded ? `展开「${section.label}」` : `收起「${section.label}」`}
                 >
@@ -155,20 +160,30 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                         <NavItemButton
                           item={item}
                           collapsed={collapsed}
-                          active={item.key === currentKey}
+                          active={isNavItemActive(item, current)}
                           hasActiveChild={
                             expanded && Boolean(slot?.selected(current?.params ?? {}))
                           }
                           // 带子项的入口回到该页时沿用已有参数（停留在上次看的子项）；
                           // 已在该页且槽声明 parentResets 时清空参数回到总览
-                          onClick={() =>
+                          onClick={() => {
+                            if (item.plugin) {
+                              void item.plugin.open().catch(error =>
+                                appNotify({
+                                  title: "无法打开插件页面",
+                                  body: error instanceof Error ? error.message : String(error),
+                                  tone: "danger",
+                                })
+                              );
+                              return;
+                            }
                             navigator.push(
                               item.key,
                               slot && !(slot.parentResets && item.key === currentKey)
                                 ? state.back.find(entry => entry.key === item.key)?.params
                                 : undefined
-                            )
-                          }
+                            );
+                          }}
                         />
                         {ChildrenSlot && expanded && (
                           <ChildrenSlot
@@ -246,6 +261,7 @@ function NavItemButton({
       onClick={onClick}
       title={collapsed ? undefined : item.label}
       aria-label={item.label}
+      aria-current={active ? "page" : undefined}
     >
       {/* 图标随字号档位（em）：17px 锚定 fontSize 16 的既有观感，大字号下不被文字甩开 */}
       <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} />

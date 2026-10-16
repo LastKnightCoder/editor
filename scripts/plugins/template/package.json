@@ -14,7 +14,7 @@
     "install:local": "node install-local.mjs"
   },
   "dependencies": {
-    "@tau/plugins": "npm:@xiongtao.xt/tau-plugins@0.1.0",
+    "@tau/plugins": "npm:@xiongtao.xt/tau-plugins@0.2.0",
     "@tau/ui": "npm:@xiongtao.xt/tau-ui@0.1.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",

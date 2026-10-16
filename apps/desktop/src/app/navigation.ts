@@ -34,6 +34,8 @@ import {
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
+import { SIDEBAR_GROUPS } from "@tau/plugins";
+import type { PluginSidebarSnapshot } from "./plugins/runtime";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
 export type NavItemBadge =
@@ -61,16 +63,20 @@ export interface NavItem {
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
+  plugin?: PluginSidebarSnapshot["items"][number];
 }
 
 export interface NavSection {
+  id: string;
   label: string;
+  collapseKey?: string;
   items: NavItem[];
 }
 
 export const NAV_SECTIONS: NavSection[] = [
   {
     // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴（D-071）
+    id: SIDEBAR_GROUPS.daily,
     label: "日常",
     items: [
       { key: "home", label: "今日", icon: Flame },
@@ -82,6 +88,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     // 有体系的产出：卡片（原子）→ 文章（长文）→ 项目（体系梳理）→ 其他形态
+    id: SIDEBAR_GROUPS.knowledge,
     label: "知识",
     items: [
       { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
@@ -93,6 +100,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     // 学习工作流：问题（起点）→ 学习形式与资料 → 闪卡巩固
+    id: SIDEBAR_GROUPS.learning,
     label: "学习",
     items: [
       {
@@ -109,6 +117,7 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    id: SIDEBAR_GROUPS.ai,
     label: "AI",
     items: [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // 会话导航嵌在侧栏入口下
@@ -118,6 +127,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     // 对外：实时协作 → 静态发布
+    id: SIDEBAR_GROUPS.sharing,
     label: "分享",
     items: [
       {
@@ -136,3 +146,36 @@ export const NAV_FOOTER: NavItem[] = [
   // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
+
+export function composeNavSections(snapshot?: PluginSidebarSnapshot): NavSection[] {
+  if (!snapshot) return NAV_SECTIONS;
+  const sections = NAV_SECTIONS.map(section => ({ ...section, items: [...section.items] }));
+  for (const group of snapshot.groups) {
+    sections.push({ id: group.id, label: group.title, collapseKey: group.id, items: [] });
+  }
+  const fallback: NavSection = {
+    id: SIDEBAR_GROUPS.plugins,
+    label: "插件",
+    collapseKey: "plugins",
+    items: [],
+  };
+  sections.push(fallback);
+  for (const item of snapshot.items) {
+    const section = sections.find(section => section.id === item.group) ?? fallback;
+    section.items.push({ key: item.id, label: item.title, icon: Plug, plugin: item });
+  }
+  return sections.filter(section => section.items.length > 0);
+}
+
+export function isNavItemActive(
+  item: NavItem,
+  current?: { key: string; params: Record<string, unknown> }
+): boolean {
+  if (!item.plugin) return item.key === current?.key;
+  return (
+    current?.key === "plugin-page" &&
+    current.params.pluginId === item.plugin.pluginId &&
+    current.params.pageId === item.plugin.pageId &&
+    current.params.instanceId === item.plugin.instanceId
+  );
+}

@@ -37,6 +37,7 @@ try {
       .filter(item => item.isDirectory() && !item.name.startsWith("."))
       .map(item => item.name);
   await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await rm(path.join(author, "pnpm-lock.yaml"), { force: true });
   await cp(
     path.join(root, "scripts/plugins/fixtures/author-contract-check.ts"),
     path.join(author, "src/contract-check.ts")
@@ -45,7 +46,7 @@ try {
     "pnpm",
     [
       "add",
-      "@tau/plugins@file:" + path.join(sdk, "xiongtao.xt-tau-plugins-0.1.0.tgz"),
+      "@tau/plugins@file:" + path.join(sdk, "xiongtao.xt-tau-plugins-0.2.0.tgz"),
       "@tau/ui@file:" + path.join(sdk, "xiongtao.xt-tau-ui-0.1.0.tgz"),
     ],
     author

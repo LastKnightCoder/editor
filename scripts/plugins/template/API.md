@@ -72,6 +72,7 @@ export default definePlugin({
 | `storage`     | `PluginStorage`                        | 保存当前插件在当前工作区的数据         |
 | `pages`       | `PluginPages`                          | 注册并打开页面                         |
 | `settings`    | `PluginSettings`                       | 注册并打开设置区域                     |
+| `sidebar`     | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口           |
 | `fetch`       | `typeof fetch`                         | 发起与插件生命周期关联的网络请求       |
 | `register`    | `(resource: Disposable) => Disposable` | 托管需要清理的资源                     |
 
@@ -174,6 +175,59 @@ export default definePlugin({
   }),
 });
 ```
+
+## 侧边栏
+
+SDK 0.2.0 起提供 `context.sidebar`，需要支持插件侧边栏的 Tau 客户端。条目关联已有页面，点击自动打开并随当前页面高亮；停用后入口消失，恢复启用时重新注册。
+
+### 注册到已有分组
+
+```ts
+import { SIDEBAR_GROUPS } from "@tau/plugins";
+
+const page = context.pages.register({ id: "counter", title: "计数", component: Settings });
+context.sidebar.registerItem({
+  id: "counter",
+  title: "计数",
+  group: SIDEBAR_GROUPS.daily,
+  page,
+});
+```
+
+此处 `Settings` 是模板的计数组件，示例放在 `activate` 内，import 放在文件顶部。分组使用稳定标识，不使用显示名称：
+
+| 常量                       | 分组                   |
+| -------------------------- | ---------------------- |
+| `SIDEBAR_GROUPS.daily`     | 日常                   |
+| `SIDEBAR_GROUPS.knowledge` | 知识                   |
+| `SIDEBAR_GROUPS.learning`  | 学习                   |
+| `SIDEBAR_GROUPS.ai`        | AI                     |
+| `SIDEBAR_GROUPS.sharing`   | 分享                   |
+| `SIDEBAR_GROUPS.plugins`   | 插件；没有条目时不显示 |
+
+### 自建分组
+
+```ts
+const group = context.sidebar.registerGroup({ id: "habits", title: "习惯" });
+const page = context.pages.register({ id: "counter", title: "计数", component: Settings });
+context.sidebar.registerItem({ id: "counter", title: "计数", group: group.id, page });
+```
+
+`registerGroup({ id, title })` 返回 `{ readonly id, dispose() }`。传入的 id 为插件内局部 ID，使用返回的 `group.id` 引用分组。空组不显示；不同插件可以使用相同局部 ID 或显示标题，各自独立。自建分组显示在内置分组之后。
+
+`registerItem(definition)` 返回 `Disposable`：
+
+| 字段     | 类型                     | 说明                                                        |
+| -------- | ------------------------ | ----------------------------------------------------------- |
+| `id`     | `string`                 | 插件内唯一条目 ID                                           |
+| `title`  | `string`                 | 非空的入口名称                                              |
+| `group`  | `string`，可选           | 公开分组常量或本插件分组句柄的 id；缺省或不存在时归入“插件” |
+| `page`   | `PluginPageHandle`       | 本插件本次启用注册的有效页面句柄                            |
+| `params` | `PluginPageParams`，可选 | 点击时传给页面的参数，缺省为空对象                          |
+
+条目追加在所在分组末尾，使用统一的插件图标。参数页面按页面实例高亮，单实例页面按页面身份高亮；通过命令面板打开相同页面也会高亮侧边栏入口。条目与页面 ID 分别独立，可以为同一个参数页面注册多个入口。
+
+提前调用条目的 `dispose()` 会移除入口；注销页面也会隐藏关联入口。提前注销分组后，剩余条目归入“插件”；当最后一个条目移除后，空分组不显示。注册重复 ID 会报错，不覆盖已有条目。插件只能管理自己注册的分组和条目，不能向其他插件的分组插入，也不能引用其他插件或上一次启用的页面句柄。
 
 ## 设置
 
@@ -285,6 +339,6 @@ export function Help() {
 
 ## 能力范围与升级
 
-上述命令、页面、设置、私有存储、网络和清理接口是本模板的开发范围。SDK 类型中还包含编辑器扩展接口，但目前仅用于插件工作台，不会自动作用到普通笔记编辑器；本文不将其作为普通笔记扩展的可用能力。
+上述命令、页面、侧边栏、设置、私有存储、网络和清理接口是本模板的开发范围。SDK 类型中还包含编辑器扩展接口，但目前仅用于插件工作台，不会自动作用到普通笔记编辑器；本文不将其作为普通笔记扩展的可用能力。
 
 添加依赖使用 `pnpm add <包名>`；升级 SDK 或 React 前先确认兼容性，并完整验证启用、停用和重启流程。保留 `pnpm-lock.yaml`，以便其他开发者复现依赖版本。

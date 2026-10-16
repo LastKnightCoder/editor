@@ -129,7 +129,7 @@ try {
       JSON.stringify(
         {
           name: `@xiongtao.xt/tau-${name}`,
-          version: "0.1.0",
+          version: name === "plugins" ? "0.2.0" : "0.1.0",
           license: "MIT",
           repository: { type: "git", url: "git+https://github.com/LastKnightCoder/editor.git" },
           publishConfig: { access: "public", registry: "https://registry.npmjs.org" },

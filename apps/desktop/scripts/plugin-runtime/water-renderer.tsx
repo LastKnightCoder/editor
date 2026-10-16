@@ -10,6 +10,7 @@ import { PluginRuntimeContext } from "../../src/app/plugins/context";
 import { PluginManagerView } from "../../src/features/plugins/views/PluginManagerView";
 import { getPluginWorkspace } from "../../src/commands/plugin-local";
 import { useSettingsStore } from "../../src/app/settingsStore";
+import { Sidebar } from "../../src/app/Sidebar";
 import "../../src/features/plugins/pages/plugin-page.page";
 
 definePage({ key: "home", label: "插件管理", params: {}, component: PluginManagerView });
@@ -63,6 +64,7 @@ export function Harness({ workspaceId }: { workspaceId: string }) {
   });
   return (
     <PluginRuntimeContext.Provider value={runtime}>
+      <Sidebar resizing={false} />
       <PageHost state={state} />
     </PluginRuntimeContext.Provider>
   );

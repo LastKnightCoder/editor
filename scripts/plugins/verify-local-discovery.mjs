@@ -37,12 +37,28 @@ try {
       platform,
       format,
       external: ["electron"],
+      loader: { ".png": "dataurl" },
       tsconfig: path.join(root, "apps/desktop/tsconfig.json"),
       define: { "import.meta.env": JSON.stringify({ DEV: false, PROD: true }) },
       plugins: [
         {
           name: "temporary-app-directory",
           setup(build) {
+            if (water) {
+              build.onLoad({ filter: /[\\/]app[\\/]navSlots\.tsx$/ }, () => ({
+                contents:
+                  "export const NAV_BADGE_SLOTS = {}; export const NAV_CHILDREN_SLOTS = {}; export const useNavChildrenContent = () => ({});",
+                loader: "js",
+              }));
+              build.onLoad({ filter: /[\\/]app[\\/]WindowControls\.tsx$/ }, () => ({
+                contents: "export const MacTrafficLights = () => null;",
+                loader: "js",
+              }));
+              build.onLoad({ filter: /[\\/]app[\\/]useFullScreen\.ts$/ }, () => ({
+                contents: "export const useFullScreen = () => false;",
+                loader: "js",
+              }));
+            }
             build.onLoad({ filter: /[\\/]utils[\\/]PathUtil\.ts$/ }, () => ({
               contents: "export default { getAppDir: () => process.env.TAU_LOCAL_TEST_APP_DIR };",
               loader: "js",

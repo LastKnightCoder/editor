@@ -7,7 +7,12 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { definePlugin, type PluginPageProps, type PluginSettingsProps } from "@tau/plugins";
+import {
+  definePlugin,
+  SIDEBAR_GROUPS,
+  type PluginPageProps,
+  type PluginSettingsProps,
+} from "@tau/plugins";
 import { Button, Panel, Dialog, DialogBody } from "@tau/ui";
 import "./styles.css";
 
@@ -83,6 +88,12 @@ export default definePlugin({
   create: () => ({
     activate(context) {
       const page = context.pages.register({ id: "counter", title: "独立计数", component: Page });
+      context.sidebar.registerItem({
+        id: "counter",
+        title: "独立计数",
+        group: SIDEBAR_GROUPS.daily,
+        page,
+      });
       context.settings.register({ id: "preferences", title: "计数设置", component: Settings });
       context.commands.register({
         id: "open",
