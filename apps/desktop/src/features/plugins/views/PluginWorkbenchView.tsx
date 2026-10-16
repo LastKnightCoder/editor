@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Button, Panel } from "@tau/ui";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
-import { useSettingsStore } from "@/app/settingsStore";
+import { usePage } from "@/page/PageProvider";
 import { PluginEditorWorkbench } from "./PluginEditorWorkbench";
 
 export function PluginWorkbenchView() {
   const runtime = useDesktopPlugins();
   const startupError = useDesktopPluginError();
+  const { navigator } = usePage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   if (!runtime)
@@ -32,9 +33,7 @@ export function PluginWorkbenchView() {
       <p className="text-tau-body text-ink-2">
         这里提供已安装插件的调试命令与实验编辑器。请在插件管理中启用需要的插件。
       </p>
-      <Button onClick={() => useSettingsStore.getState().openSettings("plugins")}>
-        打开插件管理
-      </Button>
+      <Button onClick={() => navigator.push("plugins", { tab: "installed" })}>打开插件管理</Button>
       {error && (
         <p role="alert" className="text-danger text-tau-body">
           {error}

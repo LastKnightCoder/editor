@@ -8,7 +8,6 @@ import { PageProvider, usePage, type Navigator } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { definePage } from "@/page/definePage";
 import { DesktopPluginProvider } from "@/app/plugins/PluginProvider";
-import { useSettingsStore } from "@/app/settingsStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { DesktopPluginRuntime, PLUGIN_WORKBENCH_KEY } from "@/app/plugins/runtime";
 import { pluginPaletteCommands } from "@/features/search/searchMeta";
@@ -16,6 +15,8 @@ import type { StackMachineState } from "@/page/core/stackMachine";
 import { definePlugin, type PluginPageHandle } from "@tau/plugins";
 import "../pages/plugin-page.page";
 import "../pages/plugin-workbench.page";
+import "../pages/plugins.page";
+import "../pages/plugin-detail.page";
 import { notesPlugin } from "./fixtures/example/notesPlugin";
 import { settingsPlugin } from "./fixtures/example/settingsPlugin";
 
@@ -23,6 +24,10 @@ vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
   return { default: create(() => ({ setting: { database: { active: "A" } } })) };
 });
+vi.mock("@/commands/plugin-local", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands/plugin-local")>()),
+  fetchPluginCatalog: vi.fn(async () => ({ items: [] })),
+}));
 import useSettingStore from "@/stores/useSettingStore";
 
 definePage({ key: "home", label: "今日", params: {}, component: () => <div>宿主首页</div> });
@@ -120,15 +125,15 @@ afterEach(async () => {
 });
 
 describe("桌面插件完整路径", () => {
-  it("开发台将启停入口交给统一插件管理", async () => {
+  it("开发台将启停入口交给插件页", async () => {
     expect(
       [...activePage().querySelectorAll("button")].some(button => button.textContent === "启用")
     ).toBe(false);
     await click("打开插件管理");
-    expect(useSettingsStore.getState()).toMatchObject({ open: true, section: "plugins" });
-    useSettingsStore.getState().closeSettings();
+    expect(state.back.at(-1)).toMatchObject({ key: "plugins", params: { tab: "installed" } });
+    expect(activePage().querySelector(`[aria-label="启用 ${notesPlugin.name}"]`)).not.toBeNull();
   });
-  it("显式注入设置夹具，命令打开真实设置选择并随停用撤销", async () => {
+  it("显式注入设置夹具，命令打开插件详情的设置标签并随停用撤销", async () => {
     currentRuntime().host.registerTrusted(settingsPlugin);
     const host = currentRuntime().host;
     expect(host.getState("example.settings")).toBe("disabled");
@@ -136,14 +141,21 @@ describe("桌面插件完整路径", () => {
     const command = pluginPaletteCommands(host).find(item => item.label === "打开插件设置示例");
     expect(command).toBeDefined();
     await act(async () => command?.run?.());
-    expect(useSettingsStore.getState()).toMatchObject({
-      open: true,
-      section: "plugin:example.settings:reading",
+    await settle();
+    expect(state.back.at(-1)).toMatchObject({
+      key: "plugin-detail",
+      params: {
+        pluginId: "example.settings",
+        tab: "settings",
+        section: "plugin:example.settings:reading",
+      },
     });
+    expect(activePage().querySelector('[role="switch"][aria-label]')).not.toBeNull();
+    expect(activePage().textContent).toContain("阅读偏好（示例）");
     await act(async () => host.disable("example.settings"));
     expect(currentRuntime().listSettings()).toEqual([]);
     expect(pluginPaletteCommands(host)).toEqual([]);
-    useSettingsStore.getState().closeSettings();
+    expect(activePage().textContent).toContain("插件设置暂不可用");
   });
 
   it("停用保活页面，后退不复活旧组件，重启用不重复命令", async () => {

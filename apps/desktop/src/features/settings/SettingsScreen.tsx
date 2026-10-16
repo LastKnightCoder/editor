@@ -28,7 +28,6 @@ export function SettingsScreen() {
   const section = useSettingsStore(s => s.section);
   const setSection = useSettingsStore(s => s.setSection);
   const fullScreen = useFullScreen();
-  const isPluginSection = typeof section === "string" && section.startsWith("plugin:");
   const rootRef = useRef<HTMLDivElement>(null);
 
   useOverlayDismiss(closeSettings, open);
@@ -60,10 +59,8 @@ export function SettingsScreen() {
   }, []);
 
   const activeDef = useMemo(
-    () =>
-      SETTINGS_SECTIONS.find(s => s.key === (isPluginSection ? "plugins" : section)) ??
-      SETTINGS_SECTIONS[0],
-    [section, isPluginSection]
+    () => SETTINGS_SECTIONS.find(s => s.key === section) ?? SETTINGS_SECTIONS[0],
+    [section]
   );
   const ActiveSection = activeDef.component;
 
@@ -158,7 +155,7 @@ export function SettingsScreen() {
               <h1 className="text-tau-title-lg text-ink-1 font-semibold">{activeDef.label}</h1>
               <p className="text-tau-meta text-ink-2 mt-1">{activeDef.description}</p>
             </header>
-            {(activeDef.key !== "plugins" || open) && <ActiveSection key={activeDef.key} />}
+            <ActiveSection key={activeDef.key} />
           </div>
         </FadeScroll>
       </div>

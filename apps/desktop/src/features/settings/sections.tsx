@@ -34,7 +34,7 @@ import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
 import { AboutSection } from "./sections/AboutSection";
-import { PluginManagerView } from "@/features/plugins/views/PluginManagerView";
+import { PluginsSettingsEntry } from "@/features/plugins/views/PluginsSettingsEntry";
 
 export type SettingsSectionKey =
   | "plugins"
@@ -161,9 +161,9 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
       {
         key: "plugins",
         label: "插件",
-        description: "管理插件及其通用设置",
+        description: "插件中心、已安装插件与插件设置",
         icon: Plug,
-        component: PluginManagerView,
+        component: PluginsSettingsEntry,
       },
       {
         key: "app",

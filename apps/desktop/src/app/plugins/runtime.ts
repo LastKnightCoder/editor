@@ -28,6 +28,8 @@ import type { DevelopmentSession } from "@/types/plugin-development";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
+/** 插件中心与管理详情页，插件设置也在此承载。 */
+export const PLUGIN_DETAIL_KEY = "plugin-detail";
 let nextMountId = 0;
 
 function pageInstanceId(definition: PluginPageDefinition, params: PluginPageParams): string {

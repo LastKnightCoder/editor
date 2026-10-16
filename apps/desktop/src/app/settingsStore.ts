@@ -9,9 +9,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SettingsSectionKey } from "@/features/settings/sections";
-import type { PluginSettingsKey } from "./plugins/runtime";
 
-export type SettingsLocation = SettingsSectionKey | PluginSettingsKey;
+export type SettingsLocation = SettingsSectionKey;
 
 interface SettingsUiStore {
   open: boolean;

@@ -6,9 +6,9 @@ import { initThemeRuntime, useThemeStore } from "@tau/themes/react";
 import { DesktopPluginProvider } from "@/app/plugins/PluginProvider";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
-import { PluginManagerView } from "../views/PluginManagerView";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PluginsView } from "../views/PluginsView";
 import { pluginPaletteCommands } from "@/features/search/searchMeta";
-import { useSettingsStore } from "@/app/settingsStore";
 import { builtinPluginStateKey } from "@/app/plugins/activation-manager";
 
 vi.mock("@/stores/useSettingStore", async () => {
@@ -17,7 +17,7 @@ vi.mock("@/stores/useSettingStore", async () => {
 });
 vi.mock("@/page/PageProvider", () => {
   const navigator = { push: vi.fn() };
-  return { usePage: () => ({ navigator }) };
+  return { usePage: () => ({ navigator }), usePageParams: () => ({ tab: "installed" }) };
 });
 vi.mock("@/commands/plugin-development", () => ({
   openDevelopmentPlugins: vi.fn(),
@@ -29,8 +29,10 @@ vi.mock("@/commands/plugin-local", () => ({
   scanLocalPlugins: vi.fn(async () => ({ directory: "/test/.editor/plugins", entries: [] })),
   openPluginDirectory: vi.fn(),
   uninstallLocalPlugin: vi.fn(),
+  fetchPluginCatalog: vi.fn(async () => ({ items: [] })),
 }));
 vi.mock("@/electron", () => ({ isElectron: true }));
+vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 import useSettingStore from "@/stores/useSettingStore";
 import { openDevelopmentPlugins } from "@/commands/plugin-development";
 import { getPluginWorkspace, scanLocalPlugins, openPluginDirectory } from "@/commands/plugin-local";
@@ -44,7 +46,7 @@ function Capture() {
   useEffect(() => {
     runtime = value;
   }, [value]);
-  return <PluginManagerView />;
+  return <PluginsView />;
 }
 function getRuntime() {
   if (!runtime) throw new Error("插件宿主未就绪");
@@ -55,19 +57,35 @@ function commandAction(id: string) {
   if (!command?.run) throw new Error(`命令未注册：${id}`);
   return command.run;
 }
-async function click(text: string) {
-  const button = [...container.querySelectorAll("button")].find(item => item.textContent === text);
-  if (!button) throw new Error(`找不到按钮：${text}`);
-  await act(async () => button.click());
+async function setEnabled(enabled: boolean, name = "主题切换") {
+  const label = `${enabled ? "启用" : "停用"} ${name}`;
+  const button = container.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+  if (!button) throw new Error(`找不到开关：${label}`);
+  await act(async () => {
+    button.click();
+    await vi.dynamicImportSettled();
+  });
+}
+async function menu(text: string) {
+  const trigger = container.querySelector<HTMLButtonElement>('[aria-label="更多插件操作"]');
+  if (!trigger) throw new Error("找不到更多操作");
+  await act(async () => trigger.click());
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+    element => element.textContent === text
+  );
+  if (!item) throw new Error(`找不到菜单项：${text}`);
+  await act(async () => item.click());
 }
 async function mount() {
   root = createRoot(container);
   await act(async () =>
     root.render(
       <StrictMode>
-        <DesktopPluginProvider>
-          <Capture />
-        </DesktopPluginProvider>
+        <QueryClientProvider client={new QueryClient()}>
+          <DesktopPluginProvider>
+            <Capture />
+          </DesktopPluginProvider>
+        </QueryClientProvider>
       </StrictMode>
     )
   );
@@ -88,7 +106,6 @@ beforeEach(async () => {
   useSettingStore.setState(state => ({
     setting: { ...state.setting, database: { ...state.setting.database, active: "A" } },
   }));
-  useSettingsStore.getState().setSection("plugins");
   stopTheme = initThemeRuntime();
   container = document.createElement("div");
   document.body.append(container);
@@ -113,13 +130,13 @@ it("正式构建装配内置插件，管理启停与命令面板真实修改同�
   expect(getPluginWorkspace).toHaveBeenCalledWith("A");
   expect(scanLocalPlugins).toHaveBeenCalled();
   expect(container.textContent).not.toContain("选择开发插件目录");
-  await click("打开插件目录");
+  await menu("打开插件目录");
   expect(openPluginDirectory).toHaveBeenCalledOnce();
   const scans = vi.mocked(scanLocalPlugins).mock.calls.length;
-  await click("刷新列表");
+  await menu("重新扫描");
   expect(vi.mocked(scanLocalPlugins).mock.calls.length).toBe(scans + 1);
   expect(getRuntime().host.listCommands()).toEqual([]);
-  await click("启用");
+  await setEnabled(true);
   const commands = pluginPaletteCommands(getRuntime().host);
   expect(commands).toHaveLength(2);
   const cycle = commandAction("plugin:core.theme:cycle-appearance");
@@ -147,11 +164,11 @@ it("正式构建装配内置插件，管理启停与命令面板真实修改同�
   expect(useThemeStore.getState().theme).toBe(next);
   expect(document.documentElement.dataset.theme).toBe(next);
   expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(next);
-  await click("停用");
+  await setEnabled(false);
   expect(pluginPaletteCommands(getRuntime().host)).toEqual([]);
   await expect(cycle()).rejects.toThrow("命令不可用");
   expect(useThemeStore.getState().theme).toBe(next);
-  await click("启用");
+  await setEnabled(true);
   expect(pluginPaletteCommands(getRuntime().host)).toHaveLength(2);
   stopTheme();
   stopTheme = initThemeRuntime();
@@ -160,7 +177,7 @@ it("正式构建装配内置插件，管理启停与命令面板真实修改同�
 });
 
 it("切库回收旧实例并恢复启用，主动停用也在工作区间保持", async () => {
-  await click("启用");
+  await setEnabled(true);
   const old = getRuntime();
   await act(async () => {
     await old.host.executeCommand("core.theme:next-theme");
@@ -176,7 +193,7 @@ it("切库回收旧实例并恢复启用，主动停用也在工作区间保持"
   expect(getRuntime().host.getState("core.theme")).toBe("active");
   expect(useThemeStore.getState().theme).toBe(theme);
   expect(getRuntime().host.listCommands()).toHaveLength(2);
-  await click("停用");
+  await setEnabled(false);
   await act(async () =>
     useSettingStore.setState(state => ({
       setting: { ...state.setting, database: { ...state.setting.database, active: "A" } },
@@ -187,14 +204,14 @@ it("切库回收旧实例并恢复启用，主动停用也在工作区间保持"
 });
 
 it("重建 Provider 从保存记录恢复启用，停用后再次重建仍停用", async () => {
-  await click("启用");
+  await setEnabled(true);
   expect(localStorage.getItem(builtinPluginStateKey("core.theme"))).toBe("true");
   const previous = getRuntime();
   await remount();
   expect(previous.host.listCommands()).toEqual([]);
   expect(getRuntime().host.getState("core.theme")).toBe("active");
   expect(getRuntime().host.listCommands()).toHaveLength(2);
-  await click("停用");
+  await setEnabled(false);
   expect(localStorage.getItem(builtinPluginStateKey("core.theme"))).toBe("false");
   await remount();
   expect(getRuntime().host.getState("core.theme")).toBe("disabled");
@@ -216,7 +233,7 @@ it("同源窗口的启停和清空偏好通知会同步到当前实例", async (
     );
   });
   expect(getRuntime().host.getState("core.theme")).toBe("disabled");
-  await click("启用");
+  await setEnabled(true);
   await act(async () => {
     localStorage.clear();
     window.dispatchEvent(new StorageEvent("storage", { key: null, storageArea: localStorage }));
@@ -229,7 +246,7 @@ it("损坏记录在管理入口显示错误，用户启用后修复并可恢复"
   await remount();
   expect(container.textContent).toContain("启用状态损坏");
   expect(getRuntime().host.getState("core.theme")).toBe("disabled");
-  await click("启用");
+  await setEnabled(true);
   expect(container.textContent).not.toContain("启用状态损坏");
   expect(getRuntime().host.getState("core.theme")).toBe("active");
   await remount();
@@ -278,12 +295,7 @@ it("正式 Provider 启动发现本地包，管理启用后重建恢复，刷新
   await remount();
   expect(getRuntime().host.getState("test.local")).toBe("disabled");
   expect(getRuntime().host.listCommands()).toEqual([]);
-  const enable = container.querySelector<HTMLButtonElement>('button[aria-label="启用 本地插件"]');
-  if (!enable) throw new Error("未显示本地插件启用入口");
-  await act(async () => {
-    enable.click();
-    await vi.dynamicImportSettled();
-  });
+  await setEnabled(true, "本地插件");
   expect(await getRuntime().host.executeCommand("test.local:run")).toBe(42);
   await remount();
   await act(async () => {
@@ -294,7 +306,7 @@ it("正式 Provider 启动发现本地包，管理启用后重建恢复，刷新
     directory: "/test/.editor/plugins",
     entries: [],
   });
-  await click("刷新列表");
+  await menu("重新扫描");
   expect(
     getRuntime()
       .host.listPlugins()

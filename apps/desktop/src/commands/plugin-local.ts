@@ -24,3 +24,6 @@ export const stagePluginRelease = (id: string): Promise<{ id: string; version: s
   withModule("plugin-local", () => invoke("plugin-local:stage-release", id));
 export const uninstallLocalPlugin = (id: string): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:uninstall", id));
+/** 待生效的安装与更新在完整重启时切换。 */
+export const relaunchForPlugins = (): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:relaunch"));

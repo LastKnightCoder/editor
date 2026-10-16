@@ -2,9 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createBrowserStorage } from "@tau/plugins/host";
 import { usePage } from "@/page/PageProvider";
 import useSettingStore from "@/stores/useSettingStore";
-import { DesktopPluginRuntime } from "./runtime";
+import { DesktopPluginRuntime, PLUGIN_DETAIL_KEY } from "./runtime";
 import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
-import { useSettingsStore } from "../settingsStore";
 import { desktopFetch } from "@/commands/fetch";
 import { isElectron } from "@/electron";
 import { getPluginWorkspace } from "@/commands/plugin-local";
@@ -54,7 +53,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           restartRequired,
           reloadCounts,
           validateEditor: composePluginEditor,
-          openSettings: key => useSettingsStore.getState().openSettings(key),
+          openSettings: key =>
+            navigator.push(PLUGIN_DETAIL_KEY, {
+              pluginId: key.split(":")[1],
+              tab: "settings",
+              section: key,
+            }),
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         const builtin = current.attachBuiltins([themePlugin.id], window.localStorage);

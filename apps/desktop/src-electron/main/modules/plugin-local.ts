@@ -58,6 +58,11 @@ export default {
       const { bytes, source } = await downloadPluginRelease(id);
       return updates.stageRelease(bytes, source);
     });
+    // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。
+    ipcMain.handle("plugin-local:relaunch", () => {
+      app.relaunch();
+      app.quit();
+    });
     ipcMain.handle("plugin-local:uninstall", (_event, id: string) => updates.uninstall(id));
     ipcMain.handle("plugin-local:restore", (_event, id: string) => updates.restore(id));
     ipcMain.handle("plugin-local:cancel-update", (_event, id: string) => updates.cancel(id));
