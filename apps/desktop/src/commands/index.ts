@@ -56,7 +56,7 @@ export * from "./resource-sync-blacklist";
 export * from "./publish";
 export * from "./collaboration";
 export * from "./cli";
-export * from "./custom-block";
+export * from "./tailwind-runtime";
 export * from "./mcp";
 export * from "./module-init";
 export type {

@@ -1,6 +1,7 @@
 import { createMarkdownProcessor } from "@tau/markdown";
 import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
 import { desktopCodecComposition, desktopMarkdown } from "@/utils/markdown";
+import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import type {
   Descendant,
   MarkdownServiceOptions,
@@ -9,7 +10,7 @@ import type {
 } from "@tau/plugins";
 
 function processor(options?: MarkdownServiceOptions) {
-  const codecs = [...desktopCodecComposition];
+  const codecs = [...desktopCodecComposition, ...desktopContentPlugins.codecs];
   for (const codec of options?.codecs ?? []) {
     const index = codecs.findIndex(existing => existing.type === codec.type);
     if (index < 0) codecs.push(codec);

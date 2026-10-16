@@ -3,7 +3,8 @@ import { createEditor, Element, Transforms, type Descendant, type Editor } from 
 import { describe, expect, it } from "vitest";
 
 import { createEditorKit } from "@tau/editor";
-import customBlockExtension from "@tau/editor-custom-block";
+import customBlockExtension from "../../../../../plugins/custom-block/src/index";
+import "@tau/plugins/source-editor-host";
 import {
   applyGuardedPlugins,
   createCircuitBreaker,

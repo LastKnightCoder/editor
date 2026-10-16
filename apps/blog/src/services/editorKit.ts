@@ -4,7 +4,7 @@
 import { createEditorKit, type EditorKit } from "@tau/editor";
 import { createImageExtensions } from "@tau/editor-media";
 import { standardExtensions } from "../../../../editor-extensions/standard";
-import customBlockExtension from "@tau/editor-custom-block";
+import { publishedEditorExtensions } from "./plugin-registry";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
@@ -20,7 +20,10 @@ import {
 
 const cache = new Map<BlogPublishSettings | undefined, EditorKit>();
 
-export function getBlogKit(settings?: BlogPublishSettings): EditorKit {
+export function getBlogKit(
+  settings?: BlogPublishSettings,
+  contributions = publishedEditorExtensions()
+): EditorKit {
   let kit = cache.get(settings);
   if (!kit) {
     kit = createEditorKit({
@@ -32,7 +35,6 @@ export function getBlogKit(settings?: BlogPublishSettings): EditorKit {
         codeBlockExtension,
         ...mathExtensions,
         emojiExtension,
-        customBlockExtension,
         ...blogEditorExtensions,
         ...createImageExtensions({ appearance: getBlogImageAppearance(settings) }),
       ],
@@ -42,5 +44,5 @@ export function getBlogKit(settings?: BlogPublishSettings): EditorKit {
     });
     cache.set(settings, kit);
   }
-  return kit;
+  return contributions.length ? kit.extend({ extensions: contributions }) : kit;
 }

@@ -7,15 +7,14 @@ export type ResolvedContentLinkTarget = ContentLinkTarget & {
   key: string;
 };
 
-export type PreviewFetch = (
-  input: RequestInfo | URL,
-  init?: RequestInit,
-) => Promise<Response>;
+export type PreviewFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export type ContentLinkPreviewData = {
   href: string;
   title: string;
   content: Descendant[];
+  pluginRenderers?: InitData["pluginRenderers"];
+  baseUrl?: string;
 };
 
 type ContentLinkIdentity = {
@@ -51,10 +50,7 @@ function isRecord(input: unknown): input is Record<string, unknown> {
   return !!input && typeof input === "object";
 }
 
-function extractJsonObjectLiteral(
-  source: string,
-  start: number,
-): string | null {
+function extractJsonObjectLiteral(source: string, start: number): string | null {
   if (source[start] !== "{") {
     return null;
   }
@@ -102,10 +98,7 @@ function extractJsonObjectLiteral(
   return null;
 }
 
-function resolvePreviewTitle(
-  initData: InitData,
-  fallbackTitle: string,
-): string {
+function resolvePreviewTitle(initData: InitData, fallbackTitle: string): string {
   if (isRecord(initData.content)) {
     const contentTitle = readText(initData.content.title);
     if (contentTitle) {
@@ -132,7 +125,7 @@ function resolvePreviewContent(initData: InitData): Descendant[] {
 
 async function resolveDevPreviewData(
   href: string,
-  fallbackTitle: string,
+  fallbackTitle: string
 ): Promise<ContentLinkPreviewData | null> {
   // @ts-ignore - Vite injects import.meta.env
   if (!import.meta.env.DEV) {
@@ -165,16 +158,13 @@ async function resolveDevPreviewData(
   };
 }
 
-export function buildContentLinkTargetKey(
-  contentType: string,
-  refId: number,
-): string {
+export function buildContentLinkTargetKey(contentType: string, refId: number): string {
   return `${contentType}:${refId}`;
 }
 
 export function resolveContentLinkTarget(
   identity: ContentLinkIdentity,
-  targets?: ContentLinkTargetMap,
+  targets?: ContentLinkTargetMap
 ): ResolvedContentLinkTarget | null {
   if (!targets) {
     return null;
@@ -224,16 +214,11 @@ export function parseInitDataFromHtml(html: string): InitData | null {
   }
 }
 
-export function createContentLinkPreviewLoader(
-  fetchImpl: PreviewFetch = fetch,
-) {
+export function createContentLinkPreviewLoader(fetchImpl: PreviewFetch = fetch) {
   const resolvedCache = new Map<string, ContentLinkPreviewData>();
   const inflightCache = new Map<string, Promise<ContentLinkPreviewData>>();
 
-  const load = async (
-    href: string,
-    fallbackTitle: string,
-  ): Promise<ContentLinkPreviewData> => {
+  const load = async (href: string, fallbackTitle: string): Promise<ContentLinkPreviewData> => {
     const trimmedHref = readText(href);
     if (!trimmedHref) {
       throw new Error("PREVIEW_HREF_EMPTY");
@@ -260,10 +245,7 @@ export function createContentLinkPreviewLoader(
       const html = await response.text();
       const initData = parseInitDataFromHtml(html);
       if (!initData) {
-        const devPreviewData = await resolveDevPreviewData(
-          trimmedHref,
-          fallbackTitle,
-        );
+        const devPreviewData = await resolveDevPreviewData(trimmedHref, fallbackTitle);
         if (devPreviewData) {
           resolvedCache.set(trimmedHref, devPreviewData);
           return devPreviewData;
@@ -275,6 +257,12 @@ export function createContentLinkPreviewLoader(
         href: trimmedHref,
         title: resolvePreviewTitle(initData, fallbackTitle),
         content: resolvePreviewContent(initData),
+        ...(initData.pluginRenderers?.length
+          ? {
+              pluginRenderers: initData.pluginRenderers,
+              baseUrl: response.url || new URL(trimmedHref, window.location.href).href,
+            }
+          : {}),
       };
       resolvedCache.set(trimmedHref, data);
       return data;

@@ -20,6 +20,7 @@ import type {
   PluginExcerptSyncResult,
   PluginMaterialAction,
   PluginMaterialRef,
+  PluginSkill,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import { bindPluginServices, type PluginServices } from "./services";
@@ -104,11 +105,15 @@ export interface PluginInfo {
 interface Activation {
   controller: AbortController;
   resources: Disposable[];
-  instance: PluginInstance;
+  instance?: PluginInstance;
 }
 
+type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion">;
+type DefinitionResolver = (signal: AbortSignal) => PluginDefinition | Promise<PluginDefinition>;
+
 interface Entry {
-  definition: PluginDefinition;
+  metadata: PluginMetadata;
+  resolveDefinition: DefinitionResolver;
   state: PluginState;
   activation?: Activation;
   pending: Promise<void>;
@@ -139,6 +144,7 @@ export class PluginHost {
       storage: StorageAdapter;
       pages?: PagesAdapter;
       editor?: EditorAdapter;
+      skills?: { register(pluginId: string, skill: PluginSkill): Disposable };
       settings?: SettingsAdapter;
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
@@ -165,13 +171,29 @@ export class PluginHost {
   };
 
   registerTrusted(definition: PluginDefinition): void {
+    const snapshot = Object.freeze({ ...definition });
+    this.register(definition, () => snapshot);
+  }
+
+  /** 包入口在启用时加载，静态贡献与生命周期统一由宿主处理。 */
+  registerDeferred(metadata: PluginMetadata, resolveDefinition: DefinitionResolver): void {
+    this.register(metadata, resolveDefinition);
+  }
+
+  private register(definition: PluginMetadata, resolveDefinition: DefinitionResolver): void {
     this.assertOpen();
     assertLocalId(definition.id);
     if (definition.apiVersion !== 1) throw new Error("不支持的插件 API 版本");
     if (!definition.name.trim() || !definition.version.trim()) throw new Error("插件元信息不完整");
     if (this.entries.has(definition.id)) throw new Error(`插件已注册：${definition.id}`);
     this.entries.set(definition.id, {
-      definition: Object.freeze({ ...definition }),
+      metadata: Object.freeze({
+        id: definition.id,
+        name: definition.name,
+        version: definition.version,
+        apiVersion: definition.apiVersion,
+      }),
+      resolveDefinition,
       state: this.restartRequired.has(definition.id) ? "restart-required" : "disabled",
       pending: Promise.resolve(),
     });
@@ -183,10 +205,10 @@ export class PluginHost {
   }
 
   listPlugins(): PluginInfo[] {
-    return [...this.entries.values()].map(({ definition, state, error }) => ({
-      id: definition.id,
-      name: definition.name,
-      version: definition.version,
+    return [...this.entries.values()].map(({ metadata, state, error }) => ({
+      id: metadata.id,
+      name: metadata.name,
+      version: metadata.version,
       state,
       ...(error === undefined ? {} : { error }),
     }));
@@ -207,11 +229,39 @@ export class PluginHost {
         const activation: Activation = {
           controller: new AbortController(),
           resources: [],
-          instance: entry.definition.create(),
         };
         entry.activation = activation;
         await waitForLifecycle(
-          () => activation.instance.activate(this.context(entry, activation)),
+          async () => {
+            const definition = await entry.resolveDefinition(activation.controller.signal);
+            this.assertActive(entry, activation);
+            if (
+              definition.id !== entry.metadata.id ||
+              definition.name !== entry.metadata.name ||
+              definition.version !== entry.metadata.version ||
+              definition.apiVersion !== entry.metadata.apiVersion ||
+              typeof definition.create !== "function"
+            )
+              throw new Error("插件定义与登记元信息不一致");
+            activation.instance = definition.create();
+            if (!activation.instance || typeof activation.instance.activate !== "function")
+              throw new Error("插件实例缺少 activate");
+            const ids = new Set<string>();
+            for (const skill of definition.skills ?? []) {
+              assertLocalId(skill.id);
+              if (
+                ids.has(skill.id) ||
+                !skill.name?.trim() ||
+                !skill.description?.trim() ||
+                !skill.content?.trim()
+              )
+                throw new Error("插件 Skill 声明重复或不完整");
+              ids.add(skill.id);
+              const resource = this.options.skills?.register(entry.metadata.id, skill);
+              if (resource) activation.resources.push(resource);
+            }
+            return activation.instance.activate(this.context(entry, activation));
+          },
           Date.now() + ACTIVATION_TIMEOUT_MS,
           "激活",
           activation.controller.signal
@@ -296,7 +346,7 @@ export class PluginHost {
   private context(entry: Entry, activation: Activation): PluginContext {
     const pages = new WeakMap<PluginPageHandle, { id: string; active: () => boolean }>();
     const scope: StorageScope = Object.freeze({
-      pluginId: entry.definition.id,
+      pluginId: entry.metadata.id,
       workspaceId: this.options.workspaceId,
       signal: activation.controller.signal,
     });
@@ -600,7 +650,7 @@ export class PluginHost {
     const errors: unknown[] = [];
     const deadline = Date.now() + CLEANUP_TIMEOUT_MS;
     try {
-      await waitForLifecycle(() => activation.instance.deactivate?.(), deadline, "停用");
+      await waitForLifecycle(() => activation.instance?.deactivate?.(), deadline, "停用");
     } catch (error) {
       errors.push(error);
     }
@@ -612,7 +662,7 @@ export class PluginHost {
       }
     }
     entry.activation = undefined;
-    if (errors.length) this.restartRequired.add(entry.definition.id);
+    if (errors.length) this.restartRequired.add(entry.metadata.id);
     return errors;
   }
 
@@ -620,12 +670,12 @@ export class PluginHost {
     if (
       this.closed ||
       entry.activation !== activation ||
-      this.entries.get(entry.definition.id) !== entry
+      this.entries.get(entry.metadata.id) !== entry
     ) {
       throw new Error("插件实例已失效");
     }
     assertStorageActive({
-      pluginId: entry.definition.id,
+      pluginId: entry.metadata.id,
       workspaceId: this.options.workspaceId,
       signal: activation.controller.signal,
     });

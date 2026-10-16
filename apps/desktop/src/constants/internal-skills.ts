@@ -5,7 +5,6 @@ import markdownReadme from "./internal-skills/markdown.md?raw";
 import mindmapReadme from "./internal-skills/mindmap.md?raw";
 import knowledgeBaseReadme from "./internal-skills/knowledge-base.md?raw";
 import databaseSchemaReadme from "./internal-skills/database-schema.md?raw";
-import customBlockReadme from "./internal-skills/custom-block.md?raw";
 
 // 内部 Skill 注册表
 const internalSkillRegistry = new Map<string, InternalSkill>([
@@ -36,18 +35,6 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
       name: "思维导图",
       description: "创建思维导图、脑图、知识图谱或组织结构图",
       readmeContent: mindmapReadme,
-      isInternal: true,
-    },
-  ],
-  [
-    "custom-block",
-    {
-      folderName: "custom-block",
-      name: "自定义组件块",
-      description:
-        "在文档中编写可交互的 React 组件块（```custom-block），用于 CSS / DOM / Canvas 等交互演示。" +
-        "仅当用户明确要求交互演示、可操作小组件或动态效果时加载；写之前必须加载此 Skill，按其中的运行时契约、主题语义色与示例生成。",
-      readmeContent: customBlockReadme,
       isInternal: true,
     },
   ],

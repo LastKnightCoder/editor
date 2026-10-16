@@ -33,6 +33,9 @@ try {
   const { version: sdkVersion } = JSON.parse(
     await readFile(path.join(root, "packages/plugins/package.json"), "utf8")
   );
+  const { version: uiVersion } = JSON.parse(
+    await readFile(path.join(root, "packages/ui/package.json"), "utf8")
+  );
   await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   const author = path.join(directory, "干净作者 project");
   const versions = async () =>
@@ -50,7 +53,7 @@ try {
     [
       "add",
       "@tau/plugins@file:" + path.join(sdk, `xiongtao.xt-tau-plugins-${sdkVersion}.tgz`),
-      "@tau/ui@file:" + path.join(sdk, "xiongtao.xt-tau-ui-0.1.0.tgz"),
+      "@tau/ui@file:" + path.join(sdk, `xiongtao.xt-tau-ui-${uiVersion}.tgz`),
     ],
     author
   );

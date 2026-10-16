@@ -5,7 +5,8 @@ import { highlightBlockCodec } from "@tau/editor-highlight-block/markdown";
 import { tableMarkdownCodecs } from "@tau/editor-table/markdown";
 import { listMarkdownCodecs } from "@tau/editor-list/markdown";
 import { headerCodec } from "@tau/editor-header/markdown";
-import { createMarkdownProcessor } from "@tau/markdown";
+import { createPluginMarkdownProcessor } from "@tau/plugins/content";
+import { contentPlugins } from "./contentPlugins.ts";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { linkCodec } from "@tau/editor-link/markdown";
 import { annotationCodec } from "@tau/editor-annotation/markdown";
@@ -16,7 +17,6 @@ import { mediaMarkdownCodecs } from "@tau/editor-media/markdown";
 import { underlineCodec } from "@tau/editor-underline/markdown";
 import { styledTextCodec } from "@tau/editor-styled-text/markdown";
 import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
-import { customBlockCodec } from "@tau/editor-custom-block/markdown";
 import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
 import { htmlMarkdownCodecs } from "@tau/editor-html/markdown";
 import { codeBlockCodec } from "@tau/editor-code-block/markdown";
@@ -47,13 +47,15 @@ export const extensionCodecComposition = [
   ...mathMarkdownCodecs,
   ...htmlMarkdownCodecs,
   ...diagramMarkdownCodecs,
-  customBlockCodec,
   webviewCodec,
 ];
-export const extensionMarkdown = createMarkdownProcessor({
-  codecs: extensionCodecComposition,
-  textCodecs: [textFormattingCodec],
-});
+export const extensionMarkdown = createPluginMarkdownProcessor(
+  {
+    codecs: extensionCodecComposition,
+    textCodecs: [textFormattingCodec],
+  },
+  contentPlugins
+);
 
 export const extensionImportFromMarkdown = (
   markdown: string,

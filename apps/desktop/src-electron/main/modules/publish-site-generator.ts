@@ -9,6 +9,7 @@ import { createHash } from "crypto";
 import { join } from "path";
 import { existsSync, readFileSync, readdirSync, statSync } from "fs";
 import type { Descendant } from "slate";
+import { PublishPluginCatalog, type PublishPluginSnapshot } from "../services/plugin-publish";
 import type {
   IPublishFile,
   PublishContentType,
@@ -75,6 +76,7 @@ export interface PublishGeneratorOptions {
   templateDir: string;
   compileTailwind: (code: string, extension: "tsx" | "html") => Promise<string>;
   logger: Pick<Console, "info" | "warn" | "error">;
+  plugins?: PublishPluginSnapshot;
 }
 
 const TEMPLATE_ENTRY_MAP: Record<string, string> = {
@@ -201,11 +203,13 @@ export class PublishSiteGenerator {
   private readonly logger: PublishGeneratorOptions["logger"];
   private readonly templateCache = new Map<string, string>();
   private readonly tailwindCssCache = new Map<string, string>();
+  private readonly pluginCatalog: PublishPluginCatalog;
 
   constructor(options: PublishGeneratorOptions) {
     this.templateDir = options.templateDir;
     this.compileTailwind = options.compileTailwind;
     this.logger = options.logger;
+    this.pluginCatalog = new PublishPluginCatalog(options.plugins);
   }
 
   /** 生成全部发布文件 */
@@ -268,6 +272,7 @@ export class PublishSiteGenerator {
     appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
     const files: IPublishFile[] = [];
+    this.pluginCatalog.reset();
 
     // 复制静态资源
     const assetsDir = join(this.templateDir, "assets");
@@ -519,6 +524,9 @@ export class PublishSiteGenerator {
       hash: this.computeHash(searchIndexJson),
     });
 
+    files.unshift(
+      ...this.pluginCatalog.files().map(file => ({ ...file, hash: this.computeHash(file.content) }))
+    );
     return { files, virtualProcessed: docPublishResult.skippedDocItems };
   }
 
@@ -580,6 +588,14 @@ export class PublishSiteGenerator {
     }
 
     let html = template;
+
+    const pluginRenderers = this.pluginCatalog.dependencies(initData.content, targetPath);
+    if (pluginRenderers.length) {
+      const protocolFile = join(this.templateDir, "plugin-runtime.json");
+      if (!existsSync(protocolFile) || JSON.parse(readFileSync(protocolFile, "utf8")).version !== 1)
+        throw new Error("当前博客模板不支持插件渲染，请先更新发布模板");
+      initData = { ...initData, pluginRenderers };
+    }
 
     // 替换数据占位符
     const serialized = JSON.stringify(initData)
@@ -1762,12 +1778,9 @@ export class PublishSiteGenerator {
         return;
       }
       const type = typeof node.type === "string" ? node.type : "";
-      if (type === "custom-block" && typeof node.content === "string") {
-        addSource(node.content, "tsx");
-      } else if (
-        (type === "html-block" || type === "html-inline") &&
-        typeof node.html === "string"
-      ) {
+      for (const source of this.pluginCatalog.styleSources(node))
+        addSource(source.code, source.extension);
+      if ((type === "html-block" || type === "html-inline") && typeof node.html === "string") {
         addSource(node.html, "html");
       }
       if (Array.isArray(node.children)) {

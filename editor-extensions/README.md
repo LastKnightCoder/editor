@@ -11,7 +11,6 @@ standard.ts 是仓库内既有基础能力的产品组合，不是独立包，�
 | [callout](./callout/package.json)                 | @tau/editor-callout         | Callout            |
 | [code-block](./code-block/package.json)           | @tau/editor-code-block      | 代码块及高亮运行时 |
 | [comment](./comment/package.json)                 | @tau/editor-comment         | 批注               |
-| [custom-block](./custom-block/package.json)       | @tau/editor-custom-block    | 自定义执行块       |
 | [detail](./detail/package.json)                   | @tau/editor-detail          | 详情折叠           |
 | [diagram](./diagram/package.json)                 | @tau/editor-diagram         | 五类图表           |
 | [divide-line](./divide-line/package.json)         | @tau/editor-divide-line     | 分割线             |

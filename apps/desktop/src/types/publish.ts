@@ -197,6 +197,7 @@ export interface IPublishProgress {
  * 初始化数据结构（用于模板注入）
  */
 export interface IPublishInitData {
+  pluginRenderers?: import("@tau/plugins/rendering").PublishedPluginRender[];
   site: {
     title: string;
     description: string;

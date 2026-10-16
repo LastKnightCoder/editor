@@ -62,7 +62,6 @@ const OPAQUE_TYPES = new Set([
   "plantuml",
   "tikz",
   "typst",
-  "custom-block",
   "html-block",
   "block-math",
   "inline-math",

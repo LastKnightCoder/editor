@@ -23,8 +23,8 @@ title: 往返基准
 1. 有序一
 2. 有序二
 
-- 待办
-- 已完成
+- [ ] 待办
+- [x] 已完成
 
 > 引用一行
 > 引用两行
@@ -361,6 +361,7 @@ exports[`Markdown 往返基准 > 导入 → 导出 > value 1`] = `
   {
     "children": [
       {
+        "checked": false,
         "children": [
           {
             "children": [
@@ -372,9 +373,10 @@ exports[`Markdown 往返基准 > 导入 → 导出 > value 1`] = `
             "type": "paragraph",
           },
         ],
-        "type": "list-item",
+        "type": "check-list-item",
       },
       {
+        "checked": true,
         "children": [
           {
             "children": [
@@ -386,10 +388,10 @@ exports[`Markdown 往返基准 > 导入 → 导出 > value 1`] = `
             "type": "paragraph",
           },
         ],
-        "type": "list-item",
+        "type": "check-list-item",
       },
     ],
-    "type": "bulleted-list",
+    "type": "check-list",
   },
   {
     "children": [
@@ -1138,7 +1140,7 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > export mapp
     "type": "text",
   },
   {
-    "mdCh": 2,
+    "mdCh": 6,
     "mdLength": 2,
     "mdLine": 22,
     "prefixLength": 0,
@@ -1154,7 +1156,7 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > export mapp
     "type": "text",
   },
   {
-    "mdCh": 2,
+    "mdCh": 6,
     "mdLength": 3,
     "mdLine": 23,
     "prefixLength": 0,
@@ -2298,8 +2300,8 @@ title: 往返基准
 1. 有序一
 2. 有序二
 
-- 待办
-- 已完成
+- [ ] 待办
+- [x] 已完成
 
 > 引用一行
 > 引用两行
@@ -2636,6 +2638,7 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > positioned 
   {
     "children": [
       {
+        "checked": false,
         "children": [
           {
             "children": [
@@ -2647,9 +2650,10 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > positioned 
             "type": "paragraph",
           },
         ],
-        "type": "list-item",
+        "type": "check-list-item",
       },
       {
+        "checked": true,
         "children": [
           {
             "children": [
@@ -2661,10 +2665,10 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > positioned 
             "type": "paragraph",
           },
         ],
-        "type": "list-item",
+        "type": "check-list-item",
       },
     ],
-    "type": "bulleted-list",
+    "type": "check-list",
   },
   {
     "children": [

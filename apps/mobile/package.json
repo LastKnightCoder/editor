@@ -43,7 +43,7 @@
     "@tau/editor-code-block": "workspace:*",
     "@tau/editor-collab": "workspace:*",
     "@tau/editor-comment": "workspace:*",
-    "@tau/editor-custom-block": "workspace:*",
+    "@tau/plugins": "workspace:*",
     "@tau/editor-detail": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
     "@tau/editor-divide-line": "workspace:*",

@@ -4,6 +4,8 @@ import { Tooltip, toast } from "@tau/ui";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import { RenderElementProps } from "slate-react";
 import { Editor } from "@tau/editor";
+import type { EditorKit } from "@tau/editor";
+import { getBlogKit } from "@blog/services/editorKit";
 import { joinPath, getInitData } from "@blog/utils";
 import type { ContentLinkTarget } from "@blog/types";
 import { CiteMark, useCitationIndex } from "@blog/components/Citation";
@@ -33,6 +35,7 @@ type LinkPreviewState = {
   loading: boolean;
   data: ContentLinkPreviewData | null;
   error: string;
+  kit?: EditorKit;
 };
 
 const linkPreviewLoader = createContentLinkPreviewLoader();
@@ -99,7 +102,7 @@ const ContentLinkPreviewPanel = memo(({ state }: { state: LinkPreviewState }) =>
         <Editor
           initValue={state.data.content}
           readonly
-          extensions={blogContentLinkPreviewExtensions}
+          {...(state.kit ? { kit: state.kit } : { extensions: blogContentLinkPreviewExtensions })}
         />
       </div>
     </div>
@@ -142,6 +145,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
     }
 
     let cancelled = false;
+    let disposeStyles: (() => void) | undefined;
     const currentRequestId = ++requestIdRef.current;
     setPreviewState(previous => ({
       ...previous,
@@ -151,17 +155,34 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
 
     linkPreviewLoader
       .load(targetHref, displayTitle)
-      .then(data => {
+      .then(async data => {
         if (cancelled || requestIdRef.current !== currentRequestId) {
           return;
+        }
+        let kit: EditorKit | undefined;
+        if (data.pluginRenderers?.length) {
+          const { loadPublishedPluginDefinitions } = await import("@blog/services/plugin-runtime");
+          if (cancelled || requestIdRef.current !== currentRequestId) return;
+          const loaded = await loadPublishedPluginDefinitions(data.pluginRenderers, data.baseUrl);
+          disposeStyles = loaded.dispose;
+          if (cancelled || requestIdRef.current !== currentRequestId) {
+            disposeStyles();
+            return;
+          }
+          kit = getBlogKit(
+            getInitData().settings,
+            loaded.definitions.flatMap(definition => definition.editorExtensions ?? [])
+          ).extend({ extensions: blogContentLinkPreviewExtensions, override: true });
         }
         setPreviewState({
           loading: false,
           data,
           error: "",
+          kit,
         });
       })
       .catch(() => {
+        disposeStyles?.();
         if (cancelled || requestIdRef.current !== currentRequestId) {
           return;
         }
@@ -174,6 +195,7 @@ const ContentLinkNode = memo((props: ContentLinkProps) => {
 
     return () => {
       cancelled = true;
+      disposeStyles?.();
     };
   }, [open, canPreview, displayTitle, targetHref]);
 

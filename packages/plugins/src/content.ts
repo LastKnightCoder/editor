@@ -1,0 +1,106 @@
+import type { PluginDefinition } from "./contract";
+import type { DevelopmentPluginPackage, PluginManifest } from "./package";
+import { createMarkdownProcessor, type MarkdownProcessor } from "@tau/markdown";
+import {
+  evaluatePluginPackage,
+  validatePluginDefinition,
+  getPluginNodeTypes,
+  assertUniqueEditorCodecs,
+} from "./rendering.ts";
+
+export class ContentPluginRegistry {
+  private snapshot: {
+    definitions: readonly PluginDefinition[];
+    extensions: NonNullable<PluginDefinition["editorExtensions"]>;
+    codecs: NonNullable<PluginDefinition["editorCodecs"]>;
+  } = { definitions: Object.freeze([]), extensions: Object.freeze([]), codecs: Object.freeze([]) };
+  get extensions() {
+    return this.snapshot.extensions;
+  }
+  get codecs() {
+    return this.snapshot.codecs;
+  }
+  install(definitions: readonly PluginDefinition[]) {
+    const ids = new Set<string>();
+    const types = new Set<string>();
+    for (const definition of definitions) {
+      if (ids.has(definition.id)) throw new Error(`插件身份重复：${definition.id}`);
+      ids.add(definition.id);
+      for (const type of getPluginNodeTypes(definition)) {
+        if (types.has(type)) throw new Error(`插件节点类型重复：${type}`);
+        types.add(type);
+      }
+    }
+    const codecs = definitions.flatMap(definition => definition.editorCodecs ?? []);
+    assertUniqueEditorCodecs(codecs);
+    this.snapshot = {
+      definitions: Object.freeze([...definitions]),
+      extensions: Object.freeze(
+        definitions.flatMap(definition => definition.editorExtensions ?? [])
+      ),
+      codecs: Object.freeze(codecs),
+    };
+  }
+  load(artifacts: readonly DevelopmentPluginPackage[], modules: Readonly<Record<string, unknown>>) {
+    this.install(artifacts.map(artifact => evaluatePluginPackage(artifact, modules)));
+  }
+  list() {
+    return this.snapshot.definitions;
+  }
+  htmlSerializer(type: string) {
+    for (const extension of this.extensions) {
+      const serializer = extension.htmlSerializers?.find(item => item.type === type);
+      if (serializer) return serializer;
+    }
+    return undefined;
+  }
+}
+
+export interface CompiledPluginPackage {
+  manifest: PluginManifest;
+  css?: string;
+  evaluate(modules: Readonly<Record<string, unknown>>): PluginDefinition;
+}
+
+/** 分发端用构建后的同一个入口装配；不需要 eval，也不引用作者源码。 */
+export function installCompiledPlugins(
+  registry: ContentPluginRegistry,
+  packages: readonly CompiledPluginPackage[],
+  modules: Readonly<Record<string, unknown>>
+) {
+  registry.install(
+    packages.map(artifact =>
+      validatePluginDefinition(artifact.manifest, artifact.evaluate(modules))
+    )
+  );
+}
+
+export function createPluginMarkdownProcessor(
+  options: Parameters<typeof createMarkdownProcessor>[0],
+  registry: ContentPluginRegistry
+): MarkdownProcessor {
+  let previous = registry.codecs;
+  const build = () => {
+    const codecs = [...(options?.codecs ?? []), ...registry.codecs];
+    assertUniqueEditorCodecs(codecs);
+    return createMarkdownProcessor({ ...options, codecs });
+  };
+  let processor = build();
+  const current = () => {
+    if (previous !== registry.codecs) {
+      processor = build();
+      previous = registry.codecs;
+    }
+    return processor;
+  };
+  return {
+    importFromMarkdown: (...args) => current().importFromMarkdown(...args),
+    importFromMarkdownWithPositions: (...args) =>
+      current().importFromMarkdownWithPositions(...args),
+    getMarkdown: (...args) => current().getMarkdown(...args),
+    getMarkdownWithPositions: (...args) => current().getMarkdownWithPositions(...args),
+    elementToMarkdown: (...args) => current().elementToMarkdown(...args),
+    leafToMarkdown: (...args) => current().leafToMarkdown(...args),
+    leafToMarkdownStructured: (...args) => current().leafToMarkdownStructured(...args),
+  };
+}

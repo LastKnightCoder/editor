@@ -1,6 +1,13 @@
 import { invoke } from "@/electron";
 import { withModule } from "./module-init";
 import type { LocalPluginScan } from "@/types/plugin-local";
+import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+export const getEditorPluginStartup = (): Promise<{
+  artifacts: DevelopmentPluginPackage[];
+  errors: Record<string, string>;
+}> => withModule("plugin-local", () => invoke("plugin-local:editor-startup"));
+export const setEditorPluginEnabled = (id: string, enabled: boolean): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:editor-enabled", id, enabled));
 import type { PluginCatalog, PluginRelease } from "@/types/plugin-center";
 
 export const getPluginWorkspace = (name: string): Promise<string> =>

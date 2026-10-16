@@ -100,9 +100,6 @@ importers:
       '@tau/editor-comment':
         specifier: workspace:*
         version: link:../../editor-extensions/comment
-      '@tau/editor-custom-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/custom-block
       '@tau/editor-detail':
         specifier: workspace:*
         version: link:../../editor-extensions/detail
@@ -166,6 +163,9 @@ importers:
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../../packages/plugins
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -317,9 +317,6 @@ importers:
       '@tau/editor-comment':
         specifier: workspace:*
         version: link:../../editor-extensions/comment
-      '@tau/editor-custom-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/custom-block
       '@tau/editor-detail':
         specifier: workspace:*
         version: link:../../editor-extensions/detail
@@ -383,6 +380,9 @@ importers:
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../../packages/plugins
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -819,9 +819,6 @@ importers:
       '@tau/editor-comment':
         specifier: workspace:*
         version: link:../../editor-extensions/comment
-      '@tau/editor-custom-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/custom-block
       '@tau/editor-detail':
         specifier: workspace:*
         version: link:../../editor-extensions/detail
@@ -1405,9 +1402,6 @@ importers:
       '@tau/editor-comment':
         specifier: workspace:*
         version: link:../../editor-extensions/comment
-      '@tau/editor-custom-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/custom-block
       '@tau/editor-detail':
         specifier: workspace:*
         version: link:../../editor-extensions/detail
@@ -1471,6 +1465,9 @@ importers:
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../../packages/plugins
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1950,67 +1947,6 @@ importers:
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/custom-block:
-    dependencies:
-      '@babel/standalone':
-        specifier: ^7.22.2
-        version: 7.29.8
-      '@loadable/component':
-        specifier: ^5.15.3
-        version: 5.16.7(react@19.2.0)
-      '@tau/editor-source-view':
-        specifier: workspace:*
-        version: link:../../packages/editor-source-view
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/babel__standalone':
-        specifier: ^7.1.8
-        version: 7.1.9
-      '@types/loadable__component':
-        specifier: ^5.13.10
-        version: 5.13.10
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
       jsdom:
         specifier: ^24.1.3
         version: 24.1.3
@@ -3816,12 +3752,33 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
+      '@tau/editor-source-view':
+        specifier: workspace:*
+        version: link:../editor-source-view
       '@tau/markdown':
         specifier: workspace:*
         version: link:../markdown
+      '@tau/shared':
+        specifier: workspace:*
+        version: link:../shared
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../ui
+      lucide-react:
+        specifier: ^0.399.0
+        version: 0.399.0(react@19.2.0)
+      react:
+        specifier: 19.2.0
+        version: 19.2.0
+      react-dom:
+        specifier: 19.2.0
+        version: 19.2.0(react@19.2.0)
       slate:
         specifier: 0.126.2
         version: 0.126.2
+      slate-react:
+        specifier: 0.126.4
+        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
     devDependencies:
       '@types/node':
         specifier: ^20.2.1
@@ -3829,6 +3786,9 @@ importers:
       '@types/react':
         specifier: 19.2.0
         version: 19.2.0
+      '@types/react-dom':
+        specifier: 19.2.0
+        version: 19.2.0(@types/react@19.2.0)
       esbuild:
         specifier: ^0.25.12
         version: 0.25.12
@@ -4136,6 +4096,85 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+      vitest-canvas-mock:
+        specifier: ^0.3.3
+        version: 0.3.3(vitest@3.2.7)
+
+  plugins/custom-block:
+    dependencies:
+      '@babel/standalone':
+        specifier: ^7.22.2
+        version: 7.29.8
+      '@loadable/component':
+        specifier: ^5.15.3
+        version: 5.16.7(react@19.2.0)
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../../packages/plugins
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      lucide-react:
+        specifier: ^0.399.0
+        version: 0.399.0(react@19.2.0)
+    devDependencies:
+      '@tailwindcss/node':
+        specifier: ^4.1.17
+        version: 4.1.18
+      '@tailwindcss/oxide':
+        specifier: ^4.1.17
+        version: 4.1.18
+      '@tau/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@tau/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
+      '@types/babel__standalone':
+        specifier: ^7.1.8
+        version: 7.1.9
+      '@types/loadable__component':
+        specifier: ^5.13.10
+        version: 5.13.10
+      '@types/react':
+        specifier: 19.2.0
+        version: 19.2.0
+      '@types/react-dom':
+        specifier: 19.2.0
+        version: 19.2.0(@types/react@19.2.0)
+      adm-zip:
+        specifier: ^0.5.16
+        version: 0.5.16
+      esbuild:
+        specifier: ^0.25.12
+        version: 0.25.12
+      jsdom:
+        specifier: ^24.1.3
+        version: 24.1.3
+      react:
+        specifier: 19.2.0
+        version: 19.2.0
+      react-dom:
+        specifier: 19.2.0
+        version: 19.2.0(react@19.2.0)
+      slate:
+        specifier: 0.126.2
+        version: 0.126.2
+      slate-react:
+        specifier: 0.126.4
+        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+      tailwindcss:
+        specifier: ^4.1.17
+        version: 4.1.18
+      typescript:
+        specifier: ^5.0.4
+        version: 5.8.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
       vitest-canvas-mock:
         specifier: ^0.3.3
         version: 0.3.3(vitest@3.2.7)
@@ -21042,7 +21081,7 @@ snapshots:
 
   firefox-profile@4.7.0:
     dependencies:
-      adm-zip: 0.5.18
+      adm-zip: 0.5.16
       fs-extra: 11.4.0
       ini: 4.1.3
       minimist: 1.2.8

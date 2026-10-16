@@ -336,16 +336,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Custom Block
-  {
-    type: "custom-block",
-    isBlock: true,
-    toHtml: element => {
-      const content = element.content || "";
-      return `<div class="custom-block"><pre><code>${escapeHtml(content)}</code></pre></div>`;
-    },
-  },
-
   // Webview
   {
     type: "webview",

@@ -5,7 +5,7 @@ export interface SkillMeta {
 }
 
 /** 来源：我的（应用 skills 目录，可写）/ 内置（代码预定义，只读）/ 关联目录（其它工具的 skills 目录，只读） */
-export type SkillSource = "mine" | "builtin" | "linked";
+export type SkillSource = "mine" | "builtin" | "linked" | "plugin";
 
 /** 调用方式：自动 = 描述进系统提示词、AI 自行加载；仅手动 = 只在用户 `$` 点名时加载 */
 export type SkillInvocation = "auto" | "manual";

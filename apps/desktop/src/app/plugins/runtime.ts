@@ -12,6 +12,7 @@ import type {
   PluginPageParams,
   PluginSidebarIcon,
 } from "@tau/plugins";
+import { registerPluginSkill } from "./skill-registry";
 import {
   PluginHost,
   normalizePageParams,
@@ -123,6 +124,7 @@ export class DesktopPluginRuntime {
       services: options.services,
       excerpts: options.excerpts,
       materials: options.materials,
+      skills: { register: registerPluginSkill },
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
       sidebar: {

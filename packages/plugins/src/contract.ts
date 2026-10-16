@@ -1,6 +1,9 @@
 import type { PluginPages } from "./pages";
+import type { PluginSkill } from "./skills";
 import type { PluginServices } from "./services";
 import type { PluginEditor } from "./editor";
+import type { PluginEditorExtension } from "./editor";
+import type { MarkdownCodec } from "@tau/markdown";
 import type { PluginSettings } from "./settings";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
@@ -53,6 +56,10 @@ export interface PluginDefinition {
   readonly name: string;
   readonly version: string;
   readonly apiVersion: 1;
+  /** 静态声明，桌面与博客均装配同一份扩展；模块加载不得依赖桌面激活。 */
+  readonly editorExtensions?: readonly PluginEditorExtension[];
+  readonly editorCodecs?: readonly MarkdownCodec[];
+  readonly skills?: readonly PluginSkill[];
   /** 每次启用创建新实例，运行状态不放在定义对象上。 */
   create(): PluginInstance;
 }

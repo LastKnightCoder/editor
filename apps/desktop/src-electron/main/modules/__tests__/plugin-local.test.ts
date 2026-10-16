@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import AdmZip from "adm-zip";
 import { tmpdir } from "node:os";
@@ -14,7 +14,11 @@ const mock = vi.hoisted(() => ({
   download: vi.fn(),
 }));
 vi.mock("electron", () => ({
-  app: { getPath: () => path.join(mock.root, "profile"), getVersion: () => "0.59.0" },
+  app: {
+    getPath: () => path.join(mock.root, "profile"),
+    getAppPath: () => path.join(mock.root, "app"),
+    getVersion: () => "0.59.0",
+  },
   ipcMain: {
     handle: (name: string, handler: (...args: unknown[]) => unknown) =>
       mock.handlers.set(name, handler),
@@ -30,11 +34,57 @@ vi.mock("../../utils/PathUtil", () => ({
   default: { getAppDir: () => path.join(mock.root, ".editor") },
 }));
 beforeEach(async () => {
+  vi.resetModules();
   mock.root = await mkdtemp(path.join(tmpdir(), "tau-local-module-"));
   mock.handlers.clear();
   mock.openPath.mockClear();
   const module = await import("../plugin-local");
   await module.default.init();
+});
+
+it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动快照", async () => {
+  const id = "test.editor";
+  const folder = path.join(mock.root, ".editor/plugins", id);
+  await mkdir(folder);
+  const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'编辑器',version:'1.0.0',editorExtensions:[{id:'${id}',apiVersion:1,elements:[{type:'${id}',kind:'block',render:()=>null}]}],editorCodecs:[{type:'${id}',fence:{language:'native-editor'},serializer:{isBlock:true,toMarkdown:e=>'~~~native-editor\\n'+e.content+'\\n~~~'}}]});`;
+  await writeFile(path.join(folder, "main.js"), code);
+  await writeFile(
+    path.join(folder, "manifest.json"),
+    JSON.stringify({
+      formatVersion: 1,
+      apiVersion: 1,
+      id,
+      name: "编辑器",
+      version: "1.0.0",
+      platform: "desktop",
+      format: "cjs",
+      editor: true,
+      main: "main.js",
+      integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+    })
+  );
+  await invoke("plugin-local:editor-enabled", id, true);
+  expect(await invoke("plugin-local:editor-startup")).toMatchObject({ artifacts: [] });
+  vi.resetModules();
+  mock.handlers.clear();
+  await (await import("../plugin-local")).default.init();
+  expect(await invoke("plugin-local:editor-startup")).toMatchObject({
+    artifacts: [{ manifest: { id } }],
+  });
+  const md = await import("@/utils/markdown");
+  const source = "~~~native-editor\n正文\n~~~";
+  expect(md.getMarkdown(md.importFromMarkdown(source)).trim()).toBe(source);
+  await invoke("plugin-local:editor-enabled", id, false);
+  expect(await invoke("plugin-local:editor-startup")).toMatchObject({
+    artifacts: [{ manifest: { id } }],
+  });
+  vi.resetModules();
+  mock.handlers.clear();
+  await (await import("../plugin-local")).default.init();
+  expect(await invoke("plugin-local:editor-startup")).toMatchObject({ artifacts: [] });
+  expect(
+    (await import("../../../../shared/content-plugins.ts")).desktopContentPlugins.codecs
+  ).toEqual([]);
 });
 afterEach(async () => {
   await rm(mock.root, { recursive: true, force: true });

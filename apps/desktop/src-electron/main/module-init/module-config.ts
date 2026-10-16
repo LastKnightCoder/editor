@@ -105,7 +105,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "database",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
+    dependencies: ["logger", "plugin-local"],
     init: () => databaseModule.init(),
   },
   {

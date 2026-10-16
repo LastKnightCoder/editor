@@ -4,7 +4,7 @@
 
 ## 开始
 
-准备 Node.js 22+、pnpm 11.9.0，以及 Tau 0.58.0 或更高版本的桌面客户端。
+准备 Node.js 22+、pnpm 11.9.0，以及 Tau 0.59.0 或更高版本的桌面客户端。本模板使用 SDK 0.6.0。
 
 在 GitHub 点击 **Use this template** 创建自己的仓库，克隆后进入项目目录：
 
@@ -36,7 +36,7 @@ pnpm install:local
 | `AGENTS.md`                       | AI 编程助手的项目指引                             |
 | `build.mjs` / `install-local.mjs` | 已配置的打包与本地安装工具，日常开发通常无需修改  |
 
-入口使用 `definePlugin`，元信息从 manifest 自动获得。完整接口见 [API 文档](API.md)，可直接对照示例修改。开发时保持模板中 React 和 SDK 的依赖版本，插件需要在 Tau 中运行和测试。
+入口使用 `definePlugin`，元信息从 manifest 自动获得。常规插件能力见 [API.md](API.md)，编译与转换见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览和插件 Skill 见 [EDITOR.md](EDITOR.md)。开发时保持模板中 React 和 SDK 的依赖版本，插件需要在 Tau 中运行和测试。
 
 ## 打包与安装
 

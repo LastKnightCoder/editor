@@ -9,7 +9,10 @@ export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
 
 /** 待重启生效的暂存数，插件页与详情页共用。 */
 export const pendingCount = (runtime: DesktopPluginRuntime | null) =>
-  runtime?.local?.updates.filter(item => item.pending).length ?? 0;
+  new Set([
+    ...(runtime?.local?.updates.filter(item => item.pending).map(item => item.id) ?? []),
+    ...(runtime?.local?.pendingEditorIds?.() ?? []),
+  ]).size;
 
 export type PluginSourceKind = "center" | "zip" | "builtin" | "development";
 
@@ -64,12 +67,14 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
       source,
       releaseId: origin?.kind === "center" ? origin.releaseId : undefined,
       update: runtime.local?.updates.find(item => item.id === info.id),
-      enabled: Boolean(
-        info.state === "active" ||
-        runtime.development?.enabled(info.id) ||
-        runtime.local?.enabled(info.id) ||
-        runtime.builtin?.enabled(info.id)
-      ),
+      enabled: local?.isEditorPlugin?.(info.id)
+        ? local.enabled(info.id)
+        : Boolean(
+            info.state === "active" ||
+            runtime.development?.enabled(info.id) ||
+            runtime.local?.enabled(info.id) ||
+            runtime.builtin?.enabled(info.id)
+          ),
       error,
     };
   });

@@ -33,14 +33,14 @@ ${themeCss}
 
 const queue = [];
 let running = false;
-const tempDir = path.join(os.tmpdir(), "custom-block-tailwind");
+const tempDir = path.join(os.tmpdir(), "tau-tailwind-runtime");
 fs.mkdirSync(tempDir, { recursive: true });
 
 async function runJob(job) {
   const content = job.content ?? "";
   const extension = normalizeExtension(job.extension);
   const nonce = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const tempFilePath = path.join(job.tempDir ?? tempDir, `custom-block-${nonce}.${extension}`);
+  const tempFilePath = path.join(job.tempDir ?? tempDir, `tau-tailwind-${nonce}.${extension}`);
   const normalizedPath = tempFilePath.replace(/\\/g, "/");
   const runtimeCss = `${buildBaseCss(job.themeCss)}\n@source "${normalizedPath}";\n`;
 
@@ -49,7 +49,7 @@ async function runJob(job) {
     await fs.promises.writeFile(tempFilePath, content, "utf8");
 
     const builder = await compileTailwind(runtimeCss, {
-      from: "custom-block-inline.css",
+      from: "tau-tailwind-inline.css",
       async loadStylesheet(id, base) {
         const normalizedId = id?.replace(/\\/g, "/");
         if (normalizedId === normalizedPath) {

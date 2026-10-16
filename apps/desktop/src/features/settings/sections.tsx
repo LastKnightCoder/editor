@@ -5,7 +5,7 @@
  * 「杂项」→ 剪藏与缓存、「集成」→ 账号与连接、「关于软件」→ 关于与更新；文字转语音与
  * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 系统。
  * 页头（标题 + 说明）由 SettingsScreen 按 label / description 统一渲染，子页不再自绘。
- * 内置导航在此维护；插件只有一个管理入口，自定义分组在各插件详情内展示。
+ * 内置设置导航在此维护；插件管理与插件设置由独立插件页承载。
  */
 
 import type { ComponentType } from "react";
@@ -34,10 +34,8 @@ import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
 import { AboutSection } from "./sections/AboutSection";
-import { PluginsSettingsEntry } from "@/features/plugins/views/PluginsSettingsEntry";
 
 export type SettingsSectionKey =
-  | "plugins"
   | "appearance"
   | "sync"
   | "imageBed"
@@ -158,13 +156,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
   {
     label: "系统",
     sections: [
-      {
-        key: "plugins",
-        label: "插件",
-        description: "插件中心、已安装插件与插件设置",
-        icon: Plug,
-        component: PluginsSettingsEntry,
-      },
       {
         key: "app",
         label: "关于与更新",
