@@ -92,6 +92,8 @@ import { createProjectCardListExtension } from "@/editor-extensions";
 import useProjectItemMoreActions from "./useProjectItemMoreActions";
 import { toast, Tooltip, Menu } from "@tau/ui";
 
+const NO_CHILDREN: number[] = [];
+
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
   "before:absolute",
@@ -458,18 +460,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     }
   });
 
-  const { drag, drop, isDragging, dropContainerRef, dragPosition, isOver, canDrop } =
-    useDragAndDrop({
+  // 拖拽项与子级 path 引用稳定化：内联对象/数组会在每次渲染时重建，既让
+  // getEditorText 全量遍历文档 content 重复执行，又击穿子级 memo——展开/收起
+  // 一次就级联重渲染整棵子树
+  const dragItem = useMemo(
+    () => ({
       itemId: projectItemId,
       parentId: parentProjectItemId,
       isRoot,
       path,
       onDrop,
-      children: projectItem?.children || [],
+      children: projectItem?.children ?? NO_CHILDREN,
       parentChildren,
       chatContentReference: projectItem?.contentId
         ? {
-            entityType: "project-item",
+            entityType: "project-item" as const,
             entityId: projectItem.id,
             contentId: projectItem.contentId,
             title:
@@ -479,7 +484,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             previewText: getEditorText(projectItem.content, 160),
           }
         : undefined,
-    });
+    }),
+    [
+      projectItemId,
+      parentProjectItemId,
+      isRoot,
+      path,
+      onDrop,
+      parentChildren,
+      projectItem,
+      projectItemTitle,
+    ]
+  );
+  const { drag, drop, isDragging, dropContainerRef, dragPosition, isOver, canDrop } =
+    useDragAndDrop(dragItem);
+
+  const childPaths = useMemo(
+    () => (projectItem?.children ?? NO_CHILDREN).map((_, index) => [...path, index]),
+    [projectItem, path]
+  );
 
   const { moreMenuItems, handleMoreMenuClick, moreActionModals } = useProjectItemMoreActions({
     projectId,
@@ -928,7 +951,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         </div>
         <div
           className={classnames(
-            "grid overflow-hidden transition-[grid-template-rows] duration-300",
+            "grid overflow-hidden transition-[grid-template-rows] duration-150",
             {
               // mt 让首个子项背景与父行背景隔开,与兄弟条目间距一致
               "mt-[2px] grid-rows-[1fr]": folderOpen && hasChildren,
@@ -951,7 +974,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   projectItemId={projectItemId}
                   parentProjectItemId={projectItem.id}
                   isRoot={false}
-                  path={[...path, index]}
+                  path={childPaths[index]}
                   parentChildren={projectItem.children}
                   cards={cards}
                   whiteBoards={whiteBoards}

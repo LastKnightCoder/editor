@@ -133,6 +133,10 @@ const Project = () => {
 
   const { treeData, loading: treeLoading, reload: reloadProjectTree } = useProjectTreeData(project);
 
+  // 顶层 path 缓存：本组件因侧栏拖宽、菜单开合等重渲染时，内联数组会击穿
+  // ProjectItem 的 memo，导致整棵树级联重渲染
+  const rootPaths = useMemo(() => (project?.children ?? []).map((_, index) => [index]), [project]);
+
   // 定位脉冲：激活文档及其祖先一次性写入展开（覆盖此前的折叠意图）。
   // 引用稳定化使"集合变化"严格等价于"定位目标或祖先链变化"——
   // 树数据刷新（reload/条目更新）不重触发，不打扰用户手动折叠的祖先
@@ -729,7 +733,7 @@ const Project = () => {
                       projectItemId={projectItemId}
                       isRoot
                       key={projectItemId}
-                      path={[index]}
+                      path={rootPaths[index]}
                       parentProjectItemId={project.id}
                       parentChildren={project.children}
                       cards={cards}
