@@ -23,20 +23,24 @@ export async function github<T>(token: string, path: string, fetcher = fetch): P
 export async function verifyRepository(
   token: string,
   url: string,
-  commit: string,
   fetcher = fetch
-): Promise<string> {
+): Promise<{ id: string; commit: string }> {
   const match = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)$/.exec(url);
-  if (!match || !/^[a-f0-9]{40}$/i.test(commit))
-    fail(400, "INVALID_INPUT", "请输入 GitHub 仓库地址和完整 commit SHA");
+  if (!match) fail(400, "INVALID_INPUT", "请输入 GitHub 仓库地址");
   const path = `/repos/${match[1]}/${match[2]}`;
-  const repo = await github<{ id: number; private: boolean; permissions?: { admin?: boolean } }>(
-    token,
-    path,
-    fetcher
-  );
+  const repo = await github<{
+    id: number;
+    private: boolean;
+    default_branch: string;
+    permissions?: { admin?: boolean };
+  }>(token, path, fetcher);
   if (repo.private || !repo.permissions?.admin)
     fail(403, "REPOSITORY_NOT_ALLOWED", "只能提交你有管理权限的公开仓库");
-  await github(token, `${path}/commits/${commit}`, fetcher);
-  return String(repo.id);
+  const head = await github<{ sha: string }>(
+    token,
+    `${path}/commits/${encodeURIComponent(repo.default_branch)}`,
+    fetcher
+  );
+  if (!/^[a-f0-9]{40}$/i.test(head.sha)) fail(503, "GITHUB_UNAVAILABLE", "无法确认源码仓库版本");
+  return { id: String(repo.id), commit: head.sha };
 }

@@ -1,6 +1,7 @@
 # AI 开发指南
 
-- 先阅读 README.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
+- 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
+- README.md只写面向用户的功能和使用说明，随ZIP打包；manifest.description填写简短介绍，平台自动读取，不另填网页介绍或截图。CHANGELOG.md可选。
 - 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
 - 功能代码使用 TypeScript/TSX。优先使用 API.md 中说明的能力，结合已安装 SDK 的类型提示确认参数，不编造接口。
 - 插件身份在 manifest.json 中修改，入口沿用 `__PLUGIN_META__`。插件 ID 变更会改变数据归属，不要为日常升级修改 ID。

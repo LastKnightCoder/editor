@@ -7,8 +7,7 @@ import * as path from "node:path";
 import AdmZip from "adm-zip";
 import log from "electron-log";
 
-const PUBLISH_TEMPLATE_LATEST_JSON_URL =
-  "https://dl.xiongtao.life/publish-template-latest.json";
+const PUBLISH_TEMPLATE_LATEST_JSON_URL = "https://dl.taunote.app/publish-template-latest.json";
 const DOWNLOAD_TIMEOUT_MS = 60_000;
 const MAX_REDIRECTS = 5;
 
@@ -43,10 +42,7 @@ class PublishTemplateManager {
   private cachedTemplateDir: string | null = null;
 
   async ensureTemplateReady(): Promise<string> {
-    if (
-      this.cachedTemplateDir &&
-      (await this.validateTemplateDirectory(this.cachedTemplateDir))
-    ) {
+    if (this.cachedTemplateDir && (await this.validateTemplateDirectory(this.cachedTemplateDir))) {
       return this.cachedTemplateDir;
     }
 
@@ -73,13 +69,13 @@ class PublishTemplateManager {
     } catch (error) {
       if (installed) {
         log.warn(
-          `[PublishTemplate] 获取 latest.json 失败，回退本地缓存: ${error instanceof Error ? error.message : String(error)}`,
+          `[PublishTemplate] 获取 latest.json 失败，回退本地缓存: ${error instanceof Error ? error.message : String(error)}`
         );
         this.cachedTemplateDir = installed.templateDir;
         return installed.templateDir;
       }
       throw new Error(
-        `获取 publish 模板版本信息失败: ${error instanceof Error ? error.message : String(error)}`,
+        `获取 publish 模板版本信息失败: ${error instanceof Error ? error.message : String(error)}`
       );
     }
 
@@ -95,13 +91,13 @@ class PublishTemplateManager {
     } catch (error) {
       if (installed) {
         log.warn(
-          `[PublishTemplate] 下载新模板失败，回退本地缓存: ${error instanceof Error ? error.message : String(error)}`,
+          `[PublishTemplate] 下载新模板失败，回退本地缓存: ${error instanceof Error ? error.message : String(error)}`
         );
         this.cachedTemplateDir = installed.templateDir;
         return installed.templateDir;
       }
       throw new Error(
-        `下载 publish 模板失败，且无可用缓存: ${error instanceof Error ? error.message : String(error)}`,
+        `下载 publish 模板失败，且无可用缓存: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
@@ -133,9 +129,7 @@ class PublishTemplateManager {
     }
 
     try {
-      const parsed = (await fs.readJSON(
-        metaPath,
-      )) as Partial<PublishTemplateMeta>;
+      const parsed = (await fs.readJSON(metaPath)) as Partial<PublishTemplateMeta>;
       if (
         typeof parsed.installedVersion !== "string" ||
         typeof parsed.templateDir !== "string" ||
@@ -149,8 +143,7 @@ class PublishTemplateManager {
         installedVersion: parsed.installedVersion,
         templateDir: parsed.templateDir,
         downloadUrl: parsed.downloadUrl,
-        updatedAt:
-          typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
+        updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
         sha256: typeof parsed.sha256 === "string" ? parsed.sha256 : undefined,
       };
 
@@ -172,9 +165,7 @@ class PublishTemplateManager {
     await fs.writeJSON(this.getMetaPath(), meta, { spaces: 2 });
   }
 
-  private async validateTemplateDirectory(
-    templateDir: string,
-  ): Promise<boolean> {
+  private async validateTemplateDirectory(templateDir: string): Promise<boolean> {
     const rootExists = await fs.pathExists(templateDir);
     if (!rootExists) {
       return false;
@@ -203,17 +194,15 @@ class PublishTemplateManager {
     return assetsEntries.length > 0;
   }
 
-  private async downloadAndInstall(
-    latest: PublishTemplateLatestJson,
-  ): Promise<string> {
+  private async downloadAndInstall(latest: PublishTemplateLatestJson): Promise<string> {
     const installToken = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const zipTempPath = path.join(
       this.getDownloadsDir(),
-      `publish-template-${latest.version}-${installToken}.zip.tmp`,
+      `publish-template-${latest.version}-${installToken}.zip.tmp`
     );
     const extractTempDir = path.join(
       this.getVersionsDir(),
-      `${latest.version}.tmp-${installToken}`,
+      `${latest.version}.tmp-${installToken}`
     );
     const finalVersionDir = this.getVersionDir(latest.version);
 
@@ -263,26 +252,20 @@ class PublishTemplateManager {
 
   private async fetchLatestJson(
     url: string,
-    redirectCount = 0,
+    redirectCount = 0
   ): Promise<PublishTemplateLatestJson> {
     if (redirectCount > MAX_REDIRECTS) {
       throw new Error("获取 publish template latest.json 重定向次数过多");
     }
 
     const response = await this.requestBuffer(url);
-    if (
-      response.statusCode >= 300 &&
-      response.statusCode < 400 &&
-      response.headers.location
-    ) {
+    if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
       const redirectUrl = new URL(response.headers.location, url).toString();
       return this.fetchLatestJson(redirectUrl, redirectCount + 1);
     }
 
     if (response.statusCode >= 400) {
-      throw new Error(
-        `publish template latest.json 请求失败，状态码 ${response.statusCode}`,
-      );
+      throw new Error(`publish template latest.json 请求失败，状态码 ${response.statusCode}`);
     }
 
     const raw = response.body.toString("utf-8");
@@ -310,19 +293,12 @@ class PublishTemplateManager {
       version: parsed.version,
       asset: {
         url: parsed.asset.url,
-        sha256:
-          typeof parsed.asset.sha256 === "string"
-            ? parsed.asset.sha256
-            : undefined,
+        sha256: typeof parsed.asset.sha256 === "string" ? parsed.asset.sha256 : undefined,
       },
     };
   }
 
-  private async downloadFile(
-    url: string,
-    destPath: string,
-    redirectCount = 0,
-  ): Promise<void> {
+  private async downloadFile(url: string, destPath: string, redirectCount = 0): Promise<void> {
     if (redirectCount > MAX_REDIRECTS) {
       throw new Error("下载 publish template 重定向次数过多");
     }
@@ -345,19 +321,12 @@ class PublishTemplateManager {
           },
           timeout: DOWNLOAD_TIMEOUT_MS,
         },
-        (response) => {
+        response => {
           const statusCode = response.statusCode || 0;
 
-          if (
-            statusCode >= 300 &&
-            statusCode < 400 &&
-            response.headers.location
-          ) {
+          if (statusCode >= 300 && statusCode < 400 && response.headers.location) {
             response.resume();
-            const redirectUrl = new URL(
-              response.headers.location,
-              url,
-            ).toString();
+            const redirectUrl = new URL(response.headers.location, url).toString();
             void this.downloadFile(redirectUrl, destPath, redirectCount + 1)
               .then(resolve)
               .catch(reject);
@@ -366,9 +335,7 @@ class PublishTemplateManager {
 
           if (statusCode < 200 || statusCode >= 400) {
             response.resume();
-            reject(
-              new Error(`下载 publish template 失败，状态码 ${statusCode}`),
-            );
+            reject(new Error(`下载 publish template 失败，状态码 ${statusCode}`));
             return;
           }
 
@@ -379,7 +346,7 @@ class PublishTemplateManager {
             resolve();
           });
           response.pipe(writeStream);
-        },
+        }
       );
 
       request.on("timeout", () => {
@@ -411,7 +378,7 @@ class PublishTemplateManager {
           },
           timeout: DOWNLOAD_TIMEOUT_MS,
         },
-        (response) => {
+        response => {
           const chunks: Buffer[] = [];
           response.on("data", (chunk: Buffer) => {
             chunks.push(chunk);
@@ -424,7 +391,7 @@ class PublishTemplateManager {
               body: Buffer.concat(chunks),
             });
           });
-        },
+        }
       );
 
       request.on("timeout", () => {

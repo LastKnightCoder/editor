@@ -16,6 +16,8 @@
 
 Certbot通过webroot `/var/www/certbot`签发SAN证书，名称taunote-services，覆盖collab.taunote.app与stats.taunote.app，有效至2027-01-14。证书路径 `/etc/letsencrypt/live/taunote-services/`；自动续期和nginx检查/reload hook已配置。不要将私钥复制进仓库。
 
-旧dl.xiongtao.life仍绑定tau-release，旧collab/stats继续响应，供存量客户端和已有统计脚本使用。此次只添加服务入口；客户端内置地址、更新发布脚本、统计嵌入地址及协作默认publicUrl仍沿用旧值，下一次客户端地址切换需单独同步并验收，不能删除旧下载域名。
+旧dl.xiongtao.life仍绑定tau-release，旧collab/stats继续响应，供存量客户端和已有统计脚本使用。2026-10-16源码已统一改为taunote.app：桌面更新/FFmpeg/模板下载、统计上报、共享协作默认值、移动端默认设置和发布/部署脚本。没有新代码双域名回退分支；已发布二进制不会自动改变URL，需新客户端发布后生效。用户已保存的自定义协作地址不擅自覆盖。
+
+协作服务器.env的COLLAB_PUBLIC_URL已切换https://collab.taunote.app并通过docker compose up --no-build重建现有镜像，未发布本地其他代码。旧.env备份（含敏感配置）仅在服务器/root/taunote-domain-migration/collab.env.before-taunote，不能入Git。新旧HTTPS仍可用。
 
 GitHub OAuth设置由用户修改，后端发出的callback已验证指向新API域名，尚未完成真实登录回调验收。Pages环境VITE_API_BASE_URL已改为新API；前端Direct Upload仍需构建时注入对应变量。

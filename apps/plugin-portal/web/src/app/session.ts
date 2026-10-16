@@ -20,7 +20,11 @@ const emit = () => listeners.forEach(listener => listener());
 
 export const sessionExpiry = {
   mark(queryClient: QueryClient) {
-    queryClient.setQueryData<Session>(queryKeys.session, { user: null, csrfToken: null });
+    queryClient.setQueryData<Session>(queryKeys.session, {
+      user: null,
+      csrfToken: null,
+      reviewer: false,
+    });
     if (expired) return;
     expired = true;
     emit();

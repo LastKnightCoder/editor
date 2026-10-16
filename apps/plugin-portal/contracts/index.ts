@@ -1,11 +1,8 @@
 export const LIMITS = {
   zipBytes: 8 * 1024 * 1024,
   expandedBytes: 32 * 1024 * 1024,
-  imageBytes: 2 * 1024 * 1024,
-  screenshots: 5,
   summary: 160,
-  description: 20000,
-  changelog: 10000,
+  readmeBytes: 128 * 1024,
 } as const;
 
 export type ErrorCode =
@@ -13,7 +10,6 @@ export type ErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "INVALID_INPUT"
-  | "CONFLICT"
   | "REVISION_CONFLICT"
   | "SUBMISSION_LOCKED"
   | "VERSION_ALREADY_SUBMITTED"
@@ -23,7 +19,6 @@ export type ErrorCode =
   | "LIMIT_EXCEEDED"
   | "UPLOAD_TOO_LARGE"
   | "INVALID_PACKAGE"
-  | "INVALID_IMAGE"
   | "UPLOAD_NOT_READY"
   | "REPOSITORY_NOT_ALLOWED"
   | "GITHUB_UNAVAILABLE"
@@ -44,6 +39,7 @@ export interface User {
 export interface Session {
   user: User | null;
   csrfToken: string | null;
+  reviewer: boolean;
 }
 export interface PackageManifest {
   formatVersion: 1;
@@ -57,22 +53,25 @@ export interface PackageManifest {
   main: string;
   styles?: string;
   integrity: Record<string, string>;
+  description: string;
 }
-export type UploadKind = "package" | "icon" | "screenshot";
+export interface PackageContent {
+  manifest: PackageManifest;
+  readme: string;
+  changelog: string | null;
+}
 export type UploadStatus = "awaiting_upload" | "checking" | "ready" | "invalid";
 export interface Upload {
   id: string;
-  kind: UploadKind;
   status: UploadStatus;
   fileName: string;
   size: number;
   sha256: string | null;
-  manifest: PackageManifest | null;
+  content: PackageContent | null;
   error: { code: ErrorCode; message: string } | null;
   createdAt: string;
 }
 export interface CreateUpload {
-  kind: UploadKind;
   fileName: string;
   size: number;
 }
@@ -82,24 +81,16 @@ export interface UploadTicket {
   method: "PUT";
   headers: { "Content-Type": "application/octet-stream" };
 }
-export interface Listing {
-  summary: string;
-  description: string;
-  repository: string;
-  commit: string;
-  changelog: string;
-  supportUrl: string;
-  iconUploadId: string | null;
-  screenshotUploadIds: string[];
-}
 export type SubmissionStatus = "draft" | "pending_review";
 export interface Submission {
   id: string;
   revision: number;
   status: SubmissionStatus;
   packageUploadId: string | null;
-  manifest: PackageManifest | null;
-  listing: Listing;
+  content: PackageContent | null;
+  repository: string;
+  commit: string | null;
+  canEdit: boolean;
   repositoryId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -108,19 +99,16 @@ export interface Submission {
 export interface SaveSubmission {
   revision: number;
   packageUploadId: string | null;
-  listing: Listing;
+  repository: string;
 }
 export interface SubmissionPage {
   items: Submission[];
   nextCursor: string | null;
 }
-export const emptyListing = (): Listing => ({
-  summary: "",
-  description: "",
-  repository: "",
-  commit: "",
-  changelog: "",
-  supportUrl: "",
-  iconUploadId: null,
-  screenshotUploadIds: [],
-});
+export interface FeedbackMessage {
+  id: string;
+  author: { id: string; login: string };
+  role: "author" | "reviewer";
+  message: string;
+  createdAt: string;
+}

@@ -51,7 +51,7 @@ describe("HTTP 客户端", () => {
     });
     const api = createHttpApi({ baseUrl: BASE, fetch });
     await api.getSubmission("s1");
-    await api.saveSubmission("s1", { revision: 1, packageUploadId: null, listing: {} as never });
+    await api.saveSubmission("s1", { revision: 1, packageUploadId: null, repository: "" });
     const read = calls.find(call => call.url.endsWith("/v1/submissions/s1") && !call.init.method);
     const write = calls.find(call => call.init.method === "PATCH");
     expect(header(read!.init, "X-CSRF-Token")).toBeUndefined();
@@ -155,12 +155,11 @@ class FakeXhr implements XhrLike {
 const ticket = (uploadUrl: string): UploadTicket => ({
   upload: {
     id: "u1",
-    kind: "package",
     status: "awaiting_upload",
     fileName: "a.zip",
     size: 10,
     sha256: null,
-    manifest: null,
+    content: null,
     error: null,
     createdAt: "",
   },

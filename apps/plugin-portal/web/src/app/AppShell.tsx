@@ -38,7 +38,11 @@ function Header({ user }: { user: User }) {
     try {
       await api.logout();
       queryClient.clear();
-      queryClient.setQueryData<Session>(queryKeys.session, { user: null, csrfToken: null });
+      queryClient.setQueryData<Session>(queryKeys.session, {
+        user: null,
+        csrfToken: null,
+        reviewer: false,
+      });
       navigate("/login", { replace: true });
     } catch (error) {
       toast.error(`退出失败：${errorMessage(error)}`);

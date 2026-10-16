@@ -21,11 +21,12 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
       return { result: watch(transfer.result), abort: () => transfer.abort() };
     },
     getUpload: id => watch(api.getUpload(id)),
-    getUploadContent: id => watch(api.getUploadContent(id)),
     createSubmission: requestId => watch(api.createSubmission(requestId)),
-    listSubmissions: cursor => watch(api.listSubmissions(cursor)),
+    listSubmissions: (cursor, review) => watch(api.listSubmissions(cursor, review)),
     getSubmission: id => watch(api.getSubmission(id)),
     saveSubmission: (id, body) => watch(api.saveSubmission(id, body)),
     submitSubmission: (id, revision) => watch(api.submitSubmission(id, revision)),
+    listFeedback: (id, cursor) => watch(api.listFeedback(id, cursor)),
+    sendFeedback: (id, message, requestId) => watch(api.sendFeedback(id, message, requestId)),
   };
 }

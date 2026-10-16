@@ -22,6 +22,22 @@ const staging = await mkdtemp(path.resolve("dist/.building-"));
 const buildId = randomUUID();
 const pointer = path.resolve("dist", `.building-pointer-${buildId}`);
 try {
+  const readme = await readFile("README.md", "utf8");
+  if (!readme.trim()) throw new Error("README.md 必须包含插件介绍与使用说明");
+  if (
+    typeof manifest.description !== "string" ||
+    !manifest.description.trim() ||
+    manifest.description.length > 160
+  )
+    throw new Error("manifest.description 必须为1至160字简介");
+  await writeFile(path.join(staging, "README.md"), readme);
+  for (const name of ["LICENSE", "CHANGELOG.md"]) {
+    try {
+      await writeFile(path.join(staging, name), await readFile(name));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
   const result = await build({
     entryPoints: ["src/index.tsx"],
     outfile: path.join(staging, "main.js"),

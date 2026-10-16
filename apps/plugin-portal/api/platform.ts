@@ -9,7 +9,13 @@ export interface Env {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   TOKEN_ENCRYPTION_KEY: string;
+  REVIEWER_GITHUB_IDS?: string;
 }
+export const isReviewer = (env: Env, id: string) =>
+  (env.REVIEWER_GITHUB_IDS ?? "")
+    .split(",")
+    .map(value => value.trim())
+    .includes(id);
 export class HttpError extends Error {
   constructor(
     public status: number,

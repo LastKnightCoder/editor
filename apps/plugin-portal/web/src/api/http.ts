@@ -183,19 +183,25 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     createUpload: (input: CreateUpload) => write<UploadTicket>("POST", "/v1/uploads", input),
     sendUpload,
     getUpload: uploadId => read<Upload>(`/v1/uploads/${id(uploadId)}`),
-    async getUploadContent(uploadId) {
-      return (await send(`/v1/uploads/${id(uploadId)}/content`)).blob();
-    },
     createSubmission: clientRequestId =>
       write<Submission>("POST", "/v1/submissions", { clientRequestId }),
-    listSubmissions: cursor =>
-      read<SubmissionPage>(
-        cursor ? `/v1/submissions?cursor=${encodeURIComponent(cursor)}` : "/v1/submissions"
-      ),
+    listSubmissions: (cursor, review = false) => {
+      const query = new URLSearchParams({
+        ...(cursor ? { cursor } : {}),
+        ...(review ? { scope: "review" } : {}),
+      }).toString();
+      return read<SubmissionPage>(`/v1/submissions${query ? `?${query}` : ""}`);
+    },
     getSubmission: submissionId => read<Submission>(`/v1/submissions/${id(submissionId)}`),
     saveSubmission: (submissionId, body: SaveSubmission) =>
       write<Submission>("PATCH", `/v1/submissions/${id(submissionId)}`, body),
     submitSubmission: (submissionId, revision) =>
       write<Submission>("POST", `/v1/submissions/${id(submissionId)}/submit`, { revision }),
+    listFeedback: (submissionId, cursor) =>
+      read(
+        `/v1/submissions/${id(submissionId)}/feedback${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`
+      ),
+    sendFeedback: (submissionId, message, clientRequestId) =>
+      write("POST", `/v1/submissions/${id(submissionId)}/feedback`, { message, clientRequestId }),
   };
 }

@@ -9,10 +9,10 @@ import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-// 桌面端 publish-template-manager.ts 硬编码从 dl.xiongtao.life（R2）拉取版本信息；
+// 桌面端 publish-template-manager.ts 硬编码从 dl.taunote.app（R2）拉取版本信息；
 // OSS 侧清单已冻结在迁移前版本（见 scripts/migrate-oss-to-r2.mjs），服务旧客户端长尾
 const R2_BUCKET = "tau-release";
-const PUBLIC_BASE_URL = "https://dl.xiongtao.life";
+const PUBLIC_BASE_URL = "https://dl.taunote.app";
 const LATEST_OBJECT_KEY = "publish-template-latest.json";
 const ZIP_OBJECT_KEY = version => `publish-template/blog-template-${version}.zip`;
 
@@ -186,13 +186,15 @@ async function main() {
     }
 
     console.log(`▶ 上传 ${ZIP_OBJECT_KEY(version)}（远端当前 ${remoteVersion ?? "无版本"}）...`);
-    await client.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: ZIP_OBJECT_KEY(version),
-      Body: createReadStream(zipPath),
-      ContentType: "application/zip",
-      CacheControl: "public, max-age=31536000, immutable",
-    }));
+    await client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: ZIP_OBJECT_KEY(version),
+        Body: createReadStream(zipPath),
+        ContentType: "application/zip",
+        CacheControl: "public, max-age=31536000, immutable",
+      })
+    );
 
     // 先传 zip 再写 latest.json，保证 latest.json 指向的产物一定已存在
     const latestJson = `${JSON.stringify(
@@ -201,13 +203,15 @@ async function main() {
       2
     )}\n`;
     console.log(`▶ 上传 ${LATEST_OBJECT_KEY} ...`);
-    await client.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: LATEST_OBJECT_KEY,
-      Body: latestJson,
-      ContentType: "application/json",
-      CacheControl: "no-cache",
-    }));
+    await client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: LATEST_OBJECT_KEY,
+        Body: latestJson,
+        ContentType: "application/json",
+        CacheControl: "no-cache",
+      })
+    );
 
     pkg.version = version;
     writeFileSync(packageFile, `${JSON.stringify(pkg, null, 2)}\n`);

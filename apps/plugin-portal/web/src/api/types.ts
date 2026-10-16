@@ -6,6 +6,7 @@ import type {
   SubmissionPage,
   Upload,
   UploadTicket,
+  FeedbackMessage,
 } from "../../../contracts";
 
 export interface UploadProgress {
@@ -32,10 +33,14 @@ export interface PortalApi {
     onProgress: (progress: UploadProgress) => void
   ): UploadTransfer;
   getUpload(id: string): Promise<Upload>;
-  getUploadContent(id: string): Promise<Blob>;
   createSubmission(clientRequestId: string): Promise<Submission>;
-  listSubmissions(cursor: string | null): Promise<SubmissionPage>;
+  listSubmissions(cursor: string | null, review?: boolean): Promise<SubmissionPage>;
   getSubmission(id: string): Promise<Submission>;
   saveSubmission(id: string, body: SaveSubmission): Promise<Submission>;
   submitSubmission(id: string, revision: number): Promise<Submission>;
+  listFeedback(
+    id: string,
+    cursor: string | null
+  ): Promise<{ items: FeedbackMessage[]; nextCursor: string | null }>;
+  sendFeedback(id: string, message: string, clientRequestId: string): Promise<FeedbackMessage>;
 }
