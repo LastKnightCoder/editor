@@ -39,6 +39,7 @@ export function Harness({ workspaceId }: { workspaceId: string }) {
       snapshot: () => ({
         ready,
         workspaceId,
+        updates: local.updates,
         plugins: runtime.host.listPlugins(),
         commands: runtime.host.listCommands(),
         busy: local.busy(),
