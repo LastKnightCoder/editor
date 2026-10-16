@@ -10,6 +10,7 @@ import { PackageFacts } from "./PackageFacts";
 import { useUploadTasks, isTaskActive } from "./useUploadTasks";
 import { UploadTaskCard } from "./UploadTaskCard";
 import { precheckFile } from "./validation";
+import { ReviewPanel } from "./ReviewPanel";
 
 export function SubmissionView({ submission }: { submission: Submission }) {
   const api = useApi(),
@@ -77,6 +78,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
         meta="资料来自插件包，修改说明请重新打包。"
       />
       <div className="flex flex-col gap-5">
+        {submission.submittedAt && <ReviewPanel submission={submission} />}
         {submission.canEdit && (
           <Section
             index={1}
@@ -179,13 +181,13 @@ export function SubmissionView({ submission }: { submission: Submission }) {
               loading={action.isPending}
               onClick={() => action.mutate(true)}
             >
-              提交审核
+              {submission.status === "changes_requested" ? "重新提交审核" : "提交审核"}
             </Button>
           </div>
         ) : (
           <p className="text-ink-3 text-tau-sm">提交内容已冻结；问题与审核意见请在下方站内交流。</p>
         )}
-        {submission.status === "pending_review" && <Feedback submissionId={submission.id} />}
+        {submission.submittedAt && <Feedback submissionId={submission.id} />}
       </div>
     </>
   );

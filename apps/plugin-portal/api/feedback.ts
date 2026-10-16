@@ -25,8 +25,7 @@ export async function feedbackRoute(
   const match = /^\/v1\/submissions\/([\w-]+)\/feedback$/.exec(path);
   if (!match) return null;
   const submission = await submissionAccess(env, owner, match[1]);
-  if (submission.status !== "pending_review")
-    fail(400, "INVALID_INPUT", "提交审核后可发送站内反馈");
+  if (!submission.submitted_at) fail(400, "INVALID_INPUT", "提交审核后可发送站内反馈");
   if (request.method === "GET") {
     const cursor = new URL(request.url).searchParams.get("cursor");
     let after: { time: string; id: string } | null = null;

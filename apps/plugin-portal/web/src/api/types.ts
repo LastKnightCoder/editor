@@ -7,6 +7,8 @@ import type {
   Upload,
   UploadTicket,
   FeedbackMessage,
+  ReviewDetails,
+  ReviewRequest,
 } from "../../../contracts";
 
 export interface UploadProgress {
@@ -43,4 +45,8 @@ export interface PortalApi {
     cursor: string | null
   ): Promise<{ items: FeedbackMessage[]; nextCursor: string | null }>;
   sendFeedback(id: string, message: string, clientRequestId: string): Promise<FeedbackMessage>;
+  getReviews(id: string): Promise<ReviewDetails>;
+  reviewSubmission(id: string, input: ReviewRequest): Promise<ReviewDetails>;
+  retryPublish(id: string): Promise<ReviewDetails>;
+  packageDownloadUrl(id: string): string | null;
 }

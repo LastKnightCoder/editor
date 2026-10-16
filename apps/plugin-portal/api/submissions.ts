@@ -13,6 +13,7 @@ interface Row {
   repository: string;
   source_commit: string | null;
   repository_id: string | null;
+  plugin_id: string | null;
   created_at: string;
   updated_at: string;
   submitted_at: string | null;
@@ -26,14 +27,15 @@ const dto = (row: Row, owner: string): Submission => ({
   repository: row.repository,
   commit: row.source_commit,
   repositoryId: row.repository_id,
-  canEdit: row.publisher_id === owner && row.status === "draft",
+  canEdit:
+    row.publisher_id === owner && (row.status === "draft" || row.status === "changes_requested"),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   submittedAt: row.submitted_at,
 });
 export async function submissionAccess(env: Env, owner: string, id: string): Promise<Row> {
   const row = await env.DB.prepare(
-    "SELECT * FROM submissions WHERE id=? AND (publisher_id=? OR (?=1 AND status='pending_review'))"
+    "SELECT * FROM submissions WHERE id=? AND (publisher_id=? OR (?=1 AND submitted_at IS NOT NULL))"
   )
     .bind(id, owner, isReviewer(env, owner) ? 1 : 0)
     .first<Row>();
@@ -99,7 +101,7 @@ export async function submissionRoute(
       }
     }
     const rows = await env.DB.prepare(
-      `SELECT * FROM submissions WHERE ${review ? "status='pending_review'" : "publisher_id=?"} AND (? IS NULL OR created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 21`
+      `SELECT * FROM submissions WHERE ${review ? "submitted_at IS NOT NULL" : "publisher_id=?"} AND (? IS NULL OR created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 21`
     )
       .bind(
         ...(review ? [] : [owner]),
@@ -144,13 +146,15 @@ export async function submissionRoute(
       ? await readyUpload(env, owner, input.packageUploadId)
       : null;
     const content = upload?.content_json ? JSON.parse(upload.content_json) : null;
+    if (row.submitted_at && content && content.manifest.id !== row.plugin_id)
+      fail(400, "INVALID_INPUT", "修订不能更换插件ID，请为其他插件新建提交");
     const known = content
       ? await env.DB.prepare("SELECT repository FROM plugins WHERE id=? AND publisher_id=?")
           .bind(content.manifest.id, owner)
           .first<{ repository: string }>()
       : null;
     const result = await env.DB.prepare(
-      "UPDATE submissions SET repository=?,package_upload_id=?,content_json=?,revision=revision+1,updated_at=? WHERE id=? AND publisher_id=? AND status='draft' AND revision=?"
+      "UPDATE submissions SET repository=?,package_upload_id=?,content_json=?,revision=revision+1,updated_at=? WHERE id=? AND publisher_id=? AND status IN ('draft','changes_requested') AND revision=?"
     )
       .bind(
         input.repository || known?.repository || "",
@@ -175,6 +179,7 @@ export async function submissionRoute(
   if (match[2] && request.method === "POST") {
     const input = await body(request);
     if (current.status === "pending_review") return json(current);
+    if (!current.canEdit) fail(409, "SUBMISSION_LOCKED", "该提交已结束，不能重新提交");
     if (input.revision !== row.revision)
       fail(409, "REVISION_CONFLICT", "草稿已变化，请重新读取后提交");
     if (!current.packageUploadId || !current.content)
@@ -188,10 +193,10 @@ export async function submissionRoute(
     try {
       const result = await env.DB.batch([
         env.DB.prepare(
-          "INSERT OR IGNORE INTO plugins(id,publisher_id,repository_id,repository) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM submissions WHERE id=? AND publisher_id=? AND status='draft' AND revision=?)"
+          "INSERT OR IGNORE INTO plugins(id,publisher_id,repository_id,repository) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM submissions WHERE id=? AND publisher_id=? AND status IN ('draft','changes_requested') AND revision=?)"
         ).bind(manifest.id, owner, source.id, current.repository, row.id, owner, row.revision),
         env.DB.prepare(
-          "UPDATE submissions SET status='pending_review',plugin_id=?,plugin_version=?,repository_id=?,source_commit=?,submitted_at=?,updated_at=?,revision=revision+1 WHERE id=? AND publisher_id=? AND revision=? AND status='draft' AND EXISTS(SELECT 1 FROM plugins WHERE id=? AND publisher_id=? AND repository_id=?)"
+          "UPDATE submissions SET status='pending_review',plugin_id=?,plugin_version=?,repository_id=?,source_commit=?,submitted_at=?,updated_at=?,revision=revision+1 WHERE id=? AND publisher_id=? AND revision=? AND status IN ('draft','changes_requested') AND EXISTS(SELECT 1 FROM plugins WHERE id=? AND publisher_id=? AND repository_id=?)"
         ).bind(
           manifest.id,
           manifest.version,

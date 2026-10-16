@@ -4,6 +4,8 @@ import { fail, HttpError, json, type Env } from "./platform";
 import { uploadRoute } from "./uploads";
 import { submissionRoute } from "./submissions";
 import { feedbackRoute } from "./feedback";
+import { reviewRoute } from "./reviews";
+import { publicReleaseRoute } from "./releases";
 
 export async function handle(request: Request, env: Env): Promise<Response> {
   const origin = request.headers.get("Origin");
@@ -20,18 +22,23 @@ export async function handle(request: Request, env: Env): Promise<Response> {
       if (auth) response = auth;
       else if (path === "/health" && request.method === "GET") response = json({ ok: true });
       else {
-        const session = await requireSession(request, env);
-        response =
-          (await uploadRoute(request, env, session.publisher_id, path)) ??
-          (await feedbackRoute(request, env, session.publisher_id, path)) ??
-          (await submissionRoute(
-            request,
-            env,
-            session.publisher_id,
-            () => githubToken(env, session),
-            path
-          )) ??
-          fail(404, "NOT_FOUND", "接口不存在");
+        const publicRelease = await publicReleaseRoute(request, env, path);
+        if (publicRelease) response = publicRelease;
+        else {
+          const session = await requireSession(request, env);
+          response =
+            (await uploadRoute(request, env, session.publisher_id, path)) ??
+            (await feedbackRoute(request, env, session.publisher_id, path)) ??
+            (await reviewRoute(request, env, session.publisher_id, path)) ??
+            (await submissionRoute(
+              request,
+              env,
+              session.publisher_id,
+              () => githubToken(env, session),
+              path
+            )) ??
+            fail(404, "NOT_FOUND", "接口不存在");
+        }
       }
     }
   } catch (error) {

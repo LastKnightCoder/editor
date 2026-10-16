@@ -203,5 +203,10 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
       ),
     sendFeedback: (submissionId, message, clientRequestId) =>
       write("POST", `/v1/submissions/${id(submissionId)}/feedback`, { message, clientRequestId }),
+    getReviews: submissionId => read(`/v1/submissions/${id(submissionId)}/reviews`),
+    reviewSubmission: (submissionId, input) =>
+      write("POST", `/v1/submissions/${id(submissionId)}/review`, input),
+    retryPublish: submissionId => write("POST", `/v1/submissions/${id(submissionId)}/publish`),
+    packageDownloadUrl: submissionId => `${baseUrl}/v1/submissions/${id(submissionId)}/package`,
   };
 }

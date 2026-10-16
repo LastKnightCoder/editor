@@ -7,6 +7,9 @@ export function testEnvironment() {
   sqlite.exec(
     readFileSync(new URL("../infra/migrations/0001_submissions.sql", import.meta.url), "utf8")
   );
+  sqlite.exec(
+    readFileSync(new URL("../infra/migrations/0003_review_release.sql", import.meta.url), "utf8")
+  );
   class Statement {
     constructor(
       readonly sql: string,
@@ -23,11 +26,15 @@ export function testEnvironment() {
       return { results: sqlite.prepare(this.sql).all(...(this.args as never[])), success: true };
     }
     async run() {
+      return this.execute();
+    }
+    execute() {
       const result = sqlite.prepare(this.sql).run(...(this.args as never[]));
       return { success: true, meta: { changes: Number(result.changes) } };
     }
   }
   const objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
+  const published = new Map<string, { bytes: Uint8Array; contentType: string }>();
   const env = {
     DB: {
       prepare: (sql: string) => new Statement(sql),
@@ -35,7 +42,7 @@ export function testEnvironment() {
         sqlite.exec("BEGIN");
         try {
           const results = [];
-          for (const statement of statements) results.push(await statement.run());
+          for (const statement of statements) results.push(statement.execute());
           sqlite.exec("COMMIT");
           return results;
         } catch (error) {
@@ -70,10 +77,31 @@ export function testEnvironment() {
       },
     },
     WEB_ORIGIN: "http://localhost:5173",
+    RELEASES: {
+      put: async (
+        key: string,
+        bytes: Uint8Array,
+        options: { httpMetadata: { contentType: string } }
+      ) => {
+        published.set(key, { bytes, contentType: options.httpMetadata.contentType });
+      },
+      get: async (key: string) => {
+        const value = published.get(key);
+        return value
+          ? {
+              arrayBuffer: async () =>
+                value.bytes.buffer.slice(
+                  value.bytes.byteOffset,
+                  value.bytes.byteOffset + value.bytes.byteLength
+                ),
+            }
+          : null;
+      },
+    },
     API_ORIGIN: "http://localhost:8787",
     GITHUB_CLIENT_ID: "test-client",
     GITHUB_CLIENT_SECRET: "test-only-secret",
     TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
   } as unknown as Env;
-  return { env, sqlite, objects };
+  return { env, sqlite, objects, published };
 }
