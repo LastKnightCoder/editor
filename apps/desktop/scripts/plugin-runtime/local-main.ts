@@ -83,6 +83,12 @@ app
     await wait("!document.querySelector('button[disabled]')");
     assert.equal(opens, 1);
     if (phase.startsWith("water")) {
+      const sidebarButton = `document.querySelector('nav button[aria-label="喝水打卡"]')`;
+      const openWaterSidebar = async () => {
+        await wait(`Boolean(${sidebarButton})`);
+        await run(`${sidebarButton}.click()`);
+        await wait(`${sidebarButton}?.getAttribute('aria-current') === 'page'`);
+      };
       const state =
         "localTest.snapshot().plugins.find(p=>p.id==='lastknight.water-checkin')?.state";
       const hasCommand =
@@ -91,7 +97,11 @@ app
       if (phase === "water") await click("启用 喝水打卡");
       if (phase !== "water-disabled") {
         await wait(hasCommand);
-        await run("localTest.openWater()");
+        await openWaterSidebar();
+        assert.equal(
+          await run(`Boolean(document.querySelector('nav button[title="收起「习惯」"]'))`),
+          true
+        );
         await wait(`document.body.innerText.includes('已喝水：${phase === "water" ? 0 : 2} 杯')`);
         assert.equal(await run("localTest.snapshot().styles"), 1);
         if (phase === "water") {
@@ -103,10 +113,16 @@ app
           await click("停用 喝水打卡");
           await wait(`!${hasCommand}`);
           assert.equal(await run("localTest.snapshot().styles"), 0);
+          assert.equal(await run(`Boolean(${sidebarButton})`), false);
+          assert.equal(
+            await run(`Boolean(document.querySelector('nav button[title="收起「习惯」"]'))`),
+            false
+          );
           await click("启用 喝水打卡");
           await wait(hasCommand);
           await run("localTest.openWater()");
           await wait("document.body.innerText.includes('已喝水：2 杯')");
+          await wait(`${sidebarButton}?.getAttribute('aria-current') === 'page'`);
         } else {
           await click("清零");
           await wait("document.body.innerText.includes('已喝水：0 杯')");
@@ -117,7 +133,7 @@ app
           await wait(
             `localTest.snapshot().ready && localTest.snapshot().workspaceId !== ${JSON.stringify(originalWorkspace)} && ${hasCommand}`
           );
-          await run("localTest.openWater()");
+          await openWaterSidebar();
           await wait("document.body.innerText.includes('已喝水：0 杯')");
           await click("喝了一杯");
           await wait("document.body.innerText.includes('已喝水：1 杯')");
@@ -127,7 +143,7 @@ app
           await wait(
             `localTest.snapshot().ready && localTest.snapshot().workspaceId === ${JSON.stringify(originalWorkspace)} && ${hasCommand}`
           );
-          await run("localTest.openWater()");
+          await openWaterSidebar();
           await wait("document.body.innerText.includes('已喝水：1 杯')");
           await run("localTest.list()");
           await click("停用 喝水打卡");
@@ -136,6 +152,7 @@ app
       } else {
         assert.equal(await run(hasCommand), false);
         assert.equal(await run("localTest.snapshot().styles"), 0);
+        assert.equal(await run(`Boolean(${sidebarButton})`), false);
       }
     } else if (phase === "author" || phase === "author-restore") {
       const state = await run(

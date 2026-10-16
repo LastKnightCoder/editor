@@ -8,6 +8,9 @@ import type {
   PluginEditorContribution,
   PluginSettingsDefinition,
   PluginSettingsHandle,
+  PluginSidebarGroupDefinition,
+  PluginSidebarGroupHandle,
+  PluginSidebarItemDefinition,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import {
@@ -35,6 +38,18 @@ export interface EditorAdapter {
 
 export interface SettingsAdapter {
   register(context: PluginContext, definition: PluginSettingsDefinition): PluginSettingsHandle;
+}
+
+export interface SidebarAdapter {
+  registerGroup(
+    context: PluginContext,
+    definition: PluginSidebarGroupDefinition
+  ): PluginSidebarGroupHandle;
+  registerItem(
+    context: PluginContext,
+    definition: PluginSidebarItemDefinition,
+    pageId: string
+  ): Disposable;
 }
 
 export type PluginState =
@@ -93,6 +108,7 @@ export class PluginHost {
       pages?: PagesAdapter;
       editor?: EditorAdapter;
       settings?: SettingsAdapter;
+      sidebar?: SidebarAdapter;
       fetch?: typeof globalThis.fetch;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
       restartRequired?: Set<string>;
@@ -243,6 +259,7 @@ export class PluginHost {
   }
 
   private context(entry: Entry, activation: Activation): PluginContext {
+    const pages = new WeakMap<PluginPageHandle, { id: string; active: () => boolean }>();
     const scope: StorageScope = Object.freeze({
       pluginId: entry.definition.id,
       workspaceId: this.options.workspaceId,
@@ -378,6 +395,37 @@ export class PluginHost {
           await this.options.storage.delete(scope, key);
         },
       }),
+      sidebar: Object.freeze({
+        registerGroup: (definition: PluginSidebarGroupDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (!definition.title.trim()) throw new Error("侧边栏分组标题不能为空");
+          if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
+          const handle = this.options.sidebar.registerGroup(
+            context,
+            Object.freeze({ ...definition })
+          );
+          return Object.freeze({ id: handle.id, dispose: register(handle).dispose });
+        },
+        registerItem: (definition: PluginSidebarItemDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (!definition.title.trim()) throw new Error("侧边栏条目标题不能为空");
+          const page = pages.get(definition.page);
+          if (!page?.active()) throw new Error("侧边栏条目必须关联本次启用注册的有效页面");
+          if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
+          return register(
+            this.options.sidebar.registerItem(
+              context,
+              Object.freeze({
+                ...definition,
+                params: Object.freeze(normalizePageParams(definition.params ?? {})),
+              }),
+              page.id
+            )
+          );
+        },
+      }),
       pages: Object.freeze({
         register: (definition: PluginPageDefinition) => {
           this.assertActive(entry, activation);
@@ -399,7 +447,7 @@ export class PluginHost {
               return handle.dispose();
             },
           });
-          return Object.freeze({
+          const exposed: PluginPageHandle = Object.freeze({
             id: handle.id,
             open: async (params = {}) => {
               this.assertActive(entry, activation);
@@ -408,6 +456,8 @@ export class PluginHost {
             },
             dispose: resource.dispose,
           });
+          pages.set(exposed, { id: definition.id, active: () => !disposed });
+          return exposed;
         },
       }),
     };

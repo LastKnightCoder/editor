@@ -6,6 +6,9 @@ import type {
   PluginEditorContribution,
   PluginSettingsDefinition,
   PluginSettingsHandle,
+  PluginSidebarGroupDefinition,
+  PluginSidebarItemDefinition,
+  PluginPageParams,
 } from "@tau/plugins";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
@@ -19,6 +22,28 @@ import type { DevelopmentSession } from "@/types/plugin-development";
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
 let nextMountId = 0;
+
+function pageInstanceId(definition: PluginPageDefinition, params: PluginPageParams): string {
+  const id =
+    definition.match === "params"
+      ? (definition.getId?.(params) ?? JSON.stringify(params))
+      : "single";
+  if (typeof id !== "string") throw new Error("页面实例身份必须是字符串");
+  return id;
+}
+
+export interface PluginSidebarSnapshot {
+  groups: { id: string; title: string }[];
+  items: {
+    id: string;
+    title: string;
+    group?: string;
+    pluginId: string;
+    pageId: string;
+    instanceId: string;
+    open: () => Promise<void>;
+  }[];
+}
 
 export interface RegisteredPluginPage {
   definition: PluginPageDefinition;
@@ -41,6 +66,20 @@ export class DesktopPluginRuntime {
   local?: LocalPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
   private readonly settings = new Map<string, RegisteredPluginSettings>();
+  private readonly sidebarGroups = new Map<
+    string,
+    { definition: PluginSidebarGroupDefinition; context: PluginContext }
+  >();
+  private readonly sidebarItems = new Map<
+    string,
+    {
+      definition: PluginSidebarItemDefinition;
+      pageId: string;
+      page: RegisteredPluginPage;
+      context: PluginContext;
+      instanceId: string;
+    }
+  >();
   private readonly editorContributions = new Map<
     string,
     { context: PluginContext; contribution: PluginEditorContribution }
@@ -69,6 +108,11 @@ export class DesktopPluginRuntime {
       fetch: options.fetch,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
+      sidebar: {
+        registerGroup: (context, definition) => this.registerSidebarGroup(context, definition),
+        registerItem: (context, definition, pageId) =>
+          this.registerSidebarItem(context, definition, pageId),
+      },
       settings: options.openSettings
         ? { register: (context, definition) => this.registerSettings(context, definition) }
         : undefined,
@@ -144,6 +188,78 @@ export class DesktopPluginRuntime {
     return [...this.settings.values()].filter(
       ({ context }) => !context.signal.aborted && this.host.getState(context.pluginId) === "active"
     );
+  }
+
+  listSidebar(): PluginSidebarSnapshot {
+    if (this.disposed) return { groups: [], items: [] };
+    const active = (context: PluginContext) =>
+      !context.signal.aborted && this.host.getState(context.pluginId) === "active";
+    return {
+      groups: [...this.sidebarGroups]
+        .filter(([, entry]) => active(entry.context))
+        .map(([id, entry]) => ({ id, title: entry.definition.title })),
+      items: [...this.sidebarItems]
+        .filter(
+          ([, entry]) =>
+            active(entry.context) &&
+            this.getPage(entry.context.pluginId, entry.pageId) === entry.page
+        )
+        .map(([id, entry]) => ({
+          id,
+          title: entry.definition.title,
+          group: entry.definition.group,
+          pluginId: entry.context.pluginId,
+          pageId: entry.pageId,
+          instanceId: entry.instanceId,
+          open: () => entry.definition.page.open(entry.definition.params),
+        })),
+    };
+  }
+
+  private registerSidebarGroup(context: PluginContext, definition: PluginSidebarGroupDefinition) {
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.sidebarGroups.has(id)) throw new Error(`侧边栏分组已注册：${definition.id}`);
+    const entry = { context, definition };
+    this.sidebarGroups.set(id, entry);
+    this.publish();
+    return {
+      id,
+      dispose: () => {
+        if (this.sidebarGroups.get(id) === entry) this.sidebarGroups.delete(id);
+        this.publish();
+      },
+    };
+  }
+
+  private registerSidebarItem(
+    context: PluginContext,
+    definition: PluginSidebarItemDefinition,
+    pageId: string
+  ) {
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.sidebarItems.has(id)) throw new Error(`侧边栏条目已注册：${definition.id}`);
+    if (
+      definition.group?.startsWith("plugin:") &&
+      !definition.group.startsWith(`plugin:${context.pluginId}:`)
+    )
+      throw new Error("不能向其他插件的分组注册条目");
+    const page = this.pages.get(JSON.stringify([context.pluginId, pageId]));
+    if (!page || page.context !== context) throw new Error("侧边栏页面不可用");
+    const entry = {
+      context,
+      definition,
+      pageId,
+      page,
+      instanceId: pageInstanceId(page.definition, definition.params ?? {}),
+    };
+    this.sidebarItems.set(id, entry);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.sidebarItems.get(id) === entry) this.sidebarItems.delete(id);
+        this.publish();
+      },
+    };
   }
 
   private registerSettings(
@@ -226,6 +342,8 @@ export class DesktopPluginRuntime {
     } finally {
       this.pages.clear();
       this.settings.clear();
+      this.sidebarGroups.clear();
+      this.sidebarItems.clear();
       this.editorContributions.clear();
       this.unsubscribe();
       this.publish();
@@ -247,11 +365,7 @@ export class DesktopPluginRuntime {
         if (this.getPage(context.pluginId, definition.id) !== page)
           throw new Error("插件页面不可用");
         const clean = normalizePageParams(params);
-        const instanceId =
-          definition.match === "params"
-            ? (definition.getId?.(clean) ?? JSON.stringify(clean))
-            : "single";
-        if (typeof instanceId !== "string") throw new Error("页面实例身份必须是字符串");
+        const instanceId = pageInstanceId(definition, clean);
         this.options.navigator.push(PLUGIN_PAGE_KEY, {
           pluginId: context.pluginId,
           pageId: definition.id,
