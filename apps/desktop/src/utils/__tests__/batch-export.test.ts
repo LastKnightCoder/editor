@@ -23,6 +23,11 @@ vi.mock("@/utils/markdown", () => ({
   getMarkdown: vi.fn(() => "正文"),
 }));
 
+vi.mock("@/utils/content-transfer/assets", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/utils/content-transfer/assets")>()),
+  inlineLocalImages: vi.fn(async (content: unknown) => ({ content, warnings: [] })),
+}));
+
 vi.mock("@/utils/epub-export/assets", () => ({
   processEpubAssets: vi.fn(async ({ chapters }: { chapters: unknown[] }) => ({
     chapters,
@@ -73,7 +78,7 @@ describe("batch export markdown zip", () => {
       }),
     ];
 
-    const zipBytes = await buildMarkdownZipBytes(tree, new Set([2]));
+    const { bytes: zipBytes } = await buildMarkdownZipBytes(tree, new Set([2]));
     configureZip({ useWebWorkers: false });
     const zipReader = new ZipReader(new Uint8ArrayReader(zipBytes));
     const entries = await zipReader.getEntries();
@@ -479,7 +484,7 @@ describe("空白文档与未选中祖先", () => {
   });
 
   it("ZIP 保留未选中祖先的目录，空白文档有后代时只建文件夹、无后代时导出空文件", async () => {
-    const zipBytes = await buildMarkdownZipBytes(tree, new Set([1, 2, 4, 5]));
+    const { bytes: zipBytes } = await buildMarkdownZipBytes(tree, new Set([1, 2, 4, 5]));
     expect((await readZipNames(zipBytes)).sort()).toEqual(
       ["有正文的父文档/正文B.md", "空白章节/正文A.md", "空白草稿.md"].sort()
     );

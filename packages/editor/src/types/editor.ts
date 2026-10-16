@@ -28,6 +28,8 @@ export interface EditorRef {
   deselect: () => void;
   /** Get the underlying Slate editor instance */
   getEditor: () => SlateEditor;
+  /** 获取可编辑区根节点（[data-slate-editor]），未挂载时返回 null；宿主测量尺寸用，不要依赖内部 DOM 层级 */
+  getEditableElement: () => HTMLElement | null;
   /** Check if the editor is currently focused */
   isFocus: () => boolean;
 }

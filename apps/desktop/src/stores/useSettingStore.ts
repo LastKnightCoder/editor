@@ -408,7 +408,8 @@ interface IState {
 }
 
 interface IActions {
-  initSetting: (clientId: string) => void;
+  initSetting: () => Promise<void>;
+  subscribeSettingNotifications: (clientId: string) => () => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
@@ -758,7 +759,7 @@ let registeredSettingNotificationHandler: ((payload: unknown) => void) | null = 
 
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
-  initSetting: async (clientId: string) => {
+  subscribeSettingNotifications: (clientId: string) => {
     const client = useBackendWebsocketStore.getState().client;
     if (!client) {
       throw new Error("Client not initialized");
@@ -801,9 +802,19 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     client.registerNotificationHandler("user-setting-changed", handleSettingChanged);
     registeredSettingNotificationClient = client;
     registeredSettingNotificationHandler = handleSettingChanged;
-
-    const setting = (await client.sendRequest("get-user-setting", null)) as ISetting;
+    return () => {
+      client.unregisterNotificationHandler("user-setting-changed", handleSettingChanged);
+      if (registeredSettingNotificationHandler === handleSettingChanged) {
+        registeredSettingNotificationClient = null;
+        registeredSettingNotificationHandler = null;
+      }
+    };
+  },
+  initSetting: async () => {
+    const client = useBackendWebsocketStore.getState().client;
+    if (!client) throw new Error("Client not initialized");
     try {
+      const setting = (await client.sendRequest("get-user-setting", null)) as ISetting;
       const newSetting = mergeSettingWithDefaults(setting);
       console.info("[SettingSync] 初始化设置完成");
       set({

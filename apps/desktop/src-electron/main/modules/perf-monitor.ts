@@ -4,6 +4,7 @@ import path from "node:path";
 import fs from "node:fs";
 import log from "electron-log";
 import PathUtil from "../utils/PathUtil";
+import { startupCpuProfile } from "../startup-cpu-profile";
 import {
   flushIpcRate,
   ipcRateSamples,
@@ -264,6 +265,7 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
       eventLoopResolutionMs: EVENT_LOOP_RESOLUTION_MS,
     },
     main: {
+      startupCpuProfile,
       eventLoop: eventLoopSamples,
       memory: memorySamples,
       processMetrics: processMetricsSamples,
@@ -290,10 +292,16 @@ const init = async (): Promise<void> => {
   lastCpu = process.cpuUsage();
   lastWallMs = performance.now();
 
-  // 事件循环与内存分开看：前者是阻塞毛刺、后者是资源趋势，采样节奏不同但共用一个定时器足够
-  setInterval(() => {
+  // 前 15 秒逐秒采样，避免启动毛刺被整个区间平均掩盖。
+  const sample = () => {
     sampleEventLoop();
     sampleMemory();
+  };
+  const startupInterval = setInterval(sample, 1000);
+  setTimeout(() => {
+    clearInterval(startupInterval);
+    sample();
+    setInterval(sample, 15_000);
   }, 15_000);
   setInterval(sampleProcessMetrics, 30_000);
   setInterval(flushIpcRate, 60_000);

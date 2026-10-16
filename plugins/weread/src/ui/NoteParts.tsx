@@ -221,7 +221,7 @@ function NoteItem({
           <IconButton
             title="转为卡片"
             onClick={() => onToCard(note)}
-            className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+            className="bg-surface enabled:hover:bg-surface-hover shadow-lift size-[26px] rounded-[8px]"
           >
             <Layers className="size-[13px]" strokeWidth={1.75} />
           </IconButton>
@@ -230,7 +230,7 @@ function NoteItem({
           <IconButton
             title="转为问题"
             onClick={() => onToQuestion(note)}
-            className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+            className="bg-surface enabled:hover:bg-surface-hover shadow-lift size-[26px] rounded-[8px]"
           >
             <CircleHelp className="size-[13px]" strokeWidth={1.75} />
           </IconButton>
@@ -238,7 +238,7 @@ function NoteItem({
         <IconButton
           title="复制"
           onClick={() => void copy(text)}
-          className="bg-surface shadow-lift size-[26px] rounded-[8px]"
+          className="bg-surface enabled:hover:bg-surface-hover shadow-lift size-[26px] rounded-[8px]"
         >
           <Copy className="size-[13px]" strokeWidth={1.75} />
         </IconButton>

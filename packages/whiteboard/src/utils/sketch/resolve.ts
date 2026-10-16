@@ -4,6 +4,7 @@ import { hashSeed } from "./random";
 /** 跟随手绘的元素类型；手写本来就是墨迹，不在其列 */
 const SKETCHABLE_TYPES = new Set([
   "geometry",
+  "stickman",
   "arrow",
   "frame",
   "column",

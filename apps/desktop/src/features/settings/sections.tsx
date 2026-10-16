@@ -19,6 +19,7 @@ import {
   AudioLines,
   Plug,
   Archive,
+  ArrowLeftRight,
   Info,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import { ResourceSection } from "./sections/ResourceSection";
 import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
 import { CacheSection } from "./sections/CacheSection";
+import { TransferSection } from "./sections/TransferSection";
 import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
@@ -40,6 +42,7 @@ export type SettingsSectionKey =
   | "sync"
   | "imageBed"
   | "cache"
+  | "transfer"
   | "integration"
   | "llm"
   | "embedding"
@@ -97,6 +100,13 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         description: "网页剪藏行为、远程媒体的自动缓存与空间占用",
         icon: Archive,
         component: CacheSection,
+      },
+      {
+        key: "transfer",
+        label: "导入与导出",
+        description: "从其它笔记工具迁入，或把内容连同图片打包带走",
+        icon: ArrowLeftRight,
+        component: TransferSection,
       },
     ],
   },

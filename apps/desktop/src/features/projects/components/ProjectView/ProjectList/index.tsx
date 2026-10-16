@@ -35,7 +35,6 @@ import { renderMenuEntries } from "../shared/menuEntries";
 import { ModalKey } from "../shared/constants/modalKeys";
 import {
   getFileBaseName,
-  readTextFile,
   selectFile,
   getProjectById,
   getWhiteBoardById,
@@ -52,7 +51,7 @@ import {
   useProjectRefCards,
   useProjectRefWhiteBoards,
 } from "@/features/projects/queries";
-import { getContentLength, importFromMarkdown } from "@/utils";
+import { getContentLength } from "@/utils";
 import { collectAncestorItemIds, isSameNumberSet } from "@/utils/projectTree";
 import { importLocalPdf } from "../shared/utils/bookImport";
 import useSettingStore from "@/stores/useSettingStore";
@@ -70,6 +69,7 @@ import { usePage } from "@/page/PageProvider";
 import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
 import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpandedStore";
 import { toast, Tooltip, Menu } from "@tau/ui";
+import { importMarkdownFiles } from "@/services/content-transfer";
 
 const Project = () => {
   const uploadResource = useUploadResource();
@@ -132,6 +132,10 @@ const Project = () => {
   });
 
   const { treeData, loading: treeLoading, reload: reloadProjectTree } = useProjectTreeData(project);
+
+  // 顶层 path 缓存：本组件因侧栏拖宽、菜单开合等重渲染时，内联数组会击穿
+  // ProjectItem 的 memo，导致整棵树级联重渲染
+  const rootPaths = useMemo(() => (project?.children ?? []).map((_, index) => [index]), [project]);
 
   // 定位脉冲：激活文档及其祖先一次性写入展开（覆盖此前的折叠意图）。
   // 引用稳定化使"集合变化"严格等价于"定位目标或祖先链变化"——
@@ -569,26 +573,10 @@ const Project = () => {
       setAddingParentProjectItemId(parentProjectItemId);
       openSelectWhiteBoardModal();
     } else if (key === "import-markdown") {
-      const filePath = await selectFile({
-        properties: ["openFile", "multiSelections"],
-        filters: [
-          {
-            name: "Markdown",
-            extensions: ["md"],
-          },
-        ],
-      }).catch(e => {
-        console.error(e);
-        return null;
-      });
-      if (!filePath) return;
-      for (const path of filePath) {
-        const markdown = await readTextFile(path);
-        const content = importFromMarkdown(markdown, ["yaml"]);
-        const fileName = await getFileBaseName(path, true);
+      await importMarkdownFiles(async ({ title, content }) => {
         const [newProject, item] = await addProjectItemToTarget(
           {
-            title: fileName,
+            title,
             content,
             children: [],
             refType: "",
@@ -602,7 +590,7 @@ const Project = () => {
         if (item) {
           navigator.push("project-detail", { id: newProject.id, itemId: item.id });
         }
-      }
+      });
     }
   });
 
@@ -692,7 +680,7 @@ const Project = () => {
               </Menu>
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="group/tree flex min-h-0 flex-1 flex-col gap-[2px] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {sidebarView === "mindmap" ? (
               treeLoading ? (
                 <div className="flex h-full items-center justify-center text-sm opacity-60">
@@ -729,11 +717,12 @@ const Project = () => {
                       projectItemId={projectItemId}
                       isRoot
                       key={projectItemId}
-                      path={[index]}
+                      path={rootPaths[index]}
                       parentProjectItemId={project.id}
                       parentChildren={project.children}
                       cards={cards}
                       whiteBoards={whiteBoards}
+                      activeAncestorIds={revealAncestorIds}
                       refreshProject={refresh}
                     />
                   )}

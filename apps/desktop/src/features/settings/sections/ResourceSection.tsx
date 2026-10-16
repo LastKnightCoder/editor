@@ -18,7 +18,7 @@ import { useSettingsStore } from "@/app/settingsStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 
-const PROVIDER_LABELS: Record<EImageBed, string> = {
+export const PROVIDER_LABELS: Record<EImageBed, string> = {
   [EImageBed.Local]: "本地",
   [EImageBed.Github]: "GitHub",
   [EImageBed.AliOSS]: "阿里云 OSS",

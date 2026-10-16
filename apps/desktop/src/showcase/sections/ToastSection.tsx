@@ -223,6 +223,12 @@ export default function ToastSection() {
             </tr>
             <tr>
               <td>
+                <code>opts.onClose</code>
+              </td>
+              <td>关闭回调（到时 / 点击 / 动作 / 被挤出 / Host 卸载）；动作 onClick 先于它</td>
+            </tr>
+            <tr>
+              <td>
                 <code>opts.position / duration · toast.config()</code>
               </td>
               <td>四位置；全局默认可调、单条可覆写</td>

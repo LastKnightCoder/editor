@@ -5,8 +5,8 @@
  * 可选动作；无关闭钮——整条点击关闭（Sonner 惯例），悬停冻结自动关闭，
  * 同一位置上限 4 条（挤掉最老）。
  * 位置四选一：top-center（默认）/ top-right / bottom-right / bottom-center，
- * 全局默认可经 toast.config 调整、单条可覆写；层级 z-[200]，高于命令面板
- * （z-[101]），搜索报错等反馈在面板打开时仍可见。不接 Esc（浮层退场注册表
+ * 全局默认可经 toast.config 调整、单条可覆写；层级 z-[360]，高于命令面板
+ * （z-[101]）与 Dialog / Drawer（z-[340]），面板或弹窗打开时操作反馈仍可见。不接 Esc（浮层退场注册表
  * 只登记阻断后退的浮层，见 D-003）。
  *
  * 用法：app 壳层挂载 <ToastHost /> 一次；任意处调用 toast.success("已保存")、
@@ -27,6 +27,8 @@ export interface ToastOptions {
   position?: ToastPosition;
   /** 落定后的停留毫秒数；0 = 落定后也常驻（只靠点击关闭）。载入中恒常驻，与本值无关 */
   duration?: number;
+  /** 关闭时回调（自动到时 / 点击整条 / 动作点击 / 同位置超限被挤出 / Host 卸载）；动作 onClick 先于它触发 */
+  onClose?: () => void;
 }
 
 /**
@@ -40,6 +42,7 @@ export interface ToastItem {
   action?: ToastOptions["action"];
   position: ToastPosition;
   duration: number;
+  onClose?: ToastOptions["onClose"];
 }
 
 const MAX_VISIBLE = 4;
@@ -88,6 +91,7 @@ export const toast = {
       // loading 的常驻由 ToastPill 按 type 判断，不走 duration——落定（resolve / reject）
       // 后要靠 duration 排自动关闭，这里再兜 0 会让 success/error 永久赖着不走
       duration: opts.duration ?? defaults.duration,
+      onClose: opts.onClose,
     });
     return id;
   },
@@ -201,7 +205,7 @@ export function ToastHost() {
           <div
             key={pos}
             className={clsx(
-              "pointer-events-none fixed z-[200] flex flex-col gap-[9px]",
+              "pointer-events-none fixed z-[360] flex flex-col gap-[9px]",
               POSITION_ZONE[pos]
             )}
           >
@@ -220,12 +224,32 @@ export function ToastPill({ item }: { item: ToastItem }) {
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const Icon = TYPE_ICON[item.type];
+  const closedRef = useRef(false);
+  const onCloseRef = useRef(item.onClose);
+  onCloseRef.current = item.onClose;
+
+  const notifyClosed = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+    onCloseRef.current?.();
+  };
 
   const close = () => {
     if (leaving) return;
     setLeaving(true);
+    notifyClosed();
     setTimeout(() => remove(item.id), 220);
   };
+
+  // 未走 close 的消失（同位置超限被挤出、Host 卸载）同样计为关闭
+  useEffect(
+    () => () => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      onCloseRef.current?.();
+    },
+    []
+  );
 
   // 入场（双 rAF 让初始 transform 先落帧）
   useEffect(() => {

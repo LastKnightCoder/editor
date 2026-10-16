@@ -4,6 +4,7 @@ import type { ResolvedSketch } from "../../types";
 import { transformPath } from "../../utils/common";
 import { sketchShape, type SketchOutline } from "../../utils/sketch";
 import SketchPaths from "../SketchPaths";
+import { sizedShapePaths } from "./sizedShapes";
 
 interface SketchGeometryProps {
   element: GeometryElement;
@@ -12,7 +13,7 @@ interface SketchGeometryProps {
   sketch: ResolvedSketch;
 }
 
-/** 手绘模式下的几何图形：矩形 / 圆走精确轮廓，其余图形拆平配置里的 path */
+/** 手绘模式下的几何图形：矩形 / 圆走精确轮廓，定尺形状按实际尺寸现算 path，其余拆平元素里的 path */
 const SketchGeometry = memo(({ element, width, height, sketch }: SketchGeometryProps) => {
   const { geometryType, paths, extraInfo, fill, fillOpacity, fillStyle } = element;
   const { stroke, strokeWidth = 1, strokeOpacity } = element;
@@ -20,12 +21,18 @@ const SketchGeometry = memo(({ element, width, height, sketch }: SketchGeometryP
   const pathsKey = paths.join("|");
 
   const sketchPaths = useMemo(() => {
+    const sizedPaths = sizedShapePaths[geometryType];
     const outline: SketchOutline =
       geometryType === "rectangle"
         ? { kind: "rect", cornerRadius }
         : geometryType === "circle"
           ? { kind: "ellipse" }
-          : { kind: "path", paths: pathsKey.split("|").map(p => transformPath(p, width, height)) };
+          : sizedPaths
+            ? { kind: "path", paths: sizedPaths(width, height) }
+            : {
+                kind: "path",
+                paths: pathsKey.split("|").map(p => transformPath(p, width, height)),
+              };
     return sketchShape({
       outline,
       width,

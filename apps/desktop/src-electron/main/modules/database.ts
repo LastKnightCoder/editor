@@ -58,6 +58,7 @@ import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
 import FlashcardTable from "./tables/flashcard";
+import RandomWalkTable from "./tables/random-walk";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
@@ -279,6 +280,7 @@ class DatabaseModule implements Module {
       ExcerptTable,
       MaterialTable,
       FlashcardTable,
+      RandomWalkTable,
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,

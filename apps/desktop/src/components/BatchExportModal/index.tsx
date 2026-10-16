@@ -9,6 +9,8 @@ import {
   showInFolder,
 } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
+import { saveMarkdownOutput } from "@/services/content-transfer";
+import { sanitizeFileName } from "@/utils/file-name";
 import type {
   BatchExportRule,
   BatchExportScope,
@@ -23,6 +25,7 @@ import {
   collectExportableIds,
   flattenSelectedChapters,
   loadScopeTree,
+  localizeChaptersForMerge,
   type BatchExportTreeNode,
 } from "@/utils/batch-export";
 import ExportCheckTree, { ExportTreeEmpty } from "./ExportCheckTree";
@@ -285,12 +288,15 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       }
 
       if (formats.markdown && !canceled) {
+        report(0, "正在打包资源...");
+        const merged = await localizeChaptersForMerge(chapters);
+        warnings.push(...merged.warnings);
         report(0, "正在生成 Markdown...");
-        const markdown = buildMergedMarkdown(chapters, rule);
-        const result = await saveFileWithDialog({
-          defaultFileName: `${title}.md`,
-          filters: [{ name: "Markdown", extensions: ["md"] }],
-          data: markdown,
+        // 有本机资源时与 assets/ 一起存为 .zip
+        const result = await saveMarkdownOutput({
+          baseName: sanitizeFileName(title, "未命名"),
+          markdown: buildMergedMarkdown(merged.chapters, rule),
+          assetFiles: merged.assetFiles,
         });
         finishedUnits += markdownUnits;
         if (result.canceled) {
@@ -301,16 +307,18 @@ const BatchExportModal = (props: BatchExportModalProps) => {
       }
 
       if (formats.markdownZip && !canceled) {
-        const zipBytes = await buildMarkdownZipBytes(
+        report(0, "正在打包资源...");
+        const zip = await buildMarkdownZipBytes(
           tree,
           new Set(checkedKeys),
           (processed, _total, label) => report(processed, label)
         );
+        warnings.push(...zip.warnings);
         report(zipUnits - 1, "正在保存 ZIP 文件...");
         const result = await saveFileWithDialog({
-          defaultFileName: `${title}.zip`,
+          defaultFileName: `${sanitizeFileName(title, "未命名")}.zip`,
           filters: [{ name: "ZIP", extensions: ["zip"] }],
-          data: zipBytes,
+          data: zip.bytes,
         });
         finishedUnits += zipUnits;
         if (result.canceled) {

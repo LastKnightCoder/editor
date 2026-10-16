@@ -3,6 +3,9 @@ import { buildPersistedSettingSnapshot, isRemoteAppliedSnapshot } from "@/stores
 import useSettingStore from "@/stores/useSettingStore";
 import { useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { isMainWindow } from "@/utils/window-role";
+import { connectSettingReplica } from "@/services/setting-replica";
+import type { ISetting } from "@/stores/useSettingStore";
 
 const useSyncSetting = () => {
   const clientIdRef = useRef<string>(uuidv4());
@@ -12,10 +15,21 @@ const useSyncSetting = () => {
   const client = useBackendWebsocketStore(state => state.client);
 
   useEffect(() => {
-    if (isServerReady) {
-      initSetting(clientIdRef.current);
-    }
-  }, [isServerReady, initSetting]);
+    if (!isServerReady || !client) return;
+    const main = isMainWindow();
+    const unsubscribe = useSettingStore
+      .getState()
+      .subscribeSettingNotifications(clientIdRef.current);
+    const disconnect = connectSettingReplica(
+      main,
+      () => client.sendRequest("get-user-setting", null) as Promise<ISetting>
+    );
+    if (main) void initSetting();
+    return () => {
+      unsubscribe();
+      disconnect();
+    };
+  }, [isServerReady, client, initSetting]);
 
   useEffect(() => {
     if (!client || !inited) return;

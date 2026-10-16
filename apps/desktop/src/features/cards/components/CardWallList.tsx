@@ -55,20 +55,21 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
     if (!el) return;
     let raf = 0;
     const measure = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const style = getComputedStyle(el);
-        const width =
-          el.clientWidth -
-          parseFloat(style.paddingLeft || "0") -
-          parseFloat(style.paddingRight || "0");
-        if (width === widthRef.current) return;
-        widthRef.current = width;
-        setCols(Math.max(1, Math.min(6, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)))));
-      });
+      const style = getComputedStyle(el);
+      const width =
+        el.clientWidth -
+        parseFloat(style.paddingLeft || "0") -
+        parseFloat(style.paddingRight || "0");
+      if (width === widthRef.current) return;
+      widthRef.current = width;
+      setCols(Math.max(1, Math.min(6, Math.floor((width + GAP) / (MIN_CARD_WIDTH + GAP)))));
     };
+    /* 初次同步对齐：layout effect 与其中的 setState 均先于首帧绘制，避免先画默认 3 列、下一帧才收缩 */
     measure();
-    const ro = new ResizeObserver(measure);
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    });
     ro.observe(el);
     return () => {
       cancelAnimationFrame(raf);

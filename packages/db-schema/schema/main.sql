@@ -192,6 +192,10 @@ CREATE TABLE IF NOT EXISTS operation (
             operation_content_type TEXT,
             operation_action TEXT
         );
+CREATE TABLE IF NOT EXISTS operation_daily_counts (
+            date TEXT PRIMARY KEY,
+            count INTEGER NOT NULL
+        );
 CREATE TABLE IF NOT EXISTS statistic (
         id INTEGER PRIMARY KEY,
         date TEXT NOT NULL,
@@ -792,6 +796,25 @@ CREATE TABLE IF NOT EXISTS vl_quiz_record (
         create_time INTEGER NOT NULL,
         FOREIGN KEY(quiz_set_id) REFERENCES vl_quiz_set(id)
       );
+-- 漫步重温记录：按实体地址（kind + entity_id）记录上次被漫步到的时间与屏蔽状态
+CREATE TABLE IF NOT EXISTS walk_visits (
+        kind TEXT NOT NULL,
+        entity_id INTEGER NOT NULL,
+        last_seen_time INTEGER NOT NULL,
+        seen_count INTEGER NOT NULL DEFAULT 0,
+        muted INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        PRIMARY KEY (kind, entity_id)
+      );
+-- 今日漫步牌堆：按本地日期缓存当天抽出的 5 张（items 为 WalkItem JSON），保证当天重进不换牌；cursor 为已翻过的张数
+CREATE TABLE IF NOT EXISTS walk_daily_decks (
+        date TEXT PRIMARY KEY NOT NULL,
+        items TEXT NOT NULL,
+        cursor INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 
 -- 助理操作回执与撤销材料；请求身份在当前库内唯一。
 CREATE TABLE IF NOT EXISTS task_assistant_operation (
@@ -988,3 +1011,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_content_links_pair ON content_links(conten
 CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_content_id);
 -- 创作模式素材板：一页画布只属于一份正文
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compose_boards_page ON compose_boards(page_id);
+-- 首页热力图按年聚合操作流水（get-operation-daily-counts）；带 operation_id 形成覆盖索引，聚合免回表
+CREATE INDEX IF NOT EXISTS idx_operation_time ON operation(operation_time, operation_id);

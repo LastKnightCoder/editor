@@ -516,6 +516,13 @@ const Index = memo(
           ReactEditor.deselect(editor);
         },
         getEditor: () => editor,
+        getEditableElement: () => {
+          try {
+            return ReactEditor.toDOMNode(editor, editor);
+          } catch {
+            return null;
+          }
+        },
         isFocus: () => {
           return ReactEditor.isFocused(editor);
         },

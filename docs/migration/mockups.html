@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>批量导入 / 导出 · 入口与交互 mockups</title>
+<style>
+  :root {
+    --page: #f3eee2; --surface: #fffdf9; --hover: #f6f3ef;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --line-2: rgba(233,225,210,.55);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22,58%,42%,.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6;
+    --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99; --info-soft: #e2ebf3;
+    --selected: rgba(217,119,87,.12);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e3d6; color: var(--ink-1);
+    font: 13px/1.55 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 17px; margin: 56px 0 4px; }
+  .lead { color: var(--ink-2); margin: 0 0 18px; max-width: 820px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent-text); margin-left: 6px; vertical-align: 2px; }
+  .tag.ok { background: var(--ok-soft); color: var(--ok); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.danger { background: var(--danger-soft); color: var(--danger); }
+  .tag.info { background: var(--info-soft); color: var(--info); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .note { background: var(--surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 16px; }
+  .note h3 { margin: 0 0 6px; font-size: 14px; }
+  .note ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); }
+  .note li { margin: 2px 0; }
+  .pro { color: var(--ok); } .con { color: var(--danger); }
+
+  /* 应用外壳 */
+  .app { background: var(--page); border-radius: 12px; border: 1px solid var(--line-1);
+    box-shadow: 0 10px 40px rgba(67,57,44,.12); overflow: hidden; position: relative; }
+  .titlebar { height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    border-bottom: 1px solid var(--line-1); color: var(--ink-3); }
+  .dots span { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #dcd3c2; margin-right: 5px; }
+  .search-pill { margin: 0 auto; width: 300px; height: 24px; border-radius: 6px; background: var(--surface);
+    border: 1px solid var(--line-1); display: flex; align-items: center; padding: 0 10px; font-size: 12px; }
+  .search-pill kbd { margin-left: auto; }
+  .body { display: flex; min-height: 420px; }
+  .sidebar { width: 170px; padding: 12px 8px; border-right: 1px solid var(--line-1); color: var(--ink-2); flex-shrink: 0; }
+  .sidebar .sec { font-size: 11px; color: var(--ink-3); margin: 10px 8px 4px; }
+  .sidebar .it { padding: 4px 8px; border-radius: 6px; }
+  .sidebar .it.on { background: var(--selected); color: var(--ink-1); }
+  .content { flex: 1; padding: 18px 22px; position: relative; }
+  .paper { background: var(--surface); border-radius: 12px; border: 1px solid var(--line-1); padding: 16px; min-height: 360px; }
+  .toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .toolbar .title { font-weight: 600; font-size: 15px; margin-right: auto; }
+  .btn { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 11px; border-radius: 7px;
+    border: 1px solid var(--line-1); background: var(--surface); color: var(--ink-1); font-size: 12.5px; white-space: nowrap; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff8ef; }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
+  .btn.sm { height: 24px; padding: 0 8px; font-size: 12px; }
+  kbd { font: 11px ui-monospace, monospace; color: var(--ink-3); border: 1px solid var(--line-1);
+    border-radius: 4px; padding: 0 4px; background: var(--surface); }
+  .muted { color: var(--ink-3); } .ink2 { color: var(--ink-2); }
+  .cards-mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .cards-mini div { height: 70px; border-radius: 9px; border: 1px solid var(--line-1); background: var(--surface); }
+
+  /* 浮层 */
+  .scrim { position: absolute; inset: 0; background: rgba(67,57,44,.22); display: flex; align-items: flex-start; justify-content: center; padding-top: 46px; }
+  .dialog { background: var(--surface); border-radius: 14px; border: 1px solid var(--line-1);
+    box-shadow: 0 20px 60px rgba(67,57,44,.22); width: 720px; overflow: hidden; }
+  .dialog header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-2); }
+  .dialog header b { font-size: 14.5px; }
+  .dialog footer { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line-2); }
+  .dialog footer .grow { margin-right: auto; }
+  .steps { display: flex; gap: 6px; margin-left: auto; font-size: 12px; color: var(--ink-3); }
+  .steps span { padding: 1px 8px; border-radius: 999px; }
+  .steps .on { background: var(--accent-soft); color: var(--accent-text); }
+  .steps .done { color: var(--ok); }
+  .dbody { padding: 16px 18px; }
+  .field { margin-bottom: 14px; }
+  .field > label { display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; font-weight: 500; }
+  .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .choice { border: 1px solid var(--line-1); border-radius: 10px; padding: 10px 12px; }
+  .choice b { display: block; font-size: 13px; }
+  .choice small { color: var(--ink-3); font-size: 11.5px; }
+  .choice.on { border-color: var(--accent); background: var(--selected); }
+  .pathbox { display: flex; align-items: center; gap: 8px; border: 1px dashed var(--line-1); border-radius: 10px; padding: 10px 12px; }
+  .pathbox code { font-size: 12px; color: var(--ink-1); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line-1); font-size: 12px; color: var(--ink-2); }
+  .chip.on { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+  .row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .row .grow { flex: 1; }
+  .switch { width: 28px; height: 16px; border-radius: 999px; background: var(--accent); position: relative; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; }
+  .switch.off { background: #dcd3c2; } .switch.off::after { right: auto; left: 2px; }
+  .radio { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--ink-3); flex-shrink: 0; }
+  .radio.on { border: 4px solid var(--accent); }
+  .check { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--ink-3); flex-shrink: 0; }
+  .check.on { background: var(--accent); border-color: var(--accent); }
+  .check.part { background: linear-gradient(var(--accent),var(--accent)) center/8px 2px no-repeat; border-color: var(--accent); }
+
+  /* 预览两栏 */
+  .split { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+  .tree { border: 1px solid var(--line-1); border-radius: 10px; padding: 8px 6px; height: 300px; overflow: hidden; font-size: 12.5px; }
+  .tree .n { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; }
+  .tree .n.sel { background: var(--hover); }
+  .tree .n .st { margin-left: auto; font-size: 11px; }
+  .stat { border: 1px solid var(--line-1); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .stat .k { font-size: 11.5px; color: var(--ink-3); }
+  .stat .v { font-size: 18px; font-weight: 600; }
+  .stat .v small { font-size: 12px; font-weight: 400; color: var(--ink-2); margin-left: 4px; }
+  .issue { display: flex; gap: 6px; font-size: 12px; color: var(--ink-2); padding: 3px 0; }
+  .issue i { font-style: normal; }
+  .bar { height: 6px; border-radius: 999px; background: var(--line-1); overflow: hidden; }
+  .bar div { height: 100%; background: var(--accent); }
+
+  /* 命令面板 */
+  .palette { width: 560px; background: var(--surface); border-radius: 12px; border: 1px solid var(--line-1);
+    box-shadow: 0 20px 60px rgba(67,57,44,.22); overflow: hidden; }
+  .palette .input { padding: 12px 14px; border-bottom: 1px solid var(--line-2); font-size: 14px; display: flex; gap: 8px; }
+  .palette .grp { font-size: 11px; color: var(--ink-3); padding: 8px 14px 2px; }
+  .palette .opt { display: flex; align-items: center; gap: 10px; padding: 7px 14px; }
+  .palette .opt.on { background: var(--selected); }
+  .palette .opt .sub { color: var(--ink-3); font-size: 12px; margin-left: auto; }
+  .ico { width: 18px; text-align: center; color: var(--ink-2); }
+
+  /* 设置 */
+  .settings { display: flex; width: 760px; height: 470px; }
+  .settings nav { width: 180px; border-right: 1px solid var(--line-2); padding: 14px 8px; color: var(--ink-2); }
+  .settings nav .sec { font-size: 11px; color: var(--ink-3); margin: 10px 8px 4px; }
+  .settings nav .it { padding: 5px 8px; border-radius: 6px; }
+  .settings nav .it.on { background: var(--selected); color: var(--ink-1); }
+  .settings .pane { flex: 1; padding: 18px 22px; overflow: hidden; }
+  .group { border: 1px solid var(--line-1); border-radius: 10px; margin: 8px 0 16px; }
+  .group .r { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line-2); }
+  .group .r:first-child { border-top: 0; }
+  .group .r .t { flex: 1; } .group .r .t small { display: block; color: var(--ink-3); font-size: 11.5px; }
+  .gtitle { font-size: 12px; color: var(--ink-2); font-weight: 600; margin-top: 4px; }
+
+  /* 拖入 */
+  .drop { position: absolute; inset: 14px; border: 2px dashed var(--accent); border-radius: 14px;
+    background: hsla(36,60%,96%,.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+  .drop b { font-size: 15px; }
+  .menu { position: absolute; background: var(--surface); border: 1px solid var(--line-1); border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(67,57,44,.16); padding: 4px; width: 210px; font-size: 12.5px; }
+  .menu .mi { padding: 6px 10px; border-radius: 6px; display: flex; gap: 8px; }
+  .menu .mi.on { background: var(--hover); }
+  .menu hr { border: 0; border-top: 1px solid var(--line-2); margin: 4px 0; }
+  .caption { color: var(--ink-2); margin: 10px 2px 0; font-size: 12.5px; }
+  .ann { counter-reset: a; }
+  .pin { display: inline-flex; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 11px; align-items: center; justify-content: center; margin-right: 4px; }
+  table.cmp { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--line-1); }
+  table.cmp th, table.cmp td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--line-2); vertical-align: top; }
+  table.cmp th { background: var(--hover); font-weight: 600; border-top: 0; }
+  pre { background: var(--surface); border: 1px solid var(--line-1); border-radius: 10px; padding: 12px 14px; font-size: 12px; overflow: auto; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>批量导入 / 导出（迁入 · 迁出）—— 入口与交互</h1>
+<p class="lead">定位：低频、一次性、高风险（批量写库 / 批量产出文件）。原则是<b>不占常驻视觉位</b>，但在「想找它的时候」三步内能找到；
+且所有入口<b>汇入同一个向导</b>，只实现一套扫描 → 预览 → 执行 → 报告的流程。</p>
+
+<!-- ================= 0. 入口方案对比 ================= -->
+<h2>一、入口放哪里：三个方案</h2>
+<p class="lead">它们不互斥。推荐 <b>A + B 为主、C 只做增强</b>：命令面板给熟手，设置给「我要迁移笔记」的人去找，页面内只顺手做拖入和既有菜单项。</p>
+<div class="grid3">
+  <div class="note">
+    <h3>A · 命令面板命令 <span class="tag">推荐·主入口</span></h3>
+    <div class="ink2">⌘K 输入「导入 / 导出 / import / obsidian / zip」即命中，零常驻占位；与现有 <code>open-markdown</code>、<code>export-perf-snapshot</code> 同类。</div>
+    <ul>
+      <li class="pro">零 UI 成本，对低频功能最合适</li>
+      <li class="pro">可带上下文：在项目页唤起时默认「导出此项目」</li>
+      <li class="con">不知道有这功能的新迁入用户找不到</li>
+    </ul>
+  </div>
+  <div class="note">
+    <h3>B · 设置 › 数据 › 导入与导出 <span class="tag">推荐·兜底</span></h3>
+    <div class="ink2">与「同步」「资源存储」并列。用户找「迁移 / 备份」的心智本来就在设置的数据分组里。</div>
+    <ul>
+      <li class="pro">可发现性好，适合首次迁入</li>
+      <li class="pro">能放「导入记录」与「撤销某批导入」</li>
+      <li class="con">设置是弹窗，向导需叠在其上（关设置再开向导即可）</li>
+    </ul>
+  </div>
+  <div class="note">
+    <h3>C · 页面内情境入口 <span class="tag info">增强</span></h3>
+    <div class="ink2">卡片 / 文章页已有「导入」按钮 → 改为下拉加一项「导入文件夹…」；把文件夹拖进页面直达向导；项目 ⋯ 菜单的「整体导出」补上资源打包。</div>
+    <ul>
+      <li class="pro">不新增按钮，只扩充已有的</li>
+      <li class="pro">目标已知（在卡片页就是导入为卡片），向导少一步</li>
+      <li class="con">入口分散，须保证全部汇入同一向导</li>
+    </ul>
+  </div>
+</div>
+<p class="caption">不推荐：侧边栏新条目（违背低频定位）、Titlebar 图标、单独的「迁移」页面（definePage 承载一次性流程过重）。</p>
+
+<!-- ================= A. 命令面板 ================= -->
+<h2>二、A · 命令面板</h2>
+<p class="lead">命令组新增一个「数据」分组，四条命令；在项目 / 文章 / 卡片页唤起时，相关的那条置顶并带上作用域。</p>
+<div class="app">
+  <div class="titlebar"><div class="dots"><span></span><span></span><span></span></div>
+    <div class="search-pill">搜索或输入命令 <kbd>⌘K</kbd></div></div>
+  <div class="body">
+    <div class="sidebar"><div class="sec">知识</div><div class="it">卡片</div><div class="it">文章</div><div class="it on">项目</div></div>
+    <div class="content"><div class="paper"><div class="toolbar"><span class="title">产品手册</span></div></div></div>
+  </div>
+  <div class="scrim">
+    <div class="palette">
+      <div class="input"><span class="muted">⌕</span> 导出<span style="border-left:1.5px solid var(--accent);height:18px"></span></div>
+      <div class="grp">当前页面</div>
+      <div class="opt on"><span class="ico">⇪</span> 导出项目「产品手册」为压缩包…<span class="sub">含本地资源 · 修正引用</span></div>
+      <div class="grp">数据</div>
+      <div class="opt"><span class="ico">⇪</span> 批量导出…<span class="sub">卡片 / 文章 / 项目 → ZIP</span></div>
+      <div class="opt"><span class="ico">⇩</span> 批量导入…<span class="sub">文件夹 / ZIP → 卡片 / 文章 / 项目</span></div>
+      <div class="opt"><span class="ico">⇩</span> 从 Obsidian 仓库导入…<span class="sub">识别 [[双链]] 与附件目录</span></div>
+      <div class="opt"><span class="ico">⟲</span> 导入记录<span class="sub">查看 / 撤销</span></div>
+      <div class="grp">内容</div>
+      <div class="opt"><span class="ico">▤</span> 导出规范（文章）<span class="sub">2 天前</span></div>
+    </div>
+  </div>
+</div>
+<p class="caption">keywords 写进 <code>PaletteCommand.keywords</code>：import export zip obsidian notion logseq 迁移 备份 打包。</p>
+
+<!-- ================= B. 设置 ================= -->
+<h2>三、B · 设置 › 数据 › 导入与导出</h2>
+<p class="lead">这一页只是「启动台 + 记录」，不承载流程本身；按钮点下去关设置、开向导。</p>
+<div class="app" style="display:flex;justify-content:center;padding:26px;background:rgba(67,57,44,.18)">
+  <div class="dialog settings">
+    <nav>
+      <div class="sec">通用</div><div class="it">外观</div>
+      <div class="sec">数据</div><div class="it">同步</div><div class="it">资源存储</div><div class="it">剪藏与缓存</div>
+      <div class="it on">导入与导出</div>
+      <div class="sec">AI 服务</div><div class="it">大语言模型</div>
+    </nav>
+    <div class="pane">
+      <b style="font-size:15px">导入与导出</b>
+      <div class="muted" style="margin:2px 0 12px">从其它笔记工具迁入，或把内容连同图片打包带走</div>
+      <div class="gtitle">导入</div>
+      <div class="group">
+        <div class="r"><div class="t">Markdown 文件夹或压缩包<small>导入为卡片、文章，或保持目录结构导入为项目；图片与互链一并处理</small></div><span class="btn">选择…</span></div>
+        <div class="r"><div class="t">Obsidian 仓库<small>识别 [[双链]]、![[嵌入]]、附件文件夹与 frontmatter 标签</small></div><span class="btn">选择…</span></div>
+        <div class="r"><div class="t">Notion 导出包<small>处理带 32 位 id 的文件名与 CSV 数据库（导入为数据表格）</small></div><span class="btn">选择…</span></div>
+      </div>
+      <div class="gtitle">导出</div>
+      <div class="group">
+        <div class="r"><div class="t">导出为 Markdown 压缩包<small>按项目 / 标签选择范围；本地图片打包进 assets/，互链改为相对路径</small></div><span class="btn">导出…</span></div>
+      </div>
+      <div class="gtitle">导入记录</div>
+      <div class="group">
+        <div class="r"><div class="t">~/Notes/obsidian-vault → 项目「读书笔记」<small>10 月 12 日 · 214 篇 · 87 张图片 · 3 条警告</small></div><span class="btn ghost sm">报告</span><span class="btn ghost sm">撤销</span></div>
+        <div class="r"><div class="t">export-2024.zip → 卡片<small>9 月 30 日 · 56 张卡片</small></div><span class="btn ghost sm">报告</span><span class="btn ghost sm">撤销</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= C. 情境入口 ================= -->
+<h2>四、C · 页面内情境入口（只扩充既有元素）</h2>
+<div class="grid2">
+  <div>
+    <div class="app">
+      <div class="body" style="min-height:300px">
+        <div class="content"><div class="paper" style="min-height:270px">
+          <div class="toolbar"><span class="title">卡片 <span class="muted" style="font-weight:400;font-size:12px">· 1,204 张</span></span>
+            <span class="btn">导入 ▾</span><span class="btn primary">＋ 新建</span></div>
+          <div class="cards-mini"><div></div><div></div><div></div><div></div><div></div><div></div></div>
+          <div class="menu" style="right:96px;top:52px">
+            <div class="mi">Markdown 文件…</div>
+            <div class="mi on">文件夹或压缩包…</div>
+            <hr><div class="mi muted">更多导入方式…</div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <p class="caption">既有「导入」按钮变下拉：第一项保持原行为（单文件，零回归），第二项进向导且<b>目标已锁定为卡片</b>。</p>
+  </div>
+  <div>
+    <div class="app">
+      <div class="body" style="min-height:300px">
+        <div class="content"><div class="paper" style="min-height:270px">
+          <div class="toolbar"><span class="title">项目</span></div>
+          <div class="cards-mini"><div></div><div></div><div></div></div>
+          <div class="drop"><b>松开以导入「obsidian-vault」</b>
+            <span class="ink2">文件夹 · 214 个 Markdown · 87 个附件</span>
+            <span class="muted">将保持目录结构导入为一个新项目，下一步可预览</span></div>
+        </div></div>
+      </div>
+    </div>
+    <p class="caption">把文件夹 / .zip 拖进卡片、文章、项目页 → 打开向导并跳过「来源」一步。拖单个 .md 仍走原有快速导入。</p>
+  </div>
+</div>
+
+<!-- ================= 向导 ================= -->
+<h2>五、导入向导（所有入口汇入这里）</h2>
+<p class="lead">三步：<b>来源与去向 → 预览与修正 → 执行与报告</b>。关键是第二步——批量写库前先做一次「干跑」扫描，把资源和链接的问题摆在用户面前，而不是导完才发现图片全裂了。</p>
+
+<h3 style="font-size:14px;margin:20px 0 8px">步骤 1 · 来源与去向</h3>
+<div class="app" style="display:flex;justify-content:center;padding:26px;background:rgba(67,57,44,.18)">
+  <div class="dialog">
+    <header><b>批量导入</b><div class="steps"><span class="on">1 来源与去向</span><span>2 预览</span><span>3 导入</span></div></header>
+    <div class="dbody">
+      <div class="field"><label>来源</label>
+        <div class="pathbox"><span>📁</span><code>~/Documents/obsidian-vault</code><span class="muted">· 214 个 .md · 87 个附件 · 12 个其它文件</span><span class="btn sm" style="margin-left:auto">更换…</span></div>
+      </div>
+      <div class="field"><label>来源格式 <span class="muted" style="font-weight:400">已自动识别（发现 .obsidian/）</span></label>
+        <div class="chips"><span class="chip">通用 Markdown</span><span class="chip on">Obsidian</span><span class="chip">Notion 导出</span><span class="chip">Logseq</span></div>
+      </div>
+      <div class="field"><label>导入为</label>
+        <div class="choices">
+          <div class="choice on"><b>项目</b><small>保持目录树，文件夹成为分组条目</small></div>
+          <div class="choice"><b>文章</b><small>平铺，顶层文件夹名转为标签</small></div>
+          <div class="choice"><b>卡片</b><small>每个文件一张卡片，适合短笔记</small></div>
+        </div>
+      </div>
+      <div class="field"><label>项目名称</label>
+        <div class="pathbox" style="border-style:solid"><code>obsidian-vault</code></div>
+      </div>
+    </div>
+    <footer><span class="grow muted">只扫描，不会写入任何数据</span><span class="btn ghost">取消</span><span class="btn primary">扫描并预览</span></footer>
+  </div>
+</div>
+
+<h3 style="font-size:14px;margin:28px 0 8px">步骤 2 · 预览与修正（核心）</h3>
+<div class="app" style="display:flex;justify-content:center;padding:26px;background:rgba(67,57,44,.18)">
+  <div class="dialog" style="width:820px">
+    <header><b>批量导入</b><div class="steps"><span class="done">✓ 来源与去向</span><span class="on">2 预览</span><span>3 导入</span></div></header>
+    <div class="dbody">
+      <div class="split">
+        <div>
+          <div class="row" style="padding-top:0"><span class="check part"></span><b class="grow">obsidian-vault</b>
+            <span class="chips"><span class="chip on">全部 214</span><span class="chip">有问题 9</span><span class="chip">已跳过 12</span></span></div>
+          <div class="tree">
+            <div class="n"><span class="check on"></span>▾ 📁 读书</div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>思考，快与慢.md<span class="st tag ok">3 图 · 5 链</span></div>
+            <div class="n sel" style="padding-left:28px"><span class="check on"></span>原则.md<span class="st tag warn">1 图缺失</span></div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>反脆弱.md<span class="st tag warn">2 链未解析</span></div>
+            <div class="n"><span class="check on"></span>▾ 📁 工作</div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>周报模板.md<span class="st tag info">同名已存在</span></div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>架构笔记.md<span class="st tag ok">12 图</span></div>
+            <div class="n"><span class="check"></span>▸ 📁 .trash<span class="st muted">已自动排除</span></div>
+            <div class="n"><span class="check"></span>▸ 📁 templates<span class="st muted">未勾选</span></div>
+            <div class="n" style="color:var(--ink-3)">… 还有 203 项</div>
+          </div>
+          <div class="note" style="margin-top:10px;padding:10px 12px">
+            <b style="font-size:12.5px">原则.md 的问题</b>
+            <div class="issue"><i class="tag warn">缺失</i> <code>![[assets/radar-chart.png]]</code> — 来源目录中找不到此文件，导入后保留为占位文本</div>
+          </div>
+        </div>
+        <div>
+          <div class="stat"><div class="k">将导入</div><div class="v">202<small>篇 · 26 个分组</small></div></div>
+          <div class="stat"><div class="k">本地资源</div><div class="v">86<small>/ 87 个 · 41.2 MB</small></div>
+            <div class="row" style="padding:6px 0 0"><span class="grow ink2">存放到</span><span class="btn sm">当前资源存储（本地）▾</span></div></div>
+          <div class="stat"><div class="k">内部链接</div><div class="v">531<small>处，526 可解析</small></div>
+            <div class="issue"><i>↳</i> [[双链]] / 相对 .md 链接 → 应用内文档链接</div>
+            <div class="issue"><i>↳</i> 5 处未解析：保留为纯文本 [[原文]]</div></div>
+          <div class="field" style="margin:4px 0 0"><label>同名冲突（3）</label>
+            <div class="row"><span class="radio on"></span>并存，标题加「(导入)」</div>
+            <div class="row"><span class="radio"></span>跳过</div></div>
+          <div class="field" style="margin:4px 0 0"><label>Frontmatter</label>
+            <div class="row"><span class="switch"></span><span class="grow">tags → 标签</span></div>
+            <div class="row"><span class="switch"></span><span class="grow">created / updated → 时间</span></div>
+            <div class="row"><span class="switch off"></span><span class="grow">其余字段保留为属性</span></div></div>
+        </div>
+      </div>
+    </div>
+    <footer><span class="btn ghost grow" style="flex:0">← 上一步</span><span class="grow muted">导入可在「导入记录」中整批撤销</span><span class="btn primary">导入 202 篇</span></footer>
+  </div>
+</div>
+
+<h3 style="font-size:14px;margin:28px 0 8px">步骤 3 · 执行与报告</h3>
+<div class="grid2">
+  <div class="app" style="display:flex;justify-content:center;padding:20px;background:rgba(67,57,44,.18)">
+    <div class="dialog" style="width:100%">
+      <header><b>正在导入</b><div class="steps"><span class="on">3 导入</span></div></header>
+      <div class="dbody">
+        <div class="row"><span class="grow">① 复制资源</span><span class="tag ok">86 / 86</span></div>
+        <div class="row"><span class="grow">② 创建文档</span><span class="tag">131 / 202</span></div>
+        <div class="bar"><div style="width:64%"></div></div>
+        <div class="muted" style="margin-top:6px;font-size:12px">读书 / 反脆弱.md</div>
+        <div class="row" style="color:var(--ink-3)"><span class="grow">③ 回填内部链接</span><span>等待中</span></div>
+      </div>
+      <footer><span class="grow muted">可关闭窗口，进度会转到右下角提示</span><span class="btn ghost">后台运行</span><span class="btn">停止</span></footer>
+    </div>
+  </div>
+  <div class="app" style="display:flex;justify-content:center;padding:20px;background:rgba(67,57,44,.18)">
+    <div class="dialog" style="width:100%">
+      <header><b>导入完成</b></header>
+      <div class="dbody">
+        <div class="row"><span class="tag ok">✓</span><span class="grow">202 篇文档已导入项目「obsidian-vault」</span></div>
+        <div class="row"><span class="tag ok">✓</span><span class="grow">86 个资源 · 526 处链接已修正</span></div>
+        <div class="row"><span class="tag warn">!</span><span class="grow">6 条警告（1 张图缺失，5 处链接未解析）</span><span class="btn ghost sm">查看</span></div>
+      </div>
+      <footer><span class="btn ghost grow" style="flex:0">撤销本次导入</span><span class="grow"></span><span class="btn">保存报告</span><span class="btn primary">打开项目</span></footer>
+    </div>
+  </div>
+</div>
+<p class="caption">③ 必须在 ② 全部完成后执行：先建完所有文档拿到 id，再把「路径 → id」映射回填进链接。这是两遍扫描的硬约束，也是为什么链接修正不能边导边做。</p>
+
+<!-- ================= 导出 ================= -->
+<h2>六、导出对话框</h2>
+<p class="lead">在现有 BatchExportModal（项目整体导出）的 <b>Markdown ZIP</b> 格式上补齐资源与引用；同时把范围从「单个项目」扩到「标签 / 全部」。PDF/EPUB 仍是项目 ⋯ 菜单里的出版场景，迁出场景只要 ZIP。</p>
+<div class="app" style="display:flex;justify-content:center;padding:26px;background:rgba(67,57,44,.18)">
+  <div class="dialog" style="width:760px">
+    <header><b>导出为 Markdown 压缩包</b></header>
+    <div class="dbody">
+      <div class="split" style="grid-template-columns:1fr 300px">
+        <div>
+          <div class="field"><label>范围</label>
+            <div class="chips"><span class="chip on">项目</span><span class="chip">文章</span><span class="chip">卡片</span><span class="chip">全部</span></div></div>
+          <div class="tree" style="height:250px">
+            <div class="n"><span class="check on"></span>▾ 产品手册<span class="st muted">48 篇</span></div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>▸ 快速上手</div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>▸ 编辑器</div>
+            <div class="n"><span class="check part"></span>▾ 读书笔记<span class="st muted">31 / 214 篇</span></div>
+            <div class="n" style="padding-left:28px"><span class="check on"></span>▸ 读书</div>
+            <div class="n" style="padding-left:28px"><span class="check"></span>▸ 工作</div>
+            <div class="n"><span class="check"></span>▸ 课程：分布式系统</div>
+          </div>
+        </div>
+        <div>
+          <div class="field"><label>本地资源</label>
+            <div class="row"><span class="radio on"></span><span>打包进 <code>assets/</code>，改为相对路径</span></div>
+            <div class="row"><span class="radio"></span><span>保留原链接（图床 URL 不变）</span></div>
+            <div class="row"><span class="switch off"></span><span class="grow ink2">同时下载远程图片</span></div></div>
+          <div class="field"><label>文档互链</label>
+            <div class="row"><span class="radio on"></span><span>相对 .md 链接 <span class="muted">（通用）</span></span></div>
+            <div class="row"><span class="radio"></span><span>[[标题]] <span class="muted">（Obsidian）</span></span></div>
+            <div class="row"><span class="radio"></span><span>纯文本</span></div>
+            <div class="muted" style="font-size:11.5px">指向范围外的文档：保留标题文本</div></div>
+          <div class="field"><label>附加</label>
+            <div class="row"><span class="switch"></span><span class="grow">Frontmatter（标签 / 时间）</span></div></div>
+        </div>
+      </div>
+      <pre style="margin:4px 0 0">产品手册.zip
+├─ 产品手册/
+│  ├─ 快速上手/安装.md        ![](../assets/install-01.png)   [见 配置](../编辑器/配置.md)
+│  └─ 编辑器/配置.md
+├─ 读书笔记/读书/原则.md
+└─ assets/                     86 个文件 · 41.2 MB（按内容哈希去重）</pre>
+    </div>
+    <footer><span class="grow muted">79 篇 · 86 个资源 · 预计 42 MB</span><span class="btn ghost">取消</span><span class="btn primary">导出…</span></footer>
+  </div>
+</div>
+
+<!-- ================= 总结 ================= -->
+<h2>七、建议落地顺序</h2>
+<table class="cmp">
+  <tr><th>阶段</th><th>内容</th><th>入口</th></tr>
+  <tr><td>P1</td><td>导出 ZIP 补资源打包 + 互链相对化（改造现有 <code>buildMarkdownZipBytes</code>，收益最大、风险最低，迁出用户立刻受益）</td><td>项目 ⋯ 整体导出 + 命令面板</td></tr>
+  <tr><td>P2</td><td>通用 Markdown 文件夹 / ZIP 导入向导（扫描 → 预览 → 两遍写入 → 报告 + 批次撤销）</td><td>命令面板 + 设置页 + 卡片/文章「导入 ▾」+ 拖入</td></tr>
+  <tr><td>P3</td><td>来源方言适配：Obsidian（[[ ]]、![[ ]]、附件目录）→ Notion（id 文件名、CSV）→ Logseq</td><td>向导「来源格式」</td></tr>
+  <tr><td>P4</td><td>导出范围扩到文章标签 / 卡片 / 全部，[[标题]] 方言输出</td><td>设置页</td></tr>
+</table>
+
+</main>
+</body>
+</html>

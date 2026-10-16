@@ -73,8 +73,6 @@ import {
   copyMarkdownToClipboard,
   copyWechatHtmlToClipboard,
   defaultArticleEventBus,
-  downloadMarkdown,
-  getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
 import AddTag from "@/components/AddTag";
@@ -102,6 +100,7 @@ import { useComposeInsightOptions, useComposeInsightSync } from "@/features/comp
 import { ComposeSessionContext, createComposeSession } from "@/features/compose/session";
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
 import { getEditorText } from "@/utils/editor";
+import { exportContentAsMarkdown } from "@/services/content-transfer";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -267,10 +266,10 @@ export function ArticleDetailView() {
 
   const handleExportMarkdownFile = () => {
     if (!editingArticle) return;
-    downloadMarkdown(
-      getMarkdown(editingArticle.content),
-      editingArticle.title || `文章-${editingArticle.id}`
-    );
+    void exportContentAsMarkdown({
+      title: editingArticle.title || `文章-${editingArticle.id}`,
+      content: editingArticle.content,
+    });
   };
 
   const handlePodcastUpdated = (updated: IArticle) => {

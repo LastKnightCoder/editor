@@ -8,14 +8,18 @@ import { cn } from "@tau/ui";
 /**
  * 卡片正文只读渲染：卡面只取前 blocks 个块；预览弹窗 / 详情页在正文会话就绪前
  * 用它渲染全文占位（blocks = Infinity），转场不必等会话（D-106）。
+ * 默认禁止指针事件（卡面点击穿透到整卡）；interactive 用于漫步这类独立阅读场景，
+ * 恢复链接点击与内嵌交互组件的操作。
  */
 export function CardContentPreview({
   content,
   blocks = 3,
+  interactive = false,
   className,
 }: {
   content: ICard["content"];
   blocks?: number;
+  interactive?: boolean;
   className?: string;
 }) {
   const preview = useMemo(() => content.slice(0, blocks), [content, blocks]);
@@ -30,7 +34,8 @@ export function CardContentPreview({
         readonly
         initValue={preview.length ? preview : undefined}
         className={cn(
-          "pointer-events-none overflow-hidden py-0.5 *:pointer-events-none",
+          "overflow-hidden py-0.5",
+          !interactive && "pointer-events-none *:pointer-events-none",
           className
         )}
       />

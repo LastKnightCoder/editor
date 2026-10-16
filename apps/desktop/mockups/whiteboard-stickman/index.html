@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板火柴人素材 · mockup</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="../whiteboard-sketch/sketch.css">
+<style>
+  /* 火柴人配色：墨色走 currentColor，填充只消费主题变量，深浅主题自动跟随 */
+  [data-theme] {
+    --fig-paper: var(--sk-paper);
+    --fig-mono: color-mix(in srgb, var(--sk-ink) 9%, var(--sk-paper));
+    --fig-warn: color-mix(in srgb, var(--warn) 42%, var(--sk-paper));
+    --fig-t0: color-mix(in srgb, var(--accent) 30%, var(--sk-paper));
+    --fig-t1: color-mix(in srgb, var(--tag-2) 34%, var(--sk-paper));
+    --fig-t2: color-mix(in srgb, var(--tag-1) 34%, var(--sk-paper));
+    --fig-t3: color-mix(in srgb, var(--tag-3) 34%, var(--sk-paper));
+    --fig-t4: color-mix(in srgb, var(--tag-4) 34%, var(--sk-paper));
+  }
+  svg.fig, svg.scene { color: var(--sk-ink); overflow: visible; display: block; }
+
+  .wrap { padding: 28px 6vw 90px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 96ch; }
+  h2 { font-size: 16px; margin: 40px 0 6px; font-weight: 600; }
+  h2 small { font-weight: 400; color: var(--ink-3); font-size: 12.5px; margin-left: 8px; }
+  .lead { color: var(--ink-2); font-size: 13px; margin-bottom: 14px; max-width: 100ch; }
+
+  .paper { background-color: var(--sk-paper); background-image: radial-gradient(var(--sk-dot) 1px, transparent 1.2px); background-size: 14px 14px; }
+
+  /* 素材库 */
+  .cat { margin-top: 18px; }
+  .cat > h3 { font-size: 12.5px; font-weight: 500; color: var(--ink-3); margin-bottom: 8px; }
+  .lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .item { border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line-2), var(--shadow-card); padding: 12px 8px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: copy; transition: box-shadow .16s var(--ease-out); }
+  .item:hover { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 50%, transparent), var(--shadow-lift); }
+  .item.wide { grid-column: span 2; }
+  .item .stage { min-height: 132px; display: grid; place-items: center; }
+  .demo-inline { display: flex; align-items: center; gap: 2px; font-size: 12.5px; margin-bottom: 10px; }
+  .demo-inline > span { color: var(--ink-3); margin-right: 4px; }
+  .item span { font-size: 12px; color: var(--ink-2); }
+
+  /* 深浅对照 */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .pane { border-radius: 16px; padding: 14px 16px 16px; box-shadow: var(--shadow-card); color: var(--ink-1); }
+  .pane > b { font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+  .pane .row { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; margin-top: 10px; }
+  .pane .row em { font-style: normal; font-size: 11.5px; color: var(--ink-3); width: 30px; align-self: center; }
+
+  /* 整板示例 */
+  .board { position: relative; display: flex; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-card); min-height: 420px; }
+  .board .canvas { flex: 1; min-width: 0; overflow: auto; padding: 34px 26px 26px; }
+  .chrome { background: var(--bg-surface); box-shadow: var(--shadow-lift), 0 0 0 1px var(--line-2); border-radius: 12px; }
+  .panel { width: 268px; margin: 12px; align-self: flex-start; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .panel .hd { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; padding: 0 2px; }
+  .panel .hd small { font-weight: 400; color: var(--ink-3); font-size: 11.5px; }
+  .panel .search { height: 30px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-1); display: flex; align-items: center; padding: 0 10px; font-size: 12.5px; color: var(--ink-3); }
+  .panel .tabs { display: flex; gap: 2px; }
+  .panel .tabs button { height: 26px; padding: 0 9px; border-radius: 7px; font-size: 12px; color: var(--ink-2); }
+  .panel .tabs button.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+  .panel .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 300px; overflow: auto; }
+  .panel .cell { aspect-ratio: 1; border-radius: 9px; display: grid; place-items: center; cursor: grab; }
+  .panel .cell:hover { background: var(--bg-hover); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .panel .foot { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; border-top: 1px solid var(--line-2); padding: 8px 2px 0; }
+
+  .notes { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 14px 22px; max-width: 108ch; }
+  .notes ul { padding-left: 18px; color: var(--ink-2); font-size: 13px; }
+  .notes li + li { margin-top: 5px; }
+  .notes b { color: var(--ink-1); font-weight: 600; }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; background: var(--ink-1); color: var(--ink-inverse); font-size: 12.5px; padding: 7px 14px; border-radius: 10px; transition: opacity .18s var(--ease-out), transform .18s var(--ease-out); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body class="doc">
+<div class="demo">
+  <div class="title">白板火柴人</div>
+  <div class="grp" id="g-body"><span>形体</span></div>
+  <div class="grp" id="g-mode"><span>画风</span></div>
+  <div class="grp" id="g-level"><span>笔触</span></div>
+  <div class="grp" id="g-tint"><span>着色</span></div>
+  <div class="grp"><button class="chip" id="reseed">↻ 换一笔</button></div>
+  <div class="spacer"></div>
+  <div class="grp"><button class="chip" id="theme">☾ cocoa</button></div>
+</div>
+
+<div class="wrap">
+  <header>
+    <h1>白板火柴人素材库</h1>
+    <p class="sub"><span id="pose-count"></span> 个姿态 × 3 种形体 × 普通 / 手绘。人物以「关节骨架 + 道具图元」数据存储，渲染时才决定笔触：手绘复用页级手绘模式的墨水引擎与固定 seed，墨色走 <code>currentColor</code>、填充只用主题变量，所以深浅主题、手绘开关都不需要第二套素材。点击任意卡片可复制当前样式的 SVG。</p>
+  </header>
+
+  <h2>素材库<small>按场景分组，宽卡为带道具或多人的组合</small></h2>
+  <div id="library"></div>
+
+  <h2>深浅主题对照<small>同一份数据，两个主题并排；上行普通、下行手绘</small></h2>
+  <p class="lead">墨色取 <code>--sk-ink</code>，头部遮挡用纸色 <code>--sk-paper</code>，着色用主色 / 标签色与纸色 <code>color-mix</code>，深色下自动压暗饱和度，不会出现浅色素材贴在深色画布上的「白块」。</p>
+  <div class="duo">
+    <div class="pane paper" data-theme="cream"><b>浅色 · cream</b><div class="rows"></div></div>
+    <div class="pane paper" data-theme="cocoa"><b>深色 · cocoa</b><div class="rows"></div></div>
+  </div>
+
+  <h2>示意图示例<small>人物 + 形状 + 连线组合，右侧为白板内的插入面板草图</small></h2>
+  <div class="demo-inline grp" id="g-scene"><span>场景</span></div>
+  <div class="board paper">
+    <div class="canvas"><div id="scene"></div></div>
+    <div class="chrome panel">
+      <div class="hd">人物<small>拖入画布</small></div>
+      <div class="search">搜索：挥手、团队、灵感…</div>
+      <div class="tabs" id="panel-tabs"></div>
+      <div class="grid" id="panel-grid"></div>
+      <div class="foot">插入后跟随页面画风；单个人物可在属性栏改形体、着色，「换一笔」只重抖这一个。</div>
+    </div>
+  </div>
+
+  <h2>形体取舍</h2>
+  <div class="notes">
+    <ul>
+      <li><b>A · 经典</b>：线条火柴人，最轻、最不抢戏，适合流程图里当「角色标记」；缺点是缩小到 40px 以下时四肢会糊成一团。</li>
+      <li><b>B · 豆豆</b>：胶囊身体 + 实心头，可着色区分角色（多人场景自动轮换主色 / 标签色），适合用户旅程、角色关系图；视觉更重，需要和形状填充色协调。</li>
+      <li><b>C · 象形</b>：粗线 + 实心头，类似公共标识，小尺寸可读性最好，适合当图标嵌进卡片或连线标签；手绘时笔触宽度变化最不明显。</li>
+      <li><b>建议</b>：首批只做 A + B 两种形体、手绘跟随页级模式（不单独给人物一个开关），C 作为后续「图标化」需求再评估。</li>
+    </ul>
+  </div>
+</div>
+<div class="toast" id="toast">已复制 SVG</div>
+
+<script src="../whiteboard-sketch/vendor/perfect-freehand.js"></script>
+<script src="poses.js"></script>
+<script src="stickman.js"></script>
+<script>
+(function () {
+  const { renderFigure, drawPose, drawStrokes, arrowStrokes, rectPts, node, rng, LEVELS, BODIES } = STICK;
+  const POSES = STICK_POSES;
+  const byKey = Object.fromEntries(POSES.map(p => [p.key, p]));
+  const state = { body: "a", hand: true, level: "natural", tint: "color", salt: 0, panelCat: "basic", scene: "feedback" };
+  const opts = (o = {}) => ({ body: state.body, hand: state.hand, level: state.level, tint: state.tint, salt: state.salt, ...o });
+
+  // ───── 顶部控件 ─────
+  function chips(id, items, key, map = v => v) {
+    const g = document.getElementById(id);
+    for (const [val, label] of items) {
+      const b = document.createElement("button");
+      b.className = "chip";
+      b.textContent = label;
+      b.dataset.v = val;
+      b.onclick = () => { state[key] = map(val); sync(); render(); };
+      g.appendChild(b);
+    }
+  }
+  chips("g-body", Object.entries(BODIES).map(([k, v]) => [k, v.label]), "body");
+  chips("g-mode", [["0", "普通"], ["1", "手绘"]], "hand", v => v === "1");
+  chips("g-level", Object.entries(LEVELS).map(([k, v]) => [k, v.label]), "level");
+  chips("g-tint", [["mono", "单色"], ["color", "点缀"]], "tint");
+  function sync() {
+    const cur = { "g-body": state.body, "g-mode": state.hand ? "1" : "0", "g-level": state.level, "g-tint": state.tint, "g-scene": state.scene };
+    for (const id in cur) document.querySelectorAll(`#${id} .chip`).forEach(b => b.classList.toggle("on", b.dataset.v === cur[id]));
+    document.querySelectorAll("#g-level .chip").forEach(b => (b.disabled = !state.hand, b.style.opacity = state.hand ? "" : ".4"));
+  }
+  document.getElementById("reseed").onclick = () => { state.salt++; render(); };
+  const themeBtn = document.getElementById("theme");
+  themeBtn.onclick = () => {
+    const root = document.documentElement;
+    const next = root.dataset.theme === "cream" ? "cocoa" : "cream";
+    root.dataset.theme = next;
+    themeBtn.textContent = next === "cream" ? "☾ cocoa" : "☀ cream";
+  };
+
+  // ───── 复制 SVG：把主题变量解析成当前值，墨色保留 currentColor ─────
+  const toast = document.getElementById("toast");
+  function copySvg(svg, scope) {
+    const cs = getComputedStyle(scope);
+    const text = svg.outerHTML.replace(/var\((--fig-[\w-]+)\)/g, (_, v) => cs.getPropertyValue(v).trim());
+    navigator.clipboard?.writeText(text);
+    toast.classList.add("show");
+    clearTimeout(copySvg.t);
+    copySvg.t = setTimeout(() => toast.classList.remove("show"), 1200);
+  }
+
+  // ───── 素材库 ─────
+  function renderLibrary() {
+    const root = document.getElementById("library");
+    root.textContent = "";
+    for (const cat of STICK_CATS) {
+      const sec = document.createElement("div");
+      sec.className = "cat";
+      sec.innerHTML = `<h3>${cat.label}</h3>`;
+      const grid = document.createElement("div");
+      grid.className = "lib";
+      for (const pose of POSES.filter(p => p.cat === cat.key)) {
+        const item = document.createElement("div");
+        item.className = "item paper" + (pose.w > 130 ? " wide" : "");
+        const stage = document.createElement("div");
+        stage.className = "stage";
+        const svg = renderFigure(pose, opts(), 0.76);
+        stage.appendChild(svg);
+        item.appendChild(stage);
+        item.insertAdjacentHTML("beforeend", `<span>${pose.name}</span>`);
+        item.onclick = () => copySvg(svg, item);
+        grid.appendChild(item);
+      }
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    }
+  }
+
+  // ───── 深浅对照 ─────
+  function renderDuo() {
+    const keys = ["wave", "idea", "laptop", "talk", "team"];
+    document.querySelectorAll(".pane .rows").forEach(rows => {
+      rows.textContent = "";
+      for (const hand of [false, true]) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `<em>${hand ? "手绘" : "普通"}</em>`;
+        for (const k of keys) row.appendChild(renderFigure(byKey[k], opts({ hand }), 0.5));
+        rows.appendChild(row);
+      }
+    });
+  }
+
+  // ───── 示意图：阶段横排、人物底边对齐基线，阶段之间自动连线 ─────
+  const SCENES = [
+    {
+      key: "feedback", title: "用户反馈闭环",
+      stages: [
+        { key: "confused", cap: "① 用户遇到问题" },
+        { key: "laptop", cap: "② 客服记录工单" },
+        { key: "team", cap: "③ 团队评估方案" },
+        { key: "flag", cap: "④ 修复上线" },
+      ],
+      links: ["提交反馈", "转交研发", "排期"],
+    },
+    {
+      key: "growth", title: "从 0 到 1",
+      stages: [
+        { key: "search", cap: "① 调研方向" },
+        { key: "idea", cap: "② 形成方案" },
+        { key: "push", cap: "③ 攻坚克难" },
+        { key: "stairs", cap: "④ 迭代进阶" },
+      ],
+      links: ["发现机会", "立项", "上线"],
+    },
+    {
+      key: "collab", title: "团队协作",
+      stages: [
+        { key: "meeting", cap: "① 对齐目标" },
+        { key: "argue", cap: "② 观点碰撞" },
+        { key: "handshake", cap: "③ 达成共识" },
+        { key: "highfive", cap: "④ 庆祝上线" },
+      ],
+      links: ["讨论", "收敛", "交付"],
+    },
+    {
+      key: "decision", title: "决策过程",
+      stages: [
+        { key: "lost", cap: "① 面对岔路" },
+        { key: "balance", cap: "② 权衡取舍" },
+        { key: "puzzle", cap: "③ 拼合资源" },
+        { key: "target", cap: "④ 命中目标" },
+      ],
+      links: ["梳理选项", "定方向", "执行"],
+    },
+  ];
+  const SCENE_GAP = 70, SCENE_BASE = 230, ARROW_Y = 72;
+  function renderScene() {
+    const scene = SCENES.find(s => s.key === state.scene);
+    const o = opts();
+    const rand = rng(STICK.hash(scene.key) + state.salt);
+    let cursor = 10;
+    const placed = scene.stages.map(st => {
+      const pose = byKey[st.key];
+      const item = { ...st, pose, x: cursor };
+      cursor += pose.w + SCENE_GAP;
+      return item;
+    });
+    const W = cursor - SCENE_GAP + 10, H = 300;
+    const svg = node("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", class: "scene", style: `max-width:${W}px;height:auto` });
+    let tintOffset = 0;
+    for (const it of placed) {
+      const g = node("g", { transform: `translate(${it.x} ${SCENE_BASE - it.pose.h})` }, svg);
+      drawPose(g, it.pose, { ...o, tintOffset });
+      tintOffset += it.pose.people.length;
+      const cx = it.x + it.pose.w / 2;
+      const capW = 128;
+      drawStrokes(svg, [
+        { open: false, pts: rectPts(cx - capW / 2, 248, capW, 34), w: 1.8, fill: "var(--fig-paper)" },
+        { text: true, x: cx, y: 265, s: it.cap, size: 13 },
+      ], o, rand);
+    }
+    placed.slice(1).forEach((to, i) => {
+      const from = placed[i];
+      const a = [from.x + from.pose.w * 0.8, ARROW_Y];
+      const b = [to.x + to.pose.w * 0.22, ARROW_Y];
+      drawStrokes(svg, arrowStrokes(a, b, -30), o, rand);
+      drawStrokes(svg, [{ text: true, x: (a[0] + b[0]) / 2, y: ARROW_Y - 34, s: scene.links[i], size: 12.5 }], o, rand);
+    });
+    drawStrokes(svg, [{ text: true, x: 10, y: 16, s: scene.title, size: 17, anchor: "start" }], o, rand);
+    const host = document.getElementById("scene");
+    host.textContent = "";
+    host.appendChild(svg);
+  }
+
+  // ───── 插入面板 ─────
+  function renderPanel() {
+    const tabs = document.getElementById("panel-tabs");
+    tabs.textContent = "";
+    for (const c of STICK_CATS) {
+      const b = document.createElement("button");
+      b.textContent = c.label;
+      b.className = c.key === state.panelCat ? "on" : "";
+      b.onclick = () => { state.panelCat = c.key; renderPanel(); };
+      tabs.appendChild(b);
+    }
+    const grid = document.getElementById("panel-grid");
+    grid.textContent = "";
+    for (const pose of POSES.filter(p => p.cat === state.panelCat)) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.title = pose.name;
+      cell.appendChild(renderFigure(pose, opts(), 64 / Math.max(pose.w + 12, pose.h + 12)));
+      grid.appendChild(cell);
+    }
+  }
+
+  function render() {
+    renderLibrary();
+    renderDuo();
+    renderScene();
+    renderPanel();
+  }
+  chips("g-scene", SCENES.map(s => [s.key, s.title]), "scene");
+  document.getElementById("pose-count").textContent = POSES.length;
+  sync();
+  render();
+})();
+</script>
+</body>
+</html>

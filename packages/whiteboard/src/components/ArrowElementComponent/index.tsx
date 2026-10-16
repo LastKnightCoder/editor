@@ -192,10 +192,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       : ARROW_LABEL_READONLY_MIN_WIDTH;
   const shouldRenderDescription = isEditingDescription || !descriptionIsEmpty;
   const measureDescriptionBox = useMemoizedFn(() => {
-    const container = descriptionContainerRef.current;
-    if (!container) return;
-
-    const editor = container.querySelector(":scope > [data-slate-editor]") as HTMLElement | null;
+    const editor = editorRef.current?.getEditableElement();
     if (!editor) return;
 
     const measured =
@@ -505,10 +502,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     let resizeObserver: ResizeObserver | null = null;
 
     const setupResizeObserver = () => {
-      const container = descriptionContainerRef.current;
-      if (!container) return;
-
-      const editor = container.querySelector(":scope > [data-slate-editor]") as HTMLElement | null;
+      const editor = editorRef.current?.getEditableElement();
       if (!editor) {
         frameId = requestAnimationFrame(setupResizeObserver);
         return;
@@ -531,7 +525,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       window.removeEventListener("resize", measureDescriptionBox);
       resizeObserver?.disconnect();
     };
-  }, [isEditingDescription, measureDescriptionBox, shouldRenderDescription]);
+  }, [descriptionRevision, isEditingDescription, measureDescriptionBox, shouldRenderDescription]);
 
   useEffect(() => {
     if (!shouldRenderDescription) return;

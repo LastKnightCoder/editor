@@ -53,13 +53,7 @@ import { requestOpenContentInMainWindow } from "@/services/main-window-requests"
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
-import {
-  copyMarkdownToClipboard,
-  copyWechatHtmlToClipboard,
-  downloadMarkdown,
-  getContentLength,
-  getMarkdown,
-} from "@/utils";
+import { copyMarkdownToClipboard, copyWechatHtmlToClipboard, getContentLength } from "@/utils";
 import { formatDate } from "@/utils/time";
 import type { DocumentDriver, DocumentFields, EditorDocument } from "./documentDrivers";
 import type { SaveState } from "./useEditorDocument";
@@ -67,6 +61,7 @@ import { useEditorWindowPrefs } from "./editorWindowPrefs";
 import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { cardTitle } from "@/utils/card-title";
+import { exportContentAsMarkdown } from "@/services/content-transfer";
 
 /** 低于该宽度大纲不再常驻右栏，改由标题栏按钮弹出 */
 const OUTLINE_COLUMN_MIN_WIDTH = 900;
@@ -306,7 +301,7 @@ export function EditorWindow({
       <Menu.Submenu label="导出" icon={<Download className={iconClass} strokeWidth={1.75} />}>
         <Menu.Item
           icon={<FileText className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => downloadMarkdown(getMarkdown(doc.content), title)}
+          onSelect={() => void exportContentAsMarkdown({ title, content: doc.content })}
         >
           Markdown 文件
         </Menu.Item>
