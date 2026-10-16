@@ -84,18 +84,22 @@ export function TransferSection() {
 
       <SettingsGroup title="导出" description="本地图片、音视频和附件随文件打包，引用改为相对路径">
         <SettingRow
-          title="导出项目"
-          description="按文档树导出为 Markdown 包、合并 Markdown、PDF 或 EPUB，可勾选范围"
+          title="导出为 Markdown 压缩包"
+          description="项目、文章、卡片或全部内容；互链可写成相对 .md 或 [[文件名]]，可附 frontmatter"
         >
           <Button
             variant="secondary"
             size="sm"
             icon={ArrowRight}
-            onClick={() => leaveTo(() => useTransferStore.getState().openProjectExport())}
+            onClick={() => leaveTo(() => useTransferStore.getState().openMarkdownExport())}
           >
-            选择项目
+            选择范围
           </Button>
         </SettingRow>
+        <SettingRow
+          title="导出为 PDF / EPUB"
+          description="在项目列表的卡片 ⋯ 菜单中选「整体导出」，按文档树排版成书"
+        />
         <SettingRow
           title="导出单篇"
           description="卡片、文章、项目文档的「导出 › Markdown 文件」：有本地资源时导出为 .zip（含 assets/）"

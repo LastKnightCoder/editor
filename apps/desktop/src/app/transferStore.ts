@@ -5,6 +5,7 @@
 
 import { create } from "zustand";
 import type { ImportTarget } from "@/utils/content-transfer/batch-import";
+import type { ExportScope } from "@/services/markdown-export";
 
 export interface ImportWizardRequest {
   /** 锁定导入目标（从卡片 / 文章页进入）；缺省由用户选择 */
@@ -13,20 +14,26 @@ export interface ImportWizardRequest {
   sourcePath?: string;
 }
 
+export interface MarkdownExportRequest {
+  scope?: ExportScope;
+  /** 从项目页唤起：范围为项目，只勾选这个项目 */
+  projectId?: number;
+}
+
 interface TransferUiStore {
-  /** null = 关闭；projectId 缺省时先选项目 */
-  projectExport: { projectId?: number } | null;
-  openProjectExport: (projectId?: number) => void;
-  closeProjectExport: () => void;
+  /** null = 关闭 */
+  markdownExport: MarkdownExportRequest | null;
+  openMarkdownExport: (request?: MarkdownExportRequest) => void;
+  closeMarkdownExport: () => void;
   importWizard: ImportWizardRequest | null;
   openImportWizard: (request?: ImportWizardRequest) => void;
   closeImportWizard: () => void;
 }
 
 export const useTransferStore = create<TransferUiStore>()(set => ({
-  projectExport: null,
-  openProjectExport: projectId => set({ projectExport: { projectId } }),
-  closeProjectExport: () => set({ projectExport: null }),
+  markdownExport: null,
+  openMarkdownExport: (request = {}) => set({ markdownExport: request }),
+  closeMarkdownExport: () => set({ markdownExport: null }),
   importWizard: null,
   openImportWizard: (request = {}) => set({ importWizard: request }),
   closeImportWizard: () => set({ importWizard: null }),

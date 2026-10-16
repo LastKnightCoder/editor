@@ -27,6 +27,8 @@ export interface CheckTreeProps<T extends CheckTreeNode<T>> {
   isSelectable: (node: T) => boolean;
   /** 标题右侧的短标签 */
   getTag?: (node: T) => CheckTreeTag | null;
+  /** 初始折叠的节点（只在挂载时读取；大树按需传入，避免一次渲染全部叶子） */
+  initiallyCollapsed?: number[];
 }
 
 const collectSubtreeIds = <T extends CheckTreeNode<T>>(
@@ -43,9 +45,10 @@ export function CheckTree<T extends CheckTreeNode<T>>({
   onCheckedKeysChange,
   isSelectable,
   getTag,
+  initiallyCollapsed,
 }: CheckTreeProps<T>) {
   const checkedSet = useMemo(() => new Set(checkedKeys), [checkedKeys]);
-  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set());
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => new Set(initiallyCollapsed));
 
   const toggle = (subtreeIds: number[], next: boolean) => {
     const ids = new Set(subtreeIds);
