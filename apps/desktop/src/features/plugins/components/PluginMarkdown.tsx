@@ -7,7 +7,7 @@ import { toPluginDocument } from "../pluginDocument";
 export function PluginMarkdown({ source }: { source: string }) {
   const value = useMemo(() => toPluginDocument(source), [source]);
   return (
-    <div className="max-w-[72ch]">
+    <div className="min-w-0">
       <Editor
         key={source}
         kit={getPluginDocumentKit()}
