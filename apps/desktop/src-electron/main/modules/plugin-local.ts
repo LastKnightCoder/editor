@@ -14,6 +14,7 @@ import {
   downloadPluginRelease,
   fetchPluginCatalog,
   fetchPluginRelease,
+  fetchPluginVersions,
 } from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
@@ -101,6 +102,9 @@ export default {
       fetchPluginCatalog(app.getVersion(), query)
     );
     ipcMain.handle("plugin-local:release", (_event, id: string) => fetchPluginRelease(id));
+    ipcMain.handle("plugin-local:versions", (_event, pluginId: string) =>
+      fetchPluginVersions(app.getVersion(), pluginId)
+    );
     ipcMain.handle("plugin-local:stage-release", async (_event, id: string) => {
       const { bytes, source } = await downloadPluginRelease(id);
       return updates.stageRelease(bytes, source);
