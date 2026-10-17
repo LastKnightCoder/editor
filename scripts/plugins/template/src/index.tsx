@@ -57,7 +57,7 @@ function Counter({ context }: PluginSettingsProps) {
         <p role="alert">{query.error?.message ?? save.error?.message}</p>
       )}
       {query.isError && <Button onClick={() => void query.refetch()}>重新读取</Button>}
-      <Dialog open={help} onOpenChange={setHelp} title="独立插件说明">
+      <Dialog open={help} onOpenChange={setHelp} title="使用说明">
         <DialogBody>设置保存在当前工作区，停用后保留。</DialogBody>
       </Dialog>
     </Panel>
@@ -78,7 +78,7 @@ function Settings(props: PluginSettingsProps) {
 function Page({ context }: PluginPageProps) {
   return (
     <section>
-      <h1>独立插件页面</h1>
+      <h1>计数器</h1>
       <Settings context={context} />
     </section>
   );
@@ -88,10 +88,10 @@ export default definePlugin({
   ...__PLUGIN_META__,
   create: () => ({
     activate(context) {
-      const page = context.pages.register({ id: "counter", title: "独立计数", component: Page });
+      const page = context.pages.register({ id: "counter", title: "计数器", component: Page });
       context.sidebar.registerItem({
         id: "counter",
-        title: "独立计数",
+        title: "计数器",
         icon: CounterIcon,
         group: SIDEBAR_GROUPS.daily,
         page,
@@ -99,7 +99,7 @@ export default definePlugin({
       context.settings.register({ id: "preferences", title: "计数设置", component: Settings });
       context.commands.register({
         id: "open",
-        title: "打开独立计数插件",
+        title: "打开计数器",
         run: async () => {
           await page.open();
           return null;

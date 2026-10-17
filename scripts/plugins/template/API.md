@@ -1,10 +1,8 @@
 # 插件 API
 
-正式编辑器扩展与博客发布见 [EDITOR.md](EDITOR.md)，要求 SDK 0.6.0 与 Tau 0.59.0。作者声明一份 `editorExtensions`，桌面与博客共用同一插件入口。
+本文介绍编写命令、页面、侧边栏、设置、数据存储和网络请求所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
-编译与转换服务见 [SERVICES.md](SERVICES.md)。本模板已锁定 SDK 0.6.0，本文及扩展章节均以该版本和 Tau 0.59.0 为基准。
-
-本文介绍编写命令、页面、设置和数据存储所需的接口。示例适用于本模板锁定的 SDK 版本。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。
+想在文档里添加自定义块，见 [EDITOR.md](EDITOR.md)；需要编译 Tailwind、Typst、Markdown 等内容，见 [SERVICES.md](SERVICES.md)。
 
 阅读顺序：先了解[入口与生命周期](#入口与生命周期)，再按功能查阅[命令](#命令)、[存储](#私有存储)、[页面](#页面)、[设置](#设置)、[网络请求](#网络请求)和[资源清理](#资源清理)。完整可运行示例见 `src/index.tsx`。
 
@@ -83,6 +81,7 @@ export default definePlugin({
 | `settings`    | `PluginSettings`                       | 注册并打开设置区域                     |
 | `sidebar`     | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口           |
 | `fetch`       | `typeof fetch`                         | 发起与插件生命周期关联的网络请求       |
+| `services`    | `PluginServices`                       | 编译与转换服务，见 SERVICES.md         |
 | `register`    | `(resource: Disposable) => Disposable` | 托管需要清理的资源                     |
 
 不要缓存上下文供下次启用使用。旧上下文失效后调用 storage、注册功能或打开页面会报错。
@@ -187,7 +186,7 @@ export default definePlugin({
 
 ## 侧边栏
 
-SDK 0.2.0 起提供 `context.sidebar`，需要支持插件侧边栏的 Tau 客户端。条目关联已有页面，点击自动打开并随当前页面高亮；停用后入口消失，恢复启用时重新注册。
+`context.sidebar` 为页面添加侧边栏入口。条目关联已有页面，点击自动打开并随当前页面高亮；停用后入口消失，恢复启用时重新注册。
 
 ### 注册到已有分组
 
@@ -230,7 +229,7 @@ context.sidebar.registerItem({ id: "counter", title: "计数", group: group.id, 
 | -------- | ------------------------- | ----------------------------------------------------------- |
 | `id`     | `string`                  | 插件内唯一条目 ID                                           |
 | `title`  | `string`                  | 非空的入口名称                                              |
-| `icon`   | `PluginSidebarIcon`，可选 | SVG 图标组件，省略时使用默认插件图标（SDK 0.3.0 起）        |
+| `icon`   | `PluginSidebarIcon`，可选 | SVG 图标组件，省略时使用默认插件图标                        |
 | `group`  | `string`，可选            | 公开分组常量或本插件分组句柄的 id；缺省或不存在时归入“插件” |
 | `page`   | `PluginPageHandle`        | 本插件本次启用注册的有效页面句柄                            |
 | `params` | `PluginPageParams`，可选  | 点击时传给页面的参数，缺省为空对象                          |
@@ -239,7 +238,7 @@ context.sidebar.registerItem({ id: "counter", title: "计数", group: group.id, 
 
 ### 自定义图标
 
-SDK 0.3.0 起，`icon` 接收组件本身，例如 `icon: CounterIcon`，不是 `<CounterIcon />`、图片地址或图标名称字符串。模板的 `src/CounterIcon.tsx` 是可直接修改的 SVG 示例：
+`icon` 接收组件本身，例如 `icon: CounterIcon`，不是 `<CounterIcon />`、图片地址或图标名称字符串。模板的 `src/CounterIcon.tsx` 是可直接修改的 SVG 示例：
 
 ```tsx
 import type { PluginSidebarIconProps } from "@tau/plugins";
@@ -265,7 +264,7 @@ export function WaterDropIcon({ size = 24, strokeWidth = 2, ...props }: PluginSi
 
 `PluginSidebarIconProps` 包含标准 SVG 属性及可选的 `size: number | string`。侧边栏传入 `size`、`strokeWidth`、`className` 和 `aria-hidden`，图标应透传这些属性；用 `currentColor` 跟随明暗主题及选中颜色，不写死宽高或颜色。展开和收起状态使用同一个图标，图标不承担按钮点击或业务状态管理。
 
-也可以使用满足该属性约定的 React 图标库组件，依赖通过 pnpm 添加；无须额外配置打包。使用自定义图标需要更新到支持图标的 Tau 客户端，较旧的侧边栏实现会显示默认插件图标。
+也可以使用满足该属性约定的 React 图标库组件，依赖通过 pnpm 添加，无须额外配置打包。
 
 提前调用条目的 `dispose()` 会移除入口；注销页面也会隐藏关联入口。提前注销分组后，剩余条目归入“插件”；当最后一个条目移除后，空分组不显示。注册重复 ID 会报错，不覆盖已有条目。插件只能管理自己注册的分组和条目，不能向其他插件的分组插入，也不能引用其他插件或上一次启用的页面句柄。
 
@@ -377,8 +376,6 @@ export function Help() {
 
 自定义样式放入 CSS 并在入口导入。为选择器加插件专属前缀，避免影响其他界面；颜色使用 `var(--tau-accent)` 等主题变量。不要依赖客户端为插件源码生成 Tailwind 样式。
 
-## 能力范围与升级
-
-上述命令、页面、侧边栏、设置、私有存储、网络和清理接口是本模板的开发范围。SDK 类型中还包含编辑器扩展接口，但目前仅用于插件工作台，不会自动作用到普通笔记编辑器；本文不将其作为普通笔记扩展的可用能力。
+## 依赖与升级
 
 添加依赖使用 `pnpm add <包名>`；升级 SDK 或 React 前先确认兼容性，并完整验证启用、停用和重启流程。保留 `pnpm-lock.yaml`，以便其他开发者复现依赖版本。

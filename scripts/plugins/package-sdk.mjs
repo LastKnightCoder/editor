@@ -152,7 +152,7 @@ try {
     );
     await writeFile(
       path.join(directory, "README.md"),
-      `# Tau ${name} 作者契约\n\n通过 npm 别名安装为 \`@tau/${name}\`。运行时由 Tau 宿主提供，构建时必须 external；不可在普通 Node.js 程序中直接执行。\n\n模板与使用说明：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，要求 Tau 0.59.0 及以上。\n" : ""}`
+      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。实际实现由 Tau 客户端在运行时提供，构建时需设为 external，不能在普通 Node.js 程序中直接运行。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，需要 Tau 0.59.0 及以上。\n" : ""}`
     );
     if (name === "plugins") {
       await writeFile(

@@ -1,6 +1,6 @@
 # 编译与转换服务
 
-本文对应本模板锁定的 SDK 0.6.0，需要 Tau 0.59.0 或更高版本。编译与转换通过 `context.services` 调用，类型从 `@tau/plugins` 导入。基础计数示例不依赖这些服务，可按实际需求使用。
+需要在插件里编译 Tailwind、Typst、TikZ，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本。
 
 所有服务都是异步方法，只处理传入数据并返回结果，不读写笔记、不选择或保存文件、不自动注入样式。
 
@@ -47,13 +47,13 @@ const { css } = await context.services.tailwind.compile({
 });
 ```
 
-使用 Tailwind 4，支持 Tau 语义类。返回 theme/utilities，不重复提供 preflight。源码只用于提取完整类名，不执行 TSX/JSX，也不编译 React。动态拼接类名不能保证被提取。Tau 语义类依赖宿主的 `--tau-*` 变量，离开 Tau 的页面需要自行提供相应主题变量。
+使用 Tailwind 4，支持 Tau 语义类。返回 theme/utilities，不重复提供 preflight。源码只用于提取完整类名，不执行 TSX/JSX，也不编译 React。动态拼接类名不能保证被提取。Tau 语义类依赖 Tau 提供的 `--tau-*` 变量，离开 Tau 的页面需要自行提供相应主题变量。
 
 固定插件界面通常在打包时编译样式；此服务主要用于运行时生成内容。返回 CSS 由插件自行使用并在停用时清理。
 
 ## Typst
 
-首期仅支持 HTML，返回 HTML 正文片段。PDF/SVG 不属于本版本 API。`inputs` 对应 Typst 的 `sys.inputs`：
+目前只输出 HTML 正文片段，不支持 PDF 和 SVG。`inputs` 对应 Typst 的 `sys.inputs`：
 
 ```ts
 const { html } = await context.services.typst.compile({
@@ -113,7 +113,7 @@ const { svg } = await context.services.tikz.compile({
 
 ## FFmpeg
 
-`ServiceFile` 为 `{ name: string, data: Blob }`；文件名仅在任务内使用，不是客户端路径。输入输出名称不得重复，目录使用 `/`。文件整体经内存传输，适合可容纳于内存的素材；尚无大文件流式接口。
+`ServiceFile` 为 `{ name: string, data: Blob }`；文件名仅在任务内使用，不是客户端路径。输入输出名称不得重复，目录使用 `/`。文件整体经内存传输，适合可以放进内存的素材，不支持大文件流式处理。
 
 ```ts
 const input = { name: "input.wav", data: audioBlob };
@@ -136,4 +136,4 @@ const outputBlob = result.files[0].data;
 
 `args` 不包含程序名；含空格的参数作为一个数组元素，不额外加 shell 引号。服务设置非交互、覆盖临时输出和进度通道，不要覆盖 `-progress` 或依赖交互 stdin。`outputs` 声明要取回的产物，名称与参数中的输出一致；文件未生成会报错，退出非零不会返回部分成功结果。
 
-`onProgress.time` 是已处理媒体时间（秒），不是百分比。FFmpeg 首次使用可能需要客户端准备或下载二进制文件，需要网络；已安装版本可复用。取消不删除共享编译器缓存。`log` 保留最后 64 KiB 诊断输出。返回 MIME 类型由 `outputs.mimeType` 指定，调用者须确保与实际格式一致。
+`onProgress.time` 是已处理媒体时间（秒），不是百分比。首次使用 FFmpeg 时 Tau 可能需要联网下载，之后会复用；取消任务不会删除已下载的 FFmpeg。`log` 保留最后 64 KiB 诊断输出。返回 MIME 类型由 `outputs.mimeType` 指定，调用者须确保与实际格式一致。

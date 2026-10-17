@@ -88,7 +88,7 @@ try {
   const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   await writeFile(
     path.join(author, "manifest.json"),
-    JSON.stringify({ ...manifest, id: "example.external-other", name: "独立计数插件二" })
+    JSON.stringify({ ...manifest, id: "example.external-other", name: "计数器示例二" })
   );
   await run("pnpm", ["build"], author);
   const second = (await versions()).find(name => name !== first);

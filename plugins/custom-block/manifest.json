@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "tau.custom-block",
   "name": "自定义组件块",
-  "description": "在文档中编辑交互式 React 组件，并原样发布到博客。",
+  "description": "在文档中编写并预览可交互的 React 组件。",
   "version": "1.0.0",
   "minAppVersion": "0.59.0",
   "apiVersion": 1,
