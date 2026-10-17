@@ -1,6 +1,6 @@
-# 白板插件（开发版）
+# 白板插件
 
-白板作者接口当前位于 SDK 0.8.0-dev.0，尚未发布到 npm。SDK 0.7.0 不提供此能力，需要使用包含白板扩展支持的开发客户端。
+白板作者接口需要 SDK 0.8.0 及包含白板扩展支持的 Tau 客户端。SDK 0.7.0 不提供此能力。
 
 插件定义中声明 `whiteboardExtensions`，manifest 增加 `whiteboard: true`。使用 `@tau/plugins/whiteboard` 导入定义函数和类型，并将该模块保留为构建 external，由宿主提供实现。一个 main.js 同时包含声明、渲染与交互，不生成另一个渲染入口。
 
@@ -104,7 +104,7 @@ schematic: element => [{
 - `usePageSketch()` 读取所属页面的画风；`sketch.hashSeed(text)` 为预览图生成稳定种子。`AttrPopover`、`AttrToggle`、`OptionGrid`、`Seg` 供属性面板使用，`SketchPopover` 提供与宿主相同的元素笔触设置。
 - `schematic(element, { dark })` 返回纯图元数组，用于列表与导出弹窗的简略预览；字段类型见 SchematicShape。不能调用 hook、修改元素或依赖某个画布已打开。实际图像导出仍使用完整画布渲染，不使用简略投影替代。
 
-上述能力仍为本地开发版，未发布到 npm。
+构建 Tailwind 工具类时可导入 `@tau/plugins/tailwind.css`，其中仅包含语义类名映射，主题变量由客户端提供。不要引入未公开的宿主主题包。
 
 ## 私有偏好
 

@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vitest";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +9,7 @@ const roots: string[] = [];
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, { recursive: true, force: true });
 });
-async function fixture(editor = false) {
+async function fixture(editor = false, optional = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "tau-distribution-"));
   roots.push(root);
   const code = "module.exports.default = {};";
@@ -22,7 +22,7 @@ async function fixture(editor = false) {
     formatVersion: 1,
     platform: "desktop",
     format: "cjs",
-    ...(editor ? { editor: true } : { whiteboard: true }),
+    ...(optional ? {} : editor ? { editor: true } : { whiteboard: true }),
     main: "main.js",
     integrity: { "main.js": hash(code) },
   });
@@ -32,6 +32,8 @@ async function fixture(editor = false) {
   for (const [file, value] of Object.entries(files))
     await writeFile(path.join(source, file), value);
   const entry = {
+    repository: "https://github.com/example/plugin",
+    ...(optional ? { bundled: false } : {}),
     artifact: "release",
     id: "demo.figure",
     version: "1.0.0",
@@ -73,4 +75,11 @@ it("便携编辑器继续分发编辑器插件", async () => {
   await portable.buildStart();
   expect(portable.load("\0tau-plugin-catalog")).toContain("virtual:tau-plugin-package:0");
   expect(portable.load("\0tau-plugin-package:0")).toContain('"editor":true');
+});
+
+it("非默认插件可以校验和加载，但不复制到客户端随包目录", async () => {
+  const { root, config } = await fixture(false, true);
+  const destination = path.join(root, "bundled");
+  expect(await buildPluginDistribution(config, destination)).toHaveLength(1);
+  expect(await readdir(destination)).toEqual([]);
 });

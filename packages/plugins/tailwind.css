@@ -1,0 +1,2 @@
+/* 插件构建使用语义工具类，实际主题变量由宿主注入。 */
+@import "@tau/themes/tailwind.css";

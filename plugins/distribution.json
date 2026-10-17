@@ -1,21 +1,51 @@
 [
   {
-    "directory": "custom-block",
-    "build": "build.mjs",
-    "artifact": "dist/package"
-  },
-  {
-    "artifact": "releases/taunote.stickman/0.1.0",
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-stickman",
+    "artifact": "releases/taunote.stickman/0.1.1",
     "id": "taunote.stickman",
-    "version": "0.1.0",
-    "sourceRevision": "61e930b907f51351f3593dc2237bc38c9ce2361d",
-    "archiveSha256": "98e6738939ff59014a3f7ac2fefca6c5423d5eff55bddb9215bb3bf019b3116f",
+    "version": "0.1.1",
+    "sourceRevision": "3c9246e86c82a1a0d8eb566c360f839258bf3052",
+    "archiveSha256": "b68f79fb734a118e7eaeeee2006941a45487ccff303637131ad8275f9e6cc1c6",
     "files": {
+      "CHANGELOG.md": "5c1aae7917dbe75d009b106a46989d43f1c0521612ded79ab89b3140850066a8",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
       "main.css": "6624a0ba26b6f58a10cee3f1e0803d95c0feb6839e864959e7d64cd13c6e8f38",
-      "main.js": "80f87a8a86be947837887d8a3cfa369b0794eb92cfe94b6ce27e64322f60af67",
-      "manifest.json": "a2f782559d868c9e69144c3d4fa7b79854d1e3ceb3e5498a0e192697dcd9321b",
+      "main.js": "092d6cd4fec09bb6bda7d7470340fb273a6362842efb36918b494756a201b2e7",
+      "manifest.json": "8999edf185071dcbd1023b76ecdc6aa36d4333a116528ded70946582099781d7",
       "README.md": "2bf8ada46c9c55d7e35b77079df642e430403446686dcea35f91fcfa6a665867"
+    }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-weread",
+    "bundled": false,
+    "artifact": "releases/weread/1.0.4",
+    "id": "weread",
+    "version": "1.0.4",
+    "sourceRevision": "77bb5879fc5101e3f4c38d10b5d865f5f66f335f",
+    "archiveSha256": "14c572a2ce8015344936c84990f032ec8b29225b88bf1548ac0f59d7a1799e66",
+    "files": {
+      "CHANGELOG.md": "89f362595f492653987a138aa1092de90c1baed54d5c7a0447e1d84f001232b0",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "f9c88325da920d36efae9004ba36ee18c150e2f1a6ed7b20b86df2ba4cd5752b",
+      "main.js": "4369319b3513ee1160b7ecabf178c2f0380f2d619cc895a6af17988f6643a330",
+      "manifest.json": "19272426825058ca488456d754b669be23af619cf5e674d5cda80710f6953b1c",
+      "README.md": "1d6133f3be8406809284dc9fc3e627d7c5d4ce277db5cadc0639378604e9d8f9"
+    }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-custom-block",
+    "artifact": "releases/tau.custom-block/1.0.2",
+    "id": "tau.custom-block",
+    "version": "1.0.2",
+    "sourceRevision": "1533d2d670f544517217acf71a448b1c6d68e46c",
+    "archiveSha256": "83d47be071484f978c38b33f4ea647d492b8808692342724d53e04684c97cabd",
+    "files": {
+      "CHANGELOG.md": "01974f93e01ac6975a59384cfe3da7ddc6fe5fabee9bfcefe40c9b48373ccc15",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "81c82e3a83b2f61f71f63a6a09114d08283e4e91a3aad458d873edb43fd37f5f",
+      "main.js": "25f07c7ed0cbf5ea6b946497bc4cae36ef3bdbd9d8dadfbacff84d3f5ff6d402",
+      "manifest.json": "a5ea5afb542e86f9c3c3b728b53c42472f4b5c73e0c11f6cb594516781edaf5d",
+      "README.md": "c4cea500e178071493d62395ac84401d55247d47012c861e0eb36c62b38d12d2"
     }
   }
 ]

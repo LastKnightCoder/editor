@@ -147,6 +147,7 @@ try {
             ".": { types: "./" + targetOf(entries[index]), default: "./runtime.js" },
             ...(name === "plugins"
               ? {
+                  "./tailwind.css": "./tailwind.css",
                   "./whiteboard": {
                     types: "./" + targetOf(whiteboardEntry),
                     default: "./runtime.js",
@@ -170,6 +171,10 @@ try {
       `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。实际实现由 Tau 客户端在运行时提供，构建时需设为 external，不能在普通 Node.js 程序中直接运行。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，需要 Tau 0.59.0 及以上。AI 功能声明、模型分配与用量审计见 [AI.md](AI.md)。\n" : ""}`
     );
     if (name === "plugins") {
+      await writeFile(
+        path.join(directory, "tailwind.css"),
+        await readFile(path.join(root, "packages/themes/src/tailwind.css"))
+      );
       await writeFile(
         path.join(directory, "WHITEBOARD.md"),
         await readFile(path.join(root, "scripts/plugins/template/WHITEBOARD.md"))

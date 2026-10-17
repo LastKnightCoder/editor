@@ -2,24 +2,29 @@
 
 `distribution.json` 是产品分发清单。运行 `node scripts/plugins/build-distribution.mjs` 后，产物位于 `apps/desktop/build/bundled-plugins/`。桌面端首次遇到随包插件时安装到约定目录；不覆盖用户已经更新的版本，不重新安装用户已卸载的插件。用户的启用/禁用选择仍由插件管理保存。
 
-当前有两类来源：
+所有业务插件统一在公开 GitHub 仓库维护，主项目只保存固定版本快照 `releases/<id>/<version>/`，不在客户端构建时访问作者目录或重新编译插件源码。
 
-- `directory/build/artifact`：仓库内独立项目，例如 custom-block；构建脚本先生成插件包，产品只消费产物。
-- `artifact/id/version/files`：已构建的固定版本快照，例如火柴人。源码由独立插件仓库维护；快照放在 `releases/<id>/<version>/`，不在客户端构建时访问作者目录或重新编译人物源码。
+| 插件         | 源码与版本                                                                                                         | 默认随客户端安装 |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| 微信读书     | [tau-plugin-weread · v1.0.4](https://github.com/LastKnightCoder/tau-plugin-weread/releases/tag/v1.0.4)             | 否，用户主动安装 |
+| 自定义组件块 | [tau-plugin-custom-block · v1.0.2](https://github.com/LastKnightCoder/tau-plugin-custom-block/releases/tag/v1.0.2) | 是               |
+| 火柴人       | [tau-plugin-stickman · v0.1.1](https://github.com/LastKnightCoder/tau-plugin-stickman/releases/tag/v0.1.1)         | 是               |
+
+清单中的 `repository`、`sourceRevision`、`version` 对应源码仓库、提交及版本；`bundled:false` 的包保留用于集成验证，不自动安装。SDK 0.8.0 已发布，三个源码仓库均可用公开 npm 依赖独立构建。不使用 submodule。
 
 固定快照的所有文件（包括说明和许可证）均记录 SHA-256。构建检查完整文件清单、文件摘要以及 manifest 身份/版本，任何漂移都失败。`archiveSha256` 记录导入的 ZIP 摘要，`sourceRevision` 记录作者提交用于追溯；构建直接校验解包后的文件，不需要原 ZIP。固定快照不参与 ESLint/Prettier，禁止手改 main.js 或格式化 manifest。
 
 ## 更新独立插件版本
 
-1. 在独立作者仓库修改、验收并提升版本，提交源码后执行 `pnpm build`。白板 SDK 尚为本地开发版时，依赖包的生成方式见 `scripts/plugins/template/WHITEBOARD.md`。
+1. 在独立作者仓库修改、验收并提升版本，提交源码后执行 `pnpm build`，创建对应 GitHub Release 并上传 ZIP。
 2. 在本仓库导入作者 ZIP，并记录准确的源码提交：
 
    ```sh
-   node scripts/plugins/pin-distribution.mjs /path/to/plugin.zip <作者完整提交SHA>
+   node scripts/plugins/pin-distribution.mjs /path/to/plugin.zip <作者完整提交SHA> https://github.com/LastKnightCoder/<仓库名>
    node scripts/plugins/build-distribution.mjs
    ```
 
-   脚本验证包内摘要，生成版本目录与清单。已存在的版本拒绝覆盖；修复包应提升版本。仓库清单不记录本机绝对路径。
+   微信读书等不默认安装的包追加 `--not-bundled`。脚本验证包内摘要，生成版本目录与清单。已存在的版本拒绝覆盖；修复包应提升版本。仓库清单不记录本机绝对路径。
 
 3. 验证固定产物。火柴人的行为验收命令：
 
