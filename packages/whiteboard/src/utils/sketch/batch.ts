@@ -1,26 +1,10 @@
 import type Board from "../../Board";
-import type {
-  BoardElement,
-  ElementSketch,
-  MindNodeElement,
-  Operation,
-  SetNodePatch,
-} from "../../types";
+import type { BoardElement, MindNodeElement, Operation, SetNodePatch } from "../../types";
 import MindUtil from "../MindUtil";
 import PathUtil from "../PathUtil";
 import { isSketchableType } from "./resolve";
 
-type SketchPatch = Partial<Record<keyof ElementSketch, unknown>>;
-
-/** 合并覆盖：值为 undefined 的字段删除，全部删空则返回 undefined（回到完全跟随页面） */
-export function patchSketch(
-  sketch: ElementSketch | undefined,
-  patch: SketchPatch
-): ElementSketch | undefined {
-  const next: Record<string, unknown> = { ...(sketch ?? {}), ...patch };
-  Object.keys(next).forEach(key => next[key] === undefined && delete next[key]);
-  return Object.keys(next).length ? (next as ElementSketch) : undefined;
-}
+export { patchSketch } from "./patch";
 
 /**
  * 多选笔触的作用对象：思维导图节点归到根节点（覆盖存在根上），重复的根只算一次；
@@ -31,7 +15,8 @@ export function getSketchTargets(board: Board, elements: BoardElement[]): BoardE
   elements.forEach(el => {
     const owner =
       el.type === "mind-node" ? (MindUtil.getRoot(board, el as MindNodeElement) ?? el) : el;
-    if (isSketchableType(owner.type)) byId.set(owner.id, owner);
+    if (board.extensions?.supportsSketch(owner.type) ?? isSketchableType(owner.type))
+      byId.set(owner.id, owner);
   });
   return [...byId.values()];
 }

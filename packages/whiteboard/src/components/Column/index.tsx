@@ -5,8 +5,14 @@ import { cn } from "@tau/ui";
 
 import { EHandlerPosition, Point, Board, BoardElement, ColumnElement } from "../../types";
 import { COLUMN_DEFAULTS, COLUMN_COLORS, COLUMN_COLOR_OPTIONS } from "../../types/column";
-import { useSelectState, useDropArrow, useColumnChildrenWatch, useSketch } from "../../hooks";
-import { PathUtil, ColumnUtil, PointUtil } from "../../utils";
+import {
+  useSelectState,
+  useDropArrow,
+  useColumnChildrenWatch,
+  useSketch,
+  useResize,
+} from "../../hooks";
+import { PathUtil, ColumnUtil } from "../../utils";
 import ArrowConnectPointGroup from "../ArrowConnectPointGroup";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
@@ -584,51 +590,13 @@ interface ColumnResizeHandleProps {
 }
 
 const ColumnResizeHandle = memo(
-  ({
-    x,
-    y,
-    height,
-    position,
-    board,
-    onResizeStart,
-    onResize,
-    onResizeEnd,
-  }: ColumnResizeHandleProps) => {
-    const isResizing = useRef(false);
-    const startPoint = useRef<Point | null>(null);
-
-    const handlePointerDown = useMemoizedFn((e: React.PointerEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      isResizing.current = true;
-
-      // Convert screen coordinates to board coordinates
-      const point = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-      if (!point) return;
-
-      startPoint.current = point;
-      onResizeStart(point);
-
-      const handlePointerMove = (moveEvent: PointerEvent) => {
-        if (!isResizing.current || !startPoint.current) return;
-        const endPoint = PointUtil.screenToViewPort(board, moveEvent.clientX, moveEvent.clientY);
-        if (!endPoint) return;
-
-        const isPreserveRatio = moveEvent.shiftKey;
-        const isAdsorb = !moveEvent.altKey;
-        onResize(position, startPoint.current, endPoint, isPreserveRatio, isAdsorb);
-      };
-
-      const handlePointerUp = () => {
-        isResizing.current = false;
-        startPoint.current = null;
-        onResizeEnd();
-        document.removeEventListener("pointermove", handlePointerMove);
-        document.removeEventListener("pointerup", handlePointerUp);
-      };
-
-      document.addEventListener("pointermove", handlePointerMove);
-      document.addEventListener("pointerup", handlePointerUp);
+  ({ x, y, height, position, onResizeStart, onResize, onResizeEnd }: ColumnResizeHandleProps) => {
+    const handleRef = useRef<SVGRectElement>(null);
+    useResize({
+      ref: handleRef,
+      onResizeStart,
+      onResize: (start, end, preserve, adsorb) => onResize(position, start, end, preserve, adsorb),
+      onResizeEnd,
     });
 
     const handleWidth = 8;
@@ -642,7 +610,7 @@ const ColumnResizeHandle = memo(
         height={height}
         fill="transparent"
         className="cursor-ew-resize"
-        onPointerDown={handlePointerDown}
+        ref={handleRef}
       />
     );
   }

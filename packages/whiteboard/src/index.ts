@@ -12,7 +12,7 @@ export {
   getDocumentVersion,
   isDocumentVersionSupported,
 } from "./document-version";
-export { useWhiteboardAPI } from "./extensions/runtime";
+export { useWhiteboardAPI } from "./extensions/context";
 export * from "./types/selection";
 export * from "./types/point";
 export * from "./types/operation";
@@ -52,7 +52,7 @@ export {
 } from "./public";
 export { default as MindThemeUtil } from "./utils/MindThemeUtil";
 export type { MindMode, MindNodeVisual } from "./utils/MindThemeUtil";
-export { useWhiteboardAPI as useBoard } from "./extensions/runtime";
+export { useWhiteboardAPI as useBoard } from "./extensions/context";
 export { useSelection, useViewPort } from "./extensions/publicHooks";
 export { useBoardState } from "./hooks/useBoardState";
 export { useDropArrow } from "./hooks/useDropArrow";

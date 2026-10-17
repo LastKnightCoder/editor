@@ -3,7 +3,7 @@ import { writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { readPluginPackage } from "../../src-electron/main/services/plugin-package";
-import { PluginEditorStartup } from "../../src-electron/main/services/plugin-editor-startup";
+import { PluginContentStartup } from "../../src-electron/main/services/plugin-content-startup";
 import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
 import { getMarkdown, importFromMarkdown } from "../../src/utils/markdown";
 import { customMarkdown } from "./custom-fixture";
@@ -56,7 +56,7 @@ void app
     } finally {
       await indexing.terminate();
     }
-    const startup = new PluginEditorStartup(async id =>
+    const startup = new PluginContentStartup(async id =>
       artifacts.find(item => item.manifest.id === id)!
     );
     ipcMain.handle("module-init:init-module", () => ({ success: true }));
@@ -66,14 +66,14 @@ void app
       entries: artifacts.map(artifact => ({
         id: artifact.manifest.id,
         artifact,
-        editorEnabled: true,
+        contentEnabled: true,
       })),
     }));
     ipcMain.handle("tailwind-runtime:compile", () =>
       readFile(path.join(directory, "custom-runtime.css"), "utf8")
     );
     const snapshot = await startup.get(artifacts.map(artifact => artifact.manifest.id));
-    ipcMain.handle("plugin-local:editor-startup", () => snapshot);
+    ipcMain.handle("plugin-local:content-startup", () => snapshot);
     const window = new BrowserWindow({
       show: false,
       webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },

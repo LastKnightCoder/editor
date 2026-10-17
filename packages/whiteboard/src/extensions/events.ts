@@ -1,4 +1,7 @@
-import type { BoardElement, PageSketch, Selection, ViewPort } from "../types";
+import type { BoardElement } from "../types/element";
+import type { PageSketch } from "../types/sketch";
+import type { Selection } from "../types/selection";
+import type { ViewPort } from "../types/viewport";
 
 /**
  * 白板内核事件表：事件名 → 监听器参数元组。

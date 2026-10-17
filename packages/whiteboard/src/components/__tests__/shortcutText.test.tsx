@@ -9,6 +9,7 @@ import Board from "../../Board";
 import StatusBar from "../StatusBar";
 import DocumentSetter from "../AttributeSetter/DocumentSetter";
 import { BoardContext } from "../../context";
+import { WhiteboardAPIProvider } from "../../extensions/context";
 import { createDocumentExtension, createInteractionExtension } from "../../extensions/builtins";
 import { restoreHotkeyPlatform, stubHotkeyPlatform } from "../../__tests__/hotkey-platform-stub";
 import type { BoardElement } from "../../types";
@@ -43,7 +44,11 @@ function mount(render: (board: Board) => React.ReactNode) {
   const root = createRoot(host);
   roots.push(root);
   act(() => {
-    root.render(<BoardContext.Provider value={board}>{render(board)}</BoardContext.Provider>);
+    root.render(
+      <BoardContext.Provider value={board}>
+        <WhiteboardAPIProvider value={board.extensions!.api}>{render(board)}</WhiteboardAPIProvider>
+      </BoardContext.Provider>
+    );
   });
   return host;
 }

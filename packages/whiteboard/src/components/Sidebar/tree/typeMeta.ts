@@ -13,18 +13,20 @@ import {
   Type,
   Video,
   Box,
-  PersonStanding,
   type LucideIcon,
 } from "lucide-react";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
 import type { BoardElement } from "../../../types";
 import { geometryItems } from "../../Toolbar/Geometry/config";
-import { STICK_POSES, getStickPose } from "../../../utils/stickman";
+import type { WhiteboardElementDefinition } from "../../../extensions/api";
+import { createSnapshotReader } from "../../../extensions/snapshot";
+
+type Definitions = (type: string) => WhiteboardElementDefinition | undefined;
+const snapshot = createSnapshotReader();
 
 /** 元素类型 → 中文名 + 中性图标（元素树 / 右键菜单共用；不按类型配色） */
 const META: Record<string, { label: string; icon: LucideIcon }> = {
   geometry: { label: "图形", icon: Shapes },
-  stickman: { label: "人物", icon: PersonStanding },
   arrow: { label: "箭头", icon: ArrowUpRight },
   richtext: { label: "文本", icon: Type },
   document: { label: "文档", icon: FileText },
@@ -39,7 +41,9 @@ const META: Record<string, { label: string; icon: LucideIcon }> = {
   whiteboard: { label: "白板", icon: Presentation },
 };
 
-export function elementTypeMeta(type: string) {
+export function elementTypeMeta(type: string, definitions?: Definitions) {
+  const presentation = definitions?.(type)?.presentation;
+  if (presentation) return { label: presentation.label, icon: presentation.icon ?? Box };
   return META[type] ?? { label: type, icon: Box };
 }
 
@@ -52,14 +56,23 @@ const MAX_LABEL = 40;
 const GENERIC_NAMES = new Set([
   ...Object.values(META).map(m => m.label),
   ...Object.values(GEOMETRY_LABEL),
-  ...STICK_POSES.map(pose => pose.name),
 ]);
 
 /** 元素自身内容派生的名字（不含手动命名 / 类型名兜底）；取不到返回空串 */
 function contentLabel(
   element: BoardElement,
-  lookup?: (id: string) => BoardElement | null | undefined
+  lookup?: (id: string) => BoardElement | null | undefined,
+  definitions?: Definitions
 ): string {
+  const getName = definitions?.(element.type)?.presentation?.getName;
+  if (getName) {
+    try {
+      const name = getName(snapshot(element));
+      if (typeof name === "string") return name;
+    } catch (error) {
+      console.error("白板元素名称生成失败", error);
+    }
+  }
   switch (element.type) {
     case "richtext":
       return richTextPlainText(element.content) || element.contentTitle || "";
@@ -67,8 +80,6 @@ function contentLabel(
       return richTextPlainText(element.text?.content) || GEOMETRY_LABEL[element.geometryType] || "";
     case "mind-node":
       return richTextPlainText(element.text);
-    case "stickman":
-      return getStickPose(element.pose)?.name ?? "";
     case "frame":
     case "column":
     case "document":
@@ -82,7 +93,7 @@ function contentLabel(
     case "arrow": {
       const end = (id?: string) => {
         const target = id ? lookup?.(id) : undefined;
-        return target ? elementLabel(target) : "";
+        return target ? elementLabel(target, undefined, definitions) : "";
       };
       const from = end(element.source?.bindId);
       const to = end(element.target?.bindId);
@@ -98,12 +109,16 @@ function contentLabel(
  */
 export function elementLabel(
   element: BoardElement,
-  lookup?: (id: string) => BoardElement | null | undefined
+  lookup?: (id: string) => BoardElement | null | undefined,
+  definitions?: Definitions
 ): string {
-  const named = element.name && !GENERIC_NAMES.has(element.name) ? element.name : "";
-  const text = (named || contentLabel(element, lookup) || element.name || "")
+  const named =
+    element.name && (definitions?.(element.type)?.presentation || !GENERIC_NAMES.has(element.name))
+      ? element.name
+      : "";
+  const text = (named || contentLabel(element, lookup, definitions) || element.name || "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!text) return elementTypeMeta(element.type).label;
+  if (!text) return elementTypeMeta(element.type, definitions).label;
   return text.length > MAX_LABEL ? `${text.slice(0, MAX_LABEL)}…` : text;
 }

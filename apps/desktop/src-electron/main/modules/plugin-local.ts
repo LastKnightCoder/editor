@@ -1,3 +1,4 @@
+import { isContentPlugin } from "@tau/plugins/package";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -6,10 +7,10 @@ import { discoverPlugins } from "../services/plugin-discovery";
 import { getPluginRegistry } from "../services/plugin-workspaces";
 import { PluginUpdates } from "../services/plugin-updates";
 import { readPluginPackage } from "../services/plugin-package";
-import { PluginEditorStartup } from "../services/plugin-editor-startup";
+import { PluginContentStartup } from "../services/plugin-content-startup";
 import { installBundledPlugins } from "../services/plugin-bundled";
 import { acceptHeadlessPlugin } from "../services/plugin-codecs";
-import { EditorPluginPreferences } from "../services/plugin-preferences";
+import { ContentPluginPreferences } from "../services/plugin-preferences";
 import {
   downloadPluginRelease,
   fetchPluginCatalog,
@@ -29,33 +30,35 @@ export default {
     );
     const updates = new PluginUpdates(directory(), app.getVersion());
     await updates.initialize();
-    const preferences = new EditorPluginPreferences(directory());
+    const preferences = new ContentPluginPreferences(directory());
     await preferences.load();
-    const editorStartup = new PluginEditorStartup(async id => {
+    const contentStartup = new PluginContentStartup(async id => {
       const maintenance = await updates.list();
       if (maintenance.some(item => item.id === id && item.blocked))
         throw new Error("插件更新尚未恢复");
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
-      if (artifact.manifest.id !== id || !artifact.manifest.editor)
-        throw new Error("编辑器插件身份或声明无效");
+      if (artifact.manifest.id !== id || !isContentPlugin(artifact.manifest))
+        throw new Error("内容插件身份或声明无效");
       acceptHeadlessPlugin(artifact);
       return artifact;
     });
     const initial = await discoverPlugins(directory(), app.getVersion());
     const initialSources = await updates.sources(initial.entries.map(entry => entry.id));
     const defaults = (id: string) => bundled.includes(id) || initialSources[id]?.kind === "center";
-    const snapshot = await editorStartup.get(
+    const snapshot = await contentStartup.get(
       initial.entries
         .filter(
           entry =>
-            entry.artifact?.manifest.editor && preferences.enabled(entry.id, defaults(entry.id))
+            entry.artifact &&
+            isContentPlugin(entry.artifact.manifest) &&
+            preferences.enabled(entry.id, defaults(entry.id))
         )
         .map(entry => entry.id)
     );
-    ipcMain.handle("plugin-local:editor-startup", () => snapshot);
-    ipcMain.handle("plugin-local:editor-enabled", async (_event, id: string, enabled: boolean) => {
+    ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    ipcMain.handle("plugin-local:content-enabled", async (_event, id: string, enabled: boolean) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
-      if (!artifact.manifest.editor) throw new Error("插件没有编辑器声明");
+      if (!isContentPlugin(artifact.manifest)) throw new Error("插件没有静态内容声明");
       await preferences.set(id, enabled);
     });
     ipcMain.handle(
@@ -76,7 +79,7 @@ export default {
             ...entry,
             source: sources[entry.id],
             bundled: bundled.includes(entry.id),
-            editorEnabled: preferences.enabled(
+            contentEnabled: preferences.enabled(
               entry.id,
               bundled.includes(entry.id) || sources[entry.id]?.kind === "center"
             ),
@@ -115,7 +118,7 @@ export default {
       app.quit();
     });
     ipcMain.handle("plugin-local:uninstall", async (_event, id: string) => {
-      if (await editorStartup.uses(id)) throw new Error("请先停用编辑器插件并重启应用，再卸载");
+      if (await contentStartup.uses(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
       return updates.uninstall(id);
     });
     ipcMain.handle("plugin-local:restore", (_event, id: string) => updates.restore(id));

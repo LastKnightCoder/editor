@@ -53,8 +53,9 @@ const Node: React.FC<NodeProps> = ({ element, depth, selectedIds, flat }) => {
   const hasChildren = !flat && Array.isArray(element.children) && element.children.length > 0;
   const isSelected = selectedIds.has(element.id);
 
-  const meta = elementTypeMeta(element.type);
-  const displayName = elementLabel(element, id => BoardUtil.getElementById(board, id));
+  const definitions = (type: string) => board.extensions?.getElementDefinition(type);
+  const meta = elementTypeMeta(element.type, definitions);
+  const displayName = elementLabel(element, id => BoardUtil.getElementById(board, id), definitions);
   const childCount = hasChildren ? element.children!.length : 0;
   const capService = board.capabilityService;
 

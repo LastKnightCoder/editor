@@ -11,7 +11,7 @@ export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
 export const pendingCount = (runtime: DesktopPluginRuntime | null) =>
   new Set([
     ...(runtime?.local?.updates.filter(item => item.pending).map(item => item.id) ?? []),
-    ...(runtime?.local?.pendingEditorIds?.() ?? []),
+    ...(runtime?.local?.pendingContentIds?.() ?? []),
   ]).size;
 
 export type PluginSourceKind = "center" | "zip" | "builtin" | "development";
@@ -67,7 +67,7 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
       source,
       releaseId: origin?.kind === "center" ? origin.releaseId : undefined,
       update: runtime.local?.updates.find(item => item.id === info.id),
-      enabled: local?.isEditorPlugin?.(info.id)
+      enabled: local?.isContentPlugin?.(info.id)
         ? local.enabled(info.id)
         : Boolean(
             info.state === "active" ||

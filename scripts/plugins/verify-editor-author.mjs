@@ -73,35 +73,19 @@ try {
     path.join(author, "dist/example.portable-counter-1.0.0.zip"),
     path.join(output, "example.portable-counter-1.0.0.zip")
   );
-  // 同一份业务源码在仓库外只依赖公开 SDK 与普通 npm 包，不能靠 workspace 类型蒙混通过。
-  await rm(path.join(author, "src"), { recursive: true });
-  await cp(path.join(root, "plugins/custom-block/src"), path.join(author, "src"), {
-    recursive: true,
-    filter: source => !source.includes("__tests__"),
-  });
-  for (const file of ["SKILL.md", "README.md", "manifest.json"])
-    await cp(path.join(root, "plugins/custom-block", file), path.join(author, file));
-  Object.assign(pkg.dependencies, {
-    "@babel/standalone": "^7.22.2",
-    "@loadable/component": "^5.15.3",
-    "lucide-react": "^0.399.0",
-    slate: "0.126.2",
-    "slate-react": "0.126.4",
-  });
-  Object.assign(pkg.devDependencies, {
-    "@types/babel__standalone": "^7.1.8",
-    "@types/loadable__component": "^5.13.10",
-  });
-  await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
-  const buildScript = await readFile(path.join(author, "build.mjs"), "utf8");
-  await writeFile(
-    path.join(author, "build.mjs"),
-    buildScript
-      .replace('entryPoints: ["src/index.tsx"]', 'entryPoints: ["src/plugin.ts"]')
-      .replace('loader: { ".svg": "dataurl" }', 'loader: { ".svg": "dataurl", ".md": "text" }')
+  const distribution = JSON.parse(
+    await readFile(path.join(root, "plugins/distribution.json"), "utf8")
   );
-  await run("pnpm", ["install", "--ignore-scripts"], author);
-  await run("pnpm", ["build"], author);
+  const release = distribution.find(entry => entry.id === "tau.custom-block");
+  if (!release?.repository || !release.sourceRevision) throw new Error("缺少自定义块源码出处");
+  const customAuthor = path.join(directory, "custom-author");
+  await run("git", ["init", customAuthor], directory);
+  await run("git", ["remote", "add", "origin", release.repository + ".git"], customAuthor);
+  await run("git", ["fetch", "--depth=1", "origin", release.sourceRevision], customAuthor);
+  await run("git", ["checkout", "--detach", release.sourceRevision], customAuthor);
+  await run("pnpm", ["install", "--frozen-lockfile"], customAuthor);
+  await run("pnpm", ["test"], customAuthor);
+  await run("pnpm", ["build"], customAuthor);
   await writeFile(
     path.join(output, "editor-author-report.json"),
     JSON.stringify(

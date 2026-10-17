@@ -25,25 +25,33 @@ export const setContentPluginError = (id: string, error: unknown) =>
 export function contentPluginDefinition(artifact: DevelopmentPluginPackage) {
   const loaded = entries.get(artifact.manifest.id);
   if (!loaded || JSON.stringify(loaded.artifact.manifest) !== JSON.stringify(artifact.manifest))
-    throw new Error("编辑器插件需重启应用后加载");
+    throw new Error("内容插件需重启应用后加载");
   return loaded.definition;
 }
 export function getContentPluginPublishContext(): PluginRenderContext {
-  for (const id of entries.keys()) {
+  for (const {
+    artifact,
+    definition: { id },
+  } of entries.values()) {
+    if (!artifact.manifest.editor) continue;
     if (localStorage.getItem(localPluginStateKey(id)) !== "true")
-      throw new Error("编辑器插件启停尚未生效，请重启后再发布");
+      throw new Error("内容插件启停尚未生效，请重启后再发布");
   }
   return {
     builtinTypes: [...builtinTypes],
-    plugins: [...entries.values()].map(({ artifact, definition, nodeTypes }) => ({
-      id: definition.id,
-      version: definition.version,
-      mainHash: artifact.manifest.integrity[artifact.manifest.main],
-      ...(artifact.manifest.styles
-        ? { stylesHash: artifact.manifest.integrity[artifact.manifest.styles] }
-        : {}),
-      nodeTypes: [...nodeTypes],
-      styleSources: definition.editorExtensions?.flatMap(extension => extension.styleSources ?? []),
-    })),
+    plugins: [...entries.values()]
+      .filter(entry => entry.artifact.manifest.editor)
+      .map(({ artifact, definition, nodeTypes }) => ({
+        id: definition.id,
+        version: definition.version,
+        mainHash: artifact.manifest.integrity[artifact.manifest.main],
+        ...(artifact.manifest.styles
+          ? { stylesHash: artifact.manifest.integrity[artifact.manifest.styles] }
+          : {}),
+        nodeTypes: [...nodeTypes],
+        styleSources: definition.editorExtensions?.flatMap(
+          extension => extension.styleSources ?? []
+        ),
+      })),
   };
 }

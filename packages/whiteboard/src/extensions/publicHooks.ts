@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { useWhiteboardAPI } from "./runtime";
+import { useWhiteboardAPI } from "./context";
 
 export function useSelection() {
   const api = useWhiteboardAPI();

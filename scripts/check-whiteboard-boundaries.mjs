@@ -29,8 +29,8 @@ const inside = (file, directory) => file.startsWith(directory + sep);
 const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
 assert.deepEqual(
   Object.keys(manifest.exports),
-  [".", "./extensions", "./styles.css"],
-  "Whiteboard 仅公开画布、扩展和样式入口"
+  [".", "./extensions", "./author", "./styles.css"],
+  "Whiteboard 仅公开画布、扩展、作者契约和样式入口"
 );
 const declared = new Set(
   Object.keys({
@@ -44,6 +44,11 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
   for (const file of files(resolve(root, directory))) {
     const inPackage = inside(file, resolve(packageRoot, "src"));
     const ast = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+    if (inPackage && !/(?:__tests__|\.test\.)/.test(file))
+      assert(
+        !/stickman/i.test(ast.text),
+        "人物实现与专用分支只能属于独立插件：" + relative(root, file)
+      );
     const check = (specifier, typeOnly = false) => {
       const label = relative(root, file) + ": " + specifier;
       assert(
@@ -54,7 +59,11 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
       if (!inside(file, packageRoot)) {
         assert(
           (!specifier.startsWith("@tau/whiteboard/") ||
-            ["@tau/whiteboard/extensions", "@tau/whiteboard/styles.css"].includes(specifier)) &&
+            [
+              "@tau/whiteboard/extensions",
+              "@tau/whiteboard/author",
+              "@tau/whiteboard/styles.css",
+            ].includes(specifier)) &&
             !(local && inside(local, packageRoot)),
           "消费者使用 @tau/whiteboard 公开入口：" + label
         );
@@ -190,6 +199,60 @@ const inspectCore = (file, trail = []) => {
 inspectCore(resolve(packageRoot, "src/WhiteBoard.tsx"));
 inspectCore(resolve(packageRoot, "src/Board.tsx"));
 inspectCore(resolve(packageRoot, "src/index.ts"));
+
+// 作者契约连同 type-only 依赖一起检查，不能通过声明文件重新暴露内核。
+const authorGraph = ts.createProgram([resolve(packageRoot, "src/author.ts")], {
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  jsx: ts.JsxEmit.ReactJSX,
+  allowImportingTsExtensions: true,
+  noEmit: true,
+});
+const authorFiles = new Set([
+  "author.ts",
+  "authorSketch.ts",
+  "components/SketchPaths/index.tsx",
+  "components/SketchPopover.tsx",
+  "chrome/index.tsx",
+  "constants/sketch.ts",
+  "utils/sketch/patch.ts",
+  "utils/sketch/geometry.ts",
+  "utils/sketch/random.ts",
+  "utils/sketch/ink.ts",
+  "utils/sketch/levels.ts",
+  "utils/sketch/shape.ts",
+  "utils/sketch/types.ts",
+  "utils/sketch/handText.ts",
+  "utils/dash.ts",
+  "extensions/api.ts",
+  "extensions/context.ts",
+  "extensions/authorHooks.ts",
+  "extensions/events.ts",
+  "extensions/standard-schema.ts",
+  "types/element.ts",
+  "types/containment.ts",
+  "types/operation.ts",
+  "types/selection.ts",
+  "types/viewport.ts",
+  "types/path.ts",
+  "types/point.ts",
+  "types/presentation.ts",
+  "types/sketch.ts",
+  "types/schematic.ts",
+]);
+for (const source of authorGraph.getSourceFiles()) {
+  const file = source.fileName;
+  if (file.includes("/node_modules/")) continue;
+  if (inside(file, packageRoot))
+    assert(
+      authorFiles.has(relative(resolve(packageRoot, "src"), file)),
+      "白板作者声明依赖内部实现：" + file
+    );
+  assert(
+    !inside(file, resolve(root, "packages/editor")),
+    "白板作者契约不得引入编辑器实现：" + file
+  );
+}
 console.log(
   "Whiteboard 边界通过：旧宿主协议清零、核心不加载文本与导出实现、无宿主依赖或私有深引、直接依赖已声明"
 );

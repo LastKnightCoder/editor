@@ -1,4 +1,5 @@
 tikzjax.js
+plugins/releases
 typst-worker.js
 tailwind-runtime-worker.js
 *.js

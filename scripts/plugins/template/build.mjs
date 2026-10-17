@@ -10,6 +10,7 @@ if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.id))
 if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Error("插件版本无效");
 const shared = [
   "@tau/plugins",
+  "@tau/plugins/whiteboard",
   "@tau/ui",
   "react",
   "react-dom",

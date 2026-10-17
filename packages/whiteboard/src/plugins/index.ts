@@ -3,7 +3,6 @@ export * from "./CopyPastePlugin";
 
 export * from "./RichTextPlugin";
 export * from "./GeometryPlugin";
-export * from "./StickmanPlugin";
 export * from "./HandwritePlugin";
 export * from "./DocumentPlugin";
 export * from "./CommonPlugin";

@@ -1,4 +1,8 @@
-import { createContext, createElement, useContext } from "react";
+import { createElement, Fragment } from "react";
+import { ElementControls, ElementInteraction } from "./ElementInteraction";
+import type { CommonElement } from "../plugins/CommonPlugin";
+import { resolveSketch, isSketchableType } from "../utils/sketch/resolve";
+import { WhiteboardAPIContext as APIContext } from "./context";
 import { ErrorBoundary, isEditableTarget } from "@tau/ui";
 import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
 import type { ServiceIdentifier } from "@tau/shared/service-contract";
@@ -55,14 +59,6 @@ import type {
   ElementBounds,
 } from "../types/board";
 import type { Operation } from "../types/operation";
-
-const APIContext = createContext<WhiteboardAPI | null>(null);
-export const WhiteboardAPIProvider = APIContext.Provider;
-export function useWhiteboardAPI(): WhiteboardAPI {
-  const api = useContext(APIContext);
-  if (!api) throw new Error("缺少白板扩展上下文");
-  return api;
-}
 
 /** 与 Board.getBounds 的默认包围盒一致：按 x/y/width/height 计算 */
 function defaultBounds(node: BoardElement): ElementBounds | null {
@@ -207,7 +203,8 @@ export class ExtensionRuntime {
     board: Board,
     extensions: readonly WhiteboardExtension[],
     onExtensionError?: (error: WhiteboardExtensionError) => void,
-    services: ServiceRegistry = createServiceRegistry()
+    services: ServiceRegistry = createServiceRegistry(),
+    extensionServices?: (id: string, api: WhiteboardAPI) => ServiceRegistry
   ) {
     if (!Array.isArray(extensions)) throw new TypeError("白板扩展集合必须是数组");
     this.board = board;
@@ -226,6 +223,8 @@ export class ExtensionRuntime {
     const listeners = new Map<string, Map<(...args: any[]) => void, (...args: any[]) => void>>();
     this.api = Object.freeze({
       getSnapshot,
+      getSketch: (element, owner) =>
+        resolveSketch(board.sketch, element, owner, this.supportsSketch(element.type)),
       get children() {
         return getSnapshot().children;
       },
@@ -412,6 +411,11 @@ export class ExtensionRuntime {
         });
         continue;
       }
+      const elements: readonly WhiteboardElementDefinition<any>[] = extension.elements ?? [];
+      if (!Array.isArray(elements)) {
+        report({ extensionId: id, reason: "invalid-definition", message: "静态元素必须为数组" });
+        continue;
+      }
       const namespace = id.slice(0, id.indexOf("."));
       const reserved = isReservedNamespace(namespace);
       // 服务依赖：requires/optional 条目必须是服务标识（createServiceId 产物），
@@ -453,7 +457,8 @@ export class ExtensionRuntime {
         report(declarationFailure);
         continue;
       }
-      const missingService = requiredServices.find(service => !services.has(service));
+      const scopedServices = extensionServices?.(id, this.api) ?? services;
+      const missingService = requiredServices.find(service => !scopedServices.has(service));
       if (missingService) {
         report({
           extensionId: id,
@@ -464,7 +469,7 @@ export class ExtensionRuntime {
         continue;
       }
       const scope = createExtensionScope(this.api, id, {
-        registry: services,
+        registry: scopedServices,
         requires: requiredServices,
         optional: optionalServices,
       });
@@ -472,6 +477,10 @@ export class ExtensionRuntime {
       try {
         registerBoardAccess(scope.api, board);
         value = extension.create(scope.api);
+        if (!value || "elements" in value) {
+          if (value) this.guard(id, () => value.dispose?.());
+          throw new Error("元素必须在扩展顶层静态声明");
+        }
       } catch (error) {
         scope.dispose();
         report({
@@ -512,7 +521,7 @@ export class ExtensionRuntime {
           ? !type.includes(".") || type.startsWith(`${namespace}.`)
           : type.startsWith(`${namespace}.`);
       const inspect = (): WhiteboardExtensionError | undefined => {
-        for (const element of value.elements ?? []) {
+        for (const element of elements) {
           const type = element?.type;
           if (typeof type !== "string" || !typeAllowed(type))
             return invalid(
@@ -524,6 +533,27 @@ export class ExtensionRuntime {
           if (ownedTypes.has(type)) return clash(type);
           const existing = elementTypeOwners.get(type);
           if (existing) return clash(type, existing);
+          if (
+            element.presentation &&
+            (!element.presentation.label?.trim() ||
+              (element.presentation.getName !== undefined &&
+                typeof element.presentation.getName !== "function"))
+          )
+            return invalidDefinition("元素展示元信息无效", type);
+          if (element.sketch !== undefined && element.sketch !== true)
+            return invalidDefinition("sketch 只能声明为 true", type);
+          if (element.schematic !== undefined && typeof element.schematic !== "function")
+            return invalidDefinition("schematic 必须为纯投影函数", type);
+          const interaction = element.interaction;
+          if (
+            interaction &&
+            ((interaction.connect !== undefined && interaction.connect !== "rect") ||
+              (interaction.resize?.handles !== undefined &&
+                !["corners", "all"].includes(interaction.resize.handles)) ||
+              (interaction.resize?.preserveAspectRatio !== undefined &&
+                typeof interaction.resize.preserveAspectRatio !== "boolean"))
+          )
+            return invalidDefinition("元素交互声明无效", type);
           const version = element.schemaVersion;
           if (
             version !== undefined &&
@@ -604,6 +634,11 @@ export class ExtensionRuntime {
           if ((typeof icon !== "function" && typeof icon !== "object") || icon === null)
             return invalidDefinition(`扩展 ${id} 的工具 ${tool?.id} 缺少 icon（工具菜单项需要它）`);
           const hasCommand = tool?.command !== undefined;
+          if (
+            tool.panel !== undefined &&
+            (tool.panel === null || !["function", "object"].includes(typeof tool.panel))
+          )
+            return invalidDefinition(`扩展 ${id} 的工具 ${tool.id} 的 panel 必须是组件`);
           const elementType = tool?.element;
           const hasElement = elementType !== undefined;
           if (hasCommand === hasElement)
@@ -612,7 +647,7 @@ export class ExtensionRuntime {
             );
           if (!hasElement) continue;
           // 创建型工具的 element 必须是本扩展声明且带 create 的元素类型，或登记在内部 creators 通道
-          const definition = (value.elements ?? []).find(item => item?.type === elementType);
+          const definition = elements.find(item => item?.type === elementType);
           const creatorSpec = readCreators(value)[elementType];
           if (!definition && creatorSpec === undefined)
             return invalidDefinition(
@@ -660,7 +695,7 @@ export class ExtensionRuntime {
         }
         // 内部 creators 通道：key 必须是本扩展（公共元素或内部插件）提供的类型，规格走同一校验
         for (const [type, spec] of Object.entries(readCreators(value))) {
-          if ((value.elements ?? []).some(element => element?.type === type))
+          if (elements.some(element => element?.type === type))
             return invalidDefinition(
               `扩展 ${id} 的 creators 键 ${type} 已是公共元素定义，应改用 element.create 声明`,
               type
@@ -701,7 +736,7 @@ export class ExtensionRuntime {
         scope.dispose();
         // create 已成功，扩展声明过的元素 type 可知：记录归属，供占位原因 "disabled" 使用
         for (const type of [
-          ...(value.elements ?? [])
+          ...elements
             .map(element => element?.type)
             .filter((type): type is string => typeof type === "string"),
           ...internalPlugins
@@ -718,8 +753,7 @@ export class ExtensionRuntime {
       for (const command of ownedCommands) commandOwners.set(command, id);
       for (const contribution of ownedContributions) contributionOwners.set(contribution, id);
       for (const inspector of ownedInspectors) inspectorOwners.set(inspector, id);
-      for (const element of value.elements ?? [])
-        this.elementDefinitions.set(element.type, element);
+      for (const element of elements) this.elementDefinitions.set(element.type, element);
       // creators 通道并入同一注册表：伪定义只承载 create（渲染仍由内部插件负责）
       for (const [type, spec] of Object.entries(readCreators(value)))
         this.elementDefinitions.set(type, { type, render: () => null, create: spec });
@@ -728,8 +762,9 @@ export class ExtensionRuntime {
         if (tool.element !== undefined) this.createTools.set(tool.id, tool.element);
       }
       const plugins = [...internalPlugins];
-      for (const element of value.elements ?? []) {
+      for (const element of elements) {
         const currentVersion = readDefinitionSchemaVersion(element);
+        const interaction = new ElementInteraction(element.type);
         const isVersionCompatible = (node: BoardElement) =>
           readElementSchemaVersion(node) === currentVersion;
         // 声明了 containment 才提供能力：第三方元素只能声明子元素一侧，
@@ -749,7 +784,18 @@ export class ExtensionRuntime {
           name: element.type,
           render: (_board, props) =>
             isVersionCompatible(props.element)
-              ? createElement(element.render, { ...props, element: readSnapshot(props.element) })
+              ? createElement(
+                  Fragment,
+                  null,
+                  createElement(element.render, { ...props, element: readSnapshot(props.element) }),
+                  element.interaction
+                    ? createElement(ElementControls, {
+                        element: props.element as CommonElement,
+                        options: element.interaction,
+                        adapter: interaction,
+                      })
+                    : null
+                )
               : createElement(
                   UnknownElement,
                   {
@@ -763,6 +809,12 @@ export class ExtensionRuntime {
                   props.children
                 ),
           getCapabilities: declaredCapabilities ? () => declaredCapabilities : undefined,
+          getArrowBindPoint: element.interaction?.connect
+            ? (board, node, point, offset) =>
+                isVersionCompatible(node)
+                  ? interaction.getArrowBindPoint(board, node as CommonElement, point, offset)
+                  : null
+            : undefined,
           getBounds: element.getBounds
             ? (_board, node) =>
                 isVersionCompatible(node) ? element.getBounds!(clone(node)) : defaultBounds(node)
@@ -900,6 +952,16 @@ export class ExtensionRuntime {
   }
 
   /** 渲染 UnknownElement 时的原因判定：未知类型、被拒扩展的元素，或元素版本与定义不兼容 */
+  getElementDefinition(type: string) {
+    return this.elementDefinitions.get(type);
+  }
+  getElementDefinitions() {
+    return [...this.elementDefinitions.values()];
+  }
+  supportsSketch(type: string) {
+    return this.elementDefinitions.get(type)?.sketch === true || isSketchableType(type);
+  }
+
   unknownElementReason(
     element: BoardElement
   ):
@@ -1166,6 +1228,22 @@ export class ExtensionRuntime {
   }
   get layers() {
     return this.entries.flatMap(entry => entry.value.layers ?? []);
+  }
+  renderToolPanel(toolId: string, run: (payload?: unknown) => void) {
+    const entry = this.entries.find(({ value }) => value.tools?.some(tool => tool.id === toolId));
+    const Panel = entry?.value.tools?.find(tool => tool.id === toolId)?.panel;
+    if (!entry || !Panel) return null;
+    return (
+      <ErrorBoundary
+        key={toolId}
+        fallback={<p role="alert">工具面板加载失败，请返回重试。</p>}
+        onError={error => console.error(`白板扩展 ${entry.id} 的工具面板失败`, error)}
+      >
+        <APIContext value={entry.api}>
+          <Panel run={run} />
+        </APIContext>
+      </ErrorBoundary>
+    );
   }
   renderLayers(position: "canvas" | "outside") {
     return this.entries.flatMap(({ id: owner, api, value }) =>

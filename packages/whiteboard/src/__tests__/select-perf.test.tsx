@@ -36,24 +36,23 @@ function PassiveBody({ id }: { id: string }) {
 
 const countingExtension = defineWhiteboardExtension({
   id: "test.counting",
-  create: () => ({
-    elements: [
-      defineElement({
-        type: "test.card",
-        isHit: (element, x, y) =>
-          x >= element.x &&
-          x <= element.x + element.width &&
-          y >= element.y &&
-          y <= element.y + element.height,
-        render: ({ element }) =>
-          element.id.endsWith("-passive") ? (
-            <PassiveBody id={element.id} />
-          ) : (
-            <CountingBody id={element.id} />
-          ),
-      }),
-    ],
-  }),
+  elements: [
+    defineElement({
+      type: "test.card",
+      isHit: (element, x, y) =>
+        x >= element.x &&
+        x <= element.x + element.width &&
+        y >= element.y &&
+        y <= element.y + element.height,
+      render: ({ element }) =>
+        element.id.endsWith("-passive") ? (
+          <PassiveBody id={element.id} />
+        ) : (
+          <CountingBody id={element.id} />
+        ),
+    }),
+  ],
+  create: () => ({}),
 });
 
 interface RenderResult {

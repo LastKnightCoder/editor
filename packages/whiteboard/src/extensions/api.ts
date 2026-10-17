@@ -1,13 +1,14 @@
 import type { ComponentType, ReactNode } from "react";
 import type { ServiceIdentifier } from "@tau/shared/service-contract";
-import type {
-  BoardElement,
-  ContainerKind,
-  ElementBounds,
-  Operation,
-  Selection,
-  ViewPort,
-} from "../types";
+import type { BoardElement, ElementBounds } from "../types/element";
+import type { ContainerKind } from "../types/containment";
+import type { Operation } from "../types/operation";
+import type { Selection } from "../types/selection";
+import type { ViewPort } from "../types/viewport";
+import type { PresentationSequence } from "../types/presentation";
+import type { PageSketch } from "../types/sketch";
+import type { ResolvedSketch } from "../types/sketch";
+import type { SchematicShape } from "../types/schematic";
 import type { StandardSchemaV1 } from "./standard-schema";
 import type { ExtensionEventName, WhiteboardKernelEvents } from "./events";
 
@@ -15,8 +16,8 @@ export interface WhiteboardSnapshot {
   children: BoardElement[];
   viewPort: ViewPort;
   selection: Selection;
-  presentationSequences?: import("../types").PresentationSequence[];
-  sketch?: import("../types").PageSketch;
+  presentationSequences?: PresentationSequence[];
+  sketch?: PageSketch;
   /** 保存时写入的文档版本（旧数据缺失由 getDocumentVersion 归一为 1） */
   version: number;
 }
@@ -49,6 +50,7 @@ export interface WhiteboardAPI {
   canvasToScreen(point: { x: number; y: number }): { x: number; y: number };
   getSnapshot(): WhiteboardSnapshot;
   getElement(id: string): BoardElement | undefined;
+  getSketch(element: BoardElement, owner?: BoardElement): ResolvedSketch;
   /** 查询元素能否被指定类型的容器收纳（委托能力系统的 containment 声明，供创建手势等尚无容器实例的场合） */
   canContain(containerType: string, element: BoardElement): boolean;
   /** 数据不合规时抛 WhiteboardValidationError 且不应用任何变更 */
@@ -111,6 +113,17 @@ export interface ElementContainmentSpec {
 
 export interface WhiteboardElementDefinition<TData = unknown> {
   type: string;
+  presentation?: {
+    label: string;
+    icon?: ComponentType<{ className?: string; size?: number; strokeWidth?: number }>;
+    getName?(element: ElementParam<TData>): string;
+  };
+  interaction?: {
+    resize?: { handles?: "corners" | "all"; preserveAspectRatio?: boolean };
+    connect?: "rect";
+  };
+  sketch?: true;
+  schematic?(element: ElementParam<TData>, context: { dark: boolean }): readonly SchematicShape[];
   render: ComponentType<{ element: ElementParam<TData>; children?: ReactNode }>;
   getBounds?(element: ElementParam<TData>): ElementBounds | null;
   isHit?(element: ElementParam<TData>, x: number, y: number): boolean;
@@ -257,6 +270,8 @@ export interface WhiteboardToolContribution {
    * 第三方工具统一进入「扩展工具」菜单（菜单项由 label + icon 生成，component 被忽略）
    */
   component?: ComponentType<WhiteboardToolProps>;
+  /** 扩展工具的参数面板；宿主管理返回与关闭，run(payload) 执行后关闭面板。 */
+  panel?: ComponentType<WhiteboardToolProps>;
 }
 
 export interface WhiteboardLayerContribution {
@@ -280,8 +295,6 @@ export interface WhiteboardContributions {
     accepts(event: ClipboardEvent | DragEvent): boolean;
     run(api: WhiteboardAPI, event: ClipboardEvent | DragEvent): void | Promise<void>;
   }[];
-  /** 泛型定义入表时擦除 TData（any 双向可赋值），避免不同 TData 间的逆变报错 */
-  elements?: readonly WhiteboardElementDefinition<any>[];
   commands?: readonly WhiteboardCommand[];
   tools?: readonly WhiteboardToolContribution[];
   layers?: readonly WhiteboardLayerContribution[];
@@ -295,6 +308,8 @@ export interface WhiteboardContributions {
 }
 
 export interface WhiteboardExtension {
+  /** 静态元素定义供画布和无画布的数据消费者共用。 */
+  readonly elements?: readonly WhiteboardElementDefinition<any>[];
   readonly id: string;
   /** 展示名（UI 显示"来自 xxx"用）；内置扩展可不填 */
   readonly name?: string;

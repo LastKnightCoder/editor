@@ -46,7 +46,13 @@ const Sidebar: React.FC<{ outline?: WhiteboardOutline }> = ({ outline }) => {
   const matches = useMemo(() => {
     if (!q) return null;
     const lookup = (id: string) => BoardUtil.getElementById(board, id);
-    return all.filter(e => elementLabel(e, lookup).toLowerCase().includes(q)).reverse();
+    return all
+      .filter(e =>
+        elementLabel(e, lookup, type => board.extensions?.getElementDefinition(type))
+          .toLowerCase()
+          .includes(q)
+      )
+      .reverse();
   }, [q, all, board]);
 
   return (
