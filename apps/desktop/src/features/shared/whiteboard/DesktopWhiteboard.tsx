@@ -204,6 +204,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
         }),
       }),
       ...additionalExtensions,
+      ...desktopContentPlugins.whiteboardExtensions,
     ];
   }, [additionalExtensions]);
   return (
@@ -225,3 +226,4 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
 });
 DesktopWhiteboard.displayName = "DesktopWhiteboard";
 export default DesktopWhiteboard;
+import { desktopContentPlugins } from "../../../../shared/content-plugins";

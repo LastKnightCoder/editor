@@ -192,16 +192,15 @@ describe("作者 render 抛错的 error 占位", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const crashing = defineWhiteboardExtension({
       id: "acme.crash",
-      create: () => ({
-        elements: [
-          {
-            type: "acme.crashbox",
-            render: () => {
-              throw new Error("渲染崩溃");
-            },
+      elements: [
+        {
+          type: "acme.crashbox",
+          render: () => {
+            throw new Error("渲染崩溃");
           },
-        ],
-      }),
+        },
+      ],
+      create: () => ({}),
     });
     const container = await mount(
       <WhiteBoard

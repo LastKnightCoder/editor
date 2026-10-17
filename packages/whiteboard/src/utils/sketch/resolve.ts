@@ -34,7 +34,8 @@ interface SketchCarrier {
 export function resolveSketch(
   page: PageSketch,
   element: SketchCarrier,
-  owner: SketchCarrier = element
+  owner: SketchCarrier = element,
+  supported = isSketchableType(element.type)
 ): ResolvedSketch {
   const own = owner.sketch ?? {};
   const idSeed = hashSeed(element.id);
@@ -46,7 +47,7 @@ export function resolveSketch(
         ? own.seed
         : (own.seed ^ idSeed) >>> 0;
   return {
-    enabled: SKETCHABLE_TYPES.has(element.type) && (own.mode ?? page.mode) === "sketch",
+    enabled: supported && (own.mode ?? page.mode) === "sketch",
     level: own.level ?? page.level,
     seed,
   };

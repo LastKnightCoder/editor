@@ -1,4 +1,4 @@
-import { BoardElement } from "./board";
+import type { BoardElement } from "./element";
 import { Point } from "./point";
 
 export interface SelectArea {

@@ -1,105 +1,41 @@
-import React, { useEffect, useRef } from "react";
-import { Point } from "../types";
-import { PointUtil } from "../utils";
-import { useBoard } from "./useBoard";
+import { useEffect, useRef, type RefObject } from "react";
 import { useMemoizedFn } from "ahooks";
-import { BOARD_TO_CONTAINER } from "../constants";
+import { useBoard } from "./useBoard";
+import type { ResizeCallbacks } from "../interactions/states/ResizingState";
 
-interface IUseResize {
-  ref: React.RefObject<SVGElement | null>;
-  onResizeStart?: (startPoint: Point) => void;
-  onResize: (
-    startPoint: Point,
-    endPoint: Point,
-    isPreserveRatio?: boolean,
-    isAdsorb?: boolean
-  ) => void;
-  onResizeEnd?: (startPoint: Point, endPoint: Point) => void;
+interface IUseResize extends ResizeCallbacks {
+  ref: RefObject<SVGElement | null>;
 }
 
-export const useResize = (props: IUseResize) => {
-  const { ref, onResizeStart, onResize, onResizeEnd } = props;
+/** 手柄只发起手势；延续事件、历史和取消由交互内核统一负责。 */
+export const useResize = ({ ref, onResizeStart, onResize, onResizeEnd }: IUseResize) => {
   const board = useBoard();
-  const startPoint = useRef<Point | null>(null);
-  const endPoint = useRef<Point | null>(null);
-
-  const handleResize = useMemoizedFn(
-    (startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
-      onResize(startPoint, endPoint, isPreserveRatio, isAdsorb);
-    }
+  const cancel = useRef<(() => void) | undefined>(undefined);
+  const start = useMemoizedFn(
+    (...args: Parameters<NonNullable<ResizeCallbacks["onResizeStart"]>>) => onResizeStart?.(...args)
   );
-
-  const handleResizeStart = useMemoizedFn((startPoint: Point) => {
-    onResizeStart?.(startPoint);
-  });
-
-  const handleResizeEnd = useMemoizedFn((startPoint: Point, endPoint: Point) => {
-    onResizeEnd?.(startPoint, endPoint);
-  });
-
+  const move = useMemoizedFn(onResize);
+  const end = useMemoizedFn((...args: Parameters<NonNullable<ResizeCallbacks["onResizeEnd"]>>) =>
+    onResizeEnd?.(...args)
+  );
   useEffect(() => {
-    const resizeHandle = ref.current;
-    if (!resizeHandle) return;
-
-    const handlePointerDown = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      startPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-      if (!startPoint.current) return;
-
-      const boardContainer = BOARD_TO_CONTAINER.get(board);
-      if (!boardContainer) return;
-
-      handleResizeStart(startPoint.current);
-
-      boardContainer.addEventListener("pointermove", handlePointerMove);
-      document.addEventListener("pointerup", handlePointerUp);
-      document.addEventListener("pointercancel", handlePointerCancel);
+    const handle = ref.current;
+    if (!handle) return;
+    const down = (event: PointerEvent) => {
+      const cleanup = board.interactions.startResize(event, {
+        onResizeStart: start,
+        onResize: move,
+        onResizeEnd: end,
+      });
+      if (cleanup) cancel.current = cleanup;
     };
-
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!startPoint.current) return;
-
-      endPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-      if (!endPoint.current) return;
-
-      handleResize(startPoint.current, endPoint.current, e.shiftKey, !e.altKey);
-    };
-
-    const finishResize = () => {
-      startPoint.current = null;
-      endPoint.current = null;
-      board.snap.end();
-
-      BOARD_TO_CONTAINER.get(board)?.removeEventListener("pointermove", handlePointerMove);
-      document.removeEventListener("pointerup", handlePointerUp);
-      document.removeEventListener("pointercancel", handlePointerCancel);
-    };
-
-    // 取消时按最后一次有效位置收尾，保证插件的 onResizeEnd 收口逻辑照常执行
-    const handlePointerCancel = () => {
-      if (startPoint.current && endPoint.current) {
-        handleResizeEnd(startPoint.current, endPoint.current);
-      }
-      finishResize();
-    };
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (!startPoint.current) return;
-
-      endPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-      if (endPoint.current) {
-        handleResizeEnd(startPoint.current, endPoint.current);
-      }
-      finishResize();
-    };
-
-    resizeHandle.addEventListener("pointerdown", handlePointerDown);
-
+    handle.addEventListener("pointerdown", down);
     return () => {
-      resizeHandle.removeEventListener("pointerdown", handlePointerDown);
+      handle.removeEventListener("pointerdown", down);
+      cancel.current?.();
+      cancel.current = undefined;
     };
-  }, [board, handleResize]);
+  }, [board, ref, start, move, end]);
 };
 
 export default useResize;

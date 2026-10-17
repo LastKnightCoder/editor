@@ -6,6 +6,7 @@ export { comparePluginVersions } from "./version.ts";
 
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
+  "@tau/plugins/whiteboard",
   "@tau/ui",
   "react",
   "react-dom",
@@ -27,6 +28,7 @@ export interface PluginManifest {
   styles?: string;
   /** 静态编辑器贡献在窗口启动时装配，启停需重启。 */
   editor?: true;
+  whiteboard?: true;
   integrity: Record<string, string>;
 }
 
@@ -74,6 +76,8 @@ export function validatePluginManifest(value: unknown): PluginManifest {
   }
   const styles = item.styles === undefined ? undefined : file(item.styles, ".css");
   if (item.editor !== undefined && item.editor !== true) throw new Error("editor 只能声明为 true");
+  if (item.whiteboard !== undefined && item.whiteboard !== true)
+    throw new Error("whiteboard 只能声明为 true");
   const integrity: Record<string, string> = {};
   for (const name of [main, ...(styles ? [styles] : [])]) {
     const hash =
@@ -95,7 +99,12 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     format: "cjs",
     main,
     ...(item.editor === true ? { editor: true as const } : {}),
+    ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
     integrity: Object.freeze(integrity),
     ...(styles === undefined ? {} : { styles }),
   });
 }
+
+/** 静态内容贡献在启动时固定，启停与更新需要重启。 */
+export const isContentPlugin = (manifest: Pick<PluginManifest, "editor" | "whiteboard">) =>
+  manifest.editor === true || manifest.whiteboard === true;

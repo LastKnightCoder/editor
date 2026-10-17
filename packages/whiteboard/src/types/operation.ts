@@ -1,5 +1,5 @@
 import { Selection } from "./selection.ts";
-import { BoardElement } from "./board.ts";
+import type { BoardElement } from "./element";
 import { ViewPort } from "./viewport.ts";
 import { Path } from "./path.ts";
 import { PageSketch } from "./sketch.ts";

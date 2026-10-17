@@ -63,25 +63,25 @@ it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动
       integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
     })
   );
-  await invoke("plugin-local:editor-enabled", id, true);
-  expect(await invoke("plugin-local:editor-startup")).toMatchObject({ artifacts: [] });
+  await invoke("plugin-local:content-enabled", id, true);
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
   vi.resetModules();
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
-  expect(await invoke("plugin-local:editor-startup")).toMatchObject({
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id } }],
   });
   const md = await import("@/utils/markdown");
   const source = "~~~native-editor\n正文\n~~~";
   expect(md.getMarkdown(md.importFromMarkdown(source)).trim()).toBe(source);
-  await invoke("plugin-local:editor-enabled", id, false);
-  expect(await invoke("plugin-local:editor-startup")).toMatchObject({
+  await invoke("plugin-local:content-enabled", id, false);
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id } }],
   });
   vi.resetModules();
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
-  expect(await invoke("plugin-local:editor-startup")).toMatchObject({ artifacts: [] });
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
   expect(
     (await import("../../../../shared/content-plugins.ts")).desktopContentPlugins.codecs
   ).toEqual([]);

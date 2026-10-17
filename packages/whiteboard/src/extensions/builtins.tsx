@@ -57,7 +57,7 @@ import {
 } from "./media";
 import { ElementContentContext } from "./elementContent";
 import { useBoard, useActiveTool } from "../hooks";
-import { useWhiteboardAPI } from "./runtime";
+import { useWhiteboardAPI } from "./context";
 import { ChromeButton } from "../chrome";
 import {
   SELECT_TOOL_ID,

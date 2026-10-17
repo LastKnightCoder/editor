@@ -1,55 +1,14 @@
 import React from "react";
-import type { EntityRef } from "@tau/shared/entity-ref";
 import { Selection } from "./selection.ts";
 import Board from "../Board.tsx";
 import { Point } from "./point.ts";
 import { CustomOffset } from "./arrow.ts";
 import type { IElementCapabilities } from "./capabilities.ts";
 import type { InteractionState } from "../interactions/InteractionState.ts";
-import type { ElementSketch } from "./sketch.ts";
+import type { BoardElement, ElementBounds, BoardContextMenuPayload } from "./element";
+export type { BoardElement, ElementBounds, BoardContextMenuPayload } from "./element";
 
 export { default as Board } from "../Board.tsx";
-
-/**
- * 白板元素。指向笔记（卡片、文章、项目文档、日记）的元素要能出现在脉络「被使用 · 白板」里，
- * 字段按 src/entity/whiteboard-refs.ts 文件头的接入约定写（优先用通用的 entityRef）。
- */
-export interface BoardElement {
-  id: string;
-  type: string;
-  // 可选名称，用于 UI 展示；为空时由各元素类型生成默认中文名称
-  name?: string;
-  groupId?: string;
-  children?: BoardElement[];
-  // 通用行为控制属性
-  resizable?: boolean; // 是否允许 resize，默认 true
-  autoHeight?: boolean; // 是否高度自适应，默认 false
-  /** 指向正文实体（kind 用 EntityRefKind 的写法）；白板引用索引通用识别 */
-  entityRef?: EntityRef;
-  /** 手绘覆盖（D-107）：未设置时跟随页面画风 */
-  sketch?: ElementSketch;
-  /** 元素数据结构版本（缺省视为 1）；低于所属扩展定义版本时由运行时迁移 */
-  schemaVersion?: number;
-  [key: string]: any;
-}
-
-export interface ElementBounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
-export interface BoardContextMenuPayload {
-  clientX: number;
-  clientY: number;
-  viewPortPoint: Point;
-  selectedElements: BoardElement[];
-  hitElements: BoardElement[];
-  targetElements: BoardElement[];
-  hitElement?: BoardElement;
-  isHitSelected: boolean;
-}
 
 // 右键菜单上下文（扩展 BoardContextMenuPayload，包含 board 实例）
 export interface ContextMenuContext extends BoardContextMenuPayload {

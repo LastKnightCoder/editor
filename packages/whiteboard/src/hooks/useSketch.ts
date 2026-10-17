@@ -27,6 +27,7 @@ interface SketchCarrier {
  * owner：思维导图节点传根节点（整棵树共用覆盖），其余元素省略。
  */
 export function useSketch(element: SketchCarrier, owner?: SketchCarrier | null): ResolvedSketch {
+  const board = useBoard();
   const page = usePageSketch();
   const { id, type, sketch } = element;
   const ownerId = owner?.id;
@@ -36,8 +37,9 @@ export function useSketch(element: SketchCarrier, owner?: SketchCarrier | null):
       resolveSketch(
         page,
         { id, type, sketch },
-        ownerId ? { id: ownerId, type: "mind-node", sketch: ownerSketch } : undefined
+        ownerId ? { id: ownerId, type: "mind-node", sketch: ownerSketch } : undefined,
+        board.extensions?.supportsSketch(type)
       ),
-    [page, id, type, sketch, ownerId, ownerSketch]
+    [board, page, id, type, sketch, ownerId, ownerSketch]
   );
 }

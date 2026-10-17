@@ -1,3 +1,4 @@
+import { isContentPlugin } from "@tau/plugins/package";
 import { evaluatePluginPackage } from "@tau/plugins/rendering";
 import { contentPluginDefinition } from "./content-plugin-state";
 import {
@@ -18,7 +19,7 @@ export function registerPluginPackage(
   host.registerDeferred(manifest, async signal => {
     const modules = await getModules();
     signal.throwIfAborted();
-    const definition = manifest.editor
+    const definition = isContentPlugin(manifest)
       ? contentPluginDefinition(artifact)
       : evaluatePluginPackage(artifact, modules);
     signal.throwIfAborted();
@@ -30,7 +31,7 @@ export function registerPluginPackage(
           throw new Error("插件实例缺少 activate");
         return {
           async activate(context) {
-            if (artifact.css && !manifest.editor) {
+            if (artifact.css && !isContentPlugin(manifest)) {
               const style = document.createElement("style");
               style.dataset.tauPlugin = manifest.id;
               style.textContent = artifact.css;

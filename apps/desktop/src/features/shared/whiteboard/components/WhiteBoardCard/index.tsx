@@ -18,7 +18,7 @@ import { useSketch } from "@tau/whiteboard";
 import { SketchRect as SketchRect } from "@tau/whiteboard";
 import { WhiteBoardElement } from "@tau/whiteboard";
 import LocalImage from "@/components/LocalImage";
-import { PageSchematic } from "@tau/whiteboard";
+import { DesktopPageSchematic as PageSchematic } from "../../DesktopPageSchematic";
 import { openPage } from "@/services/page-navigation";
 import { useWhiteboardDetail, useWhiteboardOwner } from "@/features/whiteboards/queries";
 import { displayTitle, enterBoard, formatTrail, toItem } from "@/features/whiteboards/model";

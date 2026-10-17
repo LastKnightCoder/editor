@@ -210,6 +210,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
               >
                 {previewElements.length > 0 ? (
                   <PageSchematic
+                    definitions={board.extensions?.getElementDefinitions()}
                     elements={previewElements}
                     aspect={previewAspect}
                     className="size-full"

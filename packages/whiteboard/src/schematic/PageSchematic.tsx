@@ -5,6 +5,7 @@
 import { memo, useId, useMemo } from "react";
 import useTheme from "../hooks/useTheme";
 import type { BoardElement } from "../types";
+import type { WhiteboardElementDefinition } from "../extensions/api";
 import { buildSchematic, type SchematicFill, type SchematicShape } from "./schematic";
 
 /** 卡片缩略图的大致显示宽度：箭头三角等「按像素」的尺寸据此换算回画布坐标 */
@@ -14,16 +15,18 @@ export const PageSchematic = memo(function PageSchematic({
   elements,
   aspect,
   className,
+  definitions,
 }: {
   elements: BoardElement[] | undefined;
   aspect: number;
   className?: string;
+  definitions?: readonly WhiteboardElementDefinition[];
 }) {
   const { isDark } = useTheme();
   const idPrefix = useId();
   const schematic = useMemo(
-    () => buildSchematic(elements, { aspect, dark: isDark }),
-    [elements, aspect, isDark]
+    () => buildSchematic(elements, { aspect, dark: isDark, definitions }),
+    [elements, aspect, isDark, definitions]
   );
   if (!schematic) return null;
   const { viewBox: vb, shapes } = schematic;

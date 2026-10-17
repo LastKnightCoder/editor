@@ -29,6 +29,19 @@ afterEach(() => {
 });
 
 describe("白板扩展契约", () => {
+  it("拒绝在 create 中返回元素，不保留动态登记旁路，并回收已创建资源", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const dispose = vi.fn();
+    const board = create();
+    const errors = install(board, [
+      defineWhiteboardExtension({
+        id: "test.dynamic",
+        create: () => ({ elements: [{ type: "test.box", render: () => null }], dispose }),
+      }),
+    ]);
+    expect(errors[0].message).toContain("顶层静态声明");
+    expect(dispose).toHaveBeenCalledOnce();
+  });
   it("重复扩展、元素类型与命令按先到先得禁用后来者", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const empty = defineWhiteboardExtension({ id: "test.empty", create: () => ({}) });
@@ -41,7 +54,8 @@ describe("白板扩展契约", () => {
     const element = (id: string) =>
       defineWhiteboardExtension({
         id,
-        create: () => ({ elements: [{ type: "test.same", render: () => null }] }),
+        elements: [{ type: "test.same", render: () => null }],
+        create: () => ({}),
       });
     board = create();
     errors = install(board, [element("test.a"), element("test.b")]);
@@ -244,8 +258,8 @@ describe("白板扩展契约", () => {
     const errors = install(board, [
       defineWhiteboardExtension({
         id: "test.rogue",
+        elements: [{ type: "test-node", render: () => null }],
         create: () => ({
-          elements: [{ type: "test-node", render: () => null }],
           commands: [{ id: "test.rogue.ok", execute: () => {} }],
         }),
       }),
@@ -302,15 +316,14 @@ describe("白板扩展契约", () => {
     board.installExtensions([
       defineWhiteboardExtension({
         id: "test.bounds",
-        create: () => ({
-          elements: [
-            {
-              type: "test.offscreen",
-              render: () => null,
-              getBounds: () => ({ minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 }),
-            },
-          ],
-        }),
+        elements: [
+          {
+            type: "test.offscreen",
+            render: () => null,
+            getBounds: () => ({ minX: 2000, minY: 2000, maxX: 2100, maxY: 2100 }),
+          },
+        ],
+        create: () => ({}),
       }),
     ]);
     expect(board.filterElementsInViewport(board.children)).toEqual([]);

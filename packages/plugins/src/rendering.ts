@@ -83,6 +83,9 @@ export function validatePluginDefinition(
     throw new Error("插件入口定义与清单不一致");
   if (Boolean(definition.editorExtensions?.length) !== Boolean(manifest.editor))
     throw new Error("编辑器贡献必须与 manifest.editor 声明一致");
+  if (Boolean(definition.whiteboardExtensions?.length) !== Boolean(manifest.whiteboard))
+    throw new Error("白板贡献必须与 manifest.whiteboard 声明一致");
+  getPluginWhiteboardTypes(definition);
   if (definition.editorCodecs?.length && !manifest.editor)
     throw new Error("Markdown codec 必须随编辑器贡献声明");
   if (manifest.editor) {
@@ -103,7 +106,8 @@ export function getPluginNodeTypes(definition: PluginDefinition): string[] {
       types.push(element.type);
     }
   }
-  if (!types.length) throw new Error("编辑器插件必须声明节点类型");
+  if (definition.editorExtensions?.length && !types.length)
+    throw new Error("编辑器插件必须声明节点类型");
   const htmlTypes = new Set<string>();
   for (const extension of definition.editorExtensions ?? []) {
     for (const source of extension.styleSources ?? [])
@@ -124,6 +128,42 @@ export function getPluginNodeTypes(definition: PluginDefinition): string[] {
     }
   }
   return types;
+}
+
+export function getPluginWhiteboardTypes(definition: PluginDefinition): string[] {
+  if (
+    definition.whiteboardExtensions !== undefined &&
+    !Array.isArray(definition.whiteboardExtensions)
+  )
+    throw new Error("白板扩展声明必须为数组");
+  const types = new Set<string>();
+  const extensions = new Set<string>();
+  for (const extension of definition.whiteboardExtensions ?? []) {
+    if (
+      !extension ||
+      typeof extension.id !== "string" ||
+      extension.apiVersion !== 1 ||
+      typeof extension.create !== "function" ||
+      (extension.id !== definition.id && !extension.id.startsWith(`${definition.id}.`)) ||
+      extensions.has(extension.id)
+    )
+      throw new Error("白板扩展身份重复或不属于当前插件");
+    extensions.add(extension.id);
+    if (!Array.isArray(extension.elements) || !extension.elements.length)
+      throw new Error("白板插件必须声明静态元素");
+    for (const element of extension.elements) {
+      if (
+        !element ||
+        typeof element.type !== "string" ||
+        !element.type.startsWith(`${definition.id}.`) ||
+        types.has(element.type) ||
+        typeof element.render !== "function"
+      )
+        throw new Error("白板元素重复、缺少渲染或不属于当前插件");
+      types.add(element.type);
+    }
+  }
+  return [...types];
 }
 
 export function assertRenderTypes(definition: PluginDefinition, expected: readonly string[]) {

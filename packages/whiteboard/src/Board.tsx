@@ -23,7 +23,7 @@ import {
   PageSketch,
   DEFAULT_PAGE_SKETCH,
 } from "./types";
-import { isValid, executeSequence, BoardUtil } from "./utils";
+import { isValid, executeSequence, BoardUtil, PathUtil } from "./utils";
 import ViewportUtil from "./utils/ViewportUtil";
 
 import BoardOperations from "./utils/BoardOperations";
@@ -38,7 +38,7 @@ import type { WhiteboardExtension, WhiteboardExtensionError } from "./extensions
 import type { ServiceRegistry } from "@tau/shared/service-registry";
 import { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
 
-const boardFlag = Symbol("board");
+import { boardFlag } from "./constants/boardIdentity";
 interface VisibleElementTree {
   element: BoardElement;
   children: VisibleElementTree[];
@@ -284,6 +284,7 @@ class Board {
   }
 
   set readonly(value: boolean) {
+    if (value && value !== this._readonly) this.interactions.cancelResize();
     if (value !== this._readonly) this.submissionVersion++;
     this._readonly = value;
     this.emit("readonly:change", value);
@@ -320,6 +321,7 @@ class Board {
 
   destroy() {
     if (this.isDestroyed) return;
+    this.interactions.cancelResize();
     this.isDestroyed = true;
     this.extensions?.dispose();
     this.plugins.forEach(plugin => plugin.dispose?.());
@@ -645,6 +647,35 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  /** 内部操作的唯一历史入口，缩放预览结束后也通过此入口提交。 */
+  recordHistory(processedOps: Operation[], historyGroup?: string) {
+    if (!processedOps.length) return;
+    const currentTimestamp = Date.now();
+    const timeDiff = currentTimestamp - this.lastUndoTimestamp;
+
+    // 如果距离上次创建新 undo entry 小于 1 秒，且 undos 不为空，则合并到最后一个 undo entry
+    if (
+      this.undos.length > 0 &&
+      (historyGroup !== undefined
+        ? historyGroup === this.historyGroup
+        : this.historyGroup === undefined && timeDiff < 1000)
+    ) {
+      // 将操作添加到最后一个 undo entry
+      const lastUndoEntry = this.undos[this.undos.length - 1];
+      lastUndoEntry.push(...processedOps);
+    } else {
+      // 创建新的 undo entry
+      this.undos.push(processedOps);
+      this.lastUndoTimestamp = currentTimestamp;
+    }
+    this.historyGroup = historyGroup;
+
+    if (this.undos.length > 100) {
+      this.undos.shift();
+    }
+    this.redos = [];
+  }
+
   apply(ops: Operation | Operation[], updateHistory = true, historyGroup?: string) {
     if (!Array.isArray(ops)) {
       ops = [ops];
@@ -652,6 +683,28 @@ class Board {
 
     if (this.isDestroyed) return;
     if (ops.length === 0) return;
+    const resize = this.interactions?.resizePreview;
+    if (resize) {
+      resize.validate(ops);
+      updateHistory = false;
+    } else if (this.interactions?.hasResizeConflict(ops)) {
+      if (this.interactions?.cancelResize()) {
+        // 调用方的旧值来自预览帧，回退后按真实节点重取，避免撤销删除复活半成品。
+        ops = ops.map(op => {
+          if (op.type !== "remove_node" && op.type !== "set_node") return op;
+          const node = PathUtil.getElement(this.children, op.path);
+          if (!node) return op;
+          return op.type === "remove_node"
+            ? { ...op, node }
+            : {
+                ...op,
+                properties: Object.fromEntries(
+                  Object.keys(op.newProperties).map(key => [key, node[key]])
+                ),
+              };
+        });
+      }
+    }
     // 粘贴 / api.submit / 外部导入的插入数据先迁移到扩展当前版本；
     // undo/redo 重放的 insert_node 数据已是新版本，此处为 no-op，不破坏历史正确性
     const submittedOps = this.extensions ? this.extensions.migrateInsertedOperations(ops) : ops;
@@ -683,6 +736,7 @@ class Board {
     if (!metadata.hasChanges) {
       return;
     }
+    resize?.record(executedOps, this.children, data.children);
 
     const hasElementMutation = executedOps.some(op =>
       ["set_node", "insert_node", "remove_node", "move_node"].includes(op.type)
@@ -762,36 +816,10 @@ class Board {
       sketchChanged = true;
     }
 
-    // 更新历史记录
     if (updateHistory) {
-      // 使用 applyOperations 返回的已执行操作，确保历史记录与实际同步
       const processedOps =
         executedOps.length > 0 ? executedOps : BoardOperations.preprocessOperations(submittedOps);
-
-      const currentTimestamp = Date.now();
-      const timeDiff = currentTimestamp - this.lastUndoTimestamp;
-
-      // 如果距离上次创建新 undo entry 小于 1 秒，且 undos 不为空，则合并到最后一个 undo entry
-      if (
-        this.undos.length > 0 &&
-        (historyGroup !== undefined
-          ? historyGroup === this.historyGroup
-          : this.historyGroup === undefined && timeDiff < 1000)
-      ) {
-        // 将操作添加到最后一个 undo entry
-        const lastUndoEntry = this.undos[this.undos.length - 1];
-        lastUndoEntry.push(...processedOps);
-      } else {
-        // 创建新的 undo entry
-        this.undos.push(processedOps);
-        this.lastUndoTimestamp = currentTimestamp;
-      }
-      this.historyGroup = historyGroup;
-
-      if (this.undos.length > 100) {
-        this.undos.shift();
-      }
-      this.redos = [];
+      this.recordHistory(processedOps, historyGroup);
     }
 
     if (metadata.removedElements.length > 0) {
@@ -952,6 +980,7 @@ class Board {
   }
 
   undo() {
+    if (this.interactions.cancelResize()) return;
     if (this.readonly) return;
     if (this.undos.length === 0) return;
     const undo = this.undos.pop();
@@ -969,6 +998,7 @@ class Board {
   }
 
   redo() {
+    if (this.interactions.cancelResize()) return;
     if (this.readonly) return;
     if (this.redos.length === 0) return;
     const redo = this.redos.pop();

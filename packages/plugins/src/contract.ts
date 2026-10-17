@@ -1,6 +1,7 @@
 import type { PluginPages } from "./pages";
 import type { PluginSkill } from "./skills";
 import type { PluginAI, PluginAIFeature } from "./ai";
+import type { WhiteboardExtension } from "./whiteboard";
 import type { PluginServices } from "./services";
 import type { PluginEditor } from "./editor";
 import type { PluginEditorExtension } from "./editor";
@@ -60,6 +61,7 @@ export interface PluginDefinition {
   readonly apiVersion: 1;
   /** 静态声明，桌面与博客均装配同一份扩展；模块加载不得依赖桌面激活。 */
   readonly editorExtensions?: readonly PluginEditorExtension[];
+  readonly whiteboardExtensions?: readonly WhiteboardExtension[];
   readonly editorCodecs?: readonly MarkdownCodec[];
   readonly skills?: readonly PluginSkill[];
   readonly ai?: { readonly features: readonly PluginAIFeature[] };

@@ -3,7 +3,7 @@ import path from "node:path";
 import { assertLocalId } from "@tau/plugins/package";
 
 /** 编辑器启用意图由主进程保存，后台任务不依赖窗口 localStorage。 */
-export class EditorPluginPreferences {
+export class ContentPluginPreferences {
   private values: Record<string, boolean> = {};
   private pending: Promise<void> = Promise.resolve();
   constructor(private readonly directory: string) {}
