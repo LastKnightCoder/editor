@@ -1,9 +1,9 @@
 # AI 开发指南
 
 - 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
-- 定义文档节点前阅读 EDITOR.md，使用静态 editorExtensions 并声明 manifest.editor；展示代码须兼容浏览器，不另写博客专用渲染组件。
+- 定义文档节点前阅读 EDITOR.md，使用静态 editorExtensions 并声明 manifest.editor；渲染代码须能在浏览器运行，不为移动端或网页另写渲染组件。
 - 本模板使用 SDK 0.6.0、Tau 0.59.0。编译与转换接口见 SERVICES.md，不把生成结果当作已保存文件或已写入笔记。
-- README.md只写面向用户的功能和使用说明，随ZIP打包；manifest.description填写简短介绍，平台自动读取，不另填网页介绍或截图。CHANGELOG.md可选。
+- README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介，CHANGELOG.md 可选。
 - 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
 - 功能代码使用 TypeScript/TSX。优先使用 API.md 中说明的能力，结合已安装 SDK 的类型提示确认参数，不编造接口。
 - 插件身份在 manifest.json 中修改，入口沿用 `__PLUGIN_META__`。插件 ID 变更会改变数据归属，不要为日常升级修改 ID。

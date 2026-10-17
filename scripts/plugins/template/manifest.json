@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "id": "example.external-counter",
-  "name": "独立计数插件",
+  "name": "计数器示例",
   "description": "在侧边栏记录并保存计数。",
   "version": "1.0.0",
   "minAppVersion": "0.59.0",

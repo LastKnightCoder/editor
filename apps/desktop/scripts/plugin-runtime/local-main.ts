@@ -304,7 +304,7 @@ app
         "localTest.snapshot().plugins.find(p=>p.id==='example.external-counter')?.state"
       );
       assert.equal(state, phase === "author" ? "disabled" : "active");
-      if (phase === "author") await click("启用 独立计数插件");
+      if (phase === "author") await click("启用 计数器示例");
       await wait("localTest.snapshot().commands.some(c=>c.id==='example.external-counter:open')");
       await run("localTest.openAuthor()");
       await wait(`document.body.innerText.includes('已保存计数：${phase === "author" ? 0 : 1}')`);
