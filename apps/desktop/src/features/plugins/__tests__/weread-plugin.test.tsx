@@ -1,13 +1,12 @@
 /**
- * plugins/weread 的真实入口经桌面运行时加载：与本地插件同一条打包 → 延迟加载 → 启用路径，
+ * 独立微信读书发布包的真实入口经桌面运行时加载：与本地插件同一条打包 → 延迟加载 → 启用路径，
  * 验证页面、侧边栏、设置、命令与摘录提供方的接线，以及打开原处回到插件单书页。
  */
 import { act } from "react";
+import { pluginArtifact } from "../../../test-fixtures/plugin-packages";
 import { createRoot } from "react-dom/client";
-import { execFileSync } from "node:child_process";
-import path from "node:path";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { createMemoryStorage, PLUGIN_SHARED_MODULES } from "@tau/plugins/host";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoryStorage } from "@tau/plugins/host";
 import { DesktopPluginRuntime, PLUGIN_PAGE_KEY } from "@/app/plugins/runtime";
 import { registerPluginPackage } from "@/app/plugins/package-loader";
 import { createDesktopExcerpts } from "@/app/plugins/excerpts";
@@ -17,27 +16,7 @@ import { openExcerptAtProvider } from "@/services/excerpt-providers";
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined as unknown));
 vi.mock("@/electron", () => ({ invoke, isElectron: true }));
 
-const root = path.resolve(__dirname, "../../../../../../plugins/weread");
-let code = "";
-
-// jsdom 下不能直接调用 esbuild API（TextEncoder 不一致），在子进程里打包
-beforeAll(() => {
-  const esbuild = path.resolve(__dirname, "../../../../node_modules/.bin/esbuild");
-  code = execFileSync(
-    esbuild,
-    [
-      path.join(root, "src/index.tsx"),
-      "--bundle",
-      "--platform=browser",
-      "--format=cjs",
-      "--jsx=automatic",
-      "--loader:.css=empty",
-      `--define:__PLUGIN_META__=${JSON.stringify({ id: "weread", name: "微信读书", version: "1.0.0" })}`,
-      ...PLUGIN_SHARED_MODULES.map(name => `--external:${name}`),
-    ],
-    { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }
-  );
-}, 60_000);
+const artifact = pluginArtifact("weread");
 
 const runtimes: DesktopPluginRuntime[] = [];
 afterEach(async () => {
@@ -58,24 +37,7 @@ async function setup() {
     ...createDesktopExcerpts("data.db"),
   });
   runtimes.push(runtime);
-  registerPluginPackage(
-    runtime.host,
-    {
-      manifest: {
-        formatVersion: 1,
-        apiVersion: 1,
-        platform: "desktop",
-        format: "cjs",
-        id: "weread",
-        name: "微信读书",
-        version: "1.0.0",
-        main: "main.js",
-        integrity: { "main.js": "a".repeat(64) },
-      },
-      code,
-    },
-    async () => sharedPluginModules
-  );
+  registerPluginPackage(runtime.host, artifact, async () => sharedPluginModules);
   await runtime.host.enable("weread");
   return { runtime, push, openSettings };
 }

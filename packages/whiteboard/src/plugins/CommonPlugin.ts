@@ -1,4 +1,4 @@
-import {
+import type {
   Board,
   IBoardPlugin,
   BoardElement,
@@ -7,9 +7,11 @@ import {
   Point,
   CustomOffset,
 } from "../types";
-import { isRectIntersect, selectAreaToRect, getResizedBBox, PathUtil, BoardUtil } from "../utils";
-import { ARROW_CONNECT_ID } from "../constants";
-import { SelectTransforms } from "../transforms";
+import { isRectIntersect, selectAreaToRect, getResizedBBox } from "../utils/common";
+import { PathUtil } from "../utils/PathUtil";
+import { BoardUtil } from "../utils/BoardUtil";
+import { ARROW_CONNECT_ID } from "../constants/arrow";
+import { SelectTransforms } from "../transforms/SelectTransforms";
 
 export type CommonElement = BoardElement & {
   x: number;

@@ -1,10 +1,12 @@
 import type { PluginDefinition } from "./contract";
+import type { WhiteboardElementDefinition } from "./whiteboard";
 import type { DevelopmentPluginPackage, PluginManifest } from "./package";
 import { createMarkdownProcessor, type MarkdownProcessor } from "@tau/markdown";
 import {
   evaluatePluginPackage,
   validatePluginDefinition,
   getPluginNodeTypes,
+  getPluginWhiteboardTypes,
   assertUniqueEditorCodecs,
 } from "./rendering.ts";
 
@@ -13,7 +15,21 @@ export class ContentPluginRegistry {
     definitions: readonly PluginDefinition[];
     extensions: NonNullable<PluginDefinition["editorExtensions"]>;
     codecs: NonNullable<PluginDefinition["editorCodecs"]>;
-  } = { definitions: Object.freeze([]), extensions: Object.freeze([]), codecs: Object.freeze([]) };
+    whiteboardExtensions: NonNullable<PluginDefinition["whiteboardExtensions"]>;
+    whiteboardElements: readonly WhiteboardElementDefinition[];
+  } = {
+    definitions: Object.freeze([]),
+    extensions: Object.freeze([]),
+    codecs: Object.freeze([]),
+    whiteboardExtensions: Object.freeze([]),
+    whiteboardElements: Object.freeze([]),
+  };
+  get whiteboardExtensions() {
+    return this.snapshot.whiteboardExtensions;
+  }
+  get whiteboardElements() {
+    return this.snapshot.whiteboardElements;
+  }
   get extensions() {
     return this.snapshot.extensions;
   }
@@ -23,9 +39,14 @@ export class ContentPluginRegistry {
   install(definitions: readonly PluginDefinition[]) {
     const ids = new Set<string>();
     const types = new Set<string>();
+    const whiteboardTypes = new Set<string>();
     for (const definition of definitions) {
       if (ids.has(definition.id)) throw new Error(`插件身份重复：${definition.id}`);
       ids.add(definition.id);
+      for (const type of getPluginWhiteboardTypes(definition)) {
+        if (whiteboardTypes.has(type)) throw new Error(`白板元素类型重复：${type}`);
+        whiteboardTypes.add(type);
+      }
       for (const type of getPluginNodeTypes(definition)) {
         if (types.has(type)) throw new Error(`插件节点类型重复：${type}`);
         types.add(type);
@@ -39,6 +60,15 @@ export class ContentPluginRegistry {
         definitions.flatMap(definition => definition.editorExtensions ?? [])
       ),
       codecs: Object.freeze(codecs),
+      whiteboardExtensions: Object.freeze(
+        definitions.flatMap(definition => definition.whiteboardExtensions ?? [])
+      ),
+      whiteboardElements: Object.freeze(
+        definitions.flatMap(
+          definition =>
+            definition.whiteboardExtensions?.flatMap(extension => extension.elements ?? []) ?? []
+        )
+      ),
     };
   }
   load(artifacts: readonly DevelopmentPluginPackage[], modules: Readonly<Record<string, unknown>>) {

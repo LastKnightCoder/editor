@@ -31,11 +31,9 @@ export enum ContainmentBehavior {
   Restricted = "restricted",
 }
 
-/** 受限容器的类别清单；子元素以 joins 声明愿意进入的容器分组 */
-export const CONTAINER_KINDS = ["layout"] as const;
-
-/** 受限容器类别（目前只有 "layout"：子元素位置由容器布局决定，如分栏） */
-export type ContainerKind = (typeof CONTAINER_KINDS)[number];
+import type { ContainerKind } from "./containment";
+export { CONTAINER_KINDS } from "./containment";
+export type { ContainerKind } from "./containment";
 
 /**
  * 移动行为类型

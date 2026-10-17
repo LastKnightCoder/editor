@@ -21,6 +21,7 @@ import type {
   PluginMaterialAction,
   PluginMaterialRef,
   PluginSkill,
+  PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
@@ -111,6 +112,7 @@ export interface PluginInfo {
 }
 
 interface Activation {
+  context?: PluginContext;
   ai?: PluginAI;
   controller: AbortController;
   resources: Disposable[];
@@ -296,7 +298,8 @@ export class PluginHost {
               );
               this.assertActive(entry, activation);
             }
-            return activation.instance.activate(this.context(entry, activation));
+            activation.context = this.context(entry, activation);
+            return activation.instance.activate(activation.context);
           },
           Date.now() + ACTIVATION_TIMEOUT_MS,
           "激活",
@@ -377,6 +380,15 @@ export class PluginHost {
       if (errors.length) throw new AggregateError(errors, "插件宿主清理失败");
     })();
     return this.disposal;
+  }
+
+  /** 宿主装配静态内容交互时复用同一激活实例的存储；不暴露整个上下文。 */
+  getStorage(id: string): PluginStorage {
+    const entry = this.entries.get(id);
+    if (!entry || entry.state !== "active" || !entry.activation?.context)
+      throw new Error(`插件 ${id} 尚未启用或已失活`);
+    this.assertActive(entry, entry.activation);
+    return entry.activation.context.storage;
   }
 
   private context(entry: Entry, activation: Activation): PluginContext {

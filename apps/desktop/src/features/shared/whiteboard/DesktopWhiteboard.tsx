@@ -1,7 +1,6 @@
 import {
   createArrowExtension,
   createGeometryExtension,
-  createStickmanExtension,
   createHandwriteExtension,
   createRichTextExtension,
   createMindExtension,
@@ -28,7 +27,9 @@ import { IDownloadService, IMediaInfoService } from "@tau/shared/media-services"
 import { desktopMedia, desktopMediaActions, desktopMediaImage } from "./media";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { downloadFile } from "@/utils/download";
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { useDesktopPlugins } from "@/app/plugins/context";
+import { createWhiteboardPluginServices } from "@/app/plugins/whiteboard-services";
 import WhiteBoard from "@tau/whiteboard";
 import {
   type WhiteBoardProps,
@@ -101,6 +102,9 @@ export type DesktopWhiteboardProps = Omit<WhiteBoardProps, "extensions" | "servi
 };
 export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProps>((props, ref) => {
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
+  const pluginRuntime = useDesktopPlugins();
+  const pluginRuntimeRef = useRef(pluginRuntime);
+  pluginRuntimeRef.current = pluginRuntime;
   const preferences = useWhiteboardOutlineStore();
   const additionalExtensions = props.extensions ?? NO_EXTENSIONS;
   // 宿主服务注册表：与 extensions 同随 databaseName 重建（切库后正文命令必须指向新库）
@@ -141,11 +145,21 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       register => register(IDownloadService, { download: url => downloadFile(url) })
     );
   }, [databaseName]);
+  const extensionServices = useMemo(
+    () =>
+      createWhiteboardPluginServices(services, desktopContentPlugins.list(), pluginId => {
+        if (useSettingStore.getState().setting.database.active !== databaseName)
+          throw new Error("白板所属工作区已关闭");
+        const runtime = pluginRuntimeRef.current;
+        if (!runtime) throw new Error("插件尚未就绪，请稍后重试");
+        return runtime.host.getStorage(pluginId);
+      }),
+    [services, databaseName]
+  );
   const extensions = useMemo(() => {
     return [
       createArrowExtension(getArrowLabelKit),
       createGeometryExtension(getDescriptionKit),
-      createStickmanExtension(),
       createHandwriteExtension(),
       createDocumentExtension({
         Body: DocumentCard,
@@ -204,6 +218,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
         }),
       }),
       ...additionalExtensions,
+      ...desktopContentPlugins.whiteboardExtensions,
     ];
   }, [additionalExtensions]);
   return (
@@ -212,6 +227,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       ref={ref}
       extensions={extensions}
       services={services}
+      extensionServices={extensionServices}
       outline={
         props.outline ?? {
           open: preferences.open,
@@ -225,3 +241,4 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
 });
 DesktopWhiteboard.displayName = "DesktopWhiteboard";
 export default DesktopWhiteboard;
+import { desktopContentPlugins } from "../../../../shared/content-plugins";

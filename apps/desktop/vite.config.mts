@@ -113,7 +113,6 @@ export default defineConfig(() => {
                   "juice",
                   "mermaid",
                   "katex",
-                  "@babel/standalone",
                   "cheerio",
                 ],
                 plugins: [
@@ -190,7 +189,6 @@ export default defineConfig(() => {
             "react-router-dom": ["react-router-dom"],
             mermaid: [extensionRequire("diagram").resolve("mermaid")],
             katex: ["katex"],
-            "@babel/standalone": [extensionRequire("custom-block").resolve("@babel/standalone")],
           },
         },
       },

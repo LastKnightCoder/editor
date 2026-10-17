@@ -4,8 +4,9 @@ import {
   assertUniqueEditorCodecs,
 } from "@tau/plugins/rendering";
 import { createMarkdownProcessor } from "@tau/markdown";
+import { isContentPlugin } from "@tau/plugins/package";
 import { isElectron } from "@/electron";
-import { scanLocalPlugins, getEditorPluginStartup } from "@/commands/plugin-local";
+import { scanLocalPlugins, getContentPluginStartup } from "@/commands/plugin-local";
 import { getContentKit } from "@/services/editorKit";
 import { desktopCodecComposition } from "@/utils/markdown";
 import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
@@ -28,10 +29,10 @@ async function prepareContentPlugins() {
   try {
     const scan = await scanLocalPlugins();
     for (const entry of scan.entries) {
-      if (entry.artifact?.manifest.editor)
-        localStorage.setItem(localPluginStateKey(entry.id), String(entry.editorEnabled === true));
+      if (entry.artifact && isContentPlugin(entry.artifact.manifest))
+        localStorage.setItem(localPluginStateKey(entry.id), String(entry.contentEnabled === true));
     }
-    const snapshot = await getEditorPluginStartup();
+    const snapshot = await getContentPluginStartup();
     for (const [id, error] of Object.entries(snapshot.errors)) setContentPluginError(id, error);
     if (!snapshot.artifacts.length) return;
     const { sharedPluginModules } = await import("./shared-modules");
@@ -64,6 +65,6 @@ async function prepareContentPlugins() {
       }
     }
   } catch (error) {
-    console.error("编辑器插件启动扫描失败", error);
+    console.error("内容插件启动扫描失败", error);
   }
 }

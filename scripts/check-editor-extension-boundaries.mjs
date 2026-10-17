@@ -238,7 +238,6 @@ for (const file of sourceFiles(resolve(root, "packages/shared"))) {
 
 for (const directory of [
   "editor-extensions/webview",
-  "plugins/custom-block",
   "editor-extensions/diagram",
   "editor-extensions/html",
   "packages/editor-source-view",

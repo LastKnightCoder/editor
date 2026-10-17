@@ -1,5 +1,6 @@
 import { BoardElement, Operation, Selection, SetNodePatch } from "../types";
-import Board from "../Board";
+import type Board from "../Board";
+import { boardFlag } from "../constants/boardIdentity";
 import BoardOperations from "./BoardOperations";
 import SpatialHitIndex, { getHitTestChildren } from "./SpatialHitIndex";
 import { TreePath as SlatePath } from "./TreePath";
@@ -14,7 +15,7 @@ export class BoardUtil {
   >();
 
   static isBoard(value: unknown): value is Board {
-    return Boolean(value && (value as Board).boardFlag === Board.boardFlag);
+    return Boolean(value && (value as Board).boardFlag === boardFlag);
   }
 
   static getHitElements(board: Board, x: number, y: number): BoardElement[] {

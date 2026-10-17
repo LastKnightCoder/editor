@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import WhiteBoard from "../WhiteBoard";
 import Board from "../Board";
 import { defineWhiteboardExtension, type WhiteboardAPI } from "../extensions/api";
-import { useWhiteboardAPI } from "../extensions/runtime";
+import { useWhiteboardAPI } from "../extensions/context";
 import {
   WHITEBOARD_DOCUMENT_VERSION,
   getDocumentVersion,

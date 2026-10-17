@@ -8,51 +8,15 @@
  */
 
 import type { BoardElement } from "../types";
+import type { WhiteboardElementDefinition } from "../extensions/api";
+import { createSnapshotReader } from "../extensions/snapshot";
 import MindThemeUtil from "../utils/MindThemeUtil";
 import { getThemeColorById } from "../constants/theme-colors";
 import { outlineToSvgPath } from "../utils/HandwriteUtil";
 import { getTextBandColor, getTextSurface, resolveTextStyle } from "../constants/text-style";
-import { STICK_PADDING } from "../constants/stickman";
-import { buildStickStrokes, getStickPose, stickNaturalSize } from "../utils/stickman";
 
-/** 纯色，或由 CSS linear-gradient 解析出的渐变（文本卡片常用渐变底） */
-export type SchematicFill =
-  string | { angle: number; stops: Array<{ color: string; offset: number }> };
-
-export type SchematicShape =
-  | {
-      kind: "rect";
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-      r: number;
-      fill: SchematicFill;
-      fillOpacity?: number;
-      stroke?: string;
-      /** 输出像素 */
-      strokeWidth?: number;
-    }
-  | {
-      kind: "path";
-      d: string;
-      fill?: string;
-      fillOpacity?: number;
-      stroke?: string;
-      strokeOpacity?: number;
-      /** 输出像素 */
-      strokeWidth?: number;
-      /** 归一化路径（0~1）放进元素框：translate(x y) scale(w h) */
-      box?: { x: number; y: number; w: number; h: number };
-    }
-  | {
-      /** 箭头端点的三角：尺寸按输出像素，组件按缩放换算 */
-      kind: "arrowhead";
-      x: number;
-      y: number;
-      angle: number;
-      color: string;
-    };
+import type { SchematicFill, SchematicShape } from "../types/schematic";
+export type { SchematicFill, SchematicShape } from "../types/schematic";
 
 export interface Schematic {
   viewBox: { x: number; y: number; w: number; h: number };
@@ -76,6 +40,8 @@ const hasBox = (e: AnyElement) =>
   Number.isFinite(e.x) && Number.isFinite(e.y) && e.width > 0 && e.height > 0;
 
 interface Ctx {
+  definitions: Map<string, WhiteboardElementDefinition>;
+  snapshot: ReturnType<typeof createSnapshotReader>;
   dark: boolean;
   shapes: SchematicShape[];
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
@@ -348,36 +314,6 @@ function arrow(ctx: Ctx, e: AnyElement) {
 }
 
 /** 人物：线稿按姿态画布归一化后放进元素框（只画线，不画着色） */
-function stickman(ctx: Ctx, e: AnyElement) {
-  const pose = getStickPose(e.pose);
-  if (!pose) return;
-  const [w, h] = stickNaturalSize(pose);
-  // 归一化坐标保留 4 位小数，2 位会把小圆头削成多边形
-  const unitD = (points: [number, number][], closed: boolean) =>
-    "M" +
-    points
-      .map(
-        ([px, py]) =>
-          `${((px + STICK_PADDING) / w).toFixed(4)} ${((py + STICK_PADDING) / h).toFixed(4)}`
-      )
-      .join(" L") +
-    (closed ? " Z" : "");
-  const box = { x: e.x, y: e.y, w: e.width, h: e.height };
-  const style = { body: e.body ?? "classic", tint: "mono" as const, flip: e.flip };
-  for (const stroke of buildStickStrokes(pose, style)) {
-    if (stroke.kind === "text") continue;
-    const solid = stroke.kind === "shape" && stroke.fill === "ink";
-    ctx.shapes.push({
-      kind: "path",
-      d: unitD(stroke.points, stroke.kind === "shape"),
-      fill: solid ? INK : undefined,
-      stroke: solid ? undefined : INK,
-      strokeWidth: 1,
-      box,
-    });
-  }
-}
-
 /* ───────── 分派 ───────── */
 
 function element(ctx: Ctx, e: AnyElement) {
@@ -387,6 +323,18 @@ function element(ctx: Ctx, e: AnyElement) {
   if (e.type === "mind-node") return mindTree(ctx, e);
 
   grow(ctx, e.x, e.y, e.width, e.height);
+  const definition = ctx.definitions.get(e.type);
+  if (definition?.schematic && (e.schemaVersion ?? 1) === (definition.schemaVersion ?? 1)) {
+    try {
+      const shapes = definition.schematic(ctx.snapshot(e), { dark: ctx.dark });
+      if (!Array.isArray(shapes)) throw new Error("缩略图贡献必须返回图元数组");
+      ctx.shapes.push(...shapes);
+      for (const child of e.children ?? []) element(ctx, child);
+      return;
+    } catch (error) {
+      console.error(`白板缩略图生成失败：${e.type}`, error);
+    }
+  }
   switch (e.type) {
     case "richtext":
     case "document":
@@ -407,8 +355,6 @@ function element(ctx: Ctx, e: AnyElement) {
       }
       return;
     }
-    case "stickman":
-      return stickman(ctx, e);
     case "handwrite": {
       if (!Array.isArray(e.outline) || e.outline.length === 0) return;
       ctx.shapes.push({
@@ -487,10 +433,14 @@ function element(ctx: Ctx, e: AnyElement) {
 /** 空画布返回 null（卡片显示「空白画布」） */
 export function buildSchematic(
   elements: BoardElement[] | undefined,
-  options: { aspect: number; dark: boolean }
+  options: { aspect: number; dark: boolean; definitions?: readonly WhiteboardElementDefinition[] }
 ): Schematic | null {
   if (!elements?.length) return null;
   const ctx: Ctx = {
+    definitions: new Map(
+      (options.definitions ?? []).map(definition => [definition.type, definition])
+    ),
+    snapshot: createSnapshotReader(),
     dark: options.dark,
     shapes: [],
     bounds: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },

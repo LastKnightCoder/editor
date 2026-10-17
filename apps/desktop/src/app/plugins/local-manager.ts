@@ -1,3 +1,4 @@
+import { isContentPlugin as hasStaticContent } from "@tau/plugins/package";
 import {
   clearBrowserPluginStorage,
   type DevelopmentPluginPackage,
@@ -11,7 +12,7 @@ import type {
 } from "@/types/plugin-local";
 import { PluginActivationManager } from "./activation-manager";
 import { registerPluginPackage, type SharedPluginModules } from "./package-loader";
-import { setEditorPluginEnabled } from "@/commands/plugin-local";
+import { setContentPluginEnabled } from "@/commands/plugin-local";
 
 import {
   localPluginStateKey,
@@ -55,25 +56,26 @@ export class LocalPluginManager {
     return this.operations > 0;
   }
   enabled(id: string) {
-    if (this.records.get(id)?.manifest.editor)
+    if (this.isContentPlugin(id))
       return this.preferences.getItem(localPluginStateKey(id)) === "true";
     return this.states.enabled(id);
   }
-  isEditorPlugin(id: string) {
-    return this.records.get(id)?.manifest.editor === true;
+  isContentPlugin(id: string) {
+    const artifact = this.records.get(id);
+    return artifact ? hasStaticContent(artifact.manifest) : false;
   }
-  pendingEditorIds() {
+  pendingContentIds() {
     return [...this.records.keys()].filter(
-      id => this.isEditorPlugin(id) && this.enabled(id) !== contentPluginLoaded(id)
+      id => this.isContentPlugin(id) && this.enabled(id) !== contentPluginLoaded(id)
     );
   }
   source(id: string): LocalPluginSource | undefined {
     return this.sources.get(id);
   }
   error(id: string) {
-    if (this.records.get(id)?.manifest.editor) {
+    if (this.isContentPlugin(id)) {
       if (contentPluginError(id)) return contentPluginError(id);
-      if (this.enabled(id) !== contentPluginLoaded(id)) return "编辑器插件启停将在重启应用后生效";
+      if (this.enabled(id) !== contentPluginLoaded(id)) return "内容插件启停将在重启应用后生效";
     }
     return this.states.error(id) ?? this.issues.find(entry => entry.id === id)?.error;
   }
@@ -85,7 +87,7 @@ export class LocalPluginManager {
   /** 停用后移除包；私有数据只在 purgeData 时删除，重新安装可恢复原数据。 */
   uninstall(id: string, purgeData: boolean) {
     return this.run(async () => {
-      if (contentPluginLoaded(id)) throw new Error("请先停用编辑器插件并重启应用，再卸载");
+      if (contentPluginLoaded(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
       if (this.states.enabled(id)) await this.states.disable(id);
       await this.removePackage(id);
       this.preferences.removeItem(localPluginStateKey(id));
@@ -102,8 +104,12 @@ export class LocalPluginManager {
       this.updates = snapshot.updates ?? [];
       this.clientVersion = snapshot.clientVersion ?? "";
       for (const entry of snapshot.entries)
-        if (entry.artifact?.manifest.editor && entry.editorEnabled !== undefined)
-          this.preferences.setItem(localPluginStateKey(entry.id), String(entry.editorEnabled));
+        if (
+          entry.artifact &&
+          hasStaticContent(entry.artifact.manifest) &&
+          entry.contentEnabled !== undefined
+        )
+          this.preferences.setItem(localPluginStateKey(entry.id), String(entry.contentEnabled));
       this.scanError = "";
       const issues: LocalPluginEntry[] = [];
       const present = new Set(snapshot.entries.map(entry => entry.id));
@@ -178,17 +184,17 @@ export class LocalPluginManager {
   }
 
   enable(id: string) {
-    if (this.records.get(id)?.manifest.editor)
+    if (this.isContentPlugin(id))
       return this.run(async () => {
-        await setEditorPluginEnabled(id, true);
+        await setContentPluginEnabled(id, true);
         this.preferences.setItem(localPluginStateKey(id), "true");
       });
     return this.run(() => this.states.enable(id));
   }
   disable(id: string) {
-    if (this.records.get(id)?.manifest.editor)
+    if (this.isContentPlugin(id))
       return this.run(async () => {
-        await setEditorPluginEnabled(id, false);
+        await setContentPluginEnabled(id, false);
         this.preferences.setItem(localPluginStateKey(id), "false");
       });
     return this.run(() => this.states.disable(id));
@@ -210,7 +216,7 @@ export class LocalPluginManager {
       {
         getItem: key => {
           const id = [...this.records.keys()].find(id => key === localPluginStateKey(id));
-          return id && this.records.get(id)?.manifest.editor
+          return id && this.isContentPlugin(id)
             ? String(contentPluginLoaded(id))
             : this.preferences.getItem(key);
         },

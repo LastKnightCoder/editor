@@ -31,14 +31,13 @@ function ZoomProbe() {
 
 const countingExtension = defineWhiteboardExtension({
   id: "test.counting",
-  create: () => ({
-    elements: [
-      defineElement({
-        type: "test.card",
-        render: () => <ZoomProbe />,
-      }),
-    ],
-  }),
+  elements: [
+    defineElement({
+      type: "test.card",
+      render: () => <ZoomProbe />,
+    }),
+  ],
+  create: () => ({}),
 });
 
 interface RenderResult {

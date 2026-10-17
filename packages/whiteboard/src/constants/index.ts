@@ -10,6 +10,5 @@ export * from "./viewport";
 export * from "./grid";
 export * from "./shadow";
 export * from "./sketch";
-export * from "./stickman";
 
 export const FIT_VIEW_PADDING = 50;

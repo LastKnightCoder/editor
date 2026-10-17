@@ -17,8 +17,13 @@ const directory = path.join(output, "plugins");
 const pluginDir = path.join(directory, "example.portable-counter");
 const site = path.join(output, "site");
 await mkdir(pluginDir, { recursive: true });
+const distribution = JSON.parse(
+  await readFile(path.join(root, "plugins/distribution.json"), "utf8")
+);
+const customPackage = distribution.find(entry => entry.id === "tau.custom-block");
+if (!customPackage) throw new Error("分发清单缺少自定义组件块");
 await cp(
-  path.join(root, "plugins/custom-block/dist/package"),
+  path.join(root, "plugins", customPackage.artifact),
   path.join(directory, "tau.custom-block"),
   { recursive: true }
 );
@@ -71,14 +76,18 @@ await build({
   tsconfig: path.join(desktop, "tsconfig.json"),
 });
 const { generateFixture } = require(path.join(output, "generate.cjs"));
-const customRequire = createRequire(path.join(root, "plugins/custom-block/package.json"));
-const { compile } = customRequire("@tailwindcss/node");
-const { Scanner } = customRequire("@tailwindcss/oxide");
-const styleInput = await readFile(path.join(root, "plugins/custom-block/src/styles.css"), "utf8");
+const { compile } = require("tailwindcss");
+const { Scanner } = require("@tailwindcss/oxide");
+const styleInput = (
+  await Promise.all(
+    ["tailwindcss/theme.css", "tailwindcss/utilities.css", "@tau/themes/tailwind.css"].map(file =>
+      readFile(require.resolve(file), "utf8")
+    )
+  )
+).join("\n");
 const compileSource = async (content, extension) => {
   const compiler = await compile(styleInput, {
-    base: path.join(root, "plugins/custom-block/src"),
-    onDependency() {},
+    base: desktop,
   });
   return compiler.build(new Scanner({ sources: [] }).scanFiles([{ content, extension }]));
 };

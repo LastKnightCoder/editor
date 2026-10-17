@@ -1,4 +1,5 @@
-import { EventHandler, Board, SelectArea, BBox, Point, EHandlerPosition } from "../types";
+import type { EventHandler, Board, SelectArea, BBox, Point } from "../types";
+import { EHandlerPosition } from "../types/resize";
 
 // 判断两个矩形是否相交
 export const isRectIntersect = (rect1: BBox, rect2: BBox) => {

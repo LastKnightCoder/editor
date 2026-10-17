@@ -1,5 +1,5 @@
 import { useRef, memo } from "react";
-import { useMemoizedFn, useThrottleFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 
 import { EHandlerPosition, Point } from "../../types";
 import { PointUtil } from "../../utils";
@@ -40,11 +40,10 @@ const ResizeCircle = memo((props: ResizeCircleProps) => {
 
   const ref = useRef<SVGGElement>(null);
 
-  const { run: handleOnResize } = useThrottleFn(
+  const handleOnResize = useMemoizedFn(
     (startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
       onResize(position, startPoint, endPoint, isPreserveRatio, isAdsorb);
-    },
-    { wait: 25 }
+    }
   );
 
   const handleOnResizeEnd = useMemoizedFn((startPoint: Point, endPoint: Point) => {

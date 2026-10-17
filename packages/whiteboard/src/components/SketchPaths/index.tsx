@@ -1,6 +1,6 @@
 import { memo, useId } from "react";
 import { useThemeStore } from "@tau/themes/react";
-import type { SketchPath } from "../../utils/sketch";
+import type { SketchPath } from "../../utils/sketch/types";
 
 /** 线类填充（斜线 / 交叉 / 涂鸦）退一步，不压文字；深色底上更显眼，再降一档 */
 const LINES_OPACITY = { light: 0.85, dark: 0.55 };
