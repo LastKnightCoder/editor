@@ -1,5 +1,6 @@
 import type Board from "../Board";
 import type { IBoardPlugin } from "../types";
+import type { Operation } from "../types/operation";
 import { BoardUtil, PointUtil } from "../utils";
 import type { InteractionState } from "./InteractionState";
 import { CreatingState } from "./states/CreatingState";
@@ -9,6 +10,9 @@ import { ViewportMoveState } from "./states/ViewportMoveState";
 import { PanningState } from "./states/PanningState";
 import { SelectingState } from "./states/SelectingState";
 import { ARROW_KEYS } from "./states/ContinuousArrowMoveState";
+import { ResizingState, type ResizeCallbacks } from "./states/ResizingState";
+import { claimBoardPointer } from "../utils/events";
+import { BOARD_TO_CONTAINER } from "../constants/map";
 
 /**
  * 交互内核：输入手势的唯一裁决与路由层。
@@ -27,6 +31,56 @@ export class InteractionManager {
   private keyState: InteractionState | null = null;
 
   constructor(private board: Board) {}
+
+  private resizePreviewState: ResizingState | null = null;
+  get resizePreview() {
+    return this.resizePreviewState;
+  }
+  runResizePreview(state: ResizingState, run: () => void) {
+    const previous = this.resizePreviewState;
+    this.resizePreviewState = state;
+    try {
+      run();
+    } finally {
+      this.resizePreviewState = previous;
+    }
+  }
+  startResize(event: PointerEvent, callbacks: ResizeCallbacks): (() => void) | undefined {
+    if (
+      event.button !== 0 ||
+      this.pointerState ||
+      this.keyState ||
+      this.board.readonly ||
+      !this.board.captureSubmission()() ||
+      this.board.isCreating() ||
+      this.board.presentationManager.isPresentationMode
+    )
+      return;
+    const point = PointUtil.screenToViewPort(this.board, event.clientX, event.clientY);
+    if (!point || !claimBoardPointer(this.board, event)) return;
+    const state = new ResizingState(this.board, event, point, callbacks);
+    this.pointerState = state;
+    event.preventDefault();
+    event.stopPropagation();
+    BOARD_TO_CONTAINER.get(this.board)?.focus({ preventScroll: true });
+    try {
+      state.begin();
+    } catch (error) {
+      this.exitPointerState();
+      throw error;
+    }
+    return () => {
+      if (this.pointerState === state) this.exitPointerState();
+    };
+  }
+  cancelResize(): boolean {
+    if (!(this.pointerState instanceof ResizingState)) return false;
+    this.exitPointerState();
+    return true;
+  }
+  hasResizeConflict(operations: readonly Operation[]) {
+    return this.pointerState instanceof ResizingState && this.pointerState.conflicts(operations);
+  }
 
   get activePointerState(): InteractionState | null {
     return this.pointerState;

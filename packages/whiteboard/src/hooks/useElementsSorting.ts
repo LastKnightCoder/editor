@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { BoardElement, Selection } from "../types";
-import { isInteriorConnectElement } from "../utils";
+import { isInteriorConnectElement } from "../utils/ConnectPointUtil";
 
 type ElementsSortingResult = {
   centerConnectArrows: BoardElement[];

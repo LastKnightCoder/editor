@@ -30,9 +30,8 @@ const boxSeed = (id: string, type: string, x = 120, y = 120, width = 80, height 
 const acmeCardExtension = (containment?: ElementContainmentSpec): WhiteboardExtension =>
   defineWhiteboardExtension({
     id: "acme.card",
-    create: () => ({
-      elements: [defineElement({ type: "acme.card.box", render: () => null, containment })],
-    }),
+    elements: [defineElement({ type: "acme.card.box", render: () => null, containment })],
+    create: () => ({}),
   });
 
 const acmeCardSeed = (id = "card") => boxSeed(id, "acme.card.box", 250, 150, 60, 50);
@@ -225,24 +224,23 @@ describe("第三方元素收纳声明", () => {
   it("版本不兼容（占位渲染）的元素仍按声明的收纳能力参与判定", async () => {
     const versioned = defineWhiteboardExtension({
       id: "acme.versioned",
-      create: () => ({
-        elements: [
-          defineElement({
-            type: "acme.versioned.box",
-            render: () => null,
-            schemaVersion: 2,
-            migrate: { 1: element => element },
-            containment: { joins: ["layout"] },
-          }),
-          defineElement({
-            type: "acme.versioned.fixed",
-            render: () => null,
-            schemaVersion: 2,
-            migrate: { 1: element => element },
-            containment: { canBeContained: false },
-          }),
-        ],
-      }),
+      elements: [
+        defineElement({
+          type: "acme.versioned.box",
+          render: () => null,
+          schemaVersion: 2,
+          migrate: { 1: element => element },
+          containment: { joins: ["layout"] },
+        }),
+        defineElement({
+          type: "acme.versioned.fixed",
+          render: () => null,
+          schemaVersion: 2,
+          migrate: { 1: element => element },
+          containment: { canBeContained: false },
+        }),
+      ],
+      create: () => ({}),
     });
     // schemaVersion 3 比定义的 2 新：按 too-new 占位渲染
     const tooNew = { ...acmeCardSeed("too-new"), type: "acme.versioned.box", schemaVersion: 3 };
@@ -273,15 +271,14 @@ describe("装配校验", () => {
       [
         defineWhiteboardExtension({
           id: "acme.bad",
-          create: () => ({
-            elements: [
-              defineElement({
-                type: "acme.bad.box",
-                render: () => null,
-                containment: { joins: ["foo"] } as unknown as ElementContainmentSpec,
-              }),
-            ],
-          }),
+          elements: [
+            defineElement({
+              type: "acme.bad.box",
+              render: () => null,
+              containment: { joins: ["foo"] } as unknown as ElementContainmentSpec,
+            }),
+          ],
+          create: () => ({}),
         }),
       ],
       error => errors.push(error)

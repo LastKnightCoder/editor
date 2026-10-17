@@ -31,7 +31,8 @@ export function getSketchTargets(board: Board, elements: BoardElement[]): BoardE
   elements.forEach(el => {
     const owner =
       el.type === "mind-node" ? (MindUtil.getRoot(board, el as MindNodeElement) ?? el) : el;
-    if (isSketchableType(owner.type)) byId.set(owner.id, owner);
+    if (board.extensions?.supportsSketch(owner.type) ?? isSketchableType(owner.type))
+      byId.set(owner.id, owner);
   });
   return [...byId.values()];
 }

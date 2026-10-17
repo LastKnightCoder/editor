@@ -28,25 +28,25 @@ const StickyIcon = () => <i data-acme-sticky-icon />;
 const acmeExtension = defineWhiteboardExtension({
   id: "acme.notes",
   name: "Acme 便签",
+  elements: [
+    defineElement({
+      type: "acme.sticky",
+      render: () => null,
+      create: {
+        gesture: "click",
+        defaultSize: [160, 160],
+        build: ctx =>
+          ({
+            type: "acme.sticky",
+            x: ctx.rect.x,
+            y: ctx.rect.y,
+            width: ctx.rect.width,
+            height: ctx.rect.height,
+          }) as unknown as BoardElement,
+      },
+    }),
+  ],
   create: () => ({
-    elements: [
-      defineElement({
-        type: "acme.sticky",
-        render: () => null,
-        create: {
-          gesture: "click",
-          defaultSize: [160, 160],
-          build: ctx =>
-            ({
-              type: "acme.sticky",
-              x: ctx.rect.x,
-              y: ctx.rect.y,
-              width: ctx.rect.width,
-              height: ctx.rect.height,
-            }) as unknown as BoardElement,
-        },
-      }),
-    ],
     tools: [
       {
         id: "acme.sticky.create",

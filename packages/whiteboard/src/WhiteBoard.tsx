@@ -85,7 +85,7 @@ import type {
   WhiteboardOutline,
   WhiteboardSnapshot,
 } from "./extensions/api";
-import { WhiteboardAPIProvider } from "./extensions/runtime";
+import { WhiteboardAPIProvider } from "./extensions/context";
 import { isDocumentVersionSupported } from "./document-version";
 
 const simplifiedRenderZoomThreshold = 0.3;

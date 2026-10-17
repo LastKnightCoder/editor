@@ -194,7 +194,9 @@ export function MultiSketchPopover({ elements }: { elements: BoardElement[] }) {
 
   if (targets.length === 0) return null;
 
-  const resolved = targets.map(t => resolveSketch(page, t));
+  const resolved = targets.map(t =>
+    resolveSketch(page, t, undefined, board.extensions?.supportsSketch(t.type))
+  );
   const geometries = targets.filter(t => t.type === "geometry" && isPaintedFill(t.fill));
 
   const apply: (recipe: Parameters<typeof buildSketchOps>[2]) => void = recipe => {

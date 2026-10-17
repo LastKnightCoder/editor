@@ -78,17 +78,16 @@ const stickyExtension = (
 ) =>
   defineWhiteboardExtension({
     id: "acme.stickies",
-    create: () => ({
-      elements: [
-        defineElement({
-          type: "acme.sticky",
-          schema,
-          render: () => <g data-sticky />,
-          ...(extras.schemaVersion !== undefined ? { schemaVersion: extras.schemaVersion } : {}),
-          ...(extras.migrate ? { migrate: extras.migrate } : {}),
-        }),
-      ],
-    }),
+    elements: [
+      defineElement({
+        type: "acme.sticky",
+        schema,
+        render: () => <g data-sticky />,
+        ...(extras.schemaVersion !== undefined ? { schemaVersion: extras.schemaVersion } : {}),
+        ...(extras.migrate ? { migrate: extras.migrate } : {}),
+      }),
+    ],
+    create: () => ({}),
   });
 
 describe("defineElement 类型推断", () => {
@@ -210,9 +209,8 @@ describe("插入校验", () => {
     install(board, [
       defineWhiteboardExtension({
         id: "acme.plain",
-        create: () => ({
-          elements: [defineElement({ type: "acme.plain", render: () => null })],
-        }),
+        elements: [defineElement({ type: "acme.plain", render: () => null })],
+        create: () => ({}),
       }),
     ]);
     board.apply({

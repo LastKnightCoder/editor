@@ -13,7 +13,7 @@ import { Button, Dialog, Input, Loading, cn } from "@tau/ui";
 import { WhiteBoard } from "@/types";
 import { FadeScroll } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
-import { PageSchematic } from "@tau/whiteboard";
+import { DesktopPageSchematic as PageSchematic } from "@/features/shared/whiteboard/DesktopPageSchematic";
 import {
   displayTitle,
   fullTime,

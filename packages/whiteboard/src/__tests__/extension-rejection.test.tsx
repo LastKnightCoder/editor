@@ -45,13 +45,13 @@ describe("白板扩展命名空间与冲突降级", () => {
     const errors: WhiteboardExtensionError[] = [];
     const good = defineWhiteboardExtension({
       id: "acme.good",
-      create: () => ({
-        elements: [{ type: "acme.marker", render: () => <g data-acme-marker /> }],
-      }),
+      elements: [{ type: "acme.marker", render: () => <g data-acme-marker /> }],
+      create: () => ({}),
     });
     const rogue = defineWhiteboardExtension({
       id: "acme.rogue",
-      create: () => ({ elements: [{ type: "sticky", render: () => null }] }),
+      elements: [{ type: "sticky", render: () => null }],
+      create: () => ({}),
     });
     const container = document.createElement("div");
     document.body.append(container);
@@ -88,7 +88,8 @@ describe("白板扩展命名空间与冲突降级", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const wrongType = defineWhiteboardExtension({
       id: "acme.notes",
-      create: () => ({ elements: [{ type: "other.sticky", render: () => null }] }),
+      elements: [{ type: "other.sticky", render: () => null }],
+      create: () => ({}),
     });
     let board = createBoard();
     let errors = install(board, [wrongType]);
@@ -112,8 +113,8 @@ describe("白板扩展命名空间与冲突降级", () => {
     const make = (id: string) =>
       defineWhiteboardExtension({
         id,
+        elements: [{ type: "acme.sticky", render: () => <g data-acme-sticky /> }],
         create: () => ({
-          elements: [{ type: "acme.sticky", render: () => <g data-acme-sticky /> }],
           commands: [{ id: `${id}.ping`, execute: () => "pong" }],
           tools: [
             {
@@ -152,7 +153,8 @@ describe("白板扩展命名空间与冲突降级", () => {
       createArrowExtension(),
       defineWhiteboardExtension({
         id: "acme.embed",
-        create: () => ({ elements: [{ type: "acme.x", render: () => null }] }),
+        elements: [{ type: "acme.x", render: () => null }],
+        create: () => ({}),
       }),
     ]);
     expect(errors).toEqual([]);
@@ -217,8 +219,8 @@ describe("白板扩展命名空间与冲突降级", () => {
     const errors = install(board, [
       defineWhiteboardExtension({
         id: "acme.dangling",
+        elements: [{ type: "acme.orphan", render: () => null }],
         create: () => ({
-          elements: [{ type: "acme.orphan", render: () => null }],
           tools: [
             {
               id: "acme.dangling.tool",

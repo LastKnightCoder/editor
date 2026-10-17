@@ -3,7 +3,11 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
-import { validatePluginManifest, type DevelopmentPluginPackage } from "./package.ts";
+import {
+  validatePluginManifest,
+  isContentPlugin,
+  type DevelopmentPluginPackage,
+} from "./package.ts";
 
 /** 产品分发清单只指向插件项目；构建后只消费产物，不导入项目源码。 */
 export async function buildPluginDistribution(distribution: string, destination?: string) {
@@ -20,7 +24,8 @@ export async function buildPluginDistribution(distribution: string, destination?
     const manifest = validatePluginManifest(
       JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"))
     );
-    if (!manifest.editor || ids.has(manifest.id)) throw new Error("分发插件重复或没有编辑器贡献");
+    if (!isContentPlugin(manifest) || ids.has(manifest.id))
+      throw new Error("分发插件重复或没有静态内容贡献");
     ids.add(manifest.id);
     const read = async (file: string) => {
       const data = await readFile(path.join(source, file), "utf8");

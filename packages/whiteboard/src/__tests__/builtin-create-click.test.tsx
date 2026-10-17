@@ -402,20 +402,20 @@ describe("异步创建失败（协议层）", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const boomExtension = defineWhiteboardExtension({
       id: "test.boom",
-      create: () => ({
-        elements: [
-          defineElement({
-            type: "test.boom.box",
-            render: () => null,
-            create: {
-              gesture: "click",
-              defaultSize: [10, 10],
-              build: async () => {
-                throw new Error("宿主步骤失败");
-              },
+      elements: [
+        defineElement({
+          type: "test.boom.box",
+          render: () => null,
+          create: {
+            gesture: "click",
+            defaultSize: [10, 10],
+            build: async () => {
+              throw new Error("宿主步骤失败");
             },
-          }),
-        ],
+          },
+        }),
+      ],
+      create: () => ({
         tools: [
           {
             id: "test.boom.create",

@@ -3764,6 +3764,9 @@ importers:
       '@tau/ui':
         specifier: workspace:*
         version: link:../ui
+      '@tau/whiteboard':
+        specifier: workspace:*
+        version: link:../whiteboard
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)

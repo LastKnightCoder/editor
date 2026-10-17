@@ -1,3 +1,4 @@
+import { useWhiteboardAPI } from "../extensions/context";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -305,19 +306,18 @@ describe("内置与第三方扩展的媒体、富文本服务消费", () => {
     const rich = defineWhiteboardExtension({
       id: "acme.rich",
       optional: [IWhiteboardRichText],
-      create: api => ({
-        elements: [
-          {
-            type: "acme.rich",
-            render: () => {
-              const service = api.tryGetService(IWhiteboardRichText);
-              resolved.push(service);
-              if (service) return <service.Editor />;
-              return <g data-acme-embedded />;
-            },
+      elements: [
+        {
+          type: "acme.rich",
+          render: function ServiceElement() {
+            const service = useWhiteboardAPI().tryGetService(IWhiteboardRichText);
+            resolved.push(service);
+            if (service) return <service.Editor />;
+            return <g data-acme-embedded />;
           },
-        ],
-      }),
+        },
+      ],
+      create: () => ({}),
     });
     const mount = async (services?: ReturnType<typeof createServiceRegistry>) => {
       const container = document.createElement("div");

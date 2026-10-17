@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { PluginEditorStartup } from "../plugin-editor-startup";
+import { PluginContentStartup } from "../plugin-content-startup";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
 
 it("多个窗口共享首次启动快照，启停与磁盘变化到新进程才生效", async () => {
@@ -7,7 +7,7 @@ it("多个窗口共享首次启动快照，启停与磁盘变化到新进程才�
     async (id: string) =>
       ({ manifest: { id, editor: true }, code: "first" }) as DevelopmentPluginPackage
   );
-  const startup = new PluginEditorStartup(read);
+  const startup = new PluginContentStartup(read);
   expect(await startup.uses("one")).toBe(false);
   const first = startup.get(["one"]);
   expect(startup.get(["two"])).toBe(first);
@@ -15,11 +15,11 @@ it("多个窗口共享首次启动快照，启停与磁盘变化到新进程才�
   expect(await startup.uses("one")).toBe(true);
   expect((await startup.get([])).artifacts).toHaveLength(1);
   expect(read).toHaveBeenCalledTimes(1);
-  expect((await new PluginEditorStartup(read).get(["two"])).artifacts[0].manifest.id).toBe("two");
+  expect((await new PluginContentStartup(read).get(["two"])).artifacts[0].manifest.id).toBe("two");
 });
 
-it("损坏包逐项报告，不阻止其他编辑器插件；非法请求不锁住快照", async () => {
-  const startup = new PluginEditorStartup(async id => {
+it("损坏包逐项报告，不阻止其他内容插件；非法请求不锁住快照", async () => {
+  const startup = new PluginContentStartup(async id => {
     if (id === "bad") throw new Error("损坏");
     return { manifest: { id, editor: true }, code: "ok" } as DevelopmentPluginPackage;
   });

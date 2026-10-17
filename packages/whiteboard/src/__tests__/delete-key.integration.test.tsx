@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import WhiteBoard from "../WhiteBoard";
 import { defineWhiteboardExtension, type WhiteboardAPI } from "../extensions/api";
-import { useWhiteboardAPI } from "../extensions/runtime";
+import { useWhiteboardAPI } from "../extensions/context";
 import { createInteractionExtension, createClipboardExtension } from "../extensions/builtins";
 import { createRichTextExtension } from "../extensions/builtins";
 import { createServiceRegistry } from "../extensions";
@@ -42,21 +42,21 @@ it.each([
     createClipboardExtension(),
     defineWhiteboardExtension({
       id: "test.shape",
+      elements: [
+        {
+          type: "test.shape",
+          render: ({ element }) => (
+            <rect
+              data-test-shape
+              x={element.x}
+              y={element.y}
+              width={element.width}
+              height={element.height}
+            />
+          ),
+        },
+      ],
       create: () => ({
-        elements: [
-          {
-            type: "test.shape",
-            render: ({ element }) => (
-              <rect
-                data-test-shape
-                x={element.x}
-                y={element.y}
-                width={element.width}
-                height={element.height}
-              />
-            ),
-          },
-        ],
         layers: [{ id: "test.capture", position: "outside", component: Capture }],
       }),
     }),

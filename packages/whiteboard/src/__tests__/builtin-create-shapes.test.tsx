@@ -375,14 +375,13 @@ describe("column 创建工具", () => {
   it("未声明收纳能力的第三方元素不进入分栏（准入走 api.canContain 能力查询）", async () => {
     const cardExtension = defineWhiteboardExtension({
       id: "acme.card",
-      create: () => ({
-        elements: [
-          defineElement({
-            type: "acme.card.box",
-            render: () => null,
-          }),
-        ],
-      }),
+      elements: [
+        defineElement({
+          type: "acme.card.box",
+          render: () => null,
+        }),
+      ],
+      create: () => ({}),
     });
     const seeds = [
       richtextSeed("text-a", 120, 120),

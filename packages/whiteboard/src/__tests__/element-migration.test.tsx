@@ -227,9 +227,8 @@ describe("元素定义版本装配校验", () => {
     const errors = install(board, [
       defineWhiteboardExtension({
         id: "acme.cards",
-        create: () => ({
-          elements: [definition({ type: "acme.card", schemaVersion: 2 })],
-        }),
+        elements: [definition({ type: "acme.card", schemaVersion: 2 })],
+        create: () => ({}),
       }),
     ]);
     expect(errors).toMatchObject([
@@ -244,9 +243,8 @@ describe("元素定义版本装配校验", () => {
     const errors = install(board, [
       defineWhiteboardExtension({
         id: "acme.cards",
-        create: () => ({
-          elements: [definition({ type: "acme.card", schemaVersion: 0 })],
-        }),
+        elements: [definition({ type: "acme.card", schemaVersion: 0 })],
+        create: () => ({}),
       }),
     ]);
     expect(errors).toMatchObject([{ extensionId: "acme.cards", reason: "invalid-definition" }]);
@@ -258,7 +256,8 @@ describe("元素定义版本装配校验", () => {
     const errors = install(board, [
       defineWhiteboardExtension({
         id: "acme.cards",
-        create: () => ({ elements: [definition({ type: "acme.card" })] }),
+        elements: [definition({ type: "acme.card" })],
+        create: () => ({}),
       }),
     ]);
     expect(errors).toEqual([]);
@@ -273,16 +272,15 @@ const cardExtension = (options: {
 }) =>
   defineWhiteboardExtension({
     id: "acme.cards",
-    create: () => ({
-      elements: [
-        definition({
-          type: "acme.card",
-          schemaVersion: options.schemaVersion,
-          migrate: options.migrate,
-          ...(options.render ? { render: options.render } : {}),
-        }),
-      ],
-    }),
+    elements: [
+      definition({
+        type: "acme.card",
+        schemaVersion: options.schemaVersion,
+        migrate: options.migrate,
+        ...(options.render ? { render: options.render } : {}),
+      }),
+    ],
+    create: () => ({}),
   });
 
 describe("加载迁移", () => {
@@ -448,8 +446,8 @@ describe("不兼容元素按占位渲染", () => {
     install(board, [
       defineWhiteboardExtension({
         id: "acme.dangling",
+        elements: [definition({ type: "acme.orphan" })],
         create: () => ({
-          elements: [definition({ type: "acme.orphan" })],
           tools: [
             {
               id: "acme.dangling.tool",

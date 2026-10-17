@@ -98,82 +98,82 @@ const createAcmeExtension = (overrides: { stickyAfter?: "select" | "edit" | "non
 
   const extension = defineWhiteboardExtension({
     id: "acme.test",
+    elements: [
+      defineElement({
+        type: "acme.sticky",
+        render: RectRender,
+        create: {
+          gesture: "click",
+          defaultSize: [160, 160],
+          after: overrides.stickyAfter ?? "edit",
+          build: ctx => rectElement("acme.sticky", record(ctx), { kind: "sticky" }),
+        },
+      }),
+      defineElement({
+        type: "acme.card",
+        render: RectRender,
+        create: {
+          gesture: "drag",
+          defaultSize: [260, 150],
+          minSize: [20, 20],
+          build: ctx => rectElement("acme.card", record(ctx)),
+        },
+      }),
+      defineElement({
+        type: "acme.line",
+        render: RectRender,
+        create: {
+          gesture: "drag",
+          constrain: "line",
+          build: ctx => rectElement("acme.line", record(ctx), { start: ctx.start, end: ctx.end }),
+        },
+      }),
+      defineElement({
+        type: "acme.custom",
+        render: RectRender,
+        create: { gesture: customGesture },
+      }),
+      defineElement({
+        type: "acme.plain",
+        render: RectRender,
+        create: {
+          gesture: "drag",
+          build: ctx => rectElement("acme.plain", record(ctx)),
+        },
+      }),
+      defineElement({
+        type: "acme.bad",
+        render: RectRender,
+        schema: okSchema,
+        create: {
+          gesture: "drag",
+          build: ctx => rectElement("acme.bad", record(ctx), { ok: false }),
+        },
+      }),
+      defineElement({
+        type: "acme.versioned",
+        render: RectRender,
+        schemaVersion: 2,
+        migrate: { 1: element => ({ ...element }) },
+        create: {
+          gesture: "click",
+          defaultSize: [40, 40],
+          build: ctx => rectElement("acme.versioned", record(ctx)),
+        },
+      }),
+      defineElement({
+        type: "acme.stay",
+        render: RectRender,
+        create: {
+          gesture: "click",
+          defaultSize: [50, 50],
+          stay: true,
+          after: "none",
+          build: ctx => rectElement("acme.stay", record(ctx)),
+        },
+      }),
+    ],
     create: () => ({
-      elements: [
-        defineElement({
-          type: "acme.sticky",
-          render: RectRender,
-          create: {
-            gesture: "click",
-            defaultSize: [160, 160],
-            after: overrides.stickyAfter ?? "edit",
-            build: ctx => rectElement("acme.sticky", record(ctx), { kind: "sticky" }),
-          },
-        }),
-        defineElement({
-          type: "acme.card",
-          render: RectRender,
-          create: {
-            gesture: "drag",
-            defaultSize: [260, 150],
-            minSize: [20, 20],
-            build: ctx => rectElement("acme.card", record(ctx)),
-          },
-        }),
-        defineElement({
-          type: "acme.line",
-          render: RectRender,
-          create: {
-            gesture: "drag",
-            constrain: "line",
-            build: ctx => rectElement("acme.line", record(ctx), { start: ctx.start, end: ctx.end }),
-          },
-        }),
-        defineElement({
-          type: "acme.custom",
-          render: RectRender,
-          create: { gesture: customGesture },
-        }),
-        defineElement({
-          type: "acme.plain",
-          render: RectRender,
-          create: {
-            gesture: "drag",
-            build: ctx => rectElement("acme.plain", record(ctx)),
-          },
-        }),
-        defineElement({
-          type: "acme.bad",
-          render: RectRender,
-          schema: okSchema,
-          create: {
-            gesture: "drag",
-            build: ctx => rectElement("acme.bad", record(ctx), { ok: false }),
-          },
-        }),
-        defineElement({
-          type: "acme.versioned",
-          render: RectRender,
-          schemaVersion: 2,
-          migrate: { 1: element => ({ ...element }) },
-          create: {
-            gesture: "click",
-            defaultSize: [40, 40],
-            build: ctx => rectElement("acme.versioned", record(ctx)),
-          },
-        }),
-        defineElement({
-          type: "acme.stay",
-          render: RectRender,
-          create: {
-            gesture: "click",
-            defaultSize: [50, 50],
-            stay: true,
-            after: "none",
-            build: ctx => rectElement("acme.stay", record(ctx)),
-          },
-        }),
-      ],
       tools: [
         ["acme.sticky.create", "acme.sticky"],
         ["acme.card.create", "acme.card"],
@@ -327,14 +327,14 @@ describe("创建型工具装配校验", () => {
       [
         defineWhiteboardExtension({
           id: "acme.both",
+          elements: [
+            {
+              type: "acme.both.box",
+              render: () => null,
+              create: { gesture: "click", defaultSize: [10, 10], build: () => null },
+            },
+          ],
           create: () => ({
-            elements: [
-              {
-                type: "acme.both.box",
-                render: () => null,
-                create: { gesture: "click", defaultSize: [10, 10], build: () => null },
-              },
-            ],
             commands: [{ id: "acme.both.run", execute: () => {} }],
             tools: [
               {
@@ -390,8 +390,8 @@ describe("创建型工具装配校验", () => {
         acme,
         defineWhiteboardExtension({
           id: "acme.nocreate",
+          elements: [{ type: "acme.nocreate.box", render: () => null }],
           create: () => ({
-            elements: [{ type: "acme.nocreate.box", render: () => null }],
             tools: [
               {
                 id: "acme.nocreate.create",
@@ -423,14 +423,14 @@ describe("创建型工具装配校验", () => {
         }),
         defineWhiteboardExtension({
           id: "acme.nosize",
+          elements: [
+            {
+              type: "acme.nosize.dot",
+              render: () => null,
+              create: { gesture: "click", build: () => null },
+            },
+          ],
           create: () => ({
-            elements: [
-              {
-                type: "acme.nosize.dot",
-                render: () => null,
-                create: { gesture: "click", build: () => null },
-              },
-            ],
             tools: [
               {
                 id: "acme.nosize.create",
