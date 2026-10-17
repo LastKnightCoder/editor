@@ -32,6 +32,7 @@ import {
   UninstallDialog,
 } from "../components/PluginParts";
 import { PluginSettingsView } from "./PluginSettingsView";
+import { PluginAISettings } from "../components/PluginAISettings";
 import { PluginMenu } from "./PluginsView";
 
 type DetailTab = "readme" | "settings" | "changelog" | "versions";
@@ -283,6 +284,7 @@ function SettingsTab({
   const active = section ? sections.find(item => item.key === section) : sections[0];
   return (
     <div className="max-w-[720px]">
+      <PluginAISettings pluginId={plugin.info.id} />
       {sections.length > 1 && (
         <nav aria-label="插件设置分组" className="mb-4 flex flex-wrap gap-2">
           {sections.map(item => (

@@ -23,6 +23,7 @@ import type {
   PluginSkill,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
 import {
   ACTIVATION_TIMEOUT_MS,
@@ -110,6 +111,7 @@ export interface PluginInfo {
 }
 
 interface Activation {
+  ai?: PluginAI;
   controller: AbortController;
   resources: Disposable[];
   instance?: PluginInstance;
@@ -152,6 +154,13 @@ export class PluginHost {
       pages?: PagesAdapter;
       editor?: EditorAdapter;
       skills?: { register(plugin: PluginOwner, skill: PluginSkill): Disposable };
+      ai?: {
+        bind(
+          plugin: PluginOwner,
+          features: readonly PluginAIFeature[],
+          signal: AbortSignal
+        ): Promise<PluginAI>;
+      };
       settings?: SettingsAdapter;
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
@@ -269,6 +278,23 @@ export class PluginHost {
                 skill
               );
               if (resource) activation.resources.push(resource);
+            }
+            if (definition.ai) {
+              const ids = new Set<string>();
+              if (!Array.isArray(definition.ai.features) || definition.ai.features.length > 32)
+                throw new Error("AI 功能声明无效");
+              for (const feature of definition.ai.features) {
+                assertLocalId(feature.id);
+                if (!feature.name?.trim() || ids.has(feature.id))
+                  throw new Error("AI 功能名称或 ID 无效");
+                ids.add(feature.id);
+              }
+              activation.ai = await this.options.ai?.bind(
+                { id: entry.metadata.id, name: entry.metadata.name },
+                definition.ai.features,
+                activation.controller.signal
+              );
+              this.assertActive(entry, activation);
             }
             return activation.instance.activate(this.context(entry, activation));
           },
@@ -403,6 +429,7 @@ export class PluginHost {
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,
+      ai: activation.ai ?? unavailableAI,
       services: bindPluginServices(this.options.services, scope.signal, () =>
         this.assertActive(entry, activation)
       ),

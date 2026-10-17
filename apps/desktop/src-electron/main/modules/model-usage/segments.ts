@@ -43,6 +43,10 @@ export const isValidDeviceId = (id: unknown): id is string =>
 /** 固定字段顺序序列化：同一批事件在任何设备上得到同一个哈希 */
 const serializeEvent = (event: ModelUsageEvent) =>
   JSON.stringify({
+    pluginId: event.pluginId ?? null,
+    pluginName: event.pluginName ?? null,
+    pluginFeatureName: event.pluginFeatureName ?? null,
+    usageKnown: event.usageKnown ?? null,
     eventId: event.eventId,
     ts: event.ts,
     deviceId: event.deviceId,
@@ -103,7 +107,7 @@ export function exportSegment(
 }
 
 const KINDS = new Set<ModelUsageKind>(["llm", "embedding", "tts", "image"]);
-const STATUSES = new Set<ModelUsageStatus>(["ok", "error", "aborted"]);
+const STATUSES = new Set<ModelUsageStatus>(["ok", "error", "aborted", "running"]);
 const COST_SOURCES = new Set<ModelUsageCostSource>(["catalog", "custom", "none"]);
 
 const str = (v: unknown, max = 512): string | null =>
@@ -128,7 +132,7 @@ function parseEvent(
   const ts = count(r.ts);
   const providerId = str(r.providerId);
   const model = str(r.model);
-  const feature = str(r.feature, 128);
+  const feature = str(r.feature, 512);
   if (!eventId || ts === null || !providerId || !model || !feature) return null;
   if (r.deviceId !== deviceId || ts < from || ts >= to) return null;
   if (!KINDS.has(r.kind as ModelUsageKind) || !STATUSES.has(r.status as ModelUsageStatus)) {
@@ -179,6 +183,10 @@ function parseEvent(
     cost,
   ] = numbers as number[];
   return {
+    pluginId: optStr(r.pluginId, 128) ?? null,
+    pluginName: optStr(r.pluginName) ?? null,
+    pluginFeatureName: optStr(r.pluginFeatureName) ?? null,
+    usageKnown: typeof r.usageKnown === "boolean" ? r.usageKnown : null,
     eventId,
     ts,
     deviceId,

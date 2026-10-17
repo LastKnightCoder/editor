@@ -1,5 +1,6 @@
 import type { PluginPages } from "./pages";
 import type { PluginSkill } from "./skills";
+import type { PluginAI, PluginAIFeature } from "./ai";
 import type { PluginServices } from "./services";
 import type { PluginEditor } from "./editor";
 import type { PluginEditorExtension } from "./editor";
@@ -42,6 +43,7 @@ export interface PluginContext {
   readonly materials: PluginMaterials;
   readonly fetch: typeof globalThis.fetch;
   readonly services: PluginServices;
+  readonly ai: PluginAI;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }
@@ -60,6 +62,7 @@ export interface PluginDefinition {
   readonly editorExtensions?: readonly PluginEditorExtension[];
   readonly editorCodecs?: readonly MarkdownCodec[];
   readonly skills?: readonly PluginSkill[];
+  readonly ai?: { readonly features: readonly PluginAIFeature[] };
   /** 每次启用创建新实例，运行状态不放在定义对象上。 */
   create(): PluginInstance;
 }

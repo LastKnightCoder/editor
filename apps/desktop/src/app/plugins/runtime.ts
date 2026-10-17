@@ -125,6 +125,7 @@ export class DesktopPluginRuntime {
       excerpts: options.excerpts,
       materials: options.materials,
       skills: { register: registerPluginSkill },
+      ai: desktopPluginAI,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
       sidebar: {
@@ -414,3 +415,4 @@ export class DesktopPluginRuntime {
     }
   };
 }
+import { desktopPluginAI } from "./ai";

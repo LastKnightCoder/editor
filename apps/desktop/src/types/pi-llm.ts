@@ -146,6 +146,7 @@ export interface PiSingleShotRequest {
   }[];
   thinking?: PiThinkingLevel;
   temperature?: number;
+  maxOutputTokens?: number;
   /** 用量审计归属（功能 / 实体 / 知识库） */
   source?: UsageSource;
 }
