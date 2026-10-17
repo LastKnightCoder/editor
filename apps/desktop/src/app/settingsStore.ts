@@ -13,6 +13,9 @@ import type { SettingsSectionKey } from "@/features/settings/sections";
 export type SettingsLocation = SettingsSectionKey;
 
 interface SettingsUiStore {
+  llmTab: "providers" | "assignment" | "permission" | "usage";
+  usagePluginId: string;
+  openAIUsage: (pluginId?: string) => void;
   open: boolean;
   section: SettingsLocation;
   openSettings: (section?: SettingsLocation) => void;
@@ -24,6 +27,10 @@ export const useSettingsStore = create<SettingsUiStore>()(
   persist(
     set => ({
       open: false,
+      llmTab: "providers",
+      usagePluginId: "",
+      openAIUsage: (pluginId = "") =>
+        set({ open: true, section: "llm", llmTab: "usage", usagePluginId: pluginId }),
       section: "appearance",
       openSettings: section => set({ open: true, ...(section ? { section } : {}) }),
       closeSettings: () => set({ open: false }),

@@ -9,6 +9,9 @@ import type { UsageRecordInput } from "./recorder";
 export type RecordUsage = (input: UsageRecordInput) => void;
 
 export interface LlmUsageContext {
+  pluginId?: string;
+  pluginName?: string;
+  pluginFeatureName?: string;
   providerId: string;
   modelId: string;
   feature: string;
@@ -50,6 +53,13 @@ export function buildLlmUsage(
   const cacheWriteTokens = num(usage?.cacheWrite);
   const status = statusOf(message, fallback.status);
   return {
+    pluginId: context.pluginId,
+    pluginName: context.pluginName,
+    pluginFeatureName: context.pluginFeatureName,
+    usageKnown: usage
+      ? num(usage.totalTokens) > 0 ||
+        num(usage.input) + num(usage.output) + num(usage.cacheRead) + num(usage.cacheWrite) > 0
+      : false,
     ts: timing.startedAt,
     library: context.library,
     kind: "llm",

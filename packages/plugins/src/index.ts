@@ -46,3 +46,10 @@ export function definePlugin(
     create: definition.create ?? (() => ({ activate: () => undefined })),
   });
 }
+export type {
+  PluginAI,
+  PluginAIFeature,
+  PluginAIRequest,
+  PluginAIResult,
+  PluginAIEvent,
+} from "./ai";

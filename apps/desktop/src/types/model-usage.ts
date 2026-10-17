@@ -5,6 +5,9 @@
 
 /** 调用来源：渲染端随请求透传，主进程据此归属到功能与知识库 */
 export interface UsageSource {
+  pluginId?: string;
+  pluginName?: string;
+  pluginFeatureName?: string;
   /** 功能名，尽量复用 llmUsageSettings 的槽名（chat / titleSummary / ...） */
   feature?: string;
   /** 关联实体（内容 id、项目 id 等），便于回溯 */
@@ -14,11 +17,15 @@ export interface UsageSource {
 }
 
 export type ModelUsageKind = "llm" | "embedding" | "tts" | "image";
-export type ModelUsageStatus = "ok" | "error" | "aborted";
+export type ModelUsageStatus = "ok" | "error" | "aborted" | "running";
 /** catalog = pi 目录单价算出；none = 无价格信息 */
 export type ModelUsageCostSource = "catalog" | "custom" | "none";
 
 export interface ModelUsageEvent {
+  pluginId?: string | null;
+  pluginName?: string | null;
+  pluginFeatureName?: string | null;
+  usageKnown?: boolean | null;
   /** ULID，跨设备全局唯一，按时间有序 */
   eventId: string;
   ts: number;
@@ -51,6 +58,7 @@ export interface ModelUsageEvent {
 }
 
 export interface ModelUsageQuery {
+  pluginId?: string;
   /** 起止时间（ms，含 from、不含 to） */
   from?: number;
   to?: number;

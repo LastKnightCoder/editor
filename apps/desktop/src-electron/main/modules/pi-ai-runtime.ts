@@ -26,7 +26,7 @@ import {
 } from "./pi-ai-runtime-core";
 import { discoverProviderModels, ModelDiscoveryError } from "./pi-model-discovery";
 import modelUsageModule from "./model-usage";
-import { createStreamUsageTracker } from "./model-usage/trackers";
+import { createStreamUsageTracker, type RecordUsage } from "./model-usage/trackers";
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
@@ -175,10 +175,29 @@ class PiAiRuntimeModule {
     return { ...outcome, text };
   }
 
+  public static async execute(
+    request: PiSingleShotRequest,
+    signal: AbortSignal,
+    onEvent: (event: AssistantMessageEvent) => void,
+    record: RecordUsage
+  ) {
+    await PiAiRuntimeModule.initialSync;
+    signal.throwIfAborted();
+    return PiAiRuntimeModule.stream(request, signal, onEvent, record);
+  }
+
+  public static async capacity(providerId: string, modelId: string) {
+    await PiAiRuntimeModule.initialSync;
+    const model = PiAiRuntimeModule.registry?.resolveModel(providerId, modelId);
+    if (!model) throw new Error("AI_NOT_CONFIGURED：模型配置已不可用");
+    return { contextWindow: model.contextWindow, maxTokens: model.maxTokens };
+  }
+
   private static async stream(
     request: PiSingleShotRequest,
     signal: AbortSignal | undefined,
-    onEvent?: (event: AssistantMessageEvent) => void
+    onEvent?: (event: AssistantMessageEvent) => void,
+    record: RecordUsage = input => modelUsageModule.record(input)
   ): Promise<{ ok: boolean; message: AssistantMessage | null; error?: string }> {
     const registry = PiAiRuntimeModule.registry;
     if (!registry) return { ok: false, message: null, error: "pi-ai runtime not initialized" };
@@ -194,6 +213,9 @@ class PiAiRuntimeModule {
 
     const usage = createStreamUsageTracker(
       {
+        pluginId: request.source?.pluginId,
+        pluginName: request.source?.pluginName,
+        pluginFeatureName: request.source?.pluginFeatureName,
         providerId: request.providerId,
         modelId: request.modelId,
         feature: request.source?.feature || "unknown",
@@ -203,7 +225,7 @@ class PiAiRuntimeModule {
         library: request.source?.library ?? null,
         customCost: registry.hasCustomCost(request.providerId, request.modelId),
       },
-      input => modelUsageModule.record(input)
+      record
     );
     let streamError: string | null = null;
     let finalMessage: AssistantMessage | null = null;
@@ -216,6 +238,7 @@ class PiAiRuntimeModule {
             ? { reasoning: request.thinking }
             : {}),
           ...(request.temperature !== undefined ? { temperature: request.temperature } : {}),
+          ...(request.maxOutputTokens !== undefined ? { maxTokens: request.maxOutputTokens } : {}),
           ...(signal ? { signal } : {}),
         }
       );

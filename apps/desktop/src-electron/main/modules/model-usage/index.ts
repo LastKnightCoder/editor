@@ -61,6 +61,7 @@ class ModelUsageModule implements Module {
       this.db.pragma("journal_mode = WAL");
       this.store = new ModelUsageStore(this.db);
       this.deviceId = this.ensureDevice(this.store);
+      this.store.recoverInterruptedPluginCalls();
     } catch (error) {
       // 用量库打不开不阻断启动：记录退化为只缓冲、不落库
       log.error("[ModelUsage] open usage.db failed:", error);
@@ -96,6 +97,7 @@ class ModelUsageModule implements Module {
       return this.requireStore().breakdown(query);
     });
 
+    ipcMain.handle("model-usage:plugins", () => this.requireStore().pluginSources());
     this.registerSyncIpc();
 
     log.info(`[ModelUsage] initialized, device=${this.deviceId || "unavailable"}`);
@@ -217,11 +219,25 @@ class ModelUsageModule implements Module {
     });
   }
 
+  beginPluginAudit(input: UsageRecordInput): (input: UsageRecordInput) => void {
+    const eventId = ulid(input.ts);
+    const save = (value: UsageRecordInput) =>
+      this.requireStore().replace({
+        ...value,
+        eventId,
+        deviceId: this.deviceId,
+        library: value.library ?? null,
+        providerName: this.providerNames.get(value.providerId) ?? null,
+      });
+    save(input);
+    return save;
+  }
+
   record(input: UsageRecordInput): void {
     this.recorder.record(input);
   }
 
-  private requireStore(): ModelUsageStore {
+  public requireStore(): ModelUsageStore {
     if (!this.store) throw new Error("用量数据库不可用");
     return this.store;
   }

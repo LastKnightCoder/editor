@@ -4,6 +4,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useSettingsStore } from "@/app/settingsStore";
+import { getModelUsagePlugins } from "@/commands/model-usage";
+import { PluginAIActivity } from "./PluginAIActivity";
 import { RefreshCw } from "lucide-react";
 import { Button, Segmented, Select, toast } from "@tau/ui";
 import {
@@ -61,6 +65,7 @@ const DIMENSION_LABELS: Record<ChartDimension, string> = {
 };
 
 const STATUS_META: Record<ModelUsageStatus, { label: string; tone: "ok" | "danger" | "warn" }> = {
+  running: { label: "运行中", tone: "warn" },
   ok: { label: "成功", tone: "ok" },
   error: { label: "失败", tone: "danger" },
   aborted: { label: "已取消", tone: "warn" },
@@ -84,21 +89,52 @@ const dimensionLabel = (
   providerNames?: Map<string, string>
 ) => {
   if (key === OTHER_KEY) return "其他";
-  if (dimension === "feature") return featureLabel(key);
+  if (dimension === "feature") return featureLabel(providerNames?.get(key) ?? key);
   if (dimension === "provider") return providerNames?.get(key) ?? key;
   return key;
 };
 
 /** 「大语言模型」页的「用量统计」tab：页内已有一条 tab 栏，这里用分段控件切概览 / 明细，不再叠第二条 */
 export function ModelUsagePanel() {
+  const pluginId = useSettingsStore(state => state.usagePluginId) || undefined;
+  const plugins = useQuery({
+    queryKey: ["model-usage-plugins"],
+    queryFn: getModelUsagePlugins,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5000,
+  });
   const [view, setView] = useState<"overview" | "events">("overview");
   const [rangeKey, setRangeKey] = useState<UsageRangeKey>("7d");
   const [refreshToken, setRefreshToken] = useState(0);
   // 范围按「打开 / 刷新那一刻」解析；否则跨零点停留会让今天的桶错位
-  const range = useMemo(() => resolveRange(rangeKey), [rangeKey, refreshToken]);
+  const range = useMemo(
+    () => ({ ...resolveRange(rangeKey), pluginId }),
+    [rangeKey, refreshToken, pluginId]
+  );
 
   return (
     <>
+      <div className="mb-4 flex items-center gap-3">
+        <Select
+          aria-label="按插件筛选用量"
+          value={pluginId ?? ""}
+          onValueChange={value => useSettingsStore.setState({ usagePluginId: value ?? "" })}
+          options={[
+            { value: "", label: "全部调用（含插件）" },
+            ...(plugins.data ?? []).map(plugin => ({
+              value: plugin.id,
+              label: plugin.name || plugin.id,
+            })),
+            ...(pluginId && !plugins.data?.some(plugin => plugin.id === pluginId)
+              ? [{ value: pluginId, label: pluginId }]
+              : []),
+          ]}
+        />
+      </div>
+      <PluginAIActivity pluginId={pluginId} />
+      <p className="text-tau-meta text-ink-2 mb-4">
+        费用为估算值，仅汇总已知用量；未知用量不代表免费。取消不能撤销供应商已产生的消费。
+      </p>
       <div className="mb-5 flex items-center gap-2">
         <Segmented
           label="用量视图"
@@ -149,8 +185,8 @@ function UsageOverview({ range, refreshToken }: { range: UsageRange; refreshToke
     let alive = true;
     setError(null);
     Promise.all([
-      getModelUsageSummary({ from: range.from, to: range.to }),
-      getModelUsageSummary(range.previous),
+      getModelUsageSummary({ pluginId: range.pluginId, from: range.from, to: range.to }),
+      getModelUsageSummary({ ...range.previous, pluginId: range.pluginId }),
     ])
       .then(([current, prev]) => {
         if (!alive) return;
@@ -272,14 +308,20 @@ function TrendGroup({ range, refreshToken }: { range: UsageRange; refreshToken: 
     let alive = true;
     void Promise.all([
       getModelUsageTimeseries({
+        pluginId: range.pluginId,
         from: range.from,
         to: range.to,
         bucket: range.bucket,
         groupBy,
         tzOffsetMinutes: tzOffsetMinutes(range.from),
       }),
-      groupBy === "provider"
-        ? getModelUsageBreakdown({ from: range.from, to: range.to, groupBy: "provider" })
+      groupBy === "provider" || groupBy === "feature"
+        ? getModelUsageBreakdown({
+            pluginId: range.pluginId,
+            from: range.from,
+            to: range.to,
+            groupBy,
+          })
         : Promise.resolve([] as ModelUsageBreakdownRow[]),
     ])
       .then(([next, providers]) => {
@@ -413,7 +455,7 @@ function BreakdownGroup({ range, refreshToken }: { range: UsageRange; refreshTok
 
   useEffect(() => {
     let alive = true;
-    getModelUsageBreakdown({ from: range.from, to: range.to, groupBy })
+    getModelUsageBreakdown({ pluginId: range.pluginId, from: range.from, to: range.to, groupBy })
       .then(next => alive && setRows(next))
       .catch(e => toast.error(`读取排行失败：${errorText(e)}`));
     return () => {
@@ -573,6 +615,7 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [featureOptions, setFeatureOptions] = useState<string[]>([]);
+  const [featureNames, setFeatureNames] = useState(new Map<string, string>());
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const requestRef = useRef(0);
 
@@ -580,12 +623,23 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
   useEffect(() => {
     let alive = true;
     void Promise.all([
-      getModelUsageBreakdown({ from: range.from, to: range.to, groupBy: "feature" }),
-      getModelUsageBreakdown({ from: range.from, to: range.to, groupBy: "model" }),
+      getModelUsageBreakdown({
+        pluginId: range.pluginId,
+        from: range.from,
+        to: range.to,
+        groupBy: "feature",
+      }),
+      getModelUsageBreakdown({
+        pluginId: range.pluginId,
+        from: range.from,
+        to: range.to,
+        groupBy: "model",
+      }),
     ])
       .then(([features, models]) => {
         if (!alive) return;
         setFeatureOptions(features.map(row => row.key));
+        setFeatureNames(new Map(features.map(row => [row.key, row.label])));
         setModelOptions(models.map(row => row.key));
       })
       .catch(() => undefined);
@@ -600,6 +654,7 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
     const request = ++requestRef.current;
     setLoading(true);
     const query: ModelUsageQuery = {
+      pluginId: range.pluginId,
       from: range.from,
       to: range.to,
       offset: page * PAGE_SIZE,
@@ -640,7 +695,10 @@ function UsageEvents({ range, refreshToken }: { range: UsageRange; refreshToken:
             onValueChange={setFeature}
             options={[
               { value: "", label: "全部功能" },
-              ...featureOptions.map(key => ({ value: key, label: featureLabel(key) })),
+              ...featureOptions.map(key => ({
+                value: key,
+                label: featureLabel(featureNames.get(key) ?? key),
+              })),
             ]}
           />
           <Select
@@ -739,16 +797,18 @@ function EventRow({
           {formatEventTime(item.ts)}
         </span>
         <span className="text-ink-1 text-tau-body w-[120px] flex-none truncate">
-          {featureLabel(item.feature)}
+          {item.pluginId
+            ? `${item.pluginName ?? item.pluginId} / ${item.pluginFeatureName ?? item.feature}`
+            : featureLabel(item.feature)}
         </span>
         <span className="font-tau-mono text-ink-2 text-tau-meta min-w-0 flex-1 truncate">
           {item.model}
         </span>
         <span className="font-tau-mono text-ink-2 text-tau-meta w-[72px] flex-none text-right tabular-nums">
-          {formatTokens(item.totalTokens)}
+          {item.usageKnown === false ? "未知" : formatTokens(item.totalTokens)}
         </span>
         <span className="font-tau-mono text-ink-1 text-tau-meta w-[72px] flex-none text-right tabular-nums">
-          {formatCost(item.cost)}
+          {item.costSource === "none" ? "未知" : formatCost(item.cost)}
         </span>
         <span className="w-[64px] flex-none text-right">
           <StatusChip tone={meta.tone}>{meta.label}</StatusChip>
