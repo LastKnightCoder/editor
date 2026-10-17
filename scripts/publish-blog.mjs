@@ -9,14 +9,14 @@ import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
-// 桌面端 publish-template-manager.ts 硬编码从 dl.xiongtao.life（R2）拉取版本信息；
+// 桌面端 publish-template-manager.ts 硬编码从 dl.taunote.app（R2）拉取版本信息；
 // OSS 侧清单已冻结在迁移前版本（见 scripts/migrate-oss-to-r2.mjs），服务旧客户端长尾
 const R2_BUCKET = "tau-release";
-const PUBLIC_BASE_URL = "https://dl.xiongtao.life";
+const PUBLIC_BASE_URL = "https://dl.taunote.app";
 const LATEST_OBJECT_KEY = "publish-template-latest.json";
 const ZIP_OBJECT_KEY = version => `publish-template/blog-template-${version}.zip`;
 
-// 必需文件清单与桌面端 REQUIRED_TEMPLATE_FILES 保持一致
+// 页面入口与桌面端一致，新发布产物还必须包含插件协议标记。
 const REQUIRED_TEMPLATE_FILES = [
   "src/templates/home/index.html",
   "src/templates/card/index.html",
@@ -24,6 +24,7 @@ const REQUIRED_TEMPLATE_FILES = [
   "src/templates/doc/index.html",
   "src/templates/quest/index.html",
   "src/templates/list/index.html",
+  "plugin-runtime.json",
 ];
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -41,17 +42,21 @@ function printHelp() {
   --version x.y.z  直接指定发布版本
   --skip-build     跳过构建，使用现有 apps/blog/dist
   --dry-run        只执行本地流程（构建、校验、打包），不上传、不改版本号
+  --wrangler       使用已登录的 Wrangler 上传，无需 R2 S3 密钥；wrangler 须在 PATH 中
   --force          远端已是同版本时仍强制覆盖（桌面端不会重新下载同版本）
   -h, --help       显示帮助
 
-环境变量:
+环境变量（默认 S3 模式）:
   R2_ACCOUNT_ID        必填，Cloudflare Account ID
   R2_ACCESS_KEY_ID     必填，R2 API Token 的 Access Key ID
-  R2_SECRET_ACCESS_KEY 必填，R2 API Token 的 Secret Access Key`);
+  R2_SECRET_ACCESS_KEY 必填，R2 API Token 的 Secret Access Key
+
+Wrangler 模式:
+  CLOUDFLARE_ACCOUNT_ID 必填，使用 wrangler login 已保存的登录身份`);
 }
 
 function parseArgs(argv) {
-  const options = { version: null, dryRun: false, skipBuild: false, force: false };
+  const options = { version: null, dryRun: false, skipBuild: false, force: false, wrangler: false };
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === "--version") {
@@ -66,6 +71,8 @@ function parseArgs(argv) {
       options.skipBuild = true;
     } else if (arg === "--force") {
       options.force = true;
+    } else if (arg === "--wrangler") {
+      options.wrangler = true;
     } else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -96,6 +103,8 @@ async function validateDist() {
     }
   }
   const assets = await readdir(join(distDir, "assets")).catch(() => []);
+  if (JSON.parse(readFileSync(join(distDir, "plugin-runtime.json"), "utf8")).version !== 1)
+    throw new Error("博客插件协议标记无效");
   if (assets.length === 0) {
     throw new Error("构建产物缺少 assets 目录或其为空");
   }
@@ -126,6 +135,12 @@ function createR2Client() {
 }
 
 async function fetchRemoteVersion(client) {
+  if (!client) {
+    const response = await fetch(`${PUBLIC_BASE_URL}/${LATEST_OBJECT_KEY}?check=${Date.now()}`);
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`读取线上模板版本失败：HTTP ${response.status}`);
+    return (await response.json()).version ?? null;
+  }
   try {
     const result = await client.send(
       new GetObjectCommand({ Bucket: R2_BUCKET, Key: LATEST_OBJECT_KEY })
@@ -138,13 +153,53 @@ async function fetchRemoteVersion(client) {
   }
 }
 
+async function uploadObject(client, key, file, contentType, cacheControl) {
+  if (!client) {
+    execFileSync(
+      "wrangler",
+      [
+        "r2",
+        "object",
+        "put",
+        `${R2_BUCKET}/${key}`,
+        "--remote",
+        "--file",
+        file,
+        "--content-type",
+        contentType,
+        "--cache-control",
+        cacheControl,
+      ],
+      {
+        stdio: "inherit",
+        shell: process.platform === "win32",
+      }
+    );
+    return;
+  }
+  await client.send(
+    new PutObjectCommand({
+      Bucket: R2_BUCKET,
+      Key: key,
+      Body: createReadStream(file),
+      ContentLength: statSync(file).size,
+      ContentType: contentType,
+      CacheControl: cacheControl,
+    })
+  );
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   // 提前校验凭据，避免构建打包完成后才发现无法上传
-  if (!options.dryRun) {
+  if (!options.dryRun && !options.wrangler) {
     requiredEnv("R2_ACCOUNT_ID");
     requiredEnv("R2_ACCESS_KEY_ID");
     requiredEnv("R2_SECRET_ACCESS_KEY");
+  }
+  if (!options.dryRun && options.wrangler) {
+    requiredEnv("CLOUDFLARE_ACCOUNT_ID");
+    execFileSync("wrangler", ["whoami"], { stdio: "inherit", shell: process.platform === "win32" });
   }
 
   const pkg = JSON.parse(readFileSync(packageFile, "utf8"));
@@ -165,6 +220,7 @@ async function main() {
   await validateDist();
 
   const zipPath = join(tmpdir(), `blog-template-${version}.zip`);
+  const manifestPath = zipPath + ".json";
   try {
     const { sha256, size } = createZip(zipPath);
     console.log(
@@ -176,7 +232,7 @@ async function main() {
       return;
     }
 
-    const client = createR2Client();
+    const client = options.wrangler ? null : createR2Client();
 
     const remoteVersion = await fetchRemoteVersion(client);
     if (remoteVersion === version && !options.force) {
@@ -186,13 +242,13 @@ async function main() {
     }
 
     console.log(`▶ 上传 ${ZIP_OBJECT_KEY(version)}（远端当前 ${remoteVersion ?? "无版本"}）...`);
-    await client.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: ZIP_OBJECT_KEY(version),
-      Body: createReadStream(zipPath),
-      ContentType: "application/zip",
-      CacheControl: "public, max-age=31536000, immutable",
-    }));
+    await uploadObject(
+      client,
+      ZIP_OBJECT_KEY(version),
+      zipPath,
+      "application/zip",
+      "public, max-age=31536000, immutable"
+    );
 
     // 先传 zip 再写 latest.json，保证 latest.json 指向的产物一定已存在
     const latestJson = `${JSON.stringify(
@@ -201,13 +257,8 @@ async function main() {
       2
     )}\n`;
     console.log(`▶ 上传 ${LATEST_OBJECT_KEY} ...`);
-    await client.send(new PutObjectCommand({
-      Bucket: R2_BUCKET,
-      Key: LATEST_OBJECT_KEY,
-      Body: latestJson,
-      ContentType: "application/json",
-      CacheControl: "no-cache",
-    }));
+    writeFileSync(manifestPath, latestJson);
+    await uploadObject(client, LATEST_OBJECT_KEY, manifestPath, "application/json", "no-cache");
 
     pkg.version = version;
     writeFileSync(packageFile, `${JSON.stringify(pkg, null, 2)}\n`);
@@ -219,6 +270,7 @@ async function main() {
     console.log(`  sha256: ${sha256}`);
   } finally {
     rmSync(zipPath, { force: true });
+    rmSync(manifestPath, { force: true });
   }
 }
 

@@ -1,0 +1,4 @@
+{
+  "extends": "../../packages/editor/tsconfig.json",
+  "include": ["src", "../../packages/shared/styles.d.ts"]
+}

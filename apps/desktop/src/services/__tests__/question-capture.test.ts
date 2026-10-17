@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   linkQuestionTargets: vi.fn(),
   linkQuestionChat: vi.fn(),
   resolveMaterials: vi.fn(),
+  databaseName: "A",
 }));
 vi.mock("@/commands/question", () => ({
   captureQuestion: mocks.captureQuestion,
@@ -12,6 +13,10 @@ vi.mock("@/commands/question", () => ({
   linkQuestionChat: mocks.linkQuestionChat,
 }));
 vi.mock("@/services/open-material", () => ({ resolveMaterials: mocks.resolveMaterials }));
+vi.mock("@/stores/useSettingStore", () => ({
+  default: { getState: () => ({ setting: { database: { active: mocks.databaseName } } }) },
+}));
+import { currentCommandScope } from "../command-context";
 
 import {
   requestMaterialQuestionCapture,
@@ -22,11 +27,91 @@ import {
 const question = { id: 7 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  mocks.databaseName = "A";
   mocks.captureQuestion.mockResolvedValue({ question, groupTitle: "默认" });
 });
 
 describe("转为问题", () => {
+  it("材料读取期间切库并取消，不向新工作区发送旧草稿", async () => {
+    let finish!: (value: unknown[]) => void;
+    mocks.resolveMaterials.mockImplementation(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    );
+    const controller = new AbortController();
+    const listener = vi.fn();
+    const off = subscribeQuestionCapture(listener);
+    try {
+      const pending = requestMaterialQuestionCapture(
+        { kind: "excerpt", id: 7 },
+        { databaseName: "A", signal: controller.signal }
+      );
+      const rejected = expect(pending).rejects.toThrow();
+      mocks.databaseName = "B";
+      controller.abort();
+      finish([{ meta: "A 的材料" }]);
+      await rejected;
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      off();
+    }
+  });
+
+  it("草稿携带工作区与生命周期，切库或停用后不能提交", async () => {
+    mocks.resolveMaterials.mockResolvedValue([{ meta: "A 的材料" }]);
+    const controller = new AbortController();
+    const listener = vi.fn();
+    const off = subscribeQuestionCapture(listener);
+    try {
+      await requestMaterialQuestionCapture(
+        { kind: "excerpt", id: 7 },
+        { databaseName: "A", signal: controller.signal }
+      );
+      const draft = listener.mock.calls[0][0];
+      expect(draft.source.databaseName).toBe("A");
+      mocks.databaseName = "B";
+      await expect(submitQuestionCapture(draft.source, "问题", null)).rejects.toThrow();
+      mocks.databaseName = "A";
+      controller.abort();
+      await expect(submitQuestionCapture(draft.source, "问题", null)).rejects.toThrow();
+      expect(mocks.captureQuestion).not.toHaveBeenCalled();
+    } finally {
+      off();
+    }
+  });
+
+  it("创建请求已提交后切库，后续材料关联仍写原库", async () => {
+    mocks.resolveMaterials.mockResolvedValue([{ meta: "来源" }]);
+    let finish!: (value: unknown) => void;
+    let started!: () => void;
+    const began = new Promise<void>(resolve => {
+      started = resolve;
+    });
+    const scopes: unknown[] = [];
+    mocks.captureQuestion.mockImplementation(() => {
+      scopes.push(currentCommandScope()?.databaseName);
+      started();
+      return new Promise(resolve => {
+        finish = resolve;
+      });
+    });
+    mocks.linkQuestionTargets.mockImplementation(async () => {
+      scopes.push(currentCommandScope()?.databaseName);
+    });
+    const pending = submitQuestionCapture(
+      { kind: "material", databaseName: "A", target: { targetType: "excerpt", targetId: 7 } },
+      "问题",
+      null
+    );
+    await began;
+    mocks.databaseName = "B";
+    finish({ question, groupTitle: "默认" });
+    await pending;
+    expect(scopes).toEqual(["A", "A"]);
+  });
   it("材料：唤起面板时带上出处，提交后挂成第一条材料", async () => {
     mocks.resolveMaterials.mockResolvedValue([{ meta: "微信读书 · 《置身事内》" }]);
     const listener = vi.fn();

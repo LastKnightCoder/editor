@@ -1,0 +1,51 @@
+{
+  "name": "@tau/plugin-portal",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "ops": "node infra/ops.mjs",
+    "dev:api": "wrangler dev --config infra/wrangler.jsonc",
+    "db:local": "wrangler d1 migrations apply plugin-portal --local --config infra/wrangler.jsonc",
+    "check": "pnpm check:api && pnpm check:web",
+    "check:api": "tsc --noEmit",
+    "check:web": "tsc --noEmit -p web/tsconfig.json",
+    "test": "pnpm test:api && pnpm test:web",
+    "test:api": "vitest run --config vitest.config.ts",
+    "test:web": "vitest run --config web/vitest.config.ts",
+    "build:api": "wrangler deploy --dry-run --config infra/wrangler.jsonc --outdir dist/api",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build:web": "vite build --config web/vite.config.ts"
+  },
+  "dependencies": {
+    "@tau/plugins": "workspace:*",
+    "@tau/ui": "workspace:*",
+    "@tau/themes": "workspace:*",
+    "@tanstack/react-query": "5.101.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-router-dom": "6.30.6",
+    "lucide-react": "^0.399.0",
+    "adm-zip": "0.5.16"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/dom": "^10.4.1",
+    "@cloudflare/workers-types": "5.20261016.1",
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^24.0.0",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "@tailwindcss/vite": "4.1.18",
+    "tailwindcss": "4.1.18",
+    "@vitejs/plugin-react-swc": "3.11.0",
+    "typescript": "^5.0.4",
+    "vite": "7.2.4",
+    "vitest": "^3.2.4",
+    "wrangler": "4.151.1"
+  }
+}

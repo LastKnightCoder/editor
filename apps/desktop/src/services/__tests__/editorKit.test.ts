@@ -50,7 +50,7 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     await loadStore();
     const { getContentKit } = await import("../editorKit");
     expect(extrasOf(getContentKit())).toEqual([...HOST, "webview"].sort());
-    for (const type of ["custom-block", "mermaid", "plantuml", "abc", "tikz", "typst"])
+    for (const type of ["mermaid", "plantuml", "abc", "tikz", "typst"])
       expect(getContentKit().elementTypes).toContain(type);
   });
 

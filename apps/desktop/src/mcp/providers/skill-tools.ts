@@ -67,7 +67,7 @@ const runSkillScriptTool: ToolDefinition = {
   executor: async (args, context) => {
     const skill = await findSkill(args.folderName);
     if (typeof skill === "string") return fail(skill);
-    if (skill.isInternal) return fail("内置 Skill 不包含脚本");
+    if (skill.readmeContent !== undefined) return fail("只读 Skill 不包含脚本");
     const script = normalizeRelative(String(args.script ?? ""));
     if (!script) return fail("必须提供 script");
     const runId = context?.toolCallId;
@@ -184,7 +184,8 @@ export const skillToolsProvider: MCPProviderDefinition = {
       executor: async args => {
         const skill = await findSkill(args.folderName);
         if (typeof skill === "string") return fail(skill);
-        if (skill.isInternal) return ok({ tree: `${skill.folderName}/ [内置]\n└── SKILL.md` });
+        if (skill.readmeContent !== undefined)
+          return ok({ tree: `${skill.folderName}/ [只读]\n└── SKILL.md` });
         try {
           return ok({ tree: await getSkillTree(skill.path) });
         } catch (error) {
@@ -214,8 +215,8 @@ export const skillToolsProvider: MCPProviderDefinition = {
           return fail("relativePath 必须是 Skill 目录内的相对路径");
         }
         try {
-          if (skill.isInternal) {
-            if (relativePath !== "SKILL.md") return fail("内置 Skill 只包含 SKILL.md");
+          if (skill.readmeContent !== undefined) {
+            if (relativePath !== "SKILL.md") return fail("只读 Skill 只包含 SKILL.md");
             return ok({ folderName: skill.folderName, relativePath, content: skill.readmeContent });
           }
           const content = await readSkillFile(`${skill.path}/${relativePath}`);

@@ -56,5 +56,5 @@ scp -o BatchMode=yes -o ConnectTimeout=12 "$WORK_DIR/source.tar.gz" \
   "bash '$RELEASE/deploy-remote.sh' '$VERSION' && test -f '$RELEASE/deployed-image.txt'" < /dev/null
 
 echo '验证本机访问公网 HTTPS'
-curl -fsS --max-time 15 https://collab.xiongtao.life/health/ready
+curl -fsS --max-time 15 https://collab.taunote.app/health/ready
 printf '\n部署完成：%s\n发布记录：%s\n' "$IMAGE" "$RELEASE"

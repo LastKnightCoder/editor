@@ -7,6 +7,7 @@ import {
   listSkills,
 } from "@/commands/skill";
 import { getAllInternalSkills } from "@/constants/internal-skills";
+import { pluginSkills, subscribePluginSkills } from "@/app/plugins/skill-registry";
 
 /** 本机偏好：停用 / 调用方式覆盖（不改原文件，内置与关联目录的只读 Skill 也能设） */
 export interface SkillPreference {
@@ -56,7 +57,7 @@ interface IActions {
 }
 
 /** 同名优先级：内置 > 我的 > 关联目录（被遮蔽的仍在页面上显示，但 agent 只认第一个） */
-const SOURCE_RANK = { builtin: 0, mine: 1, linked: 2 } as const;
+const SOURCE_RANK = { builtin: 0, plugin: 1, mine: 2, linked: 3 } as const;
 
 export const toInternalSkills = (): Skill[] =>
   getAllInternalSkills().map(skill => ({
@@ -104,7 +105,7 @@ const useSkillStore = create<IState & IActions>()(
         set({ loading: true });
         try {
           const external = await listSkills();
-          set({ skills: [...toInternalSkills(), ...external], loaded: true });
+          set({ skills: [...toInternalSkills(), ...pluginSkills(), ...external], loaded: true });
         } finally {
           set({ loading: false });
         }
@@ -167,6 +168,12 @@ const useSkillStore = create<IState & IActions>()(
       partialize: state => ({ preferences: state.preferences, usage: state.usage }),
     }
   )
+);
+
+subscribePluginSkills(() =>
+  useSkillStore.setState(state => ({
+    skills: [...state.skills.filter(skill => skill.source !== "plugin"), ...pluginSkills()],
+  }))
 );
 
 export default useSkillStore;

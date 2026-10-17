@@ -1,0 +1,12 @@
+{
+  "formatVersion": 1,
+  "id": "example.external-counter",
+  "name": "计数器示例",
+  "description": "在侧边栏记录并保存计数。",
+  "version": "1.0.0",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js"
+}

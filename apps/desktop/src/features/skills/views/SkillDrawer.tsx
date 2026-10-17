@@ -59,7 +59,7 @@ function useSkillContent(item: SkillItem | null) {
     files: SkillFile[];
   } | null>(null);
   const path = item?.skill.path;
-  const internal = item?.skill.isInternal;
+  const internal = item?.skill.readmeContent !== undefined;
   const inline = item?.skill.readmeContent;
   useEffect(() => {
     let alive = true;
@@ -102,9 +102,10 @@ function OverviewPane({
   const body = useMemo(() => (readme === null ? null : splitSkillDocument(readme).body), [readme]);
   const value = useMemo(() => (body === null ? null : importFromMarkdown(body)), [body]);
   const { skill } = item;
-  const fileList = skill.isInternal
-    ? ["SKILL.md"]
-    : files.filter(f => !f.isDirectory).map(f => f.relativePath ?? f.name);
+  const fileList =
+    skill.readmeContent !== undefined
+      ? ["SKILL.md"]
+      : files.filter(f => !f.isDirectory).map(f => f.relativePath ?? f.name);
 
   return (
     <div className="flex flex-col gap-4">
@@ -166,7 +167,7 @@ function OverviewPane({
         </Meta>
         <Meta label="位置">
           <span className="font-tau-mono text-ink-2 break-all text-[11.5px]">
-            {skill.isInternal ? "随应用内置（只读）" : skill.path}
+            {skill.source === "builtin" ? "随应用内置（只读）" : skill.path}
           </span>
         </Meta>
       </div>
@@ -445,7 +446,7 @@ export function SkillDrawer({
                 编辑
               </Button>
             )}
-            {!current.skill.isInternal && (
+            {current.skill.readmeContent === undefined && (
               <Menu
                 align="end"
                 trigger={

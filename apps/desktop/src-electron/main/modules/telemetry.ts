@@ -6,8 +6,8 @@ import log from "electron-log";
 import { Module } from "../types/module";
 import PathUtil from "../utils/PathUtil";
 
-// Umami 自托管实例（stats.xiongtao.life）；website id 未配置时整个模块静默空转
-const UMAMI_ENDPOINT = "https://stats.xiongtao.life/api/send";
+// Umami 自托管实例（stats.taunote.app）；website id 未配置时整个模块静默空转
+const UMAMI_ENDPOINT = "https://stats.taunote.app/api/send";
 // 置空即可整体停用上报
 const UMAMI_WEBSITE_ID = "ae1b3d6f-0972-48ec-afb6-f1a8b7a79bd2";
 

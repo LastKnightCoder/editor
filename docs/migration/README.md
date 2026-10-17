@@ -1,6 +1,6 @@
 # 批量导入 / 导出（迁入 · 迁出）
 
-跨会话入口。交互方案与 mockups 见 [mockups.html](./mockups.html)，裁决见 `apps/desktop/docs/redesign/DECISIONS.md` D-140，代码约定见 03 指南「内容导入导出与资源搬运」。
+跨会话入口。交互方案与 mockups 见 [mockups.html](./mockups.html)，裁决见 `apps/desktop/docs/redesign/DECISIONS.md` D-160，代码约定见 03 指南「内容导入导出与资源搬运」。
 
 ## 定位
 
@@ -22,12 +22,12 @@
 - `apps/desktop/src/utils/content-transfer/import.ts` —— 导入：相对路径解析 + 上传到当前资源存储
 - `apps/desktop/src/services/content-transfer.ts` —— 单篇导出 / Markdown 文件导入的统一入口（保存对话框、toast）
 - `apps/desktop/src/utils/batch-export/index.ts` —— 项目整体导出（PDF / EPUB / 合并 Markdown / Markdown 包）
-- `apps/desktop/src/services/markdown-export.ts` + `features/transfer/MarkdownExportDialog.tsx` —— 导出为 Markdown（项目 / 文章 / 卡片 / 全部，D-143），壳层承载 `MarkdownExportHost` + `app/transferStore.ts`
+- `apps/desktop/src/services/markdown-export.ts` + `features/transfer/MarkdownExportDialog.tsx` —— 导出为 Markdown（项目 / 文章 / 卡片 / 全部，D-163），壳层承载 `MarkdownExportHost` + `app/transferStore.ts`
 - `apps/desktop/src/utils/content-transfer/source.ts` —— 批量导入来源（文件夹 / .zip 统一为相对路径读取）
 - `apps/desktop/src/utils/content-transfer/batch-import.ts` —— 扫描成计划（只读）+ 三遍执行（资源 → 文档 → 回填互链）
-- `apps/desktop/src/services/batch-import.ts` + `stores/useImportHistoryStore.ts` —— 宿主接线、导入记录与整批撤销（D-141）
+- `apps/desktop/src/services/batch-import.ts` + `stores/useImportHistoryStore.ts` —— 宿主接线、导入记录与整批撤销（D-161）
 - `apps/desktop/src/features/transfer/ImportWizard.tsx` / `useImportDrop.tsx` —— 向导与页面拖入
-- `apps/desktop/src/utils/content-transfer/dialects.ts` / `csv.ts` —— 来源方言（Obsidian / Notion / Logseq）与 CSV 解析（D-142）
+- `apps/desktop/src/utils/content-transfer/dialects.ts` / `csv.ts` —— 来源方言（Obsidian / Notion / Logseq）与 CSV 解析（D-162）
 
 ## 已知边界
 

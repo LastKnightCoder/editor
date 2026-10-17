@@ -8,14 +8,12 @@ import { IntegrationSection } from "../sections/IntegrationSection";
 const mocks = vi.hoisted(() => ({
   getGithubUserInfo: vi.fn(),
   verifyMinimaxApiKey: vi.fn(),
-  validateSession: vi.fn(),
   getBilibiliQRCode: vi.fn(),
 }));
 
 vi.mock("@/services/minimax", () => ({ verifyMinimaxApiKey: mocks.verifyMinimaxApiKey }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 vi.mock("@/utils/github", () => ({ getGithubUserInfo: mocks.getGithubUserInfo }));
-vi.mock("@/services/weread", () => ({ default: { validateSession: mocks.validateSession } }));
 vi.mock("@/utils/bilibili", () => ({
   BilibiliQRCodeStatus: { SUCCESS: 0, EXPIRED: 86038, NOT_CONFIRMED: 86090, NOT_SCANNED: 86101 },
   checkBilibiliLogin: vi.fn(),
@@ -50,9 +48,6 @@ beforeEach(() => {
         username: "tau",
         password: "secret",
       };
-      draft.integration.weread.apiKey = "wrk-expired";
-      draft.integration.weread.connectionStatus = "invalid";
-      draft.integration.weread.statusReason = "API Key 已过期";
     }),
   });
   container = document.createElement("div");
@@ -68,16 +63,14 @@ afterEach(() => {
 it("渲染三组服务行与各自状态签", () => {
   render();
   for (const title of ["存储服务", "内容平台", "AI 平台"]) expect(text()).toContain(title);
-  for (const name of ["WebDAV", "S3", "阿里云 OSS", "GitHub", "Bilibili", "YouTube", "微信读书"]) {
+  for (const name of ["WebDAV", "S3", "阿里云 OSS", "GitHub", "Bilibili", "YouTube"]) {
     expect(text()).toContain(name);
   }
   // WebDAV 已连接：身份信息 + 管理
   expect(text()).toContain("dav.example.com · tau");
   expect(byLabel("管理 WebDAV")).toBeTruthy();
-  // 微信读书已失效：原因 + 重新校验
-  expect(text()).toContain("已失效");
-  expect(text()).toContain("API Key 已过期");
-  expect(byLabel("重新校验 微信读书")).toBeTruthy();
+  // 微信读书已改为插件，不在账号与连接里
+  expect(text()).not.toContain("微信读书");
   // 未连接服务
   expect(byLabel("连接 GitHub")).toBeTruthy();
   expect(byLabel("连接 Minimax")).toBeTruthy();

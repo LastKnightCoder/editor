@@ -1,0 +1,8 @@
+/* 插件自带的 Tailwind 工具类：只编译本插件用到的类，不含 preflight；颜色与尺度取宿主注入的 --tau-* token */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "@tau/themes/tailwind.css";
+@source "./";
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *):not(:where([data-mode="light"]:not(html), [data-mode="light"]:not(html) *)));
+@custom-variant hover (&:hover);

@@ -23,7 +23,7 @@
     "@tau/editor-text-formatting": "workspace:*",
     "@tau/editor-underline": "workspace:*",
     "@tau/editor-styled-text": "workspace:*",
-    "@tau/editor-custom-block": "workspace:*",
+    "@tau/plugins": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
     "@tau/editor-html": "workspace:*",
     "@tau/editor-source-view": "workspace:*",

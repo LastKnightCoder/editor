@@ -3,6 +3,7 @@ productName: "Tau"
 copyright: "Copyright © 2025 ${author}"
 asar: true
 asarUnpack:
+  - "node_modules/@ffprobe-installer/**/*"
   - "node_modules/@node-rs/jieba/**/*"
   - "node_modules/@node-rs/jieba-*/**/*"
   - "node_modules/@firecrawl/anydoc/**/*"
@@ -117,4 +118,4 @@ linux:
 publish:
   # electron-updater 从该地址拉取 latest*.yml 与更新包；过渡版本仍经 --target oss 发到 OSS 服务存量客户端
   - provider: "generic"
-    url: "https://dl.xiongtao.life/desktop"
+    url: "https://dl.taunote.app/desktop"

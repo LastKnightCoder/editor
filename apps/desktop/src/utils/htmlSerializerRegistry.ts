@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import type { CustomElement, FormattedText } from "@tau/editor";
 import { TEXT_GRADIENT_PRESETS } from "@tau/editor-text-formatting/palette";
 
@@ -128,6 +129,9 @@ export class HtmlSerializerRegistry {
         )
       : [];
     const childrenHtml = childrenHtmlArray.join("");
+    const pluginSerializer = desktopContentPlugins.htmlSerializer(type);
+    if (pluginSerializer)
+      return pluginSerializer.toHtml(element as unknown as Record<string, unknown>);
 
     // Get the serializer for this element type
     const serializer = this.getSerializer(type);

@@ -35,6 +35,7 @@ describe("问题的外部材料与探究对话", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(schema);
+    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
     questionId = QuestionTable.captureQuestion(db, "为什么地方财政依赖土地").question.id;
   });
   afterEach(() => db.close());
@@ -48,6 +49,8 @@ describe("问题的外部材料与探究对话", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
     ]);
     const [excerpt] = ExcerptTable.listActive(db);
@@ -65,7 +68,7 @@ describe("问题的外部材料与探究对话", () => {
       targetType: "excerpt",
       title: "土地财政",
       missing: false,
-      material: { open: { page: "weread-book", bookId: "b1" } },
+      material: { open: { page: "excerpt-provider", sourceType: "weread", sourceKey: "b1" } },
     });
 
     ExcerptTable.deleteSource(db, "weread", "b1");
@@ -167,6 +170,8 @@ describe("问题的外部材料与探究对话", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
       {
         externalId: "b1:bm_2",
@@ -175,6 +180,8 @@ describe("问题的外部材料与探究对话", () => {
         anchor: null,
         color: null,
         sourceTime: null,
+        location: "",
+        url: null,
       },
     ]);
     addSession(db, SESSION, "pdf-chat", "关于土地的追问");

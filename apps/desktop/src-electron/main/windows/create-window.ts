@@ -1,6 +1,7 @@
 import { app, BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
 import log from "electron-log";
 import { isDev, loadRoute, windowContext } from "./context";
+import { routeWindowOpen } from "./open-handler";
 
 /**
  * 标题栏形态：
@@ -76,6 +77,7 @@ export function createWindow({
   });
 
   forwardWindowEvents(win);
+  win.webContents.setWindowOpenHandler(routeWindowOpen);
   win.on("closed", quitIfNoVisibleWindow);
   win.webContents.on("did-fail-load", (_event, code, description, url) => {
     log.error(`窗口加载失败: ${code} - ${description}, URL: ${url}`);

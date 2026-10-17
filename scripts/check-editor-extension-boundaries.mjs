@@ -105,6 +105,38 @@ const importsOf = file => {
   visit(ast);
   return imports;
 };
+assert(!existsSync(resolve(root, "plugins/headless-codecs.ts")), "不得恢复固定插件 codec 聚合表");
+for (const file of [
+  "apps/desktop/src/utils/markdown.ts",
+  "apps/desktop/src/utils/htmlSerializerRegistry.ts",
+  "apps/desktop/src/services/editorKit.ts",
+  "apps/desktop/src/services/plugin-markdown.ts",
+  ...sourceFiles(resolve(root, "apps/desktop/shared")),
+]) {
+  for (const specifier of importsOf(resolve(root, file)))
+    assert(
+      !/app\/plugins\//.test(specifier),
+      `通用转换与编辑器服务不得反向依赖渲染层插件状态：${file}`
+    );
+}
+assert(
+  !existsSync(resolve(root, "editor-extensions/custom-block/package.json")),
+  "旧 custom-block 编辑器扩展包必须退役"
+);
+for (const host of ["desktop", "mobile", "browser-extension", "blog"]) {
+  const manifest = JSON.parse(readFileSync(resolve(root, "apps", host, "package.json"), "utf8"));
+  for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }))
+    assert(
+      !["@tau/editor-custom-block", "@tau/plugin-custom-block"].includes(name),
+      `${host} 不得依赖具体插件源码包`
+    );
+  for (const file of sourceFiles(resolve(root, "apps", host, "src")))
+    for (const specifier of importsOf(file))
+      assert(
+        !/@tau\/(?:editor-custom-block|plugin-custom-block)|plugins\/[^/]+\/src\//.test(specifier),
+        `宿主不得直接导入插件源码：${relative(root, file)} → ${specifier}`
+      );
+}
 for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
   for (const file of sourceFiles(resolve(root, directory))) {
     if (/\.test\.tsx?$/.test(file) || /\/test-setup\.tsx?$/.test(file)) continue;
@@ -206,7 +238,7 @@ for (const file of sourceFiles(resolve(root, "packages/shared"))) {
 
 for (const directory of [
   "editor-extensions/webview",
-  "editor-extensions/custom-block",
+  "plugins/custom-block",
   "editor-extensions/diagram",
   "editor-extensions/html",
   "packages/editor-source-view",
@@ -396,7 +428,7 @@ for (const [host, entry, exportName] of hosts) {
     assert.deepEqual(md.importFromMarkdown(preserved.markdown), unknownText);
     assert.deepEqual(md.importFromMarkdownWithPositions(preserved.markdown).content, unknownText);
     const fence = String.fromCharCode(96).repeat(3);
-    for (const type of ['custom-block', 'mermaid', 'plantuml', 'abc', 'tikz', 'typst']) {
+    for (const type of ['mermaid', 'plantuml', 'abc', 'tikz', 'typst']) {
       const source = fence + type + '\\n源码\\n' + fence;
       const parsed = md.importFromMarkdownWithPositions(source);
       assert.equal(parsed.content[0].type, type);

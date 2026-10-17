@@ -10,18 +10,27 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { SettingsSectionKey } from "@/features/settings/sections";
 
+export type SettingsLocation = SettingsSectionKey;
+
 interface SettingsUiStore {
+  llmTab: "providers" | "assignment" | "permission" | "usage";
+  usagePluginId: string;
+  openAIUsage: (pluginId?: string) => void;
   open: boolean;
-  section: SettingsSectionKey;
-  openSettings: (section?: SettingsSectionKey) => void;
+  section: SettingsLocation;
+  openSettings: (section?: SettingsLocation) => void;
   closeSettings: () => void;
-  setSection: (section: SettingsSectionKey) => void;
+  setSection: (section: SettingsLocation) => void;
 }
 
 export const useSettingsStore = create<SettingsUiStore>()(
   persist(
     set => ({
       open: false,
+      llmTab: "providers",
+      usagePluginId: "",
+      openAIUsage: (pluginId = "") =>
+        set({ open: true, section: "llm", llmTab: "usage", usagePluginId: pluginId }),
       section: "appearance",
       openSettings: section => set({ open: true, ...(section ? { section } : {}) }),
       closeSettings: () => set({ open: false }),

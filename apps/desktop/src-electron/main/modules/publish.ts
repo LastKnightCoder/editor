@@ -36,6 +36,9 @@ import QuestionTable from "./tables/question";
 import QuestionGroupTable from "./tables/question-group";
 import QuestionLinkTable from "./tables/question-link";
 import publishTemplateManager from "./publish-template-manager";
+import { readPublishPlugins } from "../services/plugin-publish";
+import type { PluginRenderContext } from "@tau/plugins/rendering";
+import PathUtil from "../utils/PathUtil";
 import type { ISiteMeta, PublishDataSource, PublishSelectionInput } from "./publish-site-generator";
 import {
   generatePublishFilesInWorker,
@@ -62,7 +65,7 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
   };
 }
 
-type ExecutePublishConfig =
+type ExecutePublishConfig = (
   | {
       providerType: "github";
       providerConfig: IGithubPagesConfig;
@@ -86,7 +89,8 @@ type ExecutePublishConfig =
       };
       settings?: IPublishAppearanceSettings;
       options?: IUploadOptions;
-    };
+    }
+) & { editorContext?: PluginRenderContext };
 
 type GithubExecuteConfig = Extract<ExecutePublishConfig, { providerType: "github" }>;
 
@@ -145,7 +149,7 @@ class PublishModule implements Module {
     );
 
     // 预览发布计划
-    ipcMain.handle("preview-publish-plan", async event => {
+    ipcMain.handle("preview-publish-plan", async (event, editorContext?: PluginRenderContext) => {
       const db = this.getDatabase(event);
       if (!db) {
         throw new Error("Database not available");
@@ -157,7 +161,7 @@ class PublishModule implements Module {
         basePath: "/",
       };
 
-      return this.previewPublishPlan(db, siteMeta);
+      return this.previewPublishPlan(db, siteMeta, editorContext);
     });
 
     // 导出构建产物
@@ -176,6 +180,7 @@ class PublishModule implements Module {
             favicon?: IPublishFaviconConfig;
           };
           settings?: IPublishAppearanceSettings;
+          editorContext?: PluginRenderContext;
         }
       ) => {
         const db = this.getDatabase(event);
@@ -189,7 +194,13 @@ class PublishModule implements Module {
           payload.siteConfig
         );
 
-        return this.exportPublishOutput(db, siteMeta, payload.targetDir, payload.settings);
+        return this.exportPublishOutput(
+          db,
+          siteMeta,
+          payload.targetDir,
+          payload.settings,
+          payload.editorContext
+        );
       }
     );
 
@@ -216,10 +227,17 @@ class PublishModule implements Module {
     db: Database.Database,
     site: ISiteMeta,
     targetDir: string,
-    settings?: IPublishAppearanceSettings
+    settings?: IPublishAppearanceSettings,
+    editorContext?: PluginRenderContext
   ): Promise<string[]> {
     const selections = PublishSelectionTable.getAll(db);
-    const { files } = await this.generatePublishFiles(db, selections, site, settings);
+    const { files } = await this.generatePublishFiles(
+      db,
+      selections,
+      site,
+      settings,
+      editorContext
+    );
 
     if (!existsSync(targetDir)) {
       mkdirSync(targetDir, { recursive: true });
@@ -308,7 +326,8 @@ class PublishModule implements Module {
   async buildPublishPlan(
     db: Database.Database,
     site: ISiteMeta,
-    appearanceSettings?: IPublishAppearanceSettings
+    appearanceSettings?: IPublishAppearanceSettings,
+    editorContext?: PluginRenderContext
   ): Promise<IPublishPlan> {
     // 获取选中的内容
     const selections = PublishSelectionTable.getAll(db);
@@ -322,7 +341,8 @@ class PublishModule implements Module {
       db,
       selections,
       site,
-      appearanceSettings
+      appearanceSettings,
+      editorContext
     );
     const newFileMap = new Map(newFiles.map(f => [f.path, f]));
 
@@ -348,13 +368,17 @@ class PublishModule implements Module {
    */
   private async previewPublishPlan(
     db: Database.Database,
-    site: ISiteMeta
+    site: ISiteMeta,
+    editorContext?: PluginRenderContext
   ): Promise<IPublishPlanPreview> {
     const selections = PublishSelectionTable.getAll(db);
     const { paths } = await generatePublishPathsInWorker(createPublishDataSource(db), {
       templateDir: await this.ensureTemplateReady(),
       selections,
       site,
+      plugins: editorContext
+        ? await readPublishPlugins(join(PathUtil.getAppDir(), "plugins"), editorContext)
+        : undefined,
     });
     const generated = new Set(paths);
     const toDelete = PublishHistoryTable.getAll(db)
@@ -370,13 +394,17 @@ class PublishModule implements Module {
     db: Database.Database,
     selections: PublishSelectionInput[],
     site: ISiteMeta,
-    settings?: IPublishAppearanceSettings
+    settings?: IPublishAppearanceSettings,
+    editorContext?: PluginRenderContext
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
     return generatePublishFilesInWorker(createPublishDataSource(db), {
       templateDir: await this.ensureTemplateReady(),
       selections,
       site,
       settings,
+      plugins: editorContext
+        ? await readPublishPlugins(join(PathUtil.getAppDir(), "plugins"), editorContext)
+        : undefined,
     });
   }
 
@@ -395,7 +423,7 @@ class PublishModule implements Module {
     );
 
     const options = { ...DEFAULT_UPLOAD_OPTIONS, ...config.options };
-    const plan = await this.buildPublishPlan(db, site, config.settings);
+    const plan = await this.buildPublishPlan(db, site, config.settings, config.editorContext);
 
     if (config.providerType === "github" && config.providerConfig.useGitCli) {
       return this.executeGitCliPublish(db, config, plan);

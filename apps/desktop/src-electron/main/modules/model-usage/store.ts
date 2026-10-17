@@ -11,7 +11,7 @@ import type {
   ModelUsageTimeseriesQuery,
 } from "@/types/model-usage";
 
-export const USAGE_SCHEMA_VERSION = 1;
+export const USAGE_SCHEMA_VERSION = 2;
 const MAX_LIST_LIMIT = 500;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -64,6 +64,10 @@ CREATE INDEX IF NOT EXISTS idx_mue_library_ts ON model_usage_event(library, ts);
 `;
 
 interface EventRow {
+  plugin_id: string | null;
+  plugin_name: string | null;
+  plugin_feature_name: string | null;
+  usage_known: number | null;
   event_id: string;
   ts: number;
   device_id: string;
@@ -92,6 +96,10 @@ interface EventRow {
 }
 
 const toRow = (event: ModelUsageEvent): EventRow => ({
+  plugin_id: event.pluginId ?? null,
+  plugin_name: event.pluginName ?? null,
+  plugin_feature_name: event.pluginFeatureName ?? null,
+  usage_known: event.usageKnown == null ? null : Number(event.usageKnown),
   event_id: event.eventId,
   ts: event.ts,
   device_id: event.deviceId,
@@ -120,6 +128,10 @@ const toRow = (event: ModelUsageEvent): EventRow => ({
 });
 
 const fromRow = (row: EventRow): ModelUsageEvent => ({
+  pluginId: row.plugin_id,
+  pluginName: row.plugin_name,
+  pluginFeatureName: row.plugin_feature_name,
+  usageKnown: row.usage_known == null ? null : Boolean(row.usage_known),
   eventId: row.event_id,
   ts: row.ts,
   deviceId: row.device_id,
@@ -150,6 +162,10 @@ const fromRow = (row: EventRow): ModelUsageEvent => ({
 const buildWhere = (query: ModelUsageQuery) => {
   const clauses: string[] = [];
   const params: Record<string, string | number> = {};
+  if (query.pluginId !== undefined) {
+    clauses.push("plugin_id = @pluginId");
+    params.pluginId = query.pluginId;
+  }
   if (query.from !== undefined) {
     clauses.push("ts >= @from");
     params.from = query.from;
@@ -183,23 +199,45 @@ export class ModelUsageStore {
 
   constructor(private readonly db: Database.Database) {
     db.exec(SCHEMA_SQL);
-    if (this.getMeta("schema_version") === null) {
-      this.setMeta("schema_version", String(USAGE_SCHEMA_VERSION));
+    if (Number(this.getMeta("schema_version") ?? 1) > USAGE_SCHEMA_VERSION)
+      throw new Error("用量数据库版本高于当前客户端");
+    const columns = new Set(
+      (db.prepare("PRAGMA table_info(model_usage_event)").all() as { name: string }[]).map(
+        row => row.name
+      )
+    );
+    for (const [name, type] of Object.entries({
+      plugin_id: "TEXT",
+      plugin_name: "TEXT",
+      plugin_feature_name: "TEXT",
+      usage_known: "INTEGER",
+    })) {
+      if (!columns.has(name)) db.exec(`ALTER TABLE model_usage_event ADD COLUMN ${name} ${type}`);
     }
+    db.exec("CREATE INDEX IF NOT EXISTS idx_mue_plugin_ts ON model_usage_event(plugin_id, ts)");
+    this.setMeta("schema_version", String(USAGE_SCHEMA_VERSION));
     // OR IGNORE：同一事件重复写入（以后跨设备导入）按主键去重
     this.insertStmt = db.prepare(`
       INSERT OR IGNORE INTO model_usage_event (
         event_id, ts, device_id, library, kind, provider_id, provider_name, model, feature,
         scope, session_id, entity_id, status, error_message, latency_ms, ttft_ms,
         input_tokens, output_tokens, cache_read, cache_write, reasoning, total_tokens,
-        units, cost, cost_source
+        units, cost, cost_source, plugin_id, plugin_name, plugin_feature_name, usage_known
       ) VALUES (
         @event_id, @ts, @device_id, @library, @kind, @provider_id, @provider_name, @model, @feature,
         @scope, @session_id, @entity_id, @status, @error_message, @latency_ms, @ttft_ms,
         @input_tokens, @output_tokens, @cache_read, @cache_write, @reasoning, @total_tokens,
-        @units, @cost, @cost_source
+        @units, @cost, @cost_source, @plugin_id, @plugin_name, @plugin_feature_name, @usage_known
       )
     `);
+  }
+
+  pluginSources(): { id: string; name: string }[] {
+    return this.db
+      .prepare(
+        "SELECT plugin_id AS id, MAX(plugin_name) AS name FROM model_usage_event WHERE plugin_id IS NOT NULL GROUP BY plugin_id ORDER BY name"
+      )
+      .all() as { id: string; name: string }[];
   }
 
   getMeta(key: string): string | null {
@@ -221,6 +259,20 @@ export class ModelUsageStore {
     this.db.transaction((batch: ModelUsageEvent[]) => {
       for (const event of batch) this.insertStmt.run(toRow(event));
     })(events);
+  }
+
+  recoverInterruptedPluginCalls(): void {
+    this.db
+      .prepare(
+        "UPDATE model_usage_event SET status = 'aborted', error_message = '客户端退出，请求未完成，实际用量未知', usage_known = 0 WHERE plugin_id IS NOT NULL AND status = 'running'"
+      )
+      .run();
+  }
+
+  replace(event: ModelUsageEvent): void {
+    this.db
+      .prepare(this.insertStmt.source.replace("INSERT OR IGNORE", "INSERT OR REPLACE"))
+      .run(toRow(event));
   }
 
   summary(query: ModelUsageQuery = {}): ModelUsageSummary {
@@ -274,7 +326,9 @@ export class ModelUsageStore {
     const label =
       query.groupBy === "provider"
         ? "COALESCE((SELECT provider_name FROM model_usage_event AS latest WHERE latest.provider_id = model_usage_event.provider_id AND latest.provider_name IS NOT NULL ORDER BY latest.ts DESC LIMIT 1), provider_id)"
-        : `COALESCE(${column}, '')`;
+        : query.groupBy === "feature"
+          ? "CASE WHEN plugin_id IS NOT NULL THEN COALESCE(plugin_name, plugin_id) || ' / ' || COALESCE(plugin_feature_name, feature) ELSE feature END"
+          : `COALESCE(${column}, '')`;
     return this.db
       .prepare(
         `SELECT
@@ -302,7 +356,7 @@ export class ModelUsageStore {
     const rows = this.db
       .prepare(
         `SELECT * FROM model_usage_event
-         WHERE device_id = @deviceId
+         WHERE device_id = @deviceId AND status <> 'running'
            AND (@from IS NULL OR ts >= @from) AND (@to IS NULL OR ts < @to)
          ORDER BY event_id ASC`
       )

@@ -26,7 +26,7 @@ import {
   formatDuration,
   av2bv,
 } from "./parser";
-import { nodeFetch, type NodeFetchRawResponse } from "@/commands";
+import { desktopFetch } from "@/commands";
 
 // Bilibili API 基础配置
 const BILIBILI_BASE_URL = "https://api.bilibili.com";
@@ -57,19 +57,21 @@ export function createHeaders(credentials?: BilibiliCredentials): Record<string,
   return headers;
 }
 
-async function fetchWithRetry(url: string, options: any, retries = 3): Promise<any> {
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
-      const response = await nodeFetch(url, {
+      const response = await desktopFetch(url, {
         ...options,
         headers: {
           ...createHeaders(),
-          ...options.headers,
+          ...Object.fromEntries(new Headers(options.headers)),
         },
       });
 
-      console.log("fetchWithRetry", response);
-
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new Error(`HTTP ${response.status}`);
+      }
       return response;
     } catch (error) {
       if (i === retries - 1) {
@@ -112,22 +114,21 @@ async function resolveBilibiliVideoUrl(
     return url;
   }
 
-  const response = await nodeFetch<NodeFetchRawResponse>(url, {
+  const response = await desktopFetch(url, {
     method: "GET",
     headers: createHeaders(credentials),
-    isRaw: true,
-    allowHttpErrorStatus: true,
   });
 
-  const finalUrl = response?.finalUrl;
+  const finalUrl = response.url;
   if (
     typeof finalUrl === "string" &&
     /^https?:\/\/(?:www\.)?bilibili\.com\/video\//i.test(finalUrl)
   ) {
+    await response.body?.cancel();
     return finalUrl;
   }
 
-  const html = typeof response?.data === "string" ? response.data : "";
+  const html = await response.text();
   const extractedUrl = extractVideoUrlFromText(html);
   if (extractedUrl) return extractedUrl;
 
@@ -142,7 +143,7 @@ export async function checkBilibiliLogin(
       headers: createHeaders(credentials),
     });
 
-    const data: BilibiliApiResponse<BilibiliUserNavApiData> = response;
+    const data: BilibiliApiResponse<BilibiliUserNavApiData> = await response.json();
 
     if (data.code !== 0) {
       throw new BilibiliAuthError(`登录验证失败: ${data.message}`);
@@ -247,7 +248,7 @@ async function getVideoInfoByApi(
     headers: createHeaders(credentials),
   });
 
-  const data: BilibiliApiResponse<BilibiliVideoApiData> = response;
+  const data: BilibiliApiResponse<BilibiliVideoApiData> = await response.json();
 
   if (data.code !== 0) {
     throw new BilibiliParseError(`API 返回错误: ${data.message}`);
@@ -297,7 +298,7 @@ async function getVideoInfoByPage(
     headers: createHeaders(credentials),
   });
 
-  const html = response;
+  const html = await response.text();
   const initialState = extractInitialState(html);
   const playInfo = extractPlayInfo(html);
 
@@ -351,7 +352,7 @@ export async function getPlayUrl(
       }
     );
 
-    const data: BilibiliApiResponse<BilibiliPlayInfoApiData> = response;
+    const data: BilibiliApiResponse<BilibiliPlayInfoApiData> = await response.json();
 
     if (data.code !== 0) {
       throw new BilibiliParseError(`获取播放地址失败: ${data.message}`);
@@ -412,7 +413,7 @@ export async function getQualityInfo(
     }
   );
 
-  const data: BilibiliApiResponse<BilibiliPlayInfoApiData> = response;
+  const data: BilibiliApiResponse<BilibiliPlayInfoApiData> = await response.json();
 
   if (data.code !== 0) {
     throw new BilibiliParseError(`获取画质信息失败: ${data.message}`);
@@ -446,7 +447,7 @@ export async function getSubtitles(
       }
     );
 
-    const data: BilibiliApiResponse<any> = response;
+    const data: BilibiliApiResponse<any> = await response.json();
 
     if (data.code !== 0) {
       return []; // 字幕不是必需的，失败时返回空数组
@@ -472,14 +473,14 @@ export async function getSubtitles(
  */
 async function checkSingleStreamAvailability(streamUrl: string): Promise<boolean> {
   try {
-    await nodeFetch(streamUrl, {
+    const response = await desktopFetch(streamUrl, {
       method: "HEAD",
       headers: {
         Referer: "https://www.bilibili.com/",
         ...createHeaders(),
       },
     });
-    return true;
+    return response.ok;
   } catch (error) {
     console.warn("检查流可用性失败:", error);
     return false;
@@ -540,7 +541,7 @@ export async function getBilibiliQRCode(): Promise<BilibiliQRInfo> {
     const data: BilibiliApiResponse<{
       qrcode_key: string;
       url: string;
-    }> = response;
+    }> = await response.json();
 
     if (data.code !== 0) {
       throw new BilibiliNetworkError(`获取二维码失败: ${data.message}`);
@@ -571,7 +572,7 @@ export async function checkBilibiliQRStatus(qrcodeKey: string): Promise<Bilibili
       refresh_token?: string;
       timestamp?: number;
       url?: string;
-    }> = response;
+    }> = await response.json();
 
     const loginCode = data.data?.code ?? data.code;
 
@@ -611,18 +612,17 @@ function parseCookiesFromSetCookie(header: unknown): Record<string, string> {
  * 凭证 cookie 在 302 重定向的第一跳下发，跟随重定向会导致丢失
  */
 async function extractCredentialsFromCrossDomain(url: string): Promise<BilibiliCredentials> {
-  const response = await nodeFetch<NodeFetchRawResponse>(url, {
+  const response = await desktopFetch(url, {
     method: "GET",
     headers: {
       "User-Agent": USER_AGENT,
       Referer: "https://passport.bilibili.com/",
     },
-    isRaw: true,
-    maxRedirects: 0,
-    allowHttpErrorStatus: true,
+    redirect: "manual",
   });
 
-  const cookies = parseCookiesFromSetCookie(response?.headers?.["set-cookie"]);
+  const cookies = parseCookiesFromSetCookie(response.headers.getSetCookie());
+  await response.body?.cancel();
 
   return {
     SESSDATA: cookies.SESSDATA || "",

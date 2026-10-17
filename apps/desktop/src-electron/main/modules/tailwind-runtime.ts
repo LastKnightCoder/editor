@@ -8,7 +8,7 @@ import TAU_TAILWIND_THEME_CSS from "@tau/themes/tailwind.css?raw";
 type WorkerResponse =
   { ok: true; id: number; css: string } | { ok: false; id: number; error?: string };
 
-class CustomBlockTailwindModule implements Module {
+class TailwindRuntimeModule implements Module {
   name: string;
   private worker?: ChildProcess;
   private requestId = 0;
@@ -18,14 +18,14 @@ class CustomBlockTailwindModule implements Module {
   >();
 
   constructor() {
-    this.name = "custom-block-tailwind";
+    this.name = "tailwind-runtime";
   }
 
   async init() {
     this.ensureWorker();
 
     ipcMain.handle(
-      "custom-block:compile-tailwind",
+      "tailwind-runtime:compile",
       async (_event, payload: { content: string; extension?: string }) => {
         return this.compileTailwindCss(
           typeof payload?.content === "string" ? payload.content : "",
@@ -47,7 +47,7 @@ class CustomBlockTailwindModule implements Module {
       execPath: process.execPath,
       env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
     });
-    const prefix = "[custom-block:tailwind]";
+    const prefix = "[tailwind-runtime]";
 
     this.worker.stdout?.setEncoding("utf8");
     this.worker.stdout?.on("data", chunk => {
@@ -135,4 +135,4 @@ class CustomBlockTailwindModule implements Module {
   }
 }
 
-export default new CustomBlockTailwindModule();
+export default new TailwindRuntimeModule();

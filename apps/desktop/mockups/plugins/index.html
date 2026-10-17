@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>插件中心与已安装管理 · 方案 B</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 取值与 settings mockup / @tau/themes cream·cocoa 同源 */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6; --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99;
+    --tag-1: #61795f; --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d; --tag-5: #b0564d;
+    --overlay: rgba(67, 57, 44, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --ok-soft: #243023; --warn: #c4a458; --warn-soft: #302917; --danger: #d97e66; --danger-soft: #34201a; --info: #83aecf;
+    --tag-1: #8cab87; --tag-2: #83aecf; --tag-3: #a596c8; --tag-4: #c4a458; --tag-5: #d97e66;
+    --overlay: rgba(10, 8, 5, 0.55);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --stage: #15110c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1); overflow-x: auto;
+    font: 13px/1.65 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1240px; font-size: 13.5px; }
+  .intro h1 { font-size: 20px; font-weight: 600; }
+  .intro p { color: var(--ink-2); margin-top: 6px; max-width: 100ch; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 20px 0 6px; }
+  .intro ul { color: var(--ink-2); margin-left: 18px; max-width: 110ch; font-size: 13px; }
+  .intro li { margin-top: 3px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .cmp { margin-top: 12px; border-collapse: collapse; font-size: 12.5px; max-width: 1240px; }
+  .cmp th, .cmp td { text-align: left; padding: 7px 14px 7px 0; vertical-align: top; border-bottom: 1px solid var(--line-1); }
+  .cmp th { color: var(--ink-3); font-weight: 500; }
+  .cmp td { color: var(--ink-2); } .cmp td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .toolbar { display: flex; gap: 18px; align-items: center; margin: 28px 0 14px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .pills { display: flex; gap: 4px; align-items: center; }
+  .pills button { padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+  .cap { max-width: 1400px; color: var(--ink-2); font-size: 12.5px; margin: -4px 0 12px; }
+  .cap b { color: var(--ink-1); }
+  h2.sec { font-size: 16px; font-weight: 600; margin: 48px 0 6px; }
+
+  /* ---------- 应用窗口 ---------- */
+  .win { height: 860px; max-width: 1400px; min-width: 1240px; border-radius: 14px; overflow: hidden; background: var(--bg-page); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.14); display: flex; flex-direction: column; }
+  .titlebar { height: 40px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--ink-3); }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .titlebar .nav { display: flex; gap: 2px; margin-left: 120px; }
+  .titlebar .nav span { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 14px; }
+  .titlebar .nav span.on { color: var(--ink-1); background: var(--bg-hover); }
+  .app { flex: 1; display: flex; min-height: 0; }
+  .side { width: 200px; flex: none; padding: 4px 10px; color: var(--ink-2); font-size: 12.5px; display: flex; flex-direction: column; }
+  .side .g { font-size: 11px; color: var(--ink-3); padding: 12px 8px 3px; }
+  .side .it { padding: 5px 8px; border-radius: 7px; display: flex; gap: 9px; align-items: center; }
+  .side .it svg { font-size: 14px; }
+  .side .it.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .side .it .bd { margin-left: auto; font-size: 10.5px; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: var(--ink-inverse); display: grid; place-items: center; }
+  .side .foot { margin-top: auto; padding-bottom: 10px; }
+  .main { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; }
+  .paper { margin: 0 10px 10px 0; background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); min-height: calc(100% - 10px); }
+  .ghost-grid { padding: 20px 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .ghost-card { height: 140px; border-radius: 14px; background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 28px; z-index: 5; }
+
+  /* ---------- 通用控件 ---------- */
+  .btn { height: 30px; padding: 0 12px; border-radius: var(--r-sm); background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); box-shadow: 0 1px 2px rgba(120,60,30,.2); }
+  .btn.pri:hover { background: var(--accent-hover); }
+  .btn.soft { background: var(--accent-soft); color: var(--accent-text); box-shadow: none; }
+  .btn.ghost { box-shadow: none; background: none; color: var(--ink-2); } .btn.ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .btn.danger { color: var(--danger); }
+  .btn.dis { opacity: .55; cursor: default; }
+  .btn.icon { width: 30px; padding: 0; justify-content: center; }
+  .btn.sm { height: 26px; padding: 0 10px; font-size: 12px; }
+  .sw { width: 34px; height: 20px; border-radius: 99px; background: var(--bg-track); position: relative; cursor: pointer; transition: background .16s; display: inline-block; flex: none; }
+  .sw i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .16s; }
+  .sw.on { background: var(--accent); } .sw.on i { left: 16px; }
+  .sw.dis { opacity: .45; cursor: default; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; padding: 0 8px; height: 20px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); white-space: nowrap; font-weight: 400; }
+  .chip svg { font-size: 11px; }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.danger { background: var(--danger-soft); color: var(--danger); }
+  .chip.acc { background: var(--accent-soft); color: var(--accent-text); }
+  .search { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: var(--r-sm); background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-3); font-size: 12.5px; }
+  .search kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+  .link { color: var(--accent-text); cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+  .muted { color: var(--ink-2); }
+  .faint { color: var(--ink-3); }
+  .prog { height: 4px; border-radius: 99px; background: var(--bg-track); overflow: hidden; width: 84px; }
+  .prog i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+  .tabs { display: flex; gap: 22px; }
+  .tabs button { padding: 4px 0 8px; color: var(--ink-2); font-size: 13px; position: relative; display: inline-flex; gap: 6px; align-items: center; }
+  .tabs button:hover { color: var(--ink-1); }
+  .tabs button.on { color: var(--ink-1); font-weight: 600; }
+  .tabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--accent); }
+  .tabs .n { font-size: 11px; font-weight: 500; padding: 0 6px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); }
+  .tabs .n.acc { background: var(--accent-soft); color: var(--accent-text); }
+  .menu { position: absolute; z-index: 4; min-width: 200px; padding: 5px; border-radius: var(--r-md); background: var(--bg-surface); box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); font-size: 12.5px; }
+  .menu .mi { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 9px; border-radius: 7px; color: var(--ink-1); }
+  .menu .mi svg { color: var(--ink-2); font-size: 14px; }
+  .menu .mi:hover, .menu .mi.hl { background: var(--bg-hover); }
+  .menu .mi small { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+  .menu .mi.danger, .menu .mi.danger svg { color: var(--danger); }
+  .menu hr { border: 0; height: 1px; background: var(--line-1); margin: 4px 6px; }
+
+  /* 字母图标：manifest 无图标字段前的占位，颜色按插件 ID 散列 */
+  .pic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-weight: 600; font-size: 16px; flex: none;
+    color: var(--c); background: color-mix(in srgb, var(--c) 15%, transparent); }
+  .pic.sm { width: 32px; height: 32px; border-radius: 9px; font-size: 13.5px; }
+  .pic.lg { width: 60px; height: 60px; border-radius: 16px; font-size: 24px; }
+  .pic svg { font-size: 1.05em; }
+
+  /* ---------- 页面头 ---------- */
+  .ph { padding: 26px 36px 0; }
+  .ph-top { display: flex; align-items: flex-start; gap: 16px; }
+  .ph h1 { font-size: 22px; font-weight: 600; line-height: 1.3; }
+  .ph p.sub { color: var(--ink-2); font-size: 12.5px; margin-top: 3px; }
+  .ph-acts { margin-left: auto; display: flex; gap: 8px; align-items: center; position: relative; }
+  .ph-acts .search { width: 260px; }
+  .ph .tabs { margin-top: 18px; box-shadow: 0 1px 0 var(--line-1); }
+  .body { padding: 22px 36px 48px; }
+
+  /* 重启条：所有方案共用 */
+  .restart { display: flex; align-items: center; gap: 12px; margin: 16px 36px 0; padding: 10px 12px 10px 14px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-text); font-size: 12.5px; }
+  .restart b { font-weight: 600; }
+  .restart .sp { margin-left: auto; display: flex; gap: 6px; }
+
+  /* 发现：卡片网格 */
+  .sh { display: flex; align-items: baseline; gap: 10px; margin: 4px 2px 12px; }
+  .sh h3 { font-size: 14px; font-weight: 600; }
+  .sh .r { margin-left: auto; font-size: 12.5px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .pc { border-radius: 14px; padding: 16px 16px 14px; box-shadow: 0 0 0 1px var(--line-1) inset; display: flex; flex-direction: column; gap: 10px; transition: box-shadow .16s, background .16s; cursor: pointer; min-height: 170px; }
+  .pc:hover { background: var(--bg-surface-hover); }
+  .pc .hd { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .pc .hd b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pc .hd small { display: block; color: var(--ink-3); font-size: 12px; }
+  .pc .ds { color: var(--ink-2); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pc .ft { margin-top: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); }
+  .pc .ft .act { margin-left: auto; }
+
+  /* 已安装：分组列表 */
+  .group { margin-bottom: 26px; }
+  .gt { display: flex; align-items: baseline; gap: 10px; padding: 0 4px 8px; }
+  .gt h3 { font-size: 13.5px; font-weight: 600; }
+  .gt p { font-size: 12.5px; color: var(--ink-2); }
+  .gt .ga { margin-left: auto; display: flex; gap: 6px; }
+  .list { border-radius: 14px; box-shadow: 0 0 0 1px var(--line-1) inset; padding: 4px; }
+  .row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; min-height: 62px; border-radius: 10px; cursor: pointer; position: relative; }
+  .row:hover { background: var(--bg-hover); }
+  .row + .row::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; height: 1px; background: var(--line-2); }
+  .row .rt { flex: 1; min-width: 0; }
+  .row .rt .nm { display: flex; align-items: center; gap: 8px; }
+  .row .rt b { font-weight: 500; font-size: 13.5px; }
+  .row .rt .v { color: var(--ink-3); font-size: 12px; }
+  .row .rt small { display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rt small.err { color: var(--danger); }
+  .row .rc { display: flex; align-items: center; gap: 8px; flex: none; }
+  .row.dim .rt b, .row.dim .pic { opacity: .6; }
+  .foot-note { display: flex; gap: 8px; align-items: center; color: var(--ink-2); font-size: 12.5px; padding: 2px 4px; }
+  .foot-note svg { color: var(--ink-3); }
+
+  /* 详情 */
+  .dt { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 40px; padding: 26px 36px 48px; }
+  .dh { display: flex; gap: 18px; align-items: center; }
+  .dh h1 { font-size: 22px; font-weight: 600; line-height: 1.3; }
+  .dh .meta { display: flex; gap: 8px; align-items: center; color: var(--ink-2); font-size: 12.5px; margin-top: 3px; flex-wrap: wrap; }
+  .dh .acts { margin-left: auto; display: flex; gap: 8px; align-items: center; position: relative; }
+  .dd { margin-top: 10px; color: var(--ink-2); font-size: 13px; max-width: 70ch; }
+  .dt .tabs { margin-top: 22px; box-shadow: 0 1px 0 var(--line-1); }
+  .md { padding-top: 18px; font-size: 13.5px; line-height: 1.75; max-width: 72ch; }
+  .md h2 { font-size: 16px; font-weight: 600; margin: 18px 0 6px; } .md h2:first-child { margin-top: 0; }
+  .md h3 { font-size: 14px; font-weight: 600; margin: 14px 0 4px; }
+  .md p { margin: 6px 0; color: var(--ink-1); }
+  .md ul { margin: 6px 0 6px 20px; } .md li { margin: 2px 0; }
+  .md code { font-family: var(--mono); font-size: 12px; padding: 1px 5px; border-radius: 5px; background: var(--bg-hover); }
+  .md .img-blocked { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-3); font-size: 12px; margin: 10px 0; }
+  .aside { display: flex; flex-direction: column; gap: 22px; padding-top: 4px; }
+  .aside h4 { font-size: 12px; color: var(--ink-3); font-weight: 500; margin-bottom: 8px; }
+  .kv { display: grid; grid-template-columns: 84px minmax(0, 1fr); row-gap: 7px; font-size: 12.5px; }
+  .kv dt { color: var(--ink-2); } .kv dd { color: var(--ink-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .contrib { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+  .contrib div { display: flex; gap: 8px; align-items: center; color: var(--ink-1); }
+  .contrib svg { color: var(--ink-3); font-size: 14px; }
+  .trust { display: flex; gap: 10px; padding: 12px; border-radius: var(--r-md); background: var(--warn-soft); color: var(--ink-2); font-size: 12px; line-height: 1.6; }
+  .trust svg { color: var(--warn); font-size: 15px; margin-top: 2px; }
+  .vers .vr { display: flex; align-items: center; gap: 12px; padding: 12px 4px; box-shadow: 0 1px 0 var(--line-2); }
+  .vers .vr b { font-weight: 600; font-size: 13.5px; width: 64px; }
+  .vers .vr .muted { font-size: 12.5px; flex: 1; }
+  .set { padding-top: 18px; max-width: 640px; }
+  .set .srow { display: flex; align-items: center; gap: 16px; padding: 12px 4px; box-shadow: 0 1px 0 var(--line-2); }
+  .set .srow .t { flex: 1; } .set .srow b { display: block; font-weight: 500; } .set .srow small { color: var(--ink-2); font-size: 12.5px; }
+  .inp { height: 30px; width: 120px; border-radius: var(--r-sm); box-shadow: 0 0 0 1px var(--line-1) inset; background: var(--bg-surface); display: inline-flex; align-items: center; padding: 0 10px; font-size: 12.5px; }
+
+  /* ---------- 设置弹窗跳转入口 ---------- */
+  .dlg { width: 100%; border-radius: var(--r-lg); background: var(--bg-page); box-shadow: 0 0 0 1px var(--line-1); display: grid; grid-template-columns: 120px minmax(0, 1fr); overflow: hidden; }
+  .snav { padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+  .snav .grp { font-size: 10.5px; color: var(--ink-3); padding: 8px 8px 2px; }
+  .snav .it { display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 8px; border-radius: 7px; color: var(--ink-2); }
+  .snav .it.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .scontent { padding: 14px 14px 16px 8px; display: flex; flex-direction: column; gap: 10px; }
+  .scontent h5 { font-size: 14px; font-weight: 600; }
+  .jump { background: var(--bg-surface); box-shadow: var(--shadow-card); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; }
+  .jump .st { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ---------- 状态板 ---------- */
+  .board { max-width: 1400px; min-width: 1240px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .bcard { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .bcard h4 { font-size: 13.5px; font-weight: 600; }
+  .bcard p.d { font-size: 12.5px; color: var(--ink-2); margin-top: -6px; }
+  .sm-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; font-size: 12.5px; }
+  .sm-row .lb { width: 92px; color: var(--ink-3); font-size: 12px; flex: none; }
+  .sm-row .rhs { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .modal { border-radius: var(--r-lg); background: var(--bg-page); box-shadow: 0 0 0 1px var(--line-1); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .modal h5 { font-size: 15px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
+  .modal p { font-size: 12.5px; color: var(--ink-2); }
+  .modal .ck { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; }
+  .modal .ck i { width: 15px; height: 15px; border-radius: 4px; box-shadow: 0 0 0 1.5px var(--ink-3) inset; flex: none; margin-top: 3px; }
+  .modal .ck i.on { background: var(--accent); box-shadow: none; }
+  .modal .ft { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 26px 12px; border-radius: 12px; box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .empty svg { font-size: 22px; color: var(--ink-3); }
+  .empty b { font-weight: 600; } .empty p { color: var(--ink-2); font-size: 12.5px; max-width: 36ch; }
+  .gaps { max-width: 1240px; }
+  .gaps table { width: 100%; }
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <h1>插件中心与已安装管理</h1>
+  <p>目标：把「设置 → 插件」里的草稿版换成完整体验——在软件里发现、安装、更新插件，并管理已装插件的启停、设置、版本恢复与卸载。mockup 只使用门户与运行时<b>今天就能拿到的字段</b>：manifest（名称 / 版本 / 简介 / minAppVersion）、README、CHANGELOG、发布时间、包大小与 SHA-256；不展示下载量、评分、截图等不存在的数据。图标暂用名称首字 + 按 ID 取色。</p>
+
+  <h3>已确认（2026-10-17）</h3>
+  <ul>
+    <li><b>采用方案 B · 独立插件页</b>：侧栏底部「插件」入口（徽标 = 可更新数）→ <code>plugins</code> 页（发现 / 已安装 / 更新），详情 push 为 <code>plugin-detail</code> 页；插件自己的设置并入详情页「设置」标签。</li>
+    <li><b>设置弹窗保留跳转入口</b>：「系统 → 插件」分节只剩一行概要和「打开插件页」，不再承载列表与插件设置。</li>
+    <li><b>从插件中心安装后自动启用</b>；本地 ZIP / 手动放入目录仍默认停用。</li>
+    <li><b>发现页不做「刚刚上架」大卡</b>，直接是全部插件网格。</li>
+    <li>方案 A（设置内一体）、C（分栏管理器）未采用，见 git 历史。</li>
+  </ul>
+  <h3>交互约定</h3>
+  <ul>
+    <li><b>安装与更新都是「下载 → 暂存 → 重启生效」</b>（沿用 C17 事务）。页面顶部出现重启条，按钮变为「重启后生效 · 取消」，不假装热安装。</li>
+    <li><b>从中心安装视为同意启用</b>：重启后自动启用，免去"装完还得再去开关"；手动放入目录 / ZIP 安装仍默认停用。</li>
+    <li><b>来源标签</b>：插件中心 / 本地 ZIP / 内置 / 开发中。只有「插件中心」来源检查在线更新。</li>
+    <li><b>如实的信任提示</b>：当前插件在完整宿主环境运行，详情页与安装确认里写清楚"可访问你的笔记数据"，不暗示存在沙箱。</li>
+    <li>不使用 Segmented；筛选与排序用按钮 + Menu；本地 ZIP / 打开目录 / 重新扫描收进 ⋯ 菜单，不占主操作位。</li>
+  </ul>
+</section>
+
+<div class="toolbar">
+  <span>画面</span>
+  <div class="pills" id="screenPills"></div>
+  <span style="margin-left:12px">主题</span>
+  <div class="pills" id="themePills"></div>
+</div>
+<p class="cap" id="caption"></p>
+<div id="stage"></div>
+
+<h2 class="sec">关键状态</h2>
+<p class="cap">安装按钮状态机、确认弹窗、异常与空态、设置弹窗跳转入口。文字即实现口径。</p>
+<div class="board" id="board"></div>
+
+<h2 class="sec">实现前需要补的能力</h2>
+<div class="intro gaps">
+  <table class="cmp">
+    <tr><th>缺口</th><th>为什么需要</th><th>建议</th></tr>
+    <tr><td>目录接口</td><td><code>GET /releases</code> 按发布时间分页、不做兼容选择，中心需要"每个插件一条"</td><td>新增 <code>GET /catalog?q=&appVersion=</code>：每个 pluginId 返回最新已发布版本与最高兼容版本，支持名称/简介搜索</td></tr>
+    <tr><td>作者与仓库公开字段</td><td>卡片和详情要显示 @作者、源码仓库，现 release DTO 没有</td><td>release 公开 DTO 增加 publisher login / avatar、repository、commit</td></tr>
+    <tr><td>从中心下载并暂存</td><td><code>stagePluginZip</code> 只接本地文件选择</td><td>主进程新增 <code>stagePluginFromRelease(releaseId)</code>：下载 → 核对 SHA-256 → 复用 PluginUpdates 暂存，并记录来源 = 中心</td></tr>
+    <tr><td>安装来源与启用意图</td><td>区分来源标签、只对中心来源查更新、中心安装后自动启用</td><td>安装记录增加 source 与 enableOnCommit</td></tr>
+    <tr><td>卸载</td><td>现在只有开发登记能"移除"，本地/中心插件没有卸载</td><td>宿主卸载命令：移除包与备份；私有数据默认保留，勾选才删除</td></tr>
+    <tr><td>贡献清单</td><td>详情页"此插件提供"</td><td>运行时已登记侧栏/页面/命令/设置，按 pluginId 汇总即可；未启用时显示"启用后可见"</td></tr>
+    <tr><td>图标（可后置）</td><td>字母图标可用但辨识度有限</td><td>manifest 可选 <code>icon</code>（包内 SVG/PNG），门户与客户端同源读取</td></tr>
+  </table>
+</div>
+
+<script>
+/* ------------------------------ 数据 ------------------------------ */
+const APP_VERSION = "0.58.0";
+const P = {
+  water: { id: "lastknight.water-checkin", name: "喝水打卡", author: "lastknight", ver: "1.2.0", latest: "1.3.0", src: "中心", state: "on", tone: 2,
+    desc: "在侧边栏记录每天喝了几杯水，点一下加一杯，跨天自动归零。", size: "18 KB", updated: "2 天前", min: "0.58.0",
+    contrib: [["panel-left", "侧边栏「喝水」"], ["file", "页面 1 个"], ["terminal", "命令 2 条"], ["sliders-horizontal", "设置 1 节"]] },
+  weread: { id: "weread", name: "微信读书", author: "lastknight", ver: "1.0.1", latest: "1.0.1", src: "中心", state: "on", tone: 1,
+    desc: "同步微信读书书架与划线，作为摘录来源出现在卡片和文章里。", size: "142 KB", updated: "1 天前", min: "0.58.0",
+    contrib: [["panel-left", "侧边栏「微信读书」"], ["quote", "摘录来源 1 个"], ["sliders-horizontal", "设置 2 节"]] },
+  theme: { id: "builtin.theme-switcher", name: "主题切换", author: "Tau", ver: "内置", src: "内置", state: "on", tone: 3,
+    desc: "从命令面板快速切换配色主题。", contrib: [["terminal", "命令 1 条"]] },
+  pomo: { id: "kk.focus-sound", name: "专注白噪音", author: "kk-dev", ver: "0.4.2", src: "本地 ZIP", state: "failed", tone: 4,
+    desc: "番茄专注时播放雨声、咖啡馆等环境音。", err: "启用失败：main.js 抛出 TypeError: Cannot read properties of undefined (reading 'play')", prev: "0.4.1" },
+  counter: { id: "dev.counter", name: "计数器", author: "本机", ver: "0.1.0", src: "开发中", state: "off", tone: 5, desc: "SDK 示例：页面 + 私有存储。" },
+  anki: { id: "mira.anki-import", name: "Anki 导入", author: "mira", latest: "2.1.0", tone: 2, desc: "导入 .apkg 牌组，保留字段、标签与复习进度，生成为闪卡。", updated: "5 天前", min: "0.58.0" },
+  daily: { id: "yuan.daily-quote", name: "每日一句", author: "yuan", latest: "1.0.3", tone: 3, desc: "在「今日」页顶部显示一句摘录，来源可选自己的卡片库。", updated: "1 周前", min: "0.58.0" },
+  gh: { id: "octo.github-stars", name: "GitHub 星标收集", author: "octo", latest: "0.9.0", tone: 1, desc: "把 GitHub 星标仓库同步为卡片，附 README 摘要与主题标签。", updated: "2 周前", min: "0.60.0" },
+  rw: { id: "lin.readwise-sync", name: "Readwise 同步", author: "lin", latest: "1.2.0", tone: 4, desc: "双向同步 Readwise 高亮，避免与微信读书摘录重复。", updated: "3 周前", min: "0.58.0" },
+};
+const INSTALLED = ["water", "weread", "theme", "pomo"];
+const CENTER = ["anki", "daily", "water", "gh", "rw", "weread"];
+
+const ic = (n) => `<i data-lucide="${n}"></i>`;
+const pic = (k, cls = "") => {
+  const p = P[k];
+  const inner = p.src === "内置" ? ic("palette") : p.name.slice(0, 1);
+  return `<span class="pic ${cls}" style="--c:var(--tag-${p.tone})">${inner}</span>`;
+};
+const srcChip = (p) => ({ "中心": `<span class="chip">${ic("store")}插件中心</span>`, "本地 ZIP": `<span class="chip">${ic("package")}本地 ZIP</span>`,
+  "内置": `<span class="chip">内置</span>`, "开发中": `<span class="chip warn">${ic("flask-conical")}开发中</span>` })[p.src] || "";
+const sw = (on, dis) => `<span class="sw ${on ? "on" : ""} ${dis ? "dis" : ""}"><i></i></span>`;
+const hasUpdate = (p) => p.latest && p.ver && p.latest !== p.ver && p.src === "中心";
+
+function centerAction(k) {
+  const p = P[k];
+  if (INSTALLED.includes(k)) return hasUpdate(p) ? `<button class="btn soft sm">${ic("arrow-up-circle")}更新到 ${p.latest}</button>` : `<span class="chip ok">${ic("check")}已安装</span>`;
+  if (p.min && p.min !== "0.58.0") return `<span class="chip" title="需要客户端 ${p.min}">需要 ${p.min}</span>`;
+  if (k === "anki") return `<span class="faint" style="font-size:12px">重启后生效</span><button class="btn ghost sm">取消</button>`;
+  return `<button class="btn sm">${ic("download")}安装</button>`;
+}
+
+/* ------------------------------ 共用片段 ------------------------------ */
+const restartBar = (inset = true) => `<div class="restart" ${inset ? "" : 'style="margin:0 0 18px"'}>${ic("rotate-cw")}
+  <span><b>2 项变更</b>将在重启后生效：安装「Anki 导入」2.1.0，更新「喝水打卡」到 1.3.0。</span>
+  <span class="sp"><button class="btn ghost sm" style="color:inherit">查看</button><button class="btn pri sm">立即重启</button></span></div>`;
+
+const moreMenu = (style) => `<div class="menu" style="${style}">
+  <div class="mi">${ic("package")}从 ZIP 安装…</div>
+  <div class="mi">${ic("folder-open")}打开插件目录<small>~/.editor/plugins</small></div>
+  <div class="mi">${ic("refresh-cw")}重新扫描</div>
+  <hr><div class="mi">${ic("book-open")}开发插件文档</div></div>`;
+
+function discoverBody() {
+  const cards = CENTER.map(k => {
+    const p = P[k];
+    return `<div class="pc"><div class="hd">${pic(k)}<div style="min-width:0"><b>${p.name}</b><small>@${p.author}</small></div></div>
+      <div class="ds">${p.desc}</div>
+      <div class="ft"><span>${p.latest}</span><span>·</span><span>${p.updated}</span><span class="act" style="display:flex;gap:4px;align-items:center">${centerAction(k)}</span></div></div>`;
+  }).join("");
+  return `
+    <div class="sh"><h3>全部插件</h3><span class="faint" style="font-size:12.5px">6 个</span><span class="r"><button class="btn ghost sm">最近更新 ${ic("chevron-down")}</button></span></div>
+    <div class="grid">${cards}</div>`;
+}
+
+function installedRow(k, opts = {}) {
+  const p = P[k];
+  let sub = `<small>${p.desc}</small>`, right = sw(p.state === "on");
+  if (p.state === "failed") { sub = `<small class="err">${p.err}</small>`; right = `<button class="btn sm">恢复 ${p.prev}</button>${sw(true)}`; }
+  if (hasUpdate(p)) right = `<span class="chip acc">${ic("rotate-cw")}${p.latest} 重启后生效</span>${sw(true)}`;
+  if (p.src === "开发中") right = `<button class="btn ghost sm">${ic("eye")}监听构建</button><button class="btn ghost sm">${ic("refresh-cw")}重载</button>${sw(false)}`;
+  return `<div class="row ${p.state === "off" ? "dim" : ""}">${pic(k, "sm")}
+    <div class="rt"><div class="nm"><b>${p.name}</b><span class="v">${p.ver}</span>${opts.noSrc ? "" : srcChip(p)}</div>${sub}</div>
+    <div class="rc">${right}<button class="btn ghost icon">${ic("more-horizontal")}</button></div></div>`;
+}
+
+function installedBody(dev = true) {
+  return `
+    <div class="group"><div class="gt"><h3>需要处理</h3><p>启用失败的插件不会影响其他插件</p></div>
+      <div class="list">${installedRow("pomo")}</div></div>
+    <div class="group"><div class="gt"><h3>已安装</h3><p>3 个 · 启用状态在所有工作区保持一致</p><span class="ga"><button class="btn ghost sm">检查更新</button></span></div>
+      <div class="list">${installedRow("water")}${installedRow("weread")}${installedRow("theme")}</div></div>
+    ${dev ? `<div class="group"><div class="gt"><h3>开发中</h3><p>仅开发构建显示；登记的构建目录，可监听自动重载</p><span class="ga"><button class="btn ghost sm">${ic("plus")}登记目录</button></span></div>
+      <div class="list">${installedRow("counter", { noSrc: true })}</div></div>` : ""}
+    <div class="foot-note">${ic("folder")}插件目录 <span class="mono">~/.editor/plugins</span><span class="link">打开</span><span class="faint">· 手动放入的插件默认停用</span></div>`;
+}
+
+const README = `
+  <h2>喝水打卡</h2>
+  <p>在侧边栏放一个水滴按钮，点一下记一杯。每天 0 点自动归零，历史按天保存在本插件的私有存储里，不写入你的笔记。</p>
+  <h3>使用</h3>
+  <ul><li>侧边栏「日常」分组里点击水滴，记一杯</li><li>右键水滴可撤销最近一次</li><li>命令面板：<code>喝水打卡：打开统计</code></li></ul>
+  <div class="img-blocked">${ic("image-off")}README 中的远程图片不加载（安全子集），点击在浏览器查看原文</div>
+  <h3>设置</h3>
+  <p>每日目标杯数（默认 8）；达标后水滴变为实心。</p>
+  <h3>数据</h3>
+  <p>升级与恢复上一版都会保留计数；卸载时可选择是否删除私有数据。</p>`;
+
+function detailBody(k = "water", tab = "readme") {
+  const p = P[k];
+  const tabs = [["readme", "介绍"], ["settings", "设置"], ["changelog", "更新日志"], ["versions", "版本"]]
+    .map(([key, l]) => `<button class="${tab === key ? "on" : ""}">${l}</button>`).join("");
+  let content = `<div class="md">${README}</div>`;
+  if (tab === "settings") content = `<div class="set">
+    <div class="srow"><div class="t"><b>每日目标</b><small>达标后侧边栏水滴变为实心</small></div><span class="inp">8 杯</span></div>
+    <div class="srow"><div class="t"><b>跨天归零时间</b><small>夜猫子可以推迟到凌晨</small></div><span class="inp">00:00</span></div>
+    <div class="srow"><div class="t"><b>提醒</b><small>超过 2 小时未记录时提醒一次</small></div>${sw(true)}</div>
+    <p class="faint" style="font-size:12px;margin-top:12px">设置由插件声明、宿主渲染；停用后保留已保存的值。</p></div>`;
+  if (tab === "versions") content = `<div class="vers" style="padding-top:8px">
+    <div class="vr"><b>1.3.0</b><span class="muted">2 天前 · 需要 ≥ 0.58.0 · 21 KB</span><span class="chip acc">${ic("rotate-cw")}重启后生效</span><button class="btn ghost sm">取消</button></div>
+    <div class="vr"><b>1.2.0</b><span class="muted">3 周前 · 当前使用</span><span class="chip ok">${ic("check")}已安装</span></div>
+    <div class="vr"><b>1.1.0</b><span class="muted">1 个月前</span><button class="btn ghost sm">安装此版本</button></div>
+    <p class="faint" style="font-size:12px;margin-top:12px">切换版本只替换插件代码，不回退已保存的数据。</p></div>`;
+  if (tab === "changelog") content = `<div class="md"><h3>1.3.0</h3><ul><li>新增每日目标与实心水滴</li><li>跨天归零时间可设置</li></ul><h3>1.2.0</h3><ul><li>侧边栏图标改为自定义水滴</li></ul></div>`;
+  return `<div class="dt">
+    <div style="min-width:0">
+      <div class="dh">${pic(k, "lg")}<div style="min-width:0"><h1>${p.name}</h1>
+        <div class="meta"><span>@${p.author}</span><span>·</span><span>${p.ver}</span>${srcChip(p)}<span class="chip ok">${ic("check")}已启用</span></div></div>
+        <div class="acts"><span class="chip acc" style="height:30px;padding:0 12px">${ic("rotate-cw")}1.3.0 重启后生效</span>${sw(true)}<button class="btn icon">${ic("more-horizontal")}</button></div></div>
+      <p class="dd">${p.desc}</p>
+      <div class="tabs">${tabs}</div>${content}
+    </div>
+    <aside class="aside">
+      <div><h4>信息</h4><dl class="kv">
+        <dt>插件 ID</dt><dd class="mono">${p.id}</dd><dt>当前版本</dt><dd>1.2.0 → 1.3.0</dd><dt>需要客户端</dt><dd>≥ ${p.min}（当前 ${APP_VERSION}）</dd>
+        <dt>大小</dt><dd>${p.size}</dd><dt>发布于</dt><dd>2026-10-15</dd><dt>源码</dt><dd><span class="link">${ic("github")}lastknight/tau-water-checkin</span></dd>
+        <dt>SHA-256</dt><dd class="mono">9f3a…c21e <span class="link">${ic("copy")}</span></dd></dl></div>
+      <div><h4>此插件提供</h4><div class="contrib">${p.contrib.map(([i, t]) => `<div>${ic(i)}${t}</div>`).join("")}</div></div>
+      <div class="trust">${ic("shield-alert")}<span>插件在完整应用环境中运行，可以读取和修改你的笔记数据。官方审核检查功能与来源，但不保证没有缺陷——只安装你信任的插件。</span></div>
+    </aside></div>`;
+}
+
+const appSide = (activeKey) => {
+  const it = (k, i, l, extra = "") => `<div class="it ${activeKey === k ? "on" : ""}">${ic(i)}${l}${extra}</div>`;
+  return `<aside class="side">
+    <div class="g">日常</div>${it("home", "flame", "今日")}${it("todos", "list-todo", "待办")}${it("diary", "pen-line", "日记")}<div class="it" style="padding-left:8px">${ic("droplet")}喝水</div>
+    <div class="g">知识</div>${it("cards", "layers", "卡片库")}${it("articles", "file-text", "文章")}${it("projects", "folder-kanban", "项目")}
+    <div class="g">AI</div>${it("chat", "message-circle", "AI 对话")}${it("mcp", "plug", "MCP 服务器")}
+    <div class="g">插件</div><div class="it">${ic("book-open")}微信读书</div>
+    <div class="foot">${it("plugins", "blocks", "插件", '<span class="bd">1</span>')}${it("settings", "sliders-horizontal", "设置")}</div></aside>`;
+};
+const titlebar = (back) => `<div class="titlebar"><div class="dots"><i></i><i></i><i></i></div>
+  <div class="nav"><span class="${back ? "on" : ""}">${ic("chevron-left")}</span><span>${ic("chevron-right")}</span></div></div>`;
+
+/* ------------------------------ 插件页 ------------------------------ */
+function pluginsPage(screen) {
+  if (screen === "detail") return `<div class="win">${titlebar(true)}<div class="app">${appSide("plugins")}<main class="main"><div class="paper">${detailBody("water", state.detailTab)}</div></main></div></div>`;
+  const tab = screen === "installed" ? "installed" : screen === "updates" ? "updates" : "discover";
+  const tabs = `<div class="tabs"><button class="${tab === "discover" ? "on" : ""}">发现</button><button class="${tab === "installed" ? "on" : ""}">已安装 <span class="n">5</span></button><button class="${tab === "updates" ? "on" : ""}">更新 <span class="n acc">1</span></button></div>`;
+  let body = tab === "discover" ? discoverBody() : installedBody();
+  if (tab === "updates") body = `<div class="group"><div class="gt"><h3>可更新</h3><p>只检查来自插件中心的插件 · 上次检查 10 分钟前</p><span class="ga"><button class="btn ghost sm">${ic("refresh-cw")}检查</button></span></div>
+      <div class="list"><div class="row">${pic("water", "sm")}<div class="rt"><div class="nm"><b>喝水打卡</b><span class="v">1.2.0 → 1.3.0</span></div><small>新增每日目标与实心水滴；跨天归零时间可设置</small></div>
+      <div class="rc"><span class="chip acc">${ic("rotate-cw")}重启后生效</span><button class="btn ghost sm">取消</button></div></div>
+      <div class="row">${pic("gh", "sm")}<div class="rt"><div class="nm"><b>GitHub 星标收集</b><span class="v">0.8.1 → 0.9.0</span></div><small>需要客户端 0.60.0，当前 0.58.0——先更新客户端</small></div>
+      <div class="rc"><span class="chip">${ic("lock")}需要 0.60.0</span></div></div></div></div>
+    <div class="foot-note">${ic("info")}更新与安装都在下次完整启动时切换，失败会保留旧版；本地 ZIP 安装的插件不在线检查。</div>`;
+  const menu = state.menu ? moreMenu("right:0;top:38px") : "";
+  return `<div class="win">${titlebar(false)}<div class="app">${appSide("plugins")}<main class="main"><div class="paper">
+    <div class="ph"><div class="ph-top"><div><h1>插件</h1><p class="sub">扩展页面、侧边栏、命令与摘录来源</p></div>
+      <div class="ph-acts"><div class="search">${ic("search")}搜索插件中心与已安装<kbd>⌘F</kbd></div><button class="btn icon" onclick="toggleMenu()">${ic("more-horizontal")}</button>${menu}</div></div>${tabs}</div>
+    ${restartBar()}
+    <div class="body">${body}</div></div></main></div></div>`;
+}
+
+/* ------------------------------ 状态板 ------------------------------ */
+function board() {
+  const smr = (lb, mid, rhs) => `<div class="sm-row"><span class="lb">${lb}</span>${mid}<span class="rhs">${rhs}</span></div>`;
+  return `
+  <div class="bcard"><h4>安装按钮状态机</h4><p class="d">同一按钮位，状态前后替换；任何失败都不动旧安装。</p>
+    ${smr("未安装", "", `<button class="btn sm">${ic("download")}安装</button>`)}
+    ${smr("下载校验中", '<span class="prog"><i style="width:62%"></i></span>', `<span class="faint" style="font-size:12px">62%</span><button class="btn ghost sm">取消</button>`)}
+    ${smr("已暂存", "", `<span class="chip acc">${ic("rotate-cw")}重启后生效</span><button class="btn ghost sm">取消</button>`)}
+    ${smr("已安装", "", `<span class="chip ok">${ic("check")}已安装</span>`)}
+    ${smr("有更新", "", `<button class="btn soft sm">${ic("arrow-up-circle")}更新到 1.3.0</button>`)}
+    ${smr("不兼容", "", `<span class="chip">${ic("lock")}需要客户端 0.60.0</span>`)}
+    ${smr("校验失败", '<span style="color:var(--danger);font-size:12px">摘要不匹配，已丢弃</span>', `<button class="btn sm">重试</button>`)}
+  </div>
+
+  <div class="bcard"><h4>安装确认</h4><p class="d">首次安装弹一次；说明信任边界与生效方式。</p>
+    <div class="modal"><h5>${pic("anki", "sm")}安装「Anki 导入」2.1.0？</h5>
+      <p>由 <b style="color:var(--ink-1)">@mira</b> 发布，已通过插件中心审核。插件在完整应用环境运行，可以读取和修改你的笔记数据。</p>
+      <p>下载后将在下次重启时安装并自动启用。</p>
+      <div class="ft"><button class="btn ghost">取消</button><button class="btn">安装，稍后重启</button><button class="btn pri">安装并重启</button></div></div>
+  </div>
+
+  <div class="bcard"><h4>卸载确认</h4><p class="d">默认保留数据，删除是单独的显式选择。</p>
+    <div class="modal"><h5>${pic("water", "sm")}卸载「喝水打卡」？</h5>
+      <p>将停用插件并移除代码与旧版本备份，侧边栏入口随之消失。已写入笔记的内容不受影响。</p>
+      <div class="ck"><i></i><span>同时删除插件的私有数据（计数历史、设置）<br><span class="faint" style="font-size:12px">不勾选时，重新安装可恢复</span></span></div>
+      <div class="ft"><button class="btn ghost">取消</button><button class="btn" style="color:var(--danger)">卸载</button></div></div>
+  </div>
+
+  <div class="bcard"><h4>启用失败</h4><p class="d">只隔离这一个插件；给出能做的事，而不是只有错误码。</p>
+    <div class="list">${installedRow("pomo")}</div>
+    <div class="menu" style="position:static;box-shadow:0 0 0 1px var(--line-1)">
+      <div class="mi">${ic("history")}恢复上一版 0.4.1<small>重启后生效</small></div><div class="mi">${ic("rotate-ccw")}重试启用</div>
+      <div class="mi">${ic("clipboard")}复制错误详情</div><hr><div class="mi danger">${ic("trash-2")}卸载…</div></div>
+  </div>
+
+  <div class="bcard"><h4>中心不可用 / 搜索无结果</h4><p class="d">离线不影响已安装插件；空态给下一步。</p>
+    <div class="empty">${ic("cloud-off")}<b>暂时连不上插件中心</b><p>已安装的插件照常运行。你也可以从 ZIP 安装本地插件。</p><div style="display:flex;gap:6px"><button class="btn sm">重试</button><button class="btn ghost sm">从 ZIP 安装…</button></div></div>
+    <div class="empty">${ic("search-x")}<b>没有找到「日历同步」</b><p>插件中心目前收录 6 个插件。想要的功能可以自己做一个。</p><span class="link" style="font-size:12.5px">${ic("book-open")}查看作者文档</span></div>
+  </div>
+
+  <div class="bcard"><h4>已安装行的 ⋯ 菜单</h4><p class="d">按来源裁剪：内置无卸载，开发中显示监听 / 重载 / 移除登记。</p>
+    <div class="menu" style="position:static;box-shadow:0 0 0 1px var(--line-1)">
+      <div class="mi">${ic("info")}查看详情</div><div class="mi">${ic("sliders-horizontal")}插件设置</div><div class="mi">${ic("history")}恢复上一版 1.1.0</div>
+      <div class="mi">${ic("folder-open")}在访达中显示</div><div class="mi">${ic("github")}源码仓库</div><hr><div class="mi danger">${ic("trash-2")}卸载…</div></div>
+    <div class="foot-note" style="padding:0">${ic("info")}「需要重启」状态时禁用启停，提示"请重启后再启用，数据保留"。</div>
+  </div>
+
+  <div class="bcard"><h4>设置弹窗 → 插件（跳转入口）</h4><p class="d">只保留概要与跳转，点击关闭设置弹窗并 push 插件页；有待处理项时同步显示。</p>
+    <div class="dlg"><nav class="snav"><div class="grp">系统</div><div class="it on">${ic("blocks")}插件</div><div class="it">${ic("info")}关于与更新</div></nav>
+      <div class="scontent"><h5>插件</h5>
+        <div class="jump"><span class="muted">已安装 5 个，其中 4 个启用。安装、更新和每个插件的设置都在插件页。</span>
+          <div class="st"><span class="chip acc">${ic("arrow-up-circle")}1 个可更新</span><span class="chip danger">${ic("alert-circle")}1 个启用失败</span></div>
+          <div><button class="btn pri sm">打开插件页 ${ic("arrow-right")}</button></div></div></div></div>
+  </div>`;
+}
+
+/* ------------------------------ 渲染 ------------------------------ */
+const SCREENS = { discover: "发现", installed: "已安装", updates: "更新", detail: "详情" };
+const CAPTIONS = {
+  discover: "<b>发现</b>：全部插件网格，排序用按钮 + Menu；卡片右下角即安装按钮状态机。侧栏底部「插件」徽标 = 可更新数。作者文档与发布门户收在 ⋯ 菜单。",
+    installed: "<b>已安装</b>：需要处理（失败 / 需重启）置顶，其次已安装，开发构建额外显示「开发中」。行内只放开关与 ⋯，点击整行进入详情。",
+    updates: "<b>更新</b>：只列插件中心来源；不兼容的新版本说明原因（先升级客户端），不提供按钮。",
+    detail: "<b>详情页</b>（push 进页面栈，Alt+← 返回）：README / 设置 / 更新日志 / 版本 四个标签；插件设置从设置弹窗搬到这里。右栏是可核对的信息、贡献清单和信任提示。",
+};
+const state = { screen: "discover", theme: "light", detailTab: "readme", menu: false };
+
+function pills(id, items, key) {
+  document.getElementById(id).innerHTML = Object.entries(items)
+    .map(([k, l]) => `<button class="${state[key] === k ? "on" : ""}" data-k="${k}">${l}</button>`).join("");
+  document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => { state[key] = b.dataset.k; state.menu = false; render(); });
+}
+function toggleMenu() { state.menu = !state.menu; render(); }
+function render() {
+  document.documentElement.dataset.theme = state.theme === "dark" ? "dark" : "";
+  pills("screenPills", SCREENS, "screen");
+  pills("themePills", { light: "奶油", dark: "可可" }, "theme");
+  document.getElementById("caption").innerHTML = CAPTIONS[state.screen];
+  document.getElementById("stage").innerHTML = pluginsPage(state.screen);
+  document.getElementById("board").innerHTML = board();
+  document.querySelectorAll("#stage .dt .tabs button").forEach((b, i) => b.onclick = () => {
+    state.detailTab = ["readme", "settings", "changelog", "versions"][i]; state.screen = "detail"; render(); });
+  document.querySelectorAll("#stage .pc, #stage .row").forEach(el => el.addEventListener("click", e => {
+    if (e.target.closest("button, .sw")) return; state.screen = "detail"; state.detailTab = "readme"; render(); }));
+  lucide.createIcons();
+}
+render();
+</script>
+</body>
+</html>
