@@ -84,6 +84,7 @@ export default definePlugin({
 | `sidebar`     | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口           |
 | `fetch`       | `typeof fetch`                         | 发起与插件生命周期关联的网络请求       |
 | `services`    | `PluginServices`                       | 编译与转换服务，见 SERVICES.md         |
+| `ai`          | `PluginAI`                             | 使用用户分配的模型，见 AI.md           |
 | `excerpts`    | `PluginExcerpts`                       | 把外部划线、标注写为 Tau 摘录          |
 | `materials`   | `PluginMaterials`                      | 获取「转为卡片」等材料动作             |
 | `register`    | `(resource: Disposable) => Disposable` | 托管需要清理的资源                     |

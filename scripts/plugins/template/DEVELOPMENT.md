@@ -37,6 +37,7 @@ pnpm install:local
 | `src/CounterIcon.tsx`             | 侧边栏 SVG 图标示例，使用 currentColor 跟随主题      |
 | `API.md`                          | 命令、页面、侧边栏、设置、存储、网络等接口           |
 | `EDITOR.md`                       | 在文档中添加自定义块、源码预览块和插件 Skill         |
+| `AI.md`                           | AI 功能声明、用户模型分配、流式对话和统一用量审计    |
 | `SERVICES.md`                     | Tailwind、Typst、Markdown、TikZ、FFmpeg 编译转换服务 |
 | `AGENTS.md`                       | 给 AI 编程助手的项目指引                             |
 | `build.mjs` / `install-local.mjs` | 打包与本地安装脚本，日常开发通常不需要修改           |
