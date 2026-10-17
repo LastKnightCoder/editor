@@ -24,6 +24,7 @@ vi.mock("@/commands/plugin-local", () => ({
   scanLocalPlugins: mock.scan,
   fetchPluginCatalog: mock.catalog,
   fetchPluginRelease: mock.release,
+  fetchPluginVersions: vi.fn(async () => []),
   stagePluginRelease: mock.stage,
   uninstallLocalPlugin: mock.uninstall,
   relaunchForPlugins: mock.relaunch,

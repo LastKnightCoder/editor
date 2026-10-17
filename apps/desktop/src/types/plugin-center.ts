@@ -29,6 +29,15 @@ export interface PluginCatalog {
   items: PluginCatalogEntry[];
 }
 
+/** 插件在中心的一个已发布版本；compatible 按当前客户端版本由主进程判定。 */
+export interface PluginVersionRecord {
+  releaseId: string;
+  version: string;
+  minAppVersion: string;
+  publishedAt: string | null;
+  compatible: boolean;
+}
+
 export interface PluginRelease {
   id: string;
   pluginId: string;

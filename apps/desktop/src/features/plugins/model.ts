@@ -2,7 +2,7 @@ import type { PluginInfo } from "@tau/plugins/host";
 import { comparePluginVersions } from "@tau/plugins/host";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
-import type { PluginCatalogEntry } from "@/types/plugin-center";
+import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
 export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
@@ -108,6 +108,61 @@ export function installState(
   if (target && comparePluginVersions(target.version, installed.info.version) > 0)
     return { kind: "update", releaseId: target.releaseId, version: target.version };
   return { kind: "installed" };
+}
+
+export interface VersionRowModel {
+  version: string;
+  notes: string[];
+  action?: "cancel-update" | "restore-previous";
+}
+
+/**
+ * 版本页的行：中心全部已发布版本与本机状态（当前、待生效、上一版备份）按版本号合并，新版在前。
+ * 中心版本未读到时退回目录里的最新版。
+ */
+export function versionRows(
+  installed: InstalledPlugin | undefined,
+  versions: readonly PluginVersionRecord[] | undefined,
+  entry: PluginCatalogEntry | undefined
+): VersionRowModel[] {
+  const rows = new Map<string, VersionRowModel>();
+  const row = (version: string) => {
+    let value = rows.get(version);
+    if (!value) rows.set(version, (value = { version, notes: [] }));
+    return value;
+  };
+  const update = installed?.update;
+  if (update?.pendingVersion)
+    Object.assign(row(update.pendingVersion), { action: "cancel-update" }).notes.push(
+      "已下载，重启后生效"
+    );
+  if (installed) row(installed.info.version).notes.push("当前使用");
+  if (update?.previousVersion)
+    Object.assign(row(update.previousVersion), { action: "restore-previous" }).notes.push(
+      "上一版备份"
+    );
+
+  const published: readonly PluginVersionRecord[] =
+    versions ??
+    (entry
+      ? [
+          {
+            ...entry.latest,
+            compatible: entry.compatible?.releaseId === entry.latest.releaseId,
+          },
+        ]
+      : []);
+  const latest = published.reduce<string | undefined>(
+    (max, item) => (!max || comparePluginVersions(item.version, max) > 0 ? item.version : max),
+    undefined
+  );
+  for (const item of published) {
+    const value = row(item.version);
+    if (item.version === latest) value.notes.push("最新");
+    if (!item.compatible) value.notes.push(`需要客户端 ≥ ${item.minAppVersion}`);
+    if (item.publishedAt) value.notes.push(`${item.publishedAt.slice(0, 10)} 发布`);
+  }
+  return [...rows.values()].sort((a, b) => comparePluginVersions(b.version, a.version));
 }
 
 /** 没有图标字段前用名称首字，配色按 ID 稳定散列到数据色。 */

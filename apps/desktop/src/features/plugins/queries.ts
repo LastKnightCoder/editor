@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchPluginCatalog,
   fetchPluginRelease,
+  fetchPluginVersions,
   stagePluginRelease,
 } from "@/commands/plugin-local";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -28,6 +29,17 @@ export function usePluginRelease(releaseId: string | undefined) {
     queryFn: () => fetchPluginRelease(releaseId ?? ""),
     enabled: Boolean(releaseId),
     staleTime: Infinity,
+    retry: false,
+  });
+}
+
+/** 中心已发布版本；随详情页打开读取，不随窗口聚焦刷新。 */
+export function usePluginVersions(pluginId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["plugins", "versions", pluginId],
+    queryFn: () => fetchPluginVersions(pluginId),
+    enabled,
+    staleTime: 5 * 60_000,
     retry: false,
   });
 }

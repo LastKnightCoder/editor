@@ -16,9 +16,11 @@ import {
   installState,
   installedPlugins,
   pendingCount,
+  versionRows,
   type InstalledPlugin,
+  type VersionRowModel,
 } from "../model";
-import { usePluginCatalog, usePluginRelease } from "../queries";
+import { usePluginCatalog, usePluginRelease, usePluginVersions } from "../queries";
 import { usePluginControl } from "../usePluginControl";
 import { PluginIcon } from "../components/PluginIcon";
 import { PluginMarkdown } from "../components/PluginMarkdown";
@@ -115,7 +117,9 @@ export function PluginDetailView() {
   tabs.push({
     key: "versions",
     label: "版本",
-    children: <VersionsTab runtime={runtime} plugin={installed} entry={entry} />,
+    children: (
+      <VersionsTab runtime={runtime} pluginId={params.pluginId} plugin={installed} entry={entry} />
+    ),
   });
   const tab = tabs.find(item => item.key === params.tab)?.key ?? "readme";
 
@@ -313,62 +317,68 @@ function SettingsTab({
 
 function VersionsTab({
   runtime,
+  pluginId,
   plugin,
   entry,
 }: {
   runtime: DesktopPluginRuntime;
+  pluginId: string;
   plugin?: InstalledPlugin;
   entry?: PluginCatalogEntry;
 }) {
+  const versions = usePluginVersions(pluginId, Boolean(entry));
+  const rows = versionRows(plugin, versions.data, entry);
   return (
     <div className="max-w-[640px]">
-      {plugin && <InstalledVersions runtime={runtime} plugin={plugin} />}
-      {entry && entry.latest.version !== plugin?.info.version && (
-        <VersionRow
-          version={entry.latest.version}
-          note={`插件中心最新 · 需要客户端 ≥ ${entry.latest.minAppVersion}`}
-        />
+      {rows.map(row => (
+        <VersionRow key={row.version} version={row.version} note={row.notes.join(" · ")}>
+          {row.action && plugin && (
+            <VersionAction runtime={runtime} plugin={plugin} action={row.action} />
+          )}
+        </VersionRow>
+      ))}
+      {entry && versions.isPending && (
+        <p className="text-tau-sm text-ink-3 mt-3">正在读取历史版本…</p>
+      )}
+      {versions.error && (
+        <p className="text-tau-sm text-ink-3 mt-3">暂时读取不到历史版本，仅显示最新版。</p>
       )}
       <p className="text-tau-sm text-ink-3 mt-3">切换版本只替换插件代码，不回退已保存的数据。</p>
     </div>
   );
 }
 
-function InstalledVersions({
+function VersionAction({
   runtime,
   plugin,
+  action,
 }: {
   runtime: DesktopPluginRuntime;
   plugin: InstalledPlugin;
+  action: NonNullable<VersionRowModel["action"]>;
 }) {
   const control = usePluginControl(runtime, plugin);
   const update = plugin.update;
   return (
     <>
-      {update?.pendingVersion && (
-        <VersionRow version={update.pendingVersion} note="已下载，重启后生效">
-          <Button variant="ghost" size="sm" onClick={() => void control.cancelUpdate()}>
-            取消
-          </Button>
-        </VersionRow>
-      )}
-      <VersionRow version={plugin.info.version} note="当前使用" />
-      {update?.previousVersion && (
-        <VersionRow version={update.previousVersion} note="上一版备份">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={update.pending || update.blocked}
-            onClick={() => void control.restorePrevious()}
-          >
-            恢复此版本
-          </Button>
-        </VersionRow>
-      )}
       {control.error && (
-        <p role="alert" className="text-tau-meta text-danger mt-2">
+        <span role="alert" className="text-tau-meta text-danger">
           {control.error}
-        </p>
+        </span>
+      )}
+      {action === "cancel-update" ? (
+        <Button variant="ghost" size="sm" onClick={() => void control.cancelUpdate()}>
+          取消
+        </Button>
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={update?.pending || update?.blocked}
+          onClick={() => void control.restorePrevious()}
+        >
+          恢复此版本
+        </Button>
       )}
     </>
   );
