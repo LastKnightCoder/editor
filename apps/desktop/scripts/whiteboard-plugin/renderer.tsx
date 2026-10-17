@@ -11,8 +11,28 @@ import { DesktopPageSchematic } from "../../src/features/shared/whiteboard/Deskt
 import { initializeContentPlugins } from "../../src/app/plugins/content-plugin-bootstrap";
 import { invoke } from "../../src/electron";
 import useDynamicExtensionsStore from "../../src/stores/useDynamicExtensionsStore";
+import { DesktopPluginRuntime } from "../../src/app/plugins/runtime";
+import { PluginRuntimeContext } from "../../src/app/plugins/context";
+import { createBrowserStorage } from "@tau/plugins/host";
+import { desktopContentPlugins } from "../../shared/content-plugins";
+import { captureBlobWithSnapdom } from "../../src/utils/snapdom-export";
 
 let api: WhiteboardAPI;
+declare global {
+  interface Window {
+    whiteboardAcceptance: {
+      createCaptureExtension(
+        capture: (element: Element, options: Record<string, unknown>) => Promise<Blob>
+      ): import("@tau/whiteboard").WhiteboardExtension;
+      checkStickmanParity(
+        api: WhiteboardAPI,
+        definition: import("@tau/plugins/whiteboard").WhiteboardElementDefinition
+      ): { renderCases: number; schematicCases: number };
+    };
+    captureWhiteboard(): Promise<{ size: number; type: string } | null>;
+    checkWhiteboardConnections(): boolean;
+  }
+}
 const capture = defineWhiteboardExtension({
   id: "verification.capture",
   create(value) {
@@ -20,12 +40,24 @@ const capture = defineWhiteboardExtension({
     return {};
   },
 });
-const extensions = [capture];
+const extensions = [
+  capture,
+  window.whiteboardAcceptance.createCaptureExtension(captureBlobWithSnapdom),
+];
 
 async function start() {
   // 未引用正文业务，本夹具只关闭无关编辑器扩展；白板适配器和插件装配保持正式实现。
   useDynamicExtensionsStore.setState({ initialized: true, extensions: [] });
   await initializeContentPlugins();
+  const id = await invoke<string>("verification:id");
+  const stickman = id === "taunote.stickman";
+  const runtime = new DesktopPluginRuntime({
+    workspaceId: "verification",
+    storage: createBrowserStorage(localStorage),
+    navigator: { push: () => undefined },
+    plugins: desktopContentPlugins.list(),
+  });
+  for (const plugin of desktopContentPlugins.list()) await runtime.host.enable(plugin.id);
   const initial = await invoke<BoardElement[]>("verification:load");
   const preview = document.createElement("div");
   preview.id = "standalone-schematic";
@@ -35,12 +67,15 @@ async function start() {
       elements={[
         {
           id: "preview",
-          type: "example.whiteboard-probe.box",
+          type: stickman ? "taunote.stickman.figure" : "example.whiteboard-probe.box",
+          schemaVersion: 1,
           x: 0,
           y: 0,
           width: 180,
           height: 90,
-          data: { label: "预览" },
+          data: stickman
+            ? { pose: "stand", body: "classic", tint: "color", flip: false }
+            : { label: "预览" },
         },
       ]}
       aspect={2}
@@ -51,6 +86,16 @@ async function start() {
     Object.assign(window, {
       whiteboardTest: {
         ready: () => Boolean(api),
+        style: () => runtime.host.getStorage(id).get("style"),
+        parity: () =>
+          window.whiteboardAcceptance.checkStickmanParity(
+            api,
+            desktopContentPlugins.whiteboardElements.find(
+              item => item.type === "taunote.stickman.figure"
+            )!
+          ),
+        capture: () => window.captureWhiteboard(),
+        connections: () => window.checkWhiteboardConnections(),
         snapshot: () => api.getSnapshot(),
         select: (id: string) => api.select([id]),
         tool: (id: string) => api.setActiveTool(id),
@@ -83,7 +128,9 @@ async function start() {
     <UiProvider>
       <QueryClientProvider client={new QueryClient()}>
         <DndProvider backend={HTML5Backend}>
-          <Canvas />
+          <PluginRuntimeContext value={runtime}>
+            <Canvas />
+          </PluginRuntimeContext>
         </DndProvider>
       </QueryClientProvider>
     </UiProvider>

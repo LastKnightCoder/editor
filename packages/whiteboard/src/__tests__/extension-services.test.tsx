@@ -46,6 +46,28 @@ afterEach(() => {
 });
 
 describe("白板扩展的宿主服务访问", () => {
+  it("宿主可为每个扩展绑定同名服务的独立实例", () => {
+    const token = createServiceId<{ owner: string }>("test.scoped");
+    const seen: string[] = [];
+    const board = createBoard();
+    board.installExtensions(
+      ["demo.first", "demo.second"].map(id =>
+        defineWhiteboardExtension({
+          id,
+          requires: [token],
+          create: api => {
+            seen.push(api.getService(token).owner);
+            return {};
+          },
+        })
+      ),
+      undefined,
+      undefined,
+      id => createServiceRegistry(register => register(token, { owner: id }))
+    );
+    expect(board.extensions?.getRejectedExtensions()).toEqual([]);
+    expect(seen).toEqual(["demo.first", "demo.second"]);
+  });
   it("宿主注册的服务经 requires 声明后，create 中 getService 拿到同一实例", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const resource: ResourceService = { upload: async () => "whiteboard://file" };

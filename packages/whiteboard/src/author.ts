@@ -8,13 +8,16 @@ export type {
   TypedBoardElement,
   ElementCreateSpec,
   WhiteboardSnapshot,
+  WhiteboardToolProps,
 } from "./extensions/api";
 export type { BoardElement } from "./types/element";
 export { useWhiteboardAPI } from "./extensions/context";
-export { useSketch } from "./extensions/authorHooks";
+export { useSketch, usePageSketch } from "./extensions/authorHooks";
+export { AttrPopover, AttrToggle, OptionGrid, Seg } from "./chrome";
+export { default as SketchPopover } from "./components/SketchPopover";
 export * as sketch from "./authorSketch";
 export { default as SketchPaths } from "./components/SketchPaths";
 export type { SketchPath } from "./utils/sketch/types";
 export type { Vec } from "./utils/sketch/geometry";
 export type { SchematicShape, SchematicFill } from "./types/schematic";
-export type { ResolvedSketch, ElementSketch, PageSketch } from "./types/sketch";
+export type { ResolvedSketch, ElementSketch, PageSketch, SketchLevel } from "./types/sketch";

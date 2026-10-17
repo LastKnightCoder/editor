@@ -19,6 +19,7 @@ import {
 import { useBoard } from "../../../hooks/useBoard";
 import { ChromeButton, ToolbarContext } from "../../../chrome";
 import type { BoardElement } from "../../../types";
+import { useWhiteboardAPI } from "../../../extensions/context";
 
 const viewport = { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 };
 const roots: Root[] = [];
@@ -114,6 +115,83 @@ afterEach(async () => {
 });
 
 describe("「扩展工具」入口", () => {
+  it("参数面板先选择再执行，返回和关闭不激活工具，重新打开从列表开始", async () => {
+    let delayedRun: ((payload?: unknown) => void) | undefined;
+    const panelExtension = defineWhiteboardExtension({
+      ...acmeExtension,
+      create: api => ({
+        tools: acmeExtension.create(api).tools!.map(tool => ({
+          ...tool,
+          panel: function TestPanel({ run }) {
+            delayedRun = run;
+            const scoped = useWhiteboardAPI();
+            return (
+              <button
+                onClick={() => run({ pose: "wave", sameBoard: scoped.children.length === 0 })}
+              >
+                选择挥手
+              </button>
+            );
+          },
+        })),
+      }),
+    });
+    const { board, host } = await mountBoard([createInteractionExtension(), panelExtension]);
+    const click = async (button: HTMLButtonElement) =>
+      act(async () => {
+        button.click();
+      });
+    const entry = host.querySelector<HTMLButtonElement>('button[aria-label="扩展工具"]')!;
+    const pickTool = () =>
+      [...extToolsCard().querySelectorAll("button")].find(b => b.textContent?.includes("便签"))!;
+    const back = () =>
+      document.querySelector<HTMLButtonElement>('button[aria-label="返回扩展工具"]')!;
+    await click(entry);
+    await click(pickTool());
+    const closedRun = delayedRun!;
+    expect(board.activeTool).toBe("tau.select");
+    await click(back());
+    await act(async () => closedRun({ pose: "stale" }));
+    expect(board.activeTool).toBe("tau.select");
+    await click(pickTool());
+    await click(entry);
+    await click(entry);
+    expect(back()).toBeNull();
+    await click(pickTool());
+    await click([...document.querySelectorAll("button")].find(b => b.textContent === "选择挥手")!);
+    expect(board.activeTool).toBe("acme.sticky.create");
+    expect(board.activeToolOptions).toEqual({ pose: "wave", sameBoard: true });
+    expect(back()).toBeNull();
+  });
+  it("面板抛错后保留返回入口，不执行工具", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const broken = defineWhiteboardExtension({
+      ...acmeExtension,
+      create: api => ({
+        tools: acmeExtension.create(api).tools!.map(tool => ({
+          ...tool,
+          panel: () => {
+            throw new Error("面板错误");
+          },
+        })),
+      }),
+    });
+    const { board, host } = await mountBoard([createInteractionExtension(), broken]);
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="扩展工具"]')!.click()
+    );
+    await act(async () =>
+      [...extToolsCard().querySelectorAll("button")]
+        .find(b => b.textContent?.includes("便签"))!
+        .click()
+    );
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("工具面板加载失败");
+    expect(board.activeTool).toBe("tau.select");
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>('button[aria-label="返回扩展工具"]')!.click()
+    );
+    expect(extToolsCard()).toBeTruthy();
+  });
   it("第三方工具不直接出现在工具栏上，弹层中显示 label 与「来自 {name}」", async () => {
     const { board, host } = await mountBoard([
       createInteractionExtension(),

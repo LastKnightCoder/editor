@@ -203,7 +203,8 @@ export class ExtensionRuntime {
     board: Board,
     extensions: readonly WhiteboardExtension[],
     onExtensionError?: (error: WhiteboardExtensionError) => void,
-    services: ServiceRegistry = createServiceRegistry()
+    services: ServiceRegistry = createServiceRegistry(),
+    extensionServices?: (id: string, api: WhiteboardAPI) => ServiceRegistry
   ) {
     if (!Array.isArray(extensions)) throw new TypeError("白板扩展集合必须是数组");
     this.board = board;
@@ -456,7 +457,8 @@ export class ExtensionRuntime {
         report(declarationFailure);
         continue;
       }
-      const missingService = requiredServices.find(service => !services.has(service));
+      const scopedServices = extensionServices?.(id, this.api) ?? services;
+      const missingService = requiredServices.find(service => !scopedServices.has(service));
       if (missingService) {
         report({
           extensionId: id,
@@ -467,7 +469,7 @@ export class ExtensionRuntime {
         continue;
       }
       const scope = createExtensionScope(this.api, id, {
-        registry: services,
+        registry: scopedServices,
         requires: requiredServices,
         optional: optionalServices,
       });
@@ -632,6 +634,11 @@ export class ExtensionRuntime {
           if ((typeof icon !== "function" && typeof icon !== "object") || icon === null)
             return invalidDefinition(`扩展 ${id} 的工具 ${tool?.id} 缺少 icon（工具菜单项需要它）`);
           const hasCommand = tool?.command !== undefined;
+          if (
+            tool.panel !== undefined &&
+            (tool.panel === null || !["function", "object"].includes(typeof tool.panel))
+          )
+            return invalidDefinition(`扩展 ${id} 的工具 ${tool.id} 的 panel 必须是组件`);
           const elementType = tool?.element;
           const hasElement = elementType !== undefined;
           if (hasCommand === hasElement)
@@ -1221,6 +1228,22 @@ export class ExtensionRuntime {
   }
   get layers() {
     return this.entries.flatMap(entry => entry.value.layers ?? []);
+  }
+  renderToolPanel(toolId: string, run: (payload?: unknown) => void) {
+    const entry = this.entries.find(({ value }) => value.tools?.some(tool => tool.id === toolId));
+    const Panel = entry?.value.tools?.find(tool => tool.id === toolId)?.panel;
+    if (!entry || !Panel) return null;
+    return (
+      <ErrorBoundary
+        key={toolId}
+        fallback={<p role="alert">工具面板加载失败，请返回重试。</p>}
+        onError={error => console.error(`白板扩展 ${entry.id} 的工具面板失败`, error)}
+      >
+        <APIContext value={entry.api}>
+          <Panel run={run} />
+        </APIContext>
+      </ErrorBoundary>
+    );
   }
   renderLayers(position: "canvas" | "outside") {
     return this.entries.flatMap(({ id: owner, api, value }) =>
