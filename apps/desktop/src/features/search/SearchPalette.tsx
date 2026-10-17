@@ -505,7 +505,7 @@ export function SearchPalette() {
     key: c.id,
     icon: c.icon,
     title: c.label,
-    sub: c.section,
+    sub: c.sub ?? c.section,
     // 分组标签走 bg-hover 淡墨（随父底色，不带色相），sunken 专供进度轨道/凹陷画布
     tag: { label: c.section, cls: "bg-hover text-ink-2" },
     run: () => runCommand(c),

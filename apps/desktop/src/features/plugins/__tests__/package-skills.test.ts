@@ -52,7 +52,11 @@ it.each([false, true])(
       expect(useSkillStore.getState().getSkillByFolderName(id)).toBeUndefined();
       await host.enable(artifact.manifest.id);
       const skill = useSkillStore.getState().getSkillByFolderName(id);
-      expect(skill).toMatchObject({ source: "plugin", readmeContent: "# 包内技能正文" });
+      expect(skill).toMatchObject({
+        source: "plugin",
+        pluginName: "包技能",
+        readmeContent: "# 包内技能正文",
+      });
       expect(toSkillItems([skill!], {}, {})[0]).toMatchObject({
         source: "plugin",
         enabled: true,

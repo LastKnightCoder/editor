@@ -91,7 +91,14 @@ export type PluginState =
 export interface CommandInfo {
   id: string;
   pluginId: string;
+  pluginName: string;
   title: string;
+}
+
+/** 贡献的归属插件，供宿主展示来源。 */
+export interface PluginOwner {
+  id: string;
+  name: string;
 }
 
 export interface PluginInfo {
@@ -144,7 +151,7 @@ export class PluginHost {
       storage: StorageAdapter;
       pages?: PagesAdapter;
       editor?: EditorAdapter;
-      skills?: { register(pluginId: string, skill: PluginSkill): Disposable };
+      skills?: { register(plugin: PluginOwner, skill: PluginSkill): Disposable };
       settings?: SettingsAdapter;
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
@@ -257,7 +264,10 @@ export class PluginHost {
               )
                 throw new Error("插件 Skill 声明重复或不完整");
               ids.add(skill.id);
-              const resource = this.options.skills?.register(entry.metadata.id, skill);
+              const resource = this.options.skills?.register(
+                { id: entry.metadata.id, name: entry.metadata.name },
+                skill
+              );
               if (resource) activation.resources.push(resource);
             }
             return activation.instance.activate(this.context(entry, activation));
@@ -465,7 +475,12 @@ export class PluginHost {
           const id = `${scope.pluginId}:${command.id}`;
           if (this.commands.has(id)) throw new Error(`命令已注册：${id}`);
           const value = {
-            info: { id, pluginId: scope.pluginId, title: command.title },
+            info: {
+              id,
+              pluginId: scope.pluginId,
+              pluginName: entry.metadata.name,
+              title: command.title,
+            },
             entry,
             activation,
             run: command.run,

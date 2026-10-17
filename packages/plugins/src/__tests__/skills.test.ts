@@ -8,8 +8,9 @@ it("插件 Skill 随启停、激活失败回收，重复启用不重复注册", 
     workspaceId: "test",
     storage: createMemoryStorage(),
     skills: {
-      register(pluginId, skill) {
-        const id = `${pluginId}:${skill.id}`;
+      register(plugin, skill) {
+        expect(plugin.name).toBe("测试");
+        const id = `${plugin.id}:${skill.id}`;
         expect(active.has(id)).toBe(false);
         active.add(id);
         return {

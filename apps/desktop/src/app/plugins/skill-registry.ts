@@ -1,4 +1,5 @@
 import type { PluginSkill } from "@tau/plugins";
+import type { PluginOwner } from "@tau/plugins/host";
 import type { Skill } from "@/types/skill";
 
 const skills = new Map<string, Skill>();
@@ -10,14 +11,15 @@ export const subscribePluginSkills = (listener: () => void) => {
     listeners.delete(listener);
   };
 };
-export function registerPluginSkill(pluginId: string, definition: PluginSkill) {
-  const folderName = `${pluginId}:${definition.id}`;
+export function registerPluginSkill(plugin: PluginOwner, definition: PluginSkill) {
+  const folderName = `${plugin.id}:${definition.id}`;
   const skill: Skill = {
     folderName,
     name: definition.name,
     description: definition.description,
     path: `plugin://${folderName}`,
     source: "plugin",
+    pluginName: plugin.name,
     readmeContent: definition.content,
     defaultInvocation: definition.invocation ?? "auto",
     fileCount: 1,

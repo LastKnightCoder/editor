@@ -139,7 +139,7 @@ describe("桌面插件完整路径", () => {
     expect(host.getState("example.settings")).toBe("disabled");
     await act(async () => host.enable("example.settings"));
     const command = pluginPaletteCommands(host).find(item => item.label === "打开插件设置示例");
-    expect(command).toBeDefined();
+    expect(command).toMatchObject({ section: "插件", sub: "来自「自定义设置示例」" });
     await act(async () => command?.run?.());
     await settle();
     expect(state.back.at(-1)).toMatchObject({
