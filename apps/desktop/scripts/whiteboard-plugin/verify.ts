@@ -8,10 +8,11 @@ import { PluginContentStartup } from "../../src-electron/main/services/plugin-co
 import { readPluginPackage } from "../../src-electron/main/services/plugin-package";
 import { discoverPlugins } from "../../src-electron/main/services/plugin-discovery";
 import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
+import { verifyStickman } from "./stickman";
 const root = process.env.TAU_WHITEBOARD_VERIFY_ROOT!;
 const zip = process.env.TAU_WHITEBOARD_VERIFY_ZIP!;
 const phase = process.env.TAU_WHITEBOARD_VERIFY_PHASE!;
-const id = "example.whiteboard-probe";
+const id = process.env.TAU_WHITEBOARD_VERIFY_ID ?? "example.whiteboard-probe";
 const directory = path.join(root, "plugins");
 app.setPath("userData", path.join(root, "profile"));
 
@@ -57,6 +58,7 @@ async function verify() {
   ipcMain.handle("verification:load", async () =>
     JSON.parse(await readFile(savedPath, "utf8").catch(() => "[]"))
   );
+  ipcMain.handle("verification:id", () => id);
   ipcMain.handle("verification:save", async (_event, nodes) =>
     writeFile(savedPath, JSON.stringify(nodes))
   );
@@ -86,7 +88,10 @@ async function verify() {
     }
   };
   await wait("window.whiteboardTest?.ready()");
-  if (phase === "initial") {
+  let details: unknown;
+  if (id === "taunote.stickman") {
+    details = await verifyStickman(window, run, wait, phase, savedPath);
+  } else if (phase === "initial") {
     await run("window.whiteboardTest.tool('example.whiteboard-probe.create')");
     window.webContents.sendInputEvent({
       type: "mouseDown",
@@ -193,7 +198,10 @@ async function verify() {
     await run("window.whiteboardTest.save()");
     assert.deepEqual(JSON.parse(await readFile(savedPath, "utf8")), expected);
   }
-  await writeFile(path.join(root, `${phase}.json`), JSON.stringify({ phase, passed: true }));
+  await writeFile(
+    path.join(root, `${phase}.json`),
+    JSON.stringify({ phase, passed: true, details })
+  );
   window.destroy();
   app.exit(0);
 }

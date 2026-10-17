@@ -10,6 +10,9 @@ const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const root = path.resolve(desktop, "../..");
 const require = createRequire(path.join(desktop, "package.json"));
 const zip = process.argv[2];
+const pluginId = process.argv[3] ?? "example.whiteboard-probe";
+if (!["example.whiteboard-probe", "taunote.stickman"].includes(pluginId))
+  throw new Error("未知验收插件");
 if (!zip)
   throw new Error("用法：node apps/desktop/scripts/verify-whiteboard-plugin.mjs <独立作者 ZIP>");
 const output = path.join(root, "output/whiteboard-plugin", randomUUID());
@@ -48,9 +51,15 @@ await viteBuild({
     emptyOutDir: false,
     minify: false,
     lib: {
-      entry: path.join(desktop, "scripts/whiteboard-plugin/renderer.tsx"),
+      entry: {
+        renderer: path.join(desktop, "scripts/whiteboard-plugin/renderer.tsx"),
+        acceptance: path.join(
+          root,
+          "packages/whiteboard/src/__tests__/fixtures/stickman-acceptance.tsx"
+        ),
+      },
       formats: ["es"],
-      fileName: () => "renderer.js",
+      fileName: (_format, name) => `${name}.js`,
     },
   },
 });
@@ -76,7 +85,7 @@ await writeFile(
   path.join(output, "index.html"),
   "<!doctype html><html><head>" +
     styles +
-    '<style>body{margin:0}#root{width:1000px;height:640px} [data-whiteboard-root]{position:relative}</style></head><body><div id="root"></div><script type="module" src="./renderer.js"></script></body></html>'
+    '<style>body{margin:0}#root{width:1000px;height:640px} [data-whiteboard-root]{position:relative}</style></head><body><div id="root"></div><script type="module" src="./acceptance.js"></script><script type="module" src="./renderer.js"></script></body></html>'
 );
 const phases = ["initial", "restart", "disabled", "missing", "restored"];
 for (const phase of phases) {
@@ -85,6 +94,7 @@ for (const phase of phases) {
     TAU_WHITEBOARD_VERIFY_ROOT: output,
     TAU_WHITEBOARD_VERIFY_ZIP: path.resolve(zip),
     TAU_WHITEBOARD_VERIFY_PHASE: phase,
+    TAU_WHITEBOARD_VERIFY_ID: pluginId,
   };
   delete env.ELECTRON_RUN_AS_NODE;
   await new Promise((resolve, reject) => {

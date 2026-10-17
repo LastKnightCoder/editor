@@ -64,6 +64,20 @@ export default definePlugin({ ...__PLUGIN_META__, whiteboardExtensions: [extensi
 
 ## 通用展示与交互
 
+### 创建前选择参数
+
+第三方工具集中在「扩展工具」菜单；可选的 `panel` 让用户先选择参数，再调用 `run(payload)`。面板可以通过 `useWhiteboardAPI()` 获取所属扩展的 API。
+
+```tsx
+panel: ({ run }) => (
+  <button onClick={() => run({ label: "新方块" })}>创建新方块</button>
+),
+```
+
+创建工具在 `element.create.build` 的 `options` 中读取这些参数，命令工具在命令的 `payload` 中读取。宿主管理返回、关闭与面板卸载，执行后自动关闭；返回或关闭不会执行工具。关闭后的迟到 `run` 调用被忽略。面板抛错时显示错误并保留返回入口。没有 `panel` 的工具仍点击即执行；不要用只供内置工具栏使用的 `component` 代替它，也不要在面板内创建第二套画布指针监听。
+
+### 元素声明
+
 以下声明放在 `defineElement` 内，仍使用同一个插件入口：
 
 ```ts
@@ -87,6 +101,15 @@ schematic: element => [{
 - `presentation.icon` 为可选图标组件，接收 className、size、strokeWidth。`getName` 接收只读快照，手动 name 优先；无法生成时回退 label。
 - 声明 `sketch:true` 后，在元素组件调用 `useSketch(element)` 获取 enabled/level/seed；页面切换会更新组件，元素覆盖仍由宿主解析。不要自行维护全局画风状态。
 - `SketchPaths` 渲染已有手绘路径；`sketch` 命名空间提供 createRandom、distance、polylineToD、resample、wobble、inkOutline、inkSize、loopStroke、handTextClass。复用宿主纯算法，不从白板内部目录复制实现。
+- `usePageSketch()` 读取所属页面的画风；`sketch.hashSeed(text)` 为预览图生成稳定种子。`AttrPopover`、`AttrToggle`、`OptionGrid`、`Seg` 供属性面板使用，`SketchPopover` 提供与宿主相同的元素笔触设置。
 - `schematic(element, { dark })` 返回纯图元数组，用于列表与导出弹窗的简略预览；字段类型见 SchematicShape。不能调用 hook、修改元素或依赖某个画布已打开。实际图像导出仍使用完整画布渲染，不使用简略投影替代。
 
 上述能力仍为本地开发版，未发布到 npm。没有为旧火柴人开发格式提供别名或转换。
+
+## 私有偏好
+
+需要记住用户选择时，在扩展中声明 `requires: [IPluginStorage]`，通过 `api.getService(IPluginStorage)` 获取存储。`IPluginStorage` 从 `@tau/plugins/whiteboard` 导入，接口与 `PluginContext.storage` 相同：异步 `get(key)`、`set(key, JSON值)`、`delete(key)`。
+
+宿主按插件真实归属与当前工作区绑定存储，插件不能传入其他插件 ID。画布隐藏、关闭或只读时拒绝交互存储操作；插件失活、工作区切换后，旧实例也不能继续写入。异步读写应捕获错误，并在面板卸载后忽略迟到结果。重新打开白板后绑定当前激活实例。
+
+只在 `create(api)`、工具面板、属性交互和 `element.create.build` 中使用这项服务。静态渲染与 `schematic` 必须只依据元素数据及明确输入，不依赖存储、DOM 或插件 activate 时序。读取不存在的偏好时使用默认值；读取失败不能伪装成空数据后覆盖原值。

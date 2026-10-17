@@ -270,6 +270,8 @@ export interface WhiteboardToolContribution {
    * 第三方工具统一进入「扩展工具」菜单（菜单项由 label + icon 生成，component 被忽略）
    */
   component?: ComponentType<WhiteboardToolProps>;
+  /** 扩展工具的参数面板；宿主管理返回与关闭，run(payload) 执行后关闭面板。 */
+  panel?: ComponentType<WhiteboardToolProps>;
 }
 
 export interface WhiteboardLayerContribution {

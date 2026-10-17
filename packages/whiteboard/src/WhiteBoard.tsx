@@ -115,6 +115,11 @@ export interface WhiteBoardProps {
   onExtensionError?: (error: WhiteboardExtensionError) => void;
   /** 宿主服务注册表：扩展经 requires/optional 声明后从扩展 api 获取；缺省为空注册表 */
   services?: ServiceRegistry;
+  /** 宿主为特定扩展派生服务作用域；未提供时使用公共注册表。 */
+  extensionServices?: (
+    id: string,
+    api: import("./extensions/api").WhiteboardAPI
+  ) => ServiceRegistry;
 }
 
 const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
@@ -164,6 +169,7 @@ const WhiteBoard = memo(
       extensions,
       outline,
       services,
+      extensionServices,
     } = props;
 
     // 文档版本过高时强制只读：工具栏/属性条一律隐藏，只留只读提示条
@@ -238,7 +244,8 @@ const WhiteBoard = memo(
       instance.installExtensions(
         extensions,
         notifyExtensionError,
-        services ?? EMPTY_SERVICE_REGISTRY
+        services ?? EMPTY_SERVICE_REGISTRY,
+        extensionServices
       );
       return instance;
     }, []);

@@ -34,7 +34,11 @@ import { BOARD_TO_CONTAINER } from "./constants/map";
 import { SELECT_TOOL_ID, builtinCreateToolIds } from "./constants/tools";
 import { createMindThemePreviewStore } from "./utils/MindThemePreviewStore";
 import { ExtensionRuntime } from "./extensions/runtime";
-import type { WhiteboardExtension, WhiteboardExtensionError } from "./extensions/api";
+import type {
+  WhiteboardAPI,
+  WhiteboardExtension,
+  WhiteboardExtensionError,
+} from "./extensions/api";
 import type { ServiceRegistry } from "@tau/shared/service-registry";
 import { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
 
@@ -67,10 +71,17 @@ class Board {
   installExtensions(
     extensions: readonly WhiteboardExtension[],
     onExtensionError?: (error: WhiteboardExtensionError) => void,
-    services?: ServiceRegistry
+    services?: ServiceRegistry,
+    extensionServices?: (id: string, api: WhiteboardAPI) => ServiceRegistry
   ) {
     if (this.extensions) throw new Error("白板扩展集合不能在运行中替换");
-    this.extensions = new ExtensionRuntime(this, extensions, onExtensionError, services);
+    this.extensions = new ExtensionRuntime(
+      this,
+      extensions,
+      onExtensionError,
+      services,
+      extensionServices
+    );
     // 装配完成后立即把既有数据迁移到扩展当前版本（不进历史、不发事件）
     this.extensions.migrateLoadedElements();
   }
