@@ -47,6 +47,7 @@ import {
   CONTENT_TYPES,
   SCOPE_ORDER,
   paletteCommands,
+  pluginPaletteCommands,
   matchCommands,
   scopeLabel,
   scopeIcon,
@@ -58,6 +59,8 @@ import {
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
+import useSettingStore from "@/stores/useSettingStore";
+import { useDesktopPlugins } from "@/app/plugins/context";
 import { useTransferStore } from "@/app/transferStore";
 import { useShellStore } from "@/app/shellStore";
 import { toggleAssistFor } from "@/app/assistOwner";
@@ -170,6 +173,7 @@ export function SearchPalette() {
   const [captureSource, setCaptureSource] = useState<QuestionCaptureDraft | null>(null);
   const openPalette = useSearchStore(s => s.openPalette);
   const [sel, setSel] = useState(0);
+  const selectionSource = useRef<"pointer" | "keyboard" | "results">("results");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -183,7 +187,18 @@ export function SearchPalette() {
   }, [scopes]);
 
   const contentQuery = useSearchContent(debouncedQ, activeTypes);
-  const commands = useMemo(() => matchCommands(paletteCommands(), lowerQ), [lowerQ]);
+  const plugins = useDesktopPlugins();
+  const pluginRevision = plugins?.getRevision() ?? 0;
+  const pluginCommands = useMemo(
+    () => (plugins ? pluginPaletteCommands(plugins.host) : []),
+    // 宿主实例不变时仍须按修订号更新命令快照。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plugins, pluginRevision]
+  );
+  const commands = useMemo(
+    () => matchCommands([...paletteCommands(), ...(pluginCommands ?? [])], lowerQ),
+    [lowerQ, pluginCommands]
+  );
 
   // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
   const todoGroups = useTodoGroups(open);
@@ -202,8 +217,14 @@ export function SearchPalette() {
     fn();
   };
 
-  const runCommand = ({ pageKey, action }: PaletteCommand) => {
-    if (pageKey) {
+  const runCommand = ({ pageKey, action, run }: PaletteCommand) => {
+    if (run) {
+      closeAnd(() => {
+        void Promise.resolve()
+          .then(run)
+          .catch(error => toast.error(error instanceof Error ? error.message : "插件命令执行失败"));
+      });
+    } else if (pageKey) {
       closeAnd(() => navigator.push(pageKey));
     } else if (action === "cycle-theme") {
       // 深浅直切（不经过 system）：循环切到 system 时若系统深浅与当前一致，视觉无变化
@@ -265,19 +286,38 @@ export function SearchPalette() {
       hint: !title,
       run: () => {
         if (!title) return;
+        const databaseName = useSettingStore.getState().setting.database.active;
+        const signal =
+          source && (source.source.kind === "material" || source.source.kind === "materials")
+            ? source.source.signal
+            : undefined;
         closeAnd(() => {
           (source
             ? submitQuestionCapture(source.source, title, groupHint)
             : captureQuestion(title, groupHint)
           )
-            .then(({ question, groupTitle }) =>
+            .then(({ question, groupTitle }) => {
+              if (
+                signal?.aborted ||
+                useSettingStore.getState().setting.database.active !== databaseName
+              )
+                return;
               toast.success(`已收集到「${groupTitle}」`, {
                 action: {
                   label: "查看",
-                  onClick: () => navigator.push("questions", { selectedId: question.id }),
+                  onClick: () => {
+                    if (
+                      signal?.aborted ||
+                      useSettingStore.getState().setting.database.active !== databaseName
+                    ) {
+                      toast.error("数据库已切换，请在原工作区查看问题");
+                      return;
+                    }
+                    navigator.push("questions", { selectedId: question.id });
+                  },
                 },
-              })
-            )
+              });
+            })
             .catch(error =>
               toast.error(
                 error instanceof Error && error.message === "来源已不存在"
@@ -429,7 +469,11 @@ export function SearchPalette() {
         meta: relativeTime(r.updateTime),
         run: () =>
           closeAnd(() => {
-            if (!material.open) return navigator.push(meta.navKey);
+            if (!material.open) {
+              if (meta.navKey) navigator.push(meta.navKey);
+              else toast.error(material.deleted ? "原划线已删除" : "无法打开到原处");
+              return;
+            }
             openMaterialTarget(
               material.open,
               r.section && locatesSection(r.type) ? { block: r.section.blockStart } : undefined
@@ -448,7 +492,7 @@ export function SearchPalette() {
       run: () =>
         closeAnd(() => {
           const kind = normalizeEntityRefKind(r.type);
-          if (!kind) return navigator.push(meta.navKey);
+          if (!kind) return meta.navKey && navigator.push(meta.navKey);
           void openEntity(
             { kind, id: r.id },
             r.section && locatesSection(r.type) ? { at: { block: r.section.blockStart } } : {}
@@ -461,7 +505,7 @@ export function SearchPalette() {
     key: c.id,
     icon: c.icon,
     title: c.label,
-    sub: c.section,
+    sub: c.sub ?? c.section,
     // 分组标签走 bg-hover 淡墨（随父底色，不带色相），sunken 专供进度轨道/凹陷画布
     tag: { label: c.section, cls: "bg-hover text-ink-2" },
     run: () => runCommand(c),
@@ -592,10 +636,21 @@ export function SearchPalette() {
 
   /* ---------- 选中态 / 滚动联动 ---------- */
 
+  // 只有查询、筛选或结果身份变化才重置；新数组和鼠标悬停不代表新结果。
+  const selectionKey = JSON.stringify([
+    open,
+    trimmedQ,
+    [...scopes],
+    capture,
+    flat.map(row => row.key),
+  ]);
   useEffect(() => {
+    selectionSource.current = "results";
     setSel(0);
-  }, [flat]);
+    if (listRef.current) listRef.current.scrollTop = 0;
+  }, [selectionKey]);
   useEffect(() => {
+    if (selectionSource.current === "pointer") return;
     listRef.current?.querySelector(`[data-idx="${sel}"]`)?.scrollIntoView({ block: "nearest" });
   }, [sel]);
 
@@ -701,9 +756,11 @@ export function SearchPalette() {
     if (e.nativeEvent.isComposing) return; // 输入法组合期间让位（确认候选等）
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      selectionSource.current = "keyboard";
       if (flat.length) setSel(s => (s + 1) % flat.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
+      selectionSource.current = "keyboard";
       if (flat.length) setSel(s => (s - 1 + flat.length) % flat.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -922,7 +979,10 @@ export function SearchPalette() {
                         data-idx={idx}
                         role="option"
                         aria-selected={idx === sel}
-                        onMouseMove={() => setSel(cur => (cur === idx ? cur : idx))}
+                        onMouseMove={() => {
+                          selectionSource.current = "pointer";
+                          setSel(cur => (cur === idx ? cur : idx));
+                        }}
                         onClick={() => activate(row)}
                         className={clsx(
                           "flex w-full cursor-pointer items-center gap-3 rounded-[10px] px-2.5 text-left",

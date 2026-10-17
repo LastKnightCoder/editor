@@ -1,19 +1,17 @@
 import { BilibiliPlayUrl, BilibiliNetworkError } from "./types";
 import { createHeaders } from "./api";
-import { nodeFetch } from "@/commands";
+import { desktopFetch } from "@/commands";
 
 export async function downloadWithProgress(
   url: string,
-  onProgress?: (loaded: number, total: number) => void,
+  onProgress?: (loaded: number, total: number) => void
 ): Promise<ArrayBuffer> {
   const response = await fetch(url, {
     headers: { Referer: "https://www.bilibili.com/", ...createHeaders() },
   });
 
   if (!response.ok) {
-    throw new BilibiliNetworkError(
-      `下载失败: ${response.status} ${response.statusText}`,
-    );
+    throw new BilibiliNetworkError(`下载失败: ${response.status} ${response.statusText}`);
   }
 
   const total = parseInt(response.headers.get("content-length") || "0");
@@ -62,32 +60,30 @@ export function revokeMediaUrl(url: string): void {
   }
 }
 
-export async function checkStreamAvailability(
-  playUrl: BilibiliPlayUrl,
-): Promise<{
+export async function checkStreamAvailability(playUrl: BilibiliPlayUrl): Promise<{
   videoAvailable: boolean;
   audioAvailable: boolean;
 }> {
   console.log("checkStreamAvailability", playUrl);
 
   try {
-    await Promise.all([
-      nodeFetch(playUrl.video, {
+    const responses = await Promise.all([
+      desktopFetch(playUrl.video, {
         method: "HEAD",
         headers: {
           Referer: "https://www.bilibili.com/",
           ...createHeaders(),
         },
       }),
-      nodeFetch(playUrl.audio, {
+      desktopFetch(playUrl.audio, {
         method: "HEAD",
         headers: { Referer: "https://www.bilibili.com/", ...createHeaders() },
       }),
     ]);
 
     return {
-      videoAvailable: true,
-      audioAvailable: true,
+      videoAvailable: responses[0].ok,
+      audioAvailable: responses[1].ok,
     };
   } catch (error) {
     console.error(error);

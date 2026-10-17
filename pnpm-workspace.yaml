@@ -3,6 +3,7 @@ packages:
   - editor-extensions/*
   - examples/*
   - apps/*
+  - plugins/*
 
 overrides:
   react: 19.2.0
@@ -33,6 +34,12 @@ onlyBuiltDependencies:
   - tesseract.js
 
 allowBuilds:
+  "@ffprobe-installer/darwin-arm64": true
+  "@ffprobe-installer/darwin-x64": true
+  "@ffprobe-installer/linux-arm": true
+  "@ffprobe-installer/linux-arm64": true
+  "@ffprobe-installer/linux-ia32": true
+  "@ffprobe-installer/linux-x64": true
   "@google/genai": false
   "@swc/core": true
   better-sqlite3: true
@@ -43,3 +50,8 @@ allowBuilds:
   sharp: true
   spawn-sync: true
   tesseract.js: true
+
+minimumReleaseAgeExclude:
+  - "@cloudflare/workers-types@5.20261016.1"
+  - miniflare@5.20261012.1-beta
+  - wrangler@4.151.1

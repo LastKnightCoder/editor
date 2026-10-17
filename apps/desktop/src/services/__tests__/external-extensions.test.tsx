@@ -9,7 +9,10 @@ import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor-media/services";
 import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import customBlockExtension, { insertCustomBlock } from "@tau/editor-custom-block";
+import customBlockExtension, {
+  insertCustomBlock,
+} from "../../../../../plugins/custom-block/src/index";
+import "@tau/plugins/source-editor-host";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";

@@ -6,7 +6,7 @@
  */
 
 import { CONTENT_AI_META_CHANGED_EVENT } from "../tables/content-ai-meta";
-import { WEREAD_EXCERPTS_CHANGED_EVENT } from "../tables/excerpt";
+import { EXCERPT_WRITE_EVENTS } from "../tables/excerpt";
 
 export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   // 卡片
@@ -64,8 +64,7 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "flashcard:delete-card",
   "flashcard:delete-deck",
   // 外部材料（谱系 excerpt_of 的来源端：源端删除后卡片来源显示「原划线已删除」）
-  WEREAD_EXCERPTS_CHANGED_EVENT,
-  "excerpt:sync-web-page",
+  ...EXCERPT_WRITE_EVENTS,
   "update-pdf-annotation",
   "delete-pdf-annotation",
   "delete-pdf",

@@ -1,0 +1,28 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "tau-plugin-portal-api",
+  "account_id": "ba54fcb8459b528b75991a4de5e5d023",
+  "main": "../api/index.ts",
+  "compatibility_date": "2026-10-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "plugins-api.taunote.app", "custom_domain": true }],
+  "vars": {
+    "WEB_ORIGIN": "https://plugins.taunote.app",
+    "API_ORIGIN": "https://plugins-api.taunote.app",
+    "REVIEWER_GITHUB_IDS": "29890094",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "plugin-portal",
+      "database_id": "dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [
+    { "binding": "PENDING", "bucket_name": "tau-plugin-pending" },
+    { "binding": "RELEASES", "bucket_name": "tau-plugin-releases" },
+  ],
+}

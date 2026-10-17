@@ -15,7 +15,7 @@ import clsx from "clsx";
 import { useOverlayDismiss } from "@/page/PageProvider";
 import { useEdgeFade } from "@tau/ui";
 import { isMac, isWinOrLinux } from "@/platform";
-import { useSettingsStore } from "@/app/settingsStore";
+import { useSettingsStore, type SettingsLocation } from "@/app/settingsStore";
 import { MacTrafficLights, WindowControls } from "@/app/WindowControls";
 import { useFullScreen } from "@/app/useFullScreen";
 import { useFindOwner } from "@/components/GlobalFindBar/findOwner";
@@ -75,7 +75,7 @@ export function SettingsScreen() {
   // 切换分区回到页顶
   useEffect(() => {
     if (scrollEl) scrollEl.scrollTop = 0;
-  }, [activeDef.key, scrollEl]);
+  }, [section, scrollEl]);
 
   return (
     <div
@@ -173,7 +173,7 @@ function SectionNavButton({
   active,
   onSelect,
 }: {
-  def: SettingsSectionDef;
+  def: Pick<SettingsSectionDef, "label" | "icon"> & { key: SettingsLocation };
   active: boolean;
   onSelect: () => void;
 }) {

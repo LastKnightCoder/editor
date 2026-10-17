@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.58.0",
+  "version": "0.59.0",
   "author": {
     "name": "LastKnightCoder"
   },
@@ -9,10 +9,10 @@
   "main": "dist-electron/main/index.js",
   "scripts": {
     "test:collaboration:e2e": "playwright test e2e/collaboration.spec.ts",
-    "predev": "pnpm -w db:schema:prepare",
+    "predev": "pnpm -w db:schema:prepare && node ../../scripts/plugins/build-distribution.mjs",
     "dev": "vite --configLoader runner",
     "showcase": "vite --configLoader runner --config vite.config.showcase.mts",
-    "prebuild": "pnpm -w db:schema:prepare && pnpm --filter @tau/cli build",
+    "prebuild": "pnpm -w db:schema:prepare && pnpm --filter @tau/cli build && node ../../scripts/plugins/build-distribution.mjs",
     "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build --configLoader runner && node scripts/run-electron-builder.mjs && node scripts/verify-native-runtime.mjs\"",
     "verify:native-runtime": "node scripts/verify-native-runtime.mjs",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
@@ -23,6 +23,7 @@
     "7zip-min": "^2.1.0",
     "@earendil-works/pi-ai": "~0.87.1",
     "@earendil-works/pi-coding-agent": "~0.87.1",
+    "@ffprobe-installer/ffprobe": "2.1.2",
     "@firecrawl/anydoc": "^0.2.4",
     "@myriaddreamin/typst-ts-node-compiler": "0.6.1-rc3",
     "@node-rs/jieba": "^2.0.1",
@@ -108,7 +109,6 @@
     "@tau/editor-code-block": "workspace:*",
     "@tau/editor-collab": "workspace:*",
     "@tau/editor-comment": "workspace:*",
-    "@tau/editor-custom-block": "workspace:*",
     "@tau/editor-detail": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
     "@tau/editor-divide-line": "workspace:*",
@@ -131,6 +131,7 @@
     "@tau/editor-webview": "workspace:*",
     "@tau/markdown": "workspace:*",
     "@tau/platform": "workspace:*",
+    "@tau/plugins": "workspace:*",
     "@tau/rpc": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",

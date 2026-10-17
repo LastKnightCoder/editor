@@ -15,7 +15,6 @@ import {
   Layers,
   FileText,
   BookMarked,
-  BookOpen,
   Footprints,
   Presentation,
   PenLine,
@@ -30,11 +29,14 @@ import {
   MessageCircle,
   Sparkles,
   Plug,
+  Blocks,
   FlaskConical,
   Users,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
+import { SIDEBAR_GROUPS, type PluginSidebarIcon } from "@tau/plugins";
+import type { PluginSidebarSnapshot } from "./plugins/runtime";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
 export type NavItemBadge =
@@ -50,10 +52,10 @@ export type NavItemChildren =
   | "question-groups"
   | "chat-sessions";
 
-export interface NavItem {
+export interface NavItem<Icon = PluginSidebarIcon> {
   key: string;
   label: string;
-  icon: LucideIcon;
+  icon: Icon;
   /** 徽标数据源标识（review-due = 待复习闪卡数；pomodoro-live = 专注中的实时计时；
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
@@ -62,16 +64,20 @@ export interface NavItem {
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
+  plugin?: PluginSidebarSnapshot["items"][number];
 }
 
-export interface NavSection {
+export interface NavSection<Icon = PluginSidebarIcon> {
+  id: string;
   label: string;
-  items: NavItem[];
+  collapseKey?: string;
+  items: NavItem<Icon>[];
 }
 
-export const NAV_SECTIONS: NavSection[] = [
+export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
   {
     // 以「天」为单位的日常：今日 = 行动（复习/待办/日程）+ 继续 + 回顾；日记按天记录，同属时间轴（D-071）
+    id: SIDEBAR_GROUPS.daily,
     label: "日常",
     items: [
       { key: "home", label: "今日", icon: Flame },
@@ -83,6 +89,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     // 有体系的产出：卡片（原子）→ 文章（长文）→ 项目（体系梳理）→ 其他形态
+    id: SIDEBAR_GROUPS.knowledge,
     label: "知识",
     items: [
       { key: "cards", label: "卡片库", icon: Layers, children: "card-tags" }, // features/cards（一整张纸，标签树嵌在此入口下）
@@ -94,6 +101,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     // 学习工作流：问题（起点）→ 学习形式与资料 → 闪卡巩固
+    id: SIDEBAR_GROUPS.learning,
     label: "学习",
     items: [
       {
@@ -104,13 +112,13 @@ export const NAV_SECTIONS: NavSection[] = [
         children: "question-groups",
       }, // 问题分组嵌在侧栏入口下（D-089）
       { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
-      { key: "weread", label: "微信读书", icon: BookOpen }, // features/weread（书架 + 整页笔记，D-059）
       { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
       { key: "walk", label: "漫步", icon: Footprints }, // features/walk（随机抽旧内容重温，顺岔路走到相邻内容）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
     ],
   },
   {
+    id: SIDEBAR_GROUPS.ai,
     label: "AI",
     items: [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // 会话导航嵌在侧栏入口下
@@ -120,6 +128,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     // 对外：实时协作 → 静态发布
+    id: SIDEBAR_GROUPS.sharing,
     label: "分享",
     items: [
       {
@@ -134,7 +143,45 @@ export const NAV_SECTIONS: NavSection[] = [
   },
 ];
 
-export const NAV_FOOTER: NavItem[] = [
+export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
+  // 插件中心与已安装管理（D-164）；插件设置在详情页，设置弹窗只留跳转
+  { key: "plugins", label: "插件", icon: Blocks },
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
+
+export function composeNavSections(snapshot?: PluginSidebarSnapshot): NavSection[] {
+  if (!snapshot) return NAV_SECTIONS;
+  const sections: NavSection[] = NAV_SECTIONS.map(section => ({
+    ...section,
+    items: [...section.items],
+  }));
+  for (const group of snapshot.groups) {
+    sections.push({ id: group.id, label: group.title, collapseKey: group.id, items: [] });
+  }
+  const fallback: NavSection = {
+    id: SIDEBAR_GROUPS.plugins,
+    label: "插件",
+    collapseKey: "plugins",
+    items: [],
+  };
+  sections.push(fallback);
+  for (const item of snapshot.items) {
+    const section = sections.find(section => section.id === item.group) ?? fallback;
+    section.items.push({ key: item.id, label: item.title, icon: item.icon ?? Plug, plugin: item });
+  }
+  return sections.filter(section => section.items.length > 0);
+}
+
+export function isNavItemActive(
+  item: NavItem,
+  current?: { key: string; params: Record<string, unknown> }
+): boolean {
+  if (!item.plugin) return item.key === current?.key;
+  return (
+    current?.key === "plugin-page" &&
+    current.params.pluginId === item.plugin.pluginId &&
+    current.params.pageId === item.plugin.pageId &&
+    current.params.instanceId === item.plugin.instanceId
+  );
+}

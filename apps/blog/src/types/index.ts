@@ -275,6 +275,7 @@ export interface PageMeta {
 
 // 初始化数据结构
 export interface InitData {
+  pluginRenderers?: import("@tau/plugins/rendering").PublishedPluginRender[];
   site: SiteConfig;
   navigation: NavItem[];
   sidebar?: SidebarItem[];

@@ -238,3 +238,69 @@ fn v5_database_migrates_card_links_to_content_links() {
         .unwrap();
     assert_eq!(edges_after, 2);
 }
+
+/// v7 库样本：excerpt 还没有 location / url，没有 excerpt_provider
+fn v7_database_with_excerpts() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch(
+        "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+         INSERT INTO schema_meta VALUES ('main_schema_version', '7', 0);
+         CREATE TABLE weread_notebook(book_id TEXT PRIMARY KEY, title TEXT NOT NULL, pc_url TEXT,
+           last_read_date TEXT, reading_status INTEGER DEFAULT 0,
+           created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+         INSERT INTO weread_notebook (book_id, title, pc_url, created_at, updated_at)
+           VALUES ('b1', '书', 'https://weread.qq.com/web/reader/x', 0, 0);
+         CREATE TABLE excerpt(id INTEGER PRIMARY KEY AUTOINCREMENT, source_type TEXT NOT NULL,
+           source_key TEXT NOT NULL, source_title TEXT NOT NULL DEFAULT '', external_id TEXT NOT NULL,
+           quote TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', anchor TEXT, color TEXT, source_time INTEGER,
+           create_time INTEGER NOT NULL, update_time INTEGER NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0);
+         INSERT INTO excerpt (id, source_type, source_key, source_title, external_id, quote, anchor, create_time, update_time)
+           VALUES (5, 'weread', 'b1', '书', 'b1:1', '引文', '{\"chapterTitle\":\"第一章\"}', 1, 1),
+                  (6, 'web', 'https://a.com/p', '', 'u1', '网页', NULL, 1, 1);",
+    )
+    .unwrap();
+    conn
+}
+
+#[test]
+fn v7_database_backfills_excerpt_providers() {
+    let conn = v7_database_with_excerpts();
+    ensure_main_schema(&conn).unwrap();
+    assert_eq!(
+        get_meta(&conn, "main_schema_version").unwrap(),
+        Some(MAIN_SCHEMA_VERSION.to_string())
+    );
+    let rows: Vec<(i64, String, Option<String>)> = conn
+        .prepare("SELECT id, location, url FROM excerpt ORDER BY id")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            (
+                5,
+                "第一章".into(),
+                Some("https://weread.qq.com/web/reader/x".into())
+            ),
+            (6, "".into(), Some("https://a.com/p#tau-hl=u1".into())),
+        ]
+    );
+    let labels: Vec<(String, String)> = conn
+        .prepare("SELECT source_type, label FROM excerpt_provider ORDER BY source_type")
+        .unwrap()
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(
+        labels,
+        vec![
+            ("web".into(), "网页".into()),
+            ("weread".into(), "微信读书".into())
+        ]
+    );
+    ensure_main_schema(&conn).unwrap();
+}

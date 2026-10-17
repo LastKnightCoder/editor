@@ -26,6 +26,12 @@ export function normalizeWebPageUrl(url: string): string | null {
   return url.split("#")[0];
 }
 
+/** 网页摘录打开时带上划线 uuid，浏览器插件据此滚到那条划线 */
+export const WEB_HIGHLIGHT_HASH = "tau-hl";
+
+export const webExcerptUrl = (pageUrl: string, externalId: string) =>
+  `${pageUrl}#${WEB_HIGHLIGHT_HASH}=${encodeURIComponent(externalId)}`;
+
 export interface WebPageExcerpts {
   url: string;
   title: string;
@@ -69,6 +75,8 @@ export function parseWebPagePayload(raw: unknown): WebPageExcerpts {
       externalId: id,
       quote,
       note: item.note == null ? "" : str(item.note, "note", WEB_PAGE_LIMITS.noteChars).trim(),
+      location: "",
+      url: webExcerptUrl(url, id),
       anchor: anchor
         ? {
             startXPath: str(anchor.startXPath, "startXPath", 2000),

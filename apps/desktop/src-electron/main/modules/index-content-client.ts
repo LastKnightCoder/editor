@@ -1,5 +1,6 @@
 import { Worker } from "node:worker_threads";
 import { join } from "node:path";
+import { getHeadlessPluginArtifacts } from "../services/plugin-codecs";
 import type {
   IndexContentInput,
   IndexContentReply,
@@ -17,7 +18,9 @@ export class IndexContentClient {
     if (this.failure) return Promise.reject(this.failure);
     if (this.pending) return Promise.reject(new Error("正文转换必须串行执行"));
     if (!this.worker) {
-      this.worker = new Worker(join(__dirname, "index-content-worker.js"));
+      this.worker = new Worker(join(__dirname, "index-content-worker.js"), {
+        workerData: { editorPlugins: getHeadlessPluginArtifacts() },
+      });
       this.worker.on("message", (reply: IndexContentReply) => {
         const pending = this.pending;
         this.pending = null;

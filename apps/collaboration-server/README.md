@@ -13,7 +13,7 @@ sudo COLLAB_DATA_DIR=/srv/tau-collab/data ./scripts/bootstrap.sh
 初始化脚本需要为宿主机数据目录设置容器用户权限。服务只绑定到 `127.0.0.1:3210`。首次没有证书时，先安装 `nginx.http.conf.example` 并执行 `nginx -t`，不能直接安装引用不存在证书的 HTTPS 配置。完成 DNS 解析后申请证书：
 
 ```bash
-certbot --nginx -d collab.xiongtao.life
+certbot --nginx -d collab.taunote.app
 ```
 
 证书签发成功后，使用 `nginx.collab.conf.example` 替换该域名配置，执行 `nginx -t && systemctl reload nginx`，再验证 `/health/ready` 与 WSS。

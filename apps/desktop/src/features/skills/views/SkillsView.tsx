@@ -271,6 +271,19 @@ export function SkillsView() {
             </Section>
           )}
 
+          {bySource("plugin").length > 0 && (
+            <Section title={SOURCE_LABEL.plugin} hint="随插件启停，只读">
+              {bySource("plugin").map(item => (
+                <SkillCard
+                  key={item.key}
+                  item={item}
+                  active={item.key === openKey}
+                  onOpen={() => setOpenKey(item.key)}
+                />
+              ))}
+            </Section>
+          )}
+
           {linked.length > 0 && (
             <Section title={SOURCE_LABEL.linked} hint="其它 AI 工具的 skills 目录 · 只读">
               {linked.map(item => (

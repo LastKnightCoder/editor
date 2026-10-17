@@ -660,21 +660,29 @@ CREATE TABLE IF NOT EXISTS weread_config (
         value TEXT,
         updated_at INTEGER NOT NULL
       );
--- 摘录：来源不是主库行的划线（微信读书、浏览器插件）。源端删除即软删除，保留引文
+-- 摘录：来源不是主库行的划线，由提供方写入（内置网页划线 web、插件以插件 ID 为来源类型）。源端删除即软删除，保留引文
 CREATE TABLE IF NOT EXISTS excerpt (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        source_type TEXT NOT NULL,            -- weread | web
-        source_key TEXT NOT NULL,             -- weread: bookId；web: 去掉 hash 的 URL
+        source_type TEXT NOT NULL,            -- 提供方：web 或插件 ID
+        source_key TEXT NOT NULL,             -- 来源在提供方内的标识（书 ID、去掉 hash 的 URL…）
         source_title TEXT NOT NULL DEFAULT '',
-        external_id TEXT NOT NULL,            -- weread: bookId:bookmarkId / bookId:review:reviewId；web: 划线 uuid
+        external_id TEXT NOT NULL,            -- 条目在提供方内的稳定标识
         quote TEXT NOT NULL,
         note TEXT NOT NULL DEFAULT '',
-        anchor TEXT,                          -- JSON：来源原生定位
+        anchor TEXT,                          -- JSON：提供方私有定位，宿主不解读
         color TEXT,
         source_time INTEGER,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
-        is_deleted INTEGER NOT NULL DEFAULT 0
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        location TEXT NOT NULL DEFAULT '',    -- 给人看的位置（章节、页码）
+        url TEXT                              -- 打开原处的外部链接兜底
+      );
+-- 摘录提供方：来源名称持久化，插件停用或卸载后、移动端仍可显示
+CREATE TABLE IF NOT EXISTS excerpt_provider (
+        source_type TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS flashcard_decks (
         id INTEGER PRIMARY KEY,

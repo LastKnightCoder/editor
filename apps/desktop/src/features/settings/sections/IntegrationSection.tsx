@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { ExternalLink, Eye, EyeOff, QrCode } from "lucide-react";
+import { Eye, EyeOff, QrCode } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -31,7 +31,6 @@ import {
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { verifyMinimaxApiKey } from "@/services/minimax";
-import { openExternal } from "@/commands/extra";
 import { getGithubUserInfo } from "@/utils/github";
 import {
   BilibiliQRCodeStatus,
@@ -40,16 +39,13 @@ import {
   extractCredentialsFromQR,
   getBilibiliQRCode,
 } from "@/utils/bilibili";
-import weReadService from "@/services/weread";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 
 type Integration = ISetting["integration"];
-type ServiceKey = "webdav" | "s3" | "aliOSS" | "github" | "bilibili" | "weread" | "minimax";
+type ServiceKey = "webdav" | "s3" | "aliOSS" | "github" | "bilibili" | "minimax";
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
-
-const WEREAD_API_KEY_URL = "https://weread.qq.com/r/weread-skills";
 
 const mutateIntegration = (fn: (draft: Integration) => void) =>
   useSettingStore.setState(s => ({
@@ -68,9 +64,6 @@ const maskKey = (key: string) => (key.length > 10 ? `${key.slice(0, 4)}…${key.
 
 const vipText = (vipStatus: number) =>
   vipStatus === 1 ? "大会员" : vipStatus === 0 ? "普通用户" : "未知";
-
-const errorText = (error: unknown, fallback: string) =>
-  error instanceof Error && error.message ? error.message : fallback;
 
 /** 打开时以 store 当前值重置表单（渲染期派生，避免 effect 里 setState） */
 function useFormOnOpen<T>(open: boolean, init: () => T) {
@@ -937,117 +930,6 @@ function BilibiliDialog({ open, onOpenChange }: DialogProps) {
   );
 }
 
-type WeRead = Integration["weread"];
-
-const WEREAD_STATUS: Record<
-  WeRead["connectionStatus"],
-  { tone: "ok" | "warn" | "accent" | "neutral"; text: string }
-> = {
-  checking: { tone: "accent", text: "检测中" },
-  valid: { tone: "ok", text: "可用" },
-  invalid: { tone: "warn", text: "已失效" },
-  unknown: { tone: "neutral", text: "未连接" },
-};
-
-function wereadDetail(weread: WeRead) {
-  switch (weread.connectionStatus) {
-    case "checking":
-      return "正在验证微信读书 API Key";
-    case "valid":
-      return "当前 API Key 可正常同步微信读书数据";
-    case "invalid":
-      return weread.statusReason || "API Key 已失效，请重新配置";
-    default:
-      return weread.apiKey.trim() ? "已保存 API Key，尚未校验" : "需要微信读书 API Key";
-  }
-}
-
-function WeReadDialog({ open, onOpenChange }: DialogProps) {
-  const weread = useSettingStore(s => s.setting.integration.weread);
-  const updateApiKey = useSettingStore(s => s.updateWeReadApiKey);
-  const [apiKey, setApiKey] = useFormOnOpen(open, () => weread.apiKey);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const meta = WEREAD_STATUS[weread.connectionStatus];
-
-  const validate = async () => {
-    const value = apiKey.trim();
-    if (!value) {
-      setError("请输入微信读书 API Key");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      updateApiKey(value);
-      const valid = await weReadService.validateSession();
-      if (!valid) {
-        setError(
-          useSettingStore.getState().setting.integration.weread.statusReason || "API Key 校验失败"
-        );
-        return;
-      }
-      toast.success("微信读书 API Key 可用");
-      onOpenChange(false);
-    } catch (err) {
-      setError(errorText(err, "API Key 校验失败"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <ServiceDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onAfterClose={() => setError("")}
-      title="微信读书"
-      subtitle="通过官方 API Key 同步书架、划线与想法"
-      connected={Boolean(weread.apiKey.trim())}
-      busy={loading}
-      disconnectImpact="微信读书同步将停止"
-      onDisconnect={() => updateApiKey("")}
-      primary={
-        <Button
-          variant="primary"
-          loading={loading}
-          loadingText="校验中…"
-          disabled={!apiKey.trim()}
-          onClick={() => void validate()}
-        >
-          {weread.connectionStatus === "valid" ? "重新校验" : "保存并校验"}
-        </Button>
-      }
-    >
-      <div className="flex items-center gap-2">
-        <StatusChip tone={meta.tone}>{meta.text}</StatusChip>
-        <span className="text-tau-meta text-ink-2 min-w-0">{wereadDetail(weread)}</span>
-      </div>
-      <Field label="API Key">
-        <SecretInput
-          label="API Key"
-          value={apiKey}
-          placeholder="wrk-xxxxxxxxxxxxxxxx"
-          disabled={loading}
-          onChange={v => {
-            setApiKey(v);
-            setError("");
-          }}
-        />
-      </Field>
-      <button
-        type="button"
-        onClick={() => void openExternal(WEREAD_API_KEY_URL)}
-        className="text-tau-meta text-accent-text flex items-center gap-1 self-start hover:underline"
-      >
-        获取微信读书 API Key
-        <ExternalLink size={12} strokeWidth={1.75} />
-      </button>
-      <ErrorLine>{error}</ErrorLine>
-    </ServiceDialog>
-  );
-}
-
 /* ───────────── AI 平台 ───────────── */
 
 function MinimaxDialog({ open, onOpenChange }: DialogProps) {
@@ -1147,9 +1029,7 @@ export function IntegrationSection() {
     onOpenChange: open => setOpenKey(open ? key : null),
   });
 
-  const { webdav, s3, aliOSS, github, bilibili, youtube, weread, minimax } = integration;
-  const wereadMeta = WEREAD_STATUS[weread.connectionStatus];
-  const wereadConfigured = Boolean(weread.apiKey.trim());
+  const { webdav, s3, aliOSS, github, bilibili, youtube, minimax } = integration;
 
   return (
     <>
@@ -1259,19 +1139,6 @@ export function IntegrationSection() {
             onChange={e => updateYoutubeProxy(e.target.value)}
           />
         </ServiceRow>
-        <ServiceRow
-          mark="读"
-          name="微信读书"
-          description={wereadDetail(weread)}
-          status={<StatusChip tone={wereadMeta.tone}>{wereadMeta.text}</StatusChip>}
-        >
-          <RowAction
-            connected={wereadConfigured}
-            name="微信读书"
-            label={weread.connectionStatus === "invalid" ? "重新校验" : undefined}
-            onClick={() => setOpenKey("weread")}
-          />
-        </ServiceRow>
       </SettingsGroup>
 
       <SettingsGroup title="AI 平台" description="语音合成使用">
@@ -1294,7 +1161,6 @@ export function IntegrationSection() {
       <AliOSSDialog {...dialogProps("aliOSS")} />
       <GithubDialog {...dialogProps("github")} />
       <BilibiliDialog {...dialogProps("bilibili")} />
-      <WeReadDialog {...dialogProps("weread")} />
       <MinimaxDialog {...dialogProps("minimax")} />
     </>
   );

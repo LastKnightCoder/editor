@@ -50,7 +50,11 @@ export function SourceTag({ skill }: { skill: Skill }) {
       title={skill.rootPath}
       className="text-tau-micro text-ink-3 border-line-1 inline-flex shrink-0 items-center gap-1 rounded-[5px] border px-1.5 font-normal leading-[18px]"
     >
-      {skill.source === "builtin" ? "内置" : linkedDirLabel(skill)}
+      {skill.source === "builtin"
+        ? "内置"
+        : skill.source === "plugin"
+          ? `插件 · ${skill.pluginName}`
+          : linkedDirLabel(skill)}
     </span>
   );
 }

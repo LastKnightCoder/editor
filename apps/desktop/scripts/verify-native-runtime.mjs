@@ -205,6 +205,18 @@ const checks = [
     `,
   },
   {
+    name: "@ffprobe-installer/ffprobe",
+    code: `
+      const probe = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@ffprobe-installer/ffprobe");
+      const binary = probe.path.replace(/([\\\\/])app\\.asar([\\\\/])/, "$1app.asar.unpacked$2");
+      const result = require("node:child_process").spawnSync(binary, ["-version"], { encoding: "utf8" });
+      if (result.error || result.status !== 0 || !result.stdout.includes("ffprobe version")) {
+        throw new Error("ffprobe 执行失败：" + (result.error?.message || result.stderr));
+      }
+      console.log("ffprobe=ok");
+    `,
+  },
+  {
     name: "@myriaddreamin/typst-ts-node-compiler",
     code: `
       const { NodeCompiler } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@myriaddreamin/typst-ts-node-compiler");

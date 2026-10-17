@@ -617,7 +617,9 @@ export function LLMSection() {
     ).length;
 
   /* ── 页内 Tab：服务商与模型 / 功能分配 ── */
-  const [tab, setTab] = useState<"providers" | "assignment" | "permission" | "usage">("providers");
+  const tab = useSettingsStore(state => state.llmTab);
+  const setTab = (llmTab: "providers" | "assignment" | "permission" | "usage") =>
+    useSettingsStore.setState({ llmTab });
   const unassignedCount = Object.values(llmUsageSettings).filter(usage => usage === null).length;
 
   /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelId */
@@ -1075,3 +1077,4 @@ export function LLMSection() {
     </>
   );
 }
+import { useSettingsStore } from "@/app/settingsStore";

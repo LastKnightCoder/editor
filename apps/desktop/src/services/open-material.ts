@@ -6,6 +6,7 @@ import { openExternal } from "@/commands/extra";
 import { invoke } from "@/electron";
 import type { MaterialInfo, MaterialOpenTarget, MaterialRef } from "@/entity/material";
 import { openEntity } from "./open-content";
+import { openExcerptAtProvider } from "./excerpt-providers";
 import { openPage } from "./page-navigation";
 import type { EntityLocation } from "@/entity/locate";
 
@@ -14,11 +15,8 @@ export async function openMaterialTarget(
   at?: EntityLocation
 ): Promise<void> {
   switch (target.page) {
-    case "weread-book":
-      openPage("weread-book", {
-        bookId: target.bookId,
-        ...(target.bookmark ? { bookmark: target.bookmark } : {}),
-      });
+    case "excerpt-provider":
+      await openExcerptAtProvider(target);
       return;
     case "pdf-detail":
       openPage("pdf-detail", { pdfId: target.pdfId, annotation: target.annotationId });

@@ -741,8 +741,8 @@ ${inlinePaletteUnderlineStyles}
   color: #1890ff;
 }
 
-/* ========== Custom Block ========== */
-.custom-block {
+/* ========== 插件源码静态导出 ========== */
+.plugin-source-block {
   background: #f5f5f5;
   border-radius: 6px;
   padding: 1em;

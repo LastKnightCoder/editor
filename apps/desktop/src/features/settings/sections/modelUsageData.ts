@@ -24,6 +24,7 @@ const startOfLocalDay = (now: number) => {
 };
 
 export interface UsageRange {
+  pluginId?: string;
   from: number;
   to: number;
   bucket: ModelUsageBucket;

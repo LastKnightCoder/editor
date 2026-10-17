@@ -9,12 +9,14 @@
 import type { MessagePort } from "node:worker_threads";
 import type { IPublishAppearanceSettings, IPublishFile } from "@/types/publish";
 import type { ISiteMeta, PublishDataSource, PublishSelectionInput } from "./publish-site-generator";
+import type { PublishPluginSnapshot } from "../services/plugin-publish";
 
 export interface PublishGeneratorRequest {
   templateDir: string;
   selections: PublishSelectionInput[];
   site: ISiteMeta;
   settings?: IPublishAppearanceSettings;
+  plugins?: PublishPluginSnapshot;
   /** 只回传路径（预览计划用），不把文件内容拷回主进程 */
   pathsOnly: boolean;
 }

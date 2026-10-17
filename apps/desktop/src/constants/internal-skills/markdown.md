@@ -84,14 +84,9 @@ console.log("world");
 ```
 ````
 
-- 支持的扩展代码块语言：`mermaid`、`abc`、`plantuml`、`tikz`、`typst`、`custom-block`
+- 支持的扩展代码块语言：`mermaid`、`abc`、`plantuml`、`tikz`、`typst`；其他语法由已启用插件的 Skill 说明。
 - 普通代码块支持高亮元信息（如 `{1,3-4}`）
 - 进阶动画元信息使用 `smm=...`（Base64URL 编码），通常由系统生成，不建议手写
-
-### `custom-block`
-
-- 交互式 React 组件块，语法为 ` ```custom-block ` 代码围栏；只有用户明确要求交互演示、动态小组件时才使用，普通内容不要主动输出
-- 编写前必须加载 `custom-block` Skill，按其中的运行时契约、主题语义色与示例生成；不要沿用旧写法（`antd`、`hooks.useTheme`、`dark:` 配色）
 
 ## 其它可用结构
 

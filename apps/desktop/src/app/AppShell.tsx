@@ -15,6 +15,7 @@ import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { PageNavigationBridge } from "./PageNavigationBridge";
+import { DesktopPluginProvider } from "./plugins/PluginProvider";
 import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
@@ -145,7 +146,9 @@ function ShellBody() {
   return (
     <PageProvider initialKey="home">
       <PageNavigationBridge />
-      <ShellLayout />
+      <DesktopPluginProvider>
+        <ShellLayout />
+      </DesktopPluginProvider>
     </PageProvider>
   );
 }

@@ -7,12 +7,12 @@ import OSS from "ali-oss";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { assertReleaseNote, injectReleaseNotes, releaseNotesUpTo } from "./release-notes.mjs";
 
-// 更新源自 OSS 切到 R2（dl.xiongtao.life）；OSS 仅保留给过渡版本与服务存量客户端，
+// 更新源自 OSS 切到 R2（dl.taunote.app）；OSS 仅保留给过渡版本与服务存量客户端，
 // ffmpeg / publish-template 资源已由 scripts/migrate-oss-to-r2.mjs 迁往 R2
 const OSS_REGION = "oss-cn-shanghai";
 const OSS_BUCKET = "release-bin";
 const R2_BUCKET = "tau-release";
-const R2_PUBLIC_BASE_URL = "https://dl.xiongtao.life";
+const R2_PUBLIC_BASE_URL = "https://dl.taunote.app";
 const DESKTOP_PREFIX = "desktop";
 
 const UPLOAD_TARGETS = {
@@ -171,22 +171,26 @@ function createR2Client() {
       }
     },
     async putFile(key, filePath, cacheControl) {
-      await client.send(new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: key,
-        Body: createReadStream(filePath),
-        ContentType: contentTypeOf(key),
-        CacheControl: cacheControl,
-      }));
+      await client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          Body: createReadStream(filePath),
+          ContentType: contentTypeOf(key),
+          CacheControl: cacheControl,
+        })
+      );
     },
     async putText(key, content, cacheControl) {
-      await client.send(new PutObjectCommand({
-        Bucket: R2_BUCKET,
-        Key: key,
-        Body: content,
-        ContentType: contentTypeOf(key),
-        CacheControl: cacheControl,
-      }));
+      await client.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          Body: content,
+          ContentType: contentTypeOf(key),
+          CacheControl: cacheControl,
+        })
+      );
     },
   };
 }

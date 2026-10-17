@@ -38,7 +38,7 @@ describe("插件笔记编辑器的元素覆盖", () => {
     expect(kit.assembly.commandHotkeys.some(entry => entry.hotkey.key === "mod+b")).toBe(true);
     expect(kit.assembly.hoveringBarElements.length).toBeGreaterThan(0);
     expect(kit.extensions.filter(extension => extension.id === "tau.preview-menu")).toHaveLength(1);
-    for (const type of ["custom-block", "mermaid", "plantuml", "abc", "tikz", "typst"])
+    for (const type of ["mermaid", "plantuml", "abc", "tikz", "typst"])
       expect(kit.elementTypes).toContain(type);
   });
 });

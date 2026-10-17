@@ -1,6 +1,6 @@
 {
   "name": "blog",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@tau/plugins": "workspace:*",
     "@tau/editor": "workspace:*",
     "@tau/editor-media": "workspace:*",
     "@tau/editor-link": "workspace:*",
@@ -21,7 +22,6 @@
     "@tau/editor-text-formatting": "workspace:*",
     "@tau/editor-underline": "workspace:*",
     "@tau/editor-styled-text": "workspace:*",
-    "@tau/editor-custom-block": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
     "@tau/editor-html": "workspace:*",
     "@tau/editor-source-view": "workspace:*",

@@ -4,7 +4,6 @@ import { merge } from "lodash";
 import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 
 import { EGithubCDN } from "@/constants/github";
-import type { WeReadSessionStatus } from "@/types/weread";
 import { ETTSProvider } from "@/types/tts";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import { MINIMAX_SPEECH_MODELS, MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
@@ -344,16 +343,6 @@ export interface ISetting {
       accessKeyId: string;
       accessKeySecret: string;
     };
-    weread: {
-      enabled: boolean;
-      apiKey: string;
-      connectionStatus: WeReadSessionStatus;
-      lastValidatedAt: number;
-      statusReason: string;
-      userInfo: {
-        isConnected: boolean;
-      };
-    };
     podcastTTS: {
       active: ETTSProvider;
       minimaxModel: MinimaxSpeechModel;
@@ -441,15 +430,6 @@ interface IActions {
   updateYoutubeProxy: (proxy: string) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
-  updateWeReadApiKey: (apiKey: string) => void;
-  updateWeReadUserInfo: (userInfo: ISetting["integration"]["weread"]["userInfo"]) => void;
-  setWeReadConnectionState: (
-    payload: Pick<
-      ISetting["integration"]["weread"],
-      "connectionStatus" | "lastValidatedAt" | "statusReason"
-    >
-  ) => void;
-  setWeReadEnabled: (enabled: boolean) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -476,28 +456,9 @@ const isSettingNotificationPayload = (payload: unknown): payload is SettingNotif
 
 const SETTING_CACHE_KEY = "user-setting-cache";
 
-const normalizeWeReadTransientState = (weread: ISetting["integration"]["weread"]) => {
-  weread.enabled = weread.enabled || Boolean(weread.apiKey?.trim());
-  weread.connectionStatus = "unknown";
-  weread.lastValidatedAt = 0;
-  weread.statusReason = "";
-  weread.userInfo = {
-    isConnected: false,
-  };
-
-  if (!weread.apiKey?.trim()) {
-    weread.enabled = false;
-    weread.connectionStatus = "unknown";
-    weread.lastValidatedAt = 0;
-    weread.statusReason = "";
-    weread.userInfo = {
-      isConnected: false,
-    };
-  }
-};
-
 const normalizeTransientSettingState = (setting: ISetting) => {
-  normalizeWeReadTransientState(setting.integration.weread);
+  // 微信读书已改为插件（API Key 存插件私有存储，按工作区），旧字段丢弃不再保存
+  delete (setting.integration as { weread?: unknown }).weread;
   return setting;
 };
 
@@ -522,16 +483,6 @@ export const markRemoteSettingApplied = (setting: ISetting): void => {
 /** 该快照是否正是刚刚从远端应用进来的（是则不该再发回去） */
 export const isRemoteAppliedSnapshot = (snapshotJson: string): boolean =>
   lastRemoteAppliedSnapshotJson === snapshotJson;
-
-export const getWeReadSettingDebugSummary = (weread: ISetting["integration"]["weread"]) => {
-  return {
-    enabled: weread.enabled,
-    apiKeyConfigured: Boolean(weread.apiKey?.trim()),
-    connectionStatus: weread.connectionStatus,
-    lastValidatedAt: weread.lastValidatedAt,
-    statusReason: weread.statusReason,
-  };
-};
 
 const loadCachedSetting = (): Partial<ISetting> | null => {
   if (typeof window === "undefined") {
@@ -737,16 +688,6 @@ const initialState: IState = {
         accessKeyId: "",
         accessKeySecret: "",
       },
-      weread: {
-        enabled: false,
-        apiKey: "",
-        connectionStatus: "unknown",
-        lastValidatedAt: 0,
-        statusReason: "",
-        userInfo: {
-          isConnected: false,
-        },
-      },
       podcastTTS: {
         active: ETTSProvider.Minimax,
         minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
@@ -850,10 +791,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }
 
       const mergedSetting = mergeSettingWithDefaults(nextSetting);
-      console.info("[SettingSync] 应用远端设置", {
-        sourceClientId: sourceClientId || "unknown",
-        weread: getWeReadSettingDebugSummary(mergedSetting.integration.weread),
-      });
+      console.info("[SettingSync] 应用远端设置", { sourceClientId: sourceClientId || "unknown" });
       // 先登记再写入：同步器据此跳过这一次，避免把远端广播原样发回去（见 markRemoteSettingApplied）
       markRemoteSettingApplied(mergedSetting);
       set({
@@ -878,9 +816,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     try {
       const setting = (await client.sendRequest("get-user-setting", null)) as ISetting;
       const newSetting = mergeSettingWithDefaults(setting);
-      console.info("[SettingSync] 初始化设置完成", {
-        weread: getWeReadSettingDebugSummary(newSetting.integration.weread),
-      });
+      console.info("[SettingSync] 初始化设置完成");
       set({
         setting: newSetting,
         inited: true,
@@ -1003,58 +939,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.integration.minimax.enabled = enabled;
-      }),
-    });
-  },
-  updateWeReadApiKey: apiKey => {
-    const { setting } = get();
-    console.info("[WeReadDebug] 更新 API Key", {
-      configured: Boolean(apiKey.trim()),
-    });
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.weread.apiKey = apiKey;
-        draft.integration.weread.enabled = Boolean(apiKey.trim());
-        if (!apiKey.trim()) {
-          draft.integration.weread.connectionStatus = "unknown";
-          draft.integration.weread.lastValidatedAt = 0;
-          draft.integration.weread.statusReason = "";
-          draft.integration.weread.userInfo = {
-            isConnected: false,
-          };
-        }
-      }),
-    });
-  },
-  updateWeReadUserInfo: userInfo => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.weread.userInfo = userInfo;
-      }),
-    });
-  },
-  setWeReadConnectionState: payload => {
-    const { setting } = get();
-    console.info("[WeReadDebug] 更新连接状态", {
-      from: setting.integration.weread.connectionStatus,
-      to: payload.connectionStatus,
-      reason: payload.statusReason,
-      lastValidatedAt: payload.lastValidatedAt,
-    });
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.weread.connectionStatus = payload.connectionStatus;
-        draft.integration.weread.lastValidatedAt = payload.lastValidatedAt;
-        draft.integration.weread.statusReason = payload.statusReason;
-      }),
-    });
-  },
-  setWeReadEnabled: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.weread.enabled = enabled;
       }),
     });
   },

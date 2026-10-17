@@ -1,0 +1,125 @@
+import type { Descendant } from "slate";
+import type { MarkdownCodec } from "@tau/markdown";
+
+export type { Descendant } from "slate";
+
+export interface ServiceOptions {
+  signal?: AbortSignal;
+}
+
+export interface ServiceWarning {
+  code: string;
+  message: string;
+  path?: number[];
+}
+
+export interface ServiceFile {
+  /** 任务内的相对文件名，不是宿主文件路径。 */
+  name: string;
+  data: Blob;
+}
+
+export interface MarkdownServiceOptions extends ServiceOptions {
+  /** 仅参与本次转换，不修改全局编辑器。 */
+  codecs?: readonly MarkdownCodec[];
+}
+
+export interface MediaProgress {
+  /** 已处理的媒体时间，单位秒；不推测总时长或百分比。 */
+  time: number;
+}
+
+export interface MediaInfo {
+  format: { name: string; duration: number | null; size: number | null };
+  streams: {
+    index: number;
+    type: string;
+    codec: string;
+    width?: number;
+    height?: number;
+    sampleRate?: number;
+    channels?: number;
+  }[];
+}
+
+export interface PluginServices {
+  tailwind: {
+    compile(
+      input: { source: string; language?: "html" | "tsx" | "jsx" },
+      options?: ServiceOptions
+    ): Promise<{ css: string }>;
+  };
+  typst: {
+    compile(
+      input: {
+        source: string;
+        format?: "html";
+        inputs?: Record<string, string>;
+        files?: ServiceFile[];
+      },
+      options?: ServiceOptions
+    ): Promise<{ html: string }>;
+  };
+  markdown: {
+    deserialize(
+      source: string,
+      options?: MarkdownServiceOptions
+    ): Promise<{ nodes: Descendant[]; warnings: ServiceWarning[] }>;
+    serialize(
+      nodes: Descendant[],
+      options?: MarkdownServiceOptions
+    ): Promise<{ markdown: string; warnings: ServiceWarning[] }>;
+    render(
+      source: string,
+      options?: MarkdownServiceOptions & { theme?: "light" | "dark" }
+    ): Promise<{ html: string; css: string; warnings: ServiceWarning[] }>;
+  };
+  tikz: {
+    compile(input: { source: string }, options?: ServiceOptions): Promise<{ svg: string }>;
+  };
+  ffmpeg: {
+    probe(input: ServiceFile, options?: ServiceOptions): Promise<MediaInfo>;
+    /** args 中用任务文件名引用输入和输出；不接受 shell 命令。 */
+    run(
+      input: {
+        files: ServiceFile[];
+        args: string[];
+        outputs: { name: string; mimeType: string }[];
+      },
+      options?: ServiceOptions & { onProgress?: (progress: MediaProgress) => void }
+    ): Promise<{ files: ServiceFile[]; log: string }>;
+  };
+}
+
+/** 每个调用同时受调用方与插件实例生命周期约束。 */
+export function bindPluginServices(
+  adapter: PluginServices | undefined,
+  lifetime: AbortSignal,
+  assertActive: () => void
+): PluginServices {
+  const bind =
+    <A, O extends ServiceOptions, R>(
+      execute: ((input: A, options?: O) => Promise<R>) | undefined
+    ) =>
+    async (input: A, options?: O): Promise<R> => {
+      assertActive();
+      if (!execute) throw new Error("当前宿主未提供编译与转换服务");
+      const signal = AbortSignal.any([lifetime, ...(options?.signal ? [options.signal] : [])]);
+      signal.throwIfAborted();
+      const result = await execute(input, { ...options, signal } as O);
+      signal.throwIfAborted();
+      assertActive();
+      return result;
+    };
+  return Object.freeze({
+    tailwind: Object.freeze({ compile: bind(adapter?.tailwind?.compile) }),
+    typst: Object.freeze({ compile: bind(adapter?.typst?.compile) }),
+    markdown: Object.freeze({
+      deserialize: bind(adapter?.markdown?.deserialize),
+      serialize: bind(adapter?.markdown?.serialize),
+      render: bind(adapter?.markdown?.render),
+    }),
+    tikz: Object.freeze({ compile: bind(adapter?.tikz?.compile) }),
+    ffmpeg: Object.freeze({ probe: bind(adapter?.ffmpeg?.probe), run: bind(adapter?.ffmpeg?.run) }),
+  });
+}

@@ -4,6 +4,8 @@
  */
 
 import { parentPort, receiveMessageOnPort, workerData } from "node:worker_threads";
+import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
+import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { PublishSiteGenerator, type PublishDataSource } from "../modules/publish-site-generator";
 import type {
   DataCall,
@@ -57,10 +59,15 @@ const compileTailwind = (code: string, extension: "tsx" | "html") =>
   });
 
 async function run() {
+  desktopContentPlugins.load(
+    request.plugins?.plugins.map(plugin => plugin.artifact) ?? [],
+    sharedPluginModules
+  );
   const generator = new PublishSiteGenerator({
     templateDir: request.templateDir,
     compileTailwind,
     logger: console,
+    plugins: request.plugins,
   });
   const { files, virtualProcessed } = await generator.generate(
     dataSource,

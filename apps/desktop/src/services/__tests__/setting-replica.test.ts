@@ -44,17 +44,16 @@ describe("主窗口设置快照", () => {
     expect(fallback).not.toHaveBeenCalled();
   });
 
-  it("辅助窗口保留校验状态，不重复读后端或回灌设置", async () => {
+  it("辅助窗口保留账号状态，不重复读后端或回灌设置", async () => {
     const fallback = vi.fn();
     cleanup = connectSettingReplica(false, fallback);
     const setting = structuredClone(original);
-    setting.integration.weread.connectionStatus = "valid";
-    setting.integration.weread.lastValidatedAt = 123;
+    setting.integration.bilibili.userInfo.isLogin = true;
     Channel.latest.receive({ kind: "snapshot", setting });
     await vi.advanceTimersByTimeAsync(2000);
     expect(fallback).not.toHaveBeenCalled();
     expect(useSettingStore.getState().inited).toBe(true);
-    expect(useSettingStore.getState().setting.integration.weread.connectionStatus).toBe("valid");
+    expect(useSettingStore.getState().setting.integration.bilibili.userInfo.isLogin).toBe(true);
     expect(isRemoteAppliedSnapshot(JSON.stringify(buildPersistedSettingSnapshot(setting)))).toBe(
       true
     );

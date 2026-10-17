@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { filesystemToolsProvider } from "../filesystem-tools";
 
-vi.mock("@/commands/extra", () => ({
-  nodeFetch: vi.fn(),
+vi.mock("@/commands/fetch", () => ({
+  desktopFetch: vi.fn(),
 }));
 
 const getReadImageTool = () => {

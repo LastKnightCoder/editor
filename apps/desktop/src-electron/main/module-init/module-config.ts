@@ -6,12 +6,17 @@ import settingModule from "../modules/setting";
 import resourceModule from "../modules/resource";
 import fileModule from "../modules/file";
 import extraModule from "../modules/extra";
+import fetchModule from "../modules/fetch";
+import pluginDevelopmentModule from "../modules/plugin-development";
+import pluginLocalModule from "../modules/plugin-local";
+import pluginServicesModule from "../modules/plugin-services";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
 import modelUsageModule from "../modules/model-usage";
+import pluginAiModule from "../modules/plugin-ai";
 import browserBridgeModule from "../modules/browser-bridge";
 import mcpModule from "../modules/mcp";
 import aliOssModule from "../modules/ali-oss";
@@ -27,7 +32,6 @@ import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
 import podcastAudioModule from "../modules/podcast-audio";
 import ttsModule from "../modules/tts";
-import wereadModule from "../modules/weread";
 import publishModule from "../modules/publish";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
@@ -88,6 +92,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
   // === BACKGROUND 层：后台启动核心服务 ===
   {
+    name: "plugin-services",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: () => pluginServicesModule.init(),
+  },
+  {
     name: "server",
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
@@ -96,7 +106,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "database",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
+    dependencies: ["logger", "plugin-local"],
     init: () => databaseModule.init(),
   },
   {
@@ -116,6 +126,19 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => extraModule.init(),
+  },
+  { name: "fetch", layer: InitLayer.BACKGROUND, dependencies: [], init: () => fetchModule.init() },
+  {
+    name: "plugin-local",
+    layer: InitLayer.BACKGROUND,
+    dependencies: [],
+    init: () => pluginLocalModule.init(),
+  },
+  {
+    name: "plugin-development",
+    layer: InitLayer.BACKGROUND,
+    dependencies: [],
+    init: () => pluginDevelopmentModule.init(),
   },
 
   // === 应用级能力：与窗口无关，随应用后台并行初始化 ===
@@ -207,6 +230,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
 
   // AI 模块
   {
+    name: "plugin-ai",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["pi-ai", "model-usage"],
+    init: async () => pluginAiModule.init(),
+  },
+  {
     // 模型用量审计（全局 usage.db）：pi-ai / pi-session 的采集点依赖它先就绪
     name: "model-usage",
     layer: InitLayer.BACKGROUND,
@@ -270,12 +299,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   },
 
   // 集成模块
-  {
-    name: "weread",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "setting", "database"],
-    init: () => wereadModule.init(),
-  },
   {
     name: "publish",
     layer: InitLayer.BACKGROUND,

@@ -2,16 +2,13 @@ import { compileTailwind } from "@/commands";
 import type { RuntimeStyleCompiler } from "@tau/shared/runtime-style";
 
 export const desktopRuntimeStyleCompiler: RuntimeStyleCompiler = {
-  compile: ({ source, language }) => compileCustomBlockTailwind(source, language),
+  compile: ({ source, language }) => compileRuntimeTailwind(source, language),
 };
 
 const inflight = new Map<string, Promise<string>>();
 const cache = new Map<string, string>();
 
-export async function compileCustomBlockTailwind(
-  source: string,
-  extension = "tsx"
-): Promise<string> {
+export async function compileRuntimeTailwind(source: string, extension = "tsx"): Promise<string> {
   const trimmed = source?.trim();
   if (!trimmed) {
     return "";

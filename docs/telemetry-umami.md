@@ -7,7 +7,7 @@
 ## 1. 系统概览
 
 ```
-桌面客户端(打包构建) ──POST──▶ https://stats.xiongtao.life/api/send
+桌面客户端(打包构建) ──POST──▶ https://stats.taunote.app/api/send
                                     │
                        ECS (101.133.166.30, cn-shanghai)
                        nginx (80→443, Let's Encrypt 自动续期)
@@ -17,7 +17,7 @@
 
 | 项              | 值                                                                                                |
 | --------------- | ------------------------------------------------------------------------------------------------- |
-| 管理后台        | <https://stats.xiongtao.life>（账号 `admin`）                                                     |
+| 管理后台        | <https://stats.taunote.app>（账号 `admin`）                                                       |
 | 网站（website） | Tau Desktop，id `ae1b3d6f-0972-48ec-afb6-f1a8b7a79bd2`                                            |
 | 服务器部署目录  | `/opt/tau/umami/`（docker-compose.yml + .env，数据在 `./data`）                                   |
 | nginx 配置      | `/etc/nginx/conf.d/stats.xiongtao.life.conf`（webroot 模式证书，与 api/collab 站点同套）          |
@@ -30,7 +30,7 @@
 ## 2. API 认证
 
 ```bash
-TOKEN=$(curl -s -X POST https://stats.xiongtao.life/api/auth/login \
+TOKEN=$(curl -s -X POST https://stats.taunote.app/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"<密码>"}' | python3 -c 'import json,sys;print(json.load(sys.stdin)["token"])')
 # 之后所有请求带 -H "Authorization: Bearer $TOKEN"
@@ -125,7 +125,7 @@ Umami v3 起仪表盘完全组件化，有两类载体：
 ```python
 import json, urllib.request, uuid
 
-BASE = "https://stats.xiongtao.life"
+BASE = "https://stats.taunote.app"
 WID = "ae1b3d6f-0972-48ec-afb6-f1a8b7a79bd2"
 
 def auth(password):
@@ -208,7 +208,7 @@ POST /api/send                                             # 事件上报（须�
 发送测试事件：
 
 ```bash
-curl -s -X POST https://stats.xiongtao.life/api/send \
+curl -s -X POST https://stats.taunote.app/api/send \
   -H "Content-Type: application/json" \
   -H "User-Agent: Tau/0.0.0-test (darwin; arm64) Device/test-01" \
   -d '{"payload":{"website":"<WID>","hostname":"tau-desktop","screen":"1x1","language":"zh-CN","url":"/page/test","referrer":"","ip":""},"type":"event","event_name":"screen_view","event_data":{"page":"test"}}'

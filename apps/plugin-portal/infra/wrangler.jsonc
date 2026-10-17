@@ -1,0 +1,24 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "tau-plugin-portal-api",
+  "main": "../api/index.ts",
+  "compatibility_date": "2026-10-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "vars": {
+    "WEB_ORIGIN": "http://localhost:5173",
+    "API_ORIGIN": "http://localhost:8787",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "plugin-portal",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [
+    { "binding": "PENDING", "bucket_name": "tau-plugin-pending" },
+    { "binding": "RELEASES", "bucket_name": "tau-plugin-releases" },
+  ],
+}

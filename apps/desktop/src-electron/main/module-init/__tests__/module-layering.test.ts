@@ -53,7 +53,7 @@ describe("模块分层守护", () => {
 
   it("能扫到渲染端兜底调用（防路径失效导致下方断言空过）", () => {
     const guarded = collectGuardedModules(collectSources(rendererSrcDir));
-    expect(guarded.has("weread")).toBe(true);
+    expect(guarded.has("plugin-local")).toBe(true);
     expect(guarded.has("embedding-model-manager")).toBe(true);
   });
 

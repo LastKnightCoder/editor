@@ -15,6 +15,9 @@ import type { UsageSyncBackend } from "@/services/usageSync";
 const invokeModelUsage = <T = any>(channel: string, ...args: any[]): Promise<T> =>
   withModule("model-usage", () => invoke<T>(channel, ...args));
 
+export const getModelUsagePlugins = () =>
+  invokeModelUsage<{ id: string; name: string }[]>("model-usage:plugins");
+
 /** 时间范围内的用量汇总（调用数 / token / 费用 / 失败数） */
 export async function getModelUsageSummary(
   query: ModelUsageQuery = {}

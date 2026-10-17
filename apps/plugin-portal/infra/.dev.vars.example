@@ -1,0 +1,4 @@
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+# 32字节随机值的base64，用于会话中GitHub token的加密；只在本机生成。
+TOKEN_ENCRYPTION_KEY=
