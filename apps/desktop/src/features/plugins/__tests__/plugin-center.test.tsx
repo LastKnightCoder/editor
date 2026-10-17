@@ -33,6 +33,16 @@ vi.mock("@/commands/plugin-local", () => ({
   cancelLocalPluginUpdate: vi.fn(),
 }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
+// 详情资料走只读编辑器；这里只核对过滤后的文档文本，节点过滤规则由 pluginDocument 测试覆盖
+vi.mock("@/services/editorKit", () => ({ getPluginDocumentKit: () => ({}) }));
+vi.mock("@tau/editor", async () => {
+  const { Node } = await import("slate");
+  return {
+    Editor: ({ initValue }: { initValue: import("slate").Descendant[] }) => (
+      <div data-testid="plugin-document">{initValue.map(node => Node.string(node)).join("\n")}</div>
+    ),
+  };
+});
 
 const ID = "test.center";
 const center = {

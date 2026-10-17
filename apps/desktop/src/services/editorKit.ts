@@ -111,6 +111,11 @@ export function getSkillFileKit(): EditorKit {
   return createDesktopKit();
 }
 
+/** 插件详情的 README / CHANGELOG 只读展示：只有底座，内容先经 `toPluginDocument` 过滤为内置展示节点。 */
+export function getPluginDocumentKit(): EditorKit {
+  return createDesktopKit();
+}
+
 let flashcardBlank: AnyExtension | null = null;
 
 /**
