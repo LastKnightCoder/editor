@@ -9,9 +9,7 @@ import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor-media/services";
 import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import customBlockExtension, {
-  insertCustomBlock,
-} from "../../../../../plugins/custom-block/src/index";
+import { customBlockExtension } from "../../test-fixtures/plugin-packages";
 import "@tau/plugins/source-editor-host";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
@@ -153,7 +151,12 @@ describe("外包扩展的真实编辑器接线", () => {
     document.addEventListener("preview-editor-focus", listener);
     await act(async () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });
-      expect(insertCustomBlock(editor)).toEqual([0]);
+      const panel = customBlockExtension.blockPanel;
+      const items = typeof panel === "function" ? panel(editor) : panel;
+      const insert = items?.[0]?.onClick;
+      if (!insert) throw new Error("发布包缺少插入入口");
+      insert(editor);
+      expect(editor.children[0]).toMatchObject({ type: "custom-block" });
     });
     await act(async () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });

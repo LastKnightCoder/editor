@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "id": "weread",
+  "name": "微信读书",
+  "description": "同步微信读书书架、划线与想法，并在 Tau 中查看和引用摘录。",
+  "version": "1.0.4",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js",
+  "styles": "main.css",
+  "integrity": {
+    "main.js": "4369319b3513ee1160b7ecabf178c2f0380f2d619cc895a6af17988f6643a330",
+    "main.css": "f9c88325da920d36efae9004ba36ee18c150e2f1a6ed7b20b86df2ba4cd5752b"
+  }
+}

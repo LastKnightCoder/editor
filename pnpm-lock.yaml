@@ -3761,6 +3761,9 @@ importers:
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../themes
       '@tau/ui':
         specifier: workspace:*
         version: link:../ui
@@ -4102,140 +4105,6 @@ importers:
       vitest-canvas-mock:
         specifier: ^0.3.3
         version: 0.3.3(vitest@3.2.7)
-
-  plugins/custom-block:
-    dependencies:
-      '@babel/standalone':
-        specifier: ^7.22.2
-        version: 7.29.8
-      '@loadable/component':
-        specifier: ^5.15.3
-        version: 5.16.7(react@19.2.0)
-      '@tau/plugins':
-        specifier: workspace:*
-        version: link:../../packages/plugins
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tailwindcss/node':
-        specifier: ^4.1.17
-        version: 4.1.18
-      '@tailwindcss/oxide':
-        specifier: ^4.1.17
-        version: 4.1.18
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
-      '@types/babel__standalone':
-        specifier: ^7.1.8
-        version: 7.1.9
-      '@types/loadable__component':
-        specifier: ^5.13.10
-        version: 5.13.10
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      adm-zip:
-        specifier: ^0.5.16
-        version: 0.5.16
-      esbuild:
-        specifier: ^0.25.12
-        version: 0.25.12
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      tailwindcss:
-        specifier: ^4.1.17
-        version: 4.1.18
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-      vitest-canvas-mock:
-        specifier: ^0.3.3
-        version: 0.3.3(vitest@3.2.7)
-
-  plugins/weread:
-    dependencies:
-      '@tanstack/react-query':
-        specifier: ^5.101.0
-        version: 5.101.0(react@19.2.0)
-      '@tau/plugins':
-        specifier: workspace:*
-        version: link:../../packages/plugins
-      '@tau/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      dayjs:
-        specifier: ^1.11.13
-        version: 1.11.23
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-    devDependencies:
-      '@tailwindcss/node':
-        specifier: 4.1.18
-        version: 4.1.18
-      '@tailwindcss/oxide':
-        specifier: 4.1.18
-        version: 4.1.18
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      adm-zip:
-        specifier: ^0.5.16
-        version: 0.5.18
-      esbuild:
-        specifier: ^0.25.12
-        version: 0.25.12
-      tailwindcss:
-        specifier: 4.1.18
-        version: 4.1.18
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
 packages:
 
@@ -4729,10 +4598,6 @@ packages:
 
   '@babel/runtime@7.29.7':
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
-    engines: {node: '>=6.9.0'}
-
-  '@babel/standalone@7.29.8':
-    resolution: {integrity: sha512-XgbPNz+u6JzB7cKGnPDoS1U24J5td8yp3HFWbT/6f4/ASZ0PqaQGIvts1o5v5AI+f6i3jdVB/L/o2CYLCv101A==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.27.2':
@@ -7924,9 +7789,6 @@ packages:
 
   '@types/babel__generator@7.27.0':
     resolution: {integrity: sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg==}
-
-  '@types/babel__standalone@7.1.9':
-    resolution: {integrity: sha512-IcCNPLqpevUD7UpV8QB0uwQPOyoOKACFf0YtYWRHcmxcakaje4Q7dbG2+jMqxw/I8Zk0NHvEps66WwS7z/UaaA==}
 
   '@types/babel__template@7.4.4':
     resolution: {integrity: sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A==}
@@ -15621,8 +15483,6 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
-  '@babel/standalone@7.29.8': {}
-
   '@babel/template@7.27.2':
     dependencies:
       '@babel/code-frame': 7.29.0
@@ -18352,15 +18212,6 @@ snapshots:
   '@types/babel__generator@7.27.0':
     dependencies:
       '@babel/types': 7.29.7
-
-  '@types/babel__standalone@7.1.9':
-    dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
-      '@types/babel__core': 7.20.5
-      '@types/babel__generator': 7.27.0
-      '@types/babel__template': 7.4.4
-      '@types/babel__traverse': 7.28.0
 
   '@types/babel__template@7.4.4':
     dependencies:

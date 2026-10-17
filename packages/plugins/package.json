@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.8.0-dev.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
@@ -11,6 +11,7 @@
     "./rendering": "./src/rendering.ts",
     "./content": "./src/content.ts",
     "./whiteboard": "./src/whiteboard.ts",
+    "./tailwind.css": "./tailwind.css",
     "./portable": "./src/portable.ts",
     "./distribution": "./src/distribution.ts",
     "./shared-modules": "./src/shared-modules.ts",
@@ -31,6 +32,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@tau/themes": "workspace:*",
     "@tau/whiteboard": "workspace:*",
     "@tau/ui": "workspace:*",
     "react-dom": "19.2.0",

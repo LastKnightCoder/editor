@@ -1,7 +1,5 @@
 import { readFile, mkdir, cp, rm, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import path from "node:path";
 import {
   validatePluginManifest,
@@ -9,62 +7,60 @@ import {
   type DevelopmentPluginPackage,
 } from "./package.ts";
 
-type DistributionEntry =
-  | { directory: string; build: string; artifact: string }
-  | {
-      artifact: string;
-      id: string;
-      version: string;
-      files: Record<string, string>;
-      sourceRevision: string;
-      archiveSha256: string;
-    };
+type DistributionEntry = {
+  artifact: string;
+  id: string;
+  version: string;
+  files: Record<string, string>;
+  sourceRevision: string;
+  archiveSha256: string;
+  repository: string;
+  bundled?: boolean;
+};
 
-/** 产品分发消费本仓库构建产物或固定版本快照，不导入独立作者源码。 */
+/** 产品分发只消费独立插件的固定版本快照，不导入作者源码。 */
 export async function buildPluginDistribution(distribution: string, destination?: string) {
   const entries: DistributionEntry[] = JSON.parse(await readFile(distribution, "utf8"));
   const packages: DevelopmentPluginPackage[] = [];
   const copies: { source: string; id: string }[] = [];
   const ids = new Set<string>();
   for (const entry of entries) {
-    const directory = path.resolve(
-      path.dirname(distribution),
-      "directory" in entry ? entry.directory : "."
-    );
-    if ("directory" in entry)
-      await promisify(execFile)(process.execPath, [entry.build], { cwd: directory });
+    if (
+      !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(entry.repository ?? "") ||
+      !/^[a-f0-9]{40}$/.test(entry.sourceRevision ?? "")
+    )
+      throw new Error("分发插件缺少有效的源码仓库或提交");
+    const directory = path.dirname(distribution);
     const source = path.resolve(directory, entry.artifact);
-    if (!("directory" in entry)) {
-      const relative = path.relative(directory, source);
-      if (!relative || relative.startsWith("..") || path.isAbsolute(relative))
-        throw new Error("固定插件产物必须位于分发目录内");
-      const entries = await readdir(source, { withFileTypes: true });
+    const relative = path.relative(directory, source);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative))
+      throw new Error("固定插件产物必须位于分发目录内");
+    const files = await readdir(source, { withFileTypes: true });
+    if (
+      files.some(file => !file.isFile()) ||
+      files
+        .map(file => file.name)
+        .sort()
+        .join("\n") !== Object.keys(entry.files).sort().join("\n")
+    )
+      throw new Error("固定插件产物文件清单不匹配");
+    if (!entry.files["manifest.json"]) throw new Error("固定插件缺少 manifest 摘要");
+    for (const [file, digest] of Object.entries(entry.files)) {
+      if (path.basename(file) !== file || !/^[a-f0-9]{64}$/.test(digest))
+        throw new Error("固定插件文件或摘要无效");
       if (
-        entries.some(file => !file.isFile()) ||
-        entries
-          .map(file => file.name)
-          .sort()
-          .join("\n") !== Object.keys(entry.files).sort().join("\n")
+        createHash("sha256")
+          .update(await readFile(path.join(source, file)))
+          .digest("hex") !== digest
       )
-        throw new Error("固定插件产物文件清单不匹配");
-      if (!entry.files["manifest.json"]) throw new Error("固定插件缺少 manifest 摘要");
-      for (const [file, digest] of Object.entries(entry.files)) {
-        if (path.basename(file) !== file || !/^[a-f0-9]{64}$/.test(digest))
-          throw new Error("固定插件文件或摘要无效");
-        if (
-          createHash("sha256")
-            .update(await readFile(path.join(source, file)))
-            .digest("hex") !== digest
-        )
-          throw new Error(`固定插件产物摘要不匹配：${entry.id}/${file}`);
-      }
+        throw new Error(`固定插件产物摘要不匹配：${entry.id}/${file}`);
     }
     const manifest = validatePluginManifest(
       JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"))
     );
-    if (!("directory" in entry) && (manifest.id !== entry.id || manifest.version !== entry.version))
+    if (manifest.id !== entry.id || manifest.version !== entry.version)
       throw new Error("固定插件身份或版本不匹配");
-    if (!isContentPlugin(manifest) || ids.has(manifest.id))
+    if ((entry.bundled !== false && !isContentPlugin(manifest)) || ids.has(manifest.id))
       throw new Error("分发插件重复或没有静态内容贡献");
     ids.add(manifest.id);
     const read = async (file: string) => {
@@ -78,7 +74,7 @@ export async function buildPluginDistribution(distribution: string, destination?
       code: await read(manifest.main),
       css: manifest.styles ? await read(manifest.styles) : undefined,
     });
-    copies.push({ source, id: manifest.id });
+    if (entry.bundled !== false) copies.push({ source, id: manifest.id });
   }
   if (destination) {
     await rm(destination, { recursive: true, force: true });
