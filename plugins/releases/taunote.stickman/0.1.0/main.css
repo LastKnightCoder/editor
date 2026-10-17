@@ -1,0 +1,44 @@
+/* src/styles.css */
+.tau-stickman-panel {
+  width: 340px;
+  max-width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.tau-stickman-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tau-stickman-poses {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+.tau-stickman-pose {
+  display: flex;
+  height: 84px;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--tau-ink-2);
+  font: inherit;
+  font-size: 11.5px;
+  transition: background-color 150ms, color 150ms;
+}
+.tau-stickman-pose:hover {
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-1);
+}
+.tau-stickman-pose[aria-pressed=true] {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.tau-stickman-text {
+  font-weight: 500;
+}

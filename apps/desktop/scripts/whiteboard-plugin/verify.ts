@@ -9,6 +9,7 @@ import { readPluginPackage } from "../../src-electron/main/services/plugin-packa
 import { discoverPlugins } from "../../src-electron/main/services/plugin-discovery";
 import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
 import { verifyStickman } from "./stickman";
+import { installBundledPlugins } from "../../src-electron/main/services/plugin-bundled";
 const root = process.env.TAU_WHITEBOARD_VERIFY_ROOT!;
 const zip = process.env.TAU_WHITEBOARD_VERIFY_ZIP!;
 const phase = process.env.TAU_WHITEBOARD_VERIFY_PHASE!;
@@ -23,8 +24,14 @@ async function verify() {
   const updates = new PluginUpdates(directory, "0.59.0");
   await updates.initialize();
   if (phase === "initial") {
-    await updates.stageZip(zip);
-    await updates.initialize();
+    const bundled = process.env.TAU_WHITEBOARD_VERIFY_BUNDLED;
+    if (bundled) {
+      const installed = await installBundledPlugins(bundled, directory, "0.59.0");
+      assert.ok(installed.includes(id));
+    } else {
+      await updates.stageZip(zip);
+      await updates.initialize();
+    }
   }
   const prefs = new ContentPluginPreferences(directory);
   await prefs.load();

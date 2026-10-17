@@ -27,7 +27,7 @@ declare global {
       checkStickmanParity(
         api: WhiteboardAPI,
         definition: import("@tau/plugins/whiteboard").WhiteboardElementDefinition
-      ): { renderCases: number; schematicCases: number };
+      ): Promise<{ renderCases: number; schematicCases: number }>;
     };
     captureWhiteboard(): Promise<{ size: number; type: string } | null>;
     checkWhiteboardConnections(): boolean;
