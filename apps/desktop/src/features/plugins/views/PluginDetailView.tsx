@@ -283,7 +283,7 @@ function SettingsTab({
   const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
   const active = section ? sections.find(item => item.key === section) : sections[0];
   return (
-    <div className="max-w-[720px]">
+    <div className="min-w-0">
       <PluginAISettings pluginId={plugin.info.id} />
       {sections.length > 1 && (
         <nav aria-label="插件设置分组" className="mb-4 flex flex-wrap gap-2">
@@ -331,7 +331,7 @@ function VersionsTab({
   const versions = usePluginVersions(pluginId, Boolean(entry));
   const rows = versionRows(plugin, versions.data, entry);
   return (
-    <div className="max-w-[640px]">
+    <div className="min-w-0">
       {rows.map(row => (
         <VersionRow key={row.version} version={row.version} note={row.notes.join(" · ")}>
           {row.action && plugin && (
