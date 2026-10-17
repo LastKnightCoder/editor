@@ -6,12 +6,13 @@ import { skillToolsProvider } from "@/mcp/providers/skill-tools";
 
 it("技能有插件来源、命名空间和正文，模式偏好保留，卸载从 AI 与页面共享列表移除", () => {
   const definition = { id: "authoring", name: "示例", description: "编写示例", content: "# SKILL" };
-  const first = registerPluginSkill("test.one", definition);
-  const second = registerPluginSkill("test.two", definition);
+  const first = registerPluginSkill({ id: "test.one", name: "插件一" }, definition);
+  const second = registerPluginSkill({ id: "test.two", name: "插件二" }, definition);
   try {
     const store = useSkillStore.getState();
     const skill = store.getSkillByFolderName("test.one:authoring")!;
     expect(skill.readmeContent).toBe("# SKILL");
+    expect(skill.pluginName).toBe("插件一");
     expect(toSkillItems([skill], {}, {})[0]).toMatchObject({ source: "plugin", readonly: true });
     store.setInvocation(skill.folderName, "manual");
     expect(getSkillInvocation(skill, useSkillStore.getState().preferences)).toBe("manual");
@@ -28,12 +29,15 @@ it("技能有插件来源、命名空间和正文，模式偏好保留，卸载�
 
 it("AI 工具能读取插件正文，停用后不可再次加载", async () => {
   useSkillStore.setState({ loaded: true });
-  const registration = registerPluginSkill("test.reader", {
-    id: "guide",
-    name: "指南",
-    description: "编写时使用",
-    content: "# 插件指南",
-  });
+  const registration = registerPluginSkill(
+    { id: "test.reader", name: "阅读器" },
+    {
+      id: "guide",
+      name: "指南",
+      description: "编写时使用",
+      content: "# 插件指南",
+    }
+  );
   const read = skillToolsProvider.tools().find(tool => tool.name === "read_skill_file")!;
   const input = { folderName: "test.reader:guide", relativePath: "SKILL.md" };
   const readResult = async () => {

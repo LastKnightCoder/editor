@@ -53,7 +53,7 @@ export function SourceTag({ skill }: { skill: Skill }) {
       {skill.source === "builtin"
         ? "内置"
         : skill.source === "plugin"
-          ? "插件"
+          ? `插件 · ${skill.pluginName}`
           : linkedDirLabel(skill)}
     </span>
   );

@@ -17,6 +17,8 @@ export interface Skill extends SkillMeta {
   source?: SkillSource;
   /** 关联目录来源的根目录（绝对路径） */
   rootPath?: string;
+  /** 插件来源的插件名 */
+  pluginName?: string;
   isInternal?: boolean; // 是否为内部 skill
   readmeContent?: string; // 内部 skill 的 SKILL.md 内容
   /** front-matter `disable-model-invocation: true` → 默认仅手动 */

@@ -97,6 +97,8 @@ export interface PaletteCommand {
   id: string;
   label: string;
   section: string;
+  /** 次行文案，缺省显示 section */
+  sub?: string;
   icon: LucideIcon;
   /** 英文别名（小写包含匹配） */
   keywords?: string;
@@ -125,6 +127,8 @@ export function pluginPaletteCommands(
     id: `plugin:${command.id}`,
     label: command.title,
     section: "插件",
+    sub: `来自「${command.pluginName}」`,
+    keywords: command.pluginName,
     icon: Command,
     kind: "plugin",
     run: () => host.executeCommand(command.id),
