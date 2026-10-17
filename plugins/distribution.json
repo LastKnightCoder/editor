@@ -1,1 +1,21 @@
-[{ "directory": "custom-block", "build": "build.mjs", "artifact": "dist/package" }]
+[
+  {
+    "directory": "custom-block",
+    "build": "build.mjs",
+    "artifact": "dist/package"
+  },
+  {
+    "artifact": "releases/taunote.stickman/0.1.0",
+    "id": "taunote.stickman",
+    "version": "0.1.0",
+    "sourceRevision": "61e930b907f51351f3593dc2237bc38c9ce2361d",
+    "archiveSha256": "98e6738939ff59014a3f7ac2fefca6c5423d5eff55bddb9215bb3bf019b3116f",
+    "files": {
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "6624a0ba26b6f58a10cee3f1e0803d95c0feb6839e864959e7d64cd13c6e8f38",
+      "main.js": "80f87a8a86be947837887d8a3cfa369b0794eb92cfe94b6ce27e64322f60af67",
+      "manifest.json": "a2f782559d868c9e69144c3d4fa7b79854d1e3ceb3e5498a0e192697dcd9321b",
+      "README.md": "2bf8ada46c9c55d7e35b77079df642e430403446686dcea35f91fcfa6a665867"
+    }
+  }
+]

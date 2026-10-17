@@ -44,6 +44,11 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
   for (const file of files(resolve(root, directory))) {
     const inPackage = inside(file, resolve(packageRoot, "src"));
     const ast = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+    if (inPackage && !/(?:__tests__|\.test\.)/.test(file))
+      assert(
+        !/stickman/i.test(ast.text),
+        "人物实现与专用分支只能属于独立插件：" + relative(root, file)
+      );
     const check = (specifier, typeOnly = false) => {
       const label = relative(root, file) + ": " + specifier;
       assert(

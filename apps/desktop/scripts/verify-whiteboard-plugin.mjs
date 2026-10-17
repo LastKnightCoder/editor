@@ -10,11 +10,14 @@ const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const root = path.resolve(desktop, "../..");
 const require = createRequire(path.join(desktop, "package.json"));
 const zip = process.argv[2];
-const pluginId = process.argv[3] ?? "example.whiteboard-probe";
+const bundled = zip === "--bundled";
+const pluginId = process.argv[3] ?? (bundled ? "taunote.stickman" : "example.whiteboard-probe");
 if (!["example.whiteboard-probe", "taunote.stickman"].includes(pluginId))
   throw new Error("未知验收插件");
 if (!zip)
-  throw new Error("用法：node apps/desktop/scripts/verify-whiteboard-plugin.mjs <独立作者 ZIP>");
+  throw new Error(
+    "用法：node apps/desktop/scripts/verify-whiteboard-plugin.mjs <独立作者 ZIP | --bundled> [插件 ID]"
+  );
 const output = path.join(root, "output/whiteboard-plugin", randomUUID());
 await mkdir(output, { recursive: true });
 const { build: viteBuild } = await import(require.resolve("vite"));
@@ -92,7 +95,8 @@ for (const phase of phases) {
   const env = {
     ...process.env,
     TAU_WHITEBOARD_VERIFY_ROOT: output,
-    TAU_WHITEBOARD_VERIFY_ZIP: path.resolve(zip),
+    TAU_WHITEBOARD_VERIFY_ZIP: bundled ? "" : path.resolve(zip),
+    TAU_WHITEBOARD_VERIFY_BUNDLED: bundled ? path.join(desktop, "build/bundled-plugins") : "",
     TAU_WHITEBOARD_VERIFY_PHASE: phase,
     TAU_WHITEBOARD_VERIFY_ID: pluginId,
   };
@@ -118,6 +122,10 @@ for (const phase of phases) {
 }
 await writeFile(
   path.join(output, "report.json"),
-  JSON.stringify({ passed: true, zip: path.resolve(zip), phases }, null, 2)
+  JSON.stringify(
+    { passed: true, source: bundled ? "bundled-plugins" : path.resolve(zip), phases },
+    null,
+    2
+  )
 );
 console.log(`白板插件验收通过：${output}`);

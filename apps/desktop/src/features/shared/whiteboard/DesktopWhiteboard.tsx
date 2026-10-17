@@ -1,7 +1,6 @@
 import {
   createArrowExtension,
   createGeometryExtension,
-  createStickmanExtension,
   createHandwriteExtension,
   createRichTextExtension,
   createMindExtension,
@@ -161,7 +160,6 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
     return [
       createArrowExtension(getArrowLabelKit),
       createGeometryExtension(getDescriptionKit),
-      createStickmanExtension(),
       createHandwriteExtension(),
       createDocumentExtension({
         Body: DocumentCard,
