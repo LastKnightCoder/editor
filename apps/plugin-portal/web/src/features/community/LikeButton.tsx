@@ -11,7 +11,6 @@ export function LikeButton({ pluginId }: { pluginId: string }) {
     <Button
       aria-pressed={first.liked}
       aria-label={`${first.liked ? "取消喜欢" : "喜欢"} · ${first.likes}`}
-      disabled={like.isPending}
       onClick={() =>
         like.mutate(!first.liked, {
           onError: error => toast.error(`操作失败：${errorMessage(error)}`),

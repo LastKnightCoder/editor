@@ -35,6 +35,7 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
     getUpload: id => watch(api.getUpload(id)),
     createSubmission: requestId => watch(api.createSubmission(requestId)),
     listSubmissions: query => watch(api.listSubmissions(query)),
+    listSubmissionGroups: () => watch(api.listSubmissionGroups()),
     getSubmission: id => watch(api.getSubmission(id)),
     saveSubmission: (id, body) => watch(api.saveSubmission(id, body)),
     submitSubmission: (id, revision) => watch(api.submitSubmission(id, revision)),

@@ -3,7 +3,7 @@
 页面（版式见 `../mockups/redesign/index.html` 方案A）：
 
 - 公开：/plugins 插件中心（网格卡片、搜索防抖、排序菜单）、/plugins/:pluginId 插件详情（介绍/更新说明/版本/评论，最新版本按SemVer取）。
-- 工作台（需登录，左侧栏）：/submissions 我的提交（按状态筛选、显示最新动态）、/submissions/new、/submissions/:id 提交编辑、/review 审核队列、/review/:id 审核、/moderation 评论管理；后三个仅审核者。
+- 工作台（需登录，左侧栏）：/submissions 我的提交（一个插件一行，展开看各次提交；筛选与计数按每个插件最该处理的那次提交）、/submissions/new、/submissions/:id 提交编辑、/review 审核队列、/review/:id 审核、/moderation 评论管理；后三个仅审核者。
 
 作者流程：上传ZIP → 核对包资料与README预览 → 右栏「提交前检查」（包校验、版本号高于已发布版本、仓库格式）全部满足后提交 → 在「沟通」里与审核者交流。要求修改时页顶直接显示审核意见与重新上传入口。
 
@@ -35,3 +35,5 @@ pnpm --filter @tau/plugin-portal test:web
 模拟模式仅开发服务器可用，页面显示“模拟模式”。数据只存在当前页面内存，刷新重置，提供假包资料用于展示；不把模拟ZIP解析或提交当作真实验收。真实失败不自动回退模拟。
 
 测试包含HTTP凭据/CSRF、Markdown安全渲染、上传冲突与过期，以及真实组件的ZIP资料提交、只读、反馈、revision冲突交互。旧图片和介绍表单测试随消费者删除，不保留双模型。
+
+喜欢按钮乐观更新：点击即改评论区与插件中心缓存的计数，同一插件的请求按mutation scope串行发出，失败回滚并提示，最后一个请求落定后再与服务端对齐。

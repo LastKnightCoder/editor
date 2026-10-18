@@ -212,6 +212,29 @@ export interface SubmissionPage {
   nextCursor: string | null;
   counts: SubmissionCounts;
 }
+/** 提交摘要：不含 README 等包内容，供按插件归组的列表使用。 */
+export interface SubmissionSummary {
+  id: string;
+  status: SubmissionStatus;
+  /** 包内插件 ID；还没上传包的草稿为 null。 */
+  pluginId: string | null;
+  name: string | null;
+  version: string | null;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt: string | null;
+  lastEvent: SubmissionEvent | null;
+}
+/** 同一插件的全部提交，按创建时间倒序；pluginId 为 null 的一组是未上传包的草稿。 */
+export interface SubmissionGroup {
+  pluginId: string | null;
+  name: string | null;
+  submissions: SubmissionSummary[];
+}
+export interface SubmissionGroups {
+  /** 按组内最近活动时间倒序。 */
+  groups: SubmissionGroup[];
+}
 export interface SubmissionQuery {
   /** review 为审核范围（仅审核者），默认本人提交。 */
   scope: "mine" | "review";

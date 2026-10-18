@@ -69,3 +69,34 @@ it("评论结果未知时保留正文和请求ID，重试不会重复发表", as
   await screen.findByText("这是一条评论");
   expect(screen.getAllByText("这是一条评论")).toHaveLength(1);
 });
+
+it("喜欢先乐观更新，请求未返回也立即变化；失败回滚并提示", async () => {
+  const api = setup();
+  let reject: (error: Error) => void = () => undefined;
+  const like = vi
+    .spyOn(api, "setPluginLiked")
+    .mockImplementationOnce(() => new Promise((_resolve, fail) => (reject = fail)));
+  fireEvent.click(await screen.findByRole("button", { name: "喜欢 · 0" }));
+  await screen.findByRole("button", { name: "取消喜欢 · 1" });
+  expect(like).toHaveBeenCalledWith("test.plugin", true);
+  reject(new Error("网络中断"));
+  await screen.findByRole("button", { name: "喜欢 · 0" });
+});
+
+it("连点按顺序发出请求，最终状态与最后一次点击一致", async () => {
+  const api = setup();
+  const original = api.setPluginLiked;
+  const calls: boolean[] = [];
+  vi.spyOn(api, "setPluginLiked").mockImplementation(async (id, liked) => {
+    calls.push(liked);
+    await new Promise(resolve => setTimeout(resolve, 10));
+    return original(id, liked);
+  });
+  fireEvent.click(await screen.findByRole("button", { name: "喜欢 · 0" }));
+  fireEvent.click(await screen.findByRole("button", { name: "取消喜欢 · 1" }));
+  fireEvent.click(await screen.findByRole("button", { name: "喜欢 · 0" }));
+  await screen.findByRole("button", { name: "取消喜欢 · 1" });
+  await waitFor(() => expect(calls).toEqual([true, false, true]));
+  expect((await api.getCommunity("test.plugin", null)).liked).toBe(true);
+  await screen.findByRole("button", { name: "取消喜欢 · 1" });
+});

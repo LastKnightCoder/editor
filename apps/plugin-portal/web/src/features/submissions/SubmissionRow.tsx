@@ -7,15 +7,8 @@ import { StatusTag } from "../../components/PageHeader";
 import { formatRelative } from "../../components/format";
 import { activityText } from "./activity";
 
-export function SubmissionRow({
-  submission,
-  to,
-  showPluginId,
-}: {
-  submission: Submission;
-  to: string;
-  showPluginId?: boolean;
-}) {
+/** 审核队列里的一行提交 */
+export function SubmissionRow({ submission, to }: { submission: Submission; to: string }) {
   const manifest = submission.content?.manifest;
   const needsWork = submission.status === "changes_requested";
   const time = submission.lastEvent?.createdAt ?? submission.submittedAt ?? submission.updatedAt;
@@ -46,9 +39,7 @@ export function SubmissionRow({
                 v{manifest.version}
               </span>
             )}
-            {showPluginId && manifest && (
-              <span className="text-tau-micro text-ink-3 truncate">{manifest.id}</span>
-            )}
+            {manifest && <span className="text-tau-micro text-ink-3 truncate">{manifest.id}</span>}
           </p>
           <p
             className={cn(
@@ -60,7 +51,7 @@ export function SubmissionRow({
                   : "text-ink-2"
             )}
           >
-            {activityText(submission)}
+            {activityText({ ...submission, hasPackage: !!submission.content }, "reviewer")}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

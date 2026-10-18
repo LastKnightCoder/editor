@@ -2,8 +2,11 @@ import type {
   Submission,
   SubmissionCounts,
   SubmissionEvent,
+  SubmissionGroup,
+  SubmissionGroups,
   SubmissionPage,
   SubmissionStatus,
+  SubmissionSummary,
 } from "../contracts";
 import { body, fail, isReviewer, json, type Env } from "./platform";
 import { readyUpload } from "./uploads";
@@ -33,6 +36,8 @@ interface EventRow {
   excerpt: string;
   created_at: string;
 }
+/** 单作者提交上限：创建时拒绝超额，归组列表据此一次读完 */
+const MAX_SUBMISSIONS = 100;
 const STATUSES: SubmissionStatus[] = [
   "draft",
   "pending_review",
@@ -55,26 +60,27 @@ const dto = (row: Row, owner: string): Omit<Submission, "lastEvent"> => ({
   updatedAt: row.updated_at,
   submittedAt: row.submitted_at,
 });
-/** 批量附加最新动态：审核记录与站内反馈合并后按 created_at/id 取每个提交的最新一条。 */
-export async function withLastEvents(env: Env, rows: Row[], owner: string): Promise<Submission[]> {
-  if (!rows.length) return [];
-  const ids = rows.map(row => row.id),
-    marks = ids.map(() => "?").join(",");
+/** 每个提交最近一条审核记录或站内反馈；where 作用于提交表别名 s，两段子查询各绑定一次。 */
+async function latestEvents(
+  env: Env,
+  where: string,
+  binds: unknown[]
+): Promise<Map<string, SubmissionEvent>> {
   // SQLite substr 按字符截取，避免把整段正文传回 Worker。
   const events = await env.DB.prepare(
     `SELECT submission_id,kind,decision,role,login,excerpt,created_at FROM (
       SELECT e.*,ROW_NUMBER() OVER (PARTITION BY submission_id ORDER BY created_at DESC,id DESC) AS position FROM (
         SELECT r.submission_id,r.id,'review' AS kind,r.decision,'reviewer' AS role,p.login,substr(r.comment,1,120) AS excerpt,r.created_at
-        FROM submission_reviews r JOIN publishers p ON p.id=r.reviewer_id WHERE r.submission_id IN (${marks})
+        FROM submission_reviews r JOIN submissions s ON s.id=r.submission_id JOIN publishers p ON p.id=r.reviewer_id WHERE ${where}
         UNION ALL
         SELECT f.submission_id,f.id,'feedback',NULL,f.role,p.login,substr(f.message,1,120),f.created_at
-        FROM submission_feedback f JOIN publishers p ON p.id=f.publisher_id WHERE f.submission_id IN (${marks})
+        FROM submission_feedback f JOIN submissions s ON s.id=f.submission_id JOIN publishers p ON p.id=f.publisher_id WHERE ${where}
       ) e
     ) WHERE position=1`
   )
-    .bind(...ids, ...ids)
+    .bind(...binds, ...binds)
     .all<EventRow>();
-  const latest = new Map(
+  return new Map(
     events.results.map(event => [
       event.submission_id,
       {
@@ -87,7 +93,68 @@ export async function withLastEvents(env: Env, rows: Row[], owner: string): Prom
       } satisfies SubmissionEvent,
     ])
   );
+}
+/** 批量附加最新动态：审核记录与站内反馈合并后按 created_at/id 取每个提交的最新一条。 */
+export async function withLastEvents(env: Env, rows: Row[], owner: string): Promise<Submission[]> {
+  if (!rows.length) return [];
+  const ids = rows.map(row => row.id);
+  const latest = await latestEvents(env, `s.id IN (${ids.map(() => "?").join(",")})`, ids);
   return rows.map(row => ({ ...dto(row, owner), lastEvent: latest.get(row.id) ?? null }));
+}
+interface SummaryRow {
+  id: string;
+  status: SubmissionStatus;
+  group_id: string | null;
+  name: string | null;
+  version: string | null;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+}
+/** 本人全部提交按插件归组；单作者提交数有上限，一次读完，不读包内正文。 */
+async function submissionGroups(env: Env, owner: string): Promise<SubmissionGroups> {
+  const [rows, latest] = await Promise.all([
+    env.DB.prepare(
+      `SELECT id,status,COALESCE(plugin_id,json_extract(content_json,'$.manifest.id')) AS group_id,
+        json_extract(content_json,'$.manifest.name') AS name,json_extract(content_json,'$.manifest.version') AS version,
+        created_at,updated_at,submitted_at
+      FROM submissions WHERE publisher_id=? ORDER BY created_at DESC,id DESC LIMIT ?`
+    )
+      .bind(owner, MAX_SUBMISSIONS)
+      .all<SummaryRow>(),
+    latestEvents(env, "s.publisher_id=?", [owner]),
+  ]);
+  const groups = new Map<string | null, SubmissionGroup>();
+  const activity = new Map<string | null, string>();
+  for (const row of rows.results) {
+    const summary: SubmissionSummary = {
+      id: row.id,
+      status: row.status,
+      pluginId: row.group_id,
+      name: row.name,
+      version: row.version,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      submittedAt: row.submitted_at,
+      lastEvent: latest.get(row.id) ?? null,
+    };
+    const group = groups.get(row.group_id) ?? {
+      pluginId: row.group_id,
+      name: null,
+      submissions: [],
+    };
+    group.name ??= row.name;
+    group.submissions.push(summary);
+    groups.set(row.group_id, group);
+    const eventTime = summary.lastEvent?.createdAt ?? "";
+    const time = eventTime > row.updated_at ? eventTime : row.updated_at;
+    if (time > (activity.get(row.group_id) ?? "")) activity.set(row.group_id, time);
+  }
+  return {
+    groups: [...groups.values()].sort((a, b) =>
+      (activity.get(b.pluginId) ?? "").localeCompare(activity.get(a.pluginId) ?? "")
+    ),
+  };
 }
 const present = async (env: Env, row: Row, owner: string) =>
   (await withLastEvents(env, [row], owner))[0];
@@ -123,7 +190,7 @@ export async function submissionRoute(
     const count = await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE publisher_id=?")
       .bind(owner)
       .first<{ n: number }>();
-    if ((count?.n ?? 0) >= 100) fail(409, "LIMIT_EXCEEDED", "提交记录已达上限");
+    if ((count?.n ?? 0) >= MAX_SUBMISSIONS) fail(409, "LIMIT_EXCEEDED", "提交记录已达上限");
     const time = new Date().toISOString();
     await env.DB.prepare(
       "INSERT OR IGNORE INTO submissions(id,publisher_id,client_request_id,created_at,updated_at) VALUES (?,?,?,?,?)"
@@ -138,6 +205,8 @@ export async function submissionRoute(
     if (!row) fail(503, "SERVICE_UNAVAILABLE", "创建失败，请使用同一请求编号重试");
     return json(await present(env, row, owner), 201);
   }
+  if (path === "/v1/submission-groups" && request.method === "GET")
+    return json(await submissionGroups(env, owner));
   if (path === "/v1/submissions" && request.method === "GET") {
     const url = new URL(request.url),
       review = url.searchParams.get("scope") === "review";

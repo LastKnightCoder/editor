@@ -58,7 +58,6 @@ function ReviewQueue() {
           <SubmissionRow
             key={item.id}
             submission={item}
-            showPluginId
             to={`/review/${encodeURIComponent(item.id)}`}
           />
         )}

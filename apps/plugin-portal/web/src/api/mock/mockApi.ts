@@ -4,6 +4,7 @@ import type {
   Submission,
   SubmissionCounts,
   SubmissionEvent,
+  SubmissionGroup,
   Upload,
   ReviewDetails,
   ReviewRecord,
@@ -218,6 +219,31 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
         nextCursor: null,
         counts,
       };
+    },
+    listSubmissionGroups: async () => {
+      const groups = new Map<string | null, SubmissionGroup>();
+      for (const row of [...records.values()].reverse()) {
+        const manifest = row.content?.manifest ?? null;
+        const key = manifest?.id ?? null;
+        const group = groups.get(key) ?? {
+          pluginId: key,
+          name: manifest?.name ?? null,
+          submissions: [],
+        };
+        group.submissions.push({
+          id: row.id,
+          status: row.status,
+          pluginId: key,
+          name: manifest?.name ?? null,
+          version: manifest?.version ?? null,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          submittedAt: row.submittedAt,
+          lastEvent: row.lastEvent,
+        });
+        groups.set(key, group);
+      }
+      return { groups: [...groups.values()] };
     },
     getSubmission: async id => structuredClone(get(id)),
     saveSubmission: async (id, input) => {
