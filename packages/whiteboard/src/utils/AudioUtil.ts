@@ -137,9 +137,21 @@ export class AudioUtil {
   ): Promise<void> {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
-    // Convert blob to file and upload
-    const file = new File([audioBlob], `tts-${Date.now()}.mp3`, {
-      type: "audio/mp3",
+    const extensions: Record<string, string> = {
+      "audio/mpeg": "mp3",
+      "audio/mp3": "mp3",
+      "audio/wav": "wav",
+      "audio/x-wav": "wav",
+      "audio/mp4": "m4a",
+      "audio/x-m4a": "m4a",
+      "audio/ogg": "ogg",
+      "audio/webm": "webm",
+      "audio/aac": "aac",
+      "audio/flac": "flac",
+    };
+    const extension = extensions[audioBlob.type.split(";")[0].toLowerCase()];
+    const file = new File([audioBlob], `tts-${Date.now()}${extension ? "." + extension : ""}`, {
+      type: audioBlob.type,
     });
 
     const audioPath = await media.upload?.(file);

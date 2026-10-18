@@ -31,33 +31,49 @@ export async function synthesizePodcast(
   const timed = lines.map(line => ({ ...line }));
   let cursor = 0;
 
-  for (let i = 0; i < timed.length; i++) {
-    if (hooks.signal.aborted) throw new DOMException("已停止", "AbortError");
-    try {
-      const data = await synthesizer.synthesizeSpeech(timed[i].text, timed[i].voiceId);
-      const segment = await loadSpeechSegment(audioContext, data);
-      timed[i].startTime = cursor;
-      timed[i].duration = segment.duration;
-      cursor += segment.duration;
-      segments.push(segment);
-    } catch (error) {
-      // 单句失败跳过，不中断整期
-      console.error(`合成第 ${i + 1} 句失败:`, error);
+  try {
+    for (let i = 0; i < timed.length; i++) {
+      if (hooks.signal.aborted) throw new DOMException("已停止", "AbortError");
+      try {
+        const data = await synthesizer.synthesizeSpeech(
+          timed[i].text,
+          timed[i].voiceId,
+          undefined,
+          hooks.signal
+        );
+        const segment = await loadSpeechSegment(
+          audioContext,
+          data.audio.slice().buffer as ArrayBuffer
+        );
+        timed[i].startTime = cursor;
+        timed[i].duration = segment.duration;
+        cursor += segment.duration;
+        segments.push(segment);
+      } catch (error) {
+        if (hooks.signal.aborted || (error instanceof Error && error.name === "AbortError"))
+          throw error;
+        // 单句失败跳过，不中断整期
+        console.error(`合成第 ${i + 1} 句失败:`, error);
+      }
+      hooks.onProgress(i + 1, timed.length);
     }
-    hooks.onProgress(i + 1, timed.length);
+    if (segments.length === 0) throw new Error("没有成功合成任何语音");
+
+    hooks.onPhase("合并音频");
+    const merged = await mergeSpeechSegments(audioContext, segments);
+    hooks.signal.throwIfAborted();
+
+    hooks.onPhase("上传音频");
+    const audioUrl = await uploadResource(
+      new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
+        type: merged.blob.type || "audio/wav",
+      })
+    );
+    if (!audioUrl) throw new Error("音频上传失败");
+
+    return { audioUrl, duration: Math.floor(merged.duration), lines: timed };
+  } finally {
+    await synthesizer.dispose?.();
+    await audioContext.close();
   }
-  if (segments.length === 0) throw new Error("没有成功合成任何语音");
-
-  hooks.onPhase("合并音频");
-  const merged = await mergeSpeechSegments(audioContext, segments);
-
-  hooks.onPhase("上传音频");
-  const audioUrl = await uploadResource(
-    new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
-      type: merged.blob.type || "audio/wav",
-    })
-  );
-  if (!audioUrl) throw new Error("音频上传失败");
-
-  return { audioUrl, duration: Math.floor(merged.duration), lines: timed };
 }

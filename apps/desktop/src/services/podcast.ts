@@ -21,10 +21,12 @@ import {
 } from "@/constants/prompts/provided-content-generation";
 import { buildMinimaxSpeechPromptRules } from "@/utils/tts/minimaxSpeech";
 
-export interface PodcastTTSPromptOptions {
-  provider: ETTSProvider;
-  minimaxModel: MinimaxSpeechModel;
-}
+export type PodcastTTSPromptOptions =
+  | { textInstructions: string }
+  | {
+      provider: ETTSProvider;
+      minimaxModel: MinimaxSpeechModel;
+    };
 
 interface PodcastScriptSourceOptions {
   content?: string;
@@ -255,10 +257,13 @@ export function buildPodcastProvidedContentSystemPrompt(
       : "主持人和嘉宾要有来有往，形成自然的对话节奏。主持人提问要精准，嘉宾回答要充分详细";
 
   const lengthGuidance = `为了减少合成请求次数，每次发言应该较长且完整（建议每次发言 50-150 字），避免过于简短的对话。每次发言要包含完整的观点表达，可以包含多个句子`;
-  const ttsTagRules = buildMinimaxSpeechPromptRules(
-    ttsPromptOptions.provider === ETTSProvider.Minimax,
-    ttsPromptOptions.minimaxModel
-  );
+  const ttsTagRules =
+    "textInstructions" in ttsPromptOptions
+      ? ttsPromptOptions.textInstructions
+      : buildMinimaxSpeechPromptRules(
+          ttsPromptOptions.provider === ETTSProvider.Minimax,
+          ttsPromptOptions.minimaxModel
+        );
 
   return `你是一个专业的播客脚本编写助手。请基于已经提供的内容生成一段 ${durationMin}-${durationMax} 分钟的${speakers.length}人播客对话脚本。
 
@@ -343,10 +348,13 @@ export function buildPodcastToolsSystemPrompt(
       : "主持人和嘉宾要有来有往，形成自然的对话节奏。主持人提问要精准，嘉宾回答要充分详细";
   const lengthGuidance =
     "为了减少合成请求次数，每次发言应该较长且完整（建议每次发言 50-150 字），避免过于简短的对话。每次发言要包含完整的观点表达，可以包含多个句子";
-  const ttsTagRules = buildMinimaxSpeechPromptRules(
-    ttsPromptOptions.provider === ETTSProvider.Minimax,
-    ttsPromptOptions.minimaxModel
-  );
+  const ttsTagRules =
+    "textInstructions" in ttsPromptOptions
+      ? ttsPromptOptions.textInstructions
+      : buildMinimaxSpeechPromptRules(
+          ttsPromptOptions.provider === ETTSProvider.Minimax,
+          ttsPromptOptions.minimaxModel
+        );
 
   return `你是一个专业的播客脚本编写助手。你需要先主动探索资料，再基于确认过的资料证据生成一段 ${durationMin}-${durationMax} 分钟的${speakers.length}人播客对话脚本。
 

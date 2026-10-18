@@ -100,9 +100,9 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
 
     setGenerating(true);
     setError(null);
+    const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
 
     try {
-      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
       if (!synthesizer) {
         setError("TTS服务不可用");
         return;
@@ -112,7 +112,9 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
         setError("文本转语音失败，请重试");
         return;
       }
-      const blob = new Blob([audioBuffer], { type: "audio/mp3" });
+      const blob = new Blob([audioBuffer.audio.slice().buffer as ArrayBuffer], {
+        type: audioBuffer.mime,
+      });
       setAudioBlob(blob);
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
@@ -120,6 +122,7 @@ const TTSGenerateModal: React.FC<TTSGenerateModalProps> = ({ open, onCancel, onC
       console.error("TTS error:", err);
       setError("文本转语音失败，请检查配置");
     } finally {
+      await synthesizer?.dispose?.();
       setGenerating(false);
     }
   });

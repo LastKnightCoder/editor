@@ -4,7 +4,9 @@ import type {
   VoiceCloneCapability,
   TTSProviderSetting,
 } from "@/types/tts";
-import { ETTSProvider } from "@/types/tts";
+import { ETTSProvider, isPluginTTS } from "@/types/tts";
+import { createPluginTTSProvider } from "./PluginTTSProvider";
+import { withPluginTTS } from "@/services/plugin-tts";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import { createMinimaxTTSProvider } from "./MinimaxTTSProvider";
@@ -29,7 +31,7 @@ export class TTSProviderFactory {
       return null;
     }
     const providerSetting = setting.ttsProviders.find(item => item.id === usage.providerId);
-    if (!providerSetting?.apiKey?.trim()) {
+    if (!providerSetting || (!isPluginTTS(providerSetting) && !providerSetting.apiKey?.trim())) {
       return null;
     }
     return TTSProviderFactory.createFromSetting(providerSetting, usage.modelId);
@@ -52,14 +54,18 @@ export class TTSProviderFactory {
   /**
    * 获取当前激活的提供商类型
    */
-  static getActiveProviderType(): ETTSProvider | null {
+  static getActiveProviderType(): string | null {
     const { setting } = useSettingStore.getState();
     const usage = setting.ttsUsageSettings.default;
     if (!usage) {
       return null;
     }
     const providerSetting = setting.ttsProviders.find(item => item.id === usage.providerId);
-    return providerSetting?.providerType ?? null;
+    return providerSetting
+      ? isPluginTTS(providerSetting)
+        ? providerSetting.pluginId
+        : providerSetting.providerType
+      : null;
   }
 
   /**
@@ -67,13 +73,22 @@ export class TTSProviderFactory {
    * 是否允许 Minimax 标签，model 决定是否允许情绪标签），供 LLM 生成脚本时
    * 与实际合成引擎对齐。结构兼容 services/podcast 的 PodcastTTSPromptOptions。
    */
-  static getActiveTTSPromptOptions(): {
-    provider: ETTSProvider;
-    minimaxModel: MinimaxSpeechModel;
-  } {
+  static async getActiveTTSPromptOptions(): Promise<
+    | {
+        provider: ETTSProvider;
+        minimaxModel: MinimaxSpeechModel;
+      }
+    | { textInstructions: string }
+  > {
     const { setting } = useSettingStore.getState();
     const usage = setting.ttsUsageSettings.default;
     const providerSetting = setting.ttsProviders.find(item => item.id === usage?.providerId);
+    if (providerSetting && isPluginTTS(providerSetting)) {
+      if (!usage?.modelId) throw new Error("请先选择语音模型");
+      return withPluginTTS(providerSetting, usage.modelId, async instance => ({
+        textInstructions: instance.textInstructions ?? "只输出可朗读的纯文本，不加入语音控制标签。",
+      }));
+    }
     return {
       provider: providerSetting?.providerType ?? ETTSProvider.Minimax,
       minimaxModel: (usage?.modelId as MinimaxSpeechModel) || MINIMAX_DEFAULT_SPEECH_MODEL,
@@ -87,6 +102,8 @@ export class TTSProviderFactory {
     providerSetting: TTSProviderSetting,
     modelId: string
   ): ITTSProvider | null {
+    if (isPluginTTS(providerSetting))
+      return modelId ? createPluginTTSProvider(providerSetting, modelId) : null;
     if (!providerSetting.apiKey?.trim() || !modelId) {
       return null;
     }

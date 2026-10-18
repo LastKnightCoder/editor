@@ -180,6 +180,7 @@ export const usePodcastGeneration = () => {
         updateProgress({ stage: "script", stageProgress: 0 });
 
         let fullScript = "";
+        const ttsPromptOptions = await TTSProviderFactory.getActiveTTSPromptOptions();
 
         await new Promise<void>((resolve, reject) => {
           runGenerationTask(
@@ -191,7 +192,7 @@ export const usePodcastGeneration = () => {
               taskPayload: {
                 speakers,
                 // prompt 标签规则须与实际合成引擎对齐，从当前语音服务派生
-                ttsPromptOptions: TTSProviderFactory.getActiveTTSPromptOptions(),
+                ttsPromptOptions,
                 durationMin,
                 durationMax,
               },
@@ -295,11 +296,14 @@ export const usePodcastGeneration = () => {
           );
 
           try {
-            const audioData = await TTSProviderFactory.getSpeechSynthesizer()!.synthesizeSpeech(
+            const audioData = await ttsProvider.synthesis!.synthesizeSpeech(
               line.text,
               line.voiceId
             );
-            const segment = await loadSpeechSegment(audioContext, audioData);
+            const segment = await loadSpeechSegment(
+              audioContext,
+              audioData.audio.slice().buffer as ArrayBuffer
+            );
 
             // 记录时间信息
             currentLines[i].startTime = currentTime;
@@ -317,6 +321,7 @@ export const usePodcastGeneration = () => {
               segmentAudios: [...segmentAudios], // 实时更新片段音频
             });
           } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") throw error;
             console.error(`合成第 ${i + 1} 条语音失败:`, error);
             addLog(`[警告] 第 ${i + 1} 条语音合成失败，跳过`);
             // 即使失败也需要占位，避免索引错乱
@@ -384,6 +389,8 @@ export const usePodcastGeneration = () => {
         }));
         addLog(`错误: ${errorMessage}`);
         toast.error(`生成失败: ${errorMessage}`);
+      } finally {
+        await ttsProvider.synthesis?.dispose?.();
       }
     }
   );
@@ -409,7 +416,10 @@ export const usePodcastGeneration = () => {
         );
 
         const audioContext = new AudioContext();
-        const newSegment = await loadSpeechSegment(audioContext, audioData);
+        const newSegment = await loadSpeechSegment(
+          audioContext,
+          audioData.audio.slice().buffer as ArrayBuffer
+        );
         const newDuration = newSegment.duration;
         const newSegmentBlob = speechSegmentToBlob(newSegment);
 
@@ -535,6 +545,8 @@ export const usePodcastGeneration = () => {
       } catch (error) {
         console.error("片段重生成失败:", error);
         toast.error("片段重生成失败");
+      } finally {
+        await synthesizer.dispose?.();
       }
     },
     [state.audioUrl, state.scriptLines, state.segmentAudios, uploadResource, addLog]

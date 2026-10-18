@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { isMainWindow } from "@/utils/window-role";
 import { connectSettingReplica } from "@/services/setting-replica";
 import type { ISetting } from "@/stores/useSettingStore";
+import { toast } from "@tau/ui";
 
 const useSyncSetting = () => {
   const clientIdRef = useRef<string>(uuidv4());
@@ -51,10 +52,15 @@ const useSyncSetting = () => {
       if (isRemoteAppliedSnapshot(persistedSettingJson)) {
         return;
       }
-      client.sendRequest("set-user-setting", {
-        setting: persistedSetting,
-        clientId: clientIdRef.current,
-      });
+      void client
+        .sendRequest("set-user-setting", {
+          setting: persistedSetting,
+          clientId: clientIdRef.current,
+        })
+        .catch(error => {
+          console.error("设置保存失败", error);
+          toast.error("设置保存失败，请检查磁盘后重试");
+        });
     });
 
     return () => unsubscribe();

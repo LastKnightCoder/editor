@@ -11,7 +11,14 @@ import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import { Button, ConfirmDialog, IconButton, Input, Select, toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
-import { ETTSProvider, type TTSProviderSetting, type TTSVoice } from "@/types/tts";
+import {
+  ETTSProvider,
+  isPluginTTS,
+  type TTSProviderSetting,
+  type TTSVoice,
+  type LegacyTTSProviderSetting,
+} from "@/types/tts";
+import { TTSPluginSettings } from "./TTSPluginSettings";
 import { TTSProviderFactory } from "@/utils/tts";
 import { TTS_PROVIDER_PRESETS } from "@/utils/tts/catalog";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -53,14 +60,14 @@ export function VoiceTtsPanel() {
     }));
   };
 
-  const updateProviderField = <K extends keyof TTSProviderSetting>(
+  const updateProviderField = <K extends keyof LegacyTTSProviderSetting>(
     providerId: string,
     field: K,
-    value: TTSProviderSetting[K]
+    value: LegacyTTSProviderSetting[K]
   ) => {
     mutateProvidersAndUsage(providers => {
       const provider = providers.find(item => item.id === providerId);
-      if (provider) {
+      if (provider && !isPluginTTS(provider)) {
         provider[field] = value;
       }
     });
@@ -80,11 +87,7 @@ export function VoiceTtsPanel() {
         providers.splice(index, 1);
       }
       if (usageSettings.default?.providerId === targetId) {
-        // 用法回落到剩余第一家（带模型的），否则清空
-        const fallback = providers.find(item => item.models.length > 0);
-        usageSettings.default = fallback
-          ? { providerId: fallback.id, modelId: fallback.models[0]?.id ?? "", voiceId: "" }
-          : null;
+        usageSettings.default = null;
       }
     });
     if (editingId === targetId) {
@@ -196,65 +199,73 @@ export function VoiceTtsPanel() {
           </div>
         ) : (
           <>
-            <ProviderSection
-              title="连接"
-              description={`${editing.name || "未命名"} 的名称与凭据`}
-              action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setPendingDeleteProvider(editing)}
-                >
-                  删除服务商
-                </Button>
-              }
-            >
-              <SettingRow title="名称">
-                <FieldBox>
-                  <Input
-                    value={editing.name}
-                    placeholder="如 阿里云百炼"
-                    onChange={e => updateProviderField(editing.id, "name", e.target.value)}
-                  />
-                </FieldBox>
-              </SettingRow>
-              <SettingRow title="API Key">
-                <FieldBox>
-                  <SecretInput
-                    label="API Key"
-                    value={editing.apiKey}
-                    placeholder={editing.providerType === ETTSProvider.Qwen ? "sk-…" : "eyJ…"}
-                    onChange={value => updateProviderField(editing.id, "apiKey", value)}
-                    onCopy={() => {
-                      void navigator.clipboard.writeText(editing.apiKey).then(
-                        () => toast.success("API Key 已复制到剪贴板"),
-                        () => toast.error("复制失败，请手动选择复制")
-                      );
-                    }}
-                  />
-                </FieldBox>
-              </SettingRow>
-              {editing.providerType === ETTSProvider.Qwen && (
-                <SettingRow title="Base URL" description="留空使用官方地址">
+            {isPluginTTS(editing) ? (
+              <TTSPluginSettings
+                key={editing.id}
+                instance={editing}
+                onDelete={() => setPendingDeleteProvider(editing)}
+              />
+            ) : (
+              <ProviderSection
+                title="连接"
+                description={`${editing.name || "未命名"} 的名称与凭据`}
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setPendingDeleteProvider(editing)}
+                  >
+                    删除服务商
+                  </Button>
+                }
+              >
+                <SettingRow title="名称">
                   <FieldBox>
                     <Input
-                      className="font-tau-mono"
-                      value={editing.baseUrl ?? ""}
-                      placeholder="https://dashscope.aliyuncs.com"
-                      spellCheck={false}
-                      onChange={e =>
-                        updateProviderField(
-                          editing.id,
-                          "baseUrl",
-                          e.target.value.trim() || undefined
-                        )
-                      }
+                      value={editing.name}
+                      placeholder="如 阿里云百炼"
+                      onChange={e => updateProviderField(editing.id, "name", e.target.value)}
                     />
                   </FieldBox>
                 </SettingRow>
-              )}
-            </ProviderSection>
+                <SettingRow title="API Key">
+                  <FieldBox>
+                    <SecretInput
+                      label="API Key"
+                      value={editing.apiKey}
+                      placeholder={editing.providerType === ETTSProvider.Qwen ? "sk-…" : "eyJ…"}
+                      onChange={value => updateProviderField(editing.id, "apiKey", value)}
+                      onCopy={() => {
+                        void navigator.clipboard.writeText(editing.apiKey).then(
+                          () => toast.success("API Key 已复制到剪贴板"),
+                          () => toast.error("复制失败，请手动选择复制")
+                        );
+                      }}
+                    />
+                  </FieldBox>
+                </SettingRow>
+                {editing.providerType === ETTSProvider.Qwen && (
+                  <SettingRow title="Base URL" description="留空使用官方地址">
+                    <FieldBox>
+                      <Input
+                        className="font-tau-mono"
+                        value={editing.baseUrl ?? ""}
+                        placeholder="https://dashscope.aliyuncs.com"
+                        spellCheck={false}
+                        onChange={e =>
+                          updateProviderField(
+                            editing.id,
+                            "baseUrl",
+                            e.target.value.trim() || undefined
+                          )
+                        }
+                      />
+                    </FieldBox>
+                  </SettingRow>
+                )}
+              </ProviderSection>
+            )}
 
             <ProviderSection
               title="模型"
@@ -290,7 +301,7 @@ export function VoiceTtsPanel() {
               )}
             </ProviderSection>
 
-            {editing.providerType === ETTSProvider.Qwen && (
+            {!isPluginTTS(editing) && editing.providerType === ETTSProvider.Qwen && (
               <QwenVoiceCloneSection provider={editing} onCloned={loadVoices} />
             )}
           </>
@@ -382,7 +393,7 @@ export function VoiceTtsPanel() {
         context={pendingDeleteProvider?.name}
         danger
         description="删除该服务商及其模型配置。"
-        impact="当前服务若指向它会回落到其他服务商"
+        impact="当前服务若指向它会清空选择，需要重新选择账号"
         confirmText="删除"
         onConfirm={deleteProvider}
       />
@@ -405,7 +416,9 @@ export function VoiceTtsPanel() {
 
 /** 添加模型：内置候选下拉（creatable 允许手填任意模型 id） */
 function AddModelButton({ provider }: { provider: TTSProviderSetting }) {
-  const preset = TTS_PROVIDER_PRESETS.find(item => item.providerType === provider.providerType);
+  const preset = isPluginTTS(provider)
+    ? undefined
+    : TTS_PROVIDER_PRESETS.find(item => item.providerType === provider.providerType);
   const candidateOptions = (preset?.models ?? [])
     .filter(model => !provider.models.some(existing => existing.id === model.id))
     .map(model => ({ value: model.id, label: model.label ?? model.id }));
@@ -423,7 +436,7 @@ function AddModelButton({ provider }: { provider: TTSProviderSetting }) {
       searchable
       creatable
       placeholder="添加模型"
-      emptyText="输入模型名添加（如 qwen-audio-3.1-tts-flash）"
+      emptyText="输入模型 ID 添加"
       value={null}
       options={candidateOptions}
       onValueChange={value => {
@@ -451,7 +464,7 @@ function QwenVoiceCloneSection({
   provider,
   onCloned,
 }: {
-  provider: TTSProviderSetting;
+  provider: LegacyTTSProviderSetting;
   onCloned: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
@@ -481,11 +494,11 @@ function QwenVoiceCloneSection({
     }
     setCloning(true);
     try {
-      const audioUrl = await tts.cloning.uploadReferenceAudio(file);
-      const voiceId = await tts.cloning.cloneVoice(audioUrl, {
+      const voice = await tts.cloning.cloneVoice(file, {
         voiceId: "",
         voiceName: voiceName.trim() || file.name,
       });
+      const voiceId = voice.id;
       const isCurrentUsage =
         useSettingStore.getState().setting.ttsUsageSettings.default?.providerId === provider.id;
       toast.success(
@@ -502,6 +515,7 @@ function QwenVoiceCloneSection({
     } catch (error) {
       toast.error(`音色复刻失败：${errorText(error)}`);
     } finally {
+      await tts.cloning.dispose?.();
       setCloning(false);
     }
   };

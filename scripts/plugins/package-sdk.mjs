@@ -130,6 +130,10 @@ try {
     await copyDeclaration(entries[index]);
     if (name === "plugins") {
       await writeFile(
+        path.join(directory, "TTS.md"),
+        await readFile(path.join(root, "scripts/plugins/template/TTS.md"))
+      );
+      await writeFile(
         path.join(directory, "UPLOAD.md"),
         await readFile(path.join(root, "scripts/plugins/template/UPLOAD.md"))
       );
