@@ -86,7 +86,7 @@ context.mcp.register({
 
 ## 聊天工具自定义渲染
 
-当前源码客户端构建支持 `context.chat.registerToolRenderer`，公开 SDK 发布版本另行公布。旧客户端即使同为 0.59.0 也可能没有此能力，必须检查方法是否存在；只提高 SDK 类型版本不能替代客户端检查。
+`context.chat.registerToolRenderer` 的类型契约已加入待发布的 SDK 0.13.0，须搭配包含实现的客户端构建。旧客户端即使同为 0.59.0 也可能没有此能力，必须检查方法是否存在；只提高 SDK 类型版本不能替代客户端检查。当前公开模板保留已发布的 SDK 依赖，不提前引用未发布版本。
 
 在 `async activate(context)` 中，先通过 `context.mcp.register()` 声明工具，再注册组件并 await：
 
@@ -106,6 +106,8 @@ await context.chat.registerToolRenderer({
 transport 工具当前读取 execution.output，不提供标准 structuredContent 或 MCP Apps HTML 界面能力。宿主决定渲染路由，远端返回不能选择其他渲染器。等待审批继续使用宿主审批 UI，失败和取消显示通用工具行。
 
 关闭 MCP 或工具执行开关不会隐藏历史结果；停用插件时回到通用输入输出，再启用后恢复。组件不应在渲染或挂载时自动执行工具。使用现有 React 和 `@tau/ui`/主题样式，不导入内部聊天包。
+
+完整示例见仓库 `scripts/plugins/fixtures/chat-tool-renderer.tsx`。在宿主仓库执行 `node scripts/plugins/verify-chat-author.mjs`，会生成 SDK 包、在独立目录安装、类型检查并构建该示例 ZIP；不安装到用户目录，也不发布。产物和验收记录保存在 `output/plugin-chat-sdk/`。
 
 ## 验证
 

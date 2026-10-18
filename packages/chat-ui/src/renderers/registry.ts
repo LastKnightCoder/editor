@@ -31,8 +31,9 @@ class ToolCallRendererRegistry {
 
   registerOwned(toolName: string, renderer: ToolCallCustomRenderer): { dispose(): void } {
     if (this.renderers.has(toolName)) throw new Error(`工具渲染器已注册：${toolName}`);
-    this.register(toolName, renderer);
-    const registration = this.renderers.get(toolName);
+    const registration = { renderer, generation: this.revision + 1 };
+    this.renderers.set(toolName, registration);
+    this.publish();
     return {
       dispose: () => {
         if (this.renderers.get(toolName) === registration) this.unregister(toolName);
