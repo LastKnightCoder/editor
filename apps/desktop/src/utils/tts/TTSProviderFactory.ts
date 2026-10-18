@@ -6,9 +6,7 @@ import type {
 } from "@/types/tts";
 import { ETTSProvider, isPluginTTS } from "@/types/tts";
 import { createPluginTTSProvider } from "./PluginTTSProvider";
-import { withPluginTTS } from "@/services/plugin-tts";
 import type { MinimaxSpeechModel } from "@/types/minimax";
-import { MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import { createMinimaxTTSProvider } from "./MinimaxTTSProvider";
 import { createQwenTTSProvider } from "./QwenTTSProvider";
 import useSettingStore from "@/stores/useSettingStore";
@@ -66,33 +64,6 @@ export class TTSProviderFactory {
         ? providerSetting.pluginId
         : providerSetting.providerType
       : null;
-  }
-
-  /**
-   * 播客脚本 prompt 的 TTS 标签规则入参：从当前语音服务派生（provider 决定
-   * 是否允许 Minimax 标签，model 决定是否允许情绪标签），供 LLM 生成脚本时
-   * 与实际合成引擎对齐。结构兼容 services/podcast 的 PodcastTTSPromptOptions。
-   */
-  static async getActiveTTSPromptOptions(): Promise<
-    | {
-        provider: ETTSProvider;
-        minimaxModel: MinimaxSpeechModel;
-      }
-    | { textInstructions: string }
-  > {
-    const { setting } = useSettingStore.getState();
-    const usage = setting.ttsUsageSettings.default;
-    const providerSetting = setting.ttsProviders.find(item => item.id === usage?.providerId);
-    if (providerSetting && isPluginTTS(providerSetting)) {
-      if (!usage?.modelId) throw new Error("请先选择语音模型");
-      return withPluginTTS(providerSetting, usage.modelId, async instance => ({
-        textInstructions: instance.textInstructions ?? "只输出可朗读的纯文本，不加入语音控制标签。",
-      }));
-    }
-    return {
-      provider: providerSetting?.providerType ?? ETTSProvider.Minimax,
-      minimaxModel: (usage?.modelId as MinimaxSpeechModel) || MINIMAX_DEFAULT_SPEECH_MODEL,
-    };
   }
 
   /**

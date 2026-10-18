@@ -5,7 +5,7 @@ import {
   buildPodcastToolsUserPrompt,
 } from "@/services/podcast";
 import { SpeakerRole } from "@/types/podcast";
-import { ETTSProvider } from "@/types/tts";
+import { buildMinimaxSpeechPromptRules } from "@/utils/tts/minimaxSpeech";
 
 describe("services/podcast buildPodcastPrompt", () => {
   const speakers = [
@@ -18,8 +18,7 @@ describe("services/podcast buildPodcastPrompt", () => {
       "测试内容",
       speakers,
       {
-        provider: ETTSProvider.Minimax,
-        minimaxModel: "speech-2.8-hd",
+        textInstructions: buildMinimaxSpeechPromptRules(true, "speech-2.8-hd"),
       },
       3,
       5
@@ -35,8 +34,7 @@ describe("services/podcast buildPodcastPrompt", () => {
       "测试内容",
       speakers,
       {
-        provider: ETTSProvider.Minimax,
-        minimaxModel: "speech-2.6-hd",
+        textInstructions: buildMinimaxSpeechPromptRules(true, "speech-2.6-hd"),
       },
       3,
       5
@@ -52,8 +50,7 @@ describe("services/podcast buildPodcastPrompt", () => {
     const systemPrompt = buildPodcastToolsSystemPrompt(
       speakers,
       {
-        provider: ETTSProvider.Minimax,
-        minimaxModel: "speech-2.8-hd",
+        textInstructions: buildMinimaxSpeechPromptRules(true, "speech-2.8-hd"),
       },
       4,
       6

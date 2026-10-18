@@ -6,6 +6,7 @@ interface Host {
 }
 interface Session {
   owner: number;
+  caller: WebContents;
   host: Host;
 }
 interface Pending {
@@ -40,19 +41,31 @@ export class PluginTTSRelay {
     contents.on("did-navigate", release);
     contents.on("render-process-gone", release);
   }
-  private close(id: string) {
+  private close(id: string, notifyHost = true) {
     const session = this.sessions.get(id);
     if (!session) return;
     this.sessions.delete(id);
-    this.control(session.host, "plugin-tts:close", {
-      session: id,
-      hostSession: session.host.generation,
-    });
+    if (notifyHost)
+      this.control(session.host, "plugin-tts:close", {
+        session: id,
+        hostSession: session.host.generation,
+      });
+    try {
+      if (!session.caller.isDestroyed())
+        session.caller.send("plugin-tts:session-closed", { session: id });
+    } catch {
+      /* 调用窗口退出不阻断本地回收。 */
+    }
     for (const [requestId, pending] of this.pending)
       if (pending.session === id) {
         this.pending.delete(requestId);
         pending.finish(aborted(requestId, pending.host.generation));
       }
+  }
+  rendererClosed(owner: number, hostSession: string, id: string) {
+    const session = this.sessions.get(id);
+    if (session?.host.contents.id === owner && session.host.generation === hostSession)
+      this.close(id, false);
   }
   private control(host: Host, channel: string, data: object) {
     try {
@@ -80,7 +93,7 @@ export class PluginTTSRelay {
       if (session) throw new Error("语音任务已存在");
       const host = this.hosts.get(caller.id) ?? this.hosts.values().next().value;
       if (!host || host.contents.isDestroyed()) throw new Error("主窗口语音插件宿主不可用");
-      session = { owner: caller.id, host };
+      session = { owner: caller.id, caller, host };
       this.sessions.set(request.session, session);
     }
     if (!session)

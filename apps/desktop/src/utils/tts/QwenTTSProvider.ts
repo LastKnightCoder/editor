@@ -112,6 +112,8 @@ export function createQwenTTSProvider(config: IQwenConfig): ITTSProvider {
   };
 
   return {
+    getTextInstructions: async () =>
+      "TTS tags rule:\n- Output plain spoken text only.\n- Do not output pause tags like <#1.2#>.\n- Do not output any parenthesized emotion tags.",
     getProviderName: () => ETTSProvider.Qwen,
     isConfigured: () => Boolean(config.apiKey),
     synthesis,

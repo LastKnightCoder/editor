@@ -95,11 +95,3 @@ export interface MinimaxChatStreamChunk {
     finish_reason: string | null;
   }>;
 }
-
-export interface PodcastGenerationProgress {
-  stage: "parsing" | "script" | "tts" | "music" | "merging" | "upload" | "complete";
-  stageProgress: number;
-  ttsTotal?: number;
-  ttsCompleted?: number;
-  message: string;
-}

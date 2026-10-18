@@ -3,6 +3,8 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PluginTTSRelay } from "../../src-electron/main/services/plugin-tts";
+import { PluginUploadRelay } from "../../src-electron/main/services/plugin-upload";
+import type { UploadRequest, UploadRendererReply } from "../../shared/upload-renderer";
 import type { TTSRendererRequest, TTSRendererReply } from "../../shared/tts-renderer";
 
 async function start() {
@@ -22,6 +24,22 @@ async function start() {
     auxiliary = create(),
     relay = new PluginTTSRelay();
   const artifact = JSON.parse(await readFile(path.join(directory, "artifact.json"), "utf8"));
+  const uploads = new PluginUploadRelay();
+  ipcMain.handle("plugin-local:upload-connect", (event, session: string) =>
+    uploads.connect(event.sender, session)
+  );
+  ipcMain.handle("plugin-local:upload-release", (event, session: string) =>
+    uploads.release(event.sender.id, session)
+  );
+  ipcMain.handle("plugin-local:upload", (event, request: UploadRequest, id: string) =>
+    uploads.upload(event.sender, request, id)
+  );
+  ipcMain.handle("plugin-local:upload-reply", (event, reply: UploadRendererReply) =>
+    uploads.reply(event.sender.id, reply)
+  );
+  ipcMain.handle("plugin-local:upload-cancel", (event, id: string) =>
+    uploads.cancel(event.sender.id, id)
+  );
   ipcMain.handle("tts-test:artifact", () => artifact);
   ipcMain.handle("module-init:init-module", () => ({ success: true }));
   let ready!: () => void;
@@ -35,6 +53,11 @@ async function start() {
   });
   ipcMain.handle("plugin-local:tts-release", (event, session: string) =>
     relay.release(event.sender.id, session)
+  );
+  ipcMain.handle(
+    "plugin-local:tts-closed",
+    (event, message: { session: string; hostSession: string }) =>
+      relay.rendererClosed(event.sender.id, message.hostSession, message.session)
   );
   ipcMain.handle("plugin-local:tts-request", (event, id: string, request: TTSRendererRequest) =>
     relay.request(event.sender, id, request)
@@ -55,15 +78,22 @@ async function start() {
   await connected;
   const call = (id: string, request: TTSRendererRequest): Promise<TTSRendererReply> =>
     auxiliary.webContents.executeJavaScript(
-      `window.electron.invoke("plugin-local:tts-request",${JSON.stringify(id)},${JSON.stringify(request)})`
+      `(()=>{const request=${JSON.stringify(request, (_key, value) => (value instanceof Uint8Array ? Array.from(value) : value))};if(request.kind==="clone")request.request.file.content=new Uint8Array(request.request.file.content);return window.electron.invoke("plugin-local:tts-request",${JSON.stringify(id)},request)})()`
     );
   for (const id of ["a", "b"]) {
     const reply = await call("open-" + id, {
       kind: "open",
       session: id,
-      pluginId: "tau.tts-minimax",
+      pluginId: artifact.manifest.id,
       config: { apiKey: "account-" + id, baseUrl: "https://" + id + ".test" },
-      modelId: id === "a" ? "speech-2.8-hd" : "speech-2.6-hd",
+      modelId:
+        artifact.manifest.id === "tau.tts-qwen"
+          ? id === "a"
+            ? "qwen-audio-3.1-tts-flash"
+            : "custom-model"
+          : id === "a"
+            ? "speech-2.8-hd"
+            : "speech-2.6-hd",
     });
     assert.equal(reply.error, undefined);
     assert.equal((reply.result as { canClone: boolean }).canClone, true);
@@ -77,11 +107,65 @@ async function start() {
     assert.equal(reply.error, undefined);
     assert.deepEqual(Array.from((reply.result as { audio: Uint8Array }).audio), [0, 255, 16]);
   }
-  const requests = await main.webContents.executeJavaScript("window.ttsTest.requests");
+  const requests = (await main.webContents.executeJavaScript("window.ttsTest.requests")).filter(
+    (request: { authorization: string | null }) => request.authorization
+  );
+  const endpoint =
+    artifact.manifest.id === "tau.tts-qwen"
+      ? "/api/v1/services/audio/tts/SpeechSynthesizer"
+      : "/v1/t2a_v2";
   assert.deepEqual(
     requests.map((request: { url: string }) => request.url),
-    ["https://a.test/v1/t2a_v2", "https://b.test/v1/t2a_v2"]
+    ["https://a.test" + endpoint, "https://b.test" + endpoint]
   );
+  if (artifact.manifest.id === "tau.tts-qwen") {
+    const reply = await call("clone", {
+      kind: "clone",
+      session: "a",
+      request: {
+        file: { name: "voice.wav", mimeType: "audio/wav", content: new Uint8Array([0, 255]) },
+        name: "声音",
+      },
+    });
+    assert.equal(reply.error, undefined);
+    assert.equal((reply.result as { id: string }).id, "qwen-created");
+    assert.deepEqual(await main.webContents.executeJavaScript("window.ttsTest.uploads"), [
+      [0, 255],
+    ]);
+    const cloning = call("clone-pending", {
+      kind: "clone",
+      session: "a",
+      request: {
+        file: { name: "pending.wav", mimeType: "audio/wav", content: new Uint8Array([0, 255]) },
+      },
+    });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await main.webContents.executeJavaScript("window.ttsTest.uploads.length === 2")) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.equal(await main.webContents.executeJavaScript("window.ttsTest.uploads.length"), 2);
+    await auxiliary.webContents.executeJavaScript(
+      'window.electron.invoke("plugin-local:tts-cancel","clone-pending")'
+    );
+    assert.equal((await cloning).errorName, "AbortError");
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await main.webContents.executeJavaScript("window.ttsTest.lastUploadAborted()")) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.equal(
+      await main.webContents.executeJavaScript("window.ttsTest.lastUploadAborted()"),
+      true
+    );
+    await main.webContents.executeJavaScript("window.ttsTest.localUploads()");
+    const local = await call("clone-local", {
+      kind: "clone",
+      session: "a",
+      request: {
+        file: { name: "local.wav", mimeType: "audio/wav", content: new Uint8Array([0, 255]) },
+      },
+    });
+    assert.match(local.error ?? "", /远端上传插件/);
+  }
   assert.deepEqual(
     requests.map((request: { authorization: string }) => request.authorization),
     ["Bearer account-a", "Bearer account-b"]

@@ -43,12 +43,15 @@ it.skipIf(!zip)("真实MiniMax表单按账号实例隔离，保存失败不改�
   }));
   await runtime.host.enable(artifact.manifest.id);
   const previous = useSettingStore.getState().setting;
+  const modelId =
+    artifact.manifest.id === "tau.tts-qwen" ? "qwen-audio-3.1-tts-flash" : "speech-2.8-hd";
+  const label = artifact.manifest.id === "tau.tts-qwen" ? "Qwen" : "MiniMax";
   const profiles: PluginTTSProviderSetting[] = ["a", "b"].map(id => ({
     id,
     name: id,
     pluginId: artifact.manifest.id,
     config: { apiKey: "key-" + id, baseUrl: "https://" + id + ".test" },
-    models: [{ id: "speech-2.8-hd" }],
+    models: [{ id: modelId }],
   }));
   useSettingStore.setState({ setting: { ...previous, ttsProviders: profiles } });
   const container = document.createElement("div");
@@ -71,7 +74,7 @@ it.skipIf(!zip)("真实MiniMax表单按账号实例隔离，保存失败不改�
   try {
     await render(0);
     const input = () =>
-      container.querySelector<HTMLInputElement>('[aria-label="MiniMax API Key"]')!;
+      container.querySelector<HTMLInputElement>(`[aria-label="${label} API Key"]`)!;
     expect(input().value).toBe("key-a");
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -94,7 +97,7 @@ it.skipIf(!zip)("真实MiniMax表单按账号实例隔离，保存失败不改�
       "a",
       artifact.manifest.id,
       { apiKey: "changed-a", baseUrl: "https://a.test" },
-      [{ id: "speech-2.8-hd" }]
+      [{ id: modelId }]
     );
     expect(useSettingStore.getState().setting.ttsProviders[1]).toMatchObject({
       config: { apiKey: "key-b" },

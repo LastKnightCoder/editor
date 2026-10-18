@@ -7,10 +7,14 @@ export function createPluginTTSProvider(
 ): ITTSProvider {
   const snapshot = structuredClone(setting);
   let task: ReturnType<typeof openPluginTTS> | undefined;
+  let activeTask: Awaited<ReturnType<typeof openPluginTTS>> | undefined;
   let disposed = false;
   const getTask = (signal?: AbortSignal) => {
     if (disposed) throw new DOMException("语音任务已结束", "AbortError");
-    return (task ??= openPluginTTS(snapshot, model, signal));
+    return (task ??= openPluginTTS(snapshot, model, signal).then(instance => {
+      activeTask = instance;
+      return instance;
+    }));
   };
   const dispose = async () => {
     disposed = true;
@@ -21,9 +25,14 @@ export function createPluginTTSProvider(
       );
   };
   return {
+    getTextInstructions: async signal =>
+      (await getTask(signal)).textInstructions ?? "只输出可朗读的纯文本，不加入语音控制标签。",
     getProviderName: () => snapshot.name,
     isConfigured: () => Boolean(model),
     synthesis: {
+      get signal() {
+        return activeTask?.signal;
+      },
       dispose,
       getVoiceList: () =>
         withPluginTTS(snapshot, model, async (instance, signal) =>

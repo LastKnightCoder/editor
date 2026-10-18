@@ -9,6 +9,12 @@ export function connectTTSRenderer() {
   const tasks = new Map<string, AbortController>();
   const sessions = new Set<string>();
   let disposed = false;
+  const unsubscribe = rendererTTSRegistry.onClose(session => {
+    sessions.delete(session);
+    void window.electron
+      .invoke("plugin-local:tts-closed", { session, hostSession })
+      .catch(() => undefined);
+  });
   const cancel = (_event: unknown, message: { hostSession: string; requestId: string }) => {
     if (message.hostSession === hostSession) tasks.get(message.requestId)?.abort();
   };
@@ -57,6 +63,7 @@ export function connectTTSRenderer() {
     for (const session of sessions) rendererTTSRegistry.close(session);
     tasks.clear();
     sessions.clear();
+    unsubscribe();
     void ready
       .then(() => window.electron.invoke("plugin-local:tts-release", hostSession))
       .catch(() => undefined);
