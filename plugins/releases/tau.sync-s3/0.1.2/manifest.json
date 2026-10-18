@@ -6,12 +6,12 @@
   "id": "tau.sync-s3",
   "name": "S3 同步存储",
   "description": "通过 S3 兼容存储同步数据，配置位于客户端的同步设置。",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "minAppVersion": "0.59.0",
   "main": "main.js",
   "sync": "sync.js",
   "integrity": {
-    "main.js": "a4c353e009722fadc6a75d1615da6c8776cd9ed1fc9d1887dc58f01715655559",
+    "main.js": "639bd3a7c57b5e7a2cdd7650173c972bddf92ea50ab3090b960e0b41f6b75b22",
     "sync.js": "448260d823385ff2a42e93ad12bb1d1919598a1a4aef0f7c3b94d7153e31938d"
   }
 }
