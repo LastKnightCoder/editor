@@ -1,9 +1,7 @@
 import { defineConfig } from "vitest/config";
 import path from "path";
-import { portablePluginBuild } from "@tau/plugins/distribution";
 
 export default defineConfig({
-  plugins: [portablePluginBuild(path.resolve(__dirname, "../../plugins/distribution.json"))],
   test: {
     environment: "jsdom",
     poolOptions: {

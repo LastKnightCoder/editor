@@ -4,7 +4,6 @@
 import { createEditorKit, createMarkdownPasteImportExtension, type EditorKit } from "@tau/editor";
 import { standardExtensions } from "../../../../editor-extensions/standard";
 import webviewExtension from "@tau/editor-webview";
-import { contentPlugins } from "./contentPlugins";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
@@ -47,16 +46,12 @@ export function getExtensionKit(wsClient?: WebSocketClient | null): EditorKit {
     });
   if (!wsClient) {
     withoutClient ??= build();
-    return contentPlugins.extensions.length
-      ? withoutClient.extend({ extensions: contentPlugins.extensions })
-      : withoutClient;
+    return withoutClient;
   }
   let kit = cache.get(wsClient);
   if (!kit) {
     kit = build();
     cache.set(wsClient, kit);
   }
-  return contentPlugins.extensions.length
-    ? kit.extend({ extensions: contentPlugins.extensions })
-    : kit;
+  return kit;
 }

@@ -8,7 +8,6 @@ import { desktopFetch } from "@/commands/fetch";
 import { isElectron, on, off } from "@/electron";
 import { getPluginWorkspace } from "@/commands/plugin-local";
 import { migratePluginPreferences } from "./development-manager";
-import { themePlugin } from "./builtin/themePlugin";
 import { createDesktopExcerpts } from "./excerpts";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -28,10 +27,6 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
-    const onStorage = (event: StorageEvent) => {
-      if (event.storageArea && event.storageArea !== window.localStorage) return;
-      void current?.builtin?.restore(event.key);
-    };
     const onLocalState = () => {
       void current?.local?.refresh().catch(() => undefined);
     };
@@ -43,7 +38,6 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       .then(async modules => {
         await previousCleanup;
         if (cancelled) return;
-        const plugins = [themePlugin];
         const composePluginEditor = modules?.composePluginEditor;
         const persistentWorkspaceId = isElectron
           ? await getPluginWorkspace(workspaceId)
@@ -55,7 +49,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           workspaceId: persistentWorkspaceId,
           navigator,
           storage: createBrowserStorage(window.localStorage),
-          plugins,
+          plugins: [],
           fetch: desktopFetch,
           services: desktopPluginServices,
           mcp: {
@@ -76,10 +70,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                 }),
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
-        const builtin = current.attachBuiltins([themePlugin.id], window.localStorage);
-        window.addEventListener("storage", onStorage);
         setRuntime(current);
-        void builtin.restore();
         if (local) void local.refresh().catch(() => undefined);
       })
       .catch(error => {
@@ -87,7 +78,6 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       });
     return () => {
       cancelled = true;
-      window.removeEventListener("storage", onStorage);
       if (isElectron) off("plugin-local:state-changed", onLocalState);
       pendingCleanup = Promise.allSettled([
         previousCleanup,

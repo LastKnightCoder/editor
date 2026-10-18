@@ -214,13 +214,6 @@ export class PluginUpdates {
   stageZip(file: string) {
     return this.serial(async () => this.stageArchive(await readFile(file), { kind: "zip" }));
   }
-  /** 仅供随应用分发的已校验目录升级，仍走同一安装事务。 */
-  stageBundledPackage(directory: string) {
-    return this.serial(async () => {
-      await this.setup();
-      return this.queue(directory, false);
-    });
-  }
   /** 来自插件中心的包：调用方已按发布记录核对大小与 SHA-256。 */
   stageRelease(bytes: Buffer, source: CenterSource) {
     return this.serial(() => this.stageArchive(bytes, source));

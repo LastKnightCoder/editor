@@ -1,4 +1,3 @@
-import { Palette } from "lucide-react";
 import { cn } from "@tau/ui";
 import { pluginTone } from "../model";
 
@@ -15,16 +14,14 @@ const SIZES = {
   lg: "size-[60px] rounded-[16px] text-[24px]",
 };
 
-/** manifest 尚无图标字段：用名称首字，内置插件用调色板图标。 */
+/** manifest 尚无图标字段，使用名称首字。 */
 export function PluginIcon({
   id,
   name,
-  builtin,
   size = "md",
 }: {
   id: string;
   name: string;
-  builtin?: boolean;
   size?: keyof typeof SIZES;
 }) {
   return (
@@ -36,7 +33,7 @@ export function PluginIcon({
         TONES[pluginTone(id) - 1]
       )}
     >
-      {builtin ? <Palette className="size-[1.05em]" strokeWidth={1.75} /> : name.slice(0, 1)}
+      {name.slice(0, 1)}
     </span>
   );
 }

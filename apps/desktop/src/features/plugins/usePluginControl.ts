@@ -24,14 +24,8 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
     ? runtime.development
     : runtime.local?.owns(id)
       ? runtime.local
-      : runtime.builtin?.owns(id)
-        ? runtime.builtin
-        : runtime.host;
-  const managing =
-    busy ||
-    Boolean(runtime.development?.busy(id)) ||
-    Boolean(runtime.builtin?.busy(id)) ||
-    Boolean(runtime.local?.busy());
+      : runtime.host;
+  const managing = busy || Boolean(runtime.development?.busy(id)) || Boolean(runtime.local?.busy());
   const transitioning = state === "activating" || state === "deactivating";
   const watching = runtime.development?.watching(id) ?? false;
   const refreshLocal = async () => {

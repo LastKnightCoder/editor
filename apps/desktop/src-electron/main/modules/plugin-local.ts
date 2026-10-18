@@ -9,8 +9,6 @@ import { getPluginRegistry } from "../services/plugin-workspaces";
 import { PluginUpdates } from "../services/plugin-updates";
 import { readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
-import { installBundledPlugins } from "../services/plugin-bundled";
-import { upgradeOfficialSyncPlugin } from "../services/plugin-sync-upgrade";
 import { acceptHeadlessPlugin } from "../services/plugin-codecs";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
 import {
@@ -37,19 +35,6 @@ export default {
   async init() {
     const updates = new PluginUpdates(directory(), app.getVersion());
     await updates.initialize();
-    if (
-      await upgradeOfficialSyncPlugin(
-        path.join(app.getAppPath(), "build/bundled-plugins"),
-        directory(),
-        updates
-      )
-    )
-      await updates.initialize();
-    const bundled = await installBundledPlugins(
-      path.join(app.getAppPath(), "build/bundled-plugins"),
-      directory(),
-      app.getVersion()
-    );
     const preferences = new LocalPluginPreferences(directory());
     await userSetting.getSettingSnapshot();
     await preferences.load();
@@ -65,7 +50,7 @@ export default {
     });
     const initial = await discoverPlugins(directory(), app.getVersion());
     const initialSources = await updates.sources(initial.entries.map(entry => entry.id));
-    const defaults = (id: string) => bundled.includes(id) || initialSources[id]?.kind === "center";
+    const defaults = (id: string) => initialSources[id]?.kind === "center";
     const snapshot = await contentStartup.get(
       initial.entries
         .filter(
@@ -98,10 +83,7 @@ export default {
           Object.fromEntries(
             result.entries
               .filter(entry => entry.artifact)
-              .map(entry => [
-                entry.id,
-                bundled.includes(entry.id) || sources[entry.id]?.kind === "center",
-              ])
+              .map(entry => [entry.id, sources[entry.id]?.kind === "center"])
           )
         );
       return {
@@ -113,11 +95,7 @@ export default {
           const sourced = {
             ...entry,
             source: sources[entry.id],
-            bundled: bundled.includes(entry.id),
-            enabled: preferences.enabled(
-              entry.id,
-              bundled.includes(entry.id) || sources[entry.id]?.kind === "center"
-            ),
+            enabled: preferences.enabled(entry.id, sources[entry.id]?.kind === "center"),
           };
           return blocked
             ? { ...sourced, artifact: undefined, error: blocked.error ?? "更新尚未恢复，暂不加载" }
@@ -126,6 +104,7 @@ export default {
       };
     });
     ipcMain.handle("plugin-local:stage-zip", async event => {
+      if (app.isPackaged) throw new Error("请从插件中心安装插件");
       const window = BrowserWindow.fromWebContents(event.sender);
       if (!window) throw new Error("安装插件需要应用窗口");
       const selected = await dialog.showOpenDialog(window, {

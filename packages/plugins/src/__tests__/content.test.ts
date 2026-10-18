@@ -1,11 +1,6 @@
-import { afterEach, expect, it } from "vitest";
-import {
-  ContentPluginRegistry,
-  createPluginMarkdownProcessor,
-  installCompiledPlugins,
-} from "../content";
+import { expect, it } from "vitest";
+import { ContentPluginRegistry, createPluginMarkdownProcessor } from "../content";
 import { sharedPluginModules } from "../shared-modules";
-import { compiledPluginModule } from "../distribution";
 import { validatePluginManifest } from "../package";
 
 const artifact = {
@@ -28,10 +23,6 @@ const artifact = {
     create(){throw new Error('无界面任务不得调用生命周期')}
   });`,
 };
-const originalFunction = globalThis.Function;
-afterEach(() => {
-  globalThis.Function = originalFunction;
-});
 
 it("任意插件单入口在无 DOM 环境提供带闭包的 codec，不启动插件业务", () => {
   expect(typeof document).toBe("undefined");
@@ -67,19 +58,4 @@ it("注册表相互隔离，已创建的转换器随快照更新且外部不能�
   expect(registry.list()).not.toBe(previous);
   registry.install([]);
   expect(md.getMarkdown(value).trim()).not.toBe("新的转换器");
-});
-
-it("跨端分发包装执行同一个 main.js，不要求 eval 或作者第二个入口", async () => {
-  const module = await import(
-    "data:text/javascript;base64," + Buffer.from(compiledPluginModule(artifact)).toString("base64")
-  );
-  globalThis.Function = (() => {
-    throw new Error("禁止 eval");
-  }) as unknown as FunctionConstructor;
-  const registry = new ContentPluginRegistry();
-  installCompiledPlugins(registry, [module.default], sharedPluginModules);
-  const md = createPluginMarkdownProcessor({ codecs: [] }, registry);
-  expect(md.getMarkdown(md.importFromMarkdown("~~~external-example\n正文\n~~~")).trim()).toBe(
-    "~~~external-example\n正文\n~~~"
-  );
 });

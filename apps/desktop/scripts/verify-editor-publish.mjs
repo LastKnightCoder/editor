@@ -18,12 +18,12 @@ const pluginDir = path.join(directory, "example.portable-counter");
 const site = path.join(output, "site");
 await mkdir(pluginDir, { recursive: true });
 const distribution = JSON.parse(
-  await readFile(path.join(root, "plugins/distribution.json"), "utf8")
+  await readFile(path.join(root, "tests/fixtures/plugins/catalog.json"), "utf8")
 );
 const customPackage = distribution.find(entry => entry.id === "tau.custom-block");
 if (!customPackage) throw new Error("分发清单缺少自定义组件块");
 await cp(
-  path.join(root, "plugins", customPackage.artifact),
+  path.join(root, "tests/fixtures/plugins", customPackage.artifact),
   path.join(directory, "tau.custom-block"),
   { recursive: true }
 );

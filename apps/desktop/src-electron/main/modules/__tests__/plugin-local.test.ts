@@ -16,6 +16,7 @@ const mock = vi.hoisted(() => ({
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
   app: {
+    isPackaged: true,
     getPath: () => path.join(mock.root, "profile"),
     getAppPath: () => path.join(mock.root, "app"),
     getVersion: () => "0.59.0",
@@ -41,6 +42,11 @@ beforeEach(async () => {
   mock.openPath.mockClear();
   const module = await import("../plugin-local");
   await module.default.init();
+});
+
+it("正式客户端不提供ZIP安装入口，初次启动没有预装插件", async () => {
+  await expect(invoke("plugin-local:stage-zip")).rejects.toThrow("插件中心");
+  expect(((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries).toEqual([]);
 });
 
 it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动快照", async () => {

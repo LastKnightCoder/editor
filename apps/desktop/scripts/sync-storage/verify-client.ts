@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -199,10 +200,17 @@ async function main() {
         })
       );
     }
-    if (phase === "install") {
+    if (["install", "migrate", "upgrade"].includes(phase)) {
       const updates = new PluginUpdates(path.join(PathUtil.getAppDir(), "plugins"), "0.59.0");
       await updates.initialize();
-      await updates.stageZip(archive);
+      const bytes = await readFile(archive);
+      await updates.stageRelease(bytes, {
+        kind: "center",
+        releaseId: "test-release",
+        pluginId: id,
+        version: JSON.parse(manifestEntry.getData().toString()).version,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
     }
     await pluginLocal.init();
     await fetchModule.init();
@@ -241,7 +249,7 @@ async function main() {
         ")"
     );
     if (phase === "install") {
-      assert.equal(installed.enabled, false);
+      assert.equal(installed.enabled, true);
       await call("plugin-local:set-enabled", id, true);
     } else {
       assert.equal(installed.enabled, true);

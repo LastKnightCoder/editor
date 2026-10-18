@@ -1,10 +1,9 @@
 import type { PluginDefinition } from "./contract";
 import type { WhiteboardElementDefinition } from "./whiteboard";
-import type { DevelopmentPluginPackage, PluginManifest } from "./package";
+import type { DevelopmentPluginPackage } from "./package";
 import { createMarkdownProcessor, type MarkdownProcessor } from "@tau/markdown";
 import {
   evaluatePluginPackage,
-  validatePluginDefinition,
   getPluginNodeTypes,
   getPluginWhiteboardTypes,
   assertUniqueEditorCodecs,
@@ -84,25 +83,6 @@ export class ContentPluginRegistry {
     }
     return undefined;
   }
-}
-
-export interface CompiledPluginPackage {
-  manifest: PluginManifest;
-  css?: string;
-  evaluate(modules: Readonly<Record<string, unknown>>): PluginDefinition;
-}
-
-/** 分发端用构建后的同一个入口装配；不需要 eval，也不引用作者源码。 */
-export function installCompiledPlugins(
-  registry: ContentPluginRegistry,
-  packages: readonly CompiledPluginPackage[],
-  modules: Readonly<Record<string, unknown>>
-) {
-  registry.install(
-    packages.map(artifact =>
-      validatePluginDefinition(artifact.manifest, artifact.evaluate(modules))
-    )
-  );
 }
 
 export function createPluginMarkdownProcessor(

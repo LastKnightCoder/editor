@@ -215,9 +215,6 @@ importers:
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
-      '@tau/plugins':
-        specifier: workspace:*
-        version: link:../../packages/plugins
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -432,9 +429,6 @@ importers:
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
-      '@tau/plugins':
-        specifier: workspace:*
-        version: link:../../packages/plugins
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared

@@ -7,7 +7,6 @@ import { spawn } from "node:child_process";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const require = createRequire(path.join(root, "apps/desktop/package.json"));
 const { build } = require("esbuild");
-const AdmZip = require("adm-zip");
 const archive = process.argv[2];
 const previousArchive = process.argv[3];
 if (!archive) throw new Error("请提供同步插件ZIP路径");
@@ -53,12 +52,6 @@ for (const phase of [
   "migrate-restart",
   ...(previousArchive ? ["upgrade"] : []),
 ]) {
-  if (phase === "migrate") {
-    new AdmZip(path.resolve(archive)).extractAllTo(
-      path.join(output, "build/bundled-plugins"),
-      true
-    );
-  }
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   await new Promise((resolve, reject) => {
