@@ -1,7 +1,12 @@
-import React, { act } from "react";
+import React, { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it } from "vitest";
-import { registerToolCallRenderer, unregisterToolCallRenderer } from "../../../../renderers";
+import { expect, it, vi } from "vitest";
+import {
+  getToolCallRenderer,
+  registerOwnedToolCallRenderer,
+  registerToolCallRenderer,
+  unregisterToolCallRenderer,
+} from "../../../../renderers";
 import { ToolCallDisplay } from "../ToolCallDisplay";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 
@@ -35,11 +40,112 @@ it("纯登记入口与真实展示共用实例，注销后恢复宿主默认渲�
     ));
     await act(async () => render());
     expect(host.textContent).toBe("宿主上下文默认结果");
-    unregisterToolCallRenderer(toolName);
-    await act(async () => render());
+    await act(async () => {
+      unregisterToolCallRenderer(toolName);
+      render();
+    });
     expect(host.textContent).toBe("默认结果");
   } finally {
+    await act(async () => {
+      unregisterToolCallRenderer(toolName);
+      root.unmount();
+    });
+  }
+});
+
+it("相同消息无需重新传入 props，动态登记和回收会刷新并卸载组件", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const cleanup = vi.fn();
+  const toolName = "chat-dynamic-registration";
+  const executions: ToolCallExecutionState[] = [
+    {
+      toolCallId: "dynamic-call",
+      toolName,
+      input: "{",
+      status: "executing",
+      timestamp: 1,
+    },
+  ];
+  let registration: { dispose(): void } | undefined;
+  try {
+    await act(async () => {
+      root.render(
+        <ToolCallDisplay executions={executions} renderDefaultItem={() => <span>默认</span>} />
+      );
+    });
+    expect(host.textContent).toBe("默认");
+    await act(async () => {
+      registration = registerOwnedToolCallRenderer(toolName, function Renderer(props) {
+        useEffect(() => cleanup, []);
+        return <span>{props.inputParseError ? "输入接收中" : "自定义"}</span>;
+      });
+    });
+    expect(host.textContent).toBe("输入接收中");
+    await act(async () => registration?.dispose());
+    expect(host.textContent).toBe("默认");
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => {
+      registration?.dispose();
+      root.unmount();
+    });
+  }
+});
+
+it("带归属的重复登记拒绝，旧句柄不能删除后来替换的渲染器", () => {
+  const toolName = "chat-owned-registration";
+  const registration = registerOwnedToolCallRenderer(toolName, () => null);
+  try {
+    expect(() => registerOwnedToolCallRenderer(toolName, () => null)).toThrow("已注册");
+    const next = () => null;
+    registerToolCallRenderer(toolName, next);
+    registration.dispose();
+    expect(getToolCallRenderer(toolName)).toBe(next);
+  } finally {
     unregisterToolCallRenderer(toolName);
-    await act(async () => root.unmount());
+  }
+});
+
+it("渲染崩溃后替换登记会重置错误边界，无关登记不会重挂当前组件", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const mount = vi.fn();
+  const toolName = "chat-error-recovery";
+  const other = "chat-unrelated-registration";
+  try {
+    registerToolCallRenderer(toolName, () => {
+      throw new Error("组件故障");
+    });
+    await act(async () => {
+      root.render(
+        <ToolCallDisplay
+          executions={[
+            { toolCallId: "error-call", toolName, input: "{}", status: "success", timestamp: 1 },
+          ]}
+          renderDefaultItem={() => <span>默认</span>}
+        />
+      );
+    });
+    expect(host.textContent).toContain("默认");
+    await act(async () => {
+      registerToolCallRenderer(toolName, function Fixed() {
+        useEffect(() => {
+          mount();
+        }, []);
+        return <span>已恢复</span>;
+      });
+    });
+    expect(host.textContent).toBe("已恢复");
+    await act(async () => registerToolCallRenderer(other, () => null));
+    expect(mount).toHaveBeenCalledTimes(1);
+  } finally {
+    await act(async () => {
+      unregisterToolCallRenderer(toolName);
+      unregisterToolCallRenderer(other);
+      root.unmount();
+    });
+    log.mockRestore();
   }
 });
