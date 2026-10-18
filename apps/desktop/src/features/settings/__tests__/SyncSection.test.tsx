@@ -5,7 +5,7 @@ import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { ResourceSyncStatus } from "@/types";
-import useSettingStore from "@/stores/useSettingStore";
+import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { SyncSection } from "../sections/SyncSection";
 
 const mocks = vi.hoisted(() => ({ model: {} as Record<string, unknown> }));
@@ -61,6 +61,7 @@ beforeEach(() => {
   useSettingStore.setState(s => ({
     setting: {
       ...s.setting,
+      sync: { ...s.setting.sync, active: ESync.WebDav },
       database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
     },
   }));

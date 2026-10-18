@@ -4,16 +4,19 @@
 
 所有业务插件统一在公开 GitHub 仓库维护，主项目只保存固定版本快照 `releases/<id>/<version>/`，不在客户端构建时访问作者目录或重新编译插件源码。
 
-| 插件         | 源码与版本                                                                                                         | 默认随客户端安装   |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------ |
-| 微信读书     | [tau-plugin-weread · v1.0.4](https://github.com/LastKnightCoder/tau-plugin-weread/releases/tag/v1.0.4)             | 否，用户主动安装   |
-| 自定义组件块 | [tau-plugin-custom-block · v1.0.2](https://github.com/LastKnightCoder/tau-plugin-custom-block/releases/tag/v1.0.2) | 是                 |
-| 火柴人       | [tau-plugin-stickman · v0.1.1](https://github.com/LastKnightCoder/tau-plugin-stickman/releases/tag/v0.1.1)         | 是                 |
-| S3 同步存储  | [tau-plugin-s3 · 0.2.0](https://github.com/LastKnightCoder/tau-plugin-s3)                                          | 是，接管旧 S3 同步 |
+| 插件         | 源码与版本                                                                                                         | 默认随客户端安装    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------ | ------------------- |
+| 微信读书     | [tau-plugin-weread · v1.0.4](https://github.com/LastKnightCoder/tau-plugin-weread/releases/tag/v1.0.4)             | 否，用户主动安装    |
+| 自定义组件块 | [tau-plugin-custom-block · v1.0.2](https://github.com/LastKnightCoder/tau-plugin-custom-block/releases/tag/v1.0.2) | 是                  |
+| 火柴人       | [tau-plugin-stickman · v0.1.1](https://github.com/LastKnightCoder/tau-plugin-stickman/releases/tag/v0.1.1)         | 是                  |
+| S3 同步存储  | [tau-plugin-s3 · 0.2.0](https://github.com/LastKnightCoder/tau-plugin-s3)                                          | 是，接管旧 S3 同步  |
+| OSS 同步存储 | [tau-plugin-oss · 0.1.1](https://github.com/LastKnightCoder/tau-plugin-oss)                                        | 是，接管旧 OSS 同步 |
 
 清单中的 `repository`、`sourceRevision`、`version` 对应源码仓库、提交及版本；`bundled:false` 的包保留用于集成验证，不自动安装。SDK 0.8.0 已发布，三个源码仓库均可用公开 npm 依赖独立构建。不使用 submodule。
 
 S3 0.2.0使用公开SDK0.10.0，只在渲染进程执行并通过宿主fetch访问网络，不含Node后台入口。固定产物来自GitHub干净克隆构建。CLI已移除同步功能；官方旧包的升级和维护说明见 `docs/plugin-system/55-插件渲染进程边界纠偏.md`。
+
+OSS 0.1.1同样使用公开SDK0.10.0，通过官方ali-oss浏览器构建和宿主fetch执行。旧OSS同步配置与资源账本自动迁入插件；资源上传和列桶仍由原宿主模块提供。拆分与验收见 `docs/plugin-system/56-OSS渲染进程拆分.md`。
 
 固定快照的所有文件（包括说明和许可证）均记录 SHA-256。构建检查完整文件清单、文件摘要以及 manifest 身份/版本，任何漂移都失败。`archiveSha256` 记录导入的 ZIP 摘要，`sourceRevision` 记录作者提交用于追溯；构建直接校验解包后的文件，不需要原 ZIP。固定快照不参与 ESLint/Prettier，禁止手改 main.js 或格式化 manifest。
 

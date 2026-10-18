@@ -43,20 +43,11 @@ export interface IRateLimitConfig {
   retryBackoffMultiplier: number;
 }
 
-export type ResourceSyncProvider = "alioss" | "webdav" | "github" | "plugin";
+export type ResourceSyncProvider = "webdav" | "github" | "plugin";
 
 interface BaseResourceSyncOptions {
   provider: ResourceSyncProvider;
   rateLimit?: Partial<IRateLimitConfig>;
-}
-
-export interface AliossResourceSyncOptions extends BaseResourceSyncOptions {
-  provider: "alioss";
-  accessKeyId: string;
-  accessKeySecret: string;
-  bucket: string;
-  region: string;
-  path?: string;
 }
 
 export interface WebDavResourceSyncOptions extends BaseResourceSyncOptions {
@@ -81,18 +72,10 @@ export interface GithubResourceSyncOptions extends BaseResourceSyncOptions {
 
 export type ResourceSyncOptions =
   | (BaseResourceSyncOptions & { provider: "plugin"; pluginId: string; config: unknown })
-  | AliossResourceSyncOptions
   | WebDavResourceSyncOptions
   | GithubResourceSyncOptions;
 
 export const RATE_LIMIT_CONFIGS: Record<string, IRateLimitConfig> = {
-  alioss: {
-    maxConcurrent: 5,
-    requestsPerSecond: 50,
-    retryCount: 3,
-    retryDelayMs: 1000,
-    retryBackoffMultiplier: 2,
-  },
   plugin: {
     maxConcurrent: 5,
     requestsPerSecond: 50,

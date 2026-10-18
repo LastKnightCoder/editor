@@ -16,13 +16,6 @@ export const isSyncConfigured = (
         Object.hasOwn(sync.plugin.configurations, sync.plugin.id) &&
         sync.plugin.configurations[sync.plugin.id] != null
       );
-    case ESync.AliOSS:
-      return (
-        !!integration.aliOSS.accessKeyId &&
-        !!integration.aliOSS.accessKeySecret &&
-        !!sync.aliOSS.bucket &&
-        !!sync.aliOSS.region
-      );
     case ESync.WebDav:
       return (
         !!integration.webdav.url && !!integration.webdav.username && !!integration.webdav.password

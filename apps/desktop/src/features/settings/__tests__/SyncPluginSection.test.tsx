@@ -40,8 +40,9 @@ vi.mock("../sections/useResourceSyncModel", () => ({
   }),
 }));
 const zip = process.env.TAU_SYNC_PLUGIN_ZIP;
-describe.skipIf(!zip)("真实S3插件包注册同步配置表单", () => {
+describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
   let root: Root, container: HTMLDivElement, runtime: DesktopPluginRuntime;
+  let pluginId: string;
   let previous: ReturnType<typeof useSettingStore.getState>["setting"];
   const settle = async () =>
     act(async () => {
@@ -55,13 +56,14 @@ describe.skipIf(!zip)("真实S3插件包注册同步配置表单", () => {
         process.execPath,
         [
           "-e",
-          "const z=new(require('adm-zip'))(process.argv[1]);const m=JSON.parse(z.readAsText('tau.sync-s3/manifest.json'));process.stdout.write(JSON.stringify({manifest:m,code:z.readAsText('tau.sync-s3/'+m.main)}));",
+          "const z=new(require('adm-zip'))(process.argv[1]);const e=z.getEntries().find(e=>e.entryName.endsWith('/manifest.json'));const m=JSON.parse(e.getData().toString());process.stdout.write(JSON.stringify({manifest:m,code:z.readAsText(m.id+'/'+m.main)}));",
           zip,
         ],
-        { encoding: "utf8" }
+        { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 }
       )
     );
     const manifest = artifact.manifest;
+    pluginId = manifest.id;
     previous = useSettingStore.getState().setting;
     useSettingStore.setState({
       setting: { ...previous, sync: { ...previous.sync, active: ESync.Plugin, plugin: undefined } },
@@ -130,7 +132,10 @@ describe.skipIf(!zip)("真实S3插件包注册同步配置表单", () => {
     await input("Bucket", "test-bucket");
     await input("Region", "test-region");
     await input("Access Key ID", "test-only");
-    await input("Secret Access Key", "test-only");
+    await input(
+      pluginId === "tau.sync-oss" ? "Access Key Secret" : "Secret Access Key",
+      "test-only"
+    );
     mocks.save.mockRejectedValueOnce(new Error("写入失败"));
     await act(async () => button("保存同步配置").click());
     await settle();
@@ -139,18 +144,18 @@ describe.skipIf(!zip)("真实S3插件包注册同步配置表单", () => {
     await act(async () => button("保存同步配置").click());
     await settle();
     expect(mocks.save).toHaveBeenLastCalledWith(
-      "tau.sync-s3",
+      pluginId,
       expect.objectContaining({ bucket: "test-bucket", region: "test-region" })
     );
-    expect(
-      useSettingStore.getState().setting.sync.plugin?.configurations["tau.sync-s3"]
-    ).toMatchObject({ bucket: "test-bucket" });
+    expect(useSettingStore.getState().setting.sync.plugin?.configurations[pluginId]).toMatchObject({
+      bucket: "test-bucket",
+    });
     await act(async () => button("同步到云端").click());
     await settle();
     expect(mocks.upload).toHaveBeenCalled();
-    await act(async () => runtime.host.disable("tau.sync-s3"));
+    await act(async () => runtime.host.disable(pluginId));
     await settle();
     expect(container.textContent).toContain("请先在插件页安装并启用同步插件");
-    expect(useSettingStore.getState().setting.sync.plugin?.id).toBe("tau.sync-s3");
+    expect(useSettingStore.getState().setting.sync.plugin?.id).toBe(pluginId);
   });
 });

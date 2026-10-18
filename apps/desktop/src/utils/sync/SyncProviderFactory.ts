@@ -1,5 +1,4 @@
 import { ISyncProvider } from "@/types/sync";
-import { AliOSSSyncProvider } from "./AliOSSSyncProvider";
 import { WebDavSyncProvider } from "./WebDavSyncProvider";
 import { GithubSyncProvider } from "./GithubSyncProvider";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
@@ -21,21 +20,6 @@ export class SyncProviderFactory {
               copyJson(syncConfig.plugin.configurations[syncConfig.plugin.id])
             )
           : null;
-      case ESync.AliOSS: {
-        const { accessKeyId, accessKeySecret } = integration.aliOSS;
-        const { bucket, region, path } = syncConfig.aliOSS;
-        if (!accessKeyId || !accessKeySecret || !bucket || !region) {
-          return null;
-        }
-        return new AliOSSSyncProvider({
-          accessKeyId,
-          accessKeySecret,
-          bucket,
-          region,
-          path: path || "/",
-        });
-      }
-
       case ESync.WebDav: {
         const { url, username, password } = integration.webdav;
         const { pathPrefix } = syncConfig.webdav;

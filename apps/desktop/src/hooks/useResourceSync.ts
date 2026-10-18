@@ -43,21 +43,6 @@ const useResourceSync = () => {
               config: syncConfig.plugin.configurations[syncConfig.plugin.id],
             }
           : null;
-      case ESync.AliOSS: {
-        const { accessKeyId, accessKeySecret } = integrationConfig.aliOSS;
-        const { bucket, region, path } = syncConfig.aliOSS;
-        if (!accessKeyId || !accessKeySecret || !bucket || !region) {
-          return null;
-        }
-        return {
-          provider: "alioss",
-          accessKeyId,
-          accessKeySecret,
-          bucket,
-          region,
-          path: path || "/",
-        };
-      }
       case ESync.WebDav: {
         const { url, username, password } = integrationConfig.webdav;
         const { pathPrefix } = syncConfig.webdav;
@@ -96,15 +81,6 @@ const useResourceSync = () => {
     switch (syncConfig.active) {
       case ESync.Plugin:
         return buildOptions();
-      case ESync.AliOSS:
-        return {
-          provider: "alioss",
-          accessKeyId: integrationConfig.aliOSS.accessKeyId || "",
-          accessKeySecret: integrationConfig.aliOSS.accessKeySecret || "",
-          bucket: syncConfig.aliOSS.bucket || "",
-          region: syncConfig.aliOSS.region || "",
-          path: syncConfig.aliOSS.path || "/",
-        };
       case ESync.WebDav:
         return {
           provider: "webdav",
@@ -179,7 +155,7 @@ const useResourceSync = () => {
       if (!data?.name || !data?.status) return;
       setStatusFile(prev => {
         const base: ISyncStatusFile = prev || {
-          provider: buildOptions()?.provider || "alioss",
+          provider: buildOptions()?.provider || "plugin",
           config: {},
           lastSyncTime: null,
           files: {},

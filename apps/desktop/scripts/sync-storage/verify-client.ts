@@ -17,6 +17,7 @@ import {
 } from "@tau/db-schema/sync-protocol";
 import type { SyncProvider } from "@tau/plugins/sync";
 import { verifySignature } from "./verify-signature";
+import { verifyOssSignature } from "./verify-oss-signature";
 
 async function main() {
   const [phase, sandbox, archive, previousArchive] = process.argv.slice(2);
@@ -25,7 +26,16 @@ async function main() {
   PathUtil.getAppDir = () =>
     path.join(sandbox, phase === "upgrade" ? "upgrade-data" : migrating ? "migrated-data" : "data");
   app.setPath("userData", path.join(sandbox, "profile"));
-  const id = "tau.sync-s3";
+  const archiveZip = new AdmZip(archive);
+  const manifestEntry = archiveZip
+    .getEntries()
+    .find(entry => entry.entryName.endsWith("/manifest.json"));
+  if (!manifestEntry) throw new Error("缺少manifest");
+  const id: string = JSON.parse(manifestEntry.getData().toString()).id;
+  if (!["tau.sync-s3", "tau.sync-oss"].includes(id)) throw new Error("验收脚本不支持该插件");
+  const oss = id === "tau.sync-oss";
+  const legacyKey = oss ? "aliOSS" : "s3";
+  let bucketVersioning = "";
   let window: BrowserWindow | undefined;
   const objects = new Map<string, Buffer>();
   let loseConditionalResponse = false;
@@ -40,7 +50,16 @@ async function main() {
       res.statusCode = status;
       res.end();
     };
-    if (!verifySignature(req, "test-only")) return fail(403);
+    if (!(oss ? verifyOssSignature(req, "bucket", "test-only") : verifySignature(req, "test-only")))
+      return fail(403);
+    if (oss && url.searchParams.has("versioning")) {
+      res.setHeader("Content-Type", "application/xml");
+      return res.end(
+        "<VersioningConfiguration><Status>" +
+          bucketVersioning +
+          "</Status></VersioningConfiguration>"
+      );
+    }
     if (key.endsWith("/blocked")) {
       blocked();
       return;
@@ -48,16 +67,19 @@ async function main() {
     if (req.method === "PUT") {
       const chunks: Buffer[] = [];
       for await (const part of req) chunks.push(Buffer.from(part));
-      if (req.headers["if-none-match"] === "*" && objects.has(key)) return fail(412);
+      const conditional = oss
+        ? req.headers["x-oss-forbid-overwrite"] === "true"
+        : req.headers["if-none-match"] === "*";
+      if (conditional && objects.has(key)) return fail(oss ? 409 : 412);
       objects.set(key, Buffer.concat(chunks));
-      if (req.headers["if-none-match"] === "*" && loseConditionalResponse) {
+      if (conditional && loseConditionalResponse) {
         loseConditionalResponse = false;
         return fail(400);
       }
       res.setHeader("ETag", '"test"');
       return res.end();
     }
-    if (url.searchParams.has("list-type")) {
+    if (url.searchParams.has("list-type") || (oss && url.searchParams.has("prefix"))) {
       res.setHeader("Content-Type", "application/xml");
       return res.end("<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>");
     }
@@ -71,32 +93,45 @@ async function main() {
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("测试服务器未启动");
-    const config = {
-      endpoint: "http://127.0.0.1:" + address.port,
-      bucket: "bucket",
-      region: "test-region",
-      pathPrefix: "isolated",
-      urlStyle: "path",
-      accessKeyId: "test-only",
-      secretAccessKey: "test-only",
-    };
+    const endpoint = "http://127.0.0.1:" + address.port;
+    const config = oss
+      ? {
+          bucket: "bucket",
+          region: "oss-cn-hangzhou",
+          path: "isolated",
+          accessKeyId: "test-only",
+          accessKeySecret: "test-only",
+        }
+      : {
+          endpoint: "http://127.0.0.1:" + address.port,
+          bucket: "bucket",
+          region: "test-region",
+          pathPrefix: "isolated",
+          urlStyle: "path",
+          accessKeyId: "test-only",
+          secretAccessKey: "test-only",
+        };
     if (phase === "migrate") {
       await mkdir(PathUtil.getAppDir(), { recursive: true });
       await writeFile(
         path.join(PathUtil.getAppDir(), "setting.json"),
         JSON.stringify({
           sync: {
-            active: "s3",
+            active: legacyKey,
             autoSyncEnabled: true,
-            s3: { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
+            [legacyKey]: oss
+              ? { bucket: config.bucket, region: config.region, path: config.path }
+              : { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
           },
           integration: {
-            s3: {
-              endpoint: config.endpoint,
-              accessKeyId: config.accessKeyId,
-              secretAccessKey: config.secretAccessKey,
-              urlStyle: config.urlStyle,
-            },
+            [legacyKey]: oss
+              ? { accessKeyId: config.accessKeyId, accessKeySecret: config.accessKeySecret }
+              : {
+                  endpoint: config.endpoint,
+                  accessKeyId: config.accessKeyId,
+                  secretAccessKey: config.secretAccessKey,
+                  urlStyle: config.urlStyle,
+                },
           },
           database: { active: "data.db", databases: [{ name: "data.db", version: 7 }] },
         })
@@ -154,7 +189,11 @@ async function main() {
         "0.2.0"
       );
     await window.webContents.executeJavaScript(
-      "syncRendererTest.activate(" + JSON.stringify(installed.artifact) + ")"
+      "syncRendererTest.activate(" +
+        JSON.stringify(installed.artifact) +
+        "," +
+        JSON.stringify(oss ? endpoint : null) +
+        ")"
     );
     if (phase === "install") {
       assert.equal(installed.enabled, false);
@@ -167,7 +206,7 @@ async function main() {
       assert.equal(saved.sync.active, "plugin");
       assert.equal(saved.sync.plugin.id, id);
       assert.equal(saved.sync.plugin.configurations[id].bucket, "bucket");
-      assert.equal(Object.hasOwn(saved.sync, "s3"), false);
+      assert.equal(Object.hasOwn(saved.sync, legacyKey), false);
       if (phase === "migrate" || phase === "upgrade")
         assert.deepEqual(saved.sync.plugin.configurations[id], config);
       if (migrating) {
@@ -230,6 +269,14 @@ async function main() {
     await publishSnapshot(provider, "lost-response.json", { version: 0 }, next);
     assert.equal((await readSnapshotHead(provider, "lost-response.json")).version, 1);
     assert.deepEqual(await provider.downloadFile("data.db"), payload);
+    if (oss) {
+      for (const status of ["Enabled", "Suspended"]) {
+        bucketVersioning = status;
+        await assert.rejects(provider.createFileIfAbsent("blocked-version", payload), /版本控制/);
+        assert.equal(await provider.uploadFile("ordinary-put", payload), true);
+      }
+      bucketVersioning = "";
+    }
     await window.webContents.executeJavaScript("syncRendererTest.close()");
     const resourceSession = await pluginSyncSessions.begin(window.webContents.id, id, config);
     await pluginSyncSessions.call(window.webContents.id, resourceSession, "uploadFile", [
@@ -261,6 +308,7 @@ async function main() {
     console.log(
       JSON.stringify({
         phase,
+        pluginId: id,
         installed: true,
         enabled: true,
         configPersisted: true,
