@@ -1,20 +1,24 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-// 各平台允许进包的 llama.cpp 后端，run-electron-builder 的补拉与
-// verify-native-runtime 的产物断言均以此为准，防止多处拷贝漂移
-const llamaBackendAllowlistByPlatform = {
-  win32: ["win-x64", "win-x64-vulkan"],
-  darwin: ["mac-arm64-metal", "mac-x64"],
-  linux: ["linux-x64", "linux-x64-vulkan"],
+// 各打包目标（平台 × 架构）允许进包的 llama.cpp 后端，run-electron-builder 的补拉与
+// verify-native-runtime 的产物断言均以此为准，防止多处拷贝漂移。
+// mac 两种架构分别出包，每个包只带本架构的后端
+const llamaBackendAllowlistByTarget = {
+  win32: { x64: ["win-x64", "win-x64-vulkan"] },
+  darwin: { arm64: ["mac-arm64-metal"], x64: ["mac-x64"] },
+  linux: { x64: ["linux-x64", "linux-x64-vulkan"] },
 };
 
-exports.llamaBackendAllowlistByPlatform = llamaBackendAllowlistByPlatform;
+const llamaBackendAllowlist = (platform, arch) => llamaBackendAllowlistByTarget[platform]?.[arch];
 
-// 带平台 token 的原生模块目录只允许当前平台的 token。electron-builder 在
+exports.llamaBackendAllowlistByTarget = llamaBackendAllowlistByTarget;
+exports.llamaBackendAllowlist = llamaBackendAllowlist;
+
+// 带平台 token 的原生模块目录只允许当前打包目标的 token。electron-builder 在
 // pnpm 布局下会顺着虚拟 store 收集 optionalDependencies 里钉住的全平台
-// 变体（本机 store 物化了 win32 包时尤甚），prune 依据同一份常量清扫，
-// verify-native-runtime 复用它做产物断言，保证两处规则不漂移。
+// 变体（本机 store 物化了 win32 包、或为 mac 双架构装了两套包时尤甚），prune 依据
+// 同一份常量清扫，verify-native-runtime 复用它做产物断言，保证两处规则不漂移。
 const knownPlatformTokens = [
   "aix",
   "android",
@@ -38,17 +42,21 @@ const knownPlatformTokens = [
   "x64",
 ];
 
-const allowedPlatformTokensByPlatform = {
-  win32: ["win32", "windows", "x64", "msvc"],
-  darwin: ["darwin", "arm64", "x64", "metal"],
-  linux: ["linux", "x64", "gnu"],
+const allowedPlatformTokensByTarget = {
+  win32: { x64: ["win32", "windows", "x64", "msvc"] },
+  // metal 是 Apple 芯片专属的 llama.cpp 后端（mac-arm64-metal），Intel 包不得带入
+  darwin: { arm64: ["darwin", "arm64", "metal"], x64: ["darwin", "x64"] },
+  linux: { x64: ["linux", "x64", "gnu"] },
 };
 
-exports.knownPlatformTokens = knownPlatformTokens;
-exports.allowedPlatformTokensByPlatform = allowedPlatformTokensByPlatform;
+const allowedPlatformTokens = (platform, arch) => allowedPlatformTokensByTarget[platform]?.[arch];
 
-const findForeignPlatformToken = (packageName, platform) => {
-  const allowedTokens = allowedPlatformTokensByPlatform[platform];
+exports.knownPlatformTokens = knownPlatformTokens;
+exports.allowedPlatformTokensByTarget = allowedPlatformTokensByTarget;
+exports.allowedPlatformTokens = allowedPlatformTokens;
+
+const findForeignPlatformToken = (packageName, platform, arch) => {
+  const allowedTokens = allowedPlatformTokens(platform, arch);
   if (!allowedTokens) {
     return null;
   }
@@ -61,7 +69,9 @@ const findForeignPlatformToken = (packageName, platform) => {
   );
 };
 
-const removeForeignPlatformPackages = (nodeModulesDir, platform) => {
+exports.findForeignPlatformToken = findForeignPlatformToken;
+
+const removeForeignPlatformPackages = (nodeModulesDir, platform, arch) => {
   const removed = [];
   for (const entry of fs.readdirSync(nodeModulesDir)) {
     const packageNames = entry.startsWith("@")
@@ -70,7 +80,7 @@ const removeForeignPlatformPackages = (nodeModulesDir, platform) => {
           .map(scopedEntry => `${entry}/${scopedEntry}`)
       : [entry];
     for (const packageName of packageNames) {
-      const token = findForeignPlatformToken(packageName, platform);
+      const token = findForeignPlatformToken(packageName, platform, arch);
       if (!token) {
         continue;
       }
@@ -128,6 +138,22 @@ const pruneJavaScriptSourceMaps = directory => {
 
 exports.pruneJavaScriptSourceMaps = pruneJavaScriptSourceMaps;
 
+const pruneBundledNativeBinaries = (nodeModulesDir, platform, arch) => {
+  const piNativeDir = path.join(nodeModulesDir, "@earendil-works", "pi-tui", "native");
+  if (fs.existsSync(piNativeDir)) {
+    for (const entry of fs.readdirSync(piNativeDir, { withFileTypes: true })) {
+      if (entry.isDirectory() && entry.name !== platform)
+        removeDir(path.join(piNativeDir, entry.name));
+    }
+    keepOnly(path.join(piNativeDir, platform, "prebuilds"), [`${platform}-${arch}`]);
+  }
+  const sevenZipDir = path.join(nodeModulesDir, "7zip-bin");
+  const sevenZipPlatform = { darwin: "mac", win32: "win", linux: "linux" }[platform];
+  if (sevenZipPlatform) keepOnly(path.join(sevenZipDir, sevenZipPlatform), [arch]);
+};
+
+exports.pruneBundledNativeBinaries = pruneBundledNativeBinaries;
+
 /**
  * node-llama-cpp 为 ESM-only 且被 asarUnpack 解包。
  * pnpm 布局下其运行时依赖（chalk/ora/ipull 等）被 electron-builder 收进
@@ -138,7 +164,7 @@ exports.pruneJavaScriptSourceMaps = pruneJavaScriptSourceMaps;
  * 相互覆盖导致 ESM named export 缺失。这里按 npm 去重规则放置：
  * 首个版本放顶层，版本冲突时嵌套到依赖方的 node_modules 下。
  */
-const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
+const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform, arch) => {
   const unpackedLlamaCpp = path.join(nodeModulesDir, "node-llama-cpp");
   if (!fs.existsSync(unpackedLlamaCpp)) {
     return;
@@ -164,12 +190,12 @@ const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
   // 只保留 CPU + Vulkan 后端（Vulkan 覆盖 NVIDIA/AMD/Intel，体积约为 CUDA 的
   // 四分之一）；CUDA 全家桶 510M 仅服务 NVIDIA，不默认打包。
   // 同时删除 electron-builder 遍历时可能解包进来的白名单外后端。
-  const llamaBackendAllowlist = llamaBackendAllowlistByPlatform[platform] ?? [];
+  const backendAllowlist = llamaBackendAllowlist(platform, arch) ?? [];
 
   const binsTarget = path.join(nodeModulesDir, "@node-llama-cpp");
   if (fs.existsSync(binsTarget)) {
     for (const entry of fs.readdirSync(binsTarget)) {
-      if (!llamaBackendAllowlist.includes(entry)) {
+      if (!backendAllowlist.includes(entry)) {
         removeDir(path.join(binsTarget, entry));
       }
     }
@@ -177,7 +203,7 @@ const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
 
   const platformBinsSource = path.join(path.dirname(rootRealDir), "@node-llama-cpp");
   if (fs.existsSync(platformBinsSource)) {
-    for (const entry of llamaBackendAllowlist) {
+    for (const entry of backendAllowlist) {
       const source = path.join(platformBinsSource, entry);
       const target = path.join(binsTarget, entry);
       if (!fs.existsSync(source) || fs.existsSync(target)) {
@@ -267,7 +293,7 @@ const syncNodeLlamaCppUnpackedDeps = (nodeModulesDir, platform) => {
  * electron-builder 在 pnpm 布局下的 manual traversal 偶发遗漏 optional
  * 平台包（如 @vscode/ripgrep-win32-x64），这里确保它们存在。
  */
-const ensurePlatformSubPackages = (nodeModulesDir, packageName, platform) => {
+const ensurePlatformSubPackages = (nodeModulesDir, packageName, platform, arch) => {
   const localPackageJson = path.resolve(
     __dirname,
     "..",
@@ -289,7 +315,7 @@ const ensurePlatformSubPackages = (nodeModulesDir, packageName, platform) => {
     if (entry === mainName) {
       continue;
     }
-    if (findForeignPlatformToken(entry, platform)) {
+    if (findForeignPlatformToken(entry, platform, arch)) {
       continue;
     }
 
@@ -329,13 +355,19 @@ exports.default = async context => {
   }
 
   const platform = context.electronPlatformName;
+  // context.arch 是 builder-util 的 Arch 枚举值，换成 "x64" / "arm64" 这样的名字
+  const { Arch } = require("electron-builder");
+  const arch = Arch[context.arch];
+  if (!allowedPlatformTokens(platform, arch)) {
+    throw new Error(`[prune] unsupported packaging target: ${platform}-${arch}`);
+  }
 
   // 二进制包通过 postinstall 设置执行位；跨平台打包补拉的文件也需在签名前设置。
-  ensurePlatformSubPackages(nodeModulesDir, "@ffprobe-installer/ffprobe", platform);
+  ensurePlatformSubPackages(nodeModulesDir, "@ffprobe-installer/ffprobe", platform, arch);
   const probeScope = path.join(nodeModulesDir, "@ffprobe-installer");
   if (fs.existsSync(probeScope)) {
     for (const name of fs.readdirSync(probeScope)) {
-      if (name !== "ffprobe" && !name.startsWith(`${platform}-`)) {
+      if (name !== "ffprobe" && name !== `${platform}-${arch}`) {
         fs.rmSync(path.join(probeScope, name), { recursive: true, force: true });
         continue;
       }
@@ -344,11 +376,11 @@ exports.default = async context => {
     }
   }
 
-  syncNodeLlamaCppUnpackedDeps(nodeModulesDir, platform);
+  syncNodeLlamaCppUnpackedDeps(nodeModulesDir, platform, arch);
 
   // ripgrep 主包已 asarUnpack（与平台包同在 unpacked 真实文件系统），
   // 平台包被 manual traversal 遗漏时在此补齐
-  ensurePlatformSubPackages(nodeModulesDir, "@vscode/ripgrep", platform);
+  ensurePlatformSubPackages(nodeModulesDir, "@vscode/ripgrep", platform, arch);
 
   pruneCommonBuildArtifacts(nodeModulesDir);
 
@@ -386,7 +418,8 @@ exports.default = async context => {
 
   // 兜底清扫：显式清单漏掉的外来平台变体（如 @vscode/ripgrep-win32-x64）
   // 统一按 token 规则删除，保证产物能过 verify-native-runtime 的同款断言
-  removeForeignPlatformPackages(nodeModulesDir, platform);
+  removeForeignPlatformPackages(nodeModulesDir, platform, arch);
+  pruneBundledNativeBinaries(nodeModulesDir, platform, arch);
   // afterPack 补复制的依赖也遵守与 files 相同的调试映射排除规则。
   pruneJavaScriptSourceMaps(nodeModulesDir);
 };

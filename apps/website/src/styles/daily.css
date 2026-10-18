@@ -1,0 +1,415 @@
+/* ============================================================
+   All in one：日常工具（自由设计）
+   ============================================================ */
+.daily {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: minmax(0, auto);
+  gap: 20px;
+  margin-top: 64px;
+}
+.w {
+  position: relative;
+  border-radius: 22px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  padding: 24px 26px;
+  overflow: hidden;
+  font-family: var(--app-font);
+}
+.w-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tau-ink-2);
+}
+.w-hd .i {
+  width: 15px;
+  height: 15px;
+  color: var(--tau-accent-text);
+}
+.w-hd em {
+  margin-left: auto;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--tau-ink-3);
+}
+.w-pomo {
+  grid-column: span 4;
+}
+.player {
+  margin-top: 14px;
+  padding: 16px 18px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--tau-line-1);
+}
+.player .tt {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.player .tt span {
+  color: var(--tau-ink-3);
+  font-size: 12px;
+}
+.player .tm {
+  margin-top: 6px;
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.player .se {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.player .pg {
+  height: 3px;
+  margin-top: 12px;
+  border-radius: 2px;
+  background: var(--tau-bg-track);
+  overflow: hidden;
+}
+.player .pg i {
+  display: block;
+  height: 100%;
+  background: var(--tau-accent);
+  transition: width 1s linear;
+}
+.player .ctl {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  color: var(--tau-ink-2);
+}
+.player .ctl .pp {
+  margin-left: auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.player .ctl .pp .i {
+  fill: currentColor;
+  stroke: none;
+}
+.ledger {
+  margin-top: 16px;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.ledger b {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tau-ink-1);
+  margin-right: 6px;
+}
+.lg-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+.lg-row .tr {
+  position: relative;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--tau-bg-page);
+}
+.lg-row .tr i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+}
+.w-todo {
+  grid-column: span 4;
+}
+.todo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--tau-line-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.todo-row:last-child {
+  border-bottom: 0;
+}
+.todo-row .bx {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1.5px solid var(--tau-ink-3);
+  margin-top: 2px;
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.todo-row.done .bx {
+  background: var(--tau-ok);
+  border-color: var(--tau-ok);
+  color: #fff;
+}
+.todo-row.done .bx .i {
+  width: 10px;
+  height: 10px;
+  stroke-width: 3;
+}
+.todo-row.done .tx {
+  color: var(--tau-ink-3);
+  text-decoration: line-through;
+}
+.todo-row small {
+  display: flex;
+  gap: 8px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.todo-row small .due {
+  color: var(--tau-danger);
+}
+.todo-row .pri {
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 8px;
+  flex: none;
+}
+.w-cal {
+  grid-column: span 4;
+}
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 16px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.days b {
+  display: block;
+  margin-top: 4px;
+  height: 30px;
+  line-height: 30px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tau-ink-1);
+}
+.days .on b {
+  background: var(--tau-ink-1);
+  color: var(--tau-bg-surface);
+}
+.days .dot b {
+  position: relative;
+}
+.days .dot b::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--tau-accent);
+}
+.timeline {
+  position: relative;
+  margin-top: 16px;
+  padding-left: 44px;
+}
+.timeline .hr {
+  position: relative;
+  height: 30px;
+  font-size: 11px;
+  color: var(--tau-ink-3);
+}
+.timeline .hr span {
+  position: absolute;
+  left: -44px;
+  top: -7px;
+}
+.timeline .hr::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-top: 1px dashed var(--tau-line-1);
+}
+.ev {
+  position: absolute;
+  left: 44px;
+  right: 0;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  border-left: 3px solid;
+}
+.ev small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.75;
+}
+.ev.e1 {
+  background: var(--tau-tag-2-soft);
+  color: var(--tau-tag-2);
+  border-color: var(--tau-tag-2);
+}
+.ev.e2 {
+  background: var(--tau-tag-1-soft);
+  color: var(--tau-tag-1);
+  border-color: var(--tau-tag-1);
+}
+.ev.e3 {
+  background: var(--tau-tag-5-soft);
+  color: var(--tau-tag-5);
+  border-color: var(--tau-tag-5);
+}
+.now {
+  position: absolute;
+  left: 38px;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid var(--tau-danger);
+}
+.now::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -4.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tau-danger);
+}
+.w-diary {
+  grid-column: span 7;
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 28px;
+}
+.diary-date {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 14px;
+}
+.diary-date b {
+  font-family: var(--serif);
+  font-size: 46px;
+  font-weight: 600;
+  line-height: 1;
+}
+.diary-date span {
+  font-size: 13px;
+  color: var(--tau-ink-3);
+}
+.w-diary p {
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 2;
+  color: var(--tau-ink-1);
+}
+.moods {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.heat {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+}
+.heat i {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: var(--tau-bg-track);
+}
+.heat i.l1 {
+  background: color-mix(in srgb, var(--tau-accent) 28%, var(--tau-bg-track));
+}
+.heat i.l2 {
+  background: color-mix(in srgb, var(--tau-accent) 55%, var(--tau-bg-track));
+}
+.heat i.l3 {
+  background: var(--tau-accent);
+}
+.moods small {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.w-db {
+  grid-column: span 5;
+}
+.db {
+  margin-top: 14px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.db div {
+  display: grid;
+  grid-template-columns: 1.6fr 0.9fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 12px;
+  border-top: 1px solid var(--tau-line-1);
+}
+.db div:first-child {
+  border-top: 0;
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-3);
+  font-size: 12px;
+}
+.db .st {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  width: max-content;
+}
+.db .s1 {
+  background: var(--tau-ok-soft);
+  color: var(--tau-ok);
+}
+.db .s2 {
+  background: var(--tau-warn-soft);
+  color: var(--tau-warn);
+}
+.db .s3 {
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-3);
+}
+.db .bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--tau-bg-track);
+  overflow: hidden;
+}
+.db .bar i {
+  display: block;
+  height: 100%;
+  background: var(--tau-accent);
+  border-radius: 3px;
+}

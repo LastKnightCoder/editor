@@ -1,0 +1,77 @@
+/* ============================================================
+   插件 / 下载 / 页脚
+   ============================================================ */
+.plug {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  margin-top: 0;
+}
+.plug pre {
+  padding: 24px 26px;
+  border-radius: 18px;
+  background: #2a241d;
+  color: #e9dfcf;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.85;
+  box-shadow: var(--tau-shadow-float);
+  overflow: hidden;
+}
+.plug pre .k {
+  color: #e39a75;
+}
+.plug pre .s {
+  color: #b5c98e;
+}
+.plug pre .c {
+  color: #8c8172;
+}
+.download {
+  text-align: center;
+  padding: 170px 0 150px;
+}
+.download .sub {
+  margin: 22px auto 0;
+}
+.download .ctas {
+  margin-top: 40px;
+}
+.facts-row {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 28px;
+  font-size: 14px;
+  color: var(--tau-ink-3);
+}
+.facts-row span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+footer.site {
+  border-top: 1px solid var(--tau-line-1);
+  padding: 32px 0 40px;
+  font-size: 13.5px;
+  color: var(--tau-ink-3);
+}
+footer.site .wrap {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+footer.site .brand {
+  font-size: 18px;
+  color: var(--tau-ink-1);
+}
+footer.site .brand img {
+  width: 24px;
+  height: 24px;
+}
+footer.site nav {
+  display: flex;
+  gap: 22px;
+  margin-left: auto;
+}

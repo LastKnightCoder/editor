@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import OSS from "ali-oss";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { assertReleaseNote, injectReleaseNotes, releaseNotesUpTo } from "./release-notes.mjs";
+import { assertReleaseArtifacts } from "./release-artifacts.mjs";
 
 // 更新源自 OSS 切到 R2（dl.taunote.app）；OSS 仅保留给过渡版本与服务存量客户端，
 // ffmpeg / publish-template 资源已由 scripts/migrate-oss-to-r2.mjs 迁往 R2
@@ -217,6 +218,7 @@ function collectArtifacts(version) {
     }
   }
 
+  assertReleaseArtifacts(releaseDir, version, versionedArtifacts, latestFiles);
   return { versionedArtifacts, latestFiles };
 }
 

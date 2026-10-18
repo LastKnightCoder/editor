@@ -1,0 +1,170 @@
+:root {
+  --serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+  --sans:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif;
+  --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  /* 应用内字体：英文等宽 + 中文宋体，与截图一致 */
+  --app-font: "SF Mono", "JetBrains Mono", ui-monospace, Menlo, "Songti SC", "STSong", serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html {
+  scroll-behavior: smooth;
+}
+body {
+  font-family: var(--sans);
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-1);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  transition:
+    background-color 0.5s,
+    color 0.5s;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.i {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+.wrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* ---------- 官网通用 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    transform 0.25s var(--ease),
+    background-color 0.25s;
+}
+.btn:hover {
+  transform: translateY(-1px);
+}
+.btn.primary {
+  background: var(--tau-ink-1);
+  color: var(--tau-bg-page);
+  box-shadow: 0 10px 24px -12px var(--tau-ink-1);
+}
+.btn.ghost {
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  color: var(--tau-ink-1);
+}
+.btn.is-disabled {
+  cursor: default;
+  color: var(--tau-ink-3);
+  border-style: dashed;
+}
+.btn.is-disabled:hover {
+  transform: none;
+}
+.arch-hint {
+  max-width: 520px;
+  margin: 14px auto 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--tau-ink-3);
+}
+.btn.sm {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 600;
+}
+.brand img {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.section {
+  padding-top: 160px;
+}
+.kicker {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--tau-accent-text);
+}
+.h2 {
+  font-family: var(--serif);
+  font-size: clamp(40px, 4.6vw, 64px);
+  line-height: 1.22;
+  font-weight: 600;
+  margin-top: 16px;
+}
+.sub {
+  font-size: 18px;
+  line-height: 1.85;
+  color: var(--tau-ink-2);
+  margin-top: 22px;
+  max-width: 640px;
+}
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.9s var(--ease),
+    transform 0.9s var(--ease);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+.more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 22px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--tau-accent-text);
+}
+.more .i {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.25s var(--ease);
+}
+.more:hover .i {
+  transform: translateX(3px);
+}

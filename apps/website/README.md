@@ -1,6 +1,6 @@
 # Tau 官网
 
-Tau 的产品介绍页。静态站点，Vite 构建，部署到 Cloudflare Pages。
+Tau 的产品介绍页。Vite 构建，部署到 Cloudflare Pages；下载信息由 Pages Functions 在访问首页时更新。
 
 页面里的应用示意全部由 HTML/CSS 与少量 TypeScript 生成，不使用截图。颜色直接引用 `@tau/themes/tokens.css`，和桌面端是同一套主题。
 
@@ -14,18 +14,19 @@ pnpm build:website    # 类型检查 + 构建到 apps/website/dist
 pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website，生产分支 master）
 ```
 
-在本目录可以单独执行 `pnpm test`（下载信息解析的单测）和 `pnpm preview`（预览构建产物）。
+在本目录可以单独执行 `pnpm test`（下载信息解析、芯片识别及 Workers 运行时回归）和 `pnpm preview`（预览构建快照）。
 
 ## 下载信息
 
-版本号、发布日期、安装包地址和大小不写死在页面里。构建时 `build/release.ts` 会读取 `https://dl.taunote.app/desktop/` 下的 `latest.yml`（Windows）和 `latest-mac.yml`（macOS），也就是 `pnpm publish:desktop` 发布的那两个文件，再替换 `index.html` 里的 `<!--tau:*-->` 占位。
+版本号、发布日期、安装包地址和大小不写死在页面里。`build/release.ts` 读取 `https://dl.taunote.app/desktop/` 下的 `latest.yml`（Windows）和 `latest-mac.yml`（macOS），也就是 `pnpm publish:desktop` 发布的两个清单。构建时生成下载快照；访问线上首页时，`functions/_middleware.ts` 读取实时清单，更新版本、大小和两处下载按钮，发布清单最多缓存 60 秒。
 
 - 某个平台没有发布（文件 404）时，按钮显示「即将推出」，其余平台照常展示。
 - 一个平台都读不到，或发布源返回其他错误时，`build` 直接失败，避免把空的下载区部署上线。本地 `dev` 只打印警告并显示占位。
-- 访客打开页面后，脚本会把对应其系统的平台换成主按钮。
+- 运行时发布源故障或超时，保留可用的构建快照；首页不使用浏览器缓存，避免旧页面阻止版本更新。
+- macOS 按 Apple 芯片与 Intel 芯片分别展示下载入口。访客打开页面后，脚本根据系统和芯片推荐主按钮；无法识别芯片时说明如何查看。
 - 下载按钮经 `https://analytics.taunote.app/v1/downloads/:filename?channel=website` 记录下载发起，校验 R2 对象后跳转到原 `dl.taunote.app/desktop/:filename`。安装包与自动更新仍由 R2 分发；先部署 Analytics，再部署官网。统计数据库故障不会阻断跳转，入口服务不可用时仍需先恢复入口服务。
 
-因此每次发布新版本桌面端后，需要重新执行一次 `pnpm deploy:website`，页面上的版本号才会更新。
+发布新版本桌面端后，打开或刷新官网即可自动获取最新下载信息，无需重新部署官网。安装包仍须通过发布脚本上传到下载源。
 
 ## 部署
 
@@ -47,6 +48,7 @@ index.html            页面结构（含 SVG 图标雪碧图）
 src/main.ts           入口：引入样式，按顺序初始化各模块
 src/modules/          各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、闭环滚动、日常组件
 src/styles/           按区块拆分的样式，最后是响应式
-build/release.ts      构建期读取发布源，生成下载按钮与版本信息
-public/               原样拷贝：图标、_headers
+build/release.ts      构建与运行时共用的清单解析和下载信息渲染
+functions/            首页请求时更新下载信息，异常时保留快照
+public/               原样拷贝：图标、_headers、仅匹配首页的 _routes.json
 ```

@@ -1722,6 +1722,34 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
+  apps/website:
+    dependencies:
+      '@tau/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 5.20261016.1
+        version: 5.20261016.1
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.12.4
+      typescript:
+        specifier: ^5.0.4
+        version: 5.8.3
+      vite:
+        specifier: 7.2.4
+        version: 7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+      wrangler:
+        specifier: 4.151.1
+        version: 4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.12.4)
+      yaml:
+        specifier: ^2.7.1
+        version: 2.9.0
+
   editor-extensions/annotation:
     dependencies:
       '@tau/markdown':
