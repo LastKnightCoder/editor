@@ -400,16 +400,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // TikZ (currently no compiled output stored, fallback to code)
-  {
-    type: "tikz",
-    isBlock: true,
-    toHtml: element => {
-      const content = element.content || "";
-      return `<pre class="tikz-fallback"><code>${escapeHtml(content)}</code></pre>`;
-    },
-  },
-
   // Typst (use compiled HTML if available)
   {
     type: "typst",

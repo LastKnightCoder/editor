@@ -427,7 +427,7 @@ for (const [host, entry, exportName] of hosts) {
     assert.deepEqual(md.importFromMarkdown(preserved.markdown), unknownText);
     assert.deepEqual(md.importFromMarkdownWithPositions(preserved.markdown).content, unknownText);
     const fence = String.fromCharCode(96).repeat(3);
-    for (const type of ['mermaid', 'plantuml', 'abc', 'tikz', 'typst']) {
+    for (const type of ['mermaid', 'plantuml', 'abc', 'typst']) {
       const source = fence + type + '\\n源码\\n' + fence;
       const parsed = md.importFromMarkdownWithPositions(source);
       assert.equal(parsed.content[0].type, type);

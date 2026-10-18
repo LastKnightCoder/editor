@@ -39,7 +39,7 @@ pnpm install:local
 | `EDITOR.md`                       | 在文档中添加自定义块、源码预览块和插件 Skill         |
 | `AI.md`                           | AI 功能声明、用户模型分配、流式对话和统一用量审计    |
 | `MCP.md`                          | 注册多个 MCP，复用应用的工具开关和服务器管理         |
-| `SERVICES.md`                     | Tailwind、Typst、Markdown、TikZ、FFmpeg 编译转换服务 |
+| `SERVICES.md`                     | Tailwind、Typst、Markdown、FFmpeg 编译转换服务       |
 | `AGENTS.md`                       | 给 AI 编程助手的项目指引                             |
 | `build.mjs` / `install-local.mjs` | 打包与本地安装脚本，日常开发通常不需要修改           |
 

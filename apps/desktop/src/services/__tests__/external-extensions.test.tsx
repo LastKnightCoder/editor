@@ -219,7 +219,6 @@ describe("外包扩展的真实编辑器接线", () => {
     ["mermaid", "chart", "graph TD\nA --> B"],
     ["plantuml", "content", "@startuml\nA -> B\n@enduml"],
     ["abc", "content", "X: 1\nK: C\nC D E"],
-    ["tikz", "content", "\\draw (0,0) -- (1,1);"],
     ["typst", "content", "= 标题"],
   ] as const)("%s 懒加载块可渲染、编辑源码并写回文档", async (type, field, source) => {
     const { editor, kit } = await mount([
@@ -237,8 +236,6 @@ describe("外包扩展的真实编辑器接线", () => {
     if (type === "plantuml")
       expect(host.querySelector("img")?.src).toContain("plantuml.com/plantuml/svg/");
     if (type === "abc") expect(host.textContent).toContain(source);
-    if (type === "tikz")
-      expect(host.querySelector('script[type="text/tikz"]')?.textContent).toBe(source);
     if (type === "typst") expect(host.textContent).toContain(`Typst:${source}`);
     await act(async () => {
       codeChanges.at(-1)!(source + "\n更新");

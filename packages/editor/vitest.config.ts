@@ -15,11 +15,6 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@tau/shared": path.resolve(__dirname, "../shared"),
-      // 单测环境不需要执行 tikzjax 副作用
-      "./tikzjax.js": path.resolve(
-        __dirname,
-        "../../apps/desktop/src/test-mocks/tikzjax.ts",
-      ),
     },
   },
 });

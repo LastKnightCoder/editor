@@ -32,7 +32,8 @@ it("取消由调用方或生命周期触发，迟到结果不会返回给已停�
 
 it("缺少适配器时明确报错，尚未开始的取消请求不会执行", async () => {
   const services = bindPluginServices(undefined, new AbortController().signal, () => undefined);
-  await expect(services.tikz.compile({ source: "x" })).rejects.toThrow("未提供");
+  expect(services).not.toHaveProperty("tikz");
+  await expect(services.tailwind.compile({ source: "x" })).rejects.toThrow("未提供");
   const compile = vi.fn();
   const supported = bindPluginServices(
     { tailwind: { compile } } as unknown as PluginServices,
