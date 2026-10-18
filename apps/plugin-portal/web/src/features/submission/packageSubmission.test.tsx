@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { UiProvider } from "@tau/ui";
 import { ApiProvider, createQueryClient, queryKeys } from "../../app/api";
 import { createMockApi } from "../../api/mock/mockApi";
 import { SubmissionView } from "./SubmissionView";
@@ -37,11 +38,13 @@ async function setup(pending = false) {
   }
   render(
     <MemoryRouter>
-      <ApiProvider api={api}>
-        <QueryClientProvider client={client}>
-          <Page />
-        </QueryClientProvider>
-      </ApiProvider>
+      <UiProvider>
+        <ApiProvider api={api}>
+          <QueryClientProvider client={client}>
+            <Page />
+          </QueryClientProvider>
+        </ApiProvider>
+      </UiProvider>
     </MemoryRouter>
   );
   return { api, draft, client };
@@ -93,10 +96,74 @@ describe("ZIP资料提交交互", () => {
     fireEvent.change(screen.getByLabelText("反馈内容"), {
       target: { value: "请问如何补充使用步骤？" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "发送反馈" }));
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
     await screen.findByText("请问如何补充使用步骤？");
     expect((await api.listFeedback(draft.id, null)).items).toHaveLength(1);
     expect(screen.queryByLabelText("反馈地址")).toBeNull();
+  });
+  it("仓库格式不对或版本号不高于已发布版本时挡住提交", async () => {
+    const { api } = await setup();
+    vi.spyOn(api, "listReleases").mockResolvedValue({
+      items: [
+        {
+          id: "r1",
+          pluginId: content.manifest.id,
+          version: "1.0.0",
+          state: "published",
+          sha256: "",
+          size: 1,
+          error: null,
+          publishedAt: "2026-10-01",
+          downloadUrl: null,
+          manifest: content.manifest,
+        },
+      ],
+      nextCursor: null,
+    });
+    fireEvent.change(screen.getByLabelText("插件ZIP"), {
+      target: { files: [new File(["x"], "reader.zip")] },
+    });
+    await screen.findByText("已发布 v1.0.0，请提高版本号后重新打包");
+    fireEvent.change(screen.getByLabelText("源码仓库"), { target: { value: "github.com/a" } });
+    expect(screen.getByText("格式为 https://github.com/作者/仓库")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "提交审核" }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+  });
+  it("要求修改后页顶显示审核意见，并能直接回到上传", async () => {
+    const reviewerApi = createMockApi({ reviewer: true });
+    const draft = await reviewerApi.createSubmission(crypto.randomUUID());
+    const ticket = await reviewerApi.createUpload({ fileName: "p.zip", size: 1 });
+    const up = await reviewerApi.sendUpload(ticket, new Blob(["x"]), () => {}).result;
+    const saved = await reviewerApi.saveSubmission(draft.id, {
+      revision: 1,
+      packageUploadId: up.id,
+      repository: "https://github.com/author/plugin",
+    });
+    const pending = await reviewerApi.submitSubmission(saved.id, saved.revision);
+    await reviewerApi.reviewSubmission(pending.id, {
+      revision: pending.revision,
+      decision: "request_changes",
+      comment: "请补充配置步骤",
+    });
+    const changed = await reviewerApi.getSubmission(pending.id);
+    const client = createQueryClient();
+    client.setQueryData(queryKeys.submission(changed.id), changed);
+    render(
+      <MemoryRouter>
+        <UiProvider>
+          <ApiProvider api={reviewerApi}>
+            <QueryClientProvider client={client}>
+              <SubmissionView submission={changed} />
+            </QueryClientProvider>
+          </ApiProvider>
+        </UiProvider>
+      </MemoryRouter>
+    );
+    await screen.findByText("请补充配置步骤");
+    expect(screen.getByRole("button", { name: "上传修改后的包" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "重新提交审核" })).toBeTruthy();
+    expect(screen.queryByRole("radiogroup", { name: "审核决定" })).toBeNull();
   });
   it("版本冲突保留本地仓库输入，要求用户确认", async () => {
     const { api, draft } = await setup();

@@ -93,7 +93,7 @@ describe("HTTP 客户端", () => {
       "POST /v1/submissions": () => ({ status: 201, body: { data: { id: "s1" } } }),
     });
     const api = createHttpApi({ baseUrl: BASE + "/", fetch });
-    await api.listSubmissions(null);
+    await api.listSubmissions({ scope: "mine", status: null, cursor: null });
     await api.createSubmission("00000000-0000-4000-8000-000000000000");
     expect(calls.length).toBeGreaterThanOrEqual(3);
     expect(calls.every(call => call.init.credentials === "include")).toBe(true);
@@ -145,7 +145,9 @@ describe("HTTP 客户端", () => {
   it("网络失败归为 NETWORK_ERROR（结果未知），不回退模拟数据", async () => {
     const { fetch } = stubFetch({});
     const api = createHttpApi({ baseUrl: BASE, fetch });
-    await expect(api.listSubmissions(null)).rejects.toMatchObject({ code: "NETWORK_ERROR" });
+    await expect(
+      api.listSubmissions({ scope: "mine", status: null, cursor: null })
+    ).rejects.toMatchObject({ code: "NETWORK_ERROR" });
   });
 
   it("登录地址是后端 /v1/auth/github（顶层导航，不 fetch）", () => {
@@ -166,7 +168,9 @@ describe("HTTP 客户端", () => {
     const api = guardSession(createHttpApi({ baseUrl: BASE, fetch }), onExpired);
     await api.getSession();
     expect(onExpired).not.toHaveBeenCalled();
-    await expect(api.listSubmissions(null)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+    await expect(
+      api.listSubmissions({ scope: "mine", status: null, cursor: null })
+    ).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
     expect(onExpired).toHaveBeenCalledTimes(1);
   });
 });

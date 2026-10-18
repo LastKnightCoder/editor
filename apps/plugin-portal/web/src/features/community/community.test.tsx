@@ -3,9 +3,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { UiProvider } from "@tau/ui";
-import { ApiProvider, createQueryClient } from "../app/api";
-import { createMockApi } from "../api/mock/mockApi";
-import { PluginCommunityPanel } from "./PluginCommunityPanel";
+import { ApiProvider, createQueryClient } from "../../app/api";
+import { createMockApi } from "../../api/mock/mockApi";
+import { LikeButton } from "./LikeButton";
+import { PluginComments } from "./PluginComments";
 
 afterEach(() => {
   cleanup();
@@ -17,7 +18,8 @@ function setup() {
     <UiProvider>
       <ApiProvider api={api}>
         <QueryClientProvider client={createQueryClient()}>
-          <PluginCommunityPanel pluginId="test.plugin" />
+          <LikeButton pluginId="test.plugin" />
+          <PluginComments pluginId="test.plugin" />
         </QueryClientProvider>
       </ApiProvider>
     </UiProvider>
@@ -47,7 +49,7 @@ it("评论结果未知时保留正文和请求ID，重试不会重复发表", as
   const original = api.addComment;
   const add = vi
     .spyOn(api, "addComment")
-    .mockImplementationOnce(async (...args) => {
+    .mockImplementationOnce(async (...args: Parameters<typeof original>) => {
       await original(...args);
       throw new Error("网络连接中断，请求结果未知");
     })

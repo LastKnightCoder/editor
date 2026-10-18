@@ -9,6 +9,10 @@ import type {
   FeedbackMessage,
   ReviewDetails,
   ReviewRequest,
+  SubmissionQuery,
+  ReleasePage,
+  PublicRelease,
+  DownloadStatistics,
 } from "../../../contracts";
 
 export interface UploadProgress {
@@ -55,6 +59,10 @@ export interface PortalApi {
     cursor: string | null;
   }): Promise<import("../../../contracts").Catalog>;
   downloadRelease(id: string): Promise<Blob>;
+  /** 某插件的已发布版本，按发布时间倒序分页 */
+  listReleases(pluginId: string, cursor: string | null): Promise<ReleasePage>;
+  getRelease(id: string): Promise<PublicRelease>;
+  getPluginStats(pluginId: string): Promise<DownloadStatistics>;
   /** 顶层导航地址（不是 fetch 目标） */
   readonly githubLoginUrl: string;
   getSession(): Promise<Session>;
@@ -67,7 +75,7 @@ export interface PortalApi {
   ): UploadTransfer;
   getUpload(id: string): Promise<Upload>;
   createSubmission(clientRequestId: string): Promise<Submission>;
-  listSubmissions(cursor: string | null, review?: boolean): Promise<SubmissionPage>;
+  listSubmissions(query: SubmissionQuery): Promise<SubmissionPage>;
   getSubmission(id: string): Promise<Submission>;
   saveSubmission(id: string, body: SaveSubmission): Promise<Submission>;
   submitSubmission(id: string, revision: number): Promise<Submission>;
