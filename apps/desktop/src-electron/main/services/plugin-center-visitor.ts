@@ -69,7 +69,10 @@ export class PluginCenterVisitor {
 }
 
 const visitors = new Map<string, PluginCenterVisitor>();
-export async function visitorHeaders(origin: string): Promise<Record<string, string>> {
+export async function visitorHeaders(
+  origin: string,
+  required = false
+): Promise<Record<string, string>> {
   try {
     let visitor = visitors.get(origin);
     if (!visitor) {
@@ -87,6 +90,7 @@ export async function visitorHeaders(origin: string): Promise<Record<string, str
     return { Authorization: `Bearer ${await visitor.token()}` };
   } catch {
     console.warn("plugin_center_visitor_unavailable");
+    if (required) throw new Error("插件中心匿名身份暂不可用，请稍后重试");
     return {};
   }
 }

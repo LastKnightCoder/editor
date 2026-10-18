@@ -9,6 +9,7 @@ import { PageProvider, usePage, type Navigator } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import type { LocalPluginScan } from "@/types/plugin-local";
 import type { PluginCatalog } from "@/types/plugin-center";
+import type { PluginCommunity } from "@/types/plugin-center";
 import "../pages/plugins.page";
 import "../pages/plugin-detail.page";
 
@@ -19,6 +20,10 @@ const mock = vi.hoisted(() => ({
   stage: vi.fn<(id: string) => Promise<{ id: string; version: string }>>(),
   uninstall: vi.fn<(id: string) => Promise<void>>(),
   relaunch: vi.fn(async () => undefined),
+  community: vi.fn<() => Promise<PluginCommunity>>(),
+  like: vi.fn(),
+  comment: vi.fn(),
+  deleteComment: vi.fn(),
 }));
 vi.mock("@/commands/plugin-local", () => ({
   scanLocalPlugins: mock.scan,
@@ -32,6 +37,10 @@ vi.mock("@/commands/plugin-local", () => ({
   openPluginDirectory: vi.fn(),
   restoreLocalPlugin: vi.fn(),
   cancelLocalPluginUpdate: vi.fn(),
+  fetchPluginCommunity: mock.community,
+  setPluginLiked: mock.like,
+  addPluginComment: mock.comment,
+  deletePluginComment: mock.deleteComment,
 }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 // 详情资料走只读编辑器；这里只核对过滤后的文档文本，节点过滤规则由 pluginDocument 测试覆盖
@@ -262,4 +271,54 @@ it("插件中心离线时发现页给出重试，已安装标签照常可用", a
   mock.catalog.mockResolvedValue(catalog);
   await click("重试");
   expect(page().textContent).toContain("从插件中心安装的样本");
+});
+
+it("详情按需加载社区，喜欢与删除刷新同一插件，评论失败重试复用请求ID", async () => {
+  let data: PluginCommunity = { likes: 0, liked: false, comments: [], nextCursor: null };
+  mock.community.mockImplementation(async () => structuredClone(data));
+  mock.like.mockImplementation(async (_id: string, liked: boolean) => {
+    data = { ...data, liked, likes: liked ? 1 : 0 };
+    return { liked };
+  });
+  mock.comment
+    .mockRejectedValueOnce(new Error("请求结果未知"))
+    .mockImplementation(async (_id: string, message: string) => {
+      const row = { id: "c1", message, canDelete: true, deleted: false, createdAt: "2026-10-18" };
+      data = { ...data, comments: [row] };
+      return row;
+    });
+  mock.deleteComment.mockImplementation(async () => {
+    data = { ...data, comments: [] };
+    return { deleted: true };
+  });
+  await act(async () => navigator?.push(PLUGIN_DETAIL_KEY, { pluginId: ID }));
+  await settle();
+  expect(mock.community).not.toHaveBeenCalled();
+  await click("评论与喜欢");
+  expect(mock.community).toHaveBeenCalledWith(ID, null);
+  await click("喜欢 · 0");
+  expect(mock.like).toHaveBeenCalledWith(ID, true);
+  await click("取消喜欢 · 1");
+  expect(mock.like).toHaveBeenLastCalledWith(ID, false);
+  const textarea = page().querySelector<HTMLTextAreaElement>('textarea[aria-label="评论内容"]');
+  if (!textarea) throw new Error("未找到评论输入框");
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(
+      textarea,
+      "<b>使用体验</b>"
+    );
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click("发表评论");
+  expect(page().textContent).toContain("请求结果未知");
+  expect(textarea.value).toBe("<b>使用体验</b>");
+  await click("发表评论");
+  expect(mock.comment.mock.calls[0][2]).toBe(mock.comment.mock.calls[1][2]);
+  expect(page().textContent).toContain("<b>使用体验</b>");
+  expect(textarea.value).toBe("");
+  await click("删除我的评论");
+  expect(mock.deleteComment).not.toHaveBeenCalled();
+  await click("确认删除", dialog());
+  expect(mock.deleteComment).toHaveBeenCalledWith(ID, "c1");
+  expect(page().textContent).toContain("暂无评论。");
 });

@@ -1,12 +1,44 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchPluginCatalog,
   fetchPluginRelease,
   fetchPluginVersions,
   stagePluginRelease,
+  fetchPluginCommunity,
+  setPluginLiked,
+  addPluginComment,
+  deletePluginComment,
 } from "@/commands/plugin-local";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { PluginCatalogSort } from "@/types/plugin-center";
+
+export function usePluginCommunity(pluginId: string) {
+  const client = useQueryClient();
+  const queryKey = ["plugins", "community", pluginId];
+  const query = useInfiniteQuery({
+    queryKey,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => fetchPluginCommunity(pluginId, pageParam),
+    getNextPageParam: page => page.nextCursor ?? undefined,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+  const refresh = () => client.invalidateQueries({ queryKey });
+  const like = useMutation({
+    mutationFn: (liked: boolean) => setPluginLiked(pluginId, liked),
+    onSuccess: refresh,
+  });
+  const comment = useMutation({
+    mutationFn: (input: { message: string; requestId: string }) =>
+      addPluginComment(pluginId, input.message, input.requestId),
+    onSuccess: refresh,
+  });
+  const remove = useMutation({
+    mutationFn: (commentId: string) => deletePluginComment(pluginId, commentId),
+    onSuccess: refresh,
+  });
+  return { query, like, comment, remove };
+}
 
 /** 目录随客户端版本由主进程补全；离线时保留上次结果并显示错误。 */
 export function usePluginCatalog(query = "", sort: PluginCatalogSort = "downloads7d") {

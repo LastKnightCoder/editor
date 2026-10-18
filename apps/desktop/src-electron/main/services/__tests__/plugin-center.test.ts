@@ -2,10 +2,13 @@
 import { createHash } from "node:crypto";
 import { beforeEach, expect, it, vi } from "vitest";
 
-const mock = vi.hoisted(() => ({ fetch: vi.fn<(url: string) => Promise<Response>>() }));
+const mock = vi.hoisted(() => ({
+  fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
+  visitor: vi.fn(async () => ({ Authorization: "Bearer test-visitor" })),
+}));
 vi.mock("electron", () => ({ net: { fetch: mock.fetch } }));
 vi.mock("../plugin-center-visitor", () => ({
-  visitorHeaders: async () => ({ Authorization: "Bearer test-visitor" }),
+  visitorHeaders: mock.visitor,
 }));
 
 import {
@@ -13,6 +16,10 @@ import {
   fetchPluginCatalog,
   fetchPluginRelease,
   fetchPluginVersions,
+  fetchPluginCommunity,
+  setPluginLiked,
+  addPluginComment,
+  deletePluginComment,
 } from "../plugin-center";
 
 const API = "https://plugins-api.taunote.app";
@@ -50,6 +57,51 @@ function serve(overrides: Partial<typeof release> = {}, body: Buffer = bytes) {
 }
 beforeEach(() => {
   mock.fetch.mockReset();
+  mock.visitor.mockReset().mockResolvedValue({ Authorization: "Bearer test-visitor" });
+});
+
+it("社区请求由主进程携带匿名身份，分页按需读取，写入保留请求ID", async () => {
+  mock.fetch.mockImplementation(async () =>
+    Response.json({ data: { likes: 2, liked: true, comments: [], nextCursor: null } })
+  );
+  expect(await fetchPluginCommunity("test.center", "next-page")).toMatchObject({ likes: 2 });
+  expect(mock.visitor).toHaveBeenCalledWith(API, true);
+  expect(mock.fetch).toHaveBeenLastCalledWith(
+    `${API}/v1/plugins/test.center/community?cursor=next-page`,
+    expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer test-visitor" }),
+    })
+  );
+  await setPluginLiked("test.center", true);
+  expect(mock.fetch).toHaveBeenLastCalledWith(
+    `${API}/v1/plugins/test.center/like`,
+    expect.objectContaining({ method: "PUT", body: '{"liked":true}' })
+  );
+  const requestId = "request-1234567890";
+  await addPluginComment("test.center", " 使用体验 ", requestId);
+  expect(mock.fetch).toHaveBeenLastCalledWith(
+    `${API}/v1/plugins/test.center/comments`,
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ message: "使用体验", clientRequestId: requestId }),
+    })
+  );
+  await deletePluginComment("test.center", "comment-1");
+  expect(mock.fetch).toHaveBeenLastCalledWith(
+    `${API}/v1/plugins/test.center/comments/comment-1`,
+    expect.objectContaining({ method: "DELETE" })
+  );
+});
+
+it("身份失败阻断社区请求，非法路径不出网；网络写入失败提示结果未知", async () => {
+  mock.visitor.mockRejectedValueOnce(new Error("身份不可用"));
+  await expect(setPluginLiked("test.center", true)).rejects.toThrow("身份不可用");
+  expect(mock.fetch).not.toHaveBeenCalled();
+  await expect(fetchPluginCommunity("../admin")).rejects.toThrow("无效");
+  expect(() => deletePluginComment("test.center", "../x")).toThrow("无效");
+  expect(() => addPluginComment("test.center", " ", "request-1234567890")).toThrow("评论");
+  mock.fetch.mockRejectedValueOnce(new Error("offline"));
+  await expect(setPluginLiked("test.center", true)).rejects.toThrow("结果未知");
 });
 
 it("目录携带客户端版本与搜索词，错误透传门户信息", async () => {

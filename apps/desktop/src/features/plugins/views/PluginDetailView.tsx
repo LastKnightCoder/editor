@@ -34,8 +34,9 @@ import {
 import { PluginSettingsView } from "./PluginSettingsView";
 import { PluginAISettings } from "../components/PluginAISettings";
 import { PluginMenu } from "./PluginsView";
+import { PluginCommunityTab } from "../components/PluginCommunityTab";
 
-type DetailTab = "readme" | "settings" | "changelog" | "versions";
+type DetailTab = "readme" | "settings" | "changelog" | "versions" | "community";
 export type PluginDetailParams = {
   pluginId: string;
   tab?: string;
@@ -122,6 +123,12 @@ export function PluginDetailView() {
       <VersionsTab runtime={runtime} pluginId={params.pluginId} plugin={installed} entry={entry} />
     ),
   });
+  if (entry)
+    tabs.push({
+      key: "community",
+      label: "评论与喜欢",
+      children: <PluginCommunityTab key={params.pluginId} pluginId={params.pluginId} />,
+    });
   const tab = tabs.find(item => item.key === params.tab)?.key ?? "readme";
 
   return (
