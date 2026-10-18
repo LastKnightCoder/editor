@@ -50,8 +50,51 @@
 .nav-links a:hover {
   color: var(--tau-ink-1);
 }
-.nav .btn {
+.nav-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gh-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--tau-ink-2);
+  transition:
+    color 0.2s,
+    background-color 0.2s;
+}
+.gh-link:hover {
+  color: var(--tau-ink-1);
+  background: var(--tau-bg-hover);
+}
+.gh-mark {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+.gh-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 9px;
+  border-left: 1px solid var(--tau-line-1);
+  font-variant-numeric: tabular-nums;
+}
+.gh-count[hidden] {
+  display: none;
+}
+.gh-count .i {
+  width: 13px;
+  height: 13px;
+}
+.gh-count b {
+  font-weight: 500;
 }
 .hero-copy {
   text-align: center;
@@ -182,7 +225,4 @@
 }
 .topbar.show {
   transform: none;
-}
-.topbar .btn {
-  margin-left: auto;
 }

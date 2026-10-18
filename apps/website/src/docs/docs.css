@@ -1,0 +1,49 @@
+/*
+ * 文档页样式：Tailwind + @tau/themes 语义类，与产品编辑器同一套。
+ * 不引入首页的 styles/*.css——那里的未分层通配规则会压过 Tailwind 工具类。
+ */
+@import "@tau/themes/tokens.css";
+@import "@tau/editor-callout/styles.css";
+@import "@tau/editor-text-formatting/styles.css";
+@import "@tau/editor-comment/styles.css";
+@import "@tau/editor-list/styles.css";
+@import "tailwindcss";
+@import "@tau/themes/scale.css";
+@import "@tau/themes/tailwind.css";
+
+@source "./";
+@source "../../../../packages/ui/src";
+@source "../../../../packages/editor/src";
+@source "../../../../packages/shared/src";
+@source "../../../../editor-extensions/media/src";
+@source "../../../../editor-extensions/blockquote/src";
+@source "../../../../editor-extensions/callout/src";
+@source "../../../../editor-extensions/detail/src";
+@source "../../../../editor-extensions/highlight-block/src";
+@source "../../../../editor-extensions/tabs/src";
+@source "../../../../editor-extensions/table/src";
+@source "../../../../editor-extensions/list/src";
+@source "../../../../editor-extensions/header/src";
+@source "../../../../editor-extensions/link/src";
+@source "../../../../editor-extensions/annotation/src";
+@source "../../../../editor-extensions/comment/src";
+@source "../../../../editor-extensions/kbd/src";
+@source "../../../../editor-extensions/divide-line/src";
+@source "../../../../editor-extensions/front-matter/src";
+@source "../../../../editor-extensions/text-formatting/src";
+@source "../../../../editor-extensions/underline/src";
+@source "../../../../editor-extensions/styled-text/src";
+@source "../../../../editor-extensions/code-block/src";
+@source "../../../../editor-extensions/math/src";
+@source "../../../../editor-extensions/emoji/src";
+
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
+@theme {
+  --font-serif: "Songti SC", "STSong", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
