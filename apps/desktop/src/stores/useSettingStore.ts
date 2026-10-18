@@ -25,6 +25,7 @@ export enum EImageBed {
 }
 
 export enum ESync {
+  Plugin = "plugin",
   AliOSS = "aliOSS",
   S3 = "s3",
   WebDav = "webdav",
@@ -195,6 +196,7 @@ export interface ISetting {
     active: ESync;
     version: number;
     autoSyncEnabled: boolean;
+    plugin?: { id: string; configurations: Record<string, unknown> };
     aliOSS: {
       bucket: string;
       region: string;

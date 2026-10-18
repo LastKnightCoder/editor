@@ -17,7 +17,7 @@ export interface IFileSyncStatus {
 }
 
 export interface ISyncStatusFile {
-  provider: "alioss" | "s3" | "webdav" | "github";
+  provider: ResourceSyncProvider;
   config: Record<string, string>;
   lastSyncTime: number | null;
   files: Record<string, IFileSyncStatus>;
@@ -43,7 +43,7 @@ export interface IRateLimitConfig {
   retryBackoffMultiplier: number;
 }
 
-export type ResourceSyncProvider = "alioss" | "s3" | "webdav" | "github";
+export type ResourceSyncProvider = "alioss" | "s3" | "webdav" | "github" | "plugin";
 
 interface BaseResourceSyncOptions {
   provider: ResourceSyncProvider;
@@ -91,6 +91,7 @@ export interface GithubResourceSyncOptions extends BaseResourceSyncOptions {
 }
 
 export type ResourceSyncOptions =
+  | (BaseResourceSyncOptions & { provider: "plugin"; pluginId: string; config: unknown })
   | AliossResourceSyncOptions
   | S3ResourceSyncOptions
   | WebDavResourceSyncOptions

@@ -4,6 +4,8 @@ import { S3SyncProvider } from "./S3SyncProvider";
 import { WebDavSyncProvider } from "./WebDavSyncProvider";
 import { GithubSyncProvider } from "./GithubSyncProvider";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
+import { PluginSyncProvider } from "./PluginSyncProvider";
+import { copyJson } from "@tau/plugins/host";
 
 export class SyncProviderFactory {
   static getSyncProvider(): ISyncProvider | null {
@@ -12,6 +14,14 @@ export class SyncProviderFactory {
     const integration = setting.integration;
 
     switch (syncConfig.active) {
+      case ESync.Plugin:
+        return syncConfig.plugin?.id &&
+          Object.hasOwn(syncConfig.plugin.configurations, syncConfig.plugin.id)
+          ? new PluginSyncProvider(
+              syncConfig.plugin.id,
+              copyJson(syncConfig.plugin.configurations[syncConfig.plugin.id])
+            )
+          : null;
       case ESync.AliOSS: {
         const { accessKeyId, accessKeySecret } = integration.aliOSS;
         const { bucket, region, path } = syncConfig.aliOSS;
@@ -28,8 +38,7 @@ export class SyncProviderFactory {
       }
 
       case ESync.S3: {
-        const { accessKeyId, secretAccessKey, endpoint, urlStyle } =
-          integration.s3;
+        const { accessKeyId, secretAccessKey, endpoint, urlStyle } = integration.s3;
         const { bucket, region, pathPrefix } = syncConfig.s3;
         if (!accessKeyId || !secretAccessKey || !bucket || !region) {
           return null;

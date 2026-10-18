@@ -102,7 +102,14 @@ export const upload = async (options?: SyncCommandOptions) => {
     toast.error("请先配置同步设置");
     return false;
   }
+  try {
+    return await uploadWithProvider(syncProvider, options);
+  } finally {
+    await syncProvider.dispose?.();
+  }
+};
 
+const uploadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCommandOptions) => {
   const { active: databaseName, databases } = useSettingStore.getState().setting.database;
 
   const database = databases.find(item => item.name === databaseName);
@@ -227,7 +234,14 @@ export const download = async (options?: SyncCommandOptions) => {
     toast.error("请先配置同步设置");
     return false;
   }
+  try {
+    return await downloadWithProvider(syncProvider, options);
+  } finally {
+    await syncProvider.dispose?.();
+  }
+};
 
+const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCommandOptions) => {
   const { active: databaseName, databases } = useSettingStore.getState().setting.database;
 
   const database = databases.find(item => item.name === databaseName);
@@ -370,7 +384,11 @@ export const download = async (options?: SyncCommandOptions) => {
 export const getOriginDatabaseInfo = async () => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   const { active: databaseName } = useSettingStore.getState().setting.database;
-  return readOriginDatabaseInfo(syncProvider, databaseName);
+  try {
+    return await readOriginDatabaseInfo(syncProvider, databaseName);
+  } finally {
+    await syncProvider?.dispose?.();
+  }
 };
 
 const readOriginDatabaseInfo = async (syncProvider: ISyncProvider | null, databaseName: string) => {

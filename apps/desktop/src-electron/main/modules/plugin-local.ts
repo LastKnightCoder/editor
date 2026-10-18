@@ -1,4 +1,5 @@
 import { isContentPlugin } from "@tau/plugins/package";
+import { copyJson } from "@tau/plugins/host";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -11,6 +12,8 @@ import { PluginContentStartup } from "../services/plugin-content-startup";
 import { installBundledPlugins } from "../services/plugin-bundled";
 import { acceptHeadlessPlugin } from "../services/plugin-codecs";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
+import { pluginSyncSessions } from "../services/plugin-sync";
+import userSetting from "./user-setting";
 import {
   downloadPluginRelease,
   fetchPluginCatalog,
@@ -23,6 +26,7 @@ import {
 } from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
+const syncOwners = new WeakSet<object>();
 
 export default {
   name: "plugin-local",
@@ -63,7 +67,7 @@ export default {
     ipcMain.handle("plugin-local:set-enabled", async (_event, id: string, enabled: boolean) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
-      await preferences.set(id, enabled);
+      await pluginSyncSessions.protect(id, () => preferences.set(id, enabled));
       for (const window of BrowserWindow.getAllWindows())
         if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
     });
@@ -120,6 +124,48 @@ export default {
       return updates.stageZip(selected.filePaths[0]);
     });
     ipcMain.handle(
+      "plugin-local:sync-begin",
+      async (event, id: string, config: import("@tau/plugins").JsonValue) => {
+        const owner = event.sender.id;
+        const release = () => {
+          void pluginSyncSessions.releaseOwner(owner);
+        };
+        if (!syncOwners.has(event.sender)) {
+          syncOwners.add(event.sender);
+          event.sender.once("destroyed", release);
+          event.sender.on("did-navigate", release);
+          event.sender.on("render-process-gone", release);
+        }
+        const session = await pluginSyncSessions.begin(owner, id, config);
+        if (event.sender.isDestroyed()) {
+          await pluginSyncSessions.end(owner, session);
+          throw new Error("同步窗口已关闭");
+        }
+        return session;
+      }
+    );
+    ipcMain.handle(
+      "plugin-local:sync-call",
+      (
+        event,
+        session: string,
+        method: keyof import("@tau/plugins/sync").SyncProvider,
+        args: unknown[]
+      ) => pluginSyncSessions.call(event.sender.id, session, method, args)
+    );
+    ipcMain.handle("plugin-local:sync-end", (event, session: string) =>
+      pluginSyncSessions.end(event.sender.id, session)
+    );
+    ipcMain.handle(
+      "plugin-local:sync-config",
+      async (_event, id: string, config: import("@tau/plugins").JsonValue) => {
+        const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+        if (artifact.manifest.id !== id || !artifact.manifest.sync)
+          throw new Error("插件没有同步入口");
+        await userSetting.updateSyncPlugin(id, copyJson(config));
+      }
+    );
+    ipcMain.handle(
       "plugin-local:catalog",
       (_event, query?: string, sort?: import("@/types/plugin-center").PluginCatalogSort) =>
         fetchPluginCatalog(app.getVersion(), query, sort)
@@ -148,17 +194,22 @@ export default {
     });
     // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。
     ipcMain.handle("plugin-local:relaunch", () => {
+      if (pluginSyncSessions.busy) throw new Error("同步任务正在进行，请完成后重启");
       app.relaunch();
       app.quit();
     });
     ipcMain.handle("plugin-local:uninstall", async (_event, id: string) => {
       if (await contentStartup.uses(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
-      await updates.uninstall(id);
-      await preferences.forget(id);
+      await pluginSyncSessions.protect(id, async () => {
+        await updates.uninstall(id);
+        await preferences.forget(id);
+      });
       for (const window of BrowserWindow.getAllWindows())
         if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
     });
-    ipcMain.handle("plugin-local:restore", (_event, id: string) => updates.restore(id));
+    ipcMain.handle("plugin-local:restore", (_event, id: string) =>
+      pluginSyncSessions.protect(id, () => updates.restore(id))
+    );
     ipcMain.handle("plugin-local:cancel-update", (_event, id: string) => updates.cancel(id));
     ipcMain.handle("plugin-local:open-directory", async () => {
       const root = directory();

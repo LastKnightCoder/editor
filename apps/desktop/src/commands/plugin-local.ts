@@ -8,6 +8,11 @@ export const getContentPluginStartup = (): Promise<{
 }> => withModule("plugin-local", () => invoke("plugin-local:content-startup"));
 export const setLocalPluginEnabled = (id: string, enabled: boolean): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:set-enabled", id, enabled));
+export const savePluginSyncConfig = (
+  id: string,
+  config: import("@tau/plugins").JsonValue
+): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:sync-config", id, config));
 import type {
   PluginCatalog,
   PluginCatalogSort,

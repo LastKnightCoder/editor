@@ -77,14 +77,27 @@ class UserSettingModule {
     const database = this.userSetting.database;
     const rows = database?.databases as Array<{ name: string; version: number }> | undefined;
     if (!rows?.some(row => row.name === name)) throw new Error("数据库已从设置中移除");
-    this.handleSetUserSetting({
+    await this.handleSetUserSetting({
       ...this.userSetting,
       database: {
         ...database,
         databases: rows.map(row => (row.name === name ? { ...row, version } : row)),
       },
     });
-    await this.savingChain;
+  }
+  async updateSyncPlugin(id: string, config: unknown): Promise<void> {
+    await this.ensureSettingLoaded();
+    await this.handleSetUserSetting({
+      ...this.userSetting,
+      sync: {
+        ...this.userSetting.sync,
+        active: "plugin",
+        plugin: {
+          id,
+          configurations: { ...this.userSetting.sync?.plugin?.configurations, [id]: config },
+        },
+      },
+    });
   }
 
   private notifySettingChanged(payload: SettingChangedPayload) {
@@ -172,7 +185,7 @@ class UserSettingModule {
     }
 
     console.info("[UserSettingModule] 保存用户设置", { clientId: clientId || "unknown" });
-    this.saveSetting(JSON.stringify(newSettings, null, 2));
+    const saved = this.saveSetting(JSON.stringify(newSettings, null, 2));
     if (this.backendServer) {
       this.backendServer.sendNotification("user-setting-changed", {
         setting: newSettings,
@@ -183,6 +196,7 @@ class UserSettingModule {
       oldSetting: settings,
       newSetting: newSettings,
     });
+    return saved;
   }
 
   private async loadSetting() {

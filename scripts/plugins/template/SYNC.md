@@ -1,6 +1,6 @@
 # 同步存储入口（开发版）
 
-开发分支已按最小协议对齐，尚未发布到npm。现有npm 0.8.0不包含此入口；同步设置挂载和正式客户端接线仍未完成。
+开发分支已按最小协议对齐并接入桌面同步设置、数据库、资源与用量同步，尚未发布到npm。现有npm 0.8.0不包含此入口；开发时需要匹配的SDK构建和客户端，不能仅凭版本号判断已有支持。
 
 后台从@tau/plugins/sync导入defineSyncProvider、SyncProvider与RemoteFileInfo。defineSyncProvider接收id、name、create(config)；id与manifest.id一致，create根据本次任务配置返回提供方。用户只填写服务地址、桶、路径与凭据，没有能力声明或服务商认证流程。
 
@@ -11,3 +11,11 @@
 上传返回false或抛异常的处理由现有客户端控制流承担。createFileIfAbsent保留现有版本提交调用，不要求所有服务使用同一个HTTP头；响应异常后仍由客户端核验提交记录。不能用检查后覆盖偷换其含义，也不要求安装前进行额外探测。同步内容、冲突判断与恢复归客户端。
 
 后台入口同样参与manifest摘要、ZIP检查和安装事务。不要手动删掉完整性字段或把源码路径直接交给宿主执行。发布SDK与正式客户端后再调整最低版本和安装说明。
+
+## 配置界面
+
+在前端activate中调用context.settings.register({ id: "sync", title: "同步存储", target: "sync", component: SyncSettings })，每个插件注册一个同步配置分区。客户端将它放在“设置→同步”，插件详情页的设置入口也跳转到这里。
+
+组件接收PluginSettingsProps，使用syncConfig.value初始化表单，提交时await syncConfig.save(config)。配置必须为JSON值；字段与校验由插件定义。保存失败保留输入并展示错误，保存成功后用户使用客户端已有的检查、上传和下载按钮。凭据不要写入日志或context.storage，后者按工作区隔离，不是同步配置的存储位置。
+
+客户端在应用级按插件ID保存配置，并为每次任务提供固定快照。停用插件保留配置；后台任务运行时不能停用或卸载。作者不需要实现会话、dispose、能力探测或同步冲突引擎。CLI目前尚未接入此入口。

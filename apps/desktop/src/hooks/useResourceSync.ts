@@ -9,11 +9,7 @@ import {
   resumeResourceSync,
   startResourceSync,
 } from "@/commands";
-import {
-  IResourceSyncProgress,
-  ISyncStatusFile,
-  ResourceSyncOptions,
-} from "@/types";
+import { IResourceSyncProgress, ISyncStatusFile, ResourceSyncOptions } from "@/types";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 
@@ -30,17 +26,23 @@ const emptyProgress: IResourceSyncProgress = {
 };
 
 const useResourceSync = () => {
-  const client = useBackendWebsocketStore((state) => state.client);
-  const syncConfig = useSettingStore((state) => state.setting.sync);
-  const integrationConfig = useSettingStore(
-    (state) => state.setting.integration,
-  );
-  const [progress, setProgress] =
-    useState<IResourceSyncProgress>(emptyProgress);
+  const client = useBackendWebsocketStore(state => state.client);
+  const syncConfig = useSettingStore(state => state.setting.sync);
+  const integrationConfig = useSettingStore(state => state.setting.integration);
+  const [progress, setProgress] = useState<IResourceSyncProgress>(emptyProgress);
   const [statusFile, setStatusFile] = useState<ISyncStatusFile | null>(null);
 
   const buildOptions = useMemoizedFn((): ResourceSyncOptions | null => {
     switch (syncConfig.active) {
+      case ESync.Plugin:
+        return syncConfig.plugin?.id &&
+          Object.hasOwn(syncConfig.plugin.configurations, syncConfig.plugin.id)
+          ? {
+              provider: "plugin",
+              pluginId: syncConfig.plugin.id,
+              config: syncConfig.plugin.configurations[syncConfig.plugin.id],
+            }
+          : null;
       case ESync.AliOSS: {
         const { accessKeyId, accessKeySecret } = integrationConfig.aliOSS;
         const { bucket, region, path } = syncConfig.aliOSS;
@@ -57,8 +59,7 @@ const useResourceSync = () => {
         };
       }
       case ESync.S3: {
-        const { accessKeyId, secretAccessKey, endpoint, urlStyle } =
-          integrationConfig.s3;
+        const { accessKeyId, secretAccessKey, endpoint, urlStyle } = integrationConfig.s3;
         const { bucket, region, pathPrefix } = syncConfig.s3;
         if (!accessKeyId || !secretAccessKey || !bucket || !region) {
           return null;
@@ -110,6 +111,8 @@ const useResourceSync = () => {
 
   const buildLooseOptions = useMemoizedFn((): ResourceSyncOptions | null => {
     switch (syncConfig.active) {
+      case ESync.Plugin:
+        return buildOptions();
       case ESync.AliOSS:
         return {
           provider: "alioss",
@@ -163,24 +166,22 @@ const useResourceSync = () => {
     }
   });
 
-  const refreshStatuses = useMemoizedFn(
-    async (optionsArg?: ResourceSyncOptions | null) => {
-      const strictOptions = optionsArg ?? buildOptions();
-      const options = strictOptions ?? buildLooseOptions();
+  const refreshStatuses = useMemoizedFn(async (optionsArg?: ResourceSyncOptions | null) => {
+    const strictOptions = optionsArg ?? buildOptions();
+    const options = strictOptions ?? buildLooseOptions();
+    try {
+      const data = await refreshResourceSyncStatuses(options || undefined);
+      setStatusFile(data);
+    } catch (e) {
+      console.error("获取资源同步状态失败", e);
       try {
-        const data = await refreshResourceSyncStatuses(options || undefined);
+        const data = await getResourceSyncStatuses();
         setStatusFile(data);
-      } catch (e) {
-        console.error("获取资源同步状态失败", e);
-        try {
-          const data = await getResourceSyncStatuses();
-          setStatusFile(data);
-        } catch (err) {
-          console.error("兜底获取资源同步状态失败", err);
-        }
+      } catch (err) {
+        console.error("兜底获取资源同步状态失败", err);
       }
-    },
-  );
+    }
+  });
 
   useEffect(() => {
     const options = buildOptions() || buildLooseOptions();
@@ -191,13 +192,7 @@ const useResourceSync = () => {
     }
     refreshProgress();
     refreshStatuses(options);
-  }, [
-    syncConfig,
-    integrationConfig,
-    refreshProgress,
-    refreshStatuses,
-    buildOptions,
-  ]);
+  }, [syncConfig, integrationConfig, refreshProgress, refreshStatuses, buildOptions]);
 
   useEffect(() => {
     if (!client) return;
@@ -210,7 +205,7 @@ const useResourceSync = () => {
 
     const handleFileStatus = (data: any) => {
       if (!data?.name || !data?.status) return;
-      setStatusFile((prev) => {
+      setStatusFile(prev => {
         const base: ISyncStatusFile = prev || {
           provider: buildOptions()?.provider || "alioss",
           config: {},
@@ -240,33 +235,15 @@ const useResourceSync = () => {
       }
     };
 
-    client.registerNotificationHandler(
-      "resource-sync:progress-update",
-      handleProgress,
-    );
-    client.registerNotificationHandler(
-      "resource-sync:file-status-changed",
-      handleFileStatus,
-    );
-    client.registerNotificationHandler(
-      "resource-sync:completed",
-      handleCompleted,
-    );
+    client.registerNotificationHandler("resource-sync:progress-update", handleProgress);
+    client.registerNotificationHandler("resource-sync:file-status-changed", handleFileStatus);
+    client.registerNotificationHandler("resource-sync:completed", handleCompleted);
     client.registerNotificationHandler("resource-sync:error", handleError);
 
     return () => {
-      client.unregisterNotificationHandler(
-        "resource-sync:progress-update",
-        handleProgress,
-      );
-      client.unregisterNotificationHandler(
-        "resource-sync:file-status-changed",
-        handleFileStatus,
-      );
-      client.unregisterNotificationHandler(
-        "resource-sync:completed",
-        handleCompleted,
-      );
+      client.unregisterNotificationHandler("resource-sync:progress-update", handleProgress);
+      client.unregisterNotificationHandler("resource-sync:file-status-changed", handleFileStatus);
+      client.unregisterNotificationHandler("resource-sync:completed", handleCompleted);
       client.unregisterNotificationHandler("resource-sync:error", handleError);
     };
   }, [client, refreshStatuses, buildOptions]);
