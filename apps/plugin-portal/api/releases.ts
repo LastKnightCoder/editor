@@ -7,7 +7,8 @@ import type {
   PublicRelease,
   Release,
 } from "../contracts";
-import { fail, json, sha256, type Env } from "./platform";
+import { fail, json, sha256, type Env, type BackgroundTasks } from "./platform";
+import { countDownload, downloadWindow, pluginStatistics } from "./download-statistics";
 
 export interface ReleaseRow {
   id: string;
@@ -120,14 +121,92 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
     fail(400, "INVALID_INPUT", "appVersion必须是有效的客户端版本号", { appVersion: "版本号无效" });
   }
   const query = (params.get("q") ?? "").trim().toLowerCase();
+  if (query.length > 200) fail(400, "INVALID_INPUT", "搜索词过长");
+  const sort = params.get("sort") ?? "downloads7d";
+  if (!["downloads7d", "downloadsTotal", "updated"].includes(sort))
+    fail(400, "INVALID_INPUT", "排序无效");
+  const limit = Number(params.get("limit") ?? 30);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50)
+    fail(400, "INVALID_INPUT", "分页大小无效");
+  const { day, windowStart } = downloadWindow();
+  let after: { rank: number; time: string; id: string } | null = null;
+  const cursor = params.get("cursor");
+  if (cursor) {
+    try {
+      if (cursor.length > 4096) throw new Error();
+      const decoded = JSON.parse(
+        new TextDecoder().decode(Uint8Array.from(atob(cursor), c => c.charCodeAt(0)))
+      );
+      if (
+        decoded.sort !== sort ||
+        decoded.q !== query ||
+        decoded.version !== appVersion ||
+        decoded.day !== day ||
+        !Number.isSafeInteger(decoded.rank) ||
+        decoded.rank < 0 ||
+        typeof decoded.time !== "string" ||
+        typeof decoded.id !== "string"
+      )
+        throw new Error();
+      after = decoded;
+    } catch {
+      fail(400, "INVALID_INPUT", "分页游标无效或已跨日，请刷新列表");
+    }
+  }
+  const rank = sort === "downloadsTotal" ? "total" : sort === "downloads7d" ? "recent" : "0";
+  const ranked = await env.DB.prepare(
+    `WITH candidates AS (
+    SELECT r.plugin_id,MAX(r.published_at) AS time,COALESCE(t.downloads,0) AS total,COALESCE(d.downloads,0) AS recent
+    FROM releases r LEFT JOIN plugin_download_totals t ON t.plugin_id=r.plugin_id
+    LEFT JOIN (SELECT plugin_id,SUM(downloads) AS downloads FROM plugin_download_daily WHERE day>=? AND day<=? GROUP BY plugin_id) d ON d.plugin_id=r.plugin_id
+    WHERE r.state='published' AND (?='' OR EXISTS(SELECT 1 FROM releases s WHERE s.plugin_id=r.plugin_id AND s.state='published' AND instr(lower(s.plugin_id||char(10)||s.name||char(10)||s.description),?)>0))
+    GROUP BY r.plugin_id
+  ), ranked AS (SELECT *,${rank} AS rank FROM candidates)
+  SELECT * FROM ranked ${after ? "WHERE rank<? OR (rank=? AND (time<? OR (time=? AND plugin_id>?)))" : ""}
+  ORDER BY rank DESC,time DESC,plugin_id ASC LIMIT ?`
+  )
+    .bind(
+      windowStart,
+      day,
+      query,
+      query,
+      ...(after ? [after.rank, after.rank, after.time, after.time, after.id] : []),
+      limit + 1
+    )
+    .all<{ plugin_id: string; time: string; rank: number; total: number; recent: number }>();
+  const page = ranked.results.slice(0, limit);
+  const last = page.at(-1);
+  const nextCursor =
+    ranked.results.length > limit && last
+      ? btoa(
+          String.fromCharCode(
+            ...new TextEncoder().encode(
+              JSON.stringify({
+                rank: last.rank,
+                time: last.time,
+                id: last.plugin_id,
+                sort,
+                q: query,
+                version: appVersion,
+                day,
+              })
+            )
+          )
+        )
+      : null;
+  if (!page.length) return { items: [], nextCursor, windowStart };
   const rows = await env.DB.prepare(
-    "SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published'"
-  ).all<CatalogRow>();
+    `SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND r.plugin_id IN (${page.map(() => "?").join(",")})`
+  )
+    .bind(...page.map(item => item.plugin_id))
+    .all<CatalogRow>();
   const versions = new Map<string, CatalogRow[]>();
   for (const row of rows.results)
     versions.set(row.plugin_id, [...(versions.get(row.plugin_id) ?? []), row]);
   const items: CatalogEntry[] = [];
-  for (const list of versions.values()) {
+  for (const candidate of page) {
+    const list = versions.get(candidate.plugin_id);
+    if (!list?.length) continue;
     list.sort((a, b) => comparePluginVersions(b.version, a.version));
     const latest = list[0];
     const text = `${latest.plugin_id}\n${latest.name}\n${latest.description}`.toLowerCase();
@@ -137,6 +216,8 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
     );
     items.push({
       pluginId: latest.plugin_id,
+      downloadsTotal: candidate.total,
+      downloads7d: candidate.recent,
       name: latest.name,
       description: latest.description,
       publisher: { login: latest.login, avatarUrl: latest.avatar_url },
@@ -145,22 +226,18 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
       compatible: compatible ? catalogVersion(compatible, env) : null,
     });
   }
-  items.sort((a, b) =>
-    a.latest.publishedAt === b.latest.publishedAt
-      ? a.pluginId.localeCompare(b.pluginId)
-      : a.latest.publishedAt < b.latest.publishedAt
-        ? 1
-        : -1
-  );
-  return { items };
+  return { items, nextCursor, windowStart };
 }
 
 export async function publicReleaseRoute(
   request: Request,
   env: Env,
-  path: string
+  path: string,
+  context?: BackgroundTasks
 ): Promise<Response | null> {
   if (request.method !== "GET") return null;
+  const stats = /^\/v1\/plugins\/([\w.-]+)\/stats$/.exec(path);
+  if (stats) return json(await pluginStatistics(env, stats[1]));
   if (path === "/v1/catalog") return json(await catalog(env, new URL(request.url).searchParams));
   if (path === "/v1/releases") {
     const params = new URL(request.url).searchParams,
@@ -218,7 +295,13 @@ export async function publicReleaseRoute(
     });
   const object = await env.RELEASES.get(row.object_key);
   if (!object) fail(503, "SERVICE_UNAVAILABLE", "发布文件暂不可用");
-  return new Response(await object.arrayBuffer(), {
+  const bytes = await object.arrayBuffer();
+  if (bytes.byteLength !== row.size || (await sha256(new Uint8Array(bytes))) !== row.sha256)
+    fail(503, "SERVICE_UNAVAILABLE", "发布文件校验失败");
+  const counting = countDownload(request, env, row);
+  if (context) context.waitUntil(counting);
+  else await counting;
+  return new Response(bytes, {
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="${row.plugin_id}-${row.version}.zip"`,

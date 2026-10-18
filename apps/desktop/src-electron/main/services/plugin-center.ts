@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { comparePluginVersions } from "@tau/plugins/host";
 import type { LocalPluginSource } from "@/types/plugin-local";
 import type { PluginCatalog, PluginRelease, PluginVersionRecord } from "@/types/plugin-center";
+import type { PluginCatalogSort } from "@/types/plugin-center";
+import { visitorHeaders } from "./plugin-center-visitor";
 
 // 门户 CORS 只放行网页门户，客户端请求统一经主进程；环境变量仅用于本地 Worker 联调。
 const API_ORIGIN = process.env.TAU_PLUGIN_CENTER_API || "https://plugins-api.taunote.app";
@@ -31,10 +33,31 @@ function assertReleaseId(id: string) {
   if (!/^[\w-]{1,64}$/.test(id)) throw new Error("插件版本标识无效");
 }
 
-export function fetchPluginCatalog(appVersion: string, query = "") {
+export async function fetchPluginCatalog(
+  appVersion: string,
+  query = "",
+  sort: PluginCatalogSort = "downloads7d"
+): Promise<PluginCatalog> {
+  if (!["downloads7d", "downloadsTotal", "updated"].includes(sort)) throw new Error("插件排序无效");
   const params = new URLSearchParams({ appVersion });
+  if (sort !== "downloads7d") params.set("sort", sort);
   if (query.trim()) params.set("q", query.trim());
-  return request<PluginCatalog>(`/v1/catalog?${params}`);
+  const entries = new Map<string, PluginCatalog["items"][number]>();
+  const seen = new Set<string>();
+  let windowStart: string | undefined;
+  for (;;) {
+    const page = await request<PluginCatalog & { nextCursor?: string | null }>(
+      `/v1/catalog?${params}`
+    );
+    windowStart ??= page.windowStart;
+    for (const item of page.items)
+      if (!entries.has(item.pluginId)) entries.set(item.pluginId, item);
+    if (!page.nextCursor) break;
+    if (seen.has(page.nextCursor)) throw new Error("插件目录分页异常，请刷新重试");
+    seen.add(page.nextCursor);
+    params.set("cursor", page.nextCursor);
+  }
+  return { items: [...entries.values()], ...(windowStart ? { windowStart } : {}) };
 }
 
 export async function fetchPluginRelease(id: string) {
@@ -80,7 +103,9 @@ export async function downloadPluginRelease(id: string) {
   if (release.size > MAX_PACKAGE_BYTES) throw new Error("插件包超过大小上限");
   let response: Response;
   try {
-    response = await net.fetch(`${API_ORIGIN}/v1/releases/${id}/download`);
+    response = await net.fetch(`${API_ORIGIN}/v1/releases/${id}/download`, {
+      headers: await visitorHeaders(API_ORIGIN),
+    });
   } catch {
     throw new Error("插件下载中断，请检查网络后重试");
   }

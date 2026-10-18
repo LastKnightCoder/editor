@@ -32,6 +32,14 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
   };
   return {
     githubLoginUrl: "/submissions",
+    getCatalog: async () => ({
+      items: [],
+      nextCursor: null,
+      windowStart: new Date().toISOString().slice(0, 10),
+    }),
+    downloadRelease: async () => {
+      throw new Error("模拟模式不提供发布包下载");
+    },
     getSession: async () => ({
       user,
       csrfToken: user ? "mock" : null,

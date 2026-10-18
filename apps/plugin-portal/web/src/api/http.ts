@@ -53,6 +53,25 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init));
   const createXhr = options.createXhr ?? (() => new XMLHttpRequest() as unknown as XhrLike);
   let csrfToken: string | null = null;
+  let visitorReady: Promise<void> | undefined;
+  async function downloadRelease(releaseId: string) {
+    const initialize = () =>
+      send("/v1/visitor-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Tau-Visitor": "1" },
+        body: JSON.stringify({ client: "web" }),
+        signal: AbortSignal.timeout(5000),
+      }).then(() => undefined);
+    visitorReady ??= (
+      typeof navigator !== "undefined" && navigator.locks
+        ? navigator.locks.request(`tau-plugin-visitor:${apiOrigin}`, initialize)
+        : initialize()
+    ).catch(() => {
+      visitorReady = undefined;
+    });
+    await visitorReady;
+    return (await send(`/v1/releases/${id(releaseId)}/download`)).blob();
+  }
 
   /** 401 说明会话已失效，丢弃缓存的 CSRF 令牌 */
   const unauthenticated = (error: PortalApiError) => {
@@ -175,6 +194,11 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
 
   return {
     githubLoginUrl: `${baseUrl}/v1/auth/github`,
+    getCatalog: ({ q, sort, cursor }) =>
+      read(
+        `/v1/catalog?${new URLSearchParams({ appVersion: "0.59.0", q, sort, ...(cursor ? { cursor } : {}) })}`
+      ),
+    downloadRelease,
     getSession,
     async logout() {
       await write<{ loggedOut: true }>("POST", "/v1/logout");

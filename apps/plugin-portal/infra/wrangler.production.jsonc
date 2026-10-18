@@ -6,6 +6,7 @@
   "compatibility_date": "2026-10-16",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
+  "triggers": { "crons": ["0 3 * * *"] },
   "preview_urls": false,
   "routes": [{ "pattern": "plugins-api.taunote.app", "custom_domain": true }],
   "vars": {

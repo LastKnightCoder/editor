@@ -12,6 +12,9 @@ export interface Env {
   TOKEN_ENCRYPTION_KEY: string;
   REVIEWER_GITHUB_IDS?: string;
 }
+export interface BackgroundTasks {
+  waitUntil(promise: Promise<unknown>): void;
+}
 export const isReviewer = (env: Env, id: string) =>
   (env.REVIEWER_GITHUB_IDS ?? "")
     .split(",")

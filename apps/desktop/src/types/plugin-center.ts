@@ -15,6 +15,8 @@ export interface PluginCatalogVersion {
 }
 
 export interface PluginCatalogEntry {
+  downloadsTotal: number;
+  downloads7d: number;
   pluginId: string;
   name: string;
   description: string;
@@ -27,7 +29,9 @@ export interface PluginCatalogEntry {
 
 export interface PluginCatalog {
   items: PluginCatalogEntry[];
+  windowStart?: string;
 }
+export type PluginCatalogSort = "downloads7d" | "downloadsTotal" | "updated";
 
 /** 插件在中心的一个已发布版本；compatible 按当前客户端版本由主进程判定。 */
 export interface PluginVersionRecord {

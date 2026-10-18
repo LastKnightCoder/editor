@@ -6,13 +6,15 @@ import {
   stagePluginRelease,
 } from "@/commands/plugin-local";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
+import type { PluginCatalogSort } from "@/types/plugin-center";
 
 /** 目录随客户端版本由主进程补全；离线时保留上次结果并显示错误。 */
-export function usePluginCatalog(query = "") {
+export function usePluginCatalog(query = "", sort: PluginCatalogSort = "downloads7d") {
   const result = useQuery({
-    queryKey: ["plugins", "catalog", query.trim()],
-    queryFn: () => fetchPluginCatalog(query),
-    staleTime: 5 * 60_000,
+    queryKey: ["plugins", "catalog", query.trim(), sort],
+    queryFn: () => fetchPluginCatalog(query, sort),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   return {

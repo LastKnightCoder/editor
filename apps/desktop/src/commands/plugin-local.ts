@@ -8,7 +8,12 @@ export const getContentPluginStartup = (): Promise<{
 }> => withModule("plugin-local", () => invoke("plugin-local:content-startup"));
 export const setContentPluginEnabled = (id: string, enabled: boolean): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:content-enabled", id, enabled));
-import type { PluginCatalog, PluginRelease, PluginVersionRecord } from "@/types/plugin-center";
+import type {
+  PluginCatalog,
+  PluginCatalogSort,
+  PluginRelease,
+  PluginVersionRecord,
+} from "@/types/plugin-center";
 
 export const getPluginWorkspace = (name: string): Promise<string> =>
   withModule("plugin-local", () => invoke("plugin-local:workspace", name));
@@ -22,8 +27,11 @@ export const restoreLocalPlugin = (id: string): Promise<{ id: string; version: s
   withModule("plugin-local", () => invoke("plugin-local:restore", id));
 export const cancelLocalPluginUpdate = (id: string): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:cancel-update", id));
-export const fetchPluginCatalog = (query?: string): Promise<PluginCatalog> =>
-  withModule("plugin-local", () => invoke("plugin-local:catalog", query));
+export const fetchPluginCatalog = (
+  query?: string,
+  sort?: PluginCatalogSort
+): Promise<PluginCatalog> =>
+  withModule("plugin-local", () => invoke("plugin-local:catalog", query, sort));
 export const fetchPluginRelease = (id: string): Promise<PluginRelease> =>
   withModule("plugin-local", () => invoke("plugin-local:release", id));
 export const fetchPluginVersions = (pluginId: string): Promise<PluginVersionRecord[]> =>

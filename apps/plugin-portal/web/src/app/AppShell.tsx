@@ -60,6 +60,9 @@ function Header({ user }: { user: User }) {
           Tau 插件发布
         </Link>
         <div className="ml-auto flex items-center gap-3">
+          <Link to="/plugins" className="text-tau-sm text-accent-text">
+            浏览插件
+          </Link>
           <span className="text-tau-sm text-ink-2 flex items-center gap-2">
             <Avatar user={user} />
             {user.login}

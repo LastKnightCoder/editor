@@ -4,6 +4,9 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const mock = vi.hoisted(() => ({ fetch: vi.fn<(url: string) => Promise<Response>>() }));
 vi.mock("electron", () => ({ net: { fetch: mock.fetch } }));
+vi.mock("../plugin-center-visitor", () => ({
+  visitorHeaders: async () => ({ Authorization: "Bearer test-visitor" }),
+}));
 
 import {
   downloadPluginRelease,
@@ -13,6 +16,22 @@ import {
 } from "../plugin-center";
 
 const API = "https://plugins-api.taunote.app";
+
+it("主进程按服务器排序翻页并去重，不遗漏更新查询所需的目录", async () => {
+  mock.fetch
+    .mockResolvedValueOnce(
+      Response.json({ data: { items: [{ pluginId: "a" }], nextCursor: "next" } })
+    )
+    .mockResolvedValueOnce(
+      Response.json({ data: { items: [{ pluginId: "a" }, { pluginId: "b" }], nextCursor: null } })
+    );
+  expect(
+    (await fetchPluginCatalog("0.59.0", "", "downloadsTotal")).items.map(item => item.pluginId)
+  ).toEqual(["a", "b"]);
+  expect(mock.fetch).toHaveBeenLastCalledWith(
+    `${API}/v1/catalog?appVersion=0.59.0&sort=downloadsTotal&cursor=next`
+  );
+});
 const bytes = Buffer.from("zip-bytes");
 const release = {
   id: "r1",
@@ -84,7 +103,9 @@ it("下载按发布记录核对大小与摘要，地址由服务拼接", async (
     version: "1.0.0",
     sha256: release.sha256,
   });
-  expect(mock.fetch).toHaveBeenLastCalledWith(`${API}/v1/releases/r1/download`);
+  expect(mock.fetch).toHaveBeenLastCalledWith(`${API}/v1/releases/r1/download`, {
+    headers: { Authorization: "Bearer test-visitor" },
+  });
   serve({}, Buffer.from("tampered!"));
   await expect(downloadPluginRelease("r1")).rejects.toThrow("摘要不匹配");
   serve({ size: 9 * 1024 * 1024 });
