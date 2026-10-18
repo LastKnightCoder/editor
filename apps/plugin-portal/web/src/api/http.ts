@@ -208,6 +208,13 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
   }
 
   return {
+    listModerationComments: (filter, cursor) =>
+      read(
+        `/v1/moderation/comments?${new URLSearchParams({ ...filter, ...(cursor ? { cursor } : {}) })}`
+      ),
+    listModerationEvents: cursor =>
+      read(`/v1/moderation/events${cursor ? `?cursor=${id(cursor)}` : ""}`),
+    moderate: input => write("POST", "/v1/moderation/actions", input),
     getCommunity: (pluginId, cursor) =>
       read(`/v1/plugins/${id(pluginId)}/community${cursor ? `?cursor=${id(cursor)}` : ""}`),
     setPluginLiked: (pluginId, liked) =>

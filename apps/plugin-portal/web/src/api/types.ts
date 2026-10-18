@@ -24,6 +24,20 @@ export interface UploadTransfer {
 
 /** 前端唯一的后端入口；真实 HTTP 与显式模拟模式各实现一份 */
 export interface PortalApi {
+  listModerationComments(
+    filter: import("../../../contracts").ModerationFilter,
+    cursor: string | null
+  ): Promise<
+    import("../../../contracts").ModerationPage<import("../../../contracts").ModerationComment>
+  >;
+  listModerationEvents(
+    cursor: string | null
+  ): Promise<
+    import("../../../contracts").ModerationPage<import("../../../contracts").ModerationEvent>
+  >;
+  moderate(
+    input: import("../../../contracts").ModerationInput
+  ): Promise<import("../../../contracts").ModerationEvent>;
   getCommunity(
     pluginId: string,
     cursor: string | null

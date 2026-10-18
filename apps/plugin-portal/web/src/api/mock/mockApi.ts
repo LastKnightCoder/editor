@@ -35,6 +35,11 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     return row;
   };
   return {
+    listModerationComments: async () => ({ items: [], nextCursor: null }),
+    listModerationEvents: async () => ({ items: [], nextCursor: null }),
+    moderate: async () => {
+      throw new Error("模拟模式没有可处置的评论");
+    },
     getCommunity: async pluginId => ({
       likes: likes.has(pluginId) ? 1 : 0,
       liked: likes.has(pluginId),

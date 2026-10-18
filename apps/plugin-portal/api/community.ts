@@ -66,11 +66,12 @@ export async function communityRoute(request: Request, env: Env, path: string) {
     if (typeof input.liked !== "boolean") fail(400, "INVALID_INPUT", "liked必须为布尔值");
     await env.DB.prepare(
       input.liked
-        ? "INSERT OR IGNORE INTO plugin_likes(plugin_id,visitor_id) VALUES(?,?)"
-        : "DELETE FROM plugin_likes WHERE plugin_id=? AND visitor_id=?"
+        ? "INSERT OR IGNORE INTO plugin_likes(plugin_id,visitor_id) SELECT ?,? WHERE EXISTS(SELECT 1 FROM visitors WHERE id=? AND revoked=0)"
+        : "DELETE FROM plugin_likes WHERE plugin_id=? AND visitor_id=? AND EXISTS(SELECT 1 FROM visitors WHERE id=? AND revoked=0)"
     )
-      .bind(pluginId, visitorId)
+      .bind(pluginId, visitorId, visitorId)
       .run();
+    if ((await visitorFor(request, env))?.revoked) fail(403, "FORBIDDEN", "匿名身份已停用");
     return json({ liked: input.liked });
   }
   if (request.method === "POST" && action === "comments" && !commentId) {
@@ -83,7 +84,8 @@ export async function communityRoute(request: Request, env: Env, path: string) {
     // 单语句检查额度并插入；删除仅清空正文，不能通过删除绕过每日额度。
     await env.DB.prepare(
       `INSERT OR IGNORE INTO plugin_comments(id,plugin_id,visitor_id,client_request_id,message,created_at)
-      SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM plugin_comments WHERE visitor_id=? AND created_at>=?)<20`
+      SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM plugin_comments WHERE visitor_id=? AND created_at>=?)<20
+      AND EXISTS(SELECT 1 FROM visitors WHERE id=? AND revoked=0)`
     )
       .bind(
         crypto.randomUUID(),
@@ -93,7 +95,8 @@ export async function communityRoute(request: Request, env: Env, path: string) {
         message,
         now,
         visitorId,
-        now.slice(0, 10)
+        now.slice(0, 10),
+        visitorId
       )
       .run();
     const row = await env.DB.prepare(
@@ -101,7 +104,10 @@ export async function communityRoute(request: Request, env: Env, path: string) {
     )
       .bind(visitorId, input.clientRequestId)
       .first<CommentRow>();
-    if (!row) fail(429, "LIMIT_EXCEEDED", "每天最多发表20条评论，请明天再试");
+    if (!row) {
+      if ((await visitorFor(request, env))?.revoked) fail(403, "FORBIDDEN", "匿名身份已停用");
+      fail(429, "LIMIT_EXCEEDED", "每天最多发表20条评论，请明天再试");
+    }
     if (row.plugin_id !== pluginId || (!row.deleted && row.message !== message))
       fail(409, "COMMENT_REQUEST_CONFLICT", "请求ID已经用于另一条评论");
     return json(present(row, visitorId));
