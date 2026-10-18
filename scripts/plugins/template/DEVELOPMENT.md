@@ -61,6 +61,26 @@ pnpm install:local
 
 `pnpm install:local` 只用于首次安装，目标目录已存在时会拒绝覆盖。插件 ID 不变，已保存的数据就会保留；改了 ID 会被当作另一个插件。
 
+## 自动发布到 GitHub Release
+
+模板内置 `.github/workflows/release.yml`。将版本 tag 推送到 GitHub 后，Actions 会冻结安装 pnpm 依赖、运行项目的 test 脚本（若已定义）、执行构建，再把 `dist/<id>-<version>.zip` 上传到对应 Release。
+
+先同步修改 `manifest.json` 和 `package.json` 的版本并提交，再打 tag：
+
+```sh
+git add manifest.json package.json
+git commit -m "chore: release 1.1.0"
+git tag v1.1.0
+git push origin HEAD
+git push origin v1.1.0
+```
+
+tag 支持 `v1.1.0` 或 `1.1.0`，必须与两个文件的版本一致，否则发布失败。`v1.1.0-beta.1` 等预发布版本会自动标为 Pre-release。只在本机打 tag 不触发，必须推送到 GitHub。
+
+无需配置额外密钥，工作流使用仓库自带的 GITHUB_TOKEN。仓库需启用 Actions，并允许工作流申请 contents:write 权限。发布结果和失败日志在 Actions 页面查看；修复临时错误后可重新运行失败任务，已有 Release 会更新同名 ZIP。代码修复应提高版本并发布新 tag，不移动已发布的版本 tag。
+
+从旧模板创建的仓库不会自动获得新文件，需要同步该 workflow。此流程发布 GitHub Release，不会自动提交插件中心审核或发布 npm 包。
+
 ## 常用命令
 
 | 命令                 | 用途                   |

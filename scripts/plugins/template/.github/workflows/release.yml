@@ -1,0 +1,70 @@
+name: 发布插件
+
+on:
+  push:
+    tags:
+      - "**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v5
+
+      - name: 校验版本与标签
+        id: package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, appendFileSync } from "node:fs";
+          const manifest = JSON.parse(readFileSync("manifest.json", "utf8"));
+          const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+          const version = process.env.RELEASE_TAG.replace(/^v/, "");
+          if (version !== manifest.version || version !== pkg.version)
+            throw new Error("tag、manifest.json和package.json的版本必须一致（tag可带v前缀）");
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `archive=dist/${manifest.id}-${manifest.version}.zip\nprerelease=${version.includes("-")}\n`);
+          NODE
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+      - name: 运行项目测试
+        run: pnpm run --if-present test
+      - name: 构建插件
+        run: pnpm build
+
+      - name: 发布 ZIP 到 GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          PRERELEASE: ${{ steps.package.outputs.prerelease }}
+        run: |
+          test -f "$ARCHIVE"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$ARCHIVE" --clobber
+          else
+            args=(--verify-tag --generate-notes --title "$RELEASE_TAG")
+            if [ "$PRERELEASE" = "true" ]; then
+              args+=(--prerelease)
+            fi
+            gh release create "$RELEASE_TAG" "$ARCHIVE" "${args[@]}"
+          fi
