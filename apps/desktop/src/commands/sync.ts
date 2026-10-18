@@ -117,7 +117,10 @@ export const upload = async (options?: SyncCommandOptions) => {
   }
 
   emitProgress(options, 5, "正在准备同步...");
-  const { databaseInfoObjectName, databaseInfo } = await readOriginDatabaseInfo(syncProvider, databaseName);
+  const { databaseInfoObjectName, databaseInfo } = await readOriginDatabaseInfo(
+    syncProvider,
+    databaseName
+  );
 
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {

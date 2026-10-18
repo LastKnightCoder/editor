@@ -76,9 +76,17 @@ export default {
       const maintenance = await updates.list();
       const result = await discoverPlugins(directory(), app.getVersion());
       const sources = await updates.sources(result.entries.map(entry => entry.id));
-      if (legacy !== undefined) await preferences.initialize(Object.fromEntries(
-        result.entries.filter(entry => entry.artifact).map(entry => [entry.id, bundled.includes(entry.id) || sources[entry.id]?.kind === "center"])
-      ));
+      if (legacy !== undefined)
+        await preferences.initialize(
+          Object.fromEntries(
+            result.entries
+              .filter(entry => entry.artifact)
+              .map(entry => [
+                entry.id,
+                bundled.includes(entry.id) || sources[entry.id]?.kind === "center",
+              ])
+          )
+        );
       return {
         ...result,
         clientVersion: app.getVersion(),

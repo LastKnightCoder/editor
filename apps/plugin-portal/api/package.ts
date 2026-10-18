@@ -58,7 +58,11 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       if (entry.entryName !== manifest.id + "/" && !entry.entryName.startsWith(manifest.id + "/"))
         throw new Error("ZIP 根目录必须与插件ID一致");
     }
-    for (const name of [manifest.main, ...(manifest.sync ? [manifest.sync] : []), ...(manifest.styles ? [manifest.styles] : [])]) {
+    for (const name of [
+      manifest.main,
+      ...(manifest.sync ? [manifest.sync] : []),
+      ...(manifest.styles ? [manifest.styles] : []),
+    ]) {
       const entry = zip.getEntry(`${manifest.id}/${name}`);
       if (!entry || entry.isDirectory) throw new Error("缺少入口或样式文件");
       const content = unpack(entry);

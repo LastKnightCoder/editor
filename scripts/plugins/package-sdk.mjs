@@ -129,7 +129,10 @@ try {
     };
     await copyDeclaration(entries[index]);
     if (name === "plugins") {
-      await writeFile(path.join(directory, "SYNC.md"), await readFile(path.join(root, "scripts/plugins/template/SYNC.md")));
+      await writeFile(
+        path.join(directory, "SYNC.md"),
+        await readFile(path.join(root, "scripts/plugins/template/SYNC.md"))
+      );
       await copyDeclaration(whiteboardEntry);
       await copyDeclaration(syncEntry);
     }

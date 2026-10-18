@@ -96,7 +96,9 @@ it("编辑器插件启停只改变下次启动意图，不卸载当前渲染快�
     localStorage,
     () => undefined,
     async () => undefined,
-    async (_id, value) => { enabled = value; }
+    async (_id, value) => {
+      enabled = value;
+    }
   );
   try {
     await manager.refresh();
