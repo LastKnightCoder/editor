@@ -17,7 +17,7 @@ async function fixture() {
     root = path.join(directory, pluginId);
   await mkdir(root);
   const code =
-    "module.exports.default = { id: 'test.storage', name:'test', open: async () => ({target:{identity:'test',label:'test'}, stat:async()=>null,read:async()=>null,write:async()=>({status:'written'}),list:async()=>({items:[],nextCursor:null}),remove:async()=>{},dispose:async()=>{}})};";
+    "module.exports.default = { id: 'test.storage', name:'test', create: () => ({fileExists:async()=>false,downloadFile:async()=>new Uint8Array(),uploadFile:async()=>true,listFiles:async()=>[],createFileIfAbsent:async()=>true})};";
   const manifest = {
     formatVersion: 1,
     apiVersion: 1,
@@ -52,9 +52,9 @@ it("后台独立读取启用状态，不执行UI入口，摘要漂移拒绝运�
   const options = await fixture();
   await expect(openSyncPlugin(options)).rejects.toThrow("尚未启用");
   await options.prefs.set(options.pluginId, true);
-  const connection = await openSyncPlugin(options);
-  expect(connection.target.identity).toBe("test");
-  await connection.dispose();
+  const provider = await openSyncPlugin(options);
+  expect(await provider.fileExists("test")).toBe(false);
+  expect(await provider.uploadFile("test", new Uint8Array())).toBe(true);
   await writeFile(path.join(options.root, "sync.js"), "tampered");
   await expect(openSyncPlugin(options)).rejects.toThrow("摘要");
 });
