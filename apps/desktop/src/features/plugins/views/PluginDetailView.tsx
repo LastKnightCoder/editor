@@ -183,7 +183,7 @@ function Header({
   return (
     <>
       <div className="flex items-center gap-[18px]">
-        <PluginIcon id={id} name={name} builtin={plugin?.source === "builtin"} size="lg" />
+        <PluginIcon id={id} name={name} size="lg" />
         <div className="min-w-0 flex-1">
           <h1 className="text-[22px] font-semibold leading-[1.3]">{name}</h1>
           <div className="text-tau-meta text-ink-2 mt-1 flex flex-wrap items-center gap-2">

@@ -3,21 +3,20 @@ import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, writeFile, rename, rm, stat, cp } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { validatePluginManifest, isContentPlugin } from "../../packages/plugins/src/package.ts";
-import { buildPluginDistribution } from "../../packages/plugins/src/distribution.ts";
+import { validatePluginManifest } from "../../packages/plugins/src/package.ts";
+import { readPluginFixtures } from "./test-support/package-fixtures.ts";
 
-const [archive, sourceRevision, repository, mode] = process.argv.slice(2);
+const [archive, sourceRevision, repository] = process.argv.slice(2);
 if (
   !archive ||
   !/^[a-f0-9]{40}$/.test(sourceRevision ?? "") ||
-  !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(repository ?? "") ||
-  (mode && !["--not-bundled", "--bundled"].includes(mode))
+  !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(repository ?? "")
 )
   throw new Error(
-    "用法：node scripts/plugins/pin-distribution.mjs <插件 ZIP> <作者完整提交 SHA> <GitHub 仓库 URL> [--bundled|--not-bundled]"
+    "用法：node scripts/plugins/pin-test-fixture.mjs <插件 ZIP> <作者完整提交 SHA> <GitHub 仓库 URL>"
   );
-const root = path.resolve(import.meta.dirname, "../../plugins");
-const config = path.join(root, "distribution.json");
+const root = path.resolve(import.meta.dirname, "../../tests/fixtures/plugins");
+const config = path.join(root, "catalog.json");
 const content = await readFile(archive);
 const hash = data => createHash("sha256").update(data).digest("hex");
 const files = new Map();
@@ -25,7 +24,6 @@ const entries = new AdmZip(content).getEntries().filter(entry => !entry.isDirect
 const manifestEntry = entries.find(entry => /(^|\/)manifest\.json$/.test(entry.entryName));
 if (!manifestEntry) throw new Error("ZIP 缺少 manifest.json");
 const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
-if (!isContentPlugin(manifest) && !mode) throw new Error("普通插件须显式选择是否随应用分发");
 const prefix = manifestEntry.entryName.slice(0, -"manifest.json".length);
 for (const entry of entries) {
   const name = entry.entryName.slice(prefix.length);
@@ -43,8 +41,6 @@ for (const entry of entries) {
 const artifact = `releases/${manifest.id}/${manifest.version}`;
 const release = {
   repository,
-  ...(mode === "--not-bundled" ? { bundled: false } : {}),
-  ...(mode === "--bundled" ? { bundled: true } : {}),
   artifact,
   id: manifest.id,
   version: manifest.version,
@@ -61,7 +57,7 @@ try {
   for (const [name, bytes] of files) await writeFile(path.join(staged, name), bytes);
   const check = path.join(temporary, "distribution.json");
   await writeFile(check, JSON.stringify([release]));
-  await buildPluginDistribution(check);
+  await readPluginFixtures(check);
   const destination = path.join(root, artifact);
   if (
     await stat(destination).then(
@@ -90,7 +86,7 @@ try {
   await writeFile(next, JSON.stringify(distribution, null, 2) + "\n");
   await rename(next, config);
   console.log(
-    `已固定 ${manifest.id}@${manifest.version}；请检查并提交 ${artifact} 与 distribution.json。`
+    `已更新测试包 ${manifest.id}@${manifest.version}；请检查并提交 ${artifact} 与 catalog.json。`
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

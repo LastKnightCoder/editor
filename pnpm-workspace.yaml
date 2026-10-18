@@ -3,7 +3,6 @@ packages:
   - editor-extensions/*
   - examples/*
   - apps/*
-  - plugins/*
 
 overrides:
   react: 19.2.0

@@ -1,5 +1,5 @@
 import path from "node:path";
-import { buildPluginDistribution } from "@tau/plugins/distribution";
+import { readPluginFixtures } from "../../../../scripts/plugins/test-support/package-fixtures";
 import { evaluatePluginPackage } from "@tau/plugins/rendering";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import type { Descendant } from "slate";
@@ -11,8 +11,8 @@ declare module "@tau/plugins" {
   }
 }
 
-const packages = await buildPluginDistribution(
-  path.resolve(import.meta.dirname, "../../../../plugins/distribution.json")
+const packages = await readPluginFixtures(
+  path.resolve(import.meta.dirname, "../../../../tests/fixtures/plugins/catalog.json")
 );
 export function pluginArtifact(id: string) {
   const artifact = packages.find(item => item.manifest.id === id);

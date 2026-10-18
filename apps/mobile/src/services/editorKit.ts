@@ -9,7 +9,6 @@ import { createImageExtensions } from "@tau/editor-media";
 import { standardExtensions } from "../../../../editor-extensions/standard";
 import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor";
 import webviewExtension from "@tau/editor-webview";
-import { contentPlugins } from "./contentPlugins";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
@@ -53,9 +52,7 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
     });
     byExtras.set(key, kit);
   }
-  return contentPlugins.extensions.length
-    ? kit.extend({ extensions: contentPlugins.extensions })
-    : kit;
+  return kit;
 }
 
 /**

@@ -12,8 +12,6 @@
     "./content": "./src/content.ts",
     "./whiteboard": "./src/whiteboard.ts",
     "./tailwind.css": "./tailwind.css",
-    "./portable": "./src/portable.ts",
-    "./distribution": "./src/distribution.ts",
     "./shared-modules": "./src/shared-modules.ts",
     "./source-editor-host": "./src/source-editor-host.tsx",
     "./node": "./src/file-storage.ts",

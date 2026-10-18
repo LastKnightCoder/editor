@@ -46,6 +46,7 @@ files:
   - "dist-electron/**/*"
   - "package.json"
   - "build/**/*"
+  - "!build/bundled-plugins/**/*"
   - "!build/publish-template.zip"
   - "node_modules/**/*"
   - "!node_modules/**/*.js.map"

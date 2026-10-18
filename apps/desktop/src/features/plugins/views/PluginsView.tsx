@@ -102,17 +102,19 @@ export function PluginsView() {
             <MoreButton label="更多插件操作">
               {runtime?.local && (
                 <>
-                  <Menu.Item
-                    icon={<Package strokeWidth={1.75} />}
-                    onSelect={() =>
-                      run(async () => {
-                        await stagePluginZip();
-                        await runtime.local?.refresh();
-                      })
-                    }
-                  >
-                    从 ZIP 安装…
-                  </Menu.Item>
+                  {import.meta.env.DEV && (
+                    <Menu.Item
+                      icon={<Package strokeWidth={1.75} />}
+                      onSelect={() =>
+                        run(async () => {
+                          await stagePluginZip();
+                          await runtime.local?.refresh();
+                        })
+                      }
+                    >
+                      从 ZIP 安装…
+                    </Menu.Item>
+                  )}
                   <Menu.Item
                     icon={<FolderOpen strokeWidth={1.75} />}
                     onSelect={() => run(openPluginDirectory)}
@@ -398,7 +400,7 @@ export function InstalledRow({
           !plugin.enabled && "[&_.plugin-name]:opacity-60"
         )}
       >
-        <PluginIcon id={info.id} name={info.name} builtin={plugin.source === "builtin"} size="sm" />
+        <PluginIcon id={info.id} name={info.name} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <button type="button" className="plugin-name text-[13.5px] font-medium">

@@ -3,7 +3,7 @@ import {
   PluginActivationManager,
   builtinPluginStateKey,
 } from "../../src/app/plugins/activation-manager";
-import { themePlugin } from "../../src/app/plugins/builtin/themePlugin";
+import { themePlugin } from "../../src/features/plugins/__tests__/fixtures/themePlugin";
 import { initThemeRuntime } from "@tau/themes/react";
 
 function assert(condition: unknown, message: string): asserts condition {

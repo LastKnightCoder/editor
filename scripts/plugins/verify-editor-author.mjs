@@ -74,7 +74,7 @@ try {
     path.join(output, "example.portable-counter-1.0.0.zip")
   );
   const distribution = JSON.parse(
-    await readFile(path.join(root, "plugins/distribution.json"), "utf8")
+    await readFile(path.join(root, "tests/fixtures/plugins/catalog.json"), "utf8")
   );
   const release = distribution.find(entry => entry.id === "tau.custom-block");
   if (!release?.repository || !release.sourceRevision) throw new Error("缺少自定义块源码出处");

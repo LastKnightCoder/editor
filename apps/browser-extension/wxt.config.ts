@@ -1,7 +1,6 @@
 import { defineConfig } from "wxt";
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
-import { portablePluginBuild } from "@tau/plugins/distribution";
 
 export default defineConfig({
   srcDir: "src",
@@ -20,10 +19,7 @@ export default defineConfig({
     },
   },
   vite: () => ({
-    plugins: [
-      tailwindcss() as any,
-      portablePluginBuild(path.resolve(__dirname, "../../plugins/distribution.json")),
-    ],
+    plugins: [tailwindcss() as any],
     resolve: {
       dedupe: [
         "react",

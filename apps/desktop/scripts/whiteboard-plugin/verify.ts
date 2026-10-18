@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -9,7 +10,6 @@ import { readPluginPackage } from "../../src-electron/main/services/plugin-packa
 import { discoverPlugins } from "../../src-electron/main/services/plugin-discovery";
 import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
 import { verifyStickman } from "./stickman";
-import { installBundledPlugins } from "../../src-electron/main/services/plugin-bundled";
 const root = process.env.TAU_WHITEBOARD_VERIFY_ROOT!;
 const zip = process.env.TAU_WHITEBOARD_VERIFY_ZIP!;
 const phase = process.env.TAU_WHITEBOARD_VERIFY_PHASE!;
@@ -24,14 +24,18 @@ async function verify() {
   const updates = new PluginUpdates(directory, "0.59.0");
   await updates.initialize();
   if (phase === "initial") {
-    const bundled = process.env.TAU_WHITEBOARD_VERIFY_BUNDLED;
-    if (bundled) {
-      const installed = await installBundledPlugins(bundled, directory, "0.59.0");
-      assert.ok(installed.includes(id));
-    } else {
-      await updates.stageZip(zip);
-      await updates.initialize();
-    }
+    const bytes = await readFile(zip);
+    const AdmZip = (await import("adm-zip")).default;
+    const archive = new AdmZip(bytes);
+    const manifest = JSON.parse(archive.readAsText(id + "/manifest.json"));
+    await updates.stageRelease(bytes, {
+      kind: "center",
+      pluginId: id,
+      version: manifest.version,
+      releaseId: "test-release",
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+    });
+    await updates.initialize();
   }
   const prefs = new LocalPluginPreferences(directory);
   await prefs.load();

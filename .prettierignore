@@ -1,6 +1,6 @@
 node_modules
 # 固定插件发布快照按原始字节校验摘要，不参与源码格式化。
-plugins/releases
+tests/fixtures/plugins/releases
 .playwright-cli
 **/output
 **/dist
