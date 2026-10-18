@@ -21,13 +21,18 @@ const llamaBackendGpuEnv = {
   "linux-x64-vulkan": "vulkan",
 };
 
+// mac 两种架构都要出包，打包目标与 electron-builder.yml 的 mac.target 保持一致
+const targetArchs = process.platform === "darwin" ? ["x64", "arm64"] : ["x64"];
+
 // node-llama-cpp postinstall 默认 auto 会按打包机显卡决定是否下载 GPU 后端，
 // 使产物内容依赖打包环境（无 GPU 的机器只会产出 CPU-only 包）。
 // 打包前按 allowlist 显式补齐缺失后端，保证任何机器产物一致。
 const ensureLlamaCppBackends = () => {
-  const allowlist = pruneNativeModules.llamaBackendAllowlistByPlatform[process.platform];
-  if (!allowlist || process.platform === "darwin") {
-    return; // mac 后端由 arch 决定，postinstall auto 不随显卡差异漂移
+  const allowlist = targetArchs.flatMap(
+    arch => pruneNativeModules.llamaBackendAllowlist(process.platform, arch) ?? []
+  );
+  if (allowlist.length === 0) {
+    return;
   }
 
   const localPackageJson = path.join(desktopDir, "node_modules", "node-llama-cpp", "package.json");
@@ -44,6 +49,13 @@ const ensureLlamaCppBackends = () => {
   for (const backend of allowlist) {
     if (existsSync(path.join(storeBackendsDir, backend))) {
       continue;
+    }
+
+    // mac 后端是按 cpu 区分的可选依赖，只能由 pnpm 安装，postinstall 补拉不了
+    if (process.platform === "darwin") {
+      throw new Error(
+        `[llama-backends] missing "${backend}": pnpm-workspace.yaml 的 supportedArchitectures 需包含 x64 与 arm64，修改后重新 pnpm install`
+      );
     }
 
     const gpuEnv = llamaBackendGpuEnv[backend];
@@ -112,6 +124,24 @@ const builderBin = path.join(
   process.platform === "win32" ? "electron-builder.cmd" : "electron-builder"
 );
 
+// electron-builder 会按每个目标架构原地重编 better-sqlite3，mac 出完 x64 包后
+// node_modules 里可能留着 x64 二进制；无论打包成败都换回本机架构，保证本地 dev 可用
+const restoreHostNativeModules = () => {
+  if (!targetArchs.some(arch => arch !== process.arch)) {
+    return;
+  }
+  const rebuildBin = path.join(desktopDir, "node_modules", ".bin", "electron-rebuild");
+  const result = spawnSync(rebuildBin, ["-f", "-w", "better-sqlite3", "--arch", process.arch], {
+    cwd: desktopDir,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    console.warn(
+      `[native] 未能把 better-sqlite3 恢复为本机架构 ${process.arch}，请手动执行 pnpm --filter desktop rebuild`
+    );
+  }
+};
+
 const child = spawn(builderBin, process.argv.slice(2), {
   cwd: desktopDir,
   env,
@@ -120,6 +150,7 @@ const child = spawn(builderBin, process.argv.slice(2), {
 });
 
 child.on("exit", (code, signal) => {
+  restoreHostNativeModules();
   if (signal) {
     process.kill(process.pid, signal);
     return;
