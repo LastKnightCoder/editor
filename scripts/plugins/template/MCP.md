@@ -86,7 +86,7 @@ context.mcp.register({
 
 ## 聊天工具自定义渲染
 
-`context.chat.registerToolRenderer` 的类型契约已加入待发布的 SDK 0.13.0，须搭配包含实现的客户端构建。旧客户端即使同为 0.59.0 也可能没有此能力，必须检查方法是否存在；只提高 SDK 类型版本不能替代客户端检查。当前公开模板保留已发布的 SDK 依赖，不提前引用未发布版本。
+`context.chat.registerToolRenderer` 的类型契约自 SDK 0.15.0 提供，须搭配包含实现的客户端构建。旧客户端即使同为 0.59.0 也可能没有此能力，必须检查方法是否存在；只提高 SDK 类型版本不能替代客户端检查。
 
 在 `async activate(context)` 中，先通过 `context.mcp.register()` 声明工具，再注册组件并 await：
 

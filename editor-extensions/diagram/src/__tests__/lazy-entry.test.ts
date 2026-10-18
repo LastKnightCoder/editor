@@ -19,7 +19,6 @@ describe("扩展声明保持渲染懒加载", () => {
     const { diagramExtensions } = await import("../index");
     expect(diagramExtensions.map(extension => extension.id)).toEqual([
       "tau.mermaid",
-      "tau.tikz",
       "tau.typst",
       "tau.abc",
       "tau.plantuml",

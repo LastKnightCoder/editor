@@ -8,6 +8,7 @@ import {
 } from "@/utils/audio-processor";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { TTSProviderFactory } from "@/utils/tts";
+import type { SpeechSynthesisCapability } from "@/types/tts";
 
 export interface PodcastAudioResult {
   audioUrl: string;
@@ -21,43 +22,75 @@ export async function synthesizePodcast(
     signal: AbortSignal;
     onProgress: (done: number, total: number) => void;
     onPhase: (phase: string) => void;
-  }
+  },
+  selected?: SpeechSynthesisCapability
 ): Promise<PodcastAudioResult> {
-  const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
+  const synthesizer = selected ?? TTSProviderFactory.getSpeechSynthesizer();
   if (!synthesizer) throw new Error("请先配置 TTS 服务提供商");
+  const assertActive = () => {
+    hooks.signal.throwIfAborted();
+    synthesizer.signal?.throwIfAborted();
+  };
 
   const audioContext = new AudioContext();
   const segments: SpeechSegment[] = [];
-  const timed = lines.map(line => ({ ...line }));
+  const timed = lines.map(line => ({ ...line, startTime: 0, duration: 0 }));
   let cursor = 0;
 
-  for (let i = 0; i < timed.length; i++) {
-    if (hooks.signal.aborted) throw new DOMException("已停止", "AbortError");
-    try {
-      const data = await synthesizer.synthesizeSpeech(timed[i].text, timed[i].voiceId);
-      const segment = await loadSpeechSegment(audioContext, data);
+  try {
+    for (let i = 0; i < timed.length; i++) {
+      assertActive();
       timed[i].startTime = cursor;
-      timed[i].duration = segment.duration;
-      cursor += segment.duration;
-      segments.push(segment);
-    } catch (error) {
-      // 单句失败跳过，不中断整期
-      console.error(`合成第 ${i + 1} 句失败:`, error);
+      try {
+        const data = await synthesizer.synthesizeSpeech(
+          timed[i].text,
+          timed[i].voiceId,
+          undefined,
+          hooks.signal
+        );
+        const segment = await loadSpeechSegment(
+          audioContext,
+          data.audio.slice().buffer as ArrayBuffer
+        );
+        assertActive();
+        timed[i].startTime = cursor;
+        timed[i].duration = segment.duration;
+        cursor += segment.duration;
+        segments.push(segment);
+      } catch (error) {
+        if (
+          hooks.signal.aborted ||
+          synthesizer.signal?.aborted ||
+          (error instanceof Error && error.name === "AbortError")
+        )
+          throw error;
+        // 单句失败跳过，不中断整期
+        console.error(`合成第 ${i + 1} 句失败:`, error);
+      }
+      hooks.onProgress(i + 1, timed.length);
     }
-    hooks.onProgress(i + 1, timed.length);
+    if (segments.length === 0) throw new Error("没有成功合成任何语音");
+
+    hooks.onPhase("合并音频");
+    const merged = await mergeSpeechSegments(audioContext, segments);
+    assertActive();
+
+    hooks.onPhase("上传音频");
+    const audioUrl = await uploadResource(
+      new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
+        type: merged.blob.type || "audio/wav",
+      }),
+      AbortSignal.any([hooks.signal, ...(synthesizer.signal ? [synthesizer.signal] : [])])
+    );
+    if (!audioUrl) throw new Error("音频上传失败");
+    assertActive();
+
+    return { audioUrl, duration: Math.floor(merged.duration), lines: timed };
+  } finally {
+    try {
+      if (!selected) await synthesizer.dispose?.();
+    } finally {
+      await audioContext.close();
+    }
   }
-  if (segments.length === 0) throw new Error("没有成功合成任何语音");
-
-  hooks.onPhase("合并音频");
-  const merged = await mergeSpeechSegments(audioContext, segments);
-
-  hooks.onPhase("上传音频");
-  const audioUrl = await uploadResource(
-    new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
-      type: merged.blob.type || "audio/wav",
-    })
-  );
-  if (!audioUrl) throw new Error("音频上传失败");
-
-  return { audioUrl, duration: Math.floor(merged.duration), lines: timed };
 }

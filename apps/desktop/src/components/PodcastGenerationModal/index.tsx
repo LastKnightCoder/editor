@@ -48,7 +48,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         id: Date.now().toString(),
         voiceId: "",
         voiceIdError: "",
-        audioFiles: [],
+        audioFile: null,
       },
     ]);
     const [cloneLoading, setCloneLoading] = useState(false);
@@ -169,7 +169,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           id: Date.now().toString(),
           voiceId: "",
           voiceIdError: "",
-          audioFiles: [],
+          audioFile: null,
         },
       ]);
       onCancel();

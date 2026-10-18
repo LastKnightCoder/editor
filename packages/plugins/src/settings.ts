@@ -4,6 +4,12 @@ import type { JsonValue } from "./json";
 
 export interface PluginSettingsProps {
   readonly context: PluginContext;
+  readonly ttsConfig?: {
+    readonly instanceId: string;
+    readonly value: JsonValue;
+    readonly models: readonly { id: string; label?: string }[];
+    save(value: JsonValue, models: readonly { id: string; label?: string }[]): Promise<void>;
+  };
   readonly uploadConfig?: {
     readonly value: JsonValue;
     save(value: JsonValue): Promise<void>;
@@ -19,7 +25,7 @@ export interface PluginSettingsDefinition {
   title: string;
   description?: string;
   /** 提供方配置表单挂载到对应宿主设置；普通插件设置省略。 */
-  target?: "sync" | "upload";
+  target?: "sync" | "upload" | "tts";
   component: ComponentType<PluginSettingsProps>;
 }
 

@@ -3,6 +3,14 @@ export enum SpeakerRole {
   Guest = "嘉宾",
 }
 
+export interface PodcastGenerationProgress {
+  stage: "parsing" | "script" | "tts" | "music" | "merging" | "upload" | "complete";
+  stageProgress: number;
+  ttsTotal?: number;
+  ttsCompleted?: number;
+  message: string;
+}
+
 export interface PodcastScriptLine {
   speaker: string;
   text: string;

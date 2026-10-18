@@ -3,7 +3,7 @@ import { createEditorKit } from "@tau/editor";
 import { diagramExtensions, createPlantUMLExtension } from "../index";
 
 describe("图表预览块拖拽装配", () => {
-  it.each(["mermaid", "plantuml", "tikz", "typst", "abc"])("%s 保留拖拽源与放置目标", type => {
+  it.each(["mermaid", "plantuml", "typst", "abc"])("%s 保留拖拽源与放置目标", type => {
     const kit = createEditorKit({ extensions: diagramExtensions });
     expect(kit.assembly.dragSpecs.get(type)).toEqual({ self: true, children: true });
   });

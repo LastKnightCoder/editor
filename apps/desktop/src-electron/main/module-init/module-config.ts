@@ -28,7 +28,6 @@ import remoteVideoCacheModule from "../modules/remote-video-cache";
 import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
 import podcastAudioModule from "../modules/podcast-audio";
-import ttsModule from "../modules/tts";
 import publishModule from "../modules/publish";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
@@ -197,12 +196,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => podcastAudioModule.init(),
-  },
-  {
-    name: "tts",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
-    init: () => ttsModule.init(),
   },
 
   // AI 模块

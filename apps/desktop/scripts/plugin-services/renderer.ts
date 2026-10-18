@@ -104,27 +104,7 @@ async function verify() {
     } catch (error) {
       check((error as Error).name === "AbortError", "取消错误类型不正确");
     }
-    const svg = await services.tikz.compile({
-      source: "\\begin{tikzpicture}\\draw (0,0) -- (1,1);\\end{tikzpicture}",
-    });
-    check(
-      svg.svg.includes("<svg") && svg.svg.includes("<path") && svg.svg.includes("@font-face"),
-      "TikZ 未返回完整 SVG"
-    );
-    const cancelled = services.tikz.compile({
-      source: "\\begin{tikzpicture}\\draw (0,0) -- (2,1);\\end{tikzpicture}",
-    });
-    for (let attempt = 0; attempt < 100 && !document.querySelector("iframe"); attempt++)
-      await new Promise(resolve => setTimeout(resolve, 10));
-    check(document.querySelector("iframe"), "未创建待取消的 TikZ 上下文");
     await host.disable("verify.services");
-    try {
-      await cancelled;
-      throw new Error("停用未取消 TikZ");
-    } catch (error) {
-      check((error as Error).name === "AbortError", "停用取消错误类型不正确");
-    }
-    check(!document.querySelector("iframe"), "TikZ 上下文未清理");
     return {
       ok: true,
       cases: [
@@ -135,7 +115,6 @@ async function verify() {
         "ffprobe",
         "ffmpeg-output",
         "ffmpeg-cancel",
-        "tikz-svg",
         "plugin-disable",
       ],
     };

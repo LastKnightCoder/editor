@@ -17,7 +17,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@tau/shared": path.resolve(__dirname, "../shared"),
-      "./tikzjax.js": path.resolve(__dirname, "../../apps/desktop/src/test-mocks/tikzjax.ts"),
     },
   },
   plugins: [

@@ -10,16 +10,18 @@ export function PluginSettingsView({
   section,
   syncConfig,
   uploadConfig,
+  ttsConfig,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
+  ttsConfig?: PluginSettingsProps["ttsConfig"];
 }) {
   if (!section)
     return (
       <Panel>
         <p className="text-tau-body text-ink-2">
-          插件设置暂不可用。插件可能已停用或分区已注销，重新启用后可恢复；已保存的设置仍然保留。
+          插件设置暂不可用。请到插件中心确认已安装并启用对应插件；已保存的设置仍然保留。
         </p>
       </Panel>
     );
@@ -35,6 +37,12 @@ export function PluginSettingsView({
         在资源存储中配置
       </Button>
     );
+  if (section.definition.target === "tts" && !ttsConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openTTSSettings()}>
+        在语音设置中配置
+      </Button>
+    );
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -46,7 +54,13 @@ export function PluginSettingsView({
         />
       )}
     >
-      <SettingsScope section={section} syncConfig={syncConfig} uploadConfig={uploadConfig} />
+      <SettingsScope
+        key={ttsConfig?.instanceId}
+        section={section}
+        syncConfig={syncConfig}
+        uploadConfig={uploadConfig}
+        ttsConfig={ttsConfig}
+      />
     </RecoverableBoundary>
   );
 }
@@ -55,10 +69,12 @@ function SettingsScope({
   section,
   syncConfig,
   uploadConfig,
+  ttsConfig,
 }: {
   section: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
+  ttsConfig?: PluginSettingsProps["ttsConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
@@ -71,7 +87,12 @@ function SettingsScope({
   return (
     <QueryClientProvider client={client}>
       <UiProvider className="contents">
-        <Component context={section.context} syncConfig={syncConfig} uploadConfig={uploadConfig} />
+        <Component
+          context={section.context}
+          syncConfig={syncConfig}
+          uploadConfig={uploadConfig}
+          ttsConfig={ttsConfig}
+        />
       </UiProvider>
     </QueryClientProvider>
   );

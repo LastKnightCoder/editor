@@ -13,6 +13,9 @@ import type { SettingsSectionKey } from "@/features/settings/sections";
 export type SettingsLocation = SettingsSectionKey;
 
 interface SettingsUiStore {
+  voiceTab: "transcription" | "tts";
+  setVoiceTab: (tab: "transcription" | "tts") => void;
+  openTTSSettings: () => void;
   llmTab: "providers" | "assignment" | "permission" | "usage";
   usagePluginId: string;
   openAIUsage: (pluginId?: string) => void;
@@ -27,6 +30,9 @@ export const useSettingsStore = create<SettingsUiStore>()(
   persist(
     set => ({
       open: false,
+      voiceTab: "transcription",
+      setVoiceTab: voiceTab => set({ voiceTab }),
+      openTTSSettings: () => set({ open: true, section: "voice", voiceTab: "tts" }),
       llmTab: "providers",
       usagePluginId: "",
       openAIUsage: (pluginId = "") =>

@@ -116,11 +116,14 @@ class PiAiRuntimeModule {
       const fills = await collectCatalogCostFills(providers);
       if (fills.size === 0) return;
       // 查目录是异步的：写回前取最新设置，只补仍然空缺的，避免覆盖期间的用户修改
-      const latest = await userSettingModule.getSettingSnapshot();
-      const next = applyCatalogCostFills(resolveV2Providers(latest), fills);
-      if (!next) return;
-      userSettingModule.handleSetUserSetting({ ...latest, llmProviders: next });
-      console.info(`[PiAiRuntime] 已为 ${fills.size} 个模型填入目录单价`);
+      let updated = false;
+      await userSettingModule.updateSetting(latest => {
+        const next = applyCatalogCostFills(resolveV2Providers(latest), fills);
+        if (!next) return latest;
+        updated = true;
+        return { ...latest, llmProviders: next };
+      });
+      if (updated) console.info(`[PiAiRuntime] 已为 ${fills.size} 个模型填入目录单价`);
     } catch (error) {
       console.error("[PiAiRuntime] 填入目录单价失败:", error);
     } finally {

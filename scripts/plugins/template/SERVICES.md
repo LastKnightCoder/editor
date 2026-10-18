@@ -1,6 +1,6 @@
 # 编译与转换服务
 
-需要在插件里编译 Tailwind、Typst、TikZ，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本。
+需要在插件里编译 Tailwind、Typst，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本。TikZ 编译属于独立绘图插件，不再提供宿主服务。
 
 所有服务都是异步方法，只处理传入数据并返回结果，不读写笔记、不选择或保存文件、不自动注入样式。
 
@@ -13,7 +13,6 @@
 | `markdown.deserialize(source, options?)` | Markdown 字符串                                   | `{ nodes: Descendant[], warnings }` |
 | `markdown.serialize(nodes, options?)`    | `Descendant[]`                                    | `{ markdown, warnings }`            |
 | `markdown.render(source, options?)`      | Markdown 字符串                                   | `{ html, css, warnings }`           |
-| `tikz.compile(input, options?)`          | `{ source }`，包含 `tikzpicture` 环境             | `{ svg }`                           |
 | `ffmpeg.probe(file, options?)`           | `{ name, data: Blob }`                            | `{ format, streams }`               |
 | `ffmpeg.run(input, options?)`            | `{ files, args, outputs }`                        | `{ files, log }`                    |
 
@@ -98,18 +97,6 @@ const result = await context.services.markdown.serialize(nodes, {
 `warnings` 每项包含 `code`、`message` 和可选节点 `path`。当前报告未识别节点和 HTML 已知降级，不是任意语法、属性的完整无损审计。未知节点序列化可能保留为 Tau 扩展编码，其他 Markdown 工具未必理解。
 
 HTML 渲染不自动执行 TikZ、Typst、Mermaid 编译器；相关节点可能显示源码并返回 `DISPLAY_FALLBACK`，音视频可能显示链接。原始 HTML 和远程资源按客户端导出规则保留，输出不是经过净化的 HTML。`css` 是本次生成内容附带的样式，不包含完整 Tau 页面主题，也不打包图片附件。
-
-## TikZ
-
-```ts
-const { svg } = await context.services.tikz.compile({
-  source: String.raw`\begin{tikzpicture}
-  \draw (0,0) -- (1,1);
-\end{tikzpicture}`,
-});
-```
-
-不要添加 `documentclass` 或 `document` 环境。服务负责包装，返回包含字体样式的 SVG 字符串。这不是完整 LaTeX 文档编译器，不提供任意宏包安装。语法或宏包不支持时明确报错；单次最长 120 秒，可通过 signal 提前取消。
 
 ## FFmpeg
 

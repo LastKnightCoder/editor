@@ -15,7 +15,6 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
       "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
-      "./tikzjax.js": path.resolve(__dirname, "./src/test-mocks/tikzjax.ts"),
     },
   },
 });

@@ -9,6 +9,7 @@ import type { MarkdownCodec } from "@tau/markdown";
 import type { PluginSettings } from "./settings";
 import type { PluginSync } from "./sync";
 import type { PluginUpload } from "./upload";
+import type { PluginTTS } from "./tts";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
@@ -45,6 +46,7 @@ export interface PluginContext {
   readonly settings: PluginSettings;
   readonly sync: PluginSync;
   readonly upload: PluginUpload;
+  readonly tts: PluginTTS;
   readonly sidebar: PluginSidebar;
   readonly excerpts: PluginExcerpts;
   readonly materials: PluginMaterials;

@@ -19,6 +19,8 @@ import {
 import userSetting from "./user-setting";
 import { getMainWindows } from "../windows/main-window";
 import { pluginUploadRelay } from "../services/plugin-upload";
+import { pluginTTSRelay } from "../services/plugin-tts";
+import type { TTSRendererRequest, TTSRendererReply } from "../../../shared/tts-renderer";
 import type { UploadRequest, UploadRendererReply } from "../../../shared/upload-renderer";
 import {
   downloadPluginRelease,
@@ -65,6 +67,45 @@ export default {
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    ipcMain.handle(
+      "plugin-local:tts-config",
+      async (
+        _event,
+        instanceId: string,
+        pluginId: string,
+        config: import("@tau/plugins").JsonValue,
+        models: readonly { id: string; label?: string }[]
+      ) => {
+        const artifact = await readPluginPackage(
+          path.join(directory(), pluginId),
+          app.getVersion()
+        );
+        if (artifact.manifest.id !== pluginId) throw new Error("插件身份无效");
+        await userSetting.updateTTSPlugin(instanceId, pluginId, copyJson(config), models);
+      }
+    );
+    ipcMain.handle("plugin-local:tts-connect", (event, session: string) => {
+      if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
+        throw new Error("语音插件只能由主窗口执行");
+      pluginTTSRelay.connect(event.sender, session);
+    });
+    ipcMain.handle("plugin-local:tts-release", (event, session: string) =>
+      pluginTTSRelay.release(event.sender.id, session)
+    );
+    ipcMain.handle(
+      "plugin-local:tts-closed",
+      (event, message: { session: string; hostSession: string }) =>
+        pluginTTSRelay.rendererClosed(event.sender.id, message.hostSession, message.session)
+    );
+    ipcMain.handle("plugin-local:tts-request", (event, id: string, request: TTSRendererRequest) =>
+      pluginTTSRelay.request(event.sender, id, request)
+    );
+    ipcMain.handle("plugin-local:tts-reply", (event, reply: TTSRendererReply) =>
+      pluginTTSRelay.reply(event.sender.id, reply)
+    );
+    ipcMain.handle("plugin-local:tts-cancel", (event, id: string) =>
+      pluginTTSRelay.cancel(event.sender.id, id)
+    );
     ipcMain.handle("plugin-local:upload-connect", (event, session: string) => {
       if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
         throw new Error("上传插件只能由主窗口执行");
@@ -76,8 +117,11 @@ export default {
     ipcMain.handle("plugin-local:upload-reply", (event, reply: UploadRendererReply) =>
       pluginUploadRelay.reply(event.sender.id, reply)
     );
-    ipcMain.handle("plugin-local:upload", (event, request: UploadRequest) =>
-      pluginUploadRelay.upload(event.sender, request)
+    ipcMain.handle("plugin-local:upload", (event, request: UploadRequest, requestId?: string) =>
+      pluginUploadRelay.upload(event.sender, request, requestId)
+    );
+    ipcMain.handle("plugin-local:upload-cancel", (event, requestId: string) =>
+      pluginUploadRelay.cancel(event.sender.id, requestId)
     );
     ipcMain.handle("plugin-local:set-enabled", async (_event, id: string, enabled: boolean) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());

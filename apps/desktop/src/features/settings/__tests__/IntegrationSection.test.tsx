@@ -6,11 +6,9 @@ import { IntegrationSection } from "../sections/IntegrationSection";
 
 const mocks = vi.hoisted(() => ({
   getGithubUserInfo: vi.fn(),
-  verifyMinimaxApiKey: vi.fn(),
   getBilibiliQRCode: vi.fn(),
 }));
 
-vi.mock("@/services/minimax", () => ({ verifyMinimaxApiKey: mocks.verifyMinimaxApiKey }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 vi.mock("@/utils/github", () => ({ getGithubUserInfo: mocks.getGithubUserInfo }));
 vi.mock("@/utils/bilibili", () => ({
@@ -52,9 +50,11 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("渲染三组服务行与各自状态签", () => {
+it("保留存储和内容服务，移除重复语音集成入口", () => {
   render();
-  for (const title of ["存储服务", "内容平台", "AI 平台"]) expect(text()).toContain(title);
+  for (const title of ["存储服务", "内容平台"]) expect(text()).toContain(title);
+  expect(text()).not.toContain("AI 平台");
+  expect(text()).not.toContain("Minimax");
   for (const name of ["S3", "GitHub", "Bilibili", "YouTube"]) {
     expect(text()).toContain(name);
   }
@@ -64,7 +64,7 @@ it("渲染三组服务行与各自状态签", () => {
   expect(text()).not.toContain("微信读书");
   // 未连接服务
   expect(byLabel("连接 GitHub")).toBeTruthy();
-  expect(byLabel("连接 Minimax")).toBeTruthy();
+  expect(byLabel("连接 Minimax")).toBeNull();
   expect(text()).toContain("未连接");
 });
 

@@ -22,7 +22,7 @@ export interface CloneVoiceItem {
   id: string;
   voiceId: string;
   voiceIdError: string;
-  audioFiles: AudioFileItem[];
+  audioFile: AudioFileItem | null;
 }
 
 export interface AudioFileItem {

@@ -72,6 +72,9 @@ it("调用窗口关闭只释放自己的请求，旧卸载不能注销新宿主"
   first.emit("destroyed");
   await assertion;
   const next = relay.upload(window(3), request);
-  relay.reply(1, { ...vi.mocked(host.send).mock.calls[1][1], error: "服务商拒绝上传" });
+  relay.reply(1, {
+    ...vi.mocked(host.send).mock.calls.filter(call => call[0] === "plugin-upload:request")[1][1],
+    error: "服务商拒绝上传",
+  });
   await expect(next).rejects.toThrow("服务商拒绝");
 });

@@ -1,19 +1,3 @@
-/**
- * 账号与连接 —— 第三方服务的账号与凭据（store key 仍是 integration），其它设置页从这里读取连接。
- *
- * 组织对照 mockups/settings 第三版「账号与连接」：三组列表行——
- * 存储服务（WebDAV / S3 / 阿里云 OSS / GitHub）、内容平台（Bilibili / YouTube / 微信读书）、
- * AI 平台（Minimax）。每行 = 首字母方块 + 服务名 + 身份/所需凭据说明 + 状态签 + 连接/管理按钮；
- * 凭据编辑统一进 Dialog（纵向表单，footer 取消 + 主动作，已连接时左下角「断开连接」二次确认）。
- * YouTube 只有一个代理字段，与 legacy 一致行内即时保存。
- *
- * 功能对齐 legacy IntegrationSetting 全量：各服务字段与必填校验、GitHub Token 校验并存用户名邮箱、
- * Minimax 经 get_voice 接口校验 Key、Bilibili 扫码（二维码 / 过期刷新 / 2s 轮询）与手动 SESSDATA 两种登录
- * 及用户信息/大会员展示、S3 请求风格、微信读书 API Key 校验与 检测中/可用/已失效/未连接 状态。
- * 行为调整：微信读书新增「断开连接」（清空 API Key）；YouTube 状态签按是否设置代理显示
- * （legacy 依据的 youtube.enabled 从无写入口，恒为未连接）。
- */
-
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { produce } from "immer";
@@ -30,7 +14,6 @@ import {
   toast,
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
-import { verifyMinimaxApiKey } from "@/services/minimax";
 import { getGithubUserInfo } from "@/utils/github";
 import {
   BilibiliQRCodeStatus,
@@ -44,7 +27,7 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 
 type Integration = ISetting["integration"];
-type ServiceKey = "s3" | "github" | "bilibili" | "minimax";
+type ServiceKey = "s3" | "github" | "bilibili";
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
 const mutateIntegration = (fn: (draft: Integration) => void) =>
@@ -782,90 +765,6 @@ function BilibiliDialog({ open, onOpenChange }: DialogProps) {
   );
 }
 
-/* ───────────── AI 平台 ───────────── */
-
-function MinimaxDialog({ open, onOpenChange }: DialogProps) {
-  const minimax = useSettingStore(s => s.setting.integration.minimax);
-  const updateApiKey = useSettingStore(s => s.updateMinimaxApiKey);
-  const setEnabled = useSettingStore(s => s.setMinimaxEnabled);
-  const [apiKey, setApiKey] = useFormOnOpen(open, () => minimax.apiKey);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const verify = async () => {
-    const value = apiKey.trim();
-    if (!value) {
-      setError("请输入 Minimax API Key");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      // get_voice 轻量探测验证 Key（与 TTS 同端点同鉴权，legacy 设置页同一入口）
-      await verifyMinimaxApiKey(value);
-      updateApiKey(value);
-      setEnabled(true);
-      toast.success("Minimax 已连接");
-      onOpenChange(false);
-    } catch (err) {
-      console.error("验证 Minimax API Key 失败:", err);
-      setError("验证失败，请检查 API Key 是否正确");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <ServiceDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onAfterClose={() => setError("")}
-      title="Minimax"
-      subtitle="配置 API Key 以使用 Minimax 语音合成（凭据与「语音 · 语音合成」共享）"
-      connected={minimax.enabled}
-      busy={loading}
-      disconnectImpact="将同时清除语音合成设置中 Minimax 的 API Key，语音合成与音色克隆不可用"
-      onDisconnect={() => {
-        updateApiKey("");
-        setEnabled(false);
-      }}
-      primary={
-        <Button
-          variant="primary"
-          loading={loading}
-          loadingText="验证中…"
-          disabled={!apiKey.trim()}
-          onClick={() => void verify()}
-        >
-          验证并连接
-        </Button>
-      }
-    >
-      <Field label="API Key">
-        <SecretInput
-          label="API Key"
-          value={apiKey}
-          placeholder="请输入 Minimax API Key"
-          disabled={loading}
-          onChange={v => {
-            setApiKey(v);
-            setError("");
-          }}
-        />
-      </Field>
-      <HelpSteps
-        steps={[
-          "访问 https://platform.minimaxi.com",
-          "登录并进入控制台",
-          "在 API 管理中创建 API Key",
-          "复制 API Key 并粘贴到上方",
-        ]}
-      />
-      <ErrorLine>{error}</ErrorLine>
-    </ServiceDialog>
-  );
-}
-
 /* ───────────── 页面 ───────────── */
 
 const connectedChip = <StatusChip tone="ok">已连接</StatusChip>;
@@ -881,7 +780,7 @@ export function IntegrationSection() {
     onOpenChange: open => setOpenKey(open ? key : null),
   });
 
-  const { s3, github, bilibili, youtube, minimax } = integration;
+  const { s3, github, bilibili, youtube } = integration;
 
   return (
     <>
@@ -961,25 +860,9 @@ export function IntegrationSection() {
         </ServiceRow>
       </SettingsGroup>
 
-      <SettingsGroup title="AI 平台" description="语音合成使用">
-        <ServiceRow
-          mark="M"
-          name="Minimax"
-          description={minimax.enabled ? "API Key 已配置" : "需要 API Key"}
-          status={minimax.enabled ? connectedChip : disconnectedChip}
-        >
-          <RowAction
-            connected={minimax.enabled}
-            name="Minimax"
-            onClick={() => setOpenKey("minimax")}
-          />
-        </ServiceRow>
-      </SettingsGroup>
-
       <S3Dialog {...dialogProps("s3")} />
       <GithubDialog {...dialogProps("github")} />
       <BilibiliDialog {...dialogProps("bilibili")} />
-      <MinimaxDialog {...dialogProps("minimax")} />
     </>
   );
 }

@@ -130,7 +130,7 @@ export function GenerateDialog({
   const [duration, setDuration] = useState<[number, number]>([3, 5]);
   const [showClone, setShowClone] = useState(false);
   const [cloneItems, setCloneItems] = useState<CloneVoiceItem[]>([
-    { id: String(Date.now()), voiceId: "", voiceIdError: "", audioFiles: [] },
+    { id: String(Date.now()), voiceId: "", voiceIdError: "", audioFile: null },
   ]);
   const [cloneLoading, setCloneLoading] = useState(false);
   const podcastVoices = usePodcastVoices(kind === "podcast");

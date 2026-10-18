@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-chat-author-"));
 const output = path.join(root, "output/plugin-chat-sdk");
+const published = process.argv.includes("--published");
 async function run(command, args, cwd) {
   await new Promise((resolve, reject) => {
     const env = { ...process.env };
@@ -23,7 +24,7 @@ async function run(command, args, cwd) {
 
 try {
   const sdk = path.join(directory, "sdk");
-  await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
+  if (!published) await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   const { version } = JSON.parse(
     await readFile(path.join(root, "packages/plugins/package.json"), "utf8")
   );
@@ -34,9 +35,24 @@ try {
   await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
   await rm(path.join(author, "pnpm-lock.yaml"));
   const pkg = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
-  pkg.dependencies["@tau/plugins"] = `file:${sdk}/xiongtao.xt-tau-plugins-${version}.tgz`;
-  pkg.dependencies["@tau/ui"] = `file:${sdk}/xiongtao.xt-tau-ui-${uiVersion}.tgz`;
+  pkg.dependencies["@tau/plugins"] = published
+    ? `npm:@xiongtao.xt/tau-plugins@${version}`
+    : `file:${sdk}/xiongtao.xt-tau-plugins-${version}.tgz`;
+  pkg.dependencies["@tau/ui"] = published
+    ? `npm:@xiongtao.xt/tau-ui@${uiVersion}`
+    : `file:${sdk}/xiongtao.xt-tau-ui-${uiVersion}.tgz`;
   await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
+  if (published) {
+    const policyPath = path.join(author, "pnpm-workspace.yaml");
+    const policy = await readFile(policyPath, "utf8");
+    await writeFile(
+      policyPath,
+      policy.replace(
+        /("@xiongtao\.xt\/tau-plugins@)[^"]+(")/,
+        (_match, prefix, suffix) => `${prefix}${version}${suffix}`
+      )
+    );
+  }
   const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   Object.assign(manifest, {
     id: "example.chat-renderer",
@@ -71,16 +87,18 @@ try {
   assert.equal(built.id, manifest.id);
   await mkdir(output, { recursive: true });
   await cp(path.join(author, "dist", zip), path.join(output, zip));
-  await cp(
-    path.join(sdk, `xiongtao.xt-tau-plugins-${version}.tgz`),
-    path.join(output, `xiongtao.xt-tau-plugins-${version}.tgz`)
-  );
+  if (!published)
+    await cp(
+      path.join(sdk, `xiongtao.xt-tau-plugins-${version}.tgz`),
+      path.join(output, `xiongtao.xt-tau-plugins-${version}.tgz`)
+    );
   await writeFile(
-    path.join(output, "chat-author-report.json"),
+    path.join(output, published ? "chat-author-published-report.json" : "chat-author-report.json"),
     JSON.stringify(
       {
         status: "passed",
         sdkVersion: version,
+        source: published ? "registry" : "local-tarball",
         independentInstall: true,
         sourceAliases: false,
         typecheck: true,
