@@ -25,6 +25,7 @@ import type {
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import type { SyncProviderDefinition } from "./sync";
+import type { UploadFile, UploadProviderDefinition } from "./upload";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
@@ -177,6 +178,9 @@ export class PluginHost {
       };
       settings?: SettingsAdapter;
       sync?: { register(context: PluginContext, definition: SyncProviderDefinition): Disposable };
+      upload?: {
+        register(context: PluginContext, definition: UploadProviderDefinition): Disposable;
+      };
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
@@ -455,6 +459,38 @@ export class PluginHost {
     };
     const context: PluginContext = {
       pluginId: scope.pluginId,
+      upload: Object.freeze({
+        register: (definition: UploadProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.upload !== "function"
+          )
+            throw new Error("上传提供方必须属于当前插件");
+          if (!this.options.upload) throw new Error("当前宿主不支持资源上传提供方");
+          const upload = definition.upload.bind(definition);
+          return register(
+            this.options.upload.register(
+              context,
+              Object.freeze({
+                id: scope.pluginId,
+                name: definition.name,
+                upload: async (file: UploadFile, config: JsonValue) => {
+                  this.assertActive(entry, activation);
+                  if (entry.state !== "active") throw new Error("上传插件尚未激活");
+                  const result = await upload(file, config);
+                  this.assertActive(entry, activation);
+                  const url = new URL(result);
+                  if (!["http:", "https:"].includes(url.protocol))
+                    throw new Error("上传插件必须返回HTTP(S)资源地址");
+                  return result;
+                },
+              })
+            )
+          );
+        },
+      }),
       sync: Object.freeze({
         register: (definition: SyncProviderDefinition) => {
           this.assertActive(entry, activation);

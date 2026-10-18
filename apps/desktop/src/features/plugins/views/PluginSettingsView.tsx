@@ -9,9 +9,11 @@ import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 export function PluginSettingsView({
   section,
   syncConfig,
+  uploadConfig,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
+  uploadConfig?: PluginSettingsProps["uploadConfig"];
 }) {
   if (!section)
     return (
@@ -27,6 +29,12 @@ export function PluginSettingsView({
         在同步设置中配置
       </Button>
     );
+  if (section.definition.target === "upload" && !uploadConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openSettings("imageBed")}>
+        在资源存储中配置
+      </Button>
+    );
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -38,7 +46,7 @@ export function PluginSettingsView({
         />
       )}
     >
-      <SettingsScope section={section} syncConfig={syncConfig} />
+      <SettingsScope section={section} syncConfig={syncConfig} uploadConfig={uploadConfig} />
     </RecoverableBoundary>
   );
 }
@@ -46,9 +54,11 @@ export function PluginSettingsView({
 function SettingsScope({
   section,
   syncConfig,
+  uploadConfig,
 }: {
   section: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
+  uploadConfig?: PluginSettingsProps["uploadConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
@@ -61,7 +71,7 @@ function SettingsScope({
   return (
     <QueryClientProvider client={client}>
       <UiProvider className="contents">
-        <Component context={section.context} syncConfig={syncConfig} />
+        <Component context={section.context} syncConfig={syncConfig} uploadConfig={uploadConfig} />
       </UiProvider>
     </QueryClientProvider>
   );

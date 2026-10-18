@@ -13,7 +13,6 @@ import { usePage } from "@/page/PageProvider";
 import { executeImport, rescanImport, scanImport, undoImport } from "@/services/batch-import";
 import useSettingStore from "@/stores/useSettingStore";
 import { useImportHistoryStore } from "@/stores/useImportHistoryStore";
-import { PROVIDER_LABELS } from "@/features/settings/sections/ResourceSection";
 import type { ImportWizardRequest } from "@/app/transferStore";
 import {
   summarizePlan,
@@ -132,7 +131,9 @@ export function ImportWizard({
   onClose: () => void;
 }) {
   const { navigator } = usePage();
-  const storage = useSettingStore(s => PROVIDER_LABELS[s.setting.imageBed.active]);
+  const storage = useSettingStore(s =>
+    s.setting.imageBed.active === "local" ? "本地" : "上传插件"
+  );
   const [step, setStep] = useState<Step>("source");
   const [target, setTarget] = useState<ImportTarget | undefined>(request.target);
   const [plan, setPlan] = useState<ImportPlan | null>(null);

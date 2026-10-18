@@ -86,9 +86,9 @@ export function createQwenTTSProvider(config: IQwenConfig): ITTSProvider {
       }
 
       const { imageBed } = useSettingStore.getState().setting;
-      if (imageBed.active !== EImageBed.AliOSS && imageBed.active !== EImageBed.S3) {
+      if (imageBed.active !== EImageBed.Plugin) {
         throw new Error(
-          "百炼声音复刻需要公网可访问的参考音频：请先在「设置 · 资源存储」选择阿里云 OSS 或 S3 上传方式"
+          "百炼声音复刻需要公网可访问的参考音频：请先在「设置 · 资源存储」配置可公开访问的上传插件"
         );
       }
 

@@ -12,6 +12,7 @@ import { createDesktopExcerpts } from "./excerpts";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
 import { connectSyncRenderer } from "./sync-bridge";
+import { connectUploadRenderer } from "./upload-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 
 const restartRequired = new Set<string>();
@@ -20,6 +21,7 @@ let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectSyncRenderer, []);
+  useEffect(connectUploadRenderer, []);
   const { navigator } = usePage();
   const workspaceId = useSettingStore(state => state.setting.database.active);
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
@@ -63,11 +65,13 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           openSettings: (key, target) =>
             target === "sync"
               ? useSettingsStore.getState().openSettings("sync")
-              : navigator.push(PLUGIN_DETAIL_KEY, {
-                  pluginId: key.split(":")[1],
-                  tab: "settings",
-                  section: key,
-                }),
+              : target === "upload"
+                ? useSettingsStore.getState().openSettings("imageBed")
+                : navigator.push(PLUGIN_DETAIL_KEY, {
+                    pluginId: key.split(":")[1],
+                    tab: "settings",
+                    section: key,
+                  }),
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         setRuntime(current);

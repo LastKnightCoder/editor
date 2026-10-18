@@ -1,7 +1,7 @@
 import { useState, useRef, memo, forwardRef, useCallback } from "react";
 import { useAsyncEffect } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { getCachedRemoteResource, isWebDavResource } from "@/utils/resouce";
+import { getCachedRemoteResource } from "@/utils/resouce";
 import { getHomeDir, readBinaryFile } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
@@ -75,10 +75,6 @@ const LocalAudio = memo(
             const cached = await getCachedRemoteResource(resolvedSrc);
             if (cached) {
               await applyLocalFile(cached);
-              return;
-            }
-            if (isWebDavResource(resolvedSrc)) {
-              await applyLocalFile(await cacheRemoteAudio(resolvedSrc));
               return;
             }
             // 未缓存：大文件整段下载要等很久，先流式播放远程地址，缓存完成后供波形读取、下次直接走本地

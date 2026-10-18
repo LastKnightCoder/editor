@@ -1,4 +1,5 @@
 import type { PluginDefinition } from "./contract";
+export type * from "./upload";
 export type {
   JsonValue,
   Disposable,

@@ -45,7 +45,7 @@ export const desktopResourceService: ResourceService = {
   },
 
   resolveCdnUrl: (url?: string) => {
-    const cdn = useSettingStore.getState().setting.imageBed.github.cdn;
+    const cdn = useSettingStore.getState().setting.imageBed.githubCdn;
     return getGithubCdnUrl(url, cdn);
   },
 };

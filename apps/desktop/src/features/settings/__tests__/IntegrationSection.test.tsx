@@ -1,6 +1,5 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { produce } from "immer";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import useSettingStore from "@/stores/useSettingStore";
 import { IntegrationSection } from "../sections/IntegrationSection";
@@ -41,14 +40,7 @@ const typeInto = (input: HTMLInputElement, value: string) =>
 
 beforeEach(() => {
   useSettingStore.setState({
-    setting: produce(structuredClone(initialSetting), draft => {
-      draft.integration.webdav = {
-        enabled: true,
-        url: "https://dav.example.com/dav/",
-        username: "tau",
-        password: "secret",
-      };
-    }),
+    setting: structuredClone(initialSetting),
   });
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -63,12 +55,11 @@ afterEach(() => {
 it("渲染三组服务行与各自状态签", () => {
   render();
   for (const title of ["存储服务", "内容平台", "AI 平台"]) expect(text()).toContain(title);
-  for (const name of ["WebDAV", "S3", "阿里云 OSS", "GitHub", "Bilibili", "YouTube"]) {
+  for (const name of ["S3", "GitHub", "Bilibili", "YouTube"]) {
     expect(text()).toContain(name);
   }
-  // WebDAV 已连接：身份信息 + 管理
-  expect(text()).toContain("dav.example.com · tau");
-  expect(byLabel("管理 WebDAV")).toBeTruthy();
+  expect(text()).not.toContain("WebDAV");
+  expect(text()).not.toContain("阿里云 OSS");
   // 微信读书已改为插件，不在账号与连接里
   expect(text()).not.toContain("微信读书");
   // 未连接服务
@@ -103,15 +94,4 @@ it("YouTube 代理行内即时保存", () => {
     "http://127.0.0.1:7890"
   );
   expect(text()).toContain("已设代理");
-});
-
-it("WebDAV 已连接时可断开连接（二次确认）", () => {
-  render();
-  act(() => byLabel("管理 WebDAV").click());
-  act(() => buttonByText("断开连接").click());
-  act(() => buttonByText("断开").click());
-  expect(useSettingStore.getState().setting.integration.webdav).toMatchObject({
-    enabled: false,
-    url: "",
-  });
 });

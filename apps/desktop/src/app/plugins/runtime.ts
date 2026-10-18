@@ -1,4 +1,5 @@
 import { rendererSyncRegistry } from "./sync-registry";
+import { rendererUploadRegistry } from "./upload-registry";
 import type {
   PluginContext,
   PluginServices,
@@ -112,7 +113,7 @@ export class DesktopPluginRuntime {
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
-      openSettings?: (key: PluginSettingsKey, target?: "sync") => void;
+      openSettings?: (key: PluginSettingsKey, target?: "sync" | "upload") => void;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       excerpts?: ExcerptsAdapter;
@@ -125,6 +126,7 @@ export class DesktopPluginRuntime {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
       sync: rendererSyncRegistry,
+      upload: rendererUploadRegistry,
       storage: options.storage,
       fetch: options.fetch,
       services: options.services,
@@ -294,13 +296,14 @@ export class DesktopPluginRuntime {
     if (this.disposed) throw new Error("插件运行时已关闭");
     const key: PluginSettingsKey = `plugin:${context.pluginId}:${definition.id}`;
     if (
-      definition.target === "sync" &&
+      definition.target !== undefined &&
       [...this.settings.values()].some(
         section =>
-          section.context.pluginId === context.pluginId && section.definition.target === "sync"
+          section.context.pluginId === context.pluginId &&
+          section.definition.target === definition.target
       )
     )
-      throw new Error("插件的同步配置分区已经注册");
+      throw new Error("插件的提供方配置分区已经注册");
     if (this.settings.has(key)) throw new Error(`设置分区已注册：${definition.id}`);
     const section = { key, context, definition, mountId: ++nextMountId };
     this.settings.set(key, section);
