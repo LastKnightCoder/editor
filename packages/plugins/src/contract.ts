@@ -9,6 +9,7 @@ import type { MarkdownCodec } from "@tau/markdown";
 import type { PluginSettings } from "./settings";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
+import type { PluginMCP } from "./mcp";
 
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
@@ -45,6 +46,7 @@ export interface PluginContext {
   readonly fetch: typeof globalThis.fetch;
   readonly services: PluginServices;
   readonly ai: PluginAI;
+  readonly mcp: PluginMCP;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

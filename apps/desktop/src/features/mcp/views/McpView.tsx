@@ -28,6 +28,7 @@ const CARD =
   "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none";
 
 function subtitle(item: McpServerItem): string {
+  if (item.kind === "plugin") return `来自 ${item.pluginName}`;
   if (item.kind !== "custom") return "内置";
   return item.server?.transport.type === "stdio" ? "本地进程 · stdio" : "远程 · HTTP";
 }
@@ -140,7 +141,10 @@ export function McpView() {
     i => i.enabled && i.status !== "unavailable"
   );
   const toolCount =
-    enabledServers.reduce((n, i) => n + i.tools.length - i.disabledTools.size, 0) +
+    enabledServers.reduce(
+      (n, i) => n + i.tools.filter(tool => !i.disabledTools.has(tool.name)).length,
+      0
+    ) +
     scoped.reduce((n, i) => n + i.tools.length, 0) +
     piBuiltin.tools.length;
   const nothing = shownCustom.length + shownBuiltin.length === 0;

@@ -27,6 +27,7 @@ export * from "./sidebar";
 export type * from "./excerpts";
 export type * from "./services";
 export type { PluginSkill } from "./skills";
+export type { PluginMCP, PluginMCPDefinition, PluginMCPTool, PluginMCPTransport } from "./mcp";
 
 export type {
   PluginPageDefinition,

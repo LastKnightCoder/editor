@@ -81,7 +81,7 @@ function ToolsPane({
         t => t.name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q)
       )
     : item.tools;
-  const enabledCount = item.tools.length - item.disabledTools.size;
+  const enabledCount = item.tools.filter(tool => !item.disabledTools.has(tool.name)).length;
   const locked = item.locked ?? false;
 
   const banner =
@@ -89,22 +89,24 @@ function ToolsPane({
       <Banner
         tone="danger"
         action={
-          <div className="flex shrink-0 gap-1">
-            <Button size="sm" variant="ghost" onClick={onShowLogs}>
-              查看日志
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={RefreshCw}
-              onClick={() => void reconnectServer(item.id)}
-            >
-              重试
-            </Button>
-          </div>
+          item.server && (
+            <div className="flex shrink-0 gap-1">
+              <Button size="sm" variant="ghost" onClick={onShowLogs}>
+                查看日志
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={RefreshCw}
+                onClick={() => void reconnectServer(item.id)}
+              >
+                重试
+              </Button>
+            </div>
+          )
         }
       >
-        <b className="font-semibold">连接失败</b>
+        <b className="font-semibold">{item.server ? "连接失败" : "加载失败"}</b>
         {item.error && (
           <div className="text-ink-1 font-tau-mono mt-0.5 text-[12px]">{item.error}</div>
         )}
@@ -244,7 +246,13 @@ function ToolsPane({
   );
 }
 
-function ConfigPane({ server }: { server: CustomMCPServer }) {
+function ConfigPane({
+  server,
+  pluginProvided = false,
+}: {
+  server: CustomMCPServer;
+  pluginProvided?: boolean;
+}) {
   const initial = useMemo(() => draftFromServer(server), [server]);
   const [draft, setDraft] = useState<ServerDraft>(initial);
   const [saving, setSaving] = useState(false);
@@ -267,7 +275,12 @@ function ConfigPane({ server }: { server: CustomMCPServer }) {
   return (
     <>
       {/* 换服务器时表单整体重建（JSON 模式等内部状态不串） */}
-      <ServerForm key={server.id} draft={draft} onChange={setDraft} />
+      <ServerForm
+        key={server.id}
+        draft={draft}
+        onChange={setDraft}
+        identityReadOnly={pluginProvided}
+      />
       <div className="mt-5 flex items-center justify-end gap-2">
         {dirty && invalid && <span className="text-tau-sm text-danger mr-auto">{invalid}</span>}
         <Button variant="ghost" disabled={!dirty} onClick={() => setDraft(initial)}>
@@ -370,6 +383,7 @@ export function ServerDrawer({
   const currentId = current?.id;
   useEffect(() => setTab("tools"), [currentId]);
   const custom = current?.kind === "custom";
+  const remote = Boolean(current?.server);
 
   const copyJson = async () => {
     if (!current?.server) return;
@@ -388,7 +402,13 @@ export function ServerDrawer({
           <>
             <span className="truncate">{current.name}</span>
             <span className="text-tau-micro text-ink-3 border-line-1 shrink-0 rounded-[5px] border px-1.5 font-normal">
-              {custom ? (current.server?.transport.type === "stdio" ? "stdio" : "http") : "内置"}
+              {current.pluginName
+                ? `来自 ${current.pluginName}`
+                : custom
+                  ? current.server?.transport.type === "stdio"
+                    ? "stdio"
+                    : "http"
+                  : "内置"}
             </span>
           </>
         )
@@ -409,7 +429,7 @@ export function ServerDrawer({
       actions={
         current && (
           <>
-            {custom && (
+            {remote && (
               <>
                 <Tooltip content="重新连接">
                   <IconButton
@@ -420,22 +440,24 @@ export function ServerDrawer({
                     <RefreshCw className="size-4" strokeWidth={1.75} />
                   </IconButton>
                 </Tooltip>
-                <Menu
-                  align="end"
-                  trigger={
-                    <IconButton aria-label="更多">
-                      <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                    </IconButton>
-                  }
-                >
-                  <Menu.Item icon={<Copy />} onSelect={() => void copyJson()}>
-                    复制为 JSON
-                  </Menu.Item>
-                  <Menu.Separator />
-                  <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
-                    删除服务器
-                  </Menu.Item>
-                </Menu>
+                {custom && (
+                  <Menu
+                    align="end"
+                    trigger={
+                      <IconButton aria-label="更多">
+                        <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                      </IconButton>
+                    }
+                  >
+                    <Menu.Item icon={<Copy />} onSelect={() => void copyJson()}>
+                      复制为 JSON
+                    </Menu.Item>
+                    <Menu.Separator />
+                    <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
+                      删除服务器
+                    </Menu.Item>
+                  </Menu>
+                )}
               </>
             )}
             <Switch
@@ -455,7 +477,7 @@ export function ServerDrawer({
         )
       }
       toolbar={
-        custom && (
+        remote && (
           <Segmented
             label="详情分区"
             size="sm"
@@ -471,9 +493,9 @@ export function ServerDrawer({
     >
       {current &&
         (tab === "config" && current.server ? (
-          <ConfigPane server={current.server} />
-        ) : tab === "logs" && custom ? (
-          <LogsPane serverId={current.id} />
+          <ConfigPane server={current.server} pluginProvided={current.kind === "plugin"} />
+        ) : tab === "logs" && remote ? (
+          <LogsPane serverId={current.connectionId ?? current.id} />
         ) : (
           <ToolsPane
             item={current}

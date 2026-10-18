@@ -20,7 +20,12 @@ function Row({ item }: { item: McpServerItem }) {
   return (
     <label className="text-tau-body hover:bg-hover flex h-[36px] cursor-pointer items-center gap-2.5 rounded-[10px] px-2.5">
       <StatusDot status={item.status} />
-      <span className="min-w-0 flex-1 truncate">{item.name}</span>
+      <span
+        className="min-w-0 flex-1 truncate"
+        title={item.pluginName ? `来自 ${item.pluginName}` : undefined}
+      >
+        {item.name}
+      </span>
       <span
         className={
           item.status === "error"
