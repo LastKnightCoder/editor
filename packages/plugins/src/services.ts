@@ -74,9 +74,6 @@ export interface PluginServices {
       options?: MarkdownServiceOptions & { theme?: "light" | "dark" }
     ): Promise<{ html: string; css: string; warnings: ServiceWarning[] }>;
   };
-  tikz: {
-    compile(input: { source: string }, options?: ServiceOptions): Promise<{ svg: string }>;
-  };
   ffmpeg: {
     probe(input: ServiceFile, options?: ServiceOptions): Promise<MediaInfo>;
     /** args 中用任务文件名引用输入和输出；不接受 shell 命令。 */
@@ -119,7 +116,6 @@ export function bindPluginServices(
       serialize: bind(adapter?.markdown?.serialize),
       render: bind(adapter?.markdown?.render),
     }),
-    tikz: Object.freeze({ compile: bind(adapter?.tikz?.compile) }),
     ffmpeg: Object.freeze({ probe: bind(adapter?.ffmpeg?.probe), run: bind(adapter?.ffmpeg?.run) }),
   });
 }

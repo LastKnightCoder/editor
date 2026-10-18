@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
