@@ -39,6 +39,7 @@ export default {
     const updates = new PluginUpdates(directory(), app.getVersion());
     await updates.initialize();
     const preferences = new LocalPluginPreferences(directory());
+    await userSetting.getSettingSnapshot();
     await preferences.load();
     const contentStartup = new PluginContentStartup(async id => {
       const maintenance = await updates.list();
@@ -193,8 +194,8 @@ export default {
       return updates.stageRelease(bytes, source);
     });
     // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。
-    ipcMain.handle("plugin-local:relaunch", () => {
-      if (pluginSyncSessions.busy) throw new Error("同步任务正在进行，请完成后重启");
+    ipcMain.handle("plugin-local:relaunch", async () => {
+      if (await pluginSyncSessions.hasTasks()) throw new Error("同步任务正在进行，请完成后重启");
       app.relaunch();
       app.quit();
     });

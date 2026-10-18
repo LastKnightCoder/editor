@@ -89,6 +89,8 @@ export async function runSyncStatus() {
     }
   } catch (e: any) {
     error = `Failed to check remote: ${e.message}`;
+  } finally {
+    await provider.dispose?.();
   }
 
   let syncNeeded = "Up to date";

@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from "electron";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
 import PathUtil from "../../src-electron/main/utils/PathUtil";
@@ -16,7 +16,8 @@ import type { SyncProvider } from "@tau/plugins/sync";
 async function main() {
   const [phase, sandbox, archive] = process.argv.slice(2);
   if (!phase || !sandbox || !archive) throw new Error("缺少隔离验收参数");
-  PathUtil.getAppDir = () => path.join(sandbox, "data");
+  const migrating = phase.startsWith("migrate");
+  PathUtil.getAppDir = () => path.join(sandbox, migrating ? "migrated-data" : "data");
   app.setPath("userData", path.join(sandbox, "profile"));
   const id = "tau.sync-s3";
   let window: BrowserWindow | undefined;
@@ -28,6 +29,7 @@ async function main() {
       res.statusCode = status;
       res.end();
     };
+    if (!req.headers.authorization) return fail(403);
     if (req.method === "PUT") {
       const chunks: Buffer[] = [];
       for await (const part of req) chunks.push(Buffer.from(part));
@@ -47,6 +49,40 @@ async function main() {
   });
   await app.whenReady();
   try {
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("测试服务器未启动");
+    const config = {
+      endpoint: "http://127.0.0.1:" + address.port,
+      bucket: "bucket",
+      region: "test-region",
+      pathPrefix: "isolated",
+      urlStyle: "path",
+      accessKeyId: "test-only",
+      secretAccessKey: "test-only",
+    };
+    if (phase === "migrate") {
+      await mkdir(PathUtil.getAppDir(), { recursive: true });
+      await writeFile(
+        path.join(PathUtil.getAppDir(), "setting.json"),
+        JSON.stringify({
+          sync: {
+            active: "s3",
+            autoSyncEnabled: true,
+            s3: { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
+          },
+          integration: {
+            s3: {
+              endpoint: config.endpoint,
+              accessKeyId: config.accessKeyId,
+              secretAccessKey: config.secretAccessKey,
+              urlStyle: config.urlStyle,
+            },
+          },
+          database: { active: "data.db", databases: [{ name: "data.db", version: 7 }] },
+        })
+      );
+    }
     if (phase === "install") {
       const updates = new PluginUpdates(path.join(PathUtil.getAppDir(), "plugins"), "0.59.0");
       await updates.initialize();
@@ -85,20 +121,14 @@ async function main() {
       assert.equal(saved.sync.active, "plugin");
       assert.equal(saved.sync.plugin.id, id);
       assert.equal(saved.sync.plugin.configurations[id].bucket, "bucket");
+      assert.equal(Object.hasOwn(saved.sync, "s3"), false);
+      if (phase === "migrate") assert.deepEqual(saved.sync.plugin.configurations[id], config);
+      if (migrating) {
+        assert.equal(saved.sync.autoSyncEnabled, true);
+        assert.equal(saved.database.databases[0].version, 7);
+      }
     }
-    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("测试服务器未启动");
-    const config = {
-      endpoint: "http://127.0.0.1:" + address.port,
-      bucket: "bucket",
-      region: "test-region",
-      pathPrefix: "isolated",
-      urlStyle: "path",
-      accessKeyId: "test-only",
-      secretAccessKey: "test-only",
-    };
-    await call("plugin-local:sync-config", id, config);
+    if (phase !== "migrate") await call("plugin-local:sync-config", id, config);
     const session = await call<string>("plugin-local:sync-begin", id, config);
     await assert.rejects(call("plugin-local:set-enabled", id, false), /同步任务/);
     await assert.rejects(call("plugin-local:uninstall", id), /同步任务/);
@@ -144,7 +174,7 @@ async function main() {
     assert.equal((await readSnapshotHead(provider, "head.json")).version, 1);
     assert.deepEqual(await provider.downloadFile("data.db"), payload);
     await call("plugin-local:sync-end", session);
-    if (phase === "restart") {
+    if (phase.endsWith("restart")) {
       await call("plugin-local:set-enabled", id, false);
       await assert.rejects(call("plugin-local:sync-begin", id, config), /未启用/);
       await call("plugin-local:set-enabled", id, true);

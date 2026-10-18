@@ -23,13 +23,6 @@ export const isSyncConfigured = (
         !!sync.aliOSS.bucket &&
         !!sync.aliOSS.region
       );
-    case ESync.S3:
-      return (
-        !!integration.s3.accessKeyId &&
-        !!integration.s3.secretAccessKey &&
-        !!sync.s3.bucket &&
-        !!sync.s3.region
-      );
     case ESync.WebDav:
       return (
         !!integration.webdav.url && !!integration.webdav.username && !!integration.webdav.password

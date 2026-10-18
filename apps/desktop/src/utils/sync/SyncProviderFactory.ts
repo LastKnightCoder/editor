@@ -1,6 +1,5 @@
 import { ISyncProvider } from "@/types/sync";
 import { AliOSSSyncProvider } from "./AliOSSSyncProvider";
-import { S3SyncProvider } from "./S3SyncProvider";
 import { WebDavSyncProvider } from "./WebDavSyncProvider";
 import { GithubSyncProvider } from "./GithubSyncProvider";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
@@ -34,23 +33,6 @@ export class SyncProviderFactory {
           bucket,
           region,
           path: path || "/",
-        });
-      }
-
-      case ESync.S3: {
-        const { accessKeyId, secretAccessKey, endpoint, urlStyle } = integration.s3;
-        const { bucket, region, pathPrefix } = syncConfig.s3;
-        if (!accessKeyId || !secretAccessKey || !bucket || !region) {
-          return null;
-        }
-        return new S3SyncProvider({
-          accessKeyId,
-          secretAccessKey,
-          bucket,
-          region,
-          endpoint,
-          urlStyle,
-          pathPrefix: pathPrefix || "",
         });
       }
 

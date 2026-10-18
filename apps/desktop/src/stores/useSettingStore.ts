@@ -27,7 +27,6 @@ export enum EImageBed {
 export enum ESync {
   Plugin = "plugin",
   AliOSS = "aliOSS",
-  S3 = "s3",
   WebDav = "webdav",
   Github = "github",
 }
@@ -201,11 +200,6 @@ export interface ISetting {
       bucket: string;
       region: string;
       path: string;
-    };
-    s3: {
-      bucket: string;
-      region: string;
-      pathPrefix: string;
     };
     webdav: {
       pathPrefix: string;
@@ -565,11 +559,6 @@ const initialState: IState = {
         bucket: "",
         region: "",
         path: "/",
-      },
-      s3: {
-        bucket: "",
-        region: "",
-        pathPrefix: "",
       },
       webdav: {
         pathPrefix: "",

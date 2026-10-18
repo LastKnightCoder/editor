@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { getAppDir } from "./path.js";
+import type { JsonValue } from "@tau/plugins/sync";
 
 export interface DatabaseConfig {
   name: string;
@@ -17,7 +18,7 @@ export interface SyncProviderConfig {
     accessKeyId?: string;
     accessKeySecret?: string;
   };
-  s3: { bucket: string; region: string; pathPrefix: string };
+  plugin?: { id: string; configurations: Record<string, JsonValue> };
   webdav: { pathPrefix: string };
   github: { repo: string; branch: string; pathPrefix: string };
 }
@@ -84,11 +85,11 @@ export function getSyncConfig(): {
         providerConfig: settings.sync.aliOSS,
         credentials: settings.integration.aliOSS,
       };
-    case "s3":
+    case "plugin":
       return {
         provider,
-        providerConfig: settings.sync.s3,
-        credentials: settings.integration.s3,
+        providerConfig: { id: settings.sync.plugin?.id },
+        credentials: {},
       };
     case "webdav":
       return {

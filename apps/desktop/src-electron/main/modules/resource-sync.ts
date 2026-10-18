@@ -4,12 +4,6 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { ensureDir, pathExists } from "fs-extra/esm";
 import OSS from "ali-oss";
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  ListObjectsV2Command,
-} from "@aws-sdk/client-s3";
 import { createClient } from "webdav";
 
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
@@ -25,7 +19,6 @@ import {
   ResourceSyncOptions,
   ResourceSyncProvider,
   AliossResourceSyncOptions,
-  S3ResourceSyncOptions,
   WebDavResourceSyncOptions,
   GithubResourceSyncOptions,
 } from "@/types/resource-sync";
@@ -34,6 +27,7 @@ import { downloadFileFromGithub, listGithubFiles, uploadFileToGithub } from "@/u
 import databaseModule from "./database";
 import { pluginSyncSessions } from "../services/plugin-sync";
 import { copyJson } from "@tau/plugins/host";
+import { pluginSyncStatusFile } from "../services/plugin-sync-status";
 
 interface SyncTask {
   name: string;
@@ -55,26 +49,6 @@ const sleep = (ms: number) =>
   new Promise(resolve => {
     setTimeout(resolve, ms);
   });
-
-const streamToBuffer = async (body: any): Promise<Buffer> => {
-  if (!body) return Buffer.alloc(0);
-  if (body instanceof Uint8Array || Buffer.isBuffer(body)) {
-    return Buffer.from(body);
-  }
-  if (typeof body.arrayBuffer === "function") {
-    const arrayBuffer = await body.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  }
-
-  return await new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    body.on("data", (chunk: Buffer | string) => {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    });
-    body.on("error", reject);
-    body.on("end", () => resolve(Buffer.concat(chunks)));
-  });
-};
 
 class RateLimitedExecutor {
   private config: IRateLimitConfig;
@@ -226,90 +200,6 @@ class AliossAdapter implements ProviderAdapter {
       return normalized.slice(cleanedBase.length + 1);
     }
     if (normalized === cleanedBase) return "";
-    return normalized;
-  }
-}
-
-class S3Adapter implements ProviderAdapter {
-  private client: S3Client;
-  private basePrefix: string;
-  constructor(private options: S3ResourceSyncOptions) {
-    this.client = new S3Client({
-      region: options.region,
-      credentials: {
-        accessKeyId: options.accessKeyId,
-        secretAccessKey: options.secretAccessKey,
-      },
-      ...(options.endpoint && { endpoint: options.endpoint }),
-      forcePathStyle: options.urlStyle === "path",
-    });
-    this.basePrefix = (options.pathPrefix || "").replace(/^\/+|\/+$/g, "");
-  }
-
-  async list(prefix: string): Promise<IRemoteFileInfo[]> {
-    const keyPrefix = this.buildKey(prefix);
-    const files: IRemoteFileInfo[] = [];
-    let continuation: string | undefined;
-    do {
-      const res = await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.options.bucket,
-          Prefix: keyPrefix || undefined,
-          ContinuationToken: continuation,
-        })
-      );
-      (res.Contents || []).forEach(obj => {
-        if (!obj.Key || obj.Key.endsWith("/")) return;
-        const relativePath = this.stripBase(obj.Key);
-        files.push({
-          name: relativePath.split("/").filter(Boolean).pop() || relativePath || "",
-          path: relativePath,
-          size: Number(obj.Size || 0),
-          lastModified: obj.LastModified ? new Date(obj.LastModified).getTime() : undefined,
-        });
-      });
-      continuation = res.IsTruncated ? res.NextContinuationToken || undefined : undefined;
-    } while (continuation);
-    return files;
-  }
-
-  async upload(objectName: string, content: Buffer): Promise<void> {
-    const key = this.buildKey(objectName);
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.options.bucket,
-        Key: key,
-        Body: content,
-      })
-    );
-  }
-
-  async download(objectName: string): Promise<Buffer> {
-    const key = this.buildKey(objectName);
-    const res = await this.client.send(
-      new GetObjectCommand({
-        Bucket: this.options.bucket,
-        Key: key,
-      })
-    );
-    // @ts-ignore
-    const bodyStream = res.Body;
-    return await streamToBuffer(bodyStream);
-  }
-
-  private buildKey(objectName: string) {
-    const cleanedName = objectName.replace(/^\/+/, "");
-    if (!this.basePrefix) return cleanedName;
-    return `${this.basePrefix}/${cleanedName}`.replace(/\/+/g, "/");
-  }
-
-  private stripBase(fullPath: string) {
-    const normalized = fullPath.replace(/^\/+/, "");
-    if (!this.basePrefix) return normalized;
-    if (normalized.startsWith(`${this.basePrefix}/`)) {
-      return normalized.slice(this.basePrefix.length + 1);
-    }
-    if (normalized === this.basePrefix) return "";
     return normalized;
   }
 }
@@ -589,8 +479,6 @@ class ResourceSyncModule {
         );
       case "alioss":
         return new AliossAdapter(options);
-      case "s3":
-        return new S3Adapter(options);
       case "webdav":
         return new WebDavAdapter(options);
       case "github":
@@ -824,14 +712,7 @@ class ResourceSyncModule {
     switch (options.provider) {
       case "plugin":
         return {
-          fileName:
-            "plugin-" +
-            crypto
-              .createHash("sha256")
-              .update(JSON.stringify([options.pluginId, options.config]))
-              .digest("hex")
-              .slice(0, 24) +
-            ".json",
+          fileName: pluginSyncStatusFile(options.pluginId, options.config),
           config: { pluginId: options.pluginId },
         };
       case "alioss": {
@@ -842,17 +723,6 @@ class ResourceSyncModule {
             bucket: options.bucket,
             region: options.region,
             path: options.path || "/",
-          },
-        };
-      }
-      case "s3": {
-        const prefixHash = hash(options.pathPrefix || "");
-        return {
-          fileName: `s3-${options.bucket}-${prefixHash}.json`,
-          config: {
-            bucket: options.bucket,
-            region: options.region,
-            pathPrefix: options.pathPrefix || "",
           },
         };
       }

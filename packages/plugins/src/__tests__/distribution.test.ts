@@ -83,3 +83,33 @@ it("非默认插件可以校验和加载，但不复制到客户端随包目录"
   expect(await buildPluginDistribution(config, destination)).toHaveLength(1);
   expect(await readdir(destination)).toEqual([]);
 });
+
+it("同步插件随包复制后台入口，并验证manifest中的后台摘要", async () => {
+  const { root, source, config, entry, code } = await fixture(false, true);
+  const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+  const manifest = JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"));
+  manifest.sync = "sync.js";
+  manifest.integrity["sync.js"] = hash(code);
+  const save = async () => {
+    const text = JSON.stringify(manifest);
+    await writeFile(path.join(source, "manifest.json"), text);
+    await writeFile(
+      config,
+      JSON.stringify([
+        {
+          ...entry,
+          bundled: true,
+          files: { ...entry.files, "manifest.json": hash(text), "sync.js": hash(code) },
+        },
+      ])
+    );
+  };
+  await writeFile(path.join(source, "sync.js"), code);
+  await save();
+  const destination = path.join(root, "bundled");
+  await buildPluginDistribution(config, destination);
+  expect(await readFile(path.join(destination, "demo.figure/sync.js"), "utf8")).toBe(code);
+  manifest.integrity["sync.js"] = "0".repeat(64);
+  await save();
+  await expect(buildPluginDistribution(config)).rejects.toThrow("摘要不匹配");
+});

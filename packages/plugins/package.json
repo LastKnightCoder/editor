@@ -19,7 +19,8 @@
     "./node": "./src/file-storage.ts",
     "./local-state": "./src/local-state.ts",
     "./sync": "./src/sync.ts",
-    "./sync-host": "./src/sync-host.ts"
+    "./sync-host": "./src/sync-host.ts",
+    "./sync-leases": "./src/sync-leases.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
@@ -27,6 +28,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "devDependencies": {
+    "@types/proper-lockfile": "^4.1.4",
     "esbuild": "^0.25.12",
     "@types/node": "^20.2.1",
     "@types/react": "19.2.0",
@@ -35,6 +37,7 @@
     "vitest": "^3.2.4"
   },
   "dependencies": {
+    "proper-lockfile": "^4.1.2",
     "@tau/themes": "workspace:*",
     "@tau/whiteboard": "workspace:*",
     "@tau/ui": "workspace:*",

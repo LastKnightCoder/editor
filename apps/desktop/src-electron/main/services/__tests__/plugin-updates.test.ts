@@ -7,6 +7,7 @@ import AdmZip from "adm-zip";
 import { afterEach, expect, it } from "vitest";
 import { PluginUpdates } from "../plugin-updates";
 import { discoverPlugins } from "../plugin-discovery";
+import { acquirePluginSyncLease } from "@tau/plugins/sync-leases";
 
 const roots: string[] = [];
 const id = "test.update";
@@ -52,6 +53,26 @@ async function install(context: Awaited<ReturnType<typeof setup>>, version = "1.
 }
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
+});
+
+it("CLI占用期间启动不应用暂存更新，释放后下次启动仍可继续安装", async () => {
+  const s = await setup();
+  await install(s);
+  await s.service.stageZip(await zip(s.root, "1.1.0"));
+  const release = await acquirePluginSyncLease(s.directory, id);
+  try {
+    const next = await s.restart();
+    expect(await s.version()).toBe("1.0.0");
+    expect(await next.list()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id, pending: true, pendingVersion: "1.1.0" }),
+      ])
+    );
+  } finally {
+    await release();
+  }
+  await s.restart();
+  expect(await s.version()).toBe("1.1.0");
 });
 
 it("暂存不执行/不热替换，重启安装、升级、取消及恢复上一版", async () => {

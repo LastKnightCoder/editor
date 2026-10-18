@@ -40,6 +40,7 @@ export function SyncView({ onBack }: { onBack: () => void }) {
           setRemoteVersion(info.version);
         }
       })
+      .finally(() => provider.dispose?.())
       .catch((e: any) => {
         setError(`Failed to check remote: ${e.message}`);
       });
@@ -123,6 +124,7 @@ export function SyncView({ onBack }: { onBack: () => void }) {
               setRemoteVersion(info.version);
             }
           })
+          .finally(() => provider.dispose?.())
           .catch(() => {});
       }
     }

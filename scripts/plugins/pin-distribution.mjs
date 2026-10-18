@@ -25,7 +25,7 @@ const entries = new AdmZip(content).getEntries().filter(entry => !entry.isDirect
 const manifestEntry = entries.find(entry => /(^|\/)manifest\.json$/.test(entry.entryName));
 if (!manifestEntry) throw new Error("ZIP 缺少 manifest.json");
 const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
-if (!isContentPlugin(manifest) && mode !== "--not-bundled")
+if (!isContentPlugin(manifest) && !manifest.sync && mode !== "--not-bundled")
   throw new Error("普通插件须显式声明 --not-bundled");
 const prefix = manifestEntry.entryName.slice(0, -"manifest.json".length);
 for (const entry of entries) {
