@@ -28,7 +28,9 @@ GitHub 0.1.0源码：[tau-plugin-github](https://github.com/LastKnightCoder/tau-
 
 ## 更新独立插件版本
 
-1. 在独立作者仓库修改、验收并提升版本，提交源码后执行 `pnpm build`，创建对应 GitHub Release 并上传 ZIP。
+7个独立插件仓库已同步模板的tag自动发布工作流，推送版本tag即可自动构建并上传ZIP到GitHub Release；SSH配置、仓库提交及实际发布验收记录见[自动发布工作流](../docs/plugin-system/59-插件自动发布工作流.md)。
+
+1. 在独立作者仓库修改、验收并同步提升manifest.json和package.json版本，提交源码后推送对应版本tag，等待Actions自动构建并上传ZIP到GitHub Release。
 2. 在本仓库导入作者 ZIP，并记录准确的源码提交：
 
    ```sh
