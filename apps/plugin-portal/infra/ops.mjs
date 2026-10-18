@@ -206,11 +206,21 @@ async function smoke() {
       Array.isArray(catalog.data?.items),
     "下载统计目录未就绪，请检查0005迁移与API部署"
   );
-  for (const item of catalog.data.items)
+  for (const item of catalog.data.items) {
     assert(
       Number.isSafeInteger(item.downloadsTotal) && Number.isSafeInteger(item.downloads7d),
       "目录下载统计字段无效"
     );
+    const response = await get(api + `/v1/plugins/${encodeURIComponent(item.pluginId)}/community`);
+    const community = await response.json();
+    assert(
+      response.ok &&
+        Number.isSafeInteger(community.data?.likes) &&
+        community.data?.liked === false &&
+        Array.isArray(community.data?.comments),
+      "评论与喜欢接口未就绪，请检查0006迁移与API部署"
+    );
+  }
   const releases = await get(api + "/v1/releases");
   assert(
     releases.status === 200 && Array.isArray((await releases.json()).data?.items),
@@ -231,6 +241,7 @@ async function smoke() {
       options.headers.get("access-control-allow-origin") === web &&
       options.headers.get("access-control-allow-credentials") === "true" &&
       options.headers.get("access-control-allow-methods")?.includes("PATCH") &&
+      options.headers.get("access-control-allow-methods")?.includes("DELETE") &&
       options.headers.get("access-control-allow-headers")?.toLowerCase().includes("x-csrf-token"),
     "CORS预检失败"
   );

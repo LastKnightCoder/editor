@@ -13,6 +13,8 @@ import type {
   PluginCatalogSort,
   PluginRelease,
   PluginVersionRecord,
+  PluginCommunity,
+  PluginComment,
 } from "@/types/plugin-center";
 
 export const getPluginWorkspace = (name: string): Promise<string> =>
@@ -36,6 +38,18 @@ export const fetchPluginRelease = (id: string): Promise<PluginRelease> =>
   withModule("plugin-local", () => invoke("plugin-local:release", id));
 export const fetchPluginVersions = (pluginId: string): Promise<PluginVersionRecord[]> =>
   withModule("plugin-local", () => invoke("plugin-local:versions", pluginId));
+export const fetchPluginCommunity = (id: string, cursor: string | null): Promise<PluginCommunity> =>
+  withModule("plugin-local", () => invoke("plugin-local:community", id, cursor));
+export const setPluginLiked = (id: string, liked: boolean): Promise<{ liked: boolean }> =>
+  withModule("plugin-local", () => invoke("plugin-local:like", id, liked));
+export const addPluginComment = (
+  id: string,
+  message: string,
+  requestId: string
+): Promise<PluginComment> =>
+  withModule("plugin-local", () => invoke("plugin-local:comment", id, message, requestId));
+export const deletePluginComment = (id: string, commentId: string): Promise<{ deleted: boolean }> =>
+  withModule("plugin-local", () => invoke("plugin-local:delete-comment", id, commentId));
 /** 下载、核对并暂存插件中心版本，下次完整启动生效。 */
 export const stagePluginRelease = (id: string): Promise<{ id: string; version: string }> =>
   withModule("plugin-local", () => invoke("plugin-local:stage-release", id));

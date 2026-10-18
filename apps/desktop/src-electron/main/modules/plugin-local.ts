@@ -16,6 +16,10 @@ import {
   fetchPluginCatalog,
   fetchPluginRelease,
   fetchPluginVersions,
+  fetchPluginCommunity,
+  setPluginLiked,
+  addPluginComment,
+  deletePluginComment,
 } from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
@@ -107,6 +111,20 @@ export default {
         fetchPluginCatalog(app.getVersion(), query, sort)
     );
     ipcMain.handle("plugin-local:release", (_event, id: string) => fetchPluginRelease(id));
+    ipcMain.handle("plugin-local:community", (_event, id: string, cursor: string | null) =>
+      fetchPluginCommunity(id, cursor)
+    );
+    ipcMain.handle("plugin-local:like", (_event, id: string, liked: boolean) =>
+      setPluginLiked(id, liked)
+    );
+    ipcMain.handle(
+      "plugin-local:comment",
+      (_event, id: string, message: string, requestId: string) =>
+        addPluginComment(id, message, requestId)
+    );
+    ipcMain.handle("plugin-local:delete-comment", (_event, id: string, commentId: string) =>
+      deletePluginComment(id, commentId)
+    );
     ipcMain.handle("plugin-local:versions", (_event, pluginId: string) =>
       fetchPluginVersions(app.getVersion(), pluginId)
     );

@@ -33,6 +33,21 @@ export interface PluginCatalog {
 }
 export type PluginCatalogSort = "downloads7d" | "downloadsTotal" | "updated";
 
+/** 与门户 PluginCommunity / PluginComment 对齐，不含安装级匿名凭证。 */
+export interface PluginComment {
+  id: string;
+  message: string;
+  createdAt: string;
+  canDelete: boolean;
+  deleted: boolean;
+}
+export interface PluginCommunity {
+  likes: number;
+  liked: boolean;
+  comments: PluginComment[];
+  nextCursor: string | null;
+}
+
 /** 插件在中心的一个已发布版本；compatible 按当前客户端版本由主进程判定。 */
 export interface PluginVersionRecord {
   releaseId: string;

@@ -4,6 +4,7 @@ import { comparePluginVersions } from "@tau/plugins/host";
 import type { LocalPluginSource } from "@/types/plugin-local";
 import type { PluginCatalog, PluginRelease, PluginVersionRecord } from "@/types/plugin-center";
 import type { PluginCatalogSort } from "@/types/plugin-center";
+import type { PluginComment, PluginCommunity } from "@/types/plugin-center";
 import { visitorHeaders } from "./plugin-center-visitor";
 
 // 门户 CORS 只放行网页门户，客户端请求统一经主进程；环境变量仅用于本地 Worker 联调。
@@ -13,12 +14,16 @@ const MAX_PACKAGE_BYTES = 8 * 1024 * 1024;
 // 版本列表按页读取（每页 20 条），超出的更早版本不再展示。
 const MAX_VERSION_PAGES = 10;
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await net.fetch(API_ORIGIN + path);
+    response = init ? await net.fetch(API_ORIGIN + path, init) : await net.fetch(API_ORIGIN + path);
   } catch {
-    throw new Error("暂时连不上插件中心，请检查网络后重试");
+    throw new Error(
+      init?.method && init.method !== "GET"
+        ? "网络连接中断，请求结果未知，请刷新确认或重试"
+        : "暂时连不上插件中心，请检查网络后重试"
+    );
   }
   const body = (await response.json().catch(() => null)) as {
     data?: T;
@@ -31,6 +36,50 @@ async function request<T>(path: string): Promise<T> {
 
 function assertReleaseId(id: string) {
   if (!/^[\w-]{1,64}$/.test(id)) throw new Error("插件版本标识无效");
+}
+
+function assertPluginId(id: string) {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(id)) throw new Error("插件标识无效");
+}
+
+async function communityRequest<T>(
+  pluginId: string,
+  path: string,
+  method = "GET",
+  input?: unknown
+) {
+  assertPluginId(pluginId);
+  const headers = await visitorHeaders(API_ORIGIN, true);
+  return request<T>(`/v1/plugins/${pluginId}/${path}`, {
+    method,
+    headers: { ...headers, "X-Tau-Visitor": "1", "Content-Type": "application/json" },
+    ...(input === undefined ? {} : { body: JSON.stringify(input) }),
+    signal: AbortSignal.timeout(15000),
+  });
+}
+export function fetchPluginCommunity(pluginId: string, cursor: string | null = null) {
+  if (cursor !== null) assertReleaseId(cursor);
+  return communityRequest<PluginCommunity>(
+    pluginId,
+    `community${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`
+  );
+}
+export function setPluginLiked(pluginId: string, liked: boolean) {
+  if (typeof liked !== "boolean") throw new Error("喜欢状态无效");
+  return communityRequest<{ liked: boolean }>(pluginId, "like", "PUT", { liked });
+}
+export function addPluginComment(pluginId: string, message: string, clientRequestId: string) {
+  if (typeof message !== "string" || !message.trim() || message.trim().length > 2000)
+    throw new Error("评论需要1至2000字符");
+  if (!/^[\w-]{16,80}$/.test(clientRequestId)) throw new Error("评论请求ID无效");
+  return communityRequest<PluginComment>(pluginId, "comments", "POST", {
+    message: message.trim(),
+    clientRequestId,
+  });
+}
+export function deletePluginComment(pluginId: string, commentId: string) {
+  assertReleaseId(commentId);
+  return communityRequest<{ deleted: boolean }>(pluginId, `comments/${commentId}`, "DELETE");
 }
 
 export async function fetchPluginCatalog(
@@ -70,7 +119,7 @@ export async function fetchPluginVersions(
   appVersion: string,
   pluginId: string
 ): Promise<PluginVersionRecord[]> {
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(pluginId)) throw new Error("插件标识无效");
+  assertPluginId(pluginId);
   const versions: PluginVersionRecord[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < MAX_VERSION_PAGES; page++) {
