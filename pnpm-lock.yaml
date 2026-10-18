@@ -571,12 +571,6 @@ importers:
       '@tau/db-schema':
         specifier: workspace:*
         version: link:../../packages/db-schema
-      '@tau/plugins':
-        specifier: workspace:*
-        version: link:../../packages/plugins
-      ali-oss:
-        specifier: ^6.21.0
-        version: 6.23.0(proxy-agent@5.0.0)
       better-sqlite3:
         specifier: ^12.10.0
         version: 12.10.0(patch_hash=28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f)
@@ -601,16 +595,10 @@ importers:
       sqlite-vec:
         specifier: 0.1.7-alpha.2
         version: 0.1.7-alpha.2
-      webdav:
-        specifier: ^5.8.0
-        version: 5.10.0
       ws:
         specifier: ^8.18.0
         version: 8.18.3
     devDependencies:
-      '@types/ali-oss':
-        specifier: ^6.16.11
-        version: 6.23.3
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13
@@ -3856,9 +3844,6 @@ importers:
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)
-      proper-lockfile:
-        specifier: ^4.1.2
-        version: 4.1.2
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -3875,9 +3860,6 @@ importers:
       '@types/node':
         specifier: ^20.2.1
         version: 20.19.41
-      '@types/proper-lockfile':
-        specifier: ^4.1.4
-        version: 4.1.4
       '@types/react':
         specifier: 19.2.0
         version: 19.2.0

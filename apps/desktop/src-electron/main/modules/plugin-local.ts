@@ -10,9 +10,14 @@ import { PluginUpdates } from "../services/plugin-updates";
 import { readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
 import { installBundledPlugins } from "../services/plugin-bundled";
+import { upgradeOfficialSyncPlugin } from "../services/plugin-sync-upgrade";
 import { acceptHeadlessPlugin } from "../services/plugin-codecs";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
-import { pluginSyncSessions } from "../services/plugin-sync";
+import {
+  pluginSyncSessions,
+  acceptSyncRendererReply,
+  releaseSyncRenderer,
+} from "../services/plugin-sync";
 import userSetting from "./user-setting";
 import {
   downloadPluginRelease,
@@ -26,18 +31,25 @@ import {
 } from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
-const syncOwners = new WeakSet<object>();
 
 export default {
   name: "plugin-local",
   async init() {
+    const updates = new PluginUpdates(directory(), app.getVersion());
+    await updates.initialize();
+    if (
+      await upgradeOfficialSyncPlugin(
+        path.join(app.getAppPath(), "build/bundled-plugins"),
+        directory(),
+        updates
+      )
+    )
+      await updates.initialize();
     const bundled = await installBundledPlugins(
       path.join(app.getAppPath(), "build/bundled-plugins"),
       directory(),
       app.getVersion()
     );
-    const updates = new PluginUpdates(directory(), app.getVersion());
-    await updates.initialize();
     const preferences = new LocalPluginPreferences(directory());
     await userSetting.getSettingSnapshot();
     await preferences.load();
@@ -126,33 +138,16 @@ export default {
     });
     ipcMain.handle(
       "plugin-local:sync-begin",
-      async (event, id: string, config: import("@tau/plugins").JsonValue) => {
-        const owner = event.sender.id;
-        const release = () => {
-          void pluginSyncSessions.releaseOwner(owner);
-        };
-        if (!syncOwners.has(event.sender)) {
-          syncOwners.add(event.sender);
-          event.sender.once("destroyed", release);
-          event.sender.on("did-navigate", release);
-          event.sender.on("render-process-gone", release);
-        }
-        const session = await pluginSyncSessions.begin(owner, id, config);
-        if (event.sender.isDestroyed()) {
-          await pluginSyncSessions.end(owner, session);
-          throw new Error("同步窗口已关闭");
-        }
-        return session;
-      }
+      (event, id: string, config: import("@tau/plugins").JsonValue) =>
+        pluginSyncSessions.begin(event.sender.id, id, copyJson(config))
     );
     ipcMain.handle(
-      "plugin-local:sync-call",
-      (
-        event,
-        session: string,
-        method: keyof import("@tau/plugins/sync").SyncProvider,
-        args: unknown[]
-      ) => pluginSyncSessions.call(event.sender.id, session, method, args)
+      "plugin-local:sync-reply",
+      (event, reply: import("../../../shared/sync-renderer").SyncRendererReply) =>
+        acceptSyncRendererReply(event.sender.id, reply)
+    );
+    ipcMain.handle("plugin-local:sync-release-window", event =>
+      releaseSyncRenderer(event.sender.id)
     );
     ipcMain.handle("plugin-local:sync-end", (event, session: string) =>
       pluginSyncSessions.end(event.sender.id, session)
@@ -161,8 +156,7 @@ export default {
       "plugin-local:sync-config",
       async (_event, id: string, config: import("@tau/plugins").JsonValue) => {
         const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
-        if (artifact.manifest.id !== id || !artifact.manifest.sync)
-          throw new Error("插件没有同步入口");
+        if (artifact.manifest.id !== id) throw new Error("插件身份无效");
         await userSetting.updateSyncPlugin(id, copyJson(config));
       }
     );

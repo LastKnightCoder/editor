@@ -24,6 +24,7 @@ import type {
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import type { SyncProviderDefinition } from "./sync";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
@@ -165,6 +166,7 @@ export class PluginHost {
         ): Promise<PluginAI>;
       };
       settings?: SettingsAdapter;
+      sync?: { register(context: PluginContext, definition: SyncProviderDefinition): Disposable };
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
@@ -439,6 +441,19 @@ export class PluginHost {
     };
     const context: PluginContext = {
       pluginId: scope.pluginId,
+      sync: Object.freeze({
+        register: (definition: SyncProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
+            throw new Error("同步提供方必须属于当前插件");
+          if (!this.options.sync) throw new Error("当前宿主不支持同步提供方");
+          return register(this.options.sync.register(context, Object.freeze({ ...definition })));
+        },
+      }),
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,

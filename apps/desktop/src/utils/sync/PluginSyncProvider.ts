@@ -1,10 +1,11 @@
 import { invoke } from "@/electron";
 import { withModule } from "@/commands/module-init";
+import { rendererSyncRegistry } from "@/app/plugins/sync-registry";
 import type { JsonValue } from "@tau/plugins";
 import type { SyncProvider } from "@tau/plugins/sync";
 import type { ISyncProvider, IRemoteFileInfo } from "@/types/sync";
 
-/** 配置在工厂创建时固定；后台会话覆盖一轮宿主同步。 */
+/** 配置在工厂创建时固定；存储操作在渲染进程执行，宿主只登记任务。 */
 export class PluginSyncProvider implements ISyncProvider {
   private session?: Promise<string>;
   private closed = false;
@@ -19,7 +20,7 @@ export class PluginSyncProvider implements ISyncProvider {
     );
     const session = await this.session;
     if (this.closed) throw new Error("同步任务已结束");
-    return invoke<T>("plugin-local:sync-call", session, method, args);
+    return rendererSyncRegistry.execute({ kind: "call", session, method, args }) as Promise<T>;
   }
   uploadFile(name: string, content: Uint8Array) {
     return this.call<boolean>("uploadFile", name, content);

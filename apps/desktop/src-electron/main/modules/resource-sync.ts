@@ -92,6 +92,7 @@ class RateLimitedExecutor {
         return await fn();
       } catch (error) {
         lastError = error as Error;
+        if (lastError.name === "AbortError") throw error;
         if (i < this.config.retryCount) {
           const delay = this.config.retryDelayMs * Math.pow(this.config.retryBackoffMultiplier, i);
           await sleep(delay);
@@ -112,23 +113,30 @@ interface ProviderAdapter {
 }
 
 class PluginResourceAdapter implements ProviderAdapter {
-  constructor(private readonly session: string) {}
+  constructor(
+    private readonly session: string,
+    private readonly owner: number,
+    private readonly onAbort: () => void
+  ) {}
+  private async call(method: Parameters<typeof pluginSyncSessions.call>[2], args: unknown[]) {
+    try {
+      return await pluginSyncSessions.call(this.owner, this.session, method, args);
+    } catch (error) {
+      if ((error as Error).name === "AbortError") this.onAbort();
+      throw error;
+    }
+  }
   list(prefix: string) {
-    return pluginSyncSessions.call(0, this.session, "listFiles", [prefix]) as Promise<
-      IRemoteFileInfo[]
-    >;
+    return this.call("listFiles", [prefix]) as Promise<IRemoteFileInfo[]>;
   }
   async upload(name: string, content: Buffer) {
-    if (!(await pluginSyncSessions.call(0, this.session, "uploadFile", [name, content])))
-      throw new Error("资源文件上传失败");
+    if (!(await this.call("uploadFile", [name, content]))) throw new Error("资源文件上传失败");
   }
   async download(name: string) {
-    return Buffer.from(
-      (await pluginSyncSessions.call(0, this.session, "downloadFile", [name])) as Uint8Array
-    );
+    return Buffer.from((await this.call("downloadFile", [name])) as Uint8Array);
   }
   dispose() {
-    return pluginSyncSessions.end(0, this.session);
+    return pluginSyncSessions.end(this.owner, this.session);
   }
 }
 
@@ -408,20 +416,20 @@ class ResourceSyncModule {
   }
 
   private registerIpcHandlers() {
-    ipcMain.handle("resource-sync:start", async (_event, options) => {
-      return await this.startSync(options as ResourceSyncOptions);
+    ipcMain.handle("resource-sync:start", async (event, options) => {
+      return await this.startSync(options as ResourceSyncOptions, event.sender.id);
     });
 
-    ipcMain.handle("resource-sync:resume", async (_event, options) => {
+    ipcMain.handle("resource-sync:resume", async (event, options) => {
       const payload = (options as ResourceSyncOptions) || this.lastOptions;
       if (!payload) return { ok: false, message: "缺少同步配置" };
-      return await this.startSync(payload);
+      return await this.startSync(payload, event.sender.id);
     });
 
-    ipcMain.handle("resource-sync:retry-failed", async (_event, options) => {
+    ipcMain.handle("resource-sync:retry-failed", async (event, options) => {
       const payload = (options as ResourceSyncOptions) || this.lastOptions;
       if (!payload) return { ok: false, message: "缺少同步配置" };
-      return await this.startSync(payload, { retryFailedOnly: true });
+      return await this.startSync(payload, event.sender.id, { retryFailedOnly: true });
     });
 
     ipcMain.handle("resource-sync:cancel", async () => {
@@ -443,7 +451,7 @@ class ResourceSyncModule {
       return this.scanLocalFiles(directory);
     });
 
-    ipcMain.handle("resource-sync:refresh", async (_event, options) => {
+    ipcMain.handle("resource-sync:refresh", async (event, options) => {
       try {
         const payload = (options as ResourceSyncOptions) || this.lastOptions;
         if (!payload) {
@@ -452,7 +460,7 @@ class ResourceSyncModule {
         if (this.running) {
           throw new Error("资源同步正在进行中，无法刷新");
         }
-        const status = await this.refreshStatus(payload);
+        const status = await this.refreshStatus(payload, event.sender.id);
         return status;
       } catch (error) {
         log.error("[resource-sync] refresh failed", error);
@@ -471,11 +479,15 @@ class ResourceSyncModule {
     return merged;
   }
 
-  private async createAdapter(options: ResourceSyncOptions) {
+  private async createAdapter(options: ResourceSyncOptions, owner: number) {
     switch (options.provider) {
       case "plugin":
         return new PluginResourceAdapter(
-          await pluginSyncSessions.begin(0, options.pluginId, copyJson(options.config))
+          await pluginSyncSessions.begin(owner, options.pluginId, copyJson(options.config)),
+          owner,
+          () => {
+            this.cancelRequested = true;
+          }
         );
       case "alioss":
         return new AliossAdapter(options);
@@ -488,7 +500,11 @@ class ResourceSyncModule {
     }
   }
 
-  private async startSync(options: ResourceSyncOptions, flags?: { retryFailedOnly?: boolean }) {
+  private async startSync(
+    options: ResourceSyncOptions,
+    owner: number,
+    flags?: { retryFailedOnly?: boolean }
+  ) {
     if (this.running) {
       return { ok: false, message: "资源同步正在进行中" };
     }
@@ -503,7 +519,7 @@ class ResourceSyncModule {
       log.info("[resource-sync] start", {
         provider: options.provider,
       });
-      this.adapter = await this.createAdapter(options);
+      this.adapter = await this.createAdapter(options, owner);
       const statusMeta = await this.prepareStatusFile(options);
       this.statusMeta = statusMeta;
       this.statuses = { ...statusMeta.file.files };
@@ -518,6 +534,11 @@ class ResourceSyncModule {
       }
 
       const plan = await this.buildPlan(this.adapter, retryTargets, blacklist);
+      if (this.cancelRequested) {
+        this.progress.status = "cancelled";
+        this.notifyProgress();
+        return { ok: false, message: "同步已取消" };
+      }
       log.info("[resource-sync] plan built", {
         total: plan.tasks.length,
         uploads: plan.tasks.filter(t => t.direction === "upload").length,
@@ -586,13 +607,13 @@ class ResourceSyncModule {
     }
   }
 
-  private async refreshStatus(options: ResourceSyncOptions) {
+  private async refreshStatus(options: ResourceSyncOptions, owner: number) {
     if (this.running) throw new Error("资源同步或刷新正在进行中");
     this.running = true;
     let adapter: ProviderAdapter | null = null;
     try {
       try {
-        adapter = await this.createAdapter(options);
+        adapter = await this.createAdapter(options, owner);
       } catch (error) {
         log.warn("[resource-sync] refresh create adapter failed, use local only", error);
         adapter = null;

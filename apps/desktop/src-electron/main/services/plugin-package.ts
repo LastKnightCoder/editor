@@ -30,11 +30,9 @@ export async function readPluginPackage(
   assertPluginCompatibility(manifest, clientVersion);
   const code = await read(manifest.main);
   const css = manifest.styles ? await read(manifest.styles) : undefined;
-  const sync = manifest.sync ? await read(manifest.sync) : undefined;
   for (const [name, content] of [
     [manifest.main, code],
     [manifest.styles, css],
-    [manifest.sync, sync],
   ]) {
     if (
       name &&
@@ -43,7 +41,7 @@ export async function readPluginPackage(
     )
       throw new Error("插件产物不完整或已变化，请完成构建后刷新列表");
   }
-  if (!code.trim() || (sync !== undefined && !sync.trim())) throw new Error("插件入口为空");
+  if (!code.trim()) throw new Error("插件入口为空");
   if ((await read("manifest.json")) !== manifestText)
     throw new Error("插件构建仍在变化，请构建完成后重试");
   return { manifest, code, css };

@@ -15,7 +15,6 @@ import { QuestionListView } from "./views/question-list.js";
 import { QuestionDetailView } from "./views/question-detail.js";
 import { AnswerDetailView } from "./views/answer-detail.js";
 import { DbStatusView } from "./views/db-status.js";
-import { SyncView } from "./views/sync.js";
 
 type Page =
   | { type: "menu" }
@@ -38,8 +37,7 @@ type Page =
       answerIndex: number;
       backTo?: Page;
     }
-  | { type: "db-status" }
-  | { type: "sync" };
+  | { type: "db-status" };
 
 const MENU_ITEMS = [
   { label: "Search", description: "Search all content (FTS + Vec)" },
@@ -50,7 +48,6 @@ const MENU_ITEMS = [
   { label: "Todo Groups", description: "View task groups" },
   { label: "Questions", description: "Browse questions and answers" },
   { label: "DB Status", description: "Database information" },
-  { label: "Sync", description: "Database sync operations" },
   { label: "Quit", description: "Exit TUI" },
 ] as const;
 
@@ -122,9 +119,6 @@ export function TuiApp() {
             setPage({ type: "db-status" });
             break;
           case 8:
-            setPage({ type: "sync" });
-            break;
-          case 9:
             exit();
             break;
         }
@@ -325,10 +319,6 @@ export function TuiApp() {
 
   if (page.type === "db-status") {
     return <DbStatusView onBack={() => setPage({ type: "menu" })} />;
-  }
-
-  if (page.type === "sync") {
-    return <SyncView onBack={() => setPage({ type: "menu" })} />;
   }
 
   return null;

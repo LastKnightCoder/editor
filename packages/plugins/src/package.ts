@@ -7,6 +7,7 @@ export { comparePluginVersions } from "./version.ts";
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
   "@tau/plugins/whiteboard",
+  "@tau/plugins/sync",
   "@tau/ui",
   "react",
   "react-dom",
@@ -26,7 +27,6 @@ export interface PluginManifest {
   format: "cjs";
   main: string;
   /** 无界面的同步存储入口，Node产物与UI入口分别校验。 */
-  sync?: string;
   styles?: string;
   /** 静态编辑器贡献在窗口启动时装配，启停需重启。 */
   editor?: true;
@@ -72,8 +72,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     return input;
   };
   const main = file(item.main, ".js");
-  const sync = item.sync === undefined ? undefined : file(item.sync, ".js");
-  if (sync === main) throw new Error("同步后台入口不能与UI入口相同");
+  if (item.sync !== undefined) throw new Error("Node同步入口已停用，请更新插件");
   if (item.minAppVersion !== undefined) {
     if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
     comparePluginVersions(item.minAppVersion, item.minAppVersion);
@@ -83,7 +82,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
   if (item.whiteboard !== undefined && item.whiteboard !== true)
     throw new Error("whiteboard 只能声明为 true");
   const integrity: Record<string, string> = {};
-  for (const name of [main, ...(sync ? [sync] : []), ...(styles ? [styles] : [])]) {
+  for (const name of [main, ...(styles ? [styles] : [])]) {
     const hash =
       item.integrity && typeof item.integrity === "object"
         ? (item.integrity as Record<string, unknown>)[name]
@@ -102,7 +101,6 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     platform: "desktop",
     format: "cjs",
     main,
-    ...(sync ? { sync } : {}),
     ...(item.editor === true ? { editor: true as const } : {}),
     ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
     integrity: Object.freeze(integrity),

@@ -8,7 +8,7 @@ export interface IRemoteFileInfo {
 }
 
 export interface ISyncProvider {
-  /** 宿主任务结束后释放后台调用会话；不是插件作者协议。 */
+  /** 宿主任务结束后释放任务登记；不是插件作者协议。 */
   dispose?(): Promise<void>;
   createFileIfAbsent(objectName: string, content: Uint8Array): Promise<boolean>;
   // 上传文件

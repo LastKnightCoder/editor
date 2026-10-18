@@ -1,13 +1,15 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { mkdir, writeFile, cp } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 const require = createRequire(path.join(root, "apps/desktop/package.json"));
 const { build } = require("esbuild");
+const AdmZip = require("adm-zip");
 const archive = process.argv[2];
+const previousArchive = process.argv[3];
 if (!archive) throw new Error("请提供S3插件ZIP路径");
 const output = path.join(root, "output/sync-client", randomUUID());
 await mkdir(output, { recursive: true });
@@ -17,7 +19,7 @@ await writeFile(
 );
 await writeFile(
   path.join(output, "index.html"),
-  "<!doctype html><html><body>同步模块行为验收</body></html>"
+  '<!doctype html><html><body>同步模块行为验收<script src="renderer.js"></script></body></html>'
 );
 await build({
   entryPoints: [path.join(root, "apps/desktop/src-electron/preload/index.ts")],
@@ -34,21 +36,46 @@ await build({
   external: ["electron"],
   tsconfig: path.join(root, "apps/desktop/tsconfig.json"),
 });
-for (const phase of ["install", "restart", "migrate", "migrate-restart"]) {
+await build({
+  entryPoints: [path.join(root, "apps/desktop/scripts/sync-storage/verify-renderer.ts")],
+  outfile: path.join(output, "renderer.js"),
+  bundle: true,
+  platform: "browser",
+  format: "iife",
+  globalName: "syncRendererTest",
+  tsconfig: path.join(root, "apps/desktop/tsconfig.json"),
+  define: { "process.env.NODE_ENV": '"test"' },
+});
+for (const phase of [
+  "install",
+  "restart",
+  "migrate",
+  "migrate-restart",
+  ...(previousArchive ? ["upgrade"] : []),
+]) {
   if (phase === "migrate") {
-    await cp(
-      path.join(root, "plugins/releases/tau.sync-s3/0.1.2"),
-      path.join(output, "build/bundled-plugins/tau.sync-s3"),
-      { recursive: true }
+    new AdmZip(path.resolve(archive)).extractAllTo(
+      path.join(output, "build/bundled-plugins"),
+      true
     );
   }
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   await new Promise((resolve, reject) => {
-    const child = spawn(require("electron"), [output, phase, output, path.resolve(archive)], {
-      env,
-      stdio: "inherit",
-    });
+    const child = spawn(
+      require("electron"),
+      [
+        output,
+        phase,
+        output,
+        path.resolve(archive),
+        ...(previousArchive ? [path.resolve(previousArchive)] : []),
+      ],
+      {
+        env,
+        stdio: "inherit",
+      }
+    );
     const timeout = setTimeout(() => {
       child.kill();
       reject(new Error("验证超时"));

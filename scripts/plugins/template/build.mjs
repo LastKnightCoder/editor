@@ -3,7 +3,6 @@ import AdmZip from "adm-zip";
 import { mkdir, readFile, writeFile, mkdtemp, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
-import { builtinModules } from "node:module";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
 if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.id))
@@ -12,6 +11,7 @@ if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Err
 const shared = [
   "@tau/plugins",
   "@tau/plugins/whiteboard",
+  "@tau/plugins/sync",
   "@tau/ui",
   "react",
   "react-dom",
@@ -66,34 +66,10 @@ try {
     }
   }
   const styles = Object.keys(result.metafile.outputs).some(file => file.endsWith("main.css"));
-  if (manifest.sync !== undefined) {
-    if (manifest.sync !== "sync.js") throw new Error("模板的同步入口请声明为sync.js");
-    const backend = await build({
-      entryPoints: ["src/sync.ts"],
-      outfile: path.join(staging, manifest.sync),
-      bundle: true,
-      platform: "node",
-      format: "cjs",
-      target: "node22",
-      external: ["@tau/plugins/sync"],
-      metafile: true,
-    });
-    for (const output of Object.values(backend.metafile.outputs))
-      for (const dependency of output.imports)
-        if (
-          dependency.external &&
-          dependency.path !== "@tau/plugins/sync" &&
-          !dependency.path.startsWith("node:") &&
-          !builtinModules.includes(dependency.path)
-        )
-          throw new Error("同步入口包含未打包的依赖：" + dependency.path);
-  }
+  if (manifest.sync !== undefined)
+    throw new Error("同步提供方应在渲染入口注册，不再支持Node后台入口");
   const integrity = {};
-  for (const file of [
-    "main.js",
-    ...(manifest.sync ? [manifest.sync] : []),
-    ...(styles ? ["main.css"] : []),
-  ])
+  for (const file of ["main.js", ...(styles ? ["main.css"] : [])])
     integrity[file] = createHash("sha256")
       .update(await readFile(path.join(staging, file)))
       .digest("hex");
