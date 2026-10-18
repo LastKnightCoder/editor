@@ -1,4 +1,4 @@
-import React, { act, useEffect } from "react";
+import React, { act, lazy, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import {
@@ -6,6 +6,7 @@ import {
   registerOwnedToolCallRenderer,
   registerToolCallRenderer,
   unregisterToolCallRenderer,
+  toolCallRendererRegistry,
 } from "../../../../renderers";
 import { ToolCallDisplay } from "../ToolCallDisplay";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
@@ -104,6 +105,56 @@ it("带归属的重复登记拒绝，旧句柄不能删除后来替换的渲染�
     expect(getToolCallRenderer(toolName)).toBe(next);
   } finally {
     unregisterToolCallRenderer(toolName);
+  }
+});
+
+it("同步订阅中发生替换时，归属句柄仍只属于原始登记", () => {
+  const name = "chat-reentrant-registration";
+  const next = () => null;
+  const unsubscribe = toolCallRendererRegistry.subscribe(() => {
+    if (getToolCallRenderer(name) !== next) registerToolCallRenderer(name, next);
+  });
+  try {
+    const registration = registerOwnedToolCallRenderer(name, () => null);
+    registration.dispose();
+    expect(getToolCallRenderer(name)).toBe(next);
+  } finally {
+    unsubscribe();
+    unregisterToolCallRenderer(name);
+  }
+});
+
+it("延迟组件只在工具行内显示默认回退，加载完成后展示组件", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  let resolve!: (value: { default: () => React.ReactNode }) => void;
+  const component = lazy(
+    () =>
+      new Promise<{ default: () => React.ReactNode }>(done => {
+        resolve = done;
+      })
+  );
+  const name = "chat-lazy-registration";
+  const registration = registerOwnedToolCallRenderer(name, component);
+  try {
+    await act(async () => {
+      root.render(
+        <ToolCallDisplay
+          executions={[
+            { toolCallId: "lazy", toolName: name, status: "success", input: "{}", timestamp: 1 },
+          ]}
+          renderDefaultItem={() => <span>默认</span>}
+        />
+      );
+    });
+    expect(host.textContent).toBe("默认");
+    await act(async () => resolve({ default: () => <span>已加载</span> }));
+    expect(host.textContent).toBe("已加载");
+  } finally {
+    await act(async () => {
+      registration.dispose();
+      root.unmount();
+    });
   }
 });
 

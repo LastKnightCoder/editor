@@ -1,4 +1,4 @@
-import React, { memo, useSyncExternalStore } from "react";
+import React, { memo, Suspense, useSyncExternalStore } from "react";
 import { cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { ToolCallRow } from "../Message/ToolCallRow";
@@ -97,14 +97,16 @@ const ToolCallRendererItem: React.FC<{
       toolName={execution.toolName}
       fallback={renderDefault()}
     >
-      <CustomRenderer
-        execution={execution}
-        isDark={isDark}
-        parsedInput={parsedInputResult.parsedInput}
-        inputParseError={parsedInputResult.inputParseError}
-        rendererContext={rendererContext}
-        renderDefault={renderDefault}
-      />
+      <Suspense fallback={renderDefault()}>
+        <CustomRenderer
+          execution={execution}
+          isDark={isDark}
+          parsedInput={parsedInputResult.parsedInput}
+          inputParseError={parsedInputResult.inputParseError}
+          rendererContext={rendererContext}
+          renderDefault={renderDefault}
+        />
+      </Suspense>
     </ToolCallRendererErrorBoundary>
   );
 });
