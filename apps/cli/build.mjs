@@ -48,7 +48,7 @@ const config = {
   external: ["proxy-agent"],
   plugins: [emptyModulePlugin, nativeRequirePlugin],
   banner: {
-    js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+    js: "import { createRequire as __tauCreateRequire } from 'node:module'; const require = __tauCreateRequire(import.meta.url);",
   },
 };
 
