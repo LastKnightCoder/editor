@@ -409,17 +409,6 @@
 }
 
 /* 创作模式：左白板召集资料，右边写作（对照截图与 compose 设计，白板为自由设计） */
-.fit-outer {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-}
-.fit-inner {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-}
 .cm {
   width: 1094px;
   height: 600px;

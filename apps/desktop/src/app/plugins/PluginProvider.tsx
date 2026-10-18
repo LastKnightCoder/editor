@@ -13,6 +13,7 @@ import { createDesktopExcerpts } from "./excerpts";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
 import { connectSyncRenderer } from "./sync-bridge";
+import { registerPluginMCP } from "@/tools/pluginMCP";
 
 const restartRequired = new Set<string>();
 const reloadCounts = new Map<string, number>();
@@ -57,6 +58,10 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           plugins,
           fetch: desktopFetch,
           services: desktopPluginServices,
+          mcp: {
+            register: (context, definition, owner) =>
+              registerPluginMCP(context, definition, owner, workspaceId),
+          },
           ...createDesktopExcerpts(workspaceId),
           restartRequired,
           reloadCounts,

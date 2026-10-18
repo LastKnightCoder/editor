@@ -3,53 +3,347 @@
    ============================================================ */
 .plug {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
+  grid-template-columns: 400px 1fr;
+  gap: 72px;
   align-items: center;
   margin-top: 0;
 }
-.plug pre {
-  padding: 24px 26px;
-  border-radius: 18px;
-  background: #2a241d;
-  color: #e9dfcf;
-  font-family: var(--mono);
-  font-size: 13.5px;
-  line-height: 1.85;
-  box-shadow: var(--tau-shadow-float);
-  overflow: hidden;
-}
-.plug pre .k {
-  color: #e39a75;
-}
-.plug pre .s {
-  color: #b5c98e;
-}
-.plug pre .c {
-  color: #8c8172;
-}
-.download {
-  text-align: center;
-  padding: 170px 0 150px;
-}
-.download .sub {
-  margin: 22px auto 0;
-}
-.download .ctas {
-  margin-top: 40px;
-}
-.facts-row {
-  display: flex;
-  justify-content: center;
-  gap: 28px;
-  margin-top: 28px;
-  font-size: 14px;
-  color: var(--tau-ink-3);
-}
-.facts-row span {
+.caps {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-top: 22px;
+}
+.caps span {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  color: var(--tau-ink-2);
+}
+.plug .more {
+  margin-top: 26px;
+}
+
+/* 插件示意：微信读书书架页 + 插件中心卡片，结构同插件真实界面 */
+.plug-stage {
+  position: relative;
+  height: 470px;
+}
+.plug-stage > .app {
+  width: 100%;
+  height: 100%;
+}
+.wr {
+  padding: 18px 22px;
+}
+.wr-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+.wr-head h4 {
+  font-size: 17px;
+  font-weight: 600;
+}
+.wr-sub {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+}
+.wr-sub b {
+  font-weight: 600;
+  color: var(--tau-ink-1);
+}
+.wr-sync {
+  display: flex;
+  font-size: 12px;
+  color: var(--tau-ink-1);
+}
+.wr-sync span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 8px 0 0 8px;
+  background: var(--tau-bg-surface);
+}
+.wr-sync span + span {
+  margin-left: -1px;
+  padding: 0 5px;
+  border-radius: 0 8px 8px 0;
+}
+.wr-sync .i {
+  width: 12px;
+  height: 12px;
+}
+.wr-pills {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.wr-pills span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-card);
+  color: var(--tau-ink-2);
+}
+.wr-pills span.on {
+  background: var(--tau-bg-selected);
+  box-shadow: none;
+  color: var(--tau-accent-text);
+}
+.wr-pills em {
+  font-style: normal;
+  font-size: 10.5px;
+  opacity: 0.75;
+}
+.wr-sec {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.wr-sec small {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--tau-ink-3);
+}
+.wr-reading {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.wr-book {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  min-width: 0;
+}
+.wr-book:first-child {
+  background: var(--tau-bg-hover);
+}
+.wr-book > .wr-cover {
+  flex: none;
+  width: 48px;
+  font-size: 10px;
+}
+.wr-book > div:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.wr-book small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--tau-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wr-book small + small {
+  margin-top: auto;
+}
+.wr-prog {
+  display: block;
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 2px;
+  background: var(--tau-bg-track);
+  overflow: hidden;
+}
+.wr-prog i {
+  display: block;
+  height: 100%;
+  background: var(--tau-accent);
+}
+.wr-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+.wr-item {
+  min-width: 0;
+  font-size: 12px;
+}
+.wr-item > span {
+  display: block;
+  margin-top: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wr-item > small {
+  font-size: 10.5px;
+  color: var(--tau-ink-3);
+}
+.wr-item > small em {
+  font-style: normal;
+  color: var(--tau-ok);
+}
+/* 无封面图时的书封：柔和底色 + 宋体书名，左侧书脊略窄 */
+.wr-cover {
+  aspect-ratio: 3 / 4.3;
+  border-radius: 3px 6px 6px 3px;
+  padding: 0.8em 0.75em 0.6em;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  line-height: 1.35;
+  box-shadow: var(--tau-shadow-lift);
+}
+.wr-cover small {
+  font-size: 0.7em;
+  opacity: 0.8;
+}
+.wr-cover.t1 {
+  background: var(--tau-tag-1-soft);
+  color: var(--tau-tag-1);
+}
+.wr-cover.t2 {
+  background: var(--tau-tag-2-soft);
+  color: var(--tau-tag-2);
+}
+.wr-cover.t3 {
+  background: var(--tau-tag-3-soft);
+  color: var(--tau-tag-3);
+}
+.wr-cover.t4 {
+  background: var(--tau-tag-4-soft);
+  color: var(--tau-tag-4);
+}
+.wr-cover.t5 {
+  background: var(--tau-tag-5-soft);
+  color: var(--tau-tag-5);
+}
+.plug-card {
+  position: absolute;
+  left: -40px;
+  bottom: -30px;
+  width: 268px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  box-shadow: var(--tau-shadow-float);
+  font-family: var(--app-font);
+}
+.pc-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pc-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--tau-tag-1-soft);
+  color: var(--tau-tag-1);
+}
+.pc-top b {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.pc-top small {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+}
+.plug-card p {
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--tau-ink-2);
+}
+.pc-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.pc-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--tau-ok-soft);
+  color: var(--tau-ok);
+}
+.pc-ok .i {
+  width: 12px;
+  height: 12px;
+}
+.download {
+  padding: 160px 0 120px;
+}
+/* 收尾的下载卡：图标 + 一句话 + 按钮，版本信息压在最下面 */
+.dl-card {
+  position: relative;
+  overflow: hidden;
+  padding: 72px 40px 56px;
+  border-radius: 28px;
+  text-align: center;
+  background:
+    radial-gradient(60% 80% at 50% 0%, var(--tau-accent-soft), transparent 70%),
+    var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  box-shadow: var(--tau-shadow-card);
+}
+.dl-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 28px;
+  border-radius: 18px;
+  box-shadow: var(--tau-shadow-float);
+}
+.dl-card .h2 {
+  font-size: clamp(34px, 3.8vw, 52px);
+}
+.dl-card .sub {
+  margin: 16px auto 0;
+  font-size: 17px;
+}
+.dl-card .ctas {
+  margin-top: 36px;
+}
+.dl-card .meta {
+  margin-top: 18px;
+  font-size: 13px;
 }
 footer.site {
   border-top: 1px solid var(--tau-line-1);

@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockContext = vi.hoisted(() => {
+  const transports: Array<{ onclose?: () => void | Promise<void> }> = [];
   class MockStdioClientTransport {
     public onclose?: () => void;
     public onerror?: (error: Error) => void;
@@ -9,6 +10,7 @@ const mockContext = vi.hoisted(() => {
 
     constructor(config: Record<string, unknown>) {
       this.config = config;
+      transports.push(this);
     }
 
     async close(): Promise<void> {}
@@ -36,6 +38,7 @@ const mockContext = vi.hoisted(() => {
     },
     resolveMcpCommandMock: vi.fn(),
     buildMcpSpawnEnvMock: vi.fn(),
+    transports,
   };
 });
 
@@ -67,6 +70,17 @@ vi.mock("../../utils/mcpCommandResolver", () => ({
 import mcpModule from "../mcp";
 
 describe("mcp module", () => {
+  const handler = (channel: string) =>
+    mockContext.ipcMainHandleMock.mock.calls.find(([name]) => name === channel)![1] as (
+      event: unknown,
+      payload: Record<string, unknown>
+    ) => Promise<unknown>;
+  const server = (id: string) => ({
+    id,
+    name: "插件服务器",
+    enabled: true,
+    transport: { type: "stdio", command: "node" },
+  });
   beforeEach(() => {
     mockContext.ipcMainHandleMock.mockReset();
     mockContext.appMock.getVersion.mockClear();
@@ -83,6 +97,7 @@ describe("mcp module", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -177,5 +192,63 @@ describe("mcp module", () => {
     expect(await handler("mcp-get-logs")(new EventEmitter(), { serverId: "server-log" })).toEqual(
       []
     );
+  });
+
+  it("插件窗口关闭回收其连接，其他窗口和手动服务器不受影响", async () => {
+    await mcpModule.init();
+    const sender = new EventEmitter();
+    const other = new EventEmitter();
+    await handler("mcp-connect")(
+      { sender },
+      { server: server("plugin:window-A"), windowScoped: true }
+    );
+    await handler("mcp-connect")(
+      { sender: other },
+      { server: server("plugin:window-B"), windowScoped: true }
+    );
+    await handler("mcp-connect")({}, { server: server("manual") });
+    sender.emit("destroyed");
+    await vi.waitFor(async () =>
+      expect(await handler("mcp-is-connected")({}, { serverId: "plugin:window-A" })).toBe(false)
+    );
+    expect(await handler("mcp-is-connected")({}, { serverId: "plugin:window-B" })).toBe(true);
+    expect(await handler("mcp-is-connected")({}, { serverId: "manual" })).toBe(true);
+    await handler("mcp-disconnect")({}, { serverId: "plugin:window-B" });
+    await handler("mcp-disconnect")({}, { serverId: "manual" });
+  });
+
+  it("连接握手期间停用，迟到的握手成功不能复活连接", async () => {
+    let resolve!: () => void;
+    const client = new mockContext.MockClient();
+    client.connect.mockImplementationOnce(
+      () =>
+        new Promise(done => {
+          resolve = () => done(undefined);
+        })
+    );
+    const sdk = await import("@modelcontextprotocol/sdk/client/index.js");
+    vi.mocked(sdk.Client).mockImplementationOnce(() => client as never);
+    await mcpModule.init();
+    const pending = handler("mcp-connect")({}, { server: server("plugin:pending") });
+    const rejected = expect(pending).rejects.toThrow("已取消");
+    await handler("mcp-disconnect")({}, { serverId: "plugin:pending" });
+    expect(client.close).toHaveBeenCalled();
+    resolve();
+    await rejected;
+    expect(await handler("mcp-is-connected")({}, { serverId: "plugin:pending" })).toBe(false);
+  });
+
+  it("重连退避期间停用，定时器结束后不再启动进程", async () => {
+    await mcpModule.init();
+    await handler("mcp-connect")({}, { server: server("plugin:retry") });
+    const transport = mockContext.transports.at(-1)!;
+    const sdk = await import("@modelcontextprotocol/sdk/client/index.js");
+    const count = vi.mocked(sdk.Client).mock.calls.length;
+    vi.useFakeTimers();
+    const retry = transport.onclose!();
+    await handler("mcp-disconnect")({}, { serverId: "plugin:retry" });
+    await vi.advanceTimersByTimeAsync(1000);
+    await retry;
+    expect(vi.mocked(sdk.Client)).toHaveBeenCalledTimes(count);
   });
 });

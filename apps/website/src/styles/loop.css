@@ -138,28 +138,39 @@
   height: 100%;
 }
 
-/* 输入：浏览器 + 插件侧栏 */
+/* 输入：浏览器 + 插件侧栏。外框与应用外壳同构：bg-page 框，网页是圆角内容面板 */
 .browser {
   width: 100%;
   height: 100%;
   border-radius: 14px;
   overflow: hidden;
   display: grid;
-  grid-template-rows: 42px 1fr;
-  background: #fbfbfa;
-  color: #2b2b2b;
+  grid-template-columns: 1fr 292px;
+  grid-template-rows: 44px 1fr;
+  font-family: var(--app-font);
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-1);
   box-shadow:
     var(--tau-shadow-float),
     0 0 0 1px var(--tau-line-1);
 }
 .b-top {
+  grid-column: 1/-1;
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 0 14px;
-  background: #ececeb;
+  padding: 0 12px 0 14px;
   font-size: 12.5px;
-  color: #555;
+  color: var(--tau-ink-2);
+}
+.b-nav {
+  display: flex;
+  gap: 10px;
+  color: var(--tau-ink-3);
+}
+.b-nav .i {
+  width: 15px;
+  height: 15px;
 }
 .b-url {
   flex: 1;
@@ -168,224 +179,275 @@
   gap: 8px;
   height: 28px;
   padding: 0 12px;
-  border-radius: 8px;
-  background: #fff;
-  color: #666;
+  border-radius: 9px;
+  background: var(--tau-bg-surface);
+  box-shadow: 0 0 0 1px var(--tau-line-2);
 }
 .b-url .i {
   width: 13px;
   height: 13px;
+  color: var(--tau-ink-3);
 }
 .b-ext {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  background: #fff;
-  box-shadow: 0 0 0 1.5px var(--tau-accent);
+  background: var(--tau-bg-selected);
 }
 .b-ext img {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
-}
-.b-body {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  min-height: 0;
+  border-radius: 4px;
 }
 .web {
   position: relative;
-  padding: 34px 46px;
-  font-family: var(--sans);
+  margin: 0 6px 10px 10px;
+  padding: 34px 44px;
+  border-radius: 12px;
+  background: var(--tau-bg-surface);
+  box-shadow: 0 0 0 1px var(--tau-line-2);
   overflow: hidden;
+  min-height: 0;
 }
 .web small {
   font-size: 12.5px;
-  color: #8a8a8a;
+  color: var(--tau-ink-3);
 }
 .web h3 {
   margin-top: 8px;
   font-size: 25px;
   line-height: 1.4;
   font-weight: 700;
-  color: #1f1f1f;
 }
 .web p {
   margin-top: 14px;
   font-size: 14.5px;
   line-height: 1.95;
-  color: #444;
+  color: var(--tau-ink-2);
 }
-.web .hl {
-  background: rgba(250, 206, 80, 0.42);
-  border-radius: 2px;
-  box-shadow: 0 2px 0 rgba(222, 170, 40, 0.5);
+/* 划线颜色是用户选的，按插件马克笔原样渲染，不走主题 */
+.web .hl,
+.ext-hl mark {
+  background: rgba(251, 146, 60, 0.3);
+  border-radius: 3px;
+  color: inherit;
 }
 .web .sel {
-  background: rgba(70, 130, 230, 0.22);
+  position: relative;
+  background: var(--tau-accent-soft);
 }
+/* 划词工具条：与插件 FloatingToolbar 同构 */
 .web-tools {
   position: absolute;
-  display: flex;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 10px;
-  background: #2b2f37;
-  color: #f1f1f1;
-  font-size: 12.5px;
-  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.4);
-}
-.web-tools span {
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 7px;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  box-shadow: var(--tau-shadow-float);
+  color: var(--tau-ink-2);
+  line-height: 1;
 }
-.web-tools span:first-child {
-  background: rgba(255, 255, 255, 0.12);
+.web-tools span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+}
+.web-tools span.on {
+  background: var(--tau-bg-selected);
+  color: var(--tau-accent-text);
+}
+.web-tools i {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--tau-line-1);
 }
 .web-tools .i {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
+/* 插件侧栏：浏览器自带的侧栏条 + 插件本页流 */
 .ext {
-  background: #2f3747;
-  padding: 0 8px 8px;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 10px 4px;
   min-height: 0;
+  overflow: hidden;
 }
-.ext-head {
+.ext-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 42px;
-  padding: 0 6px;
-  color: #e8ebf0;
-  font-size: 13.5px;
+  height: 22px;
+  padding: 0 4px;
+  font-size: 12.5px;
   font-weight: 600;
+  color: var(--tau-ink-2);
 }
-.ext-head img {
-  width: 17px;
-  height: 17px;
+.ext-bar img {
+  width: 15px;
+  height: 15px;
   border-radius: 4px;
 }
-.ext-head .i {
-  width: 14px;
-  height: 14px;
-  color: #aab1bd;
+.ext-bar .i {
+  width: 13px;
+  height: 13px;
+  color: var(--tau-ink-3);
 }
-.ext-head .i:first-of-type {
+.ext-bar .i:first-of-type {
   margin-left: auto;
-}
-.ext-body {
-  flex: 1;
-  border-radius: 12px;
-  background: #f5f3ef;
-  padding: 14px 14px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  font-family: var(--app-font);
-  color: #2c2a26;
-  min-height: 0;
-  overflow: hidden;
 }
 .ext-page {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
+  padding: 4px 4px 2px;
 }
 .ext-page em {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
-  background: #fff;
-  border: 1px solid #e6e2da;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
   font-style: normal;
-  font-size: 11px;
-  color: #c0392b;
+  font-size: 12px;
   font-weight: 700;
+  color: var(--tau-accent-text);
+}
+.ext-page div {
+  flex: 1;
+  min-width: 0;
+}
+.ext-page b {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ext-page small {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.ext-page > .i {
+  width: 16px;
+  height: 16px;
+  color: var(--tau-ink-3);
+}
+.ext-stream {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow: hidden;
 }
 .ext-card {
-  border-radius: 12px;
-  background: #fbfaf7;
-  border: 1px solid #e8e4dc;
-  padding: 12px 13px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
 }
 .ext-card h6 {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12.5px;
-  font-weight: 500;
-  color: #6b655b;
+  font-weight: 600;
+  color: var(--tau-ink-2);
+}
+.ext-card h6 .i {
+  width: 14px;
+  height: 14px;
+  color: var(--tau-accent);
 }
 .ext-card ul {
-  margin-top: 8px;
+  margin-top: 6px;
   padding-left: 16px;
   font-size: 12.5px;
   line-height: 1.8;
-  color: #3a362f;
+  color: var(--tau-ink-1);
 }
 .ext-sec {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
+  gap: 6px;
+  height: 30px;
+  padding: 4px 4px 0;
+  font-size: 12.5px;
   font-weight: 600;
+  color: var(--tau-ink-2);
 }
 .ext-sec .i {
   width: 14px;
   height: 14px;
-  color: #6b655b;
+  color: var(--tau-ink-3);
 }
-.ext-sec em {
-  font-style: normal;
+.ext-sec span {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
   font-weight: 400;
-  color: #9a9388;
-  font-size: 12px;
+  color: var(--tau-ink-3);
+}
+.ext-sec span .i {
+  width: 12px;
+  height: 12px;
 }
 .ext-hl {
-  margin-top: -6px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #fbfaf7;
-  border-left: 3px solid #e2b33c;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
   font-size: 12.5px;
-  line-height: 1.7;
-  color: #3a362f;
+  line-height: 1.75;
+}
+.ext-hl small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--tau-ink-3);
 }
 .ext-new {
-  margin-top: -6px;
   height: 34px;
-  border-radius: 9px;
-  border: 1px dashed #d9d3c8;
+  border-radius: 10px;
+  border: 1px dashed var(--tau-line-1);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   font-size: 12.5px;
-  color: #4a453d;
+  color: var(--tau-ink-2);
+}
+.ext-new .i {
+  width: 13px;
+  height: 13px;
 }
 .ext-ask {
-  margin-top: auto;
-  height: 64px;
-  border-radius: 12px;
-  background: #fbfaf7;
-  border: 1px solid #e3dfd6;
-  padding: 10px 12px;
-  font-size: 12px;
-  color: #a49d92;
   position: relative;
+  flex: none;
+  height: 70px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  font-size: 12px;
+  color: var(--tau-ink-3);
 }
 .ext-ask b {
   position: absolute;
@@ -394,47 +456,14 @@
   width: 26px;
   height: 26px;
   border-radius: 8px;
-  background: #ece9e3;
   display: grid;
   place-items: center;
-  color: #8a8478;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-3);
 }
 .ext-ask .i {
   width: 13px;
   height: 13px;
-}
-.pdf-float {
-  position: absolute;
-  left: 30px;
-  bottom: 26px;
-  width: 290px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--tau-bg-surface);
-  border: 1px solid var(--tau-line-1);
-  box-shadow: var(--tau-shadow-float);
-  font-family: var(--app-font);
-  color: var(--tau-ink-1);
-}
-.pdf-float small {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--tau-ink-3);
-}
-.pdf-float small .i {
-  width: 13px;
-  height: 13px;
-}
-.pdf-float p {
-  margin-top: 6px;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.pdf-float p mark {
-  background: color-mix(in srgb, var(--tau-tag-1) 26%, transparent);
-  color: inherit;
 }
 
 /* 消化：Notebook 三栏 */
@@ -545,14 +574,20 @@
   width: 14px;
   height: 14px;
 }
+/* 快捷生成：与右侧输入框同一底线的浮条，按钮同桌面端 ghost 小按钮 */
 .nb-acts {
+  align-self: center;
   display: flex;
   align-items: center;
-  gap: 14px;
-  height: 42px;
-  padding: 0 16px;
-  border-top: 1px solid var(--tau-line-2);
-  font-size: 12.5px;
+  gap: 1px;
+  max-width: calc(100% - 24px);
+  margin-bottom: 12px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-card);
+  font-size: 12px;
   color: var(--tau-ink-2);
   white-space: nowrap;
   overflow: hidden;
@@ -561,13 +596,32 @@
   display: flex;
   align-items: center;
   gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
 }
-.nb-acts span:first-child {
-  color: var(--tau-ink-3);
-}
-.nb-acts .i {
+.nb-acts span .i {
   width: 13px;
   height: 13px;
+  color: var(--tau-ink-3);
+}
+.nb-acts i {
+  width: 1px;
+  height: 16px;
+  margin: 0 3px;
+  background: var(--tau-line-1);
+}
+.nb-acts b {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  color: var(--tau-ink-3);
+}
+.nb-acts b .i {
+  width: 15px;
+  height: 15px;
 }
 .nb-chat {
   display: flex;
@@ -665,7 +719,9 @@
   background:
     radial-gradient(600px 300px at 60% 30%, var(--tau-accent-soft), transparent 70%),
     var(--tau-bg-page);
-  box-shadow: inset 0 0 0 1px var(--tau-line-1);
+  box-shadow:
+    var(--tau-shadow-float),
+    0 0 0 1px var(--tau-line-1);
   overflow: hidden;
   font-family: var(--app-font);
 }
@@ -696,7 +752,7 @@
 }
 .s-proj {
   left: 3%;
-  top: 15%;
+  top: 21%;
   width: 39%;
   height: 58%;
   display: grid;
@@ -829,7 +885,7 @@
 }
 .s-card {
   right: 2.5%;
-  top: 24%;
+  top: 31.5%;
   width: 25%;
   z-index: 3;
   padding: 13px 13px 11px;
@@ -867,107 +923,10 @@
   margin-left: auto;
   color: var(--tau-info);
 }
-.s-wb {
-  right: 2.5%;
-  top: 55%;
-  width: 25%;
-  height: 37%;
-  z-index: 3;
-  background-color: var(--tau-bg-surface);
-  background-image: radial-gradient(
-    color-mix(in srgb, var(--tau-ink-3) 38%, transparent) 1px,
-    transparent 1.3px
-  );
-  background-size: 16px 16px;
-}
-.s-wb > svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.s-wb .nt {
-  position: absolute;
-  padding: 8px 9px 9px;
-  border-radius: 3px;
-  font-family: var(--tau-font-hand, "Kaiti SC", "STKaiti", serif);
-  font-size: 13px;
-  line-height: 1.45;
-  box-shadow:
-    0 1px 1px rgba(0, 0, 0, 0.05),
-    0 8px 14px -9px rgba(0, 0, 0, 0.35);
-}
-.s-wb .nt.y {
-  background: var(--tau-tag-4-soft);
-  rotate: -3deg;
-}
-.s-wb .nt.g {
-  background: var(--tau-tag-1-soft);
-  rotate: 2deg;
-}
-.s-wb .nt.r {
-  background: var(--tau-tag-5-soft);
-  rotate: -1.5deg;
-}
-.s-wb .em {
-  position: absolute;
-  width: 112px;
-  padding: 7px 8px;
-  border-radius: 8px;
-  background: var(--tau-bg-surface);
-  box-shadow:
-    var(--tau-shadow-card),
-    0 0 0 1px var(--tau-line-1);
-  font-size: 11px;
-  line-height: 1.5;
-}
-.s-wb .em small {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  color: var(--tau-ink-3);
-}
-.s-wb .em small .i {
-  width: 10px;
-  height: 10px;
-}
-.s-wb .mt {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 1px;
-  padding: 3px;
-  border-radius: 8px;
-  background: var(--tau-bg-surface);
-  box-shadow:
-    var(--tau-shadow-card),
-    0 0 0 1px var(--tau-line-1);
-  color: var(--tau-ink-2);
-}
-.s-wb .mt span {
-  width: 22px;
-  height: 20px;
-  display: grid;
-  place-items: center;
-  border-radius: 5px;
-}
-.s-wb .mt span.on {
-  background: var(--tau-bg-selected);
-  color: var(--tau-accent-text);
-}
-.s-wb .mt .i {
-  width: 12px;
-  height: 12px;
-}
 .podcast {
   position: absolute;
-  left: 41%;
-  bottom: 4%;
-  transform: translateX(-50%);
+  right: 2.5%;
+  bottom: 7%;
   z-index: 4;
   width: 400px;
   display: grid;

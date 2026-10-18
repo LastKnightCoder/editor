@@ -1,6 +1,6 @@
 # 应用插件契约与开发宿主
 
-同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55。
+同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55，整合与发布记录见docs/plugin-system/60。
 
 本包提供应用插件 API 和生命周期，当前统一按完整宿主权限在同一环境运行，用于内置插件和本地开发流程，不划分可信/受限产品档位。registerTrusted 是保留的宿主方法名。第三方生产安装仍待实现；权限界面、沙箱和安全体系后续统一设计，见 PS-031。
 
@@ -11,6 +11,7 @@
 面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和开发台编辑器契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
+- `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [MCP.md](../../scripts/plugins/template/MCP.md)。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
 - `@tau/plugins/node`：Node 私有文件存储适配器，由宿主选择目录；不进入插件公开上下文。
 
