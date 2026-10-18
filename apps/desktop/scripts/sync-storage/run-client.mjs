@@ -37,7 +37,7 @@ await build({
 for (const phase of ["install", "restart", "migrate", "migrate-restart"]) {
   if (phase === "migrate") {
     await cp(
-      path.join(root, "plugins/releases/tau.sync-s3/0.1.1"),
+      path.join(root, "plugins/releases/tau.sync-s3/0.1.2"),
       path.join(output, "build/bundled-plugins/tau.sync-s3"),
       { recursive: true }
     );

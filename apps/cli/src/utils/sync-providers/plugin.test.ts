@@ -48,7 +48,7 @@ it("CLI独立加载固定S3产物，签名读写私有桶、发布快照并尊�
   try {
     await mkdir(plugins);
     await cp(
-      new URL("../../../../../plugins/releases/tau.sync-s3/0.1.1", import.meta.url),
+      new URL("../../../../../plugins/releases/tau.sync-s3/0.1.2", import.meta.url),
       path.join(plugins, id),
       { recursive: true }
     );

@@ -25,7 +25,7 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // <define:__PLUGIN_META__>
-var define_PLUGIN_META_default = { id: "tau.sync-s3", name: "S3 \u540C\u6B65\u5B58\u50A8", version: "0.1.1" };
+var define_PLUGIN_META_default = { id: "tau.sync-s3", name: "S3 \u540C\u6B65\u5B58\u50A8", version: "0.1.2" };
 
 // src/index.tsx
 var import_react = require("react");
