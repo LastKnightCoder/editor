@@ -17,6 +17,7 @@ import {
   localPluginStateKey,
   contentPluginLoaded,
   contentPluginError,
+  setContentPluginIntent,
 } from "./content-plugin-state";
 export { localPluginStateKey } from "./content-plugin-state";
 
@@ -90,7 +91,11 @@ export class LocalPluginManager {
       await this.saveIntent(id, false);
       if (this.states.enabled(id)) await this.states.disable(id);
       await this.removePackage(id);
-      this.preferences.removeItem(localPluginStateKey(id));
+      try {
+        this.preferences.removeItem(localPluginStateKey(id));
+      } catch {
+        console.warn("plugin_preference_mirror_unavailable");
+      }
       if (purgeData) clearBrowserPluginStorage(this.preferences, id);
       await this.reload();
     });
@@ -113,8 +118,7 @@ export class LocalPluginManager {
       this.clientVersion = snapshot.clientVersion ?? "";
       for (const entry of snapshot.entries) {
         if (entry.enabled === undefined) throw new Error("插件启用状态缺失");
-        this.intents.set(entry.id, entry.enabled);
-        this.preferences.setItem(localPluginStateKey(entry.id), String(entry.enabled));
+        this.mirrorIntent(entry.id, entry.enabled);
       }
       this.scanError = "";
       const issues: LocalPluginEntry[] = [];
@@ -200,8 +204,16 @@ export class LocalPluginManager {
     if (!this.owns(id)) throw new Error("本地插件不存在");
     await this.setEnabled(id, enabled);
     this.assertOpen();
+    this.mirrorIntent(id, enabled);
+  }
+  private mirrorIntent(id: string, enabled: boolean) {
     this.intents.set(id, enabled);
-    this.preferences.setItem(localPluginStateKey(id), String(enabled));
+    setContentPluginIntent(id, enabled);
+    try {
+      this.preferences.setItem(localPluginStateKey(id), String(enabled));
+    } catch {
+      console.warn("plugin_preference_mirror_unavailable");
+    }
   }
   cancel() {
     this.closed = true;
