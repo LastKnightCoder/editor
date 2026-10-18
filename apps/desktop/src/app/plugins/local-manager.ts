@@ -12,7 +12,6 @@ import type {
 } from "@/types/plugin-local";
 import { PluginActivationManager } from "./activation-manager";
 import { registerPluginPackage, type SharedPluginModules } from "./package-loader";
-import { setContentPluginEnabled } from "@/commands/plugin-local";
 
 import {
   localPluginStateKey,
@@ -33,18 +32,20 @@ export class LocalPluginManager {
   private pending: Promise<unknown> = Promise.resolve();
   private operations = 0;
   private closed = false;
+  private readonly intents = new Map<string, boolean>();
 
   constructor(
     private readonly host: PluginHost,
     private readonly reserved: readonly string[],
-    private readonly scan: () => Promise<LocalPluginScan>,
+    private readonly scan: (legacy: Record<string, unknown>) => Promise<LocalPluginScan>,
     private readonly getModules: () => Promise<SharedPluginModules>,
     private readonly preferences: Pick<
       Storage,
       "getItem" | "setItem" | "removeItem" | "key" | "length"
     >,
     private readonly notify: () => void,
-    private readonly removePackage: (id: string) => Promise<void>
+    private readonly removePackage: (id: string) => Promise<void>,
+    private readonly setEnabled: (id: string, enabled: boolean) => Promise<void>
   ) {
     this.states = this.activationManager();
   }
@@ -56,9 +57,7 @@ export class LocalPluginManager {
     return this.operations > 0;
   }
   enabled(id: string) {
-    if (this.isContentPlugin(id))
-      return this.preferences.getItem(localPluginStateKey(id)) === "true";
-    return this.states.enabled(id);
+    return this.intents.get(id) === true;
   }
   isContentPlugin(id: string) {
     const artifact = this.records.get(id);
@@ -88,6 +87,7 @@ export class LocalPluginManager {
   uninstall(id: string, purgeData: boolean) {
     return this.run(async () => {
       if (contentPluginLoaded(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
+      await this.saveIntent(id, false);
       if (this.states.enabled(id)) await this.states.disable(id);
       await this.removePackage(id);
       this.preferences.removeItem(localPluginStateKey(id));
@@ -98,18 +98,23 @@ export class LocalPluginManager {
 
   private async reload() {
     try {
-      const snapshot = await this.scan();
+      const legacy: Record<string, unknown> = Object.create(null);
+      for (let index = 0; index < this.preferences.length; index++) {
+        const key = this.preferences.key(index);
+        if (!key?.startsWith("tau-local-plugin-enabled:v1:")) continue;
+        const value = this.preferences.getItem(key);
+        legacy[key.slice("tau-local-plugin-enabled:v1:".length)] = value === "true" ? true : value === "false" ? false : value;
+      }
+      const snapshot = await this.scan(legacy);
       this.assertOpen();
       this.directory = snapshot.directory;
       this.updates = snapshot.updates ?? [];
       this.clientVersion = snapshot.clientVersion ?? "";
-      for (const entry of snapshot.entries)
-        if (
-          entry.artifact &&
-          hasStaticContent(entry.artifact.manifest) &&
-          entry.contentEnabled !== undefined
-        )
-          this.preferences.setItem(localPluginStateKey(entry.id), String(entry.contentEnabled));
+      for (const entry of snapshot.entries) {
+        if (entry.enabled === undefined) throw new Error("插件启用状态缺失");
+        this.intents.set(entry.id, entry.enabled);
+        this.preferences.setItem(localPluginStateKey(entry.id), String(entry.enabled));
+      }
       this.scanError = "";
       const issues: LocalPluginEntry[] = [];
       const present = new Set(snapshot.entries.map(entry => entry.id));
@@ -166,14 +171,6 @@ export class LocalPluginManager {
       this.sources = new Map(
         snapshot.entries.flatMap(entry => (entry.source ? [[entry.id, entry.source]] : []))
       );
-      // 插件中心安装视为同意启用：仅在从未设置过启用偏好时生效，用户停用后不再覆盖。
-      for (const [id, source] of this.sources)
-        if (
-          source.kind === "center" &&
-          this.records.has(id) &&
-          this.preferences.getItem(localPluginStateKey(id)) === null
-        )
-          this.preferences.setItem(localPluginStateKey(id), "true");
       this.states.cancel();
       this.states = this.activationManager();
       await this.states.restore();
@@ -184,25 +181,26 @@ export class LocalPluginManager {
   }
 
   enable(id: string) {
-    if (this.isContentPlugin(id))
-      return this.run(async () => {
-        await setContentPluginEnabled(id, true);
-        this.preferences.setItem(localPluginStateKey(id), "true");
-      });
-    return this.run(() => this.states.enable(id));
+    return this.run(async () => {
+      await this.saveIntent(id, true);
+      if (!this.isContentPlugin(id)) await this.states.enable(id);
+    });
   }
   disable(id: string) {
-    if (this.isContentPlugin(id))
-      return this.run(async () => {
-        await setContentPluginEnabled(id, false);
-        this.preferences.setItem(localPluginStateKey(id), "false");
-      });
-    return this.run(() => this.states.disable(id));
-  }
-  restore(key: string | null) {
     return this.run(async () => {
-      await this.states.restore(key);
+      await this.saveIntent(id, false);
+      if (!this.isContentPlugin(id)) await this.states.disable(id);
     });
+  }
+  restore() {
+    return this.refresh();
+  }
+  private async saveIntent(id: string, enabled: boolean) {
+    if (!this.owns(id)) throw new Error("本地插件不存在");
+    await this.setEnabled(id, enabled);
+    this.assertOpen();
+    this.intents.set(id, enabled);
+    this.preferences.setItem(localPluginStateKey(id), String(enabled));
   }
   cancel() {
     this.closed = true;
@@ -218,9 +216,9 @@ export class LocalPluginManager {
           const id = [...this.records.keys()].find(id => key === localPluginStateKey(id));
           return id && this.isContentPlugin(id)
             ? String(contentPluginLoaded(id))
-            : this.preferences.getItem(key);
+            : String(id ? this.intents.get(id) === true : false);
         },
-        setItem: (key, value) => this.preferences.setItem(key, value),
+        setItem: () => undefined,
       },
       this.notify,
       localPluginStateKey

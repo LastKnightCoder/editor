@@ -58,7 +58,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       if (entry.entryName !== manifest.id + "/" && !entry.entryName.startsWith(manifest.id + "/"))
         throw new Error("ZIP 根目录必须与插件ID一致");
     }
-    for (const name of [manifest.main, ...(manifest.styles ? [manifest.styles] : [])]) {
+    for (const name of [manifest.main, ...(manifest.sync ? [manifest.sync] : []), ...(manifest.styles ? [manifest.styles] : [])]) {
       const entry = zip.getEntry(`${manifest.id}/${name}`);
       if (!entry || entry.isDirectory) throw new Error("缺少入口或样式文件");
       const content = unpack(entry);
@@ -67,7 +67,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         (await sha256(content)) !== manifest.integrity[name]
       )
         throw new Error("入口或样式摘要不匹配");
-      if (name === manifest.main && !content.toString("utf8").trim())
+      if ((name === manifest.main || name === manifest.sync) && !content.toString("utf8").trim())
         throw new Error("插件入口为空");
     }
     const readDocument = (name: string, required: boolean) => {

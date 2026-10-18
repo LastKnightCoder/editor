@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { PluginUpdates } from "../../src-electron/main/services/plugin-updates";
-import { ContentPluginPreferences } from "../../src-electron/main/services/plugin-preferences";
+import { LocalPluginPreferences } from "@tau/plugins/local-state";
 import { PluginContentStartup } from "../../src-electron/main/services/plugin-content-startup";
 import { readPluginPackage } from "../../src-electron/main/services/plugin-package";
 import { discoverPlugins } from "../../src-electron/main/services/plugin-discovery";
@@ -33,7 +33,7 @@ async function verify() {
       await updates.initialize();
     }
   }
-  const prefs = new ContentPluginPreferences(directory);
+  const prefs = new LocalPluginPreferences(directory);
   await prefs.load();
   if (phase === "initial" || phase === "missing" || phase === "restored") await prefs.set(id, true);
   if (phase === "disabled") await prefs.set(id, false);
@@ -57,7 +57,7 @@ async function verify() {
       ...scan,
       entries: scan.entries.map(entry => ({
         ...entry,
-        contentEnabled: prefs.enabled(entry.id, false),
+        enabled: prefs.enabled(entry.id, false),
       })),
     };
   });

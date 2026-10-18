@@ -34,6 +34,19 @@ async function fixture(overrides = {}) {
 }
 
 describe("开发插件包读取", () => {
+  it("后台同步入口在扫描时只校验不执行，缺失或摘要变化拒绝安装", async () => {
+    const directory = await fixture();
+    const manifestPath = path.join(directory, "manifest.json");
+    const { readFile } = await import("node:fs/promises");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    const sync = "throw new Error('扫描不得执行后台入口')";
+    await writeFile(manifestPath, JSON.stringify({ ...manifest, sync: "sync.js", integrity: { ...manifest.integrity, "sync.js": createHash("sha256").update(sync).digest("hex") } }));
+    await expect(readPluginPackage(directory)).rejects.toThrow();
+    await writeFile(path.join(directory, "sync.js"), sync);
+    expect((await readPluginPackage(directory)).manifest.sync).toBe("sync.js");
+    await writeFile(path.join(directory, "sync.js"), "changed");
+    await expect(readPluginPackage(directory)).rejects.toThrow("不完整");
+  });
   it("检查产物后返回快照，读取不执行 JS", async () => {
     const result = await readPluginPackage(await fixture());
     expect(result.manifest.id).toBe("example.fixture");

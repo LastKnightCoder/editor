@@ -14,6 +14,7 @@ const mock = vi.hoisted(() => ({
   download: vi.fn(),
 }));
 vi.mock("electron", () => ({
+  BrowserWindow: { getAllWindows: () => [] },
   app: {
     getPath: () => path.join(mock.root, "profile"),
     getAppPath: () => path.join(mock.root, "app"),
@@ -63,7 +64,7 @@ it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动
       integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
     })
   );
-  await invoke("plugin-local:content-enabled", id, true);
+  await invoke("plugin-local:set-enabled", id, true);
   expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
   vi.resetModules();
   mock.handlers.clear();
@@ -74,7 +75,7 @@ it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动
   const md = await import("@/utils/markdown");
   const source = "~~~native-editor\n正文\n~~~";
   expect(md.getMarkdown(md.importFromMarkdown(source)).trim()).toBe(source);
-  await invoke("plugin-local:content-enabled", id, false);
+  await invoke("plugin-local:set-enabled", id, false);
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id } }],
   });
@@ -97,7 +98,8 @@ function invoke(name: string, ...args: unknown[]) {
 it("扫描与打开始终使用应用约定目录，不接受调用方路径", async () => {
   const foreign = path.join(mock.root, "foreign");
   await mkdir(foreign);
-  const scan = await invoke("plugin-local:scan", foreign);
+  await expect(invoke("plugin-local:scan", foreign)).rejects.toThrow("迁移");
+  const scan = await invoke("plugin-local:scan", {});
   expect(scan).toMatchObject({
     directory: path.join(mock.root, ".editor/plugins"),
     entries: [],

@@ -16,7 +16,10 @@
     "./distribution": "./src/distribution.ts",
     "./shared-modules": "./src/shared-modules.ts",
     "./source-editor-host": "./src/source-editor-host.tsx",
-    "./node": "./src/file-storage.ts"
+    "./node": "./src/file-storage.ts",
+    "./local-state": "./src/local-state.ts",
+    "./sync": "./src/sync.ts",
+    "./sync-host": "./src/sync-host.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",

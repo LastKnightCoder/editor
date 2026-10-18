@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/commands/plugin-local", () => ({
-  setContentPluginEnabled: vi.fn(async () => undefined),
+  setLocalPluginEnabled: vi.fn(async () => undefined),
 }));
 beforeEach(() => {
   vi.resetModules();
@@ -84,17 +84,19 @@ it("编辑器插件启停只改变下次启动意图，不卸载当前渲染快�
   state.addContentPlugin(artifact, definition);
   localStorage.setItem(state.localPluginStateKey("test.editor"), "true");
   const host = new PluginHost({ workspaceId: "test", storage: createMemoryStorage() });
+  let enabled = true;
   const manager = new LocalPluginManager(
     host,
     [],
     async () => ({
       directory: "/test",
-      entries: [{ id: "test.editor", directory: "/test/test.editor", artifact }],
+      entries: [{ id: "test.editor", directory: "/test/test.editor", artifact, enabled }],
     }),
     async () => ({}),
     localStorage,
     () => undefined,
-    async () => undefined
+    async () => undefined,
+    async (_id, value) => { enabled = value; }
   );
   try {
     await manager.refresh();
@@ -103,7 +105,7 @@ it("编辑器插件启停只改变下次启动意图，不卸载当前渲染快�
     expect(manager.enabled("test.editor")).toBe(false);
     expect(host.getState("test.editor")).toBe("active");
     expect(manager.error("test.editor")).toContain("重启");
-    await manager.restore(null);
+    await manager.restore();
     expect(host.getState("test.editor")).toBe("active");
     expect(() => state.getContentPluginPublishContext()).toThrow("重启");
     await expect(manager.uninstall("test.editor", false)).rejects.toThrow("重启");

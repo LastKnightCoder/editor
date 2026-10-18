@@ -10,7 +10,7 @@ export interface LocalPluginEntry {
   directory: string;
   source?: LocalPluginSource;
   bundled?: boolean;
-  contentEnabled?: boolean;
+  enabled?: boolean;
   artifact?: DevelopmentPluginPackage;
   error?: string;
 }

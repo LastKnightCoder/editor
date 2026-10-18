@@ -6,6 +6,7 @@ import type { LocalPluginScan } from "@/types/plugin-local";
 
 const hosts: PluginHost[] = [];
 const managers: LocalPluginManager[] = [];
+const persisted = new Map<string, boolean>();
 function artifact(id = "test.local", version = "1.0.0"): DevelopmentPluginPackage {
   return {
     manifest: {
@@ -38,17 +39,23 @@ function setup(
     })
   );
   const modules = vi.fn(async () => ({ "@tau/plugins": { definePlugin } }));
+  const save = vi.fn(async (id: string, enabled: boolean) => { persisted.set(id, enabled); });
   const manager = new LocalPluginManager(
     host,
     ["core.theme"],
-    scan,
+    async legacy => {
+      const result = await scan();
+      for (const [id, value] of Object.entries(legacy)) if (!persisted.has(id) && typeof value === "boolean") persisted.set(id, value);
+      return { ...result, entries: result.entries.map(entry => ({ ...entry, enabled: persisted.get(entry.id) ?? entry.source?.kind === "center" })) };
+    },
     modules,
     localStorage,
     vi.fn(),
-    remove
+    remove,
+    save
   );
   managers.push(manager);
-  return { host, manager, modules, remove };
+  return { host, manager, modules, remove, save };
 }
 const snapshot = (...artifacts: DevelopmentPluginPackage[]): LocalPluginScan => ({
   directory: "/test/plugins",
@@ -58,7 +65,7 @@ const snapshot = (...artifacts: DevelopmentPluginPackage[]): LocalPluginScan => 
     artifact,
   })),
 });
-beforeEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); persisted.clear(); });
 afterEach(async () => {
   managers.splice(0).forEach(manager => manager.cancel());
   await Promise.all(hosts.splice(0).map(host => host.dispose()));
@@ -197,6 +204,22 @@ it("关闭期间迟到扫描不登记插件，后续操作拒绝", async () => {
   await rejected;
   expect(host.listPlugins()).toEqual([]);
   await expect(manager.refresh()).rejects.toThrow("关闭");
+});
+
+it("保存失败不启用或停用实例；后台意图覆盖过时窗口镜像", async () => {
+  const { manager, host, save } = setup(async () => snapshot(artifact()));
+  await manager.refresh();
+  save.mockRejectedValueOnce(new Error("磁盘不可写"));
+  await expect(manager.enable("test.local")).rejects.toThrow("磁盘不可写");
+  expect(host.getState("test.local")).toBe("disabled");
+  await manager.enable("test.local");
+  save.mockRejectedValueOnce(new Error("磁盘不可写"));
+  await expect(manager.disable("test.local")).rejects.toThrow("磁盘不可写");
+  expect(host.getState("test.local")).toBe("active");
+  persisted.set("test.local", false);
+  await manager.restore();
+  expect(host.getState("test.local")).toBe("disabled");
+  expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("false");
 });
 it("损坏后刷新保留当前快照，修复后能重新发现", async () => {
   let entries = snapshot(artifact());

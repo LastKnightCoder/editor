@@ -6,8 +6,8 @@ export const getContentPluginStartup = (): Promise<{
   artifacts: DevelopmentPluginPackage[];
   errors: Record<string, string>;
 }> => withModule("plugin-local", () => invoke("plugin-local:content-startup"));
-export const setContentPluginEnabled = (id: string, enabled: boolean): Promise<void> =>
-  withModule("plugin-local", () => invoke("plugin-local:content-enabled", id, enabled));
+export const setLocalPluginEnabled = (id: string, enabled: boolean): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:set-enabled", id, enabled));
 import type {
   PluginCatalog,
   PluginCatalogSort,
@@ -19,8 +19,8 @@ import type {
 
 export const getPluginWorkspace = (name: string): Promise<string> =>
   withModule("plugin-local", () => invoke("plugin-local:workspace", name));
-export const scanLocalPlugins = (): Promise<LocalPluginScan> =>
-  withModule("plugin-local", () => invoke("plugin-local:scan"));
+export const scanLocalPlugins = (legacy?: Record<string, unknown>): Promise<LocalPluginScan> =>
+  withModule("plugin-local", () => invoke("plugin-local:scan", legacy));
 export const openPluginDirectory = (): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:open-directory"));
 export const stagePluginZip = (): Promise<{ id: string; version: string } | null> =>

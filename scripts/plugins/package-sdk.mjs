@@ -28,7 +28,8 @@ try {
   };
   const entries = ["plugins", "ui"].map(name => path.join(root, `packages/${name}/src/index.ts`));
   const whiteboardEntry = path.join(root, "packages/plugins/src/whiteboard.ts");
-  const graph = ts.createProgram([...entries, whiteboardEntry], options);
+  const syncEntry = path.join(root, "packages/plugins/src/sync.ts");
+  const graph = ts.createProgram([...entries, whiteboardEntry, syncEntry], options);
   const program = ts.createProgram(
     graph
       .getSourceFiles()
@@ -127,7 +128,11 @@ try {
       for (const dependency of pending) await copyDeclaration(dependency);
     };
     await copyDeclaration(entries[index]);
-    if (name === "plugins") await copyDeclaration(whiteboardEntry);
+    if (name === "plugins") {
+      await writeFile(path.join(directory, "SYNC.md"), await readFile(path.join(root, "scripts/plugins/template/SYNC.md")));
+      await copyDeclaration(whiteboardEntry);
+      await copyDeclaration(syncEntry);
+    }
     await writeFile(
       path.join(directory, "runtime.js"),
       'throw new Error("Tau 插件模块由宿主提供，请在插件构建中设为 external");\n'
@@ -148,6 +153,7 @@ try {
             ...(name === "plugins"
               ? {
                   "./tailwind.css": "./tailwind.css",
+                  "./sync": { types: "./" + targetOf(syncEntry), default: "./runtime.js" },
                   "./whiteboard": {
                     types: "./" + targetOf(whiteboardEntry),
                     default: "./runtime.js",

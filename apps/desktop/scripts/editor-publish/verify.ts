@@ -66,7 +66,7 @@ void app
       entries: artifacts.map(artifact => ({
         id: artifact.manifest.id,
         artifact,
-        contentEnabled: true,
+        enabled: true,
       })),
     }));
     ipcMain.handle("tailwind-runtime:compile", () =>
