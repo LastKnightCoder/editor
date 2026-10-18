@@ -5,6 +5,7 @@
   "compatibility_date": "2026-10-16",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
+  "triggers": { "crons": ["0 3 * * *"] },
   "vars": {
     "WEB_ORIGIN": "http://localhost:5173",
     "API_ORIGIN": "http://localhost:8787",

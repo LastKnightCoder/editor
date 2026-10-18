@@ -17,6 +17,8 @@ const entry = (
   compatible: PluginCatalogVersion | null = latest
 ): PluginCatalogEntry => ({
   pluginId: "test.center",
+  downloadsTotal: 0,
+  downloads7d: 0,
   name: "中心插件",
   description: "",
   publisher: { login: "author", avatarUrl: "" },

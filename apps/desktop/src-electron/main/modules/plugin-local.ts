@@ -101,8 +101,10 @@ export default {
       if (selected.canceled || !selected.filePaths[0]) return null;
       return updates.stageZip(selected.filePaths[0]);
     });
-    ipcMain.handle("plugin-local:catalog", (_event, query?: string) =>
-      fetchPluginCatalog(app.getVersion(), query)
+    ipcMain.handle(
+      "plugin-local:catalog",
+      (_event, query?: string, sort?: import("@/types/plugin-center").PluginCatalogSort) =>
+        fetchPluginCatalog(app.getVersion(), query, sort)
     );
     ipcMain.handle("plugin-local:release", (_event, id: string) => fetchPluginRelease(id));
     ipcMain.handle("plugin-local:versions", (_event, pluginId: string) =>

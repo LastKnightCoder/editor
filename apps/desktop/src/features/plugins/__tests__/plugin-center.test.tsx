@@ -70,9 +70,12 @@ function artifact(): DevelopmentPluginPackage {
   };
 }
 const catalog: PluginCatalog = {
+  windowStart: "2026-10-12",
   items: [
     {
       pluginId: ID,
+      downloadsTotal: 0,
+      downloads7d: 0,
       name: "中心插件",
       description: "从插件中心安装的样本",
       publisher: { login: "author", avatarUrl: "" },

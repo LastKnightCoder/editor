@@ -7,6 +7,7 @@ import { NewSubmissionPage } from "../pages/NewSubmissionPage";
 import { SubmissionDetailPage } from "../pages/SubmissionDetailPage";
 import { SubmissionsPage } from "../pages/SubmissionsPage";
 import { AuthenticatedShell } from "./AppShell";
+import { CatalogPage } from "../pages/CatalogPage";
 
 function RouteError() {
   const error = useRouteError();
@@ -29,6 +30,8 @@ export function createPortalRouter() {
     {
       errorElement: <RouteError />,
       children: [
+        { path: "/", element: <Navigate to="/plugins" replace /> },
+        { path: "/plugins", element: <CatalogPage /> },
         { path: "/login", element: <LoginPage /> },
         {
           element: <AuthenticatedShell />,

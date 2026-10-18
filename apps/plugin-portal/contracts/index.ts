@@ -132,6 +132,8 @@ export interface CatalogVersion {
 }
 /** 插件中心目录项：每个插件一条，资料取自最高已发布版本。 */
 export interface CatalogEntry {
+  downloadsTotal: number;
+  downloads7d: number;
   pluginId: string;
   name: string;
   description: string;
@@ -143,6 +145,19 @@ export interface CatalogEntry {
 }
 export interface Catalog {
   items: CatalogEntry[];
+  nextCursor: string | null;
+  windowStart: string;
+}
+export type CatalogSort = "downloads7d" | "downloadsTotal" | "updated";
+export interface DownloadStatistics {
+  downloadsTotal: number;
+  downloads7d: number;
+  windowStart: string;
+}
+export interface VisitorSession {
+  visitorId: string;
+  /** 仅无 Origin 的桌面申请返回，网页通过 HttpOnly Cookie 使用。 */
+  token?: string;
 }
 export interface ReviewDetails {
   reviews: ReviewRecord[];

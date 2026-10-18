@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Textarea, ConfirmDialog } from "@tau/ui";
-import type { ReviewDecision, Submission } from "../../../../contracts";
+import type { ReviewDecision, Submission, Release } from "../../../../contracts";
 import { queryKeys, useApi } from "../../app/api";
 import { useSession } from "../../app/session";
 import { Section } from "./Section";
+import { savePluginZip } from "../../api/download";
 
 const labels: Record<ReviewDecision, string> = {
   approve: "批准并发布",
@@ -16,6 +17,10 @@ export function ReviewPanel({ submission }: { submission: Submission }) {
     client = useQueryClient(),
     session = useSession();
   const [comment, setComment] = useState("");
+  const downloadRelease = useMutation({
+    mutationFn: (release: Release) =>
+      savePluginZip(api, release.id, `${release.pluginId}-${release.version}.zip`),
+  });
   const [confirm, setConfirm] = useState<{
     decision: ReviewDecision;
     revision: number;
@@ -122,9 +127,13 @@ export function ReviewPanel({ submission }: { submission: Submission }) {
             </p>
           )}
           {release.downloadUrl && (
-            <a className="text-accent-text" href={release.downloadUrl}>
+            <Button
+              variant="ghost"
+              loading={downloadRelease.isPending}
+              onClick={() => downloadRelease.mutate(release)}
+            >
               下载已发布版本 v{release.version}
-            </a>
+            </Button>
           )}
           {session.data?.reviewer && release.state !== "published" && (
             <Button loading={retry.isPending} onClick={() => retry.mutate()}>
@@ -132,6 +141,7 @@ export function ReviewPanel({ submission }: { submission: Submission }) {
             </Button>
           )}
           {retry.isError && <p role="alert">{retry.error.message}</p>}
+          {downloadRelease.isError && <p role="alert">{downloadRelease.error.message}</p>}
         </div>
       )}
       <ConfirmDialog

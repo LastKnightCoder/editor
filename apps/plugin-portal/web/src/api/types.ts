@@ -24,6 +24,12 @@ export interface UploadTransfer {
 
 /** 前端唯一的后端入口；真实 HTTP 与显式模拟模式各实现一份 */
 export interface PortalApi {
+  getCatalog(input: {
+    q: string;
+    sort: import("../../../contracts").CatalogSort;
+    cursor: string | null;
+  }): Promise<import("../../../contracts").Catalog>;
+  downloadRelease(id: string): Promise<Blob>;
   /** 顶层导航地址（不是 fetch 目标） */
   readonly githubLoginUrl: string;
   getSession(): Promise<Session>;

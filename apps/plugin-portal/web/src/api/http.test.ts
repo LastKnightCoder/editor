@@ -7,6 +7,38 @@ import { createHttpApi, type XhrLike } from "./http";
 const BASE = "http://localhost:8787";
 const SESSION = { user: { id: "1", login: "a", avatarUrl: "" }, csrfToken: "csrf-1" };
 
+it("公开下载先建立匿名 Cookie 会话，并发复用，不要求 GitHub 登录", async () => {
+  const fetch = vi.fn(async (input: RequestInfo | URL) =>
+    String(input).endsWith("/visitor-session")
+      ? Response.json({ data: { visitorId: "visitor" } })
+      : new Response("zip")
+  );
+  const api = createHttpApi({ baseUrl: BASE, fetch });
+  const blobs = await Promise.all([api.downloadRelease("r1"), api.downloadRelease("r2")]);
+  expect(await blobs[0].text()).toBe("zip");
+  expect(fetch.mock.calls.filter(([url]) => String(url).endsWith("/visitor-session"))).toHaveLength(
+    1
+  );
+  expect(fetch).toHaveBeenCalledWith(
+    BASE + "/v1/visitor-session",
+    expect.objectContaining({
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-Tau-Visitor": "1" },
+    })
+  );
+  expect(fetch.mock.calls.some(([url]) => String(url).endsWith("/v1/session"))).toBe(false);
+});
+
+it("匿名会话故障不阻断 ZIP 下载", async () => {
+  const fetch = vi.fn(async (input: RequestInfo | URL) =>
+    String(input).endsWith("/visitor-session")
+      ? new Response("unavailable", { status: 503 })
+      : new Response("zip")
+  );
+  const api = createHttpApi({ baseUrl: BASE, fetch });
+  expect(await (await api.downloadRelease("r1")).text()).toBe("zip");
+});
+
 type Route = (init: RequestInit) => { status: number; body: unknown };
 
 function stubFetch(routes: Record<string, Route>) {

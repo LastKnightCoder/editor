@@ -7,7 +7,11 @@ export function testEnvironment() {
   sqlite.exec(
     readFileSync(new URL("../infra/migrations/0001_submissions.sql", import.meta.url), "utf8")
   );
-  for (const name of ["0003_review_release.sql", "0004_release_catalog.sql"])
+  for (const name of [
+    "0003_review_release.sql",
+    "0004_release_catalog.sql",
+    "0005_download_statistics.sql",
+  ])
     sqlite.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));
   class Statement {
     constructor(

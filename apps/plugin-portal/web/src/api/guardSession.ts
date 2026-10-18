@@ -12,6 +12,8 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
       throw error;
     });
   return {
+    getCatalog: input => api.getCatalog(input),
+    downloadRelease: id => api.downloadRelease(id),
     githubLoginUrl: api.githubLoginUrl,
     getSession: () => watch(api.getSession()),
     logout: () => watch(api.logout()),

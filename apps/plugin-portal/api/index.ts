@@ -1,13 +1,19 @@
 import type { ApiError } from "../contracts";
 import { authRoute, githubToken, requireSession } from "./auth";
-import { fail, HttpError, json, type Env } from "./platform";
+import { fail, HttpError, json, type Env, type BackgroundTasks } from "./platform";
 import { uploadRoute } from "./uploads";
 import { submissionRoute } from "./submissions";
 import { feedbackRoute } from "./feedback";
 import { reviewRoute } from "./reviews";
 import { publicReleaseRoute } from "./releases";
+import { visitorRoute } from "./visitors";
+import { cleanDownloadReceipts } from "./download-statistics";
 
-export async function handle(request: Request, env: Env): Promise<Response> {
+export async function handle(
+  request: Request,
+  env: Env,
+  context?: BackgroundTasks
+): Promise<Response> {
   const origin = request.headers.get("Origin");
   let response: Response;
   try {
@@ -15,14 +21,18 @@ export async function handle(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
       response = new Response(null, { status: 204 });
       response.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,OPTIONS");
-      response.headers.set("Access-Control-Allow-Headers", "Content-Type,X-CSRF-Token");
+      response.headers.set(
+        "Access-Control-Allow-Headers",
+        "Content-Type,X-CSRF-Token,X-Tau-Visitor,Authorization"
+      );
     } else {
       const path = new URL(request.url).pathname;
-      const auth = await authRoute(request, env, path);
+      const auth =
+        (await visitorRoute(request, env, path)) ?? (await authRoute(request, env, path));
       if (auth) response = auth;
       else if (path === "/health" && request.method === "GET") response = json({ ok: true });
       else {
-        const publicRelease = await publicReleaseRoute(request, env, path);
+        const publicRelease = await publicReleaseRoute(request, env, path, context);
         if (publicRelease) response = publicRelease;
         else {
           const session = await requireSession(request, env);
@@ -67,4 +77,7 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   return response;
 }
-export default { fetch: handle };
+export default {
+  fetch: handle,
+  scheduled: (_event: unknown, env: Env) => cleanDownloadReceipts(env),
+};

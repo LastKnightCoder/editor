@@ -9,13 +9,13 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { Button, FadeScroll, Input, Menu, Switch, Tabs, cn } from "@tau/ui";
+import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { openExternal } from "@/commands/extra";
 import { openPluginDirectory, stagePluginZip } from "@/commands/plugin-local";
-import type { PluginCatalogEntry } from "@/types/plugin-center";
+import type { PluginCatalogEntry, PluginCatalogSort } from "@/types/plugin-center";
 import {
   PLUGIN_PORTAL_URL,
   PLUGIN_TEMPLATE_URL,
@@ -50,7 +50,8 @@ export function PluginsView() {
   const tab = TABS.find(item => item === params.tab) ?? "discover";
   const [query, setQuery] = useState("");
   const [actionError, setActionError] = useState("");
-  const catalog = usePluginCatalog();
+  const [sort, setSort] = useState<PluginCatalogSort>("downloads7d");
+  const catalog = usePluginCatalog("", tab === "discover" ? sort : "updated");
   const installed = runtime ? installedPlugins(runtime) : [];
   const updates = (catalog.data?.items ?? []).flatMap(entry => {
     const plugin = installed.find(item => item.info.id === entry.pluginId);
@@ -74,6 +75,20 @@ export function PluginsView() {
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate">
               扩展页面、侧边栏、命令与摘录来源
             </span>
+            {tab === "discover" && (
+              <Select
+                size="sm"
+                aria-label="插件排序"
+                disabled={!catalog.data?.windowStart}
+                value={catalog.data?.windowStart ? sort : "updated"}
+                onValueChange={value => setSort(value as PluginCatalogSort)}
+                options={[
+                  { value: "downloads7d", label: "最近热门" },
+                  { value: "downloadsTotal", label: "下载最多" },
+                  { value: "updated", label: "最近更新" },
+                ]}
+              />
+            )}
             <Input
               size="sm"
               lead={Search}
@@ -146,6 +161,11 @@ export function PluginsView() {
         <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-4">
           <div className="mb-4 flex flex-col gap-2 empty:hidden">
             <RestartBar count={pendingCount(runtime)} />
+            {tab === "discover" && catalog.data && catalog.error && (
+              <p role="alert" className="text-tau-meta text-danger">
+                目录刷新失败，正在显示上次结果。{catalog.error}
+              </p>
+            )}
             {(actionError || startupError || runtime?.local?.scanError) && (
               <p role="alert" className="text-tau-meta text-danger">
                 {actionError || startupError || runtime?.local?.scanError}
@@ -266,6 +286,14 @@ function CatalogCard({
         </div>
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
+      <p
+        className="text-tau-sm text-ink-3"
+        title="同一设备、同一版本、同一 UTC 日计一次；近 7 日含今日，不代表安装人数"
+      >
+        {typeof entry.downloadsTotal === "number"
+          ? `累计 ${entry.downloadsTotal.toLocaleString()} 次 · 近 7 日 ${entry.downloads7d.toLocaleString()} 次`
+          : "下载统计暂不可用"}
+      </p>
       <div className="text-tau-sm text-ink-3 mt-auto flex items-center gap-2">
         <span className="tabular-nums">{entry.latest.version}</span>
         <span className="ml-auto" onClick={event => event.stopPropagation()}>

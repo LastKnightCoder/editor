@@ -198,6 +198,19 @@ async function smoke() {
     fetch(url, { ...init, signal: AbortSignal.timeout(15000), redirect: "manual" });
   const health = await get(api + "/health");
   assert(health.status === 200 && (await health.json()).data?.ok === true, "API健康检查失败");
+  const catalogResponse = await get(api + "/v1/catalog?appVersion=0.59.0&sort=downloads7d&limit=1");
+  const catalog = await catalogResponse.json();
+  assert(
+    catalogResponse.ok &&
+      typeof catalog.data?.windowStart === "string" &&
+      Array.isArray(catalog.data?.items),
+    "下载统计目录未就绪，请检查0005迁移与API部署"
+  );
+  for (const item of catalog.data.items)
+    assert(
+      Number.isSafeInteger(item.downloadsTotal) && Number.isSafeInteger(item.downloads7d),
+      "目录下载统计字段无效"
+    );
   const releases = await get(api + "/v1/releases");
   assert(
     releases.status === 200 && Array.isArray((await releases.json()).data?.items),
