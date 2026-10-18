@@ -36,6 +36,7 @@ import {
 } from "./lifecycle";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
+import { snapshotMCPDefinition, type PluginMCPDefinition } from "./mcp";
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -89,6 +90,14 @@ export interface MaterialsAdapter {
   actions(context: PluginContext, ref: PluginMaterialRef): Promise<PluginMaterialAction[]>;
 }
 
+export interface MCPAdapter {
+  register(
+    context: PluginContext,
+    definition: PluginMCPDefinition,
+    owner: PluginOwner & { executionIdentity: string }
+  ): Disposable;
+}
+
 export type PluginState =
   "disabled" | "activating" | "active" | "deactivating" | "failed" | "restart-required";
 
@@ -119,6 +128,7 @@ interface Activation {
   controller: AbortController;
   resources: Disposable[];
   instance?: PluginInstance;
+  onActivated: Array<() => void>;
 }
 
 type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion">;
@@ -170,6 +180,7 @@ export class PluginHost {
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      mcp?: MCPAdapter;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
@@ -250,6 +261,7 @@ export class PluginHost {
         const activation: Activation = {
           controller: new AbortController(),
           resources: [],
+          onActivated: [],
         };
         entry.activation = activation;
         await waitForLifecycle(
@@ -310,6 +322,7 @@ export class PluginHost {
         );
         this.assertActive(entry, activation);
         entry.state = "active";
+        for (const commit of activation.onActivated.splice(0)) commit();
         this.changed();
       } catch (error) {
         if (error instanceof LifecycleTimeoutError) this.restartRequired.add(id);
@@ -396,6 +409,7 @@ export class PluginHost {
 
   private context(entry: Entry, activation: Activation): PluginContext {
     const pages = new WeakMap<PluginPageHandle, { id: string; active: () => boolean }>();
+    const mcpIds = new Set<string>();
     const scope: StorageScope = Object.freeze({
       pluginId: entry.metadata.id,
       workspaceId: this.options.workspaceId,
@@ -458,6 +472,64 @@ export class PluginHost {
       signal: scope.signal,
       register,
       ai: activation.ai ?? unavailableAI,
+      mcp: Object.freeze({
+        register: (definition: PluginMCPDefinition) => {
+          this.assertActive(entry, activation);
+          const declared = snapshotMCPDefinition(definition);
+          const adapter = this.options.mcp;
+          if (!adapter) throw new Error("当前宿主不支持 MCP");
+          if (mcpIds.has(definition.id)) throw new Error("MCP 已注册");
+          const local = new AbortController();
+          const signal = AbortSignal.any([scope.signal, local.signal]);
+          const snapshot: PluginMCPDefinition = declared.transport
+            ? declared
+            : {
+                ...declared,
+                tools: declared.tools.map(tool => ({
+                  ...tool,
+                  execute: async (args, call) => {
+                    this.assertActive(entry, activation);
+                    signal.throwIfAborted();
+                    if (entry.state !== "active") throw new Error("插件尚未激活");
+                    const executionSignal = AbortSignal.any([signal, call.signal]);
+                    executionSignal.throwIfAborted();
+                    const result = await tool.execute(copyJson(args) as typeof args, {
+                      signal: executionSignal,
+                    });
+                    executionSignal.throwIfAborted();
+                    this.assertActive(entry, activation);
+                    return copyJson(result) as { content: string };
+                  },
+                })),
+              };
+          mcpIds.add(definition.id);
+          let resource: Disposable | undefined;
+          const commit = () => {
+            if (signal.aborted) return;
+            resource = adapter.register({ ...context, signal }, snapshot, {
+              id: scope.pluginId,
+              name: entry.metadata.name,
+              executionIdentity: crypto.randomUUID(),
+            });
+          };
+          const owned = register({
+            dispose: () => {
+              local.abort();
+              mcpIds.delete(definition.id);
+              return resource?.dispose();
+            },
+          });
+          if (entry.state === "active") {
+            try {
+              commit();
+            } catch (error) {
+              void owned.dispose();
+              throw error;
+            }
+          } else activation.onActivated.push(commit);
+          return owned;
+        },
+      }),
       services: bindPluginServices(this.options.services, scope.signal, () =>
         this.assertActive(entry, activation)
       ),

@@ -54,6 +54,8 @@ export interface MCPServerToolInfo {
 interface MCPStoreState {
   providerStates: Record<string, ProviderToggleState>;
   customServers: CustomMCPServer[];
+  pluginTransports: Record<string, TransportConfig>;
+  setPluginTransport: (id: string, transport: TransportConfig) => void;
   connectionStatus: Record<string, ConnectionStatus>;
   connectionErrors: Record<string, string>;
   /** 逐工具停用：来源 id（内置 provider id 或自定义服务器 id）→ 停用的工具名 */
@@ -155,6 +157,9 @@ const useMCPStore = create<MCPStoreState>()(
     (set, get) => ({
       providerStates: createDefaultStates(),
       customServers: [],
+      pluginTransports: {},
+      setPluginTransport: (id, transport) =>
+        set(state => ({ pluginTransports: { ...state.pluginTransports, [id]: transport } })),
       connectionStatus: {},
       connectionErrors: {},
       disabledTools: {},
@@ -266,6 +271,7 @@ const useMCPStore = create<MCPStoreState>()(
       partialize: state => ({
         providerStates: state.providerStates,
         customServers: state.customServers,
+        pluginTransports: state.pluginTransports,
         disabledTools: state.disabledTools,
       }),
       onRehydrateStorage: () => state => {

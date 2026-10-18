@@ -54,6 +54,18 @@ button {
 }
 
 /* ---------- 官网通用 ---------- */
+/* 固定设计尺寸的示意画面，由 layout.ts 按容器宽度整体缩放 */
+.fit-outer {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.fit-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -82,10 +94,15 @@ button {
   border: 1px solid var(--tau-line-1);
   color: var(--tau-ink-1);
 }
+/* 未发布的平台只是一行说明，不做成按钮的样子 */
 .btn.is-disabled {
   cursor: default;
+  padding: 0 8px;
+  background: transparent;
+  border-color: transparent;
+  font-size: 14.5px;
+  font-weight: 400;
   color: var(--tau-ink-3);
-  border-style: dashed;
 }
 .btn.is-disabled:hover {
   transform: none;

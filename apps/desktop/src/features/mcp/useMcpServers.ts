@@ -17,6 +17,12 @@ import type { SettingsSectionKey } from "@/features/settings/sections";
 import { PI_BUILTIN_TOOLS } from "./piBuiltinTools";
 import { SCOPED_TOOL_GROUPS } from "./scopedToolCatalog";
 import { describeTransport, draftToPayload, type ServerDraft } from "./serverConfig";
+import {
+  getPluginMCPServers,
+  subscribePluginMCPServers,
+  isPluginMCP,
+  reconnectPluginMCP,
+} from "@/tools/pluginMCP";
 
 /** ready = 可用；off = 已停用；unavailable = 内置但依赖的配置缺失 */
 export type McpServerStatus = "ready" | "connecting" | "error" | "off" | "unavailable";
@@ -24,7 +30,9 @@ export type McpServerStatus = "ready" | "connecting" | "error" | "off" | "unavai
 export interface McpServerItem {
   id: string;
   /** scoped = 功能专属工具（PDF / 视频笔记 / 学习项目，常开）；pi = AI 助手自带工具 */
-  kind: "builtin" | "custom" | "scoped" | "pi";
+  kind: "builtin" | "custom" | "plugin" | "scoped" | "pi";
+  pluginName?: string;
+  connectionId?: string;
   name: string;
   description: string;
   enabled: boolean;
@@ -70,6 +78,7 @@ function builtinItem(
 }
 
 export function useMcpServers() {
+  const pluginServers = useSyncExternalStore(subscribePluginMCPServers, getPluginMCPServers);
   const providerStates = useMCPStore(s => s.providerStates);
   const customServers = useMCPStore(s => s.customServers);
   const connectionStatus = useMCPStore(s => s.connectionStatus);
@@ -121,7 +130,42 @@ export function useMcpServers() {
     [customServers, connectionStatus, connectionErrors, disabledTools, serverTools]
   );
 
-  return { builtin, custom };
+  const allCustom = useMemo(
+    () => [
+      ...custom,
+      ...pluginServers.map((info): McpServerItem => {
+        const enabled = providerStates[info.id]?.enabled ?? true;
+        const connection = connectionStatus[info.id];
+        return {
+          ...info,
+          description: info.description ?? "",
+          kind: "plugin",
+          enabled,
+          status: !enabled
+            ? "off"
+            : connection === "connected"
+              ? "ready"
+              : connection === "error"
+                ? "error"
+                : "connecting",
+          error: connectionErrors[info.id],
+          tools: serverTools[info.id] ?? [],
+          disabledTools: new Set(disabledTools[info.id]),
+          target: info.server ? describeTransport(info.server.transport) : undefined,
+        };
+      }),
+    ],
+    [
+      custom,
+      pluginServers,
+      providerStates,
+      connectionStatus,
+      connectionErrors,
+      serverTools,
+      disabledTools,
+    ]
+  );
+  return { builtin, custom: allCustom };
 }
 
 /** 某个作用域注册的功能专属工具（Vibe Learning、视频笔记、PDF），常开不可关；无作用域返回 undefined */
@@ -172,15 +216,14 @@ export function getPiBuiltinServerItem(): McpServerItem {
 
 /** 已启用且连接失败的自定义服务器数（侧栏徽标） */
 export function useMcpErrorCount(): number {
-  const customServers = useMCPStore(s => s.customServers);
-  const connectionStatus = useMCPStore(s => s.connectionStatus);
-  return customServers.filter(s => s.enabled && connectionStatus[s.id] === "error").length;
+  const { custom } = useMcpServers();
+  return custom.filter(server => server.enabled && server.status === "error").length;
 }
 
 export async function setServerEnabled(item: McpServerItem, enabled: boolean) {
   if (item.locked) return;
   const store = useMCPStore.getState();
-  if (item.kind === "builtin") {
+  if (item.kind === "builtin" || item.kind === "plugin") {
     store.setProviderEnabled(item.id, enabled);
     return;
   }
@@ -197,6 +240,10 @@ export async function saveServer(draft: ServerDraft, existingId?: string): Promi
   const store = useMCPStore.getState();
   const payload = draftToPayload(draft);
   if (!existingId) return store.addCustomServer(payload).id;
+  if (isPluginMCP(existingId)) {
+    store.setPluginTransport(existingId, payload.transport);
+    return existingId;
+  }
   await disconnectFromServer(existingId).catch(() => undefined);
   store.updateCustomServer(existingId, payload);
   return existingId;
@@ -211,6 +258,7 @@ export async function importServers(drafts: ServerDraft[]) {
 }
 
 export async function reconnectServer(serverId: string) {
+  if (isPluginMCP(serverId)) return reconnectPluginMCP(serverId);
   const server = useMCPStore.getState().getCustomServer(serverId);
   if (server?.enabled) await reloadCustomServer(server);
 }

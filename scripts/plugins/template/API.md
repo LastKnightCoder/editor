@@ -10,6 +10,8 @@ AI 功能声明、用户模型分配、流式对话、取消与统一用量审�
 
 同步存储插件见 [SYNC.md](SYNC.md)，需要 SDK 0.10.0 及以上。
 
+向应用 AI 提供本地工具或外部 MCP 服务器见 [MCP.md](MCP.md)，需要 SDK 0.11.0 和包含此能力的客户端。
+
 阅读顺序：先了解[入口与生命周期](#入口与生命周期)，再按功能查阅[命令](#命令)、[存储](#私有存储)、[页面](#页面)、[设置](#设置)、[网络请求](#网络请求)、[摘录](#摘录)、[材料动作](#材料动作)和[资源清理](#资源清理)。完整可运行示例见 `src/index.tsx`。
 
 ## manifest
@@ -76,22 +78,23 @@ export default definePlugin({
 
 `activate` 以及页面、设置组件都会收到 `PluginContext`。
 
-| 属性          | 类型                                   | 用途                                   |
-| ------------- | -------------------------------------- | -------------------------------------- |
-| `pluginId`    | `string`                               | 当前插件标识                           |
-| `workspaceId` | `string`                               | 当前工作区标识；不要解析它的内部格式   |
-| `signal`      | `AbortSignal`                          | 本次运行结束时中止，可用于停止异步工作 |
-| `commands`    | `PluginContext["commands"]`            | 注册命令                               |
-| `storage`     | `PluginStorage`                        | 保存当前插件在当前工作区的数据         |
-| `pages`       | `PluginPages`                          | 注册并打开页面                         |
-| `settings`    | `PluginSettings`                       | 注册并打开设置区域                     |
-| `sidebar`     | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口           |
-| `fetch`       | `typeof fetch`                         | 发起与插件生命周期关联的网络请求       |
-| `services`    | `PluginServices`                       | 编译与转换服务，见 SERVICES.md         |
-| `ai`          | `PluginAI`                             | 使用用户分配的模型，见 AI.md           |
-| `excerpts`    | `PluginExcerpts`                       | 把外部划线、标注写为 Tau 摘录          |
-| `materials`   | `PluginMaterials`                      | 获取「转为卡片」等材料动作             |
-| `register`    | `(resource: Disposable) => Disposable` | 托管需要清理的资源                     |
+| 属性          | 类型                                   | 用途                                      |
+| ------------- | -------------------------------------- | ----------------------------------------- |
+| `pluginId`    | `string`                               | 当前插件标识                              |
+| `workspaceId` | `string`                               | 当前工作区标识；不要解析它的内部格式      |
+| `signal`      | `AbortSignal`                          | 本次运行结束时中止，可用于停止异步工作    |
+| `commands`    | `PluginContext["commands"]`            | 注册命令                                  |
+| `storage`     | `PluginStorage`                        | 保存当前插件在当前工作区的数据            |
+| `pages`       | `PluginPages`                          | 注册并打开页面                            |
+| `settings`    | `PluginSettings`                       | 注册并打开设置区域                        |
+| `sidebar`     | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口              |
+| `fetch`       | `typeof fetch`                         | 发起与插件生命周期关联的网络请求          |
+| `services`    | `PluginServices`                       | 编译与转换服务，见 SERVICES.md            |
+| `ai`          | `PluginAI`                             | 使用用户分配的模型，见 AI.md              |
+| `mcp`         | `PluginMCP`                            | 注册 MCP，本地工具或外部服务器，见 MCP.md |
+| `excerpts`    | `PluginExcerpts`                       | 把外部划线、标注写为 Tau 摘录             |
+| `materials`   | `PluginMaterials`                      | 获取「转为卡片」等材料动作                |
+| `register`    | `(resource: Disposable) => Disposable` | 托管需要清理的资源                        |
 
 不要缓存上下文供下次启用使用。旧上下文失效后调用 storage、注册功能或打开页面会报错。
 

@@ -91,6 +91,8 @@ export default defineConfig(() => {
           },
           vite: {
             resolve: {
+              // 主进程共用桌面入口的 pi-ai，避免不同 peer 实例重复进入同一 bundle。
+              dedupe: ["@earendil-works/pi-ai"],
               alias: {
                 "@": path.resolve(__dirname, "src"),
                 "@tau/contracts": path.resolve(__dirname, "../../packages/contracts"),

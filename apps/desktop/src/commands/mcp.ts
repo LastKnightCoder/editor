@@ -1,8 +1,11 @@
 import { invoke } from "@/electron";
 import type { CustomMCPServer, ConnectionStatus } from "@/stores/useMCPStore";
 
-export async function connectMcpServer(server: CustomMCPServer): Promise<void> {
-  await invoke("mcp-connect", { server });
+export async function connectMcpServer(
+  server: CustomMCPServer,
+  windowScoped = false
+): Promise<void> {
+  await invoke("mcp-connect", { server, windowScoped });
 }
 
 export async function reconnectMcpServer(server: CustomMCPServer): Promise<void> {

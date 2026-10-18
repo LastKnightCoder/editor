@@ -90,7 +90,8 @@ export const initializeTooling = () => {
   if (!mcpStatusUnsubscribe) {
     const store = useMCPStore.getState();
     mcpStatusUnsubscribe = onConnectionStatusChange(data => {
-      store.setConnectionStatus(data.serverId, data.status, data.error);
+      if (store.getCustomServer(data.serverId))
+        store.setConnectionStatus(data.serverId, data.status, data.error);
     });
   }
 
