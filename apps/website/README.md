@@ -46,7 +46,7 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 ```
 index.html            页面结构（含 SVG 图标雪碧图）
 src/main.ts           入口：引入样式，按顺序初始化各模块
-src/modules/          各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、闭环滚动、日常组件
+src/modules/          各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、白板手绘与数据库视图切换、闭环滚动、日常组件
 src/styles/           按区块拆分的样式，最后是响应式
 build/release.ts      构建与运行时共用的清单解析和下载信息渲染
 functions/            首页请求时更新下载信息，异常时保留快照

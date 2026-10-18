@@ -10,9 +10,16 @@
 }
 @media (max-width: 1024px) {
   .feel,
-  .plug {
+  .plug,
+  .db-sec {
     grid-template-columns: 1fr;
     gap: 40px;
+  }
+  .db-sec > .reveal:last-child {
+    order: -1;
+  }
+  .wb-points {
+    grid-template-columns: 1fr 1fr;
   }
   .loop {
     height: auto;
@@ -60,10 +67,6 @@
   .w-cal {
     grid-column: span 6;
   }
-  .w-diary,
-  .w-db {
-    grid-column: span 12;
-  }
   .nav-links {
     display: none;
   }
@@ -73,7 +76,7 @@
     padding: 0 20px;
   }
   .stage {
-    padding: 16px 20px 64px;
+    padding: 16px 20px 40px;
   }
   .hero-copy {
     margin-top: 56px;
@@ -91,12 +94,32 @@
   .meta {
     flex-wrap: wrap;
   }
+  .section {
+    padding-top: 96px;
+  }
+  .download {
+    padding: 96px 0 72px;
+  }
+  .dl-card {
+    padding: 48px 20px 36px;
+  }
+  .dl-card .h2 {
+    font-size: 30px;
+  }
+  .dl-card .sub {
+    font-size: 15px;
+  }
   .split {
     height: 560px;
     margin-top: 72px;
   }
   .split .app {
     --side-w: 0px;
+  }
+  /* 侧栏隐藏后面板会被自动排进 0 宽的侧栏列，显式占满整行 */
+  .split .panel {
+    grid-column: 1 / -1;
+    margin-left: 10px;
   }
   .hero .app-side,
   .hero .app-brand,
@@ -110,9 +133,15 @@
   .loop-sticky {
     padding: 0 20px;
   }
+  /* 缩放后的画面布局宽度仍是 840px：在区块层裁掉横向溢出，场景本身不裁，窗口阴影才能露出来 */
+  .loop {
+    overflow-x: clip;
+  }
   .scene {
     height: calc(620px * var(--s, 0.42) + 44px);
-    overflow: hidden;
+  }
+  .scene::before {
+    line-height: 30px;
   }
   .scene > * {
     width: 840px !important;
@@ -127,6 +156,10 @@
   }
   .w-diary {
     grid-template-columns: 1fr;
+  }
+  .wb-points {
+    grid-template-columns: 1fr;
+    gap: 22px;
   }
   .ai-tile {
     padding: 22px 18px;
@@ -150,9 +183,18 @@
   .walkbar span {
     display: none;
   }
-  .plug pre {
-    font-size: 11.5px;
-    padding: 18px;
+  .plug-card {
+    left: 12px;
+  }
+  .wr-sub,
+  .wr-book + .wr-book {
+    display: none;
+  }
+  .wr-reading {
+    grid-template-columns: 1fr;
+  }
+  .wr-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
   .topbar {
     padding: 0 20px;
