@@ -6,6 +6,11 @@ export type PluginMCPTransport =
   | { type: "stdio"; command: string; args?: string[]; env?: Record<string, string>; cwd?: string }
   | { type: "streamable-http"; url: string; headers?: Record<string, string> };
 
+export interface PluginMCPToolResult {
+  content: string;
+  render?: { version: number; data: JsonValue };
+}
+
 export interface PluginMCPTool {
   name: string;
   description: string;
@@ -17,7 +22,7 @@ export interface PluginMCPTool {
   execute(
     args: Record<string, JsonValue>,
     context: { signal: AbortSignal }
-  ): Promise<{ content: string }> | { content: string };
+  ): Promise<PluginMCPToolResult> | PluginMCPToolResult;
 }
 
 export type PluginMCPDefinition = {
@@ -32,6 +37,18 @@ export type PluginMCPDefinition = {
 export interface PluginMCP {
   /** 同一插件可注册多个 MCP；停用时由宿主自动回收。 */
   register(definition: PluginMCPDefinition): Disposable;
+}
+
+export function snapshotMCPToolResult(result: PluginMCPToolResult): PluginMCPToolResult {
+  if (!result || typeof result.content !== "string")
+    throw new Error("插件 MCP 工具必须返回文本 content");
+  if (result.render === undefined) return { content: result.content };
+  if (!result.render || !Number.isSafeInteger(result.render.version) || result.render.version < 1)
+    throw new Error("工具展示数据需要正整数版本");
+  return {
+    content: result.content,
+    render: { version: result.render.version, data: copyJson(result.render.data) },
+  };
 }
 
 export function snapshotMCPDefinition(definition: PluginMCPDefinition): PluginMCPDefinition {
