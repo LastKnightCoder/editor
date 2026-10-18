@@ -6,6 +6,13 @@ import { pluginSyncStatusFile } from "./plugin-sync-status";
 
 const migrations = [
   {
+    key: "webdav",
+    pluginId: "tau.sync-webdav",
+    statusPrefix: "webdav",
+    pathKey: "pathPrefix",
+    defaultPath: "",
+  },
+  {
     key: "s3",
     pluginId: "tau.sync-s3",
     statusPrefix: "s3",
@@ -21,6 +28,9 @@ const migrations = [
   },
 ] as const;
 interface LegacyTarget {
+  url?: string;
+  username?: string;
+  password?: string;
   bucket?: string;
   region?: string;
   pathPrefix?: string;
@@ -33,10 +43,15 @@ interface MigrationSettings {
     active?: string;
     s3?: LegacyTarget;
     aliOSS?: LegacyTarget;
+    webdav?: LegacyTarget;
     plugin?: { id?: string; configurations?: Record<string, unknown> };
     [key: string]: unknown;
   };
-  integration?: { s3?: Record<string, unknown>; aliOSS?: Record<string, unknown> };
+  integration?: {
+    s3?: Record<string, unknown>;
+    aliOSS?: Record<string, unknown>;
+    webdav?: Record<string, unknown>;
+  };
   [key: string]: unknown;
 }
 
@@ -69,6 +84,12 @@ export async function migrateSyncPluginSettings(
     if (!hadPluginConfig) {
       const credentials = setting.integration?.[key];
       const config = { ...credentials, ...legacy };
+      if (key === "webdav") {
+        for (const field of ["url", "username", "password"] as const)
+          config[field] =
+            typeof credentials?.[field] === "string" ? credentials[field] : (legacy?.[field] ?? "");
+        config.pathPrefix = legacy?.pathPrefix || "";
+      }
       if (key === "aliOSS") {
         config.accessKeyId =
           (typeof credentials?.accessKeyId === "string" && credentials.accessKeyId) ||
@@ -79,9 +100,30 @@ export async function migrateSyncPluginSettings(
           legacy?.accessKeySecret ||
           "";
       }
-      configurations[pluginId] = config;
+      configurations[pluginId] =
+        key === "webdav"
+          ? {
+              url: config.url,
+              username: config.username,
+              password: config.password,
+              pathPrefix: config.pathPrefix,
+            }
+          : config;
     }
-    if (!legacy?.bucket || hadPluginConfig) continue;
+    if (!legacy || hadPluginConfig) continue;
+    let identity = legacy.bucket;
+    if (key === "webdav") {
+      const url = setting.integration?.webdav?.url;
+      if (typeof url !== "string") continue;
+      let host = url;
+      try {
+        host = new URL(url).host;
+      } catch {
+        /* 旧账本对无效URL使用完整地址。 */
+      }
+      identity = createHash("md5").update(host).digest("hex").slice(0, 8);
+    }
+    if (!identity) continue;
     const prefixHash = createHash("md5")
       .update(legacy[pathKey] || defaultPath)
       .digest("hex")
@@ -89,7 +131,7 @@ export async function migrateSyncPluginSettings(
     const source = path.join(
       appDir,
       "sync-status",
-      `${statusPrefix}-${legacy.bucket}-${prefixHash}.json`
+      `${statusPrefix}-${identity}-${prefixHash}.json`
     );
     const target = path.join(
       appDir,

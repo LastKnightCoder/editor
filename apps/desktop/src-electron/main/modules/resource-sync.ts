@@ -1,9 +1,7 @@
 import { ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import crypto from "node:crypto";
 import { ensureDir, pathExists } from "fs-extra/esm";
-import { createClient } from "webdav";
 
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import PathUtil from "../utils/PathUtil";
@@ -17,7 +15,6 @@ import {
   ResourceSyncStatus,
   ResourceSyncOptions,
   ResourceSyncProvider,
-  WebDavResourceSyncOptions,
   GithubResourceSyncOptions,
 } from "@/types/resource-sync";
 import { IRemoteFileInfo } from "@/types/sync";
@@ -135,108 +132,6 @@ class PluginResourceAdapter implements ProviderAdapter {
   }
   dispose() {
     return pluginSyncSessions.end(this.owner, this.session);
-  }
-}
-
-class WebDavAdapter implements ProviderAdapter {
-  private client;
-  private basePath: string;
-  constructor(options: WebDavResourceSyncOptions) {
-    this.client = createClient(options.url, {
-      username: options.username,
-      password: options.password,
-    });
-    this.basePath = options.pathPrefix || "";
-  }
-
-  async list(prefix: string): Promise<IRemoteFileInfo[]> {
-    const startPath = this.buildPath(prefix);
-    const queue: string[] = [startPath];
-    const visited = new Set<string>();
-    const files: IRemoteFileInfo[] = [];
-
-    while (queue.length) {
-      const current = queue.shift() as string;
-      if (visited.has(current)) continue;
-      visited.add(current);
-      let contents: any[] = [];
-      try {
-        const res = await this.client.getDirectoryContents(current);
-        const normalized = Array.isArray(res) ? res : (res as any)?.data;
-        contents = Array.isArray(normalized) ? normalized : [];
-      } catch (error: any) {
-        // 目录不存在时返回空列表，方便后续上传时自动创建
-        if (
-          error?.response?.status === 404 ||
-          error?.status === 404 ||
-          (typeof error?.message === "string" && error.message.includes("404"))
-        ) {
-          continue;
-        }
-        throw error;
-      }
-
-      contents.forEach((item: any) => {
-        if (item.type === "file") {
-          const relativePath = this.stripBase(item.filename || "");
-          files.push({
-            name: relativePath.split("/").filter(Boolean).pop() || item.basename || "",
-            path: relativePath,
-            size: Number(item.size || 0),
-            lastModified: item.lastmod ? new Date(item.lastmod).getTime() : undefined,
-          });
-        } else if (item.type === "directory") {
-          queue.push(item.filename);
-        }
-      });
-    }
-    return files;
-  }
-
-  async upload(objectName: string, content: Buffer): Promise<void> {
-    const remotePath = this.buildPath(objectName);
-    const dirPath = remotePath.split("/").slice(0, -1).join("/") || "/";
-    try {
-      await this.client.createDirectory(dirPath, { recursive: true });
-    } catch {
-      // 忽略目录已存在错误
-    }
-    await this.client.putFileContents(remotePath, content, {
-      overwrite: true,
-    });
-  }
-
-  async download(objectName: string): Promise<Buffer> {
-    const remotePath = this.buildPath(objectName);
-    const content = await this.client.getFileContents(remotePath);
-    if (content instanceof ArrayBuffer) {
-      return Buffer.from(content);
-    }
-    if (Buffer.isBuffer(content)) {
-      return content;
-    }
-    if (typeof content === "string") {
-      return Buffer.from(content);
-    }
-    return Buffer.alloc(0);
-  }
-
-  private buildPath(objectName: string) {
-    const cleanedName = objectName.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
-    const full = [cleanedBase, cleanedName].filter(Boolean).join("/");
-    return `/${full.replace(/\/+/g, "/")}`;
-  }
-
-  private stripBase(fullPath: string) {
-    const normalized = fullPath.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
-    if (!cleanedBase) return normalized;
-    if (normalized.startsWith(`${cleanedBase}/`)) {
-      return normalized.slice(cleanedBase.length + 1);
-    }
-    if (normalized === cleanedBase) return "";
-    return normalized;
   }
 }
 
@@ -415,8 +310,6 @@ class ResourceSyncModule {
             this.cancelRequested = true;
           }
         );
-      case "webdav":
-        return new WebDavAdapter(options);
       case "github":
         return new GithubAdapter(options);
       default:
@@ -651,32 +544,12 @@ class ResourceSyncModule {
   }
 
   private getStatusFileName(options: ResourceSyncOptions) {
-    const hash = (value: string) =>
-      crypto.createHash("md5").update(value).digest("hex").slice(0, 8);
-
     switch (options.provider) {
       case "plugin":
         return {
           fileName: pluginSyncStatusFile(options.pluginId, options.config),
           config: { pluginId: options.pluginId },
         };
-      case "webdav": {
-        let host = options.url;
-        try {
-          host = new URL(options.url).host;
-        } catch {
-          // ignore
-        }
-        const hostHash = hash(host);
-        const pathHash = hash(options.pathPrefix || "");
-        return {
-          fileName: `webdav-${hostHash}-${pathHash}.json`,
-          config: {
-            host,
-            pathPrefix: options.pathPrefix || "",
-          },
-        };
-      }
       case "github": {
         return {
           fileName: `github-${options.repo}-${options.branch}.json`,

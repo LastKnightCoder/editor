@@ -77,5 +77,20 @@
       "manifest.json": "f06c6a53ad1efb2ae122f86e9733a2d3166298b37e3fa3921f0904344f560dbd",
       "README.md": "1271583e813a018eb5ad3bbe52638de3d5ee2d182dbc8c127e7ae2da12f5ccce"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-webdav",
+    "bundled": true,
+    "artifact": "releases/tau.sync-webdav/0.1.0",
+    "id": "tau.sync-webdav",
+    "version": "0.1.0",
+    "sourceRevision": "6fbe00e3b2252631f18de6102c09021d6b22e60c",
+    "archiveSha256": "c555be471972ab77886e97181cfc73580842c3a12a52fdace779bd791d5e1e17",
+    "files": {
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.js": "e97d77202cbb13086a30ac63d8838ca9f4b735489bf4ac23bf2205d646463784",
+      "manifest.json": "121062bd4c30f2bddc81dfc03b07dcc8df09b68ee47e74395bf5cdc6f86a8c9b",
+      "README.md": "700e1ab532aa4e18336d8f85169a46fb6745366eb301b7473d0d3ddd1003411a"
+    }
   }
 ]

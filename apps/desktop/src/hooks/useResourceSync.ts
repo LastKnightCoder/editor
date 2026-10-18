@@ -43,20 +43,6 @@ const useResourceSync = () => {
               config: syncConfig.plugin.configurations[syncConfig.plugin.id],
             }
           : null;
-      case ESync.WebDav: {
-        const { url, username, password } = integrationConfig.webdav;
-        const { pathPrefix } = syncConfig.webdav;
-        if (!url || !username || !password) {
-          return null;
-        }
-        return {
-          provider: "webdav",
-          url,
-          username,
-          password,
-          pathPrefix,
-        };
-      }
       case ESync.Github: {
         const { token, user } = integrationConfig.github;
         const { repo, branch, pathPrefix } = syncConfig.github;
@@ -81,14 +67,6 @@ const useResourceSync = () => {
     switch (syncConfig.active) {
       case ESync.Plugin:
         return buildOptions();
-      case ESync.WebDav:
-        return {
-          provider: "webdav",
-          url: integrationConfig.webdav.url || "",
-          username: integrationConfig.webdav.username || "",
-          password: integrationConfig.webdav.password || "",
-          pathPrefix: syncConfig.webdav.pathPrefix || "",
-        };
       case ESync.Github:
         return {
           provider: "github",

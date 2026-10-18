@@ -26,7 +26,6 @@ export enum EImageBed {
 
 export enum ESync {
   Plugin = "plugin",
-  WebDav = "webdav",
   Github = "github",
 }
 
@@ -195,9 +194,6 @@ export interface ISetting {
     version: number;
     autoSyncEnabled: boolean;
     plugin?: { id: string; configurations: Record<string, unknown> };
-    webdav: {
-      pathPrefix: string;
-    };
     github: {
       repo: string;
       branch: string;
@@ -549,9 +545,6 @@ const initialState: IState = {
       active: ESync.Plugin,
       version: 1,
       autoSyncEnabled: false,
-      webdav: {
-        pathPrefix: "",
-      },
       github: {
         repo: "",
         branch: "",
