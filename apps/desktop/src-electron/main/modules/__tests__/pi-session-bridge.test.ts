@@ -8,6 +8,18 @@ import { desktopMessagesToPi, PiToolCallBridge } from "../pi-session-bridge";
 
 const user = (content: RequestMessage["content"]) => ({ role: "user", content }) as RequestMessage;
 
+it("成功结果将展示元数据放入 details，模型仅收到 content", async () => {
+  const bridge = new PiToolCallBridge({ isDestroyed: () => false, send: () => {} }, "s");
+  const tool = bridge.toToolDefinitions([{ name: "tool", description: "工具", parameters: {} }])[0];
+  const pending = tool.execute("call", {}, new AbortController().signal, undefined, {} as never);
+  const metadata = { render: { rendererKey: "tool", version: 1, payload: { label: "展示" } } };
+  bridge.handleResult("call", { content: "模型文本", metadata });
+  await expect(pending).resolves.toEqual({
+    content: [{ type: "text", text: "模型文本" }],
+    details: metadata,
+  });
+});
+
 it("中止会通知真实执行端，迟到结果不复活已取消调用", async () => {
   const send = vi.fn();
   const bridge = new PiToolCallBridge({ isDestroyed: () => false, send }, "s");

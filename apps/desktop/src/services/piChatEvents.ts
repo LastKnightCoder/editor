@@ -302,8 +302,18 @@ export class PiChatEventReducer {
             input: existing?.input ?? "",
             output: contentTextOf(toolResult.content as never) || undefined,
             timestamp: existing?.timestamp ?? Date.now(),
+            metadata: {
+              ...existing?.metadata,
+              ...(toolResult.details &&
+              typeof toolResult.details === "object" &&
+              !Array.isArray(toolResult.details)
+                ? (toolResult.details as Record<string, unknown>)
+                : {}),
+              piSessionId: this.sessionId,
+            },
             ...(existing?.duration !== undefined ? { duration: existing.duration } : {}),
           });
+          this.publishTurnExecutions(toolResult.toolCallId);
         }
         return;
       }

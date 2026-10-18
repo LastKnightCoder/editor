@@ -37,7 +37,8 @@ import {
 } from "./lifecycle";
 import { assertStorageActive, type StorageAdapter, type StorageScope } from "./storage";
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
-import { snapshotMCPDefinition, type PluginMCPDefinition } from "./mcp";
+import { snapshotMCPDefinition, snapshotMCPToolResult, type PluginMCPDefinition } from "./mcp";
+import { snapshotToolRendererDefinition, type PluginToolRendererDefinition } from "./chat";
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -99,6 +100,13 @@ export interface MCPAdapter {
   ): Disposable;
 }
 
+export interface ChatAdapter {
+  prepare(
+    context: PluginContext,
+    definition: PluginToolRendererDefinition
+  ): Promise<() => Disposable>;
+}
+
 export type PluginState =
   "disabled" | "activating" | "active" | "deactivating" | "failed" | "restart-required";
 
@@ -130,6 +138,7 @@ interface Activation {
   resources: Disposable[];
   instance?: PluginInstance;
   onActivated: Array<() => void>;
+  beforeActivated: Array<() => void>;
 }
 
 type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion">;
@@ -185,6 +194,7 @@ export class PluginHost {
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       mcp?: MCPAdapter;
+      chat?: ChatAdapter;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
@@ -266,6 +276,7 @@ export class PluginHost {
           controller: new AbortController(),
           resources: [],
           onActivated: [],
+          beforeActivated: [],
         };
         entry.activation = activation;
         await waitForLifecycle(
@@ -325,6 +336,7 @@ export class PluginHost {
           activation.controller.signal
         );
         this.assertActive(entry, activation);
+        for (const validate of activation.beforeActivated.splice(0)) validate();
         entry.state = "active";
         for (const commit of activation.onActivated.splice(0)) commit();
         this.changed();
@@ -413,7 +425,8 @@ export class PluginHost {
 
   private context(entry: Entry, activation: Activation): PluginContext {
     const pages = new WeakMap<PluginPageHandle, { id: string; active: () => boolean }>();
-    const mcpIds = new Set<string>();
+    const mcps = new Map<string, PluginMCPDefinition>();
+    const toolRenderers = new Set<string>();
     const scope: StorageScope = Object.freeze({
       pluginId: entry.metadata.id,
       workspaceId: this.options.workspaceId,
@@ -508,13 +521,58 @@ export class PluginHost {
       signal: scope.signal,
       register,
       ai: activation.ai ?? unavailableAI,
+      chat: Object.freeze({
+        registerToolRenderer: async (definition: PluginToolRendererDefinition) => {
+          this.assertActive(entry, activation);
+          const declared = snapshotToolRendererDefinition(definition);
+          const adapter = this.options.chat;
+          if (!adapter) throw new Error("当前宿主不支持聊天工具渲染");
+          const key = JSON.stringify([declared.mcpId, declared.toolName]);
+          if (toolRenderers.has(key)) throw new Error("工具渲染器已注册");
+          toolRenderers.add(key);
+          const local = new AbortController();
+          const signal = AbortSignal.any([scope.signal, local.signal]);
+          let resource: Disposable | undefined;
+          const owned = register({
+            dispose: () => {
+              local.abort();
+              toolRenderers.delete(key);
+              return resource?.dispose();
+            },
+          });
+          const validate = () => {
+            if (signal.aborted) return;
+            const mcp = mcps.get(declared.mcpId);
+            if (!mcp || (mcp.tools && !mcp.tools.some(tool => tool.name === declared.toolName)))
+              throw new Error("工具渲染器只能绑定本插件已注册的 MCP 工具");
+          };
+          try {
+            const commit = await adapter.prepare({ ...context, signal }, declared);
+            this.assertActive(entry, activation);
+            signal.throwIfAborted();
+            if (entry.state === "active") {
+              validate();
+              resource = commit();
+            } else {
+              activation.beforeActivated.push(validate);
+              activation.onActivated.push(() => {
+                if (!signal.aborted) resource = commit();
+              });
+            }
+            return owned;
+          } catch (error) {
+            await owned.dispose();
+            throw error;
+          }
+        },
+      }),
       mcp: Object.freeze({
         register: (definition: PluginMCPDefinition) => {
           this.assertActive(entry, activation);
           const declared = snapshotMCPDefinition(definition);
           const adapter = this.options.mcp;
           if (!adapter) throw new Error("当前宿主不支持 MCP");
-          if (mcpIds.has(definition.id)) throw new Error("MCP 已注册");
+          if (mcps.has(definition.id)) throw new Error("MCP 已注册");
           const local = new AbortController();
           const signal = AbortSignal.any([scope.signal, local.signal]);
           const snapshot: PluginMCPDefinition = declared.transport
@@ -534,11 +592,11 @@ export class PluginHost {
                     });
                     executionSignal.throwIfAborted();
                     this.assertActive(entry, activation);
-                    return copyJson(result) as { content: string };
+                    return snapshotMCPToolResult(result);
                   },
                 })),
               };
-          mcpIds.add(definition.id);
+          mcps.set(definition.id, declared);
           let resource: Disposable | undefined;
           const commit = () => {
             if (signal.aborted) return;
@@ -551,7 +609,7 @@ export class PluginHost {
           const owned = register({
             dispose: () => {
               local.abort();
-              mcpIds.delete(definition.id);
+              mcps.delete(definition.id);
               return resource?.dispose();
             },
           });

@@ -26,6 +26,31 @@ const setup = () => {
 };
 
 describe("pi 审批工具行归约", () => {
+  it("缺少工具结束事件时，turn_end 保留展示 details 并发布最终工具行", () => {
+    const { handle, reducer, message, sink } = setup();
+    handle({ type: "message_start", message });
+    handle({ type: "message_end", message });
+    handle({ type: "tool_execution_start", toolCallId: "call-1", toolName: "write", args: {} });
+    const details = { render: { rendererKey: "plugin-test", version: 1, payload: { count: 2 } } };
+    handle({
+      type: "turn_end",
+      toolResults: [
+        {
+          toolCallId: "call-1",
+          toolName: "write",
+          content: [{ type: "text", text: "完成" }],
+          details,
+        },
+      ],
+    });
+    expect(reducer.getExecutions()[0]).toMatchObject({ status: "success", metadata: details });
+    expect(sink.applyToolCalls).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ status: "success", metadata: expect.objectContaining(details) }),
+      ])
+    );
+  });
   it("流式完成时缓存读写并入上下文输入用量", () => {
     const { handle, sink } = setup();
     const message = {
