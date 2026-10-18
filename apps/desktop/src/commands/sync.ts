@@ -26,7 +26,7 @@ import {
   piSessionAssertLibrary,
   piSessionInstallDownload,
 } from "@/commands/piSession";
-import type { IDatabaseInfo } from "@/types/sync";
+import type { IDatabaseInfo, ISyncProvider } from "@/types/sync";
 import {
   SYNC_MODEL_VERSION,
   assertCompatibleSync,
@@ -117,7 +117,7 @@ export const upload = async (options?: SyncCommandOptions) => {
   }
 
   emitProgress(options, 5, "正在准备同步...");
-  const { databaseInfoObjectName, databaseInfo } = await getOriginDatabaseInfo();
+  const { databaseInfoObjectName, databaseInfo } = await readOriginDatabaseInfo(syncProvider, databaseName);
 
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
@@ -242,7 +242,7 @@ export const download = async (options?: SyncCommandOptions) => {
 
   emitProgress(options, 5, "正在检查远程版本...");
 
-  const { databaseInfo } = await getOriginDatabaseInfo();
+  const { databaseInfo } = await readOriginDatabaseInfo(syncProvider, databaseName);
   assertCompatibleSync(databaseInfo);
 
   const originVersion = Number(databaseInfo.version || 0);
@@ -367,7 +367,10 @@ export const download = async (options?: SyncCommandOptions) => {
 export const getOriginDatabaseInfo = async () => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   const { active: databaseName } = useSettingStore.getState().setting.database;
+  return readOriginDatabaseInfo(syncProvider, databaseName);
+};
 
+const readOriginDatabaseInfo = async (syncProvider: ISyncProvider | null, databaseName: string) => {
   const databaseInfoFileName = `database_${databaseName}.json`;
   const databaseInfoObjectName = databaseInfoFileName;
 

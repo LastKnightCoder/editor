@@ -10,8 +10,8 @@ import type { PluginSettings } from "./settings";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 
-export type JsonValue =
-  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+import type { JsonValue } from "./json";
+export type { JsonValue } from "./json";
 
 export interface Disposable {
   dispose(): void | Promise<void>;

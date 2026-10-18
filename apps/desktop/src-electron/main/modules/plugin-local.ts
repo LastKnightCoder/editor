@@ -10,7 +10,7 @@ import { readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
 import { installBundledPlugins } from "../services/plugin-bundled";
 import { acceptHeadlessPlugin } from "../services/plugin-codecs";
-import { ContentPluginPreferences } from "../services/plugin-preferences";
+import { LocalPluginPreferences } from "@tau/plugins/local-state";
 import {
   downloadPluginRelease,
   fetchPluginCatalog,
@@ -34,7 +34,7 @@ export default {
     );
     const updates = new PluginUpdates(directory(), app.getVersion());
     await updates.initialize();
-    const preferences = new ContentPluginPreferences(directory());
+    const preferences = new LocalPluginPreferences(directory());
     await preferences.load();
     const contentStartup = new PluginContentStartup(async id => {
       const maintenance = await updates.list();
@@ -60,19 +60,25 @@ export default {
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
-    ipcMain.handle("plugin-local:content-enabled", async (_event, id: string, enabled: boolean) => {
+    ipcMain.handle("plugin-local:set-enabled", async (_event, id: string, enabled: boolean) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
-      if (!isContentPlugin(artifact.manifest)) throw new Error("插件没有静态内容声明");
+      if (artifact.manifest.id !== id) throw new Error("插件身份无效");
       await preferences.set(id, enabled);
+      for (const window of BrowserWindow.getAllWindows())
+        if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
     });
     ipcMain.handle(
       "plugin-local:workspace",
       async (_event, name: string) => (await getPluginRegistry().open(name)).id
     );
-    ipcMain.handle("plugin-local:scan", async () => {
+    ipcMain.handle("plugin-local:scan", async (_event, legacy?: Record<string, unknown>) => {
+      if (legacy !== undefined) await preferences.importBrowser(legacy);
       const maintenance = await updates.list();
       const result = await discoverPlugins(directory(), app.getVersion());
       const sources = await updates.sources(result.entries.map(entry => entry.id));
+      if (legacy !== undefined) await preferences.initialize(Object.fromEntries(
+        result.entries.filter(entry => entry.artifact).map(entry => [entry.id, bundled.includes(entry.id) || sources[entry.id]?.kind === "center"])
+      ));
       return {
         ...result,
         clientVersion: app.getVersion(),
@@ -83,7 +89,7 @@ export default {
             ...entry,
             source: sources[entry.id],
             bundled: bundled.includes(entry.id),
-            contentEnabled: preferences.enabled(
+            enabled: preferences.enabled(
               entry.id,
               bundled.includes(entry.id) || sources[entry.id]?.kind === "center"
             ),
@@ -139,7 +145,10 @@ export default {
     });
     ipcMain.handle("plugin-local:uninstall", async (_event, id: string) => {
       if (await contentStartup.uses(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
-      return updates.uninstall(id);
+      await updates.uninstall(id);
+      await preferences.forget(id);
+      for (const window of BrowserWindow.getAllWindows())
+        if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
     });
     ipcMain.handle("plugin-local:restore", (_event, id: string) => updates.restore(id));
     ipcMain.handle("plugin-local:cancel-update", (_event, id: string) => updates.cancel(id));

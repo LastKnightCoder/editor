@@ -247,6 +247,7 @@ export class PluginUpdates {
       [
         "manifest.json",
         manifest.main,
+        ...(manifest.sync ? [manifest.sync] : []),
         ...(manifest.styles ? [manifest.styles] : []),
         ...DOCUMENT_FILES,
       ].map(name => manifest.id + "/" + name)

@@ -1,4 +1,4 @@
-import type { JsonValue } from "./index";
+import type { JsonValue } from "./json";
 
 /** 在边界复制 JSON，防止调用者在提交后继续修改宿主持有的数据。 */
 export function copyJson(value: unknown, depth = 0): JsonValue {

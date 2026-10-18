@@ -5,7 +5,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { DesktopPluginRuntime, PLUGIN_DETAIL_KEY } from "./runtime";
 import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { desktopFetch } from "@/commands/fetch";
-import { isElectron } from "@/electron";
+import { isElectron, on, off } from "@/electron";
 import { getPluginWorkspace } from "@/commands/plugin-local";
 import { migratePluginPreferences } from "./development-manager";
 import { themePlugin } from "./builtin/themePlugin";
@@ -27,8 +27,9 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     const onStorage = (event: StorageEvent) => {
       if (event.storageArea && event.storageArea !== window.localStorage) return;
       void current?.builtin?.restore(event.key);
-      void current?.local?.restore(event.key).catch(() => undefined);
     };
+    const onLocalState = () => { void current?.local?.refresh().catch(() => undefined); };
+    if (isElectron) on("plugin-local:state-changed", onLocalState);
     const previousCleanup = pendingCleanup;
     const preparation = (
       import.meta.env.DEV ? import("./editorComposition") : Promise.resolve(null)
@@ -75,6 +76,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       window.removeEventListener("storage", onStorage);
+      if (isElectron) off("plugin-local:state-changed", onLocalState);
       pendingCleanup = Promise.allSettled([
         previousCleanup,
         current ? current.dispose() : preparation,

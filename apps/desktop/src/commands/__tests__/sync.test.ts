@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
 
 const mockContext = vi.hoisted(() => {
   let settingState = {
@@ -41,6 +42,7 @@ const mockContext = vi.hoisted(() => {
       settingState = nextState;
     },
     syncProvider,
+    providerFactory: vi.fn(() => syncProvider),
     useSettingStoreMock,
     useGlobalStateStoreMock,
     reconnectDatabaseFast: vi.fn(async () => undefined),
@@ -101,7 +103,7 @@ vi.mock("@/stores/useGlobalStateStore", () => ({
 
 vi.mock("@/utils/sync", () => ({
   SyncProviderFactory: {
-    getSyncProvider: () => mockContext.syncProvider,
+    getSyncProvider: mockContext.providerFactory,
   },
 }));
 
@@ -116,7 +118,7 @@ vi.mock("@/commands/piSession", () => ({
 
 import { download, getOriginDatabaseInfo, upload } from "../sync";
 
-const snapshotInfo = (version: number, dataModelVersion = 4) => ({
+const snapshotInfo = (version: number, dataModelVersion = SYNC_MODEL_VERSION) => ({
   version,
   dataModelVersion,
   databaseObject: "data.db",
@@ -124,6 +126,7 @@ const snapshotInfo = (version: number, dataModelVersion = 4) => ({
 
 describe("sync commands reconnect source", () => {
   beforeEach(() => {
+    mockContext.providerFactory.mockReset().mockReturnValue(mockContext.syncProvider);
     mockContext.setSettingState({
       setting: {
         database: {
@@ -325,7 +328,7 @@ describe("sync commands reconnect source", () => {
     expect(mockContext.useGlobalStateStoreMock.setState).toHaveBeenCalled();
   });
 
-  it("云端协议 3 可检查并通过本地上传升级到协议 4", async () => {
+  it("云端旧协议可检查并通过本地上传升级到当前协议", async () => {
     mockContext.syncProvider.downloadFile.mockResolvedValue(
       new TextEncoder().encode(JSON.stringify(snapshotInfo(1, 3)))
     );
@@ -334,7 +337,7 @@ describe("sync commands reconnect source", () => {
     const published = mockContext.syncProvider.uploadFile.mock.calls[2];
     expect(JSON.parse(new TextDecoder().decode(published[1]))).toMatchObject({
       version: 2,
-      dataModelVersion: 4,
+      dataModelVersion: SYNC_MODEL_VERSION,
       parentVersion: 1,
     });
   });
@@ -361,10 +364,14 @@ describe("sync commands reconnect source", () => {
 
   it("未来协议不能被本地上传覆盖", async () => {
     mockContext.syncProvider.downloadFile.mockResolvedValue(
-      new TextEncoder().encode(JSON.stringify(snapshotInfo(1, 5)))
+      new TextEncoder().encode(JSON.stringify(snapshotInfo(1, SYNC_MODEL_VERSION + 1)))
     );
     await expect(upload()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
     expect(mockContext.closeDatabase).not.toHaveBeenCalled();
     expect(mockContext.syncProvider.uploadFile).not.toHaveBeenCalled();
+  });
+  it("一轮上传只捕获一次存储目标，读取版本和上传使用同一个提供方", async () => {
+    expect(await upload()).toBe(true);
+    expect(mockContext.providerFactory).toHaveBeenCalledTimes(1);
   });
 });

@@ -24,6 +24,7 @@ const mock = vi.hoisted(() => ({
   like: vi.fn(),
   comment: vi.fn(),
   deleteComment: vi.fn(),
+  preferences: new Map<string, boolean>(),
 }));
 vi.mock("@/commands/plugin-local", () => ({
   scanLocalPlugins: mock.scan,
@@ -37,6 +38,7 @@ vi.mock("@/commands/plugin-local", () => ({
   openPluginDirectory: vi.fn(),
   restoreLocalPlugin: vi.fn(),
   cancelLocalPluginUpdate: vi.fn(),
+  setLocalPluginEnabled: async (id: string, enabled: boolean) => { mock.preferences.set(id, enabled); },
   fetchPluginCommunity: mock.community,
   setPluginLiked: mock.like,
   addPluginComment: mock.comment,
@@ -135,8 +137,9 @@ const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]') ?? d
 
 beforeEach(async () => {
   localStorage.clear();
+  mock.preferences.clear();
   scan = { directory: "/test/plugins", entries: [], updates: [] };
-  mock.scan.mockImplementation(async () => scan);
+  mock.scan.mockImplementation(async () => ({ ...scan, entries: scan.entries.map(entry => ({ ...entry, enabled: mock.preferences.get(entry.id) ?? entry.source?.kind === "center" })) }));
   mock.catalog.mockResolvedValue(catalog);
   mock.release.mockResolvedValue({
     id: "r1",
