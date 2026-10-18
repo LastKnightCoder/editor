@@ -122,8 +122,11 @@
 <!-- 吸顶导航：首屏滚出后出现 -->
 <div class="topbar" data-theme="paper" data-mode="light" data-follow>
   <a class="brand" href="#top"><img src="/tau-icon.png" alt="" />Tau</a>
-  <nav class="nav-links"><a href="#feel">写作</a><a href="#board">白板</a><a href="#database">数据库</a><a href="#loop">闭环</a><a href="#ai">AI</a><a href="#daily">日常</a></nav>
-  <a class="btn primary sm" href="#download"><svg class="i"><use href="#i-down"/></svg>下载 Tau</a>
+  <nav class="nav-links"><!--tau:nav-links--></nav>
+  <div class="nav-actions">
+    <!--tau:github-link-->
+    <a class="btn primary sm" href="#download"><svg class="i"><use href="#i-down"/></svg>下载 Tau</a>
+  </div>
 </div>
 
 <!-- ============ 首屏 ============ -->
@@ -131,8 +134,11 @@
     <div class="stage">
       <nav class="nav">
         <a class="brand" href="#top"><img src="/tau-icon.png" alt="Tau 图标" />Tau</a>
-        <div class="nav-links"><a href="#feel">写作</a><a href="#board">白板</a><a href="#database">数据库</a><a href="#loop">闭环</a><a href="#ai">AI</a><a href="#daily">日常</a></div>
-        <a class="btn ghost sm" href="#download"><svg class="i"><use href="#i-down"/></svg>下载</a>
+        <div class="nav-links"><!--tau:nav-links--></div>
+        <div class="nav-actions">
+          <!--tau:github-link-->
+          <a class="btn ghost sm" href="#download"><svg class="i"><use href="#i-down"/></svg>下载</a>
+        </div>
       </nav>
       <div class="hero-copy">
         <span class="eyebrow"><i></i>本地优先 · 离线可用 · 开放插件</span>
@@ -796,7 +802,7 @@
   <div class="wrap">
     <a class="brand" href="#top"><img src="/tau-icon.png" alt="" />Tau</a>
     <span>一个安静的地方，安放你所有的想法。</span>
-    <nav><a href="#download">下载</a><a href="https://plugins.taunote.app" target="_blank" rel="noopener">插件中心</a></nav>
+    <nav><!--tau:nav-links--><a href="<!--tau:github-url-->" target="_blank" rel="noopener">GitHub</a><a href="#download">下载</a></nav>
   </div>
 </footer>
 

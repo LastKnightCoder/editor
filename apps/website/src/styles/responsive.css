@@ -67,11 +67,15 @@
   .w-cal {
     grid-column: span 6;
   }
-  .nav-links {
-    display: none;
-  }
 }
 @media (max-width: 640px) {
+  .nav-links,
+  .gh-label {
+    display: none;
+  }
+  .nav-actions {
+    gap: 4px;
+  }
   .wrap {
     padding: 0 20px;
   }
