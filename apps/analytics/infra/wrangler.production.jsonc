@@ -1,0 +1,34 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "tau-analytics",
+  "account_id": "ba54fcb8459b528b75991a4de5e5d023",
+  "main": "../api/index.ts",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "analytics.taunote.app", "custom_domain": true }],
+  "assets": {
+    "directory": "../web/dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/v1/*", "/health"],
+  },
+  "triggers": { "crons": ["17 * * * *"] },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://taunote.app,https://www.taunote.app,https://tau-website-cvr.pages.dev",
+    "DOWNLOAD_ORIGIN": "https://dl.taunote.app",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tau-analytics",
+      "database_id": "d81957ad-5703-4da1-911a-be8805f8cf88",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [{ "binding": "RELEASES", "bucket_name": "tau-release" }],
+  "ratelimits": [
+    { "name": "INGEST_LIMITER", "namespace_id": "1101", "simple": { "limit": 120, "period": 60 } },
+    { "name": "LOGIN_LIMITER", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
+    { "name": "DOWNLOAD_LIMITER", "namespace_id": "1103", "simple": { "limit": 60, "period": 60 } },
+  ],
+}

@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+
+@source "../../../../packages/ui/src";
+
+html,
+body {
+  margin: 0;
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-1);
+  font-family: var(--tau-font);
+  -webkit-font-smoothing: antialiased;
+}
