@@ -208,3 +208,40 @@ export interface PluginCommunity {
   comments: PluginComment[];
   nextCursor: string | null;
 }
+
+export type ModerationAction = "delete_comment" | "suspend_visitor" | "restore_visitor";
+export interface ModerationInput {
+  commentId: string;
+  action: ModerationAction;
+  reason: string;
+  revision: number;
+  clientRequestId: string;
+}
+export interface ModerationComment {
+  id: string;
+  pluginId: string;
+  visitorId: string;
+  message: string;
+  createdAt: string;
+  deleted: boolean;
+  suspended: boolean;
+  visitorRevision: number;
+}
+export interface ModerationFilter {
+  pluginId: string;
+  visitorId: string;
+  status: "visible" | "deleted" | "all";
+}
+export interface ModerationEvent {
+  id: string;
+  reviewer: string;
+  commentId: string;
+  visitorId: string;
+  action: ModerationAction;
+  reason: string;
+  createdAt: string;
+}
+export interface ModerationPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}

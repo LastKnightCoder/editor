@@ -8,6 +8,7 @@ import { reviewRoute } from "./reviews";
 import { publicReleaseRoute } from "./releases";
 import { visitorRoute } from "./visitors";
 import { communityRoute } from "./community";
+import { moderationRoute } from "./moderation";
 import { cleanDownloadReceipts } from "./download-statistics";
 
 export async function handle(
@@ -40,6 +41,7 @@ export async function handle(
         else {
           const session = await requireSession(request, env);
           response =
+            (await moderationRoute(request, env, session.publisher_id, path)) ??
             (await uploadRoute(request, env, session.publisher_id, path)) ??
             (await feedbackRoute(request, env, session.publisher_id, path)) ??
             (await reviewRoute(request, env, session.publisher_id, path)) ??

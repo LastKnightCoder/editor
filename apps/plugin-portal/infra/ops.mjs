@@ -228,6 +228,10 @@ async function smoke() {
   );
   const session = await get(api + "/v1/session", { headers: { Origin: web } });
   assert(session.status === 200 && (await session.json()).data?.user === null, "匿名会话检查失败");
+  for (const path of ["/v1/moderation/comments", "/v1/moderation/events"]) {
+    const response = await get(api + path, { headers: { Origin: web } });
+    assert(response.status === 401, "管理数据未拒绝匿名访问");
+  }
   const options = await get(api + "/v1/uploads", {
     method: "OPTIONS",
     headers: {

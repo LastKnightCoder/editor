@@ -124,6 +124,11 @@ export function SubmissionsPage() {
         actions={items.length > 0 && <NewButton />}
       />
       {session.data?.reviewer && (
+        <Link to="/moderation" className="text-accent-text ml-3">
+          评论管理
+        </Link>
+      )}
+      {session.data?.reviewer && (
         <Button onClick={() => setReview(value => !value)}>
           {review ? "查看我的提交" : "进入审核管理"}
         </Button>
