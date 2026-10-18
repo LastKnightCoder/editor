@@ -103,7 +103,8 @@ export class LocalPluginManager {
         const key = this.preferences.key(index);
         if (!key?.startsWith("tau-local-plugin-enabled:v1:")) continue;
         const value = this.preferences.getItem(key);
-        legacy[key.slice("tau-local-plugin-enabled:v1:".length)] = value === "true" ? true : value === "false" ? false : value;
+        legacy[key.slice("tau-local-plugin-enabled:v1:".length)] =
+          value === "true" ? true : value === "false" ? false : value;
       }
       const snapshot = await this.scan(legacy);
       this.assertOpen();

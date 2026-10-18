@@ -25,7 +25,11 @@ import { ReactEditor } from "slate-react";
 import { DevelopmentPluginManager } from "./development-manager";
 import { PluginActivationManager } from "./activation-manager";
 import { LocalPluginManager } from "./local-manager";
-import { scanLocalPlugins, uninstallLocalPlugin, setLocalPluginEnabled } from "@/commands/plugin-local";
+import {
+  scanLocalPlugins,
+  uninstallLocalPlugin,
+  setLocalPluginEnabled,
+} from "@/commands/plugin-local";
 import type { DevelopmentSession } from "@/types/plugin-development";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";

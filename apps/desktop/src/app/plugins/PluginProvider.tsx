@@ -28,7 +28,9 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
       if (event.storageArea && event.storageArea !== window.localStorage) return;
       void current?.builtin?.restore(event.key);
     };
-    const onLocalState = () => { void current?.local?.refresh().catch(() => undefined); };
+    const onLocalState = () => {
+      void current?.local?.refresh().catch(() => undefined);
+    };
     if (isElectron) on("plugin-local:state-changed", onLocalState);
     const previousCleanup = pendingCleanup;
     const preparation = (

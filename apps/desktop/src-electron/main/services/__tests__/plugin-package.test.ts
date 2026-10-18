@@ -40,7 +40,17 @@ describe("开发插件包读取", () => {
     const { readFile } = await import("node:fs/promises");
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
     const sync = "throw new Error('扫描不得执行后台入口')";
-    await writeFile(manifestPath, JSON.stringify({ ...manifest, sync: "sync.js", integrity: { ...manifest.integrity, "sync.js": createHash("sha256").update(sync).digest("hex") } }));
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        ...manifest,
+        sync: "sync.js",
+        integrity: {
+          ...manifest.integrity,
+          "sync.js": createHash("sha256").update(sync).digest("hex"),
+        },
+      })
+    );
     await expect(readPluginPackage(directory)).rejects.toThrow();
     await writeFile(path.join(directory, "sync.js"), sync);
     expect((await readPluginPackage(directory)).manifest.sync).toBe("sync.js");

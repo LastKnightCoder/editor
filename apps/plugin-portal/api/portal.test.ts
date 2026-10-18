@@ -48,9 +48,23 @@ function zip(
 describe("包资料与站内反馈", () => {
   it("发布包校验覆盖同步后台入口，不执行入口代码", async () => {
     const archive = new AdmZip(zip());
-    const manifest = JSON.parse(archive.getEntry("test.reader/manifest.json")!.getData().toString("utf8"));
+    const manifest = JSON.parse(
+      archive.getEntry("test.reader/manifest.json")!.getData().toString("utf8")
+    );
     const code = "throw new Error('后台入口不能在上传时执行')";
-    archive.updateFile("test.reader/manifest.json", Buffer.from(JSON.stringify({ ...manifest, sync: "sync.js", integrity: { ...manifest.integrity, "sync.js": createHash("sha256").update(code).digest("hex") } })));
+    archive.updateFile(
+      "test.reader/manifest.json",
+      Buffer.from(
+        JSON.stringify({
+          ...manifest,
+          sync: "sync.js",
+          integrity: {
+            ...manifest.integrity,
+            "sync.js": createHash("sha256").update(code).digest("hex"),
+          },
+        })
+      )
+    );
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
     archive.addFile("test.reader/sync.js", Buffer.from(code));
     await expect(inspectPackage(archive.toBuffer())).resolves.toBeDefined();

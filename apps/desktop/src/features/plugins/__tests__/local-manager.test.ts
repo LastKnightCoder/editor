@@ -39,14 +39,23 @@ function setup(
     })
   );
   const modules = vi.fn(async () => ({ "@tau/plugins": { definePlugin } }));
-  const save = vi.fn(async (id: string, enabled: boolean) => { persisted.set(id, enabled); });
+  const save = vi.fn(async (id: string, enabled: boolean) => {
+    persisted.set(id, enabled);
+  });
   const manager = new LocalPluginManager(
     host,
     ["core.theme"],
     async legacy => {
       const result = await scan();
-      for (const [id, value] of Object.entries(legacy)) if (!persisted.has(id) && typeof value === "boolean") persisted.set(id, value);
-      return { ...result, entries: result.entries.map(entry => ({ ...entry, enabled: persisted.get(entry.id) ?? entry.source?.kind === "center" })) };
+      for (const [id, value] of Object.entries(legacy))
+        if (!persisted.has(id) && typeof value === "boolean") persisted.set(id, value);
+      return {
+        ...result,
+        entries: result.entries.map(entry => ({
+          ...entry,
+          enabled: persisted.get(entry.id) ?? entry.source?.kind === "center",
+        })),
+      };
     },
     modules,
     localStorage,
@@ -65,7 +74,10 @@ const snapshot = (...artifacts: DevelopmentPluginPackage[]): LocalPluginScan => 
     artifact,
   })),
 });
-beforeEach(() => { localStorage.clear(); persisted.clear(); });
+beforeEach(() => {
+  localStorage.clear();
+  persisted.clear();
+});
 afterEach(async () => {
   managers.splice(0).forEach(manager => manager.cancel());
   await Promise.all(hosts.splice(0).map(host => host.dispose()));

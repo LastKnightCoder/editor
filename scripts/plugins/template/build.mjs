@@ -69,18 +69,31 @@ try {
   if (manifest.sync !== undefined) {
     if (manifest.sync !== "sync.js") throw new Error("模板的同步入口请声明为sync.js");
     const backend = await build({
-      entryPoints: ["src/sync.ts"], outfile: path.join(staging, manifest.sync),
-      bundle: true, platform: "node", format: "cjs", target: "node22",
-      external: ["@tau/plugins/sync"], metafile: true,
+      entryPoints: ["src/sync.ts"],
+      outfile: path.join(staging, manifest.sync),
+      bundle: true,
+      platform: "node",
+      format: "cjs",
+      target: "node22",
+      external: ["@tau/plugins/sync"],
+      metafile: true,
     });
     for (const output of Object.values(backend.metafile.outputs))
       for (const dependency of output.imports)
-        if (dependency.external && dependency.path !== "@tau/plugins/sync" &&
-          !dependency.path.startsWith("node:") && !builtinModules.includes(dependency.path))
+        if (
+          dependency.external &&
+          dependency.path !== "@tau/plugins/sync" &&
+          !dependency.path.startsWith("node:") &&
+          !builtinModules.includes(dependency.path)
+        )
           throw new Error("同步入口包含未打包的依赖：" + dependency.path);
   }
   const integrity = {};
-  for (const file of ["main.js", ...(manifest.sync ? [manifest.sync] : []), ...(styles ? ["main.css"] : [])])
+  for (const file of [
+    "main.js",
+    ...(manifest.sync ? [manifest.sync] : []),
+    ...(styles ? ["main.css"] : []),
+  ])
     integrity[file] = createHash("sha256")
       .update(await readFile(path.join(staging, file)))
       .digest("hex");
