@@ -14,6 +14,7 @@ import {
   Image,
   Locate,
   PenLine,
+  Plug,
   Terminal,
   Video,
   type LucideIcon,
@@ -50,7 +51,9 @@ export function ServerIcon({ item, size = "md" }: { item: McpServerItem; size?: 
         ? scopedIcon(item)
         : item.kind === "pi"
           ? Terminal
-          : customIcon(item);
+          : item.kind === "plugin" && !item.server
+            ? Plug
+            : customIcon(item);
   return (
     <span
       className={cn(
@@ -80,8 +83,10 @@ export function statusText(item: McpServerItem): string {
   switch (item.status) {
     case "ready":
       return item.tools.length > 0
-        ? `${item.tools.length - item.disabledTools.size} / ${item.tools.length} 个工具`
-        : "已连接";
+        ? `${item.tools.filter(tool => !item.disabledTools.has(tool.name)).length} / ${item.tools.length} 个工具`
+        : item.kind === "plugin" && !item.server
+          ? "就绪"
+          : "已连接";
     case "connecting":
       return "连接中…";
     case "error":

@@ -1,4 +1,4 @@
-import { ipcMain, app, BrowserWindow } from "electron";
+import { ipcMain, app, BrowserWindow, type WebContents } from "electron";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
@@ -93,6 +93,7 @@ class MCPConnectionManager {
   readonly logs = new MCPLogBuffer();
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
+  private pendingClients = new Map<string, { client: Client; transport: Transport }>();
   private serverConfigs: Map<string, CustomMCPServer> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private maxReconnectReached: Set<string> = new Set(); // 记录已达到最大重连次数的服务器
@@ -107,7 +108,7 @@ class MCPConnectionManager {
     }
 
     // 如果已连接，先断开
-    if (this.clients.has(server.id)) {
+    if (this.clients.has(server.id) || this.pendingClients.has(server.id)) {
       await this.disconnect(server.id);
     }
 
@@ -119,6 +120,8 @@ class MCPConnectionManager {
       { name: "tau-desktop", version: app.getVersion() },
       { capabilities: {} }
     );
+    const pending = { client, transport };
+    this.pendingClients.set(server.id, pending);
 
     // 设置自动重连（仅 stdio）
     if (server.transport.type === "stdio") {
@@ -127,6 +130,7 @@ class MCPConnectionManager {
 
     try {
       await client.connect(transport);
+      if (this.serverConfigs.get(server.id) !== server) throw new Error("MCP 连接已取消");
       this.clients.set(server.id, client);
       this.transports.set(server.id, transport);
       this.reconnectAttempts.set(server.id, 0);
@@ -136,13 +140,26 @@ class MCPConnectionManager {
       console.error(`[MCP] Failed to connect to ${server.name}:`, error);
       const normalized = this.normalizeConnectionError(error);
       this.logs.push(server.id, "error", `连接失败：${normalized.message}`);
+      if (this.serverConfigs.get(server.id) === server) this.serverConfigs.delete(server.id);
+      await client.close().catch(() => undefined);
+      await transport.close().catch(() => undefined);
       throw normalized;
+    } finally {
+      if (this.pendingClients.get(server.id) === pending) this.pendingClients.delete(server.id);
     }
   }
 
   async disconnect(serverId: string): Promise<void> {
     const client = this.clients.get(serverId);
     const transport = this.transports.get(serverId);
+    const pending = this.pendingClients.get(serverId);
+    // 先撤销重连依据，再关闭传输，避免 onclose 把主动停用认作连接故障。
+    this.serverConfigs.delete(serverId);
+    this.pendingClients.delete(serverId);
+    if (pending) {
+      await pending.client.close().catch(() => undefined);
+      await pending.transport.close().catch(() => undefined);
+    }
 
     if (client) {
       try {
@@ -170,7 +187,7 @@ class MCPConnectionManager {
   }
 
   async disconnectAll(): Promise<void> {
-    const serverIds = Array.from(this.clients.keys());
+    const serverIds = Array.from(this.serverConfigs.keys());
     await Promise.all(serverIds.map(id => this.disconnect(id)));
   }
 
@@ -288,6 +305,11 @@ class MCPConnectionManager {
 
   private setupAutoReconnect(serverId: string, transport: StdioClientTransport): void {
     transport.onclose = async () => {
+      if (
+        this.transports.get(serverId) !== transport &&
+        this.pendingClients.get(serverId)?.transport !== transport
+      )
+        return;
       const config = this.serverConfigs.get(serverId);
       if (!config?.enabled) {
         console.log(`[MCP] Server ${serverId} disabled, not reconnecting`);
@@ -325,6 +347,7 @@ class MCPConnectionManager {
       );
 
       await new Promise(resolve => setTimeout(resolve, delay));
+      if (this.serverConfigs.get(serverId) !== config) return;
 
       try {
         // 清理旧连接
@@ -389,12 +412,37 @@ class MCPConnectionManager {
 class MCPModule implements Module {
   name = "mcp";
   private connectionManager = new MCPConnectionManager();
+  private windowConnections = new Map<WebContents, Set<string>>();
+
+  private trackWindow(sender: WebContents, serverId: string): void {
+    let connections = this.windowConnections.get(sender);
+    if (!connections) {
+      connections = new Set();
+      this.windowConnections.set(sender, connections);
+      const close = () => {
+        const ids = this.windowConnections.get(sender);
+        this.windowConnections.delete(sender);
+        sender.removeListener("destroyed", close);
+        sender.removeListener("render-process-gone", close);
+        sender.removeListener("did-navigate", close);
+        for (const id of ids ?? []) void this.connectionManager.disconnect(id);
+      };
+      sender.once("destroyed", close);
+      sender.once("render-process-gone", close);
+      sender.once("did-navigate", close);
+    }
+    connections.add(serverId);
+  }
 
   async init(): Promise<void> {
     // 连接到 MCP 服务器
     ipcMain.handle(
       "mcp-connect",
-      async (_event, payload: { server: CustomMCPServer; isManualReconnect?: boolean }) => {
+      async (
+        event,
+        payload: { server: CustomMCPServer; isManualReconnect?: boolean; windowScoped?: boolean }
+      ) => {
+        if (payload.windowScoped) this.trackWindow(event.sender, payload.server.id);
         await this.connectionManager.connect(payload.server, payload.isManualReconnect ?? false);
         return { success: true };
       }
@@ -408,6 +456,8 @@ class MCPModule implements Module {
 
     // 断开 MCP 服务器连接
     ipcMain.handle("mcp-disconnect", async (_event, payload: { serverId: string }) => {
+      for (const connections of this.windowConnections.values())
+        connections.delete(payload.serverId);
       await this.connectionManager.disconnect(payload.serverId);
       return { success: true };
     });

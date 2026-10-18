@@ -29,13 +29,20 @@ vi.mock("@/commands/plugin-local", () => ({
   scanLocalPlugins: vi.fn(async () => ({ directory: "/test/.editor/plugins", entries: [] })),
   openPluginDirectory: vi.fn(),
   uninstallLocalPlugin: vi.fn(),
+  setLocalPluginEnabled: vi.fn(async () => undefined),
   fetchPluginCatalog: vi.fn(async () => ({ items: [] })),
 }));
-vi.mock("@/electron", () => ({ isElectron: true }));
+vi.mock("@/electron", () => ({ isElectron: true, on: vi.fn(), off: vi.fn() }));
+vi.mock("@/tools/pluginMCP", () => ({ registerPluginMCP: vi.fn() }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 import useSettingStore from "@/stores/useSettingStore";
 import { openDevelopmentPlugins } from "@/commands/plugin-development";
-import { getPluginWorkspace, scanLocalPlugins, openPluginDirectory } from "@/commands/plugin-local";
+import {
+  getPluginWorkspace,
+  scanLocalPlugins,
+  openPluginDirectory,
+  setLocalPluginEnabled,
+} from "@/commands/plugin-local";
 
 let runtime: DesktopPluginRuntime | null;
 let root: Root;
@@ -97,6 +104,11 @@ async function remount() {
 }
 beforeEach(async () => {
   vi.stubEnv("DEV", false);
+  vi.mocked(setLocalPluginEnabled).mockImplementation(async (id, enabled) => {
+    const snapshot = await scanLocalPlugins();
+    const entry = snapshot.entries.find(item => item.id === id);
+    if (entry) entry.enabled = enabled;
+  });
   vi.mocked(scanLocalPlugins).mockResolvedValue({
     directory: "/test/.editor/plugins",
     entries: [],
@@ -274,6 +286,7 @@ it("正式 Provider 启动发现本地包，管理启用后重建恢复，刷新
     entries: [
       {
         id: "test.local",
+        enabled: false,
         directory: "/test/.editor/plugins/test.local",
         artifact: {
           manifest: {

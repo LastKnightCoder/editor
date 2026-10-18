@@ -251,9 +251,11 @@ function JsonEditor({
 export function ServerForm({
   draft,
   onChange,
+  identityReadOnly = false,
 }: {
   draft: ServerDraft;
   onChange: (draft: ServerDraft) => void;
+  identityReadOnly?: boolean;
 }) {
   const [jsonMode, setJsonMode] = useState(false);
   const set = <K extends keyof ServerDraft>(key: K, value: ServerDraft[K]) =>
@@ -266,6 +268,7 @@ export function ServerForm({
         <Field label="名称">
           <Input
             value={draft.name}
+            readOnly={identityReadOnly}
             onChange={e => set("name", e.target.value)}
             placeholder="例如 filesystem"
             data-autofocus
@@ -274,6 +277,7 @@ export function ServerForm({
         <Field label="描述" hint="可选">
           <Input
             value={draft.description}
+            readOnly={identityReadOnly}
             onChange={e => set("description", e.target.value)}
             placeholder="记一下它是做什么的"
           />

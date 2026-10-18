@@ -18,6 +18,7 @@ import {
   normalizePageParams,
   type ExcerptsAdapter,
   type MaterialsAdapter,
+  type MCPAdapter,
   type StorageAdapter,
 } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
@@ -117,6 +118,7 @@ export class DesktopPluginRuntime {
       services?: PluginServices;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      mcp?: MCPAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -129,6 +131,7 @@ export class DesktopPluginRuntime {
       excerpts: options.excerpts,
       materials: options.materials,
       skills: { register: registerPluginSkill },
+      mcp: options.mcp,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },

@@ -31,8 +31,11 @@ interface MCPToolCallResult {
 /**
  * 连接到 MCP 服务器
  */
-export const connectToServer = async (server: CustomMCPServer): Promise<void> => {
-  await connectMcpServer(server);
+export const connectToServer = async (
+  server: CustomMCPServer,
+  windowScoped = false
+): Promise<void> => {
+  await connectMcpServer(server, windowScoped);
   console.debug("[MCP] Connected to server", { server: server.name });
 };
 
@@ -148,17 +151,26 @@ const ensureMCPModuleInitialized = (): Promise<void> =>
 /**
  * 从服务器获取工具定义并包装为 ToolDefinition
  */
-export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<ToolDefinition[]> => {
+export const fetchToolsFromServer = async (
+  server: CustomMCPServer,
+  options?: { getServer: () => CustomMCPServer | undefined; windowScoped?: boolean }
+): Promise<ToolDefinition[]> => {
   // 确保 MCP 模块已初始化
   await ensureMCPModuleInitialized();
+  const assertCurrent = () => {
+    if (options && !options.getServer()) throw new Error("插件 MCP 已停用或配置已变化");
+  };
+  assertCurrent();
 
   // 确保已连接
   const connected = await isServerConnected(server.id);
+  assertCurrent();
   if (!connected) {
-    await connectToServer(server);
+    await connectToServer(server, options?.windowScoped);
   }
 
   const remoteTools = await listServerTools(server.id);
+  assertCurrent();
   const transportKey = JSON.stringify(server.transport);
   const transportDigest = await crypto.subtle.digest(
     "SHA-256",
@@ -177,7 +189,9 @@ export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<Too
     risk: "execute",
     executor: async (args, context) => {
       // 从 store 获取最新的服务器配置
-      const currentServer = useMCPStore.getState().getCustomServer(server.id);
+      const currentServer = options
+        ? options.getServer()
+        : useMCPStore.getState().getCustomServer(server.id);
       if (!currentServer) {
         throw new Error(`MCP 服务器 "${server.name}" 已被删除`);
       }
@@ -191,10 +205,12 @@ export const fetchToolsFromServer = async (server: CustomMCPServer): Promise<Too
 
       // 确保服务器已连接
       const connected = await isServerConnected(currentServer.id);
+      context?.signal?.throwIfAborted();
+      assertCurrent();
       if (!connected) {
         console.log(`[MCP] 服务器 ${currentServer.name} 未连接，尝试重新连接...`);
         try {
-          await connectToServer(currentServer);
+          await connectToServer(currentServer, options?.windowScoped);
         } catch (error) {
           console.error(`[MCP] 重新连接失败:`, error);
           throw new Error(

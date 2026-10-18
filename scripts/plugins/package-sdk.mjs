@@ -193,6 +193,10 @@ try {
         await readFile(path.join(root, "scripts/plugins/template/AI.md"))
       );
       await writeFile(
+        path.join(directory, "MCP.md"),
+        await readFile(path.join(root, "scripts/plugins/template/MCP.md"))
+      );
+      await writeFile(
         path.join(directory, "EDITOR.md"),
         await readFile(path.join(root, "scripts/plugins/template/EDITOR.md"))
       );
