@@ -49,7 +49,6 @@ const ProgressModal = ({ open, progress, status, title, subtitle }: ProgressModa
 
 const AutoSyncManager = () => {
   const sync = useSettingStore(state => state.setting.sync);
-  const integration = useSettingStore(state => state.setting.integration);
   const database = useSettingStore(state => state.setting.database);
   const isDevMode = process.env.NODE_ENV === "development";
 
@@ -58,10 +57,7 @@ const AutoSyncManager = () => {
     [database.active, database.databases]
   );
   const currentVersion = activeDatabase?.version ?? 0;
-  const isConfigured = useMemo(
-    () => isSyncConfigured(sync.active, sync, integration),
-    [integration, sync]
-  );
+  const isConfigured = useMemo(() => isSyncConfigured(sync.active, sync), [sync]);
   const shouldAutoSync = !isDevMode && sync.autoSyncEnabled && isConfigured;
 
   const [uploadState, setUploadState] = useState<ProgressState>({

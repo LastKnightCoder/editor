@@ -92,7 +92,7 @@ it("失败保留原配置可重试，已有插件配置优先，其他目标不�
       ...setting,
       sync: {
         ...setting.sync,
-        active: "github",
+        active: "plugin",
         plugin: { id: "other", configurations: { "tau.sync-s3": { bucket: "new" } } },
       },
     },
@@ -100,7 +100,7 @@ it("失败保留原配置可重试，已有插件配置优先，其他目标不�
     async () => {}
   );
   expect(next.sync).toMatchObject({
-    active: "github",
+    active: "plugin",
     plugin: { id: "other", configurations: { "tau.sync-s3": { bucket: "new" } } },
   });
 });
@@ -180,7 +180,7 @@ it("WebDAV已有插件配置优先，不改变其他活动同步目标", async (
   const next = await migrateSyncPluginSettings(
     {
       sync: {
-        active: "github",
+        active: "plugin",
         webdav: { pathPrefix: "/old" },
         plugin: { id: "other", configurations: { "tau.sync-webdav": { url: "new" } } },
       },
@@ -190,9 +190,85 @@ it("WebDAV已有插件配置优先，不改变其他活动同步目标", async (
     async () => {}
   );
   expect(next.sync).toMatchObject({
-    active: "github",
+    active: "plugin",
     plugin: { id: "other", configurations: { "tau.sync-webdav": { url: "new" } } },
   });
+});
+
+it("GitHub迁移保留仓库、分支、账本和明确停用意图，保存失败不删除旧数据", async () => {
+  const root = await setup();
+  const { LocalPluginPreferences } = await import("@tau/plugins/local-state");
+  const preferences = new LocalPluginPreferences(path.join(root, "plugins"));
+  await preferences.load();
+  await preferences.set("tau.sync-github", false);
+  const setting = {
+    sync: {
+      active: "github",
+      autoSyncEnabled: true,
+      github: { repo: "repo", branch: "main", pathPrefix: "/note" },
+    },
+    integration: {
+      github: { token: "secret", user: { name: "owner", email: "email" }, enabled: true },
+    },
+    database: { version: 9 },
+  };
+  await mkdir(path.join(root, "sync-status"));
+  const source = path.join(root, "sync-status", "github-repo-main.json");
+  await writeFile(
+    source,
+    JSON.stringify({ files: { a: { syncStatus: "synced" } }, lastSyncTime: 42 })
+  );
+  await expect(
+    migrateSyncPluginSettings(setting, root, async () => {
+      throw new Error("disk");
+    })
+  ).rejects.toThrow("disk");
+  expect(await readFile(source, "utf8")).toContain("synced");
+  expect(setting.sync.active).toBe("github");
+  const save = vi.fn(async () => {});
+  const result = await migrateSyncPluginSettings(setting, root, save);
+  const config = result.sync?.plugin?.configurations?.["tau.sync-github"];
+  expect(config).toEqual({
+    token: "secret",
+    owner: "owner",
+    repo: "repo",
+    branch: "main",
+    pathPrefix: "/note",
+  });
+  expect(result.sync).toMatchObject({
+    active: "plugin",
+    autoSyncEnabled: true,
+    plugin: { id: "tau.sync-github" },
+  });
+  expect(result.sync).not.toHaveProperty("github");
+  expect(result.integration).toEqual(setting.integration);
+  expect(result.database).toEqual(setting.database);
+  expect((await readLocalPluginState(path.join(root, "plugins"))).enabled["tau.sync-github"]).toBe(
+    false
+  );
+  const status = await readFile(
+    path.join(root, "sync-status", pluginSyncStatusFile("tau.sync-github", config)),
+    "utf8"
+  );
+  expect(JSON.parse(status)).toMatchObject({
+    files: { a: { syncStatus: "synced" } },
+    lastSyncTime: 42,
+  });
+  expect(status).not.toContain("secret");
+  await expect(readFile(source)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(await migrateSyncPluginSettings(result, root, save)).toBe(result);
+  const preferred = await migrateSyncPluginSettings(
+    {
+      ...setting,
+      sync: {
+        ...setting.sync,
+        plugin: { id: "tau.sync-github", configurations: { "tau.sync-github": { repo: "new" } } },
+      },
+    },
+    root,
+    save
+  );
+  expect(preferred.sync?.plugin?.configurations?.["tau.sync-github"]).toEqual({ repo: "new" });
 });
 
 it("OSS迁移保留内嵌凭据回退、资源账本、自动同步与停用意图，并可同时升级S3", async () => {

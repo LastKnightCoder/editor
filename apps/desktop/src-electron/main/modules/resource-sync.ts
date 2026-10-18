@@ -15,10 +15,8 @@ import {
   ResourceSyncStatus,
   ResourceSyncOptions,
   ResourceSyncProvider,
-  GithubResourceSyncOptions,
 } from "@/types/resource-sync";
 import { IRemoteFileInfo } from "@/types/sync";
-import { downloadFileFromGithub, listGithubFiles, uploadFileToGithub } from "@/utils/github";
 import databaseModule from "./database";
 import { pluginSyncSessions } from "../services/plugin-sync";
 import { copyJson } from "@tau/plugins/host";
@@ -135,77 +133,6 @@ class PluginResourceAdapter implements ProviderAdapter {
   }
 }
 
-class GithubAdapter implements ProviderAdapter {
-  private basePath: string;
-  constructor(private options: GithubResourceSyncOptions) {
-    this.basePath = options.pathPrefix || "";
-  }
-
-  async list(prefix: string): Promise<IRemoteFileInfo[]> {
-    const combinedPath = this.buildPath(prefix);
-    const files = await listGithubFiles({
-      token: this.options.token,
-      owner: this.options.user.name,
-      repo: this.options.repo,
-      path: combinedPath,
-      branch: this.options.branch,
-    });
-
-    return files.map(file => {
-      const relativePath = this.stripBase(file.path || file.name || "");
-      return {
-        name: file.name || relativePath,
-        path: relativePath,
-        size: file.size || 0,
-        hash: file.sha,
-      };
-    });
-  }
-
-  async upload(objectName: string, content: Buffer): Promise<void> {
-    const filePath = this.buildPath(objectName);
-    const base64Content = content.toString("base64");
-    await uploadFileToGithub({
-      token: this.options.token,
-      owner: this.options.user.name,
-      repo: this.options.repo,
-      path: filePath,
-      content: base64Content,
-      message: `Sync resource ${objectName}`,
-      branch: this.options.branch,
-    });
-  }
-
-  async download(objectName: string): Promise<Buffer> {
-    const filePath = this.buildPath(objectName);
-    const base64Content = await downloadFileFromGithub({
-      token: this.options.token,
-      owner: this.options.user.name,
-      repo: this.options.repo,
-      path: filePath,
-      branch: this.options.branch,
-    });
-    return Buffer.from(base64Content, "base64");
-  }
-
-  private buildPath(objectName: string) {
-    const cleanedName = objectName.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
-    return [cleanedBase, cleanedName].filter(Boolean).join("/");
-  }
-
-  private stripBase(fullPath: string) {
-    const normalized = fullPath.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
-    if (!cleanedBase) return normalized;
-    if (normalized.startsWith(`${cleanedBase}/`)) {
-      return normalized.slice(cleanedBase.length + 1);
-    }
-    if (normalized === cleanedBase) return "";
-    return normalized;
-  }
-}
-
 class ResourceSyncModule {
   private backendServer: BackendWebSocketServer | null = null;
   private adapter: ProviderAdapter | null = null;
@@ -310,8 +237,6 @@ class ResourceSyncModule {
             this.cancelRequested = true;
           }
         );
-      case "github":
-        return new GithubAdapter(options);
       default:
         throw new Error("不支持的同步提供者");
     }
@@ -550,16 +475,6 @@ class ResourceSyncModule {
           fileName: pluginSyncStatusFile(options.pluginId, options.config),
           config: { pluginId: options.pluginId },
         };
-      case "github": {
-        return {
-          fileName: `github-${options.repo}-${options.branch}.json`,
-          config: {
-            repo: options.repo,
-            branch: options.branch,
-            pathPrefix: options.pathPrefix || "",
-          },
-        };
-      }
       default:
         return {
           fileName: "resource-sync.json",

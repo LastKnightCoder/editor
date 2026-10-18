@@ -19,6 +19,12 @@ vi.mock("@/commands", () => ({
   removeFile: vi.fn(),
 }));
 vi.mock("@/utils/sync", () => ({ isSyncConfigured: () => true }));
+vi.mock("@/app/plugins/context", () => ({
+  useDesktopPlugins: () => ({
+    listSettings: () => [],
+    host: { listPlugins: () => [{ id: "test.sync", state: "active" }] },
+  }),
+}));
 vi.mock("@/services/usageSyncRunner", () => ({ runUsageSync: vi.fn(async () => null) }));
 vi.mock("@/app/settingsStore", () => ({
   useSettingsStore: { getState: () => ({ openSettings: vi.fn() }) },
@@ -61,7 +67,11 @@ beforeEach(() => {
   useSettingStore.setState(s => ({
     setting: {
       ...s.setting,
-      sync: { ...s.setting.sync, active: ESync.Github },
+      sync: {
+        ...s.setting.sync,
+        active: ESync.Plugin,
+        plugin: { id: "test.sync", configurations: { "test.sync": {} } },
+      },
       database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
     },
   }));

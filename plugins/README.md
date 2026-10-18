@@ -12,6 +12,7 @@
 | S3 同步存储     | [tau-plugin-s3 · 0.2.0](https://github.com/LastKnightCoder/tau-plugin-s3)                                          | 是，接管旧 S3 同步     |
 | OSS 同步存储    | [tau-plugin-oss · 0.1.1](https://github.com/LastKnightCoder/tau-plugin-oss)                                        | 是，接管旧 OSS 同步    |
 | WebDAV 同步存储 | [tau-plugin-webdav · 0.1.0](https://github.com/LastKnightCoder/tau-plugin-webdav)                                  | 是，接管旧 WebDAV 同步 |
+| GitHub 同步存储 | [tau-plugin-github · 0.1.0](https://github.com/LastKnightCoder/tau-plugin-github)                                  | 是，接管旧 GitHub 同步 |
 
 清单中的 `repository`、`sourceRevision`、`version` 对应源码仓库、提交及版本；`bundled:false` 的包保留用于集成验证，不自动安装。SDK 0.8.0 已发布，三个源码仓库均可用公开 npm 依赖独立构建。不使用 submodule。
 
@@ -22,6 +23,8 @@ OSS 0.1.1同样使用公开SDK0.10.0，通过官方ali-oss浏览器构建和宿�
 固定快照的所有文件（包括说明和许可证）均记录 SHA-256。构建检查完整文件清单、文件摘要以及 manifest 身份/版本，任何漂移都失败。`archiveSha256` 记录导入的 ZIP 摘要，`sourceRevision` 记录作者提交用于追溯；构建直接校验解包后的文件，不需要原 ZIP。固定快照不参与 ESLint/Prettier，禁止手改 main.js 或格式化 manifest。
 
 WebDAV 0.1.0使用公开SDK0.10.0和webdav官方浏览器构建，仅通过宿主fetch访问网络。旧同步配置与账本自动迁入插件，统一沿用插件资源调度参数。源码：[tau-plugin-webdav](https://github.com/LastKnightCoder/tau-plugin-webdav)。默认随客户端安装，保留用户明确停用意图；迁移与验收见 `docs/plugin-system/57-WebDAV渲染进程拆分.md`。
+
+GitHub 0.1.0源码：[tau-plugin-github](https://github.com/LastKnightCoder/tau-plugin-github)。默认随客户端安装，使用公开SDK0.10.0与宿主fetch，只在渲染进程执行；接管旧GitHub同步配置及资源账本。四种存储均已插件化，账号、图床及博客功能仍使用各自的宿主实现。验收见docs/plugin-system/58-GitHub渲染进程拆分.md。
 
 ## 更新独立插件版本
 

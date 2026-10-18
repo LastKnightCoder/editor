@@ -20,8 +20,7 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 
 export function UsageDevicesGroup({ refreshToken }: { refreshToken: number }) {
   const sync = useSettingStore(state => state.setting.sync);
-  const integration = useSettingStore(state => state.setting.integration);
-  const configured = isSyncConfigured(sync.active, sync, integration);
+  const configured = isSyncConfigured(sync.active, sync);
   const [status, setStatus] = useState<UsageSyncStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [removing, setRemoving] = useState<UsageDeviceInfo | null>(null);
