@@ -82,8 +82,7 @@ const ToolCallRendererItem: React.FC<{
   const isRetiredExecution = typeof execution.metadata?.codexItemType === "string";
   const customRenderer = isRetiredExecution
     ? undefined
-    : toolCallRendererRegistry.getRegistration(rendererKey) ||
-      toolCallRendererRegistry.getRegistration(execution.toolName);
+    : toolCallRendererRegistry.resolve(execution.toolName, rendererKey);
   if (!customRenderer) {
     return renderDefault();
   }

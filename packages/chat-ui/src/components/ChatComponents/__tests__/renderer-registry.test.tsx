@@ -124,6 +124,67 @@ it("同步订阅中发生替换时，归属句柄仍只属于原始登记", () =
   }
 });
 
+it("元数据不能跨工具选择带归属的渲染器，也不能替换该工具自己的归属渲染器", async () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const name = "owned-tool";
+  const legacy = "legacy-renderer";
+  const registration = registerOwnedToolCallRenderer(name, () => <span>本工具组件</span>);
+  registerToolCallRenderer(legacy, () => <span>内置组件</span>);
+  const render = async (toolName: string, rendererKey: string) =>
+    act(async () => {
+      root.render(
+        <ToolCallDisplay
+          executions={[
+            {
+              toolCallId: "isolation",
+              toolName,
+              input: "{}",
+              status: "success",
+              timestamp: 1,
+              metadata: { render: { rendererKey } },
+            },
+          ]}
+          renderDefaultItem={() => <span>默认</span>}
+        />
+      );
+    });
+  try {
+    await render("another-tool", name);
+    expect(host.textContent).toBe("默认");
+    await render(name, legacy);
+    expect(host.textContent).toBe("本工具组件");
+  } finally {
+    await act(async () => {
+      registration.dispose();
+      unregisterToolCallRenderer(legacy);
+      root.unmount();
+    });
+  }
+});
+
+it("异常订阅者不能中断登记和回收，也不影响其他订阅者", () => {
+  const name = "chat-observer-failure";
+  const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const unsubscribeError = toolCallRendererRegistry.subscribe(() => {
+    throw new Error("订阅者故障");
+  });
+  const listener = vi.fn();
+  const unsubscribe = toolCallRendererRegistry.subscribe(listener);
+  try {
+    const handle = registerOwnedToolCallRenderer(name, () => null);
+    expect(listener).toHaveBeenCalledTimes(1);
+    handle.dispose();
+    expect(getToolCallRenderer(name)).toBeUndefined();
+    expect(listener).toHaveBeenCalledTimes(2);
+  } finally {
+    unsubscribeError();
+    unsubscribe();
+    unregisterToolCallRenderer(name);
+    log.mockRestore();
+  }
+});
+
 it("延迟组件只在工具行内显示默认回退，加载完成后展示组件", async () => {
   const host = document.createElement("div");
   const root = createRoot(host);

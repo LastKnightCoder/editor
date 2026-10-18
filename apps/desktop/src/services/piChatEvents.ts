@@ -293,8 +293,7 @@ export class PiChatEventReducer {
         // toolResults 兜底：tool_execution_end 未覆盖时（内置工具路径差异）补齐状态
         for (const toolResult of event.toolResults) {
           const existing = this.executions.get(toolResult.toolCallId);
-          if (existing && existing.status !== "executing" && existing.status !== "pending")
-            continue;
+          if (existing && ["success", "failed", "cancelled"].includes(existing.status)) continue;
           this.executions.set(toolResult.toolCallId, {
             toolCallId: toolResult.toolCallId,
             toolName: toolResult.toolName,

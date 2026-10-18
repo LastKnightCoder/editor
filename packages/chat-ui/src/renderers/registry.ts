@@ -8,6 +8,7 @@ interface ToolCallRendererEntry {
 interface ToolCallRendererRegistration {
   renderer: ToolCallCustomRenderer;
   generation: number;
+  toolName?: string;
 }
 
 class ToolCallRendererRegistry {
@@ -31,7 +32,7 @@ class ToolCallRendererRegistry {
 
   registerOwned(toolName: string, renderer: ToolCallCustomRenderer): { dispose(): void } {
     if (this.renderers.has(toolName)) throw new Error(`工具渲染器已注册：${toolName}`);
-    const registration = { renderer, generation: this.revision + 1 };
+    const registration = { renderer, generation: this.revision + 1, toolName };
     this.renderers.set(toolName, registration);
     this.publish();
     return {
@@ -55,13 +56,22 @@ class ToolCallRendererRegistry {
     return this.renderers.get(toolName)?.renderer;
   }
 
-  getRegistration(toolName: string): ToolCallRendererRegistration | undefined {
-    return this.renderers.get(toolName);
+  resolve(toolName: string, rendererKey: string): ToolCallRendererRegistration | undefined {
+    const named = this.renderers.get(toolName);
+    if (named?.toolName === toolName) return named;
+    const keyed = this.renderers.get(rendererKey);
+    return keyed?.toolName && keyed.toolName !== toolName ? named : (keyed ?? named);
   }
 
   private publish(): void {
     this.revision++;
-    this.listeners.forEach(listener => listener());
+    for (const listener of [...this.listeners]) {
+      try {
+        listener();
+      } catch (error) {
+        console.error("工具渲染器订阅失败", error);
+      }
+    }
   }
 }
 

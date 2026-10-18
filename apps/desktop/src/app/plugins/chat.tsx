@@ -34,7 +34,7 @@ export const desktopPluginChat: ChatAdapter = {
         }
         return (
           <Component
-            execution={props.execution}
+            execution={structuredClone(props.execution)}
             isDark={props.isDark}
             parsedInput={props.parsedInput}
             inputParseError={props.inputParseError}
