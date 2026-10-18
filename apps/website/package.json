@@ -1,0 +1,26 @@
+{
+  "name": "@tau/website",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm check && vite build",
+    "preview": "vite preview",
+    "check": "tsc --noEmit && tsc --noEmit -p tsconfig.functions.json",
+    "test": "vitest run && node --test ../../scripts/website-live-release.test.mjs",
+    "deploy:pages": "pnpm build && wrangler pages deploy dist --project-name tau-website --branch master --force"
+  },
+  "dependencies": {
+    "@tau/themes": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261016.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.0.4",
+    "vite": "7.2.4",
+    "vitest": "^3.2.4",
+    "wrangler": "4.151.1",
+    "yaml": "^2.7.1"
+  }
+}

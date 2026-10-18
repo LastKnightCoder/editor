@@ -15,6 +15,15 @@ overrides:
   slate-react: 0.126.4
   slate-history: 0.113.1
 
+# macOS 同时出 arm64 与 x64 两个安装包，两种架构的原生依赖都要装进来；
+# 打包时按目标架构裁掉另一种（apps/desktop/scripts/prune-packaged-native-modules.cjs）
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - x64
+    - arm64
+
 patchedDependencies:
   better-sqlite3@12.10.0: patches/better-sqlite3@12.10.0.patch
   slate-react@0.126.4: patches/slate-react@0.126.4.patch
@@ -50,6 +59,7 @@ allowBuilds:
   sharp: true
   spawn-sync: true
   tesseract.js: true
+  workerd: true
 
 minimumReleaseAgeExclude:
   - "@cloudflare/workers-types@5.20261016.1"

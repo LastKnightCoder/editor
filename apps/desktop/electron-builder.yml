@@ -88,7 +88,13 @@ win:
 
 mac:
   icon: "build/icon.icns"
-  artifactName: "${productName}-v${version}-${platform}.${ext}"
+  # Apple 芯片与 Intel 各出一套；文件名带 arch，electron-updater 按本机架构从 latest-mac.yml 挑包
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+  artifactName: "${productName}-v${version}-${platform}-${arch}.${ext}"
   # macOS 随包分发的 whisper.cpp 转录程序（CI 构建，Metal 加速，~12MB）
   extraResources:
     - from: build/bin/darwin/whisper-cli

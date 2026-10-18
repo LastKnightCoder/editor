@@ -1,0 +1,714 @@
+/* ============================================================
+   AI：卡片整体一种底色，示意窗口完整显示、高度随内容
+   ============================================================ */
+.ai-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 20px;
+  margin-top: 64px;
+}
+.ai-tile {
+  border-radius: 24px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ai-tile.wide {
+  grid-column: 1/-1;
+}
+.ai-tile .hd small {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--tau-accent-text);
+}
+.ai-tile .hd h3 {
+  margin-top: 8px;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.ai-tile .hd p {
+  margin-top: 8px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--tau-ink-2);
+  max-width: 520px;
+}
+.ai-tile.wide .hd {
+  display: flex;
+  align-items: flex-end;
+  gap: 40px;
+}
+.ai-tile.wide .hd p {
+  margin-left: auto;
+  max-width: 440px;
+}
+.ai-tile .bd {
+  margin-top: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--app-font);
+  min-width: 0;
+}
+.mock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-card),
+    0 0 0 1px var(--tau-line-1);
+  padding: 16px 20px 18px;
+  font-size: 13.5px;
+}
+.chat-hd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.chat-hd .i {
+  width: 13px;
+  height: 13px;
+}
+.chat-hd span {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+  color: var(--tau-ink-2);
+}
+.chat-hd span .i {
+  width: 15px;
+  height: 15px;
+}
+.mock .u {
+  align-self: flex-end;
+  margin-top: 16px;
+  max-width: 82%;
+  padding: 9px 14px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--tau-bg-page);
+  line-height: 1.75;
+}
+.mock .a {
+  margin-top: 12px;
+  line-height: 1.85;
+}
+.tools {
+  margin: 8px 0 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.tools div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tau-ink-2);
+}
+.tools div .i {
+  width: 14px;
+  height: 14px;
+}
+.tools div .i:first-child {
+  color: var(--tau-ok);
+}
+.tools div em {
+  font-style: normal;
+  color: var(--tau-ink-3);
+}
+.tools div .i:last-child {
+  width: 12px;
+  height: 12px;
+  color: var(--tau-ink-3);
+}
+.tbl {
+  margin-top: 10px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 12.5px;
+}
+.tbl div {
+  display: grid;
+  grid-template-columns: 28px 1fr 64px 56px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--tau-line-1);
+}
+.tbl div:first-child {
+  border-top: 0;
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-2);
+}
+.tbl .p {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-style: normal;
+  width: max-content;
+}
+.tbl .p1 {
+  background: var(--tau-danger-soft);
+  color: var(--tau-danger);
+}
+.tbl .p2 {
+  background: var(--tau-warn-soft);
+  color: var(--tau-warn);
+}
+.tbl .p3 {
+  background: var(--tau-info-soft);
+  color: var(--tau-info);
+}
+.mock .composer {
+  margin-top: auto;
+}
+.mock .composer-gap {
+  flex: 1;
+  min-height: 18px;
+}
+.model {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  white-space: nowrap;
+}
+.mini-btn.pri {
+  background: var(--tau-accent);
+  border-color: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.mini-btn .i {
+  width: 12px;
+  height: 12px;
+}
+
+/* 洞见：报告卡 + 正文标记 + 气泡（对照 insights/components） */
+.ins-report {
+  display: grid;
+  grid-template-columns: 1fr 124px;
+  gap: 14px;
+  padding: 14px 14px 10px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface-hover);
+}
+.ins-report .lead {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.pills span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--tau-bg-surface);
+  font-size: 11.5px;
+}
+.pills i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.think {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tau-line-1);
+  font-size: 12px;
+}
+.think small {
+  font-size: 11px;
+  color: var(--tau-ink-3);
+}
+.think div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.think .i {
+  width: 12px;
+  height: 12px;
+  color: var(--tau-ink-3);
+}
+.think em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--tau-accent-text);
+  white-space: nowrap;
+}
+.ins-report figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--tau-ink-3);
+  text-align: center;
+}
+.ins-report figure svg {
+  width: 124px;
+  height: 110px;
+}
+.ins-foot {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 0 4px;
+  font-size: 11px;
+  color: var(--tau-ink-3);
+  white-space: nowrap;
+}
+.ins-foot em {
+  margin-left: auto;
+  font-style: normal;
+  color: var(--tau-accent-text);
+}
+.ins-text {
+  margin-top: 16px;
+  padding: 0 4px;
+  font-size: 13.5px;
+  line-height: 2;
+}
+.mk-link {
+  background: linear-gradient(var(--tau-info), var(--tau-info)) 0 100%/100% 2px no-repeat;
+  padding-bottom: 1px;
+}
+.mk-link.sel {
+  background-color: var(--tau-accent-soft);
+  border-radius: 3px;
+}
+.mk-conf {
+  text-decoration: underline wavy var(--tau-danger);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1.2px;
+}
+.ins-pop {
+  position: relative;
+  margin: 14px 4px 0;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-float),
+    0 0 0 1px var(--tau-line-1);
+}
+.ins-pop::before {
+  content: "";
+  position: absolute;
+  left: 96px;
+  top: -6px;
+  width: 11px;
+  height: 11px;
+  background: var(--tau-bg-surface);
+  transform: rotate(45deg);
+  box-shadow: -1px -1px 0 var(--tau-line-1);
+}
+.ins-pop p {
+  font-size: 13px;
+  line-height: 1.75;
+}
+.ins-pop .two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ins-pop .two div {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--tau-bg-surface-hover);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.ins-pop .two small {
+  display: block;
+  font-size: 11px;
+  color: var(--tau-ink-3);
+}
+.ins-pop .acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.walkbar {
+  align-self: center;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 6px 0 16px;
+  border-radius: 999px;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-float),
+    0 0 0 1px var(--tau-line-1);
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  white-space: nowrap;
+}
+.walkbar b {
+  font-weight: 600;
+  color: var(--tau-ink-1);
+}
+.walkbar kbd {
+  font-family: var(--app-font);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-2);
+  margin-right: 3px;
+}
+.walkbar em {
+  font-style: normal;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-2);
+}
+.ins-pop {
+  margin-bottom: 22px;
+}
+
+/* 创作模式：左白板召集资料，右边写作（对照截图与 compose 设计，白板为自由设计） */
+.fit-outer {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.fit-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.cm {
+  width: 1094px;
+  height: 600px;
+}
+.cm .app {
+  width: 100%;
+  height: 100%;
+  box-shadow:
+    var(--tau-shadow-card),
+    0 0 0 1px var(--tau-line-1);
+}
+.cm-body {
+  display: grid;
+  grid-template-columns: 1fr 330px;
+  gap: 10px;
+  margin: 0 10px 10px 0;
+  min-height: 0;
+}
+.cm-body .panel {
+  margin: 0;
+}
+.board {
+  position: absolute;
+  inset: 0;
+  background-color: var(--tau-bg-surface);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--tau-ink-3) 38%, transparent) 1px,
+    transparent 1.3px
+  );
+  background-size: 20px 20px;
+  font-family: var(--app-font);
+}
+.wb-tools {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 42px;
+  padding: 0 5px;
+  border-radius: 12px;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-card),
+    0 0 0 1px var(--tau-line-1);
+  color: var(--tau-ink-2);
+  white-space: nowrap;
+  z-index: 3;
+}
+.wb-tools > span {
+  width: 32px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+}
+.wb-tools > span.on {
+  background: var(--tau-bg-selected);
+  color: var(--tau-accent-text);
+}
+.wb-tools .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--tau-line-1);
+  margin: 0 4px;
+}
+.wb-tools .wb-more {
+  width: auto !important;
+  height: 30px;
+  padding: 0 10px;
+  gap: 5px;
+  display: flex !important;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--tau-accent-text);
+}
+.wb-tools .i {
+  width: 15px;
+  height: 15px;
+}
+.frame {
+  position: absolute;
+  display: flex;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--fc) 9%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--fc) 32%, transparent);
+}
+.frame > em {
+  position: absolute;
+  left: 10px;
+  top: -11px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--tau-bg-surface);
+  color: var(--fc);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--fc) 32%, transparent);
+}
+.frame > em .i {
+  width: 11px;
+  height: 11px;
+}
+.bc {
+  position: relative;
+  width: 134px;
+  padding: 10px 11px 9px;
+  border-radius: 10px;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-card),
+    0 0 0 1px var(--tau-line-1);
+  font-size: 11.5px;
+  transition: box-shadow 0.4s;
+}
+.bc small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--tau-ink-3);
+}
+.bc small .i {
+  width: 11px;
+  height: 11px;
+}
+.bc b {
+  display: block;
+  margin-top: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.bc p {
+  margin-top: 4px;
+  line-height: 1.7;
+  color: var(--tau-ink-2);
+}
+.bc blockquote {
+  margin-top: 5px;
+  padding-left: 8px;
+  border-left: 2px solid var(--tau-tag-4);
+  line-height: 1.7;
+  color: var(--tau-ink-1);
+}
+.bc.lit {
+  box-shadow:
+    0 0 0 2px var(--tau-accent),
+    0 0 0 7px var(--tau-accent-soft),
+    var(--tau-shadow-float);
+}
+.bc .using {
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.sticky {
+  position: absolute;
+  width: 176px;
+  padding: 14px 14px 16px;
+  border-radius: 3px;
+  background: var(--tau-tag-4-soft);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.05),
+    0 12px 20px -12px rgba(0, 0, 0, 0.35);
+  font-family: var(--tau-font-hand, "Kaiti SC", "STKaiti", serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tau-ink-1);
+  rotate: -2.5deg;
+}
+.sticky.p {
+  background: var(--tau-tag-5-soft);
+  rotate: 2deg;
+  width: 150px;
+}
+.board > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.wb-zoom {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 11px;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-card),
+    0 0 0 1px var(--tau-line-1);
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+}
+.wb-zoom .i {
+  width: 14px;
+  height: 14px;
+}
+.wb-zoom .sep {
+  width: 1px;
+  height: 16px;
+  background: var(--tau-line-1);
+}
+.cm-doc {
+  padding: 22px 24px;
+  font-family: var(--app-font);
+  overflow: hidden;
+}
+.cm-doc h4 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.cm-doc .m {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+}
+.cm-doc .m span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.cm-doc .m .i {
+  width: 12px;
+  height: 12px;
+}
+.cm-doc .m .exit {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.cm-doc p {
+  margin-top: 14px;
+  font-size: 13.5px;
+  line-height: 2;
+}
+.cm-doc .cited {
+  background: var(--tau-accent-soft);
+  border-radius: 3px;
+  box-shadow: 0 2px 0 var(--tau-accent);
+}
+.cm-doc .ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 3px;
+  border-radius: 5px;
+  font-size: 11px;
+  vertical-align: 1px;
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-2);
+  border: 1px solid var(--tau-line-1);
+}
+.cm-doc .ref .i {
+  width: 10px;
+  height: 10px;
+}
