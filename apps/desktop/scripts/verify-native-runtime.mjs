@@ -7,37 +7,42 @@ import pruneNativeModules from "./prune-packaged-native-modules.cjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopDir = path.resolve(__dirname, "..");
 
-const firstExistingPackage = packages =>
-  packages.find(({ appExe }) => existsSync(appExe)) ?? packages[0];
-
-const resolvePackagePaths = () => {
+// 本平台要校验的全部产物：mac 的 Apple 芯片与 Intel 各一个 .app
+const resolvePackages = () => {
   if (process.platform === "win32") {
     const unpackedDir = path.join(desktopDir, "release", "win-unpacked");
-    return {
-      unpackedDir,
-      appExe: path.join(unpackedDir, "Tau.exe"),
-      appAsar: "./resources/app.asar",
-    };
+    return [
+      {
+        arch: "x64",
+        unpackedDir,
+        appExe: path.join(unpackedDir, "Tau.exe"),
+        appAsar: "./resources/app.asar",
+      },
+    ];
   }
 
   if (process.platform === "darwin") {
-    const outputDirs = [`mac-${process.arch}`, "mac"];
-    return firstExistingPackage(
-      outputDirs.map(outputDir => {
-        const unpackedDir = path.join(desktopDir, "release", outputDir, "Tau.app", "Contents");
-        return {
-          unpackedDir,
-          appExe: path.join(unpackedDir, "MacOS", "Tau"),
-          appAsar: "./Resources/app.asar",
-        };
-      })
-    );
+    // electron-builder 的 mac 默认架构是 x64：x64 输出到 release/mac，arm64 输出到 release/mac-arm64
+    return [
+      { arch: "x64", outputDir: "mac" },
+      { arch: "arm64", outputDir: "mac-arm64" },
+    ].map(({ arch, outputDir }) => {
+      const unpackedDir = path.join(desktopDir, "release", outputDir, "Tau.app", "Contents");
+      return {
+        arch,
+        unpackedDir,
+        appExe: path.join(unpackedDir, "MacOS", "Tau"),
+        appAsar: "./Resources/app.asar",
+      };
+    });
   }
 
   return null;
 };
 
-const packagePaths = resolvePackagePaths();
+const packages = resolvePackages();
+// 同一平台的两种架构共用相同的归档相对路径。
+const packagePaths = packages?.[0];
 
 const checks = [
   {
@@ -161,7 +166,7 @@ const checks = [
     // ESM-only 包（含顶层 await），不能用 require，须动态 import unpacked 入口
     code: `
       (async () => {
-        const mod = await import("./resources/app.asar.unpacked/node_modules/node-llama-cpp/dist/index.js");
+        const mod = await import(${JSON.stringify(packagePaths?.appAsar.replace("app.asar", "app.asar.unpacked") ?? "")} + "/node_modules/node-llama-cpp/dist/index.js");
         const llama = await mod.getLlama();
         await llama.dispose();
         console.log("node-llama-cpp=ok");
@@ -280,27 +285,52 @@ const checks = [
   },
 ];
 
-if (!packagePaths) {
+if (process.platform === "darwin") {
+  checks.push({
+    name: "whisper-cli",
+    code: `
+      const binary = require("node:path").resolve("./Resources/bin/whisper-cli");
+      const result = require("node:child_process").spawnSync(binary, ["--help"], { encoding: "utf8", timeout: 15000 });
+      if (result.error || result.status !== 0 || !(result.stdout + result.stderr).includes("usage:")) {
+        throw new Error("whisper-cli 执行失败：" + (result.error?.message || result.stderr));
+      }
+      console.log("whisper-cli=ok");
+    `,
+  });
+  checks.push({
+    name: "pi-native-platform",
+    code: `
+      import("./Resources/app.asar.unpacked/node_modules/@earendil-works/pi-tui/dist/native-platform.js")
+        .then(({ getNativePlatformHelper }) => {
+          if (typeof getNativePlatformHelper()?.getText !== "function") throw new Error("pi 原生平台模块加载失败");
+          console.log("pi-native-platform=ok");
+        }).catch(error => { console.error(error); process.exit(1); });
+    `,
+  });
+}
+
+if (!packages) {
   console.log(`[native-runtime] skipped: unsupported platform ${process.platform}`);
   process.exit(0);
 }
 
-if (!existsSync(packagePaths.appExe)) {
-  throw new Error(`[native-runtime] packaged app not found: ${packagePaths.appExe}`);
+for (const pkg of packages) {
+  if (!existsSync(pkg.appExe)) {
+    throw new Error(`[native-runtime] packaged ${pkg.arch} app not found: ${pkg.appExe}`);
+  }
 }
 
 // llama.cpp 后端集合必须与 prune allowlist 完全一致：多了意味着本地 node_modules
-// 带入了 allowlist 外的后端（包体积膨胀），少了意味着产物缺失推理后端。
-// 与 run-electron-builder 的补拉逻辑对称，仅校验 win32/linux；mac 后端由 arch 决定
-const verifyLlamaCppBackendSet = () => {
-  const expected = pruneNativeModules.llamaBackendAllowlistByPlatform[process.platform];
-  if (process.platform === "darwin" || !expected) {
+// 带入了 allowlist 外的后端（包体积膨胀），少了意味着产物缺失推理后端
+const verifyLlamaCppBackendSet = packagePaths => {
+  const expected = pruneNativeModules.llamaBackendAllowlist(process.platform, packagePaths.arch);
+  if (!expected) {
     return;
   }
 
   const backendsDir = path.join(
     packagePaths.unpackedDir,
-    "resources",
+    process.platform === "darwin" ? "Resources" : "resources",
     "app.asar.unpacked",
     "node_modules",
     "@node-llama-cpp"
@@ -309,26 +339,23 @@ const verifyLlamaCppBackendSet = () => {
   const expectedSorted = [...expected].sort();
   if (actual.join(",") !== expectedSorted.join(",")) {
     throw new Error(
-      `[native-runtime] @node-llama-cpp backend set mismatch. Expected [${expectedSorted.join(", ")}], got [${actual.join(", ")}]`
+      `[native-runtime] ${packagePaths.arch} @node-llama-cpp backend set mismatch. Expected [${expectedSorted.join(", ")}], got [${actual.join(", ")}]`
     );
   }
-  console.log(`[native-runtime] llama backends: ${actual.join(", ")}`);
+  console.log(`[native-runtime] ${packagePaths.arch} llama backends: ${actual.join(", ")}`);
 };
 
-// 带平台 token 的原生模块目录只能包含当前平台允许的 token，防止被污染的
-// node_modules（如混入其他平台的全量变体）让包体积悄悄膨胀几百 MB；
-// token 常量与 prune 脚本共享，删除规则与断言规则不允许漂移
-const { knownPlatformTokens, allowedPlatformTokensByPlatform } = pruneNativeModules;
-
-const verifyNoForeignPlatformModules = () => {
-  const allowedTokens = allowedPlatformTokensByPlatform[process.platform];
-  if (!allowedTokens) {
+// 带平台 token 的原生模块目录只能包含当前打包目标允许的 token，防止被污染的
+// node_modules（如混入其他平台、或 mac 另一架构的变体）让包体积悄悄膨胀几百 MB；
+// 判定函数与 prune 脚本共享，删除规则与断言规则不允许漂移
+const verifyNoForeignPlatformModules = packagePaths => {
+  if (!pruneNativeModules.allowedPlatformTokens(process.platform, packagePaths.arch)) {
     return;
   }
 
   const nodeModulesDir = path.join(
     packagePaths.unpackedDir,
-    "resources",
+    process.platform === "darwin" ? "Resources" : "resources",
     "app.asar.unpacked",
     "node_modules"
   );
@@ -352,10 +379,10 @@ const verifyNoForeignPlatformModules = () => {
 
   const foreign = [];
   for (const packageName of packageNames) {
-    const nameWithoutScope = packageName.split("/").pop();
-    const matchedToken = knownPlatformTokens.find(
-      token =>
-        !allowedTokens.includes(token) && new RegExp(`-${token}([._-]|$)`).test(nameWithoutScope)
+    const matchedToken = pruneNativeModules.findForeignPlatformToken(
+      packageName,
+      process.platform,
+      packagePaths.arch
     );
     if (matchedToken) {
       foreign.push(`${packageName} (token: ${matchedToken})`);
@@ -364,36 +391,100 @@ const verifyNoForeignPlatformModules = () => {
 
   if (foreign.length > 0) {
     throw new Error(
-      `[native-runtime] foreign platform artifacts found in unpacked node_modules:\n  ${foreign.join("\n  ")}`
+      `[native-runtime] ${packagePaths.arch}: foreign platform artifacts found in unpacked node_modules:\n  ${foreign.join("\n  ")}`
     );
   }
   console.log(
-    `[native-runtime] no foreign platform modules (${packageNames.length} packages checked)`
+    `[native-runtime] ${packagePaths.arch}: no foreign platform modules (${packageNames.length} packages checked)`
   );
 };
 
-verifyLlamaCppBackendSet();
-verifyNoForeignPlatformModules();
+const verifyMacBinaryArchitectures = packagePaths => {
+  if (process.platform !== "darwin") return;
+  const resourcesDir = path.join(packagePaths.unpackedDir, "Resources");
+  const nodeModulesDir = path.join(resourcesDir, "app.asar.unpacked", "node_modules");
+  const binaries = [
+    packagePaths.appExe,
+    path.join(resourcesDir, "bin", "whisper-cli"),
+    path.join(nodeModulesDir, "@ffprobe-installer", `darwin-${packagePaths.arch}`, "ffprobe"),
+    path.join(nodeModulesDir, "@vscode", `ripgrep-darwin-${packagePaths.arch}`, "bin", "rg"),
+    path.join(nodeModulesDir, "7zip-bin", "mac", packagePaths.arch, "7za"),
+  ];
+  const collect = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) collect(file);
+      else if (entry.isFile() && /\.(node|dylib)$/.test(entry.name)) binaries.push(file);
+    }
+  };
+  collect(nodeModulesDir);
+  for (const binary of binaries) {
+    try {
+      execFileSync(
+        "/usr/bin/lipo",
+        [binary, "-verify_arch", packagePaths.arch === "x64" ? "x86_64" : "arm64"],
+        {
+          stdio: "pipe",
+        }
+      );
+    } catch (error) {
+      throw new Error(
+        `[native-runtime] ${packagePaths.arch} 二进制架构不匹配或文件缺失：${binary}`,
+        { cause: error }
+      );
+    }
+  }
+  console.log(`[native-runtime] ${packagePaths.arch}: ${binaries.length} 个二进制架构检查通过`);
+};
 
-for (const check of checks) {
-  try {
-    const output = execFileSync(packagePaths.appExe, ["-e", check.code], {
-      cwd: packagePaths.unpackedDir,
-      env: {
-        ...process.env,
-        ELECTRON_RUN_AS_NODE: "1",
-      },
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    process.stdout.write(`[native-runtime] ${check.name}: ${output.trim()}\n`);
-  } catch (error) {
-    const stderr = error.stderr?.toString?.() ?? "";
-    const stdout = error.stdout?.toString?.() ?? "";
-    console.error(`[native-runtime] ${check.name} failed`);
-    if (stdout.trim()) console.error(stdout.trim());
-    if (stderr.trim()) console.error(stderr.trim());
-    process.exit(1);
+// Apple 芯片的机器经 Rosetta 运行 x64 包；Intel 机器跑不了 arm64 包，仍检查每个二进制的架构。
+const runCommandFor = packagePaths => {
+  if (packagePaths.arch === process.arch) {
+    return [packagePaths.appExe, []];
+  }
+  if (process.platform === "darwin" && process.arch === "arm64" && packagePaths.arch === "x64") {
+    return ["arch", ["-x86_64", packagePaths.appExe]];
+  }
+  return null;
+};
+
+for (const packagePaths of packages) {
+  verifyLlamaCppBackendSet(packagePaths);
+  verifyNoForeignPlatformModules(packagePaths);
+  verifyMacBinaryArchitectures(packagePaths);
+
+  const command = runCommandFor(packagePaths);
+  if (!command) {
+    console.warn(
+      `[native-runtime] ${packagePaths.arch}: 本机 ${process.arch} 无法运行该架构，跳过运行时检查，请在对应机器上验证`
+    );
+    continue;
+  }
+
+  const [file, prefixArgs] = command;
+  for (const check of checks) {
+    try {
+      const output = execFileSync(file, [...prefixArgs, "-e", check.code], {
+        cwd: packagePaths.unpackedDir,
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: "1",
+        },
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 120_000,
+      });
+      process.stdout.write(
+        `[native-runtime] ${packagePaths.arch} ${check.name}: ${output.trim()}\n`
+      );
+    } catch (error) {
+      const stderr = error.stderr?.toString?.() ?? "";
+      const stdout = error.stdout?.toString?.() ?? "";
+      console.error(`[native-runtime] ${packagePaths.arch} ${check.name} failed`);
+      if (stdout.trim()) console.error(stdout.trim());
+      if (stderr.trim()) console.error(stderr.trim());
+      process.exit(1);
+    }
   }
 }
 

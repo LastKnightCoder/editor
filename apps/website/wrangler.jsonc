@@ -1,0 +1,7 @@
+// Cloudflare Pages 项目配置：`wrangler pages deploy` 读取这里的项目名与产物目录
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "tau-website",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-10-01"
+}

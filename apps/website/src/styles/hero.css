@@ -1,0 +1,188 @@
+/* ============================================================
+   首屏：一根斜线，一半浅色一半深色
+   ============================================================ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(1100px 620px at 50% 22%, var(--tau-accent-soft), transparent 70%);
+}
+/* 斜线只切示意窗口：深色窗口是浅色窗口的克隆，按斜线裁切叠在上面 */
+.split {
+  position: relative;
+  margin-top: 84px;
+  width: min(1200px, 100%);
+  height: 700px;
+  --top: 64%;
+  --bottom: 36%;
+}
+.split > .app {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.split > .app.is-dark {
+  clip-path: polygon(var(--top) 0, 100% 0, 100% 100%, var(--bottom) 100%);
+}
+.stage {
+  position: relative;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 40px 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.nav {
+  width: 100%;
+  max-width: 1280px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+.nav-links {
+  display: flex;
+  gap: 30px;
+  font-size: 15px;
+  color: var(--tau-ink-2);
+}
+.nav-links a:hover {
+  color: var(--tau-ink-1);
+}
+.nav .btn {
+  margin-left: auto;
+}
+.hero-copy {
+  text-align: center;
+  margin-top: 84px;
+  max-width: 960px;
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  color: var(--tau-ink-2);
+  border: 1px solid var(--tau-line-1);
+  background: color-mix(in srgb, var(--tau-bg-surface) 70%, transparent);
+}
+.eyebrow i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tau-accent);
+}
+.hero h1 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(56px, 7.4vw, 112px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin-top: 28px;
+}
+.hero h1 span {
+  display: block;
+}
+.hero h1 .accent {
+  color: var(--tau-accent);
+}
+.lede {
+  font-size: 19px;
+  line-height: 1.85;
+  color: var(--tau-ink-2);
+  margin-top: 26px;
+}
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 38px;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+  font-size: 13.5px;
+  color: var(--tau-ink-3);
+}
+.swatches {
+  display: inline-flex;
+  gap: 6px;
+  padding-left: 14px;
+  border-left: 1px solid var(--tau-line-1);
+}
+.swatch {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--tau-line-1);
+  transition: transform 0.2s var(--ease);
+}
+.swatch i {
+  position: absolute;
+  inset: 0;
+}
+.swatch i:first-child {
+  background: var(--tau-accent);
+}
+.swatch i:last-child {
+  background: var(--tau-bg-page);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.swatch:hover {
+  transform: scale(1.18);
+}
+.swatch[aria-pressed="true"] {
+  box-shadow:
+    0 0 0 2px var(--tau-bg-page),
+    0 0 0 3.5px var(--tau-ink-2);
+}
+.slash {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+  overflow: visible;
+}
+.slash-glow {
+  stroke: var(--tau-accent);
+  stroke-width: 8;
+  opacity: 0.18;
+}
+.slash-line {
+  stroke: var(--tau-accent);
+  stroke-width: 1.5;
+}
+.topbar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  padding: 0 40px;
+  background: color-mix(in srgb, var(--tau-bg-page) 84%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--tau-line-1);
+  transform: translateY(-101%);
+  transition: transform 0.4s var(--ease);
+}
+.topbar.show {
+  transform: none;
+}
+.topbar .btn {
+  margin-left: auto;
+}

@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light" data-follow>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tau — 让想法，长成体系</title>
+<meta name="description" content="Tau 是一个本地优先的个人知识工作台：输入、消化、输出、复习、总览、分享，一个想法从进来到长成体系，都在这里。" />
+<meta property="og:title" content="Tau — 让想法，长成体系" />
+<meta property="og:description" content="本地优先、离线可用的个人知识工作台。卡片、文章、项目文档、白板与 AI，在同一个地方生长。" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://taunote.app/" />
+<link rel="canonical" href="https://taunote.app/" />
+<meta name="theme-color" content="#f3eee2" />
+<link rel="icon" type="image/png" href="/tau-icon.png" />
+<script>
+  // 首帧前恢复上次选的主题，避免先闪默认色
+  try {
+    var saved = localStorage.getItem("tau-site-theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4M13 6h8M13 12h8M13 18h8"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><path d="M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3M7 21l5-5 5 5"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M12 3v18"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24"><path d="M10 2v7.53a2 2 0 0 1-.21.9L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.07-10.13a2 2 0 0 1-.21-.9V2M8.5 2h7M7 16h10"/></symbol>
+  <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M10 2v8l3-3 3 3V2"/></symbol>
+  <symbol id="i-walk" viewBox="0 0 24 24"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0ZM20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.1 5.9 9.9 3.8a2 2 0 0 0-1.8 0L3.6 6A1 1 0 0 0 3 7v12.6a1 1 0 0 0 1.4.9l3.7-1.9a2 2 0 0 1 1.8 0l4.2 2.1a2 2 0 0 0 1.8 0l4.5-2.3a1 1 0 0 0 .6-.9V4.4a1 1 0 0 0-1.4-.9l-3.7 1.9a2 2 0 0 1-1.8 0zM15 5.8v15M9 3.2v15"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-check-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-hl" viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4M2 6h4M2 10h4M2 14h4M2 18h4M21.4 5.6a2.1 2.1 0 1 0-3-3L13 8l-1 4 4-1Z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
+  <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3ZM19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+  <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M2 8.82a15 15 0 0 1 4.17-2.65M10.66 5c4.01-.36 8.14.9 11.34 3.76M16.85 11.25a10 10 0 0 1 2.22 1.68M5 13a10 10 0 0 1 5.24-2.76M2 2l20 20"/></symbol>
+  <symbol id="i-cols" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" style="stroke-width:3"/></symbol>
+  <symbol id="i-relate" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2.5"/><path d="m10.2 6.3-3.9 3.9"/><circle cx="4.5" cy="12" r="2.5"/><path d="M7 12h10"/><circle cx="19.5" cy="12" r="2.5"/><path d="m13.8 17.7 3.9-3.9"/><circle cx="12" cy="19.5" r="2.5"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-arrow-ur" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7"/></symbol>
+  <symbol id="i-house" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4h3v16H7zM14 4h3v16h-3z"/></symbol>
+  <symbol id="i-pip" viewBox="0 0 24 24"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"/><rect x="12" y="13" width="10" height="7" rx="2"/></symbol>
+  <symbol id="i-headphones" viewBox="0 0 24 24"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22M18 2l4 4-4 4M2 6h1.9c1.5 0 2.9.9 3.6 2.2M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8M18 14l4 4-4 4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8"/></symbol>
+  <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"/></symbol>
+  <symbol id="i-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+  <symbol id="i-type" viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></symbol>
+  <symbol id="i-sticky" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/></symbol>
+</svg>
+
+<!-- 吸顶导航：首屏滚出后出现 -->
+<div class="topbar" data-theme="paper" data-mode="light" data-follow>
+  <a class="brand" href="#top"><img src="/tau-icon.png" alt="" />Tau</a>
+  <nav class="nav-links"><a href="#feel">写作</a><a href="#loop">闭环</a><a href="#ai">AI</a><a href="#daily">日常</a></nav>
+  <a class="btn primary sm" href="#download"><svg class="i"><use href="#i-down"/></svg>下载 Tau</a>
+</div>
+
+<!-- ============ 首屏 ============ -->
+<header class="hero" id="top">
+    <div class="stage">
+      <nav class="nav">
+        <a class="brand" href="#top"><img src="/tau-icon.png" alt="Tau 图标" />Tau</a>
+        <div class="nav-links"><a href="#feel">写作</a><a href="#loop">闭环</a><a href="#ai">AI</a><a href="#daily">日常</a></div>
+        <a class="btn ghost sm" href="#download"><svg class="i"><use href="#i-down"/></svg>下载</a>
+      </nav>
+      <div class="hero-copy">
+        <span class="eyebrow"><i></i>本地优先 · 离线可用 · 开放插件</span>
+        <h1><span>让想法，</span><span class="accent">长成体系。</span></h1>
+        <p class="lede">从读到的一句话，到写成的一套体系。<br />输入、消化、输出、复习、总览、分享，都在这一个地方。</p>
+        <div class="ctas" data-release-downloads>
+          <!--tau:download-buttons-->
+        </div>
+        <div class="meta"><span>v<span data-release-version><!--tau:version--></span> · 免费 · 数据存在你自己的电脑里</span><span class="swatches" aria-label="切换主题"></span></div>
+      </div>
+
+      <div class="split">
+      <div class="app" data-theme="paper" data-mode="light" data-follow>
+        <div class="app-top" data-top='{"crumb":["文章","Deep Work：在喧嚣里保持专注"]}'></div>
+        <aside class="app-side" data-side="文章"></aside>
+        <main class="panel">
+          <div class="cover" style="height:188px" data-cover="night"></div>
+          <div class="art">
+            <div>
+              <h2>Deep Work：在喧嚣里保持专注</h2>
+              <div class="art-meta">
+                <span>10-17 21:40 编辑</span><span>·</span><span>3280 字</span><span>·</span><span>09-02 16:27 创建</span>
+                <span class="act"><svg class="i"><use href="#i-relate"/></svg>5 处关联</span>
+                <span class="act"><svg class="i"><use href="#i-spark"/></svg>AI 洞见</span>
+                <span class="act"><svg class="i"><use href="#i-cols"/></svg>创作模式</span>
+                <span class="act"><svg class="i"><use href="#i-more"/></svg></span>
+              </div>
+              <div class="art-body">
+                <p>我们总以为专注是一种意志力。读完 <span class="chip-code">Deep Work</span> 才发现，它更像一种环境：你把什么放在手边，把什么放到另一个房间。</p>
+                <p>Cal Newport 把能创造真正价值的工作称为「深度工作」——在无干扰的状态下，把认知能力推到极限。它稀缺，所以珍贵；它也可以练习，只要你先改环境，而不是先逼自己。</p>
+                <p>所以第一步不是打开文档，而是把 <span class="chip-code">通知</span> 关掉，把手机放到另一个房间，然后给自己留一张安静的纸。</p>
+              </div>
+            </div>
+            <div class="outline">
+              <b>大纲</b>
+              <span class="on">为什么专注变难了</span>
+              <span class="l2">注意力残留</span>
+              <span class="l2">浅工作的诱惑</span>
+              <span>环境 &gt; 意志力</span>
+              <span class="l2">书桌</span>
+              <span class="l2">手机</span>
+              <span>一张安静的纸</span>
+              <span>怎么开始</span>
+            </div>
+          </div>
+        </main>
+      </div>
+      <svg class="slash" aria-hidden="true">
+        <line class="slash-glow" y1="0" y2="100%"/>
+        <line class="slash-line" y1="0" y2="100%"/>
+      </svg>
+      </div>
+    </div>
+</header>
+
+<!-- ============ 写的手感 ============ -->
+<section class="section" id="feel">
+  <div class="wrap feel">
+    <div class="reveal">
+      <p class="kicker">写作</p>
+      <h2 class="h2">所见即所得，<br />断网也照写。</h2>
+      <div class="points">
+        <div class="point"><span class="ic"><svg class="i"><use href="#i-hash"/></svg></span><b>所见即所得的 Markdown</b><p>熟悉的语法，敲下去就是排好的样子。标题、引用、待办、代码块、公式，不用在预览和源码之间来回切。</p></div>
+        <div class="point"><span class="ic"><svg class="i"><use href="#i-wifi-off"/></svg></span><b>离线，本地优先</b><p>不需要账号，不依赖网络。所有内容都存在你自己的电脑里，飞机上、山里，一样能写。</p></div>
+        <div class="point"><span class="ic"><svg class="i"><use href="#i-export"/></svg></span><b>随时带走</b><p>一键导出 Markdown。数据是你的，不被任何格式锁住。</p></div>
+      </div>
+    </div>
+    <div class="md-stage reveal" aria-label="所见即所得编辑演示">
+      <div class="md-bar"><svg class="i" style="width:14px;height:14px"><use href="#i-file"/></svg>文章 / 一张安静的纸<span class="offline"><svg class="i"><use href="#i-wifi-off"/></svg>离线<i></i>已保存到本机</span></div>
+      <div class="md-doc" id="md-doc"></div>
+      <div class="md-hint">正在输入 <kbd id="md-key">#</kbd></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 闭环 ============ -->
+<section class="section loop" id="loop">
+  <div class="loop-sticky">
+    <div class="loop-nav">
+      <p class="kicker">知识闭环</p>
+      <h2 class="h2">一个想法的一生。</h2>
+      <ol class="steps">
+        <span class="bar"></span>
+        <li><button class="step on" data-step="0"><span class="nm">输入<small>01</small></span><span class="ds"><div><p>网页划线、PDF 标注、微信读书，读到的都先收进来，并且记得出处。</p><span class="tags"><span>浏览器插件</span><span>PDF 划线</span><span>微信读书</span></span></div></span></button></li>
+        <li><button class="step" data-step="1"><span class="nm">消化<small>02</small></span><span class="ds"><div><p>在 Notebook 里，资料、提问和产物放在一起。读不懂的就问，问完的生成大纲、导图和测验。</p><span class="tags"><span>Notebook</span><span>学习大纲</span><span>测验</span></span></div></span></button></li>
+        <li><button class="step" data-step="2"><span class="nm">输出<small>03</small></span><span class="ds"><div><p>卡片写随笔与短思考，文章写长篇，项目文档把一个领域搭成目录层级的体系，白板把想法摊开。没有大小之分，写什么都行。</p><span class="tags"><span>卡片</span><span>文章</span><span>项目文档</span><span>白板</span><span>播客</span><span>创作模式</span></span></div></span></button></li>
+        <li><button class="step" data-step="3"><span class="nm">复习<small>04</small></span><span class="ds"><div><p>闪卡负责记住，漫步负责重逢。旧内容会被随机拿出来，再顺着岔路走到相邻的想法。</p><span class="tags"><span>闪卡</span><span>漫步</span></span></div></span></button></li>
+        <li><button class="step" data-step="4"><span class="nm">总览<small>05</small></span><span class="ds"><div><p>卡片、文章、项目文档都进同一张知识地图，自动聚类。每篇内容都看得见自己连着谁、被谁引用。</p><span class="tags"><span>知识地图</span><span>双向关联</span><span>相关推荐</span></span></div></span></button></li>
+        <li><button class="step" data-step="5"><span class="nm">分享<small>06</small></span><span class="ds"><div><p>勾选内容，一键发布成自己的博客；或者把一篇文章共享出去，和朋友实时一起写。</p><span class="tags"><span>博客发布</span><span>实时协作</span></span></div></span></button></li>
+      </ol>
+    </div>
+
+    <div class="loop-stage">
+      <!-- 01 输入 -->
+      <div class="scene on" data-title="输入">
+        <div class="browser">
+          <div class="b-top"><div class="lights"><i></i><i></i><i></i></div><div class="b-url"><svg class="i"><use href="#i-lock"/></svg>sspai.com/post/attention-scarcity</div><span class="b-ext"><img src="/tau-icon.png" alt="" /></span></div>
+          <div class="b-body">
+            <div class="web">
+              <small>少数派 · 深度阅读 · 12 分钟</small>
+              <h3>注意力为什么越来越稀缺</h3>
+              <p>每一次通知都在争夺你的注意力。研究发现，被打断之后，人平均需要二十多分钟才能回到原来的任务。<span class="hl">真正消耗我们的，不是工作本身，而是在任务之间来回切换。</span></p>
+              <p>所以，与其训练自己「更自律」，<span class="sel">不如把会打断你的东西挪出视线</span>。环境替你做了决定，意志力就不必一次次出场。</p>
+              <p>当你开始为专注设计环境，深度工作就从一种天赋，变成了一种可以练习的习惯。</p>
+              <div class="web-tools" style="left:236px;top:188px"><span><svg class="i"><use href="#i-hl"/></svg>高亮</span><span><svg class="i"><use href="#i-note"/></svg>笔记</span><span><svg class="i"><use href="#i-spark"/></svg>问 AI</span></div>
+              <div class="pdf-float"><small><svg class="i"><use href="#i-book"/></svg>The Extended Mind · p.112</small><p>「<mark>环境不是背景，它参与思考。</mark>」</p></div>
+            </div>
+            <div class="ext">
+              <div class="ext-head"><img src="/tau-icon.png" alt="" />Tau<svg class="i"><use href="#i-pin"/></svg><svg class="i"><use href="#i-x"/></svg></div>
+              <div class="ext-body">
+                <div class="ext-page"><em>少</em>注意力为什么越来越稀缺</div>
+                <div class="ext-card"><h6><svg class="i" style="width:14px;height:14px"><use href="#i-spark"/></svg>AI 总结</h6><ul><li>打断的代价远大于打断本身</li><li>任务切换是注意力的主要损耗</li><li>改环境比练意志力更可靠</li></ul></div>
+                <div class="ext-sec"><svg class="i"><use href="#i-hl"/></svg>高亮<em>1</em></div>
+                <div class="ext-hl">真正消耗我们的，不是工作本身，而是在任务之间来回切换。</div>
+                <div class="ext-sec"><svg class="i"><use href="#i-note"/></svg>笔记</div>
+                <div class="ext-new"><svg class="i" style="width:13px;height:13px"><use href="#i-plus"/></svg>新建笔记</div>
+                <div class="ext-ask">问这一页，Command + Enter 发送<b><svg class="i"><use href="#i-up"/></svg></b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 消化 -->
+      <div class="scene" data-title="消化">
+        <div class="app rail">
+          <div class="app-top" data-top='{"crumb":["Notebook","专注与深度工作"],"panelIcon":true}'></div>
+          <aside class="app-side" data-side="Notebook"></aside>
+          <main class="panel">
+            <div class="nb">
+              <div class="nb-list">
+                <h6><svg class="i"><use href="#i-chev"/></svg>资料 3<svg class="i"><use href="#i-plus"/></svg></h6>
+                <div class="nb-item on"><svg class="i"><use href="#i-note"/></svg>Deep Work 读书笔记</div>
+                <div class="nb-item"><svg class="i"><use href="#i-globe"/></svg>注意力为什么越来越…</div>
+                <div class="nb-item"><svg class="i"><use href="#i-book"/></svg>The Extended Mind</div>
+                <h6 style="margin-top:10px"><svg class="i"><use href="#i-chev"/></svg>产物 2<svg class="i"><use href="#i-plus"/></svg></h6>
+                <div class="nb-item"><svg class="i"><use href="#i-list"/></svg>学习大纲</div>
+                <div class="nb-item"><svg class="i"><use href="#i-branch"/></svg>思维导图</div>
+              </div>
+              <div class="nb-doc">
+                <header><svg class="i" style="width:14px;height:14px"><use href="#i-note"/></svg>Deep Work 读书笔记.md<em>来自笔记</em><span class="tog"><svg class="i" style="width:14px;height:14px"><use href="#i-chat"/></svg></span><svg class="i" style="width:14px;height:14px;color:var(--tau-ink-3)"><use href="#i-x"/></svg></header>
+                <div class="body">
+                  <p>深度工作：在无干扰的状态下专注进行职业活动，使个人的认知能力达到极限。这种努力能创造新价值，提升技能，而且难以复制。</p>
+                  <p>浮浅工作：对认知要求不高的事务性任务，往往在受到干扰的情况下开展。</p>
+                  <div class="callout"><b><svg class="i"><use href="#i-info"/></svg>四种深度哲学</b>禁欲主义、双峰、节奏、新闻记者式——选一种适合你日程的，而不是照搬别人的。</div>
+                </div>
+                <div class="nb-acts"><span>基于这份资料</span><span><svg class="i"><use href="#i-list"/></svg>学习大纲</span><span><svg class="i"><use href="#i-hl"/></svg>重点提炼</span><span><svg class="i"><use href="#i-branch"/></svg>思维导图</span><span><svg class="i"><use href="#i-help"/></svg>测验</span></div>
+              </div>
+              <div class="nb-chat">
+                <header>新对话<svg class="i"><use href="#i-chev"/></svg><svg class="i"><use href="#i-edit"/></svg></header>
+                <div class="msg-u">深度工作和心流是一回事吗？</div>
+                <div class="msg-a">不完全是。心流是一种<b>状态</b>，深度工作是一种<b>安排</b><span class="cite">1</span>：你为它预留时间、清空干扰，心流更可能随之而来<span class="cite">2</span>。</div>
+                <div class="composer">输入消息，Command + Enter 进行发送<div class="row"><span class="plus"><svg class="i"><use href="#i-plus"/></svg></span>立答<svg class="i"><use href="#i-chev"/></svg><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <!-- 03 输出 -->
+      <div class="scene" data-title="输出">
+        <div class="outputs">
+          <span class="cap" style="left:3%;top:8.5%"><b>项目文档</b>搭目录，系统整理</span>
+          <span class="cap" style="left:40%;top:2.5%"><b>文章</b>长篇</span>
+          <span class="cap" style="right:2.5%;top:17.5%"><b>卡片</b>随笔、思考、短内容</span>
+          <div class="sheet s-proj">
+            <div class="tree">
+              <div class="tree-hd"><span class="home"><svg class="i"><use href="#i-house"/></svg></span>专注力手册<svg class="i"><use href="#i-chev"/></svg></div>
+              <div class="row d0"><svg class="i ch"><use href="#i-chev"/></svg><svg class="i fd"><use href="#i-folder"/></svg>为什么分心</div>
+              <div class="row d1"><svg class="i"><use href="#i-file"/></svg>注意力残留</div>
+              <div class="row d1"><svg class="i"><use href="#i-file"/></svg>通知的代价</div>
+              <div class="row d0"><svg class="i ch"><use href="#i-chev"/></svg><svg class="i fd"><use href="#i-folder"/></svg>改环境</div>
+              <div class="row d1 on"><svg class="i"><use href="#i-file"/></svg>书桌与光</div>
+              <div class="row d1"><svg class="i ch"><use href="#i-chev"/></svg><svg class="i fd"><use href="#i-folder"/></svg>数字环境</div>
+              <div class="row d2"><svg class="i"><use href="#i-file"/></svg>手机</div>
+              <div class="row d2"><svg class="i"><use href="#i-file"/></svg>浏览器</div>
+              <div class="row d0"><svg class="i ch"><use href="#i-chev-r"/></svg><svg class="i fd"><use href="#i-folder"/></svg>练习</div>
+            </div>
+            <div class="proj-doc"><h4>书桌与光</h4><div class="pm">创建于 09-12 · 640 字</div>桌面只留当下要用的东西。一盏暖光台灯，比整屋的顶灯更容易让人安静下来。<h5>清单</h5>· 清空桌面<br />· 固定的开工仪式<br />· 只开一个窗口</div>
+          </div>
+          <div class="sheet s-art">
+            <div class="cover" data-cover="dawn"></div>
+            <div class="in"><h4>Deep Work：在喧嚣里保持专注</h4><div class="m">3280 字 · 5 处关联</div><p>我们总以为专注是一种意志力。读完 Deep Work 才发现，它更像一种环境：你把什么放在手边，把什么放到另一个房间……</p></div>
+          </div>
+          <div class="sheet s-card">
+            <b>先改环境，再谈专注</b>
+            <p>意志力会耗尽，环境不会。把干扰移出视线，专注就成了默认选项。</p>
+            <div class="ft"><span>#专注</span><span>#环境</span><em class="lk" style="font-style:normal">3 连接</em><em style="font-style:normal">86 字</em></div>
+          </div>
+          <span class="cap" style="right:2.5%;top:49%"><b>白板</b>摊开，再收拢</span>
+          <div class="sheet s-wb">
+            <svg viewBox="0 0 224 230" preserveAspectRatio="xMinYMin meet" aria-hidden="true">
+              <defs><marker id="wb2-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" style="fill:var(--tau-ink-3)"/></marker></defs>
+              <path d="M88 44 C 104 38, 116 38, 128 42" style="fill:none;stroke:var(--tau-ink-3);stroke-width:1.3;stroke-dasharray:3 4" marker-end="url(#wb2-ah)"/>
+              <path d="M52 76 C 50 92, 50 104, 54 116" style="fill:none;stroke:var(--tau-ink-3);stroke-width:1.3" marker-end="url(#wb2-ah)"/>
+              <path d="M126 146 C 134 140, 138 136, 144 132" style="fill:none;stroke:var(--tau-accent);stroke-width:1.6;stroke-linecap:round" marker-end="url(#wb2-ah)"/>
+            </svg>
+            <div class="nt y" style="left:10px;top:16px;width:78px">注意力<br />先改环境</div>
+            <div class="nt g" style="left:130px;top:12px;width:82px">环境设计<br />书桌、光</div>
+            <div class="em" style="left:12px;top:124px"><small><svg class="i"><use href="#i-layers"/></svg>卡片</small>先改环境，再谈专注</div>
+            <div class="nt r" style="left:146px;top:112px;width:58px">创作<br />模式</div>
+            <div class="mt"><span class="on"><svg class="i"><use href="#i-pointer"/></svg></span><span><svg class="i"><use href="#i-pencil"/></svg></span><span><svg class="i"><use href="#i-sticky"/></svg></span><span><svg class="i"><use href="#i-type"/></svg></span><span><svg class="i"><use href="#i-arrow-ur"/></svg></span></div>
+          </div>
+          <div class="podcast"><span class="play"><svg class="i"><use href="#i-play"/></svg></span><b>播客 · 专注是一种环境</b><small><span class="av a">雨</span><span class="av b">哲</span>小雨、阿哲 · 由文章生成 · 12:40</small><div class="tl">04:51<i></i>12:40</div></div>
+        </div>
+      </div>
+
+      <!-- 04 复习 -->
+      <div class="scene" data-title="复习">
+        <div class="rv-scene">
+          <div class="app rail">
+            <div class="app-top" data-top='{"crumb":["闪卡复习"]}'></div>
+            <aside class="app-side" data-side="闪卡复习"></aside>
+            <main class="panel">
+              <div class="fc-page">
+                <i class="fc-prog" style="width:40%"></i>
+                <div class="fc-bar"><span class="end"><svg class="i"><use href="#i-x"/></svg>结束</span><span class="deck"><i></i>专注与深度工作</span><span class="spread"><i style="background:var(--tau-danger)"></i>1<i style="background:var(--tau-warn)"></i>2<i style="background:var(--tau-ok)"></i>4<i style="background:var(--tau-info)"></i>1</span><span class="cnt"><b>8</b> / 20</span></div>
+                <div class="fc-col">
+                  <div class="fc-meta">专注与深度工作<span class="type">问答</span><i class="st"></i>复习中<span class="ic"><svg class="i"><use href="#i-edit"/></svg><svg class="i"><use href="#i-more"/></svg></span></div>
+                  <div class="fc-q">为什么「先改环境」，比「靠意志力」更可靠？</div>
+                  <div class="fc-back">
+                    <small>参考答案</small>
+                    <div class="ans">意志力会耗尽，环境不会。把干扰移出视线，专注就成了默认选项。</div>
+                    <div class="kv"><span>解析</span><div>环境替你做了决定，意志力就不必一次次出场。</div></div>
+                    <div class="kv"><span>参考资料</span><div><span class="refchip"><svg class="i"><use href="#i-file"/></svg>先改环境，再谈专注</span></div></div>
+                  </div>
+                </div>
+                <div class="fc-dock">
+                  <div class="rates4"><span class="r1"><kbd>1</kbd><b>忘记</b><small>10 分钟后</small></span><span class="r2"><kbd>2</kbd><b>模糊</b><small>1 天后</small></span><span class="r3 rec"><kbd>3</kbd><b>记得</b><small>3 天后</small></span><span class="r4"><kbd>4</kbd><b>轻松</b><small>2 个月后</small></span></div>
+                  <div class="keys"><kbd>1–4</kbd>评分 · <kbd>Space</kbd>采用推荐 · <kbd>⌘Z</kbd>撤销 · <kbd>Esc</kbd>结束</div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="walk-float">
+            <h6>漫步<small>从你写过的东西里随便走走</small></h6>
+            <div class="trail"><svg class="i"><use href="#i-walk"/></svg>足迹&nbsp;<span class="pill">通知的代价</span><span class="cn"></span><span class="pill on">注意力残留</span></div>
+            <div class="wk-card">
+              <div class="km"><span><svg class="i"><use href="#i-layers"/></svg>卡片</span>写于 2024-03-12</div>
+              <div class="why"><svg class="i"><use href="#i-spark"/></svg>1 年零 2 个月没见过它了</div>
+              <b>注意力残留</b>
+              <p>从任务 A 切到任务 B，一部分注意力仍然留在 A 上。切换越频繁，残留越多。</p>
+              <div class="tg">#专注 #心理学</div>
+              <div class="act"><span class="mini-btn"><svg class="i"><use href="#i-book-open"/></svg>打开原文</span><span class="mini-btn" style="border-color:transparent"><svg class="i"><use href="#i-layers"/></svg>做成闪卡</span><svg class="i eo"><use href="#i-eye-off"/></svg></div>
+            </div>
+            <div class="forks-hd"><svg class="i"><use href="#i-branch"/></svg>从这里走向</div>
+            <div class="fork"><b><svg class="i"><use href="#i-file"/></svg>Deep Work：在喧嚣里保持专注</b><span><svg class="i"><use href="#i-link"/></svg>双链</span></div>
+            <div class="fork"><b><svg class="i"><use href="#i-layers"/></svg>单任务比多任务更快</b><span><svg class="i"><use href="#i-spark"/></svg>语义相近</span></div>
+            <div class="jump"><svg class="i"><use href="#i-shuffle"/></svg>换个方向，随机跳一下<kbd>Space</kbd></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 总览 -->
+      <div class="scene" data-title="总览">
+        <div class="app rail">
+          <div class="app-top" data-top='{"crumb":["知识地图"],"mapOn":true}'></div>
+          <aside class="app-side" data-side=""></aside>
+          <main class="panel">
+            <div class="kmap">
+              <header>
+                <div class="t"><b>知识地图</b><span>卡片 412 · 文章 58 · 项目文档 236</span><em><svg class="i"><use href="#i-spark"/></svg>AI 洞见<i></i></em></div>
+                <div class="kchips"><span class="on">全部</span><span>卡片 412</span><span>文章 58</span><span>项目文档 236</span><span class="proj"><svg class="i"><use href="#i-folder"/></svg>全部项目<svg class="i"><use href="#i-chev"/></svg></span></div>
+              </header>
+              <div class="kmap-canvas"><svg id="kmap-svg" viewBox="0 0 860 470" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg><span class="kmap-foot">706 条笔记 · 始于 2019 年 3 月</span></div>
+            </div>
+            <div class="rel">
+              <div class="tab"><svg class="i"><use href="#i-relate"/></svg>Deep Work：在喧嚣里保持专注 · 5 处关联</div>
+              <h6>连接</h6>
+              <div class="ln"><svg class="i"><use href="#i-file"/></svg>注意力为什么越来越稀缺<em>文章</em></div>
+              <h6>相关问题</h6>
+              <div class="ln"><svg class="i"><use href="#i-help"/></svg>怎样减少一天里的切换次数？<span class="ok">已解答</span></div>
+              <h6>相关</h6>
+              <div class="ln"><svg class="i"><use href="#i-layers"/></svg>先改环境，再谈专注<em>卡片</em></div>
+              <div class="sn">意志力会耗尽，环境不会。把干扰移出视线…</div>
+              <div class="ln"><svg class="i"><use href="#i-layers"/></svg>注意力残留<em>卡片</em></div>
+              <div class="sn">从任务 A 切到任务 B，一部分注意力仍然…</div>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <!-- 06 分享 -->
+      <div class="scene" data-title="分享">
+        <div class="app rail">
+          <div class="app-top" data-top='{"crumb":["发布"]}'></div>
+          <aside class="app-side" data-side="发布"></aside>
+          <main class="panel">
+            <div class="pub">
+              <header><span class="logo"><img src="/tau-icon.png" alt="" /></span><div><b>Tau's Blog</b><small><a>notes.example.com</a><span><i></i>GitHub Pages · gh-pages</span>上次发布 3 天前</small></div></header>
+              <div class="pub-body">
+                <div class="pub-cats">
+                  <h6>发布内容 · 186 项</h6>
+                  <div class="pub-cat on"><em style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)"><svg class="i"><use href="#i-layers"/></svg></em><div>卡片<small>按标签选择</small></div><small>128/135</small></div>
+                  <div class="pub-cat"><em style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)"><svg class="i"><use href="#i-file"/></svg></em><div>文章<small>选择文章</small></div><small>24/26</small></div>
+                  <div class="pub-cat"><em style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)"><svg class="i"><use href="#i-help"/></svg></em><div>问题<small>按分类选择</small></div><small>9/12</small></div>
+                  <div class="pub-cat"><em style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)"><svg class="i"><use href="#i-folder"/></svg></em><div>项目<small>选择项目文档</small></div><small>3/5</small></div>
+                </div>
+                <div class="pub-list">
+                  <div class="pub-row"><span class="cb"><svg class="i"><use href="#i-check"/></svg></span><div><b>先改环境，再谈专注</b><small>意志力会耗尽，环境不会。把干扰移出视线…</small></div></div>
+                  <div class="pub-row"><span class="cb"><svg class="i"><use href="#i-check"/></svg></span><div><b>注意力残留</b><small>从任务 A 切到任务 B，一部分注意力仍然…</small></div></div>
+                  <div class="pub-row"><span class="cb off"></span><div><b>周末书单</b><small>还没写完，先不发</small></div></div>
+                  <div class="pub-row"><span class="cb"><svg class="i"><use href="#i-check"/></svg></span><div><b>单任务比多任务更快</b><small>切换本身就是成本。一次只做一件事…</small></div></div>
+                  <div class="pub-row"><span class="cb"><svg class="i"><use href="#i-check"/></svg></span><div><b>写作是思考的外化</b><small>写下来，才知道自己哪里没想清楚…</small></div></div>
+                </div>
+                <div class="pub-side">
+                  <h6>本次发布<em>增量 12 项</em></h6>
+                  <div class="track"><i></i></div>
+                  <p>正在生成页面…</p>
+                  <div class="pub-go"><svg class="i"><use href="#i-export"/></svg>发布</div>
+                  <div class="kv"><div>分支<b>gh-pages</b></div><div>方式<b>Git Push</b></div><div>路径<b>/</b></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="collab">
+              <div class="hd"><svg class="i" style="width:15px;height:15px;color:var(--tau-accent-text)"><use href="#i-users"/></svg><b>协作</b><small>1 份共享</small></div>
+              <div class="who"><span class="av a">我</span><span class="av b">林</span><span style="color:var(--tau-ink-3)">2 人在线</span><span class="code"><svg class="i"><use href="#i-key"/></svg>E2BS-W4FU-998A</span></div>
+              <div class="doc">写下来，才知道自己哪里没想清楚<span class="cursor"></span>。所以每读完一章，就写一张卡片。</div>
+              <div class="sync"><i></i>已同步 · 更新于刚刚</div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AI ============ -->
+<section class="section" id="ai">
+  <div class="wrap">
+    <div class="reveal">
+      <p class="kicker">AI</p>
+      <h2 class="h2">它认识你写过的一切。</h2>
+      <p class="sub">不是又一个聊天框。Tau 的 AI 带着一整套工具，读得到你的卡片、文章和待办，能动手改，也会提醒你哪里还没想清楚。</p>
+    </div>
+    <div class="ai-grid">
+      <article class="ai-tile reveal">
+        <div class="hd"><small>小管家</small><h3>说一句话，它替你动手</h3><p>查内容、改笔记、排待办。它调用的每一个工具都摆在你眼前。</p></div>
+        <div class="bd">
+          <div class="mock">
+            <div class="chat-hd">本周待办整理<svg class="i"><use href="#i-chev"/></svg><span><svg class="i"><use href="#i-edit"/></svg><svg class="i"><use href="#i-expand"/></svg></span></div>
+            <div class="u">把「专注力手册」相关的待办整理一下，排个优先级，这周做完。</div>
+            <div class="tools">
+              <div><svg class="i"><use href="#i-check"/></svg>search_notes<em>· 完成</em><svg class="i"><use href="#i-chev-r"/></svg></div>
+              <div><svg class="i"><use href="#i-check"/></svg>list_todos<em>· 完成</em><svg class="i"><use href="#i-chev-r"/></svg></div>
+              <div><svg class="i"><use href="#i-check"/></svg>update_todo × 3<em>· 完成</em><svg class="i"><use href="#i-chev-r"/></svg></div>
+            </div>
+            <div class="a">「专注力手册」下还有 3 项没做完，已按依赖关系排好并设了截止时间：</div>
+            <div class="tbl">
+              <div><span>#</span><span>待办</span><span>截止</span><span>优先级</span></div>
+              <div><span>1</span><span>补完第二章「数字环境」</span><span>周三</span><span><i class="p p1">高</i></span></div>
+              <div><span>2</span><span>把读书笔记整理成卡片</span><span>周四</span><span><i class="p p2">中</i></span></div>
+              <div><span>3</span><span>给第三章列练习清单</span><span>周五</span><span><i class="p p3">低</i></span></div>
+            </div>
+            <div class="u">好，顺便排进这周的日程。</div>
+            <div class="tools"><div><svg class="i"><use href="#i-check"/></svg>create_schedule × 3<em>· 完成</em><svg class="i"><use href="#i-chev-r"/></svg></div></div>
+            <div class="a">已排进周三到周五上午 9:30 的写作时间，开始前 10 分钟提醒你。</div>
+            <div class="composer-gap"></div>
+            <div class="composer">输入消息，Command + Enter 进行发送<div class="row"><span class="plus"><svg class="i"><use href="#i-plus"/></svg></span><span class="model">DeepSeek<svg class="i"><use href="#i-chev"/></svg></span><span class="model">立答<svg class="i"><use href="#i-chev"/></svg></span><span class="send"><svg class="i"><use href="#i-up"/></svg></span></div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="ai-tile reveal">
+        <div class="hd"><small>洞见</small><h3>查漏补缺</h3><p>读完一篇文章或一个主题，指出能连上什么、哪里自相矛盾、下一步可以想什么。</p></div>
+        <div class="bd">
+          <div class="mock">
+            <div class="ins-report">
+              <div>
+                <p class="lead">这篇讲清楚了「为什么改环境」，但还没回答「怎么坚持」。你写过的三张卡片可以直接接上。</p>
+                <div class="pills"><span><i style="background:var(--tau-info)"></i>可连接 3</span><span><i style="background:var(--tau-danger)"></i>矛盾 1</span><span><i style="background:var(--tau-accent)"></i>可以展开 1</span></div>
+                <div class="think"><small>可以继续想</small><div><svg class="i"><use href="#i-help"/></svg>深度工作和休息，比例多少合适？<em>记为问题</em></div></div>
+              </div>
+              <figure>
+                <svg viewBox="0 0 168 150" aria-hidden="true">
+                  <g stroke="var(--tau-ink-3)" stroke-width="1"><line x1="84" y1="75" x2="30" y2="34"/><line x1="84" y1="75" x2="140" y2="40"/><line x1="84" y1="75" x2="44" y2="124"/></g>
+                  <g stroke="var(--tau-info)" stroke-width="1" stroke-dasharray="3 3"><line x1="84" y1="75" x2="146" y2="112"/><line x1="84" y1="75" x2="96" y2="16"/></g>
+                  <g fill="var(--tau-ink-2)"><circle cx="30" cy="34" r="5"/><circle cx="140" cy="40" r="5"/><circle cx="44" cy="124" r="5"/></g>
+                  <g fill="var(--tau-bg-surface-hover)" stroke="var(--tau-info)" stroke-dasharray="2 2"><circle cx="146" cy="112" r="6"/><circle cx="96" cy="16" r="6"/></g>
+                  <circle cx="84" cy="75" r="8" fill="var(--tau-accent)"/>
+                </svg>
+                <span>已连 3 处<br />还可以连 2 处</span>
+              </figure>
+            </div>
+            <div class="ins-foot">10 月 18 日 14:20 · 读了 30 份候选，留下 5 处 · 重新分析<em>逐条看</em></div>
+            <p class="ins-text">……它更像一种<span class="mk-link sel">环境</span>，而不是意志力。<span class="mk-conf">只要足够自律，任何环境都能专注</span>——这句话，和你后面写的恰好相反。</p>
+            <div class="ins-pop">
+              <p>两处都在说「环境替你做决定」，可以连起来。</p>
+              <div class="two"><div><small>这里</small>它更像一种环境，而不是意志力。</div><div><small>《先改环境，再谈专注》</small>意志力会耗尽，环境不会。</div></div>
+              <div class="acts"><span class="mini-btn pri"><svg class="i"><use href="#i-link"/></svg>连接</span><span class="mini-btn">不相关</span></div>
+            </div>
+            <div class="walkbar"><b>2 / 5</b><span><kbd>↑↓</kbd>切换 · <kbd>回车</kbd>处理 · <kbd>⌫</kbd>不相关 · <kbd>Esc</kbd>结束</span><em>结束</em></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="ai-tile wide reveal">
+        <div class="hd"><div><small>创作模式</small><h3>不从一张白纸开始</h3></div><p>说出这篇想写什么，它从你的笔记里挑出相关的，分好组摆到左边白板上。写到哪一段，用到的那张就亮起来。</p></div>
+        <div class="bd">
+          <div class="fit-outer" data-w="1094" data-h="600">
+            <div class="fit-inner cm">
+              <div class="app rail">
+                <div class="app-top" data-top='{"crumb":["文章","专注不是意志力问题"]}'></div>
+                <aside class="app-side" data-side="文章"></aside>
+                <div class="cm-body">
+                  <main class="panel">
+                    <div class="board">
+                      <svg aria-hidden="true">
+                        <defs><marker id="wb-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" style="fill:var(--tau-accent)"/></marker></defs>
+                        <path d="M470 300 C 500 280, 560 270, 600 248" style="fill:none;stroke:var(--tau-accent);stroke-width:1.8;stroke-linecap:round" marker-end="url(#wb-ah)"/>
+                        <path d="M120 446 C 130 476, 180 492, 230 486" style="fill:none;stroke:var(--tau-ink-3);stroke-width:1.5;stroke-dasharray:4 5;stroke-linecap:round" marker-end="url(#wb-ah)"/>
+                      </svg>
+                      <div class="wb-tools">
+                        <span class="on"><svg class="i"><use href="#i-pointer"/></svg></span><span><svg class="i"><use href="#i-square"/></svg></span><span><svg class="i"><use href="#i-arrow-ur"/></svg></span><span><svg class="i"><use href="#i-pencil"/></svg></span><span><svg class="i"><use href="#i-type"/></svg></span><span><svg class="i"><use href="#i-sticky"/></svg></span><span><svg class="i"><use href="#i-file"/></svg></span><span><svg class="i"><use href="#i-globe"/></svg></span>
+                        <i class="sep"></i><span class="wb-more"><svg class="i"><use href="#i-spark"/></svg>再找一些</span>
+                      </div>
+                      <div class="frame" style="--fc:var(--tau-tag-2);left:22px;top:88px">
+                        <em><svg class="i"><use href="#i-hash"/></svg>为什么分心</em>
+                        <div class="bc"><small><svg class="i"><use href="#i-layers"/></svg>卡片</small><b>注意力残留</b><p>切到任务 B，一部分注意力仍留在 A 上。</p></div>
+                        <div class="bc"><small><svg class="i"><use href="#i-globe"/></svg>网页摘录 · 少数派</small><blockquote>真正消耗我们的，是在任务之间来回切换。</blockquote></div>
+                      </div>
+                      <div class="frame" style="--fc:var(--tau-tag-1);left:350px;top:88px">
+                        <em><svg class="i"><use href="#i-hash"/></svg>环境 &gt; 意志力</em>
+                        <div class="bc"><small><svg class="i"><use href="#i-book"/></svg>PDF · p.112</small><blockquote>环境不是背景，它参与思考。</blockquote></div>
+                        <div class="bc lit"><span class="using">正在引用</span><small><svg class="i"><use href="#i-layers"/></svg>卡片</small><b>先改环境，再谈专注</b><p>意志力会耗尽，环境不会。</p></div>
+                      </div>
+                      <div class="frame" style="--fc:var(--tau-tag-3);left:22px;top:292px">
+                        <em><svg class="i"><use href="#i-hash"/></svg>怎么开始</em>
+                        <div class="bc"><small><svg class="i"><use href="#i-file"/></svg>文章</small><b>Deep Work：在喧嚣里保持专注</b><p>先给自己留一张安静的纸。</p></div>
+                        <div class="bc"><small><svg class="i"><use href="#i-help"/></svg>问题</small><b>怎样减少一天里的切换次数？</b><p>已解答 · 3 条回答</p></div>
+                      </div>
+                      <div class="sticky" style="left:378px;top:300px">开头先讲一个被打断的场景，再引出「环境」。</div>
+                      <div class="sticky p" style="left:236px;top:458px">结尾回到书桌</div>
+                      <div class="wb-zoom"><svg class="i"><use href="#i-pen"/></svg>普通<i class="sep"></i>−<span>62%</span>+<svg class="i"><use href="#i-expand"/></svg><i class="sep"></i><svg class="i"><use href="#i-play"/></svg>演示</div>
+                    </div>
+                  </main>
+                  <main class="panel">
+                    <div class="cm-doc">
+                      <h4>专注不是意志力问题</h4>
+                      <div class="m"><span>10-18 15:02 编辑</span><span><svg class="i"><use href="#i-spark"/></svg>标出可引用处</span><span class="exit"><svg class="i"><use href="#i-cols"/></svg>退出创作模式</span></div>
+                      <p>上午十点，你刚进入状态，手机亮了一下。等你回过神来，已经是二十分钟以后。</p>
+                      <p>我们习惯把这归咎于自己不够自律。可是<span class="cited">意志力会耗尽，环境不会</span><span class="ref"><svg class="i"><use href="#i-layers"/></svg>卡片</span>。与其一次次和诱惑较劲，不如先把它移出视线<span class="caret"></span></p>
+                    </div>
+                  </main>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ============ All in one ============ -->
+<section class="section" id="daily">
+  <div class="wrap">
+    <div class="reveal">
+      <p class="kicker">ALL IN ONE</p>
+      <h2 class="h2">写作之外的日子，<br />也在这里。</h2>
+      <p class="sub">番茄专注、待办、日程、日记、数据库。不用在五个应用之间切换，专注时长、完成的待办、写下的字，最后都汇到「今日」。</p>
+    </div>
+    <div class="daily">
+      <div class="w w-pomo reveal">
+        <div class="w-hd"><svg class="i"><use href="#i-timer"/></svg>番茄专注<em>今天 3 个 · 1h 40m</em></div>
+        <div class="player">
+          <div class="tt">补完第二章「数字环境」<span>剩余</span></div>
+          <div class="tm" id="pomo-time">16:24</div>
+          <div class="se">09:30 开始 → 09:55 结束</div>
+          <div class="pg"><i id="pomo-bar" style="width:34%"></i></div>
+          <div class="ctl"><svg class="i"><use href="#i-pip"/></svg><svg class="i"><use href="#i-expand"/></svg><svg class="i"><use href="#i-headphones"/></svg><svg class="i"><use href="#i-x"/></svg><span class="pp"><svg class="i"><use href="#i-pause"/></svg></span></div>
+        </div>
+        <div class="ledger"><b>时间账本</b>7 天 · 12 个 · 6h<div id="ledger"></div></div>
+      </div>
+      <div class="w w-todo reveal">
+        <div class="w-hd"><svg class="i"><use href="#i-todo"/></svg>待办<em>专注力手册 · 3 / 6</em></div>
+        <div style="margin-top:8px">
+          <div class="todo-row done"><span class="bx"><svg class="i"><use href="#i-check"/></svg></span><div class="tx">列出第二章提纲</div></div>
+          <div class="todo-row done"><span class="bx"><svg class="i"><use href="#i-check"/></svg></span><div class="tx">重读 Deep Work 第 3 章</div></div>
+          <div class="todo-row"><span class="bx"></span><div>补完第二章「数字环境」<small><span class="due">周三截止</span><span>· 2 个番茄</span></small></div><i class="pri" style="background:var(--tau-danger)"></i></div>
+          <div class="todo-row"><span class="bx"></span><div>把读书笔记整理成卡片<small><span>周四</span></small></div><i class="pri" style="background:var(--tau-warn)"></i></div>
+          <div class="todo-row"><span class="bx"></span><div>给第三章列练习清单<small><span>周五</span></small></div><i class="pri" style="background:var(--tau-info)"></i></div>
+        </div>
+      </div>
+      <div class="w w-cal reveal">
+        <div class="w-hd"><svg class="i"><use href="#i-calendar"/></svg>日程<em>10 月 · 第 3 周</em></div>
+        <div class="days"><div>一<b>13</b></div><div class="dot">二<b>14</b></div><div>三<b>15</b></div><div class="on">四<b>16</b></div><div class="dot">五<b>17</b></div><div>六<b>18</b></div><div>日<b>19</b></div></div>
+        <div class="timeline">
+          <div class="hr"><span>09:00</span></div><div class="hr"><span>10:00</span></div><div class="hr"><span>11:00</span></div><div class="hr"><span>12:00</span></div><div class="hr"><span>13:00</span></div><div class="hr"><span>14:00</span></div>
+          <div class="ev e1" style="top:6px;height:52px">写作时间<small>09:10 – 10:50 · 深度工作</small></div>
+          <div class="ev e2" style="top:72px;height:40px">读书会<small>11:15 – 12:00</small></div>
+          <div class="now" style="top:118px"></div>
+          <div class="ev e3" style="top:132px;height:36px">散步 / 复盘<small>13:30 – 14:00</small></div>
+        </div>
+      </div>
+      <div class="w w-diary reveal">
+        <div>
+          <div class="w-hd"><svg class="i"><use href="#i-pen"/></svg>日记</div>
+          <div class="diary-date"><b>16</b><span>十月 · 星期四 · 晴</span></div>
+          <p>今天把书桌清空了，只留一盏灯和这本书。下午写了两个番茄，比上周顺很多。原来「先改环境」不是一句口号——环境替我做了很多决定。</p>
+        </div>
+        <div class="moods">
+          <small>这个月 · 写了 22 天</small>
+          <div class="heat" id="heat"></div>
+        </div>
+      </div>
+      <div class="w w-db reveal">
+        <div class="w-hd"><svg class="i"><use href="#i-table"/></svg>数据库<em>书单 · 6 本</em></div>
+        <div class="db">
+          <div><span>书名</span><span>状态</span><span>进度</span></div>
+          <div><span>Deep Work</span><span class="st s1">已读</span><span class="bar"><i style="width:100%"></i></span></div>
+          <div><span>The Extended Mind</span><span class="st s2">在读</span><span class="bar"><i style="width:62%"></i></span></div>
+          <div><span>思考，快与慢</span><span class="st s2">在读</span><span class="bar"><i style="width:35%"></i></span></div>
+          <div><span>心流</span><span class="st s3">想读</span><span class="bar"><i style="width:0"></i></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 插件 ============ -->
+<section class="section" id="plugins">
+  <div class="wrap plug">
+    <div class="reveal">
+      <p class="kicker">插件</p>
+      <h2 class="h2">任何人都可以，<br />为 Tau 写一个插件</h2>
+      <p class="sub">命令、页面、编辑器扩展、AI 工具，都可以由插件提供。写好发布到插件中心，别人一键安装。</p>
+      <a class="more" href="https://plugins.taunote.app" target="_blank" rel="noopener">逛逛插件中心<svg class="i"><use href="#i-right"/></svg></a>
+    </div>
+    <pre class="reveal"><span class="c">// 一个插件，从一个命令开始</span>
+<span class="k">export default</span> definePlugin({
+  id: <span class="s">"hello.world"</span>,
+  commands: [{ id: <span class="s">"hello"</span>, title: <span class="s">"打个招呼"</span> }],
+  pages: [{ id: <span class="s">"hello.page"</span> }],
+  editor: [{ type: <span class="s">"hello.block"</span> }],
+  ai: [{ id: <span class="s">"hello.summarize"</span> }],
+})</pre>
+  </div>
+</section>
+
+<!-- ============ 下载 ============ -->
+<section class="download" id="download">
+  <div class="wrap reveal">
+    <p class="kicker">下载</p>
+    <h2 class="h2">把 Tau，带回你的桌面。</h2>
+    <p class="sub">数据存在你自己的电脑里。不需要注册，不联网也能写。</p>
+    <div class="ctas" data-release-downloads>
+      <!--tau:download-buttons-->
+    </div>
+    <p class="meta" data-release-meta><!--tau:release-meta--></p>
+    <div class="facts-row">
+      <span><svg class="i"><use href="#i-lock"/></svg>本地优先</span>
+      <span><svg class="i"><use href="#i-wifi-off"/></svg>离线可用</span>
+      <span><svg class="i"><use href="#i-export"/></svg>Markdown 导出</span>
+      <span><svg class="i"><use href="#i-plug"/></svg>插件开放</span>
+    </div>
+  </div>
+</section>
+
+<footer class="site">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="/tau-icon.png" alt="" />Tau</a>
+    <span>一个安静的地方，安放你所有的想法。</span>
+    <nav><a href="#download">下载</a><a href="https://plugins.taunote.app" target="_blank" rel="noopener">插件中心</a></nav>
+  </div>
+</footer>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
