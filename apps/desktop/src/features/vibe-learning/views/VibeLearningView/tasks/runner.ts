@@ -157,7 +157,7 @@ function upsertTurn(
   return next;
 }
 
-function buildRequest(input: VLTaskInput, currentHtml?: string): GenerationRequest {
+async function buildRequest(input: VLTaskInput, currentHtml?: string): Promise<GenerationRequest> {
   const sourcePayload = {
     projectId: input.projectId,
     mainDbName: input.mainDbName,
@@ -196,7 +196,7 @@ function buildRequest(input: VLTaskInput, currentHtml?: string): GenerationReque
         taskPayload: {
           speakers: input.podcast?.speakers ?? [],
           // prompt 标签规则须与实际合成引擎对齐，从当前语音服务派生
-          ttsPromptOptions: TTSProviderFactory.getActiveTTSPromptOptions(),
+          ttsPromptOptions: await TTSProviderFactory.getActiveTTSPromptOptions(),
           durationMin: input.podcast?.durationMin,
           durationMax: input.podcast?.durationMax,
         },
@@ -365,11 +365,12 @@ async function execute(
 
   let content: string;
   try {
+    const request = await buildRequest(input, currentHtml);
     content = await new Promise<string>((resolve, reject) => {
       runGenerationTask(
         config.provider,
         config.model,
-        buildRequest(input, currentHtml),
+        request,
         {
           onController: controller => (runtime.controller = controller),
           onReasoning: (text, turnId) =>

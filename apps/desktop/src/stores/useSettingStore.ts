@@ -4,7 +4,7 @@ import { merge } from "lodash";
 import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 
 import { EGithubCDN } from "@/constants/github";
-import { ETTSProvider } from "@/types/tts";
+import { ETTSProvider, isPluginTTS } from "@/types/tts";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import { MINIMAX_SPEECH_MODELS, MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import type { EmbeddingProviderType } from "@/types/embedding";
@@ -810,7 +810,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         // （迁移标记之后才在集成页连接的用户）则补建一个，避免"集成页已连接、
         // TTS 却提示未配置"的死胡同
         const minimaxProviders = draft.ttsProviders.filter(
-          provider => provider.providerType === ETTSProvider.Minimax
+          provider => !isPluginTTS(provider) && provider.providerType === ETTSProvider.Minimax
         );
         if (minimaxProviders.length === 0) {
           if (apiKey.trim()) {
@@ -825,7 +825,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
           return;
         }
         for (const provider of minimaxProviders) {
-          provider.apiKey = apiKey;
+          if (!isPluginTTS(provider)) provider.apiKey = apiKey;
         }
       }),
     });

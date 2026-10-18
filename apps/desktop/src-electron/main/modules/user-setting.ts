@@ -79,17 +79,59 @@ class UserSettingModule {
     id: string,
     config: unknown
   ): Promise<void> {
-    await this.ensureSettingLoaded();
-    await this.handleSetUserSetting({
-      ...this.userSetting,
+    const snapshot = structuredClone(config);
+    await this.updateSetting(current => ({
+      ...current,
       [group]: {
-        ...this.userSetting[group],
+        ...current[group],
         active: "plugin",
         plugin: {
           id,
-          configurations: { ...this.userSetting[group]?.plugin?.configurations, [id]: config },
+          configurations: { ...current[group]?.plugin?.configurations, [id]: snapshot },
         },
       },
+    }));
+  }
+
+  async updateTTSPlugin(
+    instanceId: string,
+    pluginId: string,
+    config: unknown,
+    models: readonly { id: string; label?: string }[]
+  ) {
+    if (
+      !Array.isArray(models) ||
+      models.some(model => !model || typeof model.id !== "string" || !model.id.trim()) ||
+      new Set(models.map(model => model.id)).size !== models.length
+    )
+      throw new Error("语音模型列表无效");
+    const snapshot = structuredClone({ config, models });
+    await this.updateSetting(current => {
+      const providers: import("@/types/tts").TTSProviderSetting[] = Array.isArray(
+        current.ttsProviders
+      )
+        ? current.ttsProviders
+        : [];
+      const index = providers.findIndex(
+        item => item.id === instanceId && "pluginId" in item && item.pluginId === pluginId
+      );
+      if (index < 0) throw new Error("语音账号已删除或归属已变化");
+      const usage = current.ttsUsageSettings?.default;
+      const ttsUsageSettings =
+        usage?.providerId === instanceId &&
+        !snapshot.models.some(model => model.id === usage.modelId)
+          ? {
+              ...current.ttsUsageSettings,
+              default: { ...usage, modelId: snapshot.models[0]?.id ?? "", voiceId: "" },
+            }
+          : current.ttsUsageSettings;
+      return {
+        ...current,
+        ttsProviders: providers.map((provider, position) =>
+          position === index ? { ...provider, ...snapshot } : provider
+        ),
+        ...(ttsUsageSettings ? { ttsUsageSettings } : {}),
+      };
     });
   }
 
@@ -150,7 +192,7 @@ class UserSettingModule {
         }
 
         if (payloadSetting) {
-          this.handleSetUserSetting(payloadSetting, clientId);
+          await this.handleSetUserSetting(payloadSetting, clientId);
         }
       }
 
@@ -180,26 +222,32 @@ class UserSettingModule {
   }
 
   handleSetUserSetting(newSettings: UserSetting, clientId?: string) {
-    const settings = this.userSetting;
-    this.userSetting = newSettings;
-    const changed = this.getSettingDiff(settings, newSettings);
-    if (Object.keys(changed).length === 0) {
-      return;
-    }
+    const snapshot = structuredClone(newSettings);
+    return this.updateSetting(() => snapshot, clientId);
+  }
 
-    console.info("[UserSettingModule] 保存用户设置", { clientId: clientId || "unknown" });
-    const saved = this.saveSetting(JSON.stringify(newSettings, null, 2));
-    if (this.backendServer) {
-      this.backendServer.sendNotification("user-setting-changed", {
-        setting: newSettings,
-        clientId,
+  async updateSetting(
+    update: (current: UserSetting) => UserSetting,
+    clientId?: string
+  ): Promise<void> {
+    await this.ensureSettingLoaded();
+    const operation = this.savingChain
+      .catch(() => undefined)
+      .then(async () => {
+        const previous = this.userSetting;
+        const next = update(previous);
+        if (isEqual(previous, next)) return;
+        await this.writeSettingFile(JSON.stringify(next, null, 2));
+        this.userSetting = next;
+        try {
+          this.backendServer?.sendNotification("user-setting-changed", { setting: next, clientId });
+        } catch (error) {
+          console.error("[UserSettingModule] 设置已保存，但广播失败", error);
+        }
+        this.notifySettingChanged({ oldSetting: previous, newSetting: next });
       });
-    }
-    this.notifySettingChanged({
-      oldSetting: settings,
-      newSetting: newSettings,
-    });
-    return saved;
+    this.savingChain = operation;
+    return operation;
   }
 
   private async loadSetting() {
@@ -262,25 +310,6 @@ class UserSettingModule {
       console.error("[UserSettingModule] 保存用户设置失败", error);
       throw error;
     }
-  }
-
-  private getSettingDiff(oldSetting: UserSetting, newSetting: UserSetting): Partial<object> {
-    const diff: Partial<UserSetting> = {};
-    let hasChanges = false;
-
-    for (const key in newSetting) {
-      if (Object.prototype.hasOwnProperty.call(newSetting, key)) {
-        const oldValue = oldSetting[key];
-        const newValue = newSetting[key];
-
-        if (!isEqual(oldValue, newValue)) {
-          diff[key] = newValue;
-          hasChanges = true;
-        }
-      }
-    }
-
-    return hasChanges ? diff : {};
   }
 
   private isSetUserSettingPayload(

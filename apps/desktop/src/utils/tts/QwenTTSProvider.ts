@@ -58,7 +58,7 @@ export function createQwenTTSProvider(config: IQwenConfig): ITTSProvider {
       text: string,
       voiceId: string,
       options?: TTSSynthesizeOptions
-    ): Promise<ArrayBuffer> {
+    ): Promise<import("@tau/plugins").TTSAudio> {
       assertConfigured();
       const result = await ttsCommands.synthesize.call({
         providerType: ETTSProvider.Qwen,
@@ -69,39 +69,37 @@ export function createQwenTTSProvider(config: IQwenConfig): ITTSProvider {
         voiceId,
         options,
       });
-      // IPC 返回 Uint8Array；接口契约是 ArrayBuffer，拷贝出精确长度的缓冲
-      return result.audio.slice().buffer;
+      return result;
     },
   };
 
+  const uploadReferenceAudio = async (file: File): Promise<string> => {
+    assertConfigured();
+    if (file.size > QWEN_CLONE_MAX_SIZE) {
+      throw new Error("参考音频不能超过 10MB");
+    }
+    if (file.type && !QWEN_CLONE_AUDIO_TYPES.includes(file.type.toLowerCase())) {
+      throw new Error("参考音频仅支持 WAV / MP3 / M4A 格式");
+    }
+
+    const { imageBed } = useSettingStore.getState().setting;
+    if (imageBed.active !== EImageBed.Plugin) {
+      throw new Error(
+        "百炼声音复刻需要公网可访问的参考音频：请先在「设置 · 资源存储」配置可公开访问的上传插件"
+      );
+    }
+
+    const url = await uploadResource(file);
+    if (!url) {
+      throw new Error("参考音频上传失败，请检查资源存储配置");
+    }
+    return url;
+  };
   const cloning: VoiceCloneCapability = {
-    /** 上传参考音频并返回公网 URL（作为 cloneVoice 的 fileId）；仅支持公网可访问的资源存储 */
-    async uploadReferenceAudio(file: File): Promise<string> {
+    async cloneVoice(file: File, options: VoiceCloneOptions): Promise<TTSVoice> {
       assertConfigured();
-      if (file.size > QWEN_CLONE_MAX_SIZE) {
-        throw new Error("参考音频不能超过 10MB");
-      }
-      if (file.type && !QWEN_CLONE_AUDIO_TYPES.includes(file.type.toLowerCase())) {
-        throw new Error("参考音频仅支持 WAV / MP3 / M4A 格式");
-      }
-
-      const { imageBed } = useSettingStore.getState().setting;
-      if (imageBed.active !== EImageBed.Plugin) {
-        throw new Error(
-          "百炼声音复刻需要公网可访问的参考音频：请先在「设置 · 资源存储」配置可公开访问的上传插件"
-        );
-      }
-
-      const url = await uploadResource(file);
-      if (!url) {
-        throw new Error("参考音频上传失败，请检查资源存储配置");
-      }
-      return url;
-    },
-
-    async cloneVoice(fileId: string, options: VoiceCloneOptions): Promise<string> {
-      assertConfigured();
-      return ttsCommands.cloneVoice.call({
+      const fileId = await uploadReferenceAudio(file);
+      const id = await ttsCommands.cloneVoice.call({
         providerType: ETTSProvider.Qwen,
         apiKey: config.apiKey,
         baseUrl: config.baseUrl,
@@ -109,6 +107,7 @@ export function createQwenTTSProvider(config: IQwenConfig): ITTSProvider {
         audioUrl: fileId,
         prefix: normalizeClonePrefix(options.voiceName ?? ""),
       });
+      return { id, name: options.voiceName || id, type: "cloned", provider: ETTSProvider.Qwen };
     },
   };
 

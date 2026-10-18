@@ -2,7 +2,7 @@
  * TTS 提供商预设目录与系统音色表。
  * 渲染端（设置页新建服务商）与主进程（Qwen 音色列表）共用，避免两处维护漂移。
  */
-import { ETTSProvider, type TTSModelSetting, type TTSProviderSetting } from "@/types/tts";
+import { ETTSProvider, type TTSModelSetting, type LegacyTTSProviderSetting } from "@/types/tts";
 import { MINIMAX_SPEECH_MODELS } from "@/utils/tts/minimaxSpeech";
 
 export const DEFAULT_QWEN_TTS_BASE_URL = "https://dashscope.aliyuncs.com";
@@ -39,7 +39,7 @@ export const TTS_PROVIDER_PRESETS: TTSProviderPreset[] = [
 /** 新建 provider 时从预设生成初始配置（不含凭据），id 由调用方补 */
 export function createProviderFromPreset(
   preset: TTSProviderPreset
-): Omit<TTSProviderSetting, "id"> {
+): Omit<LegacyTTSProviderSetting, "id"> {
   return {
     name: preset.name,
     providerType: preset.providerType,

@@ -6,7 +6,8 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Button, Dialog, DialogBody, toast } from "@tau/ui";
-import type { TTSProviderSetting } from "@/types/tts";
+import type { TTSProviderDraft } from "@/types/tts";
+import { useDesktopPlugins } from "@/app/plugins/context";
 import {
   TTS_PROVIDER_PRESETS,
   createProviderFromPreset,
@@ -22,8 +23,11 @@ export function TtsProviderCreateDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** 返回后由调用方补 id 并写入设置 */
-  onCreate: (draft: Omit<TTSProviderSetting, "id">) => void;
+  onCreate: (draft: TTSProviderDraft) => void;
 }) {
+  const runtime = useDesktopPlugins();
+  const sections =
+    runtime?.listSettings().filter(section => section.definition.target === "tts") ?? [];
   const [picked, setPicked] = useState<TTSProviderPreset | null>(null);
   const [apiKey, setApiKey] = useState("");
 
@@ -80,6 +84,22 @@ export function TtsProviderCreateDialog({
       <DialogBody>
         {picked === null ? (
           <div className="flex flex-col gap-2">
+            {sections.map(section => (
+              <Button
+                key={section.key}
+                onClick={() => {
+                  onCreate({
+                    pluginId: section.context.pluginId,
+                    name: section.definition.title,
+                    config: {},
+                    models: [],
+                  });
+                  onOpenChange(false);
+                }}
+              >
+                {section.definition.title}
+              </Button>
+            ))}
             {TTS_PROVIDER_PRESETS.map(preset => (
               <button
                 key={preset.providerType}

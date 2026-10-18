@@ -48,7 +48,7 @@ export function createMinimaxTTSProvider(config: IMinimaxConfig): ITTSProvider {
       text: string,
       voiceId: string,
       options?: TTSSynthesizeOptions
-    ): Promise<ArrayBuffer> {
+    ): Promise<import("@tau/plugins").TTSAudio> {
       assertConfigured();
       const result = await ttsCommands.synthesize.call({
         providerType: ETTSProvider.Minimax,
@@ -59,20 +59,21 @@ export function createMinimaxTTSProvider(config: IMinimaxConfig): ITTSProvider {
         voiceId,
         options,
       });
-      // IPC 返回 Uint8Array；接口契约是 ArrayBuffer，拷贝出精确长度的缓冲
-      return result.audio.slice().buffer;
+      return result;
     },
   };
 
   const cloning: VoiceCloneCapability = {
-    async uploadReferenceAudio(file: File): Promise<string> {
+    async cloneVoice(file: File, options: VoiceCloneOptions): Promise<TTSVoice> {
       assertConfigured();
-      return minimaxUploadReferenceAudio(file, config.apiKey);
-    },
-
-    async cloneVoice(fileId: string, options: VoiceCloneOptions): Promise<string | void> {
-      assertConfigured();
+      const fileId = await minimaxUploadReferenceAudio(file, config.apiKey);
       await minimaxCloneVoice(fileId, options.voiceId, config.apiKey);
+      return {
+        id: options.voiceId,
+        name: options.voiceName || options.voiceId,
+        type: "cloned",
+        provider: ETTSProvider.Minimax,
+      };
     },
   };
 
