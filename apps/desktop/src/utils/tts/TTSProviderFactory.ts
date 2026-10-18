@@ -4,11 +4,7 @@ import type {
   VoiceCloneCapability,
   TTSProviderSetting,
 } from "@/types/tts";
-import { ETTSProvider, isPluginTTS } from "@/types/tts";
 import { createPluginTTSProvider } from "./PluginTTSProvider";
-import type { MinimaxSpeechModel } from "@/types/minimax";
-import { createMinimaxTTSProvider } from "./MinimaxTTSProvider";
-import { createQwenTTSProvider } from "./QwenTTSProvider";
 import useSettingStore from "@/stores/useSettingStore";
 
 /**
@@ -29,7 +25,7 @@ export class TTSProviderFactory {
       return null;
     }
     const providerSetting = setting.ttsProviders.find(item => item.id === usage.providerId);
-    if (!providerSetting || (!isPluginTTS(providerSetting) && !providerSetting.apiKey?.trim())) {
+    if (!providerSetting) {
       return null;
     }
     return TTSProviderFactory.createFromSetting(providerSetting, usage.modelId);
@@ -59,11 +55,7 @@ export class TTSProviderFactory {
       return null;
     }
     const providerSetting = setting.ttsProviders.find(item => item.id === usage.providerId);
-    return providerSetting
-      ? isPluginTTS(providerSetting)
-        ? providerSetting.pluginId
-        : providerSetting.providerType
-      : null;
+    return providerSetting?.pluginId ?? null;
   }
 
   /**
@@ -73,27 +65,7 @@ export class TTSProviderFactory {
     providerSetting: TTSProviderSetting,
     modelId: string
   ): ITTSProvider | null {
-    if (isPluginTTS(providerSetting))
-      return modelId ? createPluginTTSProvider(providerSetting, modelId) : null;
-    if (!providerSetting.apiKey?.trim() || !modelId) {
-      return null;
-    }
-    switch (providerSetting.providerType) {
-      case ETTSProvider.Minimax:
-        return createMinimaxTTSProvider({
-          apiKey: providerSetting.apiKey,
-          baseUrl: providerSetting.baseUrl,
-          model: modelId as MinimaxSpeechModel,
-        });
-      case ETTSProvider.Qwen:
-        return createQwenTTSProvider({
-          apiKey: providerSetting.apiKey,
-          baseUrl: providerSetting.baseUrl,
-          model: modelId,
-        });
-      default:
-        return null;
-    }
+    return modelId ? createPluginTTSProvider(providerSetting, modelId) : null;
   }
 }
 

@@ -2,7 +2,7 @@
 
 需要 SDK 0.12.0 和包含资源上传插件能力的 Tau 0.59.0 客户端。上传返回正文可直接引用的 HTTP(S) 地址；数据库和资源目录同步使用 SYNC.md 的另一套接口。
 
-SDK 0.13.0草案补充第三个signal参数与context.upload.uploadRemote(file,{signal})。提供方应将signal合并进context.fetch请求；调用方使用uploadRemote时，本地目标明确报错，不自动更换存储。signal取消会结束等待并通知提供方，不代表撤回已经上传的远端对象。
+SDK 0.13.0 增加第三个signal参数与context.upload.uploadRemote(file,{signal})。提供方应将signal合并进context.fetch请求；调用方使用uploadRemote时，本地目标明确报错，不自动更换存储。signal取消会结束等待并通知提供方，不代表撤回已经上传的远端对象。
 
 在 activate 中注册提供方：
 

@@ -2,10 +2,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import useSettingStore from "@/stores/useSettingStore";
-import { ETTSProvider } from "@/types/tts";
 import { VoiceSection } from "../sections/VoiceSection";
-
-const mocks = vi.hoisted(() => ({ openSettings: vi.fn() }));
+import { useSettingsStore } from "@/app/settingsStore";
 
 vi.mock("@/commands", () => ({
   getModels: vi.fn(async () => ({
@@ -45,9 +43,6 @@ vi.mock("@/commands", () => ({
   openTranscriptionModelsDir: vi.fn(),
 }));
 vi.mock("@/platform", () => ({ isMac: false }));
-vi.mock("@/app/settingsStore", () => ({
-  useSettingsStore: { getState: () => ({ openSettings: mocks.openSettings }) },
-}));
 
 let container: HTMLDivElement;
 let root: Root;
@@ -57,13 +52,13 @@ const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
 
 beforeEach(() => {
+  useSettingsStore.getState().setVoiceTab("transcription");
   useSettingStore.setState(s => ({
     setting: {
       ...s.setting,
       transcription: { ...s.setting.transcription, currentModel: "large-v3" },
       integration: {
         ...s.setting.integration,
-        minimax: { ...s.setting.integration.minimax, enabled: false },
       },
     },
   }));
@@ -107,8 +102,8 @@ it("语音合成：无服务商时显示空态，配置后展示多服务商面�
           {
             id: "p1",
             name: "Minimax",
-            providerType: ETTSProvider.Minimax,
-            apiKey: "key",
+            pluginId: "tau.tts-minimax",
+            config: { apiKey: "key" },
             models: [{ id: "speech-2.8-hd" }],
           },
         ],
@@ -116,7 +111,7 @@ it("语音合成：无服务商时显示空态，配置后展示多服务商面�
     }));
   });
   expect(text()).toContain("Minimax");
-  expect(text()).toContain("连接");
+  expect(text()).toContain("插件");
   expect(text()).toContain("模型");
   expect(text()).toContain("当前服务");
 });

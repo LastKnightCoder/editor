@@ -1,6 +1,6 @@
 # TTS 插件拆分调研与方案
 
-状态：已确认，2026-10-18。M1在codex/tts-plugins独立分支实施，不合并master。用户已批准uploadRemote和每音色一个参考文件、保留批量创建。
+状态：2026-10-18，M3已完成配置迁移、旧代码退役、SDK 0.13.0发布及GitHub干净克隆、Release验收。所有客户端改动仍在codex/tts-plugins独立分支，不合并master。
 
 ## 任务与范围
 
@@ -8,13 +8,14 @@
 - COMPLETE：形成最小接口、配置迁移、删除清单与阶段验收方案。
 - COMPLETE：M1通用契约、uploadRemote、MiniMax与多账号接线；独立分支与隔离验收完成，不合并master。
 - COMPLETE：M2 Qwen、uploadRemote复刻、播客与单句重生成。用户确认的会话关闭通知已接通并验证。
-- 待执行：M3配置迁移、旧实现退役与正式发布。
+- COMPLETE：M3配置迁移、旧实现与重复集成入口退役。
+- COMPLETE：M3公共SDK、模板与独立仓库发布，干净克隆及Release验收。
 
 只拆MiniMax/Qwen的TTS服务商实现。业务流程、音频播放与加工留在客户端。插件仍在主窗口渲染进程执行；独立窗口经宿主转发；主进程提供fetch、文件与媒体能力，不执行插件代码、不创建隐藏窗口。插件走独立仓库与插件中心，不随客户端发布。不拆语音转录，不重构LLM配置或增加新的计费平台。
 
 ## 现状与真实调用链
 
-以下均为当前仓库实现事实，不把注释中的服务商接口描述当成已核实的最新官方限制。
+以下为拆分前调研记录；最终边界与验收见本文末尾M3记录，不把历史路径当作现行实现。
 
 | 入口               | 调用链                                                                           | 输出去向                                                    |
 | ------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -95,7 +96,7 @@ Qwen：保留“本地参考音频 → 当前资源上传提供方 → 公网URL
 
 建议继续使用ttsProviders与ttsUsageSettings的现有容器，实例改为{id,name,pluginId,config,models}；config为插件负责解释的JSON，宿主不再定义apiKey/baseUrl字段。
 
-1. 先备份原设置，按旧实例逐项映射minimax→tau.tts-minimax、qwen→tau.tts-qwen（拟定插件ID，尚未创建）。保留实例id、名称、模型顺序/自定义模型、当前providerId/modelId/voiceId；Key/baseUrl原样移入config，不合并账号。
+1. 先备份原设置，按旧实例逐项映射minimax→tau.tts-minimax、qwen→tau.tts-qwen。保留实例id、名称、模型顺序/自定义模型、当前providerId/modelId/voiceId；Key/baseUrl原样移入config，不合并账号。
 2. 已有新结构配置优先。只在确实没有新版TTS实例时消费更旧的integration.minimax/podcastTTS；不可用单份旧Key覆盖多个新实例。未知提供方不丢弃或猜测映射，应保留备份并报告需处理项。
 3. 成功落盘后删除integration.minimax、integration.podcastTTS、misc.tts.providersMigrated及其双向同步逻辑；失败不发布迁移完成状态。
 4. 不自动安装插件，不默认启用新插件，不改变已有明确启停偏好。选择信息保留；插件未安装时提示去插件中心安装，旧TTS执行路径不再回退。
@@ -196,3 +197,39 @@ M2/M3尚未完成：Qwen独立插件、公网参考文件完整业务验收、�
 复跑Qwen的Electron验证：node scripts/plugins/verify-tts.mjs /绝对路径/tau.tts-qwen-0.1.0.zip。真实包表单继续使用TAU_TTS_PLUGIN_ZIP环境变量；同一脚本可回归MiniMax。
 
 下一步M3：旧配置迁移、旧服务商执行代码/重复集成入口退役、公共SDK与模板发布、两个TTS插件及上传取消版本的独立仓库发布和干净克隆验收。真实百炼账号/公开桶及参考音频仍需指定样本后做收费服务验收，自动化模拟结果不替代该项。
+
+## M3执行记录（2026-10-18）
+
+M1/M2章节保留为阶段历史，以下为最终状态。
+
+### 配置与退役
+
+- 主进程首次加载设置执行`tts-settings-migration`，先在应用数据目录写入`setting.json.tts-<uuid>.bak`（仅当前用户可读写），再经原子保存更新配置；失败不发布新内存快照。
+- 逐账号保留id、name、模型顺序、模型别名和当前音色，把凭据移入对应插件config；已有插件配置优先。旧单账号升级标记已完成且用户删光账号时，不从残留Key复活账号。未知旧提供方先备份再报错，不猜测、不丢弃。
+- 删除integration.minimax、integration.podcastTTS、misc.tts.providersMigrated以及渲染端重复迁移；设置加载不再将失效选择自动回退到其他账号。插件未安装/停用时配置与选择保持，提示去插件中心安装启用。
+- 删除旧MiniMax/Qwen适配、主进程tts模块及RPC、旧服务工具/类型/模型目录、设置页服务商特判和集成页MiniMax入口。服务商文本规则仅由插件textInstructions提供；宿主的提示词测试使用通用规则样本。语音转录、博客S3/GitHub配置与内容平台连接保留。
+- 插件只在主窗口渲染进程执行，独立窗口经现有宿主转发。无Node入口、隐藏窗口或新RPC框架。
+
+### 发布结果
+
+| 项目                                       | 已公开版本/提交  | 结果                                               |
+| ------------------------------------------ | ---------------- | -------------------------------------------------- |
+| npm `@xiongtao.xt/tau-plugins`             | 0.13.0           | 已发布并从公共registry安装；UI仍为0.1.1            |
+| `LastKnightCoder/tau-plugin-template`      | 55b6402          | main已更新API、TTS、UPLOAD、AI开发指南与公共依赖锁 |
+| `LastKnightCoder/tau-plugin-tts-minimax`   | 6b8fc80 / v0.1.0 | 公开仓库，Action成功并产出Release ZIP              |
+| `LastKnightCoder/tau-plugin-tts-qwen`      | 664a409 / v0.1.0 | 公开仓库，Action成功并产出Release ZIP              |
+| `LastKnightCoder/tau-plugin-upload-github` | 93d2747 / v0.1.1 | 公共SDK升级和取消接线已发布                        |
+| `LastKnightCoder/tau-plugin-upload-oss`    | 93eb6d6 / v0.1.1 | 公共SDK升级和取消接线已发布                        |
+| `LastKnightCoder/tau-plugin-upload-s3`     | bec6803 / v0.1.1 | 公共SDK升级和取消接线已发布                        |
+
+仓库统一用SSH推送。正式插件仍需提交插件中心审核，不随客户端分发；本轮没有替用户安装或自动启用，也没有提交插件中心审核。
+
+### 验证与后续接手
+
+- SDK类型检查及77项测试通过；桌面类型检查、生产构建通过。
+- 桌面相关15个测试文件41项通过，Notebook域33项通过；随后增加两项迁移边界，迁移套件最终7项通过。
+- 五个独立插件共16项测试通过。MiniMax/Qwen正式ZIP经Electron验证多账号、跨窗口、音频字节、停用取消；Qwen还覆盖uploadRemote嵌套上传取消和本地目标拒绝。
+- 六个仓库从GitHub干净克隆到`/tmp/tau-tts-m3-clean-iqKrN4/`，逐个执行`pnpm install --frozen-lockfile`、`pnpm run --if-present test`、`pnpm build`全部通过，构建后Git状态干净。没有本地SDK路径、快照包或临时依赖注入。
+- 本地安装包位于独立仓库`dist/`，正式下载取对应GitHub Release。客户端分支`codex/tts-plugins`留在`~/.codex/worktrees/sync-storage/editor`，暂不合并master。
+- 维护命令：客户端`node scripts/plugins/verify-tts.mjs <插件ZIP>`；作者仓库用pnpm测试/构建，升级同步修改package与manifest版本并推送tag触发Release。
+- 尚未做真实付费服务与用户音频验收；模拟网络及Electron验证不能替代真实服务结果。下一步由用户安装两个TTS包，核验旧账号恢复、模型/音色选择及实际合成/复刻；视觉验收由用户完成。

@@ -6,7 +6,7 @@ import { useDesktopPlugins } from "@/app/plugins/context";
 import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
 import { savePluginTTSConfig } from "@/commands/plugin-tts";
 import useSettingStore from "@/stores/useSettingStore";
-import { isPluginTTS, type PluginTTSProviderSetting } from "@/types/tts";
+import { type PluginTTSProviderSetting } from "@/types/tts";
 import { SettingRow } from "../components/SettingRow";
 import { ProviderSection } from "../components/ProviderLayout";
 
@@ -55,8 +55,7 @@ export function TTSPluginSettings({
             useSettingStore.setState(state => ({
               setting: produce(state.setting, draft => {
                 const current = draft.ttsProviders.find(item => item.id === instance.id);
-                if (!current || !isPluginTTS(current) || current.pluginId !== instance.pluginId)
-                  return;
+                if (!current || current.pluginId !== instance.pluginId) return;
                 current.config = config;
                 current.models = models.map(model => ({ ...model }));
                 const usage = draft.ttsUsageSettings.default;
