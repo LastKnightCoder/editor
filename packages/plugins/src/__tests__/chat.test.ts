@@ -173,3 +173,52 @@ it("工具展示数据复制并校验版本，未声明 metadata 不穿透作者
     snapshotMCPToolResult({ content: "文本", render: { version: 1, data: new Date() as never } })
   ).toThrow("JSON");
 });
+
+it.each([false, true])("TTS 与聊天渲染共存，激活失败=%s 时按同一生命周期回收", async fail => {
+  const ttsDispose = vi.fn();
+  const chatDispose = vi.fn();
+  const chatCommit = vi.fn(() => ({ dispose: chatDispose }));
+  const host = new PluginHost({
+    workspaceId: "combined",
+    storage: createMemoryStorage(),
+    tts: { register: () => ({ dispose: ttsDispose }) },
+    mcp: { register: () => ({ dispose() {} }) },
+    chat: { prepare: async () => chatCommit },
+  });
+  host.registerTrusted(
+    definePlugin({
+      id: "test.combined",
+      name: "组合插件",
+      version: "1.0.0",
+      create: () => ({
+        async activate(context) {
+          context.tts.register({
+            id: context.pluginId,
+            name: "语音",
+            create: () => ({
+              getVoices: async () => [],
+              synthesize: async () => ({ audio: new Uint8Array(), mime: "audio/wav" }),
+            }),
+          });
+          context.mcp.register(local);
+          await context.chat.registerToolRenderer(renderer);
+          if (fail) throw new Error("组合激活失败");
+        },
+      }),
+    })
+  );
+  try {
+    if (fail) {
+      await expect(host.enable("test.combined")).rejects.toThrow("组合激活失败");
+      expect(chatCommit).not.toHaveBeenCalled();
+    } else {
+      await host.enable("test.combined");
+      expect(chatCommit).toHaveBeenCalledTimes(1);
+      await host.disable("test.combined");
+      expect(chatDispose).toHaveBeenCalledTimes(1);
+    }
+    expect(ttsDispose).toHaveBeenCalledTimes(1);
+  } finally {
+    await host.dispose();
+  }
+});

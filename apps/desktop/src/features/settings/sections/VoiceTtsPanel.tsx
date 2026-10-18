@@ -5,25 +5,20 @@
  * （内置目录只是快捷项，覆盖不到的官方音色可直接填）。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshCw, Trash2, Upload } from "lucide-react";
+import { RefreshCw, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
-import { Button, ConfirmDialog, IconButton, Input, Select, toast } from "@tau/ui";
+import { ConfirmDialog, IconButton, Select, toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
-import { ETTSProvider, type TTSProviderSetting, type TTSVoice } from "@/types/tts";
+import { type TTSProviderSetting, type TTSVoice } from "@/types/tts";
+import { TTSPluginSettings } from "./TTSPluginSettings";
+import { TTSPluginCloneSection } from "./TTSPluginCloneSection";
 import { TTSProviderFactory } from "@/utils/tts";
-import { TTS_PROVIDER_PRESETS } from "@/utils/tts/catalog";
-import { useSettingsStore } from "@/app/settingsStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
-import {
-  FieldBox,
-  ProviderSection,
-  ProviderSwitcher,
-  SecretInput,
-} from "../components/ProviderLayout";
+import { ProviderSection, ProviderSwitcher } from "../components/ProviderLayout";
 import { TtsProviderCreateDialog } from "../components/TtsProviderCreateDialog";
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -53,19 +48,6 @@ export function VoiceTtsPanel() {
     }));
   };
 
-  const updateProviderField = <K extends keyof TTSProviderSetting>(
-    providerId: string,
-    field: K,
-    value: TTSProviderSetting[K]
-  ) => {
-    mutateProvidersAndUsage(providers => {
-      const provider = providers.find(item => item.id === providerId);
-      if (provider) {
-        provider[field] = value;
-      }
-    });
-  };
-
   const [pendingDeleteProvider, setPendingDeleteProvider] = useState<TTSProviderSetting | null>(
     null
   );
@@ -80,11 +62,7 @@ export function VoiceTtsPanel() {
         providers.splice(index, 1);
       }
       if (usageSettings.default?.providerId === targetId) {
-        // 用法回落到剩余第一家（带模型的），否则清空
-        const fallback = providers.find(item => item.models.length > 0);
-        usageSettings.default = fallback
-          ? { providerId: fallback.id, modelId: fallback.models[0]?.id ?? "", voiceId: "" }
-          : null;
+        usageSettings.default = null;
       }
     });
     if (editingId === targetId) {
@@ -196,65 +174,11 @@ export function VoiceTtsPanel() {
           </div>
         ) : (
           <>
-            <ProviderSection
-              title="连接"
-              description={`${editing.name || "未命名"} 的名称与凭据`}
-              action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Trash2}
-                  onClick={() => setPendingDeleteProvider(editing)}
-                >
-                  删除服务商
-                </Button>
-              }
-            >
-              <SettingRow title="名称">
-                <FieldBox>
-                  <Input
-                    value={editing.name}
-                    placeholder="如 阿里云百炼"
-                    onChange={e => updateProviderField(editing.id, "name", e.target.value)}
-                  />
-                </FieldBox>
-              </SettingRow>
-              <SettingRow title="API Key">
-                <FieldBox>
-                  <SecretInput
-                    label="API Key"
-                    value={editing.apiKey}
-                    placeholder={editing.providerType === ETTSProvider.Qwen ? "sk-…" : "eyJ…"}
-                    onChange={value => updateProviderField(editing.id, "apiKey", value)}
-                    onCopy={() => {
-                      void navigator.clipboard.writeText(editing.apiKey).then(
-                        () => toast.success("API Key 已复制到剪贴板"),
-                        () => toast.error("复制失败，请手动选择复制")
-                      );
-                    }}
-                  />
-                </FieldBox>
-              </SettingRow>
-              {editing.providerType === ETTSProvider.Qwen && (
-                <SettingRow title="Base URL" description="留空使用官方地址">
-                  <FieldBox>
-                    <Input
-                      className="font-tau-mono"
-                      value={editing.baseUrl ?? ""}
-                      placeholder="https://dashscope.aliyuncs.com"
-                      spellCheck={false}
-                      onChange={e =>
-                        updateProviderField(
-                          editing.id,
-                          "baseUrl",
-                          e.target.value.trim() || undefined
-                        )
-                      }
-                    />
-                  </FieldBox>
-                </SettingRow>
-              )}
-            </ProviderSection>
+            <TTSPluginSettings
+              key={editing.id}
+              instance={editing}
+              onDelete={() => setPendingDeleteProvider(editing)}
+            />
 
             <ProviderSection
               title="模型"
@@ -263,7 +187,7 @@ export function VoiceTtsPanel() {
             >
               {editing.models.length === 0 ? (
                 <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
-                  暂无模型——从内置候选添加，或手动填写模型名
+                  暂无模型——在插件设置中保存模型，或手动填写模型名
                 </div>
               ) : (
                 editing.models.map(model => (
@@ -290,9 +214,17 @@ export function VoiceTtsPanel() {
               )}
             </ProviderSection>
 
-            {editing.providerType === ETTSProvider.Qwen && (
-              <QwenVoiceCloneSection provider={editing} onCloned={loadVoices} />
-            )}
+            <TTSPluginCloneSection
+              key={`clone:${editing.id}`}
+              provider={editing}
+              onCloned={() => {
+                if (
+                  useSettingStore.getState().setting.ttsUsageSettings.default?.providerId ===
+                  editing.id
+                )
+                  void loadVoices();
+              }}
+            />
           </>
         )}
       </SettingsGroup>
@@ -382,7 +314,7 @@ export function VoiceTtsPanel() {
         context={pendingDeleteProvider?.name}
         danger
         description="删除该服务商及其模型配置。"
-        impact="当前服务若指向它会回落到其他服务商"
+        impact="当前服务若指向它会清空选择，需要重新选择账号"
         confirmText="删除"
         onConfirm={deleteProvider}
       />
@@ -403,13 +335,8 @@ export function VoiceTtsPanel() {
   );
 }
 
-/** 添加模型：内置候选下拉（creatable 允许手填任意模型 id） */
+/** 添加自定义模型 ID，服务商预设由插件设置维护。 */
 function AddModelButton({ provider }: { provider: TTSProviderSetting }) {
-  const preset = TTS_PROVIDER_PRESETS.find(item => item.providerType === provider.providerType);
-  const candidateOptions = (preset?.models ?? [])
-    .filter(model => !provider.models.some(existing => existing.id === model.id))
-    .map(model => ({ value: model.id, label: model.label ?? model.id }));
-
   const mutateProviders = (fn: (providers: TTSProviderSetting[]) => void) => {
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => fn(draft.ttsProviders)),
@@ -423,9 +350,9 @@ function AddModelButton({ provider }: { provider: TTSProviderSetting }) {
       searchable
       creatable
       placeholder="添加模型"
-      emptyText="输入模型名添加（如 qwen-audio-3.1-tts-flash）"
+      emptyText="输入模型 ID 添加"
       value={null}
-      options={candidateOptions}
+      options={[]}
       onValueChange={value => {
         if (!value) return;
         let added = false;
@@ -443,126 +370,5 @@ function AddModelButton({ provider }: { provider: TTSProviderSetting }) {
         }
       }}
     />
-  );
-}
-
-/** Qwen 音色复刻：本地参考音频经资源上传（OSS/S3）中转拿公网 URL 后提交百炼 */
-function QwenVoiceCloneSection({
-  provider,
-  onCloned,
-}: {
-  provider: TTSProviderSetting;
-  onCloned: () => void;
-}) {
-  const [file, setFile] = useState<File | null>(null);
-  const [voiceName, setVoiceName] = useState("");
-  const [cloning, setCloning] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleClone = async () => {
-    if (!file) {
-      toast.warning("请先选择参考音频（建议 10~20 秒清晰人声）");
-      return;
-    }
-    const usage = useSettingStore.getState().setting.ttsUsageSettings.default;
-    const modelId = usage?.providerId === provider.id ? usage.modelId : provider.models[0]?.id;
-    if (!provider.apiKey.trim()) {
-      toast.error("请先填写 API Key");
-      return;
-    }
-    if (!modelId) {
-      toast.error("该服务商还没有可用模型，请先在「模型」中添加");
-      return;
-    }
-    const tts = TTSProviderFactory.createFromSetting(provider, modelId);
-    if (!tts?.cloning) {
-      toast.error("语音服务实例创建失败，请检查配置");
-      return;
-    }
-    setCloning(true);
-    try {
-      const audioUrl = await tts.cloning.uploadReferenceAudio(file);
-      const voiceId = await tts.cloning.cloneVoice(audioUrl, {
-        voiceId: "",
-        voiceName: voiceName.trim() || file.name,
-      });
-      const isCurrentUsage =
-        useSettingStore.getState().setting.ttsUsageSettings.default?.providerId === provider.id;
-      toast.success(
-        voiceId
-          ? `复刻已提交（${modelId}），音色 ID：${voiceId}`
-          : `复刻已提交（${modelId}），音色部署需要一点时间`
-      );
-      if (isCurrentUsage) {
-        toast.info("音色部署完成后刷新音色列表即可选用");
-      }
-      setFile(null);
-      setVoiceName("");
-      onCloned();
-    } catch (error) {
-      toast.error(`音色复刻失败：${errorText(error)}`);
-    } finally {
-      setCloning(false);
-    }
-  };
-
-  return (
-    <ProviderSection
-      title="音色复刻"
-      description="本地参考音频经「资源存储」配置的 OSS/S3 中转后提交百炼（需公开读）"
-    >
-      <SettingRow title="参考音频" description="WAV / MP3 / M4A，10~20 秒清晰单人朗读">
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".wav,.mp3,.m4a,audio/wav,audio/mpeg,audio/mp4"
-            className="hidden"
-            onChange={e => {
-              setFile(e.target.files?.[0] ?? null);
-              // 清空 value 以便再次选择同一文件时仍触发 change
-              e.target.value = "";
-            }}
-          />
-          <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-            选择文件
-          </Button>
-          {file && (
-            <span className="text-tau-meta text-ink-2 max-w-[200px] truncate">{file.name}</span>
-          )}
-        </div>
-      </SettingRow>
-      <SettingRow title="音色名称" description="用于生成音色 ID 前缀（字母/数字）">
-        <FieldBox>
-          <Input
-            value={voiceName}
-            placeholder="如 myvoice"
-            onChange={e => setVoiceName(e.target.value)}
-          />
-        </FieldBox>
-      </SettingRow>
-      <SettingRow title="">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Upload}
-            loading={cloning}
-            loadingText="复刻中…"
-            disabled={!file}
-            onClick={() => void handleClone()}
-          >
-            开始复刻
-          </Button>
-          <button
-            type="button"
-            className="text-tau-meta text-accent-text font-medium hover:underline"
-            onClick={() => useSettingsStore.getState().openSettings("imageBed")}
-          >
-            资源存储未配置 OSS/S3？去设置
-          </button>
-        </div>
-      </SettingRow>
-    </ProviderSection>
   );
 }

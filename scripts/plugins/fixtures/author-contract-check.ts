@@ -2,6 +2,22 @@
 import { defineEditorElement, type EditorElementRenderProps } from "@tau/plugins";
 import type { PluginContext, PluginExcerptItem, PluginExcerptSource } from "@tau/plugins";
 
+export function checkTTSContract(context: PluginContext) {
+  const handle = context.tts.register({
+    id: context.pluginId,
+    name: "语音",
+    create: () => ({
+      getVoices: async () => [],
+      synthesize: async () => ({ audio: new Uint8Array(), mime: "audio/wav" }),
+    }),
+  });
+  void context.upload.uploadRemote(
+    { name: "voice.wav", mimeType: "audio/wav", content: new Uint8Array() },
+    { signal: context.signal }
+  );
+  return handle;
+}
+
 export async function checkChatContract(context: PluginContext) {
   context.mcp.register({
     id: "chat",
@@ -29,9 +45,6 @@ export async function checkServices(context: PluginContext) {
   await context.services.markdown.render("**文字**");
   await context.services.tailwind.compile({ source: '<div class="p-4" />', language: "tsx" });
   await context.services.typst.compile({ source: "= 标题", format: "html" });
-  await context.services.tikz.compile({
-    source: "\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}",
-  });
   const file = { name: "input.wav", data: new Blob() };
   await context.services.ffmpeg.probe(file);
   await context.services.ffmpeg.run(

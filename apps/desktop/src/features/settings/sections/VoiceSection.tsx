@@ -37,8 +37,7 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
 import { VoiceTtsPanel } from "./VoiceTtsPanel";
-
-type VoiceTab = "transcription" | "tts";
+import { useSettingsStore } from "@/app/settingsStore";
 
 const SEGMENTATION_OPTIONS = [
   { value: "sentence", label: "句子级（速度更快）" },
@@ -53,7 +52,8 @@ const SOURCE_OPTIONS: Array<{ value: DownloadSource; label: string }> = [
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function VoiceSection() {
-  const [tab, setTab] = useState<VoiceTab>("transcription");
+  const tab = useSettingsStore(state => state.voiceTab);
+  const setTab = useSettingsStore(state => state.setVoiceTab);
   return (
     <>
       <SettingsTabs

@@ -26,6 +26,7 @@ import type {
 import { assertLocalId, copyJson } from "./values";
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
+import type { TTSProviderDefinition } from "./tts";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
@@ -189,7 +190,9 @@ export class PluginHost {
       sync?: { register(context: PluginContext, definition: SyncProviderDefinition): Disposable };
       upload?: {
         register(context: PluginContext, definition: UploadProviderDefinition): Disposable;
+        uploadRemote?(file: UploadFile, signal: AbortSignal): Promise<string>;
       };
+      tts?: { register(context: PluginContext, definition: TTSProviderDefinition): Disposable };
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
@@ -472,7 +475,48 @@ export class PluginHost {
     };
     const context: PluginContext = {
       pluginId: scope.pluginId,
+      tts: Object.freeze({
+        register: (definition: TTSProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
+            throw new Error("语音提供方必须属于当前插件");
+          if (!this.options.tts) throw new Error("当前宿主不支持语音提供方");
+          const create = definition.create.bind(definition);
+          return register(
+            this.options.tts.register(context, {
+              id: scope.pluginId,
+              name: definition.name,
+              create: (config, modelId) => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("语音插件尚未激活");
+                return create(copyJson(config), modelId);
+              },
+            })
+          );
+        },
+      }),
       upload: Object.freeze({
+        uploadRemote: async (file: UploadFile, options?: { signal?: AbortSignal }) => {
+          this.assertActive(entry, activation);
+          const uploadRemote = this.options.upload?.uploadRemote;
+          if (!uploadRemote) throw new Error("当前宿主不支持远端上传");
+          const signal = AbortSignal.any([
+            scope.signal,
+            ...(options?.signal ? [options.signal] : []),
+          ]);
+          signal.throwIfAborted();
+          const url = await uploadRemote(
+            { ...file, content: new Uint8Array(file.content) },
+            signal
+          );
+          signal.throwIfAborted();
+          this.assertActive(entry, activation);
+          return url;
+        },
         register: (definition: UploadProviderDefinition) => {
           this.assertActive(entry, activation);
           if (
@@ -489,10 +533,13 @@ export class PluginHost {
               Object.freeze({
                 id: scope.pluginId,
                 name: definition.name,
-                upload: async (file: UploadFile, config: JsonValue) => {
+                upload: async (file: UploadFile, config: JsonValue, signal: AbortSignal) => {
                   this.assertActive(entry, activation);
                   if (entry.state !== "active") throw new Error("上传插件尚未激活");
-                  const result = await upload(file, config);
+                  const executionSignal = AbortSignal.any([scope.signal, signal]);
+                  executionSignal.throwIfAborted();
+                  const result = await upload(file, config, executionSignal);
+                  executionSignal.throwIfAborted();
                   this.assertActive(entry, activation);
                   const url = new URL(result);
                   if (!["http:", "https:"].includes(url.protocol))

@@ -9,7 +9,6 @@ const cases = [
   ["mermaid", "chart", "graph TD\nA --> B"],
   ["abc", "content", "X: 1\nK: C\nC D E F"],
   ["plantuml", "content", "@startuml\nAlice -> Bob\n@enduml"],
-  ["tikz", "content", "\\draw (0,0) -- (1,1);"],
   ["typst", "content", "= 标题\n正文"],
 ] as const;
 
@@ -23,12 +22,11 @@ describe("图表扩展 headless codec", () => {
     expect(md.importFromMarkdown(markdown)).toEqual(imported.content);
   });
 
-  it("只覆盖现存五类，没有恢复退役图表", () => {
+  it("只覆盖内置四类，TikZ 由独立插件提供", () => {
     expect(diagramMarkdownCodecs.map(codec => codec.type).sort()).toEqual([
       "abc",
       "mermaid",
       "plantuml",
-      "tikz",
       "typst",
     ]);
   });

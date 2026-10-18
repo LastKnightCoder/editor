@@ -1,6 +1,8 @@
 import { rendererSyncRegistry } from "./sync-registry";
+import { rendererTTSRegistry } from "./tts-registry";
 import { rendererUploadRegistry } from "./upload-registry";
 import { desktopPluginChat } from "./chat";
+import { uploadRemoteResource } from "@/services/resource-upload";
 import type {
   PluginContext,
   PluginServices,
@@ -114,7 +116,7 @@ export class DesktopPluginRuntime {
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
-      openSettings?: (key: PluginSettingsKey, target?: "sync" | "upload") => void;
+      openSettings?: (key: PluginSettingsKey, target?: "sync" | "upload" | "tts") => void;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       excerpts?: ExcerptsAdapter;
@@ -127,7 +129,11 @@ export class DesktopPluginRuntime {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
       sync: rendererSyncRegistry,
-      upload: rendererUploadRegistry,
+      tts: rendererTTSRegistry,
+      upload: {
+        register: (context, definition) => rendererUploadRegistry.register(context, definition),
+        uploadRemote: uploadRemoteResource,
+      },
       storage: options.storage,
       fetch: options.fetch,
       services: options.services,

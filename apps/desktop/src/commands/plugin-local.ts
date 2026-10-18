@@ -1,8 +1,29 @@
 import { invoke } from "@/electron";
 import { withModule } from "./module-init";
 import type { UploadRequest } from "../../shared/upload-renderer";
-export const uploadPluginResource = (request: UploadRequest): Promise<string> =>
-  withModule("plugin-local", () => invoke("plugin-local:upload", request));
+export const uploadPluginResource = (
+  request: UploadRequest,
+  signal?: AbortSignal
+): Promise<string> =>
+  withModule("plugin-local", async () => {
+    signal?.throwIfAborted();
+    const requestId = crypto.randomUUID();
+    const cancel = () => {
+      void window.electron.invoke("plugin-local:upload-cancel", requestId).catch(() => undefined);
+    };
+    const pending = invoke<string>("plugin-local:upload", request, requestId);
+    signal?.addEventListener("abort", cancel, { once: true });
+    try {
+      const url = await pending;
+      signal?.throwIfAborted();
+      return url;
+    } catch (error) {
+      signal?.throwIfAborted();
+      throw error;
+    } finally {
+      signal?.removeEventListener("abort", cancel);
+    }
+  });
 import type { LocalPluginScan } from "@/types/plugin-local";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
 export const getContentPluginStartup = (): Promise<{

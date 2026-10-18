@@ -3,10 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../renderers/TikZ/tikzjax.js", () => ({}));
-
 import PlantUML from "../renderers/PlantUML";
-import TikZ from "../renderers/TikZ";
 import Typst from "../renderers/Typst";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
@@ -32,7 +29,6 @@ afterEach(async () => {
   root = null;
   container = null;
 });
-
 describe("Typst onError", () => {
   it("编译失败时保留上一次的结果，不自己画红字", async () => {
     vi.useFakeTimers();
@@ -78,44 +74,5 @@ describe("PlantUML onError", () => {
     });
     expect(onError).toHaveBeenLastCalledWith(expect.stringContaining("PlantUML"), true);
     expect(img().getAttribute("src")).toBe(firstSrc);
-  });
-});
-
-describe("TikZ onError", () => {
-  const staging = (host: HTMLElement) => host.children[1] as HTMLElement;
-  const shown = (host: HTMLElement) => host.children[0] as HTMLElement;
-  const flush = () =>
-    act(async () => {
-      await vi.dynamicImportSettled();
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-  it("编译成功才替换显示区，失败时保留上一次的图并上报", async () => {
-    const onError = vi.fn();
-    const host = await render(<TikZ content="\draw (0,0) -- (1,1);" onError={onError} />);
-    await flush();
-    expect(staging(host).querySelector('script[type="text/tikz"]')).toBeTruthy();
-
-    // 模拟 tikzjax 成功：脚本换成 svg 并派发完成事件
-    await act(async () => {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      staging(host).replaceChildren(svg);
-      svg.dispatchEvent(new Event("tikzjax-load-finished", { bubbles: true }));
-    });
-    expect(shown(host).querySelector("svg")).toBeTruthy();
-    expect(onError).toHaveBeenLastCalledWith(null, true);
-
-    await render(<TikZ content="\draw (0,0) -- ;" onError={onError} />);
-    await flush();
-    // 模拟 tikzjax 失败：占位被换成一张不存在的图
-    await act(async () => {
-      const img = document.createElement("img");
-      img.src = "//invalid.site/img-not-found.png";
-      staging(host).replaceChildren(img);
-      await Promise.resolve();
-    });
-    expect(onError).toHaveBeenLastCalledWith(expect.stringContaining("TikZ"), true);
-    expect(shown(host).querySelector("svg")).toBeTruthy();
-    expect(staging(host).querySelector("img")).toBeNull();
   });
 });
