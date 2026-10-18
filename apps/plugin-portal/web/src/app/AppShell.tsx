@@ -1,84 +1,19 @@
-import { useEffect, useState } from "react";
-import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { CloudOff, LogOut, Puzzle } from "lucide-react";
-import { Button, Loading, toast } from "@tau/ui";
-import type { Session, User } from "../../../contracts";
-import { errorMessage } from "../api/errors";
+import { useEffect } from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { CloudOff } from "lucide-react";
+import { Loading } from "@tau/ui";
 import { ErrorState } from "../components/states";
-import { queryKeys, useApi } from "./api";
 import { rememberReturnTo, takeReturnTo, useSession } from "./session";
+import { TopBar } from "./TopBar";
+import { WorkspaceSidebar } from "./WorkspaceSidebar";
 
-function Avatar({ user }: { user: User }) {
-  const [broken, setBroken] = useState(false);
-  if (!user.avatarUrl || broken) {
-    return (
-      <span className="bg-accent-soft text-accent-text text-tau-micro grid size-7 place-items-center rounded-full font-semibold">
-        {user.login.slice(0, 1).toUpperCase()}
-      </span>
-    );
-  }
+/** 公开页面：插件中心与插件详情，无需登录 */
+export function PublicShell() {
   return (
-    <img
-      src={user.avatarUrl}
-      alt=""
-      className="size-7 rounded-full"
-      onError={() => setBroken(true)}
-    />
-  );
-}
-
-function Header({ user }: { user: User }) {
-  const api = useApi();
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const [leaving, setLeaving] = useState(false);
-  const logout = async () => {
-    setLeaving(true);
-    try {
-      await api.logout();
-      queryClient.clear();
-      queryClient.setQueryData<Session>(queryKeys.session, {
-        user: null,
-        csrfToken: null,
-        reviewer: false,
-      });
-      navigate("/login", { replace: true });
-    } catch (error) {
-      toast.error(`退出失败：${errorMessage(error)}`);
-    } finally {
-      setLeaving(false);
-    }
-  };
-  return (
-    <header className="border-line-1 bg-page/90 sticky top-0 z-20 border-b backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-[1120px] items-center gap-3 px-6">
-        <Link to="/submissions" className="text-ink-1 flex items-center gap-2 font-semibold">
-          <span className="bg-accent-soft text-accent-text rounded-tau-sm grid size-7 place-items-center">
-            <Puzzle size={16} strokeWidth={1.8} />
-          </span>
-          Tau 插件发布
-        </Link>
-        <div className="ml-auto flex items-center gap-3">
-          <Link to="/plugins" className="text-tau-sm text-accent-text">
-            浏览插件
-          </Link>
-          <span className="text-tau-sm text-ink-2 flex items-center gap-2">
-            <Avatar user={user} />
-            {user.login}
-          </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={LogOut}
-            loading={leaving}
-            onClick={() => void logout()}
-          >
-            退出
-          </Button>
-        </div>
-      </div>
-    </header>
+    <div className="min-h-screen">
+      <TopBar />
+      <Outlet />
+    </div>
   );
 }
 
@@ -118,10 +53,13 @@ export function AuthenticatedShell() {
   }
   return (
     <div className="min-h-screen">
-      <Header user={user} />
-      <main className="mx-auto max-w-[1120px] px-6 pb-16 pt-8">
-        <Outlet />
-      </main>
+      <TopBar />
+      <div className="mx-auto flex max-w-[1280px]">
+        <WorkspaceSidebar reviewer={!!session.data?.reviewer} />
+        <main className="min-w-0 flex-1 px-8 pb-16 pt-7">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

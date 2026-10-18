@@ -131,3 +131,40 @@ it("拒绝无身份、停用身份、跨来源、缺标识及未发布插件写�
   f.sqlite.exec("UPDATE visitors SET revoked=1");
   expect((await post(a)).status).toBe(403);
 });
+
+it("目录喜欢数按插件批量统计，口径与社区接口一致，无人喜欢为0", async () => {
+  f.sqlite.exec(`
+    UPDATE releases SET name='测试插件',description='简介',min_app_version='0.1.0',published_at='2026-10-01T00:00:00.000Z';
+    INSERT INTO submissions(id,publisher_id,client_request_id,created_at,updated_at) VALUES('s2','author','s2','2026-10-01','2026-10-01'),('s3','author','s3','2026-10-01','2026-10-01');
+    INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,state,published_at,name,description,min_app_version,created_at)
+      VALUES('r2','other.plugin','1.0.0','s2','u','author','r2','hash',1,'{}','','','published','2026-10-02T00:00:00.000Z','其他插件','简介','0.1.0','2026-10-02'),
+            ('r3','quiet.plugin','1.0.0','s3','u','author','r3','hash',1,'{}','','','published','2026-10-03T00:00:00.000Z','冷门插件','简介','0.1.0','2026-10-03');
+  `);
+  const a = await token(),
+    b = await token();
+  await send("PUT", "like", a, { liked: true });
+  await send("PUT", "like", b, { liked: true });
+  await request("/v1/plugins/other.plugin/like", {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${a}`, "X-Tau-Visitor": "1" },
+    body: JSON.stringify({ liked: true }),
+  });
+  // 停用身份的历史喜欢在两处都保留计数。
+  f.sqlite
+    .prepare(
+      "UPDATE visitors SET revoked=1 WHERE id=(SELECT visitor_id FROM plugin_likes WHERE plugin_id='other.plugin')"
+    )
+    .run();
+  const likesOf = async () => {
+    const items = (await (await request("/v1/catalog?appVersion=0.59.0&sort=updated")).json()).data
+      .items as { pluginId: string; likes: number }[];
+    return Object.fromEntries(items.map(item => [item.pluginId, item.likes]));
+  };
+  expect(await likesOf()).toEqual({ "test.plugin": 2, "other.plugin": 1, "quiet.plugin": 0 });
+  for (const id of ["test.plugin", "other.plugin", "quiet.plugin"]) {
+    const community = (await (await request(`/v1/plugins/${id}/community`)).json()).data;
+    expect((await likesOf())[id]).toBe(community.likes);
+  }
+  await send("PUT", "like", b, { liked: false });
+  expect((await likesOf())["test.plugin"]).toBe(1);
+});

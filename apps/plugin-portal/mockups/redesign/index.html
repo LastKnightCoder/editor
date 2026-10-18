@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>插件门户重设计 · 三方案</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 变量名与取值同 @tau/themes tokens.css 的 paper 主题，落地时直接换成 Tailwind 语义类 */
+  [data-mode="light"] {
+    --tau-bg-page: #f3eee2; --tau-bg-surface: #fffdf9; --tau-bg-surface-hover: #f6f3ef; --tau-bg-track: #e0d6c3;
+    --tau-bg-hover: rgba(67, 57, 44, 0.05); --tau-bg-press: rgba(67, 57, 44, 0.09); --tau-bg-selected: rgba(217, 119, 87, 0.12);
+    --tau-ink-1: #43392c; --tau-ink-2: #6a5c49; --tau-ink-3: #a89a85; --tau-ink-inverse: #fff8ef;
+    --tau-line-1: #e9e1d2; --tau-line-2: rgba(233, 225, 210, 0.55);
+    --tau-accent: hsl(22 58% 42%); --tau-accent-hover: hsl(22 58% 35%); --tau-accent-soft: hsla(22, 58%, 42%, 0.12); --tau-accent-text: #a05236;
+    --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --tau-ok: #61795f; --tau-ok-soft: #e5ede2; --tau-warn: #a38c4d; --tau-warn-soft: #f6efd6;
+    --tau-danger: #b0564d; --tau-danger-soft: #f6e3e0; --tau-info: #5c7d99; --tau-info-soft: #e2ebf3;
+    --tau-tag-1: #61795f; --tau-tag-1-soft: #e5ede2; --tau-tag-2: #5c7d99; --tau-tag-2-soft: #e2ebf3;
+    --tau-tag-3: #8a7aa6; --tau-tag-3-soft: #ebe6f3; --tau-tag-4: #a38c4d; --tau-tag-4-soft: #f6efd6;
+    --tau-tag-5: #b06a5e; --tau-tag-5-soft: #f6e3e0;
+    --tau-overlay: rgba(67, 57, 44, 0.35);
+    --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --tau-shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --stage: #e8e1d1;
+  }
+  [data-mode="dark"] {
+    --tau-bg-page: #221d16; --tau-bg-surface: #2e2820; --tau-bg-surface-hover: #39332b; --tau-bg-track: #463d31;
+    --tau-bg-hover: rgba(236, 226, 208, 0.06); --tau-bg-press: rgba(236, 226, 208, 0.11); --tau-bg-selected: hsla(22, 62%, 65%, 0.2);
+    --tau-ink-1: #ece2d0; --tau-ink-2: #a89a85; --tau-ink-3: #857768; --tau-ink-inverse: #241a10;
+    --tau-line-1: #3a3227; --tau-line-2: rgba(58, 50, 39, 0.55);
+    --tau-accent: hsl(22 62% 65%); --tau-accent-hover: hsl(22 62% 72%); --tau-accent-soft: hsla(22, 62%, 65%, 0.16); --tau-accent-text: hsl(22 66% 70%);
+    --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --tau-ok: #8cab87; --tau-ok-soft: #243023; --tau-warn: #c4a458; --tau-warn-soft: #302917;
+    --tau-danger: #d97e66; --tau-danger-soft: #34201a; --tau-info: #83aecf; --tau-info-soft: #1e2a35;
+    --tau-tag-1: #8cab87; --tau-tag-1-soft: #243023; --tau-tag-2: #83aecf; --tau-tag-2-soft: #1e2a35;
+    --tau-tag-3: #a596c8; --tau-tag-3-soft: #292335; --tau-tag-4: #c4a458; --tau-tag-4-soft: #302917;
+    --tau-tag-5: #d0806a; --tau-tag-5-soft: #30211b;
+    --tau-overlay: rgba(10, 8, 5, 0.55);
+    --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --stage: #15110c;
+  }
+  :root { --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; --ease: cubic-bezier(0.22, 1, 0.36, 1); }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--tau-ink-1); padding: 36px 3vw 80px;
+    font: 13px/1.65 -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  a { color: inherit; text-decoration: none; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .muted { color: var(--tau-ink-3); } .ink2 { color: var(--tau-ink-2); }
+  .grow { flex: 1; min-width: 0; } .row { display: flex; align-items: center; gap: 8px; }
+  .trunc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1280px; margin: 0 auto; font-size: 13.5px; }
+  .intro h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .intro > p { color: var(--tau-ink-2); margin-top: 6px; max-width: 110ch; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 22px 0 8px; }
+  .intro ul { color: var(--tau-ink-2); margin-left: 18px; max-width: 120ch; font-size: 13px; }
+  .intro li { margin-top: 3px; } .intro b { color: var(--tau-ink-1); font-weight: 600; }
+  .cmp { border-collapse: collapse; font-size: 12.5px; width: 100%; }
+  .cmp th, .cmp td { text-align: left; padding: 8px 16px 8px 0; vertical-align: top; border-bottom: 1px solid var(--tau-line-1); }
+  .cmp th { color: var(--tau-ink-3); font-weight: 500; }
+  .cmp td { color: var(--tau-ink-2); } .cmp td:first-child { color: var(--tau-ink-1); font-weight: 500; white-space: nowrap; }
+  .rec { margin-top: 14px; padding: 12px 16px; border-radius: 12px; background: var(--tau-accent-soft); color: var(--tau-ink-1); font-size: 13px; }
+  .rec b { color: var(--tau-accent-text); }
+
+  .toolbar { max-width: 1280px; margin: 30px auto 12px; display: flex; gap: 22px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--tau-ink-2); position: sticky; top: 0; z-index: 90; padding: 10px 0; background: var(--stage); }
+  .pills { display: flex; gap: 4px; align-items: center; }
+  .pills > span { margin-right: 4px; color: var(--tau-ink-3); }
+  .pills button { padding: 4px 12px; border-radius: 99px; background: var(--tau-bg-hover); transition: background .15s; }
+  .pills button:hover { background: var(--tau-bg-press); }
+  .pills button.on { background: var(--tau-ink-1); color: var(--tau-ink-inverse); }
+  .note { max-width: 1280px; margin: 0 auto 14px; display: flex; gap: 10px; font-size: 12.5px; color: var(--tau-ink-2); }
+  .note b { color: var(--tau-ink-1); font-weight: 600; }
+  .note .proto { color: var(--tau-warn); }
+  .demo { max-width: 1280px; margin: 0 auto 12px; }
+  .demo .pills button { font-size: 12px; }
+
+  /* ---------- 浏览器外框 ---------- */
+  .frame { max-width: 1280px; margin: 0 auto; border-radius: 14px; overflow: hidden; background: var(--tau-bg-page);
+    box-shadow: var(--tau-shadow-float); border: 1px solid var(--tau-line-1); }
+  .chrome { height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 14px; background: var(--tau-bg-surface); border-bottom: 1px solid var(--tau-line-1); }
+  .chrome i.d { width: 10px; height: 10px; border-radius: 50%; background: var(--tau-bg-track); }
+  .chrome .url { margin: 0 auto; font-size: 11.5px; color: var(--tau-ink-3); background: var(--tau-bg-hover); padding: 2px 16px; border-radius: 6px; min-width: 340px; text-align: center; }
+  .screen { height: 800px; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+  .scroll { flex: 1; overflow: auto; min-height: 0; }
+
+  /* ---------- 基础组件 ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px;
+    background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); font-size: 12.5px; font-weight: 500; white-space: nowrap;
+    transition: background .15s, color .15s, box-shadow .15s; }
+  .btn:hover { background: var(--tau-bg-surface-hover); }
+  .btn.primary { background: var(--tau-accent); border-color: transparent; color: var(--tau-ink-inverse); }
+  .btn.primary:hover { background: var(--tau-accent-hover); }
+  .btn.soft { background: var(--tau-accent-soft); border-color: transparent; color: var(--tau-accent-text); }
+  .btn.ghost { background: transparent; border-color: transparent; color: var(--tau-ink-2); }
+  .btn.ghost:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .btn.danger { color: var(--tau-danger); }
+  .btn.danger-solid { background: var(--tau-danger); border-color: transparent; color: var(--tau-ink-inverse); }
+  .btn.sm { height: 28px; padding: 0 10px; font-size: 12px; }
+  .btn.lg { height: 38px; padding: 0 16px; font-size: 13.5px; }
+  .btn.block { width: 100%; }
+  .btn[disabled] { opacity: .45; pointer-events: none; }
+  .btn.liked { color: var(--tau-danger); } .btn.liked svg { fill: currentColor; }
+  .icon-btn { width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: 8px; color: var(--tau-ink-2); font-size: 15px; transition: background .15s; }
+  .icon-btn:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .icon-btn.sm { width: 26px; height: 26px; font-size: 14px; }
+  .kbd { font-family: var(--mono); font-size: 10.5px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--tau-line-1); color: var(--tau-ink-3); background: var(--tau-bg-surface); line-height: 16px; }
+  .input { height: 34px; border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface); border-radius: 8px; padding: 0 10px; display: flex; align-items: center; gap: 8px; color: var(--tau-ink-3); transition: box-shadow .15s, border-color .15s; }
+  .input.lg { height: 42px; border-radius: 12px; padding: 0 14px; font-size: 14px; }
+  .input input { border: 0; background: none; outline: 0; flex: 1; min-width: 0; color: var(--tau-ink-1); }
+  .input input::placeholder, .ta::placeholder { color: var(--tau-ink-3); }
+  .input:focus-within, .ta:focus { box-shadow: var(--tau-focus-ring); border-color: var(--tau-accent); }
+  .ta { width: 100%; min-height: 84px; resize: vertical; border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface); border-radius: 8px; padding: 8px 10px; outline: 0; line-height: 1.6; transition: box-shadow .15s, border-color .15s; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 99px; font-size: 11.5px; font-weight: 500; white-space: nowrap; }
+  .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .tag.plain::before { display: none; }
+  .tag.gray { background: var(--tau-bg-hover); color: var(--tau-ink-2); }
+  .tag.info { background: var(--tau-info-soft); color: var(--tau-info); }
+  .tag.warn { background: var(--tau-warn-soft); color: var(--tau-warn); }
+  .tag.ok { background: var(--tau-ok-soft); color: var(--tau-ok); }
+  .tag.danger { background: var(--tau-danger-soft); color: var(--tau-danger); }
+  .tag.accent { background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+  .card { background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 12px; box-shadow: var(--tau-shadow-card); }
+  .mono-t { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; font-weight: 600; flex: none; }
+  .mono-t.xl { width: 72px; height: 72px; border-radius: 18px; font-size: 30px; }
+  .mono-t.lg { width: 56px; height: 56px; border-radius: 15px; font-size: 24px; }
+  .mono-t.sm { width: 30px; height: 30px; border-radius: 8px; font-size: 13px; }
+  .mono-t.xs { width: 22px; height: 22px; border-radius: 6px; font-size: 11px; }
+  .t1 { background: var(--tau-tag-1-soft); color: var(--tau-tag-1); } .t2 { background: var(--tau-tag-2-soft); color: var(--tau-tag-2); }
+  .t3 { background: var(--tau-tag-3-soft); color: var(--tau-tag-3); } .t4 { background: var(--tau-tag-4-soft); color: var(--tau-tag-4); }
+  .t5 { background: var(--tau-tag-5-soft); color: var(--tau-tag-5); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 11.5px; font-weight: 600; background: var(--tau-accent-soft); color: var(--tau-accent-text); flex: none; }
+  .avatar.sm { width: 20px; height: 20px; font-size: 10px; }
+  .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--tau-line-1); }
+  .tab { padding: 10px 0 9px; color: var(--tau-ink-2); border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 13px; display: flex; align-items: center; gap: 5px; }
+  .tab:hover { color: var(--tau-ink-1); }
+  .tab.on { color: var(--tau-ink-1); border-color: var(--tau-accent); font-weight: 500; }
+  .tab .n { font-size: 11px; color: var(--tau-ink-3); font-weight: 400; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 99px; font-size: 12px; color: var(--tau-ink-2); border: 1px solid var(--tau-line-1); background: var(--tau-bg-surface); transition: background .15s; }
+  .chip:hover { background: var(--tau-bg-surface-hover); }
+  .chip.on { background: var(--tau-ink-1); color: var(--tau-ink-inverse); border-color: transparent; }
+  .chip .n { font-size: 11px; opacity: .7; }
+  .chip.on .n { opacity: .8; }
+  .menu-anchor { position: relative; display: inline-flex; }
+  .menu { position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; background: var(--tau-bg-surface); border: 1px solid var(--tau-line-1); border-radius: 10px; box-shadow: var(--tau-shadow-float); padding: 4px; min-width: 168px; animation: pop .16s var(--ease); }
+  .menu.left { left: 0; right: auto; }
+  .mi { display: flex; gap: 8px; align-items: center; width: 100%; padding: 6px 10px; border-radius: 6px; font-size: 12.5px; text-align: left; color: var(--tau-ink-1); }
+  .mi:hover { background: var(--tau-bg-hover); }
+  .mi svg { color: var(--tau-ink-3); }
+  .mi.danger, .mi.danger svg { color: var(--tau-danger); }
+  .mi .ck { margin-left: auto; color: var(--tau-accent); }
+  .menu hr { border: 0; border-top: 1px solid var(--tau-line-1); margin: 4px 2px; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  .ov { position: absolute; inset: 0; background: var(--tau-overlay); display: grid; place-items: center; z-index: 60; animation: fade .18s; }
+  .dlg { width: 460px; background: var(--tau-bg-surface); border-radius: 16px; box-shadow: var(--tau-shadow-float); padding: 22px; animation: rise .22s var(--ease); display: flex; flex-direction: column; gap: 14px; }
+  .dlg h3 { font-size: 15px; font-weight: 600; }
+  .quote { border-left: 3px solid var(--tau-line-1); padding: 4px 12px; color: var(--tau-ink-2); background: var(--tau-bg-surface-hover); border-radius: 0 8px 8px 0; white-space: pre-wrap; }
+  .toast { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--tau-ink-1); color: var(--tau-ink-inverse); padding: 8px 16px; border-radius: 10px; font-size: 12.5px; z-index: 70; animation: rise .2s var(--ease); display: flex; gap: 8px; align-items: center; box-shadow: var(--tau-shadow-float); }
+  .toast button { color: var(--tau-accent-soft); font-weight: 500; }
+  .sec-h { font-size: 12px; color: var(--tau-ink-3); font-weight: 500; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .divider { border-top: 1px solid var(--tau-line-1); }
+  .progress { height: 6px; border-radius: 99px; background: var(--tau-bg-track); overflow: hidden; }
+  .progress > i { display: block; height: 100%; background: var(--tau-accent); border-radius: 99px; transition: width .2s; }
+  .spin { animation: spin 1s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- 顶栏 / 侧栏 ---------- */
+  .top { height: 54px; display: flex; align-items: center; gap: 24px; padding: 0 24px; border-bottom: 1px solid var(--tau-line-1); background: var(--tau-bg-page); flex: none; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; }
+  .logo { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--tau-accent); color: var(--tau-ink-inverse); font-size: 15px; }
+  .topnav { display: flex; gap: 4px; }
+  .topnav a { padding: 5px 12px; border-radius: 8px; color: var(--tau-ink-2); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .topnav a:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .topnav a.on { color: var(--tau-ink-1); font-weight: 500; background: var(--tau-bg-hover); }
+  .badge { min-width: 17px; height: 17px; border-radius: 99px; padding: 0 5px; font-size: 10.5px; font-weight: 600; background: var(--tau-accent); color: var(--tau-ink-inverse); display: inline-grid; place-items: center; }
+  .top-r { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .shell { flex: 1; display: flex; min-height: 0; }
+  .side { width: 220px; flex: none; padding: 18px 12px; border-right: 1px solid var(--tau-line-1); display: flex; flex-direction: column; gap: 18px; }
+  .side-h { font-size: 11.5px; color: var(--tau-ink-3); padding: 0 10px 4px; }
+  .side-i { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; color: var(--tau-ink-2); font-size: 13px; }
+  .side-i:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .side-i.on { background: var(--tau-bg-selected); color: var(--tau-accent-text); font-weight: 500; }
+  .side-i .cnt { margin-left: auto; font-size: 11.5px; color: var(--tau-ink-3); }
+  .side-i .cnt.hot { color: var(--tau-accent-text); font-weight: 600; }
+  .rail { width: 56px; flex: none; border-right: 1px solid var(--tau-line-1); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
+  .rail a { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: var(--tau-ink-3); font-size: 17px; position: relative; }
+  .rail a:hover { background: var(--tau-bg-hover); color: var(--tau-ink-1); }
+  .rail a.on { background: var(--tau-bg-selected); color: var(--tau-accent-text); }
+  .rail a .badge { position: absolute; top: 2px; right: 0; transform: scale(.85); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 32px 64px; }
+  .page-h { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; }
+  .page-h h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-h p { color: var(--tau-ink-3); font-size: 12.5px; margin-top: 2px; }
+  .back { display: inline-flex; align-items: center; gap: 4px; color: var(--tau-ink-3); font-size: 12.5px; margin-bottom: 16px; }
+  .back:hover { color: var(--tau-ink-1); }
+
+  /* ---------- 插件卡片 ---------- */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .pcard { padding: 16px; display: flex; flex-direction: column; gap: 10px; cursor: pointer; transition: box-shadow .2s, transform .2s var(--ease), border-color .2s; position: relative; }
+  .pcard:hover { box-shadow: var(--tau-shadow-lift); transform: translateY(-2px); border-color: var(--tau-bg-track); }
+  .pcard h3 { font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+  .pcard .by { font-size: 12px; color: var(--tau-ink-3); }
+  .pcard .desc { color: var(--tau-ink-2); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 41px; }
+  .pfoot { display: flex; align-items: center; gap: 12px; font-size: 11.5px; color: var(--tau-ink-3); }
+  .pfoot span { display: inline-flex; align-items: center; gap: 4px; }
+  .pcard .quick { position: absolute; top: 12px; right: 12px; opacity: 0; transition: opacity .15s; }
+  .pcard:hover .quick { opacity: 1; }
+  .cat-hero { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .info-tip { position: relative; display: inline-flex; color: var(--tau-ink-3); cursor: help; }
+  .info-tip .tip { display: none; position: absolute; top: calc(100% + 8px); right: -8px; width: 280px; background: var(--tau-ink-1); color: var(--tau-ink-inverse); font-size: 12px; padding: 8px 12px; border-radius: 8px; z-index: 30; line-height: 1.6; }
+  .info-tip:hover .tip { display: block; }
+
+  /* ---------- 详情 ---------- */
+  .d-head { display: flex; gap: 20px; align-items: flex-start; }
+  .d-head h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
+  .d-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .d-body { display: grid; grid-template-columns: 1fr 280px; gap: 32px; margin-top: 26px; }
+  .facts { padding: 16px; display: flex; flex-direction: column; gap: 10px; font-size: 12.5px; }
+  .facts .f { display: flex; justify-content: space-between; gap: 12px; }
+  .facts .f > span:first-child { color: var(--tau-ink-3); }
+  .facts .f > span:last-child { text-align: right; min-width: 0; }
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--tau-line-1); border-radius: 12px; background: var(--tau-bg-surface); }
+  .stat-strip > div { padding: 12px 16px; } .stat-strip > div + div { border-left: 1px solid var(--tau-line-1); }
+  .stat-strip b { display: block; font-size: 18px; font-weight: 600; } .stat-strip span { font-size: 11.5px; color: var(--tau-ink-3); }
+  .md { font-size: 13.5px; line-height: 1.8; color: var(--tau-ink-1); }
+  .md h2 { font-size: 18px; font-weight: 600; margin: 4px 0 8px; } .md h3 { font-size: 14.5px; font-weight: 600; margin: 18px 0 6px; }
+  .md p { margin: 6px 0; color: var(--tau-ink-2); } .md ol, .md ul { margin: 6px 0 6px 20px; color: var(--tau-ink-2); }
+  .md code { font-family: var(--mono); font-size: 12px; background: var(--tau-bg-hover); padding: 1px 5px; border-radius: 4px; }
+  .md pre { background: var(--tau-bg-surface-hover); border: 1px solid var(--tau-line-1); border-radius: 8px; padding: 10px 14px; margin: 8px 0; font-family: var(--mono); font-size: 12px; color: var(--tau-ink-2); }
+  .md a { color: var(--tau-accent-text); }
+  .vrow { display: flex; align-items: center; gap: 14px; padding: 11px 4px; border-bottom: 1px solid var(--tau-line-1); font-size: 12.5px; }
+  .cm { padding: 14px 0; border-bottom: 1px solid var(--tau-line-1); display: flex; gap: 10px; }
+  .cm p { white-space: pre-wrap; }
+
+  /* ---------- 列表行 ---------- */
+  .list { overflow: hidden; }
+  .lrow { display: flex; align-items: center; gap: 14px; padding: 14px 18px; cursor: pointer; transition: background .15s; position: relative; }
+  .lrow + .lrow { border-top: 1px solid var(--tau-line-1); }
+  .lrow:hover { background: var(--tau-bg-surface-hover); }
+  .lrow .t { font-weight: 500; font-size: 13.5px; }
+  .lrow .s { font-size: 12px; color: var(--tau-ink-2); }
+  .lrow .s.warn { color: var(--tau-warn); } .lrow .s.danger { color: var(--tau-danger); }
+  .lrow.need::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--tau-warn); }
+
+  /* ---------- 提交编辑 ---------- */
+  .ed { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+  .aside-sticky { position: sticky; top: 0; display: flex; flex-direction: column; gap: 14px; }
+  .drop { border: 1.5px dashed var(--tau-bg-track); border-radius: 14px; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; cursor: pointer; transition: border-color .2s, background .2s; background: var(--tau-bg-surface); }
+  .drop:hover, .drop.hover { border-color: var(--tau-accent); background: var(--tau-accent-soft); }
+  .drop .ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--tau-accent-soft); color: var(--tau-accent-text); font-size: 22px; }
+  .check { display: flex; flex-direction: column; gap: 2px; }
+  .ck-i { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; font-size: 12.5px; }
+  .ck-i .dot { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; flex: none; margin-top: 1px; font-size: 11px; }
+  .ck-i.done .dot { background: var(--tau-ok-soft); color: var(--tau-ok); }
+  .ck-i.todo .dot { border: 1.5px solid var(--tau-bg-track); }
+  .ck-i.bad .dot { background: var(--tau-danger-soft); color: var(--tau-danger); }
+  .ck-i .sub { font-size: 11.5px; color: var(--tau-ink-3); }
+  .banner { display: flex; gap: 12px; padding: 14px 16px; border-radius: 12px; background: var(--tau-warn-soft); align-items: flex-start; }
+  .banner .ic { color: var(--tau-warn); font-size: 18px; margin-top: 1px; }
+  .banner.info { background: var(--tau-info-soft); } .banner.info .ic { color: var(--tau-info); }
+  .banner.ok { background: var(--tau-ok-soft); } .banner.ok .ic { color: var(--tau-ok); }
+  .banner.danger { background: var(--tau-danger-soft); } .banner.danger .ic { color: var(--tau-danger); }
+  .pkg { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+  .tl { display: flex; flex-direction: column; }
+  .tl-i { display: flex; gap: 10px; position: relative; padding-bottom: 14px; font-size: 12.5px; }
+  .tl-i:not(:last-child)::before { content: ""; position: absolute; left: 8.5px; top: 20px; bottom: 0; width: 1px; background: var(--tau-line-1); }
+  .tl-i .n { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; flex: none; background: var(--tau-bg-hover); color: var(--tau-ink-3); }
+  .tl-i.warn .n { background: var(--tau-warn-soft); color: var(--tau-warn); }
+  .tl-i.ok .n { background: var(--tau-ok-soft); color: var(--tau-ok); }
+  .tl-i.info .n { background: var(--tau-info-soft); color: var(--tau-info); }
+  .msg { display: flex; gap: 10px; padding: 12px 0; }
+  .msg + .msg { border-top: 1px solid var(--tau-line-1); }
+  .msg .who { font-size: 12px; color: var(--tau-ink-3); display: flex; gap: 6px; align-items: center; }
+  .msg .body { margin-top: 2px; white-space: pre-wrap; }
+  .role { font-size: 10.5px; padding: 0 6px; border-radius: 4px; background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+  .role.a { background: var(--tau-bg-hover); color: var(--tau-ink-2); }
+
+  /* ---------- 审核 ---------- */
+  .diff { padding: 0; overflow: hidden; }
+  .diff-h { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--tau-line-1); }
+  .diff-r { display: grid; grid-template-columns: 120px 1fr; gap: 12px; padding: 7px 16px; font-size: 12.5px; }
+  .diff-r + .diff-r { border-top: 1px solid var(--tau-line-2); }
+  .diff-r .k { color: var(--tau-ink-3); }
+  .old { color: var(--tau-ink-3); text-decoration: line-through; }
+  .fadd { color: var(--tau-ok); } .fdel { color: var(--tau-danger); } .fmod { color: var(--tau-warn); }
+  .dec { display: flex; flex-direction: column; gap: 6px; }
+  .dec-o { display: flex; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--tau-line-1); cursor: pointer; text-align: left; transition: border-color .15s, background .15s; background: var(--tau-bg-surface); }
+  .dec-o:hover { background: var(--tau-bg-surface-hover); }
+  .dec-o .r { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--tau-bg-track); flex: none; margin-top: 2px; display: grid; place-items: center; }
+  .dec-o.on { border-color: var(--tau-accent); background: var(--tau-accent-soft); }
+  .dec-o.on .r { border-color: var(--tau-accent); } .dec-o.on .r::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--tau-accent); }
+  .dec-o.on.rej { border-color: var(--tau-danger); background: var(--tau-danger-soft); } .dec-o.on.rej .r { border-color: var(--tau-danger); } .dec-o.on.rej .r::after { background: var(--tau-danger); }
+  .dec-o b { font-weight: 500; font-size: 13px; display: block; } .dec-o span { font-size: 11.5px; color: var(--tau-ink-3); }
+  .preset { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset button { font-size: 11.5px; padding: 2px 9px; border-radius: 99px; background: var(--tau-bg-hover); color: var(--tau-ink-2); }
+  .preset button:hover { background: var(--tau-bg-press); color: var(--tau-ink-1); }
+  .pubsteps { display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
+  .pubsteps div { display: flex; align-items: center; gap: 8px; }
+  .pubsteps .ok { color: var(--tau-ok); } .pubsteps .run { color: var(--tau-accent-text); } .pubsteps .wait { color: var(--tau-ink-3); }
+
+  /* ---------- 表格 ---------- */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .tbl th { text-align: left; font-weight: 500; color: var(--tau-ink-3); font-size: 12px; padding: 10px 14px; border-bottom: 1px solid var(--tau-line-1); }
+  .tbl td { padding: 12px 14px; border-bottom: 1px solid var(--tau-line-1); vertical-align: top; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl tbody tr { transition: background .15s; } .tbl tbody tr:hover { background: var(--tau-bg-surface-hover); }
+  .tbl tr.del td { color: var(--tau-ink-3); }
+  .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .vid { font-family: var(--mono); font-size: 11.5px; color: var(--tau-ink-2); background: var(--tau-bg-hover); padding: 1px 6px; border-radius: 4px; cursor: pointer; }
+  .vid:hover { color: var(--tau-accent-text); }
+  .filterchip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 10px; border-radius: 99px; background: var(--tau-accent-soft); color: var(--tau-accent-text); font-size: 12px; }
+
+  /* ---------- 方案 B：收件箱 ---------- */
+  .split { flex: 1; display: flex; min-height: 0; }
+  .pane-l { width: 360px; flex: none; border-right: 1px solid var(--tau-line-1); display: flex; flex-direction: column; min-height: 0; }
+  .pane-l.w { width: 380px; }
+  .pane-h { padding: 14px 16px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--tau-line-1); }
+  .pane-r { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .irow { display: flex; gap: 12px; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--tau-line-2); transition: background .12s; position: relative; }
+  .irow:hover { background: var(--tau-bg-hover); }
+  .irow.on { background: var(--tau-bg-selected); }
+  .irow.on::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--tau-accent); }
+  .irow .t { font-weight: 500; font-size: 13px; } .irow .s { font-size: 12px; color: var(--tau-ink-2); }
+  .irow .m { font-size: 11px; color: var(--tau-ink-3); white-space: nowrap; }
+  .decbar { border-top: 1px solid var(--tau-line-1); padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--tau-bg-surface); flex: none; }
+  .steps { display: flex; align-items: center; gap: 10px; }
+  .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--tau-ink-3); }
+  .step .c { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; border: 1.5px solid var(--tau-bg-track); }
+  .step.on { color: var(--tau-ink-1); font-weight: 500; } .step.on .c { border-color: var(--tau-accent); background: var(--tau-accent); color: var(--tau-ink-inverse); }
+  .step.done { color: var(--tau-ink-2); } .step.done .c { border-color: var(--tau-ok); background: var(--tau-ok-soft); color: var(--tau-ok); }
+  .step-line { flex: 1; height: 1.5px; background: var(--tau-line-1); max-width: 80px; }
+  .wiz-foot { border-top: 1px solid var(--tau-line-1); padding: 14px 32px; display: flex; gap: 10px; align-items: center; background: var(--tau-bg-surface); flex: none; }
+
+  /* ---------- 方案 C：编辑式 + 时间线 ---------- */
+  .ed-list { display: flex; flex-direction: column; }
+  .erow { display: grid; grid-template-columns: 56px 1fr auto; gap: 18px; padding: 20px 4px; border-bottom: 1px solid var(--tau-line-1); cursor: pointer; align-items: center; }
+  .erow:hover h3 { color: var(--tau-accent-text); }
+  .erow h3 { font-size: 16px; font-weight: 600; transition: color .15s; }
+  .erow .desc { color: var(--tau-ink-2); margin-top: 3px; max-width: 64ch; }
+  .erow .stats { text-align: right; font-size: 12px; color: var(--tau-ink-3); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+  .ctabs { display: flex; gap: 18px; font-size: 13px; }
+  .ctabs a { color: var(--tau-ink-3); padding-bottom: 3px; border-bottom: 1.5px solid transparent; }
+  .ctabs a.on { color: var(--tau-ink-1); border-color: var(--tau-ink-1); }
+  .ctl { position: relative; padding-left: 36px; }
+  .ctl::before { content: ""; position: absolute; left: 13px; top: 8px; bottom: 8px; width: 2px; background: var(--tau-line-1); }
+  .ev { position: relative; margin-bottom: 18px; }
+  .ev .pin { position: absolute; left: -36px; top: 2px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--tau-bg-page); border: 2px solid var(--tau-line-1); color: var(--tau-ink-3); font-size: 13px; }
+  .ev .pin.warn { color: var(--tau-warn); border-color: var(--tau-warn-soft); background: var(--tau-warn-soft); }
+  .ev .pin.ok { color: var(--tau-ok); border-color: var(--tau-ok-soft); background: var(--tau-ok-soft); }
+  .ev .pin.acc { color: var(--tau-accent-text); border-color: var(--tau-accent-soft); background: var(--tau-accent-soft); }
+  .ev .line { font-size: 12.5px; color: var(--tau-ink-2); padding-top: 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .ev .line b { color: var(--tau-ink-1); font-weight: 500; }
+  .ev .box { margin-top: 8px; }
+  .composer { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .composer .ta { border: 0; padding: 0; min-height: 60px; box-shadow: none !important; background: transparent; }
+  .composer-foot { display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--tau-line-1); padding-top: 10px; }
+  .group { padding: 0; overflow: hidden; }
+  .group-h { display: flex; gap: 14px; align-items: center; padding: 16px 18px; }
+  .group-v { display: flex; align-items: center; gap: 12px; padding: 9px 18px 9px 88px; font-size: 12.5px; border-top: 1px solid var(--tau-line-2); cursor: pointer; }
+  .group-v:hover { background: var(--tau-bg-surface-hover); }
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <h1>插件门户重设计 · 三个方案</h1>
+  <p>覆盖插件中心（含新的插件详情页）、我的提交、提交编辑、审核、评论管理。三套都只用接口已有的数据；需要后端配合的地方在每屏下方用 <span style="color:var(--tau-warn)">● 协议</span> 标出。颜色、圆角、字号取自 paper 主题的 <code class="mono">--tau-*</code> 变量，可切深色。</p>
+
+  <h3>现在的页面差在哪</h3>
+  <ul>
+    <li><b>插件中心</b>：卡片里竖排两个整宽按钮，「评论与喜欢」在卡片内展开，把网格撑乱；统计口径说明直接铺在列表上方；没有插件详情页，但 <code class="mono">/v1/releases/:id</code> 已经返回了 README、更新说明和仓库。</li>
+    <li><b>导航割裂</b>：插件中心没有顶栏，登录区的顶栏 logo 指向「我的提交」；审核入口是标题下面的一个开关按钮，点完标题变成「审核管理」，评论管理只是一个浮着的链接。</li>
+    <li><b>提交编辑</b>：七个区块从上往下堆成一长条，原生文件选择框，主操作压在 README 下方；「要求修改」的意见要往下翻才看得到，审核意见和站内反馈分在两个区块。</li>
+    <li><b>审核</b>：没有待审队列，只能在列表里一条条点进去；决策是一个文本框加三个并排按钮，没有和上一发布版本的对比，看不出这次改了什么。</li>
+    <li><b>评论管理</b>：要手填两个 ID 精确匹配，每条评论下面都排着三个按钮，没有表格视图，也不能批量浏览同一身份的评论。</li>
+  </ul>
+
+  <h3>三个方案</h3>
+  <table class="cmp">
+    <tr><th></th><th>A · 商店 + 工作台</th><th>B · 收件箱</th><th>C · 编辑式 + 时间线</th></tr>
+    <tr><td>整体结构</td><td>统一顶栏；公开区是商店网格，登录区是带左侧栏的工作台</td><td>左窄栏图标导航，每一页都是「列表 + 详情」双栏，不跳页</td><td>单栏居中、留白多；提交与审核做成 PR 式的时间线</td></tr>
+    <tr><td>插件中心</td><td>三列卡片网格 → 独立详情页（介绍 / 更新 / 版本 / 评论）</td><td>左侧紧凑列表，右侧即时预览，评论在预览里看</td><td>大搜索框 + 杂志式长行，详情页有统计条</td></tr>
+    <tr><td>提交（作者）</td><td>双栏：左边上传与预览，右边吸顶「提交前检查」与操作</td><td>三步向导：上传 → 核对展示内容 → 关联仓库并提交</td><td>按插件分组的版本列表；详情是时间线 + 底部输入框</td></tr>
+    <tr><td>审核</td><td>与提交同一版式，右栏换成决策卡；附上一版本对比</td><td>三栏：队列 / 详情 / 底部决策条，J K 切换，A R X 快捷键</td><td>时间线里直接回复；输入框带「批准 / 要求修改 / 拒绝」下拉</td></tr>
+    <tr><td>评论管理</td><td>表格 + 行内 ⋯ 菜单，处理原因可选预设</td><td>列表 + 详情，详情里列出同一身份的其他评论</td><td>同 A</td></tr>
+    <tr><td>适合</td><td>插件数在几十到几百，访客多于作者</td><td>审核量大、审核者想一口气处理完</td><td>作者与审核者来回沟通多，更看重过程记录</td></tr>
+    <tr><td>改动量</td><td>中：新增详情页路由，提交页重排</td><td>大：每页都要改成双栏，还要做键盘焦点管理</td><td>中：时间线要合并审核记录与反馈两路数据</td></tr>
+  </table>
+  <p class="rec"><b>推荐 A</b>：插件中心的读者主要是访客，商店网格 + 详情页最好认；作者与审核者共用一套编辑版式，维护成本最低。如果审核量上来了，可以只把 B 的「上一条 / 下一条 + 快捷键」搬进 A 的审核页（A 的审核页已经放了上一条 / 下一条）。</p>
+</section>
+
+<div class="toolbar">
+  <div class="pills" id="dirPills"><span>方案</span></div>
+  <div class="pills" id="pagePills"><span>页面</span></div>
+  <div class="pills" id="modePills"><span>外观</span></div>
+</div>
+<div class="note" id="note"></div>
+<div class="demo" id="demo"></div>
+<div class="frame">
+  <div class="chrome"><i class="d"></i><i class="d"></i><i class="d"></i><span class="url" id="url"></span></div>
+  <div class="screen" id="screen"></div>
+</div>
+
+<script>
+/* ================= 数据 ================= */
+const PLUGINS = [
+  { id: "tau.tts-qwen", name: "通义语音", pub: "lastknightcoder", tone: 2, ver: "1.3.0", min: "0.42.0", size: "184 KiB", total: 2841, d7: 312, likes: 86, comments: 14, updated: "2 天前", date: "2026-10-16",
+    desc: "用通义千问 TTS 朗读文章与卡片，支持多音色与语速调节，可在播客模式里连续播放。" },
+  { id: "tau.sync-s3", name: "S3 同步", pub: "lastknightcoder", tone: 1, ver: "2.0.3", min: "0.40.0", size: "312 KiB", total: 4120, d7: 268, likes: 121, comments: 23, updated: "5 天前", date: "2026-10-13",
+    desc: "把资料库同步到任意 S3 兼容存储（AWS、Cloudflare R2、MinIO），增量上传，冲突时保留双份。" },
+  { id: "tau.tikz", name: "TikZ 绘图", pub: "lastknightcoder", tone: 3, ver: "1.0.2", min: "0.43.0", size: "96 KiB", total: 1204, d7: 205, likes: 64, comments: 9, updated: "6 天前", date: "2026-10-12",
+    desc: "在文档里直接写 TikZ，本地编译成 SVG 并缓存，离线可用。" },
+  { id: "tau.sync-webdav", name: "WebDAV 同步", pub: "lastknightcoder", tone: 2, ver: "1.4.1", min: "0.40.0", size: "142 KiB", total: 3388, d7: 151, likes: 77, comments: 31, updated: "3 周前", date: "2026-09-27",
+    desc: "通过坚果云、Nextcloud 等 WebDAV 服务同步资料库，支持选择性同步目录。" },
+  { id: "community.anki-export", name: "Anki 导出", pub: "mochi-lab", tone: 4, ver: "0.9.2", min: "0.41.0", size: "58 KiB", total: 912, d7: 140, likes: 52, comments: 6, updated: "1 周前", date: "2026-10-10",
+    desc: "把闪卡按牌组导出成 .apkg，保留挖空、图片和复习进度。" },
+  { id: "tau.upload-github", name: "GitHub 图床", pub: "lastknightcoder", tone: 5, ver: "1.1.0", min: "0.40.0", size: "44 KiB", total: 2210, d7: 98, likes: 40, comments: 12, updated: "1 个月前", date: "2026-09-15",
+    desc: "粘贴图片时自动上传到指定 GitHub 仓库，并替换成 CDN 链接。" },
+  { id: "tau.tts-minimax", name: "MiniMax 语音", pub: "lastknightcoder", tone: 3, ver: "1.0.0", min: "0.42.0", size: "121 KiB", total: 640, d7: 87, likes: 21, comments: 3, updated: "2 天前", date: "2026-10-16",
+    desc: "接入 MiniMax 语音合成，音色克隆与情绪控制，适合长文朗读。" },
+  { id: "community.reading-time", name: "阅读时长", pub: "yuki", tone: 1, ver: "0.1.0", min: "0.40.0", size: "12 KiB", total: 388, d7: 41, likes: 18, comments: 2, updated: "1 个月前", date: "2026-09-08",
+    desc: "在文章标题下显示字数与预计阅读时间，可自定义阅读速度。" },
+  { id: "tau.whiteboard-stickman", name: "火柴人", pub: "lastknightcoder", tone: 4, ver: "0.8.0", min: "0.41.0", size: "260 KiB", total: 530, d7: 22, likes: 33, comments: 5, updated: "2 个月前", date: "2026-08-20",
+    desc: "给白板加上可以摆姿势的火柴人和常用手势素材，适合画流程图与故事板。" },
+];
+const P = id => PLUGINS.find(p => p.id === id);
+const VERSIONS = [
+  { v: "1.3.0", min: "0.42.0", size: "184 KiB", date: "10月16日", note: "新增「龙婉」音色；播客模式支持跳过代码块" },
+  { v: "1.2.0", min: "0.42.0", size: "176 KiB", date: "9月28日", note: "语速可按文档单独记忆" },
+  { v: "1.1.0", min: "0.41.0", size: "170 KiB", date: "9月02日", note: "支持卡片朗读" },
+  { v: "1.0.0", min: "0.41.0", size: "161 KiB", date: "8月15日", note: "首个公开版本" },
+];
+const README = `<h2>通义语音</h2>
+<p>用通义千问 TTS 朗读文章与卡片。朗读进度跟随正文高亮，可以在播客模式里连续播放整个项目。</p>
+<h3>配置</h3>
+<ol><li>在 <a>阿里云百炼控制台</a> 创建 API Key；</li><li>打开 Tau「插件」页 › 通义语音 › 设置，粘贴 Key；</li><li>选一个默认音色，试听后保存。</li></ol>
+<h3>使用</h3>
+<p>在文章右上角 ⋯ 菜单选「朗读全文」，或选中一段文字后按 <code>⌥ R</code> 只读选区。</p>
+<pre>默认音色  longxiaochun
+语速      1.0（0.5 – 2.0）
+代码块    跳过</pre>
+<h3>隐私</h3>
+<p>正文只发送到你配置的通义接口，插件本身不收集任何数据。</p>`;
+const CHANGELOG = `<h3>1.3.1</h3><ul><li>README 补充 API Key 获取步骤</li><li>修复语速设为 2.0 时句尾被截断</li></ul><h3>1.3.0</h3><ul><li>新增「龙婉」音色</li><li>播客模式支持跳过代码块</li></ul>`;
+const COMMENTS = [
+  { mine: true, t: "今天 09:12", msg: "音色很自然，播客模式连续播放太好用了！" },
+  { t: "昨天 21:40", msg: "希望可以按段落切换音色，做对话类内容会方便很多。" },
+  { t: "10月14日", msg: "配置步骤很清楚，三分钟就跑起来了。" },
+];
+const MINE = [
+  { id: "s1", pid: "tau.tts-qwen", ver: "1.3.1", st: "changes", act: "审核者要求修改：README 缺少 API Key 的获取方式", t: "2 小时前", need: true },
+  { id: "s2", pid: "tau.sync-s3", ver: "2.1.0", st: "pending", act: "已提交，等待审核", t: "昨天" },
+  { id: "s3", pid: null, ver: null, st: "draft", act: "还没有上传插件包", t: "3 天前" },
+  { id: "s4", pid: "tau.tikz", ver: "1.0.2", st: "published", act: "已发布 · 累计下载 1.2k", t: "10月12日" },
+  { id: "s5", pid: "tau.whiteboard-stickman", ver: "0.9.0", st: "rejected", act: "审核者拒绝：与内置白板素材重复", t: "10月3日" },
+];
+const QUEUE = [
+  { pid: "tau.tts-qwen", ver: "1.3.1", prev: "1.3.0", by: "lastknightcoder", t: "12 分钟前", resub: true, rev: 4 },
+  { pid: "community.anki-export", ver: "1.0.0", prev: "0.9.2", by: "mochi-lab", t: "1 小时前", rev: 1 },
+  { pid: "tau.sync-s3", ver: "2.1.0", prev: "2.0.3", by: "lastknightcoder", t: "昨天", rev: 2 },
+  { pid: "community.reading-time", ver: "0.2.0", prev: "0.1.0", by: "yuki", t: "2 天前", rev: 1 },
+];
+const MOD = [
+  { id: "c1", pid: "tau.tts-qwen", vid: "v_8f3a2c", msg: "音色很自然，播客模式连续播放太好用了！", t: "今天 09:12" },
+  { id: "c2", pid: "tau.sync-s3", vid: "v_19bd07", msg: "加微信领取免费会员，全网最低价 →→→ 私聊发链接", t: "今天 08:40" },
+  { id: "c3", pid: "tau.sync-s3", vid: "v_19bd07", msg: "代充各种会员，需要的私聊", t: "今天 08:39" },
+  { id: "c4", pid: "tau.tikz", vid: "v_a07e51", msg: "Windows 下第一次编译要等很久，后面就快了，这是正常的吗？", t: "昨天 22:05" },
+  { id: "c5", pid: "community.anki-export", vid: "v_5c2e90", msg: "导出的挖空在 AnkiDroid 上显示正常 👍", t: "昨天 18:30" },
+  { id: "c6", pid: "tau.upload-github", vid: "v_19bd07", msg: "", t: "10月15日", del: true },
+  { id: "c7", pid: "tau.sync-webdav", vid: "v_3e6f11", msg: "坚果云每月流量限制下，大库首次同步建议分目录来。", t: "10月14日" },
+];
+const EVENTS = [
+  { act: "删除评论", by: "lastknightcoder", reason: "广告引流", target: "GitHub 图床 · v_19bd07", t: "10月15日 14:02" },
+  { act: "停用匿名身份", by: "lastknightcoder", reason: "多个插件下重复发布广告", target: "v_d41c09", t: "10月11日 09:30" },
+  { act: "恢复匿名身份", by: "lastknightcoder", reason: "误判，用户已申诉说明", target: "v_d41c09", t: "10月12日 18:15" },
+];
+
+/* ================= 状态 ================= */
+const S = {
+  dir: "A", page: "catalog", mode: "light",
+  q: "", sort: "downloads7d", detail: "tau.tts-qwen", dtab: "readme", liked: {},
+  sub: "changes", up: 0, repo: "https://github.com/lastknightcoder/tau-tts-qwen", mfilter: "all", msel: 0,
+  rv: 0, decision: null, comment: "", pub: null,
+  mtab: "comments", mplugin: "", mstatus: "visible", mvisitor: "", deleted: {}, suspended: {}, csel: 0,
+  menu: null, dialog: null, reason: "", toast: null, step: 2, ctab: "hot",
+};
+const PAGES = [["catalog", "插件中心"], ["detail", "插件详情"], ["mine", "我的提交"], ["edit", "提交编辑"], ["review", "审核"], ["moderation", "评论管理"]];
+const DIRS = [["A", "A · 商店 + 工作台"], ["B", "B · 收件箱"], ["C", "C · 编辑式 + 时间线"]];
+
+/* ================= 工具 ================= */
+const ic = (n, c = "") => `<i data-lucide="${n}" class="${c}"></i>`;
+const mono = (p, sz = "") => `<span class="mono-t ${sz} t${p ? p.tone : 1}">${p ? p.name[0] : "?"}</span>`;
+const k = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+const ST = { draft: ["草稿", "gray"], pending: ["待审核", "info"], changes: ["需修改", "warn"], rejected: ["已拒绝", "danger"], published: ["已发布", "ok"] };
+const tag = s => `<span class="tag ${ST[s][1]}">${ST[s][0]}</span>`;
+const proto = t => `<span class="proto">● 协议：${t}</span>`;
+const liked = id => !!S.liked[id];
+const likes = p => p.likes + (liked(p.id) ? 1 : 0);
+function sorted() {
+  const q = S.q.trim().toLowerCase();
+  const list = PLUGINS.filter(p => !q || (p.name + p.desc + p.id + p.pub).toLowerCase().includes(q));
+  const key = { downloads7d: p => -p.d7, downloadsTotal: p => -p.total, updated: p => -Date.parse(p.date) }[S.sort];
+  return list.sort((a, b) => key(a) - key(b));
+}
+const SORTS = [["downloads7d", "最近热门"], ["downloadsTotal", "下载最多"], ["updated", "最近更新"]];
+const sortLabel = () => SORTS.find(s => s[0] === S.sort)[1];
+function sortMenu(align = "") {
+  return `<span class="menu-anchor"><button class="btn" data-act="menu" data-menu="sort">${ic("arrow-up-down")}${sortLabel()}${ic("chevron-down", "muted")}</button>
+  ${S.menu === "sort" ? `<div class="menu ${align}">${SORTS.map(([v, l]) => `<button class="mi" data-act="sort" data-v="${v}">${l}${S.sort === v ? `<span class="ck">${ic("check")}</span>` : ""}</button>`).join("")}</div>` : ""}</span>`;
+}
+const statTip = `<span class="info-tip">${ic("info")}<span class="tip">仅统计插件中心提供的 ZIP，按匿名设备、版本和 UTC 日去重；近 7 日含今日。数量从统计上线起累计，不代表安装人数。</span></span>`;
+function searchBox(cls = "", ph = "搜索插件名称、作者或用途") {
+  return `<label class="input ${cls}">${ic("search")}<input id="q" data-input="q" placeholder="${ph}" value="${S.q}"><span class="kbd">/</span></label>`;
+}
+function likeBtn(p, sz = "") {
+  return `<button class="btn ${sz} ${liked(p.id) ? "liked" : ""}" data-act="like" data-id="${p.id}" aria-pressed="${liked(p.id)}">${ic("heart")}${likes(p)}</button>`;
+}
+function emptyCatalog() {
+  return `<div style="padding:60px 0;text-align:center" class="muted">${ic("search-x")}<p style="margin-top:6px">没有找到「${S.q}」相关的插件</p><button class="btn sm ghost" style="margin-top:8px" data-act="clearq">清除搜索</button></div>`;
+}
+
+/* ================= 共用片段 ================= */
+function topbar(active) {
+  return `<header class="top">
+    <a class="brand" data-act="go" data-page="catalog"><span class="logo">${ic("puzzle")}</span>Tau 插件</a>
+    <nav class="topnav">
+      <a class="${active === "public" ? "on" : ""}" data-act="go" data-page="catalog">插件中心</a>
+      <a class="${active === "work" ? "on" : ""}" data-act="go" data-page="mine">发布与审核<span class="badge">4</span></a>
+    </nav>
+    <div class="top-r">
+      ${active === "public" ? `<button class="btn sm ghost" data-act="go" data-page="edit">${ic("package-plus")}发布插件</button>` : ""}
+      <span class="menu-anchor"><button class="row" data-act="menu" data-menu="user"><span class="avatar">L</span><span class="ink2" style="font-size:12.5px">lastknightcoder</span>${ic("chevron-down", "muted")}</button>
+      ${S.menu === "user" ? `<div class="menu"><button class="mi">${ic("github")}GitHub 主页</button><hr><button class="mi">${ic("log-out")}退出登录</button></div>` : ""}</span>
+    </div>
+  </header>`;
+}
+function sideA(active) {
+  const it = (pg, icon, label, cnt, hot) => `<a class="side-i ${active === pg ? "on" : ""}" data-act="go" data-page="${pg}">${ic(icon)}${label}${cnt ? `<span class="cnt ${hot ? "hot" : ""}">${cnt}</span>` : ""}</a>`;
+  return `<aside class="side">
+    <button class="btn primary block" data-act="go" data-page="edit" data-sub="empty">${ic("package-plus")}发布新插件</button>
+    <div><p class="side-h">我的</p>${it("mine", "layers", "我的提交", "1 需处理", true)}</div>
+    <div><p class="side-h">管理员</p>${it("review", "shield-check", "审核队列", "4", true)}${it("moderation", "messages-square", "评论管理")}</div>
+    <div style="margin-top:auto" class="muted"><p style="font-size:11.5px;padding:0 10px;line-height:1.6">插件说明与截图都读自插件包，修改请重新打包上传。</p></div>
+  </aside>`;
+}
+function railB(active) {
+  const it = (pg, icon, title, badge) => `<a class="${active === pg ? "on" : ""}" data-act="go" data-page="${pg}" title="${title}">${ic(icon)}${badge ? `<span class="badge">${badge}</span>` : ""}</a>`;
+  return `<nav class="rail"><span class="logo" style="margin-bottom:10px">${ic("puzzle")}</span>
+    ${it("catalog", "store", "插件中心")}${it("mine", "layers", "我的提交", "1")}${it("review", "shield-check", "审核队列", "4")}${it("moderation", "messages-square", "评论管理")}
+    <span style="margin-top:auto" class="avatar">L</span></nav>`;
+}
+function readmeTabs(p, extra = []) {
+  const tabs = [["readme", "介绍"], ["changelog", "更新说明"], ["versions", "版本", VERSIONS.length], ["comments", "评论", p.comments], ...extra];
+  return `<div class="tabs">${tabs.map(([v, l, n]) => `<button class="tab ${S.dtab === v ? "on" : ""}" data-act="dtab" data-v="${v}">${l}${n != null ? `<span class="n">${n}</span>` : ""}</button>`).join("")}</div>`;
+}
+function tabBody(p) {
+  if (S.dtab === "changelog") return `<div class="md" style="padding-top:16px">${CHANGELOG.replace(/<h3>1\.3\.1<\/h3><ul>.*?<\/ul>/, "")}</div>`;
+  if (S.dtab === "versions") return `<div style="padding-top:6px">${VERSIONS.map((v, i) => `<div class="vrow"><span class="mono" style="width:56px;font-weight:600;color:var(--tau-ink-1)">v${v.v}</span>${i === 0 ? `<span class="tag accent plain">最新</span>` : ""}<span class="grow ink2 trunc">${v.note}</span><span class="muted">最低 Tau ${v.min}</span><span class="muted" style="width:62px">${v.size}</span><span class="muted" style="width:56px">${v.date}</span><button class="icon-btn sm" title="下载 v${v.v}">${ic("download")}</button></div>`).join("")}</div>`;
+  if (S.dtab === "comments") return commentsBlock(p);
+  return `<div class="md" style="padding-top:16px">${README}</div>`;
+}
+function commentsBlock(p) {
+  return `<div style="padding-top:14px">
+    <div class="card" style="padding:12px;box-shadow:none">
+      <textarea class="ta" style="border:0;padding:0;min-height:54px;box-shadow:none" placeholder="分享使用体验，最多 2000 字"></textarea>
+      <div class="row" style="border-top:1px solid var(--tau-line-1);padding-top:10px"><span class="muted" style="font-size:11.5px">${ic("venetian-mask")} 无需登录，以当前浏览器的匿名身份发表</span><button class="btn sm primary" style="margin-left:auto">发表</button></div>
+    </div>
+    ${COMMENTS.map(c => `<div class="cm"><span class="avatar sm" style="${c.mine ? "" : "background:var(--tau-bg-hover);color:var(--tau-ink-3)"}">${c.mine ? "我" : "匿"}</span><div class="grow"><p class="muted" style="font-size:11.5px">${c.mine ? "我" : "匿名用户"} · ${c.t}</p><p style="margin-top:2px">${c.msg}</p></div>${c.mine ? `<button class="icon-btn sm" title="删除我的评论">${ic("trash-2")}</button>` : ""}</div>`).join("")}
+    <p class="muted" style="font-size:11.5px;margin-top:10px">清除浏览器数据后，无法再删除原来的评论或取消喜欢。</p>
+  </div>`;
+}
+function factsCard(p) {
+  return `<div class="card facts">
+    <div class="f"><span>版本</span><span class="mono">v${p.ver}</span></div>
+    <div class="f"><span>最低 Tau</span><span class="mono">${p.min}</span></div>
+    <div class="f"><span>大小</span><span>${p.size}</span></div>
+    <div class="f"><span>更新</span><span>${p.updated}</span></div>
+    <div class="divider"></div>
+    <div class="f"><span>累计下载 ${statTip}</span><span>${p.total.toLocaleString()}</span></div>
+    <div class="f"><span>近 7 日</span><span>${p.d7}</span></div>
+    <div class="divider"></div>
+    <div class="f"><span>插件 ID</span><span class="mono trunc">${p.id}</span></div>
+    <div class="f"><span>SHA-256</span><span class="mono row" style="gap:4px">9f2c…a71e<button class="icon-btn sm" title="复制">${ic("copy")}</button></span></div>
+  </div>
+  <div class="card facts">
+    <p style="font-weight:600;font-size:13px">怎么安装</p>
+    <p class="ink2" style="font-size:12.5px">在 Tau 桌面端打开 <b>插件</b> 页，搜索「${p.name}」一键安装并自动启用。</p>
+    <p class="muted" style="font-size:12px">也可以下载 ZIP，在插件页选「本地安装」；本地安装的插件默认停用。</p>
+  </div>`;
+}
+
+/* ================= 方案 A ================= */
+const A = {
+  catalog() {
+    const list = sorted();
+    return topbar("public") + `<div class="scroll"><div class="wrap" style="max-width:1120px">
+      <div class="page-h"><div><h1>插件中心</h1><p>${PLUGINS.length} 个插件，全部开源，可在 Tau 桌面端「插件」页一键安装</p></div></div>
+      <div class="cat-hero">${searchBox("lg grow")}${sortMenu()}</div>
+      ${list.length ? `<div class="grid3">${list.map(p => `<article class="card pcard" data-act="open" data-id="${p.id}">
+        <div class="row" style="gap:12px">${mono(p)}<div class="grow"><h3 class="trunc">${p.name}</h3><p class="by">@${p.pub}</p></div></div>
+        <button class="icon-btn quick" data-act="dl" data-id="${p.id}" title="下载 ZIP">${ic("download")}</button>
+        <p class="desc">${p.desc}</p>
+        <div class="pfoot"><span class="mono">v${p.ver}</span><span>${ic("download")}${k(p.total)}</span><span style="${liked(p.id) ? "color:var(--tau-danger)" : ""}">${ic("heart")}${likes(p)}</span><span style="margin-left:auto">${p.updated}更新</span></div>
+      </article>`).join("")}</div>` : emptyCatalog()}
+    </div></div>`;
+  },
+  detail() {
+    const p = P(S.detail);
+    return topbar("public") + `<div class="scroll"><div class="wrap">
+      <a class="back" data-act="go" data-page="catalog">${ic("arrow-left")}插件中心</a>
+      <div class="d-head">${mono(p, "xl")}<div class="grow">
+        <h1>${p.name}</h1>
+        <p class="row muted" style="margin-top:4px;font-size:12.5px"><span class="avatar sm">${p.pub[0].toUpperCase()}</span>@${p.pub}<span>·</span>v${p.ver}<span>·</span>${p.updated}更新</p>
+        <p class="ink2" style="margin-top:8px;max-width:60ch;font-size:13.5px">${p.desc}</p>
+        <div class="d-actions"><button class="btn primary lg" data-act="dl" data-id="${p.id}">${ic("download")}下载 v${p.ver}</button>${likeBtn(p, "lg")}<button class="btn ghost lg">${ic("github")}源码${ic("arrow-up-right", "muted")}</button></div>
+      </div></div>
+      <div class="d-body"><div>${readmeTabs(p)}${tabBody(p)}</div><aside style="display:flex;flex-direction:column;gap:14px">${factsCard(p)}</aside></div>
+    </div></div>`;
+  },
+  mine() {
+    const counts = { all: MINE.length, need: 1, pending: 1, draft: 1, published: 1, rejected: 1 };
+    const F = [["all", "全部"], ["need", "需处理"], ["pending", "审核中"], ["draft", "草稿"], ["published", "已发布"], ["rejected", "已拒绝"]];
+    const rows = MINE.filter(m => S.mfilter === "all" || (S.mfilter === "need" ? m.need : m.st === S.mfilter));
+    return topbar("work") + `<div class="shell">${sideA("mine")}<div class="scroll"><div class="wrap" style="max-width:900px">
+      <div class="page-h"><div class="grow"><h1>我的提交</h1><p>每次发布新版本都是一条提交；审核意见会出现在对应的提交里</p></div></div>
+      <div class="row" style="gap:6px;margin-bottom:14px">${F.map(([v, l]) => `<button class="chip ${S.mfilter === v ? "on" : ""}" data-act="mfilter" data-v="${v}">${l}<span class="n">${counts[v]}</span></button>`).join("")}</div>
+      <div class="card list">${rows.map(m => {
+        const p = P(m.pid);
+        return `<div class="lrow ${m.need ? "need" : ""}" data-act="go" data-page="edit" data-sub="${m.st === "draft" ? "empty" : m.st}">
+          ${p ? mono(p) : `<span class="mono-t" style="background:var(--tau-bg-hover);color:var(--tau-ink-3)">${ic("package")}</span>`}
+          <div class="grow"><p class="row"><span class="t">${p ? p.name : "未命名草稿"}</span>${m.ver ? `<span class="mono muted">v${m.ver}</span>` : ""}</p>
+          <p class="s trunc ${m.st === "changes" ? "warn" : m.st === "rejected" ? "danger" : ""}">${m.act}</p></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">${tag(m.st)}<span class="muted" style="font-size:11.5px">${m.t}</span></div>
+          ${ic("chevron-right", "muted")}</div>`;
+      }).join("") || `<p class="muted" style="padding:40px;text-align:center">这个分类下没有提交</p>`}</div>
+    </div></div></div>`;
+  },
+  edit() { return topbar("work") + `<div class="shell">${sideA("mine")}<div class="scroll"><div class="wrap" style="max-width:1100px">${editBody()}</div></div></div>`; },
+  review() { return topbar("work") + `<div class="shell">${sideA("review")}<div class="scroll"><div class="wrap" style="max-width:1100px">${reviewBody()}</div></div></div>`; },
+  moderation() { return topbar("work") + `<div class="shell">${sideA("moderation")}<div class="scroll"><div class="wrap" style="max-width:1000px">${modTable()}</div></div></div>`; },
+};
+
+function checklist(items) {
+  return `<div class="check">${items.map(([st, t, sub]) => `<div class="ck-i ${st}"><span class="dot">${st === "done" ? ic("check") : st === "bad" ? ic("x") : ""}</span><div><p>${t}</p>${sub ? `<p class="sub">${sub}</p>` : ""}</div></div>`).join("")}</div>`;
+}
+function editBody() {
+  const p = P("tau.tts-qwen");
+  const s = S.sub;
+  const hasPkg = !["empty", "uploading"].includes(s);
+  const locked = s === "pending" || s === "published" || s === "rejected";
+  const title = hasPkg ? p.name : "新的插件提交";
+  const banner = {
+    changes: `<div class="banner"><span class="ic">${ic("message-circle-warning")}</span><div class="grow"><p style="font-weight:600">审核者要求修改 · 2 小时前</p><p class="ink2" style="margin-top:4px">README 缺少 API Key 的获取方式，用户第一次装上会卡在配置这一步；另外语速 2.0 时句尾会被截断，麻烦一起看下。</p>
+      <div class="row" style="margin-top:10px"><button class="btn sm" data-act="pick">${ic("upload")}上传修改后的包</button><button class="btn sm ghost" data-act="scrollmsg">${ic("reply")}回复审核者</button></div></div></div>`,
+    pending: `<div class="banner info"><span class="ic">${ic("hourglass")}</span><div><p style="font-weight:600">已提交，等待审核</p><p class="ink2" style="margin-top:2px">提交内容已冻结。审核通常在 1–2 个工作日内完成，有消息会出现在下方的「沟通」里。</p></div></div>`,
+    published: `<div class="banner ok"><span class="ic">${ic("badge-check")}</span><div class="grow"><p style="font-weight:600">已发布 v1.3.1</p><p class="ink2" style="margin-top:2px">已上架插件中心，桌面端会在下次检查更新时提示用户。</p></div><button class="btn sm" data-act="open" data-id="tau.tts-qwen">在插件中心查看${ic("arrow-right")}</button></div>`,
+    rejected: `<div class="banner danger"><span class="ic">${ic("circle-x")}</span><div><p style="font-weight:600">审核未通过</p><p class="ink2" style="margin-top:2px">与内置白板素材重复，建议改为扩展素材包而不是替换。可以新建提交重新发布。</p></div></div>`,
+  }[s] || "";
+  const pkgBlock = s === "empty" ? `<div class="drop" data-act="pick"><span class="ic">${ic("file-archive")}</span><p style="font-weight:600;font-size:14px">把插件 ZIP 拖到这里，或点击选择</p><p class="muted" style="font-size:12px">包内需要 manifest.json、README.md 和运行文件 · 8 MiB 以内<br>介绍与截图都从 README 读取，不用另外填写</p></div>`
+    : s === "uploading" ? `<div class="card pkg"><span class="mono-t" style="background:var(--tau-bg-hover);color:var(--tau-ink-3)">${ic("file-archive")}</span><div class="grow"><p class="row"><span style="font-weight:500">tau-tts-qwen-1.3.1.zip</span><span class="muted" style="font-size:12px">${S.up < 100 ? `${S.up}% · ${(191 * S.up / 100).toFixed(0)} / 191 KiB` : "已上传，服务端校验中…"}</span></p><div class="progress" style="margin-top:8px"><i style="width:${S.up}%"></i></div></div><button class="btn sm ghost" data-act="cancelup">取消</button></div>`
+    : `<div class="card pkg">${mono(p)}<div class="grow"><p class="row"><span style="font-weight:600">${p.name}</span><span class="mono muted">v1.3.1</span><span class="tag ok">静态校验通过</span></p><p class="muted mono trunc" style="margin-top:2px">tau.tts-qwen · 191 KiB · 最低 Tau 0.42.0 · main.js · 12 个文件</p></div>${locked ? "" : `<button class="btn sm ghost" data-act="pick">${ic("refresh-cw")}替换</button>`}</div>`;
+  const preview = hasPkg ? `<div><div class="tabs">${[["readme", "介绍"], ["changelog", "更新说明"], ["files", "文件", 12]].map(([v, l, n]) => `<button class="tab ${S.dtab === v ? "on" : ""}" data-act="dtab" data-v="${v}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}<span style="margin-left:auto;align-self:center;font-size:11.5px" class="muted">${ic("eye")} 插件中心会原样展示</span></div>
+    ${S.dtab === "changelog" ? `<div class="md" style="padding-top:14px">${CHANGELOG}</div>` : S.dtab === "files" ? fileList() : `<div class="md" style="padding-top:14px">${README}</div>`}</div>` : "";
+  const ready = hasPkg && S.repo.trim();
+  const items = [
+    [hasPkg ? "done" : "todo", "插件包通过静态校验", hasPkg ? "manifest、完整性摘要正确" : "上传 ZIP 后自动检查"],
+    [hasPkg ? "done" : "todo", "包含 README.md", hasPkg ? "约 1.2k 字，含配置与使用说明" : null],
+    [hasPkg ? "done" : "todo", "版本高于已发布版本", hasPkg ? "v1.3.0 → v1.3.1" : null],
+    [S.repo.trim() ? "done" : "todo", "关联源码仓库", "提交时自动记录 commit"],
+  ];
+  const aside = locked ? `<div class="card" style="padding:16px"><p class="sec-h">源码仓库</p><a class="row" style="color:var(--tau-accent-text);font-size:12.5px">${ic("github")}lastknightcoder/tau-tts-qwen</a><p class="muted mono" style="font-size:11px;margin-top:6px">commit 4be19c2 · 提交时快照</p></div>`
+    : `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <p style="font-weight:600">提交前检查</p>${checklist(items)}
+      <label class="input">${ic("github")}<input data-input="repo" id="repo" value="${S.repo}" placeholder="https://github.com/作者/仓库"></label>
+      <button class="btn primary block lg" ${ready ? "" : "disabled"} data-act="submit">${ic("send")}${s === "changes" ? "重新提交审核" : "提交审核"}</button>
+      <div class="row"><button class="btn sm ghost">保存草稿</button><span class="muted" style="font-size:11.5px;margin-left:auto">${hasPkg ? "有未保存的修改" : ""}</span></div>
+    </div>`;
+  const tl = `<div class="card" style="padding:16px"><p class="sec-h">进度</p><div class="tl">
+    <div class="tl-i"><span class="n">${ic("file-plus")}</span><div><p>创建草稿</p><p class="muted" style="font-size:11.5px">10月16日</p></div></div>
+    ${["changes", "pending", "published", "rejected"].includes(s) ? `<div class="tl-i info"><span class="n">${ic("send")}</span><div><p>提交 v1.3.0 审核</p><p class="muted" style="font-size:11.5px">10月17日</p></div></div>` : ""}
+    ${s === "changes" || s === "pending" || s === "published" ? `<div class="tl-i warn"><span class="n">${ic("pencil")}</span><div><p>要求修改</p><p class="muted" style="font-size:11.5px">2 小时前 · @reviewer</p></div></div>` : ""}
+    ${s === "pending" || s === "published" ? `<div class="tl-i info"><span class="n">${ic("send")}</span><div><p>重新提交 v1.3.1</p><p class="muted" style="font-size:11.5px">刚刚</p></div></div>` : ""}
+    ${s === "published" ? `<div class="tl-i ok"><span class="n">${ic("check")}</span><div><p>批准并发布</p><p class="muted" style="font-size:11.5px">刚刚 · @reviewer</p></div></div>` : ""}
+    </div></div>`;
+  return `<a class="back" data-act="go" data-page="mine">${ic("arrow-left")}我的提交</a>
+    <div class="page-h"><div class="row grow" style="gap:12px">${hasPkg ? mono(p, "lg") : ""}<div><div class="row"><h1>${title}</h1>${tag(s === "empty" || s === "uploading" || s === "ready" ? "draft" : s)}</div><p>${hasPkg ? "资料来自插件包；要改说明请重新打包" : "上传插件 ZIP 开始一次新的发布"}</p></div></div></div>
+    <div class="ed"><div style="display:flex;flex-direction:column;gap:18px">${banner}${pkgBlock}${preview}${s !== "empty" && s !== "uploading" && s !== "ready" ? thread("author") : ""}</div>
+    <aside class="aside-sticky">${aside}${tl}</aside></div>`;
+}
+function fileList() {
+  const f = [["manifest.json", "1.1 KiB"], ["README.md", "3.4 KiB"], ["CHANGELOG.md", "0.6 KiB"], ["main.js", "171 KiB"], ["styles.css", "2.2 KiB"], ["voices/longwan.json", "4.8 KiB"]];
+  return `<div class="card" style="margin-top:14px;box-shadow:none">${f.map(([n, s], i) => `<div class="row" style="padding:8px 14px;${i ? "border-top:1px solid var(--tau-line-1)" : ""}"><span class="mono grow" style="color:var(--tau-ink-1)">${n}</span><span class="muted" style="font-size:12px">${s}</span><span class="mono muted" style="font-size:11px">sha256 ${["a3f1", "9c2e", "71d0", "e48b", "0f6a", "c9b2"][i]}…</span></div>`).join("")}<p class="muted" style="padding:8px 14px;border-top:1px solid var(--tau-line-1);font-size:11.5px">另有 6 个文件 · 静态校验只代表格式与摘要正确，不代表代码审核</p></div>`;
+}
+function thread(role) {
+  return `<div id="thread"><p class="sec-h" style="margin-bottom:4px">${ic("messages-square")}沟通<span class="muted" style="font-weight:400">· 仅作者与审核者可见</span></p>
+    <div class="card" style="padding:4px 16px 14px">
+      <div class="msg"><span class="avatar sm" style="background:var(--tau-info-soft);color:var(--tau-info)">R</span><div class="grow"><p class="who">reviewer<span class="role">审核者</span>· 2 小时前</p><p class="body">README 缺少 API Key 的获取方式，用户第一次装上会卡在配置这一步；另外语速 2.0 时句尾会被截断，麻烦一起看下。</p></div></div>
+      <div class="msg"><span class="avatar sm">L</span><div class="grow"><p class="who">lastknightcoder<span class="role a">作者</span>· 1 小时前</p><p class="body">收到，截断是缓冲区没 flush，已修。README 这就补。</p></div></div>
+      <div style="display:flex;gap:8px;margin-top:8px"><textarea class="ta" style="min-height:40px" placeholder="${role === "author" ? "回复审核者…" : "给作者留言…"}"></textarea><button class="btn" style="align-self:flex-end">发送</button></div>
+    </div></div>`;
+}
+const DEC = [
+  ["approve", "批准并发布", "当前修订的 ZIP 公开上架，版本号之后不能覆盖"],
+  ["request_changes", "要求修改", "退回作者，旧记录保留；重提后需再次审核"],
+  ["reject", "拒绝", "终止这次提交，原因会显示给作者"],
+];
+function diffCard(q) {
+  const p = P(q.pid);
+  return `<div class="card diff"><div class="diff-h">${ic("git-compare", "muted")}<span style="font-weight:600">与上一发布版本对比</span><span class="mono muted">v${q.prev} → v${q.ver}</span><span class="muted" style="margin-left:auto;font-size:11.5px">由已发布版本在前端计算</span></div>
+    <div class="diff-r"><span class="k">版本</span><span class="mono"><span class="old">${q.prev}</span> → ${q.ver}</span></div>
+    <div class="diff-r"><span class="k">最低 Tau</span><span class="mono">${p.min}<span class="muted">（未变）</span></span></div>
+    <div class="diff-r"><span class="k">包大小</span><span>184 KiB → 191 KiB<span class="muted">（+7 KiB）</span></span></div>
+    <div class="diff-r"><span class="k">文件</span><span class="mono" style="display:flex;flex-direction:column;gap:2px"><span class="fmod">~ main.js</span><span class="fmod">~ README.md</span><span class="fmod">~ CHANGELOG.md</span><span class="fadd">+ voices/longwan.json</span><span class="fdel">− legacy/voice-map.json</span></span></div>
+    <div class="diff-r"><span class="k">源码</span><span class="row"><a style="color:var(--tau-accent-text)" class="row">${ic("github")}tau-tts-qwen</a><span class="mono muted">4be19c2</span><a class="muted row" style="font-size:12px">在 GitHub 比较 ${q.prev}…4be19c2 ${ic("arrow-up-right")}</a></span></div>
+  </div>`;
+}
+function decisionCard() {
+  const d = S.decision;
+  const need = d && d !== "approve";
+  if (S.pub) return publishCard();
+  return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+    <p style="font-weight:600">审核决定</p>
+    <div class="dec">${DEC.map(([v, l, t]) => `<button class="dec-o ${d === v ? "on" : ""} ${v === "reject" ? "rej" : ""}" data-act="decide" data-v="${v}"><span class="r"></span><span><b>${l}</b><span>${t}</span></span></button>`).join("")}</div>
+    ${d ? `<div style="display:flex;flex-direction:column;gap:8px"><textarea class="ta" data-input="comment" id="comment" placeholder="${need ? "说明原因（必填，作者会看到）" : "可选：给作者留一句话"}">${S.comment}</textarea>
+      ${need ? `<div class="preset">${["README 缺少配置说明", "权限说明不清", "与已有插件重复", "版本号未递增"].map(t => `<button data-act="preset" data-v="${t}">${t}</button>`).join("")}</div>` : ""}</div>` : ""}
+    <button class="btn block lg ${d === "reject" ? "danger-solid" : "primary"}" ${!d || (need && !S.comment.trim()) ? "disabled" : ""} data-act="confirmdec">${d ? DEC.find(x => x[0] === d)[1] : "选择一个决定"}</button>
+    <p class="muted" style="font-size:11.5px">只针对修订 4；作者在你审核期间更新会让按钮失效。</p>
+  </div>
+  <div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:6px"><button class="btn block">${ic("download")}下载本次提交的 ZIP</button><p class="muted mono" style="font-size:11px;text-align:center">sha256 5e0a…c41d · 191 KiB</p></div>`;
+}
+function publishCard() {
+  const st = S.pub;
+  const row = (state, label) => `<div class="${state}">${state === "ok" ? ic("circle-check") : state === "run" ? ic("loader-circle", "spin") : ic("circle")}${label}</div>`;
+  return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
+    <p style="font-weight:600" class="row">${st === "done" ? `${ic("badge-check")}已发布` : S.decision === "approve" ? "正在发布" : "已处理"}</p>
+    ${S.decision === "approve" ? `<div class="pubsteps">${row("ok", "批准修订 4")}${row(st === "copy" ? "run" : "ok", "复制 ZIP 到发布存储并校验摘要")}${row(st === "done" ? "ok" : st === "catalog" ? "run" : "wait", "写入插件中心目录")}</div>
+    ${st === "done" ? `<button class="btn soft block" data-act="next">${ic("arrow-right")}处理下一条（Anki 导出）</button>` : `<p class="muted" style="font-size:11.5px">发布失败时这里会出现「重试发布」。</p>`}`
+    : `<p class="ink2">已${S.decision === "reject" ? "拒绝" : "退回作者修改"}，作者会在提交页看到你的说明。</p><button class="btn soft block" data-act="next">${ic("arrow-right")}处理下一条</button>`}
+  </div>`;
+}
+function reviewBody() {
+  const q = QUEUE[S.rv], p = P(q.pid);
+  return `<div class="row" style="margin-bottom:16px"><a class="back" style="margin:0" data-act="go" data-page="review">${ic("shield-check")}审核队列</a><span class="muted">/</span><span style="font-size:12.5px">${p.name}</span>
+    <span class="row" style="margin-left:auto"><span class="muted" style="font-size:12px">${S.rv + 1} / ${QUEUE.length}</span><button class="icon-btn sm" data-act="rvprev" title="上一条">${ic("chevron-up")}</button><button class="icon-btn sm" data-act="rvnext" title="下一条">${ic("chevron-down")}</button></span></div>
+    <div class="page-h"><div class="row grow" style="gap:12px">${mono(p, "lg")}<div><div class="row"><h1>${p.name}</h1><span class="mono muted">v${q.ver}</span>${q.resub ? `<span class="tag warn plain">重新提交</span>` : ""}</div><p class="row" style="gap:6px"><span class="avatar sm">${q.by[0].toUpperCase()}</span>@${q.by} · 提交于 ${q.t} · 修订 ${q.rev}</p></div></div></div>
+    <div class="ed"><div style="display:flex;flex-direction:column;gap:18px">
+      ${q.resub ? `<div class="banner info"><span class="ic">${ic("history")}</span><div><p style="font-weight:600">上一轮你要求修改</p><p class="ink2" style="margin-top:2px">「README 缺少 API Key 的获取方式…」作者回复：截断已修，README 已补。</p></div></div>` : ""}
+      ${diffCard(q)}
+      <div><div class="tabs">${[["readme", "介绍"], ["changelog", "更新说明"], ["files", "文件", 12]].map(([v, l, n]) => `<button class="tab ${S.dtab === v ? "on" : ""}" data-act="dtab" data-v="${v}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}</div>
+      ${S.dtab === "changelog" ? `<div class="md" style="padding-top:14px">${CHANGELOG}</div>` : S.dtab === "files" ? fileList() : `<div class="md" style="padding-top:14px">${README}</div>`}</div>
+      ${thread("reviewer")}
+    </div><aside class="aside-sticky">${decisionCard()}</aside></div>`;
+}
+function modRows() {
+  return MOD.filter(c => {
+    const del = c.del || S.deleted[c.id];
+    if (S.mstatus === "visible" && del) return false;
+    if (S.mstatus === "deleted" && !del) return false;
+    if (S.mplugin && c.pid !== S.mplugin) return false;
+    if (S.mvisitor && c.vid !== S.mvisitor) return false;
+    return true;
+  });
+}
+function modFilters() {
+  const pl = S.mplugin ? P(S.mplugin).name : "全部插件";
+  const stl = { visible: "可见", deleted: "已删除", all: "全部状态" }[S.mstatus];
+  return `<span class="menu-anchor"><button class="btn sm" data-act="menu" data-menu="mplugin">${ic("puzzle")}${pl}${ic("chevron-down", "muted")}</button>
+      ${S.menu === "mplugin" ? `<div class="menu left" style="max-height:260px;overflow:auto"><button class="mi" data-act="mplugin" data-v="">全部插件${!S.mplugin ? `<span class="ck">${ic("check")}</span>` : ""}</button><hr>${PLUGINS.map(p => `<button class="mi" data-act="mplugin" data-v="${p.id}">${mono(p, "xs")}${p.name}${S.mplugin === p.id ? `<span class="ck">${ic("check")}</span>` : ""}</button>`).join("")}</div>` : ""}</span>
+    <span class="menu-anchor"><button class="btn sm" data-act="menu" data-menu="mstatus">${ic("filter")}${stl}${ic("chevron-down", "muted")}</button>
+      ${S.menu === "mstatus" ? `<div class="menu left">${[["visible", "可见"], ["deleted", "已删除"], ["all", "全部状态"]].map(([v, l]) => `<button class="mi" data-act="mstatus" data-v="${v}">${l}${S.mstatus === v ? `<span class="ck">${ic("check")}</span>` : ""}</button>`).join("")}</div>` : ""}</span>
+    ${S.mvisitor ? `<span class="filterchip">${ic("venetian-mask")}只看 ${S.mvisitor}<button class="icon-btn sm" style="width:20px;height:20px" data-act="mvisitor" data-v="">${ic("x")}</button></span>` : ""}`;
+}
+function rowMenu(c) {
+  const sus = S.suspended[c.vid];
+  const del = c.del || S.deleted[c.id];
+  return `<span class="menu-anchor"><button class="icon-btn sm" data-act="menu" data-menu="row-${c.id}">${ic("ellipsis")}</button>
+    ${S.menu === "row-" + c.id ? `<div class="menu">${del ? "" : `<button class="mi danger" data-act="moddlg" data-a="delete" data-id="${c.id}">${ic("trash-2")}删除评论</button>`}
+      <button class="mi ${sus ? "" : "danger"}" data-act="moddlg" data-a="${sus ? "restore" : "suspend"}" data-id="${c.id}">${ic(sus ? "user-check" : "user-x")}${sus ? "恢复该匿名身份" : "停用该匿名身份"}</button><hr>
+      <button class="mi" data-act="mvisitor" data-v="${c.vid}">${ic("venetian-mask")}只看该身份的评论</button><button class="mi" data-act="open" data-id="${c.pid}">${ic("external-link")}打开插件页</button></div>` : ""}</span>`;
+}
+function modTable() {
+  const rows = modRows();
+  return `<div class="page-h"><div class="grow"><h1>评论管理</h1><p>处置公开评论与匿名身份；每次操作都要写原因，并留在操作记录里</p></div></div>
+    <div class="tabs" style="margin-bottom:14px">${[["comments", "评论"], ["events", "操作记录"]].map(([v, l]) => `<button class="tab ${S.mtab === v ? "on" : ""}" data-act="mtab" data-v="${v}">${l}</button>`).join("")}</div>
+    ${S.mtab === "events" ? eventsTable() : `<div class="row" style="margin-bottom:12px;flex-wrap:wrap">${modFilters()}<span class="muted" style="margin-left:auto;font-size:12px">${rows.length} 条</span></div>
+    <div class="card" style="overflow:visible"><table class="tbl"><thead><tr><th style="width:46%">评论</th><th>插件</th><th>匿名身份</th><th>时间</th><th style="width:40px"></th></tr></thead><tbody>
+    ${rows.map(c => {
+      const p = P(c.pid), del = c.del || S.deleted[c.id], sus = S.suspended[c.vid];
+      return `<tr class="${del ? "del" : ""}"><td><p class="clamp2">${del ? `<span class="muted">${ic("ban")} 正文已删除，无法恢复</span>` : c.msg}</p></td>
+        <td><span class="row" style="gap:6px">${mono(p, "xs")}<span class="trunc">${p.name}</span></span></td>
+        <td><span class="row" style="gap:6px"><span class="vid" data-act="mvisitor" data-v="${c.vid}" title="只看该身份">${c.vid}</span>${sus ? `<span class="tag danger plain">已停用</span>` : ""}</span></td>
+        <td class="muted" style="white-space:nowrap">${c.t}</td><td>${rowMenu(c)}</td></tr>`;
+    }).join("") || `<tr><td colspan="5" class="muted" style="text-align:center;padding:40px">没有符合条件的评论</td></tr>`}
+    </tbody></table></div>`}`;
+}
+function eventsTable() {
+  return `<div class="card"><table class="tbl"><thead><tr><th>操作</th><th>对象</th><th style="width:36%">原因</th><th>管理员</th><th>时间</th></tr></thead><tbody>
+    ${EVENTS.map(e => `<tr><td><span class="tag ${e.act.startsWith("恢复") ? "ok" : "danger"} plain">${e.act}</span></td><td class="mono" style="font-size:11.5px">${e.target}</td><td>${e.reason}</td><td>@${e.by}</td><td class="muted" style="white-space:nowrap">${e.t}</td></tr>`).join("")}
+  </tbody></table></div>`;
+}
+function modDialog() {
+  const d = S.dialog;
+  const c = MOD.find(x => x.id === d.id), p = P(c.pid);
+  const conf = {
+    delete: ["删除评论", "删除后正文立即清空，无法恢复。", "确认删除", true],
+    suspend: ["停用匿名身份", "该身份不能再评论或喜欢，已有内容保留。用户清除浏览器数据后仍可申请新身份。", "确认停用", true],
+    restore: ["恢复匿名身份", "恢复后可以继续评论和喜欢；已删除的评论不会恢复。", "确认恢复", false],
+  }[d.a];
+  return `<div class="ov" data-act="closedlg"><div class="dlg" data-stop>
+    <h3>${conf[0]}</h3>
+    <div class="quote">${c.del ? "（正文已删除）" : c.msg}</div>
+    <p class="muted" style="font-size:12px;margin-top:-6px">${p.name} · <span class="mono">${c.vid}</span> · ${c.t}</p>
+    <p class="ink2">${conf[1]}</p>
+    <div><p class="sec-h">处理原因</p><div class="preset" style="margin-bottom:8px">${["广告引流", "人身攻击", "与插件无关", "重复发布"].map(t => `<button data-act="reason" data-v="${t}">${t}</button>`).join("")}</div>
+    <textarea class="ta" data-input="reason" id="reason" placeholder="写进操作记录，作者与访客不可见">${S.reason}</textarea></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn ghost" data-act="closedlg">取消</button><button class="btn ${conf[3] ? "danger-solid" : "primary"}" ${S.reason.trim() ? "" : "disabled"} data-act="doMod">${conf[2]}</button></div>
+  </div></div>`;
+}
+
+/* ================= 方案 B ================= */
+const B = {
+  catalog() {
+    const list = sorted();
+    const p = P(S.detail);
+    return `<div class="split">${railB("catalog")}
+      <div class="pane-l w"><div class="pane-h"><div class="row"><h1 style="font-size:16px;font-weight:600">插件中心</h1><span class="muted" style="font-size:12px">${PLUGINS.length}</span><span style="margin-left:auto">${sortMenu()}</span></div>${searchBox("", "搜索插件")}</div>
+        <div class="scroll">${list.map(x => `<div class="irow ${x.id === S.detail ? "on" : ""}" data-act="sel" data-id="${x.id}">${mono(x, "sm")}<div class="grow"><p class="row"><span class="t trunc">${x.name}</span><span class="m" style="margin-left:auto">${ic("download")} ${k(x.total)}</span></p><p class="s trunc">${x.desc}</p></div></div>`).join("") || emptyCatalog()}</div>
+        <div class="muted" style="font-size:11px;padding:8px 16px;border-top:1px solid var(--tau-line-1)">${ic("keyboard")} ↑ ↓ 切换 · Enter 下载</div></div>
+      <div class="pane-r"><div class="scroll"><div style="padding:24px 32px 48px;max-width:820px">
+        <div class="d-head">${mono(p, "lg")}<div class="grow"><h1 style="font-size:20px">${p.name}</h1><p class="muted" style="font-size:12.5px">@${p.pub} · v${p.ver} · ${p.updated}更新 · 累计下载 ${p.total.toLocaleString()} ${statTip}</p>
+          <p class="ink2" style="margin-top:6px">${p.desc}</p></div>
+          <div class="row"><button class="btn primary" data-act="dl" data-id="${p.id}">${ic("download")}下载</button>${likeBtn(p)}<button class="icon-btn" title="源码">${ic("github")}</button></div></div>
+        <div style="margin-top:18px">${readmeTabs(p)}${tabBody(p)}</div>
+      </div></div></div></div>`;
+  },
+  detail() { S.dtab = S.dtab === "readme" ? "comments" : S.dtab; return B.catalog(); },
+  mine() {
+    const m = MINE[S.msel], p = P(m.pid);
+    return `<div class="split">${railB("mine")}
+      <div class="pane-l"><div class="pane-h"><div class="row"><h1 style="font-size:16px;font-weight:600">我的提交</h1><button class="btn sm primary" style="margin-left:auto" data-act="go" data-page="edit">${ic("plus")}新建</button></div></div>
+        <div class="scroll">${MINE.map((x, i) => { const xp = P(x.pid); return `<div class="irow ${i === S.msel ? "on" : ""}" data-act="msel" data-i="${i}">${xp ? mono(xp, "sm") : `<span class="mono-t sm" style="background:var(--tau-bg-hover);color:var(--tau-ink-3)">${ic("package")}</span>`}<div class="grow"><p class="row"><span class="t trunc">${xp ? xp.name : "未命名草稿"}</span><span class="m" style="margin-left:auto">${x.t}</span></p><p class="row" style="margin-top:2px">${tag(x.st)}<span class="s trunc">${x.ver ? "v" + x.ver : ""}</span></p></div></div>`; }).join("")}</div></div>
+      <div class="pane-r"><div class="scroll"><div style="padding:24px 32px 48px;max-width:760px;display:flex;flex-direction:column;gap:18px">
+        <div class="row" style="gap:12px">${p ? mono(p, "lg") : ""}<div class="grow"><div class="row"><h1 style="font-size:20px;font-weight:600">${p ? p.name : "未命名草稿"}</h1>${m.ver ? `<span class="mono muted">v${m.ver}</span>` : ""}${tag(m.st)}</div><p class="muted" style="font-size:12.5px">${m.t}</p></div>
+          ${m.st === "changes" || m.st === "draft" ? `<button class="btn primary" data-act="go" data-page="edit">${ic("pencil")}${m.st === "draft" ? "继续编辑" : "修改并重新提交"}</button>` : `<button class="btn">${ic("eye")}查看提交内容</button>`}</div>
+        ${m.st === "changes" ? `<div class="banner"><span class="ic">${ic("message-circle-warning")}</span><div><p style="font-weight:600">下一步：按审核意见修改</p><p class="ink2" style="margin-top:2px">README 缺少 API Key 的获取方式；语速 2.0 时句尾被截断。</p></div></div>` : ""}
+        ${m.st === "pending" ? `<div class="banner info"><span class="ic">${ic("hourglass")}</span><div><p style="font-weight:600">等待审核</p><p class="ink2">内容已冻结，有消息会出现在下面。</p></div></div>` : ""}
+        ${m.st === "draft" ? `<div class="banner info"><span class="ic">${ic("upload")}</span><div><p style="font-weight:600">还差一步：上传插件包</p><p class="ink2">进入编辑后按三步完成。</p></div></div>` : ""}
+        ${m.st !== "draft" ? thread("author") : ""}
+      </div></div></div></div>`;
+  },
+  edit() {
+    const p = P("tau.tts-qwen");
+    const st = S.step;
+    const stepper = [[1, "上传插件包"], [2, "核对展示内容"], [3, "关联仓库并提交"]].map(([n, l], i) => `${i ? `<span class="step-line"></span>` : ""}<button class="step ${st === n ? "on" : st > n ? "done" : ""}" data-act="step" data-v="${n}"><span class="c">${st > n ? ic("check") : n}</span>${l}</button>`).join("");
+    const body = st === 1 ? `<div style="display:flex;flex-direction:column;gap:14px"><div class="drop" data-act="step" data-v="2"><span class="ic">${ic("file-archive")}</span><p style="font-weight:600;font-size:14px">把插件 ZIP 拖到这里，或点击选择</p><p class="muted" style="font-size:12px">需要 manifest.json、README.md 和运行文件 · 8 MiB 以内</p></div>
+        <div class="card" style="padding:14px 16px"><p class="sec-h">打包提示</p><p class="ink2" style="font-size:12.5px">在插件仓库里运行 <code class="mono">pnpm tau-plugin pack</code>，会生成带完整性摘要的 ZIP。</p></div></div>`
+      : st === 2 ? `<div style="display:flex;flex-direction:column;gap:16px"><div class="card pkg">${mono(p)}<div class="grow"><p class="row"><span style="font-weight:600">${p.name}</span><span class="mono muted">v1.3.1</span><span class="tag ok">静态校验通过</span></p><p class="muted mono" style="margin-top:2px">tau.tts-qwen · 191 KiB · 最低 Tau 0.42.0 · 12 个文件</p></div><button class="btn sm ghost" data-act="step" data-v="1">换一个包</button></div>
+          <p class="muted" style="font-size:12px">${ic("eye")} 下面是插件中心的展示效果；要修改，改 README 后重新打包。</p>
+          <div class="card" style="padding:20px 24px"><div class="d-head">${mono(p, "lg")}<div><h1 style="font-size:20px">${p.name}</h1><p class="ink2">${p.desc}</p></div></div><div class="md divider" style="margin-top:16px;padding-top:12px">${README}</div></div></div>`
+      : `<div style="display:flex;flex-direction:column;gap:16px;max-width:560px">
+          <div><p class="sec-h">源码仓库</p><label class="input lg">${ic("github")}<input data-input="repo" id="repo" value="${S.repo}"></label><p class="muted" style="font-size:12px;margin-top:6px">首次关联后，这个插件之后的版本都复用它。提交时会自动记录当前 commit。</p></div>
+          <div class="card" style="padding:16px"><p style="font-weight:600;margin-bottom:6px">提交前检查</p>${checklist([["done", "插件包通过静态校验"], ["done", "包含 README.md"], ["done", "版本高于已发布版本", "v1.3.0 → v1.3.1"], [S.repo.trim() ? "done" : "todo", "关联源码仓库"]])}</div></div>`;
+    return `<div class="split">${railB("mine")}<div class="pane-r">
+      <div style="padding:18px 32px;border-bottom:1px solid var(--tau-line-1);display:flex;align-items:center;gap:20px"><a class="icon-btn" data-act="go" data-page="mine">${ic("x")}</a><h1 style="font-size:16px;font-weight:600">发布新版本</h1><div class="steps" style="margin-left:auto;margin-right:auto">${stepper}</div><span style="width:30px"></span></div>
+      <div class="scroll"><div style="padding:28px 32px;max-width:860px;margin:0 auto">${body}</div></div>
+      <div class="wiz-foot"><button class="btn ghost">保存草稿</button><span class="muted" style="font-size:12px">草稿已保存 · 刚刚</span><span style="margin-left:auto"></span>${st > 1 ? `<button class="btn" data-act="step" data-v="${st - 1}">上一步</button>` : ""}${st < 3 ? `<button class="btn primary" data-act="step" data-v="${st + 1}">下一步</button>` : `<button class="btn primary" ${S.repo.trim() ? "" : "disabled"} data-act="submit">${ic("send")}提交审核</button>`}</div>
+    </div></div>`;
+  },
+  review() {
+    const q = QUEUE[S.rv], p = P(q.pid), d = S.decision, need = d && d !== "approve";
+    return `<div class="split">${railB("review")}
+      <div class="pane-l" style="width:320px"><div class="pane-h"><div class="row"><h1 style="font-size:16px;font-weight:600">审核队列</h1><span class="tag info plain">${QUEUE.length} 待审</span><span class="menu-anchor" style="margin-left:auto"><button class="btn sm ghost">${ic("list-filter")}待审核${ic("chevron-down", "muted")}</button></span></div></div>
+        <div class="scroll">${QUEUE.map((x, i) => { const xp = P(x.pid); return `<div class="irow ${i === S.rv ? "on" : ""}" data-act="rvsel" data-i="${i}">${mono(xp, "sm")}<div class="grow"><p class="row"><span class="t trunc">${xp.name}</span><span class="m" style="margin-left:auto">${x.t}</span></p><p class="s row" style="gap:6px"><span class="mono">v${x.ver}</span>·<span class="trunc">@${x.by}</span>${x.resub ? `<span class="tag warn plain" style="height:18px">重提</span>` : ""}</p></div></div>`; }).join("")}</div>
+        <div class="muted" style="font-size:11px;padding:8px 16px;border-top:1px solid var(--tau-line-1)">${ic("keyboard")} J / K 切换 · A 批准 · R 要求修改 · X 拒绝</div></div>
+      <div class="pane-r"><div class="scroll"><div style="padding:22px 28px 32px;display:flex;flex-direction:column;gap:16px">
+        <div class="row" style="gap:12px">${mono(p, "lg")}<div class="grow"><div class="row"><h1 style="font-size:20px;font-weight:600">${p.name}</h1><span class="mono muted">v${q.ver}</span></div><p class="muted" style="font-size:12.5px">@${q.by} · ${q.t} · 修订 ${q.rev}</p></div><button class="btn sm">${ic("download")}ZIP</button><a class="btn sm ghost">${ic("github")}源码</a></div>
+        ${diffCard(q)}
+        <div><div class="tabs">${[["readme", "介绍"], ["changelog", "更新说明"], ["files", "文件", 12], ["thread", "沟通", 2]].map(([v, l, n]) => `<button class="tab ${S.dtab === v ? "on" : ""}" data-act="dtab" data-v="${v}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}</div>
+        ${S.dtab === "changelog" ? `<div class="md" style="padding-top:14px">${CHANGELOG}</div>` : S.dtab === "files" ? fileList() : S.dtab === "thread" ? `<div style="padding-top:12px">${thread("reviewer")}</div>` : `<div class="md" style="padding-top:14px">${README}</div>`}</div>
+      </div></div>
+      <div class="decbar">${S.pub ? `<div class="row"><span class="tag ${S.decision === "approve" ? "ok" : S.decision === "reject" ? "danger" : "warn"}">${S.decision === "approve" ? (S.pub === "done" ? "已发布" : "发布中…") : S.decision === "reject" ? "已拒绝" : "已退回修改"}</span><span class="muted" style="font-size:12px">已自动跳到下一条前 2 秒，可撤销</span><button class="btn sm ghost" style="margin-left:auto" data-act="next">下一条 ${ic("arrow-right")}</button></div>`
+        : `${need ? `<div class="row" style="align-items:flex-start"><textarea class="ta" style="min-height:52px" data-input="comment" id="comment" placeholder="说明原因（必填，作者会看到）">${S.comment}</textarea></div><div class="preset">${["README 缺少配置说明", "权限说明不清", "与已有插件重复"].map(t => `<button data-act="preset" data-v="${t}">${t}</button>`).join("")}</div>` : ""}
+        <div class="row"><button class="btn ${d === "approve" ? "primary" : ""}" data-act="bdec" data-v="approve">${ic("check")}批准并发布<span class="kbd">A</span></button><button class="btn ${d === "request_changes" ? "soft" : ""}" data-act="bdec" data-v="request_changes">${ic("pencil")}要求修改<span class="kbd">R</span></button><button class="btn danger ${d === "reject" ? "soft" : ""}" data-act="bdec" data-v="reject">${ic("x")}拒绝<span class="kbd">X</span></button>
+        ${need ? `<button class="btn primary" style="margin-left:auto" ${S.comment.trim() ? "" : "disabled"} data-act="confirmdec">发送 <span class="kbd" style="background:transparent;color:inherit;border-color:currentColor">⌘ ↵</span></button>` : `<span class="muted" style="margin-left:auto;font-size:11.5px">批准会弹二次确认</span>`}</div>`}
+      </div></div></div>`;
+  },
+  moderation() {
+    const rows = modRows();
+    const c = rows[Math.min(S.csel, rows.length - 1)];
+    const same = c ? MOD.filter(x => x.vid === c.vid) : [];
+    return `<div class="split">${railB("moderation")}
+      <div class="pane-l w"><div class="pane-h"><div class="row"><h1 style="font-size:16px;font-weight:600">评论管理</h1><button class="btn sm ghost" style="margin-left:auto" data-act="mtab" data-v="${S.mtab === "events" ? "comments" : "events"}">${ic("history")}${S.mtab === "events" ? "返回评论" : "操作记录"}</button></div><div class="row" style="flex-wrap:wrap">${modFilters()}</div></div>
+        <div class="scroll">${S.mtab === "events" ? EVENTS.map(e => `<div class="irow"><div class="grow"><p class="row"><span class="t">${e.act}</span><span class="m" style="margin-left:auto">${e.t}</span></p><p class="s">${e.reason}</p><p class="m mono">${e.target}</p></div></div>`).join("")
+          : rows.map((x, i) => { const xp = P(x.pid), del = x.del || S.deleted[x.id]; return `<div class="irow ${x === c ? "on" : ""}" data-act="csel" data-i="${i}"><div class="grow"><p class="row"><span class="m">${xp.name} · <span class="mono">${x.vid}</span></span><span class="m" style="margin-left:auto">${x.t}</span></p><p class="s clamp2" style="margin-top:2px;color:${del ? "var(--tau-ink-3)" : "var(--tau-ink-1)"}">${del ? "正文已删除" : x.msg}</p></div></div>`; }).join("")}</div></div>
+      <div class="pane-r"><div class="scroll"><div style="padding:24px 32px;max-width:720px;display:flex;flex-direction:column;gap:18px">
+        ${c ? `<div class="card" style="padding:18px"><p class="row muted" style="font-size:12px">${mono(P(c.pid), "xs")}${P(c.pid).name}<span>·</span>${c.t}</p><p style="font-size:14.5px;margin-top:10px;white-space:pre-wrap">${c.del || S.deleted[c.id] ? `<span class="muted">正文已删除，无法恢复</span>` : c.msg}</p>
+          <div class="row" style="margin-top:14px">${c.del || S.deleted[c.id] ? "" : `<button class="btn danger" data-act="moddlg" data-a="delete" data-id="${c.id}">${ic("trash-2")}删除评论</button>`}<button class="btn" data-act="moddlg" data-a="${S.suspended[c.vid] ? "restore" : "suspend"}" data-id="${c.id}">${ic(S.suspended[c.vid] ? "user-check" : "user-x")}${S.suspended[c.vid] ? "恢复身份" : "停用身份"}</button></div></div>
+        <div><p class="sec-h">${ic("venetian-mask")}匿名身份 <span class="mono">${c.vid}</span>${S.suspended[c.vid] ? `<span class="tag danger plain">已停用</span>` : ""}<span style="margin-left:auto">共 ${same.length} 条评论</span></p>
+          <div class="card">${same.map((x, i) => `<div class="row" style="padding:10px 14px;${i ? "border-top:1px solid var(--tau-line-1)" : ""};align-items:flex-start">${mono(P(x.pid), "xs")}<div class="grow"><p class="${x.del || S.deleted[x.id] ? "muted" : ""}">${x.del || S.deleted[x.id] ? "正文已删除" : x.msg}</p><p class="muted" style="font-size:11.5px">${P(x.pid).name} · ${x.t}</p></div></div>`).join("")}</div></div>` : `<p class="muted">没有符合条件的评论</p>`}
+      </div></div></div></div>`;
+  },
+};
+
+/* ================= 方案 C ================= */
+const C = {
+  catalog() {
+    const list = sorted();
+    return topbar("public") + `<div class="scroll"><div class="wrap" style="max-width:860px;padding-top:48px">
+      <div style="text-align:center;margin-bottom:26px"><h1 style="font-size:30px;font-weight:600;letter-spacing:-0.02em">给 Tau 加点新能力</h1><p class="ink2" style="margin-top:6px">${PLUGINS.length} 个开源插件 · 在桌面端「插件」页一键安装</p></div>
+      ${searchBox("lg", "搜索插件，例如「同步」「朗读」")}
+      <div class="row" style="margin:26px 0 4px"><div class="ctabs">${SORTS.map(([v, l]) => `<a class="${S.sort === v ? "on" : ""}" data-act="sort" data-v="${v}">${l}</a>`).join("")}</div><span style="margin-left:auto">${statTip}</span></div>
+      <div class="ed-list">${list.map(p => `<div class="erow" data-act="open" data-id="${p.id}">${mono(p, "lg")}<div style="min-width:0"><h3>${p.name}</h3><p class="desc">${p.desc}</p><p class="muted" style="font-size:12px;margin-top:6px">@${p.pub} · v${p.ver} · ${p.updated}更新</p></div>
+        <div class="stats"><span>${ic("download")} ${k(p.total)} 次下载</span><span>近 7 日 +${p.d7}</span><button class="btn sm" data-act="dl" data-id="${p.id}">${ic("download")}下载</button></div></div>`).join("") || emptyCatalog()}</div>
+    </div></div>`;
+  },
+  detail() {
+    const p = P(S.detail);
+    return topbar("public") + `<div class="scroll"><div class="wrap" style="max-width:860px">
+      <a class="back" data-act="go" data-page="catalog">${ic("arrow-left")}全部插件</a>
+      <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;padding:8px 0 22px">${mono(p, "xl")}<h1 style="font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-top:6px">${p.name}</h1><p class="ink2" style="max-width:52ch;font-size:14px">${p.desc}</p>
+        <div class="row" style="margin-top:8px"><button class="btn primary lg" data-act="dl" data-id="${p.id}">${ic("download")}下载 v${p.ver}</button>${likeBtn(p, "lg")}<button class="btn ghost lg">${ic("github")}源码</button></div></div>
+      <div class="stat-strip"><div><b>${p.total.toLocaleString()}</b><span>累计下载 ${statTip}</span></div><div><b>+${p.d7}</b><span>近 7 日</span></div><div><b class="mono" style="font-size:16px">${p.min}</b><span>最低 Tau 版本</span></div><div><b style="font-size:16px">@${p.pub}</b><span>作者</span></div></div>
+      <div style="margin-top:24px">${readmeTabs(p)}${tabBody(p)}</div>
+    </div></div>`;
+  },
+  mine() {
+    const groups = [
+      { p: P("tau.tts-qwen"), items: [["1.3.1", "changes", "2 小时前", "审核者要求修改"], ["1.3.0", "published", "10月16日", ""], ["1.2.0", "published", "9月28日", ""]] },
+      { p: P("tau.sync-s3"), items: [["2.1.0", "pending", "昨天", "等待审核"], ["2.0.3", "published", "10月13日", ""]] },
+      { p: P("tau.tikz"), items: [["1.0.2", "published", "10月12日", ""]] },
+      { p: P("tau.whiteboard-stickman"), items: [["0.9.0", "rejected", "10月3日", "与内置白板素材重复"], ["0.8.0", "published", "8月20日", ""]] },
+    ];
+    return topbar("work") + `<div class="scroll"><div class="wrap" style="max-width:860px">
+      <div class="page-h"><div class="grow"><h1>我的插件</h1><p>按插件归组，每一行是一次版本提交</p></div><button class="btn primary" data-act="go" data-page="edit">${ic("plus")}发布新插件</button></div>
+      <div style="display:flex;flex-direction:column;gap:12px">${groups.map(g => `<div class="card group"><div class="group-h">${mono(g.p, "lg")}<div class="grow"><p style="font-weight:600;font-size:15px">${g.p.name}</p><p class="muted mono" style="font-size:11.5px">${g.p.id}</p></div><span class="muted" style="font-size:12px">${ic("download")} ${k(g.p.total)}</span><button class="btn sm" data-act="go" data-page="edit" data-sub="empty">${ic("upload")}发布新版本</button></div>
+        ${g.items.map(([v, st, t, note]) => `<div class="group-v" data-act="go" data-page="edit" data-sub="${st}"><span class="mono" style="width:52px;font-weight:600">v${v}</span>${tag(st)}<span class="grow ink2 trunc">${note}</span><span class="muted">${t}</span>${ic("chevron-right", "muted")}</div>`).join("")}</div>`).join("")}</div>
+      <p class="muted" style="font-size:12px;margin-top:14px">${proto("提交列表按 pluginId 归组；目前草稿无 pluginId，需单独放「未完成的草稿」")}</p>
+    </div></div>`;
+  },
+  edit() { return topbar("work") + timeline("author"); },
+  review() { return topbar("work") + timeline("reviewer"); },
+  moderation() { return topbar("work") + `<div class="scroll"><div class="wrap" style="max-width:1000px">${modTable()}</div></div>`; },
+};
+function timeline(role) {
+  const p = P("tau.tts-qwen");
+  const rv = role === "reviewer";
+  const pkgBox = (v, sha) => `<div class="card pkg" style="box-shadow:none">${mono(p, "sm")}<div class="grow"><p class="row"><span style="font-weight:500">${p.name}</span><span class="mono muted">v${v}</span><span class="tag ok plain">校验通过</span></p><p class="muted mono" style="font-size:11px">sha256 ${sha} · 12 个文件</p></div><button class="btn sm ghost" data-act="dtab" data-v="readme">${ic("file-text")}看 README</button><button class="icon-btn sm">${ic("download")}</button></div>`;
+  const decLabel = S.decision ? DEC.find(x => x[0] === S.decision)[1] : "仅评论";
+  return `<div class="scroll"><div class="wrap" style="max-width:820px">
+    <a class="back" data-act="go" data-page="${rv ? "review" : "mine"}">${ic("arrow-left")}${rv ? "审核队列" : "我的插件"}</a>
+    <div class="row" style="gap:14px;margin-bottom:6px">${mono(p, "lg")}<div class="grow"><div class="row"><h1 style="font-size:22px;font-weight:600">${p.name} v1.3.1</h1>${tag(S.pub ? "published" : "pending")}</div><p class="muted row" style="font-size:12.5px;gap:6px"><span class="avatar sm">L</span>@lastknightcoder · ${ic("github")}<a style="color:var(--tau-accent-text)">tau-tts-qwen</a> · 修订 4</p></div></div>
+    <div class="divider" style="margin:18px 0 22px"></div>
+    <div class="ctl">
+      <div class="ev"><span class="pin">${ic("upload")}</span><p class="line"><b>@lastknightcoder</b>上传了 v1.3.0 并提交审核<span class="muted">· 10月17日</span></p><div class="box">${pkgBox("1.3.0", "9f2c…a71e")}</div></div>
+      <div class="ev"><span class="pin warn">${ic("pencil")}</span><p class="line"><b>@reviewer</b><span class="tag warn plain">要求修改</span><span class="muted">· 2 小时前</span></p><div class="box card" style="padding:12px 14px;box-shadow:none">README 缺少 API Key 的获取方式，用户第一次装上会卡在配置这一步；另外语速 2.0 时句尾会被截断，麻烦一起看下。</div></div>
+      <div class="ev"><span class="pin">${ic("message-circle")}</span><p class="line"><b>@lastknightcoder</b>回复<span class="muted">· 1 小时前</span></p><div class="box card" style="padding:12px 14px;box-shadow:none">收到，截断是缓冲区没 flush，已修。README 这就补。</div></div>
+      <div class="ev"><span class="pin acc">${ic("upload")}</span><p class="line"><b>@lastknightcoder</b>上传了 v1.3.1 并重新提交<span class="muted">· 12 分钟前</span></p><div class="box" style="display:flex;flex-direction:column;gap:8px">${pkgBox("1.3.1", "5e0a…c41d")}
+        <div class="card" style="padding:10px 14px;box-shadow:none;font-size:12.5px"><span class="muted">相比 v1.3.0：</span> <span class="fmod mono">~ main.js</span>　<span class="fmod mono">~ README.md</span>　<span class="fadd mono">+ voices/longwan.json</span>　<span class="fdel mono">− legacy/voice-map.json</span></div></div></div>
+      ${S.pub ? `<div class="ev"><span class="pin ok">${ic("check")}</span><p class="line"><b>@reviewer</b><span class="tag ${S.decision === "approve" ? "ok" : S.decision === "reject" ? "danger" : "warn"} plain">${decLabel}</span><span class="muted">· 刚刚</span>${S.decision === "approve" ? `<span class="muted">· ${S.pub === "done" ? "已上架插件中心" : "发布中…"}</span>` : ""}</p>${S.comment ? `<div class="box card" style="padding:12px 14px;box-shadow:none">${S.comment}</div>` : ""}</div>` : ""}
+    </div>
+    ${S.pub ? "" : `<div class="card composer" style="margin-top:6px">
+      <textarea class="ta" data-input="comment" id="comment" placeholder="${rv ? "写审核意见，或只给作者留言…" : "回复审核者…"}">${S.comment}</textarea>
+      <div class="composer-foot">${rv ? "" : `<button class="btn sm ghost" data-act="pick">${ic("paperclip")}上传新包</button>`}<span class="muted" style="font-size:11.5px">${rv ? "批准不需要写意见；要求修改与拒绝必须写" : "仅作者与审核者可见"}</span>
+        <span style="margin-left:auto"></span>${rv ? `<span class="menu-anchor"><button class="btn ${S.decision === "reject" ? "danger-solid" : S.decision ? "primary" : ""}" data-act="cdec" ${S.decision && S.decision !== "approve" && !S.comment.trim() ? "disabled" : ""}>${S.decision ? decLabel : "发送评论"}</button></span><span class="menu-anchor"><button class="btn ${S.decision === "reject" ? "danger-solid" : S.decision ? "primary" : ""}" style="padding:0 8px" data-act="menu" data-menu="cdec">${ic("chevron-down")}</button>
+          ${S.menu === "cdec" ? `<div class="menu" style="top:auto;bottom:calc(100% + 6px);min-width:240px"><button class="mi" data-act="decide" data-v="">${ic("message-circle")}仅评论</button><hr>${DEC.map(([v, l, t]) => `<button class="mi ${v === "reject" ? "danger" : ""}" data-act="decide" data-v="${v}" style="align-items:flex-start">${ic(v === "approve" ? "check" : v === "reject" ? "x" : "pencil")}<span><span style="display:block">${l}</span><span class="muted" style="font-size:11px">${t}</span></span>${S.decision === v ? `<span class="ck">${ic("check")}</span>` : ""}</button>`).join("")}</div>` : ""}</span>` : `<button class="btn primary" ${S.comment.trim() ? "" : "disabled"}>回复</button>`}
+      </div></div>`}
+  </div></div>`;
+}
+
+/* ================= 每屏说明 ================= */
+const NOTES = {
+  A: {
+    catalog: ["统一顶栏，公开页和登录页共用；三列卡片，悬停时浮出下载按钮；排序改成「按钮 + 菜单」；统计口径收进 ⓘ 提示。", proto("卡片显示喜欢数需要 CatalogEntry 增加 likes（没有就只显示下载量）")],
+    detail: ["新增 /plugins/:id 详情页：介绍 / 更新说明 / 版本 / 评论四个标签；右栏放版本信息和安装方式。数据来自已有的 /v1/releases、/v1/releases/:id、/v1/plugins/:id/stats 和 community。"],
+    mine: ["状态筛选标签带计数，「需修改」行左侧加琥珀色标记；每行第二行显示最近一条动态，不再只写「更新于」。", proto("Submission 增加 lastEvent 摘要；列表接口支持 status 筛选与计数")],
+    edit: ["左边上传与预览，右边吸顶的「提交前检查」和主操作；审核意见做成页顶横幅，直接给出「上传修改后的包 / 回复」。上方的演示按钮可以切状态，点虚线框能模拟上传。"],
+    review: ["和提交页同一版式，右栏换成决策卡：单选三种决定，要求修改和拒绝必须写原因并带预设短语；先给出与上一发布版本的对比；右上角上一条 / 下一条。点批准能看到发布进度。", proto("scope=review 现在返回所有提交过的条目，需要 status=pending_review 过滤，并返回待审数给侧栏角标")],
+    moderation: ["表格视图，行末 ⋯ 菜单处理；点匿名身份可以只看这个身份的评论；插件改成下拉选择（仍按 pluginId 精确匹配，不用改接口）；处理原因有预设短语。"],
+  },
+  B: {
+    catalog: ["全局左侧窄栏；插件中心是列表 + 即时预览，不跳页，↑↓ 键切换。适合想快速扫一遍的人，但分享单个插件的链接需要另外处理（用 ?id= 定位）。"],
+    detail: ["B 不单独做详情页，详情就是右侧预览（这里切到了评论标签）。"],
+    mine: ["左侧是我的提交，右侧直接写「下一步要做什么」，再接上沟通记录。"],
+    edit: ["三步向导：上传 → 核对展示效果（按插件中心的样子预览）→ 关联仓库并提交；底栏固定显示草稿保存状态。"],
+    review: ["三栏：队列 / 详情 / 底部决策条；J K 切换，A R X 选择决定，⌘↵ 发送；处理完自动跳到下一条，可撤销。键盘在演示里可用（焦点不在输入框时）。", proto("同 A：待审过滤与计数")],
+    moderation: ["列表 + 详情；详情里列出同一匿名身份的全部评论，判断是不是在刷广告很直观（复用 visitorId 筛选接口）。"],
+  },
+  C: {
+    catalog: ["编辑式单栏：居中大搜索框、文字排序标签、长行列表，留白多，更像官网。插件多了以后浏览效率不如网格。"],
+    detail: ["居中头部 + 统计条，正文单栏阅读。"],
+    mine: ["按插件归组：一个插件一张卡，下面列出它的版本提交，「发布新版本」挂在插件上。"],
+    edit: ["PR 式时间线：上传、提交、审核意见、回复、重新提交排在同一条线上，底部是回复框（可以附新包）。", proto("时间线需要在前端合并 reviews 与 feedback；没有「上传事件」的历史，只能用审核记录里的包快照")],
+    review: ["审核者看到同一条时间线，输入框右侧是带下拉的按钮：仅评论 / 批准 / 要求修改 / 拒绝。和作者的对话最连贯，但决定入口比 A、B 隐蔽。"],
+    moderation: ["评论管理与 A 相同。"],
+  },
+};
+const DEMO = { edit: [["empty", "空草稿"], ["uploading", "上传中"], ["ready", "已上传待提交"], ["changes", "需修改"], ["pending", "审核中"], ["published", "已发布"], ["rejected", "已拒绝"]] };
+
+/* ================= 渲染 ================= */
+const $ = id => document.getElementById(id);
+function pills(el, label, items, cur, act) {
+  el.innerHTML = `<span>${label}</span>` + items.map(([v, l]) => `<button class="${cur === v ? "on" : ""}" data-act="${act}" data-v="${v}">${l}</button>`).join("");
+}
+function render() {
+  document.documentElement.dataset.mode = S.mode;
+  pills($("dirPills"), "方案", DIRS, S.dir, "dir");
+  pills($("pagePills"), "页面", PAGES, S.page, "page");
+  pills($("modePills"), "外观", [["light", "浅色"], ["dark", "深色"]], S.mode, "mode");
+  const n = NOTES[S.dir][S.page];
+  $("note").innerHTML = `<b>${DIRS.find(d => d[0] === S.dir)[1]} · ${PAGES.find(p => p[0] === S.page)[1]}</b><span>${n[0]}${n[1] ? "<br>" + n[1] : ""}</span>`;
+  const showDemo = S.page === "edit" && S.dir === "A";
+  $("demo").innerHTML = showDemo ? `<div class="pills"><span>演示状态</span>${DEMO.edit.map(([v, l]) => `<button class="${S.sub === v ? "on" : ""}" data-act="sub" data-v="${v}">${l}</button>`).join("")}</div>` : "";
+  const urls = { catalog: "/plugins", detail: `/plugins/${S.detail}`, mine: "/submissions", edit: "/submissions/s1", review: "/review/s1", moderation: "/moderation" };
+  $("url").textContent = "plugins.tau.app" + urls[S.page];
+  const screens = { A, B, C }[S.dir];
+  const viewKey = S.dir + S.page;
+  const kept = viewKey === lastView ? [...$("screen").querySelectorAll(".scroll")].map(el => el.scrollTop) : [];
+  lastView = viewKey;
+  $("screen").innerHTML = screens[S.page]() + (S.dialog ? modDialog() : "") + (S.toast ? `<div class="toast">${ic("check")}${S.toast}</div>` : "");
+  lucide.createIcons();
+  $("screen").querySelectorAll(".scroll").forEach((el, i) => { if (kept[i]) el.scrollTop = kept[i]; });
+  if (S.focus) {
+    const el = $(S.focus);
+    if (el) { el.focus(); const v = el.value; el.setSelectionRange(v.length, v.length); }
+    S.focus = null;
+  }
+}
+let toastTimer, upTimer, pubTimer, lastView = "";
+function toast(t) { S.toast = t; clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 2200); }
+function resetReview() { S.decision = null; S.comment = ""; S.pub = null; clearTimeout(pubTimer); }
+function startUpload() {
+  S.sub = "uploading"; S.up = 0; clearInterval(upTimer);
+  upTimer = setInterval(() => {
+    S.up = Math.min(100, S.up + 9 + Math.round(Math.random() * 8));
+    if (S.up >= 100) { clearInterval(upTimer); setTimeout(() => { if (S.sub === "uploading") { S.sub = "ready"; render(); } }, 900); }
+    render();
+  }, 160);
+}
+function confirmDecision() {
+  S.pub = S.decision === "approve" ? "copy" : "done";
+  if (S.decision === "approve") {
+    pubTimer = setTimeout(() => { S.pub = "catalog"; render(); pubTimer = setTimeout(() => { S.pub = "done"; render(); }, 1100); }, 1100);
+  }
+}
+
+document.addEventListener("click", e => {
+  const stop = e.target.closest("[data-stop]");
+  const el = e.target.closest("[data-act]");
+  if (stop && (!el || !stop.contains(el))) return;
+  if (!el) { if (S.menu) { S.menu = null; render(); } return; }
+  const { act, v, id, page, menu, sub, i, a } = el.dataset;
+  if (act !== "menu") S.menu = null;
+  switch (act) {
+    case "dir": S.dir = v; resetReview(); S.dtab = "readme"; break;
+    case "page": S.page = v; resetReview(); S.dtab = "readme"; break;
+    case "mode": S.mode = v; break;
+    case "go": S.page = page; if (sub) { S.sub = sub === "ready" ? "ready" : sub; if (sub === "empty") S.step = 1; } S.dtab = "readme"; resetReview(); break;
+    case "sub": S.sub = v; clearInterval(upTimer); if (v === "uploading") startUpload(); break;
+    case "menu": S.menu = S.menu === menu ? null : menu; break;
+    case "sort": S.sort = v; break;
+    case "open": S.detail = id; S.page = S.dir === "B" ? "catalog" : "detail"; S.dtab = "readme"; e.stopPropagation(); break;
+    case "sel": S.detail = id; S.dtab = "readme"; break;
+    case "dl": e.stopPropagation(); toast(`已开始下载 ${P(id).name} v${P(id).ver}.zip`); break;
+    case "like": S.liked[id] = !S.liked[id]; break;
+    case "clearq": S.q = ""; break;
+    case "dtab": S.dtab = v; break;
+    case "mfilter": S.mfilter = v; break;
+    case "msel": S.msel = +i; break;
+    case "pick": if (S.dir === "A") { S.page = "edit"; startUpload(); } else toast("选择文件…"); break;
+    case "cancelup": clearInterval(upTimer); S.sub = "empty"; toast("已取消上传"); break;
+    case "scrollmsg": setTimeout(() => $("thread")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0); break;
+    case "submit": S.sub = "pending"; S.page = "edit"; if (S.dir === "B") { S.page = "mine"; S.msel = 1; } toast("已提交审核"); break;
+    case "step": S.step = +v; break;
+    case "decide": S.decision = v || null; if (S.decision !== "approve") S.focus = "comment"; break;
+    case "bdec": if (v === "approve") { S.decision = "approve"; if (confirm("批准当前修订的 ZIP 并公开发布？批准后该版本号不能覆盖。")) confirmDecision(); else S.decision = null; } else { S.decision = v; S.focus = "comment"; } break;
+    case "cdec": if (S.decision === "approve" || S.comment.trim()) { if (!S.decision) { S.comment = ""; toast("已发送"); } else confirmDecision(); } break;
+    case "preset": S.comment = S.comment ? S.comment + "；" + v : v; S.focus = "comment"; break;
+    case "confirmdec": confirmDecision(); break;
+    case "next": case "rvnext": S.rv = (S.rv + 1) % QUEUE.length; resetReview(); break;
+    case "rvprev": S.rv = (S.rv - 1 + QUEUE.length) % QUEUE.length; resetReview(); break;
+    case "rvsel": S.rv = +i; resetReview(); break;
+    case "mtab": S.mtab = v; break;
+    case "mplugin": S.mplugin = v; S.csel = 0; break;
+    case "mstatus": S.mstatus = v; S.csel = 0; break;
+    case "mvisitor": S.mvisitor = v; S.mstatus = v ? "all" : "visible"; S.mtab = "comments"; S.csel = 0; break;
+    case "csel": S.csel = +i; break;
+    case "moddlg": S.dialog = { a, id }; S.reason = ""; S.focus = "reason"; break;
+    case "reason": S.reason = v; S.focus = "reason"; break;
+    case "closedlg": S.dialog = null; break;
+    case "doMod": {
+      const c = MOD.find(x => x.id === S.dialog.id);
+      if (S.dialog.a === "delete") S.deleted[c.id] = true;
+      if (S.dialog.a === "suspend") S.suspended[c.vid] = true;
+      if (S.dialog.a === "restore") S.suspended[c.vid] = false;
+      EVENTS.unshift({ act: { delete: "删除评论", suspend: "停用匿名身份", restore: "恢复匿名身份" }[S.dialog.a], by: "lastknightcoder", reason: S.reason, target: `${P(c.pid).name} · ${c.vid}`, t: "刚刚" });
+      toast("已处理，已写入操作记录"); S.dialog = null; break;
+    }
+  }
+  render();
+});
+document.addEventListener("input", e => {
+  const key = e.target.dataset.input;
+  if (!key) return;
+  S[key] = e.target.value;
+  S.focus = e.target.id;
+  render();
+});
+document.addEventListener("keydown", e => {
+  const typing = e.target.matches("input, textarea");
+  if (e.key === "/" && !typing && $("q")) { e.preventDefault(); $("q").focus(); return; }
+  if (e.key === "Escape") { if (S.dialog || S.menu) { S.dialog = null; S.menu = null; render(); } return; }
+  if (typing) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && S.dir === "B" && S.page === "review" && S.comment.trim()) { confirmDecision(); render(); }
+    return;
+  }
+  if (S.dir === "B" && S.page === "review") {
+    const map = { j: 1, k: -1 };
+    if (map[e.key]) { S.rv = (S.rv + map[e.key] + QUEUE.length) % QUEUE.length; resetReview(); render(); }
+    if (e.key === "r") { e.preventDefault(); S.decision = "request_changes"; S.focus = "comment"; render(); }
+    if (e.key === "x") { e.preventDefault(); S.decision = "reject"; S.focus = "comment"; render(); }
+    if (e.key === "a") { S.decision = "approve"; render(); }
+  }
+  if (S.dir === "B" && S.page === "catalog" && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+    e.preventDefault();
+    const list = sorted(), idx = list.findIndex(p => p.id === S.detail);
+    const next = list[(idx + (e.key === "ArrowDown" ? 1 : -1) + list.length) % list.length];
+    if (next) { S.detail = next.id; render(); }
+  }
+});
+render();
+</script>
+</body>
+</html>

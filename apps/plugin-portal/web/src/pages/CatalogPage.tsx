@@ -1,110 +1,126 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { Button, Input, Panel, Select } from "@tau/ui";
+import { useEffect, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { CloudOff, Search, SearchX } from "lucide-react";
+import { Button, Input, Loading, isEditableTarget, toast } from "@tau/ui";
 import type { CatalogEntry, CatalogSort } from "../../../contracts";
 import { useApi } from "../app/api";
 import { savePluginZip } from "../api/download";
-import { PluginCommunityPanel } from "../features/PluginCommunityPanel";
+import { errorMessage } from "../api/errors";
+import { ErrorState, StateBlock } from "../components/states";
+import { useDebouncedValue } from "../components/useDebouncedValue";
+import { PluginCard } from "../features/catalog/PluginCard";
+import { SortMenu } from "../features/catalog/SortMenu";
+import { StatsHint } from "../features/catalog/StatsHint";
+import { uniqueEntries, useCatalog } from "../features/catalog/queries";
+
+/** 「/」聚焦搜索框，编辑上下文里不抢键 */
+function useSlashFocus(target: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.isComposing || isEditableTarget(event.target)) return;
+      event.preventDefault();
+      target.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [target]);
+}
 
 export function CatalogPage() {
   const api = useApi();
-  const [q, setQuery] = useState("");
-  const [communityId, setCommunityId] = useState<string | null>(null);
+  const [input, setInput] = useState("");
+  const q = useDebouncedValue(input.trim(), 250);
   const [sort, setSort] = useState<CatalogSort>("downloads7d");
-  const catalog = useInfiniteQuery({
-    queryKey: ["catalog", q, sort],
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => api.getCatalog({ q, sort, cursor: pageParam }),
-    getNextPageParam: page => page.nextCursor ?? undefined,
-    staleTime: 60_000,
-    refetchOnWindowFocus: true,
-  });
+  const searchRef = useRef<HTMLInputElement>(null);
+  useSlashFocus(searchRef);
+  const catalog = useCatalog(q, sort);
   const download = useMutation({
     mutationFn: (entry: CatalogEntry) =>
       savePluginZip(api, entry.latest.releaseId, `${entry.pluginId}-${entry.latest.version}.zip`),
+    onError: error => toast.error(`下载失败：${errorMessage(error)}`),
   });
-  const items = [
-    ...new Map(
-      catalog.data?.pages.flatMap(page => page.items).map(entry => [entry.pluginId, entry]) ?? []
-    ).values(),
-  ];
-  return (
-    <main className="mx-auto max-w-[1120px] px-6 py-8">
-      <header className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-tau-title-lg font-semibold">插件中心</h1>
-        <Link className="text-accent-text" to="/submissions">
-          发布与审核
-        </Link>
-      </header>
-      <div className="mb-4 flex flex-wrap gap-3">
-        <Input
-          aria-label="搜索插件"
-          placeholder="搜索插件"
-          value={q}
-          onChange={event => setQuery(event.target.value)}
-        />
-        <Select
-          aria-label="插件排序"
-          value={sort}
-          onValueChange={value => setSort(value as CatalogSort)}
-          options={[
-            { value: "downloads7d", label: "最近热门" },
-            { value: "downloadsTotal", label: "下载最多" },
-            { value: "updated", label: "最近更新" },
-          ]}
-        />
-      </div>
-      <p className="text-ink-3 text-tau-meta mb-4">
-        仅统计插件中心提供的 ZIP，按匿名设备、版本和 UTC 日去重；近 7
-        日含今日。数量从统计上线起累计，不代表安装人数。
-      </p>
-      {catalog.isPending && <p role="status">正在读取插件…</p>}
-      {catalog.isError && (
-        <div role="alert">
-          {catalog.error.message}
-          <Button onClick={() => void catalog.refetch()}>重试</Button>
-        </div>
-      )}
-      {download.isError && <p role="alert">{download.error.message}</p>}
-      {!catalog.isPending && !catalog.isError && !items.length && (
-        <p>{catalog.hasNextPage ? "本页暂无匹配插件，请继续加载。" : "没有找到插件。"}</p>
-      )}
-      <div className="grid gap-4 md:grid-cols-2">
-        {items.map(entry => (
-          <Panel key={entry.pluginId} className="flex flex-col gap-3 p-5">
-            <h2 className="text-tau-title font-semibold">{entry.name}</h2>
-            <p className="text-ink-2">{entry.description}</p>
-            <p className="text-ink-3 text-tau-meta">
-              @{entry.publisher.login} · v{entry.latest.version} · 最低 Tau{" "}
-              {entry.latest.minAppVersion}
-            </p>
-            <p className="text-ink-3 text-tau-meta">
-              累计 {entry.downloadsTotal.toLocaleString()} 次 · 近 7 日{" "}
-              {entry.downloads7d.toLocaleString()} 次
-            </p>
-            <Button disabled={download.isPending} onClick={() => download.mutate(entry)}>
-              下载 ZIP
-            </Button>
+  const items = uniqueEntries(catalog.data?.pages);
+
+  let body;
+  if (catalog.isPending) body = <Loading minHeight={320} label="正在读取插件…" />;
+  else if (catalog.isError && !catalog.data)
+    body = (
+      <ErrorState
+        icon={CloudOff}
+        title="插件列表暂时打不开"
+        error={catalog.error}
+        onRetry={() => void catalog.refetch()}
+        retrying={catalog.isRefetching}
+      />
+    );
+  else if (!items.length && !catalog.hasNextPage)
+    body = (
+      <StateBlock
+        icon={SearchX}
+        title={q ? `没有找到「${q}」相关的插件` : "还没有上架的插件"}
+        actions={q && <Button onClick={() => setInput("")}>清除搜索</Button>}
+      >
+        {q ? "换个关键词试试，比如插件的用途。" : "第一个通过审核的插件会出现在这里。"}
+      </StateBlock>
+    );
+  else
+    body = (
+      <>
+        {!items.length && (
+          <p className="text-tau-sm text-ink-3 mb-4">本页暂无匹配插件，请继续加载。</p>
+        )}
+        <ul className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map(entry => (
+            <li key={entry.pluginId} className="flex">
+              <PluginCard
+                entry={entry}
+                downloading={download.isPending}
+                onDownload={value => download.mutate(value)}
+              />
+            </li>
+          ))}
+        </ul>
+        {catalog.isFetchNextPageError && (
+          <p role="alert" className="text-tau-sm text-danger mt-4 text-center">
+            加载更多失败：{errorMessage(catalog.error)}
+          </p>
+        )}
+        {catalog.hasNextPage && (
+          <div className="mt-6 flex justify-center">
             <Button
-              aria-expanded={communityId === entry.pluginId}
-              onClick={() => setCommunityId(communityId === entry.pluginId ? null : entry.pluginId)}
+              loading={catalog.isFetchingNextPage}
+              onClick={() => void catalog.fetchNextPage()}
             >
-              评论与喜欢
+              加载更多
             </Button>
-            {communityId === entry.pluginId && <PluginCommunityPanel pluginId={entry.pluginId} />}
-          </Panel>
-        ))}
+          </div>
+        )}
+      </>
+    );
+
+  return (
+    <main className="mx-auto max-w-[1120px] px-8 pb-20 pt-8">
+      <header className="mb-5">
+        <h1 className="text-tau-hero text-ink-1 font-semibold tracking-[-0.01em]">插件中心</h1>
+        <p className="text-tau-meta text-ink-3 mt-1">
+          全部开源，在 Tau 桌面端「插件」页可以一键安装
+        </p>
+      </header>
+      <div className="mb-5 flex items-center gap-3">
+        <Input
+          ref={searchRef}
+          lead={Search}
+          clearable
+          aria-label="搜索插件"
+          placeholder="搜索插件名称、ID 或用途（按 / 聚焦）"
+          value={input}
+          onChange={event => setInput(event.target.value)}
+          wrapperClassName="h-[42px] flex-1 rounded-tau-md px-3.5"
+        />
+        <SortMenu value={sort} onChange={setSort} />
+        <StatsHint />
       </div>
-      {catalog.hasNextPage && (
-        <Button
-          className="mt-4"
-          loading={catalog.isFetchingNextPage}
-          onClick={() => void catalog.fetchNextPage()}
-        >
-          加载更多
-        </Button>
-      )}
+      {body}
     </main>
   );
 }

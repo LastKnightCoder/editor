@@ -116,6 +116,14 @@ export interface Release {
 }
 export type PublicPublisher = Pick<User, "login" | "avatarUrl">;
 /** 匿名公开的已发布版本详情。 */
+/** 已发布版本列表项：附带该版本 manifest，供版本历史与审核对比使用。 */
+export interface ReleaseSummary extends Release {
+  manifest: PackageManifest;
+}
+export interface ReleasePage {
+  items: ReleaseSummary[];
+  nextCursor: string | null;
+}
 export interface PublicRelease extends Release {
   content: PackageContent;
   repository: string;
@@ -135,6 +143,8 @@ export interface CatalogVersion {
 export interface CatalogEntry {
   downloadsTotal: number;
   downloads7d: number;
+  /** 当前有效喜欢数，口径同 PluginCommunity.likes。 */
+  likes: number;
   pluginId: string;
   name: string;
   description: string;
@@ -164,6 +174,17 @@ export interface ReviewDetails {
   reviews: ReviewRecord[];
   release: Release | null;
 }
+/** 提交最近一条审核或站内反馈的摘要，列表据此显示「最新动态」。 */
+export interface SubmissionEvent {
+  kind: "review" | "feedback";
+  /** kind=review 时为审核决定，feedback 为 null。 */
+  decision: ReviewDecision | null;
+  role: "author" | "reviewer";
+  login: string;
+  /** 正文前 120 个字符，审核通过且无意见时为空串。 */
+  excerpt: string;
+  createdAt: string;
+}
 export interface Submission {
   id: string;
   revision: number;
@@ -177,15 +198,25 @@ export interface Submission {
   createdAt: string;
   updatedAt: string;
   submittedAt: string | null;
+  lastEvent: SubmissionEvent | null;
 }
 export interface SaveSubmission {
   revision: number;
   packageUploadId: string | null;
   repository: string;
 }
+/** 列表范围内各状态的条数，不受 status 筛选与分页影响。 */
+export type SubmissionCounts = Record<SubmissionStatus, number>;
 export interface SubmissionPage {
   items: Submission[];
   nextCursor: string | null;
+  counts: SubmissionCounts;
+}
+export interface SubmissionQuery {
+  /** review 为审核范围（仅审核者），默认本人提交。 */
+  scope: "mine" | "review";
+  status: SubmissionStatus | null;
+  cursor: string | null;
 }
 export interface FeedbackMessage {
   id: string;
