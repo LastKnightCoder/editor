@@ -12,6 +12,10 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
       throw error;
     });
   return {
+    getCommunity: (id, cursor) => api.getCommunity(id, cursor),
+    setPluginLiked: (id, liked) => api.setPluginLiked(id, liked),
+    addComment: (id, message, requestId) => api.addComment(id, message, requestId),
+    deleteComment: (id, commentId) => api.deleteComment(id, commentId),
     getCatalog: input => api.getCatalog(input),
     downloadRelease: id => api.downloadRelease(id),
     githubLoginUrl: api.githubLoginUrl,

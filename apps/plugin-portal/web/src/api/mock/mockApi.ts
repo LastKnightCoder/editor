@@ -5,6 +5,7 @@ import type {
   Upload,
   ReviewDetails,
   ReviewRecord,
+  PluginComment,
 } from "../../../../contracts";
 import { PortalApiError } from "../errors";
 import { content, sampleSubmission } from "./samples";
@@ -14,6 +15,9 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     uploads = new Map<string, Upload>(),
     messages = new Map<string, FeedbackMessage[]>();
   const reviews = new Map<string, ReviewDetails>();
+  const likes = new Set<string>();
+  const comments = new Map<string, PluginComment[]>();
+  const commentRequests = new Map<string, PluginComment>();
   let user = { id: "demo-author", login: "demo", avatarUrl: "" } as {
     id: string;
     login: string;
@@ -31,6 +35,38 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     return row;
   };
   return {
+    getCommunity: async pluginId => ({
+      likes: likes.has(pluginId) ? 1 : 0,
+      liked: likes.has(pluginId),
+      comments: comments.get(pluginId) ?? [],
+      nextCursor: null,
+    }),
+    setPluginLiked: async (pluginId, liked) => {
+      if (liked) likes.add(pluginId);
+      else likes.delete(pluginId);
+      return { liked };
+    },
+    addComment: async (pluginId, message, clientRequestId) => {
+      const previous = commentRequests.get(clientRequestId);
+      if (previous) return previous;
+      const row: PluginComment = {
+        id: crypto.randomUUID(),
+        message,
+        createdAt: new Date().toISOString(),
+        canDelete: true,
+        deleted: false,
+      };
+      comments.set(pluginId, [row, ...(comments.get(pluginId) ?? [])]);
+      commentRequests.set(clientRequestId, row);
+      return row;
+    },
+    deleteComment: async (pluginId, commentId) => {
+      comments.set(
+        pluginId,
+        (comments.get(pluginId) ?? []).filter(row => row.id !== commentId)
+      );
+      return { deleted: true };
+    },
     githubLoginUrl: "/submissions",
     getCatalog: async () => ({
       items: [],

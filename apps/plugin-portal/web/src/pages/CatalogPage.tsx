@@ -5,10 +5,12 @@ import { Button, Input, Panel, Select } from "@tau/ui";
 import type { CatalogEntry, CatalogSort } from "../../../contracts";
 import { useApi } from "../app/api";
 import { savePluginZip } from "../api/download";
+import { PluginCommunityPanel } from "../features/PluginCommunityPanel";
 
 export function CatalogPage() {
   const api = useApi();
   const [q, setQuery] = useState("");
+  const [communityId, setCommunityId] = useState<string | null>(null);
   const [sort, setSort] = useState<CatalogSort>("downloads7d");
   const catalog = useInfiniteQuery({
     queryKey: ["catalog", q, sort],
@@ -84,6 +86,13 @@ export function CatalogPage() {
             <Button disabled={download.isPending} onClick={() => download.mutate(entry)}>
               下载 ZIP
             </Button>
+            <Button
+              aria-expanded={communityId === entry.pluginId}
+              onClick={() => setCommunityId(communityId === entry.pluginId ? null : entry.pluginId)}
+            >
+              评论与喜欢
+            </Button>
+            {communityId === entry.pluginId && <PluginCommunityPanel pluginId={entry.pluginId} />}
           </Panel>
         ))}
       </div>

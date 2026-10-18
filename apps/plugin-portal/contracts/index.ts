@@ -6,6 +6,7 @@ export const LIMITS = {
 } as const;
 
 export type ErrorCode =
+  | "COMMENT_REQUEST_CONFLICT"
   | "UNAUTHENTICATED"
   | "FORBIDDEN"
   | "NOT_FOUND"
@@ -192,4 +193,18 @@ export interface FeedbackMessage {
   role: "author" | "reviewer";
   message: string;
   createdAt: string;
+}
+
+export interface PluginComment {
+  id: string;
+  message: string;
+  createdAt: string;
+  canDelete: boolean;
+  deleted: boolean;
+}
+export interface PluginCommunity {
+  likes: number;
+  liked: boolean;
+  comments: PluginComment[];
+  nextCursor: string | null;
 }

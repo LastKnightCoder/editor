@@ -7,6 +7,30 @@ import { createHttpApi, type XhrLike } from "./http";
 const BASE = "http://localhost:8787";
 const SESSION = { user: { id: "1", login: "a", avatarUrl: "" }, csrfToken: "csrf-1" };
 
+it("社区写入必须成功建立匿名身份，失败时不发送写请求并允许重试", async () => {
+  let available = false;
+  const fetch = vi.fn(async (input: RequestInfo | URL) =>
+    String(input).endsWith("visitor-session")
+      ? available
+        ? Response.json({ data: { visitorId: "visitor" } })
+        : new Response("unavailable", { status: 503 })
+      : Response.json({ data: { liked: true } })
+  );
+  const api = createHttpApi({ baseUrl: BASE, fetch });
+  await expect(api.setPluginLiked("test.plugin", true)).rejects.toThrow();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  available = true;
+  await expect(api.setPluginLiked("test.plugin", true)).resolves.toEqual({ liked: true });
+  expect(fetch).toHaveBeenLastCalledWith(
+    BASE + "/v1/plugins/test.plugin/like",
+    expect.objectContaining({
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-Tau-Visitor": "1" },
+    })
+  );
+});
+
 it("公开下载先建立匿名 Cookie 会话，并发复用，不要求 GitHub 登录", async () => {
   const fetch = vi.fn(async (input: RequestInfo | URL) =>
     String(input).endsWith("/visitor-session")
