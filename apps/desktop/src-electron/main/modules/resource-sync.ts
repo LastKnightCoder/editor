@@ -32,6 +32,8 @@ import {
 import { IRemoteFileInfo } from "@/types/sync";
 import { downloadFileFromGithub, listGithubFiles, uploadFileToGithub } from "@/utils/github";
 import databaseModule from "./database";
+import { pluginSyncSessions } from "../services/plugin-sync";
+import { copyJson } from "@tau/plugins/host";
 
 interface SyncTask {
   name: string;
@@ -129,9 +131,31 @@ class RateLimitedExecutor {
 }
 
 interface ProviderAdapter {
+  dispose?(): Promise<void>;
   list(prefix: string): Promise<IRemoteFileInfo[]>;
   upload(objectName: string, content: Buffer): Promise<void>;
   download(objectName: string): Promise<Buffer>;
+}
+
+class PluginResourceAdapter implements ProviderAdapter {
+  constructor(private readonly session: string) {}
+  list(prefix: string) {
+    return pluginSyncSessions.call(0, this.session, "listFiles", [prefix]) as Promise<
+      IRemoteFileInfo[]
+    >;
+  }
+  async upload(name: string, content: Buffer) {
+    if (!(await pluginSyncSessions.call(0, this.session, "uploadFile", [name, content])))
+      throw new Error("资源文件上传失败");
+  }
+  async download(name: string) {
+    return Buffer.from(
+      (await pluginSyncSessions.call(0, this.session, "downloadFile", [name])) as Uint8Array
+    );
+  }
+  dispose() {
+    return pluginSyncSessions.end(0, this.session);
+  }
 }
 
 class AliossAdapter implements ProviderAdapter {
@@ -557,8 +581,12 @@ class ResourceSyncModule {
     return merged;
   }
 
-  private createAdapter(options: ResourceSyncOptions) {
+  private async createAdapter(options: ResourceSyncOptions) {
     switch (options.provider) {
+      case "plugin":
+        return new PluginResourceAdapter(
+          await pluginSyncSessions.begin(0, options.pluginId, copyJson(options.config))
+        );
       case "alioss":
         return new AliossAdapter(options);
       case "s3":
@@ -587,7 +615,7 @@ class ResourceSyncModule {
       log.info("[resource-sync] start", {
         provider: options.provider,
       });
-      this.adapter = this.createAdapter(options);
+      this.adapter = await this.createAdapter(options);
       const statusMeta = await this.prepareStatusFile(options);
       this.statusMeta = statusMeta;
       this.statuses = { ...statusMeta.file.files };
@@ -660,39 +688,53 @@ class ResourceSyncModule {
       this.sendErrorNotification(message);
       return { ok: false, message };
     } finally {
-      this.running = false;
-      this.progress.currentFile = null;
+      try {
+        await this.adapter?.dispose?.();
+      } finally {
+        this.adapter = null;
+        this.running = false;
+        this.progress.currentFile = null;
+      }
     }
   }
 
   private async refreshStatus(options: ResourceSyncOptions) {
+    if (this.running) throw new Error("资源同步或刷新正在进行中");
+    this.running = true;
     let adapter: ProviderAdapter | null = null;
     try {
-      adapter = this.createAdapter(options);
-      this.adapter = adapter;
-    } catch (error) {
-      log.warn("[resource-sync] refresh create adapter failed, use local only", error);
-      adapter = null;
+      try {
+        adapter = await this.createAdapter(options);
+      } catch (error) {
+        log.warn("[resource-sync] refresh create adapter failed, use local only", error);
+        adapter = null;
+      }
+      const statusMeta = await this.prepareStatusFile(options);
+      this.statusMeta = statusMeta;
+      this.statuses = { ...statusMeta.file.files };
+      const blacklist = this.getResourceBlacklist();
+      const plan = await this.buildPlan(adapter, null, blacklist);
+
+      this.progress.status = "idle";
+      this.progress.currentFile = null;
+      this.progress.startTime = null;
+
+      await this.saveStatusFile();
+      this.notifyProgress();
+      log.info("[resource-sync] refresh completed", {
+        total: plan.tasks.length,
+        upload: plan.tasks.filter(t => t.direction === "upload").length,
+        download: plan.tasks.filter(t => t.direction === "download").length,
+        adapterReady: !!adapter,
+      });
+      return this.statusMeta?.file || null;
+    } finally {
+      try {
+        await adapter?.dispose?.();
+      } finally {
+        this.running = false;
+      }
     }
-    const statusMeta = await this.prepareStatusFile(options);
-    this.statusMeta = statusMeta;
-    this.statuses = { ...statusMeta.file.files };
-    const blacklist = this.getResourceBlacklist();
-    const plan = await this.buildPlan(adapter, null, blacklist);
-
-    this.progress.status = "idle";
-    this.progress.currentFile = null;
-    this.progress.startTime = null;
-
-    await this.saveStatusFile();
-    this.notifyProgress();
-    log.info("[resource-sync] refresh completed", {
-      total: plan.tasks.length,
-      upload: plan.tasks.filter(t => t.direction === "upload").length,
-      download: plan.tasks.filter(t => t.direction === "download").length,
-      adapterReady: !!adapter,
-    });
-    return this.statusMeta?.file || null;
   }
 
   private markErrorsPending() {
@@ -780,6 +822,18 @@ class ResourceSyncModule {
       crypto.createHash("md5").update(value).digest("hex").slice(0, 8);
 
     switch (options.provider) {
+      case "plugin":
+        return {
+          fileName:
+            "plugin-" +
+            crypto
+              .createHash("sha256")
+              .update(JSON.stringify([options.pluginId, options.config]))
+              .digest("hex")
+              .slice(0, 24) +
+            ".json",
+          config: { pluginId: options.pluginId },
+        };
       case "alioss": {
         const pathHash = hash(options.path || "/");
         return {

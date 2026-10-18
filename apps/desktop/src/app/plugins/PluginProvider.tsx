@@ -11,6 +11,7 @@ import { migratePluginPreferences } from "./development-manager";
 import { themePlugin } from "./builtin/themePlugin";
 import { createDesktopExcerpts } from "./excerpts";
 import { desktopPluginServices } from "./services";
+import { useSettingsStore } from "@/app/settingsStore";
 
 const restartRequired = new Set<string>();
 const reloadCounts = new Map<string, number>();
@@ -58,12 +59,14 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           restartRequired,
           reloadCounts,
           validateEditor: composePluginEditor,
-          openSettings: key =>
-            navigator.push(PLUGIN_DETAIL_KEY, {
-              pluginId: key.split(":")[1],
-              tab: "settings",
-              section: key,
-            }),
+          openSettings: (key, target) =>
+            target === "sync"
+              ? useSettingsStore.getState().openSettings("sync")
+              : navigator.push(PLUGIN_DETAIL_KEY, {
+                  pluginId: key.split(":")[1],
+                  tab: "settings",
+                  section: key,
+                }),
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         const builtin = current.attachBuiltins([themePlugin.id], window.localStorage);

@@ -112,7 +112,7 @@ export class DesktopPluginRuntime {
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
-      openSettings?: (key: PluginSettingsKey) => void;
+      openSettings?: (key: PluginSettingsKey, target?: "sync") => void;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       excerpts?: ExcerptsAdapter;
@@ -295,6 +295,14 @@ export class DesktopPluginRuntime {
   ): PluginSettingsHandle {
     if (this.disposed) throw new Error("插件运行时已关闭");
     const key: PluginSettingsKey = `plugin:${context.pluginId}:${definition.id}`;
+    if (
+      definition.target === "sync" &&
+      [...this.settings.values()].some(
+        section =>
+          section.context.pluginId === context.pluginId && section.definition.target === "sync"
+      )
+    )
+      throw new Error("插件的同步配置分区已经注册");
     if (this.settings.has(key)) throw new Error(`设置分区已注册：${definition.id}`);
     const section = { key, context, definition, mountId: ++nextMountId };
     this.settings.set(key, section);
@@ -305,7 +313,7 @@ export class DesktopPluginRuntime {
       id: key,
       open: async () => {
         if (!this.listSettings().includes(section)) throw new Error("插件设置不可用");
-        this.options.openSettings?.(key);
+        this.options.openSettings?.(key, definition.target);
       },
       dispose: () => {
         context.signal.removeEventListener("abort", revoke);

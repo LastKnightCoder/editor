@@ -1,10 +1,18 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Panel, UiProvider } from "@tau/ui";
+import { Button, Panel, UiProvider } from "@tau/ui";
+import type { PluginSettingsProps } from "@tau/plugins";
+import { useSettingsStore } from "@/app/settingsStore";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 
-export function PluginSettingsView({ section }: { section?: RegisteredPluginSettings }) {
+export function PluginSettingsView({
+  section,
+  syncConfig,
+}: {
+  section?: RegisteredPluginSettings;
+  syncConfig?: PluginSettingsProps["syncConfig"];
+}) {
   if (!section)
     return (
       <Panel>
@@ -12,6 +20,12 @@ export function PluginSettingsView({ section }: { section?: RegisteredPluginSett
           插件设置暂不可用。插件可能已停用或分区已注销，重新启用后可恢复；已保存的设置仍然保留。
         </p>
       </Panel>
+    );
+  if (section.definition.target === "sync" && !syncConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openSettings("sync")}>
+        在同步设置中配置
+      </Button>
     );
   return (
     <RecoverableBoundary
@@ -24,12 +38,18 @@ export function PluginSettingsView({ section }: { section?: RegisteredPluginSett
         />
       )}
     >
-      <SettingsScope section={section} />
+      <SettingsScope section={section} syncConfig={syncConfig} />
     </RecoverableBoundary>
   );
 }
 
-function SettingsScope({ section }: { section: RegisteredPluginSettings }) {
+function SettingsScope({
+  section,
+  syncConfig,
+}: {
+  section: RegisteredPluginSettings;
+  syncConfig?: PluginSettingsProps["syncConfig"];
+}) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
     () =>
@@ -41,7 +61,7 @@ function SettingsScope({ section }: { section: RegisteredPluginSettings }) {
   return (
     <QueryClientProvider client={client}>
       <UiProvider className="contents">
-        <Component context={section.context} />
+        <Component context={section.context} syncConfig={syncConfig} />
       </UiProvider>
     </QueryClientProvider>
   );

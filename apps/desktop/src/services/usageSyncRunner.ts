@@ -24,14 +24,22 @@ export function runUsageSync(): Promise<UsageSyncReport | null> {
       await setUsageSyncResult({ ok: false, error: message }).catch(() => undefined);
       return null;
     } finally {
-      running = null;
+      await provider.dispose?.().catch(error => {
+        console.error("[UsageSync] 释放同步任务失败:", error);
+      });
     }
-  })();
+  })().finally(() => {
+    running = null;
+  });
   return running;
 }
 
 export async function removeDeviceFromUsageSync(deviceId: string, selfDeviceId: string) {
   const provider = SyncProviderFactory.getSyncProvider();
   if (!provider) throw new Error("请先在「同步」中配置同步服务");
-  await removeUsageDevice(provider, usageSyncBackend, { deviceId, selfDeviceId });
+  try {
+    await removeUsageDevice(provider, usageSyncBackend, { deviceId, selfDeviceId });
+  } finally {
+    await provider.dispose?.();
+  }
 }

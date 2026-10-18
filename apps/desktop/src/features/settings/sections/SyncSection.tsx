@@ -17,12 +17,16 @@
  * 实现见 sections/LocalDatabasePanel.tsx）。
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CloudUpload, Database, Download, RefreshCw } from "lucide-react";
 import { produce } from "immer";
 import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
-import { Button, ConfirmDialog, Input, Panel, Segmented, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Input, Panel, Segmented, Select, toast } from "@tau/ui";
+import { useDesktopPlugins } from "@/app/plugins/context";
+import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
+import { savePluginSyncConfig } from "@/commands/plugin-local";
+import { copyJson } from "@tau/plugins/host";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
@@ -41,6 +45,7 @@ import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 type SyncTab = "overview" | "files" | "database";
 
 const PROVIDER_LABELS: Record<ESync, string> = {
+  [ESync.Plugin]: "同步插件",
   [ESync.AliOSS]: "阿里云 OSS",
   [ESync.S3]: "S3",
   [ESync.WebDav]: "WebDAV",
@@ -52,6 +57,7 @@ const PROVIDER_FIELDS: Record<
   ESync,
   Array<{ key: string; label: string; description?: string; placeholder?: string }>
 > = {
+  [ESync.Plugin]: [],
   [ESync.AliOSS]: [
     { key: "bucket", label: "Bucket" },
     { key: "region", label: "Region" },
@@ -75,6 +81,7 @@ const PROVIDER_FIELDS: Record<
 const PROVIDER_ORDER: ESync[] = [ESync.WebDav, ESync.S3, ESync.AliOSS, ESync.Github];
 
 const CREDENTIAL_HINTS: Record<ESync, string> = {
+  [ESync.Plugin]: "",
   [ESync.AliOSS]: "AccessKey 与 Secret",
   [ESync.S3]: "AccessKey、Secret 与 Endpoint",
   [ESync.WebDav]: "服务器地址、用户名与密码",
@@ -86,6 +93,18 @@ export function SyncSection() {
   const setting = useSettingStore(s => s.setting);
   const { sync, integration, database } = setting;
   const active = sync.active;
+  const runtime = useDesktopPlugins();
+  const pluginSections =
+    runtime?.listSettings().filter(section => section.definition.target === "sync") ?? [];
+  const [selectedPlugin, setSelectedPlugin] = useState("");
+  const pluginId = selectedPlugin || sync.plugin?.id || pluginSections[0]?.context.pluginId || "";
+  const pluginSection = pluginSections.find(section => section.context.pluginId === pluginId);
+  const storedPluginConfig =
+    sync.plugin && Object.hasOwn(sync.plugin.configurations, pluginId)
+      ? sync.plugin.configurations[pluginId]
+      : undefined;
+  const pluginConfig = useMemo(() => copyJson(storedPluginConfig ?? {}), [storedPluginConfig]);
+  const configKey = useMemo(() => (sync.plugin ? crypto.randomUUID() : ""), [sync.plugin]);
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -94,11 +113,23 @@ export function SyncSection() {
 
   const activeDatabase = database.databases.find(item => item.name === database.active);
   const localVersion = activeDatabase?.version ?? 0;
-  const isConfigured = isSyncConfigured(active, sync, integration);
+  const selectedId = sync.plugin?.id;
+  const pluginEnabled =
+    !!selectedId &&
+    (runtime?.local?.owns(selectedId)
+      ? runtime.local.enabled(selectedId)
+      : runtime?.host
+          .listPlugins()
+          .some(plugin => plugin.id === selectedId && plugin.state === "active"));
+  const isConfigured =
+    isSyncConfigured(active, sync, integration) && (active !== ESync.Plugin || pluginEnabled);
 
   /* 远程版本：网络查询，配置就绪才拉；检查更新 refetch，同步/下载后手动更新。
      key 含当前库、存储类型与定位字段：切换存储类型立即重新探测，同类型下的字段编辑防抖后再拉 */
-  const rawTarget = JSON.stringify([active, sync[active]]);
+  const rawTarget =
+    active === ESync.Plugin
+      ? JSON.stringify([active, sync.plugin?.id, configKey])
+      : JSON.stringify([active, sync[active]]);
   const debouncedTarget = useDebouncedValue(rawTarget, 500);
   const remoteTarget = debouncedTarget.startsWith(`["${active}"`) ? debouncedTarget : rawTarget;
   const remoteKey = ["settings", "sync", "remote-version", database.active, remoteTarget];
@@ -186,6 +217,7 @@ export function SyncSection() {
   };
 
   const updateSyncField = (field: string, value: string) => {
+    if (active === ESync.Plugin) return;
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => {
         // ESync 键名与 sync 域字段一一对应（aliOSS/s3/webdav/github）
@@ -249,7 +281,13 @@ export function SyncSection() {
                 </div>
                 <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
                   {database.active}
-                  {isConfigured && ` · ${PROVIDER_LABELS[active]}`}
+                  {isConfigured &&
+                    ` · ${
+                      active === ESync.Plugin
+                        ? (pluginSections.find(section => section.context.pluginId === selectedId)
+                            ?.definition.title ?? selectedId)
+                        : PROVIDER_LABELS[active]
+                    }`}
                 </div>
                 <SyncStats
                   items={[
@@ -264,7 +302,7 @@ export function SyncSection() {
                 <SyncActions>
                   {!isConfigured ? (
                     <span className="text-tau-meta text-ink-2">
-                      在下方选择存储类型并完善路径后即可同步
+                      在下方选择同步目标并完成配置后即可同步
                     </span>
                   ) : hasUpdate ? (
                     <>
@@ -340,32 +378,81 @@ export function SyncSection() {
                 value={active}
                 onValueChange={v => setActiveProvider(v as ESync)}
               >
-                {PROVIDER_ORDER.map(key => (
+                {[
+                  ...PROVIDER_ORDER,
+                  ...(pluginSections.length || active === ESync.Plugin ? [ESync.Plugin] : []),
+                ].map(key => (
                   <Segmented.Item key={key} value={key} label={PROVIDER_LABELS[key]} />
                 ))}
               </Segmented>
             </SettingRow>
-            {PROVIDER_FIELDS[active].map(field => (
-              <SettingRow key={field.key} title={field.label} description={field.description}>
-                <Input
-                  className="w-[260px]"
-                  value={(sync[active] as Record<string, string>)[field.key] ?? ""}
-                  placeholder={field.placeholder}
-                  spellCheck={false}
-                  onChange={e => updateSyncField(field.key, e.target.value)}
-                />
+            {active === ESync.Plugin && (
+              <>
+                <SettingRow title="同步插件">
+                  <Select
+                    aria-label="同步插件"
+                    value={pluginId}
+                    onValueChange={setSelectedPlugin}
+                    options={pluginSections.map(section => ({
+                      value: section.context.pluginId,
+                      label: section.definition.title,
+                    }))}
+                  />
+                </SettingRow>
+                {pluginSection ? (
+                  <PluginSettingsView
+                    key={pluginSection.key}
+                    section={pluginSection}
+                    syncConfig={{
+                      value: pluginConfig,
+                      save: async config => {
+                        await savePluginSyncConfig(pluginId, config);
+                        useSettingStore.setState(state => ({
+                          setting: produce(state.setting, draft => {
+                            draft.sync.active = ESync.Plugin;
+                            draft.sync.plugin = {
+                              id: pluginId,
+                              configurations: {
+                                ...draft.sync.plugin?.configurations,
+                                [pluginId]: config,
+                              },
+                            };
+                          }),
+                        }));
+                      },
+                    }}
+                  />
+                ) : (
+                  <p role="status" className="text-ink-2 text-tau-body">
+                    请先在插件页安装并启用同步插件；已保存配置不会因停用而删除。
+                  </p>
+                )}
+              </>
+            )}
+            {active !== ESync.Plugin &&
+              PROVIDER_FIELDS[active].map(field => (
+                <SettingRow key={field.key} title={field.label} description={field.description}>
+                  <Input
+                    className="w-[260px]"
+                    value={(sync[active] as Record<string, string>)[field.key] ?? ""}
+                    placeholder={field.placeholder}
+                    spellCheck={false}
+                    onChange={e => updateSyncField(field.key, e.target.value)}
+                  />
+                </SettingRow>
+              ))}
+            {active !== ESync.Plugin && (
+              <SettingRow title="账号凭据" description={CREDENTIAL_HINTS[active]}>
+                <button
+                  type="button"
+                  className="text-tau-meta text-accent-text inline-flex items-center gap-1 font-medium hover:underline"
+                  onClick={() => useSettingsStore.getState().openSettings("integration")}
+                >
+                  在「账号与连接」管理
+                  <ArrowRight size={13} strokeWidth={1.75} />
+                </button>
               </SettingRow>
-            ))}
-            <SettingRow title="账号凭据" description={CREDENTIAL_HINTS[active]}>
-              <button
-                type="button"
-                className="text-tau-meta text-accent-text inline-flex items-center gap-1 font-medium hover:underline"
-                onClick={() => useSettingsStore.getState().openSettings("integration")}
-              >
-                在「账号与连接」管理
-                <ArrowRight size={13} strokeWidth={1.75} />
-              </button>
-            </SettingRow>
+            )}
           </SettingsGroup>
         </>
       ) : tab === "files" ? (

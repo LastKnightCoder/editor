@@ -7,9 +7,15 @@ type IntegrationConfig = ISetting["integration"];
 export const isSyncConfigured = (
   active: ESync,
   sync: SyncConfig,
-  integration: IntegrationConfig,
+  integration: IntegrationConfig
 ) => {
   switch (active) {
+    case ESync.Plugin:
+      return (
+        !!sync.plugin?.id &&
+        Object.hasOwn(sync.plugin.configurations, sync.plugin.id) &&
+        sync.plugin.configurations[sync.plugin.id] != null
+      );
     case ESync.AliOSS:
       return (
         !!integration.aliOSS.accessKeyId &&
@@ -26,14 +32,10 @@ export const isSyncConfigured = (
       );
     case ESync.WebDav:
       return (
-        !!integration.webdav.url &&
-        !!integration.webdav.username &&
-        !!integration.webdav.password
+        !!integration.webdav.url && !!integration.webdav.username && !!integration.webdav.password
       );
     case ESync.Github:
-      return (
-        !!integration.github.token && !!sync.github.repo && !!sync.github.branch
-      );
+      return !!integration.github.token && !!sync.github.repo && !!sync.github.branch;
     default:
       return false;
   }
