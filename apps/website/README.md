@@ -4,6 +4,8 @@ Tau 的产品介绍页。Vite 构建，部署到 Cloudflare Pages；下载信息
 
 页面里的应用示意全部由 HTML/CSS 与少量 TypeScript 生成，不使用截图。颜色直接引用 `@tau/themes/tokens.css`，和桌面端是同一套主题。
 
+站点有两个入口：首页 `/`（原生 TypeScript），使用文档 `/docs/`（React，正文用产品的 Editor 只读渲染）。顶部导航的「使用文档」「插件中心」与 GitHub 链接数据在 `src/lib/site.ts`，两边共用。
+
 ## 命令
 
 在仓库根目录执行：
@@ -28,6 +30,18 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 
 发布新版本桌面端后，打开或刷新官网即可自动获取最新下载信息，无需重新部署官网。安装包仍须通过发布脚本上传到下载源。
 
+## 使用文档
+
+正文是 `content/docs/<slug>.md`（首篇为 `index.md`），目录、顺序、标题和描述在 `src/docs/manifest.ts`。新增一篇：写好 Markdown，再在 manifest 里登记；`manifest.test.ts` 会检查两边一一对应。
+
+- Markdown 经 `@tau/markdown` 与产品同一套 codec 转成编辑器内容，再由 `<Editor readonly>` 渲染，效果与桌面端一致。除标准语法外可以用提示块 `:::tip{title="…"}`（另有 note / info / warning / danger）、折叠块 `:::detail{title="…"}`、`<kbd>`、`$公式$` 与代码块。
+- 页面标题与描述来自 manifest，正文里从二级标题写起；右侧大纲取正文中的各级标题。
+- 站内链接写 `/docs/<slug>/`，点击时在文档页内切换，不整页刷新。
+- 构建时为每篇文档各生成一份 `docs/<slug>/index.html`（标题和描述已填好），静态托管直接命中；开发服务器把 `/docs/<slug>/` 改写到同一个模板。
+- 文档页的样式只用 Tailwind 和 `@tau/themes` 的语义类，不引入首页的 `src/styles/*.css`：那里有不在 layer 里的通配规则，会压过 Tailwind 工具类。
+
+GitHub 星标数由访客浏览器请求 GitHub 公开 API，本地缓存一小时；不足 100 星或请求失败时只显示 GitHub 入口。
+
 ## 部署
 
 采用和插件中心相同的 Direct Upload 方式：本地构建后用 Wrangler 上传，不接 Git 自动构建。原因是仓库根目录的 `postinstall` 会重编 Electron 原生模块，放到 Pages 构建机上既慢又容易失败。
@@ -44,11 +58,16 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 ## 目录
 
 ```
-index.html            页面结构（含 SVG 图标雪碧图）
-src/main.ts           入口：引入样式，按顺序初始化各模块
-src/modules/          各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、白板手绘与数据库视图切换、闭环滚动、日常组件
-src/styles/           按区块拆分的样式，最后是响应式
+index.html            首页结构（含 SVG 图标雪碧图）
+docs/index.html       使用文档的页面模板
+content/docs/         使用文档正文（Markdown）
+src/main.ts           首页入口：引入样式，按顺序初始化各模块
+src/modules/          首页各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、白板手绘与数据库视图切换、闭环滚动、日常组件、GitHub 星标
+src/styles/           首页按区块拆分的样式，最后是响应式
+src/docs/             使用文档：目录、编辑器 kit 与 Markdown 处理器、页面组件
+src/lib/              两个入口共用的工具：站点链接、GitHub 星标、平台识别
 build/release.ts      构建与运行时共用的清单解析和下载信息渲染
+build/siteNav.ts      首页导航与页脚的入口标记
 functions/            首页请求时更新下载信息，异常时保留快照
 public/               原样拷贝：图标、_headers、仅匹配首页的 _routes.json
 ```
