@@ -6,7 +6,8 @@ import { uploadPluginResource } from "@/commands/plugin-local";
 import { copyFileToLocal } from "@/utils/resouce";
 import { splitUploadName, uniqueUploadName } from "@/services/resource-upload";
 
-export const uploadResource = async (file: File): Promise<string> => {
+export const uploadResource = async (file: File, signal?: AbortSignal): Promise<string> => {
+  signal?.throwIfAborted();
   // 固定本次目标与配置，压缩期间切换设置不会把文件发往另一个存储。
   const { imageBed } = useSettingStore.getState().setting;
   const pluginId = imageBed.plugin?.id;
@@ -28,17 +29,25 @@ export const uploadResource = async (file: File): Promise<string> => {
     }
   }
   const name = uniqueUploadName(processedFile.name);
-  if (imageBed.active === EImageBed.Local) return copyFileToLocal(processedFile, name);
+  signal?.throwIfAborted();
+  if (imageBed.active === EImageBed.Local) {
+    const path = await copyFileToLocal(processedFile, name);
+    signal?.throwIfAborted();
+    return path;
+  }
   if (!pluginId) throw new Error("请先配置资源上传插件");
-  return uploadPluginResource({
-    pluginId,
-    config,
-    file: {
-      name,
-      mimeType: processedFile.type,
-      content: new Uint8Array(await processedFile.arrayBuffer()),
+  return uploadPluginResource(
+    {
+      pluginId,
+      config,
+      file: {
+        name,
+        mimeType: processedFile.type,
+        content: new Uint8Array(await processedFile.arrayBuffer()),
+      },
     },
-  });
+    signal
+  );
 };
 
 export default function useUploadResource() {

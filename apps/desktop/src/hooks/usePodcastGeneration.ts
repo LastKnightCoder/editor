@@ -1,9 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "@tau/ui";
 import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
-import type { PodcastGenerationProgress } from "@/types/minimax";
-import type { TTSVoice } from "@/types/tts";
-import { ETTSProvider } from "@/types/tts";
+import type { PodcastGenerationProgress } from "@/types/podcast";
+import type { TTSVoice, ITTSProvider } from "@/types/tts";
 import { parseScript } from "@/services/podcast";
 import {
   loadSpeechSegment,
@@ -29,7 +28,7 @@ interface PodcastGenerationState {
   logs: string[];
   script: string;
   scriptLines: PodcastScriptLine[];
-  segmentAudios: Blob[];
+  segmentAudios: (Blob | null)[];
   error: string | null;
   audioUrl: string | null;
   duration: number;
@@ -46,7 +45,44 @@ interface PodcastGenerationParams {
   durationMax?: number;
 }
 
+interface PodcastFlow {
+  controller: AbortController;
+  provider: ITTSProvider;
+  busy: boolean;
+}
 export const usePodcastGeneration = () => {
+  const flowRef = useRef<PodcastFlow | null>(null);
+  const stopFlow = useCallback(() => {
+    const flow = flowRef.current;
+    flowRef.current = null;
+    flow?.controller.abort();
+    void flow?.provider.synthesis
+      ?.dispose?.()
+      .catch(error => console.error("回收播客语音任务失败", error));
+  }, []);
+  useEffect(() => stopFlow, [stopFlow]);
+  const startFlow = useCallback(
+    (provider: ITTSProvider) => {
+      stopFlow();
+      const flow = { provider, controller: new AbortController(), busy: false };
+      flowRef.current = flow;
+      return flow;
+    },
+    [stopFlow]
+  );
+  const assertFlow = useCallback((flow: PodcastFlow) => {
+    flow.controller.signal.throwIfAborted();
+    flow.provider.synthesis?.signal?.throwIfAborted();
+    if (flowRef.current !== flow) throw new DOMException("播客任务已替换", "AbortError");
+  }, []);
+  const flowSignal = useCallback(
+    (flow: PodcastFlow) =>
+      AbortSignal.any([
+        flow.controller.signal,
+        ...(flow.provider.synthesis?.signal ? [flow.provider.synthesis.signal] : []),
+      ]),
+    []
+  );
   const [state, setState] = useState<PodcastGenerationState>({
     status: "idle",
     stage: "parsing",
@@ -101,14 +137,13 @@ export const usePodcastGeneration = () => {
   }, [addLog]);
 
   // 手动添加音色到列表（用于刚克隆的音色）
-  const addVoiceToList = useCallback((voiceId: string, voiceName?: string) => {
-    const ttsProvider = TTSProviderFactory.getTTSProvider();
+  const addVoiceToList = useCallback((voiceId: string, voiceName?: string, providerId?: string) => {
     const newVoice: TTSVoice = {
       id: voiceId,
       name: voiceName || voiceId,
       description: "自定义克隆音色",
       type: "cloned",
-      provider: ttsProvider?.getProviderName() ?? ETTSProvider.Minimax,
+      provider: providerId ?? "",
     };
 
     // 添加到列表最前面，并去重
@@ -133,7 +168,8 @@ export const usePodcastGeneration = () => {
       } = params;
 
       // 验证参数
-      if (!TTSProviderFactory.getSpeechSynthesizer()) {
+      const selectedTTS = TTSProviderFactory.getTTSProvider();
+      if (!selectedTTS?.synthesis) {
         return "请先配置 TTS 服务提供商";
       }
 
@@ -153,6 +189,9 @@ export const usePodcastGeneration = () => {
         return "请为所有说话人选择音色";
       }
 
+      if (flowRef.current?.busy) return "已有播客任务正在进行";
+      const flow = startFlow(selectedTTS);
+      flow.busy = true;
       // 重置状态
       setState({
         status: "loading",
@@ -180,9 +219,17 @@ export const usePodcastGeneration = () => {
         updateProgress({ stage: "script", stageProgress: 0 });
 
         let fullScript = "";
-        const ttsPromptOptions = await TTSProviderFactory.getActiveTTSPromptOptions();
+        const ttsPromptOptions = {
+          textInstructions:
+            (await flow.provider.getTextInstructions?.(flow.controller.signal)) ??
+            "只输出可朗读的纯文本，不加入语音控制标签。",
+        };
+        assertFlow(flow);
+        const generationSignal = flowSignal(flow);
 
         await new Promise<void>((resolve, reject) => {
+          const abort = () => reject(generationSignal.reason);
+          generationSignal.addEventListener("abort", abort, { once: true });
           runGenerationTask(
             provider,
             model,
@@ -207,22 +254,37 @@ export const usePodcastGeneration = () => {
                   },
             },
             {
+              onController: controller => {
+                if (generationSignal.aborted) controller.abort();
+                else
+                  generationSignal.addEventListener("abort", () => controller.abort(), {
+                    once: true,
+                  });
+              },
               onUpdate: (responseText: string) => {
+                if (generationSignal.aborted || flowRef.current !== flow) return;
                 fullScript = responseText;
                 setState(prev => ({ ...prev, script: responseText }));
               },
               onFinish: () => {
+                generationSignal.removeEventListener("abort", abort);
+                if (generationSignal.aborted || flowRef.current !== flow) {
+                  reject(new DOMException("任务已结束", "AbortError"));
+                  return;
+                }
                 updateProgress({ stageProgress: 100 });
                 addLog("脚本生成完成");
                 resolve();
               },
               onError: (error: Error) => {
+                generationSignal.removeEventListener("abort", abort);
                 reject(error);
               },
             }
           );
         });
 
+        assertFlow(flow);
         // 3. 解析脚本
         const scriptLines = parseScript(fullScript, speakers);
         if (scriptLines.length === 0) {
@@ -237,16 +299,9 @@ export const usePodcastGeneration = () => {
         }));
 
         addLog(`解析得到 ${scriptLines.length} 条对话`);
-
-        // 自动继续生成音频 (如果不需要手动干预的话，或者这里可以暂停等待用户点击下一步)
-        // 目前逻辑保持自动继续，后续 UI 层可以控制流程
-        // await continueWithTTS(scriptLines, generateMusic);
-        // 修改为暂停等待用户确认
-        setState(prev => ({
-          ...prev,
-          status: "loading",
-        }));
       } catch (error) {
+        if (flow.controller.signal.aborted || flowRef.current !== flow) return;
+        stopFlow();
         console.error("播客生成失败:", error);
         const errorMessage = error instanceof Error ? error.message : "未知错误";
         setState(prev => ({
@@ -256,6 +311,8 @@ export const usePodcastGeneration = () => {
         }));
         addLog(`错误: ${errorMessage}`);
         toast.error(`播客生成失败: ${errorMessage}`);
+      } finally {
+        flow.busy = false;
       }
     }
   );
@@ -266,12 +323,17 @@ export const usePodcastGeneration = () => {
       lines: typeof state.scriptLines,
       generateMusic: boolean
     ): Promise<string | undefined> => {
-      const ttsProvider = TTSProviderFactory.getTTSProvider();
+      const ttsProvider = flowRef.current?.provider ?? TTSProviderFactory.getTTSProvider();
       if (!ttsProvider || !ttsProvider.isConfigured()) {
         return "请先配置 TTS 服务提供商";
       }
 
+      const flow = flowRef.current ?? startFlow(ttsProvider);
+      if (flow.busy) return "已有播客任务正在进行";
+      flow.busy = true;
+      let audioContext: AudioContext | undefined;
       try {
+        assertFlow(flow);
         // 4. TTS 合成
         addLog(`开始合成语音 (${ttsProvider.getProviderName()})...`);
         updateProgress({
@@ -281,16 +343,18 @@ export const usePodcastGeneration = () => {
           ttsCompleted: 0,
         });
 
-        const audioContext = new AudioContext();
+        audioContext = new AudioContext();
         const segments: SpeechSegment[] = [];
-        const segmentAudios: Blob[] = [];
+        const segmentAudios: (Blob | null)[] = Array(lines.length).fill(null);
         let currentTime = 0;
 
         // 使用传入的 lines，因为可能已经被编辑过
-        const currentLines = [...lines];
+        const currentLines = lines.map(line => ({ ...line, startTime: 0, duration: 0 }));
 
         for (let i = 0; i < currentLines.length; i++) {
+          assertFlow(flow);
           const line = currentLines[i];
+          line.startTime = currentTime;
           addLog(
             `[${i + 1}/${currentLines.length}] ${line.speaker}: ${line.text.substring(0, 30)}...`
           );
@@ -298,13 +362,16 @@ export const usePodcastGeneration = () => {
           try {
             const audioData = await ttsProvider.synthesis!.synthesizeSpeech(
               line.text,
-              line.voiceId
+              line.voiceId,
+              undefined,
+              flow.controller.signal
             );
             const segment = await loadSpeechSegment(
               audioContext,
               audioData.audio.slice().buffer as ArrayBuffer
             );
 
+            assertFlow(flow);
             // 记录时间信息
             currentLines[i].startTime = currentTime;
             currentLines[i].duration = segment.duration;
@@ -312,20 +379,23 @@ export const usePodcastGeneration = () => {
 
             // 保存音频数据
             segments.push(segment);
-            segmentAudios.push(speechSegmentToBlob(segment));
+            segmentAudios[i] = speechSegmentToBlob(segment);
 
             updateProgress({
               ttsCompleted: i + 1,
               stageProgress: Math.floor(((i + 1) / currentLines.length) * 100),
-              scriptLines: currentLines, // 实时更新时间信息
+              scriptLines: currentLines.map(item => ({ ...item })),
               segmentAudios: [...segmentAudios], // 实时更新片段音频
             });
           } catch (error) {
-            if (error instanceof Error && error.name === "AbortError") throw error;
+            if (
+              flow.controller.signal.aborted ||
+              ttsProvider.synthesis?.signal?.aborted ||
+              (error instanceof Error && error.name === "AbortError")
+            )
+              throw error;
             console.error(`合成第 ${i + 1} 条语音失败:`, error);
             addLog(`[警告] 第 ${i + 1} 条语音合成失败，跳过`);
-            // 即使失败也需要占位，避免索引错乱
-            // 这里简单处理为跳过，实际可能需要占位符或者重试机制
           }
         }
 
@@ -340,6 +410,7 @@ export const usePodcastGeneration = () => {
         updateProgress({ stage: "merging", stageProgress: 0 });
 
         const merged = await mergeSpeechSegments(audioContext, segments);
+        assertFlow(flow);
         const totalDuration = merged.duration;
 
         updateProgress({ stageProgress: 75 });
@@ -352,7 +423,8 @@ export const usePodcastGeneration = () => {
         const audioFile = new File([merged.blob], `podcast_${Date.now()}.${merged.ext}`, {
           type: merged.blob.type || "audio/wav",
         });
-        const audioUrl = await uploadResource(audioFile);
+        const audioUrl = await uploadResource(audioFile, flowSignal(flow));
+        assertFlow(flow);
 
         if (!audioUrl) {
           throw new Error("音频上传失败");
@@ -380,6 +452,7 @@ export const usePodcastGeneration = () => {
           addLog("注意：背景音乐生成功能待实现");
         }
       } catch (error) {
+        if (flow.controller.signal.aborted || flowRef.current !== flow) return;
         console.error("TTS合成失败:", error);
         const errorMessage = error instanceof Error ? error.message : "未知错误";
         setState(prev => ({
@@ -390,7 +463,12 @@ export const usePodcastGeneration = () => {
         addLog(`错误: ${errorMessage}`);
         toast.error(`生成失败: ${errorMessage}`);
       } finally {
-        await ttsProvider.synthesis?.dispose?.();
+        if (flowRef.current === flow) stopFlow();
+        try {
+          await ttsProvider.synthesis?.dispose?.();
+        } finally {
+          await audioContext?.close();
+        }
       }
     }
   );
@@ -403,8 +481,12 @@ export const usePodcastGeneration = () => {
   // 重新生成单个片段
   const regenerateSegment = useCallback(
     async (index: number, newText: string) => {
-      const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
-      if (!synthesizer || !state.audioUrl) return;
+      const selectedTTS = TTSProviderFactory.getTTSProvider();
+      const synthesizer = selectedTTS?.synthesis;
+      if (!selectedTTS || !synthesizer || !state.audioUrl || flowRef.current?.busy) return;
+      const flow = startFlow(selectedTTS);
+      flow.busy = true;
+      let audioContext: AudioContext | undefined;
 
       try {
         addLog(`正在重新生成第 ${index + 1} 段语音...`);
@@ -412,10 +494,13 @@ export const usePodcastGeneration = () => {
         // 1. 合成新语音
         const audioData = await synthesizer.synthesizeSpeech(
           newText,
-          state.scriptLines[index].voiceId
+          state.scriptLines[index].voiceId,
+          undefined,
+          flow.controller.signal
         );
 
-        const audioContext = new AudioContext();
+        assertFlow(flow);
+        audioContext = new AudioContext();
         const newSegment = await loadSpeechSegment(
           audioContext,
           audioData.audio.slice().buffer as ArrayBuffer
@@ -423,19 +508,7 @@ export const usePodcastGeneration = () => {
         const newDuration = newSegment.duration;
         const newSegmentBlob = speechSegmentToBlob(newSegment);
 
-        // 2. 保存新片段到临时文件 (通过后端)
-        const { tempPath: newSegmentPath } = await saveTempSegment(newSegment.data);
-
-        // 3. 获取原始音频路径
-        let localAudioPath = "";
-        if (state.audioUrl.startsWith("http")) {
-          localAudioPath = await remoteResourceToLocal(state.audioUrl);
-        } else if (state.audioUrl.startsWith("~")) {
-          const homeDir = await getHomeDir();
-          localAudioPath = `${homeDir}${state.audioUrl.slice(1)}`;
-        } else {
-          localAudioPath = state.audioUrl;
-        }
+        assertFlow(flow);
 
         if (state.segmentAudios.length > 0) {
           // 前端快速替换
@@ -463,9 +536,9 @@ export const usePodcastGeneration = () => {
 
           // 重新合并所有
           const newSegments = await Promise.all(
-            newSegmentAudios.map(async blob =>
-              loadSpeechSegment(audioContext, await blob.arrayBuffer())
-            )
+            newSegmentAudios
+              .filter((blob): blob is Blob => blob !== null)
+              .map(async blob => loadSpeechSegment(audioContext!, await blob.arrayBuffer()))
           );
           const merged = await mergeSpeechSegments(audioContext, newSegments);
           const totalDuration = merged.duration;
@@ -474,7 +547,9 @@ export const usePodcastGeneration = () => {
           const audioFile = new File([merged.blob], `podcast_updated_${Date.now()}.${merged.ext}`, {
             type: merged.blob.type || "audio/wav",
           });
-          const newAudioUrl = await uploadResource(audioFile);
+          assertFlow(flow);
+          const newAudioUrl = await uploadResource(audioFile, flowSignal(flow));
+          assertFlow(flow);
 
           if (newAudioUrl) {
             setState(prev => ({
@@ -488,6 +563,22 @@ export const usePodcastGeneration = () => {
             toast.success("片段替换成功");
           }
         } else {
+          assertFlow(flow);
+          // 2. 保存新片段到临时文件 (通过后端)
+          const { tempPath: newSegmentPath } = await saveTempSegment(newSegment.data);
+
+          // 3. 获取原始音频路径
+          let localAudioPath = "";
+          if (state.audioUrl.startsWith("http")) {
+            localAudioPath = await remoteResourceToLocal(state.audioUrl);
+          } else if (state.audioUrl.startsWith("~")) {
+            const homeDir = await getHomeDir();
+            localAudioPath = `${homeDir}${state.audioUrl.slice(1)}`;
+          } else {
+            localAudioPath = state.audioUrl;
+          }
+
+          assertFlow(flow);
           // 后端 FFmpeg 替换逻辑
           const { outputPath } = await replacePodcastSegment(
             localAudioPath,
@@ -505,15 +596,14 @@ export const usePodcastGeneration = () => {
               type: "audio/mpeg",
             }
           );
-          const newAudioUrl = await uploadResource(newAudioFile);
+          assertFlow(flow);
+          const newAudioUrl = await uploadResource(newAudioFile, flowSignal(flow));
+          assertFlow(flow);
 
           // 更新 scriptLines
           const newScriptLines = [...state.scriptLines];
           const oldDuration = newScriptLines[index].duration;
-          const timeDiff = newDuration - oldDuration; // 注意：这里用的是新生成的 duration - 旧 duration
-          // 等等，newDuration 是新生成的片段时长
-          // oldDuration 是 scriptLines[index].duration
-          // timeDiff = newDuration - oldDuration 是正确的
+          const timeDiff = newDuration - oldDuration;
 
           newScriptLines[index] = {
             ...newScriptLines[index],
@@ -543,24 +633,45 @@ export const usePodcastGeneration = () => {
           }
         }
       } catch (error) {
+        if (flow.controller.signal.aborted || flowRef.current !== flow) return;
         console.error("片段重生成失败:", error);
         toast.error("片段重生成失败");
       } finally {
-        await synthesizer.dispose?.();
+        if (flowRef.current === flow) stopFlow();
+        try {
+          await synthesizer.dispose?.();
+        } finally {
+          await audioContext?.close();
+        }
       }
     },
-    [state.audioUrl, state.scriptLines, state.segmentAudios, uploadResource, addLog]
+    [
+      state.audioUrl,
+      state.scriptLines,
+      state.segmentAudios,
+      uploadResource,
+      addLog,
+      startFlow,
+      assertFlow,
+      flowSignal,
+      stopFlow,
+    ]
   );
 
-  const setInitialState = useCallback((initialState: Partial<PodcastGenerationState>) => {
-    setState(prev => ({
-      ...prev,
-      ...initialState,
-    }));
-  }, []);
+  const setInitialState = useCallback(
+    (initialState: Partial<PodcastGenerationState>) => {
+      stopFlow();
+      setState(prev => ({
+        ...prev,
+        ...initialState,
+      }));
+    },
+    [stopFlow]
+  );
 
   // 重置状态
   const reset = useCallback(() => {
+    stopFlow();
     setState({
       status: "idle",
       stage: "parsing",
@@ -575,7 +686,7 @@ export const usePodcastGeneration = () => {
       audioUrl: null,
       duration: 0,
     });
-  }, []);
+  }, [stopFlow]);
 
   return {
     ...state,

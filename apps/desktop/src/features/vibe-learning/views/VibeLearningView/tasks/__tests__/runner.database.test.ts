@@ -5,20 +5,29 @@ const state = vi.hoisted(() => {
     if (channel === "vl-note:create") return { id: 42, contentId: 17, projectId: 7, title: "大纲" };
     if (channel === "vl-quiz:create-set") return { id: 21, projectId: 7, name: "测验" };
     if (channel === "vl-quiz:create-items-batch") return [{ id: 1, quizSetId: 21 }];
+    if (channel === "podcast:create") return { id: 81 };
     return {};
   });
   window.electron = { platform: "darwin", invoke, on: vi.fn() } as unknown as ElectronAPI;
-  return { invoke, finish: null as null | ((text: string) => void) };
+  return {
+    invoke,
+    finish: null as null | ((text: string) => void),
+    request: null as unknown,
+    tts: null as import("@/types/tts").ITTSProvider | null,
+    synthesize: vi.fn(),
+    parse: vi.fn(),
+  };
 });
 vi.mock("@/commands", async () => await import("@/commands/content"));
 vi.mock("@/services/generation-orchestrator", () => ({
   runGenerationTask: (
     _provider: unknown,
     _model: unknown,
-    _request: unknown,
+    request: unknown,
     callbacks: { onFinish(text: string): void }
   ) => {
     state.finish = callbacks.onFinish;
+    state.request = request;
   },
 }));
 vi.mock("@/stores/useSettingStore", () => ({
@@ -26,7 +35,10 @@ vi.mock("@/stores/useSettingStore", () => ({
     getState: () => ({
       setting: {
         llmProviders: [{ id: "p", models: [{ id: "m" }] }],
-        llmUsageSettings: { chat: { providerId: "p", modelId: "m" } },
+        llmUsageSettings: {
+          chat: { providerId: "p", modelId: "m" },
+          podcastGeneration: { providerId: "p", modelId: "m" },
+        },
       },
     }),
   },
@@ -39,8 +51,9 @@ vi.mock("@/tools/vibeLearningSearchTool", () => ({
     executor: async () => "资料",
   }),
 }));
-vi.mock("@/services/podcast", () => ({ parseScript: () => [] }));
-vi.mock("../podcastAudio", () => ({ synthesizePodcast: vi.fn() }));
+vi.mock("@/services/podcast", () => ({ parseScript: state.parse }));
+vi.mock("../podcastAudio", () => ({ synthesizePodcast: state.synthesize }));
+vi.mock("@/utils/tts", () => ({ TTSProviderFactory: { getTTSProvider: () => state.tts } }));
 vi.mock("@/utils", () => ({
   getContentLength: () => 1,
   getMarkdown: () => "",
@@ -135,4 +148,92 @@ it("任务准备期间取消，不会继续登记产物或启动后台生成", a
   await expect(opening).rejects.toThrow();
   expect(state.finish).toBeNull();
   expect(state.invoke.mock.calls.some(([channel]) => channel === "vl-note:create")).toBe(false);
+});
+
+it("播客脚本与音频沿用开始时的同一语音实例，不重新读取当前账号", async () => {
+  state.invoke.mockClear();
+  state.finish = null;
+  const synth = {
+    getVoiceList: vi.fn(),
+    synthesizeSpeech: vi.fn(),
+    dispose: vi.fn(async () => {}),
+  };
+  state.tts = {
+    getProviderName: () => "account-a",
+    isConfigured: () => true,
+    getTextInstructions: async () => "rules-a",
+    synthesis: synth,
+  };
+  const lines = [{ speaker: "A", text: "hello", voiceId: "voice-a", startTime: 0, duration: 1 }];
+  state.parse.mockReturnValue(lines);
+  state.synthesize.mockResolvedValue({ audioUrl: "https://files.test/a.wav", duration: 1, lines });
+  const started = await startVLTask({
+    kind: "podcast",
+    projectId: 7,
+    mainDbName: "a",
+    resourceIds: [],
+    resourceNames: [],
+    podcast: { name: "episode", speakers: [], durationMin: 1, durationMax: 2 },
+  });
+  await vi.waitFor(() => expect(state.finish).not.toBeNull());
+  state.tts = {
+    getProviderName: () => "account-b",
+    isConfigured: () => true,
+    synthesis: { getVoiceList: vi.fn(), synthesizeSpeech: vi.fn() },
+  };
+  state.finish!("script");
+  await vi.waitFor(() =>
+    expect(useVLTaskStore.getState().tasks[started.taskId].status).toBe("succeeded")
+  );
+  expect(state.request).toMatchObject({
+    taskPayload: { ttsPromptOptions: { textInstructions: "rules-a" } },
+  });
+  expect(state.synthesize.mock.calls.at(-1)?.[2]).toBe(synth);
+  expect(synth.dispose).toHaveBeenCalled();
+  useVLTaskStore.getState().remove(started.taskId);
+});
+
+it("播客合成返回前会话被关闭，不创建迟到的播客记录", async () => {
+  state.invoke.mockClear();
+  state.finish = null;
+  state.synthesize.mockClear();
+  const controller = new AbortController();
+  state.tts = {
+    getProviderName: () => "a",
+    isConfigured: () => true,
+    getTextInstructions: async () => "plain",
+    synthesis: {
+      signal: controller.signal,
+      getVoiceList: vi.fn(),
+      synthesizeSpeech: vi.fn(),
+      dispose: vi.fn(async () => {}),
+    },
+  };
+  const lines = [{ speaker: "A", text: "hello", voiceId: "v", startTime: 0, duration: 1 }];
+  state.parse.mockReturnValue(lines);
+  let finishAudio!: (value: unknown) => void;
+  state.synthesize.mockImplementation(
+    () =>
+      new Promise(resolve => {
+        finishAudio = resolve;
+      })
+  );
+  const started = await startVLTask({
+    kind: "podcast",
+    projectId: 7,
+    mainDbName: "a",
+    resourceIds: [],
+    resourceNames: [],
+    podcast: { name: "episode", speakers: [], durationMin: 1, durationMax: 2 },
+  });
+  await vi.waitFor(() => expect(state.finish).not.toBeNull());
+  state.finish!("script");
+  await vi.waitFor(() => expect(state.synthesize).toHaveBeenCalledTimes(1));
+  controller.abort();
+  finishAudio({ audioUrl: "https://files.test/late.wav", duration: 1, lines });
+  await vi.waitFor(() =>
+    expect(useVLTaskStore.getState().tasks[started.taskId].status).toBe("failed")
+  );
+  expect(state.invoke.mock.calls.some(([channel]) => channel === "podcast:create")).toBe(false);
+  useVLTaskStore.getState().remove(started.taskId);
 });

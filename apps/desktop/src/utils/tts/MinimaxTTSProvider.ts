@@ -7,6 +7,7 @@ import type {
   VoiceCloneOptions,
 } from "@/types/tts";
 import { ETTSProvider } from "@/types/tts";
+import { buildMinimaxSpeechPromptRules } from "./minimaxSpeech";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { ttsCommands } from "@/commands/contracts/tts";
 import {
@@ -78,6 +79,7 @@ export function createMinimaxTTSProvider(config: IMinimaxConfig): ITTSProvider {
   };
 
   return {
+    getTextInstructions: async () => buildMinimaxSpeechPromptRules(true, config.model),
     getProviderName: () => ETTSProvider.Minimax,
     isConfigured: () => Boolean(config.apiKey),
     synthesis,

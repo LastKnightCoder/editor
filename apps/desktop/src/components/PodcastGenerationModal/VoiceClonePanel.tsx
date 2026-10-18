@@ -1,12 +1,14 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { AudioLines, Check, ChevronDown, FileAudio, Plus, Trash2, Upload, X } from "lucide-react";
 import { Button, IconButton, Input, cn } from "@tau/ui";
 import { Field } from "./ui";
 import type { CloneVoiceItem, NoticeType } from "./types";
 import type { VoiceOption } from "./types";
 import { TTSProviderFactory } from "@/utils/tts";
+import type { VoiceCloneCapability } from "@/types/tts";
 
 export interface VoiceClonePanelProps {
+  getCloner?: () => VoiceCloneCapability | null;
   showCloneForm: boolean;
   setShowCloneForm: (show: boolean) => void;
   cloneItems: CloneVoiceItem[];
@@ -14,7 +16,7 @@ export interface VoiceClonePanelProps {
   cloneLoading: boolean;
   setCloneLoading: (loading: boolean) => void;
   voices: VoiceOption[];
-  addVoiceToList: (voiceId: string, voiceName: string) => void;
+  addVoiceToList: (voiceId: string, voiceName: string, providerId?: string) => void;
   notify: (type: NoticeType, text: string) => void;
 }
 
@@ -28,8 +30,14 @@ export const VoiceClonePanel = ({
   voices,
   addVoiceToList,
   notify,
+  getCloner,
 }: VoiceClonePanelProps) => {
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const controllerRef = useRef<AbortController | null>(null);
+  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => {
+    if (!showCloneForm) controllerRef.current?.abort();
+  }, [showCloneForm]);
 
   const openFilePicker = useCallback((id: string) => {
     fileInputRefs.current[id]?.click();
@@ -154,13 +162,16 @@ export const VoiceClonePanel = ({
     }
 
     // 克隆走当前 TTS 服务商的克隆能力（Minimax 直传文件；Qwen 经资源上传中转）
-    const cloner = TTSProviderFactory.getVoiceCloner();
+    const cloner = getCloner ? getCloner() : TTSProviderFactory.getVoiceCloner();
     if (!cloner) {
       notify("error", "请先在「设置 · 语音」配置支持音色克隆的 TTS 服务商");
       return;
     }
 
     setCloneLoading(true);
+    const controller = new AbortController();
+    controllerRef.current?.abort();
+    controllerRef.current = controller;
     let successCount = 0;
     const totalVoices = cloneItems.length;
 
@@ -168,6 +179,7 @@ export const VoiceClonePanel = ({
       notify("info", `开始克隆音色，共 ${totalVoices} 个音色...`);
 
       for (let i = 0; i < cloneItems.length; i++) {
+        controller.signal.throwIfAborted();
         const item = cloneItems[i];
         const voiceNum = i + 1;
         const voiceId = item.voiceId.trim();
@@ -177,12 +189,18 @@ export const VoiceClonePanel = ({
 
           const file = item.audioFile;
           if (!file) throw new Error("请选择参考音频");
-          const voice = await cloner.cloneVoice(file.file, {
-            voiceId,
-            voiceName: voiceId || file.name,
-          });
+          const voice = await cloner.cloneVoice(
+            file.file,
+            {
+              voiceId,
+              voiceName: voiceId || file.name,
+            },
+            controller.signal
+          );
+          controller.signal.throwIfAborted();
           const clonedVoiceId = voice.id;
-          addVoiceToList(voice.id, voice.name);
+          addVoiceToList(voice.id, voice.name, voice.provider);
+          if (voice.description) notify("info", voice.description);
 
           successCount++;
           notify(
@@ -192,6 +210,7 @@ export const VoiceClonePanel = ({
               : `[${voiceNum}/${totalVoices}] 音色克隆成功，实际音色 ID：${clonedVoiceId}`
           );
         } catch (error) {
+          controller.signal.throwIfAborted();
           const errorMsg = (error as Error).message || "";
           if (error instanceof Error && error.name === "AbortError") throw error;
           console.error(`处理音色 ${voiceId} 失败:`, error);
@@ -219,12 +238,23 @@ export const VoiceClonePanel = ({
         },
       ]);
     } catch (error) {
-      notify("error", (error as Error).message || "音色克隆失败");
+      if (!controller.signal.aborted) notify("error", (error as Error).message || "音色克隆失败");
     } finally {
       await cloner.dispose?.();
-      setCloneLoading(false);
+      if (controllerRef.current === controller) {
+        controllerRef.current = null;
+        setCloneLoading(false);
+      }
     }
-  }, [cloneItems, addVoiceToList, notify, setCloneLoading, setShowCloneForm, setCloneItems]);
+  }, [
+    cloneItems,
+    addVoiceToList,
+    notify,
+    setCloneLoading,
+    setShowCloneForm,
+    setCloneItems,
+    getCloner,
+  ]);
 
   const cloneDisabled = cloneItems.some(item => !item.audioFile || !!item.voiceIdError);
 

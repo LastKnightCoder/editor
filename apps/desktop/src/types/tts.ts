@@ -81,6 +81,7 @@ export interface VoiceCloneOptions {
  * 消费方（编辑器朗读、播客生成）面向此能力编程，不感知具体提供商/模型。
  */
 export interface SpeechSynthesisCapability {
+  readonly signal?: AbortSignal;
   dispose?(): Promise<void>;
   /**
    * 获取可用的音色列表
@@ -118,6 +119,7 @@ export interface VoiceCloneCapability {
  * 新能力按同样的形态增加独立接口，由提供商/模型声明实现，消费方按能力取用。
  */
 export interface ITTSProvider {
+  getTextInstructions?(signal?: AbortSignal): Promise<string>;
   /**
    * 获取提供商名称
    */

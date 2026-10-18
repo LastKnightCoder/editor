@@ -79,7 +79,7 @@ describe("utils/tts/TTSProviderFactory", () => {
     expect(TTSProviderFactory.getActiveProviderType()).toBe(ETTSProvider.Qwen);
   });
 
-  it("getActiveTTSPromptOptions 从当前语音服务派生（供播客 prompt 分流标签规则）", async () => {
+  it("任务实例提供当前模型文本规则，不回落其他账号", async () => {
     // Qwen 激活 → provider 为 qwen，不再误用 Minimax 标签规则
     setTTSState({
       ttsProviders: [
@@ -99,17 +99,13 @@ describe("utils/tts/TTSProviderFactory", () => {
         },
       },
     });
-    expect(await TTSProviderFactory.getActiveTTSPromptOptions()).toEqual({
-      provider: ETTSProvider.Qwen,
-      minimaxModel: "qwen-audio-3.1-tts-flash",
-    });
+    expect(await TTSProviderFactory.getTTSProvider()?.getTextInstructions?.()).toContain(
+      "plain spoken text"
+    );
 
-    // 未配置 → 回落 Minimax 默认（保持 legacy prompt 行为）
+    // 未配置时不推断其他账号。
     setTTSState({ usage: { default: null } });
-    expect(await TTSProviderFactory.getActiveTTSPromptOptions()).toEqual({
-      provider: ETTSProvider.Minimax,
-      minimaxModel: "speech-2.8-hd",
-    });
+    expect(TTSProviderFactory.getTTSProvider()).toBeNull();
   });
 
   it("未配置用法 / 用法指向不存在的服务商 / 缺 API Key 时返回 null", () => {

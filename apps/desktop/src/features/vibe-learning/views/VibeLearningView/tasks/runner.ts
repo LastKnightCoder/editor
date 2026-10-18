@@ -14,6 +14,7 @@ import { runGenerationTask, type GenerationRequest } from "@/services/generation
 import { parseScript } from "@/services/podcast";
 import useSettingStore from "@/stores/useSettingStore";
 import { TTSProviderFactory } from "@/utils/tts";
+import type { ITTSProvider } from "@/types/tts";
 import { invalidateQuizzes } from "../../../quizQueries";
 import { queryClient } from "@/queryClient";
 import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
@@ -73,6 +74,8 @@ const EMPTY_CONTENT: Descendant[] = [
 ] as unknown as Descendant[];
 
 interface Runtime {
+  tts?: ITTSProvider;
+  ttsController?: AbortController;
   input: VLTaskInput;
   contentId?: number;
   controller?: AbortController;
@@ -157,7 +160,11 @@ function upsertTurn(
   return next;
 }
 
-async function buildRequest(input: VLTaskInput, currentHtml?: string): Promise<GenerationRequest> {
+async function buildRequest(
+  input: VLTaskInput,
+  currentHtml: string | undefined,
+  runtime: Runtime
+): Promise<GenerationRequest> {
   const sourcePayload = {
     projectId: input.projectId,
     mainDbName: input.mainDbName,
@@ -196,7 +203,11 @@ async function buildRequest(input: VLTaskInput, currentHtml?: string): Promise<G
         taskPayload: {
           speakers: input.podcast?.speakers ?? [],
           // prompt 标签规则须与实际合成引擎对齐，从当前语音服务派生
-          ttsPromptOptions: await TTSProviderFactory.getActiveTTSPromptOptions(),
+          ttsPromptOptions: {
+            textInstructions:
+              (await runtime.tts?.getTextInstructions?.(runtime.ttsController?.signal)) ??
+              "只输出可朗读的纯文本，不加入语音控制标签。",
+          },
           durationMin: input.podcast?.durationMin,
           durationMax: input.podcast?.durationMax,
         },
@@ -315,6 +326,7 @@ export function cancelVLTask(taskId: string) {
   if (!runtime) return;
   runtime.cancelled = true;
   runtime.controller?.abort();
+  runtime.ttsController?.abort();
 }
 
 /** 失败 / 停止后按原配置重跑，写回同一个产物 */
@@ -331,6 +343,24 @@ export async function retryVLTask(taskId: string) {
 }
 
 async function execute(
+  taskId: string,
+  runtime: Runtime,
+  config: { provider: LLMProviderSetting; model: LLMModelSetting },
+  currentHtml?: string
+) {
+  try {
+    await executeInner(taskId, runtime, config, currentHtml);
+  } finally {
+    runtime.ttsController?.abort();
+    await runtime.tts?.synthesis
+      ?.dispose?.()
+      .catch(error => console.error("回收播客语音任务失败", error));
+    runtime.tts = undefined;
+    runtime.ttsController = undefined;
+  }
+}
+
+async function executeInner(
   taskId: string,
   runtime: Runtime,
   config: { provider: LLMProviderSetting; model: LLMModelSetting },
@@ -365,15 +395,40 @@ async function execute(
 
   let content: string;
   try {
-    const request = await buildRequest(input, currentHtml);
+    if (input.kind === "podcast") {
+      runtime.tts = TTSProviderFactory.getTTSProvider() ?? undefined;
+      if (!runtime.tts?.synthesis) throw new Error("请先配置TTS服务提供商");
+      runtime.ttsController = new AbortController();
+      if (runtime.cancelled) runtime.ttsController.abort();
+    }
+    const request = await buildRequest(input, currentHtml, runtime);
+    if (runtime.cancelled) throw new DOMException("已停止", "AbortError");
     content = await new Promise<string>((resolve, reject) => {
+      const signal = runtime.tts?.synthesis?.signal;
+      let settled = false;
+      const canReceive = () =>
+        !settled && !runtime.cancelled && !signal?.aborted && runtimes.get(taskId) === runtime;
+      const stopped = () => {
+        settled = true;
+        reject(signal?.reason ?? new DOMException("任务已停止", "AbortError"));
+      };
+      if (signal?.aborted) {
+        stopped();
+        return;
+      }
+      signal?.addEventListener("abort", stopped, { once: true });
       runGenerationTask(
         config.provider,
         config.model,
         request,
         {
-          onController: controller => (runtime.controller = controller),
+          onController: controller => {
+            runtime.controller = controller;
+            if (runtime.cancelled || signal?.aborted) controller.abort();
+            else signal?.addEventListener("abort", () => controller.abort(), { once: true });
+          },
           onReasoning: (text, turnId) =>
+            canReceive() &&
             writer.queue(t => ({
               phase: "思考中",
               turns: upsertTurn(t.turns, turnId, turn => ({
@@ -383,6 +438,7 @@ async function execute(
               })),
             })),
           onToolCallsUpdate: (executions, turnId) =>
+            canReceive() &&
             writer.queue(t => ({
               phase: "查阅资料",
               turns: upsertTurn(t.turns, turnId, turn => ({
@@ -392,6 +448,7 @@ async function execute(
               })),
             })),
           onUpdate: (text, turnId) =>
+            canReceive() &&
             writer.queue(t => ({
               phase: "输出中",
               output: text,
@@ -403,9 +460,22 @@ async function execute(
               })),
             })),
           onUsage: usage =>
+            runtimes.get(taskId) === runtime &&
             writer.queue(t => ({ outputTokens: t.outputTokens + (usage.outputTokens || 0) })),
-          onFinish: resolve,
-          onError: reject,
+          onFinish: text => {
+            signal?.removeEventListener("abort", stopped);
+            if (!canReceive()) {
+              stopped();
+              return;
+            }
+            settled = true;
+            resolve(text);
+          },
+          onError: error => {
+            signal?.removeEventListener("abort", stopped);
+            settled = true;
+            reject(error);
+          },
         },
         {
           additionalTools: [
@@ -461,7 +531,13 @@ async function execute(
 /** 按类型把模型输出写进产物 */
 async function persist(taskId: string, runtime: Runtime, content: string) {
   const { input, contentId } = runtime;
-  const commands = commandsFor(input.mainDbName);
+  const taskSignals = [runtime.ttsController?.signal, runtime.tts?.synthesis?.signal].filter(
+    (signal): signal is AbortSignal => Boolean(signal)
+  );
+  const commands = commandsFor(
+    input.mainDbName,
+    taskSignals.length ? AbortSignal.any(taskSignals) : undefined
+  );
   const task = useVLTaskStore.getState().tasks[taskId];
   switch (input.kind) {
     case "outline":
@@ -512,14 +588,21 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       if (lines.length === 0) throw new Error("脚本解析失败，未找到有效的对话行");
       const patch = useVLTaskStore.getState().patch;
       patch(taskId, { phase: "合成语音", progress: { done: 0, total: lines.length } });
-      const controller = new AbortController();
+      const controller = runtime.ttsController;
+      if (!controller || !runtime.tts?.synthesis) throw new Error("播客语音任务已结束");
       runtime.controller = controller;
       if (runtime.cancelled) controller.abort();
-      const audio = await synthesizePodcast(lines, {
-        signal: controller.signal,
-        onProgress: (done, total) => patch(taskId, { progress: { done, total } }),
-        onPhase: phase => patch(taskId, { phase }),
-      });
+      const audio = await synthesizePodcast(
+        lines,
+        {
+          signal: controller.signal,
+          onProgress: (done, total) => patch(taskId, { progress: { done, total } }),
+          onPhase: phase => patch(taskId, { phase }),
+        },
+        runtime.tts.synthesis
+      );
+      controller.signal.throwIfAborted();
+      runtime.tts.synthesis.signal?.throwIfAborted();
       const name = input.podcast?.name.trim() || "播客";
       const podcast = await commands.createPodcast({
         name,

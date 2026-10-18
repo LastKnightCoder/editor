@@ -19,6 +19,7 @@ import {
   type LegacyTTSProviderSetting,
 } from "@/types/tts";
 import { TTSPluginSettings } from "./TTSPluginSettings";
+import { TTSPluginCloneSection } from "./TTSPluginCloneSection";
 import { TTSProviderFactory } from "@/utils/tts";
 import { TTS_PROVIDER_PRESETS } from "@/utils/tts/catalog";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -301,6 +302,19 @@ export function VoiceTtsPanel() {
               )}
             </ProviderSection>
 
+            {isPluginTTS(editing) && (
+              <TTSPluginCloneSection
+                key={editing.id}
+                provider={editing}
+                onCloned={() => {
+                  if (
+                    useSettingStore.getState().setting.ttsUsageSettings.default?.providerId ===
+                    editing.id
+                  )
+                    void loadVoices();
+                }}
+              />
+            )}
             {!isPluginTTS(editing) && editing.providerType === ETTSProvider.Qwen && (
               <QwenVoiceCloneSection provider={editing} onCloned={loadVoices} />
             )}

@@ -14,7 +14,7 @@ export interface ResultPreviewProps {
   audioUrl: string;
   duration: number;
   scriptLines: PodcastScriptLine[];
-  segmentAudios: Blob[];
+  segmentAudios: (Blob | null)[];
   regenerateSegment: (index: number, newText: string) => Promise<void>;
   notify: (type: "success" | "error" | "warning" | "info", text: string) => void;
 }
@@ -98,8 +98,9 @@ export const ResultPreview = ({
         stopCurrentAudio();
       }
 
-      if (segmentAudios[index]) {
-        const audio = new Audio(URL.createObjectURL(segmentAudios[index]));
+      const segment = segmentAudios[index];
+      if (segment) {
+        const audio = new Audio(URL.createObjectURL(segment));
         currentAudioRef.current = audio;
         setPlayingSegmentIndex(index);
 
@@ -119,6 +120,10 @@ export const ResultPreview = ({
         return;
       }
 
+      if (!scriptLines[index] || scriptLines[index].duration <= 0) {
+        notify("warning", "该句尚未生成音频，请先重新生成");
+        return;
+      }
       if (!audioUrl) {
         notify("error", "音频不可用");
         return;

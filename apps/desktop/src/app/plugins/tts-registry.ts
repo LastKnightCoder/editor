@@ -13,6 +13,13 @@ interface Session {
 }
 
 export class RendererTTSRegistry {
+  private readonly closedListeners = new Set<(id: string) => void>();
+  onClose(listener: (id: string) => void) {
+    this.closedListeners.add(listener);
+    return () => {
+      this.closedListeners.delete(listener);
+    };
+  }
   private readonly registrations = new Map<string, Registration>();
   private readonly sessions = new Map<string, Session>();
   register(context: PluginContext, definition: TTSProviderDefinition): Disposable {
@@ -35,8 +42,16 @@ export class RendererTTSRegistry {
   }
   close(id: string) {
     const session = this.sessions.get(id);
+    if (!session) return;
     this.sessions.delete(id);
     session?.controller.abort(new DOMException("语音任务已结束或插件已停用", "AbortError"));
+    for (const listener of this.closedListeners) {
+      try {
+        listener(id);
+      } catch (error) {
+        console.error("语音会话关闭通知失败", error);
+      }
+    }
   }
   async execute(request: TTSRendererRequest, callSignal: AbortSignal): Promise<unknown> {
     callSignal.throwIfAborted();

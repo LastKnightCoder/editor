@@ -38,7 +38,8 @@ it("选择插件固定配置与字节，失败不回退到本地", async () => {
       pluginId: "test.upload",
       config: { path: "images" },
       file: expect.objectContaining({ mimeType: "image/png", content: new Uint8Array([0, 255]) }),
-    })
+    }),
+    undefined
   );
   mocks.remote.mockRejectedValue(new Error("已停用"));
   await expect(uploadResource(file("a.png"))).rejects.toThrow("已停用");

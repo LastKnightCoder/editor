@@ -16,7 +16,7 @@ vi.mock("@/tools", () => ({
 import { buildGenerationRequest, type GenerationRequest } from "@/services/generation-orchestrator";
 import type { RequestMessage } from "@/types/llm";
 import { SpeakerRole } from "@/types/podcast";
-import { ETTSProvider } from "@/types/tts";
+import { buildMinimaxSpeechPromptRules } from "@/utils/tts/minimaxSpeech";
 import useSettingStore from "@/stores/useSettingStore";
 import useMCPStore from "@/stores/useMCPStore";
 
@@ -137,8 +137,7 @@ describe("services/generation-orchestrator", () => {
           },
         ],
         ttsPromptOptions: {
-          provider: ETTSProvider.Minimax,
-          minimaxModel: "speech-2.8-hd",
+          textInstructions: buildMinimaxSpeechPromptRules(true, "speech-2.8-hd"),
         },
         durationMin: 4,
         durationMax: 6,

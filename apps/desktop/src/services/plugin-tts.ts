@@ -3,6 +3,7 @@ import { copyJson } from "@tau/plugins/host";
 import type { PluginTTSProviderSetting } from "@/types/tts";
 import { callPluginTTS } from "@/commands/plugin-tts";
 import type { TTSSessionInfo } from "../../shared/tts-renderer";
+import { on, off } from "@/electron";
 
 export async function openPluginTTS(
   setting: PluginTTSProviderSetting,
@@ -11,13 +12,21 @@ export async function openPluginTTS(
 ) {
   const session = crypto.randomUUID();
   const config: JsonValue = copyJson(setting.config);
+  const lifetime = new AbortController();
+  const executionSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
+  const onClosed = (_event: unknown, message: { session: string }) => {
+    if (message.session === session)
+      lifetime.abort(new DOMException("语音会话已关闭或插件已停用", "AbortError"));
+  };
+  on("plugin-tts:session-closed", onClosed);
   let info: TTSSessionInfo;
   try {
     info = await callPluginTTS<TTSSessionInfo>(
       { kind: "open", session, pluginId: setting.pluginId, config, modelId },
-      signal
+      executionSignal
     );
   } catch (error) {
+    off("plugin-tts:session-closed", onClosed);
     await callPluginTTS<void>({ kind: "close", session }).catch(() => undefined);
     throw error;
   }
@@ -25,6 +34,7 @@ export async function openPluginTTS(
   const dispose = async () => {
     if (closed) return;
     closed = true;
+    off("plugin-tts:session-closed", onClosed);
     signal?.removeEventListener("abort", stop);
     await callPluginTTS<void>({ kind: "close", session });
   };
@@ -38,9 +48,10 @@ export async function openPluginTTS(
   }
   const taskSignal = (call: AbortSignal) => {
     if (closed) throw new DOMException("语音任务已结束", "AbortError");
-    return signal ? AbortSignal.any([signal, call]) : call;
+    return AbortSignal.any([executionSignal, call]);
   };
-  const instance: TTSInstance & { dispose(): Promise<void> } = {
+  const instance: TTSInstance & { readonly signal: AbortSignal; dispose(): Promise<void> } = {
+    signal: executionSignal,
     textInstructions: info.textInstructions,
     getVoices: call => callPluginTTS({ kind: "voices", session }, taskSignal(call)),
     synthesize: (request, call) =>

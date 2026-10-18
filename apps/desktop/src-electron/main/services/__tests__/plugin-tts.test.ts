@@ -58,3 +58,20 @@ it("取消开任务后迟到回复不能重新建立可调用任务", async () =
     errorName: "AbortError",
   });
 });
+it("空闲会话关闭也通知调用窗口，拒绝其它宿主或旧代通知", async () => {
+  const relay = new PluginTTSRelay(),
+    host = window(1),
+    caller = window(2);
+  relay.connect(host, "generation");
+  const ready = relay.request(caller, "open", open("idle"));
+  relay.reply(1, { requestId: "open", hostSession: "generation", result: {} });
+  await ready;
+  relay.rendererClosed(3, "generation", "idle");
+  relay.rendererClosed(1, "old", "idle");
+  expect(caller.send).not.toHaveBeenCalled();
+  relay.rendererClosed(1, "generation", "idle");
+  expect(caller.send).toHaveBeenCalledWith("plugin-tts:session-closed", { session: "idle" });
+  expect(await relay.request(caller, "voices", { kind: "voices", session: "idle" })).toMatchObject({
+    errorName: "AbortError",
+  });
+});

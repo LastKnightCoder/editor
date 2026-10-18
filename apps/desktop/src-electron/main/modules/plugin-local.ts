@@ -92,6 +92,11 @@ export default {
     ipcMain.handle("plugin-local:tts-release", (event, session: string) =>
       pluginTTSRelay.release(event.sender.id, session)
     );
+    ipcMain.handle(
+      "plugin-local:tts-closed",
+      (event, message: { session: string; hostSession: string }) =>
+        pluginTTSRelay.rendererClosed(event.sender.id, message.hostSession, message.session)
+    );
     ipcMain.handle("plugin-local:tts-request", (event, id: string, request: TTSRendererRequest) =>
       pluginTTSRelay.request(event.sender, id, request)
     );
