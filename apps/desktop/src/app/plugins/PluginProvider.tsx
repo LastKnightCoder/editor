@@ -12,12 +12,14 @@ import { themePlugin } from "./builtin/themePlugin";
 import { createDesktopExcerpts } from "./excerpts";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
+import { connectSyncRenderer } from "./sync-bridge";
 
 const restartRequired = new Set<string>();
 const reloadCounts = new Map<string, number>();
 let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
+  useEffect(connectSyncRenderer, []);
   const { navigator } = usePage();
   const workspaceId = useSettingStore(state => state.setting.database.active);
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);

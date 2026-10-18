@@ -1,6 +1,11 @@
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
 import { assertLocalId } from "./ids";
+import type { Disposable } from "./contract";
+
+export interface PluginSync {
+  register(definition: SyncProviderDefinition): Disposable;
+}
 
 export interface RemoteFileInfo {
   name: string;

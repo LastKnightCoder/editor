@@ -48,7 +48,7 @@ afterEach(async () => {
 const invoke = (name: string, ...args: unknown[]) => {
   const fn = mock.handlers.get(name);
   if (!fn) throw new Error("缺少处理器");
-  return fn({}, ...args);
+  return fn({ sender: { id: 42 } }, ...args);
 };
 it("资源计划复用插件的列表/上传/下载，任务结束释放，状态文件不保存配置密钥", async () => {
   await writeFile(path.join(mock.root, "resources/local.png"), new Uint8Array([1]));
@@ -60,11 +60,11 @@ it("资源计划复用插件的列表/上传/下载，任务结束释放，状�
   });
   expect(await invoke("resource-sync:start", options)).toMatchObject({ ok: true });
   expect(await readFile(path.join(mock.root, "resources/remote.png"))).toEqual(Buffer.from([2]));
-  expect(mock.call).toHaveBeenCalledWith(0, "session", "uploadFile", [
+  expect(mock.call).toHaveBeenCalledWith(42, "session", "uploadFile", [
     "resources/local.png",
     Buffer.from([1]),
   ]);
-  expect(mock.end).toHaveBeenCalledWith(0, "session");
+  expect(mock.end).toHaveBeenCalledWith(42, "session");
   const jsonFiles: string[] = [];
   const walk = async (root: string) => {
     for (const entry of await readdir(root, { withFileTypes: true })) {
@@ -90,5 +90,17 @@ it("刷新期间不允许另一同步覆盖计划，刷新完成释放会话", a
   expect(await invoke("resource-sync:start", options)).toMatchObject({ ok: false });
   finish();
   await refreshing;
-  expect(mock.end).toHaveBeenCalledWith(0, "session");
+  expect(mock.end).toHaveBeenCalledWith(42, "session");
+});
+
+it("渲染进程断开后取消资源任务，不把失效的插件操作反复重试", async () => {
+  await writeFile(path.join(mock.root, "resources/local.png"), new Uint8Array([1]));
+  mock.call.mockImplementation(async (_owner, _session, method) => {
+    if (method === "listFiles") return [];
+    throw new DOMException("同步渲染进程已断开", "AbortError");
+  });
+  await invoke("resource-sync:start", options);
+  expect(await invoke("resource-sync:get-progress")).toMatchObject({ status: "cancelled" });
+  expect(mock.call.mock.calls.filter(call => call[2] === "uploadFile")).toHaveLength(1);
+  expect(mock.end).toHaveBeenCalledWith(42, "session");
 });

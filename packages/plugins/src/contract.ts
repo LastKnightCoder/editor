@@ -7,6 +7,7 @@ import type { PluginEditor } from "./editor";
 import type { PluginEditorExtension } from "./editor";
 import type { MarkdownCodec } from "@tau/markdown";
 import type { PluginSettings } from "./settings";
+import type { PluginSync } from "./sync";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 
@@ -39,6 +40,7 @@ export interface PluginContext {
   readonly pages: PluginPages;
   readonly editor: PluginEditor;
   readonly settings: PluginSettings;
+  readonly sync: PluginSync;
   readonly sidebar: PluginSidebar;
   readonly excerpts: PluginExcerpts;
   readonly materials: PluginMaterials;

@@ -46,7 +46,7 @@ function zip(
   return file.toBuffer();
 }
 describe("包资料与站内反馈", () => {
-  it("发布包校验覆盖同步后台入口，不执行入口代码", async () => {
+  it("发布包拒绝已撤回的Node同步入口", async () => {
     const archive = new AdmZip(zip());
     const manifest = JSON.parse(
       archive.getEntry("test.reader/manifest.json")!.getData().toString("utf8")
@@ -67,7 +67,7 @@ describe("包资料与站内反馈", () => {
     );
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
     archive.addFile("test.reader/sync.js", Buffer.from(code));
-    await expect(inspectPackage(archive.toBuffer())).resolves.toBeDefined();
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("Node同步入口已停用");
     archive.updateFile("test.reader/sync.js", Buffer.from("changed"));
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
   });

@@ -61,7 +61,7 @@ export async function buildPluginDistribution(distribution: string, destination?
     if (manifest.id !== entry.id || manifest.version !== entry.version)
       throw new Error("固定插件身份或版本不匹配");
     if (
-      (entry.bundled !== false && !isContentPlugin(manifest) && !manifest.sync) ||
+      (entry.bundled !== false && entry.bundled !== true && !isContentPlugin(manifest)) ||
       ids.has(manifest.id)
     )
       throw new Error("分发插件重复或没有随应用提供的内容或同步入口");
@@ -72,7 +72,6 @@ export async function buildPluginDistribution(distribution: string, destination?
         throw new Error(`插件产物摘要不匹配：${manifest.id}/${file}`);
       return data;
     };
-    if (manifest.sync) await read(manifest.sync);
     packages.push({
       manifest,
       code: await read(manifest.main),

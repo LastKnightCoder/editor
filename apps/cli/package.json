@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@tau/plugins": "workspace:*",
     "@tau/db-schema": "workspace:*",
-    "ali-oss": "^6.21.0",
     "better-sqlite3": "^12.10.0",
     "commander": "^13.0.0",
     "ink": "^6.8.0",
@@ -15,11 +13,9 @@
     "react": "^19.1.0",
     "shiki": "^3.22.0",
     "sqlite-vec": "0.1.7-alpha.2",
-    "webdav": "^5.8.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "@types/ali-oss": "^6.16.11",
     "@types/better-sqlite3": "^7.6.12",
     "@types/react": "^19.1.0",
     "@types/ws": "^8.5.13",

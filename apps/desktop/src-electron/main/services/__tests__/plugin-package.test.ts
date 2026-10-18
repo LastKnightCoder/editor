@@ -34,7 +34,7 @@ async function fixture(overrides = {}) {
 }
 
 describe("开发插件包读取", () => {
-  it("后台同步入口在扫描时只校验不执行，缺失或摘要变化拒绝安装", async () => {
+  it("旧Node同步入口明确拒绝，不能静默执行或忽略", async () => {
     const directory = await fixture();
     const manifestPath = path.join(directory, "manifest.json");
     const { readFile } = await import("node:fs/promises");
@@ -53,9 +53,9 @@ describe("开发插件包读取", () => {
     );
     await expect(readPluginPackage(directory)).rejects.toThrow();
     await writeFile(path.join(directory, "sync.js"), sync);
-    expect((await readPluginPackage(directory)).manifest.sync).toBe("sync.js");
+    await expect(readPluginPackage(directory)).rejects.toThrow("Node同步入口已停用");
     await writeFile(path.join(directory, "sync.js"), "changed");
-    await expect(readPluginPackage(directory)).rejects.toThrow("不完整");
+    await expect(readPluginPackage(directory)).rejects.toThrow("Node同步入口已停用");
   });
   it("检查产物后返回快照，读取不执行 JS", async () => {
     const result = await readPluginPackage(await fixture());

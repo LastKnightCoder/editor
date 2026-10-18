@@ -11,10 +11,10 @@ if (
   !archive ||
   !/^[a-f0-9]{40}$/.test(sourceRevision ?? "") ||
   !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(repository ?? "") ||
-  (mode && mode !== "--not-bundled")
+  (mode && !["--not-bundled", "--bundled"].includes(mode))
 )
   throw new Error(
-    "用法：node scripts/plugins/pin-distribution.mjs <插件 ZIP> <作者完整提交 SHA> <GitHub 仓库 URL> [--not-bundled]"
+    "用法：node scripts/plugins/pin-distribution.mjs <插件 ZIP> <作者完整提交 SHA> <GitHub 仓库 URL> [--bundled|--not-bundled]"
   );
 const root = path.resolve(import.meta.dirname, "../../plugins");
 const config = path.join(root, "distribution.json");
@@ -25,8 +25,7 @@ const entries = new AdmZip(content).getEntries().filter(entry => !entry.isDirect
 const manifestEntry = entries.find(entry => /(^|\/)manifest\.json$/.test(entry.entryName));
 if (!manifestEntry) throw new Error("ZIP 缺少 manifest.json");
 const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
-if (!isContentPlugin(manifest) && !manifest.sync && mode !== "--not-bundled")
-  throw new Error("普通插件须显式声明 --not-bundled");
+if (!isContentPlugin(manifest) && !mode) throw new Error("普通插件须显式选择是否随应用分发");
 const prefix = manifestEntry.entryName.slice(0, -"manifest.json".length);
 for (const entry of entries) {
   const name = entry.entryName.slice(prefix.length);
@@ -45,6 +44,7 @@ const artifact = `releases/${manifest.id}/${manifest.version}`;
 const release = {
   repository,
   ...(mode === "--not-bundled" ? { bundled: false } : {}),
+  ...(mode === "--bundled" ? { bundled: true } : {}),
   artifact,
   id: manifest.id,
   version: manifest.version,

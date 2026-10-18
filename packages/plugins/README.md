@@ -1,5 +1,7 @@
 # 应用插件契约与开发宿主
 
+同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55。
+
 本包提供应用插件 API 和生命周期，当前统一按完整宿主权限在同一环境运行，用于内置插件和本地开发流程，不划分可信/受限产品档位。registerTrusted 是保留的宿主方法名。第三方生产安装仍待实现；权限界面、沙箱和安全体系后续统一设计，见 PS-031。
 
 ## 入口

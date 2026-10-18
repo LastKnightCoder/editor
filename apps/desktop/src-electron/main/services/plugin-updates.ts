@@ -7,7 +7,7 @@ import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local"
 
 type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
 import { readPluginPackage } from "./plugin-package";
-import { withPluginSyncMutation } from "@tau/plugins/sync-leases";
+import { pluginSyncSessions } from "./plugin-sync";
 
 interface UpdateRecord {
   id: string;
@@ -135,7 +135,7 @@ export class PluginUpdates {
       await this.setup();
       for (const id of await this.folders("transactions")) {
         try {
-          await withPluginSyncMutation(this.directory, id, () =>
+          await pluginSyncSessions.protect(id, () =>
             this.recover(id, this.location("transactions", id))
           );
         } catch (error) {
@@ -143,40 +143,42 @@ export class PluginUpdates {
         }
       }
       for (const id of await this.folders("pending")) {
-        await withPluginSyncMutation(this.directory, id, async () => {
-          const pending = this.location("pending", id);
-          const transaction = this.location("transactions", id);
-          try {
-            if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
-            const record = await this.record(pending, id);
-            const artifact = await readPluginPackage(
-              path.join(pending, "package"),
-              this.clientVersion
-            );
-            if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
-            if ((await this.fingerprint(id)) !== record.baseline)
-              throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
-            await rename(pending, transaction);
-            await this.saveRecord(transaction, { ...record, phase: "prepared" });
-            if (record.baseline !== null)
-              await rename(path.join(this.directory, id), path.join(transaction, "previous"));
-            await rename(path.join(transaction, "package"), path.join(this.directory, id));
-            await readPluginPackage(path.join(this.directory, id), this.clientVersion);
-            await this.saveRecord(transaction, { ...record, phase: "committed" });
-            await this.finish(id, transaction);
-          } catch (error) {
-            if (await exists(transaction)) {
-              try {
-                await this.recover(id, transaction);
-              } catch (recoveryError) {
-                await this.error(id, recoveryError);
-                return;
+        await pluginSyncSessions
+          .protect(id, async () => {
+            const pending = this.location("pending", id);
+            const transaction = this.location("transactions", id);
+            try {
+              if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
+              const record = await this.record(pending, id);
+              const artifact = await readPluginPackage(
+                path.join(pending, "package"),
+                this.clientVersion
+              );
+              if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
+              if ((await this.fingerprint(id)) !== record.baseline)
+                throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
+              await rename(pending, transaction);
+              await this.saveRecord(transaction, { ...record, phase: "prepared" });
+              if (record.baseline !== null)
+                await rename(path.join(this.directory, id), path.join(transaction, "previous"));
+              await rename(path.join(transaction, "package"), path.join(this.directory, id));
+              await readPluginPackage(path.join(this.directory, id), this.clientVersion);
+              await this.saveRecord(transaction, { ...record, phase: "committed" });
+              await this.finish(id, transaction);
+            } catch (error) {
+              if (await exists(transaction)) {
+                try {
+                  await this.recover(id, transaction);
+                } catch (recoveryError) {
+                  await this.error(id, recoveryError);
+                  return;
+                }
               }
+              await rm(pending, { recursive: true, force: true });
+              await this.error(id, error);
             }
-            await rm(pending, { recursive: true, force: true });
-            await this.error(id, error);
-          }
-        }).catch(error => this.error(id, error));
+          })
+          .catch(error => this.error(id, error));
       }
     });
   }
@@ -189,9 +191,10 @@ export class PluginUpdates {
       throw new Error("该插件已有待处理更新，请先取消或重启");
     const baseline = await this.fingerprint(id);
     if (baseline !== null && !restore) {
-      const current = validatePluginManifest(
-        JSON.parse(await readFile(path.join(this.directory, id, "manifest.json"), "utf8"))
+      const current = JSON.parse(
+        await readFile(path.join(this.directory, id, "manifest.json"), "utf8")
       );
+      if (current.id !== id) throw new Error("当前插件身份与目录不一致");
       if (comparePluginVersions(artifact.manifest.version, current.version) <= 0)
         throw new Error("更新版本必须高于当前版本；降级请使用恢复上一版");
     }
@@ -210,6 +213,13 @@ export class PluginUpdates {
   }
   stageZip(file: string) {
     return this.serial(async () => this.stageArchive(await readFile(file), { kind: "zip" }));
+  }
+  /** 仅供随应用分发的已校验目录升级，仍走同一安装事务。 */
+  stageBundledPackage(directory: string) {
+    return this.serial(async () => {
+      await this.setup();
+      return this.queue(directory, false);
+    });
   }
   /** 来自插件中心的包：调用方已按发布记录核对大小与 SHA-256。 */
   stageRelease(bytes: Buffer, source: CenterSource) {
@@ -252,7 +262,6 @@ export class PluginUpdates {
       [
         "manifest.json",
         manifest.main,
-        ...(manifest.sync ? [manifest.sync] : []),
         ...(manifest.styles ? [manifest.styles] : []),
         ...DOCUMENT_FILES,
       ].map(name => manifest.id + "/" + name)

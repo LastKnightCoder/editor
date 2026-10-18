@@ -1,8 +1,4 @@
 import { build, context } from "esbuild";
-import { readFileSync } from "node:fs";
-const clientVersion = JSON.parse(
-  readFileSync(new URL("../desktop/package.json", import.meta.url), "utf8")
-).version;
 
 const isWatch = process.argv.includes("--watch");
 
@@ -37,7 +33,6 @@ const nativeRequirePlugin = {
 };
 
 const config = {
-  define: { __TAU_CLIENT_VERSION__: JSON.stringify(clientVersion) },
   entryPoints: ["src/index.tsx"],
   bundle: true,
   platform: "node",

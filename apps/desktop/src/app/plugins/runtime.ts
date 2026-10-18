@@ -1,3 +1,4 @@
+import { rendererSyncRegistry } from "./sync-registry";
 import type {
   PluginContext,
   PluginServices,
@@ -123,6 +124,7 @@ export class DesktopPluginRuntime {
   ) {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
+      sync: rendererSyncRegistry,
       storage: options.storage,
       fetch: options.fetch,
       services: options.services,

@@ -20,9 +20,6 @@ import {
   showOrCreateMainWindow,
 } from "./windows";
 import databaseModule, { type DatabaseReconnectSource } from "./modules/database";
-import PiSessionHostModule from "./modules/pi-session-host";
-import mainContentIndexDBManager from "./modules/main-content-index-db";
-import { registerCliSyncHandlers } from "./modules/cli-sync";
 import trayModule from "./modules/tray";
 import recentProjectsModule from "./modules/recent-projects";
 import PathUtil from "./utils/PathUtil";
@@ -199,20 +196,6 @@ if (!gotTheLock) {
 
           // 创建 WebSocket 服务器并初始化依赖模块
           const backendServer = new BackendWebSocketServer(RPC_SERVER_PORT);
-          registerCliSyncHandlers(backendServer, {
-            appDir: PathUtil.getAppDir(),
-            acquireSessions: name => PiSessionHostModule.acquireLibrary(name, true),
-            closeDatabase: name => {
-              const db = databaseModule.getDatabase(name);
-              if (db && !databaseModule.forceCheckpoint(name))
-                throw new Error("数据库仍有未完成的写入，不能同步");
-              db?.close();
-              databaseModule.databases.delete(name);
-              mainContentIndexDBManager.closeDatabase(name);
-            },
-            reconnect: (name, source) => databaseModule.reconnectForSync(name, source),
-            saveVersion: (name, version) => userSettingModule.updateSyncVersion(name, version),
-          });
           backendServer.addMessageHandler(
             "todo:broadcast-mutation",
             async (message: RpcRequestMessage) => {
