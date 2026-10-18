@@ -3,24 +3,6 @@
  * 定义统一的 TTS 服务接口，支持多个提供商
  */
 
-export enum ETTSProvider {
-  Minimax = "minimax",
-  Qwen = "qwen",
-}
-
-/**
- * TTS 服务商配置（对齐 LLMProviderSetting 的多实例模式）
- */
-export interface LegacyTTSProviderSetting {
-  id: string;
-  name: string;
-  providerType: ETTSProvider;
-  /** 服务地址覆盖；空则用 providerType 对应的官方默认域名 */
-  baseUrl?: string;
-  apiKey: string;
-  models: TTSModelSetting[];
-}
-
 export interface PluginTTSProviderSetting {
   id: string;
   name: string;
@@ -28,11 +10,8 @@ export interface PluginTTSProviderSetting {
   config: unknown;
   models: TTSModelSetting[];
 }
-export type TTSProviderSetting = LegacyTTSProviderSetting | PluginTTSProviderSetting;
-export type TTSProviderDraft =
-  Omit<LegacyTTSProviderSetting, "id"> | Omit<PluginTTSProviderSetting, "id">;
-export const isPluginTTS = (value: TTSProviderSetting): value is PluginTTSProviderSetting =>
-  "pluginId" in value;
+export type TTSProviderSetting = PluginTTSProviderSetting;
+export type TTSProviderDraft = Omit<TTSProviderSetting, "id">;
 
 /** 请求体里的模型条目：id 即 API 的 model 名，provider 内唯一 */
 export interface TTSModelSetting {

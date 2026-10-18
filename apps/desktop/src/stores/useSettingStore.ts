@@ -4,11 +4,8 @@ import { merge } from "lodash";
 import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
 
 import { EGithubCDN } from "@/constants/github";
-import { ETTSProvider, isPluginTTS } from "@/types/tts";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
-import { MINIMAX_SPEECH_MODELS, MINIMAX_DEFAULT_SPEECH_MODEL } from "@/utils/tts/minimaxSpeech";
 import type { EmbeddingProviderType } from "@/types/embedding";
-import type { MinimaxSpeechModel } from "@/types/minimax";
 import type { IPublishFaviconConfig } from "@/types/publish";
 import {
   DEFAULT_OPENAI_IMAGE_BASE_URL,
@@ -60,44 +57,6 @@ const normalizeImageGenerationConfig = (setting: Partial<ISetting>): void => {
   }
 };
 
-/** legacy TTS 配置（integration.minimax + integration.podcastTTS）一次性迁移为 ttsProviders 多服务商模式 */
-const migrateTTSProviders = (setting: ISetting): void => {
-  if (setting.misc.tts?.providersMigrated) {
-    return;
-  }
-  setting.misc.tts = {
-    ...(setting.misc.tts ?? { providersMigrated: false }),
-    providersMigrated: true,
-  };
-  const legacyMinimax = setting.integration?.minimax;
-  const legacyPodcastTTS = setting.integration?.podcastTTS;
-  if (setting.ttsProviders.length > 0 || !legacyMinimax?.apiKey?.trim()) {
-    return;
-  }
-  const modelId = legacyPodcastTTS?.minimaxModel || MINIMAX_DEFAULT_SPEECH_MODEL;
-  setting.ttsProviders = [
-    {
-      id: "minimax-legacy",
-      name: "Minimax",
-      providerType: ETTSProvider.Minimax,
-      apiKey: legacyMinimax.apiKey.trim(),
-      models: [modelId, ...MINIMAX_SPEECH_MODELS.filter(model => model !== modelId)].map(id => ({
-        id,
-      })),
-    },
-  ];
-  setting.ttsUsageSettings.default = {
-    providerId: "minimax-legacy",
-    modelId,
-    voiceId: legacyPodcastTTS?.currentVoiceId ?? "",
-  };
-};
-
-/**
- * TTS 配置一致性修复（对齐 normalizeImageGenerationConfig）：当前用法指向
- * 已不存在的服务商/模型时回落，避免手工编辑 setting.json 或旧同步快照恢复后
- * 悬空指向静默失效（用户只看到"请先配置"而无自愈）。
- */
 const normalizeTTSUsageConfig = (setting: ISetting): void => {
   setting.ttsProviders = Array.isArray(setting.ttsProviders)
     ? setting.ttsProviders
@@ -108,21 +67,6 @@ const normalizeTTSUsageConfig = (setting: ISetting): void => {
           models: Array.isArray(provider.models) ? provider.models : [],
         }))
     : [];
-  const usage = setting.ttsUsageSettings.default;
-  if (!usage) {
-    return;
-  }
-  const provider = setting.ttsProviders.find(item => item.id === usage.providerId);
-  if (!provider || !provider.models.some(model => model.id === usage.modelId)) {
-    const fallback = provider ?? setting.ttsProviders.find(item => item.models.length > 0);
-    setting.ttsUsageSettings.default = fallback
-      ? {
-          providerId: fallback.id,
-          modelId: fallback.models[0]?.id ?? "",
-          voiceId: "",
-        }
-      : null;
-  }
 };
 
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
@@ -141,7 +85,6 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   }
   normalizeImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
-  migrateTTSProviders(mergedSetting);
   normalizeTTSUsageConfig(mergedSetting);
   return mergedSetting;
 };
@@ -267,13 +210,6 @@ export interface ISetting {
       enabled: boolean;
       proxy: string;
     };
-    minimax: {
-      enabled: boolean;
-      apiKey: string;
-      userInfo: {
-        isConnected: boolean;
-      };
-    };
     github: {
       enabled: boolean;
       token: string;
@@ -288,11 +224,6 @@ export interface ISetting {
       secretAccessKey: string;
       endpoint: string;
       urlStyle: "path" | "virtualHosted";
-    };
-    podcastTTS: {
-      active: ETTSProvider;
-      minimaxModel: MinimaxSpeechModel;
-      currentVoiceId: string;
     };
   };
   misc: {
@@ -312,10 +243,6 @@ export interface ISetting {
       segmentationLevel: "word" | "sentence";
       useLLMOptimization: boolean;
       enableLongVideoSegmentation: boolean; // 启用长视频分段转录（>30分钟）
-    };
-    tts: {
-      /** legacy podcastTTS/minimax 配置是否已一次性迁移到 ttsProviders */
-      providersMigrated: boolean;
     };
     update: {
       autoCheck: boolean;
@@ -374,8 +301,6 @@ interface IActions {
   setBilibiliEnabled: (enabled: boolean) => void;
   setYoutubeEnabled: (enabled: boolean) => void;
   updateYoutubeProxy: (proxy: string) => void;
-  updateMinimaxApiKey: (apiKey: string) => void;
-  setMinimaxEnabled: (enabled: boolean) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -562,13 +487,6 @@ const initialState: IState = {
         enabled: false,
         proxy: "",
       },
-      minimax: {
-        enabled: false,
-        apiKey: "",
-        userInfo: {
-          isConnected: false,
-        },
-      },
       github: {
         enabled: false,
         token: "",
@@ -584,18 +502,10 @@ const initialState: IState = {
         endpoint: "",
         urlStyle: "path",
       },
-      podcastTTS: {
-        active: ETTSProvider.Minimax,
-        minimaxModel: MINIMAX_DEFAULT_SPEECH_MODEL,
-        currentVoiceId: "",
-      },
     },
     misc: {
       webClip: {
         translateToChinese: false,
-      },
-      tts: {
-        providersMigrated: false,
       },
       video: {
         autoCacheRemote: true,
@@ -798,43 +708,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.integration.youtube.proxy = proxy;
-      }),
-    });
-  },
-  updateMinimaxApiKey: apiKey => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.minimax.apiKey = apiKey;
-        // 「账号与连接」的 Minimax 凭据与 ttsProviders 同步；若无 Minimax 实例
-        // （迁移标记之后才在集成页连接的用户）则补建一个，避免"集成页已连接、
-        // TTS 却提示未配置"的死胡同
-        const minimaxProviders = draft.ttsProviders.filter(
-          provider => !isPluginTTS(provider) && provider.providerType === ETTSProvider.Minimax
-        );
-        if (minimaxProviders.length === 0) {
-          if (apiKey.trim()) {
-            draft.ttsProviders.push({
-              id: `minimax-${Date.now().toString(36)}`,
-              name: "Minimax",
-              providerType: ETTSProvider.Minimax,
-              apiKey,
-              models: MINIMAX_SPEECH_MODELS.map(id => ({ id })),
-            });
-          }
-          return;
-        }
-        for (const provider of minimaxProviders) {
-          if (!isPluginTTS(provider)) provider.apiKey = apiKey;
-        }
-      }),
-    });
-  },
-  setMinimaxEnabled: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.minimax.enabled = enabled;
       }),
     });
   },

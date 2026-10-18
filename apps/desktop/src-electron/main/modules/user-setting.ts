@@ -7,6 +7,7 @@ import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
 import { migrateSyncPluginSettings } from "../services/sync-settings-migration";
 import { migrateUploadSettings } from "../services/upload-settings-migration";
+import { migrateTTSSettings } from "../services/tts-settings-migration";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -158,6 +159,11 @@ class UserSettingModule {
         )
         .then(setting =>
           migrateUploadSettings(setting, PathUtil.getAppDir(), next =>
+            this.saveSetting(JSON.stringify(next, null, 2))
+          )
+        )
+        .then(setting =>
+          migrateTTSSettings(setting, PathUtil.getAppDir(), next =>
             this.saveSetting(JSON.stringify(next, null, 2))
           )
         )

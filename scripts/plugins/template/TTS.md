@@ -1,6 +1,6 @@
-# 语音提供方（SDK 0.13.0 草案）
+# 语音提供方
 
-本契约处于M1验收阶段，尚未发布到npm；以包含该能力的Tau客户端为运行宿主。
+需要 SDK 0.13.0 和包含语音插件能力的 Tau 0.59.0 客户端。
 
 在activate中调用context.tts.register({id: context.pluginId, name, create})。create(config, modelId)同步创建任务实例，固定该账号配置和模型，不发送网络请求。每个插件可对应多个用户账号，不能用插件全局变量保存“当前API Key”。
 

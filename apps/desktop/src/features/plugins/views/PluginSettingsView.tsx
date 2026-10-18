@@ -21,7 +21,7 @@ export function PluginSettingsView({
     return (
       <Panel>
         <p className="text-tau-body text-ink-2">
-          插件设置暂不可用。插件可能已停用或分区已注销，重新启用后可恢复；已保存的设置仍然保留。
+          插件设置暂不可用。请到插件中心确认已安装并启用对应插件；已保存的设置仍然保留。
         </p>
       </Panel>
     );
