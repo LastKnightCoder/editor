@@ -26,7 +26,6 @@ export enum EImageBed {
 
 export enum ESync {
   Plugin = "plugin",
-  Github = "github",
 }
 
 export enum EPublishProvider {
@@ -194,11 +193,6 @@ export interface ISetting {
     version: number;
     autoSyncEnabled: boolean;
     plugin?: { id: string; configurations: Record<string, unknown> };
-    github: {
-      repo: string;
-      branch: string;
-      pathPrefix: string;
-    };
   };
   database: {
     active: string;
@@ -545,11 +539,6 @@ const initialState: IState = {
       active: ESync.Plugin,
       version: 1,
       autoSyncEnabled: false,
-      github: {
-        repo: "",
-        branch: "",
-        pathPrefix: "",
-      },
     },
     database: {
       active: "data.db",

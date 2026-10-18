@@ -43,28 +43,18 @@ export interface IRateLimitConfig {
   retryBackoffMultiplier: number;
 }
 
-export type ResourceSyncProvider = "github" | "plugin";
+export type ResourceSyncProvider = "plugin";
 
 interface BaseResourceSyncOptions {
   provider: ResourceSyncProvider;
   rateLimit?: Partial<IRateLimitConfig>;
 }
 
-export interface GithubResourceSyncOptions extends BaseResourceSyncOptions {
-  provider: "github";
-  token: string;
-  repo: string;
-  branch: string;
-  pathPrefix?: string;
-  user: {
-    name: string;
-    email: string;
-  };
-}
-
-export type ResourceSyncOptions =
-  | (BaseResourceSyncOptions & { provider: "plugin"; pluginId: string; config: unknown })
-  | GithubResourceSyncOptions;
+export type ResourceSyncOptions = BaseResourceSyncOptions & {
+  provider: "plugin";
+  pluginId: string;
+  config: unknown;
+};
 
 export const RATE_LIMIT_CONFIGS: Record<string, IRateLimitConfig> = {
   plugin: {
@@ -73,13 +63,6 @@ export const RATE_LIMIT_CONFIGS: Record<string, IRateLimitConfig> = {
     retryCount: 3,
     retryDelayMs: 1000,
     retryBackoffMultiplier: 2,
-  },
-  github: {
-    maxConcurrent: 1,
-    requestsPerSecond: 0.5,
-    retryCount: 5,
-    retryDelayMs: 5000,
-    retryBackoffMultiplier: 3,
   },
 };
 

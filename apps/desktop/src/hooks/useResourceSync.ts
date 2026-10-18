@@ -28,7 +28,6 @@ const emptyProgress: IResourceSyncProgress = {
 const useResourceSync = () => {
   const client = useBackendWebsocketStore(state => state.client);
   const syncConfig = useSettingStore(state => state.setting.sync);
-  const integrationConfig = useSettingStore(state => state.setting.integration);
   const [progress, setProgress] = useState<IResourceSyncProgress>(emptyProgress);
   const [statusFile, setStatusFile] = useState<ISyncStatusFile | null>(null);
 
@@ -43,39 +42,6 @@ const useResourceSync = () => {
               config: syncConfig.plugin.configurations[syncConfig.plugin.id],
             }
           : null;
-      case ESync.Github: {
-        const { token, user } = integrationConfig.github;
-        const { repo, branch, pathPrefix } = syncConfig.github;
-        if (!token || !repo || !branch || !user.name) {
-          return null;
-        }
-        return {
-          provider: "github",
-          token,
-          repo,
-          branch,
-          pathPrefix,
-          user,
-        };
-      }
-      default:
-        return null;
-    }
-  });
-
-  const buildLooseOptions = useMemoizedFn((): ResourceSyncOptions | null => {
-    switch (syncConfig.active) {
-      case ESync.Plugin:
-        return buildOptions();
-      case ESync.Github:
-        return {
-          provider: "github",
-          token: integrationConfig.github.token || "",
-          repo: syncConfig.github.repo || "",
-          branch: syncConfig.github.branch || "",
-          pathPrefix: syncConfig.github.pathPrefix || "",
-          user: integrationConfig.github.user,
-        };
       default:
         return null;
     }
@@ -93,8 +59,7 @@ const useResourceSync = () => {
   });
 
   const refreshStatuses = useMemoizedFn(async (optionsArg?: ResourceSyncOptions | null) => {
-    const strictOptions = optionsArg ?? buildOptions();
-    const options = strictOptions ?? buildLooseOptions();
+    const options = optionsArg ?? buildOptions();
     try {
       const data = await refreshResourceSyncStatuses(options || undefined);
       setStatusFile(data);
@@ -110,7 +75,7 @@ const useResourceSync = () => {
   });
 
   useEffect(() => {
-    const options = buildOptions() || buildLooseOptions();
+    const options = buildOptions();
     if (!options) {
       setStatusFile(null);
       setProgress(emptyProgress);
@@ -118,7 +83,7 @@ const useResourceSync = () => {
     }
     refreshProgress();
     refreshStatuses(options);
-  }, [syncConfig, integrationConfig, refreshProgress, refreshStatuses, buildOptions]);
+  }, [syncConfig, refreshProgress, refreshStatuses, buildOptions]);
 
   useEffect(() => {
     if (!client) return;

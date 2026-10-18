@@ -21,11 +21,6 @@ vi.mock("../database", () => ({ default: { getCurrentDatabase: () => null } }));
 vi.mock("../../services/plugin-sync", () => ({
   pluginSyncSessions: { begin: mock.begin, call: mock.call, end: mock.end },
 }));
-vi.mock("@/utils/github", () => ({
-  downloadFileFromGithub: vi.fn(),
-  listGithubFiles: vi.fn(),
-  uploadFileToGithub: vi.fn(),
-}));
 const options = {
   provider: "plugin",
   pluginId: "test.sync",

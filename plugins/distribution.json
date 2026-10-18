@@ -92,5 +92,20 @@
       "manifest.json": "121062bd4c30f2bddc81dfc03b07dcc8df09b68ee47e74395bf5cdc6f86a8c9b",
       "README.md": "700e1ab532aa4e18336d8f85169a46fb6745366eb301b7473d0d3ddd1003411a"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-github",
+    "bundled": true,
+    "artifact": "releases/tau.sync-github/0.1.0",
+    "id": "tau.sync-github",
+    "version": "0.1.0",
+    "sourceRevision": "da7171a21ac5ee47923e339b447cbc4c6f8b12b9",
+    "archiveSha256": "35cfd61ba861e2ed86b76da19e0f7537fe55a2c3727058f880ad5abc83e80b1d",
+    "files": {
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.js": "321d0a8d75075e0ccd3b062b1688c8d21de6cefc644f6332e6e300db96645e50",
+      "manifest.json": "ba867c0e05bf473d034d660f08f33552d49eb1dd9f6cd9dbb10d2cb5ce91e247",
+      "README.md": "7df6e68c4b619a7b23600de70aa18b421f8ba63973c7ac5dffb866f5b51bc9d9"
+    }
   }
 ]

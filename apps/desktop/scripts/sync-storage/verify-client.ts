@@ -19,6 +19,7 @@ import type { SyncProvider } from "@tau/plugins/sync";
 import { verifySignature } from "./verify-signature";
 import { verifyOssSignature } from "./verify-oss-signature";
 import { handleWebDavDirectory } from "./verify-webdav";
+import { handleGithubContents } from "./verify-github";
 
 async function main() {
   const [phase, sandbox, archive, previousArchive] = process.argv.slice(2);
@@ -33,11 +34,12 @@ async function main() {
     .find(entry => entry.entryName.endsWith("/manifest.json"));
   if (!manifestEntry) throw new Error("缺少manifest");
   const id: string = JSON.parse(manifestEntry.getData().toString()).id;
-  if (!["tau.sync-s3", "tau.sync-oss", "tau.sync-webdav"].includes(id))
+  if (!["tau.sync-s3", "tau.sync-oss", "tau.sync-webdav", "tau.sync-github"].includes(id))
     throw new Error("验收脚本不支持该插件");
   const oss = id === "tau.sync-oss";
   const webdav = id === "tau.sync-webdav";
-  const legacyKey = webdav ? "webdav" : oss ? "aliOSS" : "s3";
+  const github = id === "tau.sync-github";
+  const legacyKey = github ? "github" : webdav ? "webdav" : oss ? "aliOSS" : "s3";
   let bucketVersioning = "";
   let window: BrowserWindow | undefined;
   const objects = new Map<string, Buffer>();
@@ -55,12 +57,14 @@ async function main() {
       res.end();
     };
     if (
-      !(webdav
-        ? req.headers.authorization ===
-          "Basic " + Buffer.from("test-only:test-only").toString("base64")
-        : oss
-          ? verifyOssSignature(req, "bucket", "test-only")
-          : verifySignature(req, "test-only"))
+      !(github
+        ? req.headers.authorization === "token test-only"
+        : webdav
+          ? req.headers.authorization ===
+            "Basic " + Buffer.from("test-only:test-only").toString("base64")
+          : oss
+            ? verifyOssSignature(req, "bucket", "test-only")
+            : verifySignature(req, "test-only"))
     )
       return fail(403);
     if (oss && url.searchParams.has("versioning")) {
@@ -75,6 +79,12 @@ async function main() {
       blocked();
       return;
     }
+    if (github)
+      return handleGithubContents(req, res, objects, () => {
+        const lose = loseConditionalResponse;
+        loseConditionalResponse = false;
+        return lose;
+      });
     if (webdav && handleWebDavDirectory(req, res, objects, directories)) return;
     if (req.method === "PUT") {
       const chunks: Buffer[] = [];
@@ -106,30 +116,38 @@ async function main() {
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("测试服务器未启动");
     const endpoint = "http://127.0.0.1:" + address.port;
-    const config = webdav
+    const config = github
       ? {
-          url: endpoint + "/dav",
-          username: "test-only",
-          password: "test-only",
+          token: "test-only",
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "main",
           pathPrefix: "isolated",
         }
-      : oss
+      : webdav
         ? {
-            bucket: "bucket",
-            region: "oss-cn-hangzhou",
-            path: "isolated",
-            accessKeyId: "test-only",
-            accessKeySecret: "test-only",
-          }
-        : {
-            endpoint: "http://127.0.0.1:" + address.port,
-            bucket: "bucket",
-            region: "test-region",
+            url: endpoint + "/dav",
+            username: "test-only",
+            password: "test-only",
             pathPrefix: "isolated",
-            urlStyle: "path",
-            accessKeyId: "test-only",
-            secretAccessKey: "test-only",
-          };
+          }
+        : oss
+          ? {
+              bucket: "bucket",
+              region: "oss-cn-hangzhou",
+              path: "isolated",
+              accessKeyId: "test-only",
+              accessKeySecret: "test-only",
+            }
+          : {
+              endpoint: "http://127.0.0.1:" + address.port,
+              bucket: "bucket",
+              region: "test-region",
+              pathPrefix: "isolated",
+              urlStyle: "path",
+              accessKeyId: "test-only",
+              secretAccessKey: "test-only",
+            };
     if (phase === "migrate") {
       await mkdir(PathUtil.getAppDir(), { recursive: true });
       await writeFile(
@@ -138,23 +156,27 @@ async function main() {
           sync: {
             active: legacyKey,
             autoSyncEnabled: true,
-            [legacyKey]: webdav
-              ? { pathPrefix: config.pathPrefix }
-              : oss
-                ? { bucket: config.bucket, region: config.region, path: config.path }
-                : { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
+            [legacyKey]: github
+              ? { repo: config.repo, branch: config.branch, pathPrefix: config.pathPrefix }
+              : webdav
+                ? { pathPrefix: config.pathPrefix }
+                : oss
+                  ? { bucket: config.bucket, region: config.region, path: config.path }
+                  : { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
           },
           integration: {
-            [legacyKey]: webdav
-              ? { url: config.url, username: config.username, password: config.password }
-              : oss
-                ? { accessKeyId: config.accessKeyId, accessKeySecret: config.accessKeySecret }
-                : {
-                    endpoint: config.endpoint,
-                    accessKeyId: config.accessKeyId,
-                    secretAccessKey: config.secretAccessKey,
-                    urlStyle: config.urlStyle,
-                  },
+            [legacyKey]: github
+              ? { token: config.token, user: { name: config.owner, email: "test@example.test" } }
+              : webdav
+                ? { url: config.url, username: config.username, password: config.password }
+                : oss
+                  ? { accessKeyId: config.accessKeyId, accessKeySecret: config.accessKeySecret }
+                  : {
+                      endpoint: config.endpoint,
+                      accessKeyId: config.accessKeyId,
+                      secretAccessKey: config.secretAccessKey,
+                      urlStyle: config.urlStyle,
+                    },
           },
           database: { active: "data.db", databases: [{ name: "data.db", version: 7 }] },
         })
@@ -215,7 +237,7 @@ async function main() {
       "syncRendererTest.activate(" +
         JSON.stringify(installed.artifact) +
         "," +
-        JSON.stringify(oss ? endpoint : null) +
+        JSON.stringify(oss || github ? endpoint : null) +
         ")"
     );
     if (phase === "install") {
@@ -228,7 +250,8 @@ async function main() {
       );
       assert.equal(saved.sync.active, "plugin");
       assert.equal(saved.sync.plugin.id, id);
-      if (webdav) assert.equal(saved.sync.plugin.configurations[id].username, "test-only");
+      if (github) assert.equal(saved.sync.plugin.configurations[id].repo, "test-repo");
+      else if (webdav) assert.equal(saved.sync.plugin.configurations[id].username, "test-only");
       else assert.equal(saved.sync.plugin.configurations[id].bucket, "bucket");
       assert.equal(Object.hasOwn(saved.sync, legacyKey), false);
       if (phase === "migrate" || phase === "upgrade")
@@ -293,7 +316,7 @@ async function main() {
     await publishSnapshot(provider, "lost-response.json", { version: 0 }, next);
     assert.equal((await readSnapshotHead(provider, "lost-response.json")).version, 1);
     assert.deepEqual(await provider.downloadFile("data.db"), payload);
-    if (webdav) {
+    if (webdav || github) {
       assert.equal(await provider.createFileIfAbsent("conditional", payload), true);
       assert.equal(await provider.createFileIfAbsent("conditional", new Uint8Array([9])), false);
       assert.deepEqual(await provider.downloadFile("conditional"), payload);

@@ -2,13 +2,8 @@ import { ESync } from "@/stores/useSettingStore";
 import type { ISetting } from "@/stores/useSettingStore";
 
 type SyncConfig = ISetting["sync"];
-type IntegrationConfig = ISetting["integration"];
 
-export const isSyncConfigured = (
-  active: ESync,
-  sync: SyncConfig,
-  integration: IntegrationConfig
-) => {
+export const isSyncConfigured = (active: ESync, sync: SyncConfig) => {
   switch (active) {
     case ESync.Plugin:
       return (
@@ -16,8 +11,6 @@ export const isSyncConfigured = (
         Object.hasOwn(sync.plugin.configurations, sync.plugin.id) &&
         sync.plugin.configurations[sync.plugin.id] != null
       );
-    case ESync.Github:
-      return !!integration.github.token && !!sync.github.repo && !!sync.github.branch;
     default:
       return false;
   }

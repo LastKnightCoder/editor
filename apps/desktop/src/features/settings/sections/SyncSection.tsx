@@ -1,28 +1,11 @@
-/**
- * 同步设置 —— 定稿初版（2026-09-22/23，mockups/settings/sync-plans.html）。
- *
- * 语义对齐 legacy（只重做排版与主题语言）：同步全手动；凭据（账号/Token/AK）
- * 全部在「集成」子页配置，本页只配存储定位（桶/仓库/路径前缀）。
- *
- * 状态卡（2026-09-23 用户校准：垂直三段重排防拥挤 + 「软件更新」语义）：
- * - 检查更新：探测远程版本——有新版本时动作行切换为「下载更新」主按钮；
- *   无则显示「已是最新」徽标
- * - 同步到云端：本地 → 远端上传；本地落后远程时弹风险确认（远端新变更将被
- *   覆盖），用户可强制同步
- *
- * 2026-09-24 第三版重排：页内分「概览 / 资源文件」两个 Tab。概览 = 数据库卡 + 资源文件卡
- * 并排（资源目录同步从资源存储页迁入：它与上传目标无关、与数据库共用远端）+ 同步目标；
- * 资源文件 Tab = 文件列表与黑名单（sections/ResourceSync.tsx）。
- * 同日追加「本地数据库」Tab：切换 / 新建 / 删除本地库（从 legacy 关于页「数据库管理」迁入，
- * 实现见 sections/LocalDatabasePanel.tsx）。
- */
+/** 同步操作由客户端负责，存储配置由启用的同步插件提供。 */
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, CloudUpload, Database, Download, RefreshCw } from "lucide-react";
+import { CloudUpload, Database, Download, RefreshCw } from "lucide-react";
 import { produce } from "immer";
 import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
-import { Button, ConfirmDialog, Input, Panel, Segmented, Select, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Panel, Select, toast } from "@tau/ui";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
 import { savePluginSyncConfig } from "@/commands/plugin-local";
@@ -32,7 +15,6 @@ import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { runUsageSync } from "@/services/usageSyncRunner";
-import { useSettingsStore } from "@/app/settingsStore";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
@@ -44,35 +26,10 @@ import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 
 type SyncTab = "overview" | "files" | "database";
 
-const PROVIDER_LABELS: Record<ESync, string> = {
-  [ESync.Plugin]: "同步插件",
-  [ESync.Github]: "GitHub",
-};
-
-/** 各家存储定位字段（本页只写 sync 域；凭据在集成子页） */
-const PROVIDER_FIELDS: Record<
-  ESync,
-  Array<{ key: string; label: string; description?: string; placeholder?: string }>
-> = {
-  [ESync.Plugin]: [],
-  [ESync.Github]: [
-    { key: "repo", label: "仓库" },
-    { key: "branch", label: "分支" },
-    { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：sync/" },
-  ],
-};
-
-const PROVIDER_ORDER: ESync[] = [ESync.Github];
-
-const CREDENTIAL_HINTS: Record<ESync, string> = {
-  [ESync.Plugin]: "",
-  [ESync.Github]: "Personal Access Token",
-};
-
 export function SyncSection() {
   const queryClient = useQueryClient();
   const setting = useSettingStore(s => s.setting);
-  const { sync, integration, database } = setting;
+  const { sync, database } = setting;
   const active = sync.active;
   const runtime = useDesktopPlugins();
   const pluginSections =
@@ -102,15 +59,11 @@ export function SyncSection() {
       : runtime?.host
           .listPlugins()
           .some(plugin => plugin.id === selectedId && plugin.state === "active"));
-  const isConfigured =
-    isSyncConfigured(active, sync, integration) && (active !== ESync.Plugin || pluginEnabled);
+  const isConfigured = isSyncConfigured(active, sync) && pluginEnabled;
 
   /* 远程版本：网络查询，配置就绪才拉；检查更新 refetch，同步/下载后手动更新。
      key 含当前库、存储类型与定位字段：切换存储类型立即重新探测，同类型下的字段编辑防抖后再拉 */
-  const rawTarget =
-    active === ESync.Plugin
-      ? JSON.stringify([active, sync.plugin?.id, configKey])
-      : JSON.stringify([active, sync[active]]);
+  const rawTarget = JSON.stringify([active, sync.plugin?.id, configKey]);
   const debouncedTarget = useDebouncedValue(rawTarget, 500);
   const remoteTarget = debouncedTarget.startsWith(`["${active}"`) ? debouncedTarget : rawTarget;
   const remoteKey = ["settings", "sync", "remote-version", database.active, remoteTarget];
@@ -197,24 +150,6 @@ export function SyncSection() {
     }
   };
 
-  const updateSyncField = (field: string, value: string) => {
-    if (active === ESync.Plugin) return;
-    useSettingStore.setState(s => ({
-      setting: produce(s.setting, draft => {
-        // ESync 键名与 sync 域字段一一对应（github）
-        (draft.sync[active] as Record<string, string>)[field] = value;
-      }),
-    }));
-  };
-
-  const setActiveProvider = (provider: ESync) => {
-    useSettingStore.setState(s => ({
-      setting: produce(s.setting, draft => {
-        draft.sync.active = provider;
-      }),
-    }));
-  };
-
   const [tab, setTab] = useState<SyncTab>("overview");
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const resourceSync = useResourceSyncModel();
@@ -264,10 +199,8 @@ export function SyncSection() {
                   {database.active}
                   {isConfigured &&
                     ` · ${
-                      active === ESync.Plugin
-                        ? (pluginSections.find(section => section.context.pluginId === selectedId)
-                            ?.definition.title ?? selectedId)
-                        : PROVIDER_LABELS[active]
+                      pluginSections.find(section => section.context.pluginId === selectedId)
+                        ?.definition.title ?? selectedId
                     }`}
                 </div>
                 <SyncStats
@@ -352,21 +285,6 @@ export function SyncSection() {
           </SettingsGroup>
 
           <SettingsGroup title="同步目标" description="数据库与资源文件共用同一个远端">
-            <SettingRow title="存储类型">
-              <Segmented
-                label="同步存储类型"
-                size="sm"
-                value={active}
-                onValueChange={v => setActiveProvider(v as ESync)}
-              >
-                {[
-                  ...PROVIDER_ORDER,
-                  ...(pluginSections.length || active === ESync.Plugin ? [ESync.Plugin] : []),
-                ].map(key => (
-                  <Segmented.Item key={key} value={key} label={PROVIDER_LABELS[key]} />
-                ))}
-              </Segmented>
-            </SettingRow>
             {active === ESync.Plugin && (
               <>
                 <SettingRow title="同步插件">
@@ -409,30 +327,6 @@ export function SyncSection() {
                   </p>
                 )}
               </>
-            )}
-            {active !== ESync.Plugin &&
-              PROVIDER_FIELDS[active].map(field => (
-                <SettingRow key={field.key} title={field.label} description={field.description}>
-                  <Input
-                    className="w-[260px]"
-                    value={(sync[active] as Record<string, string>)[field.key] ?? ""}
-                    placeholder={field.placeholder}
-                    spellCheck={false}
-                    onChange={e => updateSyncField(field.key, e.target.value)}
-                  />
-                </SettingRow>
-              ))}
-            {active !== ESync.Plugin && (
-              <SettingRow title="账号凭据" description={CREDENTIAL_HINTS[active]}>
-                <button
-                  type="button"
-                  className="text-tau-meta text-accent-text inline-flex items-center gap-1 font-medium hover:underline"
-                  onClick={() => useSettingsStore.getState().openSettings("integration")}
-                >
-                  在「账号与连接」管理
-                  <ArrowRight size={13} strokeWidth={1.75} />
-                </button>
-              </SettingRow>
             )}
           </SettingsGroup>
         </>

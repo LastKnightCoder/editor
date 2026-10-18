@@ -130,10 +130,17 @@ describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
   it("配置来自插件包，失败保留表单，成功保存并沿用客户端上传入口", async () => {
     expect(runtime.listSettings()[0].definition.target).toBe("sync");
     const expected =
-      pluginId === "tau.sync-webdav"
-        ? { url: "https://example.test/dav" }
-        : { bucket: "test-bucket", region: "test-region" };
-    if (pluginId === "tau.sync-webdav") {
+      pluginId === "tau.sync-github"
+        ? { owner: "test-owner", repo: "test-repo" }
+        : pluginId === "tau.sync-webdav"
+          ? { url: "https://example.test/dav" }
+          : { bucket: "test-bucket", region: "test-region" };
+    if (pluginId === "tau.sync-github") {
+      await input("仓库所有者", "test-owner");
+      await input("仓库", "test-repo");
+      await input("分支", "main");
+      await input("访问令牌", "test-only");
+    } else if (pluginId === "tau.sync-webdav") {
       await input("服务器地址", "https://example.test/dav");
       await input("用户名", "test-only");
       await input("密码", "test-only");

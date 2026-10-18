@@ -6,6 +6,13 @@ import { pluginSyncStatusFile } from "./plugin-sync-status";
 
 const migrations = [
   {
+    key: "github",
+    pluginId: "tau.sync-github",
+    statusPrefix: "github",
+    pathKey: "pathPrefix",
+    defaultPath: "",
+  },
+  {
     key: "webdav",
     pluginId: "tau.sync-webdav",
     statusPrefix: "webdav",
@@ -28,6 +35,8 @@ const migrations = [
   },
 ] as const;
 interface LegacyTarget {
+  repo?: string;
+  branch?: string;
   url?: string;
   username?: string;
   password?: string;
@@ -44,6 +53,7 @@ interface MigrationSettings {
     s3?: LegacyTarget;
     aliOSS?: LegacyTarget;
     webdav?: LegacyTarget;
+    github?: LegacyTarget;
     plugin?: { id?: string; configurations?: Record<string, unknown> };
     [key: string]: unknown;
   };
@@ -51,6 +61,7 @@ interface MigrationSettings {
     s3?: Record<string, unknown>;
     aliOSS?: Record<string, unknown>;
     webdav?: Record<string, unknown>;
+    github?: Record<string, unknown>;
   };
   [key: string]: unknown;
 }
@@ -108,10 +119,25 @@ export async function migrateSyncPluginSettings(
               password: config.password,
               pathPrefix: config.pathPrefix,
             }
-          : config;
+          : key === "github"
+            ? {
+                token: typeof credentials?.token === "string" ? credentials.token : "",
+                owner:
+                  credentials?.user &&
+                  typeof credentials.user === "object" &&
+                  "name" in credentials.user &&
+                  typeof credentials.user.name === "string"
+                    ? credentials.user.name
+                    : "",
+                repo: legacy?.repo ?? "",
+                branch: legacy?.branch ?? "",
+                pathPrefix: legacy?.pathPrefix ?? "",
+              }
+            : config;
     }
     if (!legacy || hadPluginConfig) continue;
     let identity = legacy.bucket;
+    if (key === "github") identity = legacy.repo;
     if (key === "webdav") {
       const url = setting.integration?.webdav?.url;
       if (typeof url !== "string") continue;
@@ -131,7 +157,9 @@ export async function migrateSyncPluginSettings(
     const source = path.join(
       appDir,
       "sync-status",
-      `${statusPrefix}-${identity}-${prefixHash}.json`
+      key === "github"
+        ? `github-${legacy.repo}-${legacy.branch}.json`
+        : `${statusPrefix}-${identity}-${prefixHash}.json`
     );
     const target = path.join(
       appDir,
