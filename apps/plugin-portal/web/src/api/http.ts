@@ -251,6 +251,7 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
       }).toString();
       return read<SubmissionPage>(`/v1/submissions${query ? `?${query}` : ""}`);
     },
+    listSubmissionGroups: () => read("/v1/submission-groups"),
     getSubmission: submissionId => read<Submission>(`/v1/submissions/${id(submissionId)}`),
     saveSubmission: (submissionId, body: SaveSubmission) =>
       write<Submission>("PATCH", `/v1/submissions/${id(submissionId)}`, body),

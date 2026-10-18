@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { handle } from "./index";
 import { inspectPackage } from "./package";
 import { testEnvironment } from "./testing";
-import type { Submission, Upload } from "../contracts";
+import type { SubmissionGroups, Submission, Upload } from "../contracts";
 
 function zip(
   options: {
@@ -774,6 +774,40 @@ describe("包资料与站内反馈", () => {
     const resubmitted = (await (await submit(saved)).json()).data;
     expect(resubmitted.status).toBe("pending_review");
     expect(resubmitted.lastEvent).toMatchObject({ kind: "feedback", role: "author" });
+  });
+  it("按插件归组：同一插件的提交合为一组，未上传包的草稿单独一组，不返回包内容", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const first = await ready("1.0.0");
+    const pending = (await (await submit(first)).json()).data;
+    await req(`/v1/submissions/${first.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "approve",
+      comment: "",
+    });
+    const second = await ready("1.1.0");
+    const empty = await draft();
+    f.sqlite.exec("INSERT INTO publishers VALUES ('other','other','')");
+    f.sqlite
+      .prepare(
+        "INSERT INTO submissions(id,publisher_id,client_request_id,created_at,updated_at) VALUES ('x','other','x','2026-10-01','2026-10-01')"
+      )
+      .run();
+    const response = await req("/v1/submission-groups");
+    expect(response.status).toBe(200);
+    const { groups } = (await response.json()).data as SubmissionGroups;
+    expect(groups).toHaveLength(2);
+    const plugin = groups.find(group => group.pluginId)!;
+    expect(plugin.name).toBe(first.content!.manifest.name);
+    expect(plugin.submissions.map(item => [item.id, item.version, item.status])).toEqual([
+      [second.id, "1.1.0", "draft"],
+      [first.id, "1.0.0", "approved"],
+    ]);
+    expect(plugin.submissions[1].lastEvent).toMatchObject({ kind: "review", decision: "approve" });
+    expect(plugin.submissions[0]).not.toHaveProperty("content");
+    const drafts = groups.find(group => !group.pluginId)!;
+    expect(drafts.submissions.map(item => item.id)).toEqual([empty.id]);
+    expect(groups.flatMap(group => group.submissions).some(item => item.id === "x")).toBe(false);
   });
   it("提交列表按状态筛选，counts覆盖整个范围且不受筛选和游标影响", async () => {
     await login();

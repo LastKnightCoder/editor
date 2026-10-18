@@ -10,6 +10,7 @@ import type {
   ReviewDetails,
   ReviewRequest,
   SubmissionQuery,
+  SubmissionGroups,
   ReleasePage,
   PublicRelease,
   DownloadStatistics,
@@ -76,6 +77,8 @@ export interface PortalApi {
   getUpload(id: string): Promise<Upload>;
   createSubmission(clientRequestId: string): Promise<Submission>;
   listSubmissions(query: SubmissionQuery): Promise<SubmissionPage>;
+  /** 本人全部提交按插件归组 */
+  listSubmissionGroups(): Promise<SubmissionGroups>;
   getSubmission(id: string): Promise<Submission>;
   saveSubmission(id: string, body: SaveSubmission): Promise<Submission>;
   submitSubmission(id: string, revision: number): Promise<Submission>;
