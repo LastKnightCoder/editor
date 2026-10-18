@@ -92,7 +92,7 @@ it("失败保留原配置可重试，已有插件配置优先，其他目标不�
       ...setting,
       sync: {
         ...setting.sync,
-        active: "webdav",
+        active: "github",
         plugin: { id: "other", configurations: { "tau.sync-s3": { bucket: "new" } } },
       },
     },
@@ -100,8 +100,98 @@ it("失败保留原配置可重试，已有插件配置优先，其他目标不�
     async () => {}
   );
   expect(next.sync).toMatchObject({
-    active: "webdav",
+    active: "github",
     plugin: { id: "other", configurations: { "tau.sync-s3": { bucket: "new" } } },
+  });
+});
+
+it("WebDAV迁移保存失败可重试，保留账本、版本、共享凭据及明确停用意图", async () => {
+  const root = await setup();
+  const { LocalPluginPreferences } = await import("@tau/plugins/local-state");
+  const preferences = new LocalPluginPreferences(path.join(root, "plugins"));
+  await preferences.load();
+  await preferences.set("tau.sync-webdav", false);
+  const setting = {
+    sync: { active: "webdav", autoSyncEnabled: true, webdav: { pathPrefix: "/note" } },
+    integration: {
+      webdav: {
+        url: "https://example.test/dav",
+        username: "user",
+        password: "secret",
+        enabled: true,
+      },
+    },
+    database: { version: 7 },
+  };
+  const hash = (value: string) => createHash("md5").update(value).digest("hex").slice(0, 8);
+  await mkdir(path.join(root, "sync-status"));
+  const oldStatus = path.join(
+    root,
+    "sync-status",
+    `webdav-${hash("example.test")}-${hash("/note")}.json`
+  );
+  await writeFile(
+    oldStatus,
+    JSON.stringify({ files: { "a.png": { syncStatus: "synced" } }, lastSyncTime: 42 })
+  );
+  await expect(
+    migrateSyncPluginSettings(setting, root, async () => {
+      throw new Error("disk");
+    })
+  ).rejects.toThrow("disk");
+  expect(setting.sync.active).toBe("webdav");
+  expect(await readFile(oldStatus, "utf8")).toContain("a.png");
+  const save = vi.fn(async () => {});
+  const next = await migrateSyncPluginSettings(setting, root, save);
+  expect(next.sync).not.toHaveProperty("webdav");
+  expect(next.sync).toMatchObject({
+    active: "plugin",
+    autoSyncEnabled: true,
+    plugin: { id: "tau.sync-webdav" },
+  });
+  expect(next.integration).toEqual(setting.integration);
+  expect(next.database).toEqual(setting.database);
+  expect((await readLocalPluginState(path.join(root, "plugins"))).enabled["tau.sync-webdav"]).toBe(
+    false
+  );
+  const config = next.sync?.plugin?.configurations?.["tau.sync-webdav"];
+  expect(config).toMatchObject({
+    url: "https://example.test/dav",
+    username: "user",
+    password: "secret",
+    pathPrefix: "/note",
+  });
+  const status = await readFile(
+    path.join(root, "sync-status", pluginSyncStatusFile("tau.sync-webdav", config)),
+    "utf8"
+  );
+  expect(JSON.parse(status)).toMatchObject({
+    files: { "a.png": { syncStatus: "synced" } },
+    lastSyncTime: 42,
+  });
+  expect(status).not.toContain("secret");
+  await expect(readFile(oldStatus)).rejects.toMatchObject({ code: "ENOENT" });
+  expect(await migrateSyncPluginSettings(next, root, save)).toBe(next);
+  expect(save).toHaveBeenCalledTimes(1);
+});
+
+it("WebDAV已有插件配置优先，不改变其他活动同步目标", async () => {
+  const root = await setup();
+  const next = await migrateSyncPluginSettings(
+    {
+      sync: {
+        active: "github",
+        webdav: { pathPrefix: "/old" },
+        plugin: { id: "other", configurations: { "tau.sync-webdav": { url: "new" } } },
+      },
+      integration: { webdav: { url: "old" } },
+    },
+    root,
+    async () => {}
+  );
+  expect(next.sync).toMatchObject({
+    active: "github",
+    plugin: { id: "other", configurations: { "tau.sync-webdav": { url: "new" } } },
   });
 });
 

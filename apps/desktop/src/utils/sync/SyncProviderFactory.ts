@@ -1,5 +1,4 @@
 import { ISyncProvider } from "@/types/sync";
-import { WebDavSyncProvider } from "./WebDavSyncProvider";
 import { GithubSyncProvider } from "./GithubSyncProvider";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { PluginSyncProvider } from "./PluginSyncProvider";
@@ -20,19 +19,6 @@ export class SyncProviderFactory {
               copyJson(syncConfig.plugin.configurations[syncConfig.plugin.id])
             )
           : null;
-      case ESync.WebDav: {
-        const { url, username, password } = integration.webdav;
-        const { pathPrefix } = syncConfig.webdav;
-        if (!url || !username || !password) {
-          return null;
-        }
-        return new WebDavSyncProvider({
-          url,
-          username,
-          password,
-          pathPrefix: pathPrefix || "",
-        });
-      }
 
       case ESync.Github: {
         const { token, user } = integration.github;

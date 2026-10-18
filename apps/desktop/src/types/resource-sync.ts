@@ -43,19 +43,11 @@ export interface IRateLimitConfig {
   retryBackoffMultiplier: number;
 }
 
-export type ResourceSyncProvider = "webdav" | "github" | "plugin";
+export type ResourceSyncProvider = "github" | "plugin";
 
 interface BaseResourceSyncOptions {
   provider: ResourceSyncProvider;
   rateLimit?: Partial<IRateLimitConfig>;
-}
-
-export interface WebDavResourceSyncOptions extends BaseResourceSyncOptions {
-  provider: "webdav";
-  url: string;
-  username: string;
-  password: string;
-  pathPrefix?: string;
 }
 
 export interface GithubResourceSyncOptions extends BaseResourceSyncOptions {
@@ -72,7 +64,6 @@ export interface GithubResourceSyncOptions extends BaseResourceSyncOptions {
 
 export type ResourceSyncOptions =
   | (BaseResourceSyncOptions & { provider: "plugin"; pluginId: string; config: unknown })
-  | WebDavResourceSyncOptions
   | GithubResourceSyncOptions;
 
 export const RATE_LIMIT_CONFIGS: Record<string, IRateLimitConfig> = {
@@ -81,13 +72,6 @@ export const RATE_LIMIT_CONFIGS: Record<string, IRateLimitConfig> = {
     requestsPerSecond: 50,
     retryCount: 3,
     retryDelayMs: 1000,
-    retryBackoffMultiplier: 2,
-  },
-  webdav: {
-    maxConcurrent: 2,
-    requestsPerSecond: 5,
-    retryCount: 3,
-    retryDelayMs: 2000,
     retryBackoffMultiplier: 2,
   },
   github: {

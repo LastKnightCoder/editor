@@ -46,7 +46,6 @@ type SyncTab = "overview" | "files" | "database";
 
 const PROVIDER_LABELS: Record<ESync, string> = {
   [ESync.Plugin]: "同步插件",
-  [ESync.WebDav]: "WebDAV",
   [ESync.Github]: "GitHub",
 };
 
@@ -56,9 +55,6 @@ const PROVIDER_FIELDS: Record<
   Array<{ key: string; label: string; description?: string; placeholder?: string }>
 > = {
   [ESync.Plugin]: [],
-  [ESync.WebDav]: [
-    { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：/sync" },
-  ],
   [ESync.Github]: [
     { key: "repo", label: "仓库" },
     { key: "branch", label: "分支" },
@@ -66,11 +62,10 @@ const PROVIDER_FIELDS: Record<
   ],
 };
 
-const PROVIDER_ORDER: ESync[] = [ESync.WebDav, ESync.Github];
+const PROVIDER_ORDER: ESync[] = [ESync.Github];
 
 const CREDENTIAL_HINTS: Record<ESync, string> = {
   [ESync.Plugin]: "",
-  [ESync.WebDav]: "服务器地址、用户名与密码",
   [ESync.Github]: "Personal Access Token",
 };
 
@@ -206,7 +201,7 @@ export function SyncSection() {
     if (active === ESync.Plugin) return;
     useSettingStore.setState(s => ({
       setting: produce(s.setting, draft => {
-        // ESync 键名与 sync 域字段一一对应（webdav/github）
+        // ESync 键名与 sync 域字段一一对应（github）
         (draft.sync[active] as Record<string, string>)[field] = value;
       }),
     }));

@@ -129,13 +129,23 @@ describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
   };
   it("配置来自插件包，失败保留表单，成功保存并沿用客户端上传入口", async () => {
     expect(runtime.listSettings()[0].definition.target).toBe("sync");
-    await input("Bucket", "test-bucket");
-    await input("Region", "test-region");
-    await input("Access Key ID", "test-only");
-    await input(
-      pluginId === "tau.sync-oss" ? "Access Key Secret" : "Secret Access Key",
-      "test-only"
-    );
+    const expected =
+      pluginId === "tau.sync-webdav"
+        ? { url: "https://example.test/dav" }
+        : { bucket: "test-bucket", region: "test-region" };
+    if (pluginId === "tau.sync-webdav") {
+      await input("服务器地址", "https://example.test/dav");
+      await input("用户名", "test-only");
+      await input("密码", "test-only");
+    } else {
+      await input("Bucket", "test-bucket");
+      await input("Region", "test-region");
+      await input("Access Key ID", "test-only");
+      await input(
+        pluginId === "tau.sync-oss" ? "Access Key Secret" : "Secret Access Key",
+        "test-only"
+      );
+    }
     mocks.save.mockRejectedValueOnce(new Error("写入失败"));
     await act(async () => button("保存同步配置").click());
     await settle();
@@ -143,13 +153,10 @@ describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
     expect(useSettingStore.getState().setting.sync.plugin).toBeUndefined();
     await act(async () => button("保存同步配置").click());
     await settle();
-    expect(mocks.save).toHaveBeenLastCalledWith(
-      pluginId,
-      expect.objectContaining({ bucket: "test-bucket", region: "test-region" })
+    expect(mocks.save).toHaveBeenLastCalledWith(pluginId, expect.objectContaining(expected));
+    expect(useSettingStore.getState().setting.sync.plugin?.configurations[pluginId]).toMatchObject(
+      expected
     );
-    expect(useSettingStore.getState().setting.sync.plugin?.configurations[pluginId]).toMatchObject({
-      bucket: "test-bucket",
-    });
     await act(async () => button("同步到云端").click());
     await settle();
     expect(mocks.upload).toHaveBeenCalled();

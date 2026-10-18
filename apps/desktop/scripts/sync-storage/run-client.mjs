@@ -10,7 +10,7 @@ const { build } = require("esbuild");
 const AdmZip = require("adm-zip");
 const archive = process.argv[2];
 const previousArchive = process.argv[3];
-if (!archive) throw new Error("请提供S3插件ZIP路径");
+if (!archive) throw new Error("请提供同步插件ZIP路径");
 const output = path.join(root, "output/sync-client", randomUUID());
 await mkdir(output, { recursive: true });
 await writeFile(

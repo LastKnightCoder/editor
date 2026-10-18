@@ -61,7 +61,7 @@ beforeEach(() => {
   useSettingStore.setState(s => ({
     setting: {
       ...s.setting,
-      sync: { ...s.setting.sync, active: ESync.WebDav },
+      sync: { ...s.setting.sync, active: ESync.Github },
       database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
     },
   }));

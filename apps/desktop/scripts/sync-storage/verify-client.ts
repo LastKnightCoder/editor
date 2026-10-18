@@ -18,6 +18,7 @@ import {
 import type { SyncProvider } from "@tau/plugins/sync";
 import { verifySignature } from "./verify-signature";
 import { verifyOssSignature } from "./verify-oss-signature";
+import { handleWebDavDirectory } from "./verify-webdav";
 
 async function main() {
   const [phase, sandbox, archive, previousArchive] = process.argv.slice(2);
@@ -32,12 +33,15 @@ async function main() {
     .find(entry => entry.entryName.endsWith("/manifest.json"));
   if (!manifestEntry) throw new Error("缺少manifest");
   const id: string = JSON.parse(manifestEntry.getData().toString()).id;
-  if (!["tau.sync-s3", "tau.sync-oss"].includes(id)) throw new Error("验收脚本不支持该插件");
+  if (!["tau.sync-s3", "tau.sync-oss", "tau.sync-webdav"].includes(id))
+    throw new Error("验收脚本不支持该插件");
   const oss = id === "tau.sync-oss";
-  const legacyKey = oss ? "aliOSS" : "s3";
+  const webdav = id === "tau.sync-webdav";
+  const legacyKey = webdav ? "webdav" : oss ? "aliOSS" : "s3";
   let bucketVersioning = "";
   let window: BrowserWindow | undefined;
   const objects = new Map<string, Buffer>();
+  const directories = new Set(["/", "/dav"]);
   let loseConditionalResponse = false;
   let blocked!: () => void;
   const blockedRequest = new Promise<void>(resolve => {
@@ -50,7 +54,14 @@ async function main() {
       res.statusCode = status;
       res.end();
     };
-    if (!(oss ? verifyOssSignature(req, "bucket", "test-only") : verifySignature(req, "test-only")))
+    if (
+      !(webdav
+        ? req.headers.authorization ===
+          "Basic " + Buffer.from("test-only:test-only").toString("base64")
+        : oss
+          ? verifyOssSignature(req, "bucket", "test-only")
+          : verifySignature(req, "test-only"))
+    )
       return fail(403);
     if (oss && url.searchParams.has("versioning")) {
       res.setHeader("Content-Type", "application/xml");
@@ -64,6 +75,7 @@ async function main() {
       blocked();
       return;
     }
+    if (webdav && handleWebDavDirectory(req, res, objects, directories)) return;
     if (req.method === "PUT") {
       const chunks: Buffer[] = [];
       for await (const part of req) chunks.push(Buffer.from(part));
@@ -94,23 +106,30 @@ async function main() {
     const address = server.address();
     if (!address || typeof address === "string") throw new Error("测试服务器未启动");
     const endpoint = "http://127.0.0.1:" + address.port;
-    const config = oss
+    const config = webdav
       ? {
-          bucket: "bucket",
-          region: "oss-cn-hangzhou",
-          path: "isolated",
-          accessKeyId: "test-only",
-          accessKeySecret: "test-only",
-        }
-      : {
-          endpoint: "http://127.0.0.1:" + address.port,
-          bucket: "bucket",
-          region: "test-region",
+          url: endpoint + "/dav",
+          username: "test-only",
+          password: "test-only",
           pathPrefix: "isolated",
-          urlStyle: "path",
-          accessKeyId: "test-only",
-          secretAccessKey: "test-only",
-        };
+        }
+      : oss
+        ? {
+            bucket: "bucket",
+            region: "oss-cn-hangzhou",
+            path: "isolated",
+            accessKeyId: "test-only",
+            accessKeySecret: "test-only",
+          }
+        : {
+            endpoint: "http://127.0.0.1:" + address.port,
+            bucket: "bucket",
+            region: "test-region",
+            pathPrefix: "isolated",
+            urlStyle: "path",
+            accessKeyId: "test-only",
+            secretAccessKey: "test-only",
+          };
     if (phase === "migrate") {
       await mkdir(PathUtil.getAppDir(), { recursive: true });
       await writeFile(
@@ -119,19 +138,23 @@ async function main() {
           sync: {
             active: legacyKey,
             autoSyncEnabled: true,
-            [legacyKey]: oss
-              ? { bucket: config.bucket, region: config.region, path: config.path }
-              : { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
+            [legacyKey]: webdav
+              ? { pathPrefix: config.pathPrefix }
+              : oss
+                ? { bucket: config.bucket, region: config.region, path: config.path }
+                : { bucket: config.bucket, region: config.region, pathPrefix: config.pathPrefix },
           },
           integration: {
-            [legacyKey]: oss
-              ? { accessKeyId: config.accessKeyId, accessKeySecret: config.accessKeySecret }
-              : {
-                  endpoint: config.endpoint,
-                  accessKeyId: config.accessKeyId,
-                  secretAccessKey: config.secretAccessKey,
-                  urlStyle: config.urlStyle,
-                },
+            [legacyKey]: webdav
+              ? { url: config.url, username: config.username, password: config.password }
+              : oss
+                ? { accessKeyId: config.accessKeyId, accessKeySecret: config.accessKeySecret }
+                : {
+                    endpoint: config.endpoint,
+                    accessKeyId: config.accessKeyId,
+                    secretAccessKey: config.secretAccessKey,
+                    urlStyle: config.urlStyle,
+                  },
           },
           database: { active: "data.db", databases: [{ name: "data.db", version: 7 }] },
         })
@@ -205,7 +228,8 @@ async function main() {
       );
       assert.equal(saved.sync.active, "plugin");
       assert.equal(saved.sync.plugin.id, id);
-      assert.equal(saved.sync.plugin.configurations[id].bucket, "bucket");
+      if (webdav) assert.equal(saved.sync.plugin.configurations[id].username, "test-only");
+      else assert.equal(saved.sync.plugin.configurations[id].bucket, "bucket");
       assert.equal(Object.hasOwn(saved.sync, legacyKey), false);
       if (phase === "migrate" || phase === "upgrade")
         assert.deepEqual(saved.sync.plugin.configurations[id], config);
@@ -269,6 +293,12 @@ async function main() {
     await publishSnapshot(provider, "lost-response.json", { version: 0 }, next);
     assert.equal((await readSnapshotHead(provider, "lost-response.json")).version, 1);
     assert.deepEqual(await provider.downloadFile("data.db"), payload);
+    if (webdav) {
+      assert.equal(await provider.createFileIfAbsent("conditional", payload), true);
+      assert.equal(await provider.createFileIfAbsent("conditional", new Uint8Array([9])), false);
+      assert.deepEqual(await provider.downloadFile("conditional"), payload);
+      assert.ok((await provider.listFiles()).some(file => file.path === "data.db"));
+    }
     if (oss) {
       for (const status of ["Enabled", "Suspended"]) {
         bucketVersioning = status;

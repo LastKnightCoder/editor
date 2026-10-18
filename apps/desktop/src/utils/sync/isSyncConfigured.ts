@@ -16,10 +16,6 @@ export const isSyncConfigured = (
         Object.hasOwn(sync.plugin.configurations, sync.plugin.id) &&
         sync.plugin.configurations[sync.plugin.id] != null
       );
-    case ESync.WebDav:
-      return (
-        !!integration.webdav.url && !!integration.webdav.username && !!integration.webdav.password
-      );
     case ESync.Github:
       return !!integration.github.token && !!sync.github.repo && !!sync.github.branch;
     default:
