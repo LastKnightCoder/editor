@@ -13,7 +13,7 @@ import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
 import {
   addContentPlugin,
   initializeContentPluginState,
-  localPluginStateKey,
+  setContentPluginIntent,
   setContentPluginError,
 } from "./content-plugin-state";
 
@@ -30,7 +30,7 @@ async function prepareContentPlugins() {
     const scan = await scanLocalPlugins();
     for (const entry of scan.entries) {
       if (entry.artifact && isContentPlugin(entry.artifact.manifest))
-        localStorage.setItem(localPluginStateKey(entry.id), String(entry.enabled === true));
+        setContentPluginIntent(entry.id, entry.enabled === true);
     }
     const snapshot = await getContentPluginStartup();
     for (const [id, error] of Object.entries(snapshot.errors)) setContentPluginError(id, error);

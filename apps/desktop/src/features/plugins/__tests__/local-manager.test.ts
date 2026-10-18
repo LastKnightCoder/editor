@@ -79,8 +79,24 @@ beforeEach(() => {
   persisted.clear();
 });
 afterEach(async () => {
+  vi.restoreAllMocks();
   managers.splice(0).forEach(manager => manager.cancel());
   await Promise.all(hosts.splice(0).map(host => host.dispose()));
+});
+
+it("窗口缓存不可写时仍按主进程意图启停", async () => {
+  const { manager, host } = setup(async () => snapshot(artifact()));
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new Error("quota");
+  });
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  await manager.refresh();
+  await manager.enable("test.local");
+  expect(persisted.get("test.local")).toBe(true);
+  expect(host.getState("test.local")).toBe("active");
+  await manager.disable("test.local");
+  expect(persisted.get("test.local")).toBe(false);
+  expect(host.getState("test.local")).toBe("disabled");
 });
 
 it("发现只登记，启用才执行，重新创建工作区宿主恢复启用意图", async () => {

@@ -9,12 +9,15 @@ const entries = new Map<
   { artifact: DevelopmentPluginPackage; definition: PluginDefinition; nodeTypes: string[] }
 >();
 const errors = new Map<string, string>();
+const intended = new Map<string, boolean>();
+export const setContentPluginIntent = (id: string, enabled: boolean) => intended.set(id, enabled);
 let builtinTypes: string[] = [];
 
 export function initializeContentPluginState(types: readonly string[]) {
   builtinTypes = [...types];
 }
 export function addContentPlugin(artifact: DevelopmentPluginPackage, definition: PluginDefinition) {
+  if (!intended.has(definition.id)) intended.set(definition.id, true);
   desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
   entries.set(definition.id, { artifact, definition, nodeTypes: getPluginNodeTypes(definition) });
 }
@@ -34,8 +37,7 @@ export function getContentPluginPublishContext(): PluginRenderContext {
     definition: { id },
   } of entries.values()) {
     if (!artifact.manifest.editor) continue;
-    if (localStorage.getItem(localPluginStateKey(id)) !== "true")
-      throw new Error("内容插件启停尚未生效，请重启后再发布");
+    if (intended.get(id) !== true) throw new Error("内容插件启停尚未生效，请重启后再发布");
   }
   return {
     builtinTypes: [...builtinTypes],
