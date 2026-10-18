@@ -5,7 +5,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import { readLocalPluginState } from "@tau/plugins/local-state";
-import { migrateS3SyncSettings } from "../sync-settings-migration";
+import { migrateSyncPluginSettings } from "../sync-settings-migration";
 import { pluginSyncStatusFile } from "../plugin-sync-status";
 const roots: string[] = [];
 afterEach(async () => {
@@ -49,7 +49,7 @@ it("迁移旧目标、启用意图和资源账本，不改版本、自动同步�
       lastSyncTime: 123,
     })
   );
-  const result = await migrateS3SyncSettings(setting, root, save);
+  const result = await migrateSyncPluginSettings(setting, root, save);
   expect(result.sync).toMatchObject({
     active: "plugin",
     autoSyncEnabled: true,
@@ -74,25 +74,25 @@ it("迁移旧目标、启用意图和资源账本，不改版本、自动同步�
     lastSyncTime: 123,
   });
   expect(JSON.stringify(status)).not.toContain("test-only");
-  expect(await migrateS3SyncSettings(result, root, save)).toBe(result);
+  expect(await migrateSyncPluginSettings(result, root, save)).toBe(result);
   expect(save).toHaveBeenCalledTimes(1);
 });
 it("失败保留原配置可重试，已有插件配置优先，其他目标不被切换", async () => {
   const root = await setup(),
     setting = legacy();
   await expect(
-    migrateS3SyncSettings(setting, root, async () => {
+    migrateSyncPluginSettings(setting, root, async () => {
       throw new Error("disk");
     })
   ).rejects.toThrow("disk");
   expect(setting.sync.active).toBe("s3");
   expect(setting.sync.s3.bucket).toBe("bucket");
-  const next = await migrateS3SyncSettings(
+  const next = await migrateSyncPluginSettings(
     {
       ...setting,
       sync: {
         ...setting.sync,
-        active: "aliOSS",
+        active: "webdav",
         plugin: { id: "other", configurations: { "tau.sync-s3": { bucket: "new" } } },
       },
     },
@@ -100,7 +100,75 @@ it("失败保留原配置可重试，已有插件配置优先，其他目标不�
     async () => {}
   );
   expect(next.sync).toMatchObject({
-    active: "aliOSS",
+    active: "webdav",
     plugin: { id: "other", configurations: { "tau.sync-s3": { bucket: "new" } } },
   });
+});
+
+it("OSS迁移保留内嵌凭据回退、资源账本、自动同步与停用意图，并可同时升级S3", async () => {
+  const root = await setup();
+  const { LocalPluginPreferences } = await import("@tau/plugins/local-state");
+  const preferences = new LocalPluginPreferences(path.join(root, "plugins"));
+  await preferences.load();
+  await preferences.set("tau.sync-oss", false);
+  await mkdir(path.join(root, "sync-status"));
+  const hash = createHash("md5").update("/note").digest("hex").slice(0, 8);
+  await writeFile(
+    path.join(root, "sync-status", `alioss-bucket-${hash}.json`),
+    JSON.stringify({ files: { "a.png": { syncStatus: "synced" } }, lastSyncTime: 42 })
+  );
+  const setting = {
+    ...legacy(),
+    sync: {
+      ...legacy().sync,
+      active: "aliOSS",
+      aliOSS: {
+        bucket: "bucket",
+        region: "oss-cn-hangzhou",
+        path: "/note",
+        accessKeyId: "embedded",
+        accessKeySecret: "",
+      },
+    },
+    integration: {
+      ...legacy().integration,
+      aliOSS: { accessKeyId: "shared", accessKeySecret: "shared-secret" },
+    },
+  };
+  const saved = vi.fn(async () => {});
+  const result = await migrateSyncPluginSettings(setting, root, saved);
+  expect(result.sync).not.toHaveProperty("s3");
+  expect(result.sync).not.toHaveProperty("aliOSS");
+  expect(result.sync).toMatchObject({
+    active: "plugin",
+    autoSyncEnabled: true,
+    plugin: {
+      id: "tau.sync-oss",
+      configurations: {
+        "tau.sync-oss": { accessKeyId: "shared", accessKeySecret: "shared-secret", path: "/note" },
+        "tau.sync-s3": { bucket: "bucket" },
+      },
+    },
+  });
+  expect(result.integration).toEqual(setting.integration);
+  expect((await readLocalPluginState(path.join(root, "plugins"))).enabled["tau.sync-oss"]).toBe(
+    false
+  );
+  const status = JSON.parse(
+    await readFile(
+      path.join(
+        root,
+        "sync-status",
+        pluginSyncStatusFile("tau.sync-oss", result.sync?.plugin?.configurations?.["tau.sync-oss"])
+      ),
+      "utf8"
+    )
+  );
+  expect(status).toMatchObject({
+    provider: "plugin",
+    files: { "a.png": { syncStatus: "synced" } },
+    lastSyncTime: 42,
+  });
+  expect(await migrateSyncPluginSettings(result, root, saved)).toBe(result);
+  expect(saved).toHaveBeenCalledTimes(1);
 });

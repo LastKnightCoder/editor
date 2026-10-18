@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { ensureDir, pathExists } from "fs-extra/esm";
-import OSS from "ali-oss";
 import { createClient } from "webdav";
 
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
@@ -18,7 +17,6 @@ import {
   ResourceSyncStatus,
   ResourceSyncOptions,
   ResourceSyncProvider,
-  AliossResourceSyncOptions,
   WebDavResourceSyncOptions,
   GithubResourceSyncOptions,
 } from "@/types/resource-sync";
@@ -137,78 +135,6 @@ class PluginResourceAdapter implements ProviderAdapter {
   }
   dispose() {
     return pluginSyncSessions.end(this.owner, this.session);
-  }
-}
-
-class AliossAdapter implements ProviderAdapter {
-  private client: OSS;
-  private basePath: string;
-  constructor(options: AliossResourceSyncOptions) {
-    this.client = new OSS({
-      accessKeyId: options.accessKeyId,
-      accessKeySecret: options.accessKeySecret,
-      bucket: options.bucket,
-      region: options.region,
-    });
-    this.basePath = options.path || "";
-  }
-
-  async list(prefix: string): Promise<IRemoteFileInfo[]> {
-    const fullPrefix = this.buildKey(prefix);
-    const files: IRemoteFileInfo[] = [];
-    let marker: string | undefined;
-    do {
-      const res = await this.client.list(
-        {
-          prefix: fullPrefix || undefined,
-          marker,
-          "max-keys": 1000,
-        },
-        {}
-      );
-      const objects = res.objects || [];
-      objects.forEach((obj: any) => {
-        if (!obj.name || String(obj.name).endsWith("/")) return;
-        const relativePath = this.stripBase(obj.name);
-        files.push({
-          name: relativePath.split("/").filter(Boolean).pop() || relativePath || "",
-          path: relativePath,
-          size: obj.size || 0,
-          lastModified: obj.lastModified ? new Date(obj.lastModified).getTime() : undefined,
-        });
-      });
-      marker = res.isTruncated ? res.nextMarker : undefined;
-    } while (marker);
-    return files;
-  }
-
-  async upload(objectName: string, content: Buffer): Promise<void> {
-    const key = this.buildKey(objectName);
-    await this.client.put(key, content);
-  }
-
-  async download(objectName: string): Promise<Buffer> {
-    const key = this.buildKey(objectName);
-    const res = await this.client.get(key);
-    return Buffer.from(res.content);
-  }
-
-  private buildKey(objectName: string) {
-    const cleanedName = objectName.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "").replace(/^\/+|\/+$/g, "");
-    if (!cleanedBase) return cleanedName;
-    return `${cleanedBase}/${cleanedName}`.replace(/\/+/g, "/");
-  }
-
-  private stripBase(fullPath: string) {
-    const normalized = fullPath.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "").replace(/^\/+|\/+$/g, "");
-    if (!cleanedBase) return normalized;
-    if (normalized.startsWith(`${cleanedBase}/`)) {
-      return normalized.slice(cleanedBase.length + 1);
-    }
-    if (normalized === cleanedBase) return "";
-    return normalized;
   }
 }
 
@@ -470,7 +396,7 @@ class ResourceSyncModule {
   }
 
   private getRateLimitConfig(provider: ResourceSyncProvider, override?: Partial<IRateLimitConfig>) {
-    const base = RATE_LIMIT_CONFIGS[provider] || RATE_LIMIT_CONFIGS.alioss;
+    const base = RATE_LIMIT_CONFIGS[provider] || RATE_LIMIT_CONFIGS.plugin;
     const merged = {
       ...base,
       ...override,
@@ -489,8 +415,6 @@ class ResourceSyncModule {
             this.cancelRequested = true;
           }
         );
-      case "alioss":
-        return new AliossAdapter(options);
       case "webdav":
         return new WebDavAdapter(options);
       case "github":
@@ -736,17 +660,6 @@ class ResourceSyncModule {
           fileName: pluginSyncStatusFile(options.pluginId, options.config),
           config: { pluginId: options.pluginId },
         };
-      case "alioss": {
-        const pathHash = hash(options.path || "/");
-        return {
-          fileName: `alioss-${options.bucket}-${pathHash}.json`,
-          config: {
-            bucket: options.bucket,
-            region: options.region,
-            path: options.path || "/",
-          },
-        };
-      }
       case "webdav": {
         let host = options.url;
         try {

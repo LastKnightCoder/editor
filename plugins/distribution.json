@@ -62,5 +62,20 @@
       "manifest.json": "3073cd380731e4e667b69b378635d389aa4089ee9792f97ef8a005f8ec2c6bcc",
       "README.md": "9352ff409a9166b72f342ced0f5fbe9b08efff078152e9695ccf02773eecd2c9"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-oss",
+    "bundled": true,
+    "artifact": "releases/tau.sync-oss/0.1.1",
+    "id": "tau.sync-oss",
+    "version": "0.1.1",
+    "sourceRevision": "770296c8cffc42294cc6c0726b752e68ec7d22ce",
+    "archiveSha256": "900a4e87bb63485915b610c426d779e3bbd259fe3d7ec164e5296e32a1ce87be",
+    "files": {
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.js": "75dc9b7e177945b6f550b400597095fa304a157aeab4e1b9eecaa1b5fe9010f6",
+      "manifest.json": "f06c6a53ad1efb2ae122f86e9733a2d3166298b37e3fa3921f0904344f560dbd",
+      "README.md": "1271583e813a018eb5ad3bbe52638de3d5ee2d182dbc8c127e7ae2da12f5ccce"
+    }
   }
 ]

@@ -1,5 +1,7 @@
 # OSS同步插件拆分
 
+当前落地实现与验收见[56-OSS渲染进程拆分](56-OSS渲染进程拆分.md)，以下执行状态仅为历史记录。
+
 > 本文保留阶段历史。同步插件的Node执行方案已撤回，CLI同步已删除；当前执行边界以[55纠偏方案](55-插件渲染进程边界纠偏.md)为准。codec另列TODO，本轮不处理。
 
 - COMPLETE：Investigate/Triage/Understand the problem。已核对桌面数据库、资源、CLI存储实现和共享凭据消费者。
