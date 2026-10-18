@@ -7,6 +7,7 @@ import { feedbackRoute } from "./feedback";
 import { reviewRoute } from "./reviews";
 import { publicReleaseRoute } from "./releases";
 import { visitorRoute } from "./visitors";
+import { communityRoute } from "./community";
 import { cleanDownloadReceipts } from "./download-statistics";
 
 export async function handle(
@@ -20,7 +21,7 @@ export async function handle(
     if (origin && origin !== env.WEB_ORIGIN) fail(403, "FORBIDDEN", "不允许的请求来源");
     if (request.method === "OPTIONS") {
       response = new Response(null, { status: 204 });
-      response.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,OPTIONS");
+      response.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,PUT,DELETE,OPTIONS");
       response.headers.set(
         "Access-Control-Allow-Headers",
         "Content-Type,X-CSRF-Token,X-Tau-Visitor,Authorization"
@@ -32,7 +33,9 @@ export async function handle(
       if (auth) response = auth;
       else if (path === "/health" && request.method === "GET") response = json({ ok: true });
       else {
-        const publicRelease = await publicReleaseRoute(request, env, path, context);
+        const publicRelease =
+          (await communityRoute(request, env, path)) ??
+          (await publicReleaseRoute(request, env, path, context));
         if (publicRelease) response = publicRelease;
         else {
           const session = await requireSession(request, env);

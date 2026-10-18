@@ -54,7 +54,7 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
   const createXhr = options.createXhr ?? (() => new XMLHttpRequest() as unknown as XhrLike);
   let csrfToken: string | null = null;
   let visitorReady: Promise<void> | undefined;
-  async function downloadRelease(releaseId: string) {
+  async function ensureVisitor() {
     const initialize = () =>
       send("/v1/visitor-session", {
         method: "POST",
@@ -66,11 +66,26 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
       typeof navigator !== "undefined" && navigator.locks
         ? navigator.locks.request(`tau-plugin-visitor:${apiOrigin}`, initialize)
         : initialize()
-    ).catch(() => {
+    ).catch(error => {
       visitorReady = undefined;
+      throw error;
     });
     await visitorReady;
+  }
+  async function downloadRelease(releaseId: string) {
+    await ensureVisitor().catch(() => undefined);
     return (await send(`/v1/releases/${id(releaseId)}/download`)).blob();
+  }
+
+  async function communityWrite<T>(method: string, path: string, input?: unknown): Promise<T> {
+    await ensureVisitor();
+    return readData<T>(
+      await send(path, {
+        method,
+        headers: { "Content-Type": "application/json", "X-Tau-Visitor": "1" },
+        body: input === undefined ? undefined : JSON.stringify(input),
+      })
+    );
   }
 
   /** 401 说明会话已失效，丢弃缓存的 CSRF 令牌 */
@@ -193,6 +208,14 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
   }
 
   return {
+    getCommunity: (pluginId, cursor) =>
+      read(`/v1/plugins/${id(pluginId)}/community${cursor ? `?cursor=${id(cursor)}` : ""}`),
+    setPluginLiked: (pluginId, liked) =>
+      communityWrite("PUT", `/v1/plugins/${id(pluginId)}/like`, { liked }),
+    addComment: (pluginId, message, clientRequestId) =>
+      communityWrite("POST", `/v1/plugins/${id(pluginId)}/comments`, { message, clientRequestId }),
+    deleteComment: (pluginId, commentId) =>
+      communityWrite("DELETE", `/v1/plugins/${id(pluginId)}/comments/${id(commentId)}`),
     githubLoginUrl: `${baseUrl}/v1/auth/github`,
     getCatalog: ({ q, sort, cursor }) =>
       read(

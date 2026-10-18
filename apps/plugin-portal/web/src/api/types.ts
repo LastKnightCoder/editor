@@ -24,6 +24,17 @@ export interface UploadTransfer {
 
 /** 前端唯一的后端入口；真实 HTTP 与显式模拟模式各实现一份 */
 export interface PortalApi {
+  getCommunity(
+    pluginId: string,
+    cursor: string | null
+  ): Promise<import("../../../contracts").PluginCommunity>;
+  setPluginLiked(pluginId: string, liked: boolean): Promise<{ liked: boolean }>;
+  addComment(
+    pluginId: string,
+    message: string,
+    clientRequestId: string
+  ): Promise<import("../../../contracts").PluginComment>;
+  deleteComment(pluginId: string, commentId: string): Promise<{ deleted: boolean }>;
   getCatalog(input: {
     q: string;
     sort: import("../../../contracts").CatalogSort;
