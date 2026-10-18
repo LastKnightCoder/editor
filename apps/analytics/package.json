@@ -1,0 +1,41 @@
+{
+  "name": "@tau/analytics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": "./contracts/index.ts",
+    "./client": "./client/index.ts"
+  },
+  "scripts": {
+    "dev": "wrangler dev --config infra/wrangler.jsonc",
+    "dev:web": "vite --config web/vite.config.ts",
+    "db:local": "wrangler d1 migrations apply tau-analytics --local --config infra/wrangler.jsonc",
+    "check": "tsc --noEmit && tsc --noEmit -p web/tsconfig.json",
+    "test": "vitest run",
+    "verify:remote": "node infra/verify-remote.mjs",
+    "build:web": "vite build --config web/vite.config.ts",
+    "build": "pnpm build:web && wrangler deploy --dry-run --config infra/wrangler.jsonc --outdir dist/worker",
+    "deploy:worker": "node infra/check-production.mjs && pnpm check && pnpm test && pnpm build:web && wrangler deploy --config infra/wrangler.production.jsonc"
+  },
+  "dependencies": {
+    "@tau/themes": "workspace:*",
+    "@tau/ui": "workspace:*",
+    "@tanstack/react-query": "5.101.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261016.1",
+    "@tailwindcss/vite": "4.1.18",
+    "@types/node": "^24.1.3",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "@vitejs/plugin-react-swc": "3.11.0",
+    "tailwindcss": "4.1.18",
+    "typescript": "^5.0.4",
+    "vite": "7.2.4",
+    "vitest": "^3.2.4",
+    "wrangler": "4.151.1"
+  }
+}
