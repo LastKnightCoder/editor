@@ -47,7 +47,6 @@ type SyncTab = "overview" | "files" | "database";
 const PROVIDER_LABELS: Record<ESync, string> = {
   [ESync.Plugin]: "同步插件",
   [ESync.AliOSS]: "阿里云 OSS",
-  [ESync.S3]: "S3",
   [ESync.WebDav]: "WebDAV",
   [ESync.Github]: "GitHub",
 };
@@ -63,11 +62,6 @@ const PROVIDER_FIELDS: Record<
     { key: "region", label: "Region" },
     { key: "path", label: "路径", description: "留空表示根目录", placeholder: "如：/sync/" },
   ],
-  [ESync.S3]: [
-    { key: "bucket", label: "Bucket" },
-    { key: "region", label: "Region", placeholder: "如：us-east-1" },
-    { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：sync/" },
-  ],
   [ESync.WebDav]: [
     { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：/sync" },
   ],
@@ -78,12 +72,11 @@ const PROVIDER_FIELDS: Record<
   ],
 };
 
-const PROVIDER_ORDER: ESync[] = [ESync.WebDav, ESync.S3, ESync.AliOSS, ESync.Github];
+const PROVIDER_ORDER: ESync[] = [ESync.WebDav, ESync.AliOSS, ESync.Github];
 
 const CREDENTIAL_HINTS: Record<ESync, string> = {
   [ESync.Plugin]: "",
   [ESync.AliOSS]: "AccessKey 与 Secret",
-  [ESync.S3]: "AccessKey、Secret 与 Endpoint",
   [ESync.WebDav]: "服务器地址、用户名与密码",
   [ESync.Github]: "Personal Access Token",
 };

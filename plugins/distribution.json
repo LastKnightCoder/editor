@@ -47,5 +47,20 @@
       "manifest.json": "a5ea5afb542e86f9c3c3b728b53c42472f4b5c73e0c11f6cb594516781edaf5d",
       "README.md": "c4cea500e178071493d62395ac84401d55247d47012c861e0eb36c62b38d12d2"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-s3",
+    "artifact": "releases/tau.sync-s3/0.1.1",
+    "id": "tau.sync-s3",
+    "version": "0.1.1",
+    "sourceRevision": "2efda2cdbc74103425252f70f90938379ecc5f9f",
+    "archiveSha256": "23991faaeab29373c65ee8b5d9e45fe0168ff3813ee1a32c009d961063ccf76c",
+    "files": {
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.js": "a4c353e009722fadc6a75d1615da6c8776cd9ed1fc9d1887dc58f01715655559",
+      "manifest.json": "0f35b3c571762614af2cb4722ba8e844210c2ddfe256ea9f280462ff69159bad",
+      "README.md": "3d786fb98f54e2c1639a68e1eaf53ade6e6610104e4ced6ddad5b924c5a61b8d",
+      "sync.js": "448260d823385ff2a42e93ad12bb1d1919598a1a4aef0f7c3b94d7153e31938d"
+    }
   }
 ]

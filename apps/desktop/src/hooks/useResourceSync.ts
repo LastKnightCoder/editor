@@ -58,23 +58,6 @@ const useResourceSync = () => {
           path: path || "/",
         };
       }
-      case ESync.S3: {
-        const { accessKeyId, secretAccessKey, endpoint, urlStyle } = integrationConfig.s3;
-        const { bucket, region, pathPrefix } = syncConfig.s3;
-        if (!accessKeyId || !secretAccessKey || !bucket || !region) {
-          return null;
-        }
-        return {
-          provider: "s3",
-          accessKeyId,
-          secretAccessKey,
-          bucket,
-          region,
-          endpoint,
-          urlStyle,
-          pathPrefix,
-        };
-      }
       case ESync.WebDav: {
         const { url, username, password } = integrationConfig.webdav;
         const { pathPrefix } = syncConfig.webdav;
@@ -121,17 +104,6 @@ const useResourceSync = () => {
           bucket: syncConfig.aliOSS.bucket || "",
           region: syncConfig.aliOSS.region || "",
           path: syncConfig.aliOSS.path || "/",
-        };
-      case ESync.S3:
-        return {
-          provider: "s3",
-          accessKeyId: integrationConfig.s3.accessKeyId || "",
-          secretAccessKey: integrationConfig.s3.secretAccessKey || "",
-          bucket: syncConfig.s3.bucket || "",
-          region: syncConfig.s3.region || "",
-          endpoint: integrationConfig.s3.endpoint,
-          urlStyle: integrationConfig.s3.urlStyle,
-          pathPrefix: syncConfig.s3.pathPrefix || "",
         };
       case ESync.WebDav:
         return {

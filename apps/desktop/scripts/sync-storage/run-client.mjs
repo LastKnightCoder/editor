@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, cp } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -34,7 +34,14 @@ await build({
   external: ["electron"],
   tsconfig: path.join(root, "apps/desktop/tsconfig.json"),
 });
-for (const phase of ["install", "restart"]) {
+for (const phase of ["install", "restart", "migrate", "migrate-restart"]) {
+  if (phase === "migrate") {
+    await cp(
+      path.join(root, "plugins/releases/tau.sync-s3/0.1.1"),
+      path.join(output, "build/bundled-plugins/tau.sync-s3"),
+      { recursive: true }
+    );
+  }
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   await new Promise((resolve, reject) => {

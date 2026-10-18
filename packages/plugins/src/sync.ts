@@ -1,4 +1,5 @@
 import type { JsonValue } from "./json";
+export type { JsonValue } from "./json";
 import { assertLocalId } from "./ids";
 
 export interface RemoteFileInfo {

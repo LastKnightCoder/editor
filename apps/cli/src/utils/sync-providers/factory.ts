@@ -1,7 +1,7 @@
 import type { ISyncProvider } from "./types.js";
 import { readSettings } from "../settings.js";
 import { AliOSSSyncProvider } from "./alioss.js";
-import { S3SyncProvider } from "./s3.js";
+import { PluginSyncProvider } from "./plugin.js";
 import { WebDavSyncProvider } from "./webdav.js";
 import { GithubSyncProvider } from "./github.js";
 
@@ -9,15 +9,14 @@ export function createSyncProvider(): ISyncProvider | null {
   const settings = readSettings();
   const syncConfig = settings.sync;
   const integration = settings.integration;
+  if (syncConfig.active === "s3")
+    throw new Error("请先启动新版桌面客户端，完成 S3 插件安装与配置升级");
 
   switch (syncConfig.active) {
     case "aliOSS": {
-      const accessKeyId =
-        (syncConfig.aliOSS as any).accessKeyId ||
-        integration.aliOSS.accessKeyId;
+      const accessKeyId = (syncConfig.aliOSS as any).accessKeyId || integration.aliOSS.accessKeyId;
       const accessKeySecret =
-        (syncConfig.aliOSS as any).accessKeySecret ||
-        integration.aliOSS.accessKeySecret;
+        (syncConfig.aliOSS as any).accessKeySecret || integration.aliOSS.accessKeySecret;
       const { bucket, region, path } = syncConfig.aliOSS;
       if (!accessKeyId || !accessKeySecret || !bucket || !region) return null;
       return new AliOSSSyncProvider({
@@ -29,20 +28,10 @@ export function createSyncProvider(): ISyncProvider | null {
       });
     }
 
-    case "s3": {
-      const { accessKeyId, secretAccessKey, endpoint, urlStyle } =
-        integration.s3;
-      const { bucket, region, pathPrefix } = syncConfig.s3;
-      if (!accessKeyId || !secretAccessKey || !bucket || !region) return null;
-      return new S3SyncProvider({
-        accessKeyId,
-        secretAccessKey,
-        bucket,
-        region,
-        endpoint,
-        urlStyle,
-        pathPrefix,
-      });
+    case "plugin": {
+      const target = syncConfig.plugin;
+      if (!target?.id || !Object.hasOwn(target.configurations, target.id)) return null;
+      return new PluginSyncProvider(target.id, structuredClone(target.configurations[target.id]));
     }
 
     case "webdav": {

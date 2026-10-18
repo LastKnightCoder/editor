@@ -7,6 +7,7 @@ import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local"
 
 type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
 import { readPluginPackage } from "./plugin-package";
+import { withPluginSyncMutation } from "@tau/plugins/sync-leases";
 
 interface UpdateRecord {
   id: string;
@@ -134,44 +135,48 @@ export class PluginUpdates {
       await this.setup();
       for (const id of await this.folders("transactions")) {
         try {
-          await this.recover(id, this.location("transactions", id));
+          await withPluginSyncMutation(this.directory, id, () =>
+            this.recover(id, this.location("transactions", id))
+          );
         } catch (error) {
           await this.error(id, error);
         }
       }
       for (const id of await this.folders("pending")) {
-        const pending = this.location("pending", id);
-        const transaction = this.location("transactions", id);
-        try {
-          if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
-          const record = await this.record(pending, id);
-          const artifact = await readPluginPackage(
-            path.join(pending, "package"),
-            this.clientVersion
-          );
-          if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
-          if ((await this.fingerprint(id)) !== record.baseline)
-            throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
-          await rename(pending, transaction);
-          await this.saveRecord(transaction, { ...record, phase: "prepared" });
-          if (record.baseline !== null)
-            await rename(path.join(this.directory, id), path.join(transaction, "previous"));
-          await rename(path.join(transaction, "package"), path.join(this.directory, id));
-          await readPluginPackage(path.join(this.directory, id), this.clientVersion);
-          await this.saveRecord(transaction, { ...record, phase: "committed" });
-          await this.finish(id, transaction);
-        } catch (error) {
-          if (await exists(transaction)) {
-            try {
-              await this.recover(id, transaction);
-            } catch (recoveryError) {
-              await this.error(id, recoveryError);
-              continue;
+        await withPluginSyncMutation(this.directory, id, async () => {
+          const pending = this.location("pending", id);
+          const transaction = this.location("transactions", id);
+          try {
+            if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
+            const record = await this.record(pending, id);
+            const artifact = await readPluginPackage(
+              path.join(pending, "package"),
+              this.clientVersion
+            );
+            if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
+            if ((await this.fingerprint(id)) !== record.baseline)
+              throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
+            await rename(pending, transaction);
+            await this.saveRecord(transaction, { ...record, phase: "prepared" });
+            if (record.baseline !== null)
+              await rename(path.join(this.directory, id), path.join(transaction, "previous"));
+            await rename(path.join(transaction, "package"), path.join(this.directory, id));
+            await readPluginPackage(path.join(this.directory, id), this.clientVersion);
+            await this.saveRecord(transaction, { ...record, phase: "committed" });
+            await this.finish(id, transaction);
+          } catch (error) {
+            if (await exists(transaction)) {
+              try {
+                await this.recover(id, transaction);
+              } catch (recoveryError) {
+                await this.error(id, recoveryError);
+                return;
+              }
             }
+            await rm(pending, { recursive: true, force: true });
+            await this.error(id, error);
           }
-          await rm(pending, { recursive: true, force: true });
-          await this.error(id, error);
-        }
+        }).catch(error => this.error(id, error));
       }
     });
   }

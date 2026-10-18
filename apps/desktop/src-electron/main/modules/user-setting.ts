@@ -5,6 +5,7 @@ import isEqual from "lodash/isEqual";
 import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
+import { migrateS3SyncSettings } from "../services/sync-settings-migration";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -116,6 +117,11 @@ class UserSettingModule {
     }
     if (!this.settingLoadPromise) {
       this.settingLoadPromise = this.loadSetting()
+        .then(setting =>
+          migrateS3SyncSettings(setting, PathUtil.getAppDir(), next =>
+            this.saveSetting(JSON.stringify(next, null, 2))
+          )
+        )
         .then(setting => {
           this.userSetting = setting;
           this.settingLoaded = true;

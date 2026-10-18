@@ -568,12 +568,12 @@ importers:
 
   apps/cli:
     dependencies:
-      '@aws-sdk/client-s3':
-        specifier: ^3.700.0
-        version: 3.948.0
       '@tau/db-schema':
         specifier: workspace:*
         version: link:../../packages/db-schema
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../../packages/plugins
       ali-oss:
         specifier: ^6.21.0
         version: 6.23.0(proxy-agent@5.0.0)
@@ -3828,6 +3828,9 @@ importers:
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)
+      proper-lockfile:
+        specifier: ^4.1.2
+        version: 4.1.2
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -3844,6 +3847,9 @@ importers:
       '@types/node':
         specifier: ^20.2.1
         version: 20.19.41
+      '@types/proper-lockfile':
+        specifier: ^4.1.4
+        version: 4.1.4
       '@types/react':
         specifier: 19.2.0
         version: 19.2.0

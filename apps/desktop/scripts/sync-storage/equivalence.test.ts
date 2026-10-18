@@ -7,8 +7,6 @@ import {
   publishSnapshot,
   SYNC_MODEL_VERSION,
 } from "@tau/db-schema/sync-protocol";
-import { S3SyncProvider as DesktopProvider } from "../../src/utils/sync/S3SyncProvider";
-import { S3SyncProvider as CliProvider } from "../../../cli/src/utils/sync-providers/s3";
 import { loadAuditCandidate } from "./load-candidate";
 import type { SyncProviderDefinition } from "@tau/plugins/sync";
 
@@ -39,6 +37,7 @@ describe.skipIf(!candidateFile)("指定作者产物的新旧S3对照", () => {
         res.end("<Error><Code>" + code + "</Code><Message>test</Message></Error>");
       };
       if (req.method === "PUT") {
+        if (!req.headers.authorization) return fail(403, "AccessDenied");
         const chunks: Buffer[] = [];
         for await (const part of req) chunks.push(Buffer.from(part));
         const conditional = req.headers["if-none-match"] === "*";
@@ -76,11 +75,7 @@ describe.skipIf(!candidateFile)("指定作者产物的新旧S3对照", () => {
       secretAccessKey: "test-only",
       urlStyle: "path" as const,
     };
-    return [
-      ["desktop", new DesktopProvider({ ...config, pathPrefix: "desktop" })],
-      ["cli", new CliProvider({ ...config, pathPrefix: "cli" })],
-      ["candidate", candidate.create({ ...config, pathPrefix: "candidate" })],
-    ] as const;
+    return [["candidate", candidate.create({ ...config, pathPrefix: "candidate" })]] as const;
   }
   const next = () => ({
     version: 1,

@@ -5,6 +5,11 @@ import { openSyncPlugin } from "@tau/plugins/sync-host";
 import type { SyncProvider } from "@tau/plugins/sync";
 import type { JsonValue } from "@tau/plugins";
 import PathUtil from "../utils/PathUtil";
+import {
+  acquirePluginSyncLease,
+  withPluginSyncMutation,
+  hasPluginSyncLeases,
+} from "@tau/plugins/sync-leases";
 
 interface Session {
   pluginId: string;
@@ -12,11 +17,18 @@ interface Session {
   provider: Promise<SyncProvider>;
   pending: Set<Promise<unknown>>;
   closing?: Promise<void>;
+  release?: () => Promise<void>;
 }
 export class PluginSyncSessions {
   private readonly sessions = new Map<string, Session>();
   private readonly changing = new Set<string>();
-  constructor(private readonly load: (id: string, config: JsonValue) => Promise<SyncProvider>) {}
+  constructor(
+    private readonly load: (id: string, config: JsonValue) => Promise<SyncProvider>,
+    private readonly directory?: () => string
+  ) {}
+  async hasTasks() {
+    return this.busy || (!!this.directory && (await hasPluginSyncLeases(this.directory())));
+  }
   get busy() {
     return this.sessions.size > 0;
   }
@@ -26,7 +38,11 @@ export class PluginSyncSessions {
     const session: Session = {
       owner,
       pluginId,
-      provider: Promise.resolve().then(() => this.load(pluginId, config)),
+      provider: Promise.resolve().then(async () => {
+        if (this.directory)
+          session.release = await acquirePluginSyncLease(this.directory(), pluginId);
+        return this.load(pluginId, config);
+      }),
       pending: new Set(),
     };
     this.sessions.set(id, session);
@@ -34,6 +50,7 @@ export class PluginSyncSessions {
       await session.provider;
       return id;
     } catch (error) {
+      await session.release?.();
       this.sessions.delete(id);
       throw error;
     }
@@ -74,6 +91,7 @@ export class PluginSyncSessions {
     session.closing ??= (async () => {
       await session.provider.catch(() => undefined);
       await Promise.allSettled([...session.pending]);
+      await session.release?.();
       this.sessions.delete(id);
     })();
     return session.closing;
@@ -93,17 +111,21 @@ export class PluginSyncSessions {
       throw new Error("插件有正在进行的同步任务，请结束后再修改");
     this.changing.add(pluginId);
     try {
-      return await action();
+      return await (this.directory
+        ? withPluginSyncMutation(this.directory(), pluginId, action)
+        : action());
     } finally {
       this.changing.delete(pluginId);
     }
   }
 }
-export const pluginSyncSessions = new PluginSyncSessions((pluginId, config) =>
-  openSyncPlugin({
-    directory: path.join(PathUtil.getAppDir(), "plugins"),
-    pluginId,
-    config,
-    clientVersion: app.getVersion(),
-  })
+export const pluginSyncSessions = new PluginSyncSessions(
+  (pluginId, config) =>
+    openSyncPlugin({
+      directory: path.join(PathUtil.getAppDir(), "plugins"),
+      pluginId,
+      config,
+      clientVersion: app.getVersion(),
+    }),
+  () => path.join(PathUtil.getAppDir(), "plugins")
 );

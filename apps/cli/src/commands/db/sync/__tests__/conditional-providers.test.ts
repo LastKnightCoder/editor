@@ -1,9 +1,8 @@
 import { createServer } from "node:http";
 import { expect, it } from "vitest";
-import { S3SyncProvider } from "../../../../utils/sync-providers/s3.js";
 import { WebDavSyncProvider } from "../../../../utils/sync-providers/webdav.js";
 
-it.each(["s3", "webdav"])("%s 的创建请求携带后端原子条件，两个客户端只允许一个成功", async kind => {
+it("WebDAV 的创建请求携带后端原子条件，两个客户端只允许一个成功", async () => {
   let exists = false;
   const conditions: Array<string | undefined> = [];
   const server = createServer((req, res) => {
@@ -35,16 +34,7 @@ it.each(["s3", "webdav"])("%s 的创建请求携带后端原子条件，两个�
   const address = server.address() as { port: number };
   const endpoint = `http://127.0.0.1:${address.port}`;
   const create = () =>
-    kind === "s3"
-      ? new S3SyncProvider({
-          endpoint,
-          urlStyle: "path",
-          bucket: "isolated",
-          region: "us-east-1",
-          accessKeyId: "test",
-          secretAccessKey: "test",
-        })
-      : new WebDavSyncProvider({ url: endpoint, username: "test", password: "test" });
+    new WebDavSyncProvider({ url: endpoint, username: "test", password: "test" });
   try {
     const results = await Promise.allSettled(
       [create(), create()].map(provider =>
