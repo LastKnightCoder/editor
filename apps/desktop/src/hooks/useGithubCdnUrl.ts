@@ -4,18 +4,16 @@ import { EGithubCDN, GITHUB_CDN_NONE_VALUE } from "@/constants/github";
 
 export const getGithubCdnUrl = (
   url?: string,
-  cdn?: EGithubCDN | null | string,
+  cdn?: EGithubCDN | null | string
 ): string | undefined => {
   if (!url || !cdn || cdn === GITHUB_CDN_NONE_VALUE) return url;
 
   const trimmed = url.trim();
-  const githubRawRegex =
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/raw\/([^/]+)\/(.+)$/i;
+  const githubRawRegex = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/raw\/([^/]+)\/(.+)$/i;
   const githubusercontentRegex =
     /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/i;
 
-  const matches =
-    trimmed.match(githubRawRegex) || trimmed.match(githubusercontentRegex);
+  const matches = trimmed.match(githubRawRegex) || trimmed.match(githubusercontentRegex);
 
   if (!matches) {
     return trimmed;
@@ -35,7 +33,7 @@ export const getGithubCdnUrl = (
 };
 
 const useGithubCdnUrl = (url?: string) => {
-  const cdn = useSettingStore((state) => state.setting.imageBed.github.cdn);
+  const cdn = useSettingStore(state => state.setting.imageBed.githubCdn);
 
   return useMemo(() => getGithubCdnUrl(url, cdn), [url, cdn]);
 };

@@ -130,6 +130,10 @@ try {
     await copyDeclaration(entries[index]);
     if (name === "plugins") {
       await writeFile(
+        path.join(directory, "UPLOAD.md"),
+        await readFile(path.join(root, "scripts/plugins/template/UPLOAD.md"))
+      );
+      await writeFile(
         path.join(directory, "SYNC.md"),
         await readFile(path.join(root, "scripts/plugins/template/SYNC.md"))
       );

@@ -19,9 +19,6 @@ import modelUsageModule from "../modules/model-usage";
 import pluginAiModule from "../modules/plugin-ai";
 import browserBridgeModule from "../modules/browser-bridge";
 import mcpModule from "../modules/mcp";
-import aliOssModule from "../modules/ali-oss";
-import s3Module from "../modules/s3";
-import webdavModule from "../modules/webdav";
 import typstModule from "../modules/typst";
 import tailwindRuntimeModule from "../modules/tailwind-runtime";
 import skillModule from "../modules/skill";
@@ -206,26 +203,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => ttsModule.init(),
-  },
-
-  // 云存储模块
-  {
-    name: "ali-oss",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "setting"],
-    init: () => aliOssModule.init(),
-  },
-  {
-    name: "s3",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "setting"],
-    init: () => s3Module.init(),
-  },
-  {
-    name: "webdav",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "setting"],
-    init: () => webdavModule.init(),
   },
 
   // AI 模块

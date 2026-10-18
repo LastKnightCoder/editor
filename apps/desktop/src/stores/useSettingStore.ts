@@ -18,10 +18,7 @@ import type { ImageGenerationStoreShape } from "@/types/imageGeneration";
 
 export enum EImageBed {
   Local = "local",
-  Github = "github",
-  AliOSS = "aliOSS",
-  S3 = "s3",
-  WebDav = "webdav",
+  Plugin = "plugin",
 }
 
 export enum ESync {
@@ -165,28 +162,8 @@ export interface ISetting {
   imageBed: {
     active: EImageBed;
     enableCompression: boolean;
-    github: {
-      repo: string;
-      branch: string;
-      cdn: EGithubCDN | null;
-      pathPrefix: string;
-    };
-    aliOSS: {
-      bucket: string;
-      region: string;
-      pathPrefix: string;
-    };
-    local: {
-      path: string;
-    };
-    s3: {
-      bucket: string;
-      region: string;
-      pathPrefix: string;
-    };
-    webdav: {
-      pathPrefix: string;
-    };
+    githubCdn: EGithubCDN | null;
+    plugin?: { id: string; configurations: Record<string, unknown> };
   };
   sync: {
     active: ESync;
@@ -311,17 +288,6 @@ export interface ISetting {
       secretAccessKey: string;
       endpoint: string;
       urlStyle: "path" | "virtualHosted";
-    };
-    webdav: {
-      enabled: boolean;
-      url: string;
-      username: string;
-      password: string;
-    };
-    aliOSS: {
-      enabled: boolean;
-      accessKeyId: string;
-      accessKeySecret: string;
     };
     podcastTTS: {
       active: ETTSProvider;
@@ -510,30 +476,9 @@ const initialState: IState = {
       },
     },
     imageBed: {
-      active: EImageBed.Github,
+      active: EImageBed.Local,
       enableCompression: false,
-      github: {
-        repo: "",
-        branch: "",
-        cdn: null,
-        pathPrefix: "",
-      },
-      aliOSS: {
-        bucket: "",
-        region: "",
-        pathPrefix: "",
-      },
-      local: {
-        path: "resources",
-      },
-      s3: {
-        bucket: "",
-        region: "",
-        pathPrefix: "",
-      },
-      webdav: {
-        pathPrefix: "",
-      },
+      githubCdn: null,
     },
     sync: {
       active: ESync.Plugin,
@@ -638,17 +583,6 @@ const initialState: IState = {
         secretAccessKey: "",
         endpoint: "",
         urlStyle: "path",
-      },
-      webdav: {
-        enabled: false,
-        url: "",
-        username: "",
-        password: "",
-      },
-      aliOSS: {
-        enabled: false,
-        accessKeyId: "",
-        accessKeySecret: "",
       },
       podcastTTS: {
         active: ETTSProvider.Minimax,

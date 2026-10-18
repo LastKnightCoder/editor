@@ -10,9 +10,7 @@ import {
   desktopFetch,
   getHomeDir,
   generateCacheKey,
-  webdavDownload,
 } from "@/commands";
-import useSettingStore from "@/stores/useSettingStore";
 
 // 将远程资源下载到本地
 // 先查看是否已经下载过，如果没有则下载
@@ -70,12 +68,6 @@ export const getFileExtension = async (url: string): Promise<string> => {
   return lastSegment.slice(dotIndex + 1);
 };
 
-/** WebDAV 资源需鉴权下载，不能直接交给 <audio>/<img> 流式加载 */
-export const isWebDavResource = (url: string) => {
-  const webdavUrl = useSettingStore.getState().setting.integration.webdav.url;
-  return !!webdavUrl && url.startsWith(webdavUrl.replace(/\/$/, ""));
-};
-
 /** 查询远程资源的本地缓存路径，未缓存或缓存文件已丢失返回 null（不触发下载） */
 export const getCachedRemoteResource = async (url: string): Promise<string | null> => {
   const { config } = await ensureRemoteResourceConfig();
@@ -115,43 +107,21 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     await createDir(resourceDirPath);
   }
 
-  let remoteContent: ArrayBuffer;
-
-  if (isWebDavResource(url)) {
-    const webdavConfig = useSettingStore.getState().setting.integration.webdav;
-    // 使用 WebDAV 下载
-    try {
-      const remotePath = url.replace(webdavConfig.url.replace(/\/$/, ""), "");
-      const content = await webdavDownload({
-        url: webdavConfig.url,
-        username: webdavConfig.username,
-        password: webdavConfig.password,
-        remotePath,
-      });
-      remoteContent = content.buffer as unknown as ArrayBuffer;
-    } catch (e) {
-      console.error("WebDAV 下载失败:", e);
-      throw e;
-    }
-  } else {
-    console.log("使用普通 HTTP 下载:", url);
-    // 使用普通 HTTP 下载
-    const response = await desktopFetch(url, {
-      method: "GET",
-      // 微信公众号图片，需要特殊处理
-      headers: url.startsWith("https://mmbiz.qpic.cn")
-        ? {
-            Origin: "https://mp.weixin.qq.com",
-            Referer: "https://mp.weixin.qq.com/",
-          }
-        : undefined,
-    });
-    if (!response.ok) {
-      await response.body?.cancel();
-      throw new Error(`资源下载失败: ${response.status}`);
-    }
-    remoteContent = await response.arrayBuffer();
+  const response = await desktopFetch(url, {
+    method: "GET",
+    // 微信公众号图片需要来源头。
+    headers: url.startsWith("https://mmbiz.qpic.cn")
+      ? {
+          Origin: "https://mp.weixin.qq.com",
+          Referer: "https://mp.weixin.qq.com/",
+        }
+      : undefined,
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(`资源下载失败: ${response.status}`);
   }
+  const remoteContent = await response.arrayBuffer();
 
   const ext = await getFileExtension(url);
   const cacheKey = await generateCacheKey(url);

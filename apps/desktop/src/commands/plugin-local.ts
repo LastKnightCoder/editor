@@ -1,5 +1,8 @@
 import { invoke } from "@/electron";
 import { withModule } from "./module-init";
+import type { UploadRequest } from "../../shared/upload-renderer";
+export const uploadPluginResource = (request: UploadRequest): Promise<string> =>
+  withModule("plugin-local", () => invoke("plugin-local:upload", request));
 import type { LocalPluginScan } from "@/types/plugin-local";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
 export const getContentPluginStartup = (): Promise<{
@@ -24,6 +27,11 @@ import type {
 
 export const getPluginWorkspace = (name: string): Promise<string> =>
   withModule("plugin-local", () => invoke("plugin-local:workspace", name));
+export const savePluginUploadConfig = (
+  id: string,
+  config: import("@tau/plugins").JsonValue
+): Promise<void> =>
+  withModule("plugin-local", () => invoke("plugin-local:upload-config", id, config));
 export const scanLocalPlugins = (legacy?: Record<string, unknown>): Promise<LocalPluginScan> =>
   withModule("plugin-local", () => invoke("plugin-local:scan", legacy));
 export const openPluginDirectory = (): Promise<void> =>

@@ -6,6 +6,7 @@ import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
 import { migrateSyncPluginSettings } from "../services/sync-settings-migration";
+import { migrateUploadSettings } from "../services/upload-settings-migration";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -73,16 +74,20 @@ class UserSettingModule {
     return { ...this.userSetting };
   }
 
-  async updateSyncPlugin(id: string, config: unknown): Promise<void> {
+  async updateProviderPlugin(
+    group: "sync" | "imageBed",
+    id: string,
+    config: unknown
+  ): Promise<void> {
     await this.ensureSettingLoaded();
     await this.handleSetUserSetting({
       ...this.userSetting,
-      sync: {
-        ...this.userSetting.sync,
+      [group]: {
+        ...this.userSetting[group],
         active: "plugin",
         plugin: {
           id,
-          configurations: { ...this.userSetting.sync?.plugin?.configurations, [id]: config },
+          configurations: { ...this.userSetting[group]?.plugin?.configurations, [id]: config },
         },
       },
     });
@@ -106,6 +111,11 @@ class UserSettingModule {
       this.settingLoadPromise = this.loadSetting()
         .then(setting =>
           migrateSyncPluginSettings(setting, PathUtil.getAppDir(), next =>
+            this.saveSetting(JSON.stringify(next, null, 2))
+          )
+        )
+        .then(setting =>
+          migrateUploadSettings(setting, PathUtil.getAppDir(), next =>
             this.saveSetting(JSON.stringify(next, null, 2))
           )
         )

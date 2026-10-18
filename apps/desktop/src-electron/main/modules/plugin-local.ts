@@ -17,6 +17,9 @@ import {
   releaseSyncRenderer,
 } from "../services/plugin-sync";
 import userSetting from "./user-setting";
+import { getMainWindows } from "../windows/main-window";
+import { pluginUploadRelay } from "../services/plugin-upload";
+import type { UploadRequest, UploadRendererReply } from "../../../shared/upload-renderer";
 import {
   downloadPluginRelease,
   fetchPluginCatalog,
@@ -62,6 +65,20 @@ export default {
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    ipcMain.handle("plugin-local:upload-connect", (event, session: string) => {
+      if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
+        throw new Error("上传插件只能由主窗口执行");
+      pluginUploadRelay.connect(event.sender, session);
+    });
+    ipcMain.handle("plugin-local:upload-release", (event, session: string) =>
+      pluginUploadRelay.release(event.sender.id, session)
+    );
+    ipcMain.handle("plugin-local:upload-reply", (event, reply: UploadRendererReply) =>
+      pluginUploadRelay.reply(event.sender.id, reply)
+    );
+    ipcMain.handle("plugin-local:upload", (event, request: UploadRequest) =>
+      pluginUploadRelay.upload(event.sender, request)
+    );
     ipcMain.handle("plugin-local:set-enabled", async (_event, id: string, enabled: boolean) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
@@ -136,7 +153,15 @@ export default {
       async (_event, id: string, config: import("@tau/plugins").JsonValue) => {
         const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
         if (artifact.manifest.id !== id) throw new Error("插件身份无效");
-        await userSetting.updateSyncPlugin(id, copyJson(config));
+        await userSetting.updateProviderPlugin("sync", id, copyJson(config));
+      }
+    );
+    ipcMain.handle(
+      "plugin-local:upload-config",
+      async (_event, id: string, config: import("@tau/plugins").JsonValue) => {
+        const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+        if (artifact.manifest.id !== id) throw new Error("插件身份无效");
+        await userSetting.updateProviderPlugin("imageBed", id, copyJson(config));
       }
     );
     ipcMain.handle(

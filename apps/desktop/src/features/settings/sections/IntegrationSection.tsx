@@ -44,7 +44,7 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 
 type Integration = ISetting["integration"];
-type ServiceKey = "webdav" | "s3" | "aliOSS" | "github" | "bilibili" | "minimax";
+type ServiceKey = "s3" | "github" | "bilibili" | "minimax";
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
 const mutateIntegration = (fn: (draft: Integration) => void) =>
@@ -59,8 +59,6 @@ const hostOf = (url: string) => {
     return url;
   }
 };
-
-const maskKey = (key: string) => (key.length > 10 ? `${key.slice(0, 4)}…${key.slice(-4)}` : key);
 
 const vipText = (vipStatus: number) =>
   vipStatus === 1 ? "大会员" : vipStatus === 0 ? "普通用户" : "未知";
@@ -316,84 +314,6 @@ function ServiceDialog({
 
 /* ───────────── 存储服务 ───────────── */
 
-function WebDavDialog({ open, onOpenChange }: DialogProps) {
-  const webdav = useSettingStore(s => s.setting.integration.webdav);
-  const [form, setForm] = useFormOnOpen(open, () => ({
-    url: webdav.url || "",
-    username: webdav.username || "",
-    password: webdav.password || "",
-  }));
-  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
-  const set = (key: keyof typeof form, value: string) => {
-    setForm(f => ({ ...f, [key]: value }));
-    setErrors(e => ({ ...e, [key]: undefined }));
-  };
-
-  const save = () => {
-    const next: typeof errors = {};
-    if (!form.url.trim()) next.url = "请输入 WebDAV URL";
-    else if (!/^https?:\/\/.+/.test(form.url)) next.url = "请输入有效的 URL";
-    if (!form.username.trim()) next.username = "请输入用户名";
-    if (!form.password.trim()) next.password = "请输入密码";
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
-    mutateIntegration(draft => {
-      draft.webdav = { enabled: true, ...form };
-    });
-    toast.success("WebDAV 配置已保存");
-    onOpenChange(false);
-  };
-
-  return (
-    <ServiceDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onAfterClose={() => setErrors({})}
-      title="WebDAV"
-      subtitle="配置 WebDAV 服务器连接"
-      connected={webdav.enabled}
-      disconnectImpact="使用 WebDAV 的同步与资源存储将不可用"
-      onDisconnect={() =>
-        mutateIntegration(draft => {
-          draft.webdav = { enabled: false, url: "", username: "", password: "" };
-        })
-      }
-      primary={
-        <Button variant="primary" onClick={save}>
-          保存
-        </Button>
-      }
-    >
-      <Field label="WebDAV URL" error={errors.url}>
-        <TextInput
-          mono
-          value={form.url}
-          placeholder="https://dav.jianguoyun.com/dav/"
-          invalid={Boolean(errors.url)}
-          onChange={v => set("url", v)}
-        />
-      </Field>
-      <Field label="用户名" error={errors.username}>
-        <TextInput
-          value={form.username}
-          placeholder="请输入用户名"
-          invalid={Boolean(errors.username)}
-          onChange={v => set("username", v)}
-        />
-      </Field>
-      <Field label="密码" error={errors.password}>
-        <SecretInput
-          label="密码"
-          value={form.password}
-          placeholder="请输入密码"
-          invalid={Boolean(errors.password)}
-          onChange={v => set("password", v)}
-        />
-      </Field>
-    </ServiceDialog>
-  );
-}
-
 function S3Dialog({ open, onOpenChange }: DialogProps) {
   const s3 = useSettingStore(s => s.setting.integration.s3);
   const [form, setForm] = useFormOnOpen(open, () => ({
@@ -431,7 +351,7 @@ function S3Dialog({ open, onOpenChange }: DialogProps) {
       title="S3"
       subtitle="S3 兼容的对象存储服务"
       connected={s3.enabled}
-      disconnectImpact="使用 S3 的同步与资源存储将不可用"
+      disconnectImpact="使用 S3 的博客发布将不可用"
       onDisconnect={() =>
         mutateIntegration(draft => {
           draft.s3 = {
@@ -493,74 +413,6 @@ function S3Dialog({ open, onOpenChange }: DialogProps) {
   );
 }
 
-function AliOSSDialog({ open, onOpenChange }: DialogProps) {
-  const aliOSS = useSettingStore(s => s.setting.integration.aliOSS);
-  const [form, setForm] = useFormOnOpen(open, () => ({
-    accessKeyId: aliOSS.accessKeyId || "",
-    accessKeySecret: aliOSS.accessKeySecret || "",
-  }));
-  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
-  const set = (key: keyof typeof form, value: string) => {
-    setForm(f => ({ ...f, [key]: value }));
-    setErrors(e => ({ ...e, [key]: undefined }));
-  };
-
-  const save = () => {
-    const next: typeof errors = {};
-    if (!form.accessKeyId.trim()) next.accessKeyId = "请输入 Access Key ID";
-    if (!form.accessKeySecret.trim()) next.accessKeySecret = "请输入 Access Key Secret";
-    setErrors(next);
-    if (Object.keys(next).length > 0) return;
-    mutateIntegration(draft => {
-      draft.aliOSS = { enabled: true, ...form };
-    });
-    toast.success("阿里云 OSS 配置已保存");
-    onOpenChange(false);
-  };
-
-  return (
-    <ServiceDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onAfterClose={() => setErrors({})}
-      title="阿里云 OSS"
-      subtitle="阿里云对象存储服务"
-      connected={aliOSS.enabled}
-      disconnectImpact="使用阿里云 OSS 的同步与资源存储将不可用"
-      onDisconnect={() =>
-        mutateIntegration(draft => {
-          draft.aliOSS = { enabled: false, accessKeyId: "", accessKeySecret: "" };
-        })
-      }
-      primary={
-        <Button variant="primary" onClick={save}>
-          保存
-        </Button>
-      }
-    >
-      <Field label="Access Key ID" error={errors.accessKeyId}>
-        <TextInput
-          mono
-          value={form.accessKeyId}
-          placeholder="请输入 Access Key ID"
-          invalid={Boolean(errors.accessKeyId)}
-          onChange={v => set("accessKeyId", v)}
-        />
-      </Field>
-      <Field label="Access Key Secret" error={errors.accessKeySecret}>
-        <SecretInput
-          label="Access Key Secret"
-          value={form.accessKeySecret}
-          placeholder="请输入 Access Key Secret"
-          invalid={Boolean(errors.accessKeySecret)}
-          onChange={v => set("accessKeySecret", v)}
-        />
-      </Field>
-      <HelpSteps steps={["访问阿里云控制台", "进入 AccessKey 管理", "创建或查看 AccessKey"]} />
-    </ServiceDialog>
-  );
-}
-
 function GithubDialog({ open, onOpenChange }: DialogProps) {
   const github = useSettingStore(s => s.setting.integration.github);
   const [token, setToken] = useFormOnOpen(open, () => github.token);
@@ -605,7 +457,7 @@ function GithubDialog({ open, onOpenChange }: DialogProps) {
       subtitle="配置 Personal Access Token"
       connected={github.enabled}
       busy={loading}
-      disconnectImpact="使用 GitHub 的同步与资源存储将不可用"
+      disconnectImpact="使用 GitHub 的博客发布将不可用"
       onDisconnect={() =>
         mutateIntegration(draft => {
           draft.github.token = "";
@@ -1029,27 +881,11 @@ export function IntegrationSection() {
     onOpenChange: open => setOpenKey(open ? key : null),
   });
 
-  const { webdav, s3, aliOSS, github, bilibili, youtube, minimax } = integration;
+  const { s3, github, bilibili, youtube, minimax } = integration;
 
   return (
     <>
-      <SettingsGroup title="存储服务" description="同步与资源存储使用">
-        <ServiceRow
-          mark="W"
-          name="WebDAV"
-          description={
-            webdav.enabled
-              ? `${hostOf(webdav.url)} · ${webdav.username}`
-              : "需要服务器地址、用户名与密码"
-          }
-          status={webdav.enabled ? connectedChip : disconnectedChip}
-        >
-          <RowAction
-            connected={webdav.enabled}
-            name="WebDAV"
-            onClick={() => setOpenKey("webdav")}
-          />
-        </ServiceRow>
+      <SettingsGroup title="存储服务" description="博客发布使用；同步与上传账号在对应插件中配置">
         <ServiceRow
           mark="S3"
           name="S3"
@@ -1063,22 +899,6 @@ export function IntegrationSection() {
           status={s3.enabled ? connectedChip : disconnectedChip}
         >
           <RowAction connected={s3.enabled} name="S3" onClick={() => setOpenKey("s3")} />
-        </ServiceRow>
-        <ServiceRow
-          mark="O"
-          name="阿里云 OSS"
-          description={
-            aliOSS.enabled
-              ? `Access Key ${maskKey(aliOSS.accessKeyId)}`
-              : "需要 Access Key 与 Secret"
-          }
-          status={aliOSS.enabled ? connectedChip : disconnectedChip}
-        >
-          <RowAction
-            connected={aliOSS.enabled}
-            name="阿里云 OSS"
-            onClick={() => setOpenKey("aliOSS")}
-          />
         </ServiceRow>
         <ServiceRow
           mark="G"
@@ -1156,9 +976,7 @@ export function IntegrationSection() {
         </ServiceRow>
       </SettingsGroup>
 
-      <WebDavDialog {...dialogProps("webdav")} />
       <S3Dialog {...dialogProps("s3")} />
-      <AliOSSDialog {...dialogProps("aliOSS")} />
       <GithubDialog {...dialogProps("github")} />
       <BilibiliDialog {...dialogProps("bilibili")} />
       <MinimaxDialog {...dialogProps("minimax")} />

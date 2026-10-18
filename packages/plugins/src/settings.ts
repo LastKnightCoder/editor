@@ -4,6 +4,10 @@ import type { JsonValue } from "./json";
 
 export interface PluginSettingsProps {
   readonly context: PluginContext;
+  readonly uploadConfig?: {
+    readonly value: JsonValue;
+    save(value: JsonValue): Promise<void>;
+  };
   readonly syncConfig?: {
     readonly value: JsonValue;
     save(value: JsonValue): Promise<void>;
@@ -14,8 +18,8 @@ export interface PluginSettingsDefinition {
   id: string;
   title: string;
   description?: string;
-  /** 同步提供方的配置表单挂载到宿主同步设置。 */
-  target?: "sync";
+  /** 提供方配置表单挂载到对应宿主设置；普通插件设置省略。 */
+  target?: "sync" | "upload";
   component: ComponentType<PluginSettingsProps>;
 }
 
@@ -25,6 +29,6 @@ export interface PluginSettingsHandle extends Disposable {
 }
 
 export interface PluginSettings {
-  /** 分区随本次激活回收，保存使用 context.storage。 */
+  /** 分区随本次激活回收；提供方保存使用配置属性，普通设置使用 context.storage。 */
   register(definition: PluginSettingsDefinition): PluginSettingsHandle;
 }

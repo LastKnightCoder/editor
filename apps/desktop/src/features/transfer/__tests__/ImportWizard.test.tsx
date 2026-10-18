@@ -23,9 +23,6 @@ vi.mock("@/page/PageProvider", () => ({
   usePage: () => ({ navigator: { push: mocks.push } }),
   useOverlayDismiss: () => undefined,
 }));
-vi.mock("@/features/settings/sections/ResourceSection", () => ({
-  PROVIDER_LABELS: { local: "本地" },
-}));
 vi.mock("@/stores/useSettingStore", () => {
   const state = { setting: { imageBed: { active: "local" }, database: { active: "db" } } };
   const hook = (selector: (s: typeof state) => unknown) => selector(state);
