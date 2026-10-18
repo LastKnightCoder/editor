@@ -317,6 +317,109 @@ it("命名保持既有固定向量，并隔离插件和 MCP", async () => {
   expect(await getPluginToolName("test.mcp", "books", "lookup")).not.toBe(name);
 });
 
+it.each(["实时", "历史"])("%s 消息传给插件时不泄漏可变宿主引用", async source => {
+  const name = await getPluginToolName("test.mcp", "notes", "lookup");
+  const instance = host([local("notes")], "test.mcp", async context => {
+    await context.chat.registerToolRenderer({
+      mcpId: "notes",
+      toolName: "lookup",
+      component: props => {
+        Object.assign(props.execution, { output: "组件内修改" });
+        const metadata = props.execution.metadata;
+        if (metadata) {
+          metadata.changed = true;
+          (metadata.render as { payload: { label: string } }).payload.label = "组件内修改";
+        }
+        return <span>组件已读取</span>;
+      },
+    });
+  });
+  await instance.enable("test.mcp");
+  const execution: ToolCallExecutionState = {
+    toolCallId: "readonly",
+    toolName: name,
+    input: "{}",
+    status: "success",
+    timestamp: 1,
+    output: "原始文本",
+    metadata: { render: { rendererKey: name, version: 1, payload: { label: "原始数据" } } },
+  };
+  let displayed = execution;
+  if (source === "历史") {
+    const [message] = piEntriesToDesktopMessages([
+      {
+        id: "a",
+        message: {
+          role: "assistant",
+          content: [{ type: "toolCall", id: execution.toolCallId, name, arguments: {} }],
+        },
+      },
+      {
+        id: "r",
+        message: {
+          role: "toolResult",
+          toolCallId: execution.toolCallId,
+          toolName: name,
+          content: [{ type: "text", text: execution.output }],
+          details: execution.metadata,
+        },
+      },
+    ]);
+    displayed = (message as { assistant_blocks: { execution: ToolCallExecutionState }[] })
+      .assistant_blocks[0].execution;
+  }
+  const before = structuredClone(displayed);
+  container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () => root!.render(<ToolCallDisplay executions={[displayed]} />));
+  expect(container.textContent).toBe("组件已读取");
+  expect(displayed).toEqual(before);
+});
+
+it("历史回放中其他来源的 rendererKey 不能挂载本插件组件", async () => {
+  const component = vi.fn(() => <span>插件私有组件</span>);
+  const name = await getPluginToolName("test.mcp", "notes", "lookup");
+  const instance = host([local("notes")], "test.mcp", async context => {
+    await context.chat.registerToolRenderer({ mcpId: "notes", toolName: "lookup", component });
+  });
+  await instance.enable("test.mcp");
+  const [message] = piEntriesToDesktopMessages([
+    {
+      id: "a",
+      message: {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "external-call", name: "external_lookup", arguments: {} },
+        ],
+      },
+    },
+    {
+      id: "r",
+      message: {
+        role: "toolResult",
+        toolCallId: "external-call",
+        toolName: "external_lookup",
+        content: [{ type: "text", text: "其他来源结果" }],
+        details: { render: { rendererKey: name, version: 1, payload: { count: 42 } } },
+      },
+    },
+  ]);
+  const execution = (message as { assistant_blocks: { execution: ToolCallExecutionState }[] })
+    .assistant_blocks[0].execution;
+  container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(
+      <ToolCallDisplay
+        executions={[execution]}
+        renderDefaultItem={({ execution }) => <span>{execution.output}</span>}
+      />
+    )
+  );
+  expect(container.textContent).toBe("其他来源结果");
+  expect(component).not.toHaveBeenCalled();
+});
+
 it("本地展示数据贯通历史投影，MCP 关闭后可读，插件停用与重启即时切换", async () => {
   const definition = local("notes");
   definition.tools![0].execute = () => ({
