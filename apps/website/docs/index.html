@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title><!--tau:doc-title--></title>
+<meta name="description" content="<!--tau:doc-summary-->" />
+<meta name="theme-color" content="#f3eee2" />
+<link rel="icon" type="image/png" href="/tau-icon.png" />
+<script>
+  // 沿用首页选过的主题
+  try {
+    var saved = localStorage.getItem("tau-site-theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/docs/main.tsx"></script>
+</body>
+</html>

@@ -1712,16 +1712,139 @@ importers:
 
   apps/website:
     dependencies:
+      '@tau/editor':
+        specifier: workspace:*
+        version: link:../../packages/editor
+      '@tau/editor-annotation':
+        specifier: workspace:*
+        version: link:../../editor-extensions/annotation
+      '@tau/editor-blockquote':
+        specifier: workspace:*
+        version: link:../../editor-extensions/blockquote
+      '@tau/editor-callout':
+        specifier: workspace:*
+        version: link:../../editor-extensions/callout
+      '@tau/editor-code-block':
+        specifier: workspace:*
+        version: link:../../editor-extensions/code-block
+      '@tau/editor-comment':
+        specifier: workspace:*
+        version: link:../../editor-extensions/comment
+      '@tau/editor-detail':
+        specifier: workspace:*
+        version: link:../../editor-extensions/detail
+      '@tau/editor-divide-line':
+        specifier: workspace:*
+        version: link:../../editor-extensions/divide-line
+      '@tau/editor-emoji':
+        specifier: workspace:*
+        version: link:../../editor-extensions/emoji
+      '@tau/editor-front-matter':
+        specifier: workspace:*
+        version: link:../../editor-extensions/front-matter
+      '@tau/editor-header':
+        specifier: workspace:*
+        version: link:../../editor-extensions/header
+      '@tau/editor-highlight-block':
+        specifier: workspace:*
+        version: link:../../editor-extensions/highlight-block
+      '@tau/editor-kbd':
+        specifier: workspace:*
+        version: link:../../editor-extensions/kbd
+      '@tau/editor-link':
+        specifier: workspace:*
+        version: link:../../editor-extensions/link
+      '@tau/editor-list':
+        specifier: workspace:*
+        version: link:../../editor-extensions/list
+      '@tau/editor-math':
+        specifier: workspace:*
+        version: link:../../editor-extensions/math
+      '@tau/editor-media':
+        specifier: workspace:*
+        version: link:../../editor-extensions/media
+      '@tau/editor-styled-text':
+        specifier: workspace:*
+        version: link:../../editor-extensions/styled-text
+      '@tau/editor-table':
+        specifier: workspace:*
+        version: link:../../editor-extensions/table
+      '@tau/editor-tabs':
+        specifier: workspace:*
+        version: link:../../editor-extensions/tabs
+      '@tau/editor-text-formatting':
+        specifier: workspace:*
+        version: link:../../editor-extensions/text-formatting
+      '@tau/editor-underline':
+        specifier: workspace:*
+        version: link:../../editor-extensions/underline
+      '@tau/markdown':
+        specifier: workspace:*
+        version: link:../../packages/markdown
+      '@tau/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@tau/themes':
         specifier: workspace:*
         version: link:../../packages/themes
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      ahooks:
+        specifier: ^3.10.0
+        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.2.0)
+      react:
+        specifier: 19.2.0
+        version: 19.2.0
+      react-dnd:
+        specifier: ^16.0.1
+        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
+      react-dnd-html5-backend:
+        specifier: ^16.0.1
+        version: 16.0.1
+      react-dom:
+        specifier: 19.2.0
+        version: 19.2.0(react@19.2.0)
+      slate:
+        specifier: 0.126.2
+        version: 0.126.2
+      slate-dom:
+        specifier: 0.126.0
+        version: 0.126.0(slate@0.126.2)
+      slate-history:
+        specifier: 0.113.1
+        version: 0.113.1(slate@0.126.2)
+      slate-react:
+        specifier: 0.126.4
+        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+      zustand:
+        specifier: ^4.5.7
+        version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 5.20261016.1
         version: 5.20261016.1
+      '@tailwindcss/vite':
+        specifier: ^4.1.18
+        version: 4.1.18(vite@7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
       '@types/node':
         specifier: ^24.0.0
         version: 24.12.4
+      '@types/react':
+        specifier: 19.2.0
+        version: 19.2.0
+      '@types/react-dom':
+        specifier: 19.2.0
+        version: 19.2.0(@types/react@19.2.0)
+      '@vitejs/plugin-react':
+        specifier: ^4.7.0
+        version: 4.7.0(vite@7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
+      tailwindcss:
+        specifier: ^4.2.0
+        version: 4.3.3
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
@@ -13507,6 +13630,9 @@ packages:
   tailwindcss@4.1.18:
     resolution: {integrity: sha512-4+Z+0yiYyEtUVCScyfHCxOYP06L5Ne+JiHhY2IjR2KWMIWhJOYZKLSGZaP5HkZ8+bY0cxfzwDE5uOmzFXyIwxw==}
 
+  tailwindcss@4.3.3:
+    resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
+
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
@@ -18749,6 +18875,18 @@ snapshots:
       vite: 7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@swc/helpers'
+
+  '@vitejs/plugin-react@4.7.0(vite@7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))':
+    dependencies:
+      '@babel/core': 7.29.0
+      '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
+      '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.29.0)
+      '@rolldown/pluginutils': 1.0.0-beta.27
+      '@types/babel__core': 7.20.5
+      react-refresh: 0.17.0
+      vite: 7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - supports-color
 
   '@vitejs/plugin-react@4.7.0(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.30.2)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))':
     dependencies:
@@ -25048,6 +25186,8 @@ snapshots:
   tailwind-merge@3.7.0: {}
 
   tailwindcss@4.1.18: {}
+
+  tailwindcss@4.3.3: {}
 
   tapable@2.3.0: {}
 
