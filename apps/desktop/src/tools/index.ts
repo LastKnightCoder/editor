@@ -4,6 +4,7 @@ import toolRegistry, { ToolRegistry } from "./toolRegistry";
 import { registerBuiltinTools } from "./builtinTools";
 import { disconnectFromServer, fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
 import useSettingStore from "@/stores/useSettingStore";
+import { useImageCapabilities } from "@/services/image-capabilities";
 
 let initialized = false;
 /** 上次加载时的服务器配置：store 只替换被改动的那一项，按引用比较即可只重载变化的服务器 */
@@ -99,6 +100,7 @@ export const initializeTooling = () => {
   registerBuiltinTools(toolRegistry);
   registerBuiltinProviders(toolRegistry);
   syncCustomServers(useMCPStore.getState().customServers);
+  useImageCapabilities.subscribe(() => registerBuiltinProviders(toolRegistry));
 
   useMCPStore.subscribe((state, prevState) => {
     if (!prevState || state.providerStates !== prevState.providerStates) {

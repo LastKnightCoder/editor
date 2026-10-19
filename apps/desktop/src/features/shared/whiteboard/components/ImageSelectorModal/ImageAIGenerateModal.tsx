@@ -3,15 +3,16 @@
  * 生成中主按钮走 Button loading；⌘/Ctrl + Enter 提交。
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { Button, Dialog, DialogBody, Textarea } from "@tau/ui";
+import { useImageCapabilities } from "@/services/image-capabilities";
 
 interface ImageAIGenerateModalProps {
   open: boolean;
   onCancel: () => void;
-  onConfirm: (prompt: string) => Promise<void> | void;
+  onConfirm: (prompt: string, signal: AbortSignal) => Promise<void> | void;
 }
 
 const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
@@ -22,6 +23,14 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const canGenerate = useImageCapabilities(state => state.canGenerate);
+  const taskRef = useRef<AbortController | null>(null);
+  useEffect(
+    () => () => {
+      taskRef.current?.abort();
+    },
+    [open]
+  );
 
   // 每次打开都从空白开始
   useEffect(() => {
@@ -32,21 +41,24 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
   }, [open]);
 
   const handleSubmit = useMemoizedFn(async () => {
-    if (submitting) return;
+    if (submitting || !canGenerate) return;
     const finalPrompt = prompt.trim();
     if (!finalPrompt) {
       setError("请输入图片生成要求");
       return;
     }
 
+    const controller = new AbortController();
+    taskRef.current = controller;
     try {
       setError(null);
       setSubmitting(true);
-      await onConfirm(finalPrompt);
+      await onConfirm(finalPrompt, controller.signal);
     } catch (err) {
+      if (controller.signal.aborted || (err as Error).name === "AbortError") return;
       setError((err as Error).message || "AI 图片生成失败");
     } finally {
-      setSubmitting(false);
+      if (!controller.signal.aborted) setSubmitting(false);
     }
   });
 
@@ -76,7 +88,7 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
             size="sm"
             loading={submitting}
             loadingText="生成中…"
-            disabled={!prompt.trim()}
+            disabled={!prompt.trim() || !canGenerate}
             onClick={handleSubmit}
           >
             生成并插入
@@ -102,6 +114,11 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
             />
           </label>
 
+          {!canGenerate && (
+            <p className="text-tau-meta text-ink-2">
+              请先在图片生成设置中选择支持生成的图片插件账号。
+            </p>
+          )}
           {error && (
             <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
               {error}

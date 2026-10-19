@@ -49,10 +49,9 @@ const configureImageTools = (enabled: boolean) => {
           {
             id: "default",
             name: "test",
-            providerType: "openai" as const,
-            baseUrl: "https://api.openai.com/v1",
-            apiKey: "sk-test",
-            modelName: "gpt-image-2",
+            pluginId: "test.images",
+            config: { region: "a" },
+            modelId: "model",
           },
         ],
       },

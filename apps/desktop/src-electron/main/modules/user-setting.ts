@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { migrateSyncPluginSettings } from "../services/sync-settings-migration";
 import { migrateUploadSettings } from "../services/upload-settings-migration";
 import { migrateTTSSettings } from "../services/tts-settings-migration";
+import { migrateImageSettings } from "../services/image-settings-migration";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -136,6 +137,30 @@ class UserSettingModule {
     });
   }
 
+  async updateImagePlugin(instanceId: string, pluginId: string, config: unknown, modelId: string) {
+    if (typeof modelId !== "string" || !modelId.trim()) throw new Error("图片模型不能为空");
+    const snapshot = structuredClone({ config, modelId });
+    await this.updateSetting(current => {
+      const imageGeneration = current.imageGeneration;
+      const providers: import("@/types/imageGeneration").ImageProviderConfig[] = Array.isArray(
+        imageGeneration?.providers
+      )
+        ? imageGeneration.providers
+        : [];
+      if (!providers.some(item => item.id === instanceId && item.pluginId === pluginId))
+        throw new Error("图片账号已删除或归属已变化");
+      return {
+        ...current,
+        imageGeneration: {
+          ...imageGeneration,
+          providers: providers.map(item =>
+            item.id === instanceId && item.pluginId === pluginId ? { ...item, ...snapshot } : item
+          ),
+        },
+      };
+    });
+  }
+
   private notifySettingChanged(payload: SettingChangedPayload) {
     this.settingChangeListeners.forEach(listener => {
       try {
@@ -164,6 +189,11 @@ class UserSettingModule {
         )
         .then(setting =>
           migrateTTSSettings(setting, PathUtil.getAppDir(), next =>
+            this.saveSetting(JSON.stringify(next, null, 2))
+          )
+        )
+        .then(setting =>
+          migrateImageSettings(setting, PathUtil.getAppDir(), next =>
             this.saveSetting(JSON.stringify(next, null, 2))
           )
         )

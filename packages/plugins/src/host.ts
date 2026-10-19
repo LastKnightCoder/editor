@@ -27,6 +27,7 @@ import { assertLocalId, copyJson } from "./values";
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
 import type { TTSProviderDefinition } from "./tts";
+import type { ImageProviderDefinition } from "./images";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
@@ -194,6 +195,9 @@ export class PluginHost {
         uploadRemote?(file: UploadFile, signal: AbortSignal): Promise<string>;
       };
       tts?: { register(context: PluginContext, definition: TTSProviderDefinition): Disposable };
+      images?: {
+        register(context: PluginContext, definition: ImageProviderDefinition): Disposable;
+      };
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
@@ -476,6 +480,30 @@ export class PluginHost {
     };
     const context: PluginContext = {
       pluginId: scope.pluginId,
+      images: Object.freeze({
+        register: (definition: ImageProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
+            throw new Error("图片提供方必须属于当前插件");
+          if (!this.options.images) throw new Error("当前宿主不支持图片提供方");
+          const create = definition.create.bind(definition);
+          return register(
+            this.options.images.register(context, {
+              id: scope.pluginId,
+              name: definition.name,
+              create: (config, modelId) => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("图片插件尚未激活");
+                return create(copyJson(config), modelId);
+              },
+            })
+          );
+        },
+      }),
       tts: Object.freeze({
         register: (definition: TTSProviderDefinition) => {
           this.assertActive(entry, activation);
