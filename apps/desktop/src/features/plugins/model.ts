@@ -1,15 +1,9 @@
 import type { PluginInfo } from "@tau/plugins/host";
 import { comparePluginVersions, type PluginContributionKind } from "@tau/plugins/host";
-import { PLUGIN_CATEGORIES, type PluginCategory } from "@tau/plugins/package";
+import { PLUGIN_CATEGORIES } from "@tau/plugins/package";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
 import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
-
-const CATEGORY_LABELS = new Map<string, string>(
-  PLUGIN_CATEGORIES.map(item => [item.id, item.label])
-);
-export const categoryLabels = (categories: readonly PluginCategory[] | undefined) =>
-  (categories ?? []).map(id => CATEGORY_LABELS.get(id) ?? id);
 
 /** 发现页分类菜单：只列有插件的分类，顺序同词表；客户端不认识的分类已在类型层被忽略。 */
 export function catalogCategories(entries: readonly PluginCatalogEntry[]) {
