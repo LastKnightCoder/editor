@@ -1,8 +1,8 @@
 import type { Editor } from "slate";
 import { setOrInsertNode, focusInsertedPreviewElement } from "@tau/editor/api";
-import type { MermaidElement, PlantUMLElement, AbcElement, TypstElement } from "./types";
+import type { MermaidElement, PlantUMLElement, AbcElement } from "./types";
 
-type DiagramElement = MermaidElement | PlantUMLElement | AbcElement | TypstElement;
+type DiagramElement = MermaidElement | PlantUMLElement | AbcElement;
 
 const insertDiagram = (editor: Editor, node: DiagramElement) => {
   const path = setOrInsertNode(editor, node);
@@ -25,12 +25,6 @@ export const insertPlantUML = (editor: Editor) =>
 export const insertAbc = (editor: Editor) =>
   insertDiagram(editor, {
     type: "abc",
-    content: "",
-    children: [{ type: "formatted", text: "" }],
-  });
-export const insertTypst = (editor: Editor) =>
-  insertDiagram(editor, {
-    type: "typst",
     content: "",
     children: [{ type: "formatted", text: "" }],
   });

@@ -16,6 +16,12 @@
 | `ffmpeg.probe(file, options?)`           | `{ name, data: Blob }`                            | `{ format, streams }`               |
 | `ffmpeg.run(input, options?)`            | `{ files, args, outputs }`                        | `{ files, log }`                    |
 
+## 在静态组件中获取服务
+
+SDK 0.16.0 的 `usePluginServices()` 返回当前插件可用的同一组服务，类型为 `PluginServices | undefined`。服务由插件运行时提供，独立编辑窗口无需 activate；博客和未包裹的普通组件返回 undefined，组件应显示已保存结果或源码。它不属于源码块或 EditorKit，不要将服务存入模块全局变量。
+
+组件需用自己的 AbortSignal 取消过期或卸载的调用，宿主同时处理窗口与工作区失效。内容插件的启停按现有重启生效规则处理；写入启停意图不会提前拆掉当前窗口已生效的贡献。
+
 ## 取消与错误
 
 第二个参数均支持 `{ signal: AbortSignal }`。插件停用会自动取消本实例的任务，不必重复传入 `context.signal`。用户主动取消可使用单次任务的 `AbortController`。
