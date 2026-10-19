@@ -5,6 +5,7 @@ export const PLUGIN_CATEGORIES = [
   { id: "editor", label: "编辑器" },
   { id: "whiteboard", label: "白板" },
   { id: "blog-template", label: "博客模板" },
+  { id: "blog-publish", label: "博客发布" },
   { id: "ai", label: "AI" },
   { id: "voice", label: "语音" },
   { id: "page", label: "页面" },
