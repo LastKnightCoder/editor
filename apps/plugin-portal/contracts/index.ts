@@ -160,6 +160,8 @@ export interface CatalogEntry {
   repository: string;
   /** 取自 latest，作者未填写时为空数组。 */
   categories: PluginCategory[];
+  /** 取自 latest，供客户端本地搜索；界面不作为标签展示。 */
+  keywords: string[];
   latest: CatalogVersion;
   /** 当前客户端可安装的最高版本；没有兼容版本时为 null，不回退到 latest。 */
   compatible: CatalogVersion | null;

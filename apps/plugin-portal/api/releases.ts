@@ -290,6 +290,7 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
       publisher: { login: latest.login, avatarUrl: latest.avatar_url },
       repository: latest.repository,
       categories,
+      keywords: parseList(latest.keywords),
       latest: catalogVersion(latest, env),
       compatible: compatible ? catalogVersion(compatible, env) : null,
     });

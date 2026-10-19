@@ -679,7 +679,7 @@ describe("包资料与站内反馈", () => {
     const list = async (query: string) =>
       (await (await req(`/v1/catalog?appVersion=0.59.0&${query}`)).json()).data;
     const all = await list("");
-    expect(all.items[0].categories).toEqual(["editor", "ai"]);
+    expect(all.items[0]).toMatchObject({ categories: ["editor", "ai"], keywords: ["MinIO"] });
     expect(all.categoryCounts).toEqual({ editor: 1, ai: 1 });
     expect((await list("category=editor")).items).toHaveLength(1);
     expect((await list("category=sync")).items).toHaveLength(0);

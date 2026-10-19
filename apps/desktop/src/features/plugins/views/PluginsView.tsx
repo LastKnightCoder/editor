@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from "react";
 import {
   BookOpen,
+  ChevronDown,
   CloudOff,
   ExternalLink,
   FolderOpen,
+  LayoutGrid,
   Package,
   RefreshCw,
   Search,
@@ -15,11 +17,14 @@ import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context"
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { openExternal } from "@/commands/extra";
 import { openPluginDirectory, stagePluginZip } from "@/commands/plugin-local";
+import type { PluginCategory } from "@tau/plugins/package";
 import type { PluginCatalogEntry, PluginCatalogSort } from "@/types/plugin-center";
 import {
   PLUGIN_PORTAL_URL,
   PLUGIN_TEMPLATE_URL,
   STATE_LABELS,
+  catalogCategories,
+  categoryLabels,
   pendingCount,
   installState,
   installedPlugins,
@@ -51,6 +56,7 @@ export function PluginsView() {
   const [query, setQuery] = useState("");
   const [actionError, setActionError] = useState("");
   const [sort, setSort] = useState<PluginCatalogSort>("downloads7d");
+  const [category, setCategory] = useState<PluginCategory | null>(null);
   const catalog = usePluginCatalog("", tab === "discover" ? sort : "updated");
   const installed = runtime ? installedPlugins(runtime) : [];
   const updates = (catalog.data?.items ?? []).flatMap(entry => {
@@ -75,6 +81,13 @@ export function PluginsView() {
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate">
               扩展页面、侧边栏、命令与摘录来源
             </span>
+            {tab === "discover" && (
+              <CategoryMenu
+                entries={catalog.data?.items ?? []}
+                value={category}
+                onChange={setCategory}
+              />
+            )}
             {tab === "discover" && (
               <Select
                 size="sm"
@@ -181,8 +194,10 @@ export function PluginsView() {
               runtime={runtime}
               installed={installed}
               query={query}
+              category={category}
               catalog={catalog}
               onOpen={openDetail}
+              onClearCategory={() => setCategory(null)}
             />
           ) : tab === "installed" ? (
             <Installed runtime={runtime} installed={installed} query={query} onOpen={openDetail} />
@@ -200,18 +215,61 @@ export function PluginsView() {
   );
 }
 
+/** 分类单选菜单；目录里没有任何分类时不渲染 */
+function CategoryMenu({
+  entries,
+  value,
+  onChange,
+}: {
+  entries: readonly PluginCatalogEntry[];
+  value: PluginCategory | null;
+  onChange: (value: PluginCategory | null) => void;
+}) {
+  const items = catalogCategories(entries);
+  if (!items.length && !value) return null;
+  const label = items.find(item => item.id === value)?.label ?? "全部分类";
+  return (
+    <Menu
+      align="end"
+      trigger={
+        <Button variant="ghost" size="sm" icon={LayoutGrid} aria-label={`插件分类：${label}`}>
+          {label}
+          <ChevronDown className="text-ink-3 size-3.5" strokeWidth={1.75} />
+        </Button>
+      }
+    >
+      <Menu.RadioGroup
+        value={value ?? ""}
+        onValueChange={next => onChange((next || null) as PluginCategory | null)}
+      >
+        <Menu.RadioItem value="">全部分类</Menu.RadioItem>
+        {items.map(item => (
+          <Menu.RadioItem key={item.id} value={item.id}>
+            {item.label}
+            <span className="text-ink-3 ml-auto pl-4 tabular-nums">{item.count}</span>
+          </Menu.RadioItem>
+        ))}
+      </Menu.RadioGroup>
+    </Menu>
+  );
+}
+
 function Discover({
   runtime,
   installed,
   query,
+  category,
   catalog,
   onOpen,
+  onClearCategory,
 }: {
   runtime: DesktopPluginRuntime;
   installed: InstalledPlugin[];
   query: string;
+  category: PluginCategory | null;
   catalog: ReturnType<typeof usePluginCatalog>;
   onOpen: (id: string) => void;
+  onClearCategory: () => void;
 }) {
   if (catalog.loading) return <p className="text-tau-body text-ink-2">正在读取插件中心…</p>;
   if (!catalog.data)
@@ -223,9 +281,25 @@ function Discover({
         </Button>
       </Empty>
     );
-  const entries = catalog.data.items.filter(entry =>
-    matchesQuery([entry.pluginId, entry.name, entry.description], query)
+  const entries = catalog.data.items.filter(
+    entry =>
+      (!category || entry.categories?.includes(category)) &&
+      matchesQuery(
+        [entry.pluginId, entry.name, entry.description, ...(entry.keywords ?? [])],
+        query
+      )
   );
+  if (!entries.length && category)
+    return (
+      <Empty
+        icon={<SearchX />}
+        title={query ? `该分类下没有「${query.trim()}」` : "该分类下暂无插件"}
+      >
+        <Button variant="secondary" size="sm" className="mt-2" onClick={onClearCategory}>
+          查看全部分类
+        </Button>
+      </Empty>
+    );
   if (!entries.length)
     return (
       <Empty
@@ -288,6 +362,11 @@ function CatalogCard({
         </div>
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
+      {entry.categories?.length ? (
+        <p className="text-tau-sm text-ink-3 truncate">
+          {categoryLabels(entry.categories).join(" · ")}
+        </p>
+      ) : null}
       <p
         className="text-tau-sm text-ink-3"
         title="同一设备、同一版本、同一 UTC 日计一次；近 7 日含今日，不代表安装人数"

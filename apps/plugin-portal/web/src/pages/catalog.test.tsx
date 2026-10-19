@@ -22,6 +22,7 @@ const row = (id: string): CatalogEntry => ({
   description: "介绍",
   repository: "",
   categories: ["editor", "ai"],
+  keywords: [],
   publisher: { login: "author", avatarUrl: "" },
   downloadsTotal: 12,
   downloads7d: 3,

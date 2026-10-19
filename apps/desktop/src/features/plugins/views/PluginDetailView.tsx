@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Github, Layers, PanelLeft, ShieldAlert, SlidersHorizontal, Terminal } from "lucide-react";
+import { Github, Layers, ShieldAlert } from "lucide-react";
 import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
@@ -11,7 +11,9 @@ import {
 import { openExternal } from "@/commands/extra";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import {
+  CONTRIBUTION_LABELS,
   STATE_LABELS,
+  categoryLabels,
   formatSize,
   installState,
   installedPlugins,
@@ -425,29 +427,17 @@ function Aside({
   release?: PluginRelease;
 }) {
   const active = plugin?.info.state === "active";
-  const contributions = active
-    ? [
-        {
-          icon: PanelLeft,
-          count: runtime.listSidebar().items.filter(item => item.pluginId === id).length,
-          label: "侧边栏入口",
-        },
-        {
-          icon: Terminal,
-          count: runtime.host.listCommands().filter(item => item.pluginId === id).length,
-          label: "命令",
-        },
-        {
-          icon: SlidersHorizontal,
-          count: runtime.listSettings().filter(item => item.context.pluginId === id).length,
-          label: "设置分组",
-        },
-      ].filter(item => item.count > 0)
-    : [];
+  const registered = active ? runtime.host.listContributions(id) : {};
+  const contributions = Object.entries(CONTRIBUTION_LABELS).flatMap(([kind, label]) => {
+    const count = registered[kind as keyof typeof registered] ?? 0;
+    return count > 0 ? [{ label, count }] : [];
+  });
+  const categories = categoryLabels(entry?.categories);
   const info: [string, ReactNode][] = [
     ["插件 ID", <span className="font-tau-mono text-[12px]">{id}</span>],
   ];
   if (plugin) info.push(["当前版本", plugin.info.version]);
+  if (categories.length) info.push(["分类", categories.join("、")]);
   if (entry) {
     info.push(["需要客户端", `≥ ${(entry.compatible ?? entry.latest).minAppVersion}`]);
     info.push(["大小", formatSize((entry.compatible ?? entry.latest).size)]);
@@ -490,17 +480,17 @@ function Aside({
           <h4 className="text-tau-sm text-ink-3 mb-2 font-medium">此插件提供</h4>
           {contributions.length ? (
             <ul className="text-tau-meta flex flex-col gap-1.5">
-              {contributions.map(({ icon: Icon, count, label }) => (
-                <li key={label} className="flex items-center gap-2">
-                  <Icon className="text-ink-3 size-3.5" strokeWidth={1.75} />
-                  {label} {count}
+              {contributions.map(({ count, label }) => (
+                <li key={label} className="flex items-center justify-between gap-2">
+                  <span>{label}</span>
+                  <span className="text-ink-3 tabular-nums">{count}</span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="text-tau-meta text-ink-3 flex items-center gap-2">
               <Layers className="size-3.5" strokeWidth={1.75} />
-              {active ? "没有登记界面入口" : "启用后可见"}
+              {active ? "没有登记可展示的功能" : "启用后可见"}
             </p>
           )}
         </div>

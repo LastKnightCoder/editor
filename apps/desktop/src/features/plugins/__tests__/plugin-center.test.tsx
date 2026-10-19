@@ -111,6 +111,7 @@ let scan: LocalPluginScan;
 let root: Root;
 let container: HTMLDivElement;
 let runtime: DesktopPluginRuntime;
+let client: QueryClient;
 let navigator: Navigator | undefined;
 
 function Host() {
@@ -185,13 +186,14 @@ beforeEach(async () => {
   });
   runtime.attachLocal(localStorage);
   await runtime.local?.refresh();
+  client = new QueryClient();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(async () =>
     root.render(
       <StrictMode>
-        <QueryClientProvider client={new QueryClient()}>
+        <QueryClientProvider client={client}>
           <PageProvider initialKey="plugins">
             <PluginRuntimeContext.Provider value={runtime}>
               <Host />
@@ -333,4 +335,80 @@ it("详情按需加载社区，喜欢与删除刷新同一插件，评论失败�
   await click("确认删除", dialog());
   expect(mock.deleteComment).toHaveBeenCalledWith(ID, "c1");
   expect(page().textContent).toContain("暂无评论。");
+});
+
+it("发现页按分类单选筛选，关键词参与搜索，卡片显示分类", async () => {
+  const other = {
+    ...catalog.items[0],
+    pluginId: "test.sync",
+    name: "同步插件",
+    description: "备份到对象存储",
+    categories: ["sync" as const],
+    keywords: ["MinIO"],
+  };
+  mock.catalog.mockResolvedValue({
+    ...catalog,
+    items: [{ ...catalog.items[0], categories: ["editor", "ai"] }, other],
+  });
+  await act(async () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }));
+  await settle();
+  expect(page().textContent).toContain("编辑器 · AI");
+  const trigger = page().querySelector<HTMLButtonElement>('[aria-label="插件分类：全部分类"]');
+  expect(trigger).not.toBeNull();
+  await act(async () => trigger?.click());
+  await settle();
+  const options = [...document.querySelectorAll('[role="menuitemradio"]')];
+  expect(options.map(item => item.textContent)).toEqual(["全部分类", "同步1", "编辑器1", "AI1"]);
+  await act(async () => (options[1] as HTMLElement).click());
+  await settle();
+  expect(page().textContent).toContain("同步插件");
+  expect(page().textContent).not.toContain("中心插件");
+  const search = page().querySelector<HTMLInputElement>('input[placeholder="搜索插件"]');
+  if (!search) throw new Error("搜索框不存在");
+  await act(async () => {
+    // 走原生 setter，React 受控输入才会收到 input 事件
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+      search,
+      "minio"
+    );
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await settle();
+  // 回到全部分类后，关键词仍只命中同步插件
+  await act(async () =>
+    page().querySelector<HTMLButtonElement>('[aria-label="插件分类：同步"]')?.click()
+  );
+  await settle();
+  await act(async () =>
+    (document.querySelector('[role="menuitemradio"]') as HTMLElement | null)?.click()
+  );
+  await settle();
+  expect(page().querySelector('[aria-label="插件分类：全部分类"]')).not.toBeNull();
+  expect(page().textContent).toContain("同步插件");
+  expect(page().textContent).not.toContain("中心插件");
+});
+
+it("详情页按实际注册列出此插件提供的功能，并显示作者填写的分类", async () => {
+  const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${ID}',name:'中心插件',version:'1.0.0',skills:[{id:'guide',name:'指南',description:'说明',content:'内容'}],create:()=>({activate(ctx){ctx.commands.register({id:'a',title:'甲',run:()=>null});ctx.commands.register({id:'b',title:'乙',run:()=>null});}})});`;
+  mock.catalog.mockResolvedValue({
+    ...catalog,
+    items: [{ ...catalog.items[0], categories: ["ai"] }],
+  });
+  await act(async () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }));
+  scan = {
+    directory: "/test/plugins",
+    entries: [{ id: ID, directory: "/x", artifact: { ...artifact(), code }, source: center }],
+    updates: [],
+  };
+  mock.preferences.set(ID, true);
+  await act(async () => runtime.local?.refresh());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("active");
+  await act(async () => navigator?.push(PLUGIN_DETAIL_KEY, { pluginId: ID }));
+  await settle();
+  const aside = page().querySelector("aside");
+  if (!aside) throw new Error("详情侧栏不存在");
+  expect(aside.textContent).toContain("分类AI");
+  const items = [...aside.querySelectorAll("li")].map(item => item.textContent);
+  expect(items).toEqual(["命令2", "Skill1"]);
 });

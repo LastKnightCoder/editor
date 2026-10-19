@@ -126,6 +126,24 @@ export interface PluginOwner {
   name: string;
 }
 
+/** 插件激活后实际注册的贡献类别，供管理界面展示「此插件提供」。 */
+export type PluginContributionKind =
+  | "page"
+  | "sidebar"
+  | "command"
+  | "settings"
+  | "sync"
+  | "upload"
+  | "tts"
+  | "images"
+  | "mcp"
+  | "chat"
+  | "skill"
+  | "ai"
+  | "editor"
+  | "whiteboard"
+  | "excerpts";
+
 export interface PluginInfo {
   id: string;
   name: string;
@@ -136,12 +154,17 @@ export interface PluginInfo {
 
 interface Activation {
   context?: PluginContext;
+  contributions: Map<PluginContributionKind, number>;
   ai?: PluginAI;
   controller: AbortController;
   resources: Disposable[];
   instance?: PluginInstance;
   onActivated: Array<() => void>;
   beforeActivated: Array<() => void>;
+}
+
+function tally(activation: Activation, kind: PluginContributionKind, delta: number) {
+  if (delta) activation.contributions.set(kind, (activation.contributions.get(kind) ?? 0) + delta);
 }
 
 type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion">;
@@ -258,6 +281,13 @@ export class PluginHost {
     return this.entry(id).state;
   }
 
+  /** 仅统计已启用插件；停用后贡献已回收，返回空对象。 */
+  listContributions(id: string): Partial<Record<PluginContributionKind, number>> {
+    const entry = this.entries.get(id);
+    if (!entry || entry.state !== "active" || !entry.activation) return {};
+    return Object.fromEntries([...entry.activation.contributions].filter(([, count]) => count > 0));
+  }
+
   listPlugins(): PluginInfo[] {
     return [...this.entries.values()].map(({ metadata, state, error }) => ({
       id: metadata.id,
@@ -283,6 +313,7 @@ export class PluginHost {
         const activation: Activation = {
           controller: new AbortController(),
           resources: [],
+          contributions: new Map(),
           onActivated: [],
           beforeActivated: [],
         };
@@ -318,7 +349,10 @@ export class PluginHost {
                 skill
               );
               if (resource) activation.resources.push(resource);
+              tally(activation, "skill", 1);
             }
+            tally(activation, "editor", definition.editorExtensions?.length ?? 0);
+            tally(activation, "whiteboard", definition.whiteboardExtensions?.length ?? 0);
             if (definition.ai) {
               const ids = new Set<string>();
               if (!Array.isArray(definition.ai.features) || definition.ai.features.length > 32)
@@ -329,6 +363,7 @@ export class PluginHost {
                   throw new Error("AI 功能名称或 ID 无效");
                 ids.add(feature.id);
               }
+              tally(activation, "ai", definition.ai.features.length);
               activation.ai = await this.options.ai?.bind(
                 { id: entry.metadata.id, name: entry.metadata.name },
                 definition.ai.features,
@@ -461,6 +496,20 @@ export class PluginHost {
       activation.resources.push(owned);
       return owned;
     };
+    const registerAs = (kind: PluginContributionKind, resource: Disposable): Disposable => {
+      const owned = register(resource);
+      tally(activation, kind, 1);
+      let counted = true;
+      return {
+        dispose: () => {
+          if (counted) {
+            counted = false;
+            tally(activation, kind, -1);
+          }
+          return owned.dispose();
+        },
+      };
+    };
     const prepareStorage = (key: string) => {
       this.assertActive(entry, activation);
       assertLocalId(key);
@@ -491,7 +540,8 @@ export class PluginHost {
             throw new Error("图片提供方必须属于当前插件");
           if (!this.options.images) throw new Error("当前宿主不支持图片提供方");
           const create = definition.create.bind(definition);
-          return register(
+          return registerAs(
+            "images",
             this.options.images.register(context, {
               id: scope.pluginId,
               name: definition.name,
@@ -515,7 +565,8 @@ export class PluginHost {
             throw new Error("语音提供方必须属于当前插件");
           if (!this.options.tts) throw new Error("当前宿主不支持语音提供方");
           const create = definition.create.bind(definition);
-          return register(
+          return registerAs(
+            "tts",
             this.options.tts.register(context, {
               id: scope.pluginId,
               name: definition.name,
@@ -556,7 +607,8 @@ export class PluginHost {
             throw new Error("上传提供方必须属于当前插件");
           if (!this.options.upload) throw new Error("当前宿主不支持资源上传提供方");
           const upload = definition.upload.bind(definition);
-          return register(
+          return registerAs(
+            "upload",
             this.options.upload.register(
               context,
               Object.freeze({
@@ -590,7 +642,10 @@ export class PluginHost {
           )
             throw new Error("同步提供方必须属于当前插件");
           if (!this.options.sync) throw new Error("当前宿主不支持同步提供方");
-          return register(this.options.sync.register(context, Object.freeze({ ...definition })));
+          return registerAs(
+            "sync",
+            this.options.sync.register(context, Object.freeze({ ...definition }))
+          );
         },
       }),
       workspaceId: scope.workspaceId,
@@ -609,7 +664,7 @@ export class PluginHost {
           const local = new AbortController();
           const signal = AbortSignal.any([scope.signal, local.signal]);
           let resource: Disposable | undefined;
-          const owned = register({
+          const owned = registerAs("chat", {
             dispose: () => {
               local.abort();
               toolRenderers.delete(key);
@@ -682,7 +737,7 @@ export class PluginHost {
               executionIdentity: crypto.randomUUID(),
             });
           };
-          const owned = register({
+          const owned = registerAs("mcp", {
             dispose: () => {
               local.abort();
               mcps.delete(definition.id);
@@ -726,7 +781,7 @@ export class PluginHost {
           if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
           const handle = this.options.settings.register(context, Object.freeze({ ...definition }));
           let disposed = false;
-          const resource = register({
+          const resource = registerAs("settings", {
             dispose: () => {
               disposed = true;
               return handle.dispose();
@@ -761,7 +816,7 @@ export class PluginHost {
             if (!id.startsWith(`${scope.pluginId}.`))
               throw new Error("编辑器节点、命令与 codec 必须使用插件命名空间");
           }
-          return register(this.options.editor.register(context, contribution));
+          return registerAs("editor", this.options.editor.register(context, contribution));
         },
       }),
       commands: Object.freeze({
@@ -784,7 +839,7 @@ export class PluginHost {
           };
           this.commands.set(id, value);
           this.changed();
-          return register({
+          return registerAs("command", {
             dispose: () => {
               if (this.commands.get(id) === value) this.commands.delete(id);
               this.changed();
@@ -817,7 +872,7 @@ export class PluginHost {
           if (definition.open !== undefined && typeof definition.open !== "function")
             throw new Error("摘录提供方 open 必须是函数");
           const handle = adapter.register(context, Object.freeze({ ...definition }));
-          const owned = register({
+          const owned = registerAs("excerpts", {
             dispose: () => {
               if (excerptProvider === owned) excerptProvider = undefined;
               return handle.dispose();
@@ -894,7 +949,8 @@ export class PluginHost {
           const page = pages.get(definition.page);
           if (!page?.active()) throw new Error("侧边栏条目必须关联本次启用注册的有效页面");
           if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
-          return register(
+          return registerAs(
+            "sidebar",
             this.options.sidebar.registerItem(
               context,
               Object.freeze({
@@ -921,7 +977,7 @@ export class PluginHost {
           if (!this.options.pages) throw new Error("当前宿主不支持页面");
           const handle = this.options.pages.register(context, Object.freeze({ ...definition }));
           let disposed = false;
-          const resource = register({
+          const resource = registerAs("page", {
             dispose: () => {
               disposed = true;
               return handle.dispose();
