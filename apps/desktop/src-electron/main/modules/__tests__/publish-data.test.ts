@@ -99,8 +99,11 @@ it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   const article = JSON.parse(
     files.find(file => /^data\/articles\/1\./.test(file.path))!.content.toString()
   );
-  expect(manifest.contentLinkTargets).toEqual({
+  // 站内链接目标随所在正文输出，只含本文用到且已发布的目标。
+  expect(article.links).toEqual({
     "project-item:34": { key: "doc:project:12:34", type: "doc", id: 34 },
+    "article:2": { key: "article:2", type: "article", id: 2 },
+    "article:1": { key: "article:1", type: "article", id: 1 },
   });
   expect(manifest.settings.appearance.image).toEqual({ borderRadius: "md", shadow: "none" });
   expect(manifest.projectTrees["12"].length).toBeGreaterThan(0);
@@ -108,7 +111,7 @@ it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   for (const file of files.filter(file => /^data\/.+\.json$/.test(file.path))) {
     const value = JSON.parse(file.content.toString());
     if (!value.key) continue;
-    for (const field of ["tree", "collections", "cardTagTree", "contentLinkTargets", "settings"])
+    for (const field of ["tree", "collections", "cardTagTree", "settings"])
       expect(value).not.toHaveProperty(field);
   }
   expect(article.contentStyles[0].href).toMatch(/^\.\.\/styles\/[a-f0-9]{64}\.css$/);

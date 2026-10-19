@@ -32,7 +32,9 @@ export class PublishDataOutput {
     private readonly dependencies: (
       data: unknown,
       dataPath: string
-    ) => import("@tau/plugins/rendering").PublishedPluginRender[]
+    ) => import("@tau/plugins/rendering").PublishedPluginRender[],
+    /** 站内链接目标键（`${contentType}:${refId}`）→ 已发布内容。 */
+    private readonly linkTarget: (identity: string) => ContentRef | undefined
   ) {}
   private readonly output = new Map<string, IPublishFile>();
   private readonly items: ManifestItem[] = [];
@@ -73,8 +75,15 @@ export class PublishDataOutput {
     }
     const content = body.content;
     const revisions: number[] = [];
+    const links: Record<string, ContentRef> = {};
     const visit = (value: unknown): void => {
       if (!value || typeof value !== "object") return;
+      const node = value as Record<string, unknown>;
+      if (node.type === "content-link") {
+        const identity = `${node.contentType}:${node.refId}`;
+        const target = this.linkTarget(identity);
+        if (target) links[identity] = target;
+      }
       for (const [key, item] of Object.entries(value)) {
         if (["createTime", "updateTime", "publishTime"].includes(key) && typeof item === "number")
           revisions.push(item);
@@ -91,6 +100,7 @@ export class PublishDataOutput {
         type: body.meta.type,
         publishTime: revisions.reduce((max, value) => Math.max(max, value), 0),
       },
+      ...(Object.keys(links).length ? { links } : {}),
       ...(pluginRenderers.length ? { pluginRenderers } : {}),
       ...(contentStyles.length ? { contentStyles } : {}),
     } as PublishedData;

@@ -18,7 +18,7 @@ export async function checkProtocol(createClient, siteUrl, packet) {
     assert.equal(calls.length, 0);
     cases.push("创建客户端及空查询均为零请求");
     const first = await client.readData({ key: "article:1" });
-    assert.deepEqual(Object.keys(first).sort(), ["data", "dataUrl"]);
+    assert.deepEqual(Object.keys(first).sort(), ["data", "dataUrl", "settings"]);
     assert.equal(first.data.key, "article:1");
     cases.push("首调 readData 无需先调用 readManifest，返回字段固定");
     const fresh = createClient({ manifestUrl: new URL(packet.manifestPath, siteUrl).href });
@@ -38,8 +38,8 @@ export async function checkProtocol(createClient, siteUrl, packet) {
     for (const item of manifest.items)
       kinds.add((await client.readData({ key: item.key })).data.meta.type);
     assert.deepEqual([...kinds].sort(), ["article", "card", "doc", "home", "list", "quest"]);
-    const target = manifest.contentLinkTargets["project-item:34"];
-    assert(!("contentLinkTargets" in first.data) && !("settings" in first.data));
+    const target = first.data.links["project-item:34"];
+    assert(!("settings" in first.data) && first.settings === manifest.settings);
     assert.equal((await client.readData({ key: target.key })).data.meta.type, "doc");
     assert(!manifest.items.some(item => "href" in item));
     cases.push("六类数据、ContentRef 映射及无公开页面的目标读取闭合");

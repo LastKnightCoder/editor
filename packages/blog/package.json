@@ -1,12 +1,10 @@
 {
   "name": "@tau/blog",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./editor": "./src/editor.ts",
-    "./media": "./src/media.ts",
     "./styles.css": "./styles.css"
   },
   "scripts": {
