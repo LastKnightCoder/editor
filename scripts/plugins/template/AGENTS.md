@@ -6,7 +6,8 @@
 - 使用 AI 前阅读 AI.md，通过 ai.features 声明功能，由用户分配模型并授权。仅调用 context.ai，不索取用户的 API Key；处理取消、未授权和额度不足，不循环重试。
 - 提供 AI 工具前阅读 MCP.md，通过 context.mcp.register 注册本地 tools 或外部 transport；需要 SDK 0.13.0 和对应客户端。
 - 聊天自定义工具展示需 SDK 0.15.0 及支持该能力的客户端；在 async activate 内 await context.chat.registerToolRenderer，只绑定本插件 MCP 原始工具名，并检查客户端能力。
-- README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介，CHANGELOG.md 可选。
+- README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介。
+- CHANGELOG.md 同样写给用户，显示在插件详情的「更新日志」，也会作为 GitHub Release 说明：每版用「## 版本号」开头，逐条写用户能感知的变化（能做什么了、修好了什么、要注意什么），用界面上的叫法；不写 SDK、构建、仓库、CI、内部模块或字段。没有可感知变化的版本只写「维护更新，使用上没有变化」。
 - 语音合成和音色复刻先阅读 TTS.md；多账号配置通过 ttsConfig 保存，上传参考音频使用 context.upload.uploadRemote 并传递取消信号。
 - 图片生成与编辑先阅读 IMAGES.md；使用 context.images 注册提供方，target:images 配置视图通过 imageConfig 保存当前账号，不共享多账号凭据。
 - 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
