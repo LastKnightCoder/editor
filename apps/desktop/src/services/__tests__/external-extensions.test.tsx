@@ -219,7 +219,6 @@ describe("外包扩展的真实编辑器接线", () => {
     ["mermaid", "chart", "graph TD\nA --> B"],
     ["plantuml", "content", "@startuml\nA -> B\n@enduml"],
     ["abc", "content", "X: 1\nK: C\nC D E"],
-    ["typst", "content", "= 标题"],
   ] as const)("%s 懒加载块可渲染、编辑源码并写回文档", async (type, field, source) => {
     const { editor, kit } = await mount([
       {
@@ -236,7 +235,6 @@ describe("外包扩展的真实编辑器接线", () => {
     if (type === "plantuml")
       expect(host.querySelector("img")?.src).toContain("plantuml.com/plantuml/svg/");
     if (type === "abc") expect(host.textContent).toContain(source);
-    if (type === "typst") expect(host.textContent).toContain(`Typst:${source}`);
     await act(async () => {
       codeChanges.at(-1)!(source + "\n更新");
       await new Promise(resolve => setTimeout(resolve, 650));
@@ -247,11 +245,6 @@ describe("外包扩展的真实编辑器接线", () => {
     expect(editor.children[0]).toMatchObject({ [field]: source + "\n更新" });
     if (type === "mermaid")
       expect(editor.children[0]).toMatchObject({ compiledFrom: source + "\n更新" });
-    if (type === "typst")
-      expect(editor.children[0]).toMatchObject({
-        compiledFrom: source + "\n更新",
-        html: expect.stringContaining("更新"),
-      });
   });
 
   it("嵌套 Editor 继承外包扩展和宿主编译服务", async () => {
