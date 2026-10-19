@@ -46,7 +46,6 @@ export async function checkServices(context: PluginContext) {
   await context.services.tailwind.compile({ source: '<div class="p-4" />', language: "tsx" });
   await context.services.typst.compile({ source: "= 标题", format: "html" });
   const file = { name: "input.wav", data: new Blob() };
-  await context.services.ffmpeg.probe(file);
   await context.services.ffmpeg.run(
     {
       files: [file],
@@ -55,6 +54,9 @@ export async function checkServices(context: PluginContext) {
     },
     { onProgress: progress => void progress.time }
   );
+  await context.services.videoExtractor.probe("https://example.com/video", {
+    signal: context.signal,
+  });
 }
 
 export async function checkExcerptContract(context: PluginContext) {
