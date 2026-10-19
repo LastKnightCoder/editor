@@ -1,17 +1,5 @@
-import type { ReactElement } from "react";
-import type { Editor, Element } from "slate";
-import type { PluginRuntimeStyleCompiler } from "./source-editor";
-
-export interface InlineSourceRuntime {
-  useInlineSource(element: Element): {
-    readOnly: boolean;
-    compiler: PluginRuntimeStyleCompiler | undefined;
-    update(properties: Record<string, unknown>): void;
-    remove(): void;
-  };
-  insertInlineSource(editor: Editor, element: Element): void;
-  InlineSourceBoundary(): ReactElement;
-}
+import type { InlineSourceRuntime } from "@tau/editor/source-contracts";
+export type { InlineSourceRuntime } from "@tau/editor/source-contracts";
 
 let runtime: InlineSourceRuntime | undefined;
 export function configureInlineSource(value: InlineSourceRuntime) {

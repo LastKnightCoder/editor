@@ -5,9 +5,9 @@ import {
   IEditorSlots,
   IVideoContentProviders,
   type VideoContentProvider,
-} from "@tau/editor-media/services";
+} from "@tau/editor/extensions/media/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { ITypstCompiler } from "@tau/editor-diagram/services";
+import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 export { extensionImportFromMarkdown } from "./editorMarkdown";
 import type WebSocketClient from "../utils/WebSocketClient";
 import RpcLocalImage from "../components/RpcLocalImage";

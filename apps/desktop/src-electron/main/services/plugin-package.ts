@@ -7,6 +7,32 @@ import {
   type DevelopmentPluginPackage,
 } from "@tau/plugins/host";
 import client from "../../../package.json";
+import {
+  validateDistributionManifest,
+  isTemplateManifest,
+  type TemplateManifest,
+} from "@tau/plugins/template";
+import { readTemplatePackage } from "./template-package";
+
+export type DistributionPackage = DevelopmentPluginPackage | { manifest: TemplateManifest };
+export const isTemplatePackage = (
+  artifact: DistributionPackage
+): artifact is { manifest: TemplateManifest } => isTemplateManifest(artifact.manifest);
+
+/** 安装事务与扫描共用静态分发校验；纯模板不进入代码包求值链。 */
+export async function readDistributionPackage(
+  directory: string,
+  clientVersion = client.version
+): Promise<DistributionPackage> {
+  const manifest = validateDistributionManifest(
+    JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"))
+  );
+  if (isTemplateManifest(manifest)) {
+    const template = await readTemplatePackage(directory, clientVersion);
+    return { manifest: template.manifest };
+  }
+  return readPluginPackage(directory, clientVersion);
+}
 
 export async function readPluginPackage(
   directory: string,

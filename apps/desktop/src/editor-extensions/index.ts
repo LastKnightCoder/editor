@@ -1,6 +1,6 @@
-import webviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor/extensions/webview";
 import { createMarkdownPasteImportExtension } from "@tau/editor";
-import { createImageExtensions } from "@tau/editor-media";
+import { createImageExtensions } from "@tau/editor/extensions/media";
 import { desktopImportFromMarkdown } from "@/services/editorServiceImplementations";
 import useSettingStore from "@/stores/useSettingStore";
 

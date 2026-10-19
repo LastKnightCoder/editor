@@ -10,7 +10,7 @@ const { fetchContent, updateContent, updateEvent, done } = vi.hoisted(() => ({
   updateEvent: vi.fn(),
   done: vi.fn(),
 }));
-vi.mock("@tau/editor/src", () => ({ Editor: () => null }));
+vi.mock("@tau/editor", () => ({ Editor: () => null }));
 vi.mock("@/services/editorKit", () => ({ getContentKit: () => ({}) }));
 vi.mock("../queries", () => ({
   useCalendarCatalog: () => ({ calendars: [{ id: 1, title: "工作", color: "blue" }] }),

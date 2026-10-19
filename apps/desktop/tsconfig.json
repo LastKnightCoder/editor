@@ -20,7 +20,6 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"],
-      "@tau/editor": ["../../packages/editor/src"],
       "@tau/editor-collab": ["../../packages/editor-collab/src"],
       "@tau/contracts": ["../../packages/contracts/src"],
       "@tau/platform": ["../../packages/platform/src"],

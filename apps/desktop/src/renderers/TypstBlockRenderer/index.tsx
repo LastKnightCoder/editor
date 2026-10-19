@@ -4,7 +4,7 @@
  */
 
 import { FileType } from "lucide-react";
-import { Typst } from "@tau/editor-diagram/renderers";
+import { Typst } from "@tau/editor/extensions/diagram/renderers";
 import useTheme from "@/hooks/useTheme";
 import { compileTypst } from "@/commands/typst";
 import { defineBlockRenderer, type BlockPreviewProps } from "@/types/block-preview";

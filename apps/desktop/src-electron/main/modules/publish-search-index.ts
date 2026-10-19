@@ -1,219 +1,106 @@
-import Fuse, { type IFuseOptions } from "fuse.js";
 import type { Descendant } from "slate";
-
 import type { IArticle } from "@/types/article";
 import type { ICard } from "@/types/card";
-import type {
-  IPublishSearchIndexPayload,
-  IPublishSearchItem,
-  IPublishSearchItemType,
-} from "@/types/publish";
-import { getMarkdown } from "@/utils/markdown.ts";
+import type { ContentRef, SearchDocument, SearchFile } from "@tau/plugins/publish-data";
+import { contentRef } from "./publish-content-link-targets";
+import { getMarkdown } from "@/utils/markdown";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
 
 export interface IPublishSearchDocEntry {
   id: number;
+  entityId: number;
   title: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   createTime: number;
   updateTime: number;
   tags: string[];
   kind: "project";
   content: Descendant[];
 }
-
 export interface IPublishSearchQuestEntry {
   id: number;
   title: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   groupTitle: string;
-  answers: Array<{
-    content?: Descendant[];
-  }>;
+  answers: { content?: Descendant[] }[];
   description?: Descendant[];
   createTime: number;
   updateTime: number;
 }
-
 export interface BuildPublishSearchIndexInput {
   cards: ICard[];
   articles: IArticle[];
   docs: IPublishSearchDocEntry[];
   quests: IPublishSearchQuestEntry[];
-  generatedAt?: number;
+}
+const parser = unified().use(remarkParse);
+function plain(value: unknown): string {
+  if (!Array.isArray(value) || !value.length) return "";
+  const tree = parser.parse(getMarkdown(value as Descendant[]));
+  const walk = (node: any): string =>
+    typeof node.value === "string"
+      ? node.type === "html"
+        ? node.value.replace(/<[^>]*>/g, " ")
+        : node.value
+      : (node.children ?? []).map(walk).join(" ");
+  return walk(tree).replace(/\s+/g, " ").trim();
 }
 
-export const PUBLISH_SEARCH_INDEX_PATH = "search-index.json";
-export const PUBLISH_SEARCH_INDEX_HREF = "/search-index.json";
-
-export const PUBLISH_SEARCH_OPTIONS: IFuseOptions<IPublishSearchItem> = {
-  includeMatches: true,
-  includeScore: true,
-  threshold: 0.35,
-  ignoreLocation: true,
-  minMatchCharLength: 1,
-  keys: [
-    { name: "title", weight: 0.42 },
-    { name: "tags", weight: 0.2 },
-    { name: "typeLabel", weight: 0.12 },
-    { name: "summary", weight: 0.16 },
-    { name: "content", weight: 0.1 },
-  ],
-};
-
-function compactText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function serializeContent(content?: Descendant[]): string {
-  if (!content || content.length === 0) {
-    return "";
-  }
-  return compactText(getMarkdown(content));
-}
-
-function truncate(text: string, maxLength: number): string {
-  const normalized = compactText(text);
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-  return `${normalized.slice(0, maxLength)}...`;
-}
-
-function firstMarkdownLine(markdown: string): string {
-  return (
-    markdown
-      .split(/\r?\n/)
-      .map(line => line.replace(/^#+\s*/, "").trim())
-      .find(line => line.length > 0) || ""
-  );
-}
-
-function createItem(
-  item: Omit<IPublishSearchItem, "typeLabel"> & {
-    type: IPublishSearchItemType;
-  }
-): IPublishSearchItem {
-  const typeLabels: Record<IPublishSearchItemType, string> = {
-    card: "卡片",
-    article: "文章",
-    "project-doc": "项目文档",
-    quest: "求索录",
-  };
-
+const compact = (text: string) => text.replace(/\s+/g, " ").trim();
+const summary = (text: string) => (text.length > 120 ? text.slice(0, 120) + "..." : text);
+function document(
+  ref: ContentRef,
+  title: string,
+  content: string,
+  tags: string[],
+  excerpt?: string
+): SearchDocument {
+  if (ref.type === "home" || ref.type === "list") throw new Error("聚合数据不进入全文索引");
   return {
-    ...item,
-    title: item.title.trim(),
-    summary: item.summary.trim(),
-    content: item.content.trim(),
-    tags: item.tags.map(tag => tag.trim()).filter(Boolean),
-    typeLabel: typeLabels[item.type],
+    ...ref,
+    type: ref.type,
+    title: compact(title),
+    summary: compact(excerpt || summary(content)),
+    content: compact(content),
+    tags: tags.map(compact).filter(Boolean),
   };
 }
-
-function buildCardSearchItem(card: ICard): IPublishSearchItem {
-  const rawMarkdown = getMarkdown(card.content || []);
-  const content = compactText(rawMarkdown);
-  const summary = truncate(content, 120);
-  const title = firstMarkdownLine(rawMarkdown) || summary || `卡片 #${card.id}`;
-
-  return createItem({
-    id: card.id,
-    type: "card",
-    title,
-    summary,
-    content,
-    tags: card.tags || [],
-    href: `/cards/${card.id}.html`,
-    createTime: card.create_time,
-    updateTime: card.update_time,
-  });
-}
-
-function buildArticleSearchItem(article: IArticle): IPublishSearchItem {
-  const content = serializeContent(article.content || []);
-
-  return createItem({
-    id: article.id,
-    type: "article",
-    title: article.title || `文章 #${article.id}`,
-    summary: truncate(content, 120),
-    content,
-    tags: article.tags || [],
-    href: `/articles/${article.id}.html`,
-    createTime: article.create_time,
-    updateTime: article.update_time,
-  });
-}
-
-export function getDocSearchType(
-  _kind: IPublishSearchDocEntry["kind"]
-): Extract<IPublishSearchItemType, "project-doc"> {
-  return "project-doc";
-}
-
-function buildDocSearchItem(entry: IPublishSearchDocEntry): IPublishSearchItem {
-  const content = serializeContent(entry.content || []);
-
-  return createItem({
-    id: entry.id,
-    type: getDocSearchType(entry.kind),
-    title: entry.title || `文档 #${entry.id}`,
-    summary: entry.summary || truncate(content, 120),
-    content,
-    tags: entry.tags || [],
-    href: entry.href,
-    createTime: entry.createTime,
-    updateTime: entry.updateTime,
-  });
-}
-
-function buildQuestSearchItem(entry: IPublishSearchQuestEntry): IPublishSearchItem {
-  const description = serializeContent(entry.description || []);
-  const answers = entry.answers
-    .map(answer => serializeContent(answer.content || []))
-    .filter(Boolean);
-  const content = compactText([entry.title, entry.summary, description, ...answers].join(" "));
-
-  return createItem({
-    id: entry.id,
-    type: "quest",
-    title: entry.title || `求索 #${entry.id}`,
-    summary: entry.summary || truncate(content, 120),
-    content,
-    tags: [entry.groupTitle],
-    href: entry.href,
-    createTime: entry.createTime,
-    updateTime: entry.updateTime,
-  });
-}
-
-export function buildPublishSearchItems({
-  cards,
-  articles,
-  docs,
-  quests,
-}: BuildPublishSearchIndexInput): IPublishSearchItem[] {
+export function buildPublishSearchItems(input: BuildPublishSearchIndexInput): SearchDocument[] {
   return [
-    ...cards.map(buildCardSearchItem),
-    ...articles.map(buildArticleSearchItem),
-    ...docs.map(buildDocSearchItem),
-    ...quests.map(buildQuestSearchItem),
-  ].sort((a, b) => b.updateTime - a.updateTime || b.createTime - a.createTime);
+    ...input.cards.map(card => {
+      const content = plain(card.content);
+      return document(
+        contentRef("card", card.id),
+        card.aiTitle || plain(card.content.slice(0, 1)) || summary(content) || `卡片 #${card.id}`,
+        content,
+        card.tags || []
+      );
+    }),
+    ...input.articles.map(article =>
+      document(
+        contentRef("article", article.id),
+        article.title || `文章 #${article.id}`,
+        plain(article.content),
+        article.tags || []
+      )
+    ),
+    ...input.docs.map(doc =>
+      document(doc.target, doc.title, plain(doc.content), doc.tags, doc.summary)
+    ),
+    ...input.quests.map(quest =>
+      document(
+        quest.target,
+        quest.title,
+        [plain(quest.description), ...quest.answers.map(answer => plain(answer.content))].join(" "),
+        [quest.groupTitle],
+        quest.summary
+      )
+    ),
+  ].sort((a, b) => a.key.localeCompare(b.key));
 }
-
-export function buildPublishSearchIndexPayload(
-  input: BuildPublishSearchIndexInput
-): IPublishSearchIndexPayload {
-  const items = buildPublishSearchItems(input);
-  const index = Fuse.createIndex(PUBLISH_SEARCH_OPTIONS.keys || [], items);
-
-  return {
-    version: 1,
-    generatedAt: input.generatedAt ?? Date.now(),
-    options: PUBLISH_SEARCH_OPTIONS as Record<string, unknown>,
-    items,
-    index: index.toJSON(),
-  };
+export function buildPublishSearchIndexPayload(input: BuildPublishSearchIndexInput): SearchFile {
+  return { version: 1, documents: buildPublishSearchItems(input) };
 }

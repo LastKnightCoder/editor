@@ -8,7 +8,7 @@
 
 import { Element, Node, Text, type Descendant } from "slate";
 import { createMarkdownProcessor } from "@tau/markdown";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { desktopCodecComposition } from "@/utils/markdown-composition";
 
 const SAFE_ELEMENTS = new Set([

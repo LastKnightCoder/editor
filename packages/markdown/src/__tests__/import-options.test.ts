@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Node } from "slate";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import {
   createMarkdownProcessor,
   isMarkdownLikeText,

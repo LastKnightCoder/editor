@@ -1,4 +1,4 @@
-import { type VideoContentProvider } from "@tau/editor-media/services";
+import { type VideoContentProvider } from "@tau/editor/extensions/media/services";
 
 /**
  * Mobile 的视频内容源：平台解析类视频降级为提示信息。

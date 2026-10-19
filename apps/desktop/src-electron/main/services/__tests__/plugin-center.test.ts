@@ -160,7 +160,7 @@ it("下载按发布记录核对大小与摘要，地址由服务拼接", async (
   });
   serve({}, Buffer.from("tampered!"));
   await expect(downloadPluginRelease("r1")).rejects.toThrow("摘要不匹配");
-  serve({ size: 9 * 1024 * 1024 });
+  serve({ size: 17 * 1024 * 1024 });
   await expect(downloadPluginRelease("r1")).rejects.toThrow("上限");
   serve({ state: "failed" });
   await expect(downloadPluginRelease("r1")).rejects.toThrow("尚未发布");

@@ -7,7 +7,7 @@ import PathUtil from "../utils/PathUtil";
 import { discoverPlugins } from "../services/plugin-discovery";
 import { getPluginRegistry } from "../services/plugin-workspaces";
 import { PluginUpdates } from "../services/plugin-updates";
-import { readPluginPackage } from "../services/plugin-package";
+import { isTemplatePackage, readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
 import { acceptHeadlessPlugin } from "../services/plugin-codecs";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
@@ -75,7 +75,12 @@ export default {
       await updates.apply(installed.id, async (artifact, replacing) => {
         if (await contentStartup.uses(installed.id)) return false;
         if (!replacing) await preferences.set(installed.id, false);
-        return !(isContentPlugin(artifact.manifest) && preferences.enabled(installed.id, false));
+        // 模板不是内容插件，安装后即可在发布设置中选择。
+        return !(
+          !isTemplatePackage(artifact) &&
+          isContentPlugin(artifact.manifest) &&
+          preferences.enabled(installed.id, false)
+        );
       });
       stateChanged();
       return installed;

@@ -2,13 +2,13 @@
  * 浏览器扩展的 EditorKit：服务依赖 WebSocket 连接，所以按 wsClient 建一个。
  */
 import { createEditorKit, createMarkdownPasteImportExtension, type EditorKit } from "@tau/editor";
-import { standardExtensions } from "../../../../editor-extensions/standard";
-import webviewExtension from "@tau/editor-webview";
-import { diagramExtensions } from "@tau/editor-diagram";
+import { standardExtensions } from "@tau/editor/presets/standard";
+import webviewExtension from "@tau/editor/extensions/webview";
+import { diagramExtensions } from "@tau/editor/extensions/diagram";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
-import codeBlockExtension from "@tau/editor-code-block";
-import { mathExtensions } from "@tau/editor-math";
-import emojiExtension from "@tau/editor-emoji";
+import codeBlockExtension from "@tau/editor/extensions/code-block";
+import { mathExtensions } from "@tau/editor/extensions/math";
+import emojiExtension from "@tau/editor/extensions/emoji";
 import type WebSocketClient from "../utils/WebSocketClient";
 import { createExtensionEditorServices, extensionImportFromMarkdown } from "./editorRegistry";
 import {

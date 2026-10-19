@@ -24,7 +24,7 @@ import { clearPageMetasForTest } from "../core/pageMeta";
 import { MobileEditorOverlayDismiss } from "../../services/editorOverlayDismiss";
 import { createEditorKit } from "@tau/editor";
 import { IOverlayBackDismiss, OverlayBackDismiss } from "@tau/editor/api";
-import { EditorKitScope } from "../../../../../packages/editor/src/kit/context";
+import { EditorKitScope } from "../../../../../packages/editor/src/core/kit/context";
 
 const overlayKit = createEditorKit({
   services: [register => register(IOverlayBackDismiss, { Layer: MobileEditorOverlayDismiss })],

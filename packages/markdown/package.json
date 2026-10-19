@@ -30,12 +30,11 @@
     "slate": ">=0.123.0"
   },
   "devDependencies": {
-    "@tau/editor-link": "workspace:*",
-    "@tau/editor-text-formatting": "workspace:*",
     "@types/node": "^20.2.1",
     "@types/uuid": "^9.0.8",
     "slate": "0.126.2",
     "typescript": "^5.0.4",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@tau/editor": "workspace:*"
   }
 }

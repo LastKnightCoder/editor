@@ -2,4 +2,4 @@ export {
   createParagraph,
   isParagraphElement,
   type ParagraphElement,
-} from "../src/model/paragraph.ts";
+} from "../src/core/model/paragraph.ts";

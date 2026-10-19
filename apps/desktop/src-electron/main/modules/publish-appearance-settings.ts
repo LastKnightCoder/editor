@@ -1,9 +1,10 @@
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
-import type { IPublishInitData } from "@/types/publish";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
+import type { PublishSettings } from "@tau/plugins/publish-data";
 
-type PublishImageAppearanceSettings = NonNullable<
-  NonNullable<IPublishInitData["settings"]>["appearance"]
->["image"];
+type PublishImageAppearanceSettings = NonNullable<PublishSettings["appearance"]>["image"];
 
 export interface PublishAppearanceSettingsInput {
   appearance?: {
@@ -21,7 +22,7 @@ const DEFAULT_PUBLISH_IMAGE_APPEARANCE: PublishImageAppearanceSettings = {
 
 export function buildPublishAppearanceSettings(
   settings?: PublishAppearanceSettingsInput
-): IPublishInitData["settings"] {
+): PublishSettings {
   const imageSettings = settings?.appearance?.image;
   const defaultBorderRadius = DEFAULT_PUBLISH_IMAGE_APPEARANCE?.borderRadius;
   const defaultShadow = DEFAULT_PUBLISH_IMAGE_APPEARANCE?.shadow;
@@ -33,15 +34,5 @@ export function buildPublishAppearanceSettings(
         shadow: imageSettings?.shadow ?? defaultShadow,
       },
     },
-  };
-}
-
-export function attachPublishAppearanceSettings(
-  initData: IPublishInitData,
-  settings?: PublishAppearanceSettingsInput
-): IPublishInitData {
-  return {
-    ...initData,
-    settings: buildPublishAppearanceSettings(settings),
   };
 }

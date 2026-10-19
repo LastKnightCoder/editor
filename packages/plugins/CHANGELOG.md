@@ -1,5 +1,18 @@
 # 更新记录
 
+## 0.20.0
+
+- manifest 支持 `categories`（插件中心分类）与 `keywords`（目录搜索），门户上传严格校验，客户端忽略未知值。
+- 博客模板包（`template` 分支）同样支持分类与关键词，只含静态站点产物，不能同时声明代码插件入口。
+- publish-data：站点级数据（`settings`、`collections`、`cardTagTree`、`projectTrees`、项目条目 `contentLinkTargets`）改为只在清单中出现，内容文件不再携带；新增 `ContentLinkNode` 与站内链接目标键说明。
+- publish-client 的检索引擎按索引缓存，不再每次查询重建。
+
+## 0.19.0
+
+- 补齐 publish-data 类型、publish-client 纯数据客户端及 publish-artifacts 协议校验/定义求值入口；数据与产物声明不连带载入 Editor/React/UI 类型。
+- 普通 SDK/UI 根入口保持类型与 Tau 注入约定；通用源码组件契约与实现由 Editor 公开入口维护，既有源码宿主适配只负责接线。
+- 保留 master 0.18.0 的图片插件及全部已插件化接口。
+
 ## 0.18.0
 
 - 新增 `context.images.register`，按账号配置与模型创建图片生成或编辑实例，返回图片字节和实际 MIME。

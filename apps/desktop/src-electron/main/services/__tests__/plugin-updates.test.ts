@@ -10,6 +10,43 @@ import { discoverPlugins } from "../plugin-discovery";
 
 const roots: string[] = [];
 const id = "test.update";
+it("纯静态模板沿用安装、更新与恢复事务，扫描不登记代码入口", async () => {
+  const s = await setup();
+  const packageZip = (version: string, bad = false) => {
+    const archive = new AdmZip();
+    const html = '<meta name="manifest" content="__TAU_MANIFEST__">';
+    const manifest = {
+      formatVersion: 1,
+      apiVersion: 1,
+      platform: "desktop",
+      id,
+      name: "静态模板",
+      version,
+      template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
+      integrity: { "site/index.html": createHash("sha256").update(html).digest("hex") },
+    };
+    archive.addFile(id + "/manifest.json", Buffer.from(JSON.stringify(manifest)));
+    archive.addFile(id + "/site/index.html", Buffer.from(bad ? "tampered" : html));
+    return archive.toBuffer();
+  };
+  const file = path.join(s.root, "template.zip");
+  await writeFile(file, packageZip("1.0.0"));
+  await s.service.stageZip(file);
+  await s.restart();
+  const entry = (await discoverPlugins(s.directory, "0.58.0")).entries[0];
+  expect(entry.template?.id).toBe(id);
+  expect(entry.artifact).toBeUndefined();
+  expect(entry.error).toBeUndefined();
+  await writeFile(file, packageZip("1.1.0", true));
+  await expect(s.service.stageZip(file)).rejects.toThrow("摘要");
+  expect(await s.version()).toBe("1.0.0");
+  await writeFile(file, packageZip("1.1.0"));
+  await s.service.stageZip(file);
+  await s.restart();
+  await s.service.restore(id);
+  await s.restart();
+  expect(await s.version()).toBe("1.0.0");
+});
 async function setup() {
   const root = await mkdtemp(path.join(tmpdir(), "tau-plugin-update-"));
   roots.push(root);

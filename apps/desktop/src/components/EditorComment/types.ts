@@ -1,5 +1,5 @@
 import type { Path } from "slate";
-import { type CommentElement } from "@tau/editor-comment/types";
+import { type CommentElement } from "@tau/editor/extensions/comment/types";
 
 export interface CommentPosition {
   element: CommentElement;

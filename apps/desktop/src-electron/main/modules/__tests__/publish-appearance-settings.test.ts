@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  attachPublishAppearanceSettings,
-  buildPublishAppearanceSettings,
-} from "../publish-appearance-settings";
+import { buildPublishAppearanceSettings } from "../publish-appearance-settings";
 
 describe("publish-appearance-settings", () => {
   it("应只保留发布所需的图片外观 setting", () => {
@@ -26,25 +23,8 @@ describe("publish-appearance-settings", () => {
     });
   });
 
-  it("挂载到 init data 时应补齐默认圆角并保留无阴影", () => {
-    const initData = attachPublishAppearanceSettings(
-      {
-        site: {
-          title: "站点",
-          description: "",
-          basePath: "/",
-        },
-        navigation: [],
-        content: {},
-        meta: {
-          type: "article",
-          publishTime: 1,
-        },
-      },
-      undefined,
-    );
-
-    expect(initData.settings).toEqual({
+  it("未设置时应补齐默认圆角并保留无阴影", () => {
+    expect(buildPublishAppearanceSettings(undefined)).toEqual({
       appearance: {
         image: {
           borderRadius: "md",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Node, type Element } from "slate";
-import { linkCodec } from "@tau/editor-link/markdown";
+import { linkCodec } from "@tau/editor/extensions/link/markdown";
 import { createMarkdownProcessor, type MarkdownCodec } from "../index.ts";
 import { paragraphCodec } from "./fixtures.ts";
 

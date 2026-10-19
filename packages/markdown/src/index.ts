@@ -4,7 +4,7 @@
  *
  * 框架不自带任何元素类型：标准 Markdown 语法（标题、列表、表格、代码围栏…）的解析在
  * 导入端 walker 里，directive / 序列化器 / void 表 / 行内包裹全部由扩展的 codec 注入
- * （内置扩展见 @tau/editor/markdown，图表类见 P9 的 @tau/editor-diagram/markdown）。
+ * （内置扩展见 @tau/editor/markdown，图表类见 P9 的 @tau/editor/extensions/diagram/markdown）。
  * 宿主把 codec 列表合成一次建处理器，渲染进程与主进程共用。
  */
 import type {} from "./slate-types.d.ts";

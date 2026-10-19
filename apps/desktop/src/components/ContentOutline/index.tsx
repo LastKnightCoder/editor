@@ -8,8 +8,8 @@
 
 import { useEffect, useState } from "react";
 import type { Descendant } from "slate";
-import type { HeaderElement } from "@tau/editor-header";
-export { resolveHeaderAnchor as resolveEditorHeaderAnchor } from "@tau/editor-header";
+import type { HeaderElement } from "@tau/editor/extensions/header";
+export { resolveHeaderAnchor as resolveEditorHeaderAnchor } from "@tau/editor/extensions/header";
 import { getInlineElementText } from "@/utils";
 import { cn } from "@tau/ui";
 

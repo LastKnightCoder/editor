@@ -10,12 +10,12 @@ const { openLocalMediaPickerMock, openMediaUrlInputMock } = vi.hoisted(() => ({
   openMediaUrlInputMock: vi.fn(),
 }));
 const openLinkPanel = vi.hoisted(() => vi.fn());
-vi.mock("@tau/editor-link", async importOriginal => ({
-  ...(await importOriginal<typeof import("@tau/editor-link")>()),
+vi.mock("@tau/editor/extensions/link", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/editor/extensions/link")>()),
   openLinkPanel,
 }));
-vi.mock("@tau/editor-media", async importOriginal => ({
-  ...(await importOriginal<typeof import("@tau/editor-media")>()),
+vi.mock("@tau/editor/extensions/media", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/editor/extensions/media")>()),
   openLocalMediaPicker: (...args: unknown[]) => openLocalMediaPickerMock(...args),
   openMediaUrlInput: (...args: unknown[]) => openMediaUrlInputMock(...args),
 }));

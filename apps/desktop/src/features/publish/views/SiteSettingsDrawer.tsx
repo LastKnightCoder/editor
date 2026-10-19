@@ -274,7 +274,20 @@ export function SiteSettingsDrawer({
         </>
       )}
 
-      <SectionHead title="站点信息" hint="写入首页与页面 meta" />
+      <SectionHead title="博客模板" />
+      <Field label="模板插件" hint="从已安装的模板中选择" full>
+        <Select
+          aria-label="博客模板"
+          value={publish.site.templateId ?? ""}
+          options={config.templateOptions}
+          placeholder="请先安装模板插件"
+          onValueChange={value => config.setSiteField("templateId", value)}
+        />
+      </Field>
+      {config.templateError && (
+        <p className="text-danger text-tau-sm mt-2">{config.templateError}</p>
+      )}
+      <SectionHead title="站点信息" hint="提供给模板的数据" />
       <div className="grid grid-cols-2 gap-3">
         <Field label="站点标题">
           <Input

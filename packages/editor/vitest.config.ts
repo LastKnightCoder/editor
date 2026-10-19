@@ -4,7 +4,7 @@ import path from "path";
 export default defineConfig({
   test: {
     environment: "jsdom",
-    setupFiles: ["./src/test-setup.ts"],
+    setupFiles: ["./src/core/test-setup.ts"],
     poolOptions: {
       threads: {
         singleThread: true,
@@ -13,7 +13,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(__dirname, "./src/core"),
       "@tau/shared": path.resolve(__dirname, "../shared"),
     },
   },

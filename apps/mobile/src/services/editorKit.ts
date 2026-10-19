@@ -5,15 +5,15 @@
  * 用函数延迟创建，避免与扩展模块的初始化顺序耦合（同 desktop，见 04 踩坑）。
  */
 import { createEditorKit, type EditorKit } from "@tau/editor";
-import { createImageExtensions } from "@tau/editor-media";
-import { standardExtensions } from "../../../../editor-extensions/standard";
+import { createImageExtensions } from "@tau/editor/extensions/media";
+import { standardExtensions } from "@tau/editor/presets/standard";
 import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor";
-import webviewExtension from "@tau/editor-webview";
-import { diagramExtensions } from "@tau/editor-diagram";
+import webviewExtension from "@tau/editor/extensions/webview";
+import { diagramExtensions } from "@tau/editor/extensions/diagram";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
-import codeBlockExtension from "@tau/editor-code-block";
-import { mathExtensions } from "@tau/editor-math";
-import emojiExtension from "@tau/editor-emoji";
+import codeBlockExtension from "@tau/editor/extensions/code-block";
+import { mathExtensions } from "@tau/editor/extensions/math";
+import emojiExtension from "@tau/editor/extensions/emoji";
 import { flashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
 import {

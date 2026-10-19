@@ -66,10 +66,13 @@ export class S3HostingProvider implements IPublishProvider {
       Key: key,
       Body: content,
       ContentType: contentType,
-      // 设置缓存控制，对于 HTML 文件不缓存，其他文件缓存 1 年
-      CacheControl: path.endsWith(".html")
-        ? "no-cache, no-store, must-revalidate"
-        : "public, max-age=31536000, immutable",
+      // 只有协议保证的摘要资源使用不可变缓存，模板普通资产允许原路径更新。
+      CacheControl:
+        /^(?:data\/.*[./][a-f0-9]{64}\.(?:json|css)|_tau\/client\/[a-f0-9]{64}\/|plugin-assets\/[^/]+\/[^/]+\/[a-f0-9]{64}\/)/.test(
+          path
+        )
+          ? "public, max-age=31536000, immutable"
+          : "no-cache, must-revalidate",
     });
 
     try {

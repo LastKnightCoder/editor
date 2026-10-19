@@ -12,15 +12,15 @@
  * 模块初始化期创建 kit 会拿到未初始化的导入（详见 04 踩坑）。首次调用时才创建并缓存。
  */
 import { createEditorKit, type AnyExtension, type EditorKit } from "@tau/editor";
-import { textFormattingExtension } from "@tau/editor-text-formatting";
-import { default as link } from "@tau/editor-link";
-import { standardExtensions } from "../../../../editor-extensions/standard";
-import { inlineMathExtension as inlineMath } from "@tau/editor-math";
-import { diagramExtensions } from "@tau/editor-diagram";
+import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
+import { default as link } from "@tau/editor/extensions/link";
+import { standardExtensions } from "@tau/editor/presets/standard";
+import { inlineMathExtension as inlineMath } from "@tau/editor/extensions/math";
+import { diagramExtensions } from "@tau/editor/extensions/diagram";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
-import codeBlockExtension from "@tau/editor-code-block";
-import { mathExtensions } from "@tau/editor-math";
-import emojiExtension from "@tau/editor-emoji";
+import codeBlockExtension from "@tau/editor/extensions/code-block";
+import { mathExtensions } from "@tau/editor/extensions/math";
+import emojiExtension from "@tau/editor/extensions/emoji";
 import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import docTasksExtension from "@/editor-extensions/doc-tasks";

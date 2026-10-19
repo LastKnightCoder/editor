@@ -3,7 +3,7 @@
  * Strictly based on editor extensions styles from packages/editor/src/extensions/
  */
 
-import { INLINE_PALETTE, exportHighlightColors } from "@tau/editor-text-formatting/palette";
+import { INLINE_PALETTE, exportHighlightColors } from "@tau/editor/extensions/text-formatting/palette";
 
 /** 高亮 / 下划线色取编辑器统一行内色板（导出为浅色版） */
 const inlinePaletteHighlightStyles = INLINE_PALETTE.map(({ id }) => {

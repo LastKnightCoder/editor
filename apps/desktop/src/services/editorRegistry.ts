@@ -10,9 +10,9 @@ import {
   IMediaActions,
   IMediaInsertSources,
   IVideoContentProviders,
-} from "@tau/editor-media/services";
+} from "@tau/editor/extensions/media/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { ITypstCompiler } from "@tau/editor-diagram/services";
+import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 import { desktopRuntimeStyleCompiler } from "./tailwindRuntime";
 import { IOverlayBackDismiss } from "@tau/editor/api";
 import { DesktopEditorOverlayDismiss } from "./editorOverlayDismiss";

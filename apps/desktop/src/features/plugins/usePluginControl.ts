@@ -35,7 +35,11 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
     busy: managing,
     error,
     watching,
-    canToggle: !managing && !transitioning && !(state === "restart-required" && !plugin.enabled),
+    canToggle:
+      !plugin.template &&
+      !managing &&
+      !transitioning &&
+      !(state === "restart-required" && !plugin.enabled),
     toggle: () =>
       run(() => (plugin.enabled ? manager.disable(id) : manager.enable(id)), "操作失败"),
     uninstall: (purgeData: boolean) =>

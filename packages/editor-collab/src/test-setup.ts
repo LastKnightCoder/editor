@@ -1,4 +1,4 @@
-import "../../editor/src/test-setup";
+import "../../editor/src/core/test-setup";
 
 // 协作光标的定位 hook 依赖 ResizeObserver，jsdom 没有
 if (typeof globalThis.ResizeObserver !== "function") {

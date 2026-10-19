@@ -6,6 +6,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listPublishTemplates } from "@/commands/publish";
 import { produce } from "immer";
 import { toast } from "@tau/ui";
 import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
@@ -62,6 +64,11 @@ const updateSetting = (
 ) => useSettingStore.setState(s => ({ setting: produce(s.setting, recipe) }));
 
 export function usePublishConfig() {
+  const templatesQuery = useQuery({
+    queryKey: ["publish", "templates"],
+    queryFn: listPublishTemplates,
+    refetchOnWindowFocus: true,
+  });
   const setting = useSettingStore(s => s.setting);
   const { publish, integration } = setting;
   const active = publish.active;
@@ -173,7 +180,10 @@ export function usePublishConfig() {
       (draft.publish[draft.publish.active] as Record<PublishFieldKey, string>)[field] = value;
     });
 
-  const setSiteField = (field: "title" | "description" | "publicUrl", value: string) =>
+  const setSiteField = (
+    field: "title" | "description" | "publicUrl" | "templateId",
+    value: string
+  ) =>
     updateSetting(draft => {
       draft.publish.site[field] = value;
     });
@@ -311,6 +321,14 @@ export function usePublishConfig() {
   }, [active, publish.site.publicUrl, publish.github.repo, publish.github.basePath]);
 
   return {
+    templateReady: Boolean(
+      templatesQuery.data?.some(template => template.id === publish.site.templateId)
+    ),
+    templateOptions: (templatesQuery.data ?? []).map(template => ({
+      label: `${template.name} · ${template.version}`,
+      value: template.id,
+    })),
+    templateError: templatesQuery.error instanceof Error ? templatesQuery.error.message : "",
     publish,
     integration,
     appearance: setting.appearance,
