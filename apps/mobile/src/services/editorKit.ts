@@ -10,7 +10,6 @@ import { standardExtensions } from "../../../../editor-extensions/standard";
 import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor";
 import webviewExtension from "@tau/editor-webview";
 import { diagramExtensions } from "@tau/editor-diagram";
-import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { mathExtensions } from "@tau/editor-math";
@@ -36,7 +35,6 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
       extensions: [
         ...standardExtensions,
         ...diagramExtensions,
-        ...htmlExtensions,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,

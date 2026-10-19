@@ -40,6 +40,8 @@ describe("插件笔记编辑器的元素覆盖", () => {
     expect(kit.extensions.filter(extension => extension.id === "tau.preview-menu")).toHaveLength(1);
     for (const type of ["mermaid", "plantuml"]) expect(kit.elementTypes).toContain(type);
     expect(kit.elementTypes).not.toContain("abc");
+    expect(kit.elementTypes).not.toContain("html-block");
+    expect(kit.elementTypes).not.toContain("html-inline");
     expect(kit.elementTypes).not.toContain("tikz");
     expect(kit.elementTypes).not.toContain("typst");
   });

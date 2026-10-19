@@ -154,5 +154,22 @@
       "README.md": "0552bce0e1a981e0d403410d90b75c7be2e5cd848f7593716760ae51b48274b2",
       "THIRD_PARTY_NOTICES.md": "774ba4b721b06a19c76fd35ccf908b91b8668f18fda688fdbe9f2a92684b0c16"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-html",
+    "artifact": "releases/tau.html/0.1.0",
+    "id": "tau.html",
+    "version": "0.1.0",
+    "sourceRevision": "7b94f3e85528a0b138a7ac1e7fe7a546df36fa1e",
+    "archiveSha256": "bff18b70ac2b86017c311c76f459fa9cf1bc92ed7cd879cd142fe9d55e0d1c7d",
+    "files": {
+      "CHANGELOG.md": "c3724d720b5aaeaf69a8d94e438a848dbd691660a74a0cd3c2893dc72bdefaf6",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "468f2feb73a33e5711b1583b609e4ab3818e83d5f19a38dcd9d027b77eb269d8",
+      "main.js": "6faf968be95e2a2dc00415a507a9812cc91b4d55b7fc3512a5c661b70b7c6d11",
+      "manifest.json": "f0f47f2a06e398c1dc0f9851dc2eb4a2a9bc6617f8477ff40e81406edb408045",
+      "README.md": "7ece020297218eb105c28f69f28687768dac7c0fac944bffeb3381b6ae32b2eb",
+      "THIRD_PARTY_NOTICES.md": "601c3ecbee8096ac02926a8686c6f23daba5bd89755f9b91042df92f9a28bb96"
+    }
   }
 ]

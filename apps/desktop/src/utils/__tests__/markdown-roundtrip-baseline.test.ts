@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { Descendant } from "slate";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { desktopContentPlugins } from "../../../shared/content-plugins";
+import { htmlDefinition } from "../../test-fixtures/plugin-packages";
 
 import {
   getMarkdown,
@@ -26,6 +28,8 @@ const stable = (value: unknown) =>
   JSON.parse(JSON.stringify(value), (key, v) => (key === "uuid" && v !== "u-1" ? "<uuid>" : v));
 
 describe("Markdown 往返基准", () => {
+  beforeEach(() => desktopContentPlugins.install([htmlDefinition]));
+  afterEach(() => desktopContentPlugins.install([]));
   it("表格内未知文本字段的竖线不增加列，正文与元数据均保真", () => {
     const leaf = { type: "formatted", text: "a|b", vendor: { label: "x|y", literal: "&#124;" } };
     const value = [

@@ -2,7 +2,7 @@
 
 - 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
 - 定义文档节点前阅读 EDITOR.md，使用静态 editorExtensions 并声明 manifest.editor；渲染代码须能在浏览器运行，不为移动端或网页另写渲染组件。
-- 本模板使用 SDK 0.16.0、Tau 0.59.0。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务，博客回退缓存或源码；不改变 useSourceBlock 的职责。
+- 本模板使用 SDK 0.17.0、Tau 0.59.0。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务；行内源码使用 useInlineSource，不改变 useSourceBlock 的职责。
 - 使用 AI 前阅读 AI.md，通过 ai.features 声明功能，由用户分配模型并授权。仅调用 context.ai，不索取用户的 API Key；处理取消、未授权和额度不足，不循环重试。
 - 提供 AI 工具前阅读 MCP.md，通过 context.mcp.register 注册本地 tools 或外部 transport；需要 SDK 0.13.0 和对应客户端。
 - 聊天自定义工具展示需 SDK 0.15.0 及支持该能力的客户端；在 async activate 内 await context.chat.registerToolRenderer，只绑定本插件 MCP 原始工具名，并检查客户端能力。
