@@ -1,8 +1,11 @@
-import type { SimpleGit } from "simple-git";
 import { assertPublishPath } from "@tau/plugins/template";
 
 /** 只暂存本次发布拥有的路径，摘要资源即使被仓库 ignore 规则匹配也必须进入提交。 */
-export async function stagePublication(git: SimpleGit, uploads: string[], deletions: string[]) {
+export async function stagePublication(
+  git: { raw(args: string[]): PromiseLike<string> },
+  uploads: string[],
+  deletions: string[]
+) {
   [...uploads, ...deletions].forEach(file => assertPublishPath(file));
   const owned = new Set([...uploads, ...deletions]);
   const staged = (await git.raw(["diff", "--cached", "--name-only", "-z"]))
@@ -26,6 +29,6 @@ export async function stagePublication(git: SimpleGit, uploads: string[], deleti
 export function publicationGitError(error: unknown, secrets: string[] = []): Error {
   let message = error instanceof Error ? error.message : String(error);
   for (const secret of secrets) if (secret) message = message.replaceAll(secret, "[已隐藏]");
-  message = message.replace(/https:\/\/[^/\s]+@github\.com/gi, "https://github.com");
+  message = message.replace(/https:\/\/[^/\s]+@/gi, "https://[已隐藏]@");
   return new Error(message);
 }

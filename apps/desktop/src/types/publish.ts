@@ -3,6 +3,34 @@
  */
 export type PublishContentType = "card" | "article" | "project" | "quest";
 
+export interface PublishSiteConfig {
+  templateId?: string;
+  title: string;
+  description: string;
+  publicUrl?: string;
+  favicon?: IPublishFaviconConfig;
+}
+export interface PublishRequest {
+  providerType: "local" | "plugin";
+  pluginId?: string;
+  providerConfig?: import("@tau/plugins").JsonValue;
+  basePath?: string;
+  siteConfig: PublishSiteConfig;
+  settings?: IPublishAppearanceSettings;
+  options?: IUploadOptions;
+  editorContext?: import("@tau/plugins/rendering").PluginRenderContext;
+}
+export interface IUploadOptions {
+  maxRetries?: number;
+  retryDelay?: number;
+  concurrency?: number;
+}
+export const DEFAULT_UPLOAD_OPTIONS: Required<IUploadOptions> = {
+  maxRetries: 3,
+  retryDelay: 1000,
+  concurrency: 10,
+};
+
 /**
  * 发布选择记录
  */

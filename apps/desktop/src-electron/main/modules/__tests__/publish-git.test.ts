@@ -4,7 +4,7 @@ import simpleGit from "simple-git";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { stagePublication, publicationGitError } from "../publish-git";
+import { stagePublication, publicationGitError } from "../../services/git-publication-paths";
 it("只提交发布路径，包含被 ignore 的数据，保留其他文件并按字面处理资源名", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tau-publish-git-"));
   try {

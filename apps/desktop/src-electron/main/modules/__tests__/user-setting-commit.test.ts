@@ -125,3 +125,38 @@ it("全量提交在进入队列时复制输入，字段删除也会保存", asyn
   await pending;
   expect(await settings.getSettingSnapshot()).toEqual({ marker: "saved" });
 });
+
+it("发布配置按提供方合并，保存失败不发布，保存非当前提供方不改变选择", async () => {
+  const settings = await setup();
+  await settings.handleSetUserSetting({
+    publish: { active: "local", plugin: { id: "selected.publisher", configurations: {} } },
+  });
+  mocks.move.mockRejectedValueOnce(new Error("磁盘写入失败"));
+  await expect(settings.updatePublishPlugin("test.publisher", { token: "draft" })).rejects.toThrow(
+    "磁盘写入失败"
+  );
+  expect((await settings.getSettingSnapshot()).publish.plugin.configurations).toEqual({});
+  await Promise.all([
+    settings.updatePublishPlugin("test.publisher", { token: "first" }),
+    settings.updatePublishPlugin("other.publisher", { token: "second" }),
+  ]);
+  expect((await settings.getSettingSnapshot()).publish).toEqual({
+    active: "local",
+    plugin: {
+      id: "selected.publisher",
+      configurations: {
+        "test.publisher": { token: "first" },
+        "other.publisher": { token: "second" },
+      },
+    },
+  });
+});
+
+it("旧窗口不能重新写回退役发布字段，拒绝后保留已提交配置", async () => {
+  const settings = await setup();
+  await expect(
+    settings.handleSetUserSetting({ integration: { github: { token: "old" } } })
+  ).rejects.toThrow("旧发布设置已退役");
+  expect(await settings.getSettingSnapshot()).toEqual(initial);
+  expect(mocks.broadcast).not.toHaveBeenCalled();
+});

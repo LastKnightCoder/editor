@@ -5,6 +5,7 @@ import type { PluginSettingsProps } from "@tau/plugins";
 import { useSettingsStore } from "@/app/settingsStore";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
+import { openPage } from "@/services/page-navigation";
 
 export function PluginSettingsView({
   section,
@@ -13,6 +14,7 @@ export function PluginSettingsView({
   ttsConfig,
   imageConfig,
   videoConfig,
+  publishConfig,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
@@ -20,6 +22,7 @@ export function PluginSettingsView({
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
+  publishConfig?: PluginSettingsProps["publishConfig"];
 }) {
   if (!section)
     return (
@@ -59,6 +62,8 @@ export function PluginSettingsView({
         在账号与连接中配置
       </Button>
     );
+  if (section.definition.target === "publish" && !publishConfig)
+    return <Button onClick={() => openPage("publish")}>在博客发布页中配置</Button>;
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -78,6 +83,7 @@ export function PluginSettingsView({
         ttsConfig={ttsConfig}
         imageConfig={imageConfig}
         videoConfig={videoConfig}
+        publishConfig={publishConfig}
       />
     </RecoverableBoundary>
   );
@@ -90,6 +96,7 @@ function SettingsScope({
   ttsConfig,
   imageConfig,
   videoConfig,
+  publishConfig,
 }: {
   section: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
@@ -97,6 +104,7 @@ function SettingsScope({
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
+  publishConfig?: PluginSettingsProps["publishConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
@@ -116,6 +124,7 @@ function SettingsScope({
           ttsConfig={ttsConfig}
           imageConfig={imageConfig}
           videoConfig={videoConfig}
+          publishConfig={publishConfig}
         />
       </UiProvider>
     </QueryClientProvider>

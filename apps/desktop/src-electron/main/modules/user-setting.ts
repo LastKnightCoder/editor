@@ -10,6 +10,11 @@ import { migrateUploadSettings } from "../services/upload-settings-migration";
 import { migrateTTSSettings } from "../services/tts-settings-migration";
 import { migrateImageSettings } from "../services/image-settings-migration";
 import { migrateVideoSettings } from "../services/video-settings-migration";
+import {
+  migratePublishSettings,
+  assertCurrentPublishSettings,
+} from "../services/publish-settings-migration";
+import { publicationGitService } from "../services/publication-git-service";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -91,6 +96,20 @@ class UserSettingModule {
         plugin: {
           id,
           configurations: { ...current[group]?.plugin?.configurations, [id]: snapshot },
+        },
+      },
+    }));
+  }
+
+  async updatePublishPlugin(id: string, config: unknown): Promise<void> {
+    const snapshot = structuredClone(config);
+    await this.updateSetting(current => ({
+      ...current,
+      publish: {
+        ...current.publish,
+        plugin: {
+          ...current.publish?.plugin,
+          configurations: { ...current.publish?.plugin?.configurations, [id]: snapshot },
         },
       },
     }));
@@ -211,6 +230,14 @@ class UserSettingModule {
           )
         )
         .then(setting =>
+          migratePublishSettings(
+            setting,
+            PathUtil.getAppDir(),
+            next => this.saveSetting(JSON.stringify(next, null, 2)),
+            directory => publicationGitService.registerDirectory(directory)
+          )
+        )
+        .then(setting =>
           migrateVideoSettings(setting, PathUtil.getAppDir(), next =>
             this.saveSetting(JSON.stringify(next, null, 2))
           )
@@ -290,6 +317,7 @@ class UserSettingModule {
       .then(async () => {
         const previous = this.userSetting;
         const next = update(previous);
+        assertCurrentPublishSettings(next);
         if (isEqual(previous, next)) return;
         await this.writeSettingFile(JSON.stringify(next, null, 2));
         this.userSetting = next;

@@ -5,17 +5,13 @@ import useSettingStore, {
 } from "../useSettingStore";
 
 describe("useSettingStore persistence snapshot", () => {
-  it("退役的微信读书设置在合并与保存时丢弃（API Key 已归插件私有存储）", () => {
+  it("已迁出的 integration 账号设置在合并与保存时整体丢弃", () => {
     const legacy = {
       ...structuredClone(useSettingStore.getState().setting),
-      integration: {
-        ...structuredClone(useSettingStore.getState().setting.integration),
-        weread: { enabled: true, apiKey: "wrk-old" },
-      },
+      integration: { weread: { enabled: true, apiKey: "wrk-old" }, bilibili: { enabled: true } },
     };
-    const merged = mergeSettingWithDefaults(legacy);
-    expect("weread" in merged.integration).toBe(false);
-    expect("weread" in buildPersistedSettingSnapshot(legacy).integration).toBe(false);
+    expect("integration" in mergeSettingWithDefaults(legacy)).toBe(false);
+    expect("integration" in buildPersistedSettingSnapshot(legacy)).toBe(false);
   });
 
   it("合并设置时应替换图片提供商数组，避免已删除项被默认配置补回", () => {
