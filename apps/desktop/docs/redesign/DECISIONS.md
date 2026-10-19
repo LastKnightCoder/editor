@@ -1,5 +1,11 @@
 # 决策记录（轻量 ADR）
 
+## D-169 ABC 乐谱完整迁为独立插件（2026-10-19）
+
+用户确认在独立 worktree 中完整迁出 ABC，建立 tau-plugin-abc 独立 GitHub 仓库。节点、源码编辑、预览、Markdown codec、静态 SVG 导出、Skill 与 abcjs 依赖全部归插件；复用现有编辑器静态贡献和源码容器，不增加宿主编译服务或 SDK API。节点沿用 type:abc/content/children，不做数据迁移。
+
+宿主删除内置 ABC 装配与渲染依赖，只保留缺插件时 HTML 源码导出及协作、CLI 等历史数据消费者；插件 htmlSerializers 优先。博客携带用户已启用的同版本插件，移动端与浏览器扩展沿 D-166 保留未知节点数据，不另建渲染器。客户端尚未发布，按用户要求保持版本 0.59.0；插件要求包含本次迁出的构建，不以调版本号区分同号旧开发构建。实施和验证见插件专题 68。
+
 ## D-168 Typst 文档块插件化，保留宿主编译服务（2026-10-19）
 
 用户选择简单迁移，停止 WASM 完整迁出。Typst 文档节点、插入、Markdown codec、HTML serializer 和 Skill 归独立插件；宿主保留 `services.typst.compile`、原生编译器和旧聊天预览。节点类型、源码和已有 HTML 缓存不转换。

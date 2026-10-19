@@ -84,7 +84,7 @@ console.log("world");
 ```
 ````
 
-- 支持的内置扩展代码块语言：`mermaid`、`abc`、`plantuml`、`typst`；TikZ 等插件语法由已启用插件的 Skill 说明。
+- 支持的内置扩展代码块语言：`mermaid`、`plantuml`；ABC、TikZ、Typst 等插件语法由已启用插件的 Skill 说明。
 - 普通代码块支持高亮元信息（如 `{1,3-4}`）
 - 进阶动画元信息使用 `smm=...`（Base64URL 编码），通常由系统生成，不建议手写
 

@@ -1,6 +1,5 @@
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
-import { renderAbc } from "@tau/editor-diagram/abc";
 import { compileTailwindForHtml } from "./tailwind-compiler";
 import { renderCodeWithShiki } from "./shiki-renderer";
 import { buildPlantumlSvgUrl } from "@tau/editor-diagram/plantuml";
@@ -365,23 +364,13 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // ABC Music Notation (using abcjs dynamic rendering)
+  // 插件不可用时保留乐谱源码；已启用插件的 SVG 导出优先于此回退。
   {
     type: "abc",
     isBlock: true,
     toHtml: element => {
       const content = element.content || "";
-      // Use abcjs to render the ABC notation
-      const renderedHtml = renderAbc(content);
-      // 解析 svg 的 viewbox 获取到宽高比，设置 padding-bottom 为宽高比
-      const viewbox = renderedHtml.match(/viewBox="([^"]+)"/);
-      if (viewbox) {
-        const [, viewboxValue] = viewbox;
-        const [, , width, height] = viewboxValue.split(" ");
-        const aspectRatio = Number(height) / Number(width);
-        return `<div class="abc-notation" style="padding-bottom: ${aspectRatio * 100}%">${renderedHtml}</div>`;
-      }
-      return `<div class="abc-notation">${renderedHtml}</div>`;
+      return `<pre class="abc-notation"><code>${escapeHtml(content)}</code></pre>`;
     },
   },
 

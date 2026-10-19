@@ -27,13 +27,6 @@ import { bulletedList, listItem } from "@tau/editor-list";
 vi.mock("@tau/editor-diagram/mermaid", () => ({
   renderMermaidSvg: async ({ code }: { code: string }) => `<svg><text>${code}</text></svg>`,
 }));
-vi.mock("abcjs", () => ({
-  default: {
-    renderAbc: (id: string, content: string) => {
-      document.getElementById(id)!.textContent = content;
-    },
-  },
-}));
 
 // 只替代 jsdom 不具备布局的源码输入器，扩展、预览容器和模板执行使用真实实现。
 vi.mock("@emoji-mart/react", () => ({
@@ -218,7 +211,6 @@ describe("外包扩展的真实编辑器接线", () => {
   it.each([
     ["mermaid", "chart", "graph TD\nA --> B"],
     ["plantuml", "content", "@startuml\nA -> B\n@enduml"],
-    ["abc", "content", "X: 1\nK: C\nC D E"],
   ] as const)("%s 懒加载块可渲染、编辑源码并写回文档", async (type, field, source) => {
     const { editor, kit } = await mount([
       {
@@ -234,7 +226,6 @@ describe("外包扩展的真实编辑器接线", () => {
     if (type === "mermaid") expect(host.querySelector("svg text")?.textContent).toBe(source);
     if (type === "plantuml")
       expect(host.querySelector("img")?.src).toContain("plantuml.com/plantuml/svg/");
-    if (type === "abc") expect(host.textContent).toContain(source);
     await act(async () => {
       codeChanges.at(-1)!(source + "\n更新");
       await new Promise(resolve => setTimeout(resolve, 650));

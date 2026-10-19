@@ -111,7 +111,6 @@ export default defineConfig(() => {
                   // Exclude large renderer-only packages to prevent memory overflow
                   "mathjax-full",
                   "highlight.js",
-                  "abcjs",
                   "juice",
                   "mermaid",
                   "katex",
