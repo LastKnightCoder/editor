@@ -148,25 +148,25 @@ export class LocalPluginManager {
         if (previous && JSON.stringify(previous) === JSON.stringify(entry.artifact)) continue;
         if (
           previous &&
-          ["active", "activating", "deactivating", "restart-required"].includes(
-            this.host.getState(entry.id)
-          )
+          (this.host.getState(entry.id) === "restart-required" ||
+            contentPluginLoaded(entry.id) ||
+            ((hasStaticContent(previous.manifest) || hasStaticContent(entry.artifact.manifest)) &&
+              this.host.getState(entry.id) !== "disabled"))
         ) {
           issues.push({
             id: entry.id,
             directory: entry.directory,
-            error: "文件已更新，当前实例保持不变；请重启应用加载更新，或停用后刷新列表",
+            error: "文件已更新，当前实例保持不变；请重启应用加载更新",
           });
           continue;
         }
         try {
           if (previous) {
-            await this.host.unregister(entry.id);
-            this.records.delete(entry.id);
-            this.assertOpen();
+            await this.replace(entry.artifact, previous);
+          } else {
+            registerPluginPackage(this.host, entry.artifact, this.getModules);
+            this.records.set(entry.id, entry.artifact);
           }
-          registerPluginPackage(this.host, entry.artifact, this.getModules);
-          this.records.set(entry.id, entry.artifact);
         } catch (error) {
           issues.push({ id: entry.id, directory: entry.directory, error: this.message(error) });
         }
@@ -182,6 +182,45 @@ export class LocalPluginManager {
     } catch (error) {
       if (!this.closed) this.scanError = this.message(error);
       throw error;
+    }
+  }
+
+  private async replace(next: DevelopmentPluginPackage, previous: DevelopmentPluginPackage) {
+    const id = next.manifest.id;
+    const active = this.host.getState(id) === "active" && this.enabled(id);
+    try {
+      await this.host.disable(id);
+      this.assertOpen();
+      if (this.host.getState(id) === "restart-required") throw new Error("请重启应用加载更新");
+      await this.host.unregister(id);
+      this.assertOpen();
+      registerPluginPackage(this.host, next, this.getModules);
+      if (active) await this.host.enable(id);
+      this.assertOpen();
+      this.records.set(id, next);
+    } catch (error) {
+      this.assertOpen();
+      let recoveryError: unknown;
+      try {
+        if (this.host.listPlugins().some(plugin => plugin.id === id))
+          await this.host.unregister(id);
+      } catch (failure) {
+        recoveryError = failure;
+      }
+      this.assertOpen();
+      registerPluginPackage(this.host, previous, this.getModules);
+      this.records.set(id, previous);
+      if (recoveryError || this.host.getState(id) === "restart-required")
+        throw new Error("插件更新时清理未能确认完成，请重启应用");
+      if (active) {
+        try {
+          await this.host.enable(id);
+          this.assertOpen();
+        } catch {
+          throw new Error("插件更新失败，旧实例未能恢复，请重启应用");
+        }
+      }
+      throw new Error(`插件更新失败，已恢复旧版本：${this.message(error)}`);
     }
   }
 

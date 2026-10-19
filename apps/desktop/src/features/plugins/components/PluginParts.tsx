@@ -42,7 +42,7 @@ export function StagedChip({ version }: { version?: string }) {
   );
 }
 
-/** 安装按钮状态机：未安装 → 下载校验中 → 重启后生效；失败保留旧安装并就地显示原因。 */
+/** 安装后默认停用；只有需要更新启动快照的变更显示重启提示。 */
 export function InstallButton({
   state,
   name,
@@ -110,7 +110,7 @@ export function InstallButton({
         open={confirming}
         onOpenChange={setConfirming}
         title={`安装「${name}」${state.version}？`}
-        description="插件在完整应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。下载后将在下次重启时安装并自动启用。"
+        description="插件在完整应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。安装后默认停用，请到「已安装」中主动启用。普通插件即时生效，编辑器和白板内容插件启用后需重启应用。"
         confirmText="安装"
         onConfirm={start}
       />
@@ -126,7 +126,7 @@ export function RestartBar({ count }: { count: number }) {
       <RotateCw className="size-4 flex-none" strokeWidth={1.75} />
       <span className="min-w-0 flex-1">
         <b className="font-semibold">{count} 项变更</b>
-        将在重启后生效。安装失败会保留旧版本。
+        涉及内容插件的变更将在重启后生效。
         {error && <span className="text-danger ml-2">{error}</span>}
       </span>
       <Button

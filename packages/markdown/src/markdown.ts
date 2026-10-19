@@ -527,6 +527,16 @@ const createMarkdownParser = () =>
     .use(remarkDirective)
     .use(remarkFrontmatter, ["yaml"]);
 
+const filterIgnoredNodes = (
+  nodes: MarkdownAstNode[],
+  ignoredTypes: ReadonlySet<string>
+): MarkdownAstNode[] =>
+  nodes.flatMap(node => {
+    if (ignoredTypes.has(node.type)) return [];
+    if (node.children) node.children = filterIgnoredNodes(node.children, ignoredTypes);
+    return [node];
+  });
+
 const importWithPositionsInContext = (
   markdown: string,
   ignoreTypes: string[],
@@ -537,6 +547,11 @@ const importWithPositionsInContext = (
   const positionMap = new PositionMapper();
 
   const parseResult = createMarkdownParser().parse(markdown);
+  if (ignoreTypes.length > 0)
+    parseResult.children = filterIgnoredNodes(
+      parseResult.children as unknown as MarkdownAstNode[],
+      new Set(ignoreTypes)
+    ) as typeof parseResult.children;
 
   // 首次遍历：收集所有脚注定义
   const collectFootnoteDefinitions = (nodes: typeof parseResult.children) => {
@@ -549,13 +564,16 @@ const importWithPositionsInContext = (
   };
 
   collectFootnoteDefinitions(parseResult.children);
+  parseResult.children = filterIgnoredNodes(
+    parseResult.children as unknown as MarkdownAstNode[],
+    new Set(["footnoteDefinition"])
+  ) as typeof parseResult.children;
 
   const editor: Descendant[] = [];
 
   const dfsWithPositions = (
     astNodes: MarkdownAstNode[],
     slateResultArray: Descendant[],
-    ignoreTypes: string[] = [],
     parentAstNodeForChildren: MarkdownAstNode | null = null,
     parentPath: number[] = [],
     markContext: MarkContext = {},
@@ -583,11 +601,6 @@ const importWithPositionsInContext = (
         );
         const paragraph = astChildNode.children[index];
         paragraph.type = "text";
-      }
-
-      if (ignoreTypes.includes(astChildNode.type)) {
-        astNodeIndex += 1;
-        continue;
       }
 
       const isCarrier =
@@ -656,7 +669,6 @@ const importWithPositionsInContext = (
           dfsWithPositions(
             innerAstNodes,
             getDescendantChildren(slateNode),
-            ignoreTypes,
             astChildNode,
             slatePath,
             markContext,
@@ -677,7 +689,6 @@ const importWithPositionsInContext = (
         dfsWithPositions(
           astChildNode.children || [],
           slateResultArray,
-          ignoreTypes,
           astChildNode,
           parentPath,
           { ...markContext, ...textClaim.marks },
@@ -834,7 +845,6 @@ const importWithPositionsInContext = (
           dfsWithPositions(
             astChildNode.children,
             getDescendantChildren(node),
-            ignoreTypes,
             astChildNode,
             slatePath,
             markContext,
@@ -847,11 +857,9 @@ const importWithPositionsInContext = (
     }
   };
 
-  const extendedIgnoreTypes = [...ignoreTypes, "footnoteDefinition"];
   dfsWithPositions(
     parseResult.children as unknown as MarkdownAstNode[],
     editor,
-    extendedIgnoreTypes,
     parseResult as unknown as MarkdownAstNode,
     []
   );

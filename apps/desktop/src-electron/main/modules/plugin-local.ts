@@ -56,19 +56,30 @@ export default {
       return artifact;
     });
     const initial = await discoverPlugins(directory(), app.getVersion());
-    const initialSources = await updates.sources(initial.entries.map(entry => entry.id));
-    const defaults = (id: string) => initialSources[id]?.kind === "center";
     const snapshot = await contentStartup.get(
       initial.entries
         .filter(
           entry =>
             entry.artifact &&
             isContentPlugin(entry.artifact.manifest) &&
-            preferences.enabled(entry.id, defaults(entry.id))
+            preferences.enabled(entry.id, false)
         )
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    const stateChanged = () => {
+      for (const window of BrowserWindow.getAllWindows())
+        if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
+    };
+    const applyInstalled = async (installed: { id: string; version: string }) => {
+      await updates.apply(installed.id, async (artifact, replacing) => {
+        if (await contentStartup.uses(installed.id)) return false;
+        if (!replacing) await preferences.set(installed.id, false);
+        return !(isContentPlugin(artifact.manifest) && preferences.enabled(installed.id, false));
+      });
+      stateChanged();
+      return installed;
+    };
     const imagesChanged = () => {
       for (const window of BrowserWindow.getAllWindows())
         if (!window.isDestroyed()) window.webContents.send("plugin-images:changed");
@@ -178,8 +189,7 @@ export default {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
       await pluginSyncSessions.protect(id, () => preferences.set(id, enabled));
-      for (const window of BrowserWindow.getAllWindows())
-        if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
+      stateChanged();
     });
     ipcMain.handle(
       "plugin-local:workspace",
@@ -193,9 +203,7 @@ export default {
       if (legacy !== undefined)
         await preferences.initialize(
           Object.fromEntries(
-            result.entries
-              .filter(entry => entry.artifact)
-              .map(entry => [entry.id, sources[entry.id]?.kind === "center"])
+            result.entries.filter(entry => entry.artifact).map(entry => [entry.id, false])
           )
         );
       return {
@@ -207,7 +215,7 @@ export default {
           const sourced = {
             ...entry,
             source: sources[entry.id],
-            enabled: preferences.enabled(entry.id, sources[entry.id]?.kind === "center"),
+            enabled: preferences.enabled(entry.id, false),
           };
           return blocked
             ? { ...sourced, artifact: undefined, error: blocked.error ?? "更新尚未恢复，暂不加载" }
@@ -225,7 +233,7 @@ export default {
         filters: [{ name: "插件 ZIP", extensions: ["zip"] }],
       });
       if (selected.canceled || !selected.filePaths[0]) return null;
-      return updates.stageZip(selected.filePaths[0]);
+      return applyInstalled(await updates.stageZip(selected.filePaths[0]));
     });
     ipcMain.handle(
       "plugin-local:sync-begin",
@@ -284,7 +292,7 @@ export default {
     );
     ipcMain.handle("plugin-local:stage-release", async (_event, id: string) => {
       const { bytes, source } = await downloadPluginRelease(id);
-      return updates.stageRelease(bytes, source);
+      return applyInstalled(await updates.stageRelease(bytes, source));
     });
     // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。
     ipcMain.handle("plugin-local:relaunch", async () => {
@@ -298,11 +306,10 @@ export default {
         await updates.uninstall(id);
         await preferences.forget(id);
       });
-      for (const window of BrowserWindow.getAllWindows())
-        if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
+      stateChanged();
     });
-    ipcMain.handle("plugin-local:restore", (_event, id: string) =>
-      pluginSyncSessions.protect(id, () => updates.restore(id))
+    ipcMain.handle("plugin-local:restore", async (_event, id: string) =>
+      applyInstalled(await pluginSyncSessions.protect(id, () => updates.restore(id)))
     );
     ipcMain.handle("plugin-local:cancel-update", (_event, id: string) => updates.cancel(id));
     ipcMain.handle("plugin-local:open-directory", async () => {

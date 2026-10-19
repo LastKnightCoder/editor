@@ -48,7 +48,7 @@ export interface MarkdownCodec {
    */
   fence?: {
     language: string | readonly string[];
-    /** 源码落进元素的字段名，默认 "content"（mermaid 用 "chart"） */
+    /** 源码落进元素的字段名，默认 "content"，由领域声明覆盖。 */
     property?: string;
   };
   /**
@@ -78,7 +78,7 @@ export interface MarkdownCodec {
       parent: Descendant | null;
       previousSibling: Descendant | null;
       nextSibling: Descendant | null;
-      /** 把块级子元素降级为行内形态（image→inline-image、html-block→html-inline），无声明则原样返回 */
+      /** 按领域声明把块级子元素降级为行内形态，无声明则原样返回。 */
       demote: (child: Descendant) => Descendant;
     }
   ) => Descendant[] | null;

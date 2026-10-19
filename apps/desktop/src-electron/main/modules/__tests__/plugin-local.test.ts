@@ -126,36 +126,75 @@ it("保留原工作区映射的稳定身份，不按扫描创建新身份", asyn
   expect(await invoke("plugin-local:workspace", "A")).toBe(first);
   expect(await invoke("plugin-local:workspace", "B")).not.toBe(first);
 });
-it("中心版本经下载服务暂存，重启后扫描带来源，卸载移除目录", async () => {
+it.each([false, true])("中心版本立即安装且停用，更新保留意图，内容快照=%s", async editor => {
   const id = "test.center";
-  const code = "module.exports={}";
-  const archive = new AdmZip();
-  archive.addFile(
-    `${id}/manifest.json`,
-    Buffer.from(
-      JSON.stringify({
-        formatVersion: 1,
-        apiVersion: 1,
-        id,
-        name: "中心插件",
-        version: "1.0.0",
-        platform: "desktop",
-        format: "cjs",
-        main: "main.js",
-        integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
-      })
-    )
-  );
-  archive.addFile(`${id}/main.js`, Buffer.from(code));
-  archive.addFile(`${id}/README.md`, Buffer.from("# 中心插件"));
-  const source = { kind: "center", releaseId: "r1", pluginId: id, version: "1.0.0", sha256: "d" };
-  mock.download.mockResolvedValueOnce({ bytes: archive.toBuffer(), source });
+  const download = (version: string) => {
+    const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'中心插件',version:'${version}',${editor ? "editorExtensions:[{id:'test.center',apiVersion:1,elements:[{type:'test.center.node',kind:'block',render:()=>null}]}]," : ""}create:()=>({activate(){}})});`;
+    const archive = new AdmZip();
+    archive.addFile(
+      `${id}/manifest.json`,
+      Buffer.from(
+        JSON.stringify({
+          formatVersion: 1,
+          apiVersion: 1,
+          id,
+          name: "中心插件",
+          version,
+          platform: "desktop",
+          format: "cjs",
+          main: "main.js",
+          ...(editor ? { editor: true } : {}),
+          integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+        })
+      )
+    );
+    archive.addFile(`${id}/main.js`, Buffer.from(code));
+    archive.addFile(`${id}/README.md`, Buffer.from("# 中心插件"));
+    const source = {
+      kind: "center",
+      releaseId: `r-${version}`,
+      pluginId: id,
+      version,
+      sha256: "d",
+    };
+    mock.download.mockResolvedValueOnce({ bytes: archive.toBuffer(), source });
+    return source;
+  };
+  const source = download("1.0.0");
   expect(await invoke("plugin-local:stage-release", "r1")).toEqual({ id, version: "1.0.0" });
   expect(mock.download).toHaveBeenCalledWith("r1");
+  expect(await invoke("plugin-local:scan", {})).toMatchObject({
+    entries: [{ id, source, enabled: false }],
+    updates: [],
+  });
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
   const [entry] = ((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries;
-  expect(entry).toMatchObject({ id, source });
+  expect(entry).toMatchObject({ id, source, enabled: false });
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
+  await invoke("plugin-local:set-enabled", id, true);
+  mock.handlers.clear();
+  await (await import("../plugin-local")).default.init();
+  const updatedSource = download("1.1.0");
+  await invoke("plugin-local:stage-release", "r2");
+  expect(await invoke("plugin-local:scan", {})).toMatchObject({
+    entries: [
+      {
+        id,
+        enabled: true,
+        artifact: { manifest: { version: editor ? "1.0.0" : "1.1.0" } },
+        source: editor ? source : updatedSource,
+      },
+    ],
+    updates: [editor ? { pending: true, pendingVersion: "1.1.0" } : { previousVersion: "1.0.0" }],
+  });
+  await invoke("plugin-local:set-enabled", id, false);
+  if (editor) {
+    await expect(invoke("plugin-local:uninstall", id)).rejects.toThrow("重启");
+    mock.handlers.clear();
+    await (await import("../plugin-local")).default.init();
+    expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
+  }
   await invoke("plugin-local:uninstall", id);
   expect(((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries).toEqual([]);
 });
