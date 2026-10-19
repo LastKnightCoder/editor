@@ -28,7 +28,8 @@ const manifest = JSON.parse(await readFile(path.join(author, "package.json"), "u
 const tauPackages = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }).filter(
   name => name.startsWith("@tau/")
 );
-assert.deepEqual(tauPackages.sort(), ["@tau/editor", "@tau/plugins"]);
+assert(tauPackages.includes("@tau/editor"));
+assert(tauPackages.every(name => ["@tau/editor", "@tau/plugins"].includes(name)));
 assert(
   !Object.values({ ...manifest.dependencies, ...manifest.devDependencies }).some(version =>
     /^(?:link|workspace|file):/.test(version)
@@ -39,6 +40,7 @@ if (candidate) {
     editor: "output/editor-package",
     plugins: "output/plugin-sdk-data",
   })) {
+    if (!manifest.dependencies[`@tau/${name}`]) continue;
     const { version } = JSON.parse(
       await readFile(path.join(root, "packages", name, "package.json"), "utf8")
     );

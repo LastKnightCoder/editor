@@ -43,41 +43,17 @@ async function run() {
   cases.push("独立博客从正式数据产物加载原文章页面与完整编辑器");
   await click("[data-portable-counter] button");
   await until("document.querySelector('[data-portable-counter] output')?.textContent === '8'");
-  cases.push("真实 C23 插件经博客自身依赖映射运行，计数交互可用");
-  await until("Boolean(document.querySelector('iframe[title=\"HTML 文档\"]'))");
-  let fullPage;
-  for (let attempt = 0; attempt < 200; attempt++) {
-    fullPage = window.webContents.mainFrame.framesInSubtree.find(
-      frame => frame.url === "about:srcdoc"
-    );
-    if (
-      fullPage &&
-      (await fullPage
-        .executeJavaScript("Boolean(document.querySelector('#full-page-button'))")
-        .catch(() => false))
-    )
-      break;
-    fullPage = undefined;
-    await pause(30);
-  }
-  assert(fullPage, "完整 HTML 应由模板隔离为子文档");
-  assert(
-    (
-      await fullPage.executeJavaScript(
-        "document.querySelector('style[data-tau-content-css]')?.textContent"
-      )
-    ).includes("text-red-500")
-  );
-  await fullPage.executeJavaScript("document.querySelector('#full-page-button').click()");
-  assert.equal(
-    await fullPage.executeJavaScript("document.querySelector('#full-page-button').textContent"),
-    "1"
-  );
+  cases.push("真实 C23 插件经公开渲染器运行，计数交互可用");
+  await until("Boolean(document.querySelector('#html-fragment-button'))");
+  assert(await evaluate("!document.querySelector('iframe[title=\"HTML 文档\"]')"), "渲染器不得替换 HTML 插件行为");
+  assert(await evaluate("[...document.querySelectorAll('style[data-tau-content-style]')].some(style => style.textContent.includes('text-red-500'))"));
+  await click("#html-fragment-button");
+  assert.equal(await evaluate("document.querySelector('#html-fragment-button').textContent"), "1");
   assert.equal(
     await evaluate("document.querySelector('[data-portable-counter] output').textContent"),
     "8"
   );
-  cases.push("模板保留全页 HTML 的独立脚本交互与伴生 CSS，父页面状态独立");
+  cases.push("HTML 使用原插件渲染、交互与伴生 CSS，无模板 iframe 适配");
   await click('button[title="全屏"]');
   await until(`Boolean(document.querySelector('[aria-label="HTML 全屏"]'))`);
   await evaluate(`document.querySelector('[aria-label="HTML 全屏"] button[title="显示源码"]')?.click()`);

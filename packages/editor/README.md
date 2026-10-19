@@ -1,6 +1,6 @@
 # Tau Editor
 
-通用块式编辑器，包含内核、内置扩展、编辑器自身 UI、已编译 CSS 和必要资源。不读取发布清单、不加载内容插件产物，也不决定站点路由或预览。
+通用块式编辑器，包含内核、内置扩展、编辑器自身 UI、已编译 CSS 和必要资源。通用入口不读取发布协议；独立 `/renderer` 入口封装发布正文接入。页面、路由和外部预览界面由使用者决定。
 
 ```tsx
 import { Editor } from "@tau/editor";
@@ -10,6 +10,19 @@ import "@tau/editor/styles.css";
 ```
 
 `initValue` 为初始值；切换内容时用新的 React key 建立实例。编辑时通过 `onChange` 取得正文。`extensions` 按节点类型覆盖本实例的默认扩展。默认组合不包含已插件化的 HTML、TikZ、Typst、ABC 和 custom-block。
+
+发布正文使用同一个包的公开入口，不需要手动加载内容插件或接线：
+
+```tsx
+import { createClient, ContentRenderer } from "@tau/editor/renderer";
+import "@tau/editor/styles.css";
+
+const client = createClient({ manifestUrl: "/data/site.实际摘要.json" });
+const content = await client.readData({ key: "实际正文的 key" });
+<ContentRenderer content={content} />;
+```
+
+`content` 为 `readData` 的完整返回值。组件内部校验并加载插件和样式，按实例限制样式并在切换或卸载时清理；不改变插件贡献的渲染组件，不调用桌面生命周期。缺失插件按通用 Editor 的不可用节点行为显示。HTML 使用插件原有行为，不新增 iframe。高级页面可继续传入通用 `kit`、`initValue`、`extensions` 和外观参数；普通接入只需 `content`。
 
 `/api` 为扩展开发接口；`/contracts`、`/api/services`、`/api/paragraph` 和 `/markdown` 保持无界面用途。`/extensions/<功能>` 提供已使用的扩展入口，`/presets/standard` 保留各应用显式组合。高级应用可继续传入自己的 kit，默认组件不替换其服务与场景装配。
 

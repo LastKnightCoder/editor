@@ -1,11 +1,12 @@
 {
   "name": "@tau/editor",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./renderer": "./renderer.ts",
     "./styles.css": "./styles.css",
     "./theme/tailwind.css": "../themes/src/tailwind.css",
     "./theme/scale.css": "../themes/src/scale.css",
@@ -131,6 +132,7 @@
     "lucide-react": "^0.399.0"
   },
   "devDependencies": {
+    "@tau/plugins": "workspace:*",
     "tailwindcss": "^4.1.18",
     "codemirror": "5",
     "@types/is-hotkey": "^0.1.7",
@@ -162,6 +164,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "postcss": "8.5.6",
     "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/ui": "workspace:*",

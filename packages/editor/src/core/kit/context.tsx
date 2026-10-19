@@ -13,7 +13,7 @@ import type { EditorKit } from "./EditorKit";
 const EditorKitContext = createContext<EditorKit | null>(null);
 
 /** 内核用：把本编辑器的 kit 传给子树（含嵌套编辑器与扩展组件） */
-export function EditorKitScope({ kit, children }: { kit: EditorKit; children: ReactNode }) {
+export function EditorKitScope({ kit, children }: { kit: EditorKit | null; children: ReactNode }) {
   return <EditorKitContext.Provider value={kit}>{children}</EditorKitContext.Provider>;
 }
 

@@ -95,11 +95,19 @@ export const sourceEditorRuntime: SourceEditorRuntime = {
   },
 };
 
-export const {
-  SourceBlockEditor,
-  useSourceBlock,
-  useReportPreviewError: useSourcePreviewError,
-  insertSourceBlock,
-  sourceBlockParagraphBehavior,
-} = sourceEditorRuntime;
-export const { useInlineSource, insertInlineSource, InlineSourceBoundary } = inlineSourceRuntime;
+export const SourceBlockEditor: SourceEditorRuntime["SourceBlockEditor"] =
+  sourceEditorRuntime.SourceBlockEditor;
+export const useSourceBlock: SourceEditorRuntime["useSourceBlock"] =
+  sourceEditorRuntime.useSourceBlock;
+export const useSourcePreviewError: SourceEditorRuntime["useReportPreviewError"] =
+  sourceEditorRuntime.useReportPreviewError;
+export const insertSourceBlock: SourceEditorRuntime["insertSourceBlock"] =
+  sourceEditorRuntime.insertSourceBlock;
+export const sourceBlockParagraphBehavior: SourceEditorRuntime["sourceBlockParagraphBehavior"] =
+  sourceEditorRuntime.sourceBlockParagraphBehavior;
+export const useInlineSource: InlineSourceRuntime["useInlineSource"] =
+  inlineSourceRuntime.useInlineSource;
+export const insertInlineSource: InlineSourceRuntime["insertInlineSource"] =
+  inlineSourceRuntime.insertInlineSource;
+export const InlineSourceBoundary: InlineSourceRuntime["InlineSourceBoundary"] =
+  inlineSourceRuntime.InlineSourceBoundary;

@@ -63,7 +63,7 @@ export function makePublishFixture(title = "第一篇文章") {
                 },
                 {
                   type: "html-block",
-                  html: '<!doctype html><html><head><title>完整 HTML</title><style>body{margin:0}</style></head><body><button id="full-page-button" class="text-red-500" onclick="this.textContent=String(Number(this.textContent)+1)">0</button></body></html>',
+                  html: '<button id="html-fragment-button" class="text-red-500" onclick="this.textContent=String(Number(this.textContent)+1)">0</button>',
                   children: [{ type: "formatted", text: "" }],
                 },
               ]
