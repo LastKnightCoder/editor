@@ -136,5 +136,23 @@
       "README.md": "7820af3ab78e9b4994f23084948a003f48ae3b17168f2938891390d43992e778",
       "THIRD_PARTY_NOTICES.md": "f94f9a628aee7837f4285d1986a031b89efa5836ac4c492033fb31ff0da16521"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-abc",
+    "artifact": "releases/tau.abc/0.1.0",
+    "id": "tau.abc",
+    "version": "0.1.0",
+    "sourceRevision": "b1d72c86333cbad9023eac6d183c834a58d25f6d",
+    "archiveSha256": "bb0364c35cdc4bf51b89474e0066f5eba158073f6eb553f015fa454294256955",
+    "files": {
+      "CHANGELOG.md": "e4cf84586156d2019b03b2d4ec6048a05b39072abe06f2411cfe881b72aae6e5",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "LICENSE-ABCJS.md": "d7bdcd152b978adee22a2f9b92a4d72c4ec2c20a86512766c7c210b462b54702",
+      "main.css": "a94d1e58af92174e8f931a19d1de92c0f88c934200dfe78a51c9bc6986a8ad59",
+      "main.js": "116ab1807be085cb279e98f46be403d859113981b74a0248be0725f8487f6a23",
+      "manifest.json": "bbbcdf9f7b54a62981fc3019ad718b2f8465f503fee4cd83829cbef059813db1",
+      "README.md": "0552bce0e1a981e0d403410d90b75c7be2e5cd848f7593716760ae51b48274b2",
+      "THIRD_PARTY_NOTICES.md": "774ba4b721b06a19c76fd35ccf908b91b8668f18fda688fdbe9f2a92684b0c16"
+    }
   }
 ]

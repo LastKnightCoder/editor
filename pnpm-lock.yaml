@@ -2293,9 +2293,6 @@ importers:
       '@tau/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      abcjs:
-        specifier: ^6.5.2
-        version: 6.7.0
       ahooks:
         specifier: ^3.7.7
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -9337,9 +9334,6 @@ packages:
   abbrev@4.0.0:
     resolution: {integrity: sha512-a1wflyaL0tHtJSmLSOVybYhy22vRih4eduhhrkcjgrWGnRfrZtovJ2FRjxuTtkkj47O/baf0R86QU5OuYpz8fA==}
     engines: {node: ^20.17.0 || >=22.9.0}
-
-  abcjs@6.7.0:
-    resolution: {integrity: sha512-dSj1Iho8IvGZEbfRTcGS4uGt+DMrrXTqXXpfNXYMuUNfDMRadTqA1DlVvs3u0uUDJIej8UOAeDauEPnZ6RThmg==}
 
   abort-controller@3.0.0:
     resolution: {integrity: sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==}
@@ -21111,8 +21105,6 @@ snapshots:
       through: 2.3.8
 
   abbrev@4.0.0: {}
-
-  abcjs@6.7.0: {}
 
   abort-controller@3.0.0:
     dependencies:

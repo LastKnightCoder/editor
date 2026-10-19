@@ -7,7 +7,6 @@ import { diagramMarkdownCodecs } from "../../markdown";
 const md = createMarkdownProcessor({ codecs: diagramMarkdownCodecs });
 const cases = [
   ["mermaid", "chart", "graph TD\nA --> B"],
-  ["abc", "content", "X: 1\nK: C\nC D E F"],
   ["plantuml", "content", "@startuml\nAlice -> Bob\n@enduml"],
 ] as const;
 
@@ -21,12 +20,8 @@ describe("图表扩展 headless codec", () => {
     expect(md.importFromMarkdown(markdown)).toEqual(imported.content);
   });
 
-  it("只覆盖内置三类，TikZ 与 Typst 由独立插件提供", () => {
-    expect(diagramMarkdownCodecs.map(codec => codec.type).sort()).toEqual([
-      "abc",
-      "mermaid",
-      "plantuml",
-    ]);
+  it("只覆盖内置两类，ABC、TikZ 与 Typst 由独立插件提供", () => {
+    expect(diagramMarkdownCodecs.map(codec => codec.type).sort()).toEqual(["mermaid", "plantuml"]);
   });
 
   it("Node 包名加载与往返，加载图拒绝 React/DOM/图表渲染器", () => {

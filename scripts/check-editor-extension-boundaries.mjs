@@ -10,6 +10,11 @@ const editorRoot = resolve(root, "packages/editor");
 const require = createRequire(resolve(editorRoot, "package.json"));
 const ts = require("typescript");
 const editorManifest = JSON.parse(readFileSync(resolve(editorRoot, "package.json"), "utf8"));
+const diagramManifest = JSON.parse(
+  readFileSync(resolve(root, "editor-extensions/diagram/package.json"), "utf8")
+);
+assert(!diagramManifest.dependencies?.abcjs, "abcjs 只能由独立 ABC 插件携带");
+assert(!diagramManifest.exports["./abc"], "不得恢复宿主 ABC 渲染入口");
 assert(
   !Object.keys(editorManifest.exports).some(key => key.startsWith("./src")),
   "核心不得恢复 src 私有通配出口"
@@ -427,7 +432,7 @@ for (const [host, entry, exportName] of hosts) {
     assert.deepEqual(md.importFromMarkdown(preserved.markdown), unknownText);
     assert.deepEqual(md.importFromMarkdownWithPositions(preserved.markdown).content, unknownText);
     const fence = String.fromCharCode(96).repeat(3);
-    for (const type of ['mermaid', 'plantuml', 'abc']) {
+    for (const type of ['mermaid', 'plantuml']) {
       const source = fence + type + '\\n源码\\n' + fence;
       const parsed = md.importFromMarkdownWithPositions(source);
       assert.equal(parsed.content[0].type, type);
