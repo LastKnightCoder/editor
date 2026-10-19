@@ -1,12 +1,4 @@
-/**
- * 发布页右栏：首次引导 / 发布计划 / 发布动作（就绪 → 发布中 → 完成）。
- *
- * 计划卡只陈述后端真实给出的两件事：将生成（全量）与将删除（历史有、本次未生成）；
- * 不做「未变跳过 / 内容哈希比对」——后端没有增量比对（D-035）。
- * 动作卡发布中无取消按钮（无取消 IPC），完成后提供「重新发布」而非失败重试。
- * 站点卡：站点设置的只读摘要，详情与编辑收在抽屉里。
- * 各块是发布页那张纸右栏里的一节（上下细线分隔），不再各自成卡。
- */
+/** 发布计划、执行反馈及站点摘要共用同一份提供方配置。 */
 
 import clsx from "clsx";
 import { useState, type ReactNode } from "react";
@@ -14,7 +6,7 @@ import { Check, ChevronRight, ExternalLink, RotateCw, Upload } from "lucide-reac
 import { Button, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import type { IPublishProgress } from "@/types/publish";
-import { PROVIDER_LABELS, type PublishConfig } from "../usePublishConfig";
+import { type PublishConfig } from "../usePublishConfig";
 import type { PlanSummary, RunState } from "../usePublishRun";
 import { formatAgo } from "@/utils/formatAgo";
 import { formatDuration } from "./format";
@@ -30,18 +22,13 @@ export function GuideCard({
   config,
   selectionCount,
   onOpenSettings,
-  onOpenIntegration,
 }: {
   config: PublishConfig;
   selectionCount: number;
   onOpenSettings: () => void;
-  onOpenIntegration: () => void;
 }) {
   const isLocal = config.active === EPublishProvider.Local;
-  const credentialLabel =
-    config.active === EPublishProvider.S3
-      ? "在「集成」中配置 S3 AccessKey"
-      : "在「集成」中配置 GitHub Token";
+  const credentialLabel = "安装、启用并配置发布插件";
   const steps = [
     ...(isLocal
       ? []
@@ -49,14 +36,11 @@ export function GuideCard({
           {
             label: credentialLabel,
             done: config.credentialReady,
-            action: { text: "去配置", run: onOpenIntegration },
+            action: { text: "去配置", run: onOpenSettings },
           },
         ]),
     {
-      label:
-        config.active === EPublishProvider.Github
-          ? "选择发布目标、仓库与模板"
-          : "选择发布目标与模板",
+      label: "选择发布目标与模板",
       done: config.targetReady && config.templateReady,
       action: { text: "去设置", run: onOpenSettings },
     },
@@ -229,9 +213,7 @@ export function PlanCard({
         </div>
       )}
       {plan && (
-        <div className="text-tau-tiny text-ink-3 mt-2 px-1.5">
-          {formatAgo(plan.computedAt)}计算 · 按访问路径 “/” 估算，不含 favicon
-        </div>
+        <div className="text-tau-tiny text-ink-3 mt-2 px-1.5">{formatAgo(plan.computedAt)}计算</div>
       )}
     </RailSection>
   );
@@ -289,18 +271,7 @@ function Steps({ phase }: { phase: IPublishProgress["phase"] | null }) {
 const BIG = "mt-3.5 h-10 w-full justify-center rounded-[11px] text-[14px]";
 
 function targetHint(config: PublishConfig) {
-  const { publish, active } = config;
-  if (active === EPublishProvider.Github) {
-    return [
-      publish.github.repo || "未选仓库",
-      publish.github.branch || "未选分支",
-      publish.github.useGitCli ? "Git Push" : "GitHub API",
-    ].join(" · ");
-  }
-  if (active === EPublishProvider.S3) {
-    return [publish.s3.bucket || "未填 Bucket", publish.s3.region].filter(Boolean).join(" · ");
-  }
-  return "点击后选择输出文件夹";
+  return config.active === EPublishProvider.Local ? "点击后选择输出文件夹" : config.providerLabel;
 }
 
 export function ActionCard({
@@ -461,9 +432,7 @@ export function ActionCard({
 
   return (
     <RailSection>
-      <PanelTitle>
-        {isLocal ? "导出到本地文件夹" : `发布到 ${PROVIDER_LABELS[config.active]}`}
-      </PanelTitle>
+      <PanelTitle>{isLocal ? "导出到本地文件夹" : `发布到 ${config.providerLabel}`}</PanelTitle>
       <div className="text-tau-sm text-ink-3 mt-0.5 truncate">{hint}</div>
       <Button
         variant="primary"
@@ -511,29 +480,17 @@ function SiteRow({ label, value, mono }: { label: string; value: string; mono?: 
 }
 
 export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: () => void }) {
-  const { publish, active } = config;
-  const rows: { label: string; value: string; mono?: boolean }[] =
-    active === EPublishProvider.Github
-      ? [
-          { label: "仓库", value: publish.github.repo, mono: true },
-          { label: "分支", value: publish.github.branch, mono: true },
-          { label: "方式", value: publish.github.useGitCli ? "Git Push" : "GitHub API" },
-          { label: "访问路径", value: publish.github.basePath, mono: true },
-        ]
-      : active === EPublishProvider.S3
-        ? [
-            { label: "Bucket", value: publish.s3.bucket, mono: true },
-            { label: "Region", value: publish.s3.region, mono: true },
-            { label: "路径前缀", value: publish.s3.path, mono: true },
-            { label: "访问路径", value: publish.s3.basePath, mono: true },
-          ]
-        : [{ label: "访问路径", value: publish.local.basePath, mono: true }];
+  const { publish } = config;
+  const rows: { label: string; value: string; mono?: boolean }[] = [
+    { label: "发布目标", value: config.providerLabel },
+    { label: "访问路径", value: config.basePath, mono: true },
+  ];
 
   return (
     <RailSection>
       <PanelTitle>
         站点设置
-        <PanelNote>{PROVIDER_LABELS[active]}</PanelNote>
+        <PanelNote>{config.providerLabel}</PanelNote>
         <PanelAction onClick={onOpen}>
           详情
           <ChevronRight size={12} strokeWidth={2} className="ml-0.5" />

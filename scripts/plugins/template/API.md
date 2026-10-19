@@ -1,5 +1,7 @@
 # 插件 API
 
+博客发布提供方见 [PUBLISH.md](PUBLISH.md)，需要 SDK 0.21.0 和包含该能力的客户端。
+
 本文介绍编写命令、页面、侧边栏、设置、数据存储、网络请求和摘录所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
 想在文档里添加自定义块，见 [EDITOR.md](EDITOR.md)；需要编译 Tailwind、Typst、Markdown 等内容，见 [SERVICES.md](SERVICES.md)。

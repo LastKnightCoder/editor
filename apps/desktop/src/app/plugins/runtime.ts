@@ -1,6 +1,7 @@
 import { rendererSyncRegistry } from "./sync-registry";
 import { rendererTTSRegistry } from "./tts-registry";
 import { rendererImagesRegistry } from "./images-registry";
+import { rendererPublishRegistry } from "./publish-registry";
 import { rendererUploadRegistry } from "./upload-registry";
 import { desktopPluginChat } from "./chat";
 import { uploadRemoteResource } from "@/services/resource-upload";
@@ -119,7 +120,7 @@ export class DesktopPluginRuntime {
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
       openSettings?: (
         key: PluginSettingsKey,
-        target?: "sync" | "upload" | "tts" | "images"
+        target?: "sync" | "upload" | "tts" | "images" | "publish"
       ) => void;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
@@ -135,6 +136,7 @@ export class DesktopPluginRuntime {
       sync: rendererSyncRegistry,
       tts: rendererTTSRegistry,
       images: rendererImagesRegistry,
+      publish: rendererPublishRegistry,
       upload: {
         register: (context, definition) => rendererUploadRegistry.register(context, definition),
         uploadRemote: uploadRemoteResource,
@@ -165,6 +167,7 @@ export class DesktopPluginRuntime {
     this.unsubscribe = this.host.subscribe(() => {
       this.publish();
       rendererImagesRegistry.notifyChanged();
+      rendererPublishRegistry.notifyChanged();
     });
     options.plugins.forEach(plugin => this.host.registerTrusted(plugin));
   }

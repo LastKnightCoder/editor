@@ -23,24 +23,21 @@ vi.mock("@/app/settingsStore", () => ({
 vi.mock("@/page/PageProvider", () => ({ useOverlayDismiss: () => {} }));
 
 const makeConfig = (over: Record<string, unknown> = {}) => ({
-  active: EPublishProvider.Github,
+  active: EPublishProvider.Plugin,
   publish: {
-    active: EPublishProvider.Github,
-    github: {
-      repo: "me/blog",
-      branch: "gh-pages",
-      basePath: "/blog/",
-      useGitCli: true,
-      gitWorkingDir: "",
-    },
-    s3: { bucket: "", region: "", path: "", basePath: "/" },
+    active: EPublishProvider.Plugin,
+    plugin: { id: "tau.publish-github", configurations: {} },
     local: { basePath: "/" },
     site: { templateId: "tau.blog", title: "我的站点", description: "", publicUrl: "" },
   },
   credentialReady: true,
   targetReady: true,
   templateReady: true,
-  githubTokenReady: true,
+  providerLabel: "GitHub Pages",
+  pluginId: "tau.publish-github",
+  providerConfig: {},
+  providers: [{ id: "tau.publish-github", name: "GitHub Pages" }],
+  basePath: "/blog/",
   siteUrl: "https://me.github.io/blog/",
   repoOptions: [],
   branchOptions: [],
@@ -85,7 +82,7 @@ it("就绪时显示页头身份、计划与发布按钮", () => {
   render();
   expect(text()).toContain("我的站点");
   expect(text()).toContain("me.github.io/blog/");
-  expect(text()).toContain("GitHub Pages · gh-pages");
+  expect(text()).toContain("GitHub Pages");
   expect(text()).toContain("从未发布");
   expect(text()).toContain("本次发布");
   expect(text()).toContain("上传文件2");
@@ -162,6 +159,7 @@ it("站点设置抽屉打开后可切换发布目标", () => {
   act(() => [...container.querySelectorAll("button")].find(b => b.textContent === "详情")!.click());
   const drawer = findDrawer()!;
   expect(drawer).toBeDefined();
-  act(() => (drawer.querySelector('[role="radio"]:nth-child(2)') as HTMLButtonElement).click());
-  expect(setProvider).toHaveBeenCalledWith(EPublishProvider.S3);
+  expect(drawer.querySelector('[aria-label="发布目标"]')).toBeTruthy();
+  expect(drawer.textContent).toContain("管理发布插件");
+  expect(drawer.textContent).not.toContain("设置 · 集成");
 });

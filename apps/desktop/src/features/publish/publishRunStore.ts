@@ -1,12 +1,4 @@
-/**
- * 发布运行态全局 store —— 进度与结果不随发布页卸载丢失。
- *
- * 发布在主进程执行，离开页面（后退弹栈 / LRU 卸载）后仍会跑完；运行态若留在组件内，
- * 回来即变回「就绪」且可再次点发布（主进程无并发锁）。故 run 与进度监听提到模块级：
- * 进度 handler 随 WebSocket client 常驻注册，不受页面 Activity 隐藏停驻影响；
- * start() 在 running 时直接忽略，保证同一时刻只有一次发布。
- * 结束时经 notify 回报一次（后台任务结果属 Notification 而非 Toast，D-038）。
- */
+/** 发布运行态与进度订阅由壳层持有，离开发布页后继续运行。 */
 
 import { create } from "zustand";
 import type { NotificationAction } from "@tau/ui";
@@ -29,6 +21,7 @@ export type RunState =
 export interface PublishRunParams {
   active: EPublishProvider;
   providerConfig: PublishConfig["providerConfig"];
+  pluginId: string;
   publish: PublishConfig["publish"];
   appearance: PublishConfig["appearance"];
   /** 本地导出的输出目录（云端发布忽略） */
@@ -52,7 +45,7 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
   start: async params => {
     if (get().run.kind === "running") return;
     lastParams = params;
-    const { active, providerConfig, publish, appearance, targetDir = "" } = params;
+    const { active, providerConfig, pluginId, publish, appearance, targetDir = "" } = params;
     const startedAt = Date.now();
     set({ run: { kind: "running", startedAt, progress: null } });
     let next: RunState;
@@ -61,8 +54,7 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
       if (active === EPublishProvider.Local) {
         await exportPublishOutput({
           targetDir,
-          providerType: EPublishProvider.Local,
-          providerConfig: { basePath: publish.local.basePath },
+          basePath: publish.local.basePath,
           siteConfig: publish.site,
           settings: { appearance },
         });
@@ -71,6 +63,7 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
       } else {
         const result = await executePublish({
           providerType: active,
+          pluginId,
           providerConfig,
           siteConfig: publish.site,
           settings: { appearance },

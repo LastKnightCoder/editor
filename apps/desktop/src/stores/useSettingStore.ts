@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
 
 import { EGithubCDN } from "@/constants/github";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
@@ -19,8 +22,7 @@ export enum ESync {
 }
 
 export enum EPublishProvider {
-  Github = "github",
-  S3 = "s3",
+  Plugin = "plugin",
   Local = "local",
 }
 
@@ -73,6 +75,12 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
     ? structuredClone(setting.ttsProviders)
     : null;
   merge(mergedSetting, setting);
+  for (const key of ["github", "s3"]) {
+    delete (mergedSetting.integration as unknown as Record<string, unknown>)[key];
+    delete (mergedSetting.publish as unknown as Record<string, unknown>)[key];
+  }
+  if (!["local", "plugin"].includes(mergedSetting.publish.active))
+    mergedSetting.publish.active = EPublishProvider.Local;
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
   }
@@ -206,21 +214,6 @@ export interface ISetting {
       enabled: boolean;
       proxy: string;
     };
-    github: {
-      enabled: boolean;
-      token: string;
-      user: {
-        name: string;
-        email: string;
-      };
-    };
-    s3: {
-      enabled: boolean;
-      accessKeyId: string;
-      secretAccessKey: string;
-      endpoint: string;
-      urlStyle: "path" | "virtualHosted";
-    };
   };
   misc: {
     webClip: {
@@ -246,18 +239,9 @@ export interface ISetting {
   };
   publish: {
     active: EPublishProvider;
-    github: {
-      repo: string;
-      branch: string;
-      basePath: string;
-      useGitCli: boolean;
-      gitWorkingDir: string;
-    };
-    s3: {
-      bucket: string;
-      region: string;
-      path: string;
-      basePath: string;
+    plugin: {
+      id: string;
+      configurations: Record<string, import("@tau/plugins").JsonValue>;
     };
     local: {
       basePath: string;
@@ -475,21 +459,6 @@ const initialState: IState = {
         enabled: false,
         proxy: "",
       },
-      github: {
-        enabled: false,
-        token: "",
-        user: {
-          name: "",
-          email: "",
-        },
-      },
-      s3: {
-        enabled: false,
-        accessKeyId: "",
-        secretAccessKey: "",
-        endpoint: "",
-        urlStyle: "path",
-      },
     },
     misc: {
       webClip: {
@@ -514,20 +483,8 @@ const initialState: IState = {
       },
     },
     publish: {
-      active: EPublishProvider.Github,
-      github: {
-        repo: "",
-        branch: "gh-pages",
-        basePath: "/",
-        useGitCli: true,
-        gitWorkingDir: "",
-      },
-      s3: {
-        bucket: "",
-        region: "",
-        path: "",
-        basePath: "/",
-      },
+      active: EPublishProvider.Local,
+      plugin: { id: "", configurations: {} },
       local: {
         basePath: "/",
       },

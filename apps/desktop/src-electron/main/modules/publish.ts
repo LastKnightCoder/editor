@@ -1,16 +1,10 @@
-import { ipcMain, BrowserWindow, app } from "electron";
+import { ipcMain, BrowserWindow, app, dialog } from "electron";
 import type Database from "better-sqlite3";
 import { Module } from "../types/module";
-import {
-  createPublishProvider,
-  IPublishProvider,
-  DEFAULT_UPLOAD_OPTIONS,
-  IUploadOptions,
-  computeBasePath,
-  IGithubPagesConfig,
-  IS3HostingConfig,
-} from "./publish-providers";
-import simpleGit, { SimpleGit } from "simple-git";
+import { pluginPublishSessions } from "../services/plugin-publish-provider";
+import { publicationGitService } from "../services/publication-git-service";
+import { copyJson } from "@tau/plugins/host";
+import type { PublishTarget, GitSnapshotRequest } from "@tau/plugins";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
 import DatabaseModule from "./database";
@@ -21,17 +15,19 @@ import {
   IPublishResult,
   IPublishProgress,
   IPublishAppearanceSettings,
-  IPublishFaviconConfig,
+  PublishRequest,
+  PublishSiteConfig,
+  IUploadOptions,
+  DEFAULT_UPLOAD_OPTIONS,
 } from "@/types/publish";
-import { join, resolve, dirname } from "path";
+import { join, dirname } from "path";
 import { createHash } from "node:crypto";
 import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
 import { describeRelease, planPublication, type ReleaseState } from "./publish-release-state";
 import { uploadPublication } from "./publish-upload";
 import { publicationDestination } from "./publish-destination";
-import { stagePublication, publicationGitError } from "./publish-git";
 import { assertPublishPath } from "@tau/plugins/template";
-import { existsSync, mkdirSync, rmSync, writeFileSync, readdirSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { recordSyncIo } from "./perf-record";
 import log from "electron-log";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
@@ -74,36 +70,7 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
   };
 }
 
-type ExecutePublishConfig = (
-  | {
-      providerType: "github";
-      providerConfig: IGithubPagesConfig;
-      siteConfig: {
-        templateId?: string;
-        title: string;
-        description: string;
-        publicUrl?: string;
-        favicon?: IPublishFaviconConfig;
-      };
-      settings?: IPublishAppearanceSettings;
-      options?: IUploadOptions;
-    }
-  | {
-      providerType: "s3";
-      providerConfig: IS3HostingConfig;
-      siteConfig: {
-        templateId?: string;
-        title: string;
-        description: string;
-        publicUrl?: string;
-        favicon?: IPublishFaviconConfig;
-      };
-      settings?: IPublishAppearanceSettings;
-      options?: IUploadOptions;
-    }
-) & { editorContext?: PluginRenderContext };
-
-type GithubExecuteConfig = Extract<ExecutePublishConfig, { providerType: "github" }>;
+type ProviderSession = Awaited<ReturnType<typeof pluginPublishSessions.begin>> & { owner: number };
 
 class PublishModule implements Module {
   private readonly publishing = new Set<string>();
@@ -152,113 +119,112 @@ class PublishModule implements Module {
       return scan.entries.flatMap(entry => (entry.template ? [entry.template] : []));
     });
 
-    // 执行发布
-    ipcMain.handle("execute-publish", async (event, config: ExecutePublishConfig) => {
+    ipcMain.handle("execute-publish", async (event, config: PublishRequest) => {
       const db = this.getDatabase(event);
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
-      const siteMeta = this.resolveSiteMeta(
-        config.providerType,
-        config.providerConfig,
-        config.siteConfig
-      );
-
-      return this.executePublish(db, config, siteMeta);
+      if (!db) throw new Error("Database not available");
+      if (config.providerType !== "plugin") throw new Error("远端发布需要选择插件");
+      return this.withTarget(event.sender.id, config, (site, session) => {
+        if (!session) throw new Error("发布会话缺失");
+        return this.executePublish(db, config, site, session);
+      });
     });
-
-    // 预览发布计划
-    ipcMain.handle(
-      "preview-publish-plan",
-      async (
-        event,
-        config: {
-          providerType: "github" | "s3" | "local";
-          providerConfig?: Record<string, unknown>;
-          siteConfig: {
-            templateId?: string;
-            title: string;
-            description: string;
-            publicUrl?: string;
-            favicon?: IPublishFaviconConfig;
-          };
-          settings?: IPublishAppearanceSettings;
-          editorContext?: PluginRenderContext;
-        }
-      ) => {
-        const db = this.getDatabase(event);
-        if (!db) {
-          throw new Error("Database not available");
-        }
-
-        const siteMeta = this.resolveSiteMeta(
-          config.providerType,
-          config.providerConfig ?? {},
-          config.siteConfig
-        );
-        return this.previewPublishPlan(db, siteMeta, config.editorContext, config.settings);
-      }
+    ipcMain.handle("preview-publish-plan", async (event, config: PublishRequest) => {
+      const db = this.getDatabase(event);
+      if (!db) throw new Error("Database not available");
+      return this.withTarget(event.sender.id, config, site =>
+        this.previewPublishPlan(db, site, config.editorContext, config.settings)
+      );
+    });
+    ipcMain.handle("describe-publish-target", (event, config: PublishRequest) =>
+      this.withTarget(event.sender.id, config, site =>
+        Promise.resolve({
+          basePath: site.basePath,
+          publicUrl: site.publicUrl,
+        })
+      )
     );
-
-    // 导出构建产物
     ipcMain.handle(
       "export-publish-output",
       async (
         event,
         payload: {
           targetDir: string;
-          providerType: "github" | "s3" | "local";
-          providerConfig?: Record<string, unknown>;
-          siteConfig: {
-            templateId?: string;
-            title: string;
-            description: string;
-            publicUrl?: string;
-            favicon?: IPublishFaviconConfig;
-          };
+          basePath?: string;
+          siteConfig: PublishSiteConfig;
           settings?: IPublishAppearanceSettings;
           editorContext?: PluginRenderContext;
         }
       ) => {
         const db = this.getDatabase(event);
-        if (!db) {
-          throw new Error("Database not available");
-        }
-
-        const siteMeta = this.resolveSiteMeta(
-          payload.providerType,
-          payload.providerConfig || {},
-          payload.siteConfig
-        );
-
+        if (!db) throw new Error("Database not available");
         return this.exportPublishOutput(
           db,
-          siteMeta,
+          this.resolveSiteMeta(
+            {
+              identity: "local",
+              basePath: this.normalizeBasePath(payload.basePath ?? "/"),
+            },
+            payload.siteConfig
+          ),
           payload.targetDir,
           payload.settings,
           payload.editorContext
         );
       }
     );
-
-    // 检查连接
-    ipcMain.handle(
-      "check-publish-connection",
-      async (
-        _event,
-        config: {
-          providerType: "github" | "s3";
-          providerConfig: Record<string, unknown>;
-        }
-      ) => {
-        const provider = createPublishProvider({
-          type: config.providerType,
-          [config.providerType]: config.providerConfig,
-        });
-        return provider.checkConnection();
-      }
+    ipcMain.handle("check-publish-connection", (event, config: PublishRequest) =>
+      this.withTarget(event.sender.id, config, (_site, session) =>
+        session
+          ? pluginPublishSessions.call<boolean>(event.sender.id, session.id, "checkConnection")
+          : Promise.resolve(true)
+      )
     );
+    ipcMain.handle("publish-git:snapshot", (event, input: GitSnapshotRequest) =>
+      publicationGitService.publish(event.sender.id, input)
+    );
+    ipcMain.handle("publish-git:cancel", (event, id: string) =>
+      publicationGitService.cancel(event.sender.id, id)
+    );
+    ipcMain.handle("publish-git:select-cache", async event => {
+      const window = BrowserWindow.fromWebContents(event.sender);
+      if (!window) throw new Error("选择目录需要应用窗口");
+      const selected = await dialog.showOpenDialog(window, {
+        properties: ["openDirectory", "createDirectory"],
+      });
+      if (selected.canceled || !selected.filePaths[0]) return null;
+      return publicationGitService.registerDirectory(selected.filePaths[0]);
+    });
+  }
+
+  private async withTarget<T>(
+    owner: number,
+    config: PublishRequest,
+    run: (site: ISiteMeta, session?: ProviderSession) => Promise<T>
+  ): Promise<T> {
+    if (config.providerType === "local")
+      return run(
+        this.resolveSiteMeta(
+          {
+            identity: "local",
+            basePath: this.normalizeBasePath(config.basePath ?? "/"),
+          },
+          config.siteConfig
+        )
+      );
+    if (config.providerType !== "plugin" || !config.pluginId)
+      throw new Error("请先选择并启用发布插件");
+    assertLocalId(config.pluginId);
+    const opened = await pluginPublishSessions.begin(
+      owner,
+      config.pluginId,
+      copyJson(config.providerConfig ?? {})
+    );
+    try {
+      const target = await pluginPublishSessions.describe(owner, opened.id);
+      return await run(this.resolveSiteMeta(target, config.siteConfig), { ...opened, owner });
+    } finally {
+      await pluginPublishSessions.end(owner, opened.id);
+    }
   }
 
   private async exportPublishOutput(
@@ -312,49 +278,14 @@ class PublishModule implements Module {
     }
   }
 
-  private resolveSiteMeta(
-    providerType: "github" | "s3" | "local",
-    providerConfig: unknown,
-    siteConfig: {
-      templateId?: string;
-      title: string;
-      description: string;
-      publicUrl?: string;
-      favicon?: IPublishFaviconConfig;
-    }
-  ): ISiteMeta {
-    let basePath = "/";
-    if (providerType === "local") {
-      const raw =
-        typeof (providerConfig as { basePath?: string })?.basePath === "string"
-          ? ((providerConfig as { basePath?: string }).basePath as string)
-          : "/";
-      basePath = this.normalizeBasePath(raw);
-    } else {
-      basePath = computeBasePath(providerType, {
-        type: providerType,
-        [providerType]: providerConfig,
-      } as any);
-    }
+  private resolveSiteMeta(target: PublishTarget, siteConfig: PublishSiteConfig): ISiteMeta {
     return {
-      destination: JSON.stringify([
-        providerType,
-        ...(providerType === "github"
-          ? [
-              (providerConfig as IGithubPagesConfig).repo,
-              (providerConfig as IGithubPagesConfig).branch,
-            ]
-          : [
-              (providerConfig as IS3HostingConfig).bucket,
-              (providerConfig as IS3HostingConfig).pathPrefix,
-              (providerConfig as IS3HostingConfig).endpoint,
-            ]),
-      ]),
+      destination: target.identity,
       templateId: siteConfig?.templateId,
       title: siteConfig?.title?.trim() || "我的博客",
       description: siteConfig?.description || "",
-      basePath,
-      publicUrl: siteConfig?.publicUrl?.trim() || "",
+      basePath: target.basePath,
+      publicUrl: siteConfig?.publicUrl?.trim() || target.publicUrl || "",
       favicon: siteConfig?.favicon,
     };
   }
@@ -409,14 +340,14 @@ class PublishModule implements Module {
     return { ...plan, virtualProcessed };
   }
 
-  private async publicationHistory(db: Database.Database, site: ISiteMeta) {
+  private async publicationHistory(_db: Database.Database, site: ISiteMeta) {
     const state = await this.readRelease(site);
     const history = state
       ? Object.entries({ ...state.published, ...state.pending }).map(([filePath, contentHash]) => ({
           filePath,
           contentHash,
         }))
-      : PublishHistoryTable.getAll(db);
+      : [];
     return { state, history };
   }
 
@@ -480,21 +411,17 @@ class PublishModule implements Module {
    */
   async executePublish(
     db: Database.Database,
-    config: ExecutePublishConfig,
-    site: ISiteMeta
+    config: PublishRequest,
+    site: ISiteMeta,
+    session: ProviderSession
   ): Promise<IPublishResult> {
     const key = this.statePath(site);
-    const keys = [
-      key,
-      ...(config.providerType === "github" && config.providerConfig.useGitCli
-        ? ["git:" + this.gitWorkingDirectory(config.providerConfig)]
-        : []),
-    ];
+    const keys = [key];
     if (keys.some(key => this.publishing.has(key)))
       throw new Error("此发布目标或缓存已有任务正在执行");
     keys.forEach(key => this.publishing.add(key));
     try {
-      return await this.publish(db, config, site);
+      return await this.publish(db, config, site, session);
     } finally {
       keys.forEach(key => this.publishing.delete(key));
     }
@@ -502,25 +429,68 @@ class PublishModule implements Module {
 
   private async publish(
     db: Database.Database,
-    config: ExecutePublishConfig,
-    site: ISiteMeta
+    config: PublishRequest,
+    site: ISiteMeta,
+    session: ProviderSession
   ): Promise<IPublishResult> {
-    const provider = createPublishProvider(
-      config.providerType === "github"
-        ? { type: "github", github: config.providerConfig }
-        : { type: "s3", s3: config.providerConfig }
-    );
-
-    const options = { ...DEFAULT_UPLOAD_OPTIONS, ...config.options };
+    const options = {
+      maxRetries: Math.min(
+        5,
+        Math.max(1, config.options?.maxRetries ?? DEFAULT_UPLOAD_OPTIONS.maxRetries)
+      ),
+      retryDelay: Math.min(
+        30_000,
+        Math.max(0, config.options?.retryDelay ?? DEFAULT_UPLOAD_OPTIONS.retryDelay)
+      ),
+      concurrency: Math.min(
+        session.concurrency,
+        Math.max(1, config.options?.concurrency ?? DEFAULT_UPLOAD_OPTIONS.concurrency)
+      ),
+    };
+    const provider = {
+      uploadFile: (path: string, content: Buffer) =>
+        pluginPublishSessions.call<void>(session.owner, session.id, "uploadFile", [
+          path,
+          new Uint8Array(content),
+        ]),
+      deleteFile: (path: string) =>
+        pluginPublishSessions.call<void>(session.owner, session.id, "deleteFile", [path]),
+    };
     const plan = await this.buildPublishPlan(db, site, config.settings, config.editorContext);
-
-    if (config.providerType === "github" && config.providerConfig.useGitCli) {
-      const result = await this.executeGitCliPublish(db, config, plan);
-      if (result.success) {
-        delete plan.releaseState?.pending;
+    session.signal.throwIfAborted();
+    if (session.mode === "snapshot") {
+      const publication = publicationGitService.register(session.owner, plan, session.signal);
+      try {
+        this.emitProgress({ phase: "pushing", current: 0, total: 1 });
+        await pluginPublishSessions.call<void>(session.owner, session.id, "publish", [
+          {
+            id: publication.id,
+            files: plan.toUpload.map(file => ({ path: file.path, hash: file.hash })),
+            deletions: plan.toDelete,
+          },
+        ]);
+        session.signal.throwIfAborted();
+        for (const file of plan.toUpload)
+          PublishHistoryTable.upsert(db, {
+            filePath: file.path,
+            contentHash: file.hash,
+            sourceType: file.sourceType,
+            sourceId: file.sourceId,
+          });
+        for (const path of plan.toDelete) PublishHistoryTable.delete(db, path);
+        if (plan.releaseState) delete plan.releaseState.pending;
         await this.saveRelease(site, plan.releaseState);
+        this.emitProgress({ phase: "finishing", current: 1, total: 1 });
+        return {
+          success: true,
+          uploaded: plan.toUpload.map(file => file.path),
+          deleted: plan.toDelete,
+          failed: [],
+          skipped: plan.unchanged,
+        };
+      } finally {
+        publication.dispose();
       }
-      return result;
     }
 
     const result: IPublishResult = {
@@ -625,7 +595,7 @@ class PublishModule implements Module {
    * 带重试的上传
    */
   private async uploadWithRetry(
-    provider: IPublishProvider,
+    provider: { uploadFile(path: string, content: Buffer): Promise<void> },
     file: IPublishFile,
     options: Required<IUploadOptions>
   ): Promise<boolean> {
@@ -643,210 +613,6 @@ class PublishModule implements Module {
       }
     }
     return false;
-  }
-
-  private gitWorkingDirectory(config: IGithubPagesConfig): string {
-    const repoSafeName = config.repo.replace(/[\/\\]/g, "_");
-    if (
-      !/^[a-zA-Z0-9-]+\/[a-zA-Z0-9_.-]+$/.test(config.repo) ||
-      [".", ".."].includes(config.repo.split("/")[1])
-    )
-      throw new Error("GitHub 发布仓库必须是 owner/repository");
-    const customBaseDir = config.gitWorkingDir?.trim();
-    const baseDir = customBaseDir
-      ? resolve(customBaseDir)
-      : join(app.getPath("userData"), "publish-git");
-    return join(baseDir, repoSafeName);
-  }
-
-  private async executeGitCliPublish(
-    db: Database.Database,
-    config: GithubExecuteConfig,
-    plan: IPublishPlan
-  ): Promise<IPublishResult> {
-    const providerConfig = config.providerConfig;
-    const needsPushStep = plan.toUpload.length + plan.toDelete.length > 0;
-    const extraProcessed = plan.virtualProcessed || 0;
-    const totalOperations =
-      plan.toUpload.length + plan.toDelete.length + (needsPushStep ? 1 : 0) + extraProcessed;
-    const total = Math.max(1, totalOperations);
-    let current = extraProcessed;
-
-    this.emitProgress({
-      phase: "preparing",
-      current,
-      total,
-    });
-
-    const sendProgress = (phase: IPublishProgress["phase"], currentFile?: string) => {
-      this.emitProgress({
-        phase,
-        current,
-        total,
-        currentFile,
-      });
-    };
-
-    const workingDir = this.gitWorkingDirectory(providerConfig);
-    mkdirSync(dirname(workingDir), { recursive: true });
-    const remoteUrl = `https://x-access-token:${providerConfig.token}@github.com/${providerConfig.repo}.git`;
-
-    try {
-      await this.prepareGitRepository(workingDir, remoteUrl);
-
-      const repoGit = simpleGit(workingDir);
-      await repoGit.raw(["remote", "set-url", "origin", remoteUrl]);
-      try {
-        await repoGit.fetch();
-      } catch (fetchError) {
-        log.warn(
-          "Git fetch failed, continue with local workspace",
-          publicationGitError(fetchError, [remoteUrl, providerConfig.token])
-        );
-      }
-
-      await this.checkoutTargetBranch(repoGit, providerConfig.branch);
-      const targets = new Map(
-        [...plan.toDelete, ...plan.toUpload.map(file => file.path)].map(file => [
-          file,
-          publicationDestination(workingDir, file),
-        ])
-      );
-      for (const file of plan.toDelete) rmSync(targets.get(file)!, { force: true });
-
-      sendProgress("uploading");
-      for (const file of plan.toUpload) {
-        sendProgress("uploading", file.path);
-        const filePath = targets.get(file.path)!;
-        const dir = dirname(filePath);
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
-        }
-        const content = typeof file.content === "string" ? Buffer.from(file.content) : file.content;
-        writeFileSync(filePath, content);
-        current++;
-        sendProgress("uploading");
-      }
-
-      await stagePublication(
-        repoGit,
-        plan.toUpload.map(file => file.path),
-        plan.toDelete
-      );
-
-      const committerName =
-        providerConfig.committerName || config.siteConfig.title || "Tau Publisher";
-      const committerEmail = providerConfig.committerEmail || "noreply@tau-editor.local";
-
-      await repoGit.addConfig("user.name", committerName);
-      await repoGit.addConfig("user.email", committerEmail);
-
-      let status: Awaited<ReturnType<SimpleGit["status"]>> | null = null;
-      if (needsPushStep) {
-        sendProgress("pushing", "git push");
-        status = await repoGit.status();
-        if (status.staged.length > 0) {
-          const commitMessage = `Publish at ${new Date().toISOString()}`;
-          await repoGit.commit(commitMessage, undefined, {
-            "--author": `${committerName} <${committerEmail}>`,
-          });
-        } else {
-          log.info("No content changes detected, retry publishing the current commit.");
-        }
-        // 上次提交可能已成功但推送失败，必须确认远端更新后才能清理发布历史。
-        await repoGit.push("origin", providerConfig.branch);
-        current++;
-        sendProgress("pushing");
-      }
-
-      const result: IPublishResult = {
-        success: true,
-        uploaded: plan.toUpload.map(file => file.path),
-        deleted: plan.toDelete,
-        failed: [],
-        skipped: plan.unchanged,
-      };
-
-      for (const file of plan.toUpload) {
-        PublishHistoryTable.upsert(db, {
-          filePath: file.path,
-          contentHash: file.hash,
-          sourceType: file.sourceType,
-          sourceId: file.sourceId,
-        });
-      }
-
-      if (plan.toDelete.length > 0) {
-        sendProgress("deleting");
-        for (const path of plan.toDelete) {
-          current++;
-          sendProgress("deleting", path);
-          PublishHistoryTable.delete(db, path);
-        }
-      }
-
-      sendProgress("finishing");
-      return result;
-    } catch (error) {
-      const safeError = publicationGitError(error, [remoteUrl, providerConfig.token]);
-      log.error("Git publish failed:", safeError);
-      throw safeError;
-    }
-  }
-
-  private async prepareGitRepository(workingDir: string, remoteUrl: string): Promise<void> {
-    const gitDir = join(workingDir, ".git");
-    if (existsSync(gitDir)) {
-      return;
-    }
-
-    if (existsSync(workingDir)) {
-      if (readdirSync(workingDir).length)
-        throw new Error("发布缓存非空且不是 Git 仓库，请选择独立缓存目录");
-    }
-    mkdirSync(dirname(workingDir), { recursive: true });
-
-    try {
-      await simpleGit().clone(remoteUrl, workingDir);
-    } catch (error) {
-      log.warn(
-        "Clone failed, fallback to initializing publish cache:",
-        publicationGitError(error, [remoteUrl])
-      );
-      mkdirSync(workingDir, { recursive: true });
-      const repoGit = simpleGit(workingDir);
-      await repoGit.init();
-      const remotes = await repoGit.getRemotes(true);
-      if (remotes.some(remote => remote.name === "origin")) {
-        await repoGit.remote(["set-url", "origin", remoteUrl]);
-      } else {
-        await repoGit.addRemote("origin", remoteUrl);
-      }
-    }
-  }
-
-  private async checkoutTargetBranch(git: SimpleGit, branch: string): Promise<void> {
-    const localBranches = await git.branchLocal();
-    if (localBranches.all.includes(branch)) {
-      await git.checkout(branch);
-      if (await this.remoteBranchExists(git, branch))
-        await git.merge(["--ff-only", `origin/${branch}`]);
-      return;
-    }
-
-    const remoteExists = await this.remoteBranchExists(git, branch);
-    if (remoteExists) {
-      await git.checkout(["-B", branch, `origin/${branch}`]);
-      return;
-    }
-
-    await git.checkout(["--orphan", branch]);
-    await git.raw(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
-  }
-
-  private async remoteBranchExists(git: SimpleGit, branch: string) {
-    const output = await git.listRemote(["--heads", "origin", branch]);
-    return output.trim().length > 0;
   }
 
   private emitProgress(progress: IPublishProgress) {

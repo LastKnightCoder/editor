@@ -15,6 +15,7 @@ import { connectSyncRenderer } from "./sync-bridge";
 import { connectUploadRenderer } from "./upload-bridge";
 import { connectTTSRenderer } from "./tts-bridge";
 import { connectImagesRenderer } from "./images-bridge";
+import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 
 const restartRequired = new Set<string>();
@@ -26,6 +27,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectUploadRenderer, []);
   useEffect(connectTTSRenderer, []);
   useEffect(connectImagesRenderer, []);
+  useEffect(connectPublishRenderer, []);
   const { navigator } = usePage();
   const workspaceId = useSettingStore(state => state.setting.database.active);
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
@@ -75,11 +77,13 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                   ? useSettingsStore.getState().openTTSSettings()
                   : target === "images"
                     ? useSettingsStore.getState().openSettings("imageGeneration")
-                    : navigator.push(PLUGIN_DETAIL_KEY, {
-                        pluginId: key.split(":")[1],
-                        tab: "settings",
-                        section: key,
-                      }),
+                    : target === "publish"
+                      ? navigator.push("publish")
+                      : navigator.push(PLUGIN_DETAIL_KEY, {
+                          pluginId: key.split(":")[1],
+                          tab: "settings",
+                          section: key,
+                        }),
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         setRuntime(current);
