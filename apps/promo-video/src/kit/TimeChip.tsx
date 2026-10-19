@@ -28,7 +28,7 @@ export function TimeChip({ marks, night, until = Infinity }: { marks: { at: numb
         padding: "10px 22px 12px",
         borderRadius: 999,
         background: mixColor("rgba(255, 253, 248, 0.72)", "rgba(10, 16, 38, 0.6)", night),
-        backdropFilter: "blur(14px)",
+        // 不用 backdrop-filter：并行渲染时偶尔整层丢帧（交接文档坑 24）
         boxShadow: night > 0.5 ? "0 0 0 1px rgba(230,196,127,0.18)" : "0 0 0 1px rgba(22,34,49,0.06), 0 10px 30px -12px rgba(22,34,49,0.3)",
         opacity: visible,
         color,
