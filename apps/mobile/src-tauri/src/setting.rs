@@ -202,15 +202,6 @@ fn default_setting_value() -> Value {
         "configs": []
       },
       "integration": {
-        "bilibili": {
-          "enabled": false,
-          "credentials": { "SESSDATA": "", "bfe_id": "" },
-          "userInfo": { "name": "", "avatar": "", "isLogin": false, "vipStatus": 0 }
-        },
-        "youtube": {
-          "enabled": false,
-          "proxy": ""
-        },
         "minimax": {
           "enabled": false,
           "apiKey": "",

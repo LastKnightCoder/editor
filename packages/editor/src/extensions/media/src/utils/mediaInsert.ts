@@ -255,7 +255,8 @@ export const getMediaInsertMenuItems = (
     },
   ];
 
-  const sources = editor.tryGetService?.(IMediaInsertSources) ?? [];
+  const registered = editor.tryGetService?.(IMediaInsertSources) ?? [];
+  const sources = typeof registered === "function" ? registered() : registered;
   sources
     .filter(source => source.mediaTypes.includes(mediaType) && (source.isAvailable?.() ?? true))
     .forEach(source => {

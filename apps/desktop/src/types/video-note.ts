@@ -1,4 +1,4 @@
-import type { StreamOption } from "./youtube";
+import type { OnlineVideoMetaInfo } from "./online-video";
 
 export interface LocalVideoMetaInfo {
   type: "local";
@@ -10,22 +10,13 @@ export interface RemoteVideoMetaInfo {
   url: string;
 }
 
-export interface BiliBiliVideoMetaInfo {
-  type: "bilibili";
-  bvid: string;
-  cid: string;
-  quality?: number; // 用户选择的清晰度，默认使用 80 (1080P)
-}
+/** 本地、远程之外的 type 为在线视频提供方插件 ID，见 OnlineVideoMetaInfo。 */
+export type VideoMetaInfo = LocalVideoMetaInfo | RemoteVideoMetaInfo | OnlineVideoMetaInfo;
 
-export interface YouTubeVideoMetaInfo {
-  type: "youtube";
-  url: string;
-  videoStream: StreamOption;
-  audioStream: StreamOption;
-}
-
-export type VideoMetaInfo =
-  LocalVideoMetaInfo | RemoteVideoMetaInfo | BiliBiliVideoMetaInfo | YouTubeVideoMetaInfo;
+export const isLocalVideoMeta = (meta: VideoMetaInfo): meta is LocalVideoMetaInfo =>
+  meta.type === "local";
+export const isRemoteVideoMeta = (meta: VideoMetaInfo): meta is RemoteVideoMetaInfo =>
+  meta.type === "remote";
 
 export interface TranscriptSegment {
   text: string;

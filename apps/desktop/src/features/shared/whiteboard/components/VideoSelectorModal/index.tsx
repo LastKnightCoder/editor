@@ -2,12 +2,10 @@ import { desktopMedia } from "../../media";
 import React, { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
-import YoutubeVideoSelectModal, {
-  type YoutubeVideoSelectResult,
-} from "@/components/YoutubeVideoSelectModal";
-import BilibiliVideoSelectModal, {
-  type BilibiliVideoSelectResult,
-} from "@/components/BilibiliVideoSelectModal";
+import OnlineVideoSelectModal, {
+  type OnlineVideoSelection,
+} from "@/components/OnlineVideoSelectModal";
+import { buildOnlineVideoMeta } from "@/types/online-video";
 import RemoteVideoSelectModal, {
   type RemoteVideoSelectResult,
 } from "@/components/RemoteVideoSelectModal";
@@ -18,7 +16,7 @@ interface VideoSelectorModalProps {
   open: boolean;
   onClose: () => void;
   board: Board;
-  action?: string; // "local" | "url" | "bilibili" | "youtube"
+  action?: string; // "local" | "url" | "source:<视频插件 ID>"
 }
 
 const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModalProps) => {
@@ -26,8 +24,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
 
   // Modal states for different actions
   const [urlModalOpen, setUrlModalOpen] = useState(false);
-  const [biliModalOpen, setBiliModalOpen] = useState(false);
-  const [ytModalOpen, setYtModalOpen] = useState(false);
+  const [sourceId, setSourceId] = useState<string | null>(null);
 
   // 根据 action 自动触发对应操作
   useEffect(() => {
@@ -40,19 +37,14 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
       case "url":
         setUrlModalOpen(true);
         break;
-      case "bilibili":
-        setBiliModalOpen(true);
-        break;
-      case "youtube":
-        setYtModalOpen(true);
-        break;
+      default:
+        if (action?.startsWith("source:")) setSourceId(action.slice("source:".length));
     }
   }, [open, action]);
 
   const resetState = useMemoizedFn(() => {
     setUrlModalOpen(false);
-    setBiliModalOpen(false);
-    setYtModalOpen(false);
+    setSourceId(null);
   });
 
   const handleClose = useMemoizedFn(() => {
@@ -85,30 +77,17 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
     }
   });
 
-  const handleBilibiliConfirm = useMemoizedFn(async (result: BilibiliVideoSelectResult) => {
+  const handleOnlineConfirm = useMemoizedFn(async (result: OnlineVideoSelection) => {
     try {
-      await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
-      setBiliModalOpen(false);
+      await VideoUtil.insertVideoFromMeta(
+        board,
+        buildOnlineVideoMeta(result.providerId, result.ref, result.title),
+        result.url
+      );
       handleClose();
     } catch (error) {
-      console.error("添加 Bilibili 视频失败:", error);
-      toast.error("添加 Bilibili 视频失败");
-    }
-  });
-
-  const handleYoutubeConfirm = useMemoizedFn(async (result: YoutubeVideoSelectResult) => {
-    try {
-      await VideoUtil.insertVideoFromMeta(board, {
-        type: "youtube",
-        url: result.url,
-        videoStream: result.videoStream,
-        audioStream: result.audioStream,
-      });
-      setYtModalOpen(false);
-      handleClose();
-    } catch (error) {
-      console.error("添加 YouTube 视频失败:", error);
-      toast.error("添加 YouTube 视频失败");
+      console.error("添加插件视频失败:", error);
+      toast.error("添加视频失败");
     }
   });
 
@@ -123,19 +102,14 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
         onConfirm={handleRemoteConfirm}
       />
 
-      {/* Bilibili 弹窗 */}
-      <BilibiliVideoSelectModal
-        open={biliModalOpen}
-        onCancel={handleClose}
-        onConfirm={handleBilibiliConfirm}
-      />
-
-      {/* YouTube 弹窗 */}
-      <YoutubeVideoSelectModal
-        open={ytModalOpen}
-        onCancel={handleClose}
-        onConfirm={handleYoutubeConfirm}
-      />
+      {sourceId && (
+        <OnlineVideoSelectModal
+          providerId={sourceId}
+          open
+          onCancel={handleClose}
+          onConfirm={handleOnlineConfirm}
+        />
+      )}
     </>
   );
 };

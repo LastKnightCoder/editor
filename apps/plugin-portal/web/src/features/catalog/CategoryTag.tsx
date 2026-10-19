@@ -1,7 +1,7 @@
 import { Tag, type TagColor } from "@tau/ui";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@tau/plugins/package";
 
-/** 相近分类共用色相：存储类蓝、写作产出类绿；锈红与赭黄不在 Tag 色板内，用 tag 色覆盖底与字。 */
+/** 相近分类共用色相：存储类蓝、写作产出类绿、语音与视频同色；锈红与赭黄不在 Tag 色板内，用 tag 色覆盖底与字。 */
 const TONES: Record<PluginCategory, { color: TagColor; className?: string }> = {
   sync: { color: "blue" },
   upload: { color: "blue" },
@@ -11,6 +11,7 @@ const TONES: Record<PluginCategory, { color: TagColor; className?: string }> = {
   whiteboard: { color: "purple" },
   ai: { color: "orange" },
   voice: { color: "purple", className: "bg-tag-5-soft text-tag-5" },
+  video: { color: "purple", className: "bg-tag-5-soft text-tag-5" },
   page: { color: "purple", className: "bg-tag-4-soft text-tag-4" },
 };
 const LABELS = new Map<string, string>(PLUGIN_CATEGORIES.map(item => [item.id, item.label]));

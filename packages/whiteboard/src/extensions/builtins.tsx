@@ -566,11 +566,11 @@ export function createImageExtension(
   );
 }
 export function createVideoExtension(options: MediaFactoryOptions & ReferencedElementOptions = {}) {
-  const { actions, Body } = options;
+  const { actions, Body, videoSources } = options;
   const media = lazyMediaCapabilities(actions);
   return builtin(
     "tau.video",
-    (_board, api) => [withBody(new VideoPlugin(media(api)), Body)],
+    (_board, api) => [withBody(new VideoPlugin({ ...media(api), videoSources }), Body)],
     {
       tools: [
         tool(

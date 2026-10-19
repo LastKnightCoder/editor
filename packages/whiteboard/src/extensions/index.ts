@@ -23,7 +23,7 @@ export type {
   WhiteboardRichTextService,
 } from "./text";
 export { embeddedTextOptions, IWhiteboardRichText, createEmbeddedRichTextService } from "./text";
-export type { MediaCapabilities, MediaExtensionOptions } from "./media";
+export type { MediaCapabilities, MediaExtensionOptions, VideoSourceEntry } from "./media";
 export { browserMediaInfo } from "./media";
 // 宿主与扩展作者只依赖白板包即可构建服务注册表与声明服务标识
 export { createServiceId, type ServiceIdentifier } from "@tau/shared/service-contract";

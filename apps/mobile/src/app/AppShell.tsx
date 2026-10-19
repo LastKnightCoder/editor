@@ -5,12 +5,8 @@ import { useMemoizedFn } from "ahooks";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
-  BilibiliVideoDepsProvider,
-  YoutubeVideoDepsProvider,
   RemoteVideoDepsProvider,
   EditDatabaseDepsProvider,
-  UseBilibiliVideoDeps,
-  UseYoutubeVideoDeps,
   UseRemoteVideoDeps,
   UseEditDatabaseDeps,
   type DataTable,
@@ -52,40 +48,6 @@ const EMPTY_VIEW_CONFIG = {
   columnOrder: [],
   rowOrder: [],
   sorts: [],
-};
-
-function buildUnsupportedMessage(scope: string): string {
-  return `MOBILE_UNSUPPORTED: ${scope} - 移动端当前仅支持只读预览`;
-}
-
-const bilibiliDeps: UseBilibiliVideoDeps = {
-  getCredentials: async () => ({ SESSDATA: "", enabled: true }),
-  getPlayUrl: async () => {
-    throw new Error(buildUnsupportedMessage("bilibili.getPlayUrl"));
-  },
-  checkStreamAvailability: async () => ({
-    videoAvailable: false,
-    audioAvailable: false,
-  }),
-  cacheVideo: async () => {
-    throw new Error(buildUnsupportedMessage("bilibili.cacheVideo"));
-  },
-  getCacheStatus: async () => false,
-  showError: message => {
-    console.warn("[mobile-bilibili]", message);
-  },
-};
-
-const youtubeDeps: UseYoutubeVideoDeps = {
-  getProxy: async () => ({ enabled: false }),
-  getCacheStatus: async () => null,
-  cacheVideo: async () => {
-    throw new Error(buildUnsupportedMessage("youtube.cacheVideo"));
-  },
-  convertFileSrc: path => path,
-  showError: message => {
-    console.warn("[mobile-youtube]", message);
-  },
 };
 
 const remoteVideoDeps: UseRemoteVideoDeps = {
@@ -499,34 +461,30 @@ function AppShellInner() {
 
   return (
     <KeyboardViewportProvider>
-      <BilibiliVideoDepsProvider deps={bilibiliDeps}>
-        <YoutubeVideoDepsProvider deps={youtubeDeps}>
-          <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-            <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-              <DndProvider backend={HTML5Backend}>
-                <PageQueryProvider>
-                  <AppContext.Provider value={appContextValue}>
-                    <RouterProvider
-                      rootKey="home"
-                      onRootBackHint={text => toast({ type: "info", text })}
-                    >
-                      <main className="bg-page min-h-dvh">
-                        <PageHost rootContent={<HomeScreen />} />
-                        <AppDock />
-                        <OverlayHost />
-                        <EditorConfirmHost />
-                        <EditorPromptHost />
-                        <ToastViewport />
-                        {import.meta.env.DEV && <RouterDevTools />}
-                      </main>
-                    </RouterProvider>
-                  </AppContext.Provider>
-                </PageQueryProvider>
-              </DndProvider>
-            </EditDatabaseDepsProvider>
-          </RemoteVideoDepsProvider>
-        </YoutubeVideoDepsProvider>
-      </BilibiliVideoDepsProvider>
+      <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+        <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+          <DndProvider backend={HTML5Backend}>
+            <PageQueryProvider>
+              <AppContext.Provider value={appContextValue}>
+                <RouterProvider
+                  rootKey="home"
+                  onRootBackHint={text => toast({ type: "info", text })}
+                >
+                  <main className="bg-page min-h-dvh">
+                    <PageHost rootContent={<HomeScreen />} />
+                    <AppDock />
+                    <OverlayHost />
+                    <EditorConfirmHost />
+                    <EditorPromptHost />
+                    <ToastViewport />
+                    {import.meta.env.DEV && <RouterDevTools />}
+                  </main>
+                </RouterProvider>
+              </AppContext.Provider>
+            </PageQueryProvider>
+          </DndProvider>
+        </EditDatabaseDepsProvider>
+      </RemoteVideoDepsProvider>
     </KeyboardViewportProvider>
   );
 }

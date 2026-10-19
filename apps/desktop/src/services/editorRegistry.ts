@@ -18,7 +18,7 @@ import { IOverlayBackDismiss } from "@tau/editor/api";
 import { DesktopEditorOverlayDismiss } from "./editorOverlayDismiss";
 import {
   desktopVideoContentProviders,
-  desktopVideoInsertSources,
+  getDesktopVideoInsertSources,
 } from "@/editor-providers/videoProviders";
 import { ttsInsertSource } from "@/editor-providers/TtsPanel";
 import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIImagePanel";
@@ -55,10 +55,10 @@ export const desktopEditorServices: ServiceRegistration = register => {
   // 勾选项里的 #项目 / 日期胶囊读写待办项目
   register(IDocTaskGroups, desktopDocTaskGroups);
 
-  // 媒体内容源（bilibili / youtube / remote 解析渲染与插入入口）
+  // 媒体内容源（视频插件 / 远程直链的渲染与插入入口）；视频插件入口随启停增减
   register(IVideoContentProviders, desktopVideoContentProviders);
-  register(IMediaInsertSources, [
-    ...desktopVideoInsertSources,
+  register(IMediaInsertSources, () => [
+    ...getDesktopVideoInsertSources(),
     ttsInsertSource,
     aiImageInsertSource,
   ]);

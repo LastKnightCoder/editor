@@ -65,13 +65,14 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   // 底栏信息位：「来源 · 标题」，无标题的直链 / 本地文件退回文件名
   const info = useMemo(() => {
     const title = typeof element.metaInfo?.title === "string" ? element.metaInfo.title : undefined;
+    const label = matchedProvider?.label;
     const parts = [
-      matchedProvider?.label,
+      typeof label === "function" ? label(element) : label,
       title ?? (matchedProvider ? undefined : fileNameOf(src)),
     ];
     const text = parts.filter(Boolean).join(" · ");
     return text ? <span className="truncate">{text}</span> : undefined;
-  }, [element.metaInfo, matchedProvider, src]);
+  }, [element, matchedProvider, src]);
 
   // 外部点击取消选中
   useEffect(() => {

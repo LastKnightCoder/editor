@@ -75,10 +75,8 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
     ? structuredClone(setting.ttsProviders)
     : null;
   merge(mergedSetting, setting);
-  for (const key of ["github", "s3"]) {
-    delete (mergedSetting.integration as unknown as Record<string, unknown>)[key];
+  for (const key of ["github", "s3"])
     delete (mergedSetting.publish as unknown as Record<string, unknown>)[key];
-  }
   if (!["local", "plugin"].includes(mergedSetting.publish.active))
     mergedSetting.publish.active = EPublishProvider.Local;
   if (imageGeneration) {
@@ -196,24 +194,9 @@ export interface ISetting {
       }>;
     }>;
   };
-  integration: {
-    bilibili: {
-      enabled: boolean;
-      credentials: {
-        SESSDATA: string;
-        bfe_id?: string;
-      };
-      userInfo: {
-        name: string;
-        avatar: string;
-        isLogin: boolean;
-        vipStatus: number; // 0: 普通成员，1：大会员
-      };
-    };
-    youtube: {
-      enabled: boolean;
-      proxy: string;
-    };
+  /** 在线视频提供方插件配置，键为插件 ID，结构由插件定义。 */
+  onlineVideo: {
+    configurations: Record<string, unknown>;
   };
   misc: {
     webClip: {
@@ -275,13 +258,6 @@ interface IActions {
   setAgentShellPath: (path: string) => void;
   /** 新对话的默认工作目录（空串 = 应用数据目录） */
   setAgentDefaultCwd: (cwd: string) => void;
-  updateBilibiliCredentials: (
-    credentials: ISetting["integration"]["bilibili"]["credentials"]
-  ) => void;
-  updateBilibiliUserInfo: (userInfo: ISetting["integration"]["bilibili"]["userInfo"]) => void;
-  setBilibiliEnabled: (enabled: boolean) => void;
-  setYoutubeEnabled: (enabled: boolean) => void;
-  updateYoutubeProxy: (proxy: string) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -309,8 +285,8 @@ const isSettingNotificationPayload = (payload: unknown): payload is SettingNotif
 const SETTING_CACHE_KEY = "user-setting-cache";
 
 const normalizeTransientSettingState = (setting: ISetting) => {
-  // 微信读书已改为插件（API Key 存插件私有存储，按工作区），旧字段丢弃不再保存
-  delete (setting.integration as { weread?: unknown }).weread;
+  // 第三方账号已全部随插件迁出（微信读书、发布、语音、在线视频等），旧 integration 整块丢弃不再保存
+  delete (setting as { integration?: unknown }).integration;
   return setting;
 };
 
@@ -441,24 +417,8 @@ const initialState: IState = {
       currentConfigId: "",
       configs: [],
     },
-    integration: {
-      bilibili: {
-        enabled: false,
-        credentials: {
-          SESSDATA: "",
-          bfe_id: "",
-        },
-        userInfo: {
-          name: "",
-          avatar: "",
-          isLogin: false,
-          vipStatus: 0,
-        },
-      },
-      youtube: {
-        enabled: false,
-        proxy: "",
-      },
+    onlineVideo: {
+      configurations: {},
     },
     misc: {
       webClip: {
@@ -614,46 +574,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.llmUsageSettings[feature] = config;
-      }),
-    });
-  },
-  updateBilibiliCredentials: credentials => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.bilibili.credentials = credentials;
-      }),
-    });
-  },
-  updateBilibiliUserInfo: userInfo => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.bilibili.userInfo = userInfo;
-      }),
-    });
-  },
-  setBilibiliEnabled: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.bilibili.enabled = enabled;
-      }),
-    });
-  },
-  setYoutubeEnabled: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.youtube.enabled = enabled;
-      }),
-    });
-  },
-  updateYoutubeProxy: proxy => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.youtube.proxy = proxy;
       }),
     });
   },

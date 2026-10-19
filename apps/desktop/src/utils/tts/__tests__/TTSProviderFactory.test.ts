@@ -46,7 +46,6 @@ it("缺失账号不回退，重新加载保留插件缺失时的选择和凭据"
 
 it("新设置不再生成旧账号入口及迁移标记", () => {
   const setting = mergeSettingWithDefaults({});
-  expect(setting.integration).not.toHaveProperty("minimax");
-  expect(setting.integration).not.toHaveProperty("podcastTTS");
+  expect(setting).not.toHaveProperty("integration");
   expect(setting.misc).not.toHaveProperty("tts");
 });

@@ -24,6 +24,10 @@ export interface PluginSettingsProps {
     readonly value: JsonValue;
     save(value: JsonValue): Promise<void>;
   };
+  readonly videoConfig?: {
+    readonly value: JsonValue;
+    save(value: JsonValue): Promise<void>;
+  };
   readonly syncConfig?: {
     readonly value: JsonValue;
     save(value: JsonValue): Promise<void>;
@@ -35,7 +39,7 @@ export interface PluginSettingsDefinition {
   title: string;
   description?: string;
   /** 提供方配置表单挂载到对应宿主设置；普通插件设置省略。 */
-  target?: "sync" | "upload" | "tts" | "images" | "publish";
+  target?: "sync" | "upload" | "tts" | "images" | "video" | "publish";
   component: ComponentType<PluginSettingsProps>;
 }
 

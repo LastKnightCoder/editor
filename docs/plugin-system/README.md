@@ -6,6 +6,8 @@
 
 ## 当前状态
 
+- 在线视频插件化见 [74](74-在线视频提供方插件化.md)（PS-041、D-174）：SDK 0.22.0 增加 `context.video`、`target: "video"`、`services.videoExtractor` 与 `video` 分类；插件返回播放源描述，宿主统一下载、缓存与播放。Bilibili、YouTube 迁为同级独立仓库 `tau-plugin-bilibili`、`tau-plugin-youtube`（ID 沿用存量来源类型），宿主平台代码已删除；SDK 0.22.0 已发布公共 npm 并完成逐字节校验，两个插件的锁文件与干净构建已就绪，尚未推送仓库或提交插件中心。
+
 - 博客发布提供方拆分见 [73](73-博客发布提供方插件化调研.md)：GitHub/S3 已迁入独立仓库，内置平台工厂与桌面集成入口退役，本地导出保留。SDK 0.21.0 已发布公共 npm，两个插件 v0.1.2 已由标签 CI 自动提交并发布到插件中心；公开 SDK、干净克隆与全新依赖存储、CI、下载 ZIP 摘要及真实 Electron 验证通过。门户已部署博客发布分类；移动端消费者按记录保留。
 
 - CI 自动提交见 PS-040：插件仓库推送 tag 后，release.yml 以 GitHub Actions OIDC 令牌调用门户 `POST /v1/ci/releases`，仓库须与首次网页提交登记的一致；审核者本人推送时自动批准发布，其余进待审。

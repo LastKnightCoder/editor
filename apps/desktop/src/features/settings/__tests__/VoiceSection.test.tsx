@@ -57,9 +57,6 @@ beforeEach(() => {
     setting: {
       ...s.setting,
       transcription: { ...s.setting.transcription, currentModel: "large-v3" },
-      integration: {
-        ...s.setting.integration,
-      },
     },
   }));
   container = document.createElement("div");

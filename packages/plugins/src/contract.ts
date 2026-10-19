@@ -11,6 +11,7 @@ import type { PluginSync } from "./sync";
 import type { PluginUpload } from "./upload";
 import type { PluginTTS } from "./tts";
 import type { PluginImages } from "./images";
+import type { PluginVideo } from "./video";
 import type { PluginPublish } from "./publish";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
@@ -50,6 +51,7 @@ export interface PluginContext {
   readonly upload: PluginUpload;
   readonly tts: PluginTTS;
   readonly images: PluginImages;
+  readonly video: PluginVideo;
   readonly publish: PluginPublish;
   readonly sidebar: PluginSidebar;
   readonly excerpts: PluginExcerpts;

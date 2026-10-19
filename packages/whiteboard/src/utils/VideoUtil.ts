@@ -2,7 +2,7 @@ import type { MediaCapabilities } from "../extensions/media";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 import type { VideoElement } from "../types";
-import type { StreamOption } from "../types/video";
+import type { OnlineVideoMeta } from "../types/video";
 export class VideoUtil {
   static async insertVideo(file: File, board: Board, media: MediaCapabilities) {
     const canSubmit = board.captureSubmission();
@@ -157,17 +157,8 @@ export class VideoUtil {
     board.apply(ops);
   }
 
-  static async insertVideoFromMeta(
-    board: Board,
-    meta:
-      | { type: "bilibili"; bvid: string; cid: string; quality?: number }
-      | {
-          type: "youtube";
-          url: string;
-          videoStream: StreamOption;
-          audioStream: StreamOption;
-        }
-  ) {
+  /** 插入视频插件提供的视频：src 保存原页面地址，播放由宿主按 meta 取源。 */
+  static async insertVideoFromMeta(board: Board, meta: OnlineVideoMeta, pageUrl: string) {
     const canSubmit = board.captureSubmission();
     if (!canSubmit()) return;
     const { minX, minY, width, height } = board.viewPort;
@@ -184,14 +175,14 @@ export class VideoUtil {
       node: {
         id: getUuid(),
         type: "video",
-        src: meta.type === "bilibili" ? `bilibili://${meta.bvid}` : `youtube://${meta.url}`,
+        src: pageUrl,
         x: center.x - videoWidth / 2,
         y: center.y - videoHeight / 2,
         width: videoWidth,
         height: videoHeight,
         naturalWidth,
         naturalHeight,
-        metaInfo: meta as any,
+        metaInfo: meta,
       } as unknown as VideoElement,
     });
     if (!canSubmit()) return;

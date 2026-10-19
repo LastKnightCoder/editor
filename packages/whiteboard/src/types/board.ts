@@ -130,6 +130,6 @@ export interface IBoardPlugin {
 // 右键菜单触发弹窗的事件 Payload
 export interface ContextMenuModalPayload {
   type: "document" | "image" | "video" | "audio" | "webview" | "whiteboard" | "export-image";
-  action?: string; // image: local/url/ai; video: local/url/bilibili/youtube; audio: local/url/tts; whiteboard: create/reference; export-image: board/selection
+  action?: string; // image: local/url/ai; video: local/url/source:<来源 ID>; audio: local/url/tts; whiteboard: create/reference; export-image: board/selection
   selectedElementIds?: string[];
 }

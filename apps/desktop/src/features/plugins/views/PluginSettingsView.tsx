@@ -13,6 +13,7 @@ export function PluginSettingsView({
   uploadConfig,
   ttsConfig,
   imageConfig,
+  videoConfig,
   publishConfig,
 }: {
   section?: RegisteredPluginSettings;
@@ -20,6 +21,7 @@ export function PluginSettingsView({
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
+  videoConfig?: PluginSettingsProps["videoConfig"];
   publishConfig?: PluginSettingsProps["publishConfig"];
 }) {
   if (!section)
@@ -54,6 +56,12 @@ export function PluginSettingsView({
         在图片生成设置中配置
       </Button>
     );
+  if (section.definition.target === "video" && !videoConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openSettings("integration")}>
+        在账号与连接中配置
+      </Button>
+    );
   if (section.definition.target === "publish" && !publishConfig)
     return <Button onClick={() => openPage("publish")}>在博客发布页中配置</Button>;
   return (
@@ -74,6 +82,7 @@ export function PluginSettingsView({
         uploadConfig={uploadConfig}
         ttsConfig={ttsConfig}
         imageConfig={imageConfig}
+        videoConfig={videoConfig}
         publishConfig={publishConfig}
       />
     </RecoverableBoundary>
@@ -86,6 +95,7 @@ function SettingsScope({
   uploadConfig,
   ttsConfig,
   imageConfig,
+  videoConfig,
   publishConfig,
 }: {
   section: RegisteredPluginSettings;
@@ -93,6 +103,7 @@ function SettingsScope({
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
+  videoConfig?: PluginSettingsProps["videoConfig"];
   publishConfig?: PluginSettingsProps["publishConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
@@ -112,6 +123,7 @@ function SettingsScope({
           uploadConfig={uploadConfig}
           ttsConfig={ttsConfig}
           imageConfig={imageConfig}
+          videoConfig={videoConfig}
           publishConfig={publishConfig}
         />
       </UiProvider>

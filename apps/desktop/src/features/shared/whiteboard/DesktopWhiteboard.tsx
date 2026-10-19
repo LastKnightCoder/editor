@@ -24,7 +24,7 @@ import {
 } from "@tau/whiteboard/extensions";
 import { IResourceService } from "@tau/shared/host-services";
 import { IDownloadService, IMediaInfoService } from "@tau/shared/media-services";
-import { desktopMedia, desktopMediaActions, desktopMediaImage } from "./media";
+import { desktopMedia, desktopMediaActions, desktopMediaImage, desktopVideoSources } from "./media";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { downloadFile } from "@/utils/download";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
@@ -188,6 +188,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       }),
       createVideoExtension({
         actions: desktopMediaActions,
+        videoSources: desktopVideoSources,
         Body: VideoElement,
         Tool: VideoTool,
         layers: [selectorLayer("video", VideoSelectorModal)],

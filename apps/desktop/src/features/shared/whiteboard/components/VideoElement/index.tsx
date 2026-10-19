@@ -4,13 +4,9 @@ import { Tooltip } from "@tau/ui";
 import { StickyNote } from "lucide-react";
 import { If } from "@tau/ui";
 import LocalVideo from "@/components/LocalVideo";
-// keep single If import
-import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
-import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
-import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
-import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
-import { isBilibiliUrl } from "@/utils/bilibili";
-import { isYoutubeUrl } from "@/utils/youtube/parser";
+import OnlineVideoLoader from "@/components/OnlineVideoLoader";
+import { useOnlineVideo } from "@/hooks/useOnlineVideo";
+import { isOnlineVideoType } from "@/types/online-video";
 import { ResizeCircle as ResizeCircle } from "@tau/whiteboard";
 import { ArrowConnectPointGroup as ArrowConnectPointGroup } from "@tau/whiteboard";
 import { ArrowDropConnectPoint as ArrowDropConnectPoint } from "@tau/whiteboard";
@@ -58,35 +54,8 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     () => shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
     [src, autoCacheRemoteVideo]
   );
-  const isBilibili = useMemo(() => {
-    if (!src) return false;
-    if (metaInfo && "type" in metaInfo && metaInfo.type === "bilibili") return true;
-    return isBilibiliUrl(src);
-  }, [src, metaInfo]);
-
-  const isYoutube = useMemo(() => {
-    if (!src) return false;
-    if (metaInfo && "type" in metaInfo && metaInfo.type === "youtube") return true;
-    return isYoutubeUrl(src);
-  }, [src, metaInfo]);
-
-  const biliMeta =
-    metaInfo && "type" in metaInfo && metaInfo.type === "bilibili" ? metaInfo : undefined;
-  const ytMeta =
-    metaInfo && "type" in metaInfo && metaInfo.type === "youtube" ? metaInfo : undefined;
-  const {
-    videoUrl: bilibiliVideoUrl,
-    loading: bilibiliLoading,
-    error: bilibiliError,
-    streamProgress: bilibiliProgress,
-  } = useBilibiliVideo(biliMeta);
-
-  const {
-    videoUrl: youtubeVideoUrl,
-    loading: youtubeLoading,
-    error: youtubeError,
-    streamProgress: youtubeProgress,
-  } = useYoutubeVideo(ytMeta);
+  const onlineMeta = isOnlineVideoType(metaInfo?.type) ? metaInfo : undefined;
+  const online = useOnlineVideo(onlineMeta);
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -172,32 +141,22 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
               <StickyNote size={16} />
             </button>
           </Tooltip>
-          {/* 平台视频优先按平台渲染 */}
-          <If condition={isBilibili}>
+          {/* 视频插件提供的视频经插件取源 */}
+          <If condition={!!onlineMeta}>
             <>
-              <BilibiliVideoLoader
-                loading={bilibiliLoading}
-                error={bilibiliError}
-                streamProgress={bilibiliProgress}
+              <OnlineVideoLoader
+                providerId={String(onlineMeta?.type)}
+                loading={online.loading}
+                error={online.error}
+                streamProgress={online.streamProgress}
+                onRetry={online.retry}
               />
-              <If condition={!!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError}>
-                <LocalVideo ref={setVideoRef} src={bilibiliVideoUrl as string} className="h-full" />
+              <If condition={!!online.videoUrl && !online.loading && !online.error}>
+                <LocalVideo ref={setVideoRef} src={online.videoUrl as string} className="h-full" />
               </If>
             </>
           </If>
-          <If condition={isYoutube}>
-            <>
-              <YoutubeVideoLoader
-                loading={youtubeLoading}
-                error={youtubeError}
-                streamProgress={youtubeProgress}
-              />
-              <If condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}>
-                <LocalVideo ref={setVideoRef} src={youtubeVideoUrl as string} className="h-full" />
-              </If>
-            </>
-          </If>
-          <If condition={!isBilibili && !isYoutube}>
+          <If condition={!onlineMeta}>
             {shouldUseLocalVideo ? (
               <LocalVideo
                 ref={setVideoRef}

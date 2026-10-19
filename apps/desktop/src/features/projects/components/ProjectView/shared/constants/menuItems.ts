@@ -1,6 +1,9 @@
 import type { MenuEntryList } from "../menuEntries";
 
-export const ADD_MENU_ITEMS: MenuEntryList = [
+/** 视频插件入口的菜单键前缀，后接插件 ID */
+export const VIDEO_PLUGIN_MENU_PREFIX = "add-video-plugin-note-project-item:";
+
+const BASE_MENU_ITEMS: MenuEntryList = [
   {
     key: "add-project-item",
     label: "添加文档",
@@ -20,14 +23,6 @@ export const ADD_MENU_ITEMS: MenuEntryList = [
       {
         key: "add-remote-video-note-project-item",
         label: "远程视频",
-      },
-      {
-        key: "add-bilibili-video-note-project-item",
-        label: "Bilibili 视频",
-      },
-      {
-        key: "add-youtube-video-note-project-item",
-        label: "YouTube 视频",
       },
     ],
   },
@@ -61,3 +56,23 @@ export const ADD_MENU_ITEMS: MenuEntryList = [
     label: "导入Markdown",
   },
 ];
+
+/** 添加菜单：「添加视频」下每个启用的视频插件一个入口，名称取插件名。 */
+export function buildAddMenuItems(
+  videoProviders: readonly { id: string; name: string }[]
+): MenuEntryList {
+  return BASE_MENU_ITEMS.map(item =>
+    item.key === "add-video-note-project-item" && item.children
+      ? {
+          ...item,
+          children: [
+            ...item.children,
+            ...videoProviders.map(provider => ({
+              key: `${VIDEO_PLUGIN_MENU_PREFIX}${provider.id}`,
+              label: provider.name,
+            })),
+          ],
+        }
+      : item
+  );
+}
