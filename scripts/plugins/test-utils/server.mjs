@@ -2,12 +2,7 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-export async function serveSite({
-  directory,
-  basePath,
-  historyFallback,
-  delayedFiles = new Set(),
-}) {
+export async function serveSite({ directory, basePath, delayedFiles = new Set() }) {
   const requests = [];
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, "http://localhost");
@@ -23,9 +18,12 @@ export async function serveSite({
         file = path.join(file, "index.html");
         info = await stat(file).catch(() => null);
       }
-      if (!info?.isFile() && historyFallback && !path.extname(relative)) {
-        file = path.join(directory, "index.html");
-        info = await stat(file);
+      // 与静态托管一致：不存在的路径返回站点的 404.html，状态码仍为 404。
+      let status = 200;
+      if (!info?.isFile()) {
+        file = path.join(directory, "404.html");
+        info = await stat(file).catch(() => null);
+        status = 404;
       }
       if (!info?.isFile()) throw new Error("文件不存在");
       if (delayedFiles.has(path.relative(directory, file).split(path.sep).join("/"))) {
@@ -39,8 +37,8 @@ export async function serveSite({
           ".json": "application/json",
           ".svg": "image/svg+xml",
         }[path.extname(file)] ?? "application/octet-stream";
-      record.status = 200;
-      response.writeHead(200, {
+      record.status = status;
+      response.writeHead(status, {
         "Content-Type": type + "; charset=utf-8",
         "Cache-Control": "no-store",
       });

@@ -114,7 +114,9 @@ assert(
 );
 const template = await bridge.readTemplatePackage(path.join(plugin, "dist"), "0.59.0");
 const inspected = await bridge.inspectPackage(
-  await readFile(path.join(plugin, "output/tau.blog-1.0.0.zip"))
+  await readFile(
+    path.join(plugin, `output/${template.manifest.id}-${template.manifest.version}.zip`)
+  )
 );
 assert.equal(inspected.manifest.id, "tau.blog");
 const cases = [
@@ -167,17 +169,20 @@ for (const file of files) {
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, file.content);
 }
+const entries = template.manifest.template.entries;
 assert.deepEqual(
   files.filter(file => file.path.endsWith(".html")).map(file => file.path),
-  ["index.html"]
+  [...entries].sort()
 );
-for (const file of template.files.filter(file => file.path !== "index.html"))
+for (const file of template.files.filter(file => !entries.includes(file.path)))
   assert(
     Buffer.from(file.content).equals(
       Buffer.from(files.find(output => output.path === file.path).content)
     )
   );
-cases.push(`宿主只复制一个作者入口，${template.files.length - 1} 个非入口模板资产字节保持一致`);
+cases.push(
+  `宿主只替换作者声明的 ${entries.length} 个入口，${template.files.length - entries.length} 个非入口模板资产字节保持一致`
+);
 const another = await makeGenerator({
   ...template,
   manifest: { ...template.manifest, id: "another.template", name: "另一个模板" },
@@ -193,7 +198,7 @@ assert.deepEqual(
 cases.push("替换模板身份不会改变正文、CSS、索引与数据清单");
 const servers = [];
 try {
-  const server = await serveSite({ directory, basePath: "/notes/", historyFallback: false });
+  const server = await serveSite({ directory, basePath: "/notes/" });
   servers.push(server);
   cases.push(...(await checkProtocol(bridge.createClient, server.url, { manifestPath })));
   const report = {
@@ -204,7 +209,11 @@ try {
     cases,
     files: files.length,
     templateFiles: template.files.length,
-    templateZipBytes: (await readFile(path.join(plugin, "output/tau.blog-1.0.0.zip"))).length,
+    templateZipBytes: (
+      await readFile(
+        path.join(plugin, `output/${template.manifest.id}-${template.manifest.version}.zip`)
+      )
+    ).length,
   };
   await writeFile(path.join(output, "report.json"), JSON.stringify(report, null, 2));
   await writeFile(
