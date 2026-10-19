@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Github, Layers, ShieldAlert } from "lucide-react";
-import { Button, FadeScroll, Switch, Tabs, Tag } from "@tau/ui";
+import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import {
@@ -13,7 +13,6 @@ import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import {
   CONTRIBUTION_LABELS,
   STATE_LABELS,
-  categoryLabels,
   formatSize,
   installState,
   installedPlugins,
@@ -25,6 +24,7 @@ import {
 import { usePluginCatalog, usePluginRelease, usePluginVersions } from "../queries";
 import { usePluginControl } from "../usePluginControl";
 import { PluginIcon } from "../components/PluginIcon";
+import { CategoryTag } from "../components/CategoryTag";
 import { PluginMarkdown } from "../components/PluginMarkdown";
 import {
   InstallButton,
@@ -432,17 +432,16 @@ function Aside({
     const count = registered[kind as keyof typeof registered] ?? 0;
     return count > 0 ? [{ label, count }] : [];
   });
-  const categories = categoryLabels(entry?.categories);
   const info: [string, ReactNode][] = [
     ["插件 ID", <span className="font-tau-mono text-[12px]">{id}</span>],
   ];
   if (plugin) info.push(["当前版本", plugin.info.version]);
-  if (categories.length)
+  if (entry?.categories?.length)
     info.push([
       "分类",
       <span className="flex flex-wrap gap-1.5">
-        {categories.map(label => (
-          <Tag key={label}>{label}</Tag>
+        {entry.categories.map(category => (
+          <CategoryTag key={category} category={category} />
         ))}
       </span>,
     ]);

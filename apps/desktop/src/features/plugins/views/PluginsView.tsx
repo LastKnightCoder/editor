@@ -11,7 +11,7 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, Tag, cn } from "@tau/ui";
+import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -24,7 +24,6 @@ import {
   PLUGIN_TEMPLATE_URL,
   STATE_LABELS,
   catalogCategories,
-  categoryLabels,
   pendingCount,
   installState,
   installedPlugins,
@@ -35,6 +34,7 @@ import {
 import { usePluginCatalog } from "../queries";
 import { usePluginControl } from "../usePluginControl";
 import { PluginIcon } from "../components/PluginIcon";
+import { CategoryTags } from "../components/CategoryTag";
 import {
   InstallButton,
   MoreButton,
@@ -362,15 +362,7 @@ function CatalogCard({
         </div>
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
-      {entry.categories?.length ? (
-        <ul aria-label="分类" className="flex flex-wrap gap-1.5">
-          {categoryLabels(entry.categories).map(label => (
-            <li key={label} className="flex">
-              <Tag>{label}</Tag>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <CategoryTags categories={entry.categories} />
       <p
         className="text-tau-sm text-ink-3"
         title="同一设备、同一版本、同一 UTC 日计一次；近 7 日含今日，不代表安装人数"

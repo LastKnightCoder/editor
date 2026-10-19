@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 import { Download, Heart } from "lucide-react";
-import { IconButton, Tag, Tooltip } from "@tau/ui";
+import { IconButton, Tooltip } from "@tau/ui";
 import type { CatalogEntry } from "../../../../contracts";
 import { PluginMark } from "../../components/PluginMark";
 import { formatCount, formatRelative } from "../../components/format";
-import { categoryLabels } from "./categories";
+import { CategoryTags } from "./CategoryTag";
 
 /** 插件中心卡片：整卡链接到详情，悬停浮出快速下载 */
 export function PluginCard({
@@ -44,15 +44,7 @@ export function PluginCard({
         </Tooltip>
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2 min-h-[2lh]">{entry.description}</p>
-      {entry.categories.length > 0 && (
-        <ul aria-label="分类" className="flex flex-wrap gap-1.5">
-          {categoryLabels(entry.categories).map(label => (
-            <li key={label} className="flex">
-              <Tag>{label}</Tag>
-            </li>
-          ))}
-        </ul>
-      )}
+      <CategoryTags categories={entry.categories} />
       <div className="text-tau-micro text-ink-3 flex items-center gap-3">
         <span className="font-tau-mono">v{entry.latest.version}</span>
         <span className="inline-flex items-center gap-1" title="累计下载">
