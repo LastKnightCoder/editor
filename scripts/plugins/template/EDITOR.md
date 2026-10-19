@@ -157,6 +157,10 @@ function SourceView({ element, children }: { element: SourceElement; children: R
 
 ## 动态样式与静态导出
 
+SDK 0.17.0 提供 `useInlineSource(element)`：返回 readOnly、可选 compiler、update(properties) 与 remove()，只读、停驻、卸载及旧目标回调不会写入文档。行内源码组件通过 `InlineSourceBoundary` 复用宿主的浏览器边界处理；菜单用 `insertInlineSource(editor, element)` 插入节点。行内输入弹层由插件通过公共 UI 组件承载，只读时只显示预览，不打开编辑器。
+
+静态导出也按 styleSources 编译节点字段并向导出 CSS 收集器提供样式；插件只负责把节点序列化为 HTML，宿主不维护具体节点类型的样式名单。
+
 若节点源码中包含动态 Tailwind 类名，在同一个扩展上声明字段：
 
 ```ts

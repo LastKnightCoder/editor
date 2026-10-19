@@ -25,6 +25,7 @@ export {
   sourceBlockParagraphBehavior,
 } from "./source-editor";
 export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
+export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export * from "./sidebar";
 export type * from "./excerpts";
 export type * from "./services";

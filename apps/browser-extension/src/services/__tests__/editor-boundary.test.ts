@@ -3,6 +3,26 @@ import { getExtensionKit } from "../editorKit";
 import { extensionMarkdown } from "../editorMarkdown";
 import type { Descendant } from "slate";
 
+it("HTML 两类未知节点保留源码与原结构", () => {
+  const value = [
+    { type: "html-block", html: "<div>块级</div>", children: [{ type: "formatted", text: "" }] },
+    {
+      type: "paragraph",
+      children: [
+        { type: "formatted", text: "前" },
+        {
+          type: "html-inline",
+          html: "<b>行内</b>",
+          openEdit: true,
+          children: [{ type: "formatted", text: "" }],
+        },
+        { type: "formatted", text: "后" },
+      ],
+    },
+  ] as unknown as Descendant[];
+  expect(extensionMarkdown.importFromMarkdown(extensionMarkdown.getMarkdown(value))).toEqual(value);
+});
+
 it("编辑器不装配插件节点或插件样式", () => {
   const kit = getExtensionKit();
   expect(kit.elementTypes).not.toContain("custom-block");

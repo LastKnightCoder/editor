@@ -1777,12 +1777,8 @@ export class PublishSiteGenerator {
       if (!node || typeof node !== "object") {
         return;
       }
-      const type = typeof node.type === "string" ? node.type : "";
       for (const source of this.pluginCatalog.styleSources(node))
         addSource(source.code, source.extension);
-      if ((type === "html-block" || type === "html-inline") && typeof node.html === "string") {
-        addSource(node.html, "html");
-      }
       if (Array.isArray(node.children)) {
         node.children.forEach((child: Descendant) => traverse(child));
       }
