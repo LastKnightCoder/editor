@@ -1,11 +1,11 @@
-import { act } from "react";
+import { act, Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { createHash, webcrypto } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, expectTypeOf, it, vi } from "vitest";
 import type { DataResult } from "@tau/plugins/publish-data";
-import { ContentRenderer } from "./ContentRenderer";
+import { ContentRenderer, type ContentRendererProps } from "./ContentRenderer";
 import { prepareContent, readVerified } from "./load";
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -57,6 +57,12 @@ function result(initial: number): DataResult {
   };
 }
 afterEach(() => vi.unstubAllGlobals());
+
+it("公开参数仅包含正文接入和已使用的定制能力", () => {
+  expectTypeOf<keyof ContentRendererProps>().toEqualTypeOf<
+    "content" | "fallback" | "kit" | "initValue" | "extensions" | "onInit" | "className" | "style"
+  >();
+});
 function setup() {
   vi.stubGlobal("crypto", webcrypto);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -66,6 +72,56 @@ function setup() {
   );
   if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
 }
+
+it("准备界面由调用方提供，加载错误交给模板错误边界", async () => {
+  setup();
+  class Boundary extends Component<{ children: ReactNode }, { error: unknown }> {
+    state = { error: undefined as unknown };
+    static getDerivedStateFromError(error: unknown) {
+      return { error };
+    }
+    render() {
+      return this.state.error ? <aside>{String(this.state.error)}</aside> : this.props.children;
+    }
+  }
+  const container = document.createElement("div");
+  document.body.append(container);
+  const caught = vi.fn();
+  const root = createRoot(container, { onCaughtError: caught });
+  try {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
+    const pending = result(1);
+    await act(async () => root.render(<ContentRenderer content={pending} />));
+    expect(container.textContent).toBe("");
+    await act(async () =>
+      root.render(<ContentRenderer content={pending} fallback={<span>作者的等待界面</span>} />)
+    );
+    expect(container.textContent).toBe("作者的等待界面");
+    const broken = result(2);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("摘要不符"))
+    );
+    await act(async () =>
+      root.render(
+        <Boundary>
+          <ContentRenderer content={broken} />
+        </Boundary>
+      )
+    );
+    await vi.waitFor(async () => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+      expect(caught).toHaveBeenCalled();
+    });
+    expect(container.textContent).toContain("资源摘要不匹配");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
 
 it("摘要失败或提前取消不会执行插件或插入样式", async () => {
   setup();
@@ -90,9 +146,31 @@ it("贡献保持原样，重复节点或插件声明拒绝接入", async () => {
   await expect(prepareContent(data, new AbortController().signal)).rejects.toThrow("重复");
 });
 
+it("插件 CSS 和正文伴生 CSS 分别保留原文，不改写选择器或动画名称", async () => {
+  setup();
+  const content = result(1);
+  const companion = ":root { --accent: blue } .article::before { animation: pulse 2s }";
+  content.data.contentStyles = [{ href: "content.css", integrity: hash(companion) }];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (url: URL) =>
+        new Response(
+          url.pathname.endsWith("content.css")
+            ? companion
+            : url.pathname.endsWith("widget.css")
+              ? css
+              : code
+        )
+    )
+  );
+  const prepared = await prepareContent(content, new AbortController().signal);
+  expect(prepared.styles).toEqual([css, companion]);
+});
+
 it("同一公开模块实现可接入五个正式内容插件，不使用具体节点适配", async () => {
   setup();
-  const directory = resolve(__dirname, "../../../../tests/fixtures/plugins");
+  const directory = resolve(__dirname, "../../../tests/fixtures/plugins");
   const catalog = JSON.parse(await readFile(join(directory, "catalog.json"), "utf8"));
   const nodeTypes: Record<string, string[]> = {
     "tau.html": ["html-block", "html-inline"],
@@ -110,10 +188,7 @@ it("同一公开模块实现可接入五个正式内容插件，不使用具体�
     const manifest = JSON.parse(await readFile(join(base, "manifest.json"), "utf8"));
     const entry = item.id + "/main.js";
     const styles = manifest.styles ? item.id + "/main.css" : undefined;
-    files.set(
-      new URL(entry, data.dataUrl).href,
-      await readFile(join(base, manifest.main), "utf8")
-    );
+    files.set(new URL(entry, data.dataUrl).href, await readFile(join(base, manifest.main), "utf8"));
     if (styles)
       files.set(
         new URL(styles, data.dataUrl).href,
@@ -142,7 +217,7 @@ it("同一公开模块实现可接入五个正式内容插件，不使用具体�
   expect(first.extensions[0]).not.toBe(second.extensions[0]);
 });
 
-it("并列正文、预览各自拥有插件状态和样式，卸载及内容切换清理旧实例", async () => {
+it("并列正文和预览状态独立，CSS 原样加载并随实例卸载清理", async () => {
   setup();
   const container = document.createElement("div");
   document.body.append(container);
@@ -165,13 +240,10 @@ it("并列正文、预览各自拥有插件状态和样式，卸载及内容切�
         "19",
       ]);
     });
-    const scopes = [...container.querySelectorAll("[data-tau-content]")];
-    expect(scopes[0].getAttribute("data-tau-content")).not.toBe(
-      scopes[1].getAttribute("data-tau-content")
-    );
-    const styles = [...container.querySelectorAll("style")].map(node => node.textContent);
-    expect(styles[0]).not.toBe(styles[1]);
-    expect(styles.every(style => style?.includes("[data-tau-content="))).toBe(true);
+    expect([...container.querySelectorAll("style")].map(node => node.textContent)).toEqual([
+      css,
+      css,
+    ]);
     await act(async () => container.querySelector("button")!.click());
     expect([...container.querySelectorAll("button")].map(node => node.textContent)).toEqual([
       "8",

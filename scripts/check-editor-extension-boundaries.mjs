@@ -10,6 +10,12 @@ const editorRoot = resolve(root, "packages/editor");
 const require = createRequire(resolve(editorRoot, "package.json"));
 const ts = require("typescript");
 const editorManifest = JSON.parse(readFileSync(resolve(editorRoot, "package.json"), "utf8"));
+assert(!editorManifest.exports["./renderer"], "发布渲染接入必须归 blog，不能回到 Editor");
+for (const name of Object.keys({
+  ...editorManifest.dependencies,
+  ...editorManifest.devDependencies,
+}))
+  assert(!["@tau/plugins", "@tau/blog"].includes(name), "通用 Editor 不得依赖发布 SDK 或 blog");
 assert(!existsSync(resolve(root, "editor-extensions")), "顶层 editor-extensions 必须完整退役");
 assert(!editorManifest.dependencies?.abcjs, "abcjs 只能由独立 ABC 插件携带");
 assert(!editorManifest.exports["./extensions/diagram/abc"], "不得恢复宿主 ABC 渲染入口");
@@ -101,6 +107,14 @@ const importsOf = file => {
   visit(ast);
   return imports;
 };
+for (const file of sourceFiles(editorRoot)) {
+  for (const specifier of importsOf(file)) {
+    assert(
+      !/^@tau\/(?:plugins|blog)(?:\/|$)/.test(specifier),
+      `通用 Editor 源码不得导入发布接入：${relative(root, file)} → ${specifier}`
+    );
+  }
+}
 assert(!existsSync(resolve(root, "plugins/headless-codecs.ts")), "不得恢复固定插件 codec 聚合表");
 for (const file of [
   "apps/desktop/src/utils/markdown.ts",

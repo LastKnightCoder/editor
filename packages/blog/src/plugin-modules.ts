@@ -3,9 +3,9 @@ import * as reactDom from "react-dom";
 import * as reactDomClient from "react-dom/client";
 import * as jsx from "react/jsx-runtime";
 import * as jsxDev from "react/jsx-dev-runtime";
-import * as ui from "../../../ui/src";
-import { defineElement, defineExtension } from "../core/api/extension";
-import { sourceEditorRuntime, inlineSourceRuntime } from "../../source";
+import * as ui from "@tau/ui";
+import { defineElement, defineExtension } from "@tau/editor/api";
+import { sourceEditorRuntime, inlineSourceRuntime } from "@tau/editor/source";
 import { SIDEBAR_GROUPS } from "@tau/plugins/publish-artifacts";
 
 const plugins = Object.freeze({
