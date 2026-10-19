@@ -39,7 +39,9 @@ if (candidate) {
     editor: "output/editor-package",
     plugins: "output/plugin-sdk-data",
   })) {
-    const { version } = JSON.parse(await readFile(path.join(root, "packages", name, "package.json"), "utf8"));
+    const { version } = JSON.parse(
+      await readFile(path.join(root, "packages", name, "package.json"), "utf8")
+    );
     const archive = path.join(output, `xiongtao.xt-tau-${name}-${version}.tgz`);
     await cp(path.join(root, archive), path.join(author, `${name}.tgz`));
     manifest.dependencies[`@tau/${name}`] = `file:./${name}.tgz`;
@@ -77,10 +79,16 @@ async function run(command, args) {
   });
 }
 const pnpm = process.env.TAU_PNPM_CLI;
+const installFlags = [
+  "install",
+  "--ignore-scripts",
+  "--registry=https://registry.npmjs.org",
+  ...(!candidate ? ["--store-dir", path.join(directory, "store")] : []),
+];
 const install = flags =>
   pnpm
-    ? run(process.execPath, [pnpm, "install", "--ignore-scripts", ...flags])
-    : run("pnpm", ["install", "--ignore-scripts", ...flags]);
+    ? run(process.execPath, [pnpm, ...installFlags, ...flags])
+    : run("pnpm", [...installFlags, ...flags]);
 await install(candidate ? [] : ["--frozen-lockfile"]);
 await install(["--frozen-lockfile"]);
 for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies })) {
@@ -118,6 +126,7 @@ const report = {
   tests: true,
   build: true,
   hostSourceRequired: false,
+  freshStore: !candidate,
 };
 await mkdir(path.join(root, "output/author-verification"), { recursive: true });
 await writeFile(
