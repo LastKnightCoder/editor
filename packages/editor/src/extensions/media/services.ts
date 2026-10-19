@@ -9,6 +9,7 @@ export type {
   MediaType,
   MediaInsertPayload,
   MediaInsertSource,
+  MediaInsertSourceList,
   VideoContentProvider,
   MediaAction,
   MediaSelector,

@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { ipcMain, BrowserWindow, app } from "electron";
 import { promises as fs } from "fs";
-import { join, dirname, extname } from "node:path";
+import { basename, join, dirname, extname } from "node:path";
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { createInterface } from "node:readline";
@@ -20,21 +20,19 @@ import databaseModule from "./database";
 import transcriptionModule, { type TranscriptionResult } from "./transcription";
 import { normalizeModelSize } from "../utils/transcription-model";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
-import { cacheBilibiliVideo, getBilibiliCacheStatus } from "./bilibili-cache";
-import { cacheYoutubeVideo, getYoutubeCacheStatus } from "./youtube-cache";
+import { ensureOnlineVideo, getOnlineVideoCacheStatus } from "./online-video-cache";
 import vibeLearningMediaCache, { hashPayload, hashString } from "./vibe-learning-media-cache";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import crypto from "node:crypto";
 import PiAiRuntimeModule from "./pi-ai-runtime";
 import { resolveUsageSlot, type LlmRef, type SettingForLlmSlots } from "./llm-usage-slot";
-import type {
-  BilibiliSourceMeta,
-  NoteSourceMeta,
-  YoutubeSourceMeta,
-  VLSearchResult,
+import {
+  isOnlineVideoSourceType,
+  type NoteSourceMeta,
+  type VLSearchResult,
 } from "@/types/vibe-learning";
-import type { StreamOption } from "@/types/youtube";
+import { onlineVideoRef } from "@/types/online-video";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import ContentTable from "./tables/content";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -47,7 +45,6 @@ import {
 import { DEFAULT_LOCAL_EMBEDDING_DISTANCE, LOCAL_EMBEDDING_CONFIG_ID } from "@/constants/embedding";
 import localInference from "./local-inference";
 import { smartChunk, smartChunkWithRanges } from "../utils/smart-chunk";
-import YtDlpService from "../utils/YtDlpService";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
 import {
@@ -123,12 +120,6 @@ interface SettingForTranscription extends SettingForLlmSlots {
 }
 
 type ImageDescriptionConfig = LlmRef;
-
-interface BilibiliCredentialsConfig {
-  SESSDATA?: string;
-  bili_jct?: string;
-  DedeUserID?: string;
-}
 
 const jieba = Jieba.withDict(dict);
 
@@ -965,18 +956,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
           markdownContent = await this.processNoteResource(resourceId, sourceMetaInfo, mainDbName);
         } else if (sourceType === "material" && sourceMetaInfo) {
           markdownContent = this.processMaterialResource(resourceId, sourceMetaInfo, mainDbName);
-        } else if (sourceType === "bilibili" && sourceMetaInfo) {
-          // Bilibili 视频
-          markdownContent = await this.processBilibiliVideo(
+        } else if (sourceType && isOnlineVideoSourceType(sourceType) && sourceMetaInfo) {
+          markdownContent = await this.processOnlineVideo(
             resourceId,
-            sourceMetaInfo,
-            resourceName,
-            mainDbName
-          );
-        } else if (sourceType === "youtube" && sourceMetaInfo) {
-          // YouTube 视频
-          markdownContent = await this.processYoutubeVideo(
-            resourceId,
+            sourceType,
             sourceMetaInfo,
             resourceName,
             mainDbName,
@@ -1219,283 +1202,40 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
   }
 
   /**
-   * 处理 Bilibili 视频：下载视频，然后走统一媒体处理管线
+   * 处理在线视频：经提供方插件取源并缓存到本地，然后走统一媒体处理管线
    */
-  private async processBilibiliVideo(
+  private async processOnlineVideo(
     resourceId: number,
-    sourceMetaInfo: string,
-    resourceName: string,
-    mainDbName: string
-  ): Promise<string> {
-    // 解析来源元信息
-    let meta: BilibiliSourceMeta;
-    try {
-      meta = JSON.parse(sourceMetaInfo) as BilibiliSourceMeta;
-    } catch (e) {
-      throw new Error("无效的 Bilibili 视频元信息");
-    }
-
-    const { bvid, cid, quality, title } = meta;
-    log.info(
-      `[VibeLearningIndexQueue] Processing Bilibili video: ${bvid}-${cid}, quality: ${quality}`
-    );
-    const credentials = await this.getBilibiliCredentials();
-
-    // 1. 获取本地视频文件路径（检查缓存或下载）
-    let localVideoPath: string | null = null;
-    const cacheStatus = await getBilibiliCacheStatus(bvid, cid, quality);
-
-    if (cacheStatus?.localPath) {
-      log.info(`[VibeLearningIndexQueue] Using cached video: ${cacheStatus.localPath}`);
-      localVideoPath = cacheStatus.localPath;
-    } else {
-      // 下载视频
-      this.processingStatus.set(resourceId, "downloading");
-      this.emit("status-change", resourceId, "downloading");
-
-      log.info(`[VibeLearningIndexQueue] Downloading Bilibili video...`);
-
-      const playUrl = await this.getBilibiliPlayUrl(bvid, cid, quality, credentials);
-      if (!playUrl) {
-        throw new Error("无法获取视频播放地址");
-      }
-
-      const cacheResult = await cacheBilibiliVideo({
-        videoUrl: playUrl.video,
-        audioUrl: playUrl.audio,
-        bvid,
-        cid,
-        quality,
-        title: title || resourceName,
-      });
-
-      localVideoPath = cacheResult.localPath;
-      log.info(`[VibeLearningIndexQueue] Video downloaded to: ${localVideoPath}`);
-    }
-
-    // 2. 走统一媒体处理管线
-    return this.processMediaResource(
-      localVideoPath,
-      resourceId,
-      title || resourceName,
-      mainDbName,
-      `bilibili:${bvid}:${cid}:${quality}`,
-      `https://www.bilibili.com/video/${bvid}`
-    );
-  }
-
-  /**
-   * 处理 YouTube 视频：下载视频，然后走统一媒体处理管线
-   */
-  private async processYoutubeVideo(
-    resourceId: number,
+    providerId: string,
     sourceMetaInfo: string,
     resourceName: string,
     mainDbName: string,
-    fallbackUrl?: string
+    pageUrl?: string
   ): Promise<string> {
-    let meta: YoutubeSourceMeta;
+    let meta: Record<string, unknown>;
     try {
-      meta = JSON.parse(sourceMetaInfo) as YoutubeSourceMeta;
+      meta = JSON.parse(sourceMetaInfo) as Record<string, unknown>;
     } catch {
-      throw new Error("无效的 YouTube 视频元信息");
+      throw new Error("无效的在线视频元信息");
     }
-
-    const sourceUrl = (meta.url || fallbackUrl || "").trim();
-    if (!sourceUrl) {
-      throw new Error("无效的 YouTube 视频链接");
-    }
-
-    log.info(`[VibeLearningIndexQueue] Processing YouTube video: ${sourceUrl}`);
-    const proxy = await this.getYoutubeProxy();
-
-    let localVideoPath: string | null = null;
-    const cacheStatus = await getYoutubeCacheStatus(sourceUrl);
-
-    if (cacheStatus?.localPath) {
-      log.info(`[VibeLearningIndexQueue] Using cached YouTube video: ${cacheStatus.localPath}`);
-      localVideoPath = cacheStatus.localPath;
-    } else {
+    const title = typeof meta.title === "string" && meta.title ? meta.title : resourceName;
+    const target = { providerId, ref: onlineVideoRef(meta), title };
+    log.info(`[VibeLearningIndexQueue] Processing online video: ${providerId}`);
+    const cached = await getOnlineVideoCacheStatus(target);
+    if (!cached) {
       this.processingStatus.set(resourceId, "downloading");
       this.emit("status-change", resourceId, "downloading");
-      log.info(`[VibeLearningIndexQueue] Downloading YouTube video...`);
-
-      const info = await YtDlpService.fetchVideoInfo(sourceUrl, proxy);
-      if (!info.videoStreams?.length || !info.audioStreams?.length) {
-        throw new Error("未找到可用的 YouTube 音视频流");
-      }
-
-      const videoStream = this.selectYoutubeVideoStream(info.videoStreams, meta.videoStream);
-      const audioStream = this.selectYoutubeAudioStream(info.audioStreams, meta.audioStream);
-      if (!videoStream || !audioStream) {
-        throw new Error("无法选择可用的 YouTube 音视频流");
-      }
-
-      const cacheResult = await cacheYoutubeVideo({
-        url: sourceUrl,
-        videoStream,
-        audioStream,
-        proxy,
-      });
-      localVideoPath = cacheResult.localPath;
-      log.info(`[VibeLearningIndexQueue] YouTube video downloaded to: ${localVideoPath}`);
     }
-
+    const { localPath } = cached ?? (await ensureOnlineVideo(target));
+    log.info(`[VibeLearningIndexQueue] Online video ready: ${localPath}`);
     return this.processMediaResource(
-      localVideoPath,
+      localPath,
       resourceId,
-      meta.title || resourceName,
+      title,
       mainDbName,
-      `youtube:${sourceUrl}`,
-      sourceUrl
+      `online:${providerId}:${basename(localPath)}`,
+      pageUrl
     );
-  }
-
-  private async getBilibiliCredentials(): Promise<BilibiliCredentialsConfig> {
-    try {
-      const settingPath = join(PathUtil.getAppDir(), "setting.json");
-      const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting = JSON.parse(settingContent) as {
-        integration?: {
-          bilibili?: { credentials?: BilibiliCredentialsConfig };
-        };
-      };
-      return setting.integration?.bilibili?.credentials || {};
-    } catch (error) {
-      log.warn(`[VibeLearningIndexQueue] Failed to read Bilibili credentials: ${error}`);
-      return {};
-    }
-  }
-
-  private selectYoutubeVideoStream(
-    streams: StreamOption[],
-    preferredId?: string
-  ): StreamOption | null {
-    if (preferredId) {
-      const matched = streams.find(stream => stream.id === preferredId);
-      if (matched) {
-        return matched;
-      }
-    }
-
-    const getResolution = (resolution?: string): number => {
-      const match = resolution?.match(/(\d+)/);
-      return match ? parseInt(match[1], 10) : 0;
-    };
-
-    const sorted = [...streams].sort((a, b) => {
-      const resolutionDiff = getResolution(b.resolution) - getResolution(a.resolution);
-      if (resolutionDiff !== 0) return resolutionDiff;
-      const fpsDiff = (b.fps || 0) - (a.fps || 0);
-      if (fpsDiff !== 0) return fpsDiff;
-      return (b.bitrate || 0) - (a.bitrate || 0);
-    });
-
-    return sorted[0] || null;
-  }
-
-  private selectYoutubeAudioStream(
-    streams: StreamOption[],
-    preferredId?: string
-  ): StreamOption | null {
-    if (preferredId) {
-      const matched = streams.find(stream => stream.id === preferredId);
-      if (matched) {
-        return matched;
-      }
-    }
-
-    const sorted = [...streams].sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-    return sorted[0] || null;
-  }
-
-  private async getYoutubeProxy(): Promise<string | undefined> {
-    try {
-      const settingPath = join(PathUtil.getAppDir(), "setting.json");
-      const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting = JSON.parse(settingContent) as {
-        integration?: { youtube?: { proxy?: string } };
-      };
-      const proxy = setting.integration?.youtube?.proxy?.trim();
-      return proxy ? proxy : undefined;
-    } catch (error) {
-      log.warn(`[VibeLearningIndexQueue] Failed to read YouTube proxy settings: ${error}`);
-      return undefined;
-    }
-  }
-
-  /**
-   * 获取 Bilibili 视频播放地址
-   */
-  private async getBilibiliPlayUrl(
-    bvid: string,
-    cid: string,
-    quality: number,
-    credentials: BilibiliCredentialsConfig
-  ): Promise<{ video: string; audio: string } | null> {
-    try {
-      const params = new URLSearchParams({
-        bvid,
-        cid,
-        qn: String(quality),
-        fnval: "4048", // 获取 DASH 格式
-        fourk: "1",
-      });
-
-      const headers: Record<string, string> = {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Referer: `https://www.bilibili.com/video/${bvid}`,
-      };
-
-      if (credentials.SESSDATA) {
-        headers.Cookie = `SESSDATA=${credentials.SESSDATA}`;
-        if (credentials.bili_jct) {
-          headers.Cookie += `; bili_jct=${credentials.bili_jct}`;
-        }
-        if (credentials.DedeUserID) {
-          headers.Cookie += `; DedeUserID=${credentials.DedeUserID}`;
-        }
-      }
-
-      const response = await fetch(
-        `https://api.bilibili.com/x/player/wbi/playurl?${params.toString()}`,
-        { headers }
-      );
-
-      const data = (await response.json()) as {
-        code: number;
-        data?: {
-          dash?: {
-            video: Array<{ baseUrl: string; bandwidth: number }>;
-            audio: Array<{ baseUrl: string; bandwidth: number }>;
-          };
-        };
-      };
-
-      if (data.code !== 0 || !data.data?.dash) {
-        log.error(`[VibeLearningIndexQueue] Failed to get play URL: ${JSON.stringify(data)}`);
-        return null;
-      }
-
-      const { video, audio } = data.data.dash;
-
-      // 选择最高质量的视频和音频流
-      const videoStream = video.sort((a, b) => b.bandwidth - a.bandwidth)[0];
-      const audioStream = audio.sort((a, b) => b.bandwidth - a.bandwidth)[0];
-
-      if (!videoStream || !audioStream) {
-        return null;
-      }
-
-      return {
-        video: videoStream.baseUrl,
-        audio: audioStream.baseUrl,
-      };
-    } catch (error) {
-      log.error(`[VibeLearningIndexQueue] Error getting play URL: ${error}`);
-      return null;
-    }
   }
 
   /**
@@ -1800,7 +1540,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
   /**
    * 统一媒体处理管线
-   * 所有视频/音频资源（Bilibili、本地、远程等）获取到本地文件后统一走此方法
+   * 所有视频/音频资源（在线视频、本地、远程等）获取到本地文件后统一走此方法
    */
   private async processMediaResource(
     localFilePath: string,
@@ -3137,7 +2877,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         });
 
         if (status === "pending" || status === "need_convert" || status === "need_download") {
-          // 需要完整处理（对于 bilibili 视频，full 任务会自动处理下载）
+          // 需要完整处理（对于在线视频，full 任务会自动处理下载）
           const result = this.addTask({
             resourceId: resource.id,
             projectId: resource.projectId,
@@ -3224,38 +2964,28 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       return queueStatus;
     }
 
-    // 对于 Bilibili 视频，检查本地缓存
-    if (resource.sourceType === "bilibili" && resource.sourceMetaInfo) {
-      try {
-        const meta = JSON.parse(resource.sourceMetaInfo) as BilibiliSourceMeta;
-        const cacheStatus = await getBilibiliCacheStatus(meta.bvid, meta.cid, meta.quality);
-
-        // 如果没有本地缓存且没有 markdown，需要完整处理（下载+转录+索引）
-        if (!cacheStatus?.localPath && !resource.markdownPath) {
-          return "need_download";
-        }
-      } catch (e) {
-        log.warn(
-          `[VibeLearningIndexQueue] Failed to parse bilibili meta for resource ${resource.id}: ${e}`
-        );
-      }
-    }
-
-    if (resource.sourceType === "youtube" && resource.sourceMetaInfo) {
-      try {
-        const meta = JSON.parse(resource.sourceMetaInfo) as YoutubeSourceMeta;
-        const sourceUrl = (meta.url || resource.originalPath || "").trim();
-        if (sourceUrl) {
-          const cacheStatus = await getYoutubeCacheStatus(sourceUrl);
-          if (!cacheStatus?.localPath && !resource.markdownPath) {
-            return "need_download";
-          }
-        }
-      } catch (e) {
-        log.warn(
-          `[VibeLearningIndexQueue] Failed to parse youtube meta for resource ${resource.id}: ${e}`
-        );
-      }
+    // 在线视频没有转写结果且未缓存时，需要完整处理（下载 + 转录 + 索引）
+    if (
+      resource.sourceType &&
+      isOnlineVideoSourceType(resource.sourceType) &&
+      resource.sourceMetaInfo &&
+      !resource.markdownPath
+    ) {
+      const { sourceType, sourceMetaInfo } = resource;
+      const cached = await Promise.resolve()
+        .then(() =>
+          getOnlineVideoCacheStatus({
+            providerId: sourceType,
+            ref: onlineVideoRef(JSON.parse(sourceMetaInfo) as Record<string, unknown>),
+          })
+        )
+        .catch(error => {
+          log.warn(
+            `[VibeLearningIndexQueue] Failed to check online video cache for resource ${resource.id}: ${error}`
+          );
+          return null;
+        });
+      if (!cached) return "need_download";
     }
 
     // 检查是否有 markdown_path

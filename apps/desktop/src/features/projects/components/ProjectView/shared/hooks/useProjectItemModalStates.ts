@@ -5,8 +5,7 @@ export const useProjectItemModalStates = () => {
   const [modalStates, setModalStates] = useState<ModalStates>({
     [ModalKey.WebVideo]: false,
     [ModalKey.Webview]: false,
-    [ModalKey.Bilibili]: false,
-    [ModalKey.Youtube]: false,
+    [ModalKey.OnlineVideo]: false,
     [ModalKey.RemotePdf]: false,
     [ModalKey.SelectPdf]: false,
   });

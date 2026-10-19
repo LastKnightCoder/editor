@@ -1,4 +1,5 @@
-import type { MediaCapabilities } from "@tau/whiteboard/extensions";
+import type { MediaCapabilities, VideoSourceEntry } from "@tau/whiteboard/extensions";
+import { getVideoProviders } from "@/commands/plugin-video";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { downloadFile } from "@/utils/download";
 import { getImageInfo, getVideoInfo } from "@/utils";
@@ -19,13 +20,15 @@ export const desktopMediaActions = [
   "image-ai",
   "video-local",
   "video-url",
-  "video-bilibili",
-  "video-youtube",
   "open-video-note",
   "audio-local",
   "audio-url",
   "audio-tts",
 ] as const;
+
+/** 每个启用的视频插件一个添加入口 */
+export const desktopVideoSources = (): VideoSourceEntry[] =>
+  getVideoProviders().providers.map(provider => ({ id: provider.id, label: provider.name }));
 
 /** 图片渲染组件（本地资源解析等桌面能力） */
 export const desktopMediaImage = LocalImage;

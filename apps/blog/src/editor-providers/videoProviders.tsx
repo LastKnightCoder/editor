@@ -14,13 +14,8 @@ function createDegradedContent(message: string): VideoContentProvider["Content"]
 
 export const blogVideoContentProviders: VideoContentProvider[] = [
   {
-    id: "bilibili",
-    match: element => element.metaInfo?.type === "bilibili",
-    Content: createDegradedContent("Bilibili 视频在桌面端可播放"),
-  },
-  {
-    id: "youtube",
-    match: element => element.metaInfo?.type === "youtube",
-    Content: createDegradedContent("YouTube 视频在桌面端可播放"),
+    id: "online",
+    match: element => typeof element.metaInfo?.type === "string",
+    Content: createDegradedContent("该视频请在桌面端播放"),
   },
 ];

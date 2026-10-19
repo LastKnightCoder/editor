@@ -42,6 +42,7 @@ pnpm install:local
 | `AI.md`                           | AI 功能声明、用户模型分配、流式对话和统一用量审计    |
 | `MCP.md`                          | 注册 MCP、聊天工具渲染，复用工具开关与服务器管理     |
 | `IMAGES.md`                       | 图片生成、参考图编辑与插件账号配置视图               |
+| `VIDEO.md`                        | 视频来源的链接解析、播放源与账号配置视图             |
 | `SERVICES.md`                     | Tailwind、Typst、Markdown、FFmpeg 编译转换服务       |
 | `AGENTS.md`                       | 给 AI 编程助手的项目指引                             |
 | `build.mjs` / `install-local.mjs` | 打包与本地安装脚本，日常开发通常不需要修改           |

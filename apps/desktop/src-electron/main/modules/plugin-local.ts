@@ -21,7 +21,13 @@ import { getMainWindows } from "../windows/main-window";
 import { pluginUploadRelay } from "../services/plugin-upload";
 import { pluginTTSRelay } from "../services/plugin-tts";
 import { pluginImagesRelay } from "../services/plugin-images";
+import { pluginVideoRelay } from "../services/plugin-video";
 import type { ImagesRendererRequest, ImagesRendererReply } from "../../../shared/images-renderer";
+import type {
+  VideoProvidersState,
+  VideoRendererReply,
+  VideoRendererRequest,
+} from "../../../shared/video-renderer";
 import type { TTSRendererRequest, TTSRendererReply } from "../../../shared/tts-renderer";
 import type { UploadRequest, UploadRendererReply } from "../../../shared/upload-renderer";
 import {
@@ -133,6 +139,42 @@ export default {
     );
     ipcMain.handle("plugin-local:images-cancel", (event, id: string) =>
       pluginImagesRelay.cancel(event.sender.id, id)
+    );
+    ipcMain.handle(
+      "plugin-local:video-config",
+      async (_event, pluginId: string, config: import("@tau/plugins").JsonValue) => {
+        const artifact = await readPluginPackage(
+          path.join(directory(), pluginId),
+          app.getVersion()
+        );
+        if (artifact.manifest.id !== pluginId) throw new Error("插件身份无效");
+        await userSetting.updateVideoPlugin(pluginId, copyJson(config));
+      }
+    );
+    ipcMain.handle("plugin-local:video-connect", (event, session: string) => {
+      if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
+        throw new Error("视频插件只能由主窗口执行");
+      pluginVideoRelay.connect(event.sender, session);
+    });
+    ipcMain.handle("plugin-local:video-release", (event, session: string) =>
+      pluginVideoRelay.release(event.sender.id, session)
+    );
+    ipcMain.handle(
+      "plugin-local:video-publish",
+      (event, session: string, state: VideoProvidersState) =>
+        pluginVideoRelay.publish(event.sender.id, session, state)
+    );
+    ipcMain.handle("plugin-local:video-providers", () => pluginVideoRelay.providers());
+    ipcMain.handle(
+      "plugin-local:video-request",
+      (event, id: string, request: VideoRendererRequest) =>
+        pluginVideoRelay.request(event.sender, id, request)
+    );
+    ipcMain.handle("plugin-local:video-reply", (event, reply: VideoRendererReply) =>
+      pluginVideoRelay.reply(event.sender.id, reply)
+    );
+    ipcMain.handle("plugin-local:video-cancel", (event, id: string) =>
+      pluginVideoRelay.cancel(event.sender.id, id)
     );
     ipcMain.handle(
       "plugin-local:tts-config",

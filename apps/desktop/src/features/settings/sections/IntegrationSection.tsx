@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { Eye, EyeOff, QrCode } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
@@ -9,25 +9,18 @@ import {
   DialogBody,
   IconButton,
   Input,
-  Segmented,
   Select,
   toast,
 } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getGithubUserInfo } from "@/utils/github";
-import {
-  BilibiliQRCodeStatus,
-  checkBilibiliLogin,
-  checkBilibiliQRStatus,
-  extractCredentialsFromQR,
-  getBilibiliQRCode,
-} from "@/utils/bilibili";
+import { OnlineVideoPluginSettings } from "./OnlineVideoPluginSettings";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 
 type Integration = ISetting["integration"];
-type ServiceKey = "s3" | "github" | "bilibili";
+type ServiceKey = "s3" | "github";
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
 const mutateIntegration = (fn: (draft: Integration) => void) =>
@@ -42,9 +35,6 @@ const hostOf = (url: string) => {
     return url;
   }
 };
-
-const vipText = (vipStatus: number) =>
-  vipStatus === 1 ? "大会员" : vipStatus === 0 ? "普通用户" : "未知";
 
 /** 打开时以 store 当前值重置表单（渲染期派生，避免 effect 里 setState） */
 function useFormOnOpen<T>(open: boolean, init: () => T) {
@@ -485,286 +475,6 @@ function GithubDialog({ open, onOpenChange }: DialogProps) {
   );
 }
 
-/* ───────────── 内容平台 ───────────── */
-
-/** Bilibili 扫码登录：取码 → 2s 轮询状态 → 成功后换取凭据并写入 store */
-function useBilibiliQrLogin(onSuccess: () => void) {
-  const updateCredentials = useSettingStore(s => s.updateBilibiliCredentials);
-  const updateUserInfo = useSettingStore(s => s.updateBilibiliUserInfo);
-  const setEnabled = useSettingStore(s => s.setBilibiliEnabled);
-
-  const [qrUrl, setQrUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [expired, setExpired] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  /** 每次取码/重置自增；异步回调发现代次变化即放弃（关闭弹层后不再落状态） */
-  const generationRef = useRef(0);
-
-  const stopPolling = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
-  }, []);
-
-  useEffect(() => stopPolling, [stopPolling]);
-
-  const reset = () => {
-    generationRef.current += 1;
-    stopPolling();
-    setQrUrl(null);
-    setLoading(false);
-    setStatus("");
-    setError("");
-    setExpired(false);
-  };
-
-  const startPolling = (qrcodeKey: string, generation: number) => {
-    stopPolling();
-    timerRef.current = setInterval(async () => {
-      try {
-        const result = await checkBilibiliQRStatus(qrcodeKey);
-        if (generation !== generationRef.current) return;
-        switch (result.code) {
-          case BilibiliQRCodeStatus.SUCCESS:
-            stopPolling();
-            if (!result.url) break;
-            try {
-              const credentials = await extractCredentialsFromQR(result.url);
-              const userInfo = await checkBilibiliLogin(credentials);
-              updateCredentials(credentials);
-              updateUserInfo(userInfo);
-              setEnabled(true);
-              setStatus("登录成功！");
-              toast.success("Bilibili 已连接");
-              onSuccess();
-            } catch (err) {
-              console.error("处理登录结果失败:", err);
-              setError("登录处理失败，请重试");
-            }
-            break;
-          case BilibiliQRCodeStatus.EXPIRED:
-            stopPolling();
-            setExpired(true);
-            setStatus("二维码已过期，请刷新重试");
-            break;
-          case BilibiliQRCodeStatus.NOT_CONFIRMED:
-            setStatus("扫码成功，请在手机上确认登录");
-            break;
-          case BilibiliQRCodeStatus.NOT_SCANNED:
-            break;
-          default:
-            setStatus(result.message || "未知状态");
-        }
-      } catch (err) {
-        console.error("检查二维码状态失败:", err);
-      }
-    }, 2000);
-  };
-
-  const fetchQrCode = async () => {
-    generationRef.current += 1;
-    const generation = generationRef.current;
-    stopPolling();
-    setLoading(true);
-    setError("");
-    setExpired(false);
-    try {
-      const info = await getBilibiliQRCode();
-      if (generation !== generationRef.current) return;
-      setQrUrl(info.url);
-      setStatus("请使用 Bilibili 手机客户端扫描二维码");
-      startPolling(info.qrcodeKey, generation);
-    } catch (err) {
-      console.error("获取二维码失败:", err);
-      if (generation === generationRef.current) setError("获取二维码失败，请重试");
-    } finally {
-      if (generation === generationRef.current) setLoading(false);
-    }
-  };
-
-  return { qrUrl, loading, status, error, expired, fetchQrCode, reset };
-}
-
-function BilibiliDialog({ open, onOpenChange }: DialogProps) {
-  const bilibili = useSettingStore(s => s.setting.integration.bilibili);
-  const updateCredentials = useSettingStore(s => s.updateBilibiliCredentials);
-  const updateUserInfo = useSettingStore(s => s.updateBilibiliUserInfo);
-  const setEnabled = useSettingStore(s => s.setBilibiliEnabled);
-
-  const [mode, setMode] = useState<"qrcode" | "manual">("qrcode");
-  const [manual, setManual] = useFormOnOpen(open, () => ({
-    sessdata: bilibili.credentials.SESSDATA,
-    bfeId: bilibili.credentials.bfe_id || "",
-  }));
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const qr = useBilibiliQrLogin(() => onOpenChange(false));
-
-  const handleOpenChange = (next: boolean) => {
-    if (!next) qr.reset();
-    onOpenChange(next);
-  };
-
-  const verifyManual = async () => {
-    if (!manual.sessdata.trim()) {
-      setError("请输入 SESSDATA");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      const credentials = { SESSDATA: manual.sessdata, bfe_id: manual.bfeId };
-      const userInfo = await checkBilibiliLogin(credentials);
-      if (!userInfo.isLogin) {
-        setError("凭证无效，请检查 SESSDATA 是否正确");
-        return;
-      }
-      updateCredentials(credentials);
-      updateUserInfo(userInfo);
-      setEnabled(true);
-      toast.success("Bilibili 已连接");
-      handleOpenChange(false);
-    } catch (err) {
-      console.error("验证凭证失败:", err);
-      setError("验证失败，请检查凭证是否正确");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const { userInfo } = bilibili;
-
-  return (
-    <ServiceDialog
-      open={open}
-      onOpenChange={handleOpenChange}
-      onAfterClose={() => {
-        qr.reset();
-        setMode("qrcode");
-        setError("");
-      }}
-      title="Bilibili"
-      subtitle="扫码或手动填写 Cookie 登录"
-      connected={userInfo.isLogin}
-      busy={loading}
-      disconnectImpact="Bilibili 视频导入将以未登录身份访问"
-      onDisconnect={() => {
-        updateCredentials({ SESSDATA: "", bfe_id: "" });
-        updateUserInfo({ name: "", avatar: "", isLogin: false, vipStatus: 0 });
-        setEnabled(false);
-      }}
-      primary={
-        mode === "manual" ? (
-          <Button
-            variant="primary"
-            loading={loading}
-            loadingText="验证中…"
-            disabled={!manual.sessdata.trim()}
-            onClick={() => void verifyManual()}
-          >
-            验证并登录
-          </Button>
-        ) : (
-          <Button
-            variant="primary"
-            icon={QrCode}
-            loading={qr.loading}
-            loadingText="获取中…"
-            onClick={() => void qr.fetchQrCode()}
-          >
-            {qr.qrUrl ? "刷新二维码" : "获取二维码"}
-          </Button>
-        )
-      }
-    >
-      {userInfo.isLogin && (
-        <div className="bg-hover rounded-tau-sm flex items-center gap-2.5 px-3 py-2">
-          {userInfo.avatar && (
-            <img
-              src={userInfo.avatar}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="size-7 flex-none rounded-full"
-            />
-          )}
-          <span className="text-tau-body text-ink-1 min-w-0 flex-1 truncate font-medium">
-            {userInfo.name}
-          </span>
-          <span className="text-tau-meta text-ink-2 flex-none">{vipText(userInfo.vipStatus)}</span>
-        </div>
-      )}
-      <Segmented
-        label="登录方式"
-        size="sm"
-        value={mode}
-        onValueChange={v => setMode(v as typeof mode)}
-      >
-        <Segmented.Item value="qrcode" label="扫码登录" />
-        <Segmented.Item value="manual" label="手动输入" />
-      </Segmented>
-
-      {mode === "qrcode" ? (
-        <div className="flex flex-col items-center gap-2 py-2 text-center">
-          {qr.qrUrl ? (
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qr.qrUrl)}`}
-              alt="Bilibili 登录二维码"
-              className={clsx("rounded-tau-sm size-[180px]", qr.expired && "opacity-40")}
-            />
-          ) : (
-            <div className="bg-sunken text-ink-3 rounded-tau-sm grid size-[180px] place-items-center">
-              <QrCode size={32} strokeWidth={1.5} />
-            </div>
-          )}
-          <p className="text-tau-meta text-ink-2">
-            {qr.loading
-              ? "正在获取二维码…"
-              : qr.status || "使用 Bilibili 手机客户端扫码登录，更安全便捷"}
-          </p>
-          <ErrorLine>{qr.error}</ErrorLine>
-        </div>
-      ) : (
-        <>
-          <Field label="SESSDATA">
-            <SecretInput
-              label="SESSDATA"
-              value={manual.sessdata}
-              placeholder="请输入 SESSDATA"
-              disabled={loading}
-              onChange={v => {
-                setManual(m => ({ ...m, sessdata: v }));
-                setError("");
-              }}
-            />
-          </Field>
-          <Field label="bfe_id（可选）">
-            <TextInput
-              mono
-              value={manual.bfeId}
-              placeholder="请输入 bfe_id"
-              disabled={loading}
-              onChange={v => {
-                setManual(m => ({ ...m, bfeId: v }));
-                setError("");
-              }}
-            />
-          </Field>
-          <HelpSteps
-            steps={[
-              "打开 Bilibili 网站并登录",
-              "按 F12 打开开发者工具",
-              "切换到 Application / Storage 标签",
-              "在 Cookies 中找到 SESSDATA 值",
-            ]}
-          />
-          <ErrorLine>{error}</ErrorLine>
-        </>
-      )}
-    </ServiceDialog>
-  );
-}
-
 /* ───────────── 页面 ───────────── */
 
 const connectedChip = <StatusChip tone="ok">已连接</StatusChip>;
@@ -772,7 +482,6 @@ const disconnectedChip = <StatusChip>未连接</StatusChip>;
 
 export function IntegrationSection() {
   const integration = useSettingStore(s => s.setting.integration);
-  const updateYoutubeProxy = useSettingStore(s => s.updateYoutubeProxy);
   const [openKey, setOpenKey] = useState<ServiceKey | null>(null);
 
   const dialogProps = (key: ServiceKey): DialogProps => ({
@@ -780,7 +489,7 @@ export function IntegrationSection() {
     onOpenChange: open => setOpenKey(open ? key : null),
   });
 
-  const { s3, github, bilibili, youtube } = integration;
+  const { s3, github } = integration;
 
   return (
     <>
@@ -819,50 +528,10 @@ export function IntegrationSection() {
         </ServiceRow>
       </SettingsGroup>
 
-      <SettingsGroup title="内容平台" description="视频导入与读书同步">
-        <ServiceRow
-          mark="B"
-          name="Bilibili"
-          description={
-            bilibili.userInfo.isLogin
-              ? `${bilibili.userInfo.name} · ${vipText(bilibili.userInfo.vipStatus)}`
-              : "扫码登录或填写 SESSDATA"
-          }
-          status={bilibili.userInfo.isLogin ? connectedChip : disconnectedChip}
-        >
-          <RowAction
-            connected={bilibili.userInfo.isLogin}
-            name="Bilibili"
-            onClick={() => setOpenKey("bilibili")}
-          />
-        </ServiceRow>
-        <ServiceRow
-          mark="Y"
-          name="YouTube"
-          description="配置 HTTP/HTTPS 代理以访问 YouTube"
-          status={
-            youtube.proxy.trim() ? (
-              <StatusChip tone="ok">已设代理</StatusChip>
-            ) : (
-              <StatusChip>直连</StatusChip>
-            )
-          }
-        >
-          <Input
-            aria-label="YouTube 代理"
-            className="font-tau-mono w-[200px]"
-            size="sm"
-            value={youtube.proxy}
-            placeholder="http://127.0.0.1:7890"
-            spellCheck={false}
-            onChange={e => updateYoutubeProxy(e.target.value)}
-          />
-        </ServiceRow>
-      </SettingsGroup>
+      <OnlineVideoPluginSettings />
 
       <S3Dialog {...dialogProps("s3")} />
       <GithubDialog {...dialogProps("github")} />
-      <BilibiliDialog {...dialogProps("bilibili")} />
     </>
   );
 }

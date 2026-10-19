@@ -7,8 +7,8 @@ import {
   Project as IProject,
 } from "@/types";
 import { ModalKey } from "../constants/modalKeys";
-import type { YoutubeVideoSelectResult } from "@/components/YoutubeVideoSelectModal";
-import type { BilibiliVideoSelectResult } from "@/components/BilibiliVideoSelectModal";
+import type { OnlineVideoSelection } from "@/components/OnlineVideoSelectModal";
+import { buildOnlineVideoMeta } from "@/types/online-video";
 import type { RemoteVideoSelectResult } from "@/components/RemoteVideoSelectModal";
 import { toast } from "@tau/ui";
 
@@ -109,24 +109,20 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
   const { closeModal, strategy } = options;
 
   /**
-   * 处理 YouTube 视频添加
+   * 处理视频插件视频添加
    */
-  const handleYoutubeConfirm = useMemoizedFn(async (result: YoutubeVideoSelectResult) => {
+  const handleOnlineVideoConfirm = useMemoizedFn(async (result: OnlineVideoSelection) => {
     try {
-      const item = await createEmptyVideoNote({
-        type: "youtube",
-        url: result.url,
-        videoStream: result.videoStream,
-        audioStream: result.audioStream,
-      });
-
+      const item = await createEmptyVideoNote(
+        buildOnlineVideoMeta(result.providerId, result.ref, result.title, result.cover)
+      );
       if (!item) {
         toast.error("创建视频笔记失败");
         return;
       }
 
       const createProjectItem: CreateProjectItem = {
-        title: result.title || `YouTube 视频 - ${result.url}`,
+        title: result.title || `${result.providerName} 视频`,
         content: [],
         children: [],
         refType: "video-note",
@@ -137,42 +133,11 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
       };
 
       await strategy.addProjectItem(createProjectItem);
-      closeModal(ModalKey.Youtube);
-      toast.success("YouTube 视频笔记添加成功！");
-    } catch (e) {
-      console.error(e);
-      toast.error("添加 YouTube 视频失败");
-    }
-  });
-
-  /**
-   * 处理 Bilibili 视频添加
-   */
-  const handleBilibiliConfirm = useMemoizedFn(async (result: BilibiliVideoSelectResult) => {
-    try {
-      const item = await createEmptyVideoNote(result.metaInfo);
-      if (!item) {
-        toast.error("创建视频笔记失败");
-        return;
-      }
-
-      const createProjectItem: CreateProjectItem = {
-        title: result.title || `Bilibili 视频 - ${result.metaInfo.bvid}`,
-        content: [],
-        children: [],
-        refType: "video-note",
-        refId: item.id,
-        projectItemType: EProjectItemType.VideoNote,
-        count: 0,
-        whiteBoardContentId: 0,
-      };
-
-      await strategy.addProjectItem(createProjectItem);
-      closeModal(ModalKey.Bilibili);
-      toast.success("Bilibili 视频笔记添加成功");
+      closeModal(ModalKey.OnlineVideo);
+      toast.success("视频笔记添加成功");
     } catch (error) {
-      console.error("添加 Bilibili 视频失败:", error);
-      toast.error("添加 Bilibili 视频失败");
+      console.error("添加插件视频失败:", error);
+      toast.error("添加视频失败");
     }
   });
 
@@ -212,8 +177,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
   });
 
   return {
-    handleYoutubeConfirm,
-    handleBilibiliConfirm,
+    handleOnlineVideoConfirm,
     handleRemoteVideoConfirm,
   };
 };

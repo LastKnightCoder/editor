@@ -6,18 +6,11 @@ import { IntegrationSection } from "../sections/IntegrationSection";
 
 const mocks = vi.hoisted(() => ({
   getGithubUserInfo: vi.fn(),
-  getBilibiliQRCode: vi.fn(),
 }));
 
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 vi.mock("@/utils/github", () => ({ getGithubUserInfo: mocks.getGithubUserInfo }));
-vi.mock("@/utils/bilibili", () => ({
-  BilibiliQRCodeStatus: { SUCCESS: 0, EXPIRED: 86038, NOT_CONFIRMED: 86090, NOT_SCANNED: 86101 },
-  checkBilibiliLogin: vi.fn(),
-  checkBilibiliQRStatus: vi.fn(),
-  extractCredentialsFromQR: vi.fn(),
-  getBilibiliQRCode: mocks.getBilibiliQRCode,
-}));
+vi.mock("@/app/plugins/context", () => ({ useDesktopPlugins: () => null }));
 
 const initialSetting = structuredClone(useSettingStore.getState().setting);
 
@@ -50,14 +43,18 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("保留存储和内容服务，移除重复语音集成入口", () => {
+it("保留存储服务与在线视频分组，平台账号表单改由插件提供", () => {
   render();
-  for (const title of ["存储服务", "内容平台"]) expect(text()).toContain(title);
+  for (const title of ["存储服务", "在线视频"]) expect(text()).toContain(title);
   expect(text()).not.toContain("AI 平台");
   expect(text()).not.toContain("Minimax");
-  for (const name of ["S3", "GitHub", "Bilibili", "YouTube"]) {
+  for (const name of ["S3", "GitHub"]) {
     expect(text()).toContain(name);
   }
+  // 平台账号与代理已改由各插件在本分组注册表单
+  expect(byLabel("YouTube 代理")).toBeNull();
+  expect(text()).not.toContain("扫码登录");
+  expect(text()).toContain("等视频来源后");
   expect(text()).not.toContain("WebDAV");
   expect(text()).not.toContain("阿里云 OSS");
   // 微信读书已改为插件，不在账号与连接里
@@ -85,13 +82,4 @@ it("GitHub 弹层提交后调用校验接口并保存用户名邮箱", async () 
     user: { name: "octocat", email: "o@example.com" },
   });
   expect(text()).toContain("@octocat · o@example.com");
-});
-
-it("YouTube 代理行内即时保存", () => {
-  render();
-  typeInto(byLabel<HTMLInputElement>("YouTube 代理"), "http://127.0.0.1:7890");
-  expect(useSettingStore.getState().setting.integration.youtube.proxy).toBe(
-    "http://127.0.0.1:7890"
-  );
-  expect(text()).toContain("已设代理");
 });

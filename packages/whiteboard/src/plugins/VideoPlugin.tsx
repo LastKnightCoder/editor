@@ -1,5 +1,5 @@
 import { mediaMenu, browserMediaInfo, type MediaCapabilities } from "../extensions/media";
-import { Video, Link, Download, Upload, MonitorPlay, Youtube, FileText } from "lucide-react";
+import { Video, Link, Download, Upload, MonitorPlay, FileText } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
 
@@ -92,30 +92,18 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
               });
             },
           },
-          {
-            key: "video-bilibili",
-            label: "Bilibili",
+          ...(this.media.videoSources?.() ?? []).map((source, index) => ({
+            key: `video-source:${source.id}`,
+            label: source.label,
             icon: <MonitorPlay size={14} />,
-            priority: 3,
+            priority: 3 + index,
             onSelect: (ctx: ContextMenuContext) => {
               ctx.board.emit("tau.modal.open", {
                 type: "video",
-                action: "bilibili",
+                action: `source:${source.id}`,
               });
             },
-          },
-          {
-            key: "video-youtube",
-            label: "YouTube",
-            icon: <Youtube size={14} />,
-            priority: 4,
-            onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("tau.modal.open", {
-                type: "video",
-                action: "youtube",
-              });
-            },
-          },
+          })),
         ],
         onSelect: () => {},
       });

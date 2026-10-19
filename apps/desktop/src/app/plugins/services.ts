@@ -1,5 +1,7 @@
 import type { PluginServices } from "@tau/plugins";
 import { compilerFiles, invokeCompiler } from "@/services/plugin-compiler-client";
+import { invoke } from "@/electron";
+import { withModule } from "@/commands/module-init";
 
 export const desktopPluginServices: PluginServices = {
   tailwind: {
@@ -58,5 +60,9 @@ export const desktopPluginServices: PluginServices = {
         })),
       };
     },
+  },
+  videoExtractor: {
+    probe: (url, options) =>
+      withModule("online-video-cache", () => invoke("video-extractor:probe", url, options?.proxy)),
   },
 };

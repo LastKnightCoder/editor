@@ -4,12 +4,8 @@ import { RouterProvider } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import {
-  BilibiliVideoDepsProvider,
-  YoutubeVideoDepsProvider,
   EditDatabaseDepsProvider,
   RemoteVideoDepsProvider,
-  type UseBilibiliVideoDeps,
-  type UseYoutubeVideoDeps,
   type UseEditDatabaseDeps,
   type UseRemoteVideoDeps,
 } from "@tau/shared";
@@ -26,15 +22,10 @@ import { MediaModalHost } from "@/editor-providers/mediaModalHost";
 import ConversationFlashcardModal from "@/features/flashcards/components/ConversationFlashcardDialog";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import GlobalFindBar from "@/components/GlobalFindBar";
-import useSettingStore from "@/stores/useSettingStore";
 
 import { on, off } from "@/electron";
 import { platform } from "@/platform";
-import { getPlayUrl, checkStreamAvailability } from "@/utils/bilibili";
-import { bilibiliVideoToLocal, isBilibiliVideoCached } from "@/utils/bilibili-cache";
 import {
-  cacheYoutubeVideo,
-  getYoutubeCacheStatus,
   convertFileSrc,
   getDataTableDetail,
   updateDataTable,
@@ -61,52 +52,6 @@ const Application = () => {
   useInitChatData(); // 全局初始化聊天数据
 
   const [isFocused, setIsFocused] = useState(true);
-
-  const bilibiliDeps: UseBilibiliVideoDeps = useMemo(
-    () => ({
-      getCredentials: async () => {
-        const { setting } = useSettingStore.getState();
-        return {
-          SESSDATA: setting.integration.bilibili.credentials.SESSDATA,
-          enabled: setting.integration.bilibili.enabled,
-        };
-      },
-      getPlayUrl: (cid, bvid, quality, creds) => getPlayUrl(cid, bvid, quality, creds),
-      checkStreamAvailability: async urls => {
-        const playUrl = { video: urls.video, audio: urls.audio, quality: 0 };
-        return await checkStreamAvailability(playUrl);
-      },
-      cacheVideo: bilibiliVideoToLocal,
-      getCacheStatus: isBilibiliVideoCached,
-      showError: msg => toast.error(msg),
-    }),
-    []
-  );
-
-  const youtubeDeps: UseYoutubeVideoDeps = useMemo(
-    () => ({
-      getProxy: async () => {
-        const { setting } = useSettingStore.getState();
-        return {
-          proxy: setting.integration.youtube.proxy,
-          enabled: setting.integration.youtube.enabled,
-        };
-      },
-      getCacheStatus: async url => {
-        const status = await getYoutubeCacheStatus(url);
-        if (!status) return null;
-        return {
-          cached: true,
-          localPath: status.localPath,
-          fileSize: status.fileSize,
-        };
-      },
-      cacheVideo: cacheYoutubeVideo,
-      convertFileSrc,
-      showError: msg => toast.error(msg),
-    }),
-    []
-  );
 
   const editDatabaseDeps: UseEditDatabaseDeps = useMemo(
     () => ({
@@ -188,30 +133,26 @@ const Application = () => {
 
   return (
     <WindowFocusContext.Provider value={isFocused}>
-      <BilibiliVideoDepsProvider deps={bilibiliDeps}>
-        <YoutubeVideoDepsProvider deps={youtubeDeps}>
-          <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-            <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-              <div
-                style={{
-                  height: "100%",
-                  fontSize: "var(--font-size)",
-                  color: "var(--tau-ink-1)",
-                }}
-              >
-                <AutoSyncManager />
-                <MediaModalHost />
-                <ConversationFlashcardModal />
-                <ExtNoteInsertModal />
-                <DndProvider backend={HTML5Backend}>
-                  <GlobalFindBar />
-                  <RouterProvider router={router} />
-                </DndProvider>
-              </div>
-            </EditDatabaseDepsProvider>
-          </RemoteVideoDepsProvider>
-        </YoutubeVideoDepsProvider>
-      </BilibiliVideoDepsProvider>
+      <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+        <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+          <div
+            style={{
+              height: "100%",
+              fontSize: "var(--font-size)",
+              color: "var(--tau-ink-1)",
+            }}
+          >
+            <AutoSyncManager />
+            <MediaModalHost />
+            <ConversationFlashcardModal />
+            <ExtNoteInsertModal />
+            <DndProvider backend={HTML5Backend}>
+              <GlobalFindBar />
+              <RouterProvider router={router} />
+            </DndProvider>
+          </div>
+        </EditDatabaseDepsProvider>
+      </RemoteVideoDepsProvider>
     </WindowFocusContext.Provider>
   );
 };

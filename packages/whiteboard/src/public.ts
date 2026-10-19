@@ -107,8 +107,9 @@ export const VideoUtil = {
     InternalVideo.insertVideoFromUrl(url, resolveBoardAccess(api)),
   insertVideoFromMeta: (
     api: WhiteboardAPI,
-    meta: Parameters<typeof InternalVideo.insertVideoFromMeta>[1]
-  ) => InternalVideo.insertVideoFromMeta(resolveBoardAccess(api), meta),
+    meta: Parameters<typeof InternalVideo.insertVideoFromMeta>[1],
+    pageUrl: string
+  ) => InternalVideo.insertVideoFromMeta(resolveBoardAccess(api), meta, pageUrl),
 };
 export const AudioUtil = {
   insertAudio: (file: File, api: WhiteboardAPI, media: MediaCapabilities) =>

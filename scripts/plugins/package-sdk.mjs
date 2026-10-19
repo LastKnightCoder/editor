@@ -141,6 +141,10 @@ try {
         await readFile(path.join(root, "scripts/plugins/template/IMAGES.md"))
       );
       await writeFile(
+        path.join(directory, "VIDEO.md"),
+        await readFile(path.join(root, "scripts/plugins/template/VIDEO.md"))
+      );
+      await writeFile(
         path.join(directory, "TTS.md"),
         await readFile(path.join(root, "scripts/plugins/template/TTS.md"))
       );

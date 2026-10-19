@@ -30,7 +30,8 @@ import { useProjectItemModalStates } from "../shared/hooks/useProjectItemModalSt
 import { useWebLinkHandlers } from "../shared/hooks/useWebLinkHandlers";
 import { useVideoHandlers } from "../shared/hooks/useVideoHandlers";
 import { usePdfHandlers, createProjectItemFromPdf } from "../shared/hooks/usePdfHandlers";
-import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
+import { VIDEO_PLUGIN_MENU_PREFIX, buildAddMenuItems } from "../shared/constants/menuItems";
+import { useVideoProviders } from "@/hooks/useVideoProviders";
 import { renderMenuEntries } from "../shared/menuEntries";
 import { ModalKey } from "../shared/constants/modalKeys";
 import {
@@ -55,8 +56,7 @@ import { getContentLength } from "@/utils";
 import { collectAncestorItemIds, isSameNumberSet } from "@/utils/projectTree";
 import { importLocalPdf } from "../shared/utils/bookImport";
 import useSettingStore from "@/stores/useSettingStore";
-import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
-import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
+import OnlineVideoSelectModal from "@/components/OnlineVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
 import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
 import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebViewSelectModal";
@@ -237,11 +237,13 @@ const Project = () => {
     [addProjectItemToTarget, addingParentProjectItemId, navigator, project]
   );
 
-  const { handleYoutubeConfirm, handleBilibiliConfirm, handleRemoteVideoConfirm } =
-    useVideoHandlers({
-      closeModal,
-      strategy: targetAwareAddStrategy,
-    });
+  const { providers: videoProviders } = useVideoProviders();
+  const addMenuItems = useMemo(() => buildAddMenuItems(videoProviders), [videoProviders]);
+  const [videoSourceId, setVideoSourceId] = useState<string | null>(null);
+  const { handleOnlineVideoConfirm, handleRemoteVideoConfirm } = useVideoHandlers({
+    closeModal,
+    strategy: targetAwareAddStrategy,
+  });
 
   const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
     closeModal,
@@ -504,12 +506,10 @@ const Project = () => {
     } else if (key === "add-remote-video-note-project-item") {
       setAddingParentProjectItemId(parentProjectItemId);
       openModal(ModalKey.WebVideo);
-    } else if (key === "add-bilibili-video-note-project-item") {
+    } else if (key.startsWith(VIDEO_PLUGIN_MENU_PREFIX)) {
       setAddingParentProjectItemId(parentProjectItemId);
-      openModal(ModalKey.Bilibili);
-    } else if (key === "add-youtube-video-note-project-item") {
-      setAddingParentProjectItemId(parentProjectItemId);
-      openModal(ModalKey.Youtube);
+      setVideoSourceId(key.slice(VIDEO_PLUGIN_MENU_PREFIX.length));
+      openModal(ModalKey.OnlineVideo);
     } else if (key === "add-webview-project-item") {
       setAddingParentProjectItemId(parentProjectItemId);
       openModal(ModalKey.Webview);
@@ -676,7 +676,7 @@ const Project = () => {
                 }
                 align="end"
               >
-                {renderMenuEntries(ADD_MENU_ITEMS, key => void handleAddMenuClick(key))}
+                {renderMenuEntries(addMenuItems, key => void handleAddMenuClick(key))}
               </Menu>
             </div>
           </div>
@@ -694,7 +694,7 @@ const Project = () => {
                   databaseName={databaseName}
                   cards={cards}
                   whiteBoards={whiteBoards}
-                  addMenuItems={ADD_MENU_ITEMS}
+                  addMenuItems={addMenuItems}
                   onAddMenuClick={handleAddMenuClick}
                   refreshProject={refresh}
                   reloadTree={reloadProjectTree}
@@ -761,22 +761,20 @@ const Project = () => {
             onCancel={() => closeModal(ModalKey.RemotePdf)}
             onConfirm={handleRemotePdfConfirm}
           />
-          <YoutubeVideoSelectModal
-            open={modalStates.youtube}
-            onCancel={() => closeModal(ModalKey.Youtube)}
-            onConfirm={handleYoutubeConfirm}
-          />
           <WebViewSelectModal
             open={modalStates.webview}
             onCancel={() => closeModal(ModalKey.Webview)}
             onSelectFile={handleSelectWebviewFile}
             onConfirm={handleWebviewConfirm}
           />
-          <BilibiliVideoSelectModal
-            open={modalStates.bilibili}
-            onCancel={() => closeModal(ModalKey.Bilibili)}
-            onConfirm={handleBilibiliConfirm}
-          />
+          {videoSourceId && (
+            <OnlineVideoSelectModal
+              providerId={videoSourceId}
+              open={modalStates.onlineVideo}
+              onCancel={() => closeModal(ModalKey.OnlineVideo)}
+              onConfirm={handleOnlineVideoConfirm}
+            />
+          )}
 
           <SelectPdfDialog
             open={selectPdfModalOpen}

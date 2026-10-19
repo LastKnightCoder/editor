@@ -9,6 +9,7 @@ import { migrateSyncPluginSettings } from "../services/sync-settings-migration";
 import { migrateUploadSettings } from "../services/upload-settings-migration";
 import { migrateTTSSettings } from "../services/tts-settings-migration";
 import { migrateImageSettings } from "../services/image-settings-migration";
+import { migrateVideoSettings } from "../services/video-settings-migration";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -137,6 +138,18 @@ class UserSettingModule {
     });
   }
 
+  /** 在线视频提供方每个插件一份配置，不改变其他插件的配置。 */
+  async updateVideoPlugin(pluginId: string, config: unknown): Promise<void> {
+    const snapshot = structuredClone(config);
+    await this.updateSetting(current => ({
+      ...current,
+      onlineVideo: {
+        ...current.onlineVideo,
+        configurations: { ...current.onlineVideo?.configurations, [pluginId]: snapshot },
+      },
+    }));
+  }
+
   async updateImagePlugin(instanceId: string, pluginId: string, config: unknown, modelId: string) {
     if (typeof modelId !== "string" || !modelId.trim()) throw new Error("图片模型不能为空");
     const snapshot = structuredClone({ config, modelId });
@@ -194,6 +207,11 @@ class UserSettingModule {
         )
         .then(setting =>
           migrateImageSettings(setting, PathUtil.getAppDir(), next =>
+            this.saveSetting(JSON.stringify(next, null, 2))
+          )
+        )
+        .then(setting =>
+          migrateVideoSettings(setting, PathUtil.getAppDir(), next =>
             this.saveSetting(JSON.stringify(next, null, 2))
           )
         )
