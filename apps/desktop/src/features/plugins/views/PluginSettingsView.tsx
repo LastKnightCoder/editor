@@ -11,11 +11,13 @@ export function PluginSettingsView({
   syncConfig,
   uploadConfig,
   ttsConfig,
+  imageConfig,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
+  imageConfig?: PluginSettingsProps["imageConfig"];
 }) {
   if (!section)
     return (
@@ -43,6 +45,12 @@ export function PluginSettingsView({
         在语音设置中配置
       </Button>
     );
+  if (section.definition.target === "images" && !imageConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openSettings("imageGeneration")}>
+        在图片生成设置中配置
+      </Button>
+    );
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -55,11 +63,12 @@ export function PluginSettingsView({
       )}
     >
       <SettingsScope
-        key={ttsConfig?.instanceId}
+        key={imageConfig?.instanceId ?? ttsConfig?.instanceId}
         section={section}
         syncConfig={syncConfig}
         uploadConfig={uploadConfig}
         ttsConfig={ttsConfig}
+        imageConfig={imageConfig}
       />
     </RecoverableBoundary>
   );
@@ -70,11 +79,13 @@ function SettingsScope({
   syncConfig,
   uploadConfig,
   ttsConfig,
+  imageConfig,
 }: {
   section: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
+  imageConfig?: PluginSettingsProps["imageConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
@@ -92,6 +103,7 @@ function SettingsScope({
           syncConfig={syncConfig}
           uploadConfig={uploadConfig}
           ttsConfig={ttsConfig}
+          imageConfig={imageConfig}
         />
       </UiProvider>
     </QueryClientProvider>

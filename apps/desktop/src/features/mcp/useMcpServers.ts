@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MCP_PROVIDERS, type MCPProviderDefinition } from "@/mcp/providers";
 import useMCPStore, { type CustomMCPServer, type MCPServerToolInfo } from "@/stores/useMCPStore";
 import useSettingStore from "@/stores/useSettingStore";
+import { useImageCapabilities } from "@/services/image-capabilities";
 import { disconnectFromServer } from "@/tools/customMCP";
 import toolRegistry, { reloadCustomServer } from "@/tools";
 import type { ScopedToolSource } from "@/tools/toolRegistry";
@@ -87,6 +88,7 @@ export function useMcpServers() {
   const serverTools = useMCPStore(s => s.serverTools);
   // 图片生成 provider 的可用性取决于设置
   const imageGeneration = useSettingStore(s => s.setting.imageGeneration);
+  const imageCapabilities = useImageCapabilities();
 
   const builtin = useMemo(
     () =>
@@ -99,7 +101,7 @@ export function useMcpServers() {
       ),
     // imageGeneration 变化时重新判定 isAvailable
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [providerStates, disabledTools, imageGeneration]
+    [providerStates, disabledTools, imageGeneration, imageCapabilities]
   );
 
   const custom = useMemo(
