@@ -114,7 +114,11 @@ it("排序走菜单，搜索防抖后才请求，快速下载使用最新版本"
 it("分类条只列有插件的分类，单选后按分类请求，卡片显示分类", async () => {
   const { catalog } = setup();
   await screen.findByText("插件 a");
-  expect(screen.getByText("编辑器 · AI")).toBeTruthy();
+  expect(
+    [...screen.getByRole("list", { name: "分类" }).querySelectorAll("li")].map(
+      item => item.textContent
+    )
+  ).toEqual(["编辑器", "AI"]);
   const group = screen.getByRole("group", { name: "插件分类" });
   expect([...group.querySelectorAll("button")].map(button => button.textContent)).toEqual([
     "全部",

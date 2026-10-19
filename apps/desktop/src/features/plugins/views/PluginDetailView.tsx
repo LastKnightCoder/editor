@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Github, Layers, ShieldAlert } from "lucide-react";
-import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
+import { Button, FadeScroll, Switch, Tabs, Tag } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import {
@@ -437,7 +437,15 @@ function Aside({
     ["插件 ID", <span className="font-tau-mono text-[12px]">{id}</span>],
   ];
   if (plugin) info.push(["当前版本", plugin.info.version]);
-  if (categories.length) info.push(["分类", categories.join("、")]);
+  if (categories.length)
+    info.push([
+      "分类",
+      <span className="flex flex-wrap gap-1.5">
+        {categories.map(label => (
+          <Tag key={label}>{label}</Tag>
+        ))}
+      </span>,
+    ]);
   if (entry) {
     info.push(["需要客户端", `≥ ${(entry.compatible ?? entry.latest).minAppVersion}`]);
     info.push(["大小", formatSize((entry.compatible ?? entry.latest).size)]);
