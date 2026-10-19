@@ -282,7 +282,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
                 把插件 ZIP 拖到这里，或点击选择
               </p>
               <p className="text-tau-sm text-ink-3 leading-[1.7]">
-                包内需要 manifest.json、README.md 和运行文件，8 MiB 以内
+                包内需要 manifest.json、README.md 和运行文件，16 MiB 以内
                 <br />
                 介绍与使用说明都读自 README，不用另外填写
               </p>
