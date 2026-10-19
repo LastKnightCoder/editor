@@ -14,17 +14,11 @@ const result = await client.readData({ key: manifest.items[0].key });
 
 ## 数据分布
 
-- 清单 `site.<摘要>.json`：站点信息、全部内容的 key 与数据文件、搜索索引引用，以及只出现一次的站点级数据——`settings`（发布外观设置）、`collections`（项目列表）、`cardTagTree`（卡片标签树）、`projectTrees`（按项目 id 的文档目录）、`contentLinkTargets`（项目条目的链接目标）。
-- 内容文件：`key`、`meta`、`content`，以及可选的 `pluginRenderers`（内容插件产物）和 `contentStyles`（正文动态样式）。资源以所属数据文件的 URL 为上下文解析。
+- 清单 `site.<摘要>.json`：站点信息、全部内容的 key 与数据文件、搜索索引引用，以及只出现一次的站点级数据——`settings`（发布外观设置）、`collections`（项目列表）、`cardTagTree`（卡片标签树）、`projectTrees`（按项目 id 的文档目录）。`readData` 会把 `settings` 一并带回。
+- 内容文件：`key`、`meta`、`content`，以及可选的 `links`（本文正文里已发布的站内链接目标）、`pluginRenderers`（内容插件产物）和 `contentStyles`（正文动态样式）。资源以所属数据文件的 URL 为上下文解析。
 - 公开路由完全由模板决定，数据里只有 ContentRef（`{ key, type, id? }`），没有 URL。
 
-## 正文里的站内链接
-
-正文节点 `content-link`（类型 `ContentLinkNode`）的目标键为 `${contentType}:${refId}`：
-
-- `card`、`article`：这个键就是清单 item 的 key；
-- `project-item`：经清单 `contentLinkTargets` 查到目标 ContentRef；
-- 查不到即目标未发布，按普通文字显示即可。
+正文的站内链接由 `@tau/blog` 按 `links` 渲染，模板只提供 `hrefFor`。自己渲染正文的站点按 `links` 的键（`${contentType}:${refId}`，与求索资料的 `citeKey` 同一口径）查目标，查不到即目标未发布。
 
 ## 样式
 

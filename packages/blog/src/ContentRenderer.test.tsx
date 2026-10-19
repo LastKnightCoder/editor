@@ -4,7 +4,7 @@ import { createHash, webcrypto } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { afterEach, expect, expectTypeOf, it, vi } from "vitest";
-import type { DataResult } from "@tau/plugins/publish-data";
+import type { ContentNode, DataResult } from "@tau/plugins/publish-data";
 import { ContentRenderer, type ContentRendererProps } from "./ContentRenderer";
 import { prepareContent, readVerified } from "./load";
 
@@ -57,10 +57,29 @@ function result(initial: number): DataResult {
   };
 }
 afterEach(() => vi.unstubAllGlobals());
+const paragraph = (...children: ContentNode[]): ContentNode => ({
+  type: "paragraph",
+  children: [{ type: "formatted", text: "" }, ...children, { type: "formatted", text: "" }],
+});
+const link = (contentType: string, refId: number, text: string): ContentNode => ({
+  type: "content-link",
+  contentType,
+  refId,
+  contentId: refId,
+  contentTitle: text,
+  children: [{ type: "formatted", text }],
+});
 
-it("公开参数仅包含正文接入和已使用的定制能力", () => {
+it("公开参数只有正文、路由与语义插槽，不暴露编辑器装配", () => {
   expectTypeOf<keyof ContentRendererProps>().toEqualTypeOf<
-    "content" | "fallback" | "kit" | "initValue" | "extensions" | "onInit" | "className" | "style"
+    | "content"
+    | "nodes"
+    | "hrefFor"
+    | "renderLink"
+    | "onOutline"
+    | "fallback"
+    | "className"
+    | "style"
   >();
 });
 function setup() {
@@ -271,7 +290,7 @@ it("并列正文和预览状态独立，CSS 原样加载并随实例卸载清理
   expect(document.querySelector("[data-tau-content-style]")).toBeNull();
 });
 
-it("嵌套渲染器不继承父正文的内容插件", async () => {
+it("链接预览里嵌套的渲染器不继承父正文的内容插件", async () => {
   setup();
   const container = document.createElement("div");
   document.body.append(container);
@@ -279,35 +298,20 @@ it("嵌套渲染器不继承父正文的内容插件", async () => {
   const outer = result(7),
     inner = result(19);
   inner.data.pluginRenderers = [];
+  outer.data.links = { "article:2": { key: "article:2", type: "article", id: 2 } };
   if ("content" in outer.data.content)
-    outer.data.content.content.push({
-      type: "example.nested",
-      children: [{ type: "formatted", text: "" }],
-    });
+    outer.data.content.content.push(paragraph(link("article", 2, "第二篇")));
   try {
     await act(async () =>
       root.render(
         <ContentRenderer
           content={outer}
-          extensions={[
-            {
-              id: "example.nested",
-              apiVersion: 1,
-              elements: [
-                {
-                  type: "example.nested",
-                  kind: "block",
-                  isVoid: true,
-                  render: ({ attributes, children }) => (
-                    <div {...attributes}>
-                      <ContentRenderer content={inner} />
-                      {children}
-                    </div>
-                  ),
-                },
-              ],
-            },
-          ]}
+          renderLink={({ children }) => (
+            <span>
+              {children}
+              <ContentRenderer content={inner} />
+            </span>
+          )}
         />
       )
     );
@@ -319,6 +323,71 @@ it("嵌套渲染器不继承父正文的内容插件", async () => {
     expect(nested.querySelector("button")).toBeNull();
     expect(nested.textContent).not.toContain("19");
     expect(container.querySelector("button")?.textContent).toBe("7");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("站内链接按本文链接表解析，模板只给地址；未发布只显示文字", async () => {
+  setup();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const content = result(7);
+  content.data.pluginRenderers = [];
+  content.data.links = { "project-item:34": { key: "doc:project:12:34", type: "doc", id: 34 } };
+  if ("content" in content.data.content)
+    content.data.content.content = [
+      paragraph(link("project-item", 34, "项目文档"), link("card", 404, "未发布")),
+    ];
+  const seen: string[] = [];
+  try {
+    await act(async () =>
+      root.render(
+        <ContentRenderer
+          content={content}
+          hrefFor={target => `/docs/${target.id}`}
+          onOutline={headings => seen.push(JSON.stringify(headings))}
+        />
+      )
+    );
+    await vi.waitFor(async () => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+      expect(container.textContent).toContain("未发布");
+    });
+    expect(
+      [...container.querySelectorAll("a")].map(a => [a.textContent, a.getAttribute("href")])
+    ).toEqual([["项目文档", "/docs/34"]]);
+    expect(seen).toEqual(["[]"]);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("目录取正文顶层标题，发布设置随数据生效", async () => {
+  setup();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const content = result(7);
+  content.data.pluginRenderers = [];
+  content.settings = { appearance: { image: { borderRadius: "lg", shadow: "none" } } };
+  if ("content" in content.data.content)
+    content.data.content.content = [
+      { type: "header", level: 2, children: [{ type: "formatted", text: "第一节" }] },
+      paragraph({ type: "formatted", text: "正文" }),
+    ];
+  let headings: unknown;
+  try {
+    await act(async () =>
+      root.render(<ContentRenderer content={content} onOutline={value => (headings = value)} />)
+    );
+    await vi.waitFor(async () => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+      expect(headings).toEqual([{ level: 2, title: "第一节" }]);
+    });
   } finally {
     await act(async () => root.unmount());
     container.remove();

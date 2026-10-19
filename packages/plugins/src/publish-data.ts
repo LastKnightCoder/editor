@@ -37,8 +37,6 @@ export interface DataManifest {
   cardTagTree?: CardTagTree[];
   /** 键为项目 id。 */
   projectTrees?: Record<string, TreeItem[]>;
-  /** 项目条目的站内链接目标，键为 `project-item:<refId>`；卡片与文章的链接键本身就是清单 key。 */
-  contentLinkTargets?: Record<string, ContentRef>;
 }
 export interface ContentNode {
   [field: string]: unknown;
@@ -46,18 +44,7 @@ export interface ContentNode {
   type?: string;
   children?: ContentNode[];
 }
-/**
- * 正文中的站内链接。目标键为 `${contentType}:${refId}`：
- * card、article 直接对应清单 item.key；project-item 经清单 contentLinkTargets 解析；查不到即目标未发布。
- */
-export interface ContentLinkNode extends ContentNode {
-  type: "content-link";
-  refId: number;
-  contentId: number;
-  contentType: string;
-  contentTitle: string;
-  children: ContentNode[];
-}
+
 export interface TreeItem {
   title: string;
   target?: ContentRef;
@@ -191,6 +178,8 @@ export interface CardTagTree {
 export interface PublishedCommon {
   version: 1;
   key: string;
+  /** 本文正文里已发布的站内链接目标，键与 QuestMaterial.citeKey 同一口径；未发布的链接不在其中。 */
+  links?: Record<string, ContentRef>;
   pluginRenderers?: import("./render-artifact").PublishedPluginRender[];
   contentStyles?: ResourceRef[];
 }
@@ -210,6 +199,8 @@ export type PublishedData = {
 export interface DataResult {
   data: PublishedData;
   dataUrl: string;
+  /** 清单中的发布设置，由客户端随正文带回。 */
+  settings?: PublishSettings;
 }
 export interface SearchDocument extends ContentRef {
   type: "card" | "article" | "doc" | "quest";

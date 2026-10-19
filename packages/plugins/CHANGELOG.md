@@ -4,8 +4,8 @@
 
 - manifest 支持 `categories`（插件中心分类）与 `keywords`（目录搜索），门户上传严格校验，客户端忽略未知值。
 - 博客模板包（`template` 分支）同样支持分类与关键词，只含静态站点产物，不能同时声明代码插件入口。
-- publish-data：站点级数据（`settings`、`collections`、`cardTagTree`、`projectTrees`、项目条目 `contentLinkTargets`）改为只在清单中出现，内容文件不再携带；新增 `ContentLinkNode` 与站内链接目标键说明。
-- publish-client 的检索引擎按索引缓存，不再每次查询重建。
+- publish-data：站点级数据（`settings`、`collections`、`cardTagTree`、`projectTrees`）改为只在清单中出现；内容文件新增 `links`，只含本文用到且已发布的站内链接目标。
+- publish-client：`readData` 随正文带回清单的 `settings`；检索引擎按索引缓存，不再每次查询重建。
 
 ## 0.19.0
 

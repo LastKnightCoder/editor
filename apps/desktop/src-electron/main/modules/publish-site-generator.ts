@@ -189,6 +189,7 @@ export class PublishSiteGenerator {
   private readonly compileTailwind: PublishGeneratorOptions["compileTailwind"];
   private readonly logger: PublishGeneratorOptions["logger"];
   private readonly tailwindCssCache = new Map<string, string>();
+  private linkTargets: Record<string, ContentRef> = {};
   private readonly pluginCatalog: PublishPluginCatalog;
 
   constructor(options: PublishGeneratorOptions) {
@@ -242,8 +243,9 @@ export class PublishSiteGenerator {
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
-    this.output = new PublishDataOutput((data, dataPath) =>
-      this.pluginCatalog.dependencies(data, dataPath)
+    this.output = new PublishDataOutput(
+      (data, dataPath) => this.pluginCatalog.dependencies(data, dataPath),
+      identity => this.linkTargets[identity]
     );
     this.pluginCatalog.reset();
     this.tailwindCssCache.clear();
@@ -273,6 +275,7 @@ export class PublishSiteGenerator {
       cardIds: [...cardMap.keys()],
       articleIds: [...articleMap.keys()],
     });
+    this.linkTargets = baseTargets;
     const docResult = await this.buildDocData(
       db,
       projects,
@@ -347,10 +350,6 @@ export class PublishSiteGenerator {
       docs: docResult.listEntries,
       quests: questResult.entries,
     });
-    // 站点级数据只进清单一次；卡片、文章的链接键即清单 key，只需登记项目条目。
-    const projectItemTargets = Object.fromEntries(
-      Object.entries(targets).filter(([identity]) => identity.startsWith("project-item:"))
-    );
     return {
       files: this.output.finish(this.template, search, {
         site: this.buildSiteInitMeta(site),
@@ -359,9 +358,6 @@ export class PublishSiteGenerator {
         ...(cards.length ? { cardTagTree: this.buildCardTagTree(cards) } : {}),
         ...(Object.keys(docResult.projectTrees).length
           ? { projectTrees: docResult.projectTrees }
-          : {}),
-        ...(Object.keys(projectItemTargets).length
-          ? { contentLinkTargets: projectItemTargets }
           : {}),
       }),
       virtualProcessed: docResult.skippedDocItems,
@@ -661,7 +657,7 @@ export class PublishSiteGenerator {
     }
 
     const docCollections = this.buildDocCollectionsFromMeta(collectionMeta);
-    const contentLinkTargets = mergeDocEntryContentLinkTargets(
+    const contentLinkTargets = (this.linkTargets = mergeDocEntryContentLinkTargets(
       baseContentLinkTargets,
       entries.map(entry => ({
         id: entry.id,
@@ -669,7 +665,7 @@ export class PublishSiteGenerator {
         target: entry.target,
         title: entry.title,
       }))
-    );
+    ));
 
     for (const entityEntries of entityEntryMap.values()) {
       for (let i = 0; i < entityEntries.length; i++) {

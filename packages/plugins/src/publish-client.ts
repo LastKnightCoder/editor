@@ -240,7 +240,11 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
         "IDENTITY_MISMATCH",
         "内容身份不匹配"
       );
-      return { data: value as unknown as PublishedData, dataUrl };
+      return {
+        data: value as unknown as PublishedData,
+        dataUrl,
+        ...(source.settings ? { settings: source.settings } : {}),
+      };
     },
     async search(query, { limit = 12, signal } = {}) {
       cancelled(signal);
