@@ -23,6 +23,8 @@ pnpm install:local
 ## 改成自己的插件
 
 1. 修改 `manifest.json` 的 `id`、`name`、`version`、`description`。`id` 用你自己的唯一名称，例如 `yourname.counter`。
+   - `categories` 决定插件在插件中心出现在哪些分类下，可多选，也可不填：`sync` 同步、`upload` 资源上传、`editor` 编辑器、`whiteboard` 白板、`blog-template` 博客模板、`ai` AI（Skill、MCP、聊天工具渲染、AI 功能、图片）、`voice` 语音、`page` 页面（页面与侧边栏入口）。只提供命令或设置的插件可以不填。
+   - `keywords` 最多 5 个、每个不超过 20 字，只用于插件中心搜索，例如 S3 插件可写 `MinIO`、`R2`。
 2. 修改 `package.json` 的项目名称和版本。
 3. 在 `src/index.tsx` 中实现功能，在 `src/styles.css` 中编写样式。
 4. 把 `README.md` 改成给用户看的介绍和使用步骤；需要版本记录时再加 `CHANGELOG.md`。
