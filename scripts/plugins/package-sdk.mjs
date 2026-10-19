@@ -32,7 +32,11 @@ try {
   const syncEntry = path.join(root, "packages/plugins/src/sync.ts");
   const publishEntry = path.join(root, "packages/plugins/src/publish-data.ts");
   const clientEntry = path.join(root, "packages/plugins/src/publish-client.ts");
-  const graph = ts.createProgram([...entries, whiteboardEntry, syncEntry, publishEntry, clientEntry], options);
+  const artifactsEntry = path.join(root, "packages/plugins/src/publish-artifacts.ts");
+  const graph = ts.createProgram(
+    [...entries, whiteboardEntry, syncEntry, publishEntry, clientEntry, artifactsEntry],
+    options
+  );
   const program = ts.createProgram(
     graph
       .getSourceFiles()
@@ -148,9 +152,23 @@ try {
       await copyDeclaration(syncEntry);
       await copyDeclaration(publishEntry);
       await copyDeclaration(clientEntry);
-      await writeFile(path.join(directory, "PUBLISH-DATA.md"), await readFile(path.join(root, "scripts/plugins/PUBLISH-DATA.md")));
+      await copyDeclaration(artifactsEntry);
+      await writeFile(
+        path.join(directory, "PUBLISH-DATA.md"),
+        await readFile(path.join(root, "scripts/plugins/PUBLISH-DATA.md"))
+      );
       await writeFile(path.join(directory, "publish-data.js"), "export {};\n");
-      await build({ entryPoints: { "publish-client": clientEntry }, outdir: directory, bundle: true, splitting: true, platform: "browser", format: "esm", target: "es2022", entryNames: "[name]", chunkNames: "client/[name]-[hash]" });
+      await build({
+        entryPoints: { "publish-client": clientEntry, "publish-artifacts": artifactsEntry },
+        outdir: directory,
+        bundle: true,
+        splitting: true,
+        platform: "browser",
+        format: "esm",
+        target: "es2022",
+        entryNames: "[name]",
+        chunkNames: "client/[name]-[hash]",
+      });
     }
     await writeFile(
       path.join(directory, "runtime.js"),
@@ -180,6 +198,10 @@ try {
                   "./publish-client": {
                     types: "./" + targetOf(clientEntry),
                     default: "./publish-client.js",
+                  },
+                  "./publish-artifacts": {
+                    types: "./" + targetOf(artifactsEntry),
+                    default: "./publish-artifacts.js",
                   },
                   "./whiteboard": {
                     types: "./" + targetOf(whiteboardEntry),

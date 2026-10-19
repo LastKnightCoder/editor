@@ -8,9 +8,9 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Awareness } from "y-protocols/awareness";
 import { createSharedDocument } from "@tau/collaboration";
 import { Editor, createEditorKit } from "@tau/editor";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { IEditorSlots } from "@tau/editor-media/services";
-import { focusRoleOf } from "../../../editor/src/components/FocusPath/focusPath";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
+import { focusRoleOf } from "../../../editor/src/core/components/FocusPath/focusPath";
 import { createYjsDocument } from "../document";
 import type { EditorCollaborationBinding } from "../types";
 

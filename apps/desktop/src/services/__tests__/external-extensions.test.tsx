@@ -7,23 +7,23 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Transforms, type Descendant } from "slate";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
-import { IEditorSlots } from "@tau/editor-media/services";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { customBlockExtension, htmlExtension } from "../../test-fixtures/plugin-packages";
 import "@tau/plugins/source-editor-host";
-import { diagramExtensions } from "@tau/editor-diagram";
-import { ITypstCompiler } from "@tau/editor-diagram/services";
+import { diagramExtensions } from "@tau/editor/extensions/diagram";
+import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
-import codeBlockExtension from "@tau/editor-code-block";
-import { getCodeBlockController } from "@tau/editor-code-block/runtime";
-import { mathExtensions } from "@tau/editor-math";
-import emojiExtension from "@tau/editor-emoji";
+import codeBlockExtension from "@tau/editor/extensions/code-block";
+import { getCodeBlockController } from "@tau/editor/extensions/code-block/runtime";
+import { mathExtensions } from "@tau/editor/extensions/math";
+import emojiExtension from "@tau/editor/extensions/emoji";
 import { isBlockElementEmpty, isParagraphAndEmpty } from "@tau/editor";
-import useBlockPanelStore from "../../../../../packages/editor/src/stores/useBlockPanelStore";
-import { bulletedList, listItem } from "@tau/editor-list";
+import useBlockPanelStore from "../../../../../packages/editor/src/core/stores/useBlockPanelStore";
+import { bulletedList, listItem } from "@tau/editor/extensions/list";
 
-vi.mock("@tau/editor-diagram/mermaid", () => ({
+vi.mock("@tau/editor/extensions/diagram/mermaid", () => ({
   renderMermaidSvg: async ({ code }: { code: string }) => `<svg><text>${code}</text></svg>`,
 }));
 

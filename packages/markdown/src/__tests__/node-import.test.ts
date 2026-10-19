@@ -12,7 +12,7 @@ describe("Node 原生加载 @tau/markdown", () => {
     // 框架不自带元素类型，处理器要显式给 codec；这里内联最小的 header / paragraph codec
     const script = `
       const m = await import("@tau/markdown");
-      const { textFormattingCodec } = await import("@tau/editor-text-formatting/markdown");
+      const { textFormattingCodec } = await import("@tau/editor/extensions/text-formatting/markdown");
       const md = m.createMarkdownProcessor({
         textCodecs: [textFormattingCodec],
         codecs: [

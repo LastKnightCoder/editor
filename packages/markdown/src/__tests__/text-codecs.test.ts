@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMarkdownProcessor, type MarkdownTextCodec } from "../index.ts";
 import { paragraphCodec, fixtureProcessor } from "./fixtures.ts";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import type { FormattedText } from "../model.ts";
 
 const leaf = (fields: Record<string, unknown> = {}): FormattedText => ({

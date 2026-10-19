@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { createMarkdownProcessor } from "@tau/markdown";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { desktopCodecComposition as editorMarkdownCodecs } from "../markdown.ts";
 
 /** 内置扩展 codec 的处理器：宿主同样按「editor 列表 + 自己的业务 codec」合成 */

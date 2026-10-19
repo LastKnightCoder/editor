@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { createMarkdownProcessor } from "@tau/markdown";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { desktopCodecComposition } from "../../utils/markdown";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { htmlDefinition, htmlExtension } from "../../test-fixtures/plugin-packages";

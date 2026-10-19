@@ -1,12 +1,12 @@
-import { openLinkPanel } from "@tau/editor-link";
-import { wrapComment, unwrapComment } from "@tau/editor-comment";
-import { wrapKbd, unwrapKbd } from "@tau/editor-kbd";
-import { unwrapStyledText, wrapStyledText } from "@tau/editor-styled-text";
-import { unwrapUnderline, wrapUnderline } from "@tau/editor-underline";
+import { openLinkPanel } from "@tau/editor/extensions/link";
+import { wrapComment, unwrapComment } from "@tau/editor/extensions/comment";
+import { wrapKbd, unwrapKbd } from "@tau/editor/extensions/kbd";
+import { unwrapStyledText, wrapStyledText } from "@tau/editor/extensions/styled-text";
+import { unwrapUnderline, wrapUnderline } from "@tau/editor/extensions/underline";
 import {
   TEXT_GRADIENT_PRESETS,
   type TextGradientPresetId,
-} from "@tau/editor-text-formatting/palette";
+} from "@tau/editor/extensions/text-formatting/palette";
 import { Editor, Element, Node, Path, Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
 

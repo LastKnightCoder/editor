@@ -1,5 +1,5 @@
 import { createMarkdownProcessor } from "@tau/markdown";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { desktopCodecComposition, desktopMarkdown } from "@/utils/markdown";
 import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import type {

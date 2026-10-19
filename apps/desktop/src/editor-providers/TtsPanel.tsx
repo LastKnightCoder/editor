@@ -1,7 +1,7 @@
 import { AudioLines } from "lucide-react";
 
 import { showMediaNode } from "./mediaModalHost";
-import { type MediaInsertSource } from "@tau/editor-media/services";
+import { type MediaInsertSource } from "@tau/editor/extensions/media/services";
 import TTSGenerateModal from "@/components/TTSGenerateModal";
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 

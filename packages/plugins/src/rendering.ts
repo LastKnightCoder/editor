@@ -5,6 +5,7 @@ import {
   PLUGIN_SHARED_MODULES,
   validatePluginManifest,
   type DevelopmentPluginPackage,
+  type PluginManifest,
 } from "./package.ts";
 export type { PublishedPluginRender } from "./render-artifact";
 
