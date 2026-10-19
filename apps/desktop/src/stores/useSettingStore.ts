@@ -7,10 +7,6 @@ import { EGithubCDN } from "@/constants/github";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { IPublishFaviconConfig } from "@/types/publish";
-import {
-  DEFAULT_OPENAI_IMAGE_BASE_URL,
-  DEFAULT_OPENAI_IMAGE_MODEL,
-} from "@/utils/image-generation";
 import type { ImageGenerationStoreShape } from "@/types/imageGeneration";
 
 export enum EImageBed {
@@ -53,7 +49,7 @@ const normalizeImageGenerationConfig = (setting: Partial<ISetting>): void => {
     typeof imageGeneration.currentProviderId !== "string" ||
     !imageGeneration.providers.some(provider => provider.id === imageGeneration.currentProviderId)
   ) {
-    imageGeneration.currentProviderId = imageGeneration.providers[0]?.id ?? "";
+    imageGeneration.currentProviderId = "";
   }
 };
 
@@ -431,17 +427,8 @@ const initialState: IState = {
       default: null,
     },
     imageGeneration: {
-      currentProviderId: "default-openai",
-      providers: [
-        {
-          id: "default-openai",
-          name: "OpenAI 兼容",
-          providerType: "openai",
-          baseUrl: DEFAULT_OPENAI_IMAGE_BASE_URL,
-          apiKey: "",
-          modelName: DEFAULT_OPENAI_IMAGE_MODEL,
-        },
-      ],
+      currentProviderId: "",
+      providers: [],
     },
     agentPermission: {
       mode: DEFAULT_TOOL_PERMISSION_MODE,

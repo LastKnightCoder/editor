@@ -20,6 +20,8 @@ import userSetting from "./user-setting";
 import { getMainWindows } from "../windows/main-window";
 import { pluginUploadRelay } from "../services/plugin-upload";
 import { pluginTTSRelay } from "../services/plugin-tts";
+import { pluginImagesRelay } from "../services/plugin-images";
+import type { ImagesRendererRequest, ImagesRendererReply } from "../../../shared/images-renderer";
 import type { TTSRendererRequest, TTSRendererReply } from "../../../shared/tts-renderer";
 import type { UploadRequest, UploadRendererReply } from "../../../shared/upload-renderer";
 import {
@@ -67,6 +69,55 @@ export default {
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    const imagesChanged = () => {
+      for (const window of BrowserWindow.getAllWindows())
+        if (!window.isDestroyed()) window.webContents.send("plugin-images:changed");
+    };
+    pluginImagesRelay.onChange = imagesChanged;
+    ipcMain.handle(
+      "plugin-local:images-config",
+      async (
+        _event,
+        instanceId: string,
+        pluginId: string,
+        config: import("@tau/plugins").JsonValue,
+        modelId: string
+      ) => {
+        const artifact = await readPluginPackage(
+          path.join(directory(), pluginId),
+          app.getVersion()
+        );
+        if (artifact.manifest.id !== pluginId) throw new Error("插件身份无效");
+        await userSetting.updateImagePlugin(instanceId, pluginId, copyJson(config), modelId);
+      }
+    );
+    ipcMain.handle("plugin-local:images-connect", (event, session: string) => {
+      if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
+        throw new Error("图片插件只能由主窗口执行");
+      pluginImagesRelay.connect(event.sender, session);
+    });
+    ipcMain.handle("plugin-local:images-release", (event, session: string) =>
+      pluginImagesRelay.release(event.sender.id, session)
+    );
+    ipcMain.handle("plugin-local:images-changed", (event, session: string) => {
+      if (pluginImagesRelay.hasHost(event.sender.id, session)) imagesChanged();
+    });
+    ipcMain.handle(
+      "plugin-local:images-closed",
+      (event, message: { session: string; hostSession: string }) =>
+        pluginImagesRelay.rendererClosed(event.sender.id, message.hostSession, message.session)
+    );
+    ipcMain.handle(
+      "plugin-local:images-request",
+      (event, id: string, request: ImagesRendererRequest) =>
+        pluginImagesRelay.request(event.sender, id, request)
+    );
+    ipcMain.handle("plugin-local:images-reply", (event, reply: ImagesRendererReply) =>
+      pluginImagesRelay.reply(event.sender.id, reply)
+    );
+    ipcMain.handle("plugin-local:images-cancel", (event, id: string) =>
+      pluginImagesRelay.cancel(event.sender.id, id)
+    );
     ipcMain.handle(
       "plugin-local:tts-config",
       async (

@@ -4,6 +4,12 @@ import type { JsonValue } from "./json";
 
 export interface PluginSettingsProps {
   readonly context: PluginContext;
+  readonly imageConfig?: {
+    readonly instanceId: string;
+    readonly value: JsonValue;
+    readonly modelId: string;
+    save(value: JsonValue, modelId: string): Promise<void>;
+  };
   readonly ttsConfig?: {
     readonly instanceId: string;
     readonly value: JsonValue;
@@ -25,7 +31,7 @@ export interface PluginSettingsDefinition {
   title: string;
   description?: string;
   /** 提供方配置表单挂载到对应宿主设置；普通插件设置省略。 */
-  target?: "sync" | "upload" | "tts";
+  target?: "sync" | "upload" | "tts" | "images";
   component: ComponentType<PluginSettingsProps>;
 }
 

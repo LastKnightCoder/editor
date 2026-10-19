@@ -35,10 +35,12 @@ assert(
   )
 );
 if (candidate) {
-  for (const [name, archive] of Object.entries({
-    editor: "output/editor-package/xiongtao.xt-tau-editor-0.1.0.tgz",
-    plugins: "output/plugin-sdk-data/xiongtao.xt-tau-plugins-0.17.1.tgz",
+  for (const [name, output] of Object.entries({
+    editor: "output/editor-package",
+    plugins: "output/plugin-sdk-data",
   })) {
+    const { version } = JSON.parse(await readFile(path.join(root, "packages", name, "package.json"), "utf8"));
+    const archive = path.join(output, `xiongtao.xt-tau-${name}-${version}.tgz`);
     await cp(path.join(root, archive), path.join(author, `${name}.tgz`));
     manifest.dependencies[`@tau/${name}`] = `file:./${name}.tgz`;
   }

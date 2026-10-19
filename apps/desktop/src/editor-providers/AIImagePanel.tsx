@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 import { ImageIcon, Plus, Sparkles, WandSparkles, X } from "lucide-react";
@@ -8,14 +8,8 @@ import { showMediaNode } from "./mediaModalHost";
 import type { CustomElement } from "@tau/editor";
 import { type MediaAction, type MediaInsertSource } from "@tau/editor/extensions/media/services";
 import LocalImage from "@/components/LocalImage";
-import {
-  createImageFileFromBase64,
-  resolveImageInputFile,
-  isProviderConfigValid,
-  getActiveImageGenerationConfig,
-  createProviderFromConfig,
-} from "@/utils/image-generation";
-import type { ImageResult } from "@/types/imageGeneration";
+import { generateImageResources } from "@/services/image-generation";
+import { useImageCapabilities } from "@/services/image-capabilities";
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 
 /**
@@ -42,54 +36,8 @@ type AIReferenceItem = {
   kind: "empty" | "original" | "result";
 };
 
-const isImageGenerationConfigured = () => {
-  const config = getActiveImageGenerationConfig();
-  return Boolean(config && isProviderConfigValid(config));
-};
-
-const uploadGeneratedImageResult = async (result: ImageResult, index = 0) => {
-  const file = result.b64Json
-    ? createImageFileFromBase64(
-        result.b64Json,
-        result.mimeType ?? "image/png",
-        `editor-ai-image-${index + 1}`
-      )
-    : result.url
-      ? await resolveImageInputFile(result.url)
-      : null;
-
-  if (!file) {
-    throw new Error("图片生成服务未返回可用图片");
-  }
-
-  const url = await uploadResourceCommand(file);
-  if (!url) {
-    throw new Error("图片已生成，但上传资源失败");
-  }
-
-  return {
-    url,
-    fileName: file.name,
-    mimeType: file.type,
-    revisedPrompt: result.revisedPrompt,
-  };
-};
-
-const runImageGeneration = async (prompt: string, images: string[]) => {
-  const config = getActiveImageGenerationConfig();
-  if (!config || !isProviderConfigValid(config)) {
-    throw new Error("图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称");
-  }
-  const provider = createProviderFromConfig(config);
-  const normalizedImages = images.map(item => item.trim()).filter(Boolean);
-  if (normalizedImages.length > 0) {
-    const imageFiles = await Promise.all(normalizedImages.map(item => resolveImageInputFile(item)));
-    const results = await provider.edit({ config, prompt, imageFiles });
-    return uploadGeneratedImageResult(results[0], 0);
-  }
-  const results = await provider.generate({ config, prompt });
-  return uploadGeneratedImageResult(results[0], 0);
-};
+const isImageGenerationConfigured = () => useImageCapabilities.getState().canGenerate;
+const isImageEditingConfigured = () => useImageCapabilities.getState().canEdit;
 
 export interface AIImageDialogProps {
   open: boolean;
@@ -108,6 +56,14 @@ export const AIImageDialog = ({
   originalUrl,
   onConfirm,
 }: AIImageDialogProps) => {
+  const capabilities = useImageCapabilities();
+  const taskRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    setAiSubmitting(false);
+    return () => {
+      taskRef.current?.abort();
+    };
+  }, [open, mode, originalUrl]);
   const [generatePrompt, setGeneratePrompt] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
   const [aiSubmitting, setAiSubmitting] = useState(false);
@@ -183,9 +139,22 @@ export const AIImageDialog = ({
     const selectedReferenceUrls = selectedReference.items
       .map(item => item.url)
       .filter((item): item is string => Boolean(item));
+    if (selectedReferenceUrls.length ? !capabilities.canEdit : !capabilities.canGenerate) {
+      toast.warning("当前图片插件未就绪或不支持该操作");
+      return;
+    }
+    taskRef.current?.abort();
+    const controller = new AbortController();
+    taskRef.current = controller;
     setAiSubmitting(true);
     try {
-      const result = await runImageGeneration(prompt, selectedReferenceUrls);
+      const [result] = await generateImageResources({
+        prompt,
+        imagePaths: selectedReferenceUrls,
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
+      if (!result) throw new Error("图片生成服务未返回图片");
       const candidates = isGenerate ? generatedCandidates : editedCandidates;
       const pendingImage: PendingAIImage = {
         id: getUuid(),
@@ -203,10 +172,11 @@ export const AIImageDialog = ({
         setSelectedEditResultId(pendingImage.id);
       }
     } catch (error) {
+      if (controller.signal.aborted || (error as Error).name === "AbortError") return;
       console.error("AI 图片处理失败:", error);
       toast.error((error as Error).message || "AI 图片处理失败");
     } finally {
-      setAiSubmitting(false);
+      if (taskRef.current === controller && !controller.signal.aborted) setAiSubmitting(false);
     }
   });
 
@@ -318,7 +288,7 @@ export const AIImageDialog = ({
             size="sm"
             className="ml-auto"
             onClick={() => handleUploadReference(action)}
-            disabled={aiSubmitting}
+            disabled={aiSubmitting || !capabilities.canEdit}
           >
             <Plus className="size-3.5" strokeWidth={1.75} />
             上传参考图
@@ -611,6 +581,6 @@ export const aiImageEditAction: MediaAction = {
   label: "AI 编辑图片",
   mediaTypes: ["image"],
   icon: <WandSparkles size={14} strokeWidth={1.75} />,
-  isAvailable: isImageGenerationConfigured,
+  isAvailable: isImageEditingConfigured,
   Modal: AIEditModal,
 };

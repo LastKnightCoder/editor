@@ -1,6 +1,7 @@
 import type { PluginDefinition } from "./contract";
 export type * from "./upload";
 export type * from "./tts";
+export type * from "./images";
 export type {
   JsonValue,
   Disposable,

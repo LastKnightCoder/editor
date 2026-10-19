@@ -66,8 +66,9 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
     onClose();
   });
 
-  const handleGenerateAIImage = useMemoizedFn(async (prompt: string) => {
-    const result = await generateWhiteboardImage(prompt);
+  const handleGenerateAIImage = useMemoizedFn(async (prompt: string, signal: AbortSignal) => {
+    const result = await generateWhiteboardImage(prompt, signal);
+    signal.throwIfAborted();
     await ImageUtil.insertImageFromPath(result.url, board);
     toast.success("图片已生成并插入");
     setAiGenerateOpen(false);
