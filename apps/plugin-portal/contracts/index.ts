@@ -1,3 +1,7 @@
+import type { PluginCategory } from "@tau/plugins/package";
+
+export type { PluginCategory };
+
 export const LIMITS = {
   zipBytes: 8 * 1024 * 1024,
   expandedBytes: 32 * 1024 * 1024,
@@ -55,6 +59,10 @@ export interface PackageManifest {
   styles?: string;
   integrity: Record<string, string>;
   description: string;
+  /** 作者自填的插件中心分类，上传时严格校验词表。 */
+  categories?: readonly PluginCategory[];
+  /** 仅参与目录搜索。 */
+  keywords?: readonly string[];
 }
 export interface PackageContent {
   manifest: PackageManifest;
@@ -150,6 +158,8 @@ export interface CatalogEntry {
   description: string;
   publisher: PublicPublisher;
   repository: string;
+  /** 取自 latest，作者未填写时为空数组。 */
+  categories: PluginCategory[];
   latest: CatalogVersion;
   /** 当前客户端可安装的最高版本；没有兼容版本时为 null，不回退到 latest。 */
   compatible: CatalogVersion | null;
@@ -158,6 +168,8 @@ export interface Catalog {
   items: CatalogEntry[];
   nextCursor: string | null;
   windowStart: string;
+  /** 各分类插件数，受 q 影响、不受 category 影响；仅首页返回，翻页为 null。 */
+  categoryCounts: Partial<Record<PluginCategory, number>> | null;
 }
 export type CatalogSort = "downloads7d" | "downloadsTotal" | "updated";
 export interface DownloadStatistics {

@@ -13,6 +13,7 @@ export function testEnvironment() {
     "0005_download_statistics.sql",
     "0006_plugin_community.sql",
     "0007_comment_moderation.sql",
+    "0008_release_categories.sql",
   ])
     sqlite.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));
   class Statement {

@@ -44,7 +44,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
     if (manifests.length !== 1) throw new Error("ZIP 必须包含单层插件目录与 manifest.json");
     if (manifests[0].header.size > 65536) throw new Error("manifest 过大");
     const raw = JSON.parse(unpack(manifests[0]).toString("utf8"));
-    const manifest = validatePluginManifest(raw);
+    const manifest = validatePluginManifest(raw, { strict: true });
     if (
       typeof raw.description !== "string" ||
       !raw.description.trim() ||

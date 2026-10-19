@@ -56,6 +56,7 @@ export interface PortalApi {
   deleteComment(pluginId: string, commentId: string): Promise<{ deleted: boolean }>;
   getCatalog(input: {
     q: string;
+    category: import("../../../contracts").PluginCategory | null;
     sort: import("../../../contracts").CatalogSort;
     cursor: string | null;
   }): Promise<import("../../../contracts").Catalog>;

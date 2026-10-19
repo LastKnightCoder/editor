@@ -142,7 +142,7 @@ export async function reviewRoute(
   if (decision === "approve")
     commands.push(
       env.DB.prepare(
-        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,name,description,min_app_version,state,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',? WHERE EXISTS(SELECT 1 FROM submission_reviews WHERE id=?)"
+        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,name,description,min_app_version,categories,keywords,state,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',? WHERE EXISTS(SELECT 1 FROM submission_reviews WHERE id=?)"
       ).bind(
         id,
         manifest.id,
@@ -159,6 +159,8 @@ export async function reviewRoute(
         manifest.name,
         manifest.description,
         manifest.minAppVersion,
+        JSON.stringify(manifest.categories ?? []),
+        JSON.stringify(manifest.keywords ?? []),
         time,
         id
       )

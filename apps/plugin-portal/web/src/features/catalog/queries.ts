@@ -1,21 +1,27 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { comparePluginVersions } from "@tau/plugins/package";
-import type { CatalogEntry, CatalogSort, ReleaseSummary } from "../../../../contracts";
+import type {
+  CatalogEntry,
+  CatalogSort,
+  PluginCategory,
+  ReleaseSummary,
+} from "../../../../contracts";
 import { useApi } from "../../app/api";
 
 export const catalogKeys = {
-  list: (q: string, sort: CatalogSort) => ["catalog", q, sort] as const,
+  list: (q: string, category: PluginCategory | null, sort: CatalogSort) =>
+    ["catalog", q, category, sort] as const,
   releases: (pluginId: string) => ["plugin-releases", pluginId] as const,
   release: (id: string) => ["release", id] as const,
   stats: (pluginId: string) => ["plugin-stats", pluginId] as const,
 };
 
-export function useCatalog(q: string, sort: CatalogSort) {
+export function useCatalog(q: string, category: PluginCategory | null, sort: CatalogSort) {
   const api = useApi();
   return useInfiniteQuery({
-    queryKey: catalogKeys.list(q, sort),
+    queryKey: catalogKeys.list(q, category, sort),
     initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => api.getCatalog({ q, sort, cursor: pageParam }),
+    queryFn: ({ pageParam }) => api.getCatalog({ q, category, sort, cursor: pageParam }),
     getNextPageParam: page => page.nextCursor ?? undefined,
     staleTime: 60_000,
     refetchOnWindowFocus: true,

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Tag } from "@tau/ui";
 import type { PackageManifest } from "../../../../contracts";
 import { PluginMark } from "../../components/PluginMark";
+import { categoryLabels } from "../catalog/categories";
 import { formatBytes } from "./validation";
 
 /** 插件包摘要：名称、版本与静态校验结果；完整清单在「文件」标签里 */
@@ -33,6 +34,10 @@ export function PackageCard({
         <p className="text-tau-sm text-ink-2 mt-0.5 truncate">{manifest.description}</p>
         <p className="text-tau-micro text-ink-3 font-tau-mono mt-0.5 truncate">
           {facts.join(" · ")}
+        </p>
+        <p className="text-tau-micro text-ink-3 mt-0.5 truncate">
+          分类：{categoryLabels(manifest.categories).join("、") || "未填写"}
+          {manifest.keywords?.length ? ` · 关键词：${manifest.keywords.join("、")}` : ""}
         </p>
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

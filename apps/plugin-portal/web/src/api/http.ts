@@ -224,9 +224,9 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     deleteComment: (pluginId, commentId) =>
       communityWrite("DELETE", `/v1/plugins/${id(pluginId)}/comments/${id(commentId)}`),
     githubLoginUrl: `${baseUrl}/v1/auth/github`,
-    getCatalog: ({ q, sort, cursor }) =>
+    getCatalog: ({ q, category, sort, cursor }) =>
       read(
-        `/v1/catalog?${new URLSearchParams({ appVersion: "0.59.0", q, sort, ...(cursor ? { cursor } : {}) })}`
+        `/v1/catalog?${new URLSearchParams({ appVersion: "0.59.0", q, sort, ...(category ? { category } : {}), ...(cursor ? { cursor } : {}) })}`
       ),
     downloadRelease,
     listReleases: (pluginId, cursor) =>
