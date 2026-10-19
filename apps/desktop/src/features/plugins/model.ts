@@ -1,8 +1,42 @@
 import type { PluginInfo } from "@tau/plugins/host";
-import { comparePluginVersions } from "@tau/plugins/host";
+import { comparePluginVersions, type PluginContributionKind } from "@tau/plugins/host";
+import { PLUGIN_CATEGORIES, type PluginCategory } from "@tau/plugins/package";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
 import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
+
+const CATEGORY_LABELS = new Map<string, string>(
+  PLUGIN_CATEGORIES.map(item => [item.id, item.label])
+);
+export const categoryLabels = (categories: readonly PluginCategory[] | undefined) =>
+  (categories ?? []).map(id => CATEGORY_LABELS.get(id) ?? id);
+
+/** 发现页分类菜单：只列有插件的分类，顺序同词表；客户端不认识的分类已在类型层被忽略。 */
+export function catalogCategories(entries: readonly PluginCatalogEntry[]) {
+  return PLUGIN_CATEGORIES.map(item => ({
+    ...item,
+    count: entries.filter(entry => entry.categories?.includes(item.id)).length,
+  })).filter(item => item.count > 0);
+}
+
+/** 详情页「此插件提供」的显示顺序与文案，按运行时实际注册统计。 */
+export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
+  page: "页面",
+  sidebar: "侧边栏入口",
+  command: "命令",
+  settings: "设置分组",
+  sync: "同步方式",
+  upload: "上传方式",
+  tts: "语音服务",
+  images: "图片服务",
+  mcp: "MCP 服务",
+  chat: "聊天工具展示",
+  skill: "Skill",
+  ai: "AI 功能",
+  editor: "编辑器扩展",
+  whiteboard: "白板扩展",
+  excerpts: "摘录来源",
+};
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
 export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";

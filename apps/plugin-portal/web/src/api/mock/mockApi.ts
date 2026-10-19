@@ -138,6 +138,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
               publisher: release.publisher,
               repository: release.repository,
               categories: [...(release.content.manifest.categories ?? [])],
+              keywords: [...(release.content.manifest.keywords ?? [])],
               downloadsTotal: 0,
               downloads7d: 0,
               likes: likes.has(release.pluginId) ? 1 : 0,

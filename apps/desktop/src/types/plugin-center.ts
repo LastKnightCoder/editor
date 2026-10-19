@@ -1,3 +1,5 @@
+import type { PluginCategory } from "@tau/plugins/package";
+
 /** 插件中心公开接口的客户端视图，字段以 apps/plugin-portal/contracts 的 Catalog / PublicRelease 为准。 */
 export interface PluginPublisher {
   login: string;
@@ -22,6 +24,10 @@ export interface PluginCatalogEntry {
   description: string;
   publisher: PluginPublisher;
   repository: string;
+  /** 门户 0008 起返回；旧服务端缺省按未分类处理。 */
+  categories?: PluginCategory[];
+  /** 仅参与搜索。 */
+  keywords?: string[];
   latest: PluginCatalogVersion;
   /** 当前客户端可安装的最高版本，没有时为 null。 */
   compatible: PluginCatalogVersion | null;
