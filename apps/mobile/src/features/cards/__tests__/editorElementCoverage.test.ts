@@ -40,7 +40,11 @@ describe("mobile content 场景的元素覆盖", () => {
     expect(kit.assembly.commandHotkeys.some(entry => entry.hotkey.key === "mod+b")).toBe(true);
     expect(kit.assembly.hoveringBarElements.length).toBeGreaterThan(0);
     expect(kit.extensions.filter(extension => extension.id === "tau.preview-menu")).toHaveLength(1);
-    for (const type of ["mermaid", "plantuml", "abc", "tikz", "typst"])
-      expect(kit.elementTypes).toContain(type);
+    for (const type of ["mermaid", "plantuml"]) expect(kit.elementTypes).toContain(type);
+    expect(kit.elementTypes).not.toContain("abc");
+    expect(kit.elementTypes).not.toContain("html-block");
+    expect(kit.elementTypes).not.toContain("html-inline");
+    expect(kit.elementTypes).not.toContain("tikz");
+    expect(kit.elementTypes).not.toContain("typst");
   });
 });

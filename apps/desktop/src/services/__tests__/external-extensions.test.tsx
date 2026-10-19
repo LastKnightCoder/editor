@@ -9,12 +9,11 @@ import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor-media/services";
 import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { customBlockExtension } from "../../test-fixtures/plugin-packages";
+import { customBlockExtension, htmlExtension } from "../../test-fixtures/plugin-packages";
 import "@tau/plugins/source-editor-host";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { htmlExtensions, insertHTMLBlock } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { getCodeBlockController } from "@tau/editor-code-block/runtime";
@@ -26,13 +25,6 @@ import { bulletedList, listItem } from "@tau/editor-list";
 
 vi.mock("@tau/editor-diagram/mermaid", () => ({
   renderMermaidSvg: async ({ code }: { code: string }) => `<svg><text>${code}</text></svg>`,
-}));
-vi.mock("abcjs", () => ({
-  default: {
-    renderAbc: (id: string, content: string) => {
-      document.getElementById(id)!.textContent = content;
-    },
-  },
 }));
 
 // 只替代 jsdom 不具备布局的源码输入器，扩展、预览容器和模板执行使用真实实现。
@@ -86,7 +78,7 @@ describe("外包扩展的真实编辑器接线", () => {
       extensions: [
         customBlockExtension,
         ...diagramExtensions,
-        ...htmlExtensions,
+        htmlExtension,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,
@@ -218,9 +210,6 @@ describe("外包扩展的真实编辑器接线", () => {
   it.each([
     ["mermaid", "chart", "graph TD\nA --> B"],
     ["plantuml", "content", "@startuml\nA -> B\n@enduml"],
-    ["abc", "content", "X: 1\nK: C\nC D E"],
-    ["tikz", "content", "\\draw (0,0) -- (1,1);"],
-    ["typst", "content", "= 标题"],
   ] as const)("%s 懒加载块可渲染、编辑源码并写回文档", async (type, field, source) => {
     const { editor, kit } = await mount([
       {
@@ -236,10 +225,6 @@ describe("外包扩展的真实编辑器接线", () => {
     if (type === "mermaid") expect(host.querySelector("svg text")?.textContent).toBe(source);
     if (type === "plantuml")
       expect(host.querySelector("img")?.src).toContain("plantuml.com/plantuml/svg/");
-    if (type === "abc") expect(host.textContent).toContain(source);
-    if (type === "tikz")
-      expect(host.querySelector('script[type="text/tikz"]')?.textContent).toBe(source);
-    if (type === "typst") expect(host.textContent).toContain(`Typst:${source}`);
     await act(async () => {
       codeChanges.at(-1)!(source + "\n更新");
       await new Promise(resolve => setTimeout(resolve, 650));
@@ -250,11 +235,6 @@ describe("外包扩展的真实编辑器接线", () => {
     expect(editor.children[0]).toMatchObject({ [field]: source + "\n更新" });
     if (type === "mermaid")
       expect(editor.children[0]).toMatchObject({ compiledFrom: source + "\n更新" });
-    if (type === "typst")
-      expect(editor.children[0]).toMatchObject({
-        compiledFrom: source + "\n更新",
-        html: expect.stringContaining("更新"),
-      });
   });
 
   it("嵌套 Editor 继承外包扩展和宿主编译服务", async () => {
@@ -326,7 +306,9 @@ describe("外包扩展的真实编辑器接线", () => {
     ]);
     await act(async () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });
-      expect(insertHTMLBlock(editor)).toEqual([0]);
+      const panel = htmlExtension.blockPanel;
+      if (typeof panel === "function") throw new Error("HTML 插件应提供静态插入菜单");
+      panel?.[0]?.children?.[0]?.onClick?.(editor);
     });
     expect(editor.children).toHaveLength(1);
     expect(isBlockElementEmpty(editor.children[0] as never, editor)).toBe(true);

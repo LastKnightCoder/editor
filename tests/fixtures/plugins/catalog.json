@@ -102,5 +102,74 @@
       "manifest.json": "ba867c0e05bf473d034d660f08f33552d49eb1dd9f6cd9dbb10d2cb5ce91e247",
       "README.md": "7df6e68c4b619a7b23600de70aa18b421f8ba63973c7ac5dffb866f5b51bc9d9"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-tikz",
+    "artifact": "releases/tau.tikz/0.1.0",
+    "id": "tau.tikz",
+    "version": "0.1.0",
+    "sourceRevision": "53d223aad3a06ffeb76c8b02265de0cdb2feeb2d",
+    "archiveSha256": "6fe0ab3fddabff7632f1648b58af4c6784a587ddceb107345285f3c9e3d2e930",
+    "files": {
+      "CHANGELOG.md": "c8f85868c12639ed3bd01f9606e0a4b57bc6c55485a3d3abbffcdd1076ce5a52",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "LICENSE-BAKOMA.txt": "1e41d0558639a4b9b276b3bf6959821a3bd6588df4039b53a5188b0375881b65",
+      "LICENSE-LPPL.md": "5ba9a01f1da5f77d3595d801ac92c3dec8d8707e3c536e125f97ee3cb70a2e9f",
+      "main.js": "cf761b2e697b18ac510a26bbc04252aa2730653fe10d67774166e6e381bcd86f",
+      "manifest.json": "305aeb8c53589e10337255d6ab23e301f9378967ba40450c969f84c289fc6ddd",
+      "README.md": "908a3648c392d68295ecdc2ddb2237a0ec4008c8bb152f1ce310735216da1e98",
+      "THIRD_PARTY_NOTICES.md": "d1939cd8839c8ea21a13e9cf4b9b7fdfeb6b0a34f410d85b1c9ab4b07611a8b2"
+    }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-typst",
+    "artifact": "releases/tau.typst/0.1.1",
+    "id": "tau.typst",
+    "version": "0.1.1",
+    "sourceRevision": "aba15ca3488d94d07db238bf3cf97df86ff42d45",
+    "archiveSha256": "6f82cf12fcf79108454b9bac307bd6c17b99843043028b014f708a179237ae02",
+    "files": {
+      "CHANGELOG.md": "45cbe405272d50ab07d2b3e9e96c58e1dbde498a0af3153d827100edd39d4353",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.js": "e34d8a47d5d3932c87a501b21f3089357d28e20d3361f3abdc04843abb3e2438",
+      "manifest.json": "2f6e4494e9eecc5f8ac3b95ffe4da0203e90e9584cab11a8135dca4f44ebdc02",
+      "README.md": "7820af3ab78e9b4994f23084948a003f48ae3b17168f2938891390d43992e778",
+      "THIRD_PARTY_NOTICES.md": "f94f9a628aee7837f4285d1986a031b89efa5836ac4c492033fb31ff0da16521"
+    }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-abc",
+    "artifact": "releases/tau.abc/0.1.0",
+    "id": "tau.abc",
+    "version": "0.1.0",
+    "sourceRevision": "b1d72c86333cbad9023eac6d183c834a58d25f6d",
+    "archiveSha256": "bb0364c35cdc4bf51b89474e0066f5eba158073f6eb553f015fa454294256955",
+    "files": {
+      "CHANGELOG.md": "e4cf84586156d2019b03b2d4ec6048a05b39072abe06f2411cfe881b72aae6e5",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "LICENSE-ABCJS.md": "d7bdcd152b978adee22a2f9b92a4d72c4ec2c20a86512766c7c210b462b54702",
+      "main.css": "a94d1e58af92174e8f931a19d1de92c0f88c934200dfe78a51c9bc6986a8ad59",
+      "main.js": "116ab1807be085cb279e98f46be403d859113981b74a0248be0725f8487f6a23",
+      "manifest.json": "bbbcdf9f7b54a62981fc3019ad718b2f8465f503fee4cd83829cbef059813db1",
+      "README.md": "0552bce0e1a981e0d403410d90b75c7be2e5cd848f7593716760ae51b48274b2",
+      "THIRD_PARTY_NOTICES.md": "774ba4b721b06a19c76fd35ccf908b91b8668f18fda688fdbe9f2a92684b0c16"
+    }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-html",
+    "artifact": "releases/tau.html/0.1.0",
+    "id": "tau.html",
+    "version": "0.1.0",
+    "sourceRevision": "7b94f3e85528a0b138a7ac1e7fe7a546df36fa1e",
+    "archiveSha256": "bff18b70ac2b86017c311c76f459fa9cf1bc92ed7cd879cd142fe9d55e0d1c7d",
+    "files": {
+      "CHANGELOG.md": "c3724d720b5aaeaf69a8d94e438a848dbd691660a74a0cd3c2893dc72bdefaf6",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "468f2feb73a33e5711b1583b609e4ab3818e83d5f19a38dcd9d027b77eb269d8",
+      "main.js": "6faf968be95e2a2dc00415a507a9812cc91b4d55b7fc3512a5c661b70b7c6d11",
+      "manifest.json": "f0f47f2a06e398c1dc0f9851dc2eb4a2a9bc6617f8477ff40e81406edb408045",
+      "README.md": "7ece020297218eb105c28f69f28687768dac7c0fac944bffeb3381b6ae32b2eb",
+      "THIRD_PARTY_NOTICES.md": "601c3ecbee8096ac02926a8686c6f23daba5bd89755f9b91042df92f9a28bb96"
+    }
   }
 ]

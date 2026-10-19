@@ -1,0 +1,43 @@
+{
+  "name": "@tau/promo-video",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "node scripts/render.mjs",
+    "srt": "node --experimental-strip-types scripts/export-srt.ts",
+    "check": "tsc --noEmit",
+    "frames": "node scripts/beat-frames.mjs",
+    "grid": "bash scripts/stills-grid.sh"
+  },
+  "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/noto-sans-sc": "^5.3.1",
+    "@fontsource-variable/noto-serif-sc": "^5.3.1",
+    "@remotion/bundler": "4.0.536",
+    "@remotion/cli": "4.0.536",
+    "@remotion/fonts": "4.0.536",
+    "@remotion/media-utils": "4.0.536",
+    "@remotion/renderer": "4.0.536",
+    "@remotion/tailwind-v4": "4.0.536",
+    "@tau/shared": "workspace:*",
+    "@tau/themes": "workspace:*",
+    "@tau/ui": "workspace:*",
+    "clsx": "^2.1.1",
+    "katex": "^0.16.47",
+    "lucide-react": "^0.399.0",
+    "perfect-freehand": "^1.2.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.536",
+    "shiki": "^3.22.0",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.4",
+    "@types/react": "19.2.0",
+    "tailwindcss": "4.2.0",
+    "typescript": "^5.8.3"
+  }
+}

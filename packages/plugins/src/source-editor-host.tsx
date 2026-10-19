@@ -1,6 +1,6 @@
-import { createElement } from "react";
+import { createElement, useEffect, useRef } from "react";
 import { Editor, Element, Transforms } from "slate";
-import { ReactEditor, useSlateStatic } from "slate-react";
+import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { PreviewWithEditor, useReportPreviewError } from "@tau/editor-source-view";
 import {
   useEditorTheme,
@@ -8,9 +8,56 @@ import {
   focusInsertedPreviewElement,
   isAtParagraphStart,
   isParagraphAndEmpty,
+  captureElementSubmission,
+  InlineChromiumBugfix,
 } from "@tau/editor/api";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { configureSourceEditor } from "./source-editor";
+import { configureInlineSource } from "./inline-source";
+
+configureInlineSource({
+  InlineSourceBoundary: () => createElement(InlineChromiumBugfix),
+  insertInlineSource(editor, element) {
+    if (!ReactEditor.isReadOnly(editor)) Transforms.insertNodes(editor, element);
+  },
+  useInlineSource(element) {
+    const editor = useSlateStatic();
+    const readOnly = useReadOnly();
+    const active = useRef(true);
+    const state = useRef({ readOnly, element });
+    state.current = { readOnly, element };
+    useEffect(() => {
+      active.current = true;
+      return () => {
+        active.current = false;
+      };
+    }, []);
+    const commit = (write: (path: number[]) => void) => {
+      if (!active.current || state.current.readOnly || state.current.element !== element) return;
+      let path;
+      try {
+        path = ReactEditor.findPath(editor, element);
+      } catch {
+        return;
+      }
+      const submission = captureElementSubmission(editor, { element, path });
+      try {
+        submission.commit(({ path }) => {
+          write(path);
+          return undefined;
+        });
+      } finally {
+        submission.dispose();
+      }
+    };
+    return {
+      readOnly,
+      compiler: editor.tryGetService(IRuntimeStyleCompiler),
+      update: properties => commit(path => Transforms.setNodes(editor, properties, { at: path })),
+      remove: () => commit(path => Transforms.removeNodes(editor, { at: path })),
+    };
+  },
+});
 
 configureSourceEditor({
   SourceBlockEditor: props => createElement(PreviewWithEditor, props),

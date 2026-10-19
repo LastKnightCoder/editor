@@ -25,11 +25,20 @@ export {
   sourceBlockParagraphBehavior,
 } from "./source-editor";
 export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
+export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export * from "./sidebar";
 export type * from "./excerpts";
 export type * from "./services";
+export { usePluginServices } from "./service-access";
 export type { PluginSkill } from "./skills";
 export type { PluginMCP, PluginMCPDefinition, PluginMCPTool, PluginMCPTransport } from "./mcp";
+export type { PluginMCPToolResult } from "./mcp";
+export type {
+  PluginChat,
+  PluginToolRendererDefinition,
+  PluginToolRendererProps,
+  ToolCallExecutionState,
+} from "./chat";
 
 export type {
   PluginPageDefinition,

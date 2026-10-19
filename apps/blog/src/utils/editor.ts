@@ -1,8 +1,7 @@
 import type { InlineElement, FormattedText } from "@tau/editor";
 
-export const getInlineElementText = (
-  element: InlineElement | FormattedText,
-): string => {
+export const getInlineElementText = (element: InlineElement | FormattedText): string => {
+  if ("html" in element && typeof element.html === "string") return element.html;
   if (
     (element as { type?: string }).type === "content-link" &&
     "children" in element &&
@@ -21,8 +20,6 @@ export const getInlineElementText = (
       return element.children?.[0]?.text ?? "";
     case "inline-math":
       return element.tex;
-    case "html-inline":
-      return element.html ?? "";
     case "inline-image":
       return element.alt ?? "[Image]";
     default:

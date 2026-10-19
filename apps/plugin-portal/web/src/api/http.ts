@@ -229,6 +229,10 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
         `/v1/catalog?${new URLSearchParams({ appVersion: "0.59.0", q, sort, ...(cursor ? { cursor } : {}) })}`
       ),
     downloadRelease,
+    listReleases: (pluginId, cursor) =>
+      read(`/v1/releases?${new URLSearchParams({ pluginId, ...(cursor ? { cursor } : {}) })}`),
+    getRelease: releaseId => read(`/v1/releases/${id(releaseId)}`),
+    getPluginStats: pluginId => read(`/v1/plugins/${id(pluginId)}/stats`),
     getSession,
     async logout() {
       await write<{ loggedOut: true }>("POST", "/v1/logout");
@@ -239,13 +243,15 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     getUpload: uploadId => read<Upload>(`/v1/uploads/${id(uploadId)}`),
     createSubmission: clientRequestId =>
       write<Submission>("POST", "/v1/submissions", { clientRequestId }),
-    listSubmissions: (cursor, review = false) => {
+    listSubmissions: ({ scope, status, cursor }) => {
       const query = new URLSearchParams({
         ...(cursor ? { cursor } : {}),
-        ...(review ? { scope: "review" } : {}),
+        ...(scope === "review" ? { scope: "review" } : {}),
+        ...(status ? { status } : {}),
       }).toString();
       return read<SubmissionPage>(`/v1/submissions${query ? `?${query}` : ""}`);
     },
+    listSubmissionGroups: () => read("/v1/submission-groups"),
     getSubmission: submissionId => read<Submission>(`/v1/submissions/${id(submissionId)}`),
     saveSubmission: (submissionId, body: SaveSubmission) =>
       write<Submission>("PATCH", `/v1/submissions/${id(submissionId)}`, body),

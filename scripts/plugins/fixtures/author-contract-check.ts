@@ -2,15 +2,49 @@
 import { defineEditorElement, type EditorElementRenderProps } from "@tau/plugins";
 import type { PluginContext, PluginExcerptItem, PluginExcerptSource } from "@tau/plugins";
 
+export function checkTTSContract(context: PluginContext) {
+  const handle = context.tts.register({
+    id: context.pluginId,
+    name: "语音",
+    create: () => ({
+      getVoices: async () => [],
+      synthesize: async () => ({ audio: new Uint8Array(), mime: "audio/wav" }),
+    }),
+  });
+  void context.upload.uploadRemote(
+    { name: "voice.wav", mimeType: "audio/wav", content: new Uint8Array() },
+    { signal: context.signal }
+  );
+  return handle;
+}
+
+export async function checkChatContract(context: PluginContext) {
+  context.mcp.register({
+    id: "chat",
+    name: "展示数据",
+    tools: [
+      {
+        name: "query",
+        description: "查询",
+        inputSchema: { type: "object" },
+        execute: () => ({ content: "文本", render: { version: 1, data: { count: 1 } } }),
+      },
+    ],
+  });
+  const handle = await context.chat.registerToolRenderer({
+    mcpId: "chat",
+    toolName: "query",
+    component: props => (props.dataVersion === 1 ? props.execution.output : props.renderDefault()),
+  });
+  await handle.dispose();
+}
+
 export async function checkServices(context: PluginContext) {
   const { nodes } = await context.services.markdown.deserialize("# 标题");
   await context.services.markdown.serialize(nodes);
   await context.services.markdown.render("**文字**");
   await context.services.tailwind.compile({ source: '<div class="p-4" />', language: "tsx" });
   await context.services.typst.compile({ source: "= 标题", format: "html" });
-  await context.services.tikz.compile({
-    source: "\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}",
-  });
   const file = { name: "input.wav", data: new Blob() };
   await context.services.ffmpeg.probe(file);
   await context.services.ffmpeg.run(

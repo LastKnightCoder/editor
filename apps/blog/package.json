@@ -23,7 +23,6 @@
     "@tau/editor-underline": "workspace:*",
     "@tau/editor-styled-text": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
-    "@tau/editor-html": "workspace:*",
     "@tau/editor-source-view": "workspace:*",
     "@tau/editor-code-block": "workspace:*",
     "@tau/editor-math": "workspace:*",
@@ -80,6 +79,6 @@
     "mime-types": "^3.0.2",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.2.2",
-    "vite": "^5.0.0"
+    "vite": "7.2.4"
   }
 }

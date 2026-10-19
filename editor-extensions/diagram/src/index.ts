@@ -1,26 +1,11 @@
 import mermaidExtension from "./extensions/mermaid";
 import type {} from "./augmentations";
-import tikzExtension from "./extensions/tikz";
-import typstExtension from "./extensions/typst";
-import abcExtension from "./extensions/abc";
 import plantUMLExtension from "./extensions/plantuml";
 
-export { mermaidExtension, tikzExtension, typstExtension, abcExtension, plantUMLExtension };
+export { mermaidExtension, plantUMLExtension };
 export { createPlantUMLExtension, type PlantUMLExtensionOptions } from "./extensions/plantuml";
-export type {
-  MermaidElement,
-  PlantUMLElement,
-  AbcElement,
-  TikzElement,
-  TypstElement,
-} from "./types";
-export { insertMermaid, insertPlantUML, insertAbc, insertTikz, insertTypst } from "./insert";
+export type { MermaidElement, PlantUMLElement, TypstElement } from "./types";
+export { insertMermaid, insertPlantUML } from "./insert";
 
 /** 稳定扩展实例，宿主在场景 kit 中按需组合。渲染器由各扩展懒加载。 */
-export const diagramExtensions = [
-  mermaidExtension,
-  tikzExtension,
-  typstExtension,
-  abcExtension,
-  plantUMLExtension,
-] as const;
+export const diagramExtensions = [mermaidExtension, plantUMLExtension] as const;

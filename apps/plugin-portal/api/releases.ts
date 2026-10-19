@@ -6,6 +6,7 @@ import type {
   PackageContent,
   PublicRelease,
   Release,
+  ReleasePage,
 } from "../contracts";
 import { fail, json, sha256, type Env, type BackgroundTasks } from "./platform";
 import { countDownload, downloadWindow, pluginStatistics } from "./download-statistics";
@@ -195,11 +196,22 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
         )
       : null;
   if (!page.length) return { items: [], nextCursor, windowStart };
-  const rows = await env.DB.prepare(
-    `SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND r.plugin_id IN (${page.map(() => "?").join(",")})`
-  )
-    .bind(...page.map(item => item.plugin_id))
-    .all<CatalogRow>();
+  const ids = page.map(item => item.plugin_id),
+    marks = ids.map(() => "?").join(",");
+  // 喜欢数口径与 GET /plugins/:id/community 一致：plugin_likes 现存行数，停用身份的喜欢不扣除。
+  const [rows, likeRows] = await Promise.all([
+    env.DB.prepare(
+      `SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND r.plugin_id IN (${marks})`
+    )
+      .bind(...ids)
+      .all<CatalogRow>(),
+    env.DB.prepare(
+      `SELECT plugin_id,COUNT(*) AS likes FROM plugin_likes WHERE plugin_id IN (${marks}) GROUP BY plugin_id`
+    )
+      .bind(...ids)
+      .all<{ plugin_id: string; likes: number }>(),
+  ]);
+  const likes = new Map(likeRows.results.map(row => [row.plugin_id, row.likes]));
   const versions = new Map<string, CatalogRow[]>();
   for (const row of rows.results)
     versions.set(row.plugin_id, [...(versions.get(row.plugin_id) ?? []), row]);
@@ -218,6 +230,7 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
       pluginId: latest.plugin_id,
       downloadsTotal: candidate.total,
       downloads7d: candidate.recent,
+      likes: likes.get(candidate.plugin_id) ?? 0,
       name: latest.name,
       description: latest.description,
       publisher: { login: latest.login, avatarUrl: latest.avatar_url },
@@ -266,7 +279,7 @@ export async function publicReleaseRoute(
       )
       .all<ReleaseRow>();
     const last = rows.results[19];
-    return json({
+    return json<ReleasePage>({
       items: rows.results.slice(0, 20).map(row => ({
         ...releaseDto(row, env),
         manifest: (JSON.parse(row.content_json) as PackageContent).manifest,

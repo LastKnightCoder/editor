@@ -34,6 +34,8 @@ export const getEditorTextValue = (value: Descendant[]): ReactElement[] | undefi
 const getParagraphContent = (paragraph: ParagraphElement): Array<ReactElement> => {
   return paragraph.children
     .map((node, index): ReactElement | undefined => {
+      if ("html" in node && typeof node.html === "string")
+        return <span key={index}>{node.html}</span>;
       switch (node.type) {
         case "formatted":
           return (
@@ -58,8 +60,6 @@ const getParagraphContent = (paragraph: ParagraphElement): Array<ReactElement> =
           );
         case "inline-math":
           return <Katex tex={node.tex} key={index} inline />;
-        case "html-inline":
-          return <span dangerouslySetInnerHTML={{ __html: node.html }} key={index} />;
         case "inline-image":
           return (
             <span style={{ display: "inline-block" }} key={index}>
@@ -176,6 +176,7 @@ export const getEditorTextLength = (editor: Editor, value: Descendant[]): number
 };
 
 export const getInlineElementText = (element: InlineElement | FormattedText): string => {
+  if ("html" in element && typeof element.html === "string") return element.html;
   switch (element.type) {
     case "formatted":
       return element.text;
@@ -183,8 +184,6 @@ export const getInlineElementText = (element: InlineElement | FormattedText): st
       return element.children?.[0].text;
     case "inline-math":
       return element.tex;
-    case "html-inline":
-      return element.html;
     case "underline":
       return element.children?.[0].text;
     case "styled-text":

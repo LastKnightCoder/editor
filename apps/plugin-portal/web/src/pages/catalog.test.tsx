@@ -16,7 +16,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("公开目录不要求登录，显示统计、分页去重并传递排序和下载版本", async () => {
+const row = (id: string): CatalogEntry => ({
+  pluginId: id,
+  name: `插件 ${id}`,
+  description: "介绍",
+  repository: "",
+  publisher: { login: "author", avatarUrl: "" },
+  downloadsTotal: 12,
+  downloads7d: 3,
+  likes: 5,
+  compatible: null,
+  latest: {
+    releaseId: id,
+    version: "1.0.0",
+    minAppVersion: "0.59.0",
+    publishedAt: "2026-10-18T00:00:00.000Z",
+    size: 1,
+    sha256: "",
+    downloadUrl: "",
+  },
+});
+
+function setup() {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -26,27 +47,6 @@ it("公开目录不要求登录，显示统计、分页去重并传递排序和�
     }
   );
   const api = createMockApi();
-  await api.logout();
-  const session = vi.spyOn(api, "getSession");
-  const row = (id: string): CatalogEntry => ({
-    pluginId: id,
-    name: `插件 ${id}`,
-    description: "介绍",
-    repository: "",
-    publisher: { login: "author", avatarUrl: "" },
-    downloadsTotal: 12,
-    downloads7d: 3,
-    compatible: null,
-    latest: {
-      releaseId: id,
-      version: "1.0.0",
-      minAppVersion: "0.59.0",
-      publishedAt: "2026-10-18",
-      size: 1,
-      sha256: "",
-      downloadUrl: "",
-    },
-  });
   const catalog = vi.spyOn(api, "getCatalog").mockImplementation(async input => ({
     items: input.cursor ? [row("a"), row("b")] : [row("a")],
     nextCursor: input.cursor ? null : "next",
@@ -63,16 +63,36 @@ it("公开目录不要求登录，显示统计、分页去重并传递排序和�
       </UiProvider>
     </MemoryRouter>
   );
-  await screen.findByText("插件 a");
-  expect(session).not.toHaveBeenCalled();
-  expect(screen.getByText("累计 12 次 · 近 7 日 3 次")).toBeTruthy();
+  return { api, catalog };
+}
+
+it("公开目录不要求登录，卡片链接详情，分页去重并显示下载与喜欢", async () => {
+  const { api } = setup();
+  const session = vi.spyOn(api, "getSession");
+  const link = await screen.findByRole("link", { name: "插件 a" });
+  expect(link.getAttribute("href")).toBe("/plugins/a");
+  expect(screen.getByTitle("累计下载").textContent).toBe("12");
+  expect(screen.getByTitle("喜欢").textContent).toBe("5");
   fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
   await screen.findByText("插件 b");
   expect(screen.getAllByText("插件 a")).toHaveLength(1);
-  fireEvent.click(screen.getByRole("combobox", { name: "插件排序" }));
-  fireEvent.click(await screen.findByRole("option", { name: "下载最多" }));
+  expect(session).not.toHaveBeenCalled();
+});
+
+it("排序走菜单，搜索防抖后才请求，快速下载使用最新版本", async () => {
+  const { api, catalog } = setup();
+  await screen.findByText("插件 a");
+  fireEvent.click(screen.getByRole("button", { name: "排序：最近热门" }));
+  fireEvent.click(await screen.findByRole("menuitemradio", { name: "下载最多" }));
   await waitFor(() =>
     expect(catalog).toHaveBeenLastCalledWith({ q: "", sort: "downloadsTotal", cursor: null })
+  );
+  fireEvent.change(screen.getByRole("textbox", { name: "搜索插件" }), {
+    target: { value: " 同步 " },
+  });
+  expect(catalog).not.toHaveBeenLastCalledWith(expect.objectContaining({ q: "同步" }));
+  await waitFor(() =>
+    expect(catalog).toHaveBeenLastCalledWith({ q: "同步", sort: "downloadsTotal", cursor: null })
   );
   fireEvent.click((await screen.findAllByRole("button", { name: "下载 ZIP" }))[0]);
   await waitFor(() => expect(savePluginZip).toHaveBeenCalledWith(api, "a", "a-1.0.0.zip"));

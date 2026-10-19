@@ -1,8 +1,8 @@
-import React, { memo } from "react";
+import React, { memo, Suspense, useSyncExternalStore } from "react";
 import { cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
 import { ToolCallRow } from "../Message/ToolCallRow";
-import { getToolCallRenderer } from "../../../renderers";
+import { toolCallRendererRegistry } from "../../../renderers";
 import ToolCallRendererErrorBoundary from "./ToolCallRendererErrorBoundary";
 
 export interface ToolCallDefaultItemRenderParams {
@@ -65,6 +65,11 @@ const ToolCallRendererItem: React.FC<{
   renderDefaultItem?: (params: ToolCallDefaultItemRenderParams) => React.ReactNode;
   rendererContext?: Record<string, unknown>;
 }> = memo(function ToolCallRendererItem({ execution, isDark, renderDefaultItem, rendererContext }) {
+  useSyncExternalStore(
+    toolCallRendererRegistry.subscribe,
+    toolCallRendererRegistry.getSnapshot,
+    toolCallRendererRegistry.getSnapshot
+  );
   const renderDefault = () =>
     renderDefaultItem ? (
       renderDefaultItem({ execution, isDark })
@@ -77,24 +82,30 @@ const ToolCallRendererItem: React.FC<{
   const isRetiredExecution = typeof execution.metadata?.codexItemType === "string";
   const customRenderer = isRetiredExecution
     ? undefined
-    : getToolCallRenderer(rendererKey) || getToolCallRenderer(execution.toolName);
+    : toolCallRendererRegistry.resolve(execution.toolName, rendererKey);
   if (!customRenderer) {
     return renderDefault();
   }
 
   const parsedInputResult = parseToolInput(execution.input);
-  const CustomRenderer = customRenderer;
+  const CustomRenderer = customRenderer.renderer;
 
   return (
-    <ToolCallRendererErrorBoundary toolName={execution.toolName} fallback={renderDefault()}>
-      <CustomRenderer
-        execution={execution}
-        isDark={isDark}
-        parsedInput={parsedInputResult.parsedInput}
-        inputParseError={parsedInputResult.inputParseError}
-        rendererContext={rendererContext}
-        renderDefault={renderDefault}
-      />
+    <ToolCallRendererErrorBoundary
+      key={customRenderer.generation}
+      toolName={execution.toolName}
+      fallback={renderDefault()}
+    >
+      <Suspense fallback={renderDefault()}>
+        <CustomRenderer
+          execution={execution}
+          isDark={isDark}
+          parsedInput={parsedInputResult.parsedInput}
+          inputParseError={parsedInputResult.inputParseError}
+          rendererContext={rendererContext}
+          renderDefault={renderDefault}
+        />
+      </Suspense>
     </ToolCallRendererErrorBoundary>
   );
 });

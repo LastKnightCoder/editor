@@ -1,11 +1,11 @@
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Github, Puzzle } from "lucide-react";
 import { Button, Loading, Panel } from "@tau/ui";
 import { useApi } from "../app/api";
 import { sessionExpiry, useSession, useSessionExpired } from "../app/session";
 import { Notice } from "../components/Notice";
 
-const STEPS = ["上传插件 ZIP 与图片", "填写介绍与源码信息", "提交，进入待审核"];
+const STEPS = ["上传插件 ZIP", "核对展示内容，关联源码仓库", "提交，等待审核"];
 
 export function LoginPage() {
   const api = useApi();
@@ -66,6 +66,12 @@ export function LoginPage() {
             </li>
           ))}
         </ol>
+        <Link
+          to="/plugins"
+          className="text-tau-sm text-accent-text -mt-1 self-center hover:underline"
+        >
+          先逛逛插件中心
+        </Link>
       </Panel>
     </main>
   );

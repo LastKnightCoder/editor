@@ -2,7 +2,16 @@ import { webcrypto } from "node:crypto";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { definePlugin, type PluginContext, type PluginMCPDefinition } from "@tau/plugins";
+import {
+  definePlugin,
+  type PluginContext,
+  type PluginMCPDefinition,
+  type ToolCallExecutionState,
+} from "@tau/plugins";
+import { ToolCallDisplay, ToolCallBlock } from "@tau/chat-ui";
+import { desktopPluginChat } from "@/app/plugins/chat";
+import { getPluginToolName } from "../plugin-tool-name";
+import { piEntriesToDesktopMessages } from "../../../src-electron/main/modules/pi-session-transcript";
 import { PluginHost, createMemoryStorage } from "@tau/plugins/host";
 import useMCPStore from "@/stores/useMCPStore";
 import toolRegistry, { type RegisteredTool } from "../toolRegistry";
@@ -57,10 +66,15 @@ const local = (id: string): PluginMCPDefinition => ({
     },
   ],
 });
-function host(definitions: PluginMCPDefinition[], id = "test.mcp") {
+function host(
+  definitions: PluginMCPDefinition[],
+  id = "test.mcp",
+  activate?: (context: PluginContext) => Promise<void>
+) {
   const instance = new PluginHost({
     workspaceId: "workspace-A",
     storage: createMemoryStorage(),
+    chat: desktopPluginChat,
     mcp: {
       register: (context, definition, owner) =>
         registerPluginMCP(context, definition, owner, "db-A"),
@@ -72,8 +86,9 @@ function host(definitions: PluginMCPDefinition[], id = "test.mcp") {
       name: "MCP 测试插件",
       version: "1.0.0",
       create: () => ({
-        activate: (context: PluginContext) => {
+        activate: async (context: PluginContext) => {
           definitions.forEach(definition => context.mcp.register(definition));
+          await activate?.(context);
         },
       }),
     })
@@ -184,7 +199,10 @@ it("详情逐工具开关即时拦截旧快照，停用重启保留偏好和稳�
   expect(second.enabled).toBe(false);
   await expect(execute(first)).rejects.toThrow("实例已变化");
   await act(async () => setToolsEnabled(items[0], [second.name], true));
-  expect(await execute(second)).toEqual({ content: "books" });
+  expect(await execute(second)).toMatchObject({
+    content: "books",
+    metadata: { render: { rendererKey: second.name } },
+  });
 });
 
 it("跨库和插件停用拒绝旧工具，在途调用即使忽略取消也结束等待", async () => {
@@ -226,7 +244,10 @@ it("外部服务器复用连接和调用，改配置与重连使旧快照失效�
   );
   expect(useMCPStore.getState().customServers).toEqual([]);
   const first = toolRegistry.getRegisteredTools()[0];
-  expect(await execute(first)).toEqual({ content: "远端结果" });
+  expect(await execute(first)).toMatchObject({
+    content: "远端结果",
+    metadata: { render: { rendererKey: first.name } },
+  });
   expect(callMcpTool).toHaveBeenCalledWith(
     expect.objectContaining({ toolName: "lookup" }),
     expect.anything()
@@ -286,5 +307,260 @@ it("同一 ID 改为本地工具后，不复用旧外部服务器的连接覆盖
   await ready(1);
   expect(getPluginMCPServers()[0].server).toBeUndefined();
   expect(connectMcpServer).not.toHaveBeenCalled();
-  expect(await execute(toolRegistry.getRegisteredTools()[0])).toEqual({ content: "books" });
+  expect(await execute(toolRegistry.getRegisteredTools()[0])).toMatchObject({ content: "books" });
+});
+
+it("命名保持既有固定向量，并隔离插件和 MCP", async () => {
+  const name = await getPluginToolName("test.mcp", "notes", "lookup");
+  expect(name).toBe("plugin_c8f8c15ff486e548_lookup");
+  expect(await getPluginToolName("other", "notes", "lookup")).not.toBe(name);
+  expect(await getPluginToolName("test.mcp", "books", "lookup")).not.toBe(name);
+});
+
+it.each(["实时", "历史"])("%s 消息传给插件时不泄漏可变宿主引用", async source => {
+  const name = await getPluginToolName("test.mcp", "notes", "lookup");
+  const instance = host([local("notes")], "test.mcp", async context => {
+    await context.chat.registerToolRenderer({
+      mcpId: "notes",
+      toolName: "lookup",
+      component: props => {
+        Object.assign(props.execution, { output: "组件内修改" });
+        const metadata = props.execution.metadata;
+        if (metadata) {
+          metadata.changed = true;
+          (metadata.render as { payload: { label: string } }).payload.label = "组件内修改";
+        }
+        return <span>组件已读取</span>;
+      },
+    });
+  });
+  await instance.enable("test.mcp");
+  const execution: ToolCallExecutionState = {
+    toolCallId: "readonly",
+    toolName: name,
+    input: "{}",
+    status: "success",
+    timestamp: 1,
+    output: "原始文本",
+    metadata: { render: { rendererKey: name, version: 1, payload: { label: "原始数据" } } },
+  };
+  let displayed = execution;
+  if (source === "历史") {
+    const [message] = piEntriesToDesktopMessages([
+      {
+        id: "a",
+        message: {
+          role: "assistant",
+          content: [{ type: "toolCall", id: execution.toolCallId, name, arguments: {} }],
+        },
+      },
+      {
+        id: "r",
+        message: {
+          role: "toolResult",
+          toolCallId: execution.toolCallId,
+          toolName: name,
+          content: [{ type: "text", text: execution.output }],
+          details: execution.metadata,
+        },
+      },
+    ]);
+    displayed = (message as { assistant_blocks: { execution: ToolCallExecutionState }[] })
+      .assistant_blocks[0].execution;
+  }
+  const before = structuredClone(displayed);
+  container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () => root!.render(<ToolCallDisplay executions={[displayed]} />));
+  expect(container.textContent).toBe("组件已读取");
+  expect(displayed).toEqual(before);
+});
+
+it("历史回放中其他来源的 rendererKey 不能挂载本插件组件", async () => {
+  const component = vi.fn(() => <span>插件私有组件</span>);
+  const name = await getPluginToolName("test.mcp", "notes", "lookup");
+  const instance = host([local("notes")], "test.mcp", async context => {
+    await context.chat.registerToolRenderer({ mcpId: "notes", toolName: "lookup", component });
+  });
+  await instance.enable("test.mcp");
+  const [message] = piEntriesToDesktopMessages([
+    {
+      id: "a",
+      message: {
+        role: "assistant",
+        content: [
+          { type: "toolCall", id: "external-call", name: "external_lookup", arguments: {} },
+        ],
+      },
+    },
+    {
+      id: "r",
+      message: {
+        role: "toolResult",
+        toolCallId: "external-call",
+        toolName: "external_lookup",
+        content: [{ type: "text", text: "其他来源结果" }],
+        details: { render: { rendererKey: name, version: 1, payload: { count: 42 } } },
+      },
+    },
+  ]);
+  const execution = (message as { assistant_blocks: { execution: ToolCallExecutionState }[] })
+    .assistant_blocks[0].execution;
+  container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(
+      <ToolCallDisplay
+        executions={[execution]}
+        renderDefaultItem={({ execution }) => <span>{execution.output}</span>}
+      />
+    )
+  );
+  expect(container.textContent).toBe("其他来源结果");
+  expect(component).not.toHaveBeenCalled();
+});
+
+it("本地展示数据贯通历史投影，MCP 关闭后可读，插件停用与重启即时切换", async () => {
+  const definition = local("notes");
+  definition.tools![0].execute = () => ({
+    content: "模型文本",
+    render: { version: 1, data: { label: "真实结果" } },
+  });
+  const instance = host([definition], "test.mcp", async context => {
+    await context.chat.registerToolRenderer({
+      mcpId: "notes",
+      toolName: "lookup",
+      component: ({ execution, dataVersion, data, renderDefault }) =>
+        execution.status === "executing" ? (
+          <span>执行中</span>
+        ) : dataVersion === 1 && data && typeof data === "object" && !Array.isArray(data) ? (
+          <span>{String(data.label)}</span>
+        ) : (
+          renderDefault()
+        ),
+    });
+  });
+  await instance.enable("test.mcp");
+  await ready(1);
+  const tool = toolRegistry.getRegisteredTools()[0];
+  const result = await execute(tool);
+  expect(result).toMatchObject({
+    content: "模型文本",
+    metadata: {
+      render: {
+        rendererKey: tool.name,
+        version: 1,
+        payload: { label: "真实结果" },
+      },
+    },
+  });
+  const [message] = piEntriesToDesktopMessages([
+    {
+      id: "a",
+      message: {
+        role: "assistant",
+        content: [{ type: "toolCall", id: "call", name: tool.name, arguments: {} }],
+      },
+    },
+    {
+      id: "t",
+      message: {
+        role: "toolResult",
+        toolCallId: "call",
+        toolName: tool.name,
+        content: [{ type: "text", text: "模型文本" }],
+        details: typeof result === "object" ? result?.metadata : undefined,
+      },
+    },
+  ]);
+  const execution = (message as { assistant_blocks: { execution?: ToolCallExecutionState }[] })
+    .assistant_blocks[0].execution!;
+  container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(<ToolCallDisplay executions={[{ ...execution, status: "executing" }]} />)
+  );
+  expect(container.textContent).toBe("执行中");
+  await act(async () => root!.render(<ToolCallDisplay executions={[execution]} />));
+  expect(container.textContent).toBe("真实结果");
+  await act(async () => useMCPStore.getState().setProviderEnabled(tool.source, false));
+  expect(container.textContent).toBe("真实结果");
+  await expect(execute(tool)).rejects.toThrow();
+  await act(async () => instance.disable("test.mcp"));
+  await act(async () => container.querySelector("button")!.click());
+  expect(container.textContent).toContain("模型文本");
+  await act(async () => instance.enable("test.mcp"));
+  expect(container.textContent).toBe("真实结果");
+  await act(async () =>
+    root!.render(
+      <ToolCallDisplay executions={[{ ...execution, status: "failed", output: "执行失败" }]} />
+    )
+  );
+  expect(container.textContent).toContain("执行失败");
+  expect(container.textContent).not.toContain("真实结果");
+  await act(async () =>
+    root!.render(
+      <ToolCallBlock
+        execution={{ ...execution, status: "awaiting-approval" }}
+        isDark={false}
+        renderApproval={() => <span>宿主审批</span>}
+      />
+    )
+  );
+  expect(container.textContent).toContain("宿主审批");
+  expect(container.textContent).not.toContain("真实结果");
+});
+
+it("transport 返回不能选择别的渲染器，离线声明仍可展示既有输出", async () => {
+  vi.mocked(callMcpTool).mockResolvedValueOnce({
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({
+          content: "远端结果",
+          metadata: {
+            render: { rendererKey: "内置渲染器", version: 1, payload: { value: "不应接收" } },
+          },
+        }),
+      },
+    ],
+  });
+  const instance = host(
+    [{ id: "remote", name: "外部", transport: { type: "stdio", command: "node" } }],
+    "test.mcp",
+    async context => {
+      await context.chat.registerToolRenderer({
+        mcpId: "remote",
+        toolName: "lookup",
+        component: props => <span>{props.execution.output}</span>,
+      });
+    }
+  );
+  await instance.enable("test.mcp");
+  await ready(1);
+  const tool = toolRegistry.getRegisteredTools()[0];
+  const result = await execute(tool);
+  expect(result).toMatchObject({ metadata: { render: { rendererKey: tool.name } } });
+  if (!result || typeof result === "string") throw new Error("工具没有返回对象结果");
+  expect(result.metadata?.render).not.toHaveProperty("payload");
+  await act(async () => useMCPStore.getState().setProviderEnabled(tool.source, false));
+  container = document.createElement("div");
+  root = createRoot(container);
+  await act(async () =>
+    root!.render(
+      <ToolCallDisplay
+        executions={[
+          {
+            toolCallId: "remote-call",
+            toolName: tool.name,
+            status: "success",
+            input: "{}",
+            timestamp: 1,
+            output: "远端结果",
+          },
+        ]}
+      />
+    )
+  );
+  expect(container.textContent).toBe("远端结果");
 });

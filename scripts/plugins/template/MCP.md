@@ -84,6 +84,31 @@ context.mcp.register({
 - 旧实例、旧数据库和重连前的调用不能转交给新实例。不要缓存上下文到下一次启用。
 - Skill 可描述这些工具的用途；ctx.ai.chat/stream 仍是文本生成接口，不会因为注册 MCP 而自动获得工具调用能力。
 
+## 聊天工具自定义渲染
+
+`context.chat.registerToolRenderer` 的类型契约自 SDK 0.15.0 提供，须搭配包含实现的客户端构建。旧客户端即使同为 0.59.0 也可能没有此能力，必须检查方法是否存在；只提高 SDK 类型版本不能替代客户端检查。
+
+在 `async activate(context)` 中，先通过 `context.mcp.register()` 声明工具，再注册组件并 await：
+
+```tsx
+await context.chat.registerToolRenderer({
+  mcpId: "notes",
+  toolName: "read_note",
+  component: ({ execution, renderDefault }) =>
+    execution.status === "success" ? <div>{execution.output}</div> : renderDefault(),
+});
+```
+
+这段代码放在异步激活函数内；`mcpId` 是本插件注册 MCP 时的 id，`toolName` 是其中的原始工具名，不拼接全局名称。可以绑定本地工具或本插件 transport 中的远端工具，不能绑定内置工具、其他插件或用户手动添加的服务器。返回 `Promise<Disposable>`，失败随 await 抛出；激活成功后才发布组件，停用或切库自动回收，无需再次 context.register。
+
+本地工具可返回 `{ content: string, render: { version: 1, data: JsonValue } }`；content 提供模型文本及默认展示，render.data 是独立的可持久化展示数据。组件参数为 `PluginToolRendererProps`（从 `@tau/plugins` 导入），包括 execution、isDark、parsedInput、inputParseError、data、dataVersion 和 renderDefault。展示版本为正整数，数据只接受有限 JSON；不支持的版本应调用 renderDefault。
+
+transport 工具当前读取 execution.output，不提供标准 structuredContent 或 MCP Apps HTML 界面能力。宿主决定渲染路由，远端返回不能选择其他渲染器。等待审批继续使用宿主审批 UI，失败和取消显示通用工具行。
+
+关闭 MCP 或工具执行开关不会隐藏历史结果；停用插件时回到通用输入输出，再启用后恢复。组件不应在渲染或挂载时自动执行工具。使用现有 React 和 `@tau/ui`/主题样式，不导入内部聊天包。
+
+完整示例见仓库 `scripts/plugins/fixtures/chat-tool-renderer.tsx`。在宿主仓库执行 `node scripts/plugins/verify-chat-author.mjs`，会生成 SDK 包、在独立目录安装、类型检查并构建该示例 ZIP；不安装到用户目录，也不发布。产物和验收记录保存在 `output/plugin-chat-sdk/`。
+
 ## 验证
 
 检查类型并打包后，在包含此实现的客户端启用插件：确认两项 MCP 出现在现有页面和快捷面板；测试整项开关、逐工具开关、外部连接配置和重连，再测试停用、重新启用及重启后偏好保留。真实服务器连接与模型调用需使用自己的服务和已配置的模型。

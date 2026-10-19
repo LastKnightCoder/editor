@@ -1,14 +1,24 @@
-import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { ChevronRight, CloudOff, PackagePlus, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { CloudOff, PackagePlus, Plus } from "lucide-react";
 import { Button, Loading, Panel } from "@tau/ui";
-import type { Submission } from "../../../contracts";
+import type { SubmissionCounts, SubmissionStatus } from "../../../contracts";
 import { queryKeys, useApi } from "../app/api";
-import { PageHeader, StatusTag } from "../components/PageHeader";
+import { PageHeader } from "../components/PageHeader";
 import { ErrorState, StateBlock } from "../components/states";
-import { formatTime } from "../components/format";
-import { useSession } from "../app/session";
+import { PluginGroupRow } from "../features/submissions/PluginGroupRow";
+import { StatusFilter, type StatusOption } from "../features/submissions/StatusFilter";
+import { headlineOf } from "../features/submissions/groups";
+
+const OPTIONS: StatusOption[] = [
+  { value: null, label: "全部" },
+  { value: "changes_requested", label: "需修改" },
+  { value: "pending_review", label: "审核中" },
+  { value: "draft", label: "草稿" },
+  { value: "approved", label: "已批准" },
+  { value: "rejected", label: "已拒绝" },
+];
 
 function NewButton() {
   const navigate = useNavigate();
@@ -19,63 +29,32 @@ function NewButton() {
   );
 }
 
-function SubmissionRow({ submission }: { submission: Submission }) {
-  const manifest = submission.content?.manifest;
-  const pending = submission.status === "pending_review";
-  return (
-    <li>
-      <Link
-        to={`/submissions/${encodeURIComponent(submission.id)}`}
-        className="hover:bg-surface-hover focus-visible:bg-surface-hover flex items-center gap-4 px-5 py-4 outline-none transition-colors"
-      >
-        <span className="bg-hover text-ink-3 rounded-tau-sm grid size-11 shrink-0 place-items-center">
-          <PackagePlus size={18} strokeWidth={1.6} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-baseline gap-2">
-            <span className="text-tau-body text-ink-1 truncate font-medium">
-              {manifest?.name ?? "未上传插件包"}
-            </span>
-            {manifest && (
-              <span className="text-tau-micro text-ink-3 font-tau-mono shrink-0">
-                v{manifest.version}
-              </span>
-            )}
-          </p>
-          <p className="text-tau-sm text-ink-2 truncate">
-            {manifest?.description || "上传插件包后自动读取简介"}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <StatusTag status={submission.status} />
-          <span className="text-tau-micro text-ink-3">
-            {pending
-              ? `提交于 ${formatTime(submission.submittedAt)}`
-              : `更新于 ${formatTime(submission.updatedAt)}`}
-          </span>
-        </div>
-        <ChevronRight size={16} className="text-ink-3 shrink-0" />
-      </Link>
-    </li>
-  );
-}
-
 export function SubmissionsPage() {
   const api = useApi();
-  const session = useSession();
-  const [review, setReview] = useState(false);
-  const query = useInfiniteQuery({
-    queryKey: [...queryKeys.submissions, review],
-    queryFn: ({ pageParam }) => api.listSubmissions(pageParam, review),
-    initialPageParam: null as string | null,
-    getNextPageParam: page => page.nextCursor,
+  const [status, setStatus] = useState<SubmissionStatus | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const query = useQuery({
+    queryKey: [...queryKeys.submissions, "groups"],
+    queryFn: () => api.listSubmissionGroups(),
     refetchOnWindowFocus: true,
   });
-  const items = query.data?.pages.flatMap(page => page.items) ?? [];
+  const groups = query.data?.groups ?? [];
+  // 筛选与计数都以每个插件「最该关注的那次提交」为准，一个插件只算一次
+  const counts = groups.reduce<SubmissionCounts>(
+    (sum, group) => ({ ...sum, [headlineOf(group).status]: sum[headlineOf(group).status] + 1 }),
+    { draft: 0, pending_review: 0, changes_requested: 0, rejected: 0, approved: 0 }
+  );
+  const visible = groups.filter(group => !status || headlineOf(group).status === status);
+  const toggle = (key: string) =>
+    setExpanded(current => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
 
   let body;
   if (query.isPending) body = <Loading minHeight={240} />;
-  else if (query.isError && !query.data)
+  else if (query.isError)
     body = (
       <ErrorState
         icon={CloudOff}
@@ -85,55 +64,46 @@ export function SubmissionsPage() {
         retrying={query.isRefetching}
       />
     );
-  else if (items.length === 0)
+  else if (!groups.length)
     body = (
       <StateBlock icon={PackagePlus} title="还没有提交" actions={<NewButton />}>
         上传包含 README.md 的插件 ZIP，关联源码仓库即可提交审核。
       </StateBlock>
     );
   else
-    body = (
-      <>
-        <Panel pad="none" className="overflow-hidden">
-          <ul className="divide-line-1 flex flex-col divide-y">
-            {items.map(item => (
-              <SubmissionRow key={item.id} submission={item} />
-            ))}
-          </ul>
-        </Panel>
-        {query.isFetchNextPageError && (
-          <p className="text-tau-sm text-danger mt-3 text-center">
-            加载更多失败：{query.error?.message}
-          </p>
-        )}
-        {query.hasNextPage && (
-          <div className="mt-4 flex justify-center">
-            <Button loading={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
-              加载更多
-            </Button>
-          </div>
-        )}
-      </>
+    body = visible.length ? (
+      <Panel pad="none" className="overflow-hidden">
+        <ul className="divide-line-1 flex flex-col divide-y">
+          {visible.map(group => {
+            const key = group.pluginId ?? "";
+            return (
+              <PluginGroupRow
+                key={key}
+                group={group}
+                expanded={expanded.has(key)}
+                onToggle={() => toggle(key)}
+              />
+            );
+          })}
+        </ul>
+      </Panel>
+    ) : (
+      <Panel className="text-tau-sm text-ink-3 py-12 text-center">这个状态下没有插件</Panel>
     );
 
   return (
-    <>
+    <div className="mx-auto max-w-[900px]">
       <PageHeader
-        title={review ? "审核管理" : "我的提交"}
-        meta="介绍与使用说明来自插件包；审核意见直接在站内交流。"
-        actions={items.length > 0 && <NewButton />}
+        title="我的提交"
+        meta="一个插件一行，展开可以看到它的每次提交；审核意见在对应提交里。"
+        actions={groups.length > 0 && <NewButton />}
       />
-      {session.data?.reviewer && (
-        <Link to="/moderation" className="text-accent-text ml-3">
-          评论管理
-        </Link>
-      )}
-      {session.data?.reviewer && (
-        <Button onClick={() => setReview(value => !value)}>
-          {review ? "查看我的提交" : "进入审核管理"}
-        </Button>
+      {groups.length > 0 && (
+        <div className="mb-4">
+          <StatusFilter options={OPTIONS} value={status} counts={counts} onChange={setStatus} />
+        </div>
       )}
       {body}
-    </>
+    </div>
   );
 }

@@ -10,6 +10,7 @@ import type {
 } from "@/types/tool";
 import { disconnectFromServer, fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
 import toolRegistry from "./toolRegistry";
+import { getPluginToolName } from "./plugin-tool-name";
 
 export interface PluginMCPServerInfo {
   id: string;
@@ -52,11 +53,6 @@ const enabled = (entry: Entry) =>
   !entry.context.signal.aborted &&
   (useMCPStore.getState().providerStates[entry.info.id]?.enabled ?? true);
 
-async function digest(value: string): Promise<string> {
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function cancellable<T>(signal: AbortSignal, run: () => Promise<T>): Promise<T> {
   signal.throwIfAborted();
   let abort!: () => void;
@@ -92,9 +88,11 @@ async function wrapTools(
 ): Promise<ToolDefinition[]> {
   return Promise.all(
     definitions.map(async definition => {
-      const hash = await digest(JSON.stringify([entry.info.id, definition.name]));
-      const suffix = definition.name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 39);
-      const name = `plugin_${hash.slice(0, 16)}_${suffix}`;
+      const name = await getPluginToolName(
+        entry.context.pluginId,
+        entry.definition.id,
+        definition.name
+      );
       return {
         ...definition,
         name,
@@ -116,7 +114,22 @@ async function wrapTools(
             );
             signal.throwIfAborted();
             assertAvailable(entry, revision, name, context);
-            return result;
+            if (!result || typeof result === "string") return result;
+            const render = entry.definition.tools
+              ? (result.metadata?.render as { version?: number; payload?: unknown } | undefined)
+              : undefined;
+            const metadata = { ...result.metadata };
+            delete metadata.codexItemType;
+            return {
+              ...result,
+              metadata: {
+                ...metadata,
+                render: {
+                  rendererKey: name,
+                  ...(render ? { version: render.version, payload: render.payload } : {}),
+                },
+              },
+            };
           } finally {
             entry.calls.delete(controller);
           }
@@ -186,7 +199,16 @@ function refresh(entry: Entry): void {
           });
           if (typeof result?.content !== "string")
             throw new Error("插件 MCP 工具必须返回文本 content");
-          return result;
+          return {
+            content: result.content,
+            ...(result.render
+              ? {
+                  metadata: {
+                    render: { version: result.render.version, payload: result.render.data },
+                  },
+                }
+              : {}),
+          };
         },
       }));
     }

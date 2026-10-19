@@ -205,6 +205,10 @@ try {
     );
     if (name === "plugins") {
       await writeFile(
+        path.join(directory, "CHANGELOG.md"),
+        await readFile(path.join(root, "packages/plugins/CHANGELOG.md"))
+      );
+      await writeFile(
         path.join(directory, "tailwind.css"),
         await readFile(path.join(root, "packages/themes/src/tailwind.css"))
       );

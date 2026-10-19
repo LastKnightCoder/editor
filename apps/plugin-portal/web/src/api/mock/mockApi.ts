@@ -2,10 +2,14 @@ import type { PortalApi } from "../types";
 import type {
   FeedbackMessage,
   Submission,
+  SubmissionCounts,
+  SubmissionEvent,
+  SubmissionGroup,
   Upload,
   ReviewDetails,
   ReviewRecord,
   PluginComment,
+  PublicRelease,
 } from "../../../../contracts";
 import { PortalApiError } from "../errors";
 import { content, sampleSubmission } from "./samples";
@@ -29,6 +33,26 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
   ): never => {
     throw new PortalApiError(409, code, message);
   };
+  const published = new Map<string, PublicRelease>();
+  const event = (
+    kind: SubmissionEvent["kind"],
+    decision: SubmissionEvent["decision"],
+    role: SubmissionEvent["role"],
+    message: string
+  ): SubmissionEvent => ({
+    kind,
+    decision,
+    role,
+    login: "demo",
+    excerpt: message.slice(0, 120),
+    createdAt: new Date().toISOString(),
+  });
+  const touch = (id: string, lastEvent: SubmissionEvent) => {
+    const row = records.get(id);
+    if (row) records.set(id, { ...row, lastEvent });
+  };
+  const releasesOf = (pluginId: string) =>
+    [...published.values()].filter(release => release.pluginId === pluginId).reverse();
   const get = (id: string) => {
     const row = records.get(id);
     if (!row) throw new PortalApiError(404, "NOT_FOUND", "找不到模拟记录");
@@ -73,13 +97,62 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       return { deleted: true };
     },
     githubLoginUrl: "/submissions",
-    getCatalog: async () => ({
-      items: [],
-      nextCursor: null,
-      windowStart: new Date().toISOString().slice(0, 10),
-    }),
+    getCatalog: async ({ q }) => {
+      const latest = new Map<string, PublicRelease>();
+      for (const release of published.values()) latest.set(release.pluginId, release);
+      const query = q.trim().toLowerCase();
+      return {
+        items: [...latest.values()]
+          .filter(release =>
+            `${release.pluginId}\n${release.content.manifest.name}\n${release.content.manifest.description}`
+              .toLowerCase()
+              .includes(query)
+          )
+          .map(release => {
+            const version = {
+              releaseId: release.id,
+              version: release.version,
+              minAppVersion: release.content.manifest.minAppVersion,
+              publishedAt: release.publishedAt!,
+              size: release.size,
+              sha256: release.sha256,
+              downloadUrl: "",
+            };
+            return {
+              pluginId: release.pluginId,
+              name: release.content.manifest.name,
+              description: release.content.manifest.description,
+              publisher: release.publisher,
+              repository: release.repository,
+              downloadsTotal: 0,
+              downloads7d: 0,
+              likes: likes.has(release.pluginId) ? 1 : 0,
+              latest: version,
+              compatible: version,
+            };
+          }),
+        nextCursor: null,
+        windowStart: new Date().toISOString().slice(0, 10),
+      };
+    },
     downloadRelease: async () => {
       throw new Error("模拟模式不提供发布包下载");
+    },
+    listReleases: async pluginId => ({
+      items: releasesOf(pluginId).map(({ content: { manifest }, ...release }) => ({
+        ...release,
+        manifest,
+      })),
+      nextCursor: null,
+    }),
+    getRelease: async id => {
+      const release = published.get(id);
+      if (!release) throw new PortalApiError(404, "NOT_FOUND", "该版本尚未发布");
+      return structuredClone(release);
+    },
+    getPluginStats: async pluginId => {
+      if (!releasesOf(pluginId).length) throw new PortalApiError(404, "NOT_FOUND", "插件未发布");
+      return { downloadsTotal: 0, downloads7d: 0, windowStart: new Date().toISOString() };
     },
     getSession: async () => ({
       user,
@@ -131,12 +204,47 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       if (!records.has(id)) records.set(id, { ...sampleSubmission(), id });
       return structuredClone(get(id));
     },
-    listSubmissions: async (_cursor, review = false) => ({
-      items: [...records.values()]
-        .filter(x => !review || !!x.submittedAt)
-        .map(x => structuredClone(x)),
-      nextCursor: null,
-    }),
+    listSubmissions: async ({ scope, status }) => {
+      const scoped = [...records.values()].filter(x => scope !== "review" || !!x.submittedAt);
+      const counts: SubmissionCounts = {
+        draft: 0,
+        pending_review: 0,
+        changes_requested: 0,
+        rejected: 0,
+        approved: 0,
+      };
+      for (const row of scoped) counts[row.status] += 1;
+      return {
+        items: scoped.filter(x => !status || x.status === status).map(x => structuredClone(x)),
+        nextCursor: null,
+        counts,
+      };
+    },
+    listSubmissionGroups: async () => {
+      const groups = new Map<string | null, SubmissionGroup>();
+      for (const row of [...records.values()].reverse()) {
+        const manifest = row.content?.manifest ?? null;
+        const key = manifest?.id ?? null;
+        const group = groups.get(key) ?? {
+          pluginId: key,
+          name: manifest?.name ?? null,
+          submissions: [],
+        };
+        group.submissions.push({
+          id: row.id,
+          status: row.status,
+          pluginId: key,
+          name: manifest?.name ?? null,
+          version: manifest?.version ?? null,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+          submittedAt: row.submittedAt,
+          lastEvent: row.lastEvent,
+        });
+        groups.set(key, group);
+      }
+      return { groups: [...groups.values()] };
+    },
     getSubmission: async id => structuredClone(get(id)),
     saveSubmission: async (id, input) => {
       const row = get(id);
@@ -200,7 +308,24 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
         status,
         canEdit: status === "changes_requested",
         revision: row.revision + 1,
+        lastEvent: event("review", input.decision, "reviewer", input.comment),
       });
+      if (input.decision === "approve")
+        published.set(record.id, {
+          id: record.id,
+          pluginId: record.manifest.id,
+          version: record.manifest.version,
+          state: "published",
+          sha256: record.sha256,
+          size: 1,
+          error: null,
+          publishedAt: record.createdAt,
+          downloadUrl: null,
+          content: row.content!,
+          repository: row.repository,
+          commit: row.commit!,
+          publisher: { login: "demo", avatarUrl: "" },
+        });
       const result: ReviewDetails = {
         reviews: [record, ...(reviews.get(id)?.reviews ?? [])],
         release:
@@ -236,6 +361,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
         createdAt: new Date().toISOString(),
       };
       messages.set(id, [...list, row]);
+      touch(id, event("feedback", null, "author", message));
       return row;
     },
   };

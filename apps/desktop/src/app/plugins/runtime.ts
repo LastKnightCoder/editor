@@ -1,6 +1,7 @@
 import { rendererSyncRegistry } from "./sync-registry";
 import { rendererTTSRegistry } from "./tts-registry";
 import { rendererUploadRegistry } from "./upload-registry";
+import { desktopPluginChat } from "./chat";
 import { uploadRemoteResource } from "@/services/resource-upload";
 import type {
   PluginContext,
@@ -140,6 +141,7 @@ export class DesktopPluginRuntime {
       materials: options.materials,
       skills: { register: registerPluginSkill },
       mcp: options.mcp,
+      chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
