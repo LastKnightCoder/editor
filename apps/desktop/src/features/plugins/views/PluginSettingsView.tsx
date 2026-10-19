@@ -5,6 +5,7 @@ import type { PluginSettingsProps } from "@tau/plugins";
 import { useSettingsStore } from "@/app/settingsStore";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
+import { openPage } from "@/services/page-navigation";
 
 export function PluginSettingsView({
   section,
@@ -12,12 +13,14 @@ export function PluginSettingsView({
   uploadConfig,
   ttsConfig,
   imageConfig,
+  publishConfig,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
+  publishConfig?: PluginSettingsProps["publishConfig"];
 }) {
   if (!section)
     return (
@@ -51,6 +54,8 @@ export function PluginSettingsView({
         在图片生成设置中配置
       </Button>
     );
+  if (section.definition.target === "publish" && !publishConfig)
+    return <Button onClick={() => openPage("publish")}>在博客发布页中配置</Button>;
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -69,6 +74,7 @@ export function PluginSettingsView({
         uploadConfig={uploadConfig}
         ttsConfig={ttsConfig}
         imageConfig={imageConfig}
+        publishConfig={publishConfig}
       />
     </RecoverableBoundary>
   );
@@ -80,12 +86,14 @@ function SettingsScope({
   uploadConfig,
   ttsConfig,
   imageConfig,
+  publishConfig,
 }: {
   section: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
+  publishConfig?: PluginSettingsProps["publishConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
@@ -104,6 +112,7 @@ function SettingsScope({
           uploadConfig={uploadConfig}
           ttsConfig={ttsConfig}
           imageConfig={imageConfig}
+          publishConfig={publishConfig}
         />
       </UiProvider>
     </QueryClientProvider>

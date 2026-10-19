@@ -14,20 +14,15 @@ import PublishSelector from "@/components/PublishSelector";
 import { FadeScroll } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
 import { openExternal } from "@/commands/extra";
-import { useSettingsStore } from "@/app/settingsStore";
 import { EPublishProvider } from "@/stores/useSettingStore";
-import { PROVIDER_LABELS, usePublishConfig, type PublishConfig } from "../usePublishConfig";
+import { usePublishConfig, type PublishConfig } from "../usePublishConfig";
 import { usePublishRun } from "../usePublishRun";
 import { ActionCard, GuideCard, PlanCard, SiteCard } from "./RailCards";
 import { SiteSettingsDrawer } from "./SiteSettingsDrawer";
 import { formatAgo } from "@/utils/formatAgo";
 
 function targetChip(config: PublishConfig) {
-  const { active, publish } = config;
-  if (!config.targetReady) return null;
-  if (active === EPublishProvider.Github) return `GitHub Pages · ${publish.github.branch}`;
-  if (active === EPublishProvider.S3) return `S3 · ${publish.s3.bucket}`;
-  return PROVIDER_LABELS[EPublishProvider.Local];
+  return config.targetReady ? config.providerLabel : null;
 }
 
 export function PublishView() {
@@ -54,10 +49,6 @@ export function PublishView() {
   const canPublish =
     config.targetReady && config.templateReady && selectionCount > 0 && !runner.running;
   const visit = siteUrl ? () => void openExternal(siteUrl) : undefined;
-  const openIntegration = () => {
-    setDrawerOpen(false);
-    useSettingsStore.getState().openSettings("integration");
-  };
   const isLocal = config.active === EPublishProvider.Local;
 
   return (
@@ -122,7 +113,6 @@ export function PublishView() {
                   config={config}
                   selectionCount={selectionCount}
                   onOpenSettings={() => setDrawerOpen(true)}
-                  onOpenIntegration={openIntegration}
                 />
               ) : (
                 <>
@@ -150,12 +140,7 @@ export function PublishView() {
         </div>
       </div>
 
-      <SiteSettingsDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        config={config}
-        onOpenIntegration={openIntegration}
-      />
+      <SiteSettingsDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} config={config} />
     </div>
   );
 }

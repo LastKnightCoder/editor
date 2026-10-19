@@ -1,5 +1,6 @@
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
+import type { GitSnapshotRequest, GitCacheDirectory } from "./publish";
 
 export type { Descendant } from "slate";
 
@@ -43,6 +44,13 @@ export interface MediaInfo {
 }
 
 export interface PluginServices {
+  git: {
+    publishSnapshot(input: GitSnapshotRequest, options?: ServiceOptions): Promise<void>;
+    selectCacheDirectory(
+      input: Record<string, never>,
+      options?: ServiceOptions
+    ): Promise<GitCacheDirectory | null>;
+  };
   tailwind: {
     compile(
       input: { source: string; language?: "html" | "tsx" | "jsx" },
@@ -109,6 +117,10 @@ export function bindPluginServices(
       return result;
     };
   return Object.freeze({
+    git: Object.freeze({
+      publishSnapshot: bind(adapter?.git?.publishSnapshot),
+      selectCacheDirectory: bind(adapter?.git?.selectCacheDirectory),
+    }),
     tailwind: Object.freeze({ compile: bind(adapter?.tailwind?.compile) }),
     typst: Object.freeze({ compile: bind(adapter?.typst?.compile) }),
     markdown: Object.freeze({

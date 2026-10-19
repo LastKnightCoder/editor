@@ -21,7 +21,7 @@ export interface PlanSummary {
 }
 
 export function usePublishRun(config: PublishConfig) {
-  const { active, providerConfig, publish, appearance } = config;
+  const { active, pluginId, providerConfig, publish, appearance } = config;
 
   /* ── 已选内容数 + 上次发布 ── */
   const [selectionCount, setSelectionCount] = useState<number | null>(null);
@@ -54,7 +54,7 @@ export function usePublishRun(config: PublishConfig) {
 
   const refreshPlan = useCallback(async () => {
     const seq = ++planSeq.current;
-    if (!publish.site.templateId) {
+    if (!publish.site.templateId || !config.targetReady) {
       setPlan(null);
       setPlanLoading(false);
       return;
@@ -62,8 +62,9 @@ export function usePublishRun(config: PublishConfig) {
     setPlanLoading(true);
     try {
       const result = await previewPublishPlan({
-        targetDir: "",
         providerType: active,
+        pluginId,
+        basePath: publish.local.basePath,
         providerConfig,
         siteConfig: publish.site,
         settings: { appearance },
@@ -81,7 +82,15 @@ export function usePublishRun(config: PublishConfig) {
     } finally {
       if (seq === planSeq.current) setPlanLoading(false);
     }
-  }, [active, providerConfig, publish.site, appearance]);
+  }, [
+    active,
+    pluginId,
+    providerConfig,
+    publish.site,
+    publish.local.basePath,
+    appearance,
+    config.targetReady,
+  ]);
 
   useEffect(() => {
     void refreshSelections();
@@ -132,7 +141,7 @@ export function usePublishRun(config: PublishConfig) {
     }
     await usePublishRunStore
       .getState()
-      .start({ active, providerConfig, publish, appearance, targetDir });
+      .start({ active, pluginId, providerConfig, publish, appearance, targetDir });
   };
 
   const resetRun = usePublishRunStore.getState().reset;

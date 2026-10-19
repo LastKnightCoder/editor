@@ -23,6 +23,7 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   upload: "上传方式",
   tts: "语音服务",
   images: "图片服务",
+  publish: "博客发布",
   mcp: "MCP 服务",
   chat: "聊天工具展示",
   skill: "Skill",
