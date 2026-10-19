@@ -12,7 +12,7 @@ import { body, fail, isReviewer, json, type Env } from "./platform";
 import { readyUpload } from "./uploads";
 import { verifyRepository } from "./github";
 
-interface Row {
+export interface SubmissionRow {
   id: string;
   publisher_id: string;
   revision: number;
@@ -45,7 +45,7 @@ const STATUSES: SubmissionStatus[] = [
   "rejected",
   "approved",
 ];
-const dto = (row: Row, owner: string): Omit<Submission, "lastEvent"> => ({
+const dto = (row: SubmissionRow, owner: string): Omit<Submission, "lastEvent"> => ({
   id: row.id,
   revision: row.revision,
   status: row.status,
@@ -95,7 +95,11 @@ async function latestEvents(
   );
 }
 /** 批量附加最新动态：审核记录与站内反馈合并后按 created_at/id 取每个提交的最新一条。 */
-export async function withLastEvents(env: Env, rows: Row[], owner: string): Promise<Submission[]> {
+export async function withLastEvents(
+  env: Env,
+  rows: SubmissionRow[],
+  owner: string
+): Promise<Submission[]> {
   if (!rows.length) return [];
   const ids = rows.map(row => row.id);
   const latest = await latestEvents(env, `s.id IN (${ids.map(() => "?").join(",")})`, ids);
@@ -156,14 +160,18 @@ async function submissionGroups(env: Env, owner: string): Promise<SubmissionGrou
     ),
   };
 }
-const present = async (env: Env, row: Row, owner: string) =>
+const present = async (env: Env, row: SubmissionRow, owner: string) =>
   (await withLastEvents(env, [row], owner))[0];
-export async function submissionAccess(env: Env, owner: string, id: string): Promise<Row> {
+export async function submissionAccess(
+  env: Env,
+  owner: string,
+  id: string
+): Promise<SubmissionRow> {
   const row = await env.DB.prepare(
     "SELECT * FROM submissions WHERE id=? AND (publisher_id=? OR (?=1 AND submitted_at IS NOT NULL))"
   )
     .bind(id, owner, isReviewer(env, owner) ? 1 : 0)
-    .first<Row>();
+    .first<SubmissionRow>();
   if (!row) fail(404, "NOT_FOUND", "找不到提交记录");
   return row;
 }
@@ -185,7 +193,7 @@ export async function submissionRoute(
       "SELECT * FROM submissions WHERE publisher_id=? AND client_request_id=?"
     )
       .bind(owner, input.clientRequestId)
-      .first<Row>();
+      .first<SubmissionRow>();
     if (existing) return json(await present(env, existing, owner));
     const count = await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE publisher_id=?")
       .bind(owner)
@@ -201,7 +209,7 @@ export async function submissionRoute(
       "SELECT * FROM submissions WHERE publisher_id=? AND client_request_id=?"
     )
       .bind(owner, input.clientRequestId)
-      .first<Row>();
+      .first<SubmissionRow>();
     if (!row) fail(503, "SERVICE_UNAVAILABLE", "创建失败，请使用同一请求编号重试");
     return json(await present(env, row, owner), 201);
   }
@@ -245,7 +253,7 @@ export async function submissionRoute(
           after?.time ?? null,
           after?.id ?? null
         )
-        .all<Row>(),
+        .all<SubmissionRow>(),
       env.DB.prepare(`SELECT status,COUNT(*) AS n FROM submissions WHERE ${scope} GROUP BY status`)
         .bind(...scopeArgs)
         .all<{ status: SubmissionStatus; n: number }>(),

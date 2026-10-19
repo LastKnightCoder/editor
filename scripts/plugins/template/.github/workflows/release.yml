@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      # 向 GitHub 申请短期身份令牌，插件中心据此确认发布来自已绑定的仓库
+      id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -68,3 +70,22 @@ jobs:
             fi
             gh release create "$RELEASE_TAG" "$ARCHIVE" "${args[@]}"
           fi
+
+      - name: 提交到 Tau 插件中心
+        if: steps.package.outputs.prerelease == 'false'
+        env:
+          PORTAL_API: https://plugins-api.taunote.app
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$PORTAL_API" | jq -r .value)
+          echo "::add-mask::$token"
+          status=$(curl -sS -o portal-response.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $token" -H "Content-Type: application/zip" \
+            --data-binary "@$ARCHIVE" "$PORTAL_API/v1/ci/releases")
+          cat portal-response.json; echo
+          if [ "$status" = "404" ]; then
+            echo "::warning::插件尚未在插件中心首次提交，请先在 https://plugins.taunote.app 网页提交一次以绑定仓库"
+            exit 0
+          fi
+          test "$status" -lt 300

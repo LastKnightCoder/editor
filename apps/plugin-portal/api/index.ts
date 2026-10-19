@@ -9,6 +9,7 @@ import { publicReleaseRoute } from "./releases";
 import { visitorRoute } from "./visitors";
 import { communityRoute } from "./community";
 import { moderationRoute } from "./moderation";
+import { ciRoute } from "./ci";
 import { cleanDownloadReceipts } from "./download-statistics";
 
 export async function handle(
@@ -30,7 +31,9 @@ export async function handle(
     } else {
       const path = new URL(request.url).pathname;
       const auth =
-        (await visitorRoute(request, env, path)) ?? (await authRoute(request, env, path));
+        (await visitorRoute(request, env, path)) ??
+        (await authRoute(request, env, path)) ??
+        (await ciRoute(request, env, path));
       if (auth) response = auth;
       else if (path === "/health" && request.method === "GET") response = json({ ok: true });
       else {
