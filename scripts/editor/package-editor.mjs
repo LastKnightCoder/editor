@@ -72,14 +72,37 @@ const runtime = await build({
   },
 });
 for (const input of Object.keys(runtime.metafile.inputs)) {
-  if (/^(?:apps\/|packages\/(?:plugins|db-schema)\/)/.test(input))
-    throw new Error(`Editor 不得包含应用、发布协议或数据库实现：${input}`);
+  if (/^(?:apps\/|packages\/db-schema\/)/.test(input))
+    throw new Error(`Editor 不得包含应用或数据库实现：${input}`);
   if (
     /tests\/fixtures\/plugins|src\/extensions\/(?:html|custom-block)\/|node_modules\/(?:abcjs|@babel\/standalone)\//.test(
       input
     )
   )
     throw new Error(`Editor 包包含已迁出实现：${input}`);
+}
+for (const [file, output] of Object.entries(runtime.metafile.outputs)) {
+  if (
+    !output.entryPoint ||
+    path.resolve(root, output.entryPoint) === path.join(editorRoot, "renderer.ts")
+  )
+    continue;
+  const pending = [file];
+  const visited = new Set();
+  while (pending.length) {
+    const current = pending.pop();
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const chunk = runtime.metafile.outputs[current];
+    if (!chunk) throw new Error(`构建产物缺少模块：${current}`);
+    for (const input of Object.keys(chunk.inputs)) {
+      if (input.startsWith("packages/plugins/"))
+        throw new Error(`普通 Editor 入口不得包含发布协议：${output.entryPoint} → ${input}`);
+    }
+    for (const dependency of chunk.imports) {
+      if (!dependency.external) pending.push(dependency.path);
+    }
+  }
 }
 const { build: buildVite } = await import(pathToFileURL(desktopRequire.resolve("vite")).href);
 const { default: tailwind } = await import(

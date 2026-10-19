@@ -1247,10 +1247,10 @@ importers:
         version: 5.3.1
       '@remotion/bundler':
         specifier: 4.0.536
-        version: 4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+        version: 4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/cli':
         specifier: 4.0.536
-        version: 4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)
+        version: 4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)
       '@remotion/fonts':
         specifier: 4.0.536
         version: 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1262,7 +1262,7 @@ importers:
         version: 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/tailwind-v4':
         specifier: 4.0.536
-        version: 4.0.536(@remotion/bundler@4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
+        version: 4.0.536(@remotion/bundler@4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
       '@tau/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -1881,6 +1881,9 @@ importers:
       plantuml-encoder:
         specifier: ^1.4.0
         version: 1.4.0
+      postcss:
+        specifier: 8.5.6
+        version: 8.5.6
       react-dnd:
         specifier: ^16.0.1
         version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
@@ -1912,6 +1915,9 @@ importers:
         specifier: ^4.3.8
         version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
     devDependencies:
+      '@tau/plugins':
+        specifier: workspace:*
+        version: link:../plugins
       '@types/is-hotkey':
         specifier: ^0.1.7
         version: 0.1.10
@@ -17030,21 +17036,21 @@ snapshots:
 
   '@remix-run/router@1.23.4': {}
 
-  '@remotion/bundler@4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@remotion/bundler@4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@remotion/studio': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/studio-shared': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/timeline-utils': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@rspack/core': 1.7.11
       '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
-      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
+      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
       esbuild: 0.28.1
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
       react-refresh: 0.18.0
       remotion: 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      style-loader: 4.0.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
-      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)
+      style-loader: 4.0.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
+      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)
     transitivePeerDependencies:
       - '@minify-html/node'
       - '@remotion/video-matting'
@@ -17067,16 +17073,16 @@ snapshots:
 
   '@remotion/captions@4.0.536': {}
 
-  '@remotion/cli@4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)':
+  '@remotion/cli@4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)':
     dependencies:
       '@babel/parser': 7.24.1
-      '@remotion/bundler': 4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@remotion/bundler': 4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/codemods': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/media-utils': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/player': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/renderer': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/studio': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@remotion/studio-server': 4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)
+      '@remotion/studio-server': 4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)
       '@remotion/studio-shared': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       dotenv: 17.3.1
       mediabunny: 1.61.3
@@ -17225,11 +17231,11 @@ snapshots:
     dependencies:
       zod: 4.5.4
 
-  '@remotion/studio-server@4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)':
+  '@remotion/studio-server@4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.8.3)':
     dependencies:
       '@babel/parser': 7.24.1
       '@babel/types': 7.24.0
-      '@remotion/bundler': 4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@remotion/bundler': 4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/codemods': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/renderer': 4.0.536(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@remotion/studio-protocol': 4.0.536
@@ -17306,12 +17312,12 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@remotion/tailwind-v4@4.0.536(@remotion/bundler@4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))':
+  '@remotion/tailwind-v4@4.0.536(@remotion/bundler@4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))':
     dependencies:
-      '@remotion/bundler': 4.0.536(lightningcss@1.31.1)(postcss@8.5.15)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@tailwindcss/webpack': 4.2.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
-      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
-      style-loader: 4.0.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
+      '@remotion/bundler': 4.0.536(lightningcss@1.31.1)(postcss@8.5.6)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@tailwindcss/webpack': 4.2.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
+      css-loader: 7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
+      style-loader: 4.0.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
       tailwindcss: 4.2.0
     transitivePeerDependencies:
       - '@rspack/core'
@@ -18304,13 +18310,13 @@ snapshots:
       tailwindcss: 4.1.18
       vite: 7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
-  '@tailwindcss/webpack@4.2.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))':
+  '@tailwindcss/webpack@4.2.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))':
     dependencies:
       '@alloc/quick-lru': 5.3.0
       '@tailwindcss/node': 4.2.0
       '@tailwindcss/oxide': 4.2.0
       tailwindcss: 4.2.0
-      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)
+      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)
 
   '@tanstack/query-core@5.101.0': {}
 
@@ -19090,7 +19096,7 @@ snapshots:
       '@vue/shared': 3.5.25
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.15
+      postcss: 8.5.6
       source-map-js: 1.2.2
 
   '@vue/compiler-ssr@3.5.25':
@@ -20111,19 +20117,19 @@ snapshots:
     dependencies:
       utrie: 1.0.2
 
-  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15)):
+  css-loader@7.1.4(@rspack/core@1.7.11)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6)):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.15)
-      postcss: 8.5.15
-      postcss-modules-extract-imports: 3.1.0(postcss@8.5.15)
-      postcss-modules-local-by-default: 4.2.0(postcss@8.5.15)
-      postcss-modules-scope: 3.2.1(postcss@8.5.15)
-      postcss-modules-values: 4.0.0(postcss@8.5.15)
+      icss-utils: 5.1.0(postcss@8.5.6)
+      postcss: 8.5.6
+      postcss-modules-extract-imports: 3.1.0(postcss@8.5.6)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.5.6)
+      postcss-modules-scope: 3.2.1(postcss@8.5.6)
+      postcss-modules-values: 4.0.0(postcss@8.5.6)
       postcss-value-parser: 4.2.0
       semver: 7.8.5
     optionalDependencies:
       '@rspack/core': 1.7.11
-      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)
+      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)
 
   css-select@5.2.2:
     dependencies:
@@ -21937,9 +21943,9 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  icss-utils@5.1.0(postcss@8.5.15):
+  icss-utils@5.1.0(postcss@8.5.6):
     dependencies:
-      postcss: 8.5.15
+      postcss: 8.5.6
 
   ieee754@1.2.1: {}
 
@@ -24161,26 +24167,26 @@ snapshots:
       tsx: 4.23.13
       yaml: 2.9.0
 
-  postcss-modules-extract-imports@3.1.0(postcss@8.5.15):
+  postcss-modules-extract-imports@3.1.0(postcss@8.5.6):
     dependencies:
-      postcss: 8.5.15
+      postcss: 8.5.6
 
-  postcss-modules-local-by-default@4.2.0(postcss@8.5.15):
+  postcss-modules-local-by-default@4.2.0(postcss@8.5.6):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.15)
-      postcss: 8.5.15
+      icss-utils: 5.1.0(postcss@8.5.6)
+      postcss: 8.5.6
       postcss-selector-parser: 7.1.6
       postcss-value-parser: 4.2.0
 
-  postcss-modules-scope@3.2.1(postcss@8.5.15):
+  postcss-modules-scope@3.2.1(postcss@8.5.6):
     dependencies:
-      postcss: 8.5.15
+      postcss: 8.5.6
       postcss-selector-parser: 7.1.6
 
-  postcss-modules-values@4.0.0(postcss@8.5.15):
+  postcss-modules-values@4.0.0(postcss@8.5.6):
     dependencies:
-      icss-utils: 5.1.0(postcss@8.5.15)
-      postcss: 8.5.15
+      icss-utils: 5.1.0(postcss@8.5.6)
+      postcss: 8.5.6
 
   postcss-selector-parser@7.1.6:
     dependencies:
@@ -25466,9 +25472,9 @@ snapshots:
 
   stubborn-utils@1.0.2: {}
 
-  style-loader@4.0.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15)):
+  style-loader@4.0.0(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6)):
     dependencies:
-      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)
+      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)
 
   style-to-js@1.1.21:
     dependencies:
@@ -25593,17 +25599,17 @@ snapshots:
 
   terminal-size@4.0.1: {}
 
-  terser-webpack-plugin@5.6.1(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15)):
+  terser-webpack-plugin@5.6.1(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6)):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.5.0
       terser: 5.48.0
-      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)
+      webpack: 5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)
     optionalDependencies:
       esbuild: 0.28.1
       lightningcss: 1.31.1
-      postcss: 8.5.15
+      postcss: 8.5.6
 
   terser@5.48.0:
     dependencies:
@@ -26536,7 +26542,7 @@ snapshots:
 
   webpack-virtual-modules@0.6.2: {}
 
-  webpack@5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15):
+  webpack@5.105.0(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.9
@@ -26560,7 +26566,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.5.0
       tapable: 2.3.3
-      terser-webpack-plugin: 5.6.1(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.15)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.15))
+      terser-webpack-plugin: 5.6.1(esbuild@0.28.1)(lightningcss@1.31.1)(postcss@8.5.6)(webpack@5.105.0(lightningcss@1.31.1)(postcss@8.5.6))
       watchpack: 2.6.1
       webpack-sources: 3.6.0
     transitivePeerDependencies:
