@@ -55,6 +55,8 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     expect(getContentKit().elementTypes).not.toContain("tikz");
     expect(getContentKit().elementTypes).not.toContain("typst");
     expect(getContentKit().elementTypes).not.toContain("abc");
+    expect(getContentKit().elementTypes).not.toContain("html-block");
+    expect(getContentKit().elementTypes).not.toContain("html-inline");
   });
 
   it("content 正文覆盖跨端清单里的全部业务元素类型", async () => {

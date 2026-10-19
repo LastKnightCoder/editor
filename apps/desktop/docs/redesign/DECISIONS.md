@@ -1,5 +1,13 @@
 # 决策记录（轻量 ADR）
 
+## D-170 HTML 行内与块级扩展归同一插件（2026-10-19）
+
+用户要求从 master 创建新 worktree，将 HTML 行内和块级扩展迁入同一个独立插件 tau.html。保留 html-block/html-inline、html、openEdit 与 children，不做数据库或文档格式迁移，客户端版本保持 0.59.0。移除内置 @tau/editor-html 包、四端装配与依赖；桌面和博客通过同一静态插件定义装配，移动端/浏览器扩展沿 D-166 保留未知节点数据。
+
+行内源码通过独立的通用 useInlineSource、insertInlineSource 与 InlineSourceBoundary 复用宿主 Slate、只读状态和提交守卫，不增加私有模块映射，不把 Slate 打入插件，不修改 useSourceBlock 的职责。SDK 0.17.0 仅增补这些能力。HTML 编辑、Popover、Markdown codec 与 Skill 归插件。
+
+两类节点都声明 styleSources。博客发布和静态 HTML/EPUB 导出按通用贡献收集 Tailwind，不再由宿主硬编码 HTML 类型。插件可用时静态输出原始 HTML，缺插件时输出转义源码；不改变既有原始 HTML 信任边界。协作字段、字数、CLI、复习和插件文档过滤仍消费历史数据，保留。实施与实际发布状态见专题 69。
+
 ## D-169 ABC 乐谱完整迁为独立插件（2026-10-19）
 
 用户确认在独立 worktree 中完整迁出 ABC，建立 tau-plugin-abc 独立 GitHub 仓库。节点、源码编辑、预览、Markdown codec、静态 SVG 导出、Skill 与 abcjs 依赖全部归插件；复用现有编辑器静态贡献和源码容器，不增加宿主编译服务或 SDK API。节点沿用 type:abc/content/children，不做数据迁移。

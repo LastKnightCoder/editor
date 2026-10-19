@@ -18,7 +18,6 @@ standard.ts 是仓库内既有基础能力的产品组合，不是独立包，�
 | [front-matter](./front-matter/package.json)       | @tau/editor-front-matter    | 文档元数据         |
 | [header](./header/package.json)                   | @tau/editor-header          | 标题               |
 | [highlight-block](./highlight-block/package.json) | @tau/editor-highlight-block | 高亮容器           |
-| [html](./html/package.json)                       | @tau/editor-html            | HTML / JSX         |
 | [kbd](./kbd/package.json)                         | @tau/editor-kbd             | 键盘标签           |
 | [link](./link/package.json)                       | @tau/editor-link            | 链接               |
 | [list](./list/package.json)                       | @tau/editor-list            | 列表系             |

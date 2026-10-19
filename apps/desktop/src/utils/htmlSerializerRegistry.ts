@@ -2,6 +2,7 @@ import { Descendant } from "slate";
 import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import type { CustomElement, FormattedText } from "@tau/editor";
 import { TEXT_GRADIENT_PRESETS } from "@tau/editor-text-formatting/palette";
+import { compileTailwindForHtml } from "./html-serializers/tailwind-compiler";
 
 export interface HtmlSerializer {
   type: string;
@@ -130,8 +131,17 @@ export class HtmlSerializerRegistry {
       : [];
     const childrenHtml = childrenHtmlArray.join("");
     const pluginSerializer = desktopContentPlugins.htmlSerializer(type);
-    if (pluginSerializer)
+    if (pluginSerializer) {
+      for (const extension of desktopContentPlugins.extensions) {
+        for (const source of extension.styleSources ?? []) {
+          const content = (element as unknown as Record<string, unknown>)[source.field];
+          if (source.type !== type || typeof content !== "string") continue;
+          const css = await compileTailwindForHtml(content, source.language);
+          if (css) options?.tailwindCssCollector?.push(css);
+        }
+      }
       return pluginSerializer.toHtml(element as unknown as Record<string, unknown>);
+    }
 
     // Get the serializer for this element type
     const serializer = this.getSerializer(type);

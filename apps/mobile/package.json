@@ -50,7 +50,6 @@
     "@tau/editor-front-matter": "workspace:*",
     "@tau/editor-header": "workspace:*",
     "@tau/editor-highlight-block": "workspace:*",
-    "@tau/editor-html": "workspace:*",
     "@tau/editor-kbd": "workspace:*",
     "@tau/editor-link": "workspace:*",
     "@tau/editor-list": "workspace:*",
