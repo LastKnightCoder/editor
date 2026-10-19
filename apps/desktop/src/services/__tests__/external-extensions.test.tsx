@@ -9,12 +9,11 @@ import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor-media/services";
 import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { customBlockExtension } from "../../test-fixtures/plugin-packages";
+import { customBlockExtension, htmlExtension } from "../../test-fixtures/plugin-packages";
 import "@tau/plugins/source-editor-host";
 import { diagramExtensions } from "@tau/editor-diagram";
 import { ITypstCompiler } from "@tau/editor-diagram/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { htmlExtensions, insertHTMLBlock } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { getCodeBlockController } from "@tau/editor-code-block/runtime";
@@ -79,7 +78,7 @@ describe("外包扩展的真实编辑器接线", () => {
       extensions: [
         customBlockExtension,
         ...diagramExtensions,
-        ...htmlExtensions,
+        htmlExtension,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,
@@ -307,7 +306,9 @@ describe("外包扩展的真实编辑器接线", () => {
     ]);
     await act(async () => {
       Transforms.select(editor, { path: [0, 0], offset: 0 });
-      expect(insertHTMLBlock(editor)).toEqual([0]);
+      const panel = htmlExtension.blockPanel;
+      if (typeof panel === "function") throw new Error("HTML 插件应提供静态插入菜单");
+      panel?.[0]?.children?.[0]?.onClick?.(editor);
     });
     expect(editor.children).toHaveLength(1);
     expect(isBlockElementEmpty(editor.children[0] as never, editor)).toBe(true);

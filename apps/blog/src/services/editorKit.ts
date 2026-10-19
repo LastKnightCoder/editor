@@ -6,7 +6,6 @@ import { createImageExtensions } from "@tau/editor-media";
 import { standardExtensions } from "../../../../editor-extensions/standard";
 import { publishedEditorExtensions } from "./plugin-registry";
 import { diagramExtensions } from "@tau/editor-diagram";
-import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { mathExtensions } from "@tau/editor-math";
@@ -30,7 +29,6 @@ export function getBlogKit(
       extensions: [
         ...standardExtensions,
         ...diagramExtensions,
-        ...htmlExtensions,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,

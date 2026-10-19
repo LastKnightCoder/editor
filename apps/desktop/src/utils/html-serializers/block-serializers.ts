@@ -1,6 +1,5 @@
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
-import { compileTailwindForHtml } from "./tailwind-compiler";
 import { renderCodeWithShiki } from "./shiki-renderer";
 import { buildPlantumlSvgUrl } from "@tau/editor-diagram/plantuml";
 import { CALLOUT_ICONS } from "../wechat";
@@ -312,17 +311,13 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // HTML Block (with Tailwind compilation)
+  // 缺少 HTML 插件时导出转义源码，避免静默丢失内容。
   {
     type: "html-block",
     isBlock: true,
-    toHtml: async (element, _childrenHtml, _parentElement, options) => {
+    toHtml: element => {
       const html = element.html || "";
-      const css = await compileTailwindForHtml(html, "html");
-      if (css && options?.tailwindCssCollector) {
-        options.tailwindCssCollector.push(css);
-      }
-      return html;
+      return `<pre class="html-source"><code>${escapeHtml(html)}</code></pre>`;
     },
   },
 

@@ -8,6 +8,21 @@ import type { Descendant } from "slate";
 declare module "@tau/plugins" {
   interface EditorElementMap {
     "custom-block": { type: "custom-block"; content: string; children: Descendant[] };
+    "html-block": { type: "html-block"; html: string; children: Descendant[] };
+    "html-inline": {
+      type: "html-inline";
+      html: string;
+      openEdit?: boolean;
+      children: Descendant[];
+    };
+  }
+  interface EditorInlineElementMap {
+    "html-inline": {
+      type: "html-inline";
+      html: string;
+      openEdit?: boolean;
+      children: Descendant[];
+    };
   }
 }
 
@@ -24,3 +39,8 @@ export const customBlockDefinition = evaluatePluginPackage(
   sharedPluginModules
 );
 export const customBlockExtension = customBlockDefinition.editorExtensions![0];
+export const htmlDefinition = evaluatePluginPackage(
+  pluginArtifact("tau.html"),
+  sharedPluginModules
+);
+export const htmlExtension = htmlDefinition.editorExtensions![0];

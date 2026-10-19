@@ -10,7 +10,8 @@ import { IOverlayBackDismiss } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor-media/services";
 import { createDefaultEditorSlots } from "@tau/editor-media/slots";
 import { mathExtensions } from "@tau/editor-math";
-import { htmlExtensions } from "@tau/editor-html";
+import { htmlExtension } from "../../test-fixtures/plugin-packages";
+import "@tau/plugins/source-editor-host";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import { PageProvider, useOverlayDismiss } from "../../page/PageProvider";
 import { definePage } from "../../page/definePage";
@@ -35,13 +36,7 @@ definePage({
 });
 
 const kit = createEditorKit({
-  extensions: [
-    ...mathExtensions,
-    ...htmlExtensions,
-    previewMenuExtension,
-    image,
-    defaultMenuExtension,
-  ],
+  extensions: [...mathExtensions, htmlExtension, previewMenuExtension, image, defaultMenuExtension],
   services: [
     register => {
       register(IEditorSlots, createDefaultEditorSlots());
