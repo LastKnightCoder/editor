@@ -368,7 +368,7 @@ function Installed({
         <p className="text-tau-meta text-ink-2 flex items-center gap-2 px-1">
           <FolderOpen className="text-ink-3 size-4" strokeWidth={1.75} />
           插件目录 <span className="font-tau-mono text-[12px]">{runtime.local.directory}</span>
-          <span className="text-ink-3">· 手动放入的插件默认停用</span>
+          <span className="text-ink-3">· 新安装的插件默认停用，请手动启用</span>
         </p>
       )}
     </>

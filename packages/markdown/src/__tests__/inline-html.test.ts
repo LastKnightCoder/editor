@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Element } from "slate";
+import { Node, type Element } from "slate";
+import { linkCodec } from "@tau/editor-link/markdown";
 import { createMarkdownProcessor, type MarkdownCodec } from "../index.ts";
 import { paragraphCodec } from "./fixtures.ts";
 
@@ -12,6 +13,26 @@ const wrapper: MarkdownCodec = {
 };
 
 describe("领域 HTML 包裹声明", () => {
+  it.each([false, true])("忽略 HTML 时链接文字与包裹标签都先于领域认领过滤，codec=%s", enabled => {
+    const htmlCodec: MarkdownCodec = {
+      type: "external-html",
+      importNode: node => {
+        if (node.type === "html") throw new Error("忽略的 HTML 不应交给领域 codec");
+        return null;
+      },
+    };
+    const processor = createMarkdownProcessor({
+      codecs: [paragraphCodec, linkCodec, ...(enabled ? [wrapper, htmlCodec] : [])],
+    });
+    const markdown = "a [<b>b</b>](https://example.com) <shortcut>c</shortcut>";
+    const content = processor.importFromMarkdown(markdown, ["html"]);
+    expect(content.map(node => Node.string(node)).join("\n")).toBe("a b c");
+    expect(JSON.stringify(content)).not.toContain("external-shortcut");
+    const positioned = processor.importFromMarkdownWithPositions(markdown, ["html"]);
+    expect(positioned.content).toEqual(content);
+    expect(positioned.positionMap.getMappings().length).toBeGreaterThan(0);
+  });
+
   it("不依赖元素类型名认领标签，并保留嵌套内容和文本位置", () => {
     const processor = createMarkdownProcessor({ codecs: [paragraphCodec, wrapper] });
     const markdown = "a <shortcut>b <shortcut>c</shortcut> d</shortcut> z";

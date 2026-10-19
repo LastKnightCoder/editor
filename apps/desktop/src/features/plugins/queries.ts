@@ -78,7 +78,7 @@ export function usePluginVersions(pluginId: string, enabled: boolean) {
   });
 }
 
-/** 下载并暂存，成功后刷新本地扫描以显示「重启后生效」。 */
+/** 下载并安装后刷新本地登记；需要更新内容快照的包保留为待生效。 */
 export function useInstallRelease(runtime: DesktopPluginRuntime | null) {
   const client = useQueryClient();
   return useMutation({

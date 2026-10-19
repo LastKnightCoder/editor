@@ -53,7 +53,7 @@ function setup(
         ...result,
         entries: result.entries.map(entry => ({
           ...entry,
-          enabled: persisted.get(entry.id) ?? entry.source?.kind === "center",
+          enabled: persisted.get(entry.id) ?? false,
         })),
       };
     },
@@ -116,7 +116,7 @@ it("发现只登记，启用才执行，重新创建工作区宿主恢复启用�
   await second.manager.disable("test.local");
   expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("false");
 });
-it("插件中心首次安装自动启用，用户停用后不再覆盖；本地 ZIP 仍默认停用", async () => {
+it("所有来源首次安装均停用，主动启用后刷新保留意图", async () => {
   const center = {
     kind: "center" as const,
     releaseId: "r1",
@@ -128,9 +128,12 @@ it("插件中心首次安装自动启用，用户停用后不再覆盖；本地 
   entries.entries[1].source = center;
   const { host, manager } = setup(async () => entries);
   await manager.refresh();
-  expect(host.getState("test.center")).toBe("active");
+  expect(host.getState("test.center")).toBe("disabled");
   expect(host.getState("test.local")).toBe("disabled");
   expect(manager.source("test.center")).toEqual(center);
+  await manager.enable("test.center");
+  await manager.refresh();
+  expect(host.getState("test.center")).toBe("active");
   await manager.disable("test.center");
   await manager.refresh();
   expect(host.getState("test.center")).toBe("disabled");
@@ -181,20 +184,54 @@ it("扫描新增与删除目录，删除回收命令且保留启用偏好", asyn
   expect(host.listPlugins().some(item => item.id === "test.local")).toBe(false);
   expect(localStorage.getItem(localPluginStateKey("test.local"))).toBe("true");
 });
-it("更新活动包不热替换，停用后刷新加载新包", async () => {
+it("更新活动包即时切换，停用包更新后仍保持停用", async () => {
   let entries = snapshot(artifact());
   const { host, manager } = setup(async () => entries);
   await manager.refresh();
   await manager.enable("test.local");
   entries = snapshot(artifact("test.local", "1.1.0"));
   await manager.refresh();
-  expect(await host.executeCommand("test.local:run")).toBe("1.0.0");
-  expect(manager.error("test.local")).toContain("重启");
+  expect(await host.executeCommand("test.local:run")).toBe("1.1.0");
+  expect(manager.error("test.local")).toBeUndefined();
+  expect(manager.enabled("test.local")).toBe(true);
   await manager.disable("test.local");
+  entries = snapshot(artifact("test.local", "1.2.0"));
+  await manager.refresh();
+  expect(host.getState("test.local")).toBe("disabled");
+  expect(host.listPlugins().find(plugin => plugin.id === "test.local")?.version).toBe("1.2.0");
+  await manager.enable("test.local");
+  expect(await host.executeCommand("test.local:run")).toBe("1.2.0");
+  expect(host.listCommands()).toHaveLength(1);
+});
+it("热更新激活失败恢复旧实例，旧代命令不重复登记", async () => {
+  let entries = snapshot(artifact());
+  const { host, manager } = setup(async () => entries);
   await manager.refresh();
   await manager.enable("test.local");
-  expect(await host.executeCommand("test.local:run")).toBe("1.1.0");
+  const next = artifact("test.local", "1.1.0");
+  next.code = next.code.replace("activate(ctx){", "activate(ctx){throw new Error('新版本故障');");
+  entries = snapshot(next);
+  await manager.refresh();
+  expect(await host.executeCommand("test.local:run")).toBe("1.0.0");
   expect(host.listCommands()).toHaveLength(1);
+  expect(manager.error("test.local")).toContain("已恢复旧版本");
+});
+it("旧实例清理失败隔离身份，不加载更新或绕过重启要求", async () => {
+  const previous = artifact();
+  previous.code = previous.code.replace(
+    "activate(ctx){",
+    "activate(ctx){ctx.register({dispose(){throw new Error('清理失败')}});"
+  );
+  let entries = snapshot(previous);
+  const { host, manager } = setup(async () => entries);
+  await manager.refresh();
+  await manager.enable("test.local");
+  entries = snapshot(artifact("test.local", "1.1.0"));
+  await manager.refresh();
+  expect(host.getState("test.local")).toBe("restart-required");
+  expect(host.listCommands()).toHaveLength(0);
+  expect(manager.error("test.local")).toContain("重启");
+  await expect(manager.enable("test.local")).rejects.toThrow("重启");
 });
 it("坏包和内置 ID 冲突显示错误，根目录读取失败保留当前实例", async () => {
   let fail = false;

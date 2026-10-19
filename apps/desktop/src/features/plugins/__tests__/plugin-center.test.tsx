@@ -145,7 +145,7 @@ beforeEach(async () => {
     ...scan,
     entries: scan.entries.map(entry => ({
       ...entry,
-      enabled: mock.preferences.get(entry.id) ?? entry.source?.kind === "center",
+      enabled: mock.preferences.get(entry.id) ?? false,
     })),
   }));
   mock.catalog.mockResolvedValue(catalog);
@@ -167,7 +167,11 @@ beforeEach(async () => {
     },
   });
   mock.stage.mockImplementation(async () => {
-    scan = { ...scan, updates: [{ id: ID, pending: true, pendingVersion: "1.0.0" }] };
+    scan = {
+      ...scan,
+      entries: [{ id: ID, directory: "/x", artifact: artifact(), source: center }],
+      updates: [],
+    };
     return { id: ID, version: "1.0.0" };
   });
   mock.uninstall.mockImplementation(async () => {
@@ -208,7 +212,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-it("发现页安装需确认，暂存后显示重启生效，重启后中心来源自动启用", async () => {
+it("发现页安装后立即登记且停用，用户从已安装主动启用", async () => {
   expect(page().textContent).toContain("中心插件");
   expect(page().textContent).toContain("@author");
   await click("安装");
@@ -216,20 +220,17 @@ it("发现页安装需确认，暂存后显示重启生效，重启后中心来�
   expect(dialog().textContent).toContain("可以读取和修改你的笔记数据");
   await click("安装", dialog());
   expect(mock.stage).toHaveBeenCalledWith("r1");
-  expect(page().textContent).toContain("1.0.0 重启后生效");
-  expect(page().textContent).toContain("1 项变更");
-  await click("立即重启");
-  expect(mock.relaunch).toHaveBeenCalledOnce();
-  // 模拟重启后的扫描：包已就位，来源为插件中心
-  scan = {
-    directory: "/test/plugins",
-    entries: [{ id: ID, directory: "/x", artifact: artifact(), source: center }],
-    updates: [],
-  };
-  await act(async () => runtime.local?.refresh());
+  expect(page().textContent).toContain("已安装");
+  expect(page().textContent).not.toContain("重启后生效");
+  expect(mock.relaunch).not.toHaveBeenCalled();
+  expect(runtime.host.getState(ID)).toBe("disabled");
+  await click("已安装 1");
+  const enable = page().querySelector<HTMLButtonElement>('[aria-label="启用 中心插件"]');
+  expect(enable).not.toBeNull();
+  await act(async () => enable?.click());
   await settle();
   expect(runtime.host.getState(ID)).toBe("active");
-  expect(page().textContent).toContain("已安装");
+  expect(mock.preferences.get(ID)).toBe(true);
 });
 
 it("详情页读取 README 安全子集，卸载默认保留私有数据", async () => {

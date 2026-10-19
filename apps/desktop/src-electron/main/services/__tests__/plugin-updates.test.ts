@@ -76,6 +76,34 @@ it("暂存不执行/不热替换，重启安装、升级、取消及恢复上一
   expect(await s.version()).toBe("1.0.0");
 });
 
+it("安装与普通更新可以立即提交，同一事务保留备份和取消能力", async () => {
+  const s = await setup();
+  await s.service.stageZip(await zip(s.root, "1.0.0"));
+  expect(await s.service.apply(id, async () => true)).toBe(true);
+  expect(await s.version()).toBe("1.0.0");
+  expect(await s.service.list()).toEqual([]);
+  await s.service.stageZip(await zip(s.root, "1.1.0"));
+  expect(await s.service.apply(id, async () => false)).toBe(false);
+  expect(await s.version()).toBe("1.0.0");
+  expect((await s.service.list())[0].pendingVersion).toBe("1.1.0");
+  await s.service.apply(id, async () => true);
+  expect(await s.version()).toBe("1.1.0");
+  expect((await s.service.list())[0].previousVersion).toBe("1.0.0");
+  await s.service.restore(id);
+  await s.service.apply(id, async () => true);
+  expect(await s.version()).toBe("1.0.0");
+});
+
+it("立即提交前发现包损坏时保留旧版本并返回失败", async () => {
+  const s = await setup();
+  await install(s);
+  await s.service.stageZip(await zip(s.root, "1.1.0"));
+  await writeFile(path.join(s.root, "plugin-updates/pending", id, "package/main.js"), "broken");
+  await expect(s.service.apply(id, async () => true)).rejects.toThrow("产物不完整");
+  expect(await s.version()).toBe("1.0.0");
+  expect((await s.service.list())[0].error).toContain("产物不完整");
+});
+
 it("最低版本、坏哈希、重复更新和非递增版本不覆盖当前包", async () => {
   const s = await setup();
   await install(s);

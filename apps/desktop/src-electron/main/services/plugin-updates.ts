@@ -2,7 +2,11 @@ import { cp, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import AdmZip from "adm-zip";
-import { comparePluginVersions, validatePluginManifest } from "@tau/plugins/host";
+import {
+  comparePluginVersions,
+  validatePluginManifest,
+  type DevelopmentPluginPackage,
+} from "@tau/plugins/host";
 import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local";
 
 type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
@@ -28,7 +32,7 @@ const exists = async (file: string) => {
   }
 };
 
-/** 文件替换只在启动阶段进行，事务目录保留恢复所需的旧包。 */
+/** 文件替换使用可恢复事务，事务目录保留恢复所需的旧包。 */
 export class PluginUpdates {
   private pending: Promise<unknown> = Promise.resolve();
   constructor(
@@ -144,43 +148,54 @@ export class PluginUpdates {
       }
       for (const id of await this.folders("pending")) {
         await pluginSyncSessions
-          .protect(id, async () => {
-            const pending = this.location("pending", id);
-            const transaction = this.location("transactions", id);
-            try {
-              if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
-              const record = await this.record(pending, id);
-              const artifact = await readPluginPackage(
-                path.join(pending, "package"),
-                this.clientVersion
-              );
-              if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
-              if ((await this.fingerprint(id)) !== record.baseline)
-                throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
-              await rename(pending, transaction);
-              await this.saveRecord(transaction, { ...record, phase: "prepared" });
-              if (record.baseline !== null)
-                await rename(path.join(this.directory, id), path.join(transaction, "previous"));
-              await rename(path.join(transaction, "package"), path.join(this.directory, id));
-              await readPluginPackage(path.join(this.directory, id), this.clientVersion);
-              await this.saveRecord(transaction, { ...record, phase: "committed" });
-              await this.finish(id, transaction);
-            } catch (error) {
-              if (await exists(transaction)) {
-                try {
-                  await this.recover(id, transaction);
-                } catch (recoveryError) {
-                  await this.error(id, recoveryError);
-                  return;
-                }
-              }
-              await rm(pending, { recursive: true, force: true });
-              await this.error(id, error);
-            }
-          })
+          .protect(id, () => this.applyPending(id, async () => true))
           .catch(error => this.error(id, error));
       }
     });
+  }
+  /** 调用方根据当前启动快照决定能否立即提交；拒绝时保留待更新包。 */
+  apply(
+    id: string,
+    canApply: (artifact: DevelopmentPluginPackage, replacing: boolean) => Promise<boolean>
+  ) {
+    return this.serial(() => pluginSyncSessions.protect(id, () => this.applyPending(id, canApply)));
+  }
+  private async applyPending(
+    id: string,
+    canApply: (artifact: DevelopmentPluginPackage, replacing: boolean) => Promise<boolean>
+  ) {
+    const pending = this.location("pending", id);
+    const transaction = this.location("transactions", id);
+    try {
+      if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
+      const record = await this.record(pending, id);
+      const artifact = await readPluginPackage(path.join(pending, "package"), this.clientVersion);
+      if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
+      if ((await this.fingerprint(id)) !== record.baseline)
+        throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
+      if (!(await canApply(artifact, record.baseline !== null))) return false;
+      await rename(pending, transaction);
+      await this.saveRecord(transaction, { ...record, phase: "prepared" });
+      if (record.baseline !== null)
+        await rename(path.join(this.directory, id), path.join(transaction, "previous"));
+      await rename(path.join(transaction, "package"), path.join(this.directory, id));
+      await readPluginPackage(path.join(this.directory, id), this.clientVersion);
+      await this.saveRecord(transaction, { ...record, phase: "committed" });
+      await this.finish(id, transaction);
+      return true;
+    } catch (error) {
+      if (await exists(transaction)) {
+        try {
+          await this.recover(id, transaction);
+        } catch (recoveryError) {
+          await this.error(id, recoveryError);
+          throw recoveryError;
+        }
+      }
+      await rm(pending, { recursive: true, force: true });
+      await this.error(id, error);
+      throw error;
+    }
   }
   private async queue(packageDirectory: string, restore: boolean, source?: LocalPluginSource) {
     const artifact = await readPluginPackage(packageDirectory, this.clientVersion);

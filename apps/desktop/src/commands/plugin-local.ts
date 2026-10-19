@@ -84,7 +84,7 @@ export const addPluginComment = (
   withModule("plugin-local", () => invoke("plugin-local:comment", id, message, requestId));
 export const deletePluginComment = (id: string, commentId: string): Promise<{ deleted: boolean }> =>
   withModule("plugin-local", () => invoke("plugin-local:delete-comment", id, commentId));
-/** 下载、核对并暂存插件中心版本，下次完整启动生效。 */
+/** 下载、核对并安装插件中心版本；涉及已启用内容快照的更新延至重启。 */
 export const stagePluginRelease = (id: string): Promise<{ id: string; version: string }> =>
   withModule("plugin-local", () => invoke("plugin-local:stage-release", id));
 export const uninstallLocalPlugin = (id: string): Promise<void> =>
