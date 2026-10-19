@@ -352,7 +352,11 @@ it("发现页按分类单选筛选，关键词参与搜索，卡片显示分类"
   });
   await act(async () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }));
   await settle();
-  expect(page().textContent).toContain("编辑器 · AI");
+  expect(
+    [...(page().querySelector('[aria-label="分类"]')?.querySelectorAll("li") ?? [])].map(
+      item => item.textContent
+    )
+  ).toEqual(["编辑器", "AI"]);
   const trigger = page().querySelector<HTMLButtonElement>('[aria-label="插件分类：全部分类"]');
   expect(trigger).not.toBeNull();
   await act(async () => trigger?.click());

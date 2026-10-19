@@ -11,7 +11,7 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
+import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, Tag, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -363,9 +363,13 @@ function CatalogCard({
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
       {entry.categories?.length ? (
-        <p className="text-tau-sm text-ink-3 truncate">
-          {categoryLabels(entry.categories).join(" · ")}
-        </p>
+        <ul aria-label="分类" className="flex flex-wrap gap-1.5">
+          {categoryLabels(entry.categories).map(label => (
+            <li key={label} className="flex">
+              <Tag>{label}</Tag>
+            </li>
+          ))}
+        </ul>
       ) : null}
       <p
         className="text-tau-sm text-ink-3"
