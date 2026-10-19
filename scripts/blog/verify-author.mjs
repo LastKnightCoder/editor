@@ -28,26 +28,19 @@ const manifest = JSON.parse(await readFile(path.join(author, "package.json"), "u
 const tauPackages = Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }).filter(
   name => name.startsWith("@tau/")
 );
-assert(tauPackages.includes("@tau/editor"));
-assert(tauPackages.every(name => ["@tau/editor", "@tau/plugins"].includes(name)));
+assert.deepEqual(tauPackages, ["@tau/blog"]);
 assert(
   !Object.values({ ...manifest.dependencies, ...manifest.devDependencies }).some(version =>
     /^(?:link|workspace|file):/.test(version)
   )
 );
 if (candidate) {
-  for (const [name, output] of Object.entries({
-    editor: "output/editor-package",
-    plugins: "output/plugin-sdk-data",
-  })) {
-    if (!manifest.dependencies[`@tau/${name}`]) continue;
-    const { version } = JSON.parse(
-      await readFile(path.join(root, "packages", name, "package.json"), "utf8")
-    );
-    const archive = path.join(output, `xiongtao.xt-tau-${name}-${version}.tgz`);
-    await cp(path.join(root, archive), path.join(author, `${name}.tgz`));
-    manifest.dependencies[`@tau/${name}`] = `file:./${name}.tgz`;
-  }
+  const { version } = JSON.parse(
+    await readFile(path.join(root, "packages/blog/package.json"), "utf8")
+  );
+  const archive = path.join(root, "output/blog-package", `xiongtao.xt-tau-blog-${version}.tgz`);
+  await cp(archive, path.join(author, "blog.tgz"));
+  manifest.dependencies["@tau/blog"] = "file:./blog.tgz";
   await writeFile(path.join(author, "package.json"), JSON.stringify(manifest, null, 2) + "\n");
 }
 const fixtures = [];
@@ -85,7 +78,8 @@ const installFlags = [
   "install",
   "--ignore-scripts",
   "--registry=https://registry.npmjs.org",
-  ...(!candidate ? ["--store-dir", path.join(directory, "store")] : []),
+  "--store-dir",
+  path.join(directory, "store"),
 ];
 const install = flags =>
   pnpm
@@ -128,7 +122,7 @@ const report = {
   tests: true,
   build: true,
   hostSourceRequired: false,
-  freshStore: !candidate,
+  freshStore: true,
 };
 await mkdir(path.join(root, "output/author-verification"), { recursive: true });
 await writeFile(

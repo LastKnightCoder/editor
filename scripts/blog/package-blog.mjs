@@ -6,29 +6,22 @@ import { execFileSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const editorRoot = path.join(root, "packages/editor");
+const blogRoot = path.join(root, "packages/blog");
 const require = createRequire(path.join(editorRoot, "package.json"));
 const desktopRequire = createRequire(path.join(root, "apps/desktop/package.json"));
 const ts = require("typescript");
 const { build } = createRequire(desktopRequire.resolve("vite/package.json"))("esbuild");
-const manifest = JSON.parse(await readFile(path.join(editorRoot, "package.json"), "utf8"));
-const output = path.resolve(process.argv[2] ?? path.join(root, "output/editor-package"));
+const editorManifest = JSON.parse(await readFile(path.join(editorRoot, "package.json"), "utf8"));
+const manifest = JSON.parse(await readFile(path.join(blogRoot, "package.json"), "utf8"));
+const output = path.resolve(process.argv[2] ?? path.join(root, "output/blog-package"));
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, "package-"));
-const entries = Object.entries(manifest.exports).filter(([, source]) => !source.endsWith(".css"));
+const entries = Object.entries(manifest.exports)
+  .filter(([, source]) => !source.endsWith(".css"))
+  .map(([key, source]) => [key, path.resolve(blogRoot, source)]);
 const nameOf = key => (key === "." ? "index" : key.slice(2));
-const entryPoints = Object.fromEntries(
-  entries.map(([key, source]) => [nameOf(key), path.join(editorRoot, source)])
-);
-const peers = {
-  react: "^19.2.0",
-  "react-dom": "^19.2.0",
-  slate: "0.126.2",
-  "slate-dom": "0.126.0",
-  "slate-react": "0.126.4",
-  "slate-history": "0.113.1",
-  "react-dnd": "^16.0.1",
-  "react-dnd-html5-backend": "^16.0.1",
-};
+const entryPoints = Object.fromEntries(entries.map(([key, source]) => [nameOf(key), source]));
+const peers = manifest.peerDependencies;
 const runtime = await build({
   entryPoints,
   outdir: path.join(directory, "dist"),
@@ -84,7 +77,7 @@ for (const input of Object.keys(runtime.metafile.inputs)) {
 for (const [file, output] of Object.entries(runtime.metafile.outputs)) {
   if (
     !output.entryPoint ||
-    path.resolve(root, output.entryPoint) === path.join(editorRoot, "renderer.ts")
+    path.resolve(root, output.entryPoint) === path.join(blogRoot, "src/index.ts")
   )
     continue;
   const pending = [file];
@@ -224,8 +217,8 @@ async function copyDeclaration(source) {
             : undefined;
       const resolved =
         ts.resolveModuleName(node.text, source, options, ts.sys).resolvedModule ??
-        (selfEntry && manifest.exports[selfEntry]
-          ? { resolvedFileName: path.join(editorRoot, manifest.exports[selfEntry]) }
+        (selfEntry && editorManifest.exports[selfEntry]
+          ? { resolvedFileName: path.resolve(editorRoot, editorManifest.exports[selfEntry]) }
           : undefined);
       if (!resolved) throw new Error(`声明无法解析：${source} → ${node.text}`);
       const dependency = resolved.resolvedFileName;
@@ -268,33 +261,35 @@ const exports = Object.fromEntries(
   entries.map(([key, source]) => [
     key,
     {
-      types: "./" + targetOf(path.join(editorRoot, source)),
+      types: "./" + targetOf(source),
       import: "./dist/" + nameOf(key) + ".js",
     },
   ])
 );
 exports["./styles.css"] = "./dist/styles.css";
-for (const [key, source] of Object.entries(manifest.exports).filter(([, source]) =>
-  source.endsWith(".css")
-)) {
-  if (key === "./styles.css") continue;
-  if (key.startsWith("./theme/")) {
-    const target = "./dist/" + key.slice(2);
-    await mkdir(path.dirname(path.join(directory, target)), { recursive: true });
-    await writeFile(path.join(directory, target), await readFile(path.join(editorRoot, source)));
-    exports[key] = target;
-  } else exports[key] = "./dist/styles.css";
+for (const name of ["tailwind", "scale"]) {
+  const target = `./dist/theme/${name}.css`;
+  await mkdir(path.dirname(path.join(directory, target)), { recursive: true });
+  await writeFile(
+    path.join(directory, target),
+    await readFile(path.join(root, `packages/themes/src/${name}.css`))
+  );
+  exports[`./theme/${name}.css`] = target;
 }
 await writeFile(
   path.join(directory, "package.json"),
   JSON.stringify(
     {
-      name: "@xiongtao.xt/tau-editor",
+      name: "@xiongtao.xt/tau-blog",
       version: manifest.version,
       type: "module",
       license: "MIT",
-      description: "Tau 通用编辑器：内核、内置扩展、编辑器 UI 与已编译样式",
-      repository: { type: "git", url: "git+https://github.com/LastKnightCoder/editor.git" },
+      description: "Tau 博客模板：数据读取、搜索、正文渲染与内容插件接入",
+      repository: {
+        type: "git",
+        url: "git+https://github.com/LastKnightCoder/editor.git",
+        directory: "packages/blog",
+      },
       publishConfig: { access: "public", registry: "https://registry.npmjs.org" },
       exports,
       dependencies,
@@ -347,7 +342,7 @@ for (const [name, info] of [...bundledLicenses].sort(([a], [b]) => a.localeCompa
 await writeFile(path.join(directory, "THIRD_PARTY_NOTICES.md"), notices.join(""));
 await writeFile(
   path.join(directory, "README.md"),
-  await readFile(path.join(editorRoot, "README.md"))
+  await readFile(path.join(blogRoot, "README.md"))
 );
 const archive = execFileSync(
   "npm",

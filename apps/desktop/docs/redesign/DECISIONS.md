@@ -1798,6 +1798,10 @@
 
 ## 博客模板插件化（2026-10-18，执行中）
 
+- 2026-10-19 收敛：Editor 的 kit 选择与环境装配分开，删除渲染器及页面的 Provider 补线；UI 原语沿用默认 Portal 或外层作用域。渲染包明确六个出口，不自动转发 Editor 内部接口。用户另确认删除 content-css，CSS 仅校验后按原文加载，不改写选择器或动画；样式范围由内容插件自己定义，不提供强制实例隔离。本轮只交付本地候选与验证，暂不发布或推送。
+
+- 2026-10-19 包名与源码分层修订：对外模板渲染交付整体改名为 @tau/blog-renderer，发布接入源码迁入 packages/blog-renderer，单向依赖通用 Editor 与数据 SDK；packages/editor 不引用发布协议。必要实现随一个包构建，不要求模板额外安装 Editor/SDK，旧 tau-editor 公开版本保留历史。页面 Tooltip、toast、主题和预览容器由模板选择，不公开 /editor/ui 或要求页面使用内部 Provider。本文下面同包 /renderer 与模板 PublishedContent 的旧设计记录由本条接替；HTML 插件保持原实现，无新增 iframe 或实例资源接口。
+
 - 2026-10-19 用户确认的渲染器收敛：发布正文接入放在现有 @tau/editor/renderer 独立入口，对作者提供 createClient 和 ContentRenderer，通用 Editor 本体保持原接口。两个模板删除 src/published、C23 映射和样式加载代码；页面、路由、外部预览及模板业务扩展仍归模板。不新增 npm 包；撤回未发布的实例资源接口和模板 iframe/HTML render 替换，HTML 插件保持原有实现。后面的 PublishedContent 设计记录由本条接替，实施与公开验证见 66。
 
 - 2026-10-19 实施追记：已保存原型并先后合入 master 1842bb342、f7b0601f0，23 个通用内置功能收进 packages/editor，core/presets/默认组件分层，顶层 editor-extensions 及旧工作区功能包退役。各端与公共库已迁移，旧 apps/blog 退出活跃工作区；不恢复已插件化能力、不保留兼容层。Editor 0.1.0、SDK 0.19.0 已公开发布并核对下载摘要，SDK 保留主线 0.18.0 图片 API；两个独立模板工程通过无宿主源码、全新依赖存储的公共 npm 冻结安装、类型、测试、构建及实际 C23 验证。宿主协议与浏览器行为的正式报告见实施记录 66。

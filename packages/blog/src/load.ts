@@ -5,7 +5,7 @@ import {
   assertRenderTypes,
   PLUGIN_RENDER_VERSION,
 } from "@tau/plugins/publish-artifacts";
-import type { EditorExtension } from "../core/api/extension";
+import type { EditorExtension } from "@tau/editor/api";
 import { pluginModules } from "./plugin-modules";
 
 export async function readVerified(
@@ -66,5 +66,5 @@ export async function prepareContent(result: DataResult, signal: AbortSignal) {
     styles.push(await readVerified(new URL(ref.href, result.dataUrl), ref.integrity, signal));
   }
   signal.throwIfAborted();
-  return { extensions, css: styles.join("\n") };
+  return { extensions, styles };
 }

@@ -1,7 +1,6 @@
 import { forwardRef, useContext, useMemo } from "react";
 import { DndContext, DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { UiProvider } from "@tau/ui";
 import CoreEditor, { type IEditorProps } from "./core/CoreEditor";
 import type { EditorRef } from "./core/types/editor";
 import { createEditorKit } from "./core/kit/EditorKit";
@@ -10,10 +9,15 @@ import { defaultExtensions } from "./presets/default";
 import { IEditorSlots } from "./extensions/media/services";
 import { createDefaultEditorSlots } from "./extensions/media/slots";
 
-export type EditorProps = IEditorProps;
+export interface EditorProps extends IEditorProps {
+  /** 是否继承外层编辑器的组合，默认继承。 */
+  inheritKit?: boolean;
+}
 
 export const Editor = forwardRef<EditorRef, EditorProps>((props, ref) => {
-  const inherited = useInheritedKit();
+  const { inheritKit = true, ...editorProps } = props;
+  const parentKit = useInheritedKit();
+  const inherited = inheritKit ? parentKit : null;
   const { dragDropManager } = useContext(DndContext);
   const defaults = useMemo(
     () =>
@@ -25,11 +29,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>((props, ref) => {
           }),
     [props.kit, inherited]
   );
-  if (props.kit || inherited) return <CoreEditor {...props} ref={ref} />;
   const content = (
-    <UiProvider>
-      <CoreEditor {...props} kit={defaults} ref={ref} />
-    </UiProvider>
+    <CoreEditor {...editorProps} kit={props.kit ?? inherited ?? defaults} ref={ref} />
   );
   return dragDropManager ? content : <DndProvider backend={HTML5Backend}>{content}</DndProvider>;
 });
