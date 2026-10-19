@@ -1,6 +1,6 @@
 import type { Descendant } from "slate";
 import { createMarkdownProcessor, type MarkdownCodec } from "../index.ts";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 
 /**
  * 框架测试用的最小 codec 夹具：框架不自带任何元素类型后，只测 walker / 位置映射 / 兜底

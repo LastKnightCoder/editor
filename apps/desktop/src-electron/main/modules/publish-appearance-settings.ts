@@ -1,4 +1,4 @@
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
 import type { IPublishInitData } from "@/types/publish";
 
 type PublishImageAppearanceSettings = NonNullable<

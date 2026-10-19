@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
 
 import { EGithubCDN } from "@/constants/github";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";

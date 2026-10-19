@@ -6,7 +6,7 @@
 
 import { forwardRef, useEffect, useId, useState } from "react";
 import { useDebounce } from "ahooks";
-import { renderMermaidSvg } from "@tau/editor-diagram/mermaid";
+import { renderMermaidSvg } from "@tau/editor/extensions/diagram/mermaid";
 import { useDocumentTheme } from "@tau/shared";
 import useTheme from "@/hooks/useTheme";
 

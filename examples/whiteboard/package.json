@@ -12,13 +12,13 @@
     "@tau/whiteboard": "workspace:*",
     "@tau/themes": "workspace:*",
     "@tau/ui": "workspace:*",
-    "@tau/editor-text-formatting": "workspace:*",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "slate": "0.126.2",
-    "slate-react": "0.126.4"
+    "slate-react": "0.126.4",
+    "@tau/editor": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",

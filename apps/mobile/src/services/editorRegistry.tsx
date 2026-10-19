@@ -7,8 +7,8 @@ import {
   type ServiceRegistration,
   type ServiceRegistry,
 } from "@tau/editor";
-import { IEditorSlots, IVideoContentProviders, type EditorSlots } from "@tau/editor-media/services";
-import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor-media";
+import { IEditorSlots, IVideoContentProviders, type EditorSlots } from "@tau/editor/extensions/media/services";
+import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor/extensions/media";
 export { mobileImportFromMarkdown } from "./editorMarkdown";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";

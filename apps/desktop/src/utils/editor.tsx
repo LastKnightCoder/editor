@@ -1,11 +1,11 @@
 import { Descendant, Editor } from "slate";
 import { FormattedText, ParagraphElement, InlineElement } from "@tau/editor";
-import type { CodeBlockElement } from "@tau/editor-code-block/types";
-import type { InlineMathElement, BlockMathElement } from "@tau/editor-math/types";
+import type { CodeBlockElement } from "@tau/editor/extensions/code-block/types";
+import type { InlineMathElement, BlockMathElement } from "@tau/editor/extensions/math/types";
 import classnames from "classnames";
-import { Katex } from "@tau/editor-math/renderers";
+import { Katex } from "@tau/editor/extensions/math/renderers";
 import { wordsCount } from "words-count";
-import { StyledTextColorStyle } from "@tau/editor-styled-text/colors";
+import { StyledTextColorStyle } from "@tau/editor/extensions/styled-text/colors";
 import type { ReactElement } from "react";
 import LocalImage from "@/components/LocalImage";
 

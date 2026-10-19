@@ -4,8 +4,8 @@
  */
 import { type FileService, type ResourceService } from "@tau/shared/host-services";
 
-import type { TypstCompiler } from "@tau/editor-diagram/services";
-import { type EditorSlots } from "@tau/editor-media/services";
+import type { TypstCompiler } from "@tau/editor/extensions/diagram/services";
+import { type EditorSlots } from "@tau/editor/extensions/media/services";
 import useSettingStore from "@/stores/useSettingStore";
 import { selectFile, readTextFile, getHomeDir, convertFileSrc } from "@/commands/file";
 import { compileTypst } from "@/commands/typst";

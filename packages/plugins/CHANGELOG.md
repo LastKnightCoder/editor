@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.17.1 候选（未发布）
+
+- 补齐 publish-data 类型、publish-client 纯数据客户端及 publish-artifacts 协议校验/定义求值入口；数据与产物声明不连带载入 Editor/React/UI 类型。
+- 普通 SDK/UI 根入口保持类型与 Tau 注入约定；通用源码组件契约与实现由 Editor 公开入口维护，既有源码宿主适配只负责接线。
+- 保留 master 0.17.0 的全部已插件化接口。公共 registry 已出现 0.18.0，发布策略需协调，不用本候选覆盖新版或改写 latest。
+
 ## 0.17.0
 
 - 新增通用行内源码 API：useInlineSource、insertInlineSource 和 InlineSourceBoundary，复用宿主 Slate 实例与浏览器行内边界处理。

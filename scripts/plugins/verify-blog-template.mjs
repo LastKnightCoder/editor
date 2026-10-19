@@ -5,8 +5,8 @@ import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
-import { serveSite } from "../../apps/blog/spikes/template-owned-spa/server.mjs";
-import { checkProtocol } from "../../apps/blog/spikes/template-owned-spa/protocol-checks.mjs";
+import { serveSite } from "./test-utils/server.mjs";
+import { checkProtocol } from "./test-utils/protocol-checks.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const plugin = path.resolve(process.argv[2] ?? path.join(root, "../tau-blog-template"));
@@ -75,9 +75,29 @@ const manifest = {
   editor: true,
   integrity: { "main.js": hash(code), "style.css": hash(css) },
 };
+const catalog = JSON.parse(
+  await readFile(path.join(root, "tests/fixtures/plugins/catalog.json"), "utf8")
+);
+const htmlSource = catalog.find(item => item.id === "tau.html");
+const htmlDirectory = path.join(root, "tests/fixtures/plugins", htmlSource.artifact);
+const htmlManifest = JSON.parse(await readFile(path.join(htmlDirectory, "manifest.json"), "utf8"));
+const htmlCode = await readFile(path.join(htmlDirectory, htmlManifest.main), "utf8");
+const htmlCss = await readFile(path.join(htmlDirectory, htmlManifest.styles), "utf8");
+assert.equal(hash(htmlCode), htmlManifest.integrity[htmlManifest.main]);
+assert.equal(hash(htmlCss), htmlManifest.integrity[htmlManifest.styles]);
 const plugins = {
-  builtinTypes: ["paragraph", "formatted", "content-link", "html-block"],
-  plugins: [{ artifact: { manifest, code, css }, nodeTypes: ["example.portable-counter"] }],
+  builtinTypes: ["paragraph", "formatted", "content-link"],
+  plugins: [
+    { artifact: { manifest, code, css }, nodeTypes: ["example.portable-counter"] },
+    {
+      artifact: { manifest: htmlManifest, code: htmlCode, css: htmlCss },
+      nodeTypes: ["html-block", "html-inline"],
+      styleSources: [
+        { type: "html-block", field: "html", language: "html" },
+        { type: "html-inline", field: "html", language: "html" },
+      ],
+    },
+  ],
 };
 const clientBuild = await build({
   entryPoints: [path.join(root, "packages/plugins/src/publish-client.ts")],

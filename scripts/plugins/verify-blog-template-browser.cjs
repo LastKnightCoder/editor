@@ -78,6 +78,13 @@ async function run() {
     "8"
   );
   cases.push("模板保留全页 HTML 的独立脚本交互与伴生 CSS，父页面状态独立");
+  await click('button[title="全屏"]');
+  await until(`Boolean(document.querySelector('[aria-label="HTML 全屏"]'))`);
+  await evaluate(`document.querySelector('[aria-label="HTML 全屏"] button[title="显示源码"]')?.click()`);
+  await until(`document.querySelector('[aria-label="HTML 全屏"] .CodeMirror')?.CodeMirror?.getMode()?.name === 'htmlmixed'`);
+  await click('[aria-label="HTML 全屏"] button[title="关闭 (Esc)"]');
+  await until(`!document.querySelector('[aria-label="HTML 全屏"]')`);
+  cases.push("公开 Editor 包保留源码全屏与 HTML 语法模式，退出不改写只读正文");
   await evaluate(
     `(()=>{const link=document.querySelector('a.blog-content-link[href*="articles/2"]');if(!link)throw Error('缺少预览链接');link.dispatchEvent(new PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}));link.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));})()`
   );

@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import type { CustomElement, FormattedText } from "@tau/editor";
-import { TEXT_GRADIENT_PRESETS } from "@tau/editor-text-formatting/palette";
+import { TEXT_GRADIENT_PRESETS } from "@tau/editor/extensions/text-formatting/palette";
 import { compileTailwindForHtml } from "./html-serializers/tailwind-compiler";
 
 export interface HtmlSerializer {

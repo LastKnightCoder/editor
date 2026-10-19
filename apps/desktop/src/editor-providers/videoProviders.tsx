@@ -5,8 +5,8 @@ import {
   useRemoteVideoWithContext,
   useYoutubeVideoWithContext,
 } from "@tau/shared";
-import { type MediaInsertSource, type VideoContentProvider } from "@tau/editor-media/services";
-import { type VideoElementMeta } from "@tau/editor-media/types";
+import { type MediaInsertSource, type VideoContentProvider } from "@tau/editor/extensions/media/services";
+import { type VideoElementMeta } from "@tau/editor/extensions/media/types";
 
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";

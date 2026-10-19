@@ -1,7 +1,7 @@
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderBlockMath } from "./mathjax-renderer";
 import { renderCodeWithShiki } from "./shiki-renderer";
-import { buildPlantumlSvgUrl } from "@tau/editor-diagram/plantuml";
+import { buildPlantumlSvgUrl } from "@tau/editor/extensions/diagram/plantuml";
 import { CALLOUT_ICONS } from "../wechat";
 
 const DEFAULT_CALLOUT_TITLE: Record<string, string> = {

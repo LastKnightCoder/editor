@@ -6,7 +6,7 @@ import { Trash2, MoreHorizontal, CreditCard, FileText, FolderInput, RefreshCw } 
 import { IconButton, Menu, cn, toast } from "@tau/ui";
 import { useConfirmPrompt } from "../../../../hooks/useConfirmPrompt";
 import { Editor } from "@tau/editor";
-import webviewExtension from "@tau/editor-webview";
+import webviewExtension from "@tau/editor/extensions/webview";
 import { EditText } from "@tau/shared";
 import type { EditTextHandle } from "@tau/shared";
 import type { Descendant } from "slate";

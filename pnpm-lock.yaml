@@ -132,214 +132,6 @@ importers:
         specifier: 4.151.1
         version: 4.151.1(@cloudflare/workers-types@5.20261016.1)(@types/node@24.12.4)
 
-  apps/blog:
-    dependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-annotation':
-        specifier: workspace:*
-        version: link:../../editor-extensions/annotation
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-code-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/code-block
-      '@tau/editor-comment':
-        specifier: workspace:*
-        version: link:../../editor-extensions/comment
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-diagram':
-        specifier: workspace:*
-        version: link:../../editor-extensions/diagram
-      '@tau/editor-divide-line':
-        specifier: workspace:*
-        version: link:../../editor-extensions/divide-line
-      '@tau/editor-emoji':
-        specifier: workspace:*
-        version: link:../../editor-extensions/emoji
-      '@tau/editor-front-matter':
-        specifier: workspace:*
-        version: link:../../editor-extensions/front-matter
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-kbd':
-        specifier: workspace:*
-        version: link:../../editor-extensions/kbd
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-math':
-        specifier: workspace:*
-        version: link:../../editor-extensions/math
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
-      '@tau/editor-source-view':
-        specifier: workspace:*
-        version: link:../../packages/editor-source-view
-      '@tau/editor-styled-text':
-        specifier: workspace:*
-        version: link:../../editor-extensions/styled-text
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
-      '@tau/editor-underline':
-        specifier: workspace:*
-        version: link:../../editor-extensions/underline
-      '@tau/editor-webview':
-        specifier: workspace:*
-        version: link:../../editor-extensions/webview
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/plugins':
-        specifier: workspace:*
-        version: link:../../packages/plugins
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.9.6
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.5.1
-        version: 2.5.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      codemirror:
-        specifier: ^5.65.20
-        version: 5.65.21
-      dayjs:
-        specifier: ^1.11.19
-        version: 1.11.23
-      fuse.js:
-        specifier: ^7.4.1
-        version: 7.4.1
-      immer:
-        specifier: ^10.2.0
-        version: 10.2.0
-      is-hotkey:
-        specifier: ^0.2.0
-        version: 0.2.0
-      katex:
-        specifier: ^0.16.21
-        version: 0.16.47
-      lodash:
-        specifier: ^4.17.21
-        version: 4.18.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      motion:
-        specifier: 12.26.2
-        version: 12.26.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-codemirror2:
-        specifier: ^7.3.0
-        version: 7.3.0(codemirror@5.65.21)(react@19.2.0)
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      react-icons:
-        specifier: ^4.12.0
-        version: 4.12.0(react@19.2.0)
-      react-inlinesvg:
-        specifier: ^4.2.0
-        version: 4.5.0(react@19.2.0)
-      shiki:
-        specifier: ^3.22.0
-        version: 3.22.0
-      shiki-magic-move:
-        specifier: ^1.2.1
-        version: 1.4.0(react@19.2.0)(shiki@3.22.0)(svelte@5.46.0)(vue@3.5.25(typescript@5.8.3))
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-dom:
-        specifier: 0.126.0
-        version: 0.126.0(slate@0.126.2)
-      slate-history:
-        specifier: 0.113.1
-        version: 0.113.1(slate@0.126.2)
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      swiper:
-        specifier: ^11.2.10
-        version: 11.2.10
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      zustand:
-        specifier: ^4.5.7
-        version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
-    devDependencies:
-      '@fontsource/jetbrains-mono':
-        specifier: ^5.2.8
-        version: 5.3.0
-      '@tailwindcss/vite':
-        specifier: ^4.0.0
-        version: 4.1.18(vite@7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      '@vitejs/plugin-react-swc':
-        specifier: ^3.5.0
-        version: 3.11.0(vite@7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
-      cal-sans:
-        specifier: ^1.0.1
-        version: 1.0.1
-      mime-types:
-        specifier: ^3.0.2
-        version: 3.0.2
-      tailwindcss:
-        specifier: ^4.0.0
-        version: 4.1.18
-      typescript:
-        specifier: ^5.2.2
-        version: 5.8.3
-      vite:
-        specifier: 7.2.4
-        version: 7.2.4(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
   apps/browser-extension:
     dependencies:
       '@loadable/component':
@@ -351,78 +143,9 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@tau/editor-annotation':
-        specifier: workspace:*
-        version: link:../../editor-extensions/annotation
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-code-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/code-block
-      '@tau/editor-comment':
-        specifier: workspace:*
-        version: link:../../editor-extensions/comment
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-diagram':
-        specifier: workspace:*
-        version: link:../../editor-extensions/diagram
-      '@tau/editor-divide-line':
-        specifier: workspace:*
-        version: link:../../editor-extensions/divide-line
-      '@tau/editor-emoji':
-        specifier: workspace:*
-        version: link:../../editor-extensions/emoji
-      '@tau/editor-front-matter':
-        specifier: workspace:*
-        version: link:../../editor-extensions/front-matter
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-kbd':
-        specifier: workspace:*
-        version: link:../../editor-extensions/kbd
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-math':
-        specifier: workspace:*
-        version: link:../../editor-extensions/math
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
       '@tau/editor-source-view':
         specifier: workspace:*
         version: link:../../packages/editor-source-view
-      '@tau/editor-styled-text':
-        specifier: workspace:*
-        version: link:../../editor-extensions/styled-text
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
-      '@tau/editor-underline':
-        specifier: workspace:*
-        version: link:../../editor-extensions/underline
-      '@tau/editor-webview':
-        specifier: workspace:*
-        version: link:../../editor-extensions/webview
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
@@ -835,81 +558,12 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@tau/editor-annotation':
-        specifier: workspace:*
-        version: link:../../editor-extensions/annotation
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-code-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/code-block
       '@tau/editor-collab':
         specifier: workspace:*
         version: link:../../packages/editor-collab
-      '@tau/editor-comment':
-        specifier: workspace:*
-        version: link:../../editor-extensions/comment
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-diagram':
-        specifier: workspace:*
-        version: link:../../editor-extensions/diagram
-      '@tau/editor-divide-line':
-        specifier: workspace:*
-        version: link:../../editor-extensions/divide-line
-      '@tau/editor-emoji':
-        specifier: workspace:*
-        version: link:../../editor-extensions/emoji
-      '@tau/editor-front-matter':
-        specifier: workspace:*
-        version: link:../../editor-extensions/front-matter
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-kbd':
-        specifier: workspace:*
-        version: link:../../editor-extensions/kbd
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-math':
-        specifier: workspace:*
-        version: link:../../editor-extensions/math
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
       '@tau/editor-source-view':
         specifier: workspace:*
         version: link:../../packages/editor-source-view
-      '@tau/editor-styled-text':
-        specifier: workspace:*
-        version: link:../../editor-extensions/styled-text
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
-      '@tau/editor-underline':
-        specifier: workspace:*
-        version: link:../../editor-extensions/underline
-      '@tau/editor-webview':
-        specifier: workspace:*
-        version: link:../../editor-extensions/webview
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
@@ -1406,81 +1060,12 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@tau/editor-annotation':
-        specifier: workspace:*
-        version: link:../../editor-extensions/annotation
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-code-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/code-block
       '@tau/editor-collab':
         specifier: workspace:*
         version: link:../../packages/editor-collab
-      '@tau/editor-comment':
-        specifier: workspace:*
-        version: link:../../editor-extensions/comment
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-diagram':
-        specifier: workspace:*
-        version: link:../../editor-extensions/diagram
-      '@tau/editor-divide-line':
-        specifier: workspace:*
-        version: link:../../editor-extensions/divide-line
-      '@tau/editor-emoji':
-        specifier: workspace:*
-        version: link:../../editor-extensions/emoji
-      '@tau/editor-front-matter':
-        specifier: workspace:*
-        version: link:../../editor-extensions/front-matter
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-kbd':
-        specifier: workspace:*
-        version: link:../../editor-extensions/kbd
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-math':
-        specifier: workspace:*
-        version: link:../../editor-extensions/math
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
       '@tau/editor-source-view':
         specifier: workspace:*
         version: link:../../packages/editor-source-view
-      '@tau/editor-styled-text':
-        specifier: workspace:*
-        version: link:../../editor-extensions/styled-text
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
-      '@tau/editor-underline':
-        specifier: workspace:*
-        version: link:../../editor-extensions/underline
-      '@tau/editor-webview':
-        specifier: workspace:*
-        version: link:../../editor-extensions/webview
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
@@ -1767,69 +1352,6 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@tau/editor-annotation':
-        specifier: workspace:*
-        version: link:../../editor-extensions/annotation
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-code-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/code-block
-      '@tau/editor-comment':
-        specifier: workspace:*
-        version: link:../../editor-extensions/comment
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-divide-line':
-        specifier: workspace:*
-        version: link:../../editor-extensions/divide-line
-      '@tau/editor-emoji':
-        specifier: workspace:*
-        version: link:../../editor-extensions/emoji
-      '@tau/editor-front-matter':
-        specifier: workspace:*
-        version: link:../../editor-extensions/front-matter
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-kbd':
-        specifier: workspace:*
-        version: link:../../editor-extensions/kbd
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-math':
-        specifier: workspace:*
-        version: link:../../editor-extensions/math
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
-      '@tau/editor-styled-text':
-        specifier: workspace:*
-        version: link:../../editor-extensions/styled-text
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
-      '@tau/editor-underline':
-        specifier: workspace:*
-        version: link:../../editor-extensions/underline
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
@@ -1912,1319 +1434,6 @@ importers:
       yaml:
         specifier: ^2.7.1
         version: 2.9.0
-
-  editor-extensions/annotation:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/blockquote:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/callout:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/code-block:
-    dependencies:
-      '@loadable/component':
-        specifier: ^5.15.3
-        version: 5.16.7(react@19.2.0)
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      is-hotkey:
-        specifier: ^0.2.0
-        version: 0.2.0
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      react-icons:
-        specifier: ^4.10.1
-        version: 4.12.0(react@19.2.0)
-      shiki:
-        specifier: ^3.22.0
-        version: 3.22.0
-      shiki-magic-move:
-        specifier: ^1.2.1
-        version: 1.4.0(react@19.2.0)(shiki@3.22.0)(svelte@5.46.0)(vue@3.5.25(typescript@5.8.3))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../media
-      '@types/is-hotkey':
-        specifier: ^0.1.7
-        version: 0.1.10
-      '@types/loadable__component':
-        specifier: ^5.13.10
-        version: 5.13.10
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/comment:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      dayjs:
-        specifier: ^1.11.13
-        version: 1.11.23
-      immer:
-        specifier: ^10.0.2
-        version: 10.2.0
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/detail:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/diagram:
-    dependencies:
-      '@loadable/component':
-        specifier: ^5.15.3
-        version: 5.16.7(react@19.2.0)
-      '@tau/editor-source-view':
-        specifier: workspace:*
-        version: link:../../packages/editor-source-view
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      mermaid:
-        specifier: ^10.1.0
-        version: 10.9.8
-      plantuml-encoder:
-        specifier: ^1.4.0
-        version: 1.4.0
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/loadable__component':
-        specifier: ^5.13.10
-        version: 5.13.10
-      '@types/plantuml-encoder':
-        specifier: ^1.4.2
-        version: 1.4.2
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/divide-line:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/emoji:
-    dependencies:
-      '@emoji-mart/data':
-        specifier: ^1.2.1
-        version: 1.2.1
-      '@emoji-mart/react':
-        specifier: ^1.1.1
-        version: 1.1.1(emoji-mart@5.6.0)(react@19.2.0)
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/front-matter:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      react-icons:
-        specifier: ^4.10.1
-        version: 4.12.0(react@19.2.0)
-      yaml:
-        specifier: ^2.7.1
-        version: 2.9.0
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/header:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../media
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/highlight-block:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/kbd:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/link:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/list:
-    dependencies:
-      '@emoji-mart/data':
-        specifier: ^1.2.1
-        version: 1.2.1
-      '@emoji-mart/react':
-        specifier: ^1.1.1
-        version: 1.1.1(emoji-mart@5.6.0)(react@19.2.0)
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../media
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/math:
-    dependencies:
-      '@tau/editor-source-view':
-        specifier: workspace:*
-        version: link:../../packages/editor-source-view
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      katex:
-        specifier: ^0.16.25
-        version: 0.16.47
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      motion:
-        specifier: 12.26.2
-        version: 12.26.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../text-formatting
-      '@types/katex':
-        specifier: ^0.16.7
-        version: 0.16.8
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/media:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      immer:
-        specifier: ^10.0.2
-        version: 10.2.0
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      motion:
-        specifier: 12.26.2
-        version: 12.26.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      react-icons:
-        specifier: ^4.10.1
-        version: 4.12.0(react@19.2.0)
-      swiper:
-        specifier: ^11.0.3
-        version: 11.2.10
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      zustand:
-        specifier: ^4.3.8
-        version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../blockquote
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../link
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../text-formatting
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/styled-text:
-    dependencies:
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../text-formatting
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/table:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../media
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/tabs:
-    dependencies:
-      '@tau/db-schema':
-        specifier: workspace:*
-        version: link:../../packages/db-schema
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dnd-html5-backend:
-        specifier: ^16.0.1
-        version: 16.0.1
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../media
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      '@types/uuid':
-        specifier: ^9.0.8
-        version: 9.0.8
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/text-formatting:
-    dependencies:
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/underline:
-    dependencies:
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../text-formatting
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.7
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-    devDependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
-  editor-extensions/webview:
-    dependencies:
-      '@tau/editor':
-        specifier: workspace:*
-        version: link:../../packages/editor
-      '@tau/markdown':
-        specifier: workspace:*
-        version: link:../../packages/markdown
-      '@tau/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
-      '@tau/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      ahooks:
-        specifier: ^3.7.8
-        version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      classnames:
-        specifier: ^2.3.2
-        version: 2.5.1
-      lucide-react:
-        specifier: ^0.468.0
-        version: 0.468.0(react@19.2.0)
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
-      react-dnd:
-        specifier: ^16.0.1
-        version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
-      react-dom:
-        specifier: 19.2.0
-        version: 19.2.0(react@19.2.0)
-      react-icons:
-        specifier: ^4.11.0
-        version: 4.12.0(react@19.2.0)
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
-      slate-react:
-        specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-    devDependencies:
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
-      jsdom:
-        specifier: ^24.1.3
-        version: 24.1.3
-      typescript:
-        specifier: ^5.0.4
-        version: 5.8.3
-      vite:
-        specifier: ^5.0.0
-        version: 5.4.21(@types/node@24.12.4)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)
-      vitest:
-        specifier: ^3.2.4
-        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
   examples/database:
     dependencies:
@@ -3357,9 +1566,9 @@ importers:
 
   examples/whiteboard:
     dependencies:
-      '@tau/editor-text-formatting':
+      '@tau/editor':
         specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
+        version: link:../../packages/editor
       '@tau/themes':
         specifier: workspace:*
         version: link:../../packages/themes
@@ -3621,6 +1830,18 @@ importers:
 
   packages/editor:
     dependencies:
+      '@emoji-mart/data':
+        specifier: ^1.2.1
+        version: 1.2.1
+      '@emoji-mart/react':
+        specifier: ^1.1.1
+        version: 1.1.1(emoji-mart@5.6.0)(react@19.2.0)
+      '@loadable/component':
+        specifier: ^5.15.3
+        version: 5.16.7(react@19.2.0)
+      '@tau/editor-source-view':
+        specifier: workspace:*
+        version: link:../editor-source-view
       '@tau/markdown':
         specifier: workspace:*
         version: link:../markdown
@@ -3630,91 +1851,36 @@ importers:
       '@tau/ui':
         specifier: workspace:*
         version: link:../ui
-    devDependencies:
-      '@tau/editor-annotation':
-        specifier: workspace:*
-        version: link:../../editor-extensions/annotation
-      '@tau/editor-blockquote':
-        specifier: workspace:*
-        version: link:../../editor-extensions/blockquote
-      '@tau/editor-callout':
-        specifier: workspace:*
-        version: link:../../editor-extensions/callout
-      '@tau/editor-comment':
-        specifier: workspace:*
-        version: link:../../editor-extensions/comment
-      '@tau/editor-detail':
-        specifier: workspace:*
-        version: link:../../editor-extensions/detail
-      '@tau/editor-divide-line':
-        specifier: workspace:*
-        version: link:../../editor-extensions/divide-line
-      '@tau/editor-front-matter':
-        specifier: workspace:*
-        version: link:../../editor-extensions/front-matter
-      '@tau/editor-header':
-        specifier: workspace:*
-        version: link:../../editor-extensions/header
-      '@tau/editor-highlight-block':
-        specifier: workspace:*
-        version: link:../../editor-extensions/highlight-block
-      '@tau/editor-kbd':
-        specifier: workspace:*
-        version: link:../../editor-extensions/kbd
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-list':
-        specifier: workspace:*
-        version: link:../../editor-extensions/list
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
-      '@tau/editor-styled-text':
-        specifier: workspace:*
-        version: link:../../editor-extensions/styled-text
-      '@tau/editor-table':
-        specifier: workspace:*
-        version: link:../../editor-extensions/table
-      '@tau/editor-tabs':
-        specifier: workspace:*
-        version: link:../../editor-extensions/tabs
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
-      '@tau/editor-underline':
-        specifier: workspace:*
-        version: link:../../editor-extensions/underline
-      '@types/is-hotkey':
-        specifier: ^0.1.7
-        version: 0.1.10
-      '@types/lodash':
-        specifier: ^4.14.200
-        version: 4.17.25
-      '@types/react':
-        specifier: 19.2.0
-        version: 19.2.0
-      '@types/react-dom':
-        specifier: 19.2.0
-        version: 19.2.0(@types/react@19.2.0)
       ahooks:
-        specifier: ^3.7.7
+        specifier: ^3.7.8
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
+      dayjs:
+        specifier: ^1.11.13
+        version: 1.11.23
+      immer:
+        specifier: ^10.0.2
+        version: 10.2.0
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.0
-      lodash:
-        specifier: ^4.17.21
-        version: 4.18.1
+      katex:
+        specifier: ^0.16.25
+        version: 0.16.47
       lucide-react:
-        specifier: ^0.399.0
-        version: 0.399.0(react@19.2.0)
-      react:
-        specifier: 19.2.0
-        version: 19.2.0
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.2.0)
+      mermaid:
+        specifier: ^10.1.0
+        version: 10.9.8
+      motion:
+        specifier: 12.26.2
+        version: 12.26.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      plantuml-encoder:
+        specifier: ^1.4.0
+        version: 1.4.0
       react-dnd:
         specifier: ^16.0.1
         version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
@@ -3725,8 +1891,63 @@ importers:
         specifier: 19.2.0
         version: 19.2.0(react@19.2.0)
       react-icons:
-        specifier: ^4.10.1
+        specifier: ^4.11.0
         version: 4.12.0(react@19.2.0)
+      shiki:
+        specifier: ^3.22.0
+        version: 3.22.0
+      shiki-magic-move:
+        specifier: ^1.2.1
+        version: 1.4.0(react@19.2.0)(shiki@3.22.0)(svelte@5.46.0)(vue@3.5.25(typescript@5.8.3))
+      swiper:
+        specifier: ^11.0.3
+        version: 11.2.10
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
+      yaml:
+        specifier: ^2.7.1
+        version: 2.9.0
+      zustand:
+        specifier: ^4.3.8
+        version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
+    devDependencies:
+      '@types/is-hotkey':
+        specifier: ^0.1.7
+        version: 0.1.10
+      '@types/katex':
+        specifier: ^0.16.7
+        version: 0.16.8
+      '@types/loadable__component':
+        specifier: ^5.13.10
+        version: 5.13.10
+      '@types/lodash':
+        specifier: ^4.14.200
+        version: 4.17.25
+      '@types/plantuml-encoder':
+        specifier: ^1.4.2
+        version: 1.4.2
+      '@types/react':
+        specifier: 19.2.0
+        version: 19.2.0
+      '@types/react-dom':
+        specifier: 19.2.0
+        version: 19.2.0(@types/react@19.2.0)
+      '@types/uuid':
+        specifier: ^9.0.8
+        version: 9.0.8
+      codemirror:
+        specifier: '5'
+        version: 5.65.21
+      jsdom:
+        specifier: ^24.1.3
+        version: 24.1.3
+      lodash:
+        specifier: ^4.17.21
+        version: 4.18.1
+      react:
+        specifier: 19.2.0
+        version: 19.2.0
       slate:
         specifier: 0.126.2
         version: 0.126.2
@@ -3736,12 +1957,18 @@ importers:
       slate-react:
         specifier: 0.126.4
         version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+      tailwindcss:
+        specifier: ^4.1.18
+        version: 4.2.0
       typescript:
         specifier: ^5.0.4
         version: 5.8.3
-      zustand:
-        specifier: ^4.3.8
-        version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@24.12.4)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
   packages/editor-collab:
     dependencies:
@@ -3767,9 +1994,6 @@ importers:
         specifier: 13.6.32
         version: 13.6.32
     devDependencies:
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
       '@types/react':
         specifier: 19.2.0
         version: 19.2.0
@@ -3828,9 +2052,6 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
-      '@tau/editor-media':
-        specifier: workspace:*
-        version: link:../../editor-extensions/media
       '@types/codemirror':
         specifier: ^5.60.7
         version: 5.60.18
@@ -3907,12 +2128,9 @@ importers:
         specifier: ^9.0.1
         version: 9.0.1
     devDependencies:
-      '@tau/editor-link':
+      '@tau/editor':
         specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
+        version: link:../editor
       '@types/node':
         specifier: ^20.2.1
         version: 20.19.41
@@ -4181,12 +2399,6 @@ importers:
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
-      '@tau/editor-link':
-        specifier: workspace:*
-        version: link:../../editor-extensions/link
-      '@tau/editor-text-formatting':
-        specifier: workspace:*
-        version: link:../../editor-extensions/text-formatting
       '@tau/markdown':
         specifier: workspace:*
         version: link:../markdown
@@ -6369,9 +4581,6 @@ packages:
 
   '@fontsource-variable/noto-serif-sc@5.3.1':
     resolution: {integrity: sha512-aIHcBaL13QctVaJFeT6wqfgO9Rq/cNtD5g2ob4ze59fYPYwacGthnIrHBe83kDpMEB/k6VGtGc6fS99RImcoSQ==}
-
-  '@fontsource/jetbrains-mono@5.3.0':
-    resolution: {integrity: sha512-fqDfB5I9f1p1TV486aUgB9t8zP84P0O1FtQR5Ol9vjwPy+S+EIGlVYm1cvj2W5shcZMTg2nZFdVMoH5wFu8a1A==}
 
   '@google/genai@2.21.0':
     resolution: {integrity: sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q==}
@@ -9680,10 +7889,6 @@ packages:
   cacheable-request@7.0.4:
     resolution: {integrity: sha512-v+p6ongsrp0yTGbJXjgxPow2+DL93DASP4kXCDKb8/bwRtt9OEF3whggkkDkGNzgcWy2XaF4a8nZglC7uElscg==}
     engines: {node: '>=8'}
-
-  cal-sans@1.0.1:
-    resolution: {integrity: sha512-XwN3/7jez8WmFVcNnNqO2K9lh133KiIcURCyGFnSM+ZmNZ8zIcOTNfr3SpenLAkRceYsq+fQNX/PL4C1rIkEPQ==}
-    deprecated: 'Cal Sans v2 is out: npm i cal-sans@latest. To keep the v1 look, set font-weight: 700 and font-variation-settings: "GEOM" 50, "opsz" 45; otherwise v2 renders as Cal Sans UI Regular, lighter and tightly spaced.'
 
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
@@ -18038,8 +16243,6 @@ snapshots:
 
   '@fontsource-variable/noto-serif-sc@5.3.1': {}
 
-  '@fontsource/jetbrains-mono@5.3.0': {}
-
   '@google/genai@2.21.0(@modelcontextprotocol/sdk@1.30.0(zod@3.25.76))':
     dependencies:
       google-auth-library: 10.9.1
@@ -18535,7 +16738,7 @@ snapshots:
   '@napi-rs/wasm-runtime@1.0.7':
     dependencies:
       '@emnapi/core': 1.7.1
-      '@emnapi/runtime': 1.7.1
+      '@emnapi/runtime': 1.11.3
       '@tybys/wasm-util': 0.10.1
     optional: true
 
@@ -21541,8 +19744,6 @@ snapshots:
       lowercase-keys: 2.0.0
       normalize-url: 6.1.0
       responselike: 2.0.1
-
-  cal-sans@1.0.1: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
@@ -28122,7 +26323,7 @@ snapshots:
   vitest-canvas-mock@0.3.3(vitest@3.2.7):
     dependencies:
       jest-canvas-mock: 2.5.2
-      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.27)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
   vitest@3.2.7(@types/debug@4.1.13)(@types/node@20.19.27)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0):
     dependencies:

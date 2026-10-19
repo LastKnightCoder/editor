@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
  * 扫 themes / ui / desktop / editor 四处源码。
  */
 const RETIRED = /\bbg-group\b|--tau-bg-group|--color-group\b/;
-const ROOTS = ["..", "../../../ui/src", "../../../../apps/desktop/src", "../../../editor/src"].map(
+const ROOTS = ["..", "../../../ui/src", "../../../../apps/desktop/src", "../../../editor/src/core"].map(
   p => resolve(import.meta.dirname, p)
 );
 const EXT = /\.(tsx?|css)$/;

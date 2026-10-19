@@ -7,7 +7,7 @@ import {
   type EditorSlots,
   type ImageSlotProps,
   type VideoSlotProps,
-} from "@tau/editor-media/services";
+} from "@tau/editor/extensions/media/services";
 
 const docsEditorSlots: EditorSlots = {
   Image: ({ url, alt, onLoadError, loading = "lazy", ...rest }: ImageSlotProps) => (

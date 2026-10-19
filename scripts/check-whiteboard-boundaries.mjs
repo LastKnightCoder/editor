@@ -40,7 +40,7 @@ const declared = new Set(
   })
 );
 
-for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
+for (const directory of ["apps", "packages", "examples"]) {
   for (const file of files(resolve(root, directory))) {
     const inPackage = inside(file, resolve(packageRoot, "src"));
     const ast = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);

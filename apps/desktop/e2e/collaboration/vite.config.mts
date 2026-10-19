@@ -11,7 +11,6 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "react-dnd", "react-dnd-html5-backend", "dnd-core", "yjs"],
     alias: {
       "@": resolve(root, "src"),
-      "@tau/editor": resolve(root, "../../packages/editor"),
       "@tau/editor-collab": resolve(root, "../../packages/editor-collab"),
       "@tau/shared": resolve(root, "../../packages/shared"),
       "@tau/themes": resolve(root, "../../packages/themes"),

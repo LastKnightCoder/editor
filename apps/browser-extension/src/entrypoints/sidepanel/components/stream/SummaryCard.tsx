@@ -6,7 +6,7 @@ import type WebSocketClient from "../../../../utils/WebSocketClient";
 import WebSocketClientImpl from "../../../../utils/WebSocketClient";
 import { AI_RUN_METHODS, createRunEventFilter, type AiRunEventNotification } from "@tau/shared";
 import { MarkdownRenderer } from "@tau/chat-ui";
-import { diagramLanguageRenderers } from "@tau/editor-diagram/renderers";
+import { diagramLanguageRenderers } from "@tau/editor/extensions/diagram/renderers";
 import { useIsDark } from "../../../../stores/useExtensionTheme";
 import { useSettingsStore } from "../../../../stores/useSettingsStore";
 import { useSummaryCache } from "../../../../hooks/useSummaryCache";

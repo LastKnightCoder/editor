@@ -26,7 +26,7 @@ import {
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor";
 import { useLocalEditorDocument } from "@/hooks/useLocalEditorDocument";
-import { createHeaderExtension } from "@tau/editor-header";
+import { createHeaderExtension } from "@tau/editor/extensions/header";
 import { Button, ConfirmDialog, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";

@@ -5,6 +5,38 @@ import { planPublication, describeRelease } from "../publish-release-state";
 import { makePublishFixture } from "./publish-fixtures";
 import type { TemplatePackage } from "../../services/template-package";
 import type { IPublishFile, IPublishHistory } from "@/types/publish";
+import { createHash } from "node:crypto";
+import type { PublishPluginSnapshot } from "../../services/plugin-publish";
+
+const code = "throw Error('发布器不得执行插件入口')";
+const plugins: PublishPluginSnapshot = {
+  builtinTypes: ["paragraph", "formatted", "content-link"],
+  plugins: [
+    { id: "test.counter", nodeTypes: ["example.portable-counter"] },
+    { id: "test.html", nodeTypes: ["html-block", "html-inline"] },
+  ].map(({ id, nodeTypes }) => ({
+    nodeTypes,
+    styleSources:
+      id === "test.html"
+        ? nodeTypes.map(type => ({ type, field: "html", language: "html" as const }))
+        : [],
+    artifact: {
+      code,
+      manifest: {
+        id,
+        name: id,
+        version: "1.0.0",
+        formatVersion: 1,
+        apiVersion: 1,
+        platform: "desktop",
+        format: "cjs",
+        main: "main.js",
+        editor: true,
+        integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+      },
+    },
+  })),
+};
 const template = (id = "test.template"): TemplatePackage => ({
   manifest: {
     formatVersion: 1,
@@ -30,6 +62,7 @@ async function generate(title?: string, id?: string, exclude?: number) {
   const fixture = makePublishFixture(title);
   return new PublishSiteGenerator({
     template: template(id),
+    plugins,
     clientSource: "var TauPublish={};",
     compileTailwind: async () => ".text-red-500 {color:red}",
     logger: console,
@@ -118,6 +151,8 @@ it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async (
   const fixture = makePublishFixture();
   const generator = new PublishSiteGenerator({
     template: template(),
+    clientSource: "var TauPublish={};",
+    plugins,
     logger: { info() {}, warn() {}, error() {} },
     compileTailwind: async () => {
       throw new Error("compile");

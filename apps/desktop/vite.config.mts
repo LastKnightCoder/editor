@@ -12,8 +12,8 @@ import { build as buildEsbuild } from "esbuild";
 import * as path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const extensionRequire = (name: string) =>
-  createRequire(path.resolve(__dirname, `../../editor-extensions/${name}/package.json`));
+const extensionRequire = (_name: string) =>
+  createRequire(path.resolve(__dirname, "../../packages/editor/package.json"));
 
 const runtimeDependencyExternals = [
   "7zip-min",
@@ -54,7 +54,6 @@ export default defineConfig(() => {
         "@": path.resolve(__dirname, "src"),
         "@quick-card": path.resolve(__dirname, "quick-card"),
         "@editor": path.resolve(__dirname, "src/components/Editor"),
-        "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
         "@tau/editor-collab": path.resolve(__dirname, "../../packages/editor-collab"),
         "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
         "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),

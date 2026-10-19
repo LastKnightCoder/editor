@@ -3,4 +3,4 @@ export type {
   ServiceRegistry,
   ServiceRegister,
   ServiceRegistration,
-} from "../src/services/registry.ts";
+} from "../src/core/services/registry.ts";

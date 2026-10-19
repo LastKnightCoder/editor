@@ -91,7 +91,7 @@ import { usePage } from "@/page/PageProvider";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CustomEditor } from "@tau/editor";
-import { type CommentElement } from "@tau/editor-comment/types";
+import { type CommentElement } from "@tau/editor/extensions/comment/types";
 import { toast, Tooltip, ConfirmDialog, Menu, Segmented, IconButton, Button } from "@tau/ui";
 
 interface WebViewProjectItemViewProps {
