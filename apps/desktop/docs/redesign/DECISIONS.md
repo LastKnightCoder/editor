@@ -1,5 +1,11 @@
 # 决策记录（轻量 ADR）
 
+## D-168 Typst 文档块插件化，保留宿主编译服务（2026-10-19）
+
+用户选择简单迁移，停止 WASM 完整迁出。Typst 文档节点、插入、Markdown codec、HTML serializer 和 Skill 归独立插件；宿主保留 `services.typst.compile`、原生编译器和旧聊天预览。节点类型、源码和已有 HTML 缓存不转换。
+
+编译服务归插件宿主边界，不向 useSourceBlock 或 EditorKit 注入整组 PluginServices。用户确认独立 usePluginServices 入口：宿主按插件包裹元素渲染器，由所有窗口的服务 Provider 绑定窗口/工作区生命周期；独立编辑窗口固定到文档数据库，无需 activate。博客和后台 codec 不提供服务。Typst 预览挂载不写文档，只有用户编辑源码后的匹配结果才保存缓存；博客显示匹配或历史缓存，缺缓存显示源码。原型中错误的源码块服务注入已撤回，新 SDK 0.16.0 仅新增独立入口。完整边界与进度见插件专题 67。
+
 ## D-167 TikZ 完整迁为独立插件（2026-10-18）
 
 用户确认从现有模板建立 tau-plugin-tikz 独立仓库，迁出文档块、codec、浏览器编译器与字体。删除 SDK 的 services.tikz.compile 及宿主适配，不增加编译提供方或转发协议；迁出前该服务仅有测试与样本调用，文档与旧聊天原本直接使用渲染组件。SDK 0.14.0 记录 API 移除，完整保留 0.13.0 的 TTS/上传接口，不覆盖已有发布版本。

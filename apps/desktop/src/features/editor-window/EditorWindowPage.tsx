@@ -20,6 +20,7 @@ import { useEditorDocument } from "./useEditorDocument";
 import { EditorWindow } from "./EditorWindow";
 import { EditorWindowTitlebar } from "./EditorWindowTitlebar";
 import { WindowMessage } from "./WindowMessage";
+import { DesktopPluginServicesProvider } from "@/app/plugins/ServiceProvider";
 
 // .app：base.css 作用域锚点（控件 reset / focus-ring / 滚动条）；布局尺度变量见 base.css
 const rootClass =
@@ -84,7 +85,11 @@ export default function EditorWindowPage() {
   } else if (boot === "connecting") {
     content = chrome("", <Loading label="正在连接数据库…" />);
   } else {
-    content = <DocumentView driver={driver} id={id} databaseName={databaseName} />;
+    content = (
+      <DesktopPluginServicesProvider workspace={databaseName}>
+        <DocumentView driver={driver} id={id} databaseName={databaseName} />
+      </DesktopPluginServicesProvider>
+    );
   }
 
   return (

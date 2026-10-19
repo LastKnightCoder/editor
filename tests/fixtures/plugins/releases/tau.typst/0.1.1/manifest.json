@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "id": "tau.typst",
+  "name": "Typst 排版",
+  "description": "编辑 Typst 文档块，通过桌面编译服务预览，并将已保存的预览展示到博客。",
+  "version": "0.1.1",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js",
+  "editor": true,
+  "integrity": {
+    "main.js": "e34d8a47d5d3932c87a501b21f3089357d28e20d3361f3abdc04843abb3e2438"
+  }
+}

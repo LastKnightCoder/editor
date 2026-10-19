@@ -120,5 +120,21 @@
       "README.md": "908a3648c392d68295ecdc2ddb2237a0ec4008c8bb152f1ce310735216da1e98",
       "THIRD_PARTY_NOTICES.md": "d1939cd8839c8ea21a13e9cf4b9b7fdfeb6b0a34f410d85b1c9ab4b07611a8b2"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-typst",
+    "artifact": "releases/tau.typst/0.1.1",
+    "id": "tau.typst",
+    "version": "0.1.1",
+    "sourceRevision": "aba15ca3488d94d07db238bf3cf97df86ff42d45",
+    "archiveSha256": "6f82cf12fcf79108454b9bac307bd6c17b99843043028b014f708a179237ae02",
+    "files": {
+      "CHANGELOG.md": "45cbe405272d50ab07d2b3e9e96c58e1dbde498a0af3153d827100edd39d4353",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.js": "e34d8a47d5d3932c87a501b21f3089357d28e20d3361f3abdc04843abb3e2438",
+      "manifest.json": "2f6e4494e9eecc5f8ac3b95ffe4da0203e90e9584cab11a8135dca4f44ebdc02",
+      "README.md": "7820af3ab78e9b4994f23084948a003f48ae3b17168f2938891390d43992e778",
+      "THIRD_PARTY_NOTICES.md": "f94f9a628aee7837f4285d1986a031b89efa5836ac4c492033fb31ff0da16521"
+    }
   }
 ]

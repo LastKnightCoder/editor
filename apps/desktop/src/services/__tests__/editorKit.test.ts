@@ -50,9 +50,10 @@ describe("desktop 场景 kit", { timeout: 30_000 }, () => {
     await loadStore();
     const { getContentKit } = await import("../editorKit");
     expect(extrasOf(getContentKit())).toEqual([...HOST, "webview"].sort());
-    for (const type of ["mermaid", "plantuml", "abc", "typst"])
+    for (const type of ["mermaid", "plantuml", "abc"])
       expect(getContentKit().elementTypes).toContain(type);
     expect(getContentKit().elementTypes).not.toContain("tikz");
+    expect(getContentKit().elementTypes).not.toContain("typst");
   });
 
   it("content 正文覆盖跨端清单里的全部业务元素类型", async () => {

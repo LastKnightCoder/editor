@@ -21,6 +21,7 @@ import { initToolCallRenderers } from "@/tool-call-renderers";
 import { useContentEditReviewSessionStore } from "@/services/content-editing";
 import { queryClient } from "./queryClient";
 import { initializeContentPlugins } from "./app/plugins/content-plugin-bootstrap";
+import { DesktopPluginServicesProvider } from "./app/plugins/ServiceProvider";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();
@@ -35,7 +36,9 @@ const bootstrap = async () => {
   await initializeContentPlugins();
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
-      <App />
+      <DesktopPluginServicesProvider>
+        <App />
+      </DesktopPluginServicesProvider>
     </QueryClientProvider>
   );
 };
