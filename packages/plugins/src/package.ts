@@ -1,8 +1,16 @@
 import { assertLocalId } from "./ids.ts";
 export { assertLocalId } from "./ids.ts";
 import { comparePluginVersions } from "./version.ts";
+import { readCatalogFields, type PluginCategory } from "./categories.ts";
 
 export { comparePluginVersions } from "./version.ts";
+export {
+  PLUGIN_CATEGORIES,
+  PLUGIN_KEYWORD_LIMIT,
+  PLUGIN_KEYWORD_MAX_LENGTH,
+  isPluginCategory,
+  type PluginCategory,
+} from "./categories.ts";
 
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
@@ -31,6 +39,10 @@ export interface PluginManifest {
   /** 静态编辑器贡献在窗口启动时装配，启停需重启。 */
   editor?: true;
   whiteboard?: true;
+  /** 插件中心分类，作者自填，不与实际注册对账。 */
+  categories?: readonly PluginCategory[];
+  /** 仅参与搜索匹配。 */
+  keywords?: readonly string[];
   integrity: Record<string, string>;
 }
 
@@ -41,7 +53,11 @@ export interface DevelopmentPluginPackage {
   css?: string;
 }
 
-export function validatePluginManifest(value: unknown): PluginManifest {
+/** strict 供门户上传使用：分类或关键词不合规时报错，客户端默认静默丢弃。 */
+export function validatePluginManifest(
+  value: unknown,
+  options: { strict?: boolean } = {}
+): PluginManifest {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("插件清单必须是对象");
   const item = value as Record<string, unknown>;
@@ -81,6 +97,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
   if (item.editor !== undefined && item.editor !== true) throw new Error("editor 只能声明为 true");
   if (item.whiteboard !== undefined && item.whiteboard !== true)
     throw new Error("whiteboard 只能声明为 true");
+  const catalog = readCatalogFields(item, options.strict === true);
   const integrity: Record<string, string> = {};
   for (const name of [main, ...(styles ? [styles] : [])]) {
     const hash =
@@ -103,6 +120,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     main,
     ...(item.editor === true ? { editor: true as const } : {}),
     ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
+    ...catalog,
     integrity: Object.freeze(integrity),
     ...(styles === undefined ? {} : { styles }),
   });
