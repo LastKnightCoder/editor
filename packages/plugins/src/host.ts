@@ -30,6 +30,7 @@ import type { TTSProviderDefinition } from "./tts";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
+export { bindPluginServices } from "./services";
 import {
   ACTIVATION_TIMEOUT_MS,
   CLEANUP_TIMEOUT_MS,
