@@ -33,6 +33,7 @@ it("取消由调用方或生命周期触发，迟到结果不会返回给已停�
 it("缺少适配器时明确报错，尚未开始的取消请求不会执行", async () => {
   const services = bindPluginServices(undefined, new AbortController().signal, () => undefined);
   expect(services).not.toHaveProperty("tikz");
+  expect(services.ffmpeg).not.toHaveProperty("probe");
   await expect(services.tailwind.compile({ source: "x" })).rejects.toThrow("未提供");
   await expect(services.videoExtractor.probe("https://example.com")).rejects.toThrow("未提供");
   const compile = vi.fn();

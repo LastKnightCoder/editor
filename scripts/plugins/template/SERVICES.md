@@ -1,21 +1,24 @@
 # 编译与转换服务
 
-需要在插件里编译 Tailwind、Typst，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本。TikZ 编译属于独立绘图插件，不再提供宿主服务。
+需要在插件里编译 Tailwind、Typst，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本及实现相应能力的客户端构建。本文对应 SDK 0.23.0。TikZ 编译属于独立绘图插件，不再提供宿主服务。
 
 所有服务都是异步方法，只处理传入数据并返回结果，不读写笔记、不选择或保存文件、不自动注入样式。
 
 ## API 一览
 
-| 方法                                     | 输入                                              | 返回                                |
-| ---------------------------------------- | ------------------------------------------------- | ----------------------------------- |
-| `tailwind.compile(input, options?)`      | `{ source, language?: "html" \| "tsx" \| "jsx" }` | `{ css }`                           |
-| `typst.compile(input, options?)`         | `{ source, format?: "html", inputs?, files? }`    | `{ html }`                          |
-| `markdown.deserialize(source, options?)` | Markdown 字符串                                   | `{ nodes: Descendant[], warnings }` |
-| `markdown.serialize(nodes, options?)`    | `Descendant[]`                                    | `{ markdown, warnings }`            |
-| `markdown.render(source, options?)`      | Markdown 字符串                                   | `{ html, css, warnings }`           |
-| `ffmpeg.probe(file, options?)`           | `{ name, data: Blob }`                            | `{ format, streams }`               |
-| `ffmpeg.run(input, options?)`            | `{ files, args, outputs }`                        | `{ files, log }`                    |
-| `videoExtractor.probe(url, options?)`    | 视频页面地址，可选 `proxy`（SDK 0.22.0）          | `{ title, cover?, formats }`        |
+| 方法                                     | 输入                                              | 返回                                    |
+| ---------------------------------------- | ------------------------------------------------- | --------------------------------------- |
+| `tailwind.compile(input, options?)`      | `{ source, language?: "html" \| "tsx" \| "jsx" }` | `{ css }`                               |
+| `typst.compile(input, options?)`         | `{ source, format?: "html", inputs?, files? }`    | `{ html }`                              |
+| `markdown.deserialize(source, options?)` | Markdown 字符串                                   | `{ nodes: Descendant[], warnings }`     |
+| `markdown.serialize(nodes, options?)`    | `Descendant[]`                                    | `{ markdown, warnings }`                |
+| `markdown.render(source, options?)`      | Markdown 字符串                                   | `{ html, css, warnings }`               |
+| `ffmpeg.run(input, options?)`            | `{ files, args, outputs }`                        | `{ files, log }`                        |
+| `videoExtractor.probe(url, options?)`    | 视频页面地址，可选 `proxy`（SDK 0.22.0）          | `{ title, cover?, duration?, formats }` |
+| `git.publishSnapshot(input, options?)`   | 当前发布快照、HTTPS 仓库、分支与认证              | `void`                                  |
+| `git.selectCacheDirectory({}, options?)` | 打开宿主缓存目录选择器                            | `{ id, label } \| null`                 |
+
+Git 服务自 SDK 0.21.0 提供，完整参数与发布会话约束见 [PUBLISH.md](PUBLISH.md)。视频解析与播放源协议见 [VIDEO.md](VIDEO.md)。
 
 ## 在静态组件中获取服务
 
@@ -107,14 +110,12 @@ HTML 渲染不自动执行 TikZ、Typst、Mermaid 编译器；相关节点可能
 
 ## FFmpeg
 
+SDK 0.23.0 已移除 `ffmpeg.probe` 和 `MediaInfo`，客户端不再随包分发 FFprobe。已有插件应删除对应调用与类型依赖；需要本地媒体元数据时由插件自行实现。`videoExtractor.probe` 只查询视频页面，不能接收本地文件。
+
 `ServiceFile` 为 `{ name: string, data: Blob }`；文件名仅在任务内使用，不是客户端路径。输入输出名称不得重复，目录使用 `/`。文件整体经内存传输，适合可以放进内存的素材，不支持大文件流式处理。
 
 ```ts
 const input = { name: "input.wav", data: audioBlob };
-const info = await context.services.ffmpeg.probe(input);
-// format: name、duration（秒或 null）、size（字节或 null）。
-// streams: index、type、codec，可选 width/height/sampleRate/channels。
-
 const result = await context.services.ffmpeg.run(
   {
     files: [input],

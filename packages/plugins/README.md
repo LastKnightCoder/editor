@@ -4,7 +4,7 @@
 
 同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55，整合与发布记录见docs/plugin-system/60。
 
-本包提供应用插件 API 和生命周期，当前统一按完整宿主权限在同一环境运行，用于内置插件和本地开发流程，不划分可信/受限产品档位。registerTrusted 是保留的宿主方法名。第三方生产安装仍待实现；权限界面、沙箱和安全体系后续统一设计，见 PS-031。
+本包提供应用插件 API 和生命周期，当前统一按完整宿主权限在同一环境运行，不划分可信/受限产品档位。registerTrusted 是保留的宿主方法名。正式插件从插件中心安装；权限界面、沙箱和安全体系后续统一设计，见 PS-031。
 
 ## 入口
 
@@ -90,8 +90,10 @@ pnpm --filter @tau/plugins build
 pnpm --filter @example/plugin-workbench demo
 ```
 
-示例插件在 [plugin-workbench](../../examples/plugin-workbench/README.md)，只依赖公开契约。包仍为工作区 private，不发布 npm，不承诺稳定的第三方 SDK 版本。
+示例插件在 [plugin-workbench](../../examples/plugin-workbench/README.md)，只依赖公开契约。工作区包保持 private，作者 npm 包由独立打包脚本生成，不直接发布工作区源码。
 
 包内 `build` 使用 esbuild 生成内部 ESM 验证产物，workspace 包保持 external；类型由 `check` 单独验证，当前工作区 exports 仍指向源码，不把这里的 dist 当作独立 npm 包。
 
-C07 已提供仓库根 `node scripts/plugins/package-sdk.mjs`，生成独立安装的 @tau/plugins/@tau/ui 开发契约压缩包：声明闭包随包交付、只开放根入口，运行实现由桌面宿主提供。作者模板在 scripts/plugins/template，完整步骤和边界见 [C07](../../docs/plugin-system/17-C07独立插件开发与加载.md)。`node scripts/plugins/verify-external.mjs` 在临时仓库外目录完成安装、构建与真实 Electron 验证；C09 已接手动重载、失败恢复和完整构建自动监听，尚未发布公共 npm 或开放生产安装。
+仓库根运行 `node scripts/plugins/package-sdk.mjs`，生成 `@xiongtao.xt/tau-plugins` 与 `@xiongtao.xt/tau-ui` 的可发布压缩包。作者通过 npm 别名安装为 `@tau/plugins` / `@tau/ui`，声明闭包随包交付，根入口运行实现由桌面宿主提供；白板、同步与发布数据子入口的用途见 [PUBLISH-DATA.md](../../scripts/plugins/template/PUBLISH-DATA.md)。
+
+作者从 [公开模板](https://github.com/LastKnightCoder/tau-plugin-template) 开始，本仓库维护源为 `scripts/plugins/template`。依赖版本、构建与旧模板同步见 [DEVELOPMENT.md](../../scripts/plugins/template/DEVELOPMENT.md)，完整能力索引见 [API.md](../../scripts/plugins/template/API.md)。SDK 0.23.0 移除 `ffmpeg.probe`，保留 `ffmpeg.run` 与视频页面解析；服务约束见 [SERVICES.md](../../scripts/plugins/template/SERVICES.md)。

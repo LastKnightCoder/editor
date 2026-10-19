@@ -8,6 +8,8 @@
 - pnpm 11.9.0
 - Tau 桌面客户端 0.59.0 或更高版本
 
+模板锁定公开 SDK `@xiongtao.xt/tau-plugins@0.23.1` 和 UI `@xiongtao.xt/tau-ui@0.1.1`，通过 npm 别名安装为 `@tau/plugins`、`@tau/ui`。SDK 提供类型契约，运行实现由 Tau 注入；新领域能力还需包含相应实现的客户端构建，不能只依据客户端版本号判断。
+
 ## 跑通示例
 
 在 GitHub 点击 **Use this template** 创建自己的仓库，克隆后在项目目录执行：
@@ -23,7 +25,7 @@ pnpm install:local
 ## 改成自己的插件
 
 1. 修改 `manifest.json` 的 `id`、`name`、`version`、`description`。`id` 用你自己的唯一名称，例如 `yourname.counter`。
-   - `categories` 决定插件在插件中心出现在哪些分类下，可多选，也可不填：`sync` 同步、`upload` 资源上传、`editor` 编辑器、`whiteboard` 白板、`blog-template` 博客模板、`blog-publish` 博客发布、`ai` AI（Skill、MCP、聊天工具渲染、AI 功能、图片）、`voice` 语音、`page` 页面（页面与侧边栏入口）。只提供命令或设置的插件可以不填。
+   - `categories` 决定插件在插件中心出现在哪些分类下，可多选，也可不填：`sync` 同步、`upload` 资源上传、`editor` 编辑器、`whiteboard` 白板、`blog-template` 博客模板、`blog-publish` 博客发布、`ai` AI（Skill、MCP、聊天工具渲染、AI 功能、图片）、`voice` 语音、`video` 在线视频、`page` 页面（页面与侧边栏入口）。只提供命令或设置的插件可以不填。
    - `keywords` 最多 5 个、每个不超过 20 字，只用于插件中心搜索，例如 S3 插件可写 `MinIO`、`R2`。
 2. 修改 `package.json` 的项目名称和版本。
 3. 在 `src/index.tsx` 中实现功能，在 `src/styles.css` 中编写样式。
@@ -41,13 +43,48 @@ pnpm install:local
 | `EDITOR.md`                       | 在文档中添加自定义块、源码预览块和插件 Skill         |
 | `AI.md`                           | AI 功能声明、用户模型分配、流式对话和统一用量审计    |
 | `MCP.md`                          | 注册 MCP、聊天工具渲染，复用工具开关与服务器管理     |
+| `WHITEBOARD.md`                   | 静态白板扩展、工具与发布边界                         |
+| `SYNC.md`                         | 同步存储提供方、配置视图与取消                       |
+| `UPLOAD.md`                       | 图片与附件上传、上传提供方与配置                     |
+| `TTS.md`                          | 语音合成、音色复刻与多账号配置                       |
 | `IMAGES.md`                       | 图片生成、参考图编辑与插件账号配置视图               |
 | `VIDEO.md`                        | 视频来源的链接解析、播放源与账号配置视图             |
+| `PUBLISH.md`                      | 博客发布提供方、文件上传与 Git 快照                  |
+| `PUBLISH-DATA.md`                 | 独立站点读取发布数据与公开子入口的构建边界           |
 | `SERVICES.md`                     | Tailwind、Typst、Markdown、FFmpeg 编译转换服务       |
 | `AGENTS.md`                       | 给 AI 编程助手的项目指引                             |
 | `build.mjs` / `install-local.mjs` | 打包与本地安装脚本，日常开发通常不需要修改           |
 
 插件详情页的名称、简介和版本取自 `manifest.json`，介绍取自 `README.md`，无需在网站上另外填写。`API.md`、`AGENTS.md` 等开发文档不会打进插件包。
+
+## 升级 SDK 与同步旧模板
+
+GitHub 模板创建的仓库不会自动跟随模板更新。已有项目先提交或备份自己的改动，再按需同步 [上游模板](https://github.com/LastKnightCoder/tau-plugin-template) 的构建脚本、开发文档和 `.github/workflows/release.yml`，保留自己的插件 ID、入口、用户说明与版本记录。
+
+先在 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 中增加新 SDK 的精确例外 `@xiongtao.xt/tau-plugins@0.23.1`，暂时保留旧锁文件所需的已核实例外，再更新依赖及锁文件：
+
+```sh
+pnpm add @tau/plugins@npm:@xiongtao.xt/tau-plugins@0.23.1 --save-exact
+pnpm install --frozen-lockfile
+pnpm build
+```
+
+成功后移除已不再使用的旧版例外，再运行一次 `pnpm install --frozen-lockfile`，提交 `package.json`、`pnpm-lock.yaml` 和 `pnpm-workspace.yaml`。先移除旧版例外会使 pnpm 在读取旧锁文件时拒绝升级。发布等待例外只针对已核实的 SDK/UI 版本，不关闭全部依赖的供应链策略；保留 `allowBuilds.esbuild: true`。React 继续使用模板锁定的版本，避免和宿主的共享实例不兼容。
+
+从旧 SDK 升级时，重点核对：
+
+| 版本          | 变化与对应文档                                                               |
+| ------------- | ---------------------------------------------------------------------------- |
+| 0.17.0        | 行内源码接口，见 EDITOR.md                                                   |
+| 0.18.0        | 图片生成与编辑提供方，见 IMAGES.md                                           |
+| 0.19.0–0.20.0 | 发布数据子入口、站点级数据归清单、分类与关键词，见 PUBLISH-DATA.md 与 API.md |
+| 0.21.0        | 博客发布提供方、配置与 Git 快照服务，见 PUBLISH.md                           |
+| 0.22.0        | 视频提供方与视频页面信息查询，见 VIDEO.md                                    |
+| 0.23.0        | 删除 `ffmpeg.probe` 与 `MediaInfo`；`ffmpeg.run` 保留，见 SERVICES.md        |
+
+更早版本的完整变更见已安装包的 `node_modules/@tau/plugins/CHANGELOG.md`。需要本地媒体元数据时自行实现，不能把视频页面解析当作本地文件探测。SDK 根入口、白板/同步契约、UI 和 React 由 Tau 提供，保持模板的 external 配置；普通第三方库由构建打入 ZIP。独立站点数据子入口的用途另见 PUBLISH-DATA.md。
+
+构建通过后，在对应客户端验证启用、功能执行、保存、停用与重启；涉及静态编辑器或白板扩展时也验证重启后的贡献，以及发布内容的回退。构建成功只证明类型和打包通过。
 
 ## 打包与安装
 
