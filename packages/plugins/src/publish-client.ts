@@ -2,6 +2,7 @@ import type {
   DataClient,
   DataManifest,
   PublishedData,
+  SearchDocument,
   SearchFile,
   SearchHit,
   SearchMatch,
@@ -63,6 +64,9 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
   const cache = new Map<string, Promise<unknown>>();
   let manifestPromise: Promise<DataManifest> | undefined;
   let searchPromise: Promise<SearchFile> | undefined;
+  // 索引文件不变时复用同一个检索引擎，避免每次输入都重建全文索引。
+  let engine:
+    { documents: SearchDocument[]; fuse: import("fuse.js").default<SearchDocument> } | undefined;
 
   function json(url: string, expected: string): Promise<unknown> {
     assert(/^[a-f0-9]{64}$/.test(expected), "INVALID_DATA", "摘要格式错误");
@@ -248,13 +252,17 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
         signal
       );
       cancelled(signal);
-      const engine = new Fuse(documents, {
-        keys: ["title", "summary", "content", "tags"],
-        includeMatches: true,
-        threshold: 0.3,
-        ignoreLocation: true,
-      });
-      return engine.search(normalized, { limit }).map(({ item, matches }) => {
+      if (engine?.documents !== documents)
+        engine = {
+          documents,
+          fuse: new Fuse(documents, {
+            keys: ["title", "summary", "content", "tags"],
+            includeMatches: true,
+            threshold: 0.3,
+            ignoreLocation: true,
+          }),
+        };
+      return engine.fuse.search(normalized, { limit }).map(({ item, matches }) => {
         const { content: _content, ...hit } = item;
         const ranges: SearchMatch[] = (matches ?? []).flatMap(match => {
           if (!match.value || !["title", "summary", "content", "tags"].includes(match.key ?? ""))

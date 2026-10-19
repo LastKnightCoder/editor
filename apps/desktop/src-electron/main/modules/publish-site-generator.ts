@@ -5,16 +5,15 @@
  * 因此可跑在 worker 线程里（publish-generator-worker），生成期间不阻塞主进程。
  */
 
-import type { ContentRef } from "@tau/plugins/publish-data";
+import type { ContentNode, ContentRef, DataManifest, TreeItem } from "@tau/plugins/publish-data";
 import type { TemplatePackage } from "../services/template-package";
-import { PublishDataOutput } from "./publish-data-output";
+import { PublishDataOutput, type PublishDataBody } from "./publish-data-output";
 import { existsSync, readFileSync } from "fs";
 import type { Descendant } from "slate";
 import { PublishPluginCatalog, type PublishPluginSnapshot } from "../services/plugin-publish";
 import type {
   IPublishFile,
   PublishContentType,
-  IPublishInitData,
   IPublishCardTagTree,
   IPublishCardListItem,
   IPublishListItem,
@@ -33,7 +32,7 @@ import {
   buildSelectionContentLinkTargets,
   mergeDocEntryContentLinkTargets,
 } from "./publish-content-link-targets";
-import { attachPublishAppearanceSettings } from "./publish-appearance-settings";
+import { buildPublishAppearanceSettings } from "./publish-appearance-settings";
 import { resolvePublishFaviconOutput } from "./publish-favicon";
 import { buildPublishSearchIndexPayload } from "./publish-search-index";
 
@@ -71,7 +70,6 @@ export interface PublishSelectionInput {
 }
 
 export interface PublishGeneratorOptions {
-  clientSource?: string;
   template: TemplatePackage;
   compileTailwind: (code: string, extension: "tsx" | "html") => Promise<string>;
   logger: Pick<Console, "info" | "warn" | "error">;
@@ -100,7 +98,6 @@ interface IDocEntry {
   kind: "project";
   content: Descendant[];
   breadcrumb: { label: string; target?: ContentRef }[];
-  sidebar?: IPublishInitData["sidebar"];
 }
 
 interface ITimelineEntry {
@@ -181,9 +178,12 @@ interface IDocCollectionMetaItem {
 }
 
 type EntityScopeConfig = { mode: "all" } | { mode: "partial"; nodes: Set<number> };
+
+/** Slate 节点是公开 ContentNode 的结构子集，只是其接口没有声明索引签名。 */
+const contentNodes = (nodes: Descendant[] | undefined): ContentNode[] =>
+  (nodes ?? []) as unknown as ContentNode[];
 export class PublishSiteGenerator {
   private favicon?: { content: Buffer; output: ReturnType<typeof resolvePublishFaviconOutput> };
-  private readonly clientSource?: string;
   private readonly template: TemplatePackage;
   private output!: PublishDataOutput;
   private readonly compileTailwind: PublishGeneratorOptions["compileTailwind"];
@@ -192,7 +192,6 @@ export class PublishSiteGenerator {
   private readonly pluginCatalog: PublishPluginCatalog;
 
   constructor(options: PublishGeneratorOptions) {
-    this.clientSource = options.clientSource;
     this.template = options.template;
     this.compileTailwind = options.compileTailwind;
     this.logger = options.logger;
@@ -209,7 +208,7 @@ export class PublishSiteGenerator {
     return this.generatePublishFiles(db, selections, site, appearanceSettings);
   }
 
-  private buildSiteInitMeta(site: ISiteMeta): IPublishInitData["site"] {
+  private buildSiteInitMeta(site: ISiteMeta): DataManifest["site"] {
     if (!site.favicon) {
       return {
         title: site.title,
@@ -276,48 +275,32 @@ export class PublishSiteGenerator {
     });
     const docResult = await this.buildDocData(
       db,
-      site,
       projects,
       this.buildEntityScopeMap(grouped.project),
-      baseTargets,
-      appearanceSettings
+      baseTargets
     );
     const targets = docResult.contentLinkTargets;
-    const collections = docResult.collections;
     const questResult = await this.buildQuestData(
       db,
-      site,
       grouped.quest,
       this.buildEntityScopeMap(grouped.quest),
       cardMap,
       articleMap,
-      collections,
-      targets,
-      appearanceSettings
+      targets
     );
-    const tagTree = cards.length ? this.buildCardTagTree(cards) : undefined;
     for (const selection of grouped.card) {
       const card = cardMap.get(selection.contentId);
       if (!card) continue;
-      const data = this.buildCardInitData(
-        site,
-        card,
-        tagTree,
-        this.resolveLinkedCards(db, card, cardsByContentId),
-        collections,
-        targets,
-        appearanceSettings
-      );
       this.output.data(
         contentRef("card", card.id),
-        data,
+        this.buildCardInitData(card, this.resolveLinkedCards(db, card, cardsByContentId)),
         await this.buildTailwindRuntimeCss(card.content)
       );
     }
     for (const article of articles) {
       this.output.data(
         contentRef("article", article.id),
-        this.buildArticleInitData(site, article, collections, targets, appearanceSettings),
+        this.buildArticleInitData(article),
         await this.buildTailwindRuntimeCss(article.content)
       );
     }
@@ -328,37 +311,18 @@ export class PublishSiteGenerator {
       if (records.length)
         this.output.data(
           { key: `list:${type}`, type: "list" },
-          this.buildListInitData(
-            site,
-            type,
-            records as ICard[] | IArticle[],
-            collections,
-            targets,
-            appearanceSettings
-          )
+          this.buildListInitData(type, records as ICard[] | IArticle[])
         );
     }
     if (docResult.listEntries.length)
       this.output.data(
         { key: "list:doc", type: "list" },
-        this.buildDocListInitData(
-          site,
-          docResult.listEntries,
-          collections,
-          targets,
-          appearanceSettings
-        )
+        this.buildDocListInitData(docResult.listEntries)
       );
     if (questResult.entries.length)
       this.output.data(
         { key: "list:quest", type: "list" },
-        this.buildQuestListInitData(
-          site,
-          questResult.entries,
-          collections,
-          targets,
-          appearanceSettings
-        )
+        this.buildQuestListInitData(questResult.entries)
       );
     this.output.data(
       contentRef("home"),
@@ -367,10 +331,7 @@ export class PublishSiteGenerator {
         cards,
         articles,
         [...docResult.timelineEntries, ...questResult.timelineEntries],
-        projects.length,
-        collections,
-        targets,
-        appearanceSettings
+        projects.length
       )
     );
     for (const file of this.pluginCatalog.files()) this.output.add(file);
@@ -386,13 +347,23 @@ export class PublishSiteGenerator {
       docs: docResult.listEntries,
       quests: questResult.entries,
     });
+    // 站点级数据只进清单一次；卡片、文章的链接键即清单 key，只需登记项目条目。
+    const projectItemTargets = Object.fromEntries(
+      Object.entries(targets).filter(([identity]) => identity.startsWith("project-item:"))
+    );
     return {
-      files: this.output.finish(
-        this.template,
-        this.buildSiteInitMeta(site),
-        search,
-        this.clientSource
-      ),
+      files: this.output.finish(this.template, search, {
+        site: this.buildSiteInitMeta(site),
+        settings: buildPublishAppearanceSettings(appearanceSettings),
+        ...(docResult.collections ? { collections: docResult.collections } : {}),
+        ...(cards.length ? { cardTagTree: this.buildCardTagTree(cards) } : {}),
+        ...(Object.keys(docResult.projectTrees).length
+          ? { projectTrees: docResult.projectTrees }
+          : {}),
+        ...(Object.keys(projectItemTargets).length
+          ? { contentLinkTargets: projectItemTargets }
+          : {}),
+      }),
       virtualProcessed: docResult.skippedDocItems,
     };
   }
@@ -405,11 +376,8 @@ export class PublishSiteGenerator {
     cards: ICard[],
     articles: IArticle[],
     docTimeline: ITimelineEntry[],
-    projectCount: number,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+    projectCount: number
+  ): PublishDataBody {
     const timeline = this.buildTimelineEntries(cards, articles, docTimeline);
     const hero =
       site.description && site.description.trim().length > 0
@@ -419,111 +387,65 @@ export class PublishSiteGenerator {
           }
         : undefined;
 
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          hero,
-          timeline,
-          stats: {
-            articles: articles.length,
-            cards: cards.length,
-          },
-          docStats: {
-            projects: projectCount,
-          },
+    return {
+      content: {
+        hero,
+        timeline,
+        stats: {
+          articles: articles.length,
+          cards: cards.length,
         },
-        meta: {
-          type: "home",
-          publishTime: 0,
+        docStats: {
+          projects: projectCount,
         },
       },
-      appearanceSettings
-    );
+      meta: { type: "home" },
+    };
   }
 
   /**
    * 构建卡片页面数据
    */
-  private buildCardInitData(
-    site: ISiteMeta,
-    card: ICard,
-    cardTagTree?: IPublishCardTagTree[],
-    linkedCards?: ILinkedCardInfo[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        cardTagTree,
-        content: {
-          id: card.id,
-          content: card.content || [],
-          tags: card.tags || [],
-          createTime: card.create_time,
-          updateTime: card.update_time,
-          linkedCards,
-        },
-        meta: {
-          type: "card",
-          publishTime: 0,
-        },
+  private buildCardInitData(card: ICard, linkedCards?: ILinkedCardInfo[]): PublishDataBody {
+    return {
+      content: {
+        id: card.id,
+        content: contentNodes(card.content),
+        tags: card.tags || [],
+        createTime: card.create_time,
+        updateTime: card.update_time,
+        linkedCards,
       },
-      appearanceSettings
-    );
+      meta: { type: "card" },
+    };
   }
 
   /**
    * 构建文章页面数据
    */
-  private buildArticleInitData(
-    site: ISiteMeta,
-    article: IArticle,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          id: article.id,
-          title: article.title,
-          author: article.author,
-          content: article.content || [],
-          tags: article.tags || [],
-          bannerBg: article.bannerBg,
-          createTime: article.create_time,
-          updateTime: article.update_time,
-        },
-        meta: {
-          type: "article",
-          publishTime: 0,
-        },
+  private buildArticleInitData(article: IArticle): PublishDataBody {
+    return {
+      content: {
+        id: article.id,
+        title: article.title,
+        author: article.author,
+        content: contentNodes(article.content),
+        tags: article.tags || [],
+        bannerBg: article.bannerBg,
+        createTime: article.create_time,
+        updateTime: article.update_time,
       },
-      appearanceSettings
-    );
+      meta: { type: "article" },
+    };
   }
 
   /**
    * 构建列表页面数据
    */
   private buildListInitData(
-    site: ISiteMeta,
     type: "card" | "article",
-    records: ICard[] | IArticle[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+    records: ICard[] | IArticle[]
+  ): PublishDataBody {
     const items: IPublishListItem[] =
       type === "card"
         ? (records as ICard[]).map(card => ({
@@ -543,24 +465,15 @@ export class PublishSiteGenerator {
           }));
     items.sort((a, b) => b.createTime - a.createTime);
     const tagStats = this.buildTagStats(items);
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          title: type === "card" ? "全部卡片" : "全部文章",
-          type,
-          items,
-          tags: tagStats,
-        },
-        meta: {
-          type: "list",
-          publishTime: 0,
-        },
+    return {
+      content: {
+        title: type === "card" ? "全部卡片" : "全部文章",
+        type,
+        items,
+        tags: tagStats,
       },
-      appearanceSettings
-    );
+      meta: { type: "list" },
+    };
   }
 
   private groupSelections(
@@ -709,20 +622,20 @@ export class PublishSiteGenerator {
 
   private async buildDocData(
     db: PublishDataSource,
-    site: ISiteMeta,
     projects: Project[],
     projectScopes: Map<number, EntityScopeConfig>,
-    baseContentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
+    baseContentLinkTargets: Record<string, ContentRef>
   ): Promise<{
     files: IPublishFile[];
     listEntries: IDocEntry[];
     timelineEntries: ITimelineEntry[];
-    collections?: IPublishInitData["docCollections"];
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"];
+    collections?: DataManifest["collections"];
+    projectTrees: NonNullable<DataManifest["projectTrees"]>;
+    contentLinkTargets: Record<string, ContentRef>;
     skippedDocItems: number;
   }> {
     const files: IPublishFile[] = [];
+    const projectTrees: NonNullable<DataManifest["projectTrees"]> = {};
     const entries: IDocEntry[] = [];
     const entityEntryMap = new Map<string, IDocEntry[]>();
     const collectionMeta: IDocCollectionMetaItem[] = [];
@@ -736,6 +649,7 @@ export class PublishSiteGenerator {
       }
       entries.push(...result.entries);
       entityEntryMap.set(`project-${project.id}`, result.entries);
+      if (result.sidebar) projectTrees[project.id] = result.sidebar;
       if (result.defaultTarget) {
         collectionMeta.push({
           type: "project",
@@ -762,15 +676,7 @@ export class PublishSiteGenerator {
         const entry = entityEntries[i];
         const prev = entityEntries[i - 1];
         const next = entityEntries[i + 1];
-        const initData = this.buildDocInitData(
-          site,
-          entry,
-          prev,
-          next,
-          docCollections,
-          contentLinkTargets,
-          appearanceSettings
-        );
+        const initData = this.buildDocInitData(entry, prev, next);
         const runtimeCss = await this.buildTailwindRuntimeCss(entry.content || []);
         files.push(this.output.data(entry.target, initData, runtimeCss, entry.entityId));
       }
@@ -785,49 +691,34 @@ export class PublishSiteGenerator {
       listEntries: orderedEntries,
       timelineEntries,
       collections: docCollections,
+      projectTrees,
       contentLinkTargets,
       skippedDocItems,
     };
   }
 
   private buildDocInitData(
-    site: ISiteMeta,
     entry: IDocEntry,
     prev: IDocEntry | undefined,
-    next: IDocEntry | undefined,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        sidebar: entry.sidebar,
-        docCollections,
-        contentLinkTargets,
-        content: {
-          id: entry.id,
-          title: entry.title,
-          content: entry.content || [],
-          breadcrumb: entry.breadcrumb,
-          prevPage: prev ? { title: prev.title, target: prev.target } : undefined,
-          nextPage: next ? { title: next.title, target: next.target } : undefined,
-          createTime: entry.createTime,
-          updateTime: entry.updateTime,
-          projectId: entry.entityId,
-        },
-        meta: {
-          type: "doc",
-          publishTime: 0,
-        },
+    next: IDocEntry | undefined
+  ): PublishDataBody {
+    return {
+      content: {
+        id: entry.id,
+        title: entry.title,
+        content: contentNodes(entry.content),
+        breadcrumb: entry.breadcrumb,
+        prevPage: prev ? { title: prev.title, target: prev.target } : undefined,
+        nextPage: next ? { title: next.title, target: next.target } : undefined,
+        createTime: entry.createTime,
+        updateTime: entry.updateTime,
+        projectId: entry.entityId,
       },
-      appearanceSettings
-    );
+      meta: { type: "doc" },
+    };
   }
 
-  private buildDocCollectionsFromMeta(
-    meta: IDocCollectionMetaItem[]
-  ): IPublishInitData["docCollections"] {
+  private buildDocCollectionsFromMeta(meta: IDocCollectionMetaItem[]): DataManifest["collections"] {
     if (!meta.length) {
       return undefined;
     }
@@ -860,18 +751,12 @@ export class PublishSiteGenerator {
           items,
         };
       })
-      .filter(Boolean) as IPublishInitData["docCollections"];
+      .filter(Boolean) as DataManifest["collections"];
 
     return collections && collections.length > 0 ? collections : undefined;
   }
 
-  private buildDocListInitData(
-    site: ISiteMeta,
-    entries: IDocEntry[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+  private buildDocListInitData(entries: IDocEntry[]): PublishDataBody {
     const items = entries
       .slice()
       .sort((a, b) => b.updateTime - a.updateTime)
@@ -883,35 +768,23 @@ export class PublishSiteGenerator {
         tags: entry.tags,
         createTime: entry.createTime,
       }));
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          title: "全部文档",
-          type: "doc",
-          items,
-        },
-        meta: {
-          type: "list",
-          publishTime: 0,
-        },
+    return {
+      content: {
+        title: "全部文档",
+        type: "doc",
+        items,
       },
-      appearanceSettings
-    );
+      meta: { type: "list" },
+    };
   }
 
   private async buildQuestData(
     db: PublishDataSource,
-    site: ISiteMeta,
     selections: Array<{ contentId: number; parentPath: string }>,
     scopes: Map<number, EntityScopeConfig>,
     publishedCards: Map<number, ICard>,
     publishedArticles: Map<number, IArticle>,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
+    contentLinkTargets: Record<string, ContentRef>
   ): Promise<{
     files: IPublishFile[];
     entries: IQuestEntry[];
@@ -947,13 +820,17 @@ export class PublishSiteGenerator {
     );
 
     for (const entry of entries) {
-      const initData = this.buildQuestInitData(
-        site,
-        entry,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
-      );
+      const initData: PublishDataBody = {
+        content: {
+          ...entry,
+          description: entry.description && contentNodes(entry.description),
+          answers: entry.answers.map(answer => ({
+            ...answer,
+            content: answer.content && contentNodes(answer.content),
+          })),
+        },
+        meta: { type: "quest" },
+      };
       const runtimeCss = await this.buildTailwindRuntimeCss(this.collectQuestInlineContent(entry));
       files.push(this.output.data(entry.target, initData, runtimeCss));
     }
@@ -983,7 +860,7 @@ export class PublishSiteGenerator {
     group: QuestionGroup,
     publishedCards: Map<number, ICard>,
     publishedArticles: Map<number, IArticle>,
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"]
+    contentLinkTargets: Record<string, ContentRef>
   ): IQuestEntry {
     const detail = db.getQuestionDetail(question.id);
     // 只有独立答案进「解」；关联的卡片 / 文章等是资料，进「据」
@@ -1043,7 +920,7 @@ export class PublishSiteGenerator {
     answer: IAnswer,
     publishedCards: Map<number, ICard>,
     publishedArticles: Map<number, IArticle>,
-    targets?: IPublishInitData["contentLinkTargets"]
+    targets: Record<string, ContentRef>
   ): IQuestAnswerEntry {
     const source = this.resolveQuestAnswerSource(
       db,
@@ -1068,7 +945,7 @@ export class PublishSiteGenerator {
     contentId: number,
     publishedCards: Map<number, ICard>,
     publishedArticles: Map<number, IArticle>,
-    targets?: IPublishInitData["contentLinkTargets"]
+    targets: Record<string, ContentRef>
   ): IQuestAnswerEntry["source"] {
     const card = db.getCardByContentId(contentId);
     if (card) {
@@ -1098,15 +975,15 @@ export class PublishSiteGenerator {
 
     const projectItems = db.getProjectItemsByContentId(contentId);
     const projectItem =
-      projectItems.find(item => targets?.[`project-item:${item.id}`]) ?? projectItems[0];
+      projectItems.find(item => targets[`project-item:${item.id}`]) ?? projectItems[0];
     if (projectItem) {
       return {
         type: "project-item",
         id: projectItem.id,
         contentId,
         title: projectItem.title || `项目条目 #${projectItem.id}`,
-        target: targets?.[`project-item:${projectItem.id}`],
-        published: Boolean(targets?.[`project-item:${projectItem.id}`]),
+        target: targets[`project-item:${projectItem.id}`],
+        published: Boolean(targets[`project-item:${projectItem.id}`]),
       };
     }
 
@@ -1117,35 +994,7 @@ export class PublishSiteGenerator {
     };
   }
 
-  private buildQuestInitData(
-    site: ISiteMeta,
-    entry: IQuestEntry,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        content: { ...entry },
-        meta: {
-          type: "quest",
-          publishTime: 0,
-        },
-      },
-      appearanceSettings
-    );
-  }
-
-  private buildQuestListInitData(
-    site: ISiteMeta,
-    entries: IQuestEntry[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+  private buildQuestListInitData(entries: IQuestEntry[]): PublishDataBody {
     const items: IPublishQuestListItem[] = entries.map(entry => ({
       id: entry.id,
       title: entry.title,
@@ -1160,23 +1009,14 @@ export class PublishSiteGenerator {
       updateTime: resolveQuestActivityTime(entry),
     }));
 
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          title: "求索录",
-          type: "quest",
-          items,
-        },
-        meta: {
-          type: "list",
-          publishTime: 0,
-        },
+    return {
+      content: {
+        title: "求索录",
+        type: "quest",
+        items,
       },
-      appearanceSettings
-    );
+      meta: { type: "list" },
+    };
   }
 
   private collectQuestInlineContent(entry: IQuestEntry): Descendant[] {
@@ -1189,7 +1029,7 @@ export class PublishSiteGenerator {
     scope?: EntityScopeConfig
   ): {
     entries: IDocEntry[];
-    sidebar?: IPublishInitData["sidebar"];
+    sidebar?: TreeItem[];
     defaultTarget?: ContentRef;
     skippedCount: number;
   } {
@@ -1235,16 +1075,12 @@ export class PublishSiteGenerator {
       nodeId => contentRef("doc", nodeId, projectId)
     );
 
-    const { entries, defaultTarget, skippedCount } = this.collectDocEntriesFromTree(
-      treeNodes,
-      {
-        entityId: project.id,
-        title: project.title || `项目 #${project.id}`,
-        kind: "project",
-        projectId,
-      },
-      sidebar
-    );
+    const { entries, defaultTarget, skippedCount } = this.collectDocEntriesFromTree(treeNodes, {
+      entityId: project.id,
+      title: project.title || `项目 #${project.id}`,
+      kind: "project",
+      projectId,
+    });
 
     return { entries, sidebar, defaultTarget, skippedCount };
   }
@@ -1330,7 +1166,7 @@ export class PublishSiteGenerator {
     entityTitle: string,
     nodes: IDocTreeNode[],
     targetBuilder: (nodeId: number) => ContentRef
-  ): IPublishInitData["sidebar"] {
+  ): TreeItem[] | undefined {
     const children = this.buildSidebarBranch(nodes, targetBuilder) || [];
     if (children.length === 0) {
       return undefined;
@@ -1346,7 +1182,7 @@ export class PublishSiteGenerator {
   private buildSidebarBranch(
     nodes: IDocTreeNode[],
     targetBuilder: (nodeId: number) => ContentRef
-  ): IPublishInitData["sidebar"] {
+  ): TreeItem[] | undefined {
     return nodes.map(node => {
       const childNodes = node.children || [];
       return {
@@ -1366,8 +1202,7 @@ export class PublishSiteGenerator {
       title: string;
       kind: IDocEntry["kind"];
       projectId: number;
-    },
-    sidebar?: IPublishInitData["sidebar"]
+    }
   ): { entries: IDocEntry[]; defaultTarget?: ContentRef; skippedCount: number } {
     const entryInfos: Array<{ node: IDocTreeNode; ancestors: IDocTreeNode[] }> = [];
     let skippedCount = 0;
@@ -1420,7 +1255,6 @@ export class PublishSiteGenerator {
         kind: entity.kind,
         content: node.content || [],
         breadcrumb,
-        sidebar,
       } as IDocEntry;
     });
 

@@ -97,7 +97,6 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         replaceTemplatePaths(content.toString("utf8"), {
           MANIFEST: "/data/site.json",
           BASE: "/",
-          CLIENT: "/_tau/client/",
         });
     }
     const readDocument = (name: string, required: boolean) => {

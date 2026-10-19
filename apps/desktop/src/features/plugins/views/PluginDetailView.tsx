@@ -506,7 +506,11 @@ function Aside({
           ) : (
             <p className="text-tau-meta text-ink-3 flex items-center gap-2">
               <Layers className="size-3.5" strokeWidth={1.75} />
-              {active ? "没有登记界面入口" : "启用后可见"}
+              {plugin.template
+                ? "博客模板，在发布设置中选择使用"
+                : active
+                  ? "没有登记界面入口"
+                  : "启用后可见"}
             </p>
           )}
         </div>

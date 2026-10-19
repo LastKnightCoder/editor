@@ -66,7 +66,6 @@ async function run() {
   );
   const generator = new PublishSiteGenerator({
     template: request.template,
-    clientSource: request.clientSource,
     compileTailwind,
     logger: console,
     plugins: request.plugins,

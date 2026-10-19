@@ -26,7 +26,8 @@ export function assertPackagePath(value: unknown): asserts value is string {
   if (
     typeof value !== "string" ||
     !value ||
-    /[\\:%?#\u0000-\u001f]/.test(value) ||
+    /[\\:%?#]/.test(value) ||
+    [...value].some(char => char.charCodeAt(0) < 0x20) ||
     value.split("/").some(part => !part || part === "." || part === "..")
   )
     throw new Error("插件资源路径无效");
@@ -78,36 +79,23 @@ export function validateDistributionManifest(value: unknown): DistributionManife
   });
   if (!item.integrity || typeof item.integrity !== "object" || Array.isArray(item.integrity))
     throw new Error("模板资源缺少摘要清单");
-  const executable =
-    item.main !== undefined ||
-    item.format !== undefined ||
-    item.styles !== undefined ||
-    item.editor !== undefined ||
-    item.whiteboard !== undefined;
-  const codeManifest = executable ? validatePluginManifest(item) : undefined;
+  if (["main", "format", "styles", "editor", "whiteboard", "sync"].some(key => key in item))
+    throw new Error("模板包只包含静态站点产物，不能同时声明代码插件入口");
   const integrity: Record<string, string> = Object.create(null);
   for (const [name, digest] of Object.entries(item.integrity)) {
     assertPackagePath(name);
-    if (name.startsWith(template.root + "/"))
-      assertPublishPath(name.slice(template.root.length + 1));
     if (
-      !(
-        name.startsWith(template.root + "/") ||
-        (codeManifest && [codeManifest.main, codeManifest.styles].includes(name))
-      ) ||
+      !name.startsWith(template.root + "/") ||
       typeof digest !== "string" ||
       !/^[a-f0-9]{64}$/.test(digest)
     )
       throw new Error("模板资产路径或摘要无效");
+    assertPublishPath(name.slice(template.root.length + 1));
     integrity[name] = digest;
   }
   for (const entry of entries)
     if (!integrity[template.root + "/" + entry]) throw new Error("模板入口未包含在摘要清单");
-  // 混合代码能力继续遵守现有代码包协议，不能借静态模板绕过校验。
-  if (codeManifest) Object.assign(integrity, codeManifest.integrity);
-  if (item.sync !== undefined) throw new Error("Node同步入口已停用，请更新插件");
   return Object.freeze({
-    ...codeManifest,
     formatVersion: 1 as const,
     apiVersion: 1 as const,
     platform: "desktop" as const,

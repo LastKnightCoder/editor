@@ -5,12 +5,25 @@ import { assertPublishPath } from "@tau/plugins/template";
 import type {
   ContentRef,
   DataManifest,
+  ListData,
   ManifestItem,
+  PublishedData,
   ResourceRef,
   SearchFile,
 } from "@tau/plugins/publish-data";
-import type { IPublishFile, IPublishInitData } from "@/types/publish";
+import type { IPublishFile } from "@/types/publish";
 import type { TemplatePackage } from "../services/template-package";
+
+type DataKind = PublishedData["meta"]["type"];
+/** 单条内容的正文数据；版本、key、发布时间与资源依赖由输出层补齐。 */
+export type PublishDataBody = {
+  [K in DataKind]: {
+    meta: { type: K };
+    content: Extract<PublishedData, { meta: { type: K } }>["content"];
+  };
+}[DataKind];
+/** 站点级数据，只写入清单一次。 */
+export type PublishSiteShared = Omit<DataManifest, "version" | "search" | "items">;
 
 const digest = (content: Buffer | string) => createHash("sha256").update(content).digest("hex");
 
@@ -32,11 +45,11 @@ export class PublishDataOutput {
     return result;
   }
 
-  data(ref: ContentRef, init: IPublishInitData, css = "", projectId?: number): IPublishFile {
-    if (init.meta.type !== ref.type || (ref.id !== undefined && init.content.id !== ref.id))
+  data(ref: ContentRef, body: PublishDataBody, css = "", projectId?: number): IPublishFile {
+    const id = "id" in body.content ? body.content.id : undefined;
+    if (body.meta.type !== ref.type || (ref.id !== undefined && id !== ref.id))
       throw new Error("发布数据身份不一致");
-    const collectionType =
-      ref.type === "list" ? (init.content.type as ManifestItem["collectionType"]) : undefined;
+    const collectionType = body.meta.type === "list" ? (body.content as ListData).type : undefined;
     if (
       ref.type === "list" &&
       !["card", "article", "doc", "quest"].includes(String(collectionType))
@@ -51,7 +64,6 @@ export class PublishDataOutput {
             ? `lists/${collectionType}`
             : `${ref.type === "quest" ? "quests" : ref.type + "s"}/${ref.id}`;
     const dataPath = `data/${stem}.json`;
-    const { site: _site, sidebar, docCollections, ...body } = init;
     const contentStyles: ResourceRef[] = [];
     if (css.trim()) {
       const hash = digest(css);
@@ -59,7 +71,7 @@ export class PublishDataOutput {
       if (!this.output.has(path)) this.add({ path, content: css });
       contentStyles.push({ href: posix.relative(posix.dirname(dataPath), path), integrity: hash });
     }
-    const content = { ...init.content };
+    const content = body.content;
     const revisions: number[] = [];
     const visit = (value: unknown): void => {
       if (!value || typeof value !== "object") return;
@@ -72,19 +84,16 @@ export class PublishDataOutput {
     visit(content);
     const pluginRenderers = this.dependencies(content, dataPath);
     const payload = {
-      ...body,
       version: 1,
       key: ref.key,
       content,
       meta: {
-        ...body.meta,
+        type: body.meta.type,
         publishTime: revisions.reduce((max, value) => Math.max(max, value), 0),
       },
       ...(pluginRenderers.length ? { pluginRenderers } : {}),
-      ...(sidebar ? { tree: sidebar } : {}),
-      ...(docCollections ? { collections: docCollections } : {}),
       ...(contentStyles.length ? { contentStyles } : {}),
-    };
+    } as PublishedData;
     const text = JSON.stringify(payload);
     const hash = digest(text);
     const file = this.add({
@@ -101,19 +110,14 @@ export class PublishDataOutput {
       ...ref,
       ...(collectionType ? { collectionType } : {}),
       ...(projectId === undefined ? {} : { projectId }),
-      title: String(content.title ?? ref.key),
+      title: "title" in content && typeof content.title === "string" ? content.title : ref.key,
       data: file.path.slice(5),
       integrity: hash,
     });
     return file;
   }
 
-  finish(
-    template: TemplatePackage,
-    site: DataManifest["site"],
-    search: SearchFile,
-    clientSource?: string
-  ) {
+  finish(template: TemplatePackage, search: SearchFile, shared: PublishSiteShared) {
     const keys = new Set(this.items.map(item => item.key));
     for (const item of search.documents)
       if (!keys.has(item.key)) throw new Error("搜索 key 未闭合");
@@ -124,16 +128,13 @@ export class PublishDataOutput {
     });
     const manifest: DataManifest = {
       version: 1,
-      site,
+      ...shared,
       search: { data: searchFile.path.slice(5), integrity: searchFile.hash },
       items: this.items.slice().sort((a, b) => a.key.localeCompare(b.key)),
     };
     const text = JSON.stringify(manifest);
     const manifestFile = this.add({ path: `data/site.${digest(text)}.json`, content: text });
-    const base = site.basePath;
-    const clientRoot = clientSource ? `_tau/client/${digest(clientSource)}/` : undefined;
-    if (clientRoot && clientSource)
-      this.add({ path: clientRoot + "tau-publish-data.js", content: clientSource });
+    const base = shared.site.basePath;
     if (
       !base.startsWith("/") ||
       !base.endsWith("/") ||
@@ -150,7 +151,6 @@ export class PublishDataOutput {
           replaceTemplatePaths(content.toString("utf8"), {
             BASE: base,
             MANIFEST: base + manifestFile.path,
-            CLIENT: clientRoot ? base + clientRoot : undefined,
           })
         );
       }

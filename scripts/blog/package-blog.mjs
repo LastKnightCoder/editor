@@ -123,7 +123,11 @@ await buildVite({
   },
 });
 
-const compiledStyles = await readFile(path.join(directory, "dist/styles.css"), "utf8");
+// 压缩会删除空的层声明；层顺序决定模板工具类能否覆盖编辑器样式，必须写在产物最前面。
+const compiledStyles =
+  "@layer properties,theme,base,components,utilities;" +
+  (await readFile(path.join(directory, "dist/styles.css"), "utf8"));
+await writeFile(path.join(directory, "dist/styles.css"), compiledStyles);
 for (const match of compiledStyles.matchAll(/url\(\s*["']?([^\s)"']+)/g)) {
   const reference = match[1];
   if (/^(?:data:|https?:|#)/.test(reference)) continue;
@@ -223,9 +227,10 @@ async function copyDeclaration(source) {
       if (!resolved) throw new Error(`声明无法解析：${source} → ${node.text}`);
       const dependency = resolved.resolvedFileName;
       if (dependency.startsWith(root + "/") && !dependency.includes("/node_modules/")) {
+        // 带 .js 扩展名，NodeNext 与 bundler 两种解析都能找到对应声明。
         let relative = path.posix
           .relative(path.posix.dirname(targetOf(source)), targetOf(dependency))
-          .replace(/\.d\.ts$/, "");
+          .replace(/\.d\.ts$/, ".js");
         if (!relative.startsWith(".")) relative = "./" + relative;
         edits.push([node.getStart(ast), node.end, JSON.stringify(relative)]);
         pending.push(dependency);

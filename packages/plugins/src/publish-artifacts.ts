@@ -1,6 +1,4 @@
 export { validatePluginManifest, PLUGIN_SHARED_MODULES } from "./package";
-import { SIDEBAR_GROUPS as sidebarGroups } from "./sidebar";
-export const SIDEBAR_GROUPS: Readonly<Record<string, string>> = sidebarGroups;
 import {
   evaluatePluginPackage as evaluate,
   assertRenderTypes as assertTypes,

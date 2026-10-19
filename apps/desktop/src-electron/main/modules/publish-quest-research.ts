@@ -12,7 +12,7 @@ import type {
   QuestionMaterial,
   QuestionStatus,
 } from "@/types";
-import type { IPublishInitData } from "@/types/publish";
+import type { ContentRef } from "@tau/plugins/publish-data";
 
 export type QuestMaterialKind = Exclude<QuestionCompositionKind, "answer">;
 export type QuestMaterialGroup = "external" | "note" | "discussion";
@@ -47,7 +47,7 @@ export interface IQuestTrailEntry {
   refs: number[];
 }
 
-type ContentLinkTargets = IPublishInitData["contentLinkTargets"];
+type ContentLinkTargets = Record<string, ContentRef> | undefined;
 
 const EXCERPT_LIMIT = 200;
 

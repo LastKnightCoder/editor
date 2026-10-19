@@ -43,7 +43,8 @@ export function diffFiles(before: PackageManifest, after: PackageManifest): File
   return changes.sort((a, b) => order[a.change] - order[b.change] || a.path.localeCompare(b.path));
 }
 
-const FIELDS: { key: keyof PackageManifest; label: string }[] = [
+// 模板与代码插件的清单字段不同，按字段名读取，缺失即显示为空。
+const FIELDS: { key: string; label: string }[] = [
   { key: "name", label: "名称" },
   { key: "description", label: "简介" },
   { key: "minAppVersion", label: "最低 Tau" },
@@ -51,10 +52,13 @@ const FIELDS: { key: keyof PackageManifest; label: string }[] = [
   { key: "styles", label: "样式" },
 ];
 
+const field = (manifest: PackageManifest, key: string) =>
+  (manifest as unknown as Record<string, unknown>)[key];
+
 export function diffManifest(before: PackageManifest, after: PackageManifest) {
-  return FIELDS.filter(field => before[field.key] !== after[field.key]).map(field => ({
-    label: field.label,
-    before: String(before[field.key] ?? "—"),
-    after: String(after[field.key] ?? "—"),
+  return FIELDS.filter(item => field(before, item.key) !== field(after, item.key)).map(item => ({
+    label: item.label,
+    before: String(field(before, item.key) ?? "—"),
+    after: String(field(after, item.key) ?? "—"),
   }));
 }

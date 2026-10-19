@@ -31,7 +31,7 @@ import { uploadPublication } from "./publish-upload";
 import { publicationDestination } from "./publish-destination";
 import { stagePublication, publicationGitError } from "./publish-git";
 import { assertPublishPath } from "@tau/plugins/template";
-import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync, readdirSync } from "fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync, readdirSync } from "fs";
 import { recordSyncIo } from "./perf-record";
 import log from "electron-log";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
@@ -465,7 +465,6 @@ class PublishModule implements Module {
     editorContext?: PluginRenderContext
   ) {
     return {
-      clientSource: readFileSync(join(__dirname, "publish-data-client.js"), "utf8"),
       template: await this.ensureTemplateReady(site.templateId),
       selections,
       site,
