@@ -2,11 +2,17 @@ import { cp, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import AdmZip from "adm-zip";
-import { comparePluginVersions, validatePluginManifest } from "@tau/plugins/host";
+import { comparePluginVersions } from "@tau/plugins/host";
+import {
+  validateDistributionManifest as validatePluginManifest,
+  distributionFiles,
+  DISTRIBUTION_LIMITS,
+} from "@tau/plugins/template";
+import { inflateRawSync } from "node:zlib";
 import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local";
 
 type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
-import { readPluginPackage } from "./plugin-package";
+import { readDistributionPackage as readPluginPackage } from "./plugin-package";
 import { pluginSyncSessions } from "./plugin-sync";
 
 interface UpdateRecord {
@@ -240,11 +246,31 @@ export class PluginUpdates {
   }
   private async stageArchive(bytes: Buffer, source: LocalPluginSource) {
     await this.setup();
+    if (bytes.length > DISTRIBUTION_LIMITS.zipBytes) throw new Error("插件包超过16MiB");
     const archive = new AdmZip(bytes);
+    if (
+      archive.getEntries().length > DISTRIBUTION_LIMITS.entries ||
+      archive.getEntries().reduce((sum, entry) => sum + entry.header.size, 0) >
+        DISTRIBUTION_LIMITS.expandedBytes
+    )
+      throw new Error("插件包展开大小或文件数量超限");
+    const unpack = (entry: AdmZip.IZipEntry) => {
+      if (entry.header.flags & 1) throw new Error("插件包不能加密");
+      const packed = entry.getCompressedData();
+      const content =
+        entry.header.method === 0
+          ? packed
+          : entry.header.method === 8
+            ? inflateRawSync(packed, { maxOutputLength: DISTRIBUTION_LIMITS.expandedBytes })
+            : null;
+      if (!content || content.length !== entry.header.size)
+        throw new Error("插件包压缩格式或大小无效");
+      return content;
+    };
     const files = archive.getEntries().filter(e => !e.isDirectory);
     const manifestEntry = files.find(e => /^[^/]+\/manifest\.json$/.test(e.entryName));
     if (!manifestEntry) throw new Error("ZIP 必须包含插件 ID 目录和 manifest.json");
-    const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
+    const manifest = validatePluginManifest(JSON.parse(unpack(manifestEntry).toString("utf8")));
     this.id(manifest.id);
     if (
       source.kind === "center" &&
@@ -252,12 +278,9 @@ export class PluginUpdates {
     )
       throw new Error("下载的插件包与发布记录不一致，已丢弃");
     const allowed = new Set(
-      [
-        "manifest.json",
-        manifest.main,
-        ...(manifest.styles ? [manifest.styles] : []),
-        ...DOCUMENT_FILES,
-      ].map(name => manifest.id + "/" + name)
+      ["manifest.json", ...distributionFiles(manifest), ...DOCUMENT_FILES].map(
+        name => manifest.id + "/" + name
+      )
     );
     const seen = new Set<string>();
     for (const entry of files) {
@@ -276,7 +299,7 @@ export class PluginUpdates {
         const relative = entry.entryName.slice(manifest.id.length + 1);
         const target = path.join(staging, relative);
         await mkdir(path.dirname(target), { recursive: true });
-        await writeFile(target, entry.getData());
+        await writeFile(target, unpack(entry));
       }
       return await this.queue(staging, false, source);
     } finally {

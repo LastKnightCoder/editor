@@ -1,0 +1,55 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color-scheme: light dark;
+}
+body {
+  margin: 0;
+}
+header,
+main {
+  max-width: 64rem;
+  margin: auto;
+  padding: 1.25rem;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+header img {
+  width: 2rem;
+  height: 2rem;
+}
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-block: 1rem;
+}
+button,
+input {
+  font: inherit;
+  padding: 0.35rem 0.6rem;
+}
+button {
+  cursor: pointer;
+}
+section,
+aside {
+  padding: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  margin-block: 1rem;
+}
+[role="dialog"] {
+  position: fixed;
+  inset: 15% 15% auto;
+  max-height: 65vh;
+  overflow: auto;
+  background: Canvas;
+  color: CanvasText;
+}
+[role="alert"] {
+  border-inline-start: 0.25rem solid currentColor;
+  padding: 1rem;
+}

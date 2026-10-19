@@ -50,8 +50,9 @@ export function PublishView() {
   const showGuide =
     runner.selectionCount !== null &&
     runner.run.kind === "idle" &&
-    (!config.targetReady || selectionCount === 0);
-  const canPublish = config.targetReady && selectionCount > 0 && !runner.running;
+    (!config.targetReady || !config.templateReady || selectionCount === 0);
+  const canPublish =
+    config.targetReady && config.templateReady && selectionCount > 0 && !runner.running;
   const visit = siteUrl ? () => void openExternal(siteUrl) : undefined;
   const openIntegration = () => {
     setDrawerOpen(false);

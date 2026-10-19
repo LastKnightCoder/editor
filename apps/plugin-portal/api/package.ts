@@ -1,6 +1,11 @@
 import AdmZip from "adm-zip";
 import { inflateRawSync } from "node:zlib";
-import { validatePluginManifest } from "@tau/plugins/package";
+import {
+  validateDistributionManifest as validatePluginManifest,
+  distributionFiles,
+  isTemplateManifest,
+} from "@tau/plugins/template";
+import { replaceTemplatePaths } from "@tau/plugins/template-html";
 import { LIMITS, type PackageContent } from "../contracts";
 import { fail, sha256 } from "./platform";
 
@@ -18,10 +23,10 @@ function unpack(entry: AdmZip.IZipEntry): Buffer {
 
 export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent> {
   try {
-    if (bytes.length > LIMITS.zipBytes) throw new Error("ZIP 超过8MiB");
+    if (bytes.length > LIMITS.zipBytes) throw new Error("ZIP 超过16MiB");
     const zip = new AdmZip(Buffer.from(bytes));
     const entries = zip.getEntries();
-    if (!entries.length || entries.length > 512) throw new Error("ZIP 文件数量无效");
+    if (!entries.length || entries.length > LIMITS.entries) throw new Error("ZIP 文件数量无效");
     let total = 0;
     const paths = new Set<string>();
     for (const entry of entries) {
@@ -58,7 +63,17 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       if (entry.entryName !== manifest.id + "/" && !entry.entryName.startsWith(manifest.id + "/"))
         throw new Error("ZIP 根目录必须与插件ID一致");
     }
-    for (const name of [manifest.main, ...(manifest.styles ? [manifest.styles] : [])]) {
+    const allowed = new Set([
+      "manifest.json",
+      "README.md",
+      "CHANGELOG.md",
+      "LICENSE",
+      ...distributionFiles(manifest),
+    ]);
+    for (const entry of entries)
+      if (!entry.isDirectory && !allowed.has(entry.entryName.slice(manifest.id.length + 1)))
+        throw new Error("插件包含未声明文件");
+    for (const name of distributionFiles(manifest)) {
       const entry = zip.getEntry(`${manifest.id}/${name}`);
       if (!entry || entry.isDirectory) throw new Error("缺少入口或样式文件");
       const content = unpack(entry);
@@ -67,8 +82,23 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         (await sha256(content)) !== manifest.integrity[name]
       )
         throw new Error("入口或样式摘要不匹配");
-      if (name === manifest.main && !content.toString("utf8").trim())
+      if ("main" in manifest && name === manifest.main && !content.toString("utf8").trim())
         throw new Error("插件入口为空");
+      if (
+        isTemplateManifest(manifest) &&
+        name.startsWith(manifest.template.root + "/") &&
+        /^(?:data|_tau|plugin-assets)(?:\/|$)/.test(name.slice(manifest.template.root.length + 1))
+      )
+        throw new Error("模板覆盖了协议资源目录");
+      if (
+        isTemplateManifest(manifest) &&
+        manifest.template.entries.some(entry => name === manifest.template.root + "/" + entry)
+      )
+        replaceTemplatePaths(content.toString("utf8"), {
+          MANIFEST: "/data/site.json",
+          BASE: "/",
+          CLIENT: "/_tau/client/",
+        });
     }
     const readDocument = (name: string, required: boolean) => {
       const entry = zip.getEntry(`${manifest.id}/${name}`);

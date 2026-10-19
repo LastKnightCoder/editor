@@ -53,8 +53,11 @@ export function GuideCard({
           },
         ]),
     {
-      label: config.active === EPublishProvider.Github ? "选择发布目标与仓库" : "选择发布目标",
-      done: config.targetReady,
+      label:
+        config.active === EPublishProvider.Github
+          ? "选择发布目标、仓库与模板"
+          : "选择发布目标与模板",
+      done: config.targetReady && config.templateReady,
       action: { text: "去设置", run: onOpenSettings },
     },
     { label: "在左侧勾选要公开的内容", done: selectionCount > 0 },

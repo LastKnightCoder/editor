@@ -3949,9 +3949,15 @@ importers:
       '@tau/whiteboard':
         specifier: workspace:*
         version: link:../whiteboard
+      fuse.js:
+        specifier: ^7.4.1
+        version: 7.4.1
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)
+      parse5:
+        specifier: 7.3.0
+        version: 7.3.0
       react:
         specifier: 19.2.0
         version: 19.2.0

@@ -7,6 +7,7 @@ import { parentPort, receiveMessageOnPort, workerData } from "node:worker_thread
 import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { PublishSiteGenerator, type PublishDataSource } from "../modules/publish-site-generator";
+import { describeRelease } from "../modules/publish-release-state";
 import type {
   DataCall,
   DataMethod,
@@ -64,7 +65,8 @@ async function run() {
     sharedPluginModules
   );
   const generator = new PublishSiteGenerator({
-    templateDir: request.templateDir,
+    template: request.template,
+    clientSource: request.clientSource,
     compileTailwind,
     logger: console,
     plugins: request.plugins,
@@ -76,7 +78,13 @@ async function run() {
     request.settings
   );
   if (request.pathsOnly) {
-    post({ type: "done-paths", paths: files.map(file => file.path), virtualProcessed });
+    post({
+      type: "done-paths",
+      paths: files.map(file => file.path),
+      files: files.map(({ content: _content, ...file }) => file),
+      release: describeRelease(files),
+      virtualProcessed,
+    });
   } else {
     post({ type: "done", files, virtualProcessed });
   }

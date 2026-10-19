@@ -8,6 +8,6 @@ export function formatBytes(bytes: number) {
 }
 export function precheckFile(file: File): string | null {
   if (!file.name.toLowerCase().endsWith(".zip")) return "请选择插件ZIP";
-  if (!file.size || file.size > LIMITS.zipBytes) return "插件ZIP须为8MiB以内的非空文件";
+  if (!file.size || file.size > LIMITS.zipBytes) return "插件ZIP须为16MiB以内的非空文件";
   return null;
 }

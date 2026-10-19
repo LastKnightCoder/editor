@@ -267,6 +267,7 @@ export interface ISetting {
       basePath: string;
     };
     site: {
+      templateId?: string;
       title: string;
       description: string;
       publicUrl: string;
@@ -544,6 +545,7 @@ const initialState: IState = {
         basePath: "/",
       },
       site: {
+        templateId: "",
         title: "",
         description: "",
         publicUrl: "",

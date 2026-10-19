@@ -1,6 +1,6 @@
+import { DISTRIBUTION_LIMITS } from "@tau/plugins/template";
 export const LIMITS = {
-  zipBytes: 8 * 1024 * 1024,
-  expandedBytes: 32 * 1024 * 1024,
+  ...DISTRIBUTION_LIMITS,
   summary: 160,
   readmeBytes: 128 * 1024,
 } as const;
@@ -42,20 +42,10 @@ export interface Session {
   csrfToken: string | null;
   reviewer: boolean;
 }
-export interface PackageManifest {
-  formatVersion: 1;
-  apiVersion: 1;
-  id: string;
-  name: string;
-  version: string;
+export type PackageManifest = import("@tau/plugins/template").DistributionManifest & {
   minAppVersion: string;
-  platform: "desktop";
-  format: "cjs";
-  main: string;
-  styles?: string;
-  integrity: Record<string, string>;
   description: string;
-}
+};
 export interface PackageContent {
   manifest: PackageManifest;
   readme: string;

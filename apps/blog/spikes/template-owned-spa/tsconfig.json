@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "types": ["node"],
+    "typeRoots": ["../../../desktop/node_modules/@types", "../../node_modules/@types"],
+    "paths": {
+      "react-router-dom": ["../../../desktop/node_modules/react-router-dom"],
+      "fuse.js": ["../../node_modules/fuse.js"]
+    }
+  },
+  "include": ["protocol/**/*.ts", "template/**/*.ts", "template/**/*.tsx"]
+}

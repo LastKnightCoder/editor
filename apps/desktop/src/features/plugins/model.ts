@@ -32,6 +32,7 @@ export const STATE_LABELS: Record<PluginInfo["state"], string> = {
 };
 
 export interface InstalledPlugin {
+  template?: boolean;
   info: PluginInfo;
   source: PluginSourceKind;
   /** 中心来源对应的发布记录，用于读取 README 与核对更新。 */
@@ -50,7 +51,19 @@ export function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginS
 }
 
 export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin[] {
-  return runtime.host.listPlugins().map(info => {
+  const templates = (runtime.local?.templates ?? []).filter(template =>
+    runtime.local?.isTemplate(template.id)
+  );
+  const infos: PluginInfo[] = [
+    ...runtime.host.listPlugins(),
+    ...templates.map(template => ({
+      id: template.id,
+      name: template.name,
+      version: template.version,
+      state: "active" as const,
+    })),
+  ];
+  return infos.map(info => {
     const source = pluginSource(runtime, info.id);
     const local = runtime.local?.owns(info.id) ? runtime.local : undefined;
     const origin = local?.source(info.id);
@@ -59,17 +72,20 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
         ? "插件清理未能确认完成，请重启应用后再启用。已保存的数据保留。"
         : (runtime.development?.error(info.id) ?? local?.error(info.id) ?? info.error);
     return {
+      template: runtime.local?.isTemplate(info.id),
       info,
       source,
       releaseId: origin?.kind === "center" ? origin.releaseId : undefined,
       update: runtime.local?.updates.find(item => item.id === info.id),
-      enabled: local?.isContentPlugin?.(info.id)
-        ? local.enabled(info.id)
-        : Boolean(
-            info.state === "active" ||
-            runtime.development?.enabled(info.id) ||
-            runtime.local?.enabled(info.id)
-          ),
+      enabled: local?.isTemplate(info.id)
+        ? true
+        : local?.isContentPlugin?.(info.id)
+          ? local.enabled(info.id)
+          : Boolean(
+              info.state === "active" ||
+              runtime.development?.enabled(info.id) ||
+              runtime.local?.enabled(info.id)
+            ),
       error,
     };
   });

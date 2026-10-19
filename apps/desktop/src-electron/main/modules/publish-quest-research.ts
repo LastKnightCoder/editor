@@ -30,7 +30,7 @@ export interface IQuestMaterialEntry {
   /** 划线 / 标注上写下的想法 */
   note?: string;
   /** 站内已发布页面 */
-  href?: string;
+  target?: import("@tau/plugins/publish-data").ContentRef;
   /** 外部原处（剪藏网页） */
   url?: string;
   /** 与正文 content-link 对账的键（contentType:refId） */
@@ -130,7 +130,7 @@ function draftFromMaterial(
     title: material.title,
     meta: [material.meta, words].filter(Boolean).join(" · "),
     excerpt: clip(material.excerpt),
-    href: citeKey ? targets?.[citeKey]?.href : undefined,
+    target: citeKey ? targets?.[citeKey] : undefined,
     citeKey,
   };
 }

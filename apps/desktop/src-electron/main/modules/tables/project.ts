@@ -281,9 +281,15 @@ export default class ProjectTable {
   }
 
   static getProject(db: Database.Database, id: number): Project {
+    const project = this.getProjectOrNull(db, id);
+    if (!project) throw new Error(`项目 ${id} 不存在`);
+    return project;
+  }
+
+  static getProjectOrNull(db: Database.Database, id: number): Project | null {
     const stmt = db.prepare("SELECT * FROM project WHERE id = ?");
     const project = stmt.get(id);
-    return this.parseProject(project);
+    return project ? this.parseProject(project) : null;
   }
 
   static getAllProjects(db: Database.Database): Project[] {
