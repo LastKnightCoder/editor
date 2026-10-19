@@ -25,7 +25,8 @@ pnpm check                                    # 类型检查
 pnpm frames 296 328                           # 曲内拍序号 → 产品片帧号
 pnpm grid out/frames/xx 7561 7700 7900        # 抽低清静帧拼成 4 列网格自检
 npx remotion render src/index.ts Product "out/产品片-段落-XX.mp4" --frames=7561-8520 --scale=0.35 --crf=30   # 只渲染一段
-npx remotion render src/index.ts Product "out/产品片.mp4" --codec=h264 --crf=17                              # 1080p60 整片
+npx remotion render src/index.ts Product "out/产品片.mp4" --codec=h264 --crf=17 --concurrency=4   # 1080p60 整片
+/tmp/beatenv/bin/python scripts/scan-glitches.py out/产品片.mp4   # 整片导出后扫渲染丢帧（整帧变黑、标签一闪），有输出就重渲
 ```
 
 ## 目录
@@ -42,7 +43,7 @@ src/
     features/  功能片（冻结）
     gallery/   Gallery（界面核对）、Measure（坐标测量）、各类对比探针
     day/       场景片（归档）
-scripts/     beat-frames.mjs、stills-grid.sh、render.mjs、analyze-beats.py / analyze-bars.py（librosa 节拍分析）、export-srt.ts
+scripts/     beat-frames.mjs、stills-grid.sh、scan-glitches.py（丢帧扫描）、render.mjs、analyze-beats.py / analyze-bars.py（librosa 节拍分析）、export-srt.ts
 ```
 
 ## 做一段新内容

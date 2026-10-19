@@ -20,8 +20,8 @@ export function ModuleTag({ index, module, feature, at, out }: { index?: string;
         gap: 16,
         padding: "11px 26px 11px 12px",
         borderRadius: 999,
-        background: "rgba(252, 253, 255, 0.88)",
-        backdropFilter: "blur(16px)",
+        // 不用 backdrop-filter：多标签页并行渲染时 Chrome 偶尔整层丢帧，成片里标签一闪一闪（交接文档坑 24）
+        background: "rgba(252, 253, 255, 0.96)",
         boxShadow: "0 0 0 1px rgba(22,34,49,0.06), 0 14px 36px -14px rgba(22,34,49,0.35)",
         opacity: t,
         transform: `translate(-50%, ${(1 - t) * 10}px)`,
