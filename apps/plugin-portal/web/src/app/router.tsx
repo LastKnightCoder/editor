@@ -6,9 +6,12 @@ import { LoginPage } from "../pages/LoginPage";
 import { NewSubmissionPage } from "../pages/NewSubmissionPage";
 import { SubmissionDetailPage } from "../pages/SubmissionDetailPage";
 import { SubmissionsPage } from "../pages/SubmissionsPage";
-import { AuthenticatedShell } from "./AppShell";
+import { AuthenticatedShell, PublicShell } from "./AppShell";
 import { CatalogPage } from "../pages/CatalogPage";
 import { ModerationPage } from "../pages/ModerationPage";
+import { PluginDetailPage } from "../pages/PluginDetailPage";
+import { ReviewPage } from "../pages/ReviewPage";
+import { ReviewQueuePage } from "../pages/ReviewQueuePage";
 
 function RouteError() {
   const error = useRouteError();
@@ -18,9 +21,7 @@ function RouteError() {
         icon={Bug}
         title="页面出错了"
         error={error}
-        actions={
-          <Button onClick={() => window.location.assign("/submissions")}>回到我的提交</Button>
-        }
+        actions={<Button onClick={() => window.location.assign("/plugins")}>回到插件中心</Button>}
       />
     </main>
   );
@@ -32,18 +33,26 @@ export function createPortalRouter() {
       errorElement: <RouteError />,
       children: [
         { path: "/", element: <Navigate to="/plugins" replace /> },
-        { path: "/plugins", element: <CatalogPage /> },
+        {
+          element: <PublicShell />,
+          children: [
+            { path: "/plugins", element: <CatalogPage /> },
+            { path: "/plugins/:pluginId", element: <PluginDetailPage /> },
+          ],
+        },
         { path: "/login", element: <LoginPage /> },
         {
           element: <AuthenticatedShell />,
           children: [
             { path: "/submissions", element: <SubmissionsPage /> },
-            { path: "/moderation", element: <ModerationPage /> },
             { path: "/submissions/new", element: <NewSubmissionPage /> },
             { path: "/submissions/:id", element: <SubmissionDetailPage /> },
+            { path: "/review", element: <ReviewQueuePage /> },
+            { path: "/review/:id", element: <ReviewPage /> },
+            { path: "/moderation", element: <ModerationPage /> },
           ],
         },
-        { path: "*", element: <Navigate to="/submissions" replace /> },
+        { path: "*", element: <Navigate to="/plugins" replace /> },
       ],
     },
   ]);

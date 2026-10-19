@@ -31,10 +31,6 @@ export const desktopPluginServices: PluginServices = {
     render: async (source, options) =>
       (await import("@/services/plugin-markdown")).pluginMarkdown.render(source, options),
   },
-  tikz: {
-    compile: async (input, options) =>
-      (await import("@tau/editor-diagram/tikz")).compileTikz(input.source, options?.signal),
-  },
   ffmpeg: {
     probe: async (input, options) =>
       invokeCompiler(

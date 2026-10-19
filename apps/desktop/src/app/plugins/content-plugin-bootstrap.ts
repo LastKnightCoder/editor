@@ -10,6 +10,7 @@ import { scanLocalPlugins, getContentPluginStartup } from "@/commands/plugin-loc
 import { getContentKit } from "@/services/editorKit";
 import { desktopCodecComposition } from "@/utils/markdown";
 import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
+import { bindPluginServiceRenderers } from "@tau/plugins/services-host";
 import {
   addContentPlugin,
   initializeContentPluginState,
@@ -39,7 +40,9 @@ async function prepareContentPlugins() {
     for (const artifact of snapshot.artifacts) {
       const id = artifact.manifest.id;
       try {
-        const definition = evaluatePluginPackage(artifact, sharedPluginModules);
+        const definition = bindPluginServiceRenderers(
+          evaluatePluginPackage(artifact, sharedPluginModules)
+        );
         const candidates = [
           ...desktopContentPlugins.extensions,
           ...(definition.editorExtensions ?? []),

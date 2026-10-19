@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { fauxProvider, fauxAssistantMessage, fauxText } from "@earendil-works/pi-ai";
+import { fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import {
   assembleHostSession,
@@ -19,7 +19,7 @@ import {
   userModelTextOf,
 } from "../pi-session-host-core";
 import { piEntriesToDesktopMessages } from "../pi-session-transcript";
-import type { MessageContent } from "@/types";
+import type { MessageContent, ResponseMessage } from "@/types";
 
 // jsdom 环境的 AbortSignal 缺 any()（见 pi-session-host-core.test.ts）
 if (typeof AbortSignal.any !== "function") {
@@ -48,7 +48,7 @@ afterEach(async () => {
   for (const dir of workDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-const setup = async () => {
+const setup = async (customTools?: Parameters<typeof assembleHostSession>[0]["customTools"]) => {
   const workDir = mkdtempSync(join(tmpdir(), "pi-display-"));
   workDirs.push(workDir);
   const sessionDir = join(workDir, "sessions");
@@ -61,6 +61,7 @@ const setup = async () => {
     modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
     sessionDir,
     sessionId: "chat-1",
+    customTools,
   });
   sessions.push(session);
   return { faux, session, sessionDir, writer: createDisplayEntryWriter(session) };
@@ -89,6 +90,37 @@ const userTexts = (messages: ReturnType<typeof reopen>) =>
     );
 
 describe("展示 entry", () => {
+  it("插件展示 details 经真实 pi 工具调用落盘，重开后与模型文本分别保留", async () => {
+    const details = {
+      render: { rendererKey: "plugin_history_lookup", version: 1, payload: { label: "展示数据" } },
+    };
+    const { faux, session, sessionDir } = await setup([
+      {
+        name: "plugin_history_lookup",
+        label: "笔记查询",
+        description: "查询",
+        parameters: { type: "object", properties: {} } as never,
+        execute: async () => ({
+          content: [{ type: "text" as const, text: "模型可读文本" }],
+          details,
+        }),
+      },
+    ]);
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall("plugin_history_lookup", {})], { stopReason: "toolUse" }),
+      fauxAssistantMessage([fauxText("完成")]),
+    ]);
+    await session.prompt("查询笔记", { expandPromptTemplates: false });
+    await settleWrites();
+    const messages = reopen(session.sessionFile as string, sessionDir);
+    const assistant = messages.find(message => message.role === "assistant") as ResponseMessage;
+    const block = assistant.assistant_blocks?.find(block => block.type === "tool_call");
+    expect(block?.type === "tool_call" && block.execution).toMatchObject({
+      status: "success",
+      output: "模型可读文本",
+      metadata: details,
+    });
+  });
   it("重开对话时用户消息是文件卡片，模型上下文里仍是 read 提示", async () => {
     const { faux, session, sessionDir, writer } = await setup();
     faux.setResponses([fauxAssistantMessage([fauxText("我看看")])]);

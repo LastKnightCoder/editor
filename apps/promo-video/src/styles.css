@@ -1,0 +1,35 @@
+/* 视频工程样式入口：Tailwind + 软件同源主题 token（重建界面用）+ 视频品牌层 */
+@import "tailwindcss";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+@import "@fontsource-variable/noto-serif-sc";
+@import "@fontsource-variable/noto-sans-sc";
+@import "@fontsource-variable/jetbrains-mono";
+/* 白板手绘字体（Shantell Sans + 小赖 SC，OFL），与桌面端同一份 */
+@import "../../desktop/src/assets/fonts/hand/hand-font.css";
+
+@source "./";
+@source "../../../packages/ui/src";
+
+/* 与 apps/desktop/src/tailwind.css 一致：dark 变体跟随 data-mode，便于同屏并存明暗窗口 */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *):not(:where([data-mode="light"]:not(html), [data-mode="light"]:not(html) *)));
+
+@theme {
+  --font-display: "Noto Serif SC Variable", "Songti SC", serif;
+  --font-caption: "Noto Sans SC Variable", "PingFang SC", sans-serif;
+  --font-label: "JetBrains Mono Variable", ui-monospace, monospace;
+}
+
+:root {
+  /* 同 apps/desktop/src/app/base.css：手绘字体优先用内置字体 */
+  --tau-font-hand: var(--tau-font-hand-faces), "Hannotate SC", "KaiTi", var(--tau-font);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}

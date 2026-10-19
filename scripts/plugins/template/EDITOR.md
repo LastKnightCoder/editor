@@ -93,7 +93,7 @@ export default definePlugin({
 
 ## 块会在哪里显示
 
-块除了显示在桌面编辑器里，还会出现在移动端、浏览器扩展和用户发布的网页中，这些地方都直接使用你在 `elements.render` 中写的同一个组件，不需要另写入口。因此渲染代码要满足：
+块显示在桌面编辑器和用户发布的博客中，两处直接使用 `elements.render` 中的同一个组件，不需要另写入口。移动端与浏览器扩展不加载插件，遇到插件节点保留原数据并显示通用占位。因此渲染代码要满足：
 
 - 模块顶层和渲染组件能在浏览器中运行，不导入 Electron、Node 或 Tau 客户端内部路径。
 - 不依赖 `activate` 中才赋值的变量，也不调用 `context` 的存储、页面、服务等桌面能力。
@@ -156,6 +156,10 @@ function SourceView({ element, children }: { element: SourceElement; children: R
 `theme` 提供 `isDark` 和 `token(word)`，渲染应响应主题变化。`compiler.compile({source, language})` 返回 Tailwind CSS，language 为 html 或 tsx；它只在桌面编辑器中可用，其他场景读不到编译器，需配合下文的 `styleSources` 使用。这些组件和 hook 由 Tau 提供，不要打包自己的编辑器、Slate React 或源码编辑器实例。
 
 ## 动态样式与静态导出
+
+SDK 0.17.0 提供 `useInlineSource(element)`：返回 readOnly、可选 compiler、update(properties) 与 remove()，只读、停驻、卸载及旧目标回调不会写入文档。行内源码组件通过 `InlineSourceBoundary` 复用宿主的浏览器边界处理；菜单用 `insertInlineSource(editor, element)` 插入节点。行内输入弹层由插件通过公共 UI 组件承载，只读时只显示预览，不打开编辑器。
+
+静态导出也按 styleSources 编译节点字段并向导出 CSS 收集器提供样式；插件只负责把节点序列化为 HTML，宿主不维护具体节点类型的样式名单。
 
 若节点源码中包含动态 Tailwind 类名，在同一个扩展上声明字段：
 

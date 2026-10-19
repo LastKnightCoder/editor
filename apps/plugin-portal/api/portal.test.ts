@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { handle } from "./index";
 import { inspectPackage } from "./package";
 import { testEnvironment } from "./testing";
-import type { Submission, Upload } from "../contracts";
+import type { SubmissionGroups, Submission, Upload } from "../contracts";
 
 function zip(
   options: {
@@ -704,5 +704,170 @@ describe("包资料与站内反馈", () => {
     } finally {
       db.close();
     }
+  });
+  it("最新动态：无事件为null，审核与反馈按时间/ID取最新，摘要截断120字", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const created = await draft();
+    expect(created.lastEvent).toBeNull();
+    expect((await (await req("/v1/submissions")).json()).data.items[0].lastEvent).toBeNull();
+    const d = await ready();
+    expect(d.lastEvent).toBeNull();
+    const pending = (await (await submit(d)).json()).data;
+    expect(pending.lastEvent).toBeNull();
+    await req(`/v1/submissions/${d.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "request_changes",
+      comment: "补充使用步骤",
+    });
+    const feedback = (
+      await (
+        await req(`/v1/submissions/${d.id}/feedback`, "POST", {
+          message: "长".repeat(130),
+          clientRequestId: crypto.randomUUID(),
+        })
+      ).json()
+    ).data;
+    const review = f.sqlite.prepare("SELECT id FROM submission_reviews").get()!.id as string;
+    const times = (reviewAt: string, feedbackAt: string) => {
+      f.sqlite.prepare("UPDATE submission_reviews SET created_at=?").run(reviewAt);
+      f.sqlite.prepare("UPDATE submission_feedback SET created_at=?").run(feedbackAt);
+    };
+    const event = async () => (await (await req(`/v1/submissions/${d.id}`)).json()).data.lastEvent;
+    times("2026-10-01T00:00:00.000Z", "2026-10-02T00:00:00.000Z");
+    expect(await event()).toEqual({
+      kind: "feedback",
+      decision: null,
+      role: "author",
+      login: "author",
+      excerpt: "长".repeat(120),
+      createdAt: "2026-10-02T00:00:00.000Z",
+    });
+    times("2026-10-03T00:00:00.000Z", "2026-10-02T00:00:00.000Z");
+    const latestReview = {
+      kind: "review",
+      decision: "request_changes",
+      role: "reviewer",
+      login: "author",
+      excerpt: "补充使用步骤",
+      createdAt: "2026-10-03T00:00:00.000Z",
+    };
+    expect(await event()).toEqual(latestReview);
+    // 列表批量附加：两条提交各自取自己的最新动态。
+    const items = (await (await req("/v1/submissions")).json()).data.items as Submission[];
+    expect(items.find(item => item.id === d.id)!.lastEvent).toEqual(latestReview);
+    expect(items.find(item => item.id === created.id)!.lastEvent).toBeNull();
+    const editable = (await (await req(`/v1/submissions/${d.id}`)).json()).data;
+    const saved = (
+      await (
+        await req(`/v1/submissions/${d.id}`, "PATCH", {
+          revision: editable.revision,
+          packageUploadId: editable.packageUploadId,
+          repository: editable.repository,
+        })
+      ).json()
+    ).data;
+    expect(saved.lastEvent).toEqual(latestReview);
+    times("2026-10-04T00:00:00.000Z", "2026-10-04T00:00:00.000Z");
+    expect((await event()).kind).toBe(review > feedback.id ? "review" : "feedback");
+    f.sqlite.prepare("UPDATE submission_feedback SET created_at=?").run("2026-10-05T00:00:00.000Z");
+    const resubmitted = (await (await submit(saved)).json()).data;
+    expect(resubmitted.status).toBe("pending_review");
+    expect(resubmitted.lastEvent).toMatchObject({ kind: "feedback", role: "author" });
+  });
+  it("按插件归组：同一插件的提交合为一组，未上传包的草稿单独一组，不返回包内容", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const first = await ready("1.0.0");
+    const pending = (await (await submit(first)).json()).data;
+    await req(`/v1/submissions/${first.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "approve",
+      comment: "",
+    });
+    const second = await ready("1.1.0");
+    const empty = await draft();
+    f.sqlite.exec("INSERT INTO publishers VALUES ('other','other','')");
+    f.sqlite
+      .prepare(
+        "INSERT INTO submissions(id,publisher_id,client_request_id,created_at,updated_at) VALUES ('x','other','x','2026-10-01','2026-10-01')"
+      )
+      .run();
+    const response = await req("/v1/submission-groups");
+    expect(response.status).toBe(200);
+    const { groups } = (await response.json()).data as SubmissionGroups;
+    expect(groups).toHaveLength(2);
+    const plugin = groups.find(group => group.pluginId)!;
+    expect(plugin.name).toBe(first.content!.manifest.name);
+    expect(plugin.submissions.map(item => [item.id, item.version, item.status])).toEqual([
+      [second.id, "1.1.0", "draft"],
+      [first.id, "1.0.0", "approved"],
+    ]);
+    expect(plugin.submissions[1].lastEvent).toMatchObject({ kind: "review", decision: "approve" });
+    expect(plugin.submissions[0]).not.toHaveProperty("content");
+    const drafts = groups.find(group => !group.pluginId)!;
+    expect(drafts.submissions.map(item => item.id)).toEqual([empty.id]);
+    expect(groups.flatMap(group => group.submissions).some(item => item.id === "x")).toBe(false);
+  });
+  it("提交列表按状态筛选，counts覆盖整个范围且不受筛选和游标影响", async () => {
+    await login();
+    const insert = f.sqlite.prepare(
+      "INSERT INTO submissions(id,publisher_id,client_request_id,status,created_at,updated_at,submitted_at) VALUES (?,?,?,?,?,?,?)"
+    );
+    const seed = (id: string, owner: string, status: string, minute: number) => {
+      const time = new Date(Date.UTC(2026, 9, 1, 0, minute)).toISOString();
+      insert.run(id, owner, id, status, time, time, status === "draft" ? null : time);
+    };
+    for (let i = 0; i < 22; i++) seed(`draft-${i}`, "42", "draft", i);
+    seed("pending", "42", "pending_review", 30);
+    seed("changes", "42", "changes_requested", 31);
+    seed("approved", "42", "approved", 32);
+    f.sqlite.exec("INSERT INTO publishers VALUES ('other','other','')");
+    seed("other-draft", "other", "draft", 40);
+    seed("other-pending", "other", "pending_review", 41);
+    seed("other-rejected", "other", "rejected", 42);
+    const page = async (query = "") => {
+      const response = await req(`/v1/submissions${query}`);
+      expect(response.status).toBe(200);
+      return (await response.json()).data;
+    };
+    const mine = {
+      draft: 22,
+      pending_review: 1,
+      changes_requested: 1,
+      rejected: 0,
+      approved: 1,
+    };
+    const all = await page();
+    expect(all.counts).toEqual(mine);
+    expect(all.items).toHaveLength(20);
+    const drafts = await page("?status=draft");
+    expect(drafts.counts).toEqual(mine);
+    expect(drafts.items).toHaveLength(20);
+    expect(drafts.items.every((item: Submission) => item.status === "draft")).toBe(true);
+    const rest = await page(`?status=draft&cursor=${encodeURIComponent(drafts.nextCursor)}`);
+    expect(rest.counts).toEqual(mine);
+    expect(rest.items.map((item: Submission) => item.id)).toEqual(["draft-1", "draft-0"]);
+    expect(rest.nextCursor).toBeNull();
+    const changes = await page("?status=changes_requested");
+    expect(changes.items.map((item: Submission) => item.id)).toEqual(["changes"]);
+    expect((await page("?status=rejected")).items).toHaveLength(0);
+    for (const status of ["bogus", "", "PENDING_REVIEW"]) {
+      const response = await req(`/v1/submissions?status=${status}`);
+      expect(response.status).toBe(400);
+      expect((await response.json()).error.code).toBe("INVALID_INPUT");
+    }
+    expect((await req("/v1/submissions?scope=review&status=pending_review")).status).toBe(403);
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const queue = await page("?scope=review&status=pending_review");
+    expect(queue.items.map((item: Submission) => item.id)).toEqual(["other-pending", "pending"]);
+    expect(queue.counts).toEqual({
+      draft: 0,
+      pending_review: 2,
+      changes_requested: 1,
+      rejected: 1,
+      approved: 1,
+    });
+    expect((await page("?scope=review")).counts).toEqual(queue.counts);
   });
 });

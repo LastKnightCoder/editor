@@ -1,6 +1,0 @@
-{
-  "extends": "../../packages/editor/tsconfig.json",
-  "compilerOptions": { "strict": true },
-  "include": ["src", "markdown.ts", "../../packages/shared/styles.d.ts"],
-  "exclude": []
-}

@@ -17,7 +17,6 @@ import { default as link } from "@tau/editor-link";
 import { standardExtensions } from "../../../../editor-extensions/standard";
 import { inlineMathExtension as inlineMath } from "@tau/editor-math";
 import { diagramExtensions } from "@tau/editor-diagram";
-import { htmlExtensions } from "@tau/editor-html";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor-code-block";
 import { mathExtensions } from "@tau/editor-math";
@@ -56,7 +55,6 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
       extensions: [
         ...standardExtensions,
         ...diagramExtensions,
-        ...htmlExtensions,
         previewMenuExtension,
         codeBlockExtension,
         ...mathExtensions,

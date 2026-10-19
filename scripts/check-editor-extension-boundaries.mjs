@@ -10,6 +10,15 @@ const editorRoot = resolve(root, "packages/editor");
 const require = createRequire(resolve(editorRoot, "package.json"));
 const ts = require("typescript");
 const editorManifest = JSON.parse(readFileSync(resolve(editorRoot, "package.json"), "utf8"));
+const diagramManifest = JSON.parse(
+  readFileSync(resolve(root, "editor-extensions/diagram/package.json"), "utf8")
+);
+assert(!diagramManifest.dependencies?.abcjs, "abcjs 只能由独立 ABC 插件携带");
+assert(!diagramManifest.exports["./abc"], "不得恢复宿主 ABC 渲染入口");
+assert(
+  !existsSync(resolve(root, "editor-extensions/html/package.json")),
+  "HTML 两类节点只能由独立插件提供"
+);
 assert(
   !Object.keys(editorManifest.exports).some(key => key.startsWith("./src")),
   "核心不得恢复 src 私有通配出口"
@@ -19,7 +28,6 @@ const extensionNames = new Set([
   "@tau/editor-webview",
   "@tau/editor-custom-block",
   "@tau/editor-diagram",
-  "@tau/editor-html",
   "@tau/editor-source-view",
   "@tau/editor-code-block",
   "@tau/editor-math",
@@ -239,7 +247,6 @@ for (const file of sourceFiles(resolve(root, "packages/shared"))) {
 for (const directory of [
   "editor-extensions/webview",
   "editor-extensions/diagram",
-  "editor-extensions/html",
   "packages/editor-source-view",
   "editor-extensions/code-block",
   "editor-extensions/math",
@@ -427,7 +434,7 @@ for (const [host, entry, exportName] of hosts) {
     assert.deepEqual(md.importFromMarkdown(preserved.markdown), unknownText);
     assert.deepEqual(md.importFromMarkdownWithPositions(preserved.markdown).content, unknownText);
     const fence = String.fromCharCode(96).repeat(3);
-    for (const type of ['mermaid', 'plantuml', 'abc', 'tikz', 'typst']) {
+    for (const type of ['mermaid', 'plantuml']) {
       const source = fence + type + '\\n源码\\n' + fence;
       const parsed = md.importFromMarkdownWithPositions(source);
       assert.equal(parsed.content[0].type, type);
@@ -444,8 +451,9 @@ for (const [host, entry, exportName] of hosts) {
     assert.equal(typeof document, 'undefined');
     for (const source of ['<div>HTML</div>', '<b>行内</b>']) {
       const parsed = md.importFromMarkdownWithPositions(source);
-      assert.equal(md.getMarkdown(parsed.content).trim(), source);
-      assert.equal(md.getMarkdownWithPositions(parsed.content).markdown.trim(), source);
+      assert(!parsed.content.some(node => /^html-/.test(node.type)));
+      assert.deepEqual(md.importFromMarkdown(md.getMarkdown(parsed.content)), parsed.content);
+      assert.equal(md.getMarkdownWithPositions(parsed.content).markdown, md.getMarkdown(parsed.content));
     }
   `;
   execFileSync(

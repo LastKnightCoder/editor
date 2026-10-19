@@ -14,7 +14,13 @@ import { sharedPluginModules } from "@/app/plugins/shared-modules";
 import { openExcerptAtProvider } from "@/services/excerpt-providers";
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined as unknown));
-vi.mock("@/electron", () => ({ invoke, isElectron: true }));
+vi.mock("@/electron", () => ({
+  invoke,
+  isElectron: true,
+  platform: "darwin",
+  on: vi.fn(),
+  off: vi.fn(),
+}));
 
 const artifact = pluginArtifact("weread");
 

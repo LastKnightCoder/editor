@@ -24,7 +24,6 @@
     "@tau/editor-underline": "workspace:*",
     "@tau/editor-styled-text": "workspace:*",
     "@tau/editor-diagram": "workspace:*",
-    "@tau/editor-html": "workspace:*",
     "@tau/editor-source-view": "workspace:*",
     "@tau/editor-code-block": "workspace:*",
     "@tau/editor-math": "workspace:*",

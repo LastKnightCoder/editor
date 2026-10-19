@@ -60,7 +60,8 @@ it("删除需要原因与确认，失败保留内容，重试复用请求ID", as
       reason: "垃圾内容",
       createdAt: "2026-10-18",
     });
-  fireEvent.click(await screen.findByRole("button", { name: "删除评论" }));
+  fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "删除评论" }));
   expect((screen.getByRole("button", { name: "确认处理" }) as HTMLButtonElement).disabled).toBe(
     true
   );
@@ -93,7 +94,8 @@ it("停用使用列表的身份版本，操作记录按需加载", async () => {
     reason: "刷屏",
     createdAt: "2026-10-18",
   });
-  fireEvent.click(await screen.findByRole("button", { name: "停用匿名身份" }));
+  fireEvent.click(await screen.findByRole("button", { name: "更多操作" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "停用匿名身份" }));
   fireEvent.change(screen.getByRole("textbox", { name: "处理原因" }), {
     target: { value: "刷屏" },
   });
@@ -105,6 +107,23 @@ it("停用使用列表的身份版本，操作记录按需加载", async () => {
   );
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(events).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "操作记录" }));
+  fireEvent.click(screen.getByRole("tab", { name: "操作记录" }));
   await waitFor(() => expect(events).toHaveBeenCalledWith(null));
+});
+it("点身份只看该身份的全部评论，可清除筛选", async () => {
+  const { comments } = setup();
+  fireEvent.click(await screen.findByTitle("只看这个身份"));
+  await waitFor(() =>
+    expect(comments).toHaveBeenLastCalledWith(
+      { pluginId: "", visitorId: "visitor", status: "all" },
+      null
+    )
+  );
+  fireEvent.click(screen.getByRole("button", { name: "清除身份筛选" }));
+  await waitFor(() =>
+    expect(comments).toHaveBeenLastCalledWith(
+      { pluginId: "", visitorId: "", status: "visible" },
+      null
+    )
+  );
 });

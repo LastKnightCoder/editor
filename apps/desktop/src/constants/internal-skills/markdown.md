@@ -84,7 +84,7 @@ console.log("world");
 ```
 ````
 
-- 支持的扩展代码块语言：`mermaid`、`abc`、`plantuml`、`tikz`、`typst`；其他语法由已启用插件的 Skill 说明。
+- 支持的内置扩展代码块语言：`mermaid`、`plantuml`；ABC、TikZ、Typst 等插件语法由已启用插件的 Skill 说明。
 - 普通代码块支持高亮元信息（如 `{1,3-4}`）
 - 进阶动画元信息使用 `smm=...`（Base64URL 编码），通常由系统生成，不建议手写
 
@@ -107,7 +107,7 @@ tags:
 - 支持 YAML Front Matter（`---` 包裹）
 - 脚注会映射为注释节点（`annotation`）
 - `<kbd>...</kbd>` 会映射为快捷键节点
-- 原生 HTML 会按块级/行内规则尽量保留
+- 安装并启用 HTML 插件后，原生 HTML 按块级/行内规则导入；缺少插件时作为文本保留，已有 HTML 节点按通用未知节点机制保真。
 
 ## 列表图标语法
 

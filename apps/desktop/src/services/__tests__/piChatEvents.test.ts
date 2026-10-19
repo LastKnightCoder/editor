@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { ResponseMessage } from "@/types";
+import { Role } from "@/constants";
 import { PiChatEventReducer, type PiChatEventSink } from "../piChatEvents";
 
 const setup = () => {
@@ -26,6 +27,117 @@ const setup = () => {
 };
 
 describe("pi 审批工具行归约", () => {
+  it.each(["success", "failed", "cancelled"] as const)(
+    "turn_end 不覆盖已确认的 %s 终态",
+    status => {
+      const { handle, reducer } = setup();
+      const execution = {
+        toolCallId: "call-1",
+        toolName: "plugin_lookup",
+        input: "{}",
+        status,
+        timestamp: 1,
+        metadata: { render: { version: 1, payload: "原终态" } },
+      };
+      reducer.restoreToolExecutions({
+        role: Role.Assistant,
+        content: "",
+        assistant_blocks: [
+          {
+            id: "call-1",
+            turnId: "pi:review",
+            type: "tool_call",
+            state: "final",
+            toolCall: { id: "call-1", function: { name: "plugin_lookup", arguments: "{}" } },
+            execution,
+          },
+        ],
+      });
+      handle({
+        type: "turn_end",
+        toolResults: [
+          {
+            toolCallId: "call-1",
+            toolName: "plugin_lookup",
+            content: [{ type: "text", text: "迟到结果" }],
+            details: { render: { version: 2 } },
+          },
+        ],
+      });
+      expect(reducer.getExecutions()[0]).toBe(execution);
+    }
+  );
+  it.each(["awaiting-approval", "retrying"] as const)(
+    "%s 的恢复行在缺少结束事件时也应收敛到回放终态",
+    status => {
+      const { handle, reducer, sink } = setup();
+      reducer.restoreToolExecutions({
+        role: Role.Assistant,
+        content: "",
+        assistant_blocks: [
+          {
+            id: "call-1",
+            turnId: "pi:review",
+            type: "tool_call",
+            state: "final",
+            toolCall: { id: "call-1", function: { name: "plugin_lookup", arguments: "{}" } },
+            execution: {
+              toolCallId: "call-1",
+              toolName: "plugin_lookup",
+              input: "{}",
+              status,
+              timestamp: 1,
+            },
+          },
+        ],
+      });
+      const details = {
+        render: { rendererKey: "plugin_lookup", version: 1, payload: { label: "完成" } },
+      };
+      handle({
+        type: "turn_end",
+        toolResults: [
+          {
+            toolCallId: "call-1",
+            toolName: "plugin_lookup",
+            content: [{ type: "text", text: "完成" }],
+            details,
+          },
+        ],
+      });
+      reducer.applyInteractions({ sessionId: "s1", revision: 2, approvals: [], questions: [] });
+      expect(reducer.getExecutions()[0]).toMatchObject({ status: "success", metadata: details });
+      expect(sink.applyToolCalls).toHaveBeenLastCalledWith(
+        "pi:review",
+        expect.arrayContaining([expect.objectContaining({ status: "success" })])
+      );
+    }
+  );
+  it("缺少工具结束事件时，turn_end 保留展示 details 并发布最终工具行", () => {
+    const { handle, reducer, message, sink } = setup();
+    handle({ type: "message_start", message });
+    handle({ type: "message_end", message });
+    handle({ type: "tool_execution_start", toolCallId: "call-1", toolName: "write", args: {} });
+    const details = { render: { rendererKey: "plugin-test", version: 1, payload: { count: 2 } } };
+    handle({
+      type: "turn_end",
+      toolResults: [
+        {
+          toolCallId: "call-1",
+          toolName: "write",
+          content: [{ type: "text", text: "完成" }],
+          details,
+        },
+      ],
+    });
+    expect(reducer.getExecutions()[0]).toMatchObject({ status: "success", metadata: details });
+    expect(sink.applyToolCalls).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ status: "success", metadata: expect.objectContaining(details) }),
+      ])
+    );
+  });
   it("流式完成时缓存读写并入上下文输入用量", () => {
     const { handle, sink } = setup();
     const message = {

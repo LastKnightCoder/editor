@@ -1,26 +1,135 @@
 import { useEffect, useRef, useState } from "react";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Textarea } from "@tau/ui";
-import type { Submission, Upload } from "../../../../contracts";
-import { useApi, queryKeys } from "../../app/api";
+import { Link, useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  FileArchive,
+  Github,
+  RefreshCw,
+  Reply,
+  Send,
+  Upload as UploadIcon,
+} from "lucide-react";
+import { Button, FileDropZone, Input, Panel } from "@tau/ui";
+import type { ReviewDetails, Submission, Upload } from "../../../../contracts";
+import { queryKeys, useApi } from "../../app/api";
+import { useSession } from "../../app/session";
+import { Notice } from "../../components/Notice";
 import { PageHeader, StatusTag } from "../../components/PageHeader";
-import { Markdown } from "../../components/markdown/Markdown";
-import { Section } from "./Section";
-import { PackageFacts } from "./PackageFacts";
-import { useUploadTasks, isTaskActive } from "./useUploadTasks";
+import { PluginMark } from "../../components/PluginMark";
+import { formatRelative } from "../../components/format";
+import { usePluginReleases } from "../catalog/queries";
+import { FeedbackThread } from "./FeedbackThread";
+import { PackageCard } from "./PackageCard";
+import { PackagePreview } from "./PackagePreview";
+import { ProgressTimeline } from "./ProgressTimeline";
+import { SubmitChecklist, type CheckItem } from "./SubmitChecklist";
 import { UploadTaskCard } from "./UploadTaskCard";
+import { useReviewDetails } from "./queries";
+import { isTaskActive, useUploadTasks } from "./useUploadTasks";
 import { precheckFile } from "./validation";
-import { ReviewPanel } from "./ReviewPanel";
+import { blockingRelease } from "./versions";
+
+const GITHUB_REPOSITORY = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/;
+const THREAD_ID = "submission-thread";
+
+const scrollToThread = () =>
+  document.getElementById(THREAD_ID)?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+/** 页顶状态条：告诉作者现在处于哪一步、下一步做什么 */
+function StatusBanner({
+  submission,
+  details,
+  onReupload,
+}: {
+  submission: Submission;
+  details: ReviewDetails | undefined;
+  onReupload: () => void;
+}) {
+  const latest = details?.reviews[0];
+  const release = details?.release;
+  switch (submission.status) {
+    case "changes_requested":
+      return (
+        <Notice
+          tone="warn"
+          title={`审核者要求修改${latest ? ` · ${formatRelative(latest.createdAt)}` : ""}`}
+          actions={
+            <>
+              <Button size="sm" icon={UploadIcon} onClick={onReupload}>
+                上传修改后的包
+              </Button>
+              <Button size="sm" variant="ghost" icon={Reply} onClick={scrollToThread}>
+                回复
+              </Button>
+            </>
+          }
+        >
+          <p className="whitespace-pre-wrap">{latest?.comment}</p>
+        </Notice>
+      );
+    case "pending_review":
+      return (
+        <Notice tone="info" title="已提交，等待审核">
+          提交内容已冻结；审核意见和问题会出现在下方的「沟通」里。
+        </Notice>
+      );
+    case "rejected":
+      return (
+        <Notice tone="danger" title="审核未通过">
+          <p className="whitespace-pre-wrap">{latest?.comment}</p>
+          <p className="mt-1">这条提交已结束，修改后可以新建提交重新发布。</p>
+        </Notice>
+      );
+    case "approved":
+      if (release?.state === "published")
+        return (
+          <Notice
+            tone="ok"
+            title={`已发布 v${release.version}`}
+            actions={
+              <Link
+                to={`/plugins/${encodeURIComponent(release.pluginId)}`}
+                className="text-tau-sm text-accent-text inline-flex items-center gap-1 font-medium"
+              >
+                在插件中心查看
+                <ArrowRight size={14} />
+              </Link>
+            }
+          >
+            已上架插件中心，桌面端检查更新时会提示用户。
+          </Notice>
+        );
+      if (release?.state === "failed")
+        return (
+          <Notice tone="warn" title="审核已通过，发布失败">
+            {release.error ?? "发布存储暂时不可用"}；管理员重试发布后会自动上架，无需重新提交。
+          </Notice>
+        );
+      return (
+        <Notice tone="info" title="审核已通过，正在发布">
+          通常几秒内完成，完成后会出现在插件中心。
+        </Notice>
+      );
+    default:
+      return null;
+  }
+}
 
 export function SubmissionView({ submission }: { submission: Submission }) {
   const api = useApi(),
     client = useQueryClient();
+  const session = useSession();
+  const navigate = useNavigate();
   const [repository, setRepository] = useState(submission.repository);
   const [upload, setUpload] = useState<Upload | null>(null);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const revision = useRef(submission.revision);
-  const content = submission.canEdit ? (upload?.content ?? submission.content) : submission.content;
+  const picker = useRef<HTMLInputElement>(null);
+  const editable = submission.canEdit;
+  const content = editable ? (upload?.content ?? submission.content) : submission.content;
+  const manifest = content?.manifest;
   const dirty = repository !== submission.repository || !!upload;
   useEffect(() => {
     if (revision.current !== submission.revision) {
@@ -31,6 +140,8 @@ export function SubmissionView({ submission }: { submission: Submission }) {
       }
     }
   }, [submission.revision, submission.repository, dirty]);
+  const details = useReviewDetails(submission.id, !!submission.submittedAt);
+  const releases = usePluginReleases(editable ? manifest?.id : null);
   const uploads = useUploadTasks(value => {
     setUpload(value);
     setError("");
@@ -69,190 +180,247 @@ export function SubmissionView({ submission }: { submission: Submission }) {
     if (issue) setError(issue);
     else uploads.start(file);
   };
+  const busy = active || action.isPending || conflict;
+
+  const repoTyped = repository.trim();
+  const repoValid = GITHUB_REPOSITORY.test(repoTyped);
+  const blocking = manifest ? blockingRelease(releases.data?.items, manifest.version) : null;
+  const checks: CheckItem[] = [
+    {
+      key: "package",
+      state: content ? "done" : "todo",
+      title: "插件包通过静态校验",
+      detail: content ? "manifest 与完整性摘要正确" : "上传 ZIP 后自动检查",
+    },
+    {
+      key: "version",
+      state: !manifest ? "todo" : blocking ? "bad" : "done",
+      title: "版本号高于已发布版本",
+      detail: !manifest
+        ? undefined
+        : blocking
+          ? `已发布 v${blocking.version}，请提高版本号后重新打包`
+          : releases.data?.items.length
+            ? `将发布 v${manifest.version}`
+            : releases.isPending
+              ? "正在核对已发布版本…"
+              : "首次发布",
+    },
+    {
+      key: "repository",
+      state: repoValid ? "done" : repoTyped ? "bad" : "todo",
+      title: "关联源码仓库",
+      detail:
+        repoTyped && !repoValid
+          ? "格式为 https://github.com/作者/仓库"
+          : "提交时自动记录当前 commit",
+    },
+  ];
+  const ready = !!content && repoValid && !blocking;
+  const reviewerElsewhere =
+    session.data?.reviewer && !editable && submission.status === "pending_review";
+
   return (
     <>
       <PageHeader
-        back={{ to: "/submissions", label: "返回提交列表" }}
-        title={content?.manifest.name ?? "新的插件提交"}
+        back={{ to: "/submissions", label: "我的提交" }}
+        title={
+          <span className="flex items-center gap-3">
+            {manifest && <PluginMark pluginId={manifest.id} name={manifest.name} size="lg" />}
+            {manifest?.name ?? "新的插件提交"}
+          </span>
+        }
         tag={<StatusTag status={submission.status} />}
-        meta="资料来自插件包，修改说明请重新打包。"
+        meta={
+          manifest
+            ? "资料来自插件包；要改说明，请修改 README 后重新打包。"
+            : "上传插件 ZIP 开始一次新的发布。"
+        }
+        actions={
+          reviewerElsewhere && (
+            <Button
+              variant="soft"
+              onClick={() => navigate(`/review/${encodeURIComponent(submission.id)}`)}
+            >
+              去审核
+            </Button>
+          )
+        }
       />
-      <div className="flex flex-col gap-5">
-        {submission.submittedAt && <ReviewPanel submission={submission} />}
-        {submission.canEdit && (
-          <Section
-            index={1}
-            title="上传插件 ZIP"
-            description="包内需包含 manifest.json、README.md 和运行文件。不需要单独填写介绍或上传截图。"
-          >
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <StatusBanner
+            submission={submission}
+            details={details.data}
+            onReupload={() => picker.current?.click()}
+          />
+          {editable && (
             <input
+              ref={picker}
               aria-label="插件ZIP"
               type="file"
               accept=".zip"
-              disabled={active || action.isPending || conflict}
-              onChange={e => {
-                pick(e.target.files?.[0]);
-                e.target.value = "";
+              className="hidden"
+              disabled={busy}
+              onChange={event => {
+                pick(event.target.files?.[0]);
+                event.target.value = "";
               }}
             />
-            {uploads.tasks.map(task => (
-              <UploadTaskCard key={task.key} task={task} uploads={uploads} />
-            ))}
-          </Section>
-        )}
-        {content && (
-          <Section title="插件资料">
-            <PackageFacts manifest={content.manifest} upload={submission.canEdit ? upload : null} />
-            <p className="text-ink-2 text-tau-sm">{content.manifest.description}</p>
-          </Section>
-        )}
-        <Section
-          title="源码仓库"
-          description="首次关联仓库；后续版本会复用。提交时自动记录仓库版本，不要求手填 commit。"
-        >
-          {submission.canEdit ? (
-            <Input
-              aria-label="源码仓库"
-              value={repository}
-              disabled={action.isPending || conflict}
-              onChange={e => setRepository(e.target.value)}
-              placeholder="https://github.com/作者/仓库"
+          )}
+          {editable && !content && !active && (
+            <FileDropZone
+              accept=".zip"
+              disabled={busy}
+              onFile={pick}
+              className="rounded-tau-lg bg-surface gap-2.5 py-10"
+            >
+              <span className="bg-accent-soft text-accent-text rounded-tau-md grid size-12 place-items-center">
+                <FileArchive size={22} strokeWidth={1.7} />
+              </span>
+              <p className="text-tau-title text-ink-1 font-semibold">
+                把插件 ZIP 拖到这里，或点击选择
+              </p>
+              <p className="text-tau-sm text-ink-3 leading-[1.7]">
+                包内需要 manifest.json、README.md 和运行文件，8 MiB 以内
+                <br />
+                介绍与使用说明都读自 README，不用另外填写
+              </p>
+            </FileDropZone>
+          )}
+          {uploads.tasks.map(task => (
+            <UploadTaskCard key={task.key} task={task} uploads={uploads} />
+          ))}
+          {manifest && (
+            <PackageCard
+              manifest={manifest}
+              size={editable ? upload?.size : undefined}
+              actions={
+                editable && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={RefreshCw}
+                    disabled={busy}
+                    onClick={() => picker.current?.click()}
+                  >
+                    替换
+                  </Button>
+                )
+              }
             />
+          )}
+          {error && (
+            <Notice tone="danger" title="操作没有完成">
+              {error}
+            </Notice>
+          )}
+          {editable && conflict && (
+            <Notice
+              tone="warn"
+              title="草稿已在其他窗口更新"
+              actions={
+                <>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      revision.current = submission.revision;
+                      setRepository(submission.repository);
+                      setUpload(null);
+                      setConflict(false);
+                    }}
+                  >
+                    使用最新版本
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      revision.current = submission.revision;
+                      setConflict(false);
+                    }}
+                  >
+                    保留本地修改
+                  </Button>
+                </>
+              }
+            >
+              本地输入仍保留，请核对后选择处理方式。
+            </Notice>
+          )}
+          {content && <PackagePreview content={content} upload={editable ? upload : null} />}
+          {submission.submittedAt && (
+            <FeedbackThread
+              id={THREAD_ID}
+              submissionId={submission.id}
+              placeholder="回复审核者，或描述遇到的问题…"
+            />
+          )}
+        </div>
+
+        <aside className="flex flex-col gap-3.5 lg:sticky lg:top-[84px]">
+          {editable ? (
+            <Panel className="flex flex-col gap-3">
+              <h2 className="text-tau-body text-ink-1 font-semibold">提交前检查</h2>
+              <SubmitChecklist items={checks} />
+              <Input
+                lead={Github}
+                aria-label="源码仓库"
+                aria-invalid={!!repoTyped && !repoValid}
+                value={repository}
+                disabled={action.isPending || conflict}
+                onChange={event => setRepository(event.target.value)}
+                placeholder="https://github.com/作者/仓库"
+              />
+              <Button
+                variant="primary"
+                block
+                icon={Send}
+                disabled={!ready || busy}
+                loading={action.isPending && action.variables === true}
+                onClick={() => action.mutate(true)}
+              >
+                {submission.status === "changes_requested" ? "重新提交审核" : "提交审核"}
+              </Button>
+              <div className="flex items-center">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!dirty || busy}
+                  loading={action.isPending && action.variables === false}
+                  onClick={() => action.mutate(false)}
+                >
+                  保存草稿
+                </Button>
+                {dirty && <span className="text-tau-micro text-ink-3 ml-auto">有未保存的修改</span>}
+              </div>
+            </Panel>
           ) : (
-            <a href={submission.repository} target="_blank" rel="noreferrer">
-              {submission.repository}
-            </a>
+            <Panel pad="compact" className="flex flex-col gap-1.5">
+              <h2 className="text-tau-sm text-ink-3 font-medium">源码仓库</h2>
+              {submission.repository ? (
+                <a
+                  href={submission.repository}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-tau-meta text-accent-text inline-flex items-center gap-1.5 break-all hover:underline"
+                >
+                  <Github size={14} className="shrink-0" />
+                  {submission.repository.replace("https://github.com/", "")}
+                </a>
+              ) : (
+                <p className="text-tau-meta text-ink-3">未关联</p>
+              )}
+              {submission.commit && (
+                <p className="text-tau-micro text-ink-3 font-tau-mono break-all">
+                  提交时快照 {submission.commit.slice(0, 12)}（不代表已验证包与源码一致）
+                </p>
+              )}
+            </Panel>
           )}
-          {submission.commit && (
-            <p className="text-ink-3 text-tau-micro break-all">
-              提交时源码快照：{submission.commit}（不代表已验证包与源码构建一致）
-            </p>
-          )}
-        </Section>
-        {content && (
-          <Section title="介绍与使用说明" description="读取自包内 README.md">
-            <Markdown source={content.readme} />
-          </Section>
-        )}
-        {content?.changelog && (
-          <Section title="更新说明">
-            <Markdown source={content.changelog} />
-          </Section>
-        )}
-        {error && (
-          <p role="alert" className="text-danger text-tau-sm">
-            {error}
-          </p>
-        )}
-        {submission.canEdit && conflict && (
-          <Section title="草稿已在其他窗口更新">
-            <p>本地输入仍保留，请核对后选择处理方式。</p>
-            <Button
-              onClick={() => {
-                revision.current = submission.revision;
-                setRepository(submission.repository);
-                setUpload(null);
-                setConflict(false);
-              }}
-            >
-              使用最新版本
-            </Button>
-            <Button
-              onClick={() => {
-                revision.current = submission.revision;
-                setConflict(false);
-              }}
-            >
-              保留本地修改
-            </Button>
-          </Section>
-        )}
-        {submission.canEdit ? (
-          <div className="flex gap-3">
-            <Button
-              disabled={!dirty || active || action.isPending || conflict}
-              onClick={() => action.mutate(false)}
-            >
-              保存草稿
-            </Button>
-            <Button
-              variant="primary"
-              disabled={!content || active || action.isPending || conflict}
-              loading={action.isPending}
-              onClick={() => action.mutate(true)}
-            >
-              {submission.status === "changes_requested" ? "重新提交审核" : "提交审核"}
-            </Button>
-          </div>
-        ) : (
-          <p className="text-ink-3 text-tau-sm">提交内容已冻结；问题与审核意见请在下方站内交流。</p>
-        )}
-        {submission.submittedAt && <Feedback submissionId={submission.id} />}
+          <ProgressTimeline submission={submission} details={details.data} />
+        </aside>
       </div>
     </>
-  );
-}
-
-function Feedback({ submissionId }: { submissionId: string }) {
-  const api = useApi(),
-    client = useQueryClient(),
-    [message, setMessage] = useState("");
-  const requestId = useRef(crypto.randomUUID());
-  const key = ["feedback", submissionId];
-  const query = useInfiniteQuery({
-    queryKey: key,
-    queryFn: ({ pageParam }) => api.listFeedback(submissionId, pageParam),
-    initialPageParam: null as string | null,
-    getNextPageParam: p => p.nextCursor,
-    refetchOnWindowFocus: true,
-  });
-  const send = useMutation({
-    mutationFn: () => api.sendFeedback(submissionId, message, requestId.current),
-    onSuccess: () => {
-      setMessage("");
-      requestId.current = crypto.randomUUID();
-      void client.invalidateQueries({ queryKey: key });
-    },
-  });
-  return (
-    <Section title="站内反馈" description="仅提交作者与审核者可见，无需 GitHub 或外部反馈地址。">
-      {query.isError && (
-        <p role="alert">
-          {query.error.message}
-          <Button onClick={() => void query.refetch()}>重试</Button>
-        </p>
-      )}
-      {query.data?.pages
-        .flatMap(p => p.items)
-        .map(item => (
-          <article key={item.id} className="border-line-1 border-b py-3">
-            <p className="text-ink-3 text-tau-micro">
-              {item.author.login} · {item.role === "reviewer" ? "审核者" : "作者"} ·{" "}
-              {new Date(item.createdAt).toLocaleString()}
-            </p>
-            <p className="text-ink-1 text-tau-sm whitespace-pre-wrap">{item.message}</p>
-          </article>
-        ))}
-      {query.hasNextPage && <Button onClick={() => void query.fetchNextPage()}>加载更多</Button>}
-      <Textarea
-        aria-label="反馈内容"
-        maxLength={4000}
-        value={message}
-        disabled={send.isPending}
-        onChange={e => {
-          setMessage(e.target.value);
-          requestId.current = crypto.randomUUID();
-        }}
-        placeholder="描述问题或回复审核意见"
-      />
-      {send.isError && <p role="alert">{send.error.message}</p>}
-      <Button
-        disabled={!message.trim() || send.isPending}
-        loading={send.isPending}
-        onClick={() => send.mutate()}
-      >
-        发送反馈
-      </Button>
-    </Section>
   );
 }

@@ -49,7 +49,7 @@ export const useSessionExpired = () =>
 const RETURN_KEY = "tau-portal:return-to";
 
 const isPortalPath = (path: string) =>
-  /^\/submissions(\/[\w-]+)?(\?|$)/.test(path) || path === "/moderation";
+  /^\/(submissions|review)(\/[\w-]+)?(\?|$)/.test(path) || path === "/moderation";
 
 export function rememberReturnTo(path: string) {
   if (!isPortalPath(path) || path === "/submissions" || path.startsWith("/submissions/new")) return;

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { Tag } from "@tau/ui";
+import { Tag, type TagColor } from "@tau/ui";
 import type { SubmissionStatus } from "../../../contracts";
 
 export function PageHeader({
@@ -40,15 +40,22 @@ export function PageHeader({
   );
 }
 
-const STATUS: Record<SubmissionStatus, { label: string; color: "gray" | "yellow" }> = {
-  draft: { label: "草稿", color: "gray" },
-  pending_review: { label: "待审核", color: "yellow" },
-  changes_requested: { label: "需修改", color: "yellow" },
-  rejected: { label: "已拒绝", color: "gray" },
-  approved: { label: "已批准", color: "gray" },
+export const STATUS_LABELS: Record<SubmissionStatus, string> = {
+  draft: "草稿",
+  pending_review: "待审核",
+  changes_requested: "需修改",
+  rejected: "已拒绝",
+  approved: "已批准",
+};
+
+const STATUS_COLORS: Record<SubmissionStatus, TagColor> = {
+  draft: "gray",
+  pending_review: "blue",
+  changes_requested: "yellow",
+  rejected: "red",
+  approved: "green",
 };
 
 export function StatusTag({ status }: { status: SubmissionStatus }) {
-  const { label, color } = STATUS[status];
-  return <Tag color={color}>{label}</Tag>;
+  return <Tag color={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Tag>;
 }

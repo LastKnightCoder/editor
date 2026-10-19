@@ -29,4 +29,5 @@ export const sampleSubmission = (): Submission => ({
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   submittedAt: null,
+  lastEvent: null,
 });

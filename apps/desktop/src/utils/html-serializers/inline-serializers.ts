@@ -1,6 +1,5 @@
 import { HtmlSerializer } from "../htmlSerializerRegistry";
 import { renderInlineMath } from "./mathjax-renderer";
-import { compileTailwindForHtml } from "./tailwind-compiler";
 
 /**
  * Inline element serializers
@@ -20,7 +19,7 @@ export const inlineSerializers: HtmlSerializer[] = [
   {
     type: "inline-math",
     isBlock: false,
-    toHtml: async (element) => {
+    toHtml: async element => {
       const tex = element.tex || "";
       const svgHtml = await renderInlineMath(tex);
       return `<span class="inline-math">${svgHtml}</span>`;
@@ -31,7 +30,7 @@ export const inlineSerializers: HtmlSerializer[] = [
   {
     type: "inline-image",
     isBlock: false,
-    toHtml: (element) => {
+    toHtml: element => {
       const url = element.url || "";
       const alt = element.alt || "";
       return `<img src="${url}" alt="${alt}" class="inline-image" />`;
@@ -72,7 +71,7 @@ export const inlineSerializers: HtmlSerializer[] = [
   {
     type: "emoji",
     isBlock: false,
-    toHtml: (element) => {
+    toHtml: element => {
       return element.nativeEmoji || element.emoji || "";
     },
   },
@@ -81,7 +80,7 @@ export const inlineSerializers: HtmlSerializer[] = [
   {
     type: "annotation",
     isBlock: false,
-    toHtml: (element) => {
+    toHtml: element => {
       const content = element.content || "";
       // Escape the content for HTML attribute
       const escapedContent = content
@@ -93,17 +92,14 @@ export const inlineSerializers: HtmlSerializer[] = [
     },
   },
 
-  // HTML Inline (with Tailwind compilation)
+  // 缺少 HTML 插件时保留行内源码。
   {
     type: "html-inline",
     isBlock: false,
-    toHtml: async (element, _childrenHtml, _parentElement, options) => {
+    toHtml: element => {
       const html = element.html || "";
-      const css = await compileTailwindForHtml(html, "html");
-      if (css && options?.tailwindCssCollector) {
-        options.tailwindCssCollector.push(css);
-      }
-      return html;
+      const escaped = html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return `<code class="html-source">${escaped}</code>`;
     },
   },
 

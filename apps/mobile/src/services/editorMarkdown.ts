@@ -17,7 +17,6 @@ import { underlineCodec } from "@tau/editor-underline/markdown";
 import { styledTextCodec } from "@tau/editor-styled-text/markdown";
 import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
 import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
-import { htmlMarkdownCodecs } from "@tau/editor-html/markdown";
 import { codeBlockCodec } from "@tau/editor-code-block/markdown";
 import { mathMarkdownCodecs } from "@tau/editor-math/markdown";
 import { emojiCodec } from "@tau/editor-emoji/markdown";
@@ -44,7 +43,6 @@ export const mobileCodecComposition = [
   emojiCodec,
   codeBlockCodec,
   ...mathMarkdownCodecs,
-  ...htmlMarkdownCodecs,
   ...diagramMarkdownCodecs,
   webviewCodec,
 ];
