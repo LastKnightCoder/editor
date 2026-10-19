@@ -20,7 +20,6 @@ const runtimeDependencyExternals = [
   "@firecrawl/anydoc",
   "turndown",
   "@myriaddreamin/typst-ts-node-compiler",
-  "@ffprobe-installer/ffprobe",
   "@node-rs/jieba",
   "@node-rs/jieba/dict",
   "@silvia-odwyer/photon-node",

@@ -30,19 +30,6 @@ export interface MediaProgress {
   time: number;
 }
 
-export interface MediaInfo {
-  format: { name: string; duration: number | null; size: number | null };
-  streams: {
-    index: number;
-    type: string;
-    codec: string;
-    width?: number;
-    height?: number;
-    sampleRate?: number;
-    channels?: number;
-  }[];
-}
-
 export interface VideoFormat {
   id: string;
   /** 只含视频或只含音频的流；两者都为 false 时是音视频合一的流。 */
@@ -105,7 +92,6 @@ export interface PluginServices {
     ): Promise<{ html: string; css: string; warnings: ServiceWarning[] }>;
   };
   ffmpeg: {
-    probe(input: ServiceFile, options?: ServiceOptions): Promise<MediaInfo>;
     /** args 中用任务文件名引用输入和输出；不接受 shell 命令。 */
     run(
       input: {
@@ -154,7 +140,7 @@ export function bindPluginServices(
       serialize: bind(adapter?.markdown?.serialize),
       render: bind(adapter?.markdown?.render),
     }),
-    ffmpeg: Object.freeze({ probe: bind(adapter?.ffmpeg?.probe), run: bind(adapter?.ffmpeg?.run) }),
+    ffmpeg: Object.freeze({ run: bind(adapter?.ffmpeg?.run) }),
     videoExtractor: Object.freeze({ probe: bind(adapter?.videoExtractor?.probe) }),
   });
 }

@@ -1,12 +1,9 @@
 import path from "node:path";
 import os from "node:os";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import ffprobe from "@ffprobe-installer/ffprobe";
 import FfmpegService from "../utils/FfmpegService";
-import { toUnpackedAsarPath } from "../utils/asarPath";
 import { runCompilerWorker, runMediaProcess, waitForCompiler } from "./compiler-process";
 import type { CompilerFile, CompilerRequest } from "../../../src/types/plugin-services";
-import type { MediaInfo } from "@tau/plugins";
 import themeCss from "@tau/themes/tailwind.css?raw";
 
 export function taskFileName(name: string): string {
@@ -44,7 +41,7 @@ export async function executePluginCompiler(
         signal
       );
     }
-    const files: CompilerFile[] = request.kind === "probe" ? [request.file] : request.files;
+    const files: CompilerFile[] = request.files;
     const names = new Set<string>();
     for (const file of files) {
       signal.throwIfAborted();
@@ -61,41 +58,6 @@ export async function executePluginCompiler(
         { source: request.source, inputs: request.inputs, workspace: directory },
         signal
       );
-    }
-    if (request.kind === "probe") {
-      const { stdout } = await runMediaProcess(
-        toUnpackedAsarPath(ffprobe.path),
-        [
-          "-v",
-          "error",
-          "-show_format",
-          "-show_streams",
-          "-of",
-          "json",
-          path.join(directory, request.file.name),
-        ],
-        directory,
-        signal
-      );
-      const info = JSON.parse(stdout);
-      const number = (value: unknown): number | null =>
-        value !== undefined && Number.isFinite(Number(value)) ? Number(value) : null;
-      return {
-        format: {
-          name: info.format?.format_name ?? "",
-          duration: number(info.format?.duration),
-          size: number(info.format?.size),
-        },
-        streams: (info.streams ?? []).map((stream: Record<string, unknown>) => ({
-          index: stream.index,
-          type: stream.codec_type ?? "unknown",
-          codec: stream.codec_name ?? "unknown",
-          width: stream.width,
-          height: stream.height,
-          sampleRate: number(stream.sample_rate) ?? undefined,
-          channels: stream.channels,
-        })),
-      } as MediaInfo;
     }
     for (const output of request.outputs) {
       const name = taskFileName(output.name);

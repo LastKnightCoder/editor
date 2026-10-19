@@ -39,11 +39,6 @@ export const desktopPluginServices: PluginServices = {
       (await import("@/services/plugin-markdown")).pluginMarkdown.render(source, options),
   },
   ffmpeg: {
-    probe: async (input, options) =>
-      invokeCompiler(
-        { kind: "probe", file: (await compilerFiles([input], options?.signal))[0] },
-        options
-      ),
     run: async (input, options) => {
       const result = await invokeCompiler<{
         files: { name: string; mimeType: string; bytes: Uint8Array }[];

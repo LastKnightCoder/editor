@@ -3,7 +3,6 @@ productName: "Tau"
 copyright: "Copyright © 2025 ${author}"
 asar: true
 asarUnpack:
-  - "node_modules/@ffprobe-installer/**/*"
   - "node_modules/@node-rs/jieba/**/*"
   - "node_modules/@node-rs/jieba-*/**/*"
   - "node_modules/@firecrawl/anydoc/**/*"

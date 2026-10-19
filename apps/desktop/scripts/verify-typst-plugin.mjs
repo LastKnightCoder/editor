@@ -70,7 +70,7 @@ await build({
   outfile: path.join(output, "main.cjs"),
   bundle: true,
   platform: "node",
-  external: ["electron", "@ffprobe-installer/ffprobe"],
+  external: ["electron"],
   plugins: [raw],
   loader: { ".css": "empty" },
   logLevel: "warning",

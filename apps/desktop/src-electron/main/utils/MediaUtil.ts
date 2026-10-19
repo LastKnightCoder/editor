@@ -6,7 +6,7 @@ import FfmpegService from "./FfmpegService";
 
 export default class MediaUtil {
   /**
-   * 获取媒体文件时长（使用 ffmpeg 而非 ffprobe）
+   * 获取媒体文件时长
    * @param mediaPath 媒体文件路径
    * @returns 时长（秒）
    */
