@@ -42,7 +42,7 @@ vi.mock("../content-plugin-state", () => ({
 }));
 vi.mock("../services", () => ({
   desktopPluginServices: {
-    typst: {
+    tailwind: {
       compile: (_input: unknown, options: { signal: AbortSignal }) =>
         new Promise(resolve => state.jobs.push({ signal: options.signal, finish: resolve })),
     },
@@ -100,13 +100,13 @@ it("工作区切换和窗口 pagehide 会取消本窗口的在途服务", async 
     )
   );
   const old = services!;
-  const pending = old.typst.compile({ source: "A" });
+  const pending = old.tailwind.compile({ source: "A" });
   await switchWorkspace();
   expect(state.jobs[0].signal.aborted).toBe(true);
   state.jobs[0].finish({ html: "旧结果" });
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   expect(services).not.toBe(old);
-  const next = services!.typst.compile({ source: "B" });
+  const next = services!.tailwind.compile({ source: "B" });
   await act(async () => window.dispatchEvent(new Event("pagehide")));
   expect(state.jobs[1].signal.aborted).toBe(true);
   state.jobs[1].finish({ html: "已关闭窗口" });
@@ -122,7 +122,7 @@ it("独立编辑窗口固定到文档数据库，主窗口切库不撤销它的�
     )
   );
   const original = services!;
-  const pending = original.typst.compile({ source: "固定数据库" });
+  const pending = original.tailwind.compile({ source: "固定数据库" });
   await switchWorkspace();
   expect(services).toBe(original);
   expect(state.jobs[0].signal.aborted).toBe(false);
@@ -140,7 +140,7 @@ it("StrictMode 重复挂载后提供新的有效作用域", async () => {
       </StrictMode>
     )
   );
-  const pending = services!.typst.compile({ source: "有效作用域" });
+  const pending = services!.tailwind.compile({ source: "有效作用域" });
   expect(state.jobs[0].signal.aborted).toBe(false);
   state.jobs[0].finish({ html: "完成" });
   await expect(pending).resolves.toEqual({ html: "完成" });

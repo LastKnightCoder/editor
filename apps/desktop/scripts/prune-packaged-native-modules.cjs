@@ -377,8 +377,6 @@ exports.default = async context => {
       "@img/sharp-darwin-x64",
       "@img/sharp-libvips-darwin-arm64",
       "@img/sharp-libvips-darwin-x64",
-      "@myriaddreamin/typst-ts-node-compiler-darwin-arm64",
-      "@myriaddreamin/typst-ts-node-compiler-darwin-x64",
       "@node-rs/jieba-darwin-arm64",
       "@node-rs/jieba-darwin-x64",
       "@tailwindcss/oxide-darwin-arm64",
@@ -392,7 +390,6 @@ exports.default = async context => {
     removeEntries(nodeModulesDir, [
       "@firecrawl/anydoc-win32-x64-msvc",
       "@img/sharp-win32-x64",
-      "@myriaddreamin/typst-ts-node-compiler-win32-x64-msvc",
       "@node-rs/jieba-win32-x64-msvc",
       "@tailwindcss/oxide-win32-x64-msvc",
       "sqlite-vec-windows-x64",

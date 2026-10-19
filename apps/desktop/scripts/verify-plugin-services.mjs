@@ -47,13 +47,6 @@ await build({
 });
 await build({
   ...common,
-  entryPoints: [path.join(root, "src-electron/main/workers/plugin-typst.worker.ts")],
-  outfile: path.join(directory, "plugin-typst-worker.js"),
-  platform: "node",
-  packages: "external",
-});
-await build({
-  ...common,
   entryPoints: [path.join(root, "src-electron/preload/index.ts")],
   outfile: path.join(directory, "preload.cjs"),
   platform: "node",

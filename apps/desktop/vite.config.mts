@@ -19,7 +19,6 @@ const runtimeDependencyExternals = [
   "node-llama-cpp",
   "@firecrawl/anydoc",
   "turndown",
-  "@myriaddreamin/typst-ts-node-compiler",
   "@node-rs/jieba",
   "@node-rs/jieba/dict",
   "@silvia-odwyer/photon-node",
@@ -72,7 +71,6 @@ export default defineConfig(() => {
         main: {
           entry: {
             index: "src-electron/main/index.ts",
-            "plugin-typst-worker": "src-electron/main/workers/plugin-typst.worker.ts",
             // 发布站点生成跑在 worker_threads 里（modules/publish-generator-client）
             "publish-generator-worker": "src-electron/main/workers/publish-generator.worker.ts",
             // 知识地图离线计算（向量近邻 + 主题划分 + 布局）跑在 worker_threads 里（modules/knowledge-map-builder）

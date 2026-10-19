@@ -19,7 +19,6 @@ import modelUsageModule from "../modules/model-usage";
 import pluginAiModule from "../modules/plugin-ai";
 import browserBridgeModule from "../modules/browser-bridge";
 import mcpModule from "../modules/mcp";
-import typstModule from "../modules/typst";
 import tailwindRuntimeModule from "../modules/tailwind-runtime";
 import skillModule from "../modules/skill";
 import onlineVideoCacheModule from "../modules/online-video-cache";
@@ -140,12 +139,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   // 初始化只注册 handler/建目录，重活延后执行，不依赖窗口入口。
 
   // 渲染模块
-  {
-    name: "typst",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
-    init: () => typstModule.init(),
-  },
   {
     name: "tailwind-runtime",
     layer: InitLayer.BACKGROUND,

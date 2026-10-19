@@ -6,7 +6,7 @@
 
 博客发布提供方见 [PUBLISH.md](PUBLISH.md)，需要 SDK 0.21.0 和包含该能力的客户端；独立博客站点读取数据见 [PUBLISH-DATA.md](PUBLISH-DATA.md)。
 
-想在文档里添加自定义块，见 [EDITOR.md](EDITOR.md)；需要编译 Tailwind、Typst、Markdown 等内容，见 [SERVICES.md](SERVICES.md)。
+想在文档里添加自定义块，见 [EDITOR.md](EDITOR.md)；需要编译 Tailwind、Markdown 等内容，见 [SERVICES.md](SERVICES.md)。
 
 AI 功能声明、用户模型分配、流式对话、取消与统一用量审计见 [AI.md](AI.md)（SDK 0.7.0 及以上）。
 

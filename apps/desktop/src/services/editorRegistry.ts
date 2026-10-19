@@ -12,7 +12,6 @@ import {
   IVideoContentProviders,
 } from "@tau/editor/extensions/media/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 import { desktopRuntimeStyleCompiler } from "./tailwindRuntime";
 import { IOverlayBackDismiss } from "@tau/editor/api";
 import { DesktopEditorOverlayDismiss } from "./editorOverlayDismiss";
@@ -27,7 +26,6 @@ import { IDocTaskGroups } from "@/editor-extensions/doc-tasks/service";
 import { desktopDocTaskGroups } from "./docTaskGroups";
 
 import {
-  desktopTypstCompiler,
   desktopEditorSlots,
   desktopFileService,
   desktopResourceService,
@@ -41,7 +39,6 @@ export const desktopEditorServices: ServiceRegistration = register => {
   register(IFileService, desktopFileService);
 
   // 可选服务（desktop 全量提供）
-  register(ITypstCompiler, desktopTypstCompiler);
   register(IRuntimeStyleCompiler, desktopRuntimeStyleCompiler);
   register(IOpenerService, {
     open: url => {

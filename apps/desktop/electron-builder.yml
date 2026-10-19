@@ -21,8 +21,6 @@ asarUnpack:
   - "node_modules/node-llama-cpp/**/*"
   - "node_modules/@node-llama-cpp/**/*"
   - "node_modules/@vscode/ripgrep/**/*"
-  - "node_modules/@myriaddreamin/typst-ts-node-compiler/**/*"
-  - "node_modules/@myriaddreamin/typst-ts-node-compiler-*/**/*"
   - "node_modules/7zip-bin/**/*"
   - "node_modules/font-list/**/*"
 afterPack: "scripts/prune-packaged-native-modules.cjs"

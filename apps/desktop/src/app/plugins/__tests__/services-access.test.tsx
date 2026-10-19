@@ -53,7 +53,7 @@ describe("插件服务入口不依赖编辑器或 activate", () => {
       element: { type: "paragraph", children: [{ type: "formatted", text: "" }] },
       children: null,
     } as ComponentProps<typeof Render>;
-    const adapter = { typst: { compile: vi.fn() } } as unknown as PluginServices;
+    const adapter = { tailwind: { compile: vi.fn() } } as unknown as PluginServices;
     const scope = new PluginServiceScope(adapter, id => id === definition.id);
     host = document.createElement("div");
     document.body.append(host);
@@ -79,7 +79,7 @@ describe("插件服务入口不依赖编辑器或 activate", () => {
   it("窗口取消只结束自己的调用，工作区切换拒绝旧结果", async () => {
     const jobs: { signal: AbortSignal; finish(value: { html: string }): void }[] = [];
     const adapter = {
-      typst: {
+      tailwind: {
         compile: vi.fn(
           (_input, options) =>
             new Promise(resolve => jobs.push({ signal: options.signal, finish: resolve }))
@@ -90,8 +90,8 @@ describe("插件服务入口不依赖编辑器或 activate", () => {
     const first = new PluginServiceScope(adapter, () => workspace === "A");
     const second = new PluginServiceScope(adapter, () => true);
     const caller = new AbortController();
-    const a = first.resolve("test")!.typst.compile({ source: "a" }, { signal: caller.signal });
-    const b = second.resolve("test")!.typst.compile({ source: "b" });
+    const a = first.resolve("test")!.tailwind.compile({ source: "a" }, { signal: caller.signal });
+    const b = second.resolve("test")!.tailwind.compile({ source: "b" });
     caller.abort();
     expect(jobs[0].signal.aborted).toBe(true);
     expect(jobs[1].signal.aborted).toBe(false);
@@ -101,16 +101,16 @@ describe("插件服务入口不依赖编辑器或 activate", () => {
     jobs[1].finish({ html: "b" });
     await expect(b).resolves.toEqual({ html: "b" });
     const old = second.resolve("test")!;
-    const pending = old.typst.compile({ source: "pending" });
+    const pending = old.tailwind.compile({ source: "pending" });
     second.dispose();
     expect(jobs[2].signal.aborted).toBe(true);
     jobs[2].finish({ html: "late" });
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    await expect(old.typst.compile({ source: "old" })).rejects.toMatchObject({
+    await expect(old.tailwind.compile({ source: "old" })).rejects.toMatchObject({
       name: "AbortError",
     });
     const changed = new PluginServiceScope(adapter, () => workspace === "A");
-    const late = changed.resolve("test")!.typst.compile({ source: "before switch" });
+    const late = changed.resolve("test")!.tailwind.compile({ source: "before switch" });
     workspace = "B";
     jobs[3].finish({ html: "old workspace" });
     await expect(late).rejects.toMatchObject({ name: "AbortError" });

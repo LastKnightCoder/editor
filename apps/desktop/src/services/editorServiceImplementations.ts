@@ -4,11 +4,9 @@
  */
 import { type FileService, type ResourceService } from "@tau/shared/host-services";
 
-import type { TypstCompiler } from "@tau/editor/extensions/diagram/services";
 import { type EditorSlots } from "@tau/editor/extensions/media/services";
 import useSettingStore from "@/stores/useSettingStore";
 import { selectFile, readTextFile, getHomeDir, convertFileSrc } from "@/commands/file";
-import { compileTypst } from "@/commands/typst";
 
 // Slot 组件
 import LocalImage from "@/components/LocalImage";
@@ -73,14 +71,6 @@ export const desktopFileService: FileService = {
 
   convertFileSrc: (filePath: string) => {
     return convertFileSrc(filePath);
-  },
-};
-
-// ==================== Compiler ====================
-
-export const desktopTypstCompiler: TypstCompiler = {
-  compile: async (code: string) => {
-    return await compileTypst(code);
   },
 };
 

@@ -7,7 +7,6 @@ import {
   type VideoContentProvider,
 } from "@tau/editor/extensions/media/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 export { extensionImportFromMarkdown } from "./editorMarkdown";
 import type WebSocketClient from "../utils/WebSocketClient";
 import RpcLocalImage from "../components/RpcLocalImage";
@@ -79,11 +78,6 @@ export function createExtensionEditorServices({
       getHomeDir: async () => "",
     });
 
-    register(ITypstCompiler, {
-      compile: async (code: string) => {
-        return rpc<string>("compiler.typst", { code });
-      },
-    });
     register(IRuntimeStyleCompiler, {
       compile: async ({ source, language }) => {
         return rpc<string>("compiler.tailwindRuntime", { html: source, extension: language });

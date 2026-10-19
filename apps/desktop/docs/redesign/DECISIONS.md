@@ -1,5 +1,9 @@
 # 决策记录（轻量 ADR）
 
+## D-175 Typst 编译归插件本地 WASM，宿主移除编译服务（2026-10-19）
+
+延续 D-168 的拆分：宿主随包分发的 `@myriaddreamin/typst-ts-node-compiler` 原生二进制约 37–42 MB/平台，只为 Typst 插件服务，从安装包移除。`tau.typst` 插件 v0.2.0 起在渲染进程用 typst.ts 的 WebAssembly 编译器本地编译：wasm 与官方默认字体集（`@typst-wasm/fonts`）不随插件 ZIP 分发（保持 30 KB 级），首次编译时从 jsdelivr/unpkg 双源下载并做大小与 sha256 校验，缓存在 IndexedDB 长期复用、离线可用；排版产物由 HTML 片段改为自包含 SVG，`html` 缓存字段语义随之变更，历史 HTML 缓存照常显示。SDK 0.24.0 移除 `PluginServices.typst`；`ITypstCompiler` 编辑器服务 token、主进程 typst 模块/worker、`compile-typst` 命令与旧聊天 Typst 渲染器的实时编译路径全部删除，旧对话只展示已保存缓存或源码。实施记录见插件专题 76。
+
 ## D-174 在线视频归视频提供方插件（2026-10-19）
 
 用户确认将 Bilibili / YouTube 内置能力完整迁出为独立插件 `bilibili`、`youtube`，并开放通用接口供自建视频服务接入；第一期不做媒体库浏览与 HLS。SDK 0.22.0 增加 `context.video.register`：插件识别链接、解析标题与清晰度，返回播放源描述，下载、合并、缓存与播放由宿主统一完成，插件不传视频字节、不提供选择界面。yt-dlp 作为宿主服务 `services.videoExtractor` 开放格式查询，插件不能启动外部进程（未开放原生特权）。

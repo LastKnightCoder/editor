@@ -31,7 +31,6 @@ export * from "./content";
 export * from "./resource-sync";
 export * from "./data-table";
 export * from "./todo";
-export * from "./typst";
 export * from "./pomodoro";
 export * from "./calendar-group";
 export * from "./calendar";

@@ -52,13 +52,6 @@ export async function executePluginCompiler(
       await mkdir(path.dirname(destination), { recursive: true });
       await writeFile(destination, file.bytes);
     }
-    if (request.kind === "typst") {
-      return await runCompilerWorker(
-        path.join(__dirname, "plugin-typst-worker.js"),
-        { source: request.source, inputs: request.inputs, workspace: directory },
-        signal
-      );
-    }
     for (const output of request.outputs) {
       const name = taskFileName(output.name);
       if (names.has(name)) throw new Error(`输入输出文件名重复：${name}`);

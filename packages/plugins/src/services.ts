@@ -66,17 +66,6 @@ export interface PluginServices {
       options?: ServiceOptions
     ): Promise<{ css: string }>;
   };
-  typst: {
-    compile(
-      input: {
-        source: string;
-        format?: "html";
-        inputs?: Record<string, string>;
-        files?: ServiceFile[];
-      },
-      options?: ServiceOptions
-    ): Promise<{ html: string }>;
-  };
   markdown: {
     deserialize(
       source: string,
@@ -134,7 +123,6 @@ export function bindPluginServices(
       selectCacheDirectory: bind(adapter?.git?.selectCacheDirectory),
     }),
     tailwind: Object.freeze({ compile: bind(adapter?.tailwind?.compile) }),
-    typst: Object.freeze({ compile: bind(adapter?.typst?.compile) }),
     markdown: Object.freeze({
       deserialize: bind(adapter?.markdown?.deserialize),
       serialize: bind(adapter?.markdown?.serialize),
