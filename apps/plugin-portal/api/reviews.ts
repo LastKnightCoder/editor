@@ -1,6 +1,6 @@
 import type { PackageContent, ReviewDecision, ReviewDetails, ReviewRecord } from "../contracts";
 import { body, fail, isReviewer, json, type Env } from "./platform";
-import { submissionAccess } from "./submissions";
+import { submissionAccess, type SubmissionRow } from "./submissions";
 import { readyUpload } from "./uploads";
 import { getRelease, publishRelease, releaseDto } from "./releases";
 
@@ -104,7 +104,19 @@ export async function reviewRoute(
       fail(409, "REVISION_CONFLICT", "该修订已经有审核决定，请刷新");
     return json(await details(env, row.id));
   }
-  if (row.status !== "pending_review" || row.revision !== input.revision)
+  return json(await decideSubmission(env, row, owner, input.revision as number, decision, comment));
+}
+
+/** 网页审核与 CI 自动批准共用：写入审核记录、更新提交状态，批准时生成并发布 Release。 */
+export async function decideSubmission(
+  env: Env,
+  row: SubmissionRow,
+  owner: string,
+  revision: number,
+  decision: ReviewDecision,
+  comment: string
+): Promise<ReviewDetails> {
+  if (row.status !== "pending_review" || row.revision !== revision)
     fail(409, "REVISION_CONFLICT", "提交状态或修订已变化，请刷新后重新审核");
   if (!row.package_upload_id || !row.content_json || !row.source_commit)
     fail(409, "UPLOAD_NOT_READY", "缺少可审核的包或源码快照");
@@ -171,5 +183,5 @@ export async function reviewRoute(
     const release = await getRelease(env, row.id);
     if (release) await publishRelease(env, release);
   }
-  return json(await details(env, row.id));
+  return details(env, row.id);
 }

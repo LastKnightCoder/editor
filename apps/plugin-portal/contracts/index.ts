@@ -184,6 +184,15 @@ export interface VisitorSession {
   /** 仅无 Origin 的桌面申请返回，网页通过 HttpOnly Cookie 使用。 */
   token?: string;
 }
+/** POST /v1/ci/releases 的结果；autoApproved 为真时 release 随即发布。 */
+export interface CiRelease {
+  pluginId: string;
+  version: string;
+  submissionId: string;
+  status: Extract<SubmissionStatus, "pending_review" | "changes_requested" | "approved">;
+  autoApproved: boolean;
+  release: Release | null;
+}
 export interface ReviewDetails {
   reviews: ReviewRecord[];
   release: Release | null;
