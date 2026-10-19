@@ -33,7 +33,7 @@ describe("useSettingStore persistence snapshot", () => {
     });
   });
 
-  it("当前图片提供商不存在时应切换到第一个可用配置", () => {
+  it("当前图片提供商不存在时清空选择，不改用其他付费账号", () => {
     const setting = structuredClone(useSettingStore.getState().setting);
     setting.imageGeneration = {
       currentProviderId: "deleted-provider",
@@ -41,17 +41,16 @@ describe("useSettingStore persistence snapshot", () => {
         {
           id: "remaining-provider",
           name: "Remaining",
-          providerType: "openai",
-          baseUrl: "https://api.example.com/v1",
-          apiKey: "sk-test",
-          modelName: "gpt-image-2",
+          pluginId: "test.images",
+          config: { region: "a" },
+          modelId: "model",
         },
       ],
     };
 
     const merged = mergeSettingWithDefaults(setting);
 
-    expect(merged.imageGeneration.currentProviderId).toBe("remaining-provider");
+    expect(merged.imageGeneration.currentProviderId).toBe("");
     expect(merged.imageGeneration.providers).toHaveLength(1);
   });
 

@@ -1,74 +1,30 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  buildOpenAIImageRequest,
-  isProviderConfigValid as isImageGenerationConfigValid,
-  normalizeOpenAIImageBaseUrl,
-  resolveImageInputFile,
-} from "../image-generation";
+import { expect, it, vi } from "vitest";
+import { createImageFile, resolveImageInputFile } from "../image-generation";
 
-describe("image-generation", () => {
-  it("连接参数完整时认为图片生成配置有效", () => {
-    expect(
-      isImageGenerationConfigValid({
-        baseUrl: "https://api.openai.com/v1",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-    ).toBe(true);
+it("将 data URL 解析为原始 MIME 与字节", async () => {
+  const file = await resolveImageInputFile("data:image/png;base64,AQID");
+  expect(file.type).toBe("image/png");
+  expect(await file.arrayBuffer()).toEqual(new Uint8Array([1, 2, 3]).buffer);
+  expect(createImageFile(new Uint8Array([1]), "image/webp").name).toMatch(/\.webp$/);
+});
 
-    expect(
-      isImageGenerationConfigValid({
-        baseUrl: " ",
-        apiKey: "sk-test",
-        modelName: "gpt-image-2",
-      }),
-    ).toBe(false);
-  });
-
-  it("规范化 baseUrl 并拼接图片 API 地址", () => {
-    expect(normalizeOpenAIImageBaseUrl("https://api.openai.com/v1/")).toBe(
-      "https://api.openai.com/v1",
-    );
-    expect(
-      buildOpenAIImageRequest({
-        baseUrl: "https://api.openai.com/v1/",
-        endpoint: "generations",
-      }).url,
-    ).toBe("https://api.openai.com/v1/images/generations");
-  });
-
-  it("只发送模型实际传入的可选图片参数", () => {
-    const request = buildOpenAIImageRequest({
-      baseUrl: "https://api.openai.com/v1",
-      endpoint: "generations",
-      model: "gpt-image-2",
-      prompt: "生成一张方形头像",
-      options: {
-        size: "1024x1024",
-        quality: undefined,
-        output_format: "png",
+it("远程下载接收取消信号，本地读取后拒绝迟到数据", async () => {
+  const controller = new AbortController();
+  const fetchBinary = vi.fn(async () => ({ data: new Uint8Array([1]), mimeType: "image/jpeg" }));
+  await resolveImageInputFile("https://test/image", { fetchBinary }, controller.signal);
+  expect(fetchBinary).toHaveBeenCalledWith("https://test/image", controller.signal);
+  await expect(
+    resolveImageInputFile(
+      "/tmp/a.png",
+      {
+        resolveLocalMediaPath: vi.fn(async () => "/tmp/a.png"),
+        getFileExtension: vi.fn(async () => "png"),
+        readBinaryFile: vi.fn(async () => {
+          controller.abort();
+          return new Uint8Array([1]);
+        }),
       },
-    });
-
-    expect(request.body).toEqual({
-      model: "gpt-image-2",
-      prompt: "生成一张方形头像",
-      size: "1024x1024",
-      output_format: "png",
-    });
-    expect(request.body).not.toHaveProperty("quality");
-  });
-
-  it("将 data URL 图片转换为编辑 API 可用文件", async () => {
-    const file = await resolveImageInputFile("data:image/png;base64,AQID", {
-      fetchBinary: vi.fn(),
-      readBinaryFile: vi.fn(),
-      resolveLocalMediaPath: vi.fn(),
-      getFileExtension: vi.fn(),
-    });
-
-    expect(file.name).toMatch(/input-image-\d+\.png/);
-    expect(file.type).toBe("image/png");
-    expect(await file.arrayBuffer()).toEqual(new Uint8Array([1, 2, 3]).buffer);
-  });
+      controller.signal
+    )
+  ).rejects.toMatchObject({ name: "AbortError" });
 });

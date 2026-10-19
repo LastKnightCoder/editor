@@ -13,6 +13,16 @@ vi.mock("node:fs/promises", () => ({
 vi.mock("fs-extra/esm", () => ({ default: { pathExists: async () => true, move: mocks.move } }));
 const initial = {
   imageBed: { active: "local" },
+  imageGeneration: {
+    currentProviderId: "a",
+    providers: ["a", "b"].map(id => ({
+      id,
+      name: id,
+      pluginId: "test.images",
+      modelId: "model",
+      config: { region: id },
+    })),
+  },
   ttsProviders: ["a", "b"].map(id => ({
     id,
     pluginId: "test.tts",
@@ -36,6 +46,28 @@ async function setup() {
   } as unknown as BackendWebSocketServer);
   return settings;
 }
+it("图片配置按账号在提交队列合并，失败不发布，拒绝已删除或归属变化的账号", async () => {
+  const settings = await setup();
+  mocks.move.mockRejectedValueOnce(new Error("disk"));
+  await expect(
+    settings.updateImagePlugin("a", "test.images", { region: "changed" }, "new-model")
+  ).rejects.toThrow("disk");
+  expect((await settings.getSettingSnapshot()).imageGeneration.providers[0].config).toEqual({
+    region: "a",
+  });
+  await Promise.all([
+    settings.updateImagePlugin("a", "test.images", { region: "changed" }, "new-model"),
+    settings.updateImagePlugin("b", "test.images", { region: "other" }, "second-model"),
+  ]);
+  expect(
+    (await settings.getSettingSnapshot()).imageGeneration.providers.map(
+      (item: { config: unknown }) => item.config
+    )
+  ).toEqual([{ region: "changed" }, { region: "other" }]);
+  await expect(settings.updateImagePlugin("a", "other.plugin", {}, "model")).rejects.toThrow(
+    "归属"
+  );
+});
 it("落盘完成前不更新内存、不广播，成功后才通知", async () => {
   const settings = await setup(),
     listener = vi.fn();
