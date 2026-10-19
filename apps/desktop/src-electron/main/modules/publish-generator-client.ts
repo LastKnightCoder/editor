@@ -1,5 +1,5 @@
 /**
- * 在 worker 线程里生成发布文件，避免整站生成（模板注入 / 序列化 / 哈希 / 搜索索引）阻塞主进程。
+ * 在 worker 线程里生成发布文件，避免数据序列化、哈希与搜索索引阻塞主进程。
  * 每次生成起一个 worker，结束即回收；worker 的查库请求与 Tailwind 编译在主进程应答。
  */
 
@@ -118,8 +118,8 @@ export async function generatePublishFilesInWorker(
 export async function generatePublishPathsInWorker(
   data: PublishDataSource,
   request: Omit<PublishGeneratorRequest, "pathsOnly">
-): Promise<{ paths: string[]; virtualProcessed: number }> {
+): Promise<Extract<WorkerToMain, { type: "done-paths" }>> {
   const result = await runWorker(data, { ...request, pathsOnly: true });
   if (result.type !== "done-paths") throw new Error("发布生成 worker 返回了非预期结果");
-  return { paths: result.paths, virtualProcessed: result.virtualProcessed };
+  return result;
 }

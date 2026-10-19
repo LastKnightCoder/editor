@@ -12,12 +12,13 @@ import type { ISiteMeta, PublishDataSource, PublishSelectionInput } from "./publ
 import type { PublishPluginSnapshot } from "../services/plugin-publish";
 
 export interface PublishGeneratorRequest {
-  templateDir: string;
+  template: import("../services/template-package").TemplatePackage;
+  clientSource?: string;
   selections: PublishSelectionInput[];
   site: ISiteMeta;
   settings?: IPublishAppearanceSettings;
   plugins?: PublishPluginSnapshot;
-  /** 只回传路径（预览计划用），不把文件内容拷回主进程 */
+  /** 计划预览只回传路径、摘要与依赖描述，不拷回文件字节。 */
   pathsOnly: boolean;
 }
 
@@ -41,7 +42,13 @@ export type DataReply = { ok: true; value: unknown } | { ok: false; message: str
 export type WorkerToMain =
   | { type: "tailwind"; reqId: number; code: string; extension: "tsx" | "html" }
   | { type: "done"; files: IPublishFile[]; virtualProcessed: number }
-  | { type: "done-paths"; paths: string[]; virtualProcessed: number }
+  | {
+      type: "done-paths";
+      paths: string[];
+      files: import("@/types/publish").PublishFileDescriptor[];
+      release: import("@/types/publish").PublishedRelease;
+      virtualProcessed: number;
+    }
   | { type: "error"; message: string };
 
 /** 主进程 → worker */

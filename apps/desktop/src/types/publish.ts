@@ -32,21 +32,40 @@ export interface IPublishHistory {
  * 发布文件信息
  */
 export interface IPublishFile {
+  publicationEntry?: true;
+  templateIdentity?: { id: string; version: string; digest: string };
   path: string;
   content: Buffer | string;
   hash: string;
   sourceType?: PublishContentType;
   sourceId?: number;
 }
+export type PublishFileDescriptor = Omit<IPublishFile, "content">;
 
 /**
  * 发布计划
  */
 export interface IPublishPlan {
+  releaseState?: PublishReleaseState;
   toUpload: IPublishFile[];
   toDelete: string[];
   unchanged: string[];
   virtualProcessed?: number;
+}
+
+export interface PublishedRelease {
+  hashes: Record<string, string>;
+  data: Record<string, { type: string; path: string; dependencies: string[] }>;
+  shared: string[];
+  assets: string[];
+  templates: NonNullable<IPublishFile["templateIdentity"]>[];
+}
+export interface PublishReleaseState {
+  version: 1;
+  current: PublishedRelease;
+  previous?: PublishedRelease;
+  published: Record<string, string>;
+  pending?: Record<string, string>;
 }
 
 /**
@@ -57,10 +76,12 @@ export interface IPublishPlanPreview {
   toDelete: string[];
 }
 
+import type { ContentRef } from "@tau/plugins/publish-data";
+
 export interface IPublishCardListItem {
   id: number;
   summary: string;
-  href: string;
+  target: ContentRef;
   createTime: number;
 }
 
@@ -71,18 +92,11 @@ export interface IPublishCardTagTree {
   children?: IPublishCardTagTree[];
 }
 
-export interface IPublishArticleListItem {
-  id: number;
-  title: string;
-  href: string;
-  createTime: number;
-}
-
 export interface IPublishListItem {
   id: number;
   title?: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   tags: string[];
   createTime: number;
 }
@@ -93,7 +107,7 @@ export interface IPublishQuestListItem {
   id: number;
   title: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   tags: string[];
   groupId: number;
   groupTitle: string;
@@ -106,9 +120,8 @@ export interface IPublishQuestListItem {
 export interface IPublishDocCollectionItem {
   id: number;
   title: string;
-  href: string;
+  target: ContentRef;
   kind: "project";
-  active?: boolean;
 }
 
 export interface IPublishDocCollection {
@@ -117,35 +130,7 @@ export interface IPublishDocCollection {
   items: IPublishDocCollectionItem[];
 }
 
-export interface IPublishContentLinkTarget {
-  contentType: string;
-  refId: number;
-  href: string;
-  title?: string;
-}
-
-export type IPublishSearchItemType = "card" | "article" | "project-doc" | "quest";
-
-export interface IPublishSearchItem {
-  id: number;
-  type: IPublishSearchItemType;
-  typeLabel: string;
-  title: string;
-  summary: string;
-  content: string;
-  tags: string[];
-  href: string;
-  createTime: number;
-  updateTime: number;
-}
-
-export interface IPublishSearchIndexPayload {
-  version: 1;
-  generatedAt: number;
-  options: Record<string, unknown>;
-  items: IPublishSearchItem[];
-  index: unknown;
-}
+export type IPublishContentLinkTarget = ContentRef;
 
 export interface IPublishFaviconConfig {
   cachePath: string;
@@ -194,7 +179,7 @@ export interface IPublishProgress {
 }
 
 /**
- * 初始化数据结构（用于模板注入）
+ * 宿主内部的数据装配记录；发布协议从 @tau/plugins/publish-data 消费。
  */
 export interface IPublishInitData {
   pluginRenderers?: import("@tau/plugins/rendering").PublishedPluginRender[];
@@ -209,24 +194,10 @@ export interface IPublishInitData {
       mimeType: string;
     };
   };
-  navigation: Array<{ label: string; href: string }>;
   cardTagTree?: IPublishCardTagTree[];
-  activeTag?: string;
-  articleList?: IPublishArticleListItem[];
-  cardList?: IPublishCardListItem[];
-  sidebar?: Array<{
-    title: string;
-    href?: string;
-    children?: Array<{
-      title: string;
-      href?: string;
-    }>;
-  }>;
+  sidebar?: import("@tau/plugins/publish-data").TreeItem[];
   docCollections?: IPublishDocCollection[];
   contentLinkTargets?: Record<string, IPublishContentLinkTarget>;
-  search?: {
-    href: string;
-  };
   settings?: IPublishAppearanceSettings;
   content: Record<string, unknown>;
   meta: {

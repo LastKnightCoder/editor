@@ -1,4 +1,5 @@
 import type { IPublishFaviconConfig } from "@/types/publish";
+import { createHash } from "node:crypto";
 
 export interface IResolvedPublishFaviconOutput {
   outputPath: string;
@@ -12,24 +13,16 @@ const FAVICON_MIME_TYPE_MAP: Record<IPublishFaviconConfig["format"], string> = {
   ico: "image/x-icon",
 };
 
-export function buildPublishFaviconHref(
-  basePath: string,
-  format: IPublishFaviconConfig["format"],
-): string {
-  const normalizedBasePath =
-    !basePath || basePath === "/"
-      ? "/"
-      : `${basePath.replace(/\/+$/, "").replace(/^([^/])/, "/$1")}/`;
-  return `${normalizedBasePath}favicon.${format}`;
-}
-
 export function resolvePublishFaviconOutput(
   favicon: IPublishFaviconConfig,
-  basePath = "/",
+  content: Buffer,
+  basePath = "/"
 ): IResolvedPublishFaviconOutput {
+  const hash = createHash("sha256").update(content).digest("hex");
+  const outputPath = `_tau/site/${hash}.${favicon.format}`;
   return {
-    outputPath: `favicon.${favicon.format}`,
+    outputPath,
     mimeType: FAVICON_MIME_TYPE_MAP[favicon.format],
-    href: buildPublishFaviconHref(basePath, favicon.format),
+    href: `${basePath}${outputPath}`,
   };
 }

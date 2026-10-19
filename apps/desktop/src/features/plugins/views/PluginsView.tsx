@@ -414,7 +414,9 @@ export function InstalledRow({
               {error}
             </p>
           ) : (
-            <p className="text-tau-meta text-ink-2 truncate">{STATE_LABELS[info.state]}</p>
+            <p className="text-tau-meta text-ink-2 truncate">
+              {plugin.template ? "模板已安装" : STATE_LABELS[info.state]}
+            </p>
           )}
         </div>
         <div
@@ -422,13 +424,17 @@ export function InstalledRow({
           onClick={event => event.stopPropagation()}
         >
           {plugin.update?.pendingVersion && <StagedChip version={plugin.update.pendingVersion} />}
-          <Switch
-            size="sm"
-            aria-label={`${plugin.enabled ? "停用" : "启用"} ${info.name}`}
-            checked={plugin.enabled}
-            disabled={!control.canToggle}
-            onCheckedChange={() => void control.toggle()}
-          />
+          {plugin.template ? (
+            <span className="text-tau-meta text-ink-2">博客模板</span>
+          ) : (
+            <Switch
+              size="sm"
+              aria-label={`${plugin.enabled ? "停用" : "启用"} ${info.name}`}
+              checked={plugin.enabled}
+              disabled={!control.canToggle}
+              onCheckedChange={() => void control.toggle()}
+            />
+          )}
           <PluginMenu
             runtime={runtime}
             plugin={plugin}

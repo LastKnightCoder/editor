@@ -1,8 +1,7 @@
 /**
  * 发布页数据：发布计划预览、上次发布时间、已选内容数；执行与进度委托全局 publishRunStore。
  *
- * 后端口径（见 D-035）：计划为全量生成——toUpload 即全部产物，toDelete 为「历史里有、本次未生成」；
- * 预览按默认访问路径 "/" 在主进程 worker 里生成，只回传路径；发布无取消通道。
+ * 后端按当前模板与部署配置计算增量及有限保留，只向页面回传上传和删除路径；发布无取消通道。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -55,9 +54,20 @@ export function usePublishRun(config: PublishConfig) {
 
   const refreshPlan = useCallback(async () => {
     const seq = ++planSeq.current;
+    if (!publish.site.templateId) {
+      setPlan(null);
+      setPlanLoading(false);
+      return;
+    }
     setPlanLoading(true);
     try {
-      const result = await previewPublishPlan();
+      const result = await previewPublishPlan({
+        targetDir: "",
+        providerType: active,
+        providerConfig,
+        siteConfig: publish.site,
+        settings: { appearance },
+      });
       if (seq !== planSeq.current) return;
       setPlan({
         upload: result.toUpload,
@@ -71,13 +81,21 @@ export function usePublishRun(config: PublishConfig) {
     } finally {
       if (seq === planSeq.current) setPlanLoading(false);
     }
-  }, []);
+  }, [active, providerConfig, publish.site, appearance]);
 
   useEffect(() => {
     void refreshSelections();
     void refreshHistory();
-    void refreshPlan();
-  }, [refreshSelections, refreshHistory, refreshPlan]);
+  }, [refreshSelections, refreshHistory]);
+  useEffect(() => {
+    planSeq.current++;
+    setPlanStale(true);
+    const timer = window.setTimeout(() => void refreshPlan(), 250);
+    return () => {
+      window.clearTimeout(timer);
+      planSeq.current++;
+    };
+  }, [refreshPlan]);
 
   const onSelectionsChange = useCallback(() => {
     setPlanStale(true);

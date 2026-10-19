@@ -13,7 +13,7 @@ import type { NotificationAction } from "@tau/ui";
 import { appNotify } from "@/features/notifications/notify";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
-import { downloadPublishTemplate, executePublish } from "@/commands";
+import { executePublish } from "@/commands";
 import { exportPublishOutput } from "@/commands/publish";
 import { openPage } from "@/services/page-navigation";
 import type { IPublishProgress, IPublishResult } from "@/types/publish";
@@ -57,7 +57,7 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
     set({ run: { kind: "running", startedAt, progress: null } });
     let next: RunState;
     try {
-      await downloadPublishTemplate();
+      if (!publish.site.templateId) throw new Error("请先在站点设置中选择模板插件");
       if (active === EPublishProvider.Local) {
         await exportPublishOutput({
           targetDir,

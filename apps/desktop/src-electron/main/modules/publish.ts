@@ -24,7 +24,14 @@ import {
   IPublishFaviconConfig,
 } from "@/types/publish";
 import { join, resolve, dirname } from "path";
-import { existsSync, mkdirSync, rmSync, writeFileSync, readdirSync } from "fs";
+import { createHash } from "node:crypto";
+import { readFile, writeFile, rename, mkdir } from "node:fs/promises";
+import { describeRelease, planPublication, type ReleaseState } from "./publish-release-state";
+import { uploadPublication } from "./publish-upload";
+import { publicationDestination } from "./publish-destination";
+import { stagePublication, publicationGitError } from "./publish-git";
+import { assertPublishPath } from "@tau/plugins/template";
+import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync, readdirSync } from "fs";
 import { recordSyncIo } from "./perf-record";
 import log from "electron-log";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
@@ -35,7 +42,9 @@ import ProjectTable from "./tables/project";
 import QuestionTable from "./tables/question";
 import QuestionGroupTable from "./tables/question-group";
 import QuestionLinkTable from "./tables/question-link";
-import publishTemplateManager from "./publish-template-manager";
+import { readTemplatePackage } from "../services/template-package";
+import { discoverPlugins } from "../services/plugin-discovery";
+import { assertLocalId } from "@tau/plugins/package";
 import { readPublishPlugins } from "../services/plugin-publish";
 import type { PluginRenderContext } from "@tau/plugins/rendering";
 import PathUtil from "../utils/PathUtil";
@@ -54,7 +63,7 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
       ContentLinkTable.edgesOf(db, [contentId]).get(contentId) ?? [],
     getArticleByIds: ids => ArticleTable.getArticleByIds(db, ids),
     getArticleByContentId: contentId => ArticleTable.getArticleByContentId(db, contentId),
-    getProject: id => ProjectTable.getProject(db, id),
+    getProject: id => ProjectTable.getProjectOrNull(db, id),
     getProjectItemsByIds: ids => ProjectTable.getProjectItemsByIds(db, ids),
     getProjectItemsByContentId: contentId => ProjectTable.getProjectItemsByContentId(db, contentId),
     listQuestionGroups: () => QuestionGroupTable.listGroups(db),
@@ -70,6 +79,7 @@ type ExecutePublishConfig = (
       providerType: "github";
       providerConfig: IGithubPagesConfig;
       siteConfig: {
+        templateId?: string;
         title: string;
         description: string;
         publicUrl?: string;
@@ -82,6 +92,7 @@ type ExecutePublishConfig = (
       providerType: "s3";
       providerConfig: IS3HostingConfig;
       siteConfig: {
+        templateId?: string;
         title: string;
         description: string;
         publicUrl?: string;
@@ -95,8 +106,33 @@ type ExecutePublishConfig = (
 type GithubExecuteConfig = Extract<ExecutePublishConfig, { providerType: "github" }>;
 
 class PublishModule implements Module {
+  private readonly publishing = new Set<string>();
+  private statePath(site: ISiteMeta) {
+    if (!site.destination) throw new Error("发布目标身份缺失");
+    const key = createHash("sha256")
+      .update(site.destination ?? "")
+      .digest("hex");
+    return join(PathUtil.getAppDir(), "publish-releases", key + ".json");
+  }
+  private async readRelease(site: ISiteMeta): Promise<ReleaseState | undefined> {
+    try {
+      const state = JSON.parse(await readFile(this.statePath(site), "utf8"));
+      if (state.version !== 1 || !state.current?.hashes || !state.current.data || !state.published)
+        throw new Error("发布记录无效，请保留文件并检查");
+      return state;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      throw error;
+    }
+  }
+  private async saveRelease(site: ISiteMeta, state?: ReleaseState) {
+    if (!state) return;
+    const file = this.statePath(site);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file + ".tmp", JSON.stringify(state));
+    await rename(file + ".tmp", file);
+  }
   name = "publish";
-  private templateDir: string | null = null;
   private backendServer: BackendWebSocketServer | null = null;
   private progressWarningLogged = false;
   private pendingProgressEvents: IPublishProgress[] = [];
@@ -111,9 +147,9 @@ class PublishModule implements Module {
       return { selections };
     });
 
-    // 下载并解压模板
-    ipcMain.handle("download-publish-template", async () => {
-      return this.ensureTemplateReady();
+    ipcMain.handle("list-publish-templates", async () => {
+      const scan = await discoverPlugins(join(PathUtil.getAppDir(), "plugins"), app.getVersion());
+      return scan.entries.flatMap(entry => (entry.template ? [entry.template] : []));
     });
 
     // 执行发布
@@ -132,37 +168,38 @@ class PublishModule implements Module {
       return this.executePublish(db, config, siteMeta);
     });
 
-    // 重试失败的文件
+    // 预览发布计划
     ipcMain.handle(
-      "retry-publish-files",
+      "preview-publish-plan",
       async (
-        _event,
+        event,
         config: {
-          providerType: "github" | "s3";
-          providerConfig: Record<string, unknown>;
-          files: IPublishFile[];
-          options?: IUploadOptions;
+          providerType: "github" | "s3" | "local";
+          providerConfig?: Record<string, unknown>;
+          siteConfig: {
+            templateId?: string;
+            title: string;
+            description: string;
+            publicUrl?: string;
+            favicon?: IPublishFaviconConfig;
+          };
+          settings?: IPublishAppearanceSettings;
+          editorContext?: PluginRenderContext;
         }
       ) => {
-        return this.retryPublish(config);
+        const db = this.getDatabase(event);
+        if (!db) {
+          throw new Error("Database not available");
+        }
+
+        const siteMeta = this.resolveSiteMeta(
+          config.providerType,
+          config.providerConfig ?? {},
+          config.siteConfig
+        );
+        return this.previewPublishPlan(db, siteMeta, config.editorContext, config.settings);
       }
     );
-
-    // 预览发布计划
-    ipcMain.handle("preview-publish-plan", async (event, editorContext?: PluginRenderContext) => {
-      const db = this.getDatabase(event);
-      if (!db) {
-        throw new Error("Database not available");
-      }
-
-      const siteMeta: ISiteMeta = {
-        title: "我的博客",
-        description: "",
-        basePath: "/",
-      };
-
-      return this.previewPublishPlan(db, siteMeta, editorContext);
-    });
 
     // 导出构建产物
     ipcMain.handle(
@@ -174,6 +211,7 @@ class PublishModule implements Module {
           providerType: "github" | "s3" | "local";
           providerConfig?: Record<string, unknown>;
           siteConfig: {
+            templateId?: string;
             title: string;
             description: string;
             publicUrl?: string;
@@ -243,8 +281,15 @@ class PublishModule implements Module {
       mkdirSync(targetDir, { recursive: true });
     }
 
-    for (const file of files) {
-      const filePath = join(targetDir, file.path);
+    const ordered = [
+      ...files.filter(file => !file.publicationEntry),
+      ...files.filter(file => file.publicationEntry),
+    ];
+    const targets = ordered.map(file => ({
+      file,
+      filePath: publicationDestination(targetDir, file.path),
+    }));
+    for (const { file, filePath } of targets) {
       const dir = dirname(filePath);
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
@@ -271,6 +316,7 @@ class PublishModule implements Module {
     providerType: "github" | "s3" | "local",
     providerConfig: unknown,
     siteConfig: {
+      templateId?: string;
       title: string;
       description: string;
       publicUrl?: string;
@@ -291,6 +337,20 @@ class PublishModule implements Module {
       } as any);
     }
     return {
+      destination: JSON.stringify([
+        providerType,
+        ...(providerType === "github"
+          ? [
+              (providerConfig as IGithubPagesConfig).repo,
+              (providerConfig as IGithubPagesConfig).branch,
+            ]
+          : [
+              (providerConfig as IS3HostingConfig).bucket,
+              (providerConfig as IS3HostingConfig).pathPrefix,
+              (providerConfig as IS3HostingConfig).endpoint,
+            ]),
+      ]),
+      templateId: siteConfig?.templateId,
       title: siteConfig?.title?.trim() || "我的博客",
       description: siteConfig?.description || "",
       basePath,
@@ -309,15 +369,15 @@ class PublishModule implements Module {
     return DatabaseModule.getDatabase(dbName);
   }
 
-  private async ensureTemplateReady(): Promise<string> {
-    if (this.templateDir && existsSync(this.templateDir)) {
-      return this.templateDir;
-    }
-
-    const templateDir = await publishTemplateManager.ensureTemplateReady();
-    this.templateDir = templateDir;
-    log.info(`Publish template ready at ${templateDir}`);
-    return templateDir;
+  private async ensureTemplateReady(id?: string) {
+    if (!id) throw new Error("请先选择已安装的模板插件");
+    assertLocalId(id);
+    const template = await readTemplatePackage(
+      join(PathUtil.getAppDir(), "plugins", id),
+      app.getVersion()
+    );
+    if (template.manifest.id !== id) throw new Error("模板身份与目录不一致");
+    return template;
   }
 
   /**
@@ -332,35 +392,32 @@ class PublishModule implements Module {
     // 获取选中的内容
     const selections = PublishSelectionTable.getAll(db);
 
-    // 获取历史发布记录
-    const history = PublishHistoryTable.getAll(db);
-    const historyMap = new Map(history.map(h => [h.filePath, h]));
-
-    // 生成要发布的文件
-    const { files: newFiles, virtualProcessed } = await this.generatePublishFiles(
+    const { files, virtualProcessed } = await this.generatePublishFiles(
       db,
       selections,
       site,
       appearanceSettings,
       editorContext
     );
-    const newFileMap = new Map(newFiles.map(f => [f.path, f]));
-
-    const toUpload: IPublishFile[] = [];
-    const toDelete: string[] = [];
-    const unchanged: string[] = [];
-
-    // 全量上传：所有生成的文件都在待上传列表中
-    toUpload.push(...newFiles);
-
-    // 删除历史中存在但本次未生成的文件
-    for (const [path] of historyMap) {
-      if (!newFileMap.has(path)) {
-        toDelete.push(path);
-      }
+    const { state, history: targetHistory } = await this.publicationHistory(db, site);
+    const plan = planPublication(files, targetHistory, state);
+    // 首次迁移到本目标时完整上传，不能沿用其他目标或旧生成器的上传摘要。
+    if (!state) {
+      plan.toUpload = files;
+      plan.unchanged = [];
     }
+    return { ...plan, virtualProcessed };
+  }
 
-    return { toUpload, toDelete, unchanged, virtualProcessed };
+  private async publicationHistory(db: Database.Database, site: ISiteMeta) {
+    const state = await this.readRelease(site);
+    const history = state
+      ? Object.entries({ ...state.published, ...state.pending }).map(([filePath, contentHash]) => ({
+          filePath,
+          contentHash,
+        }))
+      : PublishHistoryTable.getAll(db);
+    return { state, history };
   }
 
   /**
@@ -369,22 +426,20 @@ class PublishModule implements Module {
   private async previewPublishPlan(
     db: Database.Database,
     site: ISiteMeta,
-    editorContext?: PluginRenderContext
+    editorContext?: PluginRenderContext,
+    settings?: IPublishAppearanceSettings
   ): Promise<IPublishPlanPreview> {
     const selections = PublishSelectionTable.getAll(db);
-    const { paths } = await generatePublishPathsInWorker(createPublishDataSource(db), {
-      templateDir: await this.ensureTemplateReady(),
-      selections,
-      site,
-      plugins: editorContext
-        ? await readPublishPlugins(join(PathUtil.getAppDir(), "plugins"), editorContext)
-        : undefined,
-    });
-    const generated = new Set(paths);
-    const toDelete = PublishHistoryTable.getAll(db)
-      .map(h => h.filePath)
-      .filter(path => !generated.has(path));
-    return { toUpload: paths, toDelete };
+    const result = await generatePublishPathsInWorker(
+      createPublishDataSource(db),
+      await this.generatorRequest(selections, site, settings, editorContext)
+    );
+    const { state, history } = await this.publicationHistory(db, site);
+    const plan = planPublication(result.files, history, state, result.release);
+    return {
+      toUpload: state ? plan.toUpload.map(file => file.path) : result.paths,
+      toDelete: plan.toDelete,
+    };
   }
 
   /**
@@ -397,21 +452,56 @@ class PublishModule implements Module {
     settings?: IPublishAppearanceSettings,
     editorContext?: PluginRenderContext
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
-    return generatePublishFilesInWorker(createPublishDataSource(db), {
-      templateDir: await this.ensureTemplateReady(),
+    return generatePublishFilesInWorker(
+      createPublishDataSource(db),
+      await this.generatorRequest(selections, site, settings, editorContext)
+    );
+  }
+
+  private async generatorRequest(
+    selections: PublishSelectionInput[],
+    site: ISiteMeta,
+    settings?: IPublishAppearanceSettings,
+    editorContext?: PluginRenderContext
+  ) {
+    return {
+      clientSource: readFileSync(join(__dirname, "publish-data-client.js"), "utf8"),
+      template: await this.ensureTemplateReady(site.templateId),
       selections,
       site,
       settings,
       plugins: editorContext
         ? await readPublishPlugins(join(PathUtil.getAppDir(), "plugins"), editorContext)
         : undefined,
-    });
+    };
   }
 
   /**
    * 执行发布
    */
   async executePublish(
+    db: Database.Database,
+    config: ExecutePublishConfig,
+    site: ISiteMeta
+  ): Promise<IPublishResult> {
+    const key = this.statePath(site);
+    const keys = [
+      key,
+      ...(config.providerType === "github" && config.providerConfig.useGitCli
+        ? ["git:" + this.gitWorkingDirectory(config.providerConfig)]
+        : []),
+    ];
+    if (keys.some(key => this.publishing.has(key)))
+      throw new Error("此发布目标或缓存已有任务正在执行");
+    keys.forEach(key => this.publishing.add(key));
+    try {
+      return await this.publish(db, config, site);
+    } finally {
+      keys.forEach(key => this.publishing.delete(key));
+    }
+  }
+
+  private async publish(
     db: Database.Database,
     config: ExecutePublishConfig,
     site: ISiteMeta
@@ -426,7 +516,12 @@ class PublishModule implements Module {
     const plan = await this.buildPublishPlan(db, site, config.settings, config.editorContext);
 
     if (config.providerType === "github" && config.providerConfig.useGitCli) {
-      return this.executeGitCliPublish(db, config, plan);
+      const result = await this.executeGitCliPublish(db, config, plan);
+      if (result.success) {
+        delete plan.releaseState?.pending;
+        await this.saveRelease(site, plan.releaseState);
+      }
+      return result;
     }
 
     const result: IPublishResult = {
@@ -459,50 +554,51 @@ class PublishModule implements Module {
 
     // 上传文件
     sendProgress("uploading");
-    if (plan.toUpload.length > 0) {
-      const concurrency = Math.max(1, Math.min(options.concurrency, plan.toUpload.length));
-      let uploadIndex = 0;
+    await uploadPublication(plan.toUpload, options.concurrency, async file => {
+      sendProgress("uploading", file.path);
 
-      const worker = async () => {
-        while (uploadIndex < plan.toUpload.length) {
-          const currentIndex = uploadIndex++;
-          if (currentIndex >= plan.toUpload.length) {
-            break;
-          }
-          const file = plan.toUpload[currentIndex];
-          sendProgress("uploading", file.path);
+      const success = await this.uploadWithRetry(provider, file, options);
+      if (success) {
+        result.uploaded.push(file.path);
+        PublishHistoryTable.upsert(db, {
+          filePath: file.path,
+          contentHash: file.hash,
+          sourceType: file.sourceType,
+          sourceId: file.sourceId,
+        });
+      } else {
+        result.failed.push({
+          path: file.path,
+          error: "Upload failed after retries",
+        });
+        result.success = false;
+      }
 
-          const success = await this.uploadWithRetry(provider, file, options);
-          if (success) {
-            result.uploaded.push(file.path);
-            PublishHistoryTable.upsert(db, {
-              filePath: file.path,
-              contentHash: file.hash,
-              sourceType: file.sourceType,
-              sourceId: file.sourceId,
-            });
-          } else {
-            result.failed.push({
-              path: file.path,
-              error: "Upload failed after retries",
-            });
-            result.success = false;
-          }
-
-          current++;
-          sendProgress("uploading");
-        }
-      };
-
-      const workers = Array.from({ length: concurrency }, () => worker());
-      await Promise.all(workers);
-    }
+      current++;
+      sendProgress("uploading");
+      return success;
+    });
 
     // 新文件不完整时保留旧地址和历史，下一次发布继续重试。
     if (result.failed.length > 0) {
+      const baseline = (await this.readRelease(site)) ?? {
+        version: 1 as const,
+        current: describeRelease([]),
+        published: {},
+      };
+      const completed = plan.toUpload.filter(file => result.uploaded.includes(file.path));
+      await this.saveRelease(site, {
+        ...baseline,
+        pending: {
+          ...baseline.pending,
+          ...Object.fromEntries(completed.map(file => [file.path, file.hash])),
+        },
+      });
       sendProgress("finishing");
       return result;
     }
+
+    await this.saveRelease(site, plan.releaseState);
 
     // 删除旧文件
     sendProgress("deleting");
@@ -514,12 +610,14 @@ class PublishModule implements Module {
         await provider.deleteFile(path);
         result.deleted.push(path);
         PublishHistoryTable.delete(db, path);
+        if (plan.releaseState?.pending) delete plan.releaseState.pending[path];
       } catch (error) {
         result.failed.push({ path, error: String(error) });
         result.success = false;
       }
     }
 
+    await this.saveRelease(site, plan.releaseState);
     sendProgress("finishing");
     return result;
   }
@@ -532,6 +630,7 @@ class PublishModule implements Module {
     file: IPublishFile,
     options: Required<IUploadOptions>
   ): Promise<boolean> {
+    assertPublishPath(file.path);
     for (let attempt = 1; attempt <= options.maxRetries; attempt++) {
       try {
         const content = typeof file.content === "string" ? Buffer.from(file.content) : file.content;
@@ -545,6 +644,20 @@ class PublishModule implements Module {
       }
     }
     return false;
+  }
+
+  private gitWorkingDirectory(config: IGithubPagesConfig): string {
+    const repoSafeName = config.repo.replace(/[\/\\]/g, "_");
+    if (
+      !/^[a-zA-Z0-9-]+\/[a-zA-Z0-9_.-]+$/.test(config.repo) ||
+      [".", ".."].includes(config.repo.split("/")[1])
+    )
+      throw new Error("GitHub 发布仓库必须是 owner/repository");
+    const customBaseDir = config.gitWorkingDir?.trim();
+    const baseDir = customBaseDir
+      ? resolve(customBaseDir)
+      : join(app.getPath("userData"), "publish-git");
+    return join(baseDir, repoSafeName);
   }
 
   private async executeGitCliPublish(
@@ -575,13 +688,8 @@ class PublishModule implements Module {
       });
     };
 
-    const repoSafeName = providerConfig.repo.replace(/[\/\\]/g, "_");
-    const customBaseDir = providerConfig.gitWorkingDir?.trim();
-    const baseDir = customBaseDir
-      ? resolve(customBaseDir)
-      : join(app.getPath("userData"), "publish-git");
-    mkdirSync(baseDir, { recursive: true });
-    const workingDir = join(baseDir, repoSafeName);
+    const workingDir = this.gitWorkingDirectory(providerConfig);
+    mkdirSync(dirname(workingDir), { recursive: true });
     const remoteUrl = `https://x-access-token:${providerConfig.token}@github.com/${providerConfig.repo}.git`;
 
     try {
@@ -592,16 +700,25 @@ class PublishModule implements Module {
       try {
         await repoGit.fetch();
       } catch (fetchError) {
-        log.warn("Git fetch failed, continue with local workspace", fetchError);
+        log.warn(
+          "Git fetch failed, continue with local workspace",
+          publicationGitError(fetchError, [remoteUrl, providerConfig.token])
+        );
       }
 
       await this.checkoutTargetBranch(repoGit, providerConfig.branch);
-      this.clearGitWorkingDir(workingDir);
+      const targets = new Map(
+        [...plan.toDelete, ...plan.toUpload.map(file => file.path)].map(file => [
+          file,
+          publicationDestination(workingDir, file),
+        ])
+      );
+      for (const file of plan.toDelete) rmSync(targets.get(file)!, { force: true });
 
       sendProgress("uploading");
       for (const file of plan.toUpload) {
         sendProgress("uploading", file.path);
-        const filePath = join(workingDir, file.path);
+        const filePath = targets.get(file.path)!;
         const dir = dirname(filePath);
         if (!existsSync(dir)) {
           mkdirSync(dir, { recursive: true });
@@ -612,7 +729,11 @@ class PublishModule implements Module {
         sendProgress("uploading");
       }
 
-      await repoGit.add(["-A"]);
+      await stagePublication(
+        repoGit,
+        plan.toUpload.map(file => file.path),
+        plan.toDelete
+      );
 
       const committerName =
         providerConfig.committerName || config.siteConfig.title || "Tau Publisher";
@@ -625,7 +746,7 @@ class PublishModule implements Module {
       if (needsPushStep) {
         sendProgress("pushing", "git push");
         status = await repoGit.status();
-        if (status.files.length > 0 || status.staged.length > 0) {
+        if (status.staged.length > 0) {
           const commitMessage = `Publish at ${new Date().toISOString()}`;
           await repoGit.commit(commitMessage, undefined, {
             "--author": `${committerName} <${committerEmail}>`,
@@ -634,7 +755,7 @@ class PublishModule implements Module {
           log.info("No content changes detected, retry publishing the current commit.");
         }
         // 上次提交可能已成功但推送失败，必须确认远端更新后才能清理发布历史。
-        await repoGit.push("origin", providerConfig.branch, ["--force"]);
+        await repoGit.push("origin", providerConfig.branch);
         current++;
         sendProgress("pushing");
       }
@@ -668,22 +789,9 @@ class PublishModule implements Module {
       sendProgress("finishing");
       return result;
     } catch (error) {
-      log.error("Git publish failed:", error);
-      throw error;
-    }
-  }
-
-  private clearGitWorkingDir(dir: string) {
-    if (!existsSync(dir)) {
-      return;
-    }
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      if (entry === ".git") {
-        continue;
-      }
-      const target = join(dir, entry);
-      rmSync(target, { recursive: true, force: true });
+      const safeError = publicationGitError(error, [remoteUrl, providerConfig.token]);
+      log.error("Git publish failed:", safeError);
+      throw safeError;
     }
   }
 
@@ -694,14 +802,18 @@ class PublishModule implements Module {
     }
 
     if (existsSync(workingDir)) {
-      rmSync(workingDir, { recursive: true, force: true });
+      if (readdirSync(workingDir).length)
+        throw new Error("发布缓存非空且不是 Git 仓库，请选择独立缓存目录");
     }
     mkdirSync(dirname(workingDir), { recursive: true });
 
     try {
       await simpleGit().clone(remoteUrl, workingDir);
     } catch (error) {
-      log.warn(`Clone ${remoteUrl} failed, fallback to initializing repo:`, error);
+      log.warn(
+        "Clone failed, fallback to initializing publish cache:",
+        publicationGitError(error, [remoteUrl])
+      );
       mkdirSync(workingDir, { recursive: true });
       const repoGit = simpleGit(workingDir);
       await repoGit.init();
@@ -718,6 +830,8 @@ class PublishModule implements Module {
     const localBranches = await git.branchLocal();
     if (localBranches.all.includes(branch)) {
       await git.checkout(branch);
+      if (await this.remoteBranchExists(git, branch))
+        await git.merge(["--ff-only", `origin/${branch}`]);
       return;
     }
 
@@ -727,64 +841,13 @@ class PublishModule implements Module {
       return;
     }
 
-    await git.checkoutLocalBranch(branch);
+    await git.checkout(["--orphan", branch]);
+    await git.raw(["rm", "-r", "--cached", "--ignore-unmatch", "."]);
   }
 
   private async remoteBranchExists(git: SimpleGit, branch: string) {
-    try {
-      const output = await git.listRemote(["--heads", "origin", branch]);
-      return output.trim().length > 0;
-    } catch (error) {
-      log.warn("Failed to check remote branch:", error);
-      return false;
-    }
-  }
-
-  /**
-   * 重试发布
-   */
-  async retryPublish(config: {
-    providerType: "github" | "s3";
-    providerConfig: Record<string, unknown>;
-    files: IPublishFile[];
-    options?: IUploadOptions;
-  }): Promise<IPublishResult> {
-    const provider = createPublishProvider({
-      type: config.providerType,
-      [config.providerType]: config.providerConfig,
-    });
-
-    const options = { ...DEFAULT_UPLOAD_OPTIONS, ...config.options };
-    const result: IPublishResult = {
-      success: true,
-      uploaded: [],
-      deleted: [],
-      failed: [],
-      skipped: [],
-    };
-
-    const total = Math.max(1, config.files.length);
-    let current = 0;
-
-    for (const file of config.files) {
-      current++;
-      this.emitProgress({
-        phase: "uploading",
-        current,
-        total,
-        currentFile: file.path,
-      });
-
-      const success = await this.uploadWithRetry(provider, file, options);
-      if (success) {
-        result.uploaded.push(file.path);
-      } else {
-        result.failed.push({ path: file.path, error: "Retry failed" });
-        result.success = false;
-      }
-    }
-
-    return result;
+    const output = await git.listRemote(["--heads", "origin", branch]);
+    return output.trim().length > 0;
   }
 
   private emitProgress(progress: IPublishProgress) {

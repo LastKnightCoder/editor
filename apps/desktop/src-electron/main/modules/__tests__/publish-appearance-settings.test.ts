@@ -34,14 +34,13 @@ describe("publish-appearance-settings", () => {
           description: "",
           basePath: "/",
         },
-        navigation: [],
         content: {},
         meta: {
           type: "article",
           publishTime: 1,
         },
       },
-      undefined,
+      undefined
     );
 
     expect(initData.settings).toEqual({
