@@ -33,7 +33,7 @@ async function run() {
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   window.webContents.on("console-message", event => diagnostics.push(event.message));
-  await window.loadURL(config.url + "#/articles/1");
+  await window.loadURL(config.url + "articles/1");
   await until("document.querySelector('[data-portable-counter] output')?.textContent === '7'");
   assert(
     await evaluate('!("_INIT_DATA_" in window) && !("__BLOG_DEV_MOCK_DATA__" in window)'),
@@ -41,12 +41,22 @@ async function run() {
   );
   assert((await evaluate("document.body.textContent")).includes("第一篇文章"));
   cases.push("独立博客从正式数据产物加载原文章页面与完整编辑器");
+  window.setContentSize(1280, 800);
+  await until("getComputedStyle(document.querySelector('header nav.hidden')).display === 'flex'");
+  cases.push("@tau/blog 样式处于级联层，模板的断点工具类可覆盖（桌面导航可见）");
   await click("[data-portable-counter] button");
   await until("document.querySelector('[data-portable-counter] output')?.textContent === '8'");
   cases.push("真实 C23 插件经公开渲染器运行，计数交互可用");
   await until("Boolean(document.querySelector('#html-fragment-button'))");
-  assert(await evaluate("!document.querySelector('iframe[title=\"HTML 文档\"]')"), "渲染器不得替换 HTML 插件行为");
-  assert(await evaluate("[...document.querySelectorAll('style[data-tau-content-style]')].some(style => style.textContent.includes('text-red-500'))"));
+  assert(
+    await evaluate("!document.querySelector('iframe[title=\"HTML 文档\"]')"),
+    "渲染器不得替换 HTML 插件行为"
+  );
+  assert(
+    await evaluate(
+      "[...document.querySelectorAll('style[data-tau-content-style]')].some(style => style.textContent.includes('text-red-500'))"
+    )
+  );
   await click("#html-fragment-button");
   assert.equal(await evaluate("document.querySelector('#html-fragment-button').textContent"), "1");
   assert.equal(
@@ -56,8 +66,12 @@ async function run() {
   cases.push("HTML 使用原插件渲染、交互与伴生 CSS，无模板 iframe 适配");
   await click('button[title="全屏"]');
   await until(`Boolean(document.querySelector('[aria-label="HTML 全屏"]'))`);
-  await evaluate(`document.querySelector('[aria-label="HTML 全屏"] button[title="显示源码"]')?.click()`);
-  await until(`document.querySelector('[aria-label="HTML 全屏"] .CodeMirror')?.CodeMirror?.getMode()?.name === 'htmlmixed'`);
+  await evaluate(
+    `document.querySelector('[aria-label="HTML 全屏"] button[title="显示源码"]')?.click()`
+  );
+  await until(
+    `document.querySelector('[aria-label="HTML 全屏"] .CodeMirror')?.CodeMirror?.getMode()?.name === 'htmlmixed'`
+  );
   await click('[aria-label="HTML 全屏"] button[title="关闭 (Esc)"]');
   await until(`!document.querySelector('[aria-label="HTML 全屏"]')`);
   cases.push("公开 Editor 包保留源码全屏与 HTML 语法模式，退出不改写只读正文");
@@ -102,22 +116,28 @@ async function run() {
   cases.push("同一内容的多个实例共享取数缓存，分别装配节点与组件状态");
   await click('a.blog-content-link[href*="projects/12/34"]');
   await until(
-    "location.hash === '#/projects/12/34' && document.querySelector('[data-portable-counter] output')?.textContent === '31'"
+    "location.pathname === '/notes/projects/12/34' && document.querySelector('[data-portable-counter] output')?.textContent === '31'"
   );
-  cases.push("项目 URL 由模板选择，导航不请求对应的业务 HTML");
+  assert(
+    await evaluate(
+      "performance.getEntriesByType('navigation').length === 1 && !document.querySelector('[role=alert]')"
+    ),
+    "站内链接应由 Router 处理，不整页跳转"
+  );
+  cases.push("项目 URL 由模板选择，站内链接由 Router 处理、不整页跳转");
   await evaluate("history.back()");
   await until(
-    "location.hash === '#/articles/1' && document.querySelector('[data-portable-counter] output')?.textContent === '7'"
+    "location.pathname === '/notes/articles/1' && document.querySelector('[data-portable-counter] output')?.textContent === '7'"
   );
   await evaluate("history.forward()");
   await until(
-    "location.hash === '#/projects/12/34' && document.querySelector('[data-portable-counter] output')?.textContent === '31'"
+    "location.pathname === '/notes/projects/12/34' && document.querySelector('[data-portable-counter] output')?.textContent === '31'"
   );
   window.webContents.reload();
   await until(
-    "location.hash === '#/projects/12/34' && document.querySelector('[data-portable-counter] output')?.textContent === '31'"
+    "location.pathname === '/notes/projects/12/34' && document.querySelector('[data-portable-counter] output')?.textContent === '31'"
   );
-  cases.push("Router 响应浏览器前进、后退和深链刷新，无服务器业务路由回退");
+  cases.push("Router 响应浏览器前进、后退；深链刷新经模板 404.html 回退渲染");
   await click('button[aria-label="搜索"]');
   await until(
     "Boolean(document.querySelector('input[placeholder]')) && document.body.textContent.includes('搜索')"
@@ -132,12 +152,12 @@ async function run() {
     "Boolean(document.querySelector('a[href*=\"articles/2\"]')) && document.body.textContent.includes('共享协议文章 2')"
   );
   cases.push("保留搜索窗口与本地搜索行为，索引读取不依赖当前项目 URL");
-  await window.loadURL(config.url + "#/quests/9");
+  await window.loadURL(config.url + "quests/9");
   await until(
     "document.body.textContent.includes('如何分离模板？') && [...document.querySelectorAll('[data-portable-counter] output')].map(node=>node.textContent).join(',') === '42,7,31'"
   );
   cases.push("保留求索录状态、研究资料、独立答案和插件正文");
-  await window.loadURL(config.url + "#/cards?tag=" + encodeURIComponent("发布"));
+  await window.loadURL(config.url + "cards?tag=" + encodeURIComponent("发布"));
   await until("document.body.textContent.includes('共享协议卡片')");
   cases.push("保留卡片列表与标签筛选，查询参数归模板 Router");
   const report = { cases, diagnostics, searchInputs: input };
