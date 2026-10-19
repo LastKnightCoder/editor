@@ -21,6 +21,7 @@ const row = (id: string): CatalogEntry => ({
   name: `插件 ${id}`,
   description: "介绍",
   repository: "",
+  categories: ["editor", "ai"],
   publisher: { login: "author", avatarUrl: "" },
   downloadsTotal: 12,
   downloads7d: 3,
@@ -51,6 +52,7 @@ function setup() {
     items: input.cursor ? [row("a"), row("b")] : [row("a")],
     nextCursor: input.cursor ? null : "next",
     windowStart: "2026-10-12",
+    categoryCounts: input.cursor ? null : { editor: 2, ai: 1 },
   }));
   render(
     <MemoryRouter>
@@ -85,15 +87,50 @@ it("排序走菜单，搜索防抖后才请求，快速下载使用最新版本"
   fireEvent.click(screen.getByRole("button", { name: "排序：最近热门" }));
   fireEvent.click(await screen.findByRole("menuitemradio", { name: "下载最多" }));
   await waitFor(() =>
-    expect(catalog).toHaveBeenLastCalledWith({ q: "", sort: "downloadsTotal", cursor: null })
+    expect(catalog).toHaveBeenLastCalledWith({
+      q: "",
+      category: null,
+      sort: "downloadsTotal",
+      cursor: null,
+    })
   );
   fireEvent.change(screen.getByRole("textbox", { name: "搜索插件" }), {
     target: { value: " 同步 " },
   });
   expect(catalog).not.toHaveBeenLastCalledWith(expect.objectContaining({ q: "同步" }));
   await waitFor(() =>
-    expect(catalog).toHaveBeenLastCalledWith({ q: "同步", sort: "downloadsTotal", cursor: null })
+    expect(catalog).toHaveBeenLastCalledWith({
+      q: "同步",
+      category: null,
+      sort: "downloadsTotal",
+      cursor: null,
+    })
   );
   fireEvent.click((await screen.findAllByRole("button", { name: "下载 ZIP" }))[0]);
   await waitFor(() => expect(savePluginZip).toHaveBeenCalledWith(api, "a", "a-1.0.0.zip"));
+});
+
+it("分类条只列有插件的分类，单选后按分类请求，卡片显示分类", async () => {
+  const { catalog } = setup();
+  await screen.findByText("插件 a");
+  expect(screen.getByText("编辑器 · AI")).toBeTruthy();
+  const group = screen.getByRole("group", { name: "插件分类" });
+  expect([...group.querySelectorAll("button")].map(button => button.textContent)).toEqual([
+    "全部",
+    "编辑器2",
+    "AI1",
+  ]);
+  fireEvent.click(screen.getByRole("button", { name: /^编辑器/ }));
+  await waitFor(() =>
+    expect(catalog).toHaveBeenLastCalledWith(
+      expect.objectContaining({ category: "editor", cursor: null })
+    )
+  );
+  expect(screen.getByRole("button", { name: /^编辑器/ }).getAttribute("aria-pressed")).toBe("true");
+  // 回到「全部」命中 60 秒缓存，不重复请求
+  fireEvent.click(screen.getByRole("button", { name: "全部" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "全部" }).getAttribute("aria-pressed")).toBe("true")
+  );
+  expect(await screen.findByText("插件 a")).toBeTruthy();
 });

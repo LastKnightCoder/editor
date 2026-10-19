@@ -10,6 +10,7 @@ import type {
   ReviewRecord,
   PluginComment,
   PublicRelease,
+  PluginCategory,
 } from "../../../../contracts";
 import { PortalApiError } from "../errors";
 import { content, sampleSubmission } from "./samples";
@@ -97,17 +98,29 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       return { deleted: true };
     },
     githubLoginUrl: "/submissions",
-    getCatalog: async ({ q }) => {
+    getCatalog: async ({ q, category, cursor }) => {
       const latest = new Map<string, PublicRelease>();
       for (const release of published.values()) latest.set(release.pluginId, release);
       const query = q.trim().toLowerCase();
+      const matched = [...latest.values()].filter(release =>
+        [
+          release.pluginId,
+          release.content.manifest.name,
+          release.content.manifest.description,
+          ...(release.content.manifest.keywords ?? []),
+        ]
+          .join("\n")
+          .toLowerCase()
+          .includes(query)
+      );
+      const categoryCounts: Partial<Record<PluginCategory, number>> = {};
+      for (const release of matched)
+        for (const id of release.content.manifest.categories ?? [])
+          categoryCounts[id] = (categoryCounts[id] ?? 0) + 1;
       return {
-        items: [...latest.values()]
-          .filter(release =>
-            `${release.pluginId}\n${release.content.manifest.name}\n${release.content.manifest.description}`
-              .toLowerCase()
-              .includes(query)
-          )
+        categoryCounts: cursor ? null : categoryCounts,
+        items: matched
+          .filter(release => !category || release.content.manifest.categories?.includes(category))
           .map(release => {
             const version = {
               releaseId: release.id,
@@ -124,6 +137,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
               description: release.content.manifest.description,
               publisher: release.publisher,
               repository: release.repository,
+              categories: [...(release.content.manifest.categories ?? [])],
               downloadsTotal: 0,
               downloads7d: 0,
               likes: likes.has(release.pluginId) ? 1 : 0,

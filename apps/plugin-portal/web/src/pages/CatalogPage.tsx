@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { isPluginCategory } from "@tau/plugins/package";
 import { CloudOff, Search, SearchX } from "lucide-react";
 import { Button, Input, Loading, isEditableTarget, toast } from "@tau/ui";
-import type { CatalogEntry, CatalogSort } from "../../../contracts";
+import type { CatalogEntry, CatalogSort, PluginCategory } from "../../../contracts";
 import { useApi } from "../app/api";
 import { savePluginZip } from "../api/download";
 import { errorMessage } from "../api/errors";
 import { ErrorState, StateBlock } from "../components/states";
 import { useDebouncedValue } from "../components/useDebouncedValue";
+import { CategoryBar } from "../features/catalog/CategoryBar";
+import { visibleCategories } from "../features/catalog/categories";
 import { PluginCard } from "../features/catalog/PluginCard";
 import { SortMenu } from "../features/catalog/SortMenu";
 import { StatsHint } from "../features/catalog/StatsHint";
@@ -31,9 +35,29 @@ export function CatalogPage() {
   const [input, setInput] = useState("");
   const q = useDebouncedValue(input.trim(), 250);
   const [sort, setSort] = useState<CatalogSort>("downloads7d");
+  const [params, setParams] = useSearchParams();
+  const raw = params.get("category");
+  const category: PluginCategory | null = isPluginCategory(raw) ? raw : null;
+  const setCategory = (next: PluginCategory | null) =>
+    setParams(
+      current => {
+        const value = new URLSearchParams(current);
+        if (next) value.set("category", next);
+        else value.delete("category");
+        return value;
+      },
+      { replace: true }
+    );
   const searchRef = useRef<HTMLInputElement>(null);
   useSlashFocus(searchRef);
-  const catalog = useCatalog(q, sort);
+  const catalog = useCatalog(q, category, sort);
+  // 计数不受分类影响，切换分类时沿用上一次首页的计数，避免分类条闪烁
+  const [counts, setCounts] = useState<Partial<Record<PluginCategory, number>> | null>(null);
+  const firstCounts = catalog.data?.pages[0]?.categoryCounts;
+  useEffect(() => {
+    if (firstCounts) setCounts(firstCounts);
+  }, [firstCounts]);
+  const categoryName = visibleCategories(counts).find(item => item.id === category)?.label;
   const download = useMutation({
     mutationFn: (entry: CatalogEntry) =>
       savePluginZip(api, entry.latest.releaseId, `${entry.pluginId}-${entry.latest.version}.zip`),
@@ -57,10 +81,29 @@ export function CatalogPage() {
     body = (
       <StateBlock
         icon={SearchX}
-        title={q ? `没有找到「${q}」相关的插件` : "还没有上架的插件"}
-        actions={q && <Button onClick={() => setInput("")}>清除搜索</Button>}
+        title={
+          q
+            ? `没有找到「${q}」相关的插件`
+            : category
+              ? `「${categoryName ?? category}」分类下暂无插件`
+              : "还没有上架的插件"
+        }
+        actions={
+          (q || category) && (
+            <Button
+              onClick={() => {
+                setInput("");
+                setCategory(null);
+              }}
+            >
+              清除筛选
+            </Button>
+          )
+        }
       >
-        {q ? "换个关键词试试，比如插件的用途。" : "第一个通过审核的插件会出现在这里。"}
+        {q || category
+          ? "换个关键词或分类试试，比如插件的用途。"
+          : "第一个通过审核的插件会出现在这里。"}
       </StateBlock>
     );
   else
@@ -120,6 +163,7 @@ export function CatalogPage() {
         <SortMenu value={sort} onChange={setSort} />
         <StatsHint />
       </div>
+      <CategoryBar value={category} counts={counts} onChange={setCategory} />
       {body}
     </main>
   );

@@ -15,6 +15,7 @@ function zip(
     readme?: string | null;
     description?: string;
     corrupt?: boolean;
+    manifest?: Record<string, unknown>;
   } = {}
 ) {
   const file = new AdmZip(),
@@ -34,6 +35,7 @@ function zip(
         format: "cjs",
         main: "main.js",
         integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+        ...options.manifest,
       })
     )
   );
@@ -46,6 +48,18 @@ function zip(
   return file.toBuffer();
 }
 describe("包资料与站内反馈", () => {
+  it("发布包严格校验分类与关键词", async () => {
+    const content = await inspectPackage(
+      zip({ manifest: { categories: ["sync", "sync"], keywords: [" MinIO "] } })
+    );
+    expect(content.manifest).toMatchObject({ categories: ["sync"], keywords: ["MinIO"] });
+    await expect(inspectPackage(zip({ manifest: { categories: ["reading"] } }))).rejects.toThrow(
+      "未知插件分类"
+    );
+    await expect(
+      inspectPackage(zip({ manifest: { keywords: ["a", "b", "c", "d", "e", "f"] } }))
+    ).rejects.toThrow("最多 5 个");
+  });
   it("发布包拒绝已撤回的Node同步入口", async () => {
     const archive = new AdmZip(zip());
     const manifest = JSON.parse(
@@ -148,8 +162,12 @@ describe("包资料与站内反馈", () => {
       await (await req("/v1/submissions", "POST", { clientRequestId: crypto.randomUUID() })).json()
     ).data;
   }
-  async function ready(version = "1.0.0", minAppVersion?: string): Promise<Submission> {
-    const up = await upload(zip({ version, minAppVersion })),
+  async function ready(
+    version = "1.0.0",
+    minAppVersion?: string,
+    manifest?: Record<string, unknown>
+  ): Promise<Submission> {
+    const up = await upload(zip({ version, minAppVersion, manifest })),
       record = await draft();
     const response = await req(`/v1/submissions/${record.id}`, "PATCH", {
       revision: record.revision,
@@ -642,6 +660,56 @@ describe("包资料与站内反馈", () => {
       publisher: { login: "author", avatarUrl: "" },
     });
     expect(detail.content.readme).toContain("阅读插件");
+  });
+  it("目录分类与关键词取最高版本，计数同口径", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    for (const [version, manifest] of [
+      ["1.0.0", { categories: ["sync"], keywords: ["旧词"] }],
+      ["1.1.0", { categories: ["editor", "ai"], keywords: ["MinIO"] }],
+    ] as const) {
+      const record = (await (await submit(await ready(version, undefined, manifest))).json()).data;
+      await req(`/v1/submissions/${record.id}/review`, "POST", {
+        revision: record.revision,
+        decision: "approve",
+        comment: "",
+      });
+    }
+    cookie = "";
+    const list = async (query: string) =>
+      (await (await req(`/v1/catalog?appVersion=0.59.0&${query}`)).json()).data;
+    const all = await list("");
+    expect(all.items[0].categories).toEqual(["editor", "ai"]);
+    expect(all.categoryCounts).toEqual({ editor: 1, ai: 1 });
+    expect((await list("category=editor")).items).toHaveLength(1);
+    expect((await list("category=sync")).items).toHaveLength(0);
+    expect((await list("q=minio")).items).toHaveLength(1);
+    expect((await list("q=旧词")).items).toHaveLength(0);
+    expect((await list("q=旧词")).categoryCounts).toEqual({});
+    expect((await req("/v1/catalog?appVersion=0.59.0&category=reading")).status).toBe(400);
+  });
+  it("0008为已有发布记录回填分类与关键词", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      const run = (name: string) =>
+        db.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));
+      run("0001_submissions.sql");
+      run("0003_review_release.sql");
+      run("0004_release_catalog.sql");
+      db.exec("PRAGMA foreign_keys=OFF");
+      const insert = db.prepare(
+        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,state,created_at) VALUES(?,'p',?,?,'u','42','k','h',1,?,'repo','c','published','t')"
+      );
+      insert.run("a", "1.0.0", "s1", JSON.stringify({ manifest: { categories: ["sync"] } }));
+      insert.run("b", "1.1.0", "s2", JSON.stringify({ manifest: {} }));
+      run("0008_release_categories.sql");
+      expect(db.prepare("SELECT categories,keywords FROM releases ORDER BY id").all()).toEqual([
+        { categories: '["sync"]', keywords: "[]" },
+        { categories: "[]", keywords: "[]" },
+      ]);
+    } finally {
+      db.close();
+    }
   });
   it("预检允许PUT/PATCH与凭据", async () => {
     const r = await req("/v1/uploads", "OPTIONS");

@@ -87,7 +87,7 @@ export function ModerationPage() {
 
 /** 插件 ID → 名称；目录首页之外的插件退化为显示 ID */
 function usePluginNames() {
-  const catalog = useCatalog("", "updated");
+  const catalog = useCatalog("", null, "updated");
   const entries = uniqueEntries(catalog.data?.pages);
   return { entries, nameOf: (id: string) => entries.find(e => e.pluginId === id)?.name ?? id };
 }
