@@ -15,7 +15,7 @@
 | `markdown.render(source, options?)`      | Markdown 字符串                                   | `{ html, css, warnings }`           |
 | `ffmpeg.probe(file, options?)`           | `{ name, data: Blob }`                            | `{ format, streams }`               |
 | `ffmpeg.run(input, options?)`            | `{ files, args, outputs }`                        | `{ files, log }`                    |
-| `videoExtractor.probe(url, options?)`    | 视频页面地址，可选 `proxy`（SDK 0.21.0）          | `{ title, cover?, formats }`        |
+| `videoExtractor.probe(url, options?)`    | 视频页面地址，可选 `proxy`（SDK 0.22.0）          | `{ title, cover?, formats }`        |
 
 ## 在静态组件中获取服务
 

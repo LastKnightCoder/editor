@@ -29,6 +29,7 @@ import type { UploadFile, UploadProviderDefinition } from "./upload";
 import type { TTSProviderDefinition } from "./tts";
 import type { ImageProviderDefinition } from "./images";
 import type { VideoProviderDefinition } from "./video";
+import type { PublishProviderDefinition } from "./publish";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
@@ -138,6 +139,7 @@ export type PluginContributionKind =
   | "tts"
   | "images"
   | "video"
+  | "publish"
   | "mcp"
   | "chat"
   | "skill"
@@ -214,6 +216,9 @@ export class PluginHost {
         ): Promise<PluginAI>;
       };
       settings?: SettingsAdapter;
+      publish?: {
+        register(context: PluginContext, definition: PublishProviderDefinition): Disposable;
+      };
       sync?: { register(context: PluginContext, definition: SyncProviderDefinition): Disposable };
       upload?: {
         register(context: PluginContext, definition: UploadProviderDefinition): Disposable;
@@ -534,6 +539,31 @@ export class PluginHost {
     };
     const context: PluginContext = {
       pluginId: scope.pluginId,
+      publish: Object.freeze({
+        register: (definition: PublishProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
+            throw new Error("发布提供方必须属于当前插件");
+          if (!this.options.publish) throw new Error("当前宿主不支持发布提供方");
+          const create = definition.create.bind(definition);
+          return registerAs(
+            "publish",
+            this.options.publish.register(context, {
+              id: scope.pluginId,
+              name: definition.name,
+              create: config => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("发布插件尚未激活");
+                return create(copyJson(config));
+              },
+            })
+          );
+        },
+      }),
       images: Object.freeze({
         register: (definition: ImageProviderDefinition) => {
           this.assertActive(entry, activation);

@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { ensureModule } from "./module-init";
 import { getContentPluginPublishContext } from "@/app/plugins/content-plugin-state";
 import {
   IPublishSelection,
@@ -6,7 +7,6 @@ import {
   IPublishPlanPreview,
   IPublishResult,
   IPublishAppearanceSettings,
-  IPublishFaviconConfig,
   PublishContentType,
 } from "@/types/publish";
 
@@ -99,69 +99,53 @@ export async function clearPublishHistory(): Promise<void> {
 export async function listPublishTemplates(): Promise<
   import("@tau/plugins/template").TemplateManifest[]
 > {
+  await ensureModule("publish");
   return invoke("list-publish-templates");
 }
 
 export async function exportPublishOutput(options: {
   targetDir: string;
-  providerType: "github" | "s3" | "local";
-  providerConfig?: Record<string, unknown>;
-  siteConfig: {
-    templateId?: string;
-    title: string;
-    description: string;
-    publicUrl?: string;
-    favicon?: IPublishFaviconConfig;
-  };
+  basePath?: string;
+  siteConfig: import("@/types/publish").PublishSiteConfig;
   settings?: IPublishAppearanceSettings;
 }): Promise<string[]> {
+  await ensureModule("publish");
   return invoke("export-publish-output", {
     ...options,
     editorContext: getContentPluginPublishContext(),
   });
 }
-
-/**
- * 预览发布计划
- */
 export async function previewPublishPlan(
-  config: Parameters<typeof exportPublishOutput>[0]
+  config: import("@/types/publish").PublishRequest
 ): Promise<IPublishPlanPreview> {
+  await ensureModule("publish");
   return invoke("preview-publish-plan", {
     ...config,
     editorContext: getContentPluginPublishContext(),
   });
 }
-
-/**
- * 执行发布
- */
-export async function executePublish(config: {
-  providerType: "github" | "s3";
-  providerConfig: Record<string, unknown>;
-  siteConfig: {
-    templateId?: string;
-    title: string;
-    description: string;
-    publicUrl?: string;
-    favicon?: IPublishFaviconConfig;
-  };
-  settings?: IPublishAppearanceSettings;
-  options?: {
-    maxRetries?: number;
-    retryDelay?: number;
-    concurrency?: number;
-  };
-}): Promise<IPublishResult> {
+export async function executePublish(
+  config: import("@/types/publish").PublishRequest
+): Promise<IPublishResult> {
+  await ensureModule("publish");
   return invoke("execute-publish", { ...config, editorContext: getContentPluginPublishContext() });
 }
-
-/**
- * 检查发布连接
- */
-export async function checkPublishConnection(config: {
-  providerType: "github" | "s3";
-  providerConfig: Record<string, unknown>;
-}): Promise<boolean> {
+export async function describePublishTarget(
+  config: import("@/types/publish").PublishRequest
+): Promise<{ basePath: string; publicUrl?: string }> {
+  await ensureModule("publish");
+  return invoke("describe-publish-target", config);
+}
+export async function checkPublishConnection(
+  config: import("@/types/publish").PublishRequest
+): Promise<boolean> {
+  await ensureModule("publish");
   return invoke("check-publish-connection", config);
+}
+export async function savePublishPluginConfig(
+  id: string,
+  value: import("@tau/plugins").JsonValue
+): Promise<void> {
+  await ensureModule("plugin-local");
+  return window.electron.invoke("plugin-local:publish-config", id, value);
 }

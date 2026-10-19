@@ -22,6 +22,11 @@ import { pluginUploadRelay } from "../services/plugin-upload";
 import { pluginTTSRelay } from "../services/plugin-tts";
 import { pluginImagesRelay } from "../services/plugin-images";
 import { pluginVideoRelay } from "../services/plugin-video";
+import {
+  pluginPublishSessions,
+  acceptPublishRendererReply,
+  releasePublishRenderer,
+} from "../services/plugin-publish-provider";
 import type { ImagesRendererRequest, ImagesRendererReply } from "../../../shared/images-renderer";
 import type {
   VideoProvidersState,
@@ -42,6 +47,8 @@ import {
 } from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
+const protectPluginTasks = <T>(id: string, action: () => Promise<T>) =>
+  pluginPublishSessions.protect(id, () => pluginSyncSessions.protect(id, action));
 
 export default {
   name: "plugin-local",
@@ -78,16 +85,18 @@ export default {
         if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
     };
     const applyInstalled = async (installed: { id: string; version: string }) => {
-      await updates.apply(installed.id, async (artifact, replacing) => {
-        if (await contentStartup.uses(installed.id)) return false;
-        if (!replacing) await preferences.set(installed.id, false);
-        // 模板不是内容插件，安装后即可在发布设置中选择。
-        return !(
-          !isTemplatePackage(artifact) &&
-          isContentPlugin(artifact.manifest) &&
-          preferences.enabled(installed.id, false)
-        );
-      });
+      await pluginPublishSessions.protect(installed.id, () =>
+        updates.apply(installed.id, async (artifact, replacing) => {
+          if (await contentStartup.uses(installed.id)) return false;
+          if (!replacing) await preferences.set(installed.id, false);
+          // 模板不是内容插件，安装后即可在发布设置中选择。
+          return !(
+            !isTemplatePackage(artifact) &&
+            isContentPlugin(artifact.manifest) &&
+            preferences.enabled(installed.id, false)
+          );
+        })
+      );
       stateChanged();
       return installed;
     };
@@ -235,7 +244,7 @@ export default {
     ipcMain.handle("plugin-local:set-enabled", async (_event, id: string, enabled: boolean) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
-      await pluginSyncSessions.protect(id, () => preferences.set(id, enabled));
+      await protectPluginTasks(id, () => preferences.set(id, enabled));
       stateChanged();
     });
     ipcMain.handle(
@@ -286,6 +295,20 @@ export default {
       "plugin-local:sync-begin",
       (event, id: string, config: import("@tau/plugins").JsonValue) =>
         pluginSyncSessions.begin(event.sender.id, id, copyJson(config))
+    );
+    ipcMain.handle("plugin-local:publish-reply", (event, reply) =>
+      acceptPublishRendererReply(event.sender.id, reply)
+    );
+    ipcMain.handle("plugin-local:publish-release-window", event =>
+      releasePublishRenderer(event.sender.id)
+    );
+    ipcMain.handle(
+      "plugin-local:publish-config",
+      async (_event, id: string, config: import("@tau/plugins").JsonValue) => {
+        const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+        if (artifact.manifest.id !== id) throw new Error("插件身份无效");
+        await userSetting.updatePublishPlugin(id, copyJson(config));
+      }
     );
     ipcMain.handle(
       "plugin-local:sync-reply",
@@ -344,19 +367,20 @@ export default {
     // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。
     ipcMain.handle("plugin-local:relaunch", async () => {
       if (await pluginSyncSessions.hasTasks()) throw new Error("同步任务正在进行，请完成后重启");
+      if (pluginPublishSessions.busy) throw new Error("发布任务正在进行，请完成后重启");
       app.relaunch();
       app.quit();
     });
     ipcMain.handle("plugin-local:uninstall", async (_event, id: string) => {
       if (await contentStartup.uses(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
-      await pluginSyncSessions.protect(id, async () => {
+      await protectPluginTasks(id, async () => {
         await updates.uninstall(id);
         await preferences.forget(id);
       });
       stateChanged();
     });
     ipcMain.handle("plugin-local:restore", async (_event, id: string) =>
-      applyInstalled(await pluginSyncSessions.protect(id, () => updates.restore(id)))
+      applyInstalled(await protectPluginTasks(id, () => updates.restore(id)))
     );
     ipcMain.handle("plugin-local:cancel-update", (_event, id: string) => updates.cancel(id));
     ipcMain.handle("plugin-local:open-directory", async () => {

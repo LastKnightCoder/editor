@@ -45,7 +45,8 @@ const flush = async () => {
 const { usePublishRunStore } = await import("../publishRunStore");
 
 const params = {
-  active: EPublishProvider.Github,
+  active: EPublishProvider.Plugin,
+  pluginId: "tau.publish-github",
   providerConfig: { basePath: "/" },
   publish: { site: { templateId: "tau.blog" }, local: { basePath: "/" } },
   appearance: {},

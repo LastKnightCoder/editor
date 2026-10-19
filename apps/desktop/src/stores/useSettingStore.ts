@@ -22,8 +22,7 @@ export enum ESync {
 }
 
 export enum EPublishProvider {
-  Github = "github",
-  S3 = "s3",
+  Plugin = "plugin",
   Local = "local",
 }
 
@@ -76,6 +75,10 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
     ? structuredClone(setting.ttsProviders)
     : null;
   merge(mergedSetting, setting);
+  for (const key of ["github", "s3"])
+    delete (mergedSetting.publish as unknown as Record<string, unknown>)[key];
+  if (!["local", "plugin"].includes(mergedSetting.publish.active))
+    mergedSetting.publish.active = EPublishProvider.Local;
   if (imageGeneration) {
     mergedSetting.imageGeneration = imageGeneration;
   }
@@ -195,23 +198,6 @@ export interface ISetting {
   onlineVideo: {
     configurations: Record<string, unknown>;
   };
-  integration: {
-    github: {
-      enabled: boolean;
-      token: string;
-      user: {
-        name: string;
-        email: string;
-      };
-    };
-    s3: {
-      enabled: boolean;
-      accessKeyId: string;
-      secretAccessKey: string;
-      endpoint: string;
-      urlStyle: "path" | "virtualHosted";
-    };
-  };
   misc: {
     webClip: {
       translateToChinese: boolean;
@@ -236,18 +222,9 @@ export interface ISetting {
   };
   publish: {
     active: EPublishProvider;
-    github: {
-      repo: string;
-      branch: string;
-      basePath: string;
-      useGitCli: boolean;
-      gitWorkingDir: string;
-    };
-    s3: {
-      bucket: string;
-      region: string;
-      path: string;
-      basePath: string;
+    plugin: {
+      id: string;
+      configurations: Record<string, import("@tau/plugins").JsonValue>;
     };
     local: {
       basePath: string;
@@ -308,8 +285,8 @@ const isSettingNotificationPayload = (payload: unknown): payload is SettingNotif
 const SETTING_CACHE_KEY = "user-setting-cache";
 
 const normalizeTransientSettingState = (setting: ISetting) => {
-  // 微信读书已改为插件（API Key 存插件私有存储，按工作区），旧字段丢弃不再保存
-  delete (setting.integration as { weread?: unknown }).weread;
+  // 第三方账号已全部随插件迁出（微信读书、发布、语音、在线视频等），旧 integration 整块丢弃不再保存
+  delete (setting as { integration?: unknown }).integration;
   return setting;
 };
 
@@ -443,23 +420,6 @@ const initialState: IState = {
     onlineVideo: {
       configurations: {},
     },
-    integration: {
-      github: {
-        enabled: false,
-        token: "",
-        user: {
-          name: "",
-          email: "",
-        },
-      },
-      s3: {
-        enabled: false,
-        accessKeyId: "",
-        secretAccessKey: "",
-        endpoint: "",
-        urlStyle: "path",
-      },
-    },
     misc: {
       webClip: {
         translateToChinese: false,
@@ -483,20 +443,8 @@ const initialState: IState = {
       },
     },
     publish: {
-      active: EPublishProvider.Github,
-      github: {
-        repo: "",
-        branch: "gh-pages",
-        basePath: "/",
-        useGitCli: true,
-        gitWorkingDir: "",
-      },
-      s3: {
-        bucket: "",
-        region: "",
-        path: "",
-        basePath: "/",
-      },
+      active: EPublishProvider.Local,
+      plugin: { id: "", configurations: {} },
       local: {
         basePath: "/",
       },

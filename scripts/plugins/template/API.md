@@ -1,5 +1,7 @@
 # 插件 API
 
+博客发布提供方见 [PUBLISH.md](PUBLISH.md)，需要 SDK 0.21.0 和包含该能力的客户端。
+
 本文介绍编写命令、页面、侧边栏、设置、数据存储、网络请求和摘录所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
 想在文档里添加自定义块，见 [EDITOR.md](EDITOR.md)；需要编译 Tailwind、Typst、Markdown 等内容，见 [SERVICES.md](SERVICES.md)。
@@ -16,7 +18,7 @@ AI 功能声明、用户模型分配、流式对话、取消与统一用量审�
 
 图片生成与编辑见 [IMAGES.md](IMAGES.md)，需要 SDK 0.18.0。通过 `context.images` 注册提供方，配置组件以 `target: "images"` 挂载到图片生成设置。
 
-视频提供方（视频网站、自建服务器等）见 [VIDEO.md](VIDEO.md)，需要 SDK 0.21.0。通过 `context.video` 注册，插件返回播放源描述，下载、缓存与播放由客户端完成；配置组件以 `target: "video"` 挂载到账号与连接设置；每个插件在各添加入口中各占一项。
+视频提供方（视频网站、自建服务器等）见 [VIDEO.md](VIDEO.md)，需要 SDK 0.22.0。通过 `context.video` 注册，插件返回播放源描述，下载、缓存与播放由客户端完成；配置组件以 `target: "video"` 挂载到账号与连接设置；每个插件在各添加入口中各占一项。
 
 向应用 AI 提供本地工具或外部 MCP 服务器见 [MCP.md](MCP.md)，需要 SDK 0.11.0 和包含此能力的客户端。
 

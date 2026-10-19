@@ -2,8 +2,13 @@ import type { PluginServices } from "@tau/plugins";
 import { compilerFiles, invokeCompiler } from "@/services/plugin-compiler-client";
 import { invoke } from "@/electron";
 import { withModule } from "@/commands/module-init";
+import { publishGitSnapshot, selectGitCacheDirectory } from "@/commands/publish-git";
 
 export const desktopPluginServices: PluginServices = {
+  git: {
+    publishSnapshot: publishGitSnapshot,
+    selectCacheDirectory: () => selectGitCacheDirectory(),
+  },
   tailwind: {
     compile: (input, options) =>
       invokeCompiler(

@@ -3,6 +3,7 @@ export type * from "./upload";
 export type * from "./tts";
 export type * from "./images";
 export type * from "./video";
+export type * from "./publish";
 export type {
   JsonValue,
   Disposable,

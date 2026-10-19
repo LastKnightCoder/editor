@@ -1,6 +1,6 @@
 # 视频提供方
 
-需要 SDK 0.21.0 和支持视频插件接口的客户端。通过 `context.video.register({ id: context.pluginId, name, create })` 注册，每个插件一个提供方。视频来源可以是视频网站，也可以是自建的视频服务（如 NAS）。
+需要 SDK 0.22.0 和支持该能力的客户端。通过 `context.video.register({ id: context.pluginId, name, create })` 注册，每个插件一个提供方。视频来源可以是视频网站，也可以是自建的视频服务（如 NAS）。
 
 启用后，编辑器、白板、项目视频笔记和学习资料的「添加视频」中会出现以 `name` 命名的入口。用户从该入口粘贴视频链接，客户端先用 `matches` 确认链接属于本插件，再调用 `resolve`。
 
