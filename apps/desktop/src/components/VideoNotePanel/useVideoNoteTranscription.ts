@@ -21,13 +21,18 @@ import {
 } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { useTranscriptionOptimization } from "@/hooks/useTranscriptionOptimization";
-import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
+import { ensureOnlineVideo } from "@/commands/online-video-cache";
 import {
   downloadRemoteVideoWithProgress,
   getRemoteVideoCacheStatus,
 } from "@/commands/remote-video-cache";
-import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
-import type { VideoNote, TranscriptSegment } from "@/types";
+import {
+  isLocalVideoMeta,
+  isRemoteVideoMeta,
+  type VideoNote,
+  type TranscriptSegment,
+} from "@/types";
+import { onlineVideoRef } from "@/types/online-video";
 import { resolveVideoNoteOptimizationLanguage } from "./transcription-language";
 
 export interface TranscriptPatch {
@@ -99,28 +104,21 @@ export function useVideoNoteTranscription({
       return result.localPath || null;
     };
 
-    switch (metaInfo.type) {
-      case "local":
-        return isRemoteHttpUrl(metaInfo.filePath)
-          ? getRemoteVideoLocalPath(metaInfo.filePath)
-          : metaInfo.filePath;
-      case "remote":
-        return getRemoteVideoLocalPath(metaInfo.url);
-      case "bilibili": {
-        const status = await getBilibiliCacheStatus(
-          metaInfo.bvid,
-          metaInfo.cid,
-          metaInfo.quality || 80
-        );
-        return status?.localPath || null;
+    if (isLocalVideoMeta(metaInfo))
+      return isRemoteHttpUrl(metaInfo.filePath)
+        ? getRemoteVideoLocalPath(metaInfo.filePath)
+        : metaInfo.filePath;
+    if (isRemoteVideoMeta(metaInfo)) return getRemoteVideoLocalPath(metaInfo.url);
+    const result = await ensureOnlineVideo(
+      { providerId: metaInfo.type, ref: onlineVideoRef(metaInfo), title: metaInfo.title },
+      {
+        onProgress: p => {
+          const percent = typeof p.percent === "number" ? ` ${Math.round(p.percent)}%` : "";
+          setProgress(p.message || `视频尚未缓存，正在下载${percent}...`);
+        },
       }
-      case "youtube": {
-        const status = await getYoutubeCacheStatus(metaInfo.url);
-        return status?.localPath || null;
-      }
-      default:
-        return null;
-    }
+    );
+    return result.localPath;
   });
 
   const saveTranscript = async (patch: TranscriptPatch) => {

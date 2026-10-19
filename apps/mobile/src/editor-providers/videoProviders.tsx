@@ -1,7 +1,7 @@
 import { type VideoContentProvider } from "@tau/editor/extensions/media/services";
 
 /**
- * Mobile 的视频内容源：平台解析类视频降级为提示信息。
+ * Mobile 的视频内容源：视频插件提供的视频依赖桌面端插件，降级为提示信息。
  */
 function createDegradedContent(message: string): VideoContentProvider["Content"] {
   const DegradedContent = () => (
@@ -14,15 +14,8 @@ function createDegradedContent(message: string): VideoContentProvider["Content"]
 
 export const mobileVideoContentProviders: VideoContentProvider[] = [
   {
-    id: "bilibili",
-    match: element => element.metaInfo?.type === "bilibili",
-    isSourceUrl: url => /(?:bilibili\.com|b23\.tv)/i.test(url),
-    Content: createDegradedContent("Bilibili 视频请在桌面端查看"),
-  },
-  {
-    id: "youtube",
-    match: element => element.metaInfo?.type === "youtube",
-    isSourceUrl: url => /(?:youtube\.com\/watch\?v=|youtu\.be\/)/i.test(url),
-    Content: createDegradedContent("YouTube 视频请在桌面端查看"),
+    id: "online",
+    match: element => typeof element.metaInfo?.type === "string",
+    Content: createDegradedContent("该视频请在桌面端查看"),
   },
 ];

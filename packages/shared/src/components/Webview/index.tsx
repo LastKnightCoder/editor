@@ -31,7 +31,7 @@ export interface WebviewProps {
   onError?: (error: Error) => void;
   onTitleChange?: (title: string) => void;
   onURLChange?: (url: string) => void;
-  sourceType?: "local" | "remote" | "url" | "youtube" | "bilibili";
+  sourceType?: "local" | "remote" | "url";
 
   convertFileSrc?: (path: string) => Promise<string>;
   getHomeDir?: () => Promise<string>;

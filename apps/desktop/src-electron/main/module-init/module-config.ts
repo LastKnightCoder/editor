@@ -22,8 +22,7 @@ import mcpModule from "../modules/mcp";
 import typstModule from "../modules/typst";
 import tailwindRuntimeModule from "../modules/tailwind-runtime";
 import skillModule from "../modules/skill";
-import bilibiliCacheModule from "../modules/bilibili-cache";
-import youtubeCacheModule from "../modules/youtube-cache";
+import onlineVideoCacheModule from "../modules/online-video-cache";
 import remoteVideoCacheModule from "../modules/remote-video-cache";
 import remoteAudioCacheModule from "../modules/remote-audio-cache";
 import remoteImageCacheModule from "../modules/remote-image-cache";
@@ -162,16 +161,10 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
 
   // 缓存模块
   {
-    name: "bilibili-cache",
+    name: "online-video-cache",
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
-    init: () => bilibiliCacheModule.init(),
-  },
-  {
-    name: "youtube-cache",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "resource"],
-    init: () => youtubeCacheModule.init(),
+    init: () => onlineVideoCacheModule.init(),
   },
   {
     name: "remote-video-cache",

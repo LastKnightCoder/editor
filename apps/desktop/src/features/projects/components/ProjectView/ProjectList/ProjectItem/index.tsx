@@ -42,7 +42,8 @@ import {
   createChildPdfStrategy,
   createProjectItemFromPdf,
 } from "../../shared/hooks/usePdfHandlers";
-import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
+import { VIDEO_PLUGIN_MENU_PREFIX, buildAddMenuItems } from "../../shared/constants/menuItems";
+import { useVideoProviders } from "@/hooks/useVideoProviders";
 import { renderMenuEntries } from "../../shared/menuEntries";
 import { ModalKey } from "../../shared/constants/modalKeys";
 
@@ -76,8 +77,7 @@ import whiteBoardIcon from "@/assets/icons/white-board.svg";
 import { EditText, EditTextHandle } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
 import { usePage } from "@/page/PageProvider";
-import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
-import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
+import OnlineVideoSelectModal from "@/components/OnlineVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
 import RemotePdfSelectModal from "@/components/RemotePdfSelectModal";
 import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebViewSelectModal";
@@ -244,11 +244,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     [projectItem, projectId, projectItemEventBus]
   );
 
-  const { handleYoutubeConfirm, handleBilibiliConfirm, handleRemoteVideoConfirm } =
-    useVideoHandlers({
-      closeModal,
-      strategy: videoStrategy,
-    });
+  const { providers: videoProviders } = useVideoProviders();
+  const addMenuItems = useMemo(() => buildAddMenuItems(videoProviders), [videoProviders]);
+  const [videoSourceId, setVideoSourceId] = useState<string | null>(null);
+  const { handleOnlineVideoConfirm, handleRemoteVideoConfirm } = useVideoHandlers({
+    closeModal,
+    strategy: videoStrategy,
+  });
 
   const { handleRemotePdfConfirm, handleSelectPdfConfirm } = usePdfHandlers({
     closeModal,
@@ -615,10 +617,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     } else if (key === "add-remote-video-note-project-item") {
       openModal(ModalKey.WebVideo);
-    } else if (key === "add-bilibili-video-note-project-item") {
-      openModal(ModalKey.Bilibili);
-    } else if (key === "add-youtube-video-note-project-item") {
-      openModal(ModalKey.Youtube);
+    } else if (key.startsWith(VIDEO_PLUGIN_MENU_PREFIX)) {
+      setVideoSourceId(key.slice(VIDEO_PLUGIN_MENU_PREFIX.length));
+      openModal(ModalKey.OnlineVideo);
     } else if (key === "add-webview-project-item") {
       openModal(ModalKey.Webview);
     } else if (key === "add-table-project-item") {
@@ -925,7 +926,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 </div>
               }
             >
-              {renderMenuEntries(ADD_MENU_ITEMS, key => void handleAddMenuClick(key))}
+              {renderMenuEntries(addMenuItems, key => void handleAddMenuClick(key))}
             </Menu>
           </div>
         </div>
@@ -1014,17 +1015,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         onConfirm={handleWebviewConfirm}
       />
 
-      <BilibiliVideoSelectModal
-        open={modalStates.bilibili}
-        onCancel={() => closeModal(ModalKey.Bilibili)}
-        onConfirm={handleBilibiliConfirm}
-      />
-
-      <YoutubeVideoSelectModal
-        open={modalStates.youtube}
-        onCancel={() => closeModal(ModalKey.Youtube)}
-        onConfirm={handleYoutubeConfirm}
-      />
+      {videoSourceId && (
+        <OnlineVideoSelectModal
+          providerId={videoSourceId}
+          open={modalStates.onlineVideo}
+          onCancel={() => closeModal(ModalKey.OnlineVideo)}
+          onConfirm={handleOnlineVideoConfirm}
+        />
+      )}
 
       {moreActionModals}
     </>

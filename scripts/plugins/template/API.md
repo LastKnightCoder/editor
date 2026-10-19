@@ -18,6 +18,8 @@ AI 功能声明、用户模型分配、流式对话、取消与统一用量审�
 
 图片生成与编辑见 [IMAGES.md](IMAGES.md)，需要 SDK 0.18.0。通过 `context.images` 注册提供方，配置组件以 `target: "images"` 挂载到图片生成设置。
 
+视频提供方（视频网站、自建服务器等）见 [VIDEO.md](VIDEO.md)，需要 SDK 0.22.0。通过 `context.video` 注册，插件返回播放源描述，下载、缓存与播放由客户端完成；配置组件以 `target: "video"` 挂载到账号与连接设置；每个插件在各添加入口中各占一项。
+
 向应用 AI 提供本地工具或外部 MCP 服务器见 [MCP.md](MCP.md)，需要 SDK 0.11.0 和包含此能力的客户端。
 
 聊天工具自定义渲染使用 `await context.chat.registerToolRenderer`，数据与生命周期见 [MCP.md](MCP.md#聊天工具自定义渲染)。类型契约自 SDK 0.15.0 提供，需要包含实现的客户端构建。
@@ -303,7 +305,7 @@ export function WaterDropIcon({ size = 24, strokeWidth = 2, ...props }: PluginSi
 
 返回的句柄提供 `id`、`open(): Promise<void>` 和 `dispose()`。设置值不会自动保存，组件必须通过 storage 读写。
 
-提供方配置分区声明 `target: "sync" | "upload" | "tts" | "images"`，分别接收宿主注入的 `syncConfig/uploadConfig/ttsConfig/imageConfig`，使用其中的 `save` 保存当前提供方或账号，不使用上述普通设置的 storage 流程。配置界面在对应业务设置内挂载，`open()` 跳转到该入口。
+提供方配置分区声明 `target: "sync" | "upload" | "tts" | "images" | "video"`，分别接收宿主注入的 `syncConfig/uploadConfig/ttsConfig/imageConfig/videoConfig`，使用其中的 `save` 保存当前提供方或账号，不使用上述普通设置的 storage 流程。配置界面在对应业务设置内挂载，`open()` 跳转到该入口。
 
 模板中的 `Settings` 组件可以直接复用；以下片段放在同一入口的 `activate` 内：
 

@@ -13,7 +13,12 @@ import { ErrorBoundary } from "@tau/ui";
 import LocalImage from "@/components/LocalImage";
 import { FadeScroll } from "@tau/ui";
 import { getContentById } from "@/commands";
-import type { NoteSourceMeta, VLResource } from "@/types/vibe-learning";
+import {
+  isOnlineVideoSourceType,
+  type NoteSourceMeta,
+  type VLResource,
+} from "@/types/vibe-learning";
+import { useVideoProviders } from "@/hooks/useVideoProviders";
 
 import VideoPreview from "../ResourcePreview/VideoPreview";
 import AudioPreview from "../ResourcePreview/AudioPreview";
@@ -41,16 +46,21 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const SOURCE_LABEL: Record<string, string> = {
-  bilibili: "B 站",
-  youtube: "YouTube",
   remote: "网页链接",
   note: "来自笔记",
   material: "来自摘录",
 };
 
-function metaOf(resource: VLResource) {
+/** 在线视频的来源名取自提供方插件，providers 为当前已启用的提供方。 */
+function metaOf(resource: VLResource, providers: readonly { id: string; name: string }[]) {
+  const source = resource.sourceType;
   const parts = [
-    (resource.sourceType && SOURCE_LABEL[resource.sourceType]) || TYPE_LABEL[resource.resourceType],
+    (source &&
+      (SOURCE_LABEL[source] ??
+        (isOnlineVideoSourceType(source)
+          ? (providers.find(provider => provider.id === source)?.name ?? source)
+          : undefined))) ||
+      TYPE_LABEL[resource.resourceType],
   ];
   if (isDocument(resource)) parts.push("转换后的文本");
   return parts.filter(Boolean).join(" · ");
@@ -170,6 +180,7 @@ export function ResourceStage(props: ResourceStageProps) {
   const { resource, projectId, mainDbName } = props;
   const Icon = resourceIcon(resource);
   const noteMeta = parseNoteMeta(resource);
+  const { providers } = useVideoProviders();
 
   const body = (() => {
     if (resource.sourceType === "note")
@@ -219,7 +230,7 @@ export function ResourceStage(props: ResourceStageProps) {
       <StageHeader
         icon={<Icon className="size-4" strokeWidth={1.75} />}
         title={resource.name}
-        meta={metaOf(resource)}
+        meta={metaOf(resource, providers)}
         chatOpen={props.chatOpen}
         onToggleChat={props.onToggleChat}
         onClose={props.onClose}

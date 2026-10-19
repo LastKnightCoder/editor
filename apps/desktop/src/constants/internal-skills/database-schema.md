@@ -1088,7 +1088,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `vibe_learning_resources`
 
-`source_type`：`local` / `bilibili` / `youtube` / `remote` / `note`（已有笔记，`source_meta_info.contentId`）/ `material`（外部材料快照，`source_meta_info.refs` 为摘录 / PDF 标注 / 剪藏）。
+`source_type`：`local` / `remote` / `note`（已有笔记，`source_meta_info.contentId`）/ `material`（外部材料快照，`source_meta_info.refs` 为摘录 / PDF 标注 / 剪藏）；其他值为在线视频提供方插件 ID（如 `bilibili`、`youtube`），`source_meta_info` 是该插件的视频引用加 `title` / `thumbnail`。
 
 | 字段                  | SQLite 定义                  |
 | --------------------- | ---------------------------- |

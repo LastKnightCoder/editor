@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.22.0
+
+- 新增 `context.video.register`，接入视频来源（视频网站、自建服务器等）：插件识别链接、解析标题与清晰度，返回播放源描述（单文件、音视频分离或交给宿主解析器），下载、缓存与播放由宿主完成。
+- 视频账号与代理配置通过 `settings.register({ target: "video" })` 注册，接收每个插件一份的 `videoConfig`。
+- 新增 `services.videoExtractor.probe`，查询视频页面的标题与可下载格式；新增插件分类 `video`（在线视频）。
+
 ## 0.21.0
 
 - 新增 context.publish 发布提供方、publishConfig 配置表单和文件式／快照式提交协议，本地导出仍由宿主提供。

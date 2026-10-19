@@ -1,8 +1,7 @@
 /**
  * 剪藏与缓存 —— 第三版定稿（mockups/settings/index.html「剪藏与缓存」页）。
  *
- * 功能对齐 legacy MiscSetting 全量：7 个缓存桶（远程 / YouTube / Bilibili 视频，
- * 远程 / YouTube / Bilibili 音频，远程图片）的列表、单条清除、多选批量删除、清除全部、
+ * 缓存桶（远程视频、在线视频、远程音频、远程图片）的列表、单条清除、多选批量删除、清除全部、
  * 视频 / 音频 / 图片预览；自动缓存三开关与网页剪藏翻译开关。
  * 版式：legacy 的 7 个折叠卡收敛为一个面板——媒体类型（形态切换）+ 来源筛选，
  * 列表只呈现当前筛选；「清除全部」作用于当前筛选涉及的桶（确认弹窗念出范围）。
@@ -42,21 +41,21 @@ import {
   deleteRemoteAudioCacheEntry,
   listRemoteAudioCache,
 } from "@/commands/remote-audio-cache";
-import { clearYoutubeCache, deleteYoutubeCache, listYoutubeCache } from "@/commands/youtube-cache";
 import {
-  clearBilibiliCache,
-  deleteBilibiliCache,
-  listBilibiliCache,
-} from "@/commands/bilibili-cache";
+  clearOnlineVideoCache,
+  deleteOnlineVideoCache,
+  listOnlineVideoCache,
+} from "@/commands/online-video-cache";
+import { getVideoProviders } from "@/commands/plugin-video";
 import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 type Media = "video" | "audio" | "image";
-type Source = "remote" | "youtube" | "bilibili";
+type Source = "remote" | "online";
 type SourceFilter = "all" | Source;
 
-type BucketKey = "remoteVideo" | "youtubeVideo" | "bilibiliVideo" | "remoteAudio" | "remoteImage";
+type BucketKey = "remoteVideo" | "onlineVideo" | "remoteAudio" | "remoteImage";
 
 /** 桶内条目（与桶无关的统一形状；remove 闭包持有各命令所需的删除键） */
 interface RawItem {
@@ -103,36 +102,23 @@ const BUCKETS: Bucket[] = [
     clear: clearRemoteVideoCache,
   },
   {
-    key: "youtubeVideo",
+    key: "onlineVideo",
     media: "video",
-    source: "youtube",
-    label: "YouTube 视频",
-    list: async () =>
-      (await listYoutubeCache()).map(item => ({
-        id: item.url,
-        name: item.title || item.url,
-        subtitle: item.url,
+    source: "online",
+    label: "在线视频",
+    list: async () => {
+      const { providers } = getVideoProviders();
+      return (await listOnlineVideoCache()).map(item => ({
+        id: item.id,
+        name: item.title || "未命名视频",
+        subtitle:
+          providers.find(provider => provider.id === item.providerId)?.name ?? item.providerId,
         fileSize: item.fileSize,
         localPath: item.localPath,
-        remove: () => deleteYoutubeCache({ url: item.url, localPath: item.localPath }),
-      })),
-    clear: clearYoutubeCache,
-  },
-  {
-    key: "bilibiliVideo",
-    media: "video",
-    source: "bilibili",
-    label: "Bilibili 视频",
-    list: async () =>
-      (await listBilibiliCache()).map(item => ({
-        id: `${item.bvid}-${item.cid}-${item.quality}`,
-        name: item.title || `Bilibili ${item.bvid}`,
-        subtitle: `BVID ${item.bvid} · CID ${item.cid} · 清晰度 ${item.quality}`,
-        fileSize: item.fileSize,
-        localPath: item.localPath,
-        remove: () => deleteBilibiliCache(item.bvid, item.cid, item.quality),
-      })),
-    clear: clearBilibiliCache,
+        remove: () => deleteOnlineVideoCache(item.id),
+      }));
+    },
+    clear: clearOnlineVideoCache,
   },
   {
     key: "remoteAudio",
@@ -175,8 +161,7 @@ const MEDIA_ICONS = { video: Film, audio: Music, image: ImageIcon } as const;
 const SOURCE_LABELS: Record<SourceFilter, string> = {
   all: "全部",
   remote: "远程",
-  youtube: "YouTube",
-  bilibili: "Bilibili",
+  online: "在线视频",
 };
 
 const formatBytes = (bytes: number) => {
@@ -502,7 +487,7 @@ export function CacheSection() {
       <SettingsGroup title="自动缓存" description="离线也能打开，会占用本地空间">
         <SettingRow
           title="远程视频"
-          description="普通网络视频链接播放时自动缓存到本地；YouTube 与 Bilibili 视频由各自下载器缓存，不受此开关影响"
+          description="普通网络视频链接播放时自动缓存到本地；Bilibili、YouTube 等在线视频始终先缓存再播放，不受此开关影响"
         >
           <Switch
             aria-label="自动缓存远程视频"

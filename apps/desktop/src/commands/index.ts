@@ -28,8 +28,6 @@ export * from "./question";
 export * from "./entity";
 export * from "./question-group";
 export * from "./content";
-export * from "./bilibili-cache";
-export * from "./youtube-cache";
 export * from "./resource-sync";
 export * from "./data-table";
 export * from "./todo";

@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import { useAsyncEffect } from "ahooks";
 import LocalVideo from "@/components/LocalVideo";
-import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
-import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
+import { getOnlineVideoCacheStatus } from "@/commands/online-video-cache";
 import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
 import { useTranscriptSync } from "@/components/MediaTranscript/useTranscriptSync";
-import type { VLResource, BilibiliSourceMeta, YoutubeSourceMeta } from "@/types/vibe-learning";
+import { isOnlineVideoSourceType, type VLResource } from "@/types/vibe-learning";
+import { onlineVideoRef } from "@/types/online-video";
 
 interface VideoPreviewProps {
   resource: VLResource;
@@ -17,19 +17,14 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ resource }) => {
   const segments = resource.transcriptSegments;
 
   useAsyncEffect(async () => {
-    if (resource.sourceType === "bilibili" && resource.sourceMetaInfo) {
-      const meta = JSON.parse(resource.sourceMetaInfo) as BilibiliSourceMeta;
-      const result = await getBilibiliCacheStatus(meta.bvid, meta.cid, meta.quality);
+    const { sourceType, sourceMetaInfo } = resource;
+    if (sourceType && isOnlineVideoSourceType(sourceType) && sourceMetaInfo) {
+      // 未缓存时由后台索引任务下载，这里只取已缓存的本地文件
+      const result = await getOnlineVideoCacheStatus({
+        providerId: sourceType,
+        ref: onlineVideoRef(JSON.parse(sourceMetaInfo) as Record<string, unknown>),
+      }).catch(() => null);
       setVideoSrc(result?.localPath ?? resource.originalPath);
-    } else if (resource.sourceType === "youtube" && resource.sourceMetaInfo) {
-      const meta = JSON.parse(resource.sourceMetaInfo) as YoutubeSourceMeta;
-      const sourceUrl = (meta.url || resource.originalPath || "").trim();
-      if (sourceUrl) {
-        const result = await getYoutubeCacheStatus(sourceUrl);
-        setVideoSrc(result?.localPath ?? sourceUrl);
-      } else {
-        setVideoSrc(resource.originalPath);
-      }
     } else {
       setVideoSrc(resource.originalPath);
     }

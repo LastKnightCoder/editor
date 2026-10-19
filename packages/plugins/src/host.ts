@@ -28,6 +28,7 @@ import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
 import type { TTSProviderDefinition } from "./tts";
 import type { ImageProviderDefinition } from "./images";
+import type { VideoProviderDefinition } from "./video";
 import type { PublishProviderDefinition } from "./publish";
 export { copyJson } from "./values";
 import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
@@ -137,6 +138,7 @@ export type PluginContributionKind =
   | "upload"
   | "tts"
   | "images"
+  | "video"
   | "publish"
   | "mcp"
   | "chat"
@@ -225,6 +227,9 @@ export class PluginHost {
       tts?: { register(context: PluginContext, definition: TTSProviderDefinition): Disposable };
       images?: {
         register(context: PluginContext, definition: ImageProviderDefinition): Disposable;
+      };
+      video?: {
+        register(context: PluginContext, definition: VideoProviderDefinition): Disposable;
       };
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
@@ -579,6 +584,35 @@ export class PluginHost {
                 this.assertActive(entry, activation);
                 if (entry.state !== "active") throw new Error("图片插件尚未激活");
                 return create(copyJson(config), modelId);
+              },
+            })
+          );
+        },
+      }),
+      video: Object.freeze({
+        register: (definition: VideoProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
+            throw new Error("视频提供方必须属于当前插件");
+          if (!this.options.video) throw new Error("当前宿主不支持视频提供方");
+          const create = definition.create.bind(definition);
+          return registerAs(
+            "video",
+            this.options.video.register(context, {
+              id: scope.pluginId,
+              name: definition.name,
+              create: config => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("视频插件尚未激活");
+                const instance = create(copyJson(config));
+                for (const method of ["matches", "resolve", "cacheKey", "getPlayback"] as const)
+                  if (typeof instance?.[method] !== "function")
+                    throw new Error(`视频提供方缺少 ${method} 方法`);
+                return instance;
               },
             })
           );

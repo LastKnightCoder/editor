@@ -28,6 +28,7 @@ import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { openLLMSettingsSection } from "@/utils/transcription";
 import { getProjectItemById, getVideoNoteById } from "@/commands";
 import type { VideoNote } from "@/types";
+import { useVideoProviderName } from "@/hooks/useVideoProviders";
 import VideoNoteChatPanel from "@/components/VideoNotePanel/VideoNoteChatPanel";
 import VideoNoteEpubExportModal from "@/components/VideoNotePanel/VideoNoteEpubExportModal";
 import { VideoController } from "@/components/VideoNotePanel/VideoController";
@@ -44,11 +45,9 @@ import { buildWebVtt } from "./subtitle";
 import { MaterialColumn } from "./MaterialColumn";
 import { NotesStage } from "./NotesStage";
 
-const SOURCE_LABELS: Record<VideoNote["metaInfo"]["type"], string> = {
+const SOURCE_LABELS: Record<string, string> = {
   local: "本地视频",
   remote: "远程视频",
-  bilibili: "哔哩哔哩",
-  youtube: "YouTube",
 };
 
 /** 笔记打开时，条目宽度低于此值自动收起材料栏（三栏放不下） */
@@ -72,6 +71,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState(VIDEO_NOTE_AUTO_LANGUAGE);
   const [ebookOpen, setEbookOpen] = useState(false);
+  const providerName = useVideoProviderName(videoNote?.metaInfo.type);
 
   const [materialWidth, setMaterialWidth] = useLocalStorageState("video-note-material-width", {
     defaultValue: 380,
@@ -237,7 +237,7 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
     cn(on && "bg-selected text-accent-text enabled:hover:bg-selected");
 
   const meta = [
-    SOURCE_LABELS[videoNote.metaInfo.type],
+    SOURCE_LABELS[videoNote.metaInfo.type] ?? providerName,
     transcription.isTranscribing ? "转录中…" : hasSegments ? "已转录" : "未转录",
   ].join(" · ");
 

@@ -14,7 +14,6 @@ export * from "./search";
 export * from "./download";
 export * from "./rag-helper";
 export * from "./reference-parser";
-export * from "./bilibili-cache";
 export * from "./rpc";
 export * from "./project";
 export * from "./video";

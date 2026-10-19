@@ -43,6 +43,13 @@ export interface MediaInsertSource {
 }
 
 /**
+ * 插入来源列表：静态数组，或每次组装菜单时调用的函数（来源随宿主状态增减时使用，
+ * 如每个启用的视频插件各一个入口）。
+ */
+export type MediaInsertSourceList =
+  readonly MediaInsertSource[] | (() => readonly MediaInsertSource[]);
+
+/**
  * 媒体选择器：已有媒体内容的编辑 UI 需要补充素材时（如画廊添加图片），
  * 由宿主注册的选择入口。媒体扩展只渲染入口并调用 select，选择过程
  * （弹什么窗、从哪选）完全由宿主决定，取消时不回调。
@@ -72,8 +79,8 @@ export interface SelectedMedia {
  */
 export interface VideoContentProvider {
   id: string;
-  /** 来源名（如「Bilibili」），与节点标题一起显示在播放器底栏信息位 */
-  label?: string;
+  /** 来源名（如「Bilibili」），与节点标题一起显示在播放器底栏信息位；可按元素给出 */
+  label?: string | ((element: Pick<VideoElement, "src" | "metaInfo">) => string | undefined);
   /** 判定元素是否属于本 Provider（通常依据 metaInfo.type 与 src 形态） */
   match: (element: Pick<VideoElement, "src" | "metaInfo">) => boolean;
   /**

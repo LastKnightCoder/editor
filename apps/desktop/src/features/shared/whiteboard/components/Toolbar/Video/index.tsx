@@ -1,7 +1,9 @@
-import { Video as VideoIcon, Upload, Link, MonitorPlay, Youtube } from "lucide-react";
+import { Video as VideoIcon, Upload, Link, MonitorPlay } from "lucide-react";
 import { ToolMenu, type WhiteboardToolProps } from "@tau/whiteboard";
+import { useVideoProviders } from "@/hooks/useVideoProviders";
 
 export default function VideoTool({ run }: WhiteboardToolProps) {
+  const { providers } = useVideoProviders();
   return (
     <ToolMenu
       label="视频"
@@ -9,8 +11,12 @@ export default function VideoTool({ run }: WhiteboardToolProps) {
       items={[
         { key: "local", label: "本地上传", icon: Upload, onSelect: () => run("local") },
         { key: "url", label: "网络地址", icon: Link, onSelect: () => run("url") },
-        { key: "bilibili", label: "Bilibili", icon: MonitorPlay, onSelect: () => run("bilibili") },
-        { key: "youtube", label: "YouTube", icon: Youtube, onSelect: () => run("youtube") },
+        ...providers.map(provider => ({
+          key: `source:${provider.id}`,
+          label: provider.name,
+          icon: MonitorPlay,
+          onSelect: () => run(`source:${provider.id}`),
+        })),
       ]}
     />
   );

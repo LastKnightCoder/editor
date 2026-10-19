@@ -1,5 +1,5 @@
 /**
- * 在线视频取源浮层：下载进度 / 失败态的统一版式（Bilibili / YouTube / 远程直链共用）。
+ * 在线视频取源浮层：下载进度 / 失败态的统一版式（视频插件 / 远程直链共用）。
  * 默认铺满父容器（通常是 bg-sunken 的视频框）居中、不自带卡片底色；
  * framed 时自带 16:9 纸面卡片（与播放器同形，就绪后原位换成播放器不跳高度）。
  * 就绪后返回 null，由调用方渲染 video 元素。
@@ -13,7 +13,7 @@ export interface VideoSourceLoaderProps {
   loading: boolean;
   error: string | null;
   streamProgress: VideoLoaderStreamProgress | null;
-  /** 来源名，出现在标题里（「Bilibili」「YouTube」），远程直链不传 */
+  /** 来源名，出现在标题里（视频提供方插件名），远程直链不传 */
   sourceLabel?: string;
   /** 失败时的排查建议 */
   tips: string[];

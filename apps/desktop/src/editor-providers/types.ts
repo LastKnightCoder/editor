@@ -1,5 +1,5 @@
 /**
- * 视频流式下载进度（bilibili / youtube / remote 共用的宽松形状，字段按需可选）
+ * 视频下载进度（视频插件 / 远程直链共用的宽松形状，字段按需可选）
  */
 export interface VideoLoaderStreamProgress {
   stage: string;
