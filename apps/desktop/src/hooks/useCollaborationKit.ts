@@ -1,11 +1,11 @@
 import { IResourceService } from "@tau/shared/host-services";
 import { useMemo } from "react";
 import { type EditorKit, type ServiceRegistration } from "@tau/editor";
-import { IEditorSlots } from "@tau/editor-media/services";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import type { EditorCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
-import { ITaskIdSource } from "@tau/editor-list/task-ids";
+import { ITaskIdSource } from "@tau/editor/extensions/list/task-ids";
 
 const derived = new WeakMap<EditorCollaborationBinding, Map<EditorKit, EditorKit>>();
 

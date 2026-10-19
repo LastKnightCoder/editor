@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import { ITypstCompiler } from "@tau/editor-diagram/services";
+import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 import { createServiceRegistry } from "@tau/editor";
 import type WebSocketClient from "../../utils/WebSocketClient";
 import { createExtensionEditorServices } from "../editorRegistry";

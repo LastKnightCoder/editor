@@ -1,8 +1,8 @@
 packages:
   - packages/*
-  - editor-extensions/*
   - examples/*
   - apps/*
+  - "!apps/blog"
 
 overrides:
   react: 19.2.0

@@ -78,7 +78,6 @@ function check() {
   };
   walk(join(ROOT, "apps"));
   walk(join(ROOT, "packages"));
-  walk(join(ROOT, "editor-extensions"));
   walk(join(ROOT, "examples"));
   for (const name of forbiddenDependencies(
     JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"))

@@ -5,9 +5,9 @@ import { Editor as SlateEditor, Node, Transforms, type Descendant } from "slate"
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import { listExtensions } from "@tau/editor-list";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { IEditorSlots } from "@tau/editor-media/services";
+import { listExtensions } from "@tau/editor/extensions/list";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import docTasksExtension, { absolutizeDateBeforeCursor } from "..";
 import { IDocTaskGroups, type DocTaskGroupsService } from "../service";
 import { useTagPickerStore } from "../store";

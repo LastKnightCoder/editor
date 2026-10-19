@@ -1,7 +1,7 @@
 import { createContext, useContext, type ComponentType, type ComponentPropsWithRef } from "react";
 import { Editor, createEditorKit, type EditorKit } from "@tau/editor";
-import { textFormattingExtension } from "@tau/editor-text-formatting";
-import link from "@tau/editor-link";
+import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
+import link from "@tau/editor/extensions/link";
 import { createServiceId } from "@tau/shared/service-contract";
 import type { Descendant } from "slate";
 

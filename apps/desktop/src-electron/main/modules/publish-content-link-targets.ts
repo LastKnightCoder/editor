@@ -1,58 +1,26 @@
-import type { IPublishInitData } from "@/types/publish";
+import type { ContentRef } from "@tau/plugins/publish-data";
 
-type ContentLinkTargets = NonNullable<IPublishInitData["contentLinkTargets"]>;
-
-type DocEntryTarget = {
-  id: number;
-  kind: "project";
-  href: string;
-  title: string;
-};
-
-function mergeTargets(base?: IPublishInitData["contentLinkTargets"]): ContentLinkTargets {
-  return base ? { ...base } : {};
+export function contentRef(type: ContentRef["type"], id?: number, projectId?: number): ContentRef {
+  const key =
+    type === "home" ? "home" : type === "doc" ? `doc:project:${projectId}:${id}` : `${type}:${id}`;
+  return { key, type, ...(id === undefined ? {} : { id }) };
 }
 
 export function buildSelectionContentLinkTargets(input: {
   cardIds: number[];
   articleIds: number[];
-}): IPublishInitData["contentLinkTargets"] {
-  const targets: ContentLinkTargets = {};
-
-  for (const cardId of input.cardIds) {
-    targets[`card:${cardId}`] = {
-      contentType: "card",
-      refId: cardId,
-      href: `/cards/${cardId}.html`,
-    };
-  }
-
-  for (const articleId of input.articleIds) {
-    targets[`article:${articleId}`] = {
-      contentType: "article",
-      refId: articleId,
-      href: `/articles/${articleId}.html`,
-    };
-  }
-
-  return Object.keys(targets).length > 0 ? targets : undefined;
+}) {
+  const targets: Record<string, ContentRef> = Object.create(null);
+  for (const id of input.cardIds) targets[`card:${id}`] = contentRef("card", id);
+  for (const id of input.articleIds) targets[`article:${id}`] = contentRef("article", id);
+  return targets;
 }
 
 export function mergeDocEntryContentLinkTargets(
-  baseTargets: IPublishInitData["contentLinkTargets"],
-  docEntries: DocEntryTarget[]
-): IPublishInitData["contentLinkTargets"] {
-  const targets = mergeTargets(baseTargets);
-
-  for (const entry of docEntries) {
-    const contentType = "project-item";
-    targets[`${contentType}:${entry.id}`] = {
-      contentType,
-      refId: entry.id,
-      href: entry.href,
-      title: entry.title,
-    };
-  }
-
-  return Object.keys(targets).length > 0 ? targets : undefined;
+  base: Record<string, ContentRef> | undefined,
+  entries: { id: number; target: ContentRef }[]
+) {
+  const targets = { ...base };
+  for (const entry of entries) targets[`project-item:${entry.id}`] ??= entry.target;
+  return targets;
 }

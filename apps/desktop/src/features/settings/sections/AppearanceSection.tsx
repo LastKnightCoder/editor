@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
 import { useThemeStore } from "@tau/themes/react";
 import type { CSSProperties, ReactNode } from "react";
 import {

@@ -36,16 +36,14 @@ const filesOf = roots =>
   });
 const read = file => readFileSync(file, "utf8");
 
-const EDITOR = ["packages/editor/src", "editor-extensions"];
+const EDITOR = ["packages/editor/src"];
 const ALL_APPS_AND_PACKAGES = [
   "examples",
   "apps/desktop/src",
   "apps/desktop/e2e",
-  "apps/blog/src",
   "apps/mobile/src",
   "apps/browser-extension/src",
   "packages/editor/src",
-  "editor-extensions",
   "packages/ui/src",
 ];
 
@@ -104,7 +102,7 @@ const METRICS = [
   {
     key: "editor.lessImports",
     desc: "editor / editor-webview / desktop editor-extensions 内 import less 的文件（P8 清零，样式走 Tailwind）",
-    roots: ["packages/editor/src", "editor-extensions", "apps/desktop/src/editor-extensions"],
+    roots: ["packages/editor/src", "apps/desktop/src/editor-extensions"],
     pattern: /import\s+(?:\w+\s+from\s+)?["'][^"']+\.less["']|@import\s+["'][^"']+\.less["']/g,
     mode: "files",
     includeTests: true,

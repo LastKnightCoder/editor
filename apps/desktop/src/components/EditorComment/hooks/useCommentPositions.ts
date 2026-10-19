@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Editor, Element as SlateElement, NodeEntry, Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { CustomEditor } from "@tau/editor";
-import { type CommentElement } from "@tau/editor-comment/types";
+import { type CommentElement } from "@tau/editor/extensions/comment/types";
 import type { CommentPosition } from "../types";
 import { resolveCollisions } from "../utils/collisionDetection";
 

@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {
+    "./performance": "./src/utils/performance.ts",
     "./media-types": "./media-types.ts",
     "./color-utils": "./color-utils.ts",
     "./rich-text-text": "./rich-text-text.ts",

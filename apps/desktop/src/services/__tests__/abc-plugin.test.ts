@@ -6,7 +6,7 @@ import { evaluatePluginPackage } from "@tau/plugins/rendering";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { ContentPluginRegistry, createPluginMarkdownProcessor } from "@tau/plugins/content";
 import { assertPluginCompatibility } from "@tau/plugins/host";
-import { diagramMarkdownCodecs } from "@tau/editor-diagram/markdown";
+import { diagramMarkdownCodecs } from "@tau/editor/extensions/diagram/markdown";
 import { pluginArtifact } from "../../test-fixtures/plugin-packages";
 
 const artifact = pluginArtifact("tau.abc");

@@ -6,7 +6,7 @@ import { Button, Dialog, DialogBody, ImagePreview, Spinner, Textarea, cn, toast 
 
 import { showMediaNode } from "./mediaModalHost";
 import type { CustomElement } from "@tau/editor";
-import { type MediaAction, type MediaInsertSource } from "@tau/editor-media/services";
+import { type MediaAction, type MediaInsertSource } from "@tau/editor/extensions/media/services";
 import LocalImage from "@/components/LocalImage";
 import { generateImageResources } from "@/services/image-generation";
 import { useImageCapabilities } from "@/services/image-capabilities";

@@ -9,7 +9,7 @@ const nodeSqlite = createRequire(
   path.resolve(__dirname, "../collaboration-server/package.json")
 ).resolve("better-sqlite3");
 const emojiPicker = createRequire(
-  path.resolve(__dirname, "../../editor-extensions/list/package.json")
+  path.resolve(__dirname, "../../packages/editor/package.json")
 ).resolve("@emoji-mart/react");
 
 export default defineConfig({
@@ -45,7 +45,6 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
       "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
-      "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
       "@tau/editor-collab": path.resolve(__dirname, "../../packages/editor-collab"),
       "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
       "better-sqlite3": nodeSqlite,

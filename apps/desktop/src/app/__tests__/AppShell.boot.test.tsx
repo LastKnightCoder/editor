@@ -19,7 +19,8 @@ vi.mock("@/page/PageProvider", () => ({
 }));
 vi.mock("@/page/PageHost", () => ({ PageHost: () => null }));
 vi.mock("../PageNavigationBridge", () => ({ PageNavigationBridge: () => null }));
-vi.mock("@tau/ui", () => ({
+vi.mock("@tau/ui", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/ui")>()),
   Loading: ({ label }: { label: string }) => <div>{label}</div>,
   NotificationHost: () => null,
   ToastHost: () => null,

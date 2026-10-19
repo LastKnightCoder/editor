@@ -31,7 +31,7 @@ import {
 } from "../content-sessions";
 import type { RuntimeSession } from "../types";
 import ContentTable from "../../tables/content";
-import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
+import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 
 const cleanup: (() => void)[] = [];

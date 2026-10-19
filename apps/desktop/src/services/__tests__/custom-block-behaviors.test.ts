@@ -9,10 +9,10 @@ import {
   applyGuardedPlugins,
   createCircuitBreaker,
   withElementBehaviors,
-} from "../../../../../packages/editor/src/kit/extensionGuard";
+} from "../../../../../packages/editor/src/core/kit/extensionGuard";
 import { consoleErrorReporter } from "@tau/editor";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { IEditorSlots } from "@tau/editor-media/services";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
 
 const text = (value: string) => ({ type: "formatted", text: value });
 const paragraph = (value: string) => ({ type: "paragraph", children: [text(value)] });

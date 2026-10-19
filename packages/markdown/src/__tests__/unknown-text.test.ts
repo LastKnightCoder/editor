@@ -3,7 +3,7 @@ import type { Descendant } from "slate";
 import { createMarkdownProcessor, type MarkdownTextCodec } from "../index.ts";
 import { paragraphCodec, fixtureProcessor } from "./fixtures.ts";
 import type { FormattedText } from "../model.ts";
-import { linkCodec } from "@tau/editor-link/markdown";
+import { linkCodec } from "@tau/editor/extensions/link/markdown";
 
 const md = createMarkdownProcessor({ codecs: [paragraphCodec] });
 const documentOf = (text: string, extra: Record<string, unknown> = {}): Descendant[] =>

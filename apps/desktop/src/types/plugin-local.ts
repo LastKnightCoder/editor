@@ -6,6 +6,7 @@ export type LocalPluginSource =
   | { kind: "center"; releaseId: string; pluginId: string; version: string; sha256: string };
 
 export interface LocalPluginEntry {
+  template?: import("@tau/plugins/template").TemplateManifest;
   id: string;
   directory: string;
   source?: LocalPluginSource;

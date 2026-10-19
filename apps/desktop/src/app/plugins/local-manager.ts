@@ -22,6 +22,7 @@ import {
 export { localPluginStateKey } from "./content-plugin-state";
 
 export class LocalPluginManager {
+  templates: readonly import("@tau/plugins/template").TemplateManifest[] = [];
   directory = "";
   scanError = "";
   issues: readonly LocalPluginEntry[] = [];
@@ -52,7 +53,10 @@ export class LocalPluginManager {
   }
 
   owns(id: string) {
-    return this.records.has(id);
+    return this.records.has(id) || this.isTemplate(id);
+  }
+  isTemplate(id: string) {
+    return this.templates.some(template => template.id === id);
   }
   busy() {
     return this.operations > 0;
@@ -88,7 +92,7 @@ export class LocalPluginManager {
   uninstall(id: string, purgeData: boolean) {
     return this.run(async () => {
       if (contentPluginLoaded(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
-      await this.saveIntent(id, false);
+      if (!this.isTemplate(id)) await this.saveIntent(id, false);
       if (this.states.enabled(id)) await this.states.disable(id);
       await this.removePackage(id);
       try {
@@ -116,13 +120,17 @@ export class LocalPluginManager {
       this.directory = snapshot.directory;
       this.updates = snapshot.updates ?? [];
       this.clientVersion = snapshot.clientVersion ?? "";
+      this.templates = snapshot.entries.flatMap(entry => (entry.template ? [entry.template] : []));
       for (const entry of snapshot.entries) {
         if (entry.enabled === undefined) throw new Error("插件启用状态缺失");
         this.mirrorIntent(entry.id, entry.enabled);
       }
       this.scanError = "";
       const issues: LocalPluginEntry[] = [];
-      const present = new Set(snapshot.entries.map(entry => entry.id));
+      // 模板不进入插件宿主；同 ID 的代码插件被更新成模板时，旧实例按"已移除"清理。
+      const present = new Set(
+        snapshot.entries.filter(entry => !entry.template).map(entry => entry.id)
+      );
       for (const id of this.records.keys()) {
         if (present.has(id)) continue;
         try {
@@ -141,6 +149,7 @@ export class LocalPluginManager {
           continue;
         }
         if (!entry.artifact) {
+          if (entry.template) continue;
           issues.push({ ...entry, error: entry.error ?? "插件包不可用" });
           continue;
         }
@@ -226,12 +235,14 @@ export class LocalPluginManager {
 
   enable(id: string) {
     return this.run(async () => {
+      if (this.isTemplate(id)) throw new Error("模板无需启用，请在发布设置中选择");
       await this.saveIntent(id, true);
       if (!this.isContentPlugin(id)) await this.states.enable(id);
     });
   }
   disable(id: string) {
     return this.run(async () => {
+      if (this.isTemplate(id)) throw new Error("模板不参与插件启停，请修改发布设置或卸载模板");
       await this.saveIntent(id, false);
       if (!this.isContentPlugin(id)) await this.states.disable(id);
     });

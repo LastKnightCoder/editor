@@ -4,7 +4,7 @@
  * 保证两边解析规则一致。
  */
 import { createPluginMarkdownProcessor } from "@tau/plugins/content";
-import { textFormattingCodec } from "@tau/editor-text-formatting/markdown";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import { desktopCodecComposition } from "./markdown-composition.ts";
 export { desktopCodecComposition } from "./markdown-composition.ts";

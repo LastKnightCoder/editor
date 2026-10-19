@@ -90,7 +90,7 @@ describe("buildQuestMaterials", () => {
       chat({ sessionId: "s-1", title: "讨论 checkpoint" }),
     ],
   };
-  const targets = { "card:7": { contentType: "card", refId: 7, href: "/cards/7.html" } };
+  const targets = { "card:7": { key: "card:7", type: "card" as const, id: 7 } };
 
   it("按外部资料 → 我的笔记 → 讨论编号，并跳过独立答案、已删除材料与对话", () => {
     const { materials } = buildQuestMaterials(detail, targets);
@@ -108,8 +108,11 @@ describe("buildQuestMaterials", () => {
     expect(materials[0]).toMatchObject({ url: "https://sqlite.org/wal.html", meta: "sqlite.org" });
     expect(materials[1]).toMatchObject({ excerpt: "读不阻塞写，写不阻塞读。", note: "关键原则" });
     expect(materials[1].url).toBeUndefined();
-    expect(materials[2]).toMatchObject({ href: "/cards/7.html", citeKey: "card:7" });
-    expect(materials[3].href).toBeUndefined();
+    expect(materials[2]).toMatchObject({
+      target: { key: "card:7", type: "card", id: 7 },
+      citeKey: "card:7",
+    });
+    expect(materials[3].target).toBeUndefined();
     expect(materials[4]).toMatchObject({ kind: "chat-session", meta: "4 条消息" });
   });
 });

@@ -10,13 +10,17 @@ const editorRoot = resolve(root, "packages/editor");
 const require = createRequire(resolve(editorRoot, "package.json"));
 const ts = require("typescript");
 const editorManifest = JSON.parse(readFileSync(resolve(editorRoot, "package.json"), "utf8"));
-const diagramManifest = JSON.parse(
-  readFileSync(resolve(root, "editor-extensions/diagram/package.json"), "utf8")
-);
-assert(!diagramManifest.dependencies?.abcjs, "abcjs 只能由独立 ABC 插件携带");
-assert(!diagramManifest.exports["./abc"], "不得恢复宿主 ABC 渲染入口");
+assert(!editorManifest.exports["./renderer"], "发布渲染接入必须归 blog，不能回到 Editor");
+for (const name of Object.keys({
+  ...editorManifest.dependencies,
+  ...editorManifest.devDependencies,
+}))
+  assert(!["@tau/plugins", "@tau/blog"].includes(name), "通用 Editor 不得依赖发布 SDK 或 blog");
+assert(!existsSync(resolve(root, "editor-extensions")), "顶层 editor-extensions 必须完整退役");
+assert(!editorManifest.dependencies?.abcjs, "abcjs 只能由独立 ABC 插件携带");
+assert(!editorManifest.exports["./extensions/diagram/abc"], "不得恢复宿主 ABC 渲染入口");
 assert(
-  !existsSync(resolve(root, "editor-extensions/html/package.json")),
+  !existsSync(resolve(root, "packages/editor/src/extensions/html")),
   "HTML 两类节点只能由独立插件提供"
 );
 assert(
@@ -25,47 +29,32 @@ assert(
 );
 const extensionNames = new Set([
   "@example/editor-reminder",
-  "@tau/editor-webview",
+  "@tau/editor/extensions/webview",
   "@tau/editor-custom-block",
-  "@tau/editor-diagram",
+  "@tau/editor/extensions/diagram",
   "@tau/editor-source-view",
-  "@tau/editor-code-block",
-  "@tau/editor-math",
-  "@tau/editor-emoji",
-  "@tau/editor-media",
-  "@tau/editor-blockquote",
-  "@tau/editor-callout",
-  "@tau/editor-detail",
-  "@tau/editor-highlight-block",
-  "@tau/editor-tabs",
-  "@tau/editor-table",
-  "@tau/editor-list",
-  "@tau/editor-header",
-  "@tau/editor-link",
-  "@tau/editor-annotation",
-  "@tau/editor-comment",
-  "@tau/editor-kbd",
-  "@tau/editor-divide-line",
-  "@tau/editor-front-matter",
-  "@tau/editor-text-formatting",
-  "@tau/editor-underline",
-  "@tau/editor-styled-text",
+  "@tau/editor/extensions/code-block",
+  "@tau/editor/extensions/math",
+  "@tau/editor/extensions/emoji",
+  "@tau/editor/extensions/media",
+  "@tau/editor/extensions/blockquote",
+  "@tau/editor/extensions/callout",
+  "@tau/editor/extensions/detail",
+  "@tau/editor/extensions/highlight-block",
+  "@tau/editor/extensions/tabs",
+  "@tau/editor/extensions/table",
+  "@tau/editor/extensions/list",
+  "@tau/editor/extensions/header",
+  "@tau/editor/extensions/link",
+  "@tau/editor/extensions/annotation",
+  "@tau/editor/extensions/comment",
+  "@tau/editor/extensions/kbd",
+  "@tau/editor/extensions/divide-line",
+  "@tau/editor/extensions/front-matter",
+  "@tau/editor/extensions/text-formatting",
+  "@tau/editor/extensions/underline",
+  "@tau/editor/extensions/styled-text",
   "@tau/chat-ui",
-]);
-const heavy = new Set([
-  "mermaid",
-  "abcjs",
-  "plantuml-encoder",
-  "@babel/standalone",
-  "yjs",
-  "codemirror",
-  "react-codemirror2",
-  "shiki",
-  "shiki-magic-move",
-  "katex",
-  "rehype-katex",
-  "@emoji-mart/react",
-  "@emoji-mart/data",
 ]);
 const listDependencies = new Set(["@emoji-mart/react", "@emoji-mart/data"]);
 
@@ -84,7 +73,12 @@ const ignoredDirectories = new Set([
 
 const sourceFiles = directory =>
   readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) return [];
+    if (
+      entry.isDirectory() &&
+      (ignoredDirectories.has(entry.name) ||
+        resolve(directory, entry.name) === resolve(root, "apps/blog"))
+    )
+      return [];
     const path = resolve(directory, entry.name);
     return entry.isDirectory() ? sourceFiles(path) : /\.tsx?$/.test(entry.name) ? [path] : [];
   });
@@ -113,6 +107,14 @@ const importsOf = file => {
   visit(ast);
   return imports;
 };
+for (const file of sourceFiles(editorRoot)) {
+  for (const specifier of importsOf(file)) {
+    assert(
+      !/^@tau\/(?:plugins|blog)(?:\/|$)/.test(specifier),
+      `通用 Editor 源码不得导入发布接入：${relative(root, file)} → ${specifier}`
+    );
+  }
+}
 assert(!existsSync(resolve(root, "plugins/headless-codecs.ts")), "不得恢复固定插件 codec 聚合表");
 for (const file of [
   "apps/desktop/src/utils/markdown.ts",
@@ -128,10 +130,10 @@ for (const file of [
     );
 }
 assert(
-  !existsSync(resolve(root, "editor-extensions/custom-block/package.json")),
+  !existsSync(resolve(root, "packages/editor/src/extensions/custom-block")),
   "旧 custom-block 编辑器扩展包必须退役"
 );
-for (const host of ["desktop", "mobile", "browser-extension", "blog"]) {
+for (const host of ["desktop", "mobile", "browser-extension"]) {
   const manifest = JSON.parse(readFileSync(resolve(root, "apps", host, "package.json"), "utf8"));
   for (const name of Object.keys({ ...manifest.dependencies, ...manifest.devDependencies }))
     assert(
@@ -145,7 +147,7 @@ for (const host of ["desktop", "mobile", "browser-extension", "blog"]) {
         `宿主不得直接导入插件源码：${relative(root, file)} → ${specifier}`
       );
 }
-for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
+for (const directory of ["apps", "packages", "examples"]) {
   for (const file of sourceFiles(resolve(root, directory))) {
     if (/\.test\.tsx?$/.test(file) || /\/test-setup\.tsx?$/.test(file)) continue;
     for (const specifier of importsOf(file)) {
@@ -164,7 +166,7 @@ for (const directory of ["apps", "packages", "editor-extensions", "examples"]) {
 
 const apiAst = ts.createSourceFile(
   "api/index.ts",
-  readFileSync(resolve(editorRoot, "src/api/index.ts"), "utf8"),
+  readFileSync(resolve(editorRoot, "src/core/api/index.ts"), "utf8"),
   ts.ScriptTarget.Latest,
   true
 );
@@ -191,7 +193,7 @@ for (const file of [
 ]) {
   const ast = ts.createSourceFile(
     file,
-    readFileSync(resolve(editorRoot, file), "utf8"),
+    readFileSync(resolve(editorRoot, file.replace("src/", "src/core/")), "utf8"),
     ts.ScriptTarget.Latest,
     true
   );
@@ -221,11 +223,20 @@ for (const file of [
 }
 
 for (const file of [
-  ...sourceFiles(resolve(editorRoot, "src")),
+  ...sourceFiles(resolve(editorRoot, "src/core")),
   resolve(editorRoot, "api.ts"),
   resolve(editorRoot, "markdown.ts"),
 ]) {
   for (const specifier of importsOf(file)) {
+    if (specifier.startsWith(".")) {
+      const target = resolve(dirname(file), specifier);
+      assert(
+        !["extensions", "presets"].some(name =>
+          target.startsWith(resolve(editorRoot, "src", name) + "/")
+        ),
+        `内核相对路径反向引用功能：${relative(root, file)} → ${specifier}`
+      );
+    }
     assert(
       ![...extensionNames].some(name => specifier === name || specifier.startsWith(name + "/")),
       `内核反向引用扩展：${relative(root, file)} → ${specifier}`
@@ -245,30 +256,30 @@ for (const file of sourceFiles(resolve(root, "packages/shared"))) {
 }
 
 for (const directory of [
-  "editor-extensions/webview",
-  "editor-extensions/diagram",
+  "packages/editor/src/extensions/webview",
+  "packages/editor/src/extensions/diagram",
   "packages/editor-source-view",
-  "editor-extensions/code-block",
-  "editor-extensions/math",
-  "editor-extensions/emoji",
-  "editor-extensions/media",
-  "editor-extensions/blockquote",
-  "editor-extensions/callout",
-  "editor-extensions/detail",
-  "editor-extensions/highlight-block",
-  "editor-extensions/tabs",
-  "editor-extensions/table",
-  "editor-extensions/list",
-  "editor-extensions/header",
-  "editor-extensions/link",
-  "editor-extensions/annotation",
-  "editor-extensions/comment",
-  "editor-extensions/kbd",
-  "editor-extensions/divide-line",
-  "editor-extensions/front-matter",
-  "editor-extensions/text-formatting",
-  "editor-extensions/underline",
-  "editor-extensions/styled-text",
+  "packages/editor/src/extensions/code-block",
+  "packages/editor/src/extensions/math",
+  "packages/editor/src/extensions/emoji",
+  "packages/editor/src/extensions/media",
+  "packages/editor/src/extensions/blockquote",
+  "packages/editor/src/extensions/callout",
+  "packages/editor/src/extensions/detail",
+  "packages/editor/src/extensions/highlight-block",
+  "packages/editor/src/extensions/tabs",
+  "packages/editor/src/extensions/table",
+  "packages/editor/src/extensions/list",
+  "packages/editor/src/extensions/header",
+  "packages/editor/src/extensions/link",
+  "packages/editor/src/extensions/annotation",
+  "packages/editor/src/extensions/comment",
+  "packages/editor/src/extensions/kbd",
+  "packages/editor/src/extensions/divide-line",
+  "packages/editor/src/extensions/front-matter",
+  "packages/editor/src/extensions/text-formatting",
+  "packages/editor/src/extensions/underline",
+  "packages/editor/src/extensions/styled-text",
 ]
   .map(directory => directory + "/src")
   .concat(["examples/editor-reminder/src/extension"])) {
@@ -277,6 +288,7 @@ for (const directory of [
       assert(
         !specifier.startsWith("@tau/editor") ||
           !/^@tau\/editor(?:\/|$)/.test(specifier) ||
+          specifier.startsWith("@tau/editor/extensions/") ||
           ["@tau/editor/api", "@tau/editor/api/services", "@tau/editor/api/paragraph"].includes(
             specifier
           ),
@@ -284,7 +296,7 @@ for (const directory of [
       );
       if (specifier.startsWith("."))
         assert(
-          !resolve(dirname(file), specifier).startsWith(editorRoot + "/"),
+          !resolve(dirname(file), specifier).startsWith(resolve(editorRoot, "src/core") + "/"),
           `扩展相对路径深引内核：${file}`
         );
     }
@@ -319,7 +331,7 @@ for (const name of ["vite.config.ts", "vitest.config.ts"])
   assert(!/\balias\s*:/.test(readFileSync(resolve(exampleRoot, name), "utf8")), "示例禁止解析别名");
 
 const manifests = new Map(
-  ["packages", "editor-extensions", "examples"].flatMap(directory =>
+  ["packages", "examples"].flatMap(directory =>
     readdirSync(resolve(root, directory), { withFileTypes: true })
       .filter(
         entry =>
@@ -358,8 +370,14 @@ const visitPackage = name => {
     }).forEach(visitPackage);
 };
 visitPackage("@tau/editor");
-for (const name of [...extensionNames, ...heavy])
-  assert(!reachable.has(name), `包级依赖约束未满足（不等同于入口加载）：${name}`);
+for (const name of [
+  "@tau/editor-custom-block",
+  "@tau/plugin-custom-block",
+  "abcjs",
+  "@babel/standalone",
+  "@tau/chat-ui",
+])
+  assert(!reachable.has(name), `公共 Editor 不得依赖已迁出能力或业务展示：${name}`);
 assert(
   !Object.keys({
     ...manifests.get("@tau/markdown").dependencies,
@@ -371,7 +389,6 @@ assert(
 const hosts = [
   ["desktop", "src/utils/markdown.ts", "desktopMarkdown"],
   ["mobile", "src/services/editorMarkdown.ts", "mobileMarkdown"],
-  ["blog", "src/services/editorMarkdown.ts", "blogMarkdown"],
   ["browser-extension", "src/services/editorMarkdown.ts", "extensionMarkdown"],
 ];
 
@@ -391,14 +408,14 @@ const serviceScript = `
   assert.equal(IFileService.id, 'fileService');
   assert.equal(IOpenerService.id, 'openerService');
   const { IEditorSlots, IMediaInsertSources, IVideoContentProviders, IMediaActions, IMediaSelectors } =
-    await import('@tau/editor-media/services');
+    await import('@tau/editor/extensions/media/services');
   assert.deepEqual([IEditorSlots, IMediaInsertSources, IVideoContentProviders, IMediaActions, IMediaSelectors].map(token => token.id),
     ['editorSlots', 'mediaInsertSources', 'videoContentProviders', 'mediaActions', 'mediaSelectors']);
-  const { ITypstCompiler } = await import('@tau/editor-diagram/services');
+  const { ITypstCompiler } = await import('@tau/editor/extensions/diagram/services');
   assert.equal(createServiceId('test').id, 'test');
   assert.equal(IRuntimeStyleCompiler.id, 'tau.host.runtime-style-compiler');
   assert.equal(ITypstCompiler.id, 'tau.diagram.typst-compiler');
-  const { getCodeBlockController } = await import('@tau/editor-code-block/runtime');
+  const { getCodeBlockController } = await import('@tau/editor/extensions/code-block/runtime');
   assert.equal(getCodeBlockController('missing'), undefined);
   const sharedDisplay = await import('@tau/shared/chat-renderers');
   assert.equal('registerToolCallRenderer' in sharedDisplay, false);
@@ -467,7 +484,7 @@ if (process.argv.includes("--bundle")) {
   const desktopRequire = createRequire(resolve(root, "apps/desktop/package.json"));
   const esbuild = createRequire(desktopRequire.resolve("vite/package.json"))("esbuild");
   const result = await esbuild.build({
-    entryPoints: [resolve(editorRoot, "src/index.ts")],
+    entryPoints: [resolve(editorRoot, "src/core/index.ts")],
     bundle: true,
     write: false,
     metafile: true,

@@ -11,7 +11,7 @@ import { bindPluginServiceRenderers } from "@tau/plugins/services-host";
 import { evaluatePluginPackage, type PublishedPluginRender } from "@tau/plugins/rendering";
 import type { DevelopmentPluginPackage } from "@tau/plugins/package";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
-import { standardExtensions } from "../../../../editor-extensions/standard";
+import { standardExtensions } from "@tau/editor/presets/standard";
 import { addContentPlugin } from "../../src/app/plugins/content-plugin-state";
 import { DesktopPluginServicesProvider } from "../../src/app/plugins/ServiceProvider";
 import useSettingStore from "../../src/stores/useSettingStore";

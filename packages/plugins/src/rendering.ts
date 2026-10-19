@@ -7,6 +7,7 @@ import {
   type DevelopmentPluginPackage,
   type PluginManifest,
 } from "./package.ts";
+export type { PublishedPluginRender } from "./render-artifact";
 
 export function assertUniqueEditorCodecs(codecs: readonly MarkdownCodec[]) {
   const types = new Set<string>();
@@ -34,14 +35,6 @@ export interface PluginRenderContext {
   builtinTypes: string[];
   plugins: PluginRenderSelection[];
 }
-export interface PublishedPluginRender {
-  runtimeVersion: 1;
-  manifest: PluginManifest;
-  entry: string;
-  styles?: string;
-  nodeTypes: string[];
-}
-
 /** 只求值定义，不调用 create/activate；两端使用相同的 CJS 与共享模块约定。 */
 export function evaluatePluginPackage(
   artifact: DevelopmentPluginPackage,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { THEME_MODES, getThemeRegistry } from "@tau/themes";
-import { buildMermaidTheme, parseColor } from "@tau/editor-diagram/mermaid";
+import { buildMermaidTheme, parseColor } from "@tau/editor/extensions/diagram/mermaid";
 
 const luminance = (value: string): number => {
   const c = parseColor(value);

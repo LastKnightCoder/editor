@@ -23,7 +23,6 @@ vi.mock("@/stores/useBackendWebsocketStore", () => {
   return { useBackendWebsocketStore: store };
 });
 vi.mock("@/commands", () => ({
-  downloadPublishTemplate: vi.fn(async () => {}),
   executePublish: mocks.executePublish,
 }));
 vi.mock("@/commands/publish", () => ({ exportPublishOutput: vi.fn() }));
@@ -48,7 +47,7 @@ const { usePublishRunStore } = await import("../publishRunStore");
 const params = {
   active: EPublishProvider.Github,
   providerConfig: { basePath: "/" },
-  publish: { site: {}, local: { basePath: "/" } },
+  publish: { site: { templateId: "tau.blog" }, local: { basePath: "/" } },
   appearance: {},
 } as unknown as Parameters<ReturnType<typeof usePublishRunStore.getState>["start"]>[0];
 

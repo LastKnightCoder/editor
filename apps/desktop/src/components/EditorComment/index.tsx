@@ -3,7 +3,7 @@ import classNames from "classnames";
 import { motion } from "motion/react";
 import type { Path } from "slate";
 import type { CustomEditor } from "@tau/editor";
-import { type CommentElement } from "@tau/editor-comment/types";
+import { type CommentElement } from "@tau/editor/extensions/comment/types";
 import CommentCard from "./CommentCard";
 import useCommentPositions from "./hooks/useCommentPositions";
 

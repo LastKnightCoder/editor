@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor-media/types";
+import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
 
 import { EGithubCDN } from "@/constants/github";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
@@ -263,6 +263,7 @@ export interface ISetting {
       basePath: string;
     };
     site: {
+      templateId?: string;
       title: string;
       description: string;
       publicUrl: string;
@@ -531,6 +532,7 @@ const initialState: IState = {
         basePath: "/",
       },
       site: {
+        templateId: "",
         title: "",
         description: "",
         publicUrl: "",

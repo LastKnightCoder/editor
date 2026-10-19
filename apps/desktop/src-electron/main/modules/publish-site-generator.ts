@@ -1,19 +1,19 @@
 /**
- * 发布站点生成器：按发布选择生成全部静态文件（HTML / 资源 / 搜索索引）。
+ * 发布站点生成器：按发布选择生成数据、资源与搜索索引，并复制作者静态产物。
  *
  * 不依赖 electron 与数据表模块——数据经 PublishDataSource 读取、Tailwind 编译经注入函数完成，
  * 因此可跑在 worker 线程里（publish-generator-worker），生成期间不阻塞主进程。
  */
 
-import { createHash } from "crypto";
-import { join } from "path";
-import { existsSync, readFileSync, readdirSync, statSync } from "fs";
+import type { ContentNode, ContentRef, DataManifest, TreeItem } from "@tau/plugins/publish-data";
+import type { TemplatePackage } from "../services/template-package";
+import { PublishDataOutput, type PublishDataBody } from "./publish-data-output";
+import { existsSync, readFileSync } from "fs";
 import type { Descendant } from "slate";
 import { PublishPluginCatalog, type PublishPluginSnapshot } from "../services/plugin-publish";
 import type {
   IPublishFile,
   PublishContentType,
-  IPublishInitData,
   IPublishCardTagTree,
   IPublishCardListItem,
   IPublishListItem,
@@ -28,17 +28,14 @@ import { Project, ProjectItem, EProjectItemType } from "@/types/project";
 import type { IQuestion, IAnswer, QuestionDetail } from "@/types/question";
 import type { QuestionGroup } from "./tables/question-group";
 import {
+  contentRef,
   buildSelectionContentLinkTargets,
   mergeDocEntryContentLinkTargets,
 } from "./publish-content-link-targets";
-import { attachPublishAppearanceSettings } from "./publish-appearance-settings";
+import { buildPublishAppearanceSettings } from "./publish-appearance-settings";
 import { resolvePublishFaviconOutput } from "./publish-favicon";
-import {
-  buildPublishSearchIndexPayload,
-  PUBLISH_SEARCH_INDEX_HREF,
-  PUBLISH_SEARCH_INDEX_PATH,
-} from "./publish-search-index";
-import { scopeRuntimeTailwindCss } from "./publish-tailwind-scope";
+import { buildPublishSearchIndexPayload } from "./publish-search-index";
+
 import { resolveQuestActivityTime } from "./publish-quest-time";
 import {
   buildQuestMaterials,
@@ -56,7 +53,7 @@ export interface PublishDataSource {
   getContentLinkTargetContentIds(contentId: number): number[];
   getArticleByIds(ids: number[]): IArticle[];
   getArticleByContentId(contentId: number): IArticle | null;
-  getProject(id: number): Project;
+  getProject(id: number): Project | null;
   getProjectItemsByIds(ids: number[]): ProjectItem[];
   getProjectItemsByContentId(contentId: number): ProjectItem[];
   listQuestionGroups(): QuestionGroup[];
@@ -73,25 +70,15 @@ export interface PublishSelectionInput {
 }
 
 export interface PublishGeneratorOptions {
-  templateDir: string;
+  template: TemplatePackage;
   compileTailwind: (code: string, extension: "tsx" | "html") => Promise<string>;
   logger: Pick<Console, "info" | "warn" | "error">;
   plugins?: PublishPluginSnapshot;
 }
 
-const TEMPLATE_ENTRY_MAP: Record<string, string> = {
-  "home.html": "src/templates/home/index.html",
-  "card.html": "src/templates/card/index.html",
-  "article.html": "src/templates/article/index.html",
-  "doc.html": "src/templates/doc/index.html",
-  "quest.html": "src/templates/quest/index.html",
-  "list.html": "src/templates/list/index.html",
-};
-
-// 数据占位符
-const DATA_PLACEHOLDER = '"__DATA_PLACEHOLDER__"';
-
 export interface ISiteMeta {
+  destination?: string;
+  templateId?: string;
   title: string;
   description: string;
   basePath: string;
@@ -99,24 +86,18 @@ export interface ISiteMeta {
   favicon?: IPublishFaviconConfig;
 }
 
-interface INavigationItem {
-  label: string;
-  href: string;
-}
-
 interface IDocEntry {
   id: number;
   entityId: number;
   title: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   createTime: number;
   updateTime: number;
   tags: string[];
   kind: "project";
   content: Descendant[];
-  breadcrumb: { label: string; href?: string }[];
-  sidebar?: IPublishInitData["sidebar"];
+  breadcrumb: { label: string; target?: ContentRef }[];
 }
 
 interface ITimelineEntry {
@@ -124,14 +105,14 @@ interface ITimelineEntry {
   id: number;
   title?: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   tags: string[];
   publishTime: number;
 }
 
 interface ILinkedCardInfo {
   id: number;
-  href: string;
+  target: ContentRef;
   summary: string;
   tags: string[];
 }
@@ -158,7 +139,7 @@ interface IQuestEntry {
   id: number;
   title: string;
   summary: string;
-  href: string;
+  target: ContentRef;
   groupId: number;
   groupTitle: string;
   groupColor?: string;
@@ -183,7 +164,7 @@ interface IQuestAnswerEntry {
     type: "card" | "article" | "project-item" | "custom";
     id?: number;
     contentId: number;
-    href?: string;
+    target?: ContentRef;
     title?: string;
     published: boolean;
   };
@@ -193,20 +174,25 @@ interface IDocCollectionMetaItem {
   type: "project";
   entityId: number;
   title: string;
-  href?: string;
+  target?: ContentRef;
 }
 
 type EntityScopeConfig = { mode: "all" } | { mode: "partial"; nodes: Set<number> };
+
+/** Slate 节点是公开 ContentNode 的结构子集，只是其接口没有声明索引签名。 */
+const contentNodes = (nodes: Descendant[] | undefined): ContentNode[] =>
+  (nodes ?? []) as unknown as ContentNode[];
 export class PublishSiteGenerator {
-  private readonly templateDir: string;
+  private favicon?: { content: Buffer; output: ReturnType<typeof resolvePublishFaviconOutput> };
+  private readonly template: TemplatePackage;
+  private output!: PublishDataOutput;
   private readonly compileTailwind: PublishGeneratorOptions["compileTailwind"];
   private readonly logger: PublishGeneratorOptions["logger"];
-  private readonly templateCache = new Map<string, string>();
   private readonly tailwindCssCache = new Map<string, string>();
   private readonly pluginCatalog: PublishPluginCatalog;
 
   constructor(options: PublishGeneratorOptions) {
-    this.templateDir = options.templateDir;
+    this.template = options.template;
     this.compileTailwind = options.compileTailwind;
     this.logger = options.logger;
     this.pluginCatalog = new PublishPluginCatalog(options.plugins);
@@ -222,7 +208,7 @@ export class PublishSiteGenerator {
     return this.generatePublishFiles(db, selections, site, appearanceSettings);
   }
 
-  private buildSiteInitMeta(site: ISiteMeta): IPublishInitData["site"] {
+  private buildSiteInitMeta(site: ISiteMeta): DataManifest["site"] {
     if (!site.favicon) {
       return {
         title: site.title,
@@ -232,7 +218,7 @@ export class PublishSiteGenerator {
       };
     }
 
-    const faviconOutput = resolvePublishFaviconOutput(site.favicon, site.basePath);
+    const faviconOutput = this.favicon!.output;
 
     return {
       title: site.title,
@@ -247,21 +233,6 @@ export class PublishSiteGenerator {
     };
   }
 
-  private buildSearchInitMeta(): NonNullable<IPublishInitData["search"]> {
-    return {
-      href: PUBLISH_SEARCH_INDEX_HREF,
-    };
-  }
-
-  /**
-   * 计算内容哈希
-   */
-  private computeHash(content: Buffer | string): string {
-    return createHash("md5")
-      .update(typeof content === "string" ? content : content.toString())
-      .digest("hex");
-  }
-
   /**
    * 生成要发布的文件
    */
@@ -271,363 +242,130 @@ export class PublishSiteGenerator {
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
-    const files: IPublishFile[] = [];
+    this.output = new PublishDataOutput((data, dataPath) =>
+      this.pluginCatalog.dependencies(data, dataPath)
+    );
     this.pluginCatalog.reset();
-
-    // 复制静态资源
-    const assetsDir = join(this.templateDir, "assets");
-    if (existsSync(assetsDir)) {
-      const assetFiles = this.readDirRecursive(assetsDir);
-      for (const assetPath of assetFiles) {
-        const relativePath = assetPath.replace(this.templateDir, "").replace(/\\/g, "/");
-        const content = readFileSync(assetPath);
-        files.push({
-          path: relativePath.startsWith("/") ? relativePath.slice(1) : relativePath,
-          content,
-          hash: this.computeHash(content),
-        });
-      }
-    }
-
+    this.tailwindCssCache.clear();
+    this.favicon = undefined;
     if (site.favicon) {
-      if (!existsSync(site.favicon.cachePath)) {
-        throw new Error("已缓存的 favicon 不存在，请重新选择后再发布");
-      }
-      const faviconContent = readFileSync(site.favicon.cachePath);
-      const faviconOutput = resolvePublishFaviconOutput(site.favicon, site.basePath);
-      files.push({
-        path: faviconOutput.outputPath,
-        content: faviconContent,
-        hash: this.computeHash(faviconContent),
-      });
+      if (!existsSync(site.favicon.cachePath)) throw new Error("favicon 缓存不存在，请重新选择");
+      const content = readFileSync(site.favicon.cachePath);
+      this.favicon = {
+        content,
+        output: resolvePublishFaviconOutput(site.favicon, content, site.basePath),
+      };
     }
-
     const grouped = this.groupSelections(selections);
     const cards = this.loadCards(
       db,
-      grouped.card.map(selection => selection.contentId)
+      grouped.card.map(item => item.contentId)
     );
-    const cardMap = new Map(cards.map(card => [card.id, card]));
-
     const articles = this.loadArticles(
       db,
-      grouped.article.map(selection => selection.contentId)
+      grouped.article.map(item => item.contentId)
     );
+    const cardMap = new Map(cards.map(card => [card.id, card]));
+    const cardsByContentId = new Map(cards.map(card => [card.contentId, card]));
     const articleMap = new Map(articles.map(article => [article.id, article]));
-
     const projects = this.loadProjects(db, grouped.project);
-    const projectScopes = this.buildEntityScopeMap(grouped.project);
-    const questScopes = this.buildEntityScopeMap(grouped.quest);
-    const hasSelectedQuests = grouped.quest.length > 0;
-    const baseContentLinkTargets = buildSelectionContentLinkTargets({
-      cardIds: grouped.card
-        .map(selection => selection.contentId)
-        .filter(contentId => cardMap.has(contentId)),
-      articleIds: grouped.article
-        .map(selection => selection.contentId)
-        .filter(contentId => articleMap.has(contentId)),
+    const baseTargets = buildSelectionContentLinkTargets({
+      cardIds: [...cardMap.keys()],
+      articleIds: [...articleMap.keys()],
     });
-
-    const navigation = this.buildNavigation({
-      cards: cards.length > 0,
-      articles: articles.length > 0,
-      quests: hasSelectedQuests,
-      documents: projects.length > 0,
-    });
-
-    const cardTagTree = cards.length > 0 ? this.buildCardTagTree(cards) : undefined;
-
-    const cardCache = new Map(cardMap);
-
-    const docPublishResult = await this.buildDocPages(
+    const docResult = await this.buildDocData(
       db,
-      site,
-      navigation,
       projects,
-      projectScopes,
-      baseContentLinkTargets,
-      appearanceSettings
+      this.buildEntityScopeMap(grouped.project),
+      baseTargets
     );
-    files.push(...docPublishResult.files);
-    const docCollections = docPublishResult.collections;
-    const contentLinkTargets = docPublishResult.contentLinkTargets;
-    const questPublishResult = await this.buildQuestPages(
+    const targets = docResult.contentLinkTargets;
+    const questResult = await this.buildQuestData(
       db,
-      site,
-      navigation,
       grouped.quest,
-      questScopes,
+      this.buildEntityScopeMap(grouped.quest),
       cardMap,
       articleMap,
-      docCollections,
-      contentLinkTargets,
-      appearanceSettings
+      targets
     );
-    files.push(...questPublishResult.files);
-
-    if (docPublishResult.listEntries.length > 0) {
-      const docListInit = this.buildDocListInitData(
-        site,
-        navigation,
-        docPublishResult.listEntries,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
-      );
-      const docListHtml = this.injectData("list.html", docListInit, "docs/index.html");
-      files.push({
-        path: "docs/index.html",
-        content: Buffer.from(docListHtml),
-        hash: this.computeHash(docListHtml),
-      });
-    }
-
     for (const selection of grouped.card) {
       const card = cardMap.get(selection.contentId);
       if (!card) continue;
-
-      const linkedCards = this.resolveLinkedCards(db, card, cardCache);
-
-      const initData = this.buildCardInitData(
-        site,
-        navigation,
-        card,
-        cardTagTree,
-        selection.parentPath || card.tags[0] || "",
-        linkedCards,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
+      this.output.data(
+        contentRef("card", card.id),
+        this.buildCardInitData(card, this.resolveLinkedCards(db, card, cardsByContentId)),
+        await this.buildTailwindRuntimeCss(card.content)
       );
-      const path = `cards/${selection.contentId}.html`;
-      const runtimeCss = await this.buildTailwindRuntimeCss(card.content || []);
-      const html = this.injectData("card.html", initData, path, {
-        inlineStyle: runtimeCss,
-      });
-      files.push({
-        path,
-        content: Buffer.from(html),
-        hash: this.computeHash(html),
-        sourceType: "card",
-        sourceId: selection.contentId,
-      });
     }
-
-    for (const selection of grouped.article) {
-      const article = articleMap.get(selection.contentId);
-      if (!article) continue;
-
-      const initData = this.buildArticleInitData(
-        site,
-        navigation,
-        article,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
+    for (const article of articles) {
+      this.output.data(
+        contentRef("article", article.id),
+        this.buildArticleInitData(article),
+        await this.buildTailwindRuntimeCss(article.content)
       );
-      const path = `articles/${selection.contentId}.html`;
-      const runtimeCss = await this.buildTailwindRuntimeCss(article.content || []);
-      const html = this.injectData("article.html", initData, path, {
-        inlineStyle: runtimeCss,
-      });
-      files.push({
-        path,
-        content: Buffer.from(html),
-        hash: this.computeHash(html),
-        sourceType: "article",
-        sourceId: selection.contentId,
-      });
     }
-
-    if (cards.length > 0) {
-      const cardListInit = this.buildListInitData(
+    for (const [type, records] of [
+      ["card", cards],
+      ["article", articles],
+    ] as const) {
+      if (records.length)
+        this.output.data(
+          { key: `list:${type}`, type: "list" },
+          this.buildListInitData(type, records as ICard[] | IArticle[])
+        );
+    }
+    if (docResult.listEntries.length)
+      this.output.data(
+        { key: "list:doc", type: "list" },
+        this.buildDocListInitData(docResult.listEntries)
+      );
+    if (questResult.entries.length)
+      this.output.data(
+        { key: "list:quest", type: "list" },
+        this.buildQuestListInitData(questResult.entries)
+      );
+    this.output.data(
+      contentRef("home"),
+      this.buildHomeInitData(
         site,
-        navigation,
-        "card",
         cards,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
-      );
-      const cardListHtml = this.injectData("list.html", cardListInit, "cards/index.html");
-      files.push({
-        path: "cards/index.html",
-        content: Buffer.from(cardListHtml),
-        hash: this.computeHash(cardListHtml),
-      });
-    }
-
-    if (articles.length > 0) {
-      const articleListInit = this.buildListInitData(
-        site,
-        navigation,
-        "article",
         articles,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
-      );
-      const articleListHtml = this.injectData("list.html", articleListInit, "articles/index.html");
-      files.push({
-        path: "articles/index.html",
-        content: Buffer.from(articleListHtml),
-        hash: this.computeHash(articleListHtml),
+        [...docResult.timelineEntries, ...questResult.timelineEntries],
+        projects.length
+      )
+    );
+    for (const file of this.pluginCatalog.files()) this.output.add(file);
+    if (this.favicon) {
+      this.output.add({
+        path: this.favicon.output.outputPath,
+        content: this.favicon.content,
       });
     }
-
-    if (questPublishResult.entries.length > 0) {
-      const questListInit = this.buildQuestListInitData(
-        site,
-        navigation,
-        questPublishResult.entries,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
-      );
-      const questListHtml = this.injectData("list.html", questListInit, "quests/index.html");
-      files.push({
-        path: "quests/index.html",
-        content: Buffer.from(questListHtml),
-        hash: this.computeHash(questListHtml),
-      });
-    }
-
-    const homeInitData = this.buildHomeInitData(
-      site,
-      navigation,
+    const search = buildPublishSearchIndexPayload({
       cards,
       articles,
-      [...docPublishResult.timelineEntries, ...questPublishResult.timelineEntries],
-      projects.length,
-      docCollections,
-      contentLinkTargets,
-      appearanceSettings
-    );
-    const homeHtml = this.injectData("home.html", homeInitData, "index.html");
-    files.push({
-      path: "index.html",
-      content: Buffer.from(homeHtml),
-      hash: this.computeHash(homeHtml),
+      docs: docResult.listEntries,
+      quests: questResult.entries,
     });
-
-    const searchIndexJson = JSON.stringify(
-      buildPublishSearchIndexPayload({
-        cards,
-        articles,
-        docs: docPublishResult.listEntries,
-        quests: questPublishResult.entries,
-      })
+    // 站点级数据只进清单一次；卡片、文章的链接键即清单 key，只需登记项目条目。
+    const projectItemTargets = Object.fromEntries(
+      Object.entries(targets).filter(([identity]) => identity.startsWith("project-item:"))
     );
-    files.push({
-      path: PUBLISH_SEARCH_INDEX_PATH,
-      content: Buffer.from(searchIndexJson),
-      hash: this.computeHash(searchIndexJson),
-    });
-
-    files.unshift(
-      ...this.pluginCatalog.files().map(file => ({ ...file, hash: this.computeHash(file.content) }))
-    );
-    return { files, virtualProcessed: docPublishResult.skippedDocItems };
-  }
-
-  /**
-   * 递归读取目录
-   */
-  private readDirRecursive(dir: string): string[] {
-    const files: string[] = [];
-    const items = readdirSync(dir);
-
-    for (const item of items) {
-      const fullPath = join(dir, item);
-      const stat = statSync(fullPath);
-
-      if (stat.isDirectory()) {
-        files.push(...this.readDirRecursive(fullPath));
-      } else {
-        files.push(fullPath);
-      }
-    }
-
-    return files;
-  }
-
-  /**
-   * 根据目标文件路径计算相对于 assets 目录的路径
-   * @param targetPath 目标文件路径，如 "cards/123.html"
-   * @returns 相对路径，如 "../assets/"
-   */
-  private computeAssetsRelativePath(targetPath: string): string {
-    const segments = targetPath.split("/").filter(Boolean);
-    const depth = segments.length - 1; // 减去文件名本身
-
-    if (depth <= 0) {
-      return "./assets/";
-    }
-
-    return "../".repeat(depth) + "assets/";
-  }
-
-  /**
-   * 注入数据到模板
-   */
-  private injectData(
-    templateName: string,
-    initData: IPublishInitData,
-    targetPath: string,
-    options?: { inlineStyle?: string }
-  ): string {
-    const relativePath = TEMPLATE_ENTRY_MAP[templateName] ?? templateName;
-    const templatePath = join(this.templateDir, relativePath);
-    let template = this.templateCache.get(templatePath);
-    if (template === undefined) {
-      if (!existsSync(templatePath)) {
-        throw new Error(`Template not found: ${templateName}`);
-      }
-      template = readFileSync(templatePath, "utf-8");
-      this.templateCache.set(templatePath, template);
-    }
-
-    let html = template;
-
-    const pluginRenderers = this.pluginCatalog.dependencies(initData.content, targetPath);
-    if (pluginRenderers.length) {
-      const protocolFile = join(this.templateDir, "plugin-runtime.json");
-      if (!existsSync(protocolFile) || JSON.parse(readFileSync(protocolFile, "utf8")).version !== 1)
-        throw new Error("当前博客模板不支持插件渲染，请先更新发布模板");
-      initData = { ...initData, pluginRenderers };
-    }
-
-    // 替换数据占位符
-    const serialized = JSON.stringify(initData)
-      .replace(/</g, "\\u003c")
-      .replace(/>/g, "\\u003e")
-      .replace(/\u2028/g, "\\u2028")
-      .replace(/\u2029/g, "\\u2029");
-    html = html.replace(DATA_PLACEHOLDER, serialized);
-
-    // 替换资源路径：模板中的 ../../../assets/ 替换为实际相对路径
-    const assetsPath = this.computeAssetsRelativePath(targetPath);
-    html = html.replace(/\.\.\/\.\.\/\.\.\/assets\//g, assetsPath);
-
-    if (initData.site.favicon) {
-      html = html.replace(
-        /<link rel="icon"[^>]*href="[^"]*" \/>/,
-        `<link rel="icon" type="${initData.site.favicon.mimeType}" href="${initData.site.favicon.href}" />`
-      );
-    }
-
-    const inlineStyle = options?.inlineStyle?.trim();
-    if (inlineStyle) {
-      const scopedStyle = scopeRuntimeTailwindCss(inlineStyle);
-      const styleTag = `<style data-runtime-tailwind>${scopedStyle}</style>`;
-      if (html.includes("</head>")) {
-        html = html.replace("</head>", `${styleTag}\n</head>`);
-      } else {
-        html = `${styleTag}\n${html}`;
-      }
-    }
-
-    return html;
+    return {
+      files: this.output.finish(this.template, search, {
+        site: this.buildSiteInitMeta(site),
+        settings: buildPublishAppearanceSettings(appearanceSettings),
+        ...(docResult.collections ? { collections: docResult.collections } : {}),
+        ...(cards.length ? { cardTagTree: this.buildCardTagTree(cards) } : {}),
+        ...(Object.keys(docResult.projectTrees).length
+          ? { projectTrees: docResult.projectTrees }
+          : {}),
+        ...(Object.keys(projectItemTargets).length
+          ? { contentLinkTargets: projectItemTargets }
+          : {}),
+      }),
+      virtualProcessed: docResult.skippedDocItems,
+    };
   }
 
   /**
@@ -635,15 +373,11 @@ export class PublishSiteGenerator {
    */
   private buildHomeInitData(
     site: ISiteMeta,
-    navigation: INavigationItem[],
     cards: ICard[],
     articles: IArticle[],
     docTimeline: ITimelineEntry[],
-    projectCount: number,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+    projectCount: number
+  ): PublishDataBody {
     const timeline = this.buildTimelineEntries(cards, articles, docTimeline);
     const hero =
       site.description && site.description.trim().length > 0
@@ -653,128 +387,71 @@ export class PublishSiteGenerator {
           }
         : undefined;
 
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          hero,
-          timeline,
-          stats: {
-            articles: articles.length,
-            cards: cards.length,
-          },
-          docStats: {
-            projects: projectCount,
-          },
+    return {
+      content: {
+        hero,
+        timeline,
+        stats: {
+          articles: articles.length,
+          cards: cards.length,
         },
-        meta: {
-          type: "home",
-          publishTime: Date.now(),
+        docStats: {
+          projects: projectCount,
         },
       },
-      appearanceSettings
-    );
+      meta: { type: "home" },
+    };
   }
 
   /**
    * 构建卡片页面数据
    */
-  private buildCardInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
-    card: ICard,
-    cardTagTree?: IPublishCardTagTree[],
-    activeTag?: string,
-    linkedCards?: ILinkedCardInfo[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        cardTagTree,
-        activeTag,
-        content: {
-          id: card.id,
-          content: card.content || [],
-          tags: card.tags || [],
-          createTime: card.create_time,
-          updateTime: card.update_time,
-          linkedCards,
-        },
-        meta: {
-          type: "card",
-          publishTime: Date.now(),
-        },
+  private buildCardInitData(card: ICard, linkedCards?: ILinkedCardInfo[]): PublishDataBody {
+    return {
+      content: {
+        id: card.id,
+        content: contentNodes(card.content),
+        tags: card.tags || [],
+        createTime: card.create_time,
+        updateTime: card.update_time,
+        linkedCards,
       },
-      appearanceSettings
-    );
+      meta: { type: "card" },
+    };
   }
 
   /**
    * 构建文章页面数据
    */
-  private buildArticleInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
-    article: IArticle,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          id: article.id,
-          title: article.title,
-          author: article.author,
-          content: article.content || [],
-          tags: article.tags || [],
-          bannerBg: article.bannerBg,
-          createTime: article.create_time,
-          updateTime: article.update_time,
-        },
-        meta: {
-          type: "article",
-          publishTime: Date.now(),
-        },
+  private buildArticleInitData(article: IArticle): PublishDataBody {
+    return {
+      content: {
+        id: article.id,
+        title: article.title,
+        author: article.author,
+        content: contentNodes(article.content),
+        tags: article.tags || [],
+        bannerBg: article.bannerBg,
+        createTime: article.create_time,
+        updateTime: article.update_time,
       },
-      appearanceSettings
-    );
+      meta: { type: "article" },
+    };
   }
 
   /**
    * 构建列表页面数据
    */
   private buildListInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
     type: "card" | "article",
-    records: ICard[] | IArticle[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+    records: ICard[] | IArticle[]
+  ): PublishDataBody {
     const items: IPublishListItem[] =
       type === "card"
         ? (records as ICard[]).map(card => ({
             id: card.id,
             summary: this.buildSummary(card.content || []),
-            href: `/cards/${card.id}.html`,
+            target: contentRef("card", card.id),
             tags: card.tags || [],
             createTime: card.create_time,
           }))
@@ -782,37 +459,21 @@ export class PublishSiteGenerator {
             id: article.id,
             title: article.title,
             summary: this.buildSummary(article.content || []),
-            href: `/articles/${article.id}.html`,
+            target: contentRef("article", article.id),
             tags: article.tags || [],
             createTime: article.create_time,
           }));
     items.sort((a, b) => b.createTime - a.createTime);
     const tagStats = this.buildTagStats(items);
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          title: type === "card" ? "全部卡片" : "全部文章",
-          type,
-          items,
-          tags: tagStats,
-          pagination: {
-            current: 1,
-            total: items.length,
-            pageSize: Math.max(items.length, 1),
-          },
-        },
-        meta: {
-          type: "list",
-          publishTime: Date.now(),
-        },
+    return {
+      content: {
+        title: type === "card" ? "全部卡片" : "全部文章",
+        type,
+        items,
+        tags: tagStats,
       },
-      appearanceSettings
-    );
+      meta: { type: "list" },
+    };
   }
 
   private groupSelections(
@@ -859,25 +520,6 @@ export class PublishSiteGenerator {
     return { mode: "partial", nodes: new Set() };
   }
 
-  private buildNavigation(sections: {
-    cards: boolean;
-    articles: boolean;
-    quests: boolean;
-    documents: boolean;
-  }): INavigationItem[] {
-    const navigation: INavigationItem[] = [{ label: "首页", href: "/" }];
-    if (sections.cards) {
-      navigation.push({ label: "卡片", href: "/cards/" });
-    }
-    if (sections.articles) {
-      navigation.push({ label: "文章", href: "/articles/" });
-    }
-    if (sections.quests) {
-      navigation.push({ label: "求索录", href: "/quests/" });
-    }
-    return navigation;
-  }
-
   private loadCards(db: PublishDataSource, ids: number[]): ICard[] {
     const uniqueIds = Array.from(new Set(ids));
     if (!uniqueIds.length) return [];
@@ -894,14 +536,8 @@ export class PublishSiteGenerator {
     const ids = Array.from(new Set(selections.map(item => item.contentId)));
     const projects: Project[] = [];
     for (const id of ids) {
-      try {
-        const project = db.getProject(id);
-        if (project) {
-          projects.push(project);
-        }
-      } catch (error) {
-        this.logger.warn(`Project ${id} not found`, error);
-      }
+      const project = db.getProject(id);
+      if (project) projects.push(project);
     }
     return projects;
   }
@@ -909,18 +545,12 @@ export class PublishSiteGenerator {
   private resolveLinkedCards(
     db: PublishDataSource,
     card: ICard,
-    cache: Map<number, ICard>
+    cache: ReadonlyMap<number, ICard>
   ): ILinkedCardInfo[] {
     const result: ILinkedCardInfo[] = [];
     for (const contentId of db.getContentLinkTargetContentIds(card.contentId)) {
       if (contentId === card.contentId) continue;
-      let target = cache.get(contentId);
-      if (!target) {
-        target = db.getCardByContentId(contentId) || undefined;
-        if (target) {
-          cache.set(contentId, target);
-        }
-      }
+      const target = cache.get(contentId);
       if (target && target.id !== card.id) {
         result.push(this.toLinkedCardInfo(target));
       }
@@ -934,7 +564,7 @@ export class PublishSiteGenerator {
   private toLinkedCardInfo(card: ICard): ILinkedCardInfo {
     return {
       id: card.id,
-      href: `/cards/${card.id}.html`,
+      target: contentRef("card", card.id),
       summary: this.buildSummary(card.content || []),
       tags: card.tags || [],
     };
@@ -990,23 +620,22 @@ export class PublishSiteGenerator {
     };
   }
 
-  private async buildDocPages(
+  private async buildDocData(
     db: PublishDataSource,
-    site: ISiteMeta,
-    navigation: INavigationItem[],
     projects: Project[],
     projectScopes: Map<number, EntityScopeConfig>,
-    baseContentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
+    baseContentLinkTargets: Record<string, ContentRef>
   ): Promise<{
     files: IPublishFile[];
     listEntries: IDocEntry[];
     timelineEntries: ITimelineEntry[];
-    collections?: IPublishInitData["docCollections"];
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"];
+    collections?: DataManifest["collections"];
+    projectTrees: NonNullable<DataManifest["projectTrees"]>;
+    contentLinkTargets: Record<string, ContentRef>;
     skippedDocItems: number;
   }> {
     const files: IPublishFile[] = [];
+    const projectTrees: NonNullable<DataManifest["projectTrees"]> = {};
     const entries: IDocEntry[] = [];
     const entityEntryMap = new Map<string, IDocEntry[]>();
     const collectionMeta: IDocCollectionMetaItem[] = [];
@@ -1020,12 +649,13 @@ export class PublishSiteGenerator {
       }
       entries.push(...result.entries);
       entityEntryMap.set(`project-${project.id}`, result.entries);
-      if (result.defaultHref) {
+      if (result.sidebar) projectTrees[project.id] = result.sidebar;
+      if (result.defaultTarget) {
         collectionMeta.push({
           type: "project",
           entityId: project.id,
           title: project.title || `项目 #${project.id}`,
-          href: result.defaultHref,
+          target: result.defaultTarget,
         });
       }
     }
@@ -1036,7 +666,7 @@ export class PublishSiteGenerator {
       entries.map(entry => ({
         id: entry.id,
         kind: entry.kind,
-        href: entry.href,
+        target: entry.target,
         title: entry.title,
       }))
     );
@@ -1046,28 +676,9 @@ export class PublishSiteGenerator {
         const entry = entityEntries[i];
         const prev = entityEntries[i - 1];
         const next = entityEntries[i + 1];
-        const initData = this.buildDocInitData(
-          site,
-          navigation,
-          entry,
-          prev,
-          next,
-          docCollections,
-          contentLinkTargets,
-          appearanceSettings
-        );
-        const path = entry.href.replace(/^\//, "");
+        const initData = this.buildDocInitData(entry, prev, next);
         const runtimeCss = await this.buildTailwindRuntimeCss(entry.content || []);
-        const html = this.injectData("doc.html", initData, path, {
-          inlineStyle: runtimeCss,
-        });
-        files.push({
-          path,
-          content: Buffer.from(html),
-          hash: this.computeHash(html),
-          sourceType: entry.kind,
-          sourceId: entry.id,
-        });
+        files.push(this.output.data(entry.target, initData, runtimeCss, entry.entityId));
       }
     }
 
@@ -1080,57 +691,34 @@ export class PublishSiteGenerator {
       listEntries: orderedEntries,
       timelineEntries,
       collections: docCollections,
+      projectTrees,
       contentLinkTargets,
       skippedDocItems,
     };
   }
 
   private buildDocInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
     entry: IDocEntry,
     prev: IDocEntry | undefined,
-    next: IDocEntry | undefined,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    const activeCollections = this.applyActiveDocCollections(
-      docCollections,
-      entry.kind,
-      entry.entityId
-    );
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        sidebar: entry.sidebar,
-        docCollections: activeCollections,
-        contentLinkTargets,
-        content: {
-          id: entry.id,
-          title: entry.title,
-          content: entry.content || [],
-          breadcrumb: entry.breadcrumb,
-          prevPage: prev ? { title: prev.title, href: prev.href } : undefined,
-          nextPage: next ? { title: next.title, href: next.href } : undefined,
-          createTime: entry.createTime,
-          updateTime: entry.updateTime,
-          currentPath: entry.href,
-        },
-        meta: {
-          type: "doc",
-          publishTime: Date.now(),
-        },
+    next: IDocEntry | undefined
+  ): PublishDataBody {
+    return {
+      content: {
+        id: entry.id,
+        title: entry.title,
+        content: contentNodes(entry.content),
+        breadcrumb: entry.breadcrumb,
+        prevPage: prev ? { title: prev.title, target: prev.target } : undefined,
+        nextPage: next ? { title: next.title, target: next.target } : undefined,
+        createTime: entry.createTime,
+        updateTime: entry.updateTime,
+        projectId: entry.entityId,
       },
-      appearanceSettings
-    );
+      meta: { type: "doc" },
+    };
   }
 
-  private buildDocCollectionsFromMeta(
-    meta: IDocCollectionMetaItem[]
-  ): IPublishInitData["docCollections"] {
+  private buildDocCollectionsFromMeta(meta: IDocCollectionMetaItem[]): DataManifest["collections"] {
     if (!meta.length) {
       return undefined;
     }
@@ -1144,12 +732,12 @@ export class PublishSiteGenerator {
     const collections = kinds
       .map(kind => {
         const items = meta
-          .filter(item => item.type === kind && item.href)
+          .filter(item => item.type === kind && item.target)
           .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"))
           .map(item => ({
             id: item.entityId,
             title: item.title,
-            href: item.href!,
+            target: item.target!,
             kind,
           }));
 
@@ -1163,34 +751,12 @@ export class PublishSiteGenerator {
           items,
         };
       })
-      .filter(Boolean) as IPublishInitData["docCollections"];
+      .filter(Boolean) as DataManifest["collections"];
 
     return collections && collections.length > 0 ? collections : undefined;
   }
 
-  private applyActiveDocCollections(
-    base: IPublishInitData["docCollections"],
-    kind: IDocEntry["kind"],
-    entityId: number
-  ): IPublishInitData["docCollections"] {
-    if (!base) return undefined;
-    return base.map(collection => ({
-      ...collection,
-      items: collection.items.map(item => ({
-        ...item,
-        active: collection.type === kind && item.id === entityId ? true : undefined,
-      })),
-    }));
-  }
-
-  private buildDocListInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
-    entries: IDocEntry[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+  private buildDocListInitData(entries: IDocEntry[]): PublishDataBody {
     const items = entries
       .slice()
       .sort((a, b) => b.updateTime - a.updateTime)
@@ -1198,47 +764,27 @@ export class PublishSiteGenerator {
         id: entry.id,
         title: entry.title,
         summary: entry.summary,
-        href: entry.href,
+        target: entry.target,
         tags: entry.tags,
         createTime: entry.createTime,
       }));
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          title: "全部文档",
-          type: "doc",
-          items,
-          pagination: {
-            current: 1,
-            total: items.length,
-            pageSize: Math.max(items.length, 1),
-          },
-        },
-        meta: {
-          type: "list",
-          publishTime: Date.now(),
-        },
+    return {
+      content: {
+        title: "全部文档",
+        type: "doc",
+        items,
       },
-      appearanceSettings
-    );
+      meta: { type: "list" },
+    };
   }
 
-  private async buildQuestPages(
+  private async buildQuestData(
     db: PublishDataSource,
-    site: ISiteMeta,
-    navigation: INavigationItem[],
     selections: Array<{ contentId: number; parentPath: string }>,
     scopes: Map<number, EntityScopeConfig>,
     publishedCards: Map<number, ICard>,
     publishedArticles: Map<number, IArticle>,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
+    contentLinkTargets: Record<string, ContentRef>
   ): Promise<{
     files: IPublishFile[];
     entries: IQuestEntry[];
@@ -1274,26 +820,19 @@ export class PublishSiteGenerator {
     );
 
     for (const entry of entries) {
-      const initData = this.buildQuestInitData(
-        site,
-        navigation,
-        entry,
-        docCollections,
-        contentLinkTargets,
-        appearanceSettings
-      );
-      const path = entry.href.replace(/^\//, "");
+      const initData: PublishDataBody = {
+        content: {
+          ...entry,
+          description: entry.description && contentNodes(entry.description),
+          answers: entry.answers.map(answer => ({
+            ...answer,
+            content: answer.content && contentNodes(answer.content),
+          })),
+        },
+        meta: { type: "quest" },
+      };
       const runtimeCss = await this.buildTailwindRuntimeCss(this.collectQuestInlineContent(entry));
-      const html = this.injectData("quest.html", initData, path, {
-        inlineStyle: runtimeCss,
-      });
-      files.push({
-        path,
-        content: Buffer.from(html),
-        hash: this.computeHash(html),
-        sourceType: "quest",
-        sourceId: entry.id,
-      });
+      files.push(this.output.data(entry.target, initData, runtimeCss));
     }
 
     return {
@@ -1321,7 +860,7 @@ export class PublishSiteGenerator {
     group: QuestionGroup,
     publishedCards: Map<number, ICard>,
     publishedArticles: Map<number, IArticle>,
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"]
+    contentLinkTargets: Record<string, ContentRef>
   ): IQuestEntry {
     const detail = db.getQuestionDetail(question.id);
     // 只有独立答案进「解」；关联的卡片 / 文章等是资料，进「据」
@@ -1332,7 +871,15 @@ export class PublishSiteGenerator {
     const answers = answerContentIds
       .map(contentId => db.getQuestionAnswerById(contentId))
       .filter((answer): answer is IAnswer => Boolean(answer))
-      .map(answer => this.createQuestAnswerEntry(db, answer, publishedCards, publishedArticles));
+      .map(answer =>
+        this.createQuestAnswerEntry(
+          db,
+          answer,
+          publishedCards,
+          publishedArticles,
+          contentLinkTargets
+        )
+      );
 
     const summary =
       this.buildSummary(question.description || [], 96) ||
@@ -1353,7 +900,7 @@ export class PublishSiteGenerator {
       id: question.id,
       title: question.questionContent || `求索 #${question.id}`,
       summary,
-      href: `/quests/${question.id}.html`,
+      target: contentRef("quest", question.id),
       groupId: group.id,
       groupTitle: group.title,
       groupColor: group.color,
@@ -1372,10 +919,17 @@ export class PublishSiteGenerator {
     db: PublishDataSource,
     answer: IAnswer,
     publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>
+    publishedArticles: Map<number, IArticle>,
+    targets: Record<string, ContentRef>
   ): IQuestAnswerEntry {
-    const source = this.resolveQuestAnswerSource(db, answer.id, publishedCards, publishedArticles);
-    const shouldInline = !source?.href;
+    const source = this.resolveQuestAnswerSource(
+      db,
+      answer.id,
+      publishedCards,
+      publishedArticles,
+      targets
+    );
+    const shouldInline = !source?.target;
 
     return {
       id: answer.id,
@@ -1390,7 +944,8 @@ export class PublishSiteGenerator {
     db: PublishDataSource,
     contentId: number,
     publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>
+    publishedArticles: Map<number, IArticle>,
+    targets: Record<string, ContentRef>
   ): IQuestAnswerEntry["source"] {
     const card = db.getCardByContentId(contentId);
     if (card) {
@@ -1399,7 +954,7 @@ export class PublishSiteGenerator {
         type: "card",
         id: card.id,
         contentId,
-        href: published ? `/cards/${card.id}.html` : undefined,
+        target: published ? contentRef("card", card.id) : undefined,
         title: this.buildSummary(card.content || [], 48) || `卡片 #${card.id}`,
         published,
       };
@@ -1412,20 +967,23 @@ export class PublishSiteGenerator {
         type: "article",
         id: article.id,
         contentId,
-        href: published ? `/articles/${article.id}.html` : undefined,
+        target: published ? contentRef("article", article.id) : undefined,
         title: article.title || `文章 #${article.id}`,
         published,
       };
     }
 
-    const projectItem = db.getProjectItemsByContentId(contentId)[0];
+    const projectItems = db.getProjectItemsByContentId(contentId);
+    const projectItem =
+      projectItems.find(item => targets[`project-item:${item.id}`]) ?? projectItems[0];
     if (projectItem) {
       return {
         type: "project-item",
         id: projectItem.id,
         contentId,
         title: projectItem.title || `项目条目 #${projectItem.id}`,
-        published: false,
+        target: targets[`project-item:${projectItem.id}`],
+        published: Boolean(targets[`project-item:${projectItem.id}`]),
       };
     }
 
@@ -1436,44 +994,12 @@ export class PublishSiteGenerator {
     };
   }
 
-  private buildQuestInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
-    entry: IQuestEntry,
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        content: { ...entry },
-        meta: {
-          type: "quest",
-          publishTime: Date.now(),
-        },
-      },
-      appearanceSettings
-    );
-  }
-
-  private buildQuestListInitData(
-    site: ISiteMeta,
-    navigation: INavigationItem[],
-    entries: IQuestEntry[],
-    docCollections?: IPublishInitData["docCollections"],
-    contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings
-  ): IPublishInitData {
+  private buildQuestListInitData(entries: IQuestEntry[]): PublishDataBody {
     const items: IPublishQuestListItem[] = entries.map(entry => ({
       id: entry.id,
       title: entry.title,
       summary: entry.summary,
-      href: entry.href,
+      target: entry.target,
       tags: [entry.groupTitle],
       groupId: entry.groupId,
       groupTitle: entry.groupTitle,
@@ -1483,30 +1009,14 @@ export class PublishSiteGenerator {
       updateTime: resolveQuestActivityTime(entry),
     }));
 
-    return attachPublishAppearanceSettings(
-      {
-        site: this.buildSiteInitMeta(site),
-        navigation,
-        search: this.buildSearchInitMeta(),
-        docCollections,
-        contentLinkTargets,
-        content: {
-          title: "求索录",
-          type: "quest",
-          items,
-          pagination: {
-            current: 1,
-            total: items.length,
-            pageSize: Math.max(items.length, 1),
-          },
-        },
-        meta: {
-          type: "list",
-          publishTime: Date.now(),
-        },
+    return {
+      content: {
+        title: "求索录",
+        type: "quest",
+        items,
       },
-      appearanceSettings
-    );
+      meta: { type: "list" },
+    };
   }
 
   private collectQuestInlineContent(entry: IQuestEntry): Descendant[] {
@@ -1519,8 +1029,8 @@ export class PublishSiteGenerator {
     scope?: EntityScopeConfig
   ): {
     entries: IDocEntry[];
-    sidebar?: IPublishInitData["sidebar"];
-    defaultHref?: string;
+    sidebar?: TreeItem[];
+    defaultTarget?: ContentRef;
     skippedCount: number;
   } {
     const rootIds = Array.isArray(project.children) ? project.children : [];
@@ -1528,7 +1038,7 @@ export class PublishSiteGenerator {
       return {
         entries: [],
         sidebar: undefined,
-        defaultHref: undefined,
+        defaultTarget: undefined,
         skippedCount: 0,
       };
     }
@@ -1538,7 +1048,7 @@ export class PublishSiteGenerator {
       return {
         entries: [],
         sidebar: undefined,
-        defaultHref: undefined,
+        defaultTarget: undefined,
         skippedCount: 0,
       };
     }
@@ -1553,30 +1063,26 @@ export class PublishSiteGenerator {
       return {
         entries: [],
         sidebar: undefined,
-        defaultHref: undefined,
+        defaultTarget: undefined,
         skippedCount: 0,
       };
     }
 
-    const basePath = `/docs/project/${project.id}`;
+    const projectId = project.id;
     const sidebar = this.buildSidebarTree(
       project.title || `项目 #${project.id}`,
       treeNodes,
-      nodeId => `${basePath}/${nodeId}.html`
+      nodeId => contentRef("doc", nodeId, projectId)
     );
 
-    const { entries, defaultHref, skippedCount } = this.collectDocEntriesFromTree(
-      treeNodes,
-      {
-        entityId: project.id,
-        title: project.title || `项目 #${project.id}`,
-        kind: "project",
-        basePath,
-      },
-      sidebar
-    );
+    const { entries, defaultTarget, skippedCount } = this.collectDocEntriesFromTree(treeNodes, {
+      entityId: project.id,
+      title: project.title || `项目 #${project.id}`,
+      kind: "project",
+      projectId,
+    });
 
-    return { entries, sidebar, defaultHref, skippedCount };
+    return { entries, sidebar, defaultTarget, skippedCount };
   }
 
   private loadProjectItemsMap(db: PublishDataSource, rootIds: number[]): Map<number, ProjectItem> {
@@ -1659,9 +1165,9 @@ export class PublishSiteGenerator {
   private buildSidebarTree(
     entityTitle: string,
     nodes: IDocTreeNode[],
-    hrefBuilder: (nodeId: number) => string
-  ): IPublishInitData["sidebar"] {
-    const children = this.buildSidebarBranch(nodes, hrefBuilder) || [];
+    targetBuilder: (nodeId: number) => ContentRef
+  ): TreeItem[] | undefined {
+    const children = this.buildSidebarBranch(nodes, targetBuilder) || [];
     if (children.length === 0) {
       return undefined;
     }
@@ -1675,14 +1181,16 @@ export class PublishSiteGenerator {
 
   private buildSidebarBranch(
     nodes: IDocTreeNode[],
-    hrefBuilder: (nodeId: number) => string
-  ): IPublishInitData["sidebar"] {
+    targetBuilder: (nodeId: number) => ContentRef
+  ): TreeItem[] | undefined {
     return nodes.map(node => {
       const childNodes = node.children || [];
       return {
         title: node.title || `文档 ${node.id}`,
-        href: node.hasContent ? hrefBuilder(node.id) : undefined,
-        children: childNodes.length ? this.buildSidebarBranch(childNodes, hrefBuilder) : undefined,
+        target: node.hasContent ? targetBuilder(node.id) : undefined,
+        children: childNodes.length
+          ? this.buildSidebarBranch(childNodes, targetBuilder)
+          : undefined,
       };
     });
   }
@@ -1693,10 +1201,9 @@ export class PublishSiteGenerator {
       entityId: number;
       title: string;
       kind: IDocEntry["kind"];
-      basePath: string;
-    },
-    sidebar?: IPublishInitData["sidebar"]
-  ): { entries: IDocEntry[]; defaultHref?: string; skippedCount: number } {
+      projectId: number;
+    }
+  ): { entries: IDocEntry[]; defaultTarget?: ContentRef; skippedCount: number } {
     const entryInfos: Array<{ node: IDocTreeNode; ancestors: IDocTreeNode[] }> = [];
     let skippedCount = 0;
 
@@ -1711,29 +1218,29 @@ export class PublishSiteGenerator {
 
     nodes.forEach(node => traverse(node, []));
 
-    let defaultHref: string | undefined;
+    let defaultTarget: ContentRef | undefined;
     const entries = entryInfos.map(({ node, ancestors }) => {
-      const href = `${entity.basePath}/${node.id}.html`;
-      if (!defaultHref) {
-        defaultHref = href;
+      const target = contentRef("doc", node.id, entity.projectId);
+      if (!defaultTarget) {
+        defaultTarget = target;
       }
       const breadcrumb = [
         {
           label: entity.title,
-          href: defaultHref,
+          target: defaultTarget,
         },
         ...ancestors.map(ancestor => {
-          const ancestorHref = ancestor.hasContent
-            ? `${entity.basePath}/${ancestor.id}.html`
+          const ancestorTarget = ancestor.hasContent
+            ? contentRef("doc", ancestor.id, entity.projectId)
             : undefined;
           return {
             label: ancestor.title,
-            href: ancestorHref,
+            target: ancestorTarget,
           };
         }),
         {
           label: node.title,
-          href,
+          target,
         },
       ];
       return {
@@ -1741,18 +1248,17 @@ export class PublishSiteGenerator {
         entityId: entity.entityId,
         title: node.title,
         summary: this.buildSummary(node.content || []),
-        href,
+        target,
         createTime: node.createTime,
         updateTime: node.updateTime,
         tags: node.tags,
         kind: entity.kind,
         content: node.content || [],
         breadcrumb,
-        sidebar,
       } as IDocEntry;
     });
 
-    return { entries, defaultHref, skippedCount };
+    return { entries, defaultTarget, skippedCount };
   }
 
   private collectTailwindSources(
@@ -1805,7 +1311,7 @@ export class PublishSiteGenerator {
           }
         } catch (error) {
           this.logger.error("Tailwind runtime compile failed:", error);
-          css = "";
+          throw new Error("正文动态样式编译失败，请修复后重新发布", { cause: error });
         }
       }
       if (css) {
@@ -1834,7 +1340,13 @@ export class PublishSiteGenerator {
     if (!Array.isArray(content) || content.length === 0) {
       return false;
     }
-    return this.getPlainTextFromDescendants(content).trim().length > 0;
+    return (
+      this.getPlainTextFromDescendants(content).trim().length > 0 ||
+      content.some(node => {
+        const type = (node as unknown as { type?: string }).type;
+        return type && !["paragraph", "header"].includes(type);
+      })
+    );
   }
 
   private createDocTimelineEntry(entry: IDocEntry): ITimelineEntry {
@@ -1843,7 +1355,7 @@ export class PublishSiteGenerator {
       id: entry.id,
       title: entry.title,
       summary: entry.summary,
-      href: entry.href,
+      target: entry.target,
       tags: entry.tags,
       publishTime: entry.createTime,
     };
@@ -1855,7 +1367,7 @@ export class PublishSiteGenerator {
       id: entry.id,
       title: entry.title,
       summary: entry.summary,
-      href: entry.href,
+      target: entry.target,
       tags: [entry.groupTitle],
       publishTime: resolveQuestActivityTime(entry),
     };
@@ -1871,7 +1383,7 @@ export class PublishSiteGenerator {
         type: "card" as const,
         id: card.id,
         summary: this.buildSummary(card.content || []),
-        href: `/cards/${card.id}.html`,
+        target: contentRef("card", card.id),
         tags: card.tags || [],
         publishTime: card.create_time,
       })),
@@ -1880,7 +1392,7 @@ export class PublishSiteGenerator {
         id: article.id,
         title: article.title,
         summary: this.buildSummary(article.content || []),
-        href: `/articles/${article.id}.html`,
+        target: contentRef("article", article.id),
         tags: article.tags || [],
         publishTime: article.create_time,
       })),
@@ -1935,7 +1447,7 @@ export class PublishSiteGenerator {
     return {
       id: card.id,
       summary: this.buildSummary(card.content || []),
-      href: `/cards/${card.id}.html`,
+      target: contentRef("card", card.id),
       createTime: card.create_time,
     };
   }

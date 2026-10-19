@@ -20,8 +20,6 @@
   },
   "dependencies": {
     "@tau/editor": "workspace:*",
-    "@tau/editor-text-formatting": "workspace:*",
-    "@tau/editor-link": "workspace:*",
     "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",

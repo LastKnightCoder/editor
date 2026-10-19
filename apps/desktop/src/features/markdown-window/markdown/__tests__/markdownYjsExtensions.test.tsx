@@ -4,8 +4,8 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { expect, it } from "vitest";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import codeBlockExtension from "@tau/editor-code-block";
-import { getCodeBlockController } from "@tau/editor-code-block/runtime";
+import codeBlockExtension from "@tau/editor/extensions/code-block";
+import { getCodeBlockController } from "@tau/editor/extensions/code-block/runtime";
 import { createMarkdownDocument } from "../markdownDocument";
 
 it("真实代码块在文件增量更新后保留控制器，编辑仍回写同一 Y.Doc", async () => {

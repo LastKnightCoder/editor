@@ -99,6 +99,39 @@ it("窗口缓存不可写时仍按主进程意图启停", async () => {
   expect(host.getState("test.local")).toBe("disabled");
 });
 
+it("纯模板只作为已安装资源管理，不登记或启用代码宿主", async () => {
+  const template = {
+    formatVersion: 1 as const,
+    apiVersion: 1 as const,
+    platform: "desktop" as const,
+    id: "test.template",
+    name: "模板",
+    version: "1.0.0",
+    template: { protocolVersion: 1 as const, root: "site", entries: ["index.html"] },
+    integrity: { "site/index.html": "a".repeat(64) },
+  };
+  let entries: LocalPluginScan["entries"] = [
+    { id: template.id, directory: "/test/plugins/test.template", template },
+  ];
+  const remove = vi.fn(async () => {
+    entries = [];
+  });
+  const { manager, host, modules, save } = setup(
+    async () => ({ directory: "/test/plugins", entries }),
+    "A",
+    remove
+  );
+  await manager.refresh();
+  expect(manager.isTemplate(template.id)).toBe(true);
+  expect(manager.issues).toEqual([]);
+  expect(host.listPlugins().some(plugin => plugin.id === template.id)).toBe(false);
+  await expect(manager.enable(template.id)).rejects.toThrow("无需启用");
+  expect(modules).not.toHaveBeenCalled();
+  await manager.uninstall(template.id, false);
+  expect(remove).toHaveBeenCalledWith(template.id);
+  expect(save).not.toHaveBeenCalled();
+});
+
 it("发现只登记，启用才执行，重新创建工作区宿主恢复启用意图", async () => {
   const scan = vi.fn(async () => snapshot(artifact()));
   const first = setup(scan);

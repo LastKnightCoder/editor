@@ -5,7 +5,6 @@ import {
   IPublishHistory,
   IPublishPlanPreview,
   IPublishResult,
-  IPublishFile,
   IPublishAppearanceSettings,
   IPublishFaviconConfig,
   PublishContentType,
@@ -97,11 +96,10 @@ export async function clearPublishHistory(): Promise<void> {
 
 // ============ 发布操作相关 ============
 
-/**
- * 下载发布模板
- */
-export async function downloadPublishTemplate(): Promise<string> {
-  return invoke("download-publish-template");
+export async function listPublishTemplates(): Promise<
+  import("@tau/plugins/template").TemplateManifest[]
+> {
+  return invoke("list-publish-templates");
 }
 
 export async function exportPublishOutput(options: {
@@ -109,6 +107,7 @@ export async function exportPublishOutput(options: {
   providerType: "github" | "s3" | "local";
   providerConfig?: Record<string, unknown>;
   siteConfig: {
+    templateId?: string;
     title: string;
     description: string;
     publicUrl?: string;
@@ -125,8 +124,13 @@ export async function exportPublishOutput(options: {
 /**
  * 预览发布计划
  */
-export async function previewPublishPlan(): Promise<IPublishPlanPreview> {
-  return invoke("preview-publish-plan", getContentPluginPublishContext());
+export async function previewPublishPlan(
+  config: Parameters<typeof exportPublishOutput>[0]
+): Promise<IPublishPlanPreview> {
+  return invoke("preview-publish-plan", {
+    ...config,
+    editorContext: getContentPluginPublishContext(),
+  });
 }
 
 /**
@@ -136,6 +140,7 @@ export async function executePublish(config: {
   providerType: "github" | "s3";
   providerConfig: Record<string, unknown>;
   siteConfig: {
+    templateId?: string;
     title: string;
     description: string;
     publicUrl?: string;
@@ -149,22 +154,6 @@ export async function executePublish(config: {
   };
 }): Promise<IPublishResult> {
   return invoke("execute-publish", { ...config, editorContext: getContentPluginPublishContext() });
-}
-
-/**
- * 重试发布失败的文件
- */
-export async function retryPublishFiles(config: {
-  providerType: "github" | "s3";
-  providerConfig: Record<string, unknown>;
-  files: IPublishFile[];
-  options?: {
-    maxRetries?: number;
-    retryDelay?: number;
-    concurrency?: number;
-  };
-}): Promise<IPublishResult> {
-  return invoke("retry-publish-files", config);
 }
 
 /**

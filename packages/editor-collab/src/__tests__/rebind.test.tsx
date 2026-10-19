@@ -14,8 +14,8 @@ import * as Y from "yjs";
 import { createSharedDocument, readSharedContent, type ContentNode } from "@tau/collaboration";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { defineExtension } from "@tau/editor/api";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { IEditorSlots } from "@tau/editor-media/services";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
 
 import { createYjsDocument } from "../document";
 import type { EditorCollaborationBinding } from "../types";

@@ -192,7 +192,9 @@ function Header({
             {entry && <span>@{entry.publisher.login}</span>}
             <span className="tabular-nums">{plugin?.info.version ?? entry?.latest.version}</span>
             {plugin && <SourceChip source={plugin.source} />}
-            {plugin && <span>{STATE_LABELS[plugin.info.state]}</span>}
+            {plugin && (
+              <span>{plugin.template ? "模板已安装" : STATE_LABELS[plugin.info.state]}</span>
+            )}
           </div>
         </div>
         {plugin ? (
@@ -240,12 +242,16 @@ function InstalledActions({
         ) : (
           state?.kind === "update" && <InstallButton name={plugin.info.name} state={state} />
         )}
-        <Switch
-          aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
-          checked={plugin.enabled}
-          disabled={!control.canToggle}
-          onCheckedChange={() => void control.toggle()}
-        />
+        {plugin.template ? (
+          <span className="text-tau-meta text-ink-2">博客模板</span>
+        ) : (
+          <Switch
+            aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
+            checked={plugin.enabled}
+            disabled={!control.canToggle}
+            onCheckedChange={() => void control.toggle()}
+          />
+        )}
         <PluginMenu
           runtime={runtime}
           plugin={plugin}
@@ -497,7 +503,11 @@ function Aside({
           ) : (
             <p className="text-tau-meta text-ink-3 flex items-center gap-2">
               <Layers className="size-3.5" strokeWidth={1.75} />
-              {active ? "没有登记可展示的功能" : "启用后可见"}
+              {plugin.template
+                ? "博客模板，在发布设置中选择使用"
+                : active
+                  ? "没有登记可展示的功能"
+                  : "启用后可见"}
             </p>
           )}
         </div>

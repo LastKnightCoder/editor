@@ -29,7 +29,7 @@ import {
   type PatchNode,
 } from "../content-node-patches";
 import { readSharedContent, type ContentNode } from "@tau/collaboration";
-import { createTaskIdPatcher } from "@tau/editor-list/task-ids";
+import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import { getNextTaskEntityId } from "./module-entity-id";
 
 /** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */

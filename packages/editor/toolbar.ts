@@ -4,7 +4,7 @@ export {
   type FloatingAnchorRect,
   type FloatingPlacement,
   type FloatingPosition,
-} from "./src/components/HoveringToolbar/floatingPosition.ts";
+} from "./src/core/components/HoveringToolbar/floatingPosition.ts";
 export {
   buildCompactLayoutItems,
   COMPACT_TEXT_STYLE_GROUP_ID,
@@ -13,4 +13,4 @@ export {
   type CompactGroupItem,
   type CompactNormalItem,
   type CompactLayoutItem,
-} from "./src/components/HoveringToolbar/compactLayout.ts";
+} from "./src/core/components/HoveringToolbar/compactLayout.ts";

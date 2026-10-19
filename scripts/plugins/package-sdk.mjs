@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const require = createRequire(path.join(root, "packages/plugins/package.json"));
 const ts = require("typescript");
+const { build } = require("esbuild");
 const output = path.resolve(process.argv[2] ?? path.join(root, "output/plugin-sdk"));
 await mkdir(path.dirname(output), { recursive: true });
 const staging = await mkdtemp(path.join(output + "-"));
@@ -29,7 +30,13 @@ try {
   const entries = ["plugins", "ui"].map(name => path.join(root, `packages/${name}/src/index.ts`));
   const whiteboardEntry = path.join(root, "packages/plugins/src/whiteboard.ts");
   const syncEntry = path.join(root, "packages/plugins/src/sync.ts");
-  const graph = ts.createProgram([...entries, whiteboardEntry, syncEntry], options);
+  const publishEntry = path.join(root, "packages/plugins/src/publish-data.ts");
+  const clientEntry = path.join(root, "packages/plugins/src/publish-client.ts");
+  const artifactsEntry = path.join(root, "packages/plugins/src/publish-artifacts.ts");
+  const graph = ts.createProgram(
+    [...entries, whiteboardEntry, syncEntry, publishEntry, clientEntry, artifactsEntry],
+    options
+  );
   const program = ts.createProgram(
     graph
       .getSourceFiles()
@@ -147,6 +154,25 @@ try {
       );
       await copyDeclaration(whiteboardEntry);
       await copyDeclaration(syncEntry);
+      await copyDeclaration(publishEntry);
+      await copyDeclaration(clientEntry);
+      await copyDeclaration(artifactsEntry);
+      await writeFile(
+        path.join(directory, "PUBLISH-DATA.md"),
+        await readFile(path.join(root, "scripts/plugins/PUBLISH-DATA.md"))
+      );
+      await writeFile(path.join(directory, "publish-data.js"), "export {};\n");
+      await build({
+        entryPoints: { "publish-client": clientEntry, "publish-artifacts": artifactsEntry },
+        outdir: directory,
+        bundle: true,
+        splitting: true,
+        platform: "browser",
+        format: "esm",
+        target: "es2022",
+        entryNames: "[name]",
+        chunkNames: "client/[name]-[hash]",
+      });
     }
     await writeFile(
       path.join(directory, "runtime.js"),
@@ -162,13 +188,25 @@ try {
           repository: { type: "git", url: "git+https://github.com/LastKnightCoder/editor.git" },
           publishConfig: { access: "public", registry: "https://registry.npmjs.org" },
           type: "module",
-          description: "Tau 插件作者类型契约；运行时由宿主提供",
+          description: "Tau 插件作者类型契约；插件实现由宿主提供，发布数据客户端可独立使用",
           exports: {
             ".": { types: "./" + targetOf(entries[index]), default: "./runtime.js" },
             ...(name === "plugins"
               ? {
                   "./tailwind.css": "./tailwind.css",
                   "./sync": { types: "./" + targetOf(syncEntry), default: "./runtime.js" },
+                  "./publish-data": {
+                    types: "./" + targetOf(publishEntry),
+                    default: "./publish-data.js",
+                  },
+                  "./publish-client": {
+                    types: "./" + targetOf(clientEntry),
+                    default: "./publish-client.js",
+                  },
+                  "./publish-artifacts": {
+                    types: "./" + targetOf(artifactsEntry),
+                    default: "./publish-artifacts.js",
+                  },
                   "./whiteboard": {
                     types: "./" + targetOf(whiteboardEntry),
                     default: "./runtime.js",
@@ -189,7 +227,7 @@ try {
     );
     await writeFile(
       path.join(directory, "README.md"),
-      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。实际实现由 Tau 客户端在运行时提供，构建时需设为 external，不能在普通 Node.js 程序中直接运行。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，需要 Tau 0.59.0 及以上。AI 功能声明、模型分配与用量审计见 [AI.md](AI.md)。\n" : ""}`
+      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实际实现由 Tau 客户端提供，构建时需设为 external。plugins 包另提供独立站点可用的 publish-data 类型和 publish-client 纯数据客户端，见该包 PUBLISH-DATA.md；不包含站点渲染、路由或预览实现。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，需要 Tau 0.59.0 及以上。AI 功能声明、模型分配与用量审计见 [AI.md](AI.md)。\n" : ""}`
     );
     if (name === "plugins") {
       await writeFile(

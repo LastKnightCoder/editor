@@ -6,8 +6,8 @@ import { ReactEditor, useSlateStatic } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { IEditorSlots } from "@tau/editor-media/services";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import {
   defineExtension,
   defineElement,

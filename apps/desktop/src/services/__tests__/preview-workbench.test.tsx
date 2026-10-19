@@ -13,16 +13,16 @@ Range.prototype.getBoundingClientRect = emptyRect as unknown as () => DOMRect;
 Range.prototype.getClientRects = (() => []) as unknown as () => DOMRectList;
 
 const renderMermaidSvg = vi.fn();
-vi.mock("@tau/editor-diagram/mermaid", async importOriginal => ({
-  ...(await importOriginal<typeof import("@tau/editor-diagram/mermaid")>()),
+vi.mock("@tau/editor/extensions/diagram/mermaid", async importOriginal => ({
+  ...(await importOriginal<typeof import("@tau/editor/extensions/diagram/mermaid")>()),
   renderMermaidSvg: (...args: unknown[]) => renderMermaidSvg(...args),
 }));
 
 import { Editor as EditorComponent, createEditorKit, type EditorRef } from "@tau/editor";
-import { createDefaultEditorSlots } from "@tau/editor-media/slots";
-import { IEditorSlots } from "@tau/editor-media/services";
-import { mathExtensions } from "@tau/editor-math";
-import { diagramExtensions } from "@tau/editor-diagram";
+import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
+import { mathExtensions } from "@tau/editor/extensions/math";
+import { diagramExtensions } from "@tau/editor/extensions/diagram";
 
 const mount = async (initValue: Descendant[], readonly = false) => {
   const container = document.createElement("div");
