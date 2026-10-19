@@ -2,9 +2,12 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "path";
+import { fileURLToPath } from "node:url";
+
+const configDirectory = fileURLToPath(new URL(".", import.meta.url));
 
 // 主项目路径
-const mainProjectPath = resolve(__dirname, "../desktop");
+const mainProjectPath = resolve(configDirectory, "../desktop");
 
 export default defineConfig({
   base: "./", // 相对路径，支持任意部署位置
@@ -13,12 +16,12 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],
     alias: {
       // blog 自己的模块
-      "@blog": resolve(__dirname, "src"),
+      "@blog": resolve(configDirectory, "src"),
       // 主项目的模块（与主项目的 @ 保持一致）
       "@": resolve(mainProjectPath, "src"),
       // monorepo packages
-      "@tau/editor": resolve(__dirname, "../../packages/editor"),
-      "@tau/shared": resolve(__dirname, "../../packages/shared"),
+      "@tau/editor": resolve(configDirectory, "../../packages/editor"),
+      "@tau/shared": resolve(configDirectory, "../../packages/shared"),
     },
   },
   optimizeDeps: {
@@ -27,12 +30,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        home: resolve(__dirname, "src/templates/home/index.html"),
-        card: resolve(__dirname, "src/templates/card/index.html"),
-        article: resolve(__dirname, "src/templates/article/index.html"),
-        doc: resolve(__dirname, "src/templates/doc/index.html"),
-        quest: resolve(__dirname, "src/templates/quest/index.html"),
-        list: resolve(__dirname, "src/templates/list/index.html"),
+        home: resolve(configDirectory, "src/templates/home/index.html"),
+        card: resolve(configDirectory, "src/templates/card/index.html"),
+        article: resolve(configDirectory, "src/templates/article/index.html"),
+        doc: resolve(configDirectory, "src/templates/doc/index.html"),
+        quest: resolve(configDirectory, "src/templates/quest/index.html"),
+        list: resolve(configDirectory, "src/templates/list/index.html"),
       },
       output: {
         entryFileNames: "assets/[name]-[hash].js",
