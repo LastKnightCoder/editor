@@ -1798,6 +1798,8 @@
 
 ## 博客模板插件化（2026-10-18，执行中）
 
+- 2026-10-19 公开交付修订：用户最终确认包名 @tau/blog，源码为 packages/blog，复用通用 packages/editor；消费别名对应公开 @xiongtao.xt/tau-blog@0.1.0。删除模板 passiveExtensions、专属占位样式、强制覆盖清单与无用依赖，不恢复具体插件特判。两个模板已更新公共依赖锁文件并发布 GitHub v1.0.0，候选、公共 npm 安装、原生 Vite 和正式宿主链路均验证通过；不重发原 SDK/UI，不上架插件中心，不自动发布桌面客户端，证据见 66。以下旧包名与暂不发布记录为历史阶段。
+
 - 2026-10-19 收敛：Editor 的 kit 选择与环境装配分开，删除渲染器及页面的 Provider 补线；UI 原语沿用默认 Portal 或外层作用域。渲染包明确六个出口，不自动转发 Editor 内部接口。用户另确认删除 content-css，CSS 仅校验后按原文加载，不改写选择器或动画；样式范围由内容插件自己定义，不提供强制实例隔离。本轮只交付本地候选与验证，暂不发布或推送。
 
 - 2026-10-19 包名与源码分层修订：对外模板渲染交付整体改名为 @tau/blog-renderer，发布接入源码迁入 packages/blog-renderer，单向依赖通用 Editor 与数据 SDK；packages/editor 不引用发布协议。必要实现随一个包构建，不要求模板额外安装 Editor/SDK，旧 tau-editor 公开版本保留历史。页面 Tooltip、toast、主题和预览容器由模板选择，不公开 /editor/ui 或要求页面使用内部 Provider。本文下面同包 /renderer 与模板 PublishedContent 的旧设计记录由本条接替；HTML 插件保持原实现，无新增 iframe 或实例资源接口。
