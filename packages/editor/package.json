@@ -47,7 +47,6 @@
     "./extensions/detail/markdown": "./src/extensions/detail/markdown.ts",
     "./extensions/diagram": "./src/extensions/diagram/src/index.ts",
     "./extensions/diagram/markdown": "./src/extensions/diagram/markdown.ts",
-    "./extensions/diagram/services": "./src/extensions/diagram/services.ts",
     "./extensions/diagram/types": "./src/extensions/diagram/src/types/index.ts",
     "./extensions/diagram/renderers": "./src/extensions/diagram/renderers.tsx",
     "./extensions/diagram/mermaid": "./src/extensions/diagram/src/renderers/mermaid-render-core.ts",

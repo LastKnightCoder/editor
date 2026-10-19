@@ -6,11 +6,11 @@
 
 同一份 v0.53.1 代码，两台 Windows 机器 `pnpm build` 打出的安装包体积差异巨大：
 
-| 机器 | 体积 | 原因 |
-| ---- | ---- | ---- |
-| 机器 A | 541M | node_modules 被污染，混入全平台原生二进制变体 |
-| 机器 B | 220M | node-llama-cpp 未下载 GPU 后端（打包机无可用显卡） |
-| 修复后预期 | ~260M | CPU + Vulkan 两个后端齐全，任何机器一致 |
+| 机器       | 体积  | 原因                                               |
+| ---------- | ----- | -------------------------------------------------- |
+| 机器 A     | 541M  | node_modules 被污染，混入全平台原生二进制变体      |
+| 机器 B     | 220M  | node-llama-cpp 未下载 GPU 后端（打包机无可用显卡） |
+| 修复后预期 | ~260M | CPU + Vulkan 两个后端齐全，任何机器一致            |
 
 作为参照，引入 node-llama-cpp 之前的版本（v0.40 ~ v0.51）安装包为 162M ~ 175M。
 
@@ -18,16 +18,16 @@
 
 未压缩 `win-unpacked` 约 870M，NSIS 压缩后 ~260M：
 
-| 部分 | 大小 | 说明 |
-| ---- | ---- | ---- |
-| `resources/app.asar` | 224M | 前端产物与纯 JS 依赖 |
-| `@node-llama-cpp/win-x64` | 46M | llama.cpp CPU 推理后端 |
-| `@node-llama-cpp/win-x64-vulkan` | 95M | llama.cpp Vulkan GPU 推理后端 |
-| `@myriaddreamin/typst-*` | 42M | Typst 编译器（仅 win32-x64） |
-| `node-llama-cpp`（JS 主包） | 39M | 含 llama.cpp 源码 |
-| `@napi-rs/canvas-win32-x64-msvc` | 36M | pdfjs-dist 的原生可选依赖 |
-| `@img/sharp-win32-x64` | 19M | 图像处理 |
-| Electron 运行时 | ~300M | Tau.exe / locales / dxcompiler.dll 等 |
+| 部分                             | 大小        | 说明                                                            |
+| -------------------------------- | ----------- | --------------------------------------------------------------- |
+| `resources/app.asar`             | 224M        | 前端产物与纯 JS 依赖                                            |
+| `@node-llama-cpp/win-x64`        | 46M         | llama.cpp CPU 推理后端                                          |
+| `@node-llama-cpp/win-x64-vulkan` | 95M         | llama.cpp Vulkan GPU 推理后端                                   |
+| ~~`@myriaddreamin/typst-*`~~     | 0（已移除） | Typst 编译器随 D-175 移除，改由 `tau.typst` 插件运行时下载 WASM |
+| `node-llama-cpp`（JS 主包）      | 39M         | 含 llama.cpp 源码                                               |
+| `@napi-rs/canvas-win32-x64-msvc` | 36M         | pdfjs-dist 的原生可选依赖                                       |
+| `@img/sharp-win32-x64`           | 19M         | 图像处理                                                        |
+| Electron 运行时                  | ~300M       | Tau.exe / locales / dxcompiler.dll 等                           |
 
 ## 根因一：node_modules 全平台变体污染（+280M）
 

@@ -16,20 +16,6 @@ export const desktopPluginServices: PluginServices = {
         options
       ),
   },
-  typst: {
-    compile: async (input, options) => {
-      if (input.format && input.format !== "html") throw new Error("当前 Typst 服务仅支持 HTML");
-      return invokeCompiler(
-        {
-          kind: "typst",
-          source: input.source,
-          inputs: input.inputs ?? {},
-          files: await compilerFiles(input.files ?? [], options?.signal),
-        },
-        options
-      );
-    },
-  },
   markdown: {
     deserialize: async (source, options) =>
       (await import("@/services/plugin-markdown")).pluginMarkdown.deserialize(source, options),

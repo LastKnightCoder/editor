@@ -210,26 +210,6 @@ const checks = [
     `,
   },
   {
-    name: "@myriaddreamin/typst-ts-node-compiler",
-    code: `
-      const { NodeCompiler } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@myriaddreamin/typst-ts-node-compiler");
-      const compiler = NodeCompiler.create();
-      const result = compiler.tryHtml({
-        mainFileContent: "= Runtime check",
-        inputs: {},
-      });
-      if (!result.result) {
-        result.printDiagnostics();
-        throw new Error("typst compiler produced no HTML result");
-      }
-      const html = result.result.body();
-      if (typeof html !== "string" || html.length === 0) {
-        throw new Error("typst compiler produced an empty HTML body");
-      }
-      console.log("typst=ok");
-    `,
-  },
-  {
     name: "7zip-min",
     code: `
       const fs = require("node:fs");

@@ -52,22 +52,6 @@ async function verify() {
       language: "html",
     });
     check(css.css.includes(".p-4") && css.css.includes("--tau-"), "Tailwind 未输出语义类");
-    const typst = await services.typst.compile({
-      source: '#include "part.typ"\n#sys.inputs.at("title")',
-      inputs: { title: "TauTitle" },
-      files: [{ name: "part.typ", data: new Blob(["FromFile"]) }],
-    });
-    check(
-      typst.html.includes("FromFile") && typst.html.includes("TauTitle"),
-      "Typst 附件或变量失败"
-    );
-    let rejected = false;
-    try {
-      await services.typst.compile({ source: "#unknown-function()" });
-    } catch {
-      rejected = true;
-    }
-    check(rejected, "Typst 错误源码没有失败");
     const { nodes } = await services.markdown.deserialize("# Hello\n\n* [x] done");
     check(
       (await services.markdown.serialize(nodes)).markdown.includes("[x]"),
@@ -104,8 +88,6 @@ async function verify() {
       ok: true,
       cases: [
         "tailwind",
-        "typst-assets-inputs",
-        "typst-error",
         "markdown-roundtrip-html",
         "ffmpeg-output",
         "ffmpeg-cancel",

@@ -44,7 +44,6 @@ export async function checkServices(context: PluginContext) {
   await context.services.markdown.serialize(nodes);
   await context.services.markdown.render("**文字**");
   await context.services.tailwind.compile({ source: '<div class="p-4" />', language: "tsx" });
-  await context.services.typst.compile({ source: "= 标题", format: "html" });
   const file = { name: "input.wav", data: new Blob() };
   await context.services.ffmpeg.run(
     {

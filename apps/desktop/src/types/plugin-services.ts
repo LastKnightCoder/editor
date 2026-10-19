@@ -5,7 +5,6 @@ export interface CompilerFile {
 
 export type CompilerRequest =
   | { kind: "tailwind"; source: string; language: string }
-  | { kind: "typst"; source: string; inputs: Record<string, string>; files: CompilerFile[] }
   | {
       kind: "ffmpeg";
       files: CompilerFile[];

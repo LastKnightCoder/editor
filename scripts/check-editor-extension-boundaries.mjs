@@ -411,10 +411,8 @@ const serviceScript = `
     await import('@tau/editor/extensions/media/services');
   assert.deepEqual([IEditorSlots, IMediaInsertSources, IVideoContentProviders, IMediaActions, IMediaSelectors].map(token => token.id),
     ['editorSlots', 'mediaInsertSources', 'videoContentProviders', 'mediaActions', 'mediaSelectors']);
-  const { ITypstCompiler } = await import('@tau/editor/extensions/diagram/services');
   assert.equal(createServiceId('test').id, 'test');
   assert.equal(IRuntimeStyleCompiler.id, 'tau.host.runtime-style-compiler');
-  assert.equal(ITypstCompiler.id, 'tau.diagram.typst-compiler');
   const { getCodeBlockController } = await import('@tau/editor/extensions/code-block/runtime');
   assert.equal(getCodeBlockController('missing'), undefined);
   const sharedDisplay = await import('@tau/shared/chat-renderers');

@@ -12,7 +12,6 @@ import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { customBlockExtension, htmlExtension } from "../../test-fixtures/plugin-packages";
 import "@tau/plugins/source-editor-host";
 import { diagramExtensions } from "@tau/editor/extensions/diagram";
-import { ITypstCompiler } from "@tau/editor/extensions/diagram/services";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor/extensions/code-block";
@@ -89,7 +88,6 @@ describe("外包扩展的真实编辑器接线", () => {
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
           register(IResourceService, { upload: async () => "测试图片地址" });
-          register(ITypstCompiler, { compile: async code => `<div>Typst:${code}</div>` });
           register(IRuntimeStyleCompiler, { compile: compiler });
         },
       ],

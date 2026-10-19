@@ -1,6 +1,6 @@
 # 编译与转换服务
 
-需要在插件里编译 Tailwind、Typst，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本及实现相应能力的客户端构建。本文对应 SDK 0.23.0。TikZ 编译属于独立绘图插件，不再提供宿主服务。
+需要在插件里编译 Tailwind，转换 Markdown，或处理音视频时，可以使用这些服务。通过 `context.services` 调用，类型从 `@tau/plugins` 导入，需要 Tau 0.59.0 或更高版本及实现相应能力的客户端构建。本文对应 SDK 0.24.0。TikZ 编译属于独立绘图插件，Typst 排版属于 `tau.typst` 插件（自带 WebAssembly 引擎），均不再提供宿主服务。
 
 所有服务都是异步方法，只处理传入数据并返回结果，不读写笔记、不选择或保存文件、不自动注入样式。
 
@@ -9,7 +9,6 @@
 | 方法                                     | 输入                                              | 返回                                    |
 | ---------------------------------------- | ------------------------------------------------- | --------------------------------------- |
 | `tailwind.compile(input, options?)`      | `{ source, language?: "html" \| "tsx" \| "jsx" }` | `{ css }`                               |
-| `typst.compile(input, options?)`         | `{ source, format?: "html", inputs?, files? }`    | `{ html }`                              |
 | `markdown.deserialize(source, options?)` | Markdown 字符串                                   | `{ nodes: Descendant[], warnings }`     |
 | `markdown.serialize(nodes, options?)`    | `Descendant[]`                                    | `{ markdown, warnings }`                |
 | `markdown.render(source, options?)`      | Markdown 字符串                                   | `{ html, css, warnings }`               |
@@ -33,11 +32,11 @@ SDK 0.16.0 的 `usePluginServices()` 返回当前插件可用的同一组服务�
 ```ts
 const controller = new AbortController();
 try {
-  const { html } = await context.services.typst.compile(
-    { source: "= 阅读报告\n本周阅读记录" },
+  const { css } = await context.services.tailwind.compile(
+    { source: '<div class="p-4">Hello</div>', language: "html" },
     { signal: controller.signal }
   );
-  // 将 html 用于插件自己的预览。
+  // 将 css 用于插件自己的预览。
 } catch (error) {
   if (error instanceof Error && error.name === "AbortError") return;
   throw error;
@@ -59,20 +58,6 @@ const { css } = await context.services.tailwind.compile({
 使用 Tailwind 4，支持 Tau 语义类。返回 theme/utilities，不重复提供 preflight。源码只用于提取完整类名，不执行 TSX/JSX，也不编译 React。动态拼接类名不能保证被提取。Tau 语义类依赖 Tau 提供的 `--tau-*` 变量，离开 Tau 的页面需要自行提供相应主题变量。
 
 固定插件界面通常在打包时编译样式；此服务主要用于运行时生成内容。返回 CSS 由插件自行使用并在停用时清理。
-
-## Typst
-
-目前只输出 HTML 正文片段，不支持 PDF 和 SVG。`inputs` 对应 Typst 的 `sys.inputs`：
-
-```ts
-const { html } = await context.services.typst.compile({
-  source: '#include "parts/intro.typ"\n#sys.inputs.at("title")',
-  inputs: { title: "阅读报告" },
-  files: [{ name: "parts/intro.typ", data: new Blob(["本周阅读记录"]) }],
-});
-```
-
-附件名是本次编译中的相对路径，不能使用绝对路径、`..` 或反斜杠。图片和包含文件等需显式通过 `files` 提供。可用字体依赖客户端运行环境；不承诺任意宏包或排版效果均可导出为 HTML。公式需要使用 Typst 相应的 HTML 写法，不能把 PDF 能力等同于 HTML 支持。
 
 ## Markdown 与编辑器节点
 
