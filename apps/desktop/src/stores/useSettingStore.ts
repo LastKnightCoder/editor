@@ -1,7 +1,10 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
 
 import { EGithubCDN } from "@/constants/github";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
@@ -188,24 +191,11 @@ export interface ISetting {
       }>;
     }>;
   };
+  /** 在线视频提供方插件配置，键为插件 ID，结构由插件定义。 */
+  onlineVideo: {
+    configurations: Record<string, unknown>;
+  };
   integration: {
-    bilibili: {
-      enabled: boolean;
-      credentials: {
-        SESSDATA: string;
-        bfe_id?: string;
-      };
-      userInfo: {
-        name: string;
-        avatar: string;
-        isLogin: boolean;
-        vipStatus: number; // 0: 普通成员，1：大会员
-      };
-    };
-    youtube: {
-      enabled: boolean;
-      proxy: string;
-    };
     github: {
       enabled: boolean;
       token: string;
@@ -291,13 +281,6 @@ interface IActions {
   setAgentShellPath: (path: string) => void;
   /** 新对话的默认工作目录（空串 = 应用数据目录） */
   setAgentDefaultCwd: (cwd: string) => void;
-  updateBilibiliCredentials: (
-    credentials: ISetting["integration"]["bilibili"]["credentials"]
-  ) => void;
-  updateBilibiliUserInfo: (userInfo: ISetting["integration"]["bilibili"]["userInfo"]) => void;
-  setBilibiliEnabled: (enabled: boolean) => void;
-  setYoutubeEnabled: (enabled: boolean) => void;
-  updateYoutubeProxy: (proxy: string) => void;
   setWebClipTranslateToChinese: (enabled: boolean) => void;
   setAutoCacheRemoteVideo: (enabled: boolean) => void;
   setAutoCacheRemoteImage: (enabled: boolean) => void;
@@ -457,24 +440,10 @@ const initialState: IState = {
       currentConfigId: "",
       configs: [],
     },
+    onlineVideo: {
+      configurations: {},
+    },
     integration: {
-      bilibili: {
-        enabled: false,
-        credentials: {
-          SESSDATA: "",
-          bfe_id: "",
-        },
-        userInfo: {
-          name: "",
-          avatar: "",
-          isLogin: false,
-          vipStatus: 0,
-        },
-      },
-      youtube: {
-        enabled: false,
-        proxy: "",
-      },
       github: {
         enabled: false,
         token: "",
@@ -657,46 +626,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, draft => {
         draft.llmUsageSettings[feature] = config;
-      }),
-    });
-  },
-  updateBilibiliCredentials: credentials => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.bilibili.credentials = credentials;
-      }),
-    });
-  },
-  updateBilibiliUserInfo: userInfo => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.bilibili.userInfo = userInfo;
-      }),
-    });
-  },
-  setBilibiliEnabled: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.bilibili.enabled = enabled;
-      }),
-    });
-  },
-  setYoutubeEnabled: enabled => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.youtube.enabled = enabled;
-      }),
-    });
-  },
-  updateYoutubeProxy: proxy => {
-    const { setting } = get();
-    set({
-      setting: produce(setting, draft => {
-        draft.integration.youtube.proxy = proxy;
       }),
     });
   },

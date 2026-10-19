@@ -48,12 +48,12 @@ describe("主窗口设置快照", () => {
     const fallback = vi.fn();
     cleanup = connectSettingReplica(false, fallback);
     const setting = structuredClone(original);
-    setting.integration.bilibili.userInfo.isLogin = true;
+    setting.integration.github.user.name = "replica";
     Channel.latest.receive({ kind: "snapshot", setting });
     await vi.advanceTimersByTimeAsync(2000);
     expect(fallback).not.toHaveBeenCalled();
     expect(useSettingStore.getState().inited).toBe(true);
-    expect(useSettingStore.getState().setting.integration.bilibili.userInfo.isLogin).toBe(true);
+    expect(useSettingStore.getState().setting.integration.github.user.name).toBe("replica");
     expect(isRemoteAppliedSnapshot(JSON.stringify(buildPersistedSettingSnapshot(setting)))).toBe(
       true
     );

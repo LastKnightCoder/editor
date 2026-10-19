@@ -6,6 +6,8 @@
 
 ## 当前状态
 
+- 在线视频插件化见 [73](73-在线视频提供方插件化.md)（PS-041、D-173）：SDK 0.21.0 增加 `context.video`、`target: "video"`、`services.videoExtractor` 与 `video` 分类；插件返回播放源描述，宿主统一下载、缓存与播放。Bilibili、YouTube 迁为同级独立仓库 `tau-plugin-bilibili`、`tau-plugin-youtube`（ID 沿用存量来源类型），宿主平台代码已删除；SDK 与插件尚未发布。
+
 - CI 自动提交见 PS-040：插件仓库推送 tag 后，release.yml 以 GitHub Actions OIDC 令牌调用门户 `POST /v1/ci/releases`，仓库须与首次网页提交登记的一致；审核者本人推送时自动批准发布，其余进待审。
 
 - 插件分类与关键词见 [71](71-插件分类与关键词.md)（PS-039）：分类按扩展点划分为同步、资源上传、编辑器、白板、博客模板、AI、语音、页面，作者在 manifest 自填 `categories`/`keywords`，不强制校验；门户与桌面发现页按分类单选筛选。SDK 校验（门户严格、客户端宽松）、作者模板、门户（0008 迁移、目录分类筛选与计数、网站分类条）与桌面端（发现页分类菜单、详情页按实际注册列出贡献）已完成；门户已上线，17 个官方插件已补填分类并经 CI 自动提交发布。

@@ -42,6 +42,28 @@ export interface MediaInfo {
   }[];
 }
 
+export interface VideoFormat {
+  id: string;
+  /** 只含视频或只含音频的流；两者都为 false 时是音视频合一的流。 */
+  videoOnly: boolean;
+  audioOnly: boolean;
+  ext?: string;
+  width?: number;
+  height?: number;
+  fps?: number;
+  /** 码率，单位 kbps。 */
+  bitrate?: number;
+  size?: number;
+  note?: string;
+}
+
+export interface VideoProbeResult {
+  title: string;
+  cover?: string;
+  duration?: number;
+  formats: VideoFormat[];
+}
+
 export interface PluginServices {
   tailwind: {
     compile(
@@ -86,6 +108,10 @@ export interface PluginServices {
       options?: ServiceOptions & { onProgress?: (progress: MediaProgress) => void }
     ): Promise<{ files: ServiceFile[]; log: string }>;
   };
+  /** 宿主视频解析器（yt-dlp），只查询页面的标题与可下载格式，下载经视频播放源交给宿主。 */
+  videoExtractor: {
+    probe(url: string, options?: ServiceOptions & { proxy?: string }): Promise<VideoProbeResult>;
+  };
 }
 
 /** 每个调用同时受调用方与插件实例生命周期约束。 */
@@ -117,5 +143,6 @@ export function bindPluginServices(
       render: bind(adapter?.markdown?.render),
     }),
     ffmpeg: Object.freeze({ probe: bind(adapter?.ffmpeg?.probe), run: bind(adapter?.ffmpeg?.run) }),
+    videoExtractor: Object.freeze({ probe: bind(adapter?.videoExtractor?.probe) }),
   });
 }

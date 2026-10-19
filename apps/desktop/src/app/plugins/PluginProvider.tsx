@@ -15,6 +15,7 @@ import { connectSyncRenderer } from "./sync-bridge";
 import { connectUploadRenderer } from "./upload-bridge";
 import { connectTTSRenderer } from "./tts-bridge";
 import { connectImagesRenderer } from "./images-bridge";
+import { connectVideoRenderer, rendererVideoRegistry } from "./video-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 
 const restartRequired = new Set<string>();
@@ -26,6 +27,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectUploadRenderer, []);
   useEffect(connectTTSRenderer, []);
   useEffect(connectImagesRenderer, []);
+  useEffect(connectVideoRenderer, []);
   const { navigator } = usePage();
   const workspaceId = useSettingStore(state => state.setting.database.active);
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
@@ -75,15 +77,22 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                   ? useSettingsStore.getState().openTTSSettings()
                   : target === "images"
                     ? useSettingsStore.getState().openSettings("imageGeneration")
-                    : navigator.push(PLUGIN_DETAIL_KEY, {
-                        pluginId: key.split(":")[1],
-                        tab: "settings",
-                        section: key,
-                      }),
+                    : target === "video"
+                      ? useSettingsStore.getState().openSettings("integration")
+                      : navigator.push(PLUGIN_DETAIL_KEY, {
+                          pluginId: key.split(":")[1],
+                          tab: "settings",
+                          section: key,
+                        }),
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         setRuntime(current);
-        if (local) void local.refresh().catch(() => undefined);
+        if (local)
+          void local
+            .refresh()
+            .catch(() => undefined)
+            .finally(() => rendererVideoRegistry.markReady());
+        else rendererVideoRegistry.markReady();
       })
       .catch(error => {
         if (!cancelled) setError(error instanceof Error ? error.message : "插件初始化失败");

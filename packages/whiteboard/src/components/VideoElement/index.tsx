@@ -5,8 +5,10 @@ export default function VideoElement({ element, ...props }: ElementFrameProps) {
   if (Component) return <Component element={element} {...props} />;
   return (
     <ElementFrame element={element} {...props}>
-      {element.metaInfo?.type === "bilibili" || element.metaInfo?.type === "youtube" ? (
-        "视频平台内容需要宿主支持"
+      {element.metaInfo &&
+      element.metaInfo.type !== "local" &&
+      element.metaInfo.type !== "remote" ? (
+        "该视频请在桌面端查看"
       ) : (
         <video src={element.src} controls className="size-full" />
       )}

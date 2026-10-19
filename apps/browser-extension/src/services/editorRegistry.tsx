@@ -22,36 +22,18 @@ interface CreateEditorRegistryOptions {
   wsClient: WebSocketClient | null;
 }
 
-/** 平台解析类视频降级为提示，避免按直链拉流播放失败 */
+/** 视频插件提供的视频依赖桌面端插件取源，降级为提示，避免按页面地址拉流失败 */
 function createDegradedVideoProviders(): VideoContentProvider[] {
-  const degraded = (platform: string): VideoContentProvider["Content"] => {
-    const DegradedContent = () => (
-      <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
-        {platform} 视频请在桌面端查看
-      </div>
-    );
-    return DegradedContent;
-  };
-  const matchesHostSuffix = (url: string, suffix: string) => {
-    try {
-      return new URL(url).hostname.replace(/^www\./, "").endsWith(suffix);
-    } catch {
-      return false;
-    }
-  };
+  const DegradedContent = () => (
+    <div className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">
+      该视频请在桌面端查看
+    </div>
+  );
   return [
     {
-      id: "bilibili",
-      match: element => element.metaInfo?.type === "bilibili",
-      isSourceUrl: url => matchesHostSuffix(url, "bilibili.com"),
-      Content: degraded("Bilibili"),
-    },
-    {
-      id: "youtube",
-      match: element => element.metaInfo?.type === "youtube",
-      isSourceUrl: url =>
-        matchesHostSuffix(url, "youtube.com") || matchesHostSuffix(url, "youtu.be"),
-      Content: degraded("YouTube"),
+      id: "online",
+      match: element => typeof element.metaInfo?.type === "string",
+      Content: DegradedContent,
     },
   ];
 }

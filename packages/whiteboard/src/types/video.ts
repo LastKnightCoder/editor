@@ -1,6 +1,11 @@
 import { CommonElement } from "../plugins";
-import type { StreamOption } from "@tau/shared/media-types";
-export type { StreamOption } from "@tau/shared/media-types";
+
+/** 视频插件提供的视频：type 为宿主视频提供方 ID，其余字段由提供方解释，白板只透传。 */
+export interface OnlineVideoMeta {
+  type: string;
+  title?: string;
+  [key: string]: unknown;
+}
 
 export interface VideoElement extends CommonElement {
   src: string;
@@ -9,24 +14,5 @@ export interface VideoElement extends CommonElement {
   naturalWidth?: number;
   naturalHeight?: number;
   metaInfo?:
-    | {
-        type: "local";
-        filePath: string;
-      }
-    | {
-        type: "remote";
-        url: string;
-      }
-    | {
-        type: "bilibili";
-        bvid: string;
-        cid: string;
-        quality?: number;
-      }
-    | {
-        type: "youtube";
-        url: string;
-        videoStream: StreamOption;
-        audioStream: StreamOption;
-      };
+    { type: "local"; filePath: string } | { type: "remote"; url: string } | OnlineVideoMeta;
 }

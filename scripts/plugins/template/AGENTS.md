@@ -9,6 +9,7 @@
 - README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介。
 - CHANGELOG.md 同样写给用户，显示在插件详情的「更新日志」，也会作为 GitHub Release 说明：每版用「## 版本号」开头，逐条写用户能感知的变化（能做什么了、修好了什么、要注意什么），用界面上的叫法；不写 SDK、构建、仓库、CI、内部模块或字段。没有可感知变化的版本只写「维护更新，使用上没有变化」。
 - 语音合成和音色复刻先阅读 TTS.md；多账号配置通过 ttsConfig 保存，上传参考音频使用 context.upload.uploadRemote 并传递取消信号。
+- 接入视频来源（视频网站、自建服务器等）先阅读 VIDEO.md；使用 context.video 注册提供方，只返回播放源描述，不下载视频或启动外部程序；引用须可长期保存，不放直链与凭据。需要 SDK 0.21.0。
 - 图片生成与编辑先阅读 IMAGES.md；使用 context.images 注册提供方，target:images 配置视图通过 imageConfig 保存当前账号，不共享多账号凭据。
 - 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
 - 功能代码使用 TypeScript/TSX。优先使用 API.md 中说明的能力，结合已安装 SDK 的类型提示确认参数，不编造接口。

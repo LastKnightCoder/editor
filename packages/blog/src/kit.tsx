@@ -19,13 +19,14 @@ const notice: CSSProperties = {
   padding: 16,
   color: "var(--tau-ink-3)",
 };
-/** 站外视频站只能在桌面端播放，发布站点显示说明。 */
-const desktopOnly = (id: string, label: string): VideoContentProvider => ({
-  id,
-  match: element => element.metaInfo?.type === id,
-  Content: () => <div style={notice}>{label} 视频在桌面端可播放</div>,
-});
-const videoProviders = [desktopOnly("bilibili", "Bilibili"), desktopOnly("youtube", "YouTube")];
+/** 在线视频依赖桌面端插件取源，发布站点显示说明。 */
+const videoProviders: VideoContentProvider[] = [
+  {
+    id: "online",
+    match: element => typeof element.metaInfo?.type === "string",
+    Content: () => <div style={notice}>该视频请在桌面端播放</div>,
+  },
+];
 
 const kits = new Map<string, EditorKit>();
 

@@ -1,3 +1,4 @@
+import type { OnlineVideoMetaInfo } from "./online-video";
 import type { MaterialRef } from "@/entity/material";
 
 export type VLResourceType =
@@ -16,28 +17,17 @@ export type VLResourceType =
   | "html"
   | "other";
 
+const HOST_SOURCE_TYPES = new Set(["local", "remote", "note", "material"]);
+
+/** 宿主自有来源之外的 source_type 即在线视频提供方插件 ID，source_meta_info 为其视频元数据。 */
 export type VLResourceSourceType =
   | "local" // 本地上传
-  | "bilibili" // Bilibili 视频
-  | "youtube" // YouTube 视频
   | "remote" // 远程 URL
   | "note" // 来自已有笔记
-  | "material"; // 外部材料快照（问题立项时带入的摘录 / PDF 标注 / 剪藏）
+  | "material" // 外部材料快照（问题立项时带入的摘录 / PDF 标注 / 剪藏）
+  | (string & Record<never, never>);
 
-export interface BilibiliSourceMeta {
-  bvid: string;
-  cid: string;
-  quality: number;
-  title: string;
-  thumbnail?: string;
-}
-
-export interface YoutubeSourceMeta {
-  url: string;
-  videoStream?: string;
-  audioStream?: string;
-  title?: string;
-}
+export const isOnlineVideoSourceType = (type: string): boolean => !HOST_SOURCE_TYPES.has(type);
 
 export interface RemoteSourceMeta {
   url: string;
@@ -58,7 +48,7 @@ export interface MaterialSourceMeta {
 }
 
 export type VLResourceSourceMeta =
-  BilibiliSourceMeta | YoutubeSourceMeta | RemoteSourceMeta | NoteSourceMeta | MaterialSourceMeta;
+  OnlineVideoMetaInfo | RemoteSourceMeta | NoteSourceMeta | MaterialSourceMeta;
 
 /**
  * 任务进度（chunk 拆分 / embedding 批次）

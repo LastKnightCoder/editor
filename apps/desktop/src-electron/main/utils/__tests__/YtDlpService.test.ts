@@ -74,7 +74,7 @@ describe("YtDlpService", () => {
     statMock.mockReset();
   });
 
-  it("fetchVideoInfo 应注入 js runtime 与 spawn env", async () => {
+  it("probe 应注入 js runtime 与 spawn env，并归一格式列表", async () => {
     const url = "https://www.youtube.com/watch?v=DFyc0rFBptE";
     const proxy = "http://127.0.0.1:7890";
 
@@ -102,7 +102,12 @@ describe("YtDlpService", () => {
       }),
     });
 
-    await YtDlpService.fetchVideoInfo(url, proxy);
+    const info = await YtDlpService.probe(url, proxy);
+    expect(info.title).toBe("test");
+    expect(info.formats).toMatchObject([
+      { id: "137", videoOnly: true, audioOnly: false, height: 1080 },
+      { id: "140", videoOnly: false, audioOnly: true, bitrate: 128 },
+    ]);
 
     expect(spawnMock).toHaveBeenCalledTimes(1);
     const [bin, args, options] = spawnMock.mock.calls[0];
@@ -117,55 +122,6 @@ describe("YtDlpService", () => {
       url,
     ]);
     expect(options.env.ELECTRON_RUN_AS_NODE).toBe("1");
-  });
-
-  it("fetchSubtitleManifest 应返回手动和自动字幕轨", async () => {
-    const url = "https://www.youtube.com/watch?v=DFyc0rFBptE";
-
-    spawnPlans.push({
-      code: 0,
-      stdout: JSON.stringify({
-        language: "ja",
-        subtitles: {
-          ja: [
-            {
-              ext: "json3",
-              url: "https://example.com/manual-ja.json3",
-              name: "Japanese",
-            },
-          ],
-        },
-        automatic_captions: {
-          en: [
-            {
-              ext: "vtt",
-              url: "https://example.com/auto-en.vtt",
-              name: "English (auto)",
-            },
-          ],
-        },
-      }),
-    });
-
-    const manifest = await YtDlpService.fetchSubtitleManifest(url);
-
-    expect(manifest.sourceLanguage).toBe("ja");
-    expect(manifest.tracks).toEqual([
-      {
-        lang: "ja",
-        ext: "json3",
-        url: "https://example.com/manual-ja.json3",
-        name: "Japanese",
-        isAuto: false,
-      },
-      {
-        lang: "en",
-        ext: "vtt",
-        url: "https://example.com/auto-en.vtt",
-        name: "English (auto)",
-        isAuto: true,
-      },
-    ]);
   });
 
   it("downloadVideo 在格式不可用时应自动回退到 best 格式", async () => {
@@ -227,5 +183,23 @@ describe("YtDlpService", () => {
     ).rejects.toThrow("network timeout");
 
     expect(spawnMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("normalizeDownloadErrorMessage", () => {
+  it("运行环境、格式不可用、超时与未知错误分别给出用户提示", async () => {
+    const { normalizeDownloadErrorMessage } = await import("../YtDlpService");
+    expect(normalizeDownloadErrorMessage("No supported JavaScript runtime could be found")).toBe(
+      "应用内运行环境异常，请重启应用后重试"
+    );
+    expect(normalizeDownloadErrorMessage("ERROR: Requested format is not available")).toBe(
+      "所选清晰度不可用，已自动回退最佳可用格式，请重试"
+    );
+    expect(normalizeDownloadErrorMessage("The user aborted a request")).toBe(
+      "网络超时，请检查代理或稍后再试"
+    );
+    expect(normalizeDownloadErrorMessage("ERROR: something else")).toBe(
+      "下载失败，请稍后重试或尝试其他视频链接"
+    );
   });
 });

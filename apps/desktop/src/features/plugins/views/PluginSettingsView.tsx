@@ -12,12 +12,14 @@ export function PluginSettingsView({
   uploadConfig,
   ttsConfig,
   imageConfig,
+  videoConfig,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
+  videoConfig?: PluginSettingsProps["videoConfig"];
 }) {
   if (!section)
     return (
@@ -51,6 +53,12 @@ export function PluginSettingsView({
         在图片生成设置中配置
       </Button>
     );
+  if (section.definition.target === "video" && !videoConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openSettings("integration")}>
+        在账号与连接中配置
+      </Button>
+    );
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -69,6 +77,7 @@ export function PluginSettingsView({
         uploadConfig={uploadConfig}
         ttsConfig={ttsConfig}
         imageConfig={imageConfig}
+        videoConfig={videoConfig}
       />
     </RecoverableBoundary>
   );
@@ -80,12 +89,14 @@ function SettingsScope({
   uploadConfig,
   ttsConfig,
   imageConfig,
+  videoConfig,
 }: {
   section: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
   uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
+  videoConfig?: PluginSettingsProps["videoConfig"];
 }) {
   // 缓存跟随本次挂载，旧请求不能污染重新打开或重新启用后的分区。
   const [client] = useState(
@@ -104,6 +115,7 @@ function SettingsScope({
           uploadConfig={uploadConfig}
           ttsConfig={ttsConfig}
           imageConfig={imageConfig}
+          videoConfig={videoConfig}
         />
       </UiProvider>
     </QueryClientProvider>

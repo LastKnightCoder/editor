@@ -1,8 +1,7 @@
 export enum ModalKey {
   WebVideo = "webVideo",
   Webview = "webview",
-  Bilibili = "bilibili",
-  Youtube = "youtube",
+  OnlineVideo = "onlineVideo",
   RemotePdf = "remotePdf",
   SelectPdf = "selectPdf",
 }

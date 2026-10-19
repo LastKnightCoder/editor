@@ -22,23 +22,10 @@ import { createSmartExtractProvider } from "@/utils/web-clipper/providers";
 import { collectClipStream } from "@/utils/web-clipper/stream";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
-import {
-  isBilibiliUrl,
-  getVideoInfoByUrl,
-  getQualityInfo,
-  getQualityOptions,
-} from "@/utils/bilibili";
-import { isYoutubeUrl } from "@/utils/youtube/parser";
-import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
-import useSettingStore from "@/stores/useSettingStore";
-import type {
-  VLResource,
-  VLResourceType,
-  BilibiliSourceMeta,
-  YoutubeSourceMeta,
-  NoteSourceMeta,
-} from "@/types/vibe-learning";
-import type { StreamOption } from "@/types/youtube";
+import { useOnlineVideoResolver } from "@/hooks/useOnlineVideoResolver";
+import { useVideoProviders } from "@/hooks/useVideoProviders";
+import { buildOnlineVideoMeta } from "@/types/online-video";
+import type { VLResource, VLResourceType, NoteSourceMeta } from "@/types/vibe-learning";
 
 const ACCEPTED_UPLOAD_TYPES =
   ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.html,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv,.jpg,.jpeg,.png,.gif,.webp,.bmp";
@@ -55,54 +42,7 @@ interface AddResourceModalProps {
 
 type TabType = "file" | "url" | "video" | "note";
 type ProcessingStep = "idle" | "fetching" | "extracting" | "saving" | "done";
-type VideoStep = "input" | "config" | "adding" | "done";
-
-type VideoProvider = "bilibili" | "youtube";
-
-interface BilibiliVideoInfo {
-  provider: "bilibili";
-  bvid: string;
-  cid: string;
-  title: string;
-  cover: string;
-  qualityOptions: Array<{
-    label: string;
-    value: number;
-    needLogin?: boolean;
-    needVip?: boolean;
-  }>;
-}
-
-interface YoutubeVideoInfoState {
-  provider: "youtube";
-  url: string;
-  title: string;
-  cover?: string;
-  videoStreams: StreamOption[];
-  audioStreams: StreamOption[];
-}
-
-type VideoInfo = BilibiliVideoInfo | YoutubeVideoInfoState;
-
-const getYoutubeResolutionValue = (resolution?: string): number => {
-  const match = resolution?.match(/(\d+)/);
-  return match ? parseInt(match[1], 10) : 0;
-};
-
-const sortYoutubeVideoStreams = (streams: StreamOption[]): StreamOption[] => {
-  return [...streams].sort((a, b) => {
-    const resolutionDiff =
-      getYoutubeResolutionValue(b.resolution) - getYoutubeResolutionValue(a.resolution);
-    if (resolutionDiff !== 0) return resolutionDiff;
-    const fpsDiff = (b.fps || 0) - (a.fps || 0);
-    if (fpsDiff !== 0) return fpsDiff;
-    return (b.bitrate || 0) - (a.bitrate || 0);
-  });
-};
-
-const sortYoutubeAudioStreams = (streams: StreamOption[]): StreamOption[] => {
-  return [...streams].sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-};
+type VideoPhase = "idle" | "adding" | "done";
 
 // 根据文件扩展名获取资源类型
 const getResourceType = (fileName: string): VLResourceType => {
@@ -198,7 +138,6 @@ const extractTitleFromHtml = (html: string): string | null => {
 
 const AddResourceModal = memo((props: AddResourceModalProps) => {
   const { open, projectId, mainDbName, onClose, onSuccess, resources = [] } = props;
-  const { setting } = useSettingStore.getState();
 
   // Tab 状态
   const [activeTab, setActiveTab] = useState<TabType>("file");
@@ -215,13 +154,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
   // 视频相关状态
   const [videoUrl, setVideoUrl] = useState("");
-  const [videoStep, setVideoStep] = useState<VideoStep>("input");
-  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
-  const [selectedQuality, setSelectedQuality] = useState<number>(80);
-  const [selectedVideoStream, setSelectedVideoStream] = useState<string>("");
-  const [selectedAudioStream, setSelectedAudioStream] = useState<string>("");
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [videoPhase, setVideoPhase] = useState<VideoPhase>("idle");
+  const { providers: videoProviders } = useVideoProviders();
+  const [videoSource, setVideoSource] = useState("");
+  // 选中的插件被停用时回落到第一个启用的视频插件
+  const activeVideoSource = videoProviders.some(provider => provider.id === videoSource)
+    ? videoSource
+    : (videoProviders[0]?.id ?? "");
+  const videoResolver = useOnlineVideoResolver(activeVideoSource);
+  const { analyzing: isAnalyzing, error: videoError, resolved: videoInfo } = videoResolver;
+  const videoStep = videoPhase !== "idle" ? videoPhase : videoInfo ? "config" : "input";
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   // 笔记：关掉本弹窗后打开公共检索（EntityPicker）
@@ -244,13 +186,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setError(null);
     // 重置视频状态
     setVideoUrl("");
-    setVideoStep("input");
-    setVideoInfo(null);
-    setSelectedQuality(80);
-    setSelectedVideoStream("");
-    setSelectedAudioStream("");
-    setVideoError(null);
-    setIsAnalyzing(false);
+    setVideoPhase("idle");
+    videoResolver.reset();
     // 重置 Webview 状态
     setWebviewUrl(null);
     webviewLoadResolve.current = null;
@@ -507,205 +444,47 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     }
   });
 
-  const detectVideoProvider = useMemoizedFn((url: string): VideoProvider | "unsupported" => {
-    if (isBilibiliUrl(url)) return "bilibili";
-    if (isYoutubeUrl(url)) return "youtube";
-    return "unsupported";
-  });
-
-  const handleAnalyzeBilibili = useMemoizedFn(async (targetUrl: string) => {
-    const credentials = setting.integration.bilibili.credentials;
-    const info = await getVideoInfoByUrl(targetUrl, credentials);
-
-    if (!info) {
-      setVideoError("无法获取视频信息，请检查链接是否正确");
+  const handleAnalyzeVideo = useMemoizedFn(() => {
+    if (!videoUrl.trim()) {
+      videoResolver.setError("请输入视频链接");
       return;
     }
-
-    const qualityInfo = await getQualityInfo(info.cid, info.bvid, credentials);
-    const options = getQualityOptions(qualityInfo.accept_quality);
-
-    if (options.length === 0) {
-      setVideoError("未找到可用的清晰度选项");
-      return;
-    }
-
-    const hasLogin = !!credentials.SESSDATA;
-    const hasVip = !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
-    let defaultQuality: number;
-    if (hasVip) {
-      defaultQuality = options[0]?.value || 80;
-    } else if (hasLogin) {
-      const maxQuality = Math.max(...options.filter(opt => opt.value <= 80).map(opt => opt.value));
-      defaultQuality = maxQuality || 64;
-    } else {
-      const maxQuality = Math.max(...options.filter(opt => opt.value <= 64).map(opt => opt.value));
-      defaultQuality = maxQuality || 32;
-    }
-
-    setVideoInfo({
-      provider: "bilibili",
-      bvid: info.bvid,
-      cid: info.cid,
-      title: info.title,
-      cover: info.cover,
-      qualityOptions: options,
-    });
-    setSelectedQuality(defaultQuality);
-    setSelectedVideoStream("");
-    setSelectedAudioStream("");
-    setVideoStep("config");
-  });
-
-  const handleAnalyzeYoutube = useMemoizedFn(async (targetUrl: string) => {
-    const info = await getYoutubeVideoInfo(targetUrl, setting.integration.youtube.proxy);
-    if (!info) {
-      setVideoError("无法获取视频信息，请检查链接是否正确");
-      return;
-    }
-
-    const sortedVideoStreams = sortYoutubeVideoStreams(info.videoStreams);
-    const sortedAudioStreams = sortYoutubeAudioStreams(info.audioStreams);
-
-    if (sortedVideoStreams.length === 0) {
-      setVideoError("未找到可用的视频流");
-      return;
-    }
-    if (sortedAudioStreams.length === 0) {
-      setVideoError("未找到可用的音频流");
-      return;
-    }
-
-    setVideoInfo({
-      provider: "youtube",
-      url: info.url || targetUrl,
-      title: info.title,
-      cover: info.thumbnail,
-      videoStreams: sortedVideoStreams,
-      audioStreams: sortedAudioStreams,
-    });
-    setSelectedVideoStream(sortedVideoStreams[0]?.id || "");
-    setSelectedAudioStream(sortedAudioStreams[0]?.id || "");
-    setSelectedQuality(80);
-    setVideoStep("config");
-  });
-
-  const handleAnalyzeVideo = useMemoizedFn(async () => {
-    const targetUrl = videoUrl.trim();
-    if (!targetUrl) {
-      setVideoError("请输入视频链接");
-      return;
-    }
-
-    const provider = detectVideoProvider(targetUrl);
-    if (provider === "unsupported") {
-      setVideoError("仅支持 Bilibili 或 YouTube 链接");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setVideoError(null);
-
-    try {
-      if (provider === "bilibili") {
-        await handleAnalyzeBilibili(targetUrl);
-      } else {
-        await handleAnalyzeYoutube(targetUrl);
-      }
-    } catch (err) {
-      setVideoError(err instanceof Error ? err.message : "分析失败，请稍后重试");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  });
-
-  const handleAddBilibiliVideo = useMemoizedFn(async (currentVideoInfo: BilibiliVideoInfo) => {
-    const selectedOption = currentVideoInfo.qualityOptions.find(
-      opt => opt.value === selectedQuality
-    );
-    if (!selectedOption) {
-      throw new Error("请选择清晰度");
-    }
-
-    const targetUrl = videoUrl.trim();
-    const sourceMeta: BilibiliSourceMeta = {
-      bvid: currentVideoInfo.bvid,
-      cid: currentVideoInfo.cid,
-      quality: selectedQuality,
-      title: currentVideoInfo.title,
-      thumbnail: currentVideoInfo.cover,
-    };
-
-    const resource = await createVLResource({
-      projectId,
-      name: `${currentVideoInfo.title}.mp4`,
-      originalPath: targetUrl,
-      resourceType: "video",
-      sourceType: "bilibili",
-      sourceMetaInfo: JSON.stringify(sourceMeta),
-    });
-
-    await addVLIndexTask({
-      resourceId: resource.id,
-      projectId,
-      mainDbName,
-      originalPath: targetUrl,
-      resourceName: `${currentVideoInfo.title}.mp4`,
-      type: "full",
-    });
-  });
-
-  const handleAddYoutubeVideo = useMemoizedFn(async (currentVideoInfo: YoutubeVideoInfoState) => {
-    const videoStream = currentVideoInfo.videoStreams.find(
-      stream => stream.id === selectedVideoStream
-    );
-    const audioStream = currentVideoInfo.audioStreams.find(
-      stream => stream.id === selectedAudioStream
-    );
-    if (!videoStream || !audioStream) {
-      throw new Error("请选择视频流和音频流");
-    }
-
-    const sourceUrl = currentVideoInfo.url || videoUrl.trim();
-    const sourceMeta: YoutubeSourceMeta = {
-      url: sourceUrl,
-      videoStream: videoStream.id,
-      audioStream: audioStream.id,
-      title: currentVideoInfo.title,
-    };
-
-    const resource = await createVLResource({
-      projectId,
-      name: `${currentVideoInfo.title}.mp4`,
-      originalPath: sourceUrl,
-      resourceType: "video",
-      sourceType: "youtube",
-      sourceMetaInfo: JSON.stringify(sourceMeta),
-    });
-
-    await addVLIndexTask({
-      resourceId: resource.id,
-      projectId,
-      mainDbName,
-      originalPath: sourceUrl,
-      resourceName: `${currentVideoInfo.title}.mp4`,
-      type: "full",
-    });
+    void videoResolver.analyze(videoUrl);
   });
 
   const handleAddVideo = useMemoizedFn(async () => {
-    if (!videoInfo) return;
-    setVideoStep("adding");
-    setVideoError(null);
+    const selection = videoResolver.selection();
+    if (!selection) return;
+    setVideoPhase("adding");
+    videoResolver.setError(null);
 
     try {
-      if (videoInfo.provider === "bilibili") {
-        await handleAddBilibiliVideo(videoInfo);
-      } else {
-        await handleAddYoutubeVideo(videoInfo);
-      }
+      const name = `${selection.title}.mp4`;
+      const resource = await createVLResource({
+        projectId,
+        name,
+        originalPath: selection.url,
+        resourceType: "video",
+        sourceType: selection.providerId,
+        sourceMetaInfo: JSON.stringify(
+          buildOnlineVideoMeta(
+            selection.providerId,
+            selection.ref,
+            selection.title,
+            selection.cover
+          )
+        ),
+      });
+      await addVLIndexTask({
+        resourceId: resource.id,
+        projectId,
+        mainDbName,
+        originalPath: selection.url,
+        resourceName: name,
+        type: "full",
+      });
 
-      setVideoStep("done");
+      setVideoPhase("done");
       toast.success("视频添加成功，正在后台处理...");
       onSuccess();
 
@@ -714,21 +493,13 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }, 1000);
     } catch (err) {
       console.error("Add video failed:", err);
-      const errorMessage = err instanceof Error ? err.message : "添加视频失败，请稍后重试";
-      setVideoError(errorMessage);
-      setVideoStep("config");
+      videoResolver.setError(err instanceof Error ? err.message : "添加视频失败，请稍后重试");
+      setVideoPhase("idle");
     }
   });
 
   // 返回视频输入步骤
-  const handleVideoBack = useMemoizedFn(() => {
-    setVideoStep("input");
-    setVideoInfo(null);
-    setSelectedQuality(80);
-    setSelectedVideoStream("");
-    setSelectedAudioStream("");
-    setVideoError(null);
-  });
+  const handleVideoBack = videoResolver.reset;
 
   // 笔记：EntityPicker 的类型 → 资料里记录的笔记类型
   const NOTE_KINDS: EntityKind[] = ["card", "article", "project_item", "diary-moment"];
@@ -885,68 +656,49 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             >
               {videoInfo.title}
             </div>
-            <div className="text-tau-sm text-ink-3">
-              {videoInfo.provider === "bilibili" ? "B 站" : "YouTube"}
-              {videoInfo.provider === "youtube" && " · 已默认选最高可用的流"}
-            </div>
+            <div className="text-tau-sm text-ink-3">{videoInfo.providerName}</div>
           </div>
         </div>
-        {videoInfo.provider === "bilibili" ? (
+        {videoInfo.variants.length > 1 && (
           <FieldRow label="清晰度">
             <Select
               aria-label="清晰度"
-              value={selectedQuality}
-              onValueChange={v => setSelectedQuality(v)}
-              options={videoInfo.qualityOptions.map(opt => ({
-                value: opt.value,
-                label: `${opt.label}${opt.needVip ? " · 大会员" : opt.needLogin ? " · 需登录" : ""}`,
+              value={videoResolver.variant}
+              onValueChange={v => videoResolver.setVariant(v)}
+              options={videoInfo.variants.map((item, index) => ({
+                value: index,
+                label: item.hint ? `${item.label} · ${item.hint}` : item.label,
               }))}
             />
           </FieldRow>
-        ) : (
-          <>
-            <FieldRow label="视频流">
-              <Select
-                aria-label="视频流"
-                value={selectedVideoStream}
-                onValueChange={v => setSelectedVideoStream(v)}
-                options={videoInfo.videoStreams.map(stream => ({
-                  value: stream.id,
-                  label: [
-                    stream.resolution,
-                    stream.format?.toUpperCase(),
-                    stream.codecs || "unknown",
-                    stream.fps ? `${stream.fps}fps` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
-                }))}
-              />
-            </FieldRow>
-            <FieldRow label="音频流">
-              <Select
-                aria-label="音频流"
-                value={selectedAudioStream}
-                onValueChange={v => setSelectedAudioStream(v)}
-                options={videoInfo.audioStreams.map(stream => ({
-                  value: stream.id,
-                  label: [
-                    stream.format?.toUpperCase(),
-                    stream.codecs || "unknown",
-                    stream.bitrate ? `${Math.round(stream.bitrate / 1024)}kbps` : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" · "),
-                }))}
-              />
-            </FieldRow>
-          </>
         )}
         {videoError && <ErrorNote text={videoError} />}
       </div>
     ) : (
       <div className="flex flex-col gap-3.5">
-        <FieldRow label="视频链接" hint="B 站 / YouTube">
+        {videoProviders.length === 0 ? (
+          <p className="text-tau-meta text-ink-2 m-0">
+            在插件中心安装 Bilibili、YouTube 等视频来源后，可以从这里添加视频。
+          </p>
+        ) : (
+          videoProviders.length > 1 && (
+            <FieldRow label="来源">
+              <Select
+                aria-label="视频来源"
+                value={activeVideoSource}
+                onValueChange={value => {
+                  setVideoSource(value);
+                  videoResolver.setError(null);
+                }}
+                options={videoProviders.map(provider => ({
+                  value: provider.id,
+                  label: provider.name,
+                }))}
+              />
+            </FieldRow>
+          )
+        )}
+        <FieldRow label="视频链接">
           <ResourceSelectInput
             data-autofocus
             ref={videoInputRef}
@@ -954,10 +706,10 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             value={videoUrl}
             onChange={e => {
               setVideoUrl(e.target.value);
-              setVideoError(null);
+              videoResolver.setError(null);
             }}
-            placeholder="粘贴 B 站或 YouTube 链接"
-            disabled={isAnalyzing}
+            placeholder="粘贴视频链接"
+            disabled={isAnalyzing || !activeVideoSource}
             onKeyDown={e => e.key === "Enter" && !isAnalyzing && handleAnalyzeVideo()}
           />
         </FieldRow>
@@ -1007,7 +759,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             size="sm"
             loading={isAnalyzing}
             loadingText="正在解析…"
-            disabled={!videoUrl.trim()}
+            disabled={!videoUrl.trim() || !activeVideoSource}
             onClick={handleAnalyzeVideo}
           >
             解析视频

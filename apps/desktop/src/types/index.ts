@@ -62,7 +62,6 @@ export * from "./diary";
 export * from "./skill";
 export * from "./tool";
 export * from "./mcp";
-export * from "./youtube";
 export * from "./flashcard";
 export * from "./random-walk";
 export * from "./resource-sync";

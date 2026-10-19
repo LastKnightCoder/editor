@@ -9,8 +9,16 @@ import type { PluginContextMenuItem } from "../types";
 import type { WhiteboardAPI } from "./api";
 
 /** 媒体插件的宿主能力：由扩展从宿主服务构造，upload/download 缺失时对应入口隐藏 */
+/** 宿主提供的视频来源（如各视频插件），每项一个添加入口，选择后以 `source:<id>` 动作打开宿主弹窗。 */
+export interface VideoSourceEntry {
+  id: string;
+  label: string;
+}
+
 export interface MediaCapabilities {
   actions?: readonly string[];
+  /** 每次打开菜单时读取，来源随宿主状态增减。 */
+  videoSources?: () => readonly VideoSourceEntry[];
   upload?(file: File): Promise<string | null>;
   download?(url: string): Promise<unknown>;
   imageInfo(file: File): Promise<{ width: number; height: number } | null>;
@@ -20,6 +28,7 @@ export interface MediaCapabilities {
 /** 宿主对内置媒体扩展的 UI 配置（菜单动作与图片组件），保留为工厂参数、不进服务 */
 export interface MediaExtensionOptions {
   actions?: readonly string[];
+  videoSources?: () => readonly VideoSourceEntry[];
   Image?: ComponentType<{
     url: string;
     alt?: string;
@@ -93,8 +102,6 @@ export function mediaMenu(
     `${kind}-url`,
     `${kind}-ai`,
     `${kind}-tts`,
-    `${kind}-bilibili`,
-    `${kind}-youtube`,
     "open-video-note",
   ]);
   return items
