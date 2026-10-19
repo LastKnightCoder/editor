@@ -38,7 +38,7 @@ export async function readTemplatePackage(
   const files: TemplatePackage["files"] = [];
   let expanded = 0;
   const seen = new Set<string>();
-  async function walk(relative: string, publish = true) {
+  async function walk(relative: string) {
     const absolute = path.join(root, relative);
     const info = await lstat(absolute);
     if (info.isSymbolicLink()) throw new Error("模板不允许符号链接");
@@ -47,7 +47,6 @@ export async function readTemplatePackage(
     if (!within || within.startsWith(".." + path.sep) || path.isAbsolute(within))
       throw new Error("模板路径越界");
     if (info.isDirectory()) {
-      if (!publish) throw new Error("插件代码产物必须是文件");
       for (const name of (await readdir(absolute)).sort()) await walk(relative + "/" + name);
       return;
     }
@@ -59,7 +58,6 @@ export async function readTemplatePackage(
     if (createHash("sha256").update(content).digest("hex") !== manifest.integrity[relative])
       throw new Error("模板资源摘要错误，请完成构建后重试");
     seen.add(relative);
-    if (!publish) return;
     const sitePath = relative.slice(templateRoot.length + 1);
     assertPublishPath(sitePath);
     if (/^(?:data|_tau|plugin-assets)(?:\/|$)/.test(sitePath))
@@ -68,15 +66,12 @@ export async function readTemplatePackage(
       replaceTemplatePaths(content.toString("utf8"), {
         MANIFEST: "/data/site.json",
         BASE: "/",
-        CLIENT: "/_tau/client/",
       });
     files.push({ path: sitePath, content });
   }
   await walk(manifest.template.root);
-  for (const name of Object.keys(manifest.integrity)) {
-    if (name.startsWith(templateRoot + "/") && !seen.has(name)) throw new Error("模板资产缺失");
-    if (!name.startsWith(templateRoot + "/")) await walk(name, false);
-  }
+  for (const name of Object.keys(manifest.integrity))
+    if (!seen.has(name)) throw new Error("模板资产缺失");
   if ((await readFile(path.join(root, "manifest.json"), "utf8")) !== manifestText)
     throw new Error("模板构建仍在变化，请完成构建后重试");
   return { manifest, files };

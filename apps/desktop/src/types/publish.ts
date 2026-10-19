@@ -177,31 +177,3 @@ export interface IPublishProgress {
   total: number;
   currentFile?: string;
 }
-
-/**
- * 宿主内部的数据装配记录；发布协议从 @tau/plugins/publish-data 消费。
- */
-export interface IPublishInitData {
-  pluginRenderers?: import("@tau/plugins/rendering").PublishedPluginRender[];
-  site: {
-    title: string;
-    description: string;
-    basePath: string;
-    publicUrl?: string;
-    favicon?: {
-      href: string;
-      format: IPublishFaviconConfig["format"];
-      mimeType: string;
-    };
-  };
-  cardTagTree?: IPublishCardTagTree[];
-  sidebar?: import("@tau/plugins/publish-data").TreeItem[];
-  docCollections?: IPublishDocCollection[];
-  contentLinkTargets?: Record<string, IPublishContentLinkTarget>;
-  settings?: IPublishAppearanceSettings;
-  content: Record<string, unknown>;
-  meta: {
-    type: "home" | "card" | "article" | "doc" | "list" | "quest";
-    publishTime: number;
-  };
-}

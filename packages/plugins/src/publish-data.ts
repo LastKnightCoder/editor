@@ -23,17 +23,40 @@ export interface SiteData {
   publicUrl?: string;
   favicon?: { href: string; format: "svg" | "png" | "ico"; mimeType: string };
 }
+export interface PublishSettings {
+  appearance?: { image?: { borderRadius?: string; shadow?: string | boolean } };
+}
+/** 站点级数据只在清单中出现一次，各内容文件不重复携带。 */
 export interface DataManifest {
   version: 1;
   site: SiteData;
   search: { data: string; integrity: string };
   items: ManifestItem[];
+  settings?: PublishSettings;
+  collections?: Collection[];
+  cardTagTree?: CardTagTree[];
+  /** 键为项目 id。 */
+  projectTrees?: Record<string, TreeItem[]>;
+  /** 项目条目的站内链接目标，键为 `project-item:<refId>`；卡片与文章的链接键本身就是清单 key。 */
+  contentLinkTargets?: Record<string, ContentRef>;
 }
 export interface ContentNode {
   [field: string]: unknown;
   text?: string;
   type?: string;
   children?: ContentNode[];
+}
+/**
+ * 正文中的站内链接。目标键为 `${contentType}:${refId}`：
+ * card、article 直接对应清单 item.key；project-item 经清单 contentLinkTargets 解析；查不到即目标未发布。
+ */
+export interface ContentLinkNode extends ContentNode {
+  type: "content-link";
+  refId: number;
+  contentId: number;
+  contentType: string;
+  contentTitle: string;
+  children: ContentNode[];
 }
 export interface TreeItem {
   title: string;
@@ -168,13 +191,8 @@ export interface CardTagTree {
 export interface PublishedCommon {
   version: 1;
   key: string;
-  tree?: TreeItem[];
-  collections?: Collection[];
-  cardTagTree?: CardTagTree[];
-  contentLinkTargets?: Record<string, ContentRef>;
   pluginRenderers?: import("./render-artifact").PublishedPluginRender[];
   contentStyles?: ResourceRef[];
-  settings?: { appearance?: { image?: { borderRadius?: string; shadow?: string | boolean } } };
 }
 export type PublishedData = {
   [K in DataKind]: PublishedCommon & {

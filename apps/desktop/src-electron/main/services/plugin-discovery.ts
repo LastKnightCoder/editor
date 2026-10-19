@@ -1,8 +1,7 @@
 import { mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { LocalPluginEntry, LocalPluginScan } from "@/types/plugin-local";
-import { readDistributionPackage, readPluginPackage } from "./plugin-package";
-import { isTemplateManifest } from "@tau/plugins/template";
+import { readDistributionPackage, isTemplatePackage } from "./plugin-package";
 
 export async function discoverPlugins(
   directory: string,
@@ -19,22 +18,11 @@ export async function discoverPlugins(
       const artifact = await readDistributionPackage(location, clientVersion);
       if (artifact.manifest.id !== folder.name)
         throw new Error("插件目录名必须与 manifest.id 一致");
-      if (isTemplateManifest(artifact.manifest)) {
-        entries.push({
-          id: folder.name,
-          directory: location,
-          template: artifact.manifest,
-          ...("main" in artifact.manifest
-            ? { artifact: await readPluginPackage(location, clientVersion) }
-            : {}),
-        });
-      } else {
-        entries.push({
-          id: folder.name,
-          directory: location,
-          artifact: await readPluginPackage(location, clientVersion),
-        });
-      }
+      entries.push(
+        isTemplatePackage(artifact)
+          ? { id: folder.name, directory: location, template: artifact.manifest }
+          : { id: folder.name, directory: location, artifact }
+      );
     } catch (error) {
       entries.push({
         id: folder.name,

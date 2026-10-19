@@ -103,18 +103,15 @@ const clientBuild = await build({
   entryPoints: [path.join(root, "packages/plugins/src/publish-client.ts")],
   bundle: true,
   platform: "browser",
-  format: "iife",
-  globalName: "TauPublish",
+  format: "esm",
   write: false,
   metafile: true,
-  minify: true,
 });
 assert(
   !Object.keys(clientBuild.metafile.inputs).some(file =>
     /react|packages\/editor|packages\/ui/.test(file)
   )
 );
-const clientSource = clientBuild.outputFiles[0].text;
 const template = await bridge.readTemplatePackage(path.join(plugin, "dist"), "0.59.0");
 const inspected = await bridge.inspectPackage(
   await readFile(path.join(plugin, "output/tau.blog-1.0.0.zip"))
@@ -122,7 +119,7 @@ const inspected = await bridge.inspectPackage(
 assert.equal(inspected.manifest.id, "tau.blog");
 const cases = [
   "完整官方模板通过门户包限制及全部资产校验",
-  "数据辅助脚本的模块图没有 React、编辑器或 UI",
+  "数据客户端的模块图没有 React、编辑器或 UI",
 ];
 const fixture = bridge.makePublishFixture();
 const themeCss = await readFile(path.join(root, "packages/themes/src/tailwind.css"), "utf8");
@@ -153,7 +150,6 @@ const compileTailwind = (content, extension) =>
 const makeGenerator = selected =>
   new bridge.PublishSiteGenerator({
     template: selected,
-    clientSource,
     plugins,
     compileTailwind,
     logger: console,

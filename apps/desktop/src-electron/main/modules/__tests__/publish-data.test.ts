@@ -52,7 +52,7 @@ const template = (id = "test.template"): TemplatePackage => ({
     {
       path: "index.html",
       content: Buffer.from(
-        '<meta name="manifest" content="__TAU_MANIFEST__"><script src="__TAU_CLIENT__tau-publish-data.js"></script>'
+        '<meta name="manifest" content="__TAU_MANIFEST__"><script src="__TAU_BASE__assets/app.js"></script>'
       ),
     },
     { path: "assets/style.css", content: Buffer.from("body { color: red; }") },
@@ -63,7 +63,6 @@ async function generate(title?: string, id?: string, exclude?: number) {
   return new PublishSiteGenerator({
     template: template(id),
     plugins,
-    clientSource: "var TauPublish={};",
     compileTailwind: async () => ".text-red-500 {color:red}",
     logger: console,
   }).generate(
@@ -100,17 +99,25 @@ it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   const article = JSON.parse(
     files.find(file => /^data\/articles\/1\./.test(file.path))!.content.toString()
   );
-  expect(article.contentLinkTargets["project-item:34"]).toEqual({
-    key: "doc:project:12:34",
-    type: "doc",
-    id: 34,
+  expect(manifest.contentLinkTargets).toEqual({
+    "project-item:34": { key: "doc:project:12:34", type: "doc", id: 34 },
   });
+  expect(manifest.settings.appearance.image).toEqual({ borderRadius: "md", shadow: "none" });
+  expect(manifest.projectTrees["12"].length).toBeGreaterThan(0);
+  // 站点级数据只进清单，各内容文件不重复携带。
+  for (const file of files.filter(file => /^data\/.+\.json$/.test(file.path))) {
+    const value = JSON.parse(file.content.toString());
+    if (!value.key) continue;
+    for (const field of ["tree", "collections", "cardTagTree", "contentLinkTargets", "settings"])
+      expect(value).not.toHaveProperty(field);
+  }
   expect(article.contentStyles[0].href).toMatch(/^\.\.\/styles\/[a-f0-9]{64}\.css$/);
   expect(article).not.toHaveProperty("navigation");
   expect(article).not.toHaveProperty("site");
-  expect(files.find(file => file.publicationEntry)!.content.toString()).toContain(
-    "/notes/data/site."
-  );
+  const entry = files.find(file => file.publicationEntry)!.content.toString();
+  expect(entry).toContain("/notes/data/site.");
+  expect(entry).toContain('src="/notes/assets/app.js"');
+  expect(files.some(file => file.path.startsWith("_tau/client/"))).toBe(false);
 });
 it("重复生成及换模板不改变内容 JSON、CSS 或搜索索引", async () => {
   const first = (await generate()).files.filter(file => file.path.startsWith("data/"));
@@ -146,12 +153,15 @@ it("增量发布仅上传变更，保留一轮旧依赖，无变化不推进保�
   const withdrawal = planPublication(removed, history(retained), plan.releaseState);
   expect(withdrawal.toDelete.some(path => /^data\/articles\/2\./.test(path))).toBe(true);
   expect(withdrawal.toDelete.some(path => /^data\/search\./.test(path))).toBe(true);
+  // 撤下文章只影响清单、聚合与索引，其余内容文件的摘要不变。
+  expect(
+    withdrawal.toUpload.some(file => /^data\/(?:cards|projects|quests)\//.test(file.path))
+  ).toBe(false);
 });
 it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async () => {
   const fixture = makePublishFixture();
   const generator = new PublishSiteGenerator({
     template: template(),
-    clientSource: "var TauPublish={};",
     plugins,
     logger: { info() {}, warn() {}, error() {} },
     compileTailwind: async () => {

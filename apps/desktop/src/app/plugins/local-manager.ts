@@ -56,7 +56,7 @@ export class LocalPluginManager {
     return this.records.has(id) || this.isTemplate(id);
   }
   isTemplate(id: string) {
-    return this.templates.some(template => template.id === id) && !this.records.has(id);
+    return this.templates.some(template => template.id === id);
   }
   busy() {
     return this.operations > 0;

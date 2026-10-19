@@ -13,7 +13,6 @@ import type { PublishPluginSnapshot } from "../services/plugin-publish";
 
 export interface PublishGeneratorRequest {
   template: import("../services/template-package").TemplatePackage;
-  clientSource?: string;
   selections: PublishSelectionInput[];
   site: ISiteMeta;
   settings?: IPublishAppearanceSettings;

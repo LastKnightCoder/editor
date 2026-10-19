@@ -37,7 +37,7 @@ it("入口必须存在于摘要清单，混合能力不能绕过原有校验", (
 it("占位符只替换真实 HTML 属性，保留作者原始脚本与正文", () => {
   const result = replaceTemplatePaths(
     '<meta content="__TAU_MANIFEST__"><script>const x="unchanged";</script>',
-    { MANIFEST: '/notes/data/site.json?x="<', BASE: "/notes/", CLIENT: "/_tau/" }
+    { MANIFEST: '/notes/data/site.json?x="<', BASE: "/notes/" }
   );
   expect(result).toContain('content="/notes/data/site.json?x=&quot;&lt;"');
   expect(result).toContain('const x="unchanged"');
@@ -45,16 +45,22 @@ it("占位符只替换真实 HTML 属性，保留作者原始脚本与正文", (
     replaceTemplatePaths('<script>const x="__TAU_MANIFEST__";</script>', {
       MANIFEST: "/data/site.json",
       BASE: "/",
-      CLIENT: "/_tau/",
     })
   ).toThrow("属性");
+  expect(() =>
+    replaceTemplatePaths('<script src="__TAU_CLIENT__x.js"></script>', {
+      MANIFEST: "/data/site.json",
+      BASE: "/",
+    })
+  ).toThrow("未知模板占位符");
 });
-it("混合模板也校验原有代码与全部静态资源", () => {
-  const mixed = validateDistributionManifest({
-    ...input,
-    format: "cjs",
-    main: "main.js",
-    integrity: { ...input.integrity, "main.js": "c".repeat(64) },
-  });
-  expect(distributionFiles(mixed)).toHaveLength(3);
+it("模板包不能同时声明代码插件入口", () => {
+  expect(() =>
+    validateDistributionManifest({
+      ...input,
+      format: "cjs",
+      main: "main.js",
+      integrity: { ...input.integrity, "main.js": "c".repeat(64) },
+    })
+  ).toThrow("代码插件入口");
 });

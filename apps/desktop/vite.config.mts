@@ -7,7 +7,6 @@ import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 import fs from "fs-extra";
 import { createThemeBootstrapScript } from "@tau/themes";
-import { build as buildEsbuild } from "esbuild";
 
 import * as path from "path";
 
@@ -117,26 +116,6 @@ export default defineConfig(() => {
                   "cheerio",
                 ],
                 plugins: [
-                  {
-                    name: "build-publish-data-client",
-                    async closeBundle() {
-                      await buildEsbuild({
-                        entryPoints: [
-                          path.resolve(__dirname, "../../packages/plugins/src/publish-client.ts"),
-                        ],
-                        bundle: true,
-                        platform: "browser",
-                        format: "iife",
-                        globalName: "TauPublish",
-                        minify: true,
-                        target: "es2022",
-                        outfile: path.resolve(
-                          __dirname,
-                          "dist-electron/main/publish-data-client.js"
-                        ),
-                      });
-                    },
-                  },
                   {
                     name: "copy-tailwind-runtime-worker",
                     closeBundle() {
