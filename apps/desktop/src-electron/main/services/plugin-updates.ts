@@ -5,7 +5,7 @@ import AdmZip from "adm-zip";
 import { comparePluginVersions } from "@tau/plugins/host";
 import {
   validateDistributionManifest as validatePluginManifest,
-  distributionFiles,
+  assertPackagePath,
   DISTRIBUTION_LIMITS,
 } from "@tau/plugins/template";
 import { inflateRawSync } from "node:zlib";
@@ -26,8 +26,6 @@ interface UpdateRecord {
   source?: LocalPluginSource;
   previousSource?: LocalPluginSource;
 }
-/** 发布门户要求或允许随包附带的说明文件，只保存不执行。 */
-const DOCUMENT_FILES = ["README.md", "CHANGELOG.md", "LICENSE"];
 const exists = async (file: string) => {
   try {
     await lstat(file);
@@ -319,20 +317,32 @@ export class PluginUpdates {
       (manifest.id !== source.pluginId || manifest.version !== source.version)
     )
       throw new Error("下载的插件包与发布记录不一致，已丢弃");
-    const allowed = new Set(
-      ["manifest.json", ...distributionFiles(manifest), ...DOCUMENT_FILES].map(
-        name => manifest.id + "/" + name
-      )
-    );
-    const seen = new Set<string>();
-    for (const entry of files) {
+    const seen = new Map<string, boolean>();
+    for (const entry of archive.getEntries()) {
+      const name = entry.isDirectory ? entry.entryName.slice(0, -1) : entry.entryName;
+      assertPackagePath(name);
+      const key = name.normalize("NFC").toLowerCase();
+      const type = (entry.attr >>> 16) & 0xf000;
+      if (!(entry.isDirectory && name === manifest.id) && !name.startsWith(manifest.id + "/"))
+        throw new Error("ZIP 文件必须位于插件 ID 目录内");
+      // 避免跨平台解包时设备名、路径别名或特殊文件覆盖普通文件。
       if (
-        !allowed.has(entry.entryName) ||
-        seen.has(entry.entryName) ||
-        ((entry.attr >>> 16) & 0xf000) === 0xa000
+        name
+          .split("/")
+          .some(part =>
+            /[<>"|*]|[. ]$|^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(part)
+          ) ||
+        seen.has(key) ||
+        (type !== 0 && type !== (entry.isDirectory ? 0x4000 : 0x8000))
       )
         throw new Error("ZIP 文件路径、重复项或链接不符合插件约定");
-      seen.add(entry.entryName);
+      seen.set(key, entry.isDirectory);
+    }
+    for (const name of seen.keys()) {
+      const parts = name.split("/");
+      for (let length = 1; length < parts.length; length++)
+        if (seen.get(parts.slice(0, length).join("/")) === false)
+          throw new Error("ZIP 文件与目录路径冲突");
     }
     const staging = path.join(this.root, `.unpack-${randomUUID()}`);
     await mkdir(staging);
