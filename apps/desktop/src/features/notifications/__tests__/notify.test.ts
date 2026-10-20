@@ -123,6 +123,18 @@ describe("appNotify 分流", () => {
 
     expect(mocks.notify).not.toHaveBeenCalled();
   });
+
+  it("撤销后迟到的 system 裁决再次关闭独立通知，避免停用后残留", async () => {
+    let settleRoute!: (route: "system") => void;
+    mocks.route.mockImplementationOnce(() => new Promise(resolve => (settleRoute = resolve)));
+    appNotify({ id: "late-system", title: "完成" }, { force: "system" });
+    appNotify.dismiss("late-system");
+    mocks.platformDismiss.mockClear();
+    settleRoute("system");
+    await flush();
+    expect(mocks.platformDismiss).toHaveBeenCalledWith("late-system");
+    expect(mocks.notify).not.toHaveBeenCalled();
+  });
 });
 
 describe("appNotify.dismiss", () => {

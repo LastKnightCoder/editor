@@ -14,6 +14,7 @@
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [MCP.md](../../scripts/plugins/template/MCP.md)。
+- `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知能力](../../docs/plugin-system/通知能力.md)。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
 - `@tau/plugins/node`：Node 私有文件存储适配器，由宿主选择目录；不进入插件公开上下文。
 

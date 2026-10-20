@@ -8,7 +8,7 @@
 - pnpm 11.9.0
 - Tau 桌面客户端 0.59.0 或更高版本
 
-模板锁定公开 SDK `@xiongtao.xt/tau-plugins@0.27.0` 和 UI `@xiongtao.xt/tau-ui@0.1.1`，通过 npm 别名安装为 `@tau/plugins`、`@tau/ui`。SDK 提供类型契约，运行实现由 Tau 注入；新领域能力还需包含相应实现的客户端构建，不能只依据客户端版本号判断。
+模板锁定公开 SDK `@xiongtao.xt/tau-plugins@0.28.0` 和 UI `@xiongtao.xt/tau-ui@0.1.1`，通过 npm 别名安装为 `@tau/plugins`、`@tau/ui`。SDK 提供类型契约，运行实现由 Tau 注入；新领域能力还需包含相应实现的客户端构建，不能只依据客户端版本号判断。
 
 ## 跑通示例
 
@@ -45,6 +45,7 @@ pnpm install:local
 | `MCP.md`                          | 注册 MCP、聊天工具渲染，复用工具开关与服务器管理     |
 | `BACKEND.md`                      | 显式声明本机后台、启动策略与独立产物构建             |
 | `FLASHCARDS.md`                   | 闪卡读写权限、宿主制卡窗口、插件 AI 与正文来源引用   |
+| `NOTIFICATIONS.md`                | 应用内、独立窗口通知、自动分流与生命周期清理         |
 | `WHITEBOARD.md`                   | 静态白板扩展、工具与发布边界                         |
 | `SYNC.md`                         | 同步存储提供方、配置视图与取消                       |
 | `UPLOAD.md`                       | 图片与附件上传、上传提供方与配置                     |
@@ -63,10 +64,10 @@ pnpm install:local
 
 GitHub 模板创建的仓库不会自动跟随模板更新。已有项目先提交或备份自己的改动，再按需同步 [上游模板](https://github.com/LastKnightCoder/tau-plugin-template) 的构建脚本、开发文档和 `.github/workflows/release.yml`，保留自己的插件 ID、入口、用户说明与版本记录。
 
-先在 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 中增加新 SDK 的精确例外 `@xiongtao.xt/tau-plugins@0.27.0`，暂时保留旧锁文件所需的已核实例外，再更新依赖及锁文件：
+先在 `pnpm-workspace.yaml` 的 `minimumReleaseAgeExclude` 中增加新 SDK 的精确例外 `@xiongtao.xt/tau-plugins@0.28.0`，暂时保留旧锁文件所需的已核实例外，再更新依赖及锁文件：
 
 ```sh
-pnpm add @tau/plugins@npm:@xiongtao.xt/tau-plugins@0.27.0 --save-exact
+pnpm add @tau/plugins@npm:@xiongtao.xt/tau-plugins@0.28.0 --save-exact
 pnpm install --frozen-lockfile
 pnpm build
 ```
@@ -87,6 +88,7 @@ pnpm build
 | 0.25.0        | 数据读写与权限、正文组件、插件实体、宿主动作、存储随库同步，见 API.md；本机后台双入口见 BACKEND.md     |
 | 0.26.0        | 闪卡创建、读写授权、插件 AI 制卡与 contentRef 来源引用，见 FLASHCARDS.md                               |
 | 0.27.0        | 通用 requestCapability 开放全部内置大模型功能分配，分别以 ai:<能力名> 授权；闪卡复用同一机制，见 AI.md |
+| 0.28.0        | 通知发送、应用内或独立窗口展示、焦点自动分流与生命周期清理，见 NOTIFICATIONS.md                        |
 
 更早版本的完整变更见已安装包的 `node_modules/@tau/plugins/CHANGELOG.md`。需要本地媒体元数据时自行实现，不能把视频页面解析当作本地文件探测。SDK 根入口、白板/同步契约、UI 和 React 由 Tau 提供，保持模板的 external 配置；普通第三方库由构建打入 ZIP。独立站点数据子入口的用途另见 PUBLISH-DATA.md。
 

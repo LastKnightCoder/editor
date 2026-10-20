@@ -82,7 +82,7 @@ export interface SystemNotificationPayload {
 /** 通知去向：应用内卡栈（调用方渲染端自行入栈）或系统通知窗口（失焦时） */
 export type NotificationRoute = "in-app" | "system";
 
-/** route 的可选参数：force 覆盖主进程的焦点分流；供调试工具直发系统通知窗口，业务不要传 */
+/** 来源为渲染窗口时，force 指定通知去向；省略时按该窗口焦点分流。 */
 export interface NotificationRouteOptions {
   force?: NotificationRoute;
 }
