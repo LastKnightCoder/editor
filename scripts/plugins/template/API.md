@@ -2,7 +2,7 @@
 
 本文介绍编写命令、页面、侧边栏、设置、数据存储、网络请求和摘录所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
-本文对应 SDK 0.23.1；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。
+本文对应 SDK 0.25.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
 
 博客发布提供方见 [PUBLISH.md](PUBLISH.md)，需要 SDK 0.21.0 和包含该能力的客户端；独立博客站点读取数据见 [PUBLISH-DATA.md](PUBLISH-DATA.md)。
 
@@ -104,6 +104,13 @@ export default definePlugin({
 | `signal`      | `AbortSignal`                          | 本次运行结束时中止，可用于停止异步工作           |
 | `commands`    | `PluginContext["commands"]`            | 注册命令                                         |
 | `storage`     | `PluginStorage`                        | 保存当前插件在当前工作区的数据                   |
+| `permissions` | `PluginPermissions`                    | 查询与申请业务数据权限                           |
+| `data`        | `PluginData`                           | 读取与修改卡片、文章、项目文档、待办和日程       |
+| `content`     | `PluginContent`                        | 读取与修改正文                                   |
+| `events`      | `PluginEvents`                         | 订阅业务数据变化                                 |
+| `app`         | `PluginApp`                            | 选择、打开已有内容，执行导出、演示和共享         |
+| `entities`    | `PluginOwnEntities`                    | 管理插件自有内容、类型和反链                     |
+| `backend`     | `PluginBackendClient`                  | 调用与订阅本机后台，见 BACKEND.md                |
 | `pages`       | `PluginPages`                          | 注册并打开页面                                   |
 | `settings`    | `PluginSettings`                       | 注册并打开设置区域                               |
 | `editor`      | `PluginEditor`                         | 开发台编辑器贡献；正文使用静态扩展，见 EDITOR.md |

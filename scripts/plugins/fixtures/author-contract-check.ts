@@ -1,5 +1,11 @@
 // 此文件只注入独立作者验证工程，不随公开模板分发。
-import { defineEditorElement, type EditorElementRenderProps } from "@tau/plugins";
+import {
+  ContentEditor,
+  ContentPreview,
+  defineEditorElement,
+  type EditorElementRenderProps,
+} from "@tau/plugins";
+import { createElement } from "react";
 import type { PluginContext, PluginExcerptItem, PluginExcerptSource } from "@tau/plugins";
 
 export function checkTTSContract(context: PluginContext) {
@@ -56,6 +62,43 @@ export async function checkServices(context: PluginContext) {
   await context.services.videoExtractor.probe("https://example.com/video", {
     signal: context.signal,
   });
+}
+
+export async function checkDataContract(context: PluginContext) {
+  await context.permissions.request(["cards:read", "cards:write"]);
+  const cards = await context.data.cards.query({ limit: 10 });
+  for (const card of cards.items) {
+    await context.data.cards.update(card.id, { pinned: true }, { expectedRevision: card.revision });
+  }
+  context.register(
+    context.events.on(["card.updated", "workspace.reset"], event => {
+      if (event.origin.kind === "plugin") void event.origin.pluginId;
+    })
+  );
+  const selected = await context.app.pick({ kinds: ["card", "document"], multiple: true });
+  if (selected[0]) await context.app.open(selected[0].ref);
+  context.register(
+    context.entities.registerKind({
+      kind: "note",
+      label: "笔记",
+      open: { page: "note", params: entity => ({ id: entity.id }) },
+      mentionable: true,
+    })
+  );
+  const entity = await context.entities.create({ kind: "note", key: "example" });
+  const content = await context.content.read(entity.contentRef);
+  if (content) {
+    await context.content.edit(
+      entity.contentRef,
+      { op: "append", markdown: "正文" },
+      { expectedRevision: content.revision }
+    );
+  }
+  createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
+  createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
+  await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });
+  await context.entities.backlinks(entity.id);
+  await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }
 
 export async function checkExcerptContract(context: PluginContext) {
