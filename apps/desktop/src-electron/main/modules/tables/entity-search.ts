@@ -61,6 +61,16 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
     ${kw ? "WHERE a.annotation_payload LIKE @kw OR a.notes LIKE @kw OR p.file_name LIKE @kw" : ""}
     ORDER BY a.update_time DESC LIMIT @limit`,
   // 只列仍挂在网页条目上的剪藏（孤儿剪藏打不开）
+  todo: kw => `SELECT i.id, i.update_time AS t FROM todo_item i
+    JOIN todo_group g ON g.id = i.group_id
+    WHERE i.is_archived = 0 AND g.is_system = 0 ${kw ? "AND i.title LIKE @kw" : ""}
+    ORDER BY i.update_time DESC LIMIT @limit`,
+  // 系统日历只承载截止 / 周期标记，不是用户的日程
+  "calendar-event": kw => `SELECT e.id, e.update_time AS t FROM calendar_event e
+    JOIN calendar c ON c.id = e.calendar_id
+    LEFT JOIN calendar_group g ON g.id = c.group_id
+    WHERE IFNULL(g.is_system, 0) = 0 ${kw ? "AND e.title LIKE @kw" : ""}
+    ORDER BY e.update_time DESC LIMIT @limit`,
   "web-clip": kw => `SELECT c.id, c.update_time AS t FROM web_clip c
     WHERE EXISTS (SELECT 1 FROM entity_lineage l JOIN project_item i ON i.id = CAST(l.src_id AS INTEGER)
       WHERE l.dst_kind = 'web-clip' AND l.dst_id = CAST(c.id AS TEXT)
@@ -324,6 +334,42 @@ export default class EntitySearchTable {
           title: board.title || "无标题白板",
           excerpt: (board.description || "").slice(0, EXCERPT),
           meta: pages > 1 ? `${pages} 页` : "",
+        };
+      }
+      case "todo": {
+        const todo = get(
+          `SELECT i.title, i.create_time, i.due_at, i.is_completed, g.title AS group_title
+           FROM todo_item i LEFT JOIN todo_group g ON g.id = i.group_id WHERE i.id = ?`
+        );
+        if (!todo) return null;
+        return {
+          ...base,
+          contentId: null,
+          createdAt: todo.create_time,
+          title: todo.title || "无标题待办",
+          meta: [
+            todo.group_title ?? "",
+            todo.is_completed ? "已完成" : "",
+            todo.due_at ? `截止 ${dayjs(todo.due_at).format("M月D日")}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        };
+      }
+      case "calendar-event": {
+        const event = get(
+          `SELECT e.title, e.create_time, e.start_date, e.all_day, c.title AS calendar_title
+           FROM calendar_event e LEFT JOIN calendar c ON c.id = e.calendar_id WHERE e.id = ?`
+        );
+        if (!event) return null;
+        return {
+          ...base,
+          contentId: null,
+          createdAt: event.create_time,
+          title: event.title || "无标题日程",
+          meta: [event.calendar_title ?? "", dayjs(event.start_date).format("M月D日")]
+            .filter(Boolean)
+            .join(" · "),
         };
       }
       case "diary-moment": {

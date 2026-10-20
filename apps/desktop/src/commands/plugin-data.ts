@@ -99,3 +99,6 @@ export const restorePluginOperation = (
 
 export const markPluginOperationRestored = (databaseName: string, id: number): Promise<void> =>
   invoke("plugin-data:mark-restored", { databaseName, id });
+
+export const pluginRefExists = (databaseName: string, kind: string, id: string): Promise<boolean> =>
+  invoke("plugin-data:exists", { databaseName, kind, id });

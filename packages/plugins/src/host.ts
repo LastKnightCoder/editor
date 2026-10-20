@@ -76,6 +76,13 @@ import {
   type PluginDomainEvent,
   type PluginEventType,
 } from "./events";
+import {
+  PLUGIN_ENTITY_KINDS,
+  type PluginEntityKind,
+  type PluginEntityRef,
+  type PluginPickOptions,
+  type PluginPickedEntity,
+} from "./app";
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -207,6 +214,24 @@ export type CalendarWrite =
   | { action: "create"; input: PluginCalendarInput }
   | { action: "update"; id: string; patch: PluginCalendarPatch; expectedRevision: string }
   | { action: "delete"; id: string; expectedRevision: string };
+
+/** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
+export interface AppAdapter {
+  pick(
+    context: PluginContext,
+    plugin: PluginOwner,
+    options: Required<PluginPickOptions>
+  ): Promise<PluginPickedEntity[]>;
+  open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
+}
+
+const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
+
+function readEntityRef(value: unknown): PluginEntityRef {
+  const ref = value as PluginEntityRef | undefined;
+  if (!ref || !entityKinds.has(ref.kind)) throw new Error("内容类型无效");
+  return { kind: ref.kind, id: readId(ref.id) };
+}
 
 /** 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。 */
 export interface EventsAdapter {
@@ -472,6 +497,7 @@ export class PluginHost {
       permissions?: PermissionsAdapter;
       data?: DataAdapter;
       events?: EventsAdapter;
+      app?: AppAdapter;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
@@ -1472,6 +1498,33 @@ export class PluginHost {
             );
           },
         }),
+      }),
+      app: Object.freeze({
+        pick: async (options: PluginPickOptions) => {
+          const kinds = options?.kinds;
+          if (!Array.isArray(kinds) || !kinds.length || kinds.some(kind => !entityKinds.has(kind)))
+            throw new Error("请指定可选的内容类型");
+          if (options.multiple !== undefined && typeof options.multiple !== "boolean")
+            throw new Error("multiple 无效");
+          const value: Required<PluginPickOptions> = {
+            kinds: [...new Set<PluginEntityKind>(kinds)],
+            multiple: options.multiple ?? false,
+            title:
+              options.title === undefined
+                ? "选择要关联的内容"
+                : readText(options.title, "标题", 100),
+          };
+          this.assertActive(entry, activation);
+          if (!this.options.app) throw new Error("当前宿主不支持选择内容");
+          return deliver<PluginPickedEntity[]>(await this.options.app.pick(context, owner, value));
+        },
+        open: async (ref: PluginEntityRef) => {
+          const value = readEntityRef(ref);
+          this.assertActive(entry, activation);
+          if (!this.options.app) throw new Error("当前宿主不支持打开内容");
+          await this.options.app.open(context, value);
+          this.assertActive(entry, activation);
+        },
       }),
       events: Object.freeze({
         on: (

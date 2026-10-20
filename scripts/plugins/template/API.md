@@ -26,7 +26,7 @@ AI 功能声明、用户模型分配、流式对话、取消与统一用量审�
 
 聊天工具自定义渲染使用 `await context.chat.registerToolRenderer`，数据与生命周期见 [MCP.md](MCP.md#聊天工具自定义渲染)。类型契约自 SDK 0.15.0 提供，需要包含实现的客户端构建。
 
-阅读顺序：先了解[入口与生命周期](#入口与生命周期)，再按功能查阅[命令](#命令)、[存储](#私有存储)、[页面](#页面)、[设置](#设置)、[网络请求](#网络请求)、[摘录](#摘录)、[材料动作](#材料动作)、[业务数据](#业务数据)和[资源清理](#资源清理)。完整可运行示例见 `src/index.tsx`。
+阅读顺序：先了解[入口与生命周期](#入口与生命周期)，再按功能查阅[命令](#命令)、[存储](#私有存储)、[页面](#页面)、[设置](#设置)、[网络请求](#网络请求)、[摘录](#摘录)、[材料动作](#材料动作)、[业务数据](#业务数据)、[关联已有内容](#关联已有内容)和[资源清理](#资源清理)。完整可运行示例见 `src/index.tsx`。
 
 ## manifest
 
@@ -634,6 +634,38 @@ context.events.on(["card.created", "card.updated", "card.deleted"], event => {
 | `workspace.reset`                                | 同步下载替换了整个库，应全量刷新                        |
 
 事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。`origin` 标出变化来源：`{ kind: "plugin", pluginId }` 表示由插件写入（可用来忽略自己写入引起的事件），其他情况为 `{ kind: "app" }`；待办与日程的事件恒为 `app`。同一项在半秒内的多次变化合并为一次，持续编辑时最多每 2 秒一次。订阅需要在 manifest 中声明对应的读取权限；用户尚未允许时事件不会送达，也不会因此弹窗。`on` 返回的句柄在插件停用时自动注销。
+
+## 关联已有内容
+
+自建页面（画布、看板等）需要引用用户已有的卡片、日记、待办时，用 Tau 的搜索选择窗口让用户挑选，点击时再用 Tau 打开它们。类型契约自 SDK 0.25.0 提供。
+
+```tsx
+import type { PluginEntityRef } from "@tau/plugins";
+
+async function linkExisting() {
+  const picked = await context.app.pick({ kinds: ["card", "diary", "todo"], multiple: true });
+  // picked: [{ ref: { kind: "card", id: "12" }, title: "读书笔记" }, ...]；用户取消时为空数组
+  await context.storage.set("links", picked);
+}
+
+function LinkChip({ link }: { link: { ref: PluginEntityRef; title: string } }) {
+  return <button onClick={() => void context.app.open(link.ref)}>{link.title}</button>;
+}
+```
+
+| `kind`       | 内容             | 打开后                                             |
+| ------------ | ---------------- | -------------------------------------------------- |
+| `card`       | 卡片             | 卡片详情                                           |
+| `article`    | 文章             | 文章详情                                           |
+| `document`   | 项目文档         | 所在项目并选中该文档                               |
+| `diary`      | 日记里的一条记录 | 当天日记并定位到这一条                             |
+| `whiteboard` | 白板             | 白板                                               |
+| `todo`       | 待办             | 待办页并打开详情；文档里的勾选项打开所在文档并定位 |
+| `event`      | 日程             | 日程页并打开详情                                   |
+
+- `pick` 与 `open` 不需要权限：用户亲手挑选，就是同意插件引用这些内容。插件拿到的只有引用和选择时的标题；要读取正文或刷新标题，仍需对应的读取权限（`context.data.*.get`）。
+- 两者都只能在用户操作（点击、按键）之后调用，在定时器或事件回调里调用会抛错。
+- `ref` 是可序列化的普通对象，可以存进插件自己的数据；`id` 与 `context.data` 中同类实体一致。目标被删除后，`open` 抛出「内容不存在」，可以据此提示用户移除这条关联。
 
 ## 资源清理
 
