@@ -2,13 +2,15 @@
 
 本文介绍编写命令、页面、侧边栏、设置、数据存储、网络请求和摘录所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
-本文对应 SDK 0.25.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
+本文对应 SDK 0.27.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
 
 博客发布提供方见 [PUBLISH.md](PUBLISH.md)，需要 SDK 0.21.0 和包含该能力的客户端；独立博客站点读取数据见 [PUBLISH-DATA.md](PUBLISH-DATA.md)。
 
 想在文档里添加自定义块，见 [EDITOR.md](EDITOR.md)；需要编译 Tailwind、Markdown 等内容，见 [SERVICES.md](SERVICES.md)。
 
 AI 功能声明、用户模型分配、流式对话、取消与统一用量审计见 [AI.md](AI.md)（SDK 0.7.0 及以上）。
+
+创建闪卡、卡组、打开宿主手动/AI 制卡窗口及显式自动保存见 [FLASHCARDS.md](FLASHCARDS.md)，需要 SDK 0.27.0 和包含该能力的客户端构建。
 
 白板扩展契约见 [WHITEBOARD.md](WHITEBOARD.md)，需要 SDK 0.8.0 及以上。
 
@@ -105,6 +107,7 @@ export default definePlugin({
 | `commands`    | `PluginContext["commands"]`            | 注册命令                                         |
 | `storage`     | `PluginStorage`                        | 保存当前插件在当前工作区的数据                   |
 | `permissions` | `PluginPermissions`                    | 查询与申请业务数据权限                           |
+| `flashcards`  | `PluginFlashcards`                     | 闪卡创建与 AI 制卡，见 FLASHCARDS.md             |
 | `data`        | `PluginData`                           | 读取与修改卡片、文章、项目文档、待办和日程       |
 | `content`     | `PluginContent`                        | 读取与修改正文                                   |
 | `events`      | `PluginEvents`                         | 订阅业务数据变化                                 |
@@ -515,6 +518,8 @@ function NoteActions({ context, target }: { context: PluginContext; target: Plug
 | `cards:delete` / `articles:delete`                     | `delete`                                                        |
 | `todos:read` / `todos:write` / `todos:delete`          | `context.data.todos` 的查询、新建与修改、删除                   |
 | `calendar:read` / `calendar:write` / `calendar:delete` | `context.data.calendar` 的查询、新建与修改、删除                |
+| `flashcards:read` / `flashcards:write`                 | 查询卡组 / 创建卡组与闪卡、自动保存，见 FLASHCARDS.md           |
+| `ai:<能力名>`                                          | 申请应用已有 AI 模型分配，全部能力及用法见 AI.md                |
 
 插件第一次调用某个接口时，Tau 会弹窗询问用户：「仅这次」在插件停用或应用重启前有效，「始终允许」保存到用户撤销为止，「拒绝」在本次运行内不再询问，连续拒绝 3 次后转为已阻止。应用不在前台时不弹窗，请求会记在插件详情页的「权限」中等待用户处理。用户可以随时在那里撤销。
 

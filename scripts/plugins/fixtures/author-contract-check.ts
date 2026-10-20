@@ -101,6 +101,42 @@ export async function checkDataContract(context: PluginContext) {
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }
 
+export async function checkFlashcardContract(context: PluginContext) {
+  await context.permissions.request([
+    "flashcards:read",
+    "flashcards:write",
+    "ai:flashcardGeneration",
+  ]);
+  const capability = await context.ai.requestCapability("flashcardGeneration");
+  await capability.chat({ messages: [{ role: "user", content: "生成一道练习题" }] });
+  const deck = await context.flashcards.createDeck({ name: "学习" });
+  const drafts = await context.flashcards.generate({ content: "资料" });
+  if (drafts[0]) await context.flashcards.createCard({ ...drafts[0], deckId: deck.id });
+  await context.flashcards.openCreate({ mode: "ai", content: "资料" });
+  const own = await context.entities.create({ kind: "note", key: "flashcard-source" });
+  await context.flashcards.generateAndSave({
+    deckId: deck.id,
+    content: "资料",
+    references: [{ refType: "content", contentRef: own.contentRef, title: own.title }],
+  });
+}
+
+export async function checkHostAICapabilities(context: PluginContext, imageBase64: string) {
+  const model = await context.ai.requestCapability("vibeLearningImageDescription");
+  for await (const event of model.stream({
+    messages: [
+      {
+        role: "user",
+        content: "描述这张图片",
+        images: [{ data: imageBase64, mimeType: "image/png" }],
+      },
+    ],
+    signal: context.signal,
+  })) {
+    if (event.type === "done") return event.result.text;
+  }
+}
+
 export async function checkExcerptContract(context: PluginContext) {
   const source: PluginExcerptSource = { key: "book-1", title: "示例书籍" };
   const item: PluginExcerptItem = { externalId: "book-1:note-1", quote: "示例划线" };

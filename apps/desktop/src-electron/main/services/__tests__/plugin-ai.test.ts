@@ -1,4 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import { PLUGIN_AI_CAPABILITIES, PLUGIN_PERMISSIONS } from "@tau/plugins/package";
+import type { PluginAICapability } from "@tau/plugins";
+import type { ISetting } from "@/stores/useSettingStore";
 import { PluginAIService, type PluginAIDeps } from "../plugin-ai";
 import type { UsageRecordInput } from "../../modules/model-usage/recorder";
 
@@ -15,6 +18,7 @@ function fixture() {
     write: (key, value) => {
       disk.set(key, value);
     },
+    hostModel: vi.fn(async () => ({ providerId: "app-provider", modelId: "app-flashcards" })),
     capacity: vi.fn(async () => ({ contextWindow: 100, maxTokens: 40 })),
     audit: initial => {
       audits.push(initial);
@@ -51,6 +55,150 @@ function fixture() {
 }
 
 describe("插件 AI 主进程边界", () => {
+  it("公开能力清单覆盖应用所有大模型功能分配", () => {
+    expectTypeOf<PluginAICapability>().toEqualTypeOf<keyof ISetting["llmUsageSettings"]>();
+    for (const name of Object.keys(PLUGIN_AI_CAPABILITIES))
+      expect(PLUGIN_PERMISSIONS).toContain(`ai:${name}`);
+  });
+
+  it.each(Object.keys(PLUGIN_AI_CAPABILITIES) as PluginAICapability[])(
+    "宿主能力 %s 按对应应用分配执行并保留插件身份",
+    async capability => {
+      const { service, deps, audits } = fixture();
+      const session = service.register(1, "test.capabilities", "能力插件", [], capability);
+      await service.run(1, session, capability, { ...request, feature: capability }, vi.fn());
+      expect(deps.hostModel).toHaveBeenCalledWith(capability);
+      expect(audits[0]).toMatchObject({
+        pluginId: "test.capabilities",
+        pluginFeatureName: PLUGIN_AI_CAPABILITIES[capability].name,
+      });
+    }
+  );
+
+  it("图片理解按受控图片载荷执行，图片不进入审计", async () => {
+    const { service, deps, audits } = fixture();
+    const session = service.register(
+      1,
+      "images.capability",
+      "图片插件",
+      [],
+      "vibeLearningImageDescription"
+    );
+    const image = { mimeType: "image/png" as const, data: "aW1hZ2UtcHJpdmF0ZQ==" };
+    await service.run(
+      1,
+      session,
+      "image",
+      {
+        feature: "vibeLearningImageDescription",
+        messages: [{ role: "user", content: "描述图片", images: [image] }],
+      },
+      vi.fn()
+    );
+    expect(deps.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [{ role: "user", content: "描述图片", images: [image] }],
+      }),
+      expect.any(AbortSignal),
+      expect.any(Function),
+      expect.any(Function)
+    );
+    expect(JSON.stringify(audits)).not.toContain(image.data);
+    await expect(
+      service.run(
+        1,
+        session,
+        "invalid-image",
+        {
+          feature: "vibeLearningImageDescription",
+          messages: [
+            {
+              role: "user",
+              content: "",
+              images: [{ ...image, data: "data:image/png;base64,AA==" }],
+            },
+          ],
+        },
+        vi.fn()
+      )
+    ).rejects.toThrow("AI_INVALID_REQUEST");
+    expect(deps.execute).toHaveBeenCalledOnce();
+  });
+  it("宿主闪卡使用应用功能分配，无需作者声明或另配模型，额度和审计仍按插件归属", async () => {
+    const { service, deps, audits } = fixture();
+    const session = service.register(1, "native.cards", "制卡插件", [], "flashcardGeneration");
+    const info = service.info("native.cards");
+    if (!info) throw new Error("插件 AI 未登记");
+    expect(info.features).toEqual([]);
+    expect(info.config.enabled).toBe(false);
+    expect(info.config.assignments).toEqual({});
+    service.configure(info.id, { ...info.config, dailyRequests: 1 });
+    const input = { ...request, feature: "flashcardGeneration" };
+    await service.run(1, session, "native-1", input, vi.fn());
+    expect(deps.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: "app-provider", modelId: "app-flashcards" }),
+      expect.any(AbortSignal),
+      expect.any(Function),
+      expect.any(Function)
+    );
+    expect(audits[0]).toMatchObject({ pluginId: "native.cards", pluginFeatureName: "闪卡制作" });
+    await expect(service.run(1, session, "native-2", input, vi.fn())).rejects.toThrow(
+      "AI_QUOTA_EXCEEDED"
+    );
+  });
+
+  it("宿主能力不覆盖插件自定义模型，应用模型未配置或身份不匹配时拒绝", async () => {
+    const { service, deps, config } = fixture();
+    const session = service.register(1, "test.ai", "测试插件", [], "flashcardGeneration");
+    expect(service.info("test.ai")?.features).toEqual([{ id: "summary", name: "摘要" }]);
+    expect(service.info("test.ai")?.config.assignments).toEqual(config.assignments);
+    deps.hostModel = async () => null;
+    await expect(
+      service.run(1, session, "1", { ...request, feature: "flashcardGeneration" }, vi.fn())
+    ).rejects.toThrow("应用设置中分配闪卡制作模型");
+    await expect(
+      service.run(2, session, "2", { ...request, feature: "flashcardGeneration" }, vi.fn())
+    ).rejects.toThrow("AI_DISABLED");
+    await expect(service.run(1, session, "3", request, vi.fn())).rejects.toThrow(
+      "AI_UNDECLARED_FEATURE"
+    );
+    expect(deps.execute).not.toHaveBeenCalled();
+  });
+
+  it("等待模型容量时应用分配变化，不继续使用旧模型", async () => {
+    const { service, deps } = fixture();
+    const session = service.register(1, "native.cards", "制卡插件", [], "flashcardGeneration");
+    deps.capacity = async () => {
+      deps.hostModel = async () => ({ providerId: "new", modelId: "new" });
+      return { contextWindow: 100, maxTokens: 40 };
+    };
+    await expect(
+      service.run(1, session, "changed", { ...request, feature: "flashcardGeneration" }, vi.fn())
+    ).rejects.toThrow("AI_CONFIG_CHANGED");
+    expect(deps.execute).not.toHaveBeenCalled();
+  });
+
+  it("读取宿主模型分配期间取消也能命中请求，不启动模型", async () => {
+    const { service, deps } = fixture();
+    const session = service.register(1, "native.cards", "制卡插件", [], "flashcardGeneration");
+    let resolveModel!: (model: { providerId: string; modelId: string }) => void;
+    deps.hostModel = () =>
+      new Promise(resolve => {
+        resolveModel = resolve;
+      });
+    const pending = service.run(
+      1,
+      session,
+      "early",
+      { ...request, feature: "flashcardGeneration" },
+      vi.fn()
+    );
+    const rejected = expect(pending).rejects.toThrow("AI_ABORTED");
+    service.cancelOwn(1, session, "early");
+    resolveModel({ providerId: "app-provider", modelId: "app-flashcards" });
+    await rejected;
+    expect(deps.execute).not.toHaveBeenCalled();
+  });
   it("默认关闭、拒绝未声明功能与跨窗口身份，不执行模型", async () => {
     const { service, deps } = fixture();
     const session = service.register(2, "other.ai", "其他", [{ id: "summary", name: "摘要" }]);
@@ -137,6 +285,7 @@ describe("插件 AI 主进程边界", () => {
       });
     const pending = service.run(1, session, "1", request, vi.fn());
     const failure = expect(pending).rejects.toThrow("AI_ABORTED");
+    await vi.waitFor(() => expect(ready).toBeTypeOf("function"));
     service.cancelOwn(1, session, "1");
     ready();
     await failure;

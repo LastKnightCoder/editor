@@ -20,6 +20,7 @@ export {
   type PluginCategory,
 } from "./categories.ts";
 export { PLUGIN_PERMISSIONS, isPluginPermission, type PluginPermission } from "./permissions.ts";
+export { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai.ts";
 
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",

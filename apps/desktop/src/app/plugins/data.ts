@@ -25,19 +25,7 @@ import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import type { ICard } from "@/types";
 import type { PluginDataRecord, PluginOperationRecord } from "@/types/plugin-data";
 
-/** ContentRef 对插件不透明：正文 ID 加创建时间，防止 ID 复用后指向别的正文 */
-export const encodeContentRef = (contentId: number, createdAt: number) =>
-  `${contentId}:${createdAt}`;
-
-export function decodeContentRef(ref: string): { contentId: number; createdAt: number } | null {
-  const match = /^(\d+):(\d+)$/.exec(ref);
-  if (!match) return null;
-  const contentId = Number(match[1]);
-  const createdAt = Number(match[2]);
-  return Number.isSafeInteger(contentId) && contentId > 0 && Number.isSafeInteger(createdAt)
-    ? { contentId, createdAt }
-    : null;
-}
+import { encodeContentRef, decodeContentRef } from "@/utils/plugin-content-ref";
 
 const parseId = (id: string) => (/^\d+$/.test(id) ? Number(id) : null);
 

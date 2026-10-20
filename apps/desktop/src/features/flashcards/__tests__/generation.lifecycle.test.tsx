@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PiChatResult } from "@/services/piLLM";
 import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { FlashcardGenerator, FlashcardDraft } from "@/services/flashcard-creation";
 
 const runs = vi.hoisted(
   () =>
@@ -53,18 +54,51 @@ afterEach(() => {
   host?.remove();
   runs.length = 0;
 });
-function Probe() {
-  generation = useFlashcardGeneration(provider, model);
+function Probe({ generate }: { generate?: FlashcardGenerator }) {
+  generation = useFlashcardGeneration(
+    generate ? null : provider,
+    generate ? null : model,
+    generate
+  );
   return null;
 }
-function mount() {
+function mount(generate?: FlashcardGenerator) {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  act(() => root?.render(<Probe />));
+  act(() => root?.render(<Probe generate={generate} />));
 }
 
 describe("闪卡生成生命周期", () => {
+  it("插件窗口使用注入的 AI 通道，取消后丢弃结果，不回退应用模型", async () => {
+    let finish!: (drafts: FlashcardDraft[]) => void;
+    let signal!: AbortSignal;
+    const generate = vi.fn<FlashcardGenerator>((_content, currentSignal) => {
+      signal = currentSignal;
+      return new Promise(resolve => {
+        finish = resolve;
+      });
+    });
+    mount(generate);
+    act(() => generation.startGeneration([]));
+    expect(generate).toHaveBeenCalledOnce();
+    expect(runs).toHaveLength(0);
+    act(() => generation.stopGeneration());
+    expect(signal.aborted).toBe(true);
+    await act(async () => finish([]));
+    expect(generation.generatedCards).toEqual([]);
+    expect(generation.isGenerating).toBe(false);
+  });
+
+  it("插件 AI 失败展示原错误，不启动应用模型", async () => {
+    mount(async () => {
+      throw new Error("AI_DISABLED");
+    });
+    await act(async () => generation.startGeneration([]));
+    expect(generation.error?.message).toBe("AI_DISABLED");
+    expect(generation.isGenerating).toBe(false);
+    expect(runs).toHaveLength(0);
+  });
   it("重置后丢弃旧流和迟到成功结果，不恢复已取消的数据", async () => {
     mount();
     act(() => generation.startGeneration([]));

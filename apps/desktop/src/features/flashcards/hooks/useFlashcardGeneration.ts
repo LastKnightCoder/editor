@@ -8,7 +8,8 @@ import { Role } from "@/constants";
 import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 import type { FlashcardType, FlashcardData, FlashcardDifficulty } from "@/types/flashcard";
-import { textToDescendants, parseTextWithBlanks } from "@/utils/flashcard";
+import { parseFlashcardResponse } from "../generation/parse";
+import type { FlashcardGenerator } from "@/services/flashcard-creation";
 
 export interface GeneratedFlashcard {
   id: string;
@@ -32,6 +33,7 @@ interface UseFlashcardGenerationResult {
   toggleCardSelection: (cardId: string) => void;
   selectAll: () => void;
   deselectAll: () => void;
+  removeCard: (cardId: string) => void;
   updateCard: (
     cardId: string,
     updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>
@@ -39,77 +41,10 @@ interface UseFlashcardGenerationResult {
   reset: () => void;
 }
 
-const generateId = (): string => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-};
-
-/**
- * Parse flashcard response from LLM output
- */
-const parseFlashcardResponse = (jsonStr: string): GeneratedFlashcard[] => {
-  // Clean up potential markdown code blocks
-  let cleaned = jsonStr.trim();
-  if (cleaned.startsWith("```json")) {
-    cleaned = cleaned.slice(7);
-  }
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.endsWith("```")) {
-    cleaned = cleaned.slice(0, -3);
-  }
-  cleaned = cleaned.trim();
-
-  // Try to find JSON array in the content
-  const startIdx = cleaned.indexOf("[");
-  const endIdx = cleaned.lastIndexOf("]");
-  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    cleaned = cleaned.slice(startIdx, endIdx + 1);
-  }
-
-  const parsed = JSON.parse(cleaned);
-
-  if (!Array.isArray(parsed)) {
-    throw new Error("Response is not an array");
-  }
-
-  return parsed.map(card => {
-    // Parse prompt - use parseTextWithBlanks for cloze type to handle {{blank:xx}} markers
-    let promptDescendants: Descendant[];
-    if (typeof card.prompt === "string") {
-      if (card.type === "cloze") {
-        // For cloze cards, parse blank markers into flashcard-blank elements
-        promptDescendants = parseTextWithBlanks(card.prompt);
-      } else {
-        // For other types, use normal text conversion
-        promptDescendants = textToDescendants(card.prompt);
-      }
-    } else {
-      promptDescendants = card.prompt || textToDescendants("");
-    }
-
-    return {
-      id: generateId(),
-      type: card.type || "qa",
-      prompt: promptDescendants,
-      detail:
-        typeof card.detail === "string"
-          ? textToDescendants(card.detail || "")
-          : card.detail || textToDescendants(""),
-      difficulty: card.difficulty || "standard",
-      tags: card.tags || [],
-      data: card.data || {},
-      selected: true, // Default to selected
-    };
-  });
-};
-
 export const useFlashcardGeneration = (
   provider: LLMProviderSetting | null,
-  model: LLMModelSetting | null
+  model: LLMModelSetting | null,
+  generate?: FlashcardGenerator
 ): UseFlashcardGenerationResult => {
   const [generatedCards, setGeneratedCards] = useState<GeneratedFlashcard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -119,6 +54,7 @@ export const useFlashcardGeneration = (
   const chatHandleRef = useRef<PiChatHandle | null>(null);
   const accumulatedRef = useRef<string>("");
   const generationRevision = useRef(0);
+  const pluginGeneration = useRef<AbortController | null>(null);
 
   const { run: throttledParse, cancel: cancelParse } = useThrottleFn(
     (text: string) => {
@@ -135,13 +71,14 @@ export const useFlashcardGeneration = (
   );
 
   const startGeneration = useMemoizedFn((content: Descendant[]) => {
-    if (!provider || !model) {
+    if (!generate && (!provider || !model)) {
       setError(new Error("未配置闪卡生成模型"));
       return;
     }
 
     const revision = ++generationRevision.current;
     chatHandleRef.current?.cancel();
+    pluginGeneration.current?.abort();
     cancelParse();
     setIsGenerating(true);
     setIsPending(true);
@@ -150,6 +87,27 @@ export const useFlashcardGeneration = (
     setRawOutput("");
     accumulatedRef.current = "";
 
+    if (generate) {
+      const controller = new AbortController();
+      pluginGeneration.current = controller;
+      void generate(content, controller.signal)
+        .then(drafts => {
+          if (revision !== generationRevision.current || controller.signal.aborted) return;
+          setGeneratedCards(parseFlashcardResponse(JSON.stringify(drafts)));
+        })
+        .catch(error => {
+          if (revision !== generationRevision.current || controller.signal.aborted) return;
+          setError(error instanceof Error ? error : new Error("闪卡生成失败"));
+        })
+        .finally(() => {
+          if (revision !== generationRevision.current) return;
+          pluginGeneration.current = null;
+          setIsGenerating(false);
+          setIsPending(false);
+        });
+      return;
+    }
+    if (!provider || !model) return;
     const markdown = getMarkdown(content);
 
     const messages: RequestMessage[] = [
@@ -204,6 +162,8 @@ export const useFlashcardGeneration = (
     cancelParse();
     chatHandleRef.current?.cancel();
     chatHandleRef.current = null;
+    pluginGeneration.current?.abort();
+    pluginGeneration.current = null;
     setIsGenerating(false);
     setIsPending(false);
   }, [cancelParse]);
@@ -222,6 +182,9 @@ export const useFlashcardGeneration = (
 
   const deselectAll = useCallback(() => {
     setGeneratedCards(prev => prev.map(card => ({ ...card, selected: false })));
+  }, []);
+  const removeCard = useCallback((cardId: string) => {
+    setGeneratedCards(prev => prev.filter(card => card.id !== cardId));
   }, []);
 
   const updateCard = useCallback(
@@ -252,6 +215,7 @@ export const useFlashcardGeneration = (
     toggleCardSelection,
     selectAll,
     deselectAll,
+    removeCard,
     updateCard,
     reset,
   };

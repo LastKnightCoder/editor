@@ -25,6 +25,8 @@
 
 追记（2026-10-20）：插件内容的显示分为外观与行为。外观（类型名 + 图标）由插件声明、宿主渲染成 SVG 随库保存，各处经 `components/EntityKind` 统一解析，插件不运行时照样显示；行为（打开、可否 @）仍只在插件运行时登记。插件图标只作 CSS 遮罩显示，不插入 DOM。
 
+追记（2026-10-20，闪卡整合）：用户要求修复闪卡与新权限体系的冲突，随后明确统一宿主 AI 能力申请，并开放全部现有内置大模型功能分配。采用 context.ai.requestCapability(name) 与逐项 ai:<能力名> 授权，模型沿用应用分配，共用插件额度、审计及取消；闪卡是消费者之一，不独建授权机制。直接闪卡查询/创建仍走 flashcards:read/write，openCreate 只响应用户操作，来源统一 contentRef。0.26.0 已发布不能覆盖，最终通用协议随 0.27.0 交付。
+
 ## D-175 Typst 编译归插件本地 WASM，宿主移除编译服务（2026-10-19）
 
 延续 D-168 的拆分：宿主随包分发的 `@myriaddreamin/typst-ts-node-compiler` 原生二进制约 37–42 MB/平台，只为 Typst 插件服务，从安装包移除。`tau.typst` 插件 v0.2.0 起在渲染进程用 typst.ts 的 WebAssembly 编译器本地编译：wasm 与官方默认字体集（`@typst-wasm/fonts`）不随插件 ZIP 分发（保持 30 KB 级），首次编译时从 jsdelivr/unpkg 双源下载并做大小与 sha256 校验，缓存在 IndexedDB 长期复用、离线可用；排版产物由 HTML 片段改为自包含 SVG，`html` 缓存字段语义随之变更，历史 HTML 缓存照常显示。SDK 0.24.0 移除 `PluginServices.typst`；`ITypstCompiler` 编辑器服务 token、主进程 typst 模块/worker、`compile-typst` 命令与旧聊天 Typst 渲染器的实时编译路径全部删除，旧对话只展示已保存缓存或源码。实施记录见插件专题 76。

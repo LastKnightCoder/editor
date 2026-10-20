@@ -1,8 +1,14 @@
 /**
- * 业务数据权限：manifest 的 permissions 声明插件可申请的上限，首次调用对应接口时由宿主
+ * 插件权限：manifest 的 permissions 声明业务数据与宿主 AI 能力的申请上限，首次调用时由宿主
  * 弹窗询问用户。read 读取，write 新建与修改（含正文），delete 删除（可在插件详情页恢复）。
  * 插件与应用运行在同一环境，权限约束的是 SDK 接口，不是安全隔离。
  */
+import { PLUGIN_AI_CAPABILITIES, type PluginAICapability } from "./ai.ts";
+
+const aiPermissions = (Object.keys(PLUGIN_AI_CAPABILITIES) as PluginAICapability[]).map(
+  capability => `ai:${capability}` as const
+);
+
 export const PLUGIN_PERMISSIONS = [
   "cards:read",
   "cards:write",
@@ -18,6 +24,9 @@ export const PLUGIN_PERMISSIONS = [
   "calendar:read",
   "calendar:write",
   "calendar:delete",
+  "flashcards:read",
+  "flashcards:write",
+  ...aiPermissions,
 ] as const;
 
 export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];

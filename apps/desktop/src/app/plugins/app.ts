@@ -13,6 +13,7 @@ import { bindDatabaseCommands } from "@/services/command-context";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import type { EntityCandidate, EntityKind } from "@/types";
 import { resolvePluginContentTarget } from "./content-target";
+import { assertPluginUserActivation } from "./user-activation";
 
 /** 插件类型 → 宿主选择器的实体类型 */
 export const PICKER_KINDS: Record<PluginEntityKind, EntityKind> = {
@@ -82,17 +83,10 @@ export const usePluginActionUi = create<{ request: PluginActionRequest | null }>
 
 let nextRequestId = 0;
 
-/** 选择与打开只响应用户操作：插件在后台或定时器里不能弹出选择器、切换页面 */
-function assertUserActivation() {
-  const activation = (navigator as Navigator & { userActivation?: { isActive: boolean } })
-    .userActivation;
-  if (activation && !activation.isActive) throw new Error("只能在用户点击或按键后调用");
-}
-
 export function createDesktopApp(databaseName: string): AppAdapter {
   return {
     pick(context, plugin, options) {
-      assertUserActivation();
+      assertPluginUserActivation();
       context.signal.throwIfAborted();
       if (usePluginPickerUi.getState().request) throw new Error("已有一个选择窗口正在打开");
       return new Promise(resolve => {
@@ -114,7 +108,7 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       });
     },
     async open(context, ref: PluginEntityRef) {
-      assertUserActivation();
+      assertPluginUserActivation();
       const commands = bindDatabaseCommands(
         { pluginRefExists, locateEntity },
         { databaseName, signal: context.signal }
@@ -145,7 +139,7 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       return openEntity({ kind: owner, id: location.id }, { at: { taskId: task[2] } });
     },
     async run(context, plugin, request: PluginAppRunRequest) {
-      assertUserActivation();
+      assertPluginUserActivation();
       const target = await resolvePluginContentTarget(
         databaseName,
         context.pluginId,

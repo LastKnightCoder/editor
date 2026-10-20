@@ -1,5 +1,7 @@
 import type {
-  PluginAI,
+  PluginAIFeatures,
+  PluginAICapability,
+  PluginAICapabilityClient,
   PluginAIFeature,
   PluginAIEvent,
   PluginAIRequest,
@@ -9,15 +11,29 @@ import { on, off } from "@/electron";
 import { invokePluginAI } from "@/commands/plugin-ai";
 import { openPage } from "@/services/page-navigation";
 import type { PluginAIOutcome } from "@/types/plugin-ai";
+import { queryClient } from "@/queryClient";
 
 export const desktopPluginAI = {
+  async bindCapability(
+    plugin: { id: string; name: string },
+    capability: PluginAICapability,
+    lifetime: AbortSignal
+  ): Promise<PluginAICapabilityClient> {
+    const client = await desktopPluginAI.bind(plugin, [], lifetime, capability);
+    void queryClient.invalidateQueries({ queryKey: ["plugin-ai", plugin.id] });
+    return {
+      chat: request => client.chat({ ...request, feature: capability }),
+      stream: request => client.stream({ ...request, feature: capability }),
+    };
+  },
   async bind(
     plugin: { id: string; name: string },
     features: readonly PluginAIFeature[],
-    lifetime: AbortSignal
-  ): Promise<PluginAI> {
+    lifetime: AbortSignal,
+    hostFeature?: PluginAICapability
+  ): Promise<PluginAIFeatures> {
     lifetime.throwIfAborted();
-    const session = await invokePluginAI<string>("register", { ...plugin, features });
+    const session = await invokePluginAI<string>("register", { ...plugin, features, hostFeature });
     const dispose = () => {
       void invokePluginAI("unregister", session).catch(console.error);
     };

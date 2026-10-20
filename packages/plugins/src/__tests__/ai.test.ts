@@ -23,7 +23,7 @@ it("延迟加载插件的 AI 声明绑定真实身份，并在停用时取消生
     ai: { features: [{ id: "summary", name: "摘要" }] },
     create: () => ({
       activate(context) {
-        expect(context.ai).toBe(unavailableAI);
+        expect(context.ai.chat).toBe(unavailableAI.chat);
       },
     }),
   });

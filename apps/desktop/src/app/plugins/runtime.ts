@@ -33,6 +33,7 @@ import {
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
+  type FlashcardsAdapter,
   type MCPAdapter,
   type StorageAdapter,
 } from "@tau/plugins/host";
@@ -136,6 +137,7 @@ export class DesktopPluginRuntime {
       services?: PluginServices;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      flashcards?: FlashcardsAdapter;
       mcp?: MCPAdapter;
       permissions?: DesktopPermissionBroker;
       data?: DesktopDataAdapter;
@@ -165,6 +167,7 @@ export class DesktopPluginRuntime {
       services: options.services,
       excerpts: options.excerpts,
       materials: options.materials,
+      flashcards: options.flashcards,
       skills: { register: registerPluginSkill },
       mcp: options.mcp,
       permissions: options.permissions,

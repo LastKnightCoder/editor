@@ -31,7 +31,16 @@ import type { ImageProviderDefinition } from "./images";
 import type { VideoProviderDefinition } from "./video";
 import type { PublishProviderDefinition } from "./publish";
 export { copyJson } from "./values";
-import { unavailableAI, type PluginAI, type PluginAIFeature } from "./ai";
+import {
+  unavailableAI,
+  isPluginAICapability,
+  type PluginAIFeatures,
+  type PluginAIFeature,
+  type PluginAICapability,
+  type PluginAICapabilityClient,
+  type PluginAICapabilityRequest,
+  type PluginAIEvent,
+} from "./ai";
 import { bindPluginServices, type PluginServices } from "./services";
 export { bindPluginServices } from "./services";
 import {
@@ -96,6 +105,14 @@ import {
   type PluginPickOptions,
   type PluginPickedEntity,
 } from "./app";
+import type { PluginFlashcards } from "./flashcards";
+
+export type FlashcardsAdapter = {
+  [K in keyof PluginFlashcards]: (
+    context: PluginContext,
+    ...args: Parameters<PluginFlashcards[K]>
+  ) => ReturnType<PluginFlashcards[K]>;
+};
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -147,6 +164,7 @@ export interface ExcerptsAdapter {
 
 /** 业务数据的授权由宿主决定：已获准直接返回，否则询问用户或抛出 PluginPermissionError。 */
 export interface PermissionsAdapter {
+  subscribe?(listener: () => void): () => void;
   ensure(
     context: PluginContext,
     plugin: PluginOwner,
@@ -529,7 +547,7 @@ export interface PluginInfo {
 interface Activation {
   context?: PluginContext;
   contributions: Map<PluginContributionKind, number>;
-  ai?: PluginAI;
+  ai?: PluginAIFeatures;
   controller: AbortController;
   resources: Disposable[];
   instance?: PluginInstance;
@@ -587,7 +605,12 @@ export class PluginHost {
           plugin: PluginOwner,
           features: readonly PluginAIFeature[],
           signal: AbortSignal
-        ): Promise<PluginAI>;
+        ): Promise<PluginAIFeatures>;
+        bindCapability?(
+          plugin: PluginOwner,
+          capability: PluginAICapability,
+          signal: AbortSignal
+        ): Promise<PluginAICapabilityClient>;
       };
       settings?: SettingsAdapter;
       publish?: {
@@ -608,6 +631,7 @@ export class PluginHost {
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      flashcards?: FlashcardsAdapter;
       mcp?: MCPAdapter;
       chat?: ChatAdapter;
       permissions?: PermissionsAdapter;
@@ -941,6 +965,69 @@ export class PluginHost {
       await permissionsAdapter().ensure(context, owner, [permission]);
       this.assertActive(entry, activation);
     };
+    const capabilityClients = new Map<PluginAICapability, Promise<PluginAICapabilityClient>>();
+    const requestCapability = async (
+      capability: PluginAICapability
+    ): Promise<PluginAICapabilityClient> => {
+      if (!isPluginAICapability(capability))
+        throw new Error("AI_UNDECLARED_CAPABILITY：不支持的宿主 AI 能力");
+      const permission: PluginPermission = `ai:${capability}`;
+      await guard(permission);
+      const binding = this.options.ai?.bindCapability;
+      if (!binding) throw new Error("AI_UNAVAILABLE：当前宿主不支持 AI 能力");
+      let pending = capabilityClients.get(capability);
+      if (!pending) {
+        pending = binding
+          .call(this.options.ai, owner, capability, activation.controller.signal)
+          .catch(error => {
+            capabilityClients.delete(capability);
+            throw error;
+          });
+        capabilityClients.set(capability, pending);
+      }
+      const client = await pending;
+      const check = async () => {
+        this.assertActive(entry, activation);
+        if ((await permissionsAdapter().query(context, permission)) !== "granted")
+          throw new PluginPermissionError(permission, "denied");
+        this.assertActive(entry, activation);
+      };
+      await check();
+      const stream = async function* (
+        request: PluginAICapabilityRequest
+      ): AsyncGenerator<PluginAIEvent> {
+        const { signal: callerSignal, ...input } = request;
+        const snapshot = structuredClone(input);
+        const controller = new AbortController();
+        const signal = AbortSignal.any([
+          activation.controller.signal,
+          controller.signal,
+          ...(callerSignal ? [callerSignal] : []),
+        ]);
+        const unsubscribe = permissionsAdapter().subscribe?.(() => {
+          void check().catch(error => controller.abort(error));
+        });
+        try {
+          await check();
+          signal.throwIfAborted();
+          for await (const event of client.stream({ ...snapshot, signal })) {
+            await check();
+            signal.throwIfAborted();
+            yield structuredClone(event);
+          }
+          signal.throwIfAborted();
+        } finally {
+          unsubscribe?.();
+        }
+      };
+      return Object.freeze({
+        stream,
+        async chat(request: PluginAICapabilityRequest) {
+          for await (const event of stream(request)) if (event.type === "done") return event.result;
+          throw new Error("AI_REQUEST_FAILED");
+        },
+      });
+    };
     const dataAdapter = () => {
       this.assertActive(entry, activation);
       if (!this.options.data) throw new Error("当前宿主不支持业务数据");
@@ -1211,7 +1298,7 @@ export class PluginHost {
       workspaceId: scope.workspaceId,
       signal: scope.signal,
       register,
-      ai: activation.ai ?? unavailableAI,
+      ai: Object.freeze({ ...(activation.ai ?? unavailableAI), requestCapability }),
       chat: Object.freeze({
         registerToolRenderer: async (definition: PluginToolRendererDefinition) => {
           this.assertActive(entry, activation);
@@ -1482,6 +1569,42 @@ export class PluginHost {
           return copyJson(result) as unknown as PluginExcerptEntry[];
         },
       }),
+      flashcards: Object.freeze(
+        Object.fromEntries(
+          (
+            [
+              "listDecks",
+              "createDeck",
+              "createCard",
+              "openCreate",
+              "generate",
+              "generateAndSave",
+            ] as const
+          ).map(method => [
+            method,
+            async (...args: unknown[]) => {
+              this.assertActive(entry, activation);
+              const snapshot = structuredClone(args);
+              if (method === "listDecks") await guard("flashcards:read");
+              if (
+                method === "createDeck" ||
+                method === "createCard" ||
+                method === "generateAndSave"
+              )
+                await guard("flashcards:write");
+              const adapter = this.options.flashcards;
+              if (!adapter) throw new Error("当前宿主不支持闪卡");
+              const call = adapter[method] as (
+                context: PluginContext,
+                ...args: unknown[]
+              ) => Promise<unknown>;
+              const result = await call(context, ...snapshot);
+              this.assertActive(entry, activation);
+              return structuredClone(result);
+            },
+          ])
+        )
+      ) as unknown as PluginFlashcards,
       materials: Object.freeze({
         actions: async (ref: PluginMaterialRef) => {
           this.assertActive(entry, activation);

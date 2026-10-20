@@ -16,6 +16,7 @@ import { createDesktopEntities } from "./entities";
 import { createDatabaseStorage, migrateLegacyPluginStorage } from "./kv-storage";
 import { clearPluginKv } from "@/commands/plugin-kv";
 import { DesktopPermissionBroker } from "./permissions";
+import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
 import { connectSyncRenderer } from "./sync-bridge";
@@ -66,6 +67,9 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           await migrateLegacyPluginStorage(window.localStorage, persistentWorkspaceId, workspaceId);
           if (cancelled) return;
         }
+        const permissions = isElectron
+          ? new DesktopPermissionBroker(persistentWorkspaceId)
+          : undefined;
         current = new DesktopPluginRuntime({
           workspaceId: persistentWorkspaceId,
           navigator,
@@ -90,9 +94,8 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                   void (await clearPluginKv(workspaceId, pluginId)),
               }
             : {}),
-          ...(isElectron
-            ? { permissions: new DesktopPermissionBroker(persistentWorkspaceId) }
-            : {}),
+          ...(permissions ? { permissions } : {}),
+          flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
           reloadCounts,
           validateEditor: composePluginEditor,

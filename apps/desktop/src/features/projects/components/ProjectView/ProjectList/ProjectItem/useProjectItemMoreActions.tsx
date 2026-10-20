@@ -4,12 +4,8 @@ import type { MenuEntryList } from "../../shared/menuEntries";
 import { produce } from "immer";
 
 import ContentExportModal from "@/components/ContentExportModal";
-import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
 import EditTitleModal from "@/components/EditTitleModal";
 import EpubExportModal from "@/components/EpubExportModal";
-import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
-import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
-import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import PresentationMode from "@/components/PresentationMode";
 import { PdfExportModal } from "@/components/PdfExportModal";
@@ -17,7 +13,6 @@ import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreati
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
-import { useThemeStore } from "@tau/themes/react";
 import { usePage } from "@/page/PageProvider";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import {
@@ -85,7 +80,6 @@ export const useProjectItemMoreActions = (
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [isPresentation, setIsPresentation] = useState(false);
 
-  const darkMode = useThemeStore(state => state.mode === "dark");
   const { navigator } = usePage();
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
   const whiteboardMutations = useWhiteboardMutations();
@@ -355,44 +349,6 @@ export const useProjectItemMoreActions = (
         onClose={() => setPdfExportModalOpen(false)}
         content={projectItem?.content || []}
         title={projectItem?.title || "项目文档"}
-      />
-      <DeckSelectorModal
-        open={flashcard.deckSelectorOpen}
-        onCancel={flashcard.closeDeckSelector}
-        onSelect={flashcard.handleDeckSelect}
-        title={
-          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
-        }
-      />
-      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
-        <FlashcardEditor
-          open={flashcard.flashcardEditorOpen}
-          activeDeckId={flashcard.selectedDeck.id}
-          onClose={flashcard.closeFlashcardEditor}
-          initialReferences={[flashcard.getReference()]}
-        />
-      )}
-      <FlashcardGenerationModal
-        open={flashcard.aiGenerationModalOpen}
-        onCancel={flashcard.handleCancelAiGeneration}
-        isGenerating={flashcard.isGenerating}
-        isPending={flashcard.isGenerationPending}
-        error={flashcard.generationError}
-        generatedCards={flashcard.generatedCards}
-        selectedDeck={flashcard.selectedDeck}
-        onToggleCard={flashcard.toggleCardSelection}
-        onSelectAll={flashcard.selectAll}
-        onDeselectAll={flashcard.deselectAll}
-        onConfirm={flashcard.handleConfirmAiGeneration}
-        onChangeDeck={flashcard.changeDeck}
-        onEditCard={flashcard.handleEditGeneratedCard}
-      />
-      <GeneratedFlashcardEditModal
-        open={flashcard.generatedCardEditModalOpen}
-        card={flashcard.editingGeneratedCard}
-        onSave={flashcard.handleSaveGeneratedCard}
-        onCancel={flashcard.closeGeneratedCardEditModal}
-        isDark={darkMode}
       />
       <PodcastGenerationModal
         open={podcastModalOpen}
