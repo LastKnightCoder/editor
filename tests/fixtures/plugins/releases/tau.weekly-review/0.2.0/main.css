@@ -104,3 +104,12 @@
 .weekly-review__error p {
   margin: 0;
 }
+.weekly-review__todo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.weekly-review__todo input {
+  accent-color: var(--tau-accent);
+}

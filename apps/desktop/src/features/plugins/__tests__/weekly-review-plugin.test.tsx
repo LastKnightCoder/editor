@@ -31,6 +31,16 @@ vi.mock("@/electron", () => ({
 
 const DATABASE = "data.db";
 let cardTitle = "第一张卡";
+const todo = {
+  taskRef: { kind: "todo", todoId: 4, createdAt: 9 },
+  revision: "r1",
+  title: "交周报",
+  completed: false,
+  archived: false,
+  dueAt: null,
+  groupId: null,
+  writable: true,
+};
 
 function respond(channel: unknown, ...args: unknown[]) {
   switch (channel) {
@@ -61,8 +71,22 @@ function respond(channel: unknown, ...args: unknown[]) {
             : [],
       };
     }
-    case "task-assistant:read":
-      return { items: [], hasMore: false, nextCursor: null, incomplete: false, warnings: [] };
+    case "task-assistant:read": {
+      const [name] = args as [string];
+      return {
+        items: name === "query_todos" ? [todo] : [],
+        hasMore: false,
+        nextCursor: null,
+        incomplete: false,
+        warnings: [],
+      };
+    }
+    case "task-assistant:preflight":
+      return args[1];
+    case "task-assistant:write":
+      todo.completed = true;
+      todo.revision = "r2";
+      return { requestId: "x", status: "succeeded", result: { ...todo } };
     default:
       return undefined;
   }
@@ -76,7 +100,7 @@ afterEach(async () => {
 });
 
 describe("每周回顾插件", () => {
-  it("首次打开只弹一次授权，允许后显示汇总，卡片更新后自动刷新", async () => {
+  it("首次打开只弹一次授权，允许后显示汇总，卡片更新后自动刷新；勾选待办时再询问修改权限", async () => {
     useSettingStore.setState(state => ({
       setting: { ...state.setting, database: { ...state.setting.database, active: DATABASE } },
     }));
@@ -99,7 +123,7 @@ describe("每周回顾插件", () => {
       async () => sharedPluginModules
     );
     await runtime.host.enable("tau.weekly-review");
-    expect(runtime.host.listPlugins()[0].permissions).toHaveLength(5);
+    expect(runtime.host.listPlugins()[0].permissions).toContain("todos:write");
     expect(runtime.listSidebar().items).toMatchObject([{ title: "每周回顾", group: "daily" }]);
 
     const page = runtime.getPage("tau.weekly-review", "review");
@@ -120,7 +144,14 @@ describe("每周回顾插件", () => {
       await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
       const prompts = usePluginPermissionUi.getState().prompts;
       expect(prompts).toHaveLength(1);
-      expect(prompts[0].permissions).toHaveLength(5);
+      // 打开时只询问读取权限，修改待办的权限等到第一次勾选
+      expect(prompts[0].permissions).toEqual([
+        "cards:read",
+        "articles:read",
+        "documents:read",
+        "todos:read",
+        "calendar:read",
+      ]);
       expect(document.body.textContent).toContain("读取项目文档");
 
       const allow = [...document.querySelectorAll("button")].find(
@@ -144,6 +175,24 @@ describe("每周回顾插件", () => {
         await new Promise(resolve => setTimeout(resolve, 30));
       });
       expect(host.textContent).toContain("改过的卡");
+
+      const checkbox = host.querySelector<HTMLInputElement>("input[type=checkbox]");
+      expect(checkbox?.checked).toBe(false);
+      await act(async () => checkbox?.click());
+      await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+      expect(usePluginPermissionUi.getState().prompts[0]?.permissions).toEqual(["todos:write"]);
+      const once = [...document.querySelectorAll("button")].find(
+        button => button.textContent === "仅这次"
+      );
+      await act(async () => once?.click());
+      await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
+      const write = electron.invoke.mock.calls.find(
+        ([channel]) => channel === "task-assistant:write"
+      );
+      expect(write?.[1]).toBe("set_todo_completed");
+      expect(write?.[2]).toMatchObject({ revision: "r1", completed: true });
+      expect(write?.[4]).toBe("plugin:tau.weekly-review");
+      expect(host.querySelector<HTMLInputElement>("input[type=checkbox]")?.checked).toBe(true);
     } finally {
       act(() => view.unmount());
       host.remove();
