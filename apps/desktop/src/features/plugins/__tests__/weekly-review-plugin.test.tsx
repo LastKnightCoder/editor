@@ -15,10 +15,12 @@ import { sharedPluginModules } from "@/app/plugins/shared-modules";
 import { createDesktopData } from "@/app/plugins/data";
 import { createDesktopEvents } from "@/app/plugins/events";
 import { createDesktopApp } from "@/app/plugins/app";
+import { createDesktopEntities } from "@/app/plugins/entities";
 import { DesktopPermissionBroker, usePluginPermissionUi } from "@/app/plugins/permissions";
 import { PluginPermissionPrompt } from "../permissions/PluginPermissionPrompt";
 import { PluginComponentScope } from "@/app/plugins/content-components";
 import { usePluginActionUi } from "@/app/plugins/app";
+import { pluginEntityKind } from "@/services/plugin-entity-kinds";
 import useSettingStore from "@/stores/useSettingStore";
 
 const openEntity = vi.hoisted(() => vi.fn());
@@ -50,6 +52,20 @@ vi.mock("@/electron", () => ({
 }));
 
 const DATABASE = "data.db";
+const note = {
+  id: 4,
+  pluginId: "tau.weekly-review",
+  kind: "note",
+  key: "",
+  title: "周记",
+  contentId: 20,
+  contentCreatedAt: 5,
+  meta: {},
+  createdAt: 5,
+  updatedAt: 5,
+  revision: "5",
+};
+let noteCreated = false;
 let cardTitle = "第一张卡";
 const todo = {
   taskRef: { kind: "todo", todoId: 4, createdAt: 9 },
@@ -71,6 +87,18 @@ function respond(channel: unknown, ...args: unknown[]) {
     case "plugin-data:exists":
       return true;
     case "plugin-data:content":
+      // 周记正文：插件自有内容
+      if ((args[0] as { contentId: number }).contentId === note.contentId)
+        return {
+          contentId: note.contentId,
+          createdAt: note.contentCreatedAt,
+          updatedAt: 5,
+          revision: "u:5",
+          wordCount: 0,
+          nodes: [],
+          owners: [],
+          pluginOwners: [{ pluginId: "tau.weekly-review", id: note.id, title: note.title }],
+        };
       return {
         contentId: 9,
         createdAt: 1,
@@ -80,6 +108,26 @@ function respond(channel: unknown, ...args: unknown[]) {
         nodes: [{ type: "paragraph", children: [{ text: "卡片正文开头" }] }],
         owners: ["card"],
         pluginOwners: [],
+      };
+    case "plugin-entities:find":
+      return noteCreated ? note : null;
+    case "plugin-entities:create":
+      noteCreated = true;
+      return { ...note, key: (args[0] as { input: { key: string } }).input.key };
+    case "plugin-entities:get":
+      return noteCreated ? note : null;
+    case "entity-context:get":
+      return {
+        backlinks: [
+          {
+            source: { ref: { kind: "article", id: 7 }, title: "读书计划", meta: "" },
+            snippets: [{ before: "详见", label: "周记", after: "" }],
+          },
+          {
+            source: { ref: { kind: "diary-moment", id: 3 }, title: "日记", meta: "" },
+            snippets: [],
+          },
+        ],
       };
     case "plugin-data:get":
       return { entity: "card", id: 1, title: cardTitle };
@@ -146,14 +194,16 @@ describe("每周回顾插件", () => {
     electron.invoke.mockImplementation(async (channel: unknown, ...args: unknown[]) =>
       respond(channel, ...args)
     );
+    const navigator = { push: vi.fn() };
     const runtime = new DesktopPluginRuntime({
       workspaceId: "w",
       storage: createMemoryStorage(),
-      navigator: { push: vi.fn() },
+      navigator,
       plugins: [],
       data: createDesktopData(DATABASE),
       events: createDesktopEvents(DATABASE),
       app: createDesktopApp(DATABASE),
+      entities: createDesktopEntities(DATABASE),
       permissions: new DesktopPermissionBroker("w", () => true),
     });
     runtimes.push(runtime);
@@ -281,6 +331,44 @@ describe("每周回顾插件", () => {
         contentId: 9,
         plugin: { id: "tau.weekly-review" },
       });
+
+      // 周记：插件自有内容，写周记不需要权限；被引用只列出已获准读取的类型
+      expect(host.textContent).toContain("这一周还没有周记");
+      await act(async () => button("写周记")?.click());
+      await settle();
+      const created = electron.invoke.mock.calls.find(
+        ([channel]) => channel === "plugin-entities:create"
+      );
+      expect(created?.[1]).toMatchObject({
+        pluginId: "tau.weekly-review",
+        input: { kind: "note", title: expect.stringContaining("周记") },
+      });
+      expect(usePluginPermissionUi.getState().prompts).toHaveLength(0);
+      expect(editorProps).toHaveBeenCalledWith(
+        expect.objectContaining({
+          contentId: 20,
+          source: { sourceType: "content", sourceId: 20 },
+        })
+      );
+      expect(
+        editorProps.mock.calls.some(([props]) => props.contentId === 20 && props.editingContext)
+      ).toBe(false);
+      expect(host.textContent).toContain("被引用");
+      expect(host.textContent).toContain("读书计划");
+      expect(host.textContent).toContain("另有 1 处引用");
+
+      // 从搜索结果打开周记：按声明进入插件页，带上那一周与定位
+      const kind = pluginEntityKind("tau.weekly-review", "note");
+      expect(kind).toMatchObject({ label: "周记", mentionable: true });
+      await kind?.open({ ...note, key: "2026-10-12" }, '{"block":1}');
+      expect(navigator.push).toHaveBeenLastCalledWith(
+        "plugin-page",
+        expect.objectContaining({
+          pluginId: "tau.weekly-review",
+          pageId: "review",
+          params: JSON.stringify({ week: "2026-10-12", at: '{"block":1}' }),
+        })
+      );
     } finally {
       act(() => view.unmount());
       host.remove();
