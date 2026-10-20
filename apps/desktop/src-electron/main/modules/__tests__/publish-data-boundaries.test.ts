@@ -25,6 +25,44 @@ const template = {
 const generator = () =>
   new PublishSiteGenerator({ template, logger: console, compileTailwind: async () => "" });
 const site = { title: "站点", description: "", basePath: "/notes/" };
+it("同一项目的共享文档出现在多个分支时保留目录入口，只生成一份正文和搜索记录", async () => {
+  const fixture = makePublishFixture();
+  const project = fixture.data.getProject(12)!;
+  const parent = fixture.data.getProjectItemsByIds([33])[0];
+  const child = fixture.data.getProjectItemsByIds([34])[0];
+  project.children = [33, 35, 34];
+  parent.content = [text("第一分支正文")] as any;
+  const secondParent = { ...parent, id: 35, title: "第二分支" };
+  fixture.data.getProjectItemsByIds = ids =>
+    [parent, child, secondParent].filter(item => ids.includes(item.id));
+  const { files } = await generator().generate(fixture.data, fixture.selections, site);
+  const docs = files
+    .filter(file => /^data\/projects\/12\/\d+\./.test(file.path))
+    .map(file => JSON.parse(file.content.toString()));
+  expect(docs.map(doc => doc.key)).toEqual([
+    "doc:project:12:33",
+    "doc:project:12:34",
+    "doc:project:12:35",
+  ]);
+  expect(docs[1].content.breadcrumb.map((item: { label: string }) => item.label)).toEqual([
+    "项目说明",
+    "目录",
+    "共享协议文档",
+  ]);
+  expect(docs[1].content.prevPage.target.key).toBe("doc:project:12:33");
+  expect(docs[1].content.nextPage.target.key).toBe("doc:project:12:35");
+  const search = JSON.parse(
+    files.find(file => /^data\/search\./.test(file.path))!.content.toString()
+  );
+  expect(
+    search.documents.filter((doc: { key: string }) => doc.key === "doc:project:12:34")
+  ).toHaveLength(1);
+  const manifest = JSON.parse(
+    files.find(file => /^data\/site\./.test(file.path))!.content.toString()
+  );
+  expect(manifest.projectTrees[12][0].children[0].children[0].target.key).toBe("doc:project:12:34");
+  expect(manifest.projectTrees[12][0].children[1].children[0].target.key).toBe("doc:project:12:34");
+});
 it("关联卡片按正文身份匹配，仅输出已发布目标的摘要与引用", async () => {
   const fixture = makePublishFixture();
   fixture.cards.push({
