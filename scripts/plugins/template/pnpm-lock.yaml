@@ -12,8 +12,8 @@ importers:
         specifier: 5.90.16
         version: 5.90.16(react@19.2.0)
       '@tau/plugins':
-        specifier: npm:@xiongtao.xt/tau-plugins@0.27.0
-        version: '@xiongtao.xt/tau-plugins@0.27.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))'
+        specifier: npm:@xiongtao.xt/tau-plugins@0.28.0
+        version: '@xiongtao.xt/tau-plugins@0.28.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))'
       '@tau/ui':
         specifier: npm:@xiongtao.xt/tau-ui@0.1.1
         version: '@xiongtao.xt/tau-ui@0.1.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
@@ -217,8 +217,8 @@ packages:
   '@types/react@19.2.0':
     resolution: {integrity: sha512-1LOH8xovvsKsCBq1wnT4ntDUdCJKmnEakhsuoUSy6ExlHCkGP2hqnatagYTgFk6oeL0VU31u7SNjunPN+GchtA==}
 
-  '@xiongtao.xt/tau-plugins@0.27.0':
-    resolution: {integrity: sha512-oIXyCQ5afxZk2j/yxtu/uuBMdF2bdD3znVcyZUa3emZFos0SDAO9RAs+HWHhSou2hqXb11K6rbyfV5MwHDTVHg==}
+  '@xiongtao.xt/tau-plugins@0.28.0':
+    resolution: {integrity: sha512-xcicUTyYsaUehnAaoZitmsiYJLc0IBGLCPmWLwxK97XgqPtrdX9DjMwdU2hg0JQbFLkHKJYZ1ccuTJVAkDRswg==}
     peerDependencies:
       react: 19.2.0
       react-dom: 19.2.0
@@ -413,7 +413,7 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@xiongtao.xt/tau-plugins@0.27.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))':
+  '@xiongtao.xt/tau-plugins@0.28.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))':
     dependencies:
       '@types/react': 19.2.0
       '@types/react-dom': 19.2.0(@types/react@19.2.0)

@@ -63,7 +63,7 @@ function focusedAppWindow(): BrowserWindow | undefined {
  * - window origin 聚焦 → "in-app"（不推送，由调用方渲染端自己入栈）；
  * - main origin 时若有聚焦窗口 → 直投该窗口返回 "in-app"；
  * - 其余（失焦）→ 推入系统窗口并登记 systemIds，返回 "system"。
- * options.force === "system" 跳过焦点判断直发系统窗口（调试工具用）；
+ * window origin 的 options.force 可指定应用内或系统窗口；
  * origin 仍记发送方窗口，按钮作答经 run-action 回到本窗口执行。
  */
 export function routeNotification(
@@ -81,7 +81,8 @@ export function routeNotification(
   }
   if (origin.kind === "window") {
     const originWin = windowFromWebContentsId(origin.webContentsId);
-    if (options?.force !== "system" && originWin?.isFocused()) return "in-app";
+    if (options?.force === "in-app" || (options?.force !== "system" && originWin?.isFocused()))
+      return "in-app";
     systemIds.set(payload.id, origin);
     pushSystemNotification(payload, originWin);
     return "system";

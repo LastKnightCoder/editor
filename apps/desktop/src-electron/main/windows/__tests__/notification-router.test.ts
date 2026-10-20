@@ -123,6 +123,18 @@ describe("routeNotification 裁决规则", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("force in-app：来源窗口失焦仍由该窗口入栈", () => {
+    fakeWindow({ webContentsId: 1, focused: false });
+    expect(
+      routeNotification(
+        payload("forced-in-app"),
+        { kind: "window", webContentsId: 1 },
+        { force: "in-app" }
+      )
+    ).toBe("in-app");
+    expect(state.push).not.toHaveBeenCalled();
+  });
+
   it("全部窗口失焦（main origin）→ system 并推送", () => {
     fakeWindow({ webContentsId: 1, focused: false });
     fakeWindow({ webContentsId: 2, focused: false });

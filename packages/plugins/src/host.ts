@@ -1,3 +1,4 @@
+import { readNotificationOptions, type PluginNotificationOptions } from "./notifications";
 import type {
   Disposable,
   JsonValue,
@@ -582,6 +583,10 @@ interface RegisteredCommand {
   run: PluginCommand["run"];
 }
 
+export interface NotificationsAdapter {
+  send(context: PluginContext, plugin: PluginOwner, options: PluginNotificationOptions): Disposable;
+}
+
 /** 只接收宿主显式信任的代码；此宿主不提供第三方沙箱或授权界面。 */
 export class PluginHost {
   private readonly entries = new Map<string, Entry>();
@@ -639,6 +644,7 @@ export class PluginHost {
       data?: DataAdapter;
       events?: EventsAdapter;
       app?: AppAdapter;
+      notifications?: NotificationsAdapter;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
@@ -1776,6 +1782,32 @@ export class PluginHost {
             );
           },
         }),
+      }),
+      notifications: Object.freeze({
+        send: (options: PluginNotificationOptions) => {
+          this.assertActive(entry, activation);
+          const value = readNotificationOptions(options);
+          if (!this.options.notifications) throw new Error("当前宿主不支持通知");
+          let disposed = false;
+          const resource = this.options.notifications.send(context, owner, {
+            ...value,
+            actions: value.actions?.map(action => ({
+              ...action,
+              onClick: async () => {
+                this.assertActive(entry, activation);
+                if (disposed) throw new Error("通知已失效");
+                await action.onClick();
+                this.assertActive(entry, activation);
+              },
+            })),
+          });
+          return register({
+            dispose: () => {
+              disposed = true;
+              return resource.dispose();
+            },
+          });
+        },
       }),
       app: Object.freeze({
         pick: async (options: PluginPickOptions) => {

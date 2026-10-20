@@ -2,7 +2,9 @@
 
 本文介绍编写命令、页面、侧边栏、设置、数据存储、网络请求和摘录所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
-本文对应 SDK 0.27.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
+本文对应 SDK 0.28.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
+
+发送应用内或独立窗口通知见[通知](#通知)与 [NOTIFICATIONS.md](NOTIFICATIONS.md)，需要 SDK 0.28.0 和包含通知接口的客户端构建。
 
 博客发布提供方见 [PUBLISH.md](PUBLISH.md)，需要 SDK 0.21.0 和包含该能力的客户端；独立博客站点读取数据见 [PUBLISH-DATA.md](PUBLISH-DATA.md)。
 
@@ -99,39 +101,40 @@ export default definePlugin({
 
 `activate` 以及页面、设置组件都会收到 `PluginContext`。
 
-| 属性          | 类型                                   | 用途                                             |
-| ------------- | -------------------------------------- | ------------------------------------------------ |
-| `pluginId`    | `string`                               | 当前插件标识                                     |
-| `workspaceId` | `string`                               | 当前工作区标识；不要解析它的内部格式             |
-| `signal`      | `AbortSignal`                          | 本次运行结束时中止，可用于停止异步工作           |
-| `commands`    | `PluginContext["commands"]`            | 注册命令                                         |
-| `storage`     | `PluginStorage`                        | 保存当前插件在当前工作区的数据                   |
-| `permissions` | `PluginPermissions`                    | 查询与申请业务数据权限                           |
-| `flashcards`  | `PluginFlashcards`                     | 闪卡创建与 AI 制卡，见 FLASHCARDS.md             |
-| `data`        | `PluginData`                           | 读取与修改卡片、文章、项目文档、待办和日程       |
-| `content`     | `PluginContent`                        | 读取与修改正文                                   |
-| `events`      | `PluginEvents`                         | 订阅业务数据变化                                 |
-| `app`         | `PluginApp`                            | 选择、打开已有内容，执行导出、演示和共享         |
-| `entities`    | `PluginOwnEntities`                    | 管理插件自有内容、类型和反链                     |
-| `backend`     | `PluginBackendClient`                  | 调用与订阅本机后台，见 BACKEND.md                |
-| `pages`       | `PluginPages`                          | 注册并打开页面                                   |
-| `settings`    | `PluginSettings`                       | 注册并打开设置区域                               |
-| `editor`      | `PluginEditor`                         | 开发台编辑器贡献；正文使用静态扩展，见 EDITOR.md |
-| `sync`        | `PluginSync`                           | 注册同步存储提供方，见 SYNC.md                   |
-| `upload`      | `PluginUpload`                         | 资源上传与上传提供方，见 UPLOAD.md               |
-| `tts`         | `PluginTTS`                            | 语音合成与音色复刻提供方，见 TTS.md              |
-| `images`      | `PluginImages`                         | 图片生成与编辑提供方，见 IMAGES.md               |
-| `video`       | `PluginVideo`                          | 视频来源与播放源提供方，见 VIDEO.md              |
-| `publish`     | `PluginPublish`                        | 博客发布提供方，见 PUBLISH.md                    |
-| `sidebar`     | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口                     |
-| `fetch`       | `typeof fetch`                         | 发起与插件生命周期关联的网络请求                 |
-| `services`    | `PluginServices`                       | 编译与转换服务，见 SERVICES.md                   |
-| `ai`          | `PluginAI`                             | 使用用户分配的模型，见 AI.md                     |
-| `mcp`         | `PluginMCP`                            | 注册 MCP，本地工具或外部服务器，见 MCP.md        |
-| `chat`        | `PluginChat`                           | 注册 MCP 工具结果渲染器，见 MCP.md               |
-| `excerpts`    | `PluginExcerpts`                       | 把外部划线、标注写为 Tau 摘录                    |
-| `materials`   | `PluginMaterials`                      | 获取「转为卡片」等材料动作                       |
-| `register`    | `(resource: Disposable) => Disposable` | 托管需要清理的资源                               |
+| 属性            | 类型                                   | 用途                                             |
+| --------------- | -------------------------------------- | ------------------------------------------------ |
+| `pluginId`      | `string`                               | 当前插件标识                                     |
+| `workspaceId`   | `string`                               | 当前工作区标识；不要解析它的内部格式             |
+| `signal`        | `AbortSignal`                          | 本次运行结束时中止，可用于停止异步工作           |
+| `commands`      | `PluginContext["commands"]`            | 注册命令                                         |
+| `storage`       | `PluginStorage`                        | 保存当前插件在当前工作区的数据                   |
+| `permissions`   | `PluginPermissions`                    | 查询与申请业务数据权限                           |
+| `flashcards`    | `PluginFlashcards`                     | 闪卡创建与 AI 制卡，见 FLASHCARDS.md             |
+| `data`          | `PluginData`                           | 读取与修改卡片、文章、项目文档、待办和日程       |
+| `content`       | `PluginContent`                        | 读取与修改正文                                   |
+| `events`        | `PluginEvents`                         | 订阅业务数据变化                                 |
+| `notifications` | `PluginNotifications`                  | 发送应用内或独立窗口通知，默认按来源窗口焦点分流 |
+| `app`           | `PluginApp`                            | 选择、打开已有内容，执行导出、演示和共享         |
+| `entities`      | `PluginOwnEntities`                    | 管理插件自有内容、类型和反链                     |
+| `backend`       | `PluginBackendClient`                  | 调用与订阅本机后台，见 BACKEND.md                |
+| `pages`         | `PluginPages`                          | 注册并打开页面                                   |
+| `settings`      | `PluginSettings`                       | 注册并打开设置区域                               |
+| `editor`        | `PluginEditor`                         | 开发台编辑器贡献；正文使用静态扩展，见 EDITOR.md |
+| `sync`          | `PluginSync`                           | 注册同步存储提供方，见 SYNC.md                   |
+| `upload`        | `PluginUpload`                         | 资源上传与上传提供方，见 UPLOAD.md               |
+| `tts`           | `PluginTTS`                            | 语音合成与音色复刻提供方，见 TTS.md              |
+| `images`        | `PluginImages`                         | 图片生成与编辑提供方，见 IMAGES.md               |
+| `video`         | `PluginVideo`                          | 视频来源与播放源提供方，见 VIDEO.md              |
+| `publish`       | `PluginPublish`                        | 博客发布提供方，见 PUBLISH.md                    |
+| `sidebar`       | `PluginSidebar`                        | 创建侧边栏分组、注册页面入口                     |
+| `fetch`         | `typeof fetch`                         | 发起与插件生命周期关联的网络请求                 |
+| `services`      | `PluginServices`                       | 编译与转换服务，见 SERVICES.md                   |
+| `ai`            | `PluginAI`                             | 使用用户分配的模型，见 AI.md                     |
+| `mcp`           | `PluginMCP`                            | 注册 MCP，本地工具或外部服务器，见 MCP.md        |
+| `chat`          | `PluginChat`                           | 注册 MCP 工具结果渲染器，见 MCP.md               |
+| `excerpts`      | `PluginExcerpts`                       | 把外部划线、标注写为 Tau 摘录                    |
+| `materials`     | `PluginMaterials`                      | 获取「转为卡片」等材料动作                       |
+| `register`      | `(resource: Disposable) => Disposable` | 托管需要清理的资源                               |
 
 不要缓存上下文供下次启用使用。旧上下文失效后调用 storage、注册功能或打开页面会报错。
 
@@ -161,6 +164,35 @@ context.commands.register({
 `run` 应处理预期业务错误，并为异步任务提供必要反馈；抛出的异常代表执行失败。`input` 如需使用，应先校验结构，不假定命令面板会提供自定义参数。
 
 命令、页面、设置的局部 ID 和 storage key 均为 1–128 个字符，以字母或数字开头，后续允许字母、数字、点、横线和下划线。
+
+## 通知
+
+`context.notifications.send(options): Disposable` 发送通知，返回句柄的 `dispose()` 只撤销本条。停用、激活失败或切库时宿主自动清理，无需再次 `context.register`。
+
+```ts
+const notification = context.notifications.send({
+  title: "处理完成",
+  body: "本次更新了 12 条内容。",
+  mode: "auto",
+  tone: "ok",
+});
+// 需要提前撤销时：await notification.dispose();
+```
+
+| 参数      | 类型                                        | 说明                                                      |
+| --------- | ------------------------------------------- | --------------------------------------------------------- |
+| `title`   | `string`                                    | 必填，非空，最多 200 字符                                 |
+| `body`    | `string`，可选                              | 非空，最多 5000 字符                                      |
+| `mode`    | `"auto" \| "in-app" \| "system"`            | 默认 auto：来源窗口聚焦时应用内展示，否则进入独立通知窗口 |
+| `tone`    | `"neutral" \| "ok" \| "danger"`             | 默认 neutral                                              |
+| `sticky`  | `boolean`，可选                             | 为 true 时保持显示直到用户处理、关闭或插件撤销            |
+| `actions` | `readonly PluginNotificationAction[]`，可选 | 最多两个按钮，最多一个主按钮                              |
+
+`in-app` 固定进入插件所在窗口，不主动聚焦；`system` 固定使用 Tau 的独立通知窗口。通知发送后不会随焦点变化搬移。来源标签固定为插件名称，ID 由宿主生成；不接受自定义全局 ID、HTML 或 React 内容。
+
+按钮字段为 `label`（非空，最多 100 字符）、`primary?`、`resolvedText?`（非空，最多 500 字符）与必填 `onClick(): void | Promise<void>`。回调在来源窗口执行；Promise 未完成时显示忙态，失败在卡片内显示，成功后退场或展示结果文案。旧激活或已撤销通知的按钮不能再执行；已启动的异步业务应响应 `context.signal`。
+
+该接口不要求业务数据权限或即时用户手势，但只属于渲染端 `PluginContext`。旧客户端先检查 `context.notifications`；独立后台通过事件通知渲染插件后再发送。句柄不代表用户已经看到通知，路由不可用时按宿主策略放弃推送；Web 预览退化为应用内展示。完整示例见 [NOTIFICATIONS.md](NOTIFICATIONS.md)。
 
 ## 私有存储
 

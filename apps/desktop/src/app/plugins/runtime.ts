@@ -6,6 +6,7 @@ import { rendererVideoRegistry } from "./video-bridge";
 import { rendererPublishRegistry } from "./publish-registry";
 import { rendererUploadRegistry } from "./upload-registry";
 import { desktopPluginChat } from "./chat";
+import { desktopPluginNotifications } from "./notifications";
 import { uploadRemoteResource } from "@/services/resource-upload";
 import type {
   PluginContext,
@@ -174,6 +175,7 @@ export class DesktopPluginRuntime {
       data: options.data,
       events: options.events,
       app: options.app,
+      notifications: desktopPluginNotifications,
       entities: options.entities && {
         ...options.entities,
         registerKind: (context, definition) => this.registerEntityKind(context, definition),

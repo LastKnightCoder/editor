@@ -121,6 +121,7 @@ export function emptyNotificationWindow() {
 
 /** 让系统窗口关闭某条（或全部）通知卡；窗口不存在时 no-op */
 export function dismissSystemNotification(id?: string) {
+  pending = id === undefined ? [] : pending.filter(payload => payload.id !== id);
   current()?.webContents.send("notification-window:dismiss", id);
 }
 

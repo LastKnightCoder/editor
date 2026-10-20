@@ -21,7 +21,7 @@ export interface AppNotifyOptions extends Omit<NotificationOptions, "icon"> {
 }
 
 export interface AppNotifyRouteOptions {
-  /** 强制通知去向；供调试工具在应用聚焦时也能直发系统通知窗口，业务按焦点分流不要传 */
+  /** 强制通知去向；不传时按来源窗口焦点自动分流。 */
   force?: NotificationRoute;
 }
 
@@ -67,9 +67,12 @@ export function appNotify(options: AppNotifyOptions, routeOptions?: AppNotifyRou
   void platform.notification
     .route(toPayload(options, id), routeOptions)
     .then(route => {
+      // 路由完成前被撤销时，也清理主进程迟到创建的系统通知。
+      if (!localHandlers.has(id)) {
+        if (route === "system") void platform.notification.dismiss(id);
+        return;
+      }
       if (route !== "in-app") return;
-      // route 期间已被 dismiss 的不再入栈
-      if (!localHandlers.has(id)) return;
       notify(withIconComponent({ ...options, id }));
     })
     .catch(() => undefined); // 主进程未就绪 / 窗口关闭中：静默放弃，不惊扰调用方
