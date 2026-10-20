@@ -34,7 +34,41 @@ async function fixture(overrides = {}) {
 }
 
 describe("开发插件包读取", () => {
-  it("旧Node同步入口明确拒绝，不能静默执行或忽略", async () => {
+  it("后台只静态核验，不执行也不传给渲染端", async () => {
+    const backendCode = "throw new Error('扫描不得执行后台');";
+    const directory = await fixture({
+      formatVersion: 2,
+      minAppVersion: "0.59.0",
+      backend: {
+        entry: "backend.js",
+        runtime: "node",
+        apiVersion: 1,
+        scope: "application",
+        activation: "on-demand",
+        lifetime: "idle",
+        reason: "本机能力",
+        systemAccess: [],
+      },
+      integrity: {
+        "main.js": createHash("sha256")
+          .update("throw new Error('目录扫描不能执行此入口');")
+          .digest("hex"),
+        "backend.js": createHash("sha256").update(backendCode).digest("hex"),
+      },
+    });
+    await expect(readPluginPackage(directory)).rejects.toThrow();
+    await writeFile(path.join(directory, "backend.js"), backendCode);
+    const result = await readPluginPackage(directory);
+    expect(result.manifest.backend?.entry).toBe("backend.js");
+    expect(result).not.toHaveProperty("backendCode");
+    await writeFile(path.join(directory, "backend.js"), "changed");
+    await expect(readPluginPackage(directory)).rejects.toThrow("产物不完整");
+    const outside = await fixture();
+    await rm(path.join(directory, "backend.js"));
+    await symlink(path.join(outside, "main.js"), path.join(directory, "backend.js"));
+    await expect(readPluginPackage(directory)).rejects.toThrow("插件目录内");
+  });
+  it("未知字段和未声明文件不会成为执行入口", async () => {
     const directory = await fixture();
     const manifestPath = path.join(directory, "manifest.json");
     const { readFile } = await import("node:fs/promises");
@@ -51,11 +85,13 @@ describe("开发插件包读取", () => {
         },
       })
     );
-    await expect(readPluginPackage(directory)).rejects.toThrow();
+    await expect(readPluginPackage(directory)).resolves.toMatchObject({
+      manifest: { formatVersion: 1 },
+    });
     await writeFile(path.join(directory, "sync.js"), sync);
-    await expect(readPluginPackage(directory)).rejects.toThrow("Node同步入口已停用");
+    expect((await readPluginPackage(directory)).manifest).not.toHaveProperty("sync");
     await writeFile(path.join(directory, "sync.js"), "changed");
-    await expect(readPluginPackage(directory)).rejects.toThrow("Node同步入口已停用");
+    expect((await readPluginPackage(directory)).manifest.integrity).not.toHaveProperty("sync.js");
   });
   it("检查产物后返回快照，读取不执行 JS", async () => {
     const result = await readPluginPackage(await fixture());

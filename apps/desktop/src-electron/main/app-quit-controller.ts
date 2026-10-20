@@ -2,6 +2,9 @@ import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
 import collaborationModule from "./modules/collaboration";
 import mcpModule from "./modules/mcp";
+import { pluginBackends, setPluginBackendsPaused } from "./modules/plugin-backend";
+import { isContentRuntimeWindow } from "./windows/create-window";
+import { contentExecutor } from "./services/content-execution";
 
 // 主进程广播该事件后，渲染进程完成收尾（自动同步等）并通过 app:quitting-ready 回执
 const QUITTING_CHANNEL = "app:quitting";
@@ -43,17 +46,27 @@ export function setupQuitController(deps: QuitControllerDeps): void {
 async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
   const forceExitTimer = setTimeout(() => {
     log.warn("受控退出超时，强制退出应用");
+    pluginBackends.forceDispose();
+    contentExecutor.dispose();
     app.exit(0);
   }, FORCE_EXIT_TIMEOUT_MS);
 
   try {
-    const windows = BrowserWindow.getAllWindows().filter(win => !win.isDestroyed());
+    const windows = BrowserWindow.getAllWindows().filter(
+      win => !win.isDestroyed() && !isContentRuntimeWindow(win)
+    );
     log.info(`受控退出开始，等待 ${windows.length} 个窗口收尾`);
+    const ready = windows.map(win => waitForWindowReady(win));
     for (const win of windows) win.webContents.send(QUITTING_CHANNEL);
-    await Promise.all(windows.map(win => waitForWindowReady(win)));
+    await Promise.all(ready);
+
+    pluginBackends.beginDrain();
+    await setPluginBackendsPaused(true);
+    await pluginBackends.dispose();
 
     // 协作文档落盘必须在断开连接、销毁窗口之前
     await collaborationModule.prepareQuit();
+    contentExecutor.dispose();
 
     globalShortcut.unregisterAll();
     deps.getTrayManager()?.destroyTray();
@@ -68,6 +81,8 @@ async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
   } catch (error) {
     log.error("受控退出流程出错:", error);
   } finally {
+    pluginBackends.forceDispose();
+    contentExecutor.dispose();
     clearTimeout(forceExitTimer);
     app.exit(0);
   }

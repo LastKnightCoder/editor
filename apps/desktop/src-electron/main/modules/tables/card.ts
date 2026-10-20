@@ -1,6 +1,7 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { asynchronousDatabaseCommand } from "../database-command";
+import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import Operation from "./operation";
 import { basename } from "node:path";
@@ -41,7 +42,7 @@ export default class CardTable {
       "detach-podcast-from-card": this.detachPodcast.bind(this),
       "get-cards-by-dates": this.getCardsByDates.bind(this),
       "get-cards-by-date-range": this.getCardsByDateRange.bind(this),
-      "get-cards-content-by-ids": this.getCardsContentByIds.bind(this),
+      "get-cards-content-by-ids": asynchronousDatabaseCommand(this.getCardsContentByIds.bind(this)),
     };
   }
 
@@ -500,23 +501,25 @@ export default class CardTable {
   }
 
   // 根据 IDs 获取卡片内容（转换为 Markdown）
-  static getCardsContentByIds(
+  static async getCardsContentByIds(
     db: Database.Database,
     ids: number[],
     maxLength?: number
-  ): Array<{
-    id: number;
-    markdown: string;
-    truncated: boolean;
-    originalLength: number;
-    metadata: Record<string, any>;
-  }> {
+  ): Promise<
+    Array<{
+      id: number;
+      markdown: string;
+      truncated: boolean;
+      originalLength: number;
+      metadata: Record<string, any>;
+    }>
+  > {
     if (ids.length === 0) return [];
 
     const cards = this.getCardByIds(db, ids);
 
-    return cards.map(card => {
-      const markdown = card.content ? getMarkdown(card.content) : "";
+    return mapContentSnapshots(cards, async card => {
+      const markdown = card.content ? await getMarkdownText(card.content) : "";
       const originalLength = markdown.length;
 
       let finalMarkdown = markdown;

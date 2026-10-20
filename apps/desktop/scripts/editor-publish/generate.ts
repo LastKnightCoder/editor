@@ -9,6 +9,8 @@ import type { IArticle } from "../../src/types/article";
 import { customSource } from "./custom-fixture";
 import { desktopContentPlugins } from "../../shared/content-plugins.ts";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
+import { buildPublishSearchIndexPayload } from "../../src-electron/main/modules/publish-search-index";
+import { readTemplatePackage } from "../../src-electron/main/services/template-package";
 
 /** 验证只替换数据库数据源，包读取、依赖固定、页面生成走正式代码。 */
 export async function generateFixture(
@@ -82,7 +84,8 @@ export async function generateFixture(
     getQuestionDetail: () => null,
   };
   const generator = new PublishSiteGenerator({
-    templateDir,
+    template: await readTemplatePackage(templateDir, "0.59.0"),
+    buildSearchIndex: async input => buildPublishSearchIndexPayload(input),
     plugins,
     compileTailwind,
     logger: console,

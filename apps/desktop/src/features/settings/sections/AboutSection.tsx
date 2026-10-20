@@ -25,6 +25,7 @@ import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
+import { BackgroundGroup } from "./BackgroundGroup";
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -163,6 +164,7 @@ export function AboutSection() {
         </Panel>
       </SettingsGroup>
 
+      <BackgroundGroup />
       <SettingsGroup title="更新">
         <SettingRow title="自动检查更新" description="启动时在后台检查并自动下载新版本">
           <Switch aria-label="自动检查更新" checked={autoCheck} onCheckedChange={setAutoCheck} />

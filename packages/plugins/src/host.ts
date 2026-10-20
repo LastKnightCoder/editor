@@ -505,6 +505,7 @@ export type PluginContributionKind =
   | "excerpts";
 
 export interface PluginInfo {
+  backend?: import("./package").PluginBackendManifest;
   id: string;
   name: string;
   version: string;
@@ -530,6 +531,7 @@ function tally(activation: Activation, kind: PluginContributionKind, delta: numb
 }
 
 type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion"> & {
+  readonly backend?: import("./package").PluginBackendManifest;
   readonly permissions?: readonly PluginPermission[];
 };
 type DefinitionResolver = (signal: AbortSignal) => PluginDefinition | Promise<PluginDefinition>;
@@ -564,6 +566,7 @@ export class PluginHost {
   constructor(
     private readonly options: {
       workspaceId: string;
+      backend?: (context: PluginContext) => import("./backend").PluginBackendClient;
       storage: StorageAdapter;
       pages?: PagesAdapter;
       editor?: EditorAdapter;
@@ -623,7 +626,9 @@ export class PluginHost {
   };
 
   /** 权限只能随登记声明（本地包来自 manifest），不能由插件运行时追加。 */
-  registerTrusted(definition: PluginDefinition & Pick<PluginMetadata, "permissions">): void {
+  registerTrusted(
+    definition: PluginDefinition & Pick<PluginMetadata, "permissions" | "backend">
+  ): void {
     const snapshot = Object.freeze({ ...definition });
     this.register(definition, () => snapshot);
   }
@@ -645,6 +650,7 @@ export class PluginHost {
         name: definition.name,
         version: definition.version,
         apiVersion: definition.apiVersion,
+        ...(definition.backend ? { backend: structuredClone(definition.backend) } : {}),
         ...(definition.permissions?.length
           ? { permissions: Object.freeze([...definition.permissions]) }
           : {}),
@@ -675,6 +681,7 @@ export class PluginHost {
       state,
       ...(error === undefined ? {} : { error }),
       ...(metadata.permissions ? { permissions: metadata.permissions } : {}),
+      ...(metadata.backend ? { backend: structuredClone(metadata.backend) } : {}),
     }));
   }
 
@@ -1000,7 +1007,22 @@ export class PluginHost {
         this.assertActive(entry, activation);
       },
     });
+    let backendClient: import("./backend").PluginBackendClient | undefined;
+    const backend = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.backend) throw new Error("当前宿主不支持插件后台");
+      return (backendClient ??= this.options.backend(context));
+    };
     const context: PluginContext = {
+      backend: Object.freeze<import("./backend").PluginBackendClient>({
+        call: async (method, input, options) => {
+          const result = await backend().call(method, copyJson(input), options);
+          this.assertActive(entry, activation);
+          return copyJson(result);
+        },
+        subscribe: (event, listener) => register(backend().subscribe(event, listener)),
+        getState: async () => backend().getState(),
+      }),
       pluginId: scope.pluginId,
       publish: Object.freeze({
         register: (definition: PublishProviderDefinition) => {
@@ -1228,6 +1250,19 @@ export class PluginHost {
         register: (definition: PluginMCPDefinition) => {
           this.assertActive(entry, activation);
           const declared = snapshotMCPDefinition(definition);
+          if (declared.transport?.type === "stdio") {
+            const transport = declared.transport;
+            const backend = entry.metadata.backend;
+            if (
+              !backend?.systemAccess.includes("process") ||
+              !backend.tools?.some(
+                tool =>
+                  tool.command === transport.command &&
+                  (tool.args ?? []).every((arg, index) => transport.args?.[index] === arg)
+              )
+            )
+              throw new Error("插件 stdio MCP 必须在 backend.tools 声明外部程序并获得后台授权");
+          }
           const adapter = this.options.mcp;
           if (!adapter) throw new Error("当前宿主不支持 MCP");
           if (mcps.has(definition.id)) throw new Error("MCP 已注册");

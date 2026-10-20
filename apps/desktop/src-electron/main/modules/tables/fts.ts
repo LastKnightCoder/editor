@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { Jieba } from "@node-rs/jieba";
 import { dict } from "@node-rs/jieba/dict";
 import log from "electron-log";
@@ -10,7 +11,7 @@ import DiaryTable from "./diary";
 import PluginEntityTable from "./plugin-entity";
 import VecDocumentTable from "./vec-document";
 import { searchResultDetails } from "../search-details";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText } from "../../services/content-conversion";
 import {
   pruneContentSections,
   readContentSection,
@@ -68,16 +69,14 @@ class FTSTable {
   }
   static getListenEvents() {
     return {
-      "fts-index-content": (
-        _mainDb: Database.Database,
-        indexDb: Database.Database,
-        params: IndexParams
-      ) => this.indexContent(indexDb, params),
-      "fts-batch-index-content": (
-        _mainDb: Database.Database,
-        indexDb: Database.Database,
-        items: IndexParams[]
-      ) => this.batchIndexContent(indexDb, items),
+      "fts-index-content": asynchronousDatabaseCommand(
+        (_mainDb: Database.Database, indexDb: Database.Database, params: IndexParams) =>
+          this.indexContent(indexDb, params)
+      ),
+      "fts-batch-index-content": asynchronousDatabaseCommand(
+        (_mainDb: Database.Database, indexDb: Database.Database, items: IndexParams[]) =>
+          this.batchIndexContent(indexDb, items)
+      ),
       "fts-remove-index": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
@@ -108,7 +107,7 @@ class FTSTable {
     };
   }
 
-  static indexContent(db: Database.Database, params: IndexParams) {
+  static async indexContent(db: Database.Database, params: IndexParams) {
     const { id, content, type, updateTime } = params;
     if (!this.hasTable(db, "content_fts")) {
       return false;
@@ -121,7 +120,8 @@ class FTSTable {
       return false;
     }
 
-    const chunks = sectionsForIndex(params);
+    const chunks = params.sections ?? (await sectionsForIndex(params));
+    if (db.open === false) throw new Error("全文索引连接已失效");
 
     try {
       if (chunks.length === 0) {
@@ -157,8 +157,10 @@ class FTSTable {
     return true;
   }
 
-  static batchIndexContent(db: Database.Database, items: IndexParams[]) {
-    return items.map(item => this.indexContent(db, item)).every(Boolean);
+  static async batchIndexContent(db: Database.Database, items: IndexParams[]) {
+    let success = true;
+    for (const item of items) if (!(await this.indexContent(db, item))) success = false;
+    return success;
   }
 
   static removeIndex(db: Database.Database, prefixedId: string) {
@@ -268,10 +270,10 @@ class FTSTable {
     return this.getSearchResultDetails(mainDb, partialResults);
   }
 
-  private static searchContentByLike(
+  private static async searchContentByLike(
     mainDb: Database.Database,
     searchParams: SearchParams
-  ): SearchResult[] {
+  ): Promise<SearchResult[]> {
     const { query, types = [], limit = 10 } = searchParams;
     if (!query.trim()) {
       return [];
@@ -300,7 +302,7 @@ class FTSTable {
 
     for (const card of CardTable.getAllCards(mainDb)) {
       if (!shouldIncludeType("card")) continue;
-      const text = getMarkdown(card.content || []).trim();
+      const text = (await getMarkdownText(card.content || [])).trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: card.id,
@@ -312,7 +314,7 @@ class FTSTable {
 
     for (const article of ArticleTable.getAllArticles(mainDb)) {
       if (!shouldIncludeType("article")) continue;
-      const text = getMarkdown(article.content || []).trim();
+      const text = (await getMarkdownText(article.content || [])).trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: article.id,
@@ -324,7 +326,7 @@ class FTSTable {
 
     for (const item of ProjectTable.getAllProjectItems(mainDb)) {
       if (!shouldIncludeType("project-item")) continue;
-      const text = getMarkdown(item.content || []).trim();
+      const text = (await getMarkdownText(item.content || [])).trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: item.id,
@@ -337,7 +339,7 @@ class FTSTable {
     for (const moment of DiaryTable.getAllDiarySegmentsFlat(mainDb)) {
       const momentType: IndexType = "diary-moment";
       if (!shouldIncludeType(momentType)) continue;
-      const text = getMarkdown(moment.content || []).trim();
+      const text = (await getMarkdownText(moment.content || [])).trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: moment.id,
@@ -349,7 +351,7 @@ class FTSTable {
 
     if (shouldIncludeType("plugin-entity")) {
       for (const doc of PluginEntityTable.indexDocs(mainDb)) {
-        const text = `${doc.title}\n${getMarkdown(doc.content).trim()}`;
+        const text = `${doc.title}\n${(await getMarkdownText(doc.content)).trim()}`;
         if (!isMatch(text)) continue;
         partialResults.push({
           id: doc.id,
@@ -364,11 +366,11 @@ class FTSTable {
     return this.getSearchResultDetails(mainDb, partialResults.slice(0, limit));
   }
 
-  static searchContent(
+  static async searchContent(
     mainDb: Database.Database,
     indexDb: Database.Database,
     searchParams: SearchParams
-  ): SearchResult[] {
+  ): Promise<SearchResult[]> {
     const { query, types = [], limit = 10 } = searchParams;
 
     if (!query) return [];

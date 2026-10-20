@@ -1,5 +1,6 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { getNextModuleEntityId } from "./module-entity-id";
 import {
   Project,
@@ -14,7 +15,7 @@ import {
 import Operation from "./operation";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { basename } from "node:path";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
@@ -117,7 +118,9 @@ export default class ProjectTable {
       "move-project-tree-item": this.moveProjectTreeItem.bind(this),
       "get-project-items-by-dates": this.getProjectItemsByDates.bind(this),
       "get-project-items-by-date-range": this.getProjectItemsByDateRange.bind(this),
-      "get-project-items-content-by-ids": this.getProjectItemsContentByIds.bind(this),
+      "get-project-items-content-by-ids": asynchronousDatabaseCommand(
+        this.getProjectItemsContentByIds.bind(this)
+      ),
       "attach-podcast-to-project-item": this.attachPodcast.bind(this),
       "detach-podcast-from-project-item": this.detachPodcast.bind(this),
     };
@@ -1368,23 +1371,25 @@ export default class ProjectTable {
   }
 
   // 获取项目条目内容（转换为 Markdown）
-  static getProjectItemsContentByIds(
+  static async getProjectItemsContentByIds(
     db: Database.Database,
     ids: number[],
     maxLength?: number
-  ): Array<{
-    id: number;
-    markdown: string;
-    truncated: boolean;
-    originalLength: number;
-    metadata: Record<string, any>;
-  }> {
+  ): Promise<
+    Array<{
+      id: number;
+      markdown: string;
+      truncated: boolean;
+      originalLength: number;
+      metadata: Record<string, any>;
+    }>
+  > {
     if (ids.length === 0) return [];
 
     const items = this.getProjectItemsByIds(db, ids);
 
-    return items.map(item => {
-      const markdown = item.content ? getMarkdown(item.content) : "";
+    return mapContentSnapshots(items, async item => {
+      const markdown = item.content ? await getMarkdownText(item.content) : "";
       const originalLength = markdown.length;
 
       let finalMarkdown = markdown;

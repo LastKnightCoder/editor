@@ -37,8 +37,8 @@ describe("PluginDataTable 写入", () => {
       )
     ).trim();
 
-  it("新建卡片：Markdown 转为正文，通知所有窗口", () => {
-    const card = PluginDataTable.create(
+  it("新建卡片：Markdown 转为正文，通知所有窗口", async () => {
+    const card = await PluginDataTable.create(
       db,
       { ...scope, entity: "card", input: { markdown: "# 标题\n\n正文", tags: ["读书"] } },
       ctx
@@ -51,8 +51,8 @@ describe("PluginDataTable 写入", () => {
     });
   });
 
-  it("修改要求最新 revision，过期时报冲突", () => {
-    const card = PluginDataTable.create(db, { ...scope, entity: "card", input: {} }, ctx);
+  it("修改要求最新 revision，过期时报冲突", async () => {
+    const card = await PluginDataTable.create(db, { ...scope, entity: "card", input: {} }, ctx);
     db.prepare("UPDATE cards SET update_time = update_time + 5 WHERE id = ?").run(card.id);
     expect(() =>
       PluginDataTable.update(
@@ -82,8 +82,8 @@ describe("PluginDataTable 写入", () => {
     expect(updated.pinned).toBe(true);
   });
 
-  it("删除保留快照与正文，7 天内恢复回原样", () => {
-    const card = PluginDataTable.create(
+  it("删除保留快照与正文，7 天内恢复回原样", async () => {
+    const card = await PluginDataTable.create(
       db,
       { ...scope, entity: "card", input: { markdown: "要删的卡", tags: ["甲"] } },
       ctx
@@ -116,8 +116,8 @@ describe("PluginDataTable 写入", () => {
     );
   });
 
-  it("超过保留期的操作不能恢复，也不再列出", () => {
-    const article = PluginDataTable.create(
+  it("超过保留期的操作不能恢复，也不再列出", async () => {
+    const article = await PluginDataTable.create(
       db,
       { ...scope, entity: "article", input: { title: "旧文章" } },
       ctx
@@ -136,8 +136,8 @@ describe("PluginDataTable 写入", () => {
     expect(() => PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toThrow("7 天");
   });
 
-  it("修改正文：追加保留原内容，替换要求文字唯一，revision 过期时报冲突", () => {
-    const card = PluginDataTable.create(
+  it("修改正文：追加保留原内容，替换要求文字唯一，revision 过期时报冲突", async () => {
+    const card = await PluginDataTable.create(
       db,
       { ...scope, entity: "card", input: { markdown: "第一段" } },
       ctx
@@ -155,20 +155,24 @@ describe("PluginDataTable 写入", () => {
         format: "markdown",
       })!;
     const target = { ...scope, contentId: card.contentId!, createdAt };
-    const first = PluginDataTable.editContent(
+    const first = await PluginDataTable.editContent(
       db,
-      { ...target, edit: { op: "append", markdown: "第二段" }, expectedRevision: read().revision },
+      {
+        ...target,
+        edit: { op: "append", markdown: "第二段" },
+        expectedRevision: (await read())!.revision,
+      },
       ctx
     );
-    expect(read().markdown).toMatch(/第一段[\s\S]*第二段/);
-    expect(() =>
+    expect((await read())!.markdown).toMatch(/第一段[\s\S]*第二段/);
+    await expect(
       PluginDataTable.editContent(
         db,
         { ...target, edit: { op: "append", markdown: "x" }, expectedRevision: "u:0" },
         ctx
       )
-    ).toThrow("PLUGIN_CONFLICT:");
-    expect(() =>
+    ).rejects.toThrow("PLUGIN_CONFLICT:");
+    await expect(
       PluginDataTable.editContent(
         db,
         {
@@ -178,20 +182,31 @@ describe("PluginDataTable 写入", () => {
         },
         ctx
       )
-    ).toThrow("出现了多次");
-    PluginDataTable.editContent(
+    ).rejects.toThrow("出现了多次");
+    await PluginDataTable.editContent(
       db,
       {
         ...target,
         edit: { op: "replaceText", find: "第二段", markdown: "补充" },
-        expectedRevision: read().revision,
+        expectedRevision: (await read())!.revision,
       },
       ctx
     );
-    expect(read().markdown).toMatch(/第一段[\s\S]*补充/);
+    expect((await read())!.markdown).toMatch(/第一段[\s\S]*补充/);
+    const revision = (await read())!.revision;
+    const pending = PluginDataTable.editContent(
+      db,
+      { ...target, expectedRevision: revision, edit: { op: "append", markdown: "迟到修改" } },
+      ctx
+    );
+    db.prepare("UPDATE contents SET update_time = update_time + 100 WHERE id = ?").run(
+      card.contentId
+    );
+    await expect(pending).rejects.toThrow("转换期间");
+    expect(contentOf(card.contentId)).not.toContain("迟到修改");
   });
 
-  it("拒绝删除项目文档与跨库写入", () => {
+  it("拒绝删除项目文档与跨库写入", async () => {
     expect(() =>
       PluginDataTable.remove(db, {
         ...scope,
@@ -200,12 +215,12 @@ describe("PluginDataTable 写入", () => {
         expectedRevision: "1",
       })
     ).toThrow("不支持删除");
-    expect(() =>
+    await expect(
       PluginDataTable.create(
         db,
         { ...scope, databaseName: "other", entity: "card", input: {} },
         ctx
       )
-    ).toThrow("数据库已切换");
+    ).rejects.toThrow("数据库已切换");
   });
 });

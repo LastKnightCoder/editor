@@ -84,11 +84,13 @@ export type SubmissionStatus =
   "draft" | "pending_review" | "changes_requested" | "rejected" | "approved";
 export type ReviewDecision = "approve" | "request_changes" | "reject";
 export interface ReviewRequest {
+  systemReviewConfirmed?: boolean;
   revision: number;
   decision: ReviewDecision;
   comment: string;
 }
 export interface ReviewRecord {
+  systemReviewed?: boolean;
   id: string;
   revision: number;
   packageUploadId: string;
@@ -102,6 +104,8 @@ export interface ReviewRecord {
   createdAt: string;
 }
 export interface Release {
+  systemReviewed?: boolean;
+  revokedAt?: string | null;
   id: string;
   pluginId: string;
   version: string;

@@ -91,5 +91,9 @@ export interface PortalApi {
   getReviews(id: string): Promise<ReviewDetails>;
   reviewSubmission(id: string, input: ReviewRequest): Promise<ReviewDetails>;
   retryPublish(id: string): Promise<ReviewDetails>;
+  revokeRelease(
+    id: string,
+    input: { reason: string; clientRequestId: string }
+  ): Promise<ReviewDetails>;
   packageDownloadUrl(id: string): string | null;
 }

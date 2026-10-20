@@ -9,6 +9,7 @@ import log from "electron-log";
 import type { IPublishFile } from "@/types/publish";
 import type { PublishDataSource } from "./publish-site-generator";
 import TailwindRuntimeModule from "./tailwind-runtime";
+import { contentExecutor } from "../services/content-execution";
 import type {
   DataCall,
   DataReply,
@@ -41,6 +42,7 @@ function runWorker(
     const workerData: PublishGeneratorWorkerData = { request, dataPort: port2, signal };
     const worker = new Worker(WORKER_PATH, { workerData, transferList: [port2] });
     let settled = false;
+    const contentController = new AbortController();
 
     const finish = (
       error: Error | null,
@@ -48,6 +50,7 @@ function runWorker(
     ) => {
       if (settled) return;
       settled = true;
+      contentController.abort();
       port1.close();
       void worker.terminate();
       if (error) reject(error);
@@ -68,6 +71,31 @@ function runWorker(
     });
 
     worker.on("message", (message: WorkerToMain) => {
+      if (message.type === "content-search") {
+        void contentExecutor
+          .execute<import("@tau/plugins/publish-data").SearchFile>(
+            { operation: "publish-search", input: message.input },
+            contentController.signal,
+            request.plugins?.plugins.map(plugin => plugin.artifact) ?? []
+          )
+          .then(result => {
+            if (!settled)
+              worker.postMessage({
+                type: "content-search-result",
+                reqId: message.reqId,
+                result,
+              } satisfies MainToWorker);
+          })
+          .catch(error => {
+            if (!settled)
+              worker.postMessage({
+                type: "content-search-result",
+                reqId: message.reqId,
+                error: String(error),
+              } satisfies MainToWorker);
+          });
+        return;
+      }
       if (message.type === "tailwind") {
         compileTailwind(message.code, message.extension).then(
           css =>

@@ -6,6 +6,7 @@ import { useApi } from "../../app/api";
 import { errorMessage } from "../../api/errors";
 import { DECISION_LABELS } from "./decisions";
 import { useRefreshSubmission } from "./queries";
+import { requiresSystemReview } from "../../../../contracts/execution";
 
 const OPTIONS: { value: ReviewDecision; hint: string }[] = [
   { value: "approve", hint: "当前修订的 ZIP 公开上架，该版本号之后不能覆盖" },
@@ -32,6 +33,8 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
   const [decision, setDecision] = useState<ReviewDecision | null>(null);
   const [comment, setComment] = useState("");
   const [confirm, setConfirm] = useState<ReviewRequest | null>(null);
+  const [reviewedRevision, setReviewedRevision] = useState<number | null>(null);
+  const systemReview = !!submission.content && requiresSystemReview(submission.content.manifest);
   const decide = useMutation({
     mutationFn: (input: ReviewRequest) => api.reviewSubmission(submission.id, input),
     onSuccess: () => {
@@ -46,10 +49,19 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
     },
   });
   const needsReason = decision !== null && decision !== "approve";
-  const blocked = !decision || (needsReason && !comment.trim()) || decide.isPending;
+  const blocked =
+    !decision ||
+    (needsReason && !comment.trim()) ||
+    decide.isPending ||
+    (decision === "approve" && systemReview && reviewedRevision !== submission.revision);
   const commit = () => {
-    if (!decision) return;
-    const input = { decision, revision: submission.revision, comment: comment.trim() };
+    if (!decision || blocked) return;
+    const input = {
+      decision,
+      revision: submission.revision,
+      comment: comment.trim(),
+      ...(systemReview && decision === "approve" ? { systemReviewConfirmed: true } : {}),
+    };
     if (CONFIRM_TEXT[decision]) setConfirm(input);
     else decide.mutate(input);
   };
@@ -124,6 +136,18 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
             </div>
           )}
         </div>
+      )}
+      {systemReview && decision === "approve" && (
+        <label className="text-tau-sm text-ink-2 flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={reviewedRevision === submission.revision}
+            onChange={event =>
+              setReviewedRevision(event.target.checked ? submission.revision : null)
+            }
+          />
+          我已检查本修订的后台代码、启动时机、常驻行为和外部程序声明，确认系统能力用途与源码一致。
+        </label>
       )}
       <Button
         block

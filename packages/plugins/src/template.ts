@@ -83,7 +83,7 @@ export function validateDistributionManifest(
   });
   if (!item.integrity || typeof item.integrity !== "object" || Array.isArray(item.integrity))
     throw new Error("模板资源缺少摘要清单");
-  if (["main", "format", "styles", "editor", "whiteboard", "sync"].some(key => key in item))
+  if (["main", "format", "styles", "editor", "whiteboard", "backend"].some(key => key in item))
     throw new Error("模板包只包含静态站点产物，不能同时声明代码插件入口");
   const integrity: Record<string, string> = Object.create(null);
   for (const [name, digest] of Object.entries(item.integrity)) {

@@ -302,7 +302,15 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
         fail("REVISION_CONFLICT", "修订已变化");
       if (input.decision !== "approve" && !input.comment.trim())
         fail("INVALID_INPUT", "请填写审核原因");
+      const systemReviewed =
+        input.decision === "approve" &&
+        !!row.content &&
+        "backend" in row.content.manifest &&
+        !!row.content.manifest.backend;
+      if (systemReviewed && !input.systemReviewConfirmed)
+        fail("INVALID_INPUT", "请确认系统能力审核");
       const record: ReviewRecord = {
+        systemReviewed,
         id: crypto.randomUUID(),
         revision: row.revision,
         packageUploadId: row.packageUploadId!,
@@ -327,6 +335,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       });
       if (input.decision === "approve")
         published.set(record.id, {
+          systemReviewed,
           id: record.id,
           pluginId: record.manifest.id,
           version: record.manifest.version,
@@ -346,6 +355,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
         release:
           input.decision === "approve"
             ? {
+                systemReviewed,
                 id: record.id,
                 pluginId: record.manifest.id,
                 version: record.manifest.version,
@@ -362,6 +372,16 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       return structuredClone(result);
     },
     retryPublish: async id => structuredClone(reviews.get(id) ?? { reviews: [], release: null }),
+    revokeRelease: async (id, input) => {
+      if (!options.reviewer) throw new PortalApiError(403, "FORBIDDEN", "仅审核者可撤回版本");
+      if (!input.reason.trim()) fail("INVALID_INPUT", "请填写撤回原因");
+      const result = reviews.get(id);
+      if (!result?.release) throw new PortalApiError(409, "SUBMISSION_LOCKED", "尚无可撤回版本");
+      result.release.revokedAt = new Date().toISOString();
+      result.release.downloadUrl = null;
+      published.delete(result.release.id);
+      return structuredClone(result);
+    },
     packageDownloadUrl: () => null,
     listFeedback: async id => ({ items: messages.get(id) ?? [], nextCursor: null }),
     sendFeedback: async (id, message, requestId) => {

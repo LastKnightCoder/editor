@@ -182,6 +182,7 @@ function refresh(entry: Entry): void {
       definitions = await fetchToolsFromServer(server, {
         getServer: () => (enabled(entry) && entry.revision === revision ? server : undefined),
         windowScoped: true,
+        pluginId: entry.owner.id,
       });
     } else {
       const localTools = entry.definition.tools;

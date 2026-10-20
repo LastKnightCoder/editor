@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types/calendar";
 import type { CreateTodoSchedule } from "@/types/calendar";
 import Operation from "./operation";
@@ -7,7 +8,7 @@ import CalendarTable from "./calendar";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
 import TodoItemTable from "./todo-item";
 import log from "electron-log";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { getNextTaskEntityId } from "./module-entity-id";
 
 export default class CalendarEventTable {
@@ -21,12 +22,18 @@ export default class CalendarEventTable {
       "calendar-event:get-by-id": this.getEventById.bind(this),
       "calendar-event:get-by-calendar-id": this.getEventsByCalendarId.bind(this),
       "calendar-event:count-by-calendar-ids": this.countCalendarEvents.bind(this),
-      "calendar-event:get-by-date-range": this.getEventsByDateRange.bind(this),
-      "calendar-event:get-for-day": this.getEventsForDay.bind(this),
-      "calendar-event:get-for-week": this.getEventsForWeek.bind(this),
-      "calendar-event:get-for-month": this.getEventsForMonth.bind(this),
+      "calendar-event:get-by-date-range": asynchronousDatabaseCommand(
+        this.getEventsByDateRange.bind(this)
+      ),
+      "calendar-event:get-for-day": asynchronousDatabaseCommand(this.getEventsForDay.bind(this)),
+      "calendar-event:get-for-week": asynchronousDatabaseCommand(this.getEventsForWeek.bind(this)),
+      "calendar-event:get-for-month": asynchronousDatabaseCommand(
+        this.getEventsForMonth.bind(this)
+      ),
       "calendar-event:transfer-between-calendars": this.transferEventsBetweenCalendars.bind(this),
-      "calendar-event:get-events-with-content": this.getEventsWithContent.bind(this),
+      "calendar-event:get-events-with-content": asynchronousDatabaseCommand(
+        this.getEventsWithContent.bind(this)
+      ),
     };
   }
   static parseCalendarEvent(row: any): CalendarEvent {
@@ -242,7 +249,7 @@ export default class CalendarEventTable {
     calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
     // 获取待办清单日历 ID
-    const todoCalendars = TodoCalendarSyncTable.getTodoCalendars(db);
+    const todoCalendars = db.transaction(() => TodoCalendarSyncTable.getTodoCalendars(db))();
     const recurringCalendarId = todoCalendars.recurring;
 
     let query = `
@@ -472,15 +479,16 @@ export default class CalendarEventTable {
       return [];
     }
 
-    return events.map(event => {
+    const snapshots = events.map(event => ({
+      event,
+      content:
+        event.detailContentId && event.detailContentId > 0
+          ? ContentTable.getContentById(db, event.detailContentId)
+          : null,
+    }));
+    return mapContentSnapshots(snapshots, async ({ event, content }) => {
       let detailContent = "";
-
-      if (event.detailContentId && event.detailContentId > 0) {
-        const content = ContentTable.getContentById(db, event.detailContentId);
-        if (content && content.content) {
-          detailContent = getMarkdown(content.content);
-        }
-      }
+      if (content?.content) detailContent = await getMarkdownText(content.content);
 
       const maxLength = params.maxLength;
       if (maxLength && detailContent.length > maxLength) {

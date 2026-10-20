@@ -33,9 +33,10 @@ interface MCPToolCallResult {
  */
 export const connectToServer = async (
   server: CustomMCPServer,
-  windowScoped = false
+  windowScoped = false,
+  pluginId?: string
 ): Promise<void> => {
-  await connectMcpServer(server, windowScoped);
+  await connectMcpServer(server, windowScoped, pluginId);
   console.debug("[MCP] Connected to server", { server: server.name });
 };
 
@@ -153,7 +154,11 @@ const ensureMCPModuleInitialized = (): Promise<void> =>
  */
 export const fetchToolsFromServer = async (
   server: CustomMCPServer,
-  options?: { getServer: () => CustomMCPServer | undefined; windowScoped?: boolean }
+  options?: {
+    getServer: () => CustomMCPServer | undefined;
+    windowScoped?: boolean;
+    pluginId?: string;
+  }
 ): Promise<ToolDefinition[]> => {
   // 确保 MCP 模块已初始化
   await ensureMCPModuleInitialized();
@@ -166,7 +171,7 @@ export const fetchToolsFromServer = async (
   const connected = await isServerConnected(server.id);
   assertCurrent();
   if (!connected) {
-    await connectToServer(server, options?.windowScoped);
+    await connectToServer(server, options?.windowScoped, options?.pluginId);
   }
 
   const remoteTools = await listServerTools(server.id);
@@ -210,7 +215,7 @@ export const fetchToolsFromServer = async (
       if (!connected) {
         console.log(`[MCP] 服务器 ${currentServer.name} 未连接，尝试重新连接...`);
         try {
-          await connectToServer(currentServer, options?.windowScoped);
+          await connectToServer(currentServer, options?.windowScoped, options?.pluginId);
         } catch (error) {
           console.error(`[MCP] 重新连接失败:`, error);
           throw new Error(

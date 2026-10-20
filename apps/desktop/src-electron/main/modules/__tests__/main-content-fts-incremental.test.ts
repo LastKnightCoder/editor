@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  mainDb: {},
+  indexDb: {},
   rebuildState: "ready" as string,
   indexContent: vi.fn((_db: unknown, _task: unknown) => true),
   removeIndexByIdAndType: vi.fn(),
@@ -16,8 +18,8 @@ vi.mock("../database", () => ({
   default: {
     onDatabaseConnected: vi.fn(),
     getIndexRebuildState: () => mocks.rebuildState,
-    getDatabase: () => ({}),
-    getIndexDatabase: () => ({}),
+    getDatabase: () => mocks.mainDb,
+    getIndexDatabase: () => mocks.indexDb,
   },
 }));
 vi.mock("../tables/fts", () => ({

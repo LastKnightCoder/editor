@@ -23,7 +23,7 @@ describe("Notebook 外部材料资源", () => {
   });
   afterEach(() => db.close());
 
-  it("摘录合并为一份：引文 + 想法 + 出处，源端删除的标注出来，不存在的跳过", () => {
+  it("摘录合并为一份：引文 + 想法 + 出处，源端删除的标注出来，不存在的跳过", async () => {
     ExcerptTable.syncSource(db, "weread", "b1", "置身事内", [
       {
         externalId: "b1:1",
@@ -59,7 +59,7 @@ describe("Notebook 外部材料资源", () => {
         url: null,
       },
     ]);
-    const markdown = buildMaterialResourceMarkdown(db, {
+    const markdown = await buildMaterialResourceMarkdown(db, {
       title: "为什么 · 摘录",
       refs: [
         { kind: "excerpt", id: a.id },
@@ -73,9 +73,9 @@ describe("Notebook 外部材料资源", () => {
     );
   });
 
-  it("材料全部不存在时为空", () => {
+  it("材料全部不存在时为空", async () => {
     expect(
-      buildMaterialResourceMarkdown(db, { title: "x", refs: [{ kind: "web-clip", id: 1 }] })
+      await buildMaterialResourceMarkdown(db, { title: "x", refs: [{ kind: "web-clip", id: 1 }] })
     ).toBe("");
   });
 });

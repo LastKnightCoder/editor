@@ -1,8 +1,9 @@
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import type { Descendant } from "slate";
-import { getMarkdown, importFromMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText, parseMarkdownNodes } from "../../services/content-conversion";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
   PluginContentEdit,
@@ -104,11 +105,11 @@ export default class PluginDataTable {
     return {
       "plugin-data:query": this.query.bind(this),
       "plugin-data:get": this.get.bind(this),
-      "plugin-data:content": this.content.bind(this),
-      "plugin-data:create": this.create.bind(this),
+      "plugin-data:content": asynchronousDatabaseCommand(this.content.bind(this)),
+      "plugin-data:create": asynchronousDatabaseCommand(this.create.bind(this)),
       "plugin-data:update": this.update.bind(this),
       "plugin-data:delete": this.remove.bind(this),
-      "plugin-data:edit-content": this.editContent.bind(this),
+      "plugin-data:edit-content": asynchronousDatabaseCommand(this.editContent.bind(this)),
       "plugin-data:operations": this.operations.bind(this),
       "plugin-data:record-operation": this.recordOperation.bind(this),
       "plugin-data:restore": this.restore.bind(this),
@@ -196,14 +197,14 @@ export default class PluginDataTable {
     return row ? this.records(db, request.entity, [row])[0] : null;
   }
 
-  static content(
+  static async content(
     db: Database.Database,
     request: PluginDataScope & {
       contentId: number;
       createdAt: number;
       format: "markdown" | "nodes";
     }
-  ): PluginContentRecord | null {
+  ): Promise<PluginContentRecord | null> {
     this.assertDatabase(db, request);
     const row = db
       .prepare(
@@ -227,7 +228,7 @@ export default class PluginDataTable {
       wordCount: row.count || 0,
       ...(request.format === "nodes"
         ? { nodes }
-        : { markdown: getMarkdown(nodes as Parameters<typeof getMarkdown>[0]) }),
+        : { markdown: await getMarkdownText(nodes as Descendant[]) }),
       owners: [...owners],
       pluginOwners: PluginEntityTable.pluginOwners(db, row.id),
     };
@@ -327,12 +328,12 @@ export default class PluginDataTable {
     return { ...ctx, broadcastOthers: ctx.broadcastAll };
   }
 
-  private static nodesFromMarkdown(markdown: string | undefined): Descendant[] {
-    const nodes = markdown?.trim() ? (importFromMarkdown(markdown) as Descendant[]) : [];
+  private static async nodesFromMarkdown(markdown: string | undefined): Promise<Descendant[]> {
+    const nodes = markdown?.trim() ? await parseMarkdownNodes(markdown) : [];
     return nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT);
   }
 
-  static create(
+  static async create(
     db: Database.Database,
     request: PluginDataScope & {
       pluginId: string;
@@ -340,32 +341,36 @@ export default class PluginDataTable {
       input: { markdown?: string; tags?: string[]; pinned?: boolean; title?: string };
     },
     ctx: CommandContext = fallbackCommandContext
-  ): PluginDataRecord {
+  ): Promise<PluginDataRecord> {
     this.assertDatabase(db, request);
     const { input } = request;
-    const content = this.nodesFromMarkdown(input.markdown);
-    const id = writeAsPlugin(request.pluginId, () => {
-      if (request.entity === "card")
-        return CardTable.createCard(db, {
-          content,
-          tags: input.tags ?? [],
-          isTop: Boolean(input.pinned),
-        } as Parameters<typeof CardTable.createCard>[1]).id;
-      if (request.entity === "article")
-        return ArticleTable.createArticle(db, {
-          title: input.title ?? "",
-          author: "",
-          tags: input.tags ?? [],
-          links: [],
-          content,
-          bannerBg: "",
-          bannerPosition: "center",
-          isTop: false,
-          isDelete: false,
-          count: 0,
-        }).id;
-      throw new Error("不支持新建该类型");
-    });
+    const content = await this.nodesFromMarkdown(input.markdown);
+    this.assertDatabase(db, request);
+    if (!db.open) throw new Error("数据库连接已失效");
+    const id = db.transaction(() =>
+      writeAsPlugin(request.pluginId, () => {
+        if (request.entity === "card")
+          return CardTable.createCard(db, {
+            content,
+            tags: input.tags ?? [],
+            isTop: Boolean(input.pinned),
+          } as Parameters<typeof CardTable.createCard>[1]).id;
+        if (request.entity === "article")
+          return ArticleTable.createArticle(db, {
+            title: input.title ?? "",
+            author: "",
+            tags: input.tags ?? [],
+            links: [],
+            content,
+            bannerBg: "",
+            bannerPosition: "center",
+            isTop: false,
+            isDelete: false,
+            count: 0,
+          }).id;
+        throw new Error("不支持新建该类型");
+      })
+    )();
     const channel = request.entity === "card" ? "card:updated" : "article:updated";
     ctx.broadcastAll(channel, {
       databaseName: basename(db.name),
@@ -470,7 +475,7 @@ export default class PluginDataTable {
     });
   }
 
-  static editContent(
+  static async editContent(
     db: Database.Database,
     request: PluginDataScope & {
       pluginId: string;
@@ -480,7 +485,7 @@ export default class PluginDataTable {
       expectedRevision: string;
     },
     ctx: CommandContext = fallbackCommandContext
-  ): { revision: string } {
+  ): Promise<{ revision: string }> {
     this.assertDatabase(db, request);
     const exists = db
       .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
@@ -490,30 +495,44 @@ export default class PluginDataTable {
     const revision = current.revision ?? `u:${current.updateTime}`;
     if (revision !== request.expectedRevision)
       throw new Error(`${CONFLICT_PREFIX}正文已被修改，请重新读取后再试`);
-    const content = this.applyEdit(current.content, request.edit);
-    writeAsPlugin(request.pluginId, () =>
-      ContentTable.updateContent(
-        db,
-        request.contentId,
-        { content, expectedRevision: current.revision },
-        ctx
+    const content = await this.applyEdit(current.content, request.edit);
+    this.assertDatabase(db, request);
+    if (!db.open) throw new Error("数据库连接已失效");
+    if (
+      !db
+        .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
+        .get(request.contentId, request.createdAt) ||
+      this.contentRevision(db, request.contentId) !== revision
+    )
+      throw new Error(`${CONFLICT_PREFIX}转换期间正文已变化，请重新读取后再试`);
+    db.transaction(() =>
+      writeAsPlugin(request.pluginId, () =>
+        ContentTable.updateContent(
+          db,
+          request.contentId,
+          { content, expectedRevision: current.revision },
+          ctx
+        )
       )
-    );
+    )();
     markContentOrigin(basename(db.name), request.contentId, request.pluginId);
     return { revision: this.contentRevision(db, request.contentId) };
   }
 
-  private static applyEdit(current: Descendant[], edit: PluginContentEdit): Descendant[] {
+  private static async applyEdit(
+    current: Descendant[],
+    edit: PluginContentEdit
+  ): Promise<Descendant[]> {
     switch (edit.op) {
       // 追加只转换新内容，原有节点原样保留
       case "append":
-        return [...current, ...(importFromMarkdown(edit.markdown) as Descendant[])];
+        return [...current, ...(await parseMarkdownNodes(edit.markdown))];
       case "prepend":
-        return [...(importFromMarkdown(edit.markdown) as Descendant[]), ...current];
+        return [...(await parseMarkdownNodes(edit.markdown)), ...current];
       case "replaceAll":
         return this.nodesFromMarkdown(edit.markdown);
       case "replaceText": {
-        const markdown = getMarkdown(current);
+        const markdown = await getMarkdownText(current);
         const first = markdown.indexOf(edit.find);
         if (first < 0) throw new Error("没有找到要替换的文字");
         if (markdown.indexOf(edit.find, first + 1) >= 0)

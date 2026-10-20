@@ -1,4 +1,5 @@
 import { rendererSyncRegistry } from "./sync-registry";
+import { createPluginBackend } from "./backend";
 import { rendererTTSRegistry } from "./tts-registry";
 import { rendererImagesRegistry } from "./images-registry";
 import { rendererVideoRegistry } from "./video-bridge";
@@ -149,6 +150,7 @@ export class DesktopPluginRuntime {
   ) {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
+      backend: createPluginBackend,
       sync: rendererSyncRegistry,
       tts: rendererTTSRegistry,
       images: rendererImagesRegistry,

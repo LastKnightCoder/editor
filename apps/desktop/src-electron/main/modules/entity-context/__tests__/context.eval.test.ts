@@ -54,8 +54,8 @@ it.skipIf(!MAIN)(
     await timed("引用索引首次对账", () => reconcileRefs(main, index));
     await timed("白板索引首次对账", () => reconcileWhiteboardRefs(main, index));
     await timed("白板索引再次对账（无变化）", () => reconcileWhiteboardRefs(main, index));
-    await timed("外部材料索引候选（按类型计数）", () =>
-      listMaterialIndexDocs(main).reduce<Record<string, number>>((counts, doc) => {
+    await timed("外部材料索引候选（按类型计数）", async () =>
+      (await listMaterialIndexDocs(main)).reduce<Record<string, number>>((counts, doc) => {
         counts[doc.type] = (counts[doc.type] ?? 0) + 1;
         return counts;
       }, {})

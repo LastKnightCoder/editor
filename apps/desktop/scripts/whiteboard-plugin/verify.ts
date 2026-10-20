@@ -8,7 +8,7 @@ import { LocalPluginPreferences } from "@tau/plugins/local-state";
 import { PluginContentStartup } from "../../src-electron/main/services/plugin-content-startup";
 import { readPluginPackage } from "../../src-electron/main/services/plugin-package";
 import { discoverPlugins } from "../../src-electron/main/services/plugin-discovery";
-import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
+import { installContentTestFixture } from "../plugin-content-fixture";
 import { verifyStickman } from "./stickman";
 const root = process.env.TAU_WHITEBOARD_VERIFY_ROOT!;
 const zip = process.env.TAU_WHITEBOARD_VERIFY_ZIP!;
@@ -47,7 +47,7 @@ async function verify() {
     await rename(path.join(root, "removed-package"), path.join(directory, id));
   const startup = new PluginContentStartup(async pluginId => {
     const artifact = await readPluginPackage(path.join(directory, pluginId), "0.59.0");
-    acceptHeadlessPlugin(artifact);
+    installContentTestFixture(artifact);
     return artifact;
   });
   const snapshot = await startup.get(prefs.enabled(id, false) ? [id] : []);

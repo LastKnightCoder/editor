@@ -4,10 +4,9 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { readPluginPackage } from "../../src-electron/main/services/plugin-package";
 import { PluginContentStartup } from "../../src-electron/main/services/plugin-content-startup";
-import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
+import { installContentTestFixture } from "../plugin-content-fixture";
 import { getMarkdown, importFromMarkdown } from "../../src/utils/markdown";
 import { customMarkdown } from "./custom-fixture";
-import { Worker } from "node:worker_threads";
 const directory = process.env.TAU_EDITOR_PUBLISH_DIRECTORY;
 const url = process.env.TAU_EDITOR_PUBLISH_URL;
 if (!directory || !url) throw new Error("缺少验收参数");
@@ -23,39 +22,8 @@ void app
       path.join(directory, "desktop-plugins/tau.custom-block")
     );
     const artifacts = [artifact, custom];
-    artifacts.forEach(acceptHeadlessPlugin);
+    artifacts.forEach(installContentTestFixture);
     assert.equal(getMarkdown(importFromMarkdown(customMarkdown)).trim(), customMarkdown);
-    const indexing = new Worker(path.join(directory, "index-content-worker.cjs"), {
-      workerData: { editorPlugins: artifacts },
-    });
-    try {
-      const reply = await new Promise<{ ok: boolean; result: { content: string } }>(
-        (resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error("插件索引线程转换超时")), 10000);
-          indexing.once("error", error => {
-            clearTimeout(timeout);
-            reject(error);
-          });
-          indexing.once("message", result => {
-            clearTimeout(timeout);
-            resolve(result);
-          });
-          indexing.postMessage({
-            raw: JSON.stringify(
-              importFromMarkdown(customMarkdown + "\n\n::portable-counter{value=7}")
-            ),
-            title: "插件索引",
-            whole: true,
-            sections: false,
-          });
-        }
-      );
-      assert.equal(reply.ok, true);
-      assert.ok(reply.result.content.includes(customMarkdown));
-      assert.ok(reply.result.content.includes("portable-counter"));
-    } finally {
-      await indexing.terminate();
-    }
     const startup = new PluginContentStartup(async id =>
       artifacts.find(item => item.manifest.id === id)!
     );
@@ -193,7 +161,6 @@ void app
             "只读博客交互 7→8",
             "博客无 Node 集成",
             "真实 custom-block 单包在桌面与博客 DOM 一致",
-            "主进程与真实索引线程从同一插件包加载 codec，无静态插件源码依赖",
             "custom-block 动态 Tailwind 13px 编译与博客交互 3→4",
           ],
         },

@@ -1,12 +1,13 @@
 import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import type { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { contentSession } from "../collaboration/content-sessions";
 import { getContentLength } from "@/utils/helper.ts";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import log from "electron-log";
 
 // weather/mood 反序列化后的结构（与前端 WeatherMood 对齐）
@@ -164,7 +165,9 @@ export default class DiaryTable {
       "get-all-diary-entries": this.getAllDiaryEntries.bind(this),
       "get-diary-heatmap-data": this.getDiaryHeatmapData.bind(this),
       "get-diaries-by-dates": this.getDiariesByDates.bind(this),
-      "get-diaries-with-content": this.getDiariesWithContent.bind(this),
+      "get-diaries-with-content": asynchronousDatabaseCommand(
+        this.getDiariesWithContent.bind(this)
+      ),
       // Segment-level CRUD
       "get-diary-segments": this.getDiarySegments.bind(this),
       "create-diary-segment": write(this.createDiarySegment),
@@ -574,7 +577,7 @@ export default class DiaryTable {
     return this.loadEntriesWithSegments(db, entries);
   }
 
-  static getDiariesWithContent(
+  static async getDiariesWithContent(
     db: Database.Database,
     params: {
       dates?: string[];
@@ -583,17 +586,19 @@ export default class DiaryTable {
       diaryType?: "daily" | "weekly" | "monthly";
       maxLength?: number;
     }
-  ): Array<{
-    id: number;
-    type: "daily" | "weekly" | "monthly";
-    date: string;
-    weather: WeatherMoodValue | null;
-    mood: WeatherMoodValue | null;
-    wordCount: number;
-    content: string;
-    createTime: string;
-    updateTime: string;
-  }> {
+  ): Promise<
+    Array<{
+      id: number;
+      type: "daily" | "weekly" | "monthly";
+      date: string;
+      weather: WeatherMoodValue | null;
+      mood: WeatherMoodValue | null;
+      wordCount: number;
+      content: string;
+      createTime: string;
+      updateTime: string;
+    }>
+  > {
     let entries: DiaryEntry[];
 
     if (params.dates && params.dates.length > 0) {
@@ -609,9 +614,9 @@ export default class DiaryTable {
       return [];
     }
 
-    return entries.map(entry => {
+    return mapContentSnapshots(entries, async entry => {
       const fullContent = this.concatSegmentsContent(entry.segments);
-      let markdown = fullContent.length > 0 ? getMarkdown(fullContent) : "";
+      let markdown = fullContent.length > 0 ? await getMarkdownText(fullContent) : "";
       const maxLength = params.maxLength;
 
       if (maxLength && markdown.length > maxLength) {

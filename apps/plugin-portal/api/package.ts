@@ -82,7 +82,11 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         (await sha256(content)) !== manifest.integrity[name]
       )
         throw new Error("入口或样式摘要不匹配");
-      if ("main" in manifest && name === manifest.main && !content.toString("utf8").trim())
+      if (
+        "main" in manifest &&
+        (name === manifest.main || name === manifest.backend?.entry) &&
+        !content.toString("utf8").trim()
+      )
         throw new Error("插件入口为空");
       if (
         isTemplateManifest(manifest) &&

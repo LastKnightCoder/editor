@@ -269,7 +269,7 @@ it("门户规范 ZIP 的说明文件随包保存，其他额外文件仍拒绝",
   expect((await discoverPlugins(s.directory, "0.58.0")).entries[0].artifact).toBeDefined();
 });
 
-it("中心来源在提交后记录，恢复上一版保留来源，本地 ZIP 更新清除来源", async () => {
+it("中心来源与包一起恢复到上一版，本地 ZIP 更新清除来源", async () => {
   const s = await setup();
   await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
   expect((await s.service.sources([id]))[id]).toEqual({ kind: "zip" });
@@ -280,7 +280,7 @@ it("中心来源在提交后记录，恢复上一版保留来源，本地 ZIP �
   await s.service.restore(id);
   await s.restart();
   expect(await s.version()).toBe("1.0.0");
-  expect((await s.service.sources([id]))[id]).toEqual(center("1.1.0"));
+  expect((await s.service.sources([id]))[id]).toEqual(center("1.0.0"));
   await s.service.stageZip(await zip(s.root, "1.2.0"));
   await s.restart();
   expect((await s.service.sources([id]))[id]).toEqual({ kind: "zip" });
@@ -297,6 +297,58 @@ it("提交后中断恢复时补写中心来源", async () => {
   await writeFile(recordPath, JSON.stringify({ ...record, phase: "committed" }));
   await s.restart();
   expect((await s.service.sources([id]))[id]).toEqual(center("1.0.0"));
+});
+
+it("后台更新提交后中断仍能恢复备份审核来源，来源缺失的后台备份不能降为本地信任", async () => {
+  const s = await setup();
+  const native = async (version: string) => {
+    const archive = new AdmZip(await zip(s.root, version, "0.58.0"));
+    const manifest = JSON.parse(archive.readAsText(`${id}/manifest.json`));
+    const backend = "throw new Error('不得执行备份')";
+    archive.addFile(`${id}/backend.js`, Buffer.from(backend));
+    archive.updateFile(
+      `${id}/manifest.json`,
+      Buffer.from(
+        JSON.stringify({
+          ...manifest,
+          formatVersion: 2,
+          backend: {
+            entry: "backend.js",
+            runtime: "node",
+            apiVersion: 1,
+            scope: "application",
+            activation: "app-ready",
+            lifetime: "persistent",
+            reason: "测试回滚",
+            systemAccess: [],
+          },
+          integrity: {
+            ...manifest.integrity,
+            "backend.js": createHash("sha256").update(backend).digest("hex"),
+          },
+        })
+      )
+    );
+    return archive.toBuffer();
+  };
+  const first = { ...center("1.0.0"), systemReviewed: true };
+  await s.service.stageRelease(await native("1.0.0"), first);
+  await s.restart();
+  await s.service.stageRelease(await native("1.1.0"), { ...center("1.1.0"), systemReviewed: true });
+  const transaction = path.join(s.root, "plugin-updates/transactions", id);
+  await rename(path.join(s.root, "plugin-updates/pending", id), transaction);
+  const recordPath = path.join(transaction, "record.json");
+  const record = JSON.parse(await readFile(recordPath, "utf8"));
+  await rename(path.join(s.directory, id), path.join(s.root, "plugin-updates/backups", id));
+  await rename(path.join(transaction, "package"), path.join(s.directory, id));
+  await writeFile(recordPath, JSON.stringify({ ...record, phase: "committed" }));
+  await s.restart();
+  await s.service.restore(id);
+  await s.restart();
+  expect(await s.version()).toBe("1.0.0");
+  expect((await s.service.sources([id]))[id]).toEqual(first);
+  await rm(path.join(s.root, "plugin-updates/backup-sources", `${id}.json`));
+  await expect(s.service.restore(id)).rejects.toThrow("缺少原版本来源");
 });
 
 it("下载包与发布记录身份不符时不暂存", async () => {

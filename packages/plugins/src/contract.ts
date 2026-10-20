@@ -17,6 +17,7 @@ import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
+import type { PluginBackendClient } from "./backend";
 import type { PluginPermissions } from "./permissions";
 import type { PluginContent, PluginData } from "./data";
 import type { PluginEvents } from "./events";
@@ -44,6 +45,7 @@ export interface PluginCommand {
 }
 
 export interface PluginContext {
+  readonly backend: PluginBackendClient;
   readonly pluginId: string;
   readonly workspaceId: string;
   readonly signal: AbortSignal;

@@ -49,26 +49,24 @@ export async function readPluginPackage(
       !(await stat(target)).isFile()
     )
       throw new Error("插件文件必须位于插件目录内");
-    return readFile(target, "utf8");
+    return readFile(target);
   }
-  const manifestText = await read("manifest.json");
+  const manifestText = (await read("manifest.json")).toString("utf8");
   const manifest = validatePluginManifest(JSON.parse(manifestText));
   assertPluginCompatibility(manifest, clientVersion);
-  const code = await read(manifest.main);
-  const css = manifest.styles ? await read(manifest.styles) : undefined;
-  for (const [name, content] of [
-    [manifest.main, code],
-    [manifest.styles, css],
-  ]) {
-    if (
-      name &&
-      content !== undefined &&
-      createHash("sha256").update(content).digest("hex") !== manifest.integrity[name]
-    )
+  const files = new Map<string, Buffer>();
+  for (const name of Object.keys(manifest.integrity)) {
+    const content = await read(name);
+    if (createHash("sha256").update(content).digest("hex") !== manifest.integrity[name])
       throw new Error("插件产物不完整或已变化，请完成构建后刷新列表");
+    files.set(name, content);
   }
+  const code = files.get(manifest.main)!.toString("utf8");
+  const css = manifest.styles ? files.get(manifest.styles)!.toString("utf8") : undefined;
   if (!code.trim()) throw new Error("插件入口为空");
-  if ((await read("manifest.json")) !== manifestText)
+  if (manifest.backend && !files.get(manifest.backend.entry)!.toString("utf8").trim())
+    throw new Error("插件后台入口为空");
+  if ((await read("manifest.json")).toString("utf8") !== manifestText)
     throw new Error("插件构建仍在变化，请构建完成后重试");
   return { manifest, code, css };
 }

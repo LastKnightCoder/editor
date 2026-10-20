@@ -48,6 +48,47 @@ function zip(
   return file.toBuffer();
 }
 describe("包资料与站内反馈", () => {
+  it("后台包校验独立产物，拒绝缺失、篡改和空入口", async () => {
+    const archive = new AdmZip(zip());
+    const manifest = JSON.parse(archive.readAsText("test.reader/manifest.json"));
+    const code = "throw new Error('上传时不得执行后台')";
+    const backend = {
+      entry: "backend.js",
+      runtime: "node",
+      apiVersion: 1,
+      scope: "application",
+      activation: "app-ready",
+      lifetime: "persistent",
+      reason: "连接设备",
+      systemAccess: ["network"],
+    };
+    const writeManifest = (source: string) =>
+      archive.updateFile(
+        "test.reader/manifest.json",
+        Buffer.from(
+          JSON.stringify({
+            ...manifest,
+            formatVersion: 2,
+            backend,
+            integrity: {
+              ...manifest.integrity,
+              "backend.js": createHash("sha256").update(source).digest("hex"),
+            },
+          })
+        )
+      );
+    writeManifest(code);
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("缺少");
+    archive.addFile("test.reader/backend.js", Buffer.from(code));
+    await expect(inspectPackage(archive.toBuffer())).resolves.toMatchObject({
+      manifest: { backend },
+    });
+    archive.updateFile("test.reader/backend.js", Buffer.from("changed"));
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("摘要");
+    writeManifest(" ");
+    archive.updateFile("test.reader/backend.js", Buffer.from(" "));
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("入口为空");
+  });
   it("发布包严格校验分类与关键词", async () => {
     const content = await inspectPackage(
       zip({ manifest: { categories: ["sync", "sync"], keywords: [" MinIO "] } })
@@ -60,7 +101,7 @@ describe("包资料与站内反馈", () => {
       inspectPackage(zip({ manifest: { keywords: ["a", "b", "c", "d", "e", "f"] } }))
     ).rejects.toThrow("最多 5 个");
   });
-  it("发布包拒绝已撤回的Node同步入口", async () => {
+  it("未知字段不成为执行入口，额外代码按未声明文件拒绝", async () => {
     const archive = new AdmZip(zip());
     const manifest = JSON.parse(
       archive.getEntry("test.reader/manifest.json")!.getData().toString("utf8")
@@ -79,9 +120,9 @@ describe("包资料与站内反馈", () => {
         })
       )
     );
-    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
+    await expect(inspectPackage(archive.toBuffer())).resolves.toBeDefined();
     archive.addFile("test.reader/sync.js", Buffer.from(code));
-    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("Node同步入口已停用");
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未声明文件");
     archive.updateFile("test.reader/sync.js", Buffer.from("changed"));
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
   });
@@ -179,6 +220,88 @@ describe("包资料与站内反馈", () => {
   }
   const submit = (record: Submission) =>
     req(`/v1/submissions/${record.id}/submit`, "POST", { revision: record.revision });
+  it("后台批准绑定明确确认，撤回立即隐藏目录和下载且保留幂等审计", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const archive = new AdmZip(zip());
+    const manifest = JSON.parse(archive.readAsText("test.reader/manifest.json"));
+    const code = "throw new Error('不允许上传或审核执行')";
+    archive.addFile("test.reader/backend.js", Buffer.from(code));
+    archive.updateFile(
+      "test.reader/manifest.json",
+      Buffer.from(
+        JSON.stringify({
+          ...manifest,
+          formatVersion: 2,
+          backend: {
+            entry: "backend.js",
+            runtime: "node",
+            apiVersion: 1,
+            scope: "application",
+            activation: "app-ready",
+            lifetime: "persistent",
+            reason: "设备同步",
+            systemAccess: ["network"],
+          },
+          integrity: {
+            ...manifest.integrity,
+            "backend.js": createHash("sha256").update(code).digest("hex"),
+          },
+        })
+      )
+    );
+    const up = await upload(archive.toBuffer());
+    const d = await draft();
+    const saved = (
+      await (
+        await req(`/v1/submissions/${d.id}`, "PATCH", {
+          revision: d.revision,
+          packageUploadId: up.id,
+          repository: "https://github.com/author/plugin",
+        })
+      ).json()
+    ).data;
+    const pending = (await (await submit(saved)).json()).data;
+    const review = { revision: pending.revision, decision: "approve", comment: "已核对后台源码" };
+    expect((await req(`/v1/submissions/${d.id}/review`, "POST", review)).status).toBe(400);
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM releases").get()).toEqual({ n: 0 });
+    const approved = (
+      await (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          ...review,
+          systemReviewConfirmed: true,
+        })
+      ).json()
+    ).data;
+    expect(approved.release).toMatchObject({
+      state: "published",
+      systemReviewed: true,
+      sha256: up.sha256,
+    });
+    expect(approved.reviews[0]).toMatchObject({
+      revision: pending.revision,
+      systemReviewed: true,
+      sha256: up.sha256,
+    });
+    const input = { reason: "发现越权访问", clientRequestId: crypto.randomUUID() };
+    const revoked = await req(`/v1/submissions/${d.id}/revoke`, "POST", input);
+    expect(revoked.status).toBe(200);
+    expect((await revoked.json()).data.release).toMatchObject({
+      downloadUrl: null,
+      revokedAt: expect.any(String),
+    });
+    expect((await req(`/v1/releases/${approved.release.id}`)).status).toBe(404);
+    expect((await req(`/v1/releases/${approved.release.id}/download`)).status).toBe(404);
+    expect((await (await req("/v1/catalog?appVersion=0.59.0")).json()).data.items).toHaveLength(0);
+    expect((await req(`/v1/submissions/${d.id}/publish`, "POST")).status).toBe(409);
+    expect((await req(`/v1/submissions/${d.id}/revoke`, "POST", input)).status).toBe(200);
+    expect(
+      (await req(`/v1/submissions/${d.id}/revoke`, "POST", { ...input, reason: "不同操作" })).status
+    ).toBe(409);
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM release_revocations").get()).toEqual({
+      n: 1,
+    });
+  });
   it("匿名访问和CSRF受控", async () => {
     expect((await req("/v1/submissions")).status).toBe(401);
     await login();

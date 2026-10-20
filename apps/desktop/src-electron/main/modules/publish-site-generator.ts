@@ -34,7 +34,10 @@ import {
 } from "./publish-content-link-targets";
 import { buildPublishAppearanceSettings } from "./publish-appearance-settings";
 import { resolvePublishFaviconOutput } from "./publish-favicon";
-import { buildPublishSearchIndexPayload } from "./publish-search-index";
+import {
+  buildPublishSearchIndexPayload,
+  type BuildPublishSearchIndexInput,
+} from "./publish-search-index";
 
 import { resolveQuestActivityTime } from "./publish-quest-time";
 import {
@@ -70,6 +73,9 @@ export interface PublishSelectionInput {
 }
 
 export interface PublishGeneratorOptions {
+  buildSearchIndex?: (
+    input: BuildPublishSearchIndexInput
+  ) => Promise<import("@tau/plugins/publish-data").SearchFile>;
   template: TemplatePackage;
   compileTailwind: (code: string, extension: "tsx" | "html") => Promise<string>;
   logger: Pick<Console, "info" | "warn" | "error">;
@@ -191,8 +197,13 @@ export class PublishSiteGenerator {
   private readonly tailwindCssCache = new Map<string, string>();
   private linkTargets: Record<string, ContentRef> = {};
   private readonly pluginCatalog: PublishPluginCatalog;
+  private readonly buildSearchIndex: NonNullable<PublishGeneratorOptions["buildSearchIndex"]>;
 
   constructor(options: PublishGeneratorOptions) {
+    if (options.plugins?.plugins.length && !options.buildSearchIndex)
+      throw new Error("发布内容插件需要独立内容转换服务");
+    this.buildSearchIndex =
+      options.buildSearchIndex ?? (async input => buildPublishSearchIndexPayload(input));
     this.template = options.template;
     this.compileTailwind = options.compileTailwind;
     this.logger = options.logger;
@@ -344,7 +355,7 @@ export class PublishSiteGenerator {
         content: this.favicon.content,
       });
     }
-    const search = buildPublishSearchIndexPayload({
+    const search = await this.buildSearchIndex({
       cards,
       articles,
       docs: docResult.listEntries,

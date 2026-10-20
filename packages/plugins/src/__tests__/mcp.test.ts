@@ -20,7 +20,7 @@ const local = (id = "local"): PluginMCPDefinition => ({
   ],
 });
 
-function setup(activate: (context: PluginContext) => void | Promise<void>) {
+function setup(activate: (context: PluginContext) => void | Promise<void>, declared = false) {
   const registrations: Parameters<MCPAdapter["register"]>[] = [];
   const dispose = vi.fn();
   const host = new PluginHost({
@@ -33,14 +33,29 @@ function setup(activate: (context: PluginContext) => void | Promise<void>) {
       },
     },
   });
-  host.registerTrusted(
-    definePlugin({
+  host.registerTrusted({
+    ...definePlugin({
       id: "test.mcp",
       name: "测试插件",
       version: "1.0.0",
       create: () => ({ activate }),
-    })
-  );
+    }),
+    ...(declared
+      ? {
+          backend: {
+            entry: "backend.js",
+            runtime: "node" as const,
+            apiVersion: 1 as const,
+            scope: "workspace" as const,
+            activation: "on-demand" as const,
+            lifetime: "idle" as const,
+            reason: "运行 MCP",
+            systemAccess: ["process" as const],
+            tools: [{ id: "server", command: "node", args: ["server.js"] }],
+          },
+        }
+      : {}),
+  });
   return { host, registrations, dispose };
 }
 
@@ -53,7 +68,7 @@ it("同一插件可注册本地和外部 MCP，激活成功才提交，停用回
       transport: { type: "stdio", command: "node", args: ["server.js"] },
     });
     expect(test.registrations).toHaveLength(0);
-  });
+  }, true);
   await test.host.enable("test.mcp");
   await test.host.enable("test.mcp");
   expect(test.registrations).toHaveLength(2);
@@ -62,6 +77,21 @@ it("同一插件可注册本地和外部 MCP，激活成功才提交，停用回
   expect(test.dispose).toHaveBeenCalledTimes(2);
   expect(test.registrations.every(([context]) => context.signal.aborted)).toBe(true);
   await test.host.dispose();
+});
+
+it("普通插件不能通过 stdio MCP 绕过后台声明，声明的参数前缀也必须匹配", async () => {
+  for (const declared of [false, true]) {
+    const test = setup(context => {
+      context.mcp.register({
+        id: "native",
+        name: "外部程序",
+        transport: { type: "stdio", command: "node", args: ["other.js"] },
+      });
+    }, declared);
+    await expect(test.host.enable("test.mcp")).rejects.toThrow("backend.tools");
+    expect(test.registrations).toHaveLength(0);
+    await test.host.dispose();
+  }
 });
 
 it("激活失败不发布 MCP，重复 ID 拒绝，提前注销允许重注册", async () => {

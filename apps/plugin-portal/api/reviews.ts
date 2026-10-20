@@ -1,10 +1,12 @@
 import type { PackageContent, ReviewDecision, ReviewDetails, ReviewRecord } from "../contracts";
+import { requiresSystemReview } from "../contracts/execution";
 import { body, fail, isReviewer, json, type Env } from "./platform";
 import { submissionAccess, type SubmissionRow } from "./submissions";
 import { readyUpload } from "./uploads";
 import { getRelease, publishRelease, releaseDto } from "./releases";
 
 interface ReviewRow {
+  system_reviewed?: number;
   id: string;
   reviewed_revision: number;
   package_upload_id: string;
@@ -20,6 +22,7 @@ interface ReviewRow {
   created_at: string;
 }
 const reviewDto = (row: ReviewRow): ReviewRecord => ({
+  systemReviewed: row.system_reviewed === 1,
   id: row.id,
   revision: row.reviewed_revision,
   packageUploadId: row.package_upload_id,
@@ -50,7 +53,7 @@ export async function reviewRoute(
   owner: string,
   path: string
 ): Promise<Response | null> {
-  const match = /^\/v1\/submissions\/([\w-]+)\/(review|reviews|publish|package)$/.exec(path);
+  const match = /^\/v1\/submissions\/([\w-]+)\/(review|reviews|publish|package|revoke)$/.exec(path);
   if (!match) return null;
   const row = await submissionAccess(env, owner, match[1]);
   if (match[2] === "reviews" && request.method === "GET") return json(await details(env, row.id));
@@ -69,6 +72,51 @@ export async function reviewRoute(
   }
   if (request.method !== "POST") return null;
   if (!isReviewer(env, owner)) fail(403, "FORBIDDEN", "只有审核者可以作出审核决定或发布");
+  if (match[2] === "revoke") {
+    const input = await body(request);
+    if (
+      typeof input.reason !== "string" ||
+      !input.reason.trim() ||
+      input.reason.length > 4000 ||
+      typeof input.clientRequestId !== "string" ||
+      !/^[\w-]{16,80}$/.test(input.clientRequestId)
+    )
+      fail(400, "INVALID_INPUT", "撤回需要原因和有效的请求标识");
+    const release = await getRelease(env, row.id);
+    if (!release) fail(409, "SUBMISSION_LOCKED", "该提交尚无可撤回版本");
+    const reason = input.reason.trim();
+    const previous = await env.DB.prepare(
+      "SELECT release_id,reason FROM release_revocations WHERE reviewer_id=? AND client_request_id=?"
+    )
+      .bind(owner, input.clientRequestId)
+      .first<{ release_id: string; reason: string }>();
+    if (previous) {
+      if (previous.release_id !== release.id || previous.reason !== reason)
+        fail(409, "REVISION_CONFLICT", "请求标识已被其他撤回操作使用");
+      return json(await details(env, row.id));
+    }
+    if (release.revoked_at) fail(409, "SUBMISSION_LOCKED", "该版本已经撤回");
+    const id = crypto.randomUUID(),
+      time = new Date().toISOString();
+    const result = await env.DB.batch([
+      env.DB.prepare(
+        "INSERT OR IGNORE INTO release_revocations(id,release_id,reviewer_id,client_request_id,reason,created_at) SELECT ?,?,?,?,?,? FROM releases WHERE id=? AND revoked_at IS NULL"
+      ).bind(id, release.id, owner, input.clientRequestId, reason, time, release.id),
+      env.DB.prepare(
+        "UPDATE releases SET revoked_at=?,revoked_reason=? WHERE id=? AND revoked_at IS NULL AND EXISTS(SELECT 1 FROM release_revocations WHERE id=?)"
+      ).bind(time, reason, release.id, id),
+    ]);
+    if (!result[0].meta.changes) {
+      const repeated = await env.DB.prepare(
+        "SELECT release_id,reason FROM release_revocations WHERE reviewer_id=? AND client_request_id=?"
+      )
+        .bind(owner, input.clientRequestId)
+        .first<{ release_id: string; reason: string }>();
+      if (repeated?.release_id !== release.id || repeated.reason !== reason)
+        fail(409, "REVISION_CONFLICT", "该版本已经被其他请求撤回");
+    }
+    return json(await details(env, row.id));
+  }
   if (match[2] === "publish") {
     const release = await getRelease(env, row.id);
     if (row.status !== "approved" || !release)
@@ -83,7 +131,8 @@ export async function reviewRoute(
     typeof input.decision !== "string" ||
     !["approve", "request_changes", "reject"].includes(input.decision) ||
     typeof input.comment !== "string" ||
-    input.comment.length > 4000
+    input.comment.length > 4000 ||
+    (input.systemReviewConfirmed !== undefined && typeof input.systemReviewConfirmed !== "boolean")
   )
     fail(400, "INVALID_INPUT", "审核参数无效");
   const decision = input.decision as ReviewDecision,
@@ -99,12 +148,23 @@ export async function reviewRoute(
     if (
       previous.reviewer_id !== owner ||
       previous.decision !== decision ||
-      previous.comment !== comment
+      previous.comment !== comment ||
+      (previous.system_reviewed === 1 && input.systemReviewConfirmed !== true)
     )
       fail(409, "REVISION_CONFLICT", "该修订已经有审核决定，请刷新");
     return json(await details(env, row.id));
   }
-  return json(await decideSubmission(env, row, owner, input.revision as number, decision, comment));
+  return json(
+    await decideSubmission(
+      env,
+      row,
+      owner,
+      input.revision as number,
+      decision,
+      comment,
+      input.systemReviewConfirmed === true
+    )
+  );
 }
 
 /** 网页审核与 CI 自动批准共用：写入审核记录、更新提交状态，批准时生成并发布 Release。 */
@@ -114,7 +174,8 @@ export async function decideSubmission(
   owner: string,
   revision: number,
   decision: ReviewDecision,
-  comment: string
+  comment: string,
+  systemReviewConfirmed = false
 ): Promise<ReviewDetails> {
   if (row.status !== "pending_review" || row.revision !== revision)
     fail(409, "REVISION_CONFLICT", "提交状态或修订已变化，请刷新后重新审核");
@@ -123,6 +184,9 @@ export async function decideSubmission(
   const upload = await readyUpload(env, row.publisher_id, row.package_upload_id);
   if (!upload.sha256) fail(409, "UPLOAD_NOT_READY", "产物缺少摘要");
   const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
+  const systemReviewed = requiresSystemReview(manifest) && decision === "approve";
+  if (systemReviewed && !systemReviewConfirmed)
+    fail(400, "INVALID_INPUT", "批准后台插件前必须明确完成系统能力审核");
   const id = crypto.randomUUID(),
     time = new Date().toISOString();
   const status = { approve: "approved", request_changes: "changes_requested", reject: "rejected" }[
@@ -130,7 +194,7 @@ export async function decideSubmission(
   ];
   const commands = [
     env.DB.prepare(
-      "INSERT INTO submission_reviews(id,submission_id,reviewed_revision,package_upload_id,sha256,manifest_json,repository,source_commit,reviewer_id,decision,comment,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,? FROM submissions WHERE id=? AND status='pending_review' AND revision=?"
+      "INSERT INTO submission_reviews(id,submission_id,reviewed_revision,package_upload_id,sha256,manifest_json,repository,source_commit,reviewer_id,decision,comment,created_at,system_reviewed) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? FROM submissions WHERE id=? AND status='pending_review' AND revision=?"
     ).bind(
       id,
       row.id,
@@ -144,6 +208,7 @@ export async function decideSubmission(
       decision,
       comment,
       time,
+      systemReviewed ? 1 : 0,
       row.id,
       row.revision
     ),
@@ -154,7 +219,7 @@ export async function decideSubmission(
   if (decision === "approve")
     commands.push(
       env.DB.prepare(
-        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,name,description,min_app_version,categories,keywords,state,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',? WHERE EXISTS(SELECT 1 FROM submission_reviews WHERE id=?)"
+        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,name,description,min_app_version,categories,keywords,state,created_at,system_reviewed) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,? WHERE EXISTS(SELECT 1 FROM submission_reviews WHERE id=?)"
       ).bind(
         id,
         manifest.id,
@@ -174,6 +239,7 @@ export async function decideSubmission(
         JSON.stringify(manifest.categories ?? []),
         JSON.stringify(manifest.keywords ?? []),
         time,
+        systemReviewed ? 1 : 0,
         id
       )
     );

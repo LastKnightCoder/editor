@@ -267,6 +267,8 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     reviewSubmission: (submissionId, input) =>
       write("POST", `/v1/submissions/${id(submissionId)}/review`, input),
     retryPublish: submissionId => write("POST", `/v1/submissions/${id(submissionId)}/publish`),
+    revokeRelease: (submissionId, input) =>
+      write("POST", `/v1/submissions/${id(submissionId)}/revoke`, input),
     packageDownloadUrl: submissionId => `${baseUrl}/v1/submissions/${id(submissionId)}/package`,
   };
 }

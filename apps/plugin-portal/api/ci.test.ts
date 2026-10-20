@@ -114,6 +114,45 @@ afterEach(() => {
 });
 
 describe("CI 发布", () => {
+  it("审核者自己的后台包也必须进入人工重点审核", async () => {
+    const archive = new AdmZip(zip());
+    const manifest = JSON.parse(archive.readAsText("test.reader/manifest.json"));
+    const backend = "throw new Error('审核不得执行插件')";
+    archive.addFile("test.reader/backend.js", Buffer.from(backend));
+    archive.updateFile(
+      "test.reader/manifest.json",
+      Buffer.from(
+        JSON.stringify({
+          ...manifest,
+          formatVersion: 2,
+          backend: {
+            entry: "backend.js",
+            runtime: "node",
+            apiVersion: 1,
+            scope: "application",
+            activation: "app-ready",
+            lifetime: "persistent",
+            reason: "设备同步",
+            systemAccess: ["network"],
+          },
+          integrity: {
+            ...manifest.integrity,
+            "backend.js": createHash("sha256").update(backend).digest("hex"),
+          },
+        })
+      )
+    );
+    const response = await publish(await token(), archive.toBuffer());
+    expect(response.status).toBe(201);
+    expect((await response.json()).data).toMatchObject({
+      status: "pending_review",
+      autoApproved: false,
+      release: null,
+    });
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_reviews").get()).toEqual({
+      n: 0,
+    });
+  });
   it("审核者本人推送 tag 时自动批准并发布，分类随包写入目录", async () => {
     const response = await publish(await token());
     expect(response.status).toBe(201);

@@ -1,5 +1,6 @@
 import { LIMITS, type CiRelease, type PackageContent } from "../contracts";
 import { fail, isReviewer, json, readLimited, sha256, type Env } from "./platform";
+import { requiresSystemReview } from "../contracts/execution";
 import { inspectPackage } from "./package";
 import { decideSubmission } from "./reviews";
 import type { SubmissionRow } from "./submissions";
@@ -130,7 +131,8 @@ export async function ciRoute(request: Request, env: Env, path: string): Promise
   if (plugin.repository_id !== String(claims.repository_id))
     fail(409, "PLUGIN_OWNERSHIP_CONFLICT", "该插件 ID 已绑定其他仓库");
   const owner = plugin.publisher_id;
-  const autoApprove = isReviewer(env, owner) && String(claims.actor_id) === owner;
+  const autoApprove =
+    isReviewer(env, owner) && String(claims.actor_id) === owner && !requiresSystemReview(manifest);
   const hash = await sha256(bytes);
 
   let row = await env.DB.prepare(

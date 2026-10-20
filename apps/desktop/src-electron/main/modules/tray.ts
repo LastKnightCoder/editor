@@ -4,10 +4,15 @@ import { existsSync } from "node:fs";
 import log from "electron-log";
 import { createMainWindow, showOrCreateMainWindow } from "../windows";
 import { exportSnapshot } from "./perf-monitor";
+import { setBackgroundTrayAvailable } from "../services/background-preferences";
+import { arePluginBackendsPaused, setPluginBackendsPaused, pluginBackends } from "./plugin-backend";
 
 let tray: Tray | null = null;
+let stopBackendSubscription: (() => void) | undefined;
 
 export const init = async (preloadPath: string) => {
+  stopBackendSubscription?.();
+  stopBackendSubscription = pluginBackends.subscribeStatus(updateTrayMenu);
   // macOS 使用 Dock 和状态栏图标
   if (process.platform === "darwin") {
     createDockMenu();
@@ -20,6 +25,7 @@ export const init = async (preloadPath: string) => {
   return {
     updateTrayMenu,
     destroyTray,
+    available: Boolean(tray),
   };
 };
 
@@ -51,6 +57,7 @@ function createMacOSStatusBarIcon(preloadPath: string) {
 
   // 创建状态栏图标
   tray = new Tray(resizedImage);
+  setBackgroundTrayAvailable(true);
   tray.setToolTip("Tau 笔记");
 
   // 绑定点击事件（只绑定一次）
@@ -188,6 +195,7 @@ function updateTrayMenu() {
     log.warn("托盘未创建，无法更新菜单");
     return;
   }
+  setBackgroundTrayAvailable(true);
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -205,6 +213,16 @@ function updateTrayMenu() {
     },
     { type: "separator" },
     {
+      label: `插件后台：${pluginBackends.list().filter(item => item.status.state === "running").length} 个运行中`,
+      enabled: false,
+    },
+    {
+      label: arePluginBackendsPaused() ? "恢复插件后台" : "暂停插件后台",
+      click: () => {
+        void setPluginBackendsPaused(!arePluginBackendsPaused()).finally(updateTrayMenu);
+      },
+    },
+    {
       label: "退出",
       click: () => {
         log.info("从托盘菜单退出应用");
@@ -219,6 +237,9 @@ function updateTrayMenu() {
 
 // 清理托盘
 function destroyTray() {
+  stopBackendSubscription?.();
+  stopBackendSubscription = undefined;
+  setBackgroundTrayAvailable(false);
   if (tray) {
     tray.destroy();
     tray = null;

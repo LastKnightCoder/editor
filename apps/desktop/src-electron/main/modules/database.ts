@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { readdirSync } from "node:fs";
 import log from "electron-log";
 import { recordIpcCall, recordSqlCall } from "./perf-monitor";
+import { executeDatabaseCommand } from "./database-command";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
 import { Module } from "../types/module";
 import { Table } from "../types/table";
@@ -809,13 +810,13 @@ class DatabaseModule implements Module {
         // 完成日志与开始日志成对出现：排查 IPC 挂起时，缺 done 的最后一条 event 即卡住点
         const startedAt = Date.now();
         try {
-          db.exec("BEGIN");
-          const res = await this.eventAndHandlers[eventName](
+          const res = await executeDatabaseCommand(
+            db,
+            this.eventAndHandlers[eventName],
             db,
             ...args,
             createWindowCommandContext(win)
           );
-          db.exec("COMMIT");
           const elapsedMs = Date.now() - startedAt;
           recordSqlCall(dbName, eventName, elapsedMs, true);
           // database 事件是主要 IPC 流量，计入速率统计供洪水检测（聚焦刷新风暴等）
@@ -831,7 +832,6 @@ class DatabaseModule implements Module {
             `[database] event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - startedAt}`,
             e
           );
-          db.exec("ROLLBACK");
           throw e;
         }
       });
@@ -895,16 +895,14 @@ class DatabaseModule implements Module {
         }
 
         try {
-          mainDb.exec("BEGIN");
-          indexDb.exec("BEGIN");
-          const res = await this.indexEventAndHandlers[eventName](
+          const res = await executeDatabaseCommand(
+            indexDb,
+            this.indexEventAndHandlers[eventName],
             mainDb,
             indexDb,
             ...args,
             createWindowCommandContext(win)
           );
-          indexDb.exec("COMMIT");
-          mainDb.exec("COMMIT");
           const elapsedMs = Date.now() - startedAt;
           recordSqlCall(dbName, eventName, elapsedMs, true);
           recordIpcCall(eventName, elapsedMs, true);
@@ -918,16 +916,7 @@ class DatabaseModule implements Module {
             `[database] index event failed: db=${dbName}, event=${eventName}, elapsedMs=${Date.now() - indexStartedAt}`,
             e
           );
-          try {
-            indexDb.exec("ROLLBACK");
-          } catch {
-            // ignore rollback error
-          }
-          try {
-            mainDb.exec("ROLLBACK");
-          } catch {
-            // ignore rollback error
-          }
+          throw e;
         }
       });
     });

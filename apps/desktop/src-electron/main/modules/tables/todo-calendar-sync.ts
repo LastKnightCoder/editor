@@ -406,23 +406,25 @@ export default class TodoCalendarSyncTable {
           state: {},
         }));
     // 来源映射保留原始日期，改期只改变标记展示位置。
-    for (const instance of instances) {
-      const eventId = this.syncTodoItem(db, {
-        todoItem: parsedItem,
-        recurrenceDate: dateTime(instance.occurrence.occurrenceDate),
-      });
-      if (eventId) {
-        if (instance.scheduledAt.slice(0, 10) !== instance.occurrence.occurrenceDate) {
-          const date = dateTime(localDate(dateTime(instance.scheduledAt)));
-          db.prepare(
-            "UPDATE calendar_event SET start_date=?,end_date=?,update_time=? WHERE id=?"
-          ).run(date, date, Date.now(), eventId);
+    return db.transaction(() => {
+      for (const instance of instances) {
+        const eventId = this.syncTodoItem(db, {
+          todoItem: parsedItem,
+          recurrenceDate: dateTime(instance.occurrence.occurrenceDate),
+        });
+        if (eventId) {
+          if (instance.scheduledAt.slice(0, 10) !== instance.occurrence.occurrenceDate) {
+            const date = dateTime(localDate(dateTime(instance.scheduledAt)));
+            db.prepare(
+              "UPDATE calendar_event SET start_date=?,end_date=?,update_time=? WHERE id=?"
+            ).run(date, date, Date.now(), eventId);
+          }
+          eventIds.push(eventId);
         }
-        eventIds.push(eventId);
       }
-    }
 
-    return eventIds;
+      return eventIds;
+    })();
   }
 
   // 清理孤立的日历事件（待办任务已删除但日历事件仍存在）
