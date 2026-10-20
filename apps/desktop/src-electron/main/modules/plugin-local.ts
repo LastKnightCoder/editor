@@ -17,6 +17,7 @@ import {
   releaseSyncRenderer,
 } from "../services/plugin-sync";
 import userSetting from "./user-setting";
+import { getPluginPermissionStore } from "./plugin-permissions";
 import { getMainWindows } from "../windows/main-window";
 import { pluginUploadRelay } from "../services/plugin-upload";
 import { pluginTTSRelay } from "../services/plugin-tts";
@@ -376,6 +377,7 @@ export default {
       await protectPluginTasks(id, async () => {
         await updates.uninstall(id);
         await preferences.forget(id);
+        await getPluginPermissionStore().forget(id);
       });
       stateChanged();
     });

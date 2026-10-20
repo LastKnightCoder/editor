@@ -20,6 +20,7 @@ import { useCardTagTree } from "@/features/cards/queries";
 import { ArticlesNavTags } from "@/features/articles/components/ArticlesNav";
 import { useArticleTagCounts } from "@/features/articles/queries";
 import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
+import { PluginPermissionNavBadge } from "@/features/plugins/permissions/PluginPermissionNavBadge";
 import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
@@ -36,6 +37,7 @@ export const NAV_BADGE_SLOTS: Record<NavItemBadge, ComponentType<{ collapsed: bo
   "review-due": ReviewDueBadge,
   "questions-active": QuestionsNavBadge,
   "mcp-errors": McpNavBadge,
+  "plugin-permission-requests": PluginPermissionNavBadge,
 };
 
 export interface NavChildrenSlotProps {

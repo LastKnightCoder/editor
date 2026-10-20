@@ -66,6 +66,7 @@ import TranscriptionTable from "./tables/transcription";
 import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
+import PluginDataTable from "./tables/plugin-data";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -289,6 +290,7 @@ class DatabaseModule implements Module {
       VibeLearningResourceTable,
       VLNoteTable,
       VLQuizTable,
+      PluginDataTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

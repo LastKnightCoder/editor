@@ -37,8 +37,9 @@ import { PluginSettingsView } from "./PluginSettingsView";
 import { PluginAISettings } from "../components/PluginAISettings";
 import { PluginMenu } from "./PluginsView";
 import { PluginCommunityTab } from "../components/PluginCommunityTab";
+import { PluginPermissionsTab } from "../permissions/PluginPermissionsTab";
 
-type DetailTab = "readme" | "settings" | "changelog" | "versions" | "community";
+type DetailTab = "readme" | "settings" | "permissions" | "changelog" | "versions" | "community";
 export type PluginDetailParams = {
   pluginId: string;
   tab?: string;
@@ -109,6 +110,19 @@ export function PluginDetailView() {
           plugin={installed}
           section={params.section}
           onSection={key => setTab("settings", key)}
+        />
+      ),
+    });
+  if (installed?.info.permissions?.length)
+    tabs.push({
+      key: "permissions",
+      label: "权限",
+      children: (
+        <PluginPermissionsTab
+          broker={runtime.permissions}
+          pluginId={installed.info.id}
+          permissions={installed.info.permissions}
+          active={installed.info.state === "active"}
         />
       ),
     });

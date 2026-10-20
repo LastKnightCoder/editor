@@ -24,6 +24,7 @@ import { registerPluginSkill } from "./skill-registry";
 import {
   PluginHost,
   normalizePageParams,
+  type DataAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
   type MCPAdapter,
@@ -39,6 +40,7 @@ import {
   setLocalPluginEnabled,
 } from "@/commands/plugin-local";
 import type { DevelopmentSession } from "@/types/plugin-development";
+import type { DesktopPermissionBroker } from "./permissions";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
@@ -128,6 +130,8 @@ export class DesktopPluginRuntime {
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       mcp?: MCPAdapter;
+      permissions?: DesktopPermissionBroker;
+      data?: DataAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -150,6 +154,8 @@ export class DesktopPluginRuntime {
       materials: options.materials,
       skills: { register: registerPluginSkill },
       mcp: options.mcp,
+      permissions: options.permissions,
+      data: options.data,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
@@ -175,6 +181,10 @@ export class DesktopPluginRuntime {
   }
 
   getRevision = () => this.revision;
+  /** 插件详情页的权限分区与授权弹窗共用 */
+  get permissions(): DesktopPermissionBroker | undefined {
+    return this.options.permissions;
+  }
   attachLocal(preferences: Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">) {
     if (this.disposed || this.local) throw new Error("本地插件管理无法重复装配");
     this.local = new LocalPluginManager(
@@ -401,6 +411,7 @@ export class DesktopPluginRuntime {
       this.sidebarGroups.clear();
       this.sidebarItems.clear();
       this.editorContributions.clear();
+      this.options.permissions?.dispose();
       this.unsubscribe();
       this.publish();
       this.listeners.clear();

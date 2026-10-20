@@ -17,6 +17,8 @@ import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
+import type { PluginPermissions } from "./permissions";
+import type { PluginContent, PluginData } from "./data";
 
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
@@ -61,6 +63,12 @@ export interface PluginContext {
   readonly ai: PluginAI;
   readonly mcp: PluginMCP;
   readonly chat: PluginChat;
+  /** 业务数据权限的查询与申请；数据接口首次调用时也会自动申请 */
+  readonly permissions: PluginPermissions;
+  /** 卡片、文章、项目文档、待办与日程的只读访问 */
+  readonly data: PluginData;
+  /** 按 ContentRef 读取正文 */
+  readonly content: PluginContent;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

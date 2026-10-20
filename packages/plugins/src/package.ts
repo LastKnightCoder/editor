@@ -2,6 +2,7 @@ import { assertLocalId } from "./ids.ts";
 export { assertLocalId } from "./ids.ts";
 import { comparePluginVersions } from "./version.ts";
 import { readCatalogFields, type PluginCategory } from "./categories.ts";
+import { readPermissionsField, type PluginPermission } from "./permissions.ts";
 
 export { comparePluginVersions } from "./version.ts";
 export {
@@ -11,6 +12,7 @@ export {
   isPluginCategory,
   type PluginCategory,
 } from "./categories.ts";
+export { PLUGIN_PERMISSIONS, isPluginPermission, type PluginPermission } from "./permissions.ts";
 
 export const PLUGIN_SHARED_MODULES = [
   "@tau/plugins",
@@ -43,6 +45,8 @@ export interface PluginManifest {
   categories?: readonly PluginCategory[];
   /** 仅参与搜索匹配。 */
   keywords?: readonly string[];
+  /** 可申请的业务数据权限上限；实际授权由用户在调用时决定。 */
+  permissions?: readonly PluginPermission[];
   integrity: Record<string, string>;
 }
 
@@ -53,7 +57,7 @@ export interface DevelopmentPluginPackage {
   css?: string;
 }
 
-/** strict 供门户上传使用：分类或关键词不合规时报错，客户端默认静默丢弃。 */
+/** strict 供门户上传使用：分类、关键词或权限不合规时报错，客户端默认静默丢弃。 */
 export function validatePluginManifest(
   value: unknown,
   options: { strict?: boolean } = {}
@@ -98,6 +102,7 @@ export function validatePluginManifest(
   if (item.whiteboard !== undefined && item.whiteboard !== true)
     throw new Error("whiteboard 只能声明为 true");
   const catalog = readCatalogFields(item, options.strict === true);
+  const permissions = readPermissionsField(item, options.strict === true);
   const integrity: Record<string, string> = {};
   for (const name of [main, ...(styles ? [styles] : [])]) {
     const hash =
@@ -121,6 +126,7 @@ export function validatePluginManifest(
     ...(item.editor === true ? { editor: true as const } : {}),
     ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
     ...catalog,
+    ...permissions,
     integrity: Object.freeze(integrity),
     ...(styles === undefined ? {} : { styles }),
   });
