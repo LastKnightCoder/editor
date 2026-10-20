@@ -4,6 +4,7 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { PLUGIN_PAGE_KEY, PLUGIN_WORKBENCH_KEY } from "@/app/plugins/runtime";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
+import { PluginComponentScope } from "@/app/plugins/content-components";
 
 export function PluginPageView() {
   const runtime = useDesktopPlugins();
@@ -49,7 +50,9 @@ export function PluginPageView() {
       )}
     >
       <UiProvider className="contents">
-        <Component context={page.context} params={clean} />
+        <PluginComponentScope context={page.context}>
+          <Component context={page.context} params={clean} />
+        </PluginComponentScope>
       </UiProvider>
     </RecoverableBoundary>
   );

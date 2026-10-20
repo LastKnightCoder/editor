@@ -248,6 +248,14 @@ const WRITE_PERMISSIONS: Record<DataEntity, PluginPermission> = {
   article: "articles:write",
   document: "documents:write",
 };
+/** 访问一份正文所需的权限候选：拥有任一所属实体的读取（写入）权限即可；正文接口与组件层共用。 */
+export function contentPermissions(
+  owners: readonly DataEntity[],
+  mode: "read" | "write"
+): PluginPermission[] {
+  const table = mode === "read" ? ENTITY_PERMISSIONS : WRITE_PERMISSIONS;
+  return [...new Set(owners.map(owner => table[owner]))];
+}
 const DELETE_PERMISSIONS: Record<WritableEntity, PluginPermission> = {
   card: "cards:delete",
   article: "articles:delete",
@@ -1574,8 +1582,7 @@ export class PluginHost {
           const result = await dataAdapter().readContent(context, ref, format);
           this.assertActive(entry, activation);
           if (!result?.owners.length) return null;
-          // 拥有任一所属实体的读取权限即可读正文
-          const candidates = result.owners.map(owner => ENTITY_PERMISSIONS[owner]);
+          const candidates = contentPermissions(result.owners, "read");
           const usable = candidates.filter(permission => declared.has(permission));
           if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
           const adapter = permissionsAdapter();
@@ -1595,8 +1602,7 @@ export class PluginHost {
           const owners = await dataAdapter().contentOwners(context, ref);
           this.assertActive(entry, activation);
           if (!owners.length) throw new Error("正文不存在");
-          // 拥有任一所属实体的写入权限即可修改正文
-          const candidates = owners.map(owner => WRITE_PERMISSIONS[owner]);
+          const candidates = contentPermissions(owners, "write");
           const usable = candidates.filter(permission => declared.has(permission));
           if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
           const adapter = permissionsAdapter();

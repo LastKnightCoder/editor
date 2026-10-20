@@ -667,6 +667,33 @@ function LinkChip({ link }: { link: { ref: PluginEntityRef; title: string } }) {
 - 两者都只能在用户操作（点击、按键）之后调用，在定时器或事件回调里调用会抛错。
 - `ref` 是可序列化的普通对象，可以存进插件自己的数据；`id` 与 `context.data` 中同类实体一致。目标被删除后，`open` 抛出「内容不存在」，可以据此提示用户移除这条关联。
 
+## 正文组件
+
+插件页面里可以直接嵌入 Tau 的正文编辑器，效果与卡片详情相同：实时协作、内置与已安装的编辑器扩展、文档待办都会生效，修改自动保存。组件自 SDK 0.25.0 提供，只能在插件页面内使用。
+
+```tsx
+import { ContentEditor, ContentPreview } from "@tau/plugins";
+
+function CardPanel({ card }: { card: PluginCard }) {
+  return <ContentEditor contentRef={card.contentRef} placeholder="写点什么" />;
+}
+
+function CardRow({ card }: { card: PluginCard }) {
+  return <ContentPreview contentRef={card.contentRef} maxBlocks={3} />;
+}
+```
+
+| 组件             | 属性                                      | 所需权限                                   |
+| ---------------- | ----------------------------------------- | ------------------------------------------ |
+| `ContentEditor`  | `contentRef`、`readonly?`、`placeholder?` | 可编辑：所属实体的写入权限；只读：读取权限 |
+| `ContentPreview` | `contentRef`、`maxBlocks?`（默认 3）      | 所属实体的读取权限                         |
+
+- `contentRef` 来自 `context.data` 返回的 `contentRef`，目前支持卡片、文章与项目文档的正文。
+- 组件挂载时只检查授权，不弹窗；尚未决定时显示「允许访问」，用户点击后才询问。已拒绝时提示用户到插件详情页修改。
+- 用户在组件里的编辑与在卡片详情里的编辑相同，产生的事件 `origin` 为 `app`，可以在编辑器的撤销中撤回；这与 `context.content.edit` 不同。
+- `ContentPreview` 显示保存后的内容，编辑中的改动约 1 秒后反映出来。
+- 组件在插件页面内同步渲染，必须与 Tau 在同一运行环境中执行。
+
 ## 资源清理
 
 `Disposable` 的签名为 `{ dispose(): void | Promise<void> }`。

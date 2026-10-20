@@ -10,7 +10,7 @@ Typst 本地 WASM 编译迁移见 [76](76-Typst本地WASM编译迁移.md)（D-17
 
 ## 当前状态
 
-- 业务数据、正文与组件开放见 [77](77-业务数据内容与组件开放方案.md)（PS-042）：M1、M2 已完成：运行时授权（manifest 声明 + 调用时弹窗 + 详情页撤销，不是安全隔离）、`context.data` / `content` 读写与可恢复删除、带来源的业务事件与全文索引实时化，消费插件「每周回顾」；SDK 0.25.0 待发布。M3a 关联与打开（`ctx.app.pick` / `open`）已完成；之后 M3 组件、M4 插件实体接入搜索，接手先读交接文档 [79](79-PS-042交接.md)。
+- 业务数据、正文与组件开放见 [77](77-业务数据内容与组件开放方案.md)（PS-042）：M1、M2 已完成：运行时授权（manifest 声明 + 调用时弹窗 + 详情页撤销，不是安全隔离）、`context.data` / `content` 读写与可恢复删除、带来源的业务事件与全文索引实时化，消费插件「每周回顾」；SDK 0.25.0 待发布。M3a 关联与打开（`ctx.app.pick` / `open`）已完成；M3 正文组件（`ContentEditor` / `ContentPreview`）已完成，动作层进行中；之后 M4 插件实体接入搜索，接手先读交接文档 [79](79-PS-042交接.md)。
 
 - 在线视频插件化见 [74](74-在线视频提供方插件化.md)（PS-041、D-174）：SDK 0.22.0 增加 `context.video`、`target: "video"`、`services.videoExtractor` 与 `video` 分类；插件返回播放源描述，宿主统一下载、缓存与播放。Bilibili、YouTube 迁为同级独立仓库 `tau-plugin-bilibili`、`tau-plugin-youtube`（ID 沿用存量来源类型），宿主平台代码已删除；SDK 0.22.0 已发布公共 npm 并完成逐字节校验，两个插件的锁文件与干净构建已就绪，尚未推送仓库或提交插件中心。
 
