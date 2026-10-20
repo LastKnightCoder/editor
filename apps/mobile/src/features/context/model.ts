@@ -13,6 +13,7 @@ import {
   ListTodo,
   MessageCircle,
   PenLine,
+  Puzzle,
   Repeat,
 } from "lucide-react";
 import type { EntityContext } from "./types";
@@ -22,6 +23,7 @@ export const ENTITY_KIND_META: Record<string, { label: string; icon: LucideIcon 
   article: { label: "文章", icon: FileText },
   "project-item": { label: "项目文档", icon: FolderKanban },
   "diary-moment": { label: "日记", icon: PenLine },
+  "plugin-entity": { label: "插件内容", icon: Puzzle },
 };
 
 export const LINEAGE_KIND_META: Record<string, { label: string; icon: LucideIcon }> = {

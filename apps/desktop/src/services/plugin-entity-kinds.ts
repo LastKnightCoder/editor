@@ -59,3 +59,15 @@ export function usePluginEntityKind(
   useSyncExternalStore(subscribe, () => revision);
   return pluginId && kind ? pluginEntityKind(pluginId, kind) : undefined;
 }
+
+/** @ 面板只收录插件声明为可引用（mentionable）且正在运行的插件内容；其他类型不受影响 */
+export function isMentionableResult(result: {
+  type: string;
+  pluginEntity?: { pluginId: string; kind: string };
+}): boolean {
+  if (result.type !== "plugin-entity") return true;
+  const entry = result.pluginEntity
+    ? pluginEntityKind(result.pluginEntity.pluginId, result.pluginEntity.kind)
+    : undefined;
+  return Boolean(entry?.mentionable);
+}

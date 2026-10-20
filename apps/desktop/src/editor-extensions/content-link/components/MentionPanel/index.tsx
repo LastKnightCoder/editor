@@ -18,6 +18,7 @@ import { COMPOSER_ANCHOR_ATTR, ComposerPanel, ComposerPanelFooter } from "@tau/s
 import useMentionPanelStore from "../../stores/useMentionPanelStore";
 import { cleanupMentionPanel } from "../../plugins/withMentionCommands";
 import List from "./List";
+import { isMentionableResult } from "@/services/plugin-entity-kinds";
 
 interface IMentionPanelProps {
   editor: Editor;
@@ -92,11 +93,11 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       try {
         const results = await searchContent({
           query,
-          types: ["card", "article", "project-item"],
+          types: ["card", "article", "project-item", "plugin-entity"],
           limit: 10,
           modelInfo,
         });
-        setSearchResults(results);
+        setSearchResults(results.filter(isMentionableResult));
       } catch (error) {
         console.error("搜索失败:", error);
         setSearchResults([]);
@@ -117,7 +118,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       setLoading(true);
       getAllIndexResults()
         .then(results => {
-          setSearchResults(results.slice(0, 10));
+          setSearchResults(results.filter(isMentionableResult).slice(0, 10));
         })
         .catch(error => {
           console.error("获取所有文档失败:", error);

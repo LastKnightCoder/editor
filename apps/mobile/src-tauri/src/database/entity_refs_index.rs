@@ -12,7 +12,7 @@ use super::schema;
 use crate::setting::{get_active_database_name, load_or_init_setting};
 
 /** 与桌面 ref-indexer.ts 的 REF_INDEX_VERSION 保持一致 */
-const REF_INDEX_VERSION: &str = "5";
+const REF_INDEX_VERSION: &str = "6";
 const REF_INDEX_VERSION_KEY: &str = "entity-refs:version";
 
 #[derive(Debug, Serialize)]

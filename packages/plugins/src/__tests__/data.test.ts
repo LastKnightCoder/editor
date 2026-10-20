@@ -131,6 +131,16 @@ function setup({
       calls.push(["entities.update", id, patch, revision]);
       return { ...entity, ...patch, revision: "2" };
     },
+    backlinks: async () => [
+      {
+        entity: "card",
+        id: "3",
+        title: "卡",
+        snippets: [{ before: "见", label: "周记", after: "" }],
+      },
+      { entity: "article", id: "5", title: "文章", snippets: [] },
+      { entity: null, id: "8", title: "日记", snippets: [] },
+    ],
   };
   let context!: PluginContext;
   const host = new PluginHost({
@@ -431,5 +441,24 @@ describe("插件业务数据与权限", () => {
       { expectedRevision: "r1" }
     );
     expect(calls).toEqual([["editContent", "9:100", { op: "append", markdown: "补充" }, "r1"]]);
+  });
+
+  it("反链只给已获准读取的类型，不询问权限，其余计数", async () => {
+    const { host, calls, context } = setup({
+      declared: ["cards:read"],
+      granted: new Set<PluginPermission>(["cards:read"]),
+    });
+    await host.enable("weekly");
+    expect(await context().entities.backlinks("1")).toEqual({
+      items: [
+        {
+          ref: { kind: "card", id: "3" },
+          title: "卡",
+          snippets: [{ before: "见", label: "周记", after: "" }],
+        },
+      ],
+      omitted: 2,
+    });
+    expect(calls.filter(call => call[0] === "request" || call[0] === "ensure")).toEqual([]);
   });
 });

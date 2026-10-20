@@ -145,9 +145,10 @@ export function diffSources(mainDb: Database.Database, indexDb: Database.Databas
 /**
  * 解析口径的版本：口径变化（如新增白板块）时清空对账状态，下次对账全量重解析。
  * 1 = 只有 content-link；2 = 加白板块（whiteboard_embeds）；
- * 3 = 链接文字为空时取显示文字、独占一块的引用以上一个文本块作前文
+ * 3 = 链接文字为空时取显示文字、独占一块的引用以上一个文本块作前文；
+ * 6 = 识别插件内容（plugin-entity）的引用
  */
-export const REF_INDEX_VERSION = "5";
+export const REF_INDEX_VERSION = "6";
 const REF_INDEX_VERSION_KEY = "entity-refs:version";
 
 function ensureIndexVersion(indexDb: Database.Database) {

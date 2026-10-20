@@ -5,6 +5,7 @@ import {
   FolderKanban,
   Layers,
   Lock,
+  Puzzle,
   Unlink,
   type LucideIcon,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const TYPE_META: Record<string, { label: string; icon: LucideIcon; tone: string 
   card: { label: "卡片", icon: Layers, tone: "bg-ok-soft text-ok" },
   article: { label: "文章", icon: FileText, tone: "bg-info-soft text-info" },
   "project-item": { label: "项目文档", icon: FolderKanban, tone: "bg-tag-4-soft text-tag-4" },
+  "plugin-entity": { label: "插件内容", icon: Puzzle, tone: "bg-tag-5-soft text-tag-5" },
 };
 const FALLBACK_META = { label: "内容", icon: FileText, tone: "bg-hover text-ink-2" };
 

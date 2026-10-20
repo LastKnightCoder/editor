@@ -6,6 +6,7 @@ import type { Disposable } from "./contract";
 import type { PluginContentRef, PluginPage, PluginWriteOptions } from "./data";
 import type { JsonValue } from "./json";
 import type { PluginPageParams } from "./pages";
+import type { PluginEntityRef } from "./app";
 
 export type PluginOwnEntityMeta = Record<string, JsonValue>;
 
@@ -56,6 +57,15 @@ export interface PluginOwnEntityQuery {
   limit?: number;
 }
 
+/** 正文里引用了这项内容的一处来源 */
+export interface PluginOwnEntityBacklink {
+  /** 可交给 context.app.open 打开 */
+  ref: PluginEntityRef;
+  title: string;
+  /** 引用处的上下文：前文、链接文字、后文 */
+  snippets: { before: string; label: string; after: string }[];
+}
+
 export interface PluginOwnEntities {
   /** 声明一种内容类型；create 只接受已声明的类型 */
   registerKind(definition: PluginOwnEntityKind): Disposable;
@@ -71,4 +81,9 @@ export interface PluginOwnEntities {
     patch: PluginOwnEntityPatch,
     options: PluginWriteOptions
   ): Promise<PluginOwnEntity>;
+  /**
+   * 哪些卡片、文章、项目文档在正文里引用了这项内容。只返回插件已获准读取的类型，不询问权限；
+   * 其余来源（未获准的类型、日记、其他插件的内容）只计入 omitted。
+   */
+  backlinks(id: string): Promise<{ items: PluginOwnEntityBacklink[]; omitted: number }>;
 }
