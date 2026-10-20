@@ -67,7 +67,7 @@ export interface PluginActionRequest {
   format?: "image" | "pdf" | "epub";
   contentId: number;
   source: {
-    sourceType: "card" | "article" | "project-item";
+    sourceType: "card" | "article" | "project-item" | "content";
     sourceId: number;
     sourceTitle: string;
   };
@@ -146,14 +146,22 @@ export function createDesktopApp(databaseName: string): AppAdapter {
     },
     async run(context, plugin, request: PluginAppRunRequest) {
       assertUserActivation();
-      const target = await resolvePluginContentTarget(databaseName, request.ref, context.signal);
+      const target = await resolvePluginContentTarget(
+        databaseName,
+        context.pluginId,
+        request.ref,
+        context.signal
+      );
       if (!target) throw new Error("内容不存在");
-      const record = await bindDatabaseCommands(
-        { getPluginData },
-        { databaseName, signal: context.signal }
-      ).getPluginData(databaseName, target.owner.entity, target.owner.id);
+      const { owner } = target;
+      const record = owner
+        ? await bindDatabaseCommands(
+            { getPluginData },
+            { databaseName, signal: context.signal }
+          ).getPluginData(databaseName, owner.entity, owner.id)
+        : null;
       context.signal.throwIfAborted();
-      const title = record?.title || "未命名";
+      const title = record?.title || target.own?.title || "未命名";
       if (request.action === "content.export" && request.format === "markdown") {
         const { exportContentAsMarkdown } = await import("@/services/content-transfer");
         context.signal.throwIfAborted();
@@ -178,11 +186,10 @@ export function createDesktopApp(databaseName: string): AppAdapter {
           ? { format: request.format }
           : {}),
         contentId: target.contentId,
-        source: {
-          sourceType: target.owner.sourceType,
-          sourceId: target.owner.id,
-          sourceTitle: title,
-        },
+        // 插件自有内容没有宿主实体，按通用正文共享
+        source: owner
+          ? { sourceType: owner.sourceType, sourceId: owner.id, sourceTitle: title }
+          : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
         title,
         content: target.nodes,
         close,

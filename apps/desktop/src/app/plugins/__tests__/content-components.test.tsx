@@ -89,6 +89,7 @@ describe("插件正文组件", () => {
       wordCount: 10,
       nodes,
       owners: ["card"],
+      pluginOwners: [],
       databaseName: "data.db",
     });
     mocks.locate.mockResolvedValue({ kind: "card", id: 3 });
@@ -163,6 +164,38 @@ describe("插件正文组件", () => {
     render(<ContentPreview contentRef="8:100" maxBlocks={2} />, context);
     await settle();
     expect(mocks.preview).toHaveBeenLastCalledWith(nodes.slice(0, 2));
+  });
+
+  it("插件自己的内容不询问权限，按通用正文协作、不登记编辑身份", async () => {
+    const { context } = pluginContext({});
+    mocks.read.mockResolvedValue({
+      contentId: 9,
+      createdAt: 100,
+      nodes,
+      owners: [],
+      pluginOwners: [{ pluginId: "tau.weekly-review", id: 4, title: "第 43 周" }],
+    });
+    render(<ContentEditor contentRef="9:100" />, context);
+    await settle();
+    expect(context.permissions.query).not.toHaveBeenCalled();
+    expect(mocks.locate).not.toHaveBeenCalled();
+    const props = mocks.editor.mock.lastCall?.[0];
+    expect(props).toMatchObject({ contentId: 9, source: { sourceType: "content", sourceId: 9 } });
+    expect(props).not.toHaveProperty("editingContext");
+  });
+
+  it("其他插件的内容不算自有内容", async () => {
+    const { context } = pluginContext({});
+    mocks.read.mockResolvedValue({
+      contentId: 9,
+      createdAt: 100,
+      nodes,
+      owners: [],
+      pluginOwners: [{ pluginId: "tau.other", id: 4, title: "别人的" }],
+    });
+    render(<ContentPreview contentRef="9:100" />, context);
+    await settle();
+    expect(container.textContent).toContain("内容不存在或已删除");
   });
 
   it("正文不存在、引用无效或不在插件页面内时给出说明", async () => {

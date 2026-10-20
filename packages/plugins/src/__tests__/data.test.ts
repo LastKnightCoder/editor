@@ -10,6 +10,7 @@ import {
   PluginHost,
   type AppAdapter,
   type DataAdapter,
+  type EntitiesAdapter,
   type EventsAdapter,
   type PermissionsAdapter,
 } from "../host";
@@ -30,7 +31,8 @@ const card = {
 function setup({
   declared = ["cards:read", "todos:read"] as PluginPermission[],
   granted = new Set<PluginPermission>(),
-  owners = ["card" as const],
+  owners = ["card" as const] as "card"[],
+  own = false,
 } = {}) {
   const calls: unknown[][] = [];
   const permissions: PermissionsAdapter = {
@@ -72,13 +74,14 @@ function setup({
       return null;
     },
     writeCalendar: async () => null,
-    contentOwners: async () => owners,
+    contentOwners: async () => ({ owners, own }),
     async editContent(_context, ref, edit, revision) {
       calls.push(["editContent", ref, edit, revision]);
       return { revision: "r2" };
     },
     readContent: async (_context, ref) => ({
       owners,
+      own,
       snapshot: { ref, revision: "r1", markdown: "正文", wordCount: 2, updatedAt: 2 },
     }),
   };
@@ -102,8 +105,36 @@ function setup({
       calls.push(["run", plugin.id, request]);
     },
   };
+  const entity = {
+    id: "1",
+    kind: "note",
+    key: "2026-W43",
+    title: "第 43 周",
+    contentRef: "9:100",
+    meta: {},
+    createdAt: 1,
+    updatedAt: 1,
+    revision: "1",
+  };
+  const entities: EntitiesAdapter = {
+    async create(_context, input) {
+      calls.push(["entities.create", input]);
+      return { ...entity, ...input };
+    },
+    get: async (_context, id) => (id === "1" ? entity : null),
+    find: async (_context, kind, key) => (kind === "note" && key === entity.key ? entity : null),
+    async query(_context, query) {
+      calls.push(["entities.query", query]);
+      return { items: [entity] };
+    },
+    async update(_context, id, patch, revision) {
+      calls.push(["entities.update", id, patch, revision]);
+      return { ...entity, ...patch, revision: "2" };
+    },
+  };
   let context!: PluginContext;
   const host = new PluginHost({
+    entities,
     workspaceId: "work",
     storage: createMemoryStorage(),
     permissions,
@@ -349,5 +380,56 @@ describe("插件业务数据与权限", () => {
     await expect(
       context().app.run("content.export", { ref: "7:100", format: "docx" as "pdf" })
     ).rejects.toThrow("导出格式无效");
+  });
+
+  it("自有内容不需要权限：先声明类型才能新建，校验 key 与 meta", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    await expect(context().entities.create({ kind: "note", key: "2026-W43" })).rejects.toThrow(
+      "未声明"
+    );
+    const kind = context().entities.registerKind({
+      kind: "note",
+      label: "周记",
+      open: { page: "review", params: entity => ({ week: entity.key }) },
+    });
+    expect(() =>
+      context().entities.registerKind({ kind: "note", label: "重复", open: { page: "review" } })
+    ).toThrow("已声明");
+    const created = await context().entities.create({
+      kind: "note",
+      key: "2026-W43",
+      title: "第 43 周",
+      meta: { week: 43 },
+    });
+    expect(created.contentRef).toBe("9:100");
+    await expect(context().entities.create({ kind: "note", key: "", meta: {} })).rejects.toThrow(
+      "key"
+    );
+    await expect(
+      context().entities.create({ kind: "note", key: "x", meta: [] as never })
+    ).rejects.toThrow("meta");
+    expect(await context().entities.find("note", "2026-W43")).toMatchObject({ id: "1" });
+    await context().entities.query({ kind: "note" });
+    await context().entities.update("1", { title: "改名" }, { expectedRevision: "1" });
+    expect(calls).toEqual([
+      ["entities.create", { kind: "note", key: "2026-W43", title: "第 43 周", meta: { week: 43 } }],
+      ["entities.query", { kind: "note", limit: 50 }],
+      ["entities.update", "1", { title: "改名" }, "1"],
+    ]);
+    kind.dispose();
+    await expect(context().entities.create({ kind: "note", key: "y" })).rejects.toThrow("未声明");
+  });
+
+  it("本插件实体的正文直接读写，不询问权限", async () => {
+    const { host, calls, context } = setup({ declared: [], owners: [], own: true });
+    await host.enable("weekly");
+    expect(await context().content.read("9:100")).toMatchObject({ markdown: "正文" });
+    await context().content.edit(
+      "9:100",
+      { op: "append", markdown: "补充" },
+      { expectedRevision: "r1" }
+    );
+    expect(calls).toEqual([["editContent", "9:100", { op: "append", markdown: "补充" }, "r1"]]);
   });
 });
