@@ -1,9 +1,11 @@
 import type { Disposable } from "./contract";
 import type { PluginPageHandle, PluginPageParams } from "./pages";
-import type { ComponentType, SVGProps } from "react";
+import type { PluginIcon, PluginIconProps } from "./icons";
 
-export type PluginSidebarIconProps = SVGProps<SVGSVGElement> & { size?: number | string };
-export type PluginSidebarIcon = ComponentType<PluginSidebarIconProps>;
+/** 与 PluginIconProps 相同 */
+export type PluginSidebarIconProps = PluginIconProps;
+/** 与 PluginIcon 相同 */
+export type PluginSidebarIcon = PluginIcon;
 
 export const SIDEBAR_GROUPS = Object.freeze({
   daily: "daily",

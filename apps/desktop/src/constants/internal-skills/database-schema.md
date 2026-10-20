@@ -76,6 +76,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `update_time`   | `INTEGER NOT NULL`           |
 | `orphaned_time` | `INTEGER`                    |
 
+### `plugin_entity_kinds`
+
+插件为自建内容声明的类型外观，用于在搜索、引用等处显示。`label` 为类型名（如「周记」），`icon` 为图标 SVG 文本（空串表示未声明）。
+
+| 字段          | SQLite 定义                |
+| ------------- | -------------------------- |
+| `plugin_id`   | `TEXT NOT NULL`            |
+| `kind`        | `TEXT NOT NULL`            |
+| `label`       | `TEXT NOT NULL`            |
+| `icon`        | `TEXT NOT NULL DEFAULT ''` |
+| `update_time` | `INTEGER NOT NULL`         |
+
 ### `plugin_kv`
 
 插件的私有设置与数据（插件里的 `context.storage`），`value` 为 JSON 文本，内容由插件定义。

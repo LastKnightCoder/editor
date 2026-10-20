@@ -3,12 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@tau/ui";
 import type { DesktopDataAdapter } from "@/app/plugins/data";
 import type { PluginOperationRecord } from "@/types/plugin-data";
+import { usePluginEntityAppearances } from "@/services/plugin-entity-kinds";
 
 const ENTITY_NAMES: Record<PluginOperationRecord["entity"], string> = {
   card: "卡片",
   article: "文章",
   todo: "待办",
   event: "日程",
+  "plugin-entity": "插件内容",
 };
 
 const timeLabel = (time: number) =>
@@ -36,6 +38,7 @@ export function PluginOperationsSection({
   });
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const appearanceOf = usePluginEntityAppearances();
   if (!query.data?.length) return null;
 
   const restore = async (operation: PluginOperationRecord) => {
@@ -60,8 +63,8 @@ export function PluginOperationsSection({
           key={operation.id}
           className="flex items-center gap-3 px-1 py-2.5 shadow-[0_1px_0_var(--tau-line-2)]"
         >
-          <span className="text-tau-meta text-ink-3 w-10 shrink-0">
-            {ENTITY_NAMES[operation.entity]}
+          <span className="text-tau-meta text-ink-3 w-16 shrink-0 truncate">
+            {appearanceOf(pluginId, operation.kind)?.label ?? ENTITY_NAMES[operation.entity]}
           </span>
           <span className="text-tau-body text-ink-1 min-w-0 flex-1 truncate">
             {operation.title || "（无标题）"}

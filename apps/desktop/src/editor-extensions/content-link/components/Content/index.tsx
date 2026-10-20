@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { AnchoredPanel, Button, PanelHasHeaderContext, cn } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
+import { useEntityKindMeta, type KindIcon } from "@/components/EntityKind";
 import { formatAgo } from "@/utils/formatAgo";
 import { IContent } from "@/types";
 
@@ -26,6 +27,7 @@ interface IContentProps {
   /** undefined = 载入中，null = 不存在或已删除 */
   content: IContent | null | undefined;
   contentType: string;
+  refId: number;
   contentTitle: string;
   /** 协作者视角：被引用内容只在创建者本机 */
   unshared: boolean;
@@ -40,7 +42,7 @@ const Header = ({
   title,
   meta,
 }: {
-  icon: LucideIcon;
+  icon: KindIcon;
   tone: string;
   title: string;
   meta: ReactNode;
@@ -57,8 +59,13 @@ const Header = ({
 );
 
 const Content = memo((props: IContentProps) => {
-  const { content, contentType, contentTitle, unshared, onOpen, onRemove } = props;
-  const typeMeta = TYPE_META[contentType] ?? FALLBACK_META;
+  const { content, contentType, refId, contentTitle, unshared, onOpen, onRemove } = props;
+  const baseMeta = TYPE_META[contentType] ?? FALLBACK_META;
+  // 插件内容按插件声明的类型名与图标显示，色调沿用通用的插件内容
+  const typeMeta = {
+    ...baseMeta,
+    ...useEntityKindMeta({ kind: contentType, id: refId }, baseMeta),
+  };
   const title = contentTitle || `${typeMeta.label} #${content?.id ?? ""}`.trim();
 
   if (unshared) {

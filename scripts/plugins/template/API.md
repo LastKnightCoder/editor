@@ -721,9 +721,12 @@ function CardRow({ card }: { card: PluginCard }) {
 插件可以创建属于自己的内容（如每周一篇周记、看板上的卡片），每项带一份正文。正文和卡片正文一样实时保存、随云同步，用 `ContentEditor` 编辑，或用 `context.content` 读写。读写自己的内容不需要业务数据权限。接口自 SDK 0.25.0 提供。
 
 ```tsx
+import { NotebookPen } from "lucide-react";
+
 context.entities.registerKind({
   kind: "note",
   label: "周记",
+  icon: NotebookPen,
   open: { page: "review", params: note => ({ week: note.key }) },
 });
 
@@ -741,19 +744,21 @@ function NotePanel({ note }: { note: PluginOwnEntity }) {
 
 | 方法                                                  | 说明                                                                                     |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `registerKind(definition)`                            | 声明内容类型：`kind`、显示名 `label`、在 Tau 中打开时进入的页面 `open`                   |
+| `registerKind(definition)`                            | 声明内容类型：`kind`、显示名 `label`、图标 `icon`、在 Tau 中打开时进入的页面 `open`      |
 | `create({ kind, key, title?, meta? })`                | 新建一项，正文为空；同一类型下 `key` 已存在时抛出 `PluginConflictError`                  |
 | `get(id)` / `find(kind, key)`                         | 读取一项，不存在时为 `null`                                                              |
 | `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条、最多 200 条                                              |
 | `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容：`{ items: [{ ref, title, snippets }], omitted }` |
 | `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`（最大 64 KB 的 JSON 对象）                                             |
+| `delete(id, { expectedRevision })`                    | 删除一项及其正文，用户可在 7 天内恢复                                                    |
 
-- 插件内容会出现在 Tau 的全局搜索与 AI 检索中（标题与正文），结果标出 `label` 类型名。用户点击时 Tau 按 `open` 打开插件页面，`params` 由实体字段算出；命中正文中间某处时页面参数另带 `at`，原样交给 `<ContentEditor at={params.at}>` 即可滚动到命中处。插件停用时，Tau 用自带的只读页显示这项内容。
+- 插件内容在 Tau 里以 `label` 与 `icon` 显示：全局搜索、@ 面板、正文中的引用卡片、脉络与漫步都用它们，而不是笼统的「插件内容」。`icon` 与侧边栏图标同一写法（线性单色 SVG 组件，用 `currentColor`），渲染结果必须是单个 `<svg>`、不超过 16 KB；Tau 在声明时渲染一次并随笔记库保存，所以插件停用、卸载后的 7 天内或在其他设备上，这些地方仍显示你声明的类型名与图标。图标只按形状显示，颜色跟随主题，多色、渐变和位图不会保留。不传 `icon` 时显示通用的插件图标。
+- 插件内容会出现在 Tau 的全局搜索与 AI 检索中（标题与正文）。用户点击时 Tau 按 `open` 打开插件页面，`params` 由实体字段算出；命中正文中间某处时页面参数另带 `at`，原样交给 `<ContentEditor at={params.at}>` 即可滚动到命中处。插件停用时，Tau 用自带的只读页显示这项内容。
 - `registerKind` 声明 `mentionable: true` 后，用户可以在正文里用 @ 引用这类内容（默认不可）；引用处点击即打开。`backlinks` 只返回插件已获准读取的类型（`cards:read` 等），不会询问权限，其余来源只计入 `omitted`；`ref` 可直接交给 `context.app.open`。
 - `key` 由插件决定，用来找回同一项内容，例如周记用周次。`meta` 保存少量结构化信息，正文放在正文里。
 - 只有先声明的类型才能新建；`registerKind` 在 `activate` 中调用，停用时自动撤销。
+- `delete` 需要传入读取时的 `revision`，内容已被修改时抛出 `PluginConflictError`。删除后，用户可在插件详情页的「最近删除」中 7 天内恢复，恢复后 ID、`key` 和正文都不变，别处指向它的引用重新生效；若插件在此期间又用同一个 `key` 新建了内容，则无法恢复。删除不触发确认窗口，需要确认时由插件自己询问用户。
 - 卸载插件后，它创建的内容保留 7 天，期间重新安装即可找回，超过 7 天后删除。
-- 暂不提供删除接口。
 
 ## 资源清理
 

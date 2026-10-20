@@ -61,7 +61,7 @@ export function getNextModuleEntityId(db: Database.Database): number {
 /** 可被持久化工具身份引用的实体不复用删除后的编号。 */
 export function getNextTaskEntityId(
   db: Database.Database,
-  table: "todo_item" | "calendar_event" | "contents"
+  table: "todo_item" | "calendar_event" | "contents" | "plugin_entities"
 ): number {
   ensureMigrationMetaTable(db);
   const key = `task:id-seq:${table}`;

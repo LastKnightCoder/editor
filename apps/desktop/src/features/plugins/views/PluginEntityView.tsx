@@ -5,7 +5,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { locatePluginEntity } from "@/commands/plugin-entities";
 import { bindDatabaseCommands } from "@/services/command-context";
-import { usePluginEntityKind } from "@/services/plugin-entity-kinds";
+import { usePluginEntityAppearances, usePluginEntityKind } from "@/services/plugin-entity-kinds";
 import useSettingStore from "@/stores/useSettingStore";
 import { PLUGIN_DETAIL_KEY } from "@/app/plugins/runtime";
 import { PLUGIN_ENTITY_PAGE_KEY } from "@/services/plugin-entity-kinds";
@@ -26,7 +26,9 @@ export function PluginEntityView() {
   });
   const entity = query.data;
   const kind = usePluginEntityKind(entity?.pluginId, entity?.kind);
-  usePageBreadcrumb(PLUGIN_ENTITY_PAGE_KEY, entity?.title || "插件内容");
+  // 插件停用后仍按它声明的类型名称呼这项内容
+  const label = usePluginEntityAppearances()(entity?.pluginId, entity?.kind)?.label;
+  usePageBreadcrumb(PLUGIN_ENTITY_PAGE_KEY, entity?.title || label || "插件内容");
 
   if (query.isError)
     return (
@@ -51,7 +53,7 @@ export function PluginEntityView() {
         <span className="min-w-0 flex-1">
           {kind
             ? `这是「${kind.label}」，可以回到插件中继续编辑。`
-            : "创建它的插件已停用或已卸载，这里只能查看。"}
+            : `${label ? `这是「${label}」，` : ""}创建它的插件已停用或已卸载，这里只能查看。`}
         </span>
         {kind ? (
           <Button size="sm" variant="soft" onClick={() => void kind.open(entity, at)}>

@@ -28,6 +28,7 @@ import {
 import { searchEntities } from "@/commands";
 import type { EntityCandidate, EntityKind } from "@/types";
 import { ENTITY_KIND_META, entityKey, entityTime } from "./meta";
+import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 
 const MAX_SEGMENTS = 5;
 
@@ -251,7 +252,6 @@ export function EntityPicker({
                 const key = entityKey(candidate);
                 const on = picked.has(key);
                 const linked = isLinked?.(candidate) ?? false;
-                const Icon = ENTITY_KIND_META[candidate.kind].icon;
                 return (
                   <button
                     key={key}
@@ -281,7 +281,12 @@ export function EntityPicker({
                         <Check className="size-[11px]" strokeWidth={3} />
                       </span>
                     )}
-                    <Icon className="text-ink-3 size-[14px] shrink-0" strokeWidth={1.75} />
+                    <EntityKindIcon
+                      entityRef={candidate}
+                      fallback={ENTITY_KIND_META[candidate.kind]}
+                      className="text-ink-3 size-[14px] shrink-0"
+                      strokeWidth={1.75}
+                    />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-[13px] font-medium">{candidate.title}</span>
                       {candidate.excerpt && (

@@ -45,3 +45,17 @@ export interface PluginEntityPatch {
   title?: string;
   meta?: Record<string, unknown>;
 }
+
+/** 插件内容所属的插件与类型 */
+export interface PluginEntityOwner {
+  id: number;
+  pluginId: string;
+  kind: string;
+}
+
+/** 插件声明的类型外观；icon 为宿主渲染出的 SVG，空串表示未声明 */
+export interface PluginEntityKindAppearance {
+  kind: string;
+  label: string;
+  icon: string;
+}

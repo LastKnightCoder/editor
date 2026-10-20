@@ -249,6 +249,8 @@ export interface EntitiesAdapter {
     patch: PluginOwnEntityPatch,
     expectedRevision: string
   ): Promise<PluginOwnEntity>;
+  /** 删除后由用户在插件详情页恢复，宿主负责记录可恢复的快照 */
+  delete(context: PluginContext, id: string, expectedRevision: string): Promise<void>;
   /** 引用了本插件某项内容的来源；entity 为 null 表示不属于卡片 / 文章 / 项目文档，宿主只计数 */
   backlinks(
     context: PluginContext,
@@ -256,7 +258,7 @@ export interface EntitiesAdapter {
   ): Promise<
     Array<{ entity: DataEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
   >;
-  /** 宿主登记类型名与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
+  /** 宿主登记类型名、图标与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
   registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
 }
 
@@ -302,9 +304,18 @@ function readEntityKind(value: unknown): PluginOwnEntityKind {
     throw new Error("open.params 必须是函数");
   if (definition.mentionable !== undefined && typeof definition.mentionable !== "boolean")
     throw new Error("mentionable 无效");
+  // React 组件可能是函数，也可能是 memo / forwardRef 包装出的对象
+  const icon = definition.icon;
+  if (
+    icon !== undefined &&
+    typeof icon !== "function" &&
+    !(icon && typeof icon === "object" && "$$typeof" in icon)
+  )
+    throw new Error("icon 必须是 SVG 组件");
   return Object.freeze({
     kind: definition.kind,
     label: readText(definition.label, "类型名", 50),
+    ...(icon ? { icon } : {}),
     open: Object.freeze({ page, ...(params ? { params } : {}) }),
     mentionable: definition.mentionable ?? false,
   });
@@ -1757,6 +1768,10 @@ export class PluginHost {
             items,
             omitted: sources.length - items.length,
           });
+        },
+        delete: async (id: string, options: PluginWriteOptions) => {
+          await entitiesAdapter().delete(context, readId(id), readRevision(options));
+          this.assertActive(entry, activation);
         },
         update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) => {
           const value = readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE });

@@ -16,6 +16,8 @@
 
 搜索：插件自建实体（`plugin_entities`）作为单一索引类型 `plugin-entity`，按 kind 注册表分发，点击经声明式 `open` 跳转插件页并携带命中位置。插件停用后，结果仍显示，点击打开通用只读页。全文索引改为订阅正文写入并增量更新。插件私有 KV 迁入主库，随云同步。
 
+追记（2026-10-20）：插件内容的显示分为外观与行为。外观（类型名 + 图标）由插件声明、宿主渲染成 SVG 随库保存，各处经 `components/EntityKind` 统一解析，插件不运行时照样显示；行为（打开、可否 @）仍只在插件运行时登记。插件图标只作 CSS 遮罩显示，不插入 DOM。
+
 ## D-175 Typst 编译归插件本地 WASM，宿主移除编译服务（2026-10-19）
 
 延续 D-168 的拆分：宿主随包分发的 `@myriaddreamin/typst-ts-node-compiler` 原生二进制约 37–42 MB/平台，只为 Typst 插件服务，从安装包移除。`tau.typst` 插件 v0.2.0 起在渲染进程用 typst.ts 的 WebAssembly 编译器本地编译：wasm 与官方默认字体集（`@typst-wasm/fonts`）不随插件 ZIP 分发（保持 30 KB 级），首次编译时从 jsdelivr/unpkg 双源下载并做大小与 sha256 校验，缓存在 IndexedDB 长期复用、离线可用；排版产物由 HTML 片段改为自包含 SVG，`html` 缓存字段语义随之变更，历史 HTML 缓存照常显示。SDK 0.24.0 移除 `PluginServices.typst`；`ITypstCompiler` 编辑器服务 token、主进程 typst 模块/worker、`compile-typst` 命令与旧聊天 Typst 渲染器的实时编译路径全部删除，旧对话只展示已保存缓存或源码。实施记录见插件专题 76。

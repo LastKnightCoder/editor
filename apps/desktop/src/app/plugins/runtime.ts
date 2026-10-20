@@ -443,8 +443,12 @@ export class DesktopPluginRuntime {
     }
   }
 
-  /** 插件内容的类型：从检索结果、@ 等处打开时，按声明的 open 进入插件页面并附上正文定位 at */
+  /**
+   * 插件内容的类型：从检索结果、@ 等处打开时，按声明的 open 进入插件页面并附上正文定位 at；
+   * 类型名与图标交给数据适配随库保存，插件不运行时各处照样显示。
+   */
   private registerEntityKind(context: PluginContext, definition: PluginOwnEntityKind) {
+    this.options.entities?.registerKind?.(context, definition);
     const dispose = registerPluginEntityKind({
       pluginId: context.pluginId,
       kind: definition.kind,

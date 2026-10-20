@@ -20,6 +20,7 @@ import type {
 } from "@/types/entity-context";
 import { STATUS_META } from "@/features/questions/model";
 import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_ICON } from "../model";
+import { useEntityKindMeta } from "@/components/EntityKind";
 import { ContextRow as Row, ContextSection as Section } from "./ContextList";
 import { ContextLinksSection } from "./ContextLinks";
 
@@ -47,7 +48,7 @@ const STATUS_TONE: Record<ContextQuestion["status"], string> = {
 };
 
 function SourceLine({ entity }: { entity: ContextEntity }) {
-  const { icon: Icon, label } = ENTITY_KIND_META[entity.ref.kind];
+  const { icon: Icon, label } = useEntityKindMeta(entity.ref, ENTITY_KIND_META[entity.ref.kind]);
   return (
     <span className="text-ink-3 flex min-w-0 items-center gap-1.5 text-[12px]">
       <Icon className="size-[13px] shrink-0" strokeWidth={1.75} />

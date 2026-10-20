@@ -11,6 +11,8 @@
 - 新增正文组件 `ContentEditor` 与 `ContentPreview`：在插件页面嵌入与卡片详情相同的编辑器（协作、已安装的编辑器扩展、文档待办都生效），或只读显示正文开头几块。按所属内容的读取 / 写入权限放行，未授权时由用户点击「允许访问」后再询问。
 - 新增 `context.app.run`：把卡片、文章、项目文档的正文交给 Tau 导出（Markdown、图片、PDF、EPUB）、全屏演示或发起协作共享，界面与卡片详情中的相同。只能在用户操作后调用，不需要数据权限。
 - 新增 `context.entities`：插件创建自己的内容（如周记），每项带一份正文，用 `ContentEditor` 编辑或 `context.content` 读写，不需要业务数据权限。卸载插件后内容保留 7 天，期间重新安装可找回。插件内容可被全局搜索与 AI 检索找到，点击结果按 `registerKind` 声明的 `open` 打开插件页面；`ContentEditor` 增加 `at`，打开到命中处。声明 `mentionable` 的类型可在正文中用 @ 引用；`context.entities.backlinks` 列出引用了它的卡片、文章与项目文档（只含已获准读取的类型）。
+- `context.entities.registerKind` 增加 `icon`，与侧边栏图标同一写法；新增 `PluginIcon` / `PluginIconProps`，`PluginSidebarIcon` / `PluginSidebarIconProps` 保留为同义名。插件内容在搜索、@ 面板、正文中的引用、脉络与漫步里按声明的类型名与图标显示，插件停用或卸载后的 7 天内同样如此。
+- 新增 `context.entities.delete`：删除插件自己的内容及正文，用户可在插件详情页 7 天内恢复，恢复后 ID 与正文不变。
 - `context.storage` 的数据改为保存在笔记库里，随云同步；升级后首次启动自动迁移本机已有的数据，单个值不超过 1 MB。
 - 权限约束的是 SDK 接口；插件仍与应用运行在同一环境，不提供安全隔离。
 
