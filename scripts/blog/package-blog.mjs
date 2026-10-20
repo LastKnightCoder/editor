@@ -1,10 +1,19 @@
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
-import { mkdir, mkdtemp, readFile, writeFile, readdir } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const isWorkspaceSource = file => {
+  const relative = path.relative(root, file);
+  return (
+    !path.isAbsolute(relative) &&
+    relative !== ".." &&
+    !relative.startsWith(".." + path.sep) &&
+    !relative.split(path.sep).includes("node_modules")
+  );
+};
 const editorRoot = path.join(root, "packages/editor");
 const blogRoot = path.join(root, "packages/blog");
 const require = createRequire(path.join(editorRoot, "package.json"));
@@ -154,11 +163,7 @@ const graph = ts.createProgram(
   [...Object.values(entryPoints), path.join(root, "packages/shared/styles.d.ts")],
   options
 );
-const sources = graph
-  .getSourceFiles()
-  .filter(
-    file => file.fileName.startsWith(root + "/") && !file.fileName.includes("/node_modules/")
-  );
+const sources = graph.getSourceFiles().filter(file => isWorkspaceSource(file.fileName));
 const declarations = new Map();
 const program = ts.createProgram(
   sources.map(file => file.fileName),
@@ -167,7 +172,7 @@ const program = ts.createProgram(
 const result = program.emit(
   undefined,
   (_name, text, _bom, _error, sourceFiles) => {
-    if (sourceFiles?.length === 1) declarations.set(sourceFiles[0].fileName, text);
+    if (sourceFiles?.length === 1) declarations.set(path.resolve(sourceFiles[0].fileName), text);
   },
   undefined,
   true
@@ -186,12 +191,17 @@ if (result.emitSkipped)
 const dependencies = { "@types/react": "19.2.0", "@types/react-dom": "19.2.0" };
 const visited = new Set();
 const targetOf = source =>
-  "types/" + path.relative(root, source).replace(/\.(?:tsx?|jsx?)$/, ".d.ts");
+  "types/" +
+  path
+    .relative(root, source)
+    .split(path.sep)
+    .join("/")
+    .replace(/\.(?:tsx?|jsx?)$/, ".d.ts");
 async function copyDeclaration(source) {
   if (visited.has(source)) return;
   visited.add(source);
   const text =
-    declarations.get(source) ??
+    declarations.get(path.resolve(source)) ??
     (source.endsWith(".d.ts") ? await readFile(source, "utf8") : undefined);
   if (!text) throw new Error(`缺少类型声明：${source}`);
   const ast = ts.createSourceFile(source, text, ts.ScriptTarget.Latest, true);
@@ -226,7 +236,7 @@ async function copyDeclaration(source) {
           : undefined);
       if (!resolved) throw new Error(`声明无法解析：${source} → ${node.text}`);
       const dependency = resolved.resolvedFileName;
-      if (dependency.startsWith(root + "/") && !dependency.includes("/node_modules/")) {
+      if (isWorkspaceSource(dependency)) {
         // 带 .js 扩展名，NodeNext 与 bundler 两种解析都能找到对应声明。
         let relative = path.posix
           .relative(path.posix.dirname(targetOf(source)), targetOf(dependency))
@@ -349,11 +359,13 @@ await writeFile(
   path.join(directory, "README.md"),
   await readFile(path.join(blogRoot, "README.md"))
 );
-const archive = execFileSync(
-  "npm",
-  ["pack", "--ignore-scripts", "--json", "--pack-destination", output],
-  { cwd: directory, encoding: "utf8" }
-);
+const packCommand =
+  process.platform === "win32"
+    ? [process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", "npm.cmd pack --ignore-scripts --json"]]
+    : ["npm", ["pack", "--ignore-scripts", "--json"]];
+const archive = execFileSync(packCommand[0], packCommand[1], { cwd: directory, encoding: "utf8" });
+for (const packed of JSON.parse(archive))
+  await copyFile(path.join(directory, packed.filename), path.join(output, packed.filename));
 await writeFile(
   path.join(output, "report.json"),
   JSON.stringify(

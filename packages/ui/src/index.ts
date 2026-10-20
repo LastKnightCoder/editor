@@ -13,6 +13,7 @@ export * from "./primitives/Button";
 export * from "./primitives/IconButton";
 export * from "./primitives/Loading";
 export * from "./primitives/Panel";
+export * from "./primitives/DocumentCard";
 export * from "./primitives/Toast";
 export * from "./primitives/Notification";
 export * from "./primitives/Tooltip";

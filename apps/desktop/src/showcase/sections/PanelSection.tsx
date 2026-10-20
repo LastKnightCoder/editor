@@ -4,7 +4,15 @@
  */
 
 import { ChevronRight } from "lucide-react";
-import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
+import {
+  DocumentCard,
+  DocumentCardGrid,
+  EmptyNote,
+  Panel,
+  PanelAction,
+  PanelNote,
+  PanelTitle,
+} from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 function SampleRows() {
@@ -105,6 +113,23 @@ export default function PanelSection() {
           </PanelAction>
         </span>
       </MatrixRow>
+
+      <BlockTitle en="DocumentCard">文档卡片</BlockTitle>
+      <CanvasCard
+        cap="LIVE"
+        note="编辑器与博客共用；整张卡片可点击，摘要固定两行"
+        stage="page"
+        stageClassName="w-full"
+      >
+        <DocumentCardGrid>
+          <DocumentCard
+            title="项目文档"
+            description="保留文档标题、摘要和图标；卡片随正文字号缩放。"
+            href="#document-card"
+          />
+          <DocumentCard title="空白文档" description="" />
+        </DocumentCardGrid>
+      </CanvasCard>
 
       <ApiCard title="API 备忘">
         <table>

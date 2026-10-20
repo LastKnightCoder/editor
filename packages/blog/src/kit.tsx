@@ -12,6 +12,7 @@ import {
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { AudioPlayer, VideoPlayer } from "@tau/editor/extensions/media/players";
 import { contentLinkExtension } from "./contentLink";
+import { projectCardListExtension } from "./projectCardList";
 
 const notice: CSSProperties = {
   border: "1px dashed var(--tau-line-1)",
@@ -42,6 +43,7 @@ export function publishedKit(settings?: PublishSettings): EditorKit {
         previewMenuExtension,
         webviewExtension,
         contentLinkExtension,
+        projectCardListExtension,
         ...createImageExtensions({ appearance }),
       ],
       services: [

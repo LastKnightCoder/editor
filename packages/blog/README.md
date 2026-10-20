@@ -6,6 +6,14 @@
 pnpm add @tau/blog@npm:@xiongtao.xt/tau-blog@0.2.0
 ```
 
+项目文档卡片支持从 0.3.0 开始提供，当前归档通过 GitHub Release 分发：
+
+```sh
+pnpm add @tau/blog@https://github.com/LastKnightCoder/editor/releases/download/blog-v0.3.0/xiongtao.xt-tau-blog-0.3.0.tgz
+```
+
+`project-card-list` 保留项目内的网格卡片、图标、标题、两行摘要及悬停样式，整张卡片通过 `hrefFor` 跳转到对应文档；无需模板注册扩展。
+
 ```tsx
 import { createRoot } from "react-dom/client";
 import { createClient, ContentRenderer } from "@tau/blog";

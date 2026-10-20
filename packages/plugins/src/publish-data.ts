@@ -45,6 +45,14 @@ export interface ContentNode {
   children?: ContentNode[];
 }
 
+/** 由宿主生成发布快照、由博客渲染器内置展示的业务节点。 */
+export const PUBLISHED_HOST_ELEMENT_TYPES = ["project-card-list"] as const;
+export interface PublishedProjectCardListNode extends ContentNode {
+  type: "project-card-list";
+  items: { id: number; title: string; summary: string; target: ContentRef }[];
+  children: ContentNode[];
+}
+
 export interface TreeItem {
   title: string;
   target?: ContentRef;
