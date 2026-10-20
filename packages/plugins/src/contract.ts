@@ -17,6 +17,7 @@ import type { PluginSidebar } from "./sidebar";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
+import type { PluginFlashcards } from "./flashcards";
 
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
@@ -61,6 +62,7 @@ export interface PluginContext {
   readonly ai: PluginAI;
   readonly mcp: PluginMCP;
   readonly chat: PluginChat;
+  readonly flashcards: PluginFlashcards;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

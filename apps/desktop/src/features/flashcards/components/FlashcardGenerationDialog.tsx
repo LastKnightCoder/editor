@@ -21,6 +21,7 @@ interface FlashcardGenerationModalProps {
   onConfirm: () => void;
   onChangeDeck: () => void;
   onEditCard: (card: GeneratedFlashcard) => void;
+  isSaving?: boolean;
 }
 
 const difficultyLabels: Record<string, { label: string; color: TagColor }> = {
@@ -43,6 +44,7 @@ const FlashcardGenerationModal = ({
   onConfirm,
   onChangeDeck,
   onEditCard,
+  isSaving = false,
 }: FlashcardGenerationModalProps) => {
   const selectedCount = useMemo(
     () => generatedCards.filter(c => c.selected).length,
@@ -85,16 +87,18 @@ const FlashcardGenerationModal = ({
       icon={<Sparkles />}
       subtitle="基于卡片内容智能生成复习卡片"
       width={900}
+      locked={isSaving}
       footer={
         <>
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" onClick={onCancel} disabled={isSaving}>
             取消
           </Button>
           <Button
             variant="primary"
             icon={Check}
             onClick={onConfirm}
-            disabled={isGenerating || selectedCount === 0 || !selectedDeck}
+            loading={isSaving}
+            disabled={isGenerating || isSaving || selectedCount === 0 || !selectedDeck}
           >
             添加 {selectedCount} 张闪卡
           </Button>

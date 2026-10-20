@@ -44,6 +44,14 @@ import { assertStorageActive, type StorageAdapter, type StorageScope } from "./s
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
 import { snapshotMCPDefinition, snapshotMCPToolResult, type PluginMCPDefinition } from "./mcp";
 import { snapshotToolRendererDefinition, type PluginToolRendererDefinition } from "./chat";
+import type { PluginFlashcards } from "./flashcards";
+
+export type FlashcardsAdapter = {
+  [K in keyof PluginFlashcards]: (
+    context: PluginContext,
+    ...args: Parameters<PluginFlashcards[K]>
+  ) => ReturnType<PluginFlashcards[K]>;
+};
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -234,6 +242,7 @@ export class PluginHost {
       sidebar?: SidebarAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      flashcards?: FlashcardsAdapter;
       mcp?: MCPAdapter;
       chat?: ChatAdapter;
       fetch?: typeof globalThis.fetch;
@@ -973,6 +982,34 @@ export class PluginHost {
           return copyJson(result) as unknown as PluginExcerptEntry[];
         },
       }),
+      flashcards: Object.freeze(
+        Object.fromEntries(
+          (
+            [
+              "listDecks",
+              "createDeck",
+              "createCard",
+              "openCreate",
+              "generate",
+              "generateAndSave",
+            ] as const
+          ).map(method => [
+            method,
+            async (...args: unknown[]) => {
+              this.assertActive(entry, activation);
+              const adapter = this.options.flashcards;
+              if (!adapter) throw new Error("当前宿主不支持闪卡");
+              const call = adapter[method] as (
+                context: PluginContext,
+                ...args: unknown[]
+              ) => Promise<unknown>;
+              const result = await call(context, ...structuredClone(args));
+              this.assertActive(entry, activation);
+              return structuredClone(result);
+            },
+          ])
+        )
+      ) as unknown as PluginFlashcards,
       materials: Object.freeze({
         actions: async (ref: PluginMaterialRef) => {
           this.assertActive(entry, activation);

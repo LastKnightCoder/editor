@@ -26,6 +26,7 @@ import {
   normalizePageParams,
   type ExcerptsAdapter,
   type MaterialsAdapter,
+  type FlashcardsAdapter,
   type MCPAdapter,
   type StorageAdapter,
 } from "@tau/plugins/host";
@@ -127,6 +128,7 @@ export class DesktopPluginRuntime {
       services?: PluginServices;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
+      flashcards?: FlashcardsAdapter;
       mcp?: MCPAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
@@ -148,6 +150,7 @@ export class DesktopPluginRuntime {
       services: options.services,
       excerpts: options.excerpts,
       materials: options.materials,
+      flashcards: options.flashcards,
       skills: { register: registerPluginSkill },
       mcp: options.mcp,
       chat: desktopPluginChat,
