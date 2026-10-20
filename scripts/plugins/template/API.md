@@ -10,6 +10,8 @@
 
 AI 功能声明、用户模型分配、流式对话、取消与统一用量审计见 [AI.md](AI.md)（SDK 0.7.0 及以上）。
 
+创建闪卡、卡组、打开宿主手动/AI 制卡窗口及显式自动保存见 [FLASHCARDS.md](FLASHCARDS.md)，需要 SDK 0.25.0 和包含该能力的客户端构建。
+
 白板扩展契约见 [WHITEBOARD.md](WHITEBOARD.md)，需要 SDK 0.8.0 及以上。
 
 同步存储插件见 [SYNC.md](SYNC.md)，需要 SDK 0.10.0 及以上。

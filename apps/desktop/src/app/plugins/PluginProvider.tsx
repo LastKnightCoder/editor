@@ -9,6 +9,7 @@ import { isElectron, on, off } from "@/electron";
 import { getPluginWorkspace } from "@/commands/plugin-local";
 import { migratePluginPreferences } from "./development-manager";
 import { createDesktopExcerpts } from "./excerpts";
+import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
 import { connectSyncRenderer } from "./sync-bridge";
@@ -67,6 +68,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
               registerPluginMCP(context, definition, owner, workspaceId),
           },
           ...createDesktopExcerpts(workspaceId),
+          flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
           reloadCounts,
           validateEditor: composePluginEditor,

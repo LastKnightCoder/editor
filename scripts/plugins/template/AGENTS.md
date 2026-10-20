@@ -6,6 +6,7 @@
 - SDK 0.23.0 已移除 ffmpeg.probe，不再调用或声明该方法；ffmpeg.run 保留，视频页面信息使用 services.videoExtractor.probe，不能用它探测本地媒体。
 - 博客发布提供方先阅读 PUBLISH.md，使用 context.publish 和 publishConfig；独立站点的数据接入见 PUBLISH-DATA.md，不在普通插件中打包 SDK 根入口运行时。
 - 使用 AI 前阅读 AI.md，通过 ai.features 声明功能，由用户分配模型并授权。仅调用 context.ai，不索取用户的 API Key；处理取消、未授权和额度不足，不循环重试。
+- 创建闪卡、卡组或调用宿主 AI 制卡前阅读 FLASHCARDS.md（SDK 0.25.0）：使用 context.flashcards；默认 openCreate 预览确认，自动落库必须显式 generateAndSave，不能在 activate 中等待制卡窗口。
 - 提供 AI 工具前阅读 MCP.md，通过 context.mcp.register 注册本地 tools 或外部 transport；需要 SDK 0.13.0 和对应客户端。
 - 聊天自定义工具展示需 SDK 0.15.0 及支持该能力的客户端；在 async activate 内 await context.chat.registerToolRenderer，只绑定本插件 MCP 原始工具名，并检查客户端能力。
 - README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介。

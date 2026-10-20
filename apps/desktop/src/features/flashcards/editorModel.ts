@@ -61,8 +61,23 @@ export function formFromCard(card: Flashcard): FormState {
 
 export function validate(form: FormState): string | null {
   if (isEmptyContent(form.prompt)) return "题干不能为空";
-  if (form.type === "cloze" && blanksOf(form.prompt).length === 0)
-    return "填空题至少需要一个填空：在题干里选中文字，用工具栏设为填空";
+  if (form.type === "cloze") {
+    const blanks = blanksOf(form.prompt);
+    if (blanks.length === 0) return "填空题至少需要一个填空：在题干里选中文字，用工具栏设为填空";
+    const ids = new Set<string>();
+    for (const blank of blanks) {
+      if (typeof blank.blankId !== "string" || !blank.blankId.trim()) return "填空标识不能为空";
+      if (ids.has(blank.blankId)) return "填空标识不能重复";
+      ids.add(blank.blankId);
+      if (typeof blank.answer !== "string" || !blank.answer.trim()) return "填空答案不能为空";
+      if (
+        blank.alternativeAnswers !== undefined &&
+        (!Array.isArray(blank.alternativeAnswers) ||
+          blank.alternativeAnswers.some(answer => typeof answer !== "string" || !answer.trim()))
+      )
+        return "填空备选答案必须是非空文本列表";
+    }
+  }
   if (form.type === "single-choice" || form.type === "multiple-choice") {
     const options = (form.data.options ?? []).filter(o => o.label.trim());
     if (options.length < 2) return "至少填写两个选项";

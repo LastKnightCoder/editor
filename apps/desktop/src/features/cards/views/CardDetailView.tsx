@@ -12,7 +12,7 @@
  * 搬用（§6.1 共存期复用，legacy 组件直接消费）：ContentEditor / AddTag /
  * PresentationMode / ImmersiveEditorMode（退出后恢复光标）/ 导出弹窗×3 /
  * 播客（usePodcastAttachment + PodcastPlayer + PodcastGenerationModal）/
- * 制卡四弹窗（useFlashcardCreation）/ 协作控制。
+ * 统一制卡入口（useFlashcardCreation）/ 协作控制。
  * 图谱入口不做（卡片库列表页已有）。
  */
 
@@ -62,14 +62,9 @@ import ContentCollaborationControl, {
 import useContentShared from "@/hooks/useContentShared";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
-import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
-import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
-import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
-import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
-import { useThemeStore } from "@tau/themes/react";
 import { attachPodcastToCard, detachPodcastFromCard } from "@/commands/podcast";
 import { getScopedCard, openCardInNewWindow } from "@/commands/card";
 import {
@@ -115,7 +110,6 @@ export function CardDetailView() {
   const mutations = useCardsMutations();
   const queryClient = useQueryClient();
   const databaseName = useSettingStore(state => state.setting.database.active);
-  const darkMode = useThemeStore(state => state.mode === "dark");
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
   const shared = useContentShared(card?.contentId);
@@ -548,46 +542,6 @@ export function CardDetailView() {
         onSuccess={podcast.handlePodcastSuccess}
         onCancel={podcast.closePodcastModal}
         saveText="保存到卡片"
-      />
-
-      {/* 制卡四弹窗（legacy 搬用，useFlashcardCreation 已去 antd） */}
-      <DeckSelectorModal
-        open={flashcard.deckSelectorOpen}
-        onCancel={flashcard.closeDeckSelector}
-        onSelect={flashcard.handleDeckSelect}
-        title={
-          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
-        }
-      />
-      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
-        <FlashcardEditor
-          open={flashcard.flashcardEditorOpen}
-          activeDeckId={flashcard.selectedDeck.id}
-          onClose={flashcard.closeFlashcardEditor}
-          initialReferences={[flashcard.getReference()]}
-        />
-      )}
-      <FlashcardGenerationModal
-        open={flashcard.aiGenerationModalOpen}
-        onCancel={flashcard.handleCancelAiGeneration}
-        isGenerating={flashcard.isGenerating}
-        isPending={flashcard.isGenerationPending}
-        error={flashcard.generationError}
-        generatedCards={flashcard.generatedCards}
-        selectedDeck={flashcard.selectedDeck}
-        onToggleCard={flashcard.toggleCardSelection}
-        onSelectAll={flashcard.selectAll}
-        onDeselectAll={flashcard.deselectAll}
-        onConfirm={() => void flashcard.handleConfirmAiGeneration()}
-        onChangeDeck={flashcard.changeDeck}
-        onEditCard={flashcard.handleEditGeneratedCard}
-      />
-      <GeneratedFlashcardEditModal
-        open={flashcard.generatedCardEditModalOpen}
-        card={flashcard.editingGeneratedCard}
-        onSave={flashcard.handleSaveGeneratedCard}
-        onCancel={flashcard.closeGeneratedCardEditModal}
-        isDark={darkMode}
       />
 
       {/* 演示模式（legacy 搬用） */}

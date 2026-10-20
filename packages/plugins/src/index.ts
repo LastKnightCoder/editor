@@ -31,6 +31,7 @@ export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./sourc
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export * from "./sidebar";
 export type * from "./excerpts";
+export type * from "./flashcards";
 export type * from "./services";
 export { usePluginServices } from "./service-access";
 export type { PluginSkill } from "./skills";
