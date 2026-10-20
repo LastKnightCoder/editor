@@ -18,7 +18,6 @@ import {
 import { PreviewWithEditor } from "../index";
 import { Code2 } from "lucide-react";
 import { previewMenuExtension } from "../../menu";
-import { IOverlayBackDismiss, type OverlayBackDismissProps } from "@tau/editor/api";
 
 type Cursor = { line: number; ch: number };
 interface FakeEditor {
@@ -44,19 +43,8 @@ interface CodeProps {
   editorWillUnmount(): void;
 }
 const observed = vi.hoisted(() => ({
-  dismiss: undefined as (() => void) | undefined,
   editors: [] as Array<{ props: CodeProps; editor: FakeEditor }>,
 }));
-const HostDismissLayer = ({ open, onDismiss }: OverlayBackDismissProps) => {
-  useEffect(() => {
-    if (!open) return;
-    observed.dismiss = onDismiss;
-    return () => {
-      if (observed.dismiss === onDismiss) observed.dismiss = undefined;
-    };
-  }, [open, onDismiss]);
-  return null;
-};
 
 // jsdom 无 CodeMirror 布局，只替换输入器，导航/菜单/Slate 回写使用真实实现。
 vi.mock("react-codemirror2", () => ({
@@ -172,7 +160,6 @@ describe("源码预览迁包后的行为", () => {
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
-          register(IOverlayBackDismiss, { Layer: HostDismissLayer });
         },
       ],
     });
@@ -196,15 +183,25 @@ describe("源码预览迁包后的行为", () => {
     return kit;
   };
   const changeSource = async (source: string) => {
-    const current = observed.editors[0];
+    const current = observed.editors.at(-1)!;
     await act(async () => {
       current.editor.setValue(source);
       current.props.onChange(current.editor, {}, source);
       await new Promise(resolve => setTimeout(resolve, 550));
     });
   };
+  const edit = async () => {
+    await act(async () => {
+      editor.commands?.execute("tau.preview.edit", undefined, editor.children[1] as never, [1]);
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 350));
+    });
+  };
   it("编辑回写与外部更新保持同步，服务派生不重装预览菜单", async () => {
     const kit = await mount("初始");
+    expect(observed.editors).toHaveLength(0);
+    await edit();
     await changeSource("编辑");
     expect(editor.children[1]).toMatchObject({ source: "编辑" });
     await act(async () => Transforms.setNodes(editor, { source: "外部" } as never, { at: [1] }));
@@ -216,25 +213,29 @@ describe("源码预览迁包后的行为", () => {
   });
   it("源码起止方向键分别回到前后可编辑块", async () => {
     await mount("x");
-    const current = observed.editors[0];
     await act(async () => {
       expect(focusNextBlock(editor, [0], { reason: "arrow", direction: "forward" })).toBe(true);
     });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 350));
+    });
+    const current = observed.editors.at(-1)!;
     expect(current.editor.focus).toHaveBeenCalled();
     expect(current.editor.getCursor()).toEqual({ line: 0, ch: 0 });
     await act(async () => current.props.onKeyDown!(current.editor, keyEvent("ArrowUp")));
     expect(editor.selection?.anchor.path).toEqual([0, 0]);
-    current.editor.getDoc().setCursor({ line: 0, ch: 1 });
-    await act(async () => current.props.onKeyDown!(current.editor, keyEvent("ArrowDown")));
-    expect(editor.selection?.anchor.path).toEqual([2, 0]);
+    expect(host.querySelector('textarea[aria-label="源码"]')).toBeNull();
     await act(async () => {
       expect(focusPreviousBlock(editor, [2], { reason: "arrow", direction: "backward" })).toBe(
         true
       );
     });
-    expect(current.editor.getCursor()).toEqual({ line: 0, ch: 1 });
+    const last = observed.editors.at(-1)!;
+    expect(last.editor.getCursor()).toEqual({ line: 0, ch: 1 });
+    await act(async () => last.props.onKeyDown!(last.editor, keyEvent("ArrowDown")));
+    expect(editor.selection?.anchor.path).toEqual([2, 0]);
   });
-  it("空源码退格补回可编辑段落，全屏预览关闭保留已保存内容", async () => {
+  it("不再提供全屏，空源码退格补回可编辑段落", async () => {
     await mount("内容");
     await act(async () => {
       expect(
@@ -244,19 +245,45 @@ describe("源码预览迁包后的行为", () => {
           editor.children[1] as never,
           [1]
         )
-      ).toBe(true);
+      ).toBe(false);
     });
-    const overlay = document.querySelector("div.fixed.inset-0") as HTMLDivElement;
-    expect(overlay).toBeTruthy();
-    await changeSource("保存后的内容");
-    expect(observed.dismiss).toBeTypeOf("function");
-    await act(async () => observed.dismiss?.());
     expect(document.querySelector("div.fixed.inset-0")).toBeNull();
-    expect(editor.children[1]).toMatchObject({ source: "保存后的内容" });
+    await edit();
     const current = observed.editors[0];
     current.editor.setValue("");
     await act(async () => current.props.onKeyDown!(current.editor, keyEvent("Backspace")));
     expect(editor.children[1]).toMatchObject({ type: "paragraph" });
     expect(editor.selection?.anchor.path).toEqual([1, 0]);
+  });
+  it("输入后立即完成会提交草稿并释放编辑器，重新打开不丢字", async () => {
+    await mount("初始");
+    await edit();
+    const current = observed.editors.at(-1)!;
+    await act(async () => {
+      current.editor.setValue("未等防抖的内容");
+      current.props.onChange(current.editor, {}, "未等防抖的内容");
+      Array.from(host.querySelectorAll("button"))
+        .find(button => button.textContent?.includes("完成"))!
+        .click();
+    });
+    expect(editor.children[1]).toMatchObject({ source: "未等防抖的内容" });
+    expect(host.querySelector('textarea[aria-label="源码"]')).toBeNull();
+    await edit();
+    expect(observed.editors.at(-1)!.editor.getValue()).toBe("未等防抖的内容");
+  });
+  it("外部更新取消尚未提交的本地草稿，避免迟到回写覆盖", async () => {
+    await mount("初始");
+    await edit();
+    const current = observed.editors.at(-1)!;
+    await act(async () => {
+      current.editor.setValue("本地草稿");
+      current.props.onChange(current.editor, {}, "本地草稿");
+      Transforms.setNodes(editor, { source: "外部版本" } as never, { at: [1] });
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 550));
+    });
+    expect(editor.children[1]).toMatchObject({ source: "外部版本" });
+    expect(current.editor.getValue()).toBe("外部版本");
   });
 });
