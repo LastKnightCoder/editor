@@ -10,6 +10,20 @@ import {
 import { bindDatabaseCommands } from "@/services/command-context";
 import type { PluginEntityRecord } from "@/types/plugin-entities";
 import { encodeContentRef, mapConflict } from "./data";
+import type { DataEntity } from "@tau/plugins/host";
+import useSettingStore from "@/stores/useSettingStore";
+
+const BACKLINK_ENTITIES: Partial<Record<string, DataEntity>> = {
+  card: "card",
+  article: "article",
+  "project-item": "document",
+};
+
+/** 脉络查询按当前库执行：调用前后都要仍是创建宿主时的库 */
+function assertDatabase(databaseName: string) {
+  if (useSettingStore.getState().setting.database.active !== databaseName)
+    throw new Error("数据库已切换，请重新读取");
+}
 
 export function toEntity(record: PluginEntityRecord): PluginOwnEntity {
   return {
@@ -69,6 +83,24 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
     async query(context, query) {
       const page = await bound(context).queryPluginEntities(databaseName, context.pluginId, query);
       return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
+    },
+    async backlinks(context, id) {
+      const numeric = numericId(id);
+      if (!numeric) throw new Error("内容不存在");
+      const own = await bound(context).getPluginEntity(databaseName, context.pluginId, numeric);
+      if (!own) throw new Error("内容不存在");
+      assertDatabase(databaseName);
+      // 按需加载：脉络命令不进插件宿主的启动路径
+      const { getEntityContext } = await import("@/commands/entity-context");
+      const result = await getEntityContext({ kind: "plugin-entity", id: numeric });
+      context.signal.throwIfAborted();
+      assertDatabase(databaseName);
+      return (result?.backlinks ?? []).map(({ source, snippets }) => ({
+        entity: BACKLINK_ENTITIES[source.ref.kind] ?? null,
+        id: String(source.ref.id),
+        title: source.title,
+        snippets: snippets.map(({ before, label, after }) => ({ before, label, after })),
+      }));
     },
     async update(context, id, patch, expectedRevision) {
       const numeric = numericId(id);

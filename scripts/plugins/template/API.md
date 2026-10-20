@@ -739,15 +739,17 @@ function NotePanel({ note }: { note: PluginOwnEntity }) {
 }
 ```
 
-| 方法                                                  | 说明                                                                    |
-| ----------------------------------------------------- | ----------------------------------------------------------------------- |
-| `registerKind(definition)`                            | 声明内容类型：`kind`、显示名 `label`、在 Tau 中打开时进入的页面 `open`  |
-| `create({ kind, key, title?, meta? })`                | 新建一项，正文为空；同一类型下 `key` 已存在时抛出 `PluginConflictError` |
-| `get(id)` / `find(kind, key)`                         | 读取一项，不存在时为 `null`                                             |
-| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条、最多 200 条                             |
-| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`（最大 64 KB 的 JSON 对象）                            |
+| 方法                                                  | 说明                                                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `registerKind(definition)`                            | 声明内容类型：`kind`、显示名 `label`、在 Tau 中打开时进入的页面 `open`                   |
+| `create({ kind, key, title?, meta? })`                | 新建一项，正文为空；同一类型下 `key` 已存在时抛出 `PluginConflictError`                  |
+| `get(id)` / `find(kind, key)`                         | 读取一项，不存在时为 `null`                                                              |
+| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条、最多 200 条                                              |
+| `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容：`{ items: [{ ref, title, snippets }], omitted }` |
+| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`（最大 64 KB 的 JSON 对象）                                             |
 
 - 插件内容会出现在 Tau 的全局搜索与 AI 检索中（标题与正文），结果标出 `label` 类型名。用户点击时 Tau 按 `open` 打开插件页面，`params` 由实体字段算出；命中正文中间某处时页面参数另带 `at`，原样交给 `<ContentEditor at={params.at}>` 即可滚动到命中处。插件停用时，Tau 用自带的只读页显示这项内容。
+- `registerKind` 声明 `mentionable: true` 后，用户可以在正文里用 @ 引用这类内容（默认不可）；引用处点击即打开。`backlinks` 只返回插件已获准读取的类型（`cards:read` 等），不会询问权限，其余来源只计入 `omitted`；`ref` 可直接交给 `context.app.open`。
 - `key` 由插件决定，用来找回同一项内容，例如周记用周次。`meta` 保存少量结构化信息，正文放在正文里。
 - 只有先声明的类型才能新建；`registerKind` 在 `activate` 中调用，停用时自动撤销。
 - 卸载插件后，它创建的内容保留 7 天，期间重新安装即可找回，超过 7 天后删除。

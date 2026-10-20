@@ -72,6 +72,7 @@ import type {
 } from "./data";
 import type {
   PluginOwnEntity,
+  PluginOwnEntityBacklink,
   PluginOwnEntityInput,
   PluginOwnEntityKind,
   PluginOwnEntityMeta,
@@ -248,6 +249,13 @@ export interface EntitiesAdapter {
     patch: PluginOwnEntityPatch,
     expectedRevision: string
   ): Promise<PluginOwnEntity>;
+  /** 引用了本插件某项内容的来源；entity 为 null 表示不属于卡片 / 文章 / 项目文档，宿主只计数 */
+  backlinks(
+    context: PluginContext,
+    id: string
+  ): Promise<
+    Array<{ entity: DataEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
+  >;
   /** 宿主登记类型名与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
   registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
 }
@@ -1688,6 +1696,32 @@ export class PluginHost {
           return deliver<PluginPage<PluginOwnEntity>>(
             await entitiesAdapter().query(context, { ...value, limit })
           );
+        },
+        backlinks: async (id: string) => {
+          const sources = await entitiesAdapter().backlinks(context, readId(id));
+          this.assertActive(entry, activation);
+          // 只给已获准读取的类型，不弹窗；其余只计数
+          const states = new Map<DataEntity, boolean>();
+          for (const entity of new Set(sources.flatMap(source => source.entity ?? []))) {
+            const permission = ENTITY_PERMISSIONS[entity];
+            states.set(
+              entity,
+              declared.has(permission) &&
+                (await permissionsAdapter().query(context, permission)) === "granted"
+            );
+          }
+          const items: PluginOwnEntityBacklink[] = [];
+          for (const source of sources)
+            if (source.entity && states.get(source.entity))
+              items.push({
+                ref: { kind: source.entity, id: source.id },
+                title: source.title,
+                snippets: source.snippets,
+              });
+          return deliver<{ items: PluginOwnEntityBacklink[]; omitted: number }>({
+            items,
+            omitted: sources.length - items.length,
+          });
         },
         update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) => {
           const value = readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE });

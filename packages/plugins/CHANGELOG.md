@@ -10,7 +10,7 @@
 - 新增 `context.app.pick` 与 `context.app.open`：用 Tau 的搜索窗口让用户选择卡片、文章、项目文档、日记、白板、待办或日程，并打开它们的页面。用户亲手选择即可引用，不需要数据权限；只能在用户操作后调用。
 - 新增正文组件 `ContentEditor` 与 `ContentPreview`：在插件页面嵌入与卡片详情相同的编辑器（协作、已安装的编辑器扩展、文档待办都生效），或只读显示正文开头几块。按所属内容的读取 / 写入权限放行，未授权时由用户点击「允许访问」后再询问。
 - 新增 `context.app.run`：把卡片、文章、项目文档的正文交给 Tau 导出（Markdown、图片、PDF、EPUB）、全屏演示或发起协作共享，界面与卡片详情中的相同。只能在用户操作后调用，不需要数据权限。
-- 新增 `context.entities`：插件创建自己的内容（如周记），每项带一份正文，用 `ContentEditor` 编辑或 `context.content` 读写，不需要业务数据权限。卸载插件后内容保留 7 天，期间重新安装可找回。插件内容可被全局搜索与 AI 检索找到，点击结果按 `registerKind` 声明的 `open` 打开插件页面；`ContentEditor` 增加 `at`，打开到命中处。
+- 新增 `context.entities`：插件创建自己的内容（如周记），每项带一份正文，用 `ContentEditor` 编辑或 `context.content` 读写，不需要业务数据权限。卸载插件后内容保留 7 天，期间重新安装可找回。插件内容可被全局搜索与 AI 检索找到，点击结果按 `registerKind` 声明的 `open` 打开插件页面；`ContentEditor` 增加 `at`，打开到命中处。声明 `mentionable` 的类型可在正文中用 @ 引用；`context.entities.backlinks` 列出引用了它的卡片、文章与项目文档（只含已获准读取的类型）。
 - 权限约束的是 SDK 接口；插件仍与应用运行在同一环境，不提供安全隔离。
 
 ## 0.24.0

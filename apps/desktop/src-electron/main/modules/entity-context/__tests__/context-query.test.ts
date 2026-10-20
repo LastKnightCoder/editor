@@ -366,6 +366,32 @@ describe("getEntityContext", () => {
     ]);
   });
 
+  it("插件内容可被 @ 引用：被引用与自身展示", async () => {
+    const noteContent = insertContent([p(text("这周读完了《置身事内》"))]);
+    const noteId = Number(
+      mainDb
+        .prepare(
+          `INSERT INTO plugin_entities (plugin_id, kind, key, title, content_id, create_time, update_time)
+           VALUES ('tau.weekly-review', 'note', '2026-W43', '第 43 周周记', ?, 1, 1)`
+        )
+        .run(noteContent).lastInsertRowid
+    );
+    const articleContent = insertContent([
+      p(text("详见"), link("plugin-entity", noteId, "第 43 周周记", noteContent)),
+    ]);
+    const articleId = insertArticle("读书计划", articleContent);
+    await reconcileRefs(mainDb, indexDb);
+
+    const ctx = getEntityContext(mainDb, indexDb, { kind: "plugin-entity", id: noteId })!;
+    expect(ctx.self).toMatchObject({
+      ref: { kind: "plugin-entity", id: noteId },
+      title: "第 43 周周记",
+    });
+    expect(ctx.backlinks.map(b => [b.source.ref, b.snippets])).toEqual([
+      [{ kind: "article", id: articleId }, [{ before: "详见", label: "第 43 周周记", after: "" }]],
+    ]);
+  });
+
   it("实体不存在返回 null", () => {
     expect(getEntityContext(mainDb, indexDb, { kind: "card", id: 404 })).toBeNull();
   });
