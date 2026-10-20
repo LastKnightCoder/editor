@@ -24,6 +24,7 @@ import { registerPluginSkill } from "./skill-registry";
 import {
   PluginHost,
   normalizePageParams,
+  type AppAdapter,
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
@@ -134,6 +135,7 @@ export class DesktopPluginRuntime {
       permissions?: DesktopPermissionBroker;
       data?: DesktopDataAdapter;
       events?: EventsAdapter;
+      app?: AppAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -159,6 +161,7 @@ export class DesktopPluginRuntime {
       permissions: options.permissions,
       data: options.data,
       events: options.events,
+      app: options.app,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,

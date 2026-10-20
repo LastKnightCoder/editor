@@ -8,6 +8,7 @@ import {
 import {
   createMemoryStorage,
   PluginHost,
+  type AppAdapter,
   type DataAdapter,
   type EventsAdapter,
   type PermissionsAdapter,
@@ -89,6 +90,15 @@ function setup({
     },
   };
   const emit = (event: PluginDomainEvent) => subscribers.forEach(listener => listener(event));
+  const app: AppAdapter = {
+    async pick(_context, plugin, options) {
+      calls.push(["pick", plugin.id, options]);
+      return [{ ref: { kind: "card", id: "3" }, title: "卡" }];
+    },
+    async open(_context, ref) {
+      calls.push(["open", ref]);
+    },
+  };
   let context!: PluginContext;
   const host = new PluginHost({
     workspaceId: "work",
@@ -96,6 +106,7 @@ function setup({
     permissions,
     data,
     events,
+    app,
   });
   host.registerTrusted({
     ...definePlugin({
@@ -301,5 +312,21 @@ describe("插件业务数据与权限", () => {
         .context()
         .content.edit("7:100", { op: "append", markdown: "补充" }, { expectedRevision: "r1" })
     ).rejects.toMatchObject({ reason: "undeclared", permission: "cards:write" });
+  });
+
+  it("选择与打开不需要数据权限，校验类型与引用", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    expect(await context().app.pick({ kinds: ["card", "todo", "card"] })).toEqual([
+      { ref: { kind: "card", id: "3" }, title: "卡" },
+    ]);
+    await context().app.open({ kind: "diary", id: "8" });
+    expect(calls).toEqual([
+      ["pick", "weekly", { kinds: ["card", "todo"], multiple: false, title: "选择要关联的内容" }],
+      ["open", { kind: "diary", id: "8" }],
+    ]);
+    await expect(context().app.pick({ kinds: [] })).rejects.toThrow("内容类型");
+    await expect(context().app.pick({ kinds: ["project" as "card"] })).rejects.toThrow("内容类型");
+    await expect(context().app.open({ kind: "card", id: "" })).rejects.toThrow("ID 无效");
   });
 });

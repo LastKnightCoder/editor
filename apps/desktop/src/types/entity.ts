@@ -15,7 +15,10 @@ export type EntityKind =
   | "excerpt"
   | "pdf-annotation"
   | "web-clip"
-  | "chat-session";
+  | "chat-session"
+  // 独立待办与日历日程：只供插件「关联已有」选择，id 为主键，身份另需 createdAt
+  | "todo"
+  | "calendar-event";
 
 export interface EntityCandidate {
   kind: EntityKind;
@@ -33,6 +36,8 @@ export interface EntityCandidate {
   time: number;
   /** 碎碎念所属的日期容器，不作为正文实体身份 */
   diaryId?: number;
+  /** 待办与日程的创建时间：与 id 一起构成插件使用的稳定身份 */
+  createdAt?: number;
 }
 
 export interface EntitySearchParams {

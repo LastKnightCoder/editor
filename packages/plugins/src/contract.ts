@@ -20,6 +20,7 @@ import type { PluginChat } from "./chat";
 import type { PluginPermissions } from "./permissions";
 import type { PluginContent, PluginData } from "./data";
 import type { PluginEvents } from "./events";
+import type { PluginApp } from "./app";
 
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
@@ -72,6 +73,8 @@ export interface PluginContext {
   readonly content: PluginContent;
   /** 业务数据变更事件，如卡片更新 */
   readonly events: PluginEvents;
+  /** 选择与打开已有内容 */
+  readonly app: PluginApp;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

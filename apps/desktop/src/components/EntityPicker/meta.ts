@@ -1,4 +1,6 @@
 import {
+  CalendarDays,
+  CircleCheck,
   Feather,
   File,
   FileText,
@@ -25,6 +27,8 @@ export const ENTITY_KIND_META: Record<EntityKind, { label: string; icon: LucideI
   "pdf-annotation": { label: "PDF 标注", icon: ScrollText },
   "web-clip": { label: "剪藏", icon: Globe },
   "chat-session": { label: "对话", icon: MessageCircle },
+  todo: { label: "待办", icon: CircleCheck },
+  "calendar-event": { label: "日程", icon: CalendarDays },
 };
 
 export const entityKey = (c: { kind: EntityKind; id: number; sessionId?: string }) =>

@@ -11,6 +11,7 @@ import { migratePluginPreferences } from "./development-manager";
 import { createDesktopExcerpts } from "./excerpts";
 import { createDesktopData } from "./data";
 import { createDesktopEvents } from "./events";
+import { createDesktopApp } from "./app";
 import { DesktopPermissionBroker } from "./permissions";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -72,6 +73,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           ...createDesktopExcerpts(workspaceId),
           data: createDesktopData(workspaceId),
           events: createDesktopEvents(workspaceId),
+          app: createDesktopApp(workspaceId),
           ...(isElectron
             ? { permissions: new DesktopPermissionBroker(persistentWorkspaceId) }
             : {}),
