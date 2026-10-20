@@ -2,7 +2,7 @@
 
 本文介绍编写命令、页面、侧边栏、设置、数据存储、网络请求和摘录所需的接口。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。所述能力需要 Tau 0.59.0 或更高版本。
 
-本文对应 SDK 0.28.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
+本文对应 SDK 0.29.0；最低客户端版本只负责版本门槛，使用新领域接口时仍需包含对应实现的客户端构建。SDK 升级步骤见 [DEVELOPMENT.md](DEVELOPMENT.md#升级-sdk-与同步旧模板)。独立后台与双入口构建见 [BACKEND.md](BACKEND.md)。
 
 发送应用内或独立窗口通知见[通知](#通知)与 [NOTIFICATIONS.md](NOTIFICATIONS.md)，需要 SDK 0.28.0 和包含通知接口的客户端构建。
 
@@ -267,7 +267,7 @@ export default definePlugin({
 
 ### 提供当前页面上下文
 
-包含此能力的 SDK 与客户端构建提供 `PluginPageProps.pageContext.register(provider)`。旧客户端可能没有该接口，依赖此能力时检查 `pageContext?.register` 并提示升级；仅提高 SDK 版本不能替代客户端能力检查。
+SDK 0.29.0 与包含此能力的客户端构建提供 `PluginPageProps.pageContext.register(provider)`。旧客户端可能没有该接口，依赖此能力时检查 `pageContext?.register` 并提示升级；仅提高 SDK 版本不能替代客户端能力检查。
 
 在组件的 `useEffect` 中注册一个同步提供器，并在清理时注销：
 

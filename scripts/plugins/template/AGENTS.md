@@ -2,7 +2,8 @@
 
 - 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
 - 定义文档节点前阅读 EDITOR.md，使用静态 editorExtensions 并声明 manifest.editor；渲染代码须能在浏览器运行，不为移动端或网页另写渲染组件。
-- 本模板使用 SDK 0.28.0、Tau 0.59.0。SDK 版本不代表客户端已实现全部能力，领域接口还需对应客户端构建。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务；行内源码使用 useInlineSource，不改变 useSourceBlock 的职责。
+- 本模板使用 SDK 0.29.0、Tau 0.59.0。SDK 版本不代表客户端已实现全部能力，领域接口还需对应客户端构建。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务；行内源码使用 useInlineSource，不改变 useSourceBlock 的职责。
+- 页面上下文见 API.md（SDK 0.29.0）：页面组件在 effect 中通过 pageContext.register 提供任意 JSON，形状由作者决定，清理时 dispose；现有 get_current_context 只读取当前实例，操作另用 context.mcp.register。
 - 发送通知先阅读 NOTIFICATIONS.md（SDK 0.28.0）：使用 context.notifications.send，支持应用内、独立窗口与按来源窗口焦点自动分流；通知随插件生命周期清理，不直接调用 @tau/ui notify 或系统原生 Notification。
 - SDK 0.24.0 已移除 services.typst；Typst 编译由独立插件实现，不调用旧宿主接口。
 - 业务数据、权限、正文组件、插件实体与宿主动作见 API.md；SDK 0.25.0 的 context.storage 随笔记库同步，单个值不超过 1 MB。修改和删除业务数据时使用读取所得 revision，正确处理拒绝授权与冲突。
