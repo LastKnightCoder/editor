@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Transforms, type Descendant } from "slate";
+import { Transforms, type Descendant, type Editor as SlateEditor } from "slate";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
@@ -68,6 +68,15 @@ describe("外包扩展的真实编辑器接线", () => {
     codeChanges.length = 0;
   });
 
+  const editSource = async (editor: SlateEditor) => {
+    await act(async () => {
+      editor.commands?.execute("tau.preview.edit", undefined, editor.children[0] as never, [0]);
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 350));
+    });
+  };
+
   const mount = async (
     value: Descendant[],
     compiler = vi.fn(async () => ""),
@@ -118,6 +127,8 @@ describe("外包扩展的真实编辑器接线", () => {
       { type: "custom-block", content: initial, children: [{ type: "formatted", text: "" }] },
     ]);
     expect(host.textContent).toContain("初始模板");
+    expect(host.querySelector("textarea")).toBeNull();
+    await editSource(editor);
     expect(host.querySelector("textarea")?.readOnly).toBe(false);
     expect(compiler).toHaveBeenCalledWith({ source: initial, language: "tsx" });
     const next = "const Component = () => <div>编辑后的模板</div>;";
@@ -217,6 +228,7 @@ describe("外包扩展的真实编辑器接线", () => {
       } as unknown as Descendant,
     ]);
     expect(host.textContent).not.toContain("渲染失败");
+    await editSource(editor);
     expect(host.querySelector("textarea")).toBeTruthy();
     expect(host.querySelector("textarea")?.readOnly).toBe(false);
     expect(kit.elementTypes).toContain(type);
@@ -289,6 +301,7 @@ describe("外包扩展的真实编辑器接线", () => {
     );
     expect(host.textContent).toContain("初始 HTML");
     expect(host.querySelector("style")?.textContent).toContain("padding");
+    await editSource(editor);
     const next = '<div class="p-4">更新 HTML</div>';
     await act(async () => {
       codeChanges.at(-1)!(next);
@@ -339,6 +352,7 @@ describe("外包扩展的真实编辑器接线", () => {
       { type: "block-math", tex: "x^2", children: [{ type: "formatted", text: "" }] },
     ]);
     expect(host.querySelector(".katex")).toBeTruthy();
+    await editSource(editor);
     await act(async () => {
       codeChanges.at(-1)!("y^2");
       await new Promise(resolve => setTimeout(resolve, 650));

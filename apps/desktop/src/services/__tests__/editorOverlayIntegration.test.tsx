@@ -137,7 +137,7 @@ describe("真实编辑器浮层与页面仲裁", () => {
     if (!input) throw new Error("公式输入框未打开");
     return input;
   };
-  const openFullscreen = async () => {
+  const assertNoFullscreen = async () => {
     const editor = editorRef.current?.getEditor();
     if (!editor) throw new Error("编辑器未挂载");
     await act(async () => {
@@ -148,9 +148,9 @@ describe("真实编辑器浮层与页面仲裁", () => {
           editor.children[1] as never,
           [1]
         )
-      ).toBe(true);
+      ).toBe(false);
     });
-    expect(document.querySelector(".fixed.inset-0")).toBeTruthy();
+    expect(document.querySelector(".fixed.inset-0")).toBeNull();
   };
   afterEach(async () => {
     await act(async () => root?.unmount());
@@ -184,15 +184,11 @@ describe("真实编辑器浮层与页面仲裁", () => {
     expect(host.querySelector("[data-host-open]")?.textContent).toBe("false");
   });
 
-  it("源码全屏先于宿主退场，卸载编辑器后不残留登记", async () => {
+  it("源码块没有全屏入口，也不占用宿主浮层返回", async () => {
     await render();
-    await openFullscreen();
+    await assertNoFullscreen();
     await escape();
     expect(document.querySelector(".fixed.inset-0")).toBeNull();
-    expect(host.querySelector("[data-host-open]")?.textContent).toBe("true");
-    await openFullscreen();
-    await render(false);
-    await escape();
     expect(host.querySelector("[data-host-open]")?.textContent).toBe("false");
   });
 

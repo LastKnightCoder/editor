@@ -12,7 +12,6 @@ export interface SourceBlockEditorProps {
   element: Element;
   center?: boolean;
   extend?: boolean;
-  fluid?: boolean;
   children?: ReactNode;
 }
 export interface RuntimeStyleCompiler {

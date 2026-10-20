@@ -1,19 +1,17 @@
-import React, { PropsWithChildren, useRef, useState, memo, useEffect } from "react";
-import { UnControlled as CodeEditor } from "react-codemirror2";
-import { Editor, EditorChange, EditorConfiguration } from "codemirror";
+import React, { PropsWithChildren, useRef, useState, memo, useEffect, lazy, Suspense } from "react";
+import type { Editor, EditorChange } from "codemirror";
 import { cn } from "@tau/ui";
 import { useClickAway, useDebounceFn, useMemoizedFn } from "ahooks";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { ErrorBoundary } from "@tau/shared";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
-import { Check, Copy, Maximize2, Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
+import { Check, Copy, Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
 import { If } from "@tau/shared";
-import { AddParagraph, type AddParagraphRef, OverlayBackDismiss } from "@tau/editor/api";
+import { AddParagraph, type AddParagraphRef } from "@tau/editor/api";
 import { previewActionsMap } from "./menu";
 import { PreviewErrorContext, type PreviewError } from "./previewError";
 import { ErrorBar, KindLabel } from "./parts";
-import FullscreenWorkbench from "./FullscreenWorkbench";
 import { FloatingToolbar, ToolbarDivider, ToolbarIconButton } from "@tau/editor/api";
 
 import type { CustomElement } from "@tau/editor/api";
@@ -25,11 +23,12 @@ import {
   focusPreviousBlock,
   focusNextBlock,
 } from "@tau/editor/api";
-import "./modes";
+
+const CodeEditor = lazy(() => import("./SourceCodeEditor"));
 
 interface IPreviewWithEditorProps {
   mode: string;
-  /** 块类型名，显示在编辑标题行、空块占位与全屏顶栏 */
+  /** 块类型名，显示在编辑标题行与空块占位 */
   title: string;
   icon: LucideIcon;
   initValue: string;
@@ -37,46 +36,17 @@ interface IPreviewWithEditorProps {
   element: CustomElement;
   center?: boolean;
   extend?: boolean;
-  /** 内容随容器宽度流式布局（如自定义块）：全屏画布沿用文档内宽度，避免按内容自身宽度收缩后挤成一列 */
-  fluid?: boolean;
 }
 
-const codeMirrorOptions = (mode: string, readOnly: boolean, lineNumbers: boolean) =>
-  ({
-    mode,
-    theme: "tau",
-    lineNumbers,
-    firstLineNumber: 1,
-    scrollbarStyle: "native",
-    viewportMargin: 10,
-    lineWrapping: false,
-    smartIndent: true,
-    extraKeys: {
-      "Shift-Tab": "indentLess",
-    },
-    readOnly,
-    indentUnit: 2,
-    tabSize: 2,
-    cursorHeight: 1,
-    autoCloseBrackets: true,
-    tabindex: -1,
-  }) as EditorConfiguration;
-
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = memo(props => {
-  const { mode, title, icon, initValue, onChange, children, element, center, extend, fluid } =
-    props;
+  const { mode, title, icon, initValue, onChange, children, element, center, extend } = props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fullscreenWidth, setFullscreenWidth] = useState<number>();
-  const [showFullscreenSource, setShowFullscreenSource] = useState(true);
   const [copied, setCopied] = useState(false);
   const [inlineError, setInlineError] = useState<PreviewError | null>(null);
-  const [fullscreenError, setFullscreenError] = useState<PreviewError | null>(null);
   const editorRef = useRef<Editor | null>(null);
-  const fullscreenEditorRef = useRef<Editor | null>(null);
   const pendingLocalValueRef = useRef<string | null>(null);
-  const editingBeforeFullscreenRef = useRef(false);
+  const pendingFocusRef = useRef<"start" | "end" | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const addParagraphRef = useRef<AddParagraphRef>(null);
   const slateEditor = useSlateStatic();
@@ -84,6 +54,14 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const isLast = useIsLastElement(element);
   // 编辑中 value 不随输入同步（见 pendingLocalValueRef），空态以已落库的源码为准
   const isEmpty = !initValue?.trim();
+
+  const {
+    run: emitChange,
+    flush: flushChange,
+    cancel: cancelChange,
+  } = useDebounceFn((_editor: Editor, _change: EditorChange, code: string) => onChange(code), {
+    wait: 500,
+  });
 
   const focusSource = useMemoizedFn(() => {
     requestAnimationFrame(() => {
@@ -99,12 +77,14 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   });
 
   const finishEditing = useMemoizedFn(() => {
+    flushChange();
+    pendingFocusRef.current = null;
+    setValue(editorRef.current?.getValue() ?? pendingLocalValueRef.current ?? value);
     setEditing(false);
-    setValue(editorRef.current?.getValue() || "");
   });
 
   useClickAway(() => {
-    if (editing && !isFullscreen) finishEditing();
+    if (editing) finishEditing();
   }, ref);
 
   useEffect(() => {
@@ -120,14 +100,37 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       return;
     }
     pendingLocalValueRef.current = null;
+    cancelChange();
     setValue(nextValue);
     if (editorRef.current && editorRef.current.getValue() !== nextValue) {
       editorRef.current.setValue(nextValue);
     }
-    if (fullscreenEditorRef.current && fullscreenEditorRef.current.getValue() !== nextValue) {
-      fullscreenEditorRef.current.setValue(nextValue);
+  }, [initValue, cancelChange]);
+
+  const focusPreviewEditor = useMemoizedFn((position: "start" | "end") => {
+    if (readOnly) return false;
+    pendingFocusRef.current = position;
+    try {
+      ReactEditor.toDOMNode(slateEditor, element).scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    } catch {
+      // 节点卸载时不再滚动。
     }
-  }, [initValue]);
+    setEditing(true);
+    const editorInstance = editorRef.current;
+    if (!editorInstance) return true;
+    const doc = editorInstance.getDoc();
+    const targetLine = position === "end" ? doc.lastLine() : doc.firstLine();
+    editorInstance.focus();
+    doc.setCursor({
+      line: targetLine,
+      ch: position === "end" ? doc.getLine(targetLine)?.length || 0 : 0,
+    });
+    pendingFocusRef.current = null;
+    return true;
+  });
 
   useEffect(() => {
     const handleFocus = (e: any) => {
@@ -147,25 +150,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       if (!matched) {
         return;
       }
-      setEditing(true);
-      const focusEditor = () => {
-        const editorInstance = editorRef.current;
-        if (!editorInstance) {
-          return;
-        }
-        const doc = editorInstance.getDoc();
-        const firstLine = doc.firstLine();
-        editorInstance.focus();
-        doc.setCursor({
-          line: firstLine,
-          ch: 0,
-        });
-      };
-      if (typeof window !== "undefined" && window.requestAnimationFrame) {
-        window.requestAnimationFrame(focusEditor);
-        return;
-      }
-      setTimeout(focusEditor, 0);
+      focusPreviewEditor("start");
     };
 
     document.addEventListener("preview-editor-focus", handleFocus);
@@ -173,9 +158,10 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     return () => {
       document.removeEventListener("preview-editor-focus", handleFocus);
     };
-  }, [element, readOnly, slateEditor]);
+  }, [element, readOnly, slateEditor, focusPreviewEditor]);
 
   const deleteElement = useMemoizedFn(() => {
+    cancelChange();
     const path = ReactEditor.findPath(slateEditor, element);
     const paragraphStart = {
       path: [...path, 0],
@@ -250,7 +236,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           ? focusPreviousBlock(slateEditor, path, meta)
           : focusNextBlock(slateEditor, path, meta);
       if (focused) {
-        setEditing(false);
+        finishEditing();
         event.preventDefault();
       }
       return focused;
@@ -289,7 +275,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         } catch (e) {
           addParagraphRef.current?.addParagraph();
         } finally {
-          setEditing(false);
+          finishEditing();
           event.preventDefault();
         }
       }
@@ -297,37 +283,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   });
 
   const onAddParagraph = useMemoizedFn(() => {
-    setEditing(false);
-  });
-
-  const scrollIntoView = () => {
-    try {
-      const dom = ReactEditor.toDOMNode(slateEditor, element);
-      dom.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  const focusPreviewEditor = useMemoizedFn((position: "start" | "end") => {
-    const editorInstance = editorRef.current;
-    if (!editorInstance) {
-      return false;
-    }
-    scrollIntoView();
-    const doc = editorInstance.getDoc();
-    const targetLine = position === "end" ? doc.lastLine() : doc.firstLine();
-    const targetLength = doc.getLine(targetLine)?.length || 0;
-    setEditing(true);
-    editorInstance.focus();
-    doc.setCursor({
-      line: targetLine,
-      ch: position === "end" ? targetLength : 0,
-    });
-    return true;
+    finishEditing();
   });
 
   useEffect(() => {
@@ -341,14 +297,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     };
   }, [element, focusPreviewEditor]);
 
-  const { run: emitChange } = useDebounceFn(
-    (_editor: Editor, _change: EditorChange, code: string) => {
-      onChange(code);
-    },
-    {
-      wait: 500,
-    }
-  );
   const handleInputChange = useMemoizedFn((editor: Editor, change: EditorChange, code: string) => {
     pendingLocalValueRef.current = code;
     emitChange(editor, change, code);
@@ -358,44 +306,15 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     void navigator.clipboard.writeText(initValue || "").then(() => setCopied(true));
   });
 
-  const openFullscreen = useMemoizedFn(() => {
-    const currentValue = editorRef.current?.getValue() || value || "";
-    editingBeforeFullscreenRef.current = editing;
-    setValue(currentValue);
-    fullscreenEditorRef.current?.setValue(currentValue);
-    setEditing(false);
-    setShowFullscreenSource(!readOnly);
-    setFullscreenWidth(fluid ? ref.current?.clientWidth : undefined);
-    setIsFullscreen(true);
-  });
-
-  const closeFullscreen = useMemoizedFn(() => {
-    const nextValue = fullscreenEditorRef.current?.getValue() ?? value ?? "";
-    setValue(nextValue);
-    if (editorRef.current && editorRef.current.getValue() !== nextValue) {
-      editorRef.current.setValue(nextValue);
-    }
-    setIsFullscreen(false);
-    if (editingBeforeFullscreenRef.current) startEditing();
-  });
-
-  // 「编辑 / 全屏」菜单命令（tau.preview.*）从这里取动作
+  // 预览菜单复用同一个编辑入口。
   useEffect(() => {
     previewActionsMap.set(element, {
-      edit: () => setEditing(true),
-      fullscreen: () => openFullscreen(),
+      edit: startEditing,
     });
     return () => {
       previewActionsMap.delete(element);
     };
-  }, [element, openFullscreen]);
-
-  // 源码栏从隐藏恢复时 CodeMirror 需要重新测量
-  useEffect(() => {
-    if (isFullscreen && showFullscreenSource) {
-      requestAnimationFrame(() => fullscreenEditorRef.current?.refresh());
-    }
-  }, [isFullscreen, showFullscreenSource]);
+  }, [element, startEditing]);
 
   const preview = (
     <PreviewErrorContext.Provider value={setInlineError}>
@@ -425,7 +344,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       ) : (
         <ToolbarIconButton icon={Pencil} title="编辑" onClick={startEditing} />
       )}
-      <ToolbarIconButton icon={Maximize2} title="全屏" onClick={openFullscreen} />
       <If condition={!readOnly}>
         <ToolbarDivider />
         <ToolbarIconButton icon={Trash2} title="删除" tone="danger" onClick={deleteElement} />
@@ -435,7 +353,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
 
   return (
     <div className="relative">
-      <OverlayBackDismiss open={isFullscreen} onDismiss={closeFullscreen} />
       <div
         contentEditable={false}
         ref={ref}
@@ -450,7 +367,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
             <span className="mr-auto">
               <KindLabel icon={icon} title={title} />
             </span>
-            <ToolbarIconButton icon={Maximize2} title="全屏" onClick={openFullscreen} />
             <button
               type="button"
               className="inline-flex h-[1.75em] items-center gap-[0.3em] rounded-[0.375em] px-[0.6em] text-[0.8em] font-medium text-[var(--ed-accent-text)] transition-colors duration-150 hover:bg-[var(--ed-accent-soft)]"
@@ -461,29 +377,31 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
             </button>
           </div>
         </If>
-        <div
-          style={{
-            height: editing ? "auto" : 0,
-            maxHeight: editing ? "50vh" : 0,
-            overflowY: editing ? "auto" : "hidden",
-          }}
-        >
-          <CodeEditor
-            value={value || ""}
-            autoCursor
-            autoScroll
-            options={codeMirrorOptions(mode, readOnly, false)}
-            className="ed-preview-codemirror h-auto"
-            onChange={handleInputChange}
-            editorDidMount={editor => {
-              editorRef.current = editor;
-            }}
-            editorWillUnmount={() => {
-              editorRef.current = null;
-            }}
-            onKeyDown={onCodeEditorKeyDown}
-          />
-        </div>
+        {editing && (
+          <Suspense fallback={<div className="p-4">正在加载编辑器…</div>}>
+            <div className="max-h-[50vh] overflow-y-auto">
+              <CodeEditor
+                value={value || ""}
+                autoCursor
+                autoScroll
+                mode={mode}
+                readOnly={readOnly}
+                className="ed-preview-codemirror h-auto"
+                onChange={handleInputChange}
+                editorDidMount={editor => {
+                  editorRef.current = editor;
+                  const position = pendingFocusRef.current;
+                  if (position) focusPreviewEditor(position);
+                  else editor.focus();
+                }}
+                editorWillUnmount={() => {
+                  editorRef.current = null;
+                }}
+                onKeyDown={onCodeEditorKeyDown}
+              />
+            </div>
+          </Suspense>
+        )}
         {inlineError ? (
           <ErrorBar message={inlineError.message} stale={inlineError.stale && !isEmpty} />
         ) : (
@@ -505,43 +423,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       {!(readOnly && isLast) && (
         <AddParagraph ref={addParagraphRef} element={element} onAddParagraph={onAddParagraph} />
       )}
-      <If condition={isFullscreen}>
-        <FullscreenWorkbench
-          title={title}
-          icon={icon}
-          readOnly={readOnly}
-          showSource={showFullscreenSource}
-          onToggleSource={() => setShowFullscreenSource(show => !show)}
-          error={fullscreenError}
-          contentWidth={fullscreenWidth}
-          onClose={closeFullscreen}
-          source={
-            <CodeEditor
-              key="fullscreen-editor"
-              value={value || ""}
-              autoCursor
-              autoScroll
-              options={codeMirrorOptions(mode, readOnly, true)}
-              className="ed-preview-codemirror h-full pt-[0.75em] [--ed-cm-line-pad:0.75em]"
-              onChange={handleInputChange}
-              editorDidMount={editor => {
-                fullscreenEditorRef.current = editor;
-                setTimeout(() => {
-                  editor.refresh();
-                  if (!readOnly) editor.focus();
-                }, 50);
-              }}
-              editorWillUnmount={() => {
-                fullscreenEditorRef.current = null;
-              }}
-            />
-          }
-        >
-          <PreviewErrorContext.Provider value={setFullscreenError}>
-            <ErrorBoundary>{children}</ErrorBoundary>
-          </PreviewErrorContext.Provider>
-        </FullscreenWorkbench>
-      </If>
     </div>
   );
 });
