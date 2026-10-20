@@ -113,3 +113,15 @@
 .weekly-review__todo input {
   accent-color: var(--tau-accent);
 }
+.weekly-review__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.weekly-review__link:hover {
+  color: var(--tau-accent);
+}
