@@ -1,4 +1,4 @@
-import { act, StrictMode, useEffect } from "react";
+import { act, StrictMode, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -29,6 +29,7 @@ vi.mock("@/commands/plugin-local", async importOriginal => ({
   fetchPluginCatalog: vi.fn(async () => ({ items: [] })),
 }));
 import useSettingStore from "@/stores/useSettingStore";
+import { readPluginPageContext } from "@/services/plugin-page-context";
 
 definePage({ key: "home", label: "今日", params: {}, component: () => <div>宿主首页</div> });
 const pluginId = "example.desktop-pages";
@@ -125,6 +126,66 @@ afterEach(async () => {
 });
 
 describe("桌面插件完整路径", () => {
+  it("页面上下文在 StrictMode 下读取最新实例状态，切页恢复并随停用和切库清理", async () => {
+    let page!: PluginPageHandle;
+    await act(async () => {
+      currentRuntime().host.registerTrusted(
+        definePlugin({
+          id: "context-sample",
+          name: "上下文样本",
+          version: "1",
+          create: () => ({
+            activate(context) {
+              page = context.pages.register({
+                id: "detail",
+                title: "状态页",
+                match: "params",
+                getId: params => String(params.id),
+                component: function StatePage({ pageContext, params }) {
+                  const [count, setCount] = useState(0);
+                  useEffect(() => {
+                    const registration = pageContext.register(() => [params.id, count]);
+                    return () => {
+                      registration.dispose();
+                    };
+                  }, [pageContext, params.id, count]);
+                  return <button onClick={() => setCount(value => value + 1)}>增加</button>;
+                },
+              });
+            },
+          }),
+        })
+      );
+    });
+    await act(async () => currentRuntime().host.enable("context-sample"));
+    await act(async () => page.open({ id: "A" }));
+    const first = state.back.at(-1);
+    if (!first) throw new Error("缺少首个页面实例");
+    expect(readPluginPageContext(first.params)).toEqual(["A", 0]);
+    await click("增加");
+    expect(readPluginPageContext(first.params)).toEqual(["A", 1]);
+    await act(async () => page.open({ id: "B" }));
+    const second = state.back.at(-1);
+    if (!second) throw new Error("缺少第二个页面实例");
+    expect(readPluginPageContext(second.params)).toEqual(["B", 0]);
+    expect(readPluginPageContext(first.params)).toBeNull();
+    await act(async () => navigator.back());
+    expect(readPluginPageContext(first.params)).toEqual(["A", 1]);
+    await act(async () => page.open({ id: "A", mode: "changed" }));
+    expect(readPluginPageContext(first.params)).toBeNull();
+    const updated = state.back.at(-1);
+    if (!updated) throw new Error("缺少更新后的页面实例");
+    expect(readPluginPageContext(updated.params)).toEqual(["A", 1]);
+    await act(async () => currentRuntime().host.disable("context-sample"));
+    expect(readPluginPageContext(updated.params)).toBeNull();
+    await act(async () => currentRuntime().host.enable("context-sample"));
+    await settle();
+    expect(readPluginPageContext(updated.params)).toEqual(["A", 0]);
+    await act(async () => setWorkspace("B"));
+    await settle();
+    expect(readPluginPageContext(updated.params)).toBeNull();
+  });
+
   it("开发台将启停入口交给插件页", async () => {
     expect(
       [...activePage().querySelectorAll("button")].some(button => button.textContent === "启用")

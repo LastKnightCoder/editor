@@ -25,6 +25,8 @@
 
 `context.pages.register({ id, title, component, match?, getId? })` 返回可打开和注销的句柄，自动随插件回收。`open(params?)` 的参数只支持字符串、有限数字与布尔值，缺省为空；完成表示导航请求已交给宿主，不代表组件所有副作用已执行。组件从 PluginPageProps 取得自己的 context 与只读 params。单实例及参数实例由页面宿主处理，宿主不支持页面时注册明确报错。
 
+页面组件还可通过 `PluginPageProps.pageContext.register(() => value)` 提供当前页面上下文。value 的 JSON 形状完全由作者决定；在组件 effect 中注册并注销，现有 `get_current_context` 将当前实例返回值原样放入 `page.pluginContext`。页面操作继续独立使用 `context.mcp.register`。需要包含此能力的 SDK 和客户端构建。
+
 核心仅使用 React 的类型，根入口没有 React/DOM 运行时依赖。桌面适配及双入口示例见 [C03 文档](../../docs/plugin-system/12-C03桌面页面与UI接入.md)。内部 host 入口还提供 createBrowserStorage，要求宿主显式注入 Storage，不在模块加载时访问 window。
 
 宿主可通过 subscribe/getRevision 响应状态与命令变化，listPlugins/listCommands 供开发台和命令面板使用；这些不是作者的公共业务 API。
