@@ -1,7 +1,7 @@
 import type { ApiError } from "../contracts";
 import { authRoute, githubToken, requireSession } from "./auth";
 import { fail, HttpError, json, type Env, type BackgroundTasks } from "./platform";
-import { uploadRoute } from "./uploads";
+import { purgeStaleUploads, uploadRoute } from "./uploads";
 import { submissionRoute } from "./submissions";
 import { feedbackRoute } from "./feedback";
 import { reviewRoute } from "./reviews";
@@ -90,5 +90,6 @@ export async function handle(
 }
 export default {
   fetch: handle,
-  scheduled: (_event: unknown, env: Env) => cleanDownloadReceipts(env),
+  scheduled: (_event: unknown, env: Env) =>
+    Promise.all([cleanDownloadReceipts(env), purgeStaleUploads(env)]),
 };

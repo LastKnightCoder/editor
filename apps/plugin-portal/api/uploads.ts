@@ -46,6 +46,56 @@ export async function readyUpload(env: Env, owner: string, id: string): Promise<
   if (row.status !== "ready") fail(409, "UPLOAD_NOT_READY", "请先完成对应文件上传和校验");
   return row;
 }
+const PURGED_ERROR = JSON.stringify({
+  code: "UPLOAD_EXPIRED",
+  message: "插件包已回收，请重新上传",
+});
+/**
+ * 回收一批上传的待审对象。先置 invalid 再删对象、最后清引用：任一步失败都停在
+ * 「invalid 且仍有 object_key」的中间态，既不能再挂到新提交，也会被下一次每日清理补扫。
+ */
+export async function purgeUploads(env: Env, uploads: { id: string; object_key: string }[]) {
+  if (!uploads.length) return;
+  const invalidate = env.DB.prepare(
+    "UPDATE uploads SET status='invalid',error_json=? WHERE id=? AND status='ready'"
+  );
+  await env.DB.batch(uploads.map(upload => invalidate.bind(PURGED_ERROR, upload.id)));
+  await env.PENDING.delete(uploads.map(upload => upload.object_key));
+  const detach = env.DB.prepare(
+    "UPDATE uploads SET object_key=NULL WHERE id=? AND status='invalid'"
+  );
+  await env.DB.batch(uploads.map(upload => detach.bind(upload.id)));
+}
+const UPLOAD_RETENTION_MS = 7 * 86400000;
+export const PURGE_PAGE = 100;
+const PURGE_PAGES_PER_RUN = 10;
+/**
+ * 每日清理待审桶：补扫上次回收留下的中间态；已发布的包正式桶已有副本；其余只保留仍被草稿、
+ * 待审、整改中或待发布提交引用的，已拒绝、换包遗留、上传后未提交的包超过保留期即回收。
+ * 按页批量处理，一页失败即停，留给次日。
+ */
+export async function purgeStaleUploads(env: Env) {
+  const before = new Date(Date.now() - UPLOAD_RETENTION_MS).toISOString();
+  for (let page = 0; page < PURGE_PAGES_PER_RUN; page++) {
+    const rows = await env.DB.prepare(
+      `SELECT id,object_key FROM uploads u WHERE object_key IS NOT NULL AND (status='invalid'
+        OR (status='ready' AND created_at<? AND (
+          EXISTS(SELECT 1 FROM releases r WHERE r.package_upload_id=u.id AND r.state='published')
+          OR NOT EXISTS(SELECT 1 FROM submissions s WHERE s.package_upload_id=u.id AND s.status IN ('draft','pending_review','changes_requested','approved')))))
+        LIMIT ?`
+    )
+      .bind(before, PURGE_PAGE)
+      .all<{ id: string; object_key: string }>();
+    if (!rows.results.length) break;
+    try {
+      await purgeUploads(env, rows.results);
+    } catch (error) {
+      console.error("plugin_pending_purge_failed", error);
+      break;
+    }
+    if (rows.results.length < PURGE_PAGE) break;
+  }
+}
 export async function uploadRoute(
   request: Request,
   env: Env,

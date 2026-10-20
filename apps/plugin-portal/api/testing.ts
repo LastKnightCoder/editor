@@ -67,8 +67,8 @@ export function testEnvironment() {
       ) => {
         objects.set(key, { bytes, contentType: options.httpMetadata.contentType });
       },
-      delete: async (key: string) => {
-        objects.delete(key);
+      delete: async (keys: string | string[]) => {
+        for (const key of Array.isArray(keys) ? keys : [keys]) objects.delete(key);
       },
       get: async (key: string) => {
         const value = objects.get(key);

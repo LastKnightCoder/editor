@@ -11,6 +11,7 @@ import type {
 } from "../contracts";
 import { fail, json, sha256, VISIBLE_PLUGIN, type Env, type BackgroundTasks } from "./platform";
 import { countDownload, downloadWindow, pluginStatistics } from "./download-statistics";
+import { purgeUploads } from "./uploads";
 import { requiresSystemReview } from "../contracts/execution";
 
 export interface ReleaseRow {
@@ -53,6 +54,21 @@ export async function getRelease(env: Env, submissionId: string) {
     .bind(submissionId)
     .first<ReleaseRow>();
 }
+/** 提交的原始包：待审对象在发布后被回收，此时改读正式桶里摘要一致的副本。 */
+export async function submittedPackage(
+  env: Env,
+  upload: { id: string; object_key: string | null; sha256: string | null }
+) {
+  const pending = upload.object_key ? await env.PENDING.get(upload.object_key) : null;
+  if (pending || !upload.sha256) return pending;
+  const release = await env.DB.prepare(
+    "SELECT object_key FROM releases WHERE package_upload_id=? AND sha256=? AND state='published'"
+  )
+    .bind(upload.id, upload.sha256)
+    .first<{ object_key: string }>();
+  return release ? env.RELEASES.get(release.object_key) : null;
+}
+
 export async function publishRelease(env: Env, row: ReleaseRow): Promise<void> {
   if (row.revoked_at) fail(409, "SUBMISSION_LOCKED", "该版本已撤回，不能重新发布");
   if (
@@ -82,11 +98,16 @@ export async function publishRelease(env: Env, row: ReleaseRow): Promise<void> {
     await env.RELEASES.put(row.object_key, bytes, {
       httpMetadata: { contentType: "application/zip" },
     });
-    await env.DB.prepare(
+    const published = await env.DB.prepare(
       "UPDATE releases SET state='published',published_at=?,error=NULL,lease_until=NULL WHERE id=? AND attempt_id=? AND state='publishing' AND revoked_at IS NULL"
     )
       .bind(new Date().toISOString(), row.id, attempt)
       .run();
+    // 正式桶已有校验过的副本，待审对象即时回收；失败由每日清理兜底。
+    if (published.meta.changes)
+      await purgeUploads(env, [{ id: row.package_upload_id, object_key: upload.object_key }]).catch(
+        error => console.error("plugin_pending_purge_failed", error)
+      );
   } catch (error) {
     const known =
       error instanceof Error &&
