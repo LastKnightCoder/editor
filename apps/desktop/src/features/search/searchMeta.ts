@@ -24,6 +24,7 @@ import {
   PackageOpen,
   FolderInput,
   Puzzle,
+  Camera,
   type LucideIcon,
   Map as MapIcon,
 } from "lucide-react";
@@ -119,7 +120,9 @@ export interface PaletteCommand {
     | "open-markdown"
     | "export-markdown"
     | "import-batch"
-    | "export-perf-snapshot";
+    | "export-perf-snapshot"
+    | "send-feedback"
+    | "capture-feedback";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -153,24 +156,34 @@ export function paletteCommands(): PaletteCommand[] {
       }))
     ),
     ...NAV_FOOTER.map(item =>
-      item.opensOverlay === "settings"
+      item.opensWindow === "feedback"
         ? {
-            id: "action:open-settings",
-            label: item.label,
+            id: "action:send-feedback",
+            label: "发送反馈",
             section: "工具",
             icon: item.icon,
-            keywords: "settings preferences 设置 偏好 配置",
+            keywords: "feedback bug report issue suggest 反馈 问题 建议 报错 截图",
             kind: "action" as const,
-            action: "open-settings" as const,
+            action: "send-feedback" as const,
           }
-        : {
-            id: `page:${item.key}`,
-            label: item.label,
-            section: "工具",
-            icon: item.icon,
-            kind: "page" as const,
-            pageKey: item.key,
-          }
+        : item.opensOverlay === "settings"
+          ? {
+              id: "action:open-settings",
+              label: item.label,
+              section: "工具",
+              icon: item.icon,
+              keywords: "settings preferences 设置 偏好 配置",
+              kind: "action" as const,
+              action: "open-settings" as const,
+            }
+          : {
+              id: `page:${item.key}`,
+              label: item.label,
+              section: "工具",
+              icon: item.icon,
+              kind: "page" as const,
+              pageKey: item.key,
+            }
     ),
   ];
   cached = [
@@ -280,6 +293,15 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "perf performance lag jank snapshot diagnose 卡顿 性能 诊断 日志",
       kind: "action",
       action: "export-perf-snapshot",
+    },
+    {
+      id: "action:capture-feedback",
+      label: "截取当前窗口并反馈",
+      section: "工具",
+      icon: Camera,
+      keywords: "feedback screenshot capture bug report 反馈 截图 截屏 问题",
+      kind: "action",
+      action: "capture-feedback",
     },
   ];
   return cached;

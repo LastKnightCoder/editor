@@ -18,6 +18,7 @@ import { appNotify } from "@/features/notifications/notify";
 import { NAV_BADGE_SLOTS, NAV_CHILDREN_SLOTS, useNavChildrenContent } from "./navSlots";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
+import { openFeedbackWindow } from "@/commands/feedback";
 
 export function Sidebar({ resizing }: { resizing: boolean }) {
   const { navigator, state } = usePage();
@@ -207,10 +208,14 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
             key={item.key}
             item={item}
             collapsed={collapsed}
-            // 浮层入口（设置弹窗）不是页面栈页，无激活态
-            active={item.opensOverlay ? false : item.key === currentKey}
+            // 浮层 / 独立窗口入口（设置弹窗、反馈窗口）不是页面栈页，无激活态
+            active={item.opensOverlay || item.opensWindow ? false : item.key === currentKey}
             onClick={() =>
-              item.opensOverlay === "settings" ? openSettings() : navigator.push(item.key)
+              item.opensOverlay === "settings"
+                ? openSettings()
+                : item.opensWindow === "feedback"
+                  ? void openFeedbackWindow({ page: currentKey ?? null })
+                  : navigator.push(item.key)
             }
           />
         ))}

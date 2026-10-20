@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import log from "electron-log";
 import { createMainWindow, showOrCreateMainWindow } from "../windows";
 import { exportSnapshot } from "./perf-monitor";
+import { openFeedbackWindow } from "./app-feedback";
 import { setBackgroundTrayAvailable } from "../services/background-preferences";
 import { arePluginBackendsPaused, setPluginBackendsPaused, pluginBackends } from "./plugin-backend";
 
@@ -204,6 +205,10 @@ function updateTrayMenu() {
         log.info("从托盘菜单打开新窗口");
         createMainWindow();
       },
+    },
+    {
+      label: "发送反馈…",
+      click: () => openFeedbackWindow(),
     },
     {
       label: "导出性能快照",

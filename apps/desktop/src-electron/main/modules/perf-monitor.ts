@@ -243,17 +243,10 @@ export interface PerfSnapshotResult {
   path: string;
 }
 
-export async function exportSnapshot(): Promise<PerfSnapshotResult> {
+/** 当前内存里的诊断数据快照；导出文件与反馈附带性能日志共用 */
+export function buildSnapshot() {
   flushIpcRate();
-  const logDir = path.join(PathUtil.getAppDir(), "logs");
-  await fs.promises.mkdir(logDir, { recursive: true });
-
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-  const target = path.join(logDir, `perf-snapshot-${stamp}.json`);
-
-  const snapshot = {
+  return {
     meta: {
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,
@@ -277,8 +270,18 @@ export async function exportSnapshot(): Promise<PerfSnapshotResult> {
     },
     renderer: Object.fromEntries([...rendererWindows.entries()].map(([id, data]) => [id, data])),
   };
+}
 
-  await fs.promises.writeFile(target, JSON.stringify(snapshot, null, 2), "utf-8");
+export async function exportSnapshot(): Promise<PerfSnapshotResult> {
+  const logDir = path.join(PathUtil.getAppDir(), "logs");
+  await fs.promises.mkdir(logDir, { recursive: true });
+
+  const now = new Date();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const target = path.join(logDir, `perf-snapshot-${stamp}.json`);
+
+  await fs.promises.writeFile(target, JSON.stringify(buildSnapshot(), null, 2), "utf-8");
   shell.showItemInFolder(target);
   log.info(`[perf-monitor] 性能快照已导出: ${target}`);
   return { path: target };

@@ -4,6 +4,7 @@
  */
 
 import { useRouteError } from "react-router-dom";
+import { isElectron } from "@/electron";
 import { ErrorState } from ".";
 
 export function RouteErrorPage() {
@@ -13,7 +14,7 @@ export function RouteErrorPage() {
       size="page"
       error={error}
       title="应用遇到了意外错误"
-      description="当前窗口无法继续显示。你的数据已保存在本地，重新加载通常即可恢复；如果反复出现，请复制错误信息反馈给我们。"
+      description={`当前窗口无法继续显示。你的数据已保存在本地，重新加载通常即可恢复；如果反复出现，${isElectron ? "请点下方「发送错误报告」告诉我们" : "请复制错误信息反馈给我们"}。`}
       actions={[
         { label: "重新加载", onClick: () => window.location.reload() },
         {

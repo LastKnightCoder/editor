@@ -69,6 +69,7 @@ import { useThemeStore } from "@tau/themes/react";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
 import { exportPerfSnapshot } from "@/commands/perf";
+import { openFeedbackWindow } from "@/commands/feedback";
 import type { SearchResult } from "@/types";
 import { openMaterialTarget } from "@/services/open-material";
 import { captureQuestion } from "@/commands/question";
@@ -89,6 +90,8 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */
 
+// 面板退场动画时长之后再截图
+const CAPTURE_DELAY_MS = 260;
 const TYPE_WORDS = ["卡片", "文章", "项目", "日记", "命令"];
 const WORD_TO_SCOPE: Record<string, PaletteScope> = {
   卡片: "card",
@@ -254,6 +257,17 @@ export function SearchPalette() {
       const projectId =
         current?.key === "project-detail" ? Number(current.params?.id) || undefined : undefined;
       closeAnd(() => useTransferStore.getState().openMarkdownExport({ projectId }));
+    } else if (action === "send-feedback") {
+      closeAnd(() => void openFeedbackWindow({ page: currentPageKey ?? null }));
+    } else if (action === "capture-feedback") {
+      // 等面板退场动画结束再截图，截图里不带命令面板
+      closeAnd(() =>
+        setTimeout(() => {
+          openFeedbackWindow({ page: currentPageKey ?? null, capture: true }).catch(error =>
+            toast.error(error instanceof Error ? error.message : "截图失败")
+          );
+        }, CAPTURE_DELAY_MS)
+      );
     } else if (action === "export-perf-snapshot") {
       // 快照路径由主进程统一发系统通知（与托盘入口同一提示通道）
       closeAnd(() => {

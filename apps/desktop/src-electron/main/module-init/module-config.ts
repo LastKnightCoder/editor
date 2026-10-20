@@ -56,6 +56,7 @@ import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
 import telemetryModule from "../modules/telemetry";
 import perfMonitorModule from "../modules/perf-monitor";
+import appFeedbackModule from "../modules/app-feedback";
 
 /**
  * 所有模块配置
@@ -419,5 +420,11 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => perfMonitorModule.init(),
+  },
+  {
+    name: "app-feedback",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: () => appFeedbackModule.init(),
   },
 ];

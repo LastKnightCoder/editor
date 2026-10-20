@@ -1,15 +1,19 @@
 /**
  * 错误态 + 可恢复错误边界（三层兜底：路由 errorElement / 页面栈每页 / 局部区域如块预览）。
  *
- * - ErrorState：纯展示。说人话的标题 + 说明 + 恢复动作，技术细节默认折叠（可一键复制，
- *   便于反馈），不把堆栈直接甩给用户。size="page" 整窗居中；"panel" 嵌在区域内。
+ * - ErrorState：说人话的标题 + 说明 + 恢复动作，技术细节默认折叠（可一键复制，或一键发送
+ *   错误报告），不把堆栈直接甩给用户。size="page" 整窗居中；"panel" 嵌在区域内。
  * - RecoverableBoundary：捕获子树渲染错误，fallback 拿到 reset；resetKeys 任一变化自动复位
  *   （如预览切换到另一块、页面参数变化），无需用户手动点重试。
  */
 
-import { Component, useState, type ErrorInfo, type ReactNode } from "react";
-import { AlertTriangle, ChevronRight, Copy, Check } from "lucide-react";
-import { Button, cn } from "@tau/ui";
+import { Component, useRef, useState, type ErrorInfo, type ReactNode } from "react";
+import { AlertTriangle, ChevronRight, Copy, Check, Send } from "lucide-react";
+import { Button, Tooltip, cn } from "@tau/ui";
+import { useThemeStore } from "@tau/themes/react";
+import { isElectron } from "@/electron";
+import { submitFeedback } from "@/commands/feedback";
+import { APP_FEEDBACK_LIMITS } from "@/types/app-feedback";
 
 export interface ErrorAction {
   label: string;
@@ -47,6 +51,82 @@ export function describeError(error: unknown): { summary: string; detail: string
     }
   }
   return { summary: String(error ?? "未知错误"), detail: "" };
+}
+
+/** 错误报告正文：标题 + 摘要 + 堆栈，超长时截断堆栈尾部 */
+export function errorReportMessage(title: string, summary: string, detail: string) {
+  const head = `【错误报告】${title}\n${summary}`;
+  const room = APP_FEEDBACK_LIMITS.message - head.length - 2;
+  return detail && room > 0
+    ? `${head}\n\n${detail.slice(0, room)}`
+    : head.slice(0, APP_FEEDBACK_LIMITS.message);
+}
+
+type ReportState = { phase: "idle" | "sending" | "sent" } | { phase: "failed"; message: string };
+
+const LINK_CLASS =
+  "text-tau-sm text-ink-3 hover:text-ink-1 flex items-center gap-1 rounded-[6px] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none";
+
+/** 一键发送错误报告：附带错误详情、环境信息与本次运行日志；同一错误重试复用请求 ID，不重复提交 */
+function ReportButton({
+  title,
+  summary,
+  detail,
+}: {
+  title: string;
+  summary: string;
+  detail: string;
+}) {
+  const [state, setState] = useState<ReportState>({ phase: "idle" });
+  const requestId = useRef(crypto.randomUUID());
+  const send = async () => {
+    setState({ phase: "sending" });
+    try {
+      const { theme, mode } = useThemeStore.getState();
+      const result = await submitFeedback({
+        kind: "bug",
+        message: errorReportMessage(title, summary, detail),
+        contact: null,
+        clientRequestId: requestId.current,
+        includeContext: true,
+        theme: `${theme} · ${mode}`,
+        page: null,
+        images: [],
+        logs: { app: true, perf: false },
+      });
+      setState(result.ok ? { phase: "sent" } : { phase: "failed", message: result.message });
+    } catch (error) {
+      setState({ phase: "failed", message: error instanceof Error ? error.message : "发送失败" });
+    }
+  };
+  if (state.phase === "sent")
+    return (
+      <span className="text-tau-sm text-ok flex items-center gap-1">
+        <Check size={13} strokeWidth={2} />
+        已发送，谢谢
+      </span>
+    );
+  return (
+    <Tooltip
+      content={
+        state.phase === "failed" ? state.message : "附带错误详情、版本与系统信息、本次运行日志"
+      }
+    >
+      <button
+        type="button"
+        disabled={state.phase === "sending"}
+        onClick={() => void send()}
+        className={cn(LINK_CLASS, state.phase === "failed" && "text-danger hover:text-danger")}
+      >
+        <Send size={13} strokeWidth={1.75} />
+        {state.phase === "sending"
+          ? "发送中…"
+          : state.phase === "failed"
+            ? "发送失败，重试"
+            : "发送错误报告"}
+      </button>
+    </Tooltip>
+  );
 }
 
 export function ErrorState({
@@ -124,7 +204,7 @@ export function ErrorState({
 
         {hasError && (
           <div className="mt-6 w-full text-left">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setExpanded(v => !v)}
@@ -141,11 +221,9 @@ export function ErrorState({
                 />
                 技术详情
               </button>
-              <button
-                type="button"
-                onClick={copy}
-                className="text-tau-sm text-ink-3 hover:text-ink-1 flex items-center gap-1 rounded-[6px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
-              >
+              <span className="ml-auto" />
+              {isElectron && <ReportButton title={title} summary={summary} detail={detail} />}
+              <button type="button" onClick={copy} className={LINK_CLASS}>
                 {copied ? (
                   <Check size={13} strokeWidth={2} />
                 ) : (
