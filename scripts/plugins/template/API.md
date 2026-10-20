@@ -26,7 +26,7 @@ AI 功能声明、用户模型分配、流式对话、取消与统一用量审�
 
 聊天工具自定义渲染使用 `await context.chat.registerToolRenderer`，数据与生命周期见 [MCP.md](MCP.md#聊天工具自定义渲染)。类型契约自 SDK 0.15.0 提供，需要包含实现的客户端构建。
 
-阅读顺序：先了解[入口与生命周期](#入口与生命周期)，再按功能查阅[命令](#命令)、[存储](#私有存储)、[页面](#页面)、[设置](#设置)、[网络请求](#网络请求)、[摘录](#摘录)、[材料动作](#材料动作)和[资源清理](#资源清理)。完整可运行示例见 `src/index.tsx`。
+阅读顺序：先了解[入口与生命周期](#入口与生命周期)，再按功能查阅[命令](#命令)、[存储](#私有存储)、[页面](#页面)、[设置](#设置)、[网络请求](#网络请求)、[摘录](#摘录)、[材料动作](#材料动作)、[业务数据](#业务数据)和[资源清理](#资源清理)。完整可运行示例见 `src/index.tsx`。
 
 ## manifest
 
@@ -45,6 +45,7 @@ AI 功能声明、用户模型分配、流式对话、取消与统一用量审�
 | `main`          | `main.js`          | 构建入口，保留模板值                                                   |
 | `categories`    | `["page"]`         | 插件中心分类，可多选                                                   |
 | `keywords`      | `["计数", "打卡"]` | 搜索关键词，最多 5 个，每个不超过 20 字                                |
+| `permissions`   | `["cards:read"]`   | 可申请的业务数据权限，见[业务数据](#业务数据)；不声明的接口无法调用    |
 
 分类值为 `page`、`editor`、`whiteboard`、`sync`、`upload`、`voice`、`ai`、`video`、`blog-publish`、`blog-template`。仅提供命令或普通设置时可以省略；分类不授予权限。声明静态编辑器、白板扩展时分别设置 `editor: true`、`whiteboard: true`，详见对应文档。
 
@@ -487,6 +488,87 @@ function NoteActions({ context, target }: { context: PluginContext; target: Plug
 - `ref` 来自 `excerpts.items()` 返回的条目，把它原样传回即可，不要自己构造或解析其中的字段。
 - 每个动作有 `id`、`label` 和 `run()`。直接用 `label` 作为按钮文字，不要按 `id` 写死列表：Tau 以后可能增加新的动作。
 - 动作执行后由 Tau 自己给出成功或失败提示，插件不需要再弹提示。
+
+## 业务数据
+
+插件可以读取用户的卡片、文章、项目文档、待办和日程，类型契约自 SDK 0.25.0 提供，需要包含此能力的客户端。当前只开放读取。
+
+### 声明与授权
+
+先在 manifest 中声明需要的权限，这是插件能申请的上限：
+
+```json
+{ "permissions": ["cards:read", "todos:read"] }
+```
+
+| 权限             | 可调用的接口                                        |
+| ---------------- | --------------------------------------------------- |
+| `cards:read`     | `context.data.cards`，以及卡片正文的 `content.read` |
+| `articles:read`  | `context.data.articles`，以及文章正文               |
+| `documents:read` | `context.data.documents`，以及项目文档正文          |
+| `todos:read`     | `context.data.todos`                                |
+| `calendar:read`  | `context.data.calendar`                             |
+
+插件第一次调用某个接口时，Tau 会弹窗询问用户：「仅这次」在插件停用或应用重启前有效，「始终允许」保存到用户撤销为止，「拒绝」在本次运行内不再询问，连续拒绝 3 次后转为已阻止。应用不在前台时不弹窗，请求会记在插件详情页的「权限」中等待用户处理。用户可以随时在那里撤销。
+
+未声明、被拒绝或无法询问时，接口抛出 `PluginPermissionError`，`reason` 依次为 `undeclared`、`denied` / `blocked`、`unavailable`。建议在页面中处理这个错误，显示说明和重试按钮，而不是在启动时连续申请：
+
+```tsx
+import { PluginPermissionError } from "@tau/plugins";
+
+try {
+  setCards((await context.data.cards.query({ limit: 20 })).items);
+} catch (error) {
+  if (error instanceof PluginPermissionError) setNeedsPermission(true);
+  else throw error;
+}
+```
+
+也可以在用户点击按钮时一次申请多项：`await context.permissions.request(["cards:read", "todos:read"])`，全部获准时返回 `true`。`context.permissions.query(permission)` 返回 `granted`、`prompt` 或 `denied`，不会弹窗。
+
+插件与 Tau 运行在同一环境中，权限约束的是这些接口，不是安全隔离。获准读取的内容可以通过 `context.fetch` 发送出去，用户界面会如实提示这一点；请只读取功能需要的数据。
+
+### 读取实体
+
+```ts
+const weekAgo = Date.now() - 7 * 86_400_000;
+const page = await context.data.cards.query({ updatedAfter: weekAgo, limit: 50 });
+for (const card of page.items) console.log(card.title, card.tags);
+if (page.cursor) await context.data.cards.query({ updatedAfter: weekAgo, cursor: page.cursor });
+
+const article = await context.data.articles.get(id); // 不存在时为 null
+```
+
+`cards`、`articles`、`documents` 都提供 `get(id)` 与 `query(query)`。查询参数：
+
+| 字段                             | 说明                                                        |
+| -------------------------------- | ----------------------------------------------------------- |
+| `createdAfter` / `createdBefore` | 创建时间范围，毫秒时间戳，含起点不含终点                    |
+| `updatedAfter` / `updatedBefore` | 修改时间范围，正文修改也计入                                |
+| `tag`                            | 按标签筛选；层级标签按前缀命中，「读书」也命中「读书/小说」 |
+| `sort`                           | `updated`（默认）或 `created`，均为倒序                     |
+| `limit`                          | 1–200，默认 50                                              |
+| `cursor`                         | 上一页返回的 `cursor`，原样传回读取下一页                   |
+
+返回项都有 `id`、`title`、`tags`、`wordCount`、`createdAt`、`updatedAt`。卡片没有标题字段，`title` 是 AI 标题或正文开头。卡片和文章另有 `pinned` 与 `contentRef`；项目文档有 `kind`（`document` 等）、`projectIds`，非富文本类型的 `contentRef` 为 `null`。`id` 与 `contentRef` 是不透明字符串，只用于传回 Tau，不要解析或自行拼接。
+
+待办与日程：
+
+```ts
+const todos = await context.data.todos.query({ completed: false, limit: 20 });
+const events = await context.data.calendar.query({ start: "2026-10-19", end: "2026-10-26" });
+```
+
+`todos.query` 可按 `source`（`all` / `todo` / `document`）、`completed`、`keyword` 与截止日期 `start` / `end`（`YYYY-MM-DD`）筛选，每页最多 100 条。来自文档勾选项的待办带 `source`，指明所在文档。`calendar.query` 的 `start`、`end` 必填，可以是日期或带时区的 ISO 时间。
+
+### 读取正文
+
+```ts
+const snapshot = await context.content.read(card.contentRef); // 默认 Markdown
+console.log(snapshot?.markdown, snapshot?.wordCount);
+```
+
+需要该正文所属实体的读取权限（例如卡片正文需要 `cards:read`）。`format: "nodes"` 返回编辑器节点 JSON，其结构会随编辑器演进，优先使用 Markdown。读取的是已保存的内容，正在编辑的修改最多晚约 1 秒。
 
 ## 资源清理
 

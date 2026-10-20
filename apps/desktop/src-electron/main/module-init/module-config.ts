@@ -9,6 +9,7 @@ import extraModule from "../modules/extra";
 import fetchModule from "../modules/fetch";
 import pluginDevelopmentModule from "../modules/plugin-development";
 import pluginLocalModule from "../modules/plugin-local";
+import pluginPermissionsModule from "../modules/plugin-permissions";
 import pluginServicesModule from "../modules/plugin-services";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
@@ -127,6 +128,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: [],
     init: () => pluginLocalModule.init(),
+  },
+  {
+    name: "plugin-permissions",
+    layer: InitLayer.BACKGROUND,
+    dependencies: [],
+    init: () => pluginPermissionsModule.init(),
   },
   {
     name: "plugin-development",

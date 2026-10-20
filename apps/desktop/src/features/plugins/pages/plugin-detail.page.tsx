@@ -1,5 +1,5 @@
 /**
- * 插件详情页：按插件 ID 去重，介绍 / 设置 / 更新日志 / 版本 / 社区由参数切换。
+ * 插件详情页：按插件 ID 去重，介绍 / 设置 / 权限 / 更新日志 / 版本 / 社区由参数切换。
  */
 
 import { createPageSchema, paramOptional, paramString } from "@/page/core/paramsSchema";

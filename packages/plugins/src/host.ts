@@ -44,6 +44,21 @@ import { assertStorageActive, type StorageAdapter, type StorageScope } from "./s
 import { normalizePageParams, type PluginPageDefinition, type PluginPageHandle } from "./pages";
 import { snapshotMCPDefinition, snapshotMCPToolResult, type PluginMCPDefinition } from "./mcp";
 import { snapshotToolRendererDefinition, type PluginToolRendererDefinition } from "./chat";
+import {
+  PluginPermissionError,
+  type PluginPermission,
+  type PluginPermissionState,
+} from "./permissions";
+import type {
+  PluginCalendarEvent,
+  PluginCalendarQuery,
+  PluginContentRef,
+  PluginContentSnapshot,
+  PluginEntityQuery,
+  PluginPage,
+  PluginTodo,
+  PluginTodoQuery,
+} from "./data";
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -91,6 +106,78 @@ export interface ExcerptsAdapter {
   ): Promise<PluginExcerptSyncResult>;
   sources(context: PluginContext): Promise<PluginExcerptSourceSummary[]>;
   items(context: PluginContext, sourceKey: string): Promise<PluginExcerptEntry[]>;
+}
+
+/** 业务数据的授权由宿主决定：已获准直接返回，否则询问用户或抛出 PluginPermissionError。 */
+export interface PermissionsAdapter {
+  ensure(
+    context: PluginContext,
+    plugin: PluginOwner,
+    permissions: readonly PluginPermission[]
+  ): Promise<void>;
+  query(context: PluginContext, permission: PluginPermission): Promise<PluginPermissionState>;
+  request(
+    context: PluginContext,
+    plugin: PluginOwner,
+    permissions: readonly PluginPermission[]
+  ): Promise<boolean>;
+}
+
+export type DataEntity = "card" | "article" | "document";
+
+/** 宿主负责工作区绑定；参数已校验并复制，返回值由 PluginHost 再复制后交给插件。 */
+export interface DataAdapter {
+  query(
+    context: PluginContext,
+    entity: DataEntity,
+    query: Required<Pick<PluginEntityQuery, "limit">> & PluginEntityQuery
+  ): Promise<PluginPage<unknown>>;
+  get(context: PluginContext, entity: DataEntity, id: string): Promise<unknown | null>;
+  todos(
+    context: PluginContext,
+    query: PluginTodoQuery & { limit: number }
+  ): Promise<PluginPage<PluginTodo>>;
+  calendar(
+    context: PluginContext,
+    query: PluginCalendarQuery & { limit: number }
+  ): Promise<PluginPage<PluginCalendarEvent>>;
+  /** owners 为引用这份正文的实体类型；为空时宿主按不存在处理 */
+  readContent(
+    context: PluginContext,
+    ref: PluginContentRef,
+    format: "markdown" | "nodes"
+  ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[] } | null>;
+}
+
+const ENTITY_PERMISSIONS: Record<DataEntity, PluginPermission> = {
+  card: "cards:read",
+  article: "articles:read",
+  document: "documents:read",
+};
+
+function readLimit(value: unknown, max: number): number {
+  if (value === undefined) return Math.min(50, max);
+  if (!Number.isSafeInteger(value) || (value as number) < 1 || (value as number) > max)
+    throw new Error(`limit 必须是 1–${max} 的整数`);
+  return value as number;
+}
+
+/** 只保留约定字段并校验类型，避免把任意对象透传给宿主命令。 */
+function pickQuery<T extends object>(
+  value: unknown,
+  fields: Record<string, "string" | "number" | "boolean">
+): Partial<T> {
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("查询参数无效");
+  const result: Record<string, unknown> = {};
+  for (const [key, type] of Object.entries(fields)) {
+    const item = (value as Record<string, unknown>)[key];
+    if (item === undefined) continue;
+    if (typeof item !== type || (type === "number" && !Number.isSafeInteger(item)))
+      throw new Error(`查询参数 ${key} 无效`);
+    result[key] = item;
+  }
+  return result as Partial<T>;
 }
 
 export interface MaterialsAdapter {
@@ -154,6 +241,8 @@ export interface PluginInfo {
   version: string;
   state: PluginState;
   error?: string;
+  /** manifest 声明的业务数据权限上限 */
+  permissions?: readonly PluginPermission[];
 }
 
 interface Activation {
@@ -171,7 +260,9 @@ function tally(activation: Activation, kind: PluginContributionKind, delta: numb
   if (delta) activation.contributions.set(kind, (activation.contributions.get(kind) ?? 0) + delta);
 }
 
-type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion">;
+type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion"> & {
+  readonly permissions?: readonly PluginPermission[];
+};
 type DefinitionResolver = (signal: AbortSignal) => PluginDefinition | Promise<PluginDefinition>;
 
 interface Entry {
@@ -236,6 +327,8 @@ export class PluginHost {
       materials?: MaterialsAdapter;
       mcp?: MCPAdapter;
       chat?: ChatAdapter;
+      permissions?: PermissionsAdapter;
+      data?: DataAdapter;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
@@ -257,7 +350,8 @@ export class PluginHost {
     };
   };
 
-  registerTrusted(definition: PluginDefinition): void {
+  /** 权限只能随登记声明（本地包来自 manifest），不能由插件运行时追加。 */
+  registerTrusted(definition: PluginDefinition & Pick<PluginMetadata, "permissions">): void {
     const snapshot = Object.freeze({ ...definition });
     this.register(definition, () => snapshot);
   }
@@ -279,6 +373,9 @@ export class PluginHost {
         name: definition.name,
         version: definition.version,
         apiVersion: definition.apiVersion,
+        ...(definition.permissions?.length
+          ? { permissions: Object.freeze([...definition.permissions]) }
+          : {}),
       }),
       resolveDefinition,
       state: this.restartRequired.has(definition.id) ? "restart-required" : "disabled",
@@ -305,6 +402,7 @@ export class PluginHost {
       version: metadata.version,
       state,
       ...(error === undefined ? {} : { error }),
+      ...(metadata.permissions ? { permissions: metadata.permissions } : {}),
     }));
   }
 
@@ -537,6 +635,55 @@ export class PluginHost {
       this.assertActive(entry, activation);
       return copyJson(result) as T;
     };
+    const owner: PluginOwner = { id: entry.metadata.id, name: entry.metadata.name };
+    const declared = new Set<PluginPermission>(entry.metadata.permissions ?? []);
+    const permissionsAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.permissions) throw new Error("当前宿主不支持业务数据");
+      return this.options.permissions;
+    };
+    const assertDeclared = (permissions: readonly PluginPermission[]) => {
+      for (const permission of permissions)
+        if (!declared.has(permission)) throw new PluginPermissionError(permission, "undeclared");
+    };
+    const guard = async (permission: PluginPermission) => {
+      assertDeclared([permission]);
+      await permissionsAdapter().ensure(context, owner, [permission]);
+      this.assertActive(entry, activation);
+    };
+    const dataAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.data) throw new Error("当前宿主不支持业务数据");
+      return this.options.data;
+    };
+    const deliver = <T>(value: unknown): T => {
+      this.assertActive(entry, activation);
+      return copyJson(value) as unknown as T;
+    };
+    const reader = (entity: DataEntity) =>
+      Object.freeze({
+        get: async (id: string) => {
+          if (typeof id !== "string" || !id) throw new Error("实体 ID 无效");
+          await guard(ENTITY_PERMISSIONS[entity]);
+          return deliver<never>(await dataAdapter().get(context, entity, id));
+        },
+        query: async (query?: PluginEntityQuery) => {
+          const picked = pickQuery<PluginEntityQuery>(query, {
+            createdAfter: "number",
+            createdBefore: "number",
+            updatedAfter: "number",
+            updatedBefore: "number",
+            tag: "string",
+            sort: "string",
+            cursor: "string",
+          });
+          if (picked.sort !== undefined && picked.sort !== "created" && picked.sort !== "updated")
+            throw new Error("查询参数 sort 无效");
+          const limit = readLimit((query as PluginEntityQuery | undefined)?.limit, 200);
+          await guard(ENTITY_PERMISSIONS[entity]);
+          return deliver<never>(await dataAdapter().query(context, entity, { ...picked, limit }));
+        },
+      });
     const context: PluginContext = {
       pluginId: scope.pluginId,
       publish: Object.freeze({
@@ -992,6 +1139,86 @@ export class PluginHost {
               },
             })
           );
+        },
+      }),
+      permissions: Object.freeze({
+        query: async (permission: PluginPermission) => {
+          if (!declared.has(permission)) return "denied" as const;
+          const state = await permissionsAdapter().query(context, permission);
+          this.assertActive(entry, activation);
+          return state;
+        },
+        request: async (permissions: readonly PluginPermission[]) => {
+          if (!Array.isArray(permissions) || !permissions.length) throw new Error("请指定权限");
+          assertDeclared(permissions);
+          const granted = await permissionsAdapter().request(context, owner, [
+            ...new Set(permissions),
+          ]);
+          this.assertActive(entry, activation);
+          return granted;
+        },
+      }),
+      data: Object.freeze({
+        cards: reader("card"),
+        articles: reader("article"),
+        documents: reader("document"),
+        todos: Object.freeze({
+          query: async (query?: PluginTodoQuery) => {
+            const picked = pickQuery<PluginTodoQuery>(query, {
+              source: "string",
+              completed: "boolean",
+              keyword: "string",
+              start: "string",
+              end: "string",
+              cursor: "string",
+            });
+            if (picked.source !== undefined && !["all", "todo", "document"].includes(picked.source))
+              throw new Error("查询参数 source 无效");
+            const limit = readLimit(query?.limit, 100);
+            await guard("todos:read");
+            return deliver<PluginPage<PluginTodo>>(
+              await dataAdapter().todos(context, { ...picked, limit })
+            );
+          },
+        }),
+        calendar: Object.freeze({
+          query: async (query: PluginCalendarQuery) => {
+            const picked = pickQuery<PluginCalendarQuery>(query, {
+              start: "string",
+              end: "string",
+              cursor: "string",
+            });
+            if (!picked.start || !picked.end) throw new Error("日程查询需要 start 与 end");
+            const limit = readLimit(query?.limit, 100);
+            await guard("calendar:read");
+            return deliver<PluginPage<PluginCalendarEvent>>(
+              await dataAdapter().calendar(context, {
+                start: picked.start,
+                end: picked.end,
+                ...(picked.cursor === undefined ? {} : { cursor: picked.cursor }),
+                limit,
+              })
+            );
+          },
+        }),
+      }),
+      content: Object.freeze({
+        read: async (ref: PluginContentRef, options?: { format?: "markdown" | "nodes" }) => {
+          if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
+          const format = options?.format ?? "markdown";
+          if (format !== "markdown" && format !== "nodes") throw new Error("正文格式无效");
+          const result = await dataAdapter().readContent(context, ref, format);
+          this.assertActive(entry, activation);
+          if (!result?.owners.length) return null;
+          // 拥有任一所属实体的读取权限即可读正文
+          const candidates = result.owners.map(owner => ENTITY_PERMISSIONS[owner]);
+          const usable = candidates.filter(permission => declared.has(permission));
+          if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
+          const adapter = permissionsAdapter();
+          const states = await Promise.all(usable.map(item => adapter.query(context, item)));
+          const granted = usable.find((_, index) => states[index] === "granted");
+          await guard(granted ?? usable[0]);
+          return deliver<PluginContentSnapshot>(result.snapshot);
         },
       }),
       sidebar: Object.freeze({

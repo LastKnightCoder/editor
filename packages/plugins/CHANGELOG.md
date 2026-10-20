@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.25.0
+
+- 新增业务数据只读接口：`context.data` 读取卡片、文章、项目文档、待办与日程，`context.content.read` 按 `contentRef` 读取正文（Markdown 或编辑器节点）。查询按时间范围、标签筛选并分页。
+- 新增权限：manifest `permissions` 声明可申请的上限（`cards:read`、`articles:read`、`documents:read`、`todos:read`、`calendar:read`），首次调用时由用户选择「仅这次」「始终允许」或「拒绝」。未获准时抛出 `PluginPermissionError`；`context.permissions` 可查询状态与一次申请多项。
+- 权限约束的是 SDK 接口；插件仍与应用运行在同一环境，不提供安全隔离。
+
 ## 0.24.0
 
 - 移除 `PluginServices.typst`：宿主不再内置 Typst 编译服务（原生二进制约 37 MB/平台随之从安装包移除）。Typst 排版由 `tau.typst` 插件 v0.2.0 以 WebAssembly 引擎在渲染进程本地完成，首次使用联网下载编译组件与字体并长期缓存。
