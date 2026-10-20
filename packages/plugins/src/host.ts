@@ -70,6 +70,14 @@ import type {
   PluginTodoQuery,
   PluginWriteOptions,
 } from "./data";
+import type {
+  PluginOwnEntity,
+  PluginOwnEntityInput,
+  PluginOwnEntityKind,
+  PluginOwnEntityMeta,
+  PluginOwnEntityPatch,
+  PluginOwnEntityQuery,
+} from "./entities";
 import {
   PLUGIN_EVENT_PERMISSIONS,
   isPluginEventType,
@@ -169,12 +177,12 @@ export interface DataAdapter {
     context: PluginContext,
     query: PluginCalendarQuery & { limit: number }
   ): Promise<PluginPage<PluginCalendarEvent>>;
-  /** owners 为引用这份正文的实体类型；为空时宿主按不存在处理 */
+  /** owners 为引用这份正文的实体类型，own 表示是本插件实体的正文；两者都没有时宿主按不存在处理 */
   readContent(
     context: PluginContext,
     ref: PluginContentRef,
     format: "markdown" | "nodes"
-  ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[] } | null>;
+  ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[]; own: boolean } | null>;
   /** 以下写入由宿主记录来源插件；revision 不是最新时抛出 PluginConflictError */
   create(
     context: PluginContext,
@@ -196,8 +204,11 @@ export interface DataAdapter {
   ): Promise<void>;
   writeTodo(context: PluginContext, write: TodoWrite): Promise<PluginTodo | null>;
   writeCalendar(context: PluginContext, write: CalendarWrite): Promise<PluginCalendarEvent | null>;
-  /** 正文的所属实体类型，供宿主在写入前校验权限；正文不存在时为空 */
-  contentOwners(context: PluginContext, ref: PluginContentRef): Promise<DataEntity[]>;
+  /** 正文的所属实体类型与是否为本插件实体的正文，供宿主在写入前校验权限；正文不存在时都为空 */
+  contentOwners(
+    context: PluginContext,
+    ref: PluginContentRef
+  ): Promise<{ owners: DataEntity[]; own: boolean }>;
   editContent(
     context: PluginContext,
     ref: PluginContentRef,
@@ -219,6 +230,26 @@ export type CalendarWrite =
   | { action: "update"; id: string; patch: PluginCalendarPatch; expectedRevision: string }
   | { action: "delete"; id: string; expectedRevision: string };
 
+/** 插件实体的存取：只读写本插件的实体；参数已校验，返回值由 PluginHost 复制后交给插件。 */
+export interface EntitiesAdapter {
+  create(
+    context: PluginContext,
+    input: Required<PluginOwnEntityInput> & { meta: PluginOwnEntityMeta }
+  ): Promise<PluginOwnEntity>;
+  get(context: PluginContext, id: string): Promise<PluginOwnEntity | null>;
+  find(context: PluginContext, kind: string, key: string): Promise<PluginOwnEntity | null>;
+  query(
+    context: PluginContext,
+    query: PluginOwnEntityQuery & { limit: number }
+  ): Promise<PluginPage<PluginOwnEntity>>;
+  update(
+    context: PluginContext,
+    id: string,
+    patch: PluginOwnEntityPatch,
+    expectedRevision: string
+  ): Promise<PluginOwnEntity>;
+}
+
 /** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
 export interface AppAdapter {
   pick(
@@ -237,6 +268,37 @@ export type PluginAppRunRequest =
 const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
 const appActions = new Set<string>(PLUGIN_APP_ACTIONS);
 const exportFormats = new Set<string>(PLUGIN_EXPORT_FORMATS);
+
+const MAX_ENTITY_META = 64 * 1024;
+
+function readEntityMeta(value: unknown): PluginOwnEntityMeta {
+  if (value === undefined) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("meta 必须是对象");
+  const meta = copyJson(value) as PluginOwnEntityMeta;
+  if (JSON.stringify(meta).length > MAX_ENTITY_META) throw new Error("meta 超过 64 KB");
+  return meta;
+}
+
+function readEntityKind(value: unknown): PluginOwnEntityKind {
+  const definition = value as PluginOwnEntityKind | undefined;
+  if (!definition || typeof definition !== "object") throw new Error("类型声明无效");
+  assertLocalId(definition.kind);
+  const page = definition.open?.page;
+  if (typeof page !== "string") throw new Error("open.page 无效");
+  assertLocalId(page);
+  const params = definition.open.params;
+  if (params !== undefined && typeof params !== "function")
+    throw new Error("open.params 必须是函数");
+  if (definition.mentionable !== undefined && typeof definition.mentionable !== "boolean")
+    throw new Error("mentionable 无效");
+  return Object.freeze({
+    kind: definition.kind,
+    label: readText(definition.label, "类型名", 50),
+    open: Object.freeze({ page, ...(params ? { params } : {}) }),
+    mentionable: definition.mentionable ?? false,
+  });
+}
 
 function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest {
   if (typeof action !== "string" || !appActions.has(action)) throw new Error("未知的动作");
@@ -525,6 +587,7 @@ export class PluginHost {
       mcp?: MCPAdapter;
       chat?: ChatAdapter;
       permissions?: PermissionsAdapter;
+      entities?: EntitiesAdapter;
       data?: DataAdapter;
       events?: EventsAdapter;
       app?: AppAdapter;
@@ -854,6 +917,12 @@ export class PluginHost {
       this.assertActive(entry, activation);
       if (!this.options.data) throw new Error("当前宿主不支持业务数据");
       return this.options.data;
+    };
+    const entityKindDefinitions = new Map<string, PluginOwnEntityKind>();
+    const entitiesAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.entities) throw new Error("当前宿主不支持插件内容");
+      return this.options.entities;
     };
     const deliver = <T>(value: unknown): T => {
       this.assertActive(entry, activation);
@@ -1563,6 +1632,72 @@ export class PluginHost {
           this.assertActive(entry, activation);
         },
       }),
+      entities: Object.freeze({
+        registerKind: (definition: PluginOwnEntityKind) => {
+          this.assertActive(entry, activation);
+          const value = readEntityKind(definition);
+          if (entityKindDefinitions.has(value.kind)) throw new Error(`类型 ${value.kind} 已声明`);
+          entityKindDefinitions.set(value.kind, value);
+          return register({
+            dispose: () => {
+              if (entityKindDefinitions.get(value.kind) === value)
+                entityKindDefinitions.delete(value.kind);
+            },
+          });
+        },
+        create: async (input: PluginOwnEntityInput) => {
+          const value = readFields<PluginOwnEntityInput>(
+            input,
+            { kind: 128, key: 200, title: MAX_TITLE },
+            ["kind", "key"]
+          );
+          if (!entityKindDefinitions.has(value.kind))
+            throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
+          const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
+          return deliver<PluginOwnEntity>(
+            await entitiesAdapter().create(context, {
+              kind: value.kind,
+              key: value.key,
+              title: value.title ?? "",
+              meta,
+            })
+          );
+        },
+        get: async (id: string) =>
+          deliver<PluginOwnEntity | null>(await entitiesAdapter().get(context, readId(id))),
+        find: async (kind: string, key: string) =>
+          deliver<PluginOwnEntity | null>(
+            await entitiesAdapter().find(
+              context,
+              readText(kind, "类型", 128),
+              readText(key, "key", 200)
+            )
+          ),
+        query: async (query?: PluginOwnEntityQuery) => {
+          const value = readFields<PluginOwnEntityQuery>(query ?? {}, {
+            kind: 128,
+            cursor: 200,
+          });
+          const limit = query?.limit ?? 50;
+          if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
+            throw new Error("limit 必须是 1–200 的整数");
+          return deliver<PluginPage<PluginOwnEntity>>(
+            await entitiesAdapter().query(context, { ...value, limit })
+          );
+        },
+        update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) => {
+          const value = readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE });
+          const meta = (patch as PluginOwnEntityPatch | undefined)?.meta;
+          return deliver<PluginOwnEntity>(
+            await entitiesAdapter().update(
+              context,
+              readId(id),
+              { ...value, ...(meta === undefined ? {} : { meta: readEntityMeta(meta) }) },
+              readRevision(options)
+            )
+          );
+        },
+      }),
       events: Object.freeze({
         on: (
           types: PluginEventType | readonly PluginEventType[],
@@ -1610,6 +1745,8 @@ export class PluginHost {
           if (format !== "markdown" && format !== "nodes") throw new Error("正文格式无效");
           const result = await dataAdapter().readContent(context, ref, format);
           this.assertActive(entry, activation);
+          // 本插件实体的正文直接放行
+          if (result?.own) return deliver<PluginContentSnapshot>(result.snapshot);
           if (!result?.owners.length) return null;
           const candidates = contentPermissions(result.owners, "read");
           const usable = candidates.filter(permission => declared.has(permission));
@@ -1628,8 +1765,12 @@ export class PluginHost {
           if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
           const value = readContentEdit(edit);
           const revision = readRevision(options);
-          const owners = await dataAdapter().contentOwners(context, ref);
+          const { owners, own } = await dataAdapter().contentOwners(context, ref);
           this.assertActive(entry, activation);
+          if (own)
+            return deliver<{ revision: string }>(
+              await dataAdapter().editContent(context, ref, value, revision)
+            );
           if (!owners.length) throw new Error("正文不存在");
           const candidates = contentPermissions(owners, "write");
           const usable = candidates.filter(permission => declared.has(permission));

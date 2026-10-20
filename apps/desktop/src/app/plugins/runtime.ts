@@ -25,6 +25,7 @@ import {
   PluginHost,
   normalizePageParams,
   type AppAdapter,
+  type EntitiesAdapter,
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
@@ -136,6 +137,7 @@ export class DesktopPluginRuntime {
       data?: DesktopDataAdapter;
       events?: EventsAdapter;
       app?: AppAdapter;
+      entities?: EntitiesAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -162,6 +164,7 @@ export class DesktopPluginRuntime {
       data: options.data,
       events: options.events,
       app: options.app,
+      entities: options.entities,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,

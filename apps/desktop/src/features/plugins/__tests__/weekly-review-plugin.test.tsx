@@ -79,6 +79,7 @@ function respond(channel: unknown, ...args: unknown[]) {
         wordCount: 5,
         nodes: [{ type: "paragraph", children: [{ text: "卡片正文开头" }] }],
         owners: ["card"],
+        pluginOwners: [],
       };
     case "plugin-data:get":
       return { entity: "card", id: 1, title: cardTitle };

@@ -44,7 +44,7 @@ const parseId = (id: string) => (/^\d+$/.test(id) ? Number(id) : null);
 const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
 
 /** 主进程错误经 IPC 只剩消息；版本冲突转成插件可识别的 PluginConflictError */
-async function mapConflict<T>(run: () => Promise<T>): Promise<T> {
+export async function mapConflict<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {
@@ -259,14 +259,17 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
     },
     async contentOwners(context, ref) {
       const decoded = decodeContentRef(ref);
-      if (!decoded) return [];
+      if (!decoded) return { owners: [], own: false };
       const record = await bound(context).readPluginContent(
         databaseName,
         decoded.contentId,
         decoded.createdAt,
         "nodes"
       );
-      return record?.owners ?? [];
+      return {
+        owners: record?.owners ?? [],
+        own: Boolean(record?.pluginOwners.some(owner => owner.pluginId === context.pluginId)),
+      };
     },
     async editContent(context, ref, edit, expectedRevision) {
       const decoded = decodeContentRef(ref);
@@ -418,6 +421,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       if (!record) return null;
       return {
         owners: record.owners,
+        own: record.pluginOwners.some(owner => owner.pluginId === context.pluginId),
         snapshot: {
           ref,
           revision: record.revision,

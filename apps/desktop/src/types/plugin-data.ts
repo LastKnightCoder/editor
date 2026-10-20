@@ -57,6 +57,15 @@ export interface PluginContentRecord {
   nodes?: unknown[];
   /** 引用这份正文的实体类型，供宿主按实体权限判断 */
   owners: PluginDataEntity[];
+  /** 以这份正文为自有内容的插件实体：插件读写自己的正文不需要业务权限 */
+  pluginOwners: PluginContentOwner[];
+}
+
+export interface PluginContentOwner {
+  pluginId: string;
+  /** 插件实体 ID */
+  id: number;
+  title: string;
 }
 
 export type PluginContentEdit =

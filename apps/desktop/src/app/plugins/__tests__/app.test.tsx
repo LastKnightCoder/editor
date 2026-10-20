@@ -168,7 +168,13 @@ describe("插件选择与打开", () => {
   describe("宿主动作", () => {
     const nodes = [{ type: "paragraph", children: [{ text: "正文" }] }];
     beforeEach(() => {
-      mocks.read.mockResolvedValue({ contentId: 8, createdAt: 100, nodes, owners: ["card"] });
+      mocks.read.mockResolvedValue({
+        contentId: 8,
+        createdAt: 100,
+        nodes,
+        owners: ["card"],
+        pluginOwners: [],
+      });
       mocks.locate.mockResolvedValue({ kind: "card", id: 3 });
       mocks.getData.mockResolvedValue({ title: "读书笔记" });
       usePluginActionUi.setState({ request: null });

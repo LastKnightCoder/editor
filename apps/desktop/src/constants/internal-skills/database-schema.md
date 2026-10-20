@@ -59,6 +59,23 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time`   | `INTEGER NOT NULL`         |
 | `restored_time` | `INTEGER`                  |
 
+### `plugin_entities`
+
+插件自建的内容（如周记），每项持有一份 `contents` 正文。`(plugin_id, kind, key)` 唯一，`kind` 与 `key` 由插件定义；`meta` 为插件附带的 JSON；`orphaned_time` 非空表示插件已不在本机，超过 7 天后删除。
+
+| 字段            | SQLite 定义                  |
+| --------------- | ---------------------------- |
+| `id`            | `INTEGER PRIMARY KEY`        |
+| `plugin_id`     | `TEXT NOT NULL`              |
+| `kind`          | `TEXT NOT NULL`              |
+| `key`           | `TEXT NOT NULL`              |
+| `title`         | `TEXT NOT NULL DEFAULT ''`   |
+| `content_id`    | `INTEGER NOT NULL`           |
+| `meta`          | `TEXT NOT NULL DEFAULT '{}'` |
+| `create_time`   | `INTEGER NOT NULL`           |
+| `update_time`   | `INTEGER NOT NULL`           |
+| `orphaned_time` | `INTEGER`                    |
+
 ### `task_assistant_content_pin`
 
 | 字段                 | SQLite 定义        |

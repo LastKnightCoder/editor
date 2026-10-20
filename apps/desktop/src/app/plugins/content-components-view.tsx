@@ -38,12 +38,13 @@ function useContentAccess(contentRef: string, mode: Mode) {
   const databaseName = useSettingStore(state => state.setting.database.active);
   const queryClient = useQueryClient();
   const targetKey = useMemo(
-    () => ["plugins", "content-target", databaseName, contentRef],
-    [databaseName, contentRef]
+    () => ["plugins", "content-target", databaseName, context?.pluginId, contentRef],
+    [databaseName, context?.pluginId, contentRef]
   );
   const target = useQuery({
     queryKey: targetKey,
-    queryFn: ({ signal }) => resolvePluginContentTarget(databaseName, contentRef, signal),
+    queryFn: ({ signal }) =>
+      resolvePluginContentTarget(databaseName, context?.pluginId ?? "", contentRef, signal),
     enabled: Boolean(context),
     staleTime: 0,
     refetchOnWindowFocus: true,
@@ -74,6 +75,8 @@ function useContentAccess(contentRef: string, mode: Mode) {
   else if (target.error) access = { status: "error", message: String(target.error) };
   else if (target.isPending) access = { status: "loading" };
   else if (!target.data) access = { status: "missing" };
+  // 插件自己的内容不需要业务权限
+  else if (target.data.own) access = { status: "granted", target: target.data };
   else if (states.error) access = { status: "error", message: String(states.error) };
   else if (!states.data) access = { status: "loading" };
   else if (states.data.includes("granted")) access = { status: "granted", target: target.data };
@@ -156,8 +159,13 @@ export function PluginContentEditor({
     <ErrorBoundary>
       <ContentEditor
         contentId={contentId}
-        source={{ sourceType: owner.sourceType, sourceId: owner.id }}
-        {...(readonly
+        // 插件自有内容没有宿主实体：按通用正文协作，不登记 AI 编辑身份
+        source={
+          owner
+            ? { sourceType: owner.sourceType, sourceId: owner.id }
+            : { sourceType: "content", sourceId: contentId }
+        }
+        {...(readonly || !owner
           ? {}
           : { editingContext: { entityType: owner.sourceType, entityId: owner.id } })}
         readonly={readonly}

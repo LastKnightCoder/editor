@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { join } from "node:path";
+import { readdirSync } from "node:fs";
 import log from "electron-log";
 import { recordIpcCall, recordSqlCall } from "./perf-monitor";
 import { setCommandBroadcastSink, type CommandContext } from "@tau/rpc";
@@ -67,6 +68,7 @@ import VibeLearningResourceTable from "./tables/vibe-learning-resource";
 import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
 import PluginDataTable from "./tables/plugin-data";
+import PluginEntityTable from "./tables/plugin-entity";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -109,6 +111,21 @@ function createWindowCommandContext(win: BrowserWindow | null): CommandContext {
       }
     },
   };
+}
+
+/** 本机已安装的插件：插件目录的直接子目录名即插件 ID。读取失败返回 null，本次不据此标记孤儿 */
+function installedPluginIds(): Set<string> | null {
+  try {
+    return new Set(
+      readdirSync(join(PathUtil.getAppDir(), "plugins"), { withFileTypes: true })
+        .filter(entry => entry.isDirectory())
+        .map(entry => entry.name)
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return new Set();
+    log.warn("[database] 读取插件目录失败，跳过插件内容的孤儿标记:", error);
+    return null;
+  }
 }
 
 class DatabaseModule implements Module {
@@ -291,6 +308,7 @@ class DatabaseModule implements Module {
       VLNoteTable,
       VLQuizTable,
       PluginDataTable,
+      PluginEntityTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(
@@ -414,6 +432,18 @@ class DatabaseModule implements Module {
           }
         } catch (error) {
           log.error("[database] 回收待释放数据表失败:", error);
+        }
+        try {
+          // 实体删除后延迟释放正文，排在正文回收之前
+          const collectedEntities = PluginEntityTable.collectOrphans(database, {
+            installed: installedPluginIds(),
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (collectedEntities > 0)
+            log.info(`[database] 回收已卸载插件的内容: db=${name}, count=${collectedEntities}`);
+        } catch (error) {
+          log.error("[database] 回收已卸载插件的内容失败:", error);
         }
         try {
           const purgedContents = ContentTable.collectPendingReleases(database, {

@@ -12,6 +12,7 @@ import { createDesktopExcerpts } from "./excerpts";
 import { createDesktopData } from "./data";
 import { createDesktopEvents } from "./events";
 import { createDesktopApp } from "./app";
+import { createDesktopEntities } from "./entities";
 import { DesktopPermissionBroker } from "./permissions";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -74,6 +75,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           data: createDesktopData(workspaceId),
           events: createDesktopEvents(workspaceId),
           app: createDesktopApp(workspaceId),
+          entities: createDesktopEntities(workspaceId),
           ...(isElectron
             ? { permissions: new DesktopPermissionBroker(persistentWorkspaceId) }
             : {}),

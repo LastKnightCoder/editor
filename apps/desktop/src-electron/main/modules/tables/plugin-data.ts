@@ -17,6 +17,7 @@ import type {
 } from "@/types/plugin-data";
 import { contentTitle, contentTitles } from "./content-ai-meta";
 import EntitySearchTable from "./entity-search";
+import PluginEntityTable from "./plugin-entity";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
@@ -228,6 +229,7 @@ export default class PluginDataTable {
         ? { nodes }
         : { markdown: getMarkdown(nodes as Parameters<typeof getMarkdown>[0]) }),
       owners: [...owners],
+      pluginOwners: PluginEntityTable.pluginOwners(db, row.id),
     };
   }
 

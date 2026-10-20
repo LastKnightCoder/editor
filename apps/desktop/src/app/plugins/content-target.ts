@@ -11,8 +11,10 @@ export interface PluginContentTarget {
   contentId: number;
   /** 引用这份正文的实体类型（权限按任一类型判断） */
   owners: DataEntity[];
-  /** 作为协作来源与编辑身份的实体 */
-  owner: { entity: DataEntity; id: number; sourceType: "card" | "article" | "project-item" };
+  /** 作为协作来源与编辑身份的实体；只是插件自有内容时为 null */
+  owner: { entity: DataEntity; id: number; sourceType: "card" | "article" | "project-item" } | null;
+  /** 是当前插件自有内容的正文时为该实体（读写不需要业务权限） */
+  own: { id: number; title: string } | null;
   /** 主库中的正文快照；有协作会话时可能落后约 1 秒 */
   nodes: Descendant[];
 }
@@ -24,9 +26,10 @@ const LOCATE_KINDS: Record<DataEntity, EntityKind> = {
 };
 const SOURCE_TYPES = { card: "card", article: "article", document: "project-item" } as const;
 
-/** 正文不存在、创建时间不符（ID 被复用）或不属于卡片 / 文章 / 项目文档时返回 null */
+/** 正文不存在、创建时间不符（ID 被复用），或既不属于卡片 / 文章 / 项目文档、也不是该插件的自有内容时返回 null */
 export async function resolvePluginContentTarget(
   databaseName: string,
+  pluginId: string,
   ref: string,
   signal?: AbortSignal
 ): Promise<PluginContentTarget | null> {
@@ -42,17 +45,19 @@ export async function resolvePluginContentTarget(
     decoded.createdAt,
     "nodes"
   );
-  const entity = record?.owners[0];
-  if (!record || !entity) return null;
-  const location = await commands.locateEntity({
-    contentId: decoded.contentId,
-    kind: LOCATE_KINDS[entity],
-  });
-  if (!location) return null;
+  if (!record) return null;
+  const own = record.pluginOwners.find(owner => owner.pluginId === pluginId);
+  const entity = record.owners[0];
+  const location = entity
+    ? await commands.locateEntity({ contentId: decoded.contentId, kind: LOCATE_KINDS[entity] })
+    : null;
+  if (!location && !own) return null;
   return {
     contentId: decoded.contentId,
     owners: record.owners,
-    owner: { entity, id: location.id, sourceType: SOURCE_TYPES[entity] },
+    owner:
+      entity && location ? { entity, id: location.id, sourceType: SOURCE_TYPES[entity] } : null,
+    own: own ? { id: own.id, title: own.title } : null,
     nodes: (record.nodes ?? []) as Descendant[],
   };
 }

@@ -716,6 +716,42 @@ function CardRow({ card }: { card: PluginCard }) {
 - 不需要数据权限：界面和确认都由 Tau 提供，插件拿不到正文。与 `open` 一样，只能在用户操作之后调用；内容已删除时抛出「内容不存在」。
 - 对应界面打开后即返回，不等待用户完成导出或结束演示。同一时间只显示一个，插件停用时自动关闭。
 
+## 插件内容
+
+插件可以创建属于自己的内容（如每周一篇周记、看板上的卡片），每项带一份正文。正文和卡片正文一样实时保存、随云同步，用 `ContentEditor` 编辑，或用 `context.content` 读写。读写自己的内容不需要业务数据权限。接口自 SDK 0.25.0 提供。
+
+```tsx
+context.entities.registerKind({
+  kind: "note",
+  label: "周记",
+  open: { page: "review", params: note => ({ week: note.key }) },
+});
+
+async function noteOf(week: string) {
+  return (
+    (await context.entities.find("note", week)) ??
+    (await context.entities.create({ kind: "note", key: week, title: `${week} 周记` }))
+  );
+}
+
+function NotePanel({ note }: { note: PluginOwnEntity }) {
+  return <ContentEditor contentRef={note.contentRef} placeholder="这一周想记下什么" />;
+}
+```
+
+| 方法                                                  | 说明                                                                    |
+| ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| `registerKind(definition)`                            | 声明内容类型：`kind`、显示名 `label`、在 Tau 中打开时进入的页面 `open`  |
+| `create({ kind, key, title?, meta? })`                | 新建一项，正文为空；同一类型下 `key` 已存在时抛出 `PluginConflictError` |
+| `get(id)` / `find(kind, key)`                         | 读取一项，不存在时为 `null`                                             |
+| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条、最多 200 条                             |
+| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`（最大 64 KB 的 JSON 对象）                            |
+
+- `key` 由插件决定，用来找回同一项内容，例如周记用周次。`meta` 保存少量结构化信息，正文放在正文里。
+- 只有先声明的类型才能新建；`registerKind` 在 `activate` 中调用，停用时自动撤销。
+- 卸载插件后，它创建的内容保留 7 天，期间重新安装即可找回，超过 7 天后删除。
+- 暂不提供删除接口。
+
 ## 资源清理
 
 `Disposable` 的签名为 `{ dispose(): void | Promise<void> }`。
