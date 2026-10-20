@@ -17,6 +17,8 @@ export function getRefTypeLabel(type: string): string {
       return "PDF 标注";
     case "web-clip":
       return "剪藏";
+    case "plugin-entity":
+      return "插件内容";
     default:
       return type;
   }

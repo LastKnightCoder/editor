@@ -150,6 +150,7 @@ export function PluginContentEditor({
   contentRef,
   readonly = false,
   placeholder,
+  at,
 }: ContentEditorProps) {
   const mode: Mode = readonly ? "read" : "write";
   const state = useContentAccess(contentRef, mode);
@@ -170,6 +171,7 @@ export function PluginContentEditor({
           : { editingContext: { entityType: owner.sourceType, entityId: owner.id } })}
         readonly={readonly}
         {...(placeholder ? { placeHolder: placeholder } : {})}
+        {...(typeof at === "string" && at ? { at } : {})}
       />
     </ErrorBoundary>
   );

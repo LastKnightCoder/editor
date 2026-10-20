@@ -28,6 +28,7 @@ const NOTE_LINK_TYPE: Record<EntityRefKind, string> = {
   article: "article",
   "project-item": "project-item",
   "diary-moment": "diary-moment",
+  "plugin-entity": "plugin-entity",
 };
 
 /** 整篇排除的正文 id */

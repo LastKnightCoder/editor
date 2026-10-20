@@ -23,6 +23,7 @@ import {
   Activity,
   PackageOpen,
   FolderInput,
+  Puzzle,
   type LucideIcon,
   Map as MapIcon,
 } from "lucide-react";
@@ -55,6 +56,8 @@ export const CONTENT_TYPES: Record<
     icon: FileText,
   },
   "web-clip": { label: "剪藏", navKey: "projects", tag: "bg-tag-3-soft text-tag-3", icon: Globe },
+  // 插件自建的内容：类型名取插件声明，这里是兜底；不设范围 chip，只出现在「全部」
+  "plugin-entity": { label: "插件内容", tag: "bg-tag-5-soft text-tag-5", icon: Puzzle },
 };
 
 /** 「摘录」一个范围覆盖三类外部材料 */
@@ -76,8 +79,9 @@ export function scopeTypes(scope: PaletteScope): IndexType[] {
   return scope === "material" ? [...MATERIAL_KINDS] : [scope];
 }
 
-/** 结果类型归到哪个范围 chip（三类材料都算「摘录」） */
-export function scopeOfType(type: IndexType): PaletteScope {
+/** 结果类型归到哪个范围 chip（三类材料都算「摘录」）；插件内容没有 chip */
+export function scopeOfType(type: IndexType): PaletteScope | null {
+  if (type === "plugin-entity") return null;
   return isMaterialKind(type) ? "material" : type;
 }
 

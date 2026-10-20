@@ -44,3 +44,9 @@ export const updatePluginEntity = (
   expectedRevision: string
 ): Promise<PluginEntityRecord> =>
   invoke("plugin-entities:update", { databaseName, pluginId, id, patch, expectedRevision });
+
+/** 宿主按 ID 读取任意插件的实体（检索结果打开、通用只读页） */
+export const locatePluginEntity = (
+  databaseName: string,
+  id: number
+): Promise<PluginEntityRecord | null> => invoke("plugin-entities:locate", { databaseName, id });

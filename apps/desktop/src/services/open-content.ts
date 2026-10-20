@@ -5,6 +5,8 @@ import useSettingStore from "@/stores/useSettingStore";
 import { normalizeDiaryDay } from "@/utils/diary-day";
 import { getPageNavigation, openPage } from "./page-navigation";
 import { serializeEntityLocation, type EntityLocation } from "@/entity/locate";
+import { locatePluginEntity } from "@/commands/plugin-entities";
+import { PLUGIN_ENTITY_PAGE_KEY, pluginEntityKind } from "./plugin-entity-kinds";
 
 /** 打开一个实体对应的 Page；异步查询期间切库则放弃导航 */
 export async function openEntity(
@@ -59,6 +61,16 @@ export async function openEntity(
         moment: String(moment.id),
         ...position,
       });
+      return;
+    }
+    case "plugin-entity": {
+      const entity = await locatePluginEntity(database, id);
+      ensureDatabase();
+      if (!entity) throw new Error("内容不存在");
+      // 插件在运行就进入插件声明的页面，否则打开宿主的只读页
+      const kind = pluginEntityKind(entity.pluginId, entity.kind);
+      if (kind) return kind.open(entity, position.at);
+      openPage(PLUGIN_ENTITY_PAGE_KEY, { id, ...position });
       return;
     }
   }

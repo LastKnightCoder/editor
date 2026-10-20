@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Presentation,
   ScrollText,
+  Puzzle,
   type LucideIcon,
 } from "lucide-react";
 import type { EntityKind } from "@/types";
@@ -29,6 +30,7 @@ export const ENTITY_KIND_META: Record<EntityKind, { label: string; icon: LucideI
   "chat-session": { label: "对话", icon: MessageCircle },
   todo: { label: "待办", icon: CircleCheck },
   "calendar-event": { label: "日程", icon: CalendarDays },
+  "plugin-entity": { label: "插件内容", icon: Puzzle },
 };
 
 export const entityKey = (c: { kind: EntityKind; id: number; sessionId?: string }) =>

@@ -4,7 +4,15 @@
  */
 
 import type { ReactNode } from "react";
-import { CircleHelp, FileText, FolderKanban, Layers, Link2, X } from "lucide-react";
+import {
+  CircleHelp,
+  FileText,
+  FolderKanban,
+  Layers,
+  Link2,
+  X,
+  Puzzle,
+} from "lucide-react";
 import { AnchoredPanel, Button, IconButton } from "@tau/ui";
 import type { InsightMark } from "@/types/content-insights";
 
@@ -13,6 +21,7 @@ const TARGET_ICON = {
   article: FileText,
   "project-item": FolderKanban,
   "diary-moment": FileText,
+  "plugin-entity": Puzzle,
 };
 
 export interface InsightPopoverProps {

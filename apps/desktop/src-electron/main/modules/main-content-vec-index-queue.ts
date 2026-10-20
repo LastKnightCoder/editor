@@ -32,6 +32,7 @@ export const MAIN_CONTENT_INDEX_TYPES = [
   "article",
   "project-item",
   "diary-moment",
+  "plugin-entity",
   ...MATERIAL_INDEX_TYPES,
 ] as const;
 export type MainContentIndexType = (typeof MAIN_CONTENT_INDEX_TYPES)[number];

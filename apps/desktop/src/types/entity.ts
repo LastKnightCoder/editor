@@ -18,7 +18,9 @@ export type EntityKind =
   | "chat-session"
   // 独立待办与日历日程：只供插件「关联已有」选择，id 为主键，身份另需 createdAt
   | "todo"
-  | "calendar-event";
+  | "calendar-event"
+  // 插件自建的内容（plugin_entities），正文身份同卡片等
+  | "plugin-entity";
 
 export interface EntityCandidate {
   kind: EntityKind;

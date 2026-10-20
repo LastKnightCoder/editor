@@ -7,6 +7,7 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DiaryTable from "./diary";
+import PluginEntityTable from "./plugin-entity";
 import VecDocumentTable from "./vec-document";
 import { searchResultDetails } from "../search-details";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -344,6 +345,19 @@ class FTSTable {
         source: "fts",
         updateTime: Number(moment.updateTime || 0),
       });
+    }
+
+    if (shouldIncludeType("plugin-entity")) {
+      for (const doc of PluginEntityTable.indexDocs(mainDb)) {
+        const text = `${doc.title}\n${getMarkdown(doc.content).trim()}`;
+        if (!isMatch(text)) continue;
+        partialResults.push({
+          id: doc.id,
+          type: "plugin-entity",
+          source: "fts",
+          updateTime: doc.updateTime,
+        });
+      }
     }
 
     partialResults.sort((a, b) => b.updateTime - a.updateTime);

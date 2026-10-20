@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { openContent, openEntity } from "../open-content";
+import { registerPluginEntityKind } from "../plugin-entity-kinds";
 
 const mocks = vi.hoisted(() => ({
   openPage: vi.fn(),
   getProjectItemById: vi.fn(),
   getDiaryMoment: vi.fn(),
+  locatePluginEntity: vi.fn(),
   database: "main",
 }));
+vi.mock("@/commands/plugin-entities", () => ({ locatePluginEntity: mocks.locatePluginEntity }));
 vi.mock("../page-navigation", () => ({
   openPage: mocks.openPage,
   getPageNavigation: () => ({
@@ -85,5 +88,33 @@ describe("内容打开入口", () => {
     await expect(openContent("card", 0)).rejects.toThrow("ID 无效");
     await expect(openContent("unknown", 1)).rejects.toThrow("暂不支持");
     expect(mocks.openPage).not.toHaveBeenCalled();
+  });
+
+  it("插件内容：插件在运行时进入插件页面并带定位，停用后打开只读页", async () => {
+    const entity = { id: 6, pluginId: "tau.weekly-review", kind: "note", contentId: 9 };
+    mocks.locatePluginEntity.mockResolvedValue(entity);
+    const open = vi.fn();
+    const dispose = registerPluginEntityKind({
+      pluginId: "tau.weekly-review",
+      kind: "note",
+      label: "周记",
+      mentionable: true,
+      open,
+    });
+    await openContent("plugin-entity", 6);
+    await openEntity({ kind: "plugin-entity", id: 6 }, { at: { block: 2 } });
+    expect(mocks.locatePluginEntity).toHaveBeenLastCalledWith("main", 6);
+    expect(open.mock.calls).toEqual([
+      [entity, undefined],
+      [entity, '{"block":2}'],
+    ]);
+    expect(mocks.openPage).not.toHaveBeenCalled();
+
+    dispose();
+    await openEntity({ kind: "plugin-entity", id: 6 }, { at: { block: 2 } });
+    expect(mocks.openPage).toHaveBeenLastCalledWith("plugin-entity", { id: 6, at: '{"block":2}' });
+
+    mocks.locatePluginEntity.mockResolvedValue(null);
+    await expect(openEntity({ kind: "plugin-entity", id: 7 })).rejects.toThrow("内容不存在");
   });
 });

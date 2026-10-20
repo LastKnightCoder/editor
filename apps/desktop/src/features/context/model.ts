@@ -15,6 +15,7 @@ import {
   PenLine,
   Presentation,
   Repeat,
+  Puzzle,
   type LucideIcon,
 } from "lucide-react";
 import type { LineageNodeKind } from "@/entity/lineage";
@@ -26,6 +27,7 @@ export const ENTITY_KIND_META: Record<EntityRefKind, { label: string; icon: Luci
   article: { label: "文章", icon: FileText },
   "project-item": { label: "项目文档", icon: FolderKanban },
   "diary-moment": { label: "日记", icon: PenLine },
+  "plugin-entity": { label: "插件内容", icon: Puzzle },
 };
 
 /** 图标与侧边栏对应入口一致 */

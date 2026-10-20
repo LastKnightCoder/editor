@@ -5,8 +5,8 @@ import type { ContentSection } from "@/entity/sections";
 
 /** 我的思考：卡片、文章、项目文档、日记 */
 export type ContentIndexType = "card" | "article" | "project-item" | "diary-moment";
-/** 主库向量 / 全文索引的类型：正文实体 + 外部材料（摘录、PDF 标注、剪藏，KL-037） */
-export type IndexType = ContentIndexType | MaterialKind;
+/** 主库向量 / 全文索引的类型：正文实体 + 外部材料（摘录、PDF 标注、剪藏，KL-037）+ 插件自建内容 */
+export type IndexType = ContentIndexType | MaterialKind | "plugin-entity";
 /** 只进向量、不进全文与检索结果的类型：主对话里的用户提问（KL-064），id 为「会话 id#消息 id」 */
 export type ChatPromptIndexType = "chat-prompt";
 
@@ -20,6 +20,8 @@ export interface SearchResult {
   content: Descendant[];
   /** 外部材料的展示信息与打开目标（材料结果没有可打开的正文，contentId 为剪藏解析文档或 0） */
   material?: MaterialInfo;
+  /** 插件内容的来源插件与类型，展示时取插件声明的类型名 */
+  pluginEntity?: { pluginId: string; kind: string };
   // 日记特有字段
   date?: string;
   score?: number;

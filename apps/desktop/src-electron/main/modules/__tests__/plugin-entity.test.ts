@@ -13,6 +13,10 @@ vi.mock("../video-note-index-queue", () => ({
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginEntityTable from "../tables/plugin-entity";
 import PluginDataTable from "../tables/plugin-data";
+import EntitySearchTable from "../tables/entity-search";
+import ContentTable from "../tables/content";
+import { searchResultDetails } from "../search-details";
+import { listContentIndexCandidates } from "../index-candidates";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.weekly-review" };
 const DAY = 24 * 60 * 60 * 1000;
@@ -123,6 +127,50 @@ describe("PluginEntityTable", () => {
     expect(refCount(created.contentId)).toBe(0);
     expect(db.prepare("SELECT content_id FROM content_pending_releases").all()).toEqual([
       { content_id: created.contentId },
+    ]);
+  });
+
+  it("进入检索：定位、展示、结果详情与索引候选", () => {
+    const created = note("2026-W43");
+    ContentTable.updateContent(db, created.contentId, {
+      content: [{ type: "paragraph", children: [{ text: "这周读完了《置身事内》" }] }] as never,
+    });
+    const card = Number(
+      db
+        .prepare(
+          "INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', '[]', ?)"
+        )
+        .run(created.contentId).lastInsertRowid
+    );
+    // 与卡片共用正文时卡片优先
+    expect(EntitySearchTable.locateAll(db, [created.contentId]).get(created.contentId)).toEqual([
+      { kind: "card", id: card },
+      { kind: "plugin-entity", id: created.id },
+    ]);
+    expect(
+      EntitySearchTable.locate(db, { contentId: created.contentId, kind: "plugin-entity" })
+    ).toEqual({ kind: "plugin-entity", id: created.id });
+    expect(EntitySearchTable.resolve(db, "plugin-entity", created.id, 0)).toMatchObject({
+      contentId: created.contentId,
+      title: "周记 2026-W43",
+      excerpt: "这周读完了《置身事内》",
+    });
+    expect(
+      EntitySearchTable.search(db, { kind: "plugin-entity", keyword: "置身事内" }).map(
+        item => item.id
+      )
+    ).toEqual([created.id]);
+    expect(searchResultDetails(db, "plugin-entity", created.id)).toMatchObject({
+      contentId: created.contentId,
+      title: "周记 2026-W43",
+      pluginEntity: { pluginId: "tau.weekly-review", kind: "note" },
+    });
+    const candidate = [...listContentIndexCandidates(db)].find(
+      item => item.type === "plugin-entity"
+    );
+    expect(candidate).toMatchObject({ id: created.id, title: "周记 2026-W43" });
+    expect(PluginEntityTable.indexDocs(db, created.id)[0].content).toEqual([
+      { type: "paragraph", children: [{ text: "这周读完了《置身事内》" }] },
     ]);
   });
 });

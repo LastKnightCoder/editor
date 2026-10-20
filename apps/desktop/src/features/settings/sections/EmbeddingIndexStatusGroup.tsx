@@ -30,6 +30,7 @@ const TYPE_LABELS: Record<EmbeddingIndexContentType, string> = {
   excerpt: "划线",
   "pdf-annotation": "PDF 标注",
   "web-clip": "剪藏",
+  "plugin-entity": "插件内容",
 };
 
 const REASON_LABELS: Record<string, string> = {

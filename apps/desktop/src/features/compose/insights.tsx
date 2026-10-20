@@ -12,6 +12,7 @@ import { DOCUMENT_DEFAULT_SIZE, ViewPortTransforms, type DocumentElement } from 
 import { entityRefKey, type EntityRef } from "@/entity/ref";
 import type { InsightMark } from "@/types/content-insights";
 import type { ComposeSession } from "./session";
+import { isBoardDocumentRef } from "./model";
 
 /** 洞见视图的输出里创作模式要用的部分 */
 interface InsightsState {
@@ -63,7 +64,8 @@ function PlaceOnBoard({ session, mark }: { session: ComposeSession; mark: Insigh
   const onBoard = useStore(session, state =>
     target ? state.documents.some(doc => doc.key === entityRefKey(target.ref)) : true
   );
-  if (!target || onBoard) return null;
+  if (!target || onBoard || !isBoardDocumentRef(target.ref)) return null;
+  const ref = target.ref;
   return (
     <span
       role="button"
@@ -73,11 +75,11 @@ function PlaceOnBoard({ session, mark }: { session: ComposeSession; mark: Insigh
         event.stopPropagation();
         const board = session.getState().board;
         if (!board) return;
-        const size = DOCUMENT_DEFAULT_SIZE[target.ref.kind];
+        const size = DOCUMENT_DEFAULT_SIZE[ref.kind];
         const element: DocumentElement = {
           id: getUuid(),
           type: "document",
-          entityRef: target.ref,
+          entityRef: ref,
           title: target.title,
           x: board.viewPort.minX + board.viewPort.width / 2 - size.width / 2,
           y: board.viewPort.minY + board.viewPort.height / 2 - size.height / 2,
