@@ -19,6 +19,7 @@ import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
 import type { PluginPermissions } from "./permissions";
 import type { PluginContent, PluginData } from "./data";
+import type { PluginEvents } from "./events";
 
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
@@ -69,6 +70,8 @@ export interface PluginContext {
   readonly data: PluginData;
   /** 按 ContentRef 读取正文 */
   readonly content: PluginContent;
+  /** 业务数据变更事件，如卡片更新 */
+  readonly events: PluginEvents;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

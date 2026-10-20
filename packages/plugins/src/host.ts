@@ -59,6 +59,12 @@ import type {
   PluginTodo,
   PluginTodoQuery,
 } from "./data";
+import {
+  PLUGIN_EVENT_PERMISSIONS,
+  isPluginEventType,
+  type PluginDomainEvent,
+  type PluginEventType,
+} from "./events";
 export { createMemoryStorage } from "./storage";
 export type { StorageAdapter, StorageScope } from "./storage";
 export { createBrowserStorage, clearBrowserPluginStorage } from "./browser-storage";
@@ -147,6 +153,11 @@ export interface DataAdapter {
     ref: PluginContentRef,
     format: "markdown" | "nodes"
   ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[] } | null>;
+}
+
+/** 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。 */
+export interface EventsAdapter {
+  subscribe(context: PluginContext, listener: (event: PluginDomainEvent) => void): Disposable;
 }
 
 const ENTITY_PERMISSIONS: Record<DataEntity, PluginPermission> = {
@@ -329,6 +340,7 @@ export class PluginHost {
       chat?: ChatAdapter;
       permissions?: PermissionsAdapter;
       data?: DataAdapter;
+      events?: EventsAdapter;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
@@ -1201,6 +1213,46 @@ export class PluginHost {
             );
           },
         }),
+      }),
+      events: Object.freeze({
+        on: (
+          types: PluginEventType | readonly PluginEventType[],
+          listener: (event: PluginDomainEvent) => void
+        ) => {
+          this.assertActive(entry, activation);
+          const wanted = new Set(typeof types === "string" ? [types] : types);
+          if (!wanted.size || [...wanted].some(type => !isPluginEventType(type)))
+            throw new Error("未知的事件类型");
+          if (typeof listener !== "function") throw new Error("事件监听必须是函数");
+          assertDeclared(
+            [...wanted].flatMap(type => {
+              const permission = PLUGIN_EVENT_PERMISSIONS[type];
+              return permission ? [permission] : [];
+            })
+          );
+          if (!this.options.events) throw new Error("当前宿主不支持业务事件");
+          // 权限查询是异步的，串行投递保持事件顺序
+          let delivery = Promise.resolve();
+          const subscription = this.options.events.subscribe(context, event => {
+            if (!wanted.has(event.type) || activation.controller.signal.aborted) return;
+            const permission = PLUGIN_EVENT_PERMISSIONS[event.type];
+            const snapshot = copyJson(event) as unknown as PluginDomainEvent;
+            delivery = delivery
+              .then(async () => {
+                if (
+                  permission &&
+                  (await permissionsAdapter().query(context, permission)) !== "granted"
+                )
+                  return;
+                this.assertActive(entry, activation);
+                listener(snapshot);
+              })
+              .catch(error => {
+                if (!activation.controller.signal.aborted) console.error("插件事件处理失败", error);
+              });
+          });
+          return register(subscription);
+        },
       }),
       content: Object.freeze({
         read: async (ref: PluginContentRef, options?: { format?: "markdown" | "nodes" }) => {

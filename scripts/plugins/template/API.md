@@ -570,6 +570,23 @@ console.log(snapshot?.markdown, snapshot?.wordCount);
 
 需要该正文所属实体的读取权限（例如卡片正文需要 `cards:read`）。`format: "nodes"` 返回编辑器节点 JSON，其结构会随编辑器演进，优先使用 Markdown。读取的是已保存的内容，正在编辑的修改最多晚约 1 秒。
 
+### 变更事件
+
+```ts
+context.events.on(["card.created", "card.updated", "card.deleted"], event => {
+  queryClient.invalidateQueries({ queryKey: ["cards"] });
+});
+```
+
+| 事件                                             | 说明                                                    |
+| ------------------------------------------------ | ------------------------------------------------------- |
+| `card.created` / `card.updated` / `card.deleted` | `id` 与 `context.data.cards` 一致；正文修改也算 updated |
+| `article.*`、`document.*`                        | 同上，文章移入回收站算 deleted                          |
+| `todos.changed`、`calendar.changed`              | 待办、日程有变化，没有 `id`，需要时重新查询             |
+| `workspace.reset`                                | 同步下载替换了整个库，应全量刷新                        |
+
+事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。同一项在半秒内的多次变化合并为一次，持续编辑时最多每 2 秒一次。订阅需要在 manifest 中声明对应的读取权限；用户尚未允许时事件不会送达，也不会因此弹窗。`on` 返回的句柄在插件停用时自动注销。
+
 ## 资源清理
 
 `Disposable` 的签名为 `{ dispose(): void | Promise<void> }`。
