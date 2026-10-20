@@ -376,3 +376,83 @@ export interface ManagedPluginFilter {
   q: string;
   status: "all" | "active" | "disabled";
 }
+
+/** 桌面端用户反馈（0010）：匿名身份提交，管理员在工作台处理。 */
+export const APP_FEEDBACK_LIMITS = {
+  message: 4000,
+  contact: 200,
+  images: 3,
+  imageBytes: 1536 * 1024,
+  /** 普通日志与性能日志各一份，均为 gzip。 */
+  logBytes: 3 * 1024 * 1024,
+  requestBytes: 12 * 1024 * 1024,
+  perVisitorDaily: 5,
+  perIpDaily: 20,
+  note: 4000,
+  retentionDays: 180,
+} as const;
+export type AppFeedbackKind = "bug" | "idea" | "other";
+export type AppFeedbackStatus = "new" | "doing" | "done" | "ignored";
+export type AppFeedbackAttachmentKind = "image" | "log" | "perf";
+/** 用户可整体关闭；字段均为客户端自报，仅作排查参考。 */
+export interface AppFeedbackContext {
+  appVersion?: string;
+  platform?: string;
+  osVersion?: string;
+  arch?: string;
+  page?: string;
+  theme?: string;
+  locale?: string;
+}
+/** multipart 的 meta 字段；图片字段名 image（可重复），日志字段名 log / perf。 */
+export interface AppFeedbackSubmit {
+  kind: AppFeedbackKind;
+  message: string;
+  contact: string | null;
+  context: AppFeedbackContext | null;
+  clientRequestId: string;
+}
+export interface AppFeedbackReceipt {
+  id: string;
+  createdAt: string;
+}
+export interface AppFeedbackAttachment {
+  id: string;
+  kind: AppFeedbackAttachmentKind;
+  mime: string;
+  size: number;
+}
+export interface AppFeedbackSummary {
+  id: string;
+  kind: AppFeedbackKind;
+  status: AppFeedbackStatus;
+  message: string;
+  visitorId: string;
+  appVersion: string | null;
+  platform: string | null;
+  imageCount: number;
+  hasLogs: boolean;
+  createdAt: string;
+}
+export interface AppFeedbackDetail extends AppFeedbackSummary {
+  contact: string | null;
+  context: AppFeedbackContext | null;
+  note: string;
+  revision: number;
+  attachments: AppFeedbackAttachment[];
+  updatedAt: string;
+}
+export interface AppFeedbackFilter {
+  status: AppFeedbackStatus | "all";
+  kind: AppFeedbackKind | "all";
+  /** 精确匹配匿名身份 */
+  visitorId: string;
+}
+export interface AppFeedbackPage extends ModerationPage<AppFeedbackSummary> {
+  counts: Record<AppFeedbackStatus, number>;
+}
+export interface AppFeedbackUpdate {
+  status?: AppFeedbackStatus;
+  note?: string;
+  revision: number;
+}

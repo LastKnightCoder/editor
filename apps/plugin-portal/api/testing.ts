@@ -15,6 +15,7 @@ export function testEnvironment() {
     "0007_comment_moderation.sql",
     "0008_release_categories.sql",
     "0009_plugin_moderation.sql",
+    "0010_app_feedback.sql",
     "0011_backend_review.sql",
   ])
     sqlite.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));
@@ -43,6 +44,7 @@ export function testEnvironment() {
   }
   const objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
   const published = new Map<string, { bytes: Uint8Array; contentType: string }>();
+  const feedback = new Map<string, { bytes: Uint8Array; contentType: string }>();
   const env = {
     DB: {
       prepare: (sql: string) => new Statement(sql),
@@ -106,10 +108,34 @@ export function testEnvironment() {
           : null;
       },
     },
+    FEEDBACK: {
+      put: async (
+        key: string,
+        bytes: Uint8Array,
+        options: { httpMetadata: { contentType: string } }
+      ) => {
+        feedback.set(key, { bytes, contentType: options.httpMetadata.contentType });
+      },
+      delete: async (keys: string | string[]) => {
+        for (const key of Array.isArray(keys) ? keys : [keys]) feedback.delete(key);
+      },
+      get: async (key: string) => {
+        const value = feedback.get(key);
+        return value
+          ? {
+              arrayBuffer: async () =>
+                value.bytes.buffer.slice(
+                  value.bytes.byteOffset,
+                  value.bytes.byteOffset + value.bytes.byteLength
+                ),
+            }
+          : null;
+      },
+    },
     API_ORIGIN: "http://localhost:8787",
     GITHUB_CLIENT_ID: "test-client",
     GITHUB_CLIENT_SECRET: "test-only-secret",
     TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
   } as unknown as Env;
-  return { env, sqlite, objects, published };
+  return { env, sqlite, objects, published, feedback };
 }

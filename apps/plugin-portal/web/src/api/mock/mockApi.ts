@@ -16,6 +16,7 @@ import type {
 } from "../../../../contracts";
 import { PortalApiError } from "../errors";
 import { content, sampleSubmission } from "./samples";
+import { createAppFeedbackMock } from "./appFeedback";
 
 export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
   const records = new Map<string, Submission>(),
@@ -73,6 +74,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     return row;
   };
   return {
+    ...createAppFeedbackMock(),
     listModerationComments: async () => ({ items: [], nextCursor: null }),
     listModerationEvents: async () => ({ items: [], nextCursor: null }),
     moderate: async () => {

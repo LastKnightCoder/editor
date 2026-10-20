@@ -10,6 +10,7 @@ import { visitorRoute } from "./visitors";
 import { communityRoute } from "./community";
 import { moderationRoute } from "./moderation";
 import { pluginModerationRoute } from "./plugin-moderation";
+import { appFeedbackModerationRoute, appFeedbackRoute, cleanAppFeedback } from "./app-feedback";
 import { ciRoute } from "./ci";
 import { cleanDownloadReceipts } from "./download-statistics";
 
@@ -34,7 +35,8 @@ export async function handle(
       const auth =
         (await visitorRoute(request, env, path)) ??
         (await authRoute(request, env, path)) ??
-        (await ciRoute(request, env, path));
+        (await ciRoute(request, env, path)) ??
+        (await appFeedbackRoute(request, env, path));
       if (auth) response = auth;
       else if (path === "/health" && request.method === "GET") response = json({ ok: true });
       else {
@@ -47,6 +49,7 @@ export async function handle(
           // 插件管理先于评论管理匹配：后者对一切未命中的 /v1/moderation/* 直接回 404。
           response =
             (await pluginModerationRoute(request, env, session.publisher_id, path)) ??
+            (await appFeedbackModerationRoute(request, env, session.publisher_id, path)) ??
             (await moderationRoute(request, env, session.publisher_id, path)) ??
             (await uploadRoute(request, env, session.publisher_id, path)) ??
             (await feedbackRoute(request, env, session.publisher_id, path)) ??
@@ -91,5 +94,5 @@ export async function handle(
 export default {
   fetch: handle,
   scheduled: (_event: unknown, env: Env) =>
-    Promise.all([cleanDownloadReceipts(env), purgeStaleUploads(env)]),
+    Promise.all([cleanDownloadReceipts(env), cleanAppFeedback(env), purgeStaleUploads(env)]),
 };

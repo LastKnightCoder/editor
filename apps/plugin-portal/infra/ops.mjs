@@ -27,6 +27,7 @@ const help = `用法：node apps/plugin-portal/infra/ops.mjs <命令> [--execute
   smoke         公网API健康/CORS、下载清单、协作HTTPS/WSS、统计脚本
   backup        导出D1至仓库外的私有备份目录
   migrate       备份D1后应用正式迁移，不隐式发布代码
+  buckets       按正式配置补建缺失的私有R2桶（已存在则跳过），并确认r2.dev关闭
   deploy-api    检查/测试/预构建后发布Worker，不隐式迁移或改Secrets
   deploy-web    检查/测试/生产构建后发布经典Pages master，不推Git
   secrets       从进程环境和固定本机文件读取密钥，标准输入上传，不打印值
@@ -67,9 +68,11 @@ const plans = {
     cf("d1", "migrations", "list", "plugin-portal", "--remote"),
     cf("r2", "bucket", "dev-url", "get", "tau-plugin-pending"),
     cf("r2", "bucket", "dev-url", "get", "tau-plugin-releases"),
+    cf("r2", "bucket", "dev-url", "get", "tau-feedback"),
     cf("secret", "list"),
   ],
   backup: [backup],
+  buckets: config.r2_buckets.map(bucket => cf("r2", "bucket", "create", bucket.bucket_name)),
   migrate: [backup, cf("d1", "migrations", "apply", "plugin-portal", "--remote")],
   "deploy-api": [...checks, cf("deploy", "--dry-run", "--outdir", "dist/api"), cf("deploy")],
   "deploy-web": [
@@ -158,6 +161,28 @@ try {
         throw new Error("D1备份失败，已停止；未输出可能包含临时下载凭据的CLI响应");
       }
       console.log(`D1备份已保存：${backupFile}`);
+    } else if (action === "buckets") {
+      const name = args[args.indexOf("create") + 1];
+      // 已存在的桶只检查，不重复创建；新建桶默认私有、r2.dev关闭
+      const exists = (() => {
+        try {
+          execFileSync("pnpm", cf("r2", "bucket", "info", name), {
+            cwd: packageRoot,
+            env,
+            stdio: "pipe",
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      if (exists) console.log(`R2桶 ${name} 已存在，跳过创建。`);
+      else execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: "inherit" });
+      execFileSync("pnpm", cf("r2", "bucket", "dev-url", "get", name), {
+        cwd: packageRoot,
+        env,
+        stdio: "inherit",
+      });
     } else execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: "inherit" });
   }
   if (action === "smoke") await smoke();

@@ -20,6 +20,10 @@ import type {
   ReleasePage,
   PublicRelease,
   DownloadStatistics,
+  AppFeedbackDetail,
+  AppFeedbackFilter,
+  AppFeedbackPage,
+  AppFeedbackUpdate,
 } from "../../../contracts";
 
 export interface UploadProgress {
@@ -56,6 +60,11 @@ export interface PortalApi {
   ): Promise<ModerationPage<ManagedPlugin>>;
   moderatePlugin(input: PluginModerationInput): Promise<PluginModerationEvent>;
   listPluginModerationEvents(cursor: string | null): Promise<ModerationPage<PluginModerationEvent>>;
+  listAppFeedback(filter: AppFeedbackFilter, cursor: string | null): Promise<AppFeedbackPage>;
+  getAppFeedback(id: string): Promise<AppFeedbackDetail>;
+  updateAppFeedback(id: string, input: AppFeedbackUpdate): Promise<AppFeedbackDetail>;
+  /** 附件需管理员会话，取回 Blob 后由页面生成 object URL */
+  getAppFeedbackAttachment(id: string, attachmentId: string): Promise<Blob>;
   getCommunity(
     pluginId: string,
     cursor: string | null

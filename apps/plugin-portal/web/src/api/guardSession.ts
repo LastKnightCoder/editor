@@ -18,6 +18,11 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
     listManagedPlugins: (filter, cursor) => watch(api.listManagedPlugins(filter, cursor)),
     moderatePlugin: input => watch(api.moderatePlugin(input)),
     listPluginModerationEvents: cursor => watch(api.listPluginModerationEvents(cursor)),
+    listAppFeedback: (filter, cursor) => watch(api.listAppFeedback(filter, cursor)),
+    getAppFeedback: id => watch(api.getAppFeedback(id)),
+    updateAppFeedback: (id, input) => watch(api.updateAppFeedback(id, input)),
+    getAppFeedbackAttachment: (id, attachmentId) =>
+      watch(api.getAppFeedbackAttachment(id, attachmentId)),
     getCommunity: (id, cursor) => api.getCommunity(id, cursor),
     setPluginLiked: (id, liked) => api.setPluginLiked(id, liked),
     addComment: (id, message, requestId) => api.addComment(id, message, requestId),

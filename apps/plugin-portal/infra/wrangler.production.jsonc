@@ -25,5 +25,6 @@
   "r2_buckets": [
     { "binding": "PENDING", "bucket_name": "tau-plugin-pending" },
     { "binding": "RELEASES", "bucket_name": "tau-plugin-releases" },
+    { "binding": "FEEDBACK", "bucket_name": "tau-feedback" },
   ],
 }
