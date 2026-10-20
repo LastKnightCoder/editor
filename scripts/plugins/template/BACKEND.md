@@ -1,6 +1,6 @@
 # 本机后台开发
 
-后台入口需要支持包格式 2 的 SDK 和客户端。当前仓库正在实现该协议，公开旧 SDK 不支持；不要只修改版本号就认为客户端已经具备运行能力。普通渲染插件仍使用格式 1。
+后台入口需要 SDK 0.25.0 及支持包格式 2 的客户端构建。不要只修改版本号就认为客户端已经具备运行能力。普通渲染插件仍使用格式 1。使用 Node 内置模块前执行 `pnpm add -D @types/node@24.0.0 --save-exact` 安装类型声明。
 
 仓库提供完整双入口样本：`scripts/plugins/fixtures/backend-system.tsx` 为界面，`backend-system.ts` 为后台。在宿主仓库运行 `node scripts/plugins/verify-backend-author.mjs`，会打包 SDK，在仓库外安装 tarball、类型检查、构建双入口 ZIP，并用真实 Electron utilityProcess 调用样本。结果位于 `output/plugin-backend-sdk/`；该命令不安装到用户目录、不发布到市场。
 

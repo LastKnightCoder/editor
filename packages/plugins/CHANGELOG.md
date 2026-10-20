@@ -2,6 +2,7 @@
 
 ## 0.25.0
 
+- 新增独立本机后台：格式 2 插件声明 `backend`，通过 `@tau/plugins/backend` 的 `defineBackend` 注册方法，界面经 `context.backend.call/subscribe` 调用与订阅。支持按需或随作用域启动、取消、受监督的外部工具与本机执行授权；构建脚本生成双入口及完整性摘要，详见 BACKEND.md。普通插件继续使用格式 1。
 - 新增业务数据只读接口：`context.data` 读取卡片、文章、项目文档、待办与日程，`context.content.read` 按 `contentRef` 读取正文（Markdown 或编辑器节点）。查询按时间范围、标签筛选并分页。
 - 新增权限：manifest `permissions` 声明可申请的上限（`cards:read`、`articles:read`、`documents:read`、`todos:read`、`calendar:read`），首次调用时由用户选择「仅这次」「始终允许」或「拒绝」。未获准时抛出 `PluginPermissionError`；`context.permissions` 可查询状态与一次申请多项。
 - 新增 `context.events.on`：卡片、文章、项目文档的创建 / 更新 / 删除，待办与日程的集合级变化，以及同步下载后的 `workspace.reset`。事件不携带数据，需要对应读取权限才会送达。

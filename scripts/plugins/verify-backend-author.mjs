@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 const root = path.resolve(import.meta.dirname, "../..");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-backend-author-"));
 const output = path.join(root, "output/plugin-backend-sdk");
+const published = process.argv.includes("--published");
 async function run(command, args, cwd, extra = {}) {
   const env = { ...process.env, ...extra };
   delete env.NODE_PATH;
@@ -22,9 +23,12 @@ async function run(command, args, cwd, extra = {}) {
 }
 try {
   const sdk = path.join(directory, "sdk");
-  await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
+  if (!published) await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   const author = path.join(directory, "独立作者 project");
-  await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await cp(path.join(root, "scripts/plugins/template"), author, {
+    recursive: true,
+    filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
+  });
   await rm(path.join(author, "pnpm-lock.yaml"), { force: true });
   const pkg = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
   pkg.name = "tau-backend-system-example";
@@ -32,7 +36,9 @@ try {
     const { version } = JSON.parse(
       await readFile(path.join(root, `packages/${name}/package.json`), "utf8")
     );
-    pkg.dependencies[`@tau/${name}`] = `file:${sdk}/xiongtao.xt-tau-${name}-${version}.tgz`;
+    pkg.dependencies[`@tau/${name}`] = published
+      ? `npm:@xiongtao.xt/tau-${name}@${version}`
+      : `file:${sdk}/xiongtao.xt-tau-${name}-${version}.tgz`;
   }
   pkg.devDependencies["@types/node"] = "24.0.0";
   await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
@@ -67,9 +73,15 @@ try {
     path.join(root, "scripts/plugins/fixtures/backend-system.tsx"),
     path.join(author, "src/index.tsx")
   );
-  await run("pnpm", ["install", "--ignore-scripts"], author);
-  const installed = await realpath(path.join(author, "node_modules/@tau/plugins"));
-  assert.ok(installed.startsWith((await realpath(author)) + path.sep));
+  await cp(
+    path.join(root, "scripts/plugins/fixtures/author-contract-check.ts"),
+    path.join(author, "src/contract-check.ts")
+  );
+  await run("pnpm", ["install", "--store-dir", path.join(directory, "store")], author);
+  for (const name of [...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)]) {
+    const installed = await realpath(path.join(author, "node_modules", name));
+    assert.ok(installed.startsWith((await realpath(author)) + path.sep));
+  }
   await run("pnpm", ["build"], author);
   const pointer = JSON.parse(
     await readFile(path.join(author, "dist", `tau-build-${manifest.id}.json`), "utf8")
@@ -92,12 +104,16 @@ try {
     path.join(output, `${manifest.id}-${manifest.version}.zip`)
   );
   await writeFile(
-    path.join(output, "backend-author-report.json"),
+    path.join(
+      output,
+      published ? "backend-author-published-report.json" : "backend-author-report.json"
+    ),
     JSON.stringify(
       {
         status: "passed",
         manifest: built,
         independentInstall: true,
+        sdkSource: published ? "registry" : "local-tarball",
         runtime: "Electron utilityProcess",
         published: false,
       },
