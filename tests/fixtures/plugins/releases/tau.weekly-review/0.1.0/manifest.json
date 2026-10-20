@@ -1,0 +1,32 @@
+{
+  "formatVersion": 1,
+  "id": "tau.weekly-review",
+  "name": "每周回顾",
+  "description": "按周汇总新写的卡片、修改过的文章与文档、待办和日程。",
+  "categories": [
+    "page"
+  ],
+  "keywords": [
+    "回顾",
+    "周报",
+    "复盘"
+  ],
+  "permissions": [
+    "cards:read",
+    "articles:read",
+    "documents:read",
+    "todos:read",
+    "calendar:read"
+  ],
+  "version": "0.1.0",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js",
+  "integrity": {
+    "main.js": "75f390c6f3a6313bd236b681d41031e9383b044d0fa2c414c8dfac7fe1e3583e",
+    "main.css": "d9f2d93327425712568bef26706e984b9f893afd8d8edd54adc4833d9fdf0a23"
+  },
+  "styles": "main.css"
+}
