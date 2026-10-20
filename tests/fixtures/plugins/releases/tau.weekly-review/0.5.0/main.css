@@ -190,3 +190,37 @@
   overflow-y: auto;
   padding: 0 20px 20px;
 }
+.weekly-review__journal h2,
+.weekly-review__backlinks h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.weekly-review__journal-body {
+  min-height: 120px;
+}
+.weekly-review__backlinks {
+  margin-top: 12px;
+}
+.weekly-review__backlinks h3 {
+  color: var(--tau-ink-2);
+  font-size: 12.5px;
+}
+.weekly-review__backlinks ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+}
+.weekly-review__snippet {
+  margin-left: 8px;
+  color: var(--tau-ink-3);
+  font-size: 12.5px;
+}
+.weekly-review__snippet mark {
+  background: none;
+  color: var(--tau-ink-2);
+}

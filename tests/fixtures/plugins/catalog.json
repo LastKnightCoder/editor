@@ -174,18 +174,18 @@
   },
   {
     "repository": "https://github.com/LastKnightCoder/tau-plugin-weekly-review",
-    "artifact": "releases/tau.weekly-review/0.4.0",
+    "artifact": "releases/tau.weekly-review/0.5.0",
     "id": "tau.weekly-review",
-    "version": "0.4.0",
-    "sourceRevision": "7cd3ee594e6ff8dcfe8b865c606c5e5f95471397",
-    "archiveSha256": "215403f029c35bd17f07a9b2305df67cedce0c0e218166cff8fe311703dc1d08",
+    "version": "0.5.0",
+    "sourceRevision": "712fc8cf3240518a369e68d22b94ffb8a6a5b6ec",
+    "archiveSha256": "2aeb5db0720c4248abd263f1c1e385c7a86e7555e404cd7a0b30c317789ad706",
     "files": {
-      "CHANGELOG.md": "48fa3620c9a5a64142143fd0ae44ca6a7f64f36ef3aae4fd01bb8357b9b2ca6d",
+      "CHANGELOG.md": "422a82f855eabd5b453f888a70310ea3f234fb6c05a81965d6b71822e40d3b91",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
-      "main.css": "f44932a67d8c5ea8d75afb08ba475192e7caf5feb8478a7e8a68c102d7dc722e",
-      "main.js": "70d5b9dff53cde11a0287d939ddd9303b613f1d4c548d83dfde62d77cfd60717",
-      "manifest.json": "366ec59a41f54473c64f392d240c080d561df8597a53f747b3f21b8afda09917",
-      "README.md": "7e3f8be505ac0baaa6d0bb00655cf9a93582057360bf57af60246a4dfe812409"
+      "main.css": "e7365bf439181d7c53a0472a2b879e01b7cf69e9fca4c017dfa81d54fe0ac093",
+      "main.js": "fa80553df8d0d301e38e38523a7076eb3a246c62e40db25d492e1459c56b5bbb",
+      "manifest.json": "db15fa9cb00b6a6d54d36d0a7081887b3fda762e4d9fa6e2c39a57b6a2b677e1",
+      "README.md": "11eac814b4dbfb35b9c27f165e73e2bbe664c57fb0d574fab3959c35bdaccc4d"
     }
   }
 ]
