@@ -22,6 +22,14 @@ export function checkPageContextContract({ pageContext }: PluginPageProps) {
   void text.dispose();
 }
 
+export function checkNotificationsContract(context: PluginContext) {
+  return context.notifications.send({
+    title: "任务完成",
+    mode: "auto",
+    actions: [{ label: "查看", onClick: () => undefined }],
+  });
+}
+
 export function checkTTSContract(context: PluginContext) {
   const handle = context.tts.register({
     id: context.pluginId,
