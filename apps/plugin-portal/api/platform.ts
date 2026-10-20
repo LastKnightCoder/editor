@@ -20,8 +20,9 @@ export const isReviewer = (env: Env, id: string) =>
     .split(",")
     .map(value => value.trim())
     .includes(id);
-/** 公开版本排除已撤回产物，查询中的 releases 别名为 r。 */
-export const VISIBLE_PLUGIN = "r.revoked_at IS NULL";
+/** 公开接口对被管理员禁用的插件一律当作不存在；要求查询里 releases 的别名为 r。 */
+export const VISIBLE_PLUGIN =
+  "r.revoked_at IS NULL AND NOT EXISTS(SELECT 1 FROM plugins dp WHERE dp.id=r.plugin_id AND dp.disabled_at IS NOT NULL)";
 export class HttpError extends Error {
   constructor(
     public status: number,

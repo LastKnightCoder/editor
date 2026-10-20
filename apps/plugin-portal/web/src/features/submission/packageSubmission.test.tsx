@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { UiProvider } from "@tau/ui";
@@ -13,14 +13,21 @@ import { content } from "../../api/mock/samples";
 import type { PortalApi } from "../../api/types";
 
 afterEach(cleanup);
+/** 新协议下草稿随包创建；返回 ready 状态的上传记录 */
+async function uploadPackage(api: PortalApi) {
+  const ticket = await api.createUpload({ fileName: "p.zip", size: 1 });
+  return api.sendUpload(ticket, new Blob(["x"]), () => {}).result;
+}
 async function setup(pending = false) {
   const api = createMockApi(),
     client = createQueryClient();
-  const draft = await api.createSubmission(crypto.randomUUID());
+  const up = await uploadPackage(api);
+  const draft = await api.createSubmission({
+    clientRequestId: crypto.randomUUID(),
+    packageUploadId: up.id,
+  });
   let initial = draft;
   if (pending) {
-    const ticket = await api.createUpload({ fileName: "p.zip", size: 1 });
-    const up = await api.sendUpload(ticket, new Blob(["x"]), () => {}).result;
     const saved = await api.saveSubmission(draft.id, {
       revision: 1,
       packageUploadId: up.id,
@@ -102,7 +109,9 @@ describe("ZIP资料提交交互", () => {
     expect(screen.queryByLabelText("反馈地址")).toBeNull();
   });
   it("仓库格式不对或版本号不高于已发布版本时挡住提交", async () => {
-    const { api } = await setup();
+    const { api, client } = await setup();
+    // 草稿随包创建，挂载时就会查已发布版本；等首次查询落定再 mock，避免与重取竞态
+    await screen.findByText("首次发布");
     vi.spyOn(api, "listReleases").mockResolvedValue({
       items: [
         {
@@ -120,6 +129,7 @@ describe("ZIP资料提交交互", () => {
       ],
       nextCursor: null,
     });
+    await client.invalidateQueries({ queryKey: ["plugin-releases"] });
     fireEvent.change(screen.getByLabelText("插件ZIP"), {
       target: { files: [new File(["x"], "reader.zip")] },
     });
@@ -132,9 +142,11 @@ describe("ZIP资料提交交互", () => {
   });
   it("要求修改后页顶显示审核意见，并能直接回到上传", async () => {
     const reviewerApi = createMockApi({ reviewer: true });
-    const draft = await reviewerApi.createSubmission(crypto.randomUUID());
-    const ticket = await reviewerApi.createUpload({ fileName: "p.zip", size: 1 });
-    const up = await reviewerApi.sendUpload(ticket, new Blob(["x"]), () => {}).result;
+    const up = await uploadPackage(reviewerApi);
+    const draft = await reviewerApi.createSubmission({
+      clientRequestId: crypto.randomUUID(),
+      packageUploadId: up.id,
+    });
     const saved = await reviewerApi.saveSubmission(draft.id, {
       revision: 1,
       packageUploadId: up.id,
@@ -184,6 +196,36 @@ describe("ZIP资料提交交互", () => {
     expect((screen.getByRole("button", { name: "保存草稿" }) as HTMLButtonElement).disabled).toBe(
       true
     );
+  });
+  it("审核中的提交可撤回为草稿并继续编辑；回到草稿后可从详情页删除", async () => {
+    const { api, draft } = await setup(true);
+    const withdraw = vi.spyOn(api, "withdrawSubmission");
+    const remove = vi.spyOn(api, "deleteSubmission");
+    expect(screen.queryByRole("button", { name: "保存草稿" })).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "撤回提交" }));
+    fireEvent.click(await screen.findByRole("button", { name: "撤回" }));
+    // 回到可编辑的草稿：出现保存/提交入口，撤回入口消失
+    await screen.findByRole("button", { name: "保存草稿" });
+    expect(screen.queryByRole("button", { name: "撤回提交" })).toBeNull();
+    expect(withdraw).toHaveBeenCalledTimes(1);
+    expect(withdraw.mock.calls[0][0]).toBe(draft.id);
+    const record = await api.getSubmission(draft.id);
+    expect(record.status).toBe("draft");
+    expect(record.submittedAt).not.toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "删除草稿" }));
+    fireEvent.click(await screen.findByRole("button", { name: "删除" }));
+    await waitFor(() => expect(remove).toHaveBeenCalledWith(draft.id));
+    await expect(api.getSubmission(draft.id)).rejects.toThrow();
+  });
+  it("撤回遇到并发冲突时对话框保留并显示原因", async () => {
+    const { api } = await setup(true);
+    vi.spyOn(api, "withdrawSubmission").mockRejectedValue(
+      new PortalApiError(409, "REVISION_CONFLICT", "记录已被审核或已变化，请重新读取")
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "撤回提交" }));
+    fireEvent.click(await screen.findByRole("button", { name: "撤回" }));
+    await screen.findByText("记录已被审核或已变化，请重新读取");
+    expect(screen.getByRole("dialog")).toBeTruthy();
   });
   it.each(["UPLOAD_STATE_CONFLICT", "UPLOAD_EXPIRED"] as const)("上传%s有明确处理", async code => {
     const get = vi.fn(async () => ({ id: "u", status: "ready", content }));

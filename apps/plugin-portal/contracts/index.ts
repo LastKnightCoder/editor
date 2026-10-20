@@ -202,6 +202,11 @@ export interface SubmissionEvent {
   excerpt: string;
   createdAt: string;
 }
+/** 插件被管理员禁用的信息；作者可见，用于整改。 */
+export interface PluginDisabled {
+  reason: string;
+  at: string;
+}
 export interface Submission {
   id: string;
   revision: number;
@@ -211,11 +216,23 @@ export interface Submission {
   repository: string;
   commit: string | null;
   canEdit: boolean;
+  /** 当前登录者就是作者；审核者读他人记录时为 false，用于隐藏撤回、删除等作者操作。 */
+  owned: boolean;
   repositoryId: string | null;
+  /** 「发布新版本」预绑定或提交时确定的插件 ID；未确定为 null。 */
+  pluginId: string | null;
+  /** 所属插件被禁用时非空；禁用只切断公开可见性，不阻止整改提交。 */
+  disabled: PluginDisabled | null;
   createdAt: string;
   updatedAt: string;
   submittedAt: string | null;
   lastEvent: SubmissionEvent | null;
+}
+/** 创建草稿必须带已校验通过的插件包；pluginId 仅「发布新版本」路径传入。 */
+export interface CreateSubmission {
+  clientRequestId: string;
+  packageUploadId: string;
+  pluginId?: string;
 }
 export interface SaveSubmission {
   revision: number;
@@ -233,10 +250,12 @@ export interface SubmissionPage {
 export interface SubmissionSummary {
   id: string;
   status: SubmissionStatus;
-  /** 包内插件 ID；还没上传包的草稿为 null。 */
+  /** 预绑定或包内插件 ID；都没有的草稿为 null。 */
   pluginId: string | null;
   name: string | null;
   version: string | null;
+  /** 是否已关联插件包；预绑定草稿可能有 pluginId 而没有包。 */
+  hasPackage: boolean;
   createdAt: string;
   updatedAt: string;
   submittedAt: string | null;
@@ -246,6 +265,8 @@ export interface SubmissionSummary {
 export interface SubmissionGroup {
   pluginId: string | null;
   name: string | null;
+  /** 该插件被管理员禁用时非空。 */
+  disabled: PluginDisabled | null;
   submissions: SubmissionSummary[];
 }
 export interface SubmissionGroups {
@@ -315,4 +336,43 @@ export interface ModerationEvent {
 export interface ModerationPage<T> {
   items: T[];
   nextCursor: string | null;
+}
+
+/** 插件禁用只切断公开可见性（目录、搜索、版本、下载、统计、社区），不影响作者提交与审核。 */
+export type PluginModerationAction = "disable_plugin" | "enable_plugin";
+export interface PluginModerationInput {
+  pluginId: string;
+  action: PluginModerationAction;
+  /** 作者可见，用于说明整改方向。 */
+  reason: string;
+  clientRequestId: string;
+}
+export interface PluginModerationEvent {
+  id: string;
+  reviewer: string;
+  pluginId: string;
+  action: PluginModerationAction;
+  reason: string;
+  createdAt: string;
+}
+/** 管理端视角的禁用详情，额外记录操作管理员 ID。 */
+export interface ManagedPluginDisabled extends PluginDisabled {
+  by: string;
+}
+/** 管理端插件条目：含禁用插件；资料取最高已发布版本。 */
+export interface ManagedPlugin {
+  pluginId: string;
+  name: string | null;
+  publisher: PublicPublisher;
+  repository: string;
+  releaseCount: number;
+  latestVersion: string | null;
+  latestPublishedAt: string | null;
+  downloadsTotal: number;
+  disabled: ManagedPluginDisabled | null;
+}
+export interface ManagedPluginFilter {
+  /** 对插件 ID 与任一已发布版本名称做不区分大小写的包含匹配。 */
+  q: string;
+  status: "all" | "active" | "disabled";
 }

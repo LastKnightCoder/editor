@@ -17,7 +17,7 @@ interface EventRow {
   expected_revision: number;
   created_at: string;
 }
-function boundary(url: URL, scope: string) {
+export function boundary(url: URL, scope: string) {
   const cursor = url.searchParams.get("cursor");
   if (!cursor) return null;
   try {
@@ -29,7 +29,7 @@ function boundary(url: URL, scope: string) {
     return fail(400, "INVALID_INPUT", "分页游标无效，请刷新列表");
   }
 }
-function nextCursor(rows: { id: string; created_at: string }[], scope: string) {
+export function nextCursor(rows: { id: string; created_at: string }[], scope: string) {
   const last = rows[19];
   return rows.length > 20
     ? btoa(JSON.stringify({ scope, time: last.created_at, id: last.id }))

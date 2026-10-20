@@ -1,5 +1,11 @@
 import type {
+  CreateSubmission,
   CreateUpload,
+  ManagedPlugin,
+  ManagedPluginFilter,
+  ModerationPage,
+  PluginModerationEvent,
+  PluginModerationInput,
   SaveSubmission,
   Session,
   Submission,
@@ -43,6 +49,13 @@ export interface PortalApi {
   moderate(
     input: import("../../../contracts").ModerationInput
   ): Promise<import("../../../contracts").ModerationEvent>;
+  /** 管理端插件列表：含被禁用插件，q 匹配 ID 与已发布名称 */
+  listManagedPlugins(
+    filter: ManagedPluginFilter,
+    cursor: string | null
+  ): Promise<ModerationPage<ManagedPlugin>>;
+  moderatePlugin(input: PluginModerationInput): Promise<PluginModerationEvent>;
+  listPluginModerationEvents(cursor: string | null): Promise<ModerationPage<PluginModerationEvent>>;
   getCommunity(
     pluginId: string,
     cursor: string | null
@@ -76,13 +89,18 @@ export interface PortalApi {
     onProgress: (progress: UploadProgress) => void
   ): UploadTransfer;
   getUpload(id: string): Promise<Upload>;
-  createSubmission(clientRequestId: string): Promise<Submission>;
+  /** 草稿只在包校验通过后创建；pluginId 为「发布新版本」目标 */
+  createSubmission(input: CreateSubmission): Promise<Submission>;
   listSubmissions(query: SubmissionQuery): Promise<SubmissionPage>;
   /** 本人全部提交按插件归组 */
   listSubmissionGroups(): Promise<SubmissionGroups>;
   getSubmission(id: string): Promise<Submission>;
   saveSubmission(id: string, body: SaveSubmission): Promise<Submission>;
   submitSubmission(id: string, revision: number): Promise<Submission>;
+  /** 审核中的提交退回草稿 */
+  withdrawSubmission(id: string, revision: number): Promise<Submission>;
+  /** 只能删除未进入审核的草稿 */
+  deleteSubmission(id: string): Promise<{ deleted: boolean }>;
   listFeedback(
     id: string,
     cursor: string | null

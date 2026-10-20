@@ -1,5 +1,5 @@
 import type { PluginComment, PluginCommunity } from "../contracts";
-import { body, fail, json, type Env } from "./platform";
+import { body, fail, json, VISIBLE_PLUGIN, type Env } from "./platform";
 import { visitorFor } from "./visitors";
 
 interface CommentRow {
@@ -23,7 +23,9 @@ export async function communityRoute(request: Request, env: Env, path: string) {
   if (!match) return null;
   const [, pluginId, action, commentId] = match;
   if (
-    !(await env.DB.prepare("SELECT 1 FROM releases WHERE plugin_id=? AND state='published' LIMIT 1")
+    !(await env.DB.prepare(
+      `SELECT 1 FROM releases r WHERE r.plugin_id=? AND r.state='published' AND ${VISIBLE_PLUGIN} LIMIT 1`
+    )
       .bind(pluginId)
       .first())
   )

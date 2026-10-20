@@ -9,6 +9,7 @@ import { publicReleaseRoute } from "./releases";
 import { visitorRoute } from "./visitors";
 import { communityRoute } from "./community";
 import { moderationRoute } from "./moderation";
+import { pluginModerationRoute } from "./plugin-moderation";
 import { ciRoute } from "./ci";
 import { cleanDownloadReceipts } from "./download-statistics";
 
@@ -43,7 +44,9 @@ export async function handle(
         if (publicRelease) response = publicRelease;
         else {
           const session = await requireSession(request, env);
+          // 插件管理先于评论管理匹配：后者对一切未命中的 /v1/moderation/* 直接回 404。
           response =
+            (await pluginModerationRoute(request, env, session.publisher_id, path)) ??
             (await moderationRoute(request, env, session.publisher_id, path)) ??
             (await uploadRoute(request, env, session.publisher_id, path)) ??
             (await feedbackRoute(request, env, session.publisher_id, path)) ??

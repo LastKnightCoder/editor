@@ -9,9 +9,15 @@ const DECISION_TEXT = {
 /**
  * 列表第二行：优先讲最近一条审核/沟通，没有动态时说明当前该做什么。
  * viewer 决定留言的称呼：作者看到自己的留言是「我」。
+ * 曾提交过又回到草稿的记录（submittedAt 非空）是作者撤回的结果，按角色换说法。
  */
 export function activityText(
-  item: { status: SubmissionStatus; lastEvent: SubmissionEvent | null; hasPackage: boolean },
+  item: {
+    status: SubmissionStatus;
+    lastEvent: SubmissionEvent | null;
+    hasPackage: boolean;
+    submittedAt?: string | null;
+  },
   viewer: "author" | "reviewer"
 ): string {
   const event = item.lastEvent;
@@ -26,6 +32,8 @@ export function activityText(
   }
   switch (item.status) {
     case "draft":
+      if (item.submittedAt)
+        return viewer === "author" ? "已撤回，可继续修改后重新提交" : "作者已撤回，等待重新提交";
       return item.hasPackage ? "已上传插件包，尚未提交审核" : "还没有上传插件包";
     case "pending_review":
       return "已提交，等待审核";

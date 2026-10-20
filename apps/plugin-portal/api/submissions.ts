@@ -1,4 +1,5 @@
 import type {
+  PackageContent,
   Submission,
   SubmissionCounts,
   SubmissionEvent,
@@ -26,7 +27,15 @@ export interface SubmissionRow {
   created_at: string;
   updated_at: string;
   submitted_at: string | null;
+  /** 来自 plugins 左连接；未绑定插件或未禁用时为 null。 */
+  disabled_at: string | null;
+  disabled_reason: string | null;
 }
+/** 提交行统一带上所属插件的禁用状态；plugin_id 只在归属校验后写入，连接仍限定同一作者以防越权读取。 */
+export const SUBMISSION_SELECT =
+  "SELECT s.*,p.disabled_at,p.disabled_reason FROM submissions s LEFT JOIN plugins p ON p.id=s.plugin_id AND p.publisher_id=s.publisher_id";
+const disabledOf = (row: { disabled_at: string | null; disabled_reason: string | null }) =>
+  row.disabled_at ? { reason: row.disabled_reason ?? "", at: row.disabled_at } : null;
 interface EventRow {
   submission_id: string;
   kind: SubmissionEvent["kind"];
@@ -54,6 +63,9 @@ const dto = (row: SubmissionRow, owner: string): Omit<Submission, "lastEvent"> =
   repository: row.repository,
   commit: row.source_commit,
   repositoryId: row.repository_id,
+  pluginId: row.plugin_id,
+  disabled: disabledOf(row),
+  owned: row.publisher_id === owner,
   canEdit:
     row.publisher_id === owner && (row.status === "draft" || row.status === "changes_requested"),
   createdAt: row.created_at,
@@ -111,18 +123,24 @@ interface SummaryRow {
   group_id: string | null;
   name: string | null;
   version: string | null;
+  has_package: number;
+  disabled_at: string | null;
+  disabled_reason: string | null;
   created_at: string;
   updated_at: string;
   submitted_at: string | null;
 }
 /** 本人全部提交按插件归组；单作者提交数有上限，一次读完，不读包内正文。 */
 async function submissionGroups(env: Env, owner: string): Promise<SubmissionGroups> {
+  // 归组键优先取预绑定/已提交的 plugin_id，否则取包内 manifest.id；禁用状态只认本人登记的插件。
   const [rows, latest] = await Promise.all([
     env.DB.prepare(
-      `SELECT id,status,COALESCE(plugin_id,json_extract(content_json,'$.manifest.id')) AS group_id,
-        json_extract(content_json,'$.manifest.name') AS name,json_extract(content_json,'$.manifest.version') AS version,
-        created_at,updated_at,submitted_at
-      FROM submissions WHERE publisher_id=? ORDER BY created_at DESC,id DESC LIMIT ?`
+      `SELECT s.id,s.status,COALESCE(s.plugin_id,json_extract(s.content_json,'$.manifest.id')) AS group_id,
+        json_extract(s.content_json,'$.manifest.name') AS name,json_extract(s.content_json,'$.manifest.version') AS version,
+        s.package_upload_id IS NOT NULL AS has_package,p.disabled_at,p.disabled_reason,
+        s.created_at,s.updated_at,s.submitted_at
+      FROM submissions s LEFT JOIN plugins p ON p.id=COALESCE(s.plugin_id,json_extract(s.content_json,'$.manifest.id')) AND p.publisher_id=s.publisher_id
+      WHERE s.publisher_id=? ORDER BY s.created_at DESC,s.id DESC LIMIT ?`
     )
       .bind(owner, MAX_SUBMISSIONS)
       .all<SummaryRow>(),
@@ -137,6 +155,7 @@ async function submissionGroups(env: Env, owner: string): Promise<SubmissionGrou
       pluginId: row.group_id,
       name: row.name,
       version: row.version,
+      hasPackage: !!row.has_package,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       submittedAt: row.submitted_at,
@@ -145,6 +164,7 @@ async function submissionGroups(env: Env, owner: string): Promise<SubmissionGrou
     const group = groups.get(row.group_id) ?? {
       pluginId: row.group_id,
       name: null,
+      disabled: disabledOf(row),
       submissions: [],
     };
     group.name ??= row.name;
@@ -168,7 +188,7 @@ export async function submissionAccess(
   id: string
 ): Promise<SubmissionRow> {
   const row = await env.DB.prepare(
-    "SELECT * FROM submissions WHERE id=? AND (publisher_id=? OR (?=1 AND submitted_at IS NOT NULL))"
+    `${SUBMISSION_SELECT} WHERE s.id=? AND (s.publisher_id=? OR (?=1 AND s.submitted_at IS NOT NULL))`
   )
     .bind(id, owner, isReviewer(env, owner) ? 1 : 0)
     .first<SubmissionRow>();
@@ -189,27 +209,64 @@ export async function submissionRoute(
       !/^[a-f0-9-]{36}$/i.test(input.clientRequestId)
     )
       fail(400, "INVALID_INPUT", "需要请求编号UUID");
-    const existing = await env.DB.prepare(
-      "SELECT * FROM submissions WHERE publisher_id=? AND client_request_id=?"
+    const byRequest = () =>
+      env.DB.prepare(`${SUBMISSION_SELECT} WHERE s.publisher_id=? AND s.client_request_id=?`)
+        .bind(owner, input.clientRequestId)
+        .first<SubmissionRow>();
+    if (typeof input.packageUploadId !== "string" || !input.packageUploadId)
+      fail(400, "INVALID_INPUT", "请先上传并校验插件包");
+    if (
+      input.pluginId !== undefined &&
+      (typeof input.pluginId !== "string" || !/^[\w.-]{1,128}$/.test(input.pluginId))
     )
-      .bind(owner, input.clientRequestId)
-      .first<SubmissionRow>();
-    if (existing) return json(await present(env, existing, owner));
+      fail(400, "INVALID_INPUT", "插件ID无效");
+    const existing = await byRequest();
+    if (existing) {
+      // 幂等只对同一次操作的重试成立；同编号换了包说明客户端状态已错位，不能静默返回旧草稿。
+      if (existing.package_upload_id !== input.packageUploadId)
+        fail(409, "REVISION_CONFLICT", "该请求编号已用于创建另一个草稿，请刷新后重试");
+      return json(await present(env, existing, owner));
+    }
     const count = await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE publisher_id=?")
       .bind(owner)
       .first<{ n: number }>();
     if ((count?.n ?? 0) >= MAX_SUBMISSIONS) fail(409, "LIMIT_EXCEEDED", "提交记录已达上限");
+    const upload = await readyUpload(env, owner, input.packageUploadId);
+    if (!upload.content_json) fail(409, "UPLOAD_NOT_READY", "插件包资料尚未就绪");
+    const manifestId = (JSON.parse(upload.content_json) as PackageContent).manifest.id;
+    // 「发布新版本」预绑定目标插件：必须是本人登记的插件，且包就是它的；其他情况仓库地址仍按包内 ID 带入。
+    const target = input.pluginId
+      ? await env.DB.prepare("SELECT id,repository FROM plugins WHERE id=? AND publisher_id=?")
+          .bind(input.pluginId, owner)
+          .first<{ id: string; repository: string }>()
+      : null;
+    if (input.pluginId && !target) fail(404, "NOT_FOUND", "插件不存在或不属于当前账号");
+    if (target && manifestId !== target.id)
+      fail(400, "INVALID_INPUT", `插件包的 manifest.id 不是 ${target.id}，请为它重新打包`, {
+        packageUploadId: `需要 ${target.id} 的插件包`,
+      });
+    const known =
+      target ??
+      (await env.DB.prepare("SELECT repository FROM plugins WHERE id=? AND publisher_id=?")
+        .bind(manifestId, owner)
+        .first<{ repository: string }>());
     const time = new Date().toISOString();
     await env.DB.prepare(
-      "INSERT OR IGNORE INTO submissions(id,publisher_id,client_request_id,created_at,updated_at) VALUES (?,?,?,?,?)"
+      "INSERT OR IGNORE INTO submissions(id,publisher_id,client_request_id,package_upload_id,content_json,repository,plugin_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)"
     )
-      .bind(crypto.randomUUID(), owner, input.clientRequestId, time, time)
+      .bind(
+        crypto.randomUUID(),
+        owner,
+        input.clientRequestId,
+        upload.id,
+        upload.content_json,
+        known?.repository ?? "",
+        target?.id ?? null,
+        time,
+        time
+      )
       .run();
-    const row = await env.DB.prepare(
-      "SELECT * FROM submissions WHERE publisher_id=? AND client_request_id=?"
-    )
-      .bind(owner, input.clientRequestId)
-      .first<SubmissionRow>();
+    const row = await byRequest();
     if (!row) fail(503, "SERVICE_UNAVAILABLE", "创建失败，请使用同一请求编号重试");
     return json(await present(env, row, owner), 201);
   }
@@ -237,12 +294,12 @@ export async function submissionRoute(
         fail(400, "INVALID_INPUT", "分页游标无效");
       }
     }
-    const scope = review ? "submitted_at IS NOT NULL" : "publisher_id=?",
+    const scope = review ? "s.submitted_at IS NOT NULL" : "s.publisher_id=?",
       scopeArgs = review ? [] : [owner];
     // counts 只按范围分组，不受 status 与游标影响，供筛选标签和侧栏待审数使用。
     const [rows, grouped] = await Promise.all([
       env.DB.prepare(
-        `SELECT * FROM submissions WHERE ${scope} AND (? IS NULL OR status=?) AND (? IS NULL OR created_at<? OR (created_at=? AND id<?)) ORDER BY created_at DESC,id DESC LIMIT 21`
+        `${SUBMISSION_SELECT} WHERE ${scope} AND (? IS NULL OR s.status=?) AND (? IS NULL OR s.created_at<? OR (s.created_at=? AND s.id<?)) ORDER BY s.created_at DESC,s.id DESC LIMIT 21`
       )
         .bind(
           ...scopeArgs,
@@ -254,7 +311,9 @@ export async function submissionRoute(
           after?.id ?? null
         )
         .all<SubmissionRow>(),
-      env.DB.prepare(`SELECT status,COUNT(*) AS n FROM submissions WHERE ${scope} GROUP BY status`)
+      env.DB.prepare(
+        `SELECT s.status,COUNT(*) AS n FROM submissions s WHERE ${scope} GROUP BY s.status`
+      )
         .bind(...scopeArgs)
         .all<{ status: SubmissionStatus; n: number }>(),
     ]);
@@ -270,16 +329,50 @@ export async function submissionRoute(
       counts,
     });
   }
-  const match = /^\/v1\/submissions\/([\w-]+)(\/submit)?$/.exec(path);
+  const match = /^\/v1\/submissions\/([\w-]+)(\/submit|\/withdraw)?$/.exec(path);
   if (!match) return null;
+  const action = match[2] ?? "";
   const row = await submissionAccess(env, owner, match[1]),
     current = dto(row, owner);
-  if (!match[2] && request.method === "GET") return json(await present(env, row, owner));
+  if (!action && request.method === "GET") return json(await present(env, row, owner));
   if (row.publisher_id !== owner) fail(403, "FORBIDDEN", "不能修改其他作者的提交");
   const latestRow = () => submissionAccess(env, owner, row.id),
     latest = async () => dto(await latestRow(), owner),
     respondLatest = async () => json(await present(env, await latestRow(), owner));
-  if (!match[2] && request.method === "PATCH") {
+  if (!action && request.method === "DELETE") {
+    // 审核记录属于平台审计：曾被要求修改、再撤回的草稿不可删，只删从未进入审核的草稿；上传记录与待审对象保留。
+    const deletable =
+      "id=? AND publisher_id=? AND status='draft' AND NOT EXISTS(SELECT 1 FROM submission_reviews WHERE submission_id=submissions.id)";
+    const result = await env.DB.batch([
+      env.DB.prepare(
+        `DELETE FROM submission_feedback WHERE submission_id=? AND EXISTS(SELECT 1 FROM submissions WHERE ${deletable})`
+      ).bind(row.id, row.id, owner),
+      env.DB.prepare(`DELETE FROM submissions WHERE ${deletable}`).bind(row.id, owner),
+    ]);
+    if (!result[1].meta.changes) fail(409, "SUBMISSION_LOCKED", "只有未进入审核的草稿可以删除");
+    return json({ deleted: true });
+  }
+  if (action === "/withdraw" && request.method === "POST") {
+    const input = await body(request);
+    if (current.status === "draft") return json(await present(env, row, owner));
+    if (current.status !== "pending_review")
+      fail(409, "SUBMISSION_LOCKED", "只有审核中的提交可以撤回");
+    if (input.revision !== row.revision)
+      fail(409, "REVISION_CONFLICT", "记录已变化，请重新读取后撤回");
+    // 保留 submitted_at 与 plugin_id：反馈线程继续可用，审核者仍能追踪，换包仍受插件 ID 约束。
+    const result = await env.DB.prepare(
+      "UPDATE submissions SET status='draft',revision=revision+1,updated_at=? WHERE id=? AND publisher_id=? AND status='pending_review' AND revision=?"
+    )
+      .bind(new Date().toISOString(), row.id, owner, row.revision)
+      .run();
+    if (!result.meta.changes) {
+      const value = await latest();
+      if (value.status === "draft") return respondLatest();
+      fail(409, "REVISION_CONFLICT", "记录已被审核或已变化，请重新读取");
+    }
+    return respondLatest();
+  }
+  if (!action && request.method === "PATCH") {
     const input = await body(request);
     if (!current.canEdit) fail(409, "SUBMISSION_LOCKED", "该记录已提交，内容只读");
     if (input.revision !== row.revision)
@@ -298,8 +391,10 @@ export async function submissionRoute(
       ? await readyUpload(env, owner, input.packageUploadId)
       : null;
     const content = upload?.content_json ? JSON.parse(upload.content_json) : null;
-    if (row.submitted_at && content && content.manifest.id !== row.plugin_id)
-      fail(400, "INVALID_INPUT", "修订不能更换插件ID，请为其他插件新建提交");
+    if (row.plugin_id && content && content.manifest.id !== row.plugin_id)
+      fail(400, "INVALID_INPUT", `这条提交属于插件 ${row.plugin_id}，不能换成其他插件的包`, {
+        packageUploadId: "请为其他插件新建提交",
+      });
     const known = content
       ? await env.DB.prepare("SELECT repository FROM plugins WHERE id=? AND publisher_id=?")
           .bind(content.manifest.id, owner)
@@ -328,7 +423,7 @@ export async function submissionRoute(
     }
     return respondLatest();
   }
-  if (match[2] && request.method === "POST") {
+  if (action === "/submit" && request.method === "POST") {
     const input = await body(request);
     if (current.status === "pending_review") return json(await present(env, row, owner));
     if (!current.canEdit) fail(409, "SUBMISSION_LOCKED", "该提交已结束，不能重新提交");

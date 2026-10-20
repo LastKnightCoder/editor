@@ -1,6 +1,8 @@
 import type { PortalApi } from "../types";
 import type {
   FeedbackMessage,
+  ManagedPluginDisabled,
+  PluginModerationEvent,
   Submission,
   SubmissionCounts,
   SubmissionEvent,
@@ -23,6 +25,8 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
   const likes = new Set<string>();
   const comments = new Map<string, PluginComment[]>();
   const commentRequests = new Map<string, PluginComment>();
+  const disabledPlugins = new Map<string, ManagedPluginDisabled>();
+  const pluginEvents: PluginModerationEvent[] = [];
   let user = { id: "demo-author", login: "demo", avatarUrl: "" } as {
     id: string;
     login: string;
@@ -54,6 +58,15 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
   };
   const releasesOf = (pluginId: string) =>
     [...published.values()].filter(release => release.pluginId === pluginId).reverse();
+  // 公开接口口径：被禁用插件的版本当作不存在；管理列表仍用 releasesOf 统计全部版本
+  const visibleReleasesOf = (pluginId: string) =>
+    disabledPlugins.has(pluginId) ? [] : releasesOf(pluginId);
+  // 真实后端在首次提交时登记插件；模拟模式把“已发布或曾创建过同 ID 的提交”视为已登记
+  const registered = (pluginId: string) =>
+    releasesOf(pluginId).length > 0 ||
+    [...records.values()].some(
+      row => row.pluginId === pluginId || row.content?.manifest.id === pluginId
+    );
   const get = (id: string) => {
     const row = records.get(id);
     if (!row) throw new PortalApiError(404, "NOT_FOUND", "找不到模拟记录");
@@ -65,12 +78,78 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     moderate: async () => {
       throw new Error("模拟模式没有可处置的评论");
     },
-    getCommunity: async pluginId => ({
-      likes: likes.has(pluginId) ? 1 : 0,
-      liked: likes.has(pluginId),
-      comments: comments.get(pluginId) ?? [],
-      nextCursor: null,
-    }),
+    listManagedPlugins: async ({ q, status }) => {
+      const latest = new Map<string, PublicRelease>();
+      for (const release of published.values()) latest.set(release.pluginId, release);
+      const query = q.trim().toLowerCase();
+      return {
+        items: [...latest.values()]
+          .filter(release => {
+            const disabled = disabledPlugins.has(release.pluginId);
+            if (status === "disabled" && !disabled) return false;
+            if (status === "active" && disabled) return false;
+            return (
+              !query ||
+              release.pluginId.toLowerCase().includes(query) ||
+              release.content.manifest.name.toLowerCase().includes(query)
+            );
+          })
+          .sort((a, b) => a.pluginId.localeCompare(b.pluginId))
+          .map(release => ({
+            pluginId: release.pluginId,
+            name: release.content.manifest.name,
+            publisher: release.publisher,
+            repository: release.repository,
+            releaseCount: releasesOf(release.pluginId).length,
+            latestVersion: release.version,
+            latestPublishedAt: release.publishedAt,
+            downloadsTotal: 0,
+            disabled: disabledPlugins.get(release.pluginId) ?? null,
+          })),
+        nextCursor: null,
+      };
+    },
+    moderatePlugin: async input => {
+      if (!options.reviewer) throw new PortalApiError(403, "FORBIDDEN", "仅管理员可处置插件");
+      const previous = pluginEvents.find(item => item.id === input.clientRequestId);
+      if (previous) {
+        if (
+          previous.pluginId !== input.pluginId ||
+          previous.action !== input.action ||
+          previous.reason !== input.reason
+        )
+          fail("REVISION_CONFLICT", "请求ID已用于其他操作");
+        return previous;
+      }
+      if (!registered(input.pluginId)) throw new PortalApiError(404, "NOT_FOUND", "插件不存在");
+      const disabling = input.action === "disable_plugin";
+      if (disabling === disabledPlugins.has(input.pluginId))
+        fail("REVISION_CONFLICT", "插件状态已变化");
+      const createdAt = new Date().toISOString();
+      if (disabling)
+        disabledPlugins.set(input.pluginId, { reason: input.reason, at: createdAt, by: "demo" });
+      else disabledPlugins.delete(input.pluginId);
+      const row: PluginModerationEvent = {
+        id: input.clientRequestId,
+        reviewer: "demo",
+        pluginId: input.pluginId,
+        action: input.action,
+        reason: input.reason,
+        createdAt,
+      };
+      pluginEvents.unshift(row);
+      return row;
+    },
+    listPluginModerationEvents: async () => ({ items: [...pluginEvents], nextCursor: null }),
+    getCommunity: async pluginId => {
+      if (disabledPlugins.has(pluginId)) throw new PortalApiError(404, "NOT_FOUND", "插件尚未发布");
+      return {
+        likes: likes.has(pluginId) ? 1 : 0,
+        liked: likes.has(pluginId),
+        comments: comments.get(pluginId) ?? [],
+        nextCursor: null,
+      };
+    },
     setPluginLiked: async (pluginId, liked) => {
       if (liked) likes.add(pluginId);
       else likes.delete(pluginId);
@@ -100,7 +179,8 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     githubLoginUrl: "/submissions",
     getCatalog: async ({ q, category, cursor }) => {
       const latest = new Map<string, PublicRelease>();
-      for (const release of published.values()) latest.set(release.pluginId, release);
+      for (const release of published.values())
+        if (!disabledPlugins.has(release.pluginId)) latest.set(release.pluginId, release);
       const query = q.trim().toLowerCase();
       const matched = [...latest.values()].filter(release =>
         [
@@ -154,7 +234,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       throw new Error("模拟模式不提供发布包下载");
     },
     listReleases: async pluginId => ({
-      items: releasesOf(pluginId).map(({ content: { manifest }, ...release }) => ({
+      items: visibleReleasesOf(pluginId).map(({ content: { manifest }, ...release }) => ({
         ...release,
         manifest,
       })),
@@ -162,11 +242,13 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     }),
     getRelease: async id => {
       const release = published.get(id);
-      if (!release) throw new PortalApiError(404, "NOT_FOUND", "该版本尚未发布");
+      if (!release || disabledPlugins.has(release.pluginId))
+        throw new PortalApiError(404, "NOT_FOUND", "该版本尚未发布或已下架");
       return structuredClone(release);
     },
     getPluginStats: async pluginId => {
-      if (!releasesOf(pluginId).length) throw new PortalApiError(404, "NOT_FOUND", "插件未发布");
+      if (!visibleReleasesOf(pluginId).length)
+        throw new PortalApiError(404, "NOT_FOUND", "插件未发布");
       return { downloadsTotal: 0, downloads7d: 0, windowStart: new Date().toISOString() };
     },
     getSession: async () => ({
@@ -215,9 +297,24 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       if (!upload) throw new PortalApiError(404, "NOT_FOUND", "找不到上传");
       return upload;
     },
-    createSubmission: async id => {
-      if (!records.has(id)) records.set(id, { ...sampleSubmission(), id });
-      return structuredClone(get(id));
+    createSubmission: async ({ clientRequestId, packageUploadId, pluginId }) => {
+      if (!records.has(clientRequestId)) {
+        const packageContent = uploads.get(packageUploadId)?.content;
+        if (!packageContent) throw new PortalApiError(409, "INVALID_INPUT", "请先上传并校验插件包");
+        if (pluginId && !registered(pluginId))
+          throw new PortalApiError(404, "NOT_FOUND", "插件不存在或不属于当前账号");
+        if (pluginId && packageContent.manifest.id !== pluginId)
+          throw new PortalApiError(400, "INVALID_INPUT", `插件包的 manifest.id 不是 ${pluginId}`);
+        records.set(clientRequestId, {
+          ...sampleSubmission(),
+          id: clientRequestId,
+          packageUploadId,
+          content: packageContent,
+          pluginId: pluginId ?? null,
+          disabled: pluginId ? (disabledPlugins.get(pluginId) ?? null) : null,
+        });
+      }
+      return structuredClone(get(clientRequestId));
     },
     listSubmissions: async ({ scope, status }) => {
       const scoped = [...records.values()].filter(x => scope !== "review" || !!x.submittedAt);
@@ -239,10 +336,11 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       const groups = new Map<string | null, SubmissionGroup>();
       for (const row of [...records.values()].reverse()) {
         const manifest = row.content?.manifest ?? null;
-        const key = manifest?.id ?? null;
+        const key = row.pluginId ?? manifest?.id ?? null;
         const group = groups.get(key) ?? {
           pluginId: key,
           name: manifest?.name ?? null,
+          disabled: key ? (disabledPlugins.get(key) ?? null) : null,
           submissions: [],
         };
         group.submissions.push({
@@ -251,6 +349,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
           pluginId: key,
           name: manifest?.name ?? null,
           version: manifest?.version ?? null,
+          hasPackage: !!row.packageUploadId,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
           submittedAt: row.submittedAt,
@@ -261,6 +360,23 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
       return { groups: [...groups.values()] };
     },
     getSubmission: async id => structuredClone(get(id)),
+    withdrawSubmission: async (id, revision) => {
+      const row = get(id);
+      if (row.status === "draft") return structuredClone(row);
+      if (row.status !== "pending_review") fail("SUBMISSION_LOCKED", "只有审核中的提交可以撤回");
+      if (row.revision !== revision) fail("REVISION_CONFLICT", "记录已变化");
+      const next = { ...row, status: "draft" as const, canEdit: true, revision: revision + 1 };
+      records.set(id, next);
+      return structuredClone(next);
+    },
+    deleteSubmission: async id => {
+      const row = get(id);
+      if (row.status !== "draft" || reviews.get(id)?.reviews.length)
+        fail("SUBMISSION_LOCKED", "只有未进入审核的草稿可以删除");
+      records.delete(id);
+      messages.delete(id);
+      return { deleted: true };
+    },
     saveSubmission: async (id, input) => {
       const row = get(id);
       if (!row.canEdit) fail("SUBMISSION_LOCKED", "内容已冻结");
