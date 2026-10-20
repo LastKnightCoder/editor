@@ -97,6 +97,7 @@ it("连点按顺序发出请求，最终状态与最后一次点击一致", asyn
   fireEvent.click(await screen.findByRole("button", { name: "喜欢 · 0" }));
   await screen.findByRole("button", { name: "取消喜欢 · 1" });
   await waitFor(() => expect(calls).toEqual([true, false, true]));
-  expect((await api.getCommunity("test.plugin", null)).liked).toBe(true);
+  // 第三次请求发出后还要等它写入才落定，直接读会撞上写入前的状态
+  await waitFor(async () => expect((await api.getCommunity("test.plugin", null)).liked).toBe(true));
   await screen.findByRole("button", { name: "取消喜欢 · 1" });
 });
