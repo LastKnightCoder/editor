@@ -77,7 +77,11 @@ import {
   type PluginEventType,
 } from "./events";
 import {
+  PLUGIN_APP_ACTIONS,
   PLUGIN_ENTITY_KINDS,
+  PLUGIN_EXPORT_FORMATS,
+  type PluginAppAction,
+  type PluginExportFormat,
   type PluginEntityKind,
   type PluginEntityRef,
   type PluginPickOptions,
@@ -223,9 +227,27 @@ export interface AppAdapter {
     options: Required<PluginPickOptions>
   ): Promise<PluginPickedEntity[]>;
   open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
+  run(context: PluginContext, plugin: PluginOwner, request: PluginAppRunRequest): Promise<void>;
 }
 
+export type PluginAppRunRequest =
+  | { action: "content.export"; ref: PluginContentRef; format: PluginExportFormat }
+  | { action: "content.present" | "content.share"; ref: PluginContentRef };
+
 const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
+const appActions = new Set<string>(PLUGIN_APP_ACTIONS);
+const exportFormats = new Set<string>(PLUGIN_EXPORT_FORMATS);
+
+function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest {
+  if (typeof action !== "string" || !appActions.has(action)) throw new Error("未知的动作");
+  const value = options as { ref?: unknown; format?: unknown } | undefined;
+  if (typeof value?.ref !== "string" || !value.ref) throw new Error("正文引用无效");
+  if (action !== "content.export")
+    return { action: action as "content.present" | "content.share", ref: value.ref };
+  if (typeof value.format !== "string" || !exportFormats.has(value.format))
+    throw new Error("导出格式无效");
+  return { action, ref: value.ref, format: value.format as PluginExportFormat };
+}
 
 function readEntityRef(value: unknown): PluginEntityRef {
   const ref = value as PluginEntityRef | undefined;
@@ -1531,6 +1553,13 @@ export class PluginHost {
           this.assertActive(entry, activation);
           if (!this.options.app) throw new Error("当前宿主不支持打开内容");
           await this.options.app.open(context, value);
+          this.assertActive(entry, activation);
+        },
+        run: async (action: PluginAppAction, options: unknown) => {
+          const request = readRunRequest(action, options);
+          this.assertActive(entry, activation);
+          if (!this.options.app) throw new Error("当前宿主不支持该动作");
+          await this.options.app.run(context, owner, request);
           this.assertActive(entry, activation);
         },
       }),

@@ -5,12 +5,14 @@ import type {
   PluginPickOptions,
   PluginPickedEntity,
 } from "@tau/plugins";
-import type { AppAdapter, PluginOwner } from "@tau/plugins/host";
-import { pluginRefExists } from "@/commands/plugin-data";
+import type { Descendant } from "slate";
+import type { AppAdapter, PluginAppRunRequest, PluginOwner } from "@tau/plugins/host";
+import { getPluginData, pluginRefExists } from "@/commands/plugin-data";
 import { locateEntity } from "@/commands/entity";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import type { EntityCandidate, EntityKind } from "@/types";
+import { resolvePluginContentTarget } from "./content-target";
 
 /** 插件类型 → 宿主选择器的实体类型 */
 export const PICKER_KINDS: Record<PluginEntityKind, EntityKind> = {
@@ -54,6 +56,27 @@ export interface PluginPickRequest {
 
 /** 选择弹窗由壳层挂载的 PluginEntityPickerHost 渲染，一次只显示一个请求 */
 export const usePluginPickerUi = create<{ request: PluginPickRequest | null }>()(() => ({
+  request: null,
+}));
+
+/** 宿主动作打开的界面（导出窗口、演示、协作窗口），由壳层挂载的 PluginContentActionHost 渲染；新请求替换旧请求 */
+export interface PluginActionRequest {
+  id: number;
+  plugin: PluginOwner;
+  action: "export" | "present" | "share";
+  format?: "image" | "pdf" | "epub";
+  contentId: number;
+  source: {
+    sourceType: "card" | "article" | "project-item";
+    sourceId: number;
+    sourceTitle: string;
+  };
+  title: string;
+  content: Descendant[];
+  close(): void;
+}
+
+export const usePluginActionUi = create<{ request: PluginActionRequest | null }>()(() => ({
   request: null,
 }));
 
@@ -120,6 +143,54 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       if (!location || !owner) throw new Error("内容不存在");
       context.signal.throwIfAborted();
       return openEntity({ kind: owner, id: location.id }, { at: { taskId: task[2] } });
+    },
+    async run(context, plugin, request: PluginAppRunRequest) {
+      assertUserActivation();
+      const target = await resolvePluginContentTarget(databaseName, request.ref, context.signal);
+      if (!target) throw new Error("内容不存在");
+      const record = await bindDatabaseCommands(
+        { getPluginData },
+        { databaseName, signal: context.signal }
+      ).getPluginData(databaseName, target.owner.entity, target.owner.id);
+      context.signal.throwIfAborted();
+      const title = record?.title || "未命名";
+      if (request.action === "content.export" && request.format === "markdown") {
+        const { exportContentAsMarkdown } = await import("@/services/content-transfer");
+        context.signal.throwIfAborted();
+        await exportContentAsMarkdown({ title, content: target.nodes });
+        return;
+      }
+      const close = () => {
+        context.signal.removeEventListener("abort", close);
+        if (usePluginActionUi.getState().request === next)
+          usePluginActionUi.setState({ request: null });
+      };
+      const next: PluginActionRequest = {
+        id: ++nextRequestId,
+        plugin,
+        action:
+          request.action === "content.export"
+            ? "export"
+            : request.action === "content.present"
+              ? "present"
+              : "share",
+        ...(request.action === "content.export" && request.format !== "markdown"
+          ? { format: request.format }
+          : {}),
+        contentId: target.contentId,
+        source: {
+          sourceType: target.owner.sourceType,
+          sourceId: target.owner.id,
+          sourceTitle: title,
+        },
+        title,
+        content: target.nodes,
+        close,
+      };
+      // 插件停用时撤下它打开的界面
+      context.signal.addEventListener("abort", close, { once: true });
+      usePluginActionUi.getState().request?.close();
+      usePluginActionUi.setState({ request: next });
     },
   };
 }

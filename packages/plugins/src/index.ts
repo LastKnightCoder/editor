@@ -35,9 +35,12 @@ export * from "./sidebar";
 export type * from "./excerpts";
 export type * from "./data";
 export { PluginConflictError } from "./errors";
-export { PLUGIN_ENTITY_KINDS } from "./app";
+export { PLUGIN_ENTITY_KINDS, PLUGIN_APP_ACTIONS, PLUGIN_EXPORT_FORMATS } from "./app";
 export type {
   PluginApp,
+  PluginAppAction,
+  PluginAppActions,
+  PluginExportFormat,
   PluginEntityKind,
   PluginEntityRef,
   PluginPickOptions,

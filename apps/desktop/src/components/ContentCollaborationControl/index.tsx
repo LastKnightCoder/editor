@@ -10,7 +10,7 @@
  * 「成员与邀请」Popover（同协作页顶栏）；未共享时不占位，open() 仍走「发起协作」对话框。
  */
 
-import { useEffect, useImperativeHandle, useState, type Ref } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { ArrowRight, KeyRound, LogOut, Share2, Trash2, Users, Wand2 } from "lucide-react";
 import { Button, Dialog, DialogBody, Popover, toast } from "@tau/ui";
 import type { ContentSessionTarget } from "@tau/collaboration";
@@ -49,6 +49,7 @@ export default function ContentCollaborationControl({
   ref,
   hideTrigger = false,
   presence = false,
+  onClose,
 }: {
   contentId?: number;
   source?: Omit<ContentSessionTarget, "contentId">;
@@ -56,6 +57,8 @@ export default function ContentCollaborationControl({
   hideTrigger?: boolean;
   /** 已共享时常驻成员条 + 成员 Popover（替代对话框） */
   presence?: boolean;
+  /** 经 open() 打开的窗口全部关闭（或会话打开失败）后回调 */
+  onClose?: () => void;
 }) {
   const { entry, error: sessionError } = useContentSession(contentId, source);
   const sessions = useCollaborationStore(state => state.sessions);
@@ -78,14 +81,24 @@ export default function ContentCollaborationControl({
   const summary = session ? othersSummary(session, deviceId) : undefined;
 
   useImperativeHandle(ref, () => ({ open: () => setOpenRequested(true) }), []);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   // 菜单打开时会话可能尚未就绪：等 entry 或错误到位再打开
   useEffect(() => {
     if (!openRequested || (!entry && !sessionError)) return;
     setOpenRequested(false);
-    if (sessionError) toast.error(sessionError);
-    else if (presence && session) setPopoverOpen(true);
+    if (sessionError) {
+      toast.error(sessionError);
+      onCloseRef.current?.();
+    } else if (presence && session) setPopoverOpen(true);
     else setOpen(true);
   }, [openRequested, entry, sessionError, presence, session]);
+  const shown = open || popoverOpen || leaving;
+  const wasShown = useRef(false);
+  useEffect(() => {
+    if (wasShown.current && !shown) onCloseRef.current?.();
+    wasShown.current = shown;
+  }, [shown]);
 
   const share = async () => {
     if (!contentId) return;
