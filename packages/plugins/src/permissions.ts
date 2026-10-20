@@ -26,12 +26,12 @@ export type PluginPermissionState = "granted" | "prompt" | "denied";
  */
 export type PluginPermissionDenial = "undeclared" | "denied" | "blocked" | "unavailable";
 
+// 不用参数属性：本文件经 package.ts 被 Node 以仅剥离类型的方式直接加载
 export class PluginPermissionError extends Error {
   override readonly name = "PluginPermissionError";
-  constructor(
-    readonly permission: PluginPermission,
-    readonly reason: PluginPermissionDenial
-  ) {
+  readonly permission: PluginPermission;
+  readonly reason: PluginPermissionDenial;
+  constructor(permission: PluginPermission, reason: PluginPermissionDenial) {
     super(
       reason === "undeclared"
         ? `插件未声明权限：${permission}`
@@ -39,6 +39,8 @@ export class PluginPermissionError extends Error {
           ? `需要用户授权：${permission}`
           : `用户未授权：${permission}`
     );
+    this.permission = permission;
+    this.reason = reason;
   }
 }
 

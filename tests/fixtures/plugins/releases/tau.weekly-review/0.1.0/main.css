@@ -1,0 +1,106 @@
+/* src/styles.css */
+.weekly-review {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 28px;
+  color: var(--tau-ink-1);
+}
+.weekly-review__header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.weekly-review__header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.weekly-review__range,
+.weekly-review__empty,
+.weekly-review__more {
+  color: var(--tau-ink-3);
+  font-size: 12.5px;
+}
+.weekly-review__nav {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+.weekly-review__stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.weekly-review__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.weekly-review__stat b {
+  font-size: 25px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.weekly-review__stat span {
+  color: var(--tau-ink-2);
+  font-size: 12.5px;
+}
+.weekly-review__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  color: var(--tau-ink-2);
+  font-size: 13px;
+}
+.weekly-review__tags em {
+  color: var(--tau-ink-3);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.weekly-review__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.weekly-review__block h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.weekly-review__block ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+}
+.weekly-review__block li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.weekly-review__block li.is-done {
+  color: var(--tau-ink-3);
+  text-decoration: line-through;
+}
+.weekly-review__time {
+  margin-right: 8px;
+  color: var(--tau-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.weekly-review__missing,
+.weekly-review__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tau-ink-2);
+  font-size: 13px;
+}
+.weekly-review__missing p,
+.weekly-review__error p {
+  margin: 0;
+}
