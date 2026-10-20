@@ -35,10 +35,10 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // <define:__PLUGIN_META__>
-var define_PLUGIN_META_default = { id: "tau.weekly-review", name: "\u6BCF\u5468\u56DE\u987E", version: "0.3.0" };
+var define_PLUGIN_META_default = { id: "tau.weekly-review", name: "\u6BCF\u5468\u56DE\u987E", version: "0.4.0" };
 
 // src/index.tsx
-var import_react = require("react");
+var import_react2 = require("react");
 
 // node_modules/.pnpm/@tanstack+query-core@5.90.16/node_modules/@tanstack/query-core/build/modern/subscribable.js
 var Subscribable = class {
@@ -2845,8 +2845,8 @@ function useMutation(options, queryClient) {
 }
 
 // src/index.tsx
-var import_plugins = require("@tau/plugins");
-var import_ui = require("@tau/ui");
+var import_plugins2 = require("@tau/plugins");
+var import_ui2 = require("@tau/ui");
 
 // src/WeekIcon.tsx
 var import_jsx_runtime3 = require("react/jsx-runtime");
@@ -2873,6 +2873,67 @@ function WeekIcon({
       ]
     }
   );
+}
+
+// src/Reader.tsx
+var import_react = require("react");
+var import_plugins = require("@tau/plugins");
+var import_ui = require("@tau/ui");
+var import_jsx_runtime4 = require("react/jsx-runtime");
+var EXPORTS = [
+  ["markdown", "Markdown \u6587\u4EF6"],
+  ["image", "\u56FE\u7247"],
+  ["pdf", "PDF"],
+  ["epub", "EPUB"]
+];
+function Reader({
+  context,
+  target,
+  onClose
+}) {
+  const [error, setError] = (0, import_react.useState)("");
+  const attempt = (task) => {
+    setError("");
+    void task().catch((failure) => setError(failure.message));
+  };
+  const run = (action, options) => attempt(() => context.app.run(action, options));
+  const ref = target.contentRef;
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("aside", { className: "weekly-review__reader", "aria-label": target.title, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("header", { className: "weekly-review__reader-head", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { children: target.title }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        import_ui.Button,
+        {
+          size: "sm",
+          variant: "ghost",
+          onClick: () => attempt(() => context.app.open(target.ref)),
+          children: "\u6253\u5F00\u539F\u5904"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+        import_ui.Menu,
+        {
+          align: "end",
+          trigger: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Button, { size: "sm", variant: "ghost", "aria-label": "\u66F4\u591A\u64CD\u4F5C", children: "\u22EF" }),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Menu.Submenu, { label: "\u5BFC\u51FA", children: EXPORTS.map(([format, label]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+              import_ui.Menu.Item,
+              {
+                onSelect: () => run("content.export", { ref, format }),
+                children: label
+              },
+              format
+            )) }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Menu.Item, { onSelect: () => run("content.present", { ref }), children: "\u6F14\u793A" }),
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Menu.Item, { onSelect: () => run("content.share", { ref }), children: "\u534F\u4F5C\u5171\u4EAB" })
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Button, { size: "sm", variant: "ghost", "aria-label": "\u5173\u95ED", onClick: onClose, children: "\xD7" })
+    ] }),
+    error && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "alert", className: "weekly-review__error", children: error }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "weekly-review__reader-body", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_plugins.ContentEditor, { contentRef: ref, placeholder: "\u5199\u70B9\u4EC0\u4E48" }, ref) })
+  ] });
 }
 
 // src/week.ts
@@ -3024,7 +3085,7 @@ async function toggleTodo(context, todo) {
 }
 
 // src/index.tsx
-var import_jsx_runtime4 = require("react/jsx-runtime");
+var import_jsx_runtime5 = require("react/jsx-runtime");
 var PERMISSION_NAMES = {
   "cards:read": "\u5361\u7247",
   "articles:read": "\u6587\u7AE0",
@@ -3042,17 +3103,17 @@ function Block({
   onAllow,
   render
 }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_ui.Panel, { className: "weekly-review__block", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("h2", { children: title }),
-    !hasItems(value) ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "weekly-review__missing", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("p", { children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_ui2.Panel, { className: "weekly-review__block", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { children: title }),
+    !hasItems(value) ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "weekly-review__missing", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("p", { children: [
         "\u9700\u8981\u5141\u8BB8\u8BFB\u53D6",
         PERMISSION_NAMES[value.missing],
         "\u3002"
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Button, { size: "sm", variant: "soft", onClick: onAllow, children: "\u5141\u8BB8\u8BFB\u53D6" })
-    ] }) : value.items.length ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("ul", { children: value.items.slice(0, 20).map(render) }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "weekly-review__empty", children: empty }),
-    hasItems(value) && value.items.length > 20 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("p", { className: "weekly-review__more", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_ui2.Button, { size: "sm", variant: "soft", onClick: onAllow, children: "\u5141\u8BB8\u8BFB\u53D6" })
+    ] }) : value.items.length ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { children: value.items.slice(0, 20).map(render) }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "weekly-review__empty", children: empty }),
+    hasItems(value) && value.items.length > 20 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("p", { className: "weekly-review__more", children: [
       "\u8FD8\u6709 ",
       value.items.length - 20,
       " \u9879"
@@ -3061,7 +3122,7 @@ function Block({
 }
 function Review({ context }) {
   const client = useQueryClient();
-  const [offset, setOffset] = (0, import_react.useState)(0);
+  const [offset, setOffset] = (0, import_react2.useState)(0);
   const now = Date.now();
   const week = weekOf(now, offset);
   const query = useQuery({
@@ -3069,7 +3130,7 @@ function Review({ context }) {
     queryFn: () => loadWeek(context, week),
     refetchOnWindowFocus: true
   });
-  (0, import_react.useEffect)(() => {
+  (0, import_react2.useEffect)(() => {
     const subscription = context.events.on(
       [
         "card.created",
@@ -3093,12 +3154,12 @@ function Review({ context }) {
     );
     return () => void subscription.dispose();
   }, [client, context]);
-  const [openError, setOpenError] = (0, import_react.useState)("");
+  const [openError, setOpenError] = (0, import_react2.useState)("");
   const open = (ref) => {
     setOpenError("");
     void context.app.open(ref).catch((error) => setOpenError(error.message));
   };
-  const item = (ref, title) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+  const item = (ref, title) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
     "button",
     {
       type: "button",
@@ -3107,6 +3168,17 @@ function Review({ context }) {
       children: title
     }
   );
+  const [reading, setReading] = (0, import_react2.useState)(null);
+  const readable = (ref, contentRef, title) => contentRef ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+    "button",
+    {
+      type: "button",
+      className: "weekly-review__link",
+      "aria-current": reading?.contentRef === contentRef || void 0,
+      onClick: () => setReading({ ref, contentRef, title }),
+      children: title
+    }
+  ) : item(ref, title);
   const toggle = useMutation({
     mutationFn: (todo) => toggleTodo(context, todo),
     onSettled: () => client.invalidateQueries({ queryKey: ["week"] })
@@ -3119,20 +3191,20 @@ function Review({ context }) {
   const tags = data ? topTags(data) : [];
   const todos = data && hasItems(data.todos) ? data.todos.items : [];
   const done = todos.filter((todo) => todo.completed).length;
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("section", { className: "weekly-review", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("header", { className: "weekly-review__header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("h1", { children: [
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("section", { className: "weekly-review", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("header", { className: "weekly-review__header", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("h1", { children: [
         weekLabel(week, now),
         "\u56DE\u987E"
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "weekly-review__range", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "weekly-review__range", children: [
         week.firstDay,
         " \u2013 ",
         week.lastDay
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "weekly-review__nav", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          import_ui.Button,
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "weekly-review__nav", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          import_ui2.Button,
           {
             size: "sm",
             variant: "ghost",
@@ -3140,8 +3212,8 @@ function Review({ context }) {
             children: "\u4E0A\u4E00\u5468"
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          import_ui.Button,
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          import_ui2.Button,
           {
             size: "sm",
             variant: "ghost",
@@ -3150,8 +3222,8 @@ function Review({ context }) {
             children: "\u672C\u5468"
           }
         ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          import_ui.Button,
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          import_ui2.Button,
           {
             size: "sm",
             variant: "ghost",
@@ -3162,117 +3234,151 @@ function Review({ context }) {
         )
       ] })
     ] }),
-    openError && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "alert", className: "weekly-review__error", children: openError }),
-    toggle.error && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "alert", className: "weekly-review__error", children: toggle.error.message }),
-    query.isPending ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "status", children: "\u6B63\u5728\u6C47\u603B\u2026" }) : query.isError ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { role: "alert", className: "weekly-review__error", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { children: query.error.message }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Button, { size: "sm", onClick: () => void query.refetch(), children: "\u91CD\u8BD5" })
-    ] }) : data ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "weekly-review__stats", children: [
-        ["\u65B0\u5361\u7247", count(data.newCards)],
-        ["\u4FEE\u6539\u7684\u6587\u7AE0", count(data.articles)],
-        ["\u4FEE\u6539\u7684\u6587\u6863", count(data.documents)],
-        [
-          "\u5F85\u529E\u5B8C\u6210",
-          hasItems(data.todos) ? `${done} / ${todos.length}` : "\u2014"
-        ],
-        ["\u65E5\u7A0B", count(data.events)]
-      ].map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_ui.Panel, { className: "weekly-review__stat", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("b", { children: value }),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: label })
-      ] }, label)) }),
-      tags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { className: "weekly-review__tags", children: tags.map(({ tag, count: count2 }) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { children: [
-        "#",
-        tag,
-        " ",
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("em", { children: count2 })
-      ] }, tag)) }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "weekly-review__grid", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          Block,
-          {
-            title: "\u65B0\u5199\u7684\u5361\u7247",
-            value: data.newCards,
-            empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u65B0\u5361\u7247\u3002",
-            onAllow: allow,
-            render: (card) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: item(
-              { kind: "card", id: card.id },
-              card.title || "\uFF08\u65E0\u6807\u9898\uFF09"
-            ) }, card.id)
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          Block,
-          {
-            title: "\u4FEE\u6539\u8FC7\u7684\u6587\u7AE0",
-            value: data.articles,
-            empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u4FEE\u6539\u6587\u7AE0\u3002",
-            onAllow: allow,
-            render: (article) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: item({ kind: "article", id: article.id }, article.title) }, article.id)
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          Block,
-          {
-            title: "\u4FEE\u6539\u8FC7\u7684\u9879\u76EE\u6587\u6863",
-            value: data.documents,
-            empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u4FEE\u6539\u9879\u76EE\u6587\u6863\u3002",
-            onAllow: allow,
-            render: (document) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: item({ kind: "document", id: document.id }, document.title) }, document.id)
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          Block,
-          {
-            title: "\u672C\u5468\u622A\u6B62\u7684\u5F85\u529E",
-            value: data.todos,
-            empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u622A\u6B62\u7684\u5F85\u529E\u3002",
-            onAllow: allow,
-            render: (todo) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-              "li",
-              {
-                className: todo.completed ? "is-done" : void 0,
-                children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "weekly-review__todo", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-                    "input",
+    openError && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { role: "alert", className: "weekly-review__error", children: openError }),
+    toggle.error && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { role: "alert", className: "weekly-review__error", children: toggle.error.message }),
+    query.isPending ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { role: "status", children: "\u6B63\u5728\u6C47\u603B\u2026" }) : query.isError ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { role: "alert", className: "weekly-review__error", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { children: query.error.message }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(import_ui2.Button, { size: "sm", onClick: () => void query.refetch(), children: "\u91CD\u8BD5" })
+    ] }) : data ? /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+      "div",
+      {
+        className: reading ? "weekly-review__body weekly-review__body--reading" : "weekly-review__body",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "weekly-review__main", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "weekly-review__stats", children: [
+              ["\u65B0\u5361\u7247", count(data.newCards)],
+              ["\u4FEE\u6539\u7684\u6587\u7AE0", count(data.articles)],
+              ["\u4FEE\u6539\u7684\u6587\u6863", count(data.documents)],
+              [
+                "\u5F85\u529E\u5B8C\u6210",
+                hasItems(data.todos) ? `${done} / ${todos.length}` : "\u2014"
+              ],
+              ["\u65E5\u7A0B", count(data.events)]
+            ].map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(import_ui2.Panel, { className: "weekly-review__stat", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("b", { children: value }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: label })
+            ] }, label)) }),
+            tags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { className: "weekly-review__tags", children: tags.map(({ tag, count: count2 }) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { children: [
+              "#",
+              tag,
+              " ",
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("em", { children: count2 })
+            ] }, tag)) }),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "weekly-review__grid", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                Block,
+                {
+                  title: "\u65B0\u5199\u7684\u5361\u7247",
+                  value: data.newCards,
+                  empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u65B0\u5361\u7247\u3002",
+                  onAllow: allow,
+                  render: (card) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("li", { className: "weekly-review__card", children: [
+                    readable(
+                      { kind: "card", id: card.id },
+                      card.contentRef,
+                      card.title || "\u65E0\u6807\u9898\u5361\u7247"
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "weekly-review__preview", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                      import_plugins2.ContentPreview,
+                      {
+                        contentRef: card.contentRef,
+                        maxBlocks: 2
+                      }
+                    ) })
+                  ] }, card.id)
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                Block,
+                {
+                  title: "\u4FEE\u6539\u8FC7\u7684\u6587\u7AE0",
+                  value: data.articles,
+                  empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u4FEE\u6539\u6587\u7AE0\u3002",
+                  onAllow: allow,
+                  render: (article) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { children: readable(
+                    { kind: "article", id: article.id },
+                    article.contentRef,
+                    article.title
+                  ) }, article.id)
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                Block,
+                {
+                  title: "\u4FEE\u6539\u8FC7\u7684\u9879\u76EE\u6587\u6863",
+                  value: data.documents,
+                  empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u4FEE\u6539\u9879\u76EE\u6587\u6863\u3002",
+                  onAllow: allow,
+                  render: (document) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { children: readable(
+                    { kind: "document", id: document.id },
+                    document.contentRef,
+                    document.title
+                  ) }, document.id)
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                Block,
+                {
+                  title: "\u672C\u5468\u622A\u6B62\u7684\u5F85\u529E",
+                  value: data.todos,
+                  empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u622A\u6B62\u7684\u5F85\u529E\u3002",
+                  onAllow: allow,
+                  render: (todo) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+                    "li",
                     {
-                      type: "checkbox",
-                      checked: todo.completed,
-                      disabled: toggle.isPending,
-                      onChange: () => toggle.mutate(todo)
-                    }
-                  ) }),
-                  item({ kind: "todo", id: todo.id }, todo.title)
-                ]
-              },
-              todo.id
-            )
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-          Block,
-          {
-            title: "\u65E5\u7A0B",
-            value: data.events,
-            empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u65E5\u7A0B\u3002",
-            onAllow: allow,
-            render: (event) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("li", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "weekly-review__time", children: event.start.slice(5, 10) }),
-              item({ kind: "event", id: event.id }, event.title)
-            ] }, event.id)
-          }
-        )
-      ] })
-    ] }) : null
+                      className: todo.completed ? "is-done" : void 0,
+                      children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("label", { className: "weekly-review__todo", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                          "input",
+                          {
+                            type: "checkbox",
+                            checked: todo.completed,
+                            disabled: toggle.isPending,
+                            onChange: () => toggle.mutate(todo)
+                          }
+                        ) }),
+                        item({ kind: "todo", id: todo.id }, todo.title)
+                      ]
+                    },
+                    todo.id
+                  )
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                Block,
+                {
+                  title: "\u65E5\u7A0B",
+                  value: data.events,
+                  empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u65E5\u7A0B\u3002",
+                  onAllow: allow,
+                  render: (event) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("li", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "weekly-review__time", children: event.start.slice(5, 10) }),
+                    item({ kind: "event", id: event.id }, event.title)
+                  ] }, event.id)
+                }
+              )
+            ] })
+          ] }),
+          reading && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            Reader,
+            {
+              context,
+              target: reading,
+              onClose: () => setReading(null)
+            }
+          )
+        ]
+      }
+    ) : null
   ] });
 }
 function Page(props) {
-  const [client] = (0, import_react.useState)(
+  const [client] = (0, import_react2.useState)(
     () => new QueryClient({ defaultOptions: { queries: { retry: false } } })
   );
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(QueryClientProvider, { client, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(Review, { ...props }) });
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(QueryClientProvider, { client, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(Review, { ...props }) });
 }
-var index_default = (0, import_plugins.definePlugin)({
+var index_default = (0, import_plugins2.definePlugin)({
   ...define_PLUGIN_META_default,
   create: () => ({
     activate(context) {
@@ -3285,7 +3391,7 @@ var index_default = (0, import_plugins.definePlugin)({
         id: "review",
         title: "\u6BCF\u5468\u56DE\u987E",
         icon: WeekIcon,
-        group: import_plugins.SIDEBAR_GROUPS.daily,
+        group: import_plugins2.SIDEBAR_GROUPS.daily,
         page
       });
       context.commands.register({

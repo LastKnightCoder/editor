@@ -1,10 +1,12 @@
 /**
  * 独立「每周回顾」发布包经桌面运行时加载：真实数据适配、授权代理与授权弹窗串起
- * 「首次打开只询问一次 → 始终允许 → 显示汇总 → 业务事件触发刷新」的完整路径。
+ * 「首次打开只询问一次 → 始终允许 → 显示汇总 → 业务事件触发刷新」的完整路径；
+ * 正文组件与宿主动作经共享模块注入，编辑器本体用替身记录宿主补全的参数。
  */
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { pluginArtifact } from "../../../test-fixtures/plugin-packages";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -15,10 +17,25 @@ import { createDesktopEvents } from "@/app/plugins/events";
 import { createDesktopApp } from "@/app/plugins/app";
 import { DesktopPermissionBroker, usePluginPermissionUi } from "@/app/plugins/permissions";
 import { PluginPermissionPrompt } from "../permissions/PluginPermissionPrompt";
+import { PluginComponentScope } from "@/app/plugins/content-components";
+import { usePluginActionUi } from "@/app/plugins/app";
 import useSettingStore from "@/stores/useSettingStore";
 
 const openEntity = vi.hoisted(() => vi.fn());
 vi.mock("@/services/open-content", () => ({ openEntity }));
+const editorProps = vi.hoisted(() => vi.fn());
+vi.mock("@/components/ContentEditor", () => ({
+  default: (props: Record<string, unknown>) => {
+    editorProps(props);
+    return <div>正文编辑器</div>;
+  },
+}));
+// 只读预览用一个只有段落的 kit，不装载宿主扩展
+vi.mock("@/services/editorKit", async () => {
+  const { createEditorKit } = await import("@tau/editor");
+  const kit = createEditorKit({ extensions: [] });
+  return { getContentKit: () => kit };
+});
 const electron = vi.hoisted(() => ({
   invoke: vi.fn(async (..._args: unknown[]) => undefined as unknown),
   listeners: new Map<string, (...args: unknown[]) => void>(),
@@ -53,6 +70,20 @@ function respond(channel: unknown, ...args: unknown[]) {
       return {};
     case "plugin-data:exists":
       return true;
+    case "plugin-data:content":
+      return {
+        contentId: 9,
+        createdAt: 1,
+        updatedAt: 1,
+        revision: "u:1",
+        wordCount: 5,
+        nodes: [{ type: "paragraph", children: [{ text: "卡片正文开头" }] }],
+        owners: ["card"],
+      };
+    case "plugin-data:get":
+      return { entity: "card", id: 1, title: cardTitle };
+    case "entity:locate":
+      return { kind: "card", id: 1 };
     case "plugin-data:query": {
       const { entity } = args[0] as { entity: string };
       return {
@@ -105,7 +136,9 @@ afterEach(async () => {
 });
 
 describe("每周回顾插件", () => {
-  it("首次打开只弹一次授权，允许后显示汇总，卡片更新后自动刷新；勾选待办时再询问修改权限；点击条目打开原处", async () => {
+  // 正文组件的实现按需加载，预热后在一次提交内就绪
+  beforeAll(() => import("@/app/plugins/content-components-view"), 30_000);
+  it("首次打开只弹一次授权，允许后显示汇总与卡片预览，卡片更新后自动刷新；勾选待办时再询问修改权限；点卡片在右侧编辑，打开原处与演示交给宿主", async () => {
     useSettingStore.setState(state => ({
       setting: { ...state.setting, database: { ...state.setting.database, active: DATABASE } },
     }));
@@ -141,10 +174,12 @@ describe("每周回顾插件", () => {
     try {
       await act(async () =>
         view.render(
-          <>
-            <Component context={page.context} params={{}} />
+          <QueryClientProvider client={new QueryClient()}>
+            <PluginComponentScope context={page.context}>
+              <Component context={page.context} params={{}} />
+            </PluginComponentScope>
             <PluginPermissionPrompt />
-          </>
+          </QueryClientProvider>
         )
       );
       await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
@@ -171,6 +206,9 @@ describe("每周回顾插件", () => {
       ).toHaveLength(5);
       expect(host.textContent).toContain("第一张卡");
       expect(host.textContent).toContain("#读书");
+      // 卡片列表的正文预览：读取权限已获准，直接显示开头
+      await act(async () => new Promise(resolve => setTimeout(resolve, 100)));
+      expect(host.textContent).toContain("卡片正文开头");
 
       cardTitle = "改过的卡";
       await act(async () => {
@@ -200,14 +238,48 @@ describe("每周回顾插件", () => {
       expect(write?.[4]).toBe("plugin:tau.weekly-review");
       expect(host.querySelector<HTMLInputElement>("input[type=checkbox]")?.checked).toBe(true);
 
-      const link = [...host.querySelectorAll("button")].find(
-        button => button.textContent === "改过的卡"
+      const button = (label: string) =>
+        [...document.querySelectorAll<HTMLElement>("button, [role=menuitem]")].find(
+          item => item.textContent === label
+        );
+      const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 60)));
+
+      // 点卡片在右侧打开正文：修改需要写入权限，挂载时不弹窗，点「允许访问」才询问
+      await act(async () => button("改过的卡")?.click());
+      await settle();
+      expect(openEntity).not.toHaveBeenCalled();
+      expect(host.textContent).toContain("插件需要你的允许才能编辑这段内容");
+      expect(usePluginPermissionUi.getState().prompts).toHaveLength(0);
+      await act(async () => button("允许访问")?.click());
+      await settle();
+      expect(usePluginPermissionUi.getState().prompts[0]?.permissions).toEqual(["cards:write"]);
+      await act(async () => button("始终允许")?.click());
+      await settle();
+      expect(host.textContent).toContain("正文编辑器");
+      expect(editorProps).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          contentId: 9,
+          source: { sourceType: "card", sourceId: 1 },
+          editingContext: { entityType: "card", entityId: 1 },
+          readonly: false,
+        })
       );
-      await act(async () => {
-        link?.click();
-        await new Promise(resolve => setTimeout(resolve, 30));
-      });
+
+      await act(async () => button("打开原处")?.click());
+      await settle();
       expect(openEntity).toHaveBeenCalledWith({ kind: "card", id: 1 });
+
+      // ⋯ → 演示：交给宿主动作，带上实体标题与正文
+      await act(async () => document.querySelector<HTMLElement>("[aria-label=更多操作]")?.click());
+      await settle();
+      await act(async () => button("演示")?.click());
+      await settle();
+      expect(usePluginActionUi.getState().request).toMatchObject({
+        action: "present",
+        title: "改过的卡",
+        contentId: 9,
+        plugin: { id: "tau.weekly-review" },
+      });
     } finally {
       act(() => view.unmount());
       host.remove();
