@@ -1,5 +1,6 @@
 import { screen, type BrowserWindow } from "electron";
-import { createWindow, revealWindow } from "./create-window";
+import { isAppQuitting } from "../app-quit-controller";
+import { createWindow, quitIfNoVisibleWindow, revealWindow } from "./create-window";
 import { findWindow, focusExisting, registerWindow } from "./window-registry";
 import { hasRememberedBounds, initialBounds, rememberBounds } from "./window-state";
 
@@ -39,28 +40,44 @@ function besideAnchor(anchor: BrowserWindow) {
   };
 }
 
-/** 反馈窗口：单例、默认置顶，不阻塞其它窗口；再次唤起聚焦已有窗口，草稿不丢 */
-export function showFeedbackWindow(anchor: BrowserWindow | null): BrowserWindow {
+/** 反馈窗口预热：隐藏加载，关闭请求交由渲染端确认，退出时才销毁 */
+export function prepareFeedbackWindow(): BrowserWindow {
   const existing = findFeedbackWindow();
-  if (existing) {
-    revealWindow(existing);
-    return existing;
-  }
-  const bounds =
-    anchor && !anchor.isDestroyed() && !hasRememberedBounds(FEEDBACK_KEY)
-      ? besideAnchor(anchor)
-      : initialBounds(FEEDBACK_KEY, FEEDBACK_SIZE, []);
+  if (existing) return existing;
   const win = createWindow({
     route: "/feedback",
     role: "utility",
-    ...bounds,
+    ...initialBounds(FEEDBACK_KEY, FEEDBACK_SIZE, []),
     minWidth: 400,
     minHeight: 520,
     alwaysOnTop: true,
+    show: false,
+    devTools: false,
   });
   registerWindow(FEEDBACK_KEY, win);
-  rememberBounds(FEEDBACK_KEY, win);
+  win.on("close", event => {
+    if (isAppQuitting()) return;
+    event.preventDefault();
+    win.webContents.send("app-feedback:close-requested");
+  });
+  win.once("show", () => rememberBounds(FEEDBACK_KEY, win, "hide"));
   return win;
+}
+
+/** 首次显示时才确定锚点位置，后续直接唤起同一窗口 */
+export function showFeedbackWindow(anchor: BrowserWindow | null): BrowserWindow {
+  const win = prepareFeedbackWindow();
+  if (anchor && !anchor.isDestroyed() && !hasRememberedBounds(FEEDBACK_KEY) && !win.isVisible())
+    win.setBounds(besideAnchor(anchor));
+  revealWindow(win);
+  return win;
+}
+
+export function hideFeedbackWindow() {
+  const win = findFeedbackWindow();
+  if (!win || !win.isVisible()) return;
+  win.hide();
+  quitIfNoVisibleWindow();
 }
 
 /** 背景音播放窗口：常驻隐藏，不进任务栏；被关闭（崩溃）时由调用方按需重建 */

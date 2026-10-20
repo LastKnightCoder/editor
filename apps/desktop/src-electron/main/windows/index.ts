@@ -8,7 +8,13 @@ import { createBackgroundAudioWindow } from "./utility-windows";
 export { createMainWindow, getMainWindows, showOrCreateMainWindow } from "./main-window";
 export { openEditorWindow, closeEditorWindow } from "./editor-window";
 export { openMarkdownWindow } from "./markdown-window";
-export { createQuickCardWindow, findFeedbackWindow, showFeedbackWindow } from "./utility-windows";
+export {
+  createQuickCardWindow,
+  findFeedbackWindow,
+  prepareFeedbackWindow,
+  showFeedbackWindow,
+  hideFeedbackWindow,
+} from "./utility-windows";
 export {
   routeNotification,
   type NotificationActionHandler,

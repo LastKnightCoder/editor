@@ -93,10 +93,12 @@ export function hasRememberedBounds(key: string) {
   return Boolean(readStore()[key]);
 }
 
-/** 关闭时记下常规态 bounds（最大化 / 全屏时取还原后的尺寸） */
-export function rememberBounds(key: string, win: BrowserWindow) {
-  win.on("close", () => {
+/** 关闭或隐藏时记下常规态 bounds（最大化 / 全屏时取还原后的尺寸） */
+export function rememberBounds(key: string, win: BrowserWindow, event: "close" | "hide" = "close") {
+  const save = () => {
     if (win.isDestroyed()) return;
     writeStore({ ...readStore(), [key]: win.getNormalBounds() });
-  });
+  };
+  if (event === "hide") win.on("hide", save);
+  else win.on("close", save);
 }
