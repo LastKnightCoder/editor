@@ -1,5 +1,5 @@
 import { visitorFor } from "./visitors";
-import { fail, type Env } from "./platform";
+import { fail, VISIBLE_PLUGIN, type Env } from "./platform";
 import type { DownloadStatistics } from "../contracts";
 
 export function downloadWindow() {
@@ -13,7 +13,7 @@ export async function pluginStatistics(env: Env, pluginId: string): Promise<Down
     `SELECT
     COALESCE((SELECT downloads FROM plugin_download_totals WHERE plugin_id=?),0) AS downloadsTotal,
     COALESCE((SELECT SUM(downloads) FROM plugin_download_daily WHERE plugin_id=? AND day>=? AND day<=?),0) AS downloads7d
-    WHERE EXISTS(SELECT 1 FROM releases WHERE plugin_id=? AND state='published')`
+    WHERE EXISTS(SELECT 1 FROM releases r WHERE r.plugin_id=? AND r.state='published' AND ${VISIBLE_PLUGIN})`
   )
     .bind(pluginId, pluginId, windowStart, day, pluginId)
     .first<{ downloadsTotal: number; downloads7d: number }>();

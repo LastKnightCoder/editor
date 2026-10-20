@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronRight, Package } from "lucide-react";
-import { Button, cn } from "@tau/ui";
+import { ChevronDown, ChevronRight, Package, PackagePlus, Trash2 } from "lucide-react";
+import { Button, IconButton, cn } from "@tau/ui";
 import type { SubmissionGroup, SubmissionSummary } from "../../../../contracts";
 import { PluginMark } from "../../components/PluginMark";
 import { StatusTag } from "../../components/PageHeader";
@@ -9,15 +9,25 @@ import { activityText } from "./activity";
 import { headlineOf, lastActivity } from "./groups";
 
 const detailPath = (item: SubmissionSummary) => `/submissions/${encodeURIComponent(item.id)}`;
-const describe = (item: SubmissionSummary) =>
-  activityText({ ...item, hasPackage: !!item.pluginId }, "author");
+const describe = (item: SubmissionSummary) => activityText(item, "author");
 
-function VersionRow({ item }: { item: SubmissionSummary }) {
+function VersionRow({
+  item,
+  onDelete,
+}: {
+  item: SubmissionSummary;
+  onDelete: (item: SubmissionSummary) => void;
+}) {
+  const deletable = item.status === "draft";
+  // 删除按钮放在链接外并绝对定位：<a> 内不能再嵌交互元素
   return (
-    <li>
+    <li className="group relative">
       <Link
         to={detailPath(item)}
-        className="hover:bg-surface-hover focus-visible:bg-surface-hover text-tau-meta flex items-center gap-3 py-2.5 pl-[72px] pr-[18px] outline-none transition-colors"
+        className={cn(
+          "hover:bg-surface-hover focus-visible:bg-surface-hover text-tau-meta flex items-center gap-3 py-2.5 pl-[72px] outline-none transition-colors",
+          deletable ? "pr-[72px]" : "pr-[18px]"
+        )}
       >
         <span className="font-tau-mono text-ink-1 w-16 shrink-0 font-medium">
           {item.version ? `v${item.version}` : "—"}
@@ -27,8 +37,21 @@ function VersionRow({ item }: { item: SubmissionSummary }) {
         <span className="text-tau-micro text-ink-3 shrink-0">
           {formatRelative(lastActivity(item))}
         </span>
-        <ChevronRight size={15} className="text-ink-3 shrink-0" />
+        {!deletable && <ChevronRight size={15} className="text-ink-3 shrink-0" />}
       </Link>
+      {deletable && (
+        <span className="pointer-events-none absolute inset-y-0 right-[18px] flex items-center gap-1">
+          <IconButton
+            aria-label="删除草稿"
+            title="删除草稿"
+            className="pointer-events-auto opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
+            onClick={() => onDelete(item)}
+          >
+            <Trash2 size={14} />
+          </IconButton>
+          <ChevronRight size={15} className="text-ink-3 shrink-0" />
+        </span>
+      )}
     </li>
   );
 }
@@ -38,10 +61,12 @@ export function PluginGroupRow({
   group,
   expanded,
   onToggle,
+  onDelete,
 }: {
   group: SubmissionGroup;
   expanded: boolean;
   onToggle: () => void;
+  onDelete: (item: SubmissionSummary) => void;
 }) {
   const navigate = useNavigate();
   const headline = headlineOf(group);
@@ -77,14 +102,20 @@ export function PluginGroupRow({
           <p
             className={cn(
               "text-tau-sm truncate",
-              headline.status === "changes_requested"
-                ? "text-warn"
-                : headline.status === "rejected"
-                  ? "text-danger"
-                  : "text-ink-2"
+              group.disabled
+                ? "text-danger"
+                : headline.status === "changes_requested"
+                  ? "text-warn"
+                  : headline.status === "rejected"
+                    ? "text-danger"
+                    : "text-ink-2"
             )}
           >
-            {group.pluginId ? describe(headline) : `${count} 个草稿还没有上传插件包`}
+            {group.disabled
+              ? `已被管理员禁用：${group.disabled.reason}`
+              : group.pluginId
+                ? describe(headline)
+                : `${count} 个草稿还没有上传插件包`}
             <span className="text-ink-3"> · {formatRelative(lastActivity(headline))}</span>
           </p>
         </div>
@@ -100,6 +131,20 @@ export function PluginGroupRow({
             {headline.status === "draft" ? "继续编辑" : "去修改"}
           </Button>
         )}
+        {!needsWork && group.pluginId && (
+          <Button
+            size="sm"
+            variant="soft"
+            icon={PackagePlus}
+            onClick={event => {
+              event.stopPropagation();
+              navigate(`/submissions/new?plugin=${encodeURIComponent(group.pluginId ?? "")}`);
+            }}
+          >
+            发布新版本
+          </Button>
+        )}
+        {group.disabled && <span className="text-tau-micro text-danger shrink-0">已禁用</span>}
         {group.pluginId && <StatusTag status={headline.status} />}
         <button
           type="button"
@@ -124,7 +169,7 @@ export function PluginGroupRow({
       {expanded && (
         <ul className="border-line-2 divide-line-2 flex flex-col divide-y border-t">
           {group.submissions.map(item => (
-            <VersionRow key={item.id} item={item} />
+            <VersionRow key={item.id} item={item} onDelete={onDelete} />
           ))}
         </ul>
       )}

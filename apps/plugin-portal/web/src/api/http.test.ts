@@ -94,7 +94,10 @@ describe("HTTP 客户端", () => {
     });
     const api = createHttpApi({ baseUrl: BASE + "/", fetch });
     await api.listSubmissions({ scope: "mine", status: null, cursor: null });
-    await api.createSubmission("00000000-0000-4000-8000-000000000000");
+    await api.createSubmission({
+      clientRequestId: "00000000-0000-4000-8000-000000000000",
+      packageUploadId: "upload-1",
+    });
     expect(calls.length).toBeGreaterThanOrEqual(3);
     expect(calls.every(call => call.init.credentials === "include")).toBe(true);
   });

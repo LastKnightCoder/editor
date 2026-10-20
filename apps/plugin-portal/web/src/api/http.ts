@@ -133,7 +133,11 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     return session.csrfToken;
   }
 
-  async function write<T>(method: "POST" | "PATCH", path: string, body?: unknown): Promise<T> {
+  async function write<T>(
+    method: "POST" | "PATCH" | "DELETE",
+    path: string,
+    body?: unknown
+  ): Promise<T> {
     const token = await requireCsrf();
     const headers: Record<string, string> = { [CSRF_HEADER]: token };
     if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -215,6 +219,13 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     listModerationEvents: cursor =>
       read(`/v1/moderation/events${cursor ? `?cursor=${id(cursor)}` : ""}`),
     moderate: input => write("POST", "/v1/moderation/actions", input),
+    listManagedPlugins: (filter, cursor) =>
+      read(
+        `/v1/moderation/plugins?${new URLSearchParams({ ...filter, ...(cursor ? { cursor } : {}) })}`
+      ),
+    moderatePlugin: input => write("POST", "/v1/moderation/plugin-actions", input),
+    listPluginModerationEvents: cursor =>
+      read(`/v1/moderation/plugin-events${cursor ? `?cursor=${id(cursor)}` : ""}`),
     getCommunity: (pluginId, cursor) =>
       read(`/v1/plugins/${id(pluginId)}/community${cursor ? `?cursor=${id(cursor)}` : ""}`),
     setPluginLiked: (pluginId, liked) =>
@@ -241,8 +252,7 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     createUpload: (input: CreateUpload) => write<UploadTicket>("POST", "/v1/uploads", input),
     sendUpload,
     getUpload: uploadId => read<Upload>(`/v1/uploads/${id(uploadId)}`),
-    createSubmission: clientRequestId =>
-      write<Submission>("POST", "/v1/submissions", { clientRequestId }),
+    createSubmission: input => write<Submission>("POST", "/v1/submissions", input),
     listSubmissions: ({ scope, status, cursor }) => {
       const query = new URLSearchParams({
         ...(cursor ? { cursor } : {}),
@@ -257,6 +267,10 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
       write<Submission>("PATCH", `/v1/submissions/${id(submissionId)}`, body),
     submitSubmission: (submissionId, revision) =>
       write<Submission>("POST", `/v1/submissions/${id(submissionId)}/submit`, { revision }),
+    withdrawSubmission: (submissionId, revision) =>
+      write<Submission>("POST", `/v1/submissions/${id(submissionId)}/withdraw`, { revision }),
+    deleteSubmission: submissionId =>
+      write<{ deleted: boolean }>("DELETE", `/v1/submissions/${id(submissionId)}`),
     listFeedback: (submissionId, cursor) =>
       read(
         `/v1/submissions/${id(submissionId)}/feedback${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`

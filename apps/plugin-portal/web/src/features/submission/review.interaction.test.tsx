@@ -12,9 +12,12 @@ afterEach(cleanup);
 async function setup(withBackend = false) {
   const api = createMockApi({ reviewer: true }),
     client = createQueryClient();
-  const d = await api.createSubmission(crypto.randomUUID()),
-    ticket = await api.createUpload({ fileName: "p.zip", size: 1 });
+  const ticket = await api.createUpload({ fileName: "p.zip", size: 1 });
   const up = await api.sendUpload(ticket, new Blob(["x"]), () => {}).result;
+  const d = await api.createSubmission({
+    clientRequestId: crypto.randomUUID(),
+    packageUploadId: up.id,
+  });
   const saved = await api.saveSubmission(d.id, {
     revision: 1,
     packageUploadId: up.id,

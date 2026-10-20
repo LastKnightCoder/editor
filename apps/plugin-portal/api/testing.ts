@@ -14,6 +14,7 @@ export function testEnvironment() {
     "0006_plugin_community.sql",
     "0007_comment_moderation.sql",
     "0008_release_categories.sql",
+    "0009_plugin_moderation.sql",
     "0011_backend_review.sql",
   ])
     sqlite.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));

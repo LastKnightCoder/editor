@@ -10,6 +10,7 @@ import type { SubmissionGroups, Submission, Upload } from "../contracts";
 
 function zip(
   options: {
+    id?: string;
     version?: string;
     minAppVersion?: string;
     readme?: string | null;
@@ -19,12 +20,13 @@ function zip(
   } = {}
 ) {
   const file = new AdmZip(),
+    id = options.id ?? "test.reader",
     code = "module.exports={activate(){}}";
   file.addFile(
-    "test.reader/manifest.json",
+    `${id}/manifest.json`,
     Buffer.from(
       JSON.stringify({
-        id: "test.reader",
+        id,
         name: "阅读插件",
         description: options.description ?? "同步阅读摘录",
         version: options.version ?? "1.0.0",
@@ -39,10 +41,10 @@ function zip(
       })
     )
   );
-  file.addFile("test.reader/main.js", Buffer.from(options.corrupt ? "broken" : code));
+  file.addFile(`${id}/main.js`, Buffer.from(options.corrupt ? "broken" : code));
   if (options.readme !== null)
     file.addFile(
-      "test.reader/README.md",
+      `${id}/README.md`,
       Buffer.from(options.readme ?? "# 阅读插件\n\n## 使用\n启用后打开侧边栏。")
     );
   return file.toBuffer();
@@ -198,9 +200,17 @@ describe("包资料与站内反馈", () => {
     expect(response.status).toBe(200);
     return (await response.json()).data;
   }
-  async function draft(): Promise<Submission> {
+  /** 新协议下草稿必带已校验的包；未传时上传默认包。pluginId 走「发布新版本」预绑定。 */
+  async function draft(up?: Upload, pluginId?: string): Promise<Submission> {
+    const packageUploadId = (up ?? (await upload())).id;
     return (
-      await (await req("/v1/submissions", "POST", { clientRequestId: crypto.randomUUID() })).json()
+      await (
+        await req("/v1/submissions", "POST", {
+          clientRequestId: crypto.randomUUID(),
+          packageUploadId,
+          ...(pluginId ? { pluginId } : {}),
+        })
+      ).json()
     ).data;
   }
   async function ready(
@@ -209,7 +219,7 @@ describe("包资料与站内反馈", () => {
     manifest?: Record<string, unknown>
   ): Promise<Submission> {
     const up = await upload(zip({ version, minAppVersion, manifest })),
-      record = await draft();
+      record = await draft(up);
     const response = await req(`/v1/submissions/${record.id}`, "PATCH", {
       revision: record.revision,
       packageUploadId: up.id,
@@ -251,7 +261,7 @@ describe("包资料与站内反馈", () => {
       )
     );
     const up = await upload(archive.toBuffer());
-    const d = await draft();
+    const d = await draft(up);
     const saved = (
       await (
         await req(`/v1/submissions/${d.id}`, "PATCH", {
@@ -326,9 +336,10 @@ describe("包资料与站内反馈", () => {
   it("README是唯一说明来源，保存表单不能覆盖包资料", async () => {
     await login();
     const up = await upload(),
-      record = await draft();
+      record = await draft(up);
+    expect(record.content?.readme).toContain("启用后");
     const r = await req(`/v1/submissions/${record.id}`, "PATCH", {
-      revision: 1,
+      revision: record.revision,
       packageUploadId: up.id,
       repository: "",
       description: "伪造说明",
@@ -408,18 +419,9 @@ describe("包资料与站内反馈", () => {
   it("后续版本复用已关联的仓库", async () => {
     await login();
     await submit(await ready());
-    const up = await upload(zip({ version: "1.1.0" })),
-      d = await draft();
-    const data = (
-      await (
-        await req(`/v1/submissions/${d.id}`, "PATCH", {
-          revision: 1,
-          repository: "",
-          packageUploadId: up.id,
-        })
-      ).json()
-    ).data;
-    expect(data.repository).toBe("https://github.com/author/plugin");
+    const d = await draft(await upload(zip({ version: "1.1.0" })));
+    expect(d.repository).toBe("https://github.com/author/plugin");
+    expect(d.pluginId).toBeNull();
   });
   it("仓库权限与重复版本仍受约束", async () => {
     await login();
@@ -431,12 +433,27 @@ describe("包资料与站内反馈", () => {
     const b = await ready();
     expect((await (await submit(b)).json()).error.code).toBe("VERSION_ALREADY_SUBMITTED");
   });
-  it("草稿创建幂等、并发保存只接受一个版本", async () => {
+  it("草稿创建幂等、必须带包、并发保存只接受一个版本", async () => {
     await login();
-    const input = { clientRequestId: crypto.randomUUID() };
+    expect(
+      (
+        await (
+          await req("/v1/submissions", "POST", { clientRequestId: crypto.randomUUID() })
+        ).json()
+      ).error.code
+    ).toBe("INVALID_INPUT");
+    const input = { clientRequestId: crypto.randomUUID(), packageUploadId: (await upload()).id };
     const a = (await (await req("/v1/submissions", "POST", input)).json()).data,
       b = (await (await req("/v1/submissions", "POST", input)).json()).data;
     expect(a.id).toBe(b.id);
+    expect(a.content.manifest.id).toBe("test.reader");
+    // 同一请求编号换了包不是重试，不能静默返回旧草稿
+    const swapped = await req("/v1/submissions", "POST", {
+      ...input,
+      packageUploadId: (await upload(zip({ version: "2.0.0" }))).id,
+    });
+    expect(swapped.status).toBe(409);
+    expect((await swapped.json()).error.code).toBe("REVISION_CONFLICT");
     const responses = await Promise.all(
       ["a", "b"].map(name =>
         req(`/v1/submissions/${a.id}`, "PATCH", {
@@ -966,7 +983,7 @@ describe("包资料与站内反馈", () => {
     expect(resubmitted.status).toBe("pending_review");
     expect(resubmitted.lastEvent).toMatchObject({ kind: "feedback", role: "author" });
   });
-  it("按插件归组：同一插件的提交合为一组，未上传包的草稿单独一组，不返回包内容", async () => {
+  it("按插件归组：同一插件的提交合为一组，存量无包草稿单独一组，不返回包内容", async () => {
     await login();
     f.env.REVIEWER_GITHUB_IDS = "42";
     const first = await ready("1.0.0");
@@ -977,7 +994,12 @@ describe("包资料与站内反馈", () => {
       comment: "",
     });
     const second = await ready("1.1.0");
-    const empty = await draft();
+    // 旧协议遗留的空草稿仍要能展示，并以 hasPackage=false 区分。
+    f.sqlite
+      .prepare(
+        "INSERT INTO submissions(id,publisher_id,client_request_id,created_at,updated_at) VALUES ('empty','42','empty','2026-10-02','2026-10-02')"
+      )
+      .run();
     f.sqlite.exec("INSERT INTO publishers VALUES ('other','other','')");
     f.sqlite
       .prepare(
@@ -990,14 +1012,16 @@ describe("包资料与站内反馈", () => {
     expect(groups).toHaveLength(2);
     const plugin = groups.find(group => group.pluginId)!;
     expect(plugin.name).toBe(first.content!.manifest.name);
+    expect(plugin.disabled).toBeNull();
     expect(plugin.submissions.map(item => [item.id, item.version, item.status])).toEqual([
       [second.id, "1.1.0", "draft"],
       [first.id, "1.0.0", "approved"],
     ]);
+    expect(plugin.submissions.every(item => item.hasPackage)).toBe(true);
     expect(plugin.submissions[1].lastEvent).toMatchObject({ kind: "review", decision: "approve" });
     expect(plugin.submissions[0]).not.toHaveProperty("content");
     const drafts = groups.find(group => !group.pluginId)!;
-    expect(drafts.submissions.map(item => item.id)).toEqual([empty.id]);
+    expect(drafts.submissions.map(item => [item.id, item.hasPackage])).toEqual([["empty", false]]);
     expect(groups.flatMap(group => group.submissions).some(item => item.id === "x")).toBe(false);
   });
   it("提交列表按状态筛选，counts覆盖整个范围且不受筛选和游标影响", async () => {
@@ -1060,5 +1084,208 @@ describe("包资料与站内反馈", () => {
       approved: 1,
     });
     expect((await page("?scope=review")).counts).toEqual(queue.counts);
+  });
+  it("发布新版本：草稿预绑定插件ID并带入仓库，包必须属于该插件，他人或未登记的插件404", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    await submit(await ready("1.0.0"));
+    const create = (packageUploadId: string, pluginId: string) =>
+      req("/v1/submissions", "POST", {
+        clientRequestId: crypto.randomUUID(),
+        packageUploadId,
+        pluginId,
+      });
+    expect((await create((await upload()).id, "nobody.plugin")).status).toBe(404);
+    f.sqlite.exec(
+      "INSERT INTO publishers VALUES ('other','other','');INSERT INTO plugins(id,publisher_id,repository_id,repository) VALUES ('other.plugin','other','repo','https://github.com/other/plugin')"
+    );
+    expect((await create((await upload()).id, "other.plugin")).status).toBe(404);
+    const wrong = await upload(zip({ id: "another.plugin", version: "2.0.0" }));
+    const mismatch = await create(wrong.id, "test.reader");
+    expect(mismatch.status).toBe(400);
+    expect((await mismatch.json()).error.fields.packageUploadId).toContain("test.reader");
+    const next = await draft(await upload(zip({ version: "1.1.0" })), "test.reader");
+    expect(next).toMatchObject({
+      pluginId: "test.reader",
+      repository: "https://github.com/author/plugin",
+      status: "draft",
+      disabled: null,
+    });
+    const swap = await req(`/v1/submissions/${next.id}`, "PATCH", {
+      revision: next.revision,
+      packageUploadId: wrong.id,
+      repository: next.repository,
+    });
+    expect(swap.status).toBe(400);
+    expect((await swap.json()).error.message).toContain("test.reader");
+    const { groups } = (await (await req("/v1/submission-groups")).json()).data as SubmissionGroups;
+    expect(groups).toHaveLength(1);
+    expect(groups[0].submissions.map(item => item.id)).toContain(next.id);
+    expect((await submit(next)).status).toBe(200);
+  });
+  it("删除草稿：连同反馈一起删；审核中、有审核记录的草稿与他人记录都不可删", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await draft();
+    const removed = await req(`/v1/submissions/${d.id}`, "DELETE");
+    expect(removed.status).toBe(200);
+    expect((await removed.json()).data).toEqual({ deleted: true });
+    expect((await req(`/v1/submissions/${d.id}`)).status).toBe(404);
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM uploads").get()?.n).toBe(1);
+    const pending = (await (await submit(await ready())).json()).data as Submission;
+    expect((await (await req(`/v1/submissions/${pending.id}`, "DELETE")).json()).error.code).toBe(
+      "SUBMISSION_LOCKED"
+    );
+    await req(`/v1/submissions/${pending.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "request_changes",
+      comment: "请补充说明",
+    });
+    const changes = (await (await req(`/v1/submissions/${pending.id}`)).json()).data as Submission;
+    await req(`/v1/submissions/${pending.id}/feedback`, "POST", {
+      message: "收到",
+      clientRequestId: crypto.randomUUID(),
+    });
+    const resubmitted = (await (await submit(changes)).json()).data as Submission;
+    const withdrawn = (
+      await (
+        await req(`/v1/submissions/${pending.id}/withdraw`, "POST", {
+          revision: resubmitted.revision,
+        })
+      ).json()
+    ).data as Submission;
+    expect(withdrawn.status).toBe("draft");
+    expect((await (await req(`/v1/submissions/${pending.id}`, "DELETE")).json()).error.code).toBe(
+      "SUBMISSION_LOCKED"
+    );
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_feedback").get()?.n).toBe(1);
+    const mine = await draft(await upload(zip({ version: "3.0.0" })));
+    f.sqlite.exec(
+      "INSERT INTO publishers VALUES ('other','other',''); UPDATE sessions SET publisher_id='other'"
+    );
+    expect((await req(`/v1/submissions/${mine.id}`, "DELETE")).status).toBe(404);
+  });
+  it("撤回：审核中的提交回到草稿并释放版本号，撤回后再次提交成功，与审核决定互斥", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const first = await ready("1.0.0");
+    const pending = (await (await submit(first)).json()).data as Submission;
+    expect(
+      (await (await req(`/v1/submissions/${first.id}/withdraw`, "POST", { revision: 1 })).json())
+        .error.code
+    ).toBe("REVISION_CONFLICT");
+    const withdraw = await req(`/v1/submissions/${first.id}/withdraw`, "POST", {
+      revision: pending.revision,
+    });
+    expect(withdraw.status).toBe(200);
+    const withdrawn = (await withdraw.json()).data as Submission;
+    expect(withdrawn).toMatchObject({
+      status: "draft",
+      canEdit: true,
+      pluginId: "test.reader",
+      revision: pending.revision + 1,
+    });
+    expect(withdrawn.submittedAt).toBe(pending.submittedAt);
+    // 再次撤回幂等返回当前草稿；审核者对旧修订的决定被拒绝
+    expect(
+      (await req(`/v1/submissions/${first.id}/withdraw`, "POST", { revision: 0 })).status
+    ).toBe(200);
+    expect(
+      (
+        await (
+          await req(`/v1/submissions/${first.id}/review`, "POST", {
+            revision: pending.revision,
+            decision: "approve",
+            comment: "",
+          })
+        ).json()
+      ).error.code
+    ).toBe("REVISION_CONFLICT");
+    // 版本号已释放：另一条同版本提交可以进入审核，原草稿再提交则撞版本
+    const another = await ready("1.0.0");
+    expect((await submit(another)).status).toBe(200);
+    expect((await (await submit(withdrawn)).json()).error.code).toBe("VERSION_ALREADY_SUBMITTED");
+    // 已批准、已拒绝的记录不能撤回
+    const approved = (await (await req(`/v1/submissions/${another.id}`)).json()).data as Submission;
+    await req(`/v1/submissions/${another.id}/review`, "POST", {
+      revision: approved.revision,
+      decision: "approve",
+      comment: "",
+    });
+    const done = (await (await req(`/v1/submissions/${another.id}`)).json()).data as Submission;
+    expect(
+      (
+        await (
+          await req(`/v1/submissions/${another.id}/withdraw`, "POST", { revision: done.revision })
+        ).json()
+      ).error.code
+    ).toBe("SUBMISSION_LOCKED");
+  });
+  it("禁用期间作者仍可提交整改版本并获批准，但目录直到恢复才可见", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const first = (await (await submit(await ready("1.0.0"))).json()).data as Submission;
+    await req(`/v1/submissions/${first.id}/review`, "POST", {
+      revision: first.revision,
+      decision: "approve",
+      comment: "",
+    });
+    const catalogIds = async () =>
+      (await (await req("/v1/catalog?appVersion=0.59.0")).json()).data.items.map(
+        (item: { pluginId: string }) => item.pluginId
+      );
+    expect(await catalogIds()).toEqual(["test.reader"]);
+    const act = (action: string) =>
+      req("/v1/moderation/plugin-actions", "POST", {
+        pluginId: "test.reader",
+        action,
+        reason: "README 含外链广告，请移除",
+        clientRequestId: crypto.randomUUID(),
+      });
+    expect((await act("disable_plugin")).status).toBe(200);
+    expect(await catalogIds()).toEqual([]);
+    const fixed = await draft(await upload(zip({ version: "1.0.1" })), "test.reader");
+    expect(fixed.disabled).toMatchObject({ reason: "README 含外链广告，请移除" });
+    const pending = (await (await submit(fixed)).json()).data as Submission;
+    expect(pending.status).toBe("pending_review");
+    const review = await req(`/v1/submissions/${fixed.id}/review`, "POST", {
+      revision: pending.revision,
+      decision: "approve",
+      comment: "",
+    });
+    expect(review.status).toBe(200);
+    expect((await review.json()).data.release.state).toBe("published");
+    expect(await catalogIds()).toEqual([]);
+    expect((await act("enable_plugin")).status).toBe(200);
+    expect(await catalogIds()).toEqual(["test.reader"]);
+    const versions = (await (await req("/v1/releases?pluginId=test.reader")).json()).data.items;
+    expect(versions.map((item: { version: string }) => item.version).sort()).toEqual([
+      "1.0.0",
+      "1.0.1",
+    ]);
+  });
+  it("撤回过但从未进入审核的草稿可删除，站内反馈随之清除", async () => {
+    await login();
+    const record = await ready();
+    const pending = (await (await submit(record)).json()).data as Submission;
+    expect(
+      (
+        await req(`/v1/submissions/${record.id}/feedback`, "POST", {
+          message: "先撤回，稍后补充说明",
+          clientRequestId: crypto.randomUUID(),
+        })
+      ).status
+    ).toBe(201);
+    const withdrawn = (
+      await (
+        await req(`/v1/submissions/${record.id}/withdraw`, "POST", { revision: pending.revision })
+      ).json()
+    ).data as Submission;
+    expect(withdrawn.status).toBe("draft");
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_feedback").get()?.n).toBe(1);
+    const removed = await req(`/v1/submissions/${record.id}`, "DELETE");
+    expect(removed.status).toBe(200);
+    expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_feedback").get()?.n).toBe(0);
+    expect((await req(`/v1/submissions/${record.id}`)).status).toBe(404);
   });
 });

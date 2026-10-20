@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Layers, MessagesSquare, PackagePlus, ShieldCheck, type LucideIcon } from "lucide-react";
+import {
+  Layers,
+  MessagesSquare,
+  PackagePlus,
+  Puzzle,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { Button, cn } from "@tau/ui";
 import { useSubmissionCounts } from "../features/submissions/queries";
 
@@ -9,15 +16,19 @@ function Item({
   icon: Icon,
   children,
   hint,
+  end,
 }: {
   to: string;
   icon: LucideIcon;
   children: ReactNode;
   hint?: ReactNode;
+  /** 有子路由的入口需精确匹配，避免与子页入口同时高亮 */
+  end?: boolean;
 }) {
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) =>
         cn(
           "text-tau-body rounded-tau-sm flex items-center gap-2.5 px-2.5 py-[7px] transition-colors",
@@ -82,7 +93,10 @@ export function WorkspaceSidebar({ reviewer }: { reviewer: boolean }) {
           >
             审核队列
           </Item>
-          <Item to="/moderation" icon={MessagesSquare}>
+          <Item to="/moderation/plugins" icon={Puzzle}>
+            插件管理
+          </Item>
+          <Item to="/moderation" icon={MessagesSquare} end>
             评论管理
           </Item>
         </Group>

@@ -3,17 +3,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  FileArchive,
   Github,
   RefreshCw,
   Reply,
   Send,
+  Trash2,
+  Undo2,
   Upload as UploadIcon,
 } from "lucide-react";
-import { Button, FileDropZone, Input, Panel } from "@tau/ui";
+import { Button, ConfirmDialog, Input, Panel } from "@tau/ui";
 import type { ReviewDetails, Submission, Upload } from "../../../../contracts";
 import { queryKeys, useApi } from "../../app/api";
 import { useSession } from "../../app/session";
+import { errorMessage } from "../../api/errors";
 import { Notice } from "../../components/Notice";
 import { PageHeader, StatusTag } from "../../components/PageHeader";
 import { PluginMark } from "../../components/PluginMark";
@@ -21,6 +23,7 @@ import { formatRelative } from "../../components/format";
 import { usePluginReleases } from "../catalog/queries";
 import { FeedbackThread } from "./FeedbackThread";
 import { PackageCard } from "./PackageCard";
+import { PackageDropZone } from "./PackageDropZone";
 import { PackagePreview } from "./PackagePreview";
 import { ProgressTimeline } from "./ProgressTimeline";
 import { SubmitChecklist, type CheckItem } from "./SubmitChecklist";
@@ -41,10 +44,12 @@ function StatusBanner({
   submission,
   details,
   onReupload,
+  onWithdraw,
 }: {
   submission: Submission;
   details: ReviewDetails | undefined;
   onReupload: () => void;
+  onWithdraw: () => void;
 }) {
   const latest = details?.reviews[0];
   const release = details?.release;
@@ -70,15 +75,25 @@ function StatusBanner({
       );
     case "pending_review":
       return (
-        <Notice tone="info" title="已提交，等待审核">
-          提交内容已冻结；审核意见和问题会出现在下方的「沟通」里。
+        <Notice
+          tone="info"
+          title="已提交，等待审核"
+          actions={
+            submission.owned && (
+              <Button size="sm" variant="ghost" icon={Undo2} onClick={onWithdraw}>
+                撤回提交
+              </Button>
+            )
+          }
+        >
+          提交内容已冻结；审核意见和问题会出现在下方的「沟通」里。撤回后可继续修改或删除。
         </Notice>
       );
     case "rejected":
       return (
         <Notice tone="danger" title="审核未通过">
           <p className="whitespace-pre-wrap">{latest?.comment}</p>
-          <p className="mt-1">这条提交已结束，修改后可以新建提交重新发布。</p>
+          <p className="mt-1">这条提交已结束；修改后回到「我的提交」点「发布新版本」重新发布。</p>
         </Notice>
       );
     case "approved":
@@ -141,7 +156,8 @@ export function SubmissionView({ submission }: { submission: Submission }) {
     }
   }, [submission.revision, submission.repository, dirty]);
   const details = useReviewDetails(submission.id, !!submission.submittedAt);
-  const releases = usePluginReleases(editable ? manifest?.id : null);
+  // 预绑定了插件但暂时没有包时，也按目标插件核对已发布版本
+  const releases = usePluginReleases(editable ? (manifest?.id ?? submission.pluginId) : null);
   const uploads = useUploadTasks(value => {
     setUpload(value);
     setError("");
@@ -174,6 +190,24 @@ export function SubmissionView({ submission }: { submission: Submission }) {
       void client.invalidateQueries({ queryKey: queryKeys.submission(submission.id) });
     },
   });
+  const [confirming, setConfirming] = useState<"withdraw" | "delete" | null>(null);
+  const withdraw = useMutation({
+    mutationFn: () => api.withdrawSubmission(submission.id, submission.revision),
+    onSuccess: value => {
+      setConfirming(null);
+      publish(value);
+    },
+    onError: () => void client.invalidateQueries({ queryKey: queryKeys.submission(submission.id) }),
+  });
+  const remove = useMutation({
+    mutationFn: () => api.deleteSubmission(submission.id),
+    onSuccess: () => {
+      setConfirming(null);
+      client.removeQueries({ queryKey: queryKeys.submission(submission.id) });
+      void client.invalidateQueries({ queryKey: queryKeys.submissions });
+      navigate("/submissions", { replace: true });
+    },
+  });
   const pick = (file?: File) => {
     if (!file) return;
     const issue = precheckFile(file);
@@ -181,6 +215,9 @@ export function SubmissionView({ submission }: { submission: Submission }) {
     else uploads.start(file);
   };
   const busy = active || action.isPending || conflict;
+  // 曾进入审核的草稿（如要求修改后撤回）保留审核记录，服务端拒绝删除，这里不给入口
+  const deletable =
+    submission.owned && submission.status === "draft" && !details.data?.reviews.length;
 
   const repoTyped = repository.trim();
   const repoValid = GITHUB_REPOSITORY.test(repoTyped);
@@ -227,7 +264,8 @@ export function SubmissionView({ submission }: { submission: Submission }) {
         title={
           <span className="flex items-center gap-3">
             {manifest && <PluginMark pluginId={manifest.id} name={manifest.name} size="lg" />}
-            {manifest?.name ?? "新的插件提交"}
+            {manifest?.name ??
+              (submission.pluginId ? `为 ${submission.pluginId} 发布新版本` : "新的插件提交")}
           </span>
         }
         tag={<StatusTag status={submission.status} />}
@@ -249,10 +287,25 @@ export function SubmissionView({ submission }: { submission: Submission }) {
       />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-5">
+          {submission.disabled && (
+            <Notice
+              tone="warn"
+              title={`该插件已被管理员禁用 · ${formatRelative(submission.disabled.at)}`}
+            >
+              <p className="whitespace-pre-wrap">原因：{submission.disabled.reason}</p>
+              <p className="mt-1">
+                禁用期间插件中心不显示、不可搜索与下载，已安装用户不受影响。提交整改版本并通过审核后，由管理员恢复上架。
+              </p>
+            </Notice>
+          )}
           <StatusBanner
             submission={submission}
             details={details.data}
             onReupload={() => picker.current?.click()}
+            onWithdraw={() => {
+              withdraw.reset();
+              setConfirming("withdraw");
+            }}
           />
           {editable && (
             <input
@@ -268,26 +321,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
               }}
             />
           )}
-          {editable && !content && !active && (
-            <FileDropZone
-              accept=".zip"
-              disabled={busy}
-              onFile={pick}
-              className="rounded-tau-lg bg-surface gap-2.5 py-10"
-            >
-              <span className="bg-accent-soft text-accent-text rounded-tau-md grid size-12 place-items-center">
-                <FileArchive size={22} strokeWidth={1.7} />
-              </span>
-              <p className="text-tau-title text-ink-1 font-semibold">
-                把插件 ZIP 拖到这里，或点击选择
-              </p>
-              <p className="text-tau-sm text-ink-3 leading-[1.7]">
-                包内需要 manifest.json、README.md 和运行文件，16 MiB 以内
-                <br />
-                介绍与使用说明都读自 README，不用另外填写
-              </p>
-            </FileDropZone>
-          )}
+          {editable && !content && !active && <PackageDropZone disabled={busy} onFile={pick} />}
           {uploads.tasks.map(task => (
             <UploadTaskCard key={task.key} task={task} uploads={uploads} />
           ))}
@@ -382,7 +416,7 @@ export function SubmissionView({ submission }: { submission: Submission }) {
               >
                 {submission.status === "changes_requested" ? "重新提交审核" : "提交审核"}
               </Button>
-              <div className="flex items-center">
+              <div className="flex items-center gap-1">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -392,6 +426,20 @@ export function SubmissionView({ submission }: { submission: Submission }) {
                 >
                   保存草稿
                 </Button>
+                {deletable && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={Trash2}
+                    disabled={busy}
+                    onClick={() => {
+                      remove.reset();
+                      setConfirming("delete");
+                    }}
+                  >
+                    删除草稿
+                  </Button>
+                )}
                 {dirty && <span className="text-tau-micro text-ink-3 ml-auto">有未保存的修改</span>}
               </div>
             </Panel>
@@ -421,6 +469,47 @@ export function SubmissionView({ submission }: { submission: Submission }) {
           <ProgressTimeline submission={submission} details={details.data} />
         </aside>
       </div>
+      <ConfirmDialog
+        open={confirming === "withdraw"}
+        title="撤回提交"
+        context={manifest ? `${manifest.name} v${manifest.version}` : undefined}
+        confirmText="撤回"
+        onOpenChange={open => {
+          if (!open) setConfirming(null);
+        }}
+        description={
+          <div className="flex flex-col gap-2">
+            <p>撤回后这条提交退回草稿，审核者不再处理；你可以继续修改后重新提交，或删除它。</p>
+            {withdraw.isError && (
+              <p role="alert" className="text-tau-sm text-danger">
+                {errorMessage(withdraw.error)}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={() => withdraw.mutateAsync()}
+      />
+      <ConfirmDialog
+        open={confirming === "delete"}
+        title="删除草稿"
+        context={manifest ? `${manifest.name} v${manifest.version}` : undefined}
+        danger
+        confirmText="删除"
+        onOpenChange={open => {
+          if (!open) setConfirming(null);
+        }}
+        description={
+          <div className="flex flex-col gap-2">
+            <p>草稿与其中的沟通记录将被删除，已上传的包不再关联到任何提交。此操作不可恢复。</p>
+            {remove.isError && (
+              <p role="alert" className="text-tau-sm text-danger">
+                {errorMessage(remove.error)}
+              </p>
+            )}
+          </div>
+        }
+        onConfirm={() => remove.mutateAsync()}
+      />
     </>
   );
 }

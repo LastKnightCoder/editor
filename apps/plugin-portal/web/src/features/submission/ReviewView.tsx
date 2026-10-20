@@ -235,6 +235,24 @@ export function ReviewView({
       />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex min-w-0 flex-col gap-5">
+          {submission.disabled && (
+            <Notice
+              tone="warn"
+              title="该插件当前处于禁用状态"
+              actions={
+                <Link
+                  to={`/moderation/plugins?q=${encodeURIComponent(submission.pluginId ?? "")}`}
+                  className="text-tau-sm text-accent-text inline-flex items-center gap-1 font-medium"
+                >
+                  去插件管理
+                  <ArrowRight size={14} />
+                </Link>
+              }
+            >
+              <p className="whitespace-pre-wrap">禁用原因：{submission.disabled.reason}</p>
+              <p className="mt-1">批准后版本会正常发布，但要在插件管理中恢复后才会重新上架。</p>
+            </Notice>
+          )}
           {resubmitted && (
             <Notice tone="info" title={`上一轮 @${latest.reviewer.login} 要求修改`}>
               <p className="line-clamp-3 whitespace-pre-wrap">{latest.comment}</p>

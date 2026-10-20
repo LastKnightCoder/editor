@@ -3,7 +3,7 @@ import { fail, isReviewer, json, readLimited, sha256, type Env } from "./platfor
 import { requiresSystemReview } from "../contracts/execution";
 import { inspectPackage } from "./package";
 import { decideSubmission } from "./reviews";
-import type { SubmissionRow } from "./submissions";
+import { SUBMISSION_SELECT, type SubmissionRow } from "./submissions";
 import { getRelease, releaseDto } from "./releases";
 
 const ISSUER = "https://token.actions.githubusercontent.com";
@@ -136,7 +136,7 @@ export async function ciRoute(request: Request, env: Env, path: string): Promise
   const hash = await sha256(bytes);
 
   let row = await env.DB.prepare(
-    "SELECT * FROM submissions WHERE plugin_id=? AND plugin_version=? AND status IN ('pending_review','changes_requested','approved')"
+    `${SUBMISSION_SELECT} WHERE s.plugin_id=? AND s.plugin_version=? AND s.status IN ('pending_review','changes_requested','approved')`
   )
     .bind(manifest.id, manifest.version)
     .first<SubmissionRow>();
@@ -198,7 +198,7 @@ export async function ciRoute(request: Request, env: Env, path: string): Promise
         fail(409, "VERSION_ALREADY_SUBMITTED", "该版本正在由另一次任务提交，请稍后重跑");
       throw error;
     }
-    row = await env.DB.prepare("SELECT * FROM submissions WHERE id=?")
+    row = await env.DB.prepare(`${SUBMISSION_SELECT} WHERE s.id=?`)
       .bind(submissionId)
       .first<SubmissionRow>();
     if (!row) fail(503, "SERVICE_UNAVAILABLE", "提交写入失败，请重跑任务");
@@ -206,7 +206,7 @@ export async function ciRoute(request: Request, env: Env, path: string): Promise
 
   if (autoApprove && row.status === "pending_review") {
     await decideSubmission(env, row, owner, row.revision, "approve", "CI 自动批准：推送者为审核者");
-    row = (await env.DB.prepare("SELECT * FROM submissions WHERE id=?")
+    row = (await env.DB.prepare(`${SUBMISSION_SELECT} WHERE s.id=?`)
       .bind(row.id)
       .first<SubmissionRow>()) as SubmissionRow;
   }
