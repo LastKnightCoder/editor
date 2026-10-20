@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { PluginAIFeature, PluginAIResult } from "@tau/plugins";
+import type { PluginAIFeature, PluginAIResult, PluginAICapability } from "@tau/plugins";
+import { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "@tau/plugins/package";
 import type {
   PluginAIConfig,
   PluginAIInfo,
@@ -12,6 +13,7 @@ import type { PiSingleShotRequest } from "@/types/pi-llm";
 interface Session {
   owner: number;
   plugin: PluginAIInfo;
+  hostFeature?: PluginAICapability;
 }
 interface Ledger {
   day: string;
@@ -26,6 +28,7 @@ interface Running extends PluginAIRunning {
 export interface PluginAIDeps {
   read(key: string): string | null;
   write(key: string, value: string): void;
+  hostModel?(feature: PluginAICapability): Promise<{ providerId: string; modelId: string } | null>;
   capacity(
     providerId: string,
     modelId: string
@@ -51,13 +54,42 @@ const localDay = () => new Date().toLocaleDateString("sv-SE");
 const validId = (id: string) =>
   typeof id === "string" && /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(id);
 
+function validateImages(messages: PluginAIWireRequest["messages"]) {
+  let encodedSize = 0;
+  for (const message of messages) {
+    const images = "images" in message ? message.images : undefined;
+    if (images === undefined) continue;
+    if (message.role !== "user" || !Array.isArray(images) || images.length > 10)
+      throw new Error("AI_INVALID_REQUEST：图片参数无效");
+    for (const image of images) {
+      if (!image || typeof image.data !== "string")
+        throw new Error("AI_INVALID_REQUEST：图片参数无效");
+      encodedSize += image.data.length;
+      if (
+        encodedSize > 20 * 1024 * 1024 ||
+        !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(image.mimeType) ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(image.data)
+      )
+        throw new Error("AI_INVALID_REQUEST：图片格式无效或过大");
+    }
+  }
+}
+
 /** 本机所有窗口共用授权、预占额度和执行中的请求。 */
 export class PluginAIService {
   private sessions = new Map<string, Session>();
   private active = new Map<string, Running>();
   constructor(private deps: PluginAIDeps) {}
 
-  register(owner: number, id: string, name: string, features: PluginAIFeature[]): string {
+  register(
+    owner: number,
+    id: string,
+    name: string,
+    features: PluginAIFeature[],
+    hostFeature?: PluginAICapability
+  ): string {
+    if (hostFeature !== undefined && !isPluginAICapability(hostFeature))
+      throw new Error("AI_UNDECLARED_FEATURE");
     if (
       !validId(id) ||
       typeof name !== "string" ||
@@ -86,10 +118,18 @@ export class PluginAIService {
       };
     });
     const previous = this.info(id);
-    const plugin = { id, name, features: clean, config: previous?.config ?? defaults() };
+    const plugin: PluginAIInfo = {
+      id,
+      name,
+      features: hostFeature ? (previous?.features ?? []) : clean,
+      hostFeatures: [
+        ...new Set([...(previous?.hostFeatures ?? []), ...(hostFeature ? [hostFeature] : [])]),
+      ],
+      config: previous?.config ?? defaults(),
+    };
     this.deps.write(keyOf(id), JSON.stringify(plugin));
     const session = randomUUID();
-    this.sessions.set(session, { owner, plugin });
+    this.sessions.set(session, { owner, plugin, hostFeature });
     return session;
   }
 
@@ -141,11 +181,16 @@ export class PluginAIService {
         },
       })
     );
-    if (!config.enabled) this.cancelPlugin(id);
+    if (!config.enabled) {
+      for (const entry of this.active.values())
+        if (entry.pluginId === id && !this.sessions.get(entry.session)?.hostFeature)
+          entry.controller.abort();
+    }
   }
   revoke(id: string) {
     const info = this.info(id);
     if (info) this.configure(id, { ...info.config, enabled: false });
+    this.cancelPlugin(id);
   }
   cancelPlugin(id: string) {
     for (const entry of this.active.values()) if (entry.pluginId === id) entry.controller.abort();
@@ -162,26 +207,38 @@ export class PluginAIService {
   }
   running(): PluginAIRunning[] {
     return [...this.active.values()].map(
-      ({ requestId, pluginId, pluginName, featureName, startedAt }) => ({
+      ({ requestId, pluginId, pluginName, featureName, startedAt, hostFeature }) => ({
         requestId,
         pluginId,
         pluginName,
         featureName,
         startedAt,
+        hostFeature,
       })
     );
   }
-  private resolve(owner: number, session: string, feature: string) {
+  private binding(owner: number, session: string, feature: string) {
     const binding = this.sessions.get(session);
     if (!binding || binding.owner !== owner) throw new Error("AI_DISABLED：插件已停用");
-    const declaration = binding.plugin.features.find(item => item.id === feature);
+    const declaration = binding.hostFeature
+      ? feature === binding.hostFeature
+        ? { id: feature, name: PLUGIN_AI_CAPABILITIES[binding.hostFeature].name }
+        : undefined
+      : binding.plugin.features.find(item => item.id === feature);
     if (!declaration) throw new Error("AI_UNDECLARED_FEATURE：插件未声明此 AI 功能");
     const info = this.info(binding.plugin.id);
     if (!info) throw new Error("AI_UNKNOWN_PLUGIN");
-    return { info, declaration, assignment: info.config.assignments[feature] };
+    return { info, declaration, hostFeature: binding.hostFeature };
+  }
+  private async resolve(owner: number, session: string, feature: string) {
+    const binding = this.binding(owner, session, feature);
+    const assignment = binding.hostFeature
+      ? ((await this.deps.hostModel?.(binding.hostFeature)) ?? null)
+      : binding.info.config.assignments[feature];
+    return { ...binding, assignment };
   }
   async status(owner: number, session: string, feature: string) {
-    const { info, assignment } = this.resolve(owner, session, feature);
+    const { info, assignment, hostFeature } = await this.resolve(owner, session, feature);
     let configured = false;
     if (assignment) {
       try {
@@ -191,7 +248,7 @@ export class PluginAIService {
         /* 已删除的模型视为未配置。 */
       }
     }
-    return { configured, enabled: info.config.enabled };
+    return { configured, enabled: hostFeature ? true : info.config.enabled };
   }
 
   async run(
@@ -203,7 +260,7 @@ export class PluginAIService {
   ): Promise<PluginAIResult> {
     if (typeof requestId !== "string" || this.active.has(requestId))
       throw new Error("AI_INVALID_REQUEST");
-    const { info, declaration } = this.resolve(owner, session, input?.feature);
+    const { info, declaration, hostFeature } = this.binding(owner, session, input?.feature);
     if (this.running().filter(item => item.pluginId === info.id).length >= info.config.concurrency)
       throw new Error("AI_CONCURRENCY_LIMIT：并发额度已满");
     const controller = new AbortController();
@@ -214,6 +271,7 @@ export class PluginAIService {
       pluginId: info.id,
       pluginName: info.name,
       featureName: declaration.name,
+      hostFeature,
       startedAt: Date.now(),
     });
     try {
@@ -243,14 +301,24 @@ export class PluginAIService {
       input.messages.reduce((n, m) => n + m.content.length, 0) > 500_000
     )
       throw new Error("AI_INVALID_REQUEST：消息无效或过长");
-    let { info, assignment, declaration } = this.resolve(owner, session, input.feature);
-    if (!info.config.enabled) throw new Error("AI_DISABLED：用户未授权 AI 调用");
-    if (!assignment) throw new Error("AI_NOT_CONFIGURED：请先分配模型");
+    validateImages(input.messages);
+    const resolved = await this.resolve(owner, session, input.feature);
+    let { info, assignment, declaration } = resolved;
+    const { hostFeature } = resolved;
+    if (controller.signal.aborted) throw new Error("AI_ABORTED：请求已取消");
+    if (!hostFeature && !info.config.enabled) throw new Error("AI_DISABLED：用户未授权 AI 调用");
+    if (!assignment)
+      throw new Error(
+        hostFeature
+          ? `AI_NOT_CONFIGURED：请先在应用设置中分配${declaration.name}模型`
+          : "AI_NOT_CONFIGURED：请先分配模型"
+      );
     const reference = assignment;
     const capacity = await this.deps.capacity(reference.providerId, reference.modelId);
     if (controller.signal.aborted) throw new Error("AI_ABORTED：请求已取消");
-    ({ info, assignment, declaration } = this.resolve(owner, session, input.feature));
-    if (!info.config.enabled) throw new Error("AI_DISABLED：用户已关闭授权");
+    ({ info, assignment, declaration } = await this.resolve(owner, session, input.feature));
+    if (controller.signal.aborted) throw new Error("AI_ABORTED：请求已取消");
+    if (!hostFeature && !info.config.enabled) throw new Error("AI_DISABLED：用户已关闭授权");
     if (
       assignment?.providerId !== reference.providerId ||
       assignment?.modelId !== reference.modelId
@@ -317,7 +385,11 @@ export class PluginAIService {
             .join("\n\n"),
           messages: input.messages
             .filter(m => m.role !== "system")
-            .map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+            .map(m => ({
+              role: m.role as "user" | "assistant",
+              content: m.content,
+              ...(m.role === "user" && m.images ? { images: [...m.images] } : {}),
+            })),
           maxOutputTokens: maxOutput,
           source: {
             feature: initial.feature,

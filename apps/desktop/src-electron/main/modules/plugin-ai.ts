@@ -9,6 +9,13 @@ import type { PluginAIOutcome } from "@/types/plugin-ai";
 const service = new PluginAIService({
   read: key => usage.requireStore().getMeta(key),
   write: (key, value) => usage.requireStore().setMeta(key, value),
+  hostModel: async feature => {
+    const setting = await settings.getSettingSnapshot();
+    const assigned = setting.llmUsageSettings?.[feature];
+    return assigned?.providerId && assigned?.modelId
+      ? { providerId: assigned.providerId, modelId: assigned.modelId }
+      : null;
+  },
   capacity: (provider, model) => piAi.capacity(provider, model),
   audit: input => usage.beginPluginAudit(input),
   execute: async (request, signal, delta, record) => {
@@ -35,7 +42,7 @@ export default {
   name: "plugin-ai",
   init() {
     const watched = new Set<number>();
-    ipcMain.handle("plugin-ai:register", (event, { id, name, features }) => {
+    ipcMain.handle("plugin-ai:register", (event, { id, name, features, hostFeature }) => {
       if (!watched.has(event.sender.id)) {
         const owner = event.sender.id;
         watched.add(owner);
@@ -48,7 +55,7 @@ export default {
           service.releaseOwner(owner);
         });
       }
-      return service.register(event.sender.id, id, name, features);
+      return service.register(event.sender.id, id, name, features, hostFeature);
     });
     ipcMain.handle("plugin-ai:unregister", (event, session) =>
       service.unregister(event.sender.id, session)

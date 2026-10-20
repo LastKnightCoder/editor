@@ -1,4 +1,9 @@
-import type { PluginAIFeature, PluginAIRequest, PluginAIResult } from "@tau/plugins";
+import type {
+  PluginAIFeature,
+  PluginAIRequest,
+  PluginAIResult,
+  PluginAICapability,
+} from "@tau/plugins";
 
 export interface PluginAIConfig {
   enabled: boolean;
@@ -11,6 +16,7 @@ export interface PluginAIInfo {
   id: string;
   name: string;
   features: PluginAIFeature[];
+  hostFeatures?: PluginAICapability[];
   config: PluginAIConfig;
 }
 export interface PluginAIRunning {
@@ -19,6 +25,7 @@ export interface PluginAIRunning {
   pluginName: string;
   featureName: string;
   startedAt: number;
+  hostFeature?: PluginAICapability;
 }
 export type PluginAIWireRequest = Omit<PluginAIRequest, "signal">;
 export type PluginAIOutcome = { ok: true; result: PluginAIResult } | { ok: false; error: string };

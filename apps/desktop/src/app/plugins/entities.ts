@@ -13,7 +13,8 @@ import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds
 import { renderPluginIconMarkup } from "./icon-markup";
 import { bindDatabaseCommands } from "@/services/command-context";
 import type { PluginEntityRecord } from "@/types/plugin-entities";
-import { encodeContentRef, mapConflict } from "./data";
+import { mapConflict } from "./data";
+import { encodeContentRef } from "@/utils/plugin-content-ref";
 import type { DataEntity } from "@tau/plugins/host";
 import useSettingStore from "@/stores/useSettingStore";
 

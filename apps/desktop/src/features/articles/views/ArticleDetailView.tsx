@@ -12,7 +12,7 @@
  * · 正文编辑器 ContentEditor（@tau/editor 包装，D-015 编辑器正式迁移时替换）；
  * · 演示模式 PresentationMode、沉浸模式 ImmersiveEditorMode（退出后恢复光标）；
  * · 导出弹窗 ContentExportModal / EpubExportModal / PdfExportModal；
- * · 制卡四弹窗（useFlashcardCreation 已去 antd）；
+ * · 统一制卡入口（useFlashcardCreation）；
  * · 协作控制 ContentCollaborationControl（已去 antd）。
  */
 
@@ -58,15 +58,10 @@ import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
 import useContentShared from "@/hooks/useContentShared";
-import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
-import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
-import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
-import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
 import useEditArticle from "@/hooks/useEditArticle";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
-import { useThemeStore } from "@tau/themes/react";
 import { openArticleInNewWindow, updateArticleBannerBg } from "@/commands/article";
 import { getFileBaseName, readBinaryFile, selectFile } from "@/commands";
 import {
@@ -156,7 +151,6 @@ export function ArticleDetailView() {
   const { remove } = useArticleMutations();
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
-  const darkMode = useThemeStore(state => state.mode === "dark");
 
   /* 版心滚动容器：callback ref（挂载后接线目录同步与阅读进度） */
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -612,46 +606,6 @@ export function ArticleDetailView() {
           onClose={() => setExportKind(null)}
           content={editingArticle.content}
           title={editingArticle.title || `文章 #${editingArticle.id}`}
-        />
-
-        {/* 制卡四弹窗（legacy 搬用，useFlashcardCreation 已去 antd） */}
-        <DeckSelectorModal
-          open={flashcard.deckSelectorOpen}
-          onCancel={flashcard.closeDeckSelector}
-          onSelect={flashcard.handleDeckSelect}
-          title={
-            flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
-          }
-        />
-        {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
-          <FlashcardEditor
-            open={flashcard.flashcardEditorOpen}
-            activeDeckId={flashcard.selectedDeck.id}
-            onClose={flashcard.closeFlashcardEditor}
-            initialReferences={[flashcard.getReference()]}
-          />
-        )}
-        <FlashcardGenerationModal
-          open={flashcard.aiGenerationModalOpen}
-          onCancel={flashcard.handleCancelAiGeneration}
-          isGenerating={flashcard.isGenerating}
-          isPending={flashcard.isGenerationPending}
-          error={flashcard.generationError}
-          generatedCards={flashcard.generatedCards}
-          selectedDeck={flashcard.selectedDeck}
-          onToggleCard={flashcard.toggleCardSelection}
-          onSelectAll={flashcard.selectAll}
-          onDeselectAll={flashcard.deselectAll}
-          onConfirm={() => void flashcard.handleConfirmAiGeneration()}
-          onChangeDeck={flashcard.changeDeck}
-          onEditCard={flashcard.handleEditGeneratedCard}
-        />
-        <GeneratedFlashcardEditModal
-          open={flashcard.generatedCardEditModalOpen}
-          card={flashcard.editingGeneratedCard}
-          onSave={flashcard.handleSaveGeneratedCard}
-          onCancel={flashcard.closeGeneratedCardEditModal}
-          isDark={darkMode}
         />
 
         {/* 删除确认：确认后返回上一页 */}

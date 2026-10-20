@@ -10,7 +10,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { Descendant } from "slate";
 import { Footprints } from "lucide-react";
 import { usePage, usePageParams } from "@/page/PageProvider";
-import { useThemeStore } from "@tau/themes/react";
 import { Button, Loading, isEditableTarget, toast } from "@tau/ui";
 import {
   getRandomWalkItem,
@@ -18,11 +17,8 @@ import {
   muteRandomWalk,
   pickRandomWalk,
 } from "@/commands/random-walk";
-import DeckSelectorModal from "@/features/flashcards/components/DeckSelectorDialog";
-import FlashcardGenerationModal from "@/features/flashcards/components/FlashcardGenerationDialog";
-import GeneratedFlashcardEditModal from "@/features/flashcards/components/GeneratedFlashcardEditDialog";
-import FlashcardEditor from "@/features/flashcards/components/CreateFlashcardDialog";
 import useFlashcardCreation from "@/features/flashcards/hooks/useFlashcardCreation";
+import { flashcardCreationRequests } from "@/services/flashcard-creation";
 import type { WalkItem, WalkNeighbor, WalkRefKind } from "@/types";
 import { openWalkItem } from "../open";
 import { WalkCard } from "../components/WalkCard";
@@ -58,7 +54,6 @@ function parseFromRef(raw: string | undefined): { kind: WalkRefKind; id: number 
 export function WalkView() {
   const { navigator } = usePage();
   const params = usePageParams<{ from?: string }>();
-  const darkMode = useThemeStore(state => state.mode === "dark");
 
   const [prefs, setPrefs] = useState<WalkPrefs>(readWalkPrefs);
   const [trail, setTrail] = useState<WalkTrail | null>(null);
@@ -177,19 +172,21 @@ export function WalkView() {
       title: currentItem?.title || "漫步参考",
     }),
   });
-  const flashcardOverlayOpen =
-    flashcard.deckSelectorOpen ||
-    flashcard.flashcardEditorOpen ||
-    flashcard.aiGenerationModalOpen ||
-    flashcard.generatedCardEditModalOpen;
 
   /* 键位：Space 随机跳、←/→ 足迹回退/前进（本页在栈顶，浮层与输入框让位） */
-  const keyHandlers = useRef({ jump, trail, flashcardOverlayOpen });
-  keyHandlers.current = { jump, trail, flashcardOverlayOpen };
+  const keyHandlers = useRef({ jump, trail });
+  keyHandlers.current = { jump, trail };
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       const h = keyHandlers.current;
-      if (h.flashcardOverlayOpen || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+      if (
+        flashcardCreationRequests.getSnapshot() ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        e.isComposing
+      )
+        return;
       if (navigator.current()?.key !== PAGE_KEY || isEditableTarget(e.target)) return;
       if (e.key === " ") {
         e.preventDefault();
@@ -263,46 +260,6 @@ export function WalkView() {
           </>
         )}
       </div>
-
-      {/* 制卡四弹窗（照卡片详情页同链路挂载） */}
-      <DeckSelectorModal
-        open={flashcard.deckSelectorOpen}
-        onCancel={flashcard.closeDeckSelector}
-        onSelect={flashcard.handleDeckSelect}
-        title={
-          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
-        }
-      />
-      {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (
-        <FlashcardEditor
-          open={flashcard.flashcardEditorOpen}
-          activeDeckId={flashcard.selectedDeck.id}
-          onClose={flashcard.closeFlashcardEditor}
-          initialReferences={[flashcard.getReference()]}
-        />
-      )}
-      <FlashcardGenerationModal
-        open={flashcard.aiGenerationModalOpen}
-        onCancel={flashcard.handleCancelAiGeneration}
-        isGenerating={flashcard.isGenerating}
-        isPending={flashcard.isGenerationPending}
-        error={flashcard.generationError}
-        generatedCards={flashcard.generatedCards}
-        selectedDeck={flashcard.selectedDeck}
-        onToggleCard={flashcard.toggleCardSelection}
-        onSelectAll={flashcard.selectAll}
-        onDeselectAll={flashcard.deselectAll}
-        onConfirm={() => void flashcard.handleConfirmAiGeneration()}
-        onChangeDeck={flashcard.changeDeck}
-        onEditCard={flashcard.handleEditGeneratedCard}
-      />
-      <GeneratedFlashcardEditModal
-        open={flashcard.generatedCardEditModalOpen}
-        card={flashcard.editingGeneratedCard}
-        onSave={flashcard.handleSaveGeneratedCard}
-        onCancel={flashcard.closeGeneratedCardEditModal}
-        isDark={darkMode}
-      />
     </div>
   );
 }

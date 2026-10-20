@@ -350,6 +350,8 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
   }
 
   private countUsage(pluginId: string, permission: PluginPermission) {
+    // AI 用量与额度由模型审计记录，不混入业务数据读写次数。
+    if (permission.startsWith("ai:")) return;
     const kind = permission.split(":")[1] as PluginUsageKind;
     const counts = this.unflushed.get(pluginId) ?? { read: 0, write: 0, delete: 0 };
     counts[kind] += 1;

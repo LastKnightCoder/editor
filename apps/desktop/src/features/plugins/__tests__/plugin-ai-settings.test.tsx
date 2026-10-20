@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { useSettingsStore } from "@/app/settingsStore";
 const api = vi.hoisted(() => ({
+  hostOnly: false,
   configure: vi.fn(async () => {}),
   revoke: vi.fn(async () => {}),
   cancel: vi.fn(async () => {}),
@@ -12,7 +13,8 @@ vi.mock("@/commands/plugin-ai", () => ({
   getPluginAIInfo: async () => ({
     id: "test.ai",
     name: "测试",
-    features: [{ id: "summary", name: "摘要" }],
+    features: api.hostOnly ? [] : [{ id: "summary", name: "摘要" }],
+    hostFeatures: api.hostOnly ? ["flashcardGeneration"] : [],
     config: {
       enabled: true,
       dailyRequests: 10,
@@ -57,6 +59,16 @@ function render(node: React.ReactNode) {
 afterEach(() => {
   cleanups.splice(0).forEach(cleanup => cleanup());
   vi.clearAllMocks();
+  api.hostOnly = false;
+});
+
+it("只使用宿主闪卡能力时显示继承模型说明和额度，不要求再分配模型或开启自定义 AI", async () => {
+  api.hostOnly = true;
+  const container = render(<PluginAISettings pluginId="test.ai" />);
+  await vi.waitFor(() => expect(container.textContent).toContain("无需在此另选模型"));
+  expect(container.textContent).toContain("每日请求次数");
+  expect(container.querySelector('[role="combobox"]')).toBeNull();
+  expect(container.querySelector('[role="switch"]')).toBeNull();
 });
 
 it("插件详情跳转到已有大模型用量页并带插件筛选，关闭授权调用宿主配置", async () => {
@@ -92,13 +104,13 @@ it("统一统计的运行控制支持单次取消与撤销插件授权", async (
   await vi.waitFor(() =>
     expect(
       [...container.querySelectorAll("button")].find(
-        button => button.textContent === "停止调用并关闭 AI 授权"
+        button => button.textContent === "停止调用并关闭自定义 AI"
       )!.disabled
     ).toBe(false)
   );
   act(() =>
     [...container.querySelectorAll("button")]
-      .find(button => button.textContent === "停止调用并关闭 AI 授权")!
+      .find(button => button.textContent === "停止调用并关闭自定义 AI")!
       .click()
   );
   await vi.waitFor(() => expect(api.revoke).toHaveBeenCalledWith("test.ai"));

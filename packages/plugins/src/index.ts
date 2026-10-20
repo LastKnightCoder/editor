@@ -58,6 +58,7 @@ export type {
   PluginPermissionState,
   PluginPermissionDenial,
 } from "./permissions";
+export type * from "./flashcards";
 export type * from "./services";
 export { usePluginServices } from "./service-access";
 export type { PluginSkill } from "./skills";
@@ -94,4 +95,11 @@ export type {
   PluginAIRequest,
   PluginAIResult,
   PluginAIEvent,
+  PluginAIFeatures,
+  PluginAICapability,
+  PluginAICapabilityClient,
+  PluginAICapabilityRequest,
+  PluginAIImage,
+  PluginAIMessage,
 } from "./ai";
+export { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai";

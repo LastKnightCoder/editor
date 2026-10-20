@@ -4,7 +4,7 @@ import { readPluginContent } from "@/commands/plugin-data";
 import { locateEntity } from "@/commands/entity";
 import { bindDatabaseCommands } from "@/services/command-context";
 import type { EntityKind } from "@/types";
-import { decodeContentRef } from "./data";
+import { decodeContentRef } from "@/utils/plugin-content-ref";
 
 /** ContentRef 指向的正文及其所属实体：组件补全协作来源与编辑身份、动作取标题与内容都用它 */
 export interface PluginContentTarget {

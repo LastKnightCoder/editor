@@ -2,13 +2,15 @@
 
 - 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
 - 定义文档节点前阅读 EDITOR.md，使用静态 editorExtensions 并声明 manifest.editor；渲染代码须能在浏览器运行，不为移动端或网页另写渲染组件。
-- 本模板使用 SDK 0.25.0、Tau 0.59.0。SDK 版本不代表客户端已实现全部能力，领域接口还需对应客户端构建。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务；行内源码使用 useInlineSource，不改变 useSourceBlock 的职责。
+- 本模板使用 SDK 0.27.0、Tau 0.59.0。SDK 版本不代表客户端已实现全部能力，领域接口还需对应客户端构建。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务；行内源码使用 useInlineSource，不改变 useSourceBlock 的职责。
 - SDK 0.24.0 已移除 services.typst；Typst 编译由独立插件实现，不调用旧宿主接口。
 - 业务数据、权限、正文组件、插件实体与宿主动作见 API.md；SDK 0.25.0 的 context.storage 随笔记库同步，单个值不超过 1 MB。修改和删除业务数据时使用读取所得 revision，正确处理拒绝授权与冲突。
 - 本机后台先阅读 BACKEND.md；SDK 0.25.0 提供格式 2 双入口与 @tau/plugins/backend，需对应客户端及本机执行授权。普通插件仍用格式 1，不在渲染入口导入后台代码。
 - SDK 0.23.0 已移除 ffmpeg.probe，不再调用或声明该方法；ffmpeg.run 保留，视频页面信息使用 services.videoExtractor.probe，不能用它探测本地媒体。
 - 博客发布提供方先阅读 PUBLISH.md，使用 context.publish 和 publishConfig；独立站点的数据接入见 PUBLISH-DATA.md，不在普通插件中打包 SDK 根入口运行时。
-- 使用 AI 前阅读 AI.md，通过 ai.features 声明功能，由用户分配模型并授权。仅调用 context.ai，不索取用户的 API Key；处理取消、未授权和额度不足，不循环重试。
+- 自定义 AI 功能先阅读 AI.md，通过 ai.features 声明，由用户分配模型并授权，经 context.ai 调用。闪卡制作直接使用 FLASHCARDS.md 的宿主能力与应用模型；两种方式都不索取用户的 API Key，处理取消、未授权和额度不足，不循环重试。
+- 申请应用已有 AI 分配先阅读 AI.md（SDK 0.27.0）：manifest 声明 ai:<能力名>，调用 context.ai.requestCapability 获取 chat/stream 客户端，无需声明 ai.features 或另配模型；全部内置大模型功能分配已开放，按能力分别授权，用量与额度归插件。
+- 创建闪卡、卡组前阅读 FLASHCARDS.md：直接读写需声明并申请 flashcards:read/write；openCreate 只允许用户操作触发，窗口内由用户确认保存。AI 制卡内部申请 ai:flashcardGeneration，复用上述通用机制；现有正文来源使用 contentRef，不解析或传入数字 ID。
 - 提供 AI 工具前阅读 MCP.md，通过 context.mcp.register 注册本地 tools 或外部 transport；需要 SDK 0.13.0 和对应客户端。
 - 聊天自定义工具展示需 SDK 0.15.0 及支持该能力的客户端；在 async activate 内 await context.chat.registerToolRenderer，只绑定本插件 MCP 原始工具名，并检查客户端能力。
 - README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介。

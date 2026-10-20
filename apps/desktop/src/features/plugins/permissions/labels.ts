@@ -1,4 +1,8 @@
-import type { PluginPermission } from "@tau/plugins";
+import {
+  PLUGIN_AI_CAPABILITIES,
+  type PluginPermission,
+  type PluginAICapability,
+} from "@tau/plugins";
 import type { PermissionRowState } from "@/app/plugins/permissions";
 
 /** 权限的界面叫法：弹窗与插件详情页共用 */
@@ -17,6 +21,17 @@ export const PERMISSION_LABELS: Record<PluginPermission, { label: string; detail
   "calendar:read": { label: "读取日程", detail: "日历上的日程安排" },
   "calendar:write": { label: "新建和修改日程", detail: "日历上的日程安排" },
   "calendar:delete": { label: "删除日程", detail: "删除后 7 天内可在插件详情页恢复" },
+  "flashcards:read": { label: "读取闪卡卡组", detail: "卡组名称与说明" },
+  "flashcards:write": { label: "创建闪卡", detail: "创建卡组与闪卡，包括 AI 自动保存" },
+  ...(Object.fromEntries(
+    Object.entries(PLUGIN_AI_CAPABILITIES).map(([id, { name }]) => [
+      `ai:${id}`,
+      {
+        label: `使用${name} AI`,
+        detail: "沿用应用对应功能的模型分配，可能产生模型费用，用量计入此插件",
+      },
+    ])
+  ) as Record<`ai:${PluginAICapability}`, { label: string; detail: string }>),
 };
 
 export const PERMISSION_STATE_LABELS: Record<PermissionRowState, string> = {

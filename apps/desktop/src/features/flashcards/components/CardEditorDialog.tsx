@@ -19,6 +19,7 @@ import { createEmptyFlashcardData } from "@/utils/flashcard";
 import { Button, Dialog, DialogBody, IconButton, Menu, toast } from "@tau/ui";
 import { CreditCard, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Descendant } from "slate";
 import { MOD } from "../overlay";
 import type { FlashcardMutations } from "../queries";
 
@@ -42,6 +43,8 @@ export function CardEditorDialog({
   onClose,
   onDelete,
   initialReferences,
+  initialPrompt,
+  onCreated,
 }: {
   open: boolean;
   /** null = 新建 */
@@ -53,6 +56,8 @@ export function CardEditorDialog({
   onClose(): void;
   onDelete(card: Flashcard): void;
   initialReferences?: FlashcardReferenceInput[];
+  initialPrompt?: Descendant[];
+  onCreated?(card: Flashcard): void;
 }) {
   const { isDark } = useTheme();
   const [form, setForm] = useState<FormState | null>(null);
@@ -69,6 +74,7 @@ export function CardEditorDialog({
         : deckId != null
           ? {
               ...emptyForm(deckId, "qa"),
+              ...(initialPrompt?.length ? { prompt: initialPrompt } : {}),
               references: (initialReferences ?? []).map(createFormReference),
             }
           : null
@@ -126,7 +132,8 @@ export function CardEditorDialog({
         toast.success("已保存修改");
         onClose();
       } else {
-        await mutations.createCard({ ...payload, deckId: form.deckId });
+        const created = await mutations.createCard({ ...payload, deckId: form.deckId });
+        onCreated?.(created);
         if (continueNext) {
           toast.success("已保存，继续新建下一张");
           setForm({

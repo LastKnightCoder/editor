@@ -24,7 +24,7 @@ export function PluginAIActivity({ pluginId }: { pluginId?: string }) {
         <span className="text-tau-meta text-ink-2">插件运行中请求：{items.length}</span>
         {pluginId && (
           <Button size="sm" disabled={action.isPending} onClick={() => action.mutate({ pluginId })}>
-            停止调用并关闭 AI 授权
+            停止调用并关闭自定义 AI
           </Button>
         )}
       </div>
@@ -40,13 +40,17 @@ export function PluginAIActivity({ pluginId }: { pluginId?: string }) {
           >
             取消
           </Button>
-          <Button
-            size="sm"
-            disabled={action.isPending}
-            onClick={() => action.mutate({ pluginId: item.pluginId })}
-          >
-            关闭此插件 AI
-          </Button>
+          {item.hostFeature ? (
+            <span className="text-ink-2">宿主 AI 能力授权在插件权限页管理</span>
+          ) : (
+            <Button
+              size="sm"
+              disabled={action.isPending}
+              onClick={() => action.mutate({ pluginId: item.pluginId })}
+            >
+              关闭此插件 AI
+            </Button>
+          )}
         </div>
       ))}
       {(running.error || action.error) && (

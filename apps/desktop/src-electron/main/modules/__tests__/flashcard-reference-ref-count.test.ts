@@ -24,6 +24,7 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import ContentTable from "../tables/content";
 import FlashcardTable from "../tables/flashcard";
 import type { FlashcardReferenceInput } from "@/types";
+import { toPluginFlashcard } from "@/services/flashcard-results";
 
 const paragraph = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as any;
@@ -81,6 +82,34 @@ describe("FlashcardTable 参考资料引用计数", () => {
 
   afterEach(() => {
     db.close();
+  });
+
+  it("真实数据库结果转换后保留自定义正文并能直接复用于建卡", () => {
+    const stored = FlashcardTable.createFlashcard(db, {
+      deckId,
+      type: "qa",
+      prompt: paragraph("问题"),
+      data: { answer: "答案" },
+      references: [contentRef(), customRef("自定义正文")],
+    });
+    const result = toPluginFlashcard(stored);
+    const source = stored.references[0].content;
+    if (!source) throw new Error("来源正文未读取");
+    expect(stored.references[1]).not.toHaveProperty("customContent");
+    expect(result.references).toEqual([
+      {
+        refType: "content",
+        title: contentRef().title,
+        contentRef: `${docContentId}:${source.createTime}`,
+      },
+      customRef("自定义正文"),
+    ]);
+    const copy = FlashcardTable.createFlashcard(db, {
+      ...result,
+      references: [contentRef(), customRef("自定义正文")],
+    });
+    expect(toPluginFlashcard(copy).references).toEqual(result.references);
+    expect(copy.id).not.toBe(stored.id);
   });
 
   it("删除闪卡时释放 content 引用并回收 custom 内容", () => {
