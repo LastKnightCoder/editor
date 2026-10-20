@@ -215,7 +215,7 @@ export class PublishSiteGenerator {
     selections: PublishSelectionInput[],
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
-  ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
+  ): Promise<{ files: IPublishFile[]; virtualProcessed: number; warnings: string[] }> {
     return this.generatePublishFiles(db, selections, site, appearanceSettings);
   }
 
@@ -252,7 +252,7 @@ export class PublishSiteGenerator {
     selections: PublishSelectionInput[],
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
-  ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
+  ): Promise<{ files: IPublishFile[]; virtualProcessed: number; warnings: string[] }> {
     this.contentNodes = createPublishContentResolver(db, identity => this.linkTargets[identity]);
     this.output = new PublishDataOutput(
       (data, dataPath) => this.pluginCatalog.dependencies(data, dataPath),
@@ -381,6 +381,7 @@ export class PublishSiteGenerator {
           : {}),
       }),
       virtualProcessed: docResult.skippedDocItems,
+      warnings: this.pluginCatalog.warnings(),
     };
   }
 

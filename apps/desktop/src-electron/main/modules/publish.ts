@@ -369,6 +369,7 @@ class PublishModule implements Module {
     const plan = planPublication(result.files, history, state, result.release);
     return {
       toUpload: state ? plan.toUpload.map(file => file.path) : result.paths,
+      warnings: result.warnings,
       toDelete: plan.toDelete,
     };
   }

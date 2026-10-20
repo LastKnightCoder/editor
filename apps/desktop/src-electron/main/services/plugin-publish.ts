@@ -77,6 +77,7 @@ export class PublishPluginCatalog {
   private readonly owners = new Map<string, PublishPluginSnapshot["plugins"][number]>();
   private readonly used = new Map<string, PublishPluginSnapshot["plugins"][number]>();
   private readonly builtinTypes: Set<string>;
+  private readonly missingTypes = new Set<string>();
   constructor(private readonly snapshot?: PublishPluginSnapshot) {
     this.builtinTypes = new Set([
       ...(snapshot?.builtinTypes ?? []),
@@ -104,7 +105,7 @@ export class PublishPluginCatalog {
           needed.add(owner);
           this.used.set(owner.artifact.manifest.id, owner);
         } else if (this.snapshot && !this.builtinTypes.has(object.type))
-          throw new Error(`节点 ${object.type} 缺少已启用且可发布的插件`);
+          this.missingTypes.add(object.type);
         object.children.forEach(walk);
         return;
       }
@@ -144,7 +145,15 @@ export class PublishPluginCatalog {
         : []
     );
   }
+  warnings(): string[] {
+    return this.missingTypes.size
+      ? [
+          `以下内容缺少渲染支持：${[...this.missingTypes].sort().join("、")}。仍可发布，网站会保留原数据并显示占位提示。`,
+        ]
+      : [];
+  }
   reset() {
+    this.missingTypes.clear();
     this.used.clear();
   }
   private prefix(artifact: DevelopmentPluginPackage) {

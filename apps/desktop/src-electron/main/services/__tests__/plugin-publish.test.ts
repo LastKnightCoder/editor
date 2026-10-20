@@ -94,9 +94,15 @@ it("只收集用到的包，嵌套页面用相对地址，原始节点和业务�
   expect(dependency.entry).toMatch(/^\.\.\/\.\.\/plugin-assets\/test.editor\/1.0.0\//);
   expect(catalog.files().map(file => file.content)).toEqual(["code", "style"]);
   expect(JSON.stringify(data)).toBe(before);
-  expect(() =>
-    catalog.dependencies({ content: [{ type: "missing.node", children: [] }] }, "index.html")
-  ).toThrow("缺少");
+  const unknown = { content: [{ type: "missing.node", children: [{ text: "保留正文" }] }] };
+  const original = structuredClone(unknown);
+  expect(catalog.dependencies(unknown, "index.html")).toEqual([]);
+  catalog.dependencies(unknown, "another.html");
+  expect(catalog.warnings()).toEqual([
+    "以下内容缺少渲染支持：missing.node。仍可发布，网站会保留原数据并显示占位提示。",
+  ]);
+  expect(unknown).toEqual(original);
   catalog.reset();
+  expect(catalog.warnings()).toEqual([]);
   expect(catalog.files()).toEqual([]);
 });

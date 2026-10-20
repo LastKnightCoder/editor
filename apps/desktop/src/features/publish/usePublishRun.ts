@@ -70,6 +70,7 @@ export function usePublishRun(config: PublishConfig) {
         settings: { appearance },
       });
       if (seq !== planSeq.current) return;
+      for (const warning of result.warnings ?? []) toast.warning(warning);
       setPlan({
         upload: result.toUpload,
         remove: result.toDelete,

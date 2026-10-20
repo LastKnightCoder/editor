@@ -81,7 +81,7 @@ async function run() {
     logger: console,
     plugins: request.plugins,
   });
-  const { files, virtualProcessed } = await generator.generate(
+  const { files, virtualProcessed, warnings } = await generator.generate(
     dataSource,
     request.selections,
     request.site,
@@ -90,13 +90,14 @@ async function run() {
   if (request.pathsOnly) {
     post({
       type: "done-paths",
+      warnings,
       paths: files.map(file => file.path),
       files: files.map(({ content: _content, ...file }) => file),
       release: describeRelease(files),
       virtualProcessed,
     });
   } else {
-    post({ type: "done", files, virtualProcessed });
+    post({ type: "done", files, virtualProcessed, warnings });
   }
 }
 
