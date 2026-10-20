@@ -1,5 +1,5 @@
 /**
- * 反馈窗口（路由 /feedback，主进程 showFeedbackWindow 创建的单例置顶小窗）：
+ * 反馈窗口（路由 /feedback，主进程后台预建、showFeedbackWindow 唤起的单例置顶小窗）：
  * 写反馈、截取任一 Tau 窗口、标注打码、选择附带的日志后提交。
  * 不阻塞其它窗口，用户可以一边复现问题一边截图；关窗时有内容先确认是否放弃。
  */
@@ -13,7 +13,9 @@ import { useThemeRuntime } from "@/app/useThemeRuntime";
 import { platform } from "@/platform";
 import {
   captureWindow,
+  hideFeedbackWindow,
   listCaptureSources,
+  onFeedbackCloseRequested,
   onPendingCaptures,
   setFeedbackAnnotating,
   submitFeedback,
@@ -40,13 +42,13 @@ export default function FeedbackWindow() {
   }, []);
 
   const draft = useFeedbackDraft();
-  const { addImage } = draft;
+  const { addImage, reset } = draft;
   const [view, setView] = useState<View>({ name: "form" });
   const [pinned, setPinned] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
-  const allowClose = useRef(false);
+  const submission = useRef(0);
   const dirty = useRef(false);
   dirty.current = draft.dirty && view.name !== "done";
 
@@ -81,22 +83,24 @@ export default function FeedbackWindow() {
     return () => window.removeEventListener("paste", onPaste);
   }, [addImage]);
 
-  // 有未发送内容时拦下关窗（标题栏关闭 / ⌘W），改在窗口内确认
-  useEffect(() => {
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!dirty.current || allowClose.current) return;
-      event.preventDefault();
-      event.returnValue = false;
-      setConfirmClose(true);
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, []);
+  const closeWindow = useCallback(() => {
+    submission.current++;
+    reset();
+    setSending(false);
+    setConfirmClose(false);
+    setError(null);
+    setView({ name: "form" });
+    void hideFeedbackWindow();
+  }, [reset]);
 
-  const closeWindow = () => {
-    allowClose.current = true;
-    void platform.window.close();
-  };
+  useEffect(
+    () =>
+      onFeedbackCloseRequested(() => {
+        if (dirty.current) setConfirmClose(true);
+        else closeWindow();
+      }),
+    [closeWindow]
+  );
 
   const capture = async (source?: FeedbackCaptureSource) => {
     setError(null);
@@ -119,17 +123,20 @@ export default function FeedbackWindow() {
   };
 
   const submit = async () => {
+    const current = ++submission.current;
     setSending(true);
     setError(null);
     try {
       const { theme, mode } = useThemeStore.getState();
       const result = await submitFeedback(draft.toInput(`${theme} · ${mode}`));
+      if (current !== submission.current) return;
       if (result.ok) setView({ name: "done" });
       else setError(result.message);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "发送失败，请重试");
+      if (current === submission.current)
+        setError(cause instanceof Error ? cause.message : "发送失败，请重试");
     } finally {
-      setSending(false);
+      if (current === submission.current) setSending(false);
     }
   };
 

@@ -47,7 +47,7 @@ function forwardWindowEvents(win: BrowserWindow) {
 }
 
 /** 非 macOS 的最后一个可见窗口关闭即退出，已授权后台保活除外。 */
-function quitIfNoVisibleWindow() {
+export function quitIfNoVisibleWindow() {
   if (process.platform === "darwin") return;
   if (shouldKeepBackgroundAlive()) return;
   const visible = BrowserWindow.getAllWindows().some(win => !win.isDestroyed() && win.isVisible());

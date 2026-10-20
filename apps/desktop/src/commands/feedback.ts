@@ -14,6 +14,15 @@ export function openFeedbackWindow(options: AppFeedbackOpenOptions = {}) {
   return invoke<void>("app-feedback:open", options);
 }
 
+export function hideFeedbackWindow() {
+  return invoke<void>("app-feedback:hide");
+}
+
+export function onFeedbackCloseRequested(listener: () => void) {
+  on("app-feedback:close-requested", listener);
+  return () => off("app-feedback:close-requested", listener);
+}
+
 /** 取走主进程暂存的截图（「截取当前窗口并反馈」产生） */
 export function takePendingCaptures() {
   return invoke<FeedbackCapture[]>("app-feedback:take-pending");

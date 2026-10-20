@@ -10,7 +10,13 @@ import type {
   FeedbackCapture,
   FeedbackCaptureSource,
 } from "@/types/app-feedback";
-import { findFeedbackWindow, getMainWindows, showFeedbackWindow } from "../windows";
+import {
+  findFeedbackWindow,
+  getMainWindows,
+  hideFeedbackWindow,
+  prepareFeedbackWindow,
+  showFeedbackWindow,
+} from "../windows";
 import { API_ORIGIN } from "../services/plugin-center";
 import { visitorHeaders } from "../services/plugin-center-visitor";
 import {
@@ -169,6 +175,12 @@ const init = async () => {
     openFeedback(senderWindow(event), options)
   );
   ipcMain.handle("app-feedback:take-pending", () => pendingCaptures.splice(0));
+  ipcMain.handle("app-feedback:hide", event => {
+    const win = findFeedbackWindow();
+    if (!win || senderWindow(event) !== win) return;
+    setAnnotating(win, false);
+    hideFeedbackWindow();
+  });
   ipcMain.handle("app-feedback:list-windows", (): FeedbackCaptureSource[] => {
     const mains = getMainWindows();
     return capturable()
@@ -193,6 +205,7 @@ const init = async () => {
     if (win && win === findFeedbackWindow()) setAnnotating(win, annotating);
   });
   ipcMain.handle("app-feedback:submit", (_event, input: AppFeedbackSubmitInput) => submit(input));
+  prepareFeedbackWindow();
   log.info("[app-feedback] 反馈模块已初始化");
 };
 

@@ -198,6 +198,7 @@ function Environment({ draft }: { draft: FeedbackDraft }) {
   const environment = useQuery({
     queryKey: ["feedback", "environment"],
     queryFn: getFeedbackEnvironment,
+    refetchOnWindowFocus: "always",
   });
   const env = environment.data;
   const rows = env
@@ -243,7 +244,11 @@ function Environment({ draft }: { draft: FeedbackDraft }) {
 }
 
 function Logs({ draft }: { draft: FeedbackDraft }) {
-  const info = useQuery({ queryKey: ["feedback", "log-info"], queryFn: getFeedbackLogInfo });
+  const info = useQuery({
+    queryKey: ["feedback", "log-info"],
+    queryFn: getFeedbackLogInfo,
+    refetchOnWindowFocus: "always",
+  });
   const { logs } = draft.fields;
   return (
     <div className="border-line-1 rounded-tau-sm flex flex-col gap-1.5 border px-3 py-2">
@@ -337,9 +342,6 @@ export function FeedbackForm({
             value={fields.message}
             onChange={event => draft.update({ message: event.target.value })}
           />
-          <span className="text-tau-micro text-ink-3 self-end">
-            {fields.message.length} / {APP_FEEDBACK_LIMITS.message}
-          </span>
         </div>
         <Screenshots
           draft={draft}
