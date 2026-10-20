@@ -50,7 +50,8 @@ export async function readTemplatePackage(
       for (const name of (await readdir(absolute)).sort()) await walk(relative + "/" + name);
       return;
     }
-    if (!info.isFile() || !manifest.integrity[relative]) throw new Error("模板含未声明文件");
+    if (!info.isFile()) throw new Error("模板资源必须为普通文件");
+    if (!manifest.integrity[relative]) return;
     expanded += info.size;
     if (expanded > DISTRIBUTION_LIMITS.expandedBytes || files.length >= DISTRIBUTION_LIMITS.entries)
       throw new Error("模板资源大小或数量超限");

@@ -7,6 +7,7 @@ import AdmZip from "adm-zip";
 import { afterEach, expect, it } from "vitest";
 import { PluginUpdates } from "../plugin-updates";
 import { discoverPlugins } from "../plugin-discovery";
+import { readTemplatePackage } from "../template-package";
 
 const roots: string[] = [];
 const id = "test.update";
@@ -27,6 +28,7 @@ it("纯静态模板沿用安装、更新与恢复事务，扫描不登记代码�
     };
     archive.addFile(id + "/manifest.json", Buffer.from(JSON.stringify(manifest)));
     archive.addFile(id + "/site/index.html", Buffer.from(bad ? "tampered" : html));
+    archive.addFile(id + "/site/notes.txt", Buffer.from("不参与发布的附带说明"));
     return archive.toBuffer();
   };
   const file = path.join(s.root, "template.zip");
@@ -37,6 +39,9 @@ it("纯静态模板沿用安装、更新与恢复事务，扫描不登记代码�
   expect(entry.template?.id).toBe(id);
   expect(entry.artifact).toBeUndefined();
   expect(entry.error).toBeUndefined();
+  expect(
+    (await readTemplatePackage(path.join(s.directory, id), "0.58.0")).files.map(f => f.path)
+  ).toEqual(["index.html"]);
   await writeFile(file, packageZip("1.1.0", true));
   await expect(s.service.stageZip(file)).rejects.toThrow("摘要");
   expect(await s.version()).toBe("1.0.0");
@@ -258,15 +263,76 @@ async function documented(root: string, version: string, extra?: string) {
   return archive.toBuffer();
 }
 
-it("门户规范 ZIP 的说明文件随包保存，其他额外文件仍拒绝", async () => {
+it.each(["center", "zip"])("%s 安装允许额外普通文件，保存但不执行", async source => {
   const s = await setup();
-  await expect(
-    s.service.stageRelease(await documented(s.root, "1.0.0", "notes.txt"), center("1.0.0"))
-  ).rejects.toThrow("不符合插件约定");
-  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  const archive = new AdmZip(await documented(s.root, "1.0.0", "THIRD_PARTY_NOTICES.md"));
+  archive.addFile(id + "/", Buffer.alloc(0));
+  archive.addFile(id + "/docs/", Buffer.alloc(0));
+  archive.addFile(id + "/docs/notes.txt", Buffer.from("附带说明"));
+  archive.addFile(id + "/unused.js", Buffer.from("throw new Error('不能自动执行');"));
+  if (source === "center") {
+    await s.service.stageRelease(archive.toBuffer(), center("1.0.0"));
+  } else {
+    const file = path.join(s.root, "extra.zip");
+    await writeFile(file, archive.toBuffer());
+    await s.service.stageZip(file);
+  }
   await s.restart();
   expect(await readFile(path.join(s.directory, id, "README.md"), "utf8")).toBe("# 更新测试");
+  expect(await readFile(path.join(s.directory, id, "THIRD_PARTY_NOTICES.md"), "utf8")).toBe("x");
+  expect(await readFile(path.join(s.directory, id, "docs/notes.txt"), "utf8")).toBe("附带说明");
   expect((await discoverPlugins(s.directory, "0.58.0")).entries[0].artifact).toBeDefined();
+});
+
+it.each([
+  "../outside.txt",
+  "/outside.txt",
+  "other.plugin/notes.txt",
+  `${id}/../outside.txt`,
+  `${id}/docs/../../outside.txt`,
+  `${id}/docs\\outside.txt`,
+  `${id}/docs//notes.txt`,
+  `${id}/./notes.txt`,
+  `${id}/main.js:stream`,
+  `${id}/main.js.`,
+  `${id}/main.js `,
+  `${id}/NUL.txt`,
+  `${id}/notes\0.txt`,
+  `${id}/main.js`,
+  `${id}/MAIN.JS`,
+  `${id}/manifest.json`,
+  `${id}/main.js/notes.txt`,
+  `${id}/main.js/`,
+])("额外条目不能越界或覆盖已有文件：%s", async name => {
+  const s = await setup();
+  await install(s);
+  const archive = new AdmZip(await documented(s.root, "1.1.0", "notes.txt"));
+  // 直接改条目名，避免 ZIP 写入库预先规范化危险路径或合并重名文件。
+  const entry = archive.getEntry(`${id}/notes.txt`);
+  if (!entry) throw new Error("测试包缺少附带文件");
+  entry.entryName = name;
+  await expect(s.service.stageRelease(archive.toBuffer(), center("1.1.0"))).rejects.toThrow();
+  expect(await s.version()).toBe("1.0.0");
+  expect(await s.service.list()).toEqual([]);
+  expect(await readdir(path.join(s.root, "plugin-updates/pending"))).toEqual([]);
+});
+
+it.each(["notes.txt", "docs/"])("额外符号链接拒绝安装：%s", async name => {
+  const s = await setup();
+  const archive = new AdmZip(await documented(s.root, "1.0.0", name));
+  const entry = archive.getEntry(`${id}/${name}`);
+  if (!entry) throw new Error("测试包缺少链接条目");
+  entry.attr = (0xa1ff << 16) >>> 0;
+  await expect(s.service.stageRelease(archive.toBuffer(), center("1.0.0"))).rejects.toThrow("链接");
+});
+
+it.each(["missing", "corrupt"])("额外文件不绕过必需资源校验：%s", async fault => {
+  const s = await setup();
+  const archive = new AdmZip(await documented(s.root, "1.0.0", "notes.txt"));
+  if (fault === "missing") archive.deleteFile(`${id}/main.js`);
+  else archive.updateFile(`${id}/main.js`, Buffer.from("损坏的入口"));
+  await expect(s.service.stageRelease(archive.toBuffer(), center("1.0.0"))).rejects.toThrow();
+  expect(await s.service.list()).toEqual([]);
 });
 
 it("中心来源与包一起恢复到上一版，本地 ZIP 更新清除来源", async () => {
