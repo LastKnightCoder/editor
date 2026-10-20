@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "id": "tau.weekly-review",
   "name": "每周回顾",
-  "description": "按周汇总新写的卡片、修改过的文章与文档、待办和日程，可直接勾选完成待办。",
+  "description": "按周汇总新写的卡片、修改过的文章与文档、待办和日程，可在页内阅读编辑、勾选完成待办。",
   "categories": [
     "page"
   ],
@@ -13,21 +13,24 @@
   ],
   "permissions": [
     "cards:read",
+    "cards:write",
     "articles:read",
+    "articles:write",
     "documents:read",
+    "documents:write",
     "todos:read",
     "todos:write",
     "calendar:read"
   ],
-  "version": "0.3.0",
+  "version": "0.4.0",
   "minAppVersion": "0.59.0",
   "apiVersion": 1,
   "platform": "desktop",
   "format": "cjs",
   "main": "main.js",
   "integrity": {
-    "main.js": "3e0196cb1feac7f0760f5c2296fe4e1ea8507c9dacf08987532ef528f4cb4d57",
-    "main.css": "092a577082275c1f4fa1e9b6688c4fbe8e89ccdbe7d0a38fc14d8226c7c0d03a"
+    "main.js": "70d5b9dff53cde11a0287d939ddd9303b613f1d4c548d83dfde62d77cfd60717",
+    "main.css": "f44932a67d8c5ea8d75afb08ba475192e7caf5feb8478a7e8a68c102d7dc722e"
   },
   "styles": "main.css"
 }
