@@ -9,7 +9,7 @@ import { visitorHeaders } from "./plugin-center-visitor";
 import { DISTRIBUTION_LIMITS } from "@tau/plugins/template";
 
 // 门户 CORS 只放行网页门户，客户端请求统一经主进程；环境变量仅用于本地 Worker 联调。
-const API_ORIGIN = process.env.TAU_PLUGIN_CENTER_API || "https://plugins-api.taunote.app";
+export const API_ORIGIN = process.env.TAU_PLUGIN_CENTER_API || "https://plugins-api.taunote.app";
 // 与门户 ZIP 上限一致，超限的发布记录不下载。
 const MAX_PACKAGE_BYTES = DISTRIBUTION_LIMITS.zipBytes;
 // 版本列表按页读取（每页 20 条），超出的更早版本不再展示。

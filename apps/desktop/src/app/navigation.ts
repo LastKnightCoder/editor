@@ -33,6 +33,7 @@ import {
   FlaskConical,
   Users,
   SlidersHorizontal,
+  MessageSquareHeart,
   type LucideIcon,
 } from "lucide-react";
 import { SIDEBAR_GROUPS, type PluginSidebarIcon } from "@tau/plugins";
@@ -70,6 +71,8 @@ export interface NavItem<Icon = PluginSidebarIcon> {
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
+  /** 不导航页面、打开独立窗口的入口（反馈窗口：可边操作主窗口边截图） */
+  opensWindow?: "feedback";
   plugin?: PluginSidebarSnapshot["items"][number];
 }
 
@@ -153,6 +156,7 @@ export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
   // 插件中心与已安装管理（D-164）；插件设置在详情页，设置弹窗只留跳转
   { key: "plugins", label: "插件", icon: Blocks, badge: "plugin-permission-requests" },
+  { key: "feedback", label: "反馈", icon: MessageSquareHeart, opensWindow: "feedback" },
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
 

@@ -3,6 +3,7 @@ import loadable from "@loadable/component";
 import { RouteErrorPage } from "@/components/ErrorState/RouteErrorPage";
 
 const QuickCardWindow = loadable(() => import("@/features/cards/windows/QuickCardWindow"));
+const FeedbackWindow = loadable(() => import("@/features/feedback/windows/FeedbackWindow"));
 const EditorWindowPage = loadable(() => import("@/features/editor-window/EditorWindowPage"));
 const MarkdownWindowPage = loadable(() => import("@/features/markdown-window/MarkdownWindowPage"));
 
@@ -27,6 +28,11 @@ const routes = [
     // 快捷卡片窗口（全局快捷键唤起；自带标题栏与主题，下同）
     path: "/quick-card",
     element: <QuickCardWindow />,
+  },
+  {
+    // 反馈窗口（单例置顶小窗，可边操作其它窗口边截图）
+    path: "/feedback",
+    element: <FeedbackWindow />,
   },
   {
     // 卡片 / 文章 / 项目文档的独立编辑窗口

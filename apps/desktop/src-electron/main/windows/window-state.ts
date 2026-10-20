@@ -89,6 +89,10 @@ export function initialBounds(
   );
 }
 
+export function hasRememberedBounds(key: string) {
+  return Boolean(readStore()[key]);
+}
+
 /** 关闭时记下常规态 bounds（最大化 / 全屏时取还原后的尺寸） */
 export function rememberBounds(key: string, win: BrowserWindow) {
   win.on("close", () => {

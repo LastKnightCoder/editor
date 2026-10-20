@@ -1,10 +1,13 @@
-import { createWindow } from "./create-window";
-import { focusExisting, registerWindow } from "./window-registry";
-import { initialBounds, rememberBounds } from "./window-state";
+import { screen, type BrowserWindow } from "electron";
+import { createWindow, revealWindow } from "./create-window";
+import { findWindow, focusExisting, registerWindow } from "./window-registry";
+import { hasRememberedBounds, initialBounds, rememberBounds } from "./window-state";
 
-/** 零散的工具窗口：快捷卡片、背景音（隐藏播放器） */
+/** 零散的工具窗口：快捷卡片、反馈、背景音（隐藏播放器） */
 
 const QUICK_CARD_KEY = "quick-card";
+const FEEDBACK_KEY = "feedback";
+const FEEDBACK_SIZE = { width: 440, height: 640 };
 
 /** 快捷卡片窗口：打开即新建一张卡片；单例，再次唤起聚焦已有窗口（不重复建卡） */
 export function createQuickCardWindow() {
@@ -19,6 +22,45 @@ export function createQuickCardWindow() {
   });
   registerWindow(QUICK_CARD_KEY, win);
   rememberBounds(QUICK_CARD_KEY, win);
+}
+
+export const findFeedbackWindow = () => findWindow(FEEDBACK_KEY);
+
+/** 首次打开贴在发起窗口右侧内缘，避免整块挡住正在复现问题的区域中央 */
+function besideAnchor(anchor: BrowserWindow) {
+  const box = anchor.getBounds();
+  const area = screen.getDisplayMatching(box).workArea;
+  const { width, height } = FEEDBACK_SIZE;
+  return {
+    width,
+    height,
+    x: Math.max(area.x, Math.min(box.x + box.width - width - 24, area.x + area.width - width)),
+    y: Math.max(area.y, Math.min(box.y + 56, area.y + area.height - height)),
+  };
+}
+
+/** 反馈窗口：单例、默认置顶，不阻塞其它窗口；再次唤起聚焦已有窗口，草稿不丢 */
+export function showFeedbackWindow(anchor: BrowserWindow | null): BrowserWindow {
+  const existing = findFeedbackWindow();
+  if (existing) {
+    revealWindow(existing);
+    return existing;
+  }
+  const bounds =
+    anchor && !anchor.isDestroyed() && !hasRememberedBounds(FEEDBACK_KEY)
+      ? besideAnchor(anchor)
+      : initialBounds(FEEDBACK_KEY, FEEDBACK_SIZE, []);
+  const win = createWindow({
+    route: "/feedback",
+    role: "utility",
+    ...bounds,
+    minWidth: 400,
+    minHeight: 520,
+    alwaysOnTop: true,
+  });
+  registerWindow(FEEDBACK_KEY, win);
+  rememberBounds(FEEDBACK_KEY, win);
+  return win;
 }
 
 /** 背景音播放窗口：常驻隐藏，不进任务栏；被关闭（崩溃）时由调用方按需重建 */
