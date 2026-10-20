@@ -35,7 +35,7 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // <define:__PLUGIN_META__>
-var define_PLUGIN_META_default = { id: "tau.weekly-review", name: "\u6BCF\u5468\u56DE\u987E", version: "0.1.0" };
+var define_PLUGIN_META_default = { id: "tau.weekly-review", name: "\u6BCF\u5468\u56DE\u987E", version: "0.2.0" };
 
 // src/index.tsx
 var import_react = require("react");
@@ -2110,6 +2110,139 @@ function scopeFor(mutation) {
   return mutation.options.scope?.id;
 }
 
+// node_modules/.pnpm/@tanstack+query-core@5.90.16/node_modules/@tanstack/query-core/build/modern/mutationObserver.js
+var MutationObserver = class extends Subscribable {
+  #client;
+  #currentResult = void 0;
+  #currentMutation;
+  #mutateOptions;
+  constructor(client, options) {
+    super();
+    this.#client = client;
+    this.setOptions(options);
+    this.bindMethods();
+    this.#updateResult();
+  }
+  bindMethods() {
+    this.mutate = this.mutate.bind(this);
+    this.reset = this.reset.bind(this);
+  }
+  setOptions(options) {
+    const prevOptions = this.options;
+    this.options = this.#client.defaultMutationOptions(options);
+    if (!shallowEqualObjects(this.options, prevOptions)) {
+      this.#client.getMutationCache().notify({
+        type: "observerOptionsUpdated",
+        mutation: this.#currentMutation,
+        observer: this
+      });
+    }
+    if (prevOptions?.mutationKey && this.options.mutationKey && hashKey(prevOptions.mutationKey) !== hashKey(this.options.mutationKey)) {
+      this.reset();
+    } else if (this.#currentMutation?.state.status === "pending") {
+      this.#currentMutation.setOptions(this.options);
+    }
+  }
+  onUnsubscribe() {
+    if (!this.hasListeners()) {
+      this.#currentMutation?.removeObserver(this);
+    }
+  }
+  onMutationUpdate(action) {
+    this.#updateResult();
+    this.#notify(action);
+  }
+  getCurrentResult() {
+    return this.#currentResult;
+  }
+  reset() {
+    this.#currentMutation?.removeObserver(this);
+    this.#currentMutation = void 0;
+    this.#updateResult();
+    this.#notify();
+  }
+  mutate(variables, options) {
+    this.#mutateOptions = options;
+    this.#currentMutation?.removeObserver(this);
+    this.#currentMutation = this.#client.getMutationCache().build(this.#client, this.options);
+    this.#currentMutation.addObserver(this);
+    return this.#currentMutation.execute(variables);
+  }
+  #updateResult() {
+    const state = this.#currentMutation?.state ?? getDefaultState2();
+    this.#currentResult = {
+      ...state,
+      isPending: state.status === "pending",
+      isSuccess: state.status === "success",
+      isError: state.status === "error",
+      isIdle: state.status === "idle",
+      mutate: this.mutate,
+      reset: this.reset
+    };
+  }
+  #notify(action) {
+    notifyManager.batch(() => {
+      if (this.#mutateOptions && this.hasListeners()) {
+        const variables = this.#currentResult.variables;
+        const onMutateResult = this.#currentResult.context;
+        const context = {
+          client: this.#client,
+          meta: this.options.meta,
+          mutationKey: this.options.mutationKey
+        };
+        if (action?.type === "success") {
+          try {
+            this.#mutateOptions.onSuccess?.(
+              action.data,
+              variables,
+              onMutateResult,
+              context
+            );
+          } catch (e) {
+            void Promise.reject(e);
+          }
+          try {
+            this.#mutateOptions.onSettled?.(
+              action.data,
+              null,
+              variables,
+              onMutateResult,
+              context
+            );
+          } catch (e) {
+            void Promise.reject(e);
+          }
+        } else if (action?.type === "error") {
+          try {
+            this.#mutateOptions.onError?.(
+              action.error,
+              variables,
+              onMutateResult,
+              context
+            );
+          } catch (e) {
+            void Promise.reject(e);
+          }
+          try {
+            this.#mutateOptions.onSettled?.(
+              void 0,
+              action.error,
+              variables,
+              onMutateResult,
+              context
+            );
+          } catch (e) {
+            void Promise.reject(e);
+          }
+        }
+      }
+      this.listeners.forEach((listener) => {
+        listener(this.#currentResult);
+      });
+    });
+  }
+};
+
 // node_modules/.pnpm/@tanstack+query-core@5.90.16/node_modules/@tanstack/query-core/build/modern/queryCache.js
 var QueryCache = class extends Subscribable {
   constructor(config = {}) {
@@ -2678,6 +2811,39 @@ function useQuery(options, queryClient) {
   return useBaseQuery(options, QueryObserver, queryClient);
 }
 
+// node_modules/.pnpm/@tanstack+react-query@5.90.16_react@19.2.0/node_modules/@tanstack/react-query/build/modern/useMutation.js
+var React6 = __toESM(require("react"), 1);
+function useMutation(options, queryClient) {
+  const client = useQueryClient(queryClient);
+  const [observer] = React6.useState(
+    () => new MutationObserver(
+      client,
+      options
+    )
+  );
+  React6.useEffect(() => {
+    observer.setOptions(options);
+  }, [observer, options]);
+  const result = React6.useSyncExternalStore(
+    React6.useCallback(
+      (onStoreChange) => observer.subscribe(notifyManager.batchCalls(onStoreChange)),
+      [observer]
+    ),
+    () => observer.getCurrentResult(),
+    () => observer.getCurrentResult()
+  );
+  const mutate = React6.useCallback(
+    (variables, mutateOptions) => {
+      observer.mutate(variables, mutateOptions).catch(noop);
+    },
+    [observer]
+  );
+  if (result.error && shouldThrowError(observer.options.throwOnError, [result.error])) {
+    throw result.error;
+  }
+  return { ...result, mutate, mutateAsync: result.mutate };
+}
+
 // src/index.tsx
 var import_plugins = require("@tau/plugins");
 var import_ui = require("@tau/ui");
@@ -2811,6 +2977,22 @@ function topTags(summary, limit = 8) {
         for (const tag of item.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
   return [...counts].map(([tag, count2]) => ({ tag, count: count2 })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
 }
+async function toggleTodo(context, todo) {
+  try {
+    return await context.data.todos.setCompleted(todo.id, !todo.completed, {
+      expectedRevision: todo.revision
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || error.name !== "PluginConflictError") throw error;
+    const page = await context.data.todos.query({ keyword: todo.title, limit: 100 });
+    const latest = page.items.find((item) => item.id === todo.id);
+    if (!latest) throw new Error("\u8FD9\u6761\u5F85\u529E\u5DF2\u88AB\u5220\u9664");
+    if (latest.completed !== todo.completed) return latest;
+    return context.data.todos.setCompleted(todo.id, !todo.completed, {
+      expectedRevision: latest.revision
+    });
+  }
+}
 
 // src/index.tsx
 var import_jsx_runtime4 = require("react/jsx-runtime");
@@ -2874,10 +3056,17 @@ function Review({ context }) {
         "calendar.changed",
         "workspace.reset"
       ],
-      () => void client.invalidateQueries({ queryKey: ["week"] })
+      (event) => {
+        if (event.origin.kind === "plugin" && event.origin.pluginId === context.pluginId) return;
+        void client.invalidateQueries({ queryKey: ["week"] });
+      }
     );
     return () => void subscription.dispose();
   }, [client, context]);
+  const toggle = useMutation({
+    mutationFn: (todo) => toggleTodo(context, todo),
+    onSettled: () => client.invalidateQueries({ queryKey: ["week"] })
+  });
   const allow = async () => {
     if (await context.permissions.request(PERMISSIONS))
       await client.invalidateQueries({ queryKey: ["week"] });
@@ -2921,6 +3110,7 @@ function Review({ context }) {
         )
       ] })
     ] }),
+    toggle.error && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "alert", className: "weekly-review__error", children: toggle.error.message }),
     query.isPending ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "status", children: "\u6B63\u5728\u6C47\u603B\u2026" }) : query.isError ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { role: "alert", className: "weekly-review__error", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { children: query.error.message }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Button, { size: "sm", onClick: () => void query.refetch(), children: "\u91CD\u8BD5" })
@@ -2979,7 +3169,18 @@ function Review({ context }) {
             value: data.todos,
             empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u622A\u6B62\u7684\u5F85\u529E\u3002",
             onAllow: allow,
-            render: (todo) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { className: todo.completed ? "is-done" : void 0, children: todo.title }, todo.id)
+            render: (todo) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { className: todo.completed ? "is-done" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { className: "weekly-review__todo", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: todo.completed,
+                  disabled: toggle.isPending,
+                  onChange: () => toggle.mutate(todo)
+                }
+              ),
+              todo.title
+            ] }) }, todo.id)
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
