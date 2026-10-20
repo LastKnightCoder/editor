@@ -1,6 +1,7 @@
 /**
- * 业务数据只读接口。ID 与 ContentRef 都是不透明字符串：只用于传回宿主，不要解析其格式。
+ * 业务数据接口。ID 与 ContentRef 都是不透明字符串：只用于传回宿主，不要解析其格式。
  * 每次调用前宿主按 manifest.permissions 与用户授权校验，未获准抛出 PluginPermissionError。
+ * 修改与删除要传读到的 revision，数据已被别处修改时抛出 PluginConflictError。
  */
 
 /** 一份正文的句柄，从实体上取得，传给 context.content 读取 */
@@ -29,6 +30,8 @@ export interface PluginEntityQuery {
 
 interface PluginEntityBase {
   id: string;
+  /** 元数据版本，修改与删除时作为 expectedRevision 传回；正文修改不改变它 */
+  revision: string;
   title: string;
   tags: string[];
   wordCount: number;
@@ -61,6 +64,47 @@ export interface PluginEntityReader<T> {
   query(query?: PluginEntityQuery): Promise<PluginPage<T>>;
 }
 
+export interface PluginWriteOptions {
+  /** 读取时得到的 revision */
+  expectedRevision: string;
+}
+
+export interface PluginCardInput {
+  /** 正文，Markdown；省略时为空卡片 */
+  markdown?: string;
+  tags?: string[];
+  pinned?: boolean;
+}
+
+export interface PluginCardPatch {
+  tags?: string[];
+  pinned?: boolean;
+}
+
+export interface PluginArticleInput {
+  title: string;
+  markdown?: string;
+  tags?: string[];
+}
+
+export interface PluginArticlePatch {
+  title?: string;
+  tags?: string[];
+  pinned?: boolean;
+}
+
+export interface PluginDocumentPatch {
+  title?: string;
+  tags?: string[];
+}
+
+/** 新建与修改需要 `*:write`，删除需要 `*:delete`；删除可由用户在插件详情页 7 天内恢复 */
+export interface PluginEntityWriter<T, Input, Patch> extends PluginEntityReader<T> {
+  create(input: Input): Promise<T>;
+  update(id: string, patch: Patch, options: PluginWriteOptions): Promise<T>;
+  delete(id: string, options: PluginWriteOptions): Promise<void>;
+}
+
 export interface PluginTodoQuery {
   /** 缺省为全部：独立待办与正文里的勾选项 */
   source?: "all" | "todo" | "document";
@@ -76,6 +120,7 @@ export interface PluginTodoQuery {
 
 export interface PluginTodo {
   id: string;
+  revision: string;
   title: string;
   completed: boolean;
   archived: boolean;
@@ -96,6 +141,7 @@ export interface PluginCalendarQuery {
 
 export interface PluginCalendarEvent {
   id: string;
+  revision: string;
   title: string;
   start: string;
   end: string;
@@ -105,18 +151,64 @@ export interface PluginCalendarEvent {
   todoId?: string;
 }
 
+export interface PluginTodoInput {
+  title: string;
+  /** YYYY-MM-DD 或带时区的 ISO 时间 */
+  dueAt?: string | null;
+}
+
+export interface PluginTodoPatch {
+  title?: string;
+  dueAt?: string | null;
+}
+
+export interface PluginCalendarInput {
+  title: string;
+  /** 全天日程用 YYYY-MM-DD，结束日期不含当天（当天全天的 end 为次日）；定时日程用带时区的 ISO 时间 */
+  start: string;
+  end: string;
+  allDay: boolean;
+  /** 缺省为默认日历 */
+  calendarId?: string;
+}
+
+export type PluginCalendarPatch = Partial<PluginCalendarInput>;
+
 export interface PluginData {
-  readonly cards: PluginEntityReader<PluginCard>;
-  readonly articles: PluginEntityReader<PluginArticle>;
-  readonly documents: PluginEntityReader<PluginDocument>;
-  readonly todos: { query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>> };
+  readonly cards: PluginEntityWriter<PluginCard, PluginCardInput, PluginCardPatch>;
+  readonly articles: PluginEntityWriter<PluginArticle, PluginArticleInput, PluginArticlePatch>;
+  /** 项目文档只能修改标题与标签；新建、移动与删除涉及文档树，暂不开放 */
+  readonly documents: PluginEntityReader<PluginDocument> & {
+    update(
+      id: string,
+      patch: PluginDocumentPatch,
+      options: PluginWriteOptions
+    ): Promise<PluginDocument>;
+  };
+  readonly todos: {
+    query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>>;
+    create(input: PluginTodoInput): Promise<PluginTodo>;
+    update(id: string, patch: PluginTodoPatch, options: PluginWriteOptions): Promise<PluginTodo>;
+    setCompleted(id: string, completed: boolean, options: PluginWriteOptions): Promise<PluginTodo>;
+    /** 有子待办时拒绝删除 */
+    delete(id: string, options: PluginWriteOptions): Promise<void>;
+  };
   readonly calendar: {
     query(query: PluginCalendarQuery): Promise<PluginPage<PluginCalendarEvent>>;
+    create(input: PluginCalendarInput): Promise<PluginCalendarEvent>;
+    update(
+      id: string,
+      patch: PluginCalendarPatch,
+      options: PluginWriteOptions
+    ): Promise<PluginCalendarEvent>;
+    delete(id: string, options: PluginWriteOptions): Promise<void>;
   };
 }
 
 export interface PluginContentSnapshot {
   ref: PluginContentRef;
+  /** 正文版本，edit 时作为 expectedRevision 传回 */
+  revision: string;
   /** format 为 markdown（默认）时给出 */
   markdown?: string;
   /** format 为 nodes 时给出编辑器节点 JSON；结构随编辑器演进，优先使用 markdown */
@@ -125,10 +217,30 @@ export interface PluginContentSnapshot {
   updatedAt: number;
 }
 
+/**
+ * 正文修改。append / prepend 只追加新内容，原有内容保持不变；replaceText 与 replaceAll 会把整篇
+ * 经 Markdown 重建，Markdown 无法表达的格式可能简化。
+ */
+export type PluginContentEdit =
+  | { op: "append"; markdown: string }
+  | { op: "prepend"; markdown: string }
+  /** find 必须在当前 Markdown 中恰好出现一次 */
+  | { op: "replaceText"; find: string; markdown: string }
+  | { op: "replaceAll"; markdown: string };
+
 export interface PluginContent {
   /** 需要拥有该正文所属实体的读取权限；正文不存在时返回 null */
   read(
     ref: PluginContentRef,
     options?: { format?: "markdown" | "nodes" }
   ): Promise<PluginContentSnapshot | null>;
+  /**
+   * 修改正文，需要所属实体的写入权限。经协作会话写入：打开中的编辑器与协作者实时看到；
+   * 修改不进入编辑器的撤销记录。返回新的 revision。
+   */
+  edit(
+    ref: PluginContentRef,
+    edit: PluginContentEdit,
+    options: PluginWriteOptions
+  ): Promise<{ revision: string }>;
 }

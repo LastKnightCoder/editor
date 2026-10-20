@@ -12,6 +12,7 @@ import type {
 type UsageDay = Record<PluginUsageKind, number>;
 interface PermissionFile {
   version: 1;
+  backendGrants?: Record<string, Record<string, string>>;
   /** 工作区 → 插件 → 权限 → 持久决定；「仅这次」只存在渲染端内存 */
   grants: Record<string, Record<string, Record<string, PluginPermissionGrant>>>;
   /** 工作区 → 插件 → 本地日期 → 调用计数 */
@@ -19,7 +20,7 @@ interface PermissionFile {
 }
 
 export const USAGE_DAYS = 7;
-const USAGE_KINDS: readonly PluginUsageKind[] = ["read"];
+const USAGE_KINDS: readonly PluginUsageKind[] = ["read", "write", "delete"];
 
 const localDay = (time: number) => {
   const date = new Date(time);
@@ -45,6 +46,7 @@ function parse(raw: string): PermissionFile {
 /** 主进程单实例串行读改写；损坏文件不覆盖，保留给用户排查。 */
 export class PluginPermissionStore {
   private pending: Promise<unknown> = Promise.resolve();
+  private readonly backendSessions = new Map<string, Map<string, string>>();
   constructor(
     private readonly filename: string,
     private readonly now: () => number = Date.now
@@ -81,6 +83,50 @@ export class PluginPermissionStore {
     return this.transact(file => file.grants[workspaceId] ?? {}, false);
   }
 
+  async backendGranted(pluginId: string, scope: string, digest: string): Promise<boolean> {
+    assertKey(pluginId, "插件 ID");
+    assertKey(scope, "后台作用域");
+    if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("后台摘要无效");
+    return this.transact(
+      file =>
+        this.backendSessions.get(pluginId)?.get(scope) === digest ||
+        file.backendGrants?.[pluginId]?.[scope] === digest,
+      false
+    );
+  }
+
+  async setBackend(
+    pluginId: string,
+    scope: string,
+    digest: string,
+    decision: "once" | "always" | null
+  ): Promise<void> {
+    assertKey(pluginId, "插件 ID");
+    assertKey(scope, "后台作用域");
+    if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("后台摘要无效");
+    if (decision !== "once" && decision !== "always" && decision !== null)
+      throw new Error("后台授权决定无效");
+    await this.transact(file => {
+      const grants = (file.backendGrants ??= Object.create(null));
+      const scopes = Object.hasOwn(grants, pluginId)
+        ? grants[pluginId]
+        : (grants[pluginId] = Object.create(null));
+      if (decision === "always") scopes[scope] = digest;
+      else delete scopes[scope];
+      if (!Object.keys(scopes).length) delete grants[pluginId];
+    });
+    if (decision === "once") {
+      let scopes = this.backendSessions.get(pluginId);
+      if (!scopes) this.backendSessions.set(pluginId, (scopes = new Map()));
+      scopes.set(scope, digest);
+    } else this.backendSessions.get(pluginId)?.delete(scope);
+  }
+
+  clearBackendSession(pluginId: string, scope?: string) {
+    if (scope) this.backendSessions.get(pluginId)?.delete(scope);
+    else this.backendSessions.delete(pluginId);
+  }
+
   async set(
     workspaceId: string,
     pluginId: string,
@@ -105,7 +151,9 @@ export class PluginPermissionStore {
   /** 卸载插件时清除它在所有工作区的授权与记录 */
   async forget(pluginId: string): Promise<void> {
     assertKey(pluginId, "插件 ID");
+    this.backendSessions.delete(pluginId);
     return this.transact(file => {
+      if (file.backendGrants) delete file.backendGrants[pluginId];
       for (const section of [file.grants, file.usage])
         for (const [workspaceId, plugins] of Object.entries(section)) {
           delete plugins[pluginId];
@@ -126,7 +174,7 @@ export class PluginPermissionStore {
       const days = ((file.usage[workspaceId] ??= {})[pluginId] ??= {});
       const keep = recentDays(now);
       for (const day of Object.keys(days)) if (!keep.has(day)) delete days[day];
-      const today = (days[localDay(now)] ??= { read: 0 });
+      const today = (days[localDay(now)] ??= { read: 0, write: 0, delete: 0 });
       for (const kind of USAGE_KINDS) {
         const count = counts[kind];
         if (count !== undefined) {
@@ -142,7 +190,7 @@ export class PluginPermissionStore {
     assertKey(pluginId, "插件 ID");
     const keep = recentDays(this.now());
     return this.transact(file => {
-      const total: PluginPermissionUsage = { days: USAGE_DAYS, read: 0 };
+      const total: PluginPermissionUsage = { days: USAGE_DAYS, read: 0, write: 0, delete: 0 };
       for (const [day, counts] of Object.entries(file.usage[workspaceId]?.[pluginId] ?? {}))
         if (keep.has(day)) for (const kind of USAGE_KINDS) total[kind] += counts[kind] ?? 0;
       return total;

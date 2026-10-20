@@ -491,7 +491,7 @@ function NoteActions({ context, target }: { context: PluginContext; target: Plug
 
 ## 业务数据
 
-插件可以读取用户的卡片、文章、项目文档、待办和日程，类型契约自 SDK 0.25.0 提供，需要包含此能力的客户端。当前只开放读取。
+插件可以读取和修改用户的卡片、文章、项目文档、待办和日程，类型契约自 SDK 0.25.0 提供，需要包含此能力的客户端。
 
 ### 声明与授权
 
@@ -501,13 +501,13 @@ function NoteActions({ context, target }: { context: PluginContext; target: Plug
 { "permissions": ["cards:read", "todos:read"] }
 ```
 
-| 权限             | 可调用的接口                                        |
-| ---------------- | --------------------------------------------------- |
-| `cards:read`     | `context.data.cards`，以及卡片正文的 `content.read` |
-| `articles:read`  | `context.data.articles`，以及文章正文               |
-| `documents:read` | `context.data.documents`，以及项目文档正文          |
-| `todos:read`     | `context.data.todos`                                |
-| `calendar:read`  | `context.data.calendar`                             |
+| 权限                                                   | 可调用的接口                                                    |
+| ------------------------------------------------------ | --------------------------------------------------------------- |
+| `cards:read` / `articles:read` / `documents:read`      | 对应实体的 `get`、`query`，以及其正文的 `content.read`          |
+| `cards:write` / `articles:write` / `documents:write`   | `create`（项目文档没有）、`update`，以及其正文的 `content.edit` |
+| `cards:delete` / `articles:delete`                     | `delete`                                                        |
+| `todos:read` / `todos:write` / `todos:delete`          | `context.data.todos` 的查询、新建与修改、删除                   |
+| `calendar:read` / `calendar:write` / `calendar:delete` | `context.data.calendar` 的查询、新建与修改、删除                |
 
 插件第一次调用某个接口时，Tau 会弹窗询问用户：「仅这次」在插件停用或应用重启前有效，「始终允许」保存到用户撤销为止，「拒绝」在本次运行内不再询问，连续拒绝 3 次后转为已阻止。应用不在前台时不弹窗，请求会记在插件详情页的「权限」中等待用户处理。用户可以随时在那里撤销。
 
@@ -570,6 +570,54 @@ console.log(snapshot?.markdown, snapshot?.wordCount);
 
 需要该正文所属实体的读取权限（例如卡片正文需要 `cards:read`）。`format: "nodes"` 返回编辑器节点 JSON，其结构会随编辑器演进，优先使用 Markdown。读取的是已保存的内容，正在编辑的修改最多晚约 1 秒。
 
+### 修改与删除
+
+```ts
+import { PluginConflictError } from "@tau/plugins";
+
+const card = await context.data.cards.create({ markdown: "# 读书笔记\n\n第一段", tags: ["读书"] });
+try {
+  await context.data.cards.update(card.id, { pinned: true }, { expectedRevision: card.revision });
+} catch (error) {
+  if (error instanceof Error && error.name === "PluginConflictError") {
+    // 用户刚在别处改过这张卡片：重新读取，再决定是否重试
+  } else throw error;
+}
+await context.data.cards.delete(card.id, { expectedRevision: card.revision });
+```
+
+| 接口                            | 可修改的字段                                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `cards.create` / `cards.update` | 新建时 `markdown`、`tags`、`pinned`；修改时 `tags`、`pinned`                                         |
+| `articles.create` / `update`    | 新建时 `title`（必填）、`markdown`、`tags`；修改时 `title`、`tags`、`pinned`                         |
+| `documents.update`              | `title`、`tags`；项目文档的新建、移动与删除涉及文档树，暂不开放                                      |
+| `todos.create` / `update`       | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）；`setCompleted(id, completed)` 标记完成 |
+| `calendar.create` / `update`    | `title`、`start`、`end`、`allDay`、`calendarId`；全天日程的 `end` 不含当天                           |
+
+- **revision**：读到的每一项都带 `revision`，修改和删除时作为 `expectedRevision` 传回。期间用户或其他插件改过它，就会抛出 `PluginConflictError`，不会覆盖别人的修改。修改正文不会改变实体的 `revision`。
+- **删除可以恢复**：插件删除的卡片、文章、待办和日程，用户 7 天内可以在插件详情页的「权限 → 最近删除」中恢复。有子待办的待办不能删除。
+- **各处同步**：写入后，打开中的页面、其他窗口、搜索与云同步都会跟着更新，不需要插件通知。
+
+### 修改正文
+
+```ts
+const snapshot = await context.content.read(card.contentRef);
+await context.content.edit(
+  card.contentRef,
+  { op: "append", markdown: "\n今天读完了第三章。" },
+  { expectedRevision: snapshot!.revision }
+);
+```
+
+| `op`          | 作用                                                           |
+| ------------- | -------------------------------------------------------------- |
+| `append`      | 在末尾追加 Markdown，原有内容保持不变                          |
+| `prepend`     | 在开头插入 Markdown，原有内容保持不变                          |
+| `replaceText` | 把 `find` 换成 `markdown`；`find` 必须在当前正文中恰好出现一次 |
+| `replaceAll`  | 用 `markdown` 替换整篇                                         |
+
+需要所属实体的写入权限（卡片正文需要 `cards:write`）。正文正在编辑器中打开时，修改会立即出现在编辑器里，协作者也能看到。插件的修改不进入编辑器的撤销记录，用户无法用撤销键退回，请在修改前确认用户意图。`replaceText` 与 `replaceAll` 会把整篇按 Markdown 重建，Markdown 无法表达的格式可能被简化；只是添加内容时请用 `append` 或 `prepend`。返回新的 `revision`，连续修改时传给下一次调用。
+
 ### 变更事件
 
 ```ts
@@ -585,7 +633,7 @@ context.events.on(["card.created", "card.updated", "card.deleted"], event => {
 | `todos.changed`、`calendar.changed`              | 待办、日程有变化，没有 `id`，需要时重新查询             |
 | `workspace.reset`                                | 同步下载替换了整个库，应全量刷新                        |
 
-事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。同一项在半秒内的多次变化合并为一次，持续编辑时最多每 2 秒一次。订阅需要在 manifest 中声明对应的读取权限；用户尚未允许时事件不会送达，也不会因此弹窗。`on` 返回的句柄在插件停用时自动注销。
+事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。`origin` 标出变化来源：`{ kind: "plugin", pluginId }` 表示由插件写入（可用来忽略自己写入引起的事件），其他情况为 `{ kind: "app" }`；待办与日程的事件恒为 `app`。同一项在半秒内的多次变化合并为一次，持续编辑时最多每 2 秒一次。订阅需要在 manifest 中声明对应的读取权限；用户尚未允许时事件不会送达，也不会因此弹窗。`on` 返回的句柄在插件停用时自动注销。
 
 ## 资源清理
 

@@ -24,7 +24,6 @@ import { registerPluginSkill } from "./skill-registry";
 import {
   PluginHost,
   normalizePageParams,
-  type DataAdapter,
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
@@ -42,6 +41,7 @@ import {
 } from "@/commands/plugin-local";
 import type { DevelopmentSession } from "@/types/plugin-development";
 import type { DesktopPermissionBroker } from "./permissions";
+import type { DesktopDataAdapter } from "./data";
 
 export const PLUGIN_PAGE_KEY = "plugin-page";
 export const PLUGIN_WORKBENCH_KEY = "plugin-workbench";
@@ -132,7 +132,7 @@ export class DesktopPluginRuntime {
       materials?: MaterialsAdapter;
       mcp?: MCPAdapter;
       permissions?: DesktopPermissionBroker;
-      data?: DataAdapter;
+      data?: DesktopDataAdapter;
       events?: EventsAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
@@ -187,6 +187,10 @@ export class DesktopPluginRuntime {
   /** 插件详情页的权限分区与授权弹窗共用 */
   get permissions(): DesktopPermissionBroker | undefined {
     return this.options.permissions;
+  }
+  /** 插件详情页列出与恢复插件的删除操作 */
+  get data(): DesktopDataAdapter | undefined {
+    return this.options.data;
   }
   attachLocal(preferences: Pick<Storage, "getItem" | "setItem" | "removeItem" | "key" | "length">) {
     if (this.disposed || this.local) throw new Error("本地插件管理无法重复装配");

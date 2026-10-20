@@ -50,14 +50,25 @@ import {
   type PluginPermissionState,
 } from "./permissions";
 import type {
+  PluginArticleInput,
+  PluginArticlePatch,
   PluginCalendarEvent,
+  PluginCalendarInput,
+  PluginCalendarPatch,
   PluginCalendarQuery,
+  PluginCardInput,
+  PluginCardPatch,
+  PluginContentEdit,
   PluginContentRef,
   PluginContentSnapshot,
+  PluginDocumentPatch,
   PluginEntityQuery,
   PluginPage,
   PluginTodo,
+  PluginTodoInput,
+  PluginTodoPatch,
   PluginTodoQuery,
+  PluginWriteOptions,
 } from "./data";
 import {
   PLUGIN_EVENT_PERMISSIONS,
@@ -153,7 +164,49 @@ export interface DataAdapter {
     ref: PluginContentRef,
     format: "markdown" | "nodes"
   ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[] } | null>;
+  /** 以下写入由宿主记录来源插件；revision 不是最新时抛出 PluginConflictError */
+  create(
+    context: PluginContext,
+    entity: WritableEntity,
+    input: PluginCardInput | PluginArticleInput
+  ): Promise<unknown>;
+  update(
+    context: PluginContext,
+    entity: DataEntity,
+    id: string,
+    patch: PluginCardPatch | PluginArticlePatch | PluginDocumentPatch,
+    expectedRevision: string
+  ): Promise<unknown>;
+  remove(
+    context: PluginContext,
+    entity: WritableEntity,
+    id: string,
+    expectedRevision: string
+  ): Promise<void>;
+  writeTodo(context: PluginContext, write: TodoWrite): Promise<PluginTodo | null>;
+  writeCalendar(context: PluginContext, write: CalendarWrite): Promise<PluginCalendarEvent | null>;
+  /** 正文的所属实体类型，供宿主在写入前校验权限；正文不存在时为空 */
+  contentOwners(context: PluginContext, ref: PluginContentRef): Promise<DataEntity[]>;
+  editContent(
+    context: PluginContext,
+    ref: PluginContentRef,
+    edit: PluginContentEdit,
+    expectedRevision: string
+  ): Promise<{ revision: string }>;
 }
+
+export type WritableEntity = "card" | "article";
+
+export type TodoWrite =
+  | { action: "create"; input: PluginTodoInput }
+  | { action: "update"; id: string; patch: PluginTodoPatch; expectedRevision: string }
+  | { action: "complete"; id: string; completed: boolean; expectedRevision: string }
+  | { action: "delete"; id: string; expectedRevision: string };
+
+export type CalendarWrite =
+  | { action: "create"; input: PluginCalendarInput }
+  | { action: "update"; id: string; patch: PluginCalendarPatch; expectedRevision: string }
+  | { action: "delete"; id: string; expectedRevision: string };
 
 /** 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。 */
 export interface EventsAdapter {
@@ -165,6 +218,84 @@ const ENTITY_PERMISSIONS: Record<DataEntity, PluginPermission> = {
   article: "articles:read",
   document: "documents:read",
 };
+const WRITE_PERMISSIONS: Record<DataEntity, PluginPermission> = {
+  card: "cards:write",
+  article: "articles:write",
+  document: "documents:write",
+};
+const DELETE_PERMISSIONS: Record<WritableEntity, PluginPermission> = {
+  card: "cards:delete",
+  article: "articles:delete",
+};
+
+const MAX_MARKDOWN = 2_000_000;
+const MAX_TITLE = 500;
+
+function readText(value: unknown, name: string, max: number, allowEmpty = false): string {
+  if (typeof value !== "string" || (!allowEmpty && !value.trim()) || value.length > max)
+    throw new Error(`${name}无效`);
+  return value;
+}
+
+function readTags(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 100) throw new Error("标签无效");
+  return [...new Set(value.map(tag => readText(tag, "标签", 200).trim()))];
+}
+
+function readRevision(options: unknown): string {
+  const revision = (options as PluginWriteOptions | undefined)?.expectedRevision;
+  if (typeof revision !== "string" || !revision) throw new Error("缺少 expectedRevision");
+  return revision;
+}
+
+function readId(id: unknown): string {
+  if (typeof id !== "string" || !id || id.length > 200) throw new Error("ID 无效");
+  return id;
+}
+
+/** 按字段表读取输入：string 可带最大长度，tags 为标签数组；required 中的字段必填，至少要有一个字段 */
+function readFields<T>(
+  value: unknown,
+  fields: Record<string, number | "boolean" | "tags" | "nullable-time">,
+  required: readonly string[] = []
+): T {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("参数无效");
+  const result: Record<string, unknown> = {};
+  for (const [key, rule] of Object.entries(fields)) {
+    const item = (value as Record<string, unknown>)[key];
+    if (item === undefined) {
+      if (required.includes(key)) throw new Error(`缺少 ${key}`);
+      continue;
+    }
+    if (rule === "boolean") {
+      if (typeof item !== "boolean") throw new Error(`${key} 无效`);
+      result[key] = item;
+    } else if (rule === "tags") result[key] = readTags(item);
+    else if (rule === "nullable-time") result[key] = item === null ? null : readText(item, key, 64);
+    else result[key] = readText(item, key, rule, key === "markdown");
+  }
+  if (!Object.keys(result).length) throw new Error("没有要修改的字段");
+  return result as T;
+}
+
+function readContentEdit(value: unknown): PluginContentEdit {
+  const edit = value as PluginContentEdit | undefined;
+  switch (edit?.op) {
+    case "append":
+    case "prepend":
+      return { op: edit.op, markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN) };
+    case "replaceAll":
+      return { op: edit.op, markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN, true) };
+    case "replaceText":
+      return {
+        op: edit.op,
+        find: readText(edit.find, "find", MAX_MARKDOWN),
+        markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN, true),
+      };
+    default:
+      throw new Error("未知的正文修改");
+  }
+}
 
 function readLimit(value: unknown, max: number): number {
   if (value === undefined) return Math.min(50, max);
@@ -674,6 +805,20 @@ export class PluginHost {
     };
     const reader = (entity: DataEntity) =>
       Object.freeze({
+        update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
+          const fields: Record<string, number | "boolean" | "tags"> =
+            entity === "card"
+              ? { tags: "tags", pinned: "boolean" }
+              : entity === "article"
+                ? { title: MAX_TITLE, tags: "tags", pinned: "boolean" }
+                : { title: MAX_TITLE, tags: "tags" };
+          const value = readFields<PluginCardPatch>(patch, fields);
+          const revision = readRevision(options);
+          await guard(WRITE_PERMISSIONS[entity]);
+          return deliver<never>(
+            await dataAdapter().update(context, entity, readId(id), value, revision)
+          );
+        },
         get: async (id: string) => {
           if (typeof id !== "string" || !id) throw new Error("实体 ID 无效");
           await guard(ENTITY_PERMISSIONS[entity]);
@@ -696,6 +841,30 @@ export class PluginHost {
           return deliver<never>(await dataAdapter().query(context, entity, { ...picked, limit }));
         },
       });
+    const writer = (entity: WritableEntity) => ({
+      create: async (input: unknown) => {
+        const value =
+          entity === "card"
+            ? readFields<PluginCardInput>(input ?? { markdown: "" }, {
+                markdown: MAX_MARKDOWN,
+                tags: "tags",
+                pinned: "boolean",
+              })
+            : readFields<PluginArticleInput>(
+                input,
+                { title: MAX_TITLE, markdown: MAX_MARKDOWN, tags: "tags" },
+                ["title"]
+              );
+        await guard(WRITE_PERMISSIONS[entity]);
+        return deliver<never>(await dataAdapter().create(context, entity, value));
+      },
+      delete: async (id: string, options: PluginWriteOptions) => {
+        const revision = readRevision(options);
+        await guard(DELETE_PERMISSIONS[entity]);
+        await dataAdapter().remove(context, entity, readId(id), revision);
+        this.assertActive(entry, activation);
+      },
+    });
     const context: PluginContext = {
       pluginId: scope.pluginId,
       publish: Object.freeze({
@@ -1171,10 +1340,60 @@ export class PluginHost {
         },
       }),
       data: Object.freeze({
-        cards: reader("card"),
-        articles: reader("article"),
+        cards: Object.freeze({ ...reader("card"), ...writer("card") }),
+        articles: Object.freeze({ ...reader("article"), ...writer("article") }),
         documents: reader("document"),
         todos: Object.freeze({
+          create: async (input: PluginTodoInput) => {
+            const value = readFields<PluginTodoInput>(
+              input,
+              { title: MAX_TITLE, dueAt: "nullable-time" },
+              ["title"]
+            );
+            await guard("todos:write");
+            return deliver<PluginTodo>(
+              await dataAdapter().writeTodo(context, { action: "create", input: value })
+            );
+          },
+          update: async (id: string, patch: PluginTodoPatch, options: PluginWriteOptions) => {
+            const value = readFields<PluginTodoPatch>(patch, {
+              title: MAX_TITLE,
+              dueAt: "nullable-time",
+            });
+            const expectedRevision = readRevision(options);
+            await guard("todos:write");
+            return deliver<PluginTodo>(
+              await dataAdapter().writeTodo(context, {
+                action: "update",
+                id: readId(id),
+                patch: value,
+                expectedRevision,
+              })
+            );
+          },
+          setCompleted: async (id: string, completed: boolean, options: PluginWriteOptions) => {
+            if (typeof completed !== "boolean") throw new Error("completed 无效");
+            const expectedRevision = readRevision(options);
+            await guard("todos:write");
+            return deliver<PluginTodo>(
+              await dataAdapter().writeTodo(context, {
+                action: "complete",
+                id: readId(id),
+                completed,
+                expectedRevision,
+              })
+            );
+          },
+          delete: async (id: string, options: PluginWriteOptions) => {
+            const expectedRevision = readRevision(options);
+            await guard("todos:delete");
+            await dataAdapter().writeTodo(context, {
+              action: "delete",
+              id: readId(id),
+              expectedRevision,
+            });
+            this.assertActive(entry, activation);
+          },
           query: async (query?: PluginTodoQuery) => {
             const picked = pickQuery<PluginTodoQuery>(query, {
               source: "string",
@@ -1194,6 +1413,46 @@ export class PluginHost {
           },
         }),
         calendar: Object.freeze({
+          create: async (input: PluginCalendarInput) => {
+            const value = readFields<PluginCalendarInput>(
+              input,
+              { title: MAX_TITLE, start: 64, end: 64, allDay: "boolean", calendarId: 32 },
+              ["title", "start", "end", "allDay"]
+            );
+            await guard("calendar:write");
+            return deliver<PluginCalendarEvent>(
+              await dataAdapter().writeCalendar(context, { action: "create", input: value })
+            );
+          },
+          update: async (id: string, patch: PluginCalendarPatch, options: PluginWriteOptions) => {
+            const value = readFields<PluginCalendarPatch>(patch, {
+              title: MAX_TITLE,
+              start: 64,
+              end: 64,
+              allDay: "boolean",
+              calendarId: 32,
+            });
+            const expectedRevision = readRevision(options);
+            await guard("calendar:write");
+            return deliver<PluginCalendarEvent>(
+              await dataAdapter().writeCalendar(context, {
+                action: "update",
+                id: readId(id),
+                patch: value,
+                expectedRevision,
+              })
+            );
+          },
+          delete: async (id: string, options: PluginWriteOptions) => {
+            const expectedRevision = readRevision(options);
+            await guard("calendar:delete");
+            await dataAdapter().writeCalendar(context, {
+              action: "delete",
+              id: readId(id),
+              expectedRevision,
+            });
+            this.assertActive(entry, activation);
+          },
           query: async (query: PluginCalendarQuery) => {
             const picked = pickQuery<PluginCalendarQuery>(query, {
               start: "string",
@@ -1271,6 +1530,28 @@ export class PluginHost {
           const granted = usable.find((_, index) => states[index] === "granted");
           await guard(granted ?? usable[0]);
           return deliver<PluginContentSnapshot>(result.snapshot);
+        },
+        edit: async (
+          ref: PluginContentRef,
+          edit: PluginContentEdit,
+          options: PluginWriteOptions
+        ) => {
+          if (typeof ref !== "string" || !ref) throw new Error("正文引用无效");
+          const value = readContentEdit(edit);
+          const revision = readRevision(options);
+          const owners = await dataAdapter().contentOwners(context, ref);
+          this.assertActive(entry, activation);
+          if (!owners.length) throw new Error("正文不存在");
+          // 拥有任一所属实体的写入权限即可修改正文
+          const candidates = owners.map(owner => WRITE_PERMISSIONS[owner]);
+          const usable = candidates.filter(permission => declared.has(permission));
+          if (!usable.length) throw new PluginPermissionError(candidates[0], "undeclared");
+          const adapter = permissionsAdapter();
+          const states = await Promise.all(usable.map(item => adapter.query(context, item)));
+          await guard(usable.find((_, index) => states[index] === "granted") ?? usable[0]);
+          return deliver<{ revision: string }>(
+            await dataAdapter().editContent(context, ref, value, revision)
+          );
         },
       }),
       sidebar: Object.freeze({

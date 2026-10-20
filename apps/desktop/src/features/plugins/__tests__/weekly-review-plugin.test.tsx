@@ -47,6 +47,7 @@ function respond(channel: unknown, ...args: unknown[]) {
                 {
                   entity,
                   id: 1,
+                  revision: "1",
                   title: cardTitle,
                   tags: ["读书"],
                   pinned: false,

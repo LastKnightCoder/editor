@@ -5,6 +5,8 @@
 - 新增业务数据只读接口：`context.data` 读取卡片、文章、项目文档、待办与日程，`context.content.read` 按 `contentRef` 读取正文（Markdown 或编辑器节点）。查询按时间范围、标签筛选并分页。
 - 新增权限：manifest `permissions` 声明可申请的上限（`cards:read`、`articles:read`、`documents:read`、`todos:read`、`calendar:read`），首次调用时由用户选择「仅这次」「始终允许」或「拒绝」。未获准时抛出 `PluginPermissionError`；`context.permissions` 可查询状态与一次申请多项。
 - 新增 `context.events.on`：卡片、文章、项目文档的创建 / 更新 / 删除，待办与日程的集合级变化，以及同步下载后的 `workspace.reset`。事件不携带数据，需要对应读取权限才会送达。
+- 新增写入：卡片与文章的新建、修改、删除，项目文档的标题与标签，待办与日程的新建、修改、完成、删除；`context.content.edit` 追加、插入或替换正文。修改与删除需传入读取时的 `revision`，数据已被别处修改时抛出 `PluginConflictError`。插件删除的内容用户可在 7 天内恢复。
+- 权限词表增加 `*:write` 与 `*:delete`；事件增加 `origin`，可识别由插件写入的变化。
 - 权限约束的是 SDK 接口；插件仍与应用运行在同一环境，不提供安全隔离。
 
 ## 0.24.0

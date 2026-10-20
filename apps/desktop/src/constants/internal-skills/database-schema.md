@@ -43,6 +43,22 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `update_time`      | `INTEGER NOT NULL`     |
 | `undo_until`       | `INTEGER NOT NULL`     |
 
+### `plugin_operations`
+
+插件对业务数据的可恢复操作（当前为删除）。`action` 为 `delete`；`entity` 为 `card` / `article` / `todo` / `event`；`payload` 为恢复所需的 JSON（卡片、文章是删除前的行快照，待办与日程是助理操作 ID），不要整列返回；`restored_time` 非空表示已恢复。写入新记录时清除超过 7 天的记录。
+
+| 字段            | SQLite 定义                |
+| --------------- | -------------------------- |
+| `id`            | `INTEGER PRIMARY KEY`      |
+| `plugin_id`     | `TEXT NOT NULL`            |
+| `action`        | `TEXT NOT NULL`            |
+| `entity`        | `TEXT NOT NULL`            |
+| `entity_id`     | `TEXT NOT NULL`            |
+| `title`         | `TEXT NOT NULL DEFAULT ''` |
+| `payload`       | `TEXT NOT NULL`            |
+| `create_time`   | `INTEGER NOT NULL`         |
+| `restored_time` | `INTEGER`                  |
+
 ### `task_assistant_content_pin`
 
 | 字段                 | SQLite 定义        |
