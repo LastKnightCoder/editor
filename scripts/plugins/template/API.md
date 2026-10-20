@@ -196,7 +196,7 @@ await context.storage.set("count", count + 1);
 
 句柄提供只读 `id`、`open(params?): Promise<void>` 和 `dispose()`。`open()` 负责导航，不要自行操作浏览器地址或历史。重复打开单实例页面会复用该页面身份；句柄注销或插件停用后不能再打开。
 
-组件收到 `context` 和只读 `params`。参数仅支持字符串、有限数字、布尔值组成的对象，不接受数组、嵌套对象或 `null`。
+组件收到 `context`、只读 `params` 和实例级 `pageContext`。参数仅支持字符串、有限数字、布尔值组成的对象，不接受数组、嵌套对象或 `null`。
 
 下面的完整示例注册一个按条目 ID 区分的页面，以及打开页面的命令：
 
@@ -232,6 +232,27 @@ export default definePlugin({
   }),
 });
 ```
+
+### 提供当前页面上下文
+
+包含此能力的 SDK 与客户端构建提供 `PluginPageProps.pageContext.register(provider)`。旧客户端可能没有该接口，依赖此能力时检查 `pageContext?.register` 并提示升级；仅提高 SDK 版本不能替代客户端能力检查。
+
+在组件的 `useEffect` 中注册一个同步提供器，并在清理时注销：
+
+```tsx
+useEffect(() => {
+  const registration = pageContext.register(() => currentValue);
+  return () => {
+    registration.dispose();
+  };
+}, [pageContext, currentValue]);
+```
+
+此片段放在页面组件内，从 React 导入 useEffect；currentValue 是作者自行选择的页面状态。返回值可以是任意 `JsonValue`，包括字符串、数字、布尔值、数组、对象或 null；宿主不规定任何业务字段或形状。状态变化时按示例重新登记，或通过最新状态引用读取；不要只捕获首次渲染的旧值。提供器只读已有状态，不发起异步请求或写入。
+
+现有 `get_current_context` 工具会把当前插件页面的返回值直接放入 `page.pluginContext`。同一页面多开时仅读取当前实例；未注册、返回 null、异常或不符合 JSON 要求时为 null，其他上下文仍正常返回。每个实例同时只允许一个提供器；隐藏时注销，恢复时 effect 重跑重新登记，卸载、停用和切库由宿主兜底清理。
+
+页面操作继续使用现有 `context.mcp.register()`。AI 可将页面上下文中的信息传给作者的 MCP，具体参数和业务校验由作者定义；注册上下文不会自动注册任何操作或授予额外权限。
 
 ## 侧边栏
 

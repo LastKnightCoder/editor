@@ -82,7 +82,11 @@ describe("微信读书插件", () => {
     try {
       await act(async () =>
         view.render(
-          <Component context={page.context} params={{ bookId: "b1", bookmark: "bm_1" }} />
+          <Component
+            context={page.context}
+            params={{ bookId: "b1", bookmark: "bm_1" }}
+            pageContext={{ register: () => ({ dispose: () => undefined }) }}
+          />
         )
       );
       await act(async () => new Promise(resolve => setTimeout(resolve, 30)));
@@ -136,7 +140,15 @@ describe("微信读书插件", () => {
     const host = document.createElement("div");
     document.body.append(host);
     const view = createRoot(host);
-    await act(async () => view.render(<Component context={page.context} params={{}} />));
+    await act(async () =>
+      view.render(
+        <Component
+          context={page.context}
+          params={{}}
+          pageContext={{ register: () => ({ dispose: () => undefined }) }}
+        />
+      )
+    );
     await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
     expect(host.textContent).toContain("把微信读书的书架和笔记带进来");
     act(() => view.unmount());

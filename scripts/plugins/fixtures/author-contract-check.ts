@@ -6,7 +6,21 @@ import {
   type EditorElementRenderProps,
 } from "@tau/plugins";
 import { createElement } from "react";
-import type { PluginContext, PluginExcerptItem, PluginExcerptSource } from "@tau/plugins";
+import type {
+  PluginContext,
+  PluginExcerptItem,
+  PluginExcerptSource,
+  PluginPageContext,
+  PluginPageProps,
+} from "@tau/plugins";
+
+export function checkPageContextContract({ pageContext }: PluginPageProps) {
+  const api: PluginPageContext = pageContext;
+  const structured = api.register(() => ({ custom: ["任意字段", 42, true] }));
+  void structured.dispose();
+  const text = api.register(() => "任意文本");
+  void text.dispose();
+}
 
 export function checkTTSContract(context: PluginContext) {
   const handle = context.tts.register({

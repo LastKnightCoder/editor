@@ -227,7 +227,11 @@ describe("每周回顾插件", () => {
         view.render(
           <QueryClientProvider client={new QueryClient()}>
             <PluginComponentScope context={page.context}>
-              <Component context={page.context} params={{}} />
+              <Component
+                context={page.context}
+                params={{}}
+                pageContext={{ register: () => ({ dispose: () => undefined }) }}
+              />
             </PluginComponentScope>
             <PluginPermissionPrompt />
           </QueryClientProvider>

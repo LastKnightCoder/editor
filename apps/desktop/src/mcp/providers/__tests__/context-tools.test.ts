@@ -33,6 +33,7 @@ import { contextToolsProvider } from "../context-tools";
 import { getPageNavigation } from "@/services/page-navigation";
 import { getActiveEditingSession } from "@/services/content-editing";
 import { registerAppContextProvider, unregisterAppContextProvider } from "@/services/app-context";
+import { createPluginPageContext } from "@/services/plugin-page-context";
 
 const getTool = (name: string) => {
   const tool = contextToolsProvider.tools().find(item => item.name === name);
@@ -49,6 +50,41 @@ describe("context tools provider", () => {
   afterEach(() => {
     vi.clearAllMocks();
     unregisterAppContextProvider("test-detail");
+  });
+
+  it("现有工具原样返回当前插件页的 JSON，忽略隐藏实例并隔离提供器异常", async () => {
+    const params = { pluginId: "sample", pageId: "detail", instanceId: "A", params: "{}" };
+    const scope = createPluginPageContext({
+      params,
+      signal: new AbortController().signal,
+      isAvailable: () => true,
+    });
+    const unmount = scope.mount();
+    try {
+      const registration = scope.pageContext.register(() => ["任意形状", { customId: 9 }]);
+      const state = {
+        back: [{ id: "1", key: "plugin-page", params, createdAt: 0, lastActiveAt: 0 }],
+        forward: [],
+      };
+      vi.mocked(getPageNavigation).mockReturnValue({ navigator: {}, state } as never);
+      vi.mocked(getActiveEditingSession).mockReturnValue(null);
+      expect((await runTool("get_current_context")).page.pluginContext).toEqual([
+        "任意形状",
+        { customId: 9 },
+      ]);
+      state.back[0] = { ...state.back[0], params: { ...params, instanceId: "B" } };
+      expect((await runTool("get_current_context")).page.pluginContext).toBeNull();
+      state.back[0] = { ...state.back[0], params };
+      registration.dispose();
+      scope.pageContext.register(() => {
+        throw new Error("插件失败");
+      });
+      const result = await runTool("get_current_context");
+      expect(result.page).toMatchObject({ key: "plugin-page", pluginContext: null });
+      expect(result.details).toEqual([]);
+    } finally {
+      unmount();
+    }
   });
 
   it("get_current_context 聚合页面 / 编辑器 / 详情三层", async () => {

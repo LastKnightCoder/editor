@@ -5,6 +5,15 @@ import { mkdir, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const isWorkspaceSource = source => {
+  const relative = path.relative(root, source);
+  return (
+    relative !== ".." &&
+    !relative.startsWith(".." + path.sep) &&
+    !path.isAbsolute(relative) &&
+    !relative.split(path.sep).includes("node_modules")
+  );
+};
 const require = createRequire(path.join(root, "packages/plugins/package.json"));
 const ts = require("typescript");
 const { build } = require("esbuild");
@@ -51,9 +60,7 @@ try {
   const program = ts.createProgram(
     graph
       .getSourceFiles()
-      .filter(
-        file => file.fileName.startsWith(root + "/") && !file.fileName.includes("/node_modules/")
-      )
+      .filter(file => isWorkspaceSource(file.fileName))
       .map(file => file.fileName),
     options
   );
@@ -61,7 +68,7 @@ try {
   const emitted = program.emit(
     undefined,
     (_file, text, _bom, _error, sources) => {
-      if (sources?.length === 1) declarations.set(sources[0].fileName, text);
+      if (sources?.length === 1) declarations.set(path.resolve(sources[0].fileName), text);
     },
     undefined,
     true
@@ -87,8 +94,14 @@ try {
     const visited = new Set();
     const dependencies = { "@types/react": "19.2.0", "@types/react-dom": "19.2.0" };
     const targetOf = source =>
-      "types/" + path.relative(root, source).replace(/\.(tsx?|jsx?)$/, ".d.ts");
+      "types/" +
+      path
+        .relative(root, source)
+        .split(path.sep)
+        .join("/")
+        .replace(/\.(tsx?|jsx?)$/, ".d.ts");
     const copyDeclaration = async source => {
+      source = path.resolve(source);
       if (visited.has(source)) return;
       visited.add(source);
       const text =
@@ -109,7 +122,7 @@ try {
           const resolved = ts.resolveModuleName(node.text, source, options, ts.sys).resolvedModule;
           if (!resolved) throw new Error(`无法解析声明 ${source}: ${node.text}`);
           const dependency = resolved.resolvedFileName;
-          if (dependency.startsWith(root + "/") && !dependency.includes("/node_modules/")) {
+          if (isWorkspaceSource(dependency)) {
             let relative = path.posix
               .relative(path.posix.dirname(targetOf(source)), targetOf(dependency))
               .replace(/\.d\.ts$/, "");
@@ -292,10 +305,18 @@ try {
         await readFile(path.join(root, "scripts/plugins/template/SERVICES.md"))
       );
     }
-    execFileSync("npm", ["pack", "--ignore-scripts", "--pack-destination", output], {
-      cwd: directory,
-      stdio: "pipe",
-    });
+    const npmCli =
+      process.platform === "win32"
+        ? path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js")
+        : undefined;
+    execFileSync(
+      npmCli ? process.execPath : "npm",
+      [...(npmCli ? [npmCli] : []), "pack", "--ignore-scripts", "--pack-destination", output],
+      {
+        cwd: directory,
+        stdio: "pipe",
+      }
+    );
     console.log(
       `@tau/${name}: ${visited.size} 个声明文件，${Object.keys(dependencies).length} 个公开类型依赖`
     );

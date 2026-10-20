@@ -61,7 +61,7 @@ async function scan(directory) {
         ts.isNewExpression(node) &&
         ts.isIdentifier(node.expression) &&
         node.expression.text === "Function" &&
-        path.relative(mainDirectory, filename) !== "workers/plugin-backend.worker.ts"
+        path.relative(mainDirectory, filename) !== path.join("workers", "plugin-backend.worker.ts")
       )
         report(node, "插件动态代码执行只允许在独立后台 bootstrap");
       ts.forEachChild(node, visit);

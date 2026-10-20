@@ -1,11 +1,18 @@
 import type { ComponentType } from "react";
 import type { Disposable, PluginContext } from "./index";
+import type { JsonValue } from "./json";
 
 export type PluginPageParams = Record<string, string | number | boolean>;
+
+export interface PluginPageContext {
+  /** 在组件 effect 中登记当前状态提供器；返回值的形状由插件决定。 */
+  register(provider: () => JsonValue): Disposable;
+}
 
 export interface PluginPageProps {
   readonly context: PluginContext;
   readonly params: Readonly<PluginPageParams>;
+  readonly pageContext: PluginPageContext;
 }
 
 export interface PluginPageDefinition {

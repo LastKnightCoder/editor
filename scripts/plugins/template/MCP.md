@@ -6,6 +6,8 @@
 
 ## 本地工具和外部服务器
 
+插件页面可以通过 `PluginPageProps.pageContext.register(provider)` 给现有 `get_current_context` 提供上下文，返回任意 JSON，形状完全由作者决定，见 [API.md 的页面说明](API.md#提供当前页面上下文)。AI 读取后可以把其中的信息传给本插件注册的 MCP；页面上下文和 MCP 独立注册，不新增页面操作接口。该能力需要包含实现的 SDK 和客户端构建。
+
 每次注册填写局部 `id`、`name` 和可选 `description`，再提供 `tools` 或 `transport`，两者互斥。相同插件内 MCP 的 ID 不能重复；不同插件可以使用相同局部 ID。每个 MCP 中的工具名称唯一。
 
 下面是一个完整插件示例。第一项提供本地查询函数；第二项连接外部 MCP，示例地址须替换成真实服务。

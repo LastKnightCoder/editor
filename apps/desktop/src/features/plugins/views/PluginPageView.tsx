@@ -1,15 +1,26 @@
+import { useLayoutEffect, useMemo } from "react";
 import { normalizePageParams } from "@tau/plugins/host";
 import { Button, Panel, UiProvider } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { useDesktopPlugins } from "@/app/plugins/context";
-import { PLUGIN_PAGE_KEY, PLUGIN_WORKBENCH_KEY } from "@/app/plugins/runtime";
+import {
+  PLUGIN_PAGE_KEY,
+  PLUGIN_WORKBENCH_KEY,
+  type RegisteredPluginPage,
+} from "@/app/plugins/runtime";
+import { createPluginPageContext } from "@/services/plugin-page-context";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import { PluginComponentScope } from "@/app/plugins/content-components";
 
 export function PluginPageView() {
   const runtime = useDesktopPlugins();
   const { navigator } = usePage();
-  const params = usePageParams<{ pluginId: string; pageId: string; params: string }>();
+  const params = usePageParams<{
+    pluginId: string;
+    pageId: string;
+    instanceId: string;
+    params: string;
+  }>();
   const page = runtime?.getPage(params.pluginId, params.pageId);
   usePageBreadcrumb(PLUGIN_PAGE_KEY, page?.definition.title ?? "插件页面不可用");
   if (!page)
@@ -34,8 +45,6 @@ export function PluginPageView() {
         </Panel>
       </div>
     );
-  const Component = page.definition.component;
-  const clean = Object.freeze(normalizePageParams(JSON.parse(params.params)));
   return (
     <RecoverableBoundary
       key={page.mountId}
@@ -51,9 +60,27 @@ export function PluginPageView() {
     >
       <UiProvider className="contents">
         <PluginComponentScope context={page.context}>
-          <Component context={page.context} params={clean} />
+          <PluginPageContent page={page} />
         </PluginComponentScope>
       </UiProvider>
     </RecoverableBoundary>
   );
+}
+
+function PluginPageContent({ page }: { page: RegisteredPluginPage }) {
+  const runtime = useDesktopPlugins();
+  const params = usePageParams();
+  const scope = useMemo(
+    () =>
+      createPluginPageContext({
+        params,
+        signal: page.context.signal,
+        isAvailable: () => runtime?.getPage(page.context.pluginId, page.definition.id) === page,
+      }),
+    [page, runtime, params]
+  );
+  useLayoutEffect(() => scope.mount(), [scope]);
+  const Component = page.definition.component;
+  const clean = Object.freeze(normalizePageParams(JSON.parse(params.params as string)));
+  return <Component context={page.context} params={clean} pageContext={scope.pageContext} />;
 }

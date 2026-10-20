@@ -72,6 +72,7 @@ export type {
 } from "./chat";
 
 export type {
+  PluginPageContext,
   PluginPageDefinition,
   PluginPageHandle,
   PluginPageParams,

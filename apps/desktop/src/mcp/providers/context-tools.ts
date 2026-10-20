@@ -1,6 +1,7 @@
 import type { ToolParameterSchema } from "@/types";
 import { getVersions } from "@/commands/extra";
 import { collectAppContext } from "@/services/app-context";
+import { readPluginPageContext } from "@/services/plugin-page-context";
 import {
   buildInlineEditorContextFromSnapshot,
   getActiveEditingSession,
@@ -19,6 +20,9 @@ const buildPageContext = () => {
       key: entry.key,
       label: getPageMeta(entry.key)?.label ?? entry.key,
       params: entry.params,
+      ...(entry.key === "plugin-page"
+        ? { pluginContext: readPluginPageContext(entry.params) }
+        : {}),
     };
   } catch {
     return null;
@@ -64,7 +68,7 @@ export const contextToolsProvider: MCPProviderDefinition = {
       name: "get_current_context",
       risk: "read",
       description:
-        "获取用户当前的上下文：正在查看的页面（key/名称/参数）、聚焦的编辑器（正文 contentId、选中文本、光标所在块及前后文）、以及当前打开的详情（待办详情、日程详情等）。" +
+        "获取用户当前的上下文：正在查看的页面（key/名称/参数，插件页面还包含作者提供的任意 JSON 上下文 pluginContext）、聚焦的编辑器（正文 contentId、选中文本、光标所在块及前后文）、以及当前打开的详情（待办详情、日程详情等）。" +
         "当用户说「修改当前页面 / 这段话 / 光标处」等指代性请求时，先调用本工具定位目标：返回的 contentId 可直接传给 get_content_markdown、" +
         "apply_content_edit_operations 等内容编辑工具；选区为空时操作目标默认是光标所在块或全文。",
       parameters: {
