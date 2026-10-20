@@ -442,9 +442,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         className={cn(
           // 悬停时显示右上角操作条（此块不会嵌套自身）；描边常驻透明，进入编辑不跳动
           "group/preview relative rounded-[0.625em] border border-transparent transition-colors duration-150",
-          editing
-            ? "overflow-hidden border-[var(--ed-border)]"
-            : !isEmpty && "hover:bg-[var(--ed-bg-hover)]"
+          editing && "overflow-hidden border-[var(--ed-border)]"
         )}
       >
         <If condition={editing}>
