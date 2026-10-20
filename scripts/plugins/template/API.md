@@ -160,7 +160,7 @@ context.commands.register({
 | `storage.set(key, value)` | `Promise<void>`                   | 保存或替换该 key 的值    |
 | `storage.delete(key)`     | `Promise<void>`                   | 删除该 key               |
 
-数据按插件与工作区隔离，停用和重启不会删除。同一个插件在不同工作区读到不同数据；升级时保持插件 ID 不变，并自行处理旧数据结构。
+数据按插件与工作区隔离，保存在当前笔记库里并随云同步，换一台设备也能读到；停用和重启不会删除。同一个插件在不同工作区读到不同数据；升级时保持插件 ID 不变，并自行处理旧数据结构。单个值不超过 1 MB，较大的内容应放进插件内容的正文。
 
 `JsonValue` 支持 `null`、布尔值、字符串、有限数字、这些值组成的数组和普通对象。不能存储 `undefined`、函数、Date、Map、循环引用、NaN 或 Infinity；日期应转换为字符串。
 

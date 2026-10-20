@@ -47,7 +47,9 @@ export class LocalPluginManager {
     >,
     private readonly notify: () => void,
     private readonly removePackage: (id: string) => Promise<void>,
-    private readonly setEnabled: (id: string, enabled: boolean) => Promise<void>
+    private readonly setEnabled: (id: string, enabled: boolean) => Promise<void>,
+    /** 清除插件在当前库的私有存储；不传时只清本机旧存储 */
+    private readonly purgeStorage?: (id: string) => Promise<void>
   ) {
     this.states = this.activationManager();
   }
@@ -100,7 +102,11 @@ export class LocalPluginManager {
       } catch {
         console.warn("plugin_preference_mirror_unavailable");
       }
-      if (purgeData) clearBrowserPluginStorage(this.preferences, id);
+      if (purgeData) {
+        await this.purgeStorage?.(id);
+        // 尚未迁入主库的其他工作区旧存储一并清除
+        clearBrowserPluginStorage(this.preferences, id);
+      }
       await this.reload();
     });
   }

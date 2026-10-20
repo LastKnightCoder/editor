@@ -13,6 +13,8 @@ import { createDesktopData } from "./data";
 import { createDesktopEvents } from "./events";
 import { createDesktopApp } from "./app";
 import { createDesktopEntities } from "./entities";
+import { createDatabaseStorage, migrateLegacyPluginStorage } from "./kv-storage";
+import { clearPluginKv } from "@/commands/plugin-kv";
 import { DesktopPermissionBroker } from "./permissions";
 import { desktopPluginServices } from "./services";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -58,12 +60,18 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           ? await getPluginWorkspace(workspaceId)
           : workspaceId;
         if (cancelled) return;
-        if (isElectron)
+        if (isElectron) {
           migratePluginPreferences(window.localStorage, workspaceId, persistentWorkspaceId);
+          // 私有存储迁入主库：失败即中止插件初始化，旧数据保留，下次启动重试
+          await migrateLegacyPluginStorage(window.localStorage, persistentWorkspaceId, workspaceId);
+          if (cancelled) return;
+        }
         current = new DesktopPluginRuntime({
           workspaceId: persistentWorkspaceId,
           navigator,
-          storage: createBrowserStorage(window.localStorage),
+          storage: isElectron
+            ? createDatabaseStorage(workspaceId)
+            : createBrowserStorage(window.localStorage),
           plugins: [],
           fetch: desktopFetch,
           services: desktopPluginServices,
@@ -76,6 +84,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           events: createDesktopEvents(workspaceId),
           app: createDesktopApp(workspaceId),
           entities: createDesktopEntities(workspaceId),
+          ...(isElectron
+            ? {
+                purgeStorage: async (pluginId: string) =>
+                  void (await clearPluginKv(workspaceId, pluginId)),
+              }
+            : {}),
           ...(isElectron
             ? { permissions: new DesktopPermissionBroker(persistentWorkspaceId) }
             : {}),

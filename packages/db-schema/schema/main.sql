@@ -916,6 +916,15 @@ CREATE TABLE IF NOT EXISTS plugin_entities (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_entities_key ON plugin_entities(plugin_id, kind, key);
 CREATE INDEX IF NOT EXISTS idx_plugin_entities_content ON plugin_entities(content_id);
 
+-- 插件私有存储（context.storage）：按插件与键保存 JSON，随主库云同步
+CREATE TABLE IF NOT EXISTS plugin_kv (
+  plugin_id TEXT NOT NULL,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  update_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, key)
+);
+
 -- 主库索引
 CREATE INDEX IF NOT EXISTS idx_podcasts_ref_count ON podcasts(ref_count);
 CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
