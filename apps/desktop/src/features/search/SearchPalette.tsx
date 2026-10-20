@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { openEntity } from "@/services/open-content";
+import { pluginEntityKind } from "@/services/plugin-entity-kinds";
 import { normalizeEntityRefKind } from "@/entity/ref";
 import { locatesSection } from "@/entity/section-location";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
@@ -482,12 +483,16 @@ export function SearchPalette() {
       };
     }
     const { title, snippet } = resultDisplay(r);
+    // 插件内容用插件声明的类型名；插件停用时回落「插件内容」
+    const label =
+      (r.pluginEntity && pluginEntityKind(r.pluginEntity.pluginId, r.pluginEntity.kind)?.label) ||
+      meta.label;
     return {
       key: `content:${r.type}:${r.contentId}`,
       icon: meta.icon,
       title,
       sub: snippet,
-      tag: { label: meta.label, cls: meta.tag },
+      tag: { label, cls: meta.tag },
       meta: relativeTime(r.updateTime),
       run: () =>
         closeAnd(() => {
@@ -806,7 +811,7 @@ export function SearchPalette() {
     counts.set("cmd", commands.length);
     (contentQuery.data ?? []).forEach(r => {
       const scope = scopeOfType(r.type);
-      counts.set(scope, (counts.get(scope) ?? 0) + 1);
+      if (scope) counts.set(scope, (counts.get(scope) ?? 0) + 1);
     });
     return counts;
   }, [trimmedQ, commands.length, contentQuery.data]);

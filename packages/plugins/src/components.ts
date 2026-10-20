@@ -12,6 +12,8 @@ export interface ContentEditorProps {
   readonly?: boolean;
   /** 正文为空时的提示文字 */
   placeholder?: string;
+  /** 打开后滚动并闪烁到的位置：从 Tau 打开插件内容时页面参数 params.at 原样传入 */
+  at?: string;
 }
 
 /** 正文开头几块的只读渲染，用于列表与卡面；需要所属实体的读取权限。 */

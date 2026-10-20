@@ -17,13 +17,14 @@ const VALID_TYPES: IndexType[] = [
   "excerpt",
   "pdf-annotation",
   "web-clip",
+  "plugin-entity",
 ];
 
 export const createKnowledgeSearchTool = (): ToolDefinition => ({
   name: "search_knowledge",
   risk: "read",
   description:
-    "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记，以及读书划线、网页划线、PDF 标注、剪藏网页等阅读材料。" +
+    "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记、插件里写的内容，以及读书划线、网页划线、PDF 标注、剪藏网页等阅读材料。" +
     "当用户的问题可能涉及其已有的笔记、资料或知识时，使用此工具进行检索。" +
     "返回匹配的内容列表（标题、命中节内容与标题路径、类型、ID 等），可在后续回答中引用；需要整篇时再读取全文。" +
     "结果含 section 时引用使用 :ref[文字]{id=ID type=类型 block=section.blockStart的数值}，可打开到命中节。",
@@ -46,7 +47,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         },
         description:
           "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、diary-moment（日记）、" +
-          "excerpt（读书 / 网页划线）、pdf-annotation（PDF 标注）、web-clip（剪藏网页）",
+          "excerpt（读书 / 网页划线）、pdf-annotation（PDF 标注）、web-clip（剪藏网页）、plugin-entity（插件里写的内容）",
       },
       limit: {
         type: "number",

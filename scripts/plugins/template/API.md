@@ -683,10 +683,10 @@ function CardRow({ card }: { card: PluginCard }) {
 }
 ```
 
-| 组件             | 属性                                      | 所需权限                                   |
-| ---------------- | ----------------------------------------- | ------------------------------------------ |
-| `ContentEditor`  | `contentRef`、`readonly?`、`placeholder?` | 可编辑：所属实体的写入权限；只读：读取权限 |
-| `ContentPreview` | `contentRef`、`maxBlocks?`（默认 3）      | 所属实体的读取权限                         |
+| 组件             | 属性                                             | 所需权限                                   |
+| ---------------- | ------------------------------------------------ | ------------------------------------------ |
+| `ContentEditor`  | `contentRef`、`readonly?`、`placeholder?`、`at?` | 可编辑：所属实体的写入权限；只读：读取权限 |
+| `ContentPreview` | `contentRef`、`maxBlocks?`（默认 3）             | 所属实体的读取权限                         |
 
 - `contentRef` 来自 `context.data` 返回的 `contentRef`，目前支持卡片、文章与项目文档的正文。
 - 组件挂载时只检查授权，不弹窗；尚未决定时显示「允许访问」，用户点击后才询问。已拒绝时提示用户到插件详情页修改。
@@ -747,6 +747,7 @@ function NotePanel({ note }: { note: PluginOwnEntity }) {
 | `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条、最多 200 条                             |
 | `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`（最大 64 KB 的 JSON 对象）                            |
 
+- 插件内容会出现在 Tau 的全局搜索与 AI 检索中（标题与正文），结果标出 `label` 类型名。用户点击时 Tau 按 `open` 打开插件页面，`params` 由实体字段算出；命中正文中间某处时页面参数另带 `at`，原样交给 `<ContentEditor at={params.at}>` 即可滚动到命中处。插件停用时，Tau 用自带的只读页显示这项内容。
 - `key` 由插件决定，用来找回同一项内容，例如周记用周次。`meta` 保存少量结构化信息，正文放在正文里。
 - 只有先声明的类型才能新建；`registerKind` 在 `activate` 中调用，停用时自动撤销。
 - 卸载插件后，它创建的内容保留 7 天，期间重新安装即可找回，超过 7 天后删除。

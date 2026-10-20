@@ -14,6 +14,7 @@ import {
   Shuffle,
   Sparkles,
   StickyNote,
+  Puzzle,
   type LucideIcon,
 } from "lucide-react";
 import type { WalkRefKind, WalkRelation } from "@/types";
@@ -34,6 +35,7 @@ export const WALK_KIND_META: Record<WalkRefKind, { label: string; icon: LucideIc
   "diary-moment": { label: "日记", icon: NotebookPen },
   "project-item": { label: "项目文档", icon: FolderKanban },
   "pdf-annotation": { label: "PDF 批注", icon: BookMarked },
+  "plugin-entity": { label: "插件内容", icon: Puzzle },
 };
 
 export const WALK_RELATION_META: Record<WalkRelation, { label: string; icon: LucideIcon }> = {

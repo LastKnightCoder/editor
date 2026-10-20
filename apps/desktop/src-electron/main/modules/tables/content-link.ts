@@ -21,6 +21,7 @@ const PICKER_KIND: Record<string, EntityKind> = {
   article: "article",
   "project-item": "project_item",
   "diary-moment": "diary-moment",
+  "plugin-entity": "plugin-entity",
 };
 
 interface EdgeRow {
@@ -63,6 +64,9 @@ export default class ContentLinkTable {
         break;
       case "diary-moment":
         ids = [one(`SELECT content_id FROM diary_segments WHERE id = ?`)];
+        break;
+      case "plugin-entity":
+        ids = [one(`SELECT content_id FROM plugin_entities WHERE id = ?`)];
         break;
     }
     return ids.filter((id): id is number => typeof id === "number" && id > 0);

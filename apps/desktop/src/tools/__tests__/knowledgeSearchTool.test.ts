@@ -96,6 +96,7 @@ describe("search_knowledge 覆盖外部材料（E2）", () => {
       "excerpt",
       "pdf-annotation",
       "web-clip",
+      "plugin-entity",
     ]);
     const payload = JSON.parse((result as { content: string }).content);
     expect(payload.results[0]).toMatchObject({

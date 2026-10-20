@@ -20,6 +20,8 @@ export function* listContentIndexCandidates(db: Database.Database): Generator<In
     { type: "article", table: "articles", title: "e.title", where: "AND e.is_delete = 0" },
     { type: "project-item", table: "project_item", title: "e.title", where: "" },
     { type: "diary-moment", table: "diary_segments", title: "''", where: "" },
+    // 插件内容含已停用与宽限期内已卸载插件的，结果照常显示
+    { type: "plugin-entity", table: "plugin_entities", title: "e.title", where: "" },
   ] as const;
   const read = db.prepare("SELECT content FROM contents WHERE id = ?");
   for (const source of sources) {

@@ -248,6 +248,8 @@ export interface EntitiesAdapter {
     patch: PluginOwnEntityPatch,
     expectedRevision: string
   ): Promise<PluginOwnEntity>;
+  /** 宿主登记类型名与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
+  registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
 }
 
 /** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
@@ -1637,11 +1639,13 @@ export class PluginHost {
           this.assertActive(entry, activation);
           const value = readEntityKind(definition);
           if (entityKindDefinitions.has(value.kind)) throw new Error(`类型 ${value.kind} 已声明`);
+          const hosted = this.options.entities?.registerKind?.(context, value);
           entityKindDefinitions.set(value.kind, value);
           return register({
             dispose: () => {
               if (entityKindDefinitions.get(value.kind) === value)
                 entityKindDefinitions.delete(value.kind);
+              return hosted?.dispose();
             },
           });
         },

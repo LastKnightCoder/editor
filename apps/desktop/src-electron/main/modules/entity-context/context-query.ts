@@ -37,6 +37,7 @@ const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
   article: "article",
   "project-item": "project_item",
   "diary-moment": "diary-moment",
+  "plugin-entity": "plugin-entity",
 };
 
 const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = {

@@ -8,6 +8,7 @@ import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import DiaryTable from "./tables/diary";
+import PluginEntityTable, { type PluginEntityIndexDoc } from "./tables/plugin-entity";
 import FTSTable from "./tables/fts";
 import { listMaterialIndexDocs } from "./material-index";
 import { MAIN_CONTENT_INDEX_TYPES } from "./main-content-vec-index-queue";
@@ -67,6 +68,15 @@ const diaryMomentTask = (moment: DiaryMomentRow): MainContentFtsIndexTask => ({
   content: getMarkdown(moment.content || []).trim(),
   sections: splitSections(moment.content || [], ""),
   updateTime: Number(moment.updateTime || 0),
+});
+
+const pluginEntityTask = (doc: PluginEntityIndexDoc): MainContentFtsIndexTask => ({
+  id: doc.id,
+  type: "plugin-entity",
+  content: getMarkdown(doc.content).trim(),
+  title: doc.title,
+  sections: splitSections(doc.content, doc.title),
+  updateTime: doc.updateTime,
 });
 
 class MainContentFtsIndexQueue implements Module {
@@ -167,6 +177,10 @@ class MainContentFtsIndexQueue implements Module {
       case "diary-moment": {
         const moment = DiaryTable.getDiaryMoment(mainDb, id);
         return moment ? diaryMomentTask(moment) : null;
+      }
+      case "plugin-entity": {
+        const [doc] = PluginEntityTable.indexDocs(mainDb, id);
+        return doc ? pluginEntityTask(doc) : null;
       }
       default:
         return null;
@@ -280,6 +294,7 @@ class MainContentFtsIndexQueue implements Module {
       () => ArticleTable.getAllArticles(mainDb).map(articleTask),
       () => ProjectTable.getAllProjectItems(mainDb).map(projectItemTask),
       () => DiaryTable.getAllDiarySegmentsFlat(mainDb).map(diaryMomentTask),
+      () => PluginEntityTable.indexDocs(mainDb).map(pluginEntityTask),
     ];
     for (const group of groups) {
       for (const task of group()) {

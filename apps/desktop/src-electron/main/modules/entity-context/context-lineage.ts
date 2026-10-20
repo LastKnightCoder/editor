@@ -48,6 +48,7 @@ const KIND_LABEL: Record<LineageNode["kind"], string> = {
   article: "文章",
   "project-item": "项目文档",
   "diary-moment": "日记",
+  "plugin-entity": "插件内容",
   excerpt: "摘录",
   "pdf-annotation": "PDF 标注",
   "chat-session": "对话",

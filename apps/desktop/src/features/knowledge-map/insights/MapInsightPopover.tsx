@@ -61,6 +61,7 @@ const REF_KIND_LABEL: Record<KnowledgeEndpoint["ref"]["kind"], string> = {
   article: "文章",
   "project-item": "项目文档",
   "diary-moment": "日记",
+  "plugin-entity": "插件内容",
 };
 
 function EndBox({

@@ -29,6 +29,7 @@ export function getTypeDisplayName(type: string): string {
     excerpt: "划线",
     "pdf-annotation": "PDF 标注",
     "web-clip": "剪藏",
+    "plugin-entity": "插件内容",
   };
   return typeMap[type] || type;
 }

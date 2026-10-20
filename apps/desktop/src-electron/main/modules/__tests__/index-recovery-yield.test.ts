@@ -134,6 +134,10 @@ vi.mock("../tables/diary", () => ({
   },
 }));
 
+vi.mock("../tables/plugin-entity", () => ({
+  default: { indexDocs: () => [] },
+}));
+
 vi.mock("../tables/fts", () => ({
   default: mockContext.ftsTableMock,
 }));

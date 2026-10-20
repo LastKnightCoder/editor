@@ -440,6 +440,9 @@ export default class RandomWalkTable {
         if (!row?.content_id) return null;
         return dayjs(normalizeDiaryDay(row.date, row.create_time)).format("YYYY年M月D日");
       }
+      // 漫步只从内置内容抽取，插件内容不进候选
+      case "plugin-entity":
+        return null;
       case "pdf-annotation": {
         const row = db
           .prepare(
@@ -553,6 +556,8 @@ export default class RandomWalkTable {
           tags: parseTags(row.tags),
         };
       }
+      case "plugin-entity":
+        return null;
       case "diary-moment": {
         const row = db
           .prepare(`SELECT content_id, tags FROM diary_segments WHERE id = ?`)

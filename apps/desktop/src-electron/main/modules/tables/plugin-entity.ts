@@ -44,6 +44,22 @@ function parseMeta(value: string): Record<string, unknown> {
   }
 }
 
+export interface PluginEntityIndexDoc {
+  id: number;
+  title: string;
+  updateTime: number;
+  content: Descendant[];
+}
+
+function parseContent(value: string): Descendant[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function toRecord(row: Row): PluginEntityRecord {
   return {
     id: row.id,
@@ -72,6 +88,7 @@ export default class PluginEntityTable {
       "plugin-entities:find": this.find.bind(this),
       "plugin-entities:query": this.query.bind(this),
       "plugin-entities:update": this.update.bind(this),
+      "plugin-entities:locate": this.locate.bind(this),
     };
   }
 
@@ -88,6 +105,22 @@ export default class PluginEntityTable {
   private static row(db: Database.Database, pluginId: string, id: number): Row | undefined {
     return db.prepare(`${BASE_SQL} WHERE e.id = ? AND e.plugin_id = ?`).get(id, pluginId) as
       Row | undefined;
+  }
+
+  /** 宿主按 ID 读取任意插件的实体（检索结果与打开），不撤销孤儿标记 */
+  static byId(db: Database.Database, id: number): PluginEntityRecord | null {
+    if (!Number.isSafeInteger(id) || id <= 0) return null;
+    const row = db.prepare(`${BASE_SQL} WHERE e.id = ?`).get(id) as Row | undefined;
+    return row ? toRecord(row) : null;
+  }
+
+  static locate(
+    db: Database.Database,
+    request: { databaseName: string; id: number }
+  ): PluginEntityRecord | null {
+    if (basename(db.name).replace(/\.db$/, "") !== request.databaseName.replace(/\.db$/, ""))
+      throw new Error("数据库已切换，请重新读取");
+    return this.byId(db, request.id);
   }
 
   static create(
@@ -197,6 +230,31 @@ export default class PluginEntityTable {
       );
       return toRecord(this.row(db, request.pluginId, request.id) as Row);
     })();
+  }
+
+  /**
+   * 全文 / 向量索引的文档：所有插件（含已停用、宽限期内已卸载）的实体，标题与解析后的正文。
+   * 传 id 时只取一项，供正文写入后的增量索引。
+   */
+  static indexDocs(db: Database.Database, id?: number): PluginEntityIndexDoc[] {
+    const rows = db
+      .prepare(
+        `SELECT e.id, e.title, MAX(e.update_time, ct.update_time) AS update_time, ct.content
+         FROM plugin_entities e JOIN contents ct ON ct.id = e.content_id
+         ${id === undefined ? "" : "WHERE e.id = ?"}`
+      )
+      .all(...(id === undefined ? [] : [id])) as Array<{
+      id: number;
+      title: string;
+      update_time: number;
+      content: string;
+    }>;
+    return rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      updateTime: row.update_time,
+      content: parseContent(row.content),
+    }));
   }
 
   /** 以这份正文为自有内容的插件实体：插件读写自己的正文不需要业务权限 */

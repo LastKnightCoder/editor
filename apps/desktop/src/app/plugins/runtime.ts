@@ -19,8 +19,11 @@ import type {
   PluginSidebarItemDefinition,
   PluginPageParams,
   PluginSidebarIcon,
+  PluginOwnEntityKind,
 } from "@tau/plugins";
 import { registerPluginSkill } from "./skill-registry";
+import { registerPluginEntityKind } from "@/services/plugin-entity-kinds";
+import { toEntity } from "./entities";
 import {
   PluginHost,
   normalizePageParams,
@@ -164,7 +167,10 @@ export class DesktopPluginRuntime {
       data: options.data,
       events: options.events,
       app: options.app,
-      entities: options.entities,
+      entities: options.entities && {
+        ...options.entities,
+        registerKind: (context, definition) => this.registerEntityKind(context, definition),
+      },
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
@@ -430,6 +436,29 @@ export class DesktopPluginRuntime {
       this.listeners.clear();
       await this.development?.close();
     }
+  }
+
+  /** 插件内容的类型：从检索结果、@ 等处打开时，按声明的 open 进入插件页面并附上正文定位 at */
+  private registerEntityKind(context: PluginContext, definition: PluginOwnEntityKind) {
+    const dispose = registerPluginEntityKind({
+      pluginId: context.pluginId,
+      kind: definition.kind,
+      label: definition.label,
+      mentionable: Boolean(definition.mentionable),
+      open: async (entity, at) => {
+        const page = this.getPage(context.pluginId, definition.open.page);
+        if (!page) throw new Error("插件页面不可用");
+        const params = normalizePageParams(definition.open.params?.(toEntity(entity)) ?? {});
+        this.options.navigator.push(PLUGIN_PAGE_KEY, {
+          pluginId: context.pluginId,
+          pageId: definition.open.page,
+          // 定位不参与实例身份：同一项内容换个位置打开仍是同一页
+          instanceId: pageInstanceId(page.definition, params),
+          params: JSON.stringify(at ? { ...params, at } : params),
+        });
+      },
+    });
+    return { dispose };
   }
 
   private registerPage(context: PluginContext, definition: PluginPageDefinition): PluginPageHandle {

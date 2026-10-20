@@ -9,6 +9,8 @@ import ArticleTable from "./tables/article";
 import CardTable from "./tables/card";
 import DiaryTable from "./tables/diary";
 import ProjectTable from "./tables/project";
+import PluginEntityTable from "./tables/plugin-entity";
+import ContentTable from "./tables/content";
 
 export interface SearchDetails {
   contentId: number;
@@ -60,6 +62,16 @@ export function searchResultDetails(
             content: moment.content || [],
           }
         : null;
+    }
+    case "plugin-entity": {
+      const entity = PluginEntityTable.byId(db, id);
+      if (!entity) return null;
+      return {
+        contentId: entity.contentId,
+        title: entity.title,
+        content: ContentTable.getContentById(db, entity.contentId)?.content || [],
+        pluginEntity: { pluginId: entity.pluginId, kind: entity.kind },
+      };
     }
     default:
       return null;

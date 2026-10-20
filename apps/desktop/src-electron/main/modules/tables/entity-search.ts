@@ -27,8 +27,8 @@ const parseJsonArray = (raw: unknown): unknown[] => {
 };
 
 const EXCERPT = 160;
-/** IN 列表每批的正文数（一条语句里同一批参数要绑定 4 次，需低于 SQLite 变量上限） */
-const LOCATE_BATCH = 200;
+/** IN 列表每批的正文数（一条语句里同一批参数要绑定 5 次，需低于 SQLite 变量上限） */
+const LOCATE_BATCH = 180;
 
 type RowKind = Exclude<EntityKind, "chat-session">;
 
@@ -71,6 +71,11 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
     LEFT JOIN calendar_group g ON g.id = c.group_id
     WHERE IFNULL(g.is_system, 0) = 0 ${kw ? "AND e.title LIKE @kw" : ""}
     ORDER BY e.update_time DESC LIMIT @limit`,
+  "plugin-entity":
+    kw => `SELECT e.id, MAX(e.update_time, ct.update_time) AS t FROM plugin_entities e
+    JOIN contents ct ON ct.id = e.content_id
+    ${kw ? "WHERE e.title LIKE @kw OR ct.content LIKE @kw" : ""}
+    ORDER BY t DESC, e.id DESC LIMIT @limit`,
   "web-clip": kw => `SELECT c.id, c.update_time AS t FROM web_clip c
     WHERE EXISTS (SELECT 1 FROM entity_lineage l JOIN project_item i ON i.id = CAST(l.src_id AS INTEGER)
       WHERE l.dst_kind = 'web-clip' AND l.dst_id = CAST(c.id AS TEXT)
@@ -185,7 +190,7 @@ export default class EntitySearchTable {
   ): EntityLocation | null {
     const kinds: EntityKind[] = params.kind
       ? [params.kind]
-      : ["card", "article", "project_item", "diary-moment"];
+      : ["card", "article", "project_item", "diary-moment", "plugin-entity"];
     const get = (sql: string) => db.prepare(sql).get(params.contentId) as any;
     for (const kind of kinds) {
       switch (kind) {
@@ -219,6 +224,11 @@ export default class EntitySearchTable {
             };
           break;
         }
+        case "plugin-entity": {
+          const row = get(`SELECT id FROM plugin_entities WHERE content_id = ?`);
+          if (row) return { kind, id: row.id };
+          break;
+        }
       }
     }
     return null;
@@ -226,7 +236,7 @@ export default class EntitySearchTable {
 
   /**
    * 一批正文各自对应的全部实体（一份正文可被卡片、文章、项目文档同时共用）。
-   * 已软删的文章不计；同一份正文内按 卡片 > 文章 > 项目文档 > 日记 排序。
+   * 已软删的文章不计；同一份正文内按 卡片 > 文章 > 项目文档 > 日记 > 插件内容 排序。
    */
   static locateAll(db: Database.Database, contentIds: number[]): Map<number, EntityRef[]> {
     const result = new Map<number, EntityRef[]>();
@@ -240,9 +250,10 @@ export default class EntitySearchTable {
            UNION ALL SELECT 'article', id, content_id FROM articles WHERE content_id IN (${marks}) AND is_delete = 0
            UNION ALL SELECT 'project-item', id, content_id FROM project_item WHERE content_id IN (${marks})
            UNION ALL SELECT DISTINCT 'diary-moment', s.id, s.content_id FROM diary_segments s
-             JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id IN (${marks})`
+             JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id IN (${marks})
+           UNION ALL SELECT 'plugin-entity', id, content_id FROM plugin_entities WHERE content_id IN (${marks})`
         )
-        .all(...batch, ...batch, ...batch, ...batch) as Array<{
+        .all(...batch, ...batch, ...batch, ...batch, ...batch) as Array<{
         kind: EntityRefKind;
         id: number;
         contentId: number;
@@ -386,6 +397,17 @@ export default class EntitySearchTable {
           title: lines[0]?.slice(0, 40) || "空白日记",
           excerpt: lines.slice(1).join(" ").slice(0, EXCERPT),
           meta: `${normalizeDiaryDay(row.date, row.day_create_time)} ${dayjs(row.create_time).format("HH:mm")}`,
+        };
+      }
+      case "plugin-entity": {
+        const entity = get(`SELECT title, content_id FROM plugin_entities WHERE id = ?`);
+        if (!entity) return null;
+        const lines = blockLines(content(entity.content_id)?.content);
+        return {
+          ...base,
+          contentId: entity.content_id,
+          title: entity.title || lines[0]?.slice(0, 80) || "无标题",
+          excerpt: (entity.title ? lines : lines.slice(1)).join(" ").slice(0, EXCERPT),
         };
       }
       default:

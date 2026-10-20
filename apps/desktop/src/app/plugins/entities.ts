@@ -11,7 +11,7 @@ import { bindDatabaseCommands } from "@/services/command-context";
 import type { PluginEntityRecord } from "@/types/plugin-entities";
 import { encodeContentRef, mapConflict } from "./data";
 
-function toEntity(record: PluginEntityRecord): PluginOwnEntity {
+export function toEntity(record: PluginEntityRecord): PluginOwnEntity {
   return {
     id: String(record.id),
     kind: record.kind,

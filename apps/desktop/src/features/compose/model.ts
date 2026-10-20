@@ -9,6 +9,7 @@ import {
   FrameUtil,
   type BoardElement,
   type DocumentElement,
+  type DocumentKind,
   type FrameElement,
 } from "@tau/whiteboard";
 import { entityRefKey, normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
@@ -104,6 +105,10 @@ export function boundsOf(children: BoardElement[]): Bounds | null {
   );
 }
 
+/** 白板文档卡承载的正文实体；插件内容不放上白板 */
+export const isBoardDocumentRef = (ref: EntityRef): ref is EntityRef & { kind: DocumentKind } =>
+  ref.kind !== "plugin-entity";
+
 /** 进入创作模式时，文章已关联的资料单独成组 */
 export const LINKED_GROUP_NAME = "已关联";
 
@@ -120,6 +125,12 @@ export function layoutGather(
   let left = existing ? existing.maxX + GROUP_GAP * 2 : 0;
   const top = existing ? existing.minY : 0;
   return groups
+    .map(group => ({
+      ...group,
+      items: group.items.flatMap(item =>
+        isBoardDocumentRef(item.ref) ? [{ ...item, ref: item.ref }] : []
+      ),
+    }))
     .filter(group => group.items.length)
     .map(group => {
       const cell = group.items.reduce(
