@@ -4,6 +4,7 @@ import type { IndexType } from "@/types/search";
 import { searchContent } from "@/utils/search";
 import { getMarkdown } from "@/utils/markdown";
 import { getTypeDisplayName } from "@/utils/rag-helper";
+import { loadPluginEntityAppearances } from "@/services/plugin-entity-kinds";
 import useSettingStore from "@/stores/useSettingStore";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import { Descendant } from "slate";
@@ -133,11 +134,19 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         };
       }
 
+      // 插件内容报插件声明的类型名（如「周记」），回答里才能说清是什么
+      const appearanceOf = results.some(r => r.pluginEntity)
+        ? await loadPluginEntityAppearances(
+            context?.databaseName ?? settings.database?.active
+          ).catch(() => undefined)
+        : undefined;
       const formattedResults = results.map(r => ({
         id: r.id,
         contentId: r.contentId,
         type: r.type,
-        typeName: getTypeDisplayName(r.type),
+        typeName:
+          (r.pluginEntity && appearanceOf?.(r.pluginEntity.pluginId, r.pluginEntity.kind)?.label) ||
+          getTypeDisplayName(r.type),
         title: r.title || "无标题",
         content:
           r.section?.text ??

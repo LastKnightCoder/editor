@@ -6,10 +6,43 @@ vi.mock("@/stores/useSettingStore", () => ({ default: { getState: () => ({ setti
 vi.mock("@/utils/embedding-model-info", () => ({
   resolveEmbeddingModelInfoFromSetting: () => undefined,
 }));
+vi.mock("@/services/plugin-entity-kinds", () => ({
+  loadPluginEntityAppearances: async (databaseName: string) => (pluginId: string, kind: string) =>
+    databaseName === "main.db" && pluginId === "tau.weekly-review" && kind === "note"
+      ? { label: "周记", icon: "" }
+      : undefined,
+}));
 
 import { createKnowledgeSearchTool } from "../knowledgeSearchTool";
 
 describe("search_knowledge 覆盖外部材料（E2）", () => {
+  it("插件内容报插件声明的类型名，未声明时为通用名", async () => {
+    mocks.searchContent.mockResolvedValue([
+      {
+        id: 4,
+        type: "plugin-entity",
+        title: "第 43 周",
+        content: [],
+        pluginEntity: { pluginId: "tau.weekly-review", kind: "note" },
+      },
+      {
+        id: 5,
+        type: "plugin-entity",
+        title: "看板",
+        content: [],
+        pluginEntity: { pluginId: "other", kind: "board" },
+      },
+    ]);
+    const result = await createKnowledgeSearchTool().executor({ query: "周" }, {
+      databaseName: "main.db",
+    } as never);
+    const payload = JSON.parse((result as { content: string }).content);
+    expect(payload.results.map((item: { typeName: string }) => item.typeName)).toEqual([
+      "周记",
+      "插件内容",
+    ]);
+  });
+
   it("节索引尚未就绪时只返回片段，不回退整篇", async () => {
     mocks.searchContent.mockResolvedValue([
       {
