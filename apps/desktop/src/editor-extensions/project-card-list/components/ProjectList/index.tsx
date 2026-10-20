@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "@tau/ui";
+import { DocumentCardGrid, toast } from "@tau/ui";
 import { useAsyncEffect } from "ahooks";
 import ItemCard from "@/editor-extensions/components/ItemCard";
 
@@ -46,11 +46,11 @@ const ProjectList = (props: IProps) => {
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(15em,1fr))] gap-[0.75em]">
+    <DocumentCardGrid>
       {items.map((item, i) => (
         <ItemCard key={item.id} item={item} onClick={() => onClick(item, i)} />
       ))}
-    </div>
+    </DocumentCardGrid>
   );
 };
 

@@ -5,7 +5,7 @@
  * 因此可跑在 worker 线程里（publish-generator-worker），生成期间不阻塞主进程。
  */
 
-import type { ContentNode, ContentRef, DataManifest, TreeItem } from "@tau/plugins/publish-data";
+import type { ContentRef, DataManifest, TreeItem } from "@tau/plugins/publish-data";
 import type { TemplatePackage } from "../services/template-package";
 import { PublishDataOutput, type PublishDataBody } from "./publish-data-output";
 import { existsSync, readFileSync } from "fs";
@@ -34,6 +34,7 @@ import {
 } from "./publish-content-link-targets";
 import { buildPublishAppearanceSettings } from "./publish-appearance-settings";
 import { resolvePublishFaviconOutput } from "./publish-favicon";
+import { createPublishContentResolver } from "./publish-project-card-list";
 import {
   buildPublishSearchIndexPayload,
   type BuildPublishSearchIndexInput,
@@ -185,9 +186,6 @@ interface IDocCollectionMetaItem {
 
 type EntityScopeConfig = { mode: "all" } | { mode: "partial"; nodes: Set<number> };
 
-/** Slate 节点是公开 ContentNode 的结构子集，只是其接口没有声明索引签名。 */
-const contentNodes = (nodes: Descendant[] | undefined): ContentNode[] =>
-  (nodes ?? []) as unknown as ContentNode[];
 export class PublishSiteGenerator {
   private favicon?: { content: Buffer; output: ReturnType<typeof resolvePublishFaviconOutput> };
   private readonly template: TemplatePackage;
@@ -196,6 +194,7 @@ export class PublishSiteGenerator {
   private readonly logger: PublishGeneratorOptions["logger"];
   private readonly tailwindCssCache = new Map<string, string>();
   private linkTargets: Record<string, ContentRef> = {};
+  private contentNodes!: ReturnType<typeof createPublishContentResolver>;
   private readonly pluginCatalog: PublishPluginCatalog;
   private readonly buildSearchIndex: NonNullable<PublishGeneratorOptions["buildSearchIndex"]>;
 
@@ -254,6 +253,7 @@ export class PublishSiteGenerator {
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
+    this.contentNodes = createPublishContentResolver(db, identity => this.linkTargets[identity]);
     this.output = new PublishDataOutput(
       (data, dataPath) => this.pluginCatalog.dependencies(data, dataPath),
       identity => this.linkTargets[identity]
@@ -355,11 +355,20 @@ export class PublishSiteGenerator {
         content: this.favicon.content,
       });
     }
+    const searchContent = (nodes: Descendant[] | undefined) =>
+      this.contentNodes(nodes, true) as unknown as Descendant[];
     const search = await this.buildSearchIndex({
-      cards,
-      articles,
-      docs: docResult.listEntries,
-      quests: questResult.entries,
+      cards: cards.map(card => ({ ...card, content: searchContent(card.content) })),
+      articles: articles.map(article => ({ ...article, content: searchContent(article.content) })),
+      docs: docResult.listEntries.map(doc => ({ ...doc, content: searchContent(doc.content) })),
+      quests: questResult.entries.map(quest => ({
+        ...quest,
+        description: quest.description && searchContent(quest.description),
+        answers: quest.answers.map(answer => ({
+          ...answer,
+          content: answer.content && searchContent(answer.content),
+        })),
+      })),
     });
     return {
       files: this.output.finish(this.template, search, {
@@ -417,7 +426,7 @@ export class PublishSiteGenerator {
     return {
       content: {
         id: card.id,
-        content: contentNodes(card.content),
+        content: this.contentNodes(card.content),
         tags: card.tags || [],
         createTime: card.create_time,
         updateTime: card.update_time,
@@ -436,7 +445,7 @@ export class PublishSiteGenerator {
         id: article.id,
         title: article.title,
         author: article.author,
-        content: contentNodes(article.content),
+        content: this.contentNodes(article.content),
         tags: article.tags || [],
         bannerBg: article.bannerBg,
         createTime: article.create_time,
@@ -713,7 +722,7 @@ export class PublishSiteGenerator {
       content: {
         id: entry.id,
         title: entry.title,
-        content: contentNodes(entry.content),
+        content: this.contentNodes(entry.content),
         breadcrumb: entry.breadcrumb,
         prevPage: prev ? { title: prev.title, target: prev.target } : undefined,
         nextPage: next ? { title: next.title, target: next.target } : undefined,
@@ -830,10 +839,10 @@ export class PublishSiteGenerator {
       const initData: PublishDataBody = {
         content: {
           ...entry,
-          description: entry.description && contentNodes(entry.description),
+          description: entry.description && this.contentNodes(entry.description),
           answers: entry.answers.map(answer => ({
             ...answer,
-            content: answer.content && contentNodes(answer.content),
+            content: answer.content && this.contentNodes(answer.content),
           })),
         },
         meta: { type: "quest" },

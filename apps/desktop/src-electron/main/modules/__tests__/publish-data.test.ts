@@ -182,3 +182,66 @@ it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async (
     })
   ).rejects.toThrow("动态样式");
 });
+
+it("项目卡片列表保留卡片快照和文档目标，撤下目标后移除卡片且重复生成不读旧缓存", async () => {
+  const fixture = makePublishFixture();
+  const list = {
+    type: "project-card-list" as const,
+    projectItemId: 33,
+    children: [{ type: "formatted" as const, text: "" }],
+  };
+  fixture.articles[0].content = [list];
+  fixture.cards[0].content = [list];
+  fixture.data.getQuestionDetail(9)!.question.description = [list];
+  const parent = fixture.data.getProjectItemsByIds([33])[0];
+  parent.content = [list];
+  const original = structuredClone(parent.content);
+  const generator = new PublishSiteGenerator({
+    buildSearchIndex: async input => buildPublishSearchIndexPayload(input),
+    template: template(),
+    plugins,
+    compileTailwind: async () => "",
+    logger: console,
+  });
+  const site = { title: "站点", description: "", basePath: "/notes/" };
+  const first = await generator.generate(fixture.data, fixture.selections, site);
+  const read = (files: IPublishFile[], stem: string) =>
+    JSON.parse(files.find(file => file.path.startsWith(`data/${stem}.`))!.content.toString());
+  for (const stem of ["articles/1", "cards/7", "projects/12/33", "quests/9"]) {
+    const value = read(first.files, stem);
+    const body = stem === "quests/9" ? value.content.description : value.content.content;
+    expect(body[0]).toMatchObject({
+      type: "project-card-list",
+      items: [
+        {
+          id: 34,
+          title: "共享协议文档",
+          summary: "项目共享协议",
+          target: { key: "doc:project:12:34", type: "doc", id: 34 },
+        },
+      ],
+    });
+    expect(JSON.stringify(body)).not.toContain("content-link");
+  }
+  const search = read(first.files, "search");
+  expect(search.documents.find((doc: any) => doc.key === "article:1").content).toContain(
+    "共享协议文档"
+  );
+  expect(parent.content).toEqual(original);
+  const partial = fixture.selections.map(selection =>
+    selection.contentType === "project"
+      ? { ...selection, parentPath: JSON.stringify({ mode: "partial", nodes: [33] }) }
+      : selection
+  );
+  const second = await generator.generate(fixture.data, partial, site);
+  const article = read(second.files, "articles/1");
+  expect(article.links).toBeUndefined();
+  expect(article.content.content[0]).toMatchObject({ type: "project-card-list", items: [] });
+  expect(JSON.stringify(article)).not.toContain("共享协议文档");
+  parent.children = [];
+  parent.content = [
+    { type: "paragraph", children: [{ type: "formatted", text: "已改为普通正文" }] },
+  ];
+  const third = await generator.generate(fixture.data, fixture.selections, site);
+  expect(read(third.files, "articles/1").content.content[0].items).toEqual([]);
+});

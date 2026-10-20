@@ -4,6 +4,7 @@ import { readPluginPackage } from "./plugin-package";
 import { assertLocalId } from "@tau/plugins/package";
 import type { PluginRenderContext, PublishedPluginRender } from "@tau/plugins/rendering";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import { PUBLISHED_HOST_ELEMENT_TYPES } from "@tau/plugins/publish-data";
 
 export interface PublishPluginSnapshot {
   builtinTypes: string[];
@@ -25,7 +26,8 @@ export async function readPublishPlugins(
     new Set(context.builtinTypes).size !== context.builtinTypes.length
   )
     throw new Error("发布内置节点清单无效");
-  const owners = new Set<string>(context.builtinTypes);
+  const builtinTypes = [...new Set([...context.builtinTypes, ...PUBLISHED_HOST_ELEMENT_TYPES])];
+  const owners = new Set<string>(builtinTypes);
   const ids = new Set<string>();
   const plugins: PublishPluginSnapshot["plugins"] = [];
   for (const selection of context.plugins) {
@@ -67,17 +69,22 @@ export async function readPublishPlugins(
       styleSources: selection.styleSources,
     });
   }
-  return { builtinTypes: [...context.builtinTypes], plugins };
+  return { builtinTypes, plugins };
 }
 
 /** 只处理 JSON 与已验证的包，不在主进程执行作者代码。 */
 export class PublishPluginCatalog {
   private readonly owners = new Map<string, PublishPluginSnapshot["plugins"][number]>();
   private readonly used = new Map<string, PublishPluginSnapshot["plugins"][number]>();
+  private readonly builtinTypes: Set<string>;
   constructor(private readonly snapshot?: PublishPluginSnapshot) {
+    this.builtinTypes = new Set([
+      ...(snapshot?.builtinTypes ?? []),
+      ...PUBLISHED_HOST_ELEMENT_TYPES,
+    ]);
     for (const plugin of snapshot?.plugins ?? [])
       for (const type of plugin.nodeTypes) {
-        if (this.owners.has(type) || snapshot?.builtinTypes.includes(type))
+        if (this.owners.has(type) || this.builtinTypes.has(type))
           throw new Error(`发布节点类型重复：${type}`);
         this.owners.set(type, plugin);
       }
@@ -96,7 +103,7 @@ export class PublishPluginCatalog {
         if (owner) {
           needed.add(owner);
           this.used.set(owner.artifact.manifest.id, owner);
-        } else if (this.snapshot && !this.snapshot.builtinTypes.includes(object.type))
+        } else if (this.snapshot && !this.builtinTypes.has(object.type))
           throw new Error(`节点 ${object.type} 缺少已启用且可发布的插件`);
         object.children.forEach(walk);
         return;

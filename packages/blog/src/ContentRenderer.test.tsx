@@ -70,6 +70,59 @@ const link = (contentType: string, refId: number, text: string): ContentNode => 
   children: [{ type: "formatted", text }],
 });
 
+it("项目文档列表使用共用卡片布局，标题、摘要与卡片整体指向对应文档", async () => {
+  setup();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const content = result(7);
+  content.data.pluginRenderers = [];
+  if ("content" in content.data.content)
+    content.data.content.content = [
+      {
+        type: "project-card-list",
+        items: [
+          {
+            id: 34,
+            title: "子文档",
+            summary: "文档的两行摘要",
+            target: { key: "doc:project:12:34", type: "doc", id: 34 },
+          },
+        ],
+        children: [{ type: "formatted", text: "" }],
+      },
+    ];
+  try {
+    await act(async () =>
+      root.render(
+        <ContentRenderer
+          content={content}
+          hrefFor={target =>
+            target.key === "doc:project:12:34" ? "/notes/projects/12/34" : undefined
+          }
+        />
+      )
+    );
+    await vi.waitFor(async () => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+      expect(container.querySelector("a")?.getAttribute("href")).toBe("/notes/projects/12/34");
+    });
+    const card = container.querySelector("a")!;
+    expect(card.parentElement?.className).toContain(
+      "grid-cols-[repeat(auto-fill,minmax(15em,1fr))]"
+    );
+    expect(card.textContent).toBe("子文档文档的两行摘要");
+    expect(card.querySelectorAll("svg")).toHaveLength(2);
+    expect(card.lastElementChild?.className).toContain("line-clamp-2");
+    expect(card.className).toContain("hover:shadow-card");
+    for (const target of [card, card.firstElementChild!, card.lastElementChild!])
+      expect(target.closest("a")).toBe(card);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it("公开参数只有正文、路由与语义插槽，不暴露编辑器装配", () => {
   expectTypeOf<keyof ContentRendererProps>().toEqualTypeOf<
     | "content"
@@ -83,7 +136,14 @@ it("公开参数只有正文、路由与语义插槽，不暴露编辑器装配"
   >();
 });
 function setup() {
-  vi.stubGlobal("crypto", webcrypto);
+  vi.stubGlobal("crypto", {
+    subtle: {
+      digest: (algorithm: string, bytes: ArrayBuffer) =>
+        webcrypto.subtle.digest(algorithm, Buffer.from(new Uint8Array(bytes))),
+    },
+    getRandomValues: webcrypto.getRandomValues.bind(webcrypto),
+    randomUUID: webcrypto.randomUUID.bind(webcrypto),
+  });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal(
     "fetch",
@@ -207,12 +267,12 @@ it("同一公开模块实现可接入五个正式内容插件，不使用具体�
     const manifest = JSON.parse(await readFile(join(base, "manifest.json"), "utf8"));
     const entry = item.id + "/main.js";
     const styles = manifest.styles ? item.id + "/main.css" : undefined;
-    files.set(new URL(entry, data.dataUrl).href, await readFile(join(base, manifest.main), "utf8"));
-    if (styles)
-      files.set(
-        new URL(styles, data.dataUrl).href,
-        await readFile(join(base, manifest.styles), "utf8")
-      );
+    const readArtifact = async (file: string) => {
+      const source = await readFile(join(base, file), "utf8");
+      return hash(source) === manifest.integrity[file] ? source : source.replace(/\r\n/g, "\n");
+    };
+    files.set(new URL(entry, data.dataUrl).href, await readArtifact(manifest.main));
+    if (styles) files.set(new URL(styles, data.dataUrl).href, await readArtifact(manifest.styles));
     data.data.pluginRenderers.push({
       runtimeVersion: 1,
       manifest,
