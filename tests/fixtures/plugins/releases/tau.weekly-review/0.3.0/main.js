@@ -35,7 +35,7 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 
 // <define:__PLUGIN_META__>
-var define_PLUGIN_META_default = { id: "tau.weekly-review", name: "\u6BCF\u5468\u56DE\u987E", version: "0.2.0" };
+var define_PLUGIN_META_default = { id: "tau.weekly-review", name: "\u6BCF\u5468\u56DE\u987E", version: "0.3.0" };
 
 // src/index.tsx
 var import_react = require("react");
@@ -2850,7 +2850,11 @@ var import_ui = require("@tau/ui");
 
 // src/WeekIcon.tsx
 var import_jsx_runtime3 = require("react/jsx-runtime");
-function WeekIcon({ size = 16, strokeWidth = 1.75, ...props }) {
+function WeekIcon({
+  size = 16,
+  strokeWidth = 1.75,
+  ...props
+}) {
   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
     "svg",
     {
@@ -2929,10 +2933,18 @@ async function section(read) {
   }
 }
 async function loadWeek(context, week) {
-  const states = await Promise.all(PERMISSIONS.map((item) => context.permissions.query(item)));
-  const undecided = PERMISSIONS.filter((_, index) => states[index] === "prompt");
+  const states = await Promise.all(
+    PERMISSIONS.map((item) => context.permissions.query(item))
+  );
+  const undecided = PERMISSIONS.filter(
+    (_, index) => states[index] === "prompt"
+  );
   if (undecided.length) await context.permissions.request(undecided);
-  const range = { updatedAfter: week.start, updatedBefore: week.end, limit: 200 };
+  const range = {
+    updatedAfter: week.start,
+    updatedBefore: week.end,
+    limit: 200
+  };
   const [newCards, articles, documents, todos, events] = await Promise.all([
     section(
       () => readAll(
@@ -2945,14 +2957,26 @@ async function loadWeek(context, week) {
         })
       )
     ),
-    section(() => readAll((cursor) => context.data.articles.query({ ...range, cursor }))),
+    section(
+      () => readAll((cursor) => context.data.articles.query({ ...range, cursor }))
+    ),
     section(async () => {
-      const result = await readAll((cursor) => context.data.documents.query({ ...range, cursor }));
-      return { ...result, items: result.items.filter((item) => item.contentRef !== null) };
+      const result = await readAll(
+        (cursor) => context.data.documents.query({ ...range, cursor })
+      );
+      return {
+        ...result,
+        items: result.items.filter((item) => item.contentRef !== null)
+      };
     }),
     section(
       () => readAll(
-        (cursor) => context.data.todos.query({ start: week.firstDay, end: week.lastDay, limit: 100, cursor })
+        (cursor) => context.data.todos.query({
+          start: week.firstDay,
+          end: week.lastDay,
+          limit: 100,
+          cursor
+        })
       )
     ),
     section(
@@ -2974,7 +2998,8 @@ function topTags(summary, limit = 8) {
   for (const part of [summary.newCards, summary.articles])
     if (hasItems(part))
       for (const item of part.items)
-        for (const tag of item.tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        for (const tag of item.tags)
+          counts.set(tag, (counts.get(tag) ?? 0) + 1);
   return [...counts].map(([tag, count2]) => ({ tag, count: count2 })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)).slice(0, limit);
 }
 async function toggleTodo(context, todo) {
@@ -2983,8 +3008,12 @@ async function toggleTodo(context, todo) {
       expectedRevision: todo.revision
     });
   } catch (error) {
-    if (!(error instanceof Error) || error.name !== "PluginConflictError") throw error;
-    const page = await context.data.todos.query({ keyword: todo.title, limit: 100 });
+    if (!(error instanceof Error) || error.name !== "PluginConflictError")
+      throw error;
+    const page = await context.data.todos.query({
+      keyword: todo.title,
+      limit: 100
+    });
     const latest = page.items.find((item) => item.id === todo.id);
     if (!latest) throw new Error("\u8FD9\u6761\u5F85\u529E\u5DF2\u88AB\u5220\u9664");
     if (latest.completed !== todo.completed) return latest;
@@ -3057,12 +3086,27 @@ function Review({ context }) {
         "workspace.reset"
       ],
       (event) => {
-        if (event.origin.kind === "plugin" && event.origin.pluginId === context.pluginId) return;
+        if (event.origin.kind === "plugin" && event.origin.pluginId === context.pluginId)
+          return;
         void client.invalidateQueries({ queryKey: ["week"] });
       }
     );
     return () => void subscription.dispose();
   }, [client, context]);
+  const [openError, setOpenError] = (0, import_react.useState)("");
+  const open = (ref) => {
+    setOpenError("");
+    void context.app.open(ref).catch((error) => setOpenError(error.message));
+  };
+  const item = (ref, title) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+    "button",
+    {
+      type: "button",
+      className: "weekly-review__link",
+      onClick: () => open(ref),
+      children: title
+    }
+  );
   const toggle = useMutation({
     mutationFn: (todo) => toggleTodo(context, todo),
     onSettled: () => client.invalidateQueries({ queryKey: ["week"] })
@@ -3087,7 +3131,15 @@ function Review({ context }) {
         week.lastDay
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "weekly-review__nav", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(import_ui.Button, { size: "sm", variant: "ghost", onClick: () => setOffset((value) => value - 1), children: "\u4E0A\u4E00\u5468" }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          import_ui.Button,
+          {
+            size: "sm",
+            variant: "ghost",
+            onClick: () => setOffset((value) => value - 1),
+            children: "\u4E0A\u4E00\u5468"
+          }
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
           import_ui.Button,
           {
@@ -3110,6 +3162,7 @@ function Review({ context }) {
         )
       ] })
     ] }),
+    openError && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "alert", className: "weekly-review__error", children: openError }),
     toggle.error && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "alert", className: "weekly-review__error", children: toggle.error.message }),
     query.isPending ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { role: "status", children: "\u6B63\u5728\u6C47\u603B\u2026" }) : query.isError ? /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { role: "alert", className: "weekly-review__error", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("p", { children: query.error.message }),
@@ -3119,7 +3172,10 @@ function Review({ context }) {
         ["\u65B0\u5361\u7247", count(data.newCards)],
         ["\u4FEE\u6539\u7684\u6587\u7AE0", count(data.articles)],
         ["\u4FEE\u6539\u7684\u6587\u6863", count(data.documents)],
-        ["\u5F85\u529E\u5B8C\u6210", hasItems(data.todos) ? `${done} / ${todos.length}` : "\u2014"],
+        [
+          "\u5F85\u529E\u5B8C\u6210",
+          hasItems(data.todos) ? `${done} / ${todos.length}` : "\u2014"
+        ],
         ["\u65E5\u7A0B", count(data.events)]
       ].map(([label, value]) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_ui.Panel, { className: "weekly-review__stat", children: [
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("b", { children: value }),
@@ -3139,7 +3195,10 @@ function Review({ context }) {
             value: data.newCards,
             empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u65B0\u5361\u7247\u3002",
             onAllow: allow,
-            render: (card) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: card.title || "\uFF08\u65E0\u6807\u9898\uFF09" }, card.id)
+            render: (card) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: item(
+              { kind: "card", id: card.id },
+              card.title || "\uFF08\u65E0\u6807\u9898\uFF09"
+            ) }, card.id)
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
@@ -3149,7 +3208,7 @@ function Review({ context }) {
             value: data.articles,
             empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u4FEE\u6539\u6587\u7AE0\u3002",
             onAllow: allow,
-            render: (article) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: article.title }, article.id)
+            render: (article) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: item({ kind: "article", id: article.id }, article.title) }, article.id)
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
@@ -3159,7 +3218,7 @@ function Review({ context }) {
             value: data.documents,
             empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u4FEE\u6539\u9879\u76EE\u6587\u6863\u3002",
             onAllow: allow,
-            render: (document) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: document.title }, document.id)
+            render: (document) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { children: item({ kind: "document", id: document.id }, document.title) }, document.id)
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
@@ -3169,18 +3228,25 @@ function Review({ context }) {
             value: data.todos,
             empty: "\u8FD9\u4E00\u5468\u6CA1\u6709\u622A\u6B62\u7684\u5F85\u529E\u3002",
             onAllow: allow,
-            render: (todo) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("li", { className: todo.completed ? "is-done" : void 0, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("label", { className: "weekly-review__todo", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-                "input",
-                {
-                  type: "checkbox",
-                  checked: todo.completed,
-                  disabled: toggle.isPending,
-                  onChange: () => toggle.mutate(todo)
-                }
-              ),
-              todo.title
-            ] }) }, todo.id)
+            render: (todo) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+              "li",
+              {
+                className: todo.completed ? "is-done" : void 0,
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("label", { className: "weekly-review__todo", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                    "input",
+                    {
+                      type: "checkbox",
+                      checked: todo.completed,
+                      disabled: toggle.isPending,
+                      onChange: () => toggle.mutate(todo)
+                    }
+                  ) }),
+                  item({ kind: "todo", id: todo.id }, todo.title)
+                ]
+              },
+              todo.id
+            )
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
@@ -3192,7 +3258,7 @@ function Review({ context }) {
             onAllow: allow,
             render: (event) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("li", { children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "weekly-review__time", children: event.start.slice(5, 10) }),
-              event.title
+              item({ kind: "event", id: event.id }, event.title)
             ] }, event.id)
           }
         )
@@ -3210,7 +3276,11 @@ var index_default = (0, import_plugins.definePlugin)({
   ...define_PLUGIN_META_default,
   create: () => ({
     activate(context) {
-      const page = context.pages.register({ id: "review", title: "\u6BCF\u5468\u56DE\u987E", component: Page });
+      const page = context.pages.register({
+        id: "review",
+        title: "\u6BCF\u5468\u56DE\u987E",
+        component: Page
+      });
       context.sidebar.registerItem({
         id: "review",
         title: "\u6BCF\u5468\u56DE\u987E",

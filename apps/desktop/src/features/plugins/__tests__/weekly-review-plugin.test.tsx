@@ -12,10 +12,13 @@ import { registerPluginPackage } from "@/app/plugins/package-loader";
 import { sharedPluginModules } from "@/app/plugins/shared-modules";
 import { createDesktopData } from "@/app/plugins/data";
 import { createDesktopEvents } from "@/app/plugins/events";
+import { createDesktopApp } from "@/app/plugins/app";
 import { DesktopPermissionBroker, usePluginPermissionUi } from "@/app/plugins/permissions";
 import { PluginPermissionPrompt } from "../permissions/PluginPermissionPrompt";
 import useSettingStore from "@/stores/useSettingStore";
 
+const openEntity = vi.hoisted(() => vi.fn());
+vi.mock("@/services/open-content", () => ({ openEntity }));
 const electron = vi.hoisted(() => ({
   invoke: vi.fn(async (..._args: unknown[]) => undefined as unknown),
   listeners: new Map<string, (...args: unknown[]) => void>(),
@@ -48,6 +51,8 @@ function respond(channel: unknown, ...args: unknown[]) {
       return { success: true };
     case "plugin-permissions:snapshot":
       return {};
+    case "plugin-data:exists":
+      return true;
     case "plugin-data:query": {
       const { entity } = args[0] as { entity: string };
       return {
@@ -100,7 +105,7 @@ afterEach(async () => {
 });
 
 describe("每周回顾插件", () => {
-  it("首次打开只弹一次授权，允许后显示汇总，卡片更新后自动刷新；勾选待办时再询问修改权限", async () => {
+  it("首次打开只弹一次授权，允许后显示汇总，卡片更新后自动刷新；勾选待办时再询问修改权限；点击条目打开原处", async () => {
     useSettingStore.setState(state => ({
       setting: { ...state.setting, database: { ...state.setting.database, active: DATABASE } },
     }));
@@ -114,6 +119,7 @@ describe("每周回顾插件", () => {
       plugins: [],
       data: createDesktopData(DATABASE),
       events: createDesktopEvents(DATABASE),
+      app: createDesktopApp(DATABASE),
       permissions: new DesktopPermissionBroker("w", () => true),
     });
     runtimes.push(runtime);
@@ -193,6 +199,15 @@ describe("每周回顾插件", () => {
       expect(write?.[2]).toMatchObject({ revision: "r1", completed: true });
       expect(write?.[4]).toBe("plugin:tau.weekly-review");
       expect(host.querySelector<HTMLInputElement>("input[type=checkbox]")?.checked).toBe(true);
+
+      const link = [...host.querySelectorAll("button")].find(
+        button => button.textContent === "改过的卡"
+      );
+      await act(async () => {
+        link?.click();
+        await new Promise(resolve => setTimeout(resolve, 30));
+      });
+      expect(openEntity).toHaveBeenCalledWith({ kind: "card", id: 1 });
     } finally {
       act(() => view.unmount());
       host.remove();

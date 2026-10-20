@@ -19,15 +19,15 @@
     "todos:write",
     "calendar:read"
   ],
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minAppVersion": "0.59.0",
   "apiVersion": 1,
   "platform": "desktop",
   "format": "cjs",
   "main": "main.js",
   "integrity": {
-    "main.js": "f1733642aae28303e8cc561f7e8598ffc721d2c2509347c16ff5fbe9995c8805",
-    "main.css": "f38b57f2f69ae7ead199e608419287cd6f0b398246407d75eb38b0e4468c85b9"
+    "main.js": "3e0196cb1feac7f0760f5c2296fe4e1ea8507c9dacf08987532ef528f4cb4d57",
+    "main.css": "092a577082275c1f4fa1e9b6688c4fbe8e89ccdbe7d0a38fc14d8226c7c0d03a"
   },
   "styles": "main.css"
 }
