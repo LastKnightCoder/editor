@@ -171,8 +171,12 @@ describe("CI 发布", () => {
     expect(f.sqlite.prepare("SELECT categories FROM releases").get()).toEqual({
       categories: '["page"]',
     });
-    // 重跑同一 tag 幂等，不产生第二条提交
-    expect((await (await publish(await token())).json()).data.submissionId).toBe(data.submissionId);
+    // 重跑同一 tag 幂等，不产生第二条提交；发布已回收待审对象，幂等只靠上传记录保留的 sha256
+    expect(f.objects.size).toBe(0);
+    expect(f.sqlite.prepare("SELECT status FROM uploads").get()).toEqual({ status: "invalid" });
+    const rerun = (await (await publish(await token())).json()).data;
+    expect(rerun.submissionId).toBe(data.submissionId);
+    expect(rerun.release.state).toBe("published");
     expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submissions").get()).toEqual({ n: 1 });
   });
 

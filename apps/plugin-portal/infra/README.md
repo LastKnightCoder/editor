@@ -8,15 +8,15 @@
 
 审核发布新增私有桶 `tau-plugin-releases`，绑定RELEASES。它不绑定公开域名；Worker仅对D1中published的Release开放 `/v1/releases/:id/download`。待审桶不改为公开。0003_review_release迁移保留所有提交和反馈，增加正式审核记录及发布状态；不运行0001重建线上库。
 
-| 资源     | 实际配置                                                                                              |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| R2       | `tau-plugin-pending`，私有，r2.dev关闭，无自定义域名                                                  |
-| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001/0002/0003 migration已执行            |
-| Worker   | `tau-plugin-portal-api`，绑定D1与R2                                                                   |
-| API域名  | `https://plugins-api.taunote.app`，健康检查200、会话200、GitHub跳转302                                |
-| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，已部署863b1aa2                     |
-| 前端域名 | `plugins.taunote.app`，CNAME指向 `tau-plugin-portal.pages.dev`，代理开启；Pages验证与域名状态均active |
-| Secrets  | GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY已配置                                    |
+| 资源     | 实际配置                                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------ |
+| R2       | `tau-plugin-pending`，私有，r2.dev关闭，无自定义域名；上传暂存区，发布后即时回收，其余由每日清理按D1记录回收 |
+| D1       | `plugin-portal`，ID `dabf8820-d2bc-47ab-984d-dc4f0c2ae0bd`，0001/0002/0003 migration已执行                   |
+| Worker   | `tau-plugin-portal-api`，绑定D1与R2                                                                          |
+| API域名  | `https://plugins-api.taunote.app`，健康检查200、会话200、GitHub跳转302                                       |
+| Pages    | `tau-plugin-portal`，Direct Upload项目，production branch为master，已部署863b1aa2                            |
+| 前端域名 | `plugins.taunote.app`，CNAME指向 `tau-plugin-portal.pages.dev`，代理开启；Pages验证与域名状态均active        |
+| Secrets  | GITHUB_CLIENT_ID、GITHUB_CLIENT_SECRET、TOKEN_ENCRYPTION_KEY已配置                                           |
 
 GitHub密钥源于用户 `~/.zshrc` 的 `TAU_PLUGIN_GITHUB_CLIENT_ID` / `TAU_PLUGIN_GITHUB_CLIENT_SECRET`，仅经进程内存传入Wrangler标准输入。加密密钥备份在 `~/.config/tau/plugin-portal/token-encryption-key`（0600），不可提交或随意重建，否则现有会话无法解密。云端Secrets不依赖worktree存在。
 

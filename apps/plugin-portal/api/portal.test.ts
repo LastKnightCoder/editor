@@ -3,8 +3,9 @@ import AdmZip from "adm-zip";
 import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
-import { handle } from "./index";
+import worker, { handle } from "./index";
 import { inspectPackage } from "./package";
+import { PURGE_PAGE, purgeStaleUploads } from "./uploads";
 import { testEnvironment } from "./testing";
 import type { SubmissionGroups, Submission, Upload } from "../contracts";
 
@@ -557,6 +558,7 @@ describe("包资料与站内反馈", () => {
     });
     expect((await req(`/v1/submissions/${d.id}/review`, "POST", decision)).status).toBe(200);
     expect(f.published.size).toBe(1);
+    expect(f.objects.size).toBe(0);
     expect(f.sqlite.prepare("SELECT count(*) AS n FROM submission_reviews").get()?.n).toBe(1);
     cookie = "";
     const download = await req(new URL(detail.release.downloadUrl).pathname);
@@ -672,12 +674,159 @@ describe("包资料与站内反馈", () => {
       ).json()
     ).data;
     expect(result.release.state).toBe("failed");
+    expect(f.objects.size).toBe(1);
     expect((await req(`/v1/releases/${result.release.id}/download`)).status).toBe(404);
     expect((await (await req(`/v1/submissions/${d.id}`)).json()).data.status).toBe("approved");
     const retried = (await (await req(`/v1/submissions/${d.id}/publish`, "POST")).json()).data;
     expect(retried.release.state).toBe("published");
     expect(retried.release.sha256).toBe(result.release.sha256);
     expect(retried.reviews).toHaveLength(1);
+    expect(f.objects.size).toBe(0);
+  });
+  it("发布回收待审包后仍可下载原始包，回收的上传不可再挂到新提交", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    const before = await req(`/v1/submissions/${d.id}/package`);
+    expect(before.status).toBe(200);
+    const detail = (
+      await (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).json()
+    ).data;
+    expect(detail.release.state).toBe("published");
+    expect(f.objects.size).toBe(0);
+    expect(f.published.size).toBe(1);
+    const after = await req(`/v1/submissions/${d.id}/package`);
+    expect(after.status).toBe(200);
+    expect(Buffer.from(await after.arrayBuffer())).toEqual(Buffer.from(await before.arrayBuffer()));
+    expect((await (await req(`/v1/uploads/${d.packageUploadId}`)).json()).data.status).toBe(
+      "invalid"
+    );
+    expect(
+      (
+        await req("/v1/submissions", "POST", {
+          clientRequestId: crypto.randomUUID(),
+          packageUploadId: d.packageUploadId,
+        })
+      ).status
+    ).toBe(409);
+  });
+  it("发布时回收待审包失败不影响发布结果，中间态不可再用且由每日清理补扫", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const d = await ready();
+    const pending = (await (await submit(d)).json()).data;
+    vi.spyOn(f.env.PENDING, "delete").mockRejectedValueOnce(new Error("unavailable"));
+    const detail = (
+      await (
+        await req(`/v1/submissions/${d.id}/review`, "POST", {
+          revision: pending.revision,
+          decision: "approve",
+          comment: "",
+        })
+      ).json()
+    ).data;
+    expect(detail.release.state).toBe("published");
+    expect(f.objects.size).toBe(1);
+    const row = () =>
+      f.sqlite.prepare("SELECT status,object_key FROM uploads WHERE id=?").get(d.packageUploadId!);
+    expect(row()).toMatchObject({ status: "invalid", object_key: `42/${d.packageUploadId}` });
+    expect(
+      (
+        await req("/v1/submissions", "POST", {
+          clientRequestId: crypto.randomUUID(),
+          packageUploadId: d.packageUploadId,
+        })
+      ).status
+    ).toBe(409);
+    expect((await req(`/v1/submissions/${d.id}/package`)).status).toBe(200);
+    await worker.scheduled(undefined, f.env);
+    expect(f.objects.size).toBe(0);
+    expect(row()).toMatchObject({ status: "invalid", object_key: null });
+    expect((await req(`/v1/submissions/${d.id}/package`)).status).toBe(200);
+  });
+  it("每日清理回收已拒绝、换包遗留与未提交的待审包，保留活跃提交引用的包", async () => {
+    await login();
+    f.env.REVIEWER_GITHUB_IDS = "42";
+    const review = async (record: Submission, decision: string) => {
+      const pending = (await (await submit(record)).json()).data;
+      expect(
+        (
+          await req(`/v1/submissions/${record.id}/review`, "POST", {
+            revision: pending.revision,
+            decision,
+            comment: "审核意见",
+          })
+        ).status
+      ).toBe(200);
+    };
+    const orphan = await upload();
+    const rejected = await ready("1.0.0");
+    await review(rejected, "reject");
+    const changed = await ready("1.1.0");
+    await review(changed, "request_changes");
+    const replacement = await upload(zip({ version: "1.1.0" }));
+    const current = (await (await req(`/v1/submissions/${changed.id}`)).json()).data;
+    expect(
+      (
+        await req(`/v1/submissions/${changed.id}`, "PATCH", {
+          revision: current.revision,
+          packageUploadId: replacement.id,
+          repository: "https://github.com/author/plugin",
+        })
+      ).status
+    ).toBe(200);
+    const waiting = await ready("1.2.0");
+    expect((await submit(waiting)).status).toBe(200);
+    const drafted = await draft();
+    const fresh = await upload();
+    f.sqlite
+      .prepare("UPDATE uploads SET created_at='2020-01-01T00:00:00.000Z' WHERE id<>?")
+      .run(fresh.id);
+    await purgeStaleUploads(f.env);
+    const statusOf = (id: string) =>
+      f.sqlite.prepare("SELECT status FROM uploads WHERE id=?").get(id)?.status;
+    for (const id of [orphan.id, rejected.packageUploadId!, changed.packageUploadId!]) {
+      expect(statusOf(id)).toBe("invalid");
+      expect(f.objects.has(`42/${id}`)).toBe(false);
+    }
+    for (const id of [
+      replacement.id,
+      waiting.packageUploadId!,
+      drafted.packageUploadId!,
+      fresh.id,
+    ]) {
+      expect(statusOf(id)).toBe("ready");
+      expect(f.objects.has(`42/${id}`)).toBe(true);
+    }
+    expect((await req(`/v1/submissions/${rejected.id}/package`)).status).toBe(404);
+  });
+  it("每日清理按页批量回收，一页失败即停并留待补扫", async () => {
+    await login();
+    const insert = f.sqlite.prepare(
+      "INSERT INTO uploads(id,publisher_id,status,file_name,size,object_key,sha256,created_at) VALUES (?,'42','ready','a.zip',1,?,'h','2020-01-01T00:00:00.000Z')"
+    );
+    for (let i = 0; i <= PURGE_PAGE; i++) {
+      insert.run(`u${i}`, `42/u${i}`);
+      f.objects.set(`42/u${i}`, { bytes: Buffer.from("x"), contentType: "application/zip" });
+    }
+    const count = (where: string) =>
+      f.sqlite.prepare(`SELECT count(*) AS n FROM uploads WHERE ${where}`).get()?.n;
+    vi.spyOn(f.env.PENDING, "delete").mockRejectedValueOnce(new Error("unavailable"));
+    await purgeStaleUploads(f.env);
+    expect(f.objects.size).toBe(PURGE_PAGE + 1);
+    expect(count("status='invalid' AND object_key IS NOT NULL")).toBe(PURGE_PAGE);
+    expect(count("status='ready'")).toBe(1);
+    await purgeStaleUploads(f.env);
+    expect(f.objects.size).toBe(0);
+    expect(count("object_key IS NOT NULL")).toBe(0);
+    expect(count("status='invalid'")).toBe(PURGE_PAGE + 1);
   });
   it("被替换的R2产物不能发布；过期发布租约允许恢复", async () => {
     await login();
@@ -705,6 +854,7 @@ describe("包资料与站内反馈", () => {
     expect(
       (await (await req(`/v1/submissions/${d.id}/publish`, "POST")).json()).data.release.state
     ).toBe("published");
+    expect(f.objects.size).toBe(0);
   });
   it("有记录的旧数据库迁移保留提交和反馈且外键有效", () => {
     const db = new DatabaseSync(":memory:");

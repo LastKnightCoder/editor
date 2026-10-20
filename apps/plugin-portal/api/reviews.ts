@@ -2,8 +2,8 @@ import type { PackageContent, ReviewDecision, ReviewDetails, ReviewRecord } from
 import { requiresSystemReview } from "../contracts/execution";
 import { body, fail, isReviewer, json, type Env } from "./platform";
 import { submissionAccess, type SubmissionRow } from "./submissions";
-import { readyUpload } from "./uploads";
-import { getRelease, publishRelease, releaseDto } from "./releases";
+import { getUpload, readyUpload } from "./uploads";
+import { getRelease, publishRelease, releaseDto, submittedPackage } from "./releases";
 
 interface ReviewRow {
   system_reviewed?: number;
@@ -59,8 +59,8 @@ export async function reviewRoute(
   if (match[2] === "reviews" && request.method === "GET") return json(await details(env, row.id));
   if (match[2] === "package" && request.method === "GET") {
     if (!row.package_upload_id || !row.content_json) fail(404, "NOT_FOUND", "未关联插件包");
-    const upload = await readyUpload(env, row.publisher_id, row.package_upload_id);
-    const object = upload.object_key ? await env.PENDING.get(upload.object_key) : null;
+    const upload = await getUpload(env, row.publisher_id, row.package_upload_id);
+    const object = await submittedPackage(env, upload);
     if (!object) fail(404, "NOT_FOUND", "插件包不存在");
     const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
     return new Response(await object.arrayBuffer(), {
