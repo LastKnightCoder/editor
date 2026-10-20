@@ -141,6 +141,8 @@ export class DesktopPluginRuntime {
       events?: EventsAdapter;
       app?: AppAdapter;
       entities?: EntitiesAdapter;
+      /** 卸载并清除数据时删除插件在当前库的私有存储 */
+      purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -214,7 +216,8 @@ export class DesktopPluginRuntime {
       preferences,
       this.publish,
       uninstallLocalPlugin,
-      setLocalPluginEnabled
+      setLocalPluginEnabled,
+      this.options.purgeStorage
     );
     return this.local;
   }

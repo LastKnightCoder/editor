@@ -69,6 +69,7 @@ import VLNoteTable from "./tables/vl-note";
 import VLQuizTable from "./tables/vl-quiz";
 import PluginDataTable from "./tables/plugin-data";
 import PluginEntityTable from "./tables/plugin-entity";
+import PluginKvTable from "./tables/plugin-kv";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -309,6 +310,7 @@ class DatabaseModule implements Module {
       VLQuizTable,
       PluginDataTable,
       PluginEntityTable,
+      PluginKvTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

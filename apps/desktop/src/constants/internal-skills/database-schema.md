@@ -76,6 +76,17 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `update_time`   | `INTEGER NOT NULL`           |
 | `orphaned_time` | `INTEGER`                    |
 
+### `plugin_kv`
+
+插件的私有设置与数据（插件里的 `context.storage`），`value` 为 JSON 文本，内容由插件定义。
+
+| 字段          | SQLite 定义        |
+| ------------- | ------------------ |
+| `plugin_id`   | `TEXT NOT NULL`    |
+| `key`         | `TEXT NOT NULL`    |
+| `value`       | `TEXT NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL` |
+
 ### `task_assistant_content_pin`
 
 | 字段                 | SQLite 定义        |
