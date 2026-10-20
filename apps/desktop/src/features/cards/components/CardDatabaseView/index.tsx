@@ -34,6 +34,7 @@ import { useContentLinksByContentIds } from "@/features/context/queries";
 import { extractInlineRefs } from "@/entity/inline-refs";
 import { entityRefKey, type EntityRef } from "@/entity/ref";
 import { ENTITY_KIND_META } from "@/features/context/model";
+import { useEntityKindMetaResolver } from "@/components/EntityKind";
 import { openEntity } from "@/services/open-content";
 
 interface CardDatabaseViewProps {
@@ -172,18 +173,33 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
     return map;
   }, [linksQuery.data]);
 
+  const inlineRefsByCard = useMemo(
+    () => new Map(cards.map(card => [card.id, extractInlineRefs(card.content)])),
+    [cards]
+  );
+  // 链接缺文字时按类型名兜底；插件内容要先查出所属插件才知道它声明的类型名
+  const kindMetaOf = useEntityKindMetaResolver(
+    useMemo(
+      () =>
+        [...inlineRefsByCard.values()].flatMap(refs =>
+          refs.flatMap(({ dst, snippet }) => (snippet.label ? [] : [dst]))
+        ),
+      [inlineRefsByCard]
+    )
+  );
+
   const rows = useMemo((): RowData[] => {
     return cards.map(card => {
       const explicit = linksByContent.get(card.contentId) ?? [];
       const seen = new Set(explicit.map(item => entityRefKey(item.ref)));
       const inline: LinkCellItem[] = [];
-      for (const { dst, snippet, dstContentId } of extractInlineRefs(card.content)) {
+      for (const { dst, snippet, dstContentId } of inlineRefsByCard.get(card.id) ?? []) {
         const key = entityRefKey(dst);
         if (seen.has(key)) continue;
         seen.add(key);
         inline.push({
           ref: dst,
-          title: snippet.label || `${ENTITY_KIND_META[dst.kind].label} #${dst.id}`,
+          title: snippet.label || `${kindMetaOf(dst, ENTITY_KIND_META[dst.kind]).label} #${dst.id}`,
           inlineOnly: true,
           contentId: dstContentId ?? null,
         });
@@ -209,7 +225,7 @@ function CardDatabaseViewInstance(props: CardDatabaseViewProps) {
       };
       return row;
     });
-  }, [cards, getCardText, linksByContent]);
+  }, [cards, getCardText, linksByContent, inlineRefsByCard, kindMetaOf]);
 
   const currentView = useMemo(() => {
     return views.find(v => v.id === activeViewId);

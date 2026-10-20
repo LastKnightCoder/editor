@@ -88,6 +88,7 @@ const APPEARANCE_KEY = ["plugin-entities", "appearance"] as const;
 // 显式用全局 QueryClient：编辑器等处可能挂在没有 Provider 的独立 React 根里
 const OWNER_BATCH = 500;
 const NO_KINDS = new Map<string, PluginEntityAppearance>();
+const NO_OWNERS = new Map<number, PluginEntityOwner>();
 
 /** 外观或归属变化后（声明、删除、恢复）让各处重新读取 */
 export function invalidatePluginEntityAppearance() {
@@ -96,26 +97,48 @@ export function invalidatePluginEntityAppearance() {
 
 const useActiveDatabase = () => useSettingStore(state => state.setting.database.active);
 
+const savedKindsQuery = (databaseName: string) => ({
+  queryKey: [...APPEARANCE_KEY, "kinds", databaseName],
+  queryFn: async () =>
+    new Map(
+      (
+        await bindDatabaseCommands(
+          { listPluginEntityKinds },
+          { databaseName }
+        ).listPluginEntityKinds(databaseName)
+      ).map(row => [keyOf(row.pluginId, row.kind), { label: row.label, icon: row.icon }])
+    ),
+  staleTime: Infinity,
+});
+
 function useSavedKinds(): Map<string, PluginEntityAppearance> {
   const databaseName = useActiveDatabase();
   const { data } = useQuery(
-    {
-      queryKey: [...APPEARANCE_KEY, "kinds", databaseName],
-      queryFn: async () =>
-        new Map(
-          (
-            await bindDatabaseCommands(
-              { listPluginEntityKinds },
-              { databaseName }
-            ).listPluginEntityKinds(databaseName)
-          ).map(row => [keyOf(row.pluginId, row.kind), { label: row.label, icon: row.icon }])
-        ),
-      enabled: Boolean(databaseName),
-      staleTime: Infinity,
-    },
+    { ...savedKindsQuery(databaseName), enabled: Boolean(databaseName) },
     queryClient
   );
   return data ?? NO_KINDS;
+}
+
+const appearanceIn = (
+  saved: Map<string, PluginEntityAppearance>,
+  running: Map<string, PluginEntityKindEntry>,
+  pluginId: string,
+  kind: string
+): PluginEntityAppearance | undefined => {
+  const key = keyOf(pluginId, kind);
+  const declared = saved.get(key);
+  const label = running.get(key)?.label ?? declared?.label;
+  return label ? { label, icon: declared?.icon ?? "" } : undefined;
+};
+
+/** 组件之外（如 AI 工具结果）按插件与类型取外观，与 usePluginEntityAppearances 同一口径与缓存 */
+export async function loadPluginEntityAppearances(
+  databaseName: string
+): Promise<(pluginId: string, kind: string) => PluginEntityAppearance | undefined> {
+  const saved = await queryClient.fetchQuery(savedKindsQuery(databaseName));
+  const running = kinds;
+  return (pluginId, kind) => appearanceIn(saved, running, pluginId, kind);
 }
 
 /**
@@ -129,13 +152,8 @@ export function usePluginEntityAppearances(): (
   const saved = useSavedKinds();
   const running = useSyncExternalStore(subscribe, () => kinds);
   return useCallback(
-    (pluginId, kind) => {
-      if (!pluginId || !kind) return undefined;
-      const key = keyOf(pluginId, kind);
-      const declared = saved.get(key);
-      const label = running.get(key)?.label ?? declared?.label;
-      return label ? { label, icon: declared?.icon ?? "" } : undefined;
-    },
+    (pluginId, kind) =>
+      pluginId && kind ? appearanceIn(saved, running, pluginId, kind) : undefined,
     [saved, running]
   );
 }
@@ -198,4 +216,23 @@ export function usePluginEntityOwner(id: number | undefined): PluginEntityOwner 
     queryClient
   );
   return data;
+}
+
+/** 一批插件内容的归属，供在 useMemo 里拼文本的列表一次取齐；载入前与不存在的 ID 不在结果里 */
+export function usePluginEntityOwners(ids: readonly number[]): Map<number, PluginEntityOwner> {
+  const databaseName = useActiveDatabase();
+  const sorted = [...new Set(ids)].sort((a, b) => a - b);
+  const { data } = useQuery(
+    {
+      queryKey: [...APPEARANCE_KEY, "owners", databaseName, sorted],
+      queryFn: async () => {
+        const owners = await Promise.all(sorted.map(id => loadOwner(databaseName, id)));
+        return new Map(owners.flatMap(owner => (owner ? [[owner.id, owner] as const] : [])));
+      },
+      enabled: Boolean(databaseName) && sorted.length > 0,
+      staleTime: Infinity,
+    },
+    queryClient
+  );
+  return data ?? NO_OWNERS;
 }

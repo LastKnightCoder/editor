@@ -21,6 +21,7 @@ import { queryClient } from "@/queryClient";
 import { registerPluginEntityKind } from "@/services/plugin-entity-kinds";
 import { renderPluginIconMarkup } from "@/app/plugins/icon-markup";
 import { EntityKindIcon, EntityKindLabel } from "../EntityKindIcon";
+import { useEntityKindMetaResolver } from "..";
 
 const fallback = { label: "插件内容", icon: Puzzle };
 const original = useSettingStore.getState().setting;
@@ -105,6 +106,25 @@ describe("内容类型的展示", () => {
     await waitFor(() => expect(maskIcons()).toHaveLength(1));
     act(() => dispose());
     expect(text()).toBe("周记");
+  });
+});
+
+describe("一批引用的外观", () => {
+  it("在列表里拼文本时一次取齐插件内容的类型名，内置类型原样返回", async () => {
+    function Titles() {
+      const refs = [
+        { kind: "plugin-entity", id: 7 },
+        { kind: "plugin-entity", id: 404 },
+        { kind: "card", id: 7 },
+      ];
+      const metaOf = useEntityKindMetaResolver(refs);
+      return <>{refs.map(ref => `${metaOf(ref, fallback).label} #${ref.id}`).join("|")}</>;
+    }
+    render(<Titles />);
+    await waitFor(() => expect(text()).toBe("周记 #7|插件内容 #404|插件内容 #7"));
+    expect(
+      state.invoke.mock.calls.filter(([channel]) => channel === "plugin-entities:owners")
+    ).toEqual([["plugin-entities:owners", { databaseName: "main.db", ids: [7, 404] }]]);
   });
 });
 

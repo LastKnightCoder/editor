@@ -6,6 +6,7 @@ import { useCallback, type CSSProperties, type ReactNode } from "react";
 import {
   usePluginEntityAppearances,
   usePluginEntityOwner,
+  usePluginEntityOwners,
   type PluginEntityAppearance,
 } from "@/services/plugin-entity-kinds";
 
@@ -93,4 +94,22 @@ export function useEntityKindMeta(
   const owner = usePluginEntityOwner(ref?.kind === PLUGIN_ENTITY ? ref.id : undefined);
   const resolve = usePluginEntityMetaResolver();
   return resolve(owner ?? undefined, fallback);
+}
+
+/**
+ * 一批引用的外观，供在 useMemo 里拼文本的列表（如卡片数据库的连接列）一次取齐；
+ * 插件内容的归属载入前按 fallback 显示。
+ */
+export function useEntityKindMetaResolver(
+  refs: readonly { kind: string; id: number }[]
+): (ref: { kind: string; id: number }, fallback: KindMeta) => KindMeta {
+  const owners = usePluginEntityOwners(
+    refs.flatMap(ref => (ref.kind === PLUGIN_ENTITY ? [ref.id] : []))
+  );
+  const resolve = usePluginEntityMetaResolver();
+  return useCallback(
+    (ref, fallback) =>
+      ref.kind === PLUGIN_ENTITY ? resolve(owners.get(ref.id), fallback) : fallback,
+    [owners, resolve]
+  );
 }
