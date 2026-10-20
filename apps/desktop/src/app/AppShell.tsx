@@ -23,6 +23,7 @@ import { MarkdownExportHost } from "@/features/transfer/MarkdownExportHost";
 import { ImportWizardHost } from "@/features/transfer/ImportWizardHost";
 import { PluginPermissionPrompt } from "@/features/plugins/permissions/PluginPermissionPrompt";
 import { PluginEntityPickerHost } from "@/features/plugins/permissions/PluginEntityPickerHost";
+import { PluginContentActionHost } from "@/features/plugins/permissions/PluginContentActionHost";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import useSettingStore from "@/stores/useSettingStore";
@@ -219,6 +220,8 @@ function ShellLayout() {
       <PluginPermissionPrompt />
       {/* 插件 context.app.pick 的内容选择弹窗 */}
       <PluginEntityPickerHost />
+      {/* 插件 context.app.run 打开的导出、演示与协作界面 */}
+      <PluginContentActionHost />
       {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
       <NotificationHost onItemsChange={onNotificationItemsChange} />
       {/* 通知产生端只在主窗口壳层运行：其余窗口无卡栈可显示，且 App 根运行会绕过

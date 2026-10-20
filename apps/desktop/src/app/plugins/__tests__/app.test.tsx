@@ -10,8 +10,45 @@ const mocks = vi.hoisted(() => ({
   openEntity: vi.fn(),
   openPage: vi.fn(),
   search: vi.fn(),
+  read: vi.fn(),
+  getData: vi.fn(),
+  exportMarkdown: vi.fn(),
+  present: vi.fn(),
+  pdf: vi.fn(),
+  share: vi.fn(),
 }));
-vi.mock("@/commands/plugin-data", () => ({ pluginRefExists: mocks.exists }));
+vi.mock("@/commands/plugin-data", () => ({
+  pluginRefExists: mocks.exists,
+  readPluginContent: mocks.read,
+  getPluginData: mocks.getData,
+}));
+vi.mock("@/services/content-transfer", () => ({ exportContentAsMarkdown: mocks.exportMarkdown }));
+vi.mock("@/components/PresentationMode", () => ({
+  default: (props: { content: unknown; onExit: () => void }) => {
+    mocks.present(props.content);
+    return <button onClick={props.onExit}>退出演示</button>;
+  },
+}));
+vi.mock("@/components/PdfExportModal", () => ({
+  PdfExportModal: (props: { title: string; onClose: () => void }) => {
+    mocks.pdf(props.title);
+    return <button onClick={props.onClose}>关闭导出</button>;
+  },
+}));
+vi.mock("@/components/ContentExportModal", () => ({ default: () => null }));
+vi.mock("@/components/EpubExportModal", () => ({ default: () => null }));
+vi.mock("@/components/ContentCollaborationControl", async () => {
+  const { forwardRef, useImperativeHandle } = await import("react");
+  return {
+    default: forwardRef(function Share(
+      props: { contentId: number; source: unknown; onClose: () => void },
+      ref
+    ) {
+      useImperativeHandle(ref, () => ({ open: () => mocks.share(props.contentId, props.source) }));
+      return <button onClick={props.onClose}>关闭协作</button>;
+    }),
+  };
+});
 vi.mock("@/commands/entity", () => ({ locateEntity: mocks.locate }));
 vi.mock("@/commands", () => ({ searchEntities: mocks.search }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
@@ -19,6 +56,8 @@ vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
 
 import { createDesktopApp, usePluginPickerUi } from "../app";
 import { PluginEntityPickerHost } from "@/features/plugins/permissions/PluginEntityPickerHost";
+import { PluginContentActionHost } from "@/features/plugins/permissions/PluginContentActionHost";
+import { usePluginActionUi } from "../app";
 
 const plugin = { id: "canvas", name: "画布" };
 const context = () =>
@@ -124,5 +163,86 @@ describe("插件选择与打开", () => {
       act(() => view.unmount());
       host.remove();
     }
+  });
+
+  describe("宿主动作", () => {
+    const nodes = [{ type: "paragraph", children: [{ text: "正文" }] }];
+    beforeEach(() => {
+      mocks.read.mockResolvedValue({ contentId: 8, createdAt: 100, nodes, owners: ["card"] });
+      mocks.locate.mockResolvedValue({ kind: "card", id: 3 });
+      mocks.getData.mockResolvedValue({ title: "读书笔记" });
+      usePluginActionUi.setState({ request: null });
+    });
+
+    it("Markdown 直接导出，取实体标题与正文", async () => {
+      await createDesktopApp("data.db").run(context(), plugin, {
+        action: "content.export",
+        ref: "8:100",
+        format: "markdown",
+      });
+      expect(mocks.read.mock.calls[0].slice(1)).toEqual([8, 100, "nodes"]);
+      expect(mocks.getData.mock.calls[0].slice(1)).toEqual(["card", 3]);
+      expect(mocks.exportMarkdown).toHaveBeenCalledWith({ title: "读书笔记", content: nodes });
+      expect(usePluginActionUi.getState().request).toBeNull();
+    });
+
+    it("导出、演示与协作打开宿主界面，关闭或插件停用即撤下", async () => {
+      const host = document.createElement("div");
+      document.body.append(host);
+      const view = createRoot(host);
+      await act(async () => view.render(<PluginContentActionHost />));
+      const app = createDesktopApp("data.db");
+      const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 50)));
+      const click = (label: string) =>
+        act(async () =>
+          [...host.querySelectorAll("button")].find(item => item.textContent === label)?.click()
+        );
+      try {
+        await act(async () =>
+          app.run(context(), plugin, { action: "content.export", ref: "8:100", format: "pdf" })
+        );
+        await settle();
+        expect(mocks.pdf).toHaveBeenCalledWith("读书笔记");
+        await click("关闭导出");
+        expect(usePluginActionUi.getState().request).toBeNull();
+
+        await act(async () =>
+          app.run(context(), plugin, { action: "content.present", ref: "8:100" })
+        );
+        await settle();
+        expect(mocks.present).toHaveBeenCalledWith(nodes);
+        await click("退出演示");
+        expect(usePluginActionUi.getState().request).toBeNull();
+
+        const controller = new AbortController();
+        const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
+        await act(async () => app.run(live, plugin, { action: "content.share", ref: "8:100" }));
+        await settle();
+        expect(mocks.share).toHaveBeenCalledWith(8, {
+          sourceType: "card",
+          sourceId: 3,
+          sourceTitle: "读书笔记",
+        });
+        await act(async () => controller.abort());
+        expect(usePluginActionUi.getState().request).toBeNull();
+        expect(host.textContent).toBe("");
+      } finally {
+        act(() => view.unmount());
+        host.remove();
+      }
+    });
+
+    it("内容不存在或不是用户操作时拒绝", async () => {
+      const app = createDesktopApp("data.db");
+      mocks.read.mockResolvedValueOnce(null);
+      await expect(
+        app.run(context(), plugin, { action: "content.present", ref: "8:100" })
+      ).rejects.toThrow("内容不存在");
+      setActivation(false);
+      await expect(
+        app.run(context(), plugin, { action: "content.present", ref: "8:100" })
+      ).rejects.toThrow("用户点击");
+      expect(usePluginActionUi.getState().request).toBeNull();
+    });
   });
 });

@@ -98,6 +98,9 @@ function setup({
     async open(_context, ref) {
       calls.push(["open", ref]);
     },
+    async run(_context, plugin, request) {
+      calls.push(["run", plugin.id, request]);
+    },
   };
   let context!: PluginContext;
   const host = new PluginHost({
@@ -328,5 +331,23 @@ describe("插件业务数据与权限", () => {
     await expect(context().app.pick({ kinds: [] })).rejects.toThrow("内容类型");
     await expect(context().app.pick({ kinds: ["project" as "card"] })).rejects.toThrow("内容类型");
     await expect(context().app.open({ kind: "card", id: "" })).rejects.toThrow("ID 无效");
+  });
+
+  it("宿主动作不需要数据权限，校验动作、引用与导出格式", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    await context().app.run("content.export", { ref: "7:100", format: "pdf" });
+    await context().app.run("content.present", { ref: "7:100", format: "pdf" } as never);
+    expect(calls).toEqual([
+      ["run", "weekly", { action: "content.export", ref: "7:100", format: "pdf" }],
+      ["run", "weekly", { action: "content.present", ref: "7:100" }],
+    ]);
+    await expect(
+      context().app.run("content.delete" as "content.share", { ref: "7:100" })
+    ).rejects.toThrow("未知的动作");
+    await expect(context().app.run("content.share", { ref: "" })).rejects.toThrow("正文引用无效");
+    await expect(
+      context().app.run("content.export", { ref: "7:100", format: "docx" as "pdf" })
+    ).rejects.toThrow("导出格式无效");
   });
 });

@@ -694,6 +694,28 @@ function CardRow({ card }: { card: PluginCard }) {
 - `ContentPreview` 显示保存后的内容，编辑中的改动约 1 秒后反映出来。
 - 组件在插件页面内同步渲染，必须与 Tau 在同一运行环境中执行。
 
+## 宿主动作
+
+导出、演示、协作共享这类自带界面的功能，用 `context.app.run` 交给 Tau 完成，界面与卡片详情中的相同。动作自 SDK 0.25.0 提供。
+
+```tsx
+<button
+  onClick={() => void context.app.run("content.export", { ref: card.contentRef, format: "pdf" })}
+>
+  导出 PDF
+</button>
+```
+
+| 动作              | 参数                                                   | 效果                                               |
+| ----------------- | ------------------------------------------------------ | -------------------------------------------------- |
+| `content.export`  | `ref`、`format`：`markdown` / `image` / `pdf` / `epub` | Markdown 直接保存文件，其余打开对应的导出窗口      |
+| `content.present` | `ref`                                                  | 全屏演示                                           |
+| `content.share`   | `ref`                                                  | 打开「内容协作」窗口，由用户确认发起共享或管理成员 |
+
+- `ref` 是 `context.data` 返回的 `contentRef`，目前支持卡片、文章与项目文档的正文。
+- 不需要数据权限：界面和确认都由 Tau 提供，插件拿不到正文。与 `open` 一样，只能在用户操作之后调用；内容已删除时抛出「内容不存在」。
+- 对应界面打开后即返回，不等待用户完成导出或结束演示。同一时间只显示一个，插件停用时自动关闭。
+
 ## 资源清理
 
 `Disposable` 的签名为 `{ dispose(): void | Promise<void> }`。
