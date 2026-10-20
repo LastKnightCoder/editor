@@ -100,6 +100,7 @@ export interface PublishReleaseState {
  * 发布计划预览：只含路径，不回传文件内容
  */
 export interface IPublishPlanPreview {
+  warnings?: string[];
   toUpload: string[];
   toDelete: string[];
 }

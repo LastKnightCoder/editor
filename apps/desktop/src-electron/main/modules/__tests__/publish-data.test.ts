@@ -82,6 +82,34 @@ const history = (files: IPublishFile[]) =>
     sourceId: file.sourceId,
     publishTime: 1,
   })) as IPublishHistory[];
+it("未知节点仅回传警告，继续生成完整发布产物并原样保留节点", async () => {
+  const fixture = makePublishFixture();
+  const unknown = {
+    type: "ai",
+    prompt: "保留字段",
+    children: [{ type: "formatted", text: "AI 正文" }],
+  };
+  fixture.articles[0].content.push(unknown as never);
+  const generator = new PublishSiteGenerator({
+    buildSearchIndex: async input => buildPublishSearchIndexPayload(input),
+    template: template(),
+    plugins,
+    compileTailwind: async () => "",
+    logger: console,
+  });
+  const result = await generator.generate(fixture.data, fixture.selections, {
+    title: "站点",
+    description: "",
+    basePath: "/notes/",
+  });
+  expect(result.warnings).toHaveLength(1);
+  expect(result.warnings[0]).toContain("ai");
+  const article = JSON.parse(
+    result.files.find(file => /^data\/articles\/1\./.test(file.path))!.content.toString()
+  );
+  expect(article.content.content).toContainEqual(unknown);
+  expect(result.files.some(file => file.publicationEntry)).toBe(true);
+});
 it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", async () => {
   const { files } = await generate();
   expect(files.filter(file => file.path.endsWith(".html")).map(file => file.path)).toEqual([

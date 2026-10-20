@@ -45,9 +45,10 @@ export type WorkerToMain =
       input: import("./publish-search-index").BuildPublishSearchIndexInput;
     }
   | { type: "tailwind"; reqId: number; code: string; extension: "tsx" | "html" }
-  | { type: "done"; files: IPublishFile[]; virtualProcessed: number }
+  | { type: "done"; files: IPublishFile[]; virtualProcessed: number; warnings: string[] }
   | {
       type: "done-paths";
+      warnings: string[];
       paths: string[];
       files: import("@/types/publish").PublishFileDescriptor[];
       release: import("@/types/publish").PublishedRelease;
