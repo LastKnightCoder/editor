@@ -115,7 +115,8 @@ export class PublishDataOutput {
           ? { sourceType: "project" as const, sourceId: projectId }
           : {}),
     });
-    if (this.items.some(item => item.key === ref.key)) throw new Error("发布数据 key 重复");
+    if (this.items.some(item => item.key === ref.key))
+      throw new Error(`发布数据 key 重复：${ref.key}`);
     this.items.push({
       ...ref,
       ...(collectionType ? { collectionType } : {}),

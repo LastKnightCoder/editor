@@ -1221,9 +1221,13 @@ export class PublishSiteGenerator {
     }
   ): { entries: IDocEntry[]; defaultTarget?: ContentRef; skippedCount: number } {
     const entryInfos: Array<{ node: IDocTreeNode; ancestors: IDocTreeNode[] }> = [];
+    const visited = new Set<number>();
     let skippedCount = 0;
 
     const traverse = (node: IDocTreeNode, ancestors: IDocTreeNode[]): void => {
+      // 同一文档可出现在多个分支，发布正文及前后篇只取首次出现的位置。
+      if (visited.has(node.id)) return;
+      visited.add(node.id);
       if (node.hasContent) {
         entryInfos.push({ node, ancestors });
       } else {
