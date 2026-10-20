@@ -21,6 +21,35 @@ vi.mock("electron", () => ({
   app: { getVersion: () => "0.59.0" },
   BrowserWindow: { getAllWindows: () => [] },
 }));
+vi.mock("../plugin-backend", async () => {
+  const { pluginMcpParameters } = await import("../../services/plugin-backend/mcp-tool");
+  return {
+    authorizePluginMcp: async (
+      _event: unknown,
+      _id: string,
+      transport: import("../../services/plugin-backend/mcp-tool").PluginStdioConfig
+    ) => {
+      const controller = new AbortController();
+      const descriptor = {
+        cwd: process.cwd(),
+        manifest: {
+          backend: {
+            systemAccess: ["process"],
+            tools: [{ id: "server", command: process.execPath }],
+          },
+        },
+      } as unknown as import("../../services/plugin-backend/manager").BackendDescriptor;
+      return {
+        parameters: pluginMcpParameters(descriptor, transport),
+        signal: controller.signal,
+        validate: async () => controller.signal.throwIfAborted(),
+        dispose: () => controller.abort(),
+        onClose: (close: () => Promise<void>) =>
+          controller.signal.addEventListener("abort", () => void close(), { once: true }),
+      };
+    },
+  };
+});
 import mcp from "../mcp";
 
 afterEach(async () => {
@@ -35,6 +64,7 @@ it("真实 stdio 服务完成握手、列举与调用，插件窗口关闭后进
     { sender },
     {
       windowScoped: true,
+      pluginId: "test.mcp",
       server: {
         id,
         name: "真实 MCP",
@@ -47,7 +77,9 @@ it("真实 stdio 服务完成握手、列举与调用，插件窗口关闭后进
       },
     }
   );
-  expect(await ipc.get("mcp-list-tools")!({}, { serverId: id })).toMatchObject([{ name: "echo" }]);
+  expect(await ipc.get("mcp-list-tools")!({ sender }, { serverId: id })).toMatchObject([
+    { name: "echo" },
+  ]);
   const result = (await ipc.get("mcp-call-tool")!(
     { sender: Object.assign(sender, { id: 1 }) },
     {
@@ -102,6 +134,7 @@ it("真实 HTTP MCP 可列举和调用，窗口退出断开客户端会话", asy
       { sender },
       {
         windowScoped: true,
+        pluginId: "test.http",
         server: {
           id,
           name: "HTTP MCP",
@@ -110,7 +143,7 @@ it("真实 HTTP MCP 可列举和调用，窗口退出断开客户端会话", asy
         },
       }
     );
-    expect(await ipc.get("mcp-list-tools")!({}, { serverId: id })).toMatchObject([
+    expect(await ipc.get("mcp-list-tools")!({ sender }, { serverId: id })).toMatchObject([
       { name: "echo" },
     ]);
     expect(

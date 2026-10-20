@@ -133,7 +133,9 @@ describe("实体检索：碎碎念（diary-moment）", () => {
         type: "diary-moment",
         title: "傍晚去河边走了走",
       };
-      expect(FTSTable.searchContent(db, index, query)).toEqual([expect.objectContaining(expected)]);
+      expect(await FTSTable.searchContent(db, index, query)).toEqual([
+        expect.objectContaining(expected),
+      ]);
       sqliteVec.load(index);
       index.exec(indexSchema);
       VecDocumentTable.initTableByVecLength(index, 3);
@@ -148,10 +150,12 @@ describe("实体检索：碎碎念（diary-moment）", () => {
         [second, "傍晚去河边走了走"],
       ] as const) {
         const params = { id: m.id, type: "diary-moment" as const, content: text, updateTime: 2 };
-        expect(FTSTable.indexContent(index, params)).toBe(true);
+        expect(await FTSTable.indexContent(index, params)).toBe(true);
         expect(await VecDocumentTable.indexContent(index, { ...params, modelInfo })).toBe(true);
       }
-      expect(FTSTable.searchContent(db, index, query)).toEqual([expect.objectContaining(expected)]);
+      expect(await FTSTable.searchContent(db, index, query)).toEqual([
+        expect.objectContaining(expected),
+      ]);
       expect(await VecDocumentTable.searchContent(db, index, { ...query, modelInfo })).toEqual([
         expect.objectContaining(expected),
       ]);

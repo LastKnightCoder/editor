@@ -14,7 +14,7 @@ import type Database from "better-sqlite3";
 import log from "electron-log";
 import type { Descendant } from "slate";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
-import { splitSections } from "@/entity/sections";
+import { prepareContentNodes } from "../services/content-conversion";
 import type { KnowledgeMap } from "@/knowledge-map/types";
 import type {
   KnowledgeEndpoint,
@@ -316,19 +316,22 @@ export function promptNote(ctx: InsightsContext, entity: MapEntity, no: number):
 }
 
 /** 长文的原文片段：必须逐字落在命中节的某个顶层块里，返回块序号，对不上为 -1 */
-export function verifyAnchor(
+export async function verifyAnchor(
   mainDb: Database.Database,
   entity: MapEntity,
   blockStart: number,
   anchor: string
-): number {
+): Promise<number> {
   const row = ContentTable.getContentById(mainDb, entity.contentId);
   if (!row) return -1;
   const content = row.content as Descendant[];
   const sections = promptSectionsOf(
     content,
-    splitSections(content, entity.title, entity.kind === "card")
+    (await prepareContentNodes(content, entity.title, entity.kind === "card")).sections ?? []
   );
+  const latest = ContentTable.getContentById(mainDb, entity.contentId);
+  if (!latest || (latest.revision ?? latest.updateTime) !== (row.revision ?? row.updateTime))
+    return -1;
   const section =
     sections.find(item => item.blockStart === blockStart) ??
     sections.find(item => item.blockStart <= blockStart && blockStart <= item.blockEnd);
@@ -345,20 +348,11 @@ export function endpoint(
   ctx: InsightsContext,
   entity: MapEntity,
   topic: string,
-  section?: SectionHit | null,
-  anchor?: string
+  section?: SectionHit | null
 ): KnowledgeEndpoint {
   const meta = ctx.metas.get(entity.contentId)?.meta;
   const ref = { kind: normalizeEntityRefKind(entity.kind)!, id: entity.id } as EntityRef;
-  let block = section?.blockStart ?? 0;
-  let verified: string | undefined;
-  if (anchor && section && isLongDoc(entity)) {
-    const found = verifyAnchor(ctx.mainDb, entity, section.blockStart, anchor);
-    if (found >= 0) {
-      block = found;
-      verified = anchor;
-    }
-  }
+  const block = section?.blockStart ?? 0;
   return {
     ref,
     contentId: entity.contentId,
@@ -367,8 +361,20 @@ export function endpoint(
     heading: section?.heading ?? "",
     block,
     excerpt: (meta?.summary || section?.text || "").replace(/\s+/g, " ").trim().slice(0, 160),
-    ...(verified ? { anchor: verified } : {}),
   };
+}
+
+async function verifiedEndpoint(
+  ctx: InsightsContext,
+  entity: MapEntity,
+  topic: string,
+  section: SectionHit | undefined,
+  anchor: string | undefined
+): Promise<KnowledgeEndpoint> {
+  const value = endpoint(ctx, entity, topic, section);
+  if (!anchor || !section || !isLongDoc(entity)) return value;
+  const block = await verifyAnchor(ctx.mainDb, entity, section.blockStart, anchor);
+  return block >= 0 ? { ...value, block, anchor } : value;
 }
 
 /** 一对笔记的提示词：长文一端带上和对方最接近的那一节原文 */
@@ -598,13 +604,15 @@ export async function runSubtopic(
       id: "",
       kind: pair.type,
       why: pair.why,
-      ends: [info.left, info.right].map(entity =>
-        endpoint(
-          ctx,
-          entity,
-          topicLabel,
-          info.sections.get(entity.key),
-          pair.anchors[noOf.get(entity.key)!]
+      ends: await Promise.all(
+        [info.left, info.right].map(entity =>
+          verifiedEndpoint(
+            ctx,
+            entity,
+            topicLabel,
+            info.sections.get(entity.key),
+            pair.anchors[noOf.get(entity.key)!]
+          )
         )
       ),
       ...(pair.claims ? { claims: pair.claims } : {}),
@@ -951,13 +959,15 @@ export async function runGlobal(
       kind: "bridge",
       why: bridge.why,
       text: bridge.principle,
-      ends: [info.left, info.right].map(entity =>
-        endpoint(
-          ctx,
-          entity,
-          topicLabelOfKey(ctx, entity.key),
-          info.sections.get(entity.key),
-          bridge.anchors[noOf.get(entity.key)!]
+      ends: await Promise.all(
+        [info.left, info.right].map(entity =>
+          verifiedEndpoint(
+            ctx,
+            entity,
+            topicLabelOfKey(ctx, entity.key),
+            info.sections.get(entity.key),
+            bridge.anchors[noOf.get(entity.key)!]
+          )
         )
       ),
       status: "open",

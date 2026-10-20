@@ -36,6 +36,10 @@ import { resolveEmbeddingConfig } from "./utils/embedding-config";
 import moduleInitManager from "./module-init/ModuleInitManager";
 import { RPC_SERVER_PORT } from "./modules/server";
 import { setupQuitController } from "./app-quit-controller";
+import {
+  shouldStartInBackground,
+  shouldKeepBackgroundAlive,
+} from "./services/background-preferences";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -175,7 +179,13 @@ if (!gotTheLock) {
         log.info(`根据窗口类型参数打开窗口: ${windowTypeToOpen}`);
         handleWindowType(windowTypeToOpen);
         windowTypeToOpen = null;
-      } else if (filesToOpen.length === 0) {
+      } else if (
+        filesToOpen.length === 0 &&
+        !(await shouldStartInBackground().catch(error => {
+          log.warn("后台启动设置读取失败，显示主窗口", error);
+          return false;
+        }))
+      ) {
         log.info("创建主窗口");
         createMainWindow();
       } else {
@@ -314,7 +324,7 @@ if (!gotTheLock) {
             if (mainDb && indexDb) {
               results = await FTSTable.searchHybridContent(mainDb, indexDb, searchParams);
             } else if (mainDb) {
-              results = FTSTable.searchContent(mainDb, mainDb, searchParams);
+              results = await FTSTable.searchContent(mainDb, mainDb, searchParams);
             }
 
             const response: RpcResponseMessage = {
@@ -330,7 +340,14 @@ if (!gotTheLock) {
           await moduleInitManager.initWebSocketDependentModules();
 
           // 初始化托盘
-          trayManager = await trayModule.init(preload);
+          try {
+            trayManager = await trayModule.init(preload);
+          } catch (error) {
+            if (BrowserWindow.getAllWindows().length === 0) showOrCreateMainWindow();
+            throw error;
+          }
+          if (!trayManager.available && BrowserWindow.getAllWindows().length === 0)
+            showOrCreateMainWindow();
 
           // 注册最近项目模块
           recentProjectsModule.registerListeners();
@@ -454,7 +471,7 @@ if (!gotTheLock) {
 
   app.on("window-all-closed", () => {
     log.info("所有窗口已关闭");
-    if (process.platform !== "darwin") {
+    if (process.platform !== "darwin" && !shouldKeepBackgroundAlive()) {
       log.info("退出应用");
       app.quit();
     }

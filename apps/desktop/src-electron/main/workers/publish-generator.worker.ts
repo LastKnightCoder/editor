@@ -4,8 +4,6 @@
  */
 
 import { parentPort, receiveMessageOnPort, workerData } from "node:worker_threads";
-import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
-import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { PublishSiteGenerator, type PublishDataSource } from "../modules/publish-site-generator";
 import { describeRelease } from "../modules/publish-release-state";
 import type {
@@ -39,11 +37,27 @@ const dataSource = new Proxy({} as PublishDataSource, {
 });
 
 let tailwindSeq = 0;
+const searchPending = new Map<
+  number,
+  {
+    resolve(value: import("@tau/plugins/publish-data").SearchFile): void;
+    reject(error: Error): void;
+  }
+>();
 const tailwindPending = new Map<
   number,
   { resolve: (css: string) => void; reject: (e: Error) => void }
 >();
 port.on("message", (message: MainToWorker) => {
+  if (message.type === "content-search-result") {
+    const pending = searchPending.get(message.reqId);
+    if (!pending) return;
+    searchPending.delete(message.reqId);
+    if (message.error || !message.result)
+      pending.reject(new Error(message.error || "发布内容转换结果缺失"));
+    else pending.resolve(message.result);
+    return;
+  }
   if (message.type !== "tailwind-result") return;
   const pending = tailwindPending.get(message.reqId);
   if (!pending) return;
@@ -60,11 +74,8 @@ const compileTailwind = (code: string, extension: "tsx" | "html") =>
   });
 
 async function run() {
-  desktopContentPlugins.load(
-    request.plugins?.plugins.map(plugin => plugin.artifact) ?? [],
-    sharedPluginModules
-  );
   const generator = new PublishSiteGenerator({
+    buildSearchIndex: buildSearchIndex,
     template: request.template,
     compileTailwind,
     logger: console,
@@ -87,6 +98,47 @@ async function run() {
   } else {
     post({ type: "done", files, virtualProcessed });
   }
+}
+
+/** 搜索文档互相独立，分批传输并在末尾按原规则排序，避免一次克隆全站正文。 */
+async function buildSearchIndex(
+  input: import("../modules/publish-search-index").BuildPublishSearchIndexInput
+): Promise<import("@tau/plugins/publish-data").SearchFile> {
+  const documents: import("@tau/plugins/publish-data").SearchDocument[] = [];
+  let batch: typeof input = { cards: [], articles: [], docs: [], quests: [] };
+  let size = 0,
+    count = 0;
+  const flush = async () => {
+    if (!count) return;
+    const current = batch;
+    batch = { cards: [], articles: [], docs: [], quests: [] };
+    size = 0;
+    count = 0;
+    const result = await new Promise<import("@tau/plugins/publish-data").SearchFile>(
+      (resolve, reject) => {
+        const reqId = ++tailwindSeq;
+        searchPending.set(reqId, { resolve, reject });
+        post({ type: "content-search", reqId, input: current });
+      }
+    );
+    if (result.version !== 1 || !Array.isArray(result.documents))
+      throw new Error("发布搜索数据协议无效");
+    documents.push(...result.documents);
+  };
+  for (const key of ["cards", "articles", "docs", "quests"] as const) {
+    for (const item of input[key]) {
+      const bytes = Buffer.byteLength(JSON.stringify(item));
+      if (count && (size + bytes > 4 * 1024 * 1024 || count >= 32)) await flush();
+      (batch[key] as unknown[]).push(item);
+      size += bytes;
+      count++;
+    }
+  }
+  await flush();
+  return {
+    version: 1,
+    documents: documents.sort((left, right) => left.key.localeCompare(right.key)),
+  };
 }
 
 run().catch(error => {

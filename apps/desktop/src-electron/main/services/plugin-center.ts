@@ -15,6 +15,15 @@ const MAX_PACKAGE_BYTES = DISTRIBUTION_LIMITS.zipBytes;
 // 版本列表按页读取（每页 20 条），超出的更早版本不再展示。
 const MAX_VERSION_PAGES = 10;
 
+export class PluginCenterError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message);
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -31,7 +40,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     error?: { message?: string };
   } | null;
   if (!response.ok || !body || body.data === undefined)
-    throw new Error(body?.error?.message || `插件中心请求失败（${response.status}）`);
+    throw new PluginCenterError(
+      body?.error?.message || `插件中心请求失败（${response.status}）`,
+      response.status
+    );
   return body.data;
 }
 
@@ -112,7 +124,7 @@ export async function fetchPluginCatalog(
 
 export async function fetchPluginRelease(id: string) {
   assertReleaseId(id);
-  return request<PluginRelease>(`/v1/releases/${id}`);
+  return request<PluginRelease>(`/v1/releases/${id}`, { signal: AbortSignal.timeout(10000) });
 }
 
 /** 插件的全部已发布版本，新版在前。 */
@@ -150,6 +162,9 @@ export async function fetchPluginVersions(
 export async function downloadPluginRelease(id: string) {
   const release = await fetchPluginRelease(id);
   if (release.state !== "published") throw new Error("该版本尚未发布");
+  if (release.revokedAt) throw new Error("该版本已经撤回");
+  if (release.content.manifest.backend && release.systemReviewed !== true)
+    throw new Error("该后台版本尚未完成系统能力审核");
   if (release.size > MAX_PACKAGE_BYTES) throw new Error("插件包超过大小上限");
   let response: Response;
   try {
@@ -172,6 +187,7 @@ export async function downloadPluginRelease(id: string) {
     pluginId: release.pluginId,
     version: release.version,
     sha256: release.sha256,
+    systemReviewed: release.systemReviewed === true,
   };
   return { bytes, source };
 }

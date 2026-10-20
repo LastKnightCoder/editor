@@ -73,7 +73,7 @@ describe("PluginDataTable", () => {
     expect(ranged.items.map(item => item.title)).toEqual(["乙", "甲"]);
   });
 
-  it("正文按身份读取并给出所属实体；创建时间不符视为不存在", () => {
+  it("正文按身份读取并给出所属实体；创建时间不符视为不存在", async () => {
     const contentId = content("正文");
     card(contentId, 1, []);
     const createdAt = (
@@ -81,7 +81,7 @@ describe("PluginDataTable", () => {
         create_time: number;
       }
     ).create_time;
-    const record = PluginDataTable.content(db, {
+    const record = await PluginDataTable.content(db, {
       ...scope,
       contentId,
       createdAt,
@@ -90,7 +90,7 @@ describe("PluginDataTable", () => {
     expect(record?.markdown?.trim()).toBe("正文");
     expect(record?.owners).toEqual(["card"]);
     expect(
-      PluginDataTable.content(db, {
+      await PluginDataTable.content(db, {
         ...scope,
         contentId,
         createdAt: createdAt + 1,

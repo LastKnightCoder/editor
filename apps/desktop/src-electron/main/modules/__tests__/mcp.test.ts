@@ -66,6 +66,19 @@ vi.mock("../../utils/mcpCommandResolver", () => ({
   resolveMcpCommand: (...args: unknown[]) => mockContext.resolveMcpCommandMock(...args),
   buildMcpSpawnEnv: (...args: unknown[]) => mockContext.buildMcpSpawnEnvMock(...args),
 }));
+vi.mock("../plugin-backend", () => ({
+  authorizePluginMcp: vi.fn(async () => {
+    const controller = new AbortController();
+    return {
+      parameters: { command: "guardian", args: [], env: {} },
+      validate: vi.fn(async () => controller.signal.throwIfAborted()),
+      signal: controller.signal,
+      dispose: () => controller.abort(),
+      onClose: (close: () => Promise<void>) =>
+        controller.signal.addEventListener("abort", () => void close(), { once: true }),
+    };
+  }),
+}));
 
 import mcpModule from "../mcp";
 
@@ -200,11 +213,11 @@ describe("mcp module", () => {
     const other = new EventEmitter();
     await handler("mcp-connect")(
       { sender },
-      { server: server("plugin:window-A"), windowScoped: true }
+      { server: server("plugin:window-A"), windowScoped: true, pluginId: "test.mcp" }
     );
     await handler("mcp-connect")(
       { sender: other },
-      { server: server("plugin:window-B"), windowScoped: true }
+      { server: server("plugin:window-B"), windowScoped: true, pluginId: "test.mcp" }
     );
     await handler("mcp-connect")({}, { server: server("manual") });
     sender.emit("destroyed");
@@ -213,7 +226,7 @@ describe("mcp module", () => {
     );
     expect(await handler("mcp-is-connected")({}, { serverId: "plugin:window-B" })).toBe(true);
     expect(await handler("mcp-is-connected")({}, { serverId: "manual" })).toBe(true);
-    await handler("mcp-disconnect")({}, { serverId: "plugin:window-B" });
+    await handler("mcp-disconnect")({ sender: other }, { serverId: "plugin:window-B" });
     await handler("mcp-disconnect")({}, { serverId: "manual" });
   });
 
@@ -229,9 +242,14 @@ describe("mcp module", () => {
     const sdk = await import("@modelcontextprotocol/sdk/client/index.js");
     vi.mocked(sdk.Client).mockImplementationOnce(() => client as never);
     await mcpModule.init();
-    const pending = handler("mcp-connect")({}, { server: server("plugin:pending") });
-    const rejected = expect(pending).rejects.toThrow("已取消");
-    await handler("mcp-disconnect")({}, { serverId: "plugin:pending" });
+    const sender = new EventEmitter();
+    const pending = handler("mcp-connect")(
+      { sender },
+      { server: server("plugin:pending"), windowScoped: true, pluginId: "test.mcp" }
+    );
+    const rejected = expect(pending).rejects.toThrow();
+    await vi.waitFor(() => expect(client.connect).toHaveBeenCalled());
+    await handler("mcp-disconnect")({ sender }, { serverId: "plugin:pending" });
     expect(client.close).toHaveBeenCalled();
     resolve();
     await rejected;
@@ -240,15 +258,37 @@ describe("mcp module", () => {
 
   it("重连退避期间停用，定时器结束后不再启动进程", async () => {
     await mcpModule.init();
-    await handler("mcp-connect")({}, { server: server("plugin:retry") });
+    const sender = new EventEmitter();
+    await handler("mcp-connect")(
+      { sender },
+      { server: server("plugin:retry"), windowScoped: true, pluginId: "test.mcp" }
+    );
     const transport = mockContext.transports.at(-1)!;
     const sdk = await import("@modelcontextprotocol/sdk/client/index.js");
     const count = vi.mocked(sdk.Client).mock.calls.length;
     vi.useFakeTimers();
     const retry = transport.onclose!();
-    await handler("mcp-disconnect")({}, { serverId: "plugin:retry" });
+    await handler("mcp-disconnect")({ sender }, { serverId: "plugin:retry" });
     await vi.advanceTimersByTimeAsync(1000);
     await retry;
     expect(vi.mocked(sdk.Client)).toHaveBeenCalledTimes(count);
+  });
+  it("插件连接缺少来源时不启动，其他窗口不能使用已授权连接", async () => {
+    await mcpModule.init();
+    const sender = new EventEmitter();
+    const native = server("plugin:guarded");
+    const count = mockContext.transports.length;
+    await expect(
+      handler("mcp-connect")({ sender }, { server: native, windowScoped: true })
+    ).rejects.toThrow("来源");
+    expect(mockContext.transports).toHaveLength(count);
+    await handler("mcp-connect")(
+      { sender },
+      { server: native, windowScoped: true, pluginId: "test.mcp" }
+    );
+    await expect(
+      handler("mcp-list-tools")({ sender: new EventEmitter() }, { serverId: native.id })
+    ).rejects.toThrow("当前窗口");
+    await handler("mcp-disconnect")({ sender }, { serverId: native.id });
   });
 });

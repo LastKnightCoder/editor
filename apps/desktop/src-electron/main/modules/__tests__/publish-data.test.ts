@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { expect, it } from "vitest";
 import { PublishSiteGenerator } from "../publish-site-generator";
+import { buildPublishSearchIndexPayload } from "../publish-search-index";
 import { planPublication, describeRelease } from "../publish-release-state";
 import { makePublishFixture } from "./publish-fixtures";
 import type { TemplatePackage } from "../../services/template-package";
@@ -61,6 +62,7 @@ const template = (id = "test.template"): TemplatePackage => ({
 async function generate(title?: string, id?: string, exclude?: number) {
   const fixture = makePublishFixture(title);
   return new PublishSiteGenerator({
+    buildSearchIndex: async input => buildPublishSearchIndexPayload(input),
     template: template(id),
     plugins,
     compileTailwind: async () => ".text-red-500 {color:red}",
@@ -164,6 +166,7 @@ it("增量发布仅上传变更，保留一轮旧依赖，无变化不推进保�
 it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async () => {
   const fixture = makePublishFixture();
   const generator = new PublishSiteGenerator({
+    buildSearchIndex: async input => buildPublishSearchIndexPayload(input),
     template: template(),
     plugins,
     logger: { info() {}, warn() {}, error() {} },

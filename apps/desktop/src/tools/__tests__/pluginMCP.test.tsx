@@ -80,8 +80,8 @@ function host(
         registerPluginMCP(context, definition, owner, "db-A"),
     },
   });
-  instance.registerTrusted(
-    definePlugin({
+  instance.registerTrusted({
+    ...definePlugin({
       id,
       name: "MCP 测试插件",
       version: "1.0.0",
@@ -91,8 +91,29 @@ function host(
           await activate?.(context);
         },
       }),
-    })
-  );
+    }),
+    backend: {
+      entry: "backend.js",
+      runtime: "node",
+      apiVersion: 1,
+      scope: "workspace",
+      activation: "on-demand",
+      lifetime: "idle",
+      reason: "测试外部 MCP",
+      systemAccess: ["process"],
+      tools: definitions.flatMap(definition =>
+        definition.transport?.type === "stdio"
+          ? [
+              {
+                id: definition.id,
+                command: definition.transport.command,
+                args: definition.transport.args,
+              },
+            ]
+          : []
+      ),
+    },
+  });
   hosts.push(instance);
   return instance;
 }
@@ -240,7 +261,8 @@ it("外部服务器复用连接和调用，改配置与重连使旧快照失效�
   await render();
   expect(connectMcpServer).toHaveBeenCalledWith(
     expect.objectContaining({ id: expect.stringMatching(/^plugin:/) }),
-    true
+    true,
+    "test.mcp"
   );
   expect(useMCPStore.getState().customServers).toEqual([]);
   const first = toolRegistry.getRegisteredTools()[0];
@@ -261,7 +283,8 @@ it("外部服务器复用连接和调用，改配置与重连使旧快照失效�
   await expect(execute(first)).rejects.toThrow("实例已变化");
   expect(connectMcpServer).toHaveBeenLastCalledWith(
     expect.objectContaining({ transport: expect.objectContaining({ url: draft.url }) }),
-    true
+    true,
+    "test.mcp"
   );
   expect(useMCPStore.getState().pluginTransports[items[0].id]).toMatchObject({ url: draft.url });
   const second = toolRegistry.getRegisteredTools()[0];

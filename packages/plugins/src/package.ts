@@ -3,6 +3,13 @@ export { assertLocalId } from "./ids.ts";
 import { comparePluginVersions } from "./version.ts";
 import { readCatalogFields, type PluginCategory } from "./categories.ts";
 import { readPermissionsField, type PluginPermission } from "./permissions.ts";
+import { validateBackendManifest, type PluginBackendManifest } from "./backend-manifest.ts";
+export {
+  validateBackendManifest,
+  PLUGIN_SYSTEM_ACCESS,
+  type PluginBackendManifest,
+  type PluginSystemAccess,
+} from "./backend-manifest.ts";
 
 export { comparePluginVersions } from "./version.ts";
 export {
@@ -27,7 +34,7 @@ export const PLUGIN_SHARED_MODULES = [
 ] as const;
 
 export interface PluginManifest {
-  formatVersion: 1;
+  formatVersion: 1 | 2;
   id: string;
   name: string;
   version: string;
@@ -36,7 +43,7 @@ export interface PluginManifest {
   platform: "desktop";
   format: "cjs";
   main: string;
-  /** 无界面的同步存储入口，Node产物与UI入口分别校验。 */
+  backend?: PluginBackendManifest;
   styles?: string;
   /** 静态编辑器贡献在窗口启动时装配，启停需重启。 */
   editor?: true;
@@ -66,7 +73,7 @@ export function validatePluginManifest(
     throw new Error("插件清单必须是对象");
   const item = value as Record<string, unknown>;
   if (
-    item.formatVersion !== 1 ||
+    (item.formatVersion !== 1 && item.formatVersion !== 2) ||
     item.apiVersion !== 1 ||
     item.platform !== "desktop" ||
     item.format !== "cjs"
@@ -92,7 +99,12 @@ export function validatePluginManifest(
     return input;
   };
   const main = file(item.main, ".js");
-  if (item.sync !== undefined) throw new Error("Node同步入口已停用，请更新插件");
+  const backend = item.backend === undefined ? undefined : validateBackendManifest(item.backend);
+  if ((item.formatVersion === 2) !== Boolean(backend))
+    throw new Error("后台声明必须使用包格式 2，普通插件使用格式 1");
+  if (backend?.entry === main) throw new Error("后台入口不能与渲染入口相同");
+  if (backend && typeof item.minAppVersion !== "string")
+    throw new Error("后台插件必须声明最低客户端版本");
   if (item.minAppVersion !== undefined) {
     if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
     comparePluginVersions(item.minAppVersion, item.minAppVersion);
@@ -104,7 +116,7 @@ export function validatePluginManifest(
   const catalog = readCatalogFields(item, options.strict === true);
   const permissions = readPermissionsField(item, options.strict === true);
   const integrity: Record<string, string> = {};
-  for (const name of [main, ...(styles ? [styles] : [])]) {
+  for (const name of [main, ...(styles ? [styles] : []), ...(backend ? [backend.entry] : [])]) {
     const hash =
       item.integrity && typeof item.integrity === "object"
         ? (item.integrity as Record<string, unknown>)[name]
@@ -114,7 +126,7 @@ export function validatePluginManifest(
     integrity[name] = hash;
   }
   return Object.freeze({
-    formatVersion: 1,
+    formatVersion: item.formatVersion,
     id: item.id,
     name: item.name,
     version: item.version,
@@ -123,6 +135,7 @@ export function validatePluginManifest(
     platform: "desktop",
     format: "cjs",
     main,
+    ...(backend ? { backend } : {}),
     ...(item.editor === true ? { editor: true as const } : {}),
     ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
     ...catalog,

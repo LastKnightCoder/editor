@@ -11,6 +11,7 @@ import pluginDevelopmentModule from "../modules/plugin-development";
 import pluginLocalModule from "../modules/plugin-local";
 import pluginPermissionsModule from "../modules/plugin-permissions";
 import pluginServicesModule from "../modules/plugin-services";
+import pluginBackendModule from "../modules/plugin-backend";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
@@ -87,6 +88,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => resourceModule.init(),
   },
   // === BACKGROUND 层：后台启动核心服务 ===
+  {
+    name: "plugin-backend",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["plugin-local", "plugin-permissions", "database"],
+    init: () => pluginBackendModule.init(),
+  },
   {
     name: "plugin-services",
     layer: InitLayer.BACKGROUND,

@@ -20,18 +20,34 @@ const entries = zip.getEntries().filter(entry => !entry.isDirectory);
 const packaged = JSON.parse(zip.readAsText(`${manifest.id}/manifest.json`));
 if (
   packaged.main !== "main.js" ||
-  (packaged.styles !== undefined && packaged.styles !== "main.css") ||
-  packaged.sync !== undefined
+  (packaged.styles !== undefined && packaged.styles !== "main.css")
 )
   throw new Error("ZIP入口与模板约定不一致");
-const allowed = ["manifest.json", "main.js", "main.css", "README.md", "LICENSE", "CHANGELOG.md"];
+if (packaged.backend !== undefined) {
+  const { validatePluginManifest } = await import("@tau/plugins/package");
+  validatePluginManifest(packaged, { strict: true });
+  if (packaged.backend.entry !== "backend.js") throw new Error("后台模板入口必须是 backend.js");
+} else if (packaged.formatVersion !== 1) throw new Error("插件包格式无效");
+const allowed = [
+  "manifest.json",
+  "main.js",
+  "main.css",
+  "README.md",
+  "LICENSE",
+  "CHANGELOG.md",
+  ...(packaged.backend ? [packaged.backend.entry] : []),
+];
 for (const entry of entries) {
   if (!allowed.some(file => entry.entryName === `${manifest.id}/${file}`))
     throw new Error("ZIP 包含非约定文件");
 }
 if (packaged.id !== manifest.id || packaged.version !== manifest.version)
   throw new Error("ZIP 与当前 manifest 不一致，请重新构建");
-for (const file of ["main.js", ...(packaged.styles ? ["main.css"] : [])]) {
+for (const file of [
+  "main.js",
+  ...(packaged.styles ? ["main.css"] : []),
+  ...(packaged.backend ? [packaged.backend.entry] : []),
+]) {
   const bytes = zip.readFile(`${manifest.id}/${file}`);
   if (!bytes || createHash("sha256").update(bytes).digest("hex") !== packaged.integrity?.[file])
     throw new Error(`产物校验失败：${file}`);

@@ -95,7 +95,7 @@ it("远端未连接仍可绑定原名，激活后的动态声明也校验归属"
     context.mcp.register({
       id: "notes",
       name: "远端",
-      transport: { type: "stdio", command: "node" },
+      transport: { type: "streamable-http", url: "https://example.invalid/mcp" },
     });
     await context.chat.registerToolRenderer(renderer);
   });

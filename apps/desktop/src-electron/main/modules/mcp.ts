@@ -90,6 +90,10 @@ const describeTransport = (transport: TransportConfig): string =>
     : `连接 ${transport.url}（streamable-http）`;
 
 class MCPConnectionManager {
+  readonly pluginLeases = new Map<
+    string,
+    Awaited<ReturnType<typeof import("./plugin-backend").authorizePluginMcp>>
+  >();
   readonly logs = new MCPLogBuffer();
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
@@ -101,6 +105,10 @@ class MCPConnectionManager {
   private readonly RECONNECT_DELAY_BASE = 1000;
 
   async connect(server: CustomMCPServer, isManualReconnect = false): Promise<void> {
+    const lease = this.pluginLeases.get(server.id);
+    if (server.id.startsWith("plugin:") && server.transport.type === "stdio" && !lease)
+      throw new Error("插件 stdio MCP 缺少后台授权");
+    await lease?.validate();
     // 如果是手动重连，重置重连计数
     if (isManualReconnect) {
       this.reconnectAttempts.set(server.id, 0);
@@ -111,10 +119,15 @@ class MCPConnectionManager {
     if (this.clients.has(server.id) || this.pendingClients.has(server.id)) {
       await this.disconnect(server.id);
     }
+    if (lease && this.pluginLeases.get(server.id) !== lease) throw new Error("插件 MCP 授权已变化");
 
     this.serverConfigs.set(server.id, server);
 
-    this.logs.push(server.id, "info", describeTransport(server.transport));
+    this.logs.push(
+      server.id,
+      "info",
+      lease ? "启动已声明并授权的插件外部程序" : describeTransport(server.transport)
+    );
     const transport = this.createTransport(server);
     const client = new Client(
       { name: "tau-desktop", version: app.getVersion() },
@@ -129,7 +142,9 @@ class MCPConnectionManager {
     }
 
     try {
+      lease?.signal.throwIfAborted();
       await client.connect(transport);
+      await lease?.validate();
       if (this.serverConfigs.get(server.id) !== server) throw new Error("MCP 连接已取消");
       this.clients.set(server.id, client);
       this.transports.set(server.id, transport);
@@ -192,6 +207,7 @@ class MCPConnectionManager {
   }
 
   async listTools(serverId: string): Promise<MCPToolDefinition[]> {
+    await this.pluginLeases.get(serverId)?.validate();
     const client = this.clients.get(serverId);
     if (!client) {
       throw new Error(`Server ${serverId} is not connected`);
@@ -213,6 +229,9 @@ class MCPConnectionManager {
     signal?: AbortSignal,
     expectedTransport?: string
   ): Promise<MCPToolCallResult> {
+    const lease = this.pluginLeases.get(serverId);
+    await lease?.validate();
+    if (lease) signal = signal ? AbortSignal.any([signal, lease.signal]) : lease.signal;
     if (
       expectedTransport !== undefined &&
       JSON.stringify(this.serverConfigs.get(serverId)?.transport) !== expectedTransport
@@ -276,6 +295,8 @@ class MCPConnectionManager {
     const { transport } = server;
 
     if (transport.type === "stdio") {
+      const lease = this.pluginLeases.get(server.id);
+      if (lease) return new StdioClientTransport(lease.parameters);
       const env = buildMcpSpawnEnv(transport.env);
       const command = resolveMcpCommand(transport.command, env);
       const stdio = new StdioClientTransport({
@@ -413,6 +434,19 @@ class MCPModule implements Module {
   name = "mcp";
   private connectionManager = new MCPConnectionManager();
   private windowConnections = new Map<WebContents, Set<string>>();
+  private pluginOwners = new Map<string, WebContents>();
+
+  private assertOwner(sender: WebContents, id: string) {
+    if (id.startsWith("plugin:") && this.pluginOwners.get(id) !== sender)
+      throw new Error("插件 MCP 连接不属于当前窗口");
+  }
+  private async disconnectPlugin(id: string) {
+    const lease = this.connectionManager.pluginLeases.get(id);
+    this.connectionManager.pluginLeases.delete(id);
+    this.pluginOwners.delete(id);
+    lease?.dispose();
+    await this.connectionManager.disconnect(id);
+  }
 
   private trackWindow(sender: WebContents, serverId: string): void {
     let connections = this.windowConnections.get(sender);
@@ -425,7 +459,7 @@ class MCPModule implements Module {
         sender.removeListener("destroyed", close);
         sender.removeListener("render-process-gone", close);
         sender.removeListener("did-navigate", close);
-        for (const id of ids ?? []) void this.connectionManager.disconnect(id);
+        for (const id of ids ?? []) void this.disconnectPlugin(id);
       };
       sender.once("destroyed", close);
       sender.once("render-process-gone", close);
@@ -440,30 +474,79 @@ class MCPModule implements Module {
       "mcp-connect",
       async (
         event,
-        payload: { server: CustomMCPServer; isManualReconnect?: boolean; windowScoped?: boolean }
+        payload: {
+          server: CustomMCPServer;
+          isManualReconnect?: boolean;
+          windowScoped?: boolean;
+          pluginId?: string;
+        }
       ) => {
+        const id = payload.server.id;
+        if (id.startsWith("plugin:") || payload.pluginId) {
+          if (!id.startsWith("plugin:") || !payload.pluginId || !payload.windowScoped)
+            throw new Error("插件 MCP 必须携带来源并绑定窗口");
+          const previousOwner = this.pluginOwners.get(id);
+          if (previousOwner && previousOwner !== event.sender)
+            throw new Error("插件 MCP 连接属于其他窗口");
+          await this.disconnectPlugin(id);
+          this.pluginOwners.set(id, event.sender);
+          this.trackWindow(event.sender, id);
+          if (payload.server.transport.type === "stdio") {
+            try {
+              const { authorizePluginMcp } = await import("./plugin-backend");
+              const lease = await authorizePluginMcp(
+                event,
+                payload.pluginId,
+                payload.server.transport
+              );
+              if (this.pluginOwners.get(id) !== event.sender) {
+                lease.dispose();
+                throw new Error("插件 MCP 连接已关闭");
+              }
+              this.connectionManager.pluginLeases.set(id, lease);
+              lease.onClose(async () => {
+                if (this.connectionManager.pluginLeases.get(id) === lease)
+                  await this.disconnectPlugin(id);
+              });
+              lease.signal.throwIfAborted();
+            } catch (error) {
+              await this.disconnectPlugin(id);
+              throw error;
+            }
+          }
+        }
         if (payload.windowScoped) this.trackWindow(event.sender, payload.server.id);
-        await this.connectionManager.connect(payload.server, payload.isManualReconnect ?? false);
+        try {
+          await this.connectionManager.connect(payload.server, payload.isManualReconnect ?? false);
+        } catch (error) {
+          if (id.startsWith("plugin:")) await this.disconnectPlugin(id);
+          throw error;
+        }
         return { success: true };
       }
     );
 
     // 手动重连到 MCP 服务器
-    ipcMain.handle("mcp-reconnect", async (_event, payload: { server: CustomMCPServer }) => {
+    ipcMain.handle("mcp-reconnect", async (event, payload: { server: CustomMCPServer }) => {
+      this.assertOwner(event.sender, payload.server.id);
+      if (payload.server.id.startsWith("plugin:"))
+        throw new Error("请通过插件重新连接，以重新核对声明和授权");
       await this.connectionManager.connect(payload.server, true);
       return { success: true };
     });
 
     // 断开 MCP 服务器连接
-    ipcMain.handle("mcp-disconnect", async (_event, payload: { serverId: string }) => {
+    ipcMain.handle("mcp-disconnect", async (event, payload: { serverId: string }) => {
+      if (this.pluginOwners.has(payload.serverId)) this.assertOwner(event.sender, payload.serverId);
       for (const connections of this.windowConnections.values())
         connections.delete(payload.serverId);
-      await this.connectionManager.disconnect(payload.serverId);
+      await this.disconnectPlugin(payload.serverId);
       return { success: true };
     });
 
     // 获取工具列表
-    ipcMain.handle("mcp-list-tools", async (_event, payload: { serverId: string }) => {
+    ipcMain.handle("mcp-list-tools", async (event, payload: { serverId: string }) => {
+      this.assertOwner(event.sender, payload.serverId);
       return await this.connectionManager.listTools(payload.serverId);
     });
 
@@ -484,6 +567,7 @@ class MCPModule implements Module {
           expectedTransport?: string;
         }
       ) => {
+        this.assertOwner(event.sender, payload.serverId);
         const key = `${event.sender.id}:${payload.requestId ?? crypto.randomUUID()}`;
         const controller = new AbortController();
         toolCalls.set(key, controller);
@@ -526,6 +610,7 @@ class MCPModule implements Module {
   /** 受控退出时由退出协调器调用，断开所有 MCP 连接 */
   async disconnectAll(): Promise<void> {
     console.log("[MCP] Disconnecting all servers...");
+    await Promise.all([...this.pluginOwners.keys()].map(id => this.disconnectPlugin(id)));
     await this.connectionManager.disconnectAll();
   }
 }

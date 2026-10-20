@@ -46,7 +46,7 @@ const time = <T>(label: string, fn: () => T): T => {
 };
 
 describe.skipIf(!process.env.KL_EXCERPT_SCALE)("摘录规模实测", () => {
-  it(`${BOOKS} 本书 × ${PER_BOOK} 条划线；单页 ${WEB_PAGE} 条插件划线`, () => {
+  it(`${BOOKS} 本书 × ${PER_BOOK} 条划线；单页 ${WEB_PAGE} 条插件划线`, async () => {
     const db = new Database(":memory:");
     db.exec(schema);
     const books = Array.from({ length: BOOKS }, (_, i) => book(`b${i}`, PER_BOOK));
@@ -83,7 +83,9 @@ describe.skipIf(!process.env.KL_EXCERPT_SCALE)("摘录规模实测", () => {
       })
     );
 
-    const docs = time("索引候选（全部材料）", () => listMaterialIndexDocs(db));
+    const candidateStart = performance.now();
+    const docs = await listMaterialIndexDocs(db);
+    console.log(`索引候选（全部材料）: ${Math.round(performance.now() - candidateStart)} ms`);
     expect(docs.length).toBe(BOOKS * PER_BOOK + WEB_PAGE - 1);
     db.close();
   });

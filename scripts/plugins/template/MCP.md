@@ -58,7 +58,9 @@ export default definePlugin({
 
 本地工具填写 `name`、`description`、对象类型的 JSON Schema `inputSchema`，以及 `execute(args, { signal })`。执行结果为 `{ content: string }`，结构化数据可用 JSON.stringify 返回。工具名称使用 1–128 位字母、数字、点、横线或下划线；宿主会生成全局工具名称，作者不要自行拼接命名空间。所有插件工具沿用现有 execute 级审批。
 
-需要本地进程时，把 transport 改为下面的结构，命令、参数、工作目录与应用内手动添加 MCP 的含义相同：
+需要本地进程时，先按 BACKEND.md 使用格式 2、独立后台入口及 `systemAccess: ["process"]`，并在 `backend.tools` 声明对应 command 和固定参数前缀。该版本需要系统能力审核和本机后台授权；未声明的旧 stdio 插件需更新，HTTP 和本地 JS tools 不受此要求影响。命令不经过 Shell，工作目录须为绝对路径；环境只包含宿主最小集合与插件显式传入值。Windows 目标必须是 EXE。
+
+例如声明 `tools: [{ id: "mcp", command: "node", args: ["/path/to/your-server.mjs"] }]` 后注册：
 
 ```ts
 context.mcp.register({

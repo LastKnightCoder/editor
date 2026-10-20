@@ -1,7 +1,8 @@
 import { app, BrowserWindow, type BrowserWindowConstructorOptions } from "electron";
 import log from "electron-log";
-import { isDev, loadRoute, windowContext } from "./context";
+import { isDev, loadRoute, loadContentRuntime, windowContext } from "./context";
 import { routeWindowOpen } from "./open-handler";
+import { shouldKeepBackgroundAlive } from "../services/background-preferences";
 
 /**
  * 标题栏形态：
@@ -10,8 +11,11 @@ import { routeWindowOpen } from "./open-handler";
  * - none：无边框无标题栏（小窗 / 沉浸 / 隐藏窗口）
  */
 export type WindowChrome = "custom" | "native" | "none";
+const contentRuntimeWindows = new Set<BrowserWindow>();
+export const isContentRuntimeWindow = (window: BrowserWindow) => contentRuntimeWindows.has(window);
 
 export interface CreateWindowOptions extends BrowserWindowConstructorOptions {
+  document?: "content-runtime";
   /** hash 路由（如 "/editor-window?..."）；空串 = 应用根 */
   route: string;
   chrome?: WindowChrome;
@@ -42,9 +46,10 @@ function forwardWindowEvents(win: BrowserWindow) {
   win.on("blur", send("window-blur"));
 }
 
-/** Windows 下最后一个可见窗口关闭即退出（隐藏的常驻窗口不算）；macOS 保持 Dock 常驻语义 */
+/** 非 macOS 的最后一个可见窗口关闭即退出，已授权后台保活除外。 */
 function quitIfNoVisibleWindow() {
-  if (process.platform !== "win32") return;
+  if (process.platform === "darwin") return;
+  if (shouldKeepBackgroundAlive()) return;
   const visible = BrowserWindow.getAllWindows().some(win => !win.isDestroyed() && win.isVisible());
   if (!visible) {
     log.info("没有可见窗口，退出应用");
@@ -54,6 +59,7 @@ function quitIfNoVisibleWindow() {
 
 /** 唯一的 BrowserWindow 构造入口：统一基础配置、事件转发、加载与错误日志 */
 export function createWindow({
+  document,
   route,
   chrome = "custom",
   devTools = true,
@@ -77,13 +83,18 @@ export function createWindow({
   });
 
   forwardWindowEvents(win);
+  if (document === "content-runtime") {
+    contentRuntimeWindows.add(win);
+    win.once("closed", () => contentRuntimeWindows.delete(win));
+  }
   win.webContents.setWindowOpenHandler(routeWindowOpen);
-  win.on("closed", quitIfNoVisibleWindow);
+  if (!document) win.on("closed", quitIfNoVisibleWindow);
   win.webContents.on("did-fail-load", (_event, code, description, url) => {
     log.error(`窗口加载失败: ${code} - ${description}, URL: ${url}`);
   });
 
-  loadRoute(win, route);
+  if (document === "content-runtime") loadContentRuntime(win);
+  else loadRoute(win, route);
   if (isDev() && devTools) win.webContents.openDevTools();
   return win;
 }

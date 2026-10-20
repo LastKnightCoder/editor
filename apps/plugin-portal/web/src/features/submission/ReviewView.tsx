@@ -24,6 +24,7 @@ import { DECISION_LABELS } from "./decisions";
 import { FeedbackThread } from "./FeedbackThread";
 import { PackagePreview } from "./PackagePreview";
 import { ProgressTimeline } from "./ProgressTimeline";
+import { RevokeRelease } from "./RevokeRelease";
 import { VersionDiff } from "./VersionDiff";
 import { useRefreshSubmission, useReviewDetails } from "./queries";
 
@@ -116,13 +117,13 @@ function ResultPanel({
       {submission.status === "changes_requested" && (
         <p className="text-tau-sm text-ink-3">等待作者修改后重新提交。</p>
       )}
-      {release && <PublishProgress release={release} />}
+      {release && !release.revokedAt && <PublishProgress release={release} />}
       {release?.error && (
         <p role="alert" className="text-tau-sm text-danger">
           {release.error}
         </p>
       )}
-      {release && release.state !== "published" && (
+      {release && !release.revokedAt && release.state !== "published" && (
         <Button loading={retry.isPending} onClick={() => retry.mutate()}>
           重试发布
         </Button>
@@ -142,6 +143,7 @@ function ResultPanel({
           下载已发布版本 v{release.version}
         </Button>
       )}
+      {release && <RevokeRelease submissionId={submission.id} release={release} />}
       {next && (
         <Button
           variant="soft"

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { VecDocument, IndexParams, SearchParams, SearchResult, IndexType } from "@/types";
 import type { ChatPromptIndexType, VecIndexParams } from "@/types/search";
 import type { EmbeddingProviderType } from "@/types/embedding";
@@ -155,16 +156,14 @@ export default class VecDocumentTable {
   }
   static getListenEvents() {
     return {
-      "vec-document-index-content": (
-        _mainDb: Database.Database,
-        indexDb: Database.Database,
-        params: IndexParams
-      ) => this.indexContent(indexDb, params),
-      "vec-document-batch-index-content": (
-        _mainDb: Database.Database,
-        indexDb: Database.Database,
-        items: IndexParams[]
-      ) => this.batchIndexContent(indexDb, items),
+      "vec-document-index-content": asynchronousDatabaseCommand(
+        (_mainDb: Database.Database, indexDb: Database.Database, params: IndexParams) =>
+          this.indexContent(indexDb, params)
+      ),
+      "vec-document-batch-index-content": asynchronousDatabaseCommand(
+        (_mainDb: Database.Database, indexDb: Database.Database, items: IndexParams[]) =>
+          this.batchIndexContent(indexDb, items)
+      ),
       "vec-document-remove-index": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
@@ -268,7 +267,7 @@ export default class VecDocumentTable {
     if (modelInfo && modelInfo.model) {
       const prefixedId = addTypePrefix(id, type);
 
-      const chunks = sectionsForIndex(params);
+      const chunks = params.sections ?? (await sectionsForIndex(params));
 
       try {
         const batchSize = modelInfo.batchSize || 8;

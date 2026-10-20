@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
 import { readPluginPackage } from "../../src-electron/main/services/plugin-package";
 import { PluginContentStartup } from "../../src-electron/main/services/plugin-content-startup";
-import { acceptHeadlessPlugin } from "../../src-electron/main/services/plugin-codecs";
+import { installContentTestFixture } from "../plugin-content-fixture";
 import { importFromMarkdown, getMarkdown } from "../../src/utils/markdown";
 import { inspectPackage } from "../../../plugin-portal/api/package";
 import client from "../../package.json";
@@ -31,7 +31,7 @@ void app
     );
     assert.equal(snapshot.artifacts.length, enabled ? 1 : 0);
     if (enabled) {
-      acceptHeadlessPlugin(artifact);
+      installContentTestFixture(artifact);
       const source = "```tikz\n\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}\n```";
       assert.equal(getMarkdown(importFromMarkdown(source)).trim(), source);
     }

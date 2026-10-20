@@ -3,9 +3,10 @@ import type { CustomMCPServer, ConnectionStatus } from "@/stores/useMCPStore";
 
 export async function connectMcpServer(
   server: CustomMCPServer,
-  windowScoped = false
+  windowScoped = false,
+  pluginId?: string
 ): Promise<void> {
-  await invoke("mcp-connect", { server, windowScoped });
+  await invoke("mcp-connect", { server, windowScoped, ...(pluginId ? { pluginId } : {}) });
 }
 
 export async function reconnectMcpServer(server: CustomMCPServer): Promise<void> {

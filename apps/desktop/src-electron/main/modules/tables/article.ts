@@ -1,5 +1,6 @@
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
 import { canonicalContentTitle } from "../collaboration/content-sessions";
 import {
@@ -11,7 +12,7 @@ import {
   ArticleTagCount,
 } from "@/types";
 import Operation from "./operation";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { basename } from "node:path";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
@@ -51,7 +52,9 @@ export default class ArticleTable {
       "update-article-banner-position": this.updateArticleBannerPosition.bind(this),
       "get-articles-by-dates": this.getArticlesByDates.bind(this),
       "get-articles-by-date-range": this.getArticlesByDateRange.bind(this),
-      "get-articles-content-by-ids": this.getArticlesContentByIds.bind(this),
+      "get-articles-content-by-ids": asynchronousDatabaseCommand(
+        this.getArticlesContentByIds.bind(this)
+      ),
       "is-content-is-article": this.isContentIsArticle.bind(this),
       "get-article-by-content-id": this.getArticleByContentId.bind(this),
       "build-article-from-content": this.buildArticleFromContent.bind(this),
@@ -515,23 +518,25 @@ export default class ArticleTable {
   }
 
   // 根据 IDs 获取文章内容（转换为 Markdown）
-  static getArticlesContentByIds(
+  static async getArticlesContentByIds(
     db: Database.Database,
     ids: number[],
     maxLength?: number
-  ): Array<{
-    id: number;
-    markdown: string;
-    truncated: boolean;
-    originalLength: number;
-    metadata: Record<string, any>;
-  }> {
+  ): Promise<
+    Array<{
+      id: number;
+      markdown: string;
+      truncated: boolean;
+      originalLength: number;
+      metadata: Record<string, any>;
+    }>
+  > {
     if (ids.length === 0) return [];
 
     const articles = this.getArticleByIds(db, ids);
 
-    return articles.map(article => {
-      const markdown = article.content ? getMarkdown(article.content) : "";
+    return mapContentSnapshots(articles, async article => {
+      const markdown = article.content ? await getMarkdownText(article.content) : "";
       const originalLength = markdown.length;
 
       let finalMarkdown = markdown;

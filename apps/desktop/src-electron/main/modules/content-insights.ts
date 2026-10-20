@@ -14,7 +14,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import log from "electron-log";
 import type { Descendant } from "slate";
 import { normalizeEntityRefKind, entityRefKey, type EntityRef } from "@/entity/ref";
-import { splitSections } from "@/entity/sections";
+import { prepareContentNodes } from "../services/content-conversion";
 import {
   DIGEST_RECOMPUTE_THRESHOLD,
   contentPlainText,
@@ -376,7 +376,7 @@ export async function analyzeContent(
 
   const sections = promptSectionsOf(
     self.content,
-    splitSections(self.content, self.title, ref.kind === "card")
+    (await prepareContentNodes(self.content, self.title, ref.kind === "card")).sections ?? []
   ).filter(section => section.text.trim());
   const linkedTitles = linkedKeys
     .slice(0, LINKED_TITLES)

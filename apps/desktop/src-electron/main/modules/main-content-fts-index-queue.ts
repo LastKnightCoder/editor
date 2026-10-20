@@ -12,8 +12,8 @@ import PluginEntityTable, { type PluginEntityIndexDoc } from "./tables/plugin-en
 import FTSTable from "./tables/fts";
 import { listMaterialIndexDocs } from "./material-index";
 import { MAIN_CONTENT_INDEX_TYPES } from "./main-content-vec-index-queue";
-import { getMarkdown } from "@/utils/markdown.ts";
-import { MAIN_CHUNK_VERSION, splitSections, type ContentSection } from "@/entity/sections";
+import { prepareContentNodes } from "../services/content-conversion";
+import { MAIN_CHUNK_VERSION, type ContentSection } from "@/entity/sections";
 import type { IndexType } from "@/types";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
@@ -36,46 +36,41 @@ type ArticleRow = ReturnType<typeof ArticleTable.getAllArticles>[number];
 type ProjectItemRow = ReturnType<typeof ProjectTable.getAllProjectItems>[number];
 type DiaryMomentRow = ReturnType<typeof DiaryTable.getAllDiarySegmentsFlat>[number];
 
-const cardTask = (card: CardRow): MainContentFtsIndexTask => ({
+const cardTask = async (card: CardRow): Promise<MainContentFtsIndexTask> => ({
+  ...(await prepareContentNodes(card.content || [], "", true)),
   id: card.id,
   type: "card",
-  content: getMarkdown(card.content || []).trim(),
-  sections: splitSections(card.content || [], "", true),
   updateTime: Number(card.update_time || 0),
 });
 
-const articleTask = (article: ArticleRow): MainContentFtsIndexTask => ({
+const articleTask = async (article: ArticleRow): Promise<MainContentFtsIndexTask> => ({
+  ...(await prepareContentNodes(article.content || [], article.title || "")),
   id: article.id,
   type: "article",
-  content: getMarkdown(article.content || []).trim(),
   title: article.title,
-  sections: splitSections(article.content || [], article.title || ""),
   updateTime: Number(article.update_time || 0),
 });
 
-const projectItemTask = (item: ProjectItemRow): MainContentFtsIndexTask => ({
+const projectItemTask = async (item: ProjectItemRow): Promise<MainContentFtsIndexTask> => ({
+  ...(await prepareContentNodes(item.content || [], item.title || "")),
   id: item.id,
   type: "project-item",
-  content: getMarkdown(item.content || []).trim(),
   title: item.title,
-  sections: splitSections(item.content || [], item.title || ""),
   updateTime: Number(item.updateTime || 0),
 });
 
-const diaryMomentTask = (moment: DiaryMomentRow): MainContentFtsIndexTask => ({
+const diaryMomentTask = async (moment: DiaryMomentRow): Promise<MainContentFtsIndexTask> => ({
+  ...(await prepareContentNodes(moment.content || [], "")),
   id: moment.id,
   type: "diary-moment",
-  content: getMarkdown(moment.content || []).trim(),
-  sections: splitSections(moment.content || [], ""),
   updateTime: Number(moment.updateTime || 0),
 });
 
-const pluginEntityTask = (doc: PluginEntityIndexDoc): MainContentFtsIndexTask => ({
+const pluginEntityTask = async (doc: PluginEntityIndexDoc): Promise<MainContentFtsIndexTask> => ({
+  ...(await prepareContentNodes(doc.content, doc.title)),
   id: doc.id,
   type: "plugin-entity",
-  content: getMarkdown(doc.content).trim(),
   title: doc.title,
-  sections: splitSections(doc.content, doc.title),
   updateTime: doc.updateTime,
 });
 
@@ -145,10 +140,11 @@ class MainContentFtsIndexQueue implements Module {
     for (const refs of EntitySearchTable.locateAll(mainDb, contentIds).values()) {
       for (const ref of refs) {
         if (this.isStale(generation)) return;
-        const task = this.entityTask(mainDb, ref.kind, ref.id);
+        const task = await this.entityTask(mainDb, ref.kind, ref.id);
+        if (this.isStale(generation) || databaseModule.getDatabase(dbName) !== mainDb) return;
         if (!task) continue;
         if (!task.content) FTSTable.removeIndexByIdAndType(indexDb, task.id, task.type);
-        else if (FTSTable.indexContent(indexDb, task)) indexed += 1;
+        else if (await FTSTable.indexContent(indexDb, task)) indexed += 1;
         else log.warn(`[MainContentFtsIndexQueue] Index failed: type=${task.type}, id=${task.id}`);
         await yieldToEventLoop();
       }
@@ -156,11 +152,11 @@ class MainContentFtsIndexQueue implements Module {
     log.debug(`[MainContentFtsIndexQueue] Incremental done: db=${dbName}, indexed=${indexed}`);
   }
 
-  private entityTask(
+  private async entityTask(
     mainDb: Database.Database,
     kind: string,
     id: number
-  ): MainContentFtsIndexTask | null {
+  ): Promise<MainContentFtsIndexTask | null> {
     switch (kind) {
       case "card": {
         const card = CardTable.getCardById(mainDb, id);
@@ -226,7 +222,12 @@ class MainContentFtsIndexQueue implements Module {
     databaseModule.setIndexRebuildState(dbName, "building", "fts");
 
     try {
-      const { tasks, removed } = await this.collectTasks(mainDb, indexDb);
+      const assertCurrent = () => {
+        if (this.isStale(generation) || databaseModule.getDatabase(dbName) !== mainDb)
+          throw new Error("全文索引会话已失效");
+      };
+      const { tasks, removed } = await this.collectTasks(mainDb, indexDb, assertCurrent);
+      assertCurrent();
       log.info(
         `[MainContentFtsIndexQueue] Reconcile start: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, removed=${removed}`
       );
@@ -243,7 +244,7 @@ class MainContentFtsIndexQueue implements Module {
           return;
         }
 
-        const ok = FTSTable.indexContent(indexDb, {
+        const ok = await FTSTable.indexContent(indexDb, {
           id: task.id,
           type: task.type,
           content: task.content,
@@ -275,6 +276,7 @@ class MainContentFtsIndexQueue implements Module {
         `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`
       );
     } catch (error) {
+      if (this.isStale(generation) || databaseModule.getDatabase(dbName) !== mainDb) return;
       databaseModule.setIndexRebuildState(dbName, "failed", "fts");
       throw error;
     }
@@ -282,22 +284,26 @@ class MainContentFtsIndexQueue implements Module {
 
   private async collectTasks(
     mainDb: Database.Database,
-    indexDb: Database.Database
+    indexDb: Database.Database,
+    assertCurrent: () => void
   ): Promise<CollectTasksResult> {
     const tasks: MainContentFtsIndexTask[] = [];
     const keep = new Set<string>();
     let removed = 0;
     let processed = 0;
 
-    const groups: Array<() => Iterable<MainContentFtsIndexTask>> = [
-      () => CardTable.getAllCards(mainDb).map(cardTask),
-      () => ArticleTable.getAllArticles(mainDb).map(articleTask),
-      () => ProjectTable.getAllProjectItems(mainDb).map(projectItemTask),
-      () => DiaryTable.getAllDiarySegmentsFlat(mainDb).map(diaryMomentTask),
-      () => PluginEntityTable.indexDocs(mainDb).map(pluginEntityTask),
+    const groups: Array<() => Iterable<() => Promise<MainContentFtsIndexTask>>> = [
+      () => CardTable.getAllCards(mainDb).map(card => () => cardTask(card)),
+      () => ArticleTable.getAllArticles(mainDb).map(article => () => articleTask(article)),
+      () => ProjectTable.getAllProjectItems(mainDb).map(item => () => projectItemTask(item)),
+      () => DiaryTable.getAllDiarySegmentsFlat(mainDb).map(moment => () => diaryMomentTask(moment)),
+      () => PluginEntityTable.indexDocs(mainDb).map(doc => () => pluginEntityTask(doc)),
     ];
     for (const group of groups) {
-      for (const task of group()) {
+      for (const load of group()) {
+        assertCurrent();
+        const task = await load();
+        assertCurrent();
         removed += this.appendTask(indexDb, tasks, keep, task);
         processed += 1;
         await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
@@ -305,13 +311,16 @@ class MainContentFtsIndexQueue implements Module {
       await yieldToEventLoop();
     }
 
-    for (const doc of listMaterialIndexDocs(mainDb)) {
+    const materials = await listMaterialIndexDocs(mainDb);
+    for (const doc of materials) {
+      assertCurrent();
       removed += this.appendTask(indexDb, tasks, keep, doc);
       processed += 1;
       await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
     }
 
     // 已不是候选的（实体已删、摘录软删、剪藏变孤儿）删掉，检索不再命中
+    assertCurrent();
     removed += FTSTable.removeIndexesNotIn(indexDb, keep, MAIN_CONTENT_INDEX_TYPES);
 
     return { tasks, removed };

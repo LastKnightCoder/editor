@@ -56,9 +56,30 @@ const field = (manifest: PackageManifest, key: string) =>
   (manifest as unknown as Record<string, unknown>)[key];
 
 export function diffManifest(before: PackageManifest, after: PackageManifest) {
-  return FIELDS.filter(item => field(before, item.key) !== field(after, item.key)).map(item => ({
-    label: item.label,
-    before: String(field(before, item.key) ?? "—"),
-    after: String(field(after, item.key) ?? "—"),
-  }));
+  const changes = FIELDS.filter(item => field(before, item.key) !== field(after, item.key)).map(
+    item => ({
+      label: item.label,
+      before: String(field(before, item.key) ?? "—"),
+      after: String(field(after, item.key) ?? "—"),
+    })
+  );
+  const previous = "backend" in before ? before.backend : undefined;
+  const next = "backend" in after ? after.backend : undefined;
+  for (const [key, label] of [
+    ["entry", "后台入口"],
+    ["activation", "启动时机"],
+    ["scope", "后台范围"],
+    ["lifetime", "常驻策略"],
+    ["systemAccess", "系统用途"],
+    ["tools", "外部程序"],
+    ["reason", "后台说明"],
+  ] as const) {
+    if (JSON.stringify(previous?.[key]) !== JSON.stringify(next?.[key]))
+      changes.push({
+        label,
+        before: JSON.stringify(previous?.[key]) ?? "未声明",
+        after: JSON.stringify(next?.[key]) ?? "未声明",
+      });
+  }
+  return changes;
 }

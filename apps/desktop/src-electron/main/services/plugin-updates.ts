@@ -22,8 +22,9 @@ interface UpdateRecord {
   id: string;
   baseline: string | null;
   phase: "queued" | "prepared" | "committed";
-  /** 提交后写入的安装来源；恢复上一版不改变来源，因此省略。 */
+  /** 包与来源一起切换，恢复上一版不得沿用新版审核身份。 */
   source?: LocalPluginSource;
+  previousSource?: LocalPluginSource;
 }
 /** 发布门户要求或允许随包附带的说明文件，只保存不执行。 */
 const DOCUMENT_FILES = ["README.md", "CHANGELOG.md", "LICENSE"];
@@ -57,7 +58,15 @@ export class PluginUpdates {
   }
   private async setup() {
     await mkdir(this.directory, { recursive: true });
-    for (const name of ["pending", "backups", "transactions", "errors", "failed", "sources"])
+    for (const name of [
+      "pending",
+      "backups",
+      "transactions",
+      "errors",
+      "failed",
+      "sources",
+      "backup-sources",
+    ])
       await mkdir(path.join(this.root, name), { recursive: true });
   }
   private async folders(kind: string) {
@@ -112,13 +121,18 @@ export class PluginUpdates {
     );
   }
   private async finish(id: string, transaction: string) {
-    const { source } = await this.record(transaction, id);
+    const { source, previousSource, baseline } = await this.record(transaction, id);
     if (source) await this.saveSource(id, source);
     const previous = path.join(transaction, "previous");
     if (await exists(previous)) {
       const backup = this.location("backups", id);
       await rm(backup, { recursive: true, force: true });
       await rename(previous, backup);
+    }
+    if (baseline !== null && previousSource) {
+      const file = this.location("backup-sources", id) + ".json";
+      await writeFile(file + ".tmp", JSON.stringify(previousSource));
+      await rename(file + ".tmp", file);
     }
     await rm(transaction, { recursive: true, force: true });
     await rm(this.location("errors", id), { force: true });
@@ -223,7 +237,13 @@ export class PluginUpdates {
     try {
       await cp(packageDirectory, path.join(staging, "package"), { recursive: true });
       await readPluginPackage(path.join(staging, "package"), this.clientVersion);
-      await this.saveRecord(staging, { id, baseline, phase: "queued", source });
+      await this.saveRecord(staging, {
+        id,
+        baseline,
+        phase: "queued",
+        source,
+        ...(baseline !== null ? { previousSource: await this.readSource(id) } : {}),
+      });
       await rename(staging, pending);
       await rm(this.location("errors", id), { force: true });
     } finally {
@@ -247,6 +267,7 @@ export class PluginUpdates {
       for (const kind of ["pending", "backups", "errors"])
         await rm(this.location(kind, id), { recursive: true, force: true });
       await rm(this.location("sources", id) + ".json", { force: true });
+      await rm(this.location("backup-sources", id) + ".json", { force: true });
       await rm(path.join(this.directory, id), { recursive: true, force: true });
     });
   }
@@ -287,6 +308,13 @@ export class PluginUpdates {
     const manifest = validatePluginManifest(JSON.parse(unpack(manifestEntry).toString("utf8")));
     this.id(manifest.id);
     if (
+      "backend" in manifest &&
+      manifest.backend &&
+      source.kind === "center" &&
+      source.systemReviewed !== true
+    )
+      throw new Error("该后台版本尚未完成系统能力审核");
+    if (
       source.kind === "center" &&
       (manifest.id !== source.pluginId || manifest.version !== source.version)
     )
@@ -323,7 +351,22 @@ export class PluginUpdates {
   restore(id: string) {
     return this.serial(async () => {
       await this.setup();
-      return this.queue(this.location("backups", id), true);
+      const directory = this.location("backups", id);
+      const artifact = await readPluginPackage(directory, this.clientVersion);
+      const source = await readFile(this.location("backup-sources", id) + ".json", "utf8")
+        .then(value => JSON.parse(value) as LocalPluginSource)
+        .catch(error => {
+          if (error.code !== "ENOENT") throw error;
+          if ("backend" in artifact.manifest && artifact.manifest.backend)
+            throw new Error("后台备份缺少原版本来源，请从插件中心重新安装已审核版本");
+          return { kind: "zip" } as const;
+        });
+      if (
+        source.kind === "center" &&
+        (source.pluginId !== id || source.version !== artifact.manifest.version)
+      )
+        throw new Error("备份来源与版本不一致，拒绝恢复");
+      return this.queue(directory, true, source);
     });
   }
   cancel(id: string) {

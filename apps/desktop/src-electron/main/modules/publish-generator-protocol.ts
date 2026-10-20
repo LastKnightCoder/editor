@@ -39,6 +39,11 @@ export type DataReply = { ok: true; value: unknown } | { ok: false; message: str
 
 /** worker → 主进程 */
 export type WorkerToMain =
+  | {
+      type: "content-search";
+      reqId: number;
+      input: import("./publish-search-index").BuildPublishSearchIndexInput;
+    }
   | { type: "tailwind"; reqId: number; code: string; extension: "tsx" | "html" }
   | { type: "done"; files: IPublishFile[]; virtualProcessed: number }
   | {
@@ -51,4 +56,11 @@ export type WorkerToMain =
   | { type: "error"; message: string };
 
 /** 主进程 → worker */
-export type MainToWorker = { type: "tailwind-result"; reqId: number; css: string; error?: string };
+export type MainToWorker =
+  | {
+      type: "content-search-result";
+      reqId: number;
+      result?: import("@tau/plugins/publish-data").SearchFile;
+      error?: string;
+    }
+  | { type: "tailwind-result"; reqId: number; css: string; error?: string };

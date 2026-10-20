@@ -6,10 +6,19 @@ import path from "node:path";
 import PathUtil from "../utils/PathUtil";
 import { discoverPlugins } from "../services/plugin-discovery";
 import { getPluginRegistry } from "../services/plugin-workspaces";
+import {
+  stopPluginBackend,
+  activatePluginBackends,
+  protectPluginBackendChange,
+} from "./plugin-backend";
 import { PluginUpdates } from "../services/plugin-updates";
 import { isTemplatePackage, readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
-import { acceptHeadlessPlugin } from "../services/plugin-codecs";
+import {
+  appendContentPluginArtifact,
+  getContentPluginArtifacts,
+} from "../services/plugin-content-artifacts";
+import { contentExecutor } from "../services/content-execution";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
 import {
   pluginSyncSessions,
@@ -66,7 +75,11 @@ export default {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id || !isContentPlugin(artifact.manifest))
         throw new Error("内容插件身份或声明无效");
-      acceptHeadlessPlugin(artifact);
+      await contentExecutor.execute({ operation: "validate" }, undefined, [
+        ...getContentPluginArtifacts(),
+        artifact,
+      ]);
+      appendContentPluginArtifact(artifact);
       return artifact;
     });
     const initial = await discoverPlugins(directory(), app.getVersion());
@@ -87,16 +100,19 @@ export default {
     };
     const applyInstalled = async (installed: { id: string; version: string }) => {
       await pluginPublishSessions.protect(installed.id, () =>
-        updates.apply(installed.id, async (artifact, replacing) => {
-          if (await contentStartup.uses(installed.id)) return false;
-          if (!replacing) await preferences.set(installed.id, false);
-          // 模板不是内容插件，安装后即可在发布设置中选择。
-          return !(
-            !isTemplatePackage(artifact) &&
-            isContentPlugin(artifact.manifest) &&
-            preferences.enabled(installed.id, false)
-          );
-        })
+        protectPluginBackendChange(installed.id, () =>
+          updates.apply(installed.id, async (artifact, replacing) => {
+            if (await contentStartup.uses(installed.id)) return false;
+            if (!replacing) await preferences.set(installed.id, false);
+            // 模板不是内容插件，安装后即可在发布设置中选择。
+            const deferred =
+              !isTemplatePackage(artifact) &&
+              isContentPlugin(artifact.manifest) &&
+              preferences.enabled(installed.id, false);
+            if (!deferred) await stopPluginBackend(installed.id);
+            return !deferred;
+          })
+        )
       );
       stateChanged();
       return installed;
@@ -246,6 +262,8 @@ export default {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
       await protectPluginTasks(id, () => preferences.set(id, enabled));
+      if (!enabled) await stopPluginBackend(id);
+      else void activatePluginBackends().catch(() => undefined);
       stateChanged();
     });
     ipcMain.handle(
@@ -374,11 +392,18 @@ export default {
     });
     ipcMain.handle("plugin-local:uninstall", async (_event, id: string) => {
       if (await contentStartup.uses(id)) throw new Error("请先停用内容插件并重启应用，再卸载");
-      await protectPluginTasks(id, async () => {
-        await updates.uninstall(id);
-        await preferences.forget(id);
-        await getPluginPermissionStore().forget(id);
-      });
+      await protectPluginTasks(id, () =>
+        protectPluginBackendChange(
+          id,
+          async () => {
+            await stopPluginBackend(id);
+            await updates.uninstall(id);
+            await preferences.forget(id);
+            await getPluginPermissionStore().forget(id);
+          },
+          true
+        )
+      );
       stateChanged();
     });
     ipcMain.handle("plugin-local:restore", async (_event, id: string) =>

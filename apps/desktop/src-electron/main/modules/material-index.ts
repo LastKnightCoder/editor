@@ -12,8 +12,8 @@ import type { Excerpt } from "@/entity/excerpt/types";
 import { excerptIndexHeader } from "@/entity/excerpt/display";
 import { MATERIAL_KINDS, type MaterialInfo, type MaterialKind } from "@/entity/material";
 import { pdfAnnotationNote, pdfAnnotationQuote } from "@/entity/pdf-annotation-text";
-import { getMarkdown } from "@/utils/markdown.ts";
-import { splitSections, type ContentSection } from "@/entity/sections";
+import { prepareContentNodes } from "../services/content-conversion";
+import type { ContentSection } from "@/entity/sections";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
 import type { IndexCandidate } from "./index-candidates";
@@ -69,7 +69,9 @@ const ATTACHED_WEB_CLIP_SQL = `
   )`;
 
 /** 全部材料候选；剪藏正文逐条读，不一次把所有解析文档读进内存 */
-export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexDoc[] {
+export async function listMaterialIndexDocs(
+  mainDb: Database.Database
+): Promise<MaterialIndexDoc[]> {
   const docs: MaterialIndexDoc[] = [];
   for (const candidate of listMaterialIndexCandidates(mainDb)) {
     const input = candidate.read();
@@ -83,7 +85,8 @@ export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexD
       continue;
     }
     const nodes = parseContent(input.raw);
-    const body = getMarkdown(nodes).trim();
+    const prepared = await prepareContentNodes(nodes, candidate.title ?? "");
+    const body = prepared.content;
     if (!body) continue;
     docs.push({
       id: Number(candidate.id),
@@ -91,7 +94,7 @@ export function listMaterialIndexDocs(mainDb: Database.Database): MaterialIndexD
       title: candidate.title,
       updateTime: candidate.updateTime,
       content: joinLines(candidate.title ?? "", body),
-      sections: splitSections(nodes, candidate.title ?? ""),
+      sections: prepared.sections,
     });
   }
   return docs;

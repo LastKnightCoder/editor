@@ -1,13 +1,12 @@
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
-import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
+import { desktopContentPlugins } from "../shared/content-plugins.ts";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { evaluatePluginPackage, assertUniqueEditorCodecs } from "@tau/plugins/rendering";
 import { createMarkdownProcessor } from "@tau/markdown";
-import { desktopCodecComposition } from "../../../src/utils/markdown";
+import { desktopCodecComposition } from "../src/utils/markdown";
 
-let artifacts: DevelopmentPluginPackage[] = [];
-export const getHeadlessPluginArtifacts = () => artifacts;
-export function acceptHeadlessPlugin(artifact: DevelopmentPluginPackage) {
+/** 受信任样本的预期值构造器，不能被应用运行时代码导入。 */
+export function installContentTestFixture(artifact: DevelopmentPluginPackage) {
   const definition = evaluatePluginPackage(artifact, sharedPluginModules);
   const definitions = [...desktopContentPlugins.list(), definition];
   const codecs = [
@@ -17,5 +16,4 @@ export function acceptHeadlessPlugin(artifact: DevelopmentPluginPackage) {
   assertUniqueEditorCodecs(codecs);
   createMarkdownProcessor({ codecs });
   desktopContentPlugins.install(definitions);
-  artifacts = [...artifacts, artifact];
 }

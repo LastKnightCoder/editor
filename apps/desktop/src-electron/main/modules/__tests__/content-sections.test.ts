@@ -13,6 +13,8 @@ vi.mock("../local-inference", () => ({
 import VecDocumentTable from "../tables/vec-document";
 import FTSTable from "../tables/fts";
 import * as searchDetails from "../search-details";
+import * as sections from "../content-sections";
+import { executeDatabaseCommand } from "../database-command";
 
 const opened: Database.Database[] = [];
 afterEach(() => {
@@ -21,25 +23,80 @@ afterEach(() => {
 });
 
 describe("节级索引持久化", () => {
-  it.each(["excerpt", "pdf-annotation"] as const)("长材料 %s 命中尾部时仍返回整条证据", type => {
-    const db = new Database(":memory:");
-    opened.push(db);
-    db.exec(schema);
-    const text = "正文".repeat(750) + "唯一尾部证据";
-    vi.spyOn(searchDetails, "searchResultDetails").mockReturnValue({
-      contentId: 0,
-      title: "来源",
-      content: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
-    });
-    expect(FTSTable.indexContent(db, { id: 1, type, content: text, updateTime: 1 })).toBe(true);
-    const [result] = FTSTable.getSearchResultDetails(
-      db,
-      [{ id: 1, type, source: "fts", updateTime: 1, chunkIndex: 0 }],
-      db
-    );
-    expect(result.section?.text).toContain("唯一尾部证据");
-    expect(result.section?.text.length).toBeGreaterThan(1500);
-  });
+  it.each(["fts", "vec"])(
+    "%s 索引 IPC 等待转换时不占主库或索引库事务，其他索引命令仍可提交",
+    async kind => {
+      const main = new Database(":memory:"),
+        index = new Database(":memory:");
+      opened.push(main, index);
+      index.exec(schema);
+      if (kind === "vec") {
+        sqliteVec.load(index);
+        VecDocumentTable.initTableByVecLength(index, 3);
+      }
+      let finish!: (value: ReturnType<typeof splitSections>) => void;
+      vi.spyOn(sections, "sectionsForIndex").mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            finish = resolve;
+          })
+      );
+      const handler =
+        kind === "fts"
+          ? FTSTable.getListenEvents()["fts-index-content"]
+          : VecDocumentTable.getListenEvents()["vec-document-index-content"];
+      const pending = executeDatabaseCommand(index, handler, main, index, {
+        id: 1,
+        type: "article",
+        content: "正文",
+        updateTime: 1,
+        modelInfo: { providerType: "local_python", model: "fixture", dimensions: 3 },
+      });
+      expect(main.inTransaction).toBe(false);
+      expect(index.inTransaction).toBe(false);
+      executeDatabaseCommand(
+        index,
+        FTSTable.getListenEvents()["fts-remove-index"],
+        main,
+        index,
+        2,
+        "article"
+      );
+      finish(
+        splitSections([{ type: "paragraph", children: [{ type: "formatted", text: "正文" }] }], "")
+      );
+      expect(await pending).toBe(true);
+      expect(
+        index
+          .prepare(`SELECT COUNT(*) AS n FROM ${kind === "fts" ? "content_fts" : "vec_documents"}`)
+          .get()
+      ).toEqual({ n: 1 });
+    }
+  );
+  it.each(["excerpt", "pdf-annotation"] as const)(
+    "长材料 %s 命中尾部时仍返回整条证据",
+    async type => {
+      const db = new Database(":memory:");
+      opened.push(db);
+      db.exec(schema);
+      const text = "正文".repeat(750) + "唯一尾部证据";
+      vi.spyOn(searchDetails, "searchResultDetails").mockReturnValue({
+        contentId: 0,
+        title: "来源",
+        content: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
+      });
+      expect(await FTSTable.indexContent(db, { id: 1, type, content: text, updateTime: 1 })).toBe(
+        true
+      );
+      const [result] = FTSTable.getSearchResultDetails(
+        db,
+        [{ id: 1, type, source: "fts", updateTime: 1, chunkIndex: 0 }],
+        db
+      );
+      expect(result.section?.text).toContain("唯一尾部证据");
+      expect(result.section?.text.length).toBeGreaterThan(1500);
+    }
+  );
   it("向量与全文各按自己的正文版本存节位置，全文重建不删向量", async () => {
     const db = new Database(":memory:");
     opened.push(db);
@@ -69,7 +126,7 @@ describe("节级索引持久化", () => {
         modelInfo: { providerType: "local_python", model: "fixture", dimensions: 3 },
       })
     ).toBe(true);
-    expect(FTSTable.indexContent(db, params)).toBe(true);
+    expect(await FTSTable.indexContent(db, params)).toBe(true);
     expect(db.prepare("SELECT chunk_index FROM vec_documents ORDER BY chunk_index").all()).toEqual([
       { chunk_index: 0 },
       { chunk_index: 1 },
@@ -83,7 +140,7 @@ describe("节级索引持久化", () => {
 
     // 正文改了：全文先重建到新版本，向量仍停在旧版本，两边的节各自可读
     expect(
-      FTSTable.indexContent(db, { id: 1, type: "article", content: "新正文", updateTime: 2 })
+      await FTSTable.indexContent(db, { id: 1, type: "article", content: "新正文", updateTime: 2 })
     ).toBe(true);
     expect(db.prepare("SELECT COUNT(*) AS n FROM vec_documents").get()).toEqual({ n: 2 });
     expect(readContentSection(db, "article:1", 1, 1)?.headingPath).toBe("乙节");

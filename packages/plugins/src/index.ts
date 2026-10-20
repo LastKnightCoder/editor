@@ -1,4 +1,5 @@
 import type { PluginDefinition } from "./contract";
+export type { PluginBackendClient, BackendStatus, BackendState } from "./backend";
 export type * from "./upload";
 export type * from "./tts";
 export type * from "./images";

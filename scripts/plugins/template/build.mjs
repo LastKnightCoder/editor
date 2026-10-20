@@ -3,11 +3,23 @@ import AdmZip from "adm-zip";
 import { mkdir, readFile, writeFile, mkdtemp, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
+import { isBuiltin } from "node:module";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
 if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.id))
   throw new Error("插件 ID 应为小写字母、数字及点或连字符组成的命名空间");
 if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Error("插件版本无效");
+let backend;
+let validateManifest;
+if (manifest.backend !== undefined) {
+  const api = await import("@tau/plugins/package");
+  backend = api.validateBackendManifest(manifest.backend);
+  validateManifest = api.validatePluginManifest;
+  if (manifest.formatVersion !== 2 || backend.entry !== "backend.js")
+    throw new Error("后台模板使用格式 2 和 backend.js 入口");
+} else if (manifest.formatVersion !== 1) {
+  throw new Error("普通插件使用格式 1");
+}
 const shared = [
   "@tau/plugins",
   "@tau/plugins/whiteboard",
@@ -66,17 +78,38 @@ try {
     }
   }
   const styles = Object.keys(result.metafile.outputs).some(file => file.endsWith("main.css"));
-  if (manifest.sync !== undefined)
-    throw new Error("同步提供方应在渲染入口注册，不再支持Node后台入口");
+  if (backend) {
+    const result = await build({
+      entryPoints: ["src/backend.ts"],
+      outfile: path.join(staging, backend.entry),
+      bundle: true,
+      platform: "node",
+      format: "cjs",
+      target: "es2022",
+      external: ["@tau/plugins/backend"],
+      metafile: true,
+    });
+    for (const output of Object.values(result.metafile.outputs))
+      for (const dependency of output.imports)
+        if (
+          dependency.external &&
+          dependency.path !== "@tau/plugins/backend" &&
+          !isBuiltin(dependency.path)
+        )
+          throw new Error(`后台包含未打包依赖：${dependency.path}`);
+  }
   const integrity = {};
-  for (const file of ["main.js", ...(styles ? ["main.css"] : [])])
+  for (const file of [
+    "main.js",
+    ...(styles ? ["main.css"] : []),
+    ...(backend ? [backend.entry] : []),
+  ])
     integrity[file] = createHash("sha256")
       .update(await readFile(path.join(staging, file)))
       .digest("hex");
-  await writeFile(
-    path.join(staging, "manifest.json"),
-    JSON.stringify({ ...manifest, integrity, ...(styles ? { styles: "main.css" } : {}) }, null, 2)
-  );
+  const packaged = { ...manifest, integrity, ...(styles ? { styles: "main.css" } : {}) };
+  if (validateManifest) validateManifest(packaged, { strict: true });
+  await writeFile(path.join(staging, "manifest.json"), JSON.stringify(packaged, null, 2));
   const destination = path.resolve("dist", `${manifest.version}-${buildId}`);
   await rename(staging, destination);
   await writeFile(

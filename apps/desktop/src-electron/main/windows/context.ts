@@ -40,3 +40,11 @@ export function loadRoute(win: BrowserWindow, route: string) {
     : win.loadFile(indexHtml, route ? { hash: route } : undefined);
   task.catch(error => log.error(`窗口加载失败 ${route || "/"}:`, error));
 }
+
+export function loadContentRuntime(win: BrowserWindow) {
+  const { devServerUrl, indexHtml } = windowContext();
+  const task = devServerUrl
+    ? win.loadURL(new URL("content-runtime.html", devServerUrl).href)
+    : win.loadFile(path.join(path.dirname(indexHtml), "content-runtime.html"));
+  task.catch(error => log.error("内容转换进程加载失败", error));
+}

@@ -92,9 +92,9 @@ describe("外部材料进索引（KL-037）", () => {
     ).run();
   };
 
-  it("候选：软删摘录、无文字标注、孤儿剪藏不进；嵌入文本带来源上下文；剪藏时间取正文与剪藏较新者", () => {
+  it("候选：软删摘录、无文字标注、孤儿剪藏不进；嵌入文本带来源上下文；剪藏时间取正文与剪藏较新者", async () => {
     seed();
-    const docs = listMaterialIndexDocs(db);
+    const docs = await listMaterialIndexDocs(db);
     expect(docs.map(d => `${d.type}:${d.id}`)).toEqual([
       "excerpt:1",
       "pdf-annotation:1",

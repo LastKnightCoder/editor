@@ -1,17 +1,12 @@
 import type Database from "better-sqlite3";
-import {
-  splitSections,
-  WHOLE_MAX_LENGTH,
-  WHOLE_MIN_LENGTH,
-  type ContentSection,
-} from "@/entity/sections";
+import { WHOLE_MAX_LENGTH, WHOLE_MIN_LENGTH, type ContentSection } from "@/entity/sections";
 import type { SearchResult, VecIndexParams } from "@/types/search";
-import { importFromMarkdown } from "@/utils/markdown";
+import { sectionsFromMarkdown } from "../services/content-conversion";
 import { smartChunkWithRanges } from "../utils/smart-chunk";
 
-export function sectionsForIndex(
+export async function sectionsForIndex(
   params: Pick<VecIndexParams, "sections" | "type" | "content" | "title">
-): ContentSection[] {
+): Promise<ContentSection[]> {
   if (params.sections) return params.sections;
   if (params.type === "excerpt" || params.type === "pdf-annotation") {
     if (!params.content.trim()) return [];
@@ -30,11 +25,7 @@ export function sectionsForIndex(
       embeddingText: chunk.text,
     }));
   }
-  return splitSections(
-    importFromMarkdown(params.content),
-    params.title ?? "",
-    params.type === "card"
-  );
+  return sectionsFromMarkdown(params.content, params.title ?? "", params.type === "card");
 }
 
 /**

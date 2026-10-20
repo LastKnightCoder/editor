@@ -20,6 +20,8 @@ export const isReviewer = (env: Env, id: string) =>
     .split(",")
     .map(value => value.trim())
     .includes(id);
+/** 公开版本排除已撤回产物，查询中的 releases 别名为 r。 */
+export const VISIBLE_PLUGIN = "r.revoked_at IS NULL";
 export class HttpError extends Error {
   constructor(
     public status: number,

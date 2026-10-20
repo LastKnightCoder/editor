@@ -12,6 +12,10 @@ const mock = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   openPath: vi.fn(async () => ""),
   download: vi.fn(),
+  validateContent: vi.fn(async () => true),
+}));
+vi.mock("../../services/content-execution", () => ({
+  contentExecutor: { execute: mock.validateContent },
 }));
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -40,6 +44,7 @@ beforeEach(async () => {
   mock.root = await mkdtemp(path.join(tmpdir(), "tau-local-module-"));
   mock.handlers.clear();
   mock.openPath.mockClear();
+  mock.validateContent.mockClear();
   const module = await import("../plugin-local");
   await module.default.init();
 });
@@ -49,7 +54,7 @@ it("正式客户端不提供ZIP安装入口，初次启动没有预装插件", a
   expect(((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries).toEqual([]);
 });
 
-it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动快照", async () => {
+it("主进程恢复内容快照，将定义校验交给内容渲染进程", async () => {
   const id = "test.editor";
   const folder = path.join(mock.root, ".editor/plugins", id);
   await mkdir(folder);
@@ -78,9 +83,14 @@ it("后台独立恢复启用意图，包中的 codec 与所有窗口共用启动
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id } }],
   });
-  const md = await import("@/utils/markdown");
-  const source = "~~~native-editor\n正文\n~~~";
-  expect(md.getMarkdown(md.importFromMarkdown(source)).trim()).toBe(source);
+  expect(mock.validateContent).toHaveBeenCalledWith(
+    { operation: "validate" },
+    undefined,
+    expect.arrayContaining([expect.objectContaining({ manifest: expect.objectContaining({ id }) })])
+  );
+  expect(
+    (await import("../../../../shared/content-plugins.ts")).desktopContentPlugins.codecs
+  ).toEqual([]);
   await invoke("plugin-local:set-enabled", id, false);
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id } }],

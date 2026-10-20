@@ -38,8 +38,10 @@ import { PluginAISettings } from "../components/PluginAISettings";
 import { PluginMenu } from "./PluginsView";
 import { PluginCommunityTab } from "../components/PluginCommunityTab";
 import { PluginPermissionsTab } from "../permissions/PluginPermissionsTab";
+import { PluginBackendPanel } from "../components/PluginBackendPanel";
 
-type DetailTab = "readme" | "settings" | "permissions" | "changelog" | "versions" | "community";
+type DetailTab =
+  "readme" | "settings" | "permissions" | "backend" | "changelog" | "versions" | "community";
 export type PluginDetailParams = {
   pluginId: string;
   tab?: string;
@@ -126,6 +128,12 @@ export function PluginDetailView() {
           active={installed.info.state === "active"}
         />
       ),
+    });
+  if (installed?.info.backend)
+    tabs.push({
+      key: "backend",
+      label: "本机后台",
+      children: <PluginBackendPanel pluginId={installed.info.id} />,
     });
   if (changelog)
     tabs.push({

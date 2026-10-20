@@ -64,6 +64,8 @@ export interface PluginVersionRecord {
 }
 
 export interface PluginRelease {
+  systemReviewed?: boolean;
+  revokedAt?: string | null;
   id: string;
   pluginId: string;
   version: string;
@@ -75,7 +77,12 @@ export interface PluginRelease {
   commit: string;
   publisher: PluginPublisher;
   content: {
-    manifest: { name: string; description: string; minAppVersion: string };
+    manifest: {
+      name: string;
+      description: string;
+      minAppVersion: string;
+      backend?: import("@tau/plugins/package").PluginBackendManifest;
+    };
     readme: string;
     changelog: string | null;
   };

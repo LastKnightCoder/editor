@@ -35,7 +35,7 @@ import {
 import { onlineVideoRef } from "@/types/online-video";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import ContentTable from "./tables/content";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { getMarkdownText } from "../services/content-conversion";
 import { buildMaterialResourceMarkdown } from "./vl-material-resource";
 import type { MaterialSourceMeta, TaskProgress } from "@/types/vibe-learning";
 import {
@@ -955,7 +955,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         if (sourceType === "note" && sourceMetaInfo) {
           markdownContent = await this.processNoteResource(resourceId, sourceMetaInfo, mainDbName);
         } else if (sourceType === "material" && sourceMetaInfo) {
-          markdownContent = this.processMaterialResource(resourceId, sourceMetaInfo, mainDbName);
+          markdownContent = await this.processMaterialResource(
+            resourceId,
+            sourceMetaInfo,
+            mainDbName
+          );
         } else if (sourceType && isOnlineVideoSourceType(sourceType) && sourceMetaInfo) {
           markdownContent = await this.processOnlineVideo(
             resourceId,
@@ -1135,11 +1139,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
   }
 
-  private processMaterialResource(
+  private async processMaterialResource(
     resourceId: number,
     sourceMetaInfo: string,
     mainDbName: string
-  ): string {
+  ): Promise<string> {
     let meta: MaterialSourceMeta;
     try {
       meta = JSON.parse(sourceMetaInfo) as MaterialSourceMeta;
@@ -1150,7 +1154,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     this.emit("status-change", resourceId, "converting");
     const db = databaseModule.getDatabase(mainDbName);
     if (!db) throw new Error("数据库连接不存在");
-    const markdown = buildMaterialResourceMarkdown(db, meta);
+    const markdown = await buildMaterialResourceMarkdown(db, meta);
     if (!markdown) throw new Error("材料都已不存在");
     return markdown;
   }
@@ -1188,7 +1192,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }
 
     // 将 Slate 内容转换为 Markdown
-    const markdown = getMarkdown(content.content);
+    const markdown = await getMarkdownText(content.content);
 
     if (!markdown || markdown.trim().length === 0) {
       throw new Error("笔记内容为空");

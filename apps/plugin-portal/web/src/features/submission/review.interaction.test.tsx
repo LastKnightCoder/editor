@@ -9,7 +9,7 @@ import { createMockApi } from "../../api/mock/mockApi";
 import { ReviewView } from "./ReviewView";
 
 afterEach(cleanup);
-async function setup() {
+async function setup(withBackend = false) {
   const api = createMockApi({ reviewer: true }),
     client = createQueryClient();
   const d = await api.createSubmission(crypto.randomUUID()),
@@ -21,6 +21,22 @@ async function setup() {
     repository: "https://github.com/author/plugin",
   });
   const pending = await api.submitSubmission(d.id, saved.revision);
+  if (withBackend && pending.content) {
+    pending.content.manifest = {
+      ...pending.content.manifest,
+      backend: {
+        entry: "backend.js",
+        runtime: "node",
+        apiVersion: 1,
+        scope: "application",
+        activation: "app-ready",
+        lifetime: "persistent",
+        reason: "设备连接",
+        systemAccess: ["network"],
+      },
+    };
+    vi.spyOn(api, "getSubmission").mockResolvedValue(pending);
+  }
   client.setQueryData(queryKeys.submission(d.id), pending);
   function Page() {
     const q = useQuery({
@@ -43,6 +59,55 @@ async function setup() {
   return { api, client, pending };
 }
 describe("审核操作", () => {
+  it("后台批准需要额外确认，修订变化后确认失效", async () => {
+    const { api, client, pending } = await setup(true);
+    const review = vi.spyOn(api, "reviewSubmission");
+    fireEvent.click(await screen.findByRole("radio", { name: /批准并发布/ }));
+    expect((screen.getByRole("button", { name: "批准并发布" }) as HTMLButtonElement).disabled).toBe(
+      true
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /我已检查本修订/ }));
+    expect((screen.getByRole("button", { name: "批准并发布" }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+    act(() =>
+      client.setQueryData(queryKeys.submission(pending.id), {
+        ...pending,
+        revision: pending.revision + 1,
+      })
+    );
+    await waitFor(() =>
+      expect(
+        (screen.getByRole("button", { name: "批准并发布" }) as HTMLButtonElement).disabled
+      ).toBe(true)
+    );
+    expect(review).not.toHaveBeenCalled();
+  });
+  it("已发布版本撤回必须填写原因并确认，随后隐藏下载与重试", async () => {
+    const { api } = await setup();
+    fireEvent.click(await screen.findByRole("radio", { name: /批准并发布/ }));
+    fireEvent.click(screen.getByRole("button", { name: "批准并发布" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "确认" })
+    );
+    const revoke = vi.spyOn(api, "revokeRelease");
+    const button = await screen.findByRole("button", { name: "撤回此版本" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("版本撤回原因"), {
+      target: { value: "后台行为与声明不符" },
+    });
+    fireEvent.click(button);
+    expect(revoke).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", { name: "确认撤回" })
+    );
+    await screen.findByText("此版本已撤回，已停止公开分发。");
+    expect(revoke).toHaveBeenCalledWith(expect.any(String), {
+      reason: "后台行为与声明不符",
+      clientRequestId: expect.any(String),
+    });
+    expect(screen.queryByRole("button", { name: "重试发布" })).toBeNull();
+  });
   it("首次发布没有可对比版本时明确说明", async () => {
     await setup();
     await screen.findByText(/这是该插件的首次发布/);

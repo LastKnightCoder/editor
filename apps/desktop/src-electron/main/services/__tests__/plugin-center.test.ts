@@ -47,6 +47,7 @@ const release = {
   state: "published",
   size: bytes.length,
   sha256: createHash("sha256").update(bytes).digest("hex"),
+  content: { manifest: { name: "中心插件", description: "说明", minAppVersion: "0.59.0" } },
 };
 function serve(overrides: Partial<typeof release> = {}, body: Buffer = bytes) {
   mock.fetch.mockImplementation(async (url: string) => {
@@ -154,6 +155,7 @@ it("下载按发布记录核对大小与摘要，地址由服务拼接", async (
     pluginId: "test.center",
     version: "1.0.0",
     sha256: release.sha256,
+    systemReviewed: false,
   });
   expect(mock.fetch).toHaveBeenLastCalledWith(`${API}/v1/releases/r1/download`, {
     headers: { Authorization: "Bearer test-visitor" },
@@ -164,4 +166,26 @@ it("下载按发布记录核对大小与摘要，地址由服务拼接", async (
   await expect(downloadPluginRelease("r1")).rejects.toThrow("上限");
   serve({ state: "failed" });
   await expect(downloadPluginRelease("r1")).rejects.toThrow("尚未发布");
+});
+
+it("后台版本未经审核不下载，已审核版本来源保留审核绑定，撤回版本拒绝", async () => {
+  const native = {
+    ...release,
+    content: { manifest: { ...release.content.manifest, backend: { entry: "backend.js" } } },
+  };
+  mock.fetch.mockResolvedValueOnce(Response.json({ data: native }));
+  await expect(downloadPluginRelease("r1")).rejects.toThrow("审核");
+  expect(mock.fetch).toHaveBeenCalledTimes(1);
+  mock.fetch
+    .mockResolvedValueOnce(Response.json({ data: { ...native, systemReviewed: true } }))
+    .mockResolvedValueOnce(new Response(bytes));
+  expect((await downloadPluginRelease("r1")).source).toMatchObject({
+    releaseId: "r1",
+    sha256: release.sha256,
+    systemReviewed: true,
+  });
+  mock.fetch.mockResolvedValueOnce(
+    Response.json({ data: { ...native, systemReviewed: true, revokedAt: "2026-10-20T00:00:00Z" } })
+  );
+  await expect(downloadPluginRelease("r1")).rejects.toThrow("撤回");
 });

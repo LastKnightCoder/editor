@@ -208,7 +208,8 @@ describe("index recovery cooperative scheduling", () => {
   it("主内容 FTS 任务收集会按批调用 yieldEvery", async () => {
     const result = await (mainContentFtsIndexQueue as any).collectTasks(
       {},
-      { prepare: () => ({ get: () => undefined }) }
+      { prepare: () => ({ get: () => undefined }) },
+      () => undefined
     );
 
     expect(result.tasks).toHaveLength(30);
@@ -229,7 +230,8 @@ describe("index recovery cooperative scheduling", () => {
     );
     const fts = await (mainContentFtsIndexQueue as any).collectTasks(
       {},
-      { prepare: () => ({ get: () => undefined }) }
+      { prepare: () => ({ get: () => undefined }) },
+      () => undefined
     );
     const expected = [
       expect.objectContaining({ id: 11, type: "diary-moment", updateTime: 7 }),

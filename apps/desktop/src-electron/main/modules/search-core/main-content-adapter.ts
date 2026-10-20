@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { SearchParams, SearchResult } from "@/types";
-import { getMarkdown } from "@/utils/markdown";
+import { getMarkdownText, mapContentSnapshots } from "../../services/content-conversion";
 import { ParsedQuery, SearchAdapter, SearchCandidate } from "./types";
 import { calculateLexicalScore, ensureScoreInRange } from "./retriever";
 
@@ -18,7 +18,7 @@ export interface MainContentAdapterContext {
     mainDb: Database.Database,
     indexDb: Database.Database,
     searchParams: SearchParams
-  ) => SearchResult[];
+  ) => SearchResult[] | Promise<SearchResult[]>;
   searchVec: (
     mainDb: Database.Database,
     indexDb: Database.Database,
@@ -47,12 +47,14 @@ export function createMainContentAdapter(): SearchAdapter<SearchResult, MainCont
           .filter(Boolean),
         isEmpty: !queryText.trim(),
       };
-      const results = context.searchFTS(context.mainDb, context.indexDb, {
+      const results = await context.searchFTS(context.mainDb, context.indexDb, {
         ...context.searchParams,
         query: queryText,
         limit,
       });
-      return results.map(result => mapResultToCandidate(result, "fts", parsedQuery));
+      return mapContentSnapshots(results, result =>
+        mapResultToCandidate(result, "fts", parsedQuery)
+      );
     },
     async searchVec(
       queryText: string,
@@ -74,7 +76,9 @@ export function createMainContentAdapter(): SearchAdapter<SearchResult, MainCont
         query: queryText,
         limit,
       });
-      return results.map(result => mapResultToCandidate(result, "vec", parsedQuery));
+      return mapContentSnapshots(results, result =>
+        mapResultToCandidate(result, "vec", parsedQuery)
+      );
     },
     finalize(result) {
       return {
@@ -89,13 +93,13 @@ export function createMainContentAdapter(): SearchAdapter<SearchResult, MainCont
   };
 }
 
-function mapResultToCandidate(
+async function mapResultToCandidate(
   result: SearchResult,
   source: "fts" | "vec",
   query: ParsedQuery
-): SearchCandidate<SearchResult> {
+): Promise<SearchCandidate<SearchResult>> {
   const key = `${result.type}:${result.id}`;
-  const text = result.section?.text ?? getMarkdown(result.content || []).trim();
+  const text = result.section?.text ?? (await getMarkdownText(result.content || [])).trim();
   const enriched = result as SearchResultWithRank;
   const lexicalScore = calculateLexicalScore(query, text);
   const retrievalScore =
