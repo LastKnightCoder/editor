@@ -10,6 +10,7 @@ import { AuthenticatedShell, PublicShell } from "./AppShell";
 import { CatalogPage } from "../pages/CatalogPage";
 import { ModerationPage } from "../pages/ModerationPage";
 import { PluginModerationPage } from "../pages/PluginModerationPage";
+import { AppFeedbackPage } from "../pages/AppFeedbackPage";
 import { PluginDetailPage } from "../pages/PluginDetailPage";
 import { ReviewPage } from "../pages/ReviewPage";
 import { ReviewQueuePage } from "../pages/ReviewQueuePage";
@@ -52,6 +53,7 @@ export function createPortalRouter() {
             { path: "/review/:id", element: <ReviewPage /> },
             { path: "/moderation", element: <ModerationPage /> },
             { path: "/moderation/plugins", element: <PluginModerationPage /> },
+            { path: "/app-feedback", element: <AppFeedbackPage /> },
           ],
         },
         { path: "*", element: <Navigate to="/plugins" replace /> },

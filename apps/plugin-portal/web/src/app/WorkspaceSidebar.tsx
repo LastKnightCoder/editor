@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Layers,
+  MessageSquareHeart,
   MessagesSquare,
   PackagePlus,
   Puzzle,
@@ -98,6 +99,9 @@ export function WorkspaceSidebar({ reviewer }: { reviewer: boolean }) {
           </Item>
           <Item to="/moderation" icon={MessagesSquare} end>
             评论管理
+          </Item>
+          <Item to="/app-feedback" icon={MessageSquareHeart}>
+            用户反馈
           </Item>
         </Group>
       )}

@@ -226,6 +226,17 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
     moderatePlugin: input => write("POST", "/v1/moderation/plugin-actions", input),
     listPluginModerationEvents: cursor =>
       read(`/v1/moderation/plugin-events${cursor ? `?cursor=${id(cursor)}` : ""}`),
+    listAppFeedback: (filter, cursor) =>
+      read(
+        `/v1/moderation/app-feedback?${new URLSearchParams({ ...filter, ...(cursor ? { cursor } : {}) })}`
+      ),
+    getAppFeedback: feedbackId => read(`/v1/moderation/app-feedback/${id(feedbackId)}`),
+    updateAppFeedback: (feedbackId, input) =>
+      write("PATCH", `/v1/moderation/app-feedback/${id(feedbackId)}`, input),
+    getAppFeedbackAttachment: async (feedbackId, attachmentId) =>
+      (
+        await send(`/v1/moderation/app-feedback/${id(feedbackId)}/attachments/${id(attachmentId)}`)
+      ).blob(),
     getCommunity: (pluginId, cursor) =>
       read(`/v1/plugins/${id(pluginId)}/community${cursor ? `?cursor=${id(cursor)}` : ""}`),
     setPluginLiked: (pluginId, liked) =>
