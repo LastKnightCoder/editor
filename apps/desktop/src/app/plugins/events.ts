@@ -15,6 +15,9 @@ export function createDesktopEvents(databaseName: string): EventsAdapter {
           const event: PluginDomainEvent = {
             type: record.type,
             at: record.at,
+            origin: record.pluginId
+              ? { kind: "plugin", pluginId: record.pluginId }
+              : { kind: "app" },
             ...(record.id === undefined ? {} : { id: String(record.id) }),
           };
           listener(event);

@@ -28,7 +28,7 @@ export default class CardTable {
       "create-card": this.createCard.bind(this),
       "create-card-from-project-item": this.createCardFromProjectItem.bind(this),
       "update-card": this.updateCard.bind(this),
-      "delete-card": this.deleteCard.bind(this),
+      "delete-card": (db: Database.Database, cardId: number) => this.deleteCard(db, cardId),
       "get-tags-by-card-id": this.getTagsByCardId.bind(this),
       "get-cards-group-by-tag": this.getCardsGroupByTag.bind(this),
       "get-all-global-tags": this.getAllGlobalTags.bind(this),
@@ -296,7 +296,12 @@ export default class CardTable {
     return this.getCardById(db, id) as ICard;
   }
 
-  static deleteCard(db: Database.Database, cardId: number): number {
+  /** deferContent：正文只延迟释放（7 天宽限内可恢复），供插件的可恢复删除使用 */
+  static deleteCard(
+    db: Database.Database,
+    cardId: number,
+    options: { deferContent?: boolean } = {}
+  ): number {
     // 获取卡片信息，以获取contentId
     const cardInfo = this.getCardById(db, cardId);
 
@@ -317,7 +322,8 @@ export default class CardTable {
 
       if (cardInfo && cardInfo.contentId) {
         // 删除关联的content记录（减少引用计数）
-        ContentTable.deleteContent(db, cardInfo.contentId);
+        if (options.deferContent) ContentTable.releaseDeferred(db, cardInfo.contentId);
+        else ContentTable.deleteContent(db, cardInfo.contentId);
       }
     }
 

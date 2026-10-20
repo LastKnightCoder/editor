@@ -13,7 +13,7 @@ import {
   recordPluginUsage,
   setPluginPermission,
 } from "@/commands/plugin-permissions";
-import type { PluginPermissionSnapshot } from "@/types/plugin-permissions";
+import type { PluginPermissionSnapshot, PluginUsageKind } from "@/types/plugin-permissions";
 
 /** 弹窗的三种答复；关闭弹窗按拒绝处理 */
 export type PermissionDecision = "once" | "always" | "deny";
@@ -66,7 +66,7 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
   private persistent: PluginPermissionSnapshot = {};
   private readonly sessions = new Map<string, Session>();
   private readonly denials = new Map<string, number>();
-  private readonly unflushed = new Map<string, number>();
+  private readonly unflushed = new Map<string, Record<PluginUsageKind, number>>();
   private readonly listeners = new Set<() => void>();
   private usageTimer?: ReturnType<typeof setTimeout>;
   private revision = 0;
@@ -158,7 +158,7 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
       await this.apply(context, plugin.id, missing, decision);
       if (decision === "deny") throw new PluginPermissionError(missing[0], "denied");
     }
-    this.countUsage(plugin.id);
+    for (const permission of permissions) this.countUsage(plugin.id, permission);
   }
 
   async request(
@@ -315,7 +315,15 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
   /** 最近几天的调用次数（含尚未落盘的本轮计数） */
   async usage(pluginId: string) {
     const stored = await getPluginUsage(this.workspaceId, pluginId);
-    return { ...stored, read: stored.read + (this.unflushed.get(pluginId) ?? 0) };
+    const pending = this.unflushed.get(pluginId);
+    return pending
+      ? {
+          ...stored,
+          read: stored.read + pending.read,
+          write: stored.write + pending.write,
+          delete: stored.delete + pending.delete,
+        }
+      : stored;
   }
 
   dismissPending(pluginId: string, permission: PluginPermission) {
@@ -341,15 +349,18 @@ export class DesktopPermissionBroker implements PermissionsAdapter {
     });
   }
 
-  private countUsage(pluginId: string) {
-    this.unflushed.set(pluginId, (this.unflushed.get(pluginId) ?? 0) + 1);
+  private countUsage(pluginId: string, permission: PluginPermission) {
+    const kind = permission.split(":")[1] as PluginUsageKind;
+    const counts = this.unflushed.get(pluginId) ?? { read: 0, write: 0, delete: 0 };
+    counts[kind] += 1;
+    this.unflushed.set(pluginId, counts);
     this.usageTimer ??= setTimeout(() => this.flushUsage(), USAGE_FLUSH_MS);
   }
 
   private flushUsage() {
     this.usageTimer = undefined;
-    for (const [pluginId, read] of this.unflushed)
-      void recordPluginUsage(this.workspaceId, pluginId, { read }).catch(error =>
+    for (const [pluginId, counts] of this.unflushed)
+      void recordPluginUsage(this.workspaceId, pluginId, counts).catch(error =>
         console.error("记录插件调用失败", error)
       );
     this.unflushed.clear();

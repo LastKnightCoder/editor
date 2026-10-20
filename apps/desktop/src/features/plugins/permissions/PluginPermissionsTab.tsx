@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { PluginPermission } from "@tau/plugins";
 import { Button } from "@tau/ui";
 import { usePluginPermissionUi, type DesktopPermissionBroker } from "@/app/plugins/permissions";
+import type { DesktopDataAdapter } from "@/app/plugins/data";
+import { PluginOperationsSection } from "./PluginOperationsSection";
 import { PERMISSION_LABELS, PERMISSION_STATE_LABELS } from "./labels";
 
 const noop = () => () => undefined;
@@ -10,11 +12,13 @@ const noop = () => () => undefined;
 /** 插件详情页「权限」：声明的权限逐项显示状态，可授予、撤销或解除阻止，并显示近期调用次数。 */
 export function PluginPermissionsTab({
   broker,
+  data,
   pluginId,
   permissions,
   active,
 }: {
   broker?: DesktopPermissionBroker;
+  data?: DesktopDataAdapter;
   pluginId: string;
   permissions: readonly PluginPermission[];
   active: boolean;
@@ -134,9 +138,11 @@ export function PluginPermissionsTab({
       )}
       {usage.data && (
         <p className="text-tau-meta text-ink-3 tabular-nums">
-          最近 {usage.data.days} 天读取 {usage.data.read} 次
+          最近 {usage.data.days} 天读取 {usage.data.read} 次 · 修改 {usage.data.write} 次 · 删除{" "}
+          {usage.data.delete} 次
         </p>
       )}
+      {data && <PluginOperationsSection data={data} pluginId={pluginId} />}
     </div>
   );
 }

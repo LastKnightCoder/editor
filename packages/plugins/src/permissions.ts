@@ -1,13 +1,23 @@
 /**
  * 业务数据权限：manifest 的 permissions 声明插件可申请的上限，首次调用对应接口时由宿主
- * 弹窗询问用户。插件与应用运行在同一环境，权限约束的是 SDK 接口，不是安全隔离。
+ * 弹窗询问用户。read 读取，write 新建与修改（含正文），delete 删除（可在插件详情页恢复）。
+ * 插件与应用运行在同一环境，权限约束的是 SDK 接口，不是安全隔离。
  */
 export const PLUGIN_PERMISSIONS = [
   "cards:read",
+  "cards:write",
+  "cards:delete",
   "articles:read",
+  "articles:write",
+  "articles:delete",
   "documents:read",
+  "documents:write",
   "todos:read",
+  "todos:write",
+  "todos:delete",
   "calendar:read",
+  "calendar:write",
+  "calendar:delete",
 ] as const;
 
 export type PluginPermission = (typeof PLUGIN_PERMISSIONS)[number];

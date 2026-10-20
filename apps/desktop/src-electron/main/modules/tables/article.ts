@@ -38,7 +38,8 @@ export default class ArticleTable {
       "create-article": this.createArticle.bind(this),
       "create-article-from-project-item": this.createArticleFromProjectItem.bind(this),
       "update-article": this.updateArticle.bind(this),
-      "delete-article": this.deleteArticleById.bind(this),
+      "delete-article": (db: Database.Database, articleId: number) =>
+        this.deleteArticleById(db, articleId),
       "get-all-articles": this.getAllArticles.bind(this),
       "get-article-page": this.getArticlePage.bind(this),
       "get-article-tag-counts": this.getArticleTagCounts.bind(this),
@@ -279,7 +280,12 @@ export default class ArticleTable {
     return this.getArticleById(db, id);
   }
 
-  static deleteArticleById(db: Database.Database, articleId: number): number {
+  /** deferContent：正文只延迟释放（7 天宽限内可恢复），供插件的可恢复删除使用 */
+  static deleteArticleById(
+    db: Database.Database,
+    articleId: number,
+    options: { deferContent?: boolean } = {}
+  ): number {
     // 获取文章信息，以获取contentId
     const articleInfo = this.getArticleById(db, articleId);
     if (articleInfo) assertContentIsLocal(db, articleInfo.contentId);
@@ -299,7 +305,8 @@ export default class ArticleTable {
 
       if (articleInfo && articleInfo.contentId) {
         // 删除关联的content记录（减少引用计数）
-        ContentTable.deleteContent(db, articleInfo.contentId);
+        if (options.deferContent) ContentTable.releaseDeferred(db, articleInfo.contentId);
+        else ContentTable.deleteContent(db, articleInfo.contentId);
       }
     }
 

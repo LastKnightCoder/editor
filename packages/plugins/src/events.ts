@@ -22,12 +22,17 @@ export const PLUGIN_EVENT_TYPES = [
 
 export type PluginEventType = (typeof PLUGIN_EVENT_TYPES)[number];
 
+/** 变化来自哪里：插件经 context.data / context.content 写入时为 plugin，其余（用户、同步、AI 等）为 app */
+export type PluginEventOrigin = { kind: "plugin"; pluginId: string } | { kind: "app" };
+
 export interface PluginDomainEvent {
   type: PluginEventType;
   /** 实体事件给出与 context.data 相同的 ID；集合级事件没有 */
   id?: string;
   /** 宿主发出事件的时间（毫秒） */
   at: number;
+  /** 用来忽略自己写入引起的事件；待办与日程的集合级事件恒为 app */
+  origin: PluginEventOrigin;
 }
 
 /** 接收事件需要对应数据的读取权限；未获准时事件不送达，也不会弹窗询问 */

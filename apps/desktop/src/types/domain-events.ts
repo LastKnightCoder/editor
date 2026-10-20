@@ -15,6 +15,8 @@ export interface DomainEventRecord {
     | "workspace.reset";
   id?: number;
   at: number;
+  /** 由插件经 plugin-data 写入时为插件 ID */
+  pluginId?: string;
 }
 
 export interface DomainEventMessage {

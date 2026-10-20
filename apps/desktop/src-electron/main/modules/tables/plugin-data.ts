@@ -1,29 +1,53 @@
 import Database from "better-sqlite3";
 import { basename } from "node:path";
-import { getMarkdown } from "@/utils/markdown.ts";
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
+import type { Descendant } from "slate";
+import { getMarkdown, importFromMarkdown } from "@/utils/markdown.ts";
+import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
+  PluginContentEdit,
   PluginContentRecord,
   PluginDataEntity,
   PluginDataPage,
   PluginDataQuery,
   PluginDataRecord,
   PluginDataScope,
+  PluginOperationRecord,
+  PluginWritableEntity,
 } from "@/types/plugin-data";
-import { contentTitles } from "./content-ai-meta";
+import { contentTitle, contentTitles } from "./content-ai-meta";
 import EntitySearchTable from "./entity-search";
+import CardTable from "./card";
+import ArticleTable from "./article";
+import ProjectTable from "./project";
+import ContentTable from "./content";
+import Operation from "./operation";
+import { emitContentWritten } from "../content-events";
+import { setCanonicalContentTitle } from "../collaboration/content-sessions";
+import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
 
 const MAX_LIMIT = 200;
 const CARD_TITLE_LENGTH = 30;
+/** 可恢复操作的保留期，与正文延迟回收的宽限期一致 */
+export const PLUGIN_OPERATION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+/** 主进程抛出、渲染端适配层转换为 PluginConflictError 的错误前缀 */
+export const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
+
+const ENTITY_TABLES: Record<PluginDataEntity, string> = {
+  card: "cards",
+  article: "articles",
+  document: "project_item",
+};
 
 /** 各实体统一投影成 id / created / updated / tags / pinned / title / 正文身份 */
 const BASE_SQL: Record<PluginDataEntity, string> = {
-  card: `SELECT c.id, c.create_time AS created,
+  card: `SELECT c.id, c.create_time AS created, c.update_time AS revision,
       MAX(c.update_time, IFNULL(ct.update_time, 0)) AS updated,
       c.tags, c.is_top AS pinned, '' AS title, c.content_id AS content_id,
       ct.create_time AS content_created, IFNULL(ct.count, 0) AS word_count,
       NULL AS kind, NULL AS projects
     FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id`,
-  article: `SELECT a.id, a.create_time AS created,
+  article: `SELECT a.id, a.create_time AS created, a.update_time AS revision,
       MAX(a.update_time, IFNULL(ct.update_time, 0)) AS updated,
       a.tags, a.is_top AS pinned, a.title, a.content_id AS content_id,
       ct.create_time AS content_created, IFNULL(ct.count, 0) AS word_count,
@@ -31,7 +55,7 @@ const BASE_SQL: Record<PluginDataEntity, string> = {
     FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id
     WHERE a.is_delete = 0`,
   // 引用型条目只是指向卡片 / 文章的入口，正文归被引用的实体
-  document: `SELECT p.id, p.create_time AS created,
+  document: `SELECT p.id, p.create_time AS created, p.update_time AS revision,
       MAX(p.update_time, IFNULL(ct.update_time, 0)) AS updated,
       p.tags, 0 AS pinned, p.title, p.content_id AS content_id,
       ct.create_time AS content_created, IFNULL(ct.count, 0) AS word_count,
@@ -42,6 +66,7 @@ const BASE_SQL: Record<PluginDataEntity, string> = {
 
 interface Row {
   id: number;
+  revision: number;
   created: number;
   updated: number;
   tags: string | null;
@@ -79,6 +104,14 @@ export default class PluginDataTable {
       "plugin-data:query": this.query.bind(this),
       "plugin-data:get": this.get.bind(this),
       "plugin-data:content": this.content.bind(this),
+      "plugin-data:create": this.create.bind(this),
+      "plugin-data:update": this.update.bind(this),
+      "plugin-data:delete": this.remove.bind(this),
+      "plugin-data:edit-content": this.editContent.bind(this),
+      "plugin-data:operations": this.operations.bind(this),
+      "plugin-data:record-operation": this.recordOperation.bind(this),
+      "plugin-data:restore": this.restore.bind(this),
+      "plugin-data:mark-restored": this.markRestored.bind(this),
     };
   }
 
@@ -188,12 +221,406 @@ export default class PluginDataTable {
       contentId: row.id,
       createdAt: row.create_time,
       updatedAt: row.update_time,
+      revision: this.contentRevision(db, row.id),
       wordCount: row.count || 0,
       ...(request.format === "nodes"
         ? { nodes }
         : { markdown: getMarkdown(nodes as Parameters<typeof getMarkdown>[0]) }),
       owners: [...owners],
     };
+  }
+
+  /** 有协作会话时为会话文档的版本，否则为正文的修改时间 */
+  private static contentRevision(db: Database.Database, contentId: number): string {
+    const content = ContentTable.getContentById(db, contentId);
+    if (!content) throw new Error("正文不存在");
+    return content.revision ?? `u:${content.updateTime}`;
+  }
+
+  private static assertRevision(
+    db: Database.Database,
+    entity: PluginDataEntity,
+    id: number,
+    expectedRevision: string
+  ) {
+    const row = db
+      .prepare(`SELECT update_time FROM ${ENTITY_TABLES[entity]} WHERE id = ?`)
+      .get(id) as { update_time: number } | undefined;
+    if (!row || (entity === "article" && this.articleDeleted(db, id)))
+      throw new Error(
+        `${entity === "card" ? "卡片" : entity === "article" ? "文章" : "项目文档"}不存在`
+      );
+    if (String(row.update_time) !== expectedRevision)
+      throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
+  }
+
+  private static articleDeleted(db: Database.Database, id: number) {
+    const row = db.prepare("SELECT is_delete FROM articles WHERE id = ?").get(id) as
+      { is_delete: number } | undefined;
+    return !row || Boolean(row.is_delete);
+  }
+
+  /** 插件写入与用户在其他窗口的操作一样，经已有广播让所有窗口（含发起窗口）刷新 */
+  private static broadcastAll(ctx: CommandContext): CommandContext {
+    return { ...ctx, broadcastOthers: ctx.broadcastAll };
+  }
+
+  private static nodesFromMarkdown(markdown: string | undefined): Descendant[] {
+    const nodes = markdown?.trim() ? (importFromMarkdown(markdown) as Descendant[]) : [];
+    return nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT);
+  }
+
+  static create(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      entity: PluginWritableEntity;
+      input: { markdown?: string; tags?: string[]; pinned?: boolean; title?: string };
+    },
+    ctx: CommandContext = fallbackCommandContext
+  ): PluginDataRecord {
+    this.assertDatabase(db, request);
+    const { input } = request;
+    const content = this.nodesFromMarkdown(input.markdown);
+    const id = writeAsPlugin(request.pluginId, () => {
+      if (request.entity === "card")
+        return CardTable.createCard(db, {
+          content,
+          tags: input.tags ?? [],
+          isTop: Boolean(input.pinned),
+        } as Parameters<typeof CardTable.createCard>[1]).id;
+      if (request.entity === "article")
+        return ArticleTable.createArticle(db, {
+          title: input.title ?? "",
+          author: "",
+          tags: input.tags ?? [],
+          links: [],
+          content,
+          bannerBg: "",
+          bannerPosition: "center",
+          isTop: false,
+          isDelete: false,
+          count: 0,
+        }).id;
+      throw new Error("不支持新建该类型");
+    });
+    const channel = request.entity === "card" ? "card:updated" : "article:updated";
+    ctx.broadcastAll(channel, {
+      databaseName: basename(db.name),
+      [request.entity === "card" ? "cardId" : "articleId"]: id,
+    });
+    return this.get(db, { ...request, entity: request.entity, id }) as PluginDataRecord;
+  }
+
+  static update(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      entity: PluginDataEntity;
+      id: number;
+      patch: { tags?: string[]; pinned?: boolean; title?: string };
+      expectedRevision: string;
+    },
+    ctx: CommandContext = fallbackCommandContext
+  ): PluginDataRecord {
+    this.assertDatabase(db, request);
+    this.assertEntity(request.entity);
+    this.assertRevision(db, request.entity, request.id, request.expectedRevision);
+    const { patch } = request;
+    const all = this.broadcastAll(ctx);
+    writeAsPlugin(request.pluginId, () => {
+      if (request.entity === "card") {
+        const card = CardTable.getCardById(db, request.id);
+        if (!card) throw new Error("卡片不存在");
+        CardTable.updateCard(
+          db,
+          { ...card, tags: patch.tags ?? card.tags, isTop: patch.pinned ?? card.isTop },
+          all
+        );
+      } else if (request.entity === "article") {
+        const article = ArticleTable.getArticleById(db, request.id);
+        if (patch.title !== undefined) setCanonicalContentTitle(db, article.contentId, patch.title);
+        ArticleTable.updateArticle(
+          db,
+          {
+            ...article,
+            title: patch.title ?? article.title,
+            tags: patch.tags ?? article.tags,
+            isTop: patch.pinned ?? article.isTop,
+          },
+          all
+        );
+      } else {
+        const item = ProjectTable.getProjectItem(db, request.id);
+        if (!item) throw new Error("项目文档不存在");
+        ProjectTable.updateProjectItem(
+          db,
+          { ...item, title: patch.title ?? item.title, tags: patch.tags ?? item.tags },
+          all
+        );
+      }
+    });
+    return this.get(db, request) as PluginDataRecord;
+  }
+
+  /** 删除前保存行快照，正文延迟释放；7 天内可由用户在插件详情页恢复 */
+  static remove(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      entity: PluginWritableEntity;
+      id: number;
+      expectedRevision: string;
+    }
+  ): void {
+    this.assertDatabase(db, request);
+    if (request.entity !== "card" && request.entity !== "article")
+      throw new Error("不支持删除该类型");
+    this.assertRevision(db, request.entity, request.id, request.expectedRevision);
+    const table = ENTITY_TABLES[request.entity];
+    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(request.id) as Record<
+      string,
+      unknown
+    >;
+    const contentId = Number(row.content_id) || null;
+    const contentCreatedAt = contentId
+      ? ((
+          db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
+            { create_time: number } | undefined
+        )?.create_time ?? null)
+      : null;
+    const title =
+      request.entity === "card"
+        ? contentId
+          ? contentTitle(db, contentId, CARD_TITLE_LENGTH)
+          : ""
+        : String(row.title ?? "");
+    writeAsPlugin(request.pluginId, () => {
+      if (request.entity === "card") CardTable.deleteCard(db, request.id, { deferContent: true });
+      else ArticleTable.deleteArticleById(db, request.id, { deferContent: true });
+    });
+    this.insertOperation(db, {
+      pluginId: request.pluginId,
+      entity: request.entity,
+      entityId: String(request.id),
+      title,
+      payload: { row, contentCreatedAt },
+    });
+  }
+
+  static editContent(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      contentId: number;
+      createdAt: number;
+      edit: PluginContentEdit;
+      expectedRevision: string;
+    },
+    ctx: CommandContext = fallbackCommandContext
+  ): { revision: string } {
+    this.assertDatabase(db, request);
+    const exists = db
+      .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
+      .get(request.contentId, request.createdAt);
+    const current = exists ? ContentTable.getContentById(db, request.contentId) : null;
+    if (!current) throw new Error("正文不存在");
+    const revision = current.revision ?? `u:${current.updateTime}`;
+    if (revision !== request.expectedRevision)
+      throw new Error(`${CONFLICT_PREFIX}正文已被修改，请重新读取后再试`);
+    const content = this.applyEdit(current.content, request.edit);
+    writeAsPlugin(request.pluginId, () =>
+      ContentTable.updateContent(
+        db,
+        request.contentId,
+        { content, expectedRevision: current.revision },
+        ctx
+      )
+    );
+    markContentOrigin(basename(db.name), request.contentId, request.pluginId);
+    return { revision: this.contentRevision(db, request.contentId) };
+  }
+
+  private static applyEdit(current: Descendant[], edit: PluginContentEdit): Descendant[] {
+    switch (edit.op) {
+      // 追加只转换新内容，原有节点原样保留
+      case "append":
+        return [...current, ...(importFromMarkdown(edit.markdown) as Descendant[])];
+      case "prepend":
+        return [...(importFromMarkdown(edit.markdown) as Descendant[]), ...current];
+      case "replaceAll":
+        return this.nodesFromMarkdown(edit.markdown);
+      case "replaceText": {
+        const markdown = getMarkdown(current);
+        const first = markdown.indexOf(edit.find);
+        if (first < 0) throw new Error("没有找到要替换的文字");
+        if (markdown.indexOf(edit.find, first + 1) >= 0)
+          throw new Error("要替换的文字出现了多次，请提供更长的上下文");
+        return this.nodesFromMarkdown(
+          markdown.slice(0, first) + edit.markdown + markdown.slice(first + edit.find.length)
+        );
+      }
+      default:
+        throw new Error("未知的正文修改");
+    }
+  }
+
+  private static insertOperation(
+    db: Database.Database,
+    operation: {
+      pluginId: string;
+      entity: string;
+      entityId: string;
+      title: string;
+      payload: unknown;
+    }
+  ) {
+    const now = Date.now();
+    db.prepare("DELETE FROM plugin_operations WHERE create_time < ?").run(
+      now - PLUGIN_OPERATION_RETENTION_MS
+    );
+    db.prepare(
+      `INSERT INTO plugin_operations (plugin_id, action, entity, entity_id, title, payload, create_time)
+       VALUES (?, 'delete', ?, ?, ?, ?, ?)`
+    ).run(
+      operation.pluginId,
+      operation.entity,
+      operation.entityId,
+      operation.title,
+      JSON.stringify(operation.payload),
+      now
+    );
+  }
+
+  /** 待办与日程的删除由助理操作执行，渲染端在成功后登记撤销凭据 */
+  static recordOperation(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      entity: "todo" | "event";
+      entityId: string;
+      title: string;
+      operationId: string;
+    }
+  ) {
+    this.assertDatabase(db, request);
+    if (request.entity !== "todo" && request.entity !== "event") throw new Error("类型无效");
+    this.insertOperation(db, { ...request, payload: { operationId: request.operationId } });
+  }
+
+  static operations(
+    db: Database.Database,
+    request: PluginDataScope & { pluginId: string }
+  ): PluginOperationRecord[] {
+    this.assertDatabase(db, request);
+    const since = Date.now() - PLUGIN_OPERATION_RETENTION_MS;
+    const rows = db
+      .prepare(
+        `SELECT id, action, entity, entity_id, title, payload, create_time, restored_time
+         FROM plugin_operations WHERE plugin_id = ? AND create_time >= ?
+         ORDER BY create_time DESC, id DESC LIMIT 100`
+      )
+      .all(request.pluginId, since) as Array<{
+      id: number;
+      action: "delete";
+      entity: PluginOperationRecord["entity"];
+      entity_id: string;
+      title: string;
+      payload: string;
+      create_time: number;
+      restored_time: number | null;
+    }>;
+    return rows.map(row => ({
+      id: row.id,
+      action: row.action,
+      entity: row.entity,
+      entityId: row.entity_id,
+      title: row.title,
+      createdAt: row.create_time,
+      restoredAt: row.restored_time,
+      ...(row.entity === "todo" || row.entity === "event"
+        ? { operationId: (JSON.parse(row.payload) as { operationId: string }).operationId }
+        : {}),
+    }));
+  }
+
+  private static claimOperation(db: Database.Database, id: number) {
+    const row = db
+      .prepare(
+        "SELECT entity, payload, create_time, restored_time FROM plugin_operations WHERE id = ?"
+      )
+      .get(id) as
+      | { entity: string; payload: string; create_time: number; restored_time: number | null }
+      | undefined;
+    if (!row) throw new Error("操作记录不存在");
+    if (row.restored_time) throw new Error("已经恢复过了");
+    if (row.create_time < Date.now() - PLUGIN_OPERATION_RETENTION_MS)
+      throw new Error("已超过 7 天，无法恢复");
+    return row;
+  }
+
+  static markRestored(db: Database.Database, request: PluginDataScope & { id: number }) {
+    this.assertDatabase(db, request);
+    this.claimOperation(db, request.id);
+    db.prepare("UPDATE plugin_operations SET restored_time = ? WHERE id = ?").run(
+      Date.now(),
+      request.id
+    );
+  }
+
+  /** 恢复插件删除的卡片或文章：原 ID 未被占用时沿用，正文重新引用；返回恢复后的 ID */
+  static restore(
+    db: Database.Database,
+    request: PluginDataScope & { id: number },
+    ctx: CommandContext = fallbackCommandContext
+  ): { entity: PluginWritableEntity; id: number } {
+    this.assertDatabase(db, request);
+    const operation = this.claimOperation(db, request.id);
+    if (operation.entity !== "card" && operation.entity !== "article")
+      throw new Error("该操作需要通过待办撤销恢复");
+    const entity = operation.entity as PluginWritableEntity;
+    const { row, contentCreatedAt } = JSON.parse(operation.payload) as {
+      row: Record<string, unknown>;
+      contentCreatedAt: number | null;
+    };
+    const contentId = Number(row.content_id) || null;
+    if (contentId) {
+      const content = db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
+        { create_time: number } | undefined;
+      if (!content || content.create_time !== contentCreatedAt)
+        throw new Error("正文已被清理，无法恢复");
+      ContentTable.retain(db, contentId);
+    }
+    const table = ENTITY_TABLES[entity];
+    const columns = new Set(
+      (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
+        column => column.name
+      )
+    );
+    const values = Object.fromEntries(
+      Object.entries(row).filter(([key]) => columns.has(key))
+    ) as Record<string, unknown>;
+    if (db.prepare(`SELECT 1 FROM ${table} WHERE id = ?`).get(values.id)) delete values.id;
+    const keys = Object.keys(values);
+    const id = Number(
+      db
+        .prepare(
+          `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`
+        )
+        .run(...keys.map(key => values[key] as never)).lastInsertRowid
+    );
+    Operation.insertOperation(db, entity, "insert", id, Date.now());
+    db.prepare("UPDATE plugin_operations SET restored_time = ? WHERE id = ?").run(
+      Date.now(),
+      request.id
+    );
+    // 让全文、引用、文档待办等派生索引重新收录这份正文
+    if (contentId) emitContentWritten(db, contentId, "update");
+    ctx.broadcastAll(entity === "card" ? "card:updated" : "article:updated", {
+      databaseName: basename(db.name),
+      [entity === "card" ? "cardId" : "articleId"]: id,
+    });
+    return { entity, id };
   }
 
   private static records(
@@ -212,6 +639,7 @@ export default class PluginDataTable {
     return rows.map(row => ({
       entity,
       id: row.id,
+      revision: String(row.revision),
       title: titles ? (row.content_id ? (titles.get(row.content_id) ?? "") : "") : row.title,
       tags: parseList(row.tags).filter((tag): tag is string => typeof tag === "string"),
       pinned: Boolean(row.pinned),

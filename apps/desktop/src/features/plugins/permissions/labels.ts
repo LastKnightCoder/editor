@@ -4,10 +4,19 @@ import type { PermissionRowState } from "@/app/plugins/permissions";
 /** 权限的界面叫法：弹窗与插件详情页共用 */
 export const PERMISSION_LABELS: Record<PluginPermission, { label: string; detail: string }> = {
   "cards:read": { label: "读取卡片", detail: "卡片的正文、标签和时间" },
+  "cards:write": { label: "新建和修改卡片", detail: "包括卡片正文、标签和置顶" },
+  "cards:delete": { label: "删除卡片", detail: "删除后 7 天内可在插件详情页恢复" },
   "articles:read": { label: "读取文章", detail: "文章的标题、正文、标签和时间" },
+  "articles:write": { label: "新建和修改文章", detail: "包括文章标题、正文和标签" },
+  "articles:delete": { label: "删除文章", detail: "删除后 7 天内可在插件详情页恢复" },
   "documents:read": { label: "读取项目文档", detail: "项目文档的标题、正文和所属项目" },
+  "documents:write": { label: "修改项目文档", detail: "项目文档的标题、标签和正文" },
   "todos:read": { label: "读取待办", detail: "独立待办和文档里的勾选项" },
+  "todos:write": { label: "新建和修改待办", detail: "包括标记完成和修改截止时间" },
+  "todos:delete": { label: "删除待办", detail: "删除后 7 天内可在插件详情页恢复" },
   "calendar:read": { label: "读取日程", detail: "日历上的日程安排" },
+  "calendar:write": { label: "新建和修改日程", detail: "日历上的日程安排" },
+  "calendar:delete": { label: "删除日程", detail: "删除后 7 天内可在插件详情页恢复" },
 };
 
 export const PERMISSION_STATE_LABELS: Record<PermissionRowState, string> = {

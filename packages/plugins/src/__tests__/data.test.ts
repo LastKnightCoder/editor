@@ -55,9 +55,30 @@ function setup({
       return { items: [] };
     },
     calendar: async () => ({ items: [] }),
+    async create(_context, entity, input) {
+      calls.push(["create", entity, input]);
+      return card;
+    },
+    async update(_context, entity, id, patch, revision) {
+      calls.push(["update", entity, id, patch, revision]);
+      return card;
+    },
+    async remove(_context, entity, id, revision) {
+      calls.push(["remove", entity, id, revision]);
+    },
+    async writeTodo(_context, write) {
+      calls.push(["writeTodo", write]);
+      return null;
+    },
+    writeCalendar: async () => null,
+    contentOwners: async () => owners,
+    async editContent(_context, ref, edit, revision) {
+      calls.push(["editContent", ref, edit, revision]);
+      return { revision: "r2" };
+    },
     readContent: async (_context, ref) => ({
       owners,
-      snapshot: { ref, markdown: "正文", wordCount: 2, updatedAt: 2 },
+      snapshot: { ref, revision: "r1", markdown: "正文", wordCount: 2, updatedAt: 2 },
     }),
   };
   const subscribers = new Set<(event: PluginDomainEvent) => void>();
@@ -106,11 +127,11 @@ describe("插件业务数据与权限", () => {
       integrity: { "main.js": "a".repeat(64) },
     };
     expect(
-      validatePluginManifest({ ...base, permissions: ["cards:read", "cards:write", "cards:read"] })
+      validatePluginManifest({ ...base, permissions: ["cards:read", "cards:rename", "cards:read"] })
         .permissions
     ).toEqual(["cards:read"]);
     expect(() =>
-      validatePluginManifest({ ...base, permissions: ["cards:write"] }, { strict: true })
+      validatePluginManifest({ ...base, permissions: ["cards:rename"] }, { strict: true })
     ).toThrow("未知插件权限");
   });
 
@@ -195,10 +216,10 @@ describe("插件业务数据与权限", () => {
     context().events.on(["card.updated", "todos.changed", "workspace.reset"], event =>
       received.push(`${event.type}:${event.id ?? ""}`)
     );
-    emit({ type: "card.updated", id: "3", at: 1 });
-    emit({ type: "card.deleted", id: "3", at: 1 });
-    emit({ type: "todos.changed", at: 1 });
-    emit({ type: "workspace.reset", at: 1 });
+    emit({ type: "card.updated", id: "3", at: 1, origin: { kind: "app" } });
+    emit({ type: "card.deleted", id: "3", at: 1, origin: { kind: "app" } });
+    emit({ type: "todos.changed", at: 1, origin: { kind: "app" } });
+    emit({ type: "workspace.reset", at: 1, origin: { kind: "app" } });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(received).toEqual(["card.updated:3", "workspace.reset:"]);
     await host.disable("weekly");
@@ -214,5 +235,71 @@ describe("插件业务数据与权限", () => {
     expect(() => context().events.on("card.moved" as "card.updated", () => undefined)).toThrow(
       "未知的事件类型"
     );
+  });
+
+  it("写入需要写入或删除权限并校验参数与 revision", async () => {
+    const granted = new Set<PluginPermission>([
+      "cards:read",
+      "cards:write",
+      "cards:delete",
+      "todos:write",
+    ]);
+    const { host, calls, context } = setup({
+      declared: ["cards:read", "cards:write", "cards:delete", "todos:write"],
+      granted,
+    });
+    await host.enable("weekly");
+    await context().data.cards.create({ markdown: "# 新卡", tags: ["读书", "读书"] });
+    await context().data.cards.update("3", { pinned: true }, { expectedRevision: "10" });
+    await context().data.cards.delete("3", { expectedRevision: "10" });
+    await context().data.todos.setCompleted("todo:1:1", true, { expectedRevision: "t1" });
+    expect(calls.filter(call => call[0] !== "ensure")).toEqual([
+      ["create", "card", { markdown: "# 新卡", tags: ["读书"] }],
+      ["update", "card", "3", { pinned: true }, "10"],
+      ["remove", "card", "3", "10"],
+      [
+        "writeTodo",
+        { action: "complete", id: "todo:1:1", completed: true, expectedRevision: "t1" },
+      ],
+    ]);
+    await expect(
+      context().data.cards.update("3", { pinned: true }, {} as { expectedRevision: string })
+    ).rejects.toThrow("expectedRevision");
+    await expect(context().data.cards.update("3", {}, { expectedRevision: "10" })).rejects.toThrow(
+      "没有要修改的字段"
+    );
+    await expect(
+      context().data.cards.update("3", { title: "x" } as never, { expectedRevision: "10" })
+    ).rejects.toThrow("没有要修改的字段");
+    await expect(context().data.articles.create({ title: "文" })).rejects.toMatchObject({
+      reason: "undeclared",
+      permission: "articles:write",
+    });
+  });
+
+  it("修改正文需要所属实体的写入权限", async () => {
+    const writable = setup({
+      declared: ["cards:read", "cards:write"],
+      granted: new Set(["cards:read", "cards:write"]),
+    });
+    await writable.host.enable("weekly");
+    expect(
+      await writable
+        .context()
+        .content.edit("7:100", { op: "append", markdown: "补充" }, { expectedRevision: "r1" })
+    ).toEqual({ revision: "r2" });
+    await expect(
+      writable
+        .context()
+        .content.edit("7:100", { op: "rename" } as never, { expectedRevision: "r1" })
+    ).rejects.toThrow("未知的正文修改");
+
+    const readonly = setup({ declared: ["cards:read"], granted: new Set(["cards:read"]) });
+    await readonly.host.enable("weekly");
+    await expect(
+      readonly
+        .context()
+        .content.edit("7:100", { op: "append", markdown: "补充" }, { expectedRevision: "r1" })
+    ).rejects.toMatchObject({ reason: "undeclared", permission: "cards:write" });
   });
 });

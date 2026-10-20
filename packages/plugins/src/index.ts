@@ -32,8 +32,9 @@ export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inl
 export * from "./sidebar";
 export type * from "./excerpts";
 export type * from "./data";
+export { PluginConflictError } from "./errors";
 export { PLUGIN_EVENT_TYPES } from "./events";
-export type { PluginDomainEvent, PluginEventType, PluginEvents } from "./events";
+export type { PluginDomainEvent, PluginEventOrigin, PluginEventType, PluginEvents } from "./events";
 export { PLUGIN_PERMISSIONS, PluginPermissionError, isPluginPermission } from "./permissions";
 export type {
   PluginPermission,

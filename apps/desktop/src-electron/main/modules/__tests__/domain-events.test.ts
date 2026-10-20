@@ -29,6 +29,7 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import ContentTable from "../tables/content";
 import { broadcastDatabaseChange } from "../database-notifications";
 import domainEvents from "../domain-events";
+import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
 
 const doc = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as never;
@@ -40,6 +41,12 @@ describe("业务数据变更事件", () => {
       .filter(([channel]) => channel === "domain-events")
       .flatMap(([, message]) =>
         message.events.map(({ type, id }: { type: string; id?: number }) => ({ type, id }))
+      );
+  const origins = () =>
+    hoisted.send.mock.calls
+      .filter(([channel]) => channel === "domain-events")
+      .flatMap(([, message]) =>
+        message.events.map((event: { pluginId?: string }) => event.pluginId ?? "app")
       );
   const card = (contentId: number) =>
     Number(
@@ -110,5 +117,23 @@ describe("业务数据变更事件", () => {
     for (const callback of hoisted.connected) callback("alpha.db", "sync_download_reconnect");
     await vi.advanceTimersByTimeAsync(600);
     expect(events()).toEqual([{ type: "workspace.reset" }]);
+  });
+
+  it("插件写入的事件带插件来源；协作投影的正文按登记的来源标注", async () => {
+    const contentId = ContentTable.createContent(db, { content: doc("甲") });
+    writeAsPlugin("weekly", () => card(contentId));
+    await vi.advanceTimersByTimeAsync(600);
+    expect(origins()).toEqual(["weekly"]);
+
+    hoisted.send.mockClear();
+    markContentOrigin("alpha.db", contentId, "weekly");
+    db.prepare("UPDATE contents SET content = '[]' WHERE id = ?").run(contentId);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(origins()).toEqual(["weekly"]);
+
+    hoisted.send.mockClear();
+    card(0);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(origins()).toEqual(["app"]);
   });
 });

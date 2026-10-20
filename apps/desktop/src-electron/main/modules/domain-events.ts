@@ -14,6 +14,7 @@ import { Module } from "../types/module";
 import databaseModule from "./database";
 import { onDatabaseChangeBroadcast } from "./database-notifications";
 import EntitySearchTable from "./tables/entity-search";
+import { contentOrigin, currentPluginOrigin } from "./domain-event-origin";
 import type { DomainEventMessage, DomainEventRecord } from "@/types/domain-events";
 
 type Entity = "card" | "article" | "document";
@@ -64,8 +65,9 @@ const COLLECTION_CHANNELS: Record<string, DomainEventRecord["type"][]> = {
 };
 
 interface Pending {
-  entities: Map<string, { entity: Entity; id: number; action: Action }>;
-  contents: Set<number>;
+  entities: Map<string, { entity: Entity; id: number; action: Action; pluginId?: string }>;
+  /** 正文 ID → 写入它的插件（没有为 undefined） */
+  contents: Map<number, string | undefined>;
   collections: Set<DomainEventRecord["type"]>;
   reset: boolean;
   since: number;
@@ -118,13 +120,20 @@ class DomainEventsModule implements Module {
   private record(dbName: string, entity: string, id: number, action: Action | null) {
     if (!action) return;
     const pending = this.queue(dbName);
+    // 同一项在窗口内被多方修改时，以最后一次写入的来源为准
     if (entity === "content") {
-      pending.contents.add(id);
+      pending.contents.set(id, currentPluginOrigin() ?? contentOrigin(dbName, id));
       return;
     }
     const key = `${entity}:${id}`;
     const merged = merge(pending.entities.get(key)?.action, action);
-    if (merged) pending.entities.set(key, { entity: entity as Entity, id, action: merged });
+    if (merged)
+      pending.entities.set(key, {
+        entity: entity as Entity,
+        id,
+        action: merged,
+        pluginId: currentPluginOrigin(),
+      });
     else pending.entities.delete(key);
   }
 
@@ -133,7 +142,7 @@ class DomainEventsModule implements Module {
     if (!pending) {
       pending = {
         entities: new Map(),
-        contents: new Set(),
+        contents: new Map(),
         collections: new Set(),
         reset: false,
         since: Date.now(),
@@ -157,7 +166,9 @@ class DomainEventsModule implements Module {
       const db = databaseModule.getDatabase(dbName);
       // 正文修改计入所属实体的 updated
       if (db && pending.contents.size)
-        for (const refs of EntitySearchTable.locateAll(db, [...pending.contents]).values())
+        for (const [contentId, refs] of EntitySearchTable.locateAll(db, [
+          ...pending.contents.keys(),
+        ]))
           for (const ref of refs) {
             const entity: Entity | null =
               ref.kind === "project-item"
@@ -170,10 +181,11 @@ class DomainEventsModule implements Module {
                 entity,
                 id: ref.id,
                 action: "updated",
+                pluginId: pending.contents.get(contentId),
               });
           }
-      for (const { entity, id, action } of pending.entities.values())
-        events.push({ type: `${entity}.${action}`, id, at });
+      for (const { entity, id, action, pluginId } of pending.entities.values())
+        events.push({ type: `${entity}.${action}`, id, at, ...(pluginId ? { pluginId } : {}) });
       for (const type of pending.collections) events.push({ type, at });
     }
     if (!events.length) return;

@@ -29,7 +29,7 @@ describe("PluginPermissionStore", () => {
   });
 
   it("拒绝未知权限与非法状态", async () => {
-    await expect(store().set("w1", "weekly", "cards:write", "granted")).rejects.toThrow(
+    await expect(store().set("w1", "weekly", "cards:rename", "granted")).rejects.toThrow(
       "未知的插件权限"
     );
     await expect(store().set("w1", "weekly", "cards:read", "maybe" as "granted")).rejects.toThrow(
@@ -37,14 +37,42 @@ describe("PluginPermissionStore", () => {
     );
   });
 
+  it("后台授权绑定版本和作用域，临时授权不跨重启", async () => {
+    const permissions = store();
+    const digest = "a".repeat(64);
+    await permissions.setBackend("test.backend", "application", digest, "once");
+    expect(await permissions.backendGranted("test.backend", "application", digest)).toBe(true);
+    expect(await store().backendGranted("test.backend", "application", digest)).toBe(false);
+    permissions.clearBackendSession("test.backend");
+    expect(await permissions.backendGranted("test.backend", "application", digest)).toBe(false);
+    await permissions.setBackend("test.backend", "application", digest, "always");
+    expect(await store().backendGranted("test.backend", "application", digest)).toBe(true);
+    expect(await permissions.backendGranted("test.backend", "other", digest)).toBe(false);
+    expect(await permissions.backendGranted("test.backend", "application", "b".repeat(64))).toBe(
+      false
+    );
+    await permissions.setBackend("test.backend", "application", digest, null);
+    expect(await permissions.backendGranted("test.backend", "application", digest)).toBe(false);
+  });
+
   it("调用计数只保留最近 7 天", async () => {
     const permissions = store();
     await permissions.record("w1", "weekly", { read: 3 });
     now += 3 * 86_400_000;
-    await permissions.record("w1", "weekly", { read: 2 });
-    expect(await permissions.usage("w1", "weekly")).toEqual({ days: 7, read: 5 });
+    await permissions.record("w1", "weekly", { read: 2, delete: 1 });
+    expect(await permissions.usage("w1", "weekly")).toEqual({
+      days: 7,
+      read: 5,
+      write: 0,
+      delete: 1,
+    });
     now += 6 * 86_400_000;
-    expect(await permissions.usage("w1", "weekly")).toEqual({ days: 7, read: 2 });
+    expect(await permissions.usage("w1", "weekly")).toEqual({
+      days: 7,
+      read: 2,
+      write: 0,
+      delete: 1,
+    });
   });
 
   it("卸载时清除所有工作区的授权与计数", async () => {
@@ -56,6 +84,11 @@ describe("PluginPermissionStore", () => {
     await permissions.forget("weekly");
     expect(await permissions.snapshot("w1")).toEqual({});
     expect(await permissions.snapshot("w2")).toEqual({ other: { "cards:read": "granted" } });
-    expect(await permissions.usage("w1", "weekly")).toEqual({ days: 7, read: 0 });
+    expect(await permissions.usage("w1", "weekly")).toEqual({
+      days: 7,
+      read: 0,
+      write: 0,
+      delete: 0,
+    });
   });
 });

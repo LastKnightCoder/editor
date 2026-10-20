@@ -120,6 +120,7 @@ export function PluginDetailView() {
       children: (
         <PluginPermissionsTab
           broker={runtime.permissions}
+          data={runtime.data}
           pluginId={installed.info.id}
           permissions={installed.info.permissions}
           active={installed.info.state === "active"}
