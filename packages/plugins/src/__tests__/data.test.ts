@@ -9,8 +9,10 @@ import {
   createMemoryStorage,
   PluginHost,
   type DataAdapter,
+  type EventsAdapter,
   type PermissionsAdapter,
 } from "../host";
+import type { PluginDomainEvent } from "../events";
 import { validatePluginManifest } from "../package";
 
 const card = {
@@ -58,12 +60,21 @@ function setup({
       snapshot: { ref, markdown: "正文", wordCount: 2, updatedAt: 2 },
     }),
   };
+  const subscribers = new Set<(event: PluginDomainEvent) => void>();
+  const events: EventsAdapter = {
+    subscribe(_context, listener) {
+      subscribers.add(listener);
+      return { dispose: () => void subscribers.delete(listener) };
+    },
+  };
+  const emit = (event: PluginDomainEvent) => subscribers.forEach(listener => listener(event));
   let context!: PluginContext;
   const host = new PluginHost({
     workspaceId: "work",
     storage: createMemoryStorage(),
     permissions,
     data,
+    events,
   });
   host.registerTrusted({
     ...definePlugin({
@@ -78,7 +89,7 @@ function setup({
     }),
     permissions: declared,
   });
-  return { host, calls, context: () => context };
+  return { host, calls, context: () => context, emit, subscribers };
 }
 
 describe("插件业务数据与权限", () => {
@@ -175,5 +186,33 @@ describe("插件业务数据与权限", () => {
     const stale = context();
     await host.disable("weekly");
     await expect(stale.data.cards.get("3")).rejects.toThrow("插件实例已失效");
+  });
+
+  it("事件按类型与读取权限送达，停用后退订", async () => {
+    const { host, context, emit, subscribers } = setup({ granted: new Set(["cards:read"]) });
+    await host.enable("weekly");
+    const received: string[] = [];
+    context().events.on(["card.updated", "todos.changed", "workspace.reset"], event =>
+      received.push(`${event.type}:${event.id ?? ""}`)
+    );
+    emit({ type: "card.updated", id: "3", at: 1 });
+    emit({ type: "card.deleted", id: "3", at: 1 });
+    emit({ type: "todos.changed", at: 1 });
+    emit({ type: "workspace.reset", at: 1 });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(received).toEqual(["card.updated:3", "workspace.reset:"]);
+    await host.disable("weekly");
+    expect(subscribers.size).toBe(0);
+  });
+
+  it("订阅未声明权限的事件或未知类型直接报错", async () => {
+    const { host, context } = setup({ declared: ["todos:read"] });
+    await host.enable("weekly");
+    expect(() => context().events.on("card.updated", () => undefined)).toThrow(
+      PluginPermissionError
+    );
+    expect(() => context().events.on("card.moved" as "card.updated", () => undefined)).toThrow(
+      "未知的事件类型"
+    );
   });
 });

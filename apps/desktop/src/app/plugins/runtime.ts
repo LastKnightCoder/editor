@@ -25,6 +25,7 @@ import {
   PluginHost,
   normalizePageParams,
   type DataAdapter,
+  type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
   type MCPAdapter,
@@ -132,6 +133,7 @@ export class DesktopPluginRuntime {
       mcp?: MCPAdapter;
       permissions?: DesktopPermissionBroker;
       data?: DataAdapter;
+      events?: EventsAdapter;
       restartRequired?: Set<string>;
       reloadCounts?: Map<string, number>;
     }
@@ -156,6 +158,7 @@ export class DesktopPluginRuntime {
       mcp: options.mcp,
       permissions: options.permissions,
       data: options.data,
+      events: options.events,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,

@@ -39,6 +39,7 @@ import vibeLearningIndexQueue from "../modules/vibe-learning-index-queue";
 import videoNoteIndexDBManager from "../modules/video-note-index-db";
 import videoNoteIndexQueue from "../modules/video-note-index-queue";
 import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
+import domainEventsModule from "../modules/domain-events";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
 import knowledgeMapBuilder from "../modules/knowledge-map-builder";
@@ -109,6 +110,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => mainContentFtsIndexQueue.init(),
+  },
+  {
+    name: "domain-events",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["database"],
+    init: () => domainEventsModule.init(),
   },
   {
     name: "collaboration",
