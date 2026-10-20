@@ -40,12 +40,6 @@ const steps = [
   ],
   ["external-workflow", process.execPath, ["scripts/plugins/verify-external.mjs", externalReport]],
   ["desktop-build", "pnpm", ["--filter", "desktop", "build"]],
-  [
-    "editor-boundaries",
-    process.execPath,
-    ["scripts/editor-refactor-baseline.mjs", "--check", "--quiet"],
-  ],
-  ["antd-boundaries", process.execPath, ["scripts/antd-ratchet.mjs", "--check"]],
   ["database-boundaries", process.execPath, ["scripts/check-database-boundaries.mjs"]],
   ["whiteboard-boundaries", process.execPath, ["scripts/check-whiteboard-boundaries.mjs"]],
   ["diff", "git", ["diff", "--check"]],

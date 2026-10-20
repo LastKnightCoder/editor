@@ -296,7 +296,7 @@ pnpm add -D
 ### UI 与主题
 
 - 样式载体 Tailwind 优先（D-001）：颜色只允许消费 `--tau-*` 变量或 Tailwind 语义类（`bg-page` / `text-ink-1` / `bg-accent-soft`…）；尺度用 tau 命名空间词（`text-tau-*` / `rounded-tau-*` / `shadow-card` / `ease-tau-out`，词表见 02 规范 §3/§4）。禁止裸色值、内联十六进制、antd token。新增 token 词汇必须先进 `packages/themes/src/tokenContract.ts`。
-- 全仓禁止 `antd`、`@ant-design/*` 导入及直接依赖，无存量豁免，由 ESLint、`pnpm check:antd` 与 pre-commit 守护；禁止新增 CSS Modules/Less。手写 CSS 只保留根基础规则与 .app reset、keyframes、主题数据块、复杂伪元素/遮罩（D-087）；组件布局使用静态 Tailwind，外观仍由用户验收。
+- UI 使用 `@tau/ui` + Tailwind，图标使用 lucide-react；迁移完成后，编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再维护这些迁移门禁。现有 ESLint 架构规则、类型检查和行为测试继续执行。禁止新增 CSS Modules/Less。手写 CSS 只保留根基础规则与 .app reset、keyframes、主题数据块、复杂伪元素/遮罩（D-087）；组件布局使用静态 Tailwind，外观仍由用户验收。
 - 跨域复用的视觉模式收口 `packages/ui/src/primitives/` 组件（Panel/IconButton…，组件内写 Tailwind），不要在多个域重复同一段类串。
 - 组件默认样式允许被调用方 `className` 覆盖时，合并必须用 `packages/ui/src/cn.ts` 的 `cn()`（D-008）——裸 clsx 的先后顺序会被 Tailwind 生成顺序吃掉，覆盖静默失效；新增尺度 token 必须同步登记进 cn 的词表（`packages/ui/src/__tests__/cn.test.ts` 守护）。
 - 新主题用 `defineTheme` 声明（tokens 全键强制），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致（含 AA 对比度断言），codegen 落地后改为生成。

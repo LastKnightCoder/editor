@@ -1,5 +1,3 @@
-// antd 已全仓退出，不保留文件级豁免。
-
 // 白板插件隔离护栏：跨插件协作必须走能力协议（CapabilityService），
 // 禁止引用其它插件的专属 Util 或对其元素类型做强转。
 // 宿主插件与测试豁免（领域知识归属宿主自身）。
@@ -77,10 +75,6 @@ module.exports = {
               "编辑器使用公开根入口、api、markdown 或 toolbar；私有夹具仅供测试以仓库路径引用",
           },
           { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
-          {
-            group: ["antd", "antd/*", "@ant-design/*"],
-            message: "antd 已退役且无豁免：UI 用 @tau/ui + Tailwind，图标用 lucide-react",
-          },
         ],
       },
     ],
@@ -109,9 +103,6 @@ module.exports = {
                   "@tau/editor-*",
                   "slate",
                   "slate-*",
-                  "antd",
-                  "antd/*",
-                  "@ant-design/*",
                 ],
                 message: "Database 不依赖宿主、编辑器或原生能力",
               },
@@ -165,7 +156,6 @@ module.exports = {
                 message: "扩展访问内核只能通过 @tau/editor/api",
               },
               { group: ["**/editor/src/**"], message: "禁止相对路径深引内核实现" },
-              { group: ["antd", "antd/*", "@ant-design/*"], message: "新 UI 使用 @tau/ui" },
             ],
           },
         ],
@@ -215,9 +205,6 @@ module.exports = {
                   "slate-react",
                   "slate-dom",
                   "slate-history",
-                  "antd",
-                  "antd/*",
-                  "@ant-design/*",
                   "@tau/ui",
                   "@tau/ui/*",
                 ],
@@ -258,10 +245,6 @@ module.exports = {
                   "编辑器使用公开根入口、api、markdown 或 toolbar；私有夹具仅供测试以仓库路径引用",
               },
               { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
-              {
-                group: ["antd", "antd/*", "@ant-design/*"],
-                message: "antd 已退役且无豁免：UI 用 @tau/ui + Tailwind，图标用 lucide-react",
-              },
             ],
           },
         ],
@@ -291,10 +274,6 @@ module.exports = {
                   "编辑器使用公开根入口、api、markdown 或 toolbar；私有夹具仅供测试以仓库路径引用",
               },
               { group: ["@tau/ui/theme", "@tau/ui/theme/*"], message: "主题从 @tau/themes 导入" },
-              {
-                group: ["antd", "antd/*", "@ant-design/*"],
-                message: "antd 已退役且无豁免：UI 用 @tau/ui + Tailwind，图标用 lucide-react",
-              },
             ],
           },
         ],
@@ -363,10 +342,7 @@ module.exports = {
                   "slate-react",
                   "slate-dom",
                   "slate-history",
-                  "antd",
-                  "antd/*",
                   "@tau/ui",
-                  "@ant-design/*",
                   "@tau/ui/*",
                 ],
                 message: "扩展的 markdown.ts 是 headless 代码（主进程共用），不能依赖 UI / DOM 库",
