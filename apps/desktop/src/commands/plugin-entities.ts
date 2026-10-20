@@ -1,6 +1,8 @@
 import { invoke } from "@/electron";
 import type {
   PluginEntityCreate,
+  PluginEntityKindAppearance,
+  PluginEntityOwner,
   PluginEntityPage,
   PluginEntityPatch,
   PluginEntityQuery,
@@ -50,3 +52,30 @@ export const locatePluginEntity = (
   databaseName: string,
   id: number
 ): Promise<PluginEntityRecord | null> => invoke("plugin-entities:locate", { databaseName, id });
+
+export const deletePluginEntity = (
+  databaseName: string,
+  pluginId: string,
+  id: number,
+  expectedRevision: string
+): Promise<void> =>
+  invoke("plugin-entities:delete", { databaseName, pluginId, id, expectedRevision });
+
+/** 一批插件内容所属的插件与类型（各处按声明的外观显示） */
+export const pluginEntityOwners = (
+  databaseName: string,
+  ids: number[]
+): Promise<PluginEntityOwner[]> => invoke("plugin-entities:owners", { databaseName, ids });
+
+/** 保存插件声明的类型外观，返回是否有变化 */
+export const declarePluginEntityKind = (
+  databaseName: string,
+  pluginId: string,
+  appearance: PluginEntityKindAppearance
+): Promise<boolean> =>
+  invoke("plugin-entities:declare-kind", { databaseName, pluginId, ...appearance });
+
+export const listPluginEntityKinds = (
+  databaseName: string
+): Promise<Array<PluginEntityKindAppearance & { pluginId: string }>> =>
+  invoke("plugin-entities:kinds", { databaseName });

@@ -7,6 +7,7 @@ import type { PluginContentRef, PluginPage, PluginWriteOptions } from "./data";
 import type { JsonValue } from "./json";
 import type { PluginPageParams } from "./pages";
 import type { PluginEntityRef } from "./app";
+import type { PluginIcon } from "./icons";
 
 export type PluginOwnEntityMeta = Record<string, JsonValue>;
 
@@ -32,6 +33,11 @@ export interface PluginOwnEntityKind {
   kind: string;
   /** 在 Tau 中显示的类型名，如「周记」 */
   label: string;
+  /**
+   * 类型图标，与侧边栏图标同一协议。宿主声明时渲染一次并随笔记库保存：插件停用、卸载宽限期内，
+   * 搜索结果、正文中的引用、脉络等处仍按声明的类型名与图标显示。缺省为通用的插件图标。
+   */
+  icon?: PluginIcon;
   /** 用户在 Tau 中打开这项内容时进入的插件页面；params 只能读取实体字段，不访问其他状态 */
   open: { page: string; params?: (entity: PluginOwnEntity) => PluginPageParams };
   /** 是否可在正文中用 @ 引用，默认 false */
@@ -81,6 +87,11 @@ export interface PluginOwnEntities {
     patch: PluginOwnEntityPatch,
     options: PluginWriteOptions
   ): Promise<PluginOwnEntity>;
+  /**
+   * 删除一项及其正文；revision 不是最新时抛出 PluginConflictError。用户可在插件详情页
+   * 「最近删除」中 7 天内恢复，恢复后 ID、key 与正文不变，指向它的引用重新生效。
+   */
+  delete(id: string, options: PluginWriteOptions): Promise<void>;
   /**
    * 哪些卡片、文章、项目文档在正文里引用了这项内容。只返回插件已获准读取的类型，不询问权限；
    * 其余来源（未获准的类型、日记、其他插件的内容）只计入 omitted。

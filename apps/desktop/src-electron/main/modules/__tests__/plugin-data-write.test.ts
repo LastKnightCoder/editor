@@ -12,7 +12,8 @@ vi.mock("../video-note-index-queue", () => ({
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { getMarkdown } from "@/utils/markdown.ts";
-import PluginDataTable, { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-data";
+import PluginDataTable from "../tables/plugin-data";
+import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
 
 const scope = { databaseName: ":memory:", pluginId: "weekly" };
 const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };

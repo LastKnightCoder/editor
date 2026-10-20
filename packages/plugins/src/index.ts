@@ -33,6 +33,7 @@ export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inl
 export { ContentEditor, ContentPreview } from "./components";
 export type { ContentEditorProps, ContentPreviewProps } from "./components";
 export * from "./sidebar";
+export type * from "./icons";
 export type * from "./excerpts";
 export type * from "./data";
 export type * from "./entities";

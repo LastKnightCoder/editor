@@ -29,6 +29,16 @@ CREATE TABLE IF NOT EXISTS plugin_entities (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_entities_key ON plugin_entities(plugin_id, kind, key);
 CREATE INDEX IF NOT EXISTS idx_plugin_entities_content ON plugin_entities(content_id);
 
+-- 插件声明的内容类型外观（类型名与图标 SVG）：随库保存，插件停用、卸载宽限期内与其他设备上照样显示
+CREATE TABLE IF NOT EXISTS plugin_entity_kinds (
+  plugin_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  label TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '',
+  update_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, kind)
+);
+
 -- 插件私有存储（context.storage）：按插件与键保存 JSON，随主库云同步
 CREATE TABLE IF NOT EXISTS plugin_kv (
   plugin_id TEXT NOT NULL,

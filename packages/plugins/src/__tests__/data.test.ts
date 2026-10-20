@@ -131,6 +131,9 @@ function setup({
       calls.push(["entities.update", id, patch, revision]);
       return { ...entity, ...patch, revision: "2" };
     },
+    async delete(_context, id, revision) {
+      calls.push(["entities.delete", id, revision]);
+    },
     backlinks: async () => [
       {
         entity: "card",
@@ -422,13 +425,37 @@ describe("插件业务数据与权限", () => {
     expect(await context().entities.find("note", "2026-W43")).toMatchObject({ id: "1" });
     await context().entities.query({ kind: "note" });
     await context().entities.update("1", { title: "改名" }, { expectedRevision: "1" });
+    await context().entities.delete("1", { expectedRevision: "2" });
+    await expect(context().entities.delete("1", {} as never)).rejects.toThrow("expectedRevision");
     expect(calls).toEqual([
       ["entities.create", { kind: "note", key: "2026-W43", title: "第 43 周", meta: { week: 43 } }],
       ["entities.query", { kind: "note", limit: 50 }],
       ["entities.update", "1", { title: "改名" }, "1"],
+      ["entities.delete", "1", "2"],
     ]);
     kind.dispose();
     await expect(context().entities.create({ kind: "note", key: "y" })).rejects.toThrow("未声明");
+  });
+
+  it("类型图标只接受组件", async () => {
+    const { host, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    const NoteIcon = () => null;
+    const kind = context().entities.registerKind({
+      kind: "note",
+      label: "周记",
+      icon: NoteIcon,
+      open: { page: "review" },
+    });
+    expect(() =>
+      context().entities.registerKind({
+        kind: "board",
+        label: "看板",
+        icon: "<svg/>" as never,
+        open: { page: "review" },
+      })
+    ).toThrow("icon");
+    kind.dispose();
   });
 
   it("本插件实体的正文直接读写，不询问权限", async () => {

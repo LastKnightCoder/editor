@@ -128,6 +128,7 @@ const ContentLink = memo((props: IContentLinkProps) => {
             <Content
               content={content}
               contentType={contentType}
+              refId={refId}
               contentTitle={contentTitle}
               unshared={remoteView}
               onOpen={handleOpen}

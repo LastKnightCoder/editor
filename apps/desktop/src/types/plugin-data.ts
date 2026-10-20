@@ -78,11 +78,13 @@ export type PluginContentEdit =
 export interface PluginOperationRecord {
   id: number;
   action: "delete";
-  entity: "card" | "article" | "todo" | "event";
+  entity: "card" | "article" | "todo" | "event" | "plugin-entity";
   entityId: string;
   title: string;
   createdAt: number;
   restoredAt: number | null;
   /** 待办与日程：助理操作 ID，经 undo_task_operation 恢复 */
   operationId?: string;
+  /** 插件内容：registerKind 声明的类型，用于显示类型名 */
+  kind?: string;
 }

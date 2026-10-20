@@ -9,6 +9,7 @@ import { Footprints, Shuffle } from "lucide-react";
 import { cn } from "@tau/ui";
 import { WALK_KIND_META } from "../model";
 import type { WalkTrail } from "../trail";
+import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 
 /** 边缘渐隐带宽度（px） */
 const FADE_PX = 28;
@@ -72,7 +73,6 @@ export function WalkTrailBar({ trail, onGoto }: { trail: WalkTrail; onGoto(index
         className="scrollbar-hide flex h-full min-w-0 flex-1 items-center gap-2 overflow-x-auto"
       >
         {trail.steps.map((step, index) => {
-          const KindIcon = WALK_KIND_META[step.item.ref.kind].icon;
           const current = index === trail.index;
           return (
             <span key={index} className="flex flex-none items-center gap-2">
@@ -95,7 +95,12 @@ export function WalkTrailBar({ trail, onGoto }: { trail: WalkTrail; onGoto(index
                   index === lastIndex && "motion-safe:animate-fadeIn"
                 )}
               >
-                <KindIcon className="size-3 shrink-0" strokeWidth={1.75} />
+                <EntityKindIcon
+                  entityRef={step.item.ref}
+                  fallback={WALK_KIND_META[step.item.ref.kind]}
+                  className="size-3 shrink-0"
+                  strokeWidth={1.75}
+                />
                 <span className="min-w-0 truncate">{step.item.title}</span>
               </button>
             </span>

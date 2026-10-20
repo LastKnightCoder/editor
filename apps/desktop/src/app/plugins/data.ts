@@ -20,6 +20,7 @@ import * as dataCommands from "@/commands/plugin-data";
 import { taskAssistantRequest } from "@/commands/task-assistant";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { queryClient } from "@/queryClient";
+import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import type { ICard } from "@/types";
 import type { PluginDataRecord, PluginOperationRecord } from "@/types/plugin-data";
@@ -382,6 +383,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       }
       const restored = await commands.restorePluginOperation(databaseName, operation.id);
       if (restored.entity === "article") refreshArticles();
+      if (restored.entity === "plugin-entity") invalidatePluginEntityAppearance();
     },
     async get(context, entity, id) {
       const numeric = parseId(id);

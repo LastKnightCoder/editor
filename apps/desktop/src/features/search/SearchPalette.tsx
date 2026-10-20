@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { openEntity } from "@/services/open-content";
-import { pluginEntityKind } from "@/services/plugin-entity-kinds";
+import { usePluginEntityMetaResolver } from "@/components/EntityKind";
 import { normalizeEntityRefKind } from "@/entity/ref";
 import { locatesSection } from "@/entity/section-location";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
@@ -180,6 +180,7 @@ export function SearchPalette() {
   const selectionSource = useRef<"pointer" | "keyboard" | "results">("results");
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const pluginEntityMeta = usePluginEntityMetaResolver();
 
   const trimmedQ = query.trim();
   const lowerQ = trimmedQ.toLowerCase();
@@ -497,13 +498,11 @@ export function SearchPalette() {
       };
     }
     const { title, snippet } = resultDisplay(r);
-    // 插件内容用插件声明的类型名；插件停用时回落「插件内容」
-    const label =
-      (r.pluginEntity && pluginEntityKind(r.pluginEntity.pluginId, r.pluginEntity.kind)?.label) ||
-      meta.label;
+    // 插件内容按插件声明的类型名与图标显示
+    const { label, icon } = pluginEntityMeta(r.pluginEntity, meta);
     return {
       key: `content:${r.type}:${r.contentId}`,
-      icon: meta.icon,
+      icon,
       title,
       sub: snippet,
       tag: { label, cls: meta.tag },
@@ -649,6 +648,7 @@ export function SearchPalette() {
     contentQuery.isFetching,
     visits,
     mode,
+    pluginEntityMeta,
   ]);
 
   const flat = useMemo(() => groups.flatMap(g => g.rows), [groups]);

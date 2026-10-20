@@ -94,7 +94,7 @@ export const recordPluginOperation = (
 export const restorePluginOperation = (
   databaseName: string,
   id: number
-): Promise<{ entity: PluginWritableEntity; id: number }> =>
+): Promise<{ entity: PluginWritableEntity | "plugin-entity"; id: number }> =>
   invoke("plugin-data:restore", { databaseName, id });
 
 export const markPluginOperationRestored = (databaseName: string, id: number): Promise<void> =>

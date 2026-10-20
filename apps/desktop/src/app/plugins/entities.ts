@@ -2,11 +2,15 @@ import type { PluginContext, PluginOwnEntity } from "@tau/plugins";
 import type { EntitiesAdapter } from "@tau/plugins/host";
 import {
   createPluginEntity,
+  declarePluginEntityKind,
+  deletePluginEntity,
   findPluginEntity,
   getPluginEntity,
   queryPluginEntities,
   updatePluginEntity,
 } from "@/commands/plugin-entities";
+import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds";
+import { renderPluginIconMarkup } from "./icon-markup";
 import { bindDatabaseCommands } from "@/services/command-context";
 import type { PluginEntityRecord } from "@/types/plugin-entities";
 import { encodeContentRef, mapConflict } from "./data";
@@ -54,6 +58,8 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
         findPluginEntity,
         queryPluginEntities,
         updatePluginEntity,
+        deletePluginEntity,
+        declarePluginEntityKind,
       },
       { databaseName, signal: context.signal }
     );
@@ -116,6 +122,30 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
           )
         )
       );
+    },
+    async delete(context, id, expectedRevision) {
+      const numeric = numericId(id);
+      if (!numeric) throw new Error("内容不存在");
+      await mapConflict(() =>
+        bound(context).deletePluginEntity(databaseName, context.pluginId, numeric, expectedRevision)
+      );
+      invalidatePluginEntityAppearance();
+    },
+    // 外观随库保存，插件停用后仍按它显示，因此注销时不删除
+    registerKind(context, definition) {
+      void (async () => {
+        const icon = definition.icon ? await renderPluginIconMarkup(definition.icon) : "";
+        const changed = await bound(context).declarePluginEntityKind(
+          databaseName,
+          context.pluginId,
+          { kind: definition.kind, label: definition.label, icon }
+        );
+        if (changed) invalidatePluginEntityAppearance();
+      })().catch(error => {
+        if (!context.signal.aborted)
+          console.warn(`[plugin:${context.pluginId}] 类型 ${definition.kind} 的外观未保存`, error);
+      });
+      return { dispose: () => undefined };
     },
   };
 }

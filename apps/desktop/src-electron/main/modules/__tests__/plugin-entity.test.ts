@@ -130,6 +130,89 @@ describe("PluginEntityTable", () => {
     ]);
   });
 
+  it("删除可在 7 天内恢复：ID、key 与正文不变，编号不被新内容占用", () => {
+    const created = note("2026-W43");
+    expect(() =>
+      PluginEntityTable.remove(db, { ...scope, id: created.id, expectedRevision: "0" })
+    ).toThrow("PLUGIN_CONFLICT:");
+    expect(() =>
+      PluginEntityTable.remove(db, {
+        ...scope,
+        pluginId: "other",
+        id: created.id,
+        expectedRevision: created.revision,
+      })
+    ).toThrow("内容不存在");
+    PluginEntityTable.remove(db, { ...scope, id: created.id, expectedRevision: created.revision });
+    expect(PluginEntityTable.byId(db, created.id)).toBeNull();
+    expect(refCount(created.contentId)).toBe(0);
+
+    // 新建不复用已删除的编号
+    const next = note("2026-W44");
+    expect(next.id).toBeGreaterThan(created.id);
+
+    const [operation] = PluginDataTable.operations(db, scope);
+    expect(operation).toMatchObject({
+      entity: "plugin-entity",
+      entityId: String(created.id),
+      title: "周记 2026-W43",
+      kind: "note",
+    });
+    expect(PluginDataTable.restore(db, { databaseName: ":memory:", id: operation.id })).toEqual({
+      entity: "plugin-entity",
+      id: created.id,
+    });
+    expect(PluginEntityTable.byId(db, created.id)).toMatchObject({
+      key: "2026-W43",
+      contentId: created.contentId,
+      meta: { week: "2026-W43" },
+    });
+    expect(refCount(created.contentId)).toBe(1);
+    expect(() =>
+      PluginDataTable.restore(db, { databaseName: ":memory:", id: operation.id })
+    ).toThrow("已经恢复过了");
+  });
+
+  it("插件重新创建了同一项内容时拒绝恢复", () => {
+    const created = note("2026-W43");
+    PluginEntityTable.remove(db, { ...scope, id: created.id, expectedRevision: created.revision });
+    note("2026-W43");
+    const [operation] = PluginDataTable.operations(db, scope);
+    expect(() =>
+      PluginDataTable.restore(db, { databaseName: ":memory:", id: operation.id })
+    ).toThrow("重新创建");
+  });
+
+  it("类型外观随库保存，未变化不写入；插件卸载且内容清空后删除", () => {
+    const declare = (label: string, icon = "") =>
+      PluginEntityTable.declareKind(db, { ...scope, kind: "note", label, icon });
+    const icon = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h24"/></svg>';
+    expect(declare("周记", icon)).toBe(true);
+    expect(declare("周记", icon)).toBe(false);
+    expect(declare("每周笔记", icon)).toBe(true);
+    expect(() => declare("周记", "<img src=x>")).toThrow("图标无效");
+    expect(() => declare("")).toThrow("类型名无效");
+    expect(PluginEntityTable.kinds(db, { databaseName: ":memory:" })).toEqual([
+      { pluginId: "tau.weekly-review", kind: "note", label: "每周笔记", icon },
+    ]);
+
+    const created = note("2026-W43");
+    expect(
+      PluginEntityTable.owners(db, { databaseName: ":memory:", ids: [created.id, 999] })
+    ).toEqual([{ id: created.id, pluginId: "tau.weekly-review", kind: "note" }]);
+
+    const now = Date.now();
+    PluginEntityTable.collectOrphans(db, { installed: new Set(), now, graceMs: 7 * DAY });
+    // 宽限期内内容还在，外观保留
+    expect(PluginEntityTable.kinds(db, { databaseName: ":memory:" })).toHaveLength(1);
+    PluginEntityTable.collectOrphans(db, {
+      installed: new Set(),
+      now: now + 8 * DAY,
+      graceMs: 7 * DAY,
+    });
+    expect(PluginEntityTable.kinds(db, { databaseName: ":memory:" })).toEqual([]);
+  });
+
   it("进入检索：定位、展示、结果详情与索引候选", () => {
     const created = note("2026-W43");
     ContentTable.updateContent(db, created.contentId, {

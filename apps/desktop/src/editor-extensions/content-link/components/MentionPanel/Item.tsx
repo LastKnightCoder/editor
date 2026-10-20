@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { FileText, FolderOpen, Newspaper, Puzzle, StickyNote } from "lucide-react";
-import { usePluginEntityKind } from "@/services/plugin-entity-kinds";
+import { usePluginEntityMetaResolver, type KindMeta } from "@/components/EntityKind";
 import { SearchResult } from "@/types";
 import { richTextPlainText } from "@tau/shared/rich-text-text";
 import { ComposerPanelItem } from "@tau/shared";
@@ -13,11 +13,11 @@ interface IItemProps {
   onClick?: () => void;
 }
 
-const TYPE_META: Record<string, { label: string; icon: ReactNode }> = {
-  card: { label: "卡片", icon: <StickyNote /> },
-  article: { label: "文章", icon: <Newspaper /> },
-  "project-item": { label: "项目文档", icon: <FolderOpen /> },
-  "plugin-entity": { label: "插件内容", icon: <Puzzle /> },
+const TYPE_META: Record<string, KindMeta> = {
+  card: { label: "卡片", icon: StickyNote },
+  article: { label: "文章", icon: Newspaper },
+  "project-item": { label: "项目文档", icon: FolderOpen },
+  "plugin-entity": { label: "插件内容", icon: Puzzle },
 };
 
 /** 命中字 accent 标出（大小写不敏感，只标第一处） */
@@ -38,10 +38,11 @@ function highlight(text: string, query: string): ReactNode {
 const Item = memo((props: IItemProps) => {
   const { item, query, active, onHover, onClick } = props;
   const ref = useRef<HTMLDivElement>(null);
-  const meta = TYPE_META[item.type] ?? { label: item.type, icon: <FileText /> };
-  // 插件内容显示插件声明的类型名
-  const label =
-    usePluginEntityKind(item.pluginEntity?.pluginId, item.pluginEntity?.kind)?.label ?? meta.label;
+  // 插件内容按插件声明的类型名与图标显示
+  const { label, icon: Icon } = usePluginEntityMetaResolver()(
+    item.pluginEntity,
+    TYPE_META[item.type] ?? { label: item.type, icon: FileText }
+  );
 
   const plain = useMemo(() => richTextPlainText(item.content), [item.content]);
   const title = item.title?.trim() || plain.slice(0, 40) || "无标题";
@@ -54,7 +55,7 @@ const Item = memo((props: IItemProps) => {
   return (
     <ComposerPanelItem
       ref={ref}
-      icon={meta.icon}
+      icon={<Icon />}
       label={highlight(title, query)}
       description={
         <>

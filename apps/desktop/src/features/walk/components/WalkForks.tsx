@@ -6,6 +6,7 @@
 import { GitFork, Shuffle } from "lucide-react";
 import type { WalkNeighbor } from "@/types";
 import { WALK_KIND_META, WALK_RELATION_META } from "../model";
+import { EntityKindIcon } from "@/components/EntityKind/EntityKindIcon";
 
 export function WalkForks({
   neighbors,
@@ -34,7 +35,6 @@ export function WalkForks({
         <p className="text-tau-meta text-ink-3 px-0.5">这里没有岔路，随机跳一下吧</p>
       ) : (
         neighbors.map((neighbor, i) => {
-          const KindIcon = WALK_KIND_META[neighbor.ref.kind].icon;
           const relation = WALK_RELATION_META[neighbor.relation];
           const RelationIcon = relation.icon;
           return (
@@ -46,7 +46,12 @@ export function WalkForks({
               className="motion-safe:animate-walk-in rounded-tau-md border-line-1 bg-surface ease-tau-out hover:border-accent flex flex-col gap-1 border px-3 py-2.5 text-left transition-[border-color,translate] duration-[160ms] hover:translate-x-0.5"
             >
               <span className="flex min-w-0 items-center gap-1.5">
-                <KindIcon className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />
+                <EntityKindIcon
+                  entityRef={neighbor.ref}
+                  fallback={WALK_KIND_META[neighbor.ref.kind]}
+                  className="text-ink-3 size-3.5 shrink-0"
+                  strokeWidth={1.75}
+                />
                 <span className="text-tau-meta text-ink-1 truncate font-medium">
                   {neighbor.title}
                 </span>

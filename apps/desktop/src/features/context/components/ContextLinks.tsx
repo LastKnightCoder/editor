@@ -14,6 +14,7 @@ import type { SearchResult } from "@/types/search";
 import type { ContextLink } from "@/types/entity-context";
 import { useAddContentLink, useRemoveContentLink } from "../queries";
 import { ENTITY_KIND_META } from "../model";
+import { EntityKindIcon, EntityKindLabel } from "@/components/EntityKind/EntityKindIcon";
 import { ContextRow, ContextSection } from "./ContextList";
 
 const KIND_BY_TYPE: Partial<Record<SearchResult["type"], EntityRef["kind"]>> = {
@@ -104,7 +105,7 @@ export function ContextLinksSection({
   return (
     <ContextSection title="连接">
       {links.map(({ entity, inlineOnly }) => {
-        const { icon: KindIcon, label } = ENTITY_KIND_META[entity.ref.kind];
+        const kindMeta = ENTITY_KIND_META[entity.ref.kind];
         const isCard = entity.ref.kind === "card";
         const LinkIcon = inlineOnly ? TextQuote : Link2;
         return (
@@ -137,9 +138,18 @@ export function ContextLinksSection({
             }
           >
             <span className="flex min-w-0 items-center gap-1.5 text-[13px]">
-              <KindIcon className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
+              <EntityKindIcon
+                entityRef={entity.ref}
+                fallback={kindMeta}
+                className="text-ink-3 size-[13px] shrink-0"
+                strokeWidth={1.75}
+              />
               <span className="text-ink-1 min-w-0 truncate">{entity.title}</span>
-              {!isCard && <span className="text-ink-3 shrink-0 text-[12px]">{label}</span>}
+              {!isCard && (
+                <span className="text-ink-3 shrink-0 text-[12px]">
+                  <EntityKindLabel entityRef={entity.ref} fallback={kindMeta} />
+                </span>
+              )}
               <LinkIcon
                 className="text-ink-3 size-3 shrink-0"
                 strokeWidth={1.75}

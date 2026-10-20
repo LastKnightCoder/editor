@@ -360,6 +360,14 @@ describe("每周回顾插件", () => {
       // 从搜索结果打开周记：按声明进入插件页，带上那一周与定位
       const kind = pluginEntityKind("tau.weekly-review", "note");
       expect(kind).toMatchObject({ label: "周记", mentionable: true });
+      // 类型名随库保存，插件停用后各处照样显示「周记」；这一版未声明图标
+      expect(electron.invoke).toHaveBeenCalledWith("plugin-entities:declare-kind", {
+        databaseName: DATABASE,
+        pluginId: "tau.weekly-review",
+        kind: "note",
+        label: "周记",
+        icon: "",
+      });
       await kind?.open({ ...note, key: "2026-10-12" }, '{"block":1}');
       expect(navigator.push).toHaveBeenLastCalledWith(
         "plugin-page",

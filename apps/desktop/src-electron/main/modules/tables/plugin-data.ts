@@ -27,11 +27,10 @@ import Operation from "./operation";
 import { emitContentWritten } from "../content-events";
 import { setCanonicalContentTitle } from "../collaboration/content-sessions";
 import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
+import { PLUGIN_OPERATION_RETENTION_MS, insertPluginOperation } from "./plugin-operations";
 
 const MAX_LIMIT = 200;
 const CARD_TITLE_LENGTH = 30;
-/** 可恢复操作的保留期，与正文延迟回收的宽限期一致 */
-export const PLUGIN_OPERATION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 /** 主进程抛出、渲染端适配层转换为 PluginConflictError 的错误前缀 */
 export const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
 
@@ -466,7 +465,7 @@ export default class PluginDataTable {
       if (request.entity === "card") CardTable.deleteCard(db, request.id, { deferContent: true });
       else ArticleTable.deleteArticleById(db, request.id, { deferContent: true });
     });
-    this.insertOperation(db, {
+    insertPluginOperation(db, {
       pluginId: request.pluginId,
       entity: request.entity,
       entityId: String(request.id),
@@ -546,33 +545,6 @@ export default class PluginDataTable {
     }
   }
 
-  private static insertOperation(
-    db: Database.Database,
-    operation: {
-      pluginId: string;
-      entity: string;
-      entityId: string;
-      title: string;
-      payload: unknown;
-    }
-  ) {
-    const now = Date.now();
-    db.prepare("DELETE FROM plugin_operations WHERE create_time < ?").run(
-      now - PLUGIN_OPERATION_RETENTION_MS
-    );
-    db.prepare(
-      `INSERT INTO plugin_operations (plugin_id, action, entity, entity_id, title, payload, create_time)
-       VALUES (?, 'delete', ?, ?, ?, ?, ?)`
-    ).run(
-      operation.pluginId,
-      operation.entity,
-      operation.entityId,
-      operation.title,
-      JSON.stringify(operation.payload),
-      now
-    );
-  }
-
   /** 待办与日程的删除由助理操作执行，渲染端在成功后登记撤销凭据 */
   static recordOperation(
     db: Database.Database,
@@ -586,7 +558,7 @@ export default class PluginDataTable {
   ) {
     this.assertDatabase(db, request);
     if (request.entity !== "todo" && request.entity !== "event") throw new Error("类型无效");
-    this.insertOperation(db, { ...request, payload: { operationId: request.operationId } });
+    insertPluginOperation(db, { ...request, payload: { operationId: request.operationId } });
   }
 
   static operations(
@@ -622,6 +594,9 @@ export default class PluginDataTable {
       ...(row.entity === "todo" || row.entity === "event"
         ? { operationId: (JSON.parse(row.payload) as { operationId: string }).operationId }
         : {}),
+      ...(row.entity === "plugin-entity"
+        ? { kind: String((JSON.parse(row.payload) as { row: { kind?: unknown } }).row.kind ?? "") }
+        : {}),
     }));
   }
 
@@ -649,14 +624,22 @@ export default class PluginDataTable {
     );
   }
 
-  /** 恢复插件删除的卡片或文章：原 ID 未被占用时沿用，正文重新引用；返回恢复后的 ID */
+  /** 恢复插件删除的卡片、文章或插件内容：原 ID 未被占用时沿用，正文重新引用；返回恢复后的 ID */
   static restore(
     db: Database.Database,
     request: PluginDataScope & { id: number },
     ctx: CommandContext = fallbackCommandContext
-  ): { entity: PluginWritableEntity; id: number } {
+  ): { entity: PluginWritableEntity | "plugin-entity"; id: number } {
     this.assertDatabase(db, request);
     const operation = this.claimOperation(db, request.id);
+    if (operation.entity === "plugin-entity") {
+      const id = PluginEntityTable.restoreDeleted(db, JSON.parse(operation.payload));
+      db.prepare("UPDATE plugin_operations SET restored_time = ? WHERE id = ?").run(
+        Date.now(),
+        request.id
+      );
+      return { entity: "plugin-entity", id };
+    }
     if (operation.entity !== "card" && operation.entity !== "article")
       throw new Error("该操作需要通过待办撤销恢复");
     const entity = operation.entity as PluginWritableEntity;

@@ -10,6 +10,7 @@ import { Button, FadeScroll, IconButton, Panel } from "@tau/ui";
 import { CardContentPreview } from "@/features/cards/components/CardContentPreview";
 import { WALK_KIND_META, formatWalkWhy } from "../model";
 import type { WalkStep } from "../trail";
+import { useEntityKindMeta } from "@/components/EntityKind";
 
 export function WalkCard({
   step,
@@ -26,7 +27,7 @@ export function WalkCard({
   onMakeFlashcard(): void;
 }) {
   const { item } = step;
-  const kind = WALK_KIND_META[item.ref.kind];
+  const kind = useEntityKindMeta(item.ref, WALK_KIND_META[item.ref.kind]);
   const KindIcon = kind.icon;
   const why = formatWalkWhy(step);
   const WhyIcon = why.icon;
