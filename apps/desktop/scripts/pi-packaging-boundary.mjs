@@ -13,6 +13,13 @@ export function assertPiPackagingBoundary(sdkDirectory, sourceDirectories) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       if (file === bundle || entry.name === "node_modules") continue;
+      if (
+        !sdk &&
+        (entry.isDirectory()
+          ? entry.name === "__tests__"
+          : /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(entry.name))
+      )
+        continue;
       if (entry.isDirectory()) scan(file, sdk);
       else if (/\.[cm]?[jt]sx?$/.test(entry.name)) {
         const source = readFileSync(file, "utf8");

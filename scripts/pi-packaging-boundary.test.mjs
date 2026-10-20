@@ -24,6 +24,19 @@ test("只允许已审核且没有 CLI 消费者的 SDK 裁剪", () => {
     assert.doesNotThrow(() => assertPiPackagingBoundary(sdk, [app]));
     writeFileSync(appEntry, 'import "@earendil-works/chord/context";');
     assert.doesNotThrow(() => assertPiPackagingBoundary(sdk, [app]));
+    for (const file of [
+      "__tests__/helper.ts",
+      "nested/__tests__/fixture.js",
+      "tools.test.ts",
+      "view.test.tsx",
+      "tools.spec.mjs",
+      "nested/tools.spec.cts",
+    ]) {
+      const testFile = path.join(app, file);
+      mkdirSync(path.dirname(testFile), { recursive: true });
+      writeFileSync(testFile, 'import "esbuild";');
+    }
+    assert.doesNotThrow(() => assertPiPackagingBoundary(sdk, [app]));
     for (const dependency of [
       "esbuild",
       "@earendil-works/chord/node",
@@ -33,6 +46,13 @@ test("只允许已审核且没有 CLI 消费者的 SDK 裁剪", () => {
       assert.throws(() => assertPiPackagingBoundary(sdk, [app]), /运行源码引用/);
     }
     writeFileSync(appEntry, "");
+    for (const file of ["__tests__/helper.js", "tools.test.js", "tools.spec.mjs"]) {
+      const sdkFile = path.join(sdk, "dist", file);
+      mkdirSync(path.dirname(sdkFile), { recursive: true });
+      writeFileSync(sdkFile, 'import "esbuild";');
+      assert.throws(() => assertPiPackagingBoundary(sdk, [app]), /运行源码引用/);
+      rmSync(sdkFile);
+    }
     const agent = path.join(root, "pi-agent-core", "dist");
     mkdirSync(agent, { recursive: true });
     writeFileSync(path.join(agent, "context.js"), 'import "esbuild";');
