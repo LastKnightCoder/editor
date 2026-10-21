@@ -202,7 +202,7 @@ function ProviderItem({
           >
             <SettingRow title="名称">
               <Input
-                className="min-w-[240px]"
+                wrapperClassName="w-[300px] max-w-full"
                 value={provider.name}
                 placeholder="配置名称"
                 onChange={event => {
