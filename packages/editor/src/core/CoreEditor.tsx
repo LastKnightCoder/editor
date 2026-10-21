@@ -39,6 +39,7 @@ import {
   guardHotkeys,
   withUnknownElements,
 } from "./kit/extensionGuard";
+import { bindElementResources } from "./api/resources";
 import { ElementErrorBoundary, UnknownElement } from "./components/ElementGuard";
 import { BlockDragHost } from "./components/BlockDrag/BlockDragHost";
 import { consoleErrorReporter } from "./services/errorReporter";
@@ -298,6 +299,7 @@ const Index = memo(
       const initialBinding = bindingRef.current;
       const slateEditor = initialBinding ? initialBinding.install(enhancedEditor) : enhancedEditor;
       withNormalizedCopy(slateEditor, assembly.copyPolicies, breaker);
+      bindElementResources(slateEditor, assembly.resources);
       initializeSubmissionScope(slateEditor);
       slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>

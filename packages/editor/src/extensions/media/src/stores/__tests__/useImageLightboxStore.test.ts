@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Descendant, Editor } from "slate";
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
+import { bindElementResources } from "../../../../../core/api/resources";
 
 import {
   collectDocumentImages,
@@ -41,7 +43,7 @@ afterEach(() => useImageLightboxStore.getState().close());
 
 describe("collectDocumentImages", () => {
   it("按文档顺序收集图片块、行内图片、画廊每一张与嵌套块里的图，跳过空地址", () => {
-    const items = collectDocumentImages(doc);
+    const items = collectDocumentImages(doc, BUILTIN_CONTENT_RESOURCES);
     expect(items.map(item => item.url)).toEqual([
       "a-cropped.png",
       "~/notes/icon.png",
@@ -52,20 +54,23 @@ describe("collectDocumentImages", () => {
   });
 
   it("图片块显示裁剪结果并带说明；没有替代文本时用文件名", () => {
-    const [block, inlineItem, galleryItem] = collectDocumentImages(doc);
+    const [block, inlineItem, galleryItem] = collectDocumentImages(doc, BUILTIN_CONTENT_RESOURCES);
     expect(block).toMatchObject({ alt: "a.png", caption: "傍晚的山谷" });
     expect(inlineItem.alt).toBe("icon.png");
     expect(galleryItem).toMatchObject({ alt: "营地的清晨", caption: "营地的清晨" });
   });
 
   it("画廊的图记住在画廊里的原始序号", () => {
-    const items = collectDocumentImages(doc).filter(item => item.source === gallery);
+    const items = collectDocumentImages(doc, BUILTIN_CONTENT_RESOURCES).filter(
+      item => item.source === gallery
+    );
     expect(items.map(item => item.sourceIndex)).toEqual([0, 2]);
   });
 });
 
 describe("openImageLightbox", () => {
   const editor = { children: doc } as unknown as Editor;
+  bindElementResources(editor, BUILTIN_CONTENT_RESOURCES);
 
   it("定位到点击的那张（画廊按序号）", () => {
     openImageLightbox(editor, gallery as never, 2);

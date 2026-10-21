@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -126,12 +127,17 @@ describe("通用内容和本地恢复", () => {
     const assets = new CollaborationAssetService(store, directory, async () => {
       throw new Error("缓存资源不应请求网络");
     });
-    const value = await assets.localize("https://collab.example", documentId, {
-      title: "副本",
-      bannerBg: "",
-      bannerPosition: "center",
-      content: [{ type: "image", url: `tau-collab-asset:${assetId}`, children: [{ text: "" }] }],
-    });
+    const value = await assets.localize(
+      "https://collab.example",
+      documentId,
+      {
+        title: "副本",
+        bannerBg: "",
+        bannerPosition: "center",
+        content: [{ type: "image", url: `tau-collab-asset:${assetId}`, children: [{ text: "" }] }],
+      },
+      BUILTIN_CONTENT_RESOURCES
+    );
     store.remove(documentId);
     rmSync(folder, { recursive: true, force: true });
     const localPath = value.content[0].url as string;

@@ -1,4 +1,8 @@
 import { createElement, Suspense, type ReactElement } from "react";
+import type {
+  ContentResourceDeclarations,
+  ContentResourceSpec,
+} from "@tau/db-schema/content-resources";
 import type { Editor } from "slate";
 import type { RenderElementProps } from "slate-react";
 
@@ -93,6 +97,8 @@ export class ExtensionAssembly {
   readonly ingestSources: readonly IngestSource[];
   /** 本装配能渲染的元素类型（按扩展顺序） */
   readonly elementTypes: readonly string[];
+  /** 元素类型 → 资源字段声明 */
+  readonly resources: ContentResourceDeclarations;
   /** 元素类型 → 行为列表：该类型自己的在前，其他扩展经 behaviorsFor 挂上来的按扩展顺序在后 */
   readonly behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>;
   readonly copyPolicies: ReadonlyMap<string, RegisteredCopy>;
@@ -224,6 +230,14 @@ export class ExtensionAssembly {
     this.behaviors = behaviors;
     this.copyPolicies = copyPolicies;
     this.elementTypes = [...this.renderers.keys()];
+    const resources: Record<string, readonly ContentResourceSpec[]> = {};
+    for (const type of this.elementTypes) {
+      const spec = this.owners
+        .get(type)
+        ?.elements?.find(element => element.type === type)?.resources;
+      if (spec?.length) resources[type] = spec;
+    }
+    this.resources = Object.freeze(resources);
   }
 
   /** 先把一个扩展的全部贡献收齐，中途抛错则整个扩展都不装，不留半截 */

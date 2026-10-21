@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import type { Descendant, Editor, Element } from "slate";
 
-import type { ImageElement, ImageGalleryElement, InlineImageElement } from "../types";
+import { getElementResources } from "@tau/editor/api";
+import {
+  forEachContentResource,
+  type ContentResourceDeclarations,
+} from "@tau/db-schema/content-resources";
 
 /** 灯箱里的一张图：来源节点 + 节点内序号（画廊的第几张），用于从点击处定位 */
 export interface LightboxItem {
@@ -21,57 +25,36 @@ export const fileNameOfUrl = (url: string) => {
   }
 };
 
-/** 按文档顺序收集所有可预览的图片：图片块（显示裁剪结果）、画廊每一张、行内图片 */
-export function collectDocumentImages(nodes: readonly Descendant[]): LightboxItem[] {
+/**
+ * 按文档顺序收集所有可预览的图片：按节点的资源声明取 kind 为 image 的资源，
+ * 有显示版本（裁剪结果）时显示它；sourceIndex 是该节点里第几个图片位置。
+ */
+export function collectDocumentImages(
+  nodes: readonly Descendant[],
+  declarations: ContentResourceDeclarations
+): LightboxItem[] {
   const items: LightboxItem[] = [];
-  const walk = (children: readonly Descendant[]) => {
-    for (const node of children) {
-      if (!("type" in node)) continue;
-      if (node.type === "image") {
-        const image = node as ImageElement;
-        if (image.url) {
-          items.push({
-            url: image.previewUrl || image.url,
-            alt: image.alt || fileNameOfUrl(image.url),
-            caption: image.description || undefined,
-            source: image,
-            sourceIndex: 0,
-          });
-        }
-        continue;
-      }
-      if (node.type === "image-gallery") {
-        (node as ImageGalleryElement).images.forEach((item, index) => {
-          if (item.url) {
-            items.push({
-              url: item.url,
-              alt: item.desc || fileNameOfUrl(item.url),
-              caption: item.desc || undefined,
-              source: node as Element,
-              sourceIndex: index,
-            });
-          }
-        });
-        continue;
-      }
-      if (node.type === "inline-image") {
-        const image = node as InlineImageElement;
-        if (image.url) {
-          items.push({
-            url: image.url,
-            alt: image.alt || fileNameOfUrl(image.url),
-            source: image,
-            sourceIndex: 0,
-          });
-        }
-        continue;
-      }
-      if ("children" in node && Array.isArray(node.children)) {
-        walk(node.children as Descendant[]);
-      }
-    }
-  };
-  walk(nodes);
+  const counters = new Map<object, number>();
+  forEachContentResource(nodes, declarations, ({ node, slot }) => {
+    const { spec, owner, field } = slot;
+    if (spec.kind !== "image") return;
+    // 序号按资源位置计（含空地址），与节点里的数组下标一致
+    const sourceIndex = counters.get(node) ?? 0;
+    counters.set(node, sourceIndex + 1);
+    const url = owner[field];
+    if (typeof url !== "string" || !url) return;
+    const text = (key?: string) => {
+      const value = key ? owner[key] : undefined;
+      return typeof value === "string" && value ? value : undefined;
+    };
+    items.push({
+      url: text(spec.preview) ?? url,
+      alt: text(spec.alt) ?? fileNameOfUrl(url),
+      caption: text(spec.caption),
+      source: node as unknown as Element,
+      sourceIndex,
+    });
+  });
   return items;
 }
 
@@ -90,7 +73,7 @@ export const useImageLightboxStore = create<LightboxState>(set => ({
   items: [],
   index: 0,
   open: (editor, source, sourceIndex = 0) => {
-    const items = collectDocumentImages(editor.children);
+    const items = collectDocumentImages(editor.children, getElementResources(editor));
     if (items.length === 0) return;
     const index = items.findIndex(
       item => item.source === source && item.sourceIndex === sourceIndex

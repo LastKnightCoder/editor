@@ -89,6 +89,27 @@ describe("资源地址遍历", () => {
     ]);
   });
 
+  it("插件节点按传入的资源声明改写，未声明的字段不当资源", () => {
+    const content = doc({
+      type: "example.compare",
+      before: { src: "~/before.png" },
+      link: "~/not-a-resource.png",
+      children: [text("")],
+    });
+    const declarations = {
+      "example.compare": [{ path: "before.src", kind: "image" as const }],
+    };
+    expect(collectAssetUrls(content, declarations)).toEqual([
+      { url: "~/before.png", kind: "image" },
+    ]);
+    expect(collectAssetUrls(content)).toEqual([]);
+    const [mapped] = mapAssetUrls(content, url => `bundle/${url.slice(2)}`, {}, declarations);
+    expect(mapped).toMatchObject({
+      before: { src: "bundle/before.png" },
+      link: "~/not-a-resource.png",
+    });
+  });
+
   it("未改动的子树保持原引用，附件改写后按上传结果标记 isLocal", () => {
     const untouched = paragraph(text("不变"));
     const attachment = {

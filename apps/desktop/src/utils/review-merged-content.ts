@@ -1,3 +1,4 @@
+import { contentResourceDeclarations } from "@/services/content-resources";
 import type { Descendant } from "slate";
 import type { FormattedText } from "@tau/editor";
 import type { AppliedPatch } from "@/services/content-editing/types";
@@ -51,12 +52,8 @@ const CONTAINER_TYPES = new Set([
 
 const TEXT_BLOCK_TYPES = new Set(["paragraph", "header"]);
 
+// 声明了资源的节点（图片、音视频、附件、插件媒体块）同样整块不透明，见 isOpaque
 const OPAQUE_TYPES = new Set([
-  "image",
-  "inline-image",
-  "video",
-  "audio",
-  "file-attachment",
   "mermaid",
   "abc",
   "plantuml",
@@ -71,7 +68,6 @@ const OPAQUE_TYPES = new Set([
   "detail",
   "tabs",
   "webview",
-  "image-gallery",
   "divide-line",
   "front-matter",
 ]);
@@ -202,7 +198,7 @@ const getNodeCapability = (node: Descendant): ReviewNodeCapability => {
     return "code-block";
   }
 
-  if (OPAQUE_TYPES.has(node.type)) {
+  if (OPAQUE_TYPES.has(node.type) || Object.hasOwn(contentResourceDeclarations(), node.type)) {
     return "opaque";
   }
 

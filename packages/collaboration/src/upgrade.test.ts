@@ -16,6 +16,8 @@ import {
 } from "./document";
 import { collectSharedResources, downgradeSharedDocument, upgradeLocalDocument } from "./upgrade";
 import type { ContentNode, SharedContent } from "./protocol";
+import { declareDocumentResources } from "./resources";
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 
 const SECRET = "机密白板数据-只在本机";
 const SECRET_EDITED = "机密白板数据-编辑后";
@@ -44,6 +46,7 @@ const article = (): SharedContent => ({
 const local = (value = article()) => {
   const privateNodes = new Map<string, ContentNode>();
   const doc = createSharedDocument(value, undefined, "local");
+  declareDocumentResources(doc, BUILTIN_CONTENT_RESOURCES, value.content);
   return { doc, privateNodes };
 };
 
@@ -170,7 +173,7 @@ describe("本机会话升级为共享", () => {
     (value.content[1] as ContentNode).cover = "/Users/someone/whiteboard-cover.png";
     const { doc, privateNodes } = local(value);
 
-    const references = collectSharedResources(doc, privateNodes);
+    const references = collectSharedResources(doc);
 
     expect(references).toContain(LOCAL_IMAGE);
     expect(references).toContain("/Users/someone/banner.jpg");

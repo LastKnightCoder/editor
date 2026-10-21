@@ -1,6 +1,11 @@
 import type { Descendant } from "slate";
 import type { EpubMetadataInput } from "@/types";
 import { getEditorText } from "@/utils/editor";
+import {
+  forEachContentResource,
+  type ContentResourceDeclarations,
+} from "@tau/db-schema/content-resources";
+import { contentResourceDeclarations } from "@/services/content-resources";
 
 export interface EpubRememberedMetadata {
   author?: string;
@@ -11,7 +16,6 @@ interface SlateNodeLike {
   type?: string;
   level?: number;
   text?: string;
-  url?: string;
   children?: SlateNodeLike[];
 }
 
@@ -32,10 +36,7 @@ const nodeToText = (node: SlateNodeLike): string => {
   return node.children.map(nodeToText).join("").trim();
 };
 
-const traverse = (
-  nodes: SlateNodeLike[],
-  visitor: (node: SlateNodeLike) => void,
-) => {
+const traverse = (nodes: SlateNodeLike[], visitor: (node: SlateNodeLike) => void) => {
   for (const node of nodes) {
     visitor(node);
     if (Array.isArray(node.children) && node.children.length > 0) {
@@ -44,12 +45,9 @@ const traverse = (
   }
 };
 
-export const extractFirstHeadingText = (
-  content: Descendant[],
-  level: number,
-): string => {
+export const extractFirstHeadingText = (content: Descendant[], level: number): string => {
   let headingText = "";
-  traverse(content as SlateNodeLike[], (node) => {
+  traverse(content as SlateNodeLike[], node => {
     if (headingText) {
       return;
     }
@@ -60,48 +58,24 @@ export const extractFirstHeadingText = (
   return headingText;
 };
 
-export const extractFirstImageSrc = (content: Descendant[]): string => {
-  let imageSrc = "";
-  traverse(content as SlateNodeLike[], (node) => {
-    if (imageSrc) {
-      return;
-    }
-    if (
-      (node.type === "image" || node.type === "inline-image") &&
-      typeof node.url === "string" &&
-      node.url.trim()
-    ) {
-      imageSrc = node.url.trim();
-    }
-  });
-  return imageSrc;
-};
-
+/** 正文里的图片地址（按资源声明，含图集与插件节点），按文档顺序去重 */
 export const extractImageSources = (
   content: Descendant[],
   limit = 12,
+  declarations: ContentResourceDeclarations = contentResourceDeclarations()
 ): string[] => {
-  const imageSources: string[] = [];
-  const sourceSet = new Set<string>();
-
-  traverse(content as SlateNodeLike[], (node) => {
-    if (imageSources.length >= limit) {
-      return;
-    }
-    if (
-      (node.type === "image" || node.type === "inline-image") &&
-      typeof node.url === "string"
-    ) {
-      const url = node.url.trim();
-      if (url && !sourceSet.has(url)) {
-        sourceSet.add(url);
-        imageSources.push(url);
-      }
-    }
+  const imageSources = new Set<string>();
+  forEachContentResource(content, declarations, ({ slot }) => {
+    const value = slot.owner[slot.field];
+    if (slot.spec.kind !== "image" || typeof value !== "string") return;
+    const url = value.trim();
+    if (url && imageSources.size < limit) imageSources.add(url);
   });
-
-  return imageSources;
+  return [...imageSources];
 };
+
+export const extractFirstImageSrc = (content: Descendant[]): string =>
+  extractImageSources(content, 1)[0] ?? "";
 
 export const buildDefaultEpubMetadata = (params: {
   content: Descendant[];
@@ -110,8 +84,7 @@ export const buildDefaultEpubMetadata = (params: {
 }): EpubMetadataInput => {
   const { content, title, remembered } = params;
   const firstH1 = extractFirstHeadingText(content, 1);
-  const fallbackTitle =
-    normalizeText(getEditorText(content, 20)) || "未命名文档";
+  const fallbackTitle = normalizeText(getEditorText(content, 20)) || "未命名文档";
   const resolvedTitle = normalizeText(title) || firstH1 || fallbackTitle;
   const firstImageSrc = extractFirstImageSrc(content);
 

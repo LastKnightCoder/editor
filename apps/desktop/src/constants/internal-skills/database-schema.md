@@ -88,6 +88,17 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `icon`        | `TEXT NOT NULL DEFAULT ''` |
 | `update_time` | `INTEGER NOT NULL`         |
 
+### `plugin_element_resources`
+
+插件正文节点里哪些字段是图片、视频、音频或文件。`type` 为节点类型，`resources` 为 JSON 数组，每项含 `path`（如 `images[].url`）与 `kind`。
+
+| 字段          | SQLite 定义        |
+| ------------- | ------------------ |
+| `plugin_id`   | `TEXT NOT NULL`    |
+| `type`        | `TEXT NOT NULL`    |
+| `resources`   | `TEXT NOT NULL`    |
+| `update_time` | `INTEGER NOT NULL` |
+
 ### `plugin_kv`
 
 插件的私有设置与数据（插件里的 `context.storage`），`value` 为 JSON 文本，内容由插件定义。

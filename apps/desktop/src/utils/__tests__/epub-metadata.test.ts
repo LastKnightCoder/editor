@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
-import { buildDefaultEpubMetadata } from "../epub-export/metadata";
+import { buildDefaultEpubMetadata, extractImageSources } from "../epub-export/metadata";
 
 vi.mock("@/utils/editor", () => ({
   getEditorText: (content: Descendant[]) => {
@@ -81,5 +81,19 @@ describe("epub metadata defaults", () => {
     expect(metadata.language).toBe("en-US");
     expect(metadata.description).toBe("");
     expect(metadata.coverImageSrc).toBe("https://example.com/cover.png");
+  });
+
+  it("图片来源按资源声明收集，图集里的图一并计入", () => {
+    const content = [
+      {
+        type: "image-gallery",
+        images: [{ url: "a.png" }, { url: " b.png " }, { url: "" }],
+        children: [{ type: "formatted", text: "" }],
+      },
+      { type: "inline-image", url: "a.png", children: [{ type: "formatted", text: "" }] },
+      { type: "video", src: "v.mp4", children: [{ type: "formatted", text: "" }] },
+    ] as unknown as Descendant[];
+    expect(extractImageSources(content)).toEqual(["a.png", "b.png"]);
+    expect(extractImageSources(content, 1)).toEqual(["a.png"]);
   });
 });

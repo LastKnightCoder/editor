@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/api";
 
 import ImageGallery from "./components/ImageGallery/index";
@@ -13,6 +14,7 @@ export const createImageGalleryExtension = (options: ImageExtensionOptions = {})
     elements: [
       defineElement<ImageGalleryElement>({
         type: "image-gallery",
+        resources: BUILTIN_CONTENT_RESOURCES["image-gallery"],
         kind: "block",
         isVoid: true,
         render: ({ attributes, element, children }: ElementRenderProps<ImageGalleryElement>) => (

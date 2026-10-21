@@ -26,6 +26,7 @@ import { connectImagesRenderer } from "./images-bridge";
 import { connectVideoRenderer, rendererVideoRegistry } from "./video-bridge";
 import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
+import { declareContentPluginResources } from "./element-resources";
 
 const restartRequired = new Set<string>();
 const reloadCounts = new Map<string, number>();
@@ -42,6 +43,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   const workspaceId = useSettingStore(state => state.setting.database.active);
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!isElectron) return;
+    declareContentPluginResources(workspaceId).catch(error =>
+      console.warn("插件节点的资源声明未保存", error)
+    );
+  }, [workspaceId]);
   useEffect(() => {
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
