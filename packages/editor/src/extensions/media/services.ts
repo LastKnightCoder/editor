@@ -4,6 +4,7 @@ export {
   IMediaActions,
   IMediaSelectors,
   IEditorSlots,
+  IMediaAppearance,
 } from "./src/services/tokens.ts";
 export type {
   MediaType,

@@ -420,6 +420,33 @@ function DiagramBlock({ element, children }: { element: DiagramElement; children
 
 行内的源码输入弹层由你用 `@tau/ui` 组件实现。只读时只显示预览，不打开编辑弹层；只读状态下 `update` 和 `remove` 不会写入文档。
 
+## 图片、视频与音频
+
+节点里存的图片、视频、音频地址可能是本地路径、远程地址或共享文档里的资源，不能直接交给 `<img>`。用宿主的媒体组件显示，解析方式与 Tau 自带的图片块相同：本地路径转成可加载的地址，远程资源按用户的缓存设置下载，共享文档里的资源经协作服务解析。
+
+```tsx
+import { MediaImage, useMediaAppearance } from "@tau/plugins";
+
+function Photo({ element }: { element: PhotoElement }) {
+  const appearance = useMediaAppearance();
+  return (
+    <figure contentEditable={false} data-radius={element.borderRadius ?? appearance?.borderRadius}>
+      <MediaImage url={element.url} alt={element.caption} />
+    </figure>
+  );
+}
+```
+
+| 接口                         | 用途                                                                                                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `MediaImage`                 | 显示图片，参数为 `url`、`alt`、`className`、`style`、`loading`、`onLoadError` 等                                       |
+| `MediaVideo` / `MediaAudio`  | 宿主的视频、音频播放器，参数为 `src` 与原生媒体属性                                                                    |
+| `useResource(url, { kind })` | 自己绘制时使用：返回 `src`、`status`（`loading` / `ready` / `error`）与 `retry()`，元素加载失败时调用 `retry` 重新解析 |
+| `useResourceUpload()`        | 返回上传函数，把用户选的文件存进当前的资源存储并返回可写入节点的地址；只读编辑器和博客里为 `undefined`                 |
+| `useMediaAppearance()`       | 用户设置的媒体默认圆角与阴影（`none` / `sm` / `md` / `lg`）；博客里取发布设置。节点自己有设置时以节点为准              |
+
+`kind` 取 `image`、`video`、`audio`、`file`，决定远程资源的缓存方式。上传的文件不需要自己判断本地还是远端存储，也不要把文件内容写进节点。
+
 ## 动态 Tailwind 样式
 
 如果节点的源码里写了 Tailwind 类名（比如用户写的组件演示），在扩展上声明哪个字段是源码：

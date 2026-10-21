@@ -24,6 +24,7 @@ export type {
   ImageAppearanceSource,
 } from "./extensions/image/appearanceOption";
 export type { ImageAppearanceConfig } from "./extensions/image/utils/appearance";
+export { useMediaAppearance } from "./services/hooks";
 export {
   insertImage,
   insertInlineImage,

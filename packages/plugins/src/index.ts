@@ -31,6 +31,25 @@ export {
 export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export { ContentEditor, ContentPreview } from "./components";
+export {
+  MediaImage,
+  MediaVideo,
+  MediaAudio,
+  useResource,
+  useResourceUpload,
+  useMediaAppearance,
+} from "./media";
+export type {
+  ResourceKind,
+  ResourceState,
+  ResourceUpload,
+  MediaAppearance,
+  MediaAppearancePreset,
+  MediaImageProps,
+  MediaVideoProps,
+  MediaAudioProps,
+  MediaRuntime,
+} from "./media";
 export type { ContentEditorProps, ContentPreviewProps } from "./components";
 export * from "./sidebar";
 export type * from "./icons";
