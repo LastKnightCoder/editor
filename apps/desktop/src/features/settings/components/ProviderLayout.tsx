@@ -98,17 +98,15 @@ export function ProviderSection({
   children: ReactNode;
 }) {
   return (
-    <section className="px-1.5 pb-1.5 pt-3.5">
-      <div className="flex min-h-8 items-center gap-3 pb-2 pl-1.5">
+    <section className="px-1.5 pb-1.5 pt-2.5">
+      <div className="flex min-h-8 items-center gap-3 pb-1.5 pl-1.5">
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
           <h4 className="text-tau-body-lg text-ink-1 flex-none font-semibold">{title}</h4>
           {description && <p className="text-tau-meta text-ink-2 truncate">{description}</p>}
         </div>
         {action && <div className="flex flex-none items-center gap-1.5">{action}</div>}
       </div>
-      <div className="rounded-tau-md p-1 shadow-[inset_0_0_0_1px_var(--color-line-1)]">
-        {children}
-      </div>
+      <div className="rounded-tau-md shadow-[inset_0_0_0_1px_var(--color-line-1)]">{children}</div>
     </section>
   );
 }
