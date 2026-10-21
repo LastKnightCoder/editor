@@ -36,6 +36,8 @@ export * from "./sidebar";
 export type * from "./icons";
 export type * from "./excerpts";
 export type * from "./data";
+export type { PluginContentInput } from "./content-input";
+export { EDITOR_NODE_SCHEMA_VERSION, CONTENT_INPUT_LIMITS } from "./content-input";
 export type * from "./entities";
 export { PluginConflictError } from "./errors";
 export { PLUGIN_ENTITY_KINDS, PLUGIN_APP_ACTIONS, PLUGIN_EXPORT_FORMATS } from "./app";

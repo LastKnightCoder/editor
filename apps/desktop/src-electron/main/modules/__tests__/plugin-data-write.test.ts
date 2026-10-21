@@ -13,6 +13,7 @@ vi.mock("../video-note-index-queue", () => ({
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { getMarkdown } from "@/utils/markdown.ts";
 import PluginDataTable from "../tables/plugin-data";
+import ContentTable from "../tables/content";
 import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
 
 const scope = { databaseName: ":memory:", pluginId: "weekly" };
@@ -41,7 +42,11 @@ describe("PluginDataTable 写入", () => {
   it("新建卡片：Markdown 转为正文，通知所有窗口", async () => {
     const card = await PluginDataTable.create(
       db,
-      { ...scope, entity: "card", input: { markdown: "# 标题\n\n正文", tags: ["读书"] } },
+      {
+        ...scope,
+        entity: "card",
+        input: { content: { markdown: "# 标题\n\n正文" }, tags: ["读书"] },
+      },
       ctx
     );
     expect(card.tags).toEqual(["读书"]);
@@ -86,7 +91,7 @@ describe("PluginDataTable 写入", () => {
   it("删除保留快照与正文，7 天内恢复回原样", async () => {
     const card = await PluginDataTable.create(
       db,
-      { ...scope, entity: "card", input: { markdown: "要删的卡", tags: ["甲"] } },
+      { ...scope, entity: "card", input: { content: { markdown: "要删的卡" }, tags: ["甲"] } },
       ctx
     );
     PluginDataTable.remove(db, {
@@ -140,7 +145,7 @@ describe("PluginDataTable 写入", () => {
   it("修改正文：追加保留原内容，替换要求文字唯一，revision 过期时报冲突", async () => {
     const card = await PluginDataTable.create(
       db,
-      { ...scope, entity: "card", input: { markdown: "第一段" } },
+      { ...scope, entity: "card", input: { content: { markdown: "第一段" } } },
       ctx
     );
     const createdAt = (
@@ -160,7 +165,7 @@ describe("PluginDataTable 写入", () => {
       db,
       {
         ...target,
-        edit: { op: "append", markdown: "第二段" },
+        edit: { op: "append", content: { markdown: "第二段" } },
         expectedRevision: (await read())!.revision,
       },
       ctx
@@ -169,7 +174,7 @@ describe("PluginDataTable 写入", () => {
     await expect(
       PluginDataTable.editContent(
         db,
-        { ...target, edit: { op: "append", markdown: "x" }, expectedRevision: "u:0" },
+        { ...target, edit: { op: "append", content: { markdown: "x" } }, expectedRevision: "u:0" },
         ctx
       )
     ).rejects.toThrow("PLUGIN_CONFLICT:");
@@ -197,7 +202,11 @@ describe("PluginDataTable 写入", () => {
     const revision = (await read())!.revision;
     const pending = PluginDataTable.editContent(
       db,
-      { ...target, expectedRevision: revision, edit: { op: "append", markdown: "迟到修改" } },
+      {
+        ...target,
+        expectedRevision: revision,
+        edit: { op: "append", content: { markdown: "迟到修改" } },
+      },
       ctx
     );
     db.prepare("UPDATE contents SET update_time = update_time + 100 WHERE id = ?").run(
@@ -205,6 +214,114 @@ describe("PluginDataTable 写入", () => {
     );
     await expect(pending).rejects.toThrow("转换期间");
     expect(contentOf(card.contentId)).not.toContain("迟到修改");
+  });
+
+  it("正文输入：nodes 原样写入，copyOf 复制当前正文、之后互不影响", async () => {
+    const rawOf = (contentId: number | null) =>
+      JSON.parse(
+        (
+          db.prepare("SELECT content FROM contents WHERE id = ?").get(contentId) as {
+            content: string;
+          }
+        ).content
+      );
+    const createdAtOf = (contentId: number | null) =>
+      (
+        db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as {
+          create_time: number;
+        }
+      ).create_time;
+    // 未安装插件的节点与自定义字段原样保留（ER-006）
+    const nodes = [
+      {
+        type: "uninstalled-plugin-node",
+        source: "x^2",
+        children: [{ type: "formatted", text: "" }],
+      },
+      { type: "paragraph", children: [{ type: "formatted", text: "高亮", highlight: "yellow" }] },
+    ];
+    const source = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "card", input: { content: { nodes } } },
+      ctx
+    );
+    expect(rawOf(source.contentId)).toEqual(nodes);
+
+    const copyOf = { contentId: source.contentId!, createdAt: createdAtOf(source.contentId) };
+    const copy = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "article", input: { title: "副本", content: { copyOf } } },
+      ctx
+    );
+    expect(copy.contentId).not.toBe(source.contentId);
+    expect(rawOf(copy.contentId)).toEqual(nodes);
+    await PluginDataTable.editContent(
+      db,
+      {
+        ...scope,
+        ...copyOf,
+        edit: { op: "replaceAll", content: { nodes: [] } },
+        expectedRevision: (await PluginDataTable.content(db, {
+          ...scope,
+          ...copyOf,
+          format: "nodes",
+        }))!.revision,
+      },
+      ctx
+    );
+    expect(getMarkdown(rawOf(source.contentId)).trim()).toBe("");
+    expect(rawOf(copy.contentId)).toEqual(nodes);
+
+    const target = { contentId: copy.contentId!, createdAt: createdAtOf(copy.contentId) };
+    const revision = (await PluginDataTable.content(db, { ...scope, ...target, format: "nodes" }))!
+      .revision;
+    await PluginDataTable.editContent(
+      db,
+      {
+        ...scope,
+        ...target,
+        edit: { op: "append", content: { copyOf: target } },
+        expectedRevision: revision,
+      },
+      ctx
+    );
+    expect(rawOf(copy.contentId)).toEqual([...nodes, ...nodes]);
+  });
+
+  it("正文输入：结构无效、来源不存在或不可寻址时拒绝", async () => {
+    const create = (content: unknown) =>
+      PluginDataTable.create(
+        db,
+        { ...scope, entity: "card", input: { content: content as { nodes: unknown[] } } },
+        ctx
+      );
+    await expect(create({ nodes: [{ type: "paragraph", children: [] }] })).rejects.toThrow(
+      "路径 0）"
+    );
+    await expect(create({ copyOf: { contentId: 999, createdAt: 1 } })).rejects.toThrow(
+      "要复制的正文不存在"
+    );
+    const card = await create({ markdown: "来源" });
+    const createdAt = (
+      db.prepare("SELECT create_time FROM contents WHERE id = ?").get(card.contentId) as {
+        create_time: number;
+      }
+    ).create_time;
+    await expect(
+      create({ copyOf: { contentId: card.contentId, createdAt: createdAt + 1 } })
+    ).rejects.toThrow("要复制的正文不存在");
+    // 没有卡片、文章、项目文档或插件实体持有的正文（如日记）不能复制
+    const orphan = ContentTable.createContent(db, {
+      content: [{ type: "paragraph", children: [{ type: "formatted", text: "私密" }] }],
+    } as never);
+    const orphanCreatedAt = (
+      db.prepare("SELECT create_time FROM contents WHERE id = ?").get(orphan) as {
+        create_time: number;
+      }
+    ).create_time;
+    await expect(
+      create({ copyOf: { contentId: orphan, createdAt: orphanCreatedAt } })
+    ).rejects.toThrow("要复制的正文不存在");
   });
 
   it("拒绝删除项目文档与跨库写入", async () => {

@@ -3,6 +3,7 @@ import {
   ContentEditor,
   ContentPreview,
   defineEditorElement,
+  EDITOR_NODE_SCHEMA_VERSION,
   type EditorElementRenderProps,
 } from "@tau/plugins";
 import { createElement } from "react";
@@ -107,15 +108,22 @@ export async function checkDataContract(context: PluginContext) {
       mentionable: true,
     })
   );
-  const entity = await context.entities.create({ kind: "note", key: "example" });
-  const content = await context.content.read(entity.contentRef);
-  if (content) {
+  const entity = await context.entities.create({
+    kind: "note",
+    key: "example",
+    content: { markdown: "# 示例" },
+  });
+  const content = await context.content.read(entity.contentRef, { format: "nodes" });
+  if (content?.nodes) {
+    const nodeVersion: number | undefined = content.schemaVersion;
+    void (nodeVersion === EDITOR_NODE_SCHEMA_VERSION);
     await context.content.edit(
       entity.contentRef,
-      { op: "append", markdown: "正文" },
+      { op: "append", content: { nodes: content.nodes } },
       { expectedRevision: content.revision }
     );
   }
+  await context.data.cards.create({ content: { copyOf: entity.contentRef }, tags: ["示例"] });
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });

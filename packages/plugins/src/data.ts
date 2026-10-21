@@ -3,6 +3,8 @@
  * 每次调用前宿主按 manifest.permissions 与用户授权校验，未获准抛出 PluginPermissionError。
  * 修改与删除要传读到的 revision，数据已被别处修改时抛出 PluginConflictError。
  */
+import type { Descendant } from "slate";
+import type { PluginContentInput } from "./content-input";
 
 /** 一份正文的句柄，从实体上取得，传给 context.content 读取 */
 export type PluginContentRef = string;
@@ -70,8 +72,8 @@ export interface PluginWriteOptions {
 }
 
 export interface PluginCardInput {
-  /** 正文，Markdown；省略时为空卡片 */
-  markdown?: string;
+  /** 正文；省略时为空卡片 */
+  content?: PluginContentInput;
   tags?: string[];
   pinned?: boolean;
 }
@@ -83,7 +85,8 @@ export interface PluginCardPatch {
 
 export interface PluginArticleInput {
   title: string;
-  markdown?: string;
+  /** 正文；省略时为空文章 */
+  content?: PluginContentInput;
   tags?: string[];
 }
 
@@ -211,22 +214,25 @@ export interface PluginContentSnapshot {
   revision: string;
   /** format 为 markdown（默认）时给出 */
   markdown?: string;
-  /** format 为 nodes 时给出编辑器节点 JSON；结构随编辑器演进，优先使用 markdown */
-  nodes?: unknown[];
+  /** format 为 nodes 时给出编辑器节点，可原样作为 PluginContentInput 的 nodes 写回 */
+  nodes?: Descendant[];
+  /** format 为 nodes 时给出节点结构版本，见 EDITOR_NODE_SCHEMA_VERSION */
+  schemaVersion?: number;
   wordCount: number;
   updatedAt: number;
 }
 
 /**
- * 正文修改。append / prepend 只追加新内容，原有内容保持不变；replaceText 与 replaceAll 会把整篇
- * 经 Markdown 重建，Markdown 无法表达的格式可能简化。
+ * 正文修改。append / prepend 只加入新内容（不能为空），原有内容保持不变；replaceAll 用新内容替换
+ * 整篇（可以为空）。replaceText 在 Markdown 文本上查找替换，会把整篇经 Markdown 重建，
+ * Markdown 无法表达的格式可能简化。
  */
 export type PluginContentEdit =
-  | { op: "append"; markdown: string }
-  | { op: "prepend"; markdown: string }
+  | { op: "append"; content: PluginContentInput }
+  | { op: "prepend"; content: PluginContentInput }
   /** find 必须在当前 Markdown 中恰好出现一次 */
   | { op: "replaceText"; find: string; markdown: string }
-  | { op: "replaceAll"; markdown: string };
+  | { op: "replaceAll"; content: PluginContentInput };
 
 export interface PluginContent {
   /** 需要拥有该正文所属实体的读取权限；正文不存在时返回 null */
