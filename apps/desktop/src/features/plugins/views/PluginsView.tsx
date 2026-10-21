@@ -3,6 +3,7 @@ import {
   BookOpen,
   ChevronDown,
   CloudOff,
+  Download,
   ExternalLink,
   FolderOpen,
   LayoutGrid,
@@ -11,7 +12,7 @@ import {
   Search,
   SearchX,
 } from "lucide-react";
-import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
+import { Button, FadeScroll, Input, Loading, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -271,7 +272,7 @@ function Discover({
   onOpen: (id: string) => void;
   onClearCategory: () => void;
 }) {
-  if (catalog.loading) return <p className="text-tau-body text-ink-2">正在读取插件中心…</p>;
+  if (catalog.loading) return <Loading label="正在加载插件…" />;
   if (!catalog.data)
     return (
       <Empty icon={<CloudOff />} title="暂时连不上插件中心">
@@ -360,19 +361,26 @@ function CatalogCard({
           <div className="truncate text-[14px] font-semibold">{entry.name}</div>
           <div className="text-tau-sm text-ink-3 truncate">@{entry.publisher.login}</div>
         </div>
+        {installed && !installed.template && (
+          <span className="ml-auto flex-none" onClick={event => event.stopPropagation()}>
+            <CardEnableSwitch runtime={runtime} plugin={installed} />
+          </span>
+        )}
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
       <CategoryTags categories={entry.categories} />
-      <p
-        className="text-tau-sm text-ink-3"
-        title="同一设备、同一版本、同一 UTC 日计一次；近 7 日含今日，不代表安装人数"
-      >
-        {typeof entry.downloadsTotal === "number"
-          ? `累计 ${entry.downloadsTotal.toLocaleString()} 次 · 近 7 日 ${entry.downloads7d.toLocaleString()} 次`
-          : "下载统计暂不可用"}
-      </p>
       <div className="text-tau-sm text-ink-3 mt-auto flex items-center gap-2">
         <span className="tabular-nums">{entry.latest.version}</span>
+        {typeof entry.downloadsTotal === "number" && (
+          <span
+            className="flex items-center gap-1 tabular-nums"
+            aria-label={`下载 ${entry.downloadsTotal.toLocaleString()} 次`}
+            title={`下载 ${entry.downloadsTotal.toLocaleString()} 次，近 7 日 ${entry.downloads7d.toLocaleString()} 次`}
+          >
+            <Download className="size-3.5" strokeWidth={1.75} aria-hidden />
+            {entry.downloadsTotal.toLocaleString()}
+          </span>
+        )}
         <span className="ml-auto" onClick={event => event.stopPropagation()}>
           <InstallButton
             name={entry.name}
@@ -382,6 +390,26 @@ function CatalogCard({
         </span>
       </div>
     </article>
+  );
+}
+
+function CardEnableSwitch({
+  runtime,
+  plugin,
+}: {
+  runtime: DesktopPluginRuntime;
+  plugin: InstalledPlugin;
+}) {
+  const control = usePluginControl(runtime, plugin);
+  return (
+    <Switch
+      size="sm"
+      aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
+      title={control.error || undefined}
+      checked={plugin.enabled}
+      disabled={!control.canToggle}
+      onCheckedChange={() => void control.toggle()}
+    />
   );
 }
 

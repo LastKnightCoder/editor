@@ -130,7 +130,7 @@ async function settle() {
 }
 async function click(text: string, scope: ParentNode = page()) {
   const button = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(
-    item => item.textContent === text
+    item => item.textContent === text || item.getAttribute("aria-label") === text
   );
   if (!button) throw new Error(`按钮不存在：${text}`);
   await act(async () => button.click());
@@ -233,6 +233,23 @@ it("发现页安装后立即登记且停用，用户从已安装主动启用", a
   await settle();
   expect(runtime.host.getState(ID)).toBe("active");
   expect(mock.preferences.get(ID)).toBe(true);
+});
+
+it("发现页卡片右上角的开关直接启用和停用已安装插件", async () => {
+  expect(page().querySelector('[aria-label="启用 中心插件"]')).toBeNull();
+  await click("安装");
+  await click("安装", dialog());
+  const toggle = () =>
+    page().querySelector<HTMLButtonElement>('[aria-label$=" 中心插件"][role="switch"]');
+  expect(toggle()?.getAttribute("aria-label")).toBe("启用 中心插件");
+  await act(async () => toggle()?.click());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("active");
+  expect(toggle()?.getAttribute("aria-label")).toBe("停用 中心插件");
+  await act(async () => toggle()?.click());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("disabled");
+  expect(mock.preferences.get(ID)).toBe(false);
 });
 
 it("详情页读取 README 安全子集，卸载默认保留私有数据", async () => {
