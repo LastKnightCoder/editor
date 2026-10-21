@@ -19,11 +19,8 @@ import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import { EntityPicker } from "@/components/EntityPicker";
 import { openChatInDock } from "@/features/chat/openInDock";
 import { openMaterialTarget } from "@/services/open-material";
-import {
-  planNotebookResources,
-  plannedResourceCount,
-  upgradeQuestionToNotebook,
-} from "@/services/question-to-notebook";
+import { planNotebookResources, upgradeQuestionToNotebook } from "@/services/question-to-notebook";
+import { notebookPlanImpact } from "@/services/notebook-creation";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   type EntityKind,
@@ -625,7 +622,6 @@ function UpgradeDialog({
   onConfirm(): Promise<void>;
 }) {
   const plan = detail ? planNotebookResources(detail) : null;
-  const count = plan ? plannedResourceCount(plan) : 0;
   return (
     <ConfirmDialog
       open={open}
@@ -637,16 +633,7 @@ function UpgradeDialog({
           ? `这个问题已立项为 Notebook「${detail.notebook.title}」。`
           : "新建一个 Notebook 课题，以问题为标题、背景为描述，探究材料作为资料带入。之后问题新增的材料不会自动同步。"
       }
-      impact={
-        detail?.notebook || !plan
-          ? undefined
-          : [
-              count ? `带入 ${count} 份资料` : "没有可带入的资料",
-              plan.skipped ? `${plan.skipped} 项（项目、白板、对话或已删除的材料）不会带入` : "",
-            ]
-              .filter(Boolean)
-              .join("；")
-      }
+      impact={detail?.notebook || !plan ? undefined : notebookPlanImpact(plan)}
       confirmText={detail?.notebook ? "打开 Notebook" : "立项"}
       onConfirm={async () => {
         await onConfirm();

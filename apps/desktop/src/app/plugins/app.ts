@@ -13,9 +13,13 @@ import {
   describePluginRefs,
   getPluginData,
   grantPluginRefs,
+  planPluginNotebook,
   pluginRefExists,
   resolvePluginContentInput,
 } from "@/commands/plugin-data";
+import type { LineageNode } from "@/entity/lineage";
+import type { MaterialRef } from "@/entity/material";
+import type { NotebookPlan } from "@/types/vibe-learning";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import { getChatSession } from "@/commands/chat-session";
 import { locateEntity } from "@/commands/entity";
@@ -102,7 +106,20 @@ interface PluginActionBase {
  * 渲染；一次只显示一个，界面关闭后插件的 run 才返回。
  */
 export type PluginActionRequest =
-  PluginContentActionRequest | PluginCardCreateRequest | PluginDocumentInsertRequest;
+  | PluginContentActionRequest
+  | PluginCardCreateRequest
+  | PluginDocumentInsertRequest
+  | PluginNotebookCreateRequest;
+
+/** 新建 Notebook：确认框说明带入几份资料，确认后由宿主新建并带入 */
+export interface PluginNotebookCreateRequest extends PluginActionBase {
+  action: "notebook.create";
+  databaseName: string;
+  title: string;
+  plan: NotebookPlan;
+  from?: LineageNode;
+  settle(projectId: number): void;
+}
 
 export interface PluginCardCreateRequest extends PluginActionBase {
   action: "card.create";
@@ -138,6 +155,31 @@ export const usePluginActionUi = create<{ request: PluginActionRequest | null }>
 }));
 
 let nextRequestId = 0;
+
+/** 插件引用 → 谱系端点；可作来源的类型由 SDK 的 PLUGIN_NOTEBOOK_FROM_KINDS 限定 */
+function toLineageNode(ref: PluginEntityRef): LineageNode {
+  const numeric = Number(ref.id);
+  switch (ref.kind) {
+    case "document":
+      return { kind: "project-item", id: numeric };
+    case "diary":
+      return { kind: "diary-moment", id: numeric };
+    case "notebook":
+      return { kind: "vl-project", id: numeric };
+    case "chat-session":
+      return { kind: "chat-session", id: ref.id };
+    case "material": {
+      const [kind, id] = ref.id.split(":");
+      return { kind: kind as MaterialRef["kind"], id: Number(id) };
+    }
+    case "card":
+    case "article":
+    case "plugin-entity":
+      return { kind: ref.kind, id: numeric };
+    default:
+      throw new Error("这类内容不能作为 Notebook 的来源");
+  }
+}
 
 /** 显示动作界面，界面关闭或插件停用后以 fallback 结束 */
 function showAction<T>(
@@ -260,6 +302,27 @@ export function createDesktopApp(databaseName: string): AppAdapter {
           { resolvePluginContentInput },
           { databaseName, signal: context.signal }
         ).resolvePluginContentInput(databaseName, toContentSource(content));
+      if (request.action === "notebook.create") {
+        const commands = bindDatabaseCommands(
+          { planPluginNotebook, pluginRefExists },
+          { databaseName, signal: context.signal }
+        );
+        const from = request.from;
+        if (from && !(await commands.pluginRefExists(databaseName, from.kind, from.id)))
+          throw new Error("来源不存在");
+        const plan = await commands.planPluginNotebook(databaseName, request.sources);
+        return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+          id,
+          plugin,
+          action: "notebook.create",
+          databaseName,
+          title: request.title,
+          plan,
+          ...(from ? { from: toLineageNode(from) } : {}),
+          close: () => finish(null),
+          settle: projectId => finish({ kind: "notebook", id: String(projectId) }),
+        }));
+      }
       if (request.action === "project.insertDocument") {
         const nodes = await resolve(request.content);
         return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({

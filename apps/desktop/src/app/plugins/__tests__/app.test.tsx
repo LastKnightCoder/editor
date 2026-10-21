@@ -23,6 +23,12 @@ const mocks = vi.hoisted(() => ({
   resolveContent: vi.fn(),
   createCard: vi.fn(),
   insertDocument: vi.fn(),
+  planNotebook: vi.fn(),
+  createNotebook: vi.fn(),
+}));
+vi.mock("@/services/notebook-creation", () => ({
+  createNotebookWithResources: mocks.createNotebook,
+  notebookPlanImpact: () => "带入 2 份资料",
 }));
 vi.mock("@/components/InsertNoteToTreeModal", () => ({
   default: (props: {
@@ -47,6 +53,7 @@ vi.mock("@/commands/plugin-data", () => ({
   grantPluginRefs: mocks.grant,
   describePluginRefs: mocks.describe,
   resolvePluginContentInput: mocks.resolveContent,
+  planPluginNotebook: mocks.planNotebook,
 }));
 vi.mock("@/features/cards/components/CreateCardDialog", () => ({
   CreateCardDialog: (props: {
@@ -292,9 +299,10 @@ describe("插件选择与打开", () => {
       const view = createRoot(host);
       await act(async () => view.render(<PluginContentActionHost />));
       const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 50)));
+      // 弹窗经 Portal 渲染到 body
       const click = (label: string) =>
         act(async () =>
-          [...host.querySelectorAll("button")].find(item => item.textContent === label)?.click()
+          [...document.querySelectorAll("button")].find(item => item.textContent === label)?.click()
         );
       const unmount = () => {
         act(() => view.unmount());
@@ -341,6 +349,57 @@ describe("插件选择与打开", () => {
         await shared;
         expect(usePluginActionUi.getState().request).toBeNull();
         expect(host.textContent).toBe("");
+      } finally {
+        unmount();
+      }
+    });
+
+    it("新建 Notebook：核对来源，确认框带资料计划，确认后返回引用，取消返回 null", async () => {
+      const { settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
+      const plan = { notes: [], excerpts: [{ kind: "excerpt", id: 2 }], clips: [], skipped: 1 };
+      mocks.planNotebook.mockResolvedValue(plan);
+      mocks.createNotebook.mockResolvedValue({ projectId: 6, failed: 0 });
+      try {
+        const created = app.run(context(), plugin, {
+          action: "notebook.create",
+          title: "土地财政",
+          sources: [{ kind: "material", id: "excerpt:2" }],
+          from: { kind: "plugin-entity", id: "9" },
+        });
+        await settle();
+        expect(mocks.exists).toHaveBeenCalledWith("data.db", "plugin-entity", "9");
+        expect(mocks.planNotebook).toHaveBeenCalledWith("data.db", [
+          { kind: "material", id: "excerpt:2" },
+        ]);
+        expect(document.body.textContent).toContain("带入 2 份资料");
+        await click("新建");
+        expect(await created).toEqual({ kind: "notebook", id: "6" });
+        expect(mocks.createNotebook).toHaveBeenCalledWith({
+          title: "土地财政",
+          plan,
+          from: { kind: "plugin-entity", id: 9 },
+          mainDbName: "data.db",
+        });
+
+        const cancelled = app.run(context(), plugin, {
+          action: "notebook.create",
+          title: "空课题",
+          sources: [],
+        });
+        await settle();
+        await click("取消");
+        expect(await cancelled).toBeNull();
+
+        mocks.exists.mockResolvedValueOnce(false);
+        await expect(
+          app.run(context(), plugin, {
+            action: "notebook.create",
+            title: "x",
+            sources: [],
+            from: { kind: "card", id: "1" },
+          })
+        ).rejects.toThrow("来源不存在");
       } finally {
         unmount();
       }

@@ -1,6 +1,7 @@
 import type { PluginNotebookResource } from "@tau/plugins";
 import type { Descendant } from "slate";
 import { invoke } from "@/electron";
+import type { NotebookPlan } from "@/types/vibe-learning";
 import type {
   PluginContentEdit,
   PluginContentRecord,
@@ -55,6 +56,12 @@ export const getPluginNotebookResources = (
   notebookId: number
 ): Promise<PluginNotebookResource[] | null> =>
   invoke("plugin-data:notebook-resources", { databaseName, notebookId });
+
+/** 插件 notebook.create 的资料计划，只在宿主确认框中使用 */
+export const planPluginNotebook = (
+  databaseName: string,
+  refs: PluginRefInput[]
+): Promise<NotebookPlan> => invoke("plugin-refs:notebook-plan", { databaseName, refs });
 
 /** 把插件的正文输入解析为节点，供宿主界面预填；结果不交给插件 */
 export const resolvePluginContentInput = (

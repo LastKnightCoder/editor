@@ -5,6 +5,7 @@ import {
   EntityRef,
   defineEditorElement,
   EDITOR_NODE_SCHEMA_VERSION,
+  PLUGIN_NOTEBOOK_FROM_KINDS,
   type EditorElementRenderProps,
 } from "@tau/plugins";
 import { createElement } from "react";
@@ -182,6 +183,13 @@ export async function checkDataContract(context: PluginContext) {
     title: entity.title,
   });
   if (inserted?.kind === "document") await context.app.describe([inserted]);
+  const notebook = await context.app.run("notebook.create", {
+    title: entity.title,
+    sources: [{ kind: "plugin-entity", id: entity.id }],
+    from: { kind: "plugin-entity", id: entity.id },
+  });
+  if (notebook) await context.data.notebooks.resources(notebook.id);
+  if (PLUGIN_NOTEBOOK_FROM_KINDS.includes("card")) console.log("card 可作为来源");
   await context.entities.backlinks(entity.id);
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }

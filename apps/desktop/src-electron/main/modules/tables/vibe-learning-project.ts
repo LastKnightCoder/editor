@@ -17,6 +17,8 @@ import VLQuizTable from "./vl-quiz";
 import vibeLearningDBManager from "../vibe-learning-db";
 import PathUtil from "../../utils/PathUtil";
 import { getNextModuleEntityId } from "./module-entity-id";
+import { notebookSourceOf } from "../entity-context/context-lineage";
+import type { ContextLineageItem } from "@/types/entity-context";
 
 /**
  * 「Vibe Learning」模块的列表实体表。
@@ -33,6 +35,7 @@ export default class VibeLearningProjectTable {
       "vibe-learning-project:get": this.getById.bind(this),
       "vibe-learning-project:list": this.list.bind(this),
       "vibe-learning-project:record-open": this.recordOpen.bind(this),
+      "vibe-learning-project:source": this.sourceOf.bind(this),
     };
   }
 
@@ -77,6 +80,11 @@ export default class VibeLearningProjectTable {
       openedAt: (row.last_open_time as number | null) ?? null,
       lastItemTitle: (row.last_item_title as string | null) ?? null,
     }));
+  }
+
+  /** 由什么立项（问题、卡片、插件内容等，谱系 upgraded_to）；没有或来源已删除时为 null */
+  static sourceOf(db: Database.Database, id: number): ContextLineageItem | null {
+    return notebookSourceOf(db, id);
   }
 
   // 打开记录不是内容修改：不动 update_time，也不记 operation。

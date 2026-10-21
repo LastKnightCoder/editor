@@ -453,18 +453,21 @@ function CardRow({ card }: { card: PluginCard }) {
 </button>
 ```
 
-| 动作                     | 参数                                                | 效果                                                         | 结果                                    |
-| ------------------------ | --------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------- |
-| `content.export`         | `ref`，`format`：`markdown`、`image`、`pdf`、`epub` | Markdown 直接保存文件，其余打开导出窗口                      | 无                                      |
-| `content.present`        | `ref`                                               | 全屏演示                                                     | 无                                      |
-| `content.share`          | `ref`                                               | 打开「内容协作」窗口，由用户确认发起共享                     | 无                                      |
-| `card.create`            | `content?`（见[正文输入](#正文输入)）、`tags?`      | 打开新建卡片窗口并预填，用户可修改后保存                     | 新卡片的引用 `{ kind: "card", id }`     |
-| `project.insertDocument` | `content`、`title?`（默认「未命名文档」）           | 打开「插入到项目」窗口，用户选择项目与位置后复制正文为新文档 | 新文档的引用 `{ kind: "document", id }` |
+| 动作                     | 参数                                                | 效果                                                         | 结果                                       |
+| ------------------------ | --------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------ |
+| `content.export`         | `ref`，`format`：`markdown`、`image`、`pdf`、`epub` | Markdown 直接保存文件，其余打开导出窗口                      | 无                                         |
+| `content.present`        | `ref`                                               | 全屏演示                                                     | 无                                         |
+| `content.share`          | `ref`                                               | 打开「内容协作」窗口，由用户确认发起共享                     | 无                                         |
+| `card.create`            | `content?`（见[正文输入](#正文输入)）、`tags?`      | 打开新建卡片窗口并预填，用户可修改后保存                     | 新卡片的引用 `{ kind: "card", id }`        |
+| `project.insertDocument` | `content`、`title?`（默认「未命名文档」）           | 打开「插入到项目」窗口，用户选择项目与位置后复制正文为新文档 | 新文档的引用 `{ kind: "document", id }`    |
+| `notebook.create`        | `title`、`sources?`（最多 200 项）、`from?`         | 确认后新建 Notebook，`sources` 作为资料带入，`from` 记为来源 | Notebook 的引用 `{ kind: "notebook", id }` |
 
 - 不需要数据权限：界面和确认都由 Tau 提供，用户在界面里确认即同意。插件拿不到正文；`card.create` 返回的引用可以存下来、用 `<EntityRef>` 显示或 `open` 打开，读取正文仍需要 `cards:read`。
 - 用户关闭界面后才返回：导出、演示、协作在窗口关闭或演示结束时返回；新建类在保存后返回新内容的引用，用户取消时返回 `null`。插件停用时界面会被撤下。
 - 只能在用户操作之后调用；同一时间只能打开一个，前一个还没关闭时抛错。内容已删除时抛出「内容不存在」。
 - `copyOf` 只复制正文，不会改动来源。`project.insertDocument` 总是复制一份新正文，不与来源共用。
+- `notebook.create` 的资料一次性带入，之后原内容的修改不会同步：卡片、文章、项目文档、日记和插件内容成为笔记资料；划线与 PDF 标注合并为一份，剪藏各一份；其他类型和已删除的内容不带入，确认框里会告诉用户数量。
+- `from` 是这个 Notebook 由什么立项，显示在 Notebook 页顶部，用户点击可以打开。可以是卡片、文章、项目文档、日记、材料、对话、Notebook 或插件内容（`PLUGIN_NOTEBOOK_FROM_KINDS`），不存在时抛出「来源不存在」。
 
 ```ts
 const ref = await context.app.run("card.create", {

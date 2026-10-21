@@ -1,7 +1,9 @@
 import Database from "better-sqlite3";
 import { basename } from "node:path";
 import type { EntityKind } from "@/types";
+import type { MaterialRef } from "@/entity/material";
 import type { PluginDataScope, PluginRefDescription, PluginRefInput } from "@/types/plugin-data";
+import type { NotebookPlan } from "@/types/vibe-learning";
 import { readDocumentTask } from "../task-assistant/documents";
 import EntitySearchTable from "./entity-search";
 import MaterialTable from "./material";
@@ -34,6 +36,32 @@ const MATERIAL_SQL: Record<string, string> = {
   excerpt: "SELECT create_time FROM excerpt WHERE id = ? AND is_deleted = 0",
   "pdf-annotation": "SELECT create_time FROM pdf_annotations WHERE id = ?",
   "web-clip": "SELECT create_time FROM web_clip WHERE id = ?",
+};
+
+/** 可作为 Notebook 笔记资源的类型：正文所在的表、标题检索类型与资源元数据里的来源类型 */
+const NOTE_SOURCES: Record<string, { sql: string; search: EntityKind; noteType: string }> = {
+  card: { sql: "SELECT content_id FROM cards WHERE id = ?", search: "card", noteType: "card" },
+  article: {
+    sql: "SELECT content_id FROM articles WHERE id = ? AND is_delete = 0",
+    search: "article",
+    noteType: "article",
+  },
+  // 引用卡片 / 文章的条目正文归被引用的内容，不按项目文档带入
+  document: {
+    sql: "SELECT content_id FROM project_item WHERE id = ? AND (ref_type IS NULL OR ref_type = '')",
+    search: "project_item",
+    noteType: "project-item",
+  },
+  diary: {
+    sql: "SELECT content_id FROM diary_segments WHERE id = ?",
+    search: "diary-moment",
+    noteType: "diary-moment",
+  },
+  "plugin-entity": {
+    sql: "SELECT content_id FROM plugin_entities WHERE id = ?",
+    search: "plugin-entity",
+    noteType: "plugin-entity",
+  },
 };
 
 interface Located {
@@ -140,6 +168,7 @@ export default class PluginRefsTable {
       "plugin-refs:grant": this.grant.bind(this),
       "plugin-refs:describe": this.describe.bind(this),
       "plugin-refs:clear": this.clear.bind(this),
+      "plugin-refs:notebook-plan": this.notebookPlan.bind(this),
     };
   }
 
@@ -214,6 +243,52 @@ export default class PluginRefsTable {
         return { status: "missing" };
       return { status: "ok", title: located.title() };
     });
+  }
+
+  /**
+   * 插件 notebook.create 的资料计划：有正文的内容转为笔记资源，划线与 PDF 标注合并、剪藏各一份；
+   * 其余类型与已删除的计入 skipped。只在宿主确认框中展示，不交给插件。
+   */
+  static notebookPlan(
+    db: Database.Database,
+    request: PluginDataScope & { refs: PluginRefInput[] }
+  ): NotebookPlan {
+    this.assertDatabase(db, request);
+    const plan: NotebookPlan = { notes: [], excerpts: [], clips: [], skipped: 0 };
+    const seen = new Set<string>();
+    for (const ref of this.readRefs(request.refs)) {
+      const key = `${ref.kind}:${ref.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const note = NOTE_SOURCES[ref.kind];
+      const entityId = numericId(ref.id);
+      if (note && entityId !== null) {
+        const row = db.prepare(note.sql).get(entityId) as { content_id: number } | undefined;
+        if (row?.content_id) {
+          plan.notes.push({
+            contentId: row.content_id,
+            title: EntitySearchTable.resolve(db, note.search, entityId, 0)?.title ?? "",
+            noteType: note.noteType,
+            originalId: entityId,
+          });
+          continue;
+        }
+      } else if (ref.kind === "material") {
+        const match = /^([a-z-]+):(\d+)$/.exec(ref.id);
+        const material =
+          match && Object.hasOwn(MATERIAL_SQL, match[1])
+            ? ({ kind: match[1], id: Number(match[2]) } as MaterialRef)
+            : null;
+        const info = material ? MaterialTable.resolveOne(db, material) : null;
+        if (material && info && !info.deleted) {
+          if (material.kind === "web-clip") plan.clips.push({ ref: material, title: info.title });
+          else plan.excerpts.push(material);
+          continue;
+        }
+      }
+      plan.skipped += 1;
+    }
+    return plan;
   }
 
   /** 卸载插件并选择清除数据时，删除它在当前库登记的选择 */

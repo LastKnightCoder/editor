@@ -112,6 +112,7 @@ import {
 import {
   PLUGIN_APP_ACTIONS,
   PLUGIN_ENTITY_KINDS,
+  PLUGIN_NOTEBOOK_FROM_KINDS,
   PLUGIN_ENTITY_READ_PERMISSIONS,
   PLUGIN_EXPORT_FORMATS,
   type PluginAppAction,
@@ -358,10 +359,22 @@ export type PluginAppRunRequest =
   | { action: "content.export"; ref: PluginContentRef; format: PluginExportFormat }
   | { action: "content.present" | "content.share"; ref: PluginContentRef }
   | { action: "card.create"; content?: PluginContentInput; tags?: string[] }
-  | { action: "project.insertDocument"; content: PluginContentInput; title?: string };
+  | { action: "project.insertDocument"; content: PluginContentInput; title?: string }
+  | {
+      action: "notebook.create";
+      title: string;
+      sources: PluginEntityRef[];
+      from?: PluginEntityRef;
+    };
 
 /** 新建类动作：宿主返回新内容的引用，用户取消为 null */
-const CREATING_ACTIONS = new Set<string>(["card.create", "project.insertDocument"]);
+const CREATING_ACTIONS = new Set<string>([
+  "card.create",
+  "project.insertDocument",
+  "notebook.create",
+]);
+const notebookFromKinds = new Set<string>(PLUGIN_NOTEBOOK_FROM_KINDS);
+const MAX_NOTEBOOK_SOURCES = 200;
 
 const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
 const appActions = new Set<string>(PLUGIN_APP_ACTIONS);
@@ -419,6 +432,22 @@ function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest 
         ? { content: readContentInput(content, { allowEmpty: true }) }
         : {}),
       ...(tags !== undefined ? { tags: readTags(tags) } : {}),
+    };
+  }
+  if (action === "notebook.create") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { title, sources, from } = raw as { title?: unknown; sources?: unknown; from?: unknown };
+    if (sources !== undefined && (!Array.isArray(sources) || sources.length > MAX_NOTEBOOK_SOURCES))
+      throw new Error(`sources 必须是数组，最多 ${MAX_NOTEBOOK_SOURCES} 项`);
+    const source = from === undefined ? undefined : readEntityRef(from);
+    if (source && !notebookFromKinds.has(source.kind))
+      throw new Error("这类内容不能作为 Notebook 的来源");
+    return {
+      action,
+      title: readText(title, "标题", MAX_TITLE),
+      sources: (sources ?? []).map(readEntityRef),
+      ...(source ? { from: source } : {}),
     };
   }
   if (action === "project.insertDocument") {

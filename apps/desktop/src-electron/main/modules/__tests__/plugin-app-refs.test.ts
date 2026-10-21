@@ -13,6 +13,8 @@ vi.mock("../video-note-index-queue", () => ({
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import EntitySearchTable from "../tables/entity-search";
 import PluginRefsTable from "../tables/plugin-refs";
+import EntityLineageTable from "../tables/entity-lineage";
+import { notebookSourceOf } from "../entity-context/context-lineage";
 
 const scope = { databaseName: ":memory:" };
 
@@ -230,5 +232,77 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
         readable: [],
       })
     ).toEqual([{ status: "ok", title: "我的周记" }, { status: "denied" }]);
+  });
+
+  it("Notebook 资料计划：有正文的内容成为笔记，划线合并、剪藏各一份，其余与已删除的跳过", () => {
+    const contentId = insert(
+      "INSERT INTO contents (create_time, update_time, content, count) VALUES (1, 1, '[]', 0)"
+    );
+    const card = insert(
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', '[]', ?)",
+      contentId
+    );
+    const entity = insert(
+      `INSERT INTO plugin_entities (plugin_id, kind, key, title, content_id, meta, create_time, update_time)
+       VALUES ('qa', 'question', 'q1', '为什么', ?, '{}', 1, 1)`,
+      contentId
+    );
+    const excerpt = insert(
+      `INSERT INTO excerpt (source_type, source_key, external_id, quote, create_time, update_time)
+       VALUES ('web', 'k', 'e1', '句子', 1, 1)`
+    );
+    const clip = insert(
+      "INSERT INTO web_clip (create_time, update_time, content_id, url, title) VALUES (1, 1, ?, 'https://a.example', '网页')",
+      contentId
+    );
+    const project = insert(
+      "INSERT INTO project (title, \"desc\", children, create_time, update_time) VALUES ('课题', '[]', '[]', 1, 1)"
+    );
+    const plan = PluginRefsTable.notebookPlan(db, {
+      ...scope,
+      refs: [
+        { kind: "card", id: String(card) },
+        { kind: "card", id: String(card) },
+        { kind: "plugin-entity", id: String(entity) },
+        { kind: "material", id: `excerpt:${excerpt}` },
+        { kind: "material", id: `web-clip:${clip}` },
+        { kind: "project", id: String(project) },
+        { kind: "card", id: "999" },
+        { kind: "material", id: "excerpt:999" },
+      ],
+    });
+    expect(plan).toEqual({
+      notes: [
+        { contentId, title: expect.any(String), noteType: "card", originalId: card },
+        { contentId, title: "为什么", noteType: "plugin-entity", originalId: entity },
+      ],
+      excerpts: [{ kind: "excerpt", id: excerpt }],
+      clips: [{ ref: { kind: "web-clip", id: clip }, title: "网页" }],
+      skipped: 3,
+    });
+  });
+
+  it("Notebook 来源行：任意谱系来源按通用解析显示，来源删除后不再显示", () => {
+    const entity = insert(
+      `INSERT INTO plugin_entities (plugin_id, kind, key, title, content_id, meta, create_time, update_time)
+       VALUES ('qa', 'question', 'q1', '为什么', 0, '{}', 1, 1)`
+    );
+    const notebook = insert(
+      "INSERT INTO vibe_learning_project (title, create_time, update_time) VALUES ('本子', 1, 1)"
+    );
+    expect(notebookSourceOf(db, notebook)).toBeNull();
+    EntityLineageTable.record(db, {
+      src: { kind: "plugin-entity", id: entity },
+      dst: { kind: "vl-project", id: notebook },
+      relation: "upgraded_to",
+    });
+    expect(notebookSourceOf(db, notebook)).toMatchObject({
+      node: { kind: "plugin-entity", id: entity },
+      title: "为什么",
+      missing: false,
+      open: { page: "entity", ref: { kind: "plugin-entity", id: entity } },
+    });
+    db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(entity);
+    expect(notebookSourceOf(db, notebook)).toBeNull();
   });
 });

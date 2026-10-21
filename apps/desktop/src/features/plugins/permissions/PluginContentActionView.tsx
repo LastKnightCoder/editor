@@ -8,7 +8,13 @@ import ContentCollaborationControl, {
 } from "@/components/ContentCollaborationControl";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
-import type { PluginActionRequest, PluginContentActionRequest } from "@/app/plugins/app";
+import { ConfirmDialog, toast } from "@tau/ui";
+import { createNotebookWithResources, notebookPlanImpact } from "@/services/notebook-creation";
+import type {
+  PluginActionRequest,
+  PluginContentActionRequest,
+  PluginNotebookCreateRequest,
+} from "@/app/plugins/app";
 
 /** 与卡片详情「导出 / 演示 / 发起协作」、「新建卡片」「插入到项目」同一组宿主组件；关闭即撤下请求 */
 export default function PluginContentActionView({ request }: { request: PluginActionRequest }) {
@@ -21,6 +27,7 @@ export default function PluginContentActionView({ request }: { request: PluginAc
         onClose={request.close}
       />
     );
+  if (request.action === "notebook.create") return <NotebookCreateAction request={request} />;
   if (request.action === "project.insertDocument")
     return (
       <InsertNoteToTreeModal
@@ -52,6 +59,38 @@ export default function PluginContentActionView({ request }: { request: PluginAc
       onClose={request.close}
       content={request.content}
       title={request.title}
+    />
+  );
+}
+
+/** 与问题「以此立项」同一口径：说明带入几份资料、几项带不进去，确认后新建 */
+function NotebookCreateAction({ request }: { request: PluginNotebookCreateRequest }) {
+  return (
+    <ConfirmDialog
+      open
+      onOpenChange={next => {
+        if (!next) request.close();
+      }}
+      title="新建 Notebook"
+      context={request.title}
+      description="新建一个 Notebook，以下内容作为资料带入。之后原内容的修改不会自动同步。"
+      impact={notebookPlanImpact(request.plan)}
+      confirmText="新建"
+      onConfirm={async () => {
+        try {
+          const { projectId, failed } = await createNotebookWithResources({
+            title: request.title,
+            plan: request.plan,
+            ...(request.from ? { from: request.from } : {}),
+            mainDbName: request.databaseName,
+          });
+          if (failed) toast.warning(`${failed} 份资料带入失败`);
+          request.settle(projectId);
+        } catch (error) {
+          console.error("新建 Notebook 失败", error);
+          toast.error("新建 Notebook 失败");
+        }
+      }}
     />
   );
 }

@@ -18,6 +18,7 @@
 - `context.app.run` 改为用户关闭界面后才返回，并带结果：新建类返回新内容的引用，用户取消返回 `null`，导出、演示、协作没有结果。同一时间只能打开一个界面，前一个未关闭时抛错（原为替换前一个）。新增导出类型 `PluginAppActionResults`。
 - 新增动作 `card.create`：打开 Tau 的新建卡片窗口，预填 `content`（`PluginContentInput`）与 `tags`，用户保存后返回 `{ kind: "card", id }`；不需要数据权限。
 - 新增动作 `project.insertDocument`：打开 Tau 的「插入到项目」窗口，由用户选择项目与位置，把 `content` 复制为新的项目文档（可带 `title`），返回 `{ kind: "document", id }`；不需要数据权限。
+- 新增动作 `notebook.create`：由用户确认后新建 Notebook，`sources` 作为资料一次性带入（有正文的内容成为笔记资料，划线与 PDF 标注合并、剪藏各一份，其他类型不带入），`from` 记为来源并显示在 Notebook 页顶部；返回 `{ kind: "notebook", id }`。新增导出 `PLUGIN_NOTEBOOK_FROM_KINDS`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 
