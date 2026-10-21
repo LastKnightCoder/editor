@@ -19,6 +19,7 @@
     "./rendering": "./src/rendering.ts",
     "./content": "./src/content.ts",
     "./content-input": "./src/content-input.ts",
+    "./query": "./src/query.ts",
     "./whiteboard": "./src/whiteboard.ts",
     "./components": "./src/components.ts",
     "./media": "./src/media.ts",

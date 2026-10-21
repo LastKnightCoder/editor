@@ -4,6 +4,7 @@ import type { Descendant } from "slate";
 import type { PluginContentOwner } from "@/types/plugin-data";
 import type {
   PluginEntityCreate,
+  PluginEntityFilter,
   PluginEntityKindAppearance,
   PluginEntityOwner,
   PluginEntityPage,
@@ -18,6 +19,14 @@ import { getNextTaskEntityId } from "./module-entity-id";
 import { resolvePluginContent } from "./plugin-content-input";
 import { insertPluginOperation } from "./plugin-operations";
 import { emitContentWritten } from "../content-events";
+import { assertIndexedValues, type PluginIndexes } from "@tau/plugins/query";
+import {
+  containsClause,
+  runPage,
+  whereClause,
+  type QuerySource,
+  type SqlFragment,
+} from "./plugin-query";
 
 const MAX_LIMIT = 200;
 const MAX_OWNER_IDS = 500;
@@ -27,10 +36,17 @@ export const MAX_KIND_ICON = 16 * 1024;
 const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
 const EMPTY_CONTENT = [{ type: "paragraph", children: [{ text: "" }] }] as Descendant[];
 
-const BASE_SQL = `SELECT e.id, e.plugin_id, e.kind, e.key, e.title, e.meta, e.create_time,
-    e.update_time, e.content_id, ct.create_time AS content_created,
-    MAX(e.update_time, IFNULL(ct.update_time, 0)) AS updated
-  FROM plugin_entities e JOIN contents ct ON ct.id = e.content_id`;
+const UPDATED_SQL = "MAX(e.update_time, IFNULL(ct.update_time, 0))";
+const BASE_COLUMNS = `e.id, e.plugin_id, e.kind, e.key, e.title, e.meta, e.create_time,
+    e.update_time, e.content_id, ct.create_time AS content_created, ${UPDATED_SQL} AS updated`;
+const BASE_FROM = "plugin_entities e JOIN contents ct ON ct.id = e.content_id";
+const BASE_SQL = `SELECT ${BASE_COLUMNS} FROM ${BASE_FROM}`;
+
+const QUERY_SOURCE: QuerySource = {
+  json: "e.meta",
+  builtins: { createdAt: "e.create_time", updatedAt: UPDATED_SQL, title: "e.title" },
+  id: "e.id",
+};
 
 interface Row {
   id: number;
@@ -98,6 +114,7 @@ export default class PluginEntityTable {
       "plugin-entities:get": this.get.bind(this),
       "plugin-entities:find": this.find.bind(this),
       "plugin-entities:query": this.query.bind(this),
+      "plugin-entities:count": this.count.bind(this),
       "plugin-entities:update": this.update.bind(this),
       "plugin-entities:delete": this.remove.bind(this),
       "plugin-entities:locate": this.locate.bind(this),
@@ -209,7 +226,8 @@ export default class PluginEntityTable {
     request: PluginEntityScope & { input: PluginEntityCreate }
   ): Promise<PluginEntityRecord> {
     this.assertScope(db, request);
-    const { kind, key, title, meta } = request.input;
+    const { kind, key, title, meta, indexes } = request.input;
+    assertIndexedValues(meta as never, indexes ?? {});
     const content = await resolvePluginContent(db, request.input.content, EMPTY_CONTENT);
     // Markdown 转换期间可能已切库或关库
     this.assertDatabase(db, request.databaseName);
@@ -252,7 +270,17 @@ export default class PluginEntityTable {
     return row ? toRecord(row) : null;
   }
 
-  /** 按创建时间倒序分页，游标为「创建时间:ID」 */
+  /** 本插件、可选类型、索引条件与标题包含 */
+  private static filters(pluginId: string, filter: PluginEntityFilter): SqlFragment[] {
+    return [
+      { sql: "e.plugin_id = ?", params: [pluginId] },
+      ...(filter.kind === undefined ? [] : [{ sql: "e.kind = ?", params: [filter.kind] }]),
+      whereClause(QUERY_SOURCE, filter.where ?? []),
+      ...(filter.titleContains ? [containsClause("e.title", filter.titleContains)] : []),
+    ];
+  }
+
+  /** 按筛选与排序分页，游标绑定本次查询 */
   static query(
     db: Database.Database,
     request: PluginEntityScope & { query: PluginEntityQuery }
@@ -261,39 +289,52 @@ export default class PluginEntityTable {
     const { query } = request;
     if (!Number.isSafeInteger(query.limit) || query.limit < 1 || query.limit > MAX_LIMIT)
       throw new Error(`limit 必须是 1–${MAX_LIMIT} 的整数`);
-    const where = ["e.plugin_id = ?"];
-    const params: unknown[] = [request.pluginId];
-    if (query.kind !== undefined) {
-      where.push("e.kind = ?");
-      params.push(query.kind);
-    }
-    if (query.cursor !== undefined) {
-      const match = /^(\d+):(\d+)$/.exec(String(query.cursor));
-      if (!match) throw new Error("分页游标无效");
-      where.push("(e.create_time < ? OR (e.create_time = ? AND e.id < ?))");
-      params.push(Number(match[1]), Number(match[1]), Number(match[2]));
-    }
-    const rows = db
-      .prepare(
-        `${BASE_SQL} WHERE ${where.join(" AND ")} ORDER BY e.create_time DESC, e.id DESC LIMIT ?`
-      )
-      .all(...params, query.limit + 1) as Row[];
-    const page = rows.slice(0, query.limit);
-    const last = page.at(-1);
+    const { kind, where, titleContains, orderBy } = query;
+    const page = runPage<Row>(db, QUERY_SOURCE, {
+      columns: BASE_COLUMNS,
+      from: BASE_FROM,
+      filters: this.filters(request.pluginId, query),
+      order: orderBy,
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      limit: query.limit,
+      scope: [request.pluginId, kind ?? null, where ?? [], titleContains ?? "", orderBy],
+    });
     return {
-      items: page.map(toRecord),
-      ...(rows.length > query.limit && last ? { cursor: `${last.create_time}:${last.id}` } : {}),
+      items: page.rows.map(toRecord),
+      ...(page.cursor ? { cursor: page.cursor } : {}),
     };
+  }
+
+  static count(
+    db: Database.Database,
+    request: PluginEntityScope & { filter: PluginEntityFilter }
+  ): number {
+    this.assertScope(db, request);
+    const filters = this.filters(request.pluginId, request.filter).filter(item => item.sql);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM plugin_entities e WHERE ${filters.map(item => item.sql).join(" AND ")}`
+      )
+      .get(...filters.flatMap(item => item.params)) as { count: number };
+    return row.count;
   }
 
   static update(
     db: Database.Database,
-    request: PluginEntityScope & { id: number; patch: PluginEntityPatch; expectedRevision: string }
+    request: PluginEntityScope & {
+      id: number;
+      patch: PluginEntityPatch;
+      expectedRevision: string;
+      /** 各类型声明的索引字段，按本项的类型核对 meta */
+      indexes?: Record<string, PluginIndexes>;
+    }
   ): PluginEntityRecord {
     this.assertScope(db, request);
     return db.transaction(() => {
       const current = this.row(db, request.pluginId, request.id);
       if (!current) throw new Error("内容不存在");
+      if (request.patch.meta !== undefined)
+        assertIndexedValues(request.patch.meta as never, request.indexes?.[current.kind] ?? {});
       if (String(current.update_time) !== request.expectedRevision)
         throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
       const { title, meta } = request.patch;

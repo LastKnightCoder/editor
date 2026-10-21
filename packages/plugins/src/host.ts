@@ -100,9 +100,18 @@ import type {
   PluginOwnEntityInput,
   PluginOwnEntityKind,
   PluginOwnEntityMeta,
+  PluginOwnEntityFilter,
   PluginOwnEntityPatch,
   PluginOwnEntityQuery,
 } from "./entities";
+import {
+  readIndexes,
+  readOrderBy,
+  readWhere,
+  type PluginIndexes,
+  type PluginQueryCondition,
+  type PluginQueryOrder,
+} from "./query";
 import {
   PLUGIN_EVENT_PERMISSIONS,
   isPluginEventType,
@@ -298,25 +307,37 @@ export type CalendarWrite =
   | { action: "delete"; id: string; expectedRevision: string };
 
 /** 插件实体的存取：只读写本插件的实体；参数已校验，返回值由 PluginHost 复制后交给插件。 */
+/** 校验后的实体查询；kind 的索引声明已代入条件与排序 */
+export interface EntityQueryFilter {
+  kind?: string;
+  where: PluginQueryCondition[];
+  titleContains?: string;
+}
+
 export interface EntitiesAdapter {
+  /** indexes：类型声明的索引字段，宿主写入前核对 meta 中对应字段的类型 */
   create(
     context: PluginContext,
     input: Required<Omit<PluginOwnEntityInput, "content">> & {
       meta: PluginOwnEntityMeta;
       content?: PluginContentInput;
-    }
+    },
+    indexes: PluginIndexes
   ): Promise<PluginOwnEntity>;
   get(context: PluginContext, id: string): Promise<PluginOwnEntity | null>;
   find(context: PluginContext, kind: string, key: string): Promise<PluginOwnEntity | null>;
   query(
     context: PluginContext,
-    query: PluginOwnEntityQuery & { limit: number }
+    query: EntityQueryFilter & { orderBy: PluginQueryOrder[]; cursor?: string; limit: number }
   ): Promise<PluginPage<PluginOwnEntity>>;
+  count(context: PluginContext, filter: EntityQueryFilter): Promise<number>;
+  /** indexes：各已声明类型的索引字段，宿主按实体的类型核对 meta */
   update(
     context: PluginContext,
     id: string,
     patch: PluginOwnEntityPatch,
-    expectedRevision: string
+    expectedRevision: string,
+    indexes: Record<string, PluginIndexes>
   ): Promise<PluginOwnEntity>;
   /** 删除后由用户在插件详情页恢复，宿主负责记录可恢复的快照 */
   delete(context: PluginContext, id: string, expectedRevision: string): Promise<void>;
@@ -434,8 +455,13 @@ function readEntityKind(value: unknown): PluginOwnEntityKind {
     ...(icon ? { icon } : {}),
     open: Object.freeze({ page, ...(params ? { params } : {}) }),
     mentionable: definition.mentionable ?? false,
+    indexes: readIndexes(definition.indexes, ENTITY_SORT_FIELDS),
   });
 }
+
+const ENTITY_SORT_FIELDS = ["createdAt", "updatedAt", "title"] as const;
+const DEFAULT_ENTITY_ORDER: PluginQueryOrder[] = [{ builtin: "createdAt", direction: "desc" }];
+const MAX_QUERY_CURSOR = 16 * 1024;
 
 function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest {
   if (typeof action !== "string" || !appActions.has(action)) throw new Error("未知的动作");
@@ -1260,6 +1286,21 @@ export class PluginHost {
       this.assertActive(entry, activation);
       if (!this.options.entities) throw new Error("当前宿主不支持插件内容");
       return this.options.entities;
+    };
+    const kindIndexes = (kind: string): PluginIndexes =>
+      entityKindDefinitions.get(kind)?.indexes ?? {};
+    const readEntityFilter = (filter: PluginOwnEntityFilter | undefined): EntityQueryFilter => {
+      if (filter !== undefined && (!filter || typeof filter !== "object"))
+        throw new Error("参数无效");
+      const { kind, where, titleContains } = filter ?? {};
+      if (kind !== undefined) readText(kind, "kind", 128);
+      if (titleContains !== undefined) readText(titleContains, "titleContains", 200, true);
+      if (where !== undefined && kind === undefined) throw new Error("按字段筛选需要同时给出 kind");
+      return {
+        ...(kind === undefined ? {} : { kind }),
+        where: kind === undefined ? [] : readWhere(where, kindIndexes(kind)),
+        ...(titleContains ? { titleContains } : {}),
+      };
     };
     const deliver = <T>(value: unknown): T => {
       this.assertActive(entry, activation);
@@ -2197,15 +2238,19 @@ export class PluginHost {
           const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
           const content = (input as PluginOwnEntityInput).content;
           return deliver<PluginOwnEntity>(
-            await entitiesAdapter().create(context, {
-              kind: value.kind,
-              key: value.key,
-              title: value.title ?? "",
-              meta,
-              ...(content !== undefined
-                ? { content: readContentInput(content, { allowEmpty: true }) }
-                : {}),
-            })
+            await entitiesAdapter().create(
+              context,
+              {
+                kind: value.kind,
+                key: value.key,
+                title: value.title ?? "",
+                meta,
+                ...(content !== undefined
+                  ? { content: readContentInput(content, { allowEmpty: true }) }
+                  : {}),
+              },
+              kindIndexes(value.kind)
+            )
           );
         },
         get: async (id: string) =>
@@ -2219,17 +2264,28 @@ export class PluginHost {
             )
           ),
         query: async (query?: PluginOwnEntityQuery) => {
-          const value = readFields<PluginOwnEntityQuery>(query ?? {}, {
-            kind: 128,
-            cursor: 200,
-          });
+          const filter = readEntityFilter(query);
+          const cursor = query?.cursor;
+          if (cursor !== undefined) readText(cursor, "cursor", MAX_QUERY_CURSOR);
           const limit = query?.limit ?? 50;
           if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
             throw new Error("limit 必须是 1–200 的整数");
+          const orderBy = readOrderBy(
+            query?.orderBy,
+            filter.kind === undefined ? {} : kindIndexes(filter.kind),
+            ENTITY_SORT_FIELDS
+          );
           return deliver<PluginPage<PluginOwnEntity>>(
-            await entitiesAdapter().query(context, { ...value, limit })
+            await entitiesAdapter().query(context, {
+              ...filter,
+              orderBy: orderBy.length ? orderBy : DEFAULT_ENTITY_ORDER,
+              ...(cursor === undefined ? {} : { cursor }),
+              limit,
+            })
           );
         },
+        count: async (filter?: PluginOwnEntityFilter) =>
+          deliver<number>(await entitiesAdapter().count(context, readEntityFilter(filter))),
         backlinks: async (id: string) => {
           const sources = await entitiesAdapter().backlinks(context, readId(id));
           this.assertActive(entry, activation);
@@ -2268,7 +2324,13 @@ export class PluginHost {
               context,
               readId(id),
               { ...value, ...(meta === undefined ? {} : { meta: readEntityMeta(meta) }) },
-              readRevision(options)
+              readRevision(options),
+              Object.fromEntries(
+                [...entityKindDefinitions].map(([kind, definition]) => [
+                  kind,
+                  definition.indexes ?? {},
+                ])
+              )
             )
           );
         },

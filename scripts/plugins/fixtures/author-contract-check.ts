@@ -16,6 +16,7 @@ import type {
   PluginContext,
   PluginExcerptItem,
   PluginExcerptSource,
+  PluginOwnEntityQuery,
   PluginPageContext,
   PluginPageProps,
 } from "@tau/plugins";
@@ -133,8 +134,20 @@ export async function checkDataContract(context: PluginContext) {
       label: "笔记",
       open: { page: "note", params: entity => ({ id: entity.id }) },
       mentionable: true,
+      indexes: { status: "string", rank: "number" },
     })
   );
+  const rankedQuery: PluginOwnEntityQuery = {
+    kind: "note",
+    where: { status: { ne: "done", in: ["open", null] }, rank: { gte: 1 } },
+    titleContains: "示例",
+    orderBy: [{ field: "rank", direction: "desc" }, { field: "createdAt" }],
+    limit: 20,
+  };
+  const ranked = await context.entities.query(rankedQuery);
+  if (ranked.cursor) await context.entities.query({ ...rankedQuery, cursor: ranked.cursor });
+  const total: number = await context.entities.count({ kind: "note", where: { status: null } });
+  void total;
   const entity = await context.entities.create({
     kind: "note",
     key: "example",
