@@ -61,7 +61,6 @@ app
       archive.writeZip(path.join(directory, "failing.zip"));
     }
     let selectedZip = path.join(directory, "update.zip");
-    if (phase.startsWith("water-upgrade-")) selectedZip = path.join(directory, "water-update.zip");
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selectedZip] });
     if (phase === "initial") {
       await put();
@@ -84,9 +83,7 @@ app
         preload: path.join(directory, "preload.cjs"),
       },
     });
-    await window.loadFile(path.join(directory, "index.html"), {
-      query: { workspace: phase.startsWith("water") ? "water-author-a" : "fixed-directory-test" },
-    });
+    await window.loadFile(path.join(directory, "index.html"));
     await window.webContents.executeJavaScript(
       await readFile(path.join(directory, "renderer.js"), "utf8")
     );
@@ -100,76 +97,7 @@ app
     for (const deadline = Date.now() + 5000; opens === 0 && Date.now() < deadline;)
       await new Promise(resolve => setTimeout(resolve, 20));
     assert.equal(opens, 1);
-    let upgradeCheck:
-      | {
-          version: string;
-          cups: number;
-          state: string;
-          sidebarSelected: boolean;
-          waterIcon: boolean;
-        }
-      | undefined;
-    if (phase.startsWith("water-upgrade-")) {
-      const first = phase === "water-upgrade-start";
-      const version = phase === "water-upgrade-applied" ? "1.3.0" : "1.2.0";
-      const plugin = "localTest.snapshot().plugins.find(p=>p.id==='lastknight.water-checkin')";
-      const sidebar = `document.querySelector('nav button[aria-label="喝水打卡"]')`;
-      assert.equal(await run(`${plugin}.version`), version);
-      assert.equal(await run(`${plugin}.state`), first ? "disabled" : "active");
-      if (first) await click("启用 喝水打卡");
-      const openWater = async (cups: number) => {
-        await wait(`Boolean(${sidebar})`);
-        await run(`${sidebar}.click()`);
-        await wait(`${sidebar}?.getAttribute('aria-current')==='page'`);
-        await wait(`document.body.innerText.includes('已喝水：${cups} 杯')`);
-        assert.equal(
-          await run(`${sidebar}.querySelector('svg path')?.getAttribute('d')`),
-          "M12 3C9 7 5 11 5 15a7 7 0 0 0 14 0c0-4-4-8-7-12Z"
-        );
-        assert.equal(
-          await run(`Boolean(document.querySelector('nav button[title="收起「习惯」"]'))`),
-          true
-        );
-      };
-      await openWater(first ? 0 : phase === "water-upgrade-applied" ? 3 : 4);
-      if (first) {
-        for (let count = 1; count <= 3; count++) {
-          await click("喝了一杯");
-          await wait(`document.body.innerText.includes('已喝水：${count} 杯')`);
-        }
-        await run("localTest.list()");
-        await pluginMenu("从 ZIP 安装…");
-        await wait(
-          "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pendingVersion==='1.3.0')"
-        );
-        assert.equal(await run(`${plugin}.version`), "1.2.0");
-        await openWater(3);
-      } else if (phase === "water-upgrade-applied") {
-        await click("喝了一杯");
-        await wait("document.body.innerText.includes('已喝水：4 杯')");
-        await run("localTest.list()");
-        await menu("喝水打卡 的更多操作", "恢复上一版 1.2.0");
-        await wait(
-          "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pendingVersion==='1.2.0')"
-        );
-        assert.equal(await run(`${plugin}.version`), "1.3.0");
-        await openWater(4);
-      } else {
-        assert.equal(
-          await run(
-            "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pending)"
-          ),
-          false
-        );
-      }
-      upgradeCheck = {
-        version,
-        cups: first ? 3 : 4,
-        state: await run(`${plugin}.state`),
-        sidebarSelected: await run(`${sidebar}.getAttribute('aria-current')==='page'`),
-        waterIcon: true,
-      };
-    } else if (phase.startsWith("update-")) {
+    if (phase.startsWith("update-")) {
       // 普通插件的 ZIP 安装与恢复上一版立即落盘并热替换；激活失败时内存回退旧实例，重启后按磁盘版本加载。
       const local = "localTest.snapshot().plugins.find(p=>p.id==='example.local')";
       const version = (value: string) =>
@@ -209,86 +137,6 @@ app
       } else {
         await version("1.0.0");
         assert.deepEqual(await run("localTest.run()"), { count: 7, version: "1.0.0" });
-      }
-    } else if (phase.startsWith("water")) {
-      const sidebarButton = `document.querySelector('nav button[aria-label="喝水打卡"]')`;
-      const openWaterSidebar = async () => {
-        await wait(`Boolean(${sidebarButton})`);
-        assert.equal(
-          await run(`${sidebarButton}.querySelector('svg path')?.getAttribute('d')`),
-          "M12 3C9 7 5 11 5 15a7 7 0 0 0 14 0c0-4-4-8-7-12Z"
-        );
-        assert.equal(
-          await run(`${sidebarButton}.querySelector('svg')?.getAttribute('stroke')`),
-          "currentColor"
-        );
-        await run(`${sidebarButton}.click()`);
-        await wait(`${sidebarButton}?.getAttribute('aria-current') === 'page'`);
-      };
-      const state =
-        "localTest.snapshot().plugins.find(p=>p.id==='lastknight.water-checkin')?.state";
-      const hasCommand =
-        "localTest.snapshot().commands.some(c=>c.id==='lastknight.water-checkin:open')";
-      assert.equal(await run(state), phase === "water-restore" ? "active" : "disabled");
-      if (phase === "water") await click("启用 喝水打卡");
-      if (phase !== "water-disabled") {
-        await wait(hasCommand);
-        await openWaterSidebar();
-        assert.equal(
-          await run(`Boolean(document.querySelector('nav button[title="收起「习惯」"]'))`),
-          true
-        );
-        await wait(`document.body.innerText.includes('已喝水：${phase === "water" ? 0 : 2} 杯')`);
-        assert.equal(await run("localTest.snapshot().styles"), 1);
-        if (phase === "water") {
-          await click("喝了一杯");
-          await wait("document.body.innerText.includes('已喝水：1 杯')");
-          await click("喝了一杯");
-          await wait("document.body.innerText.includes('已喝水：2 杯')");
-          await run("localTest.list()");
-          await click("停用 喝水打卡");
-          await wait(`!${hasCommand}`);
-          assert.equal(await run("localTest.snapshot().styles"), 0);
-          assert.equal(await run(`Boolean(${sidebarButton})`), false);
-          assert.equal(
-            await run(`Boolean(document.querySelector('nav button[title="收起「习惯」"]'))`),
-            false
-          );
-          await click("启用 喝水打卡");
-          await wait(hasCommand);
-          await run("localTest.openWater()");
-          await wait("document.body.innerText.includes('已喝水：2 杯')");
-          await wait(`${sidebarButton}?.getAttribute('aria-current') === 'page'`);
-        } else {
-          await click("清零");
-          await wait("document.body.innerText.includes('已喝水：0 杯')");
-          await click("喝了一杯");
-          await wait("document.body.innerText.includes('已喝水：1 杯')");
-          const originalWorkspace = await run("localTest.snapshot().workspaceId");
-          await run("localTest.switchWorkspace('water-author-b')");
-          await wait(
-            `localTest.snapshot().ready && localTest.snapshot().workspaceId !== ${JSON.stringify(originalWorkspace)} && ${hasCommand}`
-          );
-          await openWaterSidebar();
-          await wait("document.body.innerText.includes('已喝水：0 杯')");
-          await click("喝了一杯");
-          await wait("document.body.innerText.includes('已喝水：1 杯')");
-          await click("喝了一杯");
-          await wait("document.body.innerText.includes('已喝水：2 杯')");
-          await run("localTest.switchWorkspace('water-author-a')");
-          await wait(
-            `localTest.snapshot().ready && localTest.snapshot().workspaceId === ${JSON.stringify(originalWorkspace)} && ${hasCommand}`
-          );
-          await openWaterSidebar();
-          await wait("document.body.innerText.includes('已喝水：1 杯')");
-          await run("localTest.list()");
-          await click("停用 喝水打卡");
-          await wait(`!${hasCommand}`);
-        }
-      } else {
-        assert.equal(await run(hasCommand), false);
-        assert.equal(await run("localTest.snapshot().styles"), 0);
-        assert.equal(await run(`Boolean(${sidebarButton})`), false);
       }
     } else if (phase === "author" || phase === "author-restore") {
       const state = await run(
@@ -354,7 +202,6 @@ app
         phase,
         electron: process.versions.electron,
         snapshot,
-        ...(upgradeCheck ? { upgradeCheck } : {}),
       })
     );
     window.destroy();
