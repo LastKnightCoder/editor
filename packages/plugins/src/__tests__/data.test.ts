@@ -120,6 +120,7 @@ function setup({
     },
     async run(_context, plugin, request) {
       calls.push(["run", plugin.id, request]);
+      if (request.action === "notebook.create") return { kind: "notebook", id: "6" } as never;
       if (request.action === "project.insertDocument")
         return { kind: "document", id: "31" } as never;
       if (request.action === "card.create")
@@ -463,6 +464,50 @@ describe("插件业务数据与权限", () => {
       context().app.run("card.create", { content: { html: "x" } } as never)
     ).rejects.toThrow();
     await expect(context().app.run("card.create", { tags: "x" } as never)).rejects.toThrow("标签");
+  });
+
+  it("notebook.create：校验标题、资料与来源类型，返回 Notebook 引用", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    expect(
+      await context().app.run("notebook.create", {
+        title: "土地财政",
+        sources: [
+          { kind: "card", id: "3" },
+          { kind: "material", id: "excerpt:2" },
+        ],
+        from: { kind: "plugin-entity", id: "1" },
+      })
+    ).toEqual({ kind: "notebook", id: "6" });
+    await context().app.run("notebook.create", { title: "空课题" });
+    expect(calls.filter(call => call[0] === "run").map(call => call[2])).toEqual([
+      {
+        action: "notebook.create",
+        title: "土地财政",
+        sources: [
+          { kind: "card", id: "3" },
+          { kind: "material", id: "excerpt:2" },
+        ],
+        from: { kind: "plugin-entity", id: "1" },
+      },
+      { action: "notebook.create", title: "空课题", sources: [] },
+    ]);
+    await expect(context().app.run("notebook.create", { title: "" })).rejects.toThrow("标题");
+    await expect(
+      context().app.run("notebook.create", { title: "x", from: { kind: "todo", id: "todo:1:2" } })
+    ).rejects.toThrow("不能作为 Notebook 的来源");
+    await expect(
+      context().app.run("notebook.create", {
+        title: "x",
+        sources: Array.from({ length: 201 }, () => ({ kind: "card" as const, id: "1" })),
+      })
+    ).rejects.toThrow("最多 200 项");
+    await expect(
+      context().app.run("notebook.create", {
+        title: "x",
+        sources: [{ kind: "nope", id: "1" }],
+      } as never)
+    ).rejects.toThrow("内容类型无效");
   });
 
   it("project.insertDocument：必须带正文，标题可省略，返回新文档引用", async () => {

@@ -111,7 +111,25 @@ export interface PluginAppActions {
   "card.create": { content?: PluginContentInput; tags?: string[] };
   /** 打开「插入到项目」窗口，由用户选择项目与位置，复制这份正文为新的项目文档 */
   "project.insertDocument": { content: PluginContentInput; title?: string };
+  /**
+   * 确认后新建 Notebook，sources 作为资料一次性带入（之后不同步）：有正文的内容成为笔记资料，
+   * 划线与 PDF 标注合并为一份、剪藏各一份，其他类型不带入。from 记为 Notebook 的来源，
+   * 显示在 Notebook 页顶部，见 PLUGIN_NOTEBOOK_FROM_KINDS。
+   */
+  "notebook.create": { title: string; sources?: PluginEntityRef[]; from?: PluginEntityRef };
 }
+
+/** 可以作为 Notebook 来源（notebook.create 的 from）的类型 */
+export const PLUGIN_NOTEBOOK_FROM_KINDS: readonly PluginEntityKind[] = [
+  "card",
+  "article",
+  "document",
+  "diary",
+  "material",
+  "chat-session",
+  "notebook",
+  "plugin-entity",
+];
 
 /** 各动作的结果：新建类返回新内容的引用，用户取消时为 null */
 export interface PluginAppActionResults {
@@ -120,6 +138,7 @@ export interface PluginAppActionResults {
   "content.share": void;
   "card.create": PluginEntityRef | null;
   "project.insertDocument": PluginEntityRef | null;
+  "notebook.create": PluginEntityRef | null;
 }
 
 export type PluginAppAction = keyof PluginAppActions;
@@ -129,6 +148,7 @@ export const PLUGIN_APP_ACTIONS: readonly PluginAppAction[] = [
   "content.share",
   "card.create",
   "project.insertDocument",
+  "notebook.create",
 ];
 
 export interface PluginApp {

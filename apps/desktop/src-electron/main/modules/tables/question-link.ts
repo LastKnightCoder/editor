@@ -89,7 +89,6 @@ export default class QuestionLinkTable {
       "question:link-targets": this.linkTargets.bind(this),
       "question:unlink-target": this.unlinkTarget.bind(this),
       "question:reorder-links": this.reorderLinks.bind(this),
-      "question:source-of-notebook": this.sourceOfNotebook.bind(this),
     } as const;
   }
 
@@ -437,23 +436,6 @@ export default class QuestionLinkTable {
       )
       .get(String(questionId)) as { id: number; title: string } | undefined;
     return row ? { id: row.id, title: row.title || "未命名 Notebook" } : null;
-  }
-
-  /** Notebook 由哪个问题立项；问题已删除时为 null */
-  static sourceOfNotebook(
-    db: Database.Database,
-    projectId: number
-  ): { id: number; title: string } | null {
-    const row = db
-      .prepare(
-        `SELECT q.id, q.question_content AS title FROM entity_lineage l
-         JOIN questions q ON q.id = CAST(l.src_id AS INTEGER)
-         WHERE l.dst_kind = 'vl-project' AND l.dst_id = ? AND l.relation = 'upgraded_to'
-           AND l.src_kind = 'question'
-         ORDER BY l.id DESC LIMIT 1`
-      )
-      .get(String(projectId)) as { id: number; title: string | null } | undefined;
-    return row ? { id: row.id, title: row.title || "未命名问题" } : null;
   }
 
   /**

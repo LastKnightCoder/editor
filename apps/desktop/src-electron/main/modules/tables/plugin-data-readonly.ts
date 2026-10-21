@@ -81,6 +81,8 @@ const NOTE_KINDS: Record<string, PluginEntityRef["kind"]> = {
   card: "card",
   article: "article",
   "project-item": "document",
+  "diary-moment": "diary",
+  "plugin-entity": "plugin-entity",
 };
 
 interface Spec<Row extends PageRow> {
