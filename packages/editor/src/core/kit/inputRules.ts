@@ -136,8 +136,12 @@ const applyInline = (editor: Editor, target: MatchTarget, rule: InlineInputRule)
         at: { anchor: { path, offset: start }, focus: { path, offset } },
       });
       Transforms.insertNodes(editor, element, { at: { path, offset: start }, select: false });
-      const inserted = editor.operations.findLast(op => op.type === "insert_node");
-      if (inserted?.type === "insert_node") elementRef = Editor.pathRef(editor, inserted.path);
+      for (let index = editor.operations.length - 1; index >= 0; index--) {
+        const operation = editor.operations[index];
+        if (operation.type !== "insert_node") continue;
+        elementRef = Editor.pathRef(editor, operation.path);
+        break;
+      }
     });
   });
   // 规范化保证行内元素后面有文本，光标落在它开头；之后的输入沿用转换前的格式
