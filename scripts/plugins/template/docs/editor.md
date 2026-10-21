@@ -155,13 +155,13 @@ render: ({ attributes, element, children }) => (
 
 ### 修改节点字段
 
-组件里需要修改节点数据（例如保存用户调整后的参数）时，使用 `useSourceBlock` 返回的 `update`：
+组件里需要修改节点数据（例如保存用户调整后的参数）时，使用 `useElement` 返回的 `update`：
 
 ```tsx
-import { useSourceBlock } from "@tau/plugins";
+import { useElement } from "@tau/plugins";
 
 function Counter({ element }: { element: CounterElement }) {
-  const { update } = useSourceBlock(element);
+  const { update } = useElement(element);
   return (
     <button
       onMouseDown={event => event.preventDefault()}
@@ -174,6 +174,78 @@ function Counter({ element }: { element: CounterElement }) {
 ```
 
 `update` 把传入的字段合并进节点，这次修改会进入撤销记录并同步给协作者。
+
+`useElement(element)` 返回：
+
+| 字段                 | 说明                                                               |
+| -------------------- | ------------------------------------------------------------------ |
+| `readOnly`           | 编辑器是否只读。只读时 `update`、`remove` 不会写入                 |
+| `update(properties)` | 把字段合并进节点                                                   |
+| `remove()`           | 删除节点                                                           |
+| `selected`           | 声明了[外框](#块的外框)的块是否被点选                              |
+| `select()`           | 选中外框里的块                                                     |
+| `openMenu(position)` | 在指定位置（视口坐标）打开块菜单，条目与右键、块手柄相同；需要外框 |
+
+请始终传入当前渲染拿到的 `element`。节点被替换或组件卸载后，旧对象上的写入会被忽略，不会改到别的块。
+
+### 块的外框
+
+图表、画廊这类整块由组件渲染的节点（`isVoid: true` 的块），在节点声明上加 `frame` 即可得到 Tau 块的公共交互：点击选中并描边、点到别处取消、右键打开块菜单、选中时 Delete / Backspace 删除块并留下空段落、Esc 取消选中，以及块末尾的「添加段落」。
+
+```tsx
+defineEditorElement({
+  type: "yourname.chart",
+  kind: "block",
+  isVoid: true,
+  frame: { keys: { Enter: "yourname.chart.edit" } },
+  render: Chart,
+});
+```
+
+| 字段              | 说明                                                                |
+| ----------------- | ------------------------------------------------------------------- |
+| `keys`            | 可选。选中时的按键对应的命令 id，命令收到这个节点（同菜单里的命令） |
+| `appendParagraph` | 可选。为 `false` 时不显示末尾的「添加段落」                         |
+
+声明外框后，`render` 只渲染内容：收到的 `attributes` 是空对象、`children` 为空，交给外框处理。组件里用 `useElement(element).selected` 决定是否显示属性条。
+
+### 块的属性条
+
+选中块后浮在块上方的属性条，用 `BlockToolbar`、`BlockToolbarButton`、`BlockToolbarGap` 组成，外观和 Tau 自带的图片块一致。上方放不下时自动翻到下方，点击按钮不会让编辑器失去光标。
+
+```tsx
+import { BlockToolbar, BlockToolbarButton, BlockToolbarGap, useElement } from "@tau/plugins";
+
+function Chart({ element }: { element: ChartElement }) {
+  const { selected, readOnly, update, openMenu } = useElement(element);
+  return (
+    <div className="relative">
+      {selected && !readOnly && (
+        <BlockToolbar label="图表属性">
+          <BlockToolbarButton
+            title="柱状图"
+            active={element.kind === "bar"}
+            icon={<BarChart3 size={15} />}
+            onClick={() => update({ kind: "bar" })}
+          />
+          <BlockToolbarGap />
+          <BlockToolbarButton
+            title="更多"
+            icon={<MoreHorizontal size={15} />}
+            onClick={event => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              openMenu({ x: rect.left, y: rect.bottom + 6 });
+            }}
+          />
+        </BlockToolbar>
+      )}
+      <ChartView data={element.data} />
+    </div>
+  );
+}
+```
+
+`BlockToolbarButton` 的 `title` 是按钮名称（纯图标按钮悬停时显示），`label` 是显示在图标旁的文字，`shortcut` 在提示里显示快捷键，`active` 表示当前选中的选项。
 
 ## 扩展能声明的内容
 
@@ -447,6 +519,15 @@ function Photo({ element }: { element: PhotoElement }) {
 | `useMediaAppearance()`       | 用户设置的媒体默认圆角与阴影（`none` / `sm` / `md` / `lg`）；博客里取发布设置。节点自己有设置时以节点为准              |
 
 `kind` 取 `image`、`video`、`audio`、`file`，决定远程资源的缓存方式。上传的文件不需要自己判断本地还是远端存储，也不要把文件内容写进节点。
+
+### 查看图片
+
+`useMediaViewer(element)` 返回一个函数，调用后打开 Tau 的图片查看器，浏览文档里的全部图片，并定位到这个节点的第 `index` 张（按[声明的资源字段](#声明资源字段)计，从 0 开始）。
+
+```tsx
+const openViewer = useMediaViewer(element);
+<MediaImage url={item.url} onDoubleClick={() => openViewer(index)} />;
+```
 
 ### 声明资源字段
 

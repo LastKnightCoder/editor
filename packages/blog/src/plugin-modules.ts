@@ -5,7 +5,7 @@ import * as jsx from "react/jsx-runtime";
 import * as jsxDev from "react/jsx-dev-runtime";
 import * as ui from "@tau/ui";
 import * as sdk from "@tau/plugins";
-import { sourceEditorRuntime, inlineSourceRuntime } from "@tau/editor/source";
+import { sourceEditorRuntime, inlineSourceRuntime, elementRuntime } from "@tau/editor/source";
 import { blogMediaRuntime } from "./media-runtime";
 
 /** 与桌面端同一份 SDK 契约；源码与媒体组件直接使用发布站实现，不经全局运行时配置。 */
@@ -14,6 +14,7 @@ export const pluginModules: Readonly<Record<string, unknown>> = Object.freeze({
     ...sdk,
     ...sourceEditorRuntime,
     ...inlineSourceRuntime,
+    ...elementRuntime,
     ...blogMediaRuntime,
   }),
   "@tau/ui": ui,

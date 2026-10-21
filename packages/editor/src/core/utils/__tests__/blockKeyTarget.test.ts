@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { shouldIgnoreBlockKey } from "../keyboardTarget";
+import { shouldIgnoreBlockKey } from "../blockKeyTarget";
 
 const keydown = (target: HTMLElement, init: KeyboardEventInit = {}) => {
   const event = new KeyboardEvent("keydown", { key: "Delete", bubbles: true, ...init });

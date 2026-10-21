@@ -30,7 +30,7 @@ import { openImageLightbox } from "../../../../stores";
 import type { ImageGalleryElement } from "../../../../types";
 import { EGalleryMode } from "../../../../types";
 import { MEDIA_SELECTED_OUTLINE_CLASS } from "../../../../utils/mediaFrameClasses";
-import { shouldIgnoreBlockKey } from "../../../../utils/keyboardTarget";
+import { shouldIgnoreBlockKey } from "@tau/editor/api";
 import { useImageAppearance, type ImageAppearanceOption } from "../../../image/appearanceOption";
 import { imageGalleryActionsMap } from "../../utils/menu";
 

@@ -318,12 +318,13 @@ export function Help() {
 }
 ```
 
-| 组件         | 常用属性                                                                                                                         |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `Button`     | `onClick`、`disabled`、`loading`、`loadingText`；`variant` 可选 `primary`、`secondary`、`soft`、`ghost`、`danger`、`danger-soft` |
-| `Panel`      | 内容容器                                                                                                                         |
-| `Dialog`     | `open`、`onOpenChange`、`title`，`footer` 放操作按钮                                                                             |
-| `DialogBody` | 弹窗正文                                                                                                                         |
+| 组件         | 常用属性                                                                                                                                          |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`     | `onClick`、`disabled`、`loading`、`loadingText`；`variant` 可选 `primary`、`secondary`、`soft`、`ghost`、`danger`、`danger-soft`                  |
+| `Panel`      | 内容容器                                                                                                                                          |
+| `Dialog`     | `open`、`onOpenChange`、`title`，`footer` 放操作按钮                                                                                              |
+| `DialogBody` | 弹窗正文                                                                                                                                          |
+| `Sortable`   | 拖动排序：`items`、`getKey`、`onMove(from, to)`、`renderItem(item, state)`，把 `state.handleProps` 展开到拖动手柄上；手柄获得焦点时方向键前后移动 |
 
 完整的组件列表和属性见 `@tau/ui` 的类型提示。
 

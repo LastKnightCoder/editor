@@ -38,11 +38,7 @@ import {
   MEDIA_SIDE_POSITION_CLASS,
 } from "../../../../utils/mediaFrameClasses";
 import { editorContentWidth, matchWidthPreset } from "../../../../utils/mediaWidth";
-import {
-  isOverlayTarget,
-  isTextTarget,
-  shouldIgnoreBlockKey,
-} from "../../../../utils/keyboardTarget";
+import { isOverlayTarget, isTextTarget, shouldIgnoreBlockKey } from "@tau/editor/api";
 import { useImageAppearance, type ImageAppearanceOption } from "../../appearanceOption";
 import { imageActionsMap } from "../../utils/actionsMap";
 import { getImageAppearanceStyle } from "../../utils/appearance";

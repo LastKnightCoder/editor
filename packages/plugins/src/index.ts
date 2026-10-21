@@ -32,6 +32,19 @@ export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./sourc
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export { ContentEditor, ContentPreview } from "./components";
 export {
+  useElement,
+  useMediaViewer,
+  BlockToolbar,
+  BlockToolbarButton,
+  BlockToolbarGap,
+} from "./element";
+export type {
+  ElementAccess,
+  BlockToolbarProps,
+  BlockToolbarButtonProps,
+  EditorElementFrame,
+} from "./element";
+export {
   MediaImage,
   MediaVideo,
   MediaAudio,
