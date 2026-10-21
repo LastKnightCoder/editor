@@ -21,7 +21,6 @@ import type {
   PluginDocumentMoveInput,
   PluginProjectNodeRecord,
   PluginOperationRecord,
-  PluginWritableEntity,
 } from "@/types/plugin-data";
 import { contentTitle, contentTitles } from "./content-ai-meta";
 import EntitySearchTable from "./entity-search";
@@ -31,7 +30,7 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import { EProjectItemType } from "@/types/project";
 import WhiteboardsTable from "./whiteboard";
-import { emptyWhiteboardPage } from "./white-board-content";
+import WhiteBoardContentTable, { emptyWhiteboardPage } from "./white-board-content";
 import ContentTable from "./content";
 import Operation from "./operation";
 import { emitContentWritten } from "../content-events";
@@ -122,6 +121,13 @@ interface Row {
 }
 
 const ENTITIES = new Set<PluginDataEntity>(Object.keys(ENTITY_TABLES) as PluginDataEntity[]);
+
+/** 项目文档删除前的一处挂载：项目根目录（parentId 为 null）或父文档下的序号 */
+interface DocumentPlacement {
+  projectId: number | null;
+  parentId: number | null;
+  index: number;
+}
 
 function parseList(value: string | null): unknown[] {
   if (!value) return [];
@@ -621,15 +627,17 @@ export default class PluginDataTable {
     db: Database.Database,
     request: PluginDataScope & {
       pluginId: string;
-      entity: PluginWritableEntity;
+      entity: PluginDataEntity;
       id: number;
       expectedRevision: string;
     }
   ): void {
     this.assertDatabase(db, request);
-    if (request.entity !== "card" && request.entity !== "article")
-      throw new Error("不支持删除该类型");
+    this.assertEntity(request.entity);
     this.assertRevision(db, request.entity, request.id, request.expectedRevision);
+    if (request.entity === "whiteboard" || request.entity === "project")
+      return this.removeObject(db, { ...request, entity: request.entity });
+    if (request.entity === "document") return this.removeDocument(db, request);
     const table = ENTITY_TABLES[request.entity];
     const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(request.id) as Record<
       string,
@@ -659,6 +667,88 @@ export default class PluginDataTable {
       title,
       payload: { row, contentCreatedAt },
     });
+  }
+
+  /** 白板的画板页进入待回收登记；项目只能删除空项目，避免连带删掉整棵目录 */
+  private static removeObject(
+    db: Database.Database,
+    request: PluginDataScope & { pluginId: string; entity: "whiteboard" | "project"; id: number }
+  ): void {
+    const table = ENTITY_TABLES[request.entity];
+    const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(request.id) as Record<
+      string,
+      unknown
+    >;
+    if (request.entity === "project" && parseList(row.children as string).length)
+      throw new Error("项目里还有文档，不能删除");
+    writeAsPlugin(request.pluginId, () => {
+      if (request.entity === "whiteboard") WhiteboardsTable.deleteWhiteboard(db, request.id);
+      else ProjectTable.deleteProject(db, request.id);
+    });
+    insertPluginOperation(db, {
+      pluginId: request.pluginId,
+      entity: request.entity,
+      entityId: String(request.id),
+      title: String(row.title ?? ""),
+      payload: { row },
+    });
+  }
+
+  /**
+   * 从所有挂载处删除一篇项目文档：记下它在各父文档与项目根目录中的位置以便恢复，正文延迟释放。
+   * 有子文档时拒绝；视频笔记会连带删除笔记数据，无法恢复，不由插件删除。
+   */
+  private static removeDocument(
+    db: Database.Database,
+    request: PluginDataScope & { pluginId: string; id: number }
+  ): void {
+    const item = ProjectTable.getProjectItem(db, request.id);
+    if (!item) throw new Error("项目文档不存在");
+    if (item.children.length) throw new Error("有子文档时不能删除");
+    if (item.projectItemType === EProjectItemType.VideoNote)
+      throw new Error("视频笔记不能由插件删除");
+    const row = db.prepare("SELECT * FROM project_item WHERE id = ?").get(request.id) as Record<
+      string,
+      unknown
+    >;
+    const placements: DocumentPlacement[] = [];
+    writeAsPlugin(request.pluginId, () => {
+      for (const projectId of item.projects) {
+        const project = ProjectTable.getProjectOrNull(db, projectId);
+        const index = project?.children.indexOf(request.id) ?? -1;
+        if (!project || index < 0) continue;
+        placements.push({ projectId, parentId: null, index });
+        project.children.splice(index, 1);
+        ProjectTable.updateProject(db, project);
+      }
+      for (const parentId of item.parents) {
+        const parent = ProjectTable.getProjectItem(db, parentId);
+        const index = parent?.children.indexOf(request.id) ?? -1;
+        if (!parent || index < 0) continue;
+        placements.push({ projectId: null, parentId, index });
+        parent.children.splice(index, 1);
+        ProjectTable.updateProjectItem(db, parent);
+      }
+      ProjectTable.deleteProjectItem(db, request.id, { deferContent: true });
+    });
+    const contentId = Number(row.content_id) || null;
+    insertPluginOperation(db, {
+      pluginId: request.pluginId,
+      entity: "document",
+      entityId: String(request.id),
+      title: item.title,
+      payload: { row, contentCreatedAt: this.contentCreatedAt(db, contentId), placements },
+    });
+  }
+
+  private static contentCreatedAt(db: Database.Database, contentId: number | null) {
+    if (!contentId) return null;
+    return (
+      (
+        db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
+          { create_time: number } | undefined
+      )?.create_time ?? null
+    );
   }
 
   static async editContent(
@@ -817,7 +907,7 @@ export default class PluginDataTable {
     db: Database.Database,
     request: PluginDataScope & { id: number },
     ctx: CommandContext = fallbackCommandContext
-  ): { entity: PluginWritableEntity | "plugin-entity"; id: number } {
+  ): { entity: PluginDataEntity | "plugin-entity"; id: number } {
     this.assertDatabase(db, request);
     const operation = this.claimOperation(db, request.id);
     if (operation.entity === "plugin-entity") {
@@ -828,22 +918,56 @@ export default class PluginDataTable {
       );
       return { entity: "plugin-entity", id };
     }
-    if (operation.entity !== "card" && operation.entity !== "article")
+    if (!ENTITIES.has(operation.entity as PluginDataEntity))
       throw new Error("该操作需要通过待办撤销恢复");
-    const entity = operation.entity as PluginWritableEntity;
-    const { row, contentCreatedAt } = JSON.parse(operation.payload) as {
+    const entity = operation.entity as PluginDataEntity;
+    const payload = JSON.parse(operation.payload) as {
       row: Record<string, unknown>;
-      contentCreatedAt: number | null;
+      contentCreatedAt?: number | null;
+      placements?: DocumentPlacement[];
     };
-    const contentId = Number(row.content_id) || null;
-    if (contentId) {
-      const content = db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
-        { create_time: number } | undefined;
-      if (!content || content.create_time !== contentCreatedAt)
-        throw new Error("正文已被清理，无法恢复");
-      ContentTable.retain(db, contentId);
-    }
-    const table = ENTITY_TABLES[entity];
+    const id =
+      entity === "whiteboard"
+        ? this.restoreWhiteboard(db, payload.row)
+        : entity === "project"
+          ? this.reinsertRow(db, "project", payload.row)
+          : entity === "document"
+            ? this.restoreDocument(
+                db,
+                payload.row,
+                payload.contentCreatedAt ?? null,
+                payload.placements ?? []
+              )
+            : this.restoreContentEntity(db, entity, payload.row, payload.contentCreatedAt ?? null);
+    db.prepare("UPDATE plugin_operations SET restored_time = ? WHERE id = ?").run(
+      Date.now(),
+      request.id
+    );
+    // 让全文、引用、文档待办等派生索引重新收录这份正文
+    const contentId = Number(payload.row.content_id) || null;
+    if (contentId) emitContentWritten(db, contentId, "update");
+    if (entity === "card" || entity === "article")
+      ctx.broadcastAll(entity === "card" ? "card:updated" : "article:updated", {
+        databaseName: basename(db.name),
+        [entity === "card" ? "cardId" : "articleId"]: id,
+      });
+    return { entity, id };
+  }
+
+  /** 正文须仍在（未过宽限期被回收、编号未被复用），恢复时重新持有 */
+  private static retainContent(
+    db: Database.Database,
+    contentId: number | null,
+    contentCreatedAt: number | null
+  ) {
+    if (!contentId) return;
+    if (this.contentCreatedAt(db, contentId) !== contentCreatedAt)
+      throw new Error("正文已被清理，无法恢复");
+    ContentTable.retain(db, contentId);
+  }
+
+  /** 按快照插回一行：只取表中仍有的列；原 ID 已被占用时由数据库分配新 ID */
+  private static reinsertRow(db: Database.Database, table: string, row: Record<string, unknown>) {
     const columns = new Set(
       (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map(
         column => column.name
@@ -854,25 +978,84 @@ export default class PluginDataTable {
     ) as Record<string, unknown>;
     if (db.prepare(`SELECT 1 FROM ${table} WHERE id = ?`).get(values.id)) delete values.id;
     const keys = Object.keys(values);
-    const id = Number(
+    return Number(
       db
         .prepare(
           `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`
         )
         .run(...keys.map(key => values[key] as never)).lastInsertRowid
     );
+  }
+
+  private static restoreContentEntity(
+    db: Database.Database,
+    entity: PluginDataEntity,
+    row: Record<string, unknown>,
+    contentCreatedAt: number | null
+  ) {
+    this.retainContent(db, Number(row.content_id) || null, contentCreatedAt);
+    const id = this.reinsertRow(db, ENTITY_TABLES[entity], row);
     Operation.insertOperation(db, entity, "insert", id, Date.now());
-    db.prepare("UPDATE plugin_operations SET restored_time = ? WHERE id = ?").run(
-      Date.now(),
-      request.id
+    return id;
+  }
+
+  /** 画板页须仍在宽限期内；恢复后重新持有每一页 */
+  private static restoreWhiteboard(db: Database.Database, row: Record<string, unknown>) {
+    const pages = parseList(row.white_board_content_ids as string).filter((id): id is number =>
+      Number.isSafeInteger(id)
     );
-    // 让全文、引用、文档待办等派生索引重新收录这份正文
-    if (contentId) emitContentWritten(db, contentId, "update");
-    ctx.broadcastAll(entity === "card" ? "card:updated" : "article:updated", {
-      databaseName: basename(db.name),
-      [entity === "card" ? "cardId" : "articleId"]: id,
+    const exists = db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?");
+    if (pages.some(page => !exists.get(page))) throw new Error("画板页已被清理，无法恢复");
+    const id = this.reinsertRow(db, "white_boards", row);
+    for (const page of pages) WhiteBoardContentTable.incrementRefCount(db, page);
+    Operation.insertOperation(db, "whiteboard", "insert", id, Date.now());
+    return id;
+  }
+
+  /** 挂回仍存在的原位置（原序号超出时放到末尾）；原位置全都不在时拒绝 */
+  private static restoreDocument(
+    db: Database.Database,
+    row: Record<string, unknown>,
+    contentCreatedAt: number | null,
+    placements: DocumentPlacement[]
+  ) {
+    const live = placements.filter(place =>
+      place.parentId === null
+        ? ProjectTable.getProjectOrNull(db, place.projectId!) !== null
+        : ProjectTable.getProjectItem(db, place.parentId) !== null
+    );
+    if (!live.length) throw new Error("原来的位置都已不存在，无法恢复");
+    this.retainContent(db, Number(row.content_id) || null, contentCreatedAt);
+    const page = Number(row.white_board_content_id) || 0;
+    if (row.project_item_type === EProjectItemType.WhiteBoard && page) {
+      if (!db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?").get(page))
+        throw new Error("画板页已被清理，无法恢复");
+      WhiteBoardContentTable.incrementRefCount(db, page);
+    }
+    const parents = live.flatMap(place => (place.parentId === null ? [] : [place.parentId]));
+    const projects = new Set<number>();
+    for (const place of live) {
+      if (place.parentId === null) projects.add(place.projectId!);
+      else
+        ProjectTable.getProjectItem(db, place.parentId)!.projects.forEach(id => projects.add(id));
+    }
+    const id = this.reinsertRow(db, "project_item", {
+      ...row,
+      children: "[]",
+      parents: JSON.stringify(parents),
+      projects: JSON.stringify([...projects]),
     });
-    return { entity, id };
+    for (const place of live) {
+      const siblings =
+        place.parentId === null
+          ? ProjectTable.getProject(db, place.projectId!)
+          : ProjectTable.getProjectItem(db, place.parentId)!;
+      siblings.children.splice(Math.min(place.index, siblings.children.length), 0, id);
+      if (place.parentId === null) ProjectTable.updateProject(db, siblings as never);
+      else ProjectTable.updateProjectItem(db, siblings as never);
+    }
+    Operation.insertOperation(db, "project-item", "insert", id, Date.now());
+    return id;
   }
 
   private static records(

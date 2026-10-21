@@ -156,7 +156,9 @@ export async function checkDataContract(context: PluginContext) {
     { projectId: project.id, from: tree?.[0]?.documentId ?? null, to: null, index: 0 },
     { expectedRevision: doc.revision }
   );
-  void revision;
+  await context.data.documents.delete(doc.id, { expectedRevision: revision });
+  await context.data.projects.delete(project.id, { expectedRevision: project.revision });
+  await context.data.whiteboards.delete(board.id, { expectedRevision: board.revision });
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });

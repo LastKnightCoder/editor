@@ -243,7 +243,7 @@ export interface DataAdapter {
   ): Promise<unknown>;
   remove(
     context: PluginContext,
-    entity: WritableEntity,
+    entity: DeletableEntity,
     id: string,
     expectedRevision: string
   ): Promise<void>;
@@ -270,8 +270,9 @@ export interface DataAdapter {
   ): Promise<{ revision: string }>;
 }
 
-export type WritableEntity = "card" | "article";
-export type CreatableEntity = WritableEntity | "whiteboard" | "project";
+/** 可删除的实体，删除可在插件详情页恢复 */
+export type DeletableEntity = DataEntity;
+export type CreatableEntity = "card" | "article" | "whiteboard" | "project";
 
 export type TodoWrite =
   | { action: "create"; input: PluginTodoInput }
@@ -447,9 +448,12 @@ export function contentPermissions(
   const table = mode === "read" ? ENTITY_PERMISSIONS : WRITE_PERMISSIONS;
   return [...new Set(owners.map(owner => table[owner]))];
 }
-const DELETE_PERMISSIONS: Record<WritableEntity, PluginPermission> = {
+const DELETE_PERMISSIONS: Record<DeletableEntity, PluginPermission> = {
   card: "cards:delete",
   article: "articles:delete",
+  document: "documents:delete",
+  whiteboard: "whiteboards:delete",
+  project: "projects:delete",
 };
 
 const MAX_MARKDOWN = CONTENT_INPUT_LIMITS.markdown;
@@ -1181,7 +1185,7 @@ export class PluginHost {
         return deliver<never>(await dataAdapter().create(context, entity, value));
       },
     });
-    const remover = (entity: WritableEntity) => ({
+    const remover = (entity: DeletableEntity) => ({
       delete: async (id: string, options: PluginWriteOptions) => {
         const revision = readRevision(options);
         await guard(DELETE_PERMISSIONS[entity]);
@@ -1734,10 +1738,15 @@ export class PluginHost {
           ...creator("article"),
           ...remover("article"),
         }),
-        whiteboards: Object.freeze({ ...reader("whiteboard"), ...creator("whiteboard") }),
+        whiteboards: Object.freeze({
+          ...reader("whiteboard"),
+          ...creator("whiteboard"),
+          ...remover("whiteboard"),
+        }),
         projects: Object.freeze({
           ...reader("project"),
           ...creator("project"),
+          ...remover("project"),
           tree: async (id: string) => {
             const projectId = readId(id);
             await guard(ENTITY_PERMISSIONS.project);
@@ -1748,6 +1757,7 @@ export class PluginHost {
         }),
         documents: Object.freeze({
           ...reader("document"),
+          ...remover("document"),
           create: async (input: unknown) => {
             const raw = (input ?? {}) as Record<string, unknown>;
             if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");

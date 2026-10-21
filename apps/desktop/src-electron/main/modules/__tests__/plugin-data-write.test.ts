@@ -14,6 +14,7 @@ import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sq
 import { getMarkdown } from "@/utils/markdown.ts";
 import PluginDataTable from "../tables/plugin-data";
 import ContentTable from "../tables/content";
+import WhiteBoardContentTable from "../tables/white-board-content";
 import { PLUGIN_OPERATION_RETENTION_MS } from "../tables/plugin-operations";
 
 const scope = { databaseName: ":memory:", pluginId: "weekly" };
@@ -415,14 +416,6 @@ describe("PluginDataTable 写入", () => {
     });
     expect(page.items).toHaveLength(1);
     expect(page.cursor).toBeDefined();
-    expect(() =>
-      PluginDataTable.remove(db, {
-        ...scope,
-        entity: "project" as "card",
-        id: first.id,
-        expectedRevision: archived.revision,
-      })
-    ).toThrow("不支持删除该类型");
   });
 
   it("项目目录：新建文档挂在根或父文档下，同一项目内按最终序号移动", async () => {
@@ -532,15 +525,222 @@ describe("PluginDataTable 写入", () => {
     expect(tree[2].ref).toEqual({ kind: "card", id: card.id });
   });
 
-  it("拒绝删除项目文档与跨库写入", async () => {
+  it("白板删除后画板页进入待回收，恢复后重新持有", async () => {
+    const board = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "whiteboard", input: { title: "思路" } },
+      ctx
+    );
+    const pageId = (
+      db
+        .prepare("SELECT white_board_content_ids AS ids FROM white_boards WHERE id = ?")
+        .get(board.id) as { ids: string }
+    ).ids;
+    const [page] = JSON.parse(pageId) as number[];
+    const pending = () =>
+      db
+        .prepare(
+          "SELECT COUNT(*) AS n FROM white_board_content_pending_releases WHERE content_id = ?"
+        )
+        .get(page);
+    PluginDataTable.remove(db, {
+      ...scope,
+      entity: "whiteboard",
+      id: board.id,
+      expectedRevision: board.revision,
+    });
+    expect(PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id })).toBeNull();
+    expect(pending()).toEqual({ n: 1 });
+    const [operation] = PluginDataTable.operations(db, scope);
+    expect(operation).toMatchObject({ entity: "whiteboard", title: "思路" });
+    expect(PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toEqual({
+      entity: "whiteboard",
+      id: board.id,
+    });
+    expect(pending()).toEqual({ n: 0 });
+    expect(PluginDataTable.get(db, { ...scope, entity: "whiteboard", id: board.id })).toMatchObject(
+      { title: "思路", pageCount: 1 }
+    );
+  });
+
+  it("画板页已过宽限期被回收时，白板无法恢复", async () => {
+    const board = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "whiteboard", input: { title: "旧" } },
+      ctx
+    );
+    PluginDataTable.remove(db, {
+      ...scope,
+      entity: "whiteboard",
+      id: board.id,
+      expectedRevision: board.revision,
+    });
+    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now() + 1, graceMs: 0 });
+    const [operation] = PluginDataTable.operations(db, scope);
+    expect(() => PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx)).toThrow(
+      "画板页已被清理"
+    );
+  });
+
+  it("项目只能删除空项目，可恢复", async () => {
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const doc = await PluginDataTable.createDocument(db, {
+      ...scope,
+      input: { projectId: project.id, title: "文" },
+    });
+    const revision = () =>
+      String(
+        (
+          db.prepare("SELECT update_time FROM project WHERE id = ?").get(project.id) as {
+            update_time: number;
+          }
+        ).update_time
+      );
     expect(() =>
       PluginDataTable.remove(db, {
         ...scope,
-        entity: "document" as "card",
+        entity: "project",
+        id: project.id,
+        expectedRevision: revision(),
+      })
+    ).toThrow("项目里还有文档");
+    const docRevision = PluginDataTable.get(db, {
+      ...scope,
+      entity: "document",
+      id: doc.id,
+    })!.revision;
+    PluginDataTable.remove(db, {
+      ...scope,
+      entity: "document",
+      id: doc.id,
+      expectedRevision: docRevision,
+    });
+    PluginDataTable.remove(db, {
+      ...scope,
+      entity: "project",
+      id: project.id,
+      expectedRevision: revision(),
+    });
+    expect(PluginDataTable.get(db, { ...scope, entity: "project", id: project.id })).toBeNull();
+    const operation = PluginDataTable.operations(db, scope).find(
+      item => item.entity === "project"
+    )!;
+    PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx);
+    expect(PluginDataTable.get(db, { ...scope, entity: "project", id: project.id })).toMatchObject({
+      title: "课题",
+      documentCount: 0,
+    });
+  });
+
+  it("项目文档删除：从所有挂载处摘除，正文延迟释放，恢复后挂回原位置", async () => {
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const doc = (title: string, parentId?: number) =>
+      PluginDataTable.createDocument(db, {
+        ...scope,
+        input: {
+          projectId: project.id,
+          title,
+          content: { markdown: title },
+          ...(parentId ? { parentId } : {}),
+        },
+      });
+    const a = await doc("甲");
+    const target = await doc("目标");
+    await doc("丙");
+    const child = await doc("甲-1", a.id);
+    // 让「目标」同时挂在「甲」下：多处挂载
+    db.prepare("UPDATE project_item SET children = ? WHERE id = ?").run(
+      JSON.stringify([child.id, target.id]),
+      a.id
+    );
+    db.prepare("UPDATE project_item SET parents = ? WHERE id = ?").run(
+      JSON.stringify([a.id]),
+      target.id
+    );
+    const titles = () =>
+      PluginDataTable.projectTree(db, { ...scope, projectId: project.id })!.map(node => [
+        node.title,
+        node.children.map(item => item.title),
+      ]);
+    const revisionOf = (id: number) =>
+      PluginDataTable.get(db, { ...scope, entity: "document", id })!.revision;
+    expect(() =>
+      PluginDataTable.remove(db, {
+        ...scope,
+        entity: "document",
+        id: a.id,
+        expectedRevision: revisionOf(a.id),
+      })
+    ).toThrow("有子文档");
+
+    PluginDataTable.remove(db, {
+      ...scope,
+      entity: "document",
+      id: target.id,
+      expectedRevision: revisionOf(target.id),
+    });
+    expect(titles()).toEqual([
+      ["甲", ["甲-1"]],
+      ["丙", []],
+    ]);
+    expect(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM content_pending_releases WHERE content_id = ?")
+        .get(target.contentId)
+    ).toEqual({ n: 1 });
+
+    const operation = PluginDataTable.operations(db, scope).find(
+      item => item.entity === "document"
+    )!;
+    expect(operation.title).toBe("目标");
+    PluginDataTable.restore(db, { ...scope, id: operation.id }, ctx);
+    expect(titles()).toEqual([
+      ["甲", ["甲-1", "目标"]],
+      ["目标", []],
+      ["丙", []],
+    ]);
+    expect(contentOf(target.contentId)).toBe("目标");
+  });
+
+  it("视频笔记不能由插件删除", async () => {
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const doc = await PluginDataTable.createDocument(db, {
+      ...scope,
+      input: { projectId: project.id, title: "视频" },
+    });
+    db.prepare("UPDATE project_item SET project_item_type = 'video-note' WHERE id = ?").run(doc.id);
+    expect(() =>
+      PluginDataTable.remove(db, {
+        ...scope,
+        entity: "document",
+        id: doc.id,
+        expectedRevision: PluginDataTable.get(db, { ...scope, entity: "document", id: doc.id })!
+          .revision,
+      })
+    ).toThrow("视频笔记");
+  });
+
+  it("拒绝未知类型与跨库写入", async () => {
+    expect(() =>
+      PluginDataTable.remove(db, {
+        ...scope,
+        entity: "folder" as "card",
         id: 1,
         expectedRevision: "1",
       })
-    ).toThrow("不支持删除");
+    ).toThrow("未知的数据类型");
     await expect(
       PluginDataTable.create(
         db,

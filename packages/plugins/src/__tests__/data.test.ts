@@ -728,4 +728,21 @@ describe("插件业务数据与权限", () => {
       )
     ).rejects.toThrow("非负整数");
   });
+
+  it("白板、项目与项目文档的删除需要对应的删除权限", async () => {
+    const { host, calls, context } = setup({
+      declared: ["whiteboards:delete", "projects:delete", "documents:delete"],
+      granted: new Set<PluginPermission>(["whiteboards:delete", "projects:delete"]),
+    });
+    await host.enable("weekly");
+    await context().data.whiteboards.delete("4", { expectedRevision: "1" });
+    await context().data.projects.delete("2", { expectedRevision: "1" });
+    await expect(
+      context().data.documents.delete("31", { expectedRevision: "1" })
+    ).rejects.toMatchObject({ permission: "documents:delete" });
+    expect(calls.filter(call => call[0] === "remove")).toEqual([
+      ["remove", "whiteboard", "4", "1"],
+      ["remove", "project", "2", "1"],
+    ]);
+  });
 });

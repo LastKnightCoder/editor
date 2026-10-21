@@ -4,8 +4,7 @@
  */
 
 export type PluginDataEntity = "card" | "article" | "document" | "whiteboard" | "project";
-export type PluginWritableEntity = "card" | "article";
-export type PluginCreatableEntity = PluginWritableEntity | "whiteboard" | "project";
+export type PluginCreatableEntity = "card" | "article" | "whiteboard" | "project";
 /** 持有正文的实体 */
 export type PluginContentOwnerEntity = "card" | "article" | "document";
 
@@ -102,7 +101,7 @@ export type PluginContentEdit =
 export interface PluginOperationRecord {
   id: number;
   action: "delete";
-  entity: "card" | "article" | "todo" | "event" | "plugin-entity";
+  entity: PluginDataEntity | "todo" | "event" | "plugin-entity";
   entityId: string;
   title: string;
   createdAt: number;

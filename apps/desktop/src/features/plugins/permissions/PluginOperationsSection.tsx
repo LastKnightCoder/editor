@@ -8,6 +8,9 @@ import { usePluginEntityAppearances } from "@/services/plugin-entity-kinds";
 const ENTITY_NAMES: Record<PluginOperationRecord["entity"], string> = {
   card: "卡片",
   article: "文章",
+  document: "项目文档",
+  whiteboard: "白板",
+  project: "项目",
   todo: "待办",
   event: "日程",
   "plugin-entity": "插件内容",

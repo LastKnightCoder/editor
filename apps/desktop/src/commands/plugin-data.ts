@@ -14,7 +14,6 @@ import type {
   PluginProjectNodeRecord,
   PluginRefDescription,
   PluginRefInput,
-  PluginWritableEntity,
 } from "@/types/plugin-data";
 
 /** 插件业务数据命令；调用方经 bindDatabaseCommands 固定到插件宿主的数据库 */
@@ -59,7 +58,7 @@ export const updatePluginData = (
 export const deletePluginData = (
   databaseName: string,
   pluginId: string,
-  entity: PluginWritableEntity,
+  entity: PluginDataEntity,
   id: number,
   expectedRevision: string
 ): Promise<void> =>
@@ -101,7 +100,7 @@ export const recordPluginOperation = (
 export const restorePluginOperation = (
   databaseName: string,
   id: number
-): Promise<{ entity: PluginWritableEntity | "plugin-entity"; id: number }> =>
+): Promise<{ entity: PluginDataEntity | "plugin-entity"; id: number }> =>
   invoke("plugin-data:restore", { databaseName, id });
 
 export const markPluginOperationRestored = (databaseName: string, id: number): Promise<void> =>
