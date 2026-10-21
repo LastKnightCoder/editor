@@ -106,6 +106,16 @@ export async function checkDataContract(context: PluginContext) {
       if (event.origin.kind === "plugin") void event.origin.pluginId;
     })
   );
+  context.register(
+    context.events.on(["whiteboard.updated", "material.deleted", "chat.created"], event => {
+      void event.id;
+    })
+  );
+  context.register(
+    context.events.on("entity.deleted", event => {
+      if (event.kind === "note") void event.id;
+    })
+  );
   const selected = await context.app.pick({
     kinds: ["card", "document", "material", "chat-session", "notebook"],
     multiple: true,

@@ -323,6 +323,25 @@ describe("插件业务数据与权限", () => {
     expect(subscribers.size).toBe(0);
   });
 
+  it("本插件实体的事件不需要权限并带类型；其余新增对象事件按读取权限送达", async () => {
+    const { host, context, emit } = setup({
+      declared: ["cards:read", "materials:read"],
+      granted: new Set(["cards:read"]),
+    });
+    await host.enable("weekly");
+    const received: unknown[] = [];
+    context().events.on(["entity.deleted", "material.created"], event =>
+      received.push({ type: event.type, id: event.id, kind: event.kind })
+    );
+    emit({ type: "entity.deleted", id: "5", kind: "week", at: 1, origin: { kind: "app" } });
+    emit({ type: "material.created", id: "excerpt:2", at: 1, origin: { kind: "app" } });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(received).toEqual([{ type: "entity.deleted", id: "5", kind: "week" }]);
+    expect(() => context().events.on("chat.updated", () => undefined)).toThrow(
+      PluginPermissionError
+    );
+  });
+
   it("订阅未声明权限的事件或未知类型直接报错", async () => {
     const { host, context } = setup({ declared: ["todos:read"] });
     await host.enable("weekly");

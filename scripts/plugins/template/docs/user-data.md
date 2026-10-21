@@ -140,7 +140,7 @@ const projects = await context.data.projects.query({ sort: "created" });
 
 - 画板内容不开放读写，由用户在 Tau 中编辑；白板的 `revision` 只随标题、说明和标签变化。
 - 项目的 `revision` 在改名、归档、置顶以及增删文档时都会变化。
-- 白板与项目暂没有变化事件，需要时重新查询。
+- 白板与项目的变化见「订阅变化」。
 
 ### 项目目录
 
@@ -193,7 +193,7 @@ const chats = await context.data.chats.query({ updatedAfter: Date.now() - 7 * 86
 - 不开放：Notebook 的说明、资料的本机路径和转换后的文字、Notebook 里的笔记与测验，以及对话的消息内容。
 - 材料的 `id` 与 `pick` 得到的 `material` 引用 ID 相同。`quote` 是划下或标注的原文，剪藏为空；`source` 是给人看的出处，如「PDF · 文件名 · 第 3 页」。已删除的材料不返回。
 - 未命名的对话 `title` 为空字符串。
-- 三者都没有变化事件，需要时重新查询。
+- 三者的变化见「订阅变化」。
 
 ### 待办与日程
 
@@ -339,17 +339,22 @@ context.events.on(["card.created", "card.updated", "card.deleted"], event => {
 });
 ```
 
-| 事件                                           | 说明                                        |
-| ---------------------------------------------- | ------------------------------------------- |
-| `card.created`、`card.updated`、`card.deleted` | 带 `id`。正文修改也算 `updated`             |
-| `article.*`、`document.*`                      | 同上。文章移入回收站算 `deleted`            |
-| `todos.changed`、`calendar.changed`            | 待办、日程有变化，不带 `id`，需要时重新查询 |
-| `workspace.reset`                              | 同步下载替换了整个笔记库，应全部重新读取    |
+| 事件                                           | 说明                                                     |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `card.created`、`card.updated`、`card.deleted` | 带 `id`。正文修改也算 `updated`                          |
+| `article.*`、`document.*`                      | 同上。文章移入回收站算 `deleted`                         |
+| `whiteboard.*`、`project.*`                    | 同上。白板的画板内容修改不算                             |
+| `notebook.*`                                   | 同上。增删、修改资料也算 `updated`                       |
+| `material.*`、`chat.*`                         | 同上。划线删除算 `deleted`；对话收到新消息也算 `updated` |
+| `entity.*`                                     | 本插件的内容，带 `id` 和 `kind`，见下文                  |
+| `todos.changed`、`calendar.changed`            | 待办、日程有变化，不带 `id`，需要时重新查询              |
+| `workspace.reset`                              | 同步下载替换了整个笔记库，应全部重新读取                 |
 
 - 事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。
 - `origin` 表示变化的来源：`{ kind: "plugin", pluginId }` 表示由插件写入，可以用它忽略自己写入引起的事件；其他情况是 `{ kind: "app" }`。待办与日程的事件总是 `app`。
 - 同一项在短时间内的多次变化会合并成一次；用户持续输入时，最多每 2 秒一次。
-- 接收事件需要对应的读取权限（`workspace.reset` 除外）。还没获得授权时事件不会送达，也不会因此弹窗。
+- 接收事件需要对应的读取权限（`entity.*` 与 `workspace.reset` 除外）。还没获得授权时事件不会送达，也不会因此弹窗。
+- `entity.created`、`entity.updated`、`entity.deleted` 只发给创建这项内容的插件，不需要权限。正文修改也算 `updated`；`kind` 是内容类型，删除后 `get` 读不到时可以据此判断是哪类内容。从「最近删除」恢复、卸载后重新安装找回，都算 `created`。适合在同步下载或 MCP 写入后刷新页面。
 - 订阅在插件停用时自动注销。
 
 ## 选择并打开已有内容

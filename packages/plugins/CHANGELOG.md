@@ -23,6 +23,8 @@
 - `context.app.open(ref, options?)` 新增打开位置与定位：`placement` 为 `page`（默认）、`window`（独立编辑窗口，卡片、文章、项目文档）或 `dock`（右侧停靠栏，主对话）；`at: { block }` 滚动到正文第几个顶层块（卡片、文章、项目文档、日记、插件内容）。不支持的组合抛错。新增导出类型 `PluginOpenOptions`、`PluginContentLocation`。
 - `ContentEditor` 与 `ContentPreview` 新增 `kit`：`full`（默认，与卡片详情相同）或 `compact`（精简套件，不含内容链接、文件附件、白板块、数据库块与文档待办，适合简短内容）。新增导出类型 `ContentEditorKit`。
 - 页面的 `pageContext` 新增 `isActive()`（本页是否为当前显示的页面）与 `registerDismiss(dismiss)`（登记自制浮层的关闭函数，用户按 Esc 时先关最后登记的浮层，只在页面显示时生效）。
+- 业务事件新增 `whiteboard.*`、`project.*`、`notebook.*`（增删改资料也算 `updated`）、`material.*`（划线、PDF 标注、剪藏）与 `chat.*`（收到新消息也算 `updated`），均带 `id`，分别需要 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`。
+- 新增本插件内容的事件 `entity.created`、`entity.updated`（含正文修改）、`entity.deleted`：只发给创建它的插件，不需要权限，事件带 `kind`（内容类型）。`PluginDomainEvent` 新增可选字段 `kind`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 
