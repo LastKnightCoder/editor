@@ -407,7 +407,7 @@ export function Select<V = string>({
               onPointerEnter={() => !row.opt.disabled && setHl(row.index)}
               onClick={() => pick(row.opt)}
               className={clsx(
-                "text-ink-1 rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
+                "text-ink-1 rounded-tau-sm mb-[2px] flex h-8 cursor-pointer items-center gap-2 px-2.5 last:mb-0",
                 size === "sm" ? "text-tau-sm" : "text-tau-body",
                 "data-[selected=true]:bg-selected data-[selected=true]:font-[550]",
                 "data-[hl=true]:data-[selected=false]:bg-hover",
@@ -433,7 +433,7 @@ export function Select<V = string>({
               pick({ value: createValue as V, label: createValue });
             }}
             className={clsx(
-              "text-accent-text hover:bg-hover rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
+              "text-accent-text hover:bg-hover rounded-tau-sm mb-[2px] flex h-8 cursor-pointer items-center gap-2 px-2.5 last:mb-0",
               size === "sm" ? "text-tau-sm" : "text-tau-body"
             )}
           >
