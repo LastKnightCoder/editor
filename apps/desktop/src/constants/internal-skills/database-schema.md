@@ -110,6 +110,20 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `value`       | `TEXT NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL` |
 
+### `plugin_records`
+
+插件内部的结构化数据（插件里的 `context.records`，如分组、操作轨迹），用户在界面上看不到。`collection` 为插件定义的集合名，`data` 为 JSON 文本；`orphaned_time` 非空表示插件已不在本机，超过 7 天后删除。
+
+| 字段            | SQLite 定义                  |
+| --------------- | ---------------------------- |
+| `id`            | `TEXT PRIMARY KEY`           |
+| `plugin_id`     | `TEXT NOT NULL`              |
+| `collection`    | `TEXT NOT NULL`              |
+| `data`          | `TEXT NOT NULL DEFAULT '{}'` |
+| `create_time`   | `INTEGER NOT NULL`           |
+| `update_time`   | `INTEGER NOT NULL`           |
+| `orphaned_time` | `INTEGER`                    |
+
 ### `plugin_ref_grants`
 
 用户在插件的选择窗口里亲手选过的内容，插件之后读取这些内容的标题不需要读取权限。`kind` 为插件引用类型（如 `card`、`material`），`ref_id` 为插件看到的引用 ID；`target_created_at` 为选择时目标的创建时间。

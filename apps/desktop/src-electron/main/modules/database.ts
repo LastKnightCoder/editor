@@ -71,6 +71,7 @@ import VLQuizTable from "./tables/vl-quiz";
 import PluginDataTable from "./tables/plugin-data";
 import PluginEntityTable from "./tables/plugin-entity";
 import PluginKvTable from "./tables/plugin-kv";
+import PluginRecordTable from "./tables/plugin-records";
 import PluginElementResourcesTable from "./tables/plugin-element-resources";
 import PluginRefsTable from "./tables/plugin-refs";
 import PluginReadonlyDataTable from "./tables/plugin-data-readonly";
@@ -315,6 +316,7 @@ class DatabaseModule implements Module {
       PluginDataTable,
       PluginEntityTable,
       PluginKvTable,
+      PluginRecordTable,
       PluginElementResourcesTable,
       PluginRefsTable,
       PluginReadonlyDataTable,
@@ -451,6 +453,13 @@ class DatabaseModule implements Module {
           });
           if (collectedEntities > 0)
             log.info(`[database] 回收已卸载插件的内容: db=${name}, count=${collectedEntities}`);
+          const collectedRecords = PluginRecordTable.collectOrphans(database, {
+            installed: installedPluginIds(),
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (collectedRecords > 0)
+            log.info(`[database] 回收已卸载插件的记录: db=${name}, count=${collectedRecords}`);
         } catch (error) {
           log.error("[database] 回收已卸载插件的内容失败:", error);
         }

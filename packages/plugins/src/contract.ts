@@ -22,6 +22,7 @@ import type { PluginContent, PluginData } from "./data";
 import type { PluginEvents } from "./events";
 import type { PluginApp } from "./app";
 import type { PluginOwnEntities } from "./entities";
+import type { PluginRecords } from "./records";
 import type { PluginFlashcards } from "./flashcards";
 import type { PluginNotifications } from "./notifications";
 
@@ -81,6 +82,8 @@ export interface PluginContext {
   readonly app: PluginApp;
   /** 插件自建、各带一份正文的内容；读写自己的内容不需要业务数据权限 */
   readonly entities: PluginOwnEntities;
+  /** 插件内部使用的结构化数据；读写自己的记录不需要业务数据权限 */
+  readonly records: PluginRecords;
   readonly flashcards: PluginFlashcards;
   readonly notifications: PluginNotifications;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */

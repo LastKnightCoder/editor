@@ -104,6 +104,13 @@ import type {
   PluginOwnEntityPatch,
   PluginOwnEntityQuery,
 } from "./entities";
+import type {
+  PluginRecord,
+  PluginRecordCollection,
+  PluginRecordData,
+  PluginRecordFilter,
+  PluginRecordQuery,
+} from "./records";
 import {
   readIndexes,
   readOrderBy,
@@ -352,6 +359,45 @@ export interface EntitiesAdapter {
   registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
 }
 
+/**
+ * 插件记录的存取：只读写本插件的记录；参数已校验，indexes 为集合声明的索引字段，
+ * 宿主写入前据此核对 data。新记录的 ID 由 PluginHost 生成。
+ */
+export interface RecordsAdapter {
+  insert(
+    context: PluginContext,
+    collection: string,
+    record: { id: string; data: PluginRecordData },
+    indexes: PluginIndexes
+  ): Promise<PluginRecord>;
+  get(context: PluginContext, collection: string, id: string): Promise<PluginRecord | null>;
+  query(
+    context: PluginContext,
+    collection: string,
+    query: {
+      where: PluginQueryCondition[];
+      orderBy: PluginQueryOrder[];
+      cursor?: string;
+      limit: number;
+    }
+  ): Promise<PluginPage<PluginRecord>>;
+  count(context: PluginContext, collection: string, where: PluginQueryCondition[]): Promise<number>;
+  update(
+    context: PluginContext,
+    collection: string,
+    id: string,
+    data: PluginRecordData,
+    expectedRevision: string,
+    indexes: PluginIndexes
+  ): Promise<PluginRecord>;
+  delete(
+    context: PluginContext,
+    collection: string,
+    id: string,
+    expectedRevision: string
+  ): Promise<void>;
+}
+
 /** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
 export interface AppAdapter {
   pick(
@@ -460,6 +506,27 @@ function readEntityKind(value: unknown): PluginOwnEntityKind {
 }
 
 const ENTITY_SORT_FIELDS = ["createdAt", "updatedAt", "title"] as const;
+const RECORD_SORT_FIELDS = ["createdAt", "updatedAt"] as const;
+const DEFAULT_RECORD_ORDER: PluginQueryOrder[] = [{ builtin: "createdAt", direction: "asc" }];
+const MAX_RECORD_DATA = 64 * 1024;
+
+function readRecordData(value: unknown): PluginRecordData {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("data 必须是对象");
+  const data = copyJson(value) as PluginRecordData;
+  if (JSON.stringify(data).length > MAX_RECORD_DATA) throw new Error("data 超过 64 KB");
+  return data;
+}
+
+function readRecordCollection(value: unknown): Required<PluginRecordCollection> {
+  const definition = value as PluginRecordCollection | undefined;
+  if (!definition || typeof definition !== "object") throw new Error("集合声明无效");
+  assertLocalId(definition.name);
+  return Object.freeze({
+    name: definition.name,
+    indexes: readIndexes(definition.indexes, RECORD_SORT_FIELDS),
+  });
+}
 const DEFAULT_ENTITY_ORDER: PluginQueryOrder[] = [{ builtin: "createdAt", direction: "desc" }];
 const MAX_QUERY_CURSOR = 16 * 1024;
 
@@ -568,7 +635,7 @@ function readEntityRef(value: unknown): PluginEntityRef {
 
 /**
  * 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。
- * entity.* 只投递 context 所属插件自己的实体。
+ * entity.* 与 record.* 只投递 context 所属插件自己的实体与记录。
  */
 export interface EventsAdapter {
   subscribe(context: PluginContext, listener: (event: PluginDomainEvent) => void): Disposable;
@@ -899,6 +966,7 @@ export class PluginHost {
       chat?: ChatAdapter;
       permissions?: PermissionsAdapter;
       entities?: EntitiesAdapter;
+      records?: RecordsAdapter;
       data?: DataAdapter;
       events?: EventsAdapter;
       app?: AppAdapter;
@@ -1282,6 +1350,18 @@ export class PluginHost {
       return this.options.data;
     };
     const entityKindDefinitions = new Map<string, PluginOwnEntityKind>();
+    const recordCollections = new Map<string, Required<PluginRecordCollection>>();
+    const recordsAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.records) throw new Error("当前宿主不支持插件记录");
+      return this.options.records;
+    };
+    const collectionOf = (name: unknown) => {
+      if (typeof name !== "string") throw new Error("集合名无效");
+      const collection = recordCollections.get(name);
+      if (!collection) throw new Error(`集合 ${name} 未声明，请先 registerCollection`);
+      return collection;
+    };
     const entitiesAdapter = () => {
       this.assertActive(entry, activation);
       if (!this.options.entities) throw new Error("当前宿主不支持插件内容");
@@ -2333,6 +2413,92 @@ export class PluginHost {
               )
             )
           );
+        },
+      }),
+      records: Object.freeze({
+        registerCollection: (definition: PluginRecordCollection) => {
+          this.assertActive(entry, activation);
+          const value = readRecordCollection(definition);
+          if (recordCollections.has(value.name)) throw new Error(`集合 ${value.name} 已声明`);
+          recordCollections.set(value.name, value);
+          return register({
+            dispose: () => {
+              if (recordCollections.get(value.name) === value) recordCollections.delete(value.name);
+            },
+          });
+        },
+        insert: async (name: string, data: PluginRecordData) => {
+          const collection = collectionOf(name);
+          return deliver<PluginRecord>(
+            await recordsAdapter().insert(
+              context,
+              collection.name,
+              { id: crypto.randomUUID(), data: readRecordData(data) },
+              collection.indexes
+            )
+          );
+        },
+        get: async (name: string, id: string) =>
+          deliver<PluginRecord | null>(
+            await recordsAdapter().get(context, collectionOf(name).name, readId(id))
+          ),
+        query: async (name: string, query?: PluginRecordQuery) => {
+          const collection = collectionOf(name);
+          if (query !== undefined && (!query || typeof query !== "object"))
+            throw new Error("参数无效");
+          const cursor = query?.cursor;
+          if (cursor !== undefined) readText(cursor, "cursor", MAX_QUERY_CURSOR);
+          const limit = query?.limit ?? 50;
+          if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200)
+            throw new Error("limit 必须是 1–200 的整数");
+          const orderBy = readOrderBy(query?.orderBy, collection.indexes, RECORD_SORT_FIELDS);
+          return deliver<PluginPage<PluginRecord>>(
+            await recordsAdapter().query(context, collection.name, {
+              where: readWhere(query?.where, collection.indexes),
+              orderBy: orderBy.length ? orderBy : DEFAULT_RECORD_ORDER,
+              ...(cursor === undefined ? {} : { cursor }),
+              limit,
+            })
+          );
+        },
+        count: async (name: string, filter?: PluginRecordFilter) => {
+          const collection = collectionOf(name);
+          if (filter !== undefined && (!filter || typeof filter !== "object"))
+            throw new Error("参数无效");
+          return deliver<number>(
+            await recordsAdapter().count(
+              context,
+              collection.name,
+              readWhere(filter?.where, collection.indexes)
+            )
+          );
+        },
+        update: async (
+          name: string,
+          id: string,
+          data: PluginRecordData,
+          options: PluginWriteOptions
+        ) => {
+          const collection = collectionOf(name);
+          return deliver<PluginRecord>(
+            await recordsAdapter().update(
+              context,
+              collection.name,
+              readId(id),
+              readRecordData(data),
+              readRevision(options),
+              collection.indexes
+            )
+          );
+        },
+        delete: async (name: string, id: string, options: PluginWriteOptions) => {
+          await recordsAdapter().delete(
+            context,
+            collectionOf(name).name,
+            readId(id),
+            readRevision(options)
+          );
+          this.assertActive(entry, activation);
         },
       }),
       events: Object.freeze({

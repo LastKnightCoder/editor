@@ -27,6 +27,8 @@ describe("桌面业务事件", () => {
           { type: "material.created", id: "excerpt:2", at: 1, pluginId: "clip" },
           { type: "entity.updated", id: 5, at: 1, owner: "weekly", kind: "week" },
           { type: "entity.updated", id: 6, at: 1, owner: "other", kind: "note" },
+          { type: "record.deleted", id: "r1", at: 1, owner: "weekly", collection: "groups" },
+          { type: "record.deleted", id: "r2", at: 1, owner: "other", collection: "groups" },
         ],
       }
     );
@@ -39,6 +41,7 @@ describe("桌面业务事件", () => {
         origin: { kind: "plugin", pluginId: "clip" },
       },
       { type: "entity.updated", id: "5", kind: "week", at: 1, origin: { kind: "app" } },
+      { type: "record.deleted", id: "r1", collection: "groups", at: 1, origin: { kind: "app" } },
     ]);
     subscription.dispose();
     expect(listeners.has("domain-events")).toBe(false);

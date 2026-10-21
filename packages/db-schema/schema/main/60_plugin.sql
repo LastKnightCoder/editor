@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS plugin_kv (
   PRIMARY KEY (plugin_id, key)
 );
 
+-- 插件记录（context.records）：插件内部的结构化数据，按插件与集合保存 JSON，随主库云同步；
+-- orphaned_time 非空表示插件已不在本机，与插件实体一同在宽限期后删除
+CREATE TABLE IF NOT EXISTS plugin_records (
+  id TEXT PRIMARY KEY,
+  plugin_id TEXT NOT NULL,
+  collection TEXT NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  create_time INTEGER NOT NULL,
+  update_time INTEGER NOT NULL,
+  orphaned_time INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_plugin_records_created ON plugin_records(plugin_id, collection, create_time, id);
+
 -- 用户在插件选择窗口中亲手选过的内容：插件此后读取这些引用的标题不需要读取权限；
 -- target_created_at 是选择时目标的创建时间，编号被新内容复用时授权不会落到新内容上
 CREATE TABLE IF NOT EXISTS plugin_ref_grants (
