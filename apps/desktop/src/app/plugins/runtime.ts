@@ -44,14 +44,12 @@ import {
 } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
-import { DevelopmentPluginManager } from "./development-manager";
 import { LocalPluginManager } from "./local-manager";
 import {
   scanLocalPlugins,
   uninstallLocalPlugin,
   setLocalPluginEnabled,
 } from "@/commands/plugin-local";
-import type { DevelopmentSession } from "@/types/plugin-development";
 import type { DesktopPermissionBroker } from "./permissions";
 import type { DesktopDataAdapter } from "./data";
 
@@ -100,7 +98,6 @@ export interface RegisteredPluginSettings {
 
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
-  development?: DevelopmentPluginManager;
   local?: LocalPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
   private readonly settings = new Map<string, RegisteredPluginSettings>();
@@ -152,7 +149,6 @@ export class DesktopPluginRuntime {
       /** 卸载并清除数据时删除插件在当前库的私有存储 */
       purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
-      reloadCounts?: Map<string, number>;
     }
   ) {
     this.host = new PluginHost({
@@ -235,18 +231,6 @@ export class DesktopPluginRuntime {
       this.options.purgeStorage
     );
     return this.local;
-  }
-  attachDevelopment(session: DevelopmentSession) {
-    this.development = new DevelopmentPluginManager(
-      this.host,
-      session,
-      async () => (await import("./shared-modules")).sharedPluginModules,
-      undefined,
-      this.publish,
-      this.options.reloadCounts
-    );
-    this.publish();
-    return this.development;
   }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -438,7 +422,6 @@ export class DesktopPluginRuntime {
     if (this.disposed) return;
     this.disposed = true;
     this.local?.cancel();
-    this.development?.cancel();
     this.publish();
     try {
       await this.host.dispose();
@@ -452,7 +435,6 @@ export class DesktopPluginRuntime {
       this.unsubscribe();
       this.publish();
       this.listeners.clear();
-      await this.development?.close();
     }
   }
 

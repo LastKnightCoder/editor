@@ -16,10 +16,6 @@ vi.mock("@/page/PageProvider", () => {
   const navigator = { push: vi.fn() };
   return { usePage: () => ({ navigator }), usePageParams: () => ({ tab: "installed" }) };
 });
-vi.mock("@/commands/plugin-development", () => ({
-  openDevelopmentPlugins: vi.fn(),
-  closeDevelopmentPlugins: vi.fn(),
-}));
 vi.mock("@/commands/fetch", () => ({ desktopFetch: vi.fn() }));
 vi.mock("@/commands/plugin-local", () => ({
   getPluginWorkspace: vi.fn(async (name: string) => name),
@@ -33,7 +29,6 @@ vi.mock("@/electron", () => ({ isElectron: true, on: vi.fn(), off: vi.fn() }));
 vi.mock("@/tools/pluginMCP", () => ({ registerPluginMCP: vi.fn() }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 import useSettingStore from "@/stores/useSettingStore";
-import { openDevelopmentPlugins } from "@/commands/plugin-development";
 import {
   getPluginWorkspace,
   scanLocalPlugins,
@@ -133,7 +128,6 @@ it.each([false, true])("DEV=%s时不自动装配任何插件，正式入口只�
   await remount();
   expect(getRuntime().host.listPlugins()).toEqual([]);
   expect(getRuntime().host.listCommands()).toEqual([]);
-  expect(openDevelopmentPlugins).not.toHaveBeenCalled();
   expect(scanLocalPlugins).toHaveBeenCalled();
   expect(getPluginWorkspace).toHaveBeenCalledWith("A");
   await menu("打开插件目录");
