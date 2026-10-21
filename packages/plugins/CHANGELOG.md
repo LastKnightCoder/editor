@@ -21,6 +21,7 @@
 - 新增动作 `notebook.create`：由用户确认后新建 Notebook，`sources` 作为资料一次性带入（有正文的内容成为笔记资料，划线与 PDF 标注合并、剪藏各一份，其他类型不带入），`from` 记为来源并显示在 Notebook 页顶部；返回 `{ kind: "notebook", id }`。新增导出 `PLUGIN_NOTEBOOK_FROM_KINDS`。
 - 新增动作 `chat.start`：在对话页（默认）或右侧停靠栏开一个新对话，`prompt` 预填进输入框，`context`（卡片、文章、项目文档）作为引用插入，由用户发送；用户发出第一条消息后返回 `{ kind: "chat-session", id }`，没发送就离开时返回 `null`。新增导出 `PLUGIN_CHAT_CONTEXT_KINDS`。
 - `context.app.open(ref, options?)` 新增打开位置与定位：`placement` 为 `page`（默认）、`window`（独立编辑窗口，卡片、文章、项目文档）或 `dock`（右侧停靠栏，主对话）；`at: { block }` 滚动到正文第几个顶层块（卡片、文章、项目文档、日记、插件内容）。不支持的组合抛错。新增导出类型 `PluginOpenOptions`、`PluginContentLocation`。
+- `ContentEditor` 与 `ContentPreview` 新增 `kit`：`full`（默认，与卡片详情相同）或 `compact`（精简套件，不含内容链接、文件附件、白板块、数据库块与文档待办，适合简短内容）。新增导出类型 `ContentEditorKit`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

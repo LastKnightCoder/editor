@@ -19,7 +19,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/commands/plugin-data", () => ({ readPluginContent: mocks.read }));
 vi.mock("@/commands/entity", () => ({ locateEntity: mocks.locate }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
-vi.mock("@/services/editorKit", () => ({ getContentKit: () => ({}) }));
+const kits = vi.hoisted(() => ({ full: { name: "full" }, compact: { name: "compact" } }));
+vi.mock("@/services/editorKit", () => ({
+  getContentKit: () => kits.full,
+  getDescriptionKit: () => kits.compact,
+}));
 vi.mock("@/components/ContentEditor", () => ({
   default: (props: Record<string, unknown>) => {
     mocks.editor(props);
@@ -27,8 +31,8 @@ vi.mock("@/components/ContentEditor", () => ({
   },
 }));
 vi.mock("@tau/editor", () => ({
-  Editor: (props: { initValue?: unknown[] }) => {
-    mocks.preview(props.initValue);
+  Editor: (props: { initValue?: unknown[]; kit?: unknown }) => {
+    mocks.preview(props.initValue, props.kit);
     return <div data-testid="preview" />;
   },
 }));
@@ -163,7 +167,20 @@ describe("插件正文组件", () => {
     const { context } = pluginContext({ "cards:read": "granted" });
     render(<ContentPreview contentRef="8:100" maxBlocks={2} />, context);
     await settle();
-    expect(mocks.preview).toHaveBeenLastCalledWith(nodes.slice(0, 2));
+    expect(mocks.preview).toHaveBeenLastCalledWith(nodes.slice(0, 2), kits.full);
+  });
+
+  it("精简套件：编辑器与预览都换成简短内容的套件，默认仍是完整套件", async () => {
+    const { context } = pluginContext({ "cards:write": "granted", "cards:read": "granted" });
+    render(<ContentEditor contentRef="8:100" kit="compact" />, context);
+    await settle();
+    expect(mocks.editor.mock.lastCall?.[0]).toMatchObject({ kit: kits.compact });
+    render(<ContentEditor contentRef="8:100" />, context);
+    await settle();
+    expect(mocks.editor.mock.lastCall?.[0]).not.toHaveProperty("kit");
+    render(<ContentPreview contentRef="8:100" kit="compact" />, context);
+    await settle();
+    expect(mocks.preview).toHaveBeenLastCalledWith(nodes.slice(0, 3), kits.compact);
   });
 
   it("插件自己的内容不询问权限，按通用正文协作、不登记编辑身份", async () => {
