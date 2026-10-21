@@ -77,6 +77,11 @@ CREATE TABLE IF NOT EXISTS white_board_contents (
         data TEXT,
         ref_count INTEGER DEFAULT 0
       , img_url TEXT DEFAULT '');
+-- 引用归零的白板页：登记释放时间，超过宽限期且仍无引用时才删除，期间被重新引用（撤销、恢复）即撤销登记
+CREATE TABLE IF NOT EXISTS white_board_content_pending_releases (
+  content_id INTEGER PRIMARY KEY,
+  released_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS white_boards (
             id INTEGER PRIMARY KEY NOT NULL,
             create_time INTEGER NOT NULL,

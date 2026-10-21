@@ -260,14 +260,11 @@ export interface PluginData {
   readonly cards: PluginEntityWriter<PluginCard, PluginCardInput, PluginCardPatch>;
   readonly articles: PluginEntityWriter<PluginArticle, PluginArticleInput, PluginArticlePatch>;
   /** 白板的信息；画板内容不开放读写，用户在 Tau 中编辑 */
-  readonly whiteboards: PluginEntityReader<PluginWhiteboard> & {
-    create(input: PluginWhiteboardInput): Promise<PluginWhiteboard>;
-    update(
-      id: string,
-      patch: PluginWhiteboardPatch,
-      options: PluginWriteOptions
-    ): Promise<PluginWhiteboard>;
-  };
+  readonly whiteboards: PluginEntityWriter<
+    PluginWhiteboard,
+    PluginWhiteboardInput,
+    PluginWhiteboardPatch
+  >;
   /** 项目本身；query 不支持 tag。项目里的文档见 documents */
   readonly projects: PluginEntityReader<PluginProject> & {
     /** 新建一个空项目 */
@@ -279,8 +276,10 @@ export interface PluginData {
       patch: PluginProjectPatch,
       options: PluginWriteOptions
     ): Promise<PluginProject>;
+    /** 只能删除空项目：项目里还有文档时拒绝 */
+    delete(id: string, options: PluginWriteOptions): Promise<void>;
   };
-  /** 项目文档：新建、修改标题与标签、在项目内移动；删除暂不开放 */
+  /** 项目文档：新建、修改标题与标签、在项目内移动与删除 */
   readonly documents: PluginEntityReader<PluginDocument> & {
     create(input: PluginDocumentInput): Promise<PluginDocument>;
     update(
@@ -294,6 +293,11 @@ export interface PluginData {
       move: PluginDocumentMove,
       options: PluginWriteOptions
     ): Promise<{ revision: string }>;
+    /**
+     * 从所有挂载处删除这篇文档。有子文档时拒绝；视频笔记不能由插件删除。
+     * 用户可在插件详情页 7 天内恢复，恢复后挂回仍存在的原位置。
+     */
+    delete(id: string, options: PluginWriteOptions): Promise<void>;
   };
   readonly todos: {
     query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>>;

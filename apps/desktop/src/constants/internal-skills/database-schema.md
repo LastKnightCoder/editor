@@ -268,6 +268,15 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `ref_count`   | `INTEGER DEFAULT 0`            |
 | `img_url`     | `TEXT DEFAULT ''`              |
 
+### `white_board_content_pending_releases`
+
+引用计数归零但暂缓删除的白板页登记（`white_board_contents.id`）。开库时回收超过宽限期且引用仍为 0 的页，页被重新引用时删除登记。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `released_at` | `INTEGER NOT NULL`    |
+
 ### `white_boards`
 
 | 字段                            | SQLite 定义                    |

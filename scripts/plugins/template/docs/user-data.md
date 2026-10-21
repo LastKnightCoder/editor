@@ -18,20 +18,21 @@
 { "permissions": ["cards:read", "todos:read", "todos:write"] }
 ```
 
-| 权限                                                 | 允许                                                 |
-| ---------------------------------------------------- | ---------------------------------------------------- |
-| `cards:read`、`articles:read`、`documents:read`      | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
-| `cards:write`、`articles:write`、`documents:write`   | 新建、修改，以及修改正文；项目文档还包括在项目内移动 |
-| `cards:delete`、`articles:delete`                    | 删除                                                 |
-| `todos:read`、`todos:write`、`todos:delete`          | 读取、新建与修改、删除待办                           |
-| `calendar:read`、`calendar:write`、`calendar:delete` | 读取、新建与修改、删除日程                           |
-| `whiteboards:read`、`projects:read`                  | 读取白板、项目的信息                                 |
-| `whiteboards:write`、`projects:write`                | 新建和修改白板、项目（不含画板内容）                 |
-| `notebooks:read`                                     | 读取 Notebook 的标题                                 |
-| `materials:read`                                     | 读取划线、PDF 标注和剪藏的标题                       |
-| `chats:read`                                         | 读取 AI 对话的标题，不含消息内容                     |
-| `flashcards:read`、`flashcards:write`                | 闪卡，见[闪卡](flashcards.md)                        |
-| `ai:<能力名>`                                        | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
+| 权限                                                  | 允许                                                 |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| `cards:read`、`articles:read`、`documents:read`       | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
+| `cards:write`、`articles:write`、`documents:write`    | 新建、修改，以及修改正文；项目文档还包括在项目内移动 |
+| `cards:delete`、`articles:delete`、`documents:delete` | 删除                                                 |
+| `todos:read`、`todos:write`、`todos:delete`           | 读取、新建与修改、删除待办                           |
+| `calendar:read`、`calendar:write`、`calendar:delete`  | 读取、新建与修改、删除日程                           |
+| `whiteboards:read`、`projects:read`                   | 读取白板、项目的信息                                 |
+| `whiteboards:write`、`projects:write`                 | 新建和修改白板、项目（不含画板内容）                 |
+| `whiteboards:delete`、`projects:delete`               | 删除白板、空项目                                     |
+| `notebooks:read`                                      | 读取 Notebook 的标题                                 |
+| `materials:read`                                      | 读取划线、PDF 标注和剪藏的标题                       |
+| `chats:read`                                          | 读取 AI 对话的标题，不含消息内容                     |
+| `flashcards:read`、`flashcards:write`                 | 闪卡，见[闪卡](flashcards.md)                        |
+| `ai:<能力名>`                                         | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
 
 ### 用户如何授权
 
@@ -221,7 +222,7 @@ try {
 | `todos.create` / `todos.update`                           | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）                                         |
 | `todos.setCompleted(id, completed, ...)`                  | 标记完成或未完成                                                                                     |
 | `calendar.create` / `calendar.update`                     | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）                                  |
-| `*.delete(id, ...)`                                       | 删除卡片、文章、待办、日程。白板、项目与项目文档暂不能删除                                           |
+| `*.delete(id, ...)`                                       | 删除卡片、文章、白板、项目、项目文档、待办、日程，限制见下                                           |
 
 全天日程的 `start`、`end` 用 `YYYY-MM-DD`，且 `end` 不包含当天：一个只占 10 月 21 日的全天日程，`end` 是 `2026-10-22`。定时日程用带时区的 ISO 时间。
 
@@ -234,7 +235,9 @@ try {
 ### 写入后
 
 - 打开中的页面、其他窗口、搜索和云同步都会自动更新，插件不需要做任何通知。
-- 插件删除的卡片、文章、待办和日程，用户可以在 7 天内从插件详情页的「权限 → 最近删除」中恢复。
+- 插件删除的内容，用户可以在 7 天内从插件详情页的「权限 → 最近删除」中恢复。
+- 项目只能删除空项目，里面还有文档时会被拒绝。
+- 项目文档会从它挂载的所有位置删除，有子文档时会被拒绝，视频笔记不能由插件删除。恢复时挂回仍然存在的原位置。
 - 有子待办的待办不能删除。
 
 ## 正文输入

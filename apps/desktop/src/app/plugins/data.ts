@@ -298,7 +298,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         defaultCardEventBus
           .createEditor()
           .publishCardEvent("card:deleted", { id: numeric } as ICard);
-      else refreshArticles();
+      else refreshLists(entity);
     },
     async contentOwners(context, ref) {
       const decoded = decodeContentRef(ref);
@@ -424,8 +424,8 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         return;
       }
       const restored = await commands.restorePluginOperation(databaseName, operation.id);
-      if (restored.entity === "article") refreshArticles();
       if (restored.entity === "plugin-entity") invalidatePluginEntityAppearance();
+      else refreshLists(restored.entity);
     },
     async get(context, entity, id) {
       const numeric = parseId(id);
@@ -529,12 +529,10 @@ function requireId(id: string): number {
   return numeric;
 }
 
-/** 文章列表只按查询失效刷新（没有逐条合并），插件写入后整域失效，与文章页自身的写入一致 */
-function refreshArticles() {
-  void queryClient.invalidateQueries({ queryKey: ["articles"] });
-}
-
-/** 白板与项目没有写入广播，插件写入后按查询失效刷新本窗口；其他窗口在聚焦时重拉。项目文档的目录随项目刷新 */
+/**
+ * 插件写入后按查询失效刷新本窗口。文章列表只按查询失效刷新（没有逐条合并），与文章页自身的写入一致；
+ * 白板与项目没有写入广播，其他窗口在聚焦时重拉；项目文档的目录随项目刷新。
+ */
 const LIST_KEYS: Partial<Record<DataEntity, string>> = {
   article: "articles",
   whiteboard: "whiteboards",
