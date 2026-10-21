@@ -1,6 +1,22 @@
-import { Editor, Node, Path, Range, Text, Transforms, type Point, type RangeRef } from "slate";
+import {
+  Editor,
+  Node,
+  Path,
+  Range,
+  Text,
+  Transforms,
+  type Element,
+  type PathRef,
+  type Point,
+  type RangeRef,
+} from "slate";
 
-import type { RegisteredInputRule } from "../api/inputRules";
+import type {
+  InlineInputRule,
+  InputRule,
+  MarkInputRule,
+  RegisteredInputRule,
+} from "../api/inputRules";
 import type { ExtensionCircuitBreaker } from "./extensionGuard";
 import { withNewUndoStep } from "../utils/undoStep";
 import {
@@ -70,16 +86,19 @@ const placeCaretOutside = (editor: Editor, point: Point, props: TextProps) => {
   editor.marks = { ...props };
 };
 
-const applyMatch = (
-  editor: Editor,
-  path: Path,
-  offset: number,
-  leaf: Text,
-  match: InputRuleMatch
-) => {
-  const { delimiter, marks } = match.entry.rule;
-  const size = delimiter.length;
-  const props = textProps(leaf);
+const isInlineRule = (rule: InputRule): rule is InlineInputRule => rule.inline !== undefined;
+
+interface MatchTarget {
+  readonly path: Path;
+  /** 光标位置，即收尾定界符之后 */
+  readonly offset: number;
+  readonly leaf: Text;
+  readonly start: number;
+}
+
+const applyMarks = (editor: Editor, target: MatchTarget, rule: MarkInputRule) => {
+  const { path, offset, leaf, start } = target;
+  const size = rule.delimiter.length;
   let contentRef: RangeRef | undefined;
   withNewUndoStep(editor, () => {
     Editor.withoutNormalizing(editor, () => {
@@ -87,19 +106,50 @@ const applyMatch = (
         at: { anchor: { path, offset: offset - size }, focus: { path, offset } },
       });
       Transforms.delete(editor, {
-        at: { anchor: { path, offset: match.start }, focus: { path, offset: match.start + size } },
+        at: { anchor: { path, offset: start }, focus: { path, offset: start + size } },
       });
       const content = {
-        anchor: { path, offset: match.start },
+        anchor: { path, offset: start },
         focus: { path, offset: offset - 2 * size },
       };
       contentRef = Editor.rangeRef(editor, content, { affinity: "inward" });
-      Transforms.setNodes(editor, marks, { at: content, match: Text.isText, split: true });
+      Transforms.setNodes(editor, rule.marks, { at: content, match: Text.isText, split: true });
     });
   });
   // 规范化会合并相邻文本，落点在规范化之后再取
   const end = contentRef?.unref()?.focus;
-  if (end) placeCaretOutside(editor, end, props);
+  if (end) placeCaretOutside(editor, end, textProps(leaf));
+};
+
+const applyInline = (editor: Editor, target: MatchTarget, rule: InlineInputRule) => {
+  const { path, offset, leaf, start } = target;
+  const size = rule.delimiter.length;
+  const element = {
+    ...rule.inline.create(leaf.text.slice(start + size, offset - size)),
+    type: rule.inline.type,
+    children: [{ type: "formatted", text: "" }],
+  } as unknown as Element;
+  let elementRef: PathRef | undefined;
+  withNewUndoStep(editor, () => {
+    Editor.withoutNormalizing(editor, () => {
+      Transforms.delete(editor, {
+        at: { anchor: { path, offset: start }, focus: { path, offset } },
+      });
+      Transforms.insertNodes(editor, element, { at: { path, offset: start }, select: false });
+      const inserted = editor.operations.findLast(op => op.type === "insert_node");
+      if (inserted?.type === "insert_node") elementRef = Editor.pathRef(editor, inserted.path);
+    });
+  });
+  // 规范化保证行内元素后面有文本，光标落在它开头；之后的输入沿用转换前的格式
+  const at = elementRef?.unref();
+  if (!at) return;
+  const next = Path.next(at);
+  if (!Node.has(editor, next)) return;
+  const following = Node.get(editor, next);
+  if (!Text.isText(following)) return;
+  Transforms.select(editor, { path: next, offset: 0 });
+  const props = textProps(leaf);
+  if (!isSameMarks(textProps(following), props)) editor.marks = { ...props };
 };
 
 /**
@@ -140,12 +190,16 @@ export function withInputRules(
       ({ owner, rule }) =>
         !breaker.isDisabled(owner) &&
         !rule.excludeMarks?.some(key => record[key]) &&
-        !Object.entries(rule.marks).every(([key, value]) => record[key] === value)
+        // 已经是同样格式时保留原文，转换没有可见效果
+        !(rule.marks && Object.entries(rule.marks).every(([key, value]) => record[key] === value))
     );
     const match = matchInputRule(active, leaf.text.slice(0, offset), leaf.text[offset]);
     if (!match) return;
     try {
-      applyMatch(editor, path, offset, leaf, match);
+      const target = { path, offset, leaf, start: match.start };
+      const { rule } = match.entry;
+      if (isInlineRule(rule)) applyInline(editor, target, rule);
+      else applyMarks(editor, target, rule);
     } catch (error) {
       breaker.record(match.entry.owner, "behavior", error);
     }

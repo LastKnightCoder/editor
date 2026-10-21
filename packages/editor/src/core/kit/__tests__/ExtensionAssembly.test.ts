@@ -95,6 +95,20 @@ describe("ExtensionAssembly", () => {
         inputRules,
       });
 
+    it("行内元素规则引用已声明的 inline 元素", () => {
+      const rule = {
+        id: "test.math",
+        delimiter: "$",
+        inline: { type: "math", create: () => ({}) },
+      };
+      const extension = defineExtension({
+        id: "test.math",
+        elements: [{ type: "math", kind: "inline", isVoid: true, render: () => null as never }],
+        inputRules: [rule],
+      });
+      expect(new ExtensionAssembly([extension]).inputRules).toEqual([{ owner: "test.math", rule }]);
+    });
+
     it("按扩展收集并记录来源", () => {
       const rule = { id: "test.bold", delimiter: "**", marks: { bold: true } };
       expect(new ExtensionAssembly([withMark([rule])]).inputRules).toEqual([
@@ -112,8 +126,20 @@ describe("ExtensionAssembly", () => {
       ],
       [[{ id: "a", delimiter: "*_", marks: { bold: true } }], "同一字符"],
       [[{ id: "a", delimiter: "*", marks: { italic: true } }], "未声明"],
+      [[{ id: "a", delimiter: "$", inline: { type: "math", create: () => ({}) } }], "行内元素"],
+      [
+        [
+          {
+            id: "a",
+            delimiter: "$",
+            marks: { bold: true },
+            inline: { type: "math", create: () => ({}) },
+          },
+        ],
+        "之一",
+      ],
     ])("非法声明在 kit 创建时报错（%#）", (rules, message) => {
-      expect(() => new ExtensionAssembly([withMark(rules)])).toThrow(message);
+      expect(() => new ExtensionAssembly([withMark(rules as never)])).toThrow(message);
     });
   });
 });
