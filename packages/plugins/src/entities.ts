@@ -8,6 +8,7 @@ import type { JsonValue } from "./json";
 import type { PluginPageParams } from "./pages";
 import type { PluginEntityRef } from "./app";
 import type { PluginIcon } from "./icons";
+import type { PluginContentInput } from "./content-input";
 
 export type PluginOwnEntityMeta = Record<string, JsonValue>;
 
@@ -49,6 +50,8 @@ export interface PluginOwnEntityInput {
   key: string;
   title?: string;
   meta?: PluginOwnEntityMeta;
+  /** 初始正文；省略时为空 */
+  content?: PluginContentInput;
 }
 
 export interface PluginOwnEntityPatch {
@@ -75,7 +78,7 @@ export interface PluginOwnEntityBacklink {
 export interface PluginOwnEntities {
   /** 声明一种内容类型；create 只接受已声明的类型 */
   registerKind(definition: PluginOwnEntityKind): Disposable;
-  /** 新建一项，正文为空。同一类型下 key 已存在时抛出 PluginConflictError */
+  /** 新建一项，content 为初始正文（缺省为空）。同一类型下 key 已存在时抛出 PluginConflictError */
   create(input: PluginOwnEntityInput): Promise<PluginOwnEntity>;
   get(id: string): Promise<PluginOwnEntity | null>;
   find(kind: string, key: string): Promise<PluginOwnEntity | null>;

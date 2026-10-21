@@ -1,27 +1,12 @@
-import { createContext, lazy, Suspense, useContext, type ReactNode } from "react";
-import type { PluginContext } from "@tau/plugins";
+import { lazy, Suspense } from "react";
 import {
   configureContentComponents,
   type ContentEditorProps,
   type ContentPreviewProps,
 } from "@tau/plugins/components";
+import { PluginEntityRef } from "./entity-ref-view";
 
-const ScopeContext = createContext<PluginContext | null>(null);
-
-/** 插件页面的作用域：正文组件据此确定是哪个插件在使用、按谁的权限放行 */
-export function PluginComponentScope({
-  context,
-  children,
-}: {
-  context: PluginContext;
-  children: ReactNode;
-}) {
-  return <ScopeContext.Provider value={context}>{children}</ScopeContext.Provider>;
-}
-
-export function usePluginComponentScope(): PluginContext | null {
-  return useContext(ScopeContext);
-}
+export { PluginComponentScope, usePluginComponentScope } from "./component-scope";
 
 // 编辑器、协作会话与授权界面较重，首次渲染正文组件时才加载，不拖慢插件宿主启动
 const LazyEditor = lazy(() =>
@@ -42,4 +27,6 @@ configureContentComponents({
       <LazyPreview {...props} />
     </Suspense>
   ),
+  // 引用只渲染图标与标题，不加载编辑器，直接装配
+  EntityRef: props => <PluginEntityRef {...props} />,
 });

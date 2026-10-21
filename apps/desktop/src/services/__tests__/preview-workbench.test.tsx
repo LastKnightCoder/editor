@@ -1,4 +1,4 @@
-// 源码预览块：空块占位、悬停操作条、渲染出错保留上次结果、全屏工作台
+// 源码预览块：空块占位、悬停操作条、源码编辑、渲染出错保留上次结果
 import { createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
@@ -75,20 +75,18 @@ describe("源码预览块", () => {
   it("空块显示带类型名的占位，不出操作条", async () => {
     const { container, done } = await mount(blockMath(""));
     expect(container.textContent).toContain("公式 · 点击开始编写");
-    expect(labels(container)).not.toContain("全屏");
+    expect(labels(container)).toEqual([]);
     await done();
   });
 
-  it("可编辑时操作条是编辑 / 全屏 / 删除，只读时换成复制源码 / 全屏", async () => {
+  it("可编辑时操作条是编辑 / 删除，只读时只有复制源码", async () => {
     const editable = await mount(blockMath("x^2"));
-    expect(labels(editable.container)).toEqual(expect.arrayContaining(["编辑", "全屏", "删除"]));
+    expect(labels(editable.container)).toEqual(["编辑", "删除"]);
     await editable.done();
 
     const readonly = await mount(blockMath("x^2"), true);
     const readonlyLabels = labels(readonly.container);
-    expect(readonlyLabels).toEqual(expect.arrayContaining(["复制源码", "全屏"]));
-    expect(readonlyLabels).not.toContain("编辑");
-    expect(readonlyLabels).not.toContain("删除");
+    expect(readonlyLabels).toEqual(["复制源码"]);
     await readonly.done();
   });
 
@@ -138,77 +136,5 @@ describe("源码预览块", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("KaTeX parse error"));
     expect(container.textContent).not.toContain("预览保留上一次成功的结果");
     await done();
-  });
-
-  describe("全屏工作台", () => {
-    const zoomLabel = () =>
-      Array.from(document.body.querySelectorAll("span")).find(s =>
-        /^\d+%$/.test(s.textContent ?? "")
-      )?.textContent;
-    const dialog = () => document.body.querySelector<HTMLElement>('[role="dialog"]');
-    const stage = () => dialog()?.querySelector<HTMLElement>(".cursor-grab, .cursor-grabbing");
-    const content = () => stage()?.querySelector<HTMLElement>("[style*='translate']");
-    const open = async () => {
-      const mounted = await mount(blockMath("x^2"));
-      await click(mounted.container.querySelector('button[aria-label="全屏"]'));
-      expect(dialog()).toBeTruthy();
-      return mounted;
-    };
-
-    it("缩放按钮改变比例，源码栏可收起，关闭后卸载", async () => {
-      const { done } = await open();
-      expect(zoomLabel()).toBe("100%");
-      await click(document.body.querySelector('button[aria-label="放大 (+)"]'));
-      expect(zoomLabel()).toBe("125%");
-      await click(document.body.querySelector('button[aria-label="收起源码"]'));
-      expect(document.body.querySelector('button[aria-label="显示源码"]')).toBeTruthy();
-      await click(document.body.querySelector('button[aria-label="关闭 (Esc)"]'));
-      expect(dialog()).toBeNull();
-      await done();
-    });
-
-    it("Esc 关闭全屏，且不冒泡给宿主的 Esc 仲裁", async () => {
-      const { done } = await open();
-      const hostEsc = vi.fn();
-      window.addEventListener("keydown", hostEsc);
-      await act(async () => {
-        dialog()?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-      });
-      window.removeEventListener("keydown", hostEsc);
-      expect(dialog()).toBeNull();
-      expect(hostEsc).not.toHaveBeenCalled();
-      await done();
-    });
-
-    it("滚轮缩放画布", async () => {
-      const { done } = await open();
-      await act(async () => {
-        stage()?.dispatchEvent(
-          new WheelEvent("wheel", { deltaY: -200, bubbles: true, cancelable: true })
-        );
-      });
-      expect(Number.parseInt(zoomLabel() ?? "0", 10)).toBeGreaterThan(100);
-      await done();
-    });
-
-    it("拖动画布平移，移动不足阈值时不算拖动", async () => {
-      const { done } = await open();
-      const target = stage();
-      expect(target).toBeTruthy();
-      const pointer = async (type: string, x: number, y: number) => {
-        await act(async () => {
-          target?.dispatchEvent(
-            new MouseEvent(type, { bubbles: true, button: 0, clientX: x, clientY: y })
-          );
-        });
-      };
-      await pointer("pointerdown", 100, 100);
-      await pointer("pointermove", 101, 101);
-      expect(content()?.style.transform).toContain("translate(0px, 0px)");
-      await pointer("pointermove", 140, 90);
-      expect(content()?.style.transform).toContain("translate(40px, -10px)");
-      await pointer("pointerup", 140, 90);
-      await done();
-    });
   });
 });

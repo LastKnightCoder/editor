@@ -6,6 +6,7 @@ import {
   CreateVibeLearningProject,
   UpdateVibeLearningProject,
 } from "@/types";
+import type { ContextLineageItem } from "@/types/entity-context";
 
 export const createVibeLearningProject = async (
   payload: CreateVibeLearningProject
@@ -38,3 +39,8 @@ export const recordVibeLearningProjectOpen = async (
 ): Promise<void> => {
   await invoke("vibe-learning-project:record-open", id, item ?? null);
 };
+
+/** 由什么立项（问题、卡片、插件内容等）；没有或来源已删除时为 null */
+export async function getVibeLearningProjectSource(id: number): Promise<ContextLineageItem | null> {
+  return invoke("vibe-learning-project:source", id);
+}

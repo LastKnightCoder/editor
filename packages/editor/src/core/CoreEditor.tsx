@@ -52,6 +52,8 @@ import {
 } from "./plugins";
 import { withIngest, resolveFileDropPoint } from "./plugins/withIngest";
 import { withCaretAffinity } from "./plugins/withCaretAffinity";
+import { withInputRules } from "./kit/inputRules";
+import { registerUndoStepSplitter } from "./utils/undoStep";
 import type { AnyExtension } from "./api/legacy";
 import type { EditorRef } from "./types/editor";
 
@@ -274,9 +276,13 @@ const Index = memo(
 
       const finalEditor = withUnknownElements(
         withIngest(
-          withElementBehaviors(
-            applyGuardedPlugins(processedEditor, assembly.pluginGroups, breaker),
-            assembly.behaviors,
+          withInputRules(
+            withElementBehaviors(
+              applyGuardedPlugins(processedEditor, assembly.pluginGroups, breaker),
+              assembly.behaviors,
+              breaker
+            ),
+            assembly.inputRules,
             breaker
           ),
           assembly.ingestSources,
@@ -298,6 +304,12 @@ const Index = memo(
       // 若延迟到 useEffect 挂载，首次渲染时方法尚不存在
       const initialBinding = bindingRef.current;
       const slateEditor = initialBinding ? initialBinding.install(enhancedEditor) : enhancedEditor;
+      // 换源后撤销仍归当前文档源管，切分时读最新的 binding
+      if (externalHistory) {
+        registerUndoStepSplitter(slateEditor, () =>
+          bindingRef.current?.splitUndoStep?.(slateEditor)
+        );
+      }
       withNormalizedCopy(slateEditor, assembly.copyPolicies, breaker);
       bindElementResources(slateEditor, assembly.resources);
       initializeSubmissionScope(slateEditor);

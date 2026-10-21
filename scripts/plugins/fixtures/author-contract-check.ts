@@ -2,8 +2,14 @@
 import {
   ContentEditor,
   ContentPreview,
+  EntityRef,
   defineEditorElement,
+  EDITOR_NODE_SCHEMA_VERSION,
+  PLUGIN_NOTEBOOK_FROM_KINDS,
+  PLUGIN_CHAT_CONTEXT_KINDS,
   type EditorElementRenderProps,
+  type PluginOpenOptions,
+  type ContentEditorKit,
 } from "@tau/plugins";
 import { createElement } from "react";
 import type {
@@ -20,6 +26,9 @@ export function checkPageContextContract({ pageContext }: PluginPageProps) {
   void structured.dispose();
   const text = api.register(() => "任意文本");
   void text.dispose();
+  const active: boolean = api.isActive();
+  const drawer = api.registerDismiss(() => console.log("关闭抽屉", active));
+  void drawer.dispose();
 }
 
 export function checkNotificationsContract(context: PluginContext) {
@@ -97,8 +106,27 @@ export async function checkDataContract(context: PluginContext) {
       if (event.origin.kind === "plugin") void event.origin.pluginId;
     })
   );
-  const selected = await context.app.pick({ kinds: ["card", "document"], multiple: true });
+  context.register(
+    context.events.on(["whiteboard.updated", "material.deleted", "chat.created"], event => {
+      void event.id;
+    })
+  );
+  context.register(
+    context.events.on("entity.deleted", event => {
+      if (event.kind === "note") void event.id;
+    })
+  );
+  const selected = await context.app.pick({
+    kinds: ["card", "document", "material", "chat-session", "notebook"],
+    multiple: true,
+  });
   if (selected[0]) await context.app.open(selected[0].ref);
+  for (const state of await context.app.describe(selected.map(item => item.ref))) {
+    if (state.status === "ok") void state.title;
+    else if (state.status === "denied" && state.permission)
+      await context.permissions.request([state.permission]);
+  }
+  if (selected[0]) createElement(EntityRef, { target: selected[0].ref, openable: false });
   context.register(
     context.entities.registerKind({
       kind: "note",
@@ -107,18 +135,89 @@ export async function checkDataContract(context: PluginContext) {
       mentionable: true,
     })
   );
-  const entity = await context.entities.create({ kind: "note", key: "example" });
-  const content = await context.content.read(entity.contentRef);
-  if (content) {
+  const entity = await context.entities.create({
+    kind: "note",
+    key: "example",
+    content: { markdown: "# 示例" },
+  });
+  const content = await context.content.read(entity.contentRef, { format: "nodes" });
+  if (content?.nodes) {
+    const nodeVersion: number | undefined = content.schemaVersion;
+    void (nodeVersion === EDITOR_NODE_SCHEMA_VERSION);
     await context.content.edit(
       entity.contentRef,
-      { op: "append", markdown: "正文" },
+      { op: "append", content: { nodes: content.nodes } },
       { expectedRevision: content.revision }
     );
   }
+  await context.data.cards.create({ content: { copyOf: entity.contentRef }, tags: ["示例"] });
+  const board = await context.data.whiteboards.create({ title: "示例", tags: ["示例"] });
+  await context.data.whiteboards.update(
+    board.id,
+    { description: "" },
+    { expectedRevision: board.revision }
+  );
+  const project = await context.data.projects.create({ title: "示例" });
+  const projects = await context.data.projects.query({ sort: "created", limit: 1 });
+  void (projects.items[0]?.documentCount === project.documentCount);
+  await context.app.open({ kind: "whiteboard", id: board.id });
+  const tree = await context.data.projects.tree(project.id);
+  const doc = await context.data.documents.create({
+    projectId: project.id,
+    ...(tree?.[0] ? { parentId: tree[0].documentId } : {}),
+    title: "示例",
+    content: { markdown: "正文" },
+  });
+  const { revision } = await context.data.documents.move(
+    doc.id,
+    { projectId: project.id, from: tree?.[0]?.documentId ?? null, to: null, index: 0 },
+    { expectedRevision: doc.revision }
+  );
+  await context.data.documents.delete(doc.id, { expectedRevision: revision });
+  await context.data.projects.delete(project.id, { expectedRevision: project.revision });
+  await context.data.whiteboards.delete(board.id, { expectedRevision: board.revision });
+  const notebooks = await context.data.notebooks.query({ sort: "created", limit: 1 });
+  const resources = notebooks.items[0]
+    ? await context.data.notebooks.resources(notebooks.items[0].id)
+    : null;
+  const fromRefs = resources?.flatMap(resource => resource.from ?? []) ?? [];
+  await context.app.describe(fromRefs);
+  const material = await context.data.materials.get("excerpt:1");
+  if (material) console.log(material.kind, material.quote, material.source, material.url);
+  const chats = await context.data.chats.query({ updatedAfter: 0 });
+  for (const chat of chats.items) console.log(chat.scene, chat.messageCount);
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
+  const compact: ContentEditorKit = "compact";
+  createElement(ContentEditor, { contentRef: entity.contentRef, kit: compact });
+  createElement(ContentPreview, { contentRef: entity.contentRef, kit: compact });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });
+  const created = await context.app.run("card.create", {
+    content: { copyOf: entity.contentRef },
+    tags: ["示例"],
+  });
+  if (created) await context.app.open(created);
+  const inserted = await context.app.run("project.insertDocument", {
+    content: { copyOf: entity.contentRef },
+    title: entity.title,
+  });
+  if (inserted?.kind === "document") await context.app.describe([inserted]);
+  const notebook = await context.app.run("notebook.create", {
+    title: entity.title,
+    sources: [{ kind: "plugin-entity", id: entity.id }],
+    from: { kind: "plugin-entity", id: entity.id },
+  });
+  if (notebook) await context.data.notebooks.resources(notebook.id);
+  if (PLUGIN_NOTEBOOK_FROM_KINDS.includes("card")) console.log("card 可作为来源");
+  const chat = await context.app.run("chat.start", {
+    prompt: `围绕「${entity.title}」聊聊`,
+    context: cards.items.slice(0, 1).map(card => ({ kind: "card" as const, id: card.id })),
+    placement: "dock",
+  });
+  if (chat && PLUGIN_CHAT_CONTEXT_KINDS.includes("card"))
+    await context.app.open(chat, { placement: "dock" });
+  const located: PluginOpenOptions = { at: { block: 0 } };
+  await context.app.open({ kind: "plugin-entity", id: entity.id }, located);
   await context.entities.backlinks(entity.id);
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }

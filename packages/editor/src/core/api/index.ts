@@ -20,6 +20,7 @@ export {
 export type { AnyExtension } from "./legacy";
 export type { CopyDecision, CopyContext, ElementCopy } from "./copy";
 export type { MarkSpec, MarkRenderProps, DecorationSpec } from "./marks";
+export type { InputRule, MarkInputRule, InlineInputRule } from "./inputRules";
 export { useToolbarState } from "./toolbar";
 export { default as ToolbarSubmenu } from "../components/HoveringToolbar/FloatingSubmenu";
 export { Tooltip as EditorTooltip } from "../ui/Tooltip";

@@ -16,12 +16,73 @@ const mocks = vi.hoisted(() => ({
   present: vi.fn(),
   pdf: vi.fn(),
   share: vi.fn(),
+  grant: vi.fn(async () => 1),
+  describe: vi.fn(),
+  chat: vi.fn(),
+  openMaterial: vi.fn(),
+  resolveContent: vi.fn(),
+  createCard: vi.fn(),
+  insertDocument: vi.fn(),
+  planNotebook: vi.fn(),
+  createNotebook: vi.fn(),
+  startChat: vi.fn(),
+  editorWindow: vi.fn(),
+  dock: vi.fn(),
+}));
+vi.mock("@/features/chat/chatStart", () => ({ startChat: mocks.startChat }));
+vi.mock("@/services/notebook-creation", () => ({
+  createNotebookWithResources: mocks.createNotebook,
+  notebookPlanImpact: () => "带入 2 份资料",
+}));
+vi.mock("@/components/InsertNoteToTreeModal", () => ({
+  default: (props: {
+    noteTitle: string;
+    noteContent: unknown;
+    onSuccess: (item: { id: number } | null) => void;
+    onCancel: () => void;
+  }) => {
+    mocks.insertDocument(props.noteTitle, props.noteContent);
+    return (
+      <>
+        <button onClick={() => props.onSuccess({ id: 31 })}>插入文档</button>
+        <button onClick={props.onCancel}>取消插入</button>
+      </>
+    );
+  },
 }));
 vi.mock("@/commands/plugin-data", () => ({
   pluginRefExists: mocks.exists,
   readPluginContent: mocks.read,
   getPluginData: mocks.getData,
+  grantPluginRefs: mocks.grant,
+  describePluginRefs: mocks.describe,
+  resolvePluginContentInput: mocks.resolveContent,
+  planPluginNotebook: mocks.planNotebook,
 }));
+vi.mock("@/features/cards/components/CreateCardDialog", () => ({
+  CreateCardDialog: (props: {
+    initial: unknown;
+    onCreated: (card: { id: number }) => void;
+    onClose: () => void;
+  }) => {
+    mocks.createCard(props.initial);
+    return (
+      <>
+        <button
+          onClick={() => {
+            props.onCreated({ id: 21 });
+            props.onClose();
+          }}
+        >
+          保存卡片
+        </button>
+        <button onClick={props.onClose}>取消新建</button>
+      </>
+    );
+  },
+}));
+vi.mock("@/commands/chat-session", () => ({ getChatSession: mocks.chat }));
+vi.mock("@/services/open-material", () => ({ openMaterial: mocks.openMaterial }));
 vi.mock("@/services/content-transfer", () => ({ exportContentAsMarkdown: mocks.exportMarkdown }));
 vi.mock("@/components/PresentationMode", () => ({
   default: (props: { content: unknown; onExit: () => void }) => {
@@ -53,6 +114,8 @@ vi.mock("@/commands/entity", () => ({ locateEntity: mocks.locate }));
 vi.mock("@/commands", () => ({ searchEntities: mocks.search }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
+vi.mock("@/commands/window", () => ({ openEditorWindow: mocks.editorWindow }));
+vi.mock("@/features/chat/openInDock", () => ({ openChatInDock: mocks.dock }));
 
 import { createDesktopApp, usePluginPickerUi } from "../app";
 import { PluginEntityPickerHost } from "@/features/plugins/permissions/PluginEntityPickerHost";
@@ -60,6 +123,7 @@ import { PluginContentActionHost } from "@/features/plugins/permissions/PluginCo
 import { usePluginActionUi } from "../app";
 
 const plugin = { id: "canvas", name: "画布" };
+const PAGE = { placement: "page" } as const;
 const context = () =>
   ({ pluginId: plugin.id, signal: new AbortController().signal }) as PluginContext;
 const setActivation = (isActive: boolean | undefined) =>
@@ -72,6 +136,7 @@ describe("插件选择与打开", () => {
   beforeEach(() => {
     Object.values(mocks).forEach(mock => mock.mockReset());
     mocks.exists.mockResolvedValue(true);
+    mocks.grant.mockResolvedValue(1);
     setActivation(true);
     usePluginPickerUi.setState({ request: null });
   });
@@ -79,10 +144,10 @@ describe("插件选择与打开", () => {
 
   it("按类型打开对应页面", async () => {
     const app = createDesktopApp("data.db");
-    await app.open(context(), { kind: "card", id: "3" });
-    await app.open(context(), { kind: "whiteboard", id: "5" });
-    await app.open(context(), { kind: "todo", id: "todo:4:9@2026-10-21" });
-    await app.open(context(), { kind: "event", id: "7:100" });
+    await app.open(context(), { kind: "card", id: "3" }, PAGE);
+    await app.open(context(), { kind: "whiteboard", id: "5" }, PAGE);
+    await app.open(context(), { kind: "todo", id: "todo:4:9@2026-10-21" }, PAGE);
+    await app.open(context(), { kind: "event", id: "7:100" }, PAGE);
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "card", id: 3 });
     expect(mocks.openPage.mock.calls).toEqual([
       ["whiteboard-detail", { id: 5 }],
@@ -91,9 +156,74 @@ describe("插件选择与打开", () => {
     ]);
   });
 
+  it("项目、Notebook、材料、主对话与插件内容按各自入口打开，其他场景的对话不能单独打开", async () => {
+    const app = createDesktopApp("data.db");
+    mocks.chat.mockResolvedValueOnce({ scope: "main-chat" }).mockResolvedValueOnce({
+      scope: "pdf-chat",
+    });
+    await app.open(context(), { kind: "project", id: "2" }, PAGE);
+    await app.open(context(), { kind: "notebook", id: "6" }, PAGE);
+    await app.open(context(), { kind: "material", id: "pdf-annotation:9" }, PAGE);
+    await app.open(context(), { kind: "chat-session", id: "s1" }, PAGE);
+    await app.open(context(), { kind: "plugin-entity", id: "4" }, PAGE);
+    await expect(app.open(context(), { kind: "chat-session", id: "s2" }, PAGE)).rejects.toThrow(
+      "不能单独打开"
+    );
+    expect(mocks.openPage.mock.calls).toEqual([
+      ["project-detail", { id: 2 }],
+      ["vibe-learning-detail", { id: 6 }],
+      ["chat", { id: "s1" }],
+    ]);
+    expect(mocks.openMaterial).toHaveBeenCalledWith({ kind: "pdf-annotation", id: 9 });
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "plugin-entity", id: 4 });
+  });
+
+  it("打开位置与定位：独立窗口、停靠栏的主对话、正文定位", async () => {
+    const app = createDesktopApp("data.db");
+    mocks.chat.mockResolvedValue({ scope: "main-chat" });
+    await app.open(context(), { kind: "document", id: "31" }, { placement: "window" });
+    await app.open(context(), { kind: "chat-session", id: "s1" }, { placement: "dock" });
+    await app.open(
+      context(),
+      { kind: "article", id: "5" },
+      { placement: "page", at: { block: 3 } }
+    );
+    expect(mocks.editorWindow).toHaveBeenCalledWith({
+      kind: "project-item",
+      databaseName: "data.db",
+      id: 31,
+    });
+    expect(mocks.dock).toHaveBeenCalledWith("s1");
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 5 }, { at: { block: 3 } });
+    expect(mocks.openPage).not.toHaveBeenCalled();
+    await expect(
+      app.open(context(), { kind: "whiteboard", id: "5" }, { placement: "window" })
+    ).rejects.toThrow("独立窗口");
+  });
+
+  it("describe 按插件与已获准的类型交给主进程", async () => {
+    mocks.describe.mockResolvedValue([{ status: "ok", title: "课题" }]);
+    const result = await createDesktopApp("data.db").describe(
+      context(),
+      [{ kind: "project", id: "2" }],
+      ["project"]
+    );
+    expect(result).toEqual([{ status: "ok", title: "课题" }]);
+    expect(mocks.describe).toHaveBeenCalledWith(
+      "data.db",
+      plugin.id,
+      [{ kind: "project", id: "2" }],
+      ["project"]
+    );
+  });
+
   it("正文里的待办打开所在文档并定位到勾选项", async () => {
     mocks.locate.mockResolvedValue({ kind: "project_item", id: 12 });
-    await createDesktopApp("data.db").open(context(), { kind: "todo", id: "document:8:1:t-1" });
+    await createDesktopApp("data.db").open(
+      context(),
+      { kind: "todo", id: "document:8:1:t-1" },
+      PAGE
+    );
     expect(mocks.locate).toHaveBeenCalledWith({ contentId: 8 });
     expect(mocks.openEntity).toHaveBeenCalledWith(
       { kind: "project-item", id: 12 },
@@ -104,9 +234,11 @@ describe("插件选择与打开", () => {
   it("内容不存在或不是用户操作时拒绝", async () => {
     const app = createDesktopApp("data.db");
     mocks.exists.mockResolvedValueOnce(false);
-    await expect(app.open(context(), { kind: "card", id: "3" })).rejects.toThrow("内容不存在");
+    await expect(app.open(context(), { kind: "card", id: "3" }, PAGE)).rejects.toThrow(
+      "内容不存在"
+    );
     setActivation(false);
-    await expect(app.open(context(), { kind: "card", id: "3" })).rejects.toThrow("用户点击");
+    await expect(app.open(context(), { kind: "card", id: "3" }, PAGE)).rejects.toThrow("用户点击");
     expect(() =>
       app.pick(context(), plugin, { kinds: ["card"], multiple: false, title: "选" })
     ).toThrow("用户点击");
@@ -150,6 +282,10 @@ describe("插件选择与打开", () => {
       );
       await act(async () => row?.click());
       expect(await picking).toEqual([{ ref: { kind: "todo", id: "todo:4:9" }, title: "交周报" }]);
+      // 用户选中的内容登记为该插件可读取标题的引用
+      expect(mocks.grant).toHaveBeenCalledWith("data.db", plugin.id, [
+        { kind: "todo", id: "todo:4:9" },
+      ]);
 
       const cancelled = app.pick(context(), plugin, {
         kinds: ["card"],
@@ -158,6 +294,7 @@ describe("插件选择与打开", () => {
       });
       await act(async () => usePluginPickerUi.getState().request?.settle([]));
       expect(await cancelled).toEqual([]);
+      expect(mocks.grant).toHaveBeenCalledTimes(1);
       expect(usePluginPickerUi.getState().request).toBeNull();
     } finally {
       act(() => view.unmount());
@@ -192,37 +329,52 @@ describe("插件选择与打开", () => {
       expect(usePluginActionUi.getState().request).toBeNull();
     });
 
-    it("导出、演示与协作打开宿主界面，关闭或插件停用即撤下", async () => {
+    const mount = async () => {
       const host = document.createElement("div");
       document.body.append(host);
       const view = createRoot(host);
       await act(async () => view.render(<PluginContentActionHost />));
-      const app = createDesktopApp("data.db");
       const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 50)));
+      // 弹窗经 Portal 渲染到 body
       const click = (label: string) =>
         act(async () =>
-          [...host.querySelectorAll("button")].find(item => item.textContent === label)?.click()
+          [...document.querySelectorAll("button")].find(item => item.textContent === label)?.click()
         );
+      const unmount = () => {
+        act(() => view.unmount());
+        host.remove();
+      };
+      return { host, settle, click, unmount };
+    };
+
+    it("导出、演示与协作打开宿主界面，关闭后才返回，插件停用即撤下", async () => {
+      const { host, settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
       try {
-        await act(async () =>
-          app.run(context(), plugin, { action: "content.export", ref: "8:100", format: "pdf" })
-        );
+        let finished = false;
+        const exported = app
+          .run(context(), plugin, { action: "content.export", ref: "8:100", format: "pdf" })
+          .then(() => (finished = true));
         await settle();
         expect(mocks.pdf).toHaveBeenCalledWith("读书笔记");
+        expect(finished).toBe(false);
         await click("关闭导出");
+        await exported;
         expect(usePluginActionUi.getState().request).toBeNull();
 
-        await act(async () =>
-          app.run(context(), plugin, { action: "content.present", ref: "8:100" })
-        );
+        const presented = app.run(context(), plugin, { action: "content.present", ref: "8:100" });
         await settle();
         expect(mocks.present).toHaveBeenCalledWith(nodes);
+        // 同一时间只能打开一个
+        await expect(
+          app.run(context(), plugin, { action: "content.share", ref: "8:100" })
+        ).rejects.toThrow("请先完成或关闭");
         await click("退出演示");
-        expect(usePluginActionUi.getState().request).toBeNull();
+        await presented;
 
         const controller = new AbortController();
         const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
-        await act(async () => app.run(live, plugin, { action: "content.share", ref: "8:100" }));
+        const shared = app.run(live, plugin, { action: "content.share", ref: "8:100" });
         await settle();
         expect(mocks.share).toHaveBeenCalledWith(8, {
           sourceType: "card",
@@ -230,11 +382,183 @@ describe("插件选择与打开", () => {
           sourceTitle: "读书笔记",
         });
         await act(async () => controller.abort());
+        await shared;
         expect(usePluginActionUi.getState().request).toBeNull();
         expect(host.textContent).toBe("");
       } finally {
-        act(() => view.unmount());
-        host.remove();
+        unmount();
+      }
+    });
+
+    it("发起对话：上下文转成输入框引用，首次发送后返回对话引用，未发送返回 null", async () => {
+      const app = createDesktopApp("data.db");
+      mocks.getData.mockResolvedValue({ title: "读书笔记", contentId: 8 });
+      mocks.startChat.mockResolvedValueOnce("s1").mockResolvedValueOnce(null);
+      const live = context();
+      expect(
+        await app.run(live, plugin, {
+          action: "chat.start",
+          prompt: "聊聊",
+          context: [{ kind: "document", id: "31" }],
+          placement: "dock",
+        })
+      ).toEqual({ kind: "chat-session", id: "s1" });
+      expect(mocks.getData.mock.calls[0].slice(1)).toEqual(["document", 31]);
+      expect(mocks.startChat).toHaveBeenCalledWith(
+        {
+          placement: "dock",
+          prompt: "聊聊",
+          mentions: [
+            {
+              entityType: "project-item",
+              entityId: 31,
+              contentId: 8,
+              title: "读书笔记",
+              previewText: "",
+            },
+          ],
+        },
+        live.signal
+      );
+      expect(
+        await app.run(context(), plugin, {
+          action: "chat.start",
+          prompt: "",
+          context: [],
+          placement: "page",
+        })
+      ).toBeNull();
+      mocks.getData.mockResolvedValueOnce(null);
+      await expect(
+        app.run(context(), plugin, {
+          action: "chat.start",
+          prompt: "",
+          context: [{ kind: "card", id: "9" }],
+          placement: "page",
+        })
+      ).rejects.toThrow("内容不存在");
+    });
+
+    it("新建 Notebook：核对来源，确认框带资料计划，确认后返回引用，取消返回 null", async () => {
+      const { settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
+      const plan = { notes: [], excerpts: [{ kind: "excerpt", id: 2 }], clips: [], skipped: 1 };
+      mocks.planNotebook.mockResolvedValue(plan);
+      mocks.createNotebook.mockResolvedValue({ projectId: 6, failed: 0 });
+      try {
+        const created = app.run(context(), plugin, {
+          action: "notebook.create",
+          title: "土地财政",
+          sources: [{ kind: "material", id: "excerpt:2" }],
+          from: { kind: "plugin-entity", id: "9" },
+        });
+        await settle();
+        expect(mocks.exists).toHaveBeenCalledWith("data.db", "plugin-entity", "9");
+        expect(mocks.planNotebook).toHaveBeenCalledWith("data.db", [
+          { kind: "material", id: "excerpt:2" },
+        ]);
+        expect(document.body.textContent).toContain("带入 2 份资料");
+        await click("新建");
+        expect(await created).toEqual({ kind: "notebook", id: "6" });
+        expect(mocks.createNotebook).toHaveBeenCalledWith({
+          title: "土地财政",
+          plan,
+          from: { kind: "plugin-entity", id: 9 },
+          mainDbName: "data.db",
+        });
+
+        const cancelled = app.run(context(), plugin, {
+          action: "notebook.create",
+          title: "空课题",
+          sources: [],
+        });
+        await settle();
+        await click("取消");
+        expect(await cancelled).toBeNull();
+
+        mocks.exists.mockResolvedValueOnce(false);
+        await expect(
+          app.run(context(), plugin, {
+            action: "notebook.create",
+            title: "x",
+            sources: [],
+            from: { kind: "card", id: "1" },
+          })
+        ).rejects.toThrow("来源不存在");
+      } finally {
+        unmount();
+      }
+    });
+
+    it("插入到项目：复制解析后的正文，插入后返回项目文档引用，取消返回 null", async () => {
+      const { settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
+      mocks.resolveContent.mockResolvedValue(nodes);
+      try {
+        const inserted = app.run(context(), plugin, {
+          action: "project.insertDocument",
+          content: { copyOf: "8:100" },
+          title: "读书笔记",
+        });
+        await settle();
+        expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", {
+          copyOf: { contentId: 8, createdAt: 100 },
+        });
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith("读书笔记", nodes);
+        await click("插入文档");
+        expect(await inserted).toEqual({ kind: "document", id: "31" });
+
+        const cancelled = app.run(context(), plugin, {
+          action: "project.insertDocument",
+          content: { markdown: "" },
+        });
+        await settle();
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith("未命名文档", expect.any(Array));
+        await click("取消插入");
+        expect(await cancelled).toBeNull();
+        expect(usePluginActionUi.getState().request).toBeNull();
+      } finally {
+        unmount();
+      }
+    });
+
+    it("新建卡片：预填解析后的正文与标签，保存返回卡片引用，取消或停用返回 null", async () => {
+      const { settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
+      mocks.resolveContent.mockResolvedValue(nodes);
+      try {
+        const saved = app.run(context(), plugin, {
+          action: "card.create",
+          content: { markdown: "正文" },
+          tags: ["读书"],
+        });
+        await settle();
+        expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", { markdown: "正文" });
+        expect(mocks.createCard).toHaveBeenLastCalledWith({ content: nodes, tags: ["读书"] });
+        await click("保存卡片");
+        expect(await saved).toEqual({ kind: "card", id: "21" });
+        expect(usePluginActionUi.getState().request).toBeNull();
+
+        // 不带正文时不解析，预填空卡片
+        const cancelled = app.run(context(), plugin, { action: "card.create" });
+        await settle();
+        expect(mocks.resolveContent).toHaveBeenCalledTimes(1);
+        expect(mocks.createCard).toHaveBeenLastCalledWith({
+          content: expect.any(Array),
+          tags: [],
+        });
+        await click("取消新建");
+        expect(await cancelled).toBeNull();
+
+        const controller = new AbortController();
+        const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
+        const aborted = app.run(live, plugin, { action: "card.create" });
+        await settle();
+        await act(async () => controller.abort());
+        expect(await aborted).toBeNull();
+        expect(usePluginActionUi.getState().request).toBeNull();
+      } finally {
+        unmount();
       }
     });
 

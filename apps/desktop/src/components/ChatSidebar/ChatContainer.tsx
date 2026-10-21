@@ -67,6 +67,7 @@ import { useChatEntryLocation } from "./useChatEntryLocation";
 import {
   COMPOSER_ANCHOR_ATTR,
   type ChatMessageType as CoreChatMessageType,
+  type MentionRef,
   type MessageContentItem,
   useChatAutoScroll,
 } from "@tau/shared";
@@ -193,6 +194,8 @@ export type ChatContainerHandle = {
   scrollToTop: () => void;
   focusInput: () => void;
   setInputValue: (value: string) => void;
+  /** 在输入框末尾插入引用（与拖入内容相同） */
+  appendMentions: (mentions: MentionRef[]) => void;
   sendUserMessage: (content: MessageContentItem[]) => Promise<boolean>;
 };
 
@@ -879,6 +882,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       },
       setInputValue: (value: string) => {
         editTextRef.current?.setValue(value);
+      },
+      appendMentions: (mentions: MentionRef[]) => {
+        for (const mention of mentions) editTextRef.current?.appendMention?.(mention);
       },
       sendUserMessage: async (content: MessageContentItem[]) => {
         return await submitMessageContent(content);

@@ -87,8 +87,9 @@ export const textFormattingCodec: MarkdownTextCodec = {
     if (leaf.textGradient) wrap(":gradient[", `]{preset=${leaf.textGradient}}`);
     else if (leaf.color && leaf.darkColor)
       wrap(":color[", `]{color=${leaf.color} darkColor=${leaf.darkColor}}`);
-    if (leaf.highlight && typeof leaf.highlight === "string")
-      wrap(":highlight[", `]{color=${leaf.highlight}}`);
+    // 布尔高亮与渲染口径一致，按默认黄色导出
+    if (leaf.highlight)
+      wrap(":highlight[", `]{color=${leaf.highlight === true ? "yellow" : leaf.highlight}}`);
     return { prefix, suffix };
   },
 };

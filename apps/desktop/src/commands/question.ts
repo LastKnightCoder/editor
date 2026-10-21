@@ -343,13 +343,6 @@ export async function unlinkQuestionChat(
   return removed;
 }
 
-/** Notebook 由哪个问题立项（谱系 upgraded_to）；没有或问题已删除时为 null */
-export async function getNotebookSourceQuestion(
-  projectId: number
-): Promise<{ id: number; title: string } | null> {
-  return invoke("question:source-of-notebook", projectId);
-}
-
 export async function reorderQuestionLinks(questionId: number, linkIds: number[]): Promise<number> {
   return invoke("question:reorder-links", questionId, linkIds);
 }

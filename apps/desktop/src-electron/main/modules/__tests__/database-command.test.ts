@@ -50,7 +50,7 @@ it("正式命令分发等待内容转换时不持有事务，并发命令失败�
     db,
     handlers["plugin-data:create"],
     db,
-    { ...scope, entity: "card", input: { markdown: "正文" } },
+    { ...scope, entity: "card", input: { content: { markdown: "正文" } } },
     context
   );
   expect(db.inTransaction).toBe(false);
@@ -80,7 +80,7 @@ it("异步转换后的同步写入失败时，正文、卡片和操作记录共�
       db,
       handlers["plugin-data:create"],
       db,
-      { ...scope, entity: "card", input: { markdown: "正文" } },
+      { ...scope, entity: "card", input: { content: { markdown: "正文" } } },
       context
     )
   ).rejects.toThrow("拒绝卡片写入");
@@ -95,7 +95,7 @@ it("转换期间另一个命令修改正文时拒绝旧修订，不覆盖已经�
     db,
     handlers["plugin-data:create"],
     db,
-    { ...scope, entity: "card", input: { markdown: "原文" } },
+    { ...scope, entity: "card", input: { content: { markdown: "原文" } } },
     context
   );
   const row = db.prepare("SELECT create_time FROM contents WHERE id=?").get(card.contentId) as {
@@ -119,7 +119,7 @@ it("转换期间另一个命令修改正文时拒绝旧修订，不覆盖已经�
     db,
     {
       ...target,
-      edit: { op: "append", markdown: "迟到转换" },
+      edit: { op: "append", content: { markdown: "迟到转换" } },
       expectedRevision: snapshot!.revision,
     },
     context

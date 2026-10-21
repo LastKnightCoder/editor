@@ -59,7 +59,7 @@ describe("WhiteBoardContentTable content ref counting", () => {
       } as any,
     });
     WhiteBoardContentTable.deleteWhiteboard(db, board.id);
-    WhiteBoardContentTable.deleteWhiteBoardContentWhenRefCountIsZero(db);
+    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
     expect(
       db.prepare("SELECT id FROM white_board_contents WHERE id=?").get(board.id)
     ).toBeUndefined();
@@ -139,5 +139,53 @@ describe("WhiteBoardContentTable content ref counting", () => {
     });
 
     expect(ContentTable.getContentById(db, contentId)?.refCount).toBe(1);
+  });
+});
+
+describe("白板页延迟回收", () => {
+  let db: Database.Database;
+  beforeEach(() => {
+    db = new Database(":memory:");
+    db.exec(MAIN_SCHEMA_SQL);
+  });
+  afterEach(() => db.close());
+
+  const page = () =>
+    WhiteBoardContentTable.createWhiteboardContent(db, {
+      name: "页",
+      data: { children: [] },
+      imgUrl: "",
+    } as never).id;
+  const exists = (id: number) =>
+    Boolean(db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?").get(id));
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("引用归零只登记，超过宽限期才删除；期间重新引用即撤销登记", () => {
+    const released = page();
+    const revived = page();
+    WhiteBoardContentTable.deleteWhiteboard(db, released);
+    WhiteBoardContentTable.deleteWhiteboard(db, revived);
+    WhiteBoardContentTable.incrementRefCount(db, revived);
+    expect(
+      WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: DAY })
+    ).toBe(0);
+    expect(exists(released)).toBe(true);
+    expect(
+      WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now() + 2 * DAY, graceMs: DAY })
+    ).toBe(1);
+    expect(exists(released)).toBe(false);
+    expect(exists(revived)).toBe(true);
+  });
+
+  it("登记机制出现前遗留的零引用页先补登记，等满宽限期再删", () => {
+    const legacy = page();
+    db.prepare("UPDATE white_board_contents SET ref_count = 0 WHERE id = ?").run(legacy);
+    const now = Date.now();
+    expect(WhiteBoardContentTable.collectPendingReleases(db, { now, graceMs: DAY })).toBe(0);
+    expect(exists(legacy)).toBe(true);
+    expect(
+      WhiteBoardContentTable.collectPendingReleases(db, { now: now + DAY, graceMs: DAY })
+    ).toBe(1);
+    expect(exists(legacy)).toBe(false);
   });
 });

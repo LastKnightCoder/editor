@@ -5,7 +5,7 @@
 1. [权限](#权限)：访问用户数据前必须了解的授权方式。
 2. [读取](#读取)、[修改与删除](#修改与删除)、[读写正文](#读写正文)、[订阅变化](#订阅变化)。
 3. [选择并打开已有内容](#选择并打开已有内容)：不需要权限，让用户亲手挑选。
-4. [嵌入正文编辑器](#嵌入正文编辑器)和[导出、演示与共享](#导出演示与共享)。
+4. [嵌入正文编辑器](#嵌入正文编辑器)和[Tau 的界面动作](#tau-的界面动作)。
 5. [插件内容](#插件内容)：插件自己创建的、带正文的内容。
 
 ## 权限
@@ -18,15 +18,21 @@
 { "permissions": ["cards:read", "todos:read", "todos:write"] }
 ```
 
-| 权限                                                 | 允许                                                 |
-| ---------------------------------------------------- | ---------------------------------------------------- |
-| `cards:read`、`articles:read`、`documents:read`      | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
-| `cards:write`、`articles:write`、`documents:write`   | 新建（项目文档除外）、修改，以及修改正文             |
-| `cards:delete`、`articles:delete`                    | 删除                                                 |
-| `todos:read`、`todos:write`、`todos:delete`          | 读取、新建与修改、删除待办                           |
-| `calendar:read`、`calendar:write`、`calendar:delete` | 读取、新建与修改、删除日程                           |
-| `flashcards:read`、`flashcards:write`                | 闪卡，见[闪卡](flashcards.md)                        |
-| `ai:<能力名>`                                        | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
+| 权限                                                  | 允许                                                 |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| `cards:read`、`articles:read`、`documents:read`       | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
+| `cards:write`、`articles:write`、`documents:write`    | 新建、修改，以及修改正文；项目文档还包括在项目内移动 |
+| `cards:delete`、`articles:delete`、`documents:delete` | 删除                                                 |
+| `todos:read`、`todos:write`、`todos:delete`           | 读取、新建与修改、删除待办                           |
+| `calendar:read`、`calendar:write`、`calendar:delete`  | 读取、新建与修改、删除日程                           |
+| `whiteboards:read`、`projects:read`                   | 读取白板、项目的信息                                 |
+| `whiteboards:write`、`projects:write`                 | 新建和修改白板、项目（不含画板内容）                 |
+| `whiteboards:delete`、`projects:delete`               | 删除白板、空项目                                     |
+| `notebooks:read`                                      | 读取 Notebook 的信息和资料清单                       |
+| `materials:read`                                      | 读取划线、PDF 标注和剪藏的原文、想法与出处           |
+| `chats:read`                                          | 读取 AI 对话的信息，不含消息内容                     |
+| `flashcards:read`、`flashcards:write`                 | 闪卡，见[闪卡](flashcards.md)                        |
+| `ai:<能力名>`                                         | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
 
 ### 用户如何授权
 
@@ -118,6 +124,77 @@ const article = await context.data.articles.get(id); // 不存在时为 null
 
 列表只需要展示几条时，用 `limit` 和时间范围控制读取量，不要一次读完全部数据再筛选。
 
+### 白板与项目
+
+`context.data.whiteboards`、`context.data.projects` 同样提供 `get(id)` 和 `query(query)`，查询参数与上表相同；项目没有标签，不能按 `tag` 查询。
+
+```ts
+const boards = await context.data.whiteboards.query({ tag: "课题", limit: 20 });
+const projects = await context.data.projects.query({ sort: "created" });
+```
+
+| 类型 | 字段                                                                                                       |
+| ---- | ---------------------------------------------------------------------------------------------------------- |
+| 白板 | `id`、`revision`、`title`、`description`、`tags`、`pageCount`（画板页数）、`createdAt`、`updatedAt`        |
+| 项目 | `id`、`revision`、`title`、`archived`、`pinned`、`documentCount`（根目录文档数）、`createdAt`、`updatedAt` |
+
+- 画板内容不开放读写，由用户在 Tau 中编辑；白板的 `revision` 只随标题、说明和标签变化。
+- 项目的 `revision` 在改名、归档、置顶以及增删文档时都会变化。
+- 白板与项目的变化见「订阅变化」。
+
+### 项目目录
+
+`projects.tree(id)` 返回项目的文档目录，项目不存在时为 `null`：
+
+```ts
+const tree = await context.data.projects.tree(projectId);
+// [{ documentId, revision, title, kind, ref?, children: [...] }, ...]
+
+// 新建一篇文档，挂在某篇文档下；省略 parentId 时挂在根目录末尾
+const doc = await context.data.documents.create({
+  projectId,
+  parentId: tree![0].documentId,
+  title: "读书笔记",
+  content: { markdown: "第一段" },
+});
+
+// 把它移到根目录第一位
+await context.data.documents.move(
+  doc.id,
+  { projectId, from: tree![0].documentId, to: null, index: 0 },
+  { expectedRevision: doc.revision }
+);
+```
+
+- 同一篇文档可以挂在多处（多个父文档或多个项目下），这时它在目录里出现多次，`documentId` 相同。`move` 用 `from` 指明移动的是哪一处，`from`、`to` 为父文档 ID，`null` 表示根目录。
+- `move` 只在同一项目内移动；不能移到自己或自己的子文档下。`index` 是移动后的序号，从 0 开始，省略时放在末尾。返回文档的新 `revision`。
+- 引用卡片或文章的条目带 `ref`，它的正文归被引用的卡片或文章，`documents.get` 读不到这一项，但可以移动。
+- 读目录需要 `projects:read`，新建与移动需要 `documents:write`。
+
+### Notebook、材料与对话
+
+`context.data.notebooks`、`context.data.materials`、`context.data.chats` 只能读取，提供 `get(id)` 和 `query(query)`。查询参数与卡片相同，但不能按 `tag` 查询。
+
+```ts
+const notebooks = await context.data.notebooks.query({ limit: 20 });
+const resources = await context.data.notebooks.resources(notebooks.items[0].id);
+const material = await context.data.materials.get(ref.id); // 来自 pick 的 material 引用
+const chats = await context.data.chats.query({ updatedAfter: Date.now() - 7 * 86_400_000 });
+```
+
+| 类型     | 字段                                                                                                                          |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Notebook | `id`、`title`、`archived`、`pinned`、`resourceCount`（资料数）、`createdAt`、`updatedAt`                                      |
+| 资料     | `id`、`name`、`type`（`pdf`、`video`、`md` 等）、`source`、`url?`、`from?`、`size`、`duration`（秒）、`createdAt`             |
+| 材料     | `id`、`kind`（`excerpt`、`pdf-annotation`、`web-clip`）、`title`、`quote`、`note`、`source`、`url?`、`createdAt`、`updatedAt` |
+| 对话     | `id`、`title`、`scene`（`main`、`pdf`、`video-note`、`notebook`）、`messageCount`、`archived`、`createdAt`、`updatedAt`       |
+
+- `notebooks.resources(id)` 按 Notebook 中的顺序返回资料清单，Notebook 不存在时为 `null`。资料的 `source` 是 `local`（本机文件）、`remote`（网络链接，带 `url`）、`note`（加入时的笔记快照）、`material`（材料快照）或 `online-video`（在线视频）；来自笔记或材料的资料带 `from`，是原内容的引用，原内容可能已被删除。
+- 不开放：Notebook 的说明、资料的本机路径和转换后的文字、Notebook 里的笔记与测验，以及对话的消息内容。
+- 材料的 `id` 与 `pick` 得到的 `material` 引用 ID 相同。`quote` 是划下或标注的原文，剪藏为空；`source` 是给人看的出处，如「PDF · 文件名 · 第 3 页」。已删除的材料不返回。
+- 未命名的对话 `title` 为空字符串。
+- 三者的变化见「订阅变化」。
+
 ### 待办与日程
 
 ```ts
@@ -144,7 +221,10 @@ const events = await context.data.calendar.query({ start: "2026-10-19", end: "20
 ```ts
 import { PluginConflictError } from "@tau/plugins";
 
-const card = await context.data.cards.create({ markdown: "# 读书笔记\n\n第一段", tags: ["读书"] });
+const card = await context.data.cards.create({
+  content: { markdown: "# 读书笔记\n\n第一段" },
+  tags: ["读书"],
+});
 
 try {
   await context.data.cards.update(card.id, { pinned: true }, { expectedRevision: card.revision });
@@ -155,15 +235,18 @@ try {
 }
 ```
 
-| 接口                                     | 可以写的字段                                                               |
-| ---------------------------------------- | -------------------------------------------------------------------------- |
-| `cards.create` / `cards.update`          | 新建：`markdown`、`tags`、`pinned`；修改：`tags`、`pinned`                 |
-| `articles.create` / `articles.update`    | 新建：`title`（必填）、`markdown`、`tags`；修改：`title`、`tags`、`pinned` |
-| `documents.update`                       | `title`、`tags`。项目文档不支持新建、移动和删除                            |
-| `todos.create` / `todos.update`          | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）               |
-| `todos.setCompleted(id, completed, ...)` | 标记完成或未完成                                                           |
-| `calendar.create` / `calendar.update`    | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）        |
-| `*.delete(id, ...)`                      | 删除卡片、文章、待办、日程                                                 |
+| 接口                                                      | 可以写的字段                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `cards.create` / `cards.update`                           | 新建：`content`、`tags`、`pinned`；修改：`tags`、`pinned`                                            |
+| `articles.create` / `articles.update`                     | 新建：`title`（必填）、`content`、`tags`；修改：`title`、`tags`、`pinned`                            |
+| `documents.create` / `documents.update`                   | 新建：`projectId`、`parentId`（省略时挂在根目录）、`title`、`content`、`tags`；修改：`title`、`tags` |
+| `documents.move(id, { projectId, from, to, index }, ...)` | 在同一项目内移动，见「项目目录」                                                                     |
+| `whiteboards.create` / `whiteboards.update`               | `title`（新建时必填）、`description`、`tags`；新建的白板带一张空白画板页                             |
+| `projects.create` / `projects.update`                     | 新建：`title`（必填），得到空项目；修改：`title`、`archived`、`pinned`                               |
+| `todos.create` / `todos.update`                           | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）                                         |
+| `todos.setCompleted(id, completed, ...)`                  | 标记完成或未完成                                                                                     |
+| `calendar.create` / `calendar.update`                     | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）                                  |
+| `*.delete(id, ...)`                                       | 删除卡片、文章、白板、项目、项目文档、待办、日程，限制见下                                           |
 
 全天日程的 `start`、`end` 用 `YYYY-MM-DD`，且 `end` 不包含当天：一个只占 10 月 21 日的全天日程，`end` 是 `2026-10-22`。定时日程用带时区的 ISO 时间。
 
@@ -176,8 +259,38 @@ try {
 ### 写入后
 
 - 打开中的页面、其他窗口、搜索和云同步都会自动更新，插件不需要做任何通知。
-- 插件删除的卡片、文章、待办和日程，用户可以在 7 天内从插件详情页的「权限 → 最近删除」中恢复。
+- 插件删除的内容，用户可以在 7 天内从插件详情页的「权限 → 最近删除」中恢复。
+- 项目只能删除空项目，里面还有文档时会被拒绝。
+- 项目文档会从它挂载的所有位置删除，有子文档时会被拒绝，视频笔记不能由插件删除。恢复时挂回仍然存在的原位置。
 - 有子待办的待办不能删除。
+
+## 正文输入
+
+新建卡片、文章、插件内容，以及修改正文时，正文都用同一种写法 `content`，三选一：
+
+```ts
+// Markdown：适合 AI 生成或外部导入的文字
+await context.data.cards.create({ content: { markdown: "# 标题\n\n正文" } });
+
+// 编辑器节点：与 content.read({ format: "nodes" }) 读到的格式相同，格式完整保留
+const source = await context.content.read(card.contentRef, { format: "nodes" });
+await context.data.cards.create({ content: { nodes: source!.nodes! } });
+
+// 复制一份已有正文：Tau 内部整份复制，插件拿不到正文内容
+await context.data.articles.create({ title: "副本", content: { copyOf: card.contentRef } });
+```
+
+| 写法       | 什么时候用                                                                 | 注意                                                 |
+| ---------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `markdown` | 写入纯文字、AI 输出、外部导入                                              | 高亮、颜色、白板嵌入等 Markdown 表达不了的格式会丢失 |
+| `nodes`    | 把读到的正文改写后写回，或在多份正文之间搬运内容                           | 结构不对时报错并给出出错节点的路径                   |
+| `copyOf`   | 把一份正文完整复制到新卡片、新文章或插件内容里，例如「把这条笔记存为卡片」 | 只需要目标的写入权限，不需要来源的读取权限           |
+
+- `nodes` 只检查结构：顶层是元素，元素有 `type` 和非空的 `children`，文字节点有 `text`。Tau 不认识的节点类型（例如来自未安装的插件）原样保存，安装对应插件后即可正常显示。
+- `content.read({ format: "nodes" })` 的结果带 `schemaVersion`。节点结构有不兼容的变化时它会增加，插件可以与 `EDITOR_NODE_SCHEMA_VERSION` 比较，判断自己是否认得这些节点。
+- 正文中的待办勾选项由 Tau 维护身份，复制或搬运后各自独立，不需要插件处理。
+- `copyOf` 的来源可以是卡片、文章、项目文档或任一插件内容的正文。复制的是当前内容，之后两份互不影响。
+- 新建时省略 `content` 得到空正文。
 
 ## 读写正文
 
@@ -189,7 +302,7 @@ console.log(snapshot?.markdown, snapshot?.wordCount);
 ```
 
 - 需要正文所属实体的读取权限，例如卡片正文需要 `cards:read`。正文不存在时返回 `null`。
-- 默认返回 Markdown。`{ format: "nodes" }` 返回编辑器节点的 JSON，但这个结构会随编辑器演进而变化，优先使用 Markdown。
+- 默认返回 Markdown。`{ format: "nodes" }` 返回编辑器节点，可以原样作为 `content: { nodes }` 写回，格式不丢失；同时返回 `schemaVersion`，见「正文输入」。
 - 读到的是已保存的内容，用户正在输入的部分最多晚约 1 秒。
 
 ### 修改
@@ -198,17 +311,19 @@ console.log(snapshot?.markdown, snapshot?.wordCount);
 const snapshot = await context.content.read(card.contentRef);
 const { revision } = await context.content.edit(
   card.contentRef,
-  { op: "append", markdown: "\n今天读完了第三章。" },
+  { op: "append", content: { markdown: "今天读完了第三章。" } },
   { expectedRevision: snapshot!.revision }
 );
 ```
 
-| `op`          | 作用                                                         |
-| ------------- | ------------------------------------------------------------ |
-| `append`      | 在末尾追加 Markdown，原有内容不变                            |
-| `prepend`     | 在开头插入 Markdown，原有内容不变                            |
-| `replaceText` | 把 `find` 替换成 `markdown`，`find` 必须在正文中恰好出现一次 |
-| `replaceAll`  | 用 `markdown` 替换整篇                                       |
+| `op`          | 参数               | 作用                                                                                                                            |
+| ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `append`      | `content`          | 在末尾加入新内容，原有内容不变；`content` 不能为空                                                                              |
+| `prepend`     | `content`          | 在开头加入新内容，原有内容不变；`content` 不能为空                                                                              |
+| `replaceAll`  | `content`          | 用新内容替换整篇；`content` 为空时清空正文                                                                                      |
+| `replaceText` | `find`、`markdown` | 在 Markdown 文本中把 `find` 替换成 `markdown`，`find` 必须恰好出现一次；整篇会经 Markdown 重建，Markdown 表达不了的格式可能丢失 |
+
+`content` 的三种写法见「正文输入」。
 
 - 需要所属实体的写入权限，例如卡片正文需要 `cards:write`。
 - 正文正在编辑器里打开时，修改会立即出现，协作者也能看到。
@@ -224,25 +339,30 @@ context.events.on(["card.created", "card.updated", "card.deleted"], event => {
 });
 ```
 
-| 事件                                           | 说明                                        |
-| ---------------------------------------------- | ------------------------------------------- |
-| `card.created`、`card.updated`、`card.deleted` | 带 `id`。正文修改也算 `updated`             |
-| `article.*`、`document.*`                      | 同上。文章移入回收站算 `deleted`            |
-| `todos.changed`、`calendar.changed`            | 待办、日程有变化，不带 `id`，需要时重新查询 |
-| `workspace.reset`                              | 同步下载替换了整个笔记库，应全部重新读取    |
+| 事件                                           | 说明                                                     |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| `card.created`、`card.updated`、`card.deleted` | 带 `id`。正文修改也算 `updated`                          |
+| `article.*`、`document.*`                      | 同上。文章移入回收站算 `deleted`                         |
+| `whiteboard.*`、`project.*`                    | 同上。白板的画板内容修改不算                             |
+| `notebook.*`                                   | 同上。增删、修改资料也算 `updated`                       |
+| `material.*`、`chat.*`                         | 同上。划线删除算 `deleted`；对话收到新消息也算 `updated` |
+| `entity.*`                                     | 本插件的内容，带 `id` 和 `kind`，见下文                  |
+| `todos.changed`、`calendar.changed`            | 待办、日程有变化，不带 `id`，需要时重新查询              |
+| `workspace.reset`                              | 同步下载替换了整个笔记库，应全部重新读取                 |
 
 - 事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。
 - `origin` 表示变化的来源：`{ kind: "plugin", pluginId }` 表示由插件写入，可以用它忽略自己写入引起的事件；其他情况是 `{ kind: "app" }`。待办与日程的事件总是 `app`。
 - 同一项在短时间内的多次变化会合并成一次；用户持续输入时，最多每 2 秒一次。
-- 接收事件需要对应的读取权限（`workspace.reset` 除外）。还没获得授权时事件不会送达，也不会因此弹窗。
+- 接收事件需要对应的读取权限（`entity.*` 与 `workspace.reset` 除外）。还没获得授权时事件不会送达，也不会因此弹窗。
+- `entity.created`、`entity.updated`、`entity.deleted` 只发给创建这项内容的插件，不需要权限。正文修改也算 `updated`；`kind` 是内容类型，删除后 `get` 读不到时可以据此判断是哪类内容。从「最近删除」恢复、卸载后重新安装找回，都算 `created`。适合在同步下载或 MCP 写入后刷新页面。
 - 订阅在插件停用时自动注销。
 
 ## 选择并打开已有内容
 
-插件的页面（如画布、看板）需要引用用户已有的卡片、日记、待办时，用 Tau 的搜索窗口让用户亲手挑选，点击时再交给 Tau 打开。**这不需要任何权限**：用户亲手选择，就等于同意插件引用这些内容。
+插件的页面（如画布、看板）需要引用用户已有的卡片、日记、待办时，用 Tau 的搜索窗口让用户亲手挑选，显示时交给 `EntityRef`，点击时交给 Tau 打开。**这不需要任何权限**：用户亲手选择，就等于同意插件引用这些内容，之后也能随时读到它们的最新标题。
 
 ```tsx
-import type { PluginEntityRef } from "@tau/plugins";
+import { EntityRef, type PluginEntityRef } from "@tau/plugins";
 
 async function linkExisting() {
   const picked = await context.app.pick({ kinds: ["card", "diary", "todo"], multiple: true });
@@ -250,26 +370,75 @@ async function linkExisting() {
   await context.storage.set("links", picked);
 }
 
-function LinkChip({ link }: { link: { ref: PluginEntityRef; title: string } }) {
-  return <button onClick={() => void context.app.open(link.ref)}>{link.title}</button>;
+// 图标、类型名、最新标题与「已删除」由 Tau 显示，点击即打开
+function LinkChip({ link }: { link: { ref: PluginEntityRef } }) {
+  return <EntityRef target={link.ref} />;
 }
 ```
 
-| `kind`       | 内容             | `open` 打开的位置                            |
-| ------------ | ---------------- | -------------------------------------------- |
-| `card`       | 卡片             | 卡片详情                                     |
-| `article`    | 文章             | 文章详情                                     |
-| `document`   | 项目文档         | 所在项目，并选中该文档                       |
-| `diary`      | 日记里的一条记录 | 当天的日记，并定位到这一条                   |
-| `whiteboard` | 白板             | 白板                                         |
-| `todo`       | 待办             | 待办详情；正文里的勾选项会打开所在文档并定位 |
-| `event`      | 日程             | 日程详情                                     |
+| `kind`          | 内容                             | `open` 打开的位置                                                    |
+| --------------- | -------------------------------- | -------------------------------------------------------------------- |
+| `card`          | 卡片                             | 卡片详情                                                             |
+| `article`       | 文章                             | 文章详情                                                             |
+| `document`      | 项目文档                         | 所在项目，并选中该文档                                               |
+| `diary`         | 日记里的一条记录                 | 当天的日记，并定位到这一条                                           |
+| `whiteboard`    | 白板                             | 白板                                                                 |
+| `todo`          | 待办                             | 待办详情；正文里的勾选项会打开所在文档并定位                         |
+| `event`         | 日程                             | 日程详情                                                             |
+| `project`       | 项目                             | 项目                                                                 |
+| `notebook`      | Notebook                         | Notebook                                                             |
+| `material`      | 划线、PDF 标注、剪藏             | 原处：书中位置、PDF 页面或网页                                       |
+| `chat-session`  | AI 对话                          | 对话页；PDF、视频笔记和 Notebook 里的对话不能单独打开，`open` 会抛错 |
+| `plugin-entity` | 插件创建的内容（包括其他插件的） | 创建它的插件页面                                                     |
 
 - `pick` 的 `kinds` 决定可选的类型，顺序就是弹窗里的分组顺序；`title` 可以自定义弹窗标题。
 - `pick` 和 `open` 都只能在用户操作（点击、按键）之后调用。在定时器或事件回调里调用会抛错。
-- 插件拿到的只有引用和选择时的标题。要读取正文或拿到最新标题，仍然需要对应的读取权限。
+- 插件拿到的只有引用和选择时的标题，以及之后用 `describe` 读到的最新标题。要读取正文，仍然需要对应的读取权限。
 - `ref` 是普通对象，可以存进插件自己的数据；它的 `id` 与 `context.data` 中同类内容的 `id` 一致。
 - 目标被删除后，`open` 会抛出「内容不存在」，可以据此提示用户移除这条关联。
+
+### 打开位置与定位
+
+`open` 的第二个参数可以指定打开在哪里、滚动到正文哪一处：
+
+```ts
+await context.app.open(ref, { placement: "window" }); // 在独立窗口打开卡片
+await context.app.open(chatRef, { placement: "dock" }); // 在右侧停靠栏打开对话
+await context.app.open(cardRef, { at: { block: 3 } }); // 打开卡片并滚动到第 4 块
+```
+
+| 选项        | 取值                                 | 支持的内容                                                                 |
+| ----------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| `placement` | `page`（默认）：主窗口的页面         | 全部                                                                       |
+|             | `window`：独立编辑窗口，已打开时聚焦 | 卡片、文章、项目文档                                                       |
+|             | `dock`：右侧停靠栏，不离开当前页面   | 主对话                                                                     |
+| `at`        | `{ block }`：第几个顶层块，从 0 开始 | 卡片、文章、项目文档、日记、插件内容；不能与 `window` 同用，越界时停在开头 |
+
+- `block` 与 `content.read({ format: "nodes" })` 返回的 `nodes` 下标一致。
+- 不支持的组合直接抛错，不会悄悄改用别的位置。
+- 打开插件内容并定位时，你的插件页面会收到页面参数 `at`，原样传给 `<ContentEditor at={params.at}>` 即可。
+
+### 显示引用
+
+```tsx
+// 列表里直接放组件：同一次渲染的引用会合并成一次查询
+links.map(link => <EntityRef key={link.ref.id} target={link.ref} />);
+
+// 需要自己排版或排序时，批量读取当前状态，每次最多 200 项
+const states = await context.app.describe(links.map(link => link.ref));
+// [{ ref, status: "ok", title }, { ref, status: "missing" }, { ref, status: "denied", permission }]
+```
+
+| `status`  | 含义                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ok`      | `title` 为最新标题                                                                                                                              |
+| `missing` | 内容已删除                                                                                                                                      |
+| `denied`  | 用户没有为这个插件选择过这项内容，插件也没有 `permission` 这项读取权限；`permission` 为 `null` 的类型（日记、其他插件的内容）只能经用户选择获得 |
+
+- 用户选择过的内容、本插件自己创建的内容不需要权限。
+- `describe` 不会弹窗。遇到 `denied` 时，可以提示用户，由用户点击后再调用 `context.permissions.request([permission])`。`EntityRef` 在这种情况下自带「允许访问」按钮。
+- 不想让用户点击打开时，传 `openable={false}`。`EntityRef` 只能在插件页面里使用。
+- 用户卸载插件并选择清除数据时，Tau 会忘记这些选择。
 
 ## 嵌入正文编辑器
 
@@ -287,20 +456,21 @@ function CardRow({ card }: { card: PluginCard }) {
 }
 ```
 
-| 组件             | 属性                                          | 需要的权限                               |
-| ---------------- | --------------------------------------------- | ---------------------------------------- |
-| `ContentEditor`  | `contentRef`、`readonly`、`placeholder`、`at` | 可编辑时需要写入权限，只读时需要读取权限 |
-| `ContentPreview` | `contentRef`、`maxBlocks`（默认 3）           | 读取权限                                 |
+| 组件             | 属性                                                 | 需要的权限                               |
+| ---------------- | ---------------------------------------------------- | ---------------------------------------- |
+| `ContentEditor`  | `contentRef`、`readonly`、`placeholder`、`at`、`kit` | 可编辑时需要写入权限，只读时需要读取权限 |
+| `ContentPreview` | `contentRef`、`maxBlocks`（默认 3）、`kit`           | 读取权限                                 |
 
 - `contentRef` 来自 `context.data` 或 `context.entities` 返回的数据。
 - 组件挂载时不会弹窗。还没授权时显示「允许访问」按钮，用户点击后才询问；已拒绝时提示用户到插件详情页修改。
 - 用户在组件里的编辑和在卡片详情里一样，可以撤销，产生的事件 `origin` 为 `app`。这一点和 `context.content.edit` 不同。
 - `ContentPreview` 显示已保存的内容，编辑中的改动大约 1 秒后反映出来。
 - 这两个组件只能在插件页面里使用。
+- `kit` 选编辑器套件：`full`（默认）与卡片详情相同；`compact` 是精简套件，与白板图形文字、PDF 批注等简短内容的编辑器相同，不含内容链接、文件附件、白板块、数据库块和文档待办，适合标题下的一段说明、回答这类简短内容。正文里已有这些块时显示为占位，数据原样保留。编辑和预览同一份内容时请用同一个 `kit`。
 
-## 导出、演示与共享
+## Tau 的界面动作
 
-导出、全屏演示、协作共享这类自带界面的功能，用 `context.app.run` 交给 Tau 完成，界面与卡片详情中的相同：
+导出、全屏演示、协作共享、新建卡片这类自带界面的功能，用 `context.app.run` 交给 Tau 完成，界面与 Tau 中的相同：
 
 ```tsx
 <button
@@ -310,15 +480,31 @@ function CardRow({ card }: { card: PluginCard }) {
 </button>
 ```
 
-| 动作              | 参数                                                | 效果                                     |
-| ----------------- | --------------------------------------------------- | ---------------------------------------- |
-| `content.export`  | `ref`，`format`：`markdown`、`image`、`pdf`、`epub` | Markdown 直接保存文件，其余打开导出窗口  |
-| `content.present` | `ref`                                               | 全屏演示                                 |
-| `content.share`   | `ref`                                               | 打开「内容协作」窗口，由用户确认发起共享 |
+| 动作                     | 参数                                                                      | 效果                                                           | 结果                                       |
+| ------------------------ | ------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------ |
+| `content.export`         | `ref`，`format`：`markdown`、`image`、`pdf`、`epub`                       | Markdown 直接保存文件，其余打开导出窗口                        | 无                                         |
+| `content.present`        | `ref`                                                                     | 全屏演示                                                       | 无                                         |
+| `content.share`          | `ref`                                                                     | 打开「内容协作」窗口，由用户确认发起共享                       | 无                                         |
+| `card.create`            | `content?`（见[正文输入](#正文输入)）、`tags?`                            | 打开新建卡片窗口并预填，用户可修改后保存                       | 新卡片的引用 `{ kind: "card", id }`        |
+| `project.insertDocument` | `content`、`title?`（默认「未命名文档」）                                 | 打开「插入到项目」窗口，用户选择项目与位置后复制正文为新文档   | 新文档的引用 `{ kind: "document", id }`    |
+| `notebook.create`        | `title`、`sources?`（最多 200 项）、`from?`                               | 确认后新建 Notebook，`sources` 作为资料带入，`from` 记为来源   | Notebook 的引用 `{ kind: "notebook", id }` |
+| `chat.start`             | `prompt?`、`context?`（最多 20 项）、`placement?`：`page`（默认）、`dock` | 在对话页或右侧停靠栏开一个新对话，预填输入框与引用，由用户发送 | 对话的引用 `{ kind: "chat-session", id }`  |
 
-- 不需要数据权限：界面和确认都由 Tau 提供，插件拿不到正文。
-- 只能在用户操作之后调用。内容已删除时抛出「内容不存在」。
-- 对应的界面打开后就返回，不等待用户完成导出或结束演示。
+- 不需要数据权限：界面和确认都由 Tau 提供，用户在界面里确认即同意。插件拿不到正文；`card.create` 返回的引用可以存下来、用 `<EntityRef>` 显示或 `open` 打开，读取正文仍需要 `cards:read`。
+- 用户关闭界面后才返回：导出、演示、协作在窗口关闭或演示结束时返回；新建类在保存后返回新内容的引用，用户取消时返回 `null`。插件停用时界面会被撤下。
+- 只能在用户操作之后调用；同一时间只能打开一个，前一个还没关闭时抛错。内容已删除时抛出「内容不存在」。
+- `copyOf` 只复制正文，不会改动来源。`project.insertDocument` 总是复制一份新正文，不与来源共用。
+- `notebook.create` 的资料一次性带入，之后原内容的修改不会同步：卡片、文章、项目文档、日记和插件内容成为笔记资料；划线与 PDF 标注合并为一份，剪藏各一份；其他类型和已删除的内容不带入，确认框里会告诉用户数量。
+- `from` 是这个 Notebook 由什么立项，显示在 Notebook 页顶部，用户点击可以打开。可以是卡片、文章、项目文档、日记、材料、对话、Notebook 或插件内容（`PLUGIN_NOTEBOOK_FROM_KINDS`），不存在时抛出「来源不存在」。
+- `chat.start` 不会替用户发送：`prompt` 进入输入框，`context` 作为引用插在后面，用户可以修改。用户发出第一条消息后才返回对话的引用；没发送就切到别的对话、离开对话页、收起停靠栏或插件停用时返回 `null`。`context` 只支持卡片、文章、项目文档（`PLUGIN_CHAT_CONTEXT_KINDS`），其他内容请写进 `prompt`。
+
+```ts
+const ref = await context.app.run("card.create", {
+  content: { markdown: `> ${quote}\n\n` },
+  tags: ["摘抄"],
+});
+if (ref) await saveLink(ref); // 用户取消时为 null
+```
 
 ## 插件内容
 
@@ -372,14 +558,14 @@ function NotePanel({ note, at }: { note: PluginOwnEntity; at?: string }) {
 
 ### 接口
 
-| 方法                                                  | 说明                                                                    |
-| ----------------------------------------------------- | ----------------------------------------------------------------------- |
-| `create({ kind, key, title?, meta? })`                | 新建一项，正文为空。同一类型下 `key` 已存在时抛出 `PluginConflictError` |
-| `get(id)`、`find(kind, key)`                          | 读取一项，不存在时为 `null`                                             |
-| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条，最多 200 条                             |
-| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`                                                       |
-| `delete(id, { expectedRevision })`                    | 删除一项及其正文                                                        |
-| `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容                                  |
+| 方法                                                  | 说明                                                                                                                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `create({ kind, key, title?, meta?, content? })`      | 新建一项，`content` 为初始正文（写法见「正文输入」），省略时为空。同一类型下 `key` 已存在时抛出 `PluginConflictError` |
+| `get(id)`、`find(kind, key)`                          | 读取一项，不存在时为 `null`                                                                                           |
+| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条，最多 200 条                                                                           |
+| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`                                                                                                     |
+| `delete(id, { expectedRevision })`                    | 删除一项及其正文                                                                                                      |
+| `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容                                                                                |
 
 - `key` 由你决定，用来找回同一项内容，例如周记用周次 `2026-W43`。
 - `meta` 保存少量结构化信息，是不超过 64 KB 的 JSON 对象。大段内容放在正文里。

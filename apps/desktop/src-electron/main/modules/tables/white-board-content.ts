@@ -4,6 +4,21 @@ import Operation from "./operation";
 import ContentTable from "./content";
 // import log from "electron-log";
 
+/** 与 packages/whiteboard 的 WHITEBOARD_DOCUMENT_VERSION 一致，由 __tests__/white-board-content.test.ts 对账 */
+export const WHITEBOARD_DOCUMENT_VERSION = 2;
+
+/** 新建白板的第一张空白画板页，与白板页新建时的默认数据一致 */
+export const emptyWhiteboardPage = (name: string) => ({
+  name,
+  data: {
+    children: [],
+    viewPort: { zoom: 1, minX: 0, minY: 0, width: 0, height: 0 },
+    selection: { selectArea: null, selectedElements: [] },
+    presentationSequences: [],
+    version: WHITEBOARD_DOCUMENT_VERSION,
+  },
+});
+
 /**
  * 与 packages/whiteboard/src/document-version.ts 的 getDocumentVersion 保持一致
  * （主进程不依赖渲染包，避免拉入 React）；两边常量由 __tests__/white-board-content.test.ts 对账。
@@ -78,30 +93,49 @@ export default class WhiteboardTable {
       }
     }
   }
-  static deleteWhiteBoardContentWhenRefCountIsZero(db: Database.Database) {
-    // 先查找所有 ref_count <= 0 的白板
-    const selectStmt = db.prepare(`
-      SELECT * FROM white_board_contents WHERE ref_count <= 0
-    `);
-    const whiteboards = selectStmt.all();
-
-    // 释放每个白板中嵌入正文的引用
-    for (const whiteboard of whiteboards) {
-      try {
-        const wb = this.parseWhiteboard(whiteboard);
-        if (wb.data && wb.data.children) {
-          this.releaseAllContentRefs(db, wb.data.children);
+  /**
+   * 回收超过宽限期且引用仍为 0 的白板页，释放页内嵌入正文的引用，返回删除的页数。
+   * 引用归零却没有登记的页（登记机制出现前遗留的）先补登记，同样等满宽限期再删。
+   */
+  static collectPendingReleases(
+    db: Database.Database,
+    options: { now: number; graceMs: number }
+  ): number {
+    db.prepare(
+      `INSERT OR IGNORE INTO white_board_content_pending_releases (content_id, released_at)
+       SELECT id, ? FROM white_board_contents WHERE IFNULL(ref_count, 0) <= 0`
+    ).run(options.now);
+    const due = db
+      .prepare(
+        `SELECT p.content_id AS id, IFNULL(c.ref_count, 0) AS ref_count, c.data
+         FROM white_board_content_pending_releases p
+         LEFT JOIN white_board_contents c ON c.id = p.content_id
+         WHERE p.released_at <= ?`
+      )
+      .all(options.now - options.graceMs) as Array<{
+      id: number;
+      ref_count: number;
+      data: string | null;
+    }>;
+    let purged = 0;
+    for (const page of due) {
+      purged += db.transaction(() => {
+        db.prepare("DELETE FROM white_board_content_pending_releases WHERE content_id = ?").run(
+          page.id
+        );
+        if (page.ref_count > 0 || page.data === null) return 0;
+        try {
+          const data = JSON.parse(page.data) as { children?: unknown[] };
+          if (Array.isArray(data?.children)) this.releaseAllContentRefs(db, data.children);
+        } catch {
+          // 页数据损坏时无法确认嵌入的正文，仍删除这一页
         }
-      } catch (e) {
-        // 忽略解析错误，继续删除
-      }
+        db.prepare("DELETE FROM white_board_contents WHERE id = ?").run(page.id);
+        Operation.insertOperation(db, "whiteboard-content", "delete", page.id, Date.now());
+        return 1;
+      })();
     }
-
-    // 删除 ref_count <= 0 的记录
-    const deleteStmt = db.prepare(`
-      DELETE FROM white_board_contents WHERE ref_count <= 0
-    `);
-    deleteStmt.run();
+    return purged;
   }
 
   static getListenEvents() {
@@ -151,10 +185,12 @@ export default class WhiteboardTable {
     return this.getWhiteboardContent(db, Number(res.lastInsertRowid));
   }
 
+  /** 重新引用一页（嵌入、撤销删除、恢复白板）时撤销待回收登记 */
   static incrementRefCount(db: Database.Database, id: number): number {
     const stmt = db.prepare(`
       UPDATE white_board_contents SET ref_count = ref_count + 1 WHERE id = ?
     `);
+    db.prepare("DELETE FROM white_board_content_pending_releases WHERE content_id = ?").run(id);
     return stmt.run(id).changes;
   }
 
@@ -204,36 +240,18 @@ export default class WhiteboardTable {
     return this.getWhiteboardContent(db, whiteboard.id);
   }
 
+  /**
+   * 释放一页的引用。归零时不立即删除：白板页可能作为编辑器里的块，删除后还能撤销，
+   * 插件删除的白板也要能在宽限期内恢复；只登记释放时间，由开库维护按宽限期回收。
+   */
   static deleteWhiteboard(db: Database.Database, id: number): number {
-    // 把 ref_count 减 1
-    const stmt = db.prepare(`
-      UPDATE white_board_contents SET
-        ref_count = ref_count - 1
-      WHERE id = ?
-    `);
-    stmt.run(id);
-    // 如果 ref_count 为 0，则删除
-    // 在这里不删，因为白板可能作为编辑器的块，删除后撤回无法恢复数据
-    // 每次启动时统一删除，这样撤回是可以恢复数据，下次打开没法撤回是合理的
-    // const refCountStmt = db.prepare(`
-    //   SELECT ref_count FROM white_board_contents WHERE id = ?
-    // `);
-    // const refCount = refCountStmt.get(id) as { ref_count: number } | undefined;
-    // if (refCount && refCount.ref_count <= 0) {
-    //   log.info(`删除白板内容: ${id}`);
-    //
-    //   const deleteStmt = db.prepare(`
-    //     DELETE FROM white_board_contents WHERE id = ?
-    //   `);
-    //   Operation.insertOperation(
-    //     db,
-    //     "whiteboard-content",
-    //     "delete",
-    //     id,
-    //     Date.now(),
-    //   );
-    //   return deleteStmt.run(id).changes;
-    // }
+    db.prepare("UPDATE white_board_contents SET ref_count = ref_count - 1 WHERE id = ?").run(id);
+    const row = db.prepare("SELECT ref_count FROM white_board_contents WHERE id = ?").get(id) as
+      { ref_count: number | null } | undefined;
+    if (row && (row.ref_count ?? 0) <= 0)
+      db.prepare(
+        "INSERT OR IGNORE INTO white_board_content_pending_releases (content_id, released_at) VALUES (?, ?)"
+      ).run(id, Date.now());
     return 0;
   }
 

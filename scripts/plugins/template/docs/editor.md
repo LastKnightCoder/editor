@@ -263,6 +263,8 @@ function Chart({ element }: { element: ChartElement }) {
 | `styleSources`    | 节点里的 Tailwind 源码字段，见[动态 Tailwind 样式](#动态-tailwind-样式) |
 | `htmlSerializers` | 静态 HTML 导出，见 [HTML 导出](#html-导出)                              |
 
+只能写以上字段。写了其他字段，插件加载时会报错「编辑器扩展含未开放的字段」。
+
 ### 块菜单
 
 `blockPanel` 的每一项会出现在用户输入 `/` 后弹出的菜单里：

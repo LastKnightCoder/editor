@@ -2,9 +2,12 @@
  * 插件业务数据命令的 IPC 契约：主进程按库读写并使用数字身份，渲染端适配层再转成
  * SDK 的不透明字符串 ID 与 ContentRef。主进程与渲染端共用，避免主进程反向依赖 app/plugins。
  */
+import type { PluginChatSession, PluginMaterial, PluginNotebook } from "@tau/plugins";
 
-export type PluginDataEntity = "card" | "article" | "document";
-export type PluginWritableEntity = "card" | "article";
+export type PluginDataEntity = "card" | "article" | "document" | "whiteboard" | "project";
+export type PluginCreatableEntity = "card" | "article" | "whiteboard" | "project";
+/** 持有正文的实体 */
+export type PluginContentOwnerEntity = "card" | "article" | "document";
 
 export interface PluginDataScope {
   databaseName: string;
@@ -39,10 +42,25 @@ export interface PluginDataRecord {
   /** 项目文档的类型（document / white-board …） */
   kind?: string;
   projectIds?: number[];
+  /** 白板 */
+  description?: string;
+  pageCount?: number;
+  /** 项目 */
+  archived?: boolean;
+  documentCount?: number;
 }
 
 export interface PluginDataPage {
   items: PluginDataRecord[];
+  cursor?: string;
+}
+
+/** 只读对象：没有正文与版本，主进程直接给出插件看到的形状 */
+export type PluginReadonlyEntity = "notebook" | "material" | "chat-session";
+export type PluginReadonlyRecord = PluginNotebook | PluginMaterial | PluginChatSession;
+
+export interface PluginReadonlyPage {
+  items: PluginReadonlyRecord[];
   cursor?: string;
 }
 
@@ -56,7 +74,7 @@ export interface PluginContentRecord {
   markdown?: string;
   nodes?: unknown[];
   /** 引用这份正文的实体类型，供宿主按实体权限判断 */
-  owners: PluginDataEntity[];
+  owners: PluginContentOwnerEntity[];
   /** 以这份正文为自有内容的插件实体：插件读写自己的正文不需要业务权限 */
   pluginOwners: PluginContentOwner[];
 }
@@ -68,17 +86,32 @@ export interface PluginContentOwner {
   title: string;
 }
 
+/** 插件正文输入的 IPC 形式：copyOf 的 ContentRef 由渲染端解码为正文 ID 与创建时间 */
+export type PluginContentSource =
+  | { markdown: string }
+  | { nodes: unknown[] }
+  | { copyOf: { contentId: number; createdAt: number } };
+
+export interface PluginDataCreateInput {
+  content?: PluginContentSource;
+  tags?: string[];
+  pinned?: boolean;
+  title?: string;
+  /** 白板说明 */
+  description?: string;
+}
+
 export type PluginContentEdit =
-  | { op: "append"; markdown: string }
-  | { op: "prepend"; markdown: string }
+  | { op: "append"; content: PluginContentSource }
+  | { op: "prepend"; content: PluginContentSource }
   | { op: "replaceText"; find: string; markdown: string }
-  | { op: "replaceAll"; markdown: string };
+  | { op: "replaceAll"; content: PluginContentSource };
 
 /** 插件详情页列出的可恢复操作 */
 export interface PluginOperationRecord {
   id: number;
   action: "delete";
-  entity: "card" | "article" | "todo" | "event" | "plugin-entity";
+  entity: PluginDataEntity | "todo" | "event" | "plugin-entity";
   entityId: string;
   title: string;
   createdAt: number;
@@ -87,4 +120,40 @@ export interface PluginOperationRecord {
   operationId?: string;
   /** 插件内容：registerKind 声明的类型，用于显示类型名 */
   kind?: string;
+}
+
+/** 插件引用（kind 为 SDK 的 PluginEntityKind，id 为插件看到的不透明 ID） */
+export interface PluginRefInput {
+  kind: string;
+  id: string;
+}
+
+export type PluginRefDescription =
+  { status: "ok"; title: string } | { status: "missing" } | { status: "denied" };
+
+/** 项目目录中的一处（IPC 用数字 ID，渲染端转成字符串） */
+export interface PluginProjectNodeRecord {
+  id: number;
+  revision: string;
+  title: string;
+  kind: string;
+  /** 引用卡片或文章的条目 */
+  ref?: { kind: "card" | "article"; id: number };
+  children: PluginProjectNodeRecord[];
+}
+
+export interface PluginDocumentCreateInput {
+  projectId: number;
+  parentId?: number;
+  title: string;
+  content?: PluginContentSource;
+  tags?: string[];
+}
+
+export interface PluginDocumentMoveInput {
+  projectId: number;
+  /** 父文档 ID，null 为项目根目录 */
+  from: number | null;
+  to: number | null;
+  index?: number;
 }

@@ -1,11 +1,22 @@
-import type { CalendarWrite, DataAdapter, DataEntity, TodoWrite } from "@tau/plugins/host";
+import type {
+  CalendarWrite,
+  DataAdapter,
+  DataEntity,
+  ReadableEntity,
+  TodoWrite,
+} from "@tau/plugins/host";
 import {
   PluginConflictError,
   type PluginArticle,
   type PluginCalendarEvent,
   type PluginCard,
+  type PluginContentEdit,
+  type PluginContentInput,
   type PluginContext,
   type PluginDocument,
+  type PluginProject,
+  type PluginProjectNode,
+  type PluginWhiteboard,
   type PluginTodo,
 } from "@tau/plugins";
 import {
@@ -16,6 +27,7 @@ import {
   type TaskOperationResult,
   type TaskRef,
 } from "@tau/shared/task-assistant";
+import type { Descendant } from "slate";
 import * as dataCommands from "@/commands/plugin-data";
 import { taskAssistantRequest } from "@/commands/task-assistant";
 import { bindDatabaseCommands } from "@/services/command-context";
@@ -23,7 +35,15 @@ import { queryClient } from "@/queryClient";
 import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import type { ICard } from "@/types";
-import type { PluginDataRecord, PluginOperationRecord } from "@/types/plugin-data";
+import type {
+  PluginContentEdit as PluginContentEditRequest,
+  PluginContentSource,
+  PluginDataCreateInput,
+  PluginDataRecord,
+  PluginOperationRecord,
+  PluginProjectNodeRecord,
+  PluginReadonlyEntity,
+} from "@/types/plugin-data";
 
 import { encodeContentRef, decodeContentRef } from "@/utils/plugin-content-ref";
 
@@ -43,6 +63,18 @@ export async function mapConflict<T>(run: () => Promise<T>): Promise<T> {
     if (message.includes("CONTENT_VERSION_CONFLICT")) throw new PluginConflictError();
     throw error;
   }
+}
+
+/** 正文输入转成 IPC 形式：copyOf 的 ContentRef 在这里解码，主进程只认数字身份 */
+export function toContentSource(input: PluginContentInput): PluginContentSource {
+  if (!("copyOf" in input)) return input;
+  const decoded = decodeContentRef(input.copyOf);
+  if (!decoded) throw new Error("copyOf 正文引用无效");
+  return { copyOf: decoded };
+}
+
+function toEditRequest(edit: PluginContentEdit): PluginContentEditRequest {
+  return edit.op === "replaceText" ? edit : { op: edit.op, content: toContentSource(edit.content) };
 }
 
 /** 待办 ID 即 taskKey（周期实例另带 @日期），反向解析为助理协议的 TaskRef */
@@ -74,19 +106,41 @@ function parseEventId(id: string): { eventId: number; createdAt: number } {
   return { eventId: Number(match[1]), createdAt: Number(match[2]) };
 }
 
-function toEntity(record: PluginDataRecord): PluginCard | PluginArticle | PluginDocument {
+function toEntity(
+  record: PluginDataRecord
+): PluginCard | PluginArticle | PluginDocument | PluginWhiteboard | PluginProject {
   const contentRef =
     record.contentId !== null && record.contentCreatedAt !== null
       ? encodeContentRef(record.contentId, record.contentCreatedAt)
       : null;
+  const times = { createdAt: record.createdAt, updatedAt: record.updatedAt };
+  if (record.entity === "whiteboard")
+    return {
+      id: String(record.id),
+      revision: record.revision,
+      title: record.title,
+      description: record.description ?? "",
+      tags: record.tags,
+      pageCount: record.pageCount ?? 0,
+      ...times,
+    };
+  if (record.entity === "project")
+    return {
+      id: String(record.id),
+      revision: record.revision,
+      title: record.title,
+      archived: record.archived ?? false,
+      pinned: record.pinned,
+      documentCount: record.documentCount ?? 0,
+      ...times,
+    };
   const base = {
     id: String(record.id),
     revision: record.revision,
     title: record.title,
     tags: record.tags,
     wordCount: record.wordCount,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
+    ...times,
   };
   if (record.entity === "document")
     return {
@@ -201,18 +255,27 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
     return series;
   };
   return {
-    async query(context, entity: DataEntity, query) {
+    async query(context, entity, query) {
+      if (isReadonly(entity))
+        return bound(context).queryPluginReadonlyData(databaseName, entity, query);
       const page = await bound(context).queryPluginData(databaseName, entity, query);
       return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
     },
-    async create(context, entity, input) {
+    async create(context, entity, value) {
+      const { content, ...fields } = value as PluginDataCreateInput & {
+        content?: PluginContentInput;
+      };
+      const input: PluginDataCreateInput = {
+        ...fields,
+        ...(content ? { content: toContentSource(content) } : {}),
+      };
       const record = await bound(context).createPluginData(
         databaseName,
         context.pluginId,
         entity,
         input
       );
-      if (entity === "article") refreshArticles();
+      refreshLists(entity);
       return toEntity(record);
     },
     async update(context, entity, id, patch, expectedRevision) {
@@ -226,7 +289,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           expectedRevision
         )
       );
-      if (entity === "article") refreshArticles();
+      refreshLists(entity);
       return toEntity(record);
     },
     async remove(context, entity, id, expectedRevision) {
@@ -244,7 +307,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         defaultCardEventBus
           .createEditor()
           .publishCardEvent("card:deleted", { id: numeric } as ICard);
-      else refreshArticles();
+      else refreshLists(entity);
     },
     async contentOwners(context, ref) {
       const decoded = decodeContentRef(ref);
@@ -269,7 +332,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           context.pluginId,
           decoded.contentId,
           decoded.createdAt,
-          edit,
+          toEditRequest(edit),
           expectedRevision
         )
       );
@@ -370,10 +433,11 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         return;
       }
       const restored = await commands.restorePluginOperation(databaseName, operation.id);
-      if (restored.entity === "article") refreshArticles();
       if (restored.entity === "plugin-entity") invalidatePluginEntityAppearance();
+      else refreshLists(restored.entity);
     },
     async get(context, entity, id) {
+      if (isReadonly(entity)) return bound(context).getPluginReadonlyData(databaseName, entity, id);
       const numeric = parseId(id);
       if (numeric === null) return null;
       const record = await bound(context).getPluginData(databaseName, entity, numeric);
@@ -399,6 +463,41 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         ...(result.nextCursor ? { cursor: result.nextCursor } : {}),
       };
     },
+    async notebookResources(context, notebookId) {
+      return bound(context).getPluginNotebookResources(databaseName, requireId(notebookId));
+    },
+    async projectTree(context, projectId) {
+      const nodes = await bound(context).getPluginProjectTree(databaseName, requireId(projectId));
+      return nodes && nodes.map(toProjectNode);
+    },
+    async createDocument(context, { content, projectId, parentId, ...fields }) {
+      const record = await bound(context).createPluginDocument(databaseName, context.pluginId, {
+        ...fields,
+        projectId: requireId(projectId),
+        ...(parentId !== undefined ? { parentId: requireId(parentId) } : {}),
+        ...(content ? { content: toContentSource(content) } : {}),
+      });
+      refreshLists("project");
+      return toEntity(record);
+    },
+    async moveDocument(context, id, { projectId, from, to, index }, expectedRevision) {
+      const result = await mapConflict(() =>
+        bound(context).movePluginDocument(
+          databaseName,
+          context.pluginId,
+          requireId(id),
+          {
+            projectId: requireId(projectId),
+            from: from === null ? null : requireId(from),
+            to: to === null ? null : requireId(to),
+            ...(index !== undefined ? { index } : {}),
+          },
+          expectedRevision
+        )
+      );
+      refreshLists("project");
+      return result;
+    },
     async readContent(context, ref, format) {
       const decoded = decodeContentRef(ref);
       if (!decoded) return null;
@@ -416,12 +515,29 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           ref,
           revision: record.revision,
           ...(record.markdown !== undefined ? { markdown: record.markdown } : {}),
-          ...(record.nodes !== undefined ? { nodes: record.nodes } : {}),
+          // 主进程按库中 JSON 原样返回编辑器节点
+          ...(record.nodes !== undefined ? { nodes: record.nodes as Descendant[] } : {}),
           wordCount: record.wordCount,
           updatedAt: record.updatedAt,
         },
       };
     },
+  };
+}
+
+const READONLY_ENTITIES = new Set<ReadableEntity>(["notebook", "material", "chat-session"]);
+
+const isReadonly = (entity: ReadableEntity): entity is PluginReadonlyEntity =>
+  READONLY_ENTITIES.has(entity);
+
+function toProjectNode(node: PluginProjectNodeRecord): PluginProjectNode {
+  return {
+    documentId: String(node.id),
+    revision: node.revision,
+    title: node.title,
+    kind: node.kind,
+    ...(node.ref ? { ref: { kind: node.ref.kind, id: String(node.ref.id) } } : {}),
+    children: node.children.map(toProjectNode),
   };
 }
 
@@ -431,9 +547,20 @@ function requireId(id: string): number {
   return numeric;
 }
 
-/** 文章列表只按查询失效刷新（没有逐条合并），插件写入后整域失效，与文章页自身的写入一致 */
-function refreshArticles() {
-  void queryClient.invalidateQueries({ queryKey: ["articles"] });
+/**
+ * 插件写入后按查询失效刷新本窗口。文章列表只按查询失效刷新（没有逐条合并），与文章页自身的写入一致；
+ * 白板与项目没有写入广播，其他窗口在聚焦时重拉；项目文档的目录随项目刷新。
+ */
+const LIST_KEYS: Partial<Record<DataEntity, string>> = {
+  article: "articles",
+  whiteboard: "whiteboards",
+  project: "projects",
+  document: "projects",
+};
+
+function refreshLists(entity: DataEntity) {
+  const key = LIST_KEYS[entity];
+  if (key) void queryClient.invalidateQueries({ queryKey: [key] });
 }
 
 /** 助理协议：先预检（补全与校验），再逐项写入；conversationKey 记录发起方 */

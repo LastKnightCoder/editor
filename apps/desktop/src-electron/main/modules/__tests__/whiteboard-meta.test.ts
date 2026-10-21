@@ -203,7 +203,7 @@ describe("WhiteboardTable 页操作", () => {
 
     // 删掉副本后原页引用的正文仍在
     WhiteboardTable.deleteSubWhiteboard(db, board.id, copyId);
-    WhiteBoardContentTable.deleteWhiteBoardContentWhenRefCountIsZero(db);
+    WhiteBoardContentTable.collectPendingReleases(db, { now: Date.now(), graceMs: 0 });
     expect(ContentTable.getContentById(db, contentId)?.refCount).toBe(1);
   });
 });

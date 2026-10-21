@@ -6,7 +6,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { pluginArtifact } from "../../../test-fixtures/plugin-packages";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -22,6 +22,14 @@ import { PluginComponentScope } from "@/app/plugins/content-components";
 import { usePluginActionUi } from "@/app/plugins/app";
 import { pluginEntityKind } from "@/services/plugin-entity-kinds";
 import useSettingStore from "@/stores/useSettingStore";
+
+const disposed = { dispose: () => undefined };
+/** 测试直接渲染插件页面组件时用的页面上下文：始终显示，登记即忽略 */
+const fakePageContext = {
+  register: () => disposed,
+  isActive: () => true,
+  registerDismiss: () => disposed,
+};
 
 const openEntity = vi.hoisted(() => vi.fn());
 vi.mock("@/services/open-content", () => ({ openEntity }));
@@ -84,7 +92,7 @@ function respond(channel: unknown, ...args: unknown[]) {
       return { success: true };
     case "plugin-permissions:snapshot":
       return {};
-    case "plugin-data:exists":
+    case "plugin-refs:exists":
       return true;
     case "plugin-data:content":
       // 周记正文：插件自有内容
@@ -178,7 +186,15 @@ function respond(channel: unknown, ...args: unknown[]) {
 }
 
 const runtimes: DesktopPluginRuntime[] = [];
+// jsdom 没有 navigator.userActivation，宿主打开与动作要求用户激活，这里视点击为激活
+beforeEach(() => {
+  Object.defineProperty(navigator, "userActivation", {
+    configurable: true,
+    value: { isActive: true },
+  });
+});
 afterEach(async () => {
+  Reflect.deleteProperty(navigator, "userActivation");
   for (const runtime of runtimes.splice(0)) await runtime.dispose();
   electron.invoke.mockReset();
   electron.listeners.clear();
@@ -227,11 +243,7 @@ describe("每周回顾插件", () => {
         view.render(
           <QueryClientProvider client={new QueryClient()}>
             <PluginComponentScope context={page.context}>
-              <Component
-                context={page.context}
-                params={{}}
-                pageContext={{ register: () => ({ dispose: () => undefined }) }}
-              />
+              <Component context={page.context} params={{}} pageContext={fakePageContext} />
             </PluginComponentScope>
             <PluginPermissionPrompt />
           </QueryClientProvider>

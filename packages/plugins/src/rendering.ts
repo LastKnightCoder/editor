@@ -1,6 +1,7 @@
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
+import { assertPluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
   PLUGIN_SHARED_MODULES,
@@ -93,7 +94,7 @@ export function validatePluginDefinition(
 export function getPluginNodeTypes(definition: PluginDefinition): string[] {
   const types: string[] = [];
   for (const extension of definition.editorExtensions ?? []) {
-    if ("plugins" in extension) throw new Error("编辑器插件不支持原始 Slate 包装器");
+    assertPluginEditorExtension(extension);
     for (const element of extension.elements ?? []) {
       if (!element.type || types.includes(element.type))
         throw new Error(`插件节点类型为空或重复：${element.type}`);

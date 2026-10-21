@@ -1,89 +1,39 @@
 // @vitest-environment node
-import { mkdtemp, readFile, writeFile, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createHash } from "node:crypto";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { DevelopmentPluginRegistry, restoreDevelopmentPlugin } from "../plugin-registry";
-import type { DevelopmentPluginRecord } from "@/types/plugin-development";
+import { PluginWorkspaceRegistry } from "../plugin-registry";
 
 let directory: string;
 let filename: string;
-let registry: DevelopmentPluginRegistry;
+let registry: PluginWorkspaceRegistry;
 beforeEach(async () => {
   directory = await mkdtemp(path.join(tmpdir(), "tau-plugin-registry-"));
   filename = path.join(directory, "registry.json");
-  registry = new DevelopmentPluginRegistry(filename);
+  registry = new PluginWorkspaceRegistry(filename);
 });
 afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 
-async function fixture(): Promise<DevelopmentPluginRecord> {
-  const source = path.join(directory, "author");
-  await mkdir(source);
-  const code = "throw new Error('登记不得执行');";
-  const manifest = {
-    formatVersion: 1 as const,
-    apiVersion: 1 as const,
-    platform: "desktop" as const,
-    format: "cjs" as const,
-    id: "example.saved",
-    name: "持久插件",
-    version: "1.0.0",
-    main: "main.js",
-    integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
-  };
-  await writeFile(path.join(source, "manifest.json"), JSON.stringify(manifest));
-  await writeFile(path.join(source, "main.js"), code);
-  return { directory: source, manifest, enabled: false, starting: false };
-}
-
-it("同库别名和重新启动保持身份，不同库隔离；删除后同名库获得新身份", async () => {
-  const first = await registry.open("笔记.db");
-  const again = await new DevelopmentPluginRegistry(filename).open("笔记");
-  expect(again.id).toBe(first.id);
+it("同库别名和重新启动保持身份，不同库隔离，并发打开只分配一次", async () => {
+  const [first, concurrent] = await Promise.all([registry.open("笔记.db"), registry.open("笔记")]);
+  expect(concurrent.id).toBe(first.id);
+  expect((await new PluginWorkspaceRegistry(filename).open("笔记")).id).toBe(first.id);
   expect((await registry.open("其他.db")).id).not.toBe(first.id);
-  await registry.retire("笔记.db");
-  expect((await registry.open("笔记.db")).id).not.toBe(first.id);
 });
 
-it("并发登记串行保存，启动标记可恢复，移除只解除登记", async () => {
-  const workspace = await registry.open("A");
-  const record = await fixture();
-  await Promise.all([
-    registry.add(workspace.id, record),
-    registry.add(workspace.id, {
-      ...record,
-      manifest: { ...record.manifest, id: "example.second" },
-    }),
-  ]);
-  await registry.state(workspace.id, record.manifest.id, true, true);
-  let restored = await new DevelopmentPluginRegistry(filename).open("A");
-  expect(restored.plugins).toHaveLength(2);
-  expect(restored.plugins[0]).toMatchObject({ enabled: true, starting: true });
-  await registry.state(workspace.id, record.manifest.id, true, false);
-  await registry.remove(workspace.id, record.manifest.id);
-  restored = await registry.open("A");
-  expect(restored.plugins).toHaveLength(1);
-  expect(await readFile(path.join(record.directory, "main.js"), "utf8")).toContain("不得执行");
-});
-
-it("文件缺失或清单与产物一起改动仍保留失败记录，不自动信任新摘要", async () => {
-  const record = await fixture();
-  expect((await restoreDevelopmentPlugin(record)).artifact?.code).toContain("不得执行");
-  const code = "console.log('changed')";
-  await writeFile(path.join(record.directory, "main.js"), code);
+it("沿用旧登记文件的身份，写回时丢弃开发插件登记", async () => {
   await writeFile(
-    path.join(record.directory, "manifest.json"),
+    filename,
     JSON.stringify({
-      ...record.manifest,
-      integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+      version: 1,
+      workspaces: [{ name: "A", id: "stable", plugins: [{ directory: "/author" }] }],
     })
   );
-  expect((await restoreDevelopmentPlugin(record)).error).toContain("产物已变化");
-  await rm(path.join(record.directory, "main.js"));
-  expect((await restoreDevelopmentPlugin(record)).artifact).toBeUndefined();
+  expect(await registry.open("A.db")).toEqual({ name: "A", id: "stable" });
+  expect(await readFile(filename, "utf8")).not.toContain("plugins");
 });
 
 it("损坏的登记文件不覆盖，修复后同一实例可重试", async () => {
@@ -91,34 +41,13 @@ it("损坏的登记文件不覆盖，修复后同一实例可重试", async () =
   await expect(registry.open("A")).rejects.toThrow();
   expect(await readFile(filename, "utf8")).toBe("broken");
   await writeFile(filename, JSON.stringify({ version: 1, workspaces: [] }));
-  expect((await registry.open("A")).plugins).toEqual([]);
-});
-
-it("替换提交只存清单和目录，可按旧快照恢复；重载前标记不覆盖旧版本", async () => {
-  const workspace = await registry.open("A");
-  const previous = await fixture();
-  await registry.add(workspace.id, previous);
-  await registry.state(workspace.id, previous.manifest.id, true, true);
-  expect((await registry.get(workspace.id, previous.manifest.id)).manifest.version).toBe("1.0.0");
-  const next = {
-    ...previous,
-    manifest: { ...previous.manifest, version: "2.0.0" },
-    enabled: true,
-    artifact: { code: "不能写入登记文件" },
-  };
-  await registry.replace(workspace.id, next);
-  expect(
-    (await new DevelopmentPluginRegistry(filename).open("A")).plugins[0].manifest.version
-  ).toBe("2.0.0");
-  expect(await readFile(filename, "utf8")).not.toContain("不能写入登记文件");
-  await registry.replace(workspace.id, previous);
-  expect((await registry.get(workspace.id, previous.manifest.id)).manifest.version).toBe("1.0.0");
+  expect((await registry.open("A")).name).toBe("A");
 });
 
 it("写入失败不返回成功，解除故障后可重试", async () => {
   const blocked = path.join(directory, "blocked");
   await writeFile(blocked, "占位文件");
-  const store = new DevelopmentPluginRegistry(path.join(blocked, "registry.json"));
+  const store = new PluginWorkspaceRegistry(path.join(blocked, "registry.json"));
   await expect(store.open("A")).rejects.toThrow();
   await rm(blocked);
   expect((await store.open("A")).name).toBe("A");

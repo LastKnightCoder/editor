@@ -1,7 +1,7 @@
 /**
  * 插件实体（插件自建、带一份正文的内容）的 IPC 契约。主进程与渲染端共用，避免主进程反向依赖 app/plugins。
  */
-import type { PluginDataScope } from "./plugin-data";
+import type { PluginContentSource, PluginDataScope } from "./plugin-data";
 
 export interface PluginEntityRecord {
   id: number;
@@ -39,6 +39,8 @@ export interface PluginEntityCreate {
   key: string;
   title: string;
   meta: Record<string, unknown>;
+  /** 初始正文，缺省为空 */
+  content?: PluginContentSource;
 }
 
 export interface PluginEntityPatch {

@@ -10,6 +10,7 @@ import type { BlockData } from "@/types/block-preview";
 
 import useChatSessionStore, { MAIN_CHAT_BUCKET, bucketKeyOf } from "@/stores/useChatSessionStore";
 import { useScopedChat } from "@/hooks/useScopedChat";
+import { useChatStartConsumer } from "@/features/chat/chatStart";
 import useTheme from "@/hooks/useTheme";
 
 import { MarkdownProvider } from "@/components/ChatSidebar/MarkdownContext";
@@ -61,6 +62,17 @@ export const RightChatPanel = memo(
     });
 
     const [sendLoading, setSendLoading] = useState(false);
+    const startedChat = useChatStartConsumer("dock", {
+      active: open,
+      currentChatId: currentChat.id,
+      isDraft: !currentChat.sessionFile,
+      newChat,
+      container: chatContainerRef,
+    });
+    const onChatCreated = useMemoizedFn((chatId: string) => {
+      startedChat(chatId);
+      select(chatId);
+    });
 
     const onTitleChange = useMemoizedFn(async (title: string) => {
       try {
@@ -127,7 +139,7 @@ export const RightChatPanel = memo(
                 createMessageLoading={false}
                 preserveScrollPosition
                 scrollPositionScope="right-chat-sidebar"
-                onChatCreated={select}
+                onChatCreated={onChatCreated}
                 compact
                 composerAccessory={<WorkspaceBar chatId={currentChat.id} busy={sendLoading} />}
               />

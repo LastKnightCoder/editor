@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import type { DataEntity } from "@tau/plugins/host";
+import type { ContentOwnerEntity } from "@tau/plugins/host";
 import { readPluginContent } from "@/commands/plugin-data";
 import { locateEntity } from "@/commands/entity";
 import { bindDatabaseCommands } from "@/services/command-context";
@@ -10,16 +10,20 @@ import { decodeContentRef } from "@/utils/plugin-content-ref";
 export interface PluginContentTarget {
   contentId: number;
   /** 引用这份正文的实体类型（权限按任一类型判断） */
-  owners: DataEntity[];
+  owners: ContentOwnerEntity[];
   /** 作为协作来源与编辑身份的实体；只是插件自有内容时为 null */
-  owner: { entity: DataEntity; id: number; sourceType: "card" | "article" | "project-item" } | null;
+  owner: {
+    entity: ContentOwnerEntity;
+    id: number;
+    sourceType: "card" | "article" | "project-item";
+  } | null;
   /** 是当前插件自有内容的正文时为该实体（读写不需要业务权限） */
   own: { id: number; title: string } | null;
   /** 主库中的正文快照；有协作会话时可能落后约 1 秒 */
   nodes: Descendant[];
 }
 
-const LOCATE_KINDS: Record<DataEntity, EntityKind> = {
+const LOCATE_KINDS: Record<ContentOwnerEntity, EntityKind> = {
   card: "card",
   article: "article",
   document: "project_item",

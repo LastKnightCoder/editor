@@ -81,12 +81,11 @@ export const pendingCount = (runtime: DesktopPluginRuntime | null) =>
     ...(runtime?.local?.pendingContentIds?.() ?? []),
   ]).size;
 
-export type PluginSourceKind = "center" | "zip" | "development";
+export type PluginSourceKind = "center" | "zip";
 
 export const SOURCE_LABELS: Record<PluginSourceKind, string> = {
   center: "插件中心",
   zip: "本地 ZIP",
-  development: "开发中",
 };
 
 export const STATE_LABELS: Record<PluginInfo["state"], string> = {
@@ -118,10 +117,7 @@ export interface InstalledPlugin {
 }
 
 export function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginSourceKind {
-  if (runtime.development?.owns(id)) return "development";
-  if (runtime.local?.owns(id))
-    return runtime.local.source(id)?.kind === "center" ? "center" : "zip";
-  return "development";
+  return runtime.local?.source(id)?.kind === "center" ? "center" : "zip";
 }
 
 export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin[] {
@@ -142,7 +138,7 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
     const error =
       info.state === "restart-required"
         ? "插件清理未能确认完成，请重启应用后再启用。已保存的数据保留。"
-        : (runtime.development?.error(info.id) ?? local?.error(info.id) ?? info.error);
+        : (local?.error(info.id) ?? info.error);
     return {
       packageKind: runtime.local?.isTemplate(info.id)
         ? "template"
@@ -157,11 +153,7 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
         ? true
         : local?.isContentPlugin?.(info.id)
           ? local.enabled(info.id)
-          : Boolean(
-              info.state === "active" ||
-              runtime.development?.enabled(info.id) ||
-              runtime.local?.enabled(info.id)
-            ),
+          : Boolean(info.state === "active" || runtime.local?.enabled(info.id)),
       error,
     };
   });

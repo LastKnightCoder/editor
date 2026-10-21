@@ -112,6 +112,87 @@ describe("业务数据变更事件", () => {
     expect(events()).toEqual([{ type: "todos.changed" }, { type: "calendar.changed" }]);
   });
 
+  it("白板、项目、Notebook、材料、对话逐条给出变化；资料增删计入 Notebook", async () => {
+    const run = (sql: string, ...params: unknown[]) =>
+      Number(db.prepare(sql).run(...params).lastInsertRowid);
+    const board = run(
+      "INSERT INTO white_boards (create_time, update_time, tags, title, description, snapshot) VALUES (1, 1, '[]', '板', '', '')"
+    );
+    const project = run(
+      "INSERT INTO project (create_time, update_time, title, desc, children) VALUES (1, 1, '项', '', '[]')"
+    );
+    const notebook = run(
+      "INSERT INTO vibe_learning_project (create_time, update_time, title) VALUES (1, 1, '本')"
+    );
+    const excerpt = run(
+      "INSERT INTO excerpt (source_type, source_key, external_id, quote, create_time, update_time) VALUES ('web', 'k', 'e', '原文', 1, 1)"
+    );
+    run(
+      "INSERT INTO chat_session (id, scope, session_file, create_time, update_time) VALUES ('c1', 'main-chat', 'f', 1, 1), ('c2', 'internal', 'f', 1, 1)"
+    );
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([
+      { type: "whiteboard.created", id: board },
+      { type: "project.created", id: project },
+      { type: "notebook.created", id: notebook },
+      { type: "material.created", id: `excerpt:${excerpt}` },
+      { type: "chat.created", id: "c1" },
+    ]);
+
+    hoisted.send.mockClear();
+    run(
+      "INSERT INTO vibe_learning_resources (project_id, create_time, update_time, name, original_path, resource_type) VALUES (?, 1, 1, '资料', '/a', 'pdf')",
+      notebook
+    );
+    db.prepare("UPDATE excerpt SET is_deleted = 1 WHERE id = ?").run(excerpt);
+    db.prepare("UPDATE chat_session SET message_count = 2 WHERE id = 'c1'").run();
+    // 打开项目、切换白板当前页只是查看状态
+    db.prepare("UPDATE project SET last_open_time = 9 WHERE id = ?").run(project);
+    db.prepare("UPDATE white_boards SET active_white_board_content_id = 3 WHERE id = ?").run(board);
+    db.prepare("DELETE FROM white_boards WHERE id = ?").run(board);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(events()).toEqual([
+      { type: "notebook.updated", id: notebook },
+      { type: "material.deleted", id: `excerpt:${excerpt}` },
+      { type: "chat.updated", id: "c1" },
+      { type: "whiteboard.deleted", id: board },
+    ]);
+  });
+
+  it("插件实体的事件带所属插件与类型；正文修改计入实体，孤儿按删除处理", async () => {
+    const contentId = ContentTable.createContent(db, { content: doc("甲") });
+    const id = Number(
+      db
+        .prepare(
+          "INSERT INTO plugin_entities (plugin_id, kind, key, content_id, create_time, update_time) VALUES ('weekly', 'week', 'w1', ?, 1, 1)"
+        )
+        .run(contentId).lastInsertRowid
+    );
+    const entityEvents = () =>
+      hoisted.send.mock.calls.flatMap(([, message]) =>
+        message.events.map(({ type, id, owner, kind }: Record<string, unknown>) => ({
+          type,
+          id,
+          owner,
+          kind,
+        }))
+      );
+    await vi.advanceTimersByTimeAsync(600);
+    expect(entityEvents()).toEqual([{ type: "entity.created", id, owner: "weekly", kind: "week" }]);
+
+    hoisted.send.mockClear();
+    db.prepare("UPDATE contents SET content = '[]' WHERE id = ?").run(contentId);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(entityEvents()).toEqual([{ type: "entity.updated", id, owner: "weekly", kind: "week" }]);
+
+    hoisted.send.mockClear();
+    db.prepare("UPDATE plugin_entities SET orphaned_time = 5 WHERE id = ?").run(id);
+    await vi.advanceTimersByTimeAsync(600);
+    db.prepare("UPDATE contents SET content = '[]' WHERE id = ?").run(contentId);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(entityEvents()).toEqual([{ type: "entity.deleted", id, owner: "weekly", kind: "week" }]);
+  });
+
   it("同步下载重连后只发一次全量刷新", async () => {
     card(0);
     for (const callback of hoisted.connected) callback("alpha.db", "sync_download_reconnect");
