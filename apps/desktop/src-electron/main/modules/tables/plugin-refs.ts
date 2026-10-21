@@ -7,29 +7,9 @@ import type { NotebookPlan } from "@/types/vibe-learning";
 import { readDocumentTask } from "../task-assistant/documents";
 import EntitySearchTable from "./entity-search";
 import MaterialTable from "./material";
+import { NUMERIC_KINDS } from "./plugin-ref-kinds";
 
 const MAX_REFS = 200;
-
-/** 以数字 ID 寻址的插件引用类型：所在表、附加条件与标题解析用的检索类型 */
-const NUMERIC_KINDS: Record<string, { sql: string; search: EntityKind }> = {
-  card: { sql: "SELECT create_time FROM cards WHERE id = ?", search: "card" },
-  article: {
-    sql: "SELECT create_time FROM articles WHERE id = ? AND is_delete = 0",
-    search: "article",
-  },
-  document: { sql: "SELECT create_time FROM project_item WHERE id = ?", search: "project_item" },
-  diary: { sql: "SELECT create_time FROM diary_segments WHERE id = ?", search: "diary-moment" },
-  whiteboard: { sql: "SELECT create_time FROM white_boards WHERE id = ?", search: "white_board" },
-  project: { sql: "SELECT create_time FROM project WHERE id = ?", search: "project" },
-  notebook: {
-    sql: "SELECT create_time FROM vibe_learning_project WHERE id = ?",
-    search: "notebook",
-  },
-  "plugin-entity": {
-    sql: "SELECT create_time FROM plugin_entities WHERE id = ?",
-    search: "plugin-entity",
-  },
-};
 
 /** 材料的存在判断：软删除的划线视为不存在 */
 const MATERIAL_SQL: Record<string, string> = {

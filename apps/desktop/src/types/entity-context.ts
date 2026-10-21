@@ -91,6 +91,8 @@ export interface EntityContext {
   backlinkTotal: number;
   /** 我（或共用正文的身份）是哪些问题的材料 */
   questions: ContextQuestion[];
+  /** 哪些插件内容关联了我（或共用正文的身份），按最近关联排序；最多 50 条 */
+  pluginLinks: ContextEntity[];
   /** 我从哪来（谱系入边）；来源已删除的保留并标记 missing */
   sources: ContextLineageItem[];
   /** 我产生了什么（谱系出边 + 引用我正文的闪卡）；已删除的不返回 */

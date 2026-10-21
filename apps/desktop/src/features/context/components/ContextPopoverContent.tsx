@@ -1,6 +1,7 @@
 /**
  * 脉络浮层内容，分区顺序（KL-023）：来源、连接（显式 content_links ∪ 内联引用，含添加/解除）、
- * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、相关问题，
+ * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、被关联（插件内容经
+ * context.links 关联了它，按插件声明的类型名与图标显示）、相关问题，
  * 末尾「相关」（KL-057，语义相近但还没有关系，不计入关联数）。
  * 只负责展示与点击回调，数据与开合由 ContextBadge 管理；「连接」分区自带增删动作。
  */
@@ -142,6 +143,7 @@ const EMPTY: Omit<EntityContext, "self" | "selfContentIds"> = {
   backlinkTotal: 0,
   projections: [],
   questions: [],
+  pluginLinks: [],
   sources: [],
   derived: [],
   notebookProjections: [],
@@ -166,6 +168,7 @@ export function ContextPopoverContent({
     backlinkTotal,
     projections,
     questions,
+    pluginLinks,
     sources,
     derived,
     notebookProjections,
@@ -224,6 +227,15 @@ export function ContextPopoverContent({
           {usages.map(usage => (
             <Row key={usage.key} onClick={() => onOpenTarget(usage.open)}>
               <UsageLine usage={usage} />
+            </Row>
+          ))}
+        </Section>
+      )}
+      {pluginLinks.length > 0 && (
+        <Section title="被关联">
+          {pluginLinks.map(entity => (
+            <Row key={`${entity.ref.kind}:${entity.ref.id}`} onClick={() => openEntityRow(entity)}>
+              <SourceLine entity={entity} />
             </Row>
           ))}
         </Section>
