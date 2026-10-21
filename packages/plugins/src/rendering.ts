@@ -1,6 +1,6 @@
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
-import { assertPluginEditorExtension } from "./editor-fields";
+import { assertPluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
   PLUGIN_SHARED_MODULES,
