@@ -28,7 +28,7 @@ export function VoiceTtsPanel() {
   const ttsProviders = useSettingStore(s => s.setting.ttsProviders);
   const runtime = useDesktopPlugins();
 
-  // 过滤掉未安装插件的提供商配置
+  // 只展示已启用插件的账号，缺失插件时保留底层配置。
   const installedPluginIds = new Set(
     runtime
       ?.listSettings()
@@ -136,9 +136,21 @@ export function VoiceTtsPanel() {
   const loadVoices = useCallback(async () => {
     // 入口先占票：早退分支也要作废在途请求，防止旧响应回灌过期音色
     const ticket = ++loadVoicesRef.current;
+    const { ttsProviders, ttsUsageSettings } = useSettingStore.getState().setting;
+    const currentUsage = ttsUsageSettings.default;
+    const provider = ttsProviders.find(item => item.id === currentUsage?.providerId);
+    const available = runtime
+      ?.listSettings()
+      .some(
+        item => item.definition.target === "tts" && item.context.pluginId === provider?.pluginId
+      );
+    if (!available || !currentUsage?.modelId) {
+      setVoices([]);
+      setVoicesLoading(false);
+      return;
+    }
     const synthesizer = TTSProviderFactory.getSpeechSynthesizer();
-    const currentUsage = useSettingStore.getState().setting.ttsUsageSettings.default;
-    if (!synthesizer || !currentUsage?.modelId) {
+    if (!synthesizer) {
       setVoices([]);
       setVoicesLoading(false);
       return;
@@ -159,11 +171,15 @@ export function VoiceTtsPanel() {
         setVoicesLoading(false);
       }
     }
-  }, []);
+  }, [runtime]);
 
   useEffect(() => {
+    const requestVersion = loadVoicesRef;
     void loadVoices();
-  }, [usage?.providerId, usage?.modelId, loadVoices]);
+    return () => {
+      ++requestVersion.current;
+    };
+  }, [usageProvider, usage?.providerId, usage?.modelId, loadVoices]);
 
   return (
     <>
@@ -247,7 +263,7 @@ export function VoiceTtsPanel() {
             aria-label="语音合成提供商"
             className="w-[240px]"
             placeholder="请选择提供商"
-            value={usage?.providerId ?? null}
+            value={usageProvider?.id ?? null}
             emptyText="先在上方添加服务商"
             options={validProviders.map(provider => ({
               value: provider.id,
