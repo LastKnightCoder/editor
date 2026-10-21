@@ -16,6 +16,8 @@ Typst 本地 WASM 编译迁移见 [76](76-Typst本地WASM编译迁移.md)（D-17
 
 ## 当前状态
 
+- 问题管理插件化与宿主能力开放见 [81](81-问题管理插件化与宿主能力开放.md)（PS-046，方案阶段，未实施）：以「删掉问题模块后接口是否仍说得通」区分地基与补丁；正文写入统一为 `PluginContentInput`（markdown / nodes / copyOf），补齐宿主对象接口、带返回值的界面动作、侧栏 / 首页 / 对象动作挂载点与 `records` / `links`；核心功能之间不经插件扩展点。
+
 - 插件 Skill 改为包内 `skills/<id>/` 目录并新增独立 Skill 包（PS-045、D-180），带脚本版本走人工系统审核；见 [插件 Skill 目录与 Skill 包](插件Skill目录与Skill包.md)。
 
 - 插件作者文档已收拢到模板 `scripts/plugins/template/docs/`，按开发路径重写，SDK 打包时整目录复制进 npm 包；见 [作者文档重写](作者文档重写.md)。
