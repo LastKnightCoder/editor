@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { produce } from "immer";
 import { copyJson } from "@tau/plugins/host";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { Button, ConfirmDialog, Input, Select } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
@@ -77,7 +77,6 @@ export function ImageGenerationSection() {
                   label: item.definition.title,
                 }))}
                 placeholder="添加提供商"
-                triggerIcon={Plus}
               />
             )}
           </div>
