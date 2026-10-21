@@ -171,16 +171,23 @@ it("管理员按状态筛选、改状态与备注，版本冲突返回409；非�
   expect((await admin("/missing")).status).toBe(404);
 });
 
-it("清理过期反馈及其附件与额度计数", async () => {
+it("清理过期的额度计数，但保留反馈记录", async () => {
   const { id } = (await (await submit(form({}, { image: [PNG] }))).json()).data;
   f.sqlite.prepare("UPDATE app_feedback SET created_at='2020-01-01T00:00:00Z' WHERE id=?").run(id);
   f.sqlite.exec("UPDATE app_feedback_ip_limits SET day='2020-01-01'");
+  f.sqlite.exec("UPDATE app_feedback_daily_bytes SET day='2020-01-01'");
   await cleanAppFeedback(f.env);
-  expect(f.feedback.size).toBe(0);
+  // 反馈记录和附件应该保留
+  expect(f.feedback.size).toBe(1);
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM app_feedback").get()).toEqual({ n: 1 });
   expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM app_feedback_attachments").get()).toEqual({
+    n: 1,
+  });
+  // 额度计数应该被清理
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM app_feedback_ip_limits").get()).toEqual({
     n: 0,
   });
-  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM app_feedback_ip_limits").get()).toEqual({
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM app_feedback_daily_bytes").get()).toEqual({
     n: 0,
   });
 });

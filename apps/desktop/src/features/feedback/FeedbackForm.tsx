@@ -368,7 +368,7 @@ export function FeedbackForm({
         <div className="flex items-center gap-2">
           <span className="text-tau-micro text-ink-3 mr-auto flex items-center gap-1.5">
             <Lock size={12} />
-            截图和日志只有开发者能看到，180 天后自动删除
+            截图和日志只有开发者能看到
           </span>
           <Button
             variant="primary"

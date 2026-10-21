@@ -429,27 +429,9 @@ export async function appFeedbackModerationRoute(
   return fail(404, "NOT_FOUND", "接口不存在");
 }
 
-/** 定时清理：超过保留期的反馈连同附件删除，过期的额度计数一并清掉。 */
+/** 定时清理：清理过期的额度计数。反馈记录和附件永久保留。 */
 export async function cleanAppFeedback(env: Env) {
-  const cutoff = new Date(Date.now() - LIMITS.retentionDays * 86400000).toISOString();
-  const expired = await env.DB.prepare(
-    "SELECT id FROM app_feedback WHERE created_at<? ORDER BY created_at LIMIT 200"
-  )
-    .bind(cutoff)
-    .all<{ id: string }>();
-  for (const { id } of expired.results) {
-    const keys = await env.DB.prepare(
-      "SELECT object_key FROM app_feedback_attachments WHERE feedback_id=?"
-    )
-      .bind(id)
-      .all<{ object_key: string }>();
-    // 先删对象再删记录：中途失败时记录仍在，下次清理会重试
-    if (keys.results.length) await env.FEEDBACK.delete(keys.results.map(row => row.object_key));
-    await env.DB.batch([
-      env.DB.prepare("DELETE FROM app_feedback_attachments WHERE feedback_id=?").bind(id),
-      env.DB.prepare("DELETE FROM app_feedback WHERE id=?").bind(id),
-    ]);
-  }
+  // 只清理额度计数，不删除反馈记录和附件
   const today = new Date().toISOString().slice(0, 10);
   await env.DB.batch([
     env.DB.prepare("DELETE FROM app_feedback_ip_limits WHERE day<?").bind(today),
