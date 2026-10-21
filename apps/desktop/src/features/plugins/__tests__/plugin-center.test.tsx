@@ -235,6 +235,64 @@ it("发现页安装后立即登记且停用，用户从已安装主动启用", a
   expect(mock.preferences.get(ID)).toBe(true);
 });
 
+it("勾选不再提示后再次安装普通插件直接开始，可从插件页菜单恢复提示", async () => {
+  await click("安装");
+  const skip = dialog().querySelector<HTMLInputElement>('input[type="checkbox"]');
+  await act(async () => skip?.click());
+  await click("安装", dialog());
+  expect(mock.stage).toHaveBeenCalledTimes(1);
+  mock.stage.mockClear();
+  scan = { ...scan, entries: [] };
+  await act(async () => runtime.local?.refresh());
+  await settle();
+  await click("安装");
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(mock.stage).toHaveBeenCalledWith("r1");
+
+  mock.stage.mockClear();
+  scan = { ...scan, entries: [] };
+  await act(async () => runtime.local?.refresh());
+  await click("更多插件操作");
+  const restore = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
+  expect(restore?.textContent).toContain("安装插件前提示风险");
+  expect(restore?.getAttribute("aria-checked")).toBe("false");
+  await act(async () => restore?.click());
+  await settle();
+  await click("安装");
+  expect(mock.stage).not.toHaveBeenCalled();
+  expect(dialog().textContent).toContain("可以读取和修改你的笔记数据");
+});
+
+it("含后台的插件即使勾选过不再提示也每次提示风险", async () => {
+  localStorage.setItem("plugins:skip-install-notice", "1");
+  const release = await mock.release();
+  mock.release.mockResolvedValue({
+    ...release,
+    systemReviewed: true,
+    content: {
+      ...release.content,
+      manifest: {
+        ...release.content.manifest,
+        backend: {
+          entry: "backend.js",
+          reason: "调用本机 OCR 程序",
+          scope: "application",
+          activation: "on-demand",
+          lifetime: "idle",
+          systemAccess: ["process"],
+        },
+      },
+    },
+  });
+  await click("安装");
+  expect(mock.stage).not.toHaveBeenCalled();
+  expect(dialog().textContent).toContain("本机后台代码");
+  expect(dialog().textContent).toContain("调用本机 OCR 程序");
+  expect(dialog().querySelector('input[type="checkbox"]')).toBeNull();
+  await click("安装", dialog());
+  expect(mock.stage).toHaveBeenCalledWith("r1");
+});
+
 it("发现页卡片右上角的开关直接启用和停用已安装插件", async () => {
   expect(page().querySelector('[aria-label="启用 中心插件"]')).toBeNull();
   await click("安装");

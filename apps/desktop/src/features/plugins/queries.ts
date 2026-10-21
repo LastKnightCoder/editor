@@ -57,14 +57,16 @@ export function usePluginCatalog(query = "", sort: PluginCatalogSort = "download
   };
 }
 
+/** 发布记录不可变；详情页展示与安装前的后台判定共用同一缓存。 */
+export const pluginReleaseQuery = (releaseId: string | undefined) => ({
+  queryKey: ["plugins", "release", releaseId],
+  queryFn: () => fetchPluginRelease(releaseId ?? ""),
+  staleTime: Infinity,
+  retry: false,
+});
+
 export function usePluginRelease(releaseId: string | undefined) {
-  return useQuery({
-    queryKey: ["plugins", "release", releaseId],
-    queryFn: () => fetchPluginRelease(releaseId ?? ""),
-    enabled: Boolean(releaseId),
-    staleTime: Infinity,
-    retry: false,
-  });
+  return useQuery({ ...pluginReleaseQuery(releaseId), enabled: Boolean(releaseId) });
 }
 
 /** 中心已发布版本；随详情页打开读取，不随窗口聚焦刷新。 */
