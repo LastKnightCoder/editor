@@ -122,6 +122,21 @@ it("发布中显示进度且无取消按钮", () => {
   ).toBe(false);
 });
 
+it("快照推送阶段显示文件数而非计数", () => {
+  mocks.config = makeConfig();
+  mocks.runner = makeRunner({
+    running: true,
+    run: {
+      kind: "running",
+      startedAt: Date.now(),
+      progress: { phase: "pushing", current: 0, total: 1881 },
+    },
+  });
+  render();
+  expect(text()).toContain("推送 1881 个文件");
+  expect(text()).not.toContain("0 / 1881");
+});
+
 it("部分失败时列出失败文件并提供重新发布", () => {
   mocks.config = makeConfig();
   mocks.runner = makeRunner({
