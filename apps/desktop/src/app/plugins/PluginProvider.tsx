@@ -13,6 +13,7 @@ import { createDesktopEvents } from "./events";
 import { createDesktopApp } from "./app";
 import { createDesktopEntities } from "./entities";
 import { createDesktopRecords } from "./records";
+import { createDesktopLinks } from "./links";
 import {
   createDatabaseStorage,
   migrateLegacyPluginStorage,
@@ -100,9 +101,10 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           app: createDesktopApp(workspaceId),
           entities: createDesktopEntities(workspaceId),
           records: createDesktopRecords(workspaceId),
+          links: createDesktopLinks(workspaceId),
           ...(isElectron
             ? {
-                // 私有存储与用户为它选择过的引用一并清除；插件内容与记录按卸载宽限另行回收
+                // 私有存储与用户为它选择过的引用一并清除；插件内容、记录与关联按卸载宽限另行回收
                 purgeStorage: async (pluginId: string) => {
                   await clearPluginKv(workspaceId, pluginId);
                   await clearPluginRefGrants(workspaceId, pluginId);

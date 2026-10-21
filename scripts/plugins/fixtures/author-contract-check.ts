@@ -18,6 +18,7 @@ import type {
   PluginExcerptSource,
   PluginOwnEntityQuery,
   PluginPageContext,
+  PluginLink,
   PluginPageProps,
   PluginRecord,
 } from "@tau/plugins";
@@ -181,6 +182,17 @@ export async function checkDataContract(context: PluginContext) {
     key: "example",
     content: { markdown: "# 示例" },
   });
+  const link: PluginLink = await context.links.add(
+    entity.id,
+    { kind: "card", id: "1" },
+    { role: "material", data: { at: 1 } }
+  );
+  const linked = await context.links.list(entity.id, { role: "material" });
+  await context.links.reorder(
+    entity.id,
+    linked.map(item => item.id)
+  );
+  await context.links.remove(link.id);
   const content = await context.content.read(entity.contentRef, { format: "nodes" });
   if (content?.nodes) {
     const nodeVersion: number | undefined = content.schemaVersion;

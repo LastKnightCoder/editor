@@ -538,6 +538,11 @@ describe("插件选择与打开", () => {
         await click("保存卡片");
         expect(await saved).toEqual({ kind: "card", id: "21" });
         expect(usePluginActionUi.getState().request).toBeNull();
+        // 用户保存即同意：新建的卡片登记为选择过的引用
+        expect(mocks.grant).toHaveBeenLastCalledWith("data.db", plugin.id, [
+          { kind: "card", id: "21" },
+        ]);
+        mocks.grant.mockClear();
 
         // 不带正文时不解析，预填空卡片
         const cancelled = app.run(context(), plugin, { action: "card.create" });
@@ -549,6 +554,7 @@ describe("插件选择与打开", () => {
         });
         await click("取消新建");
         expect(await cancelled).toBeNull();
+        expect(mocks.grant).not.toHaveBeenCalled();
 
         const controller = new AbortController();
         const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;

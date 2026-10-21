@@ -64,7 +64,7 @@ const NOTE_SOURCES: Record<string, { sql: string; search: EntityKind; noteType: 
   },
 };
 
-interface Located {
+export interface Located {
   /** 目标的创建时间：授权按它核对，编号被复用时不会落到新内容上 */
   createdAt: number;
   title(): string;
@@ -160,6 +160,38 @@ function locate(db: Database.Database, kind: string, id: string): Located | null
   }
 }
 
+/**
+ * 插件能否看到一项引用：已获准读取的类型（readable）、用户选择过的与本插件自己的内容可见，
+ * 其余为 denied 且不透露是否存在；选择过的内容已删除或编号被复用时为 missing。
+ */
+export function accessPluginRef(
+  db: Database.Database,
+  pluginId: string,
+  ref: PluginRefInput,
+  readable: boolean
+): { status: "denied" | "missing" } | { status: "ok"; located: Located } {
+  const entityId = numericId(ref.id);
+  const own =
+    ref.kind === "plugin-entity" &&
+    entityId !== null &&
+    Boolean(
+      db
+        .prepare("SELECT 1 FROM plugin_entities WHERE id = ? AND plugin_id = ?")
+        .get(entityId, pluginId)
+    );
+  const grant = db
+    .prepare(
+      "SELECT target_created_at FROM plugin_ref_grants WHERE plugin_id = ? AND kind = ? AND ref_id = ?"
+    )
+    .get(pluginId, ref.kind, ref.id) as { target_created_at: number } | undefined;
+  const allowed = readable || own;
+  if (!allowed && !grant) return { status: "denied" };
+  const located = locate(db, ref.kind, ref.id);
+  if (!located || (!allowed && grant!.target_created_at !== located.createdAt))
+    return { status: "missing" };
+  return { status: "ok", located };
+}
+
 /** 插件引用的存在判断、用户选择过的引用的登记与标题描述（context.app.open / pick / describe） */
 export default class PluginRefsTable {
   static getListenEvents() {
@@ -215,33 +247,18 @@ export default class PluginRefsTable {
     return granted;
   }
 
-  /**
-   * 按顺序描述引用：插件已获准读取的类型（readable）、用户选择过的引用与本插件自己的内容给出标题，
-   * 其余为 denied 且不透露是否存在。选择过的内容已删除、编号被复用时为 missing。
-   */
+  /** 按顺序描述引用，可见规则见 accessPluginRef */
   static describe(
     db: Database.Database,
     request: PluginDataScope & { pluginId: string; refs: PluginRefInput[]; readable: string[] }
   ): PluginRefDescription[] {
     this.assertDatabase(db, request);
     const readable = new Set(Array.isArray(request.readable) ? request.readable : []);
-    const grantOf = db.prepare(
-      "SELECT target_created_at FROM plugin_ref_grants WHERE plugin_id = ? AND kind = ? AND ref_id = ?"
-    );
-    const ownEntity = db.prepare("SELECT 1 FROM plugin_entities WHERE id = ? AND plugin_id = ?");
     return this.readRefs(request.refs).map((ref): PluginRefDescription => {
-      const own =
-        ref.kind === "plugin-entity" &&
-        numericId(ref.id) !== null &&
-        Boolean(ownEntity.get(numericId(ref.id), request.pluginId));
-      const grant = grantOf.get(request.pluginId, ref.kind, ref.id) as
-        { target_created_at: number } | undefined;
-      const allowed = readable.has(ref.kind) || own;
-      if (!allowed && !grant) return { status: "denied" };
-      const located = locate(db, ref.kind, ref.id);
-      if (!located || (!allowed && grant!.target_created_at !== located.createdAt))
-        return { status: "missing" };
-      return { status: "ok", title: located.title() };
+      const access = accessPluginRef(db, request.pluginId, ref, readable.has(ref.kind));
+      return access.status === "ok"
+        ? { status: "ok", title: access.located.title() }
+        : { status: access.status };
     });
   }
 

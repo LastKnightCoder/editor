@@ -104,6 +104,7 @@ import type {
   PluginOwnEntityPatch,
   PluginOwnEntityQuery,
 } from "./entities";
+import type { PluginLink, PluginLinkData, PluginLinkOptions } from "./links";
 import type {
   PluginRecord,
   PluginRecordCollection,
@@ -398,6 +399,21 @@ export interface RecordsAdapter {
   ): Promise<void>;
 }
 
+/**
+ * 插件关联的存取：来源须是本插件的内容。readable 为插件是否已获准读取目标的类型，
+ * 宿主据此与用户选择过的引用判断目标是否可关联。新关联的 ID 由 PluginHost 生成。
+ */
+export interface LinksAdapter {
+  add(
+    context: PluginContext,
+    link: { id: string; from: string; to: PluginEntityRef; role: string; data: PluginLinkData },
+    readable: boolean
+  ): Promise<PluginLink>;
+  list(context: PluginContext, from: string, role?: string): Promise<PluginLink[]>;
+  remove(context: PluginContext, id: string): Promise<void>;
+  reorder(context: PluginContext, from: string, ids: string[]): Promise<void>;
+}
+
 /** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
 export interface AppAdapter {
   pick(
@@ -516,6 +532,20 @@ function readRecordData(value: unknown): PluginRecordData {
   const data = copyJson(value) as PluginRecordData;
   if (JSON.stringify(data).length > MAX_RECORD_DATA) throw new Error("data 超过 64 KB");
   return data;
+}
+
+const MAX_LINK_DATA = 4 * 1024;
+const MAX_REORDER = 1000;
+
+function readLinkOptions(value: unknown): { role: string; data: PluginLinkData } {
+  if (value !== undefined && (!value || typeof value !== "object" || Array.isArray(value)))
+    throw new Error("参数无效");
+  const { role = "", data = {} } = (value ?? {}) as PluginLinkOptions;
+  if (role !== "") assertLocalId(role);
+  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("data 必须是对象");
+  const copy = copyJson(data) as PluginLinkData;
+  if (JSON.stringify(copy).length > MAX_LINK_DATA) throw new Error("data 超过 4 KB");
+  return { role, data: copy };
 }
 
 function readRecordCollection(value: unknown): Required<PluginRecordCollection> {
@@ -967,6 +997,7 @@ export class PluginHost {
       permissions?: PermissionsAdapter;
       entities?: EntitiesAdapter;
       records?: RecordsAdapter;
+      links?: LinksAdapter;
       data?: DataAdapter;
       events?: EventsAdapter;
       app?: AppAdapter;
@@ -1351,6 +1382,11 @@ export class PluginHost {
     };
     const entityKindDefinitions = new Map<string, PluginOwnEntityKind>();
     const recordCollections = new Map<string, Required<PluginRecordCollection>>();
+    const linksAdapter = () => {
+      this.assertActive(entry, activation);
+      if (!this.options.links) throw new Error("当前宿主不支持插件关联");
+      return this.options.links;
+    };
     const recordsAdapter = () => {
       this.assertActive(entry, activation);
       if (!this.options.records) throw new Error("当前宿主不支持插件记录");
@@ -2413,6 +2449,43 @@ export class PluginHost {
               )
             )
           );
+        },
+      }),
+      links: Object.freeze({
+        add: async (from: string, to: PluginEntityRef, options?: PluginLinkOptions) => {
+          const target = readEntityRef(to);
+          const { role, data } = readLinkOptions(options);
+          const permission = PLUGIN_ENTITY_READ_PERMISSIONS[target.kind];
+          // 只查询已有授权，不弹窗
+          const readable = Boolean(
+            permission &&
+            declared.has(permission) &&
+            (await permissionsAdapter().query(context, permission)) === "granted"
+          );
+          return deliver<PluginLink>(
+            await linksAdapter().add(
+              context,
+              { id: crypto.randomUUID(), from: readId(from), to: target, role, data },
+              readable
+            )
+          );
+        },
+        list: async (from: string, options?: { role?: string }) => {
+          const role = options?.role;
+          if (role !== undefined && role !== "") assertLocalId(role);
+          return deliver<PluginLink[]>(await linksAdapter().list(context, readId(from), role));
+        },
+        remove: async (id: string) => {
+          await linksAdapter().remove(context, readId(id));
+          this.assertActive(entry, activation);
+        },
+        reorder: async (from: string, ids: readonly string[]) => {
+          if (!Array.isArray(ids) || !ids.length || ids.length > MAX_REORDER)
+            throw new Error(`ids 必须是 1–${MAX_REORDER} 项的数组`);
+          const values = ids.map(readId);
+          if (new Set(values).size !== values.length) throw new Error("ids 有重复");
+          await linksAdapter().reorder(context, readId(from), values);
+          this.assertActive(entry, activation);
         },
       }),
       records: Object.freeze({

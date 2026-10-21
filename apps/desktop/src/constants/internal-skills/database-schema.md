@@ -110,6 +110,23 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `value`       | `TEXT NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL` |
 
+### `plugin_links`
+
+插件内容（`plugin_entities`）指向其他内容的有序关联（插件里的 `context.links`，如问题关联的探究材料），会显示在目标的脉络里。`from_id` 为来源实体 ID；`to_kind` / `to_id` 为目标的插件引用类型与 ID（如 `card` / `12`、`material` / `excerpt:3`）；`to_created_at` 为建立关联时目标的创建时间，编号被新内容复用时判为已删除；`role` 为插件定义的角色，`data` 为附加 JSON。
+
+| 字段            | SQLite 定义                  |
+| --------------- | ---------------------------- |
+| `id`            | `TEXT PRIMARY KEY`           |
+| `plugin_id`     | `TEXT NOT NULL`              |
+| `from_id`       | `INTEGER NOT NULL`           |
+| `to_kind`       | `TEXT NOT NULL`              |
+| `to_id`         | `TEXT NOT NULL`              |
+| `to_created_at` | `INTEGER NOT NULL`           |
+| `role`          | `TEXT NOT NULL DEFAULT ''`   |
+| `sort_index`    | `INTEGER NOT NULL`           |
+| `data`          | `TEXT NOT NULL DEFAULT '{}'` |
+| `create_time`   | `INTEGER NOT NULL`           |
+
 ### `plugin_records`
 
 插件内部的结构化数据（插件里的 `context.records`，如分组、操作轨迹），用户在界面上看不到。`collection` 为插件定义的集合名，`data` 为 JSON 文本；`orphaned_time` 非空表示插件已不在本机，超过 7 天后删除。

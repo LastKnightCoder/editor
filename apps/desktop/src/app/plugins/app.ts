@@ -340,110 +340,124 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       ).describePluginRefs(databaseName, context.pluginId, [...refs], [...readable]);
     },
     async run(context, plugin, request: PluginAppRunRequest) {
-      assertPluginUserActivation();
-      if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
-      const resolve = (content: PluginContentInput) =>
-        bindDatabaseCommands(
-          { resolvePluginContentInput },
+      const result = await runAction(databaseName, context, plugin, request);
+      // 用户在宿主窗口里亲手保存即同意：与 pick 一样登记，插件之后能显示与关联它
+      if (result)
+        await bindDatabaseCommands(
+          { grantPluginRefs },
           { databaseName, signal: context.signal }
-        ).resolvePluginContentInput(databaseName, toContentSource(content));
-      if (request.action === "chat.start") {
-        const mentions = await resolveMentions(databaseName, context, request.context);
-        const { startChat } = await import("@/features/chat/chatStart");
-        const sessionId = await startChat(
-          { placement: request.placement, prompt: request.prompt, mentions },
-          context.signal
-        );
-        return sessionId ? { kind: "chat-session", id: sessionId } : null;
-      }
-      if (request.action === "notebook.create") {
-        const commands = bindDatabaseCommands(
-          { planPluginNotebook, pluginRefExists },
-          { databaseName, signal: context.signal }
-        );
-        const from = request.from;
-        if (from && !(await commands.pluginRefExists(databaseName, from.kind, from.id)))
-          throw new Error("来源不存在");
-        const plan = await commands.planPluginNotebook(databaseName, request.sources);
-        return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
-          id,
-          plugin,
-          action: "notebook.create",
-          databaseName,
-          title: request.title,
-          plan,
-          ...(from ? { from: toLineageNode(from) } : {}),
-          close: () => finish(null),
-          settle: projectId => finish({ kind: "notebook", id: String(projectId) }),
-        }));
-      }
-      if (request.action === "project.insertDocument") {
-        const nodes = await resolve(request.content);
-        return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
-          id,
-          plugin,
-          action: "project.insertDocument",
-          title: request.title ?? "未命名文档",
-          content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
-          close: () => finish(null),
-          settle: documentId => finish({ kind: "document", id: String(documentId) }),
-        }));
-      }
-      if (request.action === "card.create") {
-        const nodes = request.content ? await resolve(request.content) : [];
-        return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
-          id,
-          plugin,
-          action: "card.create",
-          content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
-          tags: request.tags ?? [],
-          close: () => finish(null),
-          settle: cardId => finish({ kind: "card", id: String(cardId) }),
-        }));
-      }
-      const target = await resolvePluginContentTarget(
-        databaseName,
-        context.pluginId,
-        request.ref,
-        context.signal
-      );
-      if (!target) throw new Error("内容不存在");
-      const { owner } = target;
-      const record = owner
-        ? await bindDatabaseCommands(
-            { getPluginData },
-            { databaseName, signal: context.signal }
-          ).getPluginData(databaseName, owner.entity, owner.id)
-        : null;
-      context.signal.throwIfAborted();
-      const title = record?.title || target.own?.title || "未命名";
-      if (request.action === "content.export" && request.format === "markdown") {
-        const { exportContentAsMarkdown } = await import("@/services/content-transfer");
-        context.signal.throwIfAborted();
-        await exportContentAsMarkdown({ title, content: target.nodes });
-        return;
-      }
-      return showAction<void>(context, undefined, (finish, id) => ({
-        id,
-        plugin,
-        action:
-          request.action === "content.export"
-            ? "export"
-            : request.action === "content.present"
-              ? "present"
-              : "share",
-        ...(request.action === "content.export" && request.format !== "markdown"
-          ? { format: request.format }
-          : {}),
-        contentId: target.contentId,
-        // 插件自有内容没有宿主实体，按通用正文共享
-        source: owner
-          ? { sourceType: owner.sourceType, sourceId: owner.id, sourceTitle: title }
-          : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
-        title,
-        content: target.nodes,
-        close: () => finish(undefined),
-      }));
+        ).grantPluginRefs(databaseName, context.pluginId, [result]);
+      return result;
     },
   };
+}
+
+async function runAction(
+  databaseName: string,
+  ...[context, plugin, request]: Parameters<AppAdapter["run"]>
+): Promise<PluginEntityRef | null | void> {
+  assertPluginUserActivation();
+  if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
+  const resolve = (content: PluginContentInput) =>
+    bindDatabaseCommands(
+      { resolvePluginContentInput },
+      { databaseName, signal: context.signal }
+    ).resolvePluginContentInput(databaseName, toContentSource(content));
+  if (request.action === "chat.start") {
+    const mentions = await resolveMentions(databaseName, context, request.context);
+    const { startChat } = await import("@/features/chat/chatStart");
+    const sessionId = await startChat(
+      { placement: request.placement, prompt: request.prompt, mentions },
+      context.signal
+    );
+    return sessionId ? { kind: "chat-session", id: sessionId } : null;
+  }
+  if (request.action === "notebook.create") {
+    const commands = bindDatabaseCommands(
+      { planPluginNotebook, pluginRefExists },
+      { databaseName, signal: context.signal }
+    );
+    const from = request.from;
+    if (from && !(await commands.pluginRefExists(databaseName, from.kind, from.id)))
+      throw new Error("来源不存在");
+    const plan = await commands.planPluginNotebook(databaseName, request.sources);
+    return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+      id,
+      plugin,
+      action: "notebook.create",
+      databaseName,
+      title: request.title,
+      plan,
+      ...(from ? { from: toLineageNode(from) } : {}),
+      close: () => finish(null),
+      settle: projectId => finish({ kind: "notebook", id: String(projectId) }),
+    }));
+  }
+  if (request.action === "project.insertDocument") {
+    const nodes = await resolve(request.content);
+    return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+      id,
+      plugin,
+      action: "project.insertDocument",
+      title: request.title ?? "未命名文档",
+      content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      close: () => finish(null),
+      settle: documentId => finish({ kind: "document", id: String(documentId) }),
+    }));
+  }
+  if (request.action === "card.create") {
+    const nodes = request.content ? await resolve(request.content) : [];
+    return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+      id,
+      plugin,
+      action: "card.create",
+      content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      tags: request.tags ?? [],
+      close: () => finish(null),
+      settle: cardId => finish({ kind: "card", id: String(cardId) }),
+    }));
+  }
+  const target = await resolvePluginContentTarget(
+    databaseName,
+    context.pluginId,
+    request.ref,
+    context.signal
+  );
+  if (!target) throw new Error("内容不存在");
+  const { owner } = target;
+  const record = owner
+    ? await bindDatabaseCommands(
+        { getPluginData },
+        { databaseName, signal: context.signal }
+      ).getPluginData(databaseName, owner.entity, owner.id)
+    : null;
+  context.signal.throwIfAborted();
+  const title = record?.title || target.own?.title || "未命名";
+  if (request.action === "content.export" && request.format === "markdown") {
+    const { exportContentAsMarkdown } = await import("@/services/content-transfer");
+    context.signal.throwIfAborted();
+    await exportContentAsMarkdown({ title, content: target.nodes });
+    return;
+  }
+  return showAction<void>(context, undefined, (finish, id) => ({
+    id,
+    plugin,
+    action:
+      request.action === "content.export"
+        ? "export"
+        : request.action === "content.present"
+          ? "present"
+          : "share",
+    ...(request.action === "content.export" && request.format !== "markdown"
+      ? { format: request.format }
+      : {}),
+    contentId: target.contentId,
+    // 插件自有内容没有宿主实体，按通用正文共享
+    source: owner
+      ? { sourceType: owner.sourceType, sourceId: owner.id, sourceTitle: title }
+      : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
+    title,
+    content: target.nodes,
+    close: () => finish(undefined),
+  }));
 }

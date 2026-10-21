@@ -30,6 +30,8 @@
 - 修复：`entities.query()` 不带参数时报「没有要修改的字段」。
 - 新增 `context.records`：插件内部的结构化数据，按集合保存 JSON（`registerCollection({ name, indexes })`、`insert`、`get`、`query`、`count`、`update`、`delete`），筛选与排序写法与 `entities.query` 相同；不需要权限，删除不进「最近删除」，卸载后与插件内容一样保留 7 天。新增事件 `record.created / updated / deleted`（带 `collection`，只发给本插件），`PluginDomainEvent` 新增可选字段 `collection`。
 - 修复：插件经 `context.entities` 写入引起的 `entity.*` 事件，`origin` 现在为本插件，可以据此忽略自己写入引起的事件。
+- 新增 `context.links`：从本插件的内容指向任意引用的有序关联（`add`、`list`、`remove`、`reorder`），带 `role` 与少量 `data`，显示在目标的脉络里。目标须是插件能看到的内容（与 `describe` 相同），删除插件内容时关联随之进入「最近删除」，关联变化发来源内容的 `entity.updated`。
+- `app.run` 新建类动作（`card.create`、`project.insertDocument`、`notebook.create`、`chat.start`）的结果与 `pick` 选中的内容一样，之后不需要读取权限就能读标题、显示与关联。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 
