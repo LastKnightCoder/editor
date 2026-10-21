@@ -42,7 +42,10 @@ try {
     (await readdir(path.join(author, "dist"), { withFileTypes: true }))
       .filter(item => item.isDirectory() && !item.name.startsWith("."))
       .map(item => item.name);
-  await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await cp(path.join(root, "scripts/plugins/template"), author, {
+    recursive: true,
+    filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
+  });
   await rm(path.join(author, "pnpm-lock.yaml"), { force: true });
   await cp(
     path.join(root, "scripts/plugins/fixtures/author-contract-check.ts"),
@@ -58,14 +61,33 @@ try {
     author
   );
   const installed = {};
+  const publicPluginExports = [
+    ".",
+    "./tailwind.css",
+    "./package",
+    "./backend",
+    "./sync",
+    "./publish-data",
+    "./publish-client",
+    "./publish-artifacts",
+    "./whiteboard",
+  ];
   for (const name of ["@tau/plugins", "@tau/ui", "react", "react-dom", "typescript", "esbuild"]) {
     const location = path.join(author, "node_modules", name);
     const resolved = await realpath(location);
-    assert.equal(resolved.startsWith((await realpath(author)) + path.sep), true);
+    assert.equal(
+      resolved.startsWith((await realpath(author)) + path.sep),
+      true,
+      `${name} 解析到作者目录之外：${resolved}`
+    );
     const info = JSON.parse(await readFile(path.join(location, "package.json"), "utf8"));
     installed[name] = info.version;
     if (name.startsWith("@tau/")) {
-      assert.deepEqual(Object.keys(info.exports), ["."]);
+      // 只允许作者文档公开的子路径，防止 host / node / backend-runtime 等宿主内部入口随包泄露。
+      assert.deepEqual(
+        Object.keys(info.exports).sort(),
+        (name === "@tau/plugins" ? publicPluginExports : ["."]).sort()
+      );
       assert.equal(
         Object.values(info.dependencies).some(value => String(value).startsWith("workspace:")),
         false

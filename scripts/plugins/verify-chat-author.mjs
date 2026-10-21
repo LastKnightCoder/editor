@@ -32,7 +32,10 @@ try {
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   );
   const author = path.join(directory, "干净作者 project");
-  await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await cp(path.join(root, "scripts/plugins/template"), author, {
+    recursive: true,
+    filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
+  });
   await rm(path.join(author, "pnpm-lock.yaml"));
   const pkg = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
   pkg.dependencies["@tau/plugins"] = published
