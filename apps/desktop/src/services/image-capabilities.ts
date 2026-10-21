@@ -14,18 +14,40 @@ export const useImageCapabilities = create<ImageCapabilities>(() => ({
   canEdit: false,
 }));
 
+function currentProvider() {
+  const { providers, currentProviderId } = useSettingStore.getState().setting.imageGeneration;
+  return providers.find(item => item.id === currentProviderId);
+}
+
+/** 只有影响实例的字段参与比较：改配置名称等展示字段不重新探测 */
+function probeKey() {
+  const setting = currentProvider();
+  if (!setting) return "";
+  return JSON.stringify([
+    setting.id,
+    setting.pluginId,
+    setting.modelId,
+    setting.config,
+    useSettingStore.getState().setting.database.active,
+  ]);
+}
+
 export function startImageCapabilities() {
   if (!isElectron) return () => {};
   let generation = 0;
   let controller: AbortController | undefined;
+  let lastKey = probeKey();
+  let probedProviderId: string | undefined;
   const refresh = () => {
     const current = ++generation;
     controller?.abort();
     controller = new AbortController();
     const signal = controller.signal;
-    const { providers, currentProviderId } = useSettingStore.getState().setting.imageGeneration;
-    const setting = providers.find(item => item.id === currentProviderId);
-    useImageCapabilities.setState({ canGenerate: false, canEdit: false, error: undefined });
+    const setting = currentProvider();
+    // 同一配置重新探测期间沿用上次结果，避免状态先清空再恢复造成闪烁
+    if (setting?.id !== probedProviderId)
+      useImageCapabilities.setState({ canGenerate: false, canEdit: false, error: undefined });
+    probedProviderId = setting?.id;
     if (!setting) return;
     void (async () => {
       const instance = await openPluginImages(setting, signal);
@@ -49,12 +71,11 @@ export function startImageCapabilities() {
         });
     });
   };
-  const unsubscribe = useSettingStore.subscribe((state, previous) => {
-    if (
-      state.setting.imageGeneration !== previous.setting.imageGeneration ||
-      state.setting.database.active !== previous.setting.database.active
-    )
-      refresh();
+  const unsubscribe = useSettingStore.subscribe(() => {
+    const key = probeKey();
+    if (key === lastKey) return;
+    lastKey = key;
+    refresh();
   });
   on("plugin-images:changed", refresh);
   refresh();
