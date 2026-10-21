@@ -1,6 +1,6 @@
 # 更新记录
 
-## 未发布
+## 0.33.0
 
 - 新增媒体组件 `MediaImage`、`MediaVideo`、`MediaAudio`：节点里的本地路径、远程地址和共享文档资源按 Tau 自带图片、视频、音频块的方式解析和缓存。
 - 新增 `useResource(url, { kind })`，自己绘制媒体时取得可加载的地址；`useResourceUpload()` 把文件存进用户当前的资源存储并返回地址，只读编辑器与博客中为 `undefined`。
