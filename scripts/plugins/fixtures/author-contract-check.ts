@@ -9,6 +9,7 @@ import {
   PLUGIN_CHAT_CONTEXT_KINDS,
   type EditorElementRenderProps,
   type PluginOpenOptions,
+  type ContentEditorKit,
 } from "@tau/plugins";
 import { createElement } from "react";
 import type {
@@ -174,6 +175,9 @@ export async function checkDataContract(context: PluginContext) {
   for (const chat of chats.items) console.log(chat.scene, chat.messageCount);
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
+  const compact: ContentEditorKit = "compact";
+  createElement(ContentEditor, { contentRef: entity.contentRef, kit: compact });
+  createElement(ContentPreview, { contentRef: entity.contentRef, kit: compact });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });
   const created = await context.app.run("card.create", {
     content: { copyOf: entity.contentRef },

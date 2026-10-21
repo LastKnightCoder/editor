@@ -7,7 +7,7 @@ import type { PluginPermission } from "@tau/plugins";
 import type { ContentEditorProps, ContentPreviewProps } from "@tau/plugins/components";
 import { contentPermissions } from "@tau/plugins/host";
 import ContentEditor from "@/components/ContentEditor";
-import { getContentKit } from "@/services/editorKit";
+import { getContentKit, getDescriptionKit } from "@/services/editorKit";
 import { openPage } from "@/services/page-navigation";
 import useSettingStore from "@/stores/useSettingStore";
 import { defaultContentEventBus } from "@/utils/event-bus/content-event-bus";
@@ -151,6 +151,7 @@ export function PluginContentEditor({
   readonly = false,
   placeholder,
   at,
+  kit,
 }: ContentEditorProps) {
   const mode: Mode = readonly ? "read" : "write";
   const state = useContentAccess(contentRef, mode);
@@ -172,12 +173,13 @@ export function PluginContentEditor({
         readonly={readonly}
         {...(placeholder ? { placeHolder: placeholder } : {})}
         {...(typeof at === "string" && at ? { at } : {})}
+        {...(kit === "compact" ? { kit: getDescriptionKit() } : {})}
       />
     </ErrorBoundary>
   );
 }
 
-export function PluginContentPreview({ contentRef, maxBlocks = 3 }: ContentPreviewProps) {
+export function PluginContentPreview({ contentRef, maxBlocks = 3, kit }: ContentPreviewProps) {
   const state = useContentAccess(contentRef, "read");
   const nodes = state.access.status === "granted" ? state.access.target.nodes : null;
   const blocks = Number.isFinite(maxBlocks) && maxBlocks > 0 ? Math.floor(maxBlocks) : 3;
@@ -188,7 +190,7 @@ export function PluginContentPreview({ contentRef, maxBlocks = 3 }: ContentPrevi
   return (
     <ErrorBoundary>
       <Editor
-        kit={getContentKit()}
+        kit={kit === "compact" ? getDescriptionKit() : getContentKit()}
         key={revision}
         readonly
         initValue={preview.length ? preview : undefined}

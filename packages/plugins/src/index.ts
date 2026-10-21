@@ -31,7 +31,12 @@ export {
 export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export { ContentEditor, ContentPreview, EntityRef } from "./components";
-export type { ContentEditorProps, ContentPreviewProps, EntityRefProps } from "./components";
+export type {
+  ContentEditorKit,
+  ContentEditorProps,
+  ContentPreviewProps,
+  EntityRefProps,
+} from "./components";
 export * from "./sidebar";
 export type * from "./icons";
 export type * from "./excerpts";
