@@ -3,6 +3,8 @@ import { comparePluginVersions } from "./version";
 import { validatePluginManifest, type PluginManifest } from "./package";
 import { readCatalogFields, type PluginCatalogFields } from "./categories.ts";
 import type { JsonValue } from "./json";
+import { hasSkillScripts, readSkillFiles, readSkillsField } from "./skills.ts";
+export { hasSkillScripts, SKILL_README, SKILL_ROOT } from "./skills.ts";
 
 interface SiteFieldBase {
   /** 模板从 `site.fields[key]` 读取 */
@@ -42,7 +44,20 @@ export interface TemplateManifest extends PluginCatalogFields {
   integrity: Record<string, string>;
 }
 
-export type DistributionManifest = PluginManifest | TemplateManifest;
+/** 独立 Skill 包：没有代码入口，只分发 `skills/<id>/` 目录，安装后即可在 Skill 页使用。 */
+export interface SkillPackageManifest extends PluginCatalogFields {
+  formatVersion: 1;
+  apiVersion: 1;
+  platform: "desktop";
+  id: string;
+  name: string;
+  version: string;
+  minAppVersion?: string;
+  skills: readonly string[];
+  integrity: Record<string, string>;
+}
+
+export type DistributionManifest = PluginManifest | TemplateManifest | SkillPackageManifest;
 export const DISTRIBUTION_LIMITS = {
   zipBytes: 16 * 1024 * 1024,
   expandedBytes: 32 * 1024 * 1024,
@@ -181,10 +196,70 @@ export function isTemplateManifest(value: DistributionManifest): value is Templa
   return "template" in value;
 }
 
+export function isSkillPackageManifest(value: DistributionManifest): value is SkillPackageManifest {
+  return !("template" in value) && !("main" in value);
+}
+
+/** 模板与 Skill 包共用的身份字段校验。 */
+function readStaticIdentity(item: Record<string, unknown>) {
+  if (typeof item.id !== "string") throw new Error("插件 ID 无效");
+  assertLocalId(item.id);
+  if (typeof item.name !== "string" || !item.name.trim() || typeof item.version !== "string")
+    throw new Error("插件名称或版本无效");
+  comparePluginVersions(item.version, item.version);
+  if (item.minAppVersion !== undefined) {
+    if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
+    comparePluginVersions(item.minAppVersion, item.minAppVersion);
+  }
+  return {
+    id: item.id,
+    name: item.name,
+    version: item.version,
+    ...(typeof item.minAppVersion === "string" ? { minAppVersion: item.minAppVersion } : {}),
+  };
+}
+
+function validateSkillPackageManifest(
+  item: Record<string, unknown>,
+  strict: boolean
+): SkillPackageManifest {
+  if (item.formatVersion !== 1 || item.apiVersion !== 1 || item.platform !== "desktop")
+    throw new Error("Skill 包格式、API 版本或平台不兼容");
+  if (
+    ["format", "styles", "editor", "whiteboard", "backend", "permissions"].some(key => key in item)
+  )
+    throw new Error("Skill 包只包含 Skill 目录，不能声明代码插件字段");
+  const identity = readStaticIdentity(item);
+  const skills = readSkillsField(item.skills);
+  if (!skills) throw new Error("Skill 包至少声明一个 Skill");
+  if (!item.integrity || typeof item.integrity !== "object" || Array.isArray(item.integrity))
+    throw new Error("Skill 包缺少摘要清单");
+  const integrity = readSkillFiles(skills, item.integrity as Record<string, unknown>);
+  if (Object.keys(integrity).length !== Object.keys(item.integrity).length)
+    throw new Error("Skill 包只能包含已声明 Skill 目录内的文件");
+  return Object.freeze({
+    formatVersion: 1 as const,
+    apiVersion: 1 as const,
+    platform: "desktop" as const,
+    ...identity,
+    ...readCatalogFields(item, strict),
+    skills,
+    integrity: Object.freeze(integrity),
+  });
+}
+
 export function validateDistributionManifest(
   value: unknown,
   options: { strict?: boolean } = {}
 ): DistributionManifest {
+  if (
+    value &&
+    typeof value === "object" &&
+    "skills" in value &&
+    !("template" in value) &&
+    !("main" in value)
+  )
+    return validateSkillPackageManifest(value as Record<string, unknown>, options.strict === true);
   if (!value || typeof value !== "object" || !("template" in value))
     return validatePluginManifest(value, options);
   const item = value as Record<string, unknown>;
@@ -197,15 +272,7 @@ export function validateDistributionManifest(
     template.protocolVersion !== 1
   )
     throw new Error("模板协议版本不兼容");
-  if (typeof item.id !== "string") throw new Error("插件 ID 无效");
-  assertLocalId(item.id);
-  if (typeof item.name !== "string" || !item.name.trim() || typeof item.version !== "string")
-    throw new Error("插件名称或版本无效");
-  comparePluginVersions(item.version, item.version);
-  if (item.minAppVersion !== undefined) {
-    if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
-    comparePluginVersions(item.minAppVersion, item.minAppVersion);
-  }
+  const identity = readStaticIdentity(item);
   assertPackagePath(template.root);
   if (
     !Array.isArray(template.entries) ||
@@ -220,7 +287,11 @@ export function validateDistributionManifest(
   });
   if (!item.integrity || typeof item.integrity !== "object" || Array.isArray(item.integrity))
     throw new Error("模板资源缺少摘要清单");
-  if (["main", "format", "styles", "editor", "whiteboard", "backend"].some(key => key in item))
+  if (
+    ["main", "format", "styles", "editor", "whiteboard", "backend", "skills"].some(
+      key => key in item
+    )
+  )
     throw new Error("模板包只包含静态站点产物，不能同时声明代码插件入口");
   const integrity: Record<string, string> = Object.create(null);
   for (const [name, digest] of Object.entries(item.integrity)) {
@@ -242,10 +313,7 @@ export function validateDistributionManifest(
     formatVersion: 1 as const,
     apiVersion: 1 as const,
     platform: "desktop" as const,
-    id: item.id,
-    name: item.name,
-    version: item.version,
-    ...(typeof item.minAppVersion === "string" ? { minAppVersion: item.minAppVersion } : {}),
+    ...identity,
     ...catalog,
     template: Object.freeze({
       protocolVersion: 1 as const,
@@ -255,6 +323,16 @@ export function validateDistributionManifest(
     }),
     integrity: Object.freeze(integrity),
   });
+}
+
+/** 能在用户本机执行代码的版本（本机后台、带脚本的 Skill）必须经人工系统审核才能发布与安装。 */
+export function requiresSystemReview(manifest: {
+  backend?: unknown;
+  skills?: readonly string[];
+  integrity?: Record<string, string>;
+}): boolean {
+  if (manifest.backend) return true;
+  return hasSkillScripts({ skills: manifest.skills, integrity: manifest.integrity ?? {} });
 }
 
 export function distributionFiles(manifest: DistributionManifest): string[] {

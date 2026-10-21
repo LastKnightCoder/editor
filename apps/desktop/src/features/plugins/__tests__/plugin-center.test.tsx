@@ -467,8 +467,17 @@ it("发现页按分类单选筛选，关键词参与搜索，卡片显示分类"
   expect(page().textContent).not.toContain("中心插件");
 });
 
+const withSkill = (pack: ReturnType<typeof artifact>) => ({
+  ...pack,
+  manifest: {
+    ...pack.manifest,
+    skills: ["guide"],
+    integrity: { ...pack.manifest.integrity, "skills/guide/SKILL.md": "b".repeat(64) },
+  },
+});
+
 it("详情页按实际注册列出此插件提供的功能，并显示作者填写的分类", async () => {
-  const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${ID}',name:'中心插件',version:'1.0.0',skills:[{id:'guide',name:'指南',description:'说明',content:'内容'}],create:()=>({activate(ctx){ctx.commands.register({id:'a',title:'甲',run:()=>null});ctx.commands.register({id:'b',title:'乙',run:()=>null});}})});`;
+  const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${ID}',name:'中心插件',version:'1.0.0',create:()=>({activate(ctx){ctx.commands.register({id:'a',title:'甲',run:()=>null});ctx.commands.register({id:'b',title:'乙',run:()=>null});}})});`;
   mock.catalog.mockResolvedValue({
     ...catalog,
     items: [{ ...catalog.items[0], categories: ["ai"] }],
@@ -476,7 +485,9 @@ it("详情页按实际注册列出此插件提供的功能，并显示作者填�
   await act(async () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }));
   scan = {
     directory: "/test/plugins",
-    entries: [{ id: ID, directory: "/x", artifact: { ...artifact(), code }, source: center }],
+    entries: [
+      { id: ID, directory: "/x", artifact: withSkill({ ...artifact(), code }), source: center },
+    ],
     updates: [],
   };
   mock.preferences.set(ID, true);

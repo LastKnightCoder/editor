@@ -25,6 +25,7 @@ import {
   PLUGIN_PORTAL_URL,
   PLUGIN_TEMPLATE_URL,
   STATE_LABELS,
+  STATIC_PACKAGE_LABELS,
   catalogCategories,
   pendingCount,
   installState,
@@ -373,7 +374,7 @@ function CatalogCard({
           <div className="truncate text-[14px] font-semibold">{entry.name}</div>
           <div className="text-tau-sm text-ink-3 truncate">@{entry.publisher.login}</div>
         </div>
-        {installed && !installed.template && (
+        {installed && !installed.packageKind && (
           <span className="ml-auto flex-none" onClick={event => event.stopPropagation()}>
             <CardEnableSwitch runtime={runtime} plugin={installed} />
           </span>
@@ -530,7 +531,9 @@ export function InstalledRow({
             </p>
           ) : (
             <p className="text-tau-meta text-ink-2 truncate">
-              {plugin.template ? "模板已安装" : STATE_LABELS[info.state]}
+              {plugin.packageKind
+                ? STATIC_PACKAGE_LABELS[plugin.packageKind].state
+                : STATE_LABELS[info.state]}
             </p>
           )}
         </div>
@@ -539,8 +542,10 @@ export function InstalledRow({
           onClick={event => event.stopPropagation()}
         >
           {plugin.update?.pendingVersion && <StagedChip version={plugin.update.pendingVersion} />}
-          {plugin.template ? (
-            <span className="text-tau-meta text-ink-2">博客模板</span>
+          {plugin.packageKind ? (
+            <span className="text-tau-meta text-ink-2">
+              {STATIC_PACKAGE_LABELS[plugin.packageKind].kind}
+            </span>
           ) : (
             <Switch
               size="sm"

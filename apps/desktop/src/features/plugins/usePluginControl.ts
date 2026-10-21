@@ -36,7 +36,7 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
     error,
     watching,
     canToggle:
-      !plugin.template &&
+      !plugin.packageKind &&
       !managing &&
       !transitioning &&
       !(state === "restart-required" && !plugin.enabled),

@@ -29,6 +29,7 @@ export function PackageFacts({
   const files = Object.entries(manifest.integrity);
   const runtime = "main" in manifest ? manifest : undefined;
   const template = "template" in manifest ? manifest.template : undefined;
+  const skills = "skills" in manifest ? (manifest.skills ?? []) : [];
   return (
     <div className="flex flex-col gap-4">
       <p className="text-tau-sm text-ok inline-flex items-center gap-1.5">
@@ -48,14 +49,25 @@ export function PackageFacts({
           {manifest.minAppVersion}
         </Fact>
         <Fact label="入口" mono>
-          {template ? `${template.root}/ · ${template.entries.join("、")}` : runtime?.main}
+          {template
+            ? `${template.root}/ · ${template.entries.join("、")}`
+            : (runtime?.main ?? "无（Skill 包）")}
           {runtime?.styles ? ` · ${runtime.styles}` : ""}
         </Fact>
         <Fact label="格式">
           {manifest.platform} ·{" "}
-          {template ? `静态模板 ${template.protocolVersion}` : runtime?.format} · format{" "}
-          {manifest.formatVersion} / api {manifest.apiVersion}
+          {template
+            ? `静态模板 ${template.protocolVersion}`
+            : runtime
+              ? runtime.format
+              : "Skill 包"}{" "}
+          · format {manifest.formatVersion} / api {manifest.apiVersion}
         </Fact>
+        {skills.length > 0 && (
+          <Fact label="Skill" mono>
+            {skills.map(id => `skills/${id}/`).join("、")}
+          </Fact>
+        )}
         {upload && (
           <Fact label="文件">
             {upload.fileName} · {formatBytes(upload.size)}

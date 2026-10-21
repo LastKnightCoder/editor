@@ -21,7 +21,6 @@ import type {
   PluginExcerptSyncResult,
   PluginMaterialAction,
   PluginMaterialRef,
-  PluginSkill,
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
@@ -563,6 +562,8 @@ function tally(activation: Activation, kind: PluginContributionKind, delta: numb
 type PluginMetadata = Pick<PluginDefinition, "id" | "name" | "version" | "apiVersion"> & {
   readonly backend?: import("./package").PluginBackendManifest;
   readonly permissions?: readonly PluginPermission[];
+  /** manifest 声明的包内 Skill 目录；Skill 由宿主从包文件读取，这里只计入贡献。 */
+  readonly skills?: readonly string[];
 };
 type DefinitionResolver = (signal: AbortSignal) => PluginDefinition | Promise<PluginDefinition>;
 
@@ -604,7 +605,6 @@ export class PluginHost {
       storage: StorageAdapter;
       pages?: PagesAdapter;
       editor?: EditorAdapter;
-      skills?: { register(plugin: PluginOwner, skill: PluginSkill): Disposable };
       ai?: {
         bind(
           plugin: PluginOwner,
@@ -668,7 +668,7 @@ export class PluginHost {
 
   /** 权限只能随登记声明（本地包来自 manifest），不能由插件运行时追加。 */
   registerTrusted(
-    definition: PluginDefinition & Pick<PluginMetadata, "permissions" | "backend">
+    definition: PluginDefinition & Pick<PluginMetadata, "permissions" | "backend" | "skills">
   ): void {
     const snapshot = Object.freeze({ ...definition });
     this.register(definition, () => snapshot);
@@ -695,6 +695,7 @@ export class PluginHost {
         ...(definition.permissions?.length
           ? { permissions: Object.freeze([...definition.permissions]) }
           : {}),
+        ...(definition.skills?.length ? { skills: Object.freeze([...definition.skills]) } : {}),
       }),
       resolveDefinition,
       state: this.restartRequired.has(definition.id) ? "restart-required" : "disabled",
@@ -761,24 +762,7 @@ export class PluginHost {
             activation.instance = definition.create();
             if (!activation.instance || typeof activation.instance.activate !== "function")
               throw new Error("插件实例缺少 activate");
-            const ids = new Set<string>();
-            for (const skill of definition.skills ?? []) {
-              assertLocalId(skill.id);
-              if (
-                ids.has(skill.id) ||
-                !skill.name?.trim() ||
-                !skill.description?.trim() ||
-                !skill.content?.trim()
-              )
-                throw new Error("插件 Skill 声明重复或不完整");
-              ids.add(skill.id);
-              const resource = this.options.skills?.register(
-                { id: entry.metadata.id, name: entry.metadata.name },
-                skill
-              );
-              if (resource) activation.resources.push(resource);
-              tally(activation, "skill", 1);
-            }
+            tally(activation, "skill", entry.metadata.skills?.length ?? 0);
             tally(activation, "editor", definition.editorExtensions?.length ?? 0);
             tally(activation, "whiteboard", definition.whiteboardExtensions?.length ?? 0);
             if (definition.ai) {

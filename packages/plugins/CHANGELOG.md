@@ -1,5 +1,13 @@
 # 更新记录
 
+## 0.32.0
+
+- 插件 Skill 改为包内目录：在插件项目根目录放 `skills/<id>/SKILL.md`，可附带参考资料和脚本，构建时打进插件包并写入 manifest 的 `skills` 与文件摘要。名称、描述与调用方式取自 SKILL.md 的 front matter。
+- `definePlugin` 的 `skills` 字段与 `PluginSkill` 类型已移除，已有插件请把正文移到 `skills/<id>/SKILL.md` 后重新构建。
+- 新增独立 Skill 包：manifest 不写 `main`、只声明 `skills`，经插件中心分发，安装后在 Skill 页直接可用。
+- 带脚本的 Skill 与本机后台一样需要插件中心人工审核后才能上架。
+- 插件分类新增 `skill`。
+
 ## 0.31.1
 
 - 修复：数据客户端读取 0.31.0 生成的站点清单时报「站点数据缺失」。客户端改为校验 `site.fields`，不再要求已移除的 `site.description`。

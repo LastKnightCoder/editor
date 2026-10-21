@@ -1,12 +1,13 @@
 # 插件的组成
 
-一个 Tau 插件由三部分组成：
+一个 Tau 插件由以下几部分组成：
 
 - **manifest.json**：插件是谁、需要什么。Tau 不运行代码就能读到它。
 - **入口模块**（构建后是 `main.js`）：默认导出一个插件定义，包含静态声明和运行时逻辑。
 - **样式**（构建后是 `main.css`，可选）。
+- **Skill 目录**（`skills/<id>/`，可选）：给 AI 看的使用说明，见 [Skill](skills.md)。
 
-这一篇依次讲这三部分，以及贯穿所有能力的几条规则：生命周期、`context`、ID、取消与清理。
+这一篇依次讲 manifest 和入口，以及贯穿所有能力的几条规则：生命周期、`context`、ID、取消与清理。
 
 ## manifest
 
@@ -45,24 +46,25 @@
 | `whiteboard`    | 声明了白板扩展时写 `true`，见[白板扩展](whiteboard.md)                                                    |
 | `backend`       | 需要本机后台时填写，同时把 `formatVersion` 改为 `2`，见[本机后台](backend.md)                             |
 
-| 分类            | 适合的插件                         |
-| --------------- | ---------------------------------- |
-| `page`          | 提供页面和侧边栏入口               |
-| `editor`        | 在文档中添加块                     |
-| `whiteboard`    | 在白板中添加元素或工具             |
-| `ai`            | Skill、MCP 工具、AI 功能、图片生成 |
-| `sync`          | 同步存储                           |
-| `upload`        | 图片与附件上传                     |
-| `voice`         | 语音合成                           |
-| `video`         | 在线视频来源                       |
-| `blog-publish`  | 博客发布目标                       |
-| `blog-template` | 博客模板                           |
+| 分类            | 适合的插件                    |
+| --------------- | ----------------------------- |
+| `page`          | 提供页面和侧边栏入口          |
+| `editor`        | 在文档中添加块                |
+| `whiteboard`    | 在白板中添加元素或工具        |
+| `ai`            | MCP 工具、AI 功能、图片生成   |
+| `skill`         | Skill 包，或附带 Skill 的插件 |
+| `sync`          | 同步存储                      |
+| `upload`        | 图片与附件上传                |
+| `voice`         | 语音合成                      |
+| `video`         | 在线视频来源                  |
+| `blog-publish`  | 博客发布目标                  |
+| `blog-template` | 博客模板                      |
 
 分类只影响插件中心的展示，不授予任何能力。只提供命令或普通设置的插件可以不写分类。
 
 ### 保持模板值的字段
 
-`formatVersion`、`apiVersion`、`platform`、`format`、`main` 保持模板里的值。`styles` 和 `integrity`（文件摘要）由 `pnpm build` 自动写入构建产物，不要手写，也不要直接修改 ZIP 里的文件。
+`formatVersion`、`apiVersion`、`platform`、`format`、`main` 保持模板里的值。`styles`、`skills` 和 `integrity`（文件摘要）由 `pnpm build` 自动写入构建产物，不要手写，也不要直接修改 ZIP 里的文件。
 
 ## 入口与插件定义
 
@@ -100,7 +102,6 @@ export default definePlugin({
 | `editorExtensions`     | 静态声明   | 编辑器块，见[编辑器扩展](editor.md)                                   |
 | `editorCodecs`         | 静态声明   | 编辑器块的 Markdown 转换，见[编辑器扩展](editor.md#markdown-导入导出) |
 | `whiteboardExtensions` | 静态声明   | 白板元素与工具，见[白板扩展](whiteboard.md)                           |
-| `skills`               | 静态声明   | 给 AI 的使用说明，见 [Skill](skills.md)                               |
 | `ai`                   | 静态声明   | 插件自定义的 AI 功能，见 [AI](ai.md#自定义-ai-功能)                   |
 
 **静态声明**直接写在插件定义上，Tau 读取插件包时就能拿到，不依赖 `activate`。例如编辑器块不仅在桌面端显示，也会出现在用户发布的博客里，那里根本不会运行 `activate`。**运行时逻辑**则写在 `activate` 里，通过 `context` 注册。

@@ -146,7 +146,8 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
               setReviewedRevision(event.target.checked ? submission.revision : null)
             }
           />
-          我已检查本修订的后台代码、启动时机、常驻行为和外部程序声明，确认系统能力用途与源码一致。
+          我已检查本修订中会在用户本机执行的代码（本机后台的启动时机、常驻行为与外部程序声明，Skill
+          附带的脚本），确认用途与源码一致。
         </label>
       )}
       <Button

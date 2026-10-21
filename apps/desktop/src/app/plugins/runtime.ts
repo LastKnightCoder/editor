@@ -23,7 +23,11 @@ import type {
   PluginSidebarIcon,
   PluginOwnEntityKind,
 } from "@tau/plugins";
-import { registerPluginSkill } from "./skill-registry";
+import {
+  notifyPluginPackagesChanged,
+  notifyPluginSkillGateChanged,
+  setPluginSkillGate,
+} from "./skill-registry";
 import { registerPluginEntityKind } from "@/services/plugin-entity-kinds";
 import { toEntity } from "./entities";
 import {
@@ -169,7 +173,6 @@ export class DesktopPluginRuntime {
       excerpts: options.excerpts,
       materials: options.materials,
       flashcards: options.flashcards,
-      skills: { register: registerPluginSkill },
       mcp: options.mcp,
       permissions: options.permissions,
       data: options.data,
@@ -200,7 +203,9 @@ export class DesktopPluginRuntime {
       this.publish();
       rendererImagesRegistry.notifyChanged();
       rendererPublishRegistry.notifyChanged();
+      notifyPluginSkillGateChanged();
     });
+    setPluginSkillGate(id => !this.disposed && this.host.getState(id) === "active");
     options.plugins.forEach(plugin => this.host.registerTrusted(plugin));
   }
 
@@ -221,7 +226,10 @@ export class DesktopPluginRuntime {
       scanLocalPlugins,
       async () => (await import("./shared-modules")).sharedPluginModules,
       preferences,
-      this.publish,
+      () => {
+        this.publish();
+        notifyPluginPackagesChanged();
+      },
       uninstallLocalPlugin,
       setLocalPluginEnabled,
       this.options.purgeStorage

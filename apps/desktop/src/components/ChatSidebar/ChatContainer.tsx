@@ -37,6 +37,7 @@ import { remoteResourceToLocal } from "@/utils/resouce";
 import { buildPiPromptPayload } from "@/services/piPromptPayload";
 import {
   buildPiChatSystemPrompt,
+  withForcedSkillReadmes,
   chatSessionKey,
   piChatSessionManager,
 } from "@/services/piChatSession";
@@ -755,7 +756,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             customSystemPrompt || DEFAULT_SYSTEM_PROMPT
           );
           const forcedSkills = extractForcedSkills(requestMessage);
-          const systemPrompt = buildPiChatSystemPrompt(baseSystem, skills, forcedSkills);
+          const systemPrompt = buildPiChatSystemPrompt(
+            baseSystem,
+            await withForcedSkillReadmes(skills, forcedSkills),
+            forcedSkills
+          );
           // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
           const ensured = await piChatSessionManager.ensureChatSession({
             databaseName: actualCurrentChat.databaseName,
