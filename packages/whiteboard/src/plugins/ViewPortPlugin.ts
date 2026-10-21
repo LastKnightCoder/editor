@@ -11,18 +11,15 @@ import { ViewPortTransforms } from "../transforms";
 export class ViewPortPlugin implements IBoardPlugin {
   name = "viewport-plugin";
 
-  private lastWheelTime = 0;
+  private lastZoomTime = -Infinity;
 
   onContextMenu(e: MouseEvent) {
     e.preventDefault();
   }
 
   onWheel(e: WheelEvent, board: Board) {
-    if (board.isCreating() || board.presentationManager.isPresentationMode) return;
-
-    const now = Date.now();
-    if (now - this.lastWheelTime < 100) return;
-    this.lastWheelTime = now;
+    if (board.interactions.isCreateGestureActive() || board.presentationManager.isPresentationMode)
+      return;
 
     // 获取当前鼠标的位置
     const container = BOARD_TO_CONTAINER.get(board);
@@ -43,6 +40,12 @@ export class ViewPortPlugin implements IBoardPlugin {
     e.preventDefault();
 
     if (e.ctrlKey) {
+      if (e.deltaY === 0) return;
+      // 仅对固定步长缩放限频；触摸板平移必须保留每次增量。
+      const now = Date.now();
+      if (now - this.lastZoomTime < 100) return;
+      this.lastZoomTime = now;
+
       // 得到当前鼠标在board中的坐标
       const boardX = x - containerRect.left;
       const boardY = y - containerRect.top;
