@@ -283,7 +283,7 @@ class PublishModule implements Module {
       destination: target.identity,
       templateId: siteConfig?.templateId,
       title: siteConfig?.title?.trim() || "我的博客",
-      description: siteConfig?.description || "",
+      fieldValues: siteConfig?.templateId ? siteConfig.fields?.[siteConfig.templateId] : undefined,
       basePath: target.basePath,
       publicUrl: siteConfig?.publicUrl?.trim() || target.publicUrl || "",
       favicon: siteConfig?.favicon,

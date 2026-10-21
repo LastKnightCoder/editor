@@ -21,6 +21,7 @@ if (item) {
 ## 数据分布
 
 - 清单 `site.<摘要>.json`：站点信息、全部内容的 key 与数据文件、搜索索引引用，以及只出现一次的站点级数据——`settings`（发布外观设置）、`collections`（项目列表）、`cardTagTree`（卡片标签树）、`projectTrees`（按项目 id 的文档目录）。`readData` 会把 `settings` 一并带回。
+- 站点信息 `site`：宿主提供 `title`、`basePath`、可选的 `publicUrl` 与 `favicon`；其余站点配置（描述、副标题、布局开关等）由模板在 manifest 的 `template.siteFields` 中声明，用户在「站点设置 · 博客模板」填写，发布时以 `site.fields[key]` 交给模板。`fields` 只包含已声明的键，未填写时取声明的 `default`；没有默认值时文本类为空字符串、开关为 `false`、下拉为第一个选项。字段类型为 `text`、`textarea`、`url`、`select`、`switch`，最多 32 个。首页数据只含时间线与统计，介绍区由模板根据自己的字段渲染。
 - 内容文件：`key`、`meta`、`content`，以及可选的 `links`（本文正文里已发布的站内链接目标）、`pluginRenderers`（内容插件产物）和 `contentStyles`（正文动态样式）。资源以所属数据文件的 URL 为上下文解析。
 - 公开路由完全由模板决定，数据里只有 ContentRef（`{ key, type, id? }`），没有 URL。
 

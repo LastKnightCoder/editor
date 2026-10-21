@@ -6,9 +6,10 @@ export type PublishContentType = "card" | "article" | "project" | "quest";
 export interface PublishSiteConfig {
   templateId?: string;
   title: string;
-  description: string;
   publicUrl?: string;
   favicon?: IPublishFaviconConfig;
+  /** 按模板 id 保存的站点字段取值，发布时只取当前模板并按其声明解析 */
+  fields?: Record<string, Record<string, import("@tau/plugins").JsonValue>>;
 }
 export interface PublishRequest {
   providerType: "local" | "plugin";

@@ -24,7 +24,7 @@ const template = {
 };
 const generator = () =>
   new PublishSiteGenerator({ template, logger: console, compileTailwind: async () => "" });
-const site = { title: "站点", description: "", basePath: "/notes/" };
+const site = { title: "站点", basePath: "/notes/" };
 it("同一项目的共享文档出现在多个分支时保留目录入口，只生成一份正文和搜索记录", async () => {
   const fixture = makePublishFixture();
   const project = fixture.data.getProject(12)!;

@@ -18,10 +18,11 @@ export interface ManifestItem extends ContentRef {
 }
 export interface SiteData {
   title: string;
-  description: string;
   basePath: string;
   publicUrl?: string;
   favicon?: { href: string; format: "svg" | "png" | "ico"; mimeType: string };
+  /** 模板在 manifest `template.siteFields` 中声明的字段取值，未填写时为声明的默认值 */
+  fields: Record<string, string | boolean>;
 }
 export interface PublishSettings {
   appearance?: { image?: { borderRadius?: string; shadow?: string | boolean } };
@@ -153,7 +154,6 @@ export interface TimelineItem {
   publishTime: number;
 }
 export interface HomeData {
-  hero?: { title: string; description: string };
   timeline: TimelineItem[];
   stats: { articles: number; cards: number };
   docStats: { projects: number };

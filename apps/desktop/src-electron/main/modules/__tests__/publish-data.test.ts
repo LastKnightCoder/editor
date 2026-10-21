@@ -46,7 +46,15 @@ const template = (id = "test.template"): TemplatePackage => ({
     id,
     name: "模板",
     version: "1.0.0",
-    template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
+    template: {
+      protocolVersion: 1,
+      root: "site",
+      entries: ["index.html"],
+      siteFields: [
+        { key: "description", label: "站点描述", type: "textarea" },
+        { key: "showStats", label: "显示统计", type: "switch", default: true },
+      ],
+    },
     integrity: {},
   },
   files: [
@@ -70,7 +78,7 @@ async function generate(title?: string, id?: string, exclude?: number) {
   }).generate(
     fixture.data,
     fixture.selections.filter(item => item.contentType !== "article" || item.contentId !== exclude),
-    { title: "站点", description: "说明", basePath: "/notes/" }
+    { title: "站点", basePath: "/notes/", fieldValues: { description: "说明", extra: "丢弃" } }
   );
 }
 const history = (files: IPublishFile[]) =>
@@ -99,7 +107,6 @@ it("未知节点仅回传警告，继续生成完整发布产物并原样保留�
   });
   const result = await generator.generate(fixture.data, fixture.selections, {
     title: "站点",
-    description: "",
     basePath: "/notes/",
   });
   expect(result.warnings).toHaveLength(1);
@@ -118,6 +125,7 @@ it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   const manifest = JSON.parse(
     files.find(file => /^data\/site\./.test(file.path))!.content.toString()
   );
+  expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
   expect(new Set(manifest.items.map((item: any) => item.type))).toEqual(
     new Set(["home", "card", "article", "doc", "quest", "list"])
   );
@@ -205,7 +213,6 @@ it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async (
   await expect(
     generator.generate(fixture.data, fixture.selections, {
       title: "站点",
-      description: "",
       basePath: "/",
     })
   ).rejects.toThrow("动态样式");

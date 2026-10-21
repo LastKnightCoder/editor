@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.31.0
+
+- 模板 manifest 新增 `template.siteFields`：声明模板需要的站点字段（文本、多行、链接、下拉、开关），用户在发布页「站点设置」中填写，宿主校验后按声明渲染。
+- 发布数据的 `site.fields` 提供这些字段的取值；`site.description` 与首页的 `hero` 已移除，需要站点描述的模板请声明同名字段并自行渲染介绍区。
+- 新增 `resolveSiteFields`，按声明把存储值解析为最终取值，类型不符或越界时回落到默认值。
+
 ## 0.29.0
 
 - 页面组件新增 `pageContext.register(provider)`：通过现有 `get_current_context` 向 AI 提供当前页面状态，返回任意有限 JSON，业务内容与形状完全由作者决定。
