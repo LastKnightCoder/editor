@@ -8,8 +8,9 @@ import type {
   SyntheticEvent,
   VideoHTMLAttributes,
 } from "react";
+import type { ContentResourceKind } from "@tau/db-schema/content-resources";
 
-export type ResourceKind = "image" | "video" | "audio" | "file";
+export type ResourceKind = ContentResourceKind;
 
 export interface ResourceState {
   /** 可直接给 img / video / audio 的地址；解析中或失败时为 undefined */

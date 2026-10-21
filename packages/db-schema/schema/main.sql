@@ -926,6 +926,15 @@ CREATE TABLE IF NOT EXISTS plugin_entity_kinds (
   PRIMARY KEY (plugin_id, kind)
 );
 
+-- 插件节点的资源声明（哪些字段是图片、视频、音频或文件）：随库保存，供协作上传与 CLI 在插件不运行时读取
+CREATE TABLE IF NOT EXISTS plugin_element_resources (
+  plugin_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  resources TEXT NOT NULL,
+  update_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, type)
+);
+
 -- 插件私有存储（context.storage）：按插件与键保存 JSON，随主库云同步
 CREATE TABLE IF NOT EXISTS plugin_kv (
   plugin_id TEXT NOT NULL,

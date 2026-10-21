@@ -46,6 +46,7 @@
     "fuse.js": "^7.4.1",
     "parse5": "7.3.0",
     "@tau/themes": "workspace:*",
+    "@tau/db-schema": "workspace:*",
     "@tau/whiteboard": "workspace:*",
     "@tau/ui": "workspace:*",
     "react-dom": "19.2.0",

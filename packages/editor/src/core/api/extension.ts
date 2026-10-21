@@ -10,6 +10,7 @@ import type { ElementDrag } from "./drag";
 import type { ElementIngestSpec } from "./ingest";
 import type { ElementCopy } from "./copy";
 import type { DecorationSpec, MarkSpec } from "./marks";
+import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
@@ -60,6 +61,8 @@ export interface ElementSpec<E extends Element = Element> {
   drag?: ElementDrag;
   /** 内容注入声明（01 §5.4）：drop 与 paste 共用的认领规则；块组件不再改写 insertData */
   ingest?: ElementIngestSpec;
+  /** 节点里的资源字段：导出打包、协作上传、灯箱等只按它找图片、视频、音频与文件 */
+  resources?: readonly ContentResourceSpec[];
 }
 
 export interface ExtensionLayerProps {

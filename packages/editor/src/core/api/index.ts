@@ -25,6 +25,12 @@ export { Tooltip as EditorTooltip } from "../ui/Tooltip";
 export { CaretRight as EditorCaretRight } from "../ui/CaretRight";
 export { getParagraphShortcutEntry } from "../utils/paragraphShortcut";
 export type { IngestContext, ElementIngestSpec } from "./ingest";
+export { getElementResources } from "./resources";
+export type {
+  ContentResourceSpec,
+  ContentResourceKind,
+  ContentResourceDeclarations,
+} from "@tau/db-schema/content-resources";
 export {
   CommandRegistry,
   createCommandDispatcher,

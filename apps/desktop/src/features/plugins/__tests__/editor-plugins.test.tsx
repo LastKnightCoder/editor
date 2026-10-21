@@ -108,7 +108,9 @@ it("真实编辑器插入、编辑、停用未知节点、恢复与跨切换撤�
 
   await act(async () => runtime.host.disable(editorPlugin.id));
   expect(container.querySelector("[data-plugin-reminder]")).toBeNull();
-  expect(container.textContent).toContain("example.editor.reminder");
+  // 占位不露出节点类型名
+  expect(container.textContent).toContain("此处的内容在当前编辑器中无法显示");
+  expect(container.textContent).not.toContain("example.editor.reminder");
   const disabledEditor = editorOf(session);
   expect(disabledEditor).not.toBe(editor);
   expect(disabledEditor.children).toEqual(value);

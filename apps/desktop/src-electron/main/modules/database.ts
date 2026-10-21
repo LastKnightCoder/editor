@@ -71,6 +71,7 @@ import VLQuizTable from "./tables/vl-quiz";
 import PluginDataTable from "./tables/plugin-data";
 import PluginEntityTable from "./tables/plugin-entity";
 import PluginKvTable from "./tables/plugin-kv";
+import PluginElementResourcesTable from "./tables/plugin-element-resources";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -312,6 +313,7 @@ class DatabaseModule implements Module {
       PluginDataTable,
       PluginEntityTable,
       PluginKvTable,
+      PluginElementResourcesTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

@@ -23,15 +23,3 @@ registry.register({
     return <Text dimColor>[{label}]</Text>;
   },
 });
-
-registry.register({
-  type: "image-gallery",
-  render: (element: any, _children: ReactNode) => {
-    const count = element.images?.length || 0;
-    return (
-      <Box marginTop={1} marginBottom={1}>
-        <Text dimColor>[Gallery: {count} images]</Text>
-      </Box>
-    );
-  },
-});

@@ -546,6 +546,9 @@ importers:
       '@tau/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../../packages/db-schema
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
@@ -1870,6 +1873,9 @@ importers:
       '@loadable/component':
         specifier: ^5.15.3
         version: 5.16.7(react@19.2.0)
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../db-schema
       '@tau/editor-source-view':
         specifier: workspace:*
         version: link:../editor-source-view
@@ -2186,6 +2192,9 @@ importers:
 
   packages/plugins:
     dependencies:
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../db-schema
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor

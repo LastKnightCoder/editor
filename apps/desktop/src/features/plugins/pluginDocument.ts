@@ -6,6 +6,12 @@
  * 指向应用内资源的节点（内容链接、附件）退化为纯文本，链接只保留 http(s)。
  */
 
+import {
+  contentResourceSlots,
+  type ContentResourceKind,
+  type ContentResourceSpec,
+} from "@tau/db-schema/content-resources";
+import { contentResourceDeclarations } from "@/services/content-resources";
 import { Element, Node, Text, type Descendant } from "slate";
 import { createMarkdownProcessor } from "@tau/markdown";
 import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
@@ -36,12 +42,11 @@ const SAFE_ELEMENTS = new Set([
   "emoji",
   "link",
 ]);
-const MEDIA_LABEL: Record<string, string> = {
+const MEDIA_LABEL: Record<ContentResourceKind, string> = {
   image: "图片",
-  "inline-image": "图片",
-  "image-gallery": "图片",
   video: "视频",
   audio: "音频",
+  file: "文件",
 };
 
 const documentMarkdown = createMarkdownProcessor({
@@ -56,9 +61,12 @@ const paragraph = (value: string): Descendant =>
   ({ type: "paragraph", children: [text(value)] }) as Descendant;
 const isHttp = (url: unknown) => typeof url === "string" && /^https?:\/\//i.test(url);
 
-function mediaNotice(node: Loose): string {
-  const alt = typeof node.alt === "string" && node.alt.trim() ? `：${node.alt.trim()}` : "";
-  return `${MEDIA_LABEL[node.type]}不在应用内加载${alt}`;
+/** 声明了资源的节点不加载资源，换成说明；替代文字取第一项资源的 alt 字段 */
+function mediaNotice(node: Loose, specs: readonly ContentResourceSpec[]): string {
+  const [slot] = contentResourceSlots(node, specs);
+  const value = slot?.spec.alt ? slot.owner[slot.spec.alt] : undefined;
+  const alt = typeof value === "string" && value.trim() ? `：${value.trim()}` : "";
+  return `${MEDIA_LABEL[specs[0].kind]}不在应用内加载${alt}`;
 }
 
 function sanitizeChildren(children: Descendant[]): Descendant[] {
@@ -70,8 +78,11 @@ function sanitizeChildren(children: Descendant[]): Descendant[] {
 function sanitizeNode(node: Descendant, inline: boolean): Descendant[] {
   if (Text.isText(node)) return [node];
   const element = node as Loose;
-  if (Object.hasOwn(MEDIA_LABEL, element.type))
-    return [inline ? text(`[${mediaNotice(element)}]`) : paragraph(mediaNotice(element))];
+  const specs = contentResourceDeclarations()[element.type];
+  if (specs?.length) {
+    const notice = mediaNotice(element, specs);
+    return [inline ? text(`[${notice}]`) : paragraph(notice)];
+  }
   if (element.type === "link" && !isHttp(element.url)) return sanitizeChildren(element.children);
   if (SAFE_ELEMENTS.has(element.type))
     return [{ ...element, children: sanitizeChildren(element.children) } as Descendant];

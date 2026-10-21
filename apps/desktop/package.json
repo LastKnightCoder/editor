@@ -95,6 +95,7 @@
     "@tanstack/react-virtual": "3.13.12",
     "@tau/chat-ui": "workspace:*",
     "@tau/collaboration": "workspace:*",
+    "@tau/db-schema": "workspace:*",
     "@tau/contracts": "workspace:*",
     "@tau/database": "workspace:*",
     "@tau/editor": "workspace:*",

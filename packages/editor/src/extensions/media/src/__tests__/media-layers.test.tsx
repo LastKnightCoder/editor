@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { act, Activity, createRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { DndProvider } from "react-dnd";
@@ -37,6 +38,7 @@ it("媒体浮层仅由所属编辑器挂载，返回/隐藏/卸载释放归属�
             type: "image",
             kind: "block",
             isVoid: true,
+            resources: BUILTIN_CONTENT_RESOURCES.image,
             render: ({ attributes, children }) => <div {...attributes}>{children}</div>,
           },
         ],

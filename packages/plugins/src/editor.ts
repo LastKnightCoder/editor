@@ -6,6 +6,10 @@ import type { Disposable } from "./index";
 export { defineElement as defineEditorElement } from "@tau/editor/contracts";
 export type { ElementRenderProps as EditorElementRenderProps } from "@tau/editor/contracts";
 export type { MarkdownCodec as EditorMarkdownCodec } from "@tau/markdown";
+export type {
+  ContentResourceSpec as EditorResourceSpec,
+  ContentResourceKind as EditorResourceKind,
+} from "@tau/db-schema/content-resources";
 
 /** 作者通过模块增强登记自定义节点，无需引用编辑器内部包。 */
 declare const elementMapBrand: unique symbol;

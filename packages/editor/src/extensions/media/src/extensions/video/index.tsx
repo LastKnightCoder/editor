@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { defineElement, defineExtension } from "@tau/editor/api";
 
 import { type VideoElement } from "../../types/index";
@@ -11,6 +12,7 @@ const videoExtension = defineExtension({
   elements: [
     defineElement<VideoElement>({
       type: "video",
+      resources: BUILTIN_CONTENT_RESOURCES["video"],
       kind: "block",
       isVoid: true,
       render: VideoComponent,
