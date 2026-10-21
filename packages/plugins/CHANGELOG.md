@@ -11,6 +11,7 @@
 - 新增 `context.app.describe(refs)`：批量取引用的最新标题与是否已删除。用户在 `pick` 中选择过的内容与本插件自己的内容不需要权限，其余需要对应类型的读取权限，未获准时返回 `denied` 与所需权限，不弹窗。
 - 新增组件 `EntityRef`：由 Tau 显示引用的图标、类型名、标题与删除状态，点击打开；未获准时显示「允许访问」。
 - 新增读取权限 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`（对话只含标题等信息，不含消息内容）；新增导出 `PLUGIN_ENTITY_READ_PERMISSIONS`。
+- 新增 `context.data.whiteboards`（读取、新建、修改标题 / 说明 / 标签，新建时带一张空白画板页，画板内容不开放）与 `context.data.projects`（读取、新建空项目、修改标题 / 归档 / 置顶），权限 `whiteboards:read/write`、`projects:read/write`。
 
 ## 0.32.0
 

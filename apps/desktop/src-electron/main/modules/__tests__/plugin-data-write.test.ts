@@ -324,6 +324,107 @@ describe("PluginDataTable 写入", () => {
     ).rejects.toThrow("要复制的正文不存在");
   });
 
+  it("白板：新建带一张空白画板页，只改信息不碰画板", async () => {
+    const board = await PluginDataTable.create(
+      db,
+      {
+        ...scope,
+        entity: "whiteboard",
+        input: { title: "思路", description: "草图", tags: ["课题"] },
+      },
+      ctx
+    );
+    expect(board).toMatchObject({
+      entity: "whiteboard",
+      title: "思路",
+      description: "草图",
+      tags: ["课题"],
+      pageCount: 1,
+      contentId: null,
+    });
+    const page = db.prepare("SELECT name, data FROM white_board_contents").get() as {
+      name: string;
+      data: string;
+    };
+    expect(page.name).toBe("思路");
+    expect(JSON.parse(page.data)).toMatchObject({ children: [], version: 2 });
+
+    db.prepare("UPDATE white_boards SET update_time = 1 WHERE id = ?").run(board.id);
+    const updated = PluginDataTable.update(
+      db,
+      {
+        ...scope,
+        entity: "whiteboard",
+        id: board.id,
+        patch: { description: "", tags: [] },
+        expectedRevision: "1",
+      },
+      ctx
+    );
+    expect(updated).toMatchObject({ title: "思路", description: "", tags: [], pageCount: 1 });
+    expect(() =>
+      PluginDataTable.update(
+        db,
+        {
+          ...scope,
+          entity: "whiteboard",
+          id: board.id,
+          patch: { title: "x" },
+          expectedRevision: "1",
+        },
+        ctx
+      )
+    ).toThrow("PLUGIN_CONFLICT:");
+  });
+
+  it("项目：新建为空项目，修改标题、归档与置顶，可按时间分页查询", async () => {
+    const first = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "另一个" } },
+      ctx
+    );
+    expect(first).toMatchObject({
+      entity: "project",
+      title: "课题",
+      archived: false,
+      pinned: false,
+      documentCount: 0,
+    });
+    db.prepare("UPDATE project SET update_time = 1 WHERE id = ?").run(first.id);
+    const archived = PluginDataTable.update(
+      db,
+      {
+        ...scope,
+        entity: "project",
+        id: first.id,
+        patch: { archived: true, pinned: true },
+        expectedRevision: "1",
+      },
+      ctx
+    );
+    expect(archived).toMatchObject({ title: "课题", archived: true, pinned: true });
+    const page = PluginDataTable.query(db, {
+      ...scope,
+      entity: "project",
+      query: { limit: 1, sort: "created" },
+    });
+    expect(page.items).toHaveLength(1);
+    expect(page.cursor).toBeDefined();
+    expect(() =>
+      PluginDataTable.remove(db, {
+        ...scope,
+        entity: "project" as "card",
+        id: first.id,
+        expectedRevision: archived.revision,
+      })
+    ).toThrow("不支持删除该类型");
+  });
+
   it("拒绝删除项目文档与跨库写入", async () => {
     expect(() =>
       PluginDataTable.remove(db, {

@@ -2,6 +2,7 @@ import { invoke } from "@/electron";
 import type {
   PluginContentEdit,
   PluginContentRecord,
+  PluginCreatableEntity,
   PluginDataCreateInput,
   PluginDataEntity,
   PluginDataPage,
@@ -37,7 +38,7 @@ export const readPluginContent = (
 export const createPluginData = (
   databaseName: string,
   pluginId: string,
-  entity: PluginWritableEntity,
+  entity: PluginCreatableEntity,
   input: PluginDataCreateInput
 ): Promise<PluginDataRecord> =>
   invoke("plugin-data:create", { databaseName, pluginId, entity, input });

@@ -18,18 +18,20 @@
 { "permissions": ["cards:read", "todos:read", "todos:write"] }
 ```
 
-| 权限                                                  | 允许                                                 |
-| ----------------------------------------------------- | ---------------------------------------------------- |
-| `cards:read`、`articles:read`、`documents:read`       | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
-| `cards:write`、`articles:write`、`documents:write`    | 新建（项目文档除外）、修改，以及修改正文             |
-| `cards:delete`、`articles:delete`                     | 删除                                                 |
-| `todos:read`、`todos:write`、`todos:delete`           | 读取、新建与修改、删除待办                           |
-| `calendar:read`、`calendar:write`、`calendar:delete`  | 读取、新建与修改、删除日程                           |
-| `whiteboards:read`、`projects:read`、`notebooks:read` | 读取白板、项目、Notebook 的标题                      |
-| `materials:read`                                      | 读取划线、PDF 标注和剪藏的标题                       |
-| `chats:read`                                          | 读取 AI 对话的标题，不含消息内容                     |
-| `flashcards:read`、`flashcards:write`                 | 闪卡，见[闪卡](flashcards.md)                        |
-| `ai:<能力名>`                                         | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
+| 权限                                                 | 允许                                                 |
+| ---------------------------------------------------- | ---------------------------------------------------- |
+| `cards:read`、`articles:read`、`documents:read`      | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
+| `cards:write`、`articles:write`、`documents:write`   | 新建（项目文档除外）、修改，以及修改正文             |
+| `cards:delete`、`articles:delete`                    | 删除                                                 |
+| `todos:read`、`todos:write`、`todos:delete`          | 读取、新建与修改、删除待办                           |
+| `calendar:read`、`calendar:write`、`calendar:delete` | 读取、新建与修改、删除日程                           |
+| `whiteboards:read`、`projects:read`                  | 读取白板、项目的信息                                 |
+| `whiteboards:write`、`projects:write`                | 新建和修改白板、项目（不含画板内容）                 |
+| `notebooks:read`                                     | 读取 Notebook 的标题                                 |
+| `materials:read`                                     | 读取划线、PDF 标注和剪藏的标题                       |
+| `chats:read`                                         | 读取 AI 对话的标题，不含消息内容                     |
+| `flashcards:read`、`flashcards:write`                | 闪卡，见[闪卡](flashcards.md)                        |
+| `ai:<能力名>`                                        | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
 
 ### 用户如何授权
 
@@ -121,6 +123,24 @@ const article = await context.data.articles.get(id); // 不存在时为 null
 
 列表只需要展示几条时，用 `limit` 和时间范围控制读取量，不要一次读完全部数据再筛选。
 
+### 白板与项目
+
+`context.data.whiteboards`、`context.data.projects` 同样提供 `get(id)` 和 `query(query)`，查询参数与上表相同；项目没有标签，不能按 `tag` 查询。
+
+```ts
+const boards = await context.data.whiteboards.query({ tag: "课题", limit: 20 });
+const projects = await context.data.projects.query({ sort: "created" });
+```
+
+| 类型 | 字段                                                                                                       |
+| ---- | ---------------------------------------------------------------------------------------------------------- |
+| 白板 | `id`、`revision`、`title`、`description`、`tags`、`pageCount`（画板页数）、`createdAt`、`updatedAt`        |
+| 项目 | `id`、`revision`、`title`、`archived`、`pinned`、`documentCount`（根目录文档数）、`createdAt`、`updatedAt` |
+
+- 画板内容不开放读写，由用户在 Tau 中编辑；白板的 `revision` 只随标题、说明和标签变化。
+- 项目的 `revision` 在改名、归档、置顶以及增删文档时都会变化。
+- 白板与项目暂没有变化事件，需要时重新查询。
+
 ### 待办与日程
 
 ```ts
@@ -161,15 +181,17 @@ try {
 }
 ```
 
-| 接口                                     | 可以写的字段                                                              |
-| ---------------------------------------- | ------------------------------------------------------------------------- |
-| `cards.create` / `cards.update`          | 新建：`content`、`tags`、`pinned`；修改：`tags`、`pinned`                 |
-| `articles.create` / `articles.update`    | 新建：`title`（必填）、`content`、`tags`；修改：`title`、`tags`、`pinned` |
-| `documents.update`                       | `title`、`tags`。项目文档不支持新建、移动和删除                           |
-| `todos.create` / `todos.update`          | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）              |
-| `todos.setCompleted(id, completed, ...)` | 标记完成或未完成                                                          |
-| `calendar.create` / `calendar.update`    | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）       |
-| `*.delete(id, ...)`                      | 删除卡片、文章、待办、日程                                                |
+| 接口                                        | 可以写的字段                                                              |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| `cards.create` / `cards.update`             | 新建：`content`、`tags`、`pinned`；修改：`tags`、`pinned`                 |
+| `articles.create` / `articles.update`       | 新建：`title`（必填）、`content`、`tags`；修改：`title`、`tags`、`pinned` |
+| `documents.update`                          | `title`、`tags`。项目文档不支持新建、移动和删除                           |
+| `whiteboards.create` / `whiteboards.update` | `title`（新建时必填）、`description`、`tags`；新建的白板带一张空白画板页  |
+| `projects.create` / `projects.update`       | 新建：`title`（必填），得到空项目；修改：`title`、`archived`、`pinned`    |
+| `todos.create` / `todos.update`             | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）              |
+| `todos.setCompleted(id, completed, ...)`    | 标记完成或未完成                                                          |
+| `calendar.create` / `calendar.update`       | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）       |
+| `*.delete(id, ...)`                         | 删除卡片、文章、待办、日程。白板与项目暂不能删除                          |
 
 全天日程的 `start`、`end` 用 `YYYY-MM-DD`，且 `end` 不包含当天：一个只占 10 月 21 日的全天日程，`end` 是 `2026-10-22`。定时日程用带时区的 ISO 时间。
 

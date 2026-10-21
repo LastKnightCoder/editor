@@ -134,6 +134,16 @@ export async function checkDataContract(context: PluginContext) {
     );
   }
   await context.data.cards.create({ content: { copyOf: entity.contentRef }, tags: ["示例"] });
+  const board = await context.data.whiteboards.create({ title: "示例", tags: ["示例"] });
+  await context.data.whiteboards.update(
+    board.id,
+    { description: "" },
+    { expectedRevision: board.revision }
+  );
+  const project = await context.data.projects.create({ title: "示例" });
+  const projects = await context.data.projects.query({ sort: "created", limit: 1 });
+  void (projects.items[0]?.documentCount === project.documentCount);
+  await context.app.open({ kind: "whiteboard", id: board.id });
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });

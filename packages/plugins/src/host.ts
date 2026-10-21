@@ -77,6 +77,10 @@ import type {
   PluginContentRef,
   PluginContentSnapshot,
   PluginDocumentPatch,
+  PluginProjectInput,
+  PluginProjectPatch,
+  PluginWhiteboardInput,
+  PluginWhiteboardPatch,
   PluginEntityQuery,
   PluginPage,
   PluginTodo,
@@ -186,7 +190,9 @@ export interface PermissionsAdapter {
   ): Promise<boolean>;
 }
 
-export type DataEntity = "card" | "article" | "document";
+export type DataEntity = "card" | "article" | "document" | "whiteboard" | "project";
+/** 持有正文的实体：正文的访问按它们的权限放行 */
+export type ContentOwnerEntity = "card" | "article" | "document";
 
 /** 宿主负责工作区绑定；参数已校验并复制，返回值由 PluginHost 再复制后交给插件。 */
 export interface DataAdapter {
@@ -209,18 +215,27 @@ export interface DataAdapter {
     context: PluginContext,
     ref: PluginContentRef,
     format: "markdown" | "nodes"
-  ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[]; own: boolean } | null>;
+  ): Promise<{
+    snapshot: PluginContentSnapshot;
+    owners: ContentOwnerEntity[];
+    own: boolean;
+  } | null>;
   /** 以下写入由宿主记录来源插件；revision 不是最新时抛出 PluginConflictError */
   create(
     context: PluginContext,
-    entity: WritableEntity,
-    input: PluginCardInput | PluginArticleInput
+    entity: CreatableEntity,
+    input: PluginCardInput | PluginArticleInput | PluginWhiteboardInput | PluginProjectInput
   ): Promise<unknown>;
   update(
     context: PluginContext,
     entity: DataEntity,
     id: string,
-    patch: PluginCardPatch | PluginArticlePatch | PluginDocumentPatch,
+    patch:
+      | PluginCardPatch
+      | PluginArticlePatch
+      | PluginDocumentPatch
+      | PluginWhiteboardPatch
+      | PluginProjectPatch,
     expectedRevision: string
   ): Promise<unknown>;
   remove(
@@ -235,7 +250,7 @@ export interface DataAdapter {
   contentOwners(
     context: PluginContext,
     ref: PluginContentRef
-  ): Promise<{ owners: DataEntity[]; own: boolean }>;
+  ): Promise<{ owners: ContentOwnerEntity[]; own: boolean }>;
   editContent(
     context: PluginContext,
     ref: PluginContentRef,
@@ -245,6 +260,7 @@ export interface DataAdapter {
 }
 
 export type WritableEntity = "card" | "article";
+export type CreatableEntity = WritableEntity | "whiteboard" | "project";
 
 export type TodoWrite =
   | { action: "create"; input: PluginTodoInput }
@@ -285,7 +301,7 @@ export interface EntitiesAdapter {
     context: PluginContext,
     id: string
   ): Promise<
-    Array<{ entity: DataEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
+    Array<{ entity: ContentOwnerEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
   >;
   /** 宿主登记类型名、图标与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
   registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
@@ -387,15 +403,34 @@ const ENTITY_PERMISSIONS: Record<DataEntity, PluginPermission> = {
   card: "cards:read",
   article: "articles:read",
   document: "documents:read",
+  whiteboard: "whiteboards:read",
+  project: "projects:read",
 };
 const WRITE_PERMISSIONS: Record<DataEntity, PluginPermission> = {
   card: "cards:write",
   article: "articles:write",
   document: "documents:write",
+  whiteboard: "whiteboards:write",
+  project: "projects:write",
+};
+
+const MAX_TITLE = 500;
+const MAX_DESCRIPTION = 10_000;
+/** 各类可修改的字段；description 可清空 */
+const PATCH_FIELDS: Record<DataEntity, Record<string, FieldRule>> = {
+  card: { tags: "tags", pinned: "boolean" },
+  article: { title: MAX_TITLE, tags: "tags", pinned: "boolean" },
+  document: { title: MAX_TITLE, tags: "tags" },
+  whiteboard: {
+    title: MAX_TITLE,
+    description: { max: MAX_DESCRIPTION, allowEmpty: true },
+    tags: "tags",
+  },
+  project: { title: MAX_TITLE, archived: "boolean", pinned: "boolean" },
 };
 /** 访问一份正文所需的权限候选：拥有任一所属实体的读取（写入）权限即可；正文接口与组件层共用。 */
 export function contentPermissions(
-  owners: readonly DataEntity[],
+  owners: readonly ContentOwnerEntity[],
   mode: "read" | "write"
 ): PluginPermission[] {
   const table = mode === "read" ? ENTITY_PERMISSIONS : WRITE_PERMISSIONS;
@@ -407,7 +442,6 @@ const DELETE_PERMISSIONS: Record<WritableEntity, PluginPermission> = {
 };
 
 const MAX_MARKDOWN = CONTENT_INPUT_LIMITS.markdown;
-const MAX_TITLE = 500;
 
 function readText(value: unknown, name: string, max: number, allowEmpty = false): string {
   if (typeof value !== "string" || (!allowEmpty && !value.trim()) || value.length > max)
@@ -431,10 +465,13 @@ function readId(id: unknown): string {
   return id;
 }
 
+/** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串 */
+type FieldRule = number | { max: number; allowEmpty: true } | "boolean" | "tags" | "nullable-time";
+
 /** 按字段表读取输入：string 可带最大长度，tags 为标签数组；required 中的字段必填，至少要有一个字段 */
 function readFields<T>(
   value: unknown,
-  fields: Record<string, number | "boolean" | "tags" | "nullable-time">,
+  fields: Record<string, FieldRule>,
   required: readonly string[] = []
 ): T {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("参数无效");
@@ -450,6 +487,7 @@ function readFields<T>(
       result[key] = item;
     } else if (rule === "tags") result[key] = readTags(item);
     else if (rule === "nullable-time") result[key] = item === null ? null : readText(item, key, 64);
+    else if (typeof rule === "object") result[key] = readText(item, key, rule.max, true);
     else result[key] = readText(item, key, rule);
   }
   if (!Object.keys(result).length) throw new Error("没有要修改的字段");
@@ -1058,13 +1096,7 @@ export class PluginHost {
     const reader = (entity: DataEntity) =>
       Object.freeze({
         update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
-          const fields: Record<string, number | "boolean" | "tags"> =
-            entity === "card"
-              ? { tags: "tags", pinned: "boolean" }
-              : entity === "article"
-                ? { title: MAX_TITLE, tags: "tags", pinned: "boolean" }
-                : { title: MAX_TITLE, tags: "tags" };
-          const value = readFields<PluginCardPatch>(patch, fields);
+          const value = readFields<PluginCardPatch>(patch, PATCH_FIELDS[entity]);
           const revision = readRevision(options);
           await guard(WRITE_PERMISSIONS[entity]);
           return deliver<never>(
@@ -1088,15 +1120,28 @@ export class PluginHost {
           });
           if (picked.sort !== undefined && picked.sort !== "created" && picked.sort !== "updated")
             throw new Error("查询参数 sort 无效");
+          if (entity === "project" && picked.tag !== undefined)
+            throw new Error("项目没有标签，不能按 tag 查询");
           const limit = readLimit((query as PluginEntityQuery | undefined)?.limit, 200);
           await guard(ENTITY_PERMISSIONS[entity]);
           return deliver<never>(await dataAdapter().query(context, entity, { ...picked, limit }));
         },
       });
-    const writer = (entity: WritableEntity) => ({
+    const creator = (entity: CreatableEntity) => ({
       create: async (input: unknown) => {
         const raw = input ?? {};
         if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+        if (entity === "whiteboard" || entity === "project") {
+          const value = readFields<PluginWhiteboardInput | PluginProjectInput>(
+            raw,
+            entity === "whiteboard"
+              ? { title: MAX_TITLE, description: PATCH_FIELDS.whiteboard.description, tags: "tags" }
+              : { title: MAX_TITLE },
+            ["title"]
+          );
+          await guard(WRITE_PERMISSIONS[entity]);
+          return deliver<never>(await dataAdapter().create(context, entity, value));
+        }
         const { content, ...fields } = raw as Record<string, unknown>;
         const value: PluginCardInput | PluginArticleInput =
           entity === "card"
@@ -1109,6 +1154,8 @@ export class PluginHost {
         await guard(WRITE_PERMISSIONS[entity]);
         return deliver<never>(await dataAdapter().create(context, entity, value));
       },
+    });
+    const remover = (entity: WritableEntity) => ({
       delete: async (id: string, options: PluginWriteOptions) => {
         const revision = readRevision(options);
         await guard(DELETE_PERMISSIONS[entity]);
@@ -1655,8 +1702,14 @@ export class PluginHost {
         },
       }),
       data: Object.freeze({
-        cards: Object.freeze({ ...reader("card"), ...writer("card") }),
-        articles: Object.freeze({ ...reader("article"), ...writer("article") }),
+        cards: Object.freeze({ ...reader("card"), ...creator("card"), ...remover("card") }),
+        articles: Object.freeze({
+          ...reader("article"),
+          ...creator("article"),
+          ...remover("article"),
+        }),
+        whiteboards: Object.freeze({ ...reader("whiteboard"), ...creator("whiteboard") }),
+        projects: Object.freeze({ ...reader("project"), ...creator("project") }),
         documents: reader("document"),
         todos: Object.freeze({
           create: async (input: PluginTodoInput) => {
@@ -1938,7 +1991,7 @@ export class PluginHost {
           const sources = await entitiesAdapter().backlinks(context, readId(id));
           this.assertActive(entry, activation);
           // 只给已获准读取的类型，不弹窗；其余只计数
-          const states = new Map<DataEntity, boolean>();
+          const states = new Map<ContentOwnerEntity, boolean>();
           for (const entity of new Set(sources.flatMap(source => source.entity ?? []))) {
             const permission = ENTITY_PERMISSIONS[entity];
             states.set(
