@@ -48,7 +48,7 @@ C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长
 
 ## 编辑器
 
-`context.editor.register({ scene: "workbench", extension, codecs? })` 返回自动回收的 Disposable。扩展通过根入口的 `defineEditorExtension`、`defineEditorElement` 与 `EditorElementRenderProps` 定义，沿用现有编辑器协议。当前开放节点、命令、热键和节点菜单；不开放原始 Slate 包装器，也不承诺内部扩展接口全集。Slate/React 仍是作者声明的生态依赖。
+`context.editor.register({ scene: "workbench", extension, codecs? })` 返回自动回收的 Disposable。扩展通过根入口的 `defineEditorExtension`、`defineEditorElement` 与 `EditorElementRenderProps` 定义，沿用现有编辑器协议。当前开放节点、命令、热键、节点菜单、块菜单与 `behaviorsFor`，另有插件专用的 `styleSources`、`htmlSerializers`；其他字段在加载与注册时报错，不开放原始 Slate 包装器，也不承诺内部扩展接口全集。Slate/React 仍是作者声明的生态依赖。
 
 扩展 ID、节点 type、命令 ID 和 codec type 使用 `插件ID.` 前缀，避免碰撞内核及其他插件。自定义节点可增强根入口 `EditorElementMap`，行内类型同时登记 `EditorInlineElementMap`。纯 codec 的类型为 `EditorMarkdownCodec`，定义放在独立文件，避免执行端加载 UI。
 
