@@ -20,17 +20,29 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { ProviderSection, ProviderSwitcher } from "../components/ProviderLayout";
 import { TtsProviderCreateDialog } from "../components/TtsProviderCreateDialog";
+import { useDesktopPlugins } from "@/app/plugins/context";
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function VoiceTtsPanel() {
   const ttsProviders = useSettingStore(s => s.setting.ttsProviders);
+  const runtime = useDesktopPlugins();
+
+  // 过滤掉未安装插件的提供商配置
+  const installedPluginIds = new Set(
+    runtime
+      ?.listSettings()
+      .filter(item => item.definition.target === "tts")
+      .map(item => item.context.pluginId) ?? []
+  );
+
+  const validProviders = ttsProviders.filter(provider => installedPluginIds.has(provider.pluginId));
   const usage = useSettingStore(s => s.setting.ttsUsageSettings.default);
   const updateTTSUsageSetting = useSettingStore(s => s.updateTTSUsageSetting);
 
   /* ── 切换条：editingId 失效时回落第一家 ── */
   const [editingId, setEditingId] = useState<string | null>(null);
-  const editing = ttsProviders.find(p => p.id === editingId) ?? ttsProviders[0];
+  const editing = validProviders.find(p => p.id === editingId) ?? validProviders[0];
   const [createOpen, setCreateOpen] = useState(false);
 
   /**
@@ -91,14 +103,14 @@ export function VoiceTtsPanel() {
   };
 
   /* ── 当前服务（提供商/模型/音色）── */
-  const usageProvider = ttsProviders.find(item => item.id === usage?.providerId);
+  const usageProvider = validProviders.find(item => item.id === usage?.providerId);
 
   const switchUsageProvider = (providerId: string) => {
     if (!providerId) {
       updateTTSUsageSetting(null);
       return;
     }
-    const provider = ttsProviders.find(item => item.id === providerId);
+    const provider = validProviders.find(item => item.id === providerId);
     updateTTSUsageSetting({
       providerId,
       modelId: provider?.models[0]?.id ?? "",
@@ -158,7 +170,7 @@ export function VoiceTtsPanel() {
       <SettingsGroup>
         <ProviderSwitcher
           label="语音合成服务商"
-          items={ttsProviders.map(provider => ({
+          items={validProviders.map(provider => ({
             id: provider.id,
             label: provider.name || "未命名",
             meta: provider.models.length,
@@ -237,7 +249,7 @@ export function VoiceTtsPanel() {
             placeholder="请选择提供商"
             value={usage?.providerId ?? null}
             emptyText="先在上方添加服务商"
-            options={ttsProviders.map(provider => ({
+            options={validProviders.map(provider => ({
               value: provider.id,
               label: provider.name || "未命名",
             }))}
