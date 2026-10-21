@@ -24,6 +24,7 @@ import type { PluginApp } from "./app";
 import type { PluginOwnEntities } from "./entities";
 import type { PluginRecords } from "./records";
 import type { PluginLinks } from "./links";
+import type { PluginTransactionRunner } from "./transaction";
 import type { PluginFlashcards } from "./flashcards";
 import type { PluginNotifications } from "./notifications";
 
@@ -87,6 +88,8 @@ export interface PluginContext {
   readonly records: PluginRecords;
   /** 从本插件的内容指向其他内容的有序关联，显示在目标的脉络里 */
   readonly links: PluginLinks;
+  /** 把对本插件内容、记录与关联的多条写入作为一个整体提交：全部生效或全部不生效 */
+  readonly transaction: PluginTransactionRunner;
   readonly flashcards: PluginFlashcards;
   readonly notifications: PluginNotifications;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */

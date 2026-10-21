@@ -105,6 +105,7 @@ import type {
   PluginOwnEntityQuery,
 } from "./entities";
 import type { PluginLink, PluginLinkData, PluginLinkOptions } from "./links";
+import type { PluginTransaction, PluginTransactionWriteOptions } from "./transaction";
 import type {
   PluginRecord,
   PluginRecordCollection,
@@ -322,14 +323,17 @@ export interface EntityQueryFilter {
   titleContains?: string;
 }
 
+/** 校验后的新建实体参数 */
+export type EntityCreateInput = Required<Omit<PluginOwnEntityInput, "content">> & {
+  meta: PluginOwnEntityMeta;
+  content?: PluginContentInput;
+};
+
 export interface EntitiesAdapter {
   /** indexes：类型声明的索引字段，宿主写入前核对 meta 中对应字段的类型 */
   create(
     context: PluginContext,
-    input: Required<Omit<PluginOwnEntityInput, "content">> & {
-      meta: PluginOwnEntityMeta;
-      content?: PluginContentInput;
-    },
+    input: EntityCreateInput,
     indexes: PluginIndexes
   ): Promise<PluginOwnEntity>;
   get(context: PluginContext, id: string): Promise<PluginOwnEntity | null>;
@@ -412,6 +416,52 @@ export interface LinksAdapter {
   list(context: PluginContext, from: string, role?: string): Promise<PluginLink[]>;
   remove(context: PluginContext, id: string): Promise<void>;
   reorder(context: PluginContext, from: string, ids: string[]): Promise<void>;
+}
+
+/** 事务里的一条写入，参数已按单独调用时的规则校验；不带 expectedRevision 即不核对版本 */
+export type PluginTransactionOp =
+  | { op: "entity.create"; id: string; input: EntityCreateInput; indexes: PluginIndexes }
+  | {
+      op: "entity.update";
+      id: string;
+      patch: PluginOwnEntityPatch;
+      expectedRevision?: string;
+      indexes: Record<string, PluginIndexes>;
+    }
+  | { op: "entity.delete"; id: string; expectedRevision?: string }
+  | {
+      op: "record.insert";
+      collection: string;
+      id: string;
+      data: PluginRecordData;
+      indexes: PluginIndexes;
+    }
+  | {
+      op: "record.update";
+      collection: string;
+      id: string;
+      data: PluginRecordData;
+      expectedRevision?: string;
+      indexes: PluginIndexes;
+    }
+  | { op: "record.delete"; collection: string; id: string; expectedRevision?: string }
+  | {
+      op: "link.add";
+      id: string;
+      from: string;
+      to: PluginEntityRef;
+      role: string;
+      data: PluginLinkData;
+      readable: boolean;
+    }
+  | { op: "link.remove"; id: string }
+  | { op: "link.reorder"; from: string; ids: string[] };
+
+/** 原子提交：宿主在一个数据库事务里按顺序执行，任何一条失败全部回滚 */
+export interface TransactionAdapter {
+  /** 预留一个插件内容 ID，供同一事务里新建时使用 */
+  reserveEntityId(context: PluginContext): Promise<string>;
+  commit(context: PluginContext, ops: PluginTransactionOp[]): Promise<void>;
 }
 
 /** 选择与打开由宿主界面完成；参数已校验，返回值由 PluginHost 复制后交给插件。 */
@@ -535,6 +585,23 @@ function readRecordData(value: unknown): PluginRecordData {
 }
 
 const MAX_LINK_DATA = 4 * 1024;
+const MAX_TRANSACTION_OPS = 500;
+
+/** 事务里的 revision 可以省略；给了就必须有效 */
+function readOptionalRevision(options: unknown): string | undefined {
+  if (options === undefined) return undefined;
+  if (!options || typeof options !== "object") throw new Error("参数无效");
+  const revision = (options as PluginTransactionWriteOptions).expectedRevision;
+  return revision === undefined ? undefined : readRevision(options);
+}
+
+function readReorderIds(ids: unknown): string[] {
+  if (!Array.isArray(ids) || !ids.length || ids.length > MAX_REORDER)
+    throw new Error(`ids 必须是 1–${MAX_REORDER} 项的数组`);
+  const values = ids.map(readId);
+  if (new Set(values).size !== values.length) throw new Error("ids 有重复");
+  return values;
+}
 const MAX_REORDER = 1000;
 
 function readLinkOptions(value: unknown): { role: string; data: PluginLinkData } {
@@ -998,6 +1065,7 @@ export class PluginHost {
       entities?: EntitiesAdapter;
       records?: RecordsAdapter;
       links?: LinksAdapter;
+      transaction?: TransactionAdapter;
       data?: DataAdapter;
       events?: EventsAdapter;
       app?: AppAdapter;
@@ -1405,6 +1473,50 @@ export class PluginHost {
     };
     const kindIndexes = (kind: string): PluginIndexes =>
       entityKindDefinitions.get(kind)?.indexes ?? {};
+    const allKindIndexes = (): Record<string, PluginIndexes> =>
+      Object.fromEntries(
+        [...entityKindDefinitions].map(([kind, definition]) => [kind, definition.indexes ?? {}])
+      );
+    const readEntityCreate = (input: unknown) => {
+      const value = readFields<PluginOwnEntityInput>(
+        input,
+        { kind: 128, key: 200, title: MAX_TITLE },
+        ["kind", "key"]
+      );
+      if (!entityKindDefinitions.has(value.kind))
+        throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
+      const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
+      const content = (input as PluginOwnEntityInput).content;
+      return {
+        input: {
+          kind: value.kind,
+          key: value.key,
+          title: value.title ?? "",
+          meta,
+          ...(content !== undefined
+            ? { content: readContentInput(content, { allowEmpty: true }) }
+            : {}),
+        } as EntityCreateInput,
+        indexes: kindIndexes(value.kind),
+      };
+    };
+    const readEntityPatch = (patch: unknown): PluginOwnEntityPatch => {
+      const value = readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE });
+      const meta = (patch as PluginOwnEntityPatch | undefined)?.meta;
+      return { ...value, ...(meta === undefined ? {} : { meta: readEntityMeta(meta) }) };
+    };
+    const readLinkAdd = async (from: unknown, to: unknown, options: unknown) => {
+      const target = readEntityRef(to);
+      const { role, data } = readLinkOptions(options);
+      const permission = PLUGIN_ENTITY_READ_PERMISSIONS[target.kind];
+      // 只查询已有授权，不弹窗
+      const readable = Boolean(
+        permission &&
+        declared.has(permission) &&
+        (await permissionsAdapter().query(context, permission)) === "granted"
+      );
+      return { from: readId(from), to: target, role, data, readable };
+    };
     const readEntityFilter = (filter: PluginOwnEntityFilter | undefined): EntityQueryFilter => {
       if (filter !== undefined && (!filter || typeof filter !== "object"))
         throw new Error("参数无效");
@@ -2344,29 +2456,9 @@ export class PluginHost {
           });
         },
         create: async (input: PluginOwnEntityInput) => {
-          const value = readFields<PluginOwnEntityInput>(
-            input,
-            { kind: 128, key: 200, title: MAX_TITLE },
-            ["kind", "key"]
-          );
-          if (!entityKindDefinitions.has(value.kind))
-            throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
-          const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
-          const content = (input as PluginOwnEntityInput).content;
+          const value = readEntityCreate(input);
           return deliver<PluginOwnEntity>(
-            await entitiesAdapter().create(
-              context,
-              {
-                kind: value.kind,
-                key: value.key,
-                title: value.title ?? "",
-                meta,
-                ...(content !== undefined
-                  ? { content: readContentInput(content, { allowEmpty: true }) }
-                  : {}),
-              },
-              kindIndexes(value.kind)
-            )
+            await entitiesAdapter().create(context, value.input, value.indexes)
           );
         },
         get: async (id: string) =>
@@ -2432,42 +2524,22 @@ export class PluginHost {
           await entitiesAdapter().delete(context, readId(id), readRevision(options));
           this.assertActive(entry, activation);
         },
-        update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) => {
-          const value = readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE });
-          const meta = (patch as PluginOwnEntityPatch | undefined)?.meta;
-          return deliver<PluginOwnEntity>(
+        update: async (id: string, patch: PluginOwnEntityPatch, options: PluginWriteOptions) =>
+          deliver<PluginOwnEntity>(
             await entitiesAdapter().update(
               context,
               readId(id),
-              { ...value, ...(meta === undefined ? {} : { meta: readEntityMeta(meta) }) },
+              readEntityPatch(patch),
               readRevision(options),
-              Object.fromEntries(
-                [...entityKindDefinitions].map(([kind, definition]) => [
-                  kind,
-                  definition.indexes ?? {},
-                ])
-              )
+              allKindIndexes()
             )
-          );
-        },
+          ),
       }),
       links: Object.freeze({
         add: async (from: string, to: PluginEntityRef, options?: PluginLinkOptions) => {
-          const target = readEntityRef(to);
-          const { role, data } = readLinkOptions(options);
-          const permission = PLUGIN_ENTITY_READ_PERMISSIONS[target.kind];
-          // 只查询已有授权，不弹窗
-          const readable = Boolean(
-            permission &&
-            declared.has(permission) &&
-            (await permissionsAdapter().query(context, permission)) === "granted"
-          );
+          const { readable, ...link } = await readLinkAdd(from, to, options);
           return deliver<PluginLink>(
-            await linksAdapter().add(
-              context,
-              { id: crypto.randomUUID(), from: readId(from), to: target, role, data },
-              readable
-            )
+            await linksAdapter().add(context, { id: crypto.randomUUID(), ...link }, readable)
           );
         },
         list: async (from: string, options?: { role?: string }) => {
@@ -2480,11 +2552,7 @@ export class PluginHost {
           this.assertActive(entry, activation);
         },
         reorder: async (from: string, ids: readonly string[]) => {
-          if (!Array.isArray(ids) || !ids.length || ids.length > MAX_REORDER)
-            throw new Error(`ids 必须是 1–${MAX_REORDER} 项的数组`);
-          const values = ids.map(readId);
-          if (new Set(values).size !== values.length) throw new Error("ids 有重复");
-          await linksAdapter().reorder(context, readId(from), values);
+          await linksAdapter().reorder(context, readId(from), readReorderIds(ids));
           this.assertActive(entry, activation);
         },
       }),
@@ -2574,6 +2642,130 @@ export class PluginHost {
           this.assertActive(entry, activation);
         },
       }),
+      transaction: async <T>(run: (tx: PluginTransaction) => T | Promise<T>): Promise<T> => {
+        this.assertActive(entry, activation);
+        if (typeof run !== "function") throw new Error("事务回调必须是函数");
+        if (!this.options.transaction) throw new Error("当前宿主不支持原子提交");
+        const adapter = this.options.transaction;
+        const ops: PluginTransactionOp[] = [];
+        const pending = new Set<Promise<unknown>>();
+        const failures: unknown[] = [];
+        let open = true;
+        const push = (op: PluginTransactionOp) => {
+          if (!open) throw new Error("事务已结束，不能再写入");
+          if (ops.length >= MAX_TRANSACTION_OPS)
+            throw new Error(`一个事务最多 ${MAX_TRANSACTION_OPS} 条写入`);
+          ops.push(op);
+        };
+        // 每条写入都登记；没有 await 的写入失败同样让整个事务不提交
+        const write = <R>(task: () => R | Promise<R>): Promise<R> => {
+          const promise = (async () => {
+            if (!open) throw new Error("事务已结束，不能再写入");
+            this.assertActive(entry, activation);
+            return task();
+          })();
+          pending.add(promise.catch(error => void failures.push(error)));
+          return promise;
+        };
+        const settle = async () => {
+          for (let size = -1; size !== pending.size;) {
+            size = pending.size;
+            await Promise.all(pending);
+          }
+          open = false;
+        };
+        const tx: PluginTransaction = Object.freeze({
+          entities: Object.freeze({
+            create: (input: PluginOwnEntityInput) =>
+              write(async () => {
+                const value = readEntityCreate(input);
+                const id = await adapter.reserveEntityId(context);
+                push({ op: "entity.create", id, ...value });
+                return { id };
+              }),
+            update: (id: string, patch: PluginOwnEntityPatch, options?: unknown) =>
+              write(() => {
+                const revision = readOptionalRevision(options);
+                push({
+                  op: "entity.update",
+                  id: readId(id),
+                  patch: readEntityPatch(patch),
+                  ...(revision === undefined ? {} : { expectedRevision: revision }),
+                  indexes: allKindIndexes(),
+                });
+              }),
+            delete: (id: string, options?: unknown) =>
+              write(() => {
+                const revision = readOptionalRevision(options);
+                push({
+                  op: "entity.delete",
+                  id: readId(id),
+                  ...(revision === undefined ? {} : { expectedRevision: revision }),
+                });
+              }),
+          }),
+          records: Object.freeze({
+            insert: (name: string, data: PluginRecordData) =>
+              write(() => {
+                const collection = collectionOf(name);
+                const id = crypto.randomUUID();
+                push({
+                  op: "record.insert",
+                  collection: collection.name,
+                  id,
+                  data: readRecordData(data),
+                  indexes: collection.indexes,
+                });
+                return { id };
+              }),
+            update: (name: string, id: string, data: PluginRecordData, options?: unknown) =>
+              write(() => {
+                const collection = collectionOf(name);
+                const revision = readOptionalRevision(options);
+                push({
+                  op: "record.update",
+                  collection: collection.name,
+                  id: readId(id),
+                  data: readRecordData(data),
+                  ...(revision === undefined ? {} : { expectedRevision: revision }),
+                  indexes: collection.indexes,
+                });
+              }),
+            delete: (name: string, id: string, options?: unknown) =>
+              write(() => {
+                const revision = readOptionalRevision(options);
+                push({
+                  op: "record.delete",
+                  collection: collectionOf(name).name,
+                  id: readId(id),
+                  ...(revision === undefined ? {} : { expectedRevision: revision }),
+                });
+              }),
+          }),
+          links: Object.freeze({
+            add: (from: string, to: PluginEntityRef, options?: PluginLinkOptions) =>
+              write(async () => {
+                const link = await readLinkAdd(from, to, options);
+                push({ op: "link.add", id: crypto.randomUUID(), ...link });
+              }),
+            remove: (id: string) => write(() => push({ op: "link.remove", id: readId(id) })),
+            reorder: (from: string, ids: readonly string[]) =>
+              write(() =>
+                push({ op: "link.reorder", from: readId(from), ids: readReorderIds(ids) })
+              ),
+          }),
+        });
+        let result: T;
+        try {
+          result = await run(tx);
+        } finally {
+          await settle();
+        }
+        if (failures.length) throw failures[0];
+        if (ops.length) await adapter.commit(context, ops);
+        this.assertActive(entry, activation);
+        return result;
+      },
       events: Object.freeze({
         on: (
           types: PluginEventType | readonly PluginEventType[],

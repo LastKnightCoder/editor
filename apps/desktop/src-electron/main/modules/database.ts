@@ -73,6 +73,7 @@ import PluginEntityTable from "./tables/plugin-entity";
 import PluginKvTable from "./tables/plugin-kv";
 import PluginRecordTable from "./tables/plugin-records";
 import PluginLinkTable from "./tables/plugin-links";
+import PluginTransactionTable from "./tables/plugin-transaction";
 import PluginElementResourcesTable from "./tables/plugin-element-resources";
 import PluginRefsTable from "./tables/plugin-refs";
 import PluginReadonlyDataTable from "./tables/plugin-data-readonly";
@@ -319,6 +320,7 @@ class DatabaseModule implements Module {
       PluginKvTable,
       PluginRecordTable,
       PluginLinkTable,
+      PluginTransactionTable,
       PluginElementResourcesTable,
       PluginRefsTable,
       PluginReadonlyDataTable,

@@ -45,6 +45,11 @@ const BASE_COLUMNS = `e.id, e.plugin_id, e.kind, e.key, e.title, e.meta, e.creat
 const BASE_FROM = "plugin_entities e JOIN contents ct ON ct.id = e.content_id";
 const BASE_SQL = `SELECT ${BASE_COLUMNS} FROM ${BASE_FROM}`;
 
+/** 事务预留的实体 ID：库名 + ID → 插件 ID */
+const reservations = new Map<string, string>();
+const MAX_RESERVATIONS = 500;
+const reservationKey = (db: Database.Database, id: number) => `${basename(db.name)}\n${id}`;
+
 const QUERY_SOURCE: QuerySource = {
   json: "e.meta",
   builtins: { createdAt: "e.create_time", updatedAt: UPDATED_SQL, title: "e.title" },
@@ -114,6 +119,7 @@ export default class PluginEntityTable {
   static getListenEvents() {
     return {
       "plugin-entities:create": asynchronousDatabaseCommand(this.create.bind(this)),
+      "plugin-entities:reserve-id": this.reserveId.bind(this),
       "plugin-entities:get": this.get.bind(this),
       "plugin-entities:find": this.find.bind(this),
       "plugin-entities:query": this.query.bind(this),
@@ -227,30 +233,73 @@ export default class PluginEntityTable {
     request: PluginEntityScope & { input: PluginEntityCreate }
   ): Promise<PluginEntityRecord> {
     this.assertScope(db, request);
-    const { kind, key, title, meta, indexes } = request.input;
-    assertIndexedValues(meta as never, indexes ?? {});
-    const content = await resolvePluginContent(db, request.input.content, EMPTY_CONTENT);
+    const content = await this.resolveContent(db, request.input);
     // Markdown 转换期间可能已切库或关库
     this.assertDatabase(db, request.databaseName);
     if (!db.open) throw new Error("数据库连接已失效");
     return writeAsPlugin(request.pluginId, () =>
-      db.transaction(() => {
-        const existing = db
-          .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
-          .get(request.pluginId, kind, key);
-        if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
-        const contentId = ContentTable.createContent(db, { content });
-        const now = Date.now();
+      db.transaction(() =>
         // 编号不复用：删除后恢复仍用原 ID，正文里指向它的引用不会落到别的内容上
-        const id = getNextTaskEntityId(db, "plugin_entities");
-        db.prepare(
-          `INSERT INTO plugin_entities
-           (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(id, request.pluginId, kind, key, title, contentId, JSON.stringify(meta), now, now);
-        return toRecord(this.row(db, request.pluginId, id) as Row);
-      })()
+        this.insertResolved(
+          db,
+          request.pluginId,
+          request.input,
+          content,
+          getNextTaskEntityId(db, "plugin_entities")
+        )
+      )()
     );
+  }
+
+  /** 新建的第一步（异步，在数据库事务之外）：核对索引字段并解析初始正文 */
+  static async resolveContent(db: Database.Database, input: PluginEntityCreate) {
+    assertIndexedValues(input.meta as never, input.indexes ?? {});
+    return resolvePluginContent(db, input.content, EMPTY_CONTENT);
+  }
+
+  /** 新建的第二步（同步，由调用方放进事务）：用解析好的正文与给定 ID 插入 */
+  static insertResolved(
+    db: Database.Database,
+    pluginId: string,
+    input: PluginEntityCreate,
+    content: Descendant[],
+    id: number
+  ): PluginEntityRecord {
+    const { kind, key, title, meta } = input;
+    const existing = db
+      .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
+      .get(pluginId, kind, key);
+    if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
+    if (db.prepare("SELECT 1 FROM plugin_entities WHERE id = ?").get(id))
+      throw new Error("内容 ID 已被占用");
+    const contentId = ContentTable.createContent(db, { content });
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO plugin_entities
+         (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, pluginId, kind, key, title, contentId, JSON.stringify(meta), now, now);
+    return toRecord(this.row(db, pluginId, id) as Row);
+  }
+
+  /**
+   * 为事务预留一个实体 ID：推进不复用的编号序列，并记下预留给哪个插件。
+   * 预留只在本次运行中有效，提交时消费；没提交的编号作废。
+   */
+  static reserveId(db: Database.Database, request: PluginEntityScope): number {
+    this.assertScope(db, request);
+    const owned = [...reservations.values()].filter(owner => owner === request.pluginId).length;
+    if (owned >= MAX_RESERVATIONS) throw new Error("预留的内容 ID 过多，请先提交事务");
+    const id = getNextTaskEntityId(db, "plugin_entities");
+    reservations.set(reservationKey(db, id), request.pluginId);
+    return id;
+  }
+
+  /** 提交时消费预留：只能用预留给本插件的 ID */
+  static consumeReservation(db: Database.Database, pluginId: string, id: number) {
+    const key = reservationKey(db, id);
+    if (reservations.get(key) !== pluginId) throw new Error("内容 ID 未预留");
+    reservations.delete(key);
   }
 
   static get(
@@ -327,7 +376,8 @@ export default class PluginEntityTable {
     request: PluginEntityScope & {
       id: number;
       patch: PluginEntityPatch;
-      expectedRevision: string;
+      /** 省略时不核对版本（事务里的无条件写入） */
+      expectedRevision?: string;
       /** 各类型声明的索引字段，按本项的类型核对 meta */
       indexes?: Record<string, PluginIndexes>;
     }
@@ -339,7 +389,10 @@ export default class PluginEntityTable {
         if (!current) throw new Error("内容不存在");
         if (request.patch.meta !== undefined)
           assertIndexedValues(request.patch.meta as never, request.indexes?.[current.kind] ?? {});
-        if (String(current.update_time) !== request.expectedRevision)
+        if (
+          request.expectedRevision !== undefined &&
+          String(current.update_time) !== request.expectedRevision
+        )
           throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
         const { title, meta } = request.patch;
         // 同一毫秒内连续修改也要换出新的 revision
@@ -360,14 +413,17 @@ export default class PluginEntityTable {
   /** 删除前把行快照存入 plugin_operations，正文延迟释放；7 天内可由用户在插件详情页恢复 */
   static remove(
     db: Database.Database,
-    request: PluginEntityScope & { id: number; expectedRevision: string }
+    request: PluginEntityScope & { id: number; expectedRevision?: string }
   ): void {
     this.assertScope(db, request);
     writeAsPlugin(request.pluginId, () =>
       db.transaction(() => {
         const current = this.row(db, request.pluginId, request.id);
         if (!current) throw new Error("内容不存在");
-        if (String(current.update_time) !== request.expectedRevision)
+        if (
+          request.expectedRevision !== undefined &&
+          String(current.update_time) !== request.expectedRevision
+        )
           throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
         const row = db.prepare("SELECT * FROM plugin_entities WHERE id = ?").get(request.id);
         // 出边随实体快照；先删边再删实体，事件里还能读到实体的类型

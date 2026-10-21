@@ -14,6 +14,7 @@ import { createDesktopApp } from "./app";
 import { createDesktopEntities } from "./entities";
 import { createDesktopRecords } from "./records";
 import { createDesktopLinks } from "./links";
+import { createDesktopTransaction } from "./transaction";
 import {
   createDatabaseStorage,
   migrateLegacyPluginStorage,
@@ -102,6 +103,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           entities: createDesktopEntities(workspaceId),
           records: createDesktopRecords(workspaceId),
           links: createDesktopLinks(workspaceId),
+          transaction: createDesktopTransaction(workspaceId),
           ...(isElectron
             ? {
                 // 私有存储与用户为它选择过的引用一并清除；插件内容、记录与关联按卸载宽限另行回收

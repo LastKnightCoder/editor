@@ -199,7 +199,10 @@ export default class PluginRecordTable {
       db.transaction(() => {
         const current = this.row(db, request, request.id);
         if (!current) throw new Error("记录不存在");
-        if (String(current.update_time) !== request.expectedRevision)
+        if (
+          request.expectedRevision !== undefined &&
+          String(current.update_time) !== request.expectedRevision
+        )
           throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
         // 同一毫秒内连续修改也要换出新的 revision
         const now = Math.max(Date.now(), current.update_time + 1);
@@ -215,14 +218,17 @@ export default class PluginRecordTable {
 
   static remove(
     db: Database.Database,
-    request: PluginRecordScope & { id: string; expectedRevision: string }
+    request: PluginRecordScope & { id: string; expectedRevision?: string }
   ): void {
     this.assertScope(db, request);
     writeAsPlugin(request.pluginId, () =>
       db.transaction(() => {
         const current = this.row(db, request, request.id);
         if (!current) throw new Error("记录不存在");
-        if (String(current.update_time) !== request.expectedRevision)
+        if (
+          request.expectedRevision !== undefined &&
+          String(current.update_time) !== request.expectedRevision
+        )
           throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
         db.prepare("DELETE FROM plugin_records WHERE id = ?").run(request.id);
       })()

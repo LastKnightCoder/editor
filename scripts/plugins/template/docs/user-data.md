@@ -639,7 +639,7 @@ await context.records.update(
 
 - 每条记录是 `{ id, collection, data, createdAt, updatedAt, revision }`。`data` 是不超过 64 KB 的 JSON 对象。
 - `indexes`、`where`、`orderBy` 的写法与「按字段查询」相同，字段取 `data` 的顶层键；自带的排序列是 `createdAt` 和 `updatedAt`。
-- 删除是直接删除，**不进「最近删除」**，用户无法恢复。删除插件内容时，与它相关的记录由插件自己删除。
+- 删除是直接删除，**不进「最近删除」**，用户无法恢复。删除插件内容时，与它相关的记录由插件自己删除，可以放进同一个[原子提交](#原子提交)。
 - 记录随笔记库保存与同步。卸载插件后和插件内容一样保留 7 天，期间重新安装就能找回，超过 7 天后删除。
 - 变化时发 `record.created`、`record.updated`、`record.deleted` 事件，事件带 `collection`，只发给本插件，见「订阅变化」。
 - 设置、进度这类按键存取的小块数据，用[私有存储](storage-and-network.md#私有存储)更简单。
@@ -670,3 +670,36 @@ for (const state of await context.app.describe(materials.map(link => link.to)))
 - 目标被删除时关联保留，`describe` 返回 `missing`，`<EntityRef>` 显示为已删除；需要清理时由插件 `remove`。
 - 删除插件内容时，它的关联一起删除；用户从「最近删除」恢复后，关联一起恢复。卸载插件后与插件内容一样保留 7 天。
 - 关联的增删和重排算作来源内容的变化，发 `entity.updated` 事件。
+
+## 原子提交
+
+一个操作要同时改几处数据时（例如删除问题时一并删除它的轨迹记录，或新建问题并关联材料），用 `context.transaction` 把这些写入作为一个整体提交：全部生效，或者全部不生效。
+
+```ts
+await context.transaction(async tx => {
+  const { id } = await tx.entities.create({ kind: "question", key, title });
+  for (const item of picked) await tx.links.add(id, item.ref, { role: "material" });
+  await tx.records.insert("events", { questionId: id, type: "create" });
+});
+
+// 重排：不带 revision 即不论当前版本直接写入
+await context.transaction(async tx => {
+  for (const [index, question] of ordered.entries())
+    await tx.entities.update(question.id, { meta: { ...question.meta, sortIndex: index } });
+});
+```
+
+| `tx` 上的方法                                                                                | 说明                                      |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `entities.create(input)`                                                                     | 立即返回 `{ id }`，同一事务里可以接着使用 |
+| `entities.update(id, patch, options?)`、`entities.delete(id, options?)`                      | 同 `context.entities`                     |
+| `records.insert(collection, data)`                                                           | 立即返回 `{ id }`                         |
+| `records.update(collection, id, data, options?)`、`records.delete(collection, id, options?)` | 同 `context.records`                      |
+| `links.add(from, to, options?)`、`links.remove(id)`、`links.reorder(from, ids)`              | 同 `context.links`，`add` 不返回关联      |
+
+- 回调结束后才提交，`transaction` 返回回调的返回值。回调抛错，或任何一条写入失败（参数无效、revision 不符、目标不能关联、`key` 重复等），所有写入都不生效，`transaction` 抛出第一个错误。
+- 每个写入方法都要 `await`。没有 `await` 的写入失败同样会让整个事务不提交。回调结束后再调用 `tx` 会抛错。
+- 修改和删除的 `options.expectedRevision` 可以省略：给了就核对，不符时整个事务失败；省略就不论当前版本直接写入。事务之外的单条修改仍然必须带 revision。
+- 回调里用 `context` 读到的是已提交的数据，看不到本事务还没提交的写入。
+- `entities.create` 返回的 ID 在提交失败时作废，不会再分配给其他内容。`links.add` 已经关联过时什么也不做；需要关联的 ID 时，提交后用 `links.list` 读取。
+- 一个事务最多 500 条写入。只能写本插件的内容、记录与关联。
