@@ -115,7 +115,11 @@ function runWorker(
           }
         );
       } else if (message.type === "error") {
-        finish(new Error(message.message));
+        // worker 的调用栈不随 message 跨线程，单独回传并记日志，否则只剩主进程侧的转发栈
+        log.error("Publish generator worker failed:", message.stack ?? message.message);
+        const error = new Error(message.message);
+        if (message.stack) error.stack = message.stack;
+        finish(error);
       } else {
         finish(null, message);
       }

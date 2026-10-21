@@ -143,5 +143,6 @@ async function buildSearchIndex(
 }
 
 run().catch(error => {
-  post({ type: "error", message: error instanceof Error ? error.message : String(error) });
+  if (error instanceof Error) post({ type: "error", message: error.message, stack: error.stack });
+  else post({ type: "error", message: String(error) });
 });

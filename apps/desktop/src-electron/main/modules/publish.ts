@@ -461,8 +461,10 @@ class PublishModule implements Module {
     session.signal.throwIfAborted();
     if (session.mode === "snapshot") {
       const publication = publicationGitService.register(session.owner, plan, session.signal);
+      // 快照一次推送完成，中途无进度可报；total 只承载本次推送的文件数，供界面展示
+      const total = plan.toUpload.length + plan.toDelete.length;
       try {
-        this.emitProgress({ phase: "pushing", current: 0, total: 1 });
+        this.emitProgress({ phase: "pushing", current: 0, total });
         await pluginPublishSessions.call<void>(session.owner, session.id, "publish", [
           {
             id: publication.id,
@@ -481,7 +483,7 @@ class PublishModule implements Module {
         for (const path of plan.toDelete) PublishHistoryTable.delete(db, path);
         if (plan.releaseState) delete plan.releaseState.pending;
         await this.saveRelease(site, plan.releaseState);
-        this.emitProgress({ phase: "finishing", current: 1, total: 1 });
+        this.emitProgress({ phase: "finishing", current: total, total });
         return {
           success: true,
           uploaded: plan.toUpload.map(file => file.path),
