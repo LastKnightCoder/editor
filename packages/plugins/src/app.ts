@@ -1,3 +1,4 @@
+import type { PluginContentInput } from "./content-input";
 import type { PluginContentRef } from "./data";
 
 /**
@@ -95,7 +96,10 @@ export const PLUGIN_EXPORT_FORMATS: readonly PluginExportFormat[] = [
   "epub",
 ];
 
-/** 宿主动作：界面与确认都由 Tau 提供，插件拿不到正文；目前支持卡片、文章与项目文档的正文 */
+/**
+ * 宿主动作：界面与确认都由 Tau 提供，插件拿不到正文。content.* 支持卡片、文章、项目文档与
+ * 插件内容的正文。
+ */
 export interface PluginAppActions {
   /** Markdown 直接保存文件；图片、PDF、EPUB 打开导出窗口 */
   "content.export": { ref: PluginContentRef; format: PluginExportFormat };
@@ -103,12 +107,24 @@ export interface PluginAppActions {
   "content.present": { ref: PluginContentRef };
   /** 打开「内容协作」窗口，由用户确认发起共享或管理成员 */
   "content.share": { ref: PluginContentRef };
+  /** 打开 Tau 的新建卡片窗口并预填，用户可以修改后保存 */
+  "card.create": { content?: PluginContentInput; tags?: string[] };
 }
+
+/** 各动作的结果：新建类返回新内容的引用，用户取消时为 null */
+export interface PluginAppActionResults {
+  "content.export": void;
+  "content.present": void;
+  "content.share": void;
+  "card.create": PluginEntityRef | null;
+}
+
 export type PluginAppAction = keyof PluginAppActions;
 export const PLUGIN_APP_ACTIONS: readonly PluginAppAction[] = [
   "content.export",
   "content.present",
   "content.share",
+  "card.create",
 ];
 
 export interface PluginApp {
@@ -124,6 +140,12 @@ export interface PluginApp {
    * 本插件自己的内容不需要权限；其余需要该类的读取权限，未获准时为 denied，不弹窗询问。
    */
   describe(refs: readonly PluginEntityRef[]): Promise<PluginEntityDescription[]>;
-  /** 执行宿主动作，对应界面打开后返回。只能在用户操作后调用；不需要数据权限；内容已删除时抛错。 */
-  run<A extends PluginAppAction>(action: A, options: PluginAppActions[A]): Promise<void>;
+  /**
+   * 执行宿主动作，用户关闭对应界面后返回结果，见 PluginAppActionResults。只能在用户操作后调用，
+   * 同一时间只能打开一个；不需要数据权限，用户在界面中确认即同意。内容已删除时抛错。
+   */
+  run<A extends PluginAppAction>(
+    action: A,
+    options: PluginAppActions[A]
+  ): Promise<PluginAppActionResults[A]>;
 }

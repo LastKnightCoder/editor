@@ -6,10 +6,20 @@ import PresentationMode from "@/components/PresentationMode";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
-import type { PluginActionRequest } from "@/app/plugins/app";
+import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
+import type { PluginActionRequest, PluginContentActionRequest } from "@/app/plugins/app";
 
-/** 与卡片详情「导出 / 演示 / 发起协作」同一组宿主组件；关闭即撤下请求 */
+/** 与卡片详情「导出 / 演示 / 发起协作」、卡片页「新建卡片」同一组宿主组件；关闭即撤下请求 */
 export default function PluginContentActionView({ request }: { request: PluginActionRequest }) {
+  if (request.action === "card.create")
+    return (
+      <CreateCardDialog
+        open
+        initial={{ content: request.content, tags: request.tags }}
+        onCreated={card => request.settle(card.id)}
+        onClose={request.close}
+      />
+    );
   if (request.action === "present")
     return <PresentationMode content={request.content} onExit={request.close} />;
   if (request.action === "share") return <ShareAction request={request} />;
@@ -34,7 +44,7 @@ export default function PluginContentActionView({ request }: { request: PluginAc
   );
 }
 
-function ShareAction({ request }: { request: PluginActionRequest }) {
+function ShareAction({ request }: { request: PluginContentActionRequest }) {
   const control = useRef<ContentCollaborationControlHandle>(null);
   useEffect(() => control.current?.open(), []);
   return (

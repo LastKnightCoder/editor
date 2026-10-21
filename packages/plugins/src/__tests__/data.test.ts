@@ -120,6 +120,10 @@ function setup({
     },
     async run(_context, plugin, request) {
       calls.push(["run", plugin.id, request]);
+      if (request.action === "card.create")
+        return request.tags?.includes("取消")
+          ? null
+          : ({ kind: "card", id: "12", extra: 1 } as never);
     },
     async describe(_context, refs, readable) {
       calls.push(["describe", refs, readable]);
@@ -434,6 +438,29 @@ describe("插件业务数据与权限", () => {
     await expect(
       context().app.run("content.export", { ref: "7:100", format: "docx" as "pdf" })
     ).rejects.toThrow("导出格式无效");
+  });
+
+  it("card.create：预填只校验参数，不需要数据权限，返回新卡片引用或 null", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    expect(
+      await context().app.run("card.create", {
+        content: { markdown: "# 想法" },
+        tags: ["读书", "读书"],
+      })
+    ).toEqual({ kind: "card", id: "12" });
+    expect(await context().app.run("card.create", { tags: ["取消"] })).toBeNull();
+    expect(await context().app.run("content.present", { ref: "7:100" })).toBeUndefined();
+    expect(calls.filter(call => call[0] === "run")).toEqual([
+      ["run", "weekly", { action: "card.create", content: { markdown: "# 想法" }, tags: ["读书"] }],
+      ["run", "weekly", { action: "card.create", tags: ["取消"] }],
+      ["run", "weekly", { action: "content.present", ref: "7:100" }],
+    ]);
+    expect(calls.some(call => call[0] === "ensure")).toBe(false);
+    await expect(
+      context().app.run("card.create", { content: { html: "x" } } as never)
+    ).rejects.toThrow();
+    await expect(context().app.run("card.create", { tags: "x" } as never)).rejects.toThrow("标签");
   });
 
   it("自有内容不需要权限：先声明类型才能新建，校验 key 与 meta", async () => {

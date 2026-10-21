@@ -335,7 +335,12 @@ export interface AppAdapter {
     options: Required<PluginPickOptions>
   ): Promise<PluginPickedEntity[]>;
   open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
-  run(context: PluginContext, plugin: PluginOwner, request: PluginAppRunRequest): Promise<void>;
+  /** 界面关闭后返回；card.create 返回新卡片的引用，取消为 null */
+  run(
+    context: PluginContext,
+    plugin: PluginOwner,
+    request: PluginAppRunRequest
+  ): Promise<PluginEntityRef | null | void>;
   /**
    * 按 refs 顺序返回描述；readable 为插件已获准读取的类型。宿主另放行用户选择过的引用与本插件
    * 自己的内容，其余返回 denied（permission 由 PluginHost 补上）。
@@ -351,7 +356,8 @@ const MAX_DESCRIBE = 200;
 
 export type PluginAppRunRequest =
   | { action: "content.export"; ref: PluginContentRef; format: PluginExportFormat }
-  | { action: "content.present" | "content.share"; ref: PluginContentRef };
+  | { action: "content.present" | "content.share"; ref: PluginContentRef }
+  | { action: "card.create"; content?: PluginContentInput; tags?: string[] };
 
 const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
 const appActions = new Set<string>(PLUGIN_APP_ACTIONS);
@@ -399,6 +405,18 @@ function readEntityKind(value: unknown): PluginOwnEntityKind {
 
 function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest {
   if (typeof action !== "string" || !appActions.has(action)) throw new Error("未知的动作");
+  if (action === "card.create") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { content, tags } = raw as { content?: unknown; tags?: unknown };
+    return {
+      action,
+      ...(content !== undefined
+        ? { content: readContentInput(content, { allowEmpty: true }) }
+        : {}),
+      ...(tags !== undefined ? { tags: readTags(tags) } : {}),
+    };
+  }
   const value = options as { ref?: unknown; format?: unknown } | undefined;
   if (typeof value?.ref !== "string" || !value.ref) throw new Error("正文引用无效");
   if (action !== "content.export")
@@ -2035,8 +2053,10 @@ export class PluginHost {
           const request = readRunRequest(action, options);
           this.assertActive(entry, activation);
           if (!this.options.app) throw new Error("当前宿主不支持该动作");
-          await this.options.app.run(context, owner, request);
+          const result = await this.options.app.run(context, owner, request);
           this.assertActive(entry, activation);
+          if (request.action !== "card.create") return undefined as never;
+          return (result ? readEntityRef(result) : null) as never;
         },
       }),
       entities: Object.freeze({
