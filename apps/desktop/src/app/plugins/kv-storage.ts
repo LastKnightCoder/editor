@@ -45,6 +45,26 @@ export function createDatabaseStorage(databaseName: string): StorageAdapter {
 const LEGACY_PREFIX = "tau-plugin-prefs:";
 
 /**
+ * 把以库名（含 .db 别名）为工作区的旧键改挂到稳定工作区 UUID；目标已有值时保留目标。
+ * 先复制全部再删旧键，写入失败抛错且旧键保留，下次启动重试。
+ */
+export function migratePluginPreferences(storage: Storage, name: string, workspaceId: string) {
+  const aliases = new Set([name, name.endsWith(".db") ? name.slice(0, -3) : name + ".db"]);
+  const oldKeys: string[] = [];
+  for (let index = 0; index < storage.length; index++) {
+    const key = storage.key(index);
+    if (!key?.startsWith(LEGACY_PREFIX)) continue;
+    const scope = JSON.parse(key.slice(LEGACY_PREFIX.length)) as string[];
+    if (!Array.isArray(scope) || scope.length !== 3 || !aliases.has(scope[0])) continue;
+    const target = `${LEGACY_PREFIX}${JSON.stringify([workspaceId, scope[1], scope[2]])}`;
+    const value = storage.getItem(key);
+    if (value !== null && storage.getItem(target) === null) storage.setItem(target, value);
+    oldKeys.push(key);
+  }
+  for (const key of oldKeys) storage.removeItem(key);
+}
+
+/**
  * 一次性把本机 localStorage 里属于该工作区的插件私有存储迁入当前库，成功后删除旧键。
  * 库里已有的键保留库里的值（可能来自其他设备的同步）。失败时抛错、旧键原样保留，下次启动重试。
  */

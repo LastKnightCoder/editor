@@ -1,5 +1,33 @@
 # 更新记录
 
+## 未发布
+
+- 新增统一的正文输入 `PluginContentInput`，三选一：`{ markdown }`、`{ nodes }`（编辑器节点，格式完整保留）、`{ copyOf: contentRef }`（Tau 内部整份复制已有正文，只需要目标的写入权限）。
+- `cards.create`、`articles.create` 的正文字段由 `markdown` 改为 `content`；`entities.create` 新增可选的 `content` 作为初始正文。
+- `content.edit` 的 `append`、`prepend`、`replaceAll` 改为 `{ op, content }`；`replaceText` 不变，仍为 `{ op, find, markdown }`。
+- `content.read({ format: "nodes" })` 返回 `schemaVersion`，`nodes` 的类型为 `Descendant[]`，可原样写回。新增导出 `EDITOR_NODE_SCHEMA_VERSION` 与 `CONTENT_INPUT_LIMITS`。
+- `nodes` 只校验结构，未知节点类型原样保存；结构不对时报错并给出节点路径。
+- 引用类型新增 `project`、`notebook`、`material`（划线、PDF 标注、剪藏）、`chat-session`、`plugin-entity`，`pick` 与 `open` 均支持。
+- 新增 `context.app.describe(refs)`：批量取引用的最新标题与是否已删除。用户在 `pick` 中选择过的内容与本插件自己的内容不需要权限，其余需要对应类型的读取权限，未获准时返回 `denied` 与所需权限，不弹窗。
+- 新增组件 `EntityRef`：由 Tau 显示引用的图标、类型名、标题与删除状态，点击打开；未获准时显示「允许访问」。
+- 新增读取权限 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`（对话只含标题等信息，不含消息内容）；新增导出 `PLUGIN_ENTITY_READ_PERMISSIONS`。
+- 新增 `context.data.whiteboards`（读取、新建、修改标题 / 说明 / 标签，新建时带一张空白画板页，画板内容不开放）与 `context.data.projects`（读取、新建空项目、修改标题 / 归档 / 置顶），权限 `whiteboards:read/write`、`projects:read/write`。
+- 新增 `projects.tree(id)`（项目文档目录，挂在多处的文档在多处列出，引用卡片 / 文章的条目带 `ref`）、`documents.create`（挂在根目录或某篇文档下）与 `documents.move`（同一项目内，`from` 指明移动哪一处，`index` 为移动后的序号）；`documents:write` 现在也包括新建与移动。
+- 白板、项目、项目文档支持 `delete`，权限 `whiteboards:delete`、`projects:delete`、`documents:delete`，用户可在插件详情页 7 天内恢复。项目只能删除空项目；项目文档从所有挂载处删除，有子文档时拒绝，视频笔记不能由插件删除。
+- 新增只读的 `context.data.notebooks`（信息与 `resources(id)` 资料清单，不含说明、本机路径与资料转换后的文字）、`context.data.materials`（划线、PDF 标注、剪藏的原文、想法、出处与网址，已删除的不返回）与 `context.data.chats`（对话的标题、场景、消息数与时间，不含消息内容），权限分别为 `notebooks:read`、`materials:read`、`chats:read`。三者的 `query` 不支持 `tag`。
+- `context.app.run` 改为用户关闭界面后才返回，并带结果：新建类返回新内容的引用，用户取消返回 `null`，导出、演示、协作没有结果。同一时间只能打开一个界面，前一个未关闭时抛错（原为替换前一个）。新增导出类型 `PluginAppActionResults`。
+- 新增动作 `card.create`：打开 Tau 的新建卡片窗口，预填 `content`（`PluginContentInput`）与 `tags`，用户保存后返回 `{ kind: "card", id }`；不需要数据权限。
+- 新增动作 `project.insertDocument`：打开 Tau 的「插入到项目」窗口，由用户选择项目与位置，把 `content` 复制为新的项目文档（可带 `title`），返回 `{ kind: "document", id }`；不需要数据权限。
+- 新增动作 `notebook.create`：由用户确认后新建 Notebook，`sources` 作为资料一次性带入（有正文的内容成为笔记资料，划线与 PDF 标注合并、剪藏各一份，其他类型不带入），`from` 记为来源并显示在 Notebook 页顶部；返回 `{ kind: "notebook", id }`。新增导出 `PLUGIN_NOTEBOOK_FROM_KINDS`。
+- 新增动作 `chat.start`：在对话页（默认）或右侧停靠栏开一个新对话，`prompt` 预填进输入框，`context`（卡片、文章、项目文档）作为引用插入，由用户发送；用户发出第一条消息后返回 `{ kind: "chat-session", id }`，没发送就离开时返回 `null`。新增导出 `PLUGIN_CHAT_CONTEXT_KINDS`。
+- `context.app.open(ref, options?)` 新增打开位置与定位：`placement` 为 `page`（默认）、`window`（独立编辑窗口，卡片、文章、项目文档）或 `dock`（右侧停靠栏，主对话）；`at: { block }` 滚动到正文第几个顶层块（卡片、文章、项目文档、日记、插件内容）。不支持的组合抛错。新增导出类型 `PluginOpenOptions`、`PluginContentLocation`。
+- `ContentEditor` 与 `ContentPreview` 新增 `kit`：`full`（默认，与卡片详情相同）或 `compact`（精简套件，不含内容链接、文件附件、白板块、数据库块与文档待办，适合简短内容）。新增导出类型 `ContentEditorKit`。
+- 页面的 `pageContext` 新增 `isActive()`（本页是否为当前显示的页面）与 `registerDismiss(dismiss)`（登记自制浮层的关闭函数，用户按 Esc 时先关最后登记的浮层，只在页面显示时生效）。
+- 业务事件新增 `whiteboard.*`、`project.*`、`notebook.*`（增删改资料也算 `updated`）、`material.*`（划线、PDF 标注、剪藏）与 `chat.*`（收到新消息也算 `updated`），均带 `id`，分别需要 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`。
+- 新增本插件内容的事件 `entity.created`、`entity.updated`（含正文修改）、`entity.deleted`：只发给创建它的插件，不需要权限，事件带 `kind`（内容类型）。`PluginDomainEvent` 新增可选字段 `kind`。
+
+- 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
+
 ## 0.33.0
 
 - 新增媒体组件 `MediaImage`、`MediaVideo`、`MediaAudio`：节点里的本地路径、远程地址和共享文档资源按 Tau 自带图片、视频、音频块的方式解析和缓存。

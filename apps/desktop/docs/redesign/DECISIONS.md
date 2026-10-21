@@ -1,5 +1,12 @@
 # 决策记录（轻量 ADR）
 
+## D-181 退役开发插件管理，工作区身份登记只保留映射（2026-10-21）
+
+- 背景：D-153 固定目录发现之后 Provider 不再装配开发插件管理，验收台也已改按 `pnpm install:local` +「重新扫描」的真实作者流程；登记目录、「重载构建」「监听构建」「移除登记」再无生产消费者。
+- 替代 D-147/D-148/D-149：删除主进程 plugin-development 模块、PluginBuildWatcher、渲染端 DevelopmentPluginManager 与 IPC 契约，插件页去掉「开发中」分组与三项菜单，来源只剩插件中心 / 本地 ZIP。重载与监听语义由 LocalPluginManager 的重新扫描热替换接替。
+- 保留：registry.json 路径与已有工作区 UUID（plugin-local / plugin-backend 仍需），登记器收口为只存 name 与 id，旧开发登记下次写入时丢弃；偏好迁移移入 kv-storage。开发构建删除数据库时不再注销身份，与正式构建一致（同名重建沿用身份）。
+- 作者模板的 `tau-build-<id>.json` 指针继续生成，仅供构建与验收脚本定位产物。
+
 ## D-180 插件 Skill 改为包内目录，新增独立 Skill 包（2026-10-21）
 
 - 用户指出插件 Skill 只能以内联字符串写在插件定义里、文档又挂在编辑器扩展下，与 Agent Skills 目录格式脱节；裁决 Skill 作为静态资源随包分发：`skills/<id>/SKILL.md` + 附件 + `scripts/`，manifest.skills 列出目录并纳入 integrity，名称、描述与调用方式只取 front matter。`definePlugin({ skills })` 与 `PluginSkill` 移除，不保留内联写法（D-091）；已发布的 custom-block、abc、html、tikz 需按新格式重新发布。

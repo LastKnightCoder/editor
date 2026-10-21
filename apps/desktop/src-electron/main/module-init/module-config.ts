@@ -7,7 +7,6 @@ import resourceModule from "../modules/resource";
 import fileModule from "../modules/file";
 import extraModule from "../modules/extra";
 import fetchModule from "../modules/fetch";
-import pluginDevelopmentModule from "../modules/plugin-development";
 import pluginLocalModule from "../modules/plugin-local";
 import pluginPermissionsModule from "../modules/plugin-permissions";
 import pluginServicesModule from "../modules/plugin-services";
@@ -149,12 +148,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: [],
     init: () => pluginPermissionsModule.init(),
-  },
-  {
-    name: "plugin-development",
-    layer: InitLayer.BACKGROUND,
-    dependencies: [],
-    init: () => pluginDevelopmentModule.init(),
   },
 
   // === 应用级能力：与窗口无关，随应用后台并行初始化 ===

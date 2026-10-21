@@ -4,7 +4,7 @@
 
 ## 范围
 
-PS-047 媒体资源与富块能力（方案见 82）的对外发布：`@xiongtao.xt/tau-plugins@0.33.0`、`@xiongtao.xt/tau-ui@0.3.0`，以及首个使用这些能力的独立插件 `tau.image-gallery` 0.1.0。
+PS-048 媒体资源与富块能力（方案见 82）的对外发布：`@xiongtao.xt/tau-plugins@0.33.0`、`@xiongtao.xt/tau-ui@0.3.0`，以及首个使用这些能力的独立插件 `tau.image-gallery` 0.1.0。
 
 发布基于 `claude/media-resource-plan` 分支，不含 master 上并行推进的问题管理接口（PluginContentInput、宿主对象接口、`app.run` 返回结果等），那批接口随下一版 SDK 发布，合并本分支时 CHANGELOG 的「未发布」小节需排在 0.33.0 之上。客户端未发布，仍为 0.59.0；tau-blog 0.5.0 随后同日发布，见下文。
 

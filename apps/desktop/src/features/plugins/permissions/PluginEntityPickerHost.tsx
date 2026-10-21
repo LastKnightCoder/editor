@@ -12,7 +12,7 @@ export function PluginEntityPickerHost() {
       onClose={() => request?.settle([])}
       title={request?.options.title ?? ""}
       subtitle={request ? `供「${request.plugin.name}」关联` : undefined}
-      kinds={request ? request.options.kinds.map(kind => PICKER_KINDS[kind]) : ["card"]}
+      kinds={request ? request.options.kinds.flatMap(kind => PICKER_KINDS[kind]) : ["card"]}
       multiple={request?.options.multiple ?? false}
       confirmLabel="选择"
       onConfirm={picked =>

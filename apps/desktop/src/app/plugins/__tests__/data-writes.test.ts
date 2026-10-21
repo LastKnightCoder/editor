@@ -120,4 +120,27 @@ describe("插件写入适配", () => {
       "plugin-data:mark-restored",
     ]);
   });
+
+  it("Notebook、材料与对话走只读命令，结果原样交给插件", async () => {
+    const notebook = { id: "6", title: "线代", resourceCount: 0 };
+    electron.invoke.mockImplementation(async (channel: string) => {
+      if (channel === "plugin-data:readonly-query") return { items: [notebook] };
+      if (channel === "plugin-data:readonly-get") return notebook;
+      if (channel === "plugin-data:notebook-resources") return [];
+      throw new Error(`未预期的调用 ${channel}`);
+    });
+    const data = createDesktopData(DATABASE);
+    expect(await data.query(context, "notebook", { limit: 5 })).toEqual({ items: [notebook] });
+    expect(await data.get(context, "material", "excerpt:3")).toEqual(notebook);
+    expect(await data.notebookResources(context, "6")).toEqual([]);
+    expect(electron.invoke.mock.calls.map(call => [call[0], call[1]])).toEqual([
+      [
+        "plugin-data:readonly-query",
+        { databaseName: DATABASE, entity: "notebook", query: { limit: 5 } },
+      ],
+      ["plugin-data:readonly-get", { databaseName: DATABASE, entity: "material", id: "excerpt:3" }],
+      ["plugin-data:notebook-resources", { databaseName: DATABASE, notebookId: 6 }],
+    ]);
+    await expect(data.notebookResources(context, "x")).rejects.toThrow("ID 无效");
+  });
 });

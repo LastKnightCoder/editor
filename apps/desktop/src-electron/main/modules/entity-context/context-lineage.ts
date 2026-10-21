@@ -8,7 +8,8 @@
 import type Database from "better-sqlite3";
 import { slatePlainText } from "@/entity/inline-refs";
 import { lineageNodeKey, type LineageNode } from "@/entity/lineage";
-import { entityRefKey, isSameEntityRef, type EntityRef } from "@/entity/ref";
+import { entityRefKey, isSameEntityRef, type EntityRef, type EntityRefKind } from "@/entity/ref";
+import type { EntityKind } from "@/types/entity";
 import type {
   ContextEntity,
   ContextLineageItem,
@@ -28,6 +29,21 @@ const marks = (values: unknown[]) => values.map(() => "?").join(",");
 
 const clip = (text: string) =>
   text.length > TITLE_CHARS ? `${text.slice(0, TITLE_CHARS)}…` : text;
+
+const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
+  card: "card",
+  article: "article",
+  "project-item": "project_item",
+  "diary-moment": "diary-moment",
+  "plugin-entity": "plugin-entity",
+};
+
+/** 正文实体的标题与次级信息，脉络各分区共用 */
+export function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
+  const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
+  if (!candidate) return null;
+  return { ref, title: candidate.title, meta: candidate.meta };
+}
 
 interface ResolvedNode {
   title: string;
@@ -185,6 +201,18 @@ export function sourcesOf(
     if (items.length >= LIMIT) break;
   }
   return items;
+}
+
+/** Notebook 由什么立项（谱系 upgraded_to，取最近一条）；没有或来源已删除时为 null */
+export function notebookSourceOf(
+  db: Database.Database,
+  projectId: number
+): ContextLineageItem | null {
+  const edge = EntityLineageTable.sourcesOf(db, [{ kind: "vl-project", id: projectId }]).find(
+    item => item.relation === "upgraded_to"
+  );
+  const resolved = edge ? resolveNode(db, edge.node, ref => toContextEntity(db, ref)) : null;
+  return edge && resolved ? toItem(edge, resolved) : null;
 }
 
 const toItem = (edge: LineageEdge, resolved: ResolvedNode | null): ContextLineageItem => ({

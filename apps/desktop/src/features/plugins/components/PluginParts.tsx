@@ -4,7 +4,6 @@ import {
   ArrowUpCircle,
   Check,
   Download,
-  FlaskConical,
   Lock,
   MoreHorizontal,
   Package,
@@ -28,15 +27,10 @@ import { pluginReleaseQuery, useInstallRelease } from "../queries";
 const CHIP = "text-tau-sm inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full px-2";
 
 export function SourceChip({ source }: { source: PluginSourceKind }) {
-  const Icon = { center: Store, zip: Package, development: FlaskConical, builtin: null }[source];
+  const Icon = { center: Store, zip: Package }[source];
   return (
-    <span
-      className={cn(
-        CHIP,
-        source === "development" ? "bg-warn-soft text-warn" : "bg-hover text-ink-2"
-      )}
-    >
-      {Icon && <Icon className="size-3" strokeWidth={1.75} />}
+    <span className={cn(CHIP, "bg-hover text-ink-2")}>
+      <Icon className="size-3" strokeWidth={1.75} />
       {SOURCE_LABELS[source]}
     </span>
   );

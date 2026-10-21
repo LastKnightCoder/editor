@@ -84,6 +84,11 @@ CREATE TABLE IF NOT EXISTS white_board_contents (
         data TEXT,
         ref_count INTEGER DEFAULT 0
       , img_url TEXT DEFAULT '');
+-- 引用归零的白板页：登记释放时间，超过宽限期且仍无引用时才删除，期间被重新引用（撤销、恢复）即撤销登记
+CREATE TABLE IF NOT EXISTS white_board_content_pending_releases (
+  content_id INTEGER PRIMARY KEY,
+  released_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS white_boards (
             id INTEGER PRIMARY KEY NOT NULL,
             create_time INTEGER NOT NULL,
@@ -942,6 +947,17 @@ CREATE TABLE IF NOT EXISTS plugin_kv (
   value TEXT NOT NULL,
   update_time INTEGER NOT NULL,
   PRIMARY KEY (plugin_id, key)
+);
+
+-- 用户在插件选择窗口中亲手选过的内容：插件此后读取这些引用的标题不需要读取权限；
+-- target_created_at 是选择时目标的创建时间，编号被新内容复用时授权不会落到新内容上
+CREATE TABLE IF NOT EXISTS plugin_ref_grants (
+  plugin_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  ref_id TEXT NOT NULL,
+  target_created_at INTEGER NOT NULL,
+  create_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, kind, ref_id)
 );
 
 -- 主库索引

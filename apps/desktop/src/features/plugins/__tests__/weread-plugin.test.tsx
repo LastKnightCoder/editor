@@ -13,6 +13,14 @@ import { createDesktopExcerpts } from "@/app/plugins/excerpts";
 import { sharedPluginModules } from "@/app/plugins/shared-modules";
 import { openExcerptAtProvider } from "@/services/excerpt-providers";
 
+const disposed = { dispose: () => undefined };
+/** 测试直接渲染插件页面组件时用的页面上下文：始终显示，登记即忽略 */
+const fakePageContext = {
+  register: () => disposed,
+  isActive: () => true,
+  registerDismiss: () => disposed,
+};
+
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined as unknown));
 vi.mock("@/electron", () => ({
   invoke,
@@ -85,7 +93,7 @@ describe("微信读书插件", () => {
           <Component
             context={page.context}
             params={{ bookId: "b1", bookmark: "bm_1" }}
-            pageContext={{ register: () => ({ dispose: () => undefined }) }}
+            pageContext={fakePageContext}
           />
         )
       );
@@ -141,13 +149,7 @@ describe("微信读书插件", () => {
     document.body.append(host);
     const view = createRoot(host);
     await act(async () =>
-      view.render(
-        <Component
-          context={page.context}
-          params={{}}
-          pageContext={{ register: () => ({ dispose: () => undefined }) }}
-        />
-      )
+      view.render(<Component context={page.context} params={{}} pageContext={fakePageContext} />)
     );
     await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
     expect(host.textContent).toContain("把微信读书的书架和笔记带进来");

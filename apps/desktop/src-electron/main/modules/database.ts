@@ -72,6 +72,8 @@ import PluginDataTable from "./tables/plugin-data";
 import PluginEntityTable from "./tables/plugin-entity";
 import PluginKvTable from "./tables/plugin-kv";
 import PluginElementResourcesTable from "./tables/plugin-element-resources";
+import PluginRefsTable from "./tables/plugin-refs";
+import PluginReadonlyDataTable from "./tables/plugin-data-readonly";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -314,6 +316,8 @@ class DatabaseModule implements Module {
       PluginEntityTable,
       PluginKvTable,
       PluginElementResourcesTable,
+      PluginRefsTable,
+      PluginReadonlyDataTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(
@@ -449,6 +453,17 @@ class DatabaseModule implements Module {
             log.info(`[database] 回收已卸载插件的内容: db=${name}, count=${collectedEntities}`);
         } catch (error) {
           log.error("[database] 回收已卸载插件的内容失败:", error);
+        }
+        try {
+          // 白板页回收会释放页内嵌入的正文，排在正文回收之前
+          const purgedPages = WhiteBoardContentTable.collectPendingReleases(database, {
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (purgedPages > 0)
+            log.info(`[database] 回收超宽限期白板页: db=${name}, count=${purgedPages}`);
+        } catch (error) {
+          log.error("[database] 回收待释放白板页失败:", error);
         }
         try {
           const purgedContents = ContentTable.collectPendingReleases(database, {

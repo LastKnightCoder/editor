@@ -3,7 +3,7 @@ import { YjsEditor, yTextToSlateElement, type YHistoryEditor } from "@slate-yjs/
 import { Text, type Descendant, type Editor } from "slate";
 import type { EditorDocument } from "@tau/editor";
 import { createParagraph } from "@tau/editor/api/paragraph";
-import { withYjsDocument } from "./yjsBinding.ts";
+import { splitYjsUndoStep, withYjsDocument } from "./yjsBinding.ts";
 import { reconcileYContent, type ReconcileOptions } from "./reconcile.ts";
 import type { ReactNode } from "react";
 
@@ -75,6 +75,7 @@ export function createLocalYjsDocument(
         if (YjsEditor.connected(bound)) YjsEditor.disconnect(bound);
         editors.delete(bound);
       },
+      splitUndoStep: splitYjsUndoStep,
       wrap: options.wrap,
     },
   };

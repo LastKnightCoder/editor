@@ -110,6 +110,18 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `value`       | `TEXT NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL` |
 
+### `plugin_ref_grants`
+
+用户在插件的选择窗口里亲手选过的内容，插件之后读取这些内容的标题不需要读取权限。`kind` 为插件引用类型（如 `card`、`material`），`ref_id` 为插件看到的引用 ID；`target_created_at` 为选择时目标的创建时间。
+
+| 字段                | SQLite 定义        |
+| ------------------- | ------------------ |
+| `plugin_id`         | `TEXT NOT NULL`    |
+| `kind`              | `TEXT NOT NULL`    |
+| `ref_id`            | `TEXT NOT NULL`    |
+| `target_created_at` | `INTEGER NOT NULL` |
+| `create_time`       | `INTEGER NOT NULL` |
+
 ### `task_assistant_content_pin`
 
 | 字段                 | SQLite 定义        |
@@ -266,6 +278,15 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `data`        | `TEXT`                         |
 | `ref_count`   | `INTEGER DEFAULT 0`            |
 | `img_url`     | `TEXT DEFAULT ''`              |
+
+### `white_board_content_pending_releases`
+
+引用计数归零但暂缓删除的白板页登记（`white_board_contents.id`）。开库时回收超过宽限期且引用仍为 0 的页，页被重新引用时删除登记。
+
+| 字段          | SQLite 定义           |
+| ------------- | --------------------- |
+| `content_id`  | `INTEGER PRIMARY KEY` |
+| `released_at` | `INTEGER NOT NULL`    |
 
 ### `white_boards`
 

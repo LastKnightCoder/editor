@@ -146,7 +146,8 @@ describe("InsertNoteToTreeModal", () => {
       dst: { kind: "project-item", id: 22 },
       relation: "derived",
     });
-    expect(onSuccess).toHaveBeenCalled();
+    // 新建的条目交还调用方（插件 project.insertDocument 据此返回引用）
+    expect(onSuccess).toHaveBeenCalledWith({ id: 22, title: "渲染笔记" });
 
     await unmount(root, container);
   });

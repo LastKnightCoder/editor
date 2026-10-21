@@ -45,8 +45,8 @@ interface EventRow {
   excerpt: string;
   created_at: string;
 }
-/** 单作者提交上限：创建时拒绝超额，归组列表据此一次读完 */
-const MAX_SUBMISSIONS = 100;
+/** 仅限制尚未完成审核的提交，历史记录不占额度。 */
+const MAX_UNFINISHED_SUBMISSIONS = 100;
 const STATUSES: SubmissionStatus[] = [
   "draft",
   "pending_review",
@@ -130,7 +130,7 @@ interface SummaryRow {
   updated_at: string;
   submitted_at: string | null;
 }
-/** 本人全部提交按插件归组；单作者提交数有上限，一次读完，不读包内正文。 */
+/** 本人全部提交按插件归组，只读取摘要，不读包内正文。 */
 async function submissionGroups(env: Env, owner: string): Promise<SubmissionGroups> {
   // 归组键优先取预绑定/已提交的 plugin_id，否则取包内 manifest.id；禁用状态只认本人登记的插件。
   const [rows, latest] = await Promise.all([
@@ -140,9 +140,9 @@ async function submissionGroups(env: Env, owner: string): Promise<SubmissionGrou
         s.package_upload_id IS NOT NULL AS has_package,p.disabled_at,p.disabled_reason,
         s.created_at,s.updated_at,s.submitted_at
       FROM submissions s LEFT JOIN plugins p ON p.id=COALESCE(s.plugin_id,json_extract(s.content_json,'$.manifest.id')) AND p.publisher_id=s.publisher_id
-      WHERE s.publisher_id=? ORDER BY s.created_at DESC,s.id DESC LIMIT ?`
+      WHERE s.publisher_id=? ORDER BY s.created_at DESC,s.id DESC`
     )
-      .bind(owner, MAX_SUBMISSIONS)
+      .bind(owner)
       .all<SummaryRow>(),
     latestEvents(env, "s.publisher_id=?", [owner]),
   ]);
@@ -227,10 +227,17 @@ export async function submissionRoute(
         fail(409, "REVISION_CONFLICT", "该请求编号已用于创建另一个草稿，请刷新后重试");
       return json(await present(env, existing, owner));
     }
-    const count = await env.DB.prepare("SELECT count(*) AS n FROM submissions WHERE publisher_id=?")
+    const count = await env.DB.prepare(
+      "SELECT count(*) AS n FROM submissions WHERE publisher_id=? AND status IN ('draft','pending_review','changes_requested')"
+    )
       .bind(owner)
       .first<{ n: number }>();
-    if ((count?.n ?? 0) >= MAX_SUBMISSIONS) fail(409, "LIMIT_EXCEEDED", "提交记录已达上限");
+    if ((count?.n ?? 0) >= MAX_UNFINISHED_SUBMISSIONS)
+      fail(
+        409,
+        "LIMIT_EXCEEDED",
+        `未完成的提交已达 ${MAX_UNFINISHED_SUBMISSIONS} 条上限（草稿、待审核、要求修改）。请先删除不需要且允许删除的草稿，或等待审核完成；已批准、已拒绝的历史记录不占额度。`
+      );
     const upload = await readyUpload(env, owner, input.packageUploadId);
     if (!upload.content_json) fail(409, "UPLOAD_NOT_READY", "插件包资料尚未就绪");
     const manifestId = (JSON.parse(upload.content_json) as PackageContent).manifest.id;

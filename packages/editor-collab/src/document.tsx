@@ -9,6 +9,7 @@ import CollaborationCursors from "./Cursors";
 import SafeCollaborationElement, { requiresSafeRendering } from "./SafeElement";
 import type { EditorCollaborationBinding } from "./types";
 import { rebindCollaboration, withCollaboration } from "./withCollaboration";
+import { splitYjsUndoStep } from "./yjsBinding";
 
 export interface YjsDocumentOptions {
   /**
@@ -55,6 +56,7 @@ export function createYjsDocument(
         binding.flushLocal = () => YjsEditor.flushLocalChanges(editor);
       return true;
     },
+    splitUndoStep: splitYjsUndoStep,
     renderElement: (props, renderByType) => renderPrivateBlock(binding, props, renderByType),
     renderOverlay: containerRef =>
       cursors ? <CollaborationCursors containerRef={containerRef} /> : null,

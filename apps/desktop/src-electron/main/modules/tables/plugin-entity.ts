@@ -12,8 +12,10 @@ import type {
   PluginEntityRecord,
   PluginEntityScope,
 } from "@/types/plugin-entities";
+import { asynchronousDatabaseCommand } from "../database-command";
 import ContentTable from "./content";
 import { getNextTaskEntityId } from "./module-entity-id";
+import { resolvePluginContent } from "./plugin-content-input";
 import { insertPluginOperation } from "./plugin-operations";
 import { emitContentWritten } from "../content-events";
 
@@ -92,7 +94,7 @@ function toRecord(row: Row): PluginEntityRecord {
 export default class PluginEntityTable {
   static getListenEvents() {
     return {
-      "plugin-entities:create": this.create.bind(this),
+      "plugin-entities:create": asynchronousDatabaseCommand(this.create.bind(this)),
       "plugin-entities:get": this.get.bind(this),
       "plugin-entities:find": this.find.bind(this),
       "plugin-entities:query": this.query.bind(this),
@@ -202,21 +204,22 @@ export default class PluginEntityTable {
     ).map(row => ({ pluginId: row.plugin_id, kind: row.kind, label: row.label, icon: row.icon }));
   }
 
-  static create(
+  static async create(
     db: Database.Database,
     request: PluginEntityScope & { input: PluginEntityCreate }
-  ): PluginEntityRecord {
+  ): Promise<PluginEntityRecord> {
     this.assertScope(db, request);
     const { kind, key, title, meta } = request.input;
+    const content = await resolvePluginContent(db, request.input.content, EMPTY_CONTENT);
+    // Markdown 转换期间可能已切库或关库
+    this.assertDatabase(db, request.databaseName);
+    if (!db.open) throw new Error("数据库连接已失效");
     return db.transaction(() => {
       const existing = db
         .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
         .get(request.pluginId, kind, key);
       if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
-      const contentId = ContentTable.createContent(db, {
-        content: structuredClone(EMPTY_CONTENT),
-        count: 0,
-      });
+      const contentId = ContentTable.createContent(db, { content });
       const now = Date.now();
       // 编号不复用：删除后恢复仍用原 ID，正文里指向它的引用不会落到别的内容上
       const id = getNextTaskEntityId(db, "plugin_entities");

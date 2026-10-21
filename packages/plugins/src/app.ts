@@ -1,12 +1,27 @@
+import type { PluginContentInput } from "./content-input";
 import type { PluginContentRef } from "./data";
 
 /**
  * 关联与打开已有内容：插件页面（如自建画布）引用用户的卡片、日记、待办等，并在点击时打开。
- * 引用可以序列化后存入插件自己的数据；id 与 context.data 中同类实体的 id 一致。
+ * 引用可以序列化后存入插件自己的数据；id 对插件不透明，与 context.data 中同类实体的 id 一致。
  */
+import type { PluginPermission } from "./permissions";
 
 export type PluginEntityKind =
-  "card" | "article" | "document" | "diary" | "whiteboard" | "todo" | "event";
+  | "card"
+  | "article"
+  | "document"
+  | "diary"
+  | "whiteboard"
+  | "todo"
+  | "event"
+  | "project"
+  | "notebook"
+  /** 外部材料：划线、PDF 标注与剪藏 */
+  | "material"
+  | "chat-session"
+  /** 插件自建的内容，包括其他插件的 */
+  | "plugin-entity";
 
 export const PLUGIN_ENTITY_KINDS: readonly PluginEntityKind[] = [
   "card",
@@ -16,18 +31,53 @@ export const PLUGIN_ENTITY_KINDS: readonly PluginEntityKind[] = [
   "whiteboard",
   "todo",
   "event",
+  "project",
+  "notebook",
+  "material",
+  "chat-session",
+  "plugin-entity",
 ];
+
+/**
+ * 不经选择时，读取一类引用的标题所需的权限；null 表示只能经用户选择获得。
+ * 插件读取自己创建的插件内容不需要权限。
+ */
+export const PLUGIN_ENTITY_READ_PERMISSIONS: Readonly<
+  Record<PluginEntityKind, PluginPermission | null>
+> = Object.freeze({
+  card: "cards:read",
+  article: "articles:read",
+  document: "documents:read",
+  diary: null,
+  whiteboard: "whiteboards:read",
+  todo: "todos:read",
+  event: "calendar:read",
+  project: "projects:read",
+  notebook: "notebooks:read",
+  material: "materials:read",
+  "chat-session": "chats:read",
+  "plugin-entity": null,
+});
 
 export interface PluginEntityRef {
   kind: PluginEntityKind;
   id: string;
 }
 
-/** 用户选中的一项：标题是选择时的快照，之后的改名需要读取权限才能取到 */
+/** 用户选中的一项：标题是选择时的快照；之后可用 describe 取最新标题，不需要读取权限 */
 export interface PluginPickedEntity {
   ref: PluginEntityRef;
   title: string;
 }
+
+/**
+ * 一项引用的当前状态。ok：title 为最新标题；missing：内容已删除；denied：用户没有选择过这项，
+ * 也没有授予 permission（为 null 时这类内容只能经用户选择获得）。
+ */
+export type PluginEntityDescription =
+  | { ref: PluginEntityRef; status: "ok"; title: string }
+  | { ref: PluginEntityRef; status: "missing" }
+  | { ref: PluginEntityRef; status: "denied"; permission: PluginPermission | null };
 
 export interface PluginPickOptions {
   /** 可选类型，顺序即弹窗中的分组顺序 */
@@ -46,7 +96,10 @@ export const PLUGIN_EXPORT_FORMATS: readonly PluginExportFormat[] = [
   "epub",
 ];
 
-/** 宿主动作：界面与确认都由 Tau 提供，插件拿不到正文；目前支持卡片、文章与项目文档的正文 */
+/**
+ * 宿主动作：界面与确认都由 Tau 提供，插件拿不到正文。content.* 支持卡片、文章、项目文档与
+ * 插件内容的正文。
+ */
 export interface PluginAppActions {
   /** Markdown 直接保存文件；图片、PDF、EPUB 打开导出窗口 */
   "content.export": { ref: PluginContentRef; format: PluginExportFormat };
@@ -54,12 +107,78 @@ export interface PluginAppActions {
   "content.present": { ref: PluginContentRef };
   /** 打开「内容协作」窗口，由用户确认发起共享或管理成员 */
   "content.share": { ref: PluginContentRef };
+  /** 打开 Tau 的新建卡片窗口并预填，用户可以修改后保存 */
+  "card.create": { content?: PluginContentInput; tags?: string[] };
+  /** 打开「插入到项目」窗口，由用户选择项目与位置，复制这份正文为新的项目文档 */
+  "project.insertDocument": { content: PluginContentInput; title?: string };
+  /**
+   * 确认后新建 Notebook，sources 作为资料一次性带入（之后不同步）：有正文的内容成为笔记资料，
+   * 划线与 PDF 标注合并为一份、剪藏各一份，其他类型不带入。from 记为 Notebook 的来源，
+   * 显示在 Notebook 页顶部，见 PLUGIN_NOTEBOOK_FROM_KINDS。
+   */
+  "notebook.create": { title: string; sources?: PluginEntityRef[]; from?: PluginEntityRef };
+  /**
+   * 在对话页（page，默认）或右侧停靠栏（dock）开一个新对话：prompt 预填进输入框，context 作为
+   * 引用插入，由用户修改后发送。context 只支持 PLUGIN_CHAT_CONTEXT_KINDS 中的类型。
+   */
+  "chat.start": { prompt?: string; context?: PluginEntityRef[]; placement?: "page" | "dock" };
 }
+
+/** 正文中的位置：第几个顶层块（从 0 开始，与 content.read 的 nodes 顺序一致），越界时落到开头 */
+export interface PluginContentLocation {
+  block: number;
+}
+
+export interface PluginOpenOptions {
+  /**
+   * page（默认）：主窗口的页面；window：独立编辑窗口，只支持卡片、文章与项目文档，不能同时定位；
+   * dock：右侧停靠栏，只支持主对话。
+   */
+  placement?: "page" | "window" | "dock";
+  /** 打开后滚动并闪烁到的位置；只支持卡片、文章、项目文档、日记与插件内容 */
+  at?: PluginContentLocation;
+}
+
+/** 可以作为对话上下文（chat.start 的 context）的类型 */
+export const PLUGIN_CHAT_CONTEXT_KINDS: readonly PluginEntityKind[] = [
+  "card",
+  "article",
+  "document",
+];
+
+/** 可以作为 Notebook 来源（notebook.create 的 from）的类型 */
+export const PLUGIN_NOTEBOOK_FROM_KINDS: readonly PluginEntityKind[] = [
+  "card",
+  "article",
+  "document",
+  "diary",
+  "material",
+  "chat-session",
+  "notebook",
+  "plugin-entity",
+];
+
+/** 各动作的结果：新建类返回新内容的引用，用户取消时为 null */
+export interface PluginAppActionResults {
+  "content.export": void;
+  "content.present": void;
+  "content.share": void;
+  "card.create": PluginEntityRef | null;
+  "project.insertDocument": PluginEntityRef | null;
+  "notebook.create": PluginEntityRef | null;
+  /** 用户发出第一条消息后返回对话的引用；没发送就关闭、切到别的对话或插件停用时为 null */
+  "chat.start": PluginEntityRef | null;
+}
+
 export type PluginAppAction = keyof PluginAppActions;
 export const PLUGIN_APP_ACTIONS: readonly PluginAppAction[] = [
   "content.export",
   "content.present",
   "content.share",
+  "card.create",
+  "project.insertDocument",
+  "notebook.create",
+  "chat.start",
 ];
 
 export interface PluginApp {
@@ -68,8 +187,22 @@ export interface PluginApp {
    * 用户亲手挑选即视为同意插件引用这些内容，不需要读取权限。只能在用户操作（点击、按键）后调用。
    */
   pick(options: PluginPickOptions): Promise<PluginPickedEntity[]>;
-  /** 打开对应的页面：卡片详情、日记当天、待办详情、日程详情等。只能在用户操作后调用；内容已删除时抛错。 */
-  open(ref: PluginEntityRef): Promise<void>;
-  /** 执行宿主动作，对应界面打开后返回。只能在用户操作后调用；不需要数据权限；内容已删除时抛错。 */
-  run<A extends PluginAppAction>(action: A, options: PluginAppActions[A]): Promise<void>;
+  /**
+   * 打开对应的页面：卡片详情、日记当天、待办详情、日程详情等。只能在用户操作后调用；内容已删除时抛错。
+   * 打开位置与定位见 PluginOpenOptions，不支持的组合抛错。
+   */
+  open(ref: PluginEntityRef, options?: PluginOpenOptions): Promise<void>;
+  /**
+   * 批量取引用的当前标题与是否已删除，结果与 refs 一一对应，每次最多 200 项。用户选择过的内容、
+   * 本插件自己的内容不需要权限；其余需要该类的读取权限，未获准时为 denied，不弹窗询问。
+   */
+  describe(refs: readonly PluginEntityRef[]): Promise<PluginEntityDescription[]>;
+  /**
+   * 执行宿主动作，用户关闭对应界面后返回结果，见 PluginAppActionResults。只能在用户操作后调用，
+   * 同一时间只能打开一个；不需要数据权限，用户在界面中确认即同意。内容已删除时抛错。
+   */
+  run<A extends PluginAppAction>(
+    action: A,
+    options: PluginAppActions[A]
+  ): Promise<PluginAppActionResults[A]>;
 }

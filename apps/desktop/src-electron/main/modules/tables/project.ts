@@ -390,7 +390,12 @@ export default class ProjectTable {
     return this.getProjectItem(db, item.id);
   }
 
-  static deleteProjectItem(db: Database.Database, id: number): boolean {
+  /** deferContent：正文只延迟释放（插件删除，宽限期内可恢复） */
+  static deleteProjectItem(
+    db: Database.Database,
+    id: number,
+    options: { deferContent?: boolean } = {}
+  ): boolean {
     // 获取project_item信息，以获取contentId
     const itemInfo = this.getProjectItem(db, id);
     if (!itemInfo) {
@@ -405,7 +410,8 @@ export default class ProjectTable {
     if (changes > 0) {
       if (itemInfo.contentId) {
         // 删除关联的content记录（减少引用计数）
-        ContentTable.deleteContent(db, itemInfo.contentId);
+        if (options.deferContent) ContentTable.releaseDeferred(db, itemInfo.contentId);
+        else ContentTable.deleteContent(db, itemInfo.contentId);
       }
       if (itemInfo.projectItemType === EProjectItemType.VideoNote) {
         VideoNoteTable.deleteVideoNote(db, itemInfo.refId);

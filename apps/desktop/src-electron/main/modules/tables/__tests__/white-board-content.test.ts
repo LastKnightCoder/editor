@@ -14,7 +14,9 @@ vi.mock("../../video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
 
-import WhiteBoardContentTable from "../white-board-content";
+import WhiteBoardContentTable, {
+  WHITEBOARD_DOCUMENT_VERSION as MAIN_DOCUMENT_VERSION,
+} from "../white-board-content";
 import WhiteboardTable from "../whiteboard";
 
 const rawData = (db: Database.Database, id: number) =>
@@ -45,7 +47,7 @@ describe("白板页文档版本写回保护", () => {
   afterEach(() => db.close());
 
   it("主进程对账的常量与核心包一致", () => {
-    expect(CORE_DOCUMENT_VERSION).toBe(2);
+    expect(CORE_DOCUMENT_VERSION).toBe(MAIN_DOCUMENT_VERSION);
   });
 
   it("库内版本更高时拒绝覆盖，数据保持不变", () => {

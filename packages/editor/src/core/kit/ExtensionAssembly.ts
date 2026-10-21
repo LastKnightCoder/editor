@@ -19,6 +19,7 @@ import { registerElementEmpty } from "./elementEmpty";
 import { registerBlockNavigationBoundaries } from "../utils/blockNavigation";
 import type { RegisteredCopy } from "../api/copy";
 import type { RegisteredDecoration, RegisteredMark } from "../api/marks";
+import type { RegisteredInputRule } from "../api/inputRules";
 import type { RegisteredLayer } from "../components/ExtensionLayers";
 
 /** 一个扩展贡献的插件：内核按扩展逐组应用，出错隔离到组（extensionGuard.ts） */
@@ -124,6 +125,7 @@ export class ExtensionAssembly {
   readonly copyPolicies: ReadonlyMap<string, RegisteredCopy>;
   readonly marks: readonly RegisteredMark[];
   readonly decorations: readonly RegisteredDecoration[];
+  readonly inputRules: readonly RegisteredInputRule[];
   readonly layers: readonly RegisteredLayer[];
   private readonly renderers = new Map<string, ElementRenderer>();
   private readonly owners = new Map<string, EditorExtension>();
@@ -210,6 +212,34 @@ export class ExtensionAssembly {
       }
     }
     this.marks = marks;
+    const inputRuleIds = new Set<string>();
+    const inlineTypes = new Set(
+      this.extensions.flatMap(extension =>
+        (extension.elements ?? []).filter(spec => spec.kind === "inline").map(spec => spec.type)
+      )
+    );
+    this.inputRules = this.extensions.flatMap(extension =>
+      (extension.inputRules ?? []).map(rule => {
+        if (!rule.id || inputRuleIds.has(rule.id)) {
+          throw new Error(`[editor] 输入规则 id 缺失或重复：${rule.id}`);
+        }
+        inputRuleIds.add(rule.id);
+        if (!rule.delimiter || [...rule.delimiter].some(char => char !== rule.delimiter[0])) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 的定界符须由同一字符重复组成`);
+        }
+        if (!rule.marks === !rule.inline) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 须且只能声明 marks 或 inline 之一`);
+        }
+        if (rule.inline && !inlineTypes.has(rule.inline.type)) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 引用了未声明的行内元素`);
+        }
+        const keys = Object.keys(rule.marks ?? {});
+        if (rule.marks && (!keys.length || keys.some(key => !markKeys.has(key)))) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 引用了未声明的标记字段`);
+        }
+        return { owner: extension.id, rule };
+      })
+    );
     const decorationIds = new Set<string>();
     this.decorations = this.extensions.flatMap(extension =>
       (extension.decorations ?? []).map(spec => {

@@ -128,4 +128,58 @@ describe("插件页面上下文", () => {
       scope.unmount();
     }
   });
+
+  it("是否显示：mount 后为真，隐藏或插件停用后为假", () => {
+    const controller = new AbortController();
+    const scope = createPluginPageContext({
+      params: params(),
+      signal: controller.signal,
+      isAvailable: () => true,
+    });
+    expect(scope.pageContext.isActive()).toBe(false);
+    const hide = scope.mount();
+    expect(scope.pageContext.isActive()).toBe(true);
+    hide();
+    expect(scope.pageContext.isActive()).toBe(false);
+    scope.mount();
+    controller.abort();
+    expect(scope.pageContext.isActive()).toBe(false);
+  });
+
+  it("浮层退场：只在页面显示时挂到宿主的 Esc 仲裁，注销与插件停用后摘下", () => {
+    const controller = new AbortController();
+    const host: Array<() => void> = [];
+    const registerOverlayDismiss = (dismiss: () => void) => {
+      host.push(dismiss);
+      return () => void host.splice(host.indexOf(dismiss), 1);
+    };
+    const scope = createPluginPageContext({
+      params: params(),
+      signal: controller.signal,
+      isAvailable: () => true,
+      registerOverlayDismiss,
+    });
+    const closed: string[] = [];
+    const drawer = scope.pageContext.registerDismiss(() => closed.push("抽屉"));
+    expect(host).toHaveLength(0);
+    const hide = scope.mount();
+    scope.pageContext.registerDismiss(() => {
+      throw new Error("插件出错");
+    });
+    expect(host).toHaveLength(2);
+    // 宿主取最后登记者；插件回调出错不影响宿主
+    expect(() => host[host.length - 1]()).not.toThrow();
+    host[0]();
+    expect(closed).toEqual(["抽屉"]);
+    hide();
+    expect(host).toHaveLength(0);
+    const show = scope.mount();
+    expect(host).toHaveLength(2);
+    drawer.dispose();
+    expect(host).toHaveLength(1);
+    controller.abort();
+    expect(host).toHaveLength(0);
+    show();
+    expect(host).toHaveLength(0);
+  });
 });

@@ -115,3 +115,33 @@ describe("以此立项", () => {
     expect(mocks.updateQuestionStatus).not.toHaveBeenCalled();
   });
 });
+
+describe("带资料新建 Notebook（通用）", () => {
+  it("没有来源时不记谱系；空标题用默认标题；影响行说明带入与跳过", async () => {
+    const { createNotebookWithResources, notebookPlanImpact } =
+      await import("../notebook-creation");
+    const plan = {
+      notes: [{ contentId: 7, title: "问题", noteType: "plugin-entity", originalId: 3 }],
+      excerpts: [],
+      clips: [],
+      skipped: 2,
+    };
+    expect(await createNotebookWithResources({ title: " ", plan, mainDbName: "main" })).toEqual({
+      projectId: 9,
+      failed: 0,
+    });
+    expect(mocks.createVibeLearningProject).toHaveBeenCalledWith({ title: "未命名课题" });
+    expect(mocks.recordLineage).not.toHaveBeenCalled();
+    expect(mocks.ensureVLNoteResource).toHaveBeenCalledWith({
+      projectId: 9,
+      mainDbName: "main",
+      contentId: 7,
+      title: "问题",
+      noteType: "plugin-entity",
+      originalId: 3,
+    });
+    expect(notebookPlanImpact(plan)).toBe(
+      "带入 1 份资料；2 项（项目、白板、对话或已删除的内容）不会带入"
+    );
+  });
+});

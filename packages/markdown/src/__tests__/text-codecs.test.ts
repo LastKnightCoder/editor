@@ -141,9 +141,13 @@ describe("纯文本 codec", () => {
     );
     expect(result.output).toBe(fixtureProcessor.leafToMarkdown(item));
     expect(result.output.length).toBe(result.prefixLength + item.text.length + result.suffixLength);
-    expect(
-      fixtureProcessor.leafToMarkdown(leaf({ underline: true, highlight: true, color: "red" }))
-    ).toBe("正文");
+    expect(fixtureProcessor.leafToMarkdown(leaf({ underline: true, color: "red" }))).toBe("正文");
+  });
+
+  it("布尔高亮（旧数据/热键写入）按默认黄色导出，往返后保留高亮", () => {
+    const md = fixtureProcessor.getMarkdown(value({ highlight: true }));
+    expect(md.trim()).toBe(":highlight[正文]{color=yellow}");
+    expect(fixtureProcessor.importFromMarkdown(md)).toEqual(value({ highlight: "yellow" }));
   });
 
   it("处理器及嵌套调用互不污染", () => {

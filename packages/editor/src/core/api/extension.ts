@@ -10,6 +10,7 @@ import type { ElementDrag } from "./drag";
 import type { ElementIngestSpec } from "./ingest";
 import type { ElementCopy } from "./copy";
 import type { DecorationSpec, MarkSpec } from "./marks";
+import type { InputRule } from "./inputRules";
 import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 
 /**
@@ -89,6 +90,8 @@ export interface EditorExtension {
   readonly apiVersion: typeof EXTENSION_API_VERSION;
   readonly elements?: readonly ElementSpec[];
   readonly marks?: readonly MarkSpec[];
+  /** 行内输入规则：输入成对定界符时转成标记或行内元素，如 `**粗体**`、`$公式$` */
+  readonly inputRules?: readonly InputRule[];
   /** 暂态装饰（不进文档）；外观由本扩展 marks 里 keys 对应的声明渲染 */
   readonly decorations?: readonly DecorationSpec[];
   /** 在编辑器的 Slate/Kit 上下文挂载辅助 UI，组件自行接宿主浮层仲裁。 */

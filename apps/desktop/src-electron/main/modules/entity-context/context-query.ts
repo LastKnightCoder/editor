@@ -13,7 +13,6 @@ import {
 } from "@/entity/ref";
 import { extractInlineRefs, type InlineRefSnippet } from "@/entity/inline-refs";
 import { normalizeDiaryDay } from "@/utils/diary-day";
-import type { EntityKind } from "@/types/entity";
 import type {
   ContextBacklink,
   ContextEntity,
@@ -25,20 +24,18 @@ import type {
 import type { QuestionLinkTargetType } from "@/types/question";
 import EntitySearchTable from "../tables/entity-search";
 import ContentLinkTable from "../tables/content-link";
-import { derivedOf, notebookProjectionsOf, sourcesOf, usagesOf } from "./context-lineage";
+import {
+  derivedOf,
+  notebookProjectionsOf,
+  sourcesOf,
+  toContextEntity,
+  usagesOf,
+} from "./context-lineage";
 
 /** 各分区最多返回的条数 */
 export const CONTEXT_LIMIT = 50;
 /** 每个来源最多带几段片段 */
 const SNIPPETS_PER_SOURCE = 3;
-
-const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
-  card: "card",
-  article: "article",
-  "project-item": "project_item",
-  "diary-moment": "diary-moment",
-  "plugin-entity": "plugin-entity",
-};
 
 const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = {
   card: "card",
@@ -49,12 +46,6 @@ const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = 
 /** 一个正文实体对应的内容 id */
 function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
   return ContentLinkTable.contentIdsOfEntity(db, ref);
-}
-
-function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
-  const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
-  if (!candidate) return null;
-  return { ref, title: candidate.title, meta: candidate.meta };
 }
 
 /** 日记一天有多条（segment），按引用所在的正文定位到那一条 */

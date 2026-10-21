@@ -24,6 +24,13 @@ import type {
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import { assertPluginEditorExtension } from "./editor-fields";
+import {
+  CONTENT_INPUT_LIMITS,
+  EDITOR_NODE_SCHEMA_VERSION,
+  readContentInput,
+  type PluginContentInput,
+} from "./content-input";
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
 import type { TTSProviderDefinition } from "./tts";
@@ -70,7 +77,15 @@ import type {
   PluginContentEdit,
   PluginContentRef,
   PluginContentSnapshot,
+  PluginDocumentInput,
+  PluginDocumentMove,
   PluginDocumentPatch,
+  PluginProjectInput,
+  PluginNotebookResource,
+  PluginProjectNode,
+  PluginProjectPatch,
+  PluginWhiteboardInput,
+  PluginWhiteboardPatch,
   PluginEntityQuery,
   PluginPage,
   PluginTodo,
@@ -97,13 +112,19 @@ import {
 import {
   PLUGIN_APP_ACTIONS,
   PLUGIN_ENTITY_KINDS,
+  PLUGIN_NOTEBOOK_FROM_KINDS,
+  PLUGIN_CHAT_CONTEXT_KINDS,
+  PLUGIN_ENTITY_READ_PERMISSIONS,
   PLUGIN_EXPORT_FORMATS,
   type PluginAppAction,
   type PluginExportFormat,
   type PluginEntityKind,
   type PluginEntityRef,
+  type PluginContentLocation,
+  type PluginOpenOptions,
   type PluginPickOptions,
   type PluginPickedEntity,
+  type PluginEntityDescription,
 } from "./app";
 import type { PluginFlashcards } from "./flashcards";
 
@@ -178,16 +199,24 @@ export interface PermissionsAdapter {
   ): Promise<boolean>;
 }
 
-export type DataEntity = "card" | "article" | "document";
+export type DataEntity = "card" | "article" | "document" | "whiteboard" | "project";
+/** 可读取的实体：DataEntity 之外的 Notebook、材料与对话只读 */
+export type ReadableEntity = DataEntity | "notebook" | "material" | "chat-session";
+/** 持有正文的实体：正文的访问按它们的权限放行 */
+export type ContentOwnerEntity = "card" | "article" | "document";
 
 /** 宿主负责工作区绑定；参数已校验并复制，返回值由 PluginHost 再复制后交给插件。 */
 export interface DataAdapter {
   query(
     context: PluginContext,
-    entity: DataEntity,
+    entity: ReadableEntity,
     query: Required<Pick<PluginEntityQuery, "limit">> & PluginEntityQuery
   ): Promise<PluginPage<unknown>>;
-  get(context: PluginContext, entity: DataEntity, id: string): Promise<unknown | null>;
+  get(context: PluginContext, entity: ReadableEntity, id: string): Promise<unknown | null>;
+  notebookResources(
+    context: PluginContext,
+    notebookId: string
+  ): Promise<PluginNotebookResource[] | null>;
   todos(
     context: PluginContext,
     query: PluginTodoQuery & { limit: number }
@@ -201,23 +230,32 @@ export interface DataAdapter {
     context: PluginContext,
     ref: PluginContentRef,
     format: "markdown" | "nodes"
-  ): Promise<{ snapshot: PluginContentSnapshot; owners: DataEntity[]; own: boolean } | null>;
+  ): Promise<{
+    snapshot: PluginContentSnapshot;
+    owners: ContentOwnerEntity[];
+    own: boolean;
+  } | null>;
   /** 以下写入由宿主记录来源插件；revision 不是最新时抛出 PluginConflictError */
   create(
     context: PluginContext,
-    entity: WritableEntity,
-    input: PluginCardInput | PluginArticleInput
+    entity: CreatableEntity,
+    input: PluginCardInput | PluginArticleInput | PluginWhiteboardInput | PluginProjectInput
   ): Promise<unknown>;
   update(
     context: PluginContext,
     entity: DataEntity,
     id: string,
-    patch: PluginCardPatch | PluginArticlePatch | PluginDocumentPatch,
+    patch:
+      | PluginCardPatch
+      | PluginArticlePatch
+      | PluginDocumentPatch
+      | PluginWhiteboardPatch
+      | PluginProjectPatch,
     expectedRevision: string
   ): Promise<unknown>;
   remove(
     context: PluginContext,
-    entity: WritableEntity,
+    entity: DeletableEntity,
     id: string,
     expectedRevision: string
   ): Promise<void>;
@@ -227,16 +265,26 @@ export interface DataAdapter {
   contentOwners(
     context: PluginContext,
     ref: PluginContentRef
-  ): Promise<{ owners: DataEntity[]; own: boolean }>;
+  ): Promise<{ owners: ContentOwnerEntity[]; own: boolean }>;
   editContent(
     context: PluginContext,
     ref: PluginContentRef,
     edit: PluginContentEdit,
     expectedRevision: string
   ): Promise<{ revision: string }>;
+  projectTree(context: PluginContext, projectId: string): Promise<PluginProjectNode[] | null>;
+  createDocument(context: PluginContext, input: PluginDocumentInput): Promise<unknown>;
+  moveDocument(
+    context: PluginContext,
+    id: string,
+    move: PluginDocumentMove,
+    expectedRevision: string
+  ): Promise<{ revision: string }>;
 }
 
-export type WritableEntity = "card" | "article";
+/** 可删除的实体，删除可在插件详情页恢复 */
+export type DeletableEntity = DataEntity;
+export type CreatableEntity = "card" | "article" | "whiteboard" | "project";
 
 export type TodoWrite =
   | { action: "create"; input: PluginTodoInput }
@@ -253,7 +301,10 @@ export type CalendarWrite =
 export interface EntitiesAdapter {
   create(
     context: PluginContext,
-    input: Required<PluginOwnEntityInput> & { meta: PluginOwnEntityMeta }
+    input: Required<Omit<PluginOwnEntityInput, "content">> & {
+      meta: PluginOwnEntityMeta;
+      content?: PluginContentInput;
+    }
   ): Promise<PluginOwnEntity>;
   get(context: PluginContext, id: string): Promise<PluginOwnEntity | null>;
   find(context: PluginContext, kind: string, key: string): Promise<PluginOwnEntity | null>;
@@ -274,7 +325,7 @@ export interface EntitiesAdapter {
     context: PluginContext,
     id: string
   ): Promise<
-    Array<{ entity: DataEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
+    Array<{ entity: ContentOwnerEntity | null; id: string } & Omit<PluginOwnEntityBacklink, "ref">>
   >;
   /** 宿主登记类型名、图标与打开方式，供检索结果、打开与 @ 使用；停用时由返回值注销 */
   registerKind?(context: PluginContext, definition: PluginOwnEntityKind): Disposable;
@@ -287,13 +338,60 @@ export interface AppAdapter {
     plugin: PluginOwner,
     options: Required<PluginPickOptions>
   ): Promise<PluginPickedEntity[]>;
-  open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
-  run(context: PluginContext, plugin: PluginOwner, request: PluginAppRunRequest): Promise<void>;
+  open(
+    context: PluginContext,
+    ref: PluginEntityRef,
+    options: { placement: "page" | "window" | "dock"; at?: PluginContentLocation }
+  ): Promise<void>;
+  /** 界面关闭后返回；新建类返回新内容的引用，取消为 null */
+  run(
+    context: PluginContext,
+    plugin: PluginOwner,
+    request: PluginAppRunRequest
+  ): Promise<PluginEntityRef | null | void>;
+  /**
+   * 按 refs 顺序返回描述；readable 为插件已获准读取的类型。宿主另放行用户选择过的引用与本插件
+   * 自己的内容，其余返回 denied（permission 由 PluginHost 补上）。
+   */
+  describe(
+    context: PluginContext,
+    refs: readonly PluginEntityRef[],
+    readable: readonly PluginEntityKind[]
+  ): Promise<Array<{ status: "ok"; title: string } | { status: "missing" } | { status: "denied" }>>;
 }
+
+const MAX_DESCRIBE = 200;
 
 export type PluginAppRunRequest =
   | { action: "content.export"; ref: PluginContentRef; format: PluginExportFormat }
-  | { action: "content.present" | "content.share"; ref: PluginContentRef };
+  | { action: "content.present" | "content.share"; ref: PluginContentRef }
+  | { action: "card.create"; content?: PluginContentInput; tags?: string[] }
+  | { action: "project.insertDocument"; content: PluginContentInput; title?: string }
+  | {
+      action: "notebook.create";
+      title: string;
+      sources: PluginEntityRef[];
+      from?: PluginEntityRef;
+    }
+  | {
+      action: "chat.start";
+      prompt: string;
+      context: PluginEntityRef[];
+      placement: "page" | "dock";
+    };
+
+/** 新建类动作：宿主返回新内容的引用，用户取消为 null */
+const CREATING_ACTIONS = new Set<string>([
+  "card.create",
+  "project.insertDocument",
+  "notebook.create",
+  "chat.start",
+]);
+const chatContextKinds = new Set<string>(PLUGIN_CHAT_CONTEXT_KINDS);
+const MAX_CHAT_PROMPT = 20_000;
+const MAX_CHAT_CONTEXT = 20;
+const notebookFromKinds = new Set<string>(PLUGIN_NOTEBOOK_FROM_KINDS);
+const MAX_NOTEBOOK_SOURCES = 200;
 
 const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
 const appActions = new Set<string>(PLUGIN_APP_ACTIONS);
@@ -341,6 +439,67 @@ function readEntityKind(value: unknown): PluginOwnEntityKind {
 
 function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest {
   if (typeof action !== "string" || !appActions.has(action)) throw new Error("未知的动作");
+  if (action === "card.create") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { content, tags } = raw as { content?: unknown; tags?: unknown };
+    return {
+      action,
+      ...(content !== undefined
+        ? { content: readContentInput(content, { allowEmpty: true }) }
+        : {}),
+      ...(tags !== undefined ? { tags: readTags(tags) } : {}),
+    };
+  }
+  if (action === "chat.start") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { prompt, context, placement } = raw as {
+      prompt?: unknown;
+      context?: unknown;
+      placement?: unknown;
+    };
+    if (context !== undefined && (!Array.isArray(context) || context.length > MAX_CHAT_CONTEXT))
+      throw new Error(`context 必须是数组，最多 ${MAX_CHAT_CONTEXT} 项`);
+    const refs = (context ?? []).map(readEntityRef);
+    if (refs.some(ref => !chatContextKinds.has(ref.kind)))
+      throw new Error("对话上下文只支持卡片、文章与项目文档");
+    if (placement !== undefined && placement !== "page" && placement !== "dock")
+      throw new Error("placement 无效");
+    return {
+      action,
+      prompt: prompt === undefined ? "" : readText(prompt, "提示词", MAX_CHAT_PROMPT, true),
+      context: refs,
+      placement: placement ?? "page",
+    };
+  }
+  if (action === "notebook.create") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { title, sources, from } = raw as { title?: unknown; sources?: unknown; from?: unknown };
+    if (sources !== undefined && (!Array.isArray(sources) || sources.length > MAX_NOTEBOOK_SOURCES))
+      throw new Error(`sources 必须是数组，最多 ${MAX_NOTEBOOK_SOURCES} 项`);
+    const source = from === undefined ? undefined : readEntityRef(from);
+    if (source && !notebookFromKinds.has(source.kind))
+      throw new Error("这类内容不能作为 Notebook 的来源");
+    return {
+      action,
+      title: readText(title, "标题", MAX_TITLE),
+      sources: (sources ?? []).map(readEntityRef),
+      ...(source ? { from: source } : {}),
+    };
+  }
+  if (action === "project.insertDocument") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { content, title } = raw as { content?: unknown; title?: unknown };
+    if (content === undefined) throw new Error("缺少要插入的正文");
+    return {
+      action,
+      content: readContentInput(content, { allowEmpty: true }),
+      ...(title !== undefined ? { title: readText(title, "标题", MAX_TITLE) } : {}),
+    };
+  }
   const value = options as { ref?: unknown; format?: unknown } | undefined;
   if (typeof value?.ref !== "string" || !value.ref) throw new Error("正文引用无效");
   if (action !== "content.export")
@@ -350,42 +509,96 @@ function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest 
   return { action, ref: value.ref, format: value.format as PluginExportFormat };
 }
 
+/** 打开位置与定位按宿主能力限定：独立窗口只开正文实体、停靠栏只开对话、定位只对有正文的内容 */
+const WINDOW_KINDS = new Set<string>(["card", "article", "document"]);
+const LOCATABLE_KINDS = new Set<string>(["card", "article", "document", "diary", "plugin-entity"]);
+
+function readOpenOptions(
+  ref: PluginEntityRef,
+  value: unknown
+): { placement: "page" | "window" | "dock"; at?: PluginContentLocation } {
+  const raw = value ?? {};
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("打开选项无效");
+  const { placement = "page", at } = raw as { placement?: unknown; at?: unknown };
+  if (placement !== "page" && placement !== "window" && placement !== "dock")
+    throw new Error("placement 无效");
+  if (placement === "window" && !WINDOW_KINDS.has(ref.kind))
+    throw new Error("只有卡片、文章与项目文档能在独立窗口打开");
+  if (placement === "dock" && ref.kind !== "chat-session")
+    throw new Error("只有对话能在停靠栏打开");
+  if (at === undefined) return { placement };
+  const block = (at as { block?: unknown } | null)?.block;
+  if (!Number.isSafeInteger(block) || (block as number) < 0) throw new Error("at.block 无效");
+  if (!LOCATABLE_KINDS.has(ref.kind)) throw new Error("这类内容不支持定位");
+  if (placement === "window") throw new Error("独立窗口不支持定位");
+  return { placement, at: { block: block as number } };
+}
+
 function readEntityRef(value: unknown): PluginEntityRef {
   const ref = value as PluginEntityRef | undefined;
   if (!ref || !entityKinds.has(ref.kind)) throw new Error("内容类型无效");
   return { kind: ref.kind, id: readId(ref.id) };
 }
 
-/** 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。 */
+/**
+ * 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。
+ * entity.* 只投递 context 所属插件自己的实体。
+ */
 export interface EventsAdapter {
   subscribe(context: PluginContext, listener: (event: PluginDomainEvent) => void): Disposable;
 }
 
-const ENTITY_PERMISSIONS: Record<DataEntity, PluginPermission> = {
+const ENTITY_PERMISSIONS: Record<ReadableEntity, PluginPermission> = {
   card: "cards:read",
   article: "articles:read",
   document: "documents:read",
+  whiteboard: "whiteboards:read",
+  project: "projects:read",
+  notebook: "notebooks:read",
+  material: "materials:read",
+  "chat-session": "chats:read",
 };
+/** 有标签、可按 tag 查询的实体 */
+const TAGGED_ENTITIES = new Set<ReadableEntity>(["card", "article", "document", "whiteboard"]);
 const WRITE_PERMISSIONS: Record<DataEntity, PluginPermission> = {
   card: "cards:write",
   article: "articles:write",
   document: "documents:write",
+  whiteboard: "whiteboards:write",
+  project: "projects:write",
+};
+
+const MAX_TITLE = 500;
+const MAX_DESCRIPTION = 10_000;
+/** 各类可修改的字段；description 可清空 */
+const PATCH_FIELDS: Record<DataEntity, Record<string, FieldRule>> = {
+  card: { tags: "tags", pinned: "boolean" },
+  article: { title: MAX_TITLE, tags: "tags", pinned: "boolean" },
+  document: { title: MAX_TITLE, tags: "tags" },
+  whiteboard: {
+    title: MAX_TITLE,
+    description: { max: MAX_DESCRIPTION, allowEmpty: true },
+    tags: "tags",
+  },
+  project: { title: MAX_TITLE, archived: "boolean", pinned: "boolean" },
 };
 /** 访问一份正文所需的权限候选：拥有任一所属实体的读取（写入）权限即可；正文接口与组件层共用。 */
 export function contentPermissions(
-  owners: readonly DataEntity[],
+  owners: readonly ContentOwnerEntity[],
   mode: "read" | "write"
 ): PluginPermission[] {
   const table = mode === "read" ? ENTITY_PERMISSIONS : WRITE_PERMISSIONS;
   return [...new Set(owners.map(owner => table[owner]))];
 }
-const DELETE_PERMISSIONS: Record<WritableEntity, PluginPermission> = {
+const DELETE_PERMISSIONS: Record<DeletableEntity, PluginPermission> = {
   card: "cards:delete",
   article: "articles:delete",
+  document: "documents:delete",
+  whiteboard: "whiteboards:delete",
+  project: "projects:delete",
 };
 
-const MAX_MARKDOWN = 2_000_000;
-const MAX_TITLE = 500;
+const MAX_MARKDOWN = CONTENT_INPUT_LIMITS.markdown;
 
 function readText(value: unknown, name: string, max: number, allowEmpty = false): string {
   if (typeof value !== "string" || (!allowEmpty && !value.trim()) || value.length > max)
@@ -409,10 +622,13 @@ function readId(id: unknown): string {
   return id;
 }
 
+/** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串 */
+type FieldRule = number | { max: number; allowEmpty: true } | "boolean" | "tags" | "nullable-time";
+
 /** 按字段表读取输入：string 可带最大长度，tags 为标签数组；required 中的字段必填，至少要有一个字段 */
 function readFields<T>(
   value: unknown,
-  fields: Record<string, number | "boolean" | "tags" | "nullable-time">,
+  fields: Record<string, FieldRule>,
   required: readonly string[] = []
 ): T {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("参数无效");
@@ -428,10 +644,26 @@ function readFields<T>(
       result[key] = item;
     } else if (rule === "tags") result[key] = readTags(item);
     else if (rule === "nullable-time") result[key] = item === null ? null : readText(item, key, 64);
-    else result[key] = readText(item, key, rule, key === "markdown");
+    else if (typeof rule === "object") result[key] = readText(item, key, rule.max, true);
+    else result[key] = readText(item, key, rule);
   }
   if (!Object.keys(result).length) throw new Error("没有要修改的字段");
   return result as T;
+}
+
+function readDocumentMove(value: unknown): PluginDocumentMove {
+  const move = value as Partial<PluginDocumentMove> | undefined;
+  if (!move || typeof move !== "object") throw new Error("移动参数无效");
+  const parent = (id: unknown) => (id === null ? null : readId(id));
+  if (move.from === undefined || move.to === undefined) throw new Error("移动需要 from 与 to");
+  if (move.index !== undefined && (!Number.isSafeInteger(move.index) || (move.index as number) < 0))
+    throw new Error("index 必须是非负整数");
+  return {
+    projectId: readId(move.projectId),
+    from: parent(move.from),
+    to: parent(move.to),
+    ...(move.index !== undefined ? { index: move.index } : {}),
+  };
 }
 
 function readContentEdit(value: unknown): PluginContentEdit {
@@ -439,9 +671,9 @@ function readContentEdit(value: unknown): PluginContentEdit {
   switch (edit?.op) {
     case "append":
     case "prepend":
-      return { op: edit.op, markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN) };
+      return { op: edit.op, content: readContentInput(edit.content, { allowEmpty: false }) };
     case "replaceAll":
-      return { op: edit.op, markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN, true) };
+      return { op: edit.op, content: readContentInput(edit.content, { allowEmpty: true }) };
     case "replaceText":
       return {
         op: edit.op,
@@ -1033,22 +1265,18 @@ export class PluginHost {
       this.assertActive(entry, activation);
       return copyJson(value) as unknown as T;
     };
-    const reader = (entity: DataEntity) =>
+    const updater = (entity: DataEntity) => ({
+      update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
+        const value = readFields<PluginCardPatch>(patch, PATCH_FIELDS[entity]);
+        const revision = readRevision(options);
+        await guard(WRITE_PERMISSIONS[entity]);
+        return deliver<never>(
+          await dataAdapter().update(context, entity, readId(id), value, revision)
+        );
+      },
+    });
+    const reader = (entity: ReadableEntity) =>
       Object.freeze({
-        update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
-          const fields: Record<string, number | "boolean" | "tags"> =
-            entity === "card"
-              ? { tags: "tags", pinned: "boolean" }
-              : entity === "article"
-                ? { title: MAX_TITLE, tags: "tags", pinned: "boolean" }
-                : { title: MAX_TITLE, tags: "tags" };
-          const value = readFields<PluginCardPatch>(patch, fields);
-          const revision = readRevision(options);
-          await guard(WRITE_PERMISSIONS[entity]);
-          return deliver<never>(
-            await dataAdapter().update(context, entity, readId(id), value, revision)
-          );
-        },
         get: async (id: string) => {
           if (typeof id !== "string" || !id) throw new Error("实体 ID 无效");
           await guard(ENTITY_PERMISSIONS[entity]);
@@ -1066,28 +1294,42 @@ export class PluginHost {
           });
           if (picked.sort !== undefined && picked.sort !== "created" && picked.sort !== "updated")
             throw new Error("查询参数 sort 无效");
+          if (!TAGGED_ENTITIES.has(entity) && picked.tag !== undefined)
+            throw new Error("这类内容没有标签，不能按 tag 查询");
           const limit = readLimit((query as PluginEntityQuery | undefined)?.limit, 200);
           await guard(ENTITY_PERMISSIONS[entity]);
           return deliver<never>(await dataAdapter().query(context, entity, { ...picked, limit }));
         },
       });
-    const writer = (entity: WritableEntity) => ({
+    const creator = (entity: CreatableEntity) => ({
       create: async (input: unknown) => {
-        const value =
+        const raw = input ?? {};
+        if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+        if (entity === "whiteboard" || entity === "project") {
+          const value = readFields<PluginWhiteboardInput | PluginProjectInput>(
+            raw,
+            entity === "whiteboard"
+              ? { title: MAX_TITLE, description: PATCH_FIELDS.whiteboard.description, tags: "tags" }
+              : { title: MAX_TITLE },
+            ["title"]
+          );
+          await guard(WRITE_PERMISSIONS[entity]);
+          return deliver<never>(await dataAdapter().create(context, entity, value));
+        }
+        const { content, ...fields } = raw as Record<string, unknown>;
+        const value: PluginCardInput | PluginArticleInput =
           entity === "card"
-            ? readFields<PluginCardInput>(input ?? { markdown: "" }, {
-                markdown: MAX_MARKDOWN,
-                tags: "tags",
-                pinned: "boolean",
-              })
-            : readFields<PluginArticleInput>(
-                input,
-                { title: MAX_TITLE, markdown: MAX_MARKDOWN, tags: "tags" },
-                ["title"]
-              );
+            ? Object.keys(fields).length
+              ? readFields<PluginCardInput>(fields, { tags: "tags", pinned: "boolean" })
+              : {}
+            : readFields<PluginArticleInput>(fields, { title: MAX_TITLE, tags: "tags" }, ["title"]);
+        // copyOf 只核对目标的写入权限：正文不离开用户的库，插件也拿不到内容
+        if (content !== undefined) value.content = readContentInput(content, { allowEmpty: true });
         await guard(WRITE_PERMISSIONS[entity]);
         return deliver<never>(await dataAdapter().create(context, entity, value));
       },
+    });
+    const remover = (entity: DeletableEntity) => ({
       delete: async (id: string, options: PluginWriteOptions) => {
         const revision = readRevision(options);
         await guard(DELETE_PERMISSIONS[entity]);
@@ -1453,8 +1695,8 @@ export class PluginHost {
           this.assertActive(entry, activation);
           if (!this.options.editor) throw new Error("当前宿主不支持编辑器扩展");
           if (contribution.scene !== "workbench") throw new Error("不支持的编辑器场景");
-          if (contribution.extension.apiVersion !== 1 || "plugins" in contribution.extension)
-            throw new Error("不支持的编辑器扩展协议");
+          assertPluginEditorExtension(contribution.extension);
+          if (contribution.extension.apiVersion !== 1) throw new Error("不支持的编辑器扩展协议");
           assertLocalId(contribution.extension.id);
           if (!contribution.extension.id.startsWith(`${scope.pluginId}.`))
             throw new Error("编辑器扩展 ID 必须使用插件命名空间");
@@ -1634,9 +1876,81 @@ export class PluginHost {
         },
       }),
       data: Object.freeze({
-        cards: Object.freeze({ ...reader("card"), ...writer("card") }),
-        articles: Object.freeze({ ...reader("article"), ...writer("article") }),
-        documents: reader("document"),
+        cards: Object.freeze({
+          ...reader("card"),
+          ...updater("card"),
+          ...creator("card"),
+          ...remover("card"),
+        }),
+        articles: Object.freeze({
+          ...reader("article"),
+          ...updater("article"),
+          ...creator("article"),
+          ...remover("article"),
+        }),
+        whiteboards: Object.freeze({
+          ...reader("whiteboard"),
+          ...updater("whiteboard"),
+          ...creator("whiteboard"),
+          ...remover("whiteboard"),
+        }),
+        projects: Object.freeze({
+          ...reader("project"),
+          ...updater("project"),
+          ...creator("project"),
+          ...remover("project"),
+          tree: async (id: string) => {
+            const projectId = readId(id);
+            await guard(ENTITY_PERMISSIONS.project);
+            return deliver<PluginProjectNode[] | null>(
+              await dataAdapter().projectTree(context, projectId)
+            );
+          },
+        }),
+        notebooks: Object.freeze({
+          ...reader("notebook"),
+          resources: async (id: string) => {
+            const notebookId = readId(id);
+            await guard(ENTITY_PERMISSIONS.notebook);
+            return deliver<PluginNotebookResource[] | null>(
+              await dataAdapter().notebookResources(context, notebookId)
+            );
+          },
+        }),
+        materials: reader("material"),
+        chats: reader("chat-session"),
+        documents: Object.freeze({
+          ...reader("document"),
+          ...updater("document"),
+          ...remover("document"),
+          create: async (input: unknown) => {
+            const raw = (input ?? {}) as Record<string, unknown>;
+            if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+            const { content, projectId, parentId, ...fields } = raw;
+            const value: PluginDocumentInput = {
+              ...readFields<Pick<PluginDocumentInput, "title" | "tags">>(
+                fields,
+                { title: MAX_TITLE, tags: "tags" },
+                ["title"]
+              ),
+              projectId: readId(projectId),
+              ...(parentId !== undefined ? { parentId: readId(parentId) } : {}),
+              ...(content !== undefined
+                ? { content: readContentInput(content, { allowEmpty: true }) }
+                : {}),
+            };
+            await guard(WRITE_PERMISSIONS.document);
+            return deliver<never>(await dataAdapter().createDocument(context, value));
+          },
+          move: async (id: string, move: unknown, options: PluginWriteOptions) => {
+            const value = readDocumentMove(move);
+            const revision = readRevision(options);
+            await guard(WRITE_PERMISSIONS.document);
+            return deliver<{ revision: string }>(
+              await dataAdapter().moveDocument(context, readId(id), value, revision)
+            );
+          },
+        }),
         todos: Object.freeze({
           create: async (input: PluginTodoInput) => {
             const value = readFields<PluginTodoInput>(
@@ -1812,19 +2126,49 @@ export class PluginHost {
           if (!this.options.app) throw new Error("当前宿主不支持选择内容");
           return deliver<PluginPickedEntity[]>(await this.options.app.pick(context, owner, value));
         },
-        open: async (ref: PluginEntityRef) => {
+        open: async (ref: PluginEntityRef, options?: PluginOpenOptions) => {
           const value = readEntityRef(ref);
+          const opening = readOpenOptions(value, options);
           this.assertActive(entry, activation);
           if (!this.options.app) throw new Error("当前宿主不支持打开内容");
-          await this.options.app.open(context, value);
+          await this.options.app.open(context, value, opening);
           this.assertActive(entry, activation);
+        },
+        describe: async (refs: readonly PluginEntityRef[]) => {
+          if (!Array.isArray(refs) || refs.length > MAX_DESCRIBE)
+            throw new Error(`refs 必须是最多 ${MAX_DESCRIBE} 项的数组`);
+          const values = refs.map(readEntityRef);
+          this.assertActive(entry, activation);
+          if (!this.options.app) throw new Error("当前宿主不支持读取内容信息");
+          // 只查询已有授权，不弹窗：由插件引导用户点击后再 permissions.request
+          const readable: PluginEntityKind[] = [];
+          for (const kind of new Set(values.map(ref => ref.kind))) {
+            const permission = PLUGIN_ENTITY_READ_PERMISSIONS[kind];
+            if (
+              permission &&
+              declared.has(permission) &&
+              (await permissionsAdapter().query(context, permission)) === "granted"
+            )
+              readable.push(kind);
+          }
+          const results = await this.options.app.describe(context, values, readable);
+          this.assertActive(entry, activation);
+          if (results.length !== values.length) throw new Error("宿主返回的描述数量不一致");
+          return values.map((ref, index): PluginEntityDescription => {
+            const result = results[index];
+            if (result.status === "ok") return { ref, status: "ok", title: result.title };
+            if (result.status === "missing") return { ref, status: "missing" };
+            return { ref, status: "denied", permission: PLUGIN_ENTITY_READ_PERMISSIONS[ref.kind] };
+          });
         },
         run: async (action: PluginAppAction, options: unknown) => {
           const request = readRunRequest(action, options);
           this.assertActive(entry, activation);
           if (!this.options.app) throw new Error("当前宿主不支持该动作");
-          await this.options.app.run(context, owner, request);
+          const result = await this.options.app.run(context, owner, request);
           this.assertActive(entry, activation);
+          if (!CREATING_ACTIONS.has(request.action)) return undefined as never;
+          return (result ? readEntityRef(result) : null) as never;
         },
       }),
       entities: Object.freeze({
@@ -1851,12 +2195,16 @@ export class PluginHost {
           if (!entityKindDefinitions.has(value.kind))
             throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
           const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
+          const content = (input as PluginOwnEntityInput).content;
           return deliver<PluginOwnEntity>(
             await entitiesAdapter().create(context, {
               kind: value.kind,
               key: value.key,
               title: value.title ?? "",
               meta,
+              ...(content !== undefined
+                ? { content: readContentInput(content, { allowEmpty: true }) }
+                : {}),
             })
           );
         },
@@ -1886,7 +2234,7 @@ export class PluginHost {
           const sources = await entitiesAdapter().backlinks(context, readId(id));
           this.assertActive(entry, activation);
           // 只给已获准读取的类型，不弹窗；其余只计数
-          const states = new Map<DataEntity, boolean>();
+          const states = new Map<ContentOwnerEntity, boolean>();
           for (const entity of new Set(sources.flatMap(source => source.entity ?? []))) {
             const permission = ENTITY_PERMISSIONS[entity];
             states.set(
@@ -1972,6 +2320,8 @@ export class PluginHost {
           if (format !== "markdown" && format !== "nodes") throw new Error("正文格式无效");
           const result = await dataAdapter().readContent(context, ref, format);
           this.assertActive(entry, activation);
+          if (result && format === "nodes")
+            result.snapshot = { ...result.snapshot, schemaVersion: EDITOR_NODE_SCHEMA_VERSION };
           // 本插件实体的正文直接放行
           if (result?.own) return deliver<PluginContentSnapshot>(result.snapshot);
           if (!result?.owners.length) return null;

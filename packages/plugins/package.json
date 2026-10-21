@@ -18,6 +18,7 @@
     "./publish-artifacts": "./src/publish-artifacts.ts",
     "./rendering": "./src/rendering.ts",
     "./content": "./src/content.ts",
+    "./content-input": "./src/content-input.ts",
     "./whiteboard": "./src/whiteboard.ts",
     "./components": "./src/components.ts",
     "./media": "./src/media.ts",

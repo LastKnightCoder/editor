@@ -16,6 +16,7 @@ import EntityLineageTable from "../entity-lineage";
 import EntitySearchTable from "../entity-search";
 import ExcerptTable from "../excerpt";
 import QuestionChatTable from "../question-chat";
+import { notebookSourceOf } from "../../entity-context/context-lineage";
 import QuestionLinkTable from "../question-link";
 import QuestionTable from "../question";
 
@@ -212,9 +213,13 @@ describe("问题的外部材料与探究对话", () => {
       id: 7,
       title: "土地财政课题",
     });
-    expect(QuestionLinkTable.sourceOfNotebook(db, 7)).toEqual({
-      id: questionId,
+    // Notebook 页顶部的来源行按通用谱系解析
+    expect(notebookSourceOf(db, 7)).toMatchObject({
+      node: { kind: "question", id: questionId },
       title: "为什么地方财政依赖土地",
+      meta: "问题",
+      missing: false,
+      open: { page: "questions", selectedId: questionId },
     });
     db.prepare(`DELETE FROM vibe_learning_project WHERE id = 7`).run();
     expect(QuestionLinkTable.getDetail(db, questionId)!.notebook).toBeNull();

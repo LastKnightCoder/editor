@@ -30,7 +30,7 @@ export {
 } from "./source-editor";
 export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
-export { ContentEditor, ContentPreview } from "./components";
+export { ContentEditor, ContentPreview, EntityRef } from "./components";
 export {
   useElement,
   useMediaViewer,
@@ -63,14 +63,28 @@ export type {
   MediaAudioProps,
   MediaRuntime,
 } from "./media";
-export type { ContentEditorProps, ContentPreviewProps } from "./components";
+export type {
+  ContentEditorKit,
+  ContentEditorProps,
+  ContentPreviewProps,
+  EntityRefProps,
+} from "./components";
 export * from "./sidebar";
 export type * from "./icons";
 export type * from "./excerpts";
 export type * from "./data";
+export type { PluginContentInput } from "./content-input";
+export { EDITOR_NODE_SCHEMA_VERSION, CONTENT_INPUT_LIMITS } from "./content-input";
 export type * from "./entities";
 export { PluginConflictError } from "./errors";
-export { PLUGIN_ENTITY_KINDS, PLUGIN_APP_ACTIONS, PLUGIN_EXPORT_FORMATS } from "./app";
+export {
+  PLUGIN_ENTITY_KINDS,
+  PLUGIN_ENTITY_READ_PERMISSIONS,
+  PLUGIN_APP_ACTIONS,
+  PLUGIN_EXPORT_FORMATS,
+  PLUGIN_NOTEBOOK_FROM_KINDS,
+  PLUGIN_CHAT_CONTEXT_KINDS,
+} from "./app";
 export type {
   PluginNotifications,
   PluginNotificationOptions,
@@ -81,9 +95,13 @@ export type {
   PluginApp,
   PluginAppAction,
   PluginAppActions,
+  PluginAppActionResults,
+  PluginContentLocation,
+  PluginOpenOptions,
   PluginExportFormat,
   PluginEntityKind,
   PluginEntityRef,
+  PluginEntityDescription,
   PluginPickOptions,
   PluginPickedEntity,
 } from "./app";
