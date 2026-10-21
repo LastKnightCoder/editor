@@ -20,6 +20,7 @@
     "./content": "./src/content.ts",
     "./whiteboard": "./src/whiteboard.ts",
     "./components": "./src/components.ts",
+    "./media": "./src/media.ts",
     "./tailwind.css": "./tailwind.css",
     "./shared-modules": "./src/shared-modules.ts",
     "./source-editor-host": "./src/source-editor-host.tsx",

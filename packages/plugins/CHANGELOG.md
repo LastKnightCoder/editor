@@ -1,5 +1,11 @@
 # 更新记录
 
+## 未发布
+
+- 新增媒体组件 `MediaImage`、`MediaVideo`、`MediaAudio`：节点里的本地路径、远程地址和共享文档资源按 Tau 自带图片、视频、音频块的方式解析和缓存。
+- 新增 `useResource(url, { kind })`，自己绘制媒体时取得可加载的地址；`useResourceUpload()` 把文件存进用户当前的资源存储并返回地址，只读编辑器与博客中为 `undefined`。
+- 新增 `useMediaAppearance()`，读取用户设置（博客中为发布设置）的媒体默认圆角与阴影。
+
 ## 0.32.0
 
 - 插件 Skill 改为包内目录：在插件项目根目录放 `skills/<id>/SKILL.md`，可附带参考资料和脚本，构建时打进插件包并写入 manifest 的 `skills` 与文件摘要。名称、描述与调用方式取自 SKILL.md 的 front matter。

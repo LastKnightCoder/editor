@@ -1,27 +1,14 @@
 import { useState, useRef, memo, forwardRef, useCallback } from "react";
 import { useAsyncEffect } from "ahooks";
-import { remoteResourceToLocal } from "@/utils";
-import { getCachedRemoteResource } from "@/utils/resouce";
-import { getHomeDir, readBinaryFile } from "@/commands";
+import { readBinaryFile } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
-import { addRemoteAudioCacheEntry } from "@/commands/remote-audio-cache";
-import {
-  isDirectMediaUrl,
-  resolveLocalMediaPath,
-  toLocalMediaPreviewUrl,
-} from "@/utils/localMediaPath";
+import { toLocalMediaPreviewUrl } from "@/utils/localMediaPath";
+import { resolveMediaSource } from "@/utils/mediaSource";
 import { AudioPlayer, type AudioPlayerProps } from "@tau/shared";
 
 type LocalAudioProps = AudioPlayerProps & {
   src: string;
-};
-
-/** 下载远程音频到本地缓存并登记，返回本地文件路径 */
-const cacheRemoteAudio = async (url: string) => {
-  const localPath = await remoteResourceToLocal(url);
-  await addRemoteAudioCacheEntry({ url, localPath });
-  return localPath;
 };
 
 const LocalAudio = memo(
@@ -54,51 +41,19 @@ const LocalAudio = memo(
       setStreaming(false);
       setStreamFailed(false);
       try {
-        if (!normalizedSrc) {
-          setPreviewUrl("");
-          return;
+        const resolved = await resolveMediaSource(normalizedSrc, {
+          kind: "audio",
+          autoCacheRemote: autoCacheRemoteAudio,
+        });
+        if (isStale()) return;
+        setPreviewUrl(resolved?.url ?? "");
+        if (resolved?.localPath) setLocalFilePath(resolved.localPath);
+        if (resolved?.pendingLocalPath) {
+          setStreaming(true);
+          void resolved.pendingLocalPath.then(localPath => {
+            if (localPath && !isStale()) setLocalFilePath(localPath);
+          });
         }
-
-        const resolvedSrc = await resolveLocalMediaPath(normalizedSrc);
-
-        if (isDirectMediaUrl(resolvedSrc)) {
-          setPreviewUrl(resolvedSrc);
-          return;
-        }
-
-        if (resolvedSrc.startsWith("http")) {
-          try {
-            if (!autoCacheRemoteAudio) {
-              setPreviewUrl(resolvedSrc);
-              return;
-            }
-            const cached = await getCachedRemoteResource(resolvedSrc);
-            if (cached) {
-              await applyLocalFile(cached);
-              return;
-            }
-            // 未缓存：大文件整段下载要等很久，先流式播放远程地址，缓存完成后供波形读取、下次直接走本地
-            setPreviewUrl(resolvedSrc);
-            setStreaming(true);
-            void cacheRemoteAudio(resolvedSrc)
-              .then(localPath => {
-                if (!isStale()) setLocalFilePath(localPath);
-              })
-              .catch(error => console.error("[LocalAudio] 后台缓存失败", error));
-          } catch (error) {
-            console.error(error);
-            setPreviewUrl(resolvedSrc);
-          }
-        } else {
-          const homeDir = await getHomeDir();
-          const absolutePath = resolvedSrc.startsWith("~")
-            ? `${homeDir}${resolvedSrc.slice(1)}`
-            : resolvedSrc;
-          await applyLocalFile(absolutePath);
-        }
-      } catch (e) {
-        console.error(e);
-        setPreviewUrl(normalizedSrc);
       } finally {
         if (!isStale()) setLoading(false);
       }

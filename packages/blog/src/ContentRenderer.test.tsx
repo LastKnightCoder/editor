@@ -453,3 +453,44 @@ it("目录取正文顶层标题，发布设置随数据生效", async () => {
     container.remove();
   }
 });
+
+it("插件媒体组件使用发布站插槽与发布设置的外观，不提供上传", async () => {
+  setup();
+  const mediaCode = `const React=require('react');const sdk=require('@tau/plugins');
+function Gallery({attributes,element,children}) {
+  const appearance=sdk.useMediaAppearance();
+  const resource=sdk.useResource(element.url,{kind:'image'});
+  return React.createElement('div',attributes,React.createElement('figure',{contentEditable:false,'data-radius':appearance&&appearance.borderRadius,'data-upload':String(sdk.useResourceUpload()===undefined),'data-src':resource.src},React.createElement(sdk.MediaImage,{url:element.url,alt:'图'})),children);
+}
+module.exports.default=sdk.definePlugin({id:'example.widget',name:'示例',version:'1.0.0',editorExtensions:[{id:'example.widget',apiVersion:1,elements:[{type:'example.widget',kind:'block',isVoid:true,render:Gallery}]}],create(){throw Error('不能激活桌面生命周期')}});`;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: URL) => new Response(url.pathname.endsWith(".css") ? css : mediaCode))
+  );
+  const content = result(3);
+  content.data.pluginRenderers![0].manifest.integrity["main.js"] = hash(mediaCode);
+  content.settings = { appearance: { image: { borderRadius: "lg", shadow: "none" } } };
+  const url = "https://cdn.example.com/a.png";
+  if ("content" in content.data.content)
+    content.data.content.content = [
+      { type: "example.widget", url, children: [{ type: "formatted", text: "" }] },
+    ];
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<ContentRenderer content={content} />));
+    await vi.waitFor(async () => {
+      await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+      expect(container.querySelector("figure img")?.getAttribute("src")).toBe(url);
+    });
+    expect(container.querySelector("figure")?.dataset).toMatchObject({
+      radius: "lg",
+      upload: "true",
+      src: url,
+    });
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});

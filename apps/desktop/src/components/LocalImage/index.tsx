@@ -2,17 +2,14 @@ import { IResourceService } from "@tau/shared/host-services";
 import React, { forwardRef, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { getHomeDir } from "@/commands";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
-import { addRemoteImageCacheEntry } from "@/commands/remote-image-cache";
-import { isCollaborationResource } from "@tau/collaboration";
 import { useOptionalService } from "@tau/editor";
 import {
-  resolveLocalMediaPath,
-  isDirectMediaUrl,
-  toLocalMediaPreviewUrl,
-} from "@/utils/localMediaPath";
+  imagePreviewCache as previewCache,
+  imagePreviewCacheKey,
+  resolveMediaSource,
+} from "@/utils/mediaSource";
 
 interface ILocalImageProps {
   url: string;
@@ -25,21 +22,6 @@ interface ILocalImageProps {
   [key: string]: any;
 }
 
-/**
- * 解析结果缓存（原始地址 → 可直接给 <img> 的预览地址）。
- * 解析是异步的（路径换算、远程图落地缓存），不缓存的话每次挂载都会先空一帧再出图，列表重进时整片闪烁。
- */
-const PREVIEW_CACHE_LIMIT = 500;
-const previewCache = new Map<string, string>();
-
-function cachePreview(key: string, value: string) {
-  previewCache.delete(key);
-  previewCache.set(key, value);
-  if (previewCache.size > PREVIEW_CACHE_LIMIT) {
-    previewCache.delete(previewCache.keys().next().value!);
-  }
-}
-
 const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) => {
   const { url, alt, className, style, onClick, onLoadError, ...restProps } = props;
   const cdnUrl = useGithubCdnUrl(url) || url;
@@ -49,7 +31,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
   const remoteResourceToLocalService =
     useOptionalService(IResourceService)?.remoteResourceToLocal ?? remoteResourceToLocal;
   const autoCacheRemoteImage = useSettingStore(state => state.setting.misc.image.autoCacheRemote);
-  const cacheKey = `${autoCacheRemoteImage ? 1 : 0}|${cdnUrl}`;
+  const cacheKey = imagePreviewCacheKey(cdnUrl, autoCacheRemoteImage);
 
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(() =>
     previewCache.get(cacheKey)
@@ -64,57 +46,19 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
       return;
     }
     setIsConverting(true);
-    const setResolved = (value: string) => {
-      cachePreview(cacheKey, value);
-      setPreviewUrl(value);
-    };
     try {
-      if (!cdnUrl) {
+      const resolved = await resolveMediaSource(cdnUrl, {
+        kind: "image",
+        autoCacheRemote: autoCacheRemoteImage,
+        title: alt,
+        resolveCollaborationResource: remoteResourceToLocalService,
+      });
+      if (!resolved) {
         setPreviewUrl(undefined);
         return;
       }
-
-      if (isCollaborationResource(cdnUrl) && remoteResourceToLocalService) {
-        const localPath = await remoteResourceToLocalService(cdnUrl);
-        const localPreview = await toLocalMediaPreviewUrl(localPath);
-        setResolved(localPreview.url);
-        return;
-      }
-
-      const resolvedUrl = await resolveLocalMediaPath(cdnUrl);
-
-      if (isDirectMediaUrl(resolvedUrl)) {
-        setResolved(resolvedUrl);
-        return;
-      }
-
-      if (resolvedUrl.startsWith("http")) {
-        try {
-          if (!autoCacheRemoteImage) {
-            setResolved(resolvedUrl);
-            return;
-          }
-          const localUrl = await remoteResourceToLocal(resolvedUrl);
-          await addRemoteImageCacheEntry({
-            url: resolvedUrl,
-            localPath: localUrl,
-            title: alt,
-          });
-          const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(localUrl);
-          setResolved(localPreviewUrl);
-        } catch (error) {
-          console.error(error);
-          setPreviewUrl(resolvedUrl);
-        }
-        return;
-      }
-
-      const homeDir = await getHomeDir();
-      const absolutePath = resolvedUrl.startsWith("~")
-        ? `${homeDir}${resolvedUrl.slice(1)}`
-        : resolvedUrl;
-      const { url: localPreviewUrl } = await toLocalMediaPreviewUrl(absolutePath);
-      setResolved(localPreviewUrl);
+      if (!resolved.failed) previewCache.set(cacheKey, resolved.url);
+      setPreviewUrl(resolved.url);
     } catch (e) {
       console.error(e);
       setPreviewUrl(cdnUrl);

@@ -6,6 +6,7 @@ import webviewExtension from "@tau/editor/extensions/webview";
 import { createImageExtensions, type ImageAppearanceConfig } from "@tau/editor/extensions/media";
 import {
   IEditorSlots,
+  IMediaAppearance,
   IVideoContentProviders,
   type VideoContentProvider,
 } from "@tau/editor/extensions/media/services";
@@ -54,6 +55,7 @@ export function publishedKit(settings?: PublishSettings): EditorKit {
             Audio: AudioPlayer,
           });
           register(IVideoContentProviders, videoProviders);
+          register(IMediaAppearance, appearance);
         },
       ],
       // 图片扩展按 type 替换默认组合里的同名扩展。
