@@ -1,6 +1,7 @@
 import type { PluginContext, PluginOwnEntity } from "@tau/plugins";
 import type { EntitiesAdapter } from "@tau/plugins/host";
 import {
+  countPluginEntities,
   createPluginEntity,
   declarePluginEntityKind,
   deletePluginEntity,
@@ -55,6 +56,7 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
     bindDatabaseCommands(
       {
         createPluginEntity,
+        countPluginEntities,
         getPluginEntity,
         findPluginEntity,
         queryPluginEntities,
@@ -65,8 +67,12 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
       { databaseName, signal: context.signal }
     );
   return {
-    async create(context, { content, ...input }) {
-      const request = { ...input, ...(content ? { content: toContentSource(content) } : {}) };
+    async create(context, { content, ...input }, indexes) {
+      const request = {
+        ...input,
+        indexes,
+        ...(content ? { content: toContentSource(content) } : {}),
+      };
       return toEntity(
         await mapConflict(() =>
           bound(context).createPluginEntity(databaseName, context.pluginId, request)
@@ -92,6 +98,8 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
       const page = await bound(context).queryPluginEntities(databaseName, context.pluginId, query);
       return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
     },
+    count: (context, filter) =>
+      bound(context).countPluginEntities(databaseName, context.pluginId, filter),
     async backlinks(context, id) {
       const numeric = numericId(id);
       if (!numeric) throw new Error("内容不存在");
@@ -110,7 +118,7 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
         snippets: snippets.map(({ before, label, after }) => ({ before, label, after })),
       }));
     },
-    async update(context, id, patch, expectedRevision) {
+    async update(context, id, patch, expectedRevision, indexes) {
       const numeric = numericId(id);
       if (!numeric) throw new Error("内容不存在");
       return toEntity(
@@ -120,7 +128,8 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
             context.pluginId,
             numeric,
             patch,
-            expectedRevision
+            expectedRevision,
+            indexes
           )
         )
       );

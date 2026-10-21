@@ -44,6 +44,14 @@ export type * from "./data";
 export type { PluginContentInput } from "./content-input";
 export { EDITOR_NODE_SCHEMA_VERSION, CONTENT_INPUT_LIMITS } from "./content-input";
 export type * from "./entities";
+export type {
+  PluginFieldCondition,
+  PluginIndexes,
+  PluginIndexType,
+  PluginIndexValue,
+  PluginOrderBy,
+  PluginWhere,
+} from "./query";
 export { PluginConflictError } from "./errors";
 export {
   PLUGIN_ENTITY_KINDS,

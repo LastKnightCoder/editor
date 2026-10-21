@@ -25,6 +25,9 @@
 - 页面的 `pageContext` 新增 `isActive()`（本页是否为当前显示的页面）与 `registerDismiss(dismiss)`（登记自制浮层的关闭函数，用户按 Esc 时先关最后登记的浮层，只在页面显示时生效）。
 - 业务事件新增 `whiteboard.*`、`project.*`、`notebook.*`（增删改资料也算 `updated`）、`material.*`（划线、PDF 标注、剪藏）与 `chat.*`（收到新消息也算 `updated`），均带 `id`，分别需要 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`。
 - 新增本插件内容的事件 `entity.created`、`entity.updated`（含正文修改）、`entity.deleted`：只发给创建它的插件，不需要权限，事件带 `kind`（内容类型）。`PluginDomainEvent` 新增可选字段 `kind`。
+- `entities.registerKind` 新增 `indexes`：声明可用于查询的 `meta` 字段及类型（`string`、`number`、`boolean`），写入时这些字段的值须为声明的类型或 `null`。
+- `entities.query` 新增 `where`（等于、不等于、`in`、大小比较，`null` 表示没有值）、`titleContains` 与 `orderBy`（最多两项，可用 `createdAt`、`updatedAt`、`title` 或声明的字段）；新增 `entities.count`。游标改为不透明字符串，只适用于同一组条件与排序。新增导出类型 `PluginWhere`、`PluginFieldCondition`、`PluginOrderBy`、`PluginIndexes` 等。
+- 修复：`entities.query()` 不带参数时报「没有要修改的字段」。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 
