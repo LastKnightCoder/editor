@@ -121,3 +121,30 @@ export interface PluginRefInput {
 
 export type PluginRefDescription =
   { status: "ok"; title: string } | { status: "missing" } | { status: "denied" };
+
+/** 项目目录中的一处（IPC 用数字 ID，渲染端转成字符串） */
+export interface PluginProjectNodeRecord {
+  id: number;
+  revision: string;
+  title: string;
+  kind: string;
+  /** 引用卡片或文章的条目 */
+  ref?: { kind: "card" | "article"; id: number };
+  children: PluginProjectNodeRecord[];
+}
+
+export interface PluginDocumentCreateInput {
+  projectId: number;
+  parentId?: number;
+  title: string;
+  content?: PluginContentSource;
+  tags?: string[];
+}
+
+export interface PluginDocumentMoveInput {
+  projectId: number;
+  /** 父文档 ID，null 为项目根目录 */
+  from: number | null;
+  to: number | null;
+  index?: number;
+}

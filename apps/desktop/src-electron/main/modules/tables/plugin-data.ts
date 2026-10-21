@@ -17,6 +17,9 @@ import type {
   PluginDataQuery,
   PluginDataRecord,
   PluginDataScope,
+  PluginDocumentCreateInput,
+  PluginDocumentMoveInput,
+  PluginProjectNodeRecord,
   PluginOperationRecord,
   PluginWritableEntity,
 } from "@/types/plugin-data";
@@ -26,6 +29,7 @@ import PluginEntityTable from "./plugin-entity";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
+import { EProjectItemType } from "@/types/project";
 import WhiteboardsTable from "./whiteboard";
 import { emptyWhiteboardPage } from "./white-board-content";
 import ContentTable from "./content";
@@ -36,6 +40,9 @@ import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
 import { PLUGIN_OPERATION_RETENTION_MS, insertPluginOperation } from "./plugin-operations";
 
 const MAX_LIMIT = 200;
+/** 项目目录最多展开的节点数；IN 列表每批的条目数 */
+const MAX_TREE_NODES = 5000;
+const LOCATE_BATCH = 500;
 const CARD_TITLE_LENGTH = 30;
 /** 主进程抛出、渲染端适配层转换为 PluginConflictError 的错误前缀 */
 export const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
@@ -140,6 +147,9 @@ export default class PluginDataTable {
       "plugin-data:get": this.get.bind(this),
       "plugin-data:content": asynchronousDatabaseCommand(this.content.bind(this)),
       "plugin-data:create": asynchronousDatabaseCommand(this.create.bind(this)),
+      "plugin-data:project-tree": this.projectTree.bind(this),
+      "plugin-data:create-document": asynchronousDatabaseCommand(this.createDocument.bind(this)),
+      "plugin-data:move-document": this.moveDocument.bind(this),
       "plugin-data:update": this.update.bind(this),
       "plugin-data:delete": this.remove.bind(this),
       "plugin-data:edit-content": asynchronousDatabaseCommand(this.editContent.bind(this)),
@@ -377,6 +387,162 @@ export default class PluginDataTable {
       )
     )();
     return this.get(db, { ...request, id }) as PluginDataRecord;
+  }
+
+  /**
+   * 项目目录：从项目根逐层展开。同一文档挂在多处时在多处列出；沿路径去重防止环，
+   * 节点总数有上限，避免多处挂载在大项目里成倍展开。
+   */
+  static projectTree(
+    db: Database.Database,
+    request: PluginDataScope & { projectId: number }
+  ): PluginProjectNodeRecord[] | null {
+    this.assertDatabase(db, request);
+    const project = ProjectTable.getProjectOrNull(db, request.projectId);
+    if (!project) return null;
+    type ItemRow = {
+      id: number;
+      title: string;
+      update_time: number;
+      project_item_type: string | null;
+      ref_type: string | null;
+      ref_id: number | null;
+      children: string | null;
+    };
+    const rows = new Map<number, ItemRow>();
+    const pending = [...new Set(project.children)];
+    while (pending.length) {
+      const batch = pending.splice(0, LOCATE_BATCH).filter(id => !rows.has(id));
+      if (!batch.length) continue;
+      const found = db
+        .prepare(
+          `SELECT id, title, update_time, project_item_type, ref_type, ref_id, children
+           FROM project_item WHERE id IN (${batch.map(() => "?").join(",")})`
+        )
+        .all(...batch) as ItemRow[];
+      for (const row of found) {
+        rows.set(row.id, row);
+        for (const child of parseList(row.children))
+          if (Number.isSafeInteger(child) && !rows.has(child as number))
+            pending.push(child as number);
+      }
+    }
+    let budget = MAX_TREE_NODES;
+    const build = (ids: number[], path: Set<number>): PluginProjectNodeRecord[] =>
+      ids.flatMap(id => {
+        const row = rows.get(id);
+        if (!row || path.has(id) || budget <= 0) return [];
+        budget--;
+        const refKind = row.ref_type === "card" || row.ref_type === "article" ? row.ref_type : null;
+        const ref: PluginProjectNodeRecord["ref"] =
+          refKind && row.ref_id ? { kind: refKind, id: row.ref_id } : undefined;
+        const children = parseList(row.children).filter((child): child is number =>
+          Number.isSafeInteger(child)
+        );
+        return [
+          {
+            id: row.id,
+            revision: String(row.update_time),
+            title: row.title,
+            kind: row.project_item_type || "document",
+            ...(ref ? { ref } : {}),
+            children: build(children, new Set(path).add(id)),
+          },
+        ];
+      });
+    return build(project.children, new Set());
+  }
+
+  /** 父文档须已在该项目中；正文缺省为空段落 */
+  static async createDocument(
+    db: Database.Database,
+    request: PluginDataScope & { pluginId: string; input: PluginDocumentCreateInput }
+  ): Promise<PluginDataRecord> {
+    this.assertDatabase(db, request);
+    const { input } = request;
+    const content = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
+    this.assertDatabase(db, request);
+    if (!db.open) throw new Error("数据库连接已失效");
+    const id = db.transaction(() =>
+      writeAsPlugin(request.pluginId, () => {
+        if (!ProjectTable.getProjectOrNull(db, input.projectId)) throw new Error("项目不存在");
+        const item = {
+          title: input.title,
+          content,
+          children: [],
+          refType: "",
+          refId: 0,
+          projectItemType: EProjectItemType.Document,
+          count: 0,
+          whiteBoardContentId: 0,
+          tags: input.tags ?? [],
+        };
+        if (input.parentId === undefined)
+          return ProjectTable.addRootProjectItem(db, input.projectId, item)[1]?.id;
+        this.assertInProject(db, input.parentId, input.projectId);
+        return ProjectTable.addChildProjectItem(db, input.parentId, item)?.[1]?.id;
+      })
+    )();
+    if (!id) throw new Error("新建项目文档失败");
+    return this.get(db, { ...request, entity: "document", id }) as PluginDataRecord;
+  }
+
+  /**
+   * 在同一项目内移动文档的一处：from 下的那一处移到 to 的第 index 位（移动后的序号）。
+   * 复用项目页拖拽的移动与校验（不能移到自己或子文档下、目标不能已含这篇文档）。
+   */
+  static moveDocument(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      id: number;
+      move: PluginDocumentMoveInput;
+      expectedRevision: string;
+    }
+  ): { revision: string } {
+    this.assertDatabase(db, request);
+    this.assertRevision(db, "document", request.id, request.expectedRevision);
+    const { projectId, from, to, index } = request.move;
+    const project = ProjectTable.getProjectOrNull(db, projectId);
+    if (!project) throw new Error("项目不存在");
+    const childrenOf = (parentId: number | null) =>
+      parentId === null ? project.children : this.assertInProject(db, parentId, projectId).children;
+    const source = childrenOf(from);
+    if (!source.includes(request.id)) throw new Error("文档不在 from 指定的位置");
+    const target = childrenOf(to);
+    const same = from === to;
+    const last = same ? target.length - 1 : target.length;
+    const position = Math.min(index ?? last, last);
+    const previous = target.indexOf(request.id);
+    const moved = writeAsPlugin(request.pluginId, () =>
+      ProjectTable.moveProjectTreeItem(db, projectId, {
+        dragItem: {
+          itemId: request.id,
+          parentId: from ?? 0,
+          isRoot: from === null,
+          parentChildren: source,
+        },
+        dropTargetId: 0,
+        dropTargetParentId: 0,
+        dropTargetIsRoot: to === null,
+        dragPosition: "inside",
+        insertParentId: to ?? 0,
+        insertParentIsRoot: to === null,
+        // 宿主按「拖动前的列表」计算插入位置，同一父节点内向后移动时要多算原来那一格
+        insertIndex: same && previous >= 0 && previous < position ? position + 1 : position,
+      })
+    );
+    if (!moved) throw new Error("不能移动到这个位置");
+    const row = db.prepare("SELECT update_time FROM project_item WHERE id = ?").get(request.id) as {
+      update_time: number;
+    };
+    return { revision: String(row.update_time) };
+  }
+
+  private static assertInProject(db: Database.Database, itemId: number, projectId: number) {
+    const item = ProjectTable.getProjectItem(db, itemId);
+    if (!item || !item.projects.includes(projectId)) throw new Error("父文档不在该项目中");
+    return item;
   }
 
   static update(

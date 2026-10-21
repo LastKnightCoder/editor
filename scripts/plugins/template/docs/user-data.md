@@ -21,7 +21,7 @@
 | 权限                                                 | 允许                                                 |
 | ---------------------------------------------------- | ---------------------------------------------------- |
 | `cards:read`、`articles:read`、`documents:read`      | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
-| `cards:write`、`articles:write`、`documents:write`   | 新建（项目文档除外）、修改，以及修改正文             |
+| `cards:write`、`articles:write`、`documents:write`   | 新建、修改，以及修改正文；项目文档还包括在项目内移动 |
 | `cards:delete`、`articles:delete`                    | 删除                                                 |
 | `todos:read`、`todos:write`、`todos:delete`          | 读取、新建与修改、删除待办                           |
 | `calendar:read`、`calendar:write`、`calendar:delete` | 读取、新建与修改、删除日程                           |
@@ -141,6 +141,35 @@ const projects = await context.data.projects.query({ sort: "created" });
 - 项目的 `revision` 在改名、归档、置顶以及增删文档时都会变化。
 - 白板与项目暂没有变化事件，需要时重新查询。
 
+### 项目目录
+
+`projects.tree(id)` 返回项目的文档目录，项目不存在时为 `null`：
+
+```ts
+const tree = await context.data.projects.tree(projectId);
+// [{ documentId, revision, title, kind, ref?, children: [...] }, ...]
+
+// 新建一篇文档，挂在某篇文档下；省略 parentId 时挂在根目录末尾
+const doc = await context.data.documents.create({
+  projectId,
+  parentId: tree![0].documentId,
+  title: "读书笔记",
+  content: { markdown: "第一段" },
+});
+
+// 把它移到根目录第一位
+await context.data.documents.move(
+  doc.id,
+  { projectId, from: tree![0].documentId, to: null, index: 0 },
+  { expectedRevision: doc.revision }
+);
+```
+
+- 同一篇文档可以挂在多处（多个父文档或多个项目下），这时它在目录里出现多次，`documentId` 相同。`move` 用 `from` 指明移动的是哪一处，`from`、`to` 为父文档 ID，`null` 表示根目录。
+- `move` 只在同一项目内移动；不能移到自己或自己的子文档下。`index` 是移动后的序号，从 0 开始，省略时放在末尾。返回文档的新 `revision`。
+- 引用卡片或文章的条目带 `ref`，它的正文归被引用的卡片或文章，`documents.get` 读不到这一项，但可以移动。
+- 读目录需要 `projects:read`，新建与移动需要 `documents:write`。
+
 ### 待办与日程
 
 ```ts
@@ -181,17 +210,18 @@ try {
 }
 ```
 
-| 接口                                        | 可以写的字段                                                              |
-| ------------------------------------------- | ------------------------------------------------------------------------- |
-| `cards.create` / `cards.update`             | 新建：`content`、`tags`、`pinned`；修改：`tags`、`pinned`                 |
-| `articles.create` / `articles.update`       | 新建：`title`（必填）、`content`、`tags`；修改：`title`、`tags`、`pinned` |
-| `documents.update`                          | `title`、`tags`。项目文档不支持新建、移动和删除                           |
-| `whiteboards.create` / `whiteboards.update` | `title`（新建时必填）、`description`、`tags`；新建的白板带一张空白画板页  |
-| `projects.create` / `projects.update`       | 新建：`title`（必填），得到空项目；修改：`title`、`archived`、`pinned`    |
-| `todos.create` / `todos.update`             | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）              |
-| `todos.setCompleted(id, completed, ...)`    | 标记完成或未完成                                                          |
-| `calendar.create` / `calendar.update`       | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）       |
-| `*.delete(id, ...)`                         | 删除卡片、文章、待办、日程。白板与项目暂不能删除                          |
+| 接口                                                      | 可以写的字段                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `cards.create` / `cards.update`                           | 新建：`content`、`tags`、`pinned`；修改：`tags`、`pinned`                                            |
+| `articles.create` / `articles.update`                     | 新建：`title`（必填）、`content`、`tags`；修改：`title`、`tags`、`pinned`                            |
+| `documents.create` / `documents.update`                   | 新建：`projectId`、`parentId`（省略时挂在根目录）、`title`、`content`、`tags`；修改：`title`、`tags` |
+| `documents.move(id, { projectId, from, to, index }, ...)` | 在同一项目内移动，见「项目目录」                                                                     |
+| `whiteboards.create` / `whiteboards.update`               | `title`（新建时必填）、`description`、`tags`；新建的白板带一张空白画板页                             |
+| `projects.create` / `projects.update`                     | 新建：`title`（必填），得到空项目；修改：`title`、`archived`、`pinned`                               |
+| `todos.create` / `todos.update`                           | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）                                         |
+| `todos.setCompleted(id, completed, ...)`                  | 标记完成或未完成                                                                                     |
+| `calendar.create` / `calendar.update`                     | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）                                  |
+| `*.delete(id, ...)`                                       | 删除卡片、文章、待办、日程。白板、项目与项目文档暂不能删除                                           |
 
 全天日程的 `start`、`end` 用 `YYYY-MM-DD`，且 `end` 不包含当天：一个只占 10 月 21 日的全天日程，`end` 是 `2026-10-22`。定时日程用带时区的 ISO 时间。
 

@@ -76,8 +76,11 @@ import type {
   PluginContentEdit,
   PluginContentRef,
   PluginContentSnapshot,
+  PluginDocumentInput,
+  PluginDocumentMove,
   PluginDocumentPatch,
   PluginProjectInput,
+  PluginProjectNode,
   PluginProjectPatch,
   PluginWhiteboardInput,
   PluginWhiteboardPatch,
@@ -255,6 +258,14 @@ export interface DataAdapter {
     context: PluginContext,
     ref: PluginContentRef,
     edit: PluginContentEdit,
+    expectedRevision: string
+  ): Promise<{ revision: string }>;
+  projectTree(context: PluginContext, projectId: string): Promise<PluginProjectNode[] | null>;
+  createDocument(context: PluginContext, input: PluginDocumentInput): Promise<unknown>;
+  moveDocument(
+    context: PluginContext,
+    id: string,
+    move: PluginDocumentMove,
     expectedRevision: string
   ): Promise<{ revision: string }>;
 }
@@ -492,6 +503,21 @@ function readFields<T>(
   }
   if (!Object.keys(result).length) throw new Error("没有要修改的字段");
   return result as T;
+}
+
+function readDocumentMove(value: unknown): PluginDocumentMove {
+  const move = value as Partial<PluginDocumentMove> | undefined;
+  if (!move || typeof move !== "object") throw new Error("移动参数无效");
+  const parent = (id: unknown) => (id === null ? null : readId(id));
+  if (move.from === undefined || move.to === undefined) throw new Error("移动需要 from 与 to");
+  if (move.index !== undefined && (!Number.isSafeInteger(move.index) || (move.index as number) < 0))
+    throw new Error("index 必须是非负整数");
+  return {
+    projectId: readId(move.projectId),
+    from: parent(move.from),
+    to: parent(move.to),
+    ...(move.index !== undefined ? { index: move.index } : {}),
+  };
 }
 
 function readContentEdit(value: unknown): PluginContentEdit {
@@ -1709,8 +1735,47 @@ export class PluginHost {
           ...remover("article"),
         }),
         whiteboards: Object.freeze({ ...reader("whiteboard"), ...creator("whiteboard") }),
-        projects: Object.freeze({ ...reader("project"), ...creator("project") }),
-        documents: reader("document"),
+        projects: Object.freeze({
+          ...reader("project"),
+          ...creator("project"),
+          tree: async (id: string) => {
+            const projectId = readId(id);
+            await guard(ENTITY_PERMISSIONS.project);
+            return deliver<PluginProjectNode[] | null>(
+              await dataAdapter().projectTree(context, projectId)
+            );
+          },
+        }),
+        documents: Object.freeze({
+          ...reader("document"),
+          create: async (input: unknown) => {
+            const raw = (input ?? {}) as Record<string, unknown>;
+            if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+            const { content, projectId, parentId, ...fields } = raw;
+            const value: PluginDocumentInput = {
+              ...readFields<Pick<PluginDocumentInput, "title" | "tags">>(
+                fields,
+                { title: MAX_TITLE, tags: "tags" },
+                ["title"]
+              ),
+              projectId: readId(projectId),
+              ...(parentId !== undefined ? { parentId: readId(parentId) } : {}),
+              ...(content !== undefined
+                ? { content: readContentInput(content, { allowEmpty: true }) }
+                : {}),
+            };
+            await guard(WRITE_PERMISSIONS.document);
+            return deliver<never>(await dataAdapter().createDocument(context, value));
+          },
+          move: async (id: string, move: unknown, options: PluginWriteOptions) => {
+            const value = readDocumentMove(move);
+            const revision = readRevision(options);
+            await guard(WRITE_PERMISSIONS.document);
+            return deliver<{ revision: string }>(
+              await dataAdapter().moveDocument(context, readId(id), value, revision)
+            );
+          },
+        }),
         todos: Object.freeze({
           create: async (input: PluginTodoInput) => {
             const value = readFields<PluginTodoInput>(

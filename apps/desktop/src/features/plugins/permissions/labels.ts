@@ -14,7 +14,10 @@ export const PERMISSION_LABELS: Record<PluginPermission, { label: string; detail
   "articles:write": { label: "新建和修改文章", detail: "包括文章标题、正文和标签" },
   "articles:delete": { label: "删除文章", detail: "删除后 7 天内可在插件详情页恢复" },
   "documents:read": { label: "读取项目文档", detail: "项目文档的标题、正文和所属项目" },
-  "documents:write": { label: "修改项目文档", detail: "项目文档的标题、标签和正文" },
+  "documents:write": {
+    label: "新建和修改项目文档",
+    detail: "在项目中新建与移动文档，修改标题、标签和正文",
+  },
   "whiteboards:read": { label: "读取白板", detail: "白板的标题、说明、标签和页数" },
   "whiteboards:write": { label: "新建和修改白板", detail: "白板的标题、说明和标签，不含画板内容" },
   "projects:read": { label: "读取项目", detail: "项目的标题和文档目录" },

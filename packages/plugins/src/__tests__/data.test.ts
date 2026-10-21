@@ -80,6 +80,18 @@ function setup({
       calls.push(["editContent", ref, edit, revision]);
       return { revision: "r2" };
     },
+    async projectTree(_context, id) {
+      calls.push(["projectTree", id]);
+      return id === "2" ? [] : null;
+    },
+    async createDocument(_context, input) {
+      calls.push(["createDocument", input]);
+      return card;
+    },
+    async moveDocument(_context, id, move, revision) {
+      calls.push(["moveDocument", id, move, revision]);
+      return { revision: "r9" };
+    },
     readContent: async (_context, ref) => ({
       owners,
       own,
@@ -666,5 +678,54 @@ describe("插件业务数据与权限", () => {
     await expect(
       context().data.whiteboards.update("4", { archived: true } as never, { expectedRevision: "1" })
     ).rejects.toThrow("没有要修改的字段");
+  });
+
+  it("项目目录与文档新建、移动：读目录需要项目读取权限，写入需要文档写入权限", async () => {
+    const { host, calls, context } = setup({
+      declared: ["projects:read", "documents:write"],
+      granted: new Set<PluginPermission>(["projects:read", "documents:write"]),
+    });
+    await host.enable("weekly");
+    expect(await context().data.projects.tree("2")).toEqual([]);
+    expect(await context().data.projects.tree("9")).toBeNull();
+    await context().data.documents.create({
+      projectId: "2",
+      title: "笔记",
+      content: { markdown: "# 笔记" },
+    });
+    expect(
+      await context().data.documents.move(
+        "31",
+        { projectId: "2", from: null, to: "30", index: 0 },
+        { expectedRevision: "r1" }
+      )
+    ).toEqual({ revision: "r9" });
+    expect(calls.filter(call => call[0] !== "ensure")).toEqual([
+      ["projectTree", "2"],
+      ["projectTree", "9"],
+      ["createDocument", { title: "笔记", projectId: "2", content: { markdown: "# 笔记" } }],
+      ["moveDocument", "31", { projectId: "2", from: null, to: "30", index: 0 }, "r1"],
+    ]);
+    expect(calls.filter(call => call[0] === "ensure").map(call => call[2])).toEqual([
+      "projects:read",
+      "projects:read",
+      "documents:write",
+      "documents:write",
+    ]);
+    await expect(context().data.documents.create({ title: "无项目" } as never)).rejects.toThrow(
+      "ID 无效"
+    );
+    await expect(
+      context().data.documents.move("31", { projectId: "2", to: "30" } as never, {
+        expectedRevision: "r1",
+      })
+    ).rejects.toThrow("from 与 to");
+    await expect(
+      context().data.documents.move(
+        "31",
+        { projectId: "2", from: null, to: null, index: -1 },
+        { expectedRevision: "r1" }
+      )
+    ).rejects.toThrow("非负整数");
   });
 });

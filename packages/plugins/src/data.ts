@@ -5,6 +5,7 @@
  */
 import type { Descendant } from "slate";
 import type { PluginContentInput } from "./content-input";
+import type { PluginEntityRef } from "./app";
 
 /** 一份正文的句柄，从实体上取得，传给 context.content 读取 */
 export type PluginContentRef = string;
@@ -103,6 +104,40 @@ export interface PluginProjectPatch {
   title?: string;
   archived?: boolean;
   pinned?: boolean;
+}
+
+/**
+ * 项目目录中的一处。同一篇文档可以挂在多处，这时会在目录里出现多次，documentId 相同。
+ */
+export interface PluginProjectNode {
+  documentId: string;
+  /** 文档的版本，documents.move 时作为 expectedRevision 传回 */
+  revision: string;
+  title: string;
+  /** document（富文本）、white-board 等 */
+  kind: string;
+  /** 引用卡片或文章的条目：正文归被引用的内容，documents.get 读不到这一项 */
+  ref?: PluginEntityRef;
+  children: PluginProjectNode[];
+}
+
+export interface PluginDocumentInput {
+  projectId: string;
+  /** 挂在哪篇文档下；省略时挂在项目根目录末尾 */
+  parentId?: string;
+  title: string;
+  /** 正文；省略时为空 */
+  content?: PluginContentInput;
+  tags?: string[];
+}
+
+/** 在同一项目内移动文档的一处位置；from / to 为父文档 ID，null 表示项目根目录 */
+export interface PluginDocumentMove {
+  projectId: string;
+  from: string | null;
+  to: string | null;
+  /** 移动后在新位置中的序号，从 0 开始；省略时放在末尾 */
+  index?: number;
 }
 
 export interface PluginEntityReader<T> {
@@ -237,19 +272,28 @@ export interface PluginData {
   readonly projects: PluginEntityReader<PluginProject> & {
     /** 新建一个空项目 */
     create(input: PluginProjectInput): Promise<PluginProject>;
+    /** 项目的文档目录；项目不存在时为 null */
+    tree(id: string): Promise<PluginProjectNode[] | null>;
     update(
       id: string,
       patch: PluginProjectPatch,
       options: PluginWriteOptions
     ): Promise<PluginProject>;
   };
-  /** 项目文档只能修改标题与标签；新建、移动与删除涉及文档树，暂不开放 */
+  /** 项目文档：新建、修改标题与标签、在项目内移动；删除暂不开放 */
   readonly documents: PluginEntityReader<PluginDocument> & {
+    create(input: PluginDocumentInput): Promise<PluginDocument>;
     update(
       id: string,
       patch: PluginDocumentPatch,
       options: PluginWriteOptions
     ): Promise<PluginDocument>;
+    /** 移动挂在 from 下的那一处；不能移到自己或自己的子文档下。返回文档的新版本 */
+    move(
+      id: string,
+      move: PluginDocumentMove,
+      options: PluginWriteOptions
+    ): Promise<{ revision: string }>;
   };
   readonly todos: {
     query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>>;

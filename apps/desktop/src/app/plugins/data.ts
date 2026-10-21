@@ -9,6 +9,7 @@ import {
   type PluginContext,
   type PluginDocument,
   type PluginProject,
+  type PluginProjectNode,
   type PluginWhiteboard,
   type PluginTodo,
 } from "@tau/plugins";
@@ -34,6 +35,7 @@ import type {
   PluginDataCreateInput,
   PluginDataRecord,
   PluginOperationRecord,
+  PluginProjectNodeRecord,
 } from "@/types/plugin-data";
 
 import { encodeContentRef, decodeContentRef } from "@/utils/plugin-content-ref";
@@ -451,6 +453,38 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         ...(result.nextCursor ? { cursor: result.nextCursor } : {}),
       };
     },
+    async projectTree(context, projectId) {
+      const nodes = await bound(context).getPluginProjectTree(databaseName, requireId(projectId));
+      return nodes && nodes.map(toProjectNode);
+    },
+    async createDocument(context, { content, projectId, parentId, ...fields }) {
+      const record = await bound(context).createPluginDocument(databaseName, context.pluginId, {
+        ...fields,
+        projectId: requireId(projectId),
+        ...(parentId !== undefined ? { parentId: requireId(parentId) } : {}),
+        ...(content ? { content: toContentSource(content) } : {}),
+      });
+      refreshLists("project");
+      return toEntity(record);
+    },
+    async moveDocument(context, id, { projectId, from, to, index }, expectedRevision) {
+      const result = await mapConflict(() =>
+        bound(context).movePluginDocument(
+          databaseName,
+          context.pluginId,
+          requireId(id),
+          {
+            projectId: requireId(projectId),
+            from: from === null ? null : requireId(from),
+            to: to === null ? null : requireId(to),
+            ...(index !== undefined ? { index } : {}),
+          },
+          expectedRevision
+        )
+      );
+      refreshLists("project");
+      return result;
+    },
     async readContent(context, ref, format) {
       const decoded = decodeContentRef(ref);
       if (!decoded) return null;
@@ -478,6 +512,17 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
   };
 }
 
+function toProjectNode(node: PluginProjectNodeRecord): PluginProjectNode {
+  return {
+    documentId: String(node.id),
+    revision: node.revision,
+    title: node.title,
+    kind: node.kind,
+    ...(node.ref ? { ref: { kind: node.ref.kind, id: String(node.ref.id) } } : {}),
+    children: node.children.map(toProjectNode),
+  };
+}
+
 function requireId(id: string): number {
   const numeric = parseId(id);
   if (numeric === null) throw new Error("ID 无效");
@@ -489,11 +534,12 @@ function refreshArticles() {
   void queryClient.invalidateQueries({ queryKey: ["articles"] });
 }
 
-/** 白板与项目没有写入广播，插件写入后按查询失效刷新本窗口；其他窗口在聚焦时重拉 */
+/** 白板与项目没有写入广播，插件写入后按查询失效刷新本窗口；其他窗口在聚焦时重拉。项目文档的目录随项目刷新 */
 const LIST_KEYS: Partial<Record<DataEntity, string>> = {
   article: "articles",
   whiteboard: "whiteboards",
   project: "projects",
+  document: "projects",
 };
 
 function refreshLists(entity: DataEntity) {
