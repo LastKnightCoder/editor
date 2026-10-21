@@ -321,6 +321,15 @@ describe("格式命令与后备热键", () => {
     expect(Editor.marks(keyboard.editor)?.bold).toBeUndefined();
   });
 
+  it("高亮命令写入默认颜色而非布尔值，再次执行取消", () => {
+    vi.spyOn(ReactEditor, "focus").mockImplementation(() => undefined);
+    const { editor, dispatcher } = setup();
+    dispatcher.execute(editor, "tau.mark.highlight", { payload: { source: "toolbar" } });
+    expect(Editor.marks(editor)?.highlight).toBe("yellow");
+    dispatcher.execute(editor, "tau.mark.highlight", { payload: { source: "toolbar" } });
+    expect(Editor.marks(editor)?.highlight).toBeUndefined();
+  });
+
   it("只读时格式与颜色命令均拒绝写入", () => {
     const { editor, dispatcher } = setup();
     const before = editor.children;

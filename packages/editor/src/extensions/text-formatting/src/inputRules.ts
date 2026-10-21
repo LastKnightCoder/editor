@@ -27,7 +27,7 @@ export const textFormattingInputRules: MarkInputRule[] = [
     excludeMarks,
   },
   { id: "tau.mark.strikethrough", delimiter: "~~", marks: { strikethrough: true }, excludeMarks },
-  // 高亮写颜色值而非 true：导出 Markdown 时只有带颜色的高亮能写进 `:highlight[]` 指令
+  // 高亮写颜色值而非 true，与 mod+m 高亮命令一致
   { id: "tau.mark.highlight", delimiter: "==", marks: { highlight: "yellow" }, excludeMarks },
   { id: "tau.mark.code", delimiter: "`", marks: { code: true }, excludeMarks },
 ];
