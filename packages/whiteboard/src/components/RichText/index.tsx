@@ -58,6 +58,7 @@ const styles = {
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
 import { handTextClass } from "../../utils/sketch";
+import { registerWheelScrollArea } from "../../utils/wheelGesture";
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;
 
@@ -404,16 +405,13 @@ const Richtext = (props: RichTextProps) => {
 
   useEffect(() => {
     if (!editorEl) return;
-
-    const stopWheelPropagation = (e: WheelEvent) => {
-      if (e.ctrlKey) return;
-      e.stopPropagation();
+    const unregister = registerWheelScrollArea(editorEl);
+    const stopWheelPropagation = (event: WheelEvent) => {
+      if (!event.ctrlKey) event.stopPropagation();
     };
-
-    // 正文滚动与画布隔离，边界也不传递；保留默认滚动和 Ctrl 缩放。
     editorEl.addEventListener("wheel", stopWheelPropagation, { passive: true });
-
     return () => {
+      unregister();
       editorEl.removeEventListener("wheel", stopWheelPropagation);
     };
   }, [editorEl]);
