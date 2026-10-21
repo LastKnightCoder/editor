@@ -7,7 +7,7 @@ import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 const defaultSlots = createDefaultEditorSlots();
 const useSlots = () => useOptionalService(IEditorSlots) ?? defaultSlots;
 
-/** 发布站的资源在发布时已改写为公开地址，原样使用；没有资源存储，不提供上传。 */
+/** 发布站与内置图片块一致，原样加载节点里的地址；没有资源存储，不提供上传。 */
 export const blogMediaRuntime: MediaRuntime = {
   useResource: url => ({
     src: url || undefined,

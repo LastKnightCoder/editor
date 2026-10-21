@@ -25,7 +25,12 @@ async function until(code) {
       diagnostics.join("\n")
   );
 }
-const click = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+const click = selector =>
+  evaluate(
+    `(()=>{const node=document.querySelector(${JSON.stringify(selector)});if(!node)throw Error(${JSON.stringify("缺少元素：" + selector)});node.click()})()`
+  ).catch(error => {
+    throw new Error(`点击 ${selector} 失败：${error.message}`);
+  });
 async function run() {
   await app.whenReady();
   window = new BrowserWindow({
@@ -43,10 +48,41 @@ async function run() {
   cases.push("独立博客从正式数据产物加载原文章页面与完整编辑器");
   window.setContentSize(1280, 800);
   await until("getComputedStyle(document.querySelector('header nav.hidden')).display === 'flex'");
-  cases.push("@tau/blog 样式处于级联层，模板的断点工具类可覆盖（桌面导航可见）");
+  cases.push(
+    "@tau/blog 样式处于级联层，模板的断点工具类可覆盖（桌面导航可见），同页图册插件的样式不覆盖模板"
+  );
   await click("[data-portable-counter] button");
   await until("document.querySelector('[data-portable-counter] output')?.textContent === '8'");
   cases.push("真实 C23 插件经公开渲染器运行，计数交互可用");
+  const gallery = "[data-element-frame]:has(img[src^='data:image/svg'])";
+  await until(`document.querySelectorAll("${gallery} img").length === 3`);
+  assert(
+    await evaluate(
+      `[...document.querySelectorAll("${gallery} img")].every(img => img.complete && img.naturalWidth === 400)`
+    ),
+    "图册图片未加载"
+  );
+  assert(
+    await evaluate(
+      "[...document.querySelectorAll('style')].some(style => style.textContent.includes('.swiper'))"
+    ),
+    "图册插件样式未注入"
+  );
+  await evaluate(
+    `document.querySelector("${gallery}").firstElementChild.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))`
+  );
+  await pause(50);
+  assert(
+    await evaluate(`!document.querySelector('[role="toolbar"][aria-label="图册属性"]')`),
+    "只读正文出现图册属性条"
+  );
+  await evaluate(`document.querySelector("${gallery} img").click()`);
+  await until(
+    `document.querySelector('[role="dialog"][aria-label="图片预览"]')?.textContent.includes('图册第1张')`
+  );
+  await click('[role="dialog"][aria-label="图片预览"] button[title="关闭 (Esc)"]');
+  await until(`!document.querySelector('[role="dialog"][aria-label="图片预览"]')`);
+  cases.push("正式图册插件经公开渲染器显示图片与样式，只读无属性条，单击打开图片查看器");
   await until("Boolean(document.querySelector('#html-fragment-button'))");
   assert(
     await evaluate("!document.querySelector('iframe[title=\"HTML 文档\"]')"),
@@ -64,17 +100,15 @@ async function run() {
     "8"
   );
   cases.push("HTML 使用原插件渲染、交互与伴生 CSS，无模板 iframe 适配");
-  await click('button[title="全屏"]');
-  await until(`Boolean(document.querySelector('[aria-label="HTML 全屏"]'))`);
-  await evaluate(
-    `document.querySelector('[aria-label="HTML 全屏"] button[title="显示源码"]')?.click()`
+  // 源码块的全屏工作台已退役，只读时操作条只有「复制源码」
+  assert(
+    await evaluate(
+      `Boolean(document.querySelector('button[aria-label="复制源码"], button[title="复制源码"]')) && !document.querySelector('button[aria-label="全屏"], button[title="全屏"]')`
+    ),
+    "只读源码块的操作条应只有复制源码"
   );
-  await until(
-    `document.querySelector('[aria-label="HTML 全屏"] .CodeMirror')?.CodeMirror?.getMode()?.name === 'htmlmixed'`
-  );
-  await click('[aria-label="HTML 全屏"] button[title="关闭 (Esc)"]');
-  await until(`!document.querySelector('[aria-label="HTML 全屏"]')`);
-  cases.push("公开 Editor 包保留源码全屏与 HTML 语法模式，退出不改写只读正文");
+  assert.equal(await evaluate("document.querySelector('#html-fragment-button').textContent"), "1");
+  cases.push("只读源码块只提供复制源码，不改写正文");
   await evaluate(
     `(()=>{const link=document.querySelector('a.blog-content-link[href*="articles/2"]');if(!link)throw Error('缺少预览链接');link.dispatchEvent(new PointerEvent('pointerover',{bubbles:true,pointerType:'mouse'}));link.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));})()`
   );

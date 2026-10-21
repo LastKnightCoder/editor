@@ -3,316 +3,290 @@
 @layer properties;
 @layer theme {
   :root, :host {
-    --spacing: 0.25rem;
-    --font-weight-medium: 500;
-    --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    --default-transition-duration: 150ms;
-    --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    --ig-spacing: 0.25rem;
+    --ig-font-weight-medium: 500;
+    --ig-animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    --ig-default-transition-duration: 150ms;
+    --ig-default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    --ig-shadow-card: var(--tau-shadow-card);
+    --ig-shadow-lift: var(--tau-shadow-lift);
+    --ig-shadow-float: var(--tau-shadow-float);
   }
 }
 @layer utilities {
-  .pointer-events-none {
+  .ig\:pointer-events-none {
     pointer-events: none;
   }
-  .absolute {
+  .ig\:absolute {
     position: absolute;
   }
-  .relative {
+  .ig\:relative {
     position: relative;
   }
-  .inset-0 {
-    inset: calc(var(--spacing) * 0);
+  .ig\:inset-0 {
+    inset: calc(var(--ig-spacing) * 0);
   }
-  .top-1\.5 {
-    top: calc(var(--spacing) * 1.5);
+  .ig\:top-1\.5 {
+    top: calc(var(--ig-spacing) * 1.5);
   }
-  .right-1\.5 {
-    right: calc(var(--spacing) * 1.5);
+  .ig\:right-1\.5 {
+    right: calc(var(--ig-spacing) * 1.5);
   }
-  .col-span-2 {
+  .ig\:col-span-2 {
     grid-column: span 2 / span 2;
   }
-  .container {
-    width: 100%;
-    @media (width >= 40rem) {
-      max-width: 40rem;
-    }
-    @media (width >= 48rem) {
-      max-width: 48rem;
-    }
-    @media (width >= 64rem) {
-      max-width: 64rem;
-    }
-    @media (width >= 80rem) {
-      max-width: 80rem;
-    }
-    @media (width >= 96rem) {
-      max-width: 96rem;
-    }
+  .ig\:mt-1 {
+    margin-top: calc(var(--ig-spacing) * 1);
   }
-  .mt-1 {
-    margin-top: calc(var(--spacing) * 1);
+  .ig\:mb-4 {
+    margin-bottom: calc(var(--ig-spacing) * 4);
   }
-  .mb-4 {
-    margin-bottom: calc(var(--spacing) * 4);
-  }
-  .block {
-    display: block;
-  }
-  .contents {
+  .ig\:contents {
     display: contents;
   }
-  .flex {
+  .ig\:flex {
     display: flex;
   }
-  .grid {
+  .ig\:grid {
     display: grid;
   }
-  .hidden {
+  .ig\:hidden {
     display: none;
   }
-  .aspect-square {
+  .ig\:aspect-square {
     aspect-ratio: 1 / 1;
   }
-  .size-3\.5 {
-    width: calc(var(--spacing) * 3.5);
-    height: calc(var(--spacing) * 3.5);
+  .ig\:size-3\.5 {
+    width: calc(var(--ig-spacing) * 3.5);
+    height: calc(var(--ig-spacing) * 3.5);
   }
-  .size-5 {
-    width: calc(var(--spacing) * 5);
-    height: calc(var(--spacing) * 5);
+  .ig\:size-5 {
+    width: calc(var(--ig-spacing) * 5);
+    height: calc(var(--ig-spacing) * 5);
   }
-  .size-6 {
-    width: calc(var(--spacing) * 6);
-    height: calc(var(--spacing) * 6);
+  .ig\:size-6 {
+    width: calc(var(--ig-spacing) * 6);
+    height: calc(var(--ig-spacing) * 6);
   }
-  .size-8 {
-    width: calc(var(--spacing) * 8);
-    height: calc(var(--spacing) * 8);
+  .ig\:size-8 {
+    width: calc(var(--ig-spacing) * 8);
+    height: calc(var(--ig-spacing) * 8);
   }
-  .size-10 {
-    width: calc(var(--spacing) * 10);
-    height: calc(var(--spacing) * 10);
+  .ig\:size-10 {
+    width: calc(var(--ig-spacing) * 10);
+    height: calc(var(--ig-spacing) * 10);
   }
-  .size-16 {
-    width: calc(var(--spacing) * 16);
-    height: calc(var(--spacing) * 16);
+  .ig\:size-16 {
+    width: calc(var(--ig-spacing) * 16);
+    height: calc(var(--ig-spacing) * 16);
   }
-  .h-48 {
-    height: calc(var(--spacing) * 48);
+  .ig\:h-48 {
+    height: calc(var(--ig-spacing) * 48);
   }
-  .h-full {
+  .ig\:h-full {
     height: 100%;
   }
-  .h-px {
+  .ig\:h-px {
     height: 1px;
   }
-  .w-\[calc\(100\%\+10em\)\] {
+  .ig\:w-\[calc\(100\%\+10em\)\] {
     width: calc(100% + 10em);
   }
-  .w-full {
+  .ig\:w-full {
     width: 100%;
   }
-  .flex-1 {
+  .ig\:flex-1 {
     flex: 1;
   }
-  .-translate-x-\[5em\] {
+  .ig\:-translate-x-\[5em\] {
     --tw-translate-x: calc(5em * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
-  .animate-pulse {
-    animation: var(--animate-pulse);
+  .ig\:animate-pulse {
+    animation: var(--ig-animate-pulse);
   }
-  .cursor-grab {
+  .ig\:cursor-grab {
     cursor: grab;
   }
-  .cursor-grabbing {
+  .ig\:cursor-grabbing {
     cursor: grabbing;
   }
-  .cursor-pointer {
+  .ig\:cursor-pointer {
     cursor: pointer;
   }
-  .grid-cols-2 {
+  .ig\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .grid-cols-4 {
+  .ig\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .flex-col {
+  .ig\:flex-col {
     flex-direction: column;
   }
-  .place-items-center {
+  .ig\:place-items-center {
     place-items: center;
   }
-  .items-center {
+  .ig\:items-center {
     align-items: center;
   }
-  .justify-center {
+  .ig\:justify-center {
     justify-content: center;
   }
-  .gap-2 {
-    gap: calc(var(--spacing) * 2);
+  .ig\:gap-2 {
+    gap: calc(var(--ig-spacing) * 2);
   }
-  .gap-2\.5 {
-    gap: calc(var(--spacing) * 2.5);
+  .ig\:gap-2\.5 {
+    gap: calc(var(--ig-spacing) * 2.5);
   }
-  .gap-3 {
-    gap: calc(var(--spacing) * 3);
+  .ig\:gap-3 {
+    gap: calc(var(--ig-spacing) * 3);
   }
-  .gap-4 {
-    gap: calc(var(--spacing) * 4);
+  .ig\:gap-4 {
+    gap: calc(var(--ig-spacing) * 4);
   }
-  .gap-6 {
-    gap: calc(var(--spacing) * 6);
+  .ig\:gap-6 {
+    gap: calc(var(--ig-spacing) * 6);
   }
-  .overflow-hidden {
+  .ig\:overflow-hidden {
     overflow: hidden;
   }
-  .rounded-\[12px\] {
+  .ig\:rounded-\[12px\] {
     border-radius: 12px;
   }
-  .rounded-\[var\(--tau-radius-sm\)\] {
+  .ig\:rounded-\[var\(--tau-radius-sm\)\] {
     border-radius: var(--tau-radius-sm);
   }
-  .rounded-full {
+  .ig\:rounded-full {
     border-radius: calc(infinity * 1px);
   }
-  .rounded-tau-md {
+  .ig\:rounded-tau-md {
     border-radius: var(--tau-radius-md);
   }
-  .border-2 {
+  .ig\:border-2 {
     border-style: var(--tw-border-style);
     border-width: 2px;
   }
-  .border-dashed {
+  .ig\:border-dashed {
     --tw-border-style: dashed;
     border-style: dashed;
   }
-  .border-none {
+  .ig\:border-none {
     --tw-border-style: none;
     border-style: none;
   }
-  .border-line-2 {
+  .ig\:border-line-2 {
     border-color: var(--tau-line-2);
   }
-  .bg-\[var\(--ed-bg-hover\)\] {
+  .ig\:bg-\[var\(--ed-bg-hover\)\] {
     background-color: var(--ed-bg-hover);
   }
-  .bg-\[var\(--ed-bg-surface\)\] {
+  .ig\:bg-\[var\(--ed-bg-surface\)\] {
     background-color: var(--ed-bg-surface);
   }
-  .bg-accent-soft {
+  .ig\:bg-accent-soft {
     background-color: var(--tau-accent-soft);
   }
-  .bg-line-1 {
+  .ig\:bg-line-1 {
     background-color: var(--tau-line-1);
   }
-  .bg-surface {
+  .ig\:bg-surface {
     background-color: var(--tau-bg-surface);
   }
-  .bg-surface-hover {
+  .ig\:bg-surface-hover {
     background-color: var(--tau-bg-surface-hover);
   }
-  .bg-surface\/90 {
+  .ig\:bg-surface\/90 {
     background-color: var(--tau-bg-surface);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--tau-bg-surface) 90%, transparent);
     }
   }
-  .object-cover {
+  .ig\:object-cover {
     object-fit: cover;
   }
-  .px-4 {
-    padding-inline: calc(var(--spacing) * 4);
+  .ig\:px-4 {
+    padding-inline: calc(var(--ig-spacing) * 4);
   }
-  .py-3 {
-    padding-block: calc(var(--spacing) * 3);
+  .ig\:py-3 {
+    padding-block: calc(var(--ig-spacing) * 3);
   }
-  .py-8 {
-    padding-block: calc(var(--spacing) * 8);
+  .ig\:py-8 {
+    padding-block: calc(var(--ig-spacing) * 8);
   }
-  .py-10 {
-    padding-block: calc(var(--spacing) * 10);
+  .ig\:py-10 {
+    padding-block: calc(var(--ig-spacing) * 10);
   }
-  .text-center {
+  .ig\:text-center {
     text-align: center;
   }
-  .text-tau-body {
+  .ig\:text-tau-body {
     font-size: var(--tau-text-body);
     line-height: var(--tw-leading, 1.65);
   }
-  .text-tau-meta {
+  .ig\:text-tau-meta {
     font-size: var(--tau-text-meta);
   }
-  .font-medium {
-    --tw-font-weight: var(--font-weight-medium);
-    font-weight: var(--font-weight-medium);
+  .ig\:font-medium {
+    --tw-font-weight: var(--ig-font-weight-medium);
+    font-weight: var(--ig-font-weight-medium);
   }
-  .text-\[var\(--ed-text-secondary\)\] {
+  .ig\:text-\[var\(--ed-text-secondary\)\] {
     color: var(--ed-text-secondary);
   }
-  .text-accent-text {
+  .ig\:text-accent-text {
     color: var(--tau-accent-text);
   }
-  .text-ink-2 {
+  .ig\:text-ink-2 {
     color: var(--tau-ink-2);
   }
-  .text-ink-3 {
+  .ig\:text-ink-3 {
     color: var(--tau-ink-3);
   }
-  .opacity-0 {
+  .ig\:opacity-0 {
     opacity: 0%;
   }
-  .\!shadow {
-    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1)) !important;
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow) !important;
-  }
-  .shadow {
-    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-  .shadow-\[0_0_0_1px_var\(--ed-border\)\] {
+  .ig\:shadow-\[0_0_0_1px_var\(--ed-border\)\] {
     --tw-shadow: 0 0 0 1px var(--tw-shadow-color, var(--ed-border));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .shadow-float {
+  .ig\:shadow-float {
     --tw-shadow: var(--tau-shadow-float);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .ring-2 {
+  .ig\:ring-2 {
     --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
-  .ring-accent {
+  .ig\:ring-accent {
     --tw-ring-color: var(--tau-accent);
   }
-  .ring-transparent {
+  .ig\:ring-transparent {
     --tw-ring-color: transparent;
   }
-  .transition-\[box-shadow\] {
+  .ig\:transition-\[box-shadow\] {
     transition-property: box-shadow;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
+    transition-timing-function: var(--tw-ease, var(--ig-default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--ig-default-transition-duration));
   }
-  .transition-colors {
+  .ig\:transition-colors {
     transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to;
-    transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
-    transition-duration: var(--tw-duration, var(--default-transition-duration));
+    transition-timing-function: var(--tw-ease, var(--ig-default-transition-timing-function));
+    transition-duration: var(--tw-duration, var(--ig-default-transition-duration));
   }
-  .duration-200 {
+  .ig\:duration-200 {
     --tw-duration: 200ms;
     transition-duration: 200ms;
   }
-  .ease-tau-out {
+  .ig\:ease-tau-out {
     --tw-ease: var(--tau-ease-out);
     transition-timing-function: var(--tau-ease-out);
   }
-  .outline-none {
+  .ig\:outline-none {
     --tw-outline-style: none;
     outline-style: none;
   }
-  .group-hover\:bg-overlay\/50 {
-    &:is(:where(.group):hover *) {
+  .ig\:group-hover\:bg-overlay\/50 {
+    &:is(:where(.ig\:group):hover *) {
       @media (hover: hover) {
         background-color: var(--tau-overlay);
         @supports (color: color-mix(in lab, red, red)) {
@@ -321,39 +295,39 @@
       }
     }
   }
-  .group-hover\:opacity-100 {
-    &:is(:where(.group):hover *) {
+  .ig\:group-hover\:opacity-100 {
+    &:is(:where(.ig\:group):hover *) {
       @media (hover: hover) {
         opacity: 100%;
       }
     }
   }
-  .hover\:bg-\[var\(--ed-bg-hover\)\] {
+  .ig\:hover\:bg-\[var\(--ed-bg-hover\)\] {
     &:hover {
       @media (hover: hover) {
         background-color: var(--ed-bg-hover);
       }
     }
   }
-  .hover\:ring-line-2 {
+  .ig\:hover\:ring-line-2 {
     &:hover {
       @media (hover: hover) {
         --tw-ring-color: var(--tau-line-2);
       }
     }
   }
-  .focus-visible\:opacity-100 {
+  .ig\:focus-visible\:opacity-100 {
     &:focus-visible {
       opacity: 100%;
     }
   }
-  .focus-visible\:shadow-\[var\(--tau-focus-ring\)\] {
+  .ig\:focus-visible\:shadow-\[var\(--tau-focus-ring\)\] {
     &:focus-visible {
       --tw-shadow: var(--tau-focus-ring);
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
     }
   }
-  .enabled\:hover\:border-accent {
+  .ig\:enabled\:hover\:border-accent {
     &:enabled {
       &:hover {
         @media (hover: hover) {
@@ -362,7 +336,7 @@
       }
     }
   }
-  .enabled\:hover\:bg-accent-soft {
+  .ig\:enabled\:hover\:bg-accent-soft {
     &:enabled {
       &:hover {
         @media (hover: hover) {
@@ -371,7 +345,7 @@
       }
     }
   }
-  .enabled\:hover\:bg-danger {
+  .ig\:enabled\:hover\:bg-danger {
     &:enabled {
       &:hover {
         @media (hover: hover) {
@@ -380,7 +354,7 @@
       }
     }
   }
-  .enabled\:hover\:text-accent-text {
+  .ig\:enabled\:hover\:text-accent-text {
     &:enabled {
       &:hover {
         @media (hover: hover) {
@@ -389,7 +363,7 @@
       }
     }
   }
-  .enabled\:hover\:text-ink-inverse {
+  .ig\:enabled\:hover\:text-ink-inverse {
     &:enabled {
       &:hover {
         @media (hover: hover) {
@@ -398,32 +372,32 @@
       }
     }
   }
-  .disabled\:cursor-default {
+  .ig\:disabled\:cursor-default {
     &:disabled {
       cursor: default;
     }
   }
-  .disabled\:cursor-not-allowed {
+  .ig\:disabled\:cursor-not-allowed {
     &:disabled {
       cursor: not-allowed;
     }
   }
-  .disabled\:opacity-50 {
+  .ig\:disabled\:opacity-50 {
     &:disabled {
       opacity: 50%;
     }
   }
-  .aria-expanded\:border-accent {
+  .ig\:aria-expanded\:border-accent {
     &[aria-expanded="true"] {
       border-color: var(--tau-accent);
     }
   }
-  .aria-expanded\:bg-accent-soft {
+  .ig\:aria-expanded\:bg-accent-soft {
     &[aria-expanded="true"] {
       background-color: var(--tau-accent-soft);
     }
   }
-  .aria-expanded\:text-accent-text {
+  .ig\:aria-expanded\:text-accent-text {
     &[aria-expanded="true"] {
       color: var(--tau-accent-text);
     }

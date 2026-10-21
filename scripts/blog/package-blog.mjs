@@ -74,6 +74,8 @@ const runtime = await build({
   },
 });
 for (const input of Object.keys(runtime.metafile.inputs)) {
+  // 资源声明是无依赖的正文协议，编辑器按它找资源字段，不属于数据库实现
+  if (input === "packages/db-schema/content-resources.ts") continue;
   if (/^(?:apps\/|packages\/db-schema\/)/.test(input))
     throw new Error(`Editor 不得包含应用或数据库实现：${input}`);
   if (

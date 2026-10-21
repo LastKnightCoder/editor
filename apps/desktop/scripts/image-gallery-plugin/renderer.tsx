@@ -190,7 +190,7 @@ async function verify() {
   mouseDown(frameBody()!);
   await sleep(50);
   check(!document.querySelector('[role="toolbar"][aria-label="图册属性"]'), "只读出现属性条");
-  host.querySelector<HTMLElement>("[data-element-frame] .absolute.cursor-pointer")!.click();
+  host.querySelector<HTMLElement>("[data-element-frame] img")!.click();
   const viewer = await until(
     () => document.querySelector('[role="dialog"][aria-label="图片预览"]'),
     "单击未打开图片查看器"
