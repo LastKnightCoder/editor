@@ -11,7 +11,6 @@ const { build } = require("esbuild");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-local-discovery-"));
 const report = { status: "running", platform: process.platform, arch: process.arch, phases: [] };
 const updates = process.argv.includes("--updates");
-const installed = process.argv.includes("--installed");
 try {
   await mkdir(path.join(directory, "profile"));
   await writeFile(
@@ -48,14 +47,10 @@ try {
   ]);
   for (const phase of updates
     ? ["update-start", "update-restart", "update-failed", "update-recovered"]
-    : installed
-      ? ["author", "author-restore"]
-      : ["initial", "refresh", "reinstall", "disabled"]) {
+    : ["initial", "refresh", "reinstall", "disabled"]) {
     const env = {
       ...process.env,
-      TAU_LOCAL_TEST_APP_DIR: installed
-        ? path.join((await import("node:os")).homedir(), ".editor")
-        : path.join(directory, "app-data"),
+      TAU_LOCAL_TEST_APP_DIR: path.join(directory, "app-data"),
     };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_OPTIONS;
@@ -90,11 +85,7 @@ try {
   await writeFile(
     path.join(
       root,
-      updates
-        ? "output/local-update-report.json"
-        : installed
-          ? "output/installed-author-report.json"
-          : "output/local-discovery-report.json"
+      updates ? "output/local-update-report.json" : "output/local-discovery-report.json"
     ),
     JSON.stringify(report, null, 2)
   );

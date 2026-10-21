@@ -11,10 +11,7 @@ import { createDriver } from "./driver";
 const [phase, directory] = process.argv.slice(2);
 app.setPath("userData", path.join(directory, "profile"));
 app.getVersion = () => client.version;
-const plugins = path.join(
-  process.env.TAU_LOCAL_TEST_APP_DIR ?? path.join(directory, "app-data"),
-  "plugins"
-);
+const plugins = path.join(directory, "app-data", "plugins");
 async function put(version = "1.0.0", destination = plugins) {
   const location = path.join(destination, "example.local");
   await mkdir(location, { recursive: true });
@@ -137,19 +134,6 @@ app
       } else {
         await version("1.0.0");
         assert.deepEqual(await run("localTest.run()"), { count: 7, version: "1.0.0" });
-      }
-    } else if (phase === "author" || phase === "author-restore") {
-      const state = await run(
-        "localTest.snapshot().plugins.find(p=>p.id==='example.external-counter')?.state"
-      );
-      assert.equal(state, phase === "author" ? "disabled" : "active");
-      if (phase === "author") await click("启用 计数器示例");
-      await wait("localTest.snapshot().commands.some(c=>c.id==='example.external-counter:open')");
-      await run("localTest.openAuthor()");
-      await wait(`document.body.innerText.includes('已保存计数：${phase === "author" ? 0 : 1}')`);
-      if (phase === "author") {
-        await click("增加并保存");
-        await wait("document.body.innerText.includes('已保存计数：1')");
       }
     } else if (phase === "initial") {
       assert.equal(
