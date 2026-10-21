@@ -1,4 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { produce } from "immer";
+import { copyJson } from "@tau/plugins/host";
+import type { JsonValue } from "@tau/plugins";
 import { Github, Layers, ShieldAlert } from "lucide-react";
 import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
@@ -9,6 +12,8 @@ import {
   type PluginSettingsKey,
 } from "@/app/plugins/runtime";
 import { openExternal } from "@/commands/extra";
+import { savePluginVideoConfig } from "@/commands/plugin-video";
+import useSettingStore from "@/stores/useSettingStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import {
   CONTRIBUTION_LABELS,
@@ -312,14 +317,36 @@ function SettingsTab({
   section?: string;
   onSection: (key: PluginSettingsKey) => void;
 }) {
+  const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
+  const active = section ? sections.find(item => item.key === section) : sections[0];
+
+  // 为视频插件提供 videoConfig - Hooks 必须在所有条件语句之前调用
+  const pluginId = plugin.info.id;
+  const stored = useSettingStore(state => state.setting.onlineVideo.configurations[pluginId]);
+  const videoConfigValue = useMemo(() => copyJson((stored ?? {}) as JsonValue), [stored]);
+
   if (plugin.info.state !== "active")
     return (
       <p className="text-tau-body text-ink-2">
         插件设置暂不可用。启用后可恢复设置，已保存的偏好仍然保留。
       </p>
     );
-  const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
-  const active = section ? sections.find(item => item.key === section) : sections[0];
+
+  const videoConfig =
+    active?.definition.target === "video"
+      ? {
+          value: videoConfigValue,
+          save: async (value: JsonValue) => {
+            await savePluginVideoConfig(pluginId, value);
+            useSettingStore.setState(state => ({
+              setting: produce(state.setting, draft => {
+                draft.onlineVideo.configurations[pluginId] = value;
+              }),
+            }));
+          },
+        }
+      : undefined;
+
   return (
     <div className="min-w-0">
       <PluginAISettings pluginId={plugin.info.id} />
@@ -344,7 +371,7 @@ function SettingsTab({
           {active.definition.description && (
             <p className="text-tau-meta text-ink-2 mb-4">{active.definition.description}</p>
           )}
-          <PluginSettingsView section={active} />
+          <PluginSettingsView section={active} videoConfig={videoConfig} />
         </section>
       ) : section ? (
         <PluginSettingsView />

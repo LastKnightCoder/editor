@@ -17,7 +17,6 @@ import {
   Layers,
   ImageIcon,
   AudioLines,
-  Plug,
   Archive,
   ArrowLeftRight,
   Info,
@@ -30,7 +29,6 @@ import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
 import { CacheSection } from "./sections/CacheSection";
 import { TransferSection } from "./sections/TransferSection";
-import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
 import { AboutSection } from "./sections/AboutSection";
@@ -105,18 +103,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         description: "从其它笔记工具迁入，或把内容连同图片打包带走",
         icon: ArrowLeftRight,
         component: TransferSection,
-      },
-    ],
-  },
-  {
-    label: "连接",
-    sections: [
-      {
-        key: "integration",
-        label: "账号与连接",
-        description: "第三方服务的账号与凭据，其它设置页从这里读取连接",
-        icon: Plug,
-        component: IntegrationSection,
       },
     ],
   },
