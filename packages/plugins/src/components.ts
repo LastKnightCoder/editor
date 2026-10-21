@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { PluginContentRef } from "./data";
+import type { PluginEntityRef } from "./app";
 
 /**
  * 与卡片详情相同的正文编辑器：协作、内置与已安装的编辑器扩展、文档待办都由宿主提供。
@@ -23,10 +24,21 @@ export interface ContentPreviewProps {
   maxBlocks?: number;
 }
 
+/**
+ * 一项引用的显示：图标、类型名与标题由宿主渲染，内容已删除时显示「已删除」。授权口径与
+ * context.app.describe 相同；未获准时显示类型名与「允许访问」，由用户点击后询问。
+ */
+export interface EntityRefProps {
+  target: PluginEntityRef;
+  /** 默认 true：点击时用 context.app.open 打开 */
+  openable?: boolean;
+}
+
 /** 宿主注入的实现；SDK 根入口只引用 React 类型，不加载 React 运行时。 */
 export interface ContentComponentsRuntime {
   ContentEditor(props: ContentEditorProps): ReactElement | null;
   ContentPreview(props: ContentPreviewProps): ReactElement | null;
+  EntityRef(props: EntityRefProps): ReactElement | null;
 }
 
 let runtime: ContentComponentsRuntime | undefined;
@@ -41,3 +53,4 @@ function current() {
 // 宿主实现内部使用 hook；占位按函数组件直接调用，保持一个固定的组件身份
 export const ContentEditor = (props: ContentEditorProps) => current().ContentEditor(props);
 export const ContentPreview = (props: ContentPreviewProps) => current().ContentPreview(props);
+export const EntityRef = (props: EntityRefProps) => current().EntityRef(props);

@@ -103,6 +103,7 @@ import {
 import {
   PLUGIN_APP_ACTIONS,
   PLUGIN_ENTITY_KINDS,
+  PLUGIN_ENTITY_READ_PERMISSIONS,
   PLUGIN_EXPORT_FORMATS,
   type PluginAppAction,
   type PluginExportFormat,
@@ -110,6 +111,7 @@ import {
   type PluginEntityRef,
   type PluginPickOptions,
   type PluginPickedEntity,
+  type PluginEntityDescription,
 } from "./app";
 import type { PluginFlashcards } from "./flashcards";
 
@@ -298,7 +300,18 @@ export interface AppAdapter {
   ): Promise<PluginPickedEntity[]>;
   open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
   run(context: PluginContext, plugin: PluginOwner, request: PluginAppRunRequest): Promise<void>;
+  /**
+   * 按 refs 顺序返回描述；readable 为插件已获准读取的类型。宿主另放行用户选择过的引用与本插件
+   * 自己的内容，其余返回 denied（permission 由 PluginHost 补上）。
+   */
+  describe(
+    context: PluginContext,
+    refs: readonly PluginEntityRef[],
+    readable: readonly PluginEntityKind[]
+  ): Promise<Array<{ status: "ok"; title: string } | { status: "missing" } | { status: "denied" }>>;
 }
+
+const MAX_DESCRIBE = 200;
 
 export type PluginAppRunRequest =
   | { action: "content.export"; ref: PluginContentRef; format: PluginExportFormat }
@@ -1826,6 +1839,33 @@ export class PluginHost {
           if (!this.options.app) throw new Error("当前宿主不支持打开内容");
           await this.options.app.open(context, value);
           this.assertActive(entry, activation);
+        },
+        describe: async (refs: readonly PluginEntityRef[]) => {
+          if (!Array.isArray(refs) || refs.length > MAX_DESCRIBE)
+            throw new Error(`refs 必须是最多 ${MAX_DESCRIBE} 项的数组`);
+          const values = refs.map(readEntityRef);
+          this.assertActive(entry, activation);
+          if (!this.options.app) throw new Error("当前宿主不支持读取内容信息");
+          // 只查询已有授权，不弹窗：由插件引导用户点击后再 permissions.request
+          const readable: PluginEntityKind[] = [];
+          for (const kind of new Set(values.map(ref => ref.kind))) {
+            const permission = PLUGIN_ENTITY_READ_PERMISSIONS[kind];
+            if (
+              permission &&
+              declared.has(permission) &&
+              (await permissionsAdapter().query(context, permission)) === "granted"
+            )
+              readable.push(kind);
+          }
+          const results = await this.options.app.describe(context, values, readable);
+          this.assertActive(entry, activation);
+          if (results.length !== values.length) throw new Error("宿主返回的描述数量不一致");
+          return values.map((ref, index): PluginEntityDescription => {
+            const result = results[index];
+            if (result.status === "ok") return { ref, status: "ok", title: result.title };
+            if (result.status === "missing") return { ref, status: "missing" };
+            return { ref, status: "denied", permission: PLUGIN_ENTITY_READ_PERMISSIONS[ref.kind] };
+          });
         },
         run: async (action: PluginAppAction, options: unknown) => {
           const request = readRunRequest(action, options);

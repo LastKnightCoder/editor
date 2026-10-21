@@ -101,3 +101,12 @@ export interface PluginOperationRecord {
   /** 插件内容：registerKind 声明的类型，用于显示类型名 */
   kind?: string;
 }
+
+/** 插件引用（kind 为 SDK 的 PluginEntityKind，id 为插件看到的不透明 ID） */
+export interface PluginRefInput {
+  kind: string;
+  id: string;
+}
+
+export type PluginRefDescription =
+  { status: "ok"; title: string } | { status: "missing" } | { status: "denied" };

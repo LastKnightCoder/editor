@@ -30,8 +30,8 @@ export {
 } from "./source-editor";
 export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
-export { ContentEditor, ContentPreview } from "./components";
-export type { ContentEditorProps, ContentPreviewProps } from "./components";
+export { ContentEditor, ContentPreview, EntityRef } from "./components";
+export type { ContentEditorProps, ContentPreviewProps, EntityRefProps } from "./components";
 export * from "./sidebar";
 export type * from "./icons";
 export type * from "./excerpts";
@@ -40,7 +40,12 @@ export type { PluginContentInput } from "./content-input";
 export { EDITOR_NODE_SCHEMA_VERSION, CONTENT_INPUT_LIMITS } from "./content-input";
 export type * from "./entities";
 export { PluginConflictError } from "./errors";
-export { PLUGIN_ENTITY_KINDS, PLUGIN_APP_ACTIONS, PLUGIN_EXPORT_FORMATS } from "./app";
+export {
+  PLUGIN_ENTITY_KINDS,
+  PLUGIN_ENTITY_READ_PERMISSIONS,
+  PLUGIN_APP_ACTIONS,
+  PLUGIN_EXPORT_FORMATS,
+} from "./app";
 export type {
   PluginNotifications,
   PluginNotificationOptions,
@@ -54,6 +59,7 @@ export type {
   PluginExportFormat,
   PluginEntityKind,
   PluginEntityRef,
+  PluginEntityDescription,
   PluginPickOptions,
   PluginPickedEntity,
 } from "./app";

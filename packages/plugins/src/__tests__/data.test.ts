@@ -105,6 +105,19 @@ function setup({
     async run(_context, plugin, request) {
       calls.push(["run", plugin.id, request]);
     },
+    async describe(_context, refs, readable) {
+      calls.push(["describe", refs, readable]);
+      // 卡片 3 为用户选择过的引用；文章已删除；其余按 readable 放行
+      return refs.map(ref =>
+        ref.kind === "card" && ref.id === "3"
+          ? { status: "ok", title: "卡" }
+          : !readable.includes(ref.kind)
+            ? { status: "denied" }
+            : ref.kind === "article"
+              ? { status: "missing" }
+              : { status: "ok", title: `${ref.kind}:${ref.id}` }
+      );
+    },
   };
   const entity = {
     id: "1",
@@ -385,7 +398,7 @@ describe("插件业务数据与权限", () => {
       ["open", { kind: "diary", id: "8" }],
     ]);
     await expect(context().app.pick({ kinds: [] })).rejects.toThrow("内容类型");
-    await expect(context().app.pick({ kinds: ["project" as "card"] })).rejects.toThrow("内容类型");
+    await expect(context().app.pick({ kinds: ["folder" as "card"] })).rejects.toThrow("内容类型");
     await expect(context().app.open({ kind: "card", id: "" })).rejects.toThrow("ID 无效");
   });
 
@@ -583,5 +596,35 @@ describe("插件业务数据与权限", () => {
       content: { markdown: "# 本周" },
     });
     expect(calls.filter(call => call[0] === "ensure" || call[0] === "request")).toEqual([]);
+  });
+
+  it("describe 只查询已有授权、不弹窗，未获准的给出所需权限", async () => {
+    const { host, calls, context } = setup({
+      declared: ["articles:read", "chats:read"],
+      granted: new Set<PluginPermission>(["articles:read"]),
+    });
+    await host.enable("weekly");
+    const result = await context().app.describe([
+      { kind: "card", id: "3" },
+      { kind: "article", id: "5" },
+      { kind: "chat-session", id: "s1" },
+      { kind: "diary", id: "8" },
+      { kind: "project", id: "2" },
+    ]);
+    expect(result).toEqual([
+      { ref: { kind: "card", id: "3" }, status: "ok", title: "卡" },
+      { ref: { kind: "article", id: "5" }, status: "missing" },
+      { ref: { kind: "chat-session", id: "s1" }, status: "denied", permission: "chats:read" },
+      { ref: { kind: "diary", id: "8" }, status: "denied", permission: null },
+      { ref: { kind: "project", id: "2" }, status: "denied", permission: "projects:read" },
+    ]);
+    expect(calls.find(call => call[0] === "describe")?.[2]).toEqual(["article"]);
+    expect(calls.filter(call => call[0] === "request" || call[0] === "ensure")).toEqual([]);
+    await expect(context().app.describe([{ kind: "folder", id: "1" }] as never)).rejects.toThrow(
+      "内容类型无效"
+    );
+    await expect(
+      context().app.describe(Array.from({ length: 201 }, () => ({ kind: "card", id: "1" })))
+    ).rejects.toThrow("最多 200 项");
   });
 });

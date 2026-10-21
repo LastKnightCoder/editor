@@ -18,15 +18,18 @@
 { "permissions": ["cards:read", "todos:read", "todos:write"] }
 ```
 
-| 权限                                                 | 允许                                                 |
-| ---------------------------------------------------- | ---------------------------------------------------- |
-| `cards:read`、`articles:read`、`documents:read`      | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
-| `cards:write`、`articles:write`、`documents:write`   | 新建（项目文档除外）、修改，以及修改正文             |
-| `cards:delete`、`articles:delete`                    | 删除                                                 |
-| `todos:read`、`todos:write`、`todos:delete`          | 读取、新建与修改、删除待办                           |
-| `calendar:read`、`calendar:write`、`calendar:delete` | 读取、新建与修改、删除日程                           |
-| `flashcards:read`、`flashcards:write`                | 闪卡，见[闪卡](flashcards.md)                        |
-| `ai:<能力名>`                                        | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
+| 权限                                                  | 允许                                                 |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| `cards:read`、`articles:read`、`documents:read`       | 读取卡片、文章、项目文档及其正文，接收它们的变化事件 |
+| `cards:write`、`articles:write`、`documents:write`    | 新建（项目文档除外）、修改，以及修改正文             |
+| `cards:delete`、`articles:delete`                     | 删除                                                 |
+| `todos:read`、`todos:write`、`todos:delete`           | 读取、新建与修改、删除待办                           |
+| `calendar:read`、`calendar:write`、`calendar:delete`  | 读取、新建与修改、删除日程                           |
+| `whiteboards:read`、`projects:read`、`notebooks:read` | 读取白板、项目、Notebook 的标题                      |
+| `materials:read`                                      | 读取划线、PDF 标注和剪藏的标题                       |
+| `chats:read`                                          | 读取 AI 对话的标题，不含消息内容                     |
+| `flashcards:read`、`flashcards:write`                 | 闪卡，见[闪卡](flashcards.md)                        |
+| `ai:<能力名>`                                         | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
 
 ### 用户如何授权
 
@@ -272,10 +275,10 @@ context.events.on(["card.created", "card.updated", "card.deleted"], event => {
 
 ## 选择并打开已有内容
 
-插件的页面（如画布、看板）需要引用用户已有的卡片、日记、待办时，用 Tau 的搜索窗口让用户亲手挑选，点击时再交给 Tau 打开。**这不需要任何权限**：用户亲手选择，就等于同意插件引用这些内容。
+插件的页面（如画布、看板）需要引用用户已有的卡片、日记、待办时，用 Tau 的搜索窗口让用户亲手挑选，显示时交给 `EntityRef`，点击时交给 Tau 打开。**这不需要任何权限**：用户亲手选择，就等于同意插件引用这些内容，之后也能随时读到它们的最新标题。
 
 ```tsx
-import type { PluginEntityRef } from "@tau/plugins";
+import { EntityRef, type PluginEntityRef } from "@tau/plugins";
 
 async function linkExisting() {
   const picked = await context.app.pick({ kinds: ["card", "diary", "todo"], multiple: true });
@@ -283,26 +286,54 @@ async function linkExisting() {
   await context.storage.set("links", picked);
 }
 
-function LinkChip({ link }: { link: { ref: PluginEntityRef; title: string } }) {
-  return <button onClick={() => void context.app.open(link.ref)}>{link.title}</button>;
+// 图标、类型名、最新标题与「已删除」由 Tau 显示，点击即打开
+function LinkChip({ link }: { link: { ref: PluginEntityRef } }) {
+  return <EntityRef target={link.ref} />;
 }
 ```
 
-| `kind`       | 内容             | `open` 打开的位置                            |
-| ------------ | ---------------- | -------------------------------------------- |
-| `card`       | 卡片             | 卡片详情                                     |
-| `article`    | 文章             | 文章详情                                     |
-| `document`   | 项目文档         | 所在项目，并选中该文档                       |
-| `diary`      | 日记里的一条记录 | 当天的日记，并定位到这一条                   |
-| `whiteboard` | 白板             | 白板                                         |
-| `todo`       | 待办             | 待办详情；正文里的勾选项会打开所在文档并定位 |
-| `event`      | 日程             | 日程详情                                     |
+| `kind`          | 内容                             | `open` 打开的位置                                                    |
+| --------------- | -------------------------------- | -------------------------------------------------------------------- |
+| `card`          | 卡片                             | 卡片详情                                                             |
+| `article`       | 文章                             | 文章详情                                                             |
+| `document`      | 项目文档                         | 所在项目，并选中该文档                                               |
+| `diary`         | 日记里的一条记录                 | 当天的日记，并定位到这一条                                           |
+| `whiteboard`    | 白板                             | 白板                                                                 |
+| `todo`          | 待办                             | 待办详情；正文里的勾选项会打开所在文档并定位                         |
+| `event`         | 日程                             | 日程详情                                                             |
+| `project`       | 项目                             | 项目                                                                 |
+| `notebook`      | Notebook                         | Notebook                                                             |
+| `material`      | 划线、PDF 标注、剪藏             | 原处：书中位置、PDF 页面或网页                                       |
+| `chat-session`  | AI 对话                          | 对话页；PDF、视频笔记和 Notebook 里的对话不能单独打开，`open` 会抛错 |
+| `plugin-entity` | 插件创建的内容（包括其他插件的） | 创建它的插件页面                                                     |
 
 - `pick` 的 `kinds` 决定可选的类型，顺序就是弹窗里的分组顺序；`title` 可以自定义弹窗标题。
 - `pick` 和 `open` 都只能在用户操作（点击、按键）之后调用。在定时器或事件回调里调用会抛错。
-- 插件拿到的只有引用和选择时的标题。要读取正文或拿到最新标题，仍然需要对应的读取权限。
+- 插件拿到的只有引用和选择时的标题，以及之后用 `describe` 读到的最新标题。要读取正文，仍然需要对应的读取权限。
 - `ref` 是普通对象，可以存进插件自己的数据；它的 `id` 与 `context.data` 中同类内容的 `id` 一致。
 - 目标被删除后，`open` 会抛出「内容不存在」，可以据此提示用户移除这条关联。
+
+### 显示引用
+
+```tsx
+// 列表里直接放组件：同一次渲染的引用会合并成一次查询
+links.map(link => <EntityRef key={link.ref.id} target={link.ref} />);
+
+// 需要自己排版或排序时，批量读取当前状态，每次最多 200 项
+const states = await context.app.describe(links.map(link => link.ref));
+// [{ ref, status: "ok", title }, { ref, status: "missing" }, { ref, status: "denied", permission }]
+```
+
+| `status`  | 含义                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ok`      | `title` 为最新标题                                                                                                                              |
+| `missing` | 内容已删除                                                                                                                                      |
+| `denied`  | 用户没有为这个插件选择过这项内容，插件也没有 `permission` 这项读取权限；`permission` 为 `null` 的类型（日记、其他插件的内容）只能经用户选择获得 |
+
+- 用户选择过的内容、本插件自己创建的内容不需要权限。
+- `describe` 不会弹窗。遇到 `denied` 时，可以提示用户，由用户点击后再调用 `context.permissions.request([permission])`。`EntityRef` 在这种情况下自带「允许访问」按钮。
+- 不想让用户点击打开时，传 `openable={false}`。`EntityRef` 只能在插件页面里使用。
+- 用户卸载插件并选择清除数据时，Tau 会忘记这些选择。
 
 ## 嵌入正文编辑器
 

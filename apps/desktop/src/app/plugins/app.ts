@@ -7,7 +7,13 @@ import type {
 } from "@tau/plugins";
 import type { Descendant } from "slate";
 import type { AppAdapter, PluginAppRunRequest, PluginOwner } from "@tau/plugins/host";
-import { getPluginData, pluginRefExists } from "@/commands/plugin-data";
+import {
+  describePluginRefs,
+  getPluginData,
+  grantPluginRefs,
+  pluginRefExists,
+} from "@/commands/plugin-data";
+import { getChatSession } from "@/commands/chat-session";
 import { locateEntity } from "@/commands/entity";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
@@ -15,15 +21,20 @@ import type { EntityCandidate, EntityKind } from "@/types";
 import { resolvePluginContentTarget } from "./content-target";
 import { assertPluginUserActivation } from "./user-activation";
 
-/** 插件类型 → 宿主选择器的实体类型 */
-export const PICKER_KINDS: Record<PluginEntityKind, EntityKind> = {
-  card: "card",
-  article: "article",
-  document: "project_item",
-  diary: "diary-moment",
-  whiteboard: "white_board",
-  todo: "todo",
-  event: "calendar-event",
+/** 插件类型 → 宿主选择器的实体类型；材料一类对应划线、PDF 标注与剪藏 */
+export const PICKER_KINDS: Record<PluginEntityKind, EntityKind[]> = {
+  card: ["card"],
+  article: ["article"],
+  document: ["project_item"],
+  diary: ["diary-moment"],
+  whiteboard: ["white_board"],
+  todo: ["todo"],
+  event: ["calendar-event"],
+  project: ["project"],
+  notebook: ["notebook"],
+  material: ["excerpt", "pdf-annotation", "web-clip"],
+  "chat-session": ["chat-session"],
+  "plugin-entity": ["plugin-entity"],
 };
 
 const OPEN_KINDS: Partial<Record<PluginEntityKind, EntityRef["kind"]>> = {
@@ -31,12 +42,22 @@ const OPEN_KINDS: Partial<Record<PluginEntityKind, EntityRef["kind"]>> = {
   article: "article",
   document: "project-item",
   diary: "diary-moment",
+  "plugin-entity": "plugin-entity",
 };
 
-/** 选择器的候选 → 插件引用；待办与日程的 id 与 context.data 一致（带创建时间） */
+const OPEN_PAGES: Partial<Record<PluginEntityKind, string>> = {
+  whiteboard: "whiteboard-detail",
+  project: "project-detail",
+  notebook: "vibe-learning-detail",
+};
+
+/**
+ * 选择器的候选 → 插件引用：待办与日程的 id 与 context.data 一致（带创建时间），
+ * 材料为 `类型:ID`，对话为会话 ID
+ */
 export function pickedEntity(candidate: EntityCandidate): PluginPickedEntity | null {
-  const kind = (Object.keys(PICKER_KINDS) as PluginEntityKind[]).find(
-    key => PICKER_KINDS[key] === candidate.kind
+  const kind = (Object.keys(PICKER_KINDS) as PluginEntityKind[]).find(key =>
+    PICKER_KINDS[key].includes(candidate.kind)
   );
   if (!kind) return null;
   const id =
@@ -44,8 +65,12 @@ export function pickedEntity(candidate: EntityCandidate): PluginPickedEntity | n
       ? `todo:${candidate.id}:${candidate.createdAt}`
       : kind === "event"
         ? `${candidate.id}:${candidate.createdAt}`
-        : String(candidate.id);
-  return { ref: { kind, id }, title: candidate.title };
+        : kind === "material"
+          ? `${candidate.kind}:${candidate.id}`
+          : kind === "chat-session"
+            ? (candidate.sessionId ?? "")
+            : String(candidate.id);
+  return id ? { ref: { kind, id }, title: candidate.title } : null;
 }
 
 export interface PluginPickRequest {
@@ -89,12 +114,25 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       assertPluginUserActivation();
       context.signal.throwIfAborted();
       if (usePluginPickerUi.getState().request) throw new Error("已有一个选择窗口正在打开");
-      return new Promise(resolve => {
+      // 用户亲手选中即视为同意插件之后读取这些内容的标题，登记后再交给插件
+      const grant = async (picked: PluginPickedEntity[]) => {
+        if (picked.length)
+          await bindDatabaseCommands(
+            { grantPluginRefs },
+            { databaseName, signal: context.signal }
+          ).grantPluginRefs(
+            databaseName,
+            context.pluginId,
+            picked.map(item => item.ref)
+          );
+        return picked;
+      };
+      return new Promise((resolve, reject) => {
         const finish = (picked: PluginPickedEntity[]) => {
           context.signal.removeEventListener("abort", abort);
           if (usePluginPickerUi.getState().request === request)
             usePluginPickerUi.setState({ request: null });
-          resolve(picked);
+          grant(picked).then(resolve, reject);
         };
         const abort = () => finish([]);
         const request: PluginPickRequest = {
@@ -123,7 +161,21 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       context.signal.throwIfAborted();
       const kind = OPEN_KINDS[ref.kind];
       if (kind) return openEntity({ kind, id: Number(ref.id) });
-      if (ref.kind === "whiteboard") return openPage("whiteboard-detail", { id: Number(ref.id) });
+      const page = OPEN_PAGES[ref.kind];
+      if (page) return openPage(page, { id: Number(ref.id) });
+      if (ref.kind === "material") {
+        const [materialKind, id] = ref.id.split(":");
+        const { openMaterial } = await import("@/services/open-material");
+        context.signal.throwIfAborted();
+        return openMaterial({ kind: materialKind as "excerpt", id: Number(id) });
+      }
+      if (ref.kind === "chat-session") {
+        // 只有主对话能单独打开；PDF、视频笔记与 Notebook 里的对话在各自页面中
+        const session = await getChatSession(ref.id);
+        context.signal.throwIfAborted();
+        if (session?.scope !== "main-chat") throw new Error("这段对话不能单独打开");
+        return openPage("chat", { id: ref.id });
+      }
       if (ref.kind === "event")
         return openPage("schedule", { eventId: Number(ref.id.split(":")[0]) });
       const [key] = ref.id.split("@");
@@ -137,6 +189,12 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       if (!location || !owner) throw new Error("内容不存在");
       context.signal.throwIfAborted();
       return openEntity({ kind: owner, id: location.id }, { at: { taskId: task[2] } });
+    },
+    describe(context, refs, readable) {
+      return bindDatabaseCommands(
+        { describePluginRefs },
+        { databaseName, signal: context.signal }
+      ).describePluginRefs(databaseName, context.pluginId, [...refs], [...readable]);
     },
     async run(context, plugin, request: PluginAppRunRequest) {
       assertPluginUserActivation();

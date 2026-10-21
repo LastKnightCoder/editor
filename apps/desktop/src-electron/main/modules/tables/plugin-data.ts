@@ -115,7 +115,6 @@ export default class PluginDataTable {
       "plugin-data:record-operation": this.recordOperation.bind(this),
       "plugin-data:restore": this.restore.bind(this),
       "plugin-data:mark-restored": this.markRestored.bind(this),
-      "plugin-data:exists": this.exists.bind(this),
     };
   }
 
@@ -233,65 +232,6 @@ export default class PluginDataTable {
       owners: [...owners],
       pluginOwners: PluginEntityTable.pluginOwners(db, row.id),
     };
-  }
-
-  /**
-   * 插件打开引用前确认目标仍在：待办、日程与正文待办另核对创建时间，防止 ID 复用后打开别的内容。
-   * 只回答是否存在，不返回任何内容。
-   */
-  static exists(
-    db: Database.Database,
-    request: PluginDataScope & { kind: string; id: string }
-  ): boolean {
-    this.assertDatabase(db, request);
-    const one = (sql: string, ...params: unknown[]) => Boolean(db.prepare(sql).get(...params));
-    const numeric = /^\d+$/.test(request.id) ? Number(request.id) : null;
-    switch (request.kind) {
-      case "card":
-        return numeric !== null && one("SELECT 1 FROM cards WHERE id = ?", numeric);
-      case "article":
-        return (
-          numeric !== null && one("SELECT 1 FROM articles WHERE id = ? AND is_delete = 0", numeric)
-        );
-      case "document":
-        return numeric !== null && one("SELECT 1 FROM project_item WHERE id = ?", numeric);
-      case "diary":
-        return numeric !== null && one("SELECT 1 FROM diary_segments WHERE id = ?", numeric);
-      case "whiteboard":
-        return numeric !== null && one("SELECT 1 FROM white_boards WHERE id = ?", numeric);
-      case "todo": {
-        const key = request.id.split("@")[0];
-        const todo = /^todo:(\d+):(\d+)$/.exec(key);
-        if (todo)
-          return one(
-            "SELECT 1 FROM todo_item WHERE id = ? AND create_time = ?",
-            Number(todo[1]),
-            Number(todo[2])
-          );
-        const task = /^document:(\d+):(\d+):.+$/.exec(key);
-        return Boolean(
-          task &&
-          one(
-            "SELECT 1 FROM contents WHERE id = ? AND create_time = ?",
-            Number(task[1]),
-            Number(task[2])
-          )
-        );
-      }
-      case "event": {
-        const event = /^(\d+):(\d+)$/.exec(request.id.split("@")[0]);
-        return Boolean(
-          event &&
-          one(
-            "SELECT 1 FROM calendar_event WHERE id = ? AND create_time = ?",
-            Number(event[1]),
-            Number(event[2])
-          )
-        );
-      }
-      default:
-        return false;
-    }
   }
 
   /** 有协作会话时为会话文档的版本，否则为正文的修改时间 */

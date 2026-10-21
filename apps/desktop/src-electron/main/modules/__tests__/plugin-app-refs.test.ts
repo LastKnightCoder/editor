@@ -12,7 +12,7 @@ vi.mock("../video-note-index-queue", () => ({
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import EntitySearchTable from "../tables/entity-search";
-import PluginDataTable from "../tables/plugin-data";
+import PluginRefsTable from "../tables/plugin-refs";
 
 const scope = { databaseName: ":memory:" };
 
@@ -81,14 +81,14 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
       expect.objectContaining({ id: event, createdAt: 200, meta: "日常 · 10月21日" }),
     ]);
 
-    expect(PluginDataTable.exists(db, { ...scope, kind: "todo", id: `todo:${todo}:100` })).toBe(
+    expect(PluginRefsTable.exists(db, { ...scope, kind: "todo", id: `todo:${todo}:100` })).toBe(
       true
     );
-    expect(PluginDataTable.exists(db, { ...scope, kind: "todo", id: `todo:${todo}:99` })).toBe(
+    expect(PluginRefsTable.exists(db, { ...scope, kind: "todo", id: `todo:${todo}:99` })).toBe(
       false
     );
     expect(
-      PluginDataTable.exists(db, { ...scope, kind: "event", id: `${event}:200@2026-10-21` })
+      PluginRefsTable.exists(db, { ...scope, kind: "event", id: `${event}:200@2026-10-21` })
     ).toBe(true);
   });
 
@@ -96,10 +96,129 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
     const article = insert(
       "INSERT INTO articles (create_time, update_time, title, author, tags, links, content_id, is_delete) VALUES (1, 1, '文', '', '[]', '[]', 0, 1)"
     );
-    expect(PluginDataTable.exists(db, { ...scope, kind: "article", id: String(article) })).toBe(
+    expect(PluginRefsTable.exists(db, { ...scope, kind: "article", id: String(article) })).toBe(
       false
     );
-    expect(PluginDataTable.exists(db, { ...scope, kind: "card", id: "1 OR 1=1" })).toBe(false);
-    expect(PluginDataTable.exists(db, { ...scope, kind: "unknown", id: "1" })).toBe(false);
+    expect(PluginRefsTable.exists(db, { ...scope, kind: "card", id: "1 OR 1=1" })).toBe(false);
+    expect(PluginRefsTable.exists(db, { ...scope, kind: "unknown", id: "1" })).toBe(false);
+  });
+
+  it("新类型的存在判断：项目、Notebook、材料、对话与插件内容", () => {
+    const project = insert(
+      "INSERT INTO project (title, \"desc\", children, create_time, update_time) VALUES ('课题', '[]', '[]', 1, 1)"
+    );
+    const notebook = insert(
+      "INSERT INTO vibe_learning_project (title, create_time, update_time) VALUES ('本子', 1, 1)"
+    );
+    db.prepare(
+      "INSERT INTO chat_session (id, scope, session_file, cwd, title, create_time, update_time) VALUES ('s1', 'main-chat', 'f', '', '聊聊', 1, 1)"
+    ).run();
+    const exists = (kind: string, id: string) => PluginRefsTable.exists(db, { ...scope, kind, id });
+    expect(exists("project", String(project))).toBe(true);
+    expect(exists("notebook", String(notebook))).toBe(true);
+    expect(exists("chat-session", "s1")).toBe(true);
+    expect(exists("chat-session", "s2")).toBe(false);
+    expect(exists("material", "excerpt:1")).toBe(false);
+    expect(exists("material", "cards:1")).toBe(false);
+    expect(exists("plugin-entity", "1")).toBe(false);
+    // 选择窗口可检索 Notebook
+    expect(EntitySearchTable.search(db, { kind: "notebook", keyword: "本" })).toEqual([
+      expect.objectContaining({ kind: "notebook", id: notebook, title: "本子" }),
+    ]);
+  });
+
+  it("describe：已获准的类型与选择过的引用给出标题，其余不透露是否存在", () => {
+    const pluginId = "tau.questions";
+    const project = insert(
+      "INSERT INTO project (title, \"desc\", children, create_time, update_time) VALUES ('课题', '[]', '[]', 10, 10)"
+    );
+    const other = insert(
+      "INSERT INTO project (title, \"desc\", children, create_time, update_time) VALUES ('别的', '[]', '[]', 11, 11)"
+    );
+    db.prepare(
+      "INSERT INTO chat_session (id, scope, session_file, cwd, title, create_time, update_time) VALUES ('s1', 'pdf-chat', 'f', '', '读论文', 5, 5)"
+    ).run();
+    const describe = (refs: { kind: string; id: string }[], readable: string[] = []) =>
+      PluginRefsTable.describe(db, { ...scope, pluginId, refs, readable });
+
+    expect(describe([{ kind: "project", id: String(project) }])).toEqual([{ status: "denied" }]);
+    // 不存在的引用在未获准时同样是 denied
+    expect(describe([{ kind: "project", id: "999" }])).toEqual([{ status: "denied" }]);
+    expect(describe([{ kind: "project", id: "999" }], ["project"])).toEqual([
+      { status: "missing" },
+    ]);
+    expect(
+      PluginRefsTable.grant(db, {
+        ...scope,
+        pluginId,
+        refs: [
+          { kind: "project", id: String(project) },
+          { kind: "chat-session", id: "s1" },
+          { kind: "project", id: "999" },
+        ],
+      })
+    ).toBe(2);
+    expect(
+      describe([
+        { kind: "project", id: String(project) },
+        { kind: "chat-session", id: "s1" },
+        { kind: "project", id: String(other) },
+      ])
+    ).toEqual([
+      { status: "ok", title: "课题" },
+      { status: "ok", title: "读论文" },
+      { status: "denied" },
+    ]);
+    // 授权只属于选择它的插件
+    expect(
+      PluginRefsTable.describe(db, {
+        ...scope,
+        pluginId: "other",
+        refs: [{ kind: "project", id: String(project) }],
+        readable: [],
+      })
+    ).toEqual([{ status: "denied" }]);
+
+    // 删除后编号被新内容复用：授权不落到新内容上
+    db.prepare("DELETE FROM project WHERE id = ?").run(project);
+    expect(describe([{ kind: "project", id: String(project) }])).toEqual([{ status: "missing" }]);
+    db.prepare(
+      "INSERT INTO project (id, title, \"desc\", children, create_time, update_time) VALUES (?, '新课题', '[]', '[]', 20, 20)"
+    ).run(project);
+    expect(describe([{ kind: "project", id: String(project) }])).toEqual([{ status: "missing" }]);
+    expect(describe([{ kind: "project", id: String(project) }], ["project"])).toEqual([
+      { status: "ok", title: "新课题" },
+    ]);
+
+    expect(PluginRefsTable.clear(db, { ...scope, pluginId })).toBe(2);
+    expect(describe([{ kind: "chat-session", id: "s1" }])).toEqual([{ status: "denied" }]);
+    expect(() => describe(Array.from({ length: 201 }, () => ({ kind: "card", id: "1" })))).toThrow(
+      "引用列表无效"
+    );
+  });
+
+  it("describe：本插件自己的内容不需要授权，其他插件的内容需要经选择", () => {
+    const content = insert(
+      "INSERT INTO contents (id, create_time, update_time, content, count, ref_count) VALUES (1, 1, 1, '[]', 0, 1)"
+    );
+    const mine = insert(
+      "INSERT INTO plugin_entities (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time) VALUES (1, 'mine', 'note', 'a', '我的周记', ?, '{}', 1, 1)",
+      content
+    );
+    const theirs = insert(
+      "INSERT INTO plugin_entities (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time) VALUES (2, 'theirs', 'note', 'a', '别人的', ?, '{}', 1, 1)",
+      content
+    );
+    expect(
+      PluginRefsTable.describe(db, {
+        ...scope,
+        pluginId: "mine",
+        refs: [
+          { kind: "plugin-entity", id: String(mine) },
+          { kind: "plugin-entity", id: String(theirs) },
+        ],
+        readable: [],
+      })
+    ).toEqual([{ status: "ok", title: "我的周记" }, { status: "denied" }]);
   });
 });

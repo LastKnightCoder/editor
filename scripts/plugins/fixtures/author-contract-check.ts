@@ -2,6 +2,7 @@
 import {
   ContentEditor,
   ContentPreview,
+  EntityRef,
   defineEditorElement,
   EDITOR_NODE_SCHEMA_VERSION,
   type EditorElementRenderProps,
@@ -98,8 +99,17 @@ export async function checkDataContract(context: PluginContext) {
       if (event.origin.kind === "plugin") void event.origin.pluginId;
     })
   );
-  const selected = await context.app.pick({ kinds: ["card", "document"], multiple: true });
+  const selected = await context.app.pick({
+    kinds: ["card", "document", "material", "chat-session", "notebook"],
+    multiple: true,
+  });
   if (selected[0]) await context.app.open(selected[0].ref);
+  for (const state of await context.app.describe(selected.map(item => item.ref))) {
+    if (state.status === "ok") void state.title;
+    else if (state.status === "denied" && state.permission)
+      await context.permissions.request([state.permission]);
+  }
+  if (selected[0]) createElement(EntityRef, { target: selected[0].ref, openable: false });
   context.register(
     context.entities.registerKind({
       kind: "note",

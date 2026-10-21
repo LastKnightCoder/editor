@@ -15,6 +15,7 @@ import { createDesktopApp } from "./app";
 import { createDesktopEntities } from "./entities";
 import { createDatabaseStorage, migrateLegacyPluginStorage } from "./kv-storage";
 import { clearPluginKv } from "@/commands/plugin-kv";
+import { clearPluginRefGrants } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
 import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
@@ -90,8 +91,11 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           entities: createDesktopEntities(workspaceId),
           ...(isElectron
             ? {
-                purgeStorage: async (pluginId: string) =>
-                  void (await clearPluginKv(workspaceId, pluginId)),
+                // 私有存储与用户为它选择过的引用一并清除；插件内容按卸载宽限另行回收
+                purgeStorage: async (pluginId: string) => {
+                  await clearPluginKv(workspaceId, pluginId);
+                  await clearPluginRefGrants(workspaceId, pluginId);
+                },
               }
             : {}),
           ...(permissions ? { permissions } : {}),

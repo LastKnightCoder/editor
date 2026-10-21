@@ -16,12 +16,20 @@ const mocks = vi.hoisted(() => ({
   present: vi.fn(),
   pdf: vi.fn(),
   share: vi.fn(),
+  grant: vi.fn(async () => 1),
+  describe: vi.fn(),
+  chat: vi.fn(),
+  openMaterial: vi.fn(),
 }));
 vi.mock("@/commands/plugin-data", () => ({
   pluginRefExists: mocks.exists,
   readPluginContent: mocks.read,
   getPluginData: mocks.getData,
+  grantPluginRefs: mocks.grant,
+  describePluginRefs: mocks.describe,
 }));
+vi.mock("@/commands/chat-session", () => ({ getChatSession: mocks.chat }));
+vi.mock("@/services/open-material", () => ({ openMaterial: mocks.openMaterial }));
 vi.mock("@/services/content-transfer", () => ({ exportContentAsMarkdown: mocks.exportMarkdown }));
 vi.mock("@/components/PresentationMode", () => ({
   default: (props: { content: unknown; onExit: () => void }) => {
@@ -72,6 +80,7 @@ describe("插件选择与打开", () => {
   beforeEach(() => {
     Object.values(mocks).forEach(mock => mock.mockReset());
     mocks.exists.mockResolvedValue(true);
+    mocks.grant.mockResolvedValue(1);
     setActivation(true);
     usePluginPickerUi.setState({ request: null });
   });
@@ -89,6 +98,44 @@ describe("插件选择与打开", () => {
       ["todos", { selectedId: 4 }],
       ["schedule", { eventId: 7 }],
     ]);
+  });
+
+  it("项目、Notebook、材料、主对话与插件内容按各自入口打开，其他场景的对话不能单独打开", async () => {
+    const app = createDesktopApp("data.db");
+    mocks.chat.mockResolvedValueOnce({ scope: "main-chat" }).mockResolvedValueOnce({
+      scope: "pdf-chat",
+    });
+    await app.open(context(), { kind: "project", id: "2" });
+    await app.open(context(), { kind: "notebook", id: "6" });
+    await app.open(context(), { kind: "material", id: "pdf-annotation:9" });
+    await app.open(context(), { kind: "chat-session", id: "s1" });
+    await app.open(context(), { kind: "plugin-entity", id: "4" });
+    await expect(app.open(context(), { kind: "chat-session", id: "s2" })).rejects.toThrow(
+      "不能单独打开"
+    );
+    expect(mocks.openPage.mock.calls).toEqual([
+      ["project-detail", { id: 2 }],
+      ["vibe-learning-detail", { id: 6 }],
+      ["chat", { id: "s1" }],
+    ]);
+    expect(mocks.openMaterial).toHaveBeenCalledWith({ kind: "pdf-annotation", id: 9 });
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "plugin-entity", id: 4 });
+  });
+
+  it("describe 按插件与已获准的类型交给主进程", async () => {
+    mocks.describe.mockResolvedValue([{ status: "ok", title: "课题" }]);
+    const result = await createDesktopApp("data.db").describe(
+      context(),
+      [{ kind: "project", id: "2" }],
+      ["project"]
+    );
+    expect(result).toEqual([{ status: "ok", title: "课题" }]);
+    expect(mocks.describe).toHaveBeenCalledWith(
+      "data.db",
+      plugin.id,
+      [{ kind: "project", id: "2" }],
+      ["project"]
+    );
   });
 
   it("正文里的待办打开所在文档并定位到勾选项", async () => {
@@ -150,6 +197,10 @@ describe("插件选择与打开", () => {
       );
       await act(async () => row?.click());
       expect(await picking).toEqual([{ ref: { kind: "todo", id: "todo:4:9" }, title: "交周报" }]);
+      // 用户选中的内容登记为该插件可读取标题的引用
+      expect(mocks.grant).toHaveBeenCalledWith("data.db", plugin.id, [
+        { kind: "todo", id: "todo:4:9" },
+      ]);
 
       const cancelled = app.pick(context(), plugin, {
         kinds: ["card"],
@@ -158,6 +209,7 @@ describe("插件选择与打开", () => {
       });
       await act(async () => usePluginPickerUi.getState().request?.settle([]));
       expect(await cancelled).toEqual([]);
+      expect(mocks.grant).toHaveBeenCalledTimes(1);
       expect(usePluginPickerUi.getState().request).toBeNull();
     } finally {
       act(() => view.unmount());

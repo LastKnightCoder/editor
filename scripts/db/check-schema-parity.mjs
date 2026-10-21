@@ -12,7 +12,7 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 88;
+const MAIN_TABLE_COUNT = 89;
 const MAIN_INDEX_COUNT = 124;
 const INDEX_CORE_TABLES = [
   "content_fts",

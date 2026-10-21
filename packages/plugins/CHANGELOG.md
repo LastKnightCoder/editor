@@ -7,6 +7,10 @@
 - `content.edit` 的 `append`、`prepend`、`replaceAll` 改为 `{ op, content }`；`replaceText` 不变，仍为 `{ op, find, markdown }`。
 - `content.read({ format: "nodes" })` 返回 `schemaVersion`，`nodes` 的类型为 `Descendant[]`，可原样写回。新增导出 `EDITOR_NODE_SCHEMA_VERSION` 与 `CONTENT_INPUT_LIMITS`。
 - `nodes` 只校验结构，未知节点类型原样保存；结构不对时报错并给出节点路径。
+- 引用类型新增 `project`、`notebook`、`material`（划线、PDF 标注、剪藏）、`chat-session`、`plugin-entity`，`pick` 与 `open` 均支持。
+- 新增 `context.app.describe(refs)`：批量取引用的最新标题与是否已删除。用户在 `pick` 中选择过的内容与本插件自己的内容不需要权限，其余需要对应类型的读取权限，未获准时返回 `denied` 与所需权限，不弹窗。
+- 新增组件 `EntityRef`：由 Tau 显示引用的图标、类型名、标题与删除状态，点击打开；未获准时显示「允许访问」。
+- 新增读取权限 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`（对话只含标题等信息，不含消息内容）；新增导出 `PLUGIN_ENTITY_READ_PERMISSIONS`。
 
 ## 0.32.0
 
