@@ -120,6 +120,8 @@ function setup({
     },
     async run(_context, plugin, request) {
       calls.push(["run", plugin.id, request]);
+      if (request.action === "project.insertDocument")
+        return { kind: "document", id: "31" } as never;
       if (request.action === "card.create")
         return request.tags?.includes("取消")
           ? null
@@ -461,6 +463,30 @@ describe("插件业务数据与权限", () => {
       context().app.run("card.create", { content: { html: "x" } } as never)
     ).rejects.toThrow();
     await expect(context().app.run("card.create", { tags: "x" } as never)).rejects.toThrow("标签");
+  });
+
+  it("project.insertDocument：必须带正文，标题可省略，返回新文档引用", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    expect(
+      await context().app.run("project.insertDocument", {
+        content: { copyOf: "7:100" },
+        title: "读书笔记",
+      })
+    ).toEqual({ kind: "document", id: "31" });
+    expect(calls.filter(call => call[0] === "run")).toEqual([
+      [
+        "run",
+        "weekly",
+        { action: "project.insertDocument", content: { copyOf: "7:100" }, title: "读书笔记" },
+      ],
+    ]);
+    await expect(context().app.run("project.insertDocument", {} as never)).rejects.toThrow(
+      "缺少要插入的正文"
+    );
+    await expect(
+      context().app.run("project.insertDocument", { content: { markdown: "x" }, title: " " })
+    ).rejects.toThrow("标题");
   });
 
   it("自有内容不需要权限：先声明类型才能新建，校验 key 与 meta", async () => {

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+  PluginContentInput,
   PluginContext,
   PluginEntityKind,
   PluginEntityRef,
@@ -100,7 +101,8 @@ interface PluginActionBase {
  * 宿主动作打开的界面（导出窗口、演示、协作窗口、新建卡片），由壳层挂载的 PluginContentActionHost
  * 渲染；一次只显示一个，界面关闭后插件的 run 才返回。
  */
-export type PluginActionRequest = PluginContentActionRequest | PluginCardCreateRequest;
+export type PluginActionRequest =
+  PluginContentActionRequest | PluginCardCreateRequest | PluginDocumentInsertRequest;
 
 export interface PluginCardCreateRequest extends PluginActionBase {
   action: "card.create";
@@ -108,6 +110,14 @@ export interface PluginCardCreateRequest extends PluginActionBase {
   content: Descendant[];
   tags: string[];
   settle(cardId: number): void;
+}
+
+/** 插入到项目：复制正文为新的项目文档，项目与位置由用户在弹窗里选 */
+export interface PluginDocumentInsertRequest extends PluginActionBase {
+  action: "project.insertDocument";
+  title: string;
+  content: Descendant[];
+  settle(documentId: number): void;
 }
 
 export interface PluginContentActionRequest extends PluginActionBase {
@@ -245,13 +255,25 @@ export function createDesktopApp(databaseName: string): AppAdapter {
     async run(context, plugin, request: PluginAppRunRequest) {
       assertPluginUserActivation();
       if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
+      const resolve = (content: PluginContentInput) =>
+        bindDatabaseCommands(
+          { resolvePluginContentInput },
+          { databaseName, signal: context.signal }
+        ).resolvePluginContentInput(databaseName, toContentSource(content));
+      if (request.action === "project.insertDocument") {
+        const nodes = await resolve(request.content);
+        return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+          id,
+          plugin,
+          action: "project.insertDocument",
+          title: request.title ?? "未命名文档",
+          content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+          close: () => finish(null),
+          settle: documentId => finish({ kind: "document", id: String(documentId) }),
+        }));
+      }
       if (request.action === "card.create") {
-        const nodes = request.content
-          ? await bindDatabaseCommands(
-              { resolvePluginContentInput },
-              { databaseName, signal: context.signal }
-            ).resolvePluginContentInput(databaseName, toContentSource(request.content))
-          : [];
+        const nodes = request.content ? await resolve(request.content) : [];
         return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
           id,
           plugin,

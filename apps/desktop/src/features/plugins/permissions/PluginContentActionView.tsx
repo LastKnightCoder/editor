@@ -7,9 +7,10 @@ import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
+import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 import type { PluginActionRequest, PluginContentActionRequest } from "@/app/plugins/app";
 
-/** 与卡片详情「导出 / 演示 / 发起协作」、卡片页「新建卡片」同一组宿主组件；关闭即撤下请求 */
+/** 与卡片详情「导出 / 演示 / 发起协作」、「新建卡片」「插入到项目」同一组宿主组件；关闭即撤下请求 */
 export default function PluginContentActionView({ request }: { request: PluginActionRequest }) {
   if (request.action === "card.create")
     return (
@@ -18,6 +19,17 @@ export default function PluginContentActionView({ request }: { request: PluginAc
         initial={{ content: request.content, tags: request.tags }}
         onCreated={card => request.settle(card.id)}
         onClose={request.close}
+      />
+    );
+  if (request.action === "project.insertDocument")
+    return (
+      <InsertNoteToTreeModal
+        mode="project"
+        open
+        noteTitle={request.title}
+        noteContent={request.content}
+        onCancel={request.close}
+        onSuccess={item => (item ? request.settle(item.id) : request.close())}
       />
     );
   if (request.action === "present")
