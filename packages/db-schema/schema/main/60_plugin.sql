@@ -47,3 +47,14 @@ CREATE TABLE IF NOT EXISTS plugin_kv (
   update_time INTEGER NOT NULL,
   PRIMARY KEY (plugin_id, key)
 );
+
+-- 用户在插件选择窗口中亲手选过的内容：插件此后读取这些引用的标题不需要读取权限；
+-- target_created_at 是选择时目标的创建时间，编号被新内容复用时授权不会落到新内容上
+CREATE TABLE IF NOT EXISTS plugin_ref_grants (
+  plugin_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  ref_id TEXT NOT NULL,
+  target_created_at INTEGER NOT NULL,
+  create_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, kind, ref_id)
+);

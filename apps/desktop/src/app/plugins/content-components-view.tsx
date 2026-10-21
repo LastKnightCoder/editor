@@ -12,7 +12,7 @@ import { openPage } from "@/services/page-navigation";
 import useSettingStore from "@/stores/useSettingStore";
 import { defaultContentEventBus } from "@/utils/event-bus/content-event-bus";
 import { useDesktopPlugins } from "./context";
-import { usePluginComponentScope } from "./content-components";
+import { usePluginComponentScope } from "./component-scope";
 import { resolvePluginContentTarget, type PluginContentTarget } from "./content-target";
 import { PLUGIN_DETAIL_KEY } from "./runtime";
 

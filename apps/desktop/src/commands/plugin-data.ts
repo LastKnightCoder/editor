@@ -8,6 +8,8 @@ import type {
   PluginDataQuery,
   PluginDataRecord,
   PluginOperationRecord,
+  PluginRefDescription,
+  PluginRefInput,
   PluginWritableEntity,
 } from "@/types/plugin-data";
 
@@ -102,4 +104,22 @@ export const markPluginOperationRestored = (databaseName: string, id: number): P
   invoke("plugin-data:mark-restored", { databaseName, id });
 
 export const pluginRefExists = (databaseName: string, kind: string, id: string): Promise<boolean> =>
-  invoke("plugin-data:exists", { databaseName, kind, id });
+  invoke("plugin-refs:exists", { databaseName, kind, id });
+
+/** 登记用户在选择窗口中为插件选中的引用 */
+export const grantPluginRefs = (
+  databaseName: string,
+  pluginId: string,
+  refs: PluginRefInput[]
+): Promise<number> => invoke("plugin-refs:grant", { databaseName, pluginId, refs });
+
+export const describePluginRefs = (
+  databaseName: string,
+  pluginId: string,
+  refs: PluginRefInput[],
+  readable: string[]
+): Promise<PluginRefDescription[]> =>
+  invoke("plugin-refs:describe", { databaseName, pluginId, refs, readable });
+
+export const clearPluginRefGrants = (databaseName: string, pluginId: string): Promise<number> =>
+  invoke("plugin-refs:clear", { databaseName, pluginId });

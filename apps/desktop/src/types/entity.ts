@@ -9,6 +9,8 @@ export type EntityKind =
   | "project_item"
   | "project"
   | "white_board"
+  // Notebook（vibe_learning_project）：没有正文
+  | "notebook"
   // 日记里的一条碎碎念（diary_segments）：id 是片段 id，所属那一天见 EntityCandidate.diaryId
   | "diary-moment"
   // 外部材料与对话：只供问题「关联已有」选择（问题材料 / 探究对话），没有正文
