@@ -35,6 +35,7 @@ function contextOf(links: number, overrides: Partial<EntityContext> = {}): Entit
     backlinks: [],
     backlinkTotal: 0,
     questions: [],
+    pluginLinks: [],
     sources: [],
     derived: [],
     notebookProjections: [],
