@@ -259,7 +259,7 @@ export const VoiceClonePanel = ({
   const cloneDisabled = cloneItems.some(item => !item.audioFile || !!item.voiceIdError);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <Button
         variant="ghost"
         size="sm"
@@ -279,14 +279,14 @@ export const VoiceClonePanel = ({
       </Button>
 
       {showCloneForm && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {cloneItems.map((item, index) => {
             const voiceIdOk = !!item.voiceId && !item.voiceIdError;
             const file = item.audioFile;
             return (
               <div
                 key={item.id}
-                className="border-line-1 rounded-tau-md flex flex-col gap-3 border px-3.5 py-3"
+                className="border-line-1 rounded-tau-md flex flex-col gap-4 border px-3.5 py-3"
               >
                 <div className="flex h-[26px] items-center justify-between">
                   <span className="text-ink-1 text-tau-meta font-medium">音色 {index + 1}</span>
@@ -366,14 +366,14 @@ export const VoiceClonePanel = ({
             );
           })}
 
-          <ul className="text-ink-3 text-tau-meta m-0 flex list-disc flex-col gap-0.5 pl-4">
+          <ul className="text-ink-3 text-tau-meta m-0 flex list-disc flex-col gap-2 pl-4">
             <li>可填写期望的 Voice ID，最终以服务商返回的 ID 为准</li>
             <li>每个音色使用一个参考音频，重新选择会替换原文件</li>
             <li>建议使用清晰的单人语音</li>
             <li>可同时克隆最多 5 个不同的音色</li>
           </ul>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {cloneItems.length < 5 && (
               <Button
                 variant="ghost"
