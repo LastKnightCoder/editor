@@ -193,8 +193,8 @@
     "artifact": "releases/tau.image-gallery/0.1.0",
     "id": "tau.image-gallery",
     "version": "0.1.0",
-    "sourceRevision": "783f1142b994023dd5fa2d3ae0e9cf1c81443ca8",
-    "archiveSha256": "45493786f0181b12f2c285107adeede18679ef47ac9559ddbc304fd38d26cead",
+    "sourceRevision": "1bd7b4a71d1582685870973abf217fcb8341919f",
+    "archiveSha256": "e0b9e1df36641fd0c8f1af9c715940cd2b15f9602b9bfaf193b639f993fbbc2c",
     "files": {
       "CHANGELOG.md": "172a11f92f2ad4c74d0b9dd783bdc3180631e5d1a88a073c6263f318e4bab49d",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
