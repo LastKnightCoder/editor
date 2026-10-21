@@ -219,7 +219,7 @@ it("删除使用中的配置改用下一个已选模型的配置，没有则留�
 });
 
 const zip = process.env.TAU_IMAGES_PLUGIN_ZIP;
-it.skipIf(!zip)("真实 OpenAI ZIP 的配置表单按账号保存，失败保留草稿和已提交配置", async () => {
+it.skipIf(!zip)("真实 OpenAI ZIP 的配置表单按账号实时保存，失败保留草稿和已提交配置", async () => {
   const artifact = JSON.parse(
     execFileSync(
       process.execPath,
@@ -252,23 +252,24 @@ it.skipIf(!zip)("真实 OpenAI ZIP 的配置表单按账号保存，失败保留
   await act(async () => row("b")!.click());
   const key = container.querySelector<HTMLInputElement>('input[type="password"]')!;
   expect(key.value).toBe("key-b");
-  await act(async () => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-      key,
-      "changed-b"
-    );
-    key.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  const typeAndSettle = async (text: string) => {
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(key, text);
+      key.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(() => new Promise(resolve => setTimeout(resolve, 600)));
+  };
   mocks.save.mockRejectedValueOnce(new Error("磁盘保存失败"));
-  await act(async () => button("保存连接配置")!.click());
+  await typeAndSettle("changed-b");
   expect(container.textContent).toContain("磁盘保存失败");
   expect(state().providers[1].config).toEqual(profiles[1].config);
   expect(key.value).toBe("changed-b");
-  await act(async () => button("保存连接配置")!.click());
+  await typeAndSettle("changed-b2");
+  expect(container.textContent).not.toContain("磁盘保存失败");
   expect(mocks.save).toHaveBeenLastCalledWith(
     "b",
     artifact.manifest.id,
-    { baseUrl: "https://b.test/v1", apiKey: "changed-b" },
+    { baseUrl: "https://b.test/v1", apiKey: "changed-b2" },
     "model-b"
   );
   expect(state().providers[0].config).toEqual(profiles[0].config);

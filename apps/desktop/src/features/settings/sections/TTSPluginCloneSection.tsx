@@ -31,16 +31,19 @@ export function TTSPluginCloneSection({
           onValueChange={setSelected}
         />
       </SettingRow>
-      {modelId ? (
-        <CloneForm
-          key={provider.id + ":" + modelId}
-          provider={provider}
-          modelId={modelId}
-          onCloned={onCloned}
-        />
-      ) : (
-        <p className="text-tau-meta text-ink-2">请先配置模型。</p>
-      )}
+      {/* 描边容器自身无内距（靠 SettingRow 的 px-3），非行式内容需自带同等内收 */}
+      <div className="px-3 pb-3">
+        {modelId ? (
+          <CloneForm
+            key={provider.id + ":" + modelId}
+            provider={provider}
+            modelId={modelId}
+            onCloned={onCloned}
+          />
+        ) : (
+          <p className="text-tau-meta text-ink-2">请先配置模型。</p>
+        )}
+      </div>
     </ProviderSection>
   );
 }

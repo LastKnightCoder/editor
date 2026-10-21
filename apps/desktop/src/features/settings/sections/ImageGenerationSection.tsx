@@ -215,6 +215,7 @@ function ProviderItem({
             </SettingRow>
             <PluginSettingsView
               section={section}
+              embedded
               imageConfig={{
                 instanceId: provider.id,
                 value: copyJson(provider.config),
