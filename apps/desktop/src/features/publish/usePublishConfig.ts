@@ -45,15 +45,23 @@ const updateSetting = (
   recipe: (draft: ReturnType<typeof useSettingStore.getState>["setting"]) => void
 ) => useSettingStore.setState(s => ({ setting: produce(s.setting, recipe) }));
 
+const noSubscribe = () => () => {};
+const zeroRevision = () => 0;
+
 export function usePublishConfig() {
   const runtime = useDesktopPlugins();
   const revision = useSyncExternalStore(
     rendererPublishRegistry.subscribe,
     rendererPublishRegistry.getRevision
   );
+  // 安装、更新、卸载插件后 runtime 递增 revision，模板列表随之重新读取，不等 staleTime 过期
+  const pluginRevision = useSyncExternalStore(
+    runtime?.subscribe ?? noSubscribe,
+    runtime?.getRevision ?? zeroRevision
+  );
   const client = useQueryClient();
   const templatesQuery = useQuery({
-    queryKey: ["publish", "templates"],
+    queryKey: ["publish", "templates", pluginRevision],
     queryFn: listPublishTemplates,
     refetchOnWindowFocus: true,
   });
