@@ -54,6 +54,16 @@ vi.mock("@tau/ui", async importOriginal => {
   return { ...actual, toast: { ...actual.toast, info: mocks.toastInfo } };
 });
 
+// 插件内容按插件声明的类型名显示，这里不经主进程取外观
+vi.mock("@/components/EntityKind", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/components/EntityKind")>();
+  return {
+    ...actual,
+    useEntityKindMeta: (ref: { kind: string }, fallback: { label: string; icon: unknown }) =>
+      ref.kind === "plugin-entity" ? { ...fallback, label: "问题" } : fallback,
+  };
+});
+
 import { ContextBadge } from "../components/ContextBadge";
 import { contextCount } from "../model";
 
@@ -76,6 +86,7 @@ const CONTEXT: EntityContext = {
   ],
   backlinkTotal: 2,
   questions: [{ id: 9, title: "为什么 transform 不触发重排？", status: "in_progress" }],
+  pluginLinks: [],
   sources: [],
   derived: [],
   notebookProjections: [],
@@ -217,6 +228,22 @@ describe("ContextBadge", () => {
     click(findButton("处关联"));
     click(findButton("为什么 transform"));
     expect(mocks.openPage).toHaveBeenCalledWith("questions", { selectedId: 9 });
+  });
+
+  it("被关联：列出关联了它的插件内容，计入关联数，点击按插件内容打开", () => {
+    mocks.context = {
+      ...CONTEXT,
+      pluginLinks: [{ ref: { kind: "plugin-entity", id: 7 }, title: "渲染为什么卡", meta: "" }],
+    };
+    expect(contextCount(mocks.context)).toBe(contextCount(CONTEXT) + 1);
+    render();
+    click(findButton("处关联"));
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("被关联");
+    expect(text).toContain("渲染为什么卡问题");
+    expect(text.indexOf("被关联")).toBeLessThan(text.indexOf("相关问题"));
+    click(findButton("渲染为什么卡"));
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "plugin-entity", id: 7 });
   });
 
   it("连接分区常驻（空连接也有添加入口），排在被引用之前；解除走 removeLink", () => {

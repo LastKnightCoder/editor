@@ -1,6 +1,7 @@
 /**
  * 组装一个实体的脉络：连接（显式 content_links ∪ 内联引用）、共用正文的身份、被引用
- * （索引库 entity_refs）、相关问题，以及来源、衍生、被使用（context-lineage）。
+ * （索引库 entity_refs）、相关问题、被插件内容关联（context-plugin-links），以及来源、衍生、
+ * 被使用（context-lineage）。
  */
 
 import type Database from "better-sqlite3";
@@ -31,6 +32,7 @@ import {
   toContextEntity,
   usagesOf,
 } from "./context-lineage";
+import { pluginLinksOf } from "./context-plugin-links";
 
 /** 各分区最多返回的条数 */
 export const CONTEXT_LIMIT = 50;
@@ -302,6 +304,7 @@ export function getEntityContext(
     backlinks,
     backlinkTotal: total,
     questions: questionsOf(mainDb, identities, contentIds),
+    pluginLinks: pluginLinksOf(mainDb, identities, CONTEXT_LIMIT, toEntity),
     sources: sourcesOf(mainDb, identities, toEntity),
     derived: derivedOf(mainDb, identities, contentIds, toEntity),
     notebookProjections: notebookProjectionsOf(mainDb, contentIds, toEntity),

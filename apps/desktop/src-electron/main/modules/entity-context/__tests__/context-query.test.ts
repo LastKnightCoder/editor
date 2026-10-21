@@ -34,6 +34,10 @@ import WhiteboardTable from "../../tables/whiteboard";
 import { CONTENT_AI_META_CHANGED_EVENT } from "../../tables/content-ai-meta";
 import ExcerptTable from "../../tables/excerpt";
 import PdfTable from "../../tables/pdf";
+import PluginDataTable from "../../tables/plugin-data";
+import PluginEntityTable from "../../tables/plugin-entity";
+import PluginLinkTable from "../../tables/plugin-links";
+import PluginTransactionTable from "../../tables/plugin-transaction";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { CONTEXT_WRITE_EVENTS, WHITEBOARD_CANVAS_EVENTS } from "../write-events";
@@ -392,6 +396,64 @@ describe("getEntityContext", () => {
     ]);
   });
 
+  it("被关联：插件内容关联了它或共用正文的身份；编号复用、孤儿与自我关联不算", () => {
+    const cardContent = insertContent([p(text("卡片"))]);
+    const cardId = insertCard(cardContent);
+    const entity = (pluginId: string, key: string, title: string) =>
+      Number(
+        mainDb
+          .prepare(
+            `INSERT INTO plugin_entities (plugin_id, kind, key, title, content_id, create_time, update_time)
+             VALUES (?, 'question', ?, ?, ?, ?, ?)`
+          )
+          .run(pluginId, key, title, insertContent([]), clock, clock++).lastInsertRowid
+      );
+    const linkTo = (from: number, pluginId: string, kind: string, id: number, createdAt: number) =>
+      mainDb
+        .prepare(
+          `INSERT INTO plugin_links (id, plugin_id, from_id, to_kind, to_id, to_created_at, sort_index, create_time)
+           VALUES (?, ?, ?, ?, ?, ?, 0, ?)`
+        )
+        .run(`l${clock}`, pluginId, from, kind, String(id), createdAt, clock++);
+    const cardCreated = (
+      mainDb.prepare("SELECT create_time FROM cards WHERE id = ?").get(cardId) as {
+        create_time: number;
+      }
+    ).create_time;
+    const older = entity("tau.questions", "q1", "为什么会这样");
+    const newer = entity("tau.questions", "q2", "另一个问题");
+    const orphan = entity("gone", "q3", "已卸载插件的问题");
+    const stale = entity("tau.questions", "q4", "关联的是被复用编号前的卡片");
+    linkTo(older, "tau.questions", "card", cardId, cardCreated);
+    linkTo(orphan, "gone", "card", cardId, cardCreated);
+    mainDb.prepare("UPDATE plugin_entities SET orphaned_time = 1 WHERE id = ?").run(orphan);
+    linkTo(stale, "tau.questions", "card", cardId, cardCreated - 1);
+    // 关联到共用这份正文的项目文档，也出现在卡片的脉络里
+    const itemId = Number(
+      mainDb
+        .prepare(
+          `INSERT INTO project_item (create_time, update_time, title, children, parents, projects, content_id)
+           VALUES (?, ?, '文档', '[]', '[]', '[]', ?)`
+        )
+        .run(clock, clock, cardContent).lastInsertRowid
+    );
+    const itemCreated = (
+      mainDb.prepare("SELECT create_time FROM project_item WHERE id = ?").get(itemId) as {
+        create_time: number;
+      }
+    ).create_time;
+    linkTo(newer, "tau.questions", "document", itemId, itemCreated);
+    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
+    expect(ctx.pluginLinks.map(item => [item.ref, item.title])).toEqual([
+      [{ kind: "plugin-entity", id: newer }, "另一个问题"],
+      [{ kind: "plugin-entity", id: older }, "为什么会这样"],
+    ]);
+    // 插件内容之间互相关联时，不把自己列进自己的脉络
+    linkTo(older, "tau.questions", "plugin-entity", older, clock - 100);
+    const self = getEntityContext(mainDb, indexDb, { kind: "plugin-entity", id: older })!;
+    expect(self.pluginLinks).toEqual([]);
+  });
+
   it("实体不存在返回 null", () => {
     expect(getEntityContext(mainDb, indexDb, { kind: "card", id: 404 })).toBeNull();
   });
@@ -420,6 +482,10 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         VLNoteTable,
         ExcerptTable,
         PdfTable,
+        PluginDataTable,
+        PluginEntityTable,
+        PluginLinkTable,
+        PluginTransactionTable,
       ].flatMap(table => Object.keys(table.getListenEvents()))
     );
     // 笔记元信息由 content-ai-queue 写入后补发
