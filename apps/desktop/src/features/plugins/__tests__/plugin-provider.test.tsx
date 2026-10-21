@@ -25,7 +25,13 @@ vi.mock("@/commands/plugin-local", () => ({
   setLocalPluginEnabled: vi.fn(async () => undefined),
   fetchPluginCatalog: vi.fn(async () => ({ items: [] })),
 }));
-vi.mock("@/electron", () => ({ isElectron: true, on: vi.fn(), off: vi.fn() }));
+vi.mock("@/electron", () => ({
+  isElectron: true,
+  platform: "darwin",
+  invoke: vi.fn(),
+  on: vi.fn(),
+  off: vi.fn(),
+}));
 vi.mock("@/tools/pluginMCP", () => ({ registerPluginMCP: vi.fn() }));
 vi.mock("@/commands/extra", () => ({ openExternal: vi.fn() }));
 import useSettingStore from "@/stores/useSettingStore";
