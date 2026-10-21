@@ -29,6 +29,7 @@ export * from "./primitives/input/Input";
 export * from "./primitives/input/Textarea";
 export * from "./primitives/input/NumberInput";
 export * from "./patterns/FormRow";
+export * from "./patterns/SettingRow";
 export * from "./primitives/Checkbox";
 export * from "./primitives/Switch";
 export * from "./primitives/RadioGroup";
