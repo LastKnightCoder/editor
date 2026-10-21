@@ -40,59 +40,44 @@ try {
     path.join(directory, "index.html"),
     '<!doctype html><meta charset="utf-8"><div id="root"></div>'
   );
-  for (const [entry, output, platform, format] of [
-    ["scripts/plugin-runtime/local-main.ts", "main.cjs", "node", "cjs"],
-    [
-      water
-        ? "scripts/plugin-runtime/water-renderer.tsx"
-        : "scripts/plugin-runtime/local-renderer.tsx",
-      "renderer.js",
-      "browser",
-      "iife",
-    ],
-    ["src-electron/preload/index.ts", "preload.cjs", "node", "cjs"],
-  ])
-    await build({
-      entryPoints: [path.join(root, "apps/desktop", entry)],
-      outfile: path.join(directory, output),
-      bundle: true,
-      platform,
-      format,
-      external: ["electron"],
-      loader: { ".png": "dataurl" },
-      tsconfig: path.join(root, "apps/desktop/tsconfig.json"),
-      define: { "import.meta.env": JSON.stringify({ DEV: false, PROD: true }) },
-      plugins: [
-        {
-          name: "temporary-app-directory",
-          setup(build) {
-            if (water) {
-              build.onLoad({ filter: /[\\/]app[\\/]navSlots\.tsx$/ }, () => ({
-                contents:
-                  "export const NAV_BADGE_SLOTS = {}; export const NAV_CHILDREN_SLOTS = {}; export const useNavChildrenContent = () => ({});",
-                loader: "js",
-              }));
-              build.onLoad({ filter: /[\\/]app[\\/]WindowControls\.tsx$/ }, () => ({
-                contents: "export const MacTrafficLights = () => null;",
-                loader: "js",
-              }));
-              build.onLoad({ filter: /[\\/]app[\\/]useFullScreen\.ts$/ }, () => ({
-                contents: "export const useFullScreen = () => false;",
-                loader: "js",
-              }));
-            }
-            build.onLoad({ filter: /[\\/]utils[\\/]PathUtil\.ts$/ }, () => ({
-              contents: "export default { getAppDir: () => process.env.TAU_LOCAL_TEST_APP_DIR };",
-              loader: "js",
-            }));
-          },
+  const desktop = path.join(root, "apps/desktop");
+  const { mainBuildOptions, rendererBuildOptions } = await import(
+    path.join(desktop, "scripts/plugin-runtime/esbuild-options.mjs")
+  );
+  await Promise.all([
+    build(
+      mainBuildOptions(desktop, {
+        entry: "scripts/plugin-runtime/local-main.ts",
+        outfile: path.join(directory, "main.mjs"),
+      })
+    ),
+    build(
+      rendererBuildOptions(desktop, {
+        entry: "scripts/plugin-runtime/local-renderer.tsx",
+        outfile: path.join(directory, "renderer.js"),
+        // ZIP 安装入口只在开发环境显示；侧边栏的壳层依赖与验收无关。
+        dev: true,
+        stubs: {
+          "app/navSlots.tsx":
+            "export const NAV_BADGE_SLOTS = {}; export const NAV_CHILDREN_SLOTS = {}; export const useNavChildrenContent = () => ({});",
+          "app/WindowControls.tsx": "export const MacTrafficLights = () => null;",
+          "app/useFullScreen.ts": "export const useFullScreen = () => false;",
         },
-      ],
-    });
+      })
+    ),
+    build({
+      entryPoints: [path.join(desktop, "src-electron/preload/index.ts")],
+      outfile: path.join(directory, "preload.cjs"),
+      bundle: true,
+      platform: "node",
+      external: ["electron"],
+      logLevel: "error",
+    }),
+  ]);
   for (const phase of waterUpgrade
     ? ["water-upgrade-start", "water-upgrade-applied", "water-upgrade-restored"]
     : updates
-      ? ["update-start", "update-applied", "update-restored", "update-failed", "update-recovered"]
+      ? ["update-start", "update-restart", "update-failed", "update-recovered"]
       : water
         ? ["water", "water-restore", "water-disabled"]
         : installed
@@ -129,7 +114,7 @@ try {
     await new Promise((resolve, reject) => {
       const child = spawn(
         require("electron"),
-        [path.join(directory, "main.cjs"), phase, directory],
+        [path.join(directory, "main.mjs"), phase, directory],
         { cwd: directory, env, stdio: "inherit" }
       );
       const timer = setTimeout(() => child.kill("SIGKILL"), 45000);

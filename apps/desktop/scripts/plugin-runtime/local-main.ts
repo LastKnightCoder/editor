@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import localModule from "../../src-electron/main/modules/plugin-local";
 import AdmZip from "adm-zip";
 import client from "../../package.json";
+import { createDriver } from "./driver";
 
 const [phase, directory] = process.argv.slice(2);
 app.setPath("userData", path.join(directory, "profile"));
@@ -83,31 +84,21 @@ app
         preload: path.join(directory, "preload.cjs"),
       },
     });
-    await window.loadFile(path.join(directory, "index.html"));
+    await window.loadFile(path.join(directory, "index.html"), {
+      query: { workspace: phase.startsWith("water") ? "water-author-a" : "fixed-directory-test" },
+    });
     await window.webContents.executeJavaScript(
       await readFile(path.join(directory, "renderer.js"), "utf8")
     );
-    const run = (code: string) => window.webContents.executeJavaScript(code);
-    async function wait(code: string) {
-      const deadline = Date.now() + 15000;
-      while (Date.now() < deadline) {
-        if (await run(code)) return;
-        await new Promise(resolve => setTimeout(resolve, 20));
-      }
-      throw Error("验证超时：" + code + "\n" + (await run("document.body.innerText")));
-    }
-    async function click(label: string) {
-      const expression = `[...document.querySelectorAll('button')].find(b=>(b.getAttribute('aria-label')===${JSON.stringify(label)}||b.textContent===${JSON.stringify(label)})&&!b.disabled)`;
-      await wait(`Boolean(${expression})`);
-      await run(`${expression}.click()`);
-    }
+    const { run, wait, click, menu } = createDriver(window, 15000);
+    const pluginMenu = (item: string) => menu("更多插件操作", item);
     await wait(
       "Boolean(window.localTest) && localTest.snapshot().ready !== false && !localTest.snapshot().busy && Boolean(localTest.snapshot().directory)"
     );
-    assert.equal(await run("document.body.innerText.includes('选择开发插件目录')"), false);
     assert.equal(await run("localTest.snapshot().directory"), plugins);
-    await click("打开插件目录");
-    await wait("!document.querySelector('button[disabled]')");
+    await pluginMenu("打开插件目录");
+    for (const deadline = Date.now() + 5000; opens === 0 && Date.now() < deadline;)
+      await new Promise(resolve => setTimeout(resolve, 20));
     assert.equal(opens, 1);
     let upgradeCheck:
       | {
@@ -147,7 +138,7 @@ app
           await wait(`document.body.innerText.includes('已喝水：${count} 杯')`);
         }
         await run("localTest.list()");
-        await click("安装或更新 ZIP");
+        await pluginMenu("从 ZIP 安装…");
         await wait(
           "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pendingVersion==='1.3.0')"
         );
@@ -157,7 +148,7 @@ app
         await click("喝了一杯");
         await wait("document.body.innerText.includes('已喝水：4 杯')");
         await run("localTest.list()");
-        await click("恢复上一版 1.2.0");
+        await menu("喝水打卡 的更多操作", "恢复上一版 1.2.0");
         await wait(
           "localTest.snapshot().updates.some(u=>u.id==='lastknight.water-checkin'&&u.pendingVersion==='1.2.0')"
         );
@@ -179,45 +170,45 @@ app
         waterIcon: true,
       };
     } else if (phase.startsWith("update-")) {
+      // 普通插件的 ZIP 安装与恢复上一版立即落盘并热替换；激活失败时内存回退旧实例，重启后按磁盘版本加载。
+      const local = "localTest.snapshot().plugins.find(p=>p.id==='example.local')";
+      const version = (value: string) =>
+        wait(
+          `${local}?.version==='${value}' && ${local}?.state==='active' && !localTest.snapshot().busy`
+        );
       if (phase === "update-start") {
         await click("启用 本地验证");
         await wait("localTest.snapshot().commands.length===1");
         assert.deepEqual(await run("localTest.run()"), { count: 1, version: "1.0.0" });
         selectedZip = path.join(directory, "incompatible.zip");
-        await click("安装或更新 ZIP");
+        await pluginMenu("从 ZIP 安装…");
         await wait("document.body.innerText.includes('需要 Tau 99.0.0')");
         selectedZip = path.join(directory, "update.zip");
-        await click("安装或更新 ZIP");
-        await wait("localTest.snapshot().updates.some(u=>u.pendingVersion==='1.1.0')");
-        await click("取消待更新");
-        await wait("!localTest.snapshot().updates.some(u=>u.pendingVersion)");
-        await click("安装或更新 ZIP");
-        await wait("localTest.snapshot().updates.some(u=>u.pendingVersion==='1.1.0')");
-        assert.deepEqual(await run("localTest.run()"), { count: 2, version: "1.0.0" });
-      } else if (phase === "update-applied") {
-        assert.deepEqual(await run("localTest.run()"), { count: 3, version: "1.1.0" });
-        await click("恢复上一版 1.0.0");
-        await wait("localTest.snapshot().updates.some(u=>u.pendingVersion==='1.0.0')");
-        assert.deepEqual(await run("localTest.run()"), { count: 4, version: "1.1.0" });
-      } else if (phase === "update-restored") {
-        assert.deepEqual(await run("localTest.run()"), { count: 5, version: "1.0.0" });
-        assert.equal(
-          await run("localTest.snapshot().updates.some(u=>u.previousVersion==='1.1.0')"),
-          true
-        );
+        await pluginMenu("从 ZIP 安装…");
+        await version("1.1.0");
+        assert.deepEqual(await run("localTest.run()"), { count: 2, version: "1.1.0" });
+        await menu("本地验证 的更多操作", "恢复上一版 1.0.0");
+        await version("1.0.0");
+        assert.deepEqual(await run("localTest.run()"), { count: 3, version: "1.0.0" });
+      } else if (phase === "update-restart") {
+        await version("1.0.0");
+        assert.deepEqual(await run("localTest.run()"), { count: 4, version: "1.0.0" });
         selectedZip = path.join(directory, "failing.zip");
-        await click("安装或更新 ZIP");
-        await wait("localTest.snapshot().updates.some(u=>u.pendingVersion==='1.2.0')");
-      } else if (phase === "update-failed") {
-        assert.equal(
-          await run("localTest.snapshot().plugins.find(p=>p.id==='example.local').state"),
-          "failed"
+        await pluginMenu("从 ZIP 安装…");
+        await wait(
+          "localTest.snapshot().issues.some(e=>e.includes('已恢复旧版本')) && !localTest.snapshot().busy"
         );
+        await version("1.0.0");
+        assert.deepEqual(await run("localTest.run()"), { count: 5, version: "1.0.0" });
+      } else if (phase === "update-failed") {
+        await wait(`${local}?.version==='1.2.0' && ${local}?.state==='failed'`);
         assert.equal(await run("localTest.snapshot().commands.length"), 0);
-        await click("恢复上一版 1.0.0");
-        await wait("localTest.snapshot().updates.some(u=>u.pendingVersion==='1.0.0')");
-      } else {
+        await menu("本地验证 的更多操作", "恢复上一版 1.0.0");
+        await version("1.0.0");
         assert.deepEqual(await run("localTest.run()"), { count: 6, version: "1.0.0" });
+      } else {
+        await version("1.0.0");
+        assert.deepEqual(await run("localTest.run()"), { count: 7, version: "1.0.0" });
       }
     } else if (phase.startsWith("water")) {
       const sidebarButton = `document.querySelector('nav button[aria-label="喝水打卡"]')`;
@@ -324,24 +315,25 @@ app
     } else if (phase === "refresh") {
       assert.deepEqual(await run("localTest.run()"), { count: 2, version: "1.0.0" });
       await put("1.1.0");
-      await click("刷新列表");
+      await pluginMenu("重新扫描");
       await wait("!localTest.snapshot().busy");
+      // 运行中的普通插件重新扫描即热替换，数据保留。
       assert.equal(
         await run("localTest.snapshot().issues.some(e=>e.includes('文件已更新'))"),
-        true
+        false
       );
-      assert.deepEqual(await run("localTest.run()"), { count: 3, version: "1.0.0" });
+      assert.deepEqual(await run("localTest.run()"), { count: 3, version: "1.1.0" });
       await click("停用 本地验证");
       await wait("!localTest.snapshot().busy");
-      await click("刷新列表");
+      await pluginMenu("重新扫描");
       await wait("!localTest.snapshot().busy");
       await click("启用 本地验证");
       await wait("localTest.snapshot().commands.length===1");
       assert.deepEqual(await run("localTest.run()"), { count: 4, version: "1.1.0" });
       await rm(path.join(plugins, "example.local"), { recursive: true });
-      await click("刷新列表");
+      await pluginMenu("重新扫描");
       await wait("!localTest.snapshot().busy");
-      assert.equal(await run("localTest.snapshot().plugins.length"), 1);
+      assert.equal(await run("localTest.snapshot().plugins.length"), 0);
       assert.equal(await run("localTest.snapshot().commands.length"), 0);
     } else if (phase === "reinstall") {
       assert.deepEqual(await run("localTest.run()"), { count: 5, version: "1.1.0" });
