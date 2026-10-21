@@ -7,7 +7,6 @@ import { PageHost } from "../../src/page/PageHost";
 import { DesktopPluginRuntime } from "../../src/app/plugins/runtime";
 import { PluginRuntimeContext } from "../../src/app/plugins/context";
 import { getPluginWorkspace } from "../../src/commands/plugin-local";
-import { Sidebar } from "../../src/app/Sidebar";
 import "../../src/features/plugins/pages/plugins.page";
 import "../../src/features/plugins/pages/plugin-detail.page";
 import "../../src/features/plugins/pages/plugin-page.page";
@@ -47,17 +46,9 @@ export function Harness({ workspaceId }: { workspaceId: string }) {
         busy: local.busy(),
         issues: local.issues.map(item => item.error),
         directory: local.directory,
-        styles: document.querySelectorAll('style[data-tau-plugin="lastknight.water-checkin"]')
-          .length,
       }),
       run: () => runtime.host.executeCommand("example.local:run"),
       openAuthor: () => runtime.host.executeCommand("example.external-counter:open"),
-      openWater: () => runtime.host.executeCommand("lastknight.water-checkin:open"),
-      list: () => navigator.push("plugins", { tab: "installed" }),
-      switchWorkspace: async (name: string) => {
-        await runtime.dispose();
-        await mount(name);
-      },
       stop: async () => {
         await runtime.dispose();
         root.unmount();
@@ -66,7 +57,6 @@ export function Harness({ workspaceId }: { workspaceId: string }) {
   });
   return (
     <PluginRuntimeContext.Provider value={runtime}>
-      <Sidebar resizing={false} />
       <PageHost state={state} />
     </PluginRuntimeContext.Provider>
   );
@@ -82,5 +72,4 @@ async function mount(name: string) {
     </QueryClientProvider>
   );
 }
-const params = new URLSearchParams(location.search);
-void mount(params.get("workspace") ?? "fixed-directory-test");
+void mount("fixed-directory-test");
