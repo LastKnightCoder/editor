@@ -140,6 +140,72 @@ export interface PluginDocumentMove {
   index?: number;
 }
 
+export interface PluginNotebook {
+  id: string;
+  title: string;
+  archived: boolean;
+  pinned: boolean;
+  /** 资料数 */
+  resourceCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * Notebook 里的一份资料。只给清单信息：不含本机文件路径与资料转换后的文字。
+ * source：local 本机文件、remote 网络链接、note 加入时的笔记快照、material 材料快照、
+ * online-video 在线视频。
+ */
+export interface PluginNotebookResource {
+  id: string;
+  name: string;
+  /** 文件类型：pdf、video、audio、image、md、html、docx 等，无法识别时为 other */
+  type: string;
+  source: "local" | "remote" | "note" | "material" | "online-video";
+  /** remote 的网址 */
+  url?: string;
+  /** note / material：快照来自哪些内容，原内容可能已删除 */
+  from?: PluginEntityRef[];
+  /** 字节数，未知时为 null */
+  size: number | null;
+  /** 音视频时长（秒），未知时为 null */
+  duration: number | null;
+  createdAt: number;
+}
+
+/** 划线（excerpt）、PDF 标注（pdf-annotation）与剪藏（web-clip） */
+export type PluginMaterialKind = "excerpt" | "pdf-annotation" | "web-clip";
+
+export interface PluginMaterial {
+  /** 与 PluginEntityRef 的 material 引用 ID 相同 */
+  id: string;
+  kind: PluginMaterialKind;
+  title: string;
+  /** 划下或标注的原文；剪藏为空 */
+  quote: string;
+  /** 用户写下的想法 */
+  note: string;
+  /** 出处说明，如「PDF · 文件名 · 第 3 页」 */
+  source: string;
+  /** 原处的网址：划线的外部链接、剪藏的网页 */
+  url?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** 对话的信息；消息内容不开放 */
+export interface PluginChatSession {
+  id: string;
+  /** 未命名的对话为空字符串 */
+  title: string;
+  /** main 主对话、pdf PDF 对话、video-note 视频笔记对话、notebook Notebook 对话 */
+  scene: "main" | "pdf" | "video-note" | "notebook";
+  messageCount: number;
+  archived: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface PluginEntityReader<T> {
   get(id: string): Promise<T | null>;
   query(query?: PluginEntityQuery): Promise<PluginPage<T>>;
@@ -299,6 +365,15 @@ export interface PluginData {
      */
     delete(id: string, options: PluginWriteOptions): Promise<void>;
   };
+  /** Notebook 的信息与资料清单；query 不支持 tag */
+  readonly notebooks: PluginEntityReader<PluginNotebook> & {
+    /** 按 Notebook 中的顺序；Notebook 不存在时为 null */
+    resources(id: string): Promise<PluginNotebookResource[] | null>;
+  };
+  /** 划线、PDF 标注与剪藏；query 不支持 tag，已删除的不返回 */
+  readonly materials: PluginEntityReader<PluginMaterial>;
+  /** AI 对话的信息，不含消息内容；query 不支持 tag */
+  readonly chats: PluginEntityReader<PluginChatSession>;
   readonly todos: {
     query(query?: PluginTodoQuery): Promise<PluginPage<PluginTodo>>;
     create(input: PluginTodoInput): Promise<PluginTodo>;

@@ -119,6 +119,16 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
     expect(exists("chat-session", "s1")).toBe(true);
     expect(exists("chat-session", "s2")).toBe(false);
     expect(exists("material", "excerpt:1")).toBe(false);
+    const excerpt = (deleted: number) =>
+      insert(
+        `INSERT INTO excerpt (source_type, source_key, external_id, quote, create_time, update_time, is_deleted)
+         VALUES ('web', 'k', ?, '句子', 1, 1, ?)`,
+        `e${deleted}`,
+        deleted
+      );
+    expect(exists("material", `excerpt:${excerpt(0)}`)).toBe(true);
+    // 软删除的划线视为不存在
+    expect(exists("material", `excerpt:${excerpt(1)}`)).toBe(false);
     expect(exists("material", "cards:1")).toBe(false);
     expect(exists("plugin-entity", "1")).toBe(false);
     // 选择窗口可检索 Notebook

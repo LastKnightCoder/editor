@@ -1,4 +1,10 @@
-import type { CalendarWrite, DataAdapter, DataEntity, TodoWrite } from "@tau/plugins/host";
+import type {
+  CalendarWrite,
+  DataAdapter,
+  DataEntity,
+  ReadableEntity,
+  TodoWrite,
+} from "@tau/plugins/host";
 import {
   PluginConflictError,
   type PluginArticle,
@@ -36,6 +42,7 @@ import type {
   PluginDataRecord,
   PluginOperationRecord,
   PluginProjectNodeRecord,
+  PluginReadonlyEntity,
 } from "@/types/plugin-data";
 
 import { encodeContentRef, decodeContentRef } from "@/utils/plugin-content-ref";
@@ -248,7 +255,9 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
     return series;
   };
   return {
-    async query(context, entity: DataEntity, query) {
+    async query(context, entity, query) {
+      if (isReadonly(entity))
+        return bound(context).queryPluginReadonlyData(databaseName, entity, query);
       const page = await bound(context).queryPluginData(databaseName, entity, query);
       return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
     },
@@ -428,6 +437,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       else refreshLists(restored.entity);
     },
     async get(context, entity, id) {
+      if (isReadonly(entity)) return bound(context).getPluginReadonlyData(databaseName, entity, id);
       const numeric = parseId(id);
       if (numeric === null) return null;
       const record = await bound(context).getPluginData(databaseName, entity, numeric);
@@ -452,6 +462,9 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         items: result.items.map(toEvent),
         ...(result.nextCursor ? { cursor: result.nextCursor } : {}),
       };
+    },
+    async notebookResources(context, notebookId) {
+      return bound(context).getPluginNotebookResources(databaseName, requireId(notebookId));
     },
     async projectTree(context, projectId) {
       const nodes = await bound(context).getPluginProjectTree(databaseName, requireId(projectId));
@@ -511,6 +524,11 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
     },
   };
 }
+
+const READONLY_ENTITIES = new Set<ReadableEntity>(["notebook", "material", "chat-session"]);
+
+const isReadonly = (entity: ReadableEntity): entity is PluginReadonlyEntity =>
+  READONLY_ENTITIES.has(entity);
 
 function toProjectNode(node: PluginProjectNodeRecord): PluginProjectNode {
   return {

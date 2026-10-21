@@ -1,3 +1,4 @@
+import type { PluginNotebookResource } from "@tau/plugins";
 import { invoke } from "@/electron";
 import type {
   PluginContentEdit,
@@ -12,6 +13,9 @@ import type {
   PluginDocumentMoveInput,
   PluginOperationRecord,
   PluginProjectNodeRecord,
+  PluginReadonlyEntity,
+  PluginReadonlyPage,
+  PluginReadonlyRecord,
   PluginRefDescription,
   PluginRefInput,
 } from "@/types/plugin-data";
@@ -28,6 +32,27 @@ export const getPluginData = (
   entity: PluginDataEntity,
   id: number
 ): Promise<PluginDataRecord | null> => invoke("plugin-data:get", { databaseName, entity, id });
+
+/** Notebook、材料与对话的只读访问，返回插件看到的形状 */
+export const queryPluginReadonlyData = (
+  databaseName: string,
+  entity: PluginReadonlyEntity,
+  query: PluginDataQuery
+): Promise<PluginReadonlyPage> =>
+  invoke("plugin-data:readonly-query", { databaseName, entity, query });
+
+export const getPluginReadonlyData = (
+  databaseName: string,
+  entity: PluginReadonlyEntity,
+  id: string
+): Promise<PluginReadonlyRecord | null> =>
+  invoke("plugin-data:readonly-get", { databaseName, entity, id });
+
+export const getPluginNotebookResources = (
+  databaseName: string,
+  notebookId: number
+): Promise<PluginNotebookResource[] | null> =>
+  invoke("plugin-data:notebook-resources", { databaseName, notebookId });
 
 export const readPluginContent = (
   databaseName: string,

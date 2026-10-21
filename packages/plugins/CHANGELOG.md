@@ -14,6 +14,7 @@
 - 新增 `context.data.whiteboards`（读取、新建、修改标题 / 说明 / 标签，新建时带一张空白画板页，画板内容不开放）与 `context.data.projects`（读取、新建空项目、修改标题 / 归档 / 置顶），权限 `whiteboards:read/write`、`projects:read/write`。
 - 新增 `projects.tree(id)`（项目文档目录，挂在多处的文档在多处列出，引用卡片 / 文章的条目带 `ref`）、`documents.create`（挂在根目录或某篇文档下）与 `documents.move`（同一项目内，`from` 指明移动哪一处，`index` 为移动后的序号）；`documents:write` 现在也包括新建与移动。
 - 白板、项目、项目文档支持 `delete`，权限 `whiteboards:delete`、`projects:delete`、`documents:delete`，用户可在插件详情页 7 天内恢复。项目只能删除空项目；项目文档从所有挂载处删除，有子文档时拒绝，视频笔记不能由插件删除。
+- 新增只读的 `context.data.notebooks`（信息与 `resources(id)` 资料清单，不含说明、本机路径与资料转换后的文字）、`context.data.materials`（划线、PDF 标注、剪藏的原文、想法、出处与网址，已删除的不返回）与 `context.data.chats`（对话的标题、场景、消息数与时间，不含消息内容），权限分别为 `notebooks:read`、`materials:read`、`chats:read`。三者的 `query` 不支持 `tag`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

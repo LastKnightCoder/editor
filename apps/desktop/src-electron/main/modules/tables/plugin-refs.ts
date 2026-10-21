@@ -6,7 +6,6 @@ import { readDocumentTask } from "../task-assistant/documents";
 import EntitySearchTable from "./entity-search";
 import MaterialTable from "./material";
 
-const MATERIAL_KINDS = new Set(["excerpt", "pdf-annotation", "web-clip"]);
 const MAX_REFS = 200;
 
 /** 以数字 ID 寻址的插件引用类型：所在表、附加条件与标题解析用的检索类型 */
@@ -30,10 +29,11 @@ const NUMERIC_KINDS: Record<string, { sql: string; search: EntityKind }> = {
   },
 };
 
-const MATERIAL_TABLES: Record<string, string> = {
-  excerpt: "excerpt",
-  "pdf-annotation": "pdf_annotations",
-  "web-clip": "web_clip",
+/** 材料的存在判断：软删除的划线视为不存在 */
+const MATERIAL_SQL: Record<string, string> = {
+  excerpt: "SELECT create_time FROM excerpt WHERE id = ? AND is_deleted = 0",
+  "pdf-annotation": "SELECT create_time FROM pdf_annotations WHERE id = ?",
+  "web-clip": "SELECT create_time FROM web_clip WHERE id = ?",
 };
 
 interface Located {
@@ -115,12 +115,9 @@ function locate(db: Database.Database, kind: string, id: string): Located | null
     }
     case "material": {
       const match = /^([a-z-]+):(\d+)$/.exec(id);
-      if (!match || !MATERIAL_KINDS.has(match[1])) return null;
+      if (!match || !Object.hasOwn(MATERIAL_SQL, match[1])) return null;
       const ref = { kind: match[1] as "excerpt", id: Number(match[2]) };
-      const time = createdAt(
-        `SELECT create_time FROM ${MATERIAL_TABLES[ref.kind]} WHERE id = ?`,
-        ref.id
-      );
+      const time = createdAt(MATERIAL_SQL[ref.kind], ref.id);
       return time === undefined
         ? null
         : { createdAt: time, title: () => MaterialTable.resolve(db, [ref])[0]?.title ?? "" };
