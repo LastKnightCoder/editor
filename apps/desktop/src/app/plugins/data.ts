@@ -4,6 +4,8 @@ import {
   type PluginArticle,
   type PluginCalendarEvent,
   type PluginCard,
+  type PluginContentEdit,
+  type PluginContentInput,
   type PluginContext,
   type PluginDocument,
   type PluginTodo,
@@ -16,6 +18,7 @@ import {
   type TaskOperationResult,
   type TaskRef,
 } from "@tau/shared/task-assistant";
+import type { Descendant } from "slate";
 import * as dataCommands from "@/commands/plugin-data";
 import { taskAssistantRequest } from "@/commands/task-assistant";
 import { bindDatabaseCommands } from "@/services/command-context";
@@ -23,7 +26,13 @@ import { queryClient } from "@/queryClient";
 import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import type { ICard } from "@/types";
-import type { PluginDataRecord, PluginOperationRecord } from "@/types/plugin-data";
+import type {
+  PluginContentEdit as PluginContentEditRequest,
+  PluginContentSource,
+  PluginDataCreateInput,
+  PluginDataRecord,
+  PluginOperationRecord,
+} from "@/types/plugin-data";
 
 import { encodeContentRef, decodeContentRef } from "@/utils/plugin-content-ref";
 
@@ -43,6 +52,18 @@ export async function mapConflict<T>(run: () => Promise<T>): Promise<T> {
     if (message.includes("CONTENT_VERSION_CONFLICT")) throw new PluginConflictError();
     throw error;
   }
+}
+
+/** 正文输入转成 IPC 形式：copyOf 的 ContentRef 在这里解码，主进程只认数字身份 */
+export function toContentSource(input: PluginContentInput): PluginContentSource {
+  if (!("copyOf" in input)) return input;
+  const decoded = decodeContentRef(input.copyOf);
+  if (!decoded) throw new Error("copyOf 正文引用无效");
+  return { copyOf: decoded };
+}
+
+function toEditRequest(edit: PluginContentEdit): PluginContentEditRequest {
+  return edit.op === "replaceText" ? edit : { op: edit.op, content: toContentSource(edit.content) };
 }
 
 /** 待办 ID 即 taskKey（周期实例另带 @日期），反向解析为助理协议的 TaskRef */
@@ -205,7 +226,11 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       const page = await bound(context).queryPluginData(databaseName, entity, query);
       return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
     },
-    async create(context, entity, input) {
+    async create(context, entity, { content, ...fields }) {
+      const input: PluginDataCreateInput = {
+        ...fields,
+        ...(content ? { content: toContentSource(content) } : {}),
+      };
       const record = await bound(context).createPluginData(
         databaseName,
         context.pluginId,
@@ -269,7 +294,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           context.pluginId,
           decoded.contentId,
           decoded.createdAt,
-          edit,
+          toEditRequest(edit),
           expectedRevision
         )
       );
@@ -416,7 +441,8 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           ref,
           revision: record.revision,
           ...(record.markdown !== undefined ? { markdown: record.markdown } : {}),
-          ...(record.nodes !== undefined ? { nodes: record.nodes } : {}),
+          // 主进程按库中 JSON 原样返回编辑器节点
+          ...(record.nodes !== undefined ? { nodes: record.nodes as Descendant[] } : {}),
           wordCount: record.wordCount,
           updatedAt: record.updatedAt,
         },

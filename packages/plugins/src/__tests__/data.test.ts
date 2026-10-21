@@ -16,6 +16,7 @@ import {
 } from "../host";
 import type { PluginDomainEvent } from "../events";
 import { validatePluginManifest } from "../package";
+import { EDITOR_NODE_SCHEMA_VERSION } from "../content-input";
 
 const card = {
   id: "3",
@@ -307,12 +308,15 @@ describe("插件业务数据与权限", () => {
       granted,
     });
     await host.enable("weekly");
-    await context().data.cards.create({ markdown: "# 新卡", tags: ["读书", "读书"] });
+    await context().data.cards.create({
+      content: { markdown: "# 新卡" },
+      tags: ["读书", "读书"],
+    });
     await context().data.cards.update("3", { pinned: true }, { expectedRevision: "10" });
     await context().data.cards.delete("3", { expectedRevision: "10" });
     await context().data.todos.setCompleted("todo:1:1", true, { expectedRevision: "t1" });
     expect(calls.filter(call => call[0] !== "ensure")).toEqual([
-      ["create", "card", { markdown: "# 新卡", tags: ["读书"] }],
+      ["create", "card", { content: { markdown: "# 新卡" }, tags: ["读书"] }],
       ["update", "card", "3", { pinned: true }, "10"],
       ["remove", "card", "3", "10"],
       [
@@ -344,7 +348,11 @@ describe("插件业务数据与权限", () => {
     expect(
       await writable
         .context()
-        .content.edit("7:100", { op: "append", markdown: "补充" }, { expectedRevision: "r1" })
+        .content.edit(
+          "7:100",
+          { op: "append", content: { markdown: "补充" } },
+          { expectedRevision: "r1" }
+        )
     ).toEqual({ revision: "r2" });
     await expect(
       writable
@@ -357,7 +365,11 @@ describe("插件业务数据与权限", () => {
     await expect(
       readonly
         .context()
-        .content.edit("7:100", { op: "append", markdown: "补充" }, { expectedRevision: "r1" })
+        .content.edit(
+          "7:100",
+          { op: "append", content: { markdown: "补充" } },
+          { expectedRevision: "r1" }
+        )
     ).rejects.toMatchObject({ reason: "undeclared", permission: "cards:write" });
   });
 
@@ -464,10 +476,12 @@ describe("插件业务数据与权限", () => {
     expect(await context().content.read("9:100")).toMatchObject({ markdown: "正文" });
     await context().content.edit(
       "9:100",
-      { op: "append", markdown: "补充" },
+      { op: "append", content: { markdown: "补充" } },
       { expectedRevision: "r1" }
     );
-    expect(calls).toEqual([["editContent", "9:100", { op: "append", markdown: "补充" }, "r1"]]);
+    expect(calls).toEqual([
+      ["editContent", "9:100", { op: "append", content: { markdown: "补充" } }, "r1"],
+    ]);
   });
 
   it("反链只给已获准读取的类型，不询问权限，其余计数", async () => {
@@ -487,5 +501,87 @@ describe("插件业务数据与权限", () => {
       omitted: 2,
     });
     expect(calls.filter(call => call[0] === "request" || call[0] === "ensure")).toEqual([]);
+  });
+
+  it("正文输入：三种形式都只核对目标写入权限，copyOf 不需要来源读取权限", async () => {
+    const { host, calls, context } = setup({
+      declared: ["cards:write"],
+      granted: new Set<PluginPermission>(["cards:write"]),
+    });
+    await host.enable("weekly");
+    const nodes = [{ type: "paragraph", children: [{ text: "原样", bold: true }] }];
+    await context().data.cards.create({});
+    await context().data.cards.create({ content: { copyOf: "7:100" } });
+    await context().data.cards.create({ content: { nodes } as never, pinned: true });
+    nodes[0].children[0].text = "改了";
+    expect(calls.filter(call => call[0] === "create")).toEqual([
+      ["create", "card", {}],
+      ["create", "card", { content: { copyOf: "7:100" } }],
+      [
+        "create",
+        "card",
+        {
+          pinned: true,
+          content: { nodes: [{ type: "paragraph", children: [{ text: "原样", bold: true }] }] },
+        },
+      ],
+    ]);
+    expect(calls.filter(call => call[0] === "ensure").flat()).not.toContain("cards:read");
+  });
+
+  it("正文修改：append 不能为空，replaceAll 可以为空，replaceText 仍为 Markdown", async () => {
+    const { host, calls, context } = setup({
+      declared: ["cards:write"],
+      granted: new Set<PluginPermission>(["cards:write"]),
+    });
+    await host.enable("weekly");
+    const edit = (value: unknown) =>
+      context().content.edit("7:100", value as never, { expectedRevision: "r1" });
+    await expect(edit({ op: "append", content: { markdown: "  " } })).rejects.toThrow(
+      "正文不能为空"
+    );
+    await expect(edit({ op: "prepend", content: { nodes: [] } })).rejects.toThrow("正文不能为空");
+    await expect(edit({ op: "append", markdown: "旧写法" })).rejects.toThrow("正文输入无效");
+    await edit({ op: "replaceAll", content: { nodes: [] } });
+    await edit({ op: "replaceText", find: "甲", markdown: "乙" });
+    expect(calls.filter(call => call[0] === "editContent").map(call => call[2])).toEqual([
+      { op: "replaceAll", content: { nodes: [] } },
+      { op: "replaceText", find: "甲", markdown: "乙" },
+    ]);
+  });
+
+  it("nodes 格式的正文快照带节点结构版本", async () => {
+    const { host, context } = setup({
+      declared: ["cards:read"],
+      granted: new Set<PluginPermission>(["cards:read"]),
+    });
+    await host.enable("weekly");
+    expect(await context().content.read("7:100", { format: "nodes" })).toMatchObject({
+      schemaVersion: EDITOR_NODE_SCHEMA_VERSION,
+    });
+    expect(await context().content.read("7:100")).not.toHaveProperty("schemaVersion");
+  });
+
+  it("插件实体新建可带初始正文，不需要业务权限", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    context().entities.registerKind({ kind: "note", label: "周记", open: { page: "review" } });
+    await context().entities.create({
+      kind: "note",
+      key: "2026-W44",
+      content: { markdown: "# 本周" },
+    });
+    await expect(
+      context().entities.create({
+        kind: "note",
+        key: "2026-W45",
+        content: { markdown: "a", copyOf: "7:100" } as never,
+      })
+    ).rejects.toThrow("只能提供");
+    expect(calls.find(call => call[0] === "entities.create")?.[1]).toMatchObject({
+      key: "2026-W44",
+      content: { markdown: "# 本周" },
+    });
+    expect(calls.filter(call => call[0] === "ensure" || call[0] === "request")).toEqual([]);
   });
 });

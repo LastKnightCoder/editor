@@ -144,7 +144,10 @@ const events = await context.data.calendar.query({ start: "2026-10-19", end: "20
 ```ts
 import { PluginConflictError } from "@tau/plugins";
 
-const card = await context.data.cards.create({ markdown: "# 读书笔记\n\n第一段", tags: ["读书"] });
+const card = await context.data.cards.create({
+  content: { markdown: "# 读书笔记\n\n第一段" },
+  tags: ["读书"],
+});
 
 try {
   await context.data.cards.update(card.id, { pinned: true }, { expectedRevision: card.revision });
@@ -155,15 +158,15 @@ try {
 }
 ```
 
-| 接口                                     | 可以写的字段                                                               |
-| ---------------------------------------- | -------------------------------------------------------------------------- |
-| `cards.create` / `cards.update`          | 新建：`markdown`、`tags`、`pinned`；修改：`tags`、`pinned`                 |
-| `articles.create` / `articles.update`    | 新建：`title`（必填）、`markdown`、`tags`；修改：`title`、`tags`、`pinned` |
-| `documents.update`                       | `title`、`tags`。项目文档不支持新建、移动和删除                            |
-| `todos.create` / `todos.update`          | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）               |
-| `todos.setCompleted(id, completed, ...)` | 标记完成或未完成                                                           |
-| `calendar.create` / `calendar.update`    | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）        |
-| `*.delete(id, ...)`                      | 删除卡片、文章、待办、日程                                                 |
+| 接口                                     | 可以写的字段                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------- |
+| `cards.create` / `cards.update`          | 新建：`content`、`tags`、`pinned`；修改：`tags`、`pinned`                 |
+| `articles.create` / `articles.update`    | 新建：`title`（必填）、`content`、`tags`；修改：`title`、`tags`、`pinned` |
+| `documents.update`                       | `title`、`tags`。项目文档不支持新建、移动和删除                           |
+| `todos.create` / `todos.update`          | `title`、`dueAt`（`YYYY-MM-DD`、带时区的 ISO 时间或 `null`）              |
+| `todos.setCompleted(id, completed, ...)` | 标记完成或未完成                                                          |
+| `calendar.create` / `calendar.update`    | `title`、`start`、`end`、`allDay`、`calendarId`（省略时为默认日历）       |
+| `*.delete(id, ...)`                      | 删除卡片、文章、待办、日程                                                |
 
 全天日程的 `start`、`end` 用 `YYYY-MM-DD`，且 `end` 不包含当天：一个只占 10 月 21 日的全天日程，`end` 是 `2026-10-22`。定时日程用带时区的 ISO 时间。
 
@@ -179,6 +182,34 @@ try {
 - 插件删除的卡片、文章、待办和日程，用户可以在 7 天内从插件详情页的「权限 → 最近删除」中恢复。
 - 有子待办的待办不能删除。
 
+## 正文输入
+
+新建卡片、文章、插件内容，以及修改正文时，正文都用同一种写法 `content`，三选一：
+
+```ts
+// Markdown：适合 AI 生成或外部导入的文字
+await context.data.cards.create({ content: { markdown: "# 标题\n\n正文" } });
+
+// 编辑器节点：与 content.read({ format: "nodes" }) 读到的格式相同，格式完整保留
+const source = await context.content.read(card.contentRef, { format: "nodes" });
+await context.data.cards.create({ content: { nodes: source!.nodes! } });
+
+// 复制一份已有正文：Tau 内部整份复制，插件拿不到正文内容
+await context.data.articles.create({ title: "副本", content: { copyOf: card.contentRef } });
+```
+
+| 写法       | 什么时候用                                                                 | 注意                                                 |
+| ---------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `markdown` | 写入纯文字、AI 输出、外部导入                                              | 高亮、颜色、白板嵌入等 Markdown 表达不了的格式会丢失 |
+| `nodes`    | 把读到的正文改写后写回，或在多份正文之间搬运内容                           | 结构不对时报错并给出出错节点的路径                   |
+| `copyOf`   | 把一份正文完整复制到新卡片、新文章或插件内容里，例如「把这条笔记存为卡片」 | 只需要目标的写入权限，不需要来源的读取权限           |
+
+- `nodes` 只检查结构：顶层是元素，元素有 `type` 和非空的 `children`，文字节点有 `text`。Tau 不认识的节点类型（例如来自未安装的插件）原样保存，安装对应插件后即可正常显示。
+- `content.read({ format: "nodes" })` 的结果带 `schemaVersion`。节点结构有不兼容的变化时它会增加，插件可以与 `EDITOR_NODE_SCHEMA_VERSION` 比较，判断自己是否认得这些节点。
+- 正文中的待办勾选项由 Tau 维护身份，复制或搬运后各自独立，不需要插件处理。
+- `copyOf` 的来源可以是卡片、文章、项目文档或任一插件内容的正文。复制的是当前内容，之后两份互不影响。
+- 新建时省略 `content` 得到空正文。
+
 ## 读写正文
 
 ### 读取
@@ -189,7 +220,7 @@ console.log(snapshot?.markdown, snapshot?.wordCount);
 ```
 
 - 需要正文所属实体的读取权限，例如卡片正文需要 `cards:read`。正文不存在时返回 `null`。
-- 默认返回 Markdown。`{ format: "nodes" }` 返回编辑器节点的 JSON，但这个结构会随编辑器演进而变化，优先使用 Markdown。
+- 默认返回 Markdown。`{ format: "nodes" }` 返回编辑器节点，可以原样作为 `content: { nodes }` 写回，格式不丢失；同时返回 `schemaVersion`，见「正文输入」。
 - 读到的是已保存的内容，用户正在输入的部分最多晚约 1 秒。
 
 ### 修改
@@ -198,17 +229,19 @@ console.log(snapshot?.markdown, snapshot?.wordCount);
 const snapshot = await context.content.read(card.contentRef);
 const { revision } = await context.content.edit(
   card.contentRef,
-  { op: "append", markdown: "\n今天读完了第三章。" },
+  { op: "append", content: { markdown: "今天读完了第三章。" } },
   { expectedRevision: snapshot!.revision }
 );
 ```
 
-| `op`          | 作用                                                         |
-| ------------- | ------------------------------------------------------------ |
-| `append`      | 在末尾追加 Markdown，原有内容不变                            |
-| `prepend`     | 在开头插入 Markdown，原有内容不变                            |
-| `replaceText` | 把 `find` 替换成 `markdown`，`find` 必须在正文中恰好出现一次 |
-| `replaceAll`  | 用 `markdown` 替换整篇                                       |
+| `op`          | 参数               | 作用                                                                                                                            |
+| ------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `append`      | `content`          | 在末尾加入新内容，原有内容不变；`content` 不能为空                                                                              |
+| `prepend`     | `content`          | 在开头加入新内容，原有内容不变；`content` 不能为空                                                                              |
+| `replaceAll`  | `content`          | 用新内容替换整篇；`content` 为空时清空正文                                                                                      |
+| `replaceText` | `find`、`markdown` | 在 Markdown 文本中把 `find` 替换成 `markdown`，`find` 必须恰好出现一次；整篇会经 Markdown 重建，Markdown 表达不了的格式可能丢失 |
+
+`content` 的三种写法见「正文输入」。
 
 - 需要所属实体的写入权限，例如卡片正文需要 `cards:write`。
 - 正文正在编辑器里打开时，修改会立即出现，协作者也能看到。
@@ -372,14 +405,14 @@ function NotePanel({ note, at }: { note: PluginOwnEntity; at?: string }) {
 
 ### 接口
 
-| 方法                                                  | 说明                                                                    |
-| ----------------------------------------------------- | ----------------------------------------------------------------------- |
-| `create({ kind, key, title?, meta? })`                | 新建一项，正文为空。同一类型下 `key` 已存在时抛出 `PluginConflictError` |
-| `get(id)`、`find(kind, key)`                          | 读取一项，不存在时为 `null`                                             |
-| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条，最多 200 条                             |
-| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`                                                       |
-| `delete(id, { expectedRevision })`                    | 删除一项及其正文                                                        |
-| `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容                                  |
+| 方法                                                  | 说明                                                                                                                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `create({ kind, key, title?, meta?, content? })`      | 新建一项，`content` 为初始正文（写法见「正文输入」），省略时为空。同一类型下 `key` 已存在时抛出 `PluginConflictError` |
+| `get(id)`、`find(kind, key)`                          | 读取一项，不存在时为 `null`                                                                                           |
+| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条，最多 200 条                                                                           |
+| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`                                                                                                     |
+| `delete(id, { expectedRevision })`                    | 删除一项及其正文                                                                                                      |
+| `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容                                                                                |
 
 - `key` 由你决定，用来找回同一项内容，例如周记用周次 `2026-W43`。
 - `meta` 保存少量结构化信息，是不超过 64 KB 的 JSON 对象。大段内容放在正文里。

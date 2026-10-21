@@ -24,6 +24,12 @@ import type {
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import {
+  CONTENT_INPUT_LIMITS,
+  EDITOR_NODE_SCHEMA_VERSION,
+  readContentInput,
+  type PluginContentInput,
+} from "./content-input";
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
 import type { TTSProviderDefinition } from "./tts";
@@ -253,7 +259,10 @@ export type CalendarWrite =
 export interface EntitiesAdapter {
   create(
     context: PluginContext,
-    input: Required<PluginOwnEntityInput> & { meta: PluginOwnEntityMeta }
+    input: Required<Omit<PluginOwnEntityInput, "content">> & {
+      meta: PluginOwnEntityMeta;
+      content?: PluginContentInput;
+    }
   ): Promise<PluginOwnEntity>;
   get(context: PluginContext, id: string): Promise<PluginOwnEntity | null>;
   find(context: PluginContext, kind: string, key: string): Promise<PluginOwnEntity | null>;
@@ -384,7 +393,7 @@ const DELETE_PERMISSIONS: Record<WritableEntity, PluginPermission> = {
   article: "articles:delete",
 };
 
-const MAX_MARKDOWN = 2_000_000;
+const MAX_MARKDOWN = CONTENT_INPUT_LIMITS.markdown;
 const MAX_TITLE = 500;
 
 function readText(value: unknown, name: string, max: number, allowEmpty = false): string {
@@ -428,7 +437,7 @@ function readFields<T>(
       result[key] = item;
     } else if (rule === "tags") result[key] = readTags(item);
     else if (rule === "nullable-time") result[key] = item === null ? null : readText(item, key, 64);
-    else result[key] = readText(item, key, rule, key === "markdown");
+    else result[key] = readText(item, key, rule);
   }
   if (!Object.keys(result).length) throw new Error("没有要修改的字段");
   return result as T;
@@ -439,9 +448,9 @@ function readContentEdit(value: unknown): PluginContentEdit {
   switch (edit?.op) {
     case "append":
     case "prepend":
-      return { op: edit.op, markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN) };
+      return { op: edit.op, content: readContentInput(edit.content, { allowEmpty: false }) };
     case "replaceAll":
-      return { op: edit.op, markdown: readText(edit.markdown, "markdown", MAX_MARKDOWN, true) };
+      return { op: edit.op, content: readContentInput(edit.content, { allowEmpty: true }) };
     case "replaceText":
       return {
         op: edit.op,
@@ -1073,18 +1082,17 @@ export class PluginHost {
       });
     const writer = (entity: WritableEntity) => ({
       create: async (input: unknown) => {
-        const value =
+        const raw = input ?? {};
+        if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+        const { content, ...fields } = raw as Record<string, unknown>;
+        const value: PluginCardInput | PluginArticleInput =
           entity === "card"
-            ? readFields<PluginCardInput>(input ?? { markdown: "" }, {
-                markdown: MAX_MARKDOWN,
-                tags: "tags",
-                pinned: "boolean",
-              })
-            : readFields<PluginArticleInput>(
-                input,
-                { title: MAX_TITLE, markdown: MAX_MARKDOWN, tags: "tags" },
-                ["title"]
-              );
+            ? Object.keys(fields).length
+              ? readFields<PluginCardInput>(fields, { tags: "tags", pinned: "boolean" })
+              : {}
+            : readFields<PluginArticleInput>(fields, { title: MAX_TITLE, tags: "tags" }, ["title"]);
+        // copyOf 只核对目标的写入权限：正文不离开用户的库，插件也拿不到内容
+        if (content !== undefined) value.content = readContentInput(content, { allowEmpty: true });
         await guard(WRITE_PERMISSIONS[entity]);
         return deliver<never>(await dataAdapter().create(context, entity, value));
       },
@@ -1851,12 +1859,16 @@ export class PluginHost {
           if (!entityKindDefinitions.has(value.kind))
             throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
           const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
+          const content = (input as PluginOwnEntityInput).content;
           return deliver<PluginOwnEntity>(
             await entitiesAdapter().create(context, {
               kind: value.kind,
               key: value.key,
               title: value.title ?? "",
               meta,
+              ...(content !== undefined
+                ? { content: readContentInput(content, { allowEmpty: true }) }
+                : {}),
             })
           );
         },
@@ -1972,6 +1984,8 @@ export class PluginHost {
           if (format !== "markdown" && format !== "nodes") throw new Error("正文格式无效");
           const result = await dataAdapter().readContent(context, ref, format);
           this.assertActive(entry, activation);
+          if (result && format === "nodes")
+            result.snapshot = { ...result.snapshot, schemaVersion: EDITOR_NODE_SCHEMA_VERSION };
           // 本插件实体的正文直接放行
           if (result?.own) return deliver<PluginContentSnapshot>(result.snapshot);
           if (!result?.owners.length) return null;

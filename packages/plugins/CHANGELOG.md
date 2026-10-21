@@ -1,5 +1,13 @@
 # 更新记录
 
+## 未发布
+
+- 新增统一的正文输入 `PluginContentInput`，三选一：`{ markdown }`、`{ nodes }`（编辑器节点，格式完整保留）、`{ copyOf: contentRef }`（Tau 内部整份复制已有正文，只需要目标的写入权限）。
+- `cards.create`、`articles.create` 的正文字段由 `markdown` 改为 `content`；`entities.create` 新增可选的 `content` 作为初始正文。
+- `content.edit` 的 `append`、`prepend`、`replaceAll` 改为 `{ op, content }`；`replaceText` 不变，仍为 `{ op, find, markdown }`。
+- `content.read({ format: "nodes" })` 返回 `schemaVersion`，`nodes` 的类型为 `Descendant[]`，可原样写回。新增导出 `EDITOR_NODE_SCHEMA_VERSION` 与 `CONTENT_INPUT_LIMITS`。
+- `nodes` 只校验结构，未知节点类型原样保存；结构不对时报错并给出节点路径。
+
 ## 0.32.0
 
 - 插件 Skill 改为包内目录：在插件项目根目录放 `skills/<id>/SKILL.md`，可附带参考资料和脚本，构建时打进插件包并写入 manifest 的 `skills` 与文件摘要。名称、描述与调用方式取自 SKILL.md 的 front matter。

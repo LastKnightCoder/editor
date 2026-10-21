@@ -3,11 +3,13 @@ import { asynchronousDatabaseCommand } from "../database-command";
 import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import type { Descendant } from "slate";
-import { getMarkdownText, parseMarkdownNodes } from "../../services/content-conversion";
+import { getMarkdownText } from "../../services/content-conversion";
+import { resolvePluginContent } from "./plugin-content-input";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
   PluginContentEdit,
   PluginContentRecord,
+  PluginDataCreateInput,
   PluginDataEntity,
   PluginDataPage,
   PluginDataQuery,
@@ -327,23 +329,18 @@ export default class PluginDataTable {
     return { ...ctx, broadcastOthers: ctx.broadcastAll };
   }
 
-  private static async nodesFromMarkdown(markdown: string | undefined): Promise<Descendant[]> {
-    const nodes = markdown?.trim() ? await parseMarkdownNodes(markdown) : [];
-    return nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT);
-  }
-
   static async create(
     db: Database.Database,
     request: PluginDataScope & {
       pluginId: string;
       entity: PluginWritableEntity;
-      input: { markdown?: string; tags?: string[]; pinned?: boolean; title?: string };
+      input: PluginDataCreateInput;
     },
     ctx: CommandContext = fallbackCommandContext
   ): Promise<PluginDataRecord> {
     this.assertDatabase(db, request);
     const { input } = request;
-    const content = await this.nodesFromMarkdown(input.markdown);
+    const content = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
     const id = db.transaction(() =>
@@ -494,7 +491,7 @@ export default class PluginDataTable {
     const revision = current.revision ?? `u:${current.updateTime}`;
     if (revision !== request.expectedRevision)
       throw new Error(`${CONFLICT_PREFIX}正文已被修改，请重新读取后再试`);
-    const content = await this.applyEdit(current.content, request.edit);
+    const content = await this.applyEdit(db, current.content, request.edit);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
     if (
@@ -519,26 +516,27 @@ export default class PluginDataTable {
   }
 
   private static async applyEdit(
+    db: Database.Database,
     current: Descendant[],
     edit: PluginContentEdit
   ): Promise<Descendant[]> {
     switch (edit.op) {
-      // 追加只转换新内容，原有节点原样保留
+      // 追加只解析新内容，原有节点原样保留
       case "append":
-        return [...current, ...(await parseMarkdownNodes(edit.markdown))];
+        return [...current, ...(await resolvePluginContent(db, edit.content, []))];
       case "prepend":
-        return [...(await parseMarkdownNodes(edit.markdown)), ...current];
+        return [...(await resolvePluginContent(db, edit.content, [])), ...current];
       case "replaceAll":
-        return this.nodesFromMarkdown(edit.markdown);
+        return resolvePluginContent(db, edit.content, DEFAULT_CARD_CONTENT);
       case "replaceText": {
         const markdown = await getMarkdownText(current);
         const first = markdown.indexOf(edit.find);
         if (first < 0) throw new Error("没有找到要替换的文字");
         if (markdown.indexOf(edit.find, first + 1) >= 0)
           throw new Error("要替换的文字出现了多次，请提供更长的上下文");
-        return this.nodesFromMarkdown(
-          markdown.slice(0, first) + edit.markdown + markdown.slice(first + edit.find.length)
-        );
+        const replaced =
+          markdown.slice(0, first) + edit.markdown + markdown.slice(first + edit.find.length);
+        return resolvePluginContent(db, { markdown: replaced }, DEFAULT_CARD_CONTENT);
       }
       default:
         throw new Error("未知的正文修改");

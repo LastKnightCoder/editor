@@ -68,11 +68,24 @@ export interface PluginContentOwner {
   title: string;
 }
 
+/** 插件正文输入的 IPC 形式：copyOf 的 ContentRef 由渲染端解码为正文 ID 与创建时间 */
+export type PluginContentSource =
+  | { markdown: string }
+  | { nodes: unknown[] }
+  | { copyOf: { contentId: number; createdAt: number } };
+
+export interface PluginDataCreateInput {
+  content?: PluginContentSource;
+  tags?: string[];
+  pinned?: boolean;
+  title?: string;
+}
+
 export type PluginContentEdit =
-  | { op: "append"; markdown: string }
-  | { op: "prepend"; markdown: string }
+  | { op: "append"; content: PluginContentSource }
+  | { op: "prepend"; content: PluginContentSource }
   | { op: "replaceText"; find: string; markdown: string }
-  | { op: "replaceAll"; markdown: string };
+  | { op: "replaceAll"; content: PluginContentSource };
 
 /** 插件详情页列出的可恢复操作 */
 export interface PluginOperationRecord {

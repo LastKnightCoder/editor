@@ -13,7 +13,7 @@ import { invalidatePluginEntityAppearance } from "@/services/plugin-entity-kinds
 import { renderPluginIconMarkup } from "./icon-markup";
 import { bindDatabaseCommands } from "@/services/command-context";
 import type { PluginEntityRecord } from "@/types/plugin-entities";
-import { mapConflict } from "./data";
+import { mapConflict, toContentSource } from "./data";
 import { encodeContentRef } from "@/utils/plugin-content-ref";
 import type { DataEntity } from "@tau/plugins/host";
 import useSettingStore from "@/stores/useSettingStore";
@@ -65,10 +65,11 @@ export function createDesktopEntities(databaseName: string): EntitiesAdapter {
       { databaseName, signal: context.signal }
     );
   return {
-    async create(context, input) {
+    async create(context, { content, ...input }) {
+      const request = { ...input, ...(content ? { content: toContentSource(content) } : {}) };
       return toEntity(
         await mapConflict(() =>
-          bound(context).createPluginEntity(databaseName, context.pluginId, input)
+          bound(context).createPluginEntity(databaseName, context.pluginId, request)
         )
       );
     },
