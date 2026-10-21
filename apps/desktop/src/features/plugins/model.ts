@@ -98,8 +98,15 @@ export const STATE_LABELS: Record<PluginInfo["state"], string> = {
   "restart-required": "需要重启",
 };
 
+/** 不含代码的安装包：安装即生效，不参与启停。 */
+export type StaticPackageKind = "template" | "skills";
+export const STATIC_PACKAGE_LABELS: Record<StaticPackageKind, { kind: string; state: string }> = {
+  template: { kind: "博客模板", state: "模板已安装" },
+  skills: { kind: "Skill 包", state: "Skill 已可用" },
+};
+
 export interface InstalledPlugin {
-  template?: boolean;
+  packageKind?: StaticPackageKind;
   info: PluginInfo;
   source: PluginSourceKind;
   /** 中心来源对应的发布记录，用于读取 README 与核对更新。 */
@@ -118,12 +125,10 @@ export function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginS
 }
 
 export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin[] {
-  const templates = (runtime.local?.templates ?? []).filter(template =>
-    runtime.local?.isTemplate(template.id)
-  );
+  const statics = [...(runtime.local?.templates ?? []), ...(runtime.local?.skillPackages ?? [])];
   const infos: PluginInfo[] = [
     ...runtime.host.listPlugins(),
-    ...templates.map(template => ({
+    ...statics.map(template => ({
       id: template.id,
       name: template.name,
       version: template.version,
@@ -139,12 +144,16 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
         ? "插件清理未能确认完成，请重启应用后再启用。已保存的数据保留。"
         : (runtime.development?.error(info.id) ?? local?.error(info.id) ?? info.error);
     return {
-      template: runtime.local?.isTemplate(info.id),
+      packageKind: runtime.local?.isTemplate(info.id)
+        ? "template"
+        : runtime.local?.isSkillPackage(info.id)
+          ? "skills"
+          : undefined,
       info,
       source,
       releaseId: origin?.kind === "center" ? origin.releaseId : undefined,
       update: runtime.local?.updates.find(item => item.id === info.id),
-      enabled: local?.isTemplate(info.id)
+      enabled: local?.isStatic(info.id)
         ? true
         : local?.isContentPlugin?.(info.id)
           ? local.enabled(info.id)

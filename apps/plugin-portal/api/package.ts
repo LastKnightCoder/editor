@@ -88,6 +88,12 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         !content.toString("utf8").trim()
       )
         throw new Error("插件入口为空");
+      if (/^skills\/[^/]+\/SKILL\.md$/.test(name)) {
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(content);
+        const front = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (!front || !/^description:\s*\S/m.test(front[1]))
+          throw new Error(`${name} 需要在开头的 front matter 中填写 description`);
+      }
       if (
         isTemplateManifest(manifest) &&
         name.startsWith(manifest.template.root + "/") &&

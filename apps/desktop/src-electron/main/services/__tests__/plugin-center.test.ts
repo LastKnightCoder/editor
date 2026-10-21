@@ -189,3 +189,22 @@ it("后台版本未经审核不下载，已审核版本来源保留审核绑定�
   );
   await expect(downloadPluginRelease("r1")).rejects.toThrow("撤回");
 });
+
+it("带脚本的 Skill 未经审核不下载，只有说明文档的 Skill 可直接下载", async () => {
+  const withSkill = (file: string) => ({
+    ...release,
+    content: {
+      manifest: {
+        ...release.content.manifest,
+        skills: ["guide"],
+        integrity: { "skills/guide/SKILL.md": "a".repeat(64), [file]: "b".repeat(64) },
+      },
+    },
+  });
+  mock.fetch.mockResolvedValueOnce(Response.json({ data: withSkill("skills/guide/run.py") }));
+  await expect(downloadPluginRelease("r1")).rejects.toThrow("审核");
+  mock.fetch
+    .mockResolvedValueOnce(Response.json({ data: withSkill("skills/guide/notes.md") }))
+    .mockResolvedValueOnce(new Response(bytes));
+  expect((await downloadPluginRelease("r1")).source).toMatchObject({ systemReviewed: false });
+});

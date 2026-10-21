@@ -22,7 +22,6 @@ describe("TikZ 真实发布包的纯转换", () => {
     expect(processor.getMarkdownWithPositions(parsed.content).markdown.trim()).toBe(markdown);
     const html = extension.htmlSerializers![0].toHtml({ content: "<script>&</script>" });
     expect(html).toContain("&lt;script&gt;&amp;&lt;/script&gt;");
-    expect(definition.skills![0].content).toContain("```tikz");
     expect(definition).not.toHaveProperty("tikzCompiler");
   });
 });

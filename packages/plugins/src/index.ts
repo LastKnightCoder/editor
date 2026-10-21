@@ -67,7 +67,6 @@ export type {
 export type * from "./flashcards";
 export type * from "./services";
 export { usePluginServices } from "./service-access";
-export type { PluginSkill } from "./skills";
 export type { PluginMCP, PluginMCPDefinition, PluginMCPTool, PluginMCPTransport } from "./mcp";
 export type { PluginMCPToolResult } from "./mcp";
 export type {

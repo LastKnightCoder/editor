@@ -1,5 +1,4 @@
 import type { PluginPages } from "./pages";
-import type { PluginSkill } from "./skills";
 import type { PluginAI, PluginAIFeature } from "./ai";
 import type { WhiteboardExtension } from "./whiteboard";
 import type { PluginServices } from "./services";
@@ -102,7 +101,6 @@ export interface PluginDefinition {
   readonly editorExtensions?: readonly PluginEditorExtension[];
   readonly whiteboardExtensions?: readonly WhiteboardExtension[];
   readonly editorCodecs?: readonly MarkdownCodec[];
-  readonly skills?: readonly PluginSkill[];
   readonly ai?: { readonly features: readonly PluginAIFeature[] };
   /** 每次启用创建新实例，运行状态不放在定义对象上。 */
   create(): PluginInstance;

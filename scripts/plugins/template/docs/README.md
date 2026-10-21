@@ -24,7 +24,7 @@ Tau 插件用 TypeScript 和 React 编写，打包成一个 ZIP，安装后在 T
 | 在白板上添加自定义元素和工具                               | [白板扩展](whiteboard.md)                    |
 | 调用用户配置的大模型                                       | [AI](ai.md)                                  |
 | 给 Tau 的 AI 助手提供工具                                  | [MCP 工具](mcp.md)                           |
-| 给 AI 提供配套的使用说明                                   | [Skill](skills.md)                           |
+| 给 AI 提供使用说明，或单独发布一套 Skill                   | [Skill](skills.md)                           |
 | 创建闪卡、打开制卡窗口                                     | [闪卡](flashcards.md)                        |
 | 编译 Tailwind、转换 Markdown、处理音视频                   | [编译与转换服务](services.md)                |
 | 运行 Node.js 代码、调用本机程序                            | [本机后台](backend.md)                       |

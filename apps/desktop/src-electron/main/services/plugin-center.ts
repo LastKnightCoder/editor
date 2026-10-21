@@ -6,7 +6,7 @@ import type { PluginCatalog, PluginRelease, PluginVersionRecord } from "@/types/
 import type { PluginCatalogSort } from "@/types/plugin-center";
 import type { PluginComment, PluginCommunity } from "@/types/plugin-center";
 import { visitorHeaders } from "./plugin-center-visitor";
-import { DISTRIBUTION_LIMITS } from "@tau/plugins/template";
+import { DISTRIBUTION_LIMITS, requiresSystemReview } from "@tau/plugins/template";
 
 // 门户 CORS 只放行网页门户，客户端请求统一经主进程；环境变量仅用于本地 Worker 联调。
 export const API_ORIGIN = process.env.TAU_PLUGIN_CENTER_API || "https://plugins-api.taunote.app";
@@ -163,8 +163,8 @@ export async function downloadPluginRelease(id: string) {
   const release = await fetchPluginRelease(id);
   if (release.state !== "published") throw new Error("该版本尚未发布");
   if (release.revokedAt) throw new Error("该版本已经撤回");
-  if (release.content.manifest.backend && release.systemReviewed !== true)
-    throw new Error("该后台版本尚未完成系统能力审核");
+  if (requiresSystemReview(release.content.manifest) && release.systemReviewed !== true)
+    throw new Error("该版本包含本机可执行代码，尚未完成系统能力审核");
   if (release.size > MAX_PACKAGE_BYTES) throw new Error("插件包超过大小上限");
   let response: Response;
   try {

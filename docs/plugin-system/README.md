@@ -16,6 +16,8 @@ Typst 本地 WASM 编译迁移见 [76](76-Typst本地WASM编译迁移.md)（D-17
 
 ## 当前状态
 
+- 插件 Skill 改为包内 `skills/<id>/` 目录并新增独立 Skill 包（PS-045、D-180），带脚本版本走人工系统审核；见 [插件 Skill 目录与 Skill 包](插件Skill目录与Skill包.md)。
+
 - 插件作者文档已收拢到模板 `scripts/plugins/template/docs/`，按开发路径重写，SDK 打包时整目录复制进 npm 包；见 [作者文档重写](作者文档重写.md)。
 
 - 插件页面上下文见 [注册说明](插件页面上下文注册方案.md)：页面实例登记提供器，返回任意 JSON，形状由作者决定；现有 get_current_context 原样返回，操作仍由作者自行注册的 MCP 提供。SDK 0.29.0 与官方模板已发布，[发布记录](SDK-0.29.0发布记录.md)包含公共归档及独立作者验收。

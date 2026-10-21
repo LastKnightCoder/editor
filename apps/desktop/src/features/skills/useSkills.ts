@@ -111,6 +111,7 @@ export const SOURCE_LABEL: Record<SkillSource, string> = {
   mine: "我的",
   builtin: "内置",
   plugin: "插件",
+  package: "Skill 包",
   linked: "关联目录",
 };
 

@@ -7,6 +7,7 @@ import {
   validateDistributionManifest as validatePluginManifest,
   assertPackagePath,
   DISTRIBUTION_LIMITS,
+  requiresSystemReview,
 } from "@tau/plugins/template";
 import { inflateRawSync } from "node:zlib";
 import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local";
@@ -306,12 +307,11 @@ export class PluginUpdates {
     const manifest = validatePluginManifest(JSON.parse(unpack(manifestEntry).toString("utf8")));
     this.id(manifest.id);
     if (
-      "backend" in manifest &&
-      manifest.backend &&
+      requiresSystemReview(manifest) &&
       source.kind === "center" &&
       source.systemReviewed !== true
     )
-      throw new Error("该后台版本尚未完成系统能力审核");
+      throw new Error("该版本包含本机可执行代码，尚未完成系统能力审核");
     if (
       source.kind === "center" &&
       (manifest.id !== source.pluginId || manifest.version !== source.version)
@@ -367,8 +367,8 @@ export class PluginUpdates {
         .then(value => JSON.parse(value) as LocalPluginSource)
         .catch(error => {
           if (error.code !== "ENOENT") throw error;
-          if ("backend" in artifact.manifest && artifact.manifest.backend)
-            throw new Error("后台备份缺少原版本来源，请从插件中心重新安装已审核版本");
+          if (requiresSystemReview(artifact.manifest))
+            throw new Error("备份缺少原版本来源，请从插件中心重新安装已审核版本");
           return { kind: "zip" } as const;
         });
       if (

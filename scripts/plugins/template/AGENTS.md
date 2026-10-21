@@ -19,6 +19,7 @@
 - 编辑器块和白板元素的渲染代码也会在博客中运行，不能依赖 `activate` 或 `context`，见 `docs/editor.md`。
 - 访问用户数据要在 manifest 中声明权限，并处理 `PluginPermissionError`。修改、删除时传入读到的 `revision`，处理 `PluginConflictError`。
 - 服务提供方的账号配置用配置表单的 `save` 保存，不要存进 `context.storage`。
+- 给 AI 的使用说明写成 `skills/<id>/SKILL.md`（front matter 必须有 description），构建时自动打包，不在插件代码里声明，见 `docs/skills.md`。
 - 不要把密钥、令牌或机器特定路径写进源码和插件包。
 
 ## 依赖与构建

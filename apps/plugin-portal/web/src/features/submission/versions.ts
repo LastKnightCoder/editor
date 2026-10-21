@@ -63,6 +63,10 @@ export function diffManifest(before: PackageManifest, after: PackageManifest) {
       after: String(field(after, item.key) ?? "—"),
     })
   );
+  const skillsOf = (manifest: PackageManifest) =>
+    ("skills" in manifest && manifest.skills?.join("、")) || "—";
+  if (skillsOf(before) !== skillsOf(after))
+    changes.push({ label: "Skill", before: skillsOf(before), after: skillsOf(after) });
   const previous = "backend" in before ? before.backend : undefined;
   const next = "backend" in after ? after.backend : undefined;
   for (const [key, label] of [

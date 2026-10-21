@@ -18,6 +18,7 @@ import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import {
   CONTRIBUTION_LABELS,
   STATE_LABELS,
+  STATIC_PACKAGE_LABELS,
   formatSize,
   installState,
   installedPlugins,
@@ -221,7 +222,11 @@ function Header({
             <span className="tabular-nums">{plugin?.info.version ?? entry?.latest.version}</span>
             {plugin && <SourceChip source={plugin.source} />}
             {plugin && (
-              <span>{plugin.template ? "模板已安装" : STATE_LABELS[plugin.info.state]}</span>
+              <span>
+                {plugin.packageKind
+                  ? STATIC_PACKAGE_LABELS[plugin.packageKind].state
+                  : STATE_LABELS[plugin.info.state]}
+              </span>
             )}
           </div>
         </div>
@@ -270,8 +275,10 @@ function InstalledActions({
         ) : (
           state?.kind === "update" && <InstallButton name={plugin.info.name} state={state} />
         )}
-        {plugin.template ? (
-          <span className="text-tau-meta text-ink-2">博客模板</span>
+        {plugin.packageKind ? (
+          <span className="text-tau-meta text-ink-2">
+            {STATIC_PACKAGE_LABELS[plugin.packageKind].kind}
+          </span>
         ) : (
           <Switch
             aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
@@ -553,11 +560,13 @@ function Aside({
           ) : (
             <p className="text-tau-meta text-ink-3 flex items-center gap-2">
               <Layers className="size-3.5" strokeWidth={1.75} />
-              {plugin.template
+              {plugin.packageKind === "template"
                 ? "博客模板，在发布设置中选择使用"
-                : active
-                  ? "没有登记可展示的功能"
-                  : "启用后可见"}
+                : plugin.packageKind === "skills"
+                  ? "Skill 包，安装后在 Skill 页使用"
+                  : active
+                    ? "没有登记可展示的功能"
+                    : "启用后可见"}
             </p>
           )}
         </div>

@@ -7,7 +7,11 @@ import {
   listSkills,
 } from "@/commands/skill";
 import { getAllInternalSkills } from "@/constants/internal-skills";
-import { pluginSkills, subscribePluginSkills } from "@/app/plugins/skill-registry";
+import {
+  isPackageSkillAvailable,
+  subscribePluginPackages,
+  subscribePluginSkillGate,
+} from "@/app/plugins/skill-registry";
 
 /** 本机偏好：停用 / 调用方式覆盖（不改原文件，内置与关联目录的只读 Skill 也能设） */
 export interface SkillPreference {
@@ -56,8 +60,12 @@ interface IActions {
   recordUsage: (folderName: string, how: SkillUsageHow, conversationKey?: string) => void;
 }
 
-/** 同名优先级：内置 > 我的 > 关联目录（被遮蔽的仍在页面上显示，但 agent 只认第一个） */
-const SOURCE_RANK = { builtin: 0, plugin: 1, mine: 2, linked: 3 } as const;
+/** 同名优先级：内置 > 插件 > Skill 包 > 我的 > 关联目录（被遮蔽的仍在页面上显示，但 agent 只认第一个） */
+const SOURCE_RANK = { builtin: 0, plugin: 1, package: 2, mine: 3, linked: 4 } as const;
+
+/** 主进程列出的全部 Skill；插件 Skill 是否可见取决于本窗口的插件启停状态 */
+let external: Skill[] = [];
+const composeSkills = () => [...toInternalSkills(), ...external.filter(isPackageSkillAvailable)];
 
 export const toInternalSkills = (): Skill[] =>
   getAllInternalSkills().map(skill => ({
@@ -104,8 +112,8 @@ const useSkillStore = create<IState & IActions>()(
       loadSkills: async () => {
         set({ loading: true });
         try {
-          const external = await listSkills();
-          set({ skills: [...toInternalSkills(), ...pluginSkills(), ...external], loaded: true });
+          external = await listSkills();
+          set({ skills: composeSkills(), loaded: true });
         } finally {
           set({ loading: false });
         }
@@ -170,10 +178,17 @@ const useSkillStore = create<IState & IActions>()(
   )
 );
 
-subscribePluginSkills(() =>
-  useSkillStore.setState(state => ({
-    skills: [...state.skills.filter(skill => skill.source !== "plugin"), ...pluginSkills()],
-  }))
-);
+subscribePluginSkillGate(() => {
+  if (useSkillStore.getState().loaded) useSkillStore.setState({ skills: composeSkills() });
+});
+subscribePluginPackages(() => {
+  if (!useSkillStore.getState().loaded) return;
+  void listSkills()
+    .then(skills => {
+      external = skills;
+      useSkillStore.setState({ skills: composeSkills() });
+    })
+    .catch(error => console.warn("刷新插件 Skill 失败", error));
+});
 
 export default useSkillStore;

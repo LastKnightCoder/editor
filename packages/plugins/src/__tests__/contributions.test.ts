@@ -7,15 +7,13 @@ it("按插件统计实际注册的贡献，提前释放与停用后同步扣减"
     workspaceId: "work",
     storage: createMemoryStorage(),
     sync: { register: () => ({ dispose: () => undefined }) },
-    skills: { register: () => ({ dispose: () => undefined }) },
   });
   let releaseSecond!: () => void;
-  host.registerTrusted(
-    definePlugin({
+  host.registerTrusted({
+    ...definePlugin({
       id: "example.sync",
       name: "示例",
       version: "1.0.0",
-      skills: [{ id: "guide", name: "指南", description: "说明", content: "内容" }],
       create: () => ({
         activate(ctx) {
           ctx.commands.register({ id: "one", title: "一", run: () => null });
@@ -24,8 +22,9 @@ it("按插件统计实际注册的贡献，提前释放与停用后同步扣减"
           ctx.sync.register({ id: "example.sync", name: "远端", create: () => ({}) } as never);
         },
       }),
-    })
-  );
+    }),
+    skills: ["guide"],
+  });
   expect(host.listContributions("example.sync")).toEqual({});
   await host.enable("example.sync");
   expect(host.listContributions("example.sync")).toEqual({ command: 2, sync: 1, skill: 1 });
