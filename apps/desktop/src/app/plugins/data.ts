@@ -8,6 +8,8 @@ import {
   type PluginContentInput,
   type PluginContext,
   type PluginDocument,
+  type PluginProject,
+  type PluginWhiteboard,
   type PluginTodo,
 } from "@tau/plugins";
 import {
@@ -95,19 +97,41 @@ function parseEventId(id: string): { eventId: number; createdAt: number } {
   return { eventId: Number(match[1]), createdAt: Number(match[2]) };
 }
 
-function toEntity(record: PluginDataRecord): PluginCard | PluginArticle | PluginDocument {
+function toEntity(
+  record: PluginDataRecord
+): PluginCard | PluginArticle | PluginDocument | PluginWhiteboard | PluginProject {
   const contentRef =
     record.contentId !== null && record.contentCreatedAt !== null
       ? encodeContentRef(record.contentId, record.contentCreatedAt)
       : null;
+  const times = { createdAt: record.createdAt, updatedAt: record.updatedAt };
+  if (record.entity === "whiteboard")
+    return {
+      id: String(record.id),
+      revision: record.revision,
+      title: record.title,
+      description: record.description ?? "",
+      tags: record.tags,
+      pageCount: record.pageCount ?? 0,
+      ...times,
+    };
+  if (record.entity === "project")
+    return {
+      id: String(record.id),
+      revision: record.revision,
+      title: record.title,
+      archived: record.archived ?? false,
+      pinned: record.pinned,
+      documentCount: record.documentCount ?? 0,
+      ...times,
+    };
   const base = {
     id: String(record.id),
     revision: record.revision,
     title: record.title,
     tags: record.tags,
     wordCount: record.wordCount,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
+    ...times,
   };
   if (record.entity === "document")
     return {
@@ -226,7 +250,10 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
       const page = await bound(context).queryPluginData(databaseName, entity, query);
       return { items: page.items.map(toEntity), ...(page.cursor ? { cursor: page.cursor } : {}) };
     },
-    async create(context, entity, { content, ...fields }) {
+    async create(context, entity, value) {
+      const { content, ...fields } = value as PluginDataCreateInput & {
+        content?: PluginContentInput;
+      };
       const input: PluginDataCreateInput = {
         ...fields,
         ...(content ? { content: toContentSource(content) } : {}),
@@ -237,7 +264,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         entity,
         input
       );
-      if (entity === "article") refreshArticles();
+      refreshLists(entity);
       return toEntity(record);
     },
     async update(context, entity, id, patch, expectedRevision) {
@@ -251,7 +278,7 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           expectedRevision
         )
       );
-      if (entity === "article") refreshArticles();
+      refreshLists(entity);
       return toEntity(record);
     },
     async remove(context, entity, id, expectedRevision) {
@@ -460,6 +487,18 @@ function requireId(id: string): number {
 /** 文章列表只按查询失效刷新（没有逐条合并），插件写入后整域失效，与文章页自身的写入一致 */
 function refreshArticles() {
   void queryClient.invalidateQueries({ queryKey: ["articles"] });
+}
+
+/** 白板与项目没有写入广播，插件写入后按查询失效刷新本窗口；其他窗口在聚焦时重拉 */
+const LIST_KEYS: Partial<Record<DataEntity, string>> = {
+  article: "articles",
+  whiteboard: "whiteboards",
+  project: "projects",
+};
+
+function refreshLists(entity: DataEntity) {
+  const key = LIST_KEYS[entity];
+  if (key) void queryClient.invalidateQueries({ queryKey: [key] });
 }
 
 /** 助理协议：先预检（补全与校验），再逐项写入；conversationKey 记录发起方 */

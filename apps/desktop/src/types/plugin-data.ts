@@ -3,8 +3,11 @@
  * SDK 的不透明字符串 ID 与 ContentRef。主进程与渲染端共用，避免主进程反向依赖 app/plugins。
  */
 
-export type PluginDataEntity = "card" | "article" | "document";
+export type PluginDataEntity = "card" | "article" | "document" | "whiteboard" | "project";
 export type PluginWritableEntity = "card" | "article";
+export type PluginCreatableEntity = PluginWritableEntity | "whiteboard" | "project";
+/** 持有正文的实体 */
+export type PluginContentOwnerEntity = "card" | "article" | "document";
 
 export interface PluginDataScope {
   databaseName: string;
@@ -39,6 +42,12 @@ export interface PluginDataRecord {
   /** 项目文档的类型（document / white-board …） */
   kind?: string;
   projectIds?: number[];
+  /** 白板 */
+  description?: string;
+  pageCount?: number;
+  /** 项目 */
+  archived?: boolean;
+  documentCount?: number;
 }
 
 export interface PluginDataPage {
@@ -56,7 +65,7 @@ export interface PluginContentRecord {
   markdown?: string;
   nodes?: unknown[];
   /** 引用这份正文的实体类型，供宿主按实体权限判断 */
-  owners: PluginDataEntity[];
+  owners: PluginContentOwnerEntity[];
   /** 以这份正文为自有内容的插件实体：插件读写自己的正文不需要业务权限 */
   pluginOwners: PluginContentOwner[];
 }
@@ -79,6 +88,8 @@ export interface PluginDataCreateInput {
   tags?: string[];
   pinned?: boolean;
   title?: string;
+  /** 白板说明 */
+  description?: string;
 }
 
 export type PluginContentEdit =

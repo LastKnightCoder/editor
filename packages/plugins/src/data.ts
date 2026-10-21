@@ -61,6 +61,50 @@ export interface PluginDocument extends PluginEntityBase {
   projectIds: string[];
 }
 
+export interface PluginWhiteboard {
+  id: string;
+  /** 白板信息（标题、说明、标签）的版本；画板内容的编辑不改变它 */
+  revision: string;
+  title: string;
+  description: string;
+  tags: string[];
+  /** 画板页数 */
+  pageCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PluginWhiteboardInput {
+  title: string;
+  description?: string;
+  tags?: string[];
+}
+
+export type PluginWhiteboardPatch = Partial<PluginWhiteboardInput>;
+
+export interface PluginProject {
+  id: string;
+  /** 项目的版本：改名、归档、置顶以及文档目录的变化都会改变它 */
+  revision: string;
+  title: string;
+  archived: boolean;
+  pinned: boolean;
+  /** 根目录下的文档数 */
+  documentCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PluginProjectInput {
+  title: string;
+}
+
+export interface PluginProjectPatch {
+  title?: string;
+  archived?: boolean;
+  pinned?: boolean;
+}
+
 export interface PluginEntityReader<T> {
   get(id: string): Promise<T | null>;
   query(query?: PluginEntityQuery): Promise<PluginPage<T>>;
@@ -180,6 +224,25 @@ export type PluginCalendarPatch = Partial<PluginCalendarInput>;
 export interface PluginData {
   readonly cards: PluginEntityWriter<PluginCard, PluginCardInput, PluginCardPatch>;
   readonly articles: PluginEntityWriter<PluginArticle, PluginArticleInput, PluginArticlePatch>;
+  /** 白板的信息；画板内容不开放读写，用户在 Tau 中编辑 */
+  readonly whiteboards: PluginEntityReader<PluginWhiteboard> & {
+    create(input: PluginWhiteboardInput): Promise<PluginWhiteboard>;
+    update(
+      id: string,
+      patch: PluginWhiteboardPatch,
+      options: PluginWriteOptions
+    ): Promise<PluginWhiteboard>;
+  };
+  /** 项目本身；query 不支持 tag。项目里的文档见 documents */
+  readonly projects: PluginEntityReader<PluginProject> & {
+    /** 新建一个空项目 */
+    create(input: PluginProjectInput): Promise<PluginProject>;
+    update(
+      id: string,
+      patch: PluginProjectPatch,
+      options: PluginWriteOptions
+    ): Promise<PluginProject>;
+  };
   /** 项目文档只能修改标题与标签；新建、移动与删除涉及文档树，暂不开放 */
   readonly documents: PluginEntityReader<PluginDocument> & {
     update(

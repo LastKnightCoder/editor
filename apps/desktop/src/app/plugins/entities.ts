@@ -15,10 +15,10 @@ import { bindDatabaseCommands } from "@/services/command-context";
 import type { PluginEntityRecord } from "@/types/plugin-entities";
 import { mapConflict, toContentSource } from "./data";
 import { encodeContentRef } from "@/utils/plugin-content-ref";
-import type { DataEntity } from "@tau/plugins/host";
+import type { ContentOwnerEntity } from "@tau/plugins/host";
 import useSettingStore from "@/stores/useSettingStore";
 
-const BACKLINK_ENTITIES: Partial<Record<string, DataEntity>> = {
+const BACKLINK_ENTITIES: Partial<Record<string, ContentOwnerEntity>> = {
   card: "card",
   article: "article",
   "project-item": "document",

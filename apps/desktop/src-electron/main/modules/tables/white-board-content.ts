@@ -4,6 +4,21 @@ import Operation from "./operation";
 import ContentTable from "./content";
 // import log from "electron-log";
 
+/** 与 packages/whiteboard 的 WHITEBOARD_DOCUMENT_VERSION 一致，由 __tests__/white-board-content.test.ts 对账 */
+export const WHITEBOARD_DOCUMENT_VERSION = 2;
+
+/** 新建白板的第一张空白画板页，与白板页新建时的默认数据一致 */
+export const emptyWhiteboardPage = (name: string) => ({
+  name,
+  data: {
+    children: [],
+    viewPort: { zoom: 1, minX: 0, minY: 0, width: 0, height: 0 },
+    selection: { selectArea: null, selectedElements: [] },
+    presentationSequences: [],
+    version: WHITEBOARD_DOCUMENT_VERSION,
+  },
+});
+
 /**
  * 与 packages/whiteboard/src/document-version.ts 的 getDocumentVersion 保持一致
  * （主进程不依赖渲染包，避免拉入 React）；两边常量由 __tests__/white-board-content.test.ts 对账。

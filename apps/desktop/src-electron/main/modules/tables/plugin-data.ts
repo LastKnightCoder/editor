@@ -9,6 +9,8 @@ import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
   PluginContentEdit,
   PluginContentRecord,
+  PluginContentOwnerEntity,
+  PluginCreatableEntity,
   PluginDataCreateInput,
   PluginDataEntity,
   PluginDataPage,
@@ -24,6 +26,8 @@ import PluginEntityTable from "./plugin-entity";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
+import WhiteboardsTable from "./whiteboard";
+import { emptyWhiteboardPage } from "./white-board-content";
 import ContentTable from "./content";
 import Operation from "./operation";
 import { emitContentWritten } from "../content-events";
@@ -40,7 +44,20 @@ const ENTITY_TABLES: Record<PluginDataEntity, string> = {
   card: "cards",
   article: "articles",
   document: "project_item",
+  whiteboard: "white_boards",
+  project: "project",
 };
+
+const ENTITY_LABELS: Record<PluginDataEntity, string> = {
+  card: "卡片",
+  article: "文章",
+  document: "项目文档",
+  whiteboard: "白板",
+  project: "项目",
+};
+
+const jsonLength = (column: string) =>
+  `json_array_length(CASE WHEN json_valid(${column}) THEN ${column} ELSE '[]' END)`;
 
 /** 各实体统一投影成 id / created / updated / tags / pinned / title / 正文身份 */
 const BASE_SQL: Record<PluginDataEntity, string> = {
@@ -65,6 +82,17 @@ const BASE_SQL: Record<PluginDataEntity, string> = {
       p.project_item_type AS kind, p.projects
     FROM project_item p LEFT JOIN contents ct ON ct.id = p.content_id
     WHERE p.ref_type IS NULL OR p.ref_type = ''`,
+  // 白板与项目没有正文：画板内容不开放，项目文档另见 document
+  whiteboard: `SELECT w.id, w.create_time AS created, w.update_time AS revision,
+      w.update_time AS updated, w.tags, 0 AS pinned, w.title, NULL AS content_id,
+      NULL AS content_created, 0 AS word_count, NULL AS kind, NULL AS projects,
+      w.description, ${jsonLength("w.white_board_content_ids")} AS item_count, 0 AS archived
+    FROM white_boards w`,
+  project: `SELECT p.id, p.create_time AS created, p.update_time AS revision,
+      p.update_time AS updated, '[]' AS tags, p.pinned, p.title, NULL AS content_id,
+      NULL AS content_created, 0 AS word_count, NULL AS kind, NULL AS projects,
+      '' AS description, ${jsonLength("p.children")} AS item_count, p.archived
+    FROM project p`,
 };
 
 interface Row {
@@ -80,9 +108,13 @@ interface Row {
   word_count: number;
   kind: string | null;
   projects: string | null;
+  /** 白板与项目：说明、页数 / 根文档数、是否归档 */
+  description?: string | null;
+  item_count?: number;
+  archived?: number;
 }
 
-const ENTITIES = new Set<PluginDataEntity>(["card", "article", "document"]);
+const ENTITIES = new Set<PluginDataEntity>(Object.keys(ENTITY_TABLES) as PluginDataEntity[]);
 
 function parseList(value: string | null): unknown[] {
   if (!value) return [];
@@ -215,7 +247,7 @@ export default class PluginDataTable {
       | undefined;
     if (!row) return null;
     const nodes = parseList(row.content);
-    const owners = new Set<PluginDataEntity>();
+    const owners = new Set<PluginContentOwnerEntity>();
     for (const ref of EntitySearchTable.locateAll(db, [row.id]).get(row.id) ?? []) {
       if (ref.kind === "card" || ref.kind === "article") owners.add(ref.kind);
       else if (ref.kind === "project-item") owners.add("document");
@@ -251,9 +283,7 @@ export default class PluginDataTable {
       .prepare(`SELECT update_time FROM ${ENTITY_TABLES[entity]} WHERE id = ?`)
       .get(id) as { update_time: number } | undefined;
     if (!row || (entity === "article" && this.articleDeleted(db, id)))
-      throw new Error(
-        `${entity === "card" ? "卡片" : entity === "article" ? "文章" : "项目文档"}不存在`
-      );
+      throw new Error(`${ENTITY_LABELS[entity]}不存在`);
     if (String(row.update_time) !== expectedRevision)
       throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
   }
@@ -273,13 +303,15 @@ export default class PluginDataTable {
     db: Database.Database,
     request: PluginDataScope & {
       pluginId: string;
-      entity: PluginWritableEntity;
+      entity: PluginCreatableEntity;
       input: PluginDataCreateInput;
     },
     ctx: CommandContext = fallbackCommandContext
   ): Promise<PluginDataRecord> {
     this.assertDatabase(db, request);
     const { input } = request;
+    if (request.entity === "whiteboard" || request.entity === "project")
+      return this.createObject(db, { ...request, entity: request.entity });
     const content = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
@@ -315,13 +347,51 @@ export default class PluginDataTable {
     return this.get(db, { ...request, entity: request.entity, id }) as PluginDataRecord;
   }
 
+  /** 白板带一张空白画板页，项目为空项目；两者都没有写入广播，列表在渲染端按查询失效刷新 */
+  private static createObject(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      entity: "whiteboard" | "project";
+      input: PluginDataCreateInput;
+    }
+  ): PluginDataRecord {
+    const title = request.input.title ?? "";
+    const id = db.transaction(() =>
+      writeAsPlugin(request.pluginId, () =>
+        request.entity === "whiteboard"
+          ? WhiteboardsTable.createWhiteboard(db, {
+              title,
+              description: request.input.description ?? "",
+              tags: request.input.tags ?? [],
+              snapshot: "",
+              whiteBoardContentList: [emptyWhiteboardPage(title || "未命名")],
+            }).id
+          : ProjectTable.createProject(db, {
+              title,
+              desc: [],
+              children: [],
+              archived: false,
+              pinned: false,
+            }).id
+      )
+    )();
+    return this.get(db, { ...request, id }) as PluginDataRecord;
+  }
+
   static update(
     db: Database.Database,
     request: PluginDataScope & {
       pluginId: string;
       entity: PluginDataEntity;
       id: number;
-      patch: { tags?: string[]; pinned?: boolean; title?: string };
+      patch: {
+        tags?: string[];
+        pinned?: boolean;
+        title?: string;
+        description?: string;
+        archived?: boolean;
+      };
       expectedRevision: string;
     },
     ctx: CommandContext = fallbackCommandContext
@@ -353,6 +423,20 @@ export default class PluginDataTable {
           },
           all
         );
+      } else if (request.entity === "whiteboard") {
+        WhiteboardsTable.updateWhiteboardMeta(db, request.id, {
+          title: patch.title,
+          description: patch.description,
+          tags: patch.tags,
+        });
+      } else if (request.entity === "project") {
+        const project = ProjectTable.getProject(db, request.id);
+        ProjectTable.updateProject(db, {
+          ...project,
+          title: patch.title ?? project.title,
+          archived: patch.archived ?? project.archived,
+          pinned: patch.pinned ?? project.pinned,
+        });
       } else {
         const item = ProjectTable.getProjectItem(db, request.id);
         if (!item) throw new Error("项目文档不存在");
@@ -657,6 +741,12 @@ export default class PluginDataTable {
               Number.isSafeInteger(id)
             ),
           }
+        : {}),
+      ...(entity === "whiteboard"
+        ? { description: row.description ?? "", pageCount: row.item_count ?? 0 }
+        : {}),
+      ...(entity === "project"
+        ? { archived: Boolean(row.archived), documentCount: row.item_count ?? 0 }
         : {}),
     }));
   }

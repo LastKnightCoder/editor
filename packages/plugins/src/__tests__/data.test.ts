@@ -627,4 +627,44 @@ describe("插件业务数据与权限", () => {
       context().app.describe(Array.from({ length: 201 }, () => ({ kind: "card", id: "1" })))
     ).rejects.toThrow("最多 200 项");
   });
+
+  it("白板与项目：读写分别需要对应权限，按类型校验字段", async () => {
+    const { host, calls, context } = setup({
+      declared: ["whiteboards:read", "whiteboards:write", "projects:read", "projects:write"],
+      granted: new Set<PluginPermission>([
+        "whiteboards:read",
+        "whiteboards:write",
+        "projects:read",
+        "projects:write",
+      ]),
+    });
+    await host.enable("weekly");
+    await context().data.whiteboards.create({ title: "思路", tags: ["课题", "课题"] });
+    await context().data.whiteboards.update("4", { description: "" }, { expectedRevision: "1" });
+    await context().data.projects.create({ title: "课题" });
+    await context().data.projects.update("2", { archived: true }, { expectedRevision: "1" });
+    await context().data.projects.query({ sort: "created" });
+    expect(calls.filter(call => call[0] !== "ensure")).toEqual([
+      ["create", "whiteboard", { title: "思路", tags: ["课题"] }],
+      ["update", "whiteboard", "4", { description: "" }, "1"],
+      ["create", "project", { title: "课题" }],
+      ["update", "project", "2", { archived: true }, "1"],
+      ["query", "project", { sort: "created", limit: 50 }],
+    ]);
+    expect(calls.filter(call => call[0] === "ensure").map(call => call[2])).toEqual([
+      "whiteboards:write",
+      "whiteboards:write",
+      "projects:write",
+      "projects:write",
+      "projects:read",
+    ]);
+    await expect(context().data.whiteboards.create({ title: "" })).rejects.toThrow("title");
+    await expect(context().data.projects.query({ tag: "读书" })).rejects.toThrow("没有标签");
+    await expect(
+      context().data.projects.update("2", { tags: ["x"] } as never, { expectedRevision: "1" })
+    ).rejects.toThrow("没有要修改的字段");
+    await expect(
+      context().data.whiteboards.update("4", { archived: true } as never, { expectedRevision: "1" })
+    ).rejects.toThrow("没有要修改的字段");
+  });
 });
