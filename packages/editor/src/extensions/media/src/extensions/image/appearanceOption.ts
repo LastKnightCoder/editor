@@ -11,7 +11,7 @@ export interface ImageAppearanceSource {
   subscribe: (listener: () => void) => () => void;
 }
 
-/** image / image-gallery 扩展的外观参数：固定值，或可订阅的来源 */
+/** image 扩展的外观参数：固定值，或可订阅的来源 */
 export type ImageAppearanceOption = ImageAppearanceConfig | ImageAppearanceSource;
 
 export interface ImageExtensionOptions {

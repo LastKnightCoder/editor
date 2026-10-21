@@ -103,27 +103,6 @@ export const blockSerializers: HtmlSerializer[] = [
     },
   },
 
-  // Image Gallery
-  {
-    type: "image-gallery",
-    isBlock: true,
-    toHtml: element => {
-      const images = element.images || [];
-      const isSingle = images.length === 1;
-      const widthClass = isSingle ? "gallery-image-single" : "gallery-image-multiple";
-      const imagesHtml = images
-        .map(
-          (img: { url: string; alt?: string }) =>
-            `<section class="imageflow-layer3"><img src="${img.url}" alt="${img.alt || ""}" class="gallery-image ${widthClass}" /></section>`
-        )
-        .join("");
-      const caption = isSingle
-        ? ""
-        : '<p class="imageflow-caption"><span><<< 左右滑动查看更多 >>></span></p>';
-      return `<section class="imageflow-layer1"><section class="imageflow-layer2">${imagesHtml}</section></section>${caption}`;
-    },
-  },
-
   // Bulleted List
   {
     type: "bulleted-list",

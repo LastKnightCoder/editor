@@ -17,7 +17,7 @@ import { default as frontMatter } from "../extensions/front-matter/src";
 import { default as annotation } from "../extensions/annotation/src";
 import { default as underline } from "../extensions/underline/src";
 import { default as styledText } from "../extensions/styled-text/src";
-import { image, inlineImage, imageGallery, audio, video, mediaUiExtension } from "../extensions/media/src";
+import { image, inlineImage, audio, video, mediaUiExtension } from "../extensions/media/src";
 
 /** 产品的显式扩展组合，顺序保持原场景；核心不得依赖此模块。 */
 export const standardExtensions: readonly AnyExtension[] = [
@@ -26,7 +26,6 @@ export const standardExtensions: readonly AnyExtension[] = [
   header,
   image,
   inlineImage,
-  imageGallery,
   ...listExtensions,
   ...tabsExtensions,
   detail,

@@ -24,7 +24,6 @@ import {
   Heading,
   Highlighter,
   Image as ImageIcon,
-  Images,
   Info,
   Italic,
   Keyboard,
@@ -883,12 +882,6 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
           icon: <Link2 size={19} strokeWidth={2.3} />,
           tone: "lilac",
           onClick: () => controller.handleSelectInsertItem("audio-url"),
-        },
-        {
-          label: "图册",
-          icon: <Images size={19} strokeWidth={2.3} />,
-          tone: "butter",
-          onClick: () => controller.handleSelectInsertItem("image-gallery"),
         },
       ],
       [

@@ -57,15 +57,10 @@ const fakeIo = (files: Record<string, Uint8Array>): AssetIo => ({
 const doc = (...nodes: unknown[]) => nodes as Descendant[];
 
 describe("资源地址遍历", () => {
-  it("覆盖块图、行内图、图集、音视频与附件", () => {
+  it("覆盖块图、行内图、音视频与附件", () => {
     const content = doc(
       image("~/a.png"),
       paragraph(text("x"), { type: "inline-image", url: "b.png", children: [text("")] }),
-      {
-        type: "image-gallery",
-        images: [{ url: "c.png" }, { url: "https://x/d.png" }],
-        children: [text("")],
-      },
       { type: "audio", src: "e.mp3", children: [text("")] },
       { type: "video", src: "f.mp4", children: [text("")] },
       {
@@ -81,8 +76,6 @@ describe("资源地址遍历", () => {
     expect(collectAssetUrls(content).map(ref => `${ref.kind}:${ref.url}`)).toEqual([
       "image:~/a.png",
       "image:b.png",
-      "image:c.png",
-      "image:https://x/d.png",
       "audio:e.mp3",
       "video:f.mp4",
       "file:/local/g.pdf",

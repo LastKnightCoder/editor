@@ -2,7 +2,7 @@
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Element } from "slate";
+import type { Descendant, Element } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 
@@ -13,14 +13,16 @@ import { elementRuntime } from "../../../source";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 
-type CardElement = Element & { type: "test.card"; count: number };
+type CardElement = { type: "test.card"; count: number; children: Descendant[] };
 
 const text = (value = "") => ({ type: "formatted" as const, text: value });
-const card = (count = 0) => ({ type: "test.card", count, children: [text()] }) as CardElement;
+const card = (count = 0) =>
+  ({ type: "test.card", count, children: [text()] }) as unknown as Element;
 const paragraph = (value = "") => ({ type: "paragraph", children: [text(value)] }) as Element;
 
-function Card({ attributes, element, children }: ElementRenderProps<CardElement>) {
-  const access = elementRuntime.useElement(element);
+function Card({ attributes, element: node, children }: ElementRenderProps) {
+  const access = elementRuntime.useElement(node);
+  const element = node as unknown as CardElement;
   return (
     <div {...attributes} data-card="" data-selected={String(access.selected)}>
       <button
@@ -44,7 +46,7 @@ const extension = defineExtension({
       kind: "block",
       isVoid: true,
       frame: { keys: { Enter: "test.card.edit" } },
-      render: Card as never,
+      render: Card,
     },
   ],
   commands: [{ id: "test.card.edit", run: (_editor, ctx) => edit(ctx.element) }],
@@ -130,7 +132,7 @@ describe("void 块外框", () => {
   it("useElement 写入字段；只读时不选中、不写入、最后一块不显示添加段落", async () => {
     const editor = await mount([paragraph(), card(1)]);
     await act(async () => host.querySelector<HTMLButtonElement>("[data-card] button")!.click());
-    expect((editor().children[1] as CardElement).count).toBe(2);
+    expect((editor().children[1] as unknown as CardElement).count).toBe(2);
     await act(async () => root!.unmount());
     host.remove();
 
@@ -139,7 +141,7 @@ describe("void 块外框", () => {
     await act(async () => body().dispatchEvent(new MouseEvent("mousedown", { bubbles: true })));
     expect(body().className).not.toContain("outline-[var(--ed-accent)]");
     await act(async () => host.querySelector<HTMLButtonElement>("[data-card] button")!.click());
-    expect((readonlyEditor().children[1] as CardElement).count).toBe(1);
+    expect((readonlyEditor().children[1] as unknown as CardElement).count).toBe(1);
     const frame = host.querySelector("[data-element-frame]")!;
     expect([...frame.children].filter(child => child.classList.contains("cursor-default"))).toEqual(
       []

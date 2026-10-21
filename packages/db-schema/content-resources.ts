@@ -30,7 +30,6 @@ export const BUILTIN_CONTENT_RESOURCES = {
     { path: "url", kind: "image", preview: "previewUrl", alt: "alt", caption: "description" },
   ],
   "inline-image": [{ path: "url", kind: "image", alt: "alt" }],
-  "image-gallery": [{ path: "images[].url", kind: "image", alt: "desc", caption: "desc" }],
   audio: [{ path: "src", kind: "audio" }],
   video: [{ path: "src", kind: "video" }],
   "file-attachment": [
