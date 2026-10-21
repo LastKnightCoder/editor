@@ -540,7 +540,10 @@ function readEntityRef(value: unknown): PluginEntityRef {
   return { kind: ref.kind, id: readId(ref.id) };
 }
 
-/** 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。 */
+/**
+ * 宿主事件源：只负责投递本工作区的事件，类型与权限过滤由 PluginHost 完成。
+ * entity.* 只投递 context 所属插件自己的实体。
+ */
 export interface EventsAdapter {
   subscribe(context: PluginContext, listener: (event: PluginDomainEvent) => void): Disposable;
 }

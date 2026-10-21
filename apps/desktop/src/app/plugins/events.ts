@@ -5,13 +5,17 @@ import type { DomainEventMessage } from "@/types/domain-events";
 
 const sameDatabase = (a: string, b: string) => a.replace(/\.db$/, "") === b.replace(/\.db$/, "");
 
-/** 把主进程本库的业务事件转交给插件宿主；ID 转成与 context.data 一致的字符串。 */
+/**
+ * 把主进程本库的业务事件转交给插件宿主；ID 转成与 context.data 一致的字符串。
+ * 插件实体的事件只交给拥有它的插件。
+ */
 export function createDesktopEvents(databaseName: string): EventsAdapter {
   return {
     subscribe(context, listener) {
       const handle = (_event: unknown, message: DomainEventMessage) => {
         if (context.signal.aborted || !sameDatabase(message.databaseName, databaseName)) return;
         for (const record of message.events) {
+          if (record.type.startsWith("entity.") && record.owner !== context.pluginId) continue;
           const event: PluginDomainEvent = {
             type: record.type,
             at: record.at,
@@ -19,6 +23,7 @@ export function createDesktopEvents(databaseName: string): EventsAdapter {
               ? { kind: "plugin", pluginId: record.pluginId }
               : { kind: "app" },
             ...(record.id === undefined ? {} : { id: String(record.id) }),
+            ...(record.kind === undefined ? {} : { kind: record.kind }),
           };
           listener(event);
         }

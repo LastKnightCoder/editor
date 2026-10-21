@@ -77,6 +77,11 @@ const CHAT_SCENES: Record<string, PluginChatSession["scene"]> = {
   "vibe-learning-chat": "notebook",
 };
 
+/** 对插件可见的对话范围，供 SQL IN 子句使用（只读接口与业务事件共用） */
+export const PLUGIN_CHAT_SCOPES_SQL = Object.keys(CHAT_SCENES)
+  .map(scope => `'${scope}'`)
+  .join(", ");
+
 const NOTE_KINDS: Record<string, PluginEntityRef["kind"]> = {
   card: "card",
   article: "article",
@@ -143,9 +148,7 @@ const materialSpec: Spec<MaterialRow> = {
 const chatSpec: Spec<ChatRow> = {
   sql: `SELECT id AS key, create_time AS created, update_time AS updated, title, scope,
       message_count, archived
-    FROM chat_session WHERE scope IN (${Object.keys(CHAT_SCENES)
-      .map(scope => `'${scope}'`)
-      .join(", ")})`,
+    FROM chat_session WHERE scope IN (${PLUGIN_CHAT_SCOPES_SQL})`,
   numericKey: false,
   records: (_db, rows) =>
     rows.map((row): PluginChatSession => ({
