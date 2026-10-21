@@ -7,13 +7,16 @@ import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { desktopFetch } from "@/commands/fetch";
 import { isElectron, on, off } from "@/electron";
 import { getPluginWorkspace } from "@/commands/plugin-local";
-import { migratePluginPreferences } from "./development-manager";
 import { createDesktopExcerpts } from "./excerpts";
 import { createDesktopData } from "./data";
 import { createDesktopEvents } from "./events";
 import { createDesktopApp } from "./app";
 import { createDesktopEntities } from "./entities";
-import { createDatabaseStorage, migrateLegacyPluginStorage } from "./kv-storage";
+import {
+  createDatabaseStorage,
+  migrateLegacyPluginStorage,
+  migratePluginPreferences,
+} from "./kv-storage";
 import { clearPluginKv } from "@/commands/plugin-kv";
 import { clearPluginRefGrants } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
@@ -29,7 +32,6 @@ import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 
 const restartRequired = new Set<string>();
-const reloadCounts = new Map<string, number>();
 let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
@@ -101,7 +103,6 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           ...(permissions ? { permissions } : {}),
           flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
-          reloadCounts,
           validateEditor: composePluginEditor,
           openSettings: (key, target) =>
             target === "sync"

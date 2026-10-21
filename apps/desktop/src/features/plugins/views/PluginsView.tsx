@@ -439,8 +439,7 @@ function Installed({
 }) {
   const shown = installed.filter(item => matchesQuery([item.info.id, item.info.name], query));
   const attention = shown.filter(needsAttention);
-  const development = shown.filter(item => item.source === "development" && !needsAttention(item));
-  const normal = shown.filter(item => item.source !== "development" && !needsAttention(item));
+  const normal = shown.filter(item => !needsAttention(item));
   const issues = runtime.local?.issues ?? [];
   return (
     <>
@@ -473,13 +472,6 @@ function Installed({
           ))
         )}
       </Group>
-      {development.length > 0 && (
-        <Group title="开发中" hint="登记的构建目录，可监听自动重载">
-          {development.map(item => (
-            <InstalledRow key={item.info.id} runtime={runtime} plugin={item} onOpen={onOpen} />
-          ))}
-        </Group>
-      )}
       {runtime.local && (
         <p className="text-tau-meta text-ink-2 flex items-center gap-2 px-1">
           <FolderOpen className="text-ink-3 size-4" strokeWidth={1.75} />
@@ -603,15 +595,6 @@ export function PluginMenu({
         >
           恢复上一版 {update.previousVersion}
         </Menu.Item>
-      )}
-      {plugin.source === "development" && (
-        <>
-          <Menu.Item onSelect={() => void control.toggleWatch()}>
-            {control.watching ? "停止监听" : "监听构建"}
-          </Menu.Item>
-          <Menu.Item onSelect={() => void control.reload()}>重载构建</Menu.Item>
-          <Menu.Item onSelect={() => void control.removeRegistration()}>移除登记</Menu.Item>
-        </>
       )}
       {local && (
         <>
