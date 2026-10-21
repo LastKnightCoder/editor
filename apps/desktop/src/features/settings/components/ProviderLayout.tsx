@@ -106,7 +106,9 @@ export function ProviderSection({
         </div>
         {action && <div className="flex flex-none items-center gap-1.5">{action}</div>}
       </div>
-      <div className="rounded-tau-md shadow-[inset_0_0_0_1px_var(--color-line-1)]">{children}</div>
+      <div className="rounded-tau-md overflow-hidden shadow-[inset_0_0_0_1px_var(--color-line-1)]">
+        {children}
+      </div>
     </section>
   );
 }
