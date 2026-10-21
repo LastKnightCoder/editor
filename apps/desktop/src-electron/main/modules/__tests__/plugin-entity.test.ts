@@ -20,6 +20,7 @@ import { listContentIndexCandidates } from "../index-candidates";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.weekly-review" };
 const DAY = 24 * 60 * 60 * 1000;
+const NEWEST = [{ builtin: "createdAt", direction: "desc" as const }];
 
 describe("PluginEntityTable", () => {
   let db: Database.Database;
@@ -106,11 +107,14 @@ describe("PluginEntityTable", () => {
     const first = await note("a");
     await note("b");
     await note("c");
-    const page = PluginEntityTable.query(db, { ...scope, query: { kind: "note", limit: 2 } });
+    const page = PluginEntityTable.query(db, {
+      ...scope,
+      query: { kind: "note", orderBy: NEWEST, limit: 2 },
+    });
     expect(page.items).toHaveLength(2);
     const rest = PluginEntityTable.query(db, {
       ...scope,
-      query: { kind: "note", limit: 2, cursor: page.cursor },
+      query: { kind: "note", orderBy: NEWEST, limit: 2, cursor: page.cursor },
     });
     expect([...page.items, ...rest.items].map(item => item.key).sort()).toEqual(["a", "b", "c"]);
     expect(rest.cursor).toBeUndefined();
@@ -131,6 +135,117 @@ describe("PluginEntityTable", () => {
         expectedRevision: first.revision,
       })
     ).toThrow("PLUGIN_CONFLICT:");
+  });
+
+  it("按索引字段筛选、排序与计数；分页跨过没有值的项，游标绑定查询", async () => {
+    const indexes = { status: "string", rank: "number", pinned: "boolean" } as const;
+    const question = (key: string, meta: Record<string, unknown>, title = key) =>
+      PluginEntityTable.create(db, {
+        ...scope,
+        input: { kind: "question", key, title, meta, indexes },
+      });
+    await question("a", { status: "open", rank: 2 });
+    await question("b", { status: "resolved", rank: 1, pinned: true });
+    await question("c", { status: "open" }, "100%_完成");
+    await question("d", { rank: 2 });
+    // 类型与声明不符的值按没有值处理
+    db.prepare("UPDATE plugin_entities SET meta = ? WHERE key = 'd'").run(
+      JSON.stringify({ rank: 2, status: 7 })
+    );
+    await question("e", { status: "open", rank: 3 });
+    await expect(question("f", { rank: "1" })).rejects.toThrow("number");
+
+    const keys = (query: Parameters<typeof PluginEntityTable.query>[1]["query"]) => {
+      const all: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = PluginEntityTable.query(db, {
+          ...scope,
+          query: { ...query, ...(cursor ? { cursor } : {}) },
+        });
+        all.push(...page.items.map(item => item.key));
+        cursor = page.cursor;
+      } while (cursor);
+      return all;
+    };
+    const rankAsc = [{ field: "rank", type: "number" as const, direction: "asc" as const }];
+    // 升序时没有值的排在最前，同值按 ID 兜底；每页一条也不重不漏
+    expect(keys({ kind: "question", orderBy: rankAsc, limit: 1 })).toEqual([
+      "c",
+      "b",
+      "a",
+      "d",
+      "e",
+    ]);
+    expect(
+      keys({
+        kind: "question",
+        orderBy: [{ field: "rank", type: "number", direction: "desc" }],
+        limit: 2,
+      })
+    ).toEqual(["e", "d", "a", "b", "c"]);
+    expect(
+      keys({
+        kind: "question",
+        where: [
+          { field: "status", type: "string", op: "ne", value: "resolved" },
+          { field: "rank", type: "number", op: "gte", value: 2 },
+        ],
+        orderBy: rankAsc,
+        limit: 10,
+      })
+    ).toEqual(["a", "d", "e"]);
+    expect(
+      keys({
+        kind: "question",
+        where: [{ field: "status", type: "string", op: "in", value: ["resolved", null] }],
+        orderBy: NEWEST,
+        limit: 10,
+      })
+    ).toEqual(["d", "b"]);
+    expect(
+      keys({
+        kind: "question",
+        where: [{ field: "pinned", type: "boolean", op: "eq", value: true }],
+        orderBy: NEWEST,
+        limit: 10,
+      })
+    ).toEqual(["b"]);
+    // 标题包含时通配符按原文匹配
+    expect(keys({ kind: "question", titleContains: "%_", orderBy: NEWEST, limit: 10 })).toEqual([
+      "c",
+    ]);
+    expect(
+      PluginEntityTable.count(db, {
+        ...scope,
+        filter: {
+          kind: "question",
+          where: [{ field: "status", type: "string", op: "eq", value: "open" }],
+        },
+      })
+    ).toBe(3);
+
+    const first = PluginEntityTable.query(db, {
+      ...scope,
+      query: { kind: "question", orderBy: rankAsc, limit: 2 },
+    });
+    expect(() =>
+      PluginEntityTable.query(db, {
+        ...scope,
+        query: { kind: "question", orderBy: NEWEST, limit: 2, cursor: first.cursor },
+      })
+    ).toThrow("游标");
+
+    const target = PluginEntityTable.find(db, { ...scope, kind: "question", key: "a" })!;
+    expect(() =>
+      PluginEntityTable.update(db, {
+        ...scope,
+        id: target.id,
+        patch: { meta: { status: 1 } },
+        expectedRevision: target.revision,
+        indexes: { question: indexes },
+      })
+    ).toThrow("string");
   });
 
   it("插件目录不在时记孤儿，宽限期内重新出现即撤销，超期删除并延迟释放正文", async () => {

@@ -1,6 +1,7 @@
 /**
  * 插件实体（插件自建、带一份正文的内容）的 IPC 契约。主进程与渲染端共用，避免主进程反向依赖 app/plugins。
  */
+import type { PluginIndexes, PluginQueryCondition, PluginQueryOrder } from "@tau/plugins/query";
 import type { PluginContentSource, PluginDataScope } from "./plugin-data";
 
 export interface PluginEntityRecord {
@@ -23,8 +24,15 @@ export interface PluginEntityScope extends PluginDataScope {
   pluginId: string;
 }
 
-export interface PluginEntityQuery {
+/** 已由 PluginHost 校验的筛选；where 的字段与类型取自类型声明的索引 */
+export interface PluginEntityFilter {
   kind?: string;
+  where?: PluginQueryCondition[];
+  titleContains?: string;
+}
+
+export interface PluginEntityQuery extends PluginEntityFilter {
+  orderBy: PluginQueryOrder[];
   cursor?: string;
   limit: number;
 }
@@ -41,6 +49,8 @@ export interface PluginEntityCreate {
   meta: Record<string, unknown>;
   /** 初始正文，缺省为空 */
   content?: PluginContentSource;
+  /** 本类型声明的索引字段，写入前核对 meta */
+  indexes?: PluginIndexes;
 }
 
 export interface PluginEntityPatch {
