@@ -9,6 +9,7 @@ import type { PluginPageParams } from "./pages";
 import type { PluginEntityRef } from "./app";
 import type { PluginIcon } from "./icons";
 import type { PluginContentInput } from "./content-input";
+import type { PluginIndexes, PluginOrderBy, PluginWhere } from "./query";
 
 export type PluginOwnEntityMeta = Record<string, JsonValue>;
 
@@ -43,6 +44,11 @@ export interface PluginOwnEntityKind {
   open: { page: string; params?: (entity: PluginOwnEntity) => PluginPageParams };
   /** 是否可在正文中用 @ 引用，默认 false */
   mentionable?: boolean;
+  /**
+   * 可用于 query 筛选与排序的 meta 字段及类型，如 `{ status: "string", sortIndex: "number" }`。
+   * 最多 16 个；写入时这些字段的值必须是声明的类型或 null。只在插件运行时生效。
+   */
+  indexes?: PluginIndexes;
 }
 
 export interface PluginOwnEntityInput {
@@ -59,8 +65,24 @@ export interface PluginOwnEntityPatch {
   meta?: PluginOwnEntityMeta;
 }
 
-export interface PluginOwnEntityQuery {
+/** 实体自带的排序列；其余排序字段取 registerKind 声明的 indexes */
+export type PluginOwnEntitySortField = "createdAt" | "updatedAt" | "title";
+
+export interface PluginOwnEntityFilter {
   kind?: string;
+  /** 按 indexes 中的字段筛选，需同时给出 kind */
+  where?: PluginWhere;
+  /** 标题包含这段文字（英文字母不区分大小写） */
+  titleContains?: string;
+}
+
+export interface PluginOwnEntityQuery extends PluginOwnEntityFilter {
+  /**
+   * 最多两项，ID 兜底保证顺序稳定；默认按创建时间倒序。字段为 createdAt、updatedAt、title，
+   * 或 kind 的 indexes 中声明的字段。
+   */
+  orderBy?: PluginOrderBy | PluginOrderBy[];
+  /** 原样传回上一页的 cursor；换了筛选或排序后不能再用 */
   cursor?: string;
   /** 默认 50，最多 200 */
   limit?: number;
@@ -82,8 +104,10 @@ export interface PluginOwnEntities {
   create(input: PluginOwnEntityInput): Promise<PluginOwnEntity>;
   get(id: string): Promise<PluginOwnEntity | null>;
   find(kind: string, key: string): Promise<PluginOwnEntity | null>;
-  /** 按创建时间倒序分页 */
+  /** 分页查询，默认按创建时间倒序 */
   query(query?: PluginOwnEntityQuery): Promise<PluginPage<PluginOwnEntity>>;
+  /** 符合条件的数量 */
+  count(filter?: PluginOwnEntityFilter): Promise<number>;
   /** 修改标题或 meta；revision 不是最新时抛出 PluginConflictError */
   update(
     id: string,

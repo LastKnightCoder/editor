@@ -156,8 +156,8 @@ function setup({
     revision: "1",
   };
   const entities: EntitiesAdapter = {
-    async create(_context, input) {
-      calls.push(["entities.create", input]);
+    async create(_context, input, indexes) {
+      calls.push(["entities.create", input, indexes]);
       return { ...entity, ...input };
     },
     get: async (_context, id) => (id === "1" ? entity : null),
@@ -166,8 +166,12 @@ function setup({
       calls.push(["entities.query", query]);
       return { items: [entity] };
     },
-    async update(_context, id, patch, revision) {
-      calls.push(["entities.update", id, patch, revision]);
+    async count(_context, filter) {
+      calls.push(["entities.count", filter]);
+      return 3;
+    },
+    async update(_context, id, patch, revision, indexes) {
+      calls.push(["entities.update", id, patch, revision, indexes]);
       return { ...entity, ...patch, revision: "2" };
     },
     async delete(_context, id, revision) {
@@ -649,13 +653,98 @@ describe("插件业务数据与权限", () => {
     await context().entities.delete("1", { expectedRevision: "2" });
     await expect(context().entities.delete("1", {} as never)).rejects.toThrow("expectedRevision");
     expect(calls).toEqual([
-      ["entities.create", { kind: "note", key: "2026-W43", title: "第 43 周", meta: { week: 43 } }],
-      ["entities.query", { kind: "note", limit: 50 }],
-      ["entities.update", "1", { title: "改名" }, "1"],
+      [
+        "entities.create",
+        { kind: "note", key: "2026-W43", title: "第 43 周", meta: { week: 43 } },
+        {},
+      ],
+      [
+        "entities.query",
+        {
+          kind: "note",
+          where: [],
+          orderBy: [{ builtin: "createdAt", direction: "desc" }],
+          limit: 50,
+        },
+      ],
+      ["entities.update", "1", { title: "改名" }, "1", { note: {} }],
       ["entities.delete", "1", "2"],
     ]);
     kind.dispose();
     await expect(context().entities.create({ kind: "note", key: "y" })).rejects.toThrow("未声明");
+  });
+
+  it("索引字段：声明后才能筛选与排序，条件与排序按类型校验后交给宿主", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    expect(() =>
+      context().entities.registerKind({
+        kind: "bad",
+        label: "坏",
+        open: { page: "review" },
+        indexes: { title: "string" },
+      })
+    ).toThrow("已被宿主使用");
+    context().entities.registerKind({
+      kind: "question",
+      label: "问题",
+      open: { page: "review" },
+      indexes: { status: "string", sortIndex: "number", pinned: "boolean" },
+    });
+    await context().entities.query({
+      kind: "question",
+      where: { status: { ne: "resolved", in: ["open", null] }, pinned: true },
+      titleContains: "为什么",
+      orderBy: [{ field: "sortIndex" }, { field: "createdAt", direction: "desc" }],
+      limit: 20,
+    });
+    expect(await context().entities.count({ kind: "question", where: { status: null } })).toBe(3);
+    await context().entities.query();
+    await expect(context().entities.query({ where: { status: "open" } })).rejects.toThrow(
+      "需要同时给出 kind"
+    );
+    await expect(
+      context().entities.query({ kind: "question", where: { groupId: "1" } })
+    ).rejects.toThrow("未声明为索引");
+    await expect(
+      context().entities.query({ kind: "question", where: { sortIndex: "1" } })
+    ).rejects.toThrow("number");
+    await expect(
+      context().entities.query({ kind: "question", where: { pinned: { gt: 1 } } })
+    ).rejects.toThrow("不能比较大小");
+    await expect(
+      context().entities.query({ kind: "question", orderBy: { field: "groupId" } })
+    ).rejects.toThrow("不能用于排序");
+    expect(calls.filter(([name]) => name !== "entities.create")).toEqual([
+      [
+        "entities.query",
+        {
+          kind: "question",
+          where: [
+            { field: "status", type: "string", op: "ne", value: "resolved" },
+            { field: "status", type: "string", op: "in", value: ["open", null] },
+            { field: "pinned", type: "boolean", op: "eq", value: true },
+          ],
+          titleContains: "为什么",
+          orderBy: [
+            { field: "sortIndex", type: "number", direction: "asc" },
+            { builtin: "createdAt", direction: "desc" },
+          ],
+          limit: 20,
+        },
+      ],
+      [
+        "entities.count",
+        {
+          kind: "question",
+          where: [{ field: "status", type: "string", op: "eq", value: null }],
+        },
+      ],
+      [
+        "entities.query",
+        { where: [], orderBy: [{ builtin: "createdAt", direction: "desc" }], limit: 50 },
+      ],
+    ]);
   });
 
   it("类型图标只接受组件", async () => {

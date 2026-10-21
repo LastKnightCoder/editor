@@ -920,6 +920,7 @@ CREATE TABLE IF NOT EXISTS plugin_entities (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_entities_key ON plugin_entities(plugin_id, kind, key);
 CREATE INDEX IF NOT EXISTS idx_plugin_entities_content ON plugin_entities(content_id);
+CREATE INDEX IF NOT EXISTS idx_plugin_entities_created ON plugin_entities(plugin_id, kind, create_time, id);
 
 -- 插件声明的内容类型外观（类型名与图标 SVG）：随库保存，插件停用、卸载宽限期内与其他设备上照样显示
 CREATE TABLE IF NOT EXISTS plugin_entity_kinds (

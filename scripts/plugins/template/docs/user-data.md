@@ -549,6 +549,7 @@ function NotePanel({ note, at }: { note: PluginOwnEntity; at?: string }) {
 | `icon`        | 可选。类型图标，写法与[侧边栏图标](ui.md#图标)相同                                             |
 | `open`        | 用户在 Tau 中打开这项内容时进入的插件页面：`page` 是页面的局部 ID，`params` 从内容算出页面参数 |
 | `mentionable` | 可选。为 `true` 时，用户可以在正文里用 @ 引用这类内容，默认不可以                              |
+| `indexes`     | 可选。可用于查询筛选与排序的 `meta` 字段及类型，见「按字段查询」                               |
 
 插件内容会出现在 Tau 的全局搜索、AI 检索、@ 面板、正文中的引用以及脉络与漫步里，并以你声明的 `label` 和 `icon` 显示：
 
@@ -558,14 +559,15 @@ function NotePanel({ note, at }: { note: PluginOwnEntity; at?: string }) {
 
 ### 接口
 
-| 方法                                                  | 说明                                                                                                                  |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `create({ kind, key, title?, meta?, content? })`      | 新建一项，`content` 为初始正文（写法见「正文输入」），省略时为空。同一类型下 `key` 已存在时抛出 `PluginConflictError` |
-| `get(id)`、`find(kind, key)`                          | 读取一项，不存在时为 `null`                                                                                           |
-| `query({ kind?, cursor?, limit? })`                   | 按创建时间倒序分页，默认 50 条，最多 200 条                                                                           |
-| `update(id, { title?, meta? }, { expectedRevision })` | 修改标题或 `meta`                                                                                                     |
-| `delete(id, { expectedRevision })`                    | 删除一项及其正文                                                                                                      |
-| `backlinks(id)`                                       | 哪些卡片、文章、项目文档引用了这项内容                                                                                |
+| 方法                                                                  | 说明                                                                                                                  |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `create({ kind, key, title?, meta?, content? })`                      | 新建一项，`content` 为初始正文（写法见「正文输入」），省略时为空。同一类型下 `key` 已存在时抛出 `PluginConflictError` |
+| `get(id)`、`find(kind, key)`                                          | 读取一项，不存在时为 `null`                                                                                           |
+| `query({ kind?, where?, titleContains?, orderBy?, cursor?, limit? })` | 分页查询，默认按创建时间倒序，默认 50 条，最多 200 条，见「按字段查询」                                               |
+| `count({ kind?, where?, titleContains? })`                            | 符合条件的数量                                                                                                        |
+| `update(id, { title?, meta? }, { expectedRevision })`                 | 修改标题或 `meta`                                                                                                     |
+| `delete(id, { expectedRevision })`                                    | 删除一项及其正文                                                                                                      |
+| `backlinks(id)`                                                       | 哪些卡片、文章、项目文档引用了这项内容                                                                                |
 
 - `key` 由你决定，用来找回同一项内容，例如周记用周次 `2026-W43`。
 - `meta` 保存少量结构化信息，是不超过 64 KB 的 JSON 对象。大段内容放在正文里。
@@ -573,3 +575,35 @@ function NotePanel({ note, at }: { note: PluginOwnEntity; at?: string }) {
 - `delete` 不会弹出确认，需要确认时由插件自己询问用户。删除后，用户可以在插件详情页的「最近删除」中 7 天内恢复，恢复后 ID、`key` 和正文都不变；如果这期间插件用同一个 `key` 新建了内容，则无法恢复。
 - `backlinks` 返回 `{ items: [{ ref, title, snippets }], omitted }`。它只列出插件已获准读取的类型（如有 `cards:read` 才列出卡片），不会弹窗询问，其余来源只计入 `omitted`。`ref` 可以直接交给 `context.app.open`。
 - 卸载插件后，它创建的内容保留 7 天，期间重新安装就能找回，超过 7 天后删除。
+
+### 按字段查询
+
+在 `registerKind` 里用 `indexes` 声明哪些 `meta` 字段要用来筛选或排序，类型是 `string`、`number` 或 `boolean`：
+
+```ts
+context.entities.registerKind({
+  kind: "question",
+  label: "问题",
+  open: { page: "questions" },
+  indexes: { status: "string", groupId: "string", sortIndex: "number" },
+});
+
+const page = await context.entities.query({
+  kind: "question",
+  where: { groupId: "g1", status: { ne: "resolved" } },
+  orderBy: [{ field: "sortIndex" }, { field: "createdAt", direction: "desc" }],
+});
+const open = await context.entities.count({ kind: "question", where: { status: "open" } });
+```
+
+- 用 `where` 时必须同时给出 `kind`，字段须在这个类型的 `indexes` 里。
+- 条件的写法：
+  - 直接给值表示等于，`null` 表示没有值（字段缺失或为 `null`）。
+  - 也可以写 `{ eq, ne, in, gt, gte, lt, lte }`，同一字段的多个运算符要同时满足，不同字段之间也是同时满足。
+  - `ne` 把没有值的项也算作不等于；`in` 可以包含 `null`。
+  - 大小比较只用于字符串和数字。
+- `orderBy` 最多两项，可以用 `createdAt`、`updatedAt`、`title` 或声明的字段，`direction` 默认 `asc`。升序时没有值的项排在最前，降序时排在最后；排序值相同的按 ID 定序，翻页不会重复或遗漏。
+- `titleContains` 按标题包含查找，英文字母不区分大小写。
+- `cursor` 只能接着同一组条件和排序使用，换了条件要从第一页开始。
+- 写入时，声明过的字段的值必须是声明的类型或 `null`，否则抛错。类型不符的旧数据（例如声明之前写入的）在查询里按没有值处理。
+- `indexes` 是 `meta` 的顶层字段，最多 16 个。声明只在插件运行时生效，修改声明不需要迁移数据。
