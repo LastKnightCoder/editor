@@ -86,4 +86,34 @@ describe("ExtensionAssembly", () => {
     expect(assembly.extensions.map(extension => extension.id)).toContain("test.broken");
     expect(error).toHaveBeenCalled();
   });
+
+  describe("输入规则", () => {
+    const withMark = (inputRules: EditorExtension["inputRules"]) =>
+      defineExtension({
+        id: "test.rule",
+        marks: [{ id: "test.bold", keys: ["bold"], render: () => null }],
+        inputRules,
+      });
+
+    it("按扩展收集并记录来源", () => {
+      const rule = { id: "test.bold", delimiter: "**", marks: { bold: true } };
+      expect(new ExtensionAssembly([withMark([rule])]).inputRules).toEqual([
+        { owner: "test.rule", rule },
+      ]);
+    });
+
+    it.each([
+      [
+        [
+          { id: "a", delimiter: "*", marks: { bold: true } },
+          { id: "a", delimiter: "_", marks: { bold: true } },
+        ],
+        "重复",
+      ],
+      [[{ id: "a", delimiter: "*_", marks: { bold: true } }], "同一字符"],
+      [[{ id: "a", delimiter: "*", marks: { italic: true } }], "未声明"],
+    ])("非法声明在 kit 创建时报错（%#）", (rules, message) => {
+      expect(() => new ExtensionAssembly([withMark(rules)])).toThrow(message);
+    });
+  });
 });
