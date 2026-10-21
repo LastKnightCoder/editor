@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { createClient } from "@tau/plugins/publish-client";
 import { PublishSiteGenerator } from "../publish-site-generator";
 import { buildPublishSearchIndexPayload } from "../publish-search-index";
 import { planPublication, describeRelease } from "../publish-release-state";
@@ -90,6 +91,27 @@ const history = (files: IPublishFile[]) =>
     sourceId: file.sourceId,
     publishTime: 1,
   })) as IPublishHistory[];
+it("生成的清单能被公开数据客户端读取", async () => {
+  const { files } = await generate();
+  const site = files.find(file => /^data\/site\./.test(file.path))!;
+  const byUrl = new Map(files.map(file => ["https://example.com/notes/" + file.path, file]));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => new Response(byUrl.get(url)!.content))
+  );
+  try {
+    const client = createClient({ manifestUrl: "https://example.com/notes/" + site.path });
+    const manifest = await client.readManifest();
+    expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
+    const home = manifest.items.find(item => item.type === "home")!;
+    const result = await client.readData({ key: home.key });
+    expect(result.data).toMatchObject({ key: home.key, meta: { type: "home" } });
+    expect(result.data.content).not.toHaveProperty("hero");
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 it("未知节点仅回传警告，继续生成完整发布产物并原样保留节点", async () => {
   const fixture = makePublishFixture();
   const unknown = {

@@ -114,8 +114,11 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
         const keys = new Set<string>();
         assert(
           typeof value.site.title === "string" &&
-            typeof value.site.description === "string" &&
-            typeof value.site.basePath === "string",
+            typeof value.site.basePath === "string" &&
+            record(value.site.fields) &&
+            Object.values(value.site.fields).every(
+              field => typeof field === "string" || typeof field === "boolean"
+            ),
           "INVALID_DATA",
           "站点数据缺失"
         );
