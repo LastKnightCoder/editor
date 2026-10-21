@@ -50,12 +50,6 @@ export function PluginSettingsView({
         在语音设置中配置
       </Button>
     );
-  if (section.definition.target === "images" && !imageConfig)
-    return (
-      <Button onClick={() => useSettingsStore.getState().openSettings("imageGeneration")}>
-        在图片生成设置中配置
-      </Button>
-    );
   if (section.definition.target === "publish" && !publishConfig)
     return <Button onClick={() => openPage("publish")}>在博客发布页中配置</Button>;
   return (

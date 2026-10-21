@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { produce } from "immer";
 import { copyJson } from "@tau/plugins/host";
-import { Check, Trash2 } from "lucide-react";
-import { Button, ConfirmDialog, Dialog, DialogBody, Input } from "@tau/ui";
+import { Check, Plus, Trash2 } from "lucide-react";
+import { Button, ConfirmDialog, Input, Select } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { savePluginImagesConfig } from "@/commands/plugin-images";
@@ -11,7 +11,6 @@ import { useImageCapabilities } from "@/services/image-capabilities";
 import type { ImageGenerationStoreShape } from "@/types/imageGeneration";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
-import { FieldBox, ProviderSection, ProviderSwitcher } from "../components/ProviderLayout";
 
 export function ImageGenerationSection() {
   const { providers, currentProviderId } = useSettingStore(state => state.setting.imageGeneration);
@@ -19,27 +18,28 @@ export function ImageGenerationSection() {
   const sections =
     runtime?.listSettings().filter(item => item.definition.target === "images") ?? [];
   const capabilityError = useImageCapabilities(state => state.error);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const editing =
-    providers.find(item => item.id === editingId) ??
-    providers.find(item => item.id === currentProviderId) ??
-    providers[0];
+  const [selectedId, setSelectedId] = useState<string>(currentProviderId || providers[0]?.id || "");
+  const editing = providers.find(item => item.id === selectedId);
   const section = sections.find(item => item.context.pluginId === editing?.pluginId);
+
   const mutate = (update: (draft: ImageGenerationStoreShape) => void) => {
     useSettingStore.setState(state => ({
       setting: produce(state.setting, draft => update(draft.imageGeneration)),
     }));
   };
-  const addProvider = (pluginId: string, name: string) => {
+
+  const addProvider = (pluginId: string) => {
+    const plugin = sections.find(item => item.context.pluginId === pluginId);
+    if (!plugin) return;
     const id = crypto.randomUUID();
+    const name = `${plugin.definition.title} ${providers.filter(p => p.pluginId === pluginId).length + 1}`;
     mutate(draft => {
       draft.providers.push({ id, name, pluginId, modelId: "", config: {} });
     });
-    setEditingId(id);
-    setCreateOpen(false);
+    setSelectedId(id);
   };
+
   const confirmDelete = () => {
     if (!editing) return;
     const id = editing.id;
@@ -47,44 +47,76 @@ export function ImageGenerationSection() {
       draft.providers = draft.providers.filter(item => item.id !== id);
       if (draft.currentProviderId === id) draft.currentProviderId = "";
     });
-    setEditingId(null);
+    const remaining = providers.filter(p => p.id !== id);
+    setSelectedId(remaining[0]?.id || "");
     setDeleteOpen(false);
   };
+
   return (
     <>
-      <SettingsGroup>
-        <ProviderSwitcher
-          label="图片生成提供商"
-          items={providers.map(provider => ({
-            id: provider.id,
-            label: provider.name || "未命名",
-            meta: provider.id === currentProviderId ? "当前" : undefined,
-          }))}
-          activeId={editing?.id}
-          onSelect={setEditingId}
-          addLabel="添加提供商"
-          onAdd={() => setCreateOpen(true)}
-        />
-        {!editing ? (
-          <div className="text-tau-meta text-ink-2 px-3 py-8 text-center">
-            还没有图片生成提供商，请先安装并启用图片插件，再添加账号。
+      <SettingsGroup title="图片生成提供商" description="添加多个账号，在图片生成时选择使用哪一个">
+        <SettingRow title="当前提供商">
+          <div className="flex items-center gap-2">
+            <Select
+              className="min-w-[240px]"
+              value={selectedId}
+              onValueChange={setSelectedId}
+              options={providers.map(provider => ({
+                value: provider.id,
+                label: provider.name || "未命名",
+              }))}
+              placeholder={providers.length === 0 ? "暂无提供商" : "选择提供商"}
+            />
+            {sections.length > 0 && (
+              <Select
+                className="min-w-[160px]"
+                value=""
+                onValueChange={addProvider}
+                options={sections.map(item => ({
+                  value: item.context.pluginId,
+                  label: item.definition.title,
+                }))}
+                placeholder="添加提供商"
+                triggerIcon={Plus}
+              />
+            )}
           </div>
+        </SettingRow>
+
+        {providers.length === 0 ? (
+          <SettingRow
+            title="开始使用"
+            description="请先到插件中心安装并启用图片生成插件（如 OpenAI Images），然后在此添加配置"
+          />
+        ) : !editing ? (
+          <div className="text-tau-meta text-ink-2 px-3 py-8 text-center">请选择一个提供商</div>
         ) : (
-          <ProviderSection
-            title="连接"
-            description={
-              editing.id === currentProviderId
-                ? "图片生成当前使用这一账号"
-                : "未启用，图片生成使用标为当前的账号"
-            }
-            action={
-              <>
+          <>
+            <SettingRow
+              title="名称"
+              description={
+                editing.id === currentProviderId ? "当前使用的提供商" : "未启用，切换为当前后生效"
+              }
+            >
+              <div className="flex items-center gap-2">
+                <Input
+                  className="min-w-[240px]"
+                  value={editing.name}
+                  placeholder="账号名称"
+                  onChange={event => {
+                    const name = event.target.value;
+                    mutate(draft => {
+                      const target = draft.providers.find(item => item.id === editing.id);
+                      if (target) target.name = name;
+                    });
+                  }}
+                />
                 <Button variant="ghost" size="sm" icon={Trash2} onClick={() => setDeleteOpen(true)}>
                   删除
                 </Button>
                 {editing.id !== currentProviderId && (
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     size="sm"
                     icon={Check}
                     onClick={() =>
@@ -96,24 +128,9 @@ export function ImageGenerationSection() {
                     设为当前
                   </Button>
                 )}
-              </>
-            }
-          >
-            <SettingRow title="名称">
-              <FieldBox>
-                <Input
-                  value={editing.name}
-                  placeholder="账号名称"
-                  onChange={event => {
-                    const name = event.target.value;
-                    mutate(draft => {
-                      const target = draft.providers.find(item => item.id === editing.id);
-                      if (target) target.name = name;
-                    });
-                  }}
-                />
-              </FieldBox>
+              </div>
             </SettingRow>
+
             <PluginSettingsView
               section={section}
               imageConfig={{
@@ -135,33 +152,12 @@ export function ImageGenerationSection() {
               }}
             />
             {editing.id === currentProviderId && capabilityError && (
-              <p className="text-tau-meta text-warn">{capabilityError}</p>
+              <p className="text-tau-meta text-warn mt-2">{capabilityError}</p>
             )}
-          </ProviderSection>
+          </>
         )}
       </SettingsGroup>
-      <Dialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        title="添加图片生成账号"
-        subtitle="选择已启用的图片插件"
-      >
-        <DialogBody>
-          <div className="flex flex-col gap-2">
-            {sections.map(item => (
-              <Button
-                key={item.key}
-                onClick={() => addProvider(item.context.pluginId, item.definition.title)}
-              >
-                {item.definition.title}
-              </Button>
-            ))}
-            {sections.length === 0 && (
-              <p className="text-tau-meta text-ink-2">请先到插件中心安装并启用图片插件。</p>
-            )}
-          </div>
-        </DialogBody>
-      </Dialog>
+
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
