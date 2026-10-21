@@ -5,6 +5,11 @@
 - 新增媒体组件 `MediaImage`、`MediaVideo`、`MediaAudio`：节点里的本地路径、远程地址和共享文档资源按 Tau 自带图片、视频、音频块的方式解析和缓存。
 - 新增 `useResource(url, { kind })`，自己绘制媒体时取得可加载的地址；`useResourceUpload()` 把文件存进用户当前的资源存储并返回地址，只读编辑器与博客中为 `undefined`。
 - 新增 `useMediaAppearance()`，读取用户设置（博客中为发布设置）的媒体默认圆角与阴影。
+- 新增 `useElement(element)`：读写当前节点（`readOnly`、`update`、`remove`），外框里的块还能取得 `selected`、`select()`、`openMenu(position)`。`useInlineSource` 建在它之上。
+- 节点声明新增 `frame`：void 块的公共外框，提供点选描边、右键菜单、选中时删除与声明的按键命令、末尾「添加段落」；声明后 `render` 只渲染内容。
+- 新增块属性条 `BlockToolbar`、`BlockToolbarButton`、`BlockToolbarGap`，外观与自带图片块一致。
+- 新增 `useMediaViewer(element)`，打开文档图片查看器并定位到该节点的第几张图。
+- `@tau/ui` 新增 `Sortable`，用指针事件拖动排序，手柄支持方向键。
 - 节点声明新增 `resources`：写明节点里哪些字段是图片、视频、音频或文件。导出打包、共享给协作者时上传本地文件、灯箱与 EPUB 取图都只按这份声明找资源；声明随笔记库保存。
 
 ## 0.32.0

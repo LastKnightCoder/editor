@@ -7,9 +7,8 @@ export const MEDIA_ALIGN_CLASS: Record<"left" | "center" | "right", string> = {
   right: "ml-auto mr-0",
 };
 
-/** 选中描边：随媒体圆角、外扩 3px */
-export const MEDIA_SELECTED_OUTLINE_CLASS =
-  "outline-solid outline-2 outline-offset-[3px] outline-[var(--ed-accent)]";
+/** 选中描边：与插件块外框同一份 */
+export { ELEMENT_SELECTED_OUTLINE_CLASS as MEDIA_SELECTED_OUTLINE_CLASS } from "@tau/editor/api";
 
 /** 块级媒体四角缩放句柄：纸色底 accent 描边圆点，中心压在容器角上 */
 export const MEDIA_CORNER_HANDLE_CLASS =

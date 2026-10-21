@@ -43,6 +43,17 @@ export interface ElementEmptyContext {
   isEmpty(node: Descendant): boolean;
 }
 
+/**
+ * void 块的公共外框：点选描边、右键菜单、选中时 Delete / Backspace 删除与 Escape 取消、末尾「添加段落」。
+ * 声明后 render 只渲染内容（收到的 attributes 为空对象、children 为 null）。
+ */
+export interface ElementFrame {
+  /** 末尾的「添加段落」，默认显示 */
+  appendParagraph?: boolean;
+  /** 选中时的按键 → 命令 id（如 `{ Enter: "yourname.gallery.edit" }`），命令收到该元素 */
+  keys?: Readonly<Record<string, string>>;
+}
+
 export interface ElementSpec<E extends Element = Element> {
   /** 元素 type；内置类型沿用现有名字，兼容已有文档 */
   type: string;
@@ -63,6 +74,8 @@ export interface ElementSpec<E extends Element = Element> {
   ingest?: ElementIngestSpec;
   /** 节点里的资源字段：导出打包、协作上传、灯箱等只按它找图片、视频、音频与文件 */
   resources?: readonly ContentResourceSpec[];
+  /** void 块的公共外框；只适用于 `kind: "block"` 且 `isVoid` 的元素 */
+  frame?: boolean | ElementFrame;
 }
 
 export interface ExtensionLayerProps {

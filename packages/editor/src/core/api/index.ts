@@ -11,6 +11,7 @@ export {
   type EditorExtension,
   type ExtensionDefinition,
   type ElementSpec,
+  type ElementFrame,
   type ElementEmptyContext,
   type ElementBehaviors,
   type ElementRenderProps,
@@ -26,6 +27,12 @@ export { CaretRight as EditorCaretRight } from "../ui/CaretRight";
 export { getParagraphShortcutEntry } from "../utils/paragraphShortcut";
 export type { IngestContext, ElementIngestSpec } from "./ingest";
 export { getElementResources } from "./resources";
+export {
+  ELEMENT_SELECTED_OUTLINE_CLASS,
+  useElementFrame,
+  type ElementFrameState,
+} from "../components/ElementFrame";
+export { isOverlayTarget, isTextTarget, shouldIgnoreBlockKey } from "../utils/blockKeyTarget";
 export type {
   ContentResourceSpec,
   ContentResourceKind,

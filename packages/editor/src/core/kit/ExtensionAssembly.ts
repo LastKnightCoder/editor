@@ -5,6 +5,7 @@ import type {
 } from "@tau/db-schema/content-resources";
 import type { Editor } from "slate";
 import type { RenderElementProps } from "slate-react";
+import { ElementFrame } from "../components/ElementFrame";
 
 import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/extension";
 import { CommandRegistry, type EditorHotkey } from "../api/command";
@@ -59,8 +60,27 @@ const schemaPlugin =
   };
 
 /** `lazy()` 组件加载期间的空壳：保留 attributes / children，Slate 的 DOM 映射不断 */
+const FRAMED_ATTRIBUTES = Object.freeze({}) as RenderElementProps["attributes"];
+
 const renderSpec = (spec: ElementSpec): ElementRenderer => {
   const tag = spec.kind === "inline" ? "span" : "div";
+  if (spec.frame) {
+    if (spec.kind !== "block" || !spec.isVoid)
+      throw new Error(`[editor] 元素 "${spec.type}" 的外框只适用于 void 块`);
+    const options = spec.frame === true ? {} : spec.frame;
+    return ({ attributes, element, children }) =>
+      createElement(ElementFrame, {
+        attributes,
+        element,
+        children,
+        options,
+        content: createElement(
+          Suspense,
+          { fallback: null },
+          createElement(spec.render, { attributes: FRAMED_ATTRIBUTES, element, children: null })
+        ),
+      });
+  }
   return ({ attributes, element, children }) =>
     createElement(
       Suspense,

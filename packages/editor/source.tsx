@@ -12,16 +12,20 @@ import {
   InlineChromiumBugfix,
 } from "@tau/editor/api";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
-import type { SourceEditorRuntime, InlineSourceRuntime } from "./source-contracts";
+import { useElementFrame } from "./src/core/components/ElementFrame";
+import { openImageLightbox } from "./src/extensions/media/src/stores/useImageLightboxStore";
+import {
+  MediaToolbar,
+  ToolbarButton,
+  ToolbarGap,
+} from "./src/extensions/media/src/components/MediaToolbar";
+import type { SourceEditorRuntime, InlineSourceRuntime, ElementRuntime } from "./source-contracts";
 
-export const inlineSourceRuntime: InlineSourceRuntime = {
-  InlineSourceBoundary: () => createElement(InlineChromiumBugfix),
-  insertInlineSource(editor, element) {
-    if (!ReactEditor.isReadOnly(editor)) Transforms.insertNodes(editor, element);
-  },
-  useInlineSource(element) {
+export const elementRuntime: ElementRuntime = {
+  useElement(element) {
     const editor = useSlateStatic();
     const readOnly = useReadOnly();
+    const frame = useElementFrame();
     const active = useRef(true);
     const state = useRef({ readOnly, element });
     state.current = { readOnly, element };
@@ -51,9 +55,35 @@ export const inlineSourceRuntime: InlineSourceRuntime = {
     };
     return {
       readOnly,
-      compiler: editor.tryGetService(IRuntimeStyleCompiler),
+      selected: frame?.selected ?? false,
       update: properties => commit(path => Transforms.setNodes(editor, properties, { at: path })),
       remove: () => commit(path => Transforms.removeNodes(editor, { at: path })),
+      select: () => frame?.select(),
+      openMenu: position => frame?.openMenu(position),
+    };
+  },
+  useMediaViewer(element) {
+    const editor = useSlateStatic();
+    return index => openImageLightbox(editor, element, index);
+  },
+  BlockToolbar: props => createElement(MediaToolbar, props),
+  BlockToolbarButton: props => createElement(ToolbarButton, props),
+  BlockToolbarGap: () => createElement(ToolbarGap),
+};
+
+export const inlineSourceRuntime: InlineSourceRuntime = {
+  InlineSourceBoundary: () => createElement(InlineChromiumBugfix),
+  insertInlineSource(editor, element) {
+    if (!ReactEditor.isReadOnly(editor)) Transforms.insertNodes(editor, element);
+  },
+  useInlineSource(element) {
+    const editor = useSlateStatic();
+    const access = elementRuntime.useElement(element);
+    return {
+      readOnly: access.readOnly,
+      compiler: editor.tryGetService(IRuntimeStyleCompiler),
+      update: access.update,
+      remove: access.remove,
     };
   },
 };
