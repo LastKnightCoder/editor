@@ -24,7 +24,8 @@ export interface PluginRecordInsert extends PluginRecordScope {
 }
 
 export interface PluginRecordUpdate extends PluginRecordInsert {
-  expectedRevision: string;
+  /** 省略时不核对版本（事务里的无条件写入） */
+  expectedRevision?: string;
 }
 
 export interface PluginRecordQuery {

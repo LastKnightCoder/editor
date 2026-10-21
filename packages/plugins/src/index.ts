@@ -78,6 +78,7 @@ export { EDITOR_NODE_SCHEMA_VERSION, CONTENT_INPUT_LIMITS } from "./content-inpu
 export type * from "./entities";
 export type * from "./records";
 export type * from "./links";
+export type * from "./transaction";
 export type {
   PluginFieldCondition,
   PluginIndexes,

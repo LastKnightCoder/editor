@@ -193,6 +193,19 @@ export async function checkDataContract(context: PluginContext) {
     linked.map(item => item.id)
   );
   await context.links.remove(link.id);
+  const committed: { id: string } = await context.transaction(async tx => {
+    const question = await tx.entities.create({ kind: "note", key: "tx", title: "事务" });
+    await tx.links.add(question.id, { kind: "card", id: "1" }, { role: "material" });
+    const event = await tx.records.insert("groups", { title: "轨迹" });
+    await tx.records.update("groups", event.id, { title: "改" });
+    await tx.entities.update(entity.id, { title: "改" }, { expectedRevision: entity.revision });
+    await tx.links.reorder(question.id, [link.id]);
+    await tx.links.remove(link.id);
+    await tx.records.delete("groups", event.id);
+    await tx.entities.delete(question.id);
+    return question;
+  });
+  void committed.id;
   const content = await context.content.read(entity.contentRef, { format: "nodes" });
   if (content?.nodes) {
     const nodeVersion: number | undefined = content.schemaVersion;

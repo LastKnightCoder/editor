@@ -37,6 +37,7 @@ import {
   type EntitiesAdapter,
   type RecordsAdapter,
   type LinksAdapter,
+  type TransactionAdapter,
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
@@ -150,6 +151,7 @@ export class DesktopPluginRuntime {
       entities?: EntitiesAdapter;
       records?: RecordsAdapter;
       links?: LinksAdapter;
+      transaction?: TransactionAdapter;
       /** 卸载并清除数据时删除插件在当前库的私有存储 */
       purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
@@ -185,6 +187,7 @@ export class DesktopPluginRuntime {
       },
       records: options.records,
       links: options.links,
+      transaction: options.transaction,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,

@@ -12,7 +12,9 @@ import {
   type DataAdapter,
   type EntitiesAdapter,
   type RecordsAdapter,
+  type PluginTransactionOp,
   type LinksAdapter,
+  type TransactionAdapter,
   type EventsAdapter,
   type PermissionsAdapter,
 } from "../host";
@@ -236,11 +238,19 @@ function setup({
       calls.push(["links.reorder", from, ids]);
     },
   };
+  let reserved = 100;
+  const transaction: TransactionAdapter = {
+    reserveEntityId: async () => String(++reserved),
+    async commit(_context, ops) {
+      calls.push(["transaction.commit", ops]);
+    },
+  };
   let context!: PluginContext;
   const host = new PluginHost({
     entities,
     records,
     links,
+    transaction,
     workspaceId: "work",
     storage: createMemoryStorage(),
     permissions,
@@ -887,6 +897,73 @@ describe("插件业务数据与权限", () => {
       ["links.remove", "l1"],
       ["links.reorder", "1", ["l2", "l1"]],
     ]);
+  });
+
+  it("原子提交：写入按顺序一次提交，新建立即拿到 ID，revision 可省略", async () => {
+    const { host, calls, context } = setup({
+      declared: ["cards:read"],
+      granted: new Set<PluginPermission>(["cards:read"]),
+    });
+    await host.enable("weekly");
+    context().entities.registerKind({ kind: "question", label: "问题", open: { page: "p" } });
+    context().records.registerCollection({ name: "events" });
+    const result = await context().transaction(async tx => {
+      const { id } = await tx.entities.create({ kind: "question", key: "q", title: "为什么" });
+      await tx.links.add(id, { kind: "card", id: "3" }, { role: "material" });
+      const event = await tx.records.insert("events", { questionId: id });
+      await tx.entities.update("7", { title: "改" });
+      await tx.records.delete("events", "e0", { expectedRevision: "2" });
+      return { id, event: typeof event.id };
+    });
+    expect(result).toEqual({ id: "101", event: "string" });
+    const [[name, ops]] = calls.filter(([call]) => call === "transaction.commit") as [
+      string,
+      PluginTransactionOp[],
+    ][];
+    expect(name).toBe("transaction.commit");
+    expect(ops.map(op => op.op)).toEqual([
+      "entity.create",
+      "link.add",
+      "record.insert",
+      "entity.update",
+      "record.delete",
+    ]);
+    expect(ops[0]).toMatchObject({ id: "101", input: { kind: "question", key: "q" } });
+    expect(ops[1]).toMatchObject({ from: "101", readable: true, role: "material" });
+    expect(ops[3]).not.toHaveProperty("expectedRevision");
+    expect(ops[4]).toMatchObject({ expectedRevision: "2" });
+    // 没有写入时不提交
+    expect(await context().transaction(() => 1)).toBe(1);
+    expect(calls.filter(([call]) => call === "transaction.commit")).toHaveLength(1);
+  });
+
+  it("原子提交：回调抛错、有写入失败（即使没有 await）时都不提交；结束后不能再写", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    context().records.registerCollection({ name: "events" });
+    await expect(
+      context().transaction(async tx => {
+        await tx.records.insert("events", {});
+        throw new Error("插件出错");
+      })
+    ).rejects.toThrow("插件出错");
+    await expect(
+      context().transaction(tx => {
+        void tx.records.insert("events", {});
+        void tx.records.insert("missing", {});
+      })
+    ).rejects.toThrow("未声明");
+    await expect(
+      context().transaction(async tx => {
+        await tx.entities.update("1", { title: "x" }, { expectedRevision: "" });
+      })
+    ).rejects.toThrow("expectedRevision");
+    let leaked: Parameters<Parameters<PluginContext["transaction"]>[0]>[0] | undefined;
+    await context().transaction(tx => {
+      leaked = tx;
+    });
+    await expect(leaked!.records.insert("events", {})).rejects.toThrow("事务已结束");
+    expect(calls.filter(([call]) => call === "transaction.commit")).toHaveLength(0);
   });
 
   it("类型图标只接受组件", async () => {
