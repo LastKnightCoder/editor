@@ -22,7 +22,11 @@ import { settingsPlugin } from "./fixtures/example/settingsPlugin";
 
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
-  return { default: create(() => ({ setting: { database: { active: "A" } } })) };
+  return {
+    default: create(() => ({
+      setting: { database: { active: "A" }, onlineVideo: { configurations: {} } },
+    })),
+  };
 });
 vi.mock("@/commands/plugin-local", async importOriginal => ({
   ...(await importOriginal<typeof import("@/commands/plugin-local")>()),

@@ -6,7 +6,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { pluginArtifact } from "../../../test-fixtures/plugin-packages";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -84,7 +84,7 @@ function respond(channel: unknown, ...args: unknown[]) {
       return { success: true };
     case "plugin-permissions:snapshot":
       return {};
-    case "plugin-data:exists":
+    case "plugin-refs:exists":
       return true;
     case "plugin-data:content":
       // 周记正文：插件自有内容
@@ -178,7 +178,15 @@ function respond(channel: unknown, ...args: unknown[]) {
 }
 
 const runtimes: DesktopPluginRuntime[] = [];
+// jsdom 没有 navigator.userActivation，宿主打开与动作要求用户激活，这里视点击为激活
+beforeEach(() => {
+  Object.defineProperty(navigator, "userActivation", {
+    configurable: true,
+    value: { isActive: true },
+  });
+});
 afterEach(async () => {
+  Reflect.deleteProperty(navigator, "userActivation");
   for (const runtime of runtimes.splice(0)) await runtime.dispose();
   electron.invoke.mockReset();
   electron.listeners.clear();
