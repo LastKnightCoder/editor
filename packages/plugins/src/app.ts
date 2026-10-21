@@ -109,6 +109,8 @@ export interface PluginAppActions {
   "content.share": { ref: PluginContentRef };
   /** 打开 Tau 的新建卡片窗口并预填，用户可以修改后保存 */
   "card.create": { content?: PluginContentInput; tags?: string[] };
+  /** 打开「插入到项目」窗口，由用户选择项目与位置，复制这份正文为新的项目文档 */
+  "project.insertDocument": { content: PluginContentInput; title?: string };
 }
 
 /** 各动作的结果：新建类返回新内容的引用，用户取消时为 null */
@@ -117,6 +119,7 @@ export interface PluginAppActionResults {
   "content.present": void;
   "content.share": void;
   "card.create": PluginEntityRef | null;
+  "project.insertDocument": PluginEntityRef | null;
 }
 
 export type PluginAppAction = keyof PluginAppActions;
@@ -125,6 +128,7 @@ export const PLUGIN_APP_ACTIONS: readonly PluginAppAction[] = [
   "content.present",
   "content.share",
   "card.create",
+  "project.insertDocument",
 ];
 
 export interface PluginApp {

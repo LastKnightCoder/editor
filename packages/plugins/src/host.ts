@@ -335,7 +335,7 @@ export interface AppAdapter {
     options: Required<PluginPickOptions>
   ): Promise<PluginPickedEntity[]>;
   open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
-  /** 界面关闭后返回；card.create 返回新卡片的引用，取消为 null */
+  /** 界面关闭后返回；新建类返回新内容的引用，取消为 null */
   run(
     context: PluginContext,
     plugin: PluginOwner,
@@ -357,7 +357,11 @@ const MAX_DESCRIBE = 200;
 export type PluginAppRunRequest =
   | { action: "content.export"; ref: PluginContentRef; format: PluginExportFormat }
   | { action: "content.present" | "content.share"; ref: PluginContentRef }
-  | { action: "card.create"; content?: PluginContentInput; tags?: string[] };
+  | { action: "card.create"; content?: PluginContentInput; tags?: string[] }
+  | { action: "project.insertDocument"; content: PluginContentInput; title?: string };
+
+/** 新建类动作：宿主返回新内容的引用，用户取消为 null */
+const CREATING_ACTIONS = new Set<string>(["card.create", "project.insertDocument"]);
 
 const entityKinds = new Set<string>(PLUGIN_ENTITY_KINDS);
 const appActions = new Set<string>(PLUGIN_APP_ACTIONS);
@@ -415,6 +419,17 @@ function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest 
         ? { content: readContentInput(content, { allowEmpty: true }) }
         : {}),
       ...(tags !== undefined ? { tags: readTags(tags) } : {}),
+    };
+  }
+  if (action === "project.insertDocument") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { content, title } = raw as { content?: unknown; title?: unknown };
+    if (content === undefined) throw new Error("缺少要插入的正文");
+    return {
+      action,
+      content: readContentInput(content, { allowEmpty: true }),
+      ...(title !== undefined ? { title: readText(title, "标题", MAX_TITLE) } : {}),
     };
   }
   const value = options as { ref?: unknown; format?: unknown } | undefined;
@@ -2055,7 +2070,7 @@ export class PluginHost {
           if (!this.options.app) throw new Error("当前宿主不支持该动作");
           const result = await this.options.app.run(context, owner, request);
           this.assertActive(entry, activation);
-          if (request.action !== "card.create") return undefined as never;
+          if (!CREATING_ACTIONS.has(request.action)) return undefined as never;
           return (result ? readEntityRef(result) : null) as never;
         },
       }),

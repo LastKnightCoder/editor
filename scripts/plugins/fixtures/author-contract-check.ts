@@ -177,6 +177,11 @@ export async function checkDataContract(context: PluginContext) {
     tags: ["示例"],
   });
   if (created) await context.app.open(created);
+  const inserted = await context.app.run("project.insertDocument", {
+    content: { copyOf: entity.contentRef },
+    title: entity.title,
+  });
+  if (inserted?.kind === "document") await context.app.describe([inserted]);
   await context.entities.backlinks(entity.id);
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }

@@ -22,6 +22,23 @@ const mocks = vi.hoisted(() => ({
   openMaterial: vi.fn(),
   resolveContent: vi.fn(),
   createCard: vi.fn(),
+  insertDocument: vi.fn(),
+}));
+vi.mock("@/components/InsertNoteToTreeModal", () => ({
+  default: (props: {
+    noteTitle: string;
+    noteContent: unknown;
+    onSuccess: (item: { id: number } | null) => void;
+    onCancel: () => void;
+  }) => {
+    mocks.insertDocument(props.noteTitle, props.noteContent);
+    return (
+      <>
+        <button onClick={() => props.onSuccess({ id: 31 })}>插入文档</button>
+        <button onClick={props.onCancel}>取消插入</button>
+      </>
+    );
+  },
 }));
 vi.mock("@/commands/plugin-data", () => ({
   pluginRefExists: mocks.exists,
@@ -324,6 +341,38 @@ describe("插件选择与打开", () => {
         await shared;
         expect(usePluginActionUi.getState().request).toBeNull();
         expect(host.textContent).toBe("");
+      } finally {
+        unmount();
+      }
+    });
+
+    it("插入到项目：复制解析后的正文，插入后返回项目文档引用，取消返回 null", async () => {
+      const { settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
+      mocks.resolveContent.mockResolvedValue(nodes);
+      try {
+        const inserted = app.run(context(), plugin, {
+          action: "project.insertDocument",
+          content: { copyOf: "8:100" },
+          title: "读书笔记",
+        });
+        await settle();
+        expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", {
+          copyOf: { contentId: 8, createdAt: 100 },
+        });
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith("读书笔记", nodes);
+        await click("插入文档");
+        expect(await inserted).toEqual({ kind: "document", id: "31" });
+
+        const cancelled = app.run(context(), plugin, {
+          action: "project.insertDocument",
+          content: { markdown: "" },
+        });
+        await settle();
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith("未命名文档", expect.any(Array));
+        await click("取消插入");
+        expect(await cancelled).toBeNull();
+        expect(usePluginActionUi.getState().request).toBeNull();
       } finally {
         unmount();
       }
