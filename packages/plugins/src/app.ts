@@ -124,6 +124,21 @@ export interface PluginAppActions {
   "chat.start": { prompt?: string; context?: PluginEntityRef[]; placement?: "page" | "dock" };
 }
 
+/** 正文中的位置：第几个顶层块（从 0 开始，与 content.read 的 nodes 顺序一致），越界时落到开头 */
+export interface PluginContentLocation {
+  block: number;
+}
+
+export interface PluginOpenOptions {
+  /**
+   * page（默认）：主窗口的页面；window：独立编辑窗口，只支持卡片、文章与项目文档，不能同时定位；
+   * dock：右侧停靠栏，只支持主对话。
+   */
+  placement?: "page" | "window" | "dock";
+  /** 打开后滚动并闪烁到的位置；只支持卡片、文章、项目文档、日记与插件内容 */
+  at?: PluginContentLocation;
+}
+
 /** 可以作为对话上下文（chat.start 的 context）的类型 */
 export const PLUGIN_CHAT_CONTEXT_KINDS: readonly PluginEntityKind[] = [
   "card",
@@ -172,8 +187,11 @@ export interface PluginApp {
    * 用户亲手挑选即视为同意插件引用这些内容，不需要读取权限。只能在用户操作（点击、按键）后调用。
    */
   pick(options: PluginPickOptions): Promise<PluginPickedEntity[]>;
-  /** 打开对应的页面：卡片详情、日记当天、待办详情、日程详情等。只能在用户操作后调用；内容已删除时抛错。 */
-  open(ref: PluginEntityRef): Promise<void>;
+  /**
+   * 打开对应的页面：卡片详情、日记当天、待办详情、日程详情等。只能在用户操作后调用；内容已删除时抛错。
+   * 打开位置与定位见 PluginOpenOptions，不支持的组合抛错。
+   */
+  open(ref: PluginEntityRef, options?: PluginOpenOptions): Promise<void>;
   /**
    * 批量取引用的当前标题与是否已删除，结果与 refs 一一对应，每次最多 200 项。用户选择过的内容、
    * 本插件自己的内容不需要权限；其余需要该类的读取权限，未获准时为 denied，不弹窗询问。

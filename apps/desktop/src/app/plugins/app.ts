@@ -275,7 +275,7 @@ export function createDesktopApp(databaseName: string): AppAdapter {
         usePluginPickerUi.setState({ request });
       });
     },
-    async open(context, ref: PluginEntityRef) {
+    async open(context, ref: PluginEntityRef, { placement, at } = { placement: "page" }) {
       assertPluginUserActivation();
       const commands = bindDatabaseCommands(
         { pluginRefExists, locateEntity },
@@ -290,7 +290,16 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       ]);
       context.signal.throwIfAborted();
       const kind = OPEN_KINDS[ref.kind];
-      if (kind) return openEntity({ kind, id: Number(ref.id) });
+      if (placement === "window") {
+        if (kind !== "card" && kind !== "article" && kind !== "project-item")
+          throw new Error("只有卡片、文章与项目文档能在独立窗口打开");
+        const { openEditorWindow } = await import("@/commands/window");
+        return openEditorWindow({ kind, databaseName, id: Number(ref.id) });
+      }
+      if (kind)
+        return at
+          ? openEntity({ kind, id: Number(ref.id) }, { at })
+          : openEntity({ kind, id: Number(ref.id) });
       const page = OPEN_PAGES[ref.kind];
       if (page) return openPage(page, { id: Number(ref.id) });
       if (ref.kind === "material") {
@@ -304,6 +313,10 @@ export function createDesktopApp(databaseName: string): AppAdapter {
         const session = await getChatSession(ref.id);
         context.signal.throwIfAborted();
         if (session?.scope !== "main-chat") throw new Error("这段对话不能单独打开");
+        if (placement === "dock") {
+          const { openChatInDock } = await import("@/features/chat/openInDock");
+          return openChatInDock(ref.id);
+        }
         return openPage("chat", { id: ref.id });
       }
       if (ref.kind === "event")

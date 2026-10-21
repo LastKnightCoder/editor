@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
   planNotebook: vi.fn(),
   createNotebook: vi.fn(),
   startChat: vi.fn(),
+  editorWindow: vi.fn(),
+  dock: vi.fn(),
 }));
 vi.mock("@/features/chat/chatStart", () => ({ startChat: mocks.startChat }));
 vi.mock("@/services/notebook-creation", () => ({
@@ -112,6 +114,8 @@ vi.mock("@/commands/entity", () => ({ locateEntity: mocks.locate }));
 vi.mock("@/commands", () => ({ searchEntities: mocks.search }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
+vi.mock("@/commands/window", () => ({ openEditorWindow: mocks.editorWindow }));
+vi.mock("@/features/chat/openInDock", () => ({ openChatInDock: mocks.dock }));
 
 import { createDesktopApp, usePluginPickerUi } from "../app";
 import { PluginEntityPickerHost } from "@/features/plugins/permissions/PluginEntityPickerHost";
@@ -119,6 +123,7 @@ import { PluginContentActionHost } from "@/features/plugins/permissions/PluginCo
 import { usePluginActionUi } from "../app";
 
 const plugin = { id: "canvas", name: "画布" };
+const PAGE = { placement: "page" } as const;
 const context = () =>
   ({ pluginId: plugin.id, signal: new AbortController().signal }) as PluginContext;
 const setActivation = (isActive: boolean | undefined) =>
@@ -139,10 +144,10 @@ describe("插件选择与打开", () => {
 
   it("按类型打开对应页面", async () => {
     const app = createDesktopApp("data.db");
-    await app.open(context(), { kind: "card", id: "3" });
-    await app.open(context(), { kind: "whiteboard", id: "5" });
-    await app.open(context(), { kind: "todo", id: "todo:4:9@2026-10-21" });
-    await app.open(context(), { kind: "event", id: "7:100" });
+    await app.open(context(), { kind: "card", id: "3" }, PAGE);
+    await app.open(context(), { kind: "whiteboard", id: "5" }, PAGE);
+    await app.open(context(), { kind: "todo", id: "todo:4:9@2026-10-21" }, PAGE);
+    await app.open(context(), { kind: "event", id: "7:100" }, PAGE);
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "card", id: 3 });
     expect(mocks.openPage.mock.calls).toEqual([
       ["whiteboard-detail", { id: 5 }],
@@ -156,12 +161,12 @@ describe("插件选择与打开", () => {
     mocks.chat.mockResolvedValueOnce({ scope: "main-chat" }).mockResolvedValueOnce({
       scope: "pdf-chat",
     });
-    await app.open(context(), { kind: "project", id: "2" });
-    await app.open(context(), { kind: "notebook", id: "6" });
-    await app.open(context(), { kind: "material", id: "pdf-annotation:9" });
-    await app.open(context(), { kind: "chat-session", id: "s1" });
-    await app.open(context(), { kind: "plugin-entity", id: "4" });
-    await expect(app.open(context(), { kind: "chat-session", id: "s2" })).rejects.toThrow(
+    await app.open(context(), { kind: "project", id: "2" }, PAGE);
+    await app.open(context(), { kind: "notebook", id: "6" }, PAGE);
+    await app.open(context(), { kind: "material", id: "pdf-annotation:9" }, PAGE);
+    await app.open(context(), { kind: "chat-session", id: "s1" }, PAGE);
+    await app.open(context(), { kind: "plugin-entity", id: "4" }, PAGE);
+    await expect(app.open(context(), { kind: "chat-session", id: "s2" }, PAGE)).rejects.toThrow(
       "不能单独打开"
     );
     expect(mocks.openPage.mock.calls).toEqual([
@@ -171,6 +176,29 @@ describe("插件选择与打开", () => {
     ]);
     expect(mocks.openMaterial).toHaveBeenCalledWith({ kind: "pdf-annotation", id: 9 });
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "plugin-entity", id: 4 });
+  });
+
+  it("打开位置与定位：独立窗口、停靠栏的主对话、正文定位", async () => {
+    const app = createDesktopApp("data.db");
+    mocks.chat.mockResolvedValue({ scope: "main-chat" });
+    await app.open(context(), { kind: "document", id: "31" }, { placement: "window" });
+    await app.open(context(), { kind: "chat-session", id: "s1" }, { placement: "dock" });
+    await app.open(
+      context(),
+      { kind: "article", id: "5" },
+      { placement: "page", at: { block: 3 } }
+    );
+    expect(mocks.editorWindow).toHaveBeenCalledWith({
+      kind: "project-item",
+      databaseName: "data.db",
+      id: 31,
+    });
+    expect(mocks.dock).toHaveBeenCalledWith("s1");
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 5 }, { at: { block: 3 } });
+    expect(mocks.openPage).not.toHaveBeenCalled();
+    await expect(
+      app.open(context(), { kind: "whiteboard", id: "5" }, { placement: "window" })
+    ).rejects.toThrow("独立窗口");
   });
 
   it("describe 按插件与已获准的类型交给主进程", async () => {
@@ -191,7 +219,11 @@ describe("插件选择与打开", () => {
 
   it("正文里的待办打开所在文档并定位到勾选项", async () => {
     mocks.locate.mockResolvedValue({ kind: "project_item", id: 12 });
-    await createDesktopApp("data.db").open(context(), { kind: "todo", id: "document:8:1:t-1" });
+    await createDesktopApp("data.db").open(
+      context(),
+      { kind: "todo", id: "document:8:1:t-1" },
+      PAGE
+    );
     expect(mocks.locate).toHaveBeenCalledWith({ contentId: 8 });
     expect(mocks.openEntity).toHaveBeenCalledWith(
       { kind: "project-item", id: 12 },
@@ -202,9 +234,11 @@ describe("插件选择与打开", () => {
   it("内容不存在或不是用户操作时拒绝", async () => {
     const app = createDesktopApp("data.db");
     mocks.exists.mockResolvedValueOnce(false);
-    await expect(app.open(context(), { kind: "card", id: "3" })).rejects.toThrow("内容不存在");
+    await expect(app.open(context(), { kind: "card", id: "3" }, PAGE)).rejects.toThrow(
+      "内容不存在"
+    );
     setActivation(false);
-    await expect(app.open(context(), { kind: "card", id: "3" })).rejects.toThrow("用户点击");
+    await expect(app.open(context(), { kind: "card", id: "3" }, PAGE)).rejects.toThrow("用户点击");
     expect(() =>
       app.pick(context(), plugin, { kinds: ["card"], multiple: false, title: "选" })
     ).toThrow("用户点击");
