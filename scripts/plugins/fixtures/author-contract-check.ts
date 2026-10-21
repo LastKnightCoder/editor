@@ -159,6 +159,16 @@ export async function checkDataContract(context: PluginContext) {
   await context.data.documents.delete(doc.id, { expectedRevision: revision });
   await context.data.projects.delete(project.id, { expectedRevision: project.revision });
   await context.data.whiteboards.delete(board.id, { expectedRevision: board.revision });
+  const notebooks = await context.data.notebooks.query({ sort: "created", limit: 1 });
+  const resources = notebooks.items[0]
+    ? await context.data.notebooks.resources(notebooks.items[0].id)
+    : null;
+  const fromRefs = resources?.flatMap(resource => resource.from ?? []) ?? [];
+  await context.app.describe(fromRefs);
+  const material = await context.data.materials.get("excerpt:1");
+  if (material) console.log(material.kind, material.quote, material.source, material.url);
+  const chats = await context.data.chats.query({ updatedAfter: 0 });
+  for (const chat of chats.items) console.log(chat.scene, chat.messageCount);
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });

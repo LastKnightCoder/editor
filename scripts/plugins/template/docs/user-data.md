@@ -28,9 +28,9 @@
 | `whiteboards:read`、`projects:read`                   | 读取白板、项目的信息                                 |
 | `whiteboards:write`、`projects:write`                 | 新建和修改白板、项目（不含画板内容）                 |
 | `whiteboards:delete`、`projects:delete`               | 删除白板、空项目                                     |
-| `notebooks:read`                                      | 读取 Notebook 的标题                                 |
-| `materials:read`                                      | 读取划线、PDF 标注和剪藏的标题                       |
-| `chats:read`                                          | 读取 AI 对话的标题，不含消息内容                     |
+| `notebooks:read`                                      | 读取 Notebook 的信息和资料清单                       |
+| `materials:read`                                      | 读取划线、PDF 标注和剪藏的原文、想法与出处           |
+| `chats:read`                                          | 读取 AI 对话的信息，不含消息内容                     |
 | `flashcards:read`、`flashcards:write`                 | 闪卡，见[闪卡](flashcards.md)                        |
 | `ai:<能力名>`                                         | 使用 Tau 已配置的大模型，见 [AI](ai.md)              |
 
@@ -170,6 +170,30 @@ await context.data.documents.move(
 - `move` 只在同一项目内移动；不能移到自己或自己的子文档下。`index` 是移动后的序号，从 0 开始，省略时放在末尾。返回文档的新 `revision`。
 - 引用卡片或文章的条目带 `ref`，它的正文归被引用的卡片或文章，`documents.get` 读不到这一项，但可以移动。
 - 读目录需要 `projects:read`，新建与移动需要 `documents:write`。
+
+### Notebook、材料与对话
+
+`context.data.notebooks`、`context.data.materials`、`context.data.chats` 只能读取，提供 `get(id)` 和 `query(query)`。查询参数与卡片相同，但不能按 `tag` 查询。
+
+```ts
+const notebooks = await context.data.notebooks.query({ limit: 20 });
+const resources = await context.data.notebooks.resources(notebooks.items[0].id);
+const material = await context.data.materials.get(ref.id); // 来自 pick 的 material 引用
+const chats = await context.data.chats.query({ updatedAfter: Date.now() - 7 * 86_400_000 });
+```
+
+| 类型     | 字段                                                                                                                          |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Notebook | `id`、`title`、`archived`、`pinned`、`resourceCount`（资料数）、`createdAt`、`updatedAt`                                      |
+| 资料     | `id`、`name`、`type`（`pdf`、`video`、`md` 等）、`source`、`url?`、`from?`、`size`、`duration`（秒）、`createdAt`             |
+| 材料     | `id`、`kind`（`excerpt`、`pdf-annotation`、`web-clip`）、`title`、`quote`、`note`、`source`、`url?`、`createdAt`、`updatedAt` |
+| 对话     | `id`、`title`、`scene`（`main`、`pdf`、`video-note`、`notebook`）、`messageCount`、`archived`、`createdAt`、`updatedAt`       |
+
+- `notebooks.resources(id)` 按 Notebook 中的顺序返回资料清单，Notebook 不存在时为 `null`。资料的 `source` 是 `local`（本机文件）、`remote`（网络链接，带 `url`）、`note`（加入时的笔记快照）、`material`（材料快照）或 `online-video`（在线视频）；来自笔记或材料的资料带 `from`，是原内容的引用，原内容可能已被删除。
+- 不开放：Notebook 的说明、资料的本机路径和转换后的文字、Notebook 里的笔记与测验，以及对话的消息内容。
+- 材料的 `id` 与 `pick` 得到的 `material` 引用 ID 相同。`quote` 是划下或标注的原文，剪藏为空；`source` 是给人看的出处，如「PDF · 文件名 · 第 3 页」。已删除的材料不返回。
+- 未命名的对话 `title` 为空字符串。
+- 三者都没有变化事件，需要时重新查询。
 
 ### 待办与日程
 

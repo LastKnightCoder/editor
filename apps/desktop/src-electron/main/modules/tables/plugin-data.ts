@@ -5,6 +5,7 @@ import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import type { Descendant } from "slate";
 import { getMarkdownText } from "../../services/content-conversion";
 import { resolvePluginContent } from "./plugin-content-input";
+import { readPageQuery, toPage } from "./plugin-data-page";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
   PluginContentEdit,
@@ -38,7 +39,6 @@ import { setCanonicalContentTitle } from "../collaboration/content-sessions";
 import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
 import { PLUGIN_OPERATION_RETENTION_MS, insertPluginOperation } from "./plugin-operations";
 
-const MAX_LIMIT = 200;
 /** 项目目录最多展开的节点数；IN 列表每批的条目数 */
 const MAX_TREE_NODES = 5000;
 const LOCATE_BATCH = 500;
@@ -139,12 +139,6 @@ function parseList(value: string | null): unknown[] {
   }
 }
 
-const optionalTime = (value: unknown, name: string) => {
-  if (value === undefined) return undefined;
-  if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error(`${name} 无效`);
-  return value as number;
-};
-
 /** 插件业务数据只读查询；身份与库绑定由渲染端适配层负责，权限在渲染端宿主校验。 */
 export default class PluginDataTable {
   static getListenEvents() {
@@ -182,26 +176,7 @@ export default class PluginDataTable {
     this.assertDatabase(db, request);
     this.assertEntity(request.entity);
     const query = request.query;
-    const limit = query.limit;
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_LIMIT)
-      throw new Error(`limit 必须是 1–${MAX_LIMIT} 的整数`);
-    const sort = query.sort === "created" ? "created" : "updated";
-    const where: string[] = [];
-    const params: unknown[] = [];
-    const range = (column: string, after: unknown, before: unknown, label: string) => {
-      const from = optionalTime(after, `${label}起点`);
-      const to = optionalTime(before, `${label}终点`);
-      if (from !== undefined) {
-        where.push(`${column} >= ?`);
-        params.push(from);
-      }
-      if (to !== undefined) {
-        where.push(`${column} < ?`);
-        params.push(to);
-      }
-    };
-    range("created", query.createdAfter, query.createdBefore, "创建时间");
-    range("updated", query.updatedAfter, query.updatedBefore, "更新时间");
+    const { sort, limit, where, params } = readPageQuery(query, { column: "id", numeric: true });
     if (query.tag !== undefined) {
       if (typeof query.tag !== "string" || !query.tag.trim()) throw new Error("标签无效");
       // 层级标签：筛「读书」同时命中「读书/小说」
@@ -211,12 +186,6 @@ export default class PluginDataTable {
       );
       params.push(query.tag, query.tag, query.tag);
     }
-    if (query.cursor !== undefined) {
-      const match = /^(\d+):(\d+)$/.exec(String(query.cursor));
-      if (!match) throw new Error("分页游标无效");
-      where.push(`(${sort} < ? OR (${sort} = ? AND id < ?))`);
-      params.push(Number(match[1]), Number(match[1]), Number(match[2]));
-    }
     const rows = db
       .prepare(
         `SELECT * FROM (${BASE_SQL[request.entity]})
@@ -224,11 +193,10 @@ export default class PluginDataTable {
          ORDER BY ${sort} DESC, id DESC LIMIT ?`
       )
       .all(...params, limit + 1) as Row[];
-    const page = rows.slice(0, limit);
-    const last = page.at(-1);
+    const page = toPage(rows, limit, sort, row => row.id);
     return {
-      items: this.records(db, request.entity, page),
-      ...(rows.length > limit && last ? { cursor: `${last[sort]}:${last.id}` } : {}),
+      items: this.records(db, request.entity, page.rows),
+      ...(page.cursor ? { cursor: page.cursor } : {}),
     };
   }
 

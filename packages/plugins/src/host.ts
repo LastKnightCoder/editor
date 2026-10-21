@@ -81,6 +81,7 @@ import type {
   PluginDocumentMove,
   PluginDocumentPatch,
   PluginProjectInput,
+  PluginNotebookResource,
   PluginProjectNode,
   PluginProjectPatch,
   PluginWhiteboardInput,
@@ -195,6 +196,8 @@ export interface PermissionsAdapter {
 }
 
 export type DataEntity = "card" | "article" | "document" | "whiteboard" | "project";
+/** 可读取的实体：DataEntity 之外的 Notebook、材料与对话只读 */
+export type ReadableEntity = DataEntity | "notebook" | "material" | "chat-session";
 /** 持有正文的实体：正文的访问按它们的权限放行 */
 export type ContentOwnerEntity = "card" | "article" | "document";
 
@@ -202,10 +205,14 @@ export type ContentOwnerEntity = "card" | "article" | "document";
 export interface DataAdapter {
   query(
     context: PluginContext,
-    entity: DataEntity,
+    entity: ReadableEntity,
     query: Required<Pick<PluginEntityQuery, "limit">> & PluginEntityQuery
   ): Promise<PluginPage<unknown>>;
-  get(context: PluginContext, entity: DataEntity, id: string): Promise<unknown | null>;
+  get(context: PluginContext, entity: ReadableEntity, id: string): Promise<unknown | null>;
+  notebookResources(
+    context: PluginContext,
+    notebookId: string
+  ): Promise<PluginNotebookResource[] | null>;
   todos(
     context: PluginContext,
     query: PluginTodoQuery & { limit: number }
@@ -412,13 +419,18 @@ export interface EventsAdapter {
   subscribe(context: PluginContext, listener: (event: PluginDomainEvent) => void): Disposable;
 }
 
-const ENTITY_PERMISSIONS: Record<DataEntity, PluginPermission> = {
+const ENTITY_PERMISSIONS: Record<ReadableEntity, PluginPermission> = {
   card: "cards:read",
   article: "articles:read",
   document: "documents:read",
   whiteboard: "whiteboards:read",
   project: "projects:read",
+  notebook: "notebooks:read",
+  material: "materials:read",
+  "chat-session": "chats:read",
 };
+/** 有标签、可按 tag 查询的实体 */
+const TAGGED_ENTITIES = new Set<ReadableEntity>(["card", "article", "document", "whiteboard"]);
 const WRITE_PERMISSIONS: Record<DataEntity, PluginPermission> = {
   card: "cards:write",
   article: "articles:write",
@@ -1124,16 +1136,18 @@ export class PluginHost {
       this.assertActive(entry, activation);
       return copyJson(value) as unknown as T;
     };
-    const reader = (entity: DataEntity) =>
+    const updater = (entity: DataEntity) => ({
+      update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
+        const value = readFields<PluginCardPatch>(patch, PATCH_FIELDS[entity]);
+        const revision = readRevision(options);
+        await guard(WRITE_PERMISSIONS[entity]);
+        return deliver<never>(
+          await dataAdapter().update(context, entity, readId(id), value, revision)
+        );
+      },
+    });
+    const reader = (entity: ReadableEntity) =>
       Object.freeze({
-        update: async (id: string, patch: unknown, options: PluginWriteOptions) => {
-          const value = readFields<PluginCardPatch>(patch, PATCH_FIELDS[entity]);
-          const revision = readRevision(options);
-          await guard(WRITE_PERMISSIONS[entity]);
-          return deliver<never>(
-            await dataAdapter().update(context, entity, readId(id), value, revision)
-          );
-        },
         get: async (id: string) => {
           if (typeof id !== "string" || !id) throw new Error("实体 ID 无效");
           await guard(ENTITY_PERMISSIONS[entity]);
@@ -1151,8 +1165,8 @@ export class PluginHost {
           });
           if (picked.sort !== undefined && picked.sort !== "created" && picked.sort !== "updated")
             throw new Error("查询参数 sort 无效");
-          if (entity === "project" && picked.tag !== undefined)
-            throw new Error("项目没有标签，不能按 tag 查询");
+          if (!TAGGED_ENTITIES.has(entity) && picked.tag !== undefined)
+            throw new Error("这类内容没有标签，不能按 tag 查询");
           const limit = readLimit((query as PluginEntityQuery | undefined)?.limit, 200);
           await guard(ENTITY_PERMISSIONS[entity]);
           return deliver<never>(await dataAdapter().query(context, entity, { ...picked, limit }));
@@ -1733,19 +1747,27 @@ export class PluginHost {
         },
       }),
       data: Object.freeze({
-        cards: Object.freeze({ ...reader("card"), ...creator("card"), ...remover("card") }),
+        cards: Object.freeze({
+          ...reader("card"),
+          ...updater("card"),
+          ...creator("card"),
+          ...remover("card"),
+        }),
         articles: Object.freeze({
           ...reader("article"),
+          ...updater("article"),
           ...creator("article"),
           ...remover("article"),
         }),
         whiteboards: Object.freeze({
           ...reader("whiteboard"),
+          ...updater("whiteboard"),
           ...creator("whiteboard"),
           ...remover("whiteboard"),
         }),
         projects: Object.freeze({
           ...reader("project"),
+          ...updater("project"),
           ...creator("project"),
           ...remover("project"),
           tree: async (id: string) => {
@@ -1756,8 +1778,21 @@ export class PluginHost {
             );
           },
         }),
+        notebooks: Object.freeze({
+          ...reader("notebook"),
+          resources: async (id: string) => {
+            const notebookId = readId(id);
+            await guard(ENTITY_PERMISSIONS.notebook);
+            return deliver<PluginNotebookResource[] | null>(
+              await dataAdapter().notebookResources(context, notebookId)
+            );
+          },
+        }),
+        materials: reader("material"),
+        chats: reader("chat-session"),
         documents: Object.freeze({
           ...reader("document"),
+          ...updater("document"),
           ...remover("document"),
           create: async (input: unknown) => {
             const raw = (input ?? {}) as Record<string, unknown>;

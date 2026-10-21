@@ -31,7 +31,7 @@ export const PERMISSION_LABELS: Record<PluginPermission, { label: string; detail
   "calendar:read": { label: "读取日程", detail: "日历上的日程安排" },
   "calendar:write": { label: "新建和修改日程", detail: "日历上的日程安排" },
   "calendar:delete": { label: "删除日程", detail: "删除后 7 天内可在插件详情页恢复" },
-  "notebooks:read": { label: "读取 Notebook", detail: "Notebook 的标题、说明和资料列表" },
+  "notebooks:read": { label: "读取 Notebook", detail: "Notebook 的标题和资料列表" },
   "materials:read": { label: "读取摘录与标注", detail: "划线、PDF 标注和剪藏的原文、想法与出处" },
   "chats:read": {
     label: "读取对话信息",

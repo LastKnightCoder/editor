@@ -2,6 +2,7 @@
  * 插件业务数据命令的 IPC 契约：主进程按库读写并使用数字身份，渲染端适配层再转成
  * SDK 的不透明字符串 ID 与 ContentRef。主进程与渲染端共用，避免主进程反向依赖 app/plugins。
  */
+import type { PluginChatSession, PluginMaterial, PluginNotebook } from "@tau/plugins";
 
 export type PluginDataEntity = "card" | "article" | "document" | "whiteboard" | "project";
 export type PluginCreatableEntity = "card" | "article" | "whiteboard" | "project";
@@ -51,6 +52,15 @@ export interface PluginDataRecord {
 
 export interface PluginDataPage {
   items: PluginDataRecord[];
+  cursor?: string;
+}
+
+/** 只读对象：没有正文与版本，主进程直接给出插件看到的形状 */
+export type PluginReadonlyEntity = "notebook" | "material" | "chat-session";
+export type PluginReadonlyRecord = PluginNotebook | PluginMaterial | PluginChatSession;
+
+export interface PluginReadonlyPage {
+  items: PluginReadonlyRecord[];
   cursor?: string;
 }
 

@@ -84,6 +84,10 @@ function setup({
       calls.push(["projectTree", id]);
       return id === "2" ? [] : null;
     },
+    async notebookResources(_context, id) {
+      calls.push(["notebookResources", id]);
+      return id === "6" ? [] : null;
+    },
     async createDocument(_context, input) {
       calls.push(["createDocument", input]);
       return card;
@@ -744,5 +748,33 @@ describe("插件业务数据与权限", () => {
       ["remove", "whiteboard", "4", "1"],
       ["remove", "project", "2", "1"],
     ]);
+  });
+
+  it("Notebook、材料与对话只读：读取需要对应权限，不支持 tag，没有写入方法", async () => {
+    const { host, calls, context } = setup({
+      declared: ["notebooks:read", "materials:read", "chats:read"],
+      granted: new Set<PluginPermission>(["notebooks:read", "materials:read"]),
+    });
+    await host.enable("weekly");
+    await context().data.notebooks.query({ sort: "created" });
+    expect(await context().data.notebooks.resources("6")).toEqual([]);
+    expect(await context().data.notebooks.resources("9")).toBeNull();
+    await context().data.materials.get("excerpt:3");
+    expect(calls.filter(call => call[0] !== "ensure")).toEqual([
+      ["query", "notebook", { sort: "created", limit: 50 }],
+      ["notebookResources", "6"],
+      ["notebookResources", "9"],
+    ]);
+    expect(calls.filter(call => call[0] === "ensure").map(call => call[2])).toEqual([
+      "notebooks:read",
+      "notebooks:read",
+      "notebooks:read",
+      "materials:read",
+    ]);
+    await expect(context().data.chats.query()).rejects.toMatchObject({ permission: "chats:read" });
+    await expect(context().data.materials.query({ tag: "读书" })).rejects.toThrow("没有标签");
+    await expect(context().data.notebooks.resources("")).rejects.toThrow("ID 无效");
+    expect("update" in context().data.notebooks).toBe(false);
+    expect("create" in context().data.materials).toBe(false);
   });
 });
