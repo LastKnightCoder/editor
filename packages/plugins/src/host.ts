@@ -120,6 +120,8 @@ import {
   type PluginExportFormat,
   type PluginEntityKind,
   type PluginEntityRef,
+  type PluginContentLocation,
+  type PluginOpenOptions,
   type PluginPickOptions,
   type PluginPickedEntity,
   type PluginEntityDescription,
@@ -336,7 +338,11 @@ export interface AppAdapter {
     plugin: PluginOwner,
     options: Required<PluginPickOptions>
   ): Promise<PluginPickedEntity[]>;
-  open(context: PluginContext, ref: PluginEntityRef): Promise<void>;
+  open(
+    context: PluginContext,
+    ref: PluginEntityRef,
+    options: { placement: "page" | "window" | "dock"; at?: PluginContentLocation }
+  ): Promise<void>;
   /** 界面关闭后返回；新建类返回新内容的引用，取消为 null */
   run(
     context: PluginContext,
@@ -501,6 +507,31 @@ function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest 
   if (typeof value.format !== "string" || !exportFormats.has(value.format))
     throw new Error("导出格式无效");
   return { action, ref: value.ref, format: value.format as PluginExportFormat };
+}
+
+/** 打开位置与定位按宿主能力限定：独立窗口只开正文实体、停靠栏只开对话、定位只对有正文的内容 */
+const WINDOW_KINDS = new Set<string>(["card", "article", "document"]);
+const LOCATABLE_KINDS = new Set<string>(["card", "article", "document", "diary", "plugin-entity"]);
+
+function readOpenOptions(
+  ref: PluginEntityRef,
+  value: unknown
+): { placement: "page" | "window" | "dock"; at?: PluginContentLocation } {
+  const raw = value ?? {};
+  if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("打开选项无效");
+  const { placement = "page", at } = raw as { placement?: unknown; at?: unknown };
+  if (placement !== "page" && placement !== "window" && placement !== "dock")
+    throw new Error("placement 无效");
+  if (placement === "window" && !WINDOW_KINDS.has(ref.kind))
+    throw new Error("只有卡片、文章与项目文档能在独立窗口打开");
+  if (placement === "dock" && ref.kind !== "chat-session")
+    throw new Error("只有对话能在停靠栏打开");
+  if (at === undefined) return { placement };
+  const block = (at as { block?: unknown } | null)?.block;
+  if (!Number.isSafeInteger(block) || (block as number) < 0) throw new Error("at.block 无效");
+  if (!LOCATABLE_KINDS.has(ref.kind)) throw new Error("这类内容不支持定位");
+  if (placement === "window") throw new Error("独立窗口不支持定位");
+  return { placement, at: { block: block as number } };
 }
 
 function readEntityRef(value: unknown): PluginEntityRef {
@@ -2092,11 +2123,12 @@ export class PluginHost {
           if (!this.options.app) throw new Error("当前宿主不支持选择内容");
           return deliver<PluginPickedEntity[]>(await this.options.app.pick(context, owner, value));
         },
-        open: async (ref: PluginEntityRef) => {
+        open: async (ref: PluginEntityRef, options?: PluginOpenOptions) => {
           const value = readEntityRef(ref);
+          const opening = readOpenOptions(value, options);
           this.assertActive(entry, activation);
           if (!this.options.app) throw new Error("当前宿主不支持打开内容");
-          await this.options.app.open(context, value);
+          await this.options.app.open(context, value, opening);
           this.assertActive(entry, activation);
         },
         describe: async (refs: readonly PluginEntityRef[]) => {

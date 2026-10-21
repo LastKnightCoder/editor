@@ -8,6 +8,7 @@ import {
   PLUGIN_NOTEBOOK_FROM_KINDS,
   PLUGIN_CHAT_CONTEXT_KINDS,
   type EditorElementRenderProps,
+  type PluginOpenOptions,
 } from "@tau/plugins";
 import { createElement } from "react";
 import type {
@@ -196,7 +197,10 @@ export async function checkDataContract(context: PluginContext) {
     context: cards.items.slice(0, 1).map(card => ({ kind: "card" as const, id: card.id })),
     placement: "dock",
   });
-  if (chat && PLUGIN_CHAT_CONTEXT_KINDS.includes("card")) await context.app.open(chat);
+  if (chat && PLUGIN_CHAT_CONTEXT_KINDS.includes("card"))
+    await context.app.open(chat, { placement: "dock" });
+  const located: PluginOpenOptions = { at: { block: 0 } };
+  await context.app.open({ kind: "plugin-entity", id: entity.id }, located);
   await context.entities.backlinks(entity.id);
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }

@@ -115,8 +115,8 @@ function setup({
       calls.push(["pick", plugin.id, options]);
       return [{ ref: { kind: "card", id: "3" }, title: "卡" }];
     },
-    async open(_context, ref) {
-      calls.push(["open", ref]);
+    async open(_context, ref, options) {
+      calls.push(["open", ref, options]);
     },
     async run(_context, plugin, request) {
       calls.push(["run", plugin.id, request]);
@@ -420,11 +420,42 @@ describe("插件业务数据与权限", () => {
     await context().app.open({ kind: "diary", id: "8" });
     expect(calls).toEqual([
       ["pick", "weekly", { kinds: ["card", "todo"], multiple: false, title: "选择要关联的内容" }],
-      ["open", { kind: "diary", id: "8" }],
+      ["open", { kind: "diary", id: "8" }, { placement: "page" }],
     ]);
     await expect(context().app.pick({ kinds: [] })).rejects.toThrow("内容类型");
     await expect(context().app.pick({ kinds: ["folder" as "card"] })).rejects.toThrow("内容类型");
     await expect(context().app.open({ kind: "card", id: "" })).rejects.toThrow("ID 无效");
+  });
+
+  it("打开位置与定位：按类型限定窗口、停靠栏与定位，不支持的组合直接报错", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    await context().app.open({ kind: "card", id: "3" }, { placement: "window" });
+    await context().app.open({ kind: "chat-session", id: "s1" }, { placement: "dock" });
+    await context().app.open({ kind: "plugin-entity", id: "1" }, { at: { block: 2 } });
+    expect(calls.filter(call => call[0] === "open").map(call => call[2])).toEqual([
+      { placement: "window" },
+      { placement: "dock" },
+      { placement: "page", at: { block: 2 } },
+    ]);
+    const open = (ref: { kind: string; id: string }, options: unknown) =>
+      context().app.open(ref as never, options as never);
+    await expect(open({ kind: "todo", id: "todo:1:2" }, { placement: "window" })).rejects.toThrow(
+      "独立窗口"
+    );
+    await expect(open({ kind: "card", id: "3" }, { placement: "dock" })).rejects.toThrow("停靠栏");
+    await expect(
+      open({ kind: "card", id: "3" }, { placement: "window", at: { block: 0 } })
+    ).rejects.toThrow("独立窗口不支持定位");
+    await expect(open({ kind: "project", id: "2" }, { at: { block: 0 } })).rejects.toThrow(
+      "不支持定位"
+    );
+    await expect(open({ kind: "card", id: "3" }, { at: { block: -1 } })).rejects.toThrow(
+      "at.block"
+    );
+    await expect(open({ kind: "card", id: "3" }, { placement: "tab" })).rejects.toThrow(
+      "placement"
+    );
   });
 
   it("宿主动作不需要数据权限，校验动作、引用与导出格式", async () => {

@@ -392,6 +392,27 @@ function LinkChip({ link }: { link: { ref: PluginEntityRef } }) {
 - `ref` 是普通对象，可以存进插件自己的数据；它的 `id` 与 `context.data` 中同类内容的 `id` 一致。
 - 目标被删除后，`open` 会抛出「内容不存在」，可以据此提示用户移除这条关联。
 
+### 打开位置与定位
+
+`open` 的第二个参数可以指定打开在哪里、滚动到正文哪一处：
+
+```ts
+await context.app.open(ref, { placement: "window" }); // 在独立窗口打开卡片
+await context.app.open(chatRef, { placement: "dock" }); // 在右侧停靠栏打开对话
+await context.app.open(cardRef, { at: { block: 3 } }); // 打开卡片并滚动到第 4 块
+```
+
+| 选项        | 取值                                 | 支持的内容                                                                 |
+| ----------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| `placement` | `page`（默认）：主窗口的页面         | 全部                                                                       |
+|             | `window`：独立编辑窗口，已打开时聚焦 | 卡片、文章、项目文档                                                       |
+|             | `dock`：右侧停靠栏，不离开当前页面   | 主对话                                                                     |
+| `at`        | `{ block }`：第几个顶层块，从 0 开始 | 卡片、文章、项目文档、日记、插件内容；不能与 `window` 同用，越界时停在开头 |
+
+- `block` 与 `content.read({ format: "nodes" })` 返回的 `nodes` 下标一致。
+- 不支持的组合直接抛错，不会悄悄改用别的位置。
+- 打开插件内容并定位时，你的插件页面会收到页面参数 `at`，原样传给 `<ContentEditor at={params.at}>` 即可。
+
 ### 显示引用
 
 ```tsx
