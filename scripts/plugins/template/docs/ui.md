@@ -114,6 +114,32 @@ function BookPage({ params, pageContext }: PluginPageProps) {
 
 页面上下文只是让 AI 知道用户在看什么。需要让 AI 能对页面执行操作，另外用 [MCP 工具](mcp.md)提供。
 
+### 页面显示状态与 Esc
+
+页面切走后会保留状态，回来时原样恢复。页面隐藏时组件的 effect 会被清理，回到前台时重新执行，所以把键盘监听、轮询和订阅写在 effect 里，就会自动随页面暂停与恢复。
+
+在 effect 之外的回调里（例如插件命令被执行时），用 `pageContext.isActive()` 判断这个页面是不是当前显示的那一个。
+
+页面里自己做的浮层（非模态抽屉、弹出面板等）要接 Esc 关闭时，用 `pageContext.registerDismiss` 登记，不要自己监听 Esc：
+
+```tsx
+function BookPage({ pageContext }: PluginPageProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const registration = pageContext.registerDismiss(() => setDrawerOpen(false));
+    return () => registration.dispose();
+  }, [drawerOpen, pageContext]);
+
+  // ...
+}
+```
+
+- 用户按 Esc 时，Tau 先关最后登记的浮层，再依次往前；没有浮层时 Esc 不做任何事，不会后退页面。
+- 只在页面显示时生效：页面切走后，它登记的浮层不会响应 Esc；回来后自动恢复。插件停用时全部清除。
+- `@tau/ui` 的模态 `Dialog`、`Drawer` 和 `Popover`、`Select`、`Menu` 已经自己处理 Esc，不需要登记。
+
 ## 侧边栏
 
 侧边栏条目关联一个已注册的页面，点击时打开它，并在该页面显示时高亮。
