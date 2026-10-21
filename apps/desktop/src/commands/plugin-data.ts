@@ -8,7 +8,10 @@ import type {
   PluginDataPage,
   PluginDataQuery,
   PluginDataRecord,
+  PluginDocumentCreateInput,
+  PluginDocumentMoveInput,
   PluginOperationRecord,
+  PluginProjectNodeRecord,
   PluginRefDescription,
   PluginRefInput,
   PluginWritableEntity,
@@ -124,3 +127,25 @@ export const describePluginRefs = (
 
 export const clearPluginRefGrants = (databaseName: string, pluginId: string): Promise<number> =>
   invoke("plugin-refs:clear", { databaseName, pluginId });
+
+export const getPluginProjectTree = (
+  databaseName: string,
+  projectId: number
+): Promise<PluginProjectNodeRecord[] | null> =>
+  invoke("plugin-data:project-tree", { databaseName, projectId });
+
+export const createPluginDocument = (
+  databaseName: string,
+  pluginId: string,
+  input: PluginDocumentCreateInput
+): Promise<PluginDataRecord> =>
+  invoke("plugin-data:create-document", { databaseName, pluginId, input });
+
+export const movePluginDocument = (
+  databaseName: string,
+  pluginId: string,
+  id: number,
+  move: PluginDocumentMoveInput,
+  expectedRevision: string
+): Promise<{ revision: string }> =>
+  invoke("plugin-data:move-document", { databaseName, pluginId, id, move, expectedRevision });

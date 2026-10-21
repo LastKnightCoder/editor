@@ -144,6 +144,19 @@ export async function checkDataContract(context: PluginContext) {
   const projects = await context.data.projects.query({ sort: "created", limit: 1 });
   void (projects.items[0]?.documentCount === project.documentCount);
   await context.app.open({ kind: "whiteboard", id: board.id });
+  const tree = await context.data.projects.tree(project.id);
+  const doc = await context.data.documents.create({
+    projectId: project.id,
+    ...(tree?.[0] ? { parentId: tree[0].documentId } : {}),
+    title: "示例",
+    content: { markdown: "正文" },
+  });
+  const { revision } = await context.data.documents.move(
+    doc.id,
+    { projectId: project.id, from: tree?.[0]?.documentId ?? null, to: null, index: 0 },
+    { expectedRevision: doc.revision }
+  );
+  void revision;
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });

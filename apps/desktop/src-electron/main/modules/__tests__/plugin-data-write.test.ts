@@ -425,6 +425,113 @@ describe("PluginDataTable 写入", () => {
     ).toThrow("不支持删除该类型");
   });
 
+  it("项目目录：新建文档挂在根或父文档下，同一项目内按最终序号移动", async () => {
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const doc = (title: string, parentId?: number) =>
+      PluginDataTable.createDocument(db, {
+        ...scope,
+        input: { projectId: project.id, title, ...(parentId ? { parentId } : {}) },
+      });
+    const a = await doc("甲");
+    const b = await doc("乙");
+    const c = await doc("丙");
+    const child = await doc("甲-1", a.id);
+    const titles = () =>
+      PluginDataTable.projectTree(db, { ...scope, projectId: project.id })!.map(node => [
+        node.title,
+        node.children.map(item => item.title),
+      ]);
+    expect(titles()).toEqual([
+      ["甲", ["甲-1"]],
+      ["乙", []],
+      ["丙", []],
+    ]);
+    expect(PluginDataTable.projectTree(db, { ...scope, projectId: 999 })).toBeNull();
+    expect(a).toMatchObject({ entity: "document", kind: "document", projectIds: [project.id] });
+
+    const revisionOf = (id: number) =>
+      String(
+        (
+          db.prepare("SELECT update_time FROM project_item WHERE id = ?").get(id) as {
+            update_time: number;
+          }
+        ).update_time
+      );
+    const move = (id: number, from: number | null, to: number | null, index?: number) =>
+      PluginDataTable.moveDocument(db, {
+        ...scope,
+        id,
+        move: { projectId: project.id, from, to, ...(index !== undefined ? { index } : {}) },
+        expectedRevision: revisionOf(id),
+      });
+    // 同一父节点内向后移：index 是移动后的序号
+    move(a.id, null, null, 2);
+    expect(titles().map(([title]) => title)).toEqual(["乙", "丙", "甲"]);
+    move(a.id, null, null, 0);
+    expect(titles().map(([title]) => title)).toEqual(["甲", "乙", "丙"]);
+    // 跨父节点移动，省略 index 放在末尾
+    move(c.id, null, a.id);
+    expect(titles()).toEqual([
+      ["甲", ["甲-1", "丙"]],
+      ["乙", []],
+    ]);
+    expect(() => move(a.id, null, child.id)).toThrow("不能移动到这个位置");
+    expect(() => move(b.id, a.id, null)).toThrow("不在 from 指定的位置");
+    expect(() =>
+      PluginDataTable.moveDocument(db, {
+        ...scope,
+        id: b.id,
+        move: { projectId: project.id, from: null, to: a.id },
+        expectedRevision: "0",
+      })
+    ).toThrow("PLUGIN_CONFLICT:");
+    await expect(doc("孤儿", 999)).rejects.toThrow("父文档不在该项目中");
+  });
+
+  it("项目目录：引用卡片的条目带 ref，挂在多处的文档在多处列出", async () => {
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const card = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "card", input: { content: { markdown: "卡" } } },
+      ctx
+    );
+    const shared = await PluginDataTable.createDocument(db, {
+      ...scope,
+      input: { projectId: project.id, title: "共用" },
+    });
+    const parent = await PluginDataTable.createDocument(db, {
+      ...scope,
+      input: { projectId: project.id, title: "父" },
+    });
+    const ref = db
+      .prepare(
+        `INSERT INTO project_item (create_time, update_time, title, content_id, children, parents,
+           projects, ref_type, ref_id, white_board_content_id, project_item_type, tags)
+         VALUES (1, 1, '卡片入口', ?, '[]', '[]', ?, 'card', ?, 0, 'document', '[]')`
+      )
+      .run(card.contentId, JSON.stringify([project.id]), card.id).lastInsertRowid;
+    db.prepare("UPDATE project SET children = ? WHERE id = ?").run(
+      JSON.stringify([shared.id, parent.id, Number(ref)]),
+      project.id
+    );
+    db.prepare("UPDATE project_item SET children = ? WHERE id = ?").run(
+      JSON.stringify([shared.id]),
+      parent.id
+    );
+    const tree = PluginDataTable.projectTree(db, { ...scope, projectId: project.id })!;
+    expect(tree.map(node => node.id)).toEqual([shared.id, parent.id, Number(ref)]);
+    expect(tree[1].children.map(node => node.id)).toEqual([shared.id]);
+    expect(tree[2].ref).toEqual({ kind: "card", id: card.id });
+  });
+
   it("拒绝删除项目文档与跨库写入", async () => {
     expect(() =>
       PluginDataTable.remove(db, {
