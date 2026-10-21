@@ -6,6 +6,7 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor, createEditorKit } from "../index";
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
+import { mathExtensions } from "@tau/editor/extensions/math";
 import type { EditorRef } from "../types/editor";
 
 describe("真实编辑器的行内输入规则", () => {
@@ -48,6 +49,40 @@ describe("真实编辑器的行内输入规则", () => {
         type: "paragraph",
         children: [{ type: "formatted", text: "**粗**" }],
       });
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  });
+
+  it("输入 $x$ 变成行内公式，光标落在公式之后继续输入", async () => {
+    const kit = createEditorKit({ extensions: [textFormattingExtension, ...mathExtensions] });
+    const ref = createRef<EditorRef>();
+    const content = [
+      { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+    ] as Descendant[];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(
+          <DndProvider backend={HTML5Backend}>
+            <Editor ref={ref} kit={kit} initValue={content} />
+          </DndProvider>
+        )
+      );
+      const editor = ref.current?.getEditor();
+      if (!editor) throw new Error("编辑器未挂载");
+      await act(async () => Transforms.select(editor, SlateEditor.end(editor, [])));
+      for (const char of "设$x^2$为") await act(async () => editor.insertText(char));
+      const paragraph = editor.children[0] as { children: Record<string, unknown>[] };
+      expect(paragraph.children.find(child => child.type === "inline-math")).toMatchObject({
+        tex: "x^2",
+      });
+      expect(SlateEditor.string(editor, []).replace(/\uFEFF/g, "")).toBe("设为");
+      const last = paragraph.children[paragraph.children.length - 1];
+      expect(String(last.text).replace(/\uFEFF/g, "")).toBe("为");
     } finally {
       await act(async () => root.unmount());
       host.remove();
