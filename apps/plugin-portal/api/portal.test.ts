@@ -378,6 +378,49 @@ describe("包资料与站内反馈", () => {
     await req("/v1/logout", "POST");
     expect((await req("/v1/submissions")).status).toBe(401);
   });
+  it("仅未完成提交占额度，历史归组不截断，额度满时仍可幂等重试", async () => {
+    await login();
+    const up = await upload();
+    const insert = f.sqlite.prepare(
+      "INSERT INTO submissions(id,publisher_id,client_request_id,status,created_at,updated_at) VALUES (?,?,?,?,?,?)"
+    );
+    for (let i = 0; i < 120; i++)
+      insert.run(
+        `history-${i}`,
+        "42",
+        `history-${i}`,
+        i % 2 ? "approved" : "rejected",
+        "now",
+        "now"
+      );
+    for (let i = 0; i < 99; i++)
+      insert.run(
+        `active-${i}`,
+        "42",
+        `active-${i}`,
+        ["draft", "pending_review", "changes_requested"][i % 3],
+        "now",
+        "now"
+      );
+    const input = { clientRequestId: crypto.randomUUID(), packageUploadId: up.id };
+    const created = await req("/v1/submissions", "POST", input);
+    expect(created.status).toBe(201);
+    const record = (await created.json()).data;
+    const retry = await req("/v1/submissions", "POST", input);
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).data.id).toBe(record.id);
+    const next = { ...input, clientRequestId: crypto.randomUUID() };
+    const blocked = await req("/v1/submissions", "POST", next);
+    expect(blocked.status).toBe(409);
+    expect((await blocked.json()).error).toMatchObject({
+      code: "LIMIT_EXCEEDED",
+      message: expect.stringContaining("未完成的提交已达 100 条上限"),
+    });
+    const groups: SubmissionGroups = (await (await req("/v1/submission-groups")).json()).data;
+    expect(groups.groups.flatMap(group => group.submissions)).toHaveLength(220);
+    f.sqlite.prepare("UPDATE submissions SET status='approved' WHERE id='active-1'").run();
+    expect((await req("/v1/submissions", "POST", next)).status).toBe(201);
+  });
   it("README是唯一说明来源，保存表单不能覆盖包资料", async () => {
     await login();
     const up = await upload(),
