@@ -11,6 +11,7 @@ import {
   type AppAdapter,
   type DataAdapter,
   type EntitiesAdapter,
+  type RecordsAdapter,
   type EventsAdapter,
   type PermissionsAdapter,
 } from "../host";
@@ -188,9 +189,40 @@ function setup({
       { entity: null, id: "8", title: "日记", snippets: [] },
     ],
   };
+  const record = {
+    id: "r1",
+    collection: "groups",
+    data: {},
+    createdAt: 1,
+    updatedAt: 1,
+    revision: "1",
+  };
+  const records: RecordsAdapter = {
+    async insert(_context, collection, value, indexes) {
+      calls.push(["records.insert", collection, typeof value.id, value.data, indexes]);
+      return { ...record, collection, data: value.data };
+    },
+    get: async (_context, collection, id) => (id === record.id ? { ...record, collection } : null),
+    async query(_context, collection, query) {
+      calls.push(["records.query", collection, query]);
+      return { items: [record] };
+    },
+    async count(_context, collection, where) {
+      calls.push(["records.count", collection, where]);
+      return 1;
+    },
+    async update(_context, collection, id, value, revision, indexes) {
+      calls.push(["records.update", collection, id, value, revision, indexes]);
+      return { ...record, data: value, revision: "2" };
+    },
+    async delete(_context, collection, id, revision) {
+      calls.push(["records.delete", collection, id, revision]);
+    },
+  };
   let context!: PluginContext;
   const host = new PluginHost({
     entities,
+    records,
     workspaceId: "work",
     storage: createMemoryStorage(),
     permissions,
@@ -745,6 +777,52 @@ describe("插件业务数据与权限", () => {
         { where: [], orderBy: [{ builtin: "createdAt", direction: "desc" }], limit: 50 },
       ],
     ]);
+  });
+
+  it("记录：先声明集合，按集合的索引字段校验；不需要权限", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    await expect(context().records.insert("groups", {})).rejects.toThrow("未声明");
+    const collection = context().records.registerCollection({
+      name: "groups",
+      indexes: { sortIndex: "number" },
+    });
+    expect(() => context().records.registerCollection({ name: "groups" })).toThrow("已声明");
+    expect(() =>
+      context().records.registerCollection({ name: "x", indexes: { updatedAt: "number" } })
+    ).toThrow("已被宿主使用");
+    await context().records.insert("groups", { title: "默认", sortIndex: 1 });
+    await expect(context().records.insert("groups", [] as never)).rejects.toThrow("data");
+    await context().records.query("groups", { where: { sortIndex: { gt: 0 } } });
+    expect(await context().records.count("groups")).toBe(1);
+    await expect(context().records.query("groups", { where: { title: "默认" } })).rejects.toThrow(
+      "未声明为索引"
+    );
+    await context().records.update("groups", "r1", { sortIndex: 2 }, { expectedRevision: "1" });
+    await context().records.delete("groups", "r1", { expectedRevision: "2" });
+    expect(calls).toEqual([
+      [
+        "records.insert",
+        "groups",
+        "string",
+        { title: "默认", sortIndex: 1 },
+        { sortIndex: "number" },
+      ],
+      [
+        "records.query",
+        "groups",
+        {
+          where: [{ field: "sortIndex", type: "number", op: "gt", value: 0 }],
+          orderBy: [{ builtin: "createdAt", direction: "asc" }],
+          limit: 50,
+        },
+      ],
+      ["records.count", "groups", []],
+      ["records.update", "groups", "r1", { sortIndex: 2 }, "1", { sortIndex: "number" }],
+      ["records.delete", "groups", "r1", "2"],
+    ]);
+    collection.dispose();
+    await expect(context().records.get("groups", "r1")).rejects.toThrow("未声明");
   });
 
   it("类型图标只接受组件", async () => {

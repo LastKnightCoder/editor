@@ -35,6 +35,7 @@ import {
   normalizePageParams,
   type AppAdapter,
   type EntitiesAdapter,
+  type RecordsAdapter,
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
@@ -146,6 +147,7 @@ export class DesktopPluginRuntime {
       events?: EventsAdapter;
       app?: AppAdapter;
       entities?: EntitiesAdapter;
+      records?: RecordsAdapter;
       /** 卸载并清除数据时删除插件在当前库的私有存储 */
       purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
@@ -179,6 +181,7 @@ export class DesktopPluginRuntime {
         ...options.entities,
         registerKind: (context, definition) => this.registerEntityKind(context, definition),
       },
+      records: options.records,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,

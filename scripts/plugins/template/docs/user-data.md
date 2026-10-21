@@ -347,13 +347,14 @@ context.events.on(["card.created", "card.updated", "card.deleted"], event => {
 | `notebook.*`                                   | 同上。增删、修改资料也算 `updated`                       |
 | `material.*`、`chat.*`                         | 同上。划线删除算 `deleted`；对话收到新消息也算 `updated` |
 | `entity.*`                                     | 本插件的内容，带 `id` 和 `kind`，见下文                  |
+| `record.*`                                     | 本插件的记录，带 `id` 和 `collection`，见「插件记录」    |
 | `todos.changed`、`calendar.changed`            | 待办、日程有变化，不带 `id`，需要时重新查询              |
 | `workspace.reset`                              | 同步下载替换了整个笔记库，应全部重新读取                 |
 
 - 事件只说明哪一项变了，不携带数据，需要时用 `context.data` 重新读取。
 - `origin` 表示变化的来源：`{ kind: "plugin", pluginId }` 表示由插件写入，可以用它忽略自己写入引起的事件；其他情况是 `{ kind: "app" }`。待办与日程的事件总是 `app`。
 - 同一项在短时间内的多次变化会合并成一次；用户持续输入时，最多每 2 秒一次。
-- 接收事件需要对应的读取权限（`entity.*` 与 `workspace.reset` 除外）。还没获得授权时事件不会送达，也不会因此弹窗。
+- 接收事件需要对应的读取权限（`entity.*`、`record.*` 与 `workspace.reset` 除外）。还没获得授权时事件不会送达，也不会因此弹窗。
 - `entity.created`、`entity.updated`、`entity.deleted` 只发给创建这项内容的插件，不需要权限。正文修改也算 `updated`；`kind` 是内容类型，删除后 `get` 读不到时可以据此判断是哪类内容。从「最近删除」恢复、卸载后重新安装找回，都算 `created`。适合在同步下载或 MCP 写入后刷新页面。
 - 订阅在插件停用时自动注销。
 
@@ -607,3 +608,38 @@ const open = await context.entities.count({ kind: "question", where: { status: "
 - `cursor` 只能接着同一组条件和排序使用，换了条件要从第一页开始。
 - 写入时，声明过的字段的值必须是声明的类型或 `null`，否则抛错。类型不符的旧数据（例如声明之前写入的）在查询里按没有值处理。
 - `indexes` 是 `meta` 的顶层字段，最多 16 个。声明只在插件运行时生效，修改声明不需要迁移数据。
+
+## 插件记录
+
+`context.records` 保存插件内部使用的结构化数据，例如分组、操作轨迹、看板的列。记录用户看不到，也不会出现在搜索里；需要用户能看见、能打开的内容，用上面的「插件内容」。**读写自己的记录不需要任何权限。**
+
+```ts
+// activate 内：声明集合
+context.records.registerCollection({ name: "groups", indexes: { sortIndex: "number" } });
+
+const group = await context.records.insert("groups", { title: "读书", sortIndex: 1024 });
+const { items } = await context.records.query("groups", { orderBy: { field: "sortIndex" } });
+await context.records.update(
+  "groups",
+  group.id,
+  { ...group.data, title: "阅读" },
+  { expectedRevision: group.revision }
+);
+```
+
+| 方法                                                       | 说明                                                                 |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `registerCollection({ name, indexes? })`                   | 声明集合，只能读写已声明的集合。在 `activate` 中声明，停用时自动撤销 |
+| `insert(collection, data)`                                 | 新建一条，ID 由 Tau 生成                                             |
+| `get(collection, id)`                                      | 读取一条，不存在时为 `null`                                          |
+| `query(collection, { where?, orderBy?, cursor?, limit? })` | 分页查询，默认按创建时间升序，默认 50 条，最多 200 条                |
+| `count(collection, { where? })`                            | 符合条件的数量                                                       |
+| `update(collection, id, data, { expectedRevision })`       | 整体替换 `data`                                                      |
+| `delete(collection, id, { expectedRevision })`             | 删除一条                                                             |
+
+- 每条记录是 `{ id, collection, data, createdAt, updatedAt, revision }`。`data` 是不超过 64 KB 的 JSON 对象。
+- `indexes`、`where`、`orderBy` 的写法与「按字段查询」相同，字段取 `data` 的顶层键；自带的排序列是 `createdAt` 和 `updatedAt`。
+- 删除是直接删除，**不进「最近删除」**，用户无法恢复。删除插件内容时，与它相关的记录由插件自己删除。
+- 记录随笔记库保存与同步。卸载插件后和插件内容一样保留 7 天，期间重新安装就能找回，超过 7 天后删除。
+- 变化时发 `record.created`、`record.updated`、`record.deleted` 事件，事件带 `collection`，只发给本插件，见「订阅变化」。
+- 设置、进度这类按键存取的小块数据，用[私有存储](storage-and-network.md#私有存储)更简单。

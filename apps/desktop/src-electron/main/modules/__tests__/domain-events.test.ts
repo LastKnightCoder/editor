@@ -30,6 +30,8 @@ import ContentTable from "../tables/content";
 import { broadcastDatabaseChange } from "../database-notifications";
 import domainEvents from "../domain-events";
 import { markContentOrigin, writeAsPlugin } from "../domain-event-origin";
+import PluginEntityTable from "../tables/plugin-entity";
+import PluginRecordTable from "../tables/plugin-records";
 
 const doc = (text: string) =>
   [{ type: "paragraph", children: [{ type: "formatted", text }] }] as never;
@@ -191,6 +193,42 @@ describe("业务数据变更事件", () => {
     db.prepare("UPDATE contents SET content = '[]' WHERE id = ?").run(contentId);
     await vi.advanceTimersByTimeAsync(600);
     expect(entityEvents()).toEqual([{ type: "entity.deleted", id, owner: "weekly", kind: "week" }]);
+  });
+
+  it("插件记录的事件带所属插件与集合，孤儿按删除处理", async () => {
+    db.prepare(
+      "INSERT INTO plugin_records (id, plugin_id, collection, data, create_time, update_time) VALUES ('r1', 'weekly', 'groups', '{}', 1, 1)"
+    ).run();
+    const recordEvents = () =>
+      hoisted.send.mock.calls.flatMap(([, message]) =>
+        message.events.map(({ type, id, owner, collection }: Record<string, unknown>) => ({
+          type,
+          id,
+          owner,
+          collection,
+        }))
+      );
+    await vi.advanceTimersByTimeAsync(600);
+    expect(recordEvents()).toEqual([
+      { type: "record.created", id: "r1", owner: "weekly", collection: "groups" },
+    ]);
+    hoisted.send.mockClear();
+    db.prepare("UPDATE plugin_records SET orphaned_time = 5 WHERE id = 'r1'").run();
+    await vi.advanceTimersByTimeAsync(600);
+    expect(recordEvents()).toEqual([
+      { type: "record.deleted", id: "r1", owner: "weekly", collection: "groups" },
+    ]);
+  });
+
+  it("插件经 entities / records 写入的事件带插件来源", async () => {
+    const scope = { databaseName: ":memory:", pluginId: "weekly" };
+    await PluginEntityTable.create(db, {
+      ...scope,
+      input: { kind: "note", key: "w1", title: "", meta: {} },
+    });
+    PluginRecordTable.insert(db, { ...scope, collection: "groups", id: "r9", data: {} });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(origins()).toEqual(["weekly", "weekly"]);
   });
 
   it("同步下载重连后只发一次全量刷新", async () => {

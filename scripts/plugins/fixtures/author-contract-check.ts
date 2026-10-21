@@ -19,6 +19,7 @@ import type {
   PluginOwnEntityQuery,
   PluginPageContext,
   PluginPageProps,
+  PluginRecord,
 } from "@tau/plugins";
 
 export function checkPageContextContract({ pageContext }: PluginPageProps) {
@@ -148,6 +149,33 @@ export async function checkDataContract(context: PluginContext) {
   if (ranked.cursor) await context.entities.query({ ...rankedQuery, cursor: ranked.cursor });
   const total: number = await context.entities.count({ kind: "note", where: { status: null } });
   void total;
+  context.register(
+    context.records.registerCollection({ name: "groups", indexes: { sortIndex: "number" } })
+  );
+  const group: PluginRecord = await context.records.insert("groups", {
+    title: "读书",
+    sortIndex: 1,
+  });
+  const groups = await context.records.query("groups", {
+    where: { sortIndex: { gte: 0 } },
+    orderBy: { field: "sortIndex", direction: "desc" },
+  });
+  await context.records.update(
+    "groups",
+    group.id,
+    { ...group.data, title: "阅读" },
+    { expectedRevision: group.revision }
+  );
+  if (groups.items[0])
+    await context.records.delete("groups", groups.items[0].id, {
+      expectedRevision: groups.items[0].revision,
+    });
+  void (await context.records.count("groups"));
+  context.register(
+    context.events.on("record.deleted", event => {
+      if (event.collection === "groups") void event.id;
+    })
+  );
   const entity = await context.entities.create({
     kind: "note",
     key: "example",

@@ -18,7 +18,9 @@ import ContentTable from "./content";
 import { getNextTaskEntityId } from "./module-entity-id";
 import { resolvePluginContent } from "./plugin-content-input";
 import { insertPluginOperation } from "./plugin-operations";
+import { adoptPluginData, markOrphans } from "./plugin-records";
 import { emitContentWritten } from "../content-events";
+import { writeAsPlugin } from "../domain-event-origin";
 import { assertIndexedValues, type PluginIndexes } from "@tau/plugins/query";
 import {
   containsClause,
@@ -132,10 +134,8 @@ export default class PluginEntityTable {
   private static assertScope(db: Database.Database, scope: PluginEntityScope) {
     this.assertDatabase(db, scope.databaseName);
     if (typeof scope.pluginId !== "string" || !scope.pluginId) throw new Error("插件 ID 无效");
-    // 插件正在运行说明已重新安装：撤销孤儿标记，宽限期内的内容原样找回
-    db.prepare(
-      "UPDATE plugin_entities SET orphaned_time = NULL WHERE plugin_id = ? AND orphaned_time IS NOT NULL"
-    ).run(scope.pluginId);
+    // 插件正在运行说明已重新安装：撤销孤儿标记，宽限期内的内容与记录原样找回
+    adoptPluginData(db, scope.pluginId);
   }
 
   private static row(db: Database.Database, pluginId: string, id: number): Row | undefined {
@@ -232,22 +232,24 @@ export default class PluginEntityTable {
     // Markdown 转换期间可能已切库或关库
     this.assertDatabase(db, request.databaseName);
     if (!db.open) throw new Error("数据库连接已失效");
-    return db.transaction(() => {
-      const existing = db
-        .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
-        .get(request.pluginId, kind, key);
-      if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
-      const contentId = ContentTable.createContent(db, { content });
-      const now = Date.now();
-      // 编号不复用：删除后恢复仍用原 ID，正文里指向它的引用不会落到别的内容上
-      const id = getNextTaskEntityId(db, "plugin_entities");
-      db.prepare(
-        `INSERT INTO plugin_entities
+    return writeAsPlugin(request.pluginId, () =>
+      db.transaction(() => {
+        const existing = db
+          .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
+          .get(request.pluginId, kind, key);
+        if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
+        const contentId = ContentTable.createContent(db, { content });
+        const now = Date.now();
+        // 编号不复用：删除后恢复仍用原 ID，正文里指向它的引用不会落到别的内容上
+        const id = getNextTaskEntityId(db, "plugin_entities");
+        db.prepare(
+          `INSERT INTO plugin_entities
            (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(id, request.pluginId, kind, key, title, contentId, JSON.stringify(meta), now, now);
-      return toRecord(this.row(db, request.pluginId, id) as Row);
-    })();
+        ).run(id, request.pluginId, kind, key, title, contentId, JSON.stringify(meta), now, now);
+        return toRecord(this.row(db, request.pluginId, id) as Row);
+      })()
+    );
   }
 
   static get(
@@ -330,26 +332,28 @@ export default class PluginEntityTable {
     }
   ): PluginEntityRecord {
     this.assertScope(db, request);
-    return db.transaction(() => {
-      const current = this.row(db, request.pluginId, request.id);
-      if (!current) throw new Error("内容不存在");
-      if (request.patch.meta !== undefined)
-        assertIndexedValues(request.patch.meta as never, request.indexes?.[current.kind] ?? {});
-      if (String(current.update_time) !== request.expectedRevision)
-        throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
-      const { title, meta } = request.patch;
-      // 同一毫秒内连续修改也要换出新的 revision
-      const now = Math.max(Date.now(), current.update_time + 1);
-      db.prepare(
-        "UPDATE plugin_entities SET title = ?, meta = ?, update_time = ? WHERE id = ?"
-      ).run(
-        title ?? current.title,
-        meta === undefined ? current.meta : JSON.stringify(meta),
-        now,
-        request.id
-      );
-      return toRecord(this.row(db, request.pluginId, request.id) as Row);
-    })();
+    return writeAsPlugin(request.pluginId, () =>
+      db.transaction(() => {
+        const current = this.row(db, request.pluginId, request.id);
+        if (!current) throw new Error("内容不存在");
+        if (request.patch.meta !== undefined)
+          assertIndexedValues(request.patch.meta as never, request.indexes?.[current.kind] ?? {});
+        if (String(current.update_time) !== request.expectedRevision)
+          throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
+        const { title, meta } = request.patch;
+        // 同一毫秒内连续修改也要换出新的 revision
+        const now = Math.max(Date.now(), current.update_time + 1);
+        db.prepare(
+          "UPDATE plugin_entities SET title = ?, meta = ?, update_time = ? WHERE id = ?"
+        ).run(
+          title ?? current.title,
+          meta === undefined ? current.meta : JSON.stringify(meta),
+          now,
+          request.id
+        );
+        return toRecord(this.row(db, request.pluginId, request.id) as Row);
+      })()
+    );
   }
 
   /** 删除前把行快照存入 plugin_operations，正文延迟释放；7 天内可由用户在插件详情页恢复 */
@@ -358,22 +362,24 @@ export default class PluginEntityTable {
     request: PluginEntityScope & { id: number; expectedRevision: string }
   ): void {
     this.assertScope(db, request);
-    db.transaction(() => {
-      const current = this.row(db, request.pluginId, request.id);
-      if (!current) throw new Error("内容不存在");
-      if (String(current.update_time) !== request.expectedRevision)
-        throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
-      const row = db.prepare("SELECT * FROM plugin_entities WHERE id = ?").get(request.id);
-      db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(request.id);
-      ContentTable.releaseDeferred(db, current.content_id);
-      insertPluginOperation(db, {
-        pluginId: request.pluginId,
-        entity: "plugin-entity",
-        entityId: String(request.id),
-        title: current.title,
-        payload: { row, contentCreatedAt: current.content_created },
-      });
-    })();
+    writeAsPlugin(request.pluginId, () =>
+      db.transaction(() => {
+        const current = this.row(db, request.pluginId, request.id);
+        if (!current) throw new Error("内容不存在");
+        if (String(current.update_time) !== request.expectedRevision)
+          throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
+        const row = db.prepare("SELECT * FROM plugin_entities WHERE id = ?").get(request.id);
+        db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(request.id);
+        ContentTable.releaseDeferred(db, current.content_id);
+        insertPluginOperation(db, {
+          pluginId: request.pluginId,
+          entity: "plugin-entity",
+          entityId: String(request.id),
+          title: current.title,
+          payload: { row, contentCreatedAt: current.content_created },
+        });
+      })()
+    );
   }
 
   /** 按删除快照恢复：ID 与 key 不变，正文重新持有引用并重建派生索引；返回恢复后的 ID */
@@ -462,22 +468,7 @@ export default class PluginEntityTable {
     options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
   ): number {
     return db.transaction(() => {
-      if (options.installed) {
-        const pluginIds = (
-          db.prepare("SELECT DISTINCT plugin_id FROM plugin_entities").all() as Array<{
-            plugin_id: string;
-          }>
-        ).map(row => row.plugin_id);
-        const mark = db.prepare(
-          "UPDATE plugin_entities SET orphaned_time = ? WHERE plugin_id = ? AND orphaned_time IS NULL"
-        );
-        const adopt = db.prepare(
-          "UPDATE plugin_entities SET orphaned_time = NULL WHERE plugin_id = ? AND orphaned_time IS NOT NULL"
-        );
-        for (const pluginId of pluginIds)
-          if (options.installed.has(pluginId)) adopt.run(pluginId);
-          else mark.run(options.now, pluginId);
-      }
+      markOrphans(db, "plugin_entities", options.installed, options.now);
       const due = db
         .prepare(
           "SELECT id, content_id FROM plugin_entities WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"

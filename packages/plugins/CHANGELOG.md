@@ -28,6 +28,8 @@
 - `entities.registerKind` 新增 `indexes`：声明可用于查询的 `meta` 字段及类型（`string`、`number`、`boolean`），写入时这些字段的值须为声明的类型或 `null`。
 - `entities.query` 新增 `where`（等于、不等于、`in`、大小比较，`null` 表示没有值）、`titleContains` 与 `orderBy`（最多两项，可用 `createdAt`、`updatedAt`、`title` 或声明的字段）；新增 `entities.count`。游标改为不透明字符串，只适用于同一组条件与排序。新增导出类型 `PluginWhere`、`PluginFieldCondition`、`PluginOrderBy`、`PluginIndexes` 等。
 - 修复：`entities.query()` 不带参数时报「没有要修改的字段」。
+- 新增 `context.records`：插件内部的结构化数据，按集合保存 JSON（`registerCollection({ name, indexes })`、`insert`、`get`、`query`、`count`、`update`、`delete`），筛选与排序写法与 `entities.query` 相同；不需要权限，删除不进「最近删除」，卸载后与插件内容一样保留 7 天。新增事件 `record.created / updated / deleted`（带 `collection`，只发给本插件），`PluginDomainEvent` 新增可选字段 `collection`。
+- 修复：插件经 `context.entities` 写入引起的 `entity.*` 事件，`origin` 现在为本插件，可以据此忽略自己写入引起的事件。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

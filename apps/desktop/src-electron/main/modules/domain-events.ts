@@ -2,7 +2,7 @@
  * 业务数据变更事件（插件 context.events 的来源）。
  *
  * 每个主库连接装一组 TEMP 触发器，经自定义函数把卡片、文章、项目文档、白板、项目、Notebook、
- * 材料、对话、插件实体与正文的增删改记到内存，合并后广播 `domain-events`；无论写入来自 IPC、协作投影还是后台模块都能覆盖。触发器在事务内
+ * 材料、对话、插件实体与记录、正文的增删改记到内存，合并后广播 `domain-events`；无论写入来自 IPC、协作投影还是后台模块都能覆盖。触发器在事务内
  * 执行，回滚的写入也可能产生事件——事件只说明「哪一项可能变了」，订阅方重新读取即可。
  * 待办与日程沿用已有的库级通知，只给集合级变化。
  */
@@ -27,7 +27,8 @@ type Entity =
   | "notebook"
   | "material"
   | "chat"
-  | "entity";
+  | "entity"
+  | "record";
 type Action = "created" | "updated" | "deleted";
 
 const FUNCTION_NAME = "tau_domain_change";
@@ -45,7 +46,7 @@ interface RowTriggers {
   visible?: (row: string) => string;
   /** 软删除：为真即按已删除处理 */
   removed?: (row: string) => string;
-  /** 附加参数：插件实体的所属插件与类型 */
+  /** 附加参数：插件实体的所属插件与类型、插件记录的所属插件与集合 */
   extra?: (row: string) => string;
   /** 修改时只在这些列变化才算 updated；打开时间、当前页等查看状态的写入不算。缺省为任一列 */
   changed?: string[];
@@ -153,6 +154,14 @@ const TRIGGERS_SQL = [
     extra: row => `${row}.plugin_id, ${row}.kind`,
     changed: ["title", "meta", "update_time", "orphaned_time"],
   }),
+  rowTriggers({
+    name: "plugin_records",
+    table: "plugin_records",
+    entity: "record",
+    removed: row => `${row}.orphaned_time IS NOT NULL`,
+    extra: row => `${row}.plugin_id, ${row}.collection`,
+    changed: ["data", "update_time", "orphaned_time"],
+  }),
   // Notebook 的资料清单计入 Notebook 的 updated；资料转换、转写的进度不算
   `CREATE TEMP TRIGGER IF NOT EXISTS tau_de_resources_ins AFTER INSERT ON main.vibe_learning_resources
   BEGIN SELECT ${FUNCTION_NAME}('notebook', NEW.project_id, 'updated'); END;
@@ -177,7 +186,7 @@ interface Change {
   id: number | string;
   action: Action;
   pluginId?: string;
-  /** 插件实体的所属插件与类型 */
+  /** 插件实体、记录的所属插件；kind 为实体类型或记录集合 */
   owner?: string;
   kind?: string;
 }
@@ -331,7 +340,7 @@ class DomainEventsModule implements Module {
           at,
           ...(pluginId ? { pluginId } : {}),
           ...(owner ? { owner } : {}),
-          ...(kind ? { kind } : {}),
+          ...(kind ? (entity === "record" ? { collection: kind } : { kind }) : {}),
         });
       for (const type of pending.collections) events.push({ type, at });
     }

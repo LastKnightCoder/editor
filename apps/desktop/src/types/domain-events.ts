@@ -10,9 +10,10 @@ export interface DomainEventRecord {
   at: number;
   /** 由插件经 plugin-data 写入时为插件 ID */
   pluginId?: string;
-  /** entity.*：拥有该实体的插件与实体类型 */
+  /** entity.* 与 record.*：拥有它的插件；实体类型或记录集合 */
   owner?: string;
   kind?: string;
+  collection?: string;
 }
 
 export interface DomainEventMessage {
