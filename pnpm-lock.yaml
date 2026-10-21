@@ -906,9 +906,6 @@ importers:
       slate-react:
         specifier: 0.126.4
         version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      swiper:
-        specifier: ^11.0.3
-        version: 11.2.10
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
@@ -1936,9 +1933,6 @@ importers:
       shiki-magic-move:
         specifier: ^1.2.1
         version: 1.4.0(react@19.2.0)(shiki@3.22.0)(svelte@5.46.0)(vue@3.5.25(typescript@5.8.3))
-      swiper:
-        specifier: ^11.0.3
-        version: 11.2.10
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
@@ -12361,10 +12355,6 @@ packages:
   svg-parser@2.1.0:
     resolution: {integrity: sha512-bwLf38YmY+TDYHJw1Ex0Co8c4yeXuJAo8YnXGZrscxrvYoVVIvLeniEkV1Ks/54VteMnL4FtyN1+P+TZJdUPmQ==}
     engines: {node: '>=8'}
-
-  swiper@11.2.10:
-    resolution: {integrity: sha512-RMeVUUjTQH+6N3ckimK93oxz6Sn5la4aDlgPzB+rBrG/smPdCTicXyhxa+woIpopz+jewEloiEE3lKo1h9w2YQ==}
-    engines: {node: '>= 4.7.0'}
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
@@ -24152,8 +24142,6 @@ snapshots:
       - '@typescript-eslint/types'
 
   svg-parser@2.1.0: {}
-
-  swiper@11.2.10: {}
 
   symbol-tree@3.2.4: {}
 

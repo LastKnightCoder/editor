@@ -50,30 +50,6 @@ export type MediaInsertSourceList =
   readonly MediaInsertSource[] | (() => readonly MediaInsertSource[]);
 
 /**
- * 媒体选择器：已有媒体内容的编辑 UI 需要补充素材时（如画廊添加图片），
- * 由宿主注册的选择入口。媒体扩展只渲染入口并调用 select，选择过程
- * （弹什么窗、从哪选）完全由宿主决定，取消时不回调。
- */
-export interface MediaSelector {
-  id: string;
-  /** 入口文案（按钮 / 菜单项） */
-  label: string;
-  mediaTypes: MediaType[];
-  isAvailable?: () => boolean;
-  select: (options: {
-    mediaType: MediaType;
-    multiple: boolean;
-    onSelected: (items: SelectedMedia[]) => void;
-  }) => void;
-}
-
-/** 选择器选中的媒体（宿主已解析为可写入文档的地址） */
-export interface SelectedMedia {
-  url: string;
-  name?: string;
-}
-
-/**
  * 内容渲染 Provider：已有媒体元素需要平台解析后才能播放时（如视频站链接），
  * 由匹配的 Provider 接管内容渲染；无匹配时媒体扩展走默认渲染路径。
  */

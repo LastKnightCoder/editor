@@ -1,0 +1,27 @@
+{
+  "formatVersion": 1,
+  "id": "tau.image-gallery",
+  "name": "图册",
+  "description": "在正文里插入图册，支持横向排版、瀑布流与轮播三种布局。",
+  "categories": [
+    "editor"
+  ],
+  "keywords": [
+    "图册",
+    "画廊",
+    "图片",
+    "gallery"
+  ],
+  "version": "0.1.0",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "editor": true,
+  "main": "main.js",
+  "integrity": {
+    "main.js": "f2e9371232ad1866c6a614239a7887755907b0f703653e5bcfae4d0716e1e367",
+    "main.css": "f52f8ffd25227d35d7c6ebab1d00c3cf3a29499241fdfe4703a09973af83e926"
+  },
+  "styles": "main.css"
+}

@@ -19,7 +19,7 @@ const image = (url: string, extra: Record<string, unknown> = {}) => ({
 });
 
 const gallery = {
-  type: "image-gallery",
+  type: "example.gallery",
   mode: 1,
   images: [
     { id: "a", url: "g1.png", desc: "营地的清晨" },
@@ -27,6 +27,14 @@ const gallery = {
     { id: "c", url: "g3.png" },
   ],
   children: [text()],
+};
+
+// 插件图册：图片在数组里，说明字段同层
+const declarations = {
+  ...BUILTIN_CONTENT_RESOURCES,
+  "example.gallery": [
+    { path: "images[].url", kind: "image" as const, alt: "desc", caption: "desc" },
+  ],
 };
 
 const inline = { type: "inline-image", url: "~/notes/icon.png", uuid: "u1", children: [text()] };
@@ -43,7 +51,7 @@ afterEach(() => useImageLightboxStore.getState().close());
 
 describe("collectDocumentImages", () => {
   it("按文档顺序收集图片块、行内图片、画廊每一张与嵌套块里的图，跳过空地址", () => {
-    const items = collectDocumentImages(doc, BUILTIN_CONTENT_RESOURCES);
+    const items = collectDocumentImages(doc, declarations);
     expect(items.map(item => item.url)).toEqual([
       "a-cropped.png",
       "~/notes/icon.png",
@@ -54,23 +62,21 @@ describe("collectDocumentImages", () => {
   });
 
   it("图片块显示裁剪结果并带说明；没有替代文本时用文件名", () => {
-    const [block, inlineItem, galleryItem] = collectDocumentImages(doc, BUILTIN_CONTENT_RESOURCES);
+    const [block, inlineItem, galleryItem] = collectDocumentImages(doc, declarations);
     expect(block).toMatchObject({ alt: "a.png", caption: "傍晚的山谷" });
     expect(inlineItem.alt).toBe("icon.png");
     expect(galleryItem).toMatchObject({ alt: "营地的清晨", caption: "营地的清晨" });
   });
 
   it("画廊的图记住在画廊里的原始序号", () => {
-    const items = collectDocumentImages(doc, BUILTIN_CONTENT_RESOURCES).filter(
-      item => item.source === gallery
-    );
+    const items = collectDocumentImages(doc, declarations).filter(item => item.source === gallery);
     expect(items.map(item => item.sourceIndex)).toEqual([0, 2]);
   });
 });
 
 describe("openImageLightbox", () => {
   const editor = { children: doc } as unknown as Editor;
-  bindElementResources(editor, BUILTIN_CONTENT_RESOURCES);
+  bindElementResources(editor, declarations);
 
   it("定位到点击的那张（画廊按序号）", () => {
     openImageLightbox(editor, gallery as never, 2);

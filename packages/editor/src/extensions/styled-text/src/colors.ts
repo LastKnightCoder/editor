@@ -1,4 +1,4 @@
-// 用 as const 对象 + 同名联合类型代替 const enum：只含可擦除语法（同 EGalleryMode）
+// 用 as const 对象 + 同名联合类型代替 const enum：只含可擦除语法
 export const EStyledColor = {
   Red: "red",
   Green: "green",

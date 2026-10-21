@@ -187,5 +187,21 @@
       "manifest.json": "db15fa9cb00b6a6d54d36d0a7081887b3fda762e4d9fa6e2c39a57b6a2b677e1",
       "README.md": "11eac814b4dbfb35b9c27f165e73e2bbe664c57fb0d574fab3959c35bdaccc4d"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-image-gallery",
+    "artifact": "releases/tau.image-gallery/0.1.0",
+    "id": "tau.image-gallery",
+    "version": "0.1.0",
+    "sourceRevision": "783f1142b994023dd5fa2d3ae0e9cf1c81443ca8",
+    "archiveSha256": "45493786f0181b12f2c285107adeede18679ef47ac9559ddbc304fd38d26cead",
+    "files": {
+      "CHANGELOG.md": "172a11f92f2ad4c74d0b9dd783bdc3180631e5d1a88a073c6263f318e4bab49d",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "f52f8ffd25227d35d7c6ebab1d00c3cf3a29499241fdfe4703a09973af83e926",
+      "main.js": "f2e9371232ad1866c6a614239a7887755907b0f703653e5bcfae4d0716e1e367",
+      "manifest.json": "005b8ea0dbe723bb8d3ff9b53ee81734625dc024571592767e2795ce4ff75a19",
+      "README.md": "1e5211f117c6743712d5502b3ffa799732b52567f52bfcae748d61f1d7620ecd"
+    }
   }
 ]
