@@ -1,0 +1,30 @@
+{
+  "formatVersion": 1,
+  "id": "tau.custom-block",
+  "name": "自定义组件块",
+  "description": "在文档中编写并预览可交互的 React 组件。",
+  "categories": [
+    "editor",
+    "ai"
+  ],
+  "keywords": [
+    "自定义组件",
+    "React"
+  ],
+  "version": "1.0.8",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js",
+  "editor": true,
+  "skills": [
+    "authoring"
+  ],
+  "styles": "main.css",
+  "integrity": {
+    "skills/authoring/SKILL.md": "3baf3cf1402c1b01dfdb155ad3e1210d02d4093f737ea10044b460c533be9089",
+    "main.js": "07de37c10570773db966b07959189914dd9f2e052bf6f753d52a81b878a2ae71",
+    "main.css": "d6bd0ab4cd6e810a26bc98cba3ea419b7a289f9dc22f86af55e03f0bcf5e0ace"
+  }
+}

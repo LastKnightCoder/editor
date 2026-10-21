@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
-import { readPluginFixtures } from "./package-fixtures";
+import { isPackagePath, readPluginFixtures } from "./package-fixtures";
 
 const roots: string[] = [];
 afterEach(async () => {
@@ -59,4 +59,23 @@ it("拒绝文件漂移、额外文件和身份漂移", async () => {
   await rm(path.join(source, "extra"));
   await writeFile(catalog, JSON.stringify([{ ...entry, version: "2.0.0" }]));
   await expect(readPluginFixtures(catalog)).rejects.toThrow("身份或版本不匹配");
+});
+it("接受子目录文件（如包内 Skill），并核对其清单与摘要", async () => {
+  const { catalog, source, entry } = await fixture();
+  const skill = "---\nname: demo\n---\n";
+  await mkdir(path.join(source, "skills", "demo"), { recursive: true });
+  await writeFile(path.join(source, "skills", "demo", "SKILL.md"), skill);
+  await expect(readPluginFixtures(catalog)).rejects.toThrow("文件清单不匹配");
+  const files = {
+    ...entry.files,
+    "skills/demo/SKILL.md": createHash("sha256").update(skill).digest("hex"),
+  };
+  await writeFile(catalog, JSON.stringify([{ ...entry, files }]));
+  await expect(readPluginFixtures(catalog)).resolves.toHaveLength(1);
+  await writeFile(path.join(source, "skills", "demo", "SKILL.md"), "变更");
+  await expect(readPluginFixtures(catalog)).rejects.toThrow("摘要不匹配");
+});
+it("拒绝越界或含反斜杠的路径", () => {
+  for (const name of ["../x", "a/./b", "a//b", "a\\b", ""]) expect(isPackagePath(name)).toBe(false);
+  expect(isPackagePath("skills/demo/SKILL.md")).toBe(true);
 });

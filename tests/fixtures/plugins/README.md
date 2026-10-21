@@ -2,7 +2,7 @@
 
 此目录只存放集成测试使用的固定发布产物，不是产品分发清单，任何客户端构建和生产启动均不得读取这里。
 
-catalog.json记录源码仓库、源码提交、版本、原ZIP摘要及每个文件的摘要。releases保留已验证包的原始字节，禁止格式化main.js/CSS/manifest或直接修改包内容。需要更新测试版本时从独立作者仓库/Release取得ZIP，执行：
+catalog.json记录源码仓库、源码提交、版本、原ZIP摘要及每个文件的摘要；包内子目录（如skills/<id>/SKILL.md）的文件以/分隔的相对路径记录。releases保留已验证包的原始字节，禁止格式化main.js/CSS/manifest或直接修改包内容。需要更新测试版本时从独立作者仓库/Release取得ZIP，执行：
 
 ```sh
 node scripts/plugins/pin-test-fixture.mjs /path/to/plugin.zip <完整源码提交SHA> https://github.com/LastKnightCoder/<仓库>
