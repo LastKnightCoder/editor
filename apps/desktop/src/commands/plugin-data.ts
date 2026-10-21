@@ -1,8 +1,10 @@
 import type { PluginNotebookResource } from "@tau/plugins";
+import type { Descendant } from "slate";
 import { invoke } from "@/electron";
 import type {
   PluginContentEdit,
   PluginContentRecord,
+  PluginContentSource,
   PluginCreatableEntity,
   PluginDataCreateInput,
   PluginDataEntity,
@@ -53,6 +55,12 @@ export const getPluginNotebookResources = (
   notebookId: number
 ): Promise<PluginNotebookResource[] | null> =>
   invoke("plugin-data:notebook-resources", { databaseName, notebookId });
+
+/** 把插件的正文输入解析为节点，供宿主界面预填；结果不交给插件 */
+export const resolvePluginContentInput = (
+  databaseName: string,
+  content: PluginContentSource
+): Promise<Descendant[]> => invoke("plugin-data:resolve-content", { databaseName, content });
 
 export const readPluginContent = (
   databaseName: string,

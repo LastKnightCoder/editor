@@ -10,6 +10,7 @@ import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
   PluginContentEdit,
   PluginContentRecord,
+  PluginContentSource,
   PluginContentOwnerEntity,
   PluginCreatableEntity,
   PluginDataCreateInput,
@@ -146,6 +147,7 @@ export default class PluginDataTable {
       "plugin-data:query": this.query.bind(this),
       "plugin-data:get": this.get.bind(this),
       "plugin-data:content": asynchronousDatabaseCommand(this.content.bind(this)),
+      "plugin-data:resolve-content": asynchronousDatabaseCommand(this.resolveContent.bind(this)),
       "plugin-data:create": asynchronousDatabaseCommand(this.create.bind(this)),
       "plugin-data:project-tree": this.projectTree.bind(this),
       "plugin-data:create-document": asynchronousDatabaseCommand(this.createDocument.bind(this)),
@@ -248,6 +250,18 @@ export default class PluginDataTable {
       owners: [...owners],
       pluginOwners: PluginEntityTable.pluginOwners(db, row.id),
     };
+  }
+
+  /**
+   * 把插件的正文输入解析为节点，供宿主界面（如新建卡片窗口）预填；结果只交给宿主渲染端，不经插件。
+   * copyOf 与写入时同一范围；结果为空时返回空数组，由界面决定默认内容。
+   */
+  static async resolveContent(
+    db: Database.Database,
+    request: PluginDataScope & { content: PluginContentSource }
+  ): Promise<Descendant[]> {
+    this.assertDatabase(db, request);
+    return resolvePluginContent(db, request.content, []);
   }
 
   /** 有协作会话时为会话文档的版本，否则为正文的修改时间 */

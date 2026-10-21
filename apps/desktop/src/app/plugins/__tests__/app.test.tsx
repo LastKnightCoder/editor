@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   describe: vi.fn(),
   chat: vi.fn(),
   openMaterial: vi.fn(),
+  resolveContent: vi.fn(),
+  createCard: vi.fn(),
 }));
 vi.mock("@/commands/plugin-data", () => ({
   pluginRefExists: mocks.exists,
@@ -27,6 +29,29 @@ vi.mock("@/commands/plugin-data", () => ({
   getPluginData: mocks.getData,
   grantPluginRefs: mocks.grant,
   describePluginRefs: mocks.describe,
+  resolvePluginContentInput: mocks.resolveContent,
+}));
+vi.mock("@/features/cards/components/CreateCardDialog", () => ({
+  CreateCardDialog: (props: {
+    initial: unknown;
+    onCreated: (card: { id: number }) => void;
+    onClose: () => void;
+  }) => {
+    mocks.createCard(props.initial);
+    return (
+      <>
+        <button
+          onClick={() => {
+            props.onCreated({ id: 21 });
+            props.onClose();
+          }}
+        >
+          保存卡片
+        </button>
+        <button onClick={props.onClose}>取消新建</button>
+      </>
+    );
+  },
 }));
 vi.mock("@/commands/chat-session", () => ({ getChatSession: mocks.chat }));
 vi.mock("@/services/open-material", () => ({ openMaterial: mocks.openMaterial }));
@@ -244,37 +269,51 @@ describe("插件选择与打开", () => {
       expect(usePluginActionUi.getState().request).toBeNull();
     });
 
-    it("导出、演示与协作打开宿主界面，关闭或插件停用即撤下", async () => {
+    const mount = async () => {
       const host = document.createElement("div");
       document.body.append(host);
       const view = createRoot(host);
       await act(async () => view.render(<PluginContentActionHost />));
-      const app = createDesktopApp("data.db");
       const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 50)));
       const click = (label: string) =>
         act(async () =>
           [...host.querySelectorAll("button")].find(item => item.textContent === label)?.click()
         );
+      const unmount = () => {
+        act(() => view.unmount());
+        host.remove();
+      };
+      return { host, settle, click, unmount };
+    };
+
+    it("导出、演示与协作打开宿主界面，关闭后才返回，插件停用即撤下", async () => {
+      const { host, settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
       try {
-        await act(async () =>
-          app.run(context(), plugin, { action: "content.export", ref: "8:100", format: "pdf" })
-        );
+        let finished = false;
+        const exported = app
+          .run(context(), plugin, { action: "content.export", ref: "8:100", format: "pdf" })
+          .then(() => (finished = true));
         await settle();
         expect(mocks.pdf).toHaveBeenCalledWith("读书笔记");
+        expect(finished).toBe(false);
         await click("关闭导出");
+        await exported;
         expect(usePluginActionUi.getState().request).toBeNull();
 
-        await act(async () =>
-          app.run(context(), plugin, { action: "content.present", ref: "8:100" })
-        );
+        const presented = app.run(context(), plugin, { action: "content.present", ref: "8:100" });
         await settle();
         expect(mocks.present).toHaveBeenCalledWith(nodes);
+        // 同一时间只能打开一个
+        await expect(
+          app.run(context(), plugin, { action: "content.share", ref: "8:100" })
+        ).rejects.toThrow("请先完成或关闭");
         await click("退出演示");
-        expect(usePluginActionUi.getState().request).toBeNull();
+        await presented;
 
         const controller = new AbortController();
         const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
-        await act(async () => app.run(live, plugin, { action: "content.share", ref: "8:100" }));
+        const shared = app.run(live, plugin, { action: "content.share", ref: "8:100" });
         await settle();
         expect(mocks.share).toHaveBeenCalledWith(8, {
           sourceType: "card",
@@ -282,11 +321,51 @@ describe("插件选择与打开", () => {
           sourceTitle: "读书笔记",
         });
         await act(async () => controller.abort());
+        await shared;
         expect(usePluginActionUi.getState().request).toBeNull();
         expect(host.textContent).toBe("");
       } finally {
-        act(() => view.unmount());
-        host.remove();
+        unmount();
+      }
+    });
+
+    it("新建卡片：预填解析后的正文与标签，保存返回卡片引用，取消或停用返回 null", async () => {
+      const { settle, click, unmount } = await mount();
+      const app = createDesktopApp("data.db");
+      mocks.resolveContent.mockResolvedValue(nodes);
+      try {
+        const saved = app.run(context(), plugin, {
+          action: "card.create",
+          content: { markdown: "正文" },
+          tags: ["读书"],
+        });
+        await settle();
+        expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", { markdown: "正文" });
+        expect(mocks.createCard).toHaveBeenLastCalledWith({ content: nodes, tags: ["读书"] });
+        await click("保存卡片");
+        expect(await saved).toEqual({ kind: "card", id: "21" });
+        expect(usePluginActionUi.getState().request).toBeNull();
+
+        // 不带正文时不解析，预填空卡片
+        const cancelled = app.run(context(), plugin, { action: "card.create" });
+        await settle();
+        expect(mocks.resolveContent).toHaveBeenCalledTimes(1);
+        expect(mocks.createCard).toHaveBeenLastCalledWith({
+          content: expect.any(Array),
+          tags: [],
+        });
+        await click("取消新建");
+        expect(await cancelled).toBeNull();
+
+        const controller = new AbortController();
+        const live = { pluginId: plugin.id, signal: controller.signal } as PluginContext;
+        const aborted = app.run(live, plugin, { action: "card.create" });
+        await settle();
+        await act(async () => controller.abort());
+        expect(await aborted).toBeNull();
+        expect(usePluginActionUi.getState().request).toBeNull();
+      } finally {
+        unmount();
       }
     });
 

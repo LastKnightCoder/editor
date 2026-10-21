@@ -289,6 +289,44 @@ describe("PluginDataTable 写入", () => {
     expect(rawOf(copy.contentId)).toEqual([...nodes, ...nodes]);
   });
 
+  it("解析正文输入供宿主界面预填：不写入，空输入为空数组，copyOf 范围与写入一致", async () => {
+    const nodes = [{ type: "paragraph", children: [{ type: "formatted", text: "预填" }] }];
+    const count = () => (db.prepare("SELECT COUNT(*) AS n FROM contents").get() as { n: number }).n;
+    const before = count();
+    expect(await PluginDataTable.resolveContent(db, { ...scope, content: { nodes } })).toEqual(
+      nodes
+    );
+    expect(
+      await PluginDataTable.resolveContent(db, { ...scope, content: { markdown: " " } })
+    ).toEqual([]);
+    expect(count()).toBe(before);
+    const source = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "card", input: { content: { nodes } } },
+      ctx
+    );
+    const createdAt = (
+      db.prepare("SELECT create_time FROM contents WHERE id = ?").get(source.contentId) as {
+        create_time: number;
+      }
+    ).create_time;
+    expect(
+      await PluginDataTable.resolveContent(db, {
+        ...scope,
+        content: { copyOf: { contentId: source.contentId!, createdAt } },
+      })
+    ).toEqual(nodes);
+    await expect(
+      PluginDataTable.resolveContent(db, {
+        ...scope,
+        content: { copyOf: { contentId: source.contentId!, createdAt: createdAt + 1 } },
+      })
+    ).rejects.toThrow("要复制的正文不存在");
+    await expect(
+      PluginDataTable.resolveContent(db, { databaseName: "other", content: { nodes } })
+    ).rejects.toThrow("数据库已切换");
+  });
+
   it("正文输入：结构无效、来源不存在或不可寻址时拒绝", async () => {
     const create = (content: unknown) =>
       PluginDataTable.create(

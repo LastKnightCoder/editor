@@ -172,6 +172,11 @@ export async function checkDataContract(context: PluginContext) {
   createElement(ContentEditor, { contentRef: entity.contentRef, at: "example" });
   createElement(ContentPreview, { contentRef: entity.contentRef, maxBlocks: 2 });
   await context.app.run("content.export", { ref: entity.contentRef, format: "markdown" });
+  const created = await context.app.run("card.create", {
+    content: { copyOf: entity.contentRef },
+    tags: ["示例"],
+  });
+  if (created) await context.app.open(created);
   await context.entities.backlinks(entity.id);
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }

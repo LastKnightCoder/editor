@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type {
+  PluginContext,
   PluginEntityKind,
   PluginEntityRef,
   PluginPickOptions,
@@ -12,13 +13,16 @@ import {
   getPluginData,
   grantPluginRefs,
   pluginRefExists,
+  resolvePluginContentInput,
 } from "@/commands/plugin-data";
+import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import { getChatSession } from "@/commands/chat-session";
 import { locateEntity } from "@/commands/entity";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import type { EntityCandidate, EntityKind } from "@/types";
 import { resolvePluginContentTarget } from "./content-target";
+import { toContentSource } from "./data";
 import { assertPluginUserActivation } from "./user-activation";
 
 /** 插件类型 → 宿主选择器的实体类型；材料一类对应划线、PDF 标注与剪藏 */
@@ -85,10 +89,28 @@ export const usePluginPickerUi = create<{ request: PluginPickRequest | null }>()
   request: null,
 }));
 
-/** 宿主动作打开的界面（导出窗口、演示、协作窗口），由壳层挂载的 PluginContentActionHost 渲染；新请求替换旧请求 */
-export interface PluginActionRequest {
+interface PluginActionBase {
   id: number;
   plugin: PluginOwner;
+  /** 用户关闭界面；新建类按取消处理 */
+  close(): void;
+}
+
+/**
+ * 宿主动作打开的界面（导出窗口、演示、协作窗口、新建卡片），由壳层挂载的 PluginContentActionHost
+ * 渲染；一次只显示一个，界面关闭后插件的 run 才返回。
+ */
+export type PluginActionRequest = PluginContentActionRequest | PluginCardCreateRequest;
+
+export interface PluginCardCreateRequest extends PluginActionBase {
+  action: "card.create";
+  /** 预填的正文与标签：不读写用户的卡片草稿 */
+  content: Descendant[];
+  tags: string[];
+  settle(cardId: number): void;
+}
+
+export interface PluginContentActionRequest extends PluginActionBase {
   action: "export" | "present" | "share";
   format?: "image" | "pdf" | "epub";
   contentId: number;
@@ -99,7 +121,6 @@ export interface PluginActionRequest {
   };
   title: string;
   content: Descendant[];
-  close(): void;
 }
 
 export const usePluginActionUi = create<{ request: PluginActionRequest | null }>()(() => ({
@@ -107,6 +128,31 @@ export const usePluginActionUi = create<{ request: PluginActionRequest | null }>
 }));
 
 let nextRequestId = 0;
+
+/** 显示动作界面，界面关闭或插件停用后以 fallback 结束 */
+function showAction<T>(
+  context: PluginContext,
+  fallback: T,
+  build: (finish: (value: T) => void, id: number) => PluginActionRequest
+): Promise<T> {
+  context.signal.throwIfAborted();
+  if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
+  return new Promise(resolve => {
+    let done = false;
+    const finish = (value: T) => {
+      if (done) return;
+      done = true;
+      context.signal.removeEventListener("abort", cancel);
+      if (usePluginActionUi.getState().request === request)
+        usePluginActionUi.setState({ request: null });
+      resolve(value);
+    };
+    const cancel = () => finish(fallback);
+    const request = build(finish, ++nextRequestId);
+    context.signal.addEventListener("abort", cancel, { once: true });
+    usePluginActionUi.setState({ request });
+  });
+}
 
 export function createDesktopApp(databaseName: string): AppAdapter {
   return {
@@ -198,6 +244,24 @@ export function createDesktopApp(databaseName: string): AppAdapter {
     },
     async run(context, plugin, request: PluginAppRunRequest) {
       assertPluginUserActivation();
+      if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
+      if (request.action === "card.create") {
+        const nodes = request.content
+          ? await bindDatabaseCommands(
+              { resolvePluginContentInput },
+              { databaseName, signal: context.signal }
+            ).resolvePluginContentInput(databaseName, toContentSource(request.content))
+          : [];
+        return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+          id,
+          plugin,
+          action: "card.create",
+          content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+          tags: request.tags ?? [],
+          close: () => finish(null),
+          settle: cardId => finish({ kind: "card", id: String(cardId) }),
+        }));
+      }
       const target = await resolvePluginContentTarget(
         databaseName,
         context.pluginId,
@@ -220,13 +284,8 @@ export function createDesktopApp(databaseName: string): AppAdapter {
         await exportContentAsMarkdown({ title, content: target.nodes });
         return;
       }
-      const close = () => {
-        context.signal.removeEventListener("abort", close);
-        if (usePluginActionUi.getState().request === next)
-          usePluginActionUi.setState({ request: null });
-      };
-      const next: PluginActionRequest = {
-        id: ++nextRequestId,
+      return showAction<void>(context, undefined, (finish, id) => ({
+        id,
         plugin,
         action:
           request.action === "content.export"
@@ -244,12 +303,8 @@ export function createDesktopApp(databaseName: string): AppAdapter {
           : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
         title,
         content: target.nodes,
-        close,
-      };
-      // 插件停用时撤下它打开的界面
-      context.signal.addEventListener("abort", close, { once: true });
-      usePluginActionUi.getState().request?.close();
-      usePluginActionUi.setState({ request: next });
+        close: () => finish(undefined),
+      }));
     },
   };
 }
