@@ -126,7 +126,7 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
       {
         key: "imageGeneration",
         label: "图片生成",
-        description: "文生图服务，兼容 OpenAI Images 接口",
+        description: "AI 对话里的生图、改图会使用选中的配置",
         icon: ImageIcon,
         component: ImageGenerationSection,
       },
