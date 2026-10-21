@@ -22,6 +22,7 @@
 - 新增动作 `chat.start`：在对话页（默认）或右侧停靠栏开一个新对话，`prompt` 预填进输入框，`context`（卡片、文章、项目文档）作为引用插入，由用户发送；用户发出第一条消息后返回 `{ kind: "chat-session", id }`，没发送就离开时返回 `null`。新增导出 `PLUGIN_CHAT_CONTEXT_KINDS`。
 - `context.app.open(ref, options?)` 新增打开位置与定位：`placement` 为 `page`（默认）、`window`（独立编辑窗口，卡片、文章、项目文档）或 `dock`（右侧停靠栏，主对话）；`at: { block }` 滚动到正文第几个顶层块（卡片、文章、项目文档、日记、插件内容）。不支持的组合抛错。新增导出类型 `PluginOpenOptions`、`PluginContentLocation`。
 - `ContentEditor` 与 `ContentPreview` 新增 `kit`：`full`（默认，与卡片详情相同）或 `compact`（精简套件，不含内容链接、文件附件、白板块、数据库块与文档待办，适合简短内容）。新增导出类型 `ContentEditorKit`。
+- 页面的 `pageContext` 新增 `isActive()`（本页是否为当前显示的页面）与 `registerDismiss(dismiss)`（登记自制浮层的关闭函数，用户按 Esc 时先关最后登记的浮层，只在页面显示时生效）。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

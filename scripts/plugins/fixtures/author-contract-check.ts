@@ -26,6 +26,9 @@ export function checkPageContextContract({ pageContext }: PluginPageProps) {
   void structured.dispose();
   const text = api.register(() => "任意文本");
   void text.dispose();
+  const active: boolean = api.isActive();
+  const drawer = api.registerDismiss(() => console.log("关闭抽屉", active));
+  void drawer.dispose();
 }
 
 export function checkNotificationsContract(context: PluginContext) {

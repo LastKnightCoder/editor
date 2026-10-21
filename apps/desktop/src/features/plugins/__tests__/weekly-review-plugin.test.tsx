@@ -23,6 +23,14 @@ import { usePluginActionUi } from "@/app/plugins/app";
 import { pluginEntityKind } from "@/services/plugin-entity-kinds";
 import useSettingStore from "@/stores/useSettingStore";
 
+const disposed = { dispose: () => undefined };
+/** 测试直接渲染插件页面组件时用的页面上下文：始终显示，登记即忽略 */
+const fakePageContext = {
+  register: () => disposed,
+  isActive: () => true,
+  registerDismiss: () => disposed,
+};
+
 const openEntity = vi.hoisted(() => vi.fn());
 vi.mock("@/services/open-content", () => ({ openEntity }));
 const editorProps = vi.hoisted(() => vi.fn());
@@ -235,11 +243,7 @@ describe("每周回顾插件", () => {
         view.render(
           <QueryClientProvider client={new QueryClient()}>
             <PluginComponentScope context={page.context}>
-              <Component
-                context={page.context}
-                params={{}}
-                pageContext={{ register: () => ({ dispose: () => undefined }) }}
-              />
+              <Component context={page.context} params={{}} pageContext={fakePageContext} />
             </PluginComponentScope>
             <PluginPermissionPrompt />
           </QueryClientProvider>
