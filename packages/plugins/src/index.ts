@@ -46,6 +46,7 @@ export {
   PLUGIN_APP_ACTIONS,
   PLUGIN_EXPORT_FORMATS,
   PLUGIN_NOTEBOOK_FROM_KINDS,
+  PLUGIN_CHAT_CONTEXT_KINDS,
 } from "./app";
 export type {
   PluginNotifications,

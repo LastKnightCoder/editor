@@ -121,6 +121,8 @@ function setup({
     async run(_context, plugin, request) {
       calls.push(["run", plugin.id, request]);
       if (request.action === "notebook.create") return { kind: "notebook", id: "6" } as never;
+      if (request.action === "chat.start")
+        return request.prompt === "取消" ? null : ({ kind: "chat-session", id: "s1" } as never);
       if (request.action === "project.insertDocument")
         return { kind: "document", id: "31" } as never;
       if (request.action === "card.create")
@@ -464,6 +466,36 @@ describe("插件业务数据与权限", () => {
       context().app.run("card.create", { content: { html: "x" } } as never)
     ).rejects.toThrow();
     await expect(context().app.run("card.create", { tags: "x" } as never)).rejects.toThrow("标签");
+  });
+
+  it("chat.start：补默认位置，校验提示词、上下文类型与数量，返回对话引用或 null", async () => {
+    const { host, calls, context } = setup({ declared: [] });
+    await host.enable("weekly");
+    expect(
+      await context().app.run("chat.start", {
+        prompt: "围绕这个问题聊聊",
+        context: [{ kind: "card", id: "3" }],
+      })
+    ).toEqual({ kind: "chat-session", id: "s1" });
+    expect(await context().app.run("chat.start", { prompt: "取消", placement: "dock" })).toBeNull();
+    expect(calls.filter(call => call[0] === "run").map(call => call[2])).toEqual([
+      {
+        action: "chat.start",
+        prompt: "围绕这个问题聊聊",
+        context: [{ kind: "card", id: "3" }],
+        placement: "page",
+      },
+      { action: "chat.start", prompt: "取消", context: [], placement: "dock" },
+    ]);
+    await expect(
+      context().app.run("chat.start", { context: [{ kind: "material", id: "excerpt:1" }] })
+    ).rejects.toThrow("只支持卡片、文章与项目文档");
+    await expect(context().app.run("chat.start", { placement: "window" } as never)).rejects.toThrow(
+      "placement 无效"
+    );
+    await expect(context().app.run("chat.start", { prompt: "x".repeat(20_001) })).rejects.toThrow(
+      "提示词"
+    );
   });
 
   it("notebook.create：校验标题、资料与来源类型，返回 Notebook 引用", async () => {

@@ -113,6 +113,7 @@ import {
   PLUGIN_APP_ACTIONS,
   PLUGIN_ENTITY_KINDS,
   PLUGIN_NOTEBOOK_FROM_KINDS,
+  PLUGIN_CHAT_CONTEXT_KINDS,
   PLUGIN_ENTITY_READ_PERMISSIONS,
   PLUGIN_EXPORT_FORMATS,
   type PluginAppAction,
@@ -365,6 +366,12 @@ export type PluginAppRunRequest =
       title: string;
       sources: PluginEntityRef[];
       from?: PluginEntityRef;
+    }
+  | {
+      action: "chat.start";
+      prompt: string;
+      context: PluginEntityRef[];
+      placement: "page" | "dock";
     };
 
 /** 新建类动作：宿主返回新内容的引用，用户取消为 null */
@@ -372,7 +379,11 @@ const CREATING_ACTIONS = new Set<string>([
   "card.create",
   "project.insertDocument",
   "notebook.create",
+  "chat.start",
 ]);
+const chatContextKinds = new Set<string>(PLUGIN_CHAT_CONTEXT_KINDS);
+const MAX_CHAT_PROMPT = 20_000;
+const MAX_CHAT_CONTEXT = 20;
 const notebookFromKinds = new Set<string>(PLUGIN_NOTEBOOK_FROM_KINDS);
 const MAX_NOTEBOOK_SOURCES = 200;
 
@@ -432,6 +443,28 @@ function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest 
         ? { content: readContentInput(content, { allowEmpty: true }) }
         : {}),
       ...(tags !== undefined ? { tags: readTags(tags) } : {}),
+    };
+  }
+  if (action === "chat.start") {
+    const raw = options ?? {};
+    if (typeof raw !== "object" || Array.isArray(raw)) throw new Error("参数无效");
+    const { prompt, context, placement } = raw as {
+      prompt?: unknown;
+      context?: unknown;
+      placement?: unknown;
+    };
+    if (context !== undefined && (!Array.isArray(context) || context.length > MAX_CHAT_CONTEXT))
+      throw new Error(`context 必须是数组，最多 ${MAX_CHAT_CONTEXT} 项`);
+    const refs = (context ?? []).map(readEntityRef);
+    if (refs.some(ref => !chatContextKinds.has(ref.kind)))
+      throw new Error("对话上下文只支持卡片、文章与项目文档");
+    if (placement !== undefined && placement !== "page" && placement !== "dock")
+      throw new Error("placement 无效");
+    return {
+      action,
+      prompt: prompt === undefined ? "" : readText(prompt, "提示词", MAX_CHAT_PROMPT, true),
+      context: refs,
+      placement: placement ?? "page",
     };
   }
   if (action === "notebook.create") {

@@ -25,7 +25,9 @@ const mocks = vi.hoisted(() => ({
   insertDocument: vi.fn(),
   planNotebook: vi.fn(),
   createNotebook: vi.fn(),
+  startChat: vi.fn(),
 }));
+vi.mock("@/features/chat/chatStart", () => ({ startChat: mocks.startChat }));
 vi.mock("@/services/notebook-creation", () => ({
   createNotebookWithResources: mocks.createNotebook,
   notebookPlanImpact: () => "带入 2 份资料",
@@ -352,6 +354,55 @@ describe("插件选择与打开", () => {
       } finally {
         unmount();
       }
+    });
+
+    it("发起对话：上下文转成输入框引用，首次发送后返回对话引用，未发送返回 null", async () => {
+      const app = createDesktopApp("data.db");
+      mocks.getData.mockResolvedValue({ title: "读书笔记", contentId: 8 });
+      mocks.startChat.mockResolvedValueOnce("s1").mockResolvedValueOnce(null);
+      const live = context();
+      expect(
+        await app.run(live, plugin, {
+          action: "chat.start",
+          prompt: "聊聊",
+          context: [{ kind: "document", id: "31" }],
+          placement: "dock",
+        })
+      ).toEqual({ kind: "chat-session", id: "s1" });
+      expect(mocks.getData.mock.calls[0].slice(1)).toEqual(["document", 31]);
+      expect(mocks.startChat).toHaveBeenCalledWith(
+        {
+          placement: "dock",
+          prompt: "聊聊",
+          mentions: [
+            {
+              entityType: "project-item",
+              entityId: 31,
+              contentId: 8,
+              title: "读书笔记",
+              previewText: "",
+            },
+          ],
+        },
+        live.signal
+      );
+      expect(
+        await app.run(context(), plugin, {
+          action: "chat.start",
+          prompt: "",
+          context: [],
+          placement: "page",
+        })
+      ).toBeNull();
+      mocks.getData.mockResolvedValueOnce(null);
+      await expect(
+        app.run(context(), plugin, {
+          action: "chat.start",
+          prompt: "",
+          context: [{ kind: "card", id: "9" }],
+          placement: "page",
+        })
+      ).rejects.toThrow("内容不存在");
     });
 
     it("新建 Notebook：核对来源，确认框带资料计划，确认后返回引用，取消返回 null", async () => {

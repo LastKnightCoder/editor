@@ -26,6 +26,7 @@ import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/components/ChatSidebar/ChatContainer";
 import type { BlockData } from "@/types/block-preview";
 import { WorkspaceBar } from "./WorkspaceBar";
+import { useChatStartConsumer } from "../chatStart";
 import {
   applyQuestionSeed,
   linkSeededChat,
@@ -175,7 +176,16 @@ const ChatArea = memo(
         return applyQuestionSeed(content, questionSeedText(current));
       }, []);
 
+      const startedChat = useChatStartConsumer("page", {
+        active: true,
+        currentChatId: currentChat.id,
+        isDraft,
+        newChat,
+        container: chatContainerRef,
+      });
+
       const onChatCreated = useMemoizedFn((chatId: string) => {
+        startedChat(chatId);
         const questionId = sentSeedRef.current;
         sentSeedRef.current = null;
         if (questionId != null)

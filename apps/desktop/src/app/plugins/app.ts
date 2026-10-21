@@ -17,6 +17,7 @@ import {
   pluginRefExists,
   resolvePluginContentInput,
 } from "@/commands/plugin-data";
+import type { MentionRef } from "@tau/shared";
 import type { LineageNode } from "@/entity/lineage";
 import type { MaterialRef } from "@/entity/material";
 import type { NotebookPlan } from "@/types/vibe-learning";
@@ -155,6 +156,37 @@ export const usePluginActionUi = create<{ request: PluginActionRequest | null }>
 }));
 
 let nextRequestId = 0;
+
+const MENTION_TYPES = { card: "card", article: "article", document: "project-item" } as const;
+
+/** 对话上下文引用 → 输入框里的引用；可用类型由 SDK 的 PLUGIN_CHAT_CONTEXT_KINDS 限定 */
+async function resolveMentions(
+  databaseName: string,
+  context: PluginContext,
+  refs: PluginEntityRef[]
+): Promise<MentionRef[]> {
+  const commands = bindDatabaseCommands(
+    { getPluginData },
+    { databaseName, signal: context.signal }
+  );
+  return Promise.all(
+    refs.map(async ref => {
+      const entity = ref.kind as keyof typeof MENTION_TYPES;
+      const id = Number(ref.id);
+      const record = MENTION_TYPES[entity]
+        ? await commands.getPluginData(databaseName, entity, id)
+        : null;
+      if (!record?.contentId) throw new Error("内容不存在");
+      return {
+        entityType: MENTION_TYPES[entity],
+        entityId: id,
+        contentId: record.contentId,
+        title: record.title,
+        previewText: "",
+      };
+    })
+  );
+}
 
 /** 插件引用 → 谱系端点；可作来源的类型由 SDK 的 PLUGIN_NOTEBOOK_FROM_KINDS 限定 */
 function toLineageNode(ref: PluginEntityRef): LineageNode {
@@ -302,6 +334,15 @@ export function createDesktopApp(databaseName: string): AppAdapter {
           { resolvePluginContentInput },
           { databaseName, signal: context.signal }
         ).resolvePluginContentInput(databaseName, toContentSource(content));
+      if (request.action === "chat.start") {
+        const mentions = await resolveMentions(databaseName, context, request.context);
+        const { startChat } = await import("@/features/chat/chatStart");
+        const sessionId = await startChat(
+          { placement: request.placement, prompt: request.prompt, mentions },
+          context.signal
+        );
+        return sessionId ? { kind: "chat-session", id: sessionId } : null;
+      }
       if (request.action === "notebook.create") {
         const commands = bindDatabaseCommands(
           { planPluginNotebook, pluginRefExists },

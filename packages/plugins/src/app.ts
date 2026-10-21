@@ -117,7 +117,19 @@ export interface PluginAppActions {
    * 显示在 Notebook 页顶部，见 PLUGIN_NOTEBOOK_FROM_KINDS。
    */
   "notebook.create": { title: string; sources?: PluginEntityRef[]; from?: PluginEntityRef };
+  /**
+   * 在对话页（page，默认）或右侧停靠栏（dock）开一个新对话：prompt 预填进输入框，context 作为
+   * 引用插入，由用户修改后发送。context 只支持 PLUGIN_CHAT_CONTEXT_KINDS 中的类型。
+   */
+  "chat.start": { prompt?: string; context?: PluginEntityRef[]; placement?: "page" | "dock" };
 }
+
+/** 可以作为对话上下文（chat.start 的 context）的类型 */
+export const PLUGIN_CHAT_CONTEXT_KINDS: readonly PluginEntityKind[] = [
+  "card",
+  "article",
+  "document",
+];
 
 /** 可以作为 Notebook 来源（notebook.create 的 from）的类型 */
 export const PLUGIN_NOTEBOOK_FROM_KINDS: readonly PluginEntityKind[] = [
@@ -139,6 +151,8 @@ export interface PluginAppActionResults {
   "card.create": PluginEntityRef | null;
   "project.insertDocument": PluginEntityRef | null;
   "notebook.create": PluginEntityRef | null;
+  /** 用户发出第一条消息后返回对话的引用；没发送就关闭、切到别的对话或插件停用时为 null */
+  "chat.start": PluginEntityRef | null;
 }
 
 export type PluginAppAction = keyof PluginAppActions;
@@ -149,6 +163,7 @@ export const PLUGIN_APP_ACTIONS: readonly PluginAppAction[] = [
   "card.create",
   "project.insertDocument",
   "notebook.create",
+  "chat.start",
 ];
 
 export interface PluginApp {

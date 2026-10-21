@@ -19,6 +19,7 @@
 - 新增动作 `card.create`：打开 Tau 的新建卡片窗口，预填 `content`（`PluginContentInput`）与 `tags`，用户保存后返回 `{ kind: "card", id }`；不需要数据权限。
 - 新增动作 `project.insertDocument`：打开 Tau 的「插入到项目」窗口，由用户选择项目与位置，把 `content` 复制为新的项目文档（可带 `title`），返回 `{ kind: "document", id }`；不需要数据权限。
 - 新增动作 `notebook.create`：由用户确认后新建 Notebook，`sources` 作为资料一次性带入（有正文的内容成为笔记资料，划线与 PDF 标注合并、剪藏各一份，其他类型不带入），`from` 记为来源并显示在 Notebook 页顶部；返回 `{ kind: "notebook", id }`。新增导出 `PLUGIN_NOTEBOOK_FROM_KINDS`。
+- 新增动作 `chat.start`：在对话页（默认）或右侧停靠栏开一个新对话，`prompt` 预填进输入框，`context`（卡片、文章、项目文档）作为引用插入，由用户发送；用户发出第一条消息后返回 `{ kind: "chat-session", id }`，没发送就离开时返回 `null`。新增导出 `PLUGIN_CHAT_CONTEXT_KINDS`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

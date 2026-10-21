@@ -6,6 +6,7 @@ import {
   defineEditorElement,
   EDITOR_NODE_SCHEMA_VERSION,
   PLUGIN_NOTEBOOK_FROM_KINDS,
+  PLUGIN_CHAT_CONTEXT_KINDS,
   type EditorElementRenderProps,
 } from "@tau/plugins";
 import { createElement } from "react";
@@ -190,6 +191,12 @@ export async function checkDataContract(context: PluginContext) {
   });
   if (notebook) await context.data.notebooks.resources(notebook.id);
   if (PLUGIN_NOTEBOOK_FROM_KINDS.includes("card")) console.log("card 可作为来源");
+  const chat = await context.app.run("chat.start", {
+    prompt: `围绕「${entity.title}」聊聊`,
+    context: cards.items.slice(0, 1).map(card => ({ kind: "card" as const, id: card.id })),
+    placement: "dock",
+  });
+  if (chat && PLUGIN_CHAT_CONTEXT_KINDS.includes("card")) await context.app.open(chat);
   await context.entities.backlinks(entity.id);
   await context.entities.delete(entity.id, { expectedRevision: entity.revision });
 }
