@@ -1,5 +1,11 @@
 import { expect, it } from "vitest";
-import { validateDistributionManifest, isTemplateManifest, distributionFiles } from "../template";
+import {
+  validateDistributionManifest,
+  isTemplateManifest,
+  distributionFiles,
+  resolveSiteFields,
+  type TemplateManifest,
+} from "../template";
 import { replaceTemplatePaths } from "../template-html";
 const input = {
   formatVersion: 1,
@@ -63,4 +69,81 @@ it("模板包不能同时声明代码插件入口", () => {
       integrity: { ...input.integrity, "main.js": "c".repeat(64) },
     })
   ).toThrow("代码插件入口");
+});
+
+const withFields = (siteFields: unknown) =>
+  validateDistributionManifest({ ...input, template: { ...input.template, siteFields } });
+it("站点字段按声明保留，未声明时不出现该键", () => {
+  expect((validateDistributionManifest(input) as TemplateManifest).template).not.toHaveProperty(
+    "siteFields"
+  );
+  const fields = [
+    { key: "description", label: "站点描述", type: "textarea", placeholder: "一句话介绍" },
+    {
+      key: "layout",
+      label: "首页布局",
+      type: "select",
+      options: [
+        { value: "timeline", label: "时间线" },
+        { value: "grid", label: "网格" },
+      ],
+      default: "grid",
+    },
+    { key: "showStats", label: "显示统计", type: "switch", default: true },
+  ];
+  expect((withFields(fields) as TemplateManifest).template.siteFields).toEqual(fields);
+});
+it.each([
+  [[{ key: "1a", label: "名", type: "text" }], "key"],
+  [
+    [
+      { key: "a", label: "名", type: "text" },
+      { key: "a", label: "名", type: "url" },
+    ],
+    "重复",
+  ],
+  [[{ key: "a", label: "名", type: "image" }], "不支持"],
+  [[{ key: "a", label: " ", type: "text" }], "名称"],
+  [[{ key: "a", label: "名", type: "switch", default: "true" }], "布尔"],
+  [[{ key: "a", label: "名", type: "select", options: [] }], "选项"],
+  [
+    [
+      {
+        key: "a",
+        label: "名",
+        type: "select",
+        options: [{ value: "x", label: "X" }],
+        default: "y",
+      },
+    ],
+    "默认值",
+  ],
+])("拒绝无效站点字段声明 %#", (fields, message) => {
+  expect(() => withFields(fields)).toThrow(message);
+});
+it("解析站点字段只输出声明的键，非法存量值回落默认值", () => {
+  const fields = (
+    withFields([
+      { key: "description", label: "描述", type: "text", default: "默认" },
+      {
+        key: "layout",
+        label: "布局",
+        type: "select",
+        options: [
+          { value: "a", label: "A" },
+          { value: "b", label: "B" },
+        ],
+      },
+      { key: "dark", label: "深色", type: "switch" },
+    ]) as TemplateManifest
+  ).template.siteFields;
+  expect(
+    resolveSiteFields(fields, { description: "你好", layout: "c", dark: "yes", extra: 1 })
+  ).toEqual({ description: "你好", layout: "a", dark: false });
+  expect(resolveSiteFields(fields, undefined)).toEqual({
+    description: "默认",
+    layout: "a",
+    dark: false,
+  });
+  expect(resolveSiteFields(undefined, { description: "x" })).toEqual({});
 });

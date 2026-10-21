@@ -31,11 +31,13 @@ Git 快照使用 `context.services.git.publishSnapshot({ publicationId: snapshot
 
 配置视图使用 `context.settings.register({ id, title, target: "publish", component })`。组件接收 `PluginSettingsProps.publishConfig` 的 value 与 save，保存成功后再提交表单值，不用按工作区隔离的 context.storage 保存账号。普通插件详情页提供前往博客发布页的入口。
 
+配置视图渲染在宿主「站点设置 · 发布目标」组卡片内，位于宿主的连接状态条与「服务」行之后。表单按行输出：每行为左侧 64px 标签加右侧控件，`min-height: 46px`、`padding: 8px 12px`，每行顶部用 `--tau-line-2` 分隔，标签字号用 `--tau-text-meta`、颜色用 `--tau-ink-2`。不要再包一层卡片或标题。辅助动作（如「读取仓库」）放在对应输入框的尾部；低频项收进行内的「高级选项」折叠区。宿主负责测试连接和完成按钮，插件不提供「保存」或「测试连接」按钮，改为自动保存：输入停止约 600ms 或失焦时调用 `save`，组件卸载前保存未提交的修改。宿主回写的配置与最近一次提交值相同时，不要覆盖正在输入的表单。
+
 离开发布页继续运行；停用、切库和发起窗口关闭使旧会话失效。每次请求都传递 signal，错误信息不得包含凭据。新安装默认停用，插件缺失或未启用时宿主保留用户配置及选择，不自动切换其他目标。
 
 ## 配置与错误处理
 
-`publishConfig` 是可选属性，组件先检查它是否存在，再读取 `value: JsonValue` 并校验字段。`await publishConfig.save(value)` 成功后再提示；失败保留当前输入。配置随用户选择的提供方保存，不将 Token 写入 `identity`、公开 URL、README 或日志。
+`publishConfig` 是可选属性，组件先检查它是否存在，再读取 `value: JsonValue` 并校验字段。`await publishConfig.save(value)` 失败时在表单末行显示错误并保留当前输入，下次修改后重试。配置随用户选择的提供方保存，不将 Token 写入 `identity`、公开 URL、README 或日志。
 
 文件路径由宿主给出，是发布站点内的相对路径。适配具体远端接口时保留路径语义并正确编码，不拼成 shell 命令。使用 `context.fetch` 时检查 `response.ok`，每次请求都传入本轮 signal；不吞掉异常后返回成功，否则宿主会误记为已发布。删除操作应能处理文件已经不存在的重试。
 

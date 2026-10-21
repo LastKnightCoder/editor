@@ -43,6 +43,17 @@ const makeConfig = (over: Record<string, unknown> = {}) => ({
   branchOptions: [],
   templateOptions: [{ value: "tau.blog", label: "Tau 博客" }],
   connection: "idle",
+  connectionMessage: "",
+  targetPublicUrl: "",
+  templateName: "Tau 博客",
+  templateFields: [
+    { key: "description", label: "站点描述", type: "textarea" },
+    { key: "showStats", label: "显示统计", type: "switch" },
+  ],
+  templateFieldValues: { description: "记录学习", showStats: true },
+  setTemplateField: vi.fn(),
+  targetError: "",
+  checkConnection: vi.fn(),
   getField: () => "",
   ...over,
 });
@@ -159,9 +170,10 @@ it("部分失败时列出失败文件并提供重新发布", () => {
   expect(text()).toContain("重新发布");
 });
 
-it("站点设置抽屉打开后可切换发布目标", () => {
+it("站点设置抽屉打开后可切换发布目标并自动检测连接", () => {
   const setProvider = vi.fn();
-  mocks.config = makeConfig({ setProvider });
+  const checkConnection = vi.fn();
+  mocks.config = makeConfig({ setProvider, checkConnection });
   mocks.runner = makeRunner();
   render();
   const findDrawer = () =>
@@ -176,5 +188,13 @@ it("站点设置抽屉打开后可切换发布目标", () => {
   expect(drawer).toBeDefined();
   expect(drawer.querySelector('[aria-label="发布目标"]')).toBeTruthy();
   expect(drawer.textContent).toContain("管理发布插件");
+  expect(drawer.textContent).toContain("测试连接");
+  expect(checkConnection).toHaveBeenCalledTimes(1);
+  expect(drawer.querySelector<HTMLTextAreaElement>('[aria-label="站点描述"]')!.value).toBe(
+    "记录学习"
+  );
+  expect(drawer.querySelector('[aria-label="显示统计"]')!.getAttribute("aria-checked")).toBe(
+    "true"
+  );
   expect(drawer.textContent).not.toContain("设置 · 集成");
 });

@@ -488,10 +488,10 @@ function SiteRow({ label, value, mono }: { label: string; value: string; mono?: 
 }
 
 export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: () => void }) {
-  const { publish } = config;
   const rows: { label: string; value: string; mono?: boolean }[] = [
     { label: "发布目标", value: config.providerLabel },
     { label: "访问路径", value: config.basePath, mono: true },
+    { label: "博客模板", value: config.templateName },
   ];
 
   return (
@@ -508,7 +508,6 @@ export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: ()
         {rows.map(row => (
           <SiteRow key={row.label} {...row} />
         ))}
-        <SiteRow label="站点描述" value={publish.site.description} />
       </div>
     </RailSection>
   );

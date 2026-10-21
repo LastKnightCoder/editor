@@ -67,6 +67,16 @@ const normalizeTTSUsageConfig = (setting: ISetting): void => {
     : [];
 };
 
+/** 站点描述改由模板声明后的最后一次升级：旧的宿主级描述并入当前模板的同名字段。 */
+function moveSiteDescriptionToTemplateFields(site: ISetting["publish"]["site"]) {
+  const legacy = site as typeof site & { description?: unknown };
+  const description = legacy.description;
+  delete legacy.description;
+  if (typeof description !== "string" || !description.trim() || !site.templateId) return;
+  const fields = (site.fields[site.templateId] ??= {});
+  fields.description ??= description;
+}
+
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
   const mergedSetting = structuredClone(defaultSetting);
   const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
@@ -77,6 +87,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   merge(mergedSetting, setting);
   for (const key of ["github", "s3"])
     delete (mergedSetting.publish as unknown as Record<string, unknown>)[key];
+  moveSiteDescriptionToTemplateFields(mergedSetting.publish.site);
   if (!["local", "plugin"].includes(mergedSetting.publish.active))
     mergedSetting.publish.active = EPublishProvider.Local;
   if (imageGeneration) {
@@ -232,9 +243,10 @@ export interface ISetting {
     site: {
       templateId?: string;
       title: string;
-      description: string;
       publicUrl: string;
       favicon?: IPublishFaviconConfig;
+      /** 按模板 id 保存模板声明的站点字段取值 */
+      fields: Record<string, Record<string, import("@tau/plugins").JsonValue>>;
     };
   };
 }
@@ -451,9 +463,9 @@ const initialState: IState = {
       site: {
         templateId: "",
         title: "",
-        description: "",
         publicUrl: "",
         favicon: undefined,
+        fields: {},
       },
     },
   },

@@ -7,6 +7,8 @@
 
 import type { ContentRef, DataManifest, TreeItem } from "@tau/plugins/publish-data";
 import type { TemplatePackage } from "../services/template-package";
+import type { JsonValue } from "@tau/plugins";
+import { resolveSiteFields } from "@tau/plugins/template";
 import { PublishDataOutput, type PublishDataBody } from "./publish-data-output";
 import { existsSync, readFileSync } from "fs";
 import type { Descendant } from "slate";
@@ -87,10 +89,11 @@ export interface ISiteMeta {
   destination?: string;
   templateId?: string;
   title: string;
-  description: string;
   basePath: string;
   publicUrl?: string;
   favicon?: IPublishFaviconConfig;
+  /** 当前模板的站点字段存储值，生成时按模板声明解析 */
+  fieldValues?: Record<string, JsonValue>;
 }
 
 interface IDocEntry {
@@ -220,22 +223,16 @@ export class PublishSiteGenerator {
   }
 
   private buildSiteInitMeta(site: ISiteMeta): DataManifest["site"] {
-    if (!site.favicon) {
-      return {
-        title: site.title,
-        description: site.description,
-        basePath: site.basePath,
-        publicUrl: site.publicUrl,
-      };
-    }
-
-    const faviconOutput = this.favicon!.output;
-
-    return {
+    const meta: DataManifest["site"] = {
       title: site.title,
-      description: site.description,
       basePath: site.basePath,
       publicUrl: site.publicUrl,
+      fields: resolveSiteFields(this.template.manifest.template.siteFields, site.fieldValues),
+    };
+    if (!site.favicon) return meta;
+    const faviconOutput = this.favicon!.output;
+    return {
+      ...meta,
       favicon: {
         href: faviconOutput.href,
         format: site.favicon.format,
@@ -341,7 +338,6 @@ export class PublishSiteGenerator {
     this.output.data(
       contentRef("home"),
       this.buildHomeInitData(
-        site,
         cards,
         articles,
         [...docResult.timelineEntries, ...questResult.timelineEntries],
@@ -389,24 +385,15 @@ export class PublishSiteGenerator {
    * 构建首页数据
    */
   private buildHomeInitData(
-    site: ISiteMeta,
     cards: ICard[],
     articles: IArticle[],
     docTimeline: ITimelineEntry[],
     projectCount: number
   ): PublishDataBody {
     const timeline = this.buildTimelineEntries(cards, articles, docTimeline);
-    const hero =
-      site.description && site.description.trim().length > 0
-        ? {
-            title: site.title,
-            description: site.description,
-          }
-        : undefined;
 
     return {
       content: {
-        hero,
         timeline,
         stats: {
           articles: articles.length,

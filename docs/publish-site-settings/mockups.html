@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>站点设置重设计 · 三个方案</title>
+<style>
+  :root{
+    --page:#f3eee2;--surface:#fffdf9;--surface-hover:#f6f3ef;--hover:rgba(67,57,44,.05);--press:rgba(67,57,44,.09);
+    --ink1:#43392c;--ink2:#6a5c49;--ink3:#a89a85;--line1:#e9e1d2;--line2:rgba(233,225,210,.55);
+    --accent:hsl(22 58% 42%);--accent-soft:hsla(22,58%,42%,.12);--accent-text:#a05236;
+    --ok:#61795f;--ok-soft:#e5ede2;--warn:#a38c4d;--warn-soft:#f6efd6;--danger:#b0564d;--danger-soft:#f6e3e0;
+    --shadow-float:0 16px 40px -12px rgba(120,100,70,.4);--shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+    --mono:"JetBrains Mono","SF Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#e9e2d3;color:var(--ink1);font:13px/1.5 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+  header.top{padding:32px 40px 8px}
+  header.top h1{margin:0 0 6px;font-size:20px}
+  header.top p{margin:0;color:var(--ink2);max-width:980px}
+  .problems{margin:16px 40px 0;padding:14px 18px;background:var(--surface);border:1px solid var(--line1);border-radius:12px;max-width:1100px}
+  .problems h3{margin:0 0 6px;font-size:13px}
+  .problems ol{margin:0;padding-left:20px;color:var(--ink2)}
+  section.plan{padding:28px 40px 12px}
+  section.plan>h2{margin:0 0 4px;font-size:17px;display:flex;gap:10px;align-items:baseline}
+  section.plan>h2 .tag{font-size:11px;font-weight:500;color:var(--accent-text);background:var(--accent-soft);padding:2px 8px;border-radius:999px}
+  section.plan>p.lead{margin:0 0 16px;color:var(--ink2);max-width:1000px}
+  .row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+  .notes{width:300px;color:var(--ink2)}
+  .notes h4{margin:4px 0 6px;color:var(--ink1);font-size:13px}
+  .notes ul{margin:0 0 12px;padding-left:18px}
+  .notes li{margin:3px 0}
+  .pro{color:var(--ok)} .con{color:var(--danger)}
+
+  /* 抽屉 */
+  .drawer{width:460px;height:880px;background:var(--surface);border-radius:14px;box-shadow:var(--shadow-float);display:flex;flex-direction:column;overflow:hidden;flex:none}
+  .d-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 12px}
+  .d-head h3{margin:0;font-size:16px;font-weight:600}
+  .x{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--ink3)}
+  .d-body{flex:1;overflow:hidden;padding:4px 22px 18px}
+  .d-foot{border-top:1px solid var(--line1);padding:12px 22px;display:flex;align-items:center;justify-content:space-between}
+  .muted{color:var(--ink3)} .small{font-size:11.5px} .mono{font-family:var(--mono)}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:8px;border:1px solid var(--line1);background:var(--surface);color:var(--ink1);font-size:12.5px;white-space:nowrap}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff8ef}
+  .btn.ghost{border-color:transparent;background:transparent;color:var(--ink2)}
+  .btn.sm{height:24px;padding:0 9px;font-size:12px}
+  .link{color:var(--accent-text);font-size:12px}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:1px 8px;border-radius:999px}
+  .pill.ok{color:var(--ok);background:var(--ok-soft)}
+  .pill.warn{color:var(--warn);background:var(--warn-soft)}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+  .input{height:32px;border:1px solid var(--line1);border-radius:8px;background:var(--surface);display:flex;align-items:center;padding:0 10px;gap:6px;min-width:0}
+  .input span.v{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .input .trail{color:var(--ink3);font-size:11.5px;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px}
+  .input .trail.act{color:var(--accent-text)}
+  .select{justify-content:space-between}
+  .toggle{width:30px;height:18px;border-radius:999px;background:var(--accent);position:relative;flex:none}
+  .toggle::after{content:"";position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .toggle.off{background:#e0d6c3}.toggle.off::after{right:auto;left:2px}
+
+  /* 方案 A：分组卡片 */
+  .g-title{display:flex;align-items:baseline;justify-content:space-between;margin:14px 2px 7px}
+  .g-title b{font-size:12.5px;font-weight:600}
+  .g-title .muted{font-size:11.5px}
+  .group{border:1px solid var(--line1);border-radius:12px;background:var(--surface)}
+  .g-row{display:flex;align-items:center;gap:12px;padding:9px 12px;border-top:1px solid var(--line2);min-height:46px}
+  .g-row:first-child{border-top:0}
+  .g-row .lab{width:78px;flex:none;color:var(--ink2);font-size:12.5px}
+  .g-row .ctl{flex:1;min-width:0}
+  .g-row .ctl .input{height:30px;border-color:transparent;background:var(--surface-hover)}
+  .status{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-hover);border-radius:12px 12px 0 0;border-bottom:1px solid var(--line2)}
+  .status .meta{flex:1;min-width:0;font-size:11.5px;color:var(--ink3);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .disclose{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-top:1px solid var(--line2);color:var(--ink2);font-size:12.5px}
+  .fav{width:30px;height:30px;border-radius:8px;background:var(--hover);display:grid;place-items:center;flex:none;color:var(--ink3)}
+
+  /* 方案 B：下钻 */
+  .identity{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--line1);border-radius:12px;margin-top:6px}
+  .identity .logo{width:44px;height:44px;border-radius:11px;background:var(--hover);display:grid;place-items:center;font-weight:700;color:var(--ink2)}
+  .nav-row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--line2)}
+  .nav-row:first-child{border-top:0}
+  .nav-row .ic{width:30px;height:30px;border-radius:8px;background:var(--hover);display:grid;place-items:center;color:var(--ink2);flex:none}
+  .nav-row .t{flex:1;min-width:0}
+  .nav-row .t div:first-child{font-weight:500}
+  .nav-row .t div:last-child{font-size:11.5px;color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chev{color:var(--ink3)}
+  .back{display:flex;align-items:center;gap:6px;color:var(--ink2);font-size:13px}
+  .field{display:flex;flex-direction:column;gap:5px;margin-top:12px}
+  .field>span{font-size:12px;color:var(--ink2);font-weight:500}
+  .field>span small{color:var(--ink3);font-weight:400;margin-left:6px;font-size:11px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .sub-h{margin:20px 0 0;font-size:11.5px;color:var(--ink3);letter-spacing:.04em}
+
+  /* 方案 C：连接优先 */
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+  .tile{border:1px solid var(--line1);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:3px}
+  .tile.on{border-color:var(--accent);background:var(--accent-soft)}
+  .tile b{font-size:12.5px} .tile small{font-size:11px;color:var(--ink3)}
+  .check{display:flex;flex-direction:column;gap:0;border:1px solid var(--line1);border-radius:12px;margin-top:10px}
+  .ck{padding:10px 12px;border-top:1px solid var(--line2)}
+  .ck:first-child{border-top:0}
+  .ck .h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:12.5px;color:var(--ink2)}
+  .ck .h .res{font-size:11.5px;display:inline-flex;gap:4px;align-items:center}
+  .ck .h .res.ok{color:var(--ok)} .ck .h .res.warn{color:var(--warn)}
+  .sec{margin-top:18px;padding-top:14px;border-top:1px solid var(--line1)}
+  .sec>.hd{display:flex;align-items:baseline;justify-content:space-between}
+  .sec>.hd b{font-size:13px}
+  svg{flex:none}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>发布 · 站点设置抽屉重设计</h1>
+  <p>三个方案都用的是海盐浅色 token，宽度和现在一样是 460px。字段都来自现在的 GitHub Pages 插件。抽屉里要放的东西分三类：<b>发布目标（连接）</b>、<b>博客模板</b>、<b>站点信息</b>。</p>
+</header>
+<div class="problems">
+  <h3>现在的问题</h3>
+  <ol>
+    <li>所有字段平铺，字重一样，看不出「凭证 → 仓库 → 分支」这条依赖链，也看不出哪些是低频的高级项（提交者、Git Push、缓存目录）。</li>
+    <li>「读取仓库」「读取分支」做成了整行宽的按钮，看起来像分隔条，反而把字段和字段切开了。</li>
+    <li>按钮有三种：插件的「保存发布配置」、宿主的「测试连接」、底部的「完成」。用户不知道哪个才会保存。</li>
+    <li>「测试连接」是宿主追加在插件内容后面的，和插件最后一个按钮之间没有间距，连接结果也只用一个跟在后面的文字表示。</li>
+    <li>「管理发布插件」这个 ghost 按钮悬在两个分区中间，归属不清。</li>
+  </ol>
+</div>
+
+<!-- ============ 方案 A ============ -->
+<section class="plan">
+  <h2>方案 A · 分组卡片 + 状态头 <span class="tag">推荐</span></h2>
+  <p class="lead">还是单页滚动，分成三个设置组卡片。连接状态和「测试连接」收进发布目标卡的头部。「读取」改成输入框尾部的内联动作。低频项折叠进「高级选项」。全部自动保存，底部只留「完成」。</p>
+  <div class="row">
+    <div class="drawer">
+      <div class="d-head"><h3>站点设置</h3><span class="x">✕</span></div>
+      <div class="d-body">
+        <div class="g-title"><b>发布目标</b><span class="link">管理发布插件 ↗</span></div>
+        <div class="group">
+          <div class="status">
+            <span class="pill ok"><span class="dot"></span>已连接</span>
+            <span class="meta mono">lastknightcoder.github.io · gh-pages · 2 分钟前</span>
+            <span class="btn sm">测试连接</span>
+          </div>
+          <div class="g-row"><span class="lab">服务</span><div class="ctl"><div class="input select"><span class="v">GitHub Pages</span><span class="muted">⌄</span></div></div></div>
+          <div class="g-row"><span class="lab">Token</span><div class="ctl"><div class="input"><span class="v mono">ghp_••••••••••••••••3fA9</span><span class="trail">显示</span></div></div></div>
+          <div class="g-row"><span class="lab">仓库</span><div class="ctl"><div class="input"><span class="v mono">LastKnightCoder/lastknightcoder.github.io</span><span class="trail act">↻ 读取</span></div></div></div>
+          <div class="g-row"><span class="lab">部署分支</span><div class="ctl"><div class="input select"><span class="v mono">gh-pages</span><span class="trail act">↻ 读取 ⌄</span></div></div></div>
+          <div class="g-row"><span class="lab">访问路径</span><div class="ctl"><div class="input"><span class="v mono">/</span></div></div></div>
+          <div class="disclose"><span>高级选项 <span class="muted small">· 提交者、推送方式、缓存目录</span></span><span class="chev">›</span></div>
+        </div>
+
+        <div class="g-title"><b>博客模板</b><span class="muted">从已安装的模板中选择</span></div>
+        <div class="group">
+          <div class="g-row"><span class="lab">模板</span><div class="ctl"><div class="input select"><span class="v">Tau Default</span><span class="muted">⌄</span></div></div></div>
+        </div>
+
+        <div class="g-title"><b>站点信息</b><span class="muted">提供给模板渲染</span></div>
+        <div class="group">
+          <div class="g-row"><span class="lab">标题</span><div class="ctl"><div class="input"><span class="v">Tau's Blog</span></div></div></div>
+          <div class="g-row"><span class="lab">公开 URL</span><div class="ctl"><div class="input"><span class="v mono">https://www.xiongtao.life</span></div></div></div>
+          <div class="g-row"><span class="lab">描述</span><div class="ctl"><div class="input"><span class="v muted">记录学习与思考</span></div></div></div>
+          <div class="g-row"><span class="lab">Favicon</span><div class="ctl" style="display:flex;align-items:center;gap:8px"><span class="fav">τ</span><span class="small" style="flex:1">favicon.svg</span><span class="btn sm">更换</span></div></div>
+        </div>
+      </div>
+      <div class="d-foot"><span class="muted small">✓ 修改已自动保存</span><span class="btn primary">完成</span></div>
+    </div>
+
+    <div class="drawer" style="height:auto">
+      <div class="d-head"><h3>展开「高级选项」 / 连接失败态</h3><span class="x">✕</span></div>
+      <div class="d-body" style="padding-bottom:22px">
+        <div class="g-title"><b>发布目标</b><span class="link">管理发布插件 ↗</span></div>
+        <div class="group">
+          <div class="status" style="background:var(--danger-soft)">
+            <span class="pill" style="color:var(--danger);background:#fff3"><span class="dot"></span>连接失败</span>
+            <span class="meta" style="color:var(--danger)">Token 无 repo 写权限（403）</span>
+            <span class="btn sm">重试</span>
+          </div>
+          <div class="g-row"><span class="lab">服务</span><div class="ctl"><div class="input select"><span class="v">GitHub Pages</span><span class="muted">⌄</span></div></div></div>
+          <div class="g-row"><span class="lab">Token</span><div class="ctl"><div class="input" style="box-shadow:inset 0 0 0 1px var(--danger)"><span class="v mono">ghp_••••••••••••••••3fA9</span><span class="trail">显示</span></div></div></div>
+          <div class="g-row"><span class="lab">仓库</span><div class="ctl"><div class="input"><span class="v mono">LastKnightCoder/lastknightcoder.github.io</span><span class="trail act">↻ 读取</span></div></div></div>
+          <div class="g-row"><span class="lab">部署分支</span><div class="ctl"><div class="input select"><span class="v mono">gh-pages</span><span class="trail act">↻ 读取 ⌄</span></div></div></div>
+          <div class="g-row"><span class="lab">访问路径</span><div class="ctl"><div class="input"><span class="v mono">/</span></div></div></div>
+          <div class="disclose"><span>高级选项</span><span class="chev" style="transform:rotate(90deg)">›</span></div>
+          <div class="g-row"><span class="lab">提交者</span><div class="ctl two"><div class="input"><span class="v">LastKnightCoder</span></div><div class="input"><span class="v mono">2223106858@qq.com</span></div></div></div>
+          <div class="g-row"><span class="lab">推送方式</span><div class="ctl" style="display:flex;align-items:center;gap:10px"><span style="flex:1">Git Push<br><span class="muted small">关闭后改用 GitHub API，较慢但无需本地 Git</span></span><span class="toggle"></span></div></div>
+          <div class="g-row"><span class="lab">缓存目录</span><div class="ctl" style="display:flex;align-items:center;gap:8px"><span class="muted small" style="flex:1">使用应用缓存目录（默认）</span><span class="btn sm">选择…</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h4>结构</h4>
+      <ul>
+        <li>抽屉只有三层：<b>组标题 → 组卡片 → 行</b>，组间距 14px，组内用细分隔线。</li>
+        <li>卡片头部是状态条：连接状态、目标摘要、测试连接都在这里。失败时整条变成 danger 底色，出错的字段同时描红。</li>
+        <li>「读取」挂在输入框尾部，分支读取后直接变成下拉，不再单独占一行。</li>
+        <li>「保存发布配置」删掉，失焦时自动保存，底部「完成」只负责关闭。</li>
+      </ul>
+      <h4>代价</h4>
+      <ul>
+        <li class="con">插件要改：用宿主给的 <code>SettingsGroup / SettingsRow</code> 原语渲染行，并把「测试连接」交给宿主的状态头（插件暴露 <code>checkConnection</code>）。</li>
+        <li class="pro">和「设置」页的分组视觉一致，学习成本最低，改动集中。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 方案 B ============ -->
+<section class="plan">
+  <h2>方案 B · 摘要首页 + 下钻子页</h2>
+  <p class="lead">抽屉首页只放站点身份卡和三条摘要行，点进去在抽屉内切到子页编辑（类似 iOS 设置）。层级最清楚，代价是多一次点击。</p>
+  <div class="row">
+    <div class="drawer" style="height:620px">
+      <div class="d-head"><h3>站点设置</h3><span class="x">✕</span></div>
+      <div class="d-body">
+        <div class="identity">
+          <div class="logo">τ</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:15px">Tau's Blog</div>
+            <div class="muted small mono">www.xiongtao.life</div>
+          </div>
+          <span class="btn sm ghost">编辑</span>
+        </div>
+        <div class="group" style="margin-top:14px">
+          <div class="nav-row"><span class="ic">⇪</span><div class="t"><div>发布目标 <span class="pill ok" style="margin-left:6px"><span class="dot"></span>已连接</span></div><div class="mono">GitHub Pages · lastknightcoder.github.io@gh-pages</div></div><span class="chev">›</span></div>
+          <div class="nav-row"><span class="ic">▦</span><div class="t"><div>博客模板</div><div>Tau Default</div></div><span class="chev">›</span></div>
+          <div class="nav-row"><span class="ic">ⓘ</span><div class="t"><div>站点信息</div><div>标题、公开 URL、描述、Favicon</div></div><span class="chev">›</span></div>
+        </div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end"><span class="link">管理发布插件 ↗</span></div>
+      </div>
+      <div class="d-foot"><span class="muted small">✓ 已自动保存</span><span class="btn primary">完成</span></div>
+    </div>
+
+    <div class="drawer" style="height:620px">
+      <div class="d-head"><span class="back">‹ 发布目标</span><span class="x">✕</span></div>
+      <div class="d-body">
+        <div class="field"><span>服务</span><div class="input select"><span class="v">GitHub Pages</span><span class="muted">⌄</span></div></div>
+        <div class="sub-h">凭证与仓库</div>
+        <div class="field"><span>GitHub Token</span><div class="input"><span class="v mono">ghp_••••••••••••••••3fA9</span><span class="trail">显示</span></div></div>
+        <div class="field"><span>仓库 <small>owner/repo</small></span><div class="input"><span class="v mono">LastKnightCoder/lastknightcoder.github.io</span><span class="trail act">↻ 读取</span></div></div>
+        <div class="two">
+          <div class="field"><span>部署分支</span><div class="input select"><span class="v mono">gh-pages</span><span class="muted">⌄</span></div></div>
+          <div class="field"><span>访问路径</span><div class="input"><span class="v mono">/</span></div></div>
+        </div>
+        <div class="sub-h">提交</div>
+        <div class="two">
+          <div class="field"><span>提交者名称</span><div class="input"><span class="v">LastKnightCoder</span></div></div>
+          <div class="field"><span>提交者邮箱</span><div class="input"><span class="v mono">2223106858@qq.com</span></div></div>
+        </div>
+        <div class="field" style="flex-direction:row;align-items:center;justify-content:space-between;margin-top:14px"><span>Git Push <small>关闭后使用 GitHub API</small></span><span class="toggle"></span></div>
+      </div>
+      <div class="d-foot"><span class="pill ok"><span class="dot"></span>连接正常 · 2 分钟前</span><span class="btn">测试连接</span></div>
+    </div>
+
+    <div class="notes">
+      <h4>结构</h4>
+      <ul>
+        <li>首页是「站点是什么 + 三件事的状态」，打开就能看清，不用滚动。</li>
+        <li>子页只聚焦一件事，用小节标题分组。底栏固定显示连接状态和测试连接，和上面的字段之间有明确的分隔。</li>
+      </ul>
+      <h4>代价</h4>
+      <ul>
+        <li class="con">改模板或改标题都要多点一次。站点设置本来就是低频操作，问题不大，但和右侧栏「站点设置摘要」卡的职责重叠了。</li>
+        <li class="con">要在抽屉里做一个子页栈，D-002 规定浮层不走 page 协议，所以得在组件内自己维护状态。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 方案 C ============ -->
+<section class="plan">
+  <h2>方案 C · 连接优先 + 逐项自检</h2>
+  <p class="lead">把「测试连接」拆成逐个字段的自检：Token 有效、仓库可写、分支存在。每项失焦后自动检查，结果直接写在字段右上角，不再需要一个总的测试按钮。服务选择改成卡片。</p>
+  <div class="row">
+    <div class="drawer">
+      <div class="d-head"><h3>站点设置</h3><span class="x">✕</span></div>
+      <div class="d-body">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><b>发布到</b><span class="link">管理发布插件 ↗</span></div>
+        <div class="tiles">
+          <div class="tile"><b>本地导出</b><small>生成文件夹</small></div>
+          <div class="tile on"><b>GitHub Pages</b><small>推送到仓库</small></div>
+          <div class="tile"><b>+ 更多</b><small>安装发布插件</small></div>
+        </div>
+        <div class="check">
+          <div class="ck"><div class="h"><span>GitHub Token</span><span class="res ok">✓ 有效 · repo 权限</span></div><div class="input"><span class="v mono">ghp_••••••••••••••••3fA9</span><span class="trail">显示</span></div></div>
+          <div class="ck"><div class="h"><span>仓库</span><span class="res ok">✓ 可写</span></div><div class="input select"><span class="v mono">LastKnightCoder/lastknightcoder.github.io</span><span class="muted">⌄</span></div></div>
+          <div class="ck"><div class="h"><span>部署分支 · 访问路径</span><span class="res warn">! 分支不存在，首次发布时创建</span></div><div class="two"><div class="input select"><span class="v mono">gh-pages</span><span class="muted">⌄</span></div><div class="input"><span class="v mono">/</span></div></div></div>
+          <div class="disclose"><span>提交者与推送方式 <span class="muted small">· LastKnightCoder · Git Push</span></span><span class="chev">›</span></div>
+        </div>
+
+        <div class="sec">
+          <div class="hd"><b>模板</b></div>
+          <div class="input select" style="margin-top:8px"><span class="v">Tau Default</span><span class="muted">⌄</span></div>
+        </div>
+        <div class="sec">
+          <div class="hd"><b>站点信息</b><span class="muted small">提供给模板</span></div>
+          <div class="two" style="margin-top:8px">
+            <div class="field" style="margin:0"><span>标题</span><div class="input"><span class="v">Tau's Blog</span></div></div>
+            <div class="field" style="margin:0"><span>公开 URL</span><div class="input"><span class="v mono">https://www.xiongtao.life</span></div></div>
+          </div>
+          <div class="field"><span>描述</span><div class="input"><span class="v muted">记录学习与思考</span></div></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:12px"><span class="fav">τ</span><span class="small" style="flex:1">favicon.svg <span class="muted">· SVG / PNG / ICO</span></span><span class="btn sm">更换</span></div>
+        </div>
+      </div>
+      <div class="d-foot"><span class="muted small">✓ 已自动保存</span><span class="btn primary">完成</span></div>
+    </div>
+    <div class="notes">
+      <h4>结构</h4>
+      <ul>
+        <li>把「凭证 → 仓库 → 分支」的依赖链做成一个检查清单，哪一步坏了一眼就能看到。</li>
+        <li>仓库在 Token 有效后自动拉取成下拉，「读取」动作就不需要了。</li>
+      </ul>
+      <h4>代价</h4>
+      <ul>
+        <li class="con">插件协议要从一个 <code>checkConnection()</code> 扩展成按字段的 <code>validate(field)</code>，每个发布插件都得实现。开发量最大。</li>
+        <li class="con">失焦就请求 GitHub API，要做防抖和限流处理。</li>
+        <li class="pro">第一次配置时体验最好，几乎不用看文档。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<div style="height:40px"></div>
+</body>
+</html>
