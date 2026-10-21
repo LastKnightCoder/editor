@@ -1,6 +1,7 @@
+import { useSyncExternalStore } from "react";
 import type { PluginInfo } from "@tau/plugins/host";
 import { comparePluginVersions, type PluginContributionKind } from "@tau/plugins/host";
-import { PLUGIN_CATEGORIES } from "@tau/plugins/package";
+import { PLUGIN_CATEGORIES, type PluginSystemAccess } from "@tau/plugins/package";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
 import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
@@ -36,6 +37,42 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
 export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
+
+export const SYSTEM_ACCESS_LABELS: Record<PluginSystemAccess, string> = {
+  filesystem: "文件",
+  network: "网络",
+  process: "外部程序",
+};
+
+const SKIP_INSTALL_NOTICE_KEY = "plugins:skip-install-notice";
+const installNoticeListeners = new Set<() => void>();
+
+/** 普通插件安装前的风险提示可由用户关闭；含后台的插件不受此偏好影响。 */
+export function readSkipInstallNotice() {
+  try {
+    return window.localStorage.getItem(SKIP_INSTALL_NOTICE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveSkipInstallNotice(skip: boolean) {
+  try {
+    if (skip) window.localStorage.setItem(SKIP_INSTALL_NOTICE_KEY, "1");
+    else window.localStorage.removeItem(SKIP_INSTALL_NOTICE_KEY);
+  } catch {
+    // 存储不可用时沿用默认的提示行为
+  }
+  installNoticeListeners.forEach(listener => listener());
+}
+
+/** 安装弹窗与插件页菜单共用同一偏好，任一处修改另一处随即更新。 */
+export function useSkipInstallNotice() {
+  return useSyncExternalStore(listener => {
+    installNoticeListeners.add(listener);
+    return () => installNoticeListeners.delete(listener);
+  }, readSkipInstallNotice);
+}
 
 /** 待重启生效的暂存数，插件页与详情页共用。 */
 export const pendingCount = (runtime: DesktopPluginRuntime | null) =>

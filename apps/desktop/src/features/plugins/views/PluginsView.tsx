@@ -10,6 +10,7 @@ import {
   Package,
   RefreshCw,
   Search,
+  ShieldAlert,
   SearchX,
 } from "lucide-react";
 import { Button, FadeScroll, Input, Loading, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
@@ -30,6 +31,8 @@ import {
   installedPlugins,
   matchesQuery,
   needsAttention,
+  saveSkipInstallNotice,
+  useSkipInstallNotice,
   type InstalledPlugin,
 } from "../model";
 import { usePluginCatalog } from "../queries";
@@ -58,6 +61,7 @@ export function PluginsView() {
   const [actionError, setActionError] = useState("");
   const [sort, setSort] = useState<PluginCatalogSort>("downloads7d");
   const [category, setCategory] = useState<PluginCategory | null>(null);
+  const skipInstallNotice = useSkipInstallNotice();
   const catalog = usePluginCatalog("", tab === "discover" ? sort : "updated");
   const installed = runtime ? installedPlugins(runtime) : [];
   const updates = (catalog.data?.items ?? []).flatMap(entry => {
@@ -144,6 +148,14 @@ export function PluginsView() {
                   <Menu.Separator />
                 </>
               )}
+              <Menu.CheckboxItem
+                icon={<ShieldAlert strokeWidth={1.75} />}
+                checked={!skipInstallNotice}
+                onCheckedChange={checked => saveSkipInstallNotice(!checked)}
+              >
+                安装插件前提示风险
+              </Menu.CheckboxItem>
+              <Menu.Separator />
               <Menu.Item
                 icon={<BookOpen strokeWidth={1.75} />}
                 onSelect={() => void openExternal(PLUGIN_TEMPLATE_URL)}
