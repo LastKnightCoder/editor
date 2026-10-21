@@ -162,6 +162,13 @@ const TRIGGERS_SQL = [
     extra: row => `${row}.plugin_id, ${row}.collection`,
     changed: ["data", "update_time", "orphaned_time"],
   }),
+  // 插件关联的增删与重排计入来源实体的 updated
+  ...["INSERT", "UPDATE", "DELETE"].map(event => {
+    const row = event === "DELETE" ? "OLD" : "NEW";
+    return `CREATE TEMP TRIGGER IF NOT EXISTS tau_de_plugin_links_${event.toLowerCase()} AFTER ${event} ON main.plugin_links
+  BEGIN SELECT ${FUNCTION_NAME}('entity', ${row}.from_id, 'updated', ${row}.plugin_id,
+    (SELECT kind FROM main.plugin_entities WHERE id = ${row}.from_id)); END;`;
+  }),
   // Notebook 的资料清单计入 Notebook 的 updated；资料转换、转写的进度不算
   `CREATE TEMP TRIGGER IF NOT EXISTS tau_de_resources_ins AFTER INSERT ON main.vibe_learning_resources
   BEGIN SELECT ${FUNCTION_NAME}('notebook', NEW.project_id, 'updated'); END;
@@ -268,14 +275,16 @@ class DomainEventsModule implements Module {
       return;
     }
     const key = `${entity}:${id}`;
-    const merged = merge(pending.entities.get(key)?.action, action);
+    const previous = pending.entities.get(key);
+    const merged = merge(previous?.action, action);
     if (merged)
       pending.entities.set(key, {
         entity: entity as Entity,
         id,
         action: merged,
         pluginId: currentPluginOrigin(),
-        ...owned,
+        owner: owned.owner ?? previous?.owner,
+        kind: owned.kind ?? previous?.kind,
       });
     else pending.entities.delete(key);
   }

@@ -231,6 +231,33 @@ describe("业务数据变更事件", () => {
     expect(origins()).toEqual(["weekly", "weekly"]);
   });
 
+  it("关联的增删计入来源实体；删除带关联的实体仍带类型", async () => {
+    const id = Number(
+      db
+        .prepare(
+          "INSERT INTO plugin_entities (plugin_id, kind, key, content_id, create_time, update_time) VALUES ('weekly', 'question', 'q', 0, 1, 1)"
+        )
+        .run().lastInsertRowid
+    );
+    await vi.advanceTimersByTimeAsync(600);
+    hoisted.send.mockClear();
+    const kinds = () =>
+      hoisted.send.mock.calls.flatMap(([, message]) =>
+        message.events.map(({ type, kind }: Record<string, unknown>) => ({ type, kind }))
+      );
+    db.prepare(
+      `INSERT INTO plugin_links (id, plugin_id, from_id, to_kind, to_id, to_created_at, sort_index, create_time)
+       VALUES ('l1', 'weekly', ?, 'card', '1', 1, 0, 1)`
+    ).run(id);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(kinds()).toEqual([{ type: "entity.updated", kind: "question" }]);
+    hoisted.send.mockClear();
+    db.prepare("DELETE FROM plugin_links WHERE from_id = ?").run(id);
+    db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(id);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(kinds()).toEqual([{ type: "entity.deleted", kind: "question" }]);
+  });
+
   it("同步下载重连后只发一次全量刷新", async () => {
     card(0);
     for (const callback of hoisted.connected) callback("alpha.db", "sync_download_reconnect");

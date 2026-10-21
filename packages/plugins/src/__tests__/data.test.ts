@@ -12,6 +12,7 @@ import {
   type DataAdapter,
   type EntitiesAdapter,
   type RecordsAdapter,
+  type LinksAdapter,
   type EventsAdapter,
   type PermissionsAdapter,
 } from "../host";
@@ -219,10 +220,27 @@ function setup({
       calls.push(["records.delete", collection, id, revision]);
     },
   };
+  const links: LinksAdapter = {
+    async add(_context, link, readable) {
+      calls.push(["links.add", { ...link, id: typeof link.id }, readable]);
+      return { ...link, createdAt: 1 };
+    },
+    async list(_context, from, role) {
+      calls.push(["links.list", from, role]);
+      return [];
+    },
+    async remove(_context, id) {
+      calls.push(["links.remove", id]);
+    },
+    async reorder(_context, from, ids) {
+      calls.push(["links.reorder", from, ids]);
+    },
+  };
   let context!: PluginContext;
   const host = new PluginHost({
     entities,
     records,
+    links,
     workspaceId: "work",
     storage: createMemoryStorage(),
     permissions,
@@ -823,6 +841,52 @@ describe("插件业务数据与权限", () => {
     ]);
     collection.dispose();
     await expect(context().records.get("groups", "r1")).rejects.toThrow("未声明");
+  });
+
+  it("关联：校验角色与附加数据，按目标类型的已有授权判断是否可读，不弹窗", async () => {
+    const { host, calls, context } = setup({
+      declared: ["cards:read", "articles:read"],
+      granted: new Set<PluginPermission>(["cards:read"]),
+    });
+    await host.enable("weekly");
+    await context().links.add(
+      "1",
+      { kind: "card", id: "3" },
+      { role: "material", data: { at: 1 } }
+    );
+    await context().links.add("1", { kind: "article", id: "4" });
+    await expect(
+      context().links.add("1", { kind: "card", id: "3" }, { role: "bad role" })
+    ).rejects.toThrow();
+    await expect(
+      context().links.add("1", { kind: "card", id: "3" }, { data: { text: "x".repeat(5000) } })
+    ).rejects.toThrow("4 KB");
+    await expect(context().links.add("1", { kind: "nope", id: "3" } as never)).rejects.toThrow();
+    await context().links.list("1", { role: "material" });
+    await context().links.remove("l1");
+    await context().links.reorder("1", ["l2", "l1"]);
+    await expect(context().links.reorder("1", ["l1", "l1"])).rejects.toThrow("重复");
+    expect(calls).toEqual([
+      [
+        "links.add",
+        {
+          id: "string",
+          from: "1",
+          to: { kind: "card", id: "3" },
+          role: "material",
+          data: { at: 1 },
+        },
+        true,
+      ],
+      [
+        "links.add",
+        { id: "string", from: "1", to: { kind: "article", id: "4" }, role: "", data: {} },
+        false,
+      ],
+      ["links.list", "1", "material"],
+      ["links.remove", "l1"],
+      ["links.reorder", "1", ["l2", "l1"]],
+    ]);
   });
 
   it("类型图标只接受组件", async () => {

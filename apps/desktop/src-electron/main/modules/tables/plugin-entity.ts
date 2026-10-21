@@ -19,6 +19,7 @@ import { getNextTaskEntityId } from "./module-entity-id";
 import { resolvePluginContent } from "./plugin-content-input";
 import { insertPluginOperation } from "./plugin-operations";
 import { adoptPluginData, markOrphans } from "./plugin-records";
+import { PluginLinkRows } from "./plugin-link-rows";
 import { emitContentWritten } from "../content-events";
 import { writeAsPlugin } from "../domain-event-origin";
 import { assertIndexedValues, type PluginIndexes } from "@tau/plugins/query";
@@ -369,6 +370,9 @@ export default class PluginEntityTable {
         if (String(current.update_time) !== request.expectedRevision)
           throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
         const row = db.prepare("SELECT * FROM plugin_entities WHERE id = ?").get(request.id);
+        // 出边随实体快照；先删边再删实体，事件里还能读到实体的类型
+        const links = PluginLinkRows.snapshot(db, request.id);
+        PluginLinkRows.removeFrom(db, request.id);
         db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(request.id);
         ContentTable.releaseDeferred(db, current.content_id);
         insertPluginOperation(db, {
@@ -376,7 +380,7 @@ export default class PluginEntityTable {
           entity: "plugin-entity",
           entityId: String(request.id),
           title: current.title,
-          payload: { row, contentCreatedAt: current.content_created },
+          payload: { row, contentCreatedAt: current.content_created, links },
         });
       })()
     );
@@ -385,7 +389,7 @@ export default class PluginEntityTable {
   /** 按删除快照恢复：ID 与 key 不变，正文重新持有引用并重建派生索引；返回恢复后的 ID */
   static restoreDeleted(
     db: Database.Database,
-    snapshot: { row: Record<string, unknown>; contentCreatedAt: number }
+    snapshot: { row: Record<string, unknown>; contentCreatedAt: number; links?: unknown }
   ): number {
     const { row } = snapshot;
     const id = Number(row.id);
@@ -419,6 +423,7 @@ export default class PluginEntityTable {
         row.create_time,
         row.update_time
       );
+      PluginLinkRows.restore(db, snapshot.links);
     })();
     // 让全文、引用等派生索引重新收录这份正文
     emitContentWritten(db, contentId, "update");
@@ -476,6 +481,7 @@ export default class PluginEntityTable {
         .all(options.now - options.graceMs) as Array<{ id: number; content_id: number }>;
       const remove = db.prepare("DELETE FROM plugin_entities WHERE id = ?");
       for (const row of due) {
+        PluginLinkRows.removeFrom(db, row.id);
         remove.run(row.id);
         ContentTable.releaseDeferred(db, row.content_id);
       }

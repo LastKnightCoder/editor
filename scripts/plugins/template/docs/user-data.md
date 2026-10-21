@@ -436,7 +436,7 @@ const states = await context.app.describe(links.map(link => link.ref));
 | `missing` | 内容已删除                                                                                                                                      |
 | `denied`  | 用户没有为这个插件选择过这项内容，插件也没有 `permission` 这项读取权限；`permission` 为 `null` 的类型（日记、其他插件的内容）只能经用户选择获得 |
 
-- 用户选择过的内容、本插件自己创建的内容不需要权限。
+- 用户选择过的内容、请 Tau 新建的内容（`app.run` 的新建类动作）、本插件自己创建的内容不需要权限。
 - `describe` 不会弹窗。遇到 `denied` 时，可以提示用户，由用户点击后再调用 `context.permissions.request([permission])`。`EntityRef` 在这种情况下自带「允许访问」按钮。
 - 不想让用户点击打开时，传 `openable={false}`。`EntityRef` 只能在插件页面里使用。
 - 用户卸载插件并选择清除数据时，Tau 会忘记这些选择。
@@ -491,7 +491,7 @@ function CardRow({ card }: { card: PluginCard }) {
 | `notebook.create`        | `title`、`sources?`（最多 200 项）、`from?`                               | 确认后新建 Notebook，`sources` 作为资料带入，`from` 记为来源   | Notebook 的引用 `{ kind: "notebook", id }` |
 | `chat.start`             | `prompt?`、`context?`（最多 20 项）、`placement?`：`page`（默认）、`dock` | 在对话页或右侧停靠栏开一个新对话，预填输入框与引用，由用户发送 | 对话的引用 `{ kind: "chat-session", id }`  |
 
-- 不需要数据权限：界面和确认都由 Tau 提供，用户在界面里确认即同意。插件拿不到正文；`card.create` 返回的引用可以存下来、用 `<EntityRef>` 显示或 `open` 打开，读取正文仍需要 `cards:read`。
+- 不需要数据权限：界面和确认都由 Tau 提供，用户在界面里确认即同意。插件拿不到正文。新建类返回的引用和用户在 `pick` 中选择的一样：不需要权限就能用 `describe` 读标题、用 `<EntityRef>` 显示、`open` 打开、`links.add` 关联；读取正文仍需要对应的读取权限（如 `cards:read`）。
 - 用户关闭界面后才返回：导出、演示、协作在窗口关闭或演示结束时返回；新建类在保存后返回新内容的引用，用户取消时返回 `null`。插件停用时界面会被撤下。
 - 只能在用户操作之后调用；同一时间只能打开一个，前一个还没关闭时抛错。内容已删除时抛出「内容不存在」。
 - `copyOf` 只复制正文，不会改动来源。`project.insertDocument` 总是复制一份新正文，不与来源共用。
@@ -504,7 +504,7 @@ const ref = await context.app.run("card.create", {
   content: { markdown: `> ${quote}\n\n` },
   tags: ["摘抄"],
 });
-if (ref) await saveLink(ref); // 用户取消时为 null
+if (ref) await context.links.add(question.id, ref); // 用户取消时为 null
 ```
 
 ## 插件内容
@@ -643,3 +643,30 @@ await context.records.update(
 - 记录随笔记库保存与同步。卸载插件后和插件内容一样保留 7 天，期间重新安装就能找回，超过 7 天后删除。
 - 变化时发 `record.created`、`record.updated`、`record.deleted` 事件，事件带 `collection`，只发给本插件，见「订阅变化」。
 - 设置、进度这类按键存取的小块数据，用[私有存储](storage-and-network.md#私有存储)更简单。
+
+## 插件关联
+
+`context.links` 把插件内容连到其他内容上，例如问题关联的探究材料、问题与答案。关联是有序的，可以带角色，Tau 会在被关联的内容的脉络里显示它（如卡片上的「被 问题 X 关联」）。
+
+```ts
+const picked = await context.app.pick({ kinds: ["card", "article", "material"], multiple: true });
+for (const item of picked) await context.links.add(question.id, item.ref, { role: "material" });
+
+const materials = await context.links.list(question.id, { role: "material" });
+for (const state of await context.app.describe(materials.map(link => link.to)))
+  if (state.status === "missing") console.log("材料已删除");
+```
+
+| 方法                              | 说明                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `add(from, to, { role?, data? })` | 添加一条，排在同一角色的末尾。已经关联过时返回已有的那条，不修改 `data` |
+| `list(from, { role? })`           | 按角色、再按顺序列出                                                    |
+| `remove(id)`                      | 删除一条，已不存在时不报错                                              |
+| `reorder(from, ids)`              | 重排同一角色的关联：`ids` 须恰好是这一角色当前的全部关联                |
+
+- 每条关联是 `{ id, from, to, role, data, createdAt }`。`from` 是本插件内容的 ID，`to` 是任意引用（与 `pick`、`open` 相同）。
+- `role` 由插件定义，与类型 ID 的写法相同，缺省为空字符串。`data` 是不超过 4 KB 的 JSON 对象，用来存少量附加信息，例如对话里的消息位置。一项内容最多 1000 条关联。
+- **能关联的目标**与 `describe` 能读到标题的范围相同：用户选择过的、请 Tau 新建的、本插件自己的内容，或插件已获准读取的类型。其余目标会抛错，错误里不透露它是否存在。关联不弹窗申请权限。
+- 目标被删除时关联保留，`describe` 返回 `missing`，`<EntityRef>` 显示为已删除；需要清理时由插件 `remove`。
+- 删除插件内容时，它的关联一起删除；用户从「最近删除」恢复后，关联一起恢复。卸载插件后与插件内容一样保留 7 天。
+- 关联的增删和重排算作来源内容的变化，发 `entity.updated` 事件。

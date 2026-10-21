@@ -963,6 +963,25 @@ CREATE TABLE IF NOT EXISTS plugin_records (
 );
 CREATE INDEX IF NOT EXISTS idx_plugin_records_created ON plugin_records(plugin_id, collection, create_time, id);
 
+-- 插件关联（context.links）：从插件实体指向任意可引用内容的有序边，随主库云同步；
+-- to_kind / to_id 为插件引用的类型与 ID，to_created_at 为建立时目标的创建时间（编号被复用时判为已删除）。
+-- 来源实体删除时一并删除（快照随实体进「最近删除」），目标删除时保留
+CREATE TABLE IF NOT EXISTS plugin_links (
+  id TEXT PRIMARY KEY,
+  plugin_id TEXT NOT NULL,
+  from_id INTEGER NOT NULL,
+  to_kind TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  to_created_at INTEGER NOT NULL,
+  role TEXT NOT NULL DEFAULT '',
+  sort_index INTEGER NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  create_time INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_links_unique ON plugin_links(from_id, to_kind, to_id, role);
+CREATE INDEX IF NOT EXISTS idx_plugin_links_from ON plugin_links(from_id, role, sort_index);
+CREATE INDEX IF NOT EXISTS idx_plugin_links_to ON plugin_links(to_kind, to_id);
+
 -- 用户在插件选择窗口中亲手选过的内容：插件此后读取这些引用的标题不需要读取权限；
 -- target_created_at 是选择时目标的创建时间，编号被新内容复用时授权不会落到新内容上
 CREATE TABLE IF NOT EXISTS plugin_ref_grants (
