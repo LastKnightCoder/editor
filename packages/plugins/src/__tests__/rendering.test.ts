@@ -75,3 +75,16 @@ it("编辑器声明缺失、节点重复与不可用共享模块明确失败", (
     )
   ).toThrow("重复");
 });
+
+it("已发布插件的编辑器扩展带未开放字段时加载失败", () => {
+  const withInputRules = code.replace(
+    "apiVersion:1,",
+    "apiVersion:1,inputRules:[{id:'test.bold',delimiter:'**',marks:{bold:true}}],"
+  );
+  expect(() =>
+    evaluatePluginPackage(
+      { manifest: validatePluginManifest(manifest), code: withInputRules },
+      { "@tau/plugins": { definePlugin } }
+    )
+  ).toThrow("未开放的字段：inputRules");
+});

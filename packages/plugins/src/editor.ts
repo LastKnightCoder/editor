@@ -2,6 +2,7 @@ import { defineExtension } from "@tau/editor/contracts";
 import type { EditorExtension as InternalExtension } from "@tau/editor/contracts";
 import type { MarkdownCodec } from "@tau/markdown";
 import type { Disposable } from "./index";
+import { assertPluginEditorExtension, type OpenEditorExtensionField } from "./editor-fields";
 
 export { defineElement as defineEditorElement } from "@tau/editor/contracts";
 export type { ElementRenderProps as EditorElementRenderProps } from "@tau/editor/contracts";
@@ -25,10 +26,7 @@ declare module "@tau/editor/api" {
   }
 }
 
-export type PluginEditorExtension = Pick<
-  InternalExtension,
-  "id" | "apiVersion" | "elements" | "commands" | "hotkeys" | "menu" | "blockPanel" | "behaviorsFor"
-> & {
+export type PluginEditorExtension = Pick<InternalExtension, OpenEditorExtensionField> & {
   plugins?: never;
   /** 发布时从节点字段收集 Tailwind 源码，复用宿主编译器。 */
   styleSources?: readonly { type: string; field: string; language: "html" | "tsx" }[];
@@ -43,7 +41,9 @@ export function defineEditorExtension(
   definition: Omit<PluginEditorExtension, "apiVersion">
 ): PluginEditorExtension {
   if ("plugins" in definition) throw new Error("应用插件不支持原始 Slate 包装器");
-  return defineExtension(definition) as PluginEditorExtension;
+  const extension = defineExtension(definition);
+  assertPluginEditorExtension(extension);
+  return extension;
 }
 
 export interface PluginEditorContribution {

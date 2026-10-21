@@ -15,6 +15,8 @@
 - 新增 `projects.tree(id)`（项目文档目录，挂在多处的文档在多处列出，引用卡片 / 文章的条目带 `ref`）、`documents.create`（挂在根目录或某篇文档下）与 `documents.move`（同一项目内，`from` 指明移动哪一处，`index` 为移动后的序号）；`documents:write` 现在也包括新建与移动。
 - 白板、项目、项目文档支持 `delete`，权限 `whiteboards:delete`、`projects:delete`、`documents:delete`，用户可在插件详情页 7 天内恢复。项目只能删除空项目；项目文档从所有挂载处删除，有子文档时拒绝，视频笔记不能由插件删除。
 
+- 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
+
 ## 0.32.0
 
 - 插件 Skill 改为包内目录：在插件项目根目录放 `skills/<id>/SKILL.md`，可附带参考资料和脚本，构建时打进插件包并写入 manifest 的 `skills` 与文件摘要。名称、描述与调用方式取自 SKILL.md 的 front matter。
