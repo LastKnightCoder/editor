@@ -20,3 +20,9 @@
 - 起步仓库 `23364df` 推送 main：template.json 可声明 `siteFields`，构建产物经新 SDK 校验通过。
 
 本次未发布桌面安装包，视觉验收由用户完成。
+
+## 0.31.1 补丁（同日）
+
+- 问题：0.31.0 移除 `site.description` 后，`publish-client` 读清单仍要求该字段，按新协议生成的站点打开即报「DataError: 站点数据缺失」。类型已改而运行时校验漏改，且客户端读清单此前无测试覆盖。
+- 修复：客户端改为校验 `site.fields`（对象，值为字符串或布尔）；新增客户端单测，以及「生成器产物经公开客户端读取」的端到端测试，两者在修复前均能复现该错误。editor `0bfec30ef`。
+- 发布：tau-plugins 0.31.1、tau-blog 0.4.1（integrity `sha512-S7jj4ZwGmTzGQRjxDVYSRyrJAIK+eQ42qaeqRJQwePcoW7Fi0XX4DXMjhqRXBGJthjSiLj2xlcCGILw+N9X+7w==`，与本地一致）；官方模板 `a3f6795` / `v1.3.1` CI 通过，插件中心 approved（自动批准）。
