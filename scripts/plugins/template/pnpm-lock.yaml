@@ -12,11 +12,11 @@ importers:
         specifier: 5.90.16
         version: 5.90.16(react@19.2.0)
       '@tau/plugins':
-        specifier: npm:@xiongtao.xt/tau-plugins@0.32.0
-        version: '@xiongtao.xt/tau-plugins@0.32.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))'
+        specifier: npm:@xiongtao.xt/tau-plugins@0.33.0
+        version: '@xiongtao.xt/tau-plugins@0.33.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.147.0(slate@0.126.2))'
       '@tau/ui':
-        specifier: npm:@xiongtao.xt/tau-ui@0.2.0
-        version: '@xiongtao.xt/tau-ui@0.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
+        specifier: npm:@xiongtao.xt/tau-ui@0.3.0
+        version: '@xiongtao.xt/tau-ui@0.3.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -217,14 +217,14 @@ packages:
   '@types/react@19.2.0':
     resolution: {integrity: sha512-1LOH8xovvsKsCBq1wnT4ntDUdCJKmnEakhsuoUSy6ExlHCkGP2hqnatagYTgFk6oeL0VU31u7SNjunPN+GchtA==}
 
-  '@xiongtao.xt/tau-plugins@0.32.0':
-    resolution: {integrity: sha512-DHfBO3gFvQc0pTZlaDJsyybT/X4UgK0GDZPtVxFkQmh0x0XG/1XAQbf+XFIOfmRLTVxHrIweNvH7WvMpn6UBTA==}
+  '@xiongtao.xt/tau-plugins@0.33.0':
+    resolution: {integrity: sha512-GLcUTVzr57wWgkp4zX9WXVxzDlgV+ZrrJqGEhUz1UZuI/iM1dZlgain2V6IhVRolRSc1fQRtFRqdseM1s5CkCw==}
     peerDependencies:
       react: 19.2.0
       react-dom: 19.2.0
 
-  '@xiongtao.xt/tau-ui@0.2.0':
-    resolution: {integrity: sha512-o2Jk6wuz+09/q4m2598HaL6YiNpVqBqLmpBxj+q8UHllzvuuZATESI6yQ0CbvdpgT+HAHksY3kE1pY/hruM/Ug==}
+  '@xiongtao.xt/tau-ui@0.3.0':
+    resolution: {integrity: sha512-tJJvMPf9gZDivwMy/FcB5rxN3GWaeRvU0AwSw8BiklcBlgi7QYTDhgyrj8Iry37Q8+OAhpFRGR0lHNio6AV20g==}
     peerDependencies:
       react: 19.2.0
       react-dom: 19.2.0
@@ -287,8 +287,8 @@ packages:
   scroll-into-view-if-needed@3.1.0:
     resolution: {integrity: sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ==}
 
-  slate-dom@0.146.0:
-    resolution: {integrity: sha512-ZIrdJ9YKRSMIgSdtQYsU8lpdsK3JLKdyzRT81vMjkZVHoDo4Pn8cSwLaEQ2uy4bOiRmCs7pOci3aiN16GNi71w==}
+  slate-dom@0.147.0:
+    resolution: {integrity: sha512-Yl7/zShD+fsJME0KzqDEHFhqSPH7w1Omfql0fHZhSf3EHI4XW9nZwuwSvKz0ULhOQhJ4iJXf5XM09mZ3PyjVTg==}
     peerDependencies:
       slate: '>=0.121.0'
 
@@ -413,7 +413,7 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
-  '@xiongtao.xt/tau-plugins@0.32.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))':
+  '@xiongtao.xt/tau-plugins@0.33.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.147.0(slate@0.126.2))':
     dependencies:
       '@types/react': 19.2.0
       '@types/react-dom': 19.2.0(@types/react@19.2.0)
@@ -423,11 +423,11 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       slate: 0.126.2
       slate-history: 0.113.1(slate@0.126.2)
-      slate-react: 0.126.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))(slate@0.126.2)
+      slate-react: 0.126.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.147.0(slate@0.126.2))(slate@0.126.2)
     transitivePeerDependencies:
       - slate-dom
 
-  '@xiongtao.xt/tau-ui@0.2.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
+  '@xiongtao.xt/tau-ui@0.3.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@types/react': 19.2.0
       '@types/react-dom': 19.2.0(@types/react@19.2.0)
@@ -502,7 +502,7 @@ snapshots:
     dependencies:
       compute-scroll-into-view: 3.1.1
 
-  slate-dom@0.146.0(slate@0.126.2):
+  slate-dom@0.147.0(slate@0.126.2):
     dependencies:
       '@juggle/resize-observer': 3.4.0
       direction: 1.0.4
@@ -518,7 +518,7 @@ snapshots:
       is-plain-object: 5.1.0
       slate: 0.126.2
 
-  slate-react@0.126.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.146.0(slate@0.126.2))(slate@0.126.2):
+  slate-react@0.126.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.147.0(slate@0.126.2))(slate@0.126.2):
     dependencies:
       '@juggle/resize-observer': 3.4.0
       direction: 1.0.4
@@ -528,7 +528,7 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       scroll-into-view-if-needed: 3.1.0
       slate: 0.126.2
-      slate-dom: 0.146.0(slate@0.126.2)
+      slate-dom: 0.147.0(slate@0.126.2)
       tiny-invariant: 1.3.1
 
   slate@0.126.2: {}

@@ -21,6 +21,7 @@ await build({
       'export {PublishSiteGenerator} from "./apps/desktop/src-electron/main/modules/publish-site-generator";',
       'export {readTemplatePackage} from "./apps/desktop/src-electron/main/services/template-package";',
       'export {makePublishFixture} from "./apps/desktop/src-electron/main/modules/__tests__/publish-fixtures";',
+      'export {buildPublishSearchIndexPayload} from "./apps/desktop/src-electron/main/modules/publish-search-index";',
       'export {inspectPackage} from "./apps/plugin-portal/api/package";',
       'export {createClient} from "./packages/plugins/src/publish-client";',
     ].join("\n"),
@@ -85,9 +86,25 @@ const htmlCode = await readFile(path.join(htmlDirectory, htmlManifest.main), "ut
 const htmlCss = await readFile(path.join(htmlDirectory, htmlManifest.styles), "utf8");
 assert.equal(hash(htmlCode), htmlManifest.integrity[htmlManifest.main]);
 assert.equal(hash(htmlCss), htmlManifest.integrity[htmlManifest.styles]);
+// 图册用正式发布的插件包，验证媒体组件、外框与图片查看器在发布站可用
+const galleryDirectory = path.join(
+  root,
+  "tests/fixtures/plugins",
+  catalog.find(item => item.id === "tau.image-gallery").artifact
+);
+const galleryManifest = JSON.parse(
+  await readFile(path.join(galleryDirectory, "manifest.json"), "utf8")
+);
+const galleryCode = await readFile(path.join(galleryDirectory, galleryManifest.main), "utf8");
+const galleryCss = await readFile(path.join(galleryDirectory, galleryManifest.styles), "utf8");
+assert.equal(hash(galleryCode), galleryManifest.integrity[galleryManifest.main]);
 const plugins = {
   builtinTypes: ["paragraph", "formatted", "content-link"],
   plugins: [
+    {
+      artifact: { manifest: galleryManifest, code: galleryCode, css: galleryCss },
+      nodeTypes: ["image-gallery"],
+    },
     { artifact: { manifest, code, css }, nodeTypes: ["example.portable-counter"] },
     {
       artifact: { manifest: htmlManifest, code: htmlCode, css: htmlCss },
@@ -124,6 +141,24 @@ const cases = [
   "数据客户端的模块图没有 React、编辑器或 UI",
 ];
 const fixture = bridge.makePublishFixture();
+// 本地生成的图片，站点验收不发外部请求
+const galleryImage = color =>
+  "data:image/svg+xml;base64," +
+  Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="${color}"/></svg>`
+  ).toString("base64");
+fixture.articles[0].content.push({
+  type: "image-gallery",
+  mode: 1,
+  images: ["#e66", "#6a6", "#66e"].map((color, index) => ({
+    id: `g${index}`,
+    url: galleryImage(color),
+    desc: `图册第${index + 1}张`,
+    width: 400,
+    height: 300,
+  })),
+  children: [{ type: "formatted", text: "" }],
+});
 const themeCss = await readFile(path.join(root, "packages/themes/src/tailwind.css"), "utf8");
 const compileTailwind = (content, extension) =>
   new Promise((resolve, reject) => {
@@ -154,6 +189,7 @@ const makeGenerator = selected =>
     template: selected,
     plugins,
     compileTailwind,
+    buildSearchIndex: async input => bridge.buildPublishSearchIndexPayload(input),
     logger: console,
   });
 const packet = await makeGenerator(template).generate(fixture.data, fixture.selections, {

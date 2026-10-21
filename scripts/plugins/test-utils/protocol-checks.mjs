@@ -105,7 +105,7 @@ export async function checkProtocol(createClient, siteUrl, packet) {
     const searchPath = `search.${sha256(search)}.json`;
     const manifest = serialize({
       version,
-      site: { title: "夹具", description: "", basePath: "/" },
+      site: { title: "夹具", fields: {}, basePath: "/" },
       items: [
         {
           key: "article:1",

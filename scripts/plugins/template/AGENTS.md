@@ -17,6 +17,8 @@
 - 网络请求用 `context.fetch`，检查 `response.ok`。存储、网络响应、用户配置等外部数据读取后先校验类型。
 - 插件代码运行在浏览器环境，不能导入 Node.js 模块；需要 Node.js 时按 `docs/backend.md` 添加本机后台。
 - 编辑器块和白板元素的渲染代码也会在博客中运行，不能依赖 `activate` 或 `context`，见 `docs/editor.md`。
+- 编辑器块里的图片、视频、音频用 `MediaImage` 等宿主组件显示，存地址的字段写进节点的 `resources`，见 `docs/editor.md`。
+- 样式选择器加插件专属前缀；用 Tailwind 时用 `prefix()` 给全部类名加前缀，见 `docs/ui.md`。
 - 访问用户数据要在 manifest 中声明权限，并处理 `PluginPermissionError`。修改、删除时传入读到的 `revision`，处理 `PluginConflictError`。
 - 服务提供方的账号配置用配置表单的 `save` 保存，不要存进 `context.storage`。
 - 给 AI 的使用说明写成 `skills/<id>/SKILL.md`（front matter 必须有 description），构建时自动打包，不在插件代码里声明，见 `docs/skills.md`。

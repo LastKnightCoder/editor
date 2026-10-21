@@ -376,9 +376,21 @@ behaviorsFor: {
 - 模块顶层和渲染组件只使用浏览器能力，不导入 Node.js 模块。
 - 不依赖 `activate` 里才赋值的变量，也不使用 `context`（存储、页面、服务等只在桌面端的插件运行时里存在）。需要编译服务时，用 [`usePluginServices`](services.md#在编辑器块中使用服务)，并处理拿不到服务的情况。
 - JS 和 CSS 自包含：React、`@tau/plugins`、`@tau/ui` 由 Tau 提供，其他依赖会被打进 `main.js`；图片等资源内联。
-- 样式用插件自己的类名前缀，不修改 `body` 或 Tau 自身元素的样式。
+- 样式用插件自己的类名前缀，不修改 `body` 或 Tau 自身元素的样式。用 Tailwind 时同样要加前缀，见[用 Tailwind 时加前缀](ui.md#用-tailwind-时加前缀)；博客模板也是 Tailwind 写的，不加前缀的工具类会让含你的块的页面排版错乱。
 
 博客里的文档是只读的，但组件自身的交互（按钮、缩放图表）照常可用；在只读文档里修改节点字段不会被保存。
+
+在博客里，接口的行为有这些不同：
+
+| 接口                                       | 在博客中                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------- |
+| `useElement`                               | `readOnly` 为 `true`；`selected` 始终为 `false`，按它显示的属性条不会出现 |
+| `MediaImage` / `MediaVideo` / `MediaAudio` | 与博客里 Tau 自带的图片、视频、音频块显示方式相同                         |
+| `useResource`                              | 原样返回节点里的地址                                                      |
+| `useResourceUpload`                        | `undefined`，界面里应隐藏上传入口                                         |
+| `useMediaAppearance`                       | 取用户在发布设置里配置的图片外观                                          |
+| `useMediaViewer`                           | 打开博客里的图片查看器，浏览这篇正文里的全部图片                          |
+| `frame` 外框                               | 只保留显示，不能选中、删除，也没有右键菜单和「添加段落」                  |
 
 ## 停用与卸载
 
@@ -552,6 +564,38 @@ defineEditorElement({
 | `caption` | 可选。说明文字所在的字段，与 `path` 末段同层，灯箱里显示                                 |
 
 声明会随笔记库保存，插件停用或在没装插件的设备上，这些资源照样能导出和共享。已经有文档用了的字段不要改名；新增资源字段时补进声明即可。
+
+### 完整示例：图册
+
+[图册插件](https://github.com/LastKnightCoder/tau-plugin-image-gallery)把这一篇里的能力组合成了一个完整的媒体块，可以对照它的源码写自己的块：
+
+| 需要                     | 图册的做法                                                                                              |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- |
+| 点选、删除、右键菜单     | 节点声明 `frame`，Enter 绑定「编辑图册」命令，空格绑定「全屏预览」                                      |
+| 选中后的属性条           | `useElement(element).selected` 为真时渲染 `BlockToolbar`，切换布局用 `update({ mode })`                 |
+| 显示图片                 | 每张图用 `MediaImage`，圆角与阴影在节点没设置时取 `useMediaAppearance()`                                |
+| 添加图片                 | 编辑弹窗里调用 `useResourceUpload()` 返回的函数，拿到地址写进 `images`；返回 `undefined` 时隐藏上传按钮 |
+| 调整顺序                 | 编辑弹窗里的图片列表用 `@tau/ui` 的 `Sortable`                                                          |
+| 看大图                   | 只读时单击、编辑时双击图片，调用 `useMediaViewer(element)(index)`；编辑时单击留给外框选中               |
+| 导出、协作、灯箱找到图片 | `resources: [{ path: "images[].url", kind: "image", alt: "desc", caption: "desc" }]`                    |
+| Markdown 与 HTML 导出    | `editorCodecs` 每张图导出一行图片链接，`htmlSerializers` 输出静态的横向滚动图片组                       |
+| 样式                     | Tailwind 类名统一加 `ig:` 前缀，见[用 Tailwind 时加前缀](ui.md#用-tailwind-时加前缀)                    |
+
+命令和外框按键只知道节点，打开弹窗却要用组件里的状态。图册的做法是：组件把「打开编辑」「预览」两个函数登记到以节点对象为键的 `WeakMap` 里，命令收到 `context.element` 后从这里取出来调用。节点被替换后旧键自然失效，不会打开别的图册。
+
+```tsx
+// actions.ts
+export const galleryActions = new WeakMap<GalleryElement, { openSettings(): void }>();
+
+// 组件里，登记当前渲染的节点，卸载或换节点时移除
+useEffect(() => {
+  galleryActions.set(element, { openSettings: () => setEditing(element) });
+  return () => void galleryActions.delete(element);
+});
+
+// 命令
+{ id: "yourname.gallery.edit", run: (_editor, { element }) => galleryActions.get(element)?.openSettings() }
+```
 
 ## 动态 Tailwind 样式
 

@@ -333,4 +333,33 @@ export function Help() {
 - 选择器加上插件专属前缀（如 `.yourname-counter`），不要修改 `body` 或 Tau 自身元素的样式。
 - 颜色、圆角等使用 Tau 的主题变量（如 `var(--tau-accent)`），这样会跟随用户的主题切换。
 - SVG 图片可以直接在 CSS 里用 `url()` 引用，构建时会内联进样式，不需要额外复制文件。
-- 如果你用 Tailwind 构建插件样式，可以导入 `@tau/plugins/tailwind.css`，它把 Tau 的主题变量映射成 Tailwind 语义类（如 `bg-surface`、`text-ink-1`）。Tau 不会替插件生成 Tailwind 样式，需要你在构建时自己编译。
+- 如果你用 Tailwind 构建插件样式，可以导入 `@tau/plugins/tailwind.css`，它把 Tau 的主题变量映射成 Tailwind 语义类（如 `bg-surface`、`text-ink-1`）。Tau 不会替插件生成 Tailwind 样式，需要你在构建时自己编译，并按下一节给类名加前缀。
+
+### 用 Tailwind 时加前缀
+
+插件的样式和 Tau、用户的博客模板加载在同一个页面里。Tailwind 的工具类名是通用的：你的 `.flex`、`.hidden` 和宿主的同名类是两条规则，插件样式加载得更晚，会把宿主 `hidden md:flex` 这类响应式写法覆盖掉，表现为宿主或博客的界面在某些宽度下错乱，而且只在用到你的插件的页面出现。
+
+所以 Tailwind 的类名要加插件专属的前缀，和前面说的「选择器加插件专属前缀」是同一条规则。Tailwind 4 在导入主题时声明前缀：
+
+```css
+/* src/tailwind.css */
+@import "tailwindcss/theme.css" layer(theme) prefix(yourname);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "@tau/plugins/tailwind.css";
+@source "./";
+```
+
+组件里的类名都写成带前缀的形式，前缀写在最前面，变体跟在后面：
+
+```tsx
+<div className="yourname:flex yourname:items-center yourname:gap-2 yourname:md:hidden">
+  <span className="yourname:text-ink-2 yourname:hover:text-accent">说明</span>
+</div>
+```
+
+- 前缀只能用小写字母，取插件名的简写即可，如图册用 `ig`。
+- 没写前缀的类名不会生成样式，开发时就能看出来。
+- 传给 `@tau/ui` 组件的 `className` 也写带前缀的类名；组件自身的样式由 Tau 提供，不受影响。
+- 不在 JSX 里的字符串（如 `style={{ overflow: "hidden" }}`、字段名 `kind: "block"`）不会再被当成类名生成多余的样式。
+
+建议在构建脚本里检查编译结果：Tailwind 产物里出现不带前缀的类选择器就报错，避免漏改的配置把通用类名发布出去。

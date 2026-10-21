@@ -124,9 +124,7 @@ describe("图册插件", () => {
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
-    const tiles = host.querySelectorAll<HTMLElement>(
-      "[data-element-frame] .absolute.cursor-pointer"
-    );
+    const tiles = host.querySelectorAll<HTMLElement>("[data-element-frame] img");
     expect(tiles).toHaveLength(2);
     await act(async () => tiles[0].click());
     expect(document.body.querySelector('[aria-label="图片预览"]')).toBeTruthy();
