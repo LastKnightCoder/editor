@@ -32,7 +32,7 @@
 - 修复：插件经 `context.entities` 写入引起的 `entity.*` 事件，`origin` 现在为本插件，可以据此忽略自己写入引起的事件。
 - 新增 `context.links`：从本插件的内容指向任意引用的有序关联（`add`、`list`、`remove`、`reorder`），带 `role` 与少量 `data`，显示在目标的脉络里。目标须是插件能看到的内容（与 `describe` 相同），删除插件内容时关联随之进入「最近删除」，关联变化发来源内容的 `entity.updated`。
 - `app.run` 新建类动作（`card.create`、`project.insertDocument`、`notebook.create`、`chat.start`）的结果与 `pick` 选中的内容一样，之后不需要读取权限就能读标题、显示与关联。
-- 被插件内容关联的卡片、文章、项目文档在脉络的「被关联」里列出这些内容，按插件声明的类型名与图标显示，插件停用后照样显示。
+- 被插件内容关联的卡片、文章、项目文档在脉络的「被关联」里列出这些内容，按插件声明的类型名与图标显示，插件停用后照样显示；手机上的脉络也会列出（只显示）。
 - 新增 `context.transaction(async tx => …)`：回调里对本插件内容、记录与关联的写入在回调结束后一次提交，任何一条失败全部不生效。`tx.entities.create` 与 `tx.records.insert` 立即返回 ID，可在同一事务里使用；修改与删除的 `expectedRevision` 可省略（省略即无条件写入）。最多 500 条写入。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。

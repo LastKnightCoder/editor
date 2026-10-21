@@ -1,13 +1,14 @@
 // 脉络浮层（SnapSheet）：分区顺序对齐桌面 ContextPopoverContent——来源、连接、被引用、
-// 也出现在（投影 + Notebook 笔记）、衍生、被使用、相关问题；移动端无「相关」与白板分区。
+// 也出现在（投影 + Notebook 笔记）、衍生、被使用、被关联（插件内容）、相关问题；
+// 移动端无「相关」与白板分区。
 // 条目点击先关浮层再跳转（返回时浮层不残留）；无承载页面的类型只读展示。
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronRight, Waypoints } from "lucide-react";
 import { SnapSheet, type SnapSheetState } from "../../components/SnapSheet";
 import { useNavigator } from "../../router";
 import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_META, contextCount } from "./model";
-import { openContextEntity, openContextNode } from "./open";
+import { canOpenContextEntity, openContextEntity, openContextNode } from "./open";
 import type {
   ContextBacklink,
   ContextEntity,
@@ -38,82 +39,66 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
   );
 }
 
-function ContextEntityRow({ entity }: { entity: ContextEntity }) {
+/** 实体的一行：有承载页面的可点击跳转，其余（日记片段、插件内容）只读展示 */
+function EntityLine({
+  entity,
+  className = "",
+  suffix,
+}: {
+  entity: ContextEntity;
+  className?: string;
+  suffix?: ReactNode;
+}) {
   const navigator = useNavigator();
   const meta = ENTITY_KIND_META[entity.kind] ?? {
     label: entity.kind,
     icon: Waypoints,
   };
   const Icon = meta.icon;
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-3 py-3 text-left"
-      onClick={() => openContextEntity(navigator, entity)}
-    >
+  const openable = canOpenContextEntity(entity);
+  const content = (
+    <>
       <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
-      <span className="text-meta-ink w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
+      <span className="text-meta-ink w-[52px] shrink-0 truncate text-[11.5px]">
+        {entity.kindLabel || meta.label}
+      </span>
       <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
         {entity.title}
       </span>
-      <ChevronRight size={14} className="text-ink-3 shrink-0" />
-    </button>
+      {suffix}
+      {openable ? <ChevronRight size={14} className="text-ink-3 shrink-0" /> : null}
+    </>
   );
+  const layout = `flex w-full items-center gap-3 text-left ${className}`;
+  return openable ? (
+    <button type="button" className={layout} onClick={() => openContextEntity(navigator, entity)}>
+      {content}
+    </button>
+  ) : (
+    <div className={layout}>{content}</div>
+  );
+}
+
+function ContextEntityRow({ entity }: { entity: ContextEntity }) {
+  return <EntityLine entity={entity} className="py-3" />;
 }
 
 function ContextLinkRow({ link }: { link: ContextLink }) {
   return (
-    <div className="flex w-full items-center gap-3 py-3">
-      <ContextLinkTarget link={link} />
-    </div>
-  );
-}
-
-function ContextLinkTarget({ link }: { link: ContextLink }) {
-  const navigator = useNavigator();
-  const meta = ENTITY_KIND_META[link.entity.kind] ?? {
-    label: link.entity.kind,
-    icon: Waypoints,
-  };
-  const Icon = meta.icon;
-  return (
-    <button
-      type="button"
-      className="flex w-full items-center gap-3 text-left"
-      onClick={() => openContextEntity(navigator, link.entity)}
-    >
-      <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
-      <span className="text-meta-ink w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
-      <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
-        {link.entity.title}
-      </span>
-      {link.inlineOnly ? <span className="text-ink-3 shrink-0 text-[11px]">内联</span> : null}
-      <ChevronRight size={14} className="text-ink-3 shrink-0" />
-    </button>
+    <EntityLine
+      entity={link.entity}
+      className="py-3"
+      suffix={
+        link.inlineOnly ? <span className="text-ink-3 shrink-0 text-[11px]">内联</span> : null
+      }
+    />
   );
 }
 
 function ContextBacklinkRow({ backlink }: { backlink: ContextBacklink }) {
-  const navigator = useNavigator();
-  const meta = ENTITY_KIND_META[backlink.source.kind] ?? {
-    label: backlink.source.kind,
-    icon: Waypoints,
-  };
-  const Icon = meta.icon;
   return (
     <div className="py-3">
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 text-left"
-        onClick={() => openContextEntity(navigator, backlink.source)}
-      >
-        <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
-        <span className="text-meta-ink w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
-        <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
-          {backlink.source.title}
-        </span>
-        <ChevronRight size={14} className="text-ink-3 shrink-0" />
-      </button>
+      <EntityLine entity={backlink.source} />
       {backlink.snippets.map((snippet, index) => (
         <p key={index} className="text-ink-3 mt-1.5 line-clamp-2 text-[12px] leading-[1.6]">
           {snippet.before}
@@ -260,6 +245,14 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                   <SectionHeader label="被使用" count={context.usages.length} />
                   {context.usages.map(usage => (
                     <ContextNodeRow key={usage.key} item={usage} />
+                  ))}
+                </section>
+              ) : null}
+              {context.pluginLinks.length > 0 ? (
+                <section>
+                  <SectionHeader label="被关联" count={context.pluginLinks.length} />
+                  {context.pluginLinks.map(entity => (
+                    <ContextEntityRow key={`plugin-link:${entity.id}`} entity={entity} />
                   ))}
                 </section>
               ) : null}
