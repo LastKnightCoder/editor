@@ -16,4 +16,6 @@ export const kit = createEditorKit({ extensions: [textFormattingExtension] });
 - `/types` 持有 Mark/HighlightColor 与 TextMarkMap 增强。
 - `/styles.css` 持有内容色板与渐变变量，保留原明暗取值。宿主需要显式导入。
 
+行内输入规则（`src/inputRules.ts`，ER-057）：输入收尾定界符即转换——`**` / `__` 粗体、`*` / `_` 斜体（下划线写法不在词内触发）、`***` 粗斜体、`~~` 删除线、`==` 高亮、`` ` `` 行内代码；行内代码里不触发，撤销一次回到原始符号。
+
 命令 id、持久字段与 fallback 热键顺序保持。工具条使用核心公开的 useToolbarState、ToolbarSubmenu 和 EditorTooltip；compactGroup 由条目声明，核心不保存格式 id 名单。无服务的基础 Kit 仍可编辑段落，是否安装格式由宿主决定。

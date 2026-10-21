@@ -4,6 +4,7 @@ import FormattedText from "./rendering/index.tsx";
 import toolbar from "./hovering-bar-configs/index.ts";
 import { inlineCode } from "./plugins/inlineCode.ts";
 import { colorCommands } from "./colorCommands.ts";
+import { textFormattingInputRules } from "./inputRules.ts";
 import {
   formattedTextCommands,
   formattedTextHotkeys,
@@ -22,6 +23,7 @@ export const textFormattingExtension = defineExtension({
     },
   ],
   toolbar,
+  inputRules: textFormattingInputRules,
   plugins: [inlineCode],
   commands: [...formattedTextCommands, ...quitFormattedMarksCommands, ...colorCommands],
   hotkeys: [...formattedTextHotkeys, ...quitFormattedMarksHotkeys].map(hotkey => ({
