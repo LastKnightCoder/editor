@@ -38,10 +38,7 @@ function AppFeedbackContent() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
     <div>
-      <PageHeader
-        title="用户反馈"
-        meta="桌面端用户提交的问题与建议；截图和日志只有管理员可见，180 天后自动删除。"
-      />
+      <PageHeader title="用户反馈" meta="桌面端用户提交的问题与建议；截图和日志只有管理员可见。" />
       <div className="flex items-start gap-6">
         <FeedbackList
           filter={filter}

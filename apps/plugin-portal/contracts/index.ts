@@ -389,7 +389,6 @@ export const APP_FEEDBACK_LIMITS = {
   perVisitorDaily: 5,
   perIpDaily: 20,
   note: 4000,
-  retentionDays: 180,
 } as const;
 export type AppFeedbackKind = "bug" | "idea" | "other";
 export type AppFeedbackStatus = "new" | "doing" | "done" | "ignored";
