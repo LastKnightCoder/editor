@@ -1,5 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useUpdateStore } from "@/stores/useUpdateStore";
 import { AboutSection } from "../sections/AboutSection";
@@ -25,11 +26,27 @@ vi.mock("@/commands/updater", () => ({
   onUpdateDownloaded: vi.fn(),
   onUpdateError: vi.fn(),
 }));
+vi.mock("@/commands/plugin-backend", () => ({
+  backendRequest: vi.fn(async () => ({
+    openAtLogin: false,
+    keepBackground: true,
+    startHidden: false,
+    loginStatus: null,
+    trayAvailable: true,
+  })),
+}));
 vi.mock("@/platform", () => ({ platform: { os: "darwin" } }));
 
 let container: HTMLDivElement;
 let root: Root;
-const render = () => act(async () => root.render(<AboutSection />));
+const render = () =>
+  act(async () =>
+    root.render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AboutSection />
+      </QueryClientProvider>
+    )
+  );
 const text = () => container.textContent ?? "";
 const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
@@ -58,6 +75,7 @@ it("有可用更新：状态签、立即更新、手动下载与新版本内容�
   expect(text()).toContain("v3.8.2");
   expect(text()).toContain("v3.9.0 可更新");
   expect(text()).toContain("自动检查更新");
+  expect(text()).toContain("登录系统后启动 Tau");
   expect(text()).toContain("新版本更新内容");
   await act(async () => button("立即更新").click());
   expect(download).toHaveBeenCalled();

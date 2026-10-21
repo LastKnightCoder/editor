@@ -28,21 +28,12 @@ export function VoiceTtsPanel() {
   const ttsProviders = useSettingStore(s => s.setting.ttsProviders);
   const runtime = useDesktopPlugins();
 
-  // 只展示已启用插件的账号，缺失插件时保留底层配置。
-  const installedPluginIds = new Set(
-    runtime
-      ?.listSettings()
-      .filter(item => item.definition.target === "tts")
-      .map(item => item.context.pluginId) ?? []
-  );
-
-  const validProviders = ttsProviders.filter(provider => installedPluginIds.has(provider.pluginId));
   const usage = useSettingStore(s => s.setting.ttsUsageSettings.default);
   const updateTTSUsageSetting = useSettingStore(s => s.updateTTSUsageSetting);
 
   /* ── 切换条：editingId 失效时回落第一家 ── */
   const [editingId, setEditingId] = useState<string | null>(null);
-  const editing = validProviders.find(p => p.id === editingId) ?? validProviders[0];
+  const editing = ttsProviders.find(p => p.id === editingId) ?? ttsProviders[0];
   const [createOpen, setCreateOpen] = useState(false);
 
   /**
@@ -103,14 +94,24 @@ export function VoiceTtsPanel() {
   };
 
   /* ── 当前服务（提供商/模型/音色）── */
-  const usageProvider = validProviders.find(item => item.id === usage?.providerId);
+  const usageProvider = ttsProviders.find(item => item.id === usage?.providerId);
+  // 插件缺失或停用的账号照常显示，但不创建语音实例
+  const hasActivePlugin = useCallback(
+    (pluginId: string | undefined) =>
+      runtime
+        ?.listSettings()
+        .some(item => item.definition.target === "tts" && item.context.pluginId === pluginId) ??
+      false,
+    [runtime]
+  );
+  const usagePluginActive = hasActivePlugin(usageProvider?.pluginId);
 
   const switchUsageProvider = (providerId: string) => {
     if (!providerId) {
       updateTTSUsageSetting(null);
       return;
     }
-    const provider = validProviders.find(item => item.id === providerId);
+    const provider = ttsProviders.find(item => item.id === providerId);
     updateTTSUsageSetting({
       providerId,
       modelId: provider?.models[0]?.id ?? "",
@@ -139,12 +140,7 @@ export function VoiceTtsPanel() {
     const { ttsProviders, ttsUsageSettings } = useSettingStore.getState().setting;
     const currentUsage = ttsUsageSettings.default;
     const provider = ttsProviders.find(item => item.id === currentUsage?.providerId);
-    const available = runtime
-      ?.listSettings()
-      .some(
-        item => item.definition.target === "tts" && item.context.pluginId === provider?.pluginId
-      );
-    if (!available || !currentUsage?.modelId) {
+    if (!hasActivePlugin(provider?.pluginId) || !currentUsage?.modelId) {
       setVoices([]);
       setVoicesLoading(false);
       return;
@@ -171,7 +167,7 @@ export function VoiceTtsPanel() {
         setVoicesLoading(false);
       }
     }
-  }, [runtime]);
+  }, [hasActivePlugin]);
 
   useEffect(() => {
     const requestVersion = loadVoicesRef;
@@ -179,14 +175,14 @@ export function VoiceTtsPanel() {
     return () => {
       ++requestVersion.current;
     };
-  }, [usageProvider, usage?.providerId, usage?.modelId, loadVoices]);
+  }, [usageProvider, usagePluginActive, usage?.providerId, usage?.modelId, loadVoices]);
 
   return (
     <>
       <SettingsGroup>
         <ProviderSwitcher
           label="语音合成服务商"
-          items={validProviders.map(provider => ({
+          items={ttsProviders.map(provider => ({
             id: provider.id,
             label: provider.name || "未命名",
             meta: provider.models.length,
@@ -265,7 +261,7 @@ export function VoiceTtsPanel() {
             placeholder="请选择提供商"
             value={usageProvider?.id ?? null}
             emptyText="先在上方添加服务商"
-            options={validProviders.map(provider => ({
+            options={ttsProviders.map(provider => ({
               value: provider.id,
               label: provider.name || "未命名",
             }))}
