@@ -48,7 +48,6 @@ export function Harness({ workspaceId }: { workspaceId: string }) {
         directory: local.directory,
       }),
       run: () => runtime.host.executeCommand("example.local:run"),
-      openAuthor: () => runtime.host.executeCommand("example.external-counter:open"),
       stop: async () => {
         await runtime.dispose();
         root.unmount();
