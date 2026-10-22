@@ -4,11 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
+import { executeDatabaseCommand } from "../database-command";
 import {
   hasLegacyQuestions,
   migrateQuestionsToPlugin,
   QUESTIONS_HOME_PANEL,
   QUESTIONS_PLUGIN_ID,
+  QuestionMigrationTable,
 } from "../question-plugin-migration";
 
 /** 已从主库 schema 删除的旧问题表（迁移的输入；同步回来的旧库里仍有） */
@@ -343,7 +345,7 @@ describe("migrateQuestionsToPlugin", () => {
     expect(get<{ n: number }>(`SELECT COUNT(*) AS n FROM plugin_entities`).n).toBe(0);
   });
 
-  it("动手前在库旁留一份含旧表的快照", () => {
+  it("经数据库命令执行（与 IPC 同一路径）时，动手前在库旁留一份含旧表的快照", async () => {
     const dir = mkdtempSync(join(tmpdir(), "question-migration-"));
     try {
       db.close();
@@ -351,7 +353,9 @@ describe("migrateQuestionsToPlugin", () => {
       db.exec(MAIN_SCHEMA_SQL);
       db.exec(LEGACY_QUESTION_SQL);
       seed();
-      migrateQuestionsToPlugin(db);
+      const handler = QuestionMigrationTable.getListenEvents()["question-migration:run"];
+      const result = await executeDatabaseCommand(db, handler, db, { databaseName: "data.db" });
+      expect(result).toMatchObject({ questions: 2 });
       const backups = readdirSync(dir).filter(name =>
         /^data\.db\.pre-question-plugin-migration-v1-[\w-]+\.bak$/.test(name)
       );

@@ -19,6 +19,7 @@ import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import type { Descendant } from "slate";
 import { groupTone } from "@/utils/groupTone";
+import { asynchronousDatabaseCommand } from "./database-command";
 import ContentTable from "./tables/content";
 import { getNextTaskEntityId } from "./tables/module-entity-id";
 import { MATERIAL_SQL, NUMERIC_KINDS } from "./tables/plugin-ref-kinds";
@@ -628,7 +629,10 @@ export class QuestionMigrationTable {
   static getListenEvents() {
     return {
       "question-migration:pending": this.pending.bind(this),
-      "question-migration:run": this.run.bind(this),
+      // 迁移前要 VACUUM INTO 备份，不能在命令外层的事务里执行；迁移本体自己开事务
+      "question-migration:run": asynchronousDatabaseCommand(
+        async (db: Database.Database, request: { databaseName: string }) => this.run(db, request)
+      ),
     };
   }
 
