@@ -15,7 +15,7 @@ import {
   Wifi,
 } from "lucide-react";
 
-// 图标统一为「彩色圆角块」形态（杏子设计稿 s-ico：34px 方块 + soft 底色）
+// 图标统一为「彩色圆角块」形态（34px 方块 + soft 底色）
 function IconTile({ className, children }: { className: string; children: ReactNode }) {
   return (
     <span className={`grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl ${className}`}>
