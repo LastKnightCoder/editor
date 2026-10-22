@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端编辑器体验 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="styles.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端编辑器体验 · 设计方案<small>颜色直接取自 @tau/themes · 手机帧 360×760 · 键盘为系统绘制示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="research">0 调研与原则</button>
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="a">2 方案 A：贴键盘配件栏<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="read">2.1 阅读态<span class="rec">新增</span></button>
+    <button class="tab" data-tab="b">3 方案 B：胶囊演进</button>
+    <button class="tab" data-tab="ctx">4 上下文工具栏</button>
+    <button class="tab" data-tab="block">5 块操作（替代拖拽）</button>
+    <button class="tab" data-tab="plugin">6 插件位</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 调研 ═══════════ -->
+<section class="scene" data-scene="research">
+  <p class="scene-intro">桌面编辑器的三板斧（<b>悬浮选区工具栏、hover 拖拽手柄、斜杠菜单</b>）都依赖鼠标的「悬停 + 精确指向」，移动端没有悬停、手指遮挡视线、键盘吃掉近一半屏幕，还要和系统选区菜单抢位置。主流移动端编辑器的共识是：<b>把工具放到拇指区（键盘上沿），把块操作从「拖」改成「选中后点」</b>。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px">
+      <h3>主流产品怎么做</h3>
+      <table class="cmp">
+        <tr><th>产品</th><th>格式工具</th><th>插入</th><th>块移动 / 块菜单</th><th>可借鉴点</th></tr>
+        <tr><td><b>Notion</b></td><td>贴键盘配件栏；选中文字时配件栏切换成格式按钮</td><td>配件栏「+」打开插入面板，也支持输入 /</td><td>长按块提起拖拽；配件栏有「块菜单」入口（转换、颜色、复制、删除）</td><td>上下文变形；块菜单与桌面同源</td></tr>
+        <tr><td><b>Apple 备忘录</b></td><td>「Aa」打开格式面板，<b>面板顶替键盘位置</b></td><td>配件栏直达：清单、表格、附件、画笔</td><td>无块概念</td><td>面板与键盘同高，切换时正文不跳动</td></tr>
+        <tr><td><b>飞书 / 语雀</b></td><td>配件栏 + 「Aa」面板（转换类型 + 行内样式 + 颜色）</td><td>「+」面板宫格 + 搜索</td><td>点块左侧进入<b>块选择</b>，可多选，底部出操作栏（上下移、删除、转换）</td><td>块选择模式；多选批量操作</td></tr>
+        <tr><td><b>Craft</b></td><td>配件栏随光标所在块变化（代码块出符号键，表格出行列操作）</td><td>「+」宫格</td><td>长按拖拽；块「⋯」菜单</td><td>块类型决定工具栏内容</td></tr>
+        <tr><td><b>Obsidian 移动端</b></td><td>配件栏<b>可由用户自定义</b>，内置命令和插件命令同一个池子</td><td>命令面板</td><td>—</td><td>插件只贡献命令，宿主决定怎么摆</td></tr>
+        <tr><td><b>Bear / Ulysses</b></td><td>Markdown 符号键行</td><td>—</td><td>—</td><td>写作型极简：少按钮、大触控</td></tr>
+      </table>
+    </div>
+    <div class="card" style="flex:1 1 360px">
+      <h3>提炼出的 6 条设计原则</h3>
+      <ol>
+        <li><b>贴键盘，不悬浮</b>：工具栏和键盘长成一体，跟着键盘升降；收起键盘即消失。</li>
+        <li><b>面板顶替键盘</b>：二级面板（样式、插入）占用键盘的高度，正文可视区不缩、不跳。</li>
+        <li><b>上下文变形</b>：同一条配件栏，按「选中文字 / 表格 / 代码块 / 插件块」切换内容，不堆按钮。</li>
+        <li><b>先选中，再操作</b>：块移动、删除、转换走「选中块 → 底部操作栏」；拖拽是快捷方式，不是唯一入口。</li>
+        <li><b>不和系统抢</b>：选中文字时不自绘气泡，系统的拷贝/粘贴菜单留在选区上方，我们只改配件栏。</li>
+        <li><b>触控尺寸 ≥ 40pt</b>，高频项固定位置，低频项进面板，可横滑的只放「次常用」。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">当前实现：<code>MobileEditorBottomToolbar</code> 是一条悬浮在键盘上方 12px 的横向滚动胶囊，4 组约 16 个 36px 按钮；标题、颜色、下划线是锚定在按钮上方的小 popover；插入走 ActionSheet。内核的块拖拽手柄只靠 hover 显示，移动端挂的是 HTML5Backend，<b>触屏上实际拖不动，也没有块菜单入口</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic"></div>
+        <div class="pill-wrap" style="bottom:262px">
+          <div class="pill">
+            <span class="ab" data-i="undo-2" data-s="17"></span><span class="ab" data-i="redo-2" data-s="17"></span>
+            <span class="vsep" style="margin:0 2px"></span>
+            <span class="ab" data-i="bold" data-s="17"></span><span class="ab" data-i="italic" data-s="17"></span><span class="ab" data-i="strikethrough" data-s="17"></span>
+            <span class="vsep" style="margin:0 2px"></span>
+            <span class="ab on" data-i="heading" data-s="17"></span><span class="ab" data-i="image" data-s="17"></span><span class="ab" data-i="plus" data-s="17"></span>
+            <span class="ab dim" data-i="list" data-s="17"></span>
+          </div>
+        </div>
+        <div class="pop" style="bottom:316px;left:148px"><span>正文</span><span class="on">H1</span><span>H2</span><span>H3</span></div>
+        <span class="ring-mark" style="left:10px;right:10px;bottom:256px;height:58px"></span>
+        <span class="callout-tag" style="left:16px;bottom:322px">① 悬浮 · 露出正文缝</span>
+        <span class="callout-tag" style="right:14px;bottom:356px">③ popover 被手指挡</span>
+        <span class="callout-tag" style="right:14px;bottom:226px">② 16 个按钮靠横滑</span>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>当前：悬浮胶囊 + 小 popover</div>
+    </div>
+    <div class="card" style="flex:1 1 420px;max-width:620px">
+      <h3>问题清单（按影响排序）</h3>
+      <ol>
+        <li><b>没有块操作</b>：手柄 hover 才出现、HTML5 拖拽不响应触摸，移动端无法移动 / 删除 / 转换一个块，只能剪切粘贴。</li>
+        <li><b>按钮平铺、靠横滑找</b>：16 个按钮同权重，常用（列表、待办、缩进）和低频（下划线样式、样式文本）混排；36px 低于 40pt 触控下限。</li>
+        <li><b>二级是小 popover</b>：锚在按钮上方，手指正好挡住；颜色面板 32px 色点易误触；和系统选区菜单可能重叠。</li>
+        <li><b>悬浮位置不稳</b>：胶囊离键盘 12px，中间露出一条正文；键盘高度变化（切换输入法、候选栏）时会跳。</li>
+        <li><b>无上下文</b>：光标在表格、代码块里时，工具栏仍是一样的格式按钮，行列操作、Tab/括号无处输入。</li>
+        <li><b>缺少的能力</b>：没有缩进/反缩进、待办；没有阅读态，打开文档点哪都弹键盘（见 2.1）。</li>
+        <li><b>没有插件位</b>：工具栏是硬编码数组 <code>ROW_GROUPS</code>，插件的 <code>blockPanel</code>、<code>menu</code> 贡献在移动端无处承接。</li>
+      </ol>
+      <h3 style="margin-top:12px">可复用的资产（不必推倒）</h3>
+      <ul>
+        <li><code>useMobileEditorToolbarController</code>：聚焦、选区记忆与恢复、动作执行、激活态判断，直接作为新 UI 的大脑。</li>
+        <li><code>useKeyboardViewport</code> / <code>--kb-height</code>：已有原生键盘高度，「面板顶替键盘」正好要用它。</li>
+        <li>内核 <code>EditorMenuEntry</code> 块菜单（转换、剪切、复制、删除、上移、下移，带 <code>when</code>、<code>group</code>）：移动端块操作栏直接消费，与桌面同源。</li>
+        <li>斜杠菜单 <code>blockPanel</code> 数据：插入面板直接消费，插件贡献的条目自动出现。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>方案 A（推荐）：贴键盘配件栏 + 面板顶替键盘。</b>一条 46px 的配件栏贴在键盘上沿：左端固定「+」，右端固定「收起键盘」，中间放 6～8 个高频项（可横滑、可自定义）。点「Aa」或「+」时收起键盘，在<b>原键盘位置</b>升起同高的面板，正文可视区不变；再点一次或点正文回到键盘。路线同 Apple 备忘录、飞书、Notion。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic"></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+            <span class="ab" data-i="undo-2" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>输入态：配件栏贴住键盘</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>左「+」品牌色、固定：插入是最高频的结构操作，拇指最容易够到的左下角。</li>
+        <li>中段默认：Aa 样式、待办、列表、反缩进/缩进、关联卡片、图片、撤销；可横滑，用户可在「编辑工具栏」里增删排序（见 6 插件位）。</li>
+        <li>右端「收起键盘」固定：退出编辑、回到阅读态（见 2.1）。</li>
+        <li>加粗/斜体不在一级：手机上「先选中再加粗」才是主路径，选中后配件栏会切到格式模式（见 4）。</li>
+        <li>实现：沿用 <code>--kb-height</code>，<code>bottom: var(--kb-height)</code>，去掉 12px 间隙与圆角阴影。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic" data-caret="static"></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt on">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+            <span class="ab" data-i="undo-2" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="panel"><div class="panel-in">
+          <div class="p-label"><span>转换为</span></div>
+          <div class="turn-row">
+            <div class="turn on"><span class="pv">正文</span></div>
+            <div class="turn"><span class="pv" style="font-weight:800;font-size:17px">标题</span>H1</div>
+            <div class="turn"><span class="pv" style="font-weight:700">标题</span>H2</div>
+            <div class="turn"><span class="pv" style="font-weight:700;font-size:13px">标题</span>H3</div>
+            <div class="turn"><span data-i="square-check" data-s="18" style="color:var(--ink-1)"></span>待办</div>
+            <div class="turn"><span data-i="list-ordered" data-s="18" style="color:var(--ink-1)"></span>编号</div>
+          </div>
+          <div class="seg">
+            <div class="g"><button class="on" data-i="bold" data-s="18"></button><button data-i="italic" data-s="18"></button><button data-i="underline" data-s="18"></button><button data-i="strikethrough" data-s="18"></button><button data-i="code" data-s="18"></button></div>
+            <div class="g n"><button data-i="link" data-s="18"></button><button data-i="message-square-plus" data-s="18"></button></div>
+          </div>
+          <div class="colors"><span class="lb">文字</span>
+            <span class="dot ring" style="background:var(--bg-input);color:var(--ink-1)">A</span>
+            <span class="dot" style="background:var(--rose-soft);color:var(--rose)">A</span>
+            <span class="dot" style="background:var(--apricot-soft);color:var(--apricot)">A</span>
+            <span class="dot" style="background:var(--butter-soft);color:var(--butter)">A</span>
+            <span class="dot" style="background:var(--sage-soft);color:var(--sage)">A</span>
+            <span class="dot" style="background:var(--sky-soft);color:var(--sky)">A</span>
+            <span class="dot" style="background:var(--lilac-soft);color:var(--lilac)">A</span>
+          </div>
+          <div class="colors"><span class="lb">高亮</span>
+            <span class="dot ring" style="background:var(--bg-input);color:var(--ink-3)" data-i="x" data-s="14"></span>
+            <span class="dot" style="background:var(--hl-1)"></span>
+            <span class="dot" style="background:var(--hl-2)"></span>
+            <span class="dot" style="background:var(--hl-3)"></span>
+            <span class="dot" style="background:var(--hl-4)"></span>
+            <span class="dot" style="background:var(--hl-5)"></span>
+            <span class="dot" style="background:var(--hl-6)"></span>
+          </div>
+        </div><div class="home-ind" style="position:absolute;bottom:0;left:0;right:0"></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>「Aa」样式面板顶替键盘</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>面板高度 = 最近一次测得的键盘高度（首次无值时取视口 38%），键盘降、面板升，<b>正文一像素不动</b>。</li>
+        <li>三层：转换为（横滑，含引用、代码、Callout 等，用排版预览代替图标）/ 行内样式（大分段按钮 44px）/ 颜色（两行 28px 色点 + 选中环）。</li>
+        <li>下划线线型、渐变文字、样式文本等低频项放「更多文本样式」二级页，不挤进一级面板。</li>
+        <li>光标保留为静态（不闪），提示「仍在这里编辑」；有选区时作用于选区，无选区时设置后续输入的样式。</li>
+        <li>右端按钮由「收起键盘」变为「键盘」：点它回到打字。点正文同样回到键盘。</li>
+        <li>技术点：blur 后 Slate 仍保留 <code>editor.selection</code>，回键盘时用现有 <code>restoreSelectionAndFocus</code> 恢复 DOM 选区。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic" data-caret="static"></div>
+        <div class="acc">
+          <span class="ab plus on" data-i="x" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+            <span class="ab" data-i="undo-2" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="panel"><div class="panel-in">
+          <div class="search"><span data-i="search" data-s="16"></span>搜索块，或在正文输入 /</div>
+          <div class="chips">
+            <span class="chip"><span data-i="table" data-s="14"></span>表格</span>
+            <span class="chip"><span data-i="square-code" data-s="14"></span>代码块</span>
+            <span class="chip"><span data-i="camera" data-s="14"></span>拍照</span>
+            <span class="chip"><span data-i="sigma" data-s="14"></span>公式</span>
+          </div>
+          <div class="p-label"><span>基础</span></div>
+          <div class="grid">
+            <div class="tile"><span class="ti c1" data-i="square-check" data-s="20"></span>待办</div>
+            <div class="tile"><span class="ti c1" data-i="quote" data-s="20"></span>引用</div>
+            <div class="tile"><span class="ti c1" data-i="sticky-note" data-s="20"></span>Callout</div>
+            <div class="tile"><span class="ti c1" data-i="minus" data-s="20"></span>分割线</div>
+          </div>
+          <div class="p-label"><span>媒体</span></div>
+          <div class="grid">
+            <div class="tile"><span class="ti c2" data-i="camera" data-s="20"></span>拍照</div>
+            <div class="tile"><span class="ti c2" data-i="image" data-s="20"></span>图片</div>
+            <div class="tile"><span class="ti c2" data-i="video" data-s="20"></span>视频</div>
+            <div class="tile"><span class="ti c2" data-i="audio-lines" data-s="20"></span>录音</div>
+          </div>
+        </div><div class="fade-b"></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>「+」插入面板顶替键盘</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>「+」变「✕」，一眼知道怎么关。</li>
+        <li>数据源 = 斜杠菜单 <code>blockPanel</code>（经移动端能力白名单过滤），插件贡献项自动进「插件」分组（下滑可见，见 6）。</li>
+        <li>顶部：搜索（聚焦时键盘回来，面板变成结果列表）+ 最近使用 4 项。</li>
+        <li>分组：基础 / 媒体 / 高级（表格、代码块、公式、流程图、折叠块、标签页、网页）/ 插件。宫格 4 列，图标 44px。</li>
+        <li>插入后：普通块回到键盘继续输入；表格、公式等复杂块直接进入其上下文工具栏（见 4）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2.1 阅读态 ═══════════ -->
+<section class="scene" data-scene="read">
+  <p class="scene-intro"><b>打开已有文档默认进入阅读态</b>：没有光标、键盘和工具栏，整屏留给内容。单击只做「阅读里的交互」（打开链接、勾选待办、看大图、展开折叠块），<b>双击正文或点顶栏「编辑」才进入编辑</b>，光标落在双击的位置。收起键盘或点「完成」回到阅读态。这样能解决「点哪都弹键盘」的问题，也给高亮、批注这类不改正文结构的操作一个不必进入编辑的入口。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="edit-btn"><span data-i="pencil" data-s="14"></span>编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc read-doc" data-doc="read"></div>
+        <span class="callout-tag ok" data-anchor="todo">单击：勾选待办，不进编辑</span>
+        <span class="callout-tag ok" data-anchor="link">单击：打开链接</span>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R1</span>阅读态：整屏内容，单击只做阅读交互</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>顶栏右侧「编辑」是明确入口（品牌浅底胶囊），旁边「⋯」放文档级操作。</li>
+        <li>单击行为：链接打开、待办勾选（直接写入文档，不弹键盘）、图片进大图预览、折叠块展开，与编辑态的行为分开。</li>
+        <li>块把手、配件栏都不显示；长文档下滑时顶栏收起，上滑出现。</li>
+        <li>协作只读、冻结等场景复用同一个阅读态，只是隐藏「编辑」按钮。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc read-doc" data-doc="readEdit"></div>
+        <span class="tap-ring" data-anchor="caret"></span>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R2</span>双击进入编辑：光标落在双击处</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>把双击位置换算成文档里的位置并设置光标，键盘和配件栏一起升起；文档随之滚动，让光标所在行停在双击时的屏幕位置，不跳。</li>
+        <li>顶栏「编辑」变「完成」。「完成」和配件栏「收起键盘」效果相同：退出编辑回到 R1。</li>
+        <li>系统返回直接返回上一页（内容实时保存），不需要先退出编辑。</li>
+        <li>技术点：iOS 只在用户手势内同步调用 focus 时才弹键盘，切换只读要在同一手势里同步完成（flushSync 后立刻 focus）；Android 也需要实测。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="edit-btn"><span data-i="pencil" data-s="14"></span>编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc read-doc" data-doc="readSel"></div>
+        <div class="sys-menu" data-anchor="sel"><span>拷贝</span><span>查询</span><span>共享</span><span>▸</span></div>
+        <div class="read-bar" style="bottom:34px">
+          <button><span data-i="highlighter" data-s="20"></span>高亮</button>
+          <button><span data-i="message-square-plus" data-s="20"></span>批注</button>
+          <button><span data-i="text-quote" data-s="20"></span>摘录成卡片</button>
+          <button><span data-i="link-2" data-s="20"></span>关联卡片</button>
+        </div>
+        <span class="callout-tag ok" style="right:14px;bottom:98px">不进编辑也能标注</span>
+        <div class="home-ind" style="margin-top:auto"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R3</span>阅读态选中文字：标注条</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>长按选词走系统选区，系统菜单原样保留（拷贝、查询），我们不自绘气泡。</li>
+        <li>底部浮出标注条：高亮、批注、摘录成新卡片、关联卡片。都不改变正文结构，不弹键盘。</li>
+        <li>这是知识库里阅读时最常用的动作，对应桌面端的划词操作。</li>
+        <li>标注条在底部拇指区，和选区上方的系统菜单不会重叠。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left"></span><span class="t"></span><span class="edit-btn dim">编辑</span><span class="ib dim" data-i="ellipsis"></span></div>
+        <div class="doc read-doc" data-doc="read"></div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="as-group" style="margin-top:6px">
+            <div class="as-item"><span data-i="search" data-s="19"></span>在文档中查找</div>
+            <div class="as-item"><span data-i="list-tree" data-s="19"></span>目录</div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="square-check" data-s="19"></span>选择块<span class="sub">移动 · 删除 · 转换</span></div>
+            <div class="as-item"><span data-i="move-vertical" data-s="19"></span>整理结构</div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="book-open" data-s="19"></span>打开文档时<span class="sub">阅读态<span data-i="chevron-right" data-s="15"></span></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R4</span>阅读态「⋯」：文档级操作</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>阅读态不显示块把手，块操作从这里进入：「选择块」进入块选择模式（见 5-D2），「整理结构」见 5-D4。</li>
+        <li>「打开文档时」是全局偏好：阅读态（默认）或直接编辑，给习惯「打开就写」的用户留退路。</li>
+      </ul></details>
+    </div>
+
+    <div class="card" style="flex:1 1 360px;max-width:520px">
+      <h3>什么时候是阅读态</h3>
+      <table class="cmp">
+        <tr><th>场景</th><th>进入时</th></tr>
+        <tr><td>打开已有文档 / 卡片详情</td><td><b>阅读态</b>（偏好可改为直接编辑）</td></tr>
+        <tr><td>新建卡片、快速记录、空文档</td><td><b>直接编辑</b>，光标在正文开头</td></tr>
+        <tr><td>协作只读、冻结、跨端降级</td><td>阅读态，隐藏「编辑」</td></tr>
+        <tr><td>闪卡复习</td><td>阅读态（编辑闪卡走编辑页）</td></tr>
+        <tr><td>编辑中切到后台再回来</td><td>保持编辑态与光标</td></tr>
+      </table>
+      <h3 style="margin-top:12px">状态切换</h3>
+      <ul>
+        <li>阅读 → 编辑：双击正文（光标落在该处）／ 点「编辑」（光标回到上次位置，没有则在末尾）。</li>
+        <li>编辑 → 阅读：点「完成」／ 配件栏「收起键盘」。只滚动正文不退出编辑。</li>
+        <li>编辑态打开 Aa / + 面板时键盘虽然收起，但仍算编辑态，「完成」照常显示。</li>
+      </ul>
+      <h3 style="margin-top:12px">实现要点</h3>
+      <ul>
+        <li>页面持有 <code>editing</code> 状态，编辑器 <code>readOnly = !editing</code>；工具栏现有的 <code>readonly</code> 参数直接复用。</li>
+        <li>只读下要单独放开待办勾选、链接点击：需要确认这些元素在只读时的点击逻辑。</li>
+        <li>双击定位：<code>caretPositionFromPoint</code> 拿到 DOM 位置后转成 Slate 位置。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><b>方案 B：保留悬浮胶囊，做减法 + 二级改底部抽屉。</b>改动最小：胶囊只留 7 个固定按钮（不再横滑），按钮放大到 40px；二级从小 popover 改成从底部升起的 Sheet。代价是 Sheet 和键盘只能二选一：要么键盘保留、Sheet 叠在键盘上（正文只剩一条缝），要么收键盘（就变成了方案 A 的面板，只是外观不同）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic"></div>
+        <div class="pill-wrap" style="bottom:258px">
+          <div class="pill">
+            <span class="ab big plus" style="width:40px;height:40px;margin:0" data-i="plus" data-s="20"></span>
+            <span class="ab big txt">Aa</span>
+            <span class="ab big" data-i="square-check" data-s="19"></span>
+            <span class="ab big" data-i="list" data-s="19"></span>
+            <span class="ab big" data-i="indent-increase" data-s="19"></span>
+            <span class="ab big" data-i="undo-2" data-s="19"></span>
+            <span class="ab big" data-i="keyboard-off" data-s="19"></span>
+          </div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>胶囊做减法：7 个固定按钮</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>保留现有视觉语言（悬浮、圆角、阴影），离键盘缩到 8px。</li>
+        <li>固定 7 项，不横滑：+ / Aa / 待办 / 列表 / 缩进 / 撤销 / 收起。</li>
+        <li>选中文字、表格、代码块时同样可以做上下文变形（见 4，胶囊外形版本）。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic"></div>
+        <div class="sheet" style="bottom:250px;height:236px">
+          <div class="grabber"></div>
+          <div class="sheet-h"><span>文本样式</span><span class="x">完成</span></div>
+          <div style="padding:0 14px">
+            <div class="turn-row">
+              <div class="turn on"><span class="pv">正文</span></div>
+              <div class="turn"><span class="pv" style="font-weight:800;font-size:17px">标题</span>H1</div>
+              <div class="turn"><span class="pv" style="font-weight:700">标题</span>H2</div>
+              <div class="turn"><span class="pv" style="font-weight:700;font-size:13px">标题</span>H3</div>
+              <div class="turn"><span data-i="square-check" data-s="18" style="color:var(--ink-1)"></span>待办</div>
+            </div>
+            <div class="seg">
+              <div class="g"><button class="on" data-i="bold" data-s="18"></button><button data-i="italic" data-s="18"></button><button data-i="underline" data-s="18"></button><button data-i="strikethrough" data-s="18"></button><button data-i="code" data-s="18"></button></div>
+            </div>
+            <div class="colors"><span class="lb">文字</span>
+              <span class="dot ring" style="background:var(--bg-input)">A</span><span class="dot" style="background:var(--rose-soft);color:var(--rose)">A</span><span class="dot" style="background:var(--apricot-soft);color:var(--apricot)">A</span><span class="dot" style="background:var(--sage-soft);color:var(--sage)">A</span><span class="dot" style="background:var(--sky-soft);color:var(--sky)">A</span>
+            </div>
+          </div>
+        </div>
+        <span class="ring-mark" style="left:8px;right:8px;top:188px;height:96px"></span>
+        <span class="callout-tag" style="left:16px;top:176px">正文只剩 ~90px，看不到改的是哪段</span>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>二级 Sheet 叠在键盘上（问题演示）</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>保留键盘时，Sheet + 键盘 ≈ 490px，正文几乎被挤光；用户看不到样式作用在哪。</li>
+        <li>若收起键盘再出 Sheet，交互就收敛到方案 A 的面板，只是多了圆角与遮罩、少了与键盘的一体感。</li>
+      </ul></details>
+    </div>
+    <div class="card" style="flex:1 1 360px;max-width:560px">
+      <h3>A / B 对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>方案 A 配件栏 + 面板顶替</th><th>方案 B 胶囊演进</th></tr>
+        <tr><th>正文可视区</th><td><b>恒定</b>，面板与键盘同高互换</td><td>二级打开时被大幅挤压</td></tr>
+        <tr><th>键盘高度变化</th><td>贴着键盘走，无缝隙</td><td>悬浮间隙会随候选栏抖动</td></tr>
+        <tr><th>上下文变形 / 自定义</th><td>横滑区天然容纳，插件项有位置</td><td>固定 7 格，变形要重排；插件项难放</td></tr>
+        <tr><th>改动成本</th><td>中：新写配件栏 + 面板容器，控制器复用</td><td>低：改 <code>ROW_GROUPS</code> 和 popover</td></tr>
+        <tr><th>技术风险</th><td>blur/refocus 时 Android 键盘回弹闪烁、选区恢复；需测输入法</td><td>低</td></tr>
+        <tr><th>与主流一致性</th><td>Notion / 飞书 / 备忘录同路线</td><td>少见</td></tr>
+      </table>
+      <p style="margin-top:10px"><b>建议</b>：走 A。风险集中在「面板 ↔ 键盘」切换一处，可以先做技术验证（Android WebView 下 blur → 面板 → refocus 的闪烁与选区恢复），验证不过时退回「面板叠在键盘上方、高度限制在 180px」的折中。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 上下文 ═══════════ -->
+<section class="scene" data-scene="ctx">
+  <p class="scene-intro"><b>同一条配件栏，按光标所处的上下文换内容</b>，左侧出现上下文标签（点它可退回通用模式）。优先级：选中文字 &gt; 插件块 &gt; 表格 / 代码块 / 公式 &gt; 通用。选中文字时<b>不自绘选区气泡</b>，系统的「剪切 / 拷贝 / 粘贴」原样留在选区上方。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="select"></div>
+        <div class="sys-menu" style="top:244px;left:62px"><span>剪切</span><span>拷贝</span><span>粘贴</span><span>▸</span></div>
+        <span class="callout-tag ok" style="top:184px;right:14px">↓ 系统原生菜单，不自绘</span>
+        <div class="acc">
+          <span class="ctx-chip"><span data-i="text-select" data-s="14"></span>格式</span>
+          <div class="scroll">
+            <span class="ab on" data-i="bold" data-s="19"></span>
+            <span class="ab" data-i="italic" data-s="19"></span>
+            <span class="ab" data-i="underline" data-s="19"></span>
+            <span class="ab" data-i="strikethrough" data-s="19"></span>
+            <span class="ab" data-i="highlighter" data-s="19"></span>
+            <span class="ab" data-i="link" data-s="19"></span>
+            <span class="ab" data-i="message-square-plus" data-s="19"></span>
+            <span class="ab" data-i="code" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab txt">Aa</span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C1</span>选中文字：配件栏切为格式模式</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>手机上「先选中再加粗」是主路径，所以 B / I / U / 删除线 / 高亮 / 链接 / 批注只在有选区时出现在一级。</li>
+        <li>右端「Aa」进入完整样式面板（颜色、转换类型）。</li>
+        <li>桌面的 HoveringToolbar 在移动端继续隐藏，避免和系统菜单重叠。</li>
+        <li>选区折叠（点一下正文）即回到通用模式，无需额外关闭。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="table"></div>
+        <div class="acc">
+          <span class="ctx-chip"><span data-i="table" data-s="14"></span>表格</span>
+          <div class="scroll">
+            <span class="ab txt">下方插行</span>
+            <span class="ab txt">右侧插列</span>
+            <span class="ab txt">删行</span>
+            <span class="ab txt">删列</span>
+            <span class="ab" data-i="align-center" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="ellipsis" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C2</span>光标在表格：行列操作</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>表格宽于屏幕时整体横滑（右侧渐隐提示），不缩字号。</li>
+        <li>行列操作用文字按钮（图标难辨「插行/插列」），「⋯」进入表格菜单：表头行、列宽、删除表格、转为文本。</li>
+        <li>单元格内输入多行时可选「放大编辑」：底部 Sheet 承载单元格内容。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="code"></div>
+        <div class="acc">
+          <span class="ctx-chip">TS<span data-i="chevron-down" data-s="13"></span></span>
+          <div class="scroll" style="gap:0">
+            <span class="ab mono w">Tab</span><span class="ab mono">(</span><span class="ab mono">)</span><span class="ab mono">{</span><span class="ab mono">}</span><span class="ab mono">[</span><span class="ab mono">]</span><span class="ab mono">;</span><span class="ab mono">=</span><span class="ab mono">"</span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C3</span>光标在代码块：符号键行</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>左侧芯片显示并切换语言（底部 Sheet 列表 + 搜索）。</li>
+        <li>符号键按语言给不同组合（TS：( ) { } [ ] ; = " ' / =&gt;；Markdown：# * ` -）。</li>
+        <li>Tab = 缩进 2 空格，长按 Tab = 反缩进。</li>
+        <li>公式块同理：配件栏出现 \ ^ _ { } 与常用符号，块上方实时预览渲染结果。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 块操作 ═══════════ -->
+<section class="scene" data-scene="block">
+  <p class="scene-intro"><b>拖拽在移动端只当快捷方式，主路径是「选中块 → 底部操作栏」。</b>入口：当前块左侧的把手（只给光标所在块显示，不靠 hover）。<b>点</b>把手 = 选中该块；<b>长按</b>把手 = 提起拖拽；长文档的大范围调整用「整理结构」。底部操作栏和「更多」菜单直接消费内核的 <code>EditorMenuEntry</code>，与桌面手柄菜单同源，插件贡献的块菜单项自动出现。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="grip"></div>
+        <span class="callout-tag ok" style="left:12px;top:420px">点：选中 · 长按：拖拽</span>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D1</span>当前块的把手（常驻，不靠 hover）</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>只在光标所在块左侧显示（正文左边距 30px 中的 20×26 区域），其他块不显示，避免满屏把手。</li>
+        <li>点击热区扩大到 32×40，不与正文抢点击。</li>
+        <li>阅读态不显示把手；块选择从顶栏「⋯ → 选择块」进入（见 2.1-R4）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="txt">取消</span><span class="t">已选 2 个块</span><span class="txt brand">全选</span></div>
+        <div class="doc" data-doc="picked"></div>
+        <div class="actbar">
+          <button><span data-i="arrow-up" data-s="20"></span>上移</button>
+          <button><span data-i="arrow-down" data-s="20"></span>下移</button>
+          <button><span data-i="repeat-2" data-s="20"></span>转换</button>
+          <button><span data-i="copy" data-s="20"></span>复制</button>
+          <button class="danger"><span data-i="trash-2" data-s="20"></span>删除</button>
+          <button><span data-i="ellipsis" data-s="20"></span>更多</button>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D2</span>块选择模式：多选 + 底部操作栏</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>进入时收起键盘，顶栏变为「取消 / 已选 N 个块 / 全选」；系统返回 = 取消（<code>useBackHandler</code>）。</li>
+        <li>其他块左侧出现圆形勾选框，点块任意处即可加选/取消；按住勾选框纵向滑动 = 连续多选。</li>
+        <li>上移/下移每点一次挪一个兄弟位，选中态保持，可连点；到边界置灰。精确、可撤销，是拖拽的无障碍替代。</li>
+        <li>按钮来源 = <code>EditorMenuEntry</code>（转换、复制、删除、上移、下移），<code>when</code> 不满足的不出现；多于 5 项的进「更多」。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="drag"></div>
+        <div class="edge-zone" style="bottom:22px;transform:scaleY(-1)"></div>
+        <span class="callout-tag ok" style="right:14px;bottom:44px">靠近边缘自动滚动</span>
+        <div class="home-ind" style="margin-top:auto"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D3</span>长按把手：提起拖拽</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>长按 300ms 提起 + 触感反馈（Tauri haptics），块放大 1.03、浮起阴影，原位置留虚影；收起键盘。</li>
+        <li>落点用品牌色插入线；进入可嵌套块（列表、Callout）时插入线缩进，表示放进去。</li>
+        <li>手指距顶/底 64px 内自动滚动，速度随距离线性增加。</li>
+        <li>技术：不再依赖 react-dnd HTML5Backend；用 Pointer Events 自实现（落点计算复用内核拖拽的 drop 逻辑），或给移动端挂 TouchBackend。推荐前者，可控性更好。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left"></span><span class="t dim">间隔重复为什么有效</span><span class="ib dim" data-i="ellipsis"></span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;top:120px;background:var(--bg-page)">
+          <div class="grabber"></div>
+          <div class="sheet-h"><span>整理结构</span><span class="x">完成</span></div>
+          <div class="olist">
+            <div class="orow h"><span class="ty" data-i="heading-1" data-s="17"></span><span class="tx">间隔重复为什么有效</span><span class="gh" data-i="grip-horizontal" data-s="18"></span></div>
+            <div class="orow"><span class="ty" data-i="pilcrow" data-s="16"></span><span class="tx">艾宾浩斯遗忘曲线说明，记忆在学习后…</span><span class="gh" data-i="grip-horizontal" data-s="18"></span></div>
+            <div class="orow h"><span class="ty" data-i="chevron-right" data-s="17"></span><span class="tx">核心机制 <span class="cnt">含 3 个块</span></span><span class="gh" data-i="grip-horizontal" data-s="18"></span></div>
+            <div class="orow h lift"><span class="ty" data-i="chevron-right" data-s="17"></span><span class="tx">实践方法 <span class="cnt">含 5 个块</span></span><span class="gh" data-i="grip-horizontal" data-s="18" style="color:var(--brand)"></span></div>
+            <div class="drop-line" style="margin:8px 10px"></div>
+            <div class="orow h"><span class="ty" data-i="chevron-right" data-s="17"></span><span class="tx">常见误区 <span class="cnt">含 4 个块</span></span><span class="gh" data-i="grip-horizontal" data-s="18"></span></div>
+            <div class="orow"><span class="ty" data-i="square-check" data-s="16"></span><span class="tx">把这张卡片拆成 3 个问答</span><span class="gh" data-i="grip-horizontal" data-s="18"></span></div>
+            <div class="orow"><span class="ty" data-i="image" data-s="16"></span><span class="tx">遗忘曲线.png</span><span class="gh" data-i="grip-horizontal" data-s="18"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D4</span>整理结构：长文档的大范围移动</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>入口：顶栏「⋯」→ 整理结构；块选择模式「更多」里也有。</li>
+        <li>每块一行（类型图标 + 首行摘要），右侧把手拖动，iOS 列表重排手感；行高 46px，比在正文里拖稳得多。</li>
+        <li>标题可折叠，折叠后拖动 = 整节移动（标题 + 其下内容），解决「把一整节挪到前面」这一移动端最痛的场景。</li>
+        <li>只改顺序，不改内容；「完成」后一次性提交为一个撤销步。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="txt dim">取消</span><span class="t dim">已选 1 个块</span><span class="txt dim">全选</span></div>
+        <div class="doc" data-doc="picked1"></div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="as-group" style="margin-top:6px">
+            <div class="as-item"><span data-i="repeat-2" data-s="19"></span>转换为<span class="sub">正文<span data-i="chevron-right" data-s="15"></span></span></div>
+            <div class="as-item"><span data-i="palette" data-s="19"></span>块颜色<span class="sub"><span data-i="chevron-right" data-s="15"></span></span></div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="link-2" data-s="19"></span>复制块链接</div>
+            <div class="as-item"><span data-i="copy-plus" data-s="19"></span>创建副本</div>
+            <div class="as-item"><span data-i="scissors" data-s="19"></span>剪切</div>
+          </div>
+          <div class="as-cap"><span data-i="puzzle" data-s="12"></span>插件</div>
+          <div class="as-group" style="outline:2px dashed var(--lilac);outline-offset:-2px">
+            <div class="as-item"><span data-i="workflow" data-s="19" style="color:var(--lilac)"></span>转为思维导图<span class="sub">思维导图</span></div>
+            <div class="as-item"><span data-i="layers" data-s="19" style="color:var(--lilac)"></span>生成闪卡<span class="sub">Anki 同步</span></div>
+          </div>
+          <div class="as-group"><div class="as-item danger"><span data-i="trash-2" data-s="19"></span>删除</div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">D5</span>「更多」：块菜单全集（含插件项）</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>完整渲染 <code>EditorMenuEntry</code> 树：按 <code>group</code> 分组、<code>order</code> 排序，<code>danger</code> 项单独成组置底，<code>children</code> 进二级页。</li>
+        <li>插件通过现有 <code>menu</code> 字段贡献的条目归入「插件」组，右侧小字标出来源插件。</li>
+        <li>复用现有 <code>ActionSheet</code> 组件。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 插件位 ═══════════ -->
+<section class="scene" data-scene="plugin">
+  <p class="scene-intro"><b>插件只贡献「数据和命令」，怎么摆由宿主决定。</b>移动端承接 4 个位置，其中 ②③ 直接复用桌面已有贡献点，① 只需让配件栏能「固定一个 command」，④ 先留位置不设计。紫色虚线 = 插件位。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t">编辑工具栏</span><span class="txt brand">完成</span></div>
+        <div class="preview-bar">
+          <div class="acc">
+            <span class="ab plus" data-i="plus" data-s="20"></span>
+            <div class="scroll">
+              <span class="ab txt">Aa</span>
+              <span class="ab" data-i="square-check" data-s="19"></span>
+              <span class="ab" data-i="list" data-s="19"></span>
+              <span class="ab" data-i="indent-increase" data-s="19"></span>
+              <span class="ab" data-i="workflow" data-s="19"><span class="pdot"></span></span>
+              <span class="ab" data-i="file-text" data-s="19"></span>
+            </div>
+            <span class="vsep"></span>
+            <span class="ab" data-i="keyboard-off" data-s="19"></span>
+          </div>
+        </div>
+        <div class="set-sec">已固定 · 拖动排序</div>
+        <div class="set-group">
+          <div class="set-row"><span class="op lock" data-i="pin" data-s="15"></span><span class="ic-b" data-i="plus" data-s="17"></span><span class="nm">插入 / 收起键盘</span><span style="font-size:12px;color:var(--ink-3)">固定</span></div>
+          <div class="set-row"><span class="op rm" data-i="minus" data-s="14"></span><span class="ic-b"><b style="font-size:13px">Aa</b></span><span class="nm">文本样式</span><span data-i="grip-vertical" data-s="18" style="color:var(--ink-3)"></span></div>
+          <div class="set-row"><span class="op rm" data-i="minus" data-s="14"></span><span class="ic-b" data-i="square-check" data-s="17"></span><span class="nm">待办</span><span data-i="grip-vertical" data-s="18" style="color:var(--ink-3)"></span></div>
+          <div class="set-row"><span class="op rm" data-i="minus" data-s="14"></span><span class="ic-b" data-i="list" data-s="17"></span><span class="nm">无序列表</span><span data-i="grip-vertical" data-s="18" style="color:var(--ink-3)"></span></div>
+          <div class="set-row"><span class="op rm" data-i="minus" data-s="14"></span><span class="ic-b" style="color:var(--lilac);background:var(--lilac-soft)" data-i="workflow" data-s="17"></span><span class="nm">插入思维导图<small>来自插件 · 思维导图</small></span><span data-i="grip-vertical" data-s="18" style="color:var(--ink-3)"></span></div>
+        </div>
+        <div class="set-sec">可添加</div>
+        <div class="set-group">
+          <div class="set-row"><span class="op add" data-i="plus" data-s="14"></span><span class="ic-b" data-i="calendar-days" data-s="17"></span><span class="nm">插入日期</span></div>
+          <div class="set-row"><span class="op add" data-i="plus" data-s="14"></span><span class="ic-b" data-i="sigma" data-s="17"></span><span class="nm">行内公式</span></div>
+          <div class="set-row"><span class="op add" data-i="plus" data-s="14"></span><span class="ic-b" style="color:var(--lilac);background:var(--lilac-soft)" data-i="languages" data-s="17"></span><span class="nm">翻译选中内容<small>来自插件 · 划词翻译</small></span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E1</span>① 配件栏自定义：内置与插件同池</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>入口：配件栏横滑到末尾的「编辑」按钮，或设置 → 编辑器。</li>
+        <li>可添加池 = 内置动作 + 插件 <code>commands</code>（带 icon、title、有 <code>when</code>）。插件项在配件栏上带紫色小点区分来源。</li>
+        <li>插件不能决定自己出现在配件栏的位置，只能「可被固定」——避免插件之间抢一级入口。</li>
+        <li>闪卡等轻量场景沿用现有 <code>visibleButtons</code> 白名单，不受用户自定义影响。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="basic" data-caret="static"></div>
+        <div class="acc">
+          <span class="ab plus on" data-i="x" data-s="20"></span>
+          <div class="scroll"><span class="ab txt">Aa</span><span class="ab" data-i="square-check" data-s="19"></span><span class="ab" data-i="list" data-s="19"></span><span class="ab" data-i="indent-increase" data-s="19"></span><span class="ab" data-i="file-text" data-s="19"></span></div>
+          <span class="vsep"></span><span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="panel"><div class="panel-in" style="margin-top:-6px">
+          <div class="p-label"><span>高级</span></div>
+          <div class="grid">
+            <div class="tile"><span class="ti c3" data-i="table" data-s="20"></span>表格</div>
+            <div class="tile"><span class="ti c3" data-i="square-code" data-s="20"></span>代码块</div>
+            <div class="tile"><span class="ti c3" data-i="sigma" data-s="20"></span>公式</div>
+            <div class="tile"><span class="ti c3" data-i="workflow" data-s="20"></span>流程图</div>
+          </div>
+          <div style="outline:2px dashed var(--lilac);outline-offset:4px;border-radius:12px">
+            <div class="p-label"><span>插件</span><a>管理</a></div>
+            <div class="grid">
+              <div class="tile"><span class="ti c4" data-i="workflow" data-s="20"></span>思维导图<span class="src">思维导图</span></div>
+              <div class="tile"><span class="ti c4" data-i="layers" data-s="20"></span>问答卡<span class="src">Anki 同步</span></div>
+              <div class="tile"><span class="ti c4" data-i="calendar-days" data-s="20"></span>日程<span class="src">日历联动</span></div>
+              <div class="tile"><span class="ti dash" data-i="puzzle" data-s="20" style="color:var(--lilac)"></span>更多插件</div>
+            </div>
+          </div>
+        </div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E2</span>② 插入面板「插件」分组</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>数据 = 插件 <code>blockPanel</code> 贡献（icon、title、keywords、onClick），与桌面斜杠菜单同源；搜索也命中插件项。</li>
+        <li>移动端无法渲染的插件块（宿主未适配的 element）不出现在面板里，已有内容按现有「只读占位」显示。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="mindmap"></div>
+        <div class="acc" style="outline:2px dashed var(--lilac);outline-offset:-3px">
+          <span class="ctx-chip plugin"><span data-i="workflow" data-s="14"></span>思维导图</span>
+          <div class="scroll">
+            <span class="ab txt">子节点</span><span class="ab txt">同级</span><span class="ab txt">折叠</span><span class="ab" data-i="trash-2" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E3</span>④ 插件块的上下文工具栏（留位）</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>光标进入插件块时，配件栏切到该插件的上下文（与表格、代码块同一机制，见 4）。</li>
+        <li>本期只留位置：宿主按 <code>when</code> 筛出该块类型下的插件 commands 依次摆放，不提供自定义 UI 能力。</li>
+        <li>插件没有提供时，退回通用配件栏。</li>
+      </ul></details>
+    </div>
+
+    <div class="card" style="flex:1 1 380px;max-width:560px">
+      <h3>四个插件位与协议映射</h3>
+      <table class="cmp">
+        <tr><th>位置</th><th>插件提供</th><th>现状</th></tr>
+        <tr><td><b>① 配件栏固定项</b></td><td><code>commands</code>（加 icon）</td><td>需小扩展：命令可带图标</td></tr>
+        <tr><td><b>② 插入面板</b></td><td><code>blockPanel</code></td><td><span class="tag">已有</span> 桌面斜杠菜单同源</td></tr>
+        <tr><td><b>③ 块「更多」菜单</b></td><td><code>menu</code>（EditorMenuEntry）</td><td><span class="tag">已有</span> 桌面手柄菜单同源</td></tr>
+        <tr><td><b>④ 上下文工具栏</b></td><td><code>commands</code> + <code>when</code></td><td>留位，暂不设计</td></tr>
+      </table>
+      <p style="margin-top:10px">移动端宿主的「工具栏项」统一成一个内部模型，内置动作和插件命令都转成它，UI 不区分来源：</p>
+<pre>// 宿主内部模型（示意，非插件协议）
+type MobileToolbarItem = {
+  id: string;            // "builtin:bold" | "plugin:mindmap.insert"
+  title: string;
+  icon: IconSource;      // 内置 lucide；插件给 svg 字符串
+  slot: "accessory" | "insert" | "blockMenu" | "context";
+  when?: string;         // 复用内核 when 表达式
+  run(ctx): void;        // 内置走 toolbarActions；插件走 command
+  source?: { pluginId: string; name: string };
+};</pre>
+      <p style="margin-top:8px">插件协议这边只需一处增量：<code>EditorCommand</code> 允许带 <code>icon</code>（桌面也可以用来做命令面板图标）。其他三处都是现有字段。</p>
+    </div>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>

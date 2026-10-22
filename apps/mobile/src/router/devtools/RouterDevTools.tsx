@@ -5,9 +5,11 @@ import { useState } from "react";
 import { Z_INDEX } from "../zIndex";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouterContext } from "../RouterProvider";
+import { useNavigator } from "../hooks";
 
 export function RouterDevTools() {
   const { state, rootKey } = useRouterContext();
+  const navigator = useNavigator();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -77,6 +79,20 @@ export function RouterDevTools() {
           <div style={{ marginTop: 6, color: "#9ca3af" }}>
             queries: {queries.length} (stale {staleCount})
           </div>
+          <button
+            type="button"
+            onClick={() => navigator.push("editorLab")}
+            style={{
+              marginTop: 8,
+              color: "#e5e7eb",
+              background: "rgba(255,255,255,0.12)",
+              border: "none",
+              borderRadius: 6,
+              padding: "4px 8px",
+            }}
+          >
+            editor lab
+          </button>
         </div>
       ) : (
         <button
