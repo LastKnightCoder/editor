@@ -1,7 +1,7 @@
 // 协作编辑页（设计稿 03 方案 A）：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import {
   ChevronRight,
@@ -21,6 +21,12 @@ import { useEdgeFade } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
+import { isEditorContentEmpty } from "../cards/editorContentUtils";
+import { useReadingMode } from "../cards/readingMode/useReadingMode";
+import { ReadingModeHeaderButton } from "../cards/readingMode/ReadingModeHeaderButton";
+import { ReadingSelectionBar } from "../cards/readingMode/ReadingSelectionBar";
+import { useReadingSelection } from "../cards/readingMode/useReadingSelection";
+import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { useCollabSession } from "./hooks/useCollabSession";
 
@@ -41,6 +47,28 @@ export function CollabEditorPage(props: {
   const document = useMemo(
     () => (binding ? createYjsDocument(binding, { onChange: () => syncSelection() }) : undefined),
     [binding, syncSelection]
+  );
+  // 协作文档首次就绪（已绑定且不在建立连接中）时决定一次初始编辑态：空文档或偏好为直接编辑
+  const openMode = useEditorOpenMode();
+  const contentReady = Boolean(binding) && session?.connection !== "connecting";
+  const [initialEditing, setInitialEditing] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!contentReady || initialEditing !== null) return;
+    const children = (editorRef.current?.getEditor() as { children?: unknown } | undefined)
+      ?.children;
+    setInitialEditing(openMode === "edit" || isEditorContentEmpty(children ?? []));
+  }, [contentReady, initialEditing, openMode]);
+  // 协作只读（冻结 / 会话非活跃 / 未绑定）时强制阅读态且隐藏「编辑」
+  const readingMode = useReadingMode({
+    editorRef,
+    forcedReadonly: readonly,
+    initialEditing,
+    toolbarController,
+  });
+  const editorReadonly = readonly || !readingMode.editing;
+  const readingSelection = useReadingSelection(
+    editorRef,
+    !readingMode.editing && readingMode.canEdit
   );
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
@@ -65,6 +93,12 @@ export function CollabEditorPage(props: {
         }
         actions={
           <>
+            <ReadingModeHeaderButton
+              editing={readingMode.editing}
+              canEdit={readingMode.canEdit}
+              onEnter={readingMode.enterEditing}
+              onExit={readingMode.exitEditing}
+            />
             <button
               type="button"
               aria-label="成员管理"
@@ -130,14 +164,14 @@ export function CollabEditorPage(props: {
           ) : null}
 
           {binding ? (
-            <div className="min-h-[45vh] pt-2">
+            <div className="min-h-[45vh] pt-2" {...readingMode.readingSurfaceProps}>
               <Editor
                 kit={getMobileContentKit()}
                 ref={editorRef}
                 key={`collab-${props.documentId}`}
                 document={document}
                 className="mobile-card-editor-content"
-                readonly={readonly}
+                readonly={editorReadonly}
                 onFocus={() => {
                   presence.onFocus();
                   toolbarController.handleEditorFocus();
@@ -160,7 +194,15 @@ export function CollabEditorPage(props: {
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
-        readonly={readonly}
+        readonly={editorReadonly}
+      />
+      <ReadingSelectionBar
+        editorRef={editorRef}
+        controller={toolbarController}
+        readingMode={readingMode}
+        range={readingSelection.range}
+        onClear={readingSelection.clear}
+        portalContainer={pageRootEl}
       />
 
       <ActionSheet

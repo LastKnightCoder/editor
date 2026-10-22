@@ -2,11 +2,8 @@
 // 任务/文章/项目/知识库/设置/关于等页面共用，避免各页样式分叉。
 
 import { ChevronLeft } from "lucide-react";
-import { createContext, useContext } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-
-// 封面沉浸页（transparent 顶栏）标记：其内按钮图标随 --header-p 白/棕交叉过渡
-const CoverHeaderContext = createContext(false);
+import { CoverHeaderContext, useOnCoverHeader } from "./coverHeaderContext";
 
 type PageHeaderButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   icon: ReactNode;
@@ -21,7 +18,7 @@ export function PageHeaderButton({
   style,
   ...rest
 }: PageHeaderButtonProps) {
-  const onCover = useContext(CoverHeaderContext);
+  const onCover = useOnCoverHeader();
   return (
     <button
       type="button"

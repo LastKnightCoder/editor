@@ -18,6 +18,12 @@ import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
 import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEditor";
 import { markLocalFallbackEdit } from "../collaboration/local-fallback";
+import { isEditorContentEmpty } from "./editorContentUtils";
+import { useReadingMode } from "./readingMode/useReadingMode";
+import { ReadingModeHeaderButton } from "./readingMode/ReadingModeHeaderButton";
+import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
+import { useReadingSelection } from "./readingMode/useReadingSelection";
+import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
 const CollaborativeEditor = lazy(() =>
@@ -70,6 +76,8 @@ type ContentDetailPageProps = {
   collaboration?: { documentId: string };
   /** 在共享与成员 Sheet 里结束共享/退出协作：宿主据此重查绑定，让 collaboration prop 归位 */
   onCollaborationEnded?: () => void;
+  /** 强制已有内容打开时直接编辑；未传时按「打开文档时」偏好（默认阅读态），空文档总是直接编辑 */
+  openInEditMode?: boolean;
 };
 
 function formatTimeLabel(value: number): string {
@@ -118,6 +126,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     setCollabMode("connecting");
     setCollabReadonly(true);
   }, [collaborationDocumentId]);
+  // 首次拿到内容时决定一次初始编辑态，之后重拉不再改动
+  const [initialEditing, setInitialEditing] = useState<boolean | null>(null);
+  const openMode = useEditorOpenMode();
+  const openInEditModeRef = useRef(false);
+  openInEditModeRef.current = Boolean(props.openInEditMode) || openMode === "edit";
   const editMode = detailEditMode(Boolean(collaborationDocumentId), collabMode);
   const localFallback = editMode === "collabFallback";
   const {
@@ -144,7 +157,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     onProjectionPersisted: () => {
       markLocalFallbackEdit(props.contentId);
     },
-    onLoaded: result => setDetail(result),
+    onLoaded: result => {
+      setDetail(result);
+      setInitialEditing(
+        prev => prev ?? (openInEditModeRef.current || isEditorContentEmpty(result.content))
+      );
+    },
     onLoadError: error => onErrorRef.current?.(error, "内容详情加载失败"),
     onSaved: saved => {
       setDetail(prev => ({
@@ -171,10 +189,21 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
   // 协作文档源就绪即用它，否则用本机文档源；两者谱系相同，换源不重建编辑器
   const document = collabDocument ?? localDocument;
-  const editorReadonly =
+  // 协作建立中与协作只读：强制阅读态且隐藏「编辑」
+  const forcedReadonly =
     editMode === "collabConnecting" ? true : editMode === "collabLive" ? collabReadonly : false;
-  // 工具栏：正文可编辑时显示，协作建立中与协作只读态一律收起
-  const toolbarReadonly = editorReadonly;
+  const readingMode = useReadingMode({
+    editorRef,
+    forcedReadonly,
+    initialEditing,
+    toolbarController,
+  });
+  // 阅读态与强制只读时正文只读、工具栏收起
+  const editorReadonly = forcedReadonly || !readingMode.editing;
+  const readingSelection = useReadingSelection(
+    editorRef,
+    !readingMode.editing && readingMode.canEdit
+  );
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -265,6 +294,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       </span>
     )
   ) : null;
+
+  const headerActions = (
+    <>
+      <ReadingModeHeaderButton
+        editing={readingMode.editing}
+        canEdit={readingMode.canEdit}
+        onEnter={readingMode.enterEditing}
+        onExit={readingMode.exitEditing}
+      />
+      {props.headerRight}
+    </>
+  );
 
   const saveStatusNode = saving ? (
     <span className="text-ink-2 text-[12px]">保存中…</span>
@@ -408,7 +449,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </Suspense>
         ) : null}
 
-        <div className="min-h-[45vh] pt-1">
+        <div className="min-h-[45vh] pt-1" {...readingMode.readingSurfaceProps}>
           <Editor
             kit={getMobileContentKit()}
             ref={editorRef}
@@ -484,7 +525,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               commitTitle();
               props.onBack();
             }}
-            actions={props.headerRight}
+            actions={headerActions}
           />
           <div
             ref={node => {
@@ -506,7 +547,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               commitTitle();
               props.onBack();
             }}
-            actions={props.headerRight}
+            actions={headerActions}
           />
           {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
               留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
@@ -526,7 +567,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
-        readonly={toolbarReadonly}
+        readonly={editorReadonly}
+      />
+      <ReadingSelectionBar
+        editorRef={editorRef}
+        controller={toolbarController}
+        readingMode={readingMode}
+        range={readingSelection.range}
+        onClear={readingSelection.clear}
+        portalContainer={pageRootEl}
       />
     </div>
   );

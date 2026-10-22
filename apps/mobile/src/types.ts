@@ -1,5 +1,8 @@
 import type { Descendant } from "slate";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
 
 export interface DatabaseItem {
   name: string;
@@ -622,6 +625,10 @@ export interface SettingCompat {
       shadow?: ImageShadowPreset | boolean;
     };
     [key: string]: unknown;
+  };
+  /** 移动端编辑器偏好：openMode 为打开已有文档时的初始状态，缺省为 read（阅读态） */
+  editor?: {
+    openMode?: "read" | "edit";
   };
   module?: {
     todo?: {

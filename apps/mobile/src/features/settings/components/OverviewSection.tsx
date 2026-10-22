@@ -1,6 +1,6 @@
 // 我的页根视图（v2 模板）：行内直显关键值，数据域入口收敛为两个独立页面——
 // 数据库与同步（库切换 + 库同步 + 同步服务）/ 资源与存储（资源同步 + 存储目标）。
-// 外观（主题 overlay 路由页）/ 关于（版本）。
+// 外观（主题 overlay 路由页）/ 编辑器（打开文档时）/ 关于（版本）。
 
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
@@ -14,15 +14,37 @@ import {
   IMAGE_SHADOW_OPTIONS,
   normalizeImageShadowPreset,
 } from "@tau/editor/extensions/media/appearance";
-import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon, IconUsers } from "./ui";
+import {
+  IconBookOpen,
+  IconCircleHelp,
+  IconCloud,
+  IconDatabase,
+  IconImage,
+  IconMoon,
+  IconUsers,
+} from "./ui";
+import { ActionSheet } from "./ActionSheet";
 import { getResourceSyncSummary } from "./SyncStatusSections";
 import { getTheme } from "@tau/themes";
 import { useThemeStore } from "@tau/themes/react";
 import { useNavigator } from "../../../router";
 import * as tauri from "../../../services/tauri";
+import { useAppContext } from "../../../app/AppContext";
+import {
+  normalizeEditorOpenMode,
+  withEditorOpenMode,
+  type EditorOpenMode,
+} from "../../../hooks/useEditorOpenMode";
 import type { SettingModule, SettingsPageProps } from "./types";
 
 const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
+
+const EDITOR_OPEN_MODE_LABELS: Record<EditorOpenMode, string> = { read: "阅读", edit: "编辑" };
+
+const EDITOR_OPEN_MODE_OPTIONS: Array<{ label: string; value: EditorOpenMode }> = [
+  { label: "阅读模式（默认）", value: "read" },
+  { label: "直接编辑", value: "edit" },
+];
 
 const RESOURCE_LABELS: Record<string, string> = {
   local: "本地",
@@ -146,6 +168,13 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
 
       <div className="space-y-3 px-1">
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">编辑器</h2>
+      </div>
+      <div className="list-group">
+        <EditorOpenModeItem />
+      </div>
+
+      <div className="space-y-3 px-1">
         <h2 className="text-ink-1 text-[16.5px] font-extrabold">关于</h2>
       </div>
       <div className="list-group">
@@ -157,6 +186,36 @@ export function OverviewSection(props: OverviewSectionProps) {
         />
       </div>
     </div>
+  );
+}
+
+/** 「打开文档时」：已有文档默认阅读态或直接编辑，点选即时写入 editor.openMode 并落盘 */
+export function EditorOpenModeItem() {
+  const app = useAppContext();
+  const [open, setOpen] = useState(false);
+  const value = normalizeEditorOpenMode(app.syncSettings.safeSetting?.editor?.openMode);
+  return (
+    <>
+      <ListItem
+        icon={<IconBookOpen />}
+        label="打开文档时"
+        value={EDITOR_OPEN_MODE_LABELS[value]}
+        onClick={() => setOpen(true)}
+      />
+      <ActionSheet
+        open={open}
+        title="打开文档时"
+        value={value}
+        options={EDITOR_OPEN_MODE_OPTIONS}
+        onClose={() => setOpen(false)}
+        onSelect={next =>
+          app.syncSettings.updateSetting(
+            prev => withEditorOpenMode(prev, normalizeEditorOpenMode(next)),
+            { persist: true }
+          )
+        }
+      />
+    </>
   );
 }
 
