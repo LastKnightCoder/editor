@@ -37,9 +37,8 @@ export function ChatView() {
 
 function ChatPaper() {
   const { navigator } = usePage();
-  const { id, seedQuestion, entry } = usePageParams<{
+  const { id, entry } = usePageParams<{
     id?: string;
-    seedQuestion?: number;
     entry?: string;
   }>();
   // 会话删除后参数失效由 useScopedChat 处理（列表加载完查不到就退回新对话草稿）
@@ -81,8 +80,7 @@ function ChatPaper() {
           ref={chatAreaRef}
           selectedChatId={chatId}
           entry={entry}
-          onEntryLocated={() => navigator.push("chat", { id, seedQuestion })}
-          seedQuestionId={seedQuestion ?? null}
+          onEntryLocated={() => navigator.push("chat", { id })}
           onSelectChat={select}
           sendLoading={sendLoading}
           setSendLoading={setSendLoading}
