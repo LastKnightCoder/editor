@@ -17,6 +17,7 @@ export function createControllerStub(
     togglePanel: vi.fn(),
     closePanel: vi.fn(),
     exitEditing: vi.fn(),
+    setExitEditingListener: vi.fn(),
     runInPanel: vi.fn(),
     indent: vi.fn(),
     outdent: vi.fn(),

@@ -31,6 +31,7 @@ import {
   showKeyboard,
   type KeyboardSwapStrategy,
 } from "../cards/editorToolbar/keyboardSwap";
+import { caretFromPoint } from "../cards/readingMode/caretFromPoint";
 import { createLabSampleContent } from "./labSampleContent";
 import { useLabLog } from "./useLabLog";
 import { measureSwapSettle, type SwapDirection } from "./swapSettle";
@@ -40,8 +41,6 @@ type FocusTiming = "sync" | "raf";
 type PanelAction = "bold" | "italic" | "heading-one";
 
 type PanelCloseTrigger = "keyboard-button" | "tap-editor";
-
-type CaretHit = { node: Node; offset: number };
 
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_SLOP_PX = 24;
@@ -63,18 +62,6 @@ type WindowWithNativeKeyboard = Window & { __TAU_NATIVE_KB_HEIGHT?: unknown };
 
 function hasNativeKeyboardHeight(): boolean {
   return typeof (window as WindowWithNativeKeyboard).__TAU_NATIVE_KB_HEIGHT === "number";
-}
-
-function caretFromPoint(x: number, y: number): CaretHit | null {
-  if (typeof document.caretPositionFromPoint === "function") {
-    const position = document.caretPositionFromPoint(x, y);
-    return position ? { node: position.offsetNode, offset: position.offset } : null;
-  }
-  const legacy = document as Document & {
-    caretRangeFromPoint?: (x: number, y: number) => globalThis.Range | null;
-  };
-  const range = legacy.caretRangeFromPoint?.(x, y);
-  return range ? { node: range.startContainer, offset: range.startOffset } : null;
 }
 
 function selectionsEqual(left: BaseSelection, right: BaseSelection): boolean {

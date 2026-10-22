@@ -127,8 +127,10 @@ export type MobileEditorToolbarController = {
   /** 同一面板再点回到键盘，否则打开或切换面板 */
   togglePanel: (kind: EditorPanelKind, panelHeight: number) => void;
   closePanel: (options: ClosePanelOptions) => void;
-  /** 关面板、释放预留并收起键盘 */
+  /** 关面板、释放预留并收起键盘，最后通知退出编辑监听 */
   exitEditing: () => void;
+  /** 登记退出编辑监听（宿主据此回阅读态）；传 null 取消，同一时刻只保留一个 */
+  setExitEditingListener: (listener: (() => void) | null) => void;
   /** 在面板保存的选区上执行操作，不聚焦编辑器 */
   runInPanel: (fn: (editor: SlateEditor) => void) => void;
   indent: () => void;
@@ -185,6 +187,7 @@ export function useMobileEditorToolbarController(
   // 同步记录面板开关，回键盘触发的编辑器 focus 据此与「点正文」区分
   const activePanelRef = useRef<EditorPanelKind | null>(null);
   const panelSelectionRef = useRef<BaseSelection | null>(null);
+  const exitEditingListenerRef = useRef<(() => void) | null>(null);
 
   const rememberPanelSelection = useCallback((selection: BaseSelection | null) => {
     panelSelectionRef.current = selection;
@@ -605,7 +608,12 @@ export function useMobileEditorToolbarController(
     if (editor && ReactEditor.isFocused(editor as ReactEditor)) {
       ReactEditor.blur(editor as ReactEditor);
     }
+    exitEditingListenerRef.current?.();
   }, [editorRef, getEditableElement, reservation]);
+
+  const setExitEditingListener = useCallback((listener: (() => void) | null) => {
+    exitEditingListenerRef.current = listener;
+  }, []);
 
   // 宿主卸载时面板仍开着则释放预留，避免下一页底部留白
   useEffect(() => {
@@ -781,6 +789,7 @@ export function useMobileEditorToolbarController(
       togglePanel,
       closePanel,
       exitEditing,
+      setExitEditingListener,
       runInPanel,
       indent,
       outdent,
@@ -817,6 +826,7 @@ export function useMobileEditorToolbarController(
       togglePanel,
       closePanel,
       exitEditing,
+      setExitEditingListener,
       runInPanel,
       indent,
       outdent,

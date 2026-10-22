@@ -256,6 +256,18 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   选区落在点击处。
 - **两种模式**：折叠选区为通用模式（+ / Aa / 待办 / 列表 / 缩进 / 关联内容 / 图片 / 撤销）；有展开选区时切为格式模式
   （行内样式，左端「格式」标签点击折叠选区）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与 Aa 面板。
+- **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
+  的 `readonly`（切换不重挂载）。顶栏 `ReadingModeHeaderButton`「编辑」在点击内同步切换并聚焦（回上次选区，否则文末）；
+  双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；「完成」与配件栏「收起键盘」都回阅读态——后者经
+  controller 的 `setExitEditingListener`。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
+  `onChange` 保存；`forcedReadonly`（协作建立中 / 协作只读）时隐藏「编辑」且不改正文。详情页与协作编辑页
+  `CollabEditorPage` 同一接法；初始态在内容首次就绪时定一次：空文档或「打开文档时」偏好为直接编辑则进编辑并聚焦。
+  偏好存 setting.json 的 `editor.openMode`（`read` 缺省 / `edit`），`hooks/useEditorOpenMode` 经设置桥读取，
+  设置入口为设置页「编辑器 · 打开文档时」；`ContentDetailPage` 的 `openInEditMode` 只作强制覆盖。
+  阅读态选中文字时底部浮出标注条 `ReadingSelectionBar`（高亮、批注、摘录成卡片、关联卡片）：slate-react 只读时不同步
+  DOM 选区，由 `useReadingSelection` 监听 `selectionchange` 自行换算为 Slate Range（展开防抖 150ms）；高亮在只读下直接写
+  marks，批注 / 关联卡片经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
+  `createQuickCard` 建卡；不可编辑（`forcedReadonly`）时不显示。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 

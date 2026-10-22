@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  BookOpen,
   Check,
   CircleHelp,
   ChevronLeft,
@@ -84,6 +85,14 @@ export function IconWifi() {
   return (
     <IconTile className="bg-tag-1-soft text-tag-1">
       <Wifi size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconBookOpen() {
+  return (
+    <IconTile className="bg-tag-4-soft text-tag-4">
+      <BookOpen size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }
