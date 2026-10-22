@@ -2,6 +2,7 @@
 
 ## 未发布
 
+- 插件用 `cards.create`、`articles.create`、`documents.create`、`whiteboards.create`、`projects.create` 新建的内容，之后不需要读取权限也能 `describe`、`EntityRef` 显示、`open` 与 `links.add`，与 `pick` 选择和 `app.run` 新建的结果一致。
 - 正文输入新增 `{ shareOf: contentRef }`：与本插件的一项内容共用同一份正文，任一处的修改在另一处实时可见，删除其中一处不影响另一处。只能用于 `cards.create`、`articles.create`、`documents.create` 与 `app.run("project.insertDocument")`，来源必须是本插件内容的正文；一份正文只能有一张卡片、一篇文章，已有时报错。
 
 ## 0.34.0
