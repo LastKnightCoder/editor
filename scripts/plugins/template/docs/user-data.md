@@ -297,6 +297,7 @@ await context.data.cards.create({ content: { shareOf: answer.contentRef } });
 - `copyOf` 的来源可以是卡片、文章、项目文档或任一插件内容的正文。复制的是当前内容，之后两份互不影响。
 - `shareOf` 的来源只能是本插件内容的正文。用户在卡片、文章或项目文档里修改，插件内容同步变化，反之亦然；删除其中一处，另一处照常保留。一份正文最多是一张卡片、一篇文章，已经有了再新建会报错，可以先用 `content.read` 返回的 `owners` 判断。插件内容自己（`entities.create`）和修改正文（`content.edit`）不能用 `shareOf`。
 - 新建时省略 `content` 得到空正文。
+- 正文有大小上限：`markdown` 最多 200 万字；`nodes` 转成 JSON 后最多 800 万字，嵌套最多 30 层。超出时报错，上限可从 `CONTENT_INPUT_LIMITS` 读取。
 
 ## 读写正文
 
