@@ -463,6 +463,17 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`          |
 | `update_time` | `INTEGER NOT NULL`          |
 
+### `home_panel_layout`
+
+首页面板布局：用户调整过的顺序与隐藏；没有记录的面板按默认顺序排在末尾。
+
+| 字段          | SQLite 定义                  |
+| ------------- | ---------------------------- |
+| `panel_id`    | `TEXT PRIMARY KEY NOT NULL`  |
+| `sort`        | `INTEGER NOT NULL`           |
+| `hidden`      | `INTEGER NOT NULL DEFAULT 0` |
+| `update_time` | `INTEGER NOT NULL`           |
+
 ### `operation`
 
 | 字段                     | SQLite 定义           |

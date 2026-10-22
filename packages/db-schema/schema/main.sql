@@ -190,6 +190,13 @@ CREATE TABLE IF NOT EXISTS diary_tag_settings (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+-- 首页面板布局：用户调整过的顺序与隐藏；没有记录的面板按默认顺序排在末尾
+CREATE TABLE IF NOT EXISTS home_panel_layout (
+        panel_id TEXT PRIMARY KEY NOT NULL,
+        sort INTEGER NOT NULL,
+        hidden INTEGER NOT NULL DEFAULT 0,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS operation (
             id INTEGER PRIMARY KEY,
             operation_time INTEGER NOT NULL,
