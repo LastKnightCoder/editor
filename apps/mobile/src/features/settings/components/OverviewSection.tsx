@@ -5,7 +5,10 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useQuery } from "@tanstack/react-query";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
 import {
   IMAGE_BORDER_RADIUS_OPTIONS,
   IMAGE_SHADOW_OPTIONS,
@@ -13,18 +16,13 @@ import {
 } from "@tau/editor/extensions/media/appearance";
 import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon, IconUsers } from "./ui";
 import { getResourceSyncSummary } from "./SyncStatusSections";
-import { useThemeStore } from "../../../theme/themeStore";
+import { getTheme } from "@tau/themes";
+import { useThemeStore } from "@tau/themes/react";
 import { useNavigator } from "../../../router";
 import * as tauri from "../../../services/tauri";
 import type { SettingModule, SettingsPageProps } from "./types";
 
-const THEME_LABELS: Record<string, string> = {
-  apricot: "杏子",
-  midnight: "玄夜",
-  mint: "薄荷",
-  ocean: "海盐",
-  system: "跟随系统",
-};
+const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
 const RESOURCE_LABELS: Record<string, string> = {
   local: "本地",
@@ -61,7 +59,8 @@ function findPresetLabel(
 }
 
 export function OverviewSection(props: OverviewSectionProps) {
-  const themeMode = useThemeStore(state => state.mode);
+  const themeName = useThemeStore(state => getTheme(state.theme)?.name ?? "");
+  const appearance = useThemeStore(state => state.appearance);
   const navigator = useNavigator();
   const [appVersion, setAppVersion] = useState("");
 
@@ -96,7 +95,7 @@ export function OverviewSection(props: OverviewSectionProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-3 px-1">
-        <h2 className="text-ink text-[16.5px] font-extrabold">数据</h2>
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">数据</h2>
       </div>
       <div className="list-group">
         <ListItem
@@ -118,7 +117,7 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
 
       <div className="space-y-3 px-1">
-        <h2 className="text-ink text-[16.5px] font-extrabold">协作</h2>
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">协作</h2>
       </div>
       <div className="list-group">
         <ListItem
@@ -129,13 +128,13 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
 
       <div className="space-y-3 px-1">
-        <h2 className="text-ink text-[16.5px] font-extrabold">外观</h2>
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">外观</h2>
       </div>
       <div className="list-group">
         <ListItem
           icon={<IconMoon />}
           label="主题"
-          value={THEME_LABELS[themeMode]}
+          value={`${themeName} · ${APPEARANCE_LABELS[appearance]}`}
           onClick={() => navigator.push("settings-theme")}
         />
         <ListItem
@@ -147,7 +146,7 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
 
       <div className="space-y-3 px-1">
-        <h2 className="text-ink text-[16.5px] font-extrabold">关于</h2>
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">关于</h2>
       </div>
       <div className="list-group">
         <ListItem
@@ -180,7 +179,7 @@ function ListItem({
       disabled={!onClick}
     >
       {icon}
-      <span className="text-ink flex-1 text-[14px] font-medium">{label}</span>
+      <span className="text-ink-1 flex-1 text-[14px] font-medium">{label}</span>
       <span className="flex max-w-[55%] items-center gap-1.5">
         {value && <span className="text-ink-3 truncate text-[12.5px]">{value}</span>}
         {onClick && <span className="text-ink-3">›</span>}

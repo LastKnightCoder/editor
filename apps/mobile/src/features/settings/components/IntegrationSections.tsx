@@ -25,8 +25,8 @@ function FeedbackView(props: { feedback: Feedback | null }) {
     <div
       className={`rounded-lg p-3 text-sm ${
         props.feedback.type === "success"
-          ? "border-sage/30 bg-sage-soft text-sage border"
-          : "border-rose/30 bg-rose-soft text-danger border"
+          ? "border-tag-1/30 bg-tag-1-soft text-tag-1 border"
+          : "border-tag-5/30 bg-tag-5-soft text-danger border"
       }`}
     >
       {props.feedback.text}
@@ -151,7 +151,7 @@ export function IntegrationGithubSection(props: IntegrationCommonProps) {
           只需输入 Token，点击“验证并连接”后会自动获取用户名与邮箱。
         </p>
         {isConnected && (
-          <div className="bg-input text-ink-2 rounded-2xl p-3 text-sm">
+          <div className="bg-page text-ink-2 rounded-2xl p-3 text-sm">
             <div>已连接账号：{connectedName}</div>
             {connectedEmail ? <div>邮箱：{connectedEmail}</div> : null}
           </div>
@@ -161,7 +161,7 @@ export function IntegrationGithubSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={!tokenValue.trim() || isVerifying || props.isSavingSetting}
-          className="bg-accent shadow-accent w-full rounded-full py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-accent shadow-lift text-ink-inverse w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           {isVerifying ? "验证中..." : props.isSavingSetting ? "保存中..." : "验证并保存"}
         </button>
@@ -169,7 +169,7 @@ export function IntegrationGithubSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleDisconnect()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-rose-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-tag-5-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           断开连接
         </button>
@@ -304,7 +304,7 @@ export function IntegrationS3Section(props: IntegrationCommonProps) {
               className={`rounded-lg border px-3 py-2 text-sm ${
                 urlStyle === "path"
                   ? "border-accent bg-accent-soft text-accent"
-                  : "border-line text-ink-2"
+                  : "border-line-1 text-ink-2"
               }`}
             >
               path
@@ -323,7 +323,7 @@ export function IntegrationS3Section(props: IntegrationCommonProps) {
               className={`rounded-lg border px-3 py-2 text-sm ${
                 urlStyle === "virtualHosted"
                   ? "border-accent bg-accent-soft text-accent"
-                  : "border-line text-ink-2"
+                  : "border-line-1 text-ink-2"
               }`}
             >
               virtualHosted
@@ -339,7 +339,7 @@ export function IntegrationS3Section(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-accent shadow-accent w-full rounded-full py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-accent shadow-lift text-ink-inverse w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           {isVerifying ? "验证中..." : props.isSavingSetting ? "保存中..." : "验证并保存"}
         </button>
@@ -347,7 +347,7 @@ export function IntegrationS3Section(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleDisconnect()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-rose-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-tag-5-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           断开连接
         </button>
@@ -463,7 +463,7 @@ export function IntegrationWebDavSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-accent shadow-accent w-full rounded-full py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-accent shadow-lift text-ink-inverse w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           {isVerifying ? "验证中..." : props.isSavingSetting ? "保存中..." : "验证并保存"}
         </button>
@@ -471,7 +471,7 @@ export function IntegrationWebDavSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleDisconnect()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-rose-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-tag-5-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           断开连接
         </button>
@@ -583,7 +583,7 @@ export function IntegrationAliOssSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleVerifyAndSave()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-accent shadow-accent w-full rounded-full py-3 text-sm font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-accent shadow-lift text-ink-inverse w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           {isVerifying ? "验证中..." : props.isSavingSetting ? "保存中..." : "验证并保存"}
         </button>
@@ -591,7 +591,7 @@ export function IntegrationAliOssSection(props: IntegrationCommonProps) {
           type="button"
           onClick={() => void handleDisconnect()}
           disabled={isVerifying || props.isSavingSetting}
-          className="bg-rose-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="bg-tag-5-soft text-danger w-full rounded-full py-3 text-sm font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
         >
           断开连接
         </button>

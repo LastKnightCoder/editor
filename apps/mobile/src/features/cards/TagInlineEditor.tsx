@@ -83,7 +83,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
       trailing={
         editing ? (
           <>
-            <span className="border-accent bg-input text-ink inline-flex items-center gap-[1px] rounded-full border-[1.5px] border-solid px-3 py-[4px] text-[12px]">
+            <span className="border-accent bg-page text-ink-1 inline-flex items-center gap-[1px] rounded-full border-[1.5px] border-solid px-3 py-[4px] text-[12px]">
               <span className="text-accent mr-[2px] text-[11px] font-bold" aria-hidden>
                 #
               </span>
@@ -101,7 +101,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
                 onBlur={() => void commit()}
                 placeholder="输入标签名"
                 enterKeyHint="done"
-                className="text-ink caret-accent placeholder:text-ink-3 w-24 bg-transparent text-[12px] outline-none"
+                className="text-ink-1 caret-accent placeholder:text-ink-3 w-24 bg-transparent text-[12px] outline-none"
               />
             </span>
             <button
@@ -117,7 +117,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
           <button
             type="button"
             onClick={openEditor}
-            className="border-line text-ink-3 active:bg-press inline-flex items-center gap-[3px] rounded-full border-[1.5px] border-dashed px-2.5 py-[4px] text-[12px] font-semibold"
+            className="border-line-1 text-ink-3 active:bg-hover inline-flex items-center gap-[3px] rounded-full border-[1.5px] border-dashed px-2.5 py-[4px] text-[12px] font-semibold"
           >
             <Plus size={12.5} strokeWidth={2.5} />
             标签

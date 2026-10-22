@@ -500,7 +500,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
           <div
             ref={groupPanelRef}
             data-testid="mobile-editor-heading-panel"
-            className="z-75 bg-elevated/98 border-line shadow-float fixed flex items-center gap-1 rounded-xl border p-1"
+            className="z-75 bg-surface/98 border-line-1 shadow-float fixed flex items-center gap-1 rounded-xl border p-1"
             style={{
               left: menuPosition.left,
               top: menuPosition.top,
@@ -528,7 +528,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                   aria-label={option.ariaLabel}
                   className={cn(
                     "text-ink-2 flex h-9 min-w-9 items-center justify-center rounded-lg px-2.5 transition-colors",
-                    active ? "bg-accent text-white" : "active:bg-press"
+                    active ? "bg-accent text-ink-inverse" : "active:bg-hover"
                   )}
                   onPointerDown={event => {
                     preventBlurAndKeepFocus(event);
@@ -553,7 +553,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
             ref={palettePanelRef}
             data-testid="mobile-editor-palette"
             data-action={openPaletteId}
-            className="z-76 bg-elevated/98 border-line shadow-float fixed min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border p-2"
+            className="z-76 bg-surface/98 border-line-1 shadow-float fixed min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border p-2"
             style={{
               left: palettePosition.left,
               top: palettePosition.top,
@@ -563,7 +563,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-ink-3 text-[11px]">纯色</span>
-                  <div className="bg-line h-px flex-1" />
+                  <div className="bg-line-1 h-px flex-1" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {TEXT_COLOR_OPTIONS.map(option => {
@@ -577,7 +577,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                         aria-label={`文本颜色 ${option.label}`}
                         className={cn(
                           "flex h-8 w-8 items-center justify-center rounded-full border border-transparent",
-                          isDefault ? "bg-input text-ink-3" : "text-transparent"
+                          isDefault ? "bg-page text-ink-3" : "text-transparent"
                         )}
                         style={{
                           backgroundColor: isDefault ? undefined : previewColor,
@@ -593,7 +593,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-ink-3 text-[11px]">渐变</span>
-                  <div className="bg-line h-px flex-1" />
+                  <div className="bg-line-1 h-px flex-1" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {TEXT_GRADIENT_OPTIONS.map(option => (
@@ -601,7 +601,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                       key={`gradient-${option.preset}`}
                       type="button"
                       aria-label={`文本渐变 ${option.label}`}
-                      className="border-line flex h-8 w-8 items-center justify-center rounded-full border text-transparent"
+                      className="border-line-1 flex h-8 w-8 items-center justify-center rounded-full border text-transparent"
                       style={{
                         background: option.previewLight,
                       }}
@@ -624,7 +624,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                       aria-label={`高亮颜色 ${option.label}`}
                       className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-lg border border-transparent",
-                        isDefault ? "bg-input text-ink-3" : "text-transparent"
+                        isDefault ? "bg-page text-ink-3" : "text-transparent"
                       )}
                       style={{
                         backgroundColor: isDefault
@@ -677,7 +677,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                         aria-label={`下划线样式 ${option.label}`}
                         className={cn(
                           "h-7 rounded-md px-2 text-xs font-medium",
-                          selected ? "bg-accent text-white" : "bg-input text-ink-2"
+                          selected ? "bg-accent text-ink-inverse" : "bg-page text-ink-2"
                         )}
                         onPointerDown={event => {
                           handlePaletteApplyUnderlineLineType(event, option.value);
@@ -710,12 +710,12 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               maxWidth: "calc(100vw - 24px)",
             }}
           >
-            <div className="border-line bg-elevated/98 shadow-float relative flex max-w-full items-center overflow-hidden rounded-[15px] border">
+            <div className="border-line-1 bg-surface/98 shadow-float relative flex max-w-full items-center overflow-hidden rounded-[15px] border">
               <div className="scrollbar-hide flex items-center gap-0.5 overflow-x-auto rounded-[15px] p-[5px]">
                 <button
                   type="button"
                   aria-label="撤销"
-                  className="text-ink-2 active:bg-press flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
+                  className="text-ink-2 active:bg-hover flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
                   onPointerDown={event => {
                     preventBlurAndKeepFocus(event);
                     controller.undo();
@@ -726,7 +726,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                 <button
                   type="button"
                   aria-label="重做"
-                  className="text-ink-2 active:bg-press flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
+                  className="text-ink-2 active:bg-hover flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
                   onPointerDown={event => {
                     preventBlurAndKeepFocus(event);
                     controller.redo();
@@ -737,7 +737,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
 
                 {rowGroups.map(group => (
                   <div key={group.join("-")} className="flex shrink-0 items-center gap-0.5">
-                    <span aria-hidden="true" className="bg-line mx-1 h-5 w-px shrink-0" />
+                    <span aria-hidden="true" className="bg-line-1 mx-1 h-5 w-px shrink-0" />
                     {group.map(buttonId => renderActionButton(buttonId))}
                   </div>
                 ))}
@@ -748,7 +748,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                 className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-[15px]"
                 style={{
                   background:
-                    "linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg-elevated) 98%, transparent) 65%)",
+                    "linear-gradient(90deg, transparent, color-mix(in srgb, var(--tau-bg-surface) 98%, transparent) 65%)",
                 }}
               />
             </div>
@@ -770,7 +770,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
           aria-expanded={openGroupId === "heading"}
           className={cn(
             "text-ink-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors",
-            openGroupId === "heading" ? "bg-press" : "active:bg-press"
+            openGroupId === "heading" ? "bg-hover" : "active:bg-hover"
           )}
           onPointerDown={handleHeadingPointerDown}
         >
@@ -784,7 +784,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
           key={buttonId}
           type="button"
           aria-label={ACTION_LABELS[buttonId]}
-          className="text-ink-2 active:bg-press flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
+          className="text-ink-2 active:bg-hover flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
           onPointerDown={event => {
             // 仅阻止点击转移焦点（键盘不因触按而收起）；不可调用
             // keepEditorFocus——它的 rAF 兜底会在面板主动 blur 后把焦点抢回，
@@ -821,7 +821,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         className={cn(
           "text-ink-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors",
           disabled ? "cursor-not-allowed opacity-45" : null,
-          active && !disabled ? "bg-accent text-white" : "active:bg-press"
+          active && !disabled ? "bg-accent text-ink-inverse" : "active:bg-hover"
         )}
         onPointerDown={
           disabled

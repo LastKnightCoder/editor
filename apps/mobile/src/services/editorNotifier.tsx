@@ -146,10 +146,10 @@ export function EditorPromptHost() {
             submit();
           }
         }}
-        className={`bg-input text-ink caret-accent placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14px] font-semibold outline-none ${error ? "ring-rose ring-1" : ""}`}
+        className={`bg-page text-ink-1 caret-accent placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14px] font-semibold outline-none ${error ? "ring-tag-5 ring-1" : ""}`}
       />
       {error ? (
-        <p role="alert" className="text-rose mt-2 text-[12px] font-semibold">
+        <p role="alert" className="text-tag-5 mt-2 text-[12px] font-semibold">
           {error}
         </p>
       ) : null}
@@ -157,7 +157,7 @@ export function EditorPromptHost() {
         <button
           type="button"
           onClick={cancel}
-          className="bg-input text-ink-2 flex-1 rounded-xl py-3 text-[14px] font-semibold transition-transform active:scale-[0.98]"
+          className="bg-page text-ink-2 flex-1 rounded-xl py-3 text-[14px] font-semibold transition-transform active:scale-[0.98]"
         >
           {shown?.cancelText ?? "取消"}
         </button>
@@ -165,7 +165,7 @@ export function EditorPromptHost() {
           type="button"
           onClick={submit}
           disabled={!trimmed}
-          className="bg-accent flex-1 rounded-xl py-3 text-[14px] font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-40"
+          className="bg-accent text-ink-inverse flex-1 rounded-xl py-3 text-[14px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-40"
         >
           {shown?.confirmText ?? "确定"}
         </button>

@@ -33,10 +33,10 @@ import type { Flashcard, FlashcardDifficulty, FlashcardType } from "./types";
 
 // 轻纸面：非核心输入无底色无边框，光标即焦点反馈（对齐 card-edit-redesign-a 方案）
 const bareInputClass =
-  "w-full resize-none rounded-none border-0 bg-transparent px-1 py-2 text-[14px] font-semibold text-ink outline-none placeholder:font-medium placeholder:text-ink-3";
+  "w-full resize-none rounded-none border-0 bg-transparent px-1 py-2 text-[14px] font-semibold text-ink-1 outline-none placeholder:font-medium placeholder:text-ink-3";
 
 const editorClass =
-  "bg-transparent text-ink min-h-[110px] w-full px-1 py-1.5 text-[16px] font-bold leading-[1.7] outline-none";
+  "bg-transparent text-ink-1 min-h-[110px] w-full px-1 py-1.5 text-[16px] font-bold leading-[1.7] outline-none";
 
 /** 工具栏裁剪为基础格式集，且与复习渲染器 RichContent 的能力对齐（能编辑的就能渲染）；
  *  颜色/高亮/链接/图片/插入面板（表格/公式等重节点）不在其中，仍可在桌面端插入 */
@@ -381,7 +381,7 @@ export function CardEditPage({
                       type="button"
                       onClick={() => setCardType(type)}
                       className={`rounded-[9px] px-2.5 py-1 text-[11px] font-extrabold transition-colors ${
-                        active ? "" : "bg-input text-ink-3 active:bg-press"
+                        active ? "" : "bg-page text-ink-3 active:bg-hover"
                       }`}
                       style={active ? { background: tone.soft, color: tone.color } : undefined}
                     >
@@ -501,8 +501,8 @@ export function CardEditPage({
                     className={`rounded-[18px] border-2 py-4 font-extrabold ${
                       booleanAnswer === value
                         ? value
-                          ? "bg-sage-soft text-sage border-[var(--sage)]"
-                          : "bg-rose-soft text-danger border-[var(--danger)]"
+                          ? "bg-tag-1-soft text-tag-1 border-[var(--tau-tag-1)]"
+                          : "bg-tag-5-soft text-danger border-[var(--tau-danger)]"
                         : "bg-surface text-ink-2 shadow-card border-transparent"
                     }`}
                   >
@@ -540,7 +540,7 @@ export function CardEditPage({
 
           {/* 背面补充（富文本，保留卡片边界） */}
           <div className="shadow-card bg-surface rounded-[22px] p-4">
-            <div className="text-meta-ink mb-1 text-[12px] font-extrabold">背面补充（选填）</div>
+            <div className="text-ink-2 mb-1 text-[12px] font-extrabold">背面补充（选填）</div>
             <Editor
               kit={getMobileFlashcardKit({ blanks: false })}
               ref={detailEditorRef}
@@ -585,8 +585,8 @@ export function CardEditPage({
                   onClick={() => setDifficulty(item)}
                   className={`rounded-full border-[1.5px] px-[15px] py-2 text-[12.5px] font-bold transition-colors ${
                     difficulty === item
-                      ? "border-ink bg-ink text-[var(--toast-fg)]"
-                      : "border-line text-ink-2"
+                      ? "border-ink-1 bg-ink-1 text-[var(--tau-ink-inverse)]"
+                      : "border-line-1 text-ink-2"
                   }`}
                 >
                   {FLASHCARD_DIFFICULTY_LABEL[item]}
@@ -602,7 +602,7 @@ export function CardEditPage({
                 {tags.map((tag, index) => (
                   <span
                     key={tag}
-                    className="bg-accent-soft text-ink inline-flex items-center gap-1.5 rounded-full py-[7px] pl-3 pr-1.5 text-[12.5px] font-bold"
+                    className="bg-accent-soft text-ink-1 inline-flex items-center gap-1.5 rounded-full py-[7px] pl-3 pr-1.5 text-[12.5px] font-bold"
                   >
                     #{tag}
                     <button
@@ -629,7 +629,7 @@ export function CardEditPage({
                 }
               }}
               placeholder="输入后按回车，如：期货"
-              className="text-ink placeholder:text-ink-3 w-full bg-transparent px-1 pb-1 pt-1.5 text-[13px] font-semibold outline-none placeholder:font-medium"
+              className="text-ink-1 placeholder:text-ink-3 w-full bg-transparent px-1 pb-1 pt-1.5 text-[13px] font-semibold outline-none placeholder:font-medium"
             />
           </div>
         </div>
@@ -662,7 +662,7 @@ export function CardEditPage({
 /** 轻纸面小节标题：品牌短杠 + 标签，右侧可挂操作提示 */
 function SectionLabel({ children, aux }: { children: ReactNode; aux?: string }) {
   return (
-    <div className="text-meta-ink mb-2 flex items-center gap-2 text-[12px] font-extrabold tracking-wide">
+    <div className="text-ink-2 mb-2 flex items-center gap-2 text-[12px] font-extrabold tracking-wide">
       <span className="bg-accent h-3.5 w-1 rounded-sm" />
       {children}
       {aux ? <span className="text-ink-3 ml-auto text-[10.5px] font-bold">{aux}</span> : null}
@@ -744,7 +744,7 @@ function OptionRow({
       className={`shadow-card flex items-center gap-3 rounded-[16px] border-2 px-4 py-3 transition-colors ${
         option.isCorrect
           ? "border-accent bg-accent-soft"
-          : "bg-page active:bg-press border-transparent"
+          : "bg-page active:bg-hover border-transparent"
       }`}
       onClick={event => {
         // 点输入框正常聚焦编辑，点行其余区域（含徽标）切换正确
@@ -755,7 +755,7 @@ function OptionRow({
     >
       <span
         className={`grid h-7 w-7 flex-none place-items-center rounded-[10px] text-[12.5px] font-extrabold ${
-          option.isCorrect ? "bg-accent text-white" : "bg-input text-ink-2"
+          option.isCorrect ? "bg-accent text-ink-inverse" : "bg-page text-ink-2"
         }`}
       >
         {String.fromCharCode(65 + index)}
@@ -768,7 +768,7 @@ function OptionRow({
           placeholder={`选项 ${String.fromCharCode(65 + index)}`}
           onChange={event => onLabelChange(event.target.value)}
           onFocus={() => setExpanded(true)}
-          className="text-ink placeholder:text-ink-3 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[14px] font-semibold leading-[1.6] outline-none placeholder:font-medium"
+          className="text-ink-1 placeholder:text-ink-3 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[14px] font-semibold leading-[1.6] outline-none placeholder:font-medium"
           style={
             folded
               ? {
@@ -797,8 +797,8 @@ function OptionRow({
           aria-hidden
           className={`grid h-[23px] w-[23px] flex-none place-items-center rounded-[7px] border-2 text-[11px] font-extrabold ${
             option.isCorrect
-              ? "bg-sage border-[var(--sage)] text-white"
-              : "border-[var(--ink-3)] text-transparent"
+              ? "bg-tag-1 text-ink-inverse border-[var(--tau-tag-1)]"
+              : "border-[var(--tau-ink-3)] text-transparent"
           }`}
         >
           ✓

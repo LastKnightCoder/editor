@@ -18,7 +18,7 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { getNavigator } from "../../../router";
 import * as tauri from "../../../services/tauri";
 import type { ContentDetailResponse } from "../../../types";
-import { useMobileTheme } from "../../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { calculateContentLinkPopoverPosition } from "../contentLinkPosition";
 import ContentLinkPickerSheet, { type ContentLinkPickerResult } from "./ContentLinkPickerSheet";
 import { unwrapContentLink, wrapContentLink } from "./contentLinkTransforms";
@@ -128,13 +128,13 @@ function ContentLinkPreviewCard(props: {
   detail: ContentDetailResponse | null;
   renderer: PreviewRenderer | null;
 }) {
-  const { theme } = useMobileTheme();
+  const theme = useThemeStore(s => s.mode);
   if (props.loading) {
     return (
       <div className="space-y-2 p-3">
-        <div className="bg-input h-4 w-28 animate-pulse rounded" />
-        <div className="bg-input h-3 w-full animate-pulse rounded" />
-        <div className="bg-input h-3 w-4/5 animate-pulse rounded" />
+        <div className="bg-page h-4 w-28 animate-pulse rounded" />
+        <div className="bg-page h-3 w-full animate-pulse rounded" />
+        <div className="bg-page h-3 w-4/5 animate-pulse rounded" />
       </div>
     );
   }
@@ -157,9 +157,9 @@ function ContentLinkPreviewCard(props: {
   if (!props.renderer) {
     return (
       <div className="space-y-2 p-3">
-        <div className="bg-input h-4 w-28 animate-pulse rounded" />
-        <div className="bg-input h-3 w-full animate-pulse rounded" />
-        <div className="bg-input h-3 w-4/5 animate-pulse rounded" />
+        <div className="bg-page h-4 w-28 animate-pulse rounded" />
+        <div className="bg-page h-3 w-full animate-pulse rounded" />
+        <div className="bg-page h-3 w-4/5 animate-pulse rounded" />
       </div>
     );
   }
@@ -181,14 +181,14 @@ function ContentLinkPreviewCard(props: {
           {props.detail.card.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="bg-input text-ink-2 rounded-full px-2 py-0.5 text-[10px] font-medium"
+              className="bg-page text-ink-2 rounded-full px-2 py-0.5 text-[10px] font-medium"
             >
               {tag}
             </span>
           ))}
         </div>
       ) : null}
-      <div className="bg-input/70 rounded-xl px-2 py-2">
+      <div className="bg-page/70 rounded-xl px-2 py-2">
         <PreviewEditor
           key={`${props.detail.contentId}-${props.detail.updateTime}`}
           initValue={normalizeEditorContent(props.detail.content)}
@@ -361,7 +361,7 @@ function InteractiveContentLink(props: {
         {...props.attributes}
         ref={anchorRef}
         contentEditable={false}
-        className="border-sage/80 text-sage mx-0.5 inline-flex cursor-pointer items-center rounded-[2px] border-b-[3px] border-double px-0.5 transition-colors active:opacity-80"
+        className="border-tag-1/80 text-tag-1 mx-0.5 inline-flex cursor-pointer items-center rounded-[2px] border-b-[3px] border-double px-0.5 transition-colors active:opacity-80"
         onClick={event => {
           event.preventDefault();
           event.stopPropagation();

@@ -26,8 +26,8 @@
 ### 2.1 与旧 token 完全切割（已裁决）
 
 - 旧 `--th-*`（`src/styles/theme-colors.css`）**不迁移、不复用、不兼容**，M1 换壳时整文件删除；
-- 新体系前缀 **`--tau-*`**，词汇表与移动端对齐（`bg-page / ink-1 / line-1 / ok …`）——两端同词汇、各自取值，心智一致；
-- 敢切的原因：旧页面样式靠 antd 自带体系 + less modules + 原子类，本就不依赖我们的语义 token，删旧 token 不影响 Legacy 兼容层里的旧页面继续跑；`packages/editor` 是自有包，直接改为消费 `--tau-*`（一次性改造）；移动端 `styles.css` 的 `--th-*` 桥接由移动端自己定义，与桌面无关；
+- 新体系前缀 **`--tau-*`**，桌面端与移动端共用同一份主题与取值（移动端只保留布局尺度，见 [mobile.md](/docs/architecture/mobile.md#主题与样式)）；
+- 敢切的原因：旧页面样式靠 antd 自带体系 + less modules + 原子类，本就不依赖我们的语义 token，删旧 token 不影响 Legacy 兼容层里的旧页面继续跑；`packages/editor` 是自有包，直接改为消费 `--tau-*`（一次性改造）；
 - 尺度 token（字号/间距/圆角/动效）与主题正交，放全局 base 层；defineTheme 只声明**颜色语义 + 氛围**，密度走独立的 `[data-density]` 维度。
 
 ### 2.2 defineTheme：一个文件声明一个主题族的全部
@@ -132,13 +132,13 @@ export default defineTheme({
 
 - **载体**：`html` 上的 `data-theme="<主题族>"` + `data-mode="light|dark"`（当前 tokens.css 手工数据块，codegen 后生成）。CSS variables 切换，零 JS 重渲染；深色同步 `.dark` 类与 `color-scheme`（编辑器包 dark: 变体）；只关心明暗的样式写 `[data-mode="dark"]`，不感知主题族；
 - **两个正交偏好（已落地）**：主题族存 localStorage `tau-theme`，明暗偏好 `light | dark | system` 存 `tau-appearance`；store 暴露 `theme / appearance / mode(生效明暗)` 与 `setTheme / setAppearance`。`prefers-color-scheme` 监听仅 system 生效；沉浸窗等场景用 `initThemeRuntime({ forceMode: "dark" })` 只锁明暗、主题族仍跟随。首帧防闪：vite 插件注入 `createThemeBootstrapScript()`，与 runtime 共用 `resolveThemePreference`。旧值（`cream` / `cocoa` / `system`）自动拆分迁移并写回。现有主题族：paper 暖纸（浅 = 晨 / 深 = 夜），默认浅色；
-- **扩展新主题 = 新增一个 ****`*.theme.ts`**** 文件**——比移动端"新增一个 CSS 块"更强：有类型完整性校验与对比度断言兜底（`theme-parity.test.ts` 遍历注册表逐主题族 × 明暗校验取值一致 + AA 对比度）；
+- **扩展新主题 = 新增一个 ****`*.theme.ts`**** 文件**（桌面与移动端同时生效）：有类型完整性校验与对比度断言兜底（`theme-parity.test.ts` 遍历注册表逐主题族 × 明暗校验取值一致 + AA 对比度）；
 - **编辑器包**：`packages/editor` 直接改为消费 `--tau-*`（自有代码，一次性改造，随 M0 完成）；若改造期内需要并行，可在 `packages/themes` 挂一个 `var(--tau-*)` → 旧名的临时桥接，M2 前拆除；
 - **密度维度**：`[data-density="compact" | "comfortable"]`，控制行高/控件高度/页边距（桌面默认 compact，可全局切换），与主题正交。
 
 ### 2.5 对比度硬指标（codegen 门禁强制，不过 AA 构建失败）
 
-- `--tau-ink-1` 对 `--tau-bg-page/surface` ≥ 7:1；`--tau-ink-2` ≥ 4.5:1；占位符与 meta 文字 ≥ 4.5:1（移动端踩过 ink-2 只有 3.9:1 的坑，桌面用门禁杜绝重犯）；
+- `--tau-ink-1` 对 `--tau-bg-page/surface` ≥ 7:1；`--tau-ink-2` ≥ 4.5:1；占位符与 meta 文字 ≥ 4.5:1；
 - accent 作为文字色时 ≥ 4.5:1，作为实底按钮时其上文字 ≥ 4.5:1（light/dark 分轨的派生公式写在 tokens() 里，主题作者可读可调）；
 - **下沉填充上的文字一并入门禁**：`ink-2` / `ink-1` 对 `bg-sunken` ≥ 4.5:1。**`ink-3`******** 是装饰档，禁止落在 sunken 上承载需要读的信息**——它在该底上必然低于 4.5:1。（行内代码 chip 与路径徽标走 surface 亮底，由上方 `ink-1`/`ink-2` 对 `bg-surface` 两条守住，D-009。）
 

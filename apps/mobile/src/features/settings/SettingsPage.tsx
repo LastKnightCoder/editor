@@ -47,50 +47,50 @@ function FeatureGrid(props: {
     {
       key: "todo",
       icon: ListChecks,
-      tone: "var(--butter)",
+      tone: "var(--tau-tag-4)",
       label: "任务",
-      soft: "var(--butter-soft)",
+      soft: "var(--tau-tag-4-soft)",
       onClick: props.onOpenTodo ?? (() => toast({ type: "info", text: "任务模块未启用" })),
     },
     {
       key: "article",
       icon: Article,
-      tone: "var(--apricot)",
+      tone: "var(--tau-accent)",
       label: "文章",
-      soft: "var(--apricot-soft)",
+      soft: "var(--tau-accent-soft)",
       onClick: props.onOpenArticles ?? (() => toast({ type: "info", text: "文章即将上线" })),
     },
     {
       key: "project",
       icon: FolderOpen,
-      tone: "var(--lilac)",
+      tone: "var(--tau-tag-3)",
       label: "项目",
-      soft: "var(--lilac-soft)",
+      soft: "var(--tau-tag-3-soft)",
       onClick: props.onOpenProjects ?? (() => toast({ type: "info", text: "项目即将上线" })),
     },
     {
       key: "flashcard",
       icon: Cards,
-      tone: "var(--lilac)",
+      tone: "var(--tau-tag-3)",
       label: "闪卡",
-      soft: "var(--lilac-soft)",
+      soft: "var(--tau-tag-3-soft)",
       onClick: props.onOpenFlashcard ?? (() => toast({ type: "info", text: "闪卡模块未启用" })),
     },
     {
       key: "whiteboard",
       icon: Palette,
-      tone: "var(--rose)",
+      tone: "var(--tau-tag-5)",
       label: "白板",
-      soft: "var(--rose-soft)",
+      soft: "var(--tau-tag-5-soft)",
       soon: true,
       onClick: () => toast({ type: "info", text: "白板即将上线" }),
     },
     {
       key: "pomodoro",
       icon: Timer,
-      tone: "var(--rose)",
+      tone: "var(--tau-tag-5)",
       label: "番茄",
-      soft: "var(--rose-soft)",
+      soft: "var(--tau-tag-5-soft)",
       onClick: props.onOpenPomodoro ?? (() => toast({ type: "info", text: "番茄模块未启用" })),
     },
   ];
@@ -105,7 +105,7 @@ function FeatureGrid(props: {
           className="relative flex flex-col items-center gap-[7px] py-2 transition-transform duration-200 active:scale-90"
         >
           {item.soon ? (
-            <span className="bg-butter-soft text-butter absolute right-1 top-0 rounded-full px-[5px] py-[1.5px] text-[8.5px] font-bold tracking-wide">
+            <span className="bg-tag-4-soft text-tag-4 absolute right-1 top-0 rounded-full px-[5px] py-[1.5px] text-[8.5px] font-bold tracking-wide">
               即将
             </span>
           ) : null}
@@ -128,7 +128,7 @@ export function SettingsPage(props: SettingsScreenProps) {
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
-        <h1 className="text-ink text-2xl font-extrabold tracking-tight">我的</h1>
+        <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">我的</h1>
         <button
           type="button"
           onClick={props.onOpenSearch ?? (() => {})}

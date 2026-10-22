@@ -9,20 +9,20 @@ export type ProjectItemTypeMeta = {
 };
 
 const TYPE_META: Record<string, ProjectItemTypeMeta> = {
-  document: { label: "文档", icon: FileText, className: "bg-sky-soft text-sky" },
-  "white-board": { label: "白板", icon: Presentation, className: "bg-rose-soft text-rose" },
-  "video-note": { label: "视频笔记", icon: Clapperboard, className: "bg-lilac-soft text-lilac" },
-  "web-view": { label: "网页", icon: Globe, className: "bg-butter-soft text-butter" },
-  "table-view": { label: "表格", icon: Table2, className: "bg-sky-soft text-sky" },
-  pdf: { label: "PDF", icon: FileDown, className: "bg-rose-soft text-rose" },
+  document: { label: "文档", icon: FileText, className: "bg-tag-2-soft text-tag-2" },
+  "white-board": { label: "白板", icon: Presentation, className: "bg-tag-5-soft text-tag-5" },
+  "video-note": { label: "视频笔记", icon: Clapperboard, className: "bg-tag-3-soft text-tag-3" },
+  "web-view": { label: "网页", icon: Globe, className: "bg-tag-4-soft text-tag-4" },
+  "table-view": { label: "表格", icon: Table2, className: "bg-tag-2-soft text-tag-2" },
+  pdf: { label: "PDF", icon: FileDown, className: "bg-tag-5-soft text-tag-5" },
 };
 
 export function projectItemTypeMeta(item: ProjectItem): ProjectItemTypeMeta {
   if (item.refType === "card") {
-    return { label: "卡片", icon: FileText, className: "bg-apricot-soft text-apricot" };
+    return { label: "卡片", icon: FileText, className: "bg-accent-soft text-accent-text" };
   }
   if (item.refType === "article") {
-    return { label: "文章", icon: FileText, className: "bg-rose-soft text-rose" };
+    return { label: "文章", icon: FileText, className: "bg-tag-5-soft text-tag-5" };
   }
   const type = item.projectItemType || "document";
   return TYPE_META[type] ?? TYPE_META.document;

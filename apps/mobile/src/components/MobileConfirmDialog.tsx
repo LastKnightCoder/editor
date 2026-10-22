@@ -46,7 +46,7 @@ export function MobileConfirmDialog({
   }, [open, shouldRender]);
 
   const confirmClass = useMemo(() => {
-    return danger ? "text-rose" : "text-accent";
+    return danger ? "text-tag-5" : "text-accent";
   }, [danger]);
 
   if (!shouldRender || typeof document === "undefined") {
@@ -57,7 +57,7 @@ export function MobileConfirmDialog({
     <div className="fixed inset-0" style={{ zIndex: Z_INDEX.CONFIRM }}>
       <button
         type="button"
-        className={`bg-mask absolute inset-0 ${open ? "mask-enter" : "mask-exit"}`}
+        className={`bg-overlay absolute inset-0 ${open ? "mask-enter" : "mask-exit"}`}
         aria-label="关闭确认框"
         onClick={onCancel}
         disabled={loading}
@@ -67,7 +67,7 @@ export function MobileConfirmDialog({
         className={`card absolute left-1/2 top-1/2 w-[min(86vw,340px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl transition-all duration-200 ${open ? "opacity-100" : "scale-95 opacity-0"}`}
       >
         <div
-          className={`text-ink px-6 text-center text-[16px] font-bold ${description ? "pt-6" : "py-6"}`}
+          className={`text-ink-1 px-6 text-center text-[16px] font-bold ${description ? "pt-6" : "py-6"}`}
         >
           {title}
         </div>
@@ -76,10 +76,10 @@ export function MobileConfirmDialog({
             {description}
           </p>
         ) : null}
-        <div className="border-line grid grid-cols-2 border-t border-dashed">
+        <div className="border-line-1 grid grid-cols-2 border-t border-dashed">
           <button
             type="button"
-            className="text-ink-2 active:bg-press py-3.5 text-[15px] font-semibold transition-colors disabled:opacity-60"
+            className="text-ink-2 active:bg-hover py-3.5 text-[15px] font-semibold transition-colors disabled:opacity-60"
             onClick={onCancel}
             disabled={loading}
           >
@@ -87,7 +87,7 @@ export function MobileConfirmDialog({
           </button>
           <button
             type="button"
-            className={`border-line active:bg-press border-l border-dashed py-3.5 text-[15px] font-bold transition-colors disabled:opacity-60 ${confirmClass}`}
+            className={`border-line-1 active:bg-hover border-l border-dashed py-3.5 text-[15px] font-bold transition-colors disabled:opacity-60 ${confirmClass}`}
             onClick={onConfirm}
             disabled={loading}
           >

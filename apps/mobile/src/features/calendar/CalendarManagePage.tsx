@@ -7,7 +7,7 @@ import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { ActionSheet } from "../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { BottomSheet } from "../../components/BottomSheet";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { CALENDAR_COLORS, calendarColorValue } from "./constants";
 import { useCalendars, invalidateCalendarQueries } from "./queries";
@@ -20,7 +20,7 @@ type CalendarManagePageProps = {
 };
 
 export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const { data: calendars = [] } = useCalendars();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -59,7 +59,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
   const renderRow = (calendar: Calendar, archived = false) => (
     <div
       key={calendar.id}
-      className={`flex items-center gap-3 border-b border-[var(--line-2)] py-3 last:border-none ${
+      className={`flex items-center gap-3 border-b border-[var(--tau-line-2)] py-3 last:border-none ${
         archived ? "opacity-70" : ""
       }`}
     >
@@ -67,7 +67,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
         className="h-[11px] w-[11px] flex-none rounded-full"
         style={{ background: calendarColorValue(calendar.color, isDark) }}
       />
-      <span className="text-ink min-w-0 flex-1 truncate text-[14.5px] font-bold">
+      <span className="text-ink-1 min-w-0 flex-1 truncate text-[14.5px] font-bold">
         {calendar.title}
       </span>
       <span className="text-ink-3 flex-none text-[11.5px] font-bold tabular-nums">
@@ -80,7 +80,7 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
         aria-label={`显示${calendar.title}`}
         onClick={() => toggleVisible(calendar)}
         className={`relative h-[30px] w-[50px] flex-none rounded-full transition-colors ${
-          calendar.visible ? "bg-[var(--brand)]" : "bg-[var(--ring-track)]"
+          calendar.visible ? "bg-[var(--tau-accent)]" : "bg-[var(--ring-track)]"
         }`}
       >
         <span
@@ -268,7 +268,7 @@ function CalendarFormSheet({
   onSaved: () => void;
   onError: (error: unknown, fallback: string) => void;
 }) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const [name, setName] = useState("");
   const [color, setColor] = useState<string>("orange");
   const [wasOpen, setWasOpen] = useState(false);
@@ -311,7 +311,7 @@ function CalendarFormSheet({
         value={name}
         onChange={event => setName(event.target.value)}
         placeholder="日历名称，如：工作、生活…"
-        className="bg-input text-ink placeholder:text-ink-3 mt-1 w-full rounded-[13px] border-none px-3.5 py-3 text-[14.5px] font-bold outline-none"
+        className="bg-page text-ink-1 placeholder:text-ink-3 mt-1 w-full rounded-[13px] border-none px-3.5 py-3 text-[14.5px] font-bold outline-none"
       />
       <div className="text-ink-3 pb-2 pt-4 text-[11.5px] font-extrabold">
         颜色 · 与桌面端同一套 17 色
@@ -328,7 +328,7 @@ function CalendarFormSheet({
               aria-pressed={selected}
               onClick={() => setColor(entry.name)}
               // 与日程颜色面板同一套选中态：品牌色 ring + 面板底色间隙
-              // （原 ink 描边在四套主题下都是近黑/近白的中性色，看着像跑错了主题）
+              // （原 ink 描边在各主题下都是近黑/近白的中性色，看着像跑错了主题）
               className={`grid aspect-square place-items-center rounded-full text-[13px] font-extrabold text-white ${
                 selected ? "ring-accent ring-offset-surface ring-2 ring-offset-2" : ""
               }`}
@@ -343,7 +343,7 @@ function CalendarFormSheet({
         <button
           type="button"
           onClick={onClose}
-          className="bg-input text-ink-2 h-[46px] flex-1 rounded-[15px] text-[14px] font-extrabold"
+          className="bg-page text-ink-2 h-[46px] flex-1 rounded-[15px] text-[14px] font-extrabold"
         >
           取消
         </button>
@@ -351,8 +351,8 @@ function CalendarFormSheet({
           type="button"
           disabled={!name.trim() || saving}
           onClick={handleSave}
-          className="shadow-accent h-[46px] flex-1 rounded-[15px] text-[14px] font-extrabold text-white disabled:opacity-50"
-          style={{ background: "var(--brand-grad)" }}
+          className="shadow-lift text-ink-inverse h-[46px] flex-1 rounded-[15px] text-[14px] font-extrabold disabled:opacity-50"
+          style={{ background: "var(--tau-accent)" }}
         >
           {saving ? "保存中…" : target ? "保存" : "创建"}
         </button>

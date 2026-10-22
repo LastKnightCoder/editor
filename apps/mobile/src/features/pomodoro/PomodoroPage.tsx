@@ -36,12 +36,12 @@ import { usePomodoroController } from "./usePomodoroController";
 import { formatClock, formatFocusDuration } from "./timer";
 
 const PRESET_TONES = [
-  { bg: "var(--sage)", soft: "var(--sage-soft)" },
-  { bg: "var(--sky)", soft: "var(--sky-soft)" },
-  { bg: "var(--apricot)", soft: "var(--apricot-soft)" },
-  { bg: "var(--lilac)", soft: "var(--lilac-soft)" },
-  { bg: "var(--butter)", soft: "var(--butter-soft)" },
-  { bg: "var(--rose)", soft: "var(--rose-soft)" },
+  { bg: "var(--tau-tag-1)", soft: "var(--tau-tag-1-soft)" },
+  { bg: "var(--tau-tag-2)", soft: "var(--tau-tag-2-soft)" },
+  { bg: "var(--tau-accent)", soft: "var(--tau-accent-soft)" },
+  { bg: "var(--tau-tag-3)", soft: "var(--tau-tag-3-soft)" },
+  { bg: "var(--tau-tag-4)", soft: "var(--tau-tag-4-soft)" },
+  { bg: "var(--tau-tag-5)", soft: "var(--tau-tag-5-soft)" },
 ];
 
 function presetTone(index: number) {
@@ -221,16 +221,19 @@ export function PomodoroPage({
               onClick={onOpenFocus}
               className="shadow-card mx-[18px] mt-3 flex w-[calc(100%-36px)] items-center gap-3 rounded-[18px] px-4 py-3 text-left transition-transform active:scale-[0.98]"
               style={{
-                background: "linear-gradient(135deg, var(--brand-soft), var(--bg-surface))",
+                background:
+                  "linear-gradient(135deg, var(--tau-accent-soft), var(--tau-bg-surface))",
               }}
             >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
                   controller.isRunning ? "animate-pulse" : ""
                 }`}
-                style={{ background: controller.isRunning ? "var(--brand)" : "var(--butter)" }}
+                style={{
+                  background: controller.isRunning ? "var(--tau-accent)" : "var(--tau-tag-4)",
+                }}
               />
-              <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-bold">
+              <span className="text-ink-1 min-w-0 flex-1 truncate text-[13.5px] font-bold">
                 {controller.preset?.name ?? "专注中"}
                 <span className="text-ink-3 ml-2 text-[11px] font-semibold">
                   {controller.isPaused ? "已暂停" : "专注中"}
@@ -250,7 +253,8 @@ export function PomodoroPage({
               onClick={onOpenHistory}
               className="rounded-bento shadow-card col-span-2 flex items-center gap-[15px] p-4 text-left transition-transform duration-200 active:scale-[0.97]"
               style={{
-                background: "linear-gradient(135deg, var(--brand-soft), var(--rose-soft))",
+                background:
+                  "linear-gradient(135deg, var(--tau-accent-soft), var(--tau-tag-5-soft))",
               }}
             >
               <span className="text-[30px] leading-none">🍅</span>
@@ -268,9 +272,9 @@ export function PomodoroPage({
             <button
               type="button"
               onClick={onOpenHistory}
-              className="rounded-bento bg-sky-soft shadow-card p-4 text-left transition-transform duration-200 active:scale-[0.97]"
+              className="rounded-bento bg-tag-2-soft shadow-card p-4 text-left transition-transform duration-200 active:scale-[0.97]"
             >
-              <span className="text-sky block text-[21px] font-extrabold tabular-nums leading-tight">
+              <span className="text-tag-2 block text-[21px] font-extrabold tabular-nums leading-tight">
                 {weeklySummaryQuery.isLoading ? "…" : formatFocusDuration(weeklyFocusMs)}
               </span>
               <span className="text-ink-2 mt-0.5 block text-[11.5px]">本周专注</span>
@@ -278,9 +282,9 @@ export function PomodoroPage({
             <button
               type="button"
               onClick={onOpenHistory}
-              className="rounded-bento bg-lilac-soft shadow-card p-4 text-left transition-transform duration-200 active:scale-[0.97]"
+              className="rounded-bento bg-tag-3-soft shadow-card p-4 text-left transition-transform duration-200 active:scale-[0.97]"
             >
-              <span className="text-lilac block text-[21px] font-extrabold tabular-nums leading-tight">
+              <span className="text-tag-3 block text-[21px] font-extrabold tabular-nums leading-tight">
                 {totalSummaryQuery.isLoading
                   ? "…"
                   : formatFocusDuration(totalSummaryQuery.data?.focusMs ?? 0)}
@@ -293,7 +297,7 @@ export function PomodoroPage({
 
           {/* 预设列表（清单式，与任务中心同构） */}
           <div className="mb-1.5 mt-5 flex items-baseline justify-between px-[19px]">
-            <h2 className="text-ink text-[16.5px] font-extrabold">预设</h2>
+            <h2 className="text-ink-1 text-[16.5px] font-extrabold">预设</h2>
           </div>
           <div className="list-group mx-[18px]">
             {presetsQuery.isLoading ? (
@@ -316,14 +320,14 @@ export function PomodoroPage({
                 return (
                   <div
                     key={preset.id}
-                    className="border-line flex items-center gap-3 border-b border-dashed px-3.5 py-3 last:border-b-0"
+                    className="border-line-1 flex items-center gap-3 border-b border-dashed px-3.5 py-3 last:border-b-0"
                   >
                     <button
                       type="button"
                       aria-label={running ? "查看专注" : `开始 ${preset.name}`}
                       onClick={() => (running ? onOpenFocus() : startPreset(preset))}
-                      className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full text-white transition-transform active:scale-90"
-                      style={{ background: tone.bg, boxShadow: "var(--shadow-accent)" }}
+                      className="text-ink-inverse grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full transition-transform active:scale-90"
+                      style={{ background: tone.bg, boxShadow: "var(--tau-shadow-lift)" }}
                     >
                       {running ? (
                         <Pause size={15} fill="currentColor" />
@@ -336,12 +340,15 @@ export function PomodoroPage({
                       onClick={() => (running ? onOpenFocus() : startPreset(preset))}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <span className="text-ink flex items-center gap-1.5 text-[13.5px] font-extrabold">
+                      <span className="text-ink-1 flex items-center gap-1.5 text-[13.5px] font-extrabold">
                         <span className="truncate">{preset.name}</span>
                         {running ? (
                           <span
                             className="rounded-full px-1.5 py-0.5 text-[9.5px] font-bold leading-none"
-                            style={{ background: "var(--brand-soft)", color: "var(--brand)" }}
+                            style={{
+                              background: "var(--tau-accent-soft)",
+                              color: "var(--tau-accent)",
+                            }}
                           >
                             {controller.isPaused ? "已暂停" : "进行中"}
                           </span>
@@ -390,7 +397,7 @@ export function PomodoroPage({
                   {archivedPresets.map(preset => (
                     <div
                       key={preset.id}
-                      className="border-line flex items-center gap-3 border-b border-dashed px-3.5 py-3 last:border-b-0"
+                      className="border-line-1 flex items-center gap-3 border-b border-dashed px-3.5 py-3 last:border-b-0"
                     >
                       <button
                         type="button"
@@ -424,7 +431,7 @@ export function PomodoroPage({
           <button
             type="button"
             onClick={onOpenHistory}
-            className="text-ink-2 active:bg-press mx-[18px] mt-3 flex w-[calc(100%-36px)] items-center justify-center gap-1.5 rounded-[16px] py-3 text-[12.5px] font-bold"
+            className="text-ink-2 active:bg-hover mx-[18px] mt-3 flex w-[calc(100%-36px)] items-center justify-center gap-1.5 rounded-[16px] py-3 text-[12.5px] font-bold"
           >
             <Clock size={14} />
             全部专注记录

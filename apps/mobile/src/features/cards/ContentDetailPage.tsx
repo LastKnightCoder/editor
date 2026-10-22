@@ -51,7 +51,7 @@ type ContentDetailPageProps = {
   sourceRef?: {
     label: string;
     typeLabel: string;
-    /** 图标与标题的域色（如 text-sky / text-butter），缺省用品牌色 */
+    /** 图标与标题的域色（如 text-tag-2 / text-tag-4），缺省用品牌色 */
     toneClass?: string;
     onOpen: () => void;
   };
@@ -260,14 +260,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         </span>
       </span>
     ) : (
-      <span className="text-ink line-clamp-1 block text-center text-[18px] font-extrabold">
+      <span className="text-ink-1 line-clamp-1 block text-center text-[18px] font-extrabold">
         {headerTitle}
       </span>
     )
   ) : null;
 
   const saveStatusNode = saving ? (
-    <span className="text-meta-ink text-[12px]">保存中…</span>
+    <span className="text-ink-2 text-[12px]">保存中…</span>
   ) : saveError ? (
     <span className="text-danger text-[12px] font-medium">保存失败</span>
   ) : props.diaryDate ? (
@@ -292,7 +292,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {props.contentType}
       </span>
     ) : (
-      <span className="bg-input text-meta-ink inline-flex items-center rounded-full px-3 py-[4.5px] text-[12.5px] font-bold">
+      <span className="bg-page text-ink-2 inline-flex items-center rounded-full px-3 py-[4.5px] text-[12.5px] font-bold">
         {props.contentType}
       </span>
     )
@@ -302,19 +302,19 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const body =
     !detail && contentLoading ? (
       <div className="space-y-3 pt-4">
-        <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-        <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
-        <div className="bg-input h-4 w-full animate-pulse rounded" />
-        <div className="bg-input h-4 w-3/4 animate-pulse rounded" />
+        <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+        <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
+        <div className="bg-page h-4 w-full animate-pulse rounded" />
+        <div className="bg-page h-4 w-3/4 animate-pulse rounded" />
       </div>
     ) : detail ? (
       <div>
         {props.diaryDate ? (
           <div className="pt-6">
-            <h1 className="text-ink text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
               {props.diaryDate.title}
             </h1>
-            <p className="text-meta-ink mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+            <p className="text-ink-2 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
               {props.diaryDate.sub ? <span>{props.diaryDate.sub}</span> : null}
               {props.diaryDate.sub ? <MetaDot /> : null}
               {saveStatusNode}
@@ -337,11 +337,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 autoGrowTitle(event.target);
               }}
               onBlur={commitTitle}
-              className="text-ink caret-accent placeholder:text-ink-3 mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
+              className="text-ink-1 caret-accent placeholder:text-ink-3 mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
             />
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
               {typeBadge}
-              <div className="text-meta-ink flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
+              <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
                 <span>{formatTimeLabel(detail.updateTime)}</span>
                 <MetaDot />
                 <span>{wordCount.toLocaleString()} 字</span>
@@ -357,7 +357,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               <button
                 type="button"
                 onClick={props.sourceRef.onOpen}
-                className="text-meta-ink mt-2.5 flex w-full items-center gap-1.5 text-[12px] font-medium transition-opacity active:opacity-60"
+                className="text-ink-2 mt-2.5 flex w-full items-center gap-1.5 text-[12px] font-medium transition-opacity active:opacity-60"
               >
                 <CornerUpRight
                   size={13}
@@ -379,7 +379,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {!props.titleEditable && !props.diaryDate ? (
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pt-5">
             {typeBadge}
-            <div className="text-meta-ink flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
+            <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
               <span>{formatTimeLabel(detail.updateTime)}</span>
               <MetaDot />
               <span>{wordCount.toLocaleString()} 字</span>

@@ -55,7 +55,7 @@ export function LinksDisclosure({ links, onError }: LinksDisclosureProps) {
 
   return (
     <div className="bg-surface shadow-card mt-4 rounded-[18px] px-4">
-      <div className="border-line flex items-center border-b py-3">
+      <div className="border-line-1 flex items-center border-b py-3">
         <span className="text-ink-3 text-[11px] font-bold tracking-[0.14em]">
           关联 · {links.length}
         </span>
@@ -63,8 +63,8 @@ export function LinksDisclosure({ links, onError }: LinksDisclosureProps) {
 
       {loading ? (
         <div className="space-y-2.5 py-3.5">
-          <div className="bg-input h-4 w-3/5 animate-pulse rounded" />
-          <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-3/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
         </div>
       ) : (
         items.map(item => (
@@ -76,7 +76,7 @@ export function LinksDisclosure({ links, onError }: LinksDisclosureProps) {
             }}
             className="flex w-full items-center gap-3 py-3 text-left"
           >
-            <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
+            <span className="text-ink-1 min-w-0 flex-1 truncate text-[13.5px] font-medium">
               {resolveTitle(item)}
             </span>
             <ChevronRight size={14} className="text-ink-3 shrink-0" />

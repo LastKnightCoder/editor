@@ -39,7 +39,6 @@ vi.mock("../../../hooks/useEditContent", async () => {
 });
 
 vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn() }));
-vi.mock("../../../hooks/useMobileTheme", () => ({ useMobileTheme: () => ({ theme: "light" }) }));
 vi.mock("../../../hooks/useScrollState", () => ({ useEdgeFade: vi.fn() }));
 vi.mock("../editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
 vi.mock("../LinksDisclosure", () => ({ default: () => null }));

@@ -53,7 +53,7 @@ function FocusRing({
           cy="100"
           r={radius}
           fill="none"
-          stroke={done ? "var(--ok)" : "var(--brand)"}
+          stroke={done ? "var(--tau-ok)" : "var(--tau-accent)"}
           strokeWidth="9"
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -85,7 +85,7 @@ function PauseFab({
       aria-label={paused ? "继续" : "暂停"}
       disabled={busy}
       onClick={onToggle}
-      className="bg-surface text-ink shadow-float grid place-items-center rounded-full transition-transform active:scale-90"
+      className="bg-surface text-ink-1 shadow-float grid place-items-center rounded-full transition-transform active:scale-90"
       style={{ width: size, height: size }}
     >
       {paused ? (
@@ -102,7 +102,7 @@ function StopButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="text-ink-3 decoration-line flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-extrabold underline underline-offset-4"
+      className="text-ink-3 decoration-line-1 flex items-center gap-1.5 px-4 py-2 text-[12.5px] font-extrabold underline underline-offset-4"
     >
       <Square size={11} fill="currentColor" />
       结束专注
@@ -186,7 +186,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
         style={backdropStyle}
       >
         <FocusRing progress={1} done className="w-[min(62vw,248px)] landscape:w-[min(46vh,240px)]">
-          <span className="bg-sage-soft text-sage mb-1.5 grid h-11 w-11 place-items-center rounded-full">
+          <span className="bg-tag-1-soft text-tag-1 mb-1.5 grid h-11 w-11 place-items-center rounded-full">
             <Check size={22} strokeWidth={3} />
           </span>
           <span className="text-ink-2 text-[11.5px] font-bold">
@@ -194,7 +194,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
           </span>
         </FocusRing>
         <div className="flex flex-col items-center gap-3">
-          <p className="text-ink text-[17px] font-extrabold">专注完成 🎉</p>
+          <p className="text-ink-1 text-[17px] font-extrabold">专注完成 🎉</p>
           <p className="text-ink-3 text-[12px] font-semibold">建议休息 5 分钟再继续 🍵</p>
           <div className="mt-2 flex items-center gap-3">
             {preset ? (
@@ -204,8 +204,8 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
                   controller.clearJustCompleted();
                   void controller.start(preset);
                 }}
-                className="shadow-accent rounded-[16px] px-6 py-3 text-[14px] font-extrabold text-white"
-                style={{ background: "var(--ok)" }}
+                className="shadow-lift text-ink-inverse rounded-[16px] px-6 py-3 text-[14px] font-extrabold"
+                style={{ background: "var(--tau-ok)" }}
               >
                 再来一个
               </button>
@@ -213,7 +213,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
             <button
               type="button"
               onClick={onRequestClose}
-              className="bg-input text-ink-2 rounded-[16px] px-6 py-3 text-[14px] font-extrabold"
+              className="bg-page text-ink-2 rounded-[16px] px-6 py-3 text-[14px] font-extrabold"
             >
               休息一下
             </button>
@@ -242,7 +242,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
           type="button"
           aria-label="收起，计时继续"
           onClick={onRequestClose}
-          className="text-ink-2 active:bg-ghost-press grid h-10 w-10 place-items-center rounded-full"
+          className="text-ink-2 active:bg-press grid h-10 w-10 place-items-center rounded-full"
         >
           <ChevronDown size={24} strokeWidth={2.2} />
         </button>
@@ -256,7 +256,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
       {/* ── 竖屏：环内大时间，纵向居中 ── */}
       <div className="flex flex-1 flex-col items-center justify-center gap-7 px-8 pb-10 landscape:hidden">
         <FocusRing progress={progress} className="w-[min(62vw,248px)]">
-          <span className="text-ink text-[clamp(38px,12vw,52px)] font-extrabold tabular-nums leading-none">
+          <span className="text-ink-1 text-[clamp(38px,12vw,52px)] font-extrabold tabular-nums leading-none">
             {formatClock(displayMs)}
           </span>
           <span className="text-ink-3 mt-2 text-[11.5px] font-bold tabular-nums">{subText()}</span>
@@ -273,13 +273,13 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
       <div className="pointer-events-none absolute inset-0 hidden place-items-center landscape:grid">
         <span
           className="text-accent text-[clamp(56px,40vh,160px)] font-light tabular-nums leading-none"
-          style={{ fontFamily: "var(--mono-font)" }}
+          style={{ fontFamily: "var(--tau-font-mono)" }}
         >
           {formatClock(displayMs)}
         </span>
       </div>
 
-      <div className="bg-line absolute inset-x-0 bottom-0 hidden h-[3px] landscape:block">
+      <div className="bg-line-1 absolute inset-x-0 bottom-0 hidden h-[3px] landscape:block">
         <div
           className="bg-accent h-full transition-[width] duration-1000 ease-linear"
           style={{ width: `${progress * 100}%` }}
@@ -292,8 +292,8 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
           aria-label={controller.isPaused ? "继续" : "暂停"}
           disabled={controller.busy}
           onClick={togglePause}
-          className="shadow-accent ease-bounce grid h-12 w-12 place-items-center rounded-full text-white transition-transform active:scale-[0.88]"
-          style={{ background: "var(--brand)" }}
+          className="shadow-lift ease-bounce text-ink-inverse grid h-12 w-12 place-items-center rounded-full transition-transform active:scale-[0.88]"
+          style={{ background: "var(--tau-accent)" }}
         >
           {controller.isPaused ? (
             <Play size={19} fill="currentColor" className="ml-0.5" />
@@ -305,7 +305,7 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
           type="button"
           aria-label="结束专注"
           onClick={requestStop}
-          className="bg-elevated text-ink border-line shadow-float ease-bounce grid h-12 w-12 place-items-center rounded-full border transition-transform active:scale-[0.88]"
+          className="bg-surface text-ink-1 border-line-1 shadow-float ease-bounce grid h-12 w-12 place-items-center rounded-full border transition-transform active:scale-[0.88]"
         >
           <Square size={16} fill="currentColor" />
         </button>

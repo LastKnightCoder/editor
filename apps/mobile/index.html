@@ -8,30 +8,6 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>Tau</title>
-    <script>
-      // 首帧前应用主题，避免深色闪白（与 src/theme/themeStore.ts 的存储格式一致）
-      (function () {
-        try {
-          var saved = localStorage.getItem("tau-mobile-theme");
-          var themeIds = ["apricot", "midnight", "mint", "ocean"];
-          var resolved = themeIds.indexOf(saved) >= 0
-            ? saved
-            : saved === "dark" || saved === "nocturne" // 兼容旧版存储
-              ? "midnight"
-              : saved === "system"
-                ? window.matchMedia &&
-                  window.matchMedia("(prefers-color-scheme: dark)").matches
-                  ? "midnight"
-                  : "apricot"
-                : "apricot"; // 含旧值 light 与未设置
-          document.documentElement.dataset.theme = resolved;
-          document.documentElement.dataset.mode = resolved === "midnight" ? "dark" : "light";
-          if (resolved === "midnight") document.documentElement.classList.add("dark");
-        } catch (e) {
-          /* ignore */
-        }
-      })();
-    </script>
   </head>
 
   <body>

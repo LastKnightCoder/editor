@@ -15,9 +15,9 @@ type TagChipsProps = {
 };
 
 const FLAT_CHIP_CLASS =
-  "inline-flex items-center gap-[3px] rounded-full bg-input px-2.5 py-[3.5px] text-[11.5px] font-medium text-meta-ink";
+  "inline-flex items-center gap-[3px] rounded-full bg-page px-2.5 py-[3.5px] text-[11.5px] font-medium text-ink-2";
 const ELEVATED_CHIP_CLASS =
-  "inline-flex items-center gap-[3px] rounded-full bg-surface px-2.5 py-[4px] text-[12px] font-medium text-meta-ink shadow-card";
+  "inline-flex items-center gap-[3px] rounded-full bg-surface px-2.5 py-[4px] text-[12px] font-medium text-ink-2 shadow-card";
 
 export function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProps) {
   if (tags.length === 0 && !trailing) {
@@ -44,7 +44,7 @@ export function TagChips({ tags, className, variant, trailing, onRemove }: TagCh
                 // 阻止 pointerdown 默认行为，避免内联输入框先失焦（失焦即提交并退出编辑态，× 会被卸载导致点击丢失）
                 onPointerDown={event => event.preventDefault()}
                 onClick={() => onRemove(tag)}
-                className="text-ink-3 active:bg-press -mr-1 inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full"
+                className="text-ink-3 active:bg-hover -mr-1 inline-flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full"
               >
                 <X size={11} strokeWidth={3} />
               </button>
