@@ -1,33 +1,6 @@
-# WhiteBoard 技术文档
+# @tau/whiteboard 架构文档
 
-> 本文档详解 `packages/whiteboard/src` 的架构、插件体系、数据流、渲染与交互原理，以及扩展与调试指南，便于后续维护、修复与新增能力。
-> 当前实现归 `@tau/whiteboard`，公开根入口、extensions 与 styles.css；桌面业务扩展在 `features/shared/whiteboard`，独立示例在 `examples/whiteboard`。装配与生命周期见 [包说明](/packages/whiteboard/README.md)；本文的 IBoardPlugin 是内置扩展复用的私有策略，不是对外插件协议。通用容器来自 `@tau/ui`，存储与剪贴板格式保持。
-
-> 若需逐级深入到实现细节，请查阅《白板技术细节指南.md》。
-
-**文档版本**: 2.0
-
-**最后更新**: 2026-10-10
-**适用人群**: 全栈/前端开发者、白板功能迭代与问题排查人员
-
----
-
-## 目录
-
-- [一、项目概述](#一项目概述)
-- [二、核心架构](#二核心架构)
-- [三、数据模型](#三数据模型)
-- [四、插件体系](#四插件体系)
-- [五、渲染与视口](#五渲染与视口)
-- [六、交互与变换](#六交互与变换)
-- [七、历史、撤销与资源管理](#七历史撤销与资源管理)
-- [八、演示模式](#八演示模式)
-- [九、对外 API 与上下文](#九对外-api-与上下文)
-- [十、扩展指南](#十扩展指南)
-- [十一、常见问题与调试建议](#十一常见问题与调试建议)
-- [附录：核心文件索引](#附录核心文件索引)
-
----
+详解 `packages/whiteboard/src` 的架构、插件体系、数据流、渲染与交互原理，以及扩展与调试指南。桌面业务扩展在 `features/shared/whiteboard`，独立示例在 `examples/whiteboard`；装配与生命周期见 [包说明](../README.md)。本文的 IBoardPlugin 是内置扩展复用的私有策略，不是对外插件协议。通用容器来自 `@tau/ui`。
 
 ## 一、项目概述
 
@@ -95,13 +68,34 @@
 
 ---
 
+### 交互内核（interactions/）
+
+```
+Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，后续阶段参考线与可见性过滤已接入 capabilityService 能力查询）
+└─ interactions/InteractionManager（手势唯一裁决与路由层）
+   ├─ SelectingState    点选/框选（组合内嵌拖拽阶段）   ← 原 SelectPlugin 指针部分
+   │   └─ DraggingState 拖拽移动、吸附、容器拖入/拖出    ← 原 MovePlugin 指针部分
+   ├─ PanningState      右键拖拽平移 + 右键菜单触发      ← 原 ViewPortPlugin 指针部分
+   ├─ KeyboardMoveState / ViewportMoveState（继承 ContinuousArrowMoveState）
+   │                     方向键移动选中元素 / 平移视口    ← 原 MovePlugin + ViewPortPlugin 键盘部分
+   └─ claimPointerGesture 声明的自定义手势
+       └─ MindDragInteraction（思维导图拖拽）           ← 原 MindPlugin 的 return false 抢占
+```
+
+关键机制：
+
+- **双轨过渡**：内核未接管的事件仍走原插件广播；广播被插件 `return false` 中断时内核同样不开新手势。
+- **仲裁时序显式化**：pointerdown 广播前先询问命中元素插件的 `claimPointerGesture`（自定义手势）；广播后按 SelectingState → DraggingState → PanningState 顺序仲裁（原注册顺序的显式化，不再依赖插件数组顺序）。
+- **消费语义**：手势状态的处理器返回 `true` 表示事件已被处理，Board 跳过插件广播（原 `return false` 的内核化替代）。
+- **插件瘦身**：MovePlugin 已删除；SelectPlugin 仅保留键盘命令（mod+a / delete）；ViewPortPlugin 仅保留滚轮与缩放快捷键；MindPlugin 保留拖拽状态机并通过 `claimPointerGesture` 声明接管。
+
 ## 三、数据模型
 
 ### 3.1 BoardElement 与能力
 
 - `types/board.ts` 定义 `BoardElement` 通用字段：`id/type/name/groupId/children` 与能力控制 `resizable/autoHeight`。
 - 元素可带 `schemaVersion`（正整数，缺省 1）：扩展定义声明同名 `schemaVersion` 与 `migrate[n]`（n→n+1）后即拥有数据结构版本。装配后对已加载数据迁移一次（不进历史、不发 change，随下次编辑落库）；插入路径（粘贴/submit/导入）先迁移再插入；数据版本高于扩展或迁移失败时占位渲染、数据原样保留。
-- 当前工具由 activeTool 模型表达（D-130）：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
+- 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
 - `IElementCapabilities`（`types/capabilities.ts`）由插件声明：是否吸附、是否参与参考线、是否可随子元素移动、箭头连接点策略等，`CapabilityService` 统一查询。
 
 ### 3.2 ViewPort 与 Selection
@@ -128,7 +122,7 @@
 
 ### 4.1 扩展声明与内部元素策略
 
-对外使用 defineWhiteboardExtension，create(api) 返回 elements、commands、tools、inspectors、menus、hotkeys、ingest、layers 及生命周期回调。api 提供只读快照、受控提交与宿主服务访问（D-134）：扩展在 `requires` / `optional` 中声明服务标识（`createServiceId` 产物），装配时 requires 缺失即拒绝该扩展（reason `missing-service`），扩展作用域内经 `api.getService` / `api.tryGetService` 获取（只能取声明过的 id，未声明抛错；主 API 不提供服务访问）；宿主经 `WhiteBoard` 的 `services` prop 传入 `createServiceRegistry` 构建的注册表。组件通过 useWhiteboardAPI 获取同一接口。
+对外使用 defineWhiteboardExtension，create(api) 返回 elements、commands、tools、inspectors、menus、hotkeys、ingest、layers 及生命周期回调。api 提供只读快照、受控提交与宿主服务访问：扩展在 `requires` / `optional` 中声明服务标识（`createServiceId` 产物），装配时 requires 缺失即拒绝该扩展（reason `missing-service`），扩展作用域内经 `api.getService` / `api.tryGetService` 获取（只能取声明过的 id，未声明抛错；主 API 不提供服务访问）；宿主经 `WhiteBoard` 的 `services` prop 传入 `createServiceRegistry` 构建的注册表。组件通过 useWhiteboardAPI 获取同一接口。
 
 下述 `types/board.ts` 中的 IBoardPlugin 仅供内置扩展复用既有交互实现，不从公共入口导出：
 
@@ -158,9 +152,9 @@
 | ColumnPlugin            | 列布局元素                      | 子列容器/可重排                                                                                                                                        |
 | FileDragDropPlugin      | 外部文件拖拽导入                | 处理图片/视频/音频/白板文件                                                                                                                            |
 
-> 备注：`CommonPlugin` 抽象了通用几何类元素的命中/resize/箭头连接点等逻辑，其子类直接复用。选中元素的拖拽/吸附/参考线手势不在插件中，由交互内核 `interactions/states/DraggingState` 承接（原 MovePlugin 已删除）；HistoryPlugin / SelectPlugin 已删除，撤销重做与全选/删除的快捷键硬编码迁入 `tau.interaction` 扩展的命令与快捷键（D-131，见 4.5）。
+> 备注：`CommonPlugin` 抽象了通用几何类元素的命中/resize/箭头连接点等逻辑，其子类直接复用。选中元素的拖拽/吸附/参考线手势不在插件中，由交互内核 `interactions/states/DraggingState` 承接（原 MovePlugin 已删除）；HistoryPlugin / SelectPlugin 已删除，撤销重做与全选/删除的快捷键硬编码迁入 `tau.interaction` 扩展的命令与快捷键。
 
-### 4.3 插件事件分发与白板事件分层（D-131）
+### 4.3 插件事件分发与白板事件分层
 
 Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 handler，过滤空值后按顺序执行 `executeSequence`。只读模式或演示模式部分事件会短路。
 
@@ -169,9 +163,9 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 ### 4.4 右键菜单扩展
 
 - 插件实现 `getContextMenu` 返回菜单项，Board 聚合排序后交给 `ContextMenuLayer`；右键浮层经包内 `internal:context-menu` 事件打开。
-- 菜单项可 emit `tau.modal.open` 扩展事件（D-131），对应扩展的界面层（如导出、媒体 URL 弹窗）监听后弹出选择器（图片/视频/音频/Webview/白板）。
+- 菜单项可 emit `tau.modal.open` 扩展事件，对应扩展的界面层（如导出、媒体 URL 弹窗）监听后弹出选择器（图片/视频/音频/Webview/白板）。
 
-### 4.5 快捷键仲裁（D-131）
+### 4.5 快捷键仲裁
 
 - 快捷键是扩展贡献：`hotkeys: [{ key, command }]`（is-hotkey 键串，按 event.key 匹配）；内置的 shift+数字组合因键盘布局间 event.key 漂移走包内键码通道（按 event.code 匹配，仅内置扩展可用，`extensions/hotkeys.ts` 的 InternalContributions.hotkeyCodes）。
 - 仲裁在扩展运行时（`extensions/runtime.tsx` 的 onKeyDown）：按「tau 优先 + 装配顺序」收集全部键匹配条目，第一条 enabled 的命令拦截（preventDefault + stopPropagation）并执行；命令 enabled 不满足时不拦截按键，全部不可用则放行给后续事件链。输入法组合、编辑上下文、元素编辑中与演示态整体不响应——撤销/全选因此在编辑态让位给正文编辑器（编辑器自带 slate-history）。
@@ -191,7 +185,7 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 - **选区与标记**：`SelectArea` 绘制框选，箭头 Marker 由 `ArrowMarkers` 统一定义。
 - **简化渲染**：`simplifiedRenderZoomThreshold = 0.3` 写入 `BoardStateContext`，子组件可根据 zoom 降级绘制。
 
-### 5.1 手绘模式（D-107）
+### 5.1 手绘模式
 
 - **数据**：页级画风存在页数据 `data.sketch: PageSketch = { mode: "sketch" | "normal", level }`，缺省普通；元素可带 `sketch: ElementSketch`（`mode / level / seed` 覆盖，未设置跟随页面）。思维导图只读根节点的覆盖，整棵树共用。形状另有 `fillStyle`（`solid / hatch / cross / scribble`），普通模式一律按实色渲染。
 - **状态**：`Board.sketch` 由构造参数 `initSketch` 传入，`SketchTransforms.setPageSketch` 生成 `set_sketch`；组件经 `usePageSketch()` / `useSketch(element, owner?)` 订阅并合成生效画风（`utils/sketch/resolve.ts`，除手写外的元素都跟随；手写本来就是墨迹）。
@@ -224,10 +218,25 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ### 6.2 移动与吸附（交互内核 DraggingState）
 
-- 判断命中元素并决定是否移动选中集；Frame 元素的子元素在容器移动时跳过（避免双移）。
-- 移动过程中以运动元素包围盒并集调用 `board.snap.move` 得到一次偏移，整体回放到全部运动元素（含箭头等不参与吸附的元素）；Alt 跳过吸附；结束时 `board.snap.end()`。
-- 能力控制：`shouldMoveWithChildren`、`shouldParticipateInRefLines`、`shouldElementSnap` 等由 `CapabilityService` 决定。
-- 特殊元素行为在 `getUpdatedInfo` 中经能力查询统一处理，无类型硬编码分支（如 RootOnly 元素经 `board.moveElement` 整树平移）。
+### 6.2 移动与吸附（能力系统 + SnapManager）
+
+- 判断命中元素并决定是否移动选中集（Frame 子元素容器移动时跳过避免双移；整体回放到全部运动元素含箭头；Alt 跳过吸附；结束 board.snap.end()）。
+- **能力声明**：插件通过 `getCapabilities` 返回 `IElementCapabilities`，`CapabilityService` 查询：
+  - `shouldParticipateInRefLines`：是否参与参考线显示/吸附。
+  - `shouldElementSnap` & `getSnapCapability(type)`：吸附行为，支持 `SnapBehavior.RootOnly`（如 mind-node root）。
+  - `shouldMoveWithChildren`：容器移动时是否携带子元素（Frame）。
+- **吸附流程**：纯几何在 `utils/snap/SnapGeometry.ts`，会话在 `utils/snap/SnapManager.ts`（`board.snap`）。
+  - 移动：DraggingState / Mind 根拖拽把运动包围盒（多选取并集）交给 `board.snap.move`，得到一次 `dx/dy` 后整体回放到全部运动元素。
+  - 缩放：`board.snap.resize` 只吸附正在拖动的边；等比缩放只吸附主轴、另一维按比例回算；`axes` 可限定轴（固定高度元素只吸 x）。
+  - 吸附点：x 取左/中/右，y 取上/中/下；每轴只取最近的偏移，阈值 `SNAP_THRESHOLD_PX / zoom`（8 屏幕像素）。
+  - 等距（仅移动）：`SnapGaps` 先在候选中求相邻间距（每个候选只与该轴正方向、垂直方向有重叠的最近邻配对，按候选快照缓存）；运动包围盒可居中于间距内、或接在一对元素前/后复制间距。与对齐偏移一起比较取最近，相同时对齐优先。测距线只画吸附后真正等长的间距，并沿等长且首尾相连的间距扩展整条序列。
+  - 参考线：只画吸附后真正重合的坐标，同坐标合并为一条线，跨度覆盖所有对齐点；`ReferenceLines` 直接订阅 `board.snap`。
+  - 候选：首次调用时拍快照——视口内、参与参考线、排除运动元素及其子孙；视口变化时重拍。
+  - 网格：网格可见时（`board.snap.setGridSize`）改为对网格取整，不画参考线，与对象吸附二选一。
+  - 生命周期：交互结束调用 `board.snap.end()`；另有窗口级 pointerup/pointercancel/blur 兜底清空，参考线不会残留。
+- **按键控制**：Alt 关闭吸附。
+
+---
 
 ### 6.3 缩放与视口（ViewPortPlugin + hooks）
 
@@ -246,9 +255,20 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 - RichText/MindNode 等插件在进入编辑态时会把元素 id 写入 `board.isEditingElements`，删除/移动等操作会被阻止。
 - 属性面板 `AttributeSetter` 通过上下文读取选中元素并更新其属性。
 
+### 6.5b 连接点归属仲裁
+
+（`utils/ConnectPointOwner.ts`，store 经 `BoardStateContext.connectPointOwnerStore` 下发）：同一时刻只有一个元素显示悬停连接点、只有一个元素成为拖动箭头的落点目标（选中元素的连接点常显，不受仲裁）。
+
+- 各元素经 `useDropArrow` 把包围盒注册为候选（悬停与落点共用）；规则：指针在元素内部优先于只落在外扩感应区；同为内部取面积最小（嵌套落到最内层），同为外部取距离最近。
+- 悬停：指针变化时统一选出 owner，感应半径 `ARROW_CONNECT_PROXIMITY_RADIUS`；指针停在连接点上或从连接点拖出箭头时锁定 owner；owner 变为空时延迟 `ARROW_CONNECT_PROXIMITY_HIDE_DELAY` 清空，切换到其他元素则立即生效。
+- 落点：`arrow:update` 时各元素调用 `resolveAt(currentPoint, ARROW_DROP_PROXIMITY_RADIUS)`（同一点结果缓存共享），只有归属元素显示落点并上报 closing。
+- `useDropArrow(element, { container: true })`（Frame）：内部空白不参与，只在距边框 ≤ 感应半径时命中，且不提供 `center` 连接点（悬停与落点都不提供；已有的中心连接箭头不受影响）。
+
+---
+
 ### 6.6 创建手势（元素 create 声明 + 交互内核 CreatingState）
 
-- 创建方式由元素定义的 `create` 声明（`gesture: "click" | "drag" | 自定义手势`，附 constrain/defaultSize/minSize/build/after/stay/cursor/hint）；状态机、Shift/Alt 约束、预览与提交统一由交互内核的 `CreatingState` 驱动，插件不再各自监听指针（D-130）。
+- 创建方式由元素定义的 `create` 声明（`gesture: "click" | "drag" | 自定义手势`，附 constrain/defaultSize/minSize/build/after/stay/cursor/hint）；状态机、Shift/Alt 约束、预览与提交统一由交互内核的 `CreatingState` 驱动，插件不再各自监听指针。
 - 创建预览走 `board.creationPreview`（`internal:creation-preview-change` 事件），不进入 children、快照、onChange 与历史；取消时播放 120ms 退场。
 - 工具经 `api.setActiveTool(id, options)` 激活（参数即 `activeToolOptions`），未注册 id 抛错，只读画布忽略非 select 设置；订阅切换用 `onActiveToolChange`。
 - Esc 依次取消进行中的创建手势、再退回选择工具；创建后默认选中并回到 `tau.select`（画笔 stay 保持；框架/分栏松手时收纳候选）。
@@ -256,11 +276,22 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ---
 
+### Board.apply 六步详解
+
+1. **预处理**：`BoardOperations.applyOperations`（纯函数）深拷贝数据 → 过滤无效操作 → 插入操作按深度排序 → 逐条执行 → 返回 `data` + `metadata`（changed/removed/inserted/hasChanges）+ `executedOps`。
+2. **资源追踪**：`ResourceUsageTracker.track(metadata, resourceSource)` 统计新增/删除资源（图片/音视频/白板引用）。
+3. **状态更新**（immer Draft）：若 children/viewPort/selection 有变化，更新 draft。
+4. **参考线**：apply 不再维护参考线数据，吸附候选由 `board.snap` 在交互开始时按需快照。
+5. **历史记录**：若 `updateHistory=true`，使用 `executedOps`（或 preprocess 结果）入栈，1 秒内合并；超过 100 弹出最旧。
+6. **事件广播**：完成 draft 后 `finishDraft` 并 emit `onValueChange/onViewPortChange/onSelectionChange/element:change/element:remove/change`。
+
+---
+
 ## 七、历史、撤销与资源管理
 
 - **历史记录**：`Board.apply` 在非只读且有变更时记录 `undos`，1 秒内操作归并到同一 entry，最多 100 条；`redo` 栈在新操作后清空。撤销/重做命令（`tau.history.undo/redo`，mod+z / mod+shift+z / mod+y）由 `tau.interaction` 扩展贡献（原 HistoryPlugin 已删除），编辑态让位给正文编辑器（见 4.5）。
 - **Operation 预处理**：`BoardOperations.preprocessOperations` 进行过滤/排序/深拷贝并标记 normalized；执行后返回 `metadata`。
-- **正文与资源**：正文与媒体的宿主能力经服务注册表注入（D-134）——宿主用 `createServiceRegistry`（`@tau/shared/service-registry`，`@tau/whiteboard/extensions` 重导出）注册 `IWhiteboardRichText`、`IResourceService`、`IMediaInfoService`、`IDownloadService` 等服务并经 `services` prop 传入；内置扩展 optional 声明，缺失时回退嵌入式或浏览器实现。引擎不访问主库或应用 store；导出截图实现仍为扩展工厂参数。
+- **正文与资源**：正文与媒体的宿主能力经服务注册表注入——宿主用 `createServiceRegistry`（`@tau/shared/service-registry`，`@tau/whiteboard/extensions` 重导出）注册 `IWhiteboardRichText`、`IResourceService`、`IMediaInfoService`、`IDownloadService` 等服务并经 `services` prop 传入；内置扩展 optional 声明，缺失时回退嵌入式或浏览器实现。引擎不访问主库或应用 store；导出截图实现仍为扩展工厂参数。
 
 ---
 
@@ -281,10 +312,10 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 - `initViewPort` / `initSelection` / `initPresentationSequences`：初始视口与选区/帧。
 - `readonly`：只读模式（禁止写操作）。
 - `version`：文档版本（当前为 `WHITEBOARD_DOCUMENT_VERSION = 2`）；高于当前支持时画布强制只读且不回调 onChange（`readonlyReason = "document-too-new"`），保存快照永远写当前版本。
-- `initSketch`：页级画风，缺省普通（D-107）。
+- `initSketch`：页级画风，缺省普通。
 - `onChange`：`{ children, viewPort, selection, presentationSequences, sketch }`。
 - `extensions`：显式稳定的扩展集合，提供元素、命令、工具、属性面板、导入和界面层；旧的全局宿主服务/业务插槽集合不再恢复（改为下列 services 注册表，D-134）。
-- `services`：宿主服务注册表（D-134），扩展经 requires/optional 声明后从扩展 api 获取；缺省为空注册表（声明了 requires 的扩展会被拒绝装配）。
+- `services`：宿主服务注册表，扩展经 requires/optional 声明后从扩展 api 获取；缺省为空注册表（声明了 requires 的扩展会被拒绝装配）。
 - `outline`：受控开关、宽度与实际占宽回调；缺省使用实例本地状态。
 - `className/style`：容器样式。
 
@@ -355,3 +386,11 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 | `packages/whiteboard/src/components/BoardContent/index.tsx` | SVG 渲染容器，过滤视口内元素                                                                                                                                                                   |
 | `packages/whiteboard/src/components/ContextMenuLayer`       | 右键菜单聚合与渲染                                                                                                                                                                             |
 | `packages/whiteboard/src/components/*`                      | 各元素视图、工具栏、侧边栏、状态栏、资源选择器                                                                                                                                                 |
+
+## 交互内核遗留注记
+
+- `ArrowPlugin.onDblClick` 仍有 `return false`（双击进入描述编辑的抢占），属双击槽位，待后续切片收编
+- 容器 onChildInserted/onChildRemoved 仍为交互期协议（由拖拽内核 DraggingState 与侧边栏树拖放在提交时调用）；
+  若未来需要 undo/redo 也触发容器联动（如 Frame 边界收缩），再引入
+  Board.apply 的 afterChange 数据钩子并做双轨合并
+- MindDragOverlay 仍通过 `board.getPlugin("mind-node")` 拿插件实例当 store 订阅（绕过抽象，阶段 B/C 处理）

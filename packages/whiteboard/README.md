@@ -1,6 +1,6 @@
 # @tau/whiteboard
 
-私有源码工作区包，包含通用画布、交互、基础文字、脑图、演示和导出。桌面通过 DesktopWhiteboard 显式组合受信任扩展。
+私有源码工作区包，包含通用画布、交互、基础文字、脑图、演示和导出。桌面通过 DesktopWhiteboard 显式组合受信任扩展。包架构、交互内核与扩展指南见 [docs/architecture.md](./docs/architecture.md)。
 
 ## 接入
 
