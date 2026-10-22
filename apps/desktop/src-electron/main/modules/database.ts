@@ -93,6 +93,7 @@ import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
 import { upgradeDataTableViewOptions } from "./data-table-view-options-upgrade";
 import { upgradeQuestionedInsights } from "./insights-questioned-upgrade";
+import { QuestionMigrationTable } from "./question-plugin-migration";
 import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
@@ -327,6 +328,7 @@ class DatabaseModule implements Module {
       PluginElementResourcesTable,
       PluginRefsTable,
       PluginReadonlyDataTable,
+      QuestionMigrationTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

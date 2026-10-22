@@ -7,17 +7,11 @@ import type { NotebookPlan } from "@/types/vibe-learning";
 import { readDocumentTask } from "../task-assistant/documents";
 import EntitySearchTable from "./entity-search";
 import MaterialTable from "./material";
-import { NUMERIC_KINDS } from "./plugin-ref-kinds";
+import { MATERIAL_SQL, NUMERIC_KINDS } from "./plugin-ref-kinds";
 
 const MAX_REFS = 200;
 
 /** 材料的存在判断：软删除的划线视为不存在 */
-const MATERIAL_SQL: Record<string, string> = {
-  excerpt: "SELECT create_time FROM excerpt WHERE id = ? AND is_deleted = 0",
-  "pdf-annotation": "SELECT create_time FROM pdf_annotations WHERE id = ?",
-  "web-clip": "SELECT create_time FROM web_clip WHERE id = ?",
-};
-
 /** 可作为 Notebook 笔记资源的类型：正文所在的表、标题检索类型与资源元数据里的来源类型 */
 const NOTE_SOURCES: Record<string, { sql: string; search: EntityKind; noteType: string }> = {
   card: { sql: "SELECT content_id FROM cards WHERE id = ?", search: "card", noteType: "card" },

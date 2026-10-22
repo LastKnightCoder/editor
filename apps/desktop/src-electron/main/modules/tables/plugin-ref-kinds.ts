@@ -24,3 +24,10 @@ export const NUMERIC_KINDS: Record<string, { sql: string; search: EntityKind }> 
     search: "plugin-entity",
   },
 };
+
+/** 外部材料（引用 ID 为「类型:ID」）各自的创建时间查询 */
+export const MATERIAL_SQL: Record<string, string> = {
+  excerpt: "SELECT create_time FROM excerpt WHERE id = ? AND is_deleted = 0",
+  "pdf-annotation": "SELECT create_time FROM pdf_annotations WHERE id = ?",
+  "web-clip": "SELECT create_time FROM web_clip WHERE id = ?",
+};
