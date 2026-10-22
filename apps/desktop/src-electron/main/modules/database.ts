@@ -56,6 +56,7 @@ import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
+import HomeLayoutTable from "./tables/home-layout";
 import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
@@ -302,6 +303,7 @@ class DatabaseModule implements Module {
       WebClipTable,
       WebNoteTable,
       WebViewPreferenceTable,
+      HomeLayoutTable,
       EntityLineageTable,
       ExcerptTable,
       MaterialTable,
