@@ -139,7 +139,7 @@ it("未知节点仅回传警告，继续生成完整发布产物并原样保留�
   expect(article.content.content).toContainEqual(unknown);
   expect(result.files.some(file => file.publicationEntry)).toBe(true);
 });
-it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", async () => {
+it("五类数据、索引、CSS 与引用闭合，宿主不生成业务页面", async () => {
   const { files } = await generate();
   expect(files.filter(file => file.path.endsWith(".html")).map(file => file.path)).toEqual([
     "index.html",
@@ -149,7 +149,7 @@ it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   );
   expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
   expect(new Set(manifest.items.map((item: any) => item.type))).toEqual(
-    new Set(["home", "card", "article", "doc", "quest", "list"])
+    new Set(["home", "card", "article", "doc", "list"])
   );
   expect(
     manifest.items.every(
@@ -217,9 +217,9 @@ it("增量发布仅上传变更，保留一轮旧依赖，无变化不推进保�
   expect(withdrawal.toDelete.some(path => /^data\/articles\/2\./.test(path))).toBe(true);
   expect(withdrawal.toDelete.some(path => /^data\/search\./.test(path))).toBe(true);
   // 撤下文章只影响清单、聚合与索引，其余内容文件的摘要不变。
-  expect(
-    withdrawal.toUpload.some(file => /^data\/(?:cards|projects|quests)\//.test(file.path))
-  ).toBe(false);
+  expect(withdrawal.toUpload.some(file => /^data\/(?:cards|projects)\//.test(file.path))).toBe(
+    false
+  );
 });
 it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async () => {
   const fixture = makePublishFixture();
@@ -249,7 +249,6 @@ it("项目卡片列表保留卡片快照和文档目标，撤下目标后移除�
   };
   fixture.articles[0].content = [list];
   fixture.cards[0].content = [list];
-  fixture.data.getQuestionDetail(9)!.question.description = [list];
   const parent = fixture.data.getProjectItemsByIds([33])[0];
   parent.content = [list];
   const original = structuredClone(parent.content);
@@ -264,9 +263,9 @@ it("项目卡片列表保留卡片快照和文档目标，撤下目标后移除�
   const first = await generator.generate(fixture.data, fixture.selections, site);
   const read = (files: IPublishFile[], stem: string) =>
     JSON.parse(files.find(file => file.path.startsWith(`data/${stem}.`))!.content.toString());
-  for (const stem of ["articles/1", "cards/7", "projects/12/33", "quests/9"]) {
+  for (const stem of ["articles/1", "cards/7", "projects/12/33"]) {
     const value = read(first.files, stem);
-    const body = stem === "quests/9" ? value.content.description : value.content.content;
+    const body = value.content.content;
     expect(body[0]).toMatchObject({
       type: "project-card-list",
       items: [

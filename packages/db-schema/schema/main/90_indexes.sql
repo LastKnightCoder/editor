@@ -16,18 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index)
 CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_ref);
 CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time);
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
-CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
-CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
-CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);
-CREATE INDEX IF NOT EXISTS idx_questions_sort_index ON questions(sort_index);
-CREATE INDEX IF NOT EXISTS idx_questions_create_time ON questions(create_time);
-CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);
-CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
-CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_question_chat_unique ON question_chat(question_id, session_id);
-CREATE INDEX IF NOT EXISTS idx_question_chat_session ON question_chat(session_id);
-CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);

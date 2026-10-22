@@ -3,7 +3,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  CircleHelp,
   FileText,
   FlaskConical,
   FolderKanban,
@@ -34,7 +33,6 @@ export const LINEAGE_KIND_META: Record<string, { label: string; icon: LucideIcon
   "pdf-annotation": { label: "PDF 标注", icon: FileText },
   "web-clip": { label: "解析文档", icon: Globe },
   flashcard: { label: "闪卡", icon: Repeat },
-  question: { label: "问题", icon: CircleHelp },
   "vl-project": { label: "Notebook", icon: FlaskConical },
 };
 

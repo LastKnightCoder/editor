@@ -37,12 +37,12 @@ export async function checkProtocol(createClient, siteUrl, packet) {
     const kinds = new Set();
     for (const item of manifest.items)
       kinds.add((await client.readData({ key: item.key })).data.meta.type);
-    assert.deepEqual([...kinds].sort(), ["article", "card", "doc", "home", "list", "quest"]);
+    assert.deepEqual([...kinds].sort(), ["article", "card", "doc", "home", "list"]);
     const target = first.data.links["project-item:34"];
     assert(!("settings" in first.data) && first.settings === manifest.settings);
     assert.equal((await client.readData({ key: target.key })).data.meta.type, "doc");
     assert(!manifest.items.some(item => "href" in item));
-    cases.push("六类数据、ContentRef 映射及无公开页面的目标读取闭合");
+    cases.push("五类数据、ContentRef 映射及无公开页面的目标读取闭合");
     const raw = await (
       await originalFetch(new URL(manifest.search.data, new URL(packet.manifestPath, siteUrl)))
     ).json();

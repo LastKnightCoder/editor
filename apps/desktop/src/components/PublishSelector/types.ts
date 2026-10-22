@@ -4,8 +4,6 @@ import { ICard } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
 import { PublishContentType } from "@/types/publish";
-import { IQuestion } from "@/types/question";
-import { QuestionGroupDTO } from "@/commands/question-group";
 
 /**
  * 卡片列表项
@@ -68,7 +66,7 @@ export type EntityScope = EntityScopeAll | EntityScopePartial;
  * 实体弹窗状态
  */
 export interface EntityModalState {
-  type: "project" | "quest";
+  type: "project";
   entity: Project;
 }
 
@@ -104,14 +102,6 @@ export interface ArticleListItem extends SelectableItem {
   raw: IArticle;
 }
 
-export interface QuestGroupItem {
-  id: number;
-  title: string;
-  color?: string;
-  questions: IQuestion[];
-  raw: QuestionGroupDTO;
-}
-
 /**
  * 卡片标签树构建器节点（内部使用）
  */
@@ -123,6 +113,6 @@ export interface CardTagNodeBuilder {
 }
 
 // 重导出相关类型
-export type { ICard, IArticle, IQuestion, Project, ProjectItem, PublishContentType };
+export type { ICard, IArticle, Project, ProjectItem, PublishContentType };
 
 export { EProjectItemType };

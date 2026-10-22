@@ -186,11 +186,6 @@ async function run() {
     "Boolean(document.querySelector('a[href*=\"articles/2\"]')) && document.body.textContent.includes('共享协议文章 2')"
   );
   cases.push("保留搜索窗口与本地搜索行为，索引读取不依赖当前项目 URL");
-  await window.loadURL(config.url + "quests/9");
-  await until(
-    "document.body.textContent.includes('如何分离模板？') && [...document.querySelectorAll('[data-portable-counter] output')].map(node=>node.textContent).join(',') === '42,7,31'"
-  );
-  cases.push("保留求索录状态、研究资料、独立答案和插件正文");
   await window.loadURL(config.url + "cards?tag=" + encodeURIComponent("发布"));
   await until("document.body.textContent.includes('共享协议卡片')");
   cases.push("保留卡片列表与标签筛选，查询参数归模板 Router");

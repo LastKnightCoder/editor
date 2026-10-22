@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { expect, it, vi } from "vitest";
+import { expect, it } from "vitest";
 import { PublishSiteGenerator } from "../publish-site-generator";
 import { makePublishFixture, text } from "./publish-fixtures";
 import { createHash } from "node:crypto";
@@ -73,13 +73,7 @@ it("关联卡片按正文身份匹配，仅输出已发布目标的摘要与引�
   });
   fixture.selections.push({ contentType: "card", contentId: 8, parentPath: "" });
   fixture.data.getContentLinkTargetContentIds = () => [108, 999];
-  const readPrivate = vi.fn(() => null);
-  fixture.data.getCardByContentId = readPrivate;
-  const { files } = await generator().generate(
-    fixture.data,
-    fixture.selections.filter(item => item.contentType !== "quest"),
-    site
-  );
+  const { files } = await generator().generate(fixture.data, fixture.selections, site);
   const card = JSON.parse(
     files.find(file => file.path.startsWith("data/cards/7."))!.content.toString()
   );
@@ -91,7 +85,6 @@ it("关联卡片按正文身份匹配，仅输出已发布目标的摘要与引�
       tags: ["发布/协议"],
     },
   ]);
-  expect(readPrivate).not.toHaveBeenCalled();
 });
 it("项目读取失败拒绝生成，已删除的项目则按空选择处理", async () => {
   const fixture = makePublishFixture();

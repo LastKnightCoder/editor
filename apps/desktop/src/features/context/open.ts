@@ -34,8 +34,6 @@ export async function openContextTarget(target: ContextOpenTarget): Promise<void
       });
     case "todos":
       return openPage("todos", { selectedId: target.selectedId });
-    case "questions":
-      return openPage("questions", { selectedId: target.selectedId });
     case "material":
       return openMaterialTarget(target.target);
   }

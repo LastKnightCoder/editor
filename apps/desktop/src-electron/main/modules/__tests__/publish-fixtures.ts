@@ -2,7 +2,6 @@ import type { PublishDataSource, PublishSelectionInput } from "../publish-site-g
 import type { IArticle } from "@/types/article";
 import type { ICard } from "@/types/card";
 import { EProjectItemType, type ProjectItem, type Project } from "@/types/project";
-import type { IQuestion } from "@/types/question";
 export const text = (value: string) => ({
   type: "paragraph",
   children: [{ type: "formatted", text: value }],
@@ -114,57 +113,13 @@ export function makePublishFixture(title = "第一篇文章") {
         whiteBoardContentId: 0,
       }) as ProjectItem
   );
-  const question: IQuestion = {
-    id: 9,
-    questionContent: "如何分离模板？",
-    description: [text("共享协议问题")] as any,
-    answers: [209],
-    groupId: 5,
-    sortIndex: 0,
-    status: "in_progress",
-    createTime: 1,
-    updateTime: 2,
-  };
   const data: PublishDataSource = {
     getCardByIds: ids => cards.filter(card => ids.includes(card.id)),
     getCardById: id => cards.find(card => card.id === id) ?? null,
-    getCardByContentId: id => cards.find(card => card.contentId === id) ?? null,
     getContentLinkTargetContentIds: () => [],
     getArticleByIds: ids => articles.filter(article => ids.includes(article.id)),
-    getArticleByContentId: id => articles.find(article => article.contentId === id) ?? null,
     getProject: () => project,
     getProjectItemsByIds: ids => items.filter(item => ids.includes(item.id)),
-    getProjectItemsByContentId: id => items.filter(item => item.contentId === id),
-    listQuestionGroups: () =>
-      [
-        { id: 5, title: "技术探究", color: "blue", createTime: 1, updateTime: 2, sortIndex: 0 },
-      ] as any,
-    listQuestionsByGroup: () => [question],
-    getQuestionAnswerById: id => ({
-      id,
-      createTime: 1,
-      updateTime: 2,
-      content:
-        id === 101
-          ? articles[0].content
-          : id === 134
-            ? items[1].content
-            : id === 107
-              ? cards[0].content
-              : ([text("独立答案"), counter(42)] as any),
-    }),
-    getQuestionDetail: () =>
-      ({
-        question,
-        materials: [209, 101, 134, 107].map(id => ({
-          targetType: "answer",
-          targetId: id,
-          contentId: id,
-          missing: false,
-        })),
-        chats: [],
-        events: [],
-      }) as any,
   };
   const selections: PublishSelectionInput[] = [
     ...articles.map(article => ({
@@ -174,7 +129,6 @@ export function makePublishFixture(title = "第一篇文章") {
     })),
     { contentType: "card", contentId: 7, parentPath: "" },
     { contentType: "project", contentId: 12, parentPath: "" },
-    { contentType: "quest", contentId: 5, parentPath: "" },
   ];
   return { data, selections, cards, articles };
 }

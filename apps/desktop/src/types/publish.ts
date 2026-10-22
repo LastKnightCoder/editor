@@ -1,7 +1,7 @@
 /**
  * 发布内容类型
  */
-export type PublishContentType = "card" | "article" | "project" | "quest";
+export type PublishContentType = "card" | "article" | "project";
 
 export interface PublishSiteConfig {
   templateId?: string;
@@ -129,22 +129,6 @@ export interface IPublishListItem {
   target: ContentRef;
   tags: string[];
   createTime: number;
-}
-
-export type IPublishQuestStatus = "not_started" | "in_progress" | "resolved";
-
-export interface IPublishQuestListItem {
-  id: number;
-  title: string;
-  summary: string;
-  target: ContentRef;
-  tags: string[];
-  groupId: number;
-  groupTitle: string;
-  status: IPublishQuestStatus;
-  answerCount: number;
-  createTime: number;
-  updateTime: number;
 }
 
 export interface IPublishDocCollectionItem {

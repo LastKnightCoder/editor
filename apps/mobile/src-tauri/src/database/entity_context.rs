@@ -39,7 +39,6 @@ const KIND_LABEL: &[(&str, &str)] = &[
     ("vl-note", "Notebook 笔记"),
     ("web-clip", "解析文档"),
     ("flashcard", "闪卡"),
-    ("question", "问题"),
     ("vl-project", "Notebook"),
 ];
 
@@ -840,13 +839,7 @@ fn parse_lineage_node(kind: &str, id: &str) -> Option<(String, String)> {
     }
     if matches!(
         kind,
-        "excerpt"
-            | "pdf-annotation"
-            | "web-clip"
-            | "vl-note"
-            | "flashcard"
-            | "question"
-            | "vl-project"
+        "excerpt" | "pdf-annotation" | "web-clip" | "vl-note" | "flashcard" | "vl-project"
     ) {
         return Some((kind.to_string(), numeric.to_string()));
     }
@@ -1114,23 +1107,6 @@ fn resolve_lineage_node(conn: &Connection, kind: &str, node_id: &str) -> Option<
             Some(ResolvedNode {
                 title,
                 meta: format!("闪卡 · {}", row.1),
-            })
-        }
-        "question" => {
-            let title = conn
-                .query_row(
-                    "SELECT question_content FROM questions WHERE id = ?1",
-                    params![numeric],
-                    |row| row.get::<_, Option<String>>(0),
-                )
-                .ok()??;
-            Some(ResolvedNode {
-                title: clip_title(if title.trim().is_empty() {
-                    "未命名问题"
-                } else {
-                    &title
-                }),
-                meta: "问题".to_string(),
             })
         }
         "vl-project" => {

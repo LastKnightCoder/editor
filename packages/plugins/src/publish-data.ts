@@ -1,5 +1,5 @@
 /** 发布数据协议不包含公开路由、DOM、组件或宿主生命周期。 */
-export type DataKind = "home" | "card" | "article" | "doc" | "quest" | "list";
+export type DataKind = "home" | "card" | "article" | "doc" | "list";
 export interface ContentRef {
   key: string;
   type: DataKind;
@@ -10,7 +10,7 @@ export interface ResourceRef {
   integrity: string;
 }
 export interface ManifestItem extends ContentRef {
-  collectionType?: "card" | "article" | "doc" | "quest";
+  collectionType?: "card" | "article" | "doc";
   title: string;
   projectId?: number;
   data: string;
@@ -94,58 +94,8 @@ export interface DocData {
   createTime: number;
   updateTime: number;
 }
-export type QuestStatus = "not_started" | "in_progress" | "resolved";
-export interface QuestAnswer {
-  id: number;
-  createTime: number;
-  updateTime: number;
-  content?: ContentNode[];
-  source?: {
-    type: "card" | "article" | "project-item" | "custom";
-    id?: number;
-    contentId: number;
-    target?: ContentRef;
-    title?: string;
-    published: boolean;
-  };
-}
-export interface QuestMaterial {
-  index: number;
-  kind: string;
-  group: "external" | "note" | "discussion";
-  title: string;
-  meta: string;
-  excerpt: string;
-  note?: string;
-  target?: ContentRef;
-  url?: string;
-  citeKey?: string;
-}
-export interface QuestTrail {
-  time: number;
-  tone: "start" | "milestone" | "plain" | "note" | "done";
-  text: string;
-  refs: number[];
-}
-export interface QuestData {
-  id: number;
-  title: string;
-  summary: string;
-  target: ContentRef;
-  groupId: number;
-  groupTitle: string;
-  groupColor?: string;
-  status: QuestStatus;
-  answers: QuestAnswer[];
-  materials: QuestMaterial[];
-  trail: QuestTrail[];
-  description?: ContentNode[];
-  createTime: number;
-  updateTime: number;
-  resolvedTime?: number | null;
-}
 export interface TimelineItem {
-  type: "card" | "article" | "doc" | "quest";
+  type: "card" | "article" | "doc";
   id: number;
   title?: string;
   summary: string;
@@ -165,15 +115,10 @@ export interface ListItem {
   target: ContentRef;
   tags: string[];
   createTime: number;
-  updateTime?: number;
-  groupId?: number;
-  groupTitle?: string;
-  status?: QuestStatus;
-  answerCount?: number;
 }
 export interface ListData {
   title: string;
-  type: "card" | "article" | "doc" | "quest";
+  type: "card" | "article" | "doc";
   items: ListItem[];
   tags?: { name: string; count: number }[];
 }
@@ -186,7 +131,7 @@ export interface CardTagTree {
 export interface PublishedCommon {
   version: 1;
   key: string;
-  /** 本文正文里已发布的站内链接目标，键与 QuestMaterial.citeKey 同一口径；未发布的链接不在其中。 */
+  /** 本文正文里已发布的站内链接目标，键为 `${contentType}:${refId}`；未发布的链接不在其中。 */
   links?: Record<string, ContentRef>;
   pluginRenderers?: import("./render-artifact").PublishedPluginRender[];
   contentStyles?: ResourceRef[];
@@ -199,7 +144,6 @@ export type PublishedData = {
       card: CardData;
       article: ArticleData;
       doc: DocData;
-      quest: QuestData;
       list: ListData;
     }[K];
   };
@@ -211,7 +155,7 @@ export interface DataResult {
   settings?: PublishSettings;
 }
 export interface SearchDocument extends ContentRef {
-  type: "card" | "article" | "doc" | "quest";
+  type: "card" | "article" | "doc";
   title: string;
   summary: string;
   content: string;

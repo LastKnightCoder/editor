@@ -8,6 +8,68 @@ import {
   QUESTIONS_PLUGIN_ID,
 } from "../question-plugin-migration";
 
+/** 已从主库 schema 删除的旧问题表（迁移的输入；同步回来的旧库里仍有） */
+const LEGACY_QUESTION_SQL = `
+CREATE TABLE IF NOT EXISTS question_group (
+        id INTEGER PRIMARY KEY,
+        title TEXT NOT NULL,
+        color TEXT,
+        sort_index INTEGER NOT NULL DEFAULT 0,
+        is_default INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0,1)),
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+CREATE TABLE IF NOT EXISTS questions (
+        id INTEGER PRIMARY KEY,
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL,
+        question_content TEXT,
+        answers TEXT DEFAULT '[]'
+      , group_id INTEGER, sort_index INTEGER NOT NULL DEFAULT 0, resolved_time INTEGER, status TEXT NOT NULL DEFAULT 'not_started', description TEXT);
+-- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer
+-- | excerpt | pdf-annotation | web-clip；answer 的 target_id 为 contents.id，其余为各实体表主键，均为整数）。
+-- content_id = 本关联持有引用计数的 contents.id（卡片 / 文章 / 项目文档 / 独立答案有值，项目、白板与外部材料为 NULL），
+-- 目标实体被删后仍可据此释放引用。对话不在此表，见 question_chat。
+CREATE TABLE IF NOT EXISTS question_link (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id INTEGER NOT NULL,
+        content_id INTEGER,
+        sort_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL
+      );
+-- 问题的探究对话：session_id = chat_session.id（pi 会话 UUID）；message_ids 为 JSON 数组，记录问题从哪几条消息转来（可空）。
+-- 弱引用：对话被删不级联，解析时降级；删除问题时一并删除。
+CREATE TABLE IF NOT EXISTS question_chat (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        session_id TEXT NOT NULL,
+        message_ids TEXT,
+        create_time INTEGER NOT NULL
+      );
+-- 问题的探究轨迹：type = create | status | link | unlink | note，payload 为 JSON
+CREATE TABLE IF NOT EXISTS question_event (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        payload TEXT NOT NULL DEFAULT '{}',
+        create_time INTEGER NOT NULL
+      );
+CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
+CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
+CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);
+CREATE INDEX IF NOT EXISTS idx_questions_sort_index ON questions(sort_index);
+CREATE INDEX IF NOT EXISTS idx_questions_create_time ON questions(create_time);
+CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);
+CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_chat_unique ON question_chat(question_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_question_chat_session ON question_chat(session_id);
+CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
+`;
+
 const PARAGRAPH = (...texts: string[]) =>
   texts.map(text => ({ type: "paragraph", children: [{ text }] }));
 
@@ -96,6 +158,7 @@ function seedQuestions(cardContent: number, answerContent: number) {
 beforeEach(() => {
   db = new Database(":memory:");
   db.exec(MAIN_SCHEMA_SQL);
+  db.exec(LEGACY_QUESTION_SQL);
 });
 afterEach(() => db.close());
 
@@ -242,7 +305,7 @@ describe("migrateQuestionsToPlugin", () => {
       get<{ n: number }>(`SELECT COUNT(*) AS n FROM plugin_records WHERE id = 'legacy-group-1'`).n
     ).toBe(0);
 
-    db.exec(MAIN_SCHEMA_SQL);
+    db.exec(LEGACY_QUESTION_SQL);
     seedQuestions(ids.cardContent, ids.answerContent);
     const again = migrateQuestionsToPlugin(db)!;
     expect(again).toMatchObject({ questions: 0, answers: 0, groups: 0, events: 0 });

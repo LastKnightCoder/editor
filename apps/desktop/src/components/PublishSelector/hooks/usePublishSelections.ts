@@ -8,7 +8,6 @@ import { encodeScope, decodeScope } from "../utils";
 interface UsePublishSelectionsReturn {
   selections: Map<string, boolean>;
   projectScopes: Map<number, EntityScope>;
-  questScopes: Map<number, EntityScope>;
   isLoading: boolean;
   isItemSelected: (type: PublishContentType, id: number) => boolean;
   toggleSelection: (type: PublishContentType, id: number) => void;
@@ -19,12 +18,8 @@ interface UsePublishSelectionsReturn {
     options?: { parentPath?: string }
   ) => Promise<void>;
   loadSelections: () => Promise<void>;
-  handleEntityToggle: (type: "project" | "quest", id: number, enabled: boolean) => Promise<void>;
-  updateEntityScope: (
-    type: "project" | "quest",
-    entityId: number,
-    scope: EntityScope
-  ) => Promise<void>;
+  handleEntityToggle: (id: number, enabled: boolean) => Promise<void>;
+  updateEntityScope: (entityId: number, scope: EntityScope) => Promise<void>;
   getSelectedCount: (type: PublishContentType, ids: number[]) => number;
   getTotalSelectedCount: () => number;
   getTypeSelectedCount: (type: PublishContentType) => number;
@@ -33,7 +28,6 @@ interface UsePublishSelectionsReturn {
 export function usePublishSelections(): UsePublishSelectionsReturn {
   const [selections, setSelections] = useState<Map<string, boolean>>(new Map());
   const [projectScopes, setProjectScopes] = useState<Map<number, EntityScope>>(new Map());
-  const [questScopes, setQuestScopes] = useState<Map<number, EntityScope>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
 
   const isItemSelected = useCallback(
@@ -47,7 +41,6 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
       const data = await getPublishSelections();
       const map = new Map<string, boolean>();
       const projectScope = new Map<number, EntityScope>();
-      const questScope = new Map<number, EntityScope>();
 
       data.forEach(item => {
         const key = `${item.contentType}-${item.contentId}`;
@@ -55,14 +48,10 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
         if (item.contentType === "project") {
           projectScope.set(item.contentId, decodeScope(item.parentPath));
         }
-        if (item.contentType === "quest") {
-          questScope.set(item.contentId, decodeScope(item.parentPath));
-        }
       });
 
       setSelections(map);
       setProjectScopes(projectScope);
-      setQuestScopes(questScope);
     } catch (error) {
       console.error("Failed to load selections:", error);
     } finally {
@@ -103,53 +92,30 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
     batchToggle(type, [id], next);
   });
 
-  const handleEntityToggle = useMemoizedFn(
-    async (type: "project" | "quest", id: number, enabled: boolean) => {
-      if (!enabled) {
-        if (type === "project") {
-          setProjectScopes(prev => {
-            const next = new Map(prev);
-            next.delete(id);
-            return next;
-          });
-        } else {
-          setQuestScopes(prev => {
-            const next = new Map(prev);
-            next.delete(id);
-            return next;
-          });
-        }
-        await batchToggle(type, [id], false);
-        return;
-      }
-
-      const scopes = type === "project" ? projectScopes : questScopes;
-      const scope = scopes.get(id) ?? { mode: "all" };
-      await batchToggle(type, [id], true, {
-        parentPath: encodeScope(scope),
+  const handleEntityToggle = useMemoizedFn(async (id: number, enabled: boolean) => {
+    if (!enabled) {
+      setProjectScopes(prev => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
       });
-
-      if (type === "project") {
-        setProjectScopes(prev => new Map(prev).set(id, scope));
-      } else {
-        setQuestScopes(prev => new Map(prev).set(id, scope));
-      }
+      await batchToggle("project", [id], false);
+      return;
     }
-  );
 
-  const updateEntityScope = useMemoizedFn(
-    async (type: "project" | "quest", entityId: number, scope: EntityScope) => {
-      if (type === "project") {
-        setProjectScopes(prev => new Map(prev).set(entityId, scope));
-      } else {
-        setQuestScopes(prev => new Map(prev).set(entityId, scope));
-      }
+    const scope = projectScopes.get(id) ?? { mode: "all" };
+    await batchToggle("project", [id], true, {
+      parentPath: encodeScope(scope),
+    });
+    setProjectScopes(prev => new Map(prev).set(id, scope));
+  });
 
-      await batchToggle(type, [entityId], true, {
-        parentPath: encodeScope(scope),
-      });
-    }
-  );
+  const updateEntityScope = useMemoizedFn(async (entityId: number, scope: EntityScope) => {
+    setProjectScopes(prev => new Map(prev).set(entityId, scope));
+    await batchToggle("project", [entityId], true, {
+      parentPath: encodeScope(scope),
+    });
+  });
 
   const getSelectedCount = useCallback(
     (type: PublishContentType, ids: number[]) => {
@@ -178,7 +144,6 @@ export function usePublishSelections(): UsePublishSelectionsReturn {
   return {
     selections,
     projectScopes,
-    questScopes,
     isLoading,
     isItemSelected,
     toggleSelection,

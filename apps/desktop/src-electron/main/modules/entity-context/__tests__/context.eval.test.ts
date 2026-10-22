@@ -1,7 +1,6 @@
 /**
  * 脉络实测：在真实库副本上量 content_link 退役、引用与白板索引的首次对账、微信读书摘录回填与外部材料
- * 索引候选、每个实体的脉络查询耗时、问题列表与每个问题详情（材料、探究对话、立项）的解析耗时，
- * 并统计各分区非空的实体数。默认跳过；需要时把主库复制到临时目录（含 -wal）再跑，主进程测试要用
+ * 索引候选、每个实体的脉络查询耗时，并统计各分区非空的实体数。默认跳过；需要时把主库复制到临时目录（含 -wal）再跑，主进程测试要用
  * Electron 内置 Node（见 docs/knowledge-loop/05 踩坑）：
  *
  *   KL_CONTEXT_EVAL_MAIN=/tmp/kl-m.db \
@@ -26,7 +25,6 @@ vi.mock("../../video-note-index-queue", () => ({
 
 import type { EntityRef } from "@/entity/ref";
 import { listMaterialIndexDocs } from "../../material-index";
-import QuestionLinkTable from "../../tables/question-link";
 import { getEntityContext } from "../context-query";
 import { reconcileRefs } from "../ref-indexer";
 import { reconcileWhiteboardRefs } from "../whiteboard-indexer";
@@ -98,28 +96,6 @@ it.skipIf(!MAIN)(
     );
     console.log("非空分区的实体数", nonEmpty, "被使用条目按类型", usageKinds);
 
-    const listStarted = performance.now();
-    const summaries = QuestionLinkTable.listSummaries(main);
-    console.log(
-      `问题列表摘要 ${summaries.length} 个：${Math.round(performance.now() - listStarted)} ms`
-    );
-    const detailDurations: number[] = [];
-    let materials = 0;
-    let projections = 0;
-    for (const summary of summaries) {
-      const started = performance.now();
-      const detail = QuestionLinkTable.getDetail(main, summary.id);
-      detailDurations.push(performance.now() - started);
-      materials += detail?.materials.length ?? 0;
-      projections += detail?.materials.filter(m => m.projections?.length).length ?? 0;
-    }
-    detailDurations.sort((a, b) => a - b);
-    console.log(
-      `问题详情 ${summaries.length} 个：平均 ${(
-        detailDurations.reduce((sum, ms) => sum + ms, 0) / Math.max(summaries.length, 1)
-      ).toFixed(2)} ms，p95 ${percentile(detailDurations, 0.95).toFixed(2)} ms；` +
-        `材料 ${materials} 份，其中答案已被投影成卡片等的 ${projections} 份`
-    );
     main.close();
     index.close();
   },

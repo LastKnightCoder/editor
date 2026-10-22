@@ -69,19 +69,12 @@ export async function generateFixture(
   const data: PublishDataSource = {
     getCardByIds: () => [],
     getCardById: () => null,
-    getCardByContentId: () => null,
     getContentLinkTargetContentIds: () => [],
     getArticleByIds: () => [article],
-    getArticleByContentId: () => null,
     getProject: () => {
       throw new Error("此夹具不包含项目");
     },
     getProjectItemsByIds: () => [],
-    getProjectItemsByContentId: () => [],
-    listQuestionGroups: () => [],
-    listQuestionsByGroup: () => [],
-    getQuestionAnswerById: () => null,
-    getQuestionDetail: () => null,
   };
   const generator = new PublishSiteGenerator({
     template: await readTemplatePackage(templateDir, "0.59.0"),

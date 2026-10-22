@@ -25,13 +25,9 @@ import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "./tables/content";
-import QuestionTable from "./tables/question";
-import QuestionLinkTable from "./tables/question-link";
 import ContentLinkTable from "./tables/content-link";
 import ComposeBoardTable from "./tables/compose-board";
 import EntitySearchTable from "./tables/entity-search";
-import QuestionEventTable from "./tables/question-event";
-import QuestionChatTable from "./tables/question-chat";
 import WhiteBoardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
@@ -44,7 +40,6 @@ import TodoRecurrenceTable from "./tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "./tables/todo-recurrence-completion";
 import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
 import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
-import QuestionGroupTable from "./tables/question-group";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
@@ -277,11 +272,6 @@ class DatabaseModule implements Module {
       StatisticTable,
       VideoNoteItemTable,
       VideoNoteTable,
-      QuestionGroupTable,
-      QuestionTable,
-      QuestionEventTable,
-      QuestionLinkTable,
-      QuestionChatTable,
       ContentLinkTable,
       ComposeBoardTable,
       EntitySearchTable,
@@ -429,7 +419,6 @@ class DatabaseModule implements Module {
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();
         TodoGroupTable.ensureSystemGroups(database);
-        QuestionGroupTable.ensureDefaultGroup(database);
         DiaryTable.ensureDefaultTagSettings(database);
         FlashcardTable.upgradeTable(database);
         ContentLinkTable.migrateCardsLinks(database);
