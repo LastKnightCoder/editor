@@ -13,7 +13,7 @@ import type { ContextMenuItem } from "../components/EditorContextMenu/types";
  * 顶层条目按 id 去重，后声明的覆盖先声明的——扩展可以覆盖内核默认条目。
  */
 
-/** 一个扩展贡献的菜单来源；owner 只用于日志 */
+/** 一个扩展贡献的菜单来源；owner 用于日志，并写入条目的 owner 字段供宿主区分来源 */
 export interface MenuContributionSource {
   readonly owner: string;
   readonly menu: EditorMenuContribution;
@@ -73,6 +73,7 @@ function renderEntry(
     onSelect: entry.command
       ? () => ctx.editor.commands?.execute(entry.command!, entry.payload, ctx.element, ctx.path)
       : undefined,
+    owner,
   };
   childOrders.set(item, entry.order ?? Number.MAX_SAFE_INTEGER);
   return item;
@@ -133,6 +134,7 @@ export function resolveBlockMenuItems(
           item.children = [...children.values()].sort(
             (a, b) => (childOrders.get(a) ?? 0) - (childOrders.get(b) ?? 0)
           );
+          item.owner = previous.item.owner;
         }
         collected.set(item.key, {
           item,

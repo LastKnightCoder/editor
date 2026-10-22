@@ -1,4 +1,13 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -24,6 +33,12 @@ import { ReadingModeHeaderButton } from "./readingMode/ReadingModeHeaderButton";
 import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "./readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
+import { toast } from "../../components/toast";
+import { BlockActionBar } from "./blockSelection/BlockActionBar";
+import { BlockHandle } from "./blockSelection/BlockHandle";
+import { BlockSelectionHeader } from "./blockSelection/BlockSelectionHeader";
+import { BlockSelectionLayer } from "./blockSelection/BlockSelectionLayer";
+import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
 const CollaborativeEditor = lazy(() =>
@@ -34,6 +49,12 @@ const CollaborativeEditor = lazy(() =>
 
 /** 封面页顶栏渐显实底的滚动过渡距离（px）：略大于顶栏高度，给 scrim→实底切换留缓冲 */
 const COVER_HEADER_FADE_RANGE = 140;
+
+/** 详情页对宿主 page 暴露的操作（page 的「⋯」菜单经 actionsRef 调用） */
+export type ContentDetailActions = {
+  /** 进入块选择并选中 0 个块；阅读态与编辑态都可用，不可编辑时提示 */
+  enterBlockSelection: () => void;
+};
 
 type ContentDetailPageProps = {
   contentId: number;
@@ -48,6 +69,8 @@ type ContentDetailPageProps = {
   onTitleCommit?: (title: string) => void;
   /** 顶栏右侧自定义区（如 ⋯ 菜单按钮） */
   headerRight?: ReactNode;
+  /** 详情页操作句柄（如「⋯ → 选择块」） */
+  actionsRef?: Ref<ContentDetailActions>;
   /** 日记日期头：日期即标题，与正文同处一张「纸」，不再另起元信息卡 */
   diaryDate?: { title: string; sub?: string };
   /** 通用内容详情的标签源（文章 / 知识库 / 项目文档）：传入即启用内联添加 */
@@ -198,12 +221,34 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     initialEditing,
     toolbarController,
   });
-  // 阅读态与强制只读时正文只读、工具栏收起
-  const editorReadonly = forcedReadonly || !readingMode.editing;
+  const { blockSelection, slateEditor, blockCount, handleBlockIndex } = useEditorBlockSelection({
+    editorRef,
+    readingMode,
+    toolbarController,
+  });
+  useImperativeHandle(
+    props.actionsRef,
+    () => ({
+      enterBlockSelection: () => {
+        if (!readingMode.canEdit) {
+          toast({ type: "warning", text: "当前内容不可编辑" });
+          return;
+        }
+        blockSelection.enter();
+      },
+    }),
+    [blockSelection, readingMode.canEdit]
+  );
+  // 阅读态与强制只读时正文只读；块选择期间保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）
+  const editorReadonly = forcedReadonly || (!readingMode.editing && !blockSelection.active);
+  // 阅读态、强制只读与块选择期间配件栏收起
+  const toolbarReadonly = editorReadonly || blockSelection.active;
   const readingSelection = useReadingSelection(
     editorRef,
-    !readingMode.editing && readingMode.canEdit
+    !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
+  const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
+  const kit = getMobileContentKit();
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -305,6 +350,17 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       />
       {props.headerRight}
     </>
+  );
+
+  const renderBlockSelectionHeader = (floating: boolean) => (
+    <BlockSelectionHeader
+      selectedCount={blockSelection.selected.length}
+      totalCount={blockCount}
+      onCancel={blockSelection.exit}
+      onSelectAll={blockSelection.selectAll}
+      onDeselectAll={() => blockSelection.setSelected([])}
+      floating={floating}
+    />
   );
 
   const saveStatusNode = saving ? (
@@ -449,9 +505,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </Suspense>
         ) : null}
 
-        <div className="min-h-[45vh] pt-1" {...readingMode.readingSurfaceProps}>
+        <div
+          ref={setEditorWrapEl}
+          className="relative min-h-[45vh] pt-1"
+          // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
+          {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
+        >
           <Editor
-            kit={getMobileContentKit()}
+            kit={kit}
             ref={editorRef}
             document={document}
             className="mobile-card-editor-content"
@@ -465,6 +526,21 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               toolbarController.handleEditorBlur();
             }}
             onSelectionChange={toolbarController.syncSelection}
+          />
+          <BlockSelectionLayer
+            editorRef={editorRef}
+            container={editorWrapEl}
+            active={blockSelection.active}
+            selected={blockSelection.selected}
+            onToggle={blockSelection.toggle}
+            documentVersion={slateEditor?.children}
+          />
+          <BlockHandle
+            editorRef={editorRef}
+            container={editorWrapEl}
+            blockIndex={handleBlockIndex}
+            onEnter={blockSelection.enter}
+            version={slateEditor?.children}
           />
         </div>
 
@@ -518,15 +594,19 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             aria-hidden
             className="cover-scrim-fade pointer-events-none absolute inset-x-0 top-0 z-20 h-28 bg-gradient-to-b from-black/45 to-transparent"
           />
-          <PageHeader
-            transparent
-            center={headerCenter}
-            onBack={() => {
-              commitTitle();
-              props.onBack();
-            }}
-            actions={headerActions}
-          />
+          {blockSelection.active ? (
+            renderBlockSelectionHeader(true)
+          ) : (
+            <PageHeader
+              transparent
+              center={headerCenter}
+              onBack={() => {
+                commitTitle();
+                props.onBack();
+              }}
+              actions={headerActions}
+            />
+          )}
           <div
             ref={node => {
               coverScrollRef.current = node;
@@ -541,14 +621,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         </div>
       ) : (
         <>
-          <PageHeader
-            center={headerCenter}
-            onBack={() => {
-              commitTitle();
-              props.onBack();
-            }}
-            actions={headerActions}
-          />
+          {blockSelection.active ? (
+            renderBlockSelectionHeader(false)
+          ) : (
+            <PageHeader
+              center={headerCenter}
+              onBack={() => {
+                commitTitle();
+                props.onBack();
+              }}
+              actions={headerActions}
+            />
+          )}
           {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
               留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
           <div
@@ -567,16 +651,26 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
-        readonly={editorReadonly}
+        readonly={toolbarReadonly}
       />
-      <ReadingSelectionBar
-        editorRef={editorRef}
-        controller={toolbarController}
-        readingMode={readingMode}
-        range={readingSelection.range}
-        onClear={readingSelection.clear}
-        portalContainer={pageRootEl}
-      />
+      {blockSelection.active ? (
+        <BlockActionBar
+          editorRef={editorRef}
+          kit={kit}
+          selection={blockSelection}
+          blockCount={blockCount}
+          portalContainer={pageRootEl}
+        />
+      ) : (
+        <ReadingSelectionBar
+          editorRef={editorRef}
+          controller={toolbarController}
+          readingMode={readingMode}
+          range={readingSelection.range}
+          onClear={readingSelection.clear}
+          portalContainer={pageRootEl}
+        />
+      )}
     </div>
   );
 }

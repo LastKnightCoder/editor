@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layers, Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
-import { ContentDetailPage } from "../../cards/ContentDetailPage";
+import { ContentDetailPage, type ContentDetailActions } from "../../cards/ContentDetailPage";
+import { blockSelectionMenuItem } from "../../cards/blockSelection/blockSelectionMenuItem";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
@@ -38,6 +39,7 @@ function ArticleEditorScreen() {
   const { data: article } = useArticleQuery(params.articleId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const detailActionsRef = useRef<ContentDetailActions>(null);
   // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
   const [refreshRev, setRefreshRev] = useState(0);
   usePageLifecycle({ onResume: () => setRefreshRev(value => value + 1) });
@@ -87,6 +89,7 @@ function ArticleEditorScreen() {
         }}
         tags={article.tags}
         refreshKey={refreshRev}
+        actionsRef={detailActionsRef}
         contextEntity={{ kind: "article", id: article.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
@@ -121,6 +124,7 @@ function ArticleEditorScreen() {
         kind="文章"
         onClose={() => setMenuOpen(false)}
         items={[
+          blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
           {
             label: article.isTop ? "取消置顶" : "置顶",
             icon: <Star size={18} />,

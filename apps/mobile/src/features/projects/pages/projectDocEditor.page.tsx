@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Ellipsis, FilePlus2, FolderKanban, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
-import { ContentDetailPage } from "../../cards/ContentDetailPage";
+import { ContentDetailPage, type ContentDetailActions } from "../../cards/ContentDetailPage";
+import { blockSelectionMenuItem } from "../../cards/blockSelection/blockSelectionMenuItem";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
@@ -43,6 +44,7 @@ function ProjectDocEditorScreen() {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addChildTitle, setAddChildTitle] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const detailActionsRef = useRef<ContentDetailActions>(null);
   const deleteItem = useProjectItemDelete();
   const createItem = useProjectItemCreate();
 
@@ -109,6 +111,7 @@ function ProjectDocEditorScreen() {
         contentId={item.contentId ?? 0}
         contentTitle={item.title}
         refreshKey={refreshRev}
+        actionsRef={detailActionsRef}
         contextEntity={{ kind: "project-item", id: params.itemId }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
@@ -187,6 +190,7 @@ function ProjectDocEditorScreen() {
         kind="项目节点"
         onClose={() => setMenuOpen(false)}
         items={[
+          blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
           {
             label: "添加子文档",
             icon: <FilePlus2 size={18} />,
