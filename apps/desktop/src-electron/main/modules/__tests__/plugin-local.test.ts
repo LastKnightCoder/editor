@@ -5,7 +5,7 @@ import AdmZip from "adm-zip";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { DevelopmentPluginRegistry } from "../../services/plugin-registry";
+import { PluginWorkspaceRegistry } from "../../services/plugin-registry";
 
 const mock = vi.hoisted(() => ({
   root: "",
@@ -127,7 +127,7 @@ it("扫描与打开始终使用应用约定目录，不接受调用方路径", a
   await expect(invoke("plugin-local:open-directory")).rejects.toThrow("打开失败");
 });
 it("保留原工作区映射的稳定身份，不按扫描创建新身份", async () => {
-  const registry = new DevelopmentPluginRegistry(
+  const registry = new PluginWorkspaceRegistry(
     path.join(mock.root, "profile/plugin-development/registry.json")
   );
   const existing = await registry.open("A");

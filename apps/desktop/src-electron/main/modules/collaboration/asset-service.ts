@@ -6,13 +6,16 @@ import { fileURLToPath } from "node:url";
 import {
   ASSET_PREFIX,
   LOCAL_ASSET_PREFIX,
-  PRIVATE_BLOCKS,
-  RESOURCE_FIELDS,
   isLocalAssetReference,
   isSafeResource,
   type DeviceIdentity,
   type SharedContent,
 } from "@tau/collaboration";
+import {
+  collectContentResources,
+  mapContentResources,
+  type ContentResourceDeclarations,
+} from "@tau/db-schema/content-resources";
 import type { CollaborationLocalStore } from "./local-store";
 
 export interface ResourceRow {
@@ -67,22 +70,21 @@ const isUploadableFile = async (path: string) => {
   }
 };
 
+/** 按文档携带的资源声明改写正文与题图里的资源引用；未声明的字段原样保留 */
 async function mapResources(
-  value: unknown,
+  value: SharedContent,
+  declarations: ContentResourceDeclarations,
   transform: (reference: string) => Promise<string>
-): Promise<void> {
-  if (Array.isArray(value)) {
-    for (const entry of value) await mapResources(entry, transform);
-    return;
-  }
-  if (!value || typeof value !== "object") return;
-  const object = value as Record<string, unknown>;
-  if (PRIVATE_BLOCKS.has(String(object.type))) return;
-  for (const [key, entry] of Object.entries(object)) {
-    if (RESOURCE_FIELDS.has(key) && typeof entry === "string" && entry)
-      object[key] = await transform(entry);
-    else await mapResources(entry, transform);
-  }
+): Promise<SharedContent> {
+  const mapped = new Map<string, string>();
+  for (const { url } of collectContentResources(value.content, declarations))
+    mapped.set(url, await transform(url));
+  if (value.bannerBg) mapped.set(value.bannerBg, await transform(value.bannerBg));
+  return {
+    ...value,
+    bannerBg: mapped.get(value.bannerBg) ?? value.bannerBg,
+    content: mapContentResources(value.content, declarations, url => mapped.get(url)),
+  };
 }
 
 export class CollaborationAssetService {
@@ -349,9 +351,14 @@ export class CollaborationAssetService {
     return target;
   }
 
-  async localize(url: string, documentId: string, value: SharedContent) {
-    const local = structuredClone(value);
-    await mapResources(local, reference => this.localizeReference(url, documentId, reference));
-    return local;
+  async localize(
+    url: string,
+    documentId: string,
+    value: SharedContent,
+    declarations: ContentResourceDeclarations
+  ) {
+    return mapResources(value, declarations, reference =>
+      this.localizeReference(url, documentId, reference)
+    );
   }
 }

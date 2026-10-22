@@ -25,13 +25,9 @@ import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import VideoNoteItemTable from "./tables/video-note-item";
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "./tables/content";
-import QuestionTable from "./tables/question";
-import QuestionLinkTable from "./tables/question-link";
 import ContentLinkTable from "./tables/content-link";
 import ComposeBoardTable from "./tables/compose-board";
 import EntitySearchTable from "./tables/entity-search";
-import QuestionEventTable from "./tables/question-event";
-import QuestionChatTable from "./tables/question-chat";
 import WhiteBoardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DatabaseItemTable from "./tables/database-item";
@@ -44,7 +40,6 @@ import TodoRecurrenceTable from "./tables/todo-recurrence";
 import TodoRecurrenceCompletionTable from "./tables/todo-recurrence-completion";
 import TodoCalendarMappingTable from "./tables/todo-calendar-mapping";
 import TodoCalendarSyncTable from "./tables/todo-calendar-sync";
-import QuestionGroupTable from "./tables/question-group";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
@@ -56,6 +51,7 @@ import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
 import WebViewPreferenceTable from "./tables/web-view-preference";
+import HomeLayoutTable from "./tables/home-layout";
 import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
 import MaterialTable from "./tables/material";
@@ -71,6 +67,12 @@ import VLQuizTable from "./tables/vl-quiz";
 import PluginDataTable from "./tables/plugin-data";
 import PluginEntityTable from "./tables/plugin-entity";
 import PluginKvTable from "./tables/plugin-kv";
+import PluginRecordTable from "./tables/plugin-records";
+import PluginLinkTable from "./tables/plugin-links";
+import PluginTransactionTable from "./tables/plugin-transaction";
+import PluginElementResourcesTable from "./tables/plugin-element-resources";
+import PluginRefsTable from "./tables/plugin-refs";
+import PluginReadonlyDataTable from "./tables/plugin-data-readonly";
 import { shouldVacuumDatabase } from "./database-maintenance";
 import mainContentIndexDBManager, {
   EnsureIndexReadyResult,
@@ -85,6 +87,8 @@ import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
 import { upgradeDataTableViewOptions } from "./data-table-view-options-upgrade";
+import { upgradeQuestionedInsights } from "./insights-questioned-upgrade";
+import { QuestionMigrationTable } from "./question-plugin-migration";
 import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
@@ -268,11 +272,6 @@ class DatabaseModule implements Module {
       StatisticTable,
       VideoNoteItemTable,
       VideoNoteTable,
-      QuestionGroupTable,
-      QuestionTable,
-      QuestionEventTable,
-      QuestionLinkTable,
-      QuestionChatTable,
       ContentLinkTable,
       ComposeBoardTable,
       EntitySearchTable,
@@ -296,6 +295,7 @@ class DatabaseModule implements Module {
       WebClipTable,
       WebNoteTable,
       WebViewPreferenceTable,
+      HomeLayoutTable,
       EntityLineageTable,
       ExcerptTable,
       MaterialTable,
@@ -312,6 +312,13 @@ class DatabaseModule implements Module {
       PluginDataTable,
       PluginEntityTable,
       PluginKvTable,
+      PluginRecordTable,
+      PluginLinkTable,
+      PluginTransactionTable,
+      PluginElementResourcesTable,
+      PluginRefsTable,
+      PluginReadonlyDataTable,
+      QuestionMigrationTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(
@@ -400,6 +407,10 @@ class DatabaseModule implements Module {
       if (upgradedViews > 0)
         log.info(`[database] 数据表视图配置收进 viewOptions: db=${name}, views=${upgradedViews}`);
 
+      const upgradedInsights = upgradeQuestionedInsights(database);
+      if (upgradedInsights > 0)
+        log.info(`[database] 洞见「记为问题」状态改为不相关: db=${name}, rows=${upgradedInsights}`);
+
       upgradeDiaryEntityReferences(database);
 
       if (upgradeExcerptProviders(database))
@@ -408,7 +419,6 @@ class DatabaseModule implements Module {
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();
         TodoGroupTable.ensureSystemGroups(database);
-        QuestionGroupTable.ensureDefaultGroup(database);
         DiaryTable.ensureDefaultTagSettings(database);
         FlashcardTable.upgradeTable(database);
         ContentLinkTable.migrateCardsLinks(database);
@@ -445,8 +455,26 @@ class DatabaseModule implements Module {
           });
           if (collectedEntities > 0)
             log.info(`[database] 回收已卸载插件的内容: db=${name}, count=${collectedEntities}`);
+          const collectedRecords = PluginRecordTable.collectOrphans(database, {
+            installed: installedPluginIds(),
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (collectedRecords > 0)
+            log.info(`[database] 回收已卸载插件的记录: db=${name}, count=${collectedRecords}`);
         } catch (error) {
           log.error("[database] 回收已卸载插件的内容失败:", error);
+        }
+        try {
+          // 白板页回收会释放页内嵌入的正文，排在正文回收之前
+          const purgedPages = WhiteBoardContentTable.collectPendingReleases(database, {
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (purgedPages > 0)
+            log.info(`[database] 回收超宽限期白板页: db=${name}, count=${purgedPages}`);
+        } catch (error) {
+          log.error("[database] 回收待释放白板页失败:", error);
         }
         try {
           const purgedContents = ContentTable.collectPendingReleases(database, {

@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { Button, Loading } from "@tau/ui";
 import type { Upload } from "../../../contracts";
 import { queryKeys, useApi } from "../app/api";
+import { hasCode } from "../api/errors";
 import { Notice } from "../components/Notice";
 import { PageHeader } from "../components/PageHeader";
 import { PluginMark } from "../components/PluginMark";
@@ -82,11 +83,13 @@ export function NewSubmissionPage() {
   });
   const active = uploads.tasks.some(isTaskActive);
   const busy = active || create.isPending;
+  const limitExceeded = create.isError && hasCode(create.error, "LIMIT_EXCEEDED");
   const pick = (file: File) => {
+    setReady(null);
+    create.reset();
     const problem = precheckFile(file);
     if (problem) return setIssue(problem);
     setIssue("");
-    setReady(null);
     uploads.start(file);
   };
 
@@ -123,14 +126,19 @@ export function NewSubmissionPage() {
         {issue && (
           <Notice
             tone="danger"
-            title="还不能创建提交"
+            title={limitExceeded ? "未完成的提交已达上限" : "还不能创建提交"}
             actions={
               ready &&
-              create.isError && (
+              create.isError &&
+              (limitExceeded ? (
+                <Button size="sm" onClick={() => navigate("/submissions")}>
+                  管理我的提交
+                </Button>
+              ) : (
                 <Button size="sm" icon={RefreshCw} onClick={() => create.mutate(ready)}>
                   重试创建
                 </Button>
-              )
+              ))
             }
           >
             {issue}

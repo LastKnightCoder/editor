@@ -1,6 +1,6 @@
 # 表格扩展
 
-`@tau/editor/extensions/table` 拥有表格、行、单元格及其完整行为：结构不变式、按下标的行列变换、格选区、行列手柄、导航热键、复制与编解码。设计入口见 `docs/editor-table/README.md`。
+`@tau/editor/extensions/table` 拥有表格、行、单元格及其完整行为：结构不变式、按下标的行列变换、格选区、行列手柄、导航热键、复制与编解码。
 
 ```ts
 import { createEditorKit } from "@tau/editor";

@@ -34,7 +34,7 @@ function contextOf(links: number, overrides: Partial<EntityContext> = {}): Entit
     projections: [],
     backlinks: [],
     backlinkTotal: 0,
-    questions: [],
+    pluginLinks: [],
     sources: [],
     derived: [],
     notebookProjections: [],
@@ -89,11 +89,9 @@ describe("ContextBadge", () => {
   });
 
   it("有关联时显示「脉络 · N」并按分区合计计数", async () => {
-    entityContextGet.mockResolvedValue(
-      contextOf(2, { backlinkTotal: 3, questions: [{ id: 1, title: "q", status: "not_started" }] })
-    );
+    entityContextGet.mockResolvedValue(contextOf(2, { backlinkTotal: 3 }));
     const cleanup = await render(<ContextBadge kind="card" id={1} />);
-    expect(document.body.textContent).toContain("脉络 · 6");
+    expect(document.body.textContent).toContain("脉络 · 5");
     await cleanup();
   });
 });

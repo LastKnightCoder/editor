@@ -24,8 +24,6 @@ import {
   contentEditPending,
   imageGeneration,
   knowledgeSearch,
-  questionMutation,
-  questionQuery,
   rowCancelled,
   rowExecuting,
   rowFailedExec,
@@ -173,22 +171,8 @@ export default function ToolCallSection() {
         </MatrixRow>
       </CanvasCard>
 
-      <BlockTitle en="question · knowledge">问题与知识</BlockTitle>
+      <BlockTitle en="knowledge">知识</BlockTitle>
       <CanvasCard cap="检索类" stage="page" stageClassName="flex flex-col">
-        <MatrixRow
-          name="query_questions · 问题列表"
-          desc="QuestionQueryRenderer（经 rendererKey 路由）：状态标签 + 分组 + 回答数"
-          trayClassName={tray}
-        >
-          {show(questionQuery)}
-        </MatrixRow>
-        <MatrixRow
-          name="update_question_status · 问题操作"
-          desc="QuestionOperationRenderer：动作文案 + 问题标题 + 状态 / 回答数徽章"
-          trayClassName={tray}
-        >
-          {show(questionMutation)}
-        </MatrixRow>
         <MatrixRow
           name="search_knowledge · 知识检索"
           desc="KnowledgeSearchRenderer：结果行（类型徽章 + 由 output 快照渲染的富文本预览 + 相对时间），超过 5 条折叠"

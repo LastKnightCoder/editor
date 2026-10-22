@@ -7,6 +7,12 @@ type NavigatorLike = {
   push: (key: string, params: Record<string, unknown>) => void;
 };
 
+const OPENABLE_ENTITY_KINDS = new Set(["card", "article", "project-item"]);
+
+/** 实体条目有没有承载页面：日记片段与插件内容只读展示 */
+export const canOpenContextEntity = (entity: ContextEntity) =>
+  OPENABLE_ENTITY_KINDS.has(entity.kind);
+
 /** 实体条目（连接 / 被引用 / 投影）能否跳转、跳到哪里 */
 export function openContextEntity(navigator: NavigatorLike, entity: ContextEntity): boolean {
   switch (entity.kind) {

@@ -15,7 +15,6 @@ import {
   Highlighter,
   SunMoon,
   MessageCircle,
-  CircleHelp,
   CalendarPlus,
   ListPlus,
   FileDown,
@@ -113,7 +112,6 @@ export interface PaletteCommand {
   action?:
     | "cycle-theme"
     | "open-settings"
-    | "capture-question"
     | "capture-todo"
     | "capture-event"
     | "toggle-assist"
@@ -228,15 +226,6 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "ai chat assistant dock 对话 助手 停靠 ctrl+j",
       kind: "action",
       action: "toggle-assist",
-    },
-    {
-      id: "action:capture-question",
-      label: "记一个问题",
-      section: "动作",
-      icon: CircleHelp,
-      keywords: "question capture 问题 收集 疑问",
-      kind: "action",
-      action: "capture-question",
     },
     {
       id: "action:capture-todo",

@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import { createClient } from "@tau/plugins/publish-client";
 import { PublishSiteGenerator } from "../publish-site-generator";
 import { buildPublishSearchIndexPayload } from "../publish-search-index";
 import { planPublication, describeRelease } from "../publish-release-state";
@@ -46,7 +47,15 @@ const template = (id = "test.template"): TemplatePackage => ({
     id,
     name: "模板",
     version: "1.0.0",
-    template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
+    template: {
+      protocolVersion: 1,
+      root: "site",
+      entries: ["index.html"],
+      siteFields: [
+        { key: "description", label: "站点描述", type: "textarea" },
+        { key: "showStats", label: "显示统计", type: "switch", default: true },
+      ],
+    },
     integrity: {},
   },
   files: [
@@ -70,7 +79,7 @@ async function generate(title?: string, id?: string, exclude?: number) {
   }).generate(
     fixture.data,
     fixture.selections.filter(item => item.contentType !== "article" || item.contentId !== exclude),
-    { title: "站点", description: "说明", basePath: "/notes/" }
+    { title: "站点", basePath: "/notes/", fieldValues: { description: "说明", extra: "丢弃" } }
   );
 }
 const history = (files: IPublishFile[]) =>
@@ -82,6 +91,27 @@ const history = (files: IPublishFile[]) =>
     sourceId: file.sourceId,
     publishTime: 1,
   })) as IPublishHistory[];
+it("生成的清单能被公开数据客户端读取", async () => {
+  const { files } = await generate();
+  const site = files.find(file => /^data\/site\./.test(file.path))!;
+  const byUrl = new Map(files.map(file => ["https://example.com/notes/" + file.path, file]));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => new Response(byUrl.get(url)!.content))
+  );
+  try {
+    const client = createClient({ manifestUrl: "https://example.com/notes/" + site.path });
+    const manifest = await client.readManifest();
+    expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
+    const home = manifest.items.find(item => item.type === "home")!;
+    const result = await client.readData({ key: home.key });
+    expect(result.data).toMatchObject({ key: home.key, meta: { type: "home" } });
+    expect(result.data.content).not.toHaveProperty("hero");
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 it("未知节点仅回传警告，继续生成完整发布产物并原样保留节点", async () => {
   const fixture = makePublishFixture();
   const unknown = {
@@ -99,7 +129,6 @@ it("未知节点仅回传警告，继续生成完整发布产物并原样保留�
   });
   const result = await generator.generate(fixture.data, fixture.selections, {
     title: "站点",
-    description: "",
     basePath: "/notes/",
   });
   expect(result.warnings).toHaveLength(1);
@@ -110,7 +139,7 @@ it("未知节点仅回传警告，继续生成完整发布产物并原样保留�
   expect(article.content.content).toContainEqual(unknown);
   expect(result.files.some(file => file.publicationEntry)).toBe(true);
 });
-it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", async () => {
+it("五类数据、索引、CSS 与引用闭合，宿主不生成业务页面", async () => {
   const { files } = await generate();
   expect(files.filter(file => file.path.endsWith(".html")).map(file => file.path)).toEqual([
     "index.html",
@@ -118,8 +147,9 @@ it("六类数据、索引、CSS 与引用闭合，宿主不生成业务页面", 
   const manifest = JSON.parse(
     files.find(file => /^data\/site\./.test(file.path))!.content.toString()
   );
+  expect(manifest.site.fields).toEqual({ description: "说明", showStats: true });
   expect(new Set(manifest.items.map((item: any) => item.type))).toEqual(
-    new Set(["home", "card", "article", "doc", "quest", "list"])
+    new Set(["home", "card", "article", "doc", "list"])
   );
   expect(
     manifest.items.every(
@@ -187,9 +217,9 @@ it("增量发布仅上传变更，保留一轮旧依赖，无变化不推进保�
   expect(withdrawal.toDelete.some(path => /^data\/articles\/2\./.test(path))).toBe(true);
   expect(withdrawal.toDelete.some(path => /^data\/search\./.test(path))).toBe(true);
   // 撤下文章只影响清单、聚合与索引，其余内容文件的摘要不变。
-  expect(
-    withdrawal.toUpload.some(file => /^data\/(?:cards|projects|quests)\//.test(file.path))
-  ).toBe(false);
+  expect(withdrawal.toUpload.some(file => /^data\/(?:cards|projects)\//.test(file.path))).toBe(
+    false
+  );
 });
 it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async () => {
   const fixture = makePublishFixture();
@@ -205,7 +235,6 @@ it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async (
   await expect(
     generator.generate(fixture.data, fixture.selections, {
       title: "站点",
-      description: "",
       basePath: "/",
     })
   ).rejects.toThrow("动态样式");
@@ -220,7 +249,6 @@ it("项目卡片列表保留卡片快照和文档目标，撤下目标后移除�
   };
   fixture.articles[0].content = [list];
   fixture.cards[0].content = [list];
-  fixture.data.getQuestionDetail(9)!.question.description = [list];
   const parent = fixture.data.getProjectItemsByIds([33])[0];
   parent.content = [list];
   const original = structuredClone(parent.content);
@@ -235,9 +263,9 @@ it("项目卡片列表保留卡片快照和文档目标，撤下目标后移除�
   const first = await generator.generate(fixture.data, fixture.selections, site);
   const read = (files: IPublishFile[], stem: string) =>
     JSON.parse(files.find(file => file.path.startsWith(`data/${stem}.`))!.content.toString());
-  for (const stem of ["articles/1", "cards/7", "projects/12/33", "quests/9"]) {
+  for (const stem of ["articles/1", "cards/7", "projects/12/33"]) {
     const value = read(first.files, stem);
-    const body = stem === "quests/9" ? value.content.description : value.content.content;
+    const body = value.content.content;
     expect(body[0]).toMatchObject({
       type: "project-card-list",
       items: [

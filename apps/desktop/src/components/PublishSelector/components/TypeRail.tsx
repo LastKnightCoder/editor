@@ -7,7 +7,6 @@ import { TabConfig } from "../types";
 const TYPE_TILE: Record<PublishContentType, string> = {
   card: "bg-tag-1-soft text-tag-1",
   article: "bg-tag-2-soft text-tag-2",
-  quest: "bg-tag-3-soft text-tag-3",
   project: "bg-tag-4-soft text-tag-4",
 };
 

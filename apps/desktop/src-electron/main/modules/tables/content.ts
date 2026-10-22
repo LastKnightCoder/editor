@@ -7,7 +7,6 @@ import { basename } from "node:path";
 
 import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
-import QuestionTable from "./question";
 import ContentAiMetaTable from "./content-ai-meta";
 import ContentAiInsightsTable from "./content-ai-insights";
 import ContentLinkTable from "./content-link";
@@ -297,28 +296,16 @@ export default class ContentTable {
     db.prepare("DELETE FROM doc_task_settings WHERE content_id = ?").run(contentId);
     db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);
     Operation.insertOperation(db, "content", "delete", contentId, Date.now());
-    // 删除白板内容和问题
+    // 删除嵌入的白板内容
     const content = this.getContentById(db, contentId);
     const whiteBoardContentId: number[] = [];
-    const questionId: number[] = [];
-
-    // 遍历内容，释放嵌入白板和问题的引用
     dfs(content?.content || [], node => {
       if (node.type === "whiteboard" && node.whiteBoardContentId) {
         whiteBoardContentId.push(node.whiteBoardContentId);
       }
-      // @ts-ignore
-      if (node.type === "question" && node.questionId) {
-        // @ts-ignore
-        questionId.push(node.questionId);
-      }
     });
-
     whiteBoardContentId.forEach(id => {
       WhiteBoardContentTable.deleteWhiteboard(db, id);
-    });
-    questionId.forEach(id => {
-      QuestionTable.deleteQuestion(db, id);
     });
 
     ContentAiMetaTable.delete(db, contentId);

@@ -130,7 +130,7 @@ async function settle() {
 }
 async function click(text: string, scope: ParentNode = page()) {
   const button = [...scope.querySelectorAll<HTMLButtonElement>("button")].find(
-    item => item.textContent === text
+    item => item.textContent === text || item.getAttribute("aria-label") === text
   );
   if (!button) throw new Error(`按钮不存在：${text}`);
   await act(async () => button.click());
@@ -233,6 +233,81 @@ it("发现页安装后立即登记且停用，用户从已安装主动启用", a
   await settle();
   expect(runtime.host.getState(ID)).toBe("active");
   expect(mock.preferences.get(ID)).toBe(true);
+});
+
+it("勾选不再提示后再次安装普通插件直接开始，可从插件页菜单恢复提示", async () => {
+  await click("安装");
+  const skip = dialog().querySelector<HTMLInputElement>('input[type="checkbox"]');
+  await act(async () => skip?.click());
+  await click("安装", dialog());
+  expect(mock.stage).toHaveBeenCalledTimes(1);
+  mock.stage.mockClear();
+  scan = { ...scan, entries: [] };
+  await act(async () => runtime.local?.refresh());
+  await settle();
+  await click("安装");
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(mock.stage).toHaveBeenCalledWith("r1");
+
+  mock.stage.mockClear();
+  scan = { ...scan, entries: [] };
+  await act(async () => runtime.local?.refresh());
+  await click("更多插件操作");
+  const restore = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]');
+  expect(restore?.textContent).toContain("安装插件前提示风险");
+  expect(restore?.getAttribute("aria-checked")).toBe("false");
+  await act(async () => restore?.click());
+  await settle();
+  await click("安装");
+  expect(mock.stage).not.toHaveBeenCalled();
+  expect(dialog().textContent).toContain("可以读取和修改你的笔记数据");
+});
+
+it("含后台的插件即使勾选过不再提示也每次提示风险", async () => {
+  localStorage.setItem("plugins:skip-install-notice", "1");
+  const release = await mock.release();
+  mock.release.mockResolvedValue({
+    ...release,
+    systemReviewed: true,
+    content: {
+      ...release.content,
+      manifest: {
+        ...release.content.manifest,
+        backend: {
+          entry: "backend.js",
+          reason: "调用本机 OCR 程序",
+          scope: "application",
+          activation: "on-demand",
+          lifetime: "idle",
+          systemAccess: ["process"],
+        },
+      },
+    },
+  });
+  await click("安装");
+  expect(mock.stage).not.toHaveBeenCalled();
+  expect(dialog().textContent).toContain("本机后台代码");
+  expect(dialog().textContent).toContain("调用本机 OCR 程序");
+  expect(dialog().querySelector('input[type="checkbox"]')).toBeNull();
+  await click("安装", dialog());
+  expect(mock.stage).toHaveBeenCalledWith("r1");
+});
+
+it("发现页卡片右上角的开关直接启用和停用已安装插件", async () => {
+  expect(page().querySelector('[aria-label="启用 中心插件"]')).toBeNull();
+  await click("安装");
+  await click("安装", dialog());
+  const toggle = () =>
+    page().querySelector<HTMLButtonElement>('[aria-label$=" 中心插件"][role="switch"]');
+  expect(toggle()?.getAttribute("aria-label")).toBe("启用 中心插件");
+  await act(async () => toggle()?.click());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("active");
+  expect(toggle()?.getAttribute("aria-label")).toBe("停用 中心插件");
+  await act(async () => toggle()?.click());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("disabled");
+  expect(mock.preferences.get(ID)).toBe(false);
 });
 
 it("详情页读取 README 安全子集，卸载默认保留私有数据", async () => {
@@ -392,8 +467,17 @@ it("发现页按分类单选筛选，关键词参与搜索，卡片显示分类"
   expect(page().textContent).not.toContain("中心插件");
 });
 
+const withSkill = (pack: ReturnType<typeof artifact>) => ({
+  ...pack,
+  manifest: {
+    ...pack.manifest,
+    skills: ["guide"],
+    integrity: { ...pack.manifest.integrity, "skills/guide/SKILL.md": "b".repeat(64) },
+  },
+});
+
 it("详情页按实际注册列出此插件提供的功能，并显示作者填写的分类", async () => {
-  const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${ID}',name:'中心插件',version:'1.0.0',skills:[{id:'guide',name:'指南',description:'说明',content:'内容'}],create:()=>({activate(ctx){ctx.commands.register({id:'a',title:'甲',run:()=>null});ctx.commands.register({id:'b',title:'乙',run:()=>null});}})});`;
+  const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${ID}',name:'中心插件',version:'1.0.0',create:()=>({activate(ctx){ctx.commands.register({id:'a',title:'甲',run:()=>null});ctx.commands.register({id:'b',title:'乙',run:()=>null});}})});`;
   mock.catalog.mockResolvedValue({
     ...catalog,
     items: [{ ...catalog.items[0], categories: ["ai"] }],
@@ -401,7 +485,9 @@ it("详情页按实际注册列出此插件提供的功能，并显示作者填�
   await act(async () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }));
   scan = {
     directory: "/test/plugins",
-    entries: [{ id: ID, directory: "/x", artifact: { ...artifact(), code }, source: center }],
+    entries: [
+      { id: ID, directory: "/x", artifact: withSkill({ ...artifact(), code }), source: center },
+    ],
     updates: [],
   };
   mock.preferences.set(ID, true);

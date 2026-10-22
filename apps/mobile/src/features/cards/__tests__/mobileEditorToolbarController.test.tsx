@@ -455,7 +455,6 @@ describe("useMobileEditorToolbarController", () => {
     insertCase("divider", "divide-line");
     insertCase("kbd", "kbd");
     // 扩充的桌面 slash 菜单子集：块结构 / 高级块
-    insertCase("image-gallery", "image-gallery");
     insertCase("tabs", "tabs");
     insertCase("details", "detail");
     insertCase("highlight-block", "highlight-block");

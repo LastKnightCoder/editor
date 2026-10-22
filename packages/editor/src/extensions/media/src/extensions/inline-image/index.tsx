@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/api";
 
 import { type InlineImageElement } from "../../types/index";
@@ -11,6 +12,7 @@ const inlineImageExtension = defineExtension({
   elements: [
     defineElement<InlineImageElement>({
       type: "inline-image",
+      resources: BUILTIN_CONTENT_RESOURCES["inline-image"],
       kind: "inline",
       isEmpty: element => !element.url,
       isVoid: true,

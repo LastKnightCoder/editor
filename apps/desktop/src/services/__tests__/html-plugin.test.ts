@@ -25,7 +25,6 @@ it("一个真实包声明行内、块级、样式来源和拖拽", () => {
     "html-block",
     "html-inline",
   ]);
-  expect(htmlDefinition.skills?.[0].content).toContain("html-inline");
 });
 
 it.each(['<div class="p-4">块级内容</div>', "前面 <b>行内内容</b> 后面"])(

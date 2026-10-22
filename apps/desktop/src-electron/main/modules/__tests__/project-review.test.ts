@@ -229,7 +229,7 @@ describe("项目回顾", () => {
 
   it("结项回顾：核心观点链到文档，归入最接近的进行中项目，覆盖原来的生长回顾并继承状态", async () => {
     const growth = (await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT))!;
-    KnowledgeAiInsightsTable.setStatus(main, growth.id, "q1", "questioned");
+    KnowledgeAiInsightsTable.setStatus(main, growth.id, "q1", "linked");
     main.prepare(`UPDATE project SET archived = 1 WHERE id = ?`).run(ids["浏览器渲染"]);
     prompts = [];
     const final = (await reviewProject(deps, ctx(), ids["浏览器渲染"], SLOT))!;

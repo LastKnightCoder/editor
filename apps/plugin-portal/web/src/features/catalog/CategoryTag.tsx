@@ -10,6 +10,7 @@ const TONES: Record<PluginCategory, { color: TagColor; className?: string }> = {
   "blog-publish": { color: "green" },
   whiteboard: { color: "purple" },
   ai: { color: "orange" },
+  skill: { color: "orange" },
   voice: { color: "purple", className: "bg-tag-5-soft text-tag-5" },
   video: { color: "purple", className: "bg-tag-5-soft text-tag-5" },
   page: { color: "purple", className: "bg-tag-4-soft text-tag-4" },

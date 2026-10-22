@@ -142,12 +142,18 @@ const restoreHostNativeModules = () => {
   }
 };
 
-const child = spawn(builderBin, process.argv.slice(2), {
-  cwd: desktopDir,
-  env,
-  shell: process.platform === "win32",
-  stdio: "inherit",
-});
+const isMac = process.platform === "darwin";
+const builderArgs = process.argv.slice(2);
+const child = spawn(
+  isMac ? process.execPath : builderBin,
+  isMac ? [path.join(__dirname, "run-mac-builder.mjs"), ...builderArgs] : builderArgs,
+  {
+    cwd: desktopDir,
+    env,
+    shell: process.platform === "win32",
+    stdio: "inherit",
+  }
+);
 
 child.on("exit", (code, signal) => {
   restoreHostNativeModules();

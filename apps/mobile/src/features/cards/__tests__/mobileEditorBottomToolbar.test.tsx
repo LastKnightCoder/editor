@@ -321,7 +321,6 @@ describe("MobileEditorBottomToolbar", () => {
       "网络图片",
       "网络视频",
       "网络音频",
-      "图册",
       "表格",
       "代码块",
       "任务列表",

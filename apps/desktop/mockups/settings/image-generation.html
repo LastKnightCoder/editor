@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>设置 · 图片生成配置方案</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 取值与 provider-layout.html 同源（cream / cocoa） */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --warn: #a77a2c; --danger: #b0564d;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-pop: 0 4px 12px rgba(67,57,44,.12), 0 18px 40px -12px rgba(67,57,44,.28);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace; --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --warn: #d3a65a; --danger: #d97e66;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.24), 0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-pop: 0 4px 12px rgba(0,0,0,.3), 0 18px 40px -12px rgba(0,0,0,.6); --stage: #15110c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1); font: 13px/1.65 -apple-system, "PingFang SC", sans-serif; -webkit-font-smoothing: antialiased; padding: 32px 3vw 80px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .intro { max-width: 1180px; font-size: 13.5px; color: var(--ink-2); }
+  .intro h1 { font-size: 20px; font-weight: 600; color: var(--ink-1); }
+  .intro p { margin-top: 6px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .bar { display: flex; flex-wrap: wrap; gap: 18px; margin: 22px 0 16px; font-size: 12.5px; color: var(--ink-2); align-items: center; }
+  .pills { display: flex; gap: 4px; align-items: center; }
+  .pills button { padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 760px) minmax(260px, 380px); gap: 24px; align-items: start; }
+  .frame { background: var(--bg-page); border-radius: 16px; padding: 28px 32px 36px; box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); position: relative; min-height: 560px; }
+  .notes { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 18px 20px; font-size: 12.5px; color: var(--ink-2); position: sticky; top: 20px; }
+  .notes h3 { font-size: 14px; color: var(--ink-1); font-weight: 600; margin-bottom: 4px; }
+  .notes h4 { font-size: 12.5px; color: var(--ink-1); font-weight: 600; margin: 14px 0 4px; }
+  .notes ul { padding-left: 16px; } .notes li { margin: 3px 0; } .notes b { color: var(--ink-1); font-weight: 600; }
+  .notes .tag { display: inline-block; font-size: 11px; padding: 0 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); margin-left: 6px; vertical-align: 1px; }
+
+  h2 { font-size: 20px; font-weight: 600; } .sub { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+  .group { margin-bottom: 26px; }
+  .gt { display: flex; align-items: flex-end; padding: 0 4px 8px; gap: 12px; }
+  .gt h3 { font-size: 13.5px; font-weight: 600; } .gt p { font-size: 12.5px; color: var(--ink-2); }
+  .gt .ga { margin-left: auto; position: relative; }
+  .panel { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 6px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 11px 12px; min-height: 56px; position: relative; }
+  .sep + .sep::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; border-top: 1px solid var(--line-2); }
+  .row .rt { flex: 1; min-width: 0; } .row .rt b { display: block; font-weight: 500; font-size: 13.5px; } .row .rt small { color: var(--ink-2); font-size: 12.5px; }
+  .inp { height: 32px; width: 260px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-1); background: var(--bg-surface); display: flex; align-items: center; padding: 0 6px 0 10px; font-size: 12.5px; gap: 4px; }
+  .inp.mono { font-family: var(--mono); font-size: 12px; } .inp .sp { flex: 1; } .inp.ph { color: var(--ink-3); }
+  .inp.sel::after { content: "⌄"; margin-left: auto; color: var(--ink-3); padding-right: 4px; }
+  .ib { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); font-size: 14px; flex: none; }
+  .ib:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .btn { height: 28px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); white-space: nowrap; }
+  .btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .btn.sec { background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-1); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); }
+  .btn.pri:hover { filter: brightness(1.05); background: var(--accent); color: var(--ink-inverse); }
+  .btn.danger { color: var(--danger); }
+  .chip { font-size: 11px; padding: 0 7px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); white-space: nowrap; }
+  .mono { font-family: var(--mono); }
+  .stat { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .stat i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .stat.warn { color: var(--warn); } .stat.warn i { background: var(--warn); }
+  .using { font-size: 11px; padding: 0 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); font-weight: 500; white-space: nowrap; }
+  .plugin-hint { font-size: 11.5px; color: var(--ink-3); padding: 10px 12px 2px; display: flex; align-items: center; gap: 6px; }
+  .plugin-hint::after { content: ""; flex: 1; border-top: 1px dashed var(--line-1); }
+
+  /* 下拉菜单（Menu） */
+  .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 280px; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow-pop), inset 0 0 0 1px var(--line-1); padding: 6px; }
+  .menu .mh { font-size: 11.5px; color: var(--ink-3); padding: 4px 10px 6px; }
+  .menu .mi { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; }
+  .menu .mi:hover { background: var(--bg-hover); }
+  .menu .mi .lg { width: 28px; height: 28px; }
+  .menu .mi b { display: block; font-weight: 500; font-size: 13px; } .menu .mi small { color: var(--ink-2); font-size: 12px; }
+  .menu .mi .ck { margin-left: auto; color: var(--accent-text); font-size: 14px; align-self: center; }
+  .menu .div { border-top: 1px solid var(--line-2); margin: 6px 4px; }
+  .menu .mi.link { color: var(--ink-2); align-items: center; }
+
+  .lg { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-size: 15px; flex: none; color: var(--ink-1); background: var(--bg-hover); box-shadow: inset 0 0 0 1px var(--line-1); }
+
+  /* 方案 A：单选列表 + 行内展开 */
+  .prow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 60px; position: relative; border-radius: 10px; cursor: pointer; }
+  .prow:hover { background: var(--bg-hover); }
+  .radio { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); flex: none; display: grid; place-items: center; transition: box-shadow .12s; }
+  .radio:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .radio.on { box-shadow: inset 0 0 0 5px var(--accent); }
+  .prow .pi { min-width: 0; flex: 1; } .prow .pn { font-weight: 500; font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+  .prow .pm { font-size: 12px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; margin-top: 1px; }
+  .prow .pm .mono { font-size: 11.5px; }
+  .prow .chev { color: var(--ink-3); transition: transform .16s; font-size: 14px; }
+  .prow.open .chev { transform: rotate(90deg); }
+  /* 展开项不加底色：表单与标题行留出间隙，项与项之间始终保留分隔线 */
+  .pitem { position: relative; }
+  .pitem + .pitem::before, .addwrap-a::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; border-top: 1px solid var(--line-2); }
+  .pitem + .pitem, .addwrap-a { padding-top: 1px; }
+  .pbody { margin: 10px 10px 0 42px; padding: 4px; border-radius: 10px; background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .pbody .row { min-height: 50px; }
+  .pfoot { display: flex; justify-content: space-between; align-items: center; padding: 10px 10px 14px 42px; }
+  .addwrap-a { position: relative; }
+  /* 加号落在单选圆点那一列，文字对齐插件图标列 */
+  .addrow { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; color: var(--accent-text); font-weight: 500; border-radius: 10px; width: 100%; }
+  .addrow:hover { background: var(--bg-hover); }
+  .addrow .pl { width: 18px; height: 18px; display: grid; place-items: center; font-size: 16px; }
+
+  /* 方案 B：顶部切换栏 */
+  .switch { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 0 0 22px; padding: 4px; border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-card); position: relative; }
+  .switch > button { height: 30px; padding: 0 12px; border-radius: 8px; display: inline-flex; gap: 7px; align-items: center; color: var(--ink-2); }
+  .switch > button:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .switch > button.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .switch > button .cur { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .switch .add { color: var(--ink-3); margin-left: auto; }
+  .switch .addwrap { margin-left: auto; position: relative; }
+  .usebar { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; margin-bottom: 22px; background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .usebar.on { box-shadow: var(--shadow-card), inset 0 0 0 1.5px var(--accent-soft); }
+  .usebar .ut { flex: 1; } .usebar .ut b { font-weight: 500; } .usebar .ut small { display: block; color: var(--ink-2); font-size: 12px; }
+
+  /* 方案 C：当前配置主卡 + 全部配置 */
+  .hero { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card), inset 0 0 0 1.5px var(--accent-soft); padding: 18px 18px 14px; margin-bottom: 26px; position: relative; }
+  .hero .hl { font-size: 11.5px; color: var(--accent-text); font-weight: 500; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .hero .hm { display: flex; align-items: center; gap: 14px; }
+  .hero .lg { width: 44px; height: 44px; border-radius: 12px; font-size: 20px; }
+  .hero .hn { font-size: 16px; font-weight: 600; } .hero .hs { font-size: 12.5px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+  .hero .ha { margin-left: auto; display: flex; gap: 6px; position: relative; }
+  .hero .caps { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-2); font-size: 12px; color: var(--ink-2); }
+  .hero .caps span { display: inline-flex; gap: 6px; align-items: center; }
+  .hero .caps .y { color: var(--ok); } .hero .caps .n { color: var(--ink-3); }
+  .crow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 56px; position: relative; }
+  .crow .pi { flex: 1; min-width: 0; } .crow .pn { font-weight: 500; font-size: 13.5px; display: flex; align-items: center; gap: 8px; }
+  .crow .pm { font-size: 12px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; }
+  .crow .acts { display: flex; gap: 2px; align-items: center; }
+
+  /* 弹窗 */
+  .scrim { position: absolute; inset: 0; border-radius: 16px; background: rgba(40, 32, 22, .28); display: grid; place-items: center; z-index: 30; }
+  .dialog { width: 520px; max-width: 92%; background: var(--bg-page); border-radius: 16px; box-shadow: var(--shadow-pop); padding: 20px 20px 16px; }
+  .dialog .dh { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .dialog .dh b { font-size: 15px; font-weight: 600; display: block; } .dialog .dh small { color: var(--ink-2); font-size: 12px; }
+  .dialog .df { display: flex; justify-content: space-between; margin-top: 14px; }
+  .dialog .df > div { display: flex; gap: 6px; }
+
+  /* 空状态 */
+  .empty { text-align: center; padding: 36px 24px 30px; }
+  .empty .eic { width: 52px; height: 52px; border-radius: 14px; margin: 0 auto 12px; display: grid; place-items: center; font-size: 24px; color: var(--accent-text); background: var(--accent-soft); }
+  .empty b { font-size: 14px; font-weight: 600; display: block; } .empty p { color: var(--ink-2); font-size: 12.5px; margin: 4px 0 16px; }
+  .empty .choices { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .empty .choice { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-1); background: var(--bg-surface); min-width: 210px; }
+  .empty .choice:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+  .empty .choice b { font-size: 13px; font-weight: 500; } .empty .choice small { color: var(--ink-2); font-size: 11.5px; display: block; }
+
+  .toast { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink-1); color: var(--ink-inverse); font-size: 12.5px; padding: 7px 14px; border-radius: 10px; box-shadow: var(--shadow-pop); display: flex; gap: 8px; align-items: center; z-index: 40; }
+  @media (max-width: 1100px) { .stage { grid-template-columns: 1fr; } .notes { position: static; } }
+</style>
+</head>
+<body>
+<section class="intro">
+  <h1>图片生成 · 配置的添加与切换</h1>
+  <p>现在的问题：<b>「当前提供商」下拉实际只切换正在编辑哪一个配置</b>，真正生效要另点「设为当前」，两件事挤在同一个控件上；「添加」用 Select 做，看起来像表单字段；而且一次只能看到一个配置，看不出哪个能用、哪个还没填完。</p>
+  <p>下面三个方案都把<b>「使用哪个」</b>和<b>「编辑哪个」</b>拆成两个操作，「添加」改成按钮 + 插件菜单，第一个配置添加后自动设为使用中。顶部可以切换方案、数据状态和主题，界面里的单选、展开、添加、切换、删除都能点。</p>
+</section>
+<div class="bar">
+  <div class="pills" id="planPills">方案 <button data-plan="A" class="on">A · 单选列表</button><button data-plan="B">B · 切换栏</button><button data-plan="C">C · 当前主卡</button></div>
+  <div class="pills" id="dataPills">数据 <button data-data="many" class="on">3 个配置</button><button data-data="one">1 个</button><button data-data="empty">空 · 已装插件</button><button data-data="noplugin">空 · 未装插件</button></div>
+  <div class="pills" id="themePills">主题 <button data-theme="light" class="on">暖纸 · 晨</button><button data-theme="dark">暖纸 · 夜</button></div>
+</div>
+
+<div class="stage">
+  <div class="frame" id="frame"></div>
+  <aside class="notes" id="notes"></aside>
+</div>
+
+<script>
+const PLUGINS = [
+  { id: "openai", title: "OpenAI Images", desc: "gpt-image 系列，可生成与编辑", icon: "sparkles" },
+  { id: "wanx", title: "通义万相", desc: "阿里云百炼，可生成", icon: "palette" },
+];
+const SEED = {
+  many: [
+    { id: "p1", name: "OpenAI 主账号", plugin: "openai", model: "gpt-image-2", key: true, gen: true, edit: true },
+    { id: "p2", name: "万相 · 工作", plugin: "wanx", model: "wanx2.1-t2i-plus", key: true, gen: true, edit: false },
+    { id: "p3", name: "OpenAI 中转", plugin: "openai", model: "", key: false, gen: false, edit: false },
+  ],
+  one: [{ id: "p1", name: "OpenAI 主账号", plugin: "openai", model: "gpt-image-2", key: true, gen: true, edit: true }],
+  empty: [], noplugin: [],
+};
+const S = { plan: "A", data: "many", providers: [], current: "", editing: "", open: "", menu: "", dialog: null, toast: "" };
+const plugin = id => PLUGINS.find(p => p.id === id);
+const plugins = () => (S.data === "noplugin" ? [] : PLUGINS);
+const cur = () => S.providers.find(p => p.id === S.current);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ready = p => p.key && p.model;
+
+function reset() {
+  S.providers = SEED[S.data].map(p => ({ ...p }));
+  S.current = S.providers[0]?.id || "";
+  S.editing = S.current; S.open = S.plan === "A" ? "" : S.current;
+  S.menu = ""; S.dialog = null;
+}
+
+function statusHtml(p) {
+  if (!p.key) return `<span class="stat warn"><i></i>未填写 API Key</span>`;
+  if (!p.model) return `<span class="stat warn"><i></i>未选择模型</span>`;
+  return `<span class="stat"><i></i>${p.edit ? "可生成 · 可编辑" : "可生成"}</span>`;
+}
+const metaHtml = p => `<span>${esc(plugin(p.plugin).title)}</span>${p.model ? `<span>·</span><span class="mono">${esc(p.model)}</span>` : ""}`;
+
+function addMenu(where) {
+  if (S.menu !== where) return "";
+  const list = plugins();
+  return `<div class="menu" onclick="event.stopPropagation()">
+    <div class="mh">选择图片生成插件</div>
+    ${list.map(pl => `<button class="mi" onclick="addProvider('${pl.id}')"><span class="lg"><i data-lucide="${pl.icon}"></i></span><span><b>${pl.title}</b><small>${pl.desc}</small></span></button>`).join("")}
+    ${list.length ? `<div class="div"></div>` : `<div class="mh">还没有安装图片生成插件</div>`}
+    <button class="mi link" onclick="toast('跳转到插件中心 · 图片生成分类')"><i data-lucide="puzzle"></i>在插件中心获取更多</button>
+  </div>`;
+}
+
+function pluginFields(p) {
+  return `<div class="plugin-hint"><i data-lucide="puzzle"></i>以下由 ${esc(plugin(p.plugin).title)} 插件提供</div>
+    <div class="row sep"><div class="rt"><b>API Key</b></div><span class="inp mono ${p.key ? "" : "ph"}">${p.key ? "••••••••••••••••••••" : "sk-…"}<span class="sp"></span><span class="ib"><i data-lucide="eye"></i></span></span></div>
+    <div class="row sep"><div class="rt"><b>Base URL</b><small>留空使用官方地址</small></div><span class="inp mono ph">https://api.openai.com/v1</span></div>
+    <div class="row sep"><div class="rt"><b>模型</b></div><span class="inp mono sel ${p.model ? "" : "ph"}">${p.model || "选择模型"}</span></div>`;
+}
+const nameRow = p => `<div class="row sep"><div class="rt"><b>名称</b><small>在对话里切换图片模型时显示</small></div><span class="inp">${esc(p.name)}</span></div>`;
+
+function emptyState() {
+  const list = plugins();
+  if (!list.length) return `<div class="panel"><div class="empty">
+    <div class="eic"><i data-lucide="image-plus"></i></div>
+    <b>还没有可用的图片生成插件</b><p>安装 OpenAI Images 等插件后，就能在对话里生成和编辑图片</p>
+    <button class="btn pri" onclick="toast('跳转到插件中心 · 图片生成分类')"><i data-lucide="puzzle"></i>去插件中心</button></div></div>`;
+  return `<div class="panel"><div class="empty">
+    <div class="eic"><i data-lucide="image-plus"></i></div>
+    <b>添加第一个图片生成配置</b><p>选一个已安装的插件，填好凭据后即可在对话里生图、改图</p>
+    <div class="choices">${list.map(pl => `<button class="choice" onclick="addProvider('${pl.id}')"><span class="lg"><i data-lucide="${pl.icon}"></i></span><span><b>${pl.title}</b><small>${pl.desc}</small></span></button>`).join("")}</div></div></div>`;
+}
+
+/* ───── 方案 A ───── */
+function planA() {
+  const head = `<h2>图片生成</h2><div class="sub">AI 对话里的生图、改图会使用下方选中的配置</div>`;
+  if (!S.providers.length) return head + `<div class="group">${emptyState()}</div>`;
+  const rows = S.providers.map(p => {
+    const open = S.open === p.id, on = S.current === p.id;
+    return `<div class="pitem ${open ? "open" : ""}"><div class="prow ${open ? "open" : ""}" onclick="toggleOpen('${p.id}')">
+        <span class="radio ${on ? "on" : ""}" title="${on ? "使用中" : "使用此配置"}" onclick="event.stopPropagation();setCurrent('${p.id}')"></span>
+        <span class="lg"><i data-lucide="${plugin(p.plugin).icon}"></i></span>
+        <div class="pi"><div class="pn">${esc(p.name)}${on ? `<span class="using">使用中</span>` : ""}</div><div class="pm">${metaHtml(p)}</div></div>
+        ${statusHtml(p)}<i class="chev" data-lucide="chevron-right"></i>
+      </div>
+      ${open ? `<div class="pbody">${nameRow(p)}${pluginFields(p)}</div>
+        <div class="pfoot"><button class="btn danger" onclick="del('${p.id}')"><i data-lucide="trash-2"></i>删除配置</button>
+        ${on ? "" : `<button class="btn sec" onclick="setCurrent('${p.id}')"><i data-lucide="check"></i>使用此配置</button>`}</div>` : ""}</div>`;
+  }).join("");
+  return head + `<div class="group">
+    <div class="panel">${rows}
+      <div class="addwrap-a"><button class="addrow" onclick="event.stopPropagation();toggleMenu('a')"><span class="pl"><i data-lucide="plus"></i></span>添加配置</button>${addMenu("a").replace('class="menu"', 'class="menu" style="left:12px;right:auto"')}</div>
+    </div></div>`;
+}
+
+/* ───── 方案 B ───── */
+function planB() {
+  const head = `<h2>图片生成</h2><div class="sub">AI 对话里的生图、改图使用「使用中」的配置</div>`;
+  if (!S.providers.length) return head + emptyState();
+  const p = S.providers.find(x => x.id === S.editing) || S.providers[0];
+  const on = p.id === S.current;
+  return head + `<div class="switch">
+      ${S.providers.map(x => `<button class="${x.id === p.id ? "on" : ""}" onclick="S.editing='${x.id}';render()">${x.id === S.current ? `<span class="cur" title="使用中"></span>` : ""}${esc(x.name)}</button>`).join("")}
+      <span class="addwrap"><button class="add btn" onclick="event.stopPropagation();toggleMenu('b')"><i data-lucide="plus"></i>添加</button>${addMenu("b")}</span>
+    </div>
+    <div class="usebar ${on ? "on" : ""}">
+      <span class="lg"><i data-lucide="${plugin(p.plugin).icon}"></i></span>
+      <div class="ut"><b>${on ? "正在使用这个配置" : "未使用"}</b><small>${on ? "对话里的生图、改图都走这里" : `当前使用的是「${esc(cur()?.name || "无")}」`}</small></div>
+      ${statusHtml(p)}
+      ${on ? `<span class="using">使用中</span>` : `<button class="btn pri" onclick="setCurrent('${p.id}')"><i data-lucide="check"></i>改用这个</button>`}
+    </div>
+    <div class="group"><div class="gt"><div><h3>连接</h3><p>${esc(plugin(p.plugin).title)} 的名称与凭据</p></div><div class="ga"><button class="btn" onclick="del('${p.id}')"><i data-lucide="trash-2"></i>删除配置</button></div></div>
+      <div class="panel">${nameRow(p)}${pluginFields(p)}</div></div>`;
+}
+
+/* ───── 方案 C ───── */
+function planC() {
+  const head = `<h2>图片生成</h2><div class="sub">AI 对话里的生图、改图使用下方的当前配置</div>`;
+  if (!S.providers.length) return head + emptyState();
+  const c = cur();
+  const hero = c ? `<div class="hero">
+      <div class="hl"><i data-lucide="circle-check"></i>当前使用</div>
+      <div class="hm"><span class="lg"><i data-lucide="${plugin(c.plugin).icon}"></i></span>
+        <div><div class="hn">${esc(c.name)}</div><div class="hs">${metaHtml(c)}</div></div>
+        <div class="ha">
+          <button class="btn sec" onclick="event.stopPropagation();toggleMenu('swap')"><i data-lucide="arrow-left-right"></i>更换</button>
+          <button class="btn sec" onclick="openDialog('${c.id}')"><i data-lucide="pencil"></i>编辑</button>
+          ${S.menu === "swap" ? `<div class="menu" onclick="event.stopPropagation()"><div class="mh">切换使用的配置</div>
+            ${S.providers.map(x => `<button class="mi" onclick="setCurrent('${x.id}')"><span class="lg"><i data-lucide="${plugin(x.plugin).icon}"></i></span><span><b>${esc(x.name)}</b><small>${ready(x) ? esc(x.model) : "配置未完成"}</small></span>${x.id === S.current ? `<i class="ck" data-lucide="check"></i>` : ""}</button>`).join("")}</div>` : ""}
+        </div></div>
+      <div class="caps">
+        <span class="${c.gen ? "y" : "n"}"><i data-lucide="${c.gen ? "check" : "minus"}"></i>文字生成图片</span>
+        <span class="${c.edit ? "y" : "n"}"><i data-lucide="${c.edit ? "check" : "minus"}"></i>编辑已有图片</span>
+        ${ready(c) ? "" : statusHtml(c)}
+      </div></div>`
+    : `<div class="hero"><div class="hl" style="color:var(--warn)"><i data-lucide="circle-alert"></i>未选择</div><div class="hs">从下方选一个配置使用</div></div>`;
+  const list = S.providers.map(p => `<div class="crow sep">
+      <span class="lg"><i data-lucide="${plugin(p.plugin).icon}"></i></span>
+      <div class="pi"><div class="pn">${esc(p.name)}${p.id === S.current ? `<span class="using">使用中</span>` : ""}</div><div class="pm">${metaHtml(p)}</div></div>
+      ${statusHtml(p)}
+      <div class="acts">
+        ${p.id === S.current ? "" : `<button class="btn" onclick="setCurrent('${p.id}')">使用</button>`}
+        <span class="ib" title="编辑" onclick="openDialog('${p.id}')"><i data-lucide="pencil"></i></span>
+        <span class="ib" title="删除" onclick="del('${p.id}')"><i data-lucide="trash-2"></i></span>
+      </div></div>`).join("");
+  const dlg = S.dialog ? (() => {
+    const p = S.providers.find(x => x.id === S.dialog);
+    return `<div class="scrim" onclick="S.dialog=null;render()"><div class="dialog" onclick="event.stopPropagation()">
+      <div class="dh"><span class="lg"><i data-lucide="${plugin(p.plugin).icon}"></i></span><div><b>${p._new ? "添加" : "编辑"} ${esc(plugin(p.plugin).title)} 配置</b><small>保存后${p._new && !S.providers.some(x => x.id !== p.id) ? "自动设为当前使用" : "可在列表里切换使用"}</small></div></div>
+      <div class="panel">${nameRow(p)}${pluginFields(p)}</div>
+      <div class="df"><div>${p._new ? "" : `<button class="btn danger" onclick="S.dialog=null;del('${p.id}')"><i data-lucide="trash-2"></i>删除</button>`}</div>
+        <div><button class="btn" onclick="cancelDialog()">取消</button><button class="btn pri" onclick="saveDialog()">保存</button></div></div>
+    </div></div>`;
+  })() : "";
+  return head + hero + `<div class="group"><div class="gt"><div><h3>全部配置</h3><p>${S.providers.length} 个</p></div>
+      <div class="ga"><button class="btn" onclick="event.stopPropagation();toggleMenu('c')"><i data-lucide="plus"></i>添加配置</button>${addMenu("c")}</div></div>
+    <div class="panel">${list}</div></div>` + dlg;
+}
+
+const NOTES = {
+  A: `<h3>A · 单选列表 + 行内展开 <span class="tag">推荐</span></h3>
+    <p>列表左侧是单选圆点，表示使用哪个；点行展开，在行内编辑。所有配置的模型和状态一次都能看到。</p>
+    <h4>交互</h4><ul>
+    <li><b>点圆点</b>：直接切换使用中，不展开、不跳转</li>
+    <li><b>点行</b>：展开 / 收起编辑区（手风琴，一次只展开一个）</li>
+    <li><b>添加配置</b>：列表末尾的虚线行，点开插件菜单；新配置自动展开，并聚焦名称</li>
+    <li>右侧状态：<b>可生成 · 可编辑</b>（来自插件能力），或「未填写 API Key / 未选择模型」，没填完的一眼能看出来</li>
+    <li>第一个配置自动设为使用中；删除使用中的配置后，自动改用第一个已填完的</li></ul>
+    <h4>取舍</h4><ul>
+    <li>✅ 单选是「多选一、立即生效」的通用写法，没有学习成本</li>
+    <li>✅ 不用弹窗、不跳页面，和现在的行内编辑一样</li>
+    <li>⚠️ 展开后插件表单比较长，列表会被撑开；配置多于 6 个时要滚动</li></ul>`,
+  B: `<h3>B · 顶部切换栏（对齐大语言模型页）</h3>
+    <p>顶部的切换栏和大语言模型页方案 A 一致，用来选编辑哪一个；使用中的配置在名称前加绿点。下方单独一张「使用状态」卡，负责切换。</p>
+    <h4>交互</h4><ul>
+    <li><b>切换栏</b>：只决定编辑谁，不会改变使用中</li>
+    <li><b>使用状态卡</b>：未使用时显示「当前使用的是 X」和「改用这个」按钮</li>
+    <li><b>＋ 添加</b>：在切换栏末尾，点开插件菜单</li></ul>
+    <h4>取舍</h4><ul>
+    <li>✅ 和大语言模型、语音页的节奏一致，整个设置区只有一套模式</li>
+    <li>✅ 编辑区是整宽分组，插件表单再长也不挤</li>
+    <li>⚠️ 「编辑谁」和「用谁」仍然是两层，比 A 多一步理解；配置的状态要切过去才看得到</li></ul>`,
+  C: `<h3>C · 当前配置主卡 + 弹窗编辑</h3>
+    <p>上方的主卡只回答一个问题：现在用的是哪个，能做什么。下方是全部配置的紧凑列表，编辑走弹窗。</p>
+    <h4>交互</h4><ul>
+    <li><b>主卡「更换」</b>：下拉菜单列出所有配置，打勾的是当前</li>
+    <li><b>列表「使用」</b>：一键切换；铅笔打开弹窗编辑</li>
+    <li><b>添加配置</b>：选插件后弹出表单，<b>保存才落库</b>，取消不会留下空配置（现在的做法是先插入一个空配置）</li>
+    <li>主卡把插件能力（生成 / 编辑）写成明确的勾选</li></ul>
+    <h4>取舍</h4><ul>
+    <li>✅ 「当前是哪个」最醒目；页面平时很短</li>
+    <li>✅ 添加有明确的完成点，不会产生「OpenAI Images 3」这种空配置</li>
+    <li>⚠️ 编辑要多点一次；插件表单要能放进弹窗（需要确认插件的保存时机）</li>
+    <li>⚠️ 只有 1 个配置时，主卡和列表内容重复，可以在只有 1 个时隐藏列表</li></ul>`,
+};
+
+/* ───── 动作 ───── */
+function render() {
+  const fn = { A: planA, B: planB, C: planC }[S.plan];
+  document.getElementById("frame").innerHTML = fn() + (S.toast ? `<div class="toast"><i data-lucide="check"></i>${esc(S.toast)}</div>` : "");
+  document.getElementById("notes").innerHTML = NOTES[S.plan];
+  lucide.createIcons();
+}
+let toastTimer;
+function toast(msg) { S.toast = msg; S.menu = ""; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = ""; render(); }, 1600); }
+function setCurrent(id) { if (id === S.current) { S.menu = ""; return render(); } S.current = id; S.menu = ""; toast(`已改用「${S.providers.find(p => p.id === id).name}」`); }
+function toggleOpen(id) { S.open = S.open === id ? "" : id; S.menu = ""; render(); }
+function toggleMenu(k) { S.menu = S.menu === k ? "" : k; render(); }
+function addProvider(pid) {
+  const pl = plugin(pid), n = S.providers.filter(p => p.plugin === pid).length;
+  const p = { id: "n" + Date.now(), name: n ? `${pl.title} ${n + 1}` : pl.title, plugin: pid, model: "", key: false, gen: false, edit: false };
+  S.menu = "";
+  if (S.plan === "C") { p._new = true; S.providers.push(p); S.dialog = p.id; return render(); }
+  S.providers.push(p);
+  if (!S.current) S.current = p.id;
+  S.open = p.id; S.editing = p.id;
+  if (S.data === "empty") S.data = "many";
+  render();
+}
+function del(id) {
+  const p = S.providers.find(x => x.id === id);
+  if (!confirm(`删除「${p.name}」？${id === S.current ? "\n它正在使用，删除后会改用下一个已填完的配置。" : ""}`)) return;
+  S.providers = S.providers.filter(x => x.id !== id);
+  if (S.current === id) S.current = (S.providers.find(ready) || S.providers[0])?.id || "";
+  if (S.editing === id) S.editing = S.current || S.providers[0]?.id || "";
+  if (S.open === id) S.open = "";
+  render();
+}
+function openDialog(id) { S.dialog = id; S.menu = ""; render(); }
+function cancelDialog() { const p = S.providers.find(x => x.id === S.dialog); if (p?._new) S.providers = S.providers.filter(x => x !== p); S.dialog = null; render(); }
+function saveDialog() {
+  const p = S.providers.find(x => x.id === S.dialog);
+  if (p._new) { delete p._new; p.key = true; p.model = p.plugin === "openai" ? "gpt-image-2" : "wanx2.1-t2i-plus"; p.gen = true; p.edit = p.plugin === "openai"; if (!S.current) S.current = p.id; }
+  S.dialog = null; toast("已保存");
+}
+document.addEventListener("click", () => { if (S.menu) { S.menu = ""; render(); } });
+
+const bindPills = (id, attr, apply) => document.querySelectorAll(`#${id} button`).forEach(b => b.onclick = e => {
+  e.stopPropagation();
+  document.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle("on", x === b)); apply(b.dataset[attr]);
+});
+bindPills("planPills", "plan", v => { S.plan = v; reset(); render(); });
+bindPills("dataPills", "data", v => { S.data = v; reset(); render(); });
+bindPills("themePills", "theme", v => { document.documentElement.dataset.theme = v === "dark" ? "dark" : ""; });
+reset(); render();
+</script>
+</body>
+</html>

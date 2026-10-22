@@ -4,7 +4,7 @@
  */
 
 import { Fragment } from "react";
-import { ArrowRight, ArrowUpRight, CircleHelp, Link2, PenLine, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Link2, MessageCircle, PenLine, X } from "lucide-react";
 import { AnchoredPanel, Button, IconButton, cn } from "@tau/ui";
 import type { KnowledgeEndpoint, KnowledgeMark } from "@/types/knowledge-insights";
 import {
@@ -21,8 +21,9 @@ export interface MapInsightPopoverProps {
   anchor: HTMLElement | null;
   walking: boolean;
   onConnect(mark: KnowledgeMark): void;
-  onQuestion(mark: KnowledgeMark): void;
-  /** 写成卡片：新建一张空卡片连上这几处并打开（同一思路） */
+  /** 聊一聊：带着两端开一个对话（矛盾） */
+  onDiscuss(mark: KnowledgeMark): void;
+  /** 写成卡片：新建一张空卡片连上这几处并打开（同一思路、缺一环、问了没写、还缺） */
   onWrite(mark: KnowledgeMark): void;
   onDismiss(mark: KnowledgeMark): void;
   onOpen(end: KnowledgeEndpoint): void;
@@ -34,7 +35,7 @@ export interface MapInsightPopoverProps {
 /** 主按钮文案；连接的文案随两端类型变，单独算 */
 const ACTION_LABEL: Partial<Record<MarkAction, string>> = {
   write: "写成卡片",
-  question: "记为问题",
+  discuss: "聊一聊",
 };
 
 const day = (time: number) => {
@@ -98,7 +99,7 @@ export function MapInsightPopover({
   anchor,
   walking,
   onConnect,
-  onQuestion,
+  onDiscuss,
   onWrite,
   onDismiss,
   onOpen,
@@ -228,7 +229,11 @@ export function MapInsightPopover({
               size="sm"
               variant="primary"
               icon={PenLine}
-              title="新建一张卡片，连上这几篇，用自己的话把这个思路写下来"
+              title={
+                mark.ends.length
+                  ? "新建一张卡片，连上这几篇，用自己的话写下来"
+                  : "新建一张卡片，用自己的话写下来"
+              }
               onClick={() => onWrite(mark)}
             >
               写成卡片
@@ -237,11 +242,11 @@ export function MapInsightPopover({
             <Button
               size="sm"
               variant="primary"
-              icon={CircleHelp}
-              title="建一个问题，把涉及的笔记挂成材料"
-              onClick={() => onQuestion(mark)}
+              icon={MessageCircle}
+              title="带着这两篇开一个对话，想清楚哪边对"
+              onClick={() => onDiscuss(mark)}
             >
-              记为问题
+              聊一聊
             </Button>
           )}
           <Button

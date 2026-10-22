@@ -10,6 +10,7 @@ import { useOverlayDismiss } from "@/page/PageProvider";
 import { colorFromHex, hasNote, markupStyleOf } from "../annotationModel";
 import { overlayProps, useReader } from "../readerContext";
 import { FloatToolbar } from "./FloatToolbar";
+import { ToolbarPluginActions } from "./PluginAnnotationActions";
 
 export interface SelectionMenuProps {
   annotation: TrackedAnnotation;
@@ -62,6 +63,7 @@ export function AnnotationMenu({
           onAsk={() => reader.ask(object)}
           onCopy={() => reader.copy(object)}
           onDelete={() => reader.remove(object)}
+          extra={<ToolbarPluginActions recordId={record?.id} />}
         />
       </div>
     </div>

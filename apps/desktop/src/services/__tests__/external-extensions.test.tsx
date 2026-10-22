@@ -1,7 +1,7 @@
 import { IResourceService } from "@tau/shared/host-services";
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Transforms, type Descendant, type Editor as SlateEditor } from "slate";
@@ -10,6 +10,7 @@ import { focusInsertedPreviewElement, defineExtension } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { customBlockExtension, htmlExtension } from "../../test-fixtures/plugin-packages";
+import { stubInlineWorker } from "../../test-fixtures/inline-worker";
 import "@tau/plugins/source-editor-host";
 import { diagramExtensions } from "@tau/editor/extensions/diagram";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
@@ -61,6 +62,13 @@ vi.mock("react-codemirror2", () => ({
 describe("外包扩展的真实编辑器接线", () => {
   let root: Root | undefined;
   let host: HTMLDivElement;
+
+  // custom-block 在 Worker 里转换模板源码
+  beforeAll(stubInlineWorker);
+  afterAll(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   afterEach(async () => {
     await act(async () => root?.unmount());

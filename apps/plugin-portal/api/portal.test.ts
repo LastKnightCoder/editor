@@ -7,6 +7,7 @@ import worker, { handle } from "./index";
 import { inspectPackage } from "./package";
 import { PURGE_PAGE, purgeStaleUploads } from "./uploads";
 import { testEnvironment } from "./testing";
+import { requiresSystemReview } from "../contracts/execution";
 import type { SubmissionGroups, Submission, Upload } from "../contracts";
 
 function zip(
@@ -91,6 +92,49 @@ describe("包资料与站内反馈", () => {
     writeManifest(" ");
     archive.updateFile("test.reader/backend.js", Buffer.from(" "));
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("入口为空");
+  });
+  it("Skill 包校验 SKILL.md 摘要与 description，拒绝目录外文件", async () => {
+    const skillZip = (readme: string, extra?: [string, string]) => {
+      const file = new AdmZip();
+      const files: Record<string, string> = { "skills/writing/SKILL.md": readme };
+      if (extra) files[extra[0]] = extra[1];
+      file.addFile(
+        "test.writing/manifest.json",
+        Buffer.from(
+          JSON.stringify({
+            id: "test.writing",
+            name: "写作规范",
+            description: "统一写作风格",
+            version: "1.0.0",
+            minAppVersion: "0.59.0",
+            formatVersion: 1,
+            apiVersion: 1,
+            platform: "desktop",
+            categories: ["skill"],
+            skills: ["writing"],
+            integrity: Object.fromEntries(
+              Object.entries(files).map(([name, text]) => [
+                name,
+                createHash("sha256").update(text).digest("hex"),
+              ])
+            ),
+          })
+        )
+      );
+      for (const [name, text] of Object.entries(files))
+        file.addFile(`test.writing/${name}`, Buffer.from(text));
+      file.addFile("test.writing/README.md", Buffer.from("# 写作规范"));
+      return file.toBuffer();
+    };
+    const content = await inspectPackage(
+      skillZip("---\ndescription: 写文章时加载\n---\n# 规范", ["skills/writing/run.py", "print(1)"])
+    );
+    expect(content.manifest).toMatchObject({ skills: ["writing"], categories: ["skill"] });
+    expect(requiresSystemReview(content.manifest)).toBe(true);
+    await expect(inspectPackage(skillZip("# 没有 front matter"))).rejects.toThrow("description");
+    const archive = new AdmZip(skillZip("---\ndescription: 写文章时加载\n---\n"));
+    archive.addFile("test.writing/extra.js", Buffer.from("1"));
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未声明文件");
   });
   it("发布包严格校验分类与关键词", async () => {
     const content = await inspectPackage(
@@ -333,6 +377,49 @@ describe("包资料与站内反馈", () => {
     );
     await req("/v1/logout", "POST");
     expect((await req("/v1/submissions")).status).toBe(401);
+  });
+  it("仅未完成提交占额度，历史归组不截断，额度满时仍可幂等重试", async () => {
+    await login();
+    const up = await upload();
+    const insert = f.sqlite.prepare(
+      "INSERT INTO submissions(id,publisher_id,client_request_id,status,created_at,updated_at) VALUES (?,?,?,?,?,?)"
+    );
+    for (let i = 0; i < 120; i++)
+      insert.run(
+        `history-${i}`,
+        "42",
+        `history-${i}`,
+        i % 2 ? "approved" : "rejected",
+        "now",
+        "now"
+      );
+    for (let i = 0; i < 99; i++)
+      insert.run(
+        `active-${i}`,
+        "42",
+        `active-${i}`,
+        ["draft", "pending_review", "changes_requested"][i % 3],
+        "now",
+        "now"
+      );
+    const input = { clientRequestId: crypto.randomUUID(), packageUploadId: up.id };
+    const created = await req("/v1/submissions", "POST", input);
+    expect(created.status).toBe(201);
+    const record = (await created.json()).data;
+    const retry = await req("/v1/submissions", "POST", input);
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).data.id).toBe(record.id);
+    const next = { ...input, clientRequestId: crypto.randomUUID() };
+    const blocked = await req("/v1/submissions", "POST", next);
+    expect(blocked.status).toBe(409);
+    expect((await blocked.json()).error).toMatchObject({
+      code: "LIMIT_EXCEEDED",
+      message: expect.stringContaining("未完成的提交已达 100 条上限"),
+    });
+    const groups: SubmissionGroups = (await (await req("/v1/submission-groups")).json()).data;
+    expect(groups.groups.flatMap(group => group.submissions)).toHaveLength(220);
+    f.sqlite.prepare("UPDATE submissions SET status='approved' WHERE id='active-1'").run();
+    expect((await req("/v1/submissions", "POST", next)).status).toBe(201);
   });
   it("README是唯一说明来源，保存表单不能覆盖包资料", async () => {
     await login();

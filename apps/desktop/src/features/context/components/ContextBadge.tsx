@@ -8,7 +8,6 @@ import { useState, type ReactNode } from "react";
 import { Waypoints } from "lucide-react";
 import { Popover, cn, toast } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
-import { openPage } from "@/services/page-navigation";
 import type { ContextOpenTarget } from "@/types/entity-context";
 import { contextCount } from "../model";
 import { openContextTarget } from "../open";
@@ -50,10 +49,6 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
       }
     );
   };
-  const openQuestion = (questionId: number) => {
-    close();
-    openPage("questions", { selectedId: questionId });
-  };
 
   return (
     <Popover
@@ -84,7 +79,6 @@ export function ContextBadge({ entity, className, extra }: ContextBadgeProps) {
             context={context ?? null}
             self={entity}
             onOpenEntity={openRef}
-            onOpenQuestion={openQuestion}
             onOpenTarget={openTarget}
             related={relatedQuery.data}
             onConnect={connect}

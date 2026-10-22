@@ -1,3 +1,8 @@
 /** 无 React/DOM 运行时代码的声明入口，供应用 SDK 适配现有扩展协议。 */
 export { defineExtension, defineElement } from "./src/core/api/extension";
-export type { EditorExtension, ElementSpec, ElementRenderProps } from "./src/core/api/extension";
+export type {
+  EditorExtension,
+  ElementSpec,
+  ElementRenderProps,
+  ElementFrame,
+} from "./src/core/api/extension";

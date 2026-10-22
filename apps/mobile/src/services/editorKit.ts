@@ -45,7 +45,7 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
         ...extras,
       ],
       services: [mobileEditorServices],
-      // createImageExtensions 按 type 替换内置 image / image-gallery
+      // createImageExtensions 按 type 替换内置 image
       override: true,
     });
     byExtras.set(key, kit);

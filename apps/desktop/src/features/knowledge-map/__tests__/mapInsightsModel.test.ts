@@ -7,7 +7,7 @@ import {
   markGeometry,
   markSummary,
   primaryAction,
-  questionDraft,
+  discussPrompt,
   topicLabelPoint,
   walkOrder,
   type Projector,
@@ -102,57 +102,29 @@ describe("地图洞见的模型", () => {
     expect(connectTarget(cards)).toBeNull();
   });
 
-  it("记为问题的来源：问了没写按会话合并；缺一环以空位后那份为主；还缺没有来源", () => {
-    const asked = questionDraft(
-      mark("asked", {
-        text: "组播地址怎么分配",
-        prompts: [
-          { sessionId: "s1", messageId: "a", text: "x", time: 3 },
-          { sessionId: "s2", messageId: "b", text: "y", time: 2 },
-          { sessionId: "s1", messageId: "c", text: "z", time: 1 },
-        ],
-      }),
-      "JS"
-    );
-    expect(asked.source).toEqual({
-      kind: "chats",
-      chats: [
-        { sessionId: "s1", messageIds: ["a", "c"] },
-        { sessionId: "s2", messageIds: ["b"] },
-      ],
-    });
-    expect(asked.defaultTitle).toBe("组播地址怎么分配");
-
-    const chain = questionDraft(
-      mark("chain", {
+  it("矛盾聊一聊：预填一句说明、两端各自的主张与理由", () => {
+    const prompt = discussPrompt(
+      mark("conflict", {
         ends: [end("card", 1), end("article", 3)],
-        missing: { index: 1, text: "微任务检查点" },
-      }),
-      "JS"
+        claims: ["闭包会泄漏", "闭包不会泄漏"],
+        why: "说法相反",
+      })
     );
-    expect(chain.source).toEqual({
-      kind: "materials",
-      targets: [
-        { targetType: "article", targetId: 3 },
-        { targetType: "card", targetId: 1 },
-      ],
-    });
-    expect(chain.defaultTitle).toBe("微任务检查点");
-
-    const gap = questionDraft(mark("gap", { text: "还缺：模块加载" }), "JavaScript");
-    expect(gap).toEqual({
-      source: { kind: "none" },
-      sourceLabel: "主题：JavaScript",
-      defaultTitle: "模块加载",
-    });
+    expect(prompt.split("\n")).toEqual([
+      "《card-1》和《article-3》在同一件事上说法相反。",
+      "《card-1》：闭包会泄漏",
+      "《article-3》：闭包不会泄漏",
+      "说法相反",
+      "帮我想想哪个对，或者各自成立的条件。",
+    ]);
   });
 
-  it("主动作：呼应与重复连接，同一思路知道了，其余记为问题", () => {
+  it("主动作：呼应与重复连接，矛盾聊一聊，其余写成卡片", () => {
     expect(primaryAction(mark("bridge"))).toBe("connect");
     expect(primaryAction(mark("dup"))).toBe("connect");
-    expect(primaryAction(mark("pattern"))).toBe("write");
-    expect(primaryAction(mark("conflict"))).toBe("question");
-    expect(primaryAction(mark("gap"))).toBe("question");
+    expect(primaryAction(mark("conflict"))).toBe("discuss");
+    for (const kind of ["pattern", "chain", "asked", "gap"] as const)
+      expect(primaryAction(mark(kind))).toBe("write");
   });
 
   it("气泡开头一句直白说出是什么、涉及谁", () => {

@@ -1,60 +1,39 @@
 /**
  * 组装一个实体的脉络：连接（显式 content_links ∪ 内联引用）、共用正文的身份、被引用
- * （索引库 entity_refs）、相关问题，以及来源、衍生、被使用（context-lineage）。
+ * （索引库 entity_refs）、被插件内容关联（context-plugin-links），以及来源、衍生、
+ * 被使用（context-lineage）。
  */
 
 import type Database from "better-sqlite3";
-import {
-  ENTITY_REF_PRIORITY,
-  entityRefKey,
-  isSameEntityRef,
-  type EntityRef,
-  type EntityRefKind,
-} from "@/entity/ref";
+import { ENTITY_REF_PRIORITY, entityRefKey, isSameEntityRef, type EntityRef } from "@/entity/ref";
 import { extractInlineRefs, type InlineRefSnippet } from "@/entity/inline-refs";
 import { normalizeDiaryDay } from "@/utils/diary-day";
-import type { EntityKind } from "@/types/entity";
 import type {
   ContextBacklink,
   ContextEntity,
   ContextLink,
   ContextOpenTarget,
-  ContextQuestion,
   EntityContext,
 } from "@/types/entity-context";
-import type { QuestionLinkTargetType } from "@/types/question";
 import EntitySearchTable from "../tables/entity-search";
 import ContentLinkTable from "../tables/content-link";
-import { derivedOf, notebookProjectionsOf, sourcesOf, usagesOf } from "./context-lineage";
+import {
+  derivedOf,
+  notebookProjectionsOf,
+  sourcesOf,
+  toContextEntity,
+  usagesOf,
+} from "./context-lineage";
+import { pluginLinksOf } from "./context-plugin-links";
 
 /** 各分区最多返回的条数 */
 export const CONTEXT_LIMIT = 50;
 /** 每个来源最多带几段片段 */
 const SNIPPETS_PER_SOURCE = 3;
 
-const PICKER_KIND: Record<EntityRefKind, EntityKind> = {
-  card: "card",
-  article: "article",
-  "project-item": "project_item",
-  "diary-moment": "diary-moment",
-  "plugin-entity": "plugin-entity",
-};
-
-const QUESTION_TARGET: Partial<Record<EntityRefKind, QuestionLinkTargetType>> = {
-  card: "card",
-  article: "article",
-  "project-item": "project_item",
-};
-
 /** 一个正文实体对应的内容 id */
 function contentIdsOf(db: Database.Database, ref: EntityRef): number[] {
   return ContentLinkTable.contentIdsOfEntity(db, ref);
-}
-
-function toContextEntity(db: Database.Database, ref: EntityRef): ContextEntity | null {
-  const candidate = EntitySearchTable.resolve(db, PICKER_KIND[ref.kind], ref.id, 0);
-  if (!candidate) return null;
-  return { ref, title: candidate.title, meta: candidate.meta };
 }
 
 /** 日记一天有多条（segment），按引用所在的正文定位到那一条 */
@@ -169,46 +148,6 @@ function backlinksOf(
   return { backlinks, total: groups.size, unresolved: [...unresolved] };
 }
 
-function questionsOf(
-  db: Database.Database,
-  refs: EntityRef[],
-  contentIds: number[]
-): ContextQuestion[] {
-  const seen = new Map<number, ContextQuestion>();
-  const add = (rows: Array<{ id: number; question_content: string; status: string }>) => {
-    for (const row of rows) {
-      if (!seen.has(row.id)) {
-        seen.set(row.id, {
-          id: row.id,
-          title: row.question_content,
-          status: row.status as ContextQuestion["status"],
-        });
-      }
-    }
-  };
-  const byTarget = db.prepare(
-    `SELECT q.id, q.question_content, q.status FROM question_link l JOIN questions q ON q.id = l.question_id
-     WHERE l.target_type = ? AND l.target_id = ? ORDER BY q.update_time DESC`
-  );
-  for (const ref of refs) {
-    const targetType = QUESTION_TARGET[ref.kind];
-    if (targetType) add(byTarget.all(targetType, ref.id) as never);
-  }
-  // 问题的答案正文被投影成卡片等实体时，材料仍记为 answer:contentId
-  if (contentIds.length) {
-    const marks = contentIds.map(() => "?").join(",");
-    add(
-      db
-        .prepare(
-          `SELECT q.id, q.question_content, q.status FROM question_link l JOIN questions q ON q.id = l.question_id
-           WHERE l.target_type = 'answer' AND l.target_id IN (${marks}) ORDER BY q.update_time DESC`
-        )
-        .all(...contentIds) as never
-    );
-  }
-  return [...seen.values()].slice(0, CONTEXT_LIMIT);
-}
-
 /**
  * 「连接」分区：显式 content_links 边 ∪ 自身正文里的内联引用，合并去重。
  * exclude 为自身与共用正文的身份；显式连接的目标按代表身份展示（ENTITY_REF_PRIORITY），
@@ -310,7 +249,7 @@ export function getEntityContext(
     projections,
     backlinks,
     backlinkTotal: total,
-    questions: questionsOf(mainDb, identities, contentIds),
+    pluginLinks: pluginLinksOf(mainDb, identities, CONTEXT_LIMIT, toEntity),
     sources: sourcesOf(mainDb, identities, toEntity),
     derived: derivedOf(mainDb, identities, contentIds, toEntity),
     notebookProjections: notebookProjectionsOf(mainDb, contentIds, toEntity),

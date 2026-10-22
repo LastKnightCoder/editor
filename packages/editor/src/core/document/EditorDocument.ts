@@ -51,6 +51,8 @@ export interface EditorDocumentBinding {
    * 返回 false 表示做不到（如不是同一种实现），内核改为重建编辑器。
    */
   rebind?(editor: Editor): boolean;
+  /** 让之后的修改另起一个撤销步（输入规则等自动转换用）；history 为 "external" 时应提供 */
+  splitUndoStep?(editor: Editor): void;
   /**
    * 元素渲染拦截（如私有块占位）；返回 undefined 走正常分发。
    * `renderByType` 按 kit 分发，该类型没有扩展时返回 undefined。

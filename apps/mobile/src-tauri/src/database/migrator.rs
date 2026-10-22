@@ -8,7 +8,7 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 8;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 9;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -374,9 +374,31 @@ fn migrate_v7_to_v8(conn: &Connection) -> Result<(), String> {
     }
     tx.execute_batch(EXCERPT_PROVIDER_UPGRADE_SQL)
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: backfill excerpt providers: {e}"))?;
-    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    set_meta(&tx, "main_schema_version", "8")?;
     tx.commit()
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v7->v8: {e}"))
+}
+
+/// 问题管理迁为桌面插件（PS-046）后删除旧问题表；移动端从不读写它们，索引随表一并删除。
+const RETIRED_QUESTION_TABLES: [&str; 5] = [
+    "question_event",
+    "question_chat",
+    "question_link",
+    "questions",
+    "question_group",
+];
+
+/// v8 → v9：显式删除旧问题表（共享 schema 已不再建这些表）。
+fn migrate_v8_to_v9(conn: &Connection) -> Result<(), String> {
+    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v8->v9: {e}"))?;
+    for table in RETIRED_QUESTION_TABLES {
+        tx.execute_batch(&format!("DROP TABLE IF EXISTS {table}"))
+            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: drop {table}: {e}"))?;
+    }
+    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    tx.commit()
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v8->v9: {e}"))
 }
 
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
@@ -400,12 +422,17 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         migrate_v4_to_v5(conn)?;
         migrate_v5_to_v6(conn)?;
         migrate_v7_to_v8(conn)?;
+        migrate_v8_to_v9(conn)?;
     } else if stored_version == 5 && has_user_tables(conn)? {
         migrate_v5_to_v6(conn)?;
         migrate_v7_to_v8(conn)?;
+        migrate_v8_to_v9(conn)?;
     } else if (stored_version == 6 || stored_version == 7) && has_user_tables(conn)? {
         // v6 的任务扩展仅新增表与索引，由 v8 迁移里的 schema 补齐一并完成。
         migrate_v7_to_v8(conn)?;
+        migrate_v8_to_v9(conn)?;
+    } else if stored_version == 8 && has_user_tables(conn)? {
+        migrate_v8_to_v9(conn)?;
     } else if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
         return Err(
             "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"

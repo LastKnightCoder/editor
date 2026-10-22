@@ -5,71 +5,72 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserStorage } from "@tau/plugins/host";
 import { PageProvider, usePage } from "../../src/page/PageProvider";
 import { PageHost } from "../../src/page/PageHost";
-import { definePage } from "../../src/page/definePage";
-import { DesktopPluginRuntime } from "../../src/app/plugins/runtime";
+import { DesktopPluginRuntime, PLUGIN_DETAIL_KEY } from "../../src/app/plugins/runtime";
 import { PluginRuntimeContext } from "../../src/app/plugins/context";
-import { PluginManagerView } from "../../src/features/plugins/views/PluginManagerView";
-import { useSettingsStore } from "../../src/app/settingsStore";
+import { getPluginWorkspace } from "../../src/commands/plugin-local";
+import "../../src/features/plugins/pages/plugins.page";
+import "../../src/features/plugins/pages/plugin-detail.page";
 import "../../src/features/plugins/pages/plugin-page.page";
-import { openDevelopmentPlugins } from "../../src/commands/plugin-development";
-import type { DevelopmentSession } from "../../src/types/plugin-development";
 
-definePage({ key: "home", label: "插件管理验证", params: {}, component: PluginManagerView });
-useSettingsStore.getState().setSection("plugins");
-const restartRequired = new Set<string>();
-const reloadCounts = new Map<string, number>();
+const COUNTER = "example.external-counter";
+const container = document.getElementById("root");
+if (!container) throw new Error("验证容器缺失");
+const root = createRoot(container);
 
-export function Harness({ session }: { session: DevelopmentSession }) {
+export function Harness({ workspaceId }: { workspaceId: string }) {
   const { navigator, state } = usePage();
   const [runtime] = useState(
     () =>
       new DesktopPluginRuntime({
-        workspaceId: session.workspaceId,
+        workspaceId,
         navigator,
         storage: createBrowserStorage(localStorage),
         plugins: [],
-        restartRequired,
-        reloadCounts,
-        openSettings: key => useSettingsStore.getState().setSection(key),
+        openSettings: key =>
+          navigator.push(PLUGIN_DETAIL_KEY, {
+            pluginId: key.split(":")[1],
+            tab: "settings",
+            section: key,
+          }),
       })
   );
+  const [local] = useState(() => runtime.attachLocal(localStorage));
   const [ready, setReady] = useState(false);
-  const [importError, setImportError] = useState("");
   useEffect(() => {
-    const manager = runtime.attachDevelopment(session);
-    void manager.restore().then(() => setReady(true));
-  }, [runtime, session]);
+    void local
+      .refresh()
+      .catch(() => undefined)
+      .finally(() => setReady(true));
+  }, [local]);
   Object.assign(window, {
     pluginVerification: {
       snapshot: () => ({
+        ready,
+        busy: local.busy(),
+        workspaceId,
+        directory: local.directory,
         plugins: runtime.host.listPlugins(),
         commands: runtime.host.listCommands(),
         styles: document.querySelectorAll("style[data-tau-plugin]").length,
-        ready,
-        reloading: runtime.development?.busy("example.external-counter") ?? false,
-        watching: runtime.development?.watching("example.external-counter") ?? false,
-        mountId: runtime.getPage("example.external-counter", "counter")?.mountId,
+        mountId: runtime.getPage(COUNTER, "counter")?.mountId,
         settingsCount: runtime.listSettings().length,
-        workspaceId: session.workspaceId,
         versions: { react: reactVersion, reactDom: reactDomVersion },
+        issues: local.issues.map(item => item.error),
         errors: Object.fromEntries(
-          runtime.host
-            .listPlugins()
-            .map(plugin => [plugin.id, runtime.development?.error(plugin.id) ?? plugin.error])
+          runtime.host.listPlugins().map(plugin => [plugin.id, local.error(plugin.id) ?? null])
         ),
         enabled: Object.fromEntries(
-          runtime.host
-            .listPlugins()
-            .map(plugin => [plugin.id, runtime.development?.enabled(plugin.id)])
+          runtime.host.listPlugins().map(plugin => [plugin.id, local.enabled(plugin.id)])
         ),
       }),
       open: (id: string) => runtime.host.executeCommand(id + ":open"),
       back: () => navigator.back(),
-      settings: (id: string) => useSettingsStore.getState().setSection(`plugin:${id}:`),
-      list: () => useSettingsStore.getState().setSection("plugins"),
+      list: () => navigator.push("plugins", { tab: "installed" }),
+      detail: (id: string, tab?: string) =>
+        navigator.push(PLUGIN_DETAIL_KEY, { pluginId: id, tab }),
       stop: () => runtime.dispose(),
       switchWorkspace: async (name: string) => {
-        const context = runtime.getPage("example.external-counter", "counter")?.context;
+        const context = runtime.getPage(COUNTER, "counter")?.context;
         await runtime.dispose();
         const result = {
           aborted: context?.signal.aborted,
@@ -89,32 +90,19 @@ export function Harness({ session }: { session: DevelopmentSession }) {
   });
   return (
     <PluginRuntimeContext.Provider value={runtime}>
-      <button
-        onClick={() => {
-          setImportError("");
-          void runtime.development?.choose().catch(error => setImportError(String(error)));
-        }}
-      >
-        选择开发插件目录
-      </button>
-      {importError && <p role="alert">{importError}</p>}
       <PageHost state={state} />
     </PluginRuntimeContext.Provider>
   );
 }
 
-const container = document.getElementById("root");
-if (!container) throw new Error("验证容器缺失");
-const root = createRoot(container);
 async function mountWorkspace(name: string) {
-  const session = await openDevelopmentPlugins(name, []);
-  useSettingsStore.getState().setSection("plugins");
+  const workspaceId = await getPluginWorkspace(name);
   root.render(
-    <QueryClientProvider key={session.workspaceId} client={new QueryClient()}>
-      <PageProvider initialKey="home">
-        <Harness session={session} />
+    <QueryClientProvider key={workspaceId} client={new QueryClient()}>
+      <PageProvider initialKey="plugins" initialParams={{ tab: "installed" }}>
+        <Harness workspaceId={workspaceId} />
       </PageProvider>
     </QueryClientProvider>
   );
 }
-void mountWorkspace("c07-verification");
+void mountWorkspace("runtime-verification");

@@ -20,23 +20,17 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
       setBusy(false);
     }
   };
-  const manager = runtime.development?.owns(id)
-    ? runtime.development
-    : runtime.local?.owns(id)
-      ? runtime.local
-      : runtime.host;
-  const managing = busy || Boolean(runtime.development?.busy(id)) || Boolean(runtime.local?.busy());
+  const manager = runtime.local?.owns(id) ? runtime.local : runtime.host;
+  const managing = busy || Boolean(runtime.local?.busy());
   const transitioning = state === "activating" || state === "deactivating";
-  const watching = runtime.development?.watching(id) ?? false;
   const refreshLocal = async () => {
     await runtime.local?.refresh();
   };
   return {
     busy: managing,
     error,
-    watching,
     canToggle:
-      !plugin.template &&
+      !plugin.packageKind &&
       !managing &&
       !transitioning &&
       !(state === "restart-required" && !plugin.enabled),
@@ -54,8 +48,5 @@ export function usePluginControl(runtime: DesktopPluginRuntime, plugin: Installe
         await cancelLocalPluginUpdate(id);
         await refreshLocal();
       }, "取消失败"),
-    toggleWatch: () => run(async () => runtime.development?.setWatching(id, !watching), "监听失败"),
-    reload: () => run(async () => runtime.development?.reload(id), "重载失败"),
-    removeRegistration: () => run(async () => runtime.development?.remove(id), "移除失败"),
   };
 }

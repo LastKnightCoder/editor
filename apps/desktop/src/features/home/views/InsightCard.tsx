@@ -23,7 +23,7 @@ import { Button, Panel, PanelNote, PanelTitle, cn } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import { openEntity } from "@/services/open-content";
 import type { KnowledgeEndpoint } from "@/types/knowledge-insights";
-import { relativeDay } from "@/features/questions/model";
+import { pastDayWord } from "@/utils/dayWords";
 import { useTodayInsights } from "../insightQueries";
 import type { TodayInsight, TodayInsightKind } from "../insightItems";
 
@@ -149,7 +149,7 @@ function InsightRow({ item, onDismiss }: { item: TodayInsight; onDismiss(): void
             {item.label}
           </span>
           <span className="text-tau-micro text-ink-3 shrink-0 tabular-nums">
-            {item.scope} · {relativeDay(item.time, Date.now())}
+            {item.scope} · {pastDayWord(item.time, Date.now())}
           </span>
         </div>
         {item.desc && <p className="text-tau-meta text-ink-2 mt-0.5 leading-[1.65]">{item.desc}</p>}

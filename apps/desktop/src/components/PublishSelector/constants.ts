@@ -1,4 +1,4 @@
-import { Layers, FileText, MessageSquare, Folder } from "lucide-react";
+import { Layers, FileText, Folder } from "lucide-react";
 import { PublishContentType } from "@/types/publish";
 import { TabConfig } from "./types";
 
@@ -19,12 +19,6 @@ export const TABS: TabConfig[] = [
     icon: FileText,
   },
   {
-    key: "quest",
-    label: "问题",
-    description: "按分类选择问题",
-    icon: MessageSquare,
-  },
-  {
     key: "project",
     label: "项目",
     description: "选择项目文档",
@@ -38,7 +32,6 @@ export const TABS: TabConfig[] = [
 export const CONTENT_TYPE_LABEL: Record<PublishContentType, string> = {
   card: "卡片",
   article: "文章",
-  quest: "问题",
   project: "项目",
 };
 
@@ -48,7 +41,6 @@ export const CONTENT_TYPE_LABEL: Record<PublishContentType, string> = {
 export const EMPTY_PLACEHOLDER: Record<PublishContentType, string> = {
   card: "暂无卡片",
   article: "暂无文章",
-  quest: "暂无问题条目",
   project: "暂无项目",
 };
 
@@ -58,6 +50,5 @@ export const EMPTY_PLACEHOLDER: Record<PublishContentType, string> = {
 export const SEARCH_PLACEHOLDER: Record<PublishContentType, string> = {
   card: "搜索卡片标题或标签…",
   article: "搜索文章标题…",
-  quest: "搜索问题标题或分类…",
   project: "搜索项目名称…",
 };

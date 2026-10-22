@@ -2,8 +2,8 @@ export {
   IMediaInsertSources,
   IVideoContentProviders,
   IMediaActions,
-  IMediaSelectors,
   IEditorSlots,
+  IMediaAppearance,
 } from "./src/services/tokens.ts";
 export type {
   MediaType,
@@ -12,8 +12,6 @@ export type {
   MediaInsertSourceList,
   VideoContentProvider,
   MediaAction,
-  MediaSelector,
-  SelectedMedia,
 } from "./src/services/mediaProviders.ts";
 export type {
   EditorSlots,

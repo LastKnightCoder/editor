@@ -19,6 +19,7 @@ import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
 import { ChatMessage, ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
+import type { ChatSessionScope } from "@/types/chat-session";
 import type { PiPromptDisplay } from "@/types/pi-session";
 import {
   clampThinkingLevel,
@@ -37,6 +38,7 @@ import { remoteResourceToLocal } from "@/utils/resouce";
 import { buildPiPromptPayload } from "@/services/piPromptPayload";
 import {
   buildPiChatSystemPrompt,
+  withForcedSkillReadmes,
   chatSessionKey,
   piChatSessionManager,
 } from "@/services/piChatSession";
@@ -66,6 +68,7 @@ import { useChatEntryLocation } from "./useChatEntryLocation";
 import {
   COMPOSER_ANCHOR_ATTR,
   type ChatMessageType as CoreChatMessageType,
+  type MentionRef,
   type MessageContentItem,
   useChatAutoScroll,
 } from "@tau/shared";
@@ -75,7 +78,6 @@ import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { latestContextUsage } from "@/services/chatContextUsage";
 import { canRetryChatMessage } from "@/services/chatRetry";
-import { requestQuestionCapture } from "@/services/question-capture";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
@@ -121,6 +123,14 @@ const sessionSystemPromptOf = (chatId: string, base: string): string => {
   SESSION_SYSTEM_PROMPTS.set(chatId, { base, prompt });
   return prompt;
 };
+
+/** 插件能看到的对话场景（与主进程 plugin-data-readonly 的 CHAT_SCENES 一致），消息上列插件对象动作 */
+const PLUGIN_CHAT_SCOPES: ReadonlySet<string> = new Set<ChatSessionScope>([
+  "main-chat",
+  "pdf-chat",
+  "video-note-chat",
+  "vibe-learning-chat",
+]);
 
 /** 界面上的消息序列（投影不含 system；旧快照可能还带着，一并滤掉） */
 const visibleMessagesOf = (chat: ChatMessage) =>
@@ -192,6 +202,8 @@ export type ChatContainerHandle = {
   scrollToTop: () => void;
   focusInput: () => void;
   setInputValue: (value: string) => void;
+  /** 在输入框末尾插入引用（与拖入内容相同） */
+  appendMentions: (mentions: MentionRef[]) => void;
   sendUserMessage: (content: MessageContentItem[]) => Promise<boolean>;
 };
 
@@ -755,7 +767,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             customSystemPrompt || DEFAULT_SYSTEM_PROMPT
           );
           const forcedSkills = extractForcedSkills(requestMessage);
-          const systemPrompt = buildPiChatSystemPrompt(baseSystem, skills, forcedSkills);
+          const systemPrompt = buildPiChatSystemPrompt(
+            baseSystem,
+            await withForcedSkillReadmes(skills, forcedSkills),
+            forcedSkills
+          );
           // 不传历史：pi 从会话文件恢复上下文（草稿首轮以对话 id 新建会话）
           const ensured = await piChatSessionManager.ensureChatSession({
             databaseName: actualCurrentChat.databaseName,
@@ -874,6 +890,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       },
       setInputValue: (value: string) => {
         editTextRef.current?.setValue(value);
+      },
+      appendMentions: (mentions: MentionRef[]) => {
+        for (const mention of mentions) editTextRef.current?.appendMention?.(mention);
       },
       sendUserMessage: async (content: MessageContentItem[]) => {
         return await submitMessageContent(content);
@@ -1287,24 +1306,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         queueDrainInProgressRef.current = false;
       });
     }, [runtimeTick, sendLoading, sendMessageContent, sessionKey, updateCounter]);
-
-    // 用户消息转为问题：只在主对话（其余场景的对话不能经对话页打开）；问题记下这条消息的 entry id
-    const handleToQuestion = useMemoizedFn((messageIndex: number) => {
-      const chat = actualChatRef.current;
-      const target = visibleMessagesOf(chat)[messageIndex];
-      const entryIds = target?.piEntryIds ?? [];
-      if (!target || target.role !== Role.User) return;
-      if (entryIds.length === 0) {
-        message.warning("这条消息还没有保存下来，暂时不能转为问题");
-        return;
-      }
-      const text = getRequestMessageText(target as RequestMessage).trim();
-      requestQuestionCapture({
-        source: { kind: "chat", sessionId: chat.id, messageIds: entryIds },
-        sourceLabel: `对话：${chat.title || "未命名对话"}`,
-        defaultTitle: text.replace(/\s+/g, " ").slice(0, 200),
-      });
-    });
 
     // 删除消息：pi 原生 context_edit 省略（只删那一条；一条回答要把它全部 entry 一起省略）
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
@@ -1808,8 +1809,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         : undefined
                     }
                     onCreateBranch={handleCreateBranch}
-                    {...(chatScope === "main-chat" && item.role === Role.User
-                      ? { onToQuestion: handleToQuestion }
+                    {...(PLUGIN_CHAT_SCOPES.has(chatScope)
+                      ? { pluginSessionId: actualChatRef.current.id }
                       : {})}
                     {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
                     messageMeta={{

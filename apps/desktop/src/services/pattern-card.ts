@@ -1,6 +1,6 @@
 /**
- * 同一思路「写成卡片」（KL-069）：地图上点一下，新建一张空卡片（连好用到这个思路的几处）并打开。
- * 这张卡片在写下内容前是草稿：空正文显示占位提示（思路名与 AI 的理由，不写进正文）；
+ * 洞见「写成卡片」（KL-069）：地图上点一下，新建一张空卡片（连好标记涉及的几处）并打开。
+ * 适用同一思路、缺一环、问了没写、还缺；卡片在写下内容前是草稿：空正文显示占位提示（不写进正文）；
  * 详情页真正关闭或窗口关闭时正文仍为空就撤回，标记回到未处理。
  */
 
@@ -24,8 +24,21 @@ const drafts = new Map<number, PatternCardDraft>();
 
 const activeDatabase = () => useSettingStore.getState().setting.database.active;
 
-export const patternCardPlaceholder = (mark: Pick<KnowledgeMark, "text" | "why">) =>
-  [`用自己的话写下「${mark.text ?? ""}」这个思路`, mark.why].filter(Boolean).join("。");
+/** 空卡片的占位提示：按标记类型说清要写什么，后接 AI 的理由 */
+export function patternCardPlaceholder(
+  mark: Pick<KnowledgeMark, "kind" | "text" | "why" | "missing">
+): string {
+  const text = (mark.text ?? "").replace(/^还缺[:：]\s*/, "");
+  const head =
+    mark.kind === "chain"
+      ? `写下「${mark.missing?.text ?? ""}」，补上这一环`
+      : mark.kind === "asked"
+        ? `用自己的话回答「${text}」`
+        : mark.kind === "gap"
+          ? `写下「${text}」`
+          : `用自己的话写下「${text}」这个思路`;
+  return [head, mark.why].filter(Boolean).join("。");
+}
 
 export async function startPatternCard(nodeId: number, mark: KnowledgeMark): Promise<void> {
   const databaseName = activeDatabase();

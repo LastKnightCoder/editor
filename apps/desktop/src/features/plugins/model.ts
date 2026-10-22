@@ -1,6 +1,7 @@
+import { useSyncExternalStore } from "react";
 import type { PluginInfo } from "@tau/plugins/host";
 import { comparePluginVersions, type PluginContributionKind } from "@tau/plugins/host";
-import { PLUGIN_CATEGORIES } from "@tau/plugins/package";
+import { PLUGIN_CATEGORIES, type PluginSystemAccess } from "@tau/plugins/package";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import type { LocalPluginUpdate } from "@/types/plugin-local";
 import type { PluginCatalogEntry, PluginVersionRecord } from "@/types/plugin-center";
@@ -32,10 +33,49 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   editor: "编辑器扩展",
   whiteboard: "白板扩展",
   excerpts: "摘录来源",
+  home: "首页面板",
+  action: "对象动作",
+  "entity-panel": "详情区块",
 };
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
 export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
+
+export const SYSTEM_ACCESS_LABELS: Record<PluginSystemAccess, string> = {
+  filesystem: "文件",
+  network: "网络",
+  process: "外部程序",
+};
+
+const SKIP_INSTALL_NOTICE_KEY = "plugins:skip-install-notice";
+const installNoticeListeners = new Set<() => void>();
+
+/** 普通插件安装前的风险提示可由用户关闭；含后台的插件不受此偏好影响。 */
+export function readSkipInstallNotice() {
+  try {
+    return window.localStorage.getItem(SKIP_INSTALL_NOTICE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function saveSkipInstallNotice(skip: boolean) {
+  try {
+    if (skip) window.localStorage.setItem(SKIP_INSTALL_NOTICE_KEY, "1");
+    else window.localStorage.removeItem(SKIP_INSTALL_NOTICE_KEY);
+  } catch {
+    // 存储不可用时沿用默认的提示行为
+  }
+  installNoticeListeners.forEach(listener => listener());
+}
+
+/** 安装弹窗与插件页菜单共用同一偏好，任一处修改另一处随即更新。 */
+export function useSkipInstallNotice() {
+  return useSyncExternalStore(listener => {
+    installNoticeListeners.add(listener);
+    return () => installNoticeListeners.delete(listener);
+  }, readSkipInstallNotice);
+}
 
 /** 待重启生效的暂存数，插件页与详情页共用。 */
 export const pendingCount = (runtime: DesktopPluginRuntime | null) =>
@@ -44,12 +84,11 @@ export const pendingCount = (runtime: DesktopPluginRuntime | null) =>
     ...(runtime?.local?.pendingContentIds?.() ?? []),
   ]).size;
 
-export type PluginSourceKind = "center" | "zip" | "development";
+export type PluginSourceKind = "center" | "zip";
 
 export const SOURCE_LABELS: Record<PluginSourceKind, string> = {
   center: "插件中心",
   zip: "本地 ZIP",
-  development: "开发中",
 };
 
 export const STATE_LABELS: Record<PluginInfo["state"], string> = {
@@ -61,8 +100,15 @@ export const STATE_LABELS: Record<PluginInfo["state"], string> = {
   "restart-required": "需要重启",
 };
 
+/** 不含代码的安装包：安装即生效，不参与启停。 */
+export type StaticPackageKind = "template" | "skills";
+export const STATIC_PACKAGE_LABELS: Record<StaticPackageKind, { kind: string; state: string }> = {
+  template: { kind: "博客模板", state: "模板已安装" },
+  skills: { kind: "Skill 包", state: "Skill 已可用" },
+};
+
 export interface InstalledPlugin {
-  template?: boolean;
+  packageKind?: StaticPackageKind;
   info: PluginInfo;
   source: PluginSourceKind;
   /** 中心来源对应的发布记录，用于读取 README 与核对更新。 */
@@ -74,19 +120,14 @@ export interface InstalledPlugin {
 }
 
 export function pluginSource(runtime: DesktopPluginRuntime, id: string): PluginSourceKind {
-  if (runtime.development?.owns(id)) return "development";
-  if (runtime.local?.owns(id))
-    return runtime.local.source(id)?.kind === "center" ? "center" : "zip";
-  return "development";
+  return runtime.local?.source(id)?.kind === "center" ? "center" : "zip";
 }
 
 export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin[] {
-  const templates = (runtime.local?.templates ?? []).filter(template =>
-    runtime.local?.isTemplate(template.id)
-  );
+  const statics = [...(runtime.local?.templates ?? []), ...(runtime.local?.skillPackages ?? [])];
   const infos: PluginInfo[] = [
     ...runtime.host.listPlugins(),
-    ...templates.map(template => ({
+    ...statics.map(template => ({
       id: template.id,
       name: template.name,
       version: template.version,
@@ -100,22 +141,22 @@ export function installedPlugins(runtime: DesktopPluginRuntime): InstalledPlugin
     const error =
       info.state === "restart-required"
         ? "插件清理未能确认完成，请重启应用后再启用。已保存的数据保留。"
-        : (runtime.development?.error(info.id) ?? local?.error(info.id) ?? info.error);
+        : (local?.error(info.id) ?? info.error);
     return {
-      template: runtime.local?.isTemplate(info.id),
+      packageKind: runtime.local?.isTemplate(info.id)
+        ? "template"
+        : runtime.local?.isSkillPackage(info.id)
+          ? "skills"
+          : undefined,
       info,
       source,
       releaseId: origin?.kind === "center" ? origin.releaseId : undefined,
       update: runtime.local?.updates.find(item => item.id === info.id),
-      enabled: local?.isTemplate(info.id)
+      enabled: local?.isStatic(info.id)
         ? true
         : local?.isContentPlugin?.(info.id)
           ? local.enabled(info.id)
-          : Boolean(
-              info.state === "active" ||
-              runtime.development?.enabled(info.id) ||
-              runtime.local?.enabled(info.id)
-            ),
+          : Boolean(info.state === "active" || runtime.local?.enabled(info.id)),
       error,
     };
   });

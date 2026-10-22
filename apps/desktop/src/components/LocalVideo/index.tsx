@@ -2,14 +2,9 @@ import React, { useEffect, useRef, useState, memo, forwardRef, useCallback } fro
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
-import { addRemoteVideoCacheEntry } from "@/commands/remote-video-cache";
-import { isLikelyVideoSource } from "@/utils/video";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
-import {
-  isDirectMediaUrl,
-  resolveLocalMediaPath,
-  toLocalMediaPreviewUrl,
-} from "@/utils/localMediaPath";
+import { resolveLocalMediaPath, toLocalMediaPreviewUrl } from "@/utils/localMediaPath";
+import { resolveMediaSource } from "@/utils/mediaSource";
 import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
 
 type LocalVideoProps = VideoPlayerProps & {
@@ -26,6 +21,9 @@ const LocalVideo = memo(
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const videoTitle = typeof rest?.title === "string" ? (rest.title as string) : undefined;
+    // 标题只写进缓存条目，变化时不重新解析
+    const videoTitleRef = useRef(videoTitle);
+    videoTitleRef.current = videoTitle;
 
     const innerRef = useRef<HTMLVideoElement>(null);
     const currentTime = useRef(0);
@@ -51,75 +49,36 @@ const LocalVideo = memo(
       return innerRef.current;
     });
 
-    const registerRemoteVideoCache = useMemoizedFn(async (remoteUrl: string, localPath: string) => {
-      if (!remoteUrl || !remoteUrl.startsWith("http")) {
-        return;
-      }
-      if (!isLikelyVideoSource(remoteUrl)) {
-        return;
-      }
-      try {
-        await addRemoteVideoCacheEntry({
-          url: remoteUrl,
-          localPath,
-          title: videoTitle,
-        });
-      } catch (error) {
-        console.error("记录远程视频缓存失败:", error);
-      }
-    });
-
     useAsyncEffect(async () => {
-      let localUrl = normalizedSrc;
+      console.time("localVideo");
       try {
-        console.time("localVideo");
-        if (!normalizedSrc) {
-          console.log("[LocalVideo] normalizedSrc 为空，返回");
+        const resolved = await resolveMediaSource(normalizedSrc, {
+          kind: "video",
+          autoCacheRemote: true,
+          title: videoTitleRef.current,
+        });
+        if (!resolved) {
           setPreviewUrl("");
           currentMethod.current = "default";
           return;
         }
-
-        localUrl = await resolveLocalMediaPath(normalizedSrc);
-
-        if (isDirectMediaUrl(localUrl)) {
-          console.log("[LocalVideo] 直接使用 URL (data/blob/localhost/ltoh):", localUrl);
-          setPreviewUrl(localUrl);
-          currentMethod.current = "default";
-          return;
-        }
-
-        if (localUrl.startsWith("http")) {
-          try {
-            localUrl = await remoteResourceToLocal(localUrl);
-            await registerRemoteVideoCache(normalizedSrc, localUrl);
-          } catch (error) {
-            console.error("下载视频失败:", error);
-            setPreviewUrl(localUrl);
-            currentMethod.current = "default";
-            return;
-          }
-        }
-
-        const homeDir = await getHomeDir();
-        const absolutePath = localUrl.startsWith("~") ? `${homeDir}${localUrl.slice(1)}` : localUrl;
-        const { url: videoUrl, method } = await toLocalMediaPreviewUrl(absolutePath);
-        currentMethod.current = method === "app-protocol" ? "localhost" : "read-file";
+        currentMethod.current =
+          resolved.method === "app-protocol"
+            ? "localhost"
+            : resolved.method === "blob"
+              ? "read-file"
+              : "default";
 
         const videoElement = getVideoElement();
-        if (videoElement) {
+        if (videoElement && currentMethod.current !== "default") {
           currentTime.current = videoElement.currentTime;
           playStatus.current = !videoElement.paused;
         }
-        setPreviewUrl(videoUrl);
-      } catch (e) {
-        console.error(e);
-        setPreviewUrl(localUrl || normalizedSrc);
-        currentMethod.current = "default";
+        setPreviewUrl(resolved.url);
       } finally {
         console.timeEnd("localVideo");
       }
-    }, [normalizedSrc, registerRemoteVideoCache]);
+    }, [normalizedSrc]);
 
     useEffect(() => {
       const videoElement = getVideoElement();

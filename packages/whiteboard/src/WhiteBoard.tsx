@@ -30,6 +30,7 @@ import {
   FIT_VIEW_PADDING,
 } from "./constants";
 import { createConnectPointOwnerStore } from "./utils/ConnectPointOwner";
+import { createWheelGestureHandler } from "./utils/wheelGesture";
 import {
   BoardElement,
   Point,
@@ -593,7 +594,9 @@ const WhiteBoard = memo(
       };
       document.addEventListener("mouseup", scopedHandleGlobalMouseUp);
 
-      container.addEventListener("wheel", handleOnWheel, {
+      const handleWheelGesture = createWheelGestureHandler(container, handleOnWheel);
+      container.addEventListener("wheel", handleWheelGesture, {
+        capture: true,
         passive: false,
       });
 
@@ -664,7 +667,7 @@ const WhiteBoard = memo(
         document.removeEventListener("mouseup", scopedHandleGlobalMouseUp);
         document.removeEventListener("keydown", handleKeyDown);
         document.removeEventListener("keyup", handleKeyUp);
-        container.removeEventListener("wheel", handleOnWheel);
+        container.removeEventListener("wheel", handleWheelGesture, true);
         document.removeEventListener("pointerdown", scopedHandleOnGlobalPointerDown);
         document.removeEventListener("pointermove", scopedHandleOnGlobalPointerMove);
         document.removeEventListener("pointerup", scopedHandleOnGlobalPointerUp, true);

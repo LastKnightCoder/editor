@@ -49,7 +49,9 @@ describe("同一思路写成卡片（渲染端）", () => {
     expect(patternCardPlaceholder(mark)).toBe(
       "用自己的话写下「用 dpr 桥接」这个思路。五篇都用到了"
     );
-    expect(patternCardPlaceholder({ text: "x", why: "" })).toBe("用自己的话写下「x」这个思路");
+    expect(patternCardPlaceholder({ kind: "pattern", text: "x", why: "" })).toBe(
+      "用自己的话写下「x」这个思路"
+    );
   });
 
   it("建卡后登记草稿并打开；离开时还空着就撤回", async () => {

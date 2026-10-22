@@ -48,7 +48,7 @@ export type CaretAffinitySide = "left" | "middle" | "right";
 /** 不参与标记比较的结构字段 */
 const STRUCTURAL_KEYS = new Set(["text", "type"]);
 
-const textProps = (node: Text): TextProps => {
+export const textProps = (node: Text): TextProps => {
   const { text: _text, ...rest } = node;
   return rest;
 };

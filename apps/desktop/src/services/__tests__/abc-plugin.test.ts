@@ -26,7 +26,6 @@ describe("ABC 真实插件包", () => {
     expect(extension.htmlSerializers![0].toHtml({ content: "<script>&</script>" })).toContain(
       "&lt;script&gt;&amp;&lt;/script&gt;"
     );
-    expect(definition.skills![0].content).toContain("```abc");
     expect(() => assertPluginCompatibility(artifact.manifest, "0.58.0")).toThrow(/插件需要 Tau/);
     expect(() => assertPluginCompatibility(artifact.manifest, "0.59.0")).not.toThrow();
   });

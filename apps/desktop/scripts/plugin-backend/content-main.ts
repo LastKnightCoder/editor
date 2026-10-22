@@ -74,7 +74,6 @@ void app.whenReady().then(async () => {
           ] as import("../../src-electron/main/modules/publish-search-index").BuildPublishSearchIndexInput["cards"],
           articles: [],
           docs: [],
-          quests: [],
         },
       },
       undefined,

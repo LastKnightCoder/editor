@@ -82,6 +82,8 @@ export interface PluginRelease {
       description: string;
       minAppVersion: string;
       backend?: import("@tau/plugins/package").PluginBackendManifest;
+      skills?: readonly string[];
+      integrity?: Record<string, string>;
     };
     readme: string;
     changelog: string | null;

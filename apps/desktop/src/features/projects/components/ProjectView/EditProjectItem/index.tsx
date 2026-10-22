@@ -38,6 +38,8 @@ import { ComposeSessionContext, createComposeSession } from "@/features/compose/
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
 import { getEditorText } from "@/utils/editor";
 import { usePage, usePageParams } from "@/page/PageProvider";
+import { PluginEntityPanels } from "@/app/plugins/entity-panels";
+import { projectItemActionTarget } from "../ProjectList/ProjectItem/projectItemMoreMenuItems";
 
 const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
@@ -106,7 +108,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const insights = useInsightsView({
     ref: { kind: "project-item", id: projectItem?.id ?? 0 },
     contentId: projectItem?.contentId ?? 0,
-    sourceLabel: `项目文档：${projectItem?.title || "无标题文档"}`,
     getEditor,
     ...useComposeInsightOptions(composeSession, composing),
   });
@@ -308,6 +309,10 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                     </span>
                   </div>
                   {insights.report && <div className="-mt-2 mb-6">{insights.report}</div>}
+                  <PluginEntityPanels
+                    target={projectItemActionTarget(projectItem)}
+                    className="mb-6"
+                  />
                 </header>
                 <EditCardContext.Provider
                   value={{

@@ -4,6 +4,7 @@ import { produce } from "immer";
 import { toast } from "@tau/ui";
 import type { JsonValue } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
+import { resolveSiteFields, type SiteFieldValue } from "@tau/plugins/template";
 import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { rendererPublishRegistry } from "@/app/plugins/publish-registry";
@@ -44,15 +45,23 @@ const updateSetting = (
   recipe: (draft: ReturnType<typeof useSettingStore.getState>["setting"]) => void
 ) => useSettingStore.setState(s => ({ setting: produce(s.setting, recipe) }));
 
+const noSubscribe = () => () => {};
+const zeroRevision = () => 0;
+
 export function usePublishConfig() {
   const runtime = useDesktopPlugins();
   const revision = useSyncExternalStore(
     rendererPublishRegistry.subscribe,
     rendererPublishRegistry.getRevision
   );
+  // 安装、更新、卸载插件后 runtime 递增 revision，模板列表随之重新读取，不等 staleTime 过期
+  const pluginRevision = useSyncExternalStore(
+    runtime?.subscribe ?? noSubscribe,
+    runtime?.getRevision ?? zeroRevision
+  );
   const client = useQueryClient();
   const templatesQuery = useQuery({
-    queryKey: ["publish", "templates"],
+    queryKey: ["publish", "templates", pluginRevision],
     queryFn: listPublishTemplates,
     refetchOnWindowFocus: true,
   });
@@ -105,12 +114,21 @@ export function usePublishConfig() {
       draft.publish.active = value === "local" ? EPublishProvider.Local : EPublishProvider.Plugin;
       if (value !== "local") draft.publish.plugin.id = value;
     });
-  const setSiteField = (
-    field: "title" | "description" | "publicUrl" | "templateId",
-    value: string
-  ) =>
+  const setSiteField = (field: "title" | "publicUrl" | "templateId", value: string) =>
     updateSetting(draft => {
       draft.publish.site[field] = value;
+    });
+  const templateId = publish.site.templateId ?? "";
+  const template = templatesQuery.data?.find(item => item.id === templateId);
+  const templateFields = template?.template.siteFields ?? [];
+  const templateFieldValues = useMemo(
+    () => resolveSiteFields(template?.template.siteFields, publish.site.fields[templateId]),
+    [template, publish.site.fields, templateId]
+  );
+  const setTemplateField = (key: string, value: SiteFieldValue) =>
+    updateSetting(draft => {
+      if (!templateId) return;
+      (draft.publish.site.fields[templateId] ??= {})[key] = value;
     });
   const setLocalBasePath = (value: string) =>
     updateSetting(draft => {
@@ -186,17 +204,21 @@ export function usePublishConfig() {
   const [connectionResult, setConnectionResult] = useState<{
     key: string;
     value: ConnectionState;
+    message?: string;
   }>();
   const connectionKey = JSON.stringify([pluginId, providerConfig, revision]);
-  const connection = connectionResult?.key === connectionKey ? connectionResult.value : "idle";
+  const current = connectionResult?.key === connectionKey ? connectionResult : undefined;
   const checkConnection = async () => {
     setConnectionResult({ key: connectionKey, value: "checking" });
     try {
       const connected = await checkPublishConnection(request);
       setConnectionResult({ key: connectionKey, value: connected ? "ok" : "fail" });
     } catch (error) {
-      setConnectionResult({ key: connectionKey, value: "fail" });
-      toast.error(`连接测试失败: ${error instanceof Error ? error.message : String(error)}`);
+      setConnectionResult({
+        key: connectionKey,
+        value: "fail",
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   };
   return {
@@ -220,9 +242,12 @@ export function usePublishConfig() {
           : "",
     basePath: targetQuery.data?.basePath ?? publish.local.basePath,
     siteUrl: publish.site.publicUrl.trim() || targetQuery.data?.publicUrl || "",
-    templateReady: Boolean(
-      templatesQuery.data?.some(template => template.id === publish.site.templateId)
-    ),
+    targetPublicUrl: targetQuery.data?.publicUrl ?? "",
+    templateReady: Boolean(template),
+    templateName: template?.name ?? "",
+    templateFields,
+    templateFieldValues,
+    setTemplateField,
     templateOptions: (templatesQuery.data ?? []).map(template => ({
       label: `${template.name} · ${template.version}`,
       value: template.id,
@@ -233,7 +258,8 @@ export function usePublishConfig() {
     setLocalBasePath,
     selectFavicon,
     clearFavicon,
-    connection,
+    connection: current?.value ?? "idle",
+    connectionMessage: current?.message ?? "",
     checkConnection,
   };
 }

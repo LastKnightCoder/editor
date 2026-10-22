@@ -1,5 +1,4 @@
 import type { PluginPages } from "./pages";
-import type { PluginSkill } from "./skills";
 import type { PluginAI, PluginAIFeature } from "./ai";
 import type { WhiteboardExtension } from "./whiteboard";
 import type { PluginServices } from "./services";
@@ -14,6 +13,9 @@ import type { PluginImages } from "./images";
 import type { PluginVideo } from "./video";
 import type { PluginPublish } from "./publish";
 import type { PluginSidebar } from "./sidebar";
+import type { PluginHome } from "./home";
+import type { PluginActions } from "./actions";
+import type { PluginViews } from "./views";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
@@ -23,6 +25,9 @@ import type { PluginContent, PluginData } from "./data";
 import type { PluginEvents } from "./events";
 import type { PluginApp } from "./app";
 import type { PluginOwnEntities } from "./entities";
+import type { PluginRecords } from "./records";
+import type { PluginLinks } from "./links";
+import type { PluginTransactionRunner } from "./transaction";
 import type { PluginFlashcards } from "./flashcards";
 import type { PluginNotifications } from "./notifications";
 
@@ -63,6 +68,12 @@ export interface PluginContext {
   readonly video: PluginVideo;
   readonly publish: PluginPublish;
   readonly sidebar: PluginSidebar;
+  /** 首页面板 */
+  readonly home: PluginHome;
+  /** 对象动作：卡片、文章、项目文档「⋯」菜单里的条目 */
+  readonly actions: PluginActions;
+  /** 卡片、文章、项目文档详情里的区块 */
+  readonly views: PluginViews;
   readonly excerpts: PluginExcerpts;
   readonly materials: PluginMaterials;
   readonly fetch: typeof globalThis.fetch;
@@ -82,6 +93,12 @@ export interface PluginContext {
   readonly app: PluginApp;
   /** 插件自建、各带一份正文的内容；读写自己的内容不需要业务数据权限 */
   readonly entities: PluginOwnEntities;
+  /** 插件内部使用的结构化数据；读写自己的记录不需要业务数据权限 */
+  readonly records: PluginRecords;
+  /** 从本插件的内容指向其他内容的有序关联，显示在目标的脉络里 */
+  readonly links: PluginLinks;
+  /** 把对本插件内容、记录与关联的多条写入作为一个整体提交：全部生效或全部不生效 */
+  readonly transaction: PluginTransactionRunner;
   readonly flashcards: PluginFlashcards;
   readonly notifications: PluginNotifications;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
@@ -102,7 +119,6 @@ export interface PluginDefinition {
   readonly editorExtensions?: readonly PluginEditorExtension[];
   readonly whiteboardExtensions?: readonly WhiteboardExtension[];
   readonly editorCodecs?: readonly MarkdownCodec[];
-  readonly skills?: readonly PluginSkill[];
   readonly ai?: { readonly features: readonly PluginAIFeature[] };
   /** 每次启用创建新实例，运行状态不放在定义对象上。 */
   create(): PluginInstance;

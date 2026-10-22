@@ -10,6 +10,8 @@ import type { ElementDrag } from "./drag";
 import type { ElementIngestSpec } from "./ingest";
 import type { ElementCopy } from "./copy";
 import type { DecorationSpec, MarkSpec } from "./marks";
+import type { InputRule } from "./inputRules";
+import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
@@ -42,6 +44,17 @@ export interface ElementEmptyContext {
   isEmpty(node: Descendant): boolean;
 }
 
+/**
+ * void 块的公共外框：点选描边、右键菜单、选中时 Delete / Backspace 删除与 Escape 取消、末尾「添加段落」。
+ * 声明后 render 只渲染内容（收到的 attributes 为空对象、children 为 null）。
+ */
+export interface ElementFrame {
+  /** 末尾的「添加段落」，默认显示 */
+  appendParagraph?: boolean;
+  /** 选中时的按键 → 命令 id（如 `{ Enter: "yourname.gallery.edit" }`），命令收到该元素 */
+  keys?: Readonly<Record<string, string>>;
+}
+
 export interface ElementSpec<E extends Element = Element> {
   /** 元素 type；内置类型沿用现有名字，兼容已有文档 */
   type: string;
@@ -60,6 +73,10 @@ export interface ElementSpec<E extends Element = Element> {
   drag?: ElementDrag;
   /** 内容注入声明（01 §5.4）：drop 与 paste 共用的认领规则；块组件不再改写 insertData */
   ingest?: ElementIngestSpec;
+  /** 节点里的资源字段：导出打包、协作上传、灯箱等只按它找图片、视频、音频与文件 */
+  resources?: readonly ContentResourceSpec[];
+  /** void 块的公共外框；只适用于 `kind: "block"` 且 `isVoid` 的元素 */
+  frame?: boolean | ElementFrame;
 }
 
 export interface ExtensionLayerProps {
@@ -73,6 +90,8 @@ export interface EditorExtension {
   readonly apiVersion: typeof EXTENSION_API_VERSION;
   readonly elements?: readonly ElementSpec[];
   readonly marks?: readonly MarkSpec[];
+  /** 行内输入规则：输入成对定界符时转成标记或行内元素，如 `**粗体**`、`$公式$` */
+  readonly inputRules?: readonly InputRule[];
   /** 暂态装饰（不进文档）；外观由本扩展 marks 里 keys 对应的声明渲染 */
   readonly decorations?: readonly DecorationSpec[];
   /** 在编辑器的 Slate/Kit 上下文挂载辅助 UI，组件自行接宿主浮层仲裁。 */

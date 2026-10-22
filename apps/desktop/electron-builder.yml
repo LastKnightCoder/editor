@@ -28,16 +28,6 @@ directories:
   output: release/
   buildResources: build
 
-extraResources:
-  - from: ../cli/dist/index.js
-    to: cli/index.js
-  - from: ../cli/bin/tau.sh
-    to: cli/tau.sh
-  - from: ../cli/bin/tau.cmd
-    to: cli/tau.cmd
-  - from: ../cli/bin/tau.ps1
-    to: cli/tau.ps1
-
 files:
   - "dist/**/*"
   - "dist-electron/**/*"

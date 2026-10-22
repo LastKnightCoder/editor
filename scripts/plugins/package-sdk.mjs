@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { mkdir, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -162,39 +162,11 @@ try {
     if (name === "plugins") {
       await copyDeclaration(packageEntry);
       await copyDeclaration(backendEntry);
-      await writeFile(
-        path.join(directory, "PUBLISH.md"),
-        await readFile(path.join(root, "scripts/plugins/template/PUBLISH.md"))
-      );
-      await writeFile(
-        path.join(directory, "IMAGES.md"),
-        await readFile(path.join(root, "scripts/plugins/template/IMAGES.md"))
-      );
-      await writeFile(
-        path.join(directory, "VIDEO.md"),
-        await readFile(path.join(root, "scripts/plugins/template/VIDEO.md"))
-      );
-      await writeFile(
-        path.join(directory, "TTS.md"),
-        await readFile(path.join(root, "scripts/plugins/template/TTS.md"))
-      );
-      await writeFile(
-        path.join(directory, "UPLOAD.md"),
-        await readFile(path.join(root, "scripts/plugins/template/UPLOAD.md"))
-      );
-      await writeFile(
-        path.join(directory, "SYNC.md"),
-        await readFile(path.join(root, "scripts/plugins/template/SYNC.md"))
-      );
       await copyDeclaration(whiteboardEntry);
       await copyDeclaration(syncEntry);
       await copyDeclaration(publishEntry);
       await copyDeclaration(clientEntry);
       await copyDeclaration(artifactsEntry);
-      await writeFile(
-        path.join(directory, "PUBLISH-DATA.md"),
-        await readFile(path.join(root, "scripts/plugins/template/PUBLISH-DATA.md"))
-      );
       await writeFile(path.join(directory, "publish-data.js"), "export {};\n");
       await build({
         entryPoints: {
@@ -267,21 +239,12 @@ try {
     );
     await writeFile(
       path.join(directory, "README.md"),
-      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实际实现由 Tau 客户端提供，构建时需设为 external。plugins 包另提供独立站点可用的 publish-data 类型和 publish-client 纯数据客户端，见该包 PUBLISH-DATA.md；不包含站点渲染、路由或预览实现。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n编译与转换服务见 [SERVICES.md](SERVICES.md)，编辑器扩展、源码预览与插件 Skill 见 [EDITOR.md](EDITOR.md)，需要 Tau 0.59.0 及以上。AI 功能声明、模型分配与用量审计见 [AI.md](AI.md)。\n" : ""}`
+      `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实现由 Tau 在运行时提供，插件构建时需设为 external。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n开发文档见 [docs/README.md](docs/README.md)。\n" : ""}`
     );
     if (name === "plugins") {
-      for (const document of [
-        "API.md",
-        "DEVELOPMENT.md",
-        "BACKEND.md",
-        "FLASHCARDS.md",
-        "NOTIFICATIONS.md",
-      ]) {
-        await writeFile(
-          path.join(directory, document),
-          await readFile(path.join(root, "scripts/plugins/template", document))
-        );
-      }
+      await cp(path.join(root, "scripts/plugins/template/docs"), path.join(directory, "docs"), {
+        recursive: true,
+      });
       await writeFile(
         path.join(directory, "CHANGELOG.md"),
         await readFile(path.join(root, "packages/plugins/CHANGELOG.md"))
@@ -289,26 +252,6 @@ try {
       await writeFile(
         path.join(directory, "tailwind.css"),
         await readFile(path.join(root, "packages/themes/src/tailwind.css"))
-      );
-      await writeFile(
-        path.join(directory, "WHITEBOARD.md"),
-        await readFile(path.join(root, "scripts/plugins/template/WHITEBOARD.md"))
-      );
-      await writeFile(
-        path.join(directory, "AI.md"),
-        await readFile(path.join(root, "scripts/plugins/template/AI.md"))
-      );
-      await writeFile(
-        path.join(directory, "MCP.md"),
-        await readFile(path.join(root, "scripts/plugins/template/MCP.md"))
-      );
-      await writeFile(
-        path.join(directory, "EDITOR.md"),
-        await readFile(path.join(root, "scripts/plugins/template/EDITOR.md"))
-      );
-      await writeFile(
-        path.join(directory, "SERVICES.md"),
-        await readFile(path.join(root, "scripts/plugins/template/SERVICES.md"))
       );
     }
     const npmCli =

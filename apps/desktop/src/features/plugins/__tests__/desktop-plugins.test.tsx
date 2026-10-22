@@ -22,7 +22,11 @@ import { settingsPlugin } from "./fixtures/example/settingsPlugin";
 
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
-  return { default: create(() => ({ setting: { database: { active: "A" } } })) };
+  return {
+    default: create(() => ({
+      setting: { database: { active: "A" }, onlineVideo: { configurations: {} } },
+    })),
+  };
 });
 vi.mock("@/commands/plugin-local", async importOriginal => ({
   ...(await importOriginal<typeof import("@/commands/plugin-local")>()),
@@ -184,6 +188,65 @@ describe("桌面插件完整路径", () => {
     await act(async () => setWorkspace("B"));
     await settle();
     expect(readPluginPageContext(updated.params)).toBeNull();
+  });
+
+  it("插件页面知道自己是否在栈顶，Esc 先关插件登记的浮层，页面隐藏后不再响应", async () => {
+    let page!: PluginPageHandle;
+    const instances = new Map<string, { isActive(): boolean }>();
+    await act(async () => {
+      currentRuntime().host.registerTrusted(
+        definePlugin({
+          id: "dismiss-sample",
+          name: "浮层样本",
+          version: "1",
+          create: () => ({
+            activate(context) {
+              page = context.pages.register({
+                id: "drawer",
+                title: "抽屉页",
+                match: "params",
+                getId: params => String(params.id),
+                component: function DrawerPage({ pageContext, params }) {
+                  const [open, setOpen] = useState(false);
+                  instances.set(String(params.id), pageContext);
+                  useEffect(() => {
+                    if (!open) return;
+                    const registration = pageContext.registerDismiss(() => setOpen(false));
+                    return () => {
+                      registration.dispose();
+                    };
+                  }, [open, pageContext]);
+                  return (
+                    <button onClick={() => setOpen(true)}>
+                      {open ? `抽屉 ${params.id} 打开` : `打开抽屉 ${params.id}`}
+                    </button>
+                  );
+                },
+              });
+            },
+          }),
+        })
+      );
+    });
+    await act(async () => currentRuntime().host.enable("dismiss-sample"));
+    await act(async () => page.open({ id: "A" }));
+    const escape = () =>
+      act(async () => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+    await click("打开抽屉 A");
+    expect(activePage().textContent).toContain("抽屉 A 打开");
+    await escape();
+    expect(activePage().textContent).toContain("打开抽屉 A");
+    await click("打开抽屉 A");
+    await act(async () => page.open({ id: "B" }));
+    expect(instances.get("A")?.isActive()).toBe(false);
+    expect(instances.get("B")?.isActive()).toBe(true);
+    // A 已隐藏：Esc 不再关它的抽屉
+    await escape();
+    await act(async () => navigator.back());
+    expect(instances.get("A")?.isActive()).toBe(true);
+    expect(activePage().textContent).toContain("抽屉 A 打开");
+    await escape();
+    expect(activePage().textContent).toContain("打开抽屉 A");
   });
 
   it("开发台将启停入口交给插件页", async () => {

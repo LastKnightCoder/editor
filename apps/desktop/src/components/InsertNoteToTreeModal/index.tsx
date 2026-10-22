@@ -35,7 +35,8 @@ interface InsertNoteToTreeModalProps {
   /** copy 时的来源实体：复制出的文档记谱系 derived */
   source?: LineageNode;
   onCancel: () => void;
-  onSuccess: (createdItem?: ProjectItem | null) => void;
+  /** 新建的项目文档；宿主未返回条目时为 null */
+  onSuccess: (createdItem: ProjectItem | null) => void;
 }
 
 /** 行基础样式：30px 行高、7px 圆角；层级靠缩进，不画连接线 */
@@ -188,6 +189,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       if (!selectedEntityId) return;
       setInserting(true);
       try {
+        let created: ProjectItem | null;
         if (insertMode === "shared-content") {
           if (!sourceContentId) {
             throw new Error("缺少共享内容 ID");
@@ -195,7 +197,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
 
           const title = noteTitle || `答案 #${sourceContentId}`;
 
-          await createSharedProjectItemFromContent({
+          created = await createSharedProjectItemFromContent({
             sourceContentId,
             projectId: selectedEntityId,
             parentProjectItemId: selectedNodeId,
@@ -222,19 +224,19 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
             count,
             whiteBoardContentId: 0,
           };
-          const [, createdItem] = selectedNodeId
+          [, created] = selectedNodeId
             ? await addChildProjectItem(selectedNodeId, newItem)
             : await addRootProjectItem(selectedEntityId, newItem);
-          if (source && createdItem) {
+          if (source && created) {
             await recordLineage({
               src: source,
-              dst: { kind: "project-item", id: createdItem.id },
+              dst: { kind: "project-item", id: created.id },
               relation: "derived",
             });
           }
           toast.success("笔记已插入");
         }
-        onSuccess();
+        onSuccess(created);
       } catch (error) {
         console.error("Failed to insert note:", error);
         toast.error(insertMode === "shared-content" ? "挂载内容失败" : "插入笔记失败");
@@ -355,9 +357,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                         )}
                         strokeWidth={1.75}
                       />
-                      <span className="min-w-0 flex-1 truncate">
-                        插入到根目录
-                      </span>
+                      <span className="min-w-0 flex-1 truncate">插入到根目录</span>
                     </div>
                     {/* 文档树节点 */}
                     {treeNodes.map(node => (

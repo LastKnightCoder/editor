@@ -4,6 +4,7 @@ import type { Descendant } from "slate";
 import type { PluginContentOwner } from "@/types/plugin-data";
 import type {
   PluginEntityCreate,
+  PluginEntityFilter,
   PluginEntityKindAppearance,
   PluginEntityOwner,
   PluginEntityPage,
@@ -12,10 +13,23 @@ import type {
   PluginEntityRecord,
   PluginEntityScope,
 } from "@/types/plugin-entities";
+import { asynchronousDatabaseCommand } from "../database-command";
 import ContentTable from "./content";
 import { getNextTaskEntityId } from "./module-entity-id";
+import { resolvePluginContent } from "./plugin-content-input";
 import { insertPluginOperation } from "./plugin-operations";
+import { adoptPluginData, markOrphans } from "./plugin-records";
+import { PluginLinkRows } from "./plugin-link-rows";
 import { emitContentWritten } from "../content-events";
+import { writeAsPlugin } from "../domain-event-origin";
+import { assertIndexedValues, type PluginIndexes } from "@tau/plugins/query";
+import {
+  containsClause,
+  runPage,
+  whereClause,
+  type QuerySource,
+  type SqlFragment,
+} from "./plugin-query";
 
 const MAX_LIMIT = 200;
 const MAX_OWNER_IDS = 500;
@@ -25,10 +39,22 @@ export const MAX_KIND_ICON = 16 * 1024;
 const CONFLICT_PREFIX = "PLUGIN_CONFLICT:";
 const EMPTY_CONTENT = [{ type: "paragraph", children: [{ text: "" }] }] as Descendant[];
 
-const BASE_SQL = `SELECT e.id, e.plugin_id, e.kind, e.key, e.title, e.meta, e.create_time,
-    e.update_time, e.content_id, ct.create_time AS content_created,
-    MAX(e.update_time, IFNULL(ct.update_time, 0)) AS updated
-  FROM plugin_entities e JOIN contents ct ON ct.id = e.content_id`;
+const UPDATED_SQL = "MAX(e.update_time, IFNULL(ct.update_time, 0))";
+const BASE_COLUMNS = `e.id, e.plugin_id, e.kind, e.key, e.title, e.meta, e.create_time,
+    e.update_time, e.content_id, ct.create_time AS content_created, ${UPDATED_SQL} AS updated`;
+const BASE_FROM = "plugin_entities e JOIN contents ct ON ct.id = e.content_id";
+const BASE_SQL = `SELECT ${BASE_COLUMNS} FROM ${BASE_FROM}`;
+
+/** 事务预留的实体 ID：库名 + ID → 插件 ID */
+const reservations = new Map<string, string>();
+const MAX_RESERVATIONS = 500;
+const reservationKey = (db: Database.Database, id: number) => `${basename(db.name)}\n${id}`;
+
+const QUERY_SOURCE: QuerySource = {
+  json: "e.meta",
+  builtins: { createdAt: "e.create_time", updatedAt: UPDATED_SQL, title: "e.title" },
+  id: "e.id",
+};
 
 interface Row {
   id: number;
@@ -92,10 +118,12 @@ function toRecord(row: Row): PluginEntityRecord {
 export default class PluginEntityTable {
   static getListenEvents() {
     return {
-      "plugin-entities:create": this.create.bind(this),
+      "plugin-entities:create": asynchronousDatabaseCommand(this.create.bind(this)),
+      "plugin-entities:reserve-id": this.reserveId.bind(this),
       "plugin-entities:get": this.get.bind(this),
       "plugin-entities:find": this.find.bind(this),
       "plugin-entities:query": this.query.bind(this),
+      "plugin-entities:count": this.count.bind(this),
       "plugin-entities:update": this.update.bind(this),
       "plugin-entities:delete": this.remove.bind(this),
       "plugin-entities:locate": this.locate.bind(this),
@@ -113,10 +141,8 @@ export default class PluginEntityTable {
   private static assertScope(db: Database.Database, scope: PluginEntityScope) {
     this.assertDatabase(db, scope.databaseName);
     if (typeof scope.pluginId !== "string" || !scope.pluginId) throw new Error("插件 ID 无效");
-    // 插件正在运行说明已重新安装：撤销孤儿标记，宽限期内的内容原样找回
-    db.prepare(
-      "UPDATE plugin_entities SET orphaned_time = NULL WHERE plugin_id = ? AND orphaned_time IS NOT NULL"
-    ).run(scope.pluginId);
+    // 插件正在运行说明已重新安装：撤销孤儿标记，宽限期内的内容与记录原样找回
+    adoptPluginData(db, scope.pluginId);
   }
 
   private static row(db: Database.Database, pluginId: string, id: number): Row | undefined {
@@ -202,31 +228,78 @@ export default class PluginEntityTable {
     ).map(row => ({ pluginId: row.plugin_id, kind: row.kind, label: row.label, icon: row.icon }));
   }
 
-  static create(
+  static async create(
     db: Database.Database,
     request: PluginEntityScope & { input: PluginEntityCreate }
-  ): PluginEntityRecord {
+  ): Promise<PluginEntityRecord> {
     this.assertScope(db, request);
-    const { kind, key, title, meta } = request.input;
-    return db.transaction(() => {
-      const existing = db
-        .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
-        .get(request.pluginId, kind, key);
-      if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
-      const contentId = ContentTable.createContent(db, {
-        content: structuredClone(EMPTY_CONTENT),
-        count: 0,
-      });
-      const now = Date.now();
-      // 编号不复用：删除后恢复仍用原 ID，正文里指向它的引用不会落到别的内容上
-      const id = getNextTaskEntityId(db, "plugin_entities");
-      db.prepare(
-        `INSERT INTO plugin_entities
-           (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).run(id, request.pluginId, kind, key, title, contentId, JSON.stringify(meta), now, now);
-      return toRecord(this.row(db, request.pluginId, id) as Row);
-    })();
+    const content = await this.resolveContent(db, request.input);
+    // Markdown 转换期间可能已切库或关库
+    this.assertDatabase(db, request.databaseName);
+    if (!db.open) throw new Error("数据库连接已失效");
+    return writeAsPlugin(request.pluginId, () =>
+      db.transaction(() =>
+        // 编号不复用：删除后恢复仍用原 ID，正文里指向它的引用不会落到别的内容上
+        this.insertResolved(
+          db,
+          request.pluginId,
+          request.input,
+          content,
+          getNextTaskEntityId(db, "plugin_entities")
+        )
+      )()
+    );
+  }
+
+  /** 新建的第一步（异步，在数据库事务之外）：核对索引字段并解析初始正文 */
+  static async resolveContent(db: Database.Database, input: PluginEntityCreate) {
+    assertIndexedValues(input.meta as never, input.indexes ?? {});
+    return resolvePluginContent(db, input.content, EMPTY_CONTENT);
+  }
+
+  /** 新建的第二步（同步，由调用方放进事务）：用解析好的正文与给定 ID 插入 */
+  static insertResolved(
+    db: Database.Database,
+    pluginId: string,
+    input: PluginEntityCreate,
+    content: Descendant[],
+    id: number
+  ): PluginEntityRecord {
+    const { kind, key, title, meta } = input;
+    const existing = db
+      .prepare("SELECT id FROM plugin_entities WHERE plugin_id = ? AND kind = ? AND key = ?")
+      .get(pluginId, kind, key);
+    if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
+    if (db.prepare("SELECT 1 FROM plugin_entities WHERE id = ?").get(id))
+      throw new Error("内容 ID 已被占用");
+    const contentId = ContentTable.createContent(db, { content });
+    const now = Date.now();
+    db.prepare(
+      `INSERT INTO plugin_entities
+         (id, plugin_id, kind, key, title, content_id, meta, create_time, update_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, pluginId, kind, key, title, contentId, JSON.stringify(meta), now, now);
+    return toRecord(this.row(db, pluginId, id) as Row);
+  }
+
+  /**
+   * 为事务预留一个实体 ID：推进不复用的编号序列，并记下预留给哪个插件。
+   * 预留只在本次运行中有效，提交时消费；没提交的编号作废。
+   */
+  static reserveId(db: Database.Database, request: PluginEntityScope): number {
+    this.assertScope(db, request);
+    const owned = [...reservations.values()].filter(owner => owner === request.pluginId).length;
+    if (owned >= MAX_RESERVATIONS) throw new Error("预留的内容 ID 过多，请先提交事务");
+    const id = getNextTaskEntityId(db, "plugin_entities");
+    reservations.set(reservationKey(db, id), request.pluginId);
+    return id;
+  }
+
+  /** 提交时消费预留：只能用预留给本插件的 ID */
+  static consumeReservation(db: Database.Database, pluginId: string, id: number) {
+    const key = reservationKey(db, id);
+    if (reservations.get(key) !== pluginId) throw new Error("内容 ID 未预留");
+    reservations.delete(key);
   }
 
   static get(
@@ -249,7 +322,17 @@ export default class PluginEntityTable {
     return row ? toRecord(row) : null;
   }
 
-  /** 按创建时间倒序分页，游标为「创建时间:ID」 */
+  /** 本插件、可选类型、索引条件与标题包含 */
+  private static filters(pluginId: string, filter: PluginEntityFilter): SqlFragment[] {
+    return [
+      { sql: "e.plugin_id = ?", params: [pluginId] },
+      ...(filter.kind === undefined ? [] : [{ sql: "e.kind = ?", params: [filter.kind] }]),
+      whereClause(QUERY_SOURCE, filter.where ?? []),
+      ...(filter.titleContains ? [containsClause("e.title", filter.titleContains)] : []),
+    ];
+  }
+
+  /** 按筛选与排序分页，游标绑定本次查询 */
   static query(
     db: Database.Database,
     request: PluginEntityScope & { query: PluginEntityQuery }
@@ -258,84 +341,111 @@ export default class PluginEntityTable {
     const { query } = request;
     if (!Number.isSafeInteger(query.limit) || query.limit < 1 || query.limit > MAX_LIMIT)
       throw new Error(`limit 必须是 1–${MAX_LIMIT} 的整数`);
-    const where = ["e.plugin_id = ?"];
-    const params: unknown[] = [request.pluginId];
-    if (query.kind !== undefined) {
-      where.push("e.kind = ?");
-      params.push(query.kind);
-    }
-    if (query.cursor !== undefined) {
-      const match = /^(\d+):(\d+)$/.exec(String(query.cursor));
-      if (!match) throw new Error("分页游标无效");
-      where.push("(e.create_time < ? OR (e.create_time = ? AND e.id < ?))");
-      params.push(Number(match[1]), Number(match[1]), Number(match[2]));
-    }
-    const rows = db
-      .prepare(
-        `${BASE_SQL} WHERE ${where.join(" AND ")} ORDER BY e.create_time DESC, e.id DESC LIMIT ?`
-      )
-      .all(...params, query.limit + 1) as Row[];
-    const page = rows.slice(0, query.limit);
-    const last = page.at(-1);
+    const { kind, where, titleContains, orderBy } = query;
+    const page = runPage<Row>(db, QUERY_SOURCE, {
+      columns: BASE_COLUMNS,
+      from: BASE_FROM,
+      filters: this.filters(request.pluginId, query),
+      order: orderBy,
+      ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
+      limit: query.limit,
+      scope: [request.pluginId, kind ?? null, where ?? [], titleContains ?? "", orderBy],
+    });
     return {
-      items: page.map(toRecord),
-      ...(rows.length > query.limit && last ? { cursor: `${last.create_time}:${last.id}` } : {}),
+      items: page.rows.map(toRecord),
+      ...(page.cursor ? { cursor: page.cursor } : {}),
     };
+  }
+
+  static count(
+    db: Database.Database,
+    request: PluginEntityScope & { filter: PluginEntityFilter }
+  ): number {
+    this.assertScope(db, request);
+    const filters = this.filters(request.pluginId, request.filter).filter(item => item.sql);
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM plugin_entities e WHERE ${filters.map(item => item.sql).join(" AND ")}`
+      )
+      .get(...filters.flatMap(item => item.params)) as { count: number };
+    return row.count;
   }
 
   static update(
     db: Database.Database,
-    request: PluginEntityScope & { id: number; patch: PluginEntityPatch; expectedRevision: string }
+    request: PluginEntityScope & {
+      id: number;
+      patch: PluginEntityPatch;
+      /** 省略时不核对版本（事务里的无条件写入） */
+      expectedRevision?: string;
+      /** 各类型声明的索引字段，按本项的类型核对 meta */
+      indexes?: Record<string, PluginIndexes>;
+    }
   ): PluginEntityRecord {
     this.assertScope(db, request);
-    return db.transaction(() => {
-      const current = this.row(db, request.pluginId, request.id);
-      if (!current) throw new Error("内容不存在");
-      if (String(current.update_time) !== request.expectedRevision)
-        throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
-      const { title, meta } = request.patch;
-      // 同一毫秒内连续修改也要换出新的 revision
-      const now = Math.max(Date.now(), current.update_time + 1);
-      db.prepare(
-        "UPDATE plugin_entities SET title = ?, meta = ?, update_time = ? WHERE id = ?"
-      ).run(
-        title ?? current.title,
-        meta === undefined ? current.meta : JSON.stringify(meta),
-        now,
-        request.id
-      );
-      return toRecord(this.row(db, request.pluginId, request.id) as Row);
-    })();
+    return writeAsPlugin(request.pluginId, () =>
+      db.transaction(() => {
+        const current = this.row(db, request.pluginId, request.id);
+        if (!current) throw new Error("内容不存在");
+        if (request.patch.meta !== undefined)
+          assertIndexedValues(request.patch.meta as never, request.indexes?.[current.kind] ?? {});
+        if (
+          request.expectedRevision !== undefined &&
+          String(current.update_time) !== request.expectedRevision
+        )
+          throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
+        const { title, meta } = request.patch;
+        // 同一毫秒内连续修改也要换出新的 revision
+        const now = Math.max(Date.now(), current.update_time + 1);
+        db.prepare(
+          "UPDATE plugin_entities SET title = ?, meta = ?, update_time = ? WHERE id = ?"
+        ).run(
+          title ?? current.title,
+          meta === undefined ? current.meta : JSON.stringify(meta),
+          now,
+          request.id
+        );
+        return toRecord(this.row(db, request.pluginId, request.id) as Row);
+      })()
+    );
   }
 
   /** 删除前把行快照存入 plugin_operations，正文延迟释放；7 天内可由用户在插件详情页恢复 */
   static remove(
     db: Database.Database,
-    request: PluginEntityScope & { id: number; expectedRevision: string }
+    request: PluginEntityScope & { id: number; expectedRevision?: string }
   ): void {
     this.assertScope(db, request);
-    db.transaction(() => {
-      const current = this.row(db, request.pluginId, request.id);
-      if (!current) throw new Error("内容不存在");
-      if (String(current.update_time) !== request.expectedRevision)
-        throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
-      const row = db.prepare("SELECT * FROM plugin_entities WHERE id = ?").get(request.id);
-      db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(request.id);
-      ContentTable.releaseDeferred(db, current.content_id);
-      insertPluginOperation(db, {
-        pluginId: request.pluginId,
-        entity: "plugin-entity",
-        entityId: String(request.id),
-        title: current.title,
-        payload: { row, contentCreatedAt: current.content_created },
-      });
-    })();
+    writeAsPlugin(request.pluginId, () =>
+      db.transaction(() => {
+        const current = this.row(db, request.pluginId, request.id);
+        if (!current) throw new Error("内容不存在");
+        if (
+          request.expectedRevision !== undefined &&
+          String(current.update_time) !== request.expectedRevision
+        )
+          throw new Error(`${CONFLICT_PREFIX}数据已被修改，请重新读取后再试`);
+        const row = db.prepare("SELECT * FROM plugin_entities WHERE id = ?").get(request.id);
+        // 出边随实体快照；先删边再删实体，事件里还能读到实体的类型
+        const links = PluginLinkRows.snapshot(db, request.id);
+        PluginLinkRows.removeFrom(db, request.id);
+        db.prepare("DELETE FROM plugin_entities WHERE id = ?").run(request.id);
+        ContentTable.releaseDeferred(db, current.content_id);
+        insertPluginOperation(db, {
+          pluginId: request.pluginId,
+          entity: "plugin-entity",
+          entityId: String(request.id),
+          title: current.title,
+          payload: { row, contentCreatedAt: current.content_created, links },
+        });
+      })()
+    );
   }
 
   /** 按删除快照恢复：ID 与 key 不变，正文重新持有引用并重建派生索引；返回恢复后的 ID */
   static restoreDeleted(
     db: Database.Database,
-    snapshot: { row: Record<string, unknown>; contentCreatedAt: number }
+    snapshot: { row: Record<string, unknown>; contentCreatedAt: number; links?: unknown }
   ): number {
     const { row } = snapshot;
     const id = Number(row.id);
@@ -369,6 +479,7 @@ export default class PluginEntityTable {
         row.create_time,
         row.update_time
       );
+      PluginLinkRows.restore(db, snapshot.links);
     })();
     // 让全文、引用等派生索引重新收录这份正文
     emitContentWritten(db, contentId, "update");
@@ -418,22 +529,7 @@ export default class PluginEntityTable {
     options: { installed: ReadonlySet<string> | null; now: number; graceMs: number }
   ): number {
     return db.transaction(() => {
-      if (options.installed) {
-        const pluginIds = (
-          db.prepare("SELECT DISTINCT plugin_id FROM plugin_entities").all() as Array<{
-            plugin_id: string;
-          }>
-        ).map(row => row.plugin_id);
-        const mark = db.prepare(
-          "UPDATE plugin_entities SET orphaned_time = ? WHERE plugin_id = ? AND orphaned_time IS NULL"
-        );
-        const adopt = db.prepare(
-          "UPDATE plugin_entities SET orphaned_time = NULL WHERE plugin_id = ? AND orphaned_time IS NOT NULL"
-        );
-        for (const pluginId of pluginIds)
-          if (options.installed.has(pluginId)) adopt.run(pluginId);
-          else mark.run(options.now, pluginId);
-      }
+      markOrphans(db, "plugin_entities", options.installed, options.now);
       const due = db
         .prepare(
           "SELECT id, content_id FROM plugin_entities WHERE orphaned_time IS NOT NULL AND orphaned_time <= ?"
@@ -441,6 +537,7 @@ export default class PluginEntityTable {
         .all(options.now - options.graceMs) as Array<{ id: number; content_id: number }>;
       const remove = db.prepare("DELETE FROM plugin_entities WHERE id = ?");
       for (const row of due) {
+        PluginLinkRows.removeFrom(db, row.id);
         remove.run(row.id);
         ContentTable.releaseDeferred(db, row.content_id);
       }

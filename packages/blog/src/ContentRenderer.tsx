@@ -10,7 +10,7 @@ import { outlineOf, type OutlineHeading } from "./outline";
 export interface ContentRendererProps {
   /** readData 的返回值。 */
   content: DataResult;
-  /** 同一份数据里的其他正文段（如求索的描述、答案）；默认渲染 content.data.content.content。 */
+  /** 改为渲染同一份数据里的其他正文段；默认渲染 content.data.content.content。 */
   nodes?: readonly object[];
   /** 站内链接目标对应的页面地址；不传或返回空时链接只显示文字。 */
   hrefFor?: (target: ContentRef) => string | undefined;

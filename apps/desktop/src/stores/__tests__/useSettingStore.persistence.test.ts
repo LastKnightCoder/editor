@@ -14,6 +14,20 @@ describe("useSettingStore persistence snapshot", () => {
     expect("integration" in buildPersistedSettingSnapshot(legacy)).toBe(false);
   });
 
+  it("旧的宿主级站点描述并入当前模板字段，不覆盖模板已有取值", () => {
+    const site = (description: string, fields = {}) =>
+      ({
+        publish: {
+          site: { templateId: "tau.blog", title: "", publicUrl: "", description, fields },
+        },
+      }) as never;
+    const moved = mergeSettingWithDefaults(site("记录学习")).publish.site;
+    expect(moved).not.toHaveProperty("description");
+    expect(moved.fields["tau.blog"]).toEqual({ description: "记录学习" });
+    const kept = mergeSettingWithDefaults(site("旧", { "tau.blog": { description: "新" } }));
+    expect(kept.publish.site.fields["tau.blog"]).toEqual({ description: "新" });
+  });
+
   it("合并设置时应替换图片提供商数组，避免已删除项被默认配置补回", () => {
     const setting = structuredClone(useSettingStore.getState().setting);
     setting.imageGeneration = {

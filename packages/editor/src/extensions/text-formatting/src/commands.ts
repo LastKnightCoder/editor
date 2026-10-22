@@ -5,7 +5,12 @@ import { Mark } from "./types.ts";
 import { type EditorCommand, type EditorCommandContext, type EditorHotkey } from "@tau/editor/api";
 import { ReactEditor } from "slate-react";
 
-const markCommand = (mark: Mark, id: string, title: string): EditorCommand => ({
+const markCommand = (
+  mark: Mark,
+  id: string,
+  title: string,
+  value: FormattedText[Mark] = true
+): EditorCommand => ({
   id,
   title,
   when: editor => !ReactEditor.isReadOnly(editor),
@@ -16,7 +21,7 @@ const markCommand = (mark: Mark, id: string, title: string): EditorCommand => ({
       if (marks && (marks as FormattedText)[mark]) {
         Editor.removeMark(editor, mark);
       } else {
-        Editor.addMark(editor, mark, true);
+        Editor.addMark(editor, mark, value);
       }
       const { selection } = editor;
       if (selection && !Range.isCollapsed(selection)) {
@@ -41,7 +46,8 @@ export const formattedTextCommands: EditorCommand[] = [
   markCommand("italic", "tau.mark.italic", "斜体"),
   markCommand("underline", "tau.mark.underline", "下划线"),
   markCommand("strikethrough", "tau.mark.strikethrough", "删除线"),
-  markCommand("highlight", "tau.mark.highlight", "高亮"),
+  // 高亮写颜色值而非 true：Markdown 的 `:highlight[]` 指令需要颜色
+  markCommand("highlight", "tau.mark.highlight", "高亮", "yellow"),
   markCommand("code", "tau.mark.code", "行内代码"),
 ];
 

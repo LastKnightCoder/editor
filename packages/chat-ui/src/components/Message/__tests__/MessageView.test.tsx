@@ -102,4 +102,26 @@ describe("MessageView", () => {
 
     await unmount(root, container);
   });
+
+  it("额外动作收到消息纯文本，排在删除之前", async () => {
+    const renderExtra = vi.fn((text: string) => <button type="button">插件：{text}</button>);
+    const { root, container } = await mount(
+      <MessageView
+        {...renderers}
+        role="assistant"
+        messageIndex={0}
+        assistantBlocks={[{ type: "text", content: "重排会触发回流" }]}
+        renderExtraActions={renderExtra}
+        onDelete={vi.fn()}
+      />
+    );
+
+    expect(renderExtra).toHaveBeenCalledWith("重排会触发回流");
+    const labels = [...container.querySelectorAll("button")].map(
+      button => button.getAttribute("aria-label") ?? button.textContent
+    );
+    expect(labels.indexOf("插件：重排会触发回流")).toBeLessThan(labels.indexOf("删除"));
+
+    await unmount(root, container);
+  });
 });

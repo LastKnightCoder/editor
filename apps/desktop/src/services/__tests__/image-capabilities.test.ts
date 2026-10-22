@@ -60,3 +60,23 @@ it("旧配置的迟到能力不能覆盖新账号，插件状态变化会撤销�
   await vi.waitFor(() => expect(useImageCapabilities.getState().error).toBe("插件已停用"));
   expect(useImageCapabilities.getState()).toMatchObject({ canGenerate: false, canEdit: false });
 });
+
+it("改名称不重新探测，改连接配置时探测期间沿用上次能力", async () => {
+  const account = { id: "a", name: "a", pluginId: "test.images", modelId: "model", config: {} };
+  const setAccount = (patch: Partial<typeof account>) =>
+    useSettingStore.setState({
+      setting: {
+        ...original,
+        imageGeneration: { currentProviderId: "a", providers: [{ ...account, ...patch }] },
+      },
+    });
+  setAccount({});
+  mocks.open.mockResolvedValue({ canGenerate: true, canEdit: true, dispose: async () => {} });
+  stop = startImageCapabilities();
+  await vi.waitFor(() => expect(useImageCapabilities.getState().canGenerate).toBe(true));
+  setAccount({ name: "renamed" });
+  expect(mocks.open).toHaveBeenCalledTimes(1);
+  setAccount({ config: { apiKey: "changed" } });
+  expect(mocks.open).toHaveBeenCalledTimes(2);
+  expect(useImageCapabilities.getState()).toMatchObject({ canGenerate: true, canEdit: true });
+});

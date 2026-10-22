@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import type { Editor } from "slate";
 
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor/api";
@@ -16,6 +17,7 @@ export const createImageExtension = (options: ImageExtensionOptions = {}) =>
     elements: [
       defineElement<ImageElement>({
         type: "image",
+        resources: BUILTIN_CONTENT_RESOURCES["image"],
         kind: "block",
         isEmpty: element => element.url === "",
         isVoid: true,

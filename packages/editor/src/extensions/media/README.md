@@ -1,6 +1,6 @@
 # 媒体扩展
 
-`@tau/editor/extensions/media` 拥有 image、inline-image、image-gallery、audio、video 的完整功能：元素声明、渲染、命令、ingest、插入工具、媒体浮层、外观、类型和 Markdown codec。媒体渲染只消费 `@tau/editor/api` 的公开能力；核心不反向导入本模块。
+`@tau/editor/extensions/media` 拥有 image、inline-image、audio、video 的完整功能：元素声明、渲染、命令、ingest、插入工具、媒体浮层、外观、类型和 Markdown codec。媒体渲染只消费 `@tau/editor/api` 的公开能力；核心不反向导入本模块。
 
 ```ts
 import { createEditorKit } from "@tau/editor";
@@ -20,18 +20,18 @@ export function createMediaKit(upload: ResourceService["upload"]) {
 }
 ```
 
-段落和文本由核心提供，不需要再次安装 paragraph。默认 Editor 已封装浏览器 DnD；使用显式 kit 的高级场景继续由应用提供其既有 DndProvider。需要宿主图片外观时，在已安装组合上用 `createImageExtensions(options)` 显式覆盖 image 与 image-gallery。
+段落和文本由核心提供，不需要再次安装 paragraph。默认 Editor 已封装浏览器 DnD；使用显式 kit 的高级场景继续由应用提供其既有 DndProvider。需要宿主图片外观时，在已安装组合上用 `createImageExtensions(options)` 显式覆盖 image。图册由独立插件 `tau.image-gallery` 提供。
 
 推荐安装完整 mediaExtensions。命名元素实例供宿主组合和覆盖使用；部分组合需要保留关联元素（图片 ingest 会产出 inline-image），共享图片预览和 URL 弹窗需要同时安装一次 mediaUiExtension。核心不会自动补齐这些领域能力。
 
-| 入口          | 用途                                                                                 |
-| ------------- | ------------------------------------------------------------------------------------ |
-| 根入口        | 完整组合、单个扩展、外观工厂、插入函数及本地文件/网络地址入口                        |
-| `/services`   | 媒体 Provider、选择器、操作及 Image/Video/Audio 插槽的 token 和类型；运行时不加载 UI |
-| `/slots`      | 原生默认插槽和读取当前媒体插槽的 hook                                                |
-| `/types`      | 元素类型、外观类型、图库模式；通过公开 ElementMap 增强登记类型                       |
-| `/appearance` | 图片圆角/阴影选项与样式计算，供宿主设置界面消费                                      |
-| `/markdown`   | 纯 mediaMarkdownCodecs，宿主显式加入自己的处理器                                     |
+| 入口          | 用途                                                                               |
+| ------------- | ---------------------------------------------------------------------------------- |
+| 根入口        | 完整组合、单个扩展、外观工厂、插入函数及本地文件/网络地址入口                      |
+| `/services`   | 媒体 Provider、操作、外观及 Image/Video/Audio 插槽的 token 和类型；运行时不加载 UI |
+| `/slots`      | 原生默认插槽和读取当前媒体插槽的 hook                                              |
+| `/types`      | 元素类型、外观类型、图库模式；通过公开 ElementMap 增强登记类型                     |
+| `/appearance` | 图片圆角/阴影选项与样式计算，供宿主设置界面消费                                    |
+| `/markdown`   | 纯 mediaMarkdownCodecs，宿主显式加入自己的处理器                                   |
 
 IEditorSlots 保留原标识，但只属于媒体领域；默认插槽可被宿主原生播放器替换。图片/图库组件及上传入口消费共用 IResourceService，上传成功返回文档可存储的地址；IFileService 用于宿主文件相关操作。媒体 Provider 等能力未注册时不出现对应业务入口，基础段落编辑器不需要这些服务。
 

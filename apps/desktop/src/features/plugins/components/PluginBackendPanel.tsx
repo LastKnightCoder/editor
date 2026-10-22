@@ -7,6 +7,7 @@ import {
 } from "@/commands/plugin-backend";
 import useSettingStore from "@/stores/useSettingStore";
 import type { BackendState } from "@tau/plugins/backend";
+import { SYSTEM_ACCESS_LABELS } from "../model";
 
 const labels: Record<BackendState, string> = {
   stopped: "未运行",
@@ -77,9 +78,8 @@ export function PluginBackendPanel({ pluginId }: { pluginId: string }) {
         <dd>{data.backend.lifetime === "persistent" ? "保持运行至所属范围结束" : "空闲时回收"}</dd>
         <dt>系统用途</dt>
         <dd>
-          {data.backend.systemAccess
-            .map(value => ({ filesystem: "文件", network: "网络", process: "外部程序" })[value])
-            .join("、") || "系统信息与计算"}
+          {data.backend.systemAccess.map(value => SYSTEM_ACCESS_LABELS[value]).join("、") ||
+            "系统信息与计算"}
         </dd>
       </dl>
       {data.status.diagnostics && (

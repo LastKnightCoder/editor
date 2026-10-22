@@ -22,8 +22,19 @@ import type {
   PluginPageParams,
   PluginSidebarIcon,
   PluginOwnEntityKind,
+  PluginHomePanelDefinition,
+  PluginActionDefinition,
+  PluginActionTarget,
+  PluginActionTargetKind,
+  PluginEntityRef,
+  PluginEntityPanelDefinition,
+  PluginEntityPanelKind,
 } from "@tau/plugins";
-import { registerPluginSkill } from "./skill-registry";
+import {
+  notifyPluginPackagesChanged,
+  notifyPluginSkillGateChanged,
+  setPluginSkillGate,
+} from "./skill-registry";
 import { registerPluginEntityKind } from "@/services/plugin-entity-kinds";
 import { toEntity } from "./entities";
 import {
@@ -31,23 +42,25 @@ import {
   normalizePageParams,
   type AppAdapter,
   type EntitiesAdapter,
+  type RecordsAdapter,
+  type LinksAdapter,
+  type TransactionAdapter,
   type EventsAdapter,
   type ExcerptsAdapter,
   type MaterialsAdapter,
   type FlashcardsAdapter,
   type MCPAdapter,
   type StorageAdapter,
+  type PluginSidebarItemState,
 } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
-import { DevelopmentPluginManager } from "./development-manager";
 import { LocalPluginManager } from "./local-manager";
 import {
   scanLocalPlugins,
   uninstallLocalPlugin,
   setLocalPluginEnabled,
 } from "@/commands/plugin-local";
-import type { DevelopmentSession } from "@/types/plugin-development";
 import type { DesktopPermissionBroker } from "./permissions";
 import type { DesktopDataAdapter } from "./data";
 
@@ -77,7 +90,44 @@ export interface PluginSidebarSnapshot {
     pageId: string;
     instanceId: string;
     open: () => Promise<void>;
+    /** 以子项参数打开条目的页面 */
+    openWith: (params: PluginPageParams) => Promise<void>;
+    /** 角标、子项与动作行单独订阅：插件高频 update 只重渲染这一条目，不经 publish */
+    subscribe: (listener: () => void) => () => void;
+    getState: () => PluginSidebarItemState;
   }[];
+}
+
+const EMPTY_SIDEBAR_STATE: PluginSidebarItemState = Object.freeze({
+  badge: 0,
+  children: Object.freeze([]),
+  action: null,
+});
+
+/** 首页的插件面板：同一注册期间对象不变，首页据此缓存包装组件 */
+export interface RegisteredPluginHomePanel {
+  /** 布局 ID：plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<Required<PluginHomePanelDefinition>>;
+  context: PluginContext;
+  mountId: number;
+}
+
+/** 详情区块：同一注册期间对象不变，详情页据此保持组件不重新挂载 */
+export interface RegisteredPluginEntityPanel {
+  /** plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<PluginEntityPanelDefinition>;
+  context: PluginContext;
+  mountId: number;
+}
+
+/** 对象动作：run 已由 PluginHost 包装，经 runAction 调用 */
+export interface RegisteredPluginAction {
+  /** plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<PluginActionDefinition>;
+  context: PluginContext;
 }
 
 export interface RegisteredPluginPage {
@@ -96,7 +146,6 @@ export interface RegisteredPluginSettings {
 
 export class DesktopPluginRuntime {
   readonly host: PluginHost;
-  development?: DevelopmentPluginManager;
   local?: LocalPluginManager;
   private readonly pages = new Map<string, RegisteredPluginPage>();
   private readonly settings = new Map<string, RegisteredPluginSettings>();
@@ -112,8 +161,15 @@ export class DesktopPluginRuntime {
       page: RegisteredPluginPage;
       context: PluginContext;
       instanceId: string;
+      state: PluginSidebarItemState;
+      listeners: Set<() => void>;
+      subscribe: (listener: () => void) => () => void;
+      getState: () => PluginSidebarItemState;
     }
   >();
+  private readonly homePanels = new Map<string, RegisteredPluginHomePanel>();
+  private readonly actions = new Map<string, RegisteredPluginAction>();
+  private readonly entityPanels = new Map<string, RegisteredPluginEntityPanel>();
   private readonly editorContributions = new Map<
     string,
     { context: PluginContext; contribution: PluginEditorContribution }
@@ -145,10 +201,14 @@ export class DesktopPluginRuntime {
       events?: EventsAdapter;
       app?: AppAdapter;
       entities?: EntitiesAdapter;
+      records?: RecordsAdapter;
+      links?: LinksAdapter;
+      transaction?: TransactionAdapter;
+      /** 用户对某个对象运行插件动作时，把它登记为插件选择过的引用（同 pick） */
+      grantRefs?: (pluginId: string, refs: PluginEntityRef[]) => Promise<void>;
       /** 卸载并清除数据时删除插件在当前库的私有存储 */
       purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
-      reloadCounts?: Map<string, number>;
     }
   ) {
     this.host = new PluginHost({
@@ -169,7 +229,6 @@ export class DesktopPluginRuntime {
       excerpts: options.excerpts,
       materials: options.materials,
       flashcards: options.flashcards,
-      skills: { register: registerPluginSkill },
       mcp: options.mcp,
       permissions: options.permissions,
       data: options.data,
@@ -180,10 +239,18 @@ export class DesktopPluginRuntime {
         ...options.entities,
         registerKind: (context, definition) => this.registerEntityKind(context, definition),
       },
+      records: options.records,
+      links: options.links,
+      transaction: options.transaction,
       chat: desktopPluginChat,
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
+      home: { registerPanel: (context, definition) => this.registerHomePanel(context, definition) },
+      actions: { register: (context, definition) => this.registerAction(context, definition) },
+      views: {
+        registerEntityPanel: (context, definition) => this.registerEntityPanel(context, definition),
+      },
       sidebar: {
         registerGroup: (context, definition) => this.registerSidebarGroup(context, definition),
         registerItem: (context, definition, pageId) =>
@@ -200,7 +267,9 @@ export class DesktopPluginRuntime {
       this.publish();
       rendererImagesRegistry.notifyChanged();
       rendererPublishRegistry.notifyChanged();
+      notifyPluginSkillGateChanged();
     });
+    setPluginSkillGate(id => !this.disposed && this.host.getState(id) === "active");
     options.plugins.forEach(plugin => this.host.registerTrusted(plugin));
   }
 
@@ -221,24 +290,15 @@ export class DesktopPluginRuntime {
       scanLocalPlugins,
       async () => (await import("./shared-modules")).sharedPluginModules,
       preferences,
-      this.publish,
+      () => {
+        this.publish();
+        notifyPluginPackagesChanged();
+      },
       uninstallLocalPlugin,
       setLocalPluginEnabled,
       this.options.purgeStorage
     );
     return this.local;
-  }
-  attachDevelopment(session: DevelopmentSession) {
-    this.development = new DevelopmentPluginManager(
-      this.host,
-      session,
-      async () => (await import("./shared-modules")).sharedPluginModules,
-      undefined,
-      this.publish,
-      this.options.reloadCounts
-    );
-    this.publish();
-    return this.development;
   }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -257,6 +317,49 @@ export class DesktopPluginRuntime {
     )
       return undefined;
     return page;
+  }
+
+  listHomePanels(): RegisteredPluginHomePanel[] {
+    if (this.disposed) return [];
+    return [...this.homePanels.values()].filter(
+      ({ context }) => !context.signal.aborted && this.host.getState(context.pluginId) === "active"
+    );
+  }
+
+  /** 某类对象详情里的插件区块，按注册顺序 */
+  listEntityPanels(kind: PluginEntityPanelKind): RegisteredPluginEntityPanel[] {
+    if (this.disposed) return [];
+    return [...this.entityPanels.values()].filter(
+      ({ context, definition }) =>
+        definition.kinds.includes(kind) &&
+        !context.signal.aborted &&
+        this.host.getState(context.pluginId) === "active"
+    );
+  }
+
+  /** 某类对象可用的插件动作，按注册顺序 */
+  listActions(kind: PluginActionTargetKind): RegisteredPluginAction[] {
+    if (this.disposed) return [];
+    return [...this.actions.values()].filter(
+      ({ context, definition }) =>
+        definition.targets.includes(kind) &&
+        !context.signal.aborted &&
+        this.host.getState(context.pluginId) === "active"
+    );
+  }
+
+  /** 先登记引用再调用插件；插件停用或动作已注销时抛错 */
+  async runAction(action: RegisteredPluginAction, target: PluginActionTarget): Promise<void> {
+    if (!this.listActions(target.kind).includes(action)) throw new Error("插件动作不可用");
+    // 对话消息登记所在会话；文字不是引用，不登记
+    const ref =
+      target.kind === "chat-message"
+        ? { kind: target.session.kind, id: target.session.id }
+        : target.kind === "text"
+          ? null
+          : { kind: target.kind, id: target.id };
+    if (ref) await this.options.grantRefs?.(action.context.pluginId, [ref]);
+    await action.definition.run(target);
   }
 
   getEditorContributions(): PluginEditorContribution[] {
@@ -299,7 +402,64 @@ export class DesktopPluginRuntime {
           pageId: entry.pageId,
           instanceId: entry.instanceId,
           open: () => entry.definition.page.open(entry.definition.params),
+          openWith: (params: PluginPageParams) => entry.definition.page.open(params),
+          subscribe: entry.subscribe,
+          getState: entry.getState,
         })),
+    };
+  }
+
+  private registerEntityPanel(
+    context: PluginContext,
+    definition: Readonly<PluginEntityPanelDefinition>
+  ) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.entityPanels.has(id)) throw new Error(`详情区块已注册：${definition.id}`);
+    const panel = { id, definition, context, mountId: ++nextMountId };
+    this.entityPanels.set(id, panel);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.entityPanels.get(id) !== panel) return;
+        this.entityPanels.delete(id);
+        this.publish();
+      },
+    };
+  }
+
+  private registerAction(context: PluginContext, definition: Readonly<PluginActionDefinition>) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.actions.has(id)) throw new Error(`对象动作已注册：${definition.id}`);
+    const action = { id, definition, context };
+    this.actions.set(id, action);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.actions.get(id) !== action) return;
+        this.actions.delete(id);
+        this.publish();
+      },
+    };
+  }
+
+  private registerHomePanel(
+    context: PluginContext,
+    definition: Readonly<Required<PluginHomePanelDefinition>>
+  ) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.homePanels.has(id)) throw new Error(`首页面板已注册：${definition.id}`);
+    const panel = { id, definition, context, mountId: ++nextMountId };
+    this.homePanels.set(id, panel);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.homePanels.get(id) !== panel) return;
+        this.homePanels.delete(id);
+        this.publish();
+      },
     };
   }
 
@@ -332,18 +492,34 @@ export class DesktopPluginRuntime {
       throw new Error("不能向其他插件的分组注册条目");
     const page = this.pages.get(JSON.stringify([context.pluginId, pageId]));
     if (!page || page.context !== context) throw new Error("侧边栏页面不可用");
+    const listeners = new Set<() => void>();
     const entry = {
       context,
       definition,
       pageId,
       page,
       instanceId: pageInstanceId(page.definition, definition.params ?? {}),
+      state: EMPTY_SIDEBAR_STATE,
+      listeners,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      getState: () => entry.state,
     };
     this.sidebarItems.set(id, entry);
     this.publish();
     return {
+      update: (state: PluginSidebarItemState) => {
+        if (this.sidebarItems.get(id) !== entry) return;
+        entry.state = state;
+        listeners.forEach(listener => listener());
+      },
       dispose: () => {
         if (this.sidebarItems.get(id) === entry) this.sidebarItems.delete(id);
+        listeners.clear();
         this.publish();
       },
     };
@@ -430,7 +606,6 @@ export class DesktopPluginRuntime {
     if (this.disposed) return;
     this.disposed = true;
     this.local?.cancel();
-    this.development?.cancel();
     this.publish();
     try {
       await this.host.dispose();
@@ -440,11 +615,13 @@ export class DesktopPluginRuntime {
       this.sidebarGroups.clear();
       this.sidebarItems.clear();
       this.editorContributions.clear();
+      this.homePanels.clear();
+      this.actions.clear();
+      this.entityPanels.clear();
       this.options.permissions?.dispose();
       this.unsubscribe();
       this.publish();
       this.listeners.clear();
-      await this.development?.close();
     }
   }
 

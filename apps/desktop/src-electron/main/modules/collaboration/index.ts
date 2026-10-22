@@ -12,7 +12,9 @@ import {
   SOURCE_TYPES,
   createSharedDocument,
   collectSharedResources,
+  declareDocumentResources,
   downgradeSharedDocument,
+  readDocumentResources,
   readSharedContent,
   replaceText,
   upgradeLocalDocument,
@@ -31,6 +33,7 @@ import {
 import PathUtil from "../../utils/PathUtil";
 import databaseModule from "../database";
 import ContentTable from "../tables/content";
+import PluginElementResourcesTable from "../tables/plugin-element-resources";
 import { setExtraTableRefsProvider } from "../extra-table-refs";
 import {
   bindingMatches,
@@ -712,10 +715,12 @@ class CollaborationManager {
     const created = await this.client.request<{ id: string }>(url, "/v1/documents", "POST", {
       idempotencyKey,
     });
+    // 资源声明随文档共享：协作层与各成员只按文档携带的声明找资源
+    this.declareResources(db, session);
     // 先上传本地资源拿到引用映射，再一次性改写文档：升级必须是同步的最小编辑
     const resources = new Map<string, string>();
     const banner = session.doc.getMap("meta").get("bannerBg");
-    for (const reference of collectSharedResources(session.doc, session.privateNodes)) {
+    for (const reference of collectSharedResources(session.doc)) {
       const field = reference === banner ? "bannerBg" : "";
       const shared = await this.assets.shareReference(url, created.id, reference, field);
       if (shared !== reference) resources.set(reference, shared);
@@ -771,8 +776,9 @@ class CollaborationManager {
     if (!db?.open) throw new Error("请打开原内容所在数据库以完成结束共享");
     const serverUrl = session.info.serverUrl;
     const previousId = session.info.id;
+    this.declareResources(db, session);
     const resources = new Map<string, string>();
-    for (const reference of collectSharedResources(session.doc, session.privateNodes)) {
+    for (const reference of collectSharedResources(session.doc)) {
       const local = await this.assets.localizeReference(serverUrl, previousId, reference);
       if (local !== reference) resources.set(reference, local);
     }
@@ -880,6 +886,18 @@ class CollaborationManager {
     }
   }
 
+  /** 把本机已知的资源声明（内置与库里保存的插件声明）补进文档里出现、尚未声明的节点类型 */
+  private declareResources(
+    db: Parameters<typeof PluginElementResourcesTable.catalog>[0],
+    session: RuntimeSession
+  ) {
+    declareDocumentResources(
+      session.doc,
+      PluginElementResourcesTable.catalog(db),
+      readSharedContent(session.doc).content
+    );
+  }
+
   private async project(session: RuntimeSession) {
     if (!session.info.source || this.projecting.has(session.info.id)) return;
     const database = databaseModule.getDatabase(session.info.source.databaseName);
@@ -890,8 +908,10 @@ class CollaborationManager {
       if (!source) return;
       const local = session.info.mode === "local";
       if (local && findCollaborationBinding(database, source.contentId)) return;
-      if (session.info.status === "active" && !session.info.frozen && !session.info.leaving)
+      if (session.info.status === "active" && !session.info.frozen && !session.info.leaving) {
         patchSessionNodes(session, diaryLinkPatcher(database));
+        if (!local) this.declareResources(database, session);
+      }
       if (!local) {
         restorePrivateNodes(database, source, session.privateNodes);
         this.store.privateNodes(session.info.id, session.privateNodes);
@@ -903,7 +923,8 @@ class CollaborationManager {
         : await this.assets.localize(
             session.info.serverUrl,
             session.info.id,
-            readSharedContent(session.doc, session.privateNodes, viewActiveTabs)
+            readSharedContent(session.doc, session.privateNodes, viewActiveTabs),
+            readDocumentResources(session.doc)
           );
       if (
         databaseModule.getDatabase(source.databaseName) !== database ||

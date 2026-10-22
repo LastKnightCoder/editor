@@ -1,11 +1,12 @@
 /**
  * 脉络浮层内容，分区顺序（KL-023）：来源、连接（显式 content_links ∪ 内联引用，含添加/解除）、
- * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、相关问题，
+ * 被引用（来源 + 原文片段，被引用的标题在句中点亮）、也出现在、衍生、被使用、被关联（插件内容经
+ * context.links 关联了它，按插件声明的类型名与图标显示），
  * 末尾「相关」（KL-057，语义相近但还没有关系，不计入关联数）。
  * 只负责展示与点击回调，数据与开合由 ContextBadge 管理；「连接」分区自带增删动作。
  */
 
-import { CircleHelp, Link2 } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { EntityRef } from "@/entity/ref";
 import type { InlineRefSnippet } from "@/entity/inline-refs";
@@ -13,12 +14,10 @@ import type {
   ContextEntity,
   ContextLineageItem,
   ContextOpenTarget,
-  ContextQuestion,
   ContextRelated,
   ContextUsage,
   EntityContext,
 } from "@/types/entity-context";
-import { STATUS_META } from "@/features/questions/model";
 import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_ICON } from "../model";
 import { useEntityKindMeta } from "@/components/EntityKind";
 import { ContextRow as Row, ContextSection as Section } from "./ContextList";
@@ -29,7 +28,6 @@ interface ContextPopoverContentProps {
   /** 自身实体地址与正文（连接分区的动作落点与排除项） */
   self: EntityRef;
   onOpenEntity: (ref: EntityRef) => void;
-  onOpenQuestion: (questionId: number) => void;
   onOpenTarget: (target: ContextOpenTarget) => void;
   /** 「相关」分区；未取到时不显示 */
   related?: ContextRelated[];
@@ -40,12 +38,6 @@ interface ContextPopoverContentProps {
   /** 连接选择器弹窗开合上报（宿主浮层据此锁定，防外点误关） */
   onDialogOpenChange?(open: boolean): void;
 }
-
-const STATUS_TONE: Record<ContextQuestion["status"], string> = {
-  not_started: "text-ink-3",
-  in_progress: "text-warn",
-  resolved: "text-ok",
-};
 
 function SourceLine({ entity }: { entity: ContextEntity }) {
   const { icon: Icon, label } = useEntityKindMeta(entity.ref, ENTITY_KIND_META[entity.ref.kind]);
@@ -141,7 +133,7 @@ const EMPTY: Omit<EntityContext, "self" | "selfContentIds"> = {
   backlinks: [],
   backlinkTotal: 0,
   projections: [],
-  questions: [],
+  pluginLinks: [],
   sources: [],
   derived: [],
   notebookProjections: [],
@@ -152,7 +144,6 @@ export function ContextPopoverContent({
   context,
   self,
   onOpenEntity,
-  onOpenQuestion,
   onOpenTarget,
   related = [],
   onConnect,
@@ -165,7 +156,7 @@ export function ContextPopoverContent({
     backlinks,
     backlinkTotal,
     projections,
-    questions,
+    pluginLinks,
     sources,
     derived,
     notebookProjections,
@@ -228,17 +219,11 @@ export function ContextPopoverContent({
           ))}
         </Section>
       )}
-      {questions.length > 0 && (
-        <Section title="相关问题">
-          {questions.map(question => (
-            <Row key={question.id} onClick={() => onOpenQuestion(question.id)}>
-              <span className="flex items-center gap-1.5 text-[13px]">
-                <CircleHelp className="text-ink-3 size-[13px] shrink-0" strokeWidth={1.75} />
-                <span className="text-ink-1 min-w-0 flex-1 truncate">{question.title}</span>
-                <span className={cn("shrink-0 text-[11.5px]", STATUS_TONE[question.status])}>
-                  {STATUS_META[question.status].label}
-                </span>
-              </span>
+      {pluginLinks.length > 0 && (
+        <Section title="被关联">
+          {pluginLinks.map(entity => (
+            <Row key={`${entity.ref.kind}:${entity.ref.id}`} onClick={() => openEntityRow(entity)}>
+              <SourceLine entity={entity} />
             </Row>
           ))}
         </Section>

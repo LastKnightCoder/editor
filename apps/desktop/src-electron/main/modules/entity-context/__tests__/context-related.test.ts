@@ -14,8 +14,6 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 
 import ContentAiMetaTable from "../../tables/content-ai-meta";
-import QuestionLinkTable from "../../tables/question-link";
-import QuestionTable from "../../tables/question";
 import { ensureRelatedThreshold, relatedOf, sampleRelatedThreshold } from "../context-related";
 
 const DIM = 8;
@@ -120,12 +118,6 @@ describe("脉络「相关」", () => {
          VALUES ('card', ?, 'card', ?, 'derived', 1)`
       )
       .run(String(self.id), String(lineage.id));
-    const sameQuestion = addCard("同一问题的材料", near(0));
-    const questionId = QuestionTable.captureQuestion(main, "问题").question.id;
-    QuestionLinkTable.linkTargets(main, questionId, [
-      { targetType: "card", targetId: self.id },
-      { targetType: "card", targetId: sameQuestion.id },
-    ]);
     const related = Array.from({ length: 7 }, (_, i) => addCard(`相关 ${i}`, near(0)));
     // 共用正文的项目文档：同一份正文只出一次
     const doc = Number(
@@ -146,7 +138,7 @@ describe("脉络「相关」", () => {
     const result = relatedOf(main, index, { kind: "card", id: self.id });
     expect(result).toHaveLength(5);
     const keys = result.map(item => `${item.entity.ref.kind}:${item.entity.ref.id}`);
-    for (const excluded of [self, linked, backlink, lineage, sameQuestion]) {
+    for (const excluded of [self, linked, backlink, lineage]) {
       expect(keys).not.toContain(`card:${excluded.id}`);
     }
     expect(

@@ -7,8 +7,9 @@ export const PLUGIN_CATEGORIES = [
   { id: "blog-template", label: "博客模板" },
   { id: "blog-publish", label: "博客发布" },
   { id: "ai", label: "AI" },
+  { id: "skill", label: "Skill" },
   { id: "voice", label: "语音" },
-  { id: "video", label: "在线视频" },
+  { id: "video", label: "视频" },
   { id: "page", label: "页面" },
 ] as const;
 

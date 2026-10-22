@@ -22,6 +22,7 @@ import {
 import type { PaperPalette } from "../paper";
 import { overlayProps, useReader } from "../readerContext";
 import { FloatToolbar } from "./FloatToolbar";
+import { ToolbarPluginActions } from "./PluginAnnotationActions";
 import { MarginColumn } from "./MarginColumn";
 import { NoteCard } from "./NoteCard";
 
@@ -244,6 +245,7 @@ export function PageLayer({ pageIndex, scale, width, height, paper }: PageLayerP
                   onAsk={() => reader.ask(record)}
                   onCopy={() => reader.copy(record)}
                   onDelete={() => reader.remove(record)}
+                  extra={<ToolbarPluginActions recordId={record.id} />}
                 />
               </Anchor>
             );

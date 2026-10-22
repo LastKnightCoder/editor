@@ -9,7 +9,6 @@ describe("公开搜索数据", () => {
     const payload = buildPublishSearchIndexPayload({
       cards: [],
       articles: [],
-      quests: [],
       docs: [
         {
           id: 34,
@@ -52,7 +51,6 @@ describe("公开搜索数据", () => {
       ],
       articles: [],
       docs: [],
-      quests: [],
     };
     const first = buildPublishSearchIndexPayload(input);
     expect(first.documents[0].content).toContain("indexedKeyword");

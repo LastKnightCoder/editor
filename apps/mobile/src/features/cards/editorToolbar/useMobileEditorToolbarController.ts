@@ -7,7 +7,6 @@ import { insertHighlightBlock } from "@tau/editor/extensions/highlight-block";
 import { insertTable } from "@tau/editor/extensions/table";
 import { insertCheckList } from "@tau/editor/extensions/list";
 import { insertAnnotation } from "@tau/editor/extensions/annotation";
-import { insertImageGallery } from "@tau/editor/extensions/media";
 import { insertMermaid } from "@tau/editor/extensions/diagram";
 import { insertCodeBlock } from "@tau/editor/extensions/code-block";
 import { insertBlockMath } from "@tau/editor/extensions/math";
@@ -54,7 +53,6 @@ export type InsertSheetItemKind =
   | "image-url"
   | "video-url"
   | "audio-url"
-  | "image-gallery"
   | "table"
   | "code-block"
   | "check-list"
@@ -246,7 +244,6 @@ export function useMobileEditorToolbarController(
     "camera",
     "video",
     "audio",
-    "image-gallery",
     "table",
     "code-block",
     "check-list",
@@ -312,9 +309,6 @@ export function useMobileEditorToolbarController(
           void openMediaUrlInput(editor, mediaType);
           break;
         }
-        case "image-gallery":
-          insertImageGallery(editor);
-          break;
         case "tabs":
           insertTabs(editor);
           break;

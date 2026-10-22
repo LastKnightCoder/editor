@@ -1,13 +1,19 @@
 /**
- * 正文里的资源引用（图片 / 音视频 / 附件）：承载地址的字段清单、遍历改写与字节读取。
- * 导出打包、导入入库、PDF 内联共用这一处；新增带资源的块类型只改 mapAssetUrls。
+ * 正文里的资源引用（图片 / 音视频 / 附件）：遍历改写与字节读取。
+ * 导出打包、导入入库、PDF 内联共用这一处；哪些字段是资源只看节点的资源声明。
  */
 
 import type { Descendant } from "slate";
+import {
+  mapNodeResources,
+  type ContentResourceDeclarations,
+  type ContentResourceKind,
+} from "@tau/db-schema/content-resources";
 import { readBinaryFile } from "@/commands/file";
 import { getMediaMimeType, resolveLocalMediaPath } from "@/utils/localMediaPath";
+import { contentResourceDeclarations } from "@/services/content-resources";
 
-export type AssetKind = "image" | "audio" | "video" | "file";
+export type AssetKind = ContentResourceKind;
 
 /** 改写一个资源地址；返回 undefined 保持原值 */
 export type AssetUrlMapper = (url: string, kind: AssetKind) => string | undefined;
@@ -20,18 +26,6 @@ export const isDataUri = (value: string) => value.startsWith("data:");
 /** 只有本机文件与 data URI 需要随内容搬运；远程地址、blob 与空值原样保留 */
 export const isPortableAssetSource = (value: string) =>
   !!value && !isRemoteUrl(value) && !value.startsWith("blob:");
-
-const mapField = (
-  record: SlateRecord,
-  field: string,
-  kind: AssetKind,
-  mapper: AssetUrlMapper
-): SlateRecord => {
-  const value = record[field];
-  if (typeof value !== "string" || !value.trim()) return record;
-  const next = mapper(value.trim(), kind);
-  return next === undefined ? record : { ...record, [field]: next };
-};
 
 export interface MapAssetOptions {
   /** 新地址是资源存储的上传结果（附件 isLocal=false，与插入附件时「上传」一致）；否则视为引用本机文件 */
@@ -52,39 +46,23 @@ const mapAttachment = (
   return { ...rest, filePath: next, isLocal: !options.uploaded && !isRemoteUrl(next) };
 };
 
-const mapNode = (node: unknown, mapper: AssetUrlMapper, options: MapAssetOptions): unknown => {
+const mapNode = (
+  node: unknown,
+  mapper: AssetUrlMapper,
+  options: MapAssetOptions,
+  declarations: ContentResourceDeclarations
+): unknown => {
   if (!node || typeof node !== "object") return node;
   let record = node as SlateRecord;
-  switch (record.type) {
-    case "image":
-      record = mapField(mapField(record, "url", "image", mapper), "previewUrl", "image", mapper);
-      break;
-    case "inline-image":
-      record = mapField(record, "url", "image", mapper);
-      break;
-    case "image-gallery":
-      if (Array.isArray(record.images)) {
-        record = {
-          ...record,
-          images: record.images.map(image =>
-            mapField(image as SlateRecord, "url", "image", mapper)
-          ),
-        };
-      }
-      break;
-    case "audio":
-      record = mapField(record, "src", "audio", mapper);
-      break;
-    case "video":
-      record = mapField(record, "src", "video", mapper);
-      break;
-    case "file-attachment":
-      record = mapAttachment(record, mapper, options);
-      break;
-  }
+  // 附件的本机副本与 isLocal 标记一起换，不按字段逐个改写
+  if (record.type === "file-attachment") record = mapAttachment(record, mapper, options);
+  else if (typeof record.type === "string")
+    record = mapNodeResources(record, declarations[record.type], (url, kind) =>
+      url.trim() ? mapper(url.trim(), kind) : undefined
+    );
   const original = record.children;
   if (Array.isArray(original)) {
-    const children = original.map(child => mapNode(child, mapper, options));
+    const children = original.map(child => mapNode(child, mapper, options, declarations));
     if (children.some((child, index) => child !== original[index])) {
       record = { ...record, children };
     }
@@ -96,18 +74,25 @@ const mapNode = (node: unknown, mapper: AssetUrlMapper, options: MapAssetOptions
 export const mapAssetUrls = (
   content: Descendant[],
   mapper: AssetUrlMapper,
-  options: MapAssetOptions = {}
-): Descendant[] => content.map(node => mapNode(node, mapper, options) as Descendant);
+  options: MapAssetOptions = {},
+  declarations: ContentResourceDeclarations = contentResourceDeclarations()
+): Descendant[] => content.map(node => mapNode(node, mapper, options, declarations) as Descendant);
 
 /** 收集正文中的资源地址（去重，保持出现顺序） */
 export const collectAssetUrls = (
-  content: Descendant[]
+  content: Descendant[],
+  declarations: ContentResourceDeclarations = contentResourceDeclarations()
 ): Array<{ url: string; kind: AssetKind }> => {
   const found = new Map<string, AssetKind>();
-  mapAssetUrls(content, (url, kind) => {
-    if (!found.has(url)) found.set(url, kind);
-    return undefined;
-  });
+  mapAssetUrls(
+    content,
+    (url, kind) => {
+      if (!found.has(url)) found.set(url, kind);
+      return undefined;
+    },
+    {},
+    declarations
+  );
   return [...found].map(([url, kind]) => ({ url, kind }));
 };
 

@@ -3,9 +3,18 @@ import { Eye } from "lucide-react";
 import { Tabs } from "@tau/ui";
 import type { PackageContent, Upload } from "../../../../contracts";
 import { Markdown } from "../../components/markdown/Markdown";
+import { hasSkillScripts } from "@tau/plugins/template";
 import { PackageFacts } from "./PackageFacts";
 
 type PreviewTab = "readme" | "changelog" | "files";
+
+/** 与审核闸门同一口径列出需要核对的 Skill 脚本文件 */
+function skillScripts(manifest: PackageContent["manifest"]) {
+  if (!("skills" in manifest) || !manifest.skills?.length) return [];
+  return Object.keys(manifest.integrity).filter(file =>
+    hasSkillScripts({ skills: manifest.skills, integrity: { [file]: manifest.integrity[file] } })
+  );
+}
 
 /** 包内 README / CHANGELOG / 文件清单，插件中心会原样展示前两者 */
 export function PackagePreview({
@@ -18,6 +27,7 @@ export function PackagePreview({
   const [tab, setTab] = useState<PreviewTab>("readme");
   const files = Object.keys(content.manifest.integrity).length;
   const backend = "backend" in content.manifest ? content.manifest.backend : undefined;
+  const scripts = skillScripts(content.manifest);
   const items = [
     { key: "readme" as const, label: "介绍", children: <Markdown source={content.readme} /> },
     ...(content.changelog
@@ -64,6 +74,20 @@ export function PackagePreview({
             </p>
           ))}
           <p>独立进程不等于系统权限沙箱；请核对本修订的源码、完整产物和包摘要。</p>
+        </aside>
+      )}
+      {scripts.length > 0 && (
+        <aside
+          aria-label="Skill 脚本"
+          className="border-warn bg-warn-soft text-ink-1 text-tau-sm rounded-tau-md mt-4 space-y-2 border p-4"
+        >
+          <h3 className="font-semibold">Skill 附带脚本 · 需要系统能力重点审核</h3>
+          <p>AI 助手经用户确认后可在用户本机执行这些脚本，执行时没有系统权限沙箱。</p>
+          {scripts.map(file => (
+            <p key={file} className="font-mono">
+              {file}
+            </p>
+          ))}
         </aside>
       )}
     </section>

@@ -2,7 +2,7 @@
  * 今日页「重温」段的「今日漫步」牌堆：每天固定几张旧内容，翻完即止（明天换新的一叠）。
  * 左列 = 错位叠放的牌堆（当前 + 后两张）与动作条，右列 = 今日进度列表；
  * 翻牌走乐观 cursor（setQueryData）+ daily-advance 落库，当前牌首次露出记 seen；
- * 牌堆池为空时整块（含小节标题）不渲染。牌堆容器聚焦时 → = 下一张（无全局快捷键）。
+ * 牌堆池为空时整块不渲染。牌堆容器聚焦时 → = 下一张（无全局快捷键）。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -23,7 +23,6 @@ import { openWalkItem } from "@/features/walk/open";
 import { WALK_KIND_META, formatWalkWhy } from "@/features/walk/model";
 import type { WalkDailyDeck, WalkItem } from "@/types";
 import { useTodayWalkDeck, walkDeckKey } from "../walkDeckQueries";
-import { SectionHeading } from "./SectionHeading";
 
 /** 翻牌时长：飞出、前移、补位共用一条过渡，结束时才推进 cursor（飞走的牌不被截断） */
 const FLIP_MS = 320;
@@ -134,164 +133,161 @@ export function WalkDeckPanel() {
   if (loading || n === 0) return null;
 
   return (
-    <>
-      <SectionHeading title="重温" className="pt-3" />
-      <Panel variant="outline" pad="compact">
-        <PanelTitle className="mb-2.5">
-          <Footprints className="text-accent size-3.5" strokeWidth={1.75} />
-          今日漫步
-          <PanelNote className="tabular-nums">{done ? "已走完" : `${cursor + 1} / ${n}`}</PanelNote>
-          <PanelAction onClick={() => navigator.push("walk")} title="进入漫步页">
-            进入漫步页
-            <ChevronRight size={13} strokeWidth={1.75} />
-          </PanelAction>
-        </PanelTitle>
+    <Panel variant="outline" pad="compact">
+      <PanelTitle className="mb-2.5">
+        <Footprints className="text-accent size-3.5" strokeWidth={1.75} />
+        今日漫步
+        <PanelNote className="tabular-nums">{done ? "已走完" : `${cursor + 1} / ${n}`}</PanelNote>
+        <PanelAction onClick={() => navigator.push("walk")} title="进入漫步页">
+          进入漫步页
+          <ChevronRight size={13} strokeWidth={1.75} />
+        </PanelAction>
+      </PanelTitle>
 
-        <div className="@max-[860px]:grid-cols-1 grid grid-cols-[minmax(0,760px)_minmax(200px,1fr)] gap-8">
-          {/* 左列：牌堆 + 动作条 */}
-          <div className="flex flex-col gap-3">
-            <div
-              tabIndex={0}
-              aria-label="今日漫步牌堆"
-              className="rounded-tau-lg relative mb-5 h-[248px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
-              onKeyDown={e => {
-                if (e.key === "ArrowRight") {
-                  e.preventDefault();
-                  goNext();
-                }
-              }}
-            >
-              {done ? (
-                <div className="motion-safe:animate-walk-in border-line-2 text-ink-3 rounded-tau-lg absolute inset-0 flex flex-col items-center justify-center gap-2 border border-dashed text-center">
-                  <Footprints className="size-6" strokeWidth={1.75} />
-                  <p className="text-tau-body text-ink-1 font-medium">今天的 {n} 张走完了</p>
-                  <p className="text-tau-meta text-ink-3">明天会有新的 {n} 张</p>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Shuffle}
-                      loading={rerolling}
-                      onClick={() => void reroll()}
-                    >
-                      再抽 5 张
-                    </Button>
-                    <Button variant="primary" size="sm" onClick={() => navigator.push("walk")}>
-                      去漫步页继续走
-                    </Button>
-                  </div>
+      <div className="@max-[860px]:grid-cols-1 grid grid-cols-[minmax(0,760px)_minmax(200px,1fr)] gap-8">
+        {/* 左列：牌堆 + 动作条 */}
+        <div className="flex flex-col gap-3">
+          <div
+            tabIndex={0}
+            aria-label="今日漫步牌堆"
+            className="rounded-tau-lg relative mb-5 h-[248px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+            onKeyDown={e => {
+              if (e.key === "ArrowRight") {
+                e.preventDefault();
+                goNext();
+              }
+            }}
+          >
+            {done ? (
+              <div className="motion-safe:animate-walk-in border-line-2 text-ink-3 rounded-tau-lg absolute inset-0 flex flex-col items-center justify-center gap-2 border border-dashed text-center">
+                <Footprints className="size-6" strokeWidth={1.75} />
+                <p className="text-tau-body text-ink-1 font-medium">今天的 {n} 张走完了</p>
+                <p className="text-tau-meta text-ink-3">明天会有新的 {n} 张</p>
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={Shuffle}
+                    loading={rerolling}
+                    onClick={() => void reroll()}
+                  >
+                    再抽 5 张
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => navigator.push("walk")}>
+                    去漫步页继续走
+                  </Button>
                 </div>
-              ) : (
-                // key 绑这一叠的首张：初次加载与重抽时整叠入场，翻牌时不重挂
-                <div
-                  key={items[0] ? deckItemKey(items[0]) : "empty"}
-                  className="motion-safe:animate-walk-in absolute inset-0"
-                >
-                  {([3, 2, 1, 0] as const).map(offset => {
-                    const item = items[cursor + offset];
-                    if (!item) return null;
-                    return (
-                      <DeckCard
-                        key={deckItemKey(item)}
-                        item={item}
-                        offset={offset}
-                        advancing={advancing}
-                        onOpen={offset === 0 ? () => openWalkItem(item) : undefined}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {!done && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={Footprints}
-                  disabled={advancing}
-                  onClick={() => current && navigator.push("walk", { from: deckItemKey(current) })}
-                >
-                  从这里继续走
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={EyeOff}
-                  disabled={advancing}
-                  onClick={() => void muteCurrent()}
-                >
-                  别再出现
-                </Button>
-                <span className="flex-1" />
-                <Button variant="primary" size="sm" disabled={advancing} onClick={goNext}>
-                  {cursor === n - 1 ? "完成" : "下一张"}
-                  {/* 键帽叠在 accent 实心按钮上：半透明 ink-inverse 底只在主按钮内成立 */}
-                  <kbd className="text-tau-tiny font-tau-mono ml-1 rounded bg-[color-mix(in_srgb,var(--tau-ink-inverse)_22%,transparent)] px-1">
-                    →
-                  </kbd>
-                </Button>
+              </div>
+            ) : (
+              // key 绑这一叠的首张：初次加载与重抽时整叠入场，翻牌时不重挂
+              <div
+                key={items[0] ? deckItemKey(items[0]) : "empty"}
+                className="motion-safe:animate-walk-in absolute inset-0"
+              >
+                {([3, 2, 1, 0] as const).map(offset => {
+                  const item = items[cursor + offset];
+                  if (!item) return null;
+                  return (
+                    <DeckCard
+                      key={deckItemKey(item)}
+                      item={item}
+                      offset={offset}
+                      advancing={advancing}
+                      onOpen={offset === 0 ? () => openWalkItem(item) : undefined}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* 右列：今日进度列表 */}
-          <div className="@max-[860px]:hidden">
-            <p className="text-tau-micro text-ink-3 px-2 pb-1.5">今天的 {n} 张</p>
-            <ul>
-              {items.map((item, index) => {
-                const muted = mutedKeys.has(deckItemKey(item));
-                const isCurrent = index === cursor && !done;
-                const flipped = index < cursor;
-                const content = (
-                  <>
-                    <span
+          {!done && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={Footprints}
+                disabled={advancing}
+                onClick={() => current && navigator.push("walk", { from: deckItemKey(current) })}
+              >
+                从这里继续走
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={EyeOff}
+                disabled={advancing}
+                onClick={() => void muteCurrent()}
+              >
+                别再出现
+              </Button>
+              <span className="flex-1" />
+              <Button variant="primary" size="sm" disabled={advancing} onClick={goNext}>
+                {cursor === n - 1 ? "完成" : "下一张"}
+                {/* 键帽叠在 accent 实心按钮上：半透明 ink-inverse 底只在主按钮内成立 */}
+                <kbd className="text-tau-tiny font-tau-mono ml-1 rounded bg-[color-mix(in_srgb,var(--tau-ink-inverse)_22%,transparent)] px-1">
+                  →
+                </kbd>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* 右列：今日进度列表 */}
+        <div className="@max-[860px]:hidden">
+          <p className="text-tau-micro text-ink-3 px-2 pb-1.5">今天的 {n} 张</p>
+          <ul>
+            {items.map((item, index) => {
+              const muted = mutedKeys.has(deckItemKey(item));
+              const isCurrent = index === cursor && !done;
+              const flipped = index < cursor;
+              const content = (
+                <>
+                  <span
+                    className={cn(
+                      "size-[7px] flex-none rounded-full",
+                      flipped ? "bg-ink-3" : isCurrent ? "bg-accent" : "bg-line-2"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate",
+                      flipped ? "text-ink-2" : isCurrent ? "text-ink-1 font-medium" : "text-ink-3"
+                    )}
+                  >
+                    {item.title}
+                  </span>
+                  {muted && <span className="text-tau-tiny text-ink-3 ml-auto">已屏蔽</span>}
+                </>
+              );
+              return (
+                <li key={deckItemKey(item)}>
+                  {flipped ? (
+                    <button
+                      type="button"
+                      title="打开原文"
+                      onClick={() => openWalkItem(item)}
+                      className="ease-tau-out hover:bg-hover rounded-tau-sm text-tau-meta flex w-full min-w-0 items-center gap-2 px-2 py-[7px] text-left transition-[background] duration-[160ms]"
+                    >
+                      {content}
+                    </button>
+                  ) : (
+                    <div
                       className={cn(
-                        "size-[7px] flex-none rounded-full",
-                        flipped ? "bg-ink-3" : isCurrent ? "bg-accent" : "bg-line-2"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "min-w-0 flex-1 truncate",
-                        flipped ? "text-ink-2" : isCurrent ? "text-ink-1 font-medium" : "text-ink-3"
+                        "rounded-tau-sm text-tau-meta flex min-w-0 items-center gap-2 px-2 py-[7px]",
+                        isCurrent && "bg-hover"
                       )}
                     >
-                      {item.title}
-                    </span>
-                    {muted && <span className="text-tau-tiny text-ink-3 ml-auto">已屏蔽</span>}
-                  </>
-                );
-                return (
-                  <li key={deckItemKey(item)}>
-                    {flipped ? (
-                      <button
-                        type="button"
-                        title="打开原文"
-                        onClick={() => openWalkItem(item)}
-                        className="ease-tau-out hover:bg-hover rounded-tau-sm text-tau-meta flex w-full min-w-0 items-center gap-2 px-2 py-[7px] text-left transition-[background] duration-[160ms]"
-                      >
-                        {content}
-                      </button>
-                    ) : (
-                      <div
-                        className={cn(
-                          "rounded-tau-sm text-tau-meta flex min-w-0 items-center gap-2 px-2 py-[7px]",
-                          isCurrent && "bg-hover"
-                        )}
-                      >
-                        {content}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                      {content}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      </Panel>
-    </>
+      </div>
+    </Panel>
   );
 }
 

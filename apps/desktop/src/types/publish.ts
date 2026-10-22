@@ -1,14 +1,15 @@
 /**
  * 发布内容类型
  */
-export type PublishContentType = "card" | "article" | "project" | "quest";
+export type PublishContentType = "card" | "article" | "project";
 
 export interface PublishSiteConfig {
   templateId?: string;
   title: string;
-  description: string;
   publicUrl?: string;
   favicon?: IPublishFaviconConfig;
+  /** 按模板 id 保存的站点字段取值，发布时只取当前模板并按其声明解析 */
+  fields?: Record<string, Record<string, import("@tau/plugins").JsonValue>>;
 }
 export interface PublishRequest {
   providerType: "local" | "plugin";
@@ -128,22 +129,6 @@ export interface IPublishListItem {
   target: ContentRef;
   tags: string[];
   createTime: number;
-}
-
-export type IPublishQuestStatus = "not_started" | "in_progress" | "resolved";
-
-export interface IPublishQuestListItem {
-  id: number;
-  title: string;
-  summary: string;
-  target: ContentRef;
-  tags: string[];
-  groupId: number;
-  groupTitle: string;
-  status: IPublishQuestStatus;
-  answerCount: number;
-  createTime: number;
-  updateTime: number;
 }
 
 export interface IPublishDocCollectionItem {

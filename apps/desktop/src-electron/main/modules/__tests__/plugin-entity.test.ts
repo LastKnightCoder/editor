@@ -20,6 +20,7 @@ import { listContentIndexCandidates } from "../index-candidates";
 
 const scope = { databaseName: ":memory:", pluginId: "tau.weekly-review" };
 const DAY = 24 * 60 * 60 * 1000;
+const NEWEST = [{ builtin: "createdAt", direction: "desc" as const }];
 
 describe("PluginEntityTable", () => {
   let db: Database.Database;
@@ -40,8 +41,8 @@ describe("PluginEntityTable", () => {
   });
   afterEach(() => db.close());
 
-  it("新建持有一份空白正文，同一类型下 key 唯一，只读得到自己的内容", () => {
-    const created = note("2026-W43");
+  it("新建持有一份空白正文，同一类型下 key 唯一，只读得到自己的内容", async () => {
+    const created = await note("2026-W43");
     expect(created).toMatchObject({
       pluginId: "tau.weekly-review",
       kind: "note",
@@ -50,7 +51,7 @@ describe("PluginEntityTable", () => {
       meta: { week: "2026-W43" },
     });
     expect(refCount(created.contentId)).toBe(1);
-    expect(() => note("2026-W43")).toThrow("PLUGIN_CONFLICT:");
+    await expect(note("2026-W43")).rejects.toThrow("PLUGIN_CONFLICT:");
     expect(PluginEntityTable.find(db, { ...scope, kind: "note", key: "2026-W43" })?.id).toBe(
       created.id
     );
@@ -69,15 +70,124 @@ describe("PluginEntityTable", () => {
     );
   });
 
-  it("按创建时间倒序分页，修改校验 revision", () => {
-    const first = note("a");
-    note("b");
-    note("c");
-    const page = PluginEntityTable.query(db, { ...scope, query: { kind: "note", limit: 2 } });
+  it("新建可带初始正文，自有实体的正文可作为 copyOf 来源", async () => {
+    const created = await PluginEntityTable.create(db, {
+      ...scope,
+      input: {
+        kind: "note",
+        key: "2026-W44",
+        title: "",
+        meta: {},
+        content: { markdown: "# 本周" },
+      },
+    });
+    const raw = (contentId: number) =>
+      (
+        db.prepare("SELECT content FROM contents WHERE id = ?").get(contentId) as {
+          content: string;
+        }
+      ).content;
+    expect(raw(created.contentId)).toContain("本周");
+    const copy = await PluginEntityTable.create(db, {
+      ...scope,
+      input: {
+        kind: "note",
+        key: "2026-W45",
+        title: "",
+        meta: {},
+        content: { copyOf: { contentId: created.contentId, createdAt: created.contentCreatedAt } },
+      },
+    });
+    expect(copy.contentId).not.toBe(created.contentId);
+    expect(raw(copy.contentId)).toBe(raw(created.contentId));
+    expect(refCount(copy.contentId)).toBe(1);
+  });
+
+  it("共用正文：卡片、文章、项目文档引用插件内容的同一份正文，删除插件内容不影响它们", async () => {
+    const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
+    const answer = await PluginEntityTable.create(db, {
+      ...scope,
+      input: {
+        kind: "answer",
+        key: "a1",
+        title: "结论",
+        meta: {},
+        content: { markdown: "扇出大" },
+      },
+    });
+    const shareOf = { contentId: answer.contentId, createdAt: answer.contentCreatedAt };
+    const create = (entity: "card" | "article", extra: Record<string, unknown> = {}) =>
+      PluginDataTable.create(
+        db,
+        { ...scope, entity, input: { content: { shareOf }, ...extra } },
+        ctx
+      );
+    const card = await create("card", { tags: ["答案"], pinned: true });
+    expect(card).toMatchObject({ contentId: answer.contentId, tags: ["答案"], pinned: true });
+    await expect(create("card")).rejects.toThrow("这份正文已经是卡片");
+    const article = await create("article", { title: "B+ 树", tags: ["数据库"] });
+    expect(article).toMatchObject({
+      contentId: answer.contentId,
+      title: "B+ 树",
+      tags: ["数据库"],
+    });
+    await expect(create("article", { title: "再来" })).rejects.toThrow("这份正文已经是文章");
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const doc = await PluginDataTable.createDocument(db, {
+      ...scope,
+      input: { projectId: project.id, title: "答案", content: { shareOf } },
+    });
+    expect(doc.contentId).toBe(answer.contentId);
+    expect(refCount(answer.contentId)).toBe(4);
+    expect(PluginDataTable.sharedContent(db, { ...scope, source: shareOf })).toBe(answer.contentId);
+
+    // 只能共用本插件、仍然存在的内容
+    await expect(
+      PluginDataTable.create(
+        db,
+        {
+          ...scope,
+          pluginId: "other",
+          entity: "article",
+          input: { title: "x", content: { shareOf } },
+        },
+        ctx
+      )
+    ).rejects.toThrow("只能共用本插件内容的正文");
+    const stale = { contentId: answer.contentId, createdAt: answer.contentCreatedAt + 1 };
+    expect(() => PluginDataTable.sharedContent(db, { ...scope, source: stale })).toThrow(
+      "只能共用本插件内容的正文"
+    );
+    await expect(
+      PluginEntityTable.create(db, {
+        ...scope,
+        input: { kind: "answer", key: "a2", title: "", meta: {}, content: { shareOf } },
+      })
+    ).rejects.toThrow("shareOf 只能用于");
+
+    PluginEntityTable.remove(db, { ...scope, id: answer.id, expectedRevision: answer.revision });
+    expect(refCount(answer.contentId)).toBe(3);
+    expect(PluginDataTable.get(db, { ...scope, entity: "card", id: card.id })?.contentId).toBe(
+      answer.contentId
+    );
+  });
+
+  it("按创建时间倒序分页，修改校验 revision", async () => {
+    const first = await note("a");
+    await note("b");
+    await note("c");
+    const page = PluginEntityTable.query(db, {
+      ...scope,
+      query: { kind: "note", orderBy: NEWEST, limit: 2 },
+    });
     expect(page.items).toHaveLength(2);
     const rest = PluginEntityTable.query(db, {
       ...scope,
-      query: { kind: "note", limit: 2, cursor: page.cursor },
+      query: { kind: "note", orderBy: NEWEST, limit: 2, cursor: page.cursor },
     });
     expect([...page.items, ...rest.items].map(item => item.key).sort()).toEqual(["a", "b", "c"]);
     expect(rest.cursor).toBeUndefined();
@@ -100,8 +210,119 @@ describe("PluginEntityTable", () => {
     ).toThrow("PLUGIN_CONFLICT:");
   });
 
-  it("插件目录不在时记孤儿，宽限期内重新出现即撤销，超期删除并延迟释放正文", () => {
-    const created = note("2026-W43");
+  it("按索引字段筛选、排序与计数；分页跨过没有值的项，游标绑定查询", async () => {
+    const indexes = { status: "string", rank: "number", pinned: "boolean" } as const;
+    const question = (key: string, meta: Record<string, unknown>, title = key) =>
+      PluginEntityTable.create(db, {
+        ...scope,
+        input: { kind: "question", key, title, meta, indexes },
+      });
+    await question("a", { status: "open", rank: 2 });
+    await question("b", { status: "resolved", rank: 1, pinned: true });
+    await question("c", { status: "open" }, "100%_完成");
+    await question("d", { rank: 2 });
+    // 类型与声明不符的值按没有值处理
+    db.prepare("UPDATE plugin_entities SET meta = ? WHERE key = 'd'").run(
+      JSON.stringify({ rank: 2, status: 7 })
+    );
+    await question("e", { status: "open", rank: 3 });
+    await expect(question("f", { rank: "1" })).rejects.toThrow("number");
+
+    const keys = (query: Parameters<typeof PluginEntityTable.query>[1]["query"]) => {
+      const all: string[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = PluginEntityTable.query(db, {
+          ...scope,
+          query: { ...query, ...(cursor ? { cursor } : {}) },
+        });
+        all.push(...page.items.map(item => item.key));
+        cursor = page.cursor;
+      } while (cursor);
+      return all;
+    };
+    const rankAsc = [{ field: "rank", type: "number" as const, direction: "asc" as const }];
+    // 升序时没有值的排在最前，同值按 ID 兜底；每页一条也不重不漏
+    expect(keys({ kind: "question", orderBy: rankAsc, limit: 1 })).toEqual([
+      "c",
+      "b",
+      "a",
+      "d",
+      "e",
+    ]);
+    expect(
+      keys({
+        kind: "question",
+        orderBy: [{ field: "rank", type: "number", direction: "desc" }],
+        limit: 2,
+      })
+    ).toEqual(["e", "d", "a", "b", "c"]);
+    expect(
+      keys({
+        kind: "question",
+        where: [
+          { field: "status", type: "string", op: "ne", value: "resolved" },
+          { field: "rank", type: "number", op: "gte", value: 2 },
+        ],
+        orderBy: rankAsc,
+        limit: 10,
+      })
+    ).toEqual(["a", "d", "e"]);
+    expect(
+      keys({
+        kind: "question",
+        where: [{ field: "status", type: "string", op: "in", value: ["resolved", null] }],
+        orderBy: NEWEST,
+        limit: 10,
+      })
+    ).toEqual(["d", "b"]);
+    expect(
+      keys({
+        kind: "question",
+        where: [{ field: "pinned", type: "boolean", op: "eq", value: true }],
+        orderBy: NEWEST,
+        limit: 10,
+      })
+    ).toEqual(["b"]);
+    // 标题包含时通配符按原文匹配
+    expect(keys({ kind: "question", titleContains: "%_", orderBy: NEWEST, limit: 10 })).toEqual([
+      "c",
+    ]);
+    expect(
+      PluginEntityTable.count(db, {
+        ...scope,
+        filter: {
+          kind: "question",
+          where: [{ field: "status", type: "string", op: "eq", value: "open" }],
+        },
+      })
+    ).toBe(3);
+
+    const first = PluginEntityTable.query(db, {
+      ...scope,
+      query: { kind: "question", orderBy: rankAsc, limit: 2 },
+    });
+    expect(() =>
+      PluginEntityTable.query(db, {
+        ...scope,
+        query: { kind: "question", orderBy: NEWEST, limit: 2, cursor: first.cursor },
+      })
+    ).toThrow("游标");
+
+    const target = PluginEntityTable.find(db, { ...scope, kind: "question", key: "a" })!;
+    expect(() =>
+      PluginEntityTable.update(db, {
+        ...scope,
+        id: target.id,
+        patch: { meta: { status: 1 } },
+        expectedRevision: target.revision,
+        indexes: { question: indexes },
+      })
+    ).toThrow("string");
+  });
+
+  it("插件目录不在时记孤儿，宽限期内重新出现即撤销，超期删除并延迟释放正文", async () => {
+    const created = await note("2026-W43");
     const now = Date.now();
     const collect = (installed: Set<string> | null, at: number) =>
       PluginEntityTable.collectOrphans(db, { installed, now: at, graceMs: 7 * DAY });
@@ -130,8 +351,8 @@ describe("PluginEntityTable", () => {
     ]);
   });
 
-  it("删除可在 7 天内恢复：ID、key 与正文不变，编号不被新内容占用", () => {
-    const created = note("2026-W43");
+  it("删除可在 7 天内恢复：ID、key 与正文不变，编号不被新内容占用", async () => {
+    const created = await note("2026-W43");
     expect(() =>
       PluginEntityTable.remove(db, { ...scope, id: created.id, expectedRevision: "0" })
     ).toThrow("PLUGIN_CONFLICT:");
@@ -148,7 +369,7 @@ describe("PluginEntityTable", () => {
     expect(refCount(created.contentId)).toBe(0);
 
     // 新建不复用已删除的编号
-    const next = note("2026-W44");
+    const next = await note("2026-W44");
     expect(next.id).toBeGreaterThan(created.id);
 
     const [operation] = PluginDataTable.operations(db, scope);
@@ -173,17 +394,17 @@ describe("PluginEntityTable", () => {
     ).toThrow("已经恢复过了");
   });
 
-  it("插件重新创建了同一项内容时拒绝恢复", () => {
-    const created = note("2026-W43");
+  it("插件重新创建了同一项内容时拒绝恢复", async () => {
+    const created = await note("2026-W43");
     PluginEntityTable.remove(db, { ...scope, id: created.id, expectedRevision: created.revision });
-    note("2026-W43");
+    await note("2026-W43");
     const [operation] = PluginDataTable.operations(db, scope);
     expect(() =>
       PluginDataTable.restore(db, { databaseName: ":memory:", id: operation.id })
     ).toThrow("重新创建");
   });
 
-  it("类型外观随库保存，未变化不写入；插件卸载且内容清空后删除", () => {
+  it("类型外观随库保存，未变化不写入；插件卸载且内容清空后删除", async () => {
     const declare = (label: string, icon = "") =>
       PluginEntityTable.declareKind(db, { ...scope, kind: "note", label, icon });
     const icon = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h24"/></svg>';
@@ -196,7 +417,7 @@ describe("PluginEntityTable", () => {
       { pluginId: "tau.weekly-review", kind: "note", label: "每周笔记", icon },
     ]);
 
-    const created = note("2026-W43");
+    const created = await note("2026-W43");
     expect(
       PluginEntityTable.owners(db, { databaseName: ":memory:", ids: [created.id, 999] })
     ).toEqual([{ id: created.id, pluginId: "tau.weekly-review", kind: "note" }]);
@@ -213,8 +434,8 @@ describe("PluginEntityTable", () => {
     expect(PluginEntityTable.kinds(db, { databaseName: ":memory:" })).toEqual([]);
   });
 
-  it("进入检索：定位、展示、结果详情与索引候选", () => {
-    const created = note("2026-W43");
+  it("进入检索：定位、展示、结果详情与索引候选", async () => {
+    const created = await note("2026-W43");
     ContentTable.updateContent(db, created.contentId, {
       content: [{ type: "paragraph", children: [{ text: "这周读完了《置身事内》" }] }] as never,
     });

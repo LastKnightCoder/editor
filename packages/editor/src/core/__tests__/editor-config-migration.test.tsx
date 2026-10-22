@@ -10,7 +10,10 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor, createEditorKit, type EditorExtension } from "../index";
 import type { ElementRenderProps } from "../api";
 import { createHeaderExtension } from "@tau/editor/extensions/header";
-import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor/extensions/media";
+import {
+  type ImageAppearanceConfig,
+  type ImageAppearanceSource,
+} from "@tau/editor/extensions/media";
 import { useImageAppearance } from "../../extensions/media/src/extensions/image/appearanceOption";
 import headerExtension from "@tau/editor/extensions/header";
 import { default as linkExtension } from "@tau/editor/extensions/link";
@@ -104,7 +107,7 @@ describe("P4 EditorConfig 拆解", () => {
     });
   });
 
-  describe("appearance.image → image / image-gallery 扩展参数", () => {
+  describe("appearance.image → image 扩展参数", () => {
     const probe = async (option: Parameters<typeof useImageAppearance>[0]) => {
       const seen: Array<ImageAppearanceConfig | undefined> = [];
       const Probe = () => {
@@ -143,11 +146,11 @@ describe("P4 EditorConfig 拆解", () => {
       expect(seen.at(-1)).toEqual({ borderRadius: "lg", shadow: true });
     });
 
-    it("createImageExtensions 同时覆盖 image 与 image-gallery，并把参数交给块组件", () => {
+    it("createImageExtensions 覆盖 image，并把参数交给块组件", () => {
       const appearance = { borderRadius: "md" as const };
       const extensions = createImageExtensions({ appearance });
       const typeOf = (extension: EditorExtension) => extension.elements?.[0]?.type;
-      expect(extensions.map(typeOf)).toEqual(["image", "image-gallery"]);
+      expect(extensions.map(typeOf)).toEqual(["image"]);
       for (const extension of extensions) {
         const spec = extension.elements?.[0];
         if (!spec) throw new Error("图片工厂未提供元素声明");

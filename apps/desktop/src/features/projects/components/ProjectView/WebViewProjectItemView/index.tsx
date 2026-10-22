@@ -33,7 +33,7 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
+import { renderMenuEntries, usePluginMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Descendant, Path, Transforms } from "slate";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
@@ -782,7 +782,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     );
   }
 
+  // 剪藏成功后，剪藏本身作为材料接插件对象动作
+  const pluginEntries = usePluginMenuEntries(
+    savedWebClip ? { kind: "material", id: `web-clip:${savedWebClip.id}` } : null
+  );
+  const menuEntries = pluginEntries.insert(moreMenuItems);
+
   const handleMoreMenuClick = useMemoizedFn((key: string) => {
+    if (pluginEntries.select(key)) return;
     if (key === "cancel-parse") {
       void cancelAnyClip();
     } else if (key === "reparse-llm") {
@@ -1040,7 +1047,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               </button>
             }
           >
-            {renderMenuEntries(moreMenuItems, key => void handleMoreMenuClick(key))}
+            {renderMenuEntries(menuEntries, key => void handleMoreMenuClick(key))}
           </Menu>
         </div>
       </div>

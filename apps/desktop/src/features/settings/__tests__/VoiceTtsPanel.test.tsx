@@ -62,20 +62,18 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("缺失或停用插件时不创建语音实例、不展示迁移账号，底层配置保持不变", async () => {
+it("缺失或停用插件时不创建语音实例，账号照常显示，底层配置保持不变", async () => {
   const before = structuredClone(mocks.setting);
   const error = vi.spyOn(toast, "error");
   await render();
   expect(mocks.synthesize).not.toHaveBeenCalled();
-  expect(container.textContent).not.toContain("minimax-legacy");
-  expect(container.textContent).not.toContain("MiniMax");
-  expect(container.textContent).toContain("请选择提供商");
+  expect(container.textContent).toContain("MiniMax");
   expect(error).not.toHaveBeenCalled();
   expect(mocks.setting).toEqual(before);
   await act(async () => root.render(null));
 });
 
-it("插件启用后加载音色，停用后忽略在途失败并隐藏账号", async () => {
+it("插件启用后加载音色，停用后忽略在途失败且账号仍显示", async () => {
   let rejectVoices!: (error: Error) => void;
   mocks.voices.mockImplementation(
     () =>
@@ -95,7 +93,6 @@ it("插件启用后加载音色，停用后忽略在途失败并隐藏账号", a
   await act(async () => rejectVoices(new Error("语音插件未安装或未启用")));
   expect(mocks.synthesize).toHaveBeenCalledTimes(1);
   expect(error).not.toHaveBeenCalled();
-  expect(container.textContent).not.toContain("minimax-legacy");
-  expect(container.textContent).not.toContain("MiniMax");
+  expect(container.textContent).toContain("MiniMax");
   await act(async () => root.render(null));
 });
