@@ -6,17 +6,18 @@
 
 每个常设子系统一个文件或目录，替换式更新：只写「现在是什么」，改代码的同一提交里更新对应小节。
 
-| 位置                                                | 内容                                                                                                    |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [desktop.md](./architecture/desktop.md)             | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线                                             |
-| [design-system.md](./architecture/design-system.md) | UI 设计系统：token 三层体系、多主题机制、组件分层                                                       |
-| 包内文档                                            | database / whiteboard / editor 三包的架构手册在各包 `docs/architecture.md`；边界与公开入口见各包 README |
-| [collaboration.md](./architecture/collaboration.md) | 实时协作功能与架构                                                                                      |
-| [platform-rpc.md](./architecture/platform-rpc.md)   | 跨端架构：命令/能力分离与 Web 适配                                                                      |
-| [mobile.md](./architecture/mobile.md)               | 移动端页面栈与返回策略                                                                                  |
-| [plugin-system.md](./architecture/plugin-system.md) | 插件体系目标架构与能力                                                                                  |
-| [plugin-system/](./architecture/plugin-system/)     | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                              |
-| [knowledge-loop/](./architecture/knowledge-loop/)   | 知识闭环：产品方向与技术方案                                                                            |
+| 位置                                                          | 内容                                                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线                                             |
+| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                       |
+| 包内文档                                                      | database / whiteboard / editor 三包的架构手册在各包 `docs/architecture.md`；边界与公开入口见各包 README |
+| [collaboration.md](./architecture/collaboration.md)           | 实时协作功能与架构                                                                                      |
+| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                      |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略                                                                                  |
+| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                  |
+| [plugin-portability.md](./architecture/plugin-portability.md) | 跨端插件验证宿主；作者契约见 [SDK 包内文档](/packages/plugins/docs/portability.md)                      |
+| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                              |
+| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                            |
 
 ## decisions.md — 裁决规则
 
@@ -39,6 +40,7 @@
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射         |
 | [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | Umami 统计部署与埋点（旧版维护资料） |
 | [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                   |
+| [plugin-portability-spike.md](./guides/plugin-portability-spike.md) | 桌面、Android、iOS 插件验证操作      |
 
 ## tasks/ — 进行中任务
 

@@ -4,6 +4,9 @@
   "version": "0.2.0",
   "type": "module",
   "scripts": {
+    "dev:plugin-spike": "vite --mode plugin-spike --host 127.0.0.1",
+    "build:plugin-spike": "tsc && vite build --mode plugin-spike --outDir dist-plugin-spike",
+    "preview:plugin-spike": "vite preview --mode plugin-spike --outDir dist-plugin-spike --host 127.0.0.1 --port 2420 --strictPort",
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
     "predev:ios": "pnpm -w db:schema:prepare",
@@ -40,6 +43,7 @@
     "@tau/editor-collab": "workspace:*",
     "@tau/editor-source-view": "workspace:*",
     "@tau/markdown": "workspace:*",
+    "@tau/plugins": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
     "@tauri-apps/api": "^2",
@@ -68,6 +72,7 @@
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
     "@vitejs/plugin-react": "^4.6.0",
+    "esbuild": "^0.25.12",
     "tailwindcss": "^4.1.18",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"

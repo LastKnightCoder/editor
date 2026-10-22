@@ -1,4 +1,6 @@
 import { readNotificationOptions, type PluginNotificationOptions } from "./notifications";
+import { snapshotPluginEnvironment, type PluginEnvironment } from "./environment";
+import type { PluginNavigationEntry } from "./navigation";
 import type {
   Disposable,
   JsonValue,
@@ -1068,6 +1070,10 @@ export class PluginHost {
   constructor(
     private readonly options: {
       workspaceId: string;
+      environment?: PluginEnvironment;
+      navigation?: {
+        registerEntry(context: PluginContext, definition: PluginNavigationEntry): Disposable;
+      };
       backend?: (context: PluginContext) => import("./backend").PluginBackendClient;
       storage: StorageAdapter;
       pages?: PagesAdapter;
@@ -1125,7 +1131,12 @@ export class PluginHost {
     }
   ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
-    this.options = Object.freeze({ ...options });
+    this.options = Object.freeze({
+      ...options,
+      ...(options.environment
+        ? { environment: snapshotPluginEnvironment(options.environment) }
+        : {}),
+    });
     this.restartRequired = options.restartRequired ?? new Set();
   }
 
@@ -1352,6 +1363,15 @@ export class PluginHost {
   }
 
   private context(entry: Entry, activation: Activation): PluginContext {
+    const navigationIds = new Set<string>();
+    const environment =
+      this.options.environment ??
+      snapshotPluginEnvironment({
+        platform: "unknown",
+        layout: "unknown",
+        input: { touch: false, finePointer: false },
+        capabilities: [],
+      });
     const pages = new WeakMap<PluginPageHandle, { id: string; active: () => boolean }>();
     const mcps = new Map<string, PluginMCPDefinition>();
     const toolRenderers = new Set<string>();
@@ -1662,6 +1682,32 @@ export class PluginHost {
       return (backendClient ??= this.options.backend(context));
     };
     const context: PluginContext = {
+      environment,
+      navigation: Object.freeze({
+        registerEntry: (definition: PluginNavigationEntry) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (!definition.title.trim()) throw new Error("功能入口标题不能为空");
+          if (navigationIds.has(definition.id)) throw new Error("功能入口重复注册");
+          if (!pages.get(definition.page)?.active())
+            throw new Error("功能入口必须关联本插件有效页面");
+          if (!this.options.navigation) throw new Error("当前宿主不支持功能入口");
+          const handle = this.options.navigation.registerEntry(
+            context,
+            Object.freeze({
+              ...definition,
+              params: Object.freeze(normalizePageParams(definition.params ?? {})),
+            })
+          );
+          navigationIds.add(definition.id);
+          return register({
+            dispose: () => {
+              navigationIds.delete(definition.id);
+              return handle.dispose();
+            },
+          });
+        },
+      }),
       backend: Object.freeze<import("./backend").PluginBackendClient>({
         call: async (method, input, options) => {
           const result = await backend().call(method, copyJson(input), options);
