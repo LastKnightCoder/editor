@@ -193,6 +193,7 @@ const MathPopover = ({
                 <span className="select-none font-mono text-xs font-bold text-slate-400">TeX</span>
                 <input
                   ref={inputRef}
+                  data-inline-math-input=""
                   className="min-w-0 flex-1 border-none bg-transparent font-mono text-sm text-[var(--ed-text)] outline-none placeholder:text-slate-400"
                   defaultValue={tex}
                   onChange={e => onTexChange(e.target.value)}

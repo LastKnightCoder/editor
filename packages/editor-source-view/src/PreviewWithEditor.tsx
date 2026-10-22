@@ -388,6 +388,8 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
                 readOnly={readOnly}
                 className="ed-preview-codemirror h-auto"
                 onChange={handleInputChange}
+                // 失焦即落库：防抖在卸载时会被取消，失焦后紧接着离开页面不丢最后的输入
+                onBlur={() => flushChange()}
                 editorDidMount={editor => {
                   editorRef.current = editor;
                   const position = pendingFocusRef.current;

@@ -25,6 +25,7 @@ import {
   MobileEditorBottomToolbar,
   type AccessoryItemId,
 } from "../editorToolbar/MobileEditorBottomToolbar";
+import type { TableEditingContext } from "../editorToolbar/editingContext";
 import type { MobileEditorToolbarController } from "../editorToolbar/useMobileEditorToolbarController";
 import { createControllerStub } from "./toolbarControllerStub";
 
@@ -206,7 +207,7 @@ describe("MobileEditorBottomToolbar", () => {
 
   it("选中文字切到格式模式，「格式」标签折叠选区", () => {
     const controller = createController({
-      hasExpandedSelection: true,
+      editingContext: { kind: "selection" },
       isActionActive: vi.fn(actionId => actionId === "bold"),
     });
     render(controller);
@@ -254,7 +255,7 @@ describe("MobileEditorBottomToolbar", () => {
   it("格式模式下依赖选区的动作禁用", () => {
     render(
       createController({
-        hasExpandedSelection: true,
+        editingContext: { kind: "selection" },
         isActionDisabled: vi.fn(actionId => actionId === "comment"),
       })
     );
@@ -266,7 +267,7 @@ describe("MobileEditorBottomToolbar", () => {
   it("面板打开时回到通用模式，右端为键盘按钮，「+」切换为关闭", () => {
     const controller = createController({
       isEditorFocused: false,
-      hasExpandedSelection: true,
+      editingContext: { kind: "selection" },
       activePanel: "insert",
     });
     render(controller);
@@ -317,7 +318,9 @@ describe("MobileEditorBottomToolbar", () => {
     expect(getButtonLabels()).toEqual(["样式", "无序列表", "反缩进", "缩进", "撤销", "收起键盘"]);
     expect(getSeparators()).toHaveLength(1);
 
-    render(createController({ hasExpandedSelection: true }), { visibleButtons: flashcardButtons });
+    render(createController({ editingContext: { kind: "selection" } }), {
+      visibleButtons: flashcardButtons,
+    });
     expect(getButtonLabels()).toEqual(["格式", "加粗", "斜体", "下划线", "删除线", "样式"]);
   });
 
@@ -326,10 +329,138 @@ describe("MobileEditorBottomToolbar", () => {
     expect(getButtonLabels()).toEqual(["插入", "收起键盘"]);
     expect(getSeparators()).toHaveLength(0);
 
-    render(createController({ hasExpandedSelection: true }), {
+    render(createController({ editingContext: { kind: "selection" } }), {
       visibleButtons: new Set<AccessoryItemId>(["bold"]),
     });
     expect(getButtonLabels()).toEqual(["格式", "加粗"]);
     expect(getSeparators()).toHaveLength(0);
+  });
+
+  describe("表格上下文", () => {
+    const tableContext = (overrides: Partial<TableEditingContext> = {}): TableEditingContext => ({
+      kind: "table",
+      tablePath: [1],
+      row: 1,
+      col: 0,
+      rowCount: 3,
+      colCount: 2,
+      ...overrides,
+    });
+
+    it("左端「表格」标签、中段行列按钮与对齐、右端表格菜单，按钮调用 runTableAction", () => {
+      const controller = createController({ editingContext: tableContext() });
+      render(controller);
+
+      expect(getButtonLabels()).toEqual([
+        "表格",
+        "下方插行",
+        "右侧插列",
+        "删行",
+        "删列",
+        "对齐：左对齐",
+        "表格菜单",
+      ]);
+      expect(getButton("对齐：左对齐")?.getAttribute("aria-pressed")).toBe("false");
+
+      for (const [label, actionId] of [
+        ["下方插行", "insert-row-below"],
+        ["右侧插列", "insert-column-right"],
+        ["删行", "delete-row"],
+        ["删列", "delete-column"],
+        ["对齐：左对齐", "cycle-align"],
+      ] as const) {
+        clickButton(label);
+        expect(controller.runTableAction).toHaveBeenLastCalledWith(actionId);
+      }
+
+      clickButton("表格菜单");
+      expect(controller.openTableMenu).toHaveBeenCalled();
+
+      const chip = Array.from(getToolbar()?.querySelectorAll("button") ?? []).find(
+        button => button.textContent === "表格"
+      );
+      act(() => {
+        chip?.click();
+      });
+      expect(controller.dismissEditingContext).toHaveBeenCalled();
+    });
+
+    it("删行 / 删列按行列数禁用，对齐按钮显示当前对齐", () => {
+      render(
+        createController({
+          editingContext: tableContext({ rowCount: 2, colCount: 1 }),
+          getTableColumnAlign: vi.fn(() => "center" as const),
+        })
+      );
+      expect(getButton("删行")?.disabled).toBe(true);
+      expect(getButton("删列")?.disabled).toBe(true);
+      expect(getButton("删列")?.className).toContain("opacity-40");
+      expect(getButton("下方插行")?.disabled).toBe(false);
+      expect(getButton("对齐：居中")?.getAttribute("aria-pressed")).toBe("true");
+    });
+
+    it("被退回（上下文按 text 给出）时渲染通用模式", () => {
+      render(createController({ editingContext: { kind: "text" } }));
+      expect(getButton("表格菜单")).toBeNull();
+      expect(getButton("插入")).toBeTruthy();
+    });
+
+    it("白名单不含 context-table 时不出现表格上下文", () => {
+      render(createController({ editingContext: tableContext() }), {
+        visibleButtons: new Set<AccessoryItemId>(["undo"]),
+      });
+      expect(getButtonLabels()).toEqual(["撤销", "收起键盘"]);
+    });
+
+    it("面板打开时不显示表格上下文", () => {
+      render(createController({ editingContext: tableContext(), activePanel: "style" }));
+      expect(getButton("表格菜单")).toBeNull();
+      expect(getButton("键盘")).toBeTruthy();
+    });
+
+    it("表格菜单列出可用的移动项与删除表格，点击执行", () => {
+      const controller = createController({
+        editingContext: tableContext({ row: 0, col: 1 }),
+        isTableMenuOpen: true,
+      });
+      render(controller);
+      const labels = () =>
+        Array.from(document.querySelectorAll<HTMLButtonElement>("button")).map(
+          button => button.textContent ?? ""
+        );
+      expect(labels()).toEqual(
+        expect.arrayContaining(["下移此行", "左移此列", "删除表格", "取消"])
+      );
+      expect(labels()).not.toContain("上移此行");
+      expect(labels()).not.toContain("右移此列");
+
+      const deleteTable = Array.from(document.querySelectorAll("button")).find(
+        button => button.textContent === "删除表格"
+      );
+      act(() => {
+        deleteTable?.click();
+      });
+      expect(controller.runTableAction).toHaveBeenCalledWith("delete-table");
+    });
+  });
+
+  it("白名单不含 context-code 时，代码块上下文按通用模式渲染", () => {
+    render(
+      createController({
+        isEditorFocused: false,
+        isToolbarVisible: true,
+        editingContext: {
+          kind: "code",
+          element: { type: "code-block", children: [] } as never,
+          path: [2],
+          textarea: document.createElement("textarea"),
+          uuid: "code-1",
+          language: "ts",
+        },
+      }),
+      { visibleButtons: new Set<AccessoryItemId>(["plus", "undo"]) }
+    );
+    expect(getToolbar()).toBeTruthy();
+    expect(getButtonLabels()).toEqual(["插入", "撤销", "收起键盘"]);
   });
 });

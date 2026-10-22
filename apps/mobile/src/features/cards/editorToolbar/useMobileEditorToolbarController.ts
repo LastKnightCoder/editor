@@ -5,7 +5,7 @@ import { insertTabs } from "@tau/editor/extensions/tabs";
 import { insertCallout } from "@tau/editor/extensions/callout";
 import { insertDetails } from "@tau/editor/extensions/detail";
 import { insertHighlightBlock } from "@tau/editor/extensions/highlight-block";
-import { insertTable } from "@tau/editor/extensions/table";
+import { insertTable, type TableAlign } from "@tau/editor/extensions/table";
 import { insertCheckList } from "@tau/editor/extensions/list";
 import { insertAnnotation } from "@tau/editor/extensions/annotation";
 import { insertMermaid } from "@tau/editor/extensions/diagram";
@@ -53,6 +53,21 @@ import {
   type TextGradientOption,
   type UnderlineStylePayload,
 } from "./toolbarActions";
+import {
+  TEXT_CONTEXT,
+  getEditingContextKey,
+  isVoidEditorContext,
+  resolveTableContext,
+  useEditingContext,
+  type CodeEditingContext,
+  type EditingContext,
+} from "./editingContext";
+import { setCodeBlockLanguage as setCodeBlockLanguageOnEditor } from "./codeBlockInput";
+import {
+  getColumnAlign,
+  runTableAction as runTableActionOnEditor,
+  type TableActionId,
+} from "./tableActions";
 import {
   DEFAULT_KEYBOARD_SWAP_STRATEGY,
   clearKeyboardSwap,
@@ -112,13 +127,25 @@ type UseMobileEditorToolbarControllerOptions = {
 
 export type MobileEditorToolbarController = {
   isEditorFocused: boolean;
-  /** 编辑器聚焦或面板打开时配件栏可见（面板打开期间编辑器处于失焦） */
+  /** 编辑器聚焦、面板或表格菜单打开、焦点在 void 内部编辑器时配件栏可见（这些情况下 Slate 处于失焦） */
   isToolbarVisible: boolean;
+  /** 配件栏当前上下文；被手动退回的上下文按 text 给出 */
+  editingContext: EditingContext;
+  /** 把当前上下文退回通用模式，光标离开该上下文后自动恢复 */
+  dismissEditingContext: () => void;
+  /** 在光标所在表格上执行动作，执行后标记选区变化 */
+  runTableAction: (actionId: TableActionId) => void;
+  /** 设置代码块语言（经 tau.code-block.set-language 命令），不处理焦点 */
+  setCodeBlockLanguage: (context: CodeEditingContext, language: string) => void;
+  /** 光标所在列的对齐，不在表格内为 null */
+  getTableColumnAlign: () => TableAlign;
+  /** 表格「⋯」菜单开合：打开时保存选区，关闭时恢复选区与焦点 */
+  isTableMenuOpen: boolean;
+  openTableMenu: () => void;
+  closeTableMenu: () => void;
   activePanel: EditorPanelKind | null;
   /** 打开面板时保存的选区，面板内操作作用于它 */
   panelSelection: BaseSelection | null;
-  /** 选区存在且非折叠 */
-  hasExpandedSelection: boolean;
   /** 缩进命令无 when 可查，按钮常态可点 */
   canIndent: boolean;
   canOutdent: boolean;
@@ -180,6 +207,8 @@ export function useMobileEditorToolbarController(
   const [selectionVersion, setSelectionVersion] = useState(0);
   const [activePanel, setActivePanel] = useState<EditorPanelKind | null>(null);
   const [panelSelection, setPanelSelection] = useState<BaseSelection | null>(null);
+  const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
+  const [dismissedContextKey, setDismissedContextKey] = useState<string | null>(null);
   const reservation = useKeyboardReservation();
 
   const lastSelectionRef = useRef<BaseSelection | null>(null);
@@ -188,6 +217,8 @@ export function useMobileEditorToolbarController(
   const activePanelRef = useRef<EditorPanelKind | null>(null);
   const panelSelectionRef = useRef<BaseSelection | null>(null);
   const exitEditingListenerRef = useRef<(() => void) | null>(null);
+  const tableMenuOpenRef = useRef(false);
+  const tableMenuSelectionRef = useRef<BaseSelection | null>(null);
 
   const rememberPanelSelection = useCallback((selection: BaseSelection | null) => {
     panelSelectionRef.current = selection;
@@ -221,6 +252,13 @@ export function useMobileEditorToolbarController(
     if (activePanelRef.current) {
       if (panelSelectionRef.current) {
         Transforms.select(editor, panelSelectionRef.current);
+      }
+      return editor;
+    }
+    // 表格菜单打开期间同理：作用于打开时保存的选区，关闭菜单时再聚焦
+    if (tableMenuOpenRef.current) {
+      if (tableMenuSelectionRef.current) {
+        Transforms.select(editor, tableMenuSelectionRef.current);
       }
       return editor;
     }
@@ -693,13 +731,89 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [closePanel, editorRef, markSelectionDirty]);
 
-  const hasExpandedSelection = useMemo(() => {
+  const rawEditingContext = useEditingContext(editorRef, selectionVersion);
+  const rawContextKey = getEditingContextKey(rawEditingContext);
+
+  // 光标离开被退回的上下文即清除记录
+  useEffect(() => {
+    if (dismissedContextKey !== null && dismissedContextKey !== rawContextKey) {
+      setDismissedContextKey(null);
+    }
+  }, [dismissedContextKey, rawContextKey]);
+
+  const editingContext =
+    dismissedContextKey !== null && dismissedContextKey === rawContextKey
+      ? TEXT_CONTEXT
+      : rawEditingContext;
+
+  const dismissEditingContext = useCallback(() => {
+    setDismissedContextKey(rawContextKey);
+  }, [rawContextKey]);
+
+  const runTableAction = useCallback(
+    (actionId: TableActionId) => {
+      const editor = restoreEditorSelection();
+      if (!editor) return;
+      const tableContext = resolveTableContext(editor);
+      if (!tableContext) return;
+      runTableActionOnEditor(editor, actionId, tableContext);
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+        if (tableMenuOpenRef.current) {
+          tableMenuSelectionRef.current = editor.selection;
+        }
+      }
+      markSelectionDirty();
+    },
+    [markSelectionDirty, restoreEditorSelection]
+  );
+
+  const setCodeBlockLanguage = useCallback(
+    (context: CodeEditingContext, language: string) => {
+      const editor = getEditorFromRef(editorRef);
+      if (editor) setCodeBlockLanguageOnEditor(editor, context, language);
+    },
+    [editorRef]
+  );
+
+  const getTableColumnAlign = useCallback((): TableAlign => {
     void selectionVersion;
-    const selection = getEditorFromRef(editorRef)?.selection;
-    return !!selection && !Range.isCollapsed(selection);
+    const editor = getEditorFromRef(editorRef);
+    const tableContext = editor ? resolveTableContext(editor) : null;
+    return editor && tableContext ? getColumnAlign(editor, tableContext) : null;
   }, [editorRef, selectionVersion]);
 
-  const isToolbarVisible = isEditorFocused || activePanel !== null;
+  const openTableMenu = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return;
+    tableMenuSelectionRef.current = editor.selection ?? lastSelectionRef.current;
+    tableMenuOpenRef.current = true;
+    openSheetNextTick(() => setIsTableMenuOpen(true));
+  }, [editorRef, openSheetNextTick]);
+
+  const closeTableMenu = useCallback(() => {
+    if (!tableMenuOpenRef.current) return;
+    tableMenuOpenRef.current = false;
+    setIsTableMenuOpen(false);
+    const editor = getEditorFromRef(editorRef);
+    const saved = tableMenuSelectionRef.current;
+    tableMenuSelectionRef.current = null;
+    if (!editor) return;
+    if (saved) {
+      Transforms.select(editor, saved);
+    }
+    const nextSelection = restoreSelectionAndFocus(editor, saved);
+    if (nextSelection) {
+      lastSelectionRef.current = nextSelection;
+    }
+    markSelectionDirty();
+  }, [editorRef, markSelectionDirty]);
+
+  const isToolbarVisible =
+    isEditorFocused ||
+    activePanel !== null ||
+    isTableMenuOpen ||
+    isVoidEditorContext(rawEditingContext);
 
   const isActionDisabled = useCallback(
     (actionId: ToolbarActionId): boolean => {
@@ -782,7 +896,14 @@ export function useMobileEditorToolbarController(
       isToolbarVisible,
       activePanel,
       panelSelection,
-      hasExpandedSelection,
+      editingContext,
+      dismissEditingContext,
+      runTableAction,
+      setCodeBlockLanguage,
+      getTableColumnAlign,
+      isTableMenuOpen,
+      openTableMenu,
+      closeTableMenu,
       canIndent: true,
       canOutdent: true,
       openPanel,
@@ -821,7 +942,14 @@ export function useMobileEditorToolbarController(
       isToolbarVisible,
       activePanel,
       panelSelection,
-      hasExpandedSelection,
+      editingContext,
+      dismissEditingContext,
+      runTableAction,
+      setCodeBlockLanguage,
+      getTableColumnAlign,
+      isTableMenuOpen,
+      openTableMenu,
+      closeTableMenu,
       openPanel,
       togglePanel,
       closePanel,
