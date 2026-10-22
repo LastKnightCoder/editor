@@ -15,19 +15,14 @@
  * - 改动这里的解析规则后，必须把 whiteboard-indexer 的 WHITEBOARD_REF_VERSION 加一，
  *   否则已索引的页不会重解析；
  * - 「从白板元素转为卡片 / 文章」若是共用正文（投影）不记谱系，若复制出新正文则记谱系 derived
- *   （src 为白板页无法表达时，先在 docs/knowledge-loop/04 记决策再扩 LineageNode）。
+ *   （src 为白板页无法表达时，先在 /docs/decisions.md 记规则再扩 LineageNode）。
  */
 
 import { extractInlineRefs } from "./inline-refs";
 import { normalizeEntityRefKind } from "./ref";
 
 export type WhiteboardRefKind =
-  | "card"
-  | "article"
-  | "project-item"
-  | "diary-moment"
-  | "plugin-entity"
-  | "content";
+  "card" | "article" | "project-item" | "diary-moment" | "plugin-entity" | "content";
 
 /**
  * richtext：文本块；mind-node：思维导图节点关联的笔记；

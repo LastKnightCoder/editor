@@ -1,6 +1,6 @@
 /**
  * 知识地图主题质量评估：在真实库副本上跑完整计算，用节点自己的命名路径（tag / 项目路径）首段当参照。
- * 默认跳过；需要时设置环境变量指向库副本再跑（主进程测试要用 Electron 内置 Node，见 docs/knowledge-loop/05 踩坑）：
+ * 默认跳过；需要时设置环境变量指向库副本再跑（主进程测试要用 Electron 内置 Node）：
  *
  *   KL_MAP_EVAL_MAIN=/tmp/kl-m.db KL_MAP_EVAL_INDEX=/tmp/kl-i.db \
  *   ELECTRON_RUN_AS_NODE=1 npx electron ../../node_modules/vitest/vitest.mjs run knowledge-map.eval

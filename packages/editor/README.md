@@ -20,3 +20,28 @@ kit 只决定编辑器组合，不决定环境是否存在。默认与自定义 
 `/source-view` 提供编辑器源码预览组件，`/source` 提供块级/行内源码的通用渲染与操作，`/host-services` 提供通用平台能力契约，`/extensions/media/players` 提供音视频组件。`/ui` 提供编辑器和扩展共用的 UI 组件，不包含应用业务。
 
 各端继续通过工作区 @tau/editor 接入这份通用源码；对外博客渲染交付改由 scripts/blog/package-blog.mjs 构建一个 tau-blog 包。必要实现按依赖闭包随包交付，不复制源码，也不要求模板额外安装 Editor。已发布的 tau-editor 版本仅保留为历史交付。
+
+## 核心与扩展边界
+
+- 核心只内建 paragraph 与文本：文本节点与最小渲染、空文档补段、通用选区与导航、未知节点的保留降级归核心；领域节点（标题/列表/表格/媒体…）、快捷转换、格式效果、转换菜单归扩展。
+- 自研扩展与外部插件使用**同一套公开 API**；内置扩展不得深引核心内部文件、使用内部 store、要求核心新增类型分支。
+- `createEditorKit()` 只内建段落，产品功能显式装配；presets 只做组合不含业务服务，core 不反向依赖功能实现或默认组合。默认 Editor 组件在未提供/继承 kit 时装配通用默认组合。
+- 复制走专用贡献点：核心负责片段遍历与对应关系，领域扩展负责包装保留/解包；处理顺序先子后父，无贡献或失败时保留原片段，不吞内容。
+- 标记：核心承载 Slate attributes/children 与组合渲染，格式扩展贡献具体效果；缺扩展时保留文字与未知标记数据。
+- 转换菜单：核心提供命令分发与菜单挂载机制，扩展定义转换条件与目标构造；核心不持有领域类型名单。
+- paragraph 始终存在且不可被扩展替换；保留 `paragraph`/`formatted` 等存量数据字段。
+
+## 公开入口
+
+入口由 package.json 的 exports 限定，生产代码禁止私有路径与相对 src 引用（护栏拒绝；测试夹具可用显式相对路径但不构成 API）。
+
+| 入口                                         | 使用方与职责                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| `@tau/editor`                                | 宿主：Editor、Kit/文档源、服务装配、共用工具/类型                   |
+| `@tau/editor/api`                            | 扩展：元素/命令/菜单/标记/输入规则/复制声明、模型增强、通用编辑能力 |
+| `@tau/editor/api/services`、`/api/paragraph` | 纯服务契约、段落工厂与识别                                          |
+| `@tau/editor/markdown`                       | paragraphCodec 与 editorMarkdownCodecs；领域 codec 从各扩展包引入   |
+| `@tau/editor/toolbar`                        | 工具条分组与浮层位置算法（Node 运行时可加载）                       |
+| `@tau/editor/extensions/<功能>`              | 内置功能入口；`/presets/standard` 为默认组合                        |
+
+程序化调用为 `editor.commands.execute(id, payload, element, path)`；异步写入用 `/api` 的 `capture*Submission` 守卫（check/commit/dispose 管理有效性与引用释放）。纯入口与渲染入口分开：主进程/脚本使用 markdown 或纯子入口，不从 UI 根入口取 codec。完整外部示例见 `examples/editor-reminder`。

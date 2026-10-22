@@ -1,7 +1,7 @@
 /**
  * 脉络实测：在真实库副本上量 content_link 退役、引用与白板索引的首次对账、微信读书摘录回填与外部材料
  * 索引候选、每个实体的脉络查询耗时，并统计各分区非空的实体数。默认跳过；需要时把主库复制到临时目录（含 -wal）再跑，主进程测试要用
- * Electron 内置 Node（见 docs/knowledge-loop/05 踩坑）：
+ * Electron 内置 Node：
  *
  *   KL_CONTEXT_EVAL_MAIN=/tmp/kl-m.db \
  *   ELECTRON_RUN_AS_NODE=1 npx electron ../../node_modules/vitest/vitest.mjs run context.eval
