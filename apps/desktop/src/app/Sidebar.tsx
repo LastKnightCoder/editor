@@ -12,10 +12,11 @@ import { useEdgeFade, IconButton, Tooltip } from "@tau/ui";
 import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { useSettingsStore } from "./settingsStore";
-import { NAV_FOOTER, composeNavSections, isNavItemActive, type NavItem } from "./navigation";
+import { NAV_FOOTER, composeNavSections, type NavItem } from "./navigation";
 import { useDesktopPlugins } from "./plugins/context";
-import { appNotify } from "@/features/notifications/notify";
-import { NAV_BADGE_SLOTS, NAV_CHILDREN_SLOTS, useNavChildrenContent } from "./navSlots";
+import { NAV_CHILDREN_SLOTS, useNavChildrenContent } from "./navSlots";
+import { NavItemButton } from "./NavItemButton";
+import { PluginNavEntry } from "./PluginNavEntry";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
 import { openFeedbackWindow } from "@/commands/feedback";
@@ -153,6 +154,15 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                 {/* space-y 行距：选中/hover 色块不再相贴（同菜单 2px 行距口径） */}
                 <div className="min-h-0 space-y-0.5 overflow-hidden">
                   {section.items.map(item => {
+                    if (item.plugin)
+                      return (
+                        <PluginNavEntry
+                          key={item.key}
+                          item={item}
+                          current={current}
+                          collapsed={collapsed}
+                        />
+                      );
                     const slot = item.children ? NAV_CHILDREN_SLOTS[item.children] : undefined;
                     const ChildrenSlot = slot?.Component;
                     const expanded = shouldExpandChildren(item);
@@ -161,23 +171,13 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                         <NavItemButton
                           item={item}
                           collapsed={collapsed}
-                          active={isNavItemActive(item, current)}
+                          active={item.key === currentKey}
                           hasActiveChild={
                             expanded && Boolean(slot?.selected(current?.params ?? {}))
                           }
                           // 带子项的入口回到该页时沿用已有参数（停留在上次看的子项）；
                           // 已在该页且槽声明 parentResets 时清空参数回到总览
                           onClick={() => {
-                            if (item.plugin) {
-                              void item.plugin.open().catch(error =>
-                                appNotify({
-                                  title: "无法打开插件页面",
-                                  body: error instanceof Error ? error.message : String(error),
-                                  tone: "danger",
-                                })
-                              );
-                              return;
-                            }
                             navigator.push(
                               item.key,
                               slot && !(slot.parentResets && item.key === currentKey)
@@ -221,63 +221,5 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
         ))}
       </div>
     </nav>
-  );
-}
-
-function NavItemButton({
-  item,
-  active,
-  hasActiveChild = false,
-  collapsed,
-  onClick,
-}: {
-  item: NavItem;
-  active: boolean;
-  /** 选中态落在下方子项上：本项降为「所在区」（accent 文字、无底无竖标），不和子项抢选中 */
-  hasActiveChild?: boolean;
-  collapsed: boolean;
-  onClick: () => void;
-}) {
-  const ItemIcon = item.icon;
-  const BadgeSlot = item.badge ? NAV_BADGE_SLOTS[item.badge] : undefined;
-  const button = (
-    <button
-      type="button"
-      className={clsx(
-        // 行高随字号档位折算（行盒 + 8px 余量）：固定 34px 在大字号下文字会撑满行高
-        "text-tau-body relative flex h-[calc(1.65em+8px)] w-full items-center rounded-[10px] text-left",
-        "ease-tau-out transition-[background,color] duration-[160ms]",
-        collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
-        active && hasActiveChild
-          ? "text-accent-text hover:bg-hover font-medium"
-          : active
-            ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点恒距窗口左缘 10px，
-              // 超出按钮盒的距离随 nav 左内边距：展开 10px / 收起 20px）。
-              // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
-              // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
-              // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-006）。
-              clsx(
-                "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:bottom-2",
-                collapsed ? "before:-left-5" : "before:-left-2.5",
-                "before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
-              )
-            : "text-ink-2 hover:bg-hover hover:text-ink-1"
-      )}
-      onClick={onClick}
-      title={collapsed ? undefined : item.label}
-      aria-label={item.label}
-      aria-current={active ? "page" : undefined}
-    >
-      {/* 图标随字号档位（em）：17px 锚定 fontSize 16 的既有观感，大字号下不被文字甩开 */}
-      <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} aria-hidden="true" />
-      {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
-      {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
-      {BadgeSlot && <BadgeSlot collapsed={collapsed} />}
-    </button>
-  );
-  return (
-    <Tooltip content={item.label} placement="right" disabled={!collapsed}>
-      {button}
-    </Tooltip>
   );
 }

@@ -69,7 +69,8 @@ export type {
   ContentPreviewProps,
   EntityRefProps,
 } from "./components";
-export * from "./sidebar";
+export type * from "./sidebar";
+export { SIDEBAR_GROUPS } from "./sidebar";
 export type * from "./icons";
 export type * from "./excerpts";
 export type * from "./data";

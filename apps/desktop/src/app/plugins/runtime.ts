@@ -44,6 +44,7 @@ import {
   type FlashcardsAdapter,
   type MCPAdapter,
   type StorageAdapter,
+  type PluginSidebarItemState,
 } from "@tau/plugins/host";
 import type { Navigator } from "@/page/PageProvider";
 import { ReactEditor } from "slate-react";
@@ -82,8 +83,19 @@ export interface PluginSidebarSnapshot {
     pageId: string;
     instanceId: string;
     open: () => Promise<void>;
+    /** 以子项参数打开条目的页面 */
+    openWith: (params: PluginPageParams) => Promise<void>;
+    /** 角标、子项与动作行单独订阅：插件高频 update 只重渲染这一条目，不经 publish */
+    subscribe: (listener: () => void) => () => void;
+    getState: () => PluginSidebarItemState;
   }[];
 }
+
+const EMPTY_SIDEBAR_STATE: PluginSidebarItemState = Object.freeze({
+  badge: 0,
+  children: Object.freeze([]),
+  action: null,
+});
 
 export interface RegisteredPluginPage {
   definition: PluginPageDefinition;
@@ -116,6 +128,10 @@ export class DesktopPluginRuntime {
       page: RegisteredPluginPage;
       context: PluginContext;
       instanceId: string;
+      state: PluginSidebarItemState;
+      listeners: Set<() => void>;
+      subscribe: (listener: () => void) => () => void;
+      getState: () => PluginSidebarItemState;
     }
   >();
   private readonly editorContributions = new Map<
@@ -300,6 +316,9 @@ export class DesktopPluginRuntime {
           pageId: entry.pageId,
           instanceId: entry.instanceId,
           open: () => entry.definition.page.open(entry.definition.params),
+          openWith: (params: PluginPageParams) => entry.definition.page.open(params),
+          subscribe: entry.subscribe,
+          getState: entry.getState,
         })),
     };
   }
@@ -333,18 +352,34 @@ export class DesktopPluginRuntime {
       throw new Error("不能向其他插件的分组注册条目");
     const page = this.pages.get(JSON.stringify([context.pluginId, pageId]));
     if (!page || page.context !== context) throw new Error("侧边栏页面不可用");
+    const listeners = new Set<() => void>();
     const entry = {
       context,
       definition,
       pageId,
       page,
       instanceId: pageInstanceId(page.definition, definition.params ?? {}),
+      state: EMPTY_SIDEBAR_STATE,
+      listeners,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      getState: () => entry.state,
     };
     this.sidebarItems.set(id, entry);
     this.publish();
     return {
+      update: (state: PluginSidebarItemState) => {
+        if (this.sidebarItems.get(id) !== entry) return;
+        entry.state = state;
+        listeners.forEach(listener => listener());
+      },
       dispose: () => {
         if (this.sidebarItems.get(id) === entry) this.sidebarItems.delete(id);
+        listeners.clear();
         this.publish();
       },
     };

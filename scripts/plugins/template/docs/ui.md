@@ -190,6 +190,64 @@ context.sidebar.registerItem({ id: "water", title: "喝水", group: group.id, pa
 
 同一个带参数的页面可以注册多个入口，分别传不同的 `params`。
 
+### 角标与子项
+
+`registerItem` 返回的句柄有 `update`，用来显示角标和条目下方的子项。只改传入的字段，可以随时调用：
+
+```ts
+const item = context.sidebar.registerItem({ id: "groups", title: "分组", page });
+
+item.update({
+  badge: 3,
+  children: groups.map(group => ({
+    id: group.id,
+    title: group.title,
+    params: { group: group.id },
+    tone: "blue",
+    count: group.openCount,
+    menu: [
+      { title: "编辑分组", run: () => page.open({ group: group.id, edit: true }) },
+      { title: "删除分组", danger: true, run: () => removeGroup(group.id) },
+    ],
+    onDrop: { type: "note", run: noteId => moveNote(noteId, group.id) },
+  })),
+  action: { title: "新建分组", run: () => page.open({ create: true }) },
+});
+```
+
+| 字段       | 说明                                                   |
+| ---------- | ------------------------------------------------------ |
+| `badge`    | 条目右侧的数字，`0` 或 `null` 隐藏；侧栏收起时不显示   |
+| `children` | 子项列表，最多 200 个；传 `[]` 清空                    |
+| `action`   | 子项列表末尾的一行动作，缺省图标为加号；传 `null` 移除 |
+
+子项的字段：
+
+| 字段     | 说明                                                                      |
+| -------- | ------------------------------------------------------------------------- |
+| `id`     | 在同一条目内唯一                                                          |
+| `title`  | 名称                                                                      |
+| `params` | 点击时用这组参数打开条目的页面                                            |
+| `tone`   | 可选。色点：`rose`、`orange`、`yellow`、`green`、`blue`、`purple`、`gray` |
+| `count`  | 可选。右侧的计数，`0` 不显示                                              |
+| `menu`   | 可选。右键菜单，最多 8 条；`danger: true` 显示为红色，并与前面的条目隔开  |
+| `onDrop` | 可选。接收拖放：`type` 是拖拽类型，`run` 收到拖拽数据                     |
+
+- 子项只在条目的页面显示、并且侧栏展开时出现。当前页面参数包含子项的 `params` 时，子项显示为选中；再点一次选中的子项，回到条目本身的 `params`。
+- 回调出错时，Tau 显示一条通知，侧栏照常工作。插件停用后，回调不会再被调用。
+- 拖放只接收本插件拖出的数据。在页面里拖起时，用 `context.sidebar.dragType` 生成拖拽类型：
+
+```tsx
+<div
+  draggable
+  onDragStart={event => event.dataTransfer.setData(context.sidebar.dragType("note"), note.id)}
+>
+  {note.title}
+</div>
+```
+
+`dragType` 的参数是局部 ID，大小写不敏感。
+
 ### 图标
 
 `icon` 接收组件本身（`icon: CounterIcon`），不是 `<CounterIcon />`，也不是图片地址。图标是一个线性单色的 SVG 组件：

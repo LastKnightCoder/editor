@@ -26,6 +26,13 @@ import type {
 import { assertLocalId, copyJson } from "./values";
 import { assertPluginEditorExtension } from "./editor-fields";
 import {
+  sidebarDragType,
+  snapshotSidebarUpdate,
+  type PluginSidebarItemHandle,
+  type PluginSidebarItemState,
+  type PluginSidebarItemUpdate,
+} from "./sidebar";
+import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
   readContentInput,
@@ -181,8 +188,14 @@ export interface SidebarAdapter {
     context: PluginContext,
     definition: PluginSidebarItemDefinition,
     pageId: string
-  ): Disposable;
+  ): SidebarItemResource;
 }
+
+/** 宿主侧的条目资源：update 收到已校验、回调已包装的完整状态 */
+export interface SidebarItemResource extends Disposable {
+  update(state: PluginSidebarItemState): void;
+}
+export type { PluginSidebarItemState } from "./sidebar";
 
 /** 宿主负责命名空间（来源类型即插件 ID）与工作区绑定；参数已复制为 JSON。 */
 export interface ExcerptsAdapter {
@@ -2872,18 +2885,47 @@ export class PluginHost {
           const page = pages.get(definition.page);
           if (!page?.active()) throw new Error("侧边栏条目必须关联本次启用注册的有效页面");
           if (!this.options.sidebar) throw new Error("当前宿主不支持侧边栏");
-          return registerAs(
-            "sidebar",
-            this.options.sidebar.registerItem(
-              context,
-              Object.freeze({
-                ...definition,
-                params: Object.freeze(normalizePageParams(definition.params ?? {})),
-              }),
-              page.id
-            )
+          const resource = this.options.sidebar.registerItem(
+            context,
+            Object.freeze({
+              ...definition,
+              params: Object.freeze(normalizePageParams(definition.params ?? {})),
+            }),
+            page.id
           );
+          const owned = registerAs("sidebar", resource);
+          let state: PluginSidebarItemState = Object.freeze({
+            badge: 0,
+            children: Object.freeze([]),
+            action: null,
+          });
+          let removed = false;
+          // 插件停用或条目移除后，宿主不再调用插件的回调
+          const wrap =
+            <A extends unknown[]>(run: (...args: A) => unknown) =>
+            (...args: A) => {
+              this.assertActive(entry, activation);
+              if (removed) throw new Error("侧边栏条目已移除");
+              return run(...args);
+            };
+          const handle: PluginSidebarItemHandle = {
+            update: (patch: PluginSidebarItemUpdate) => {
+              this.assertActive(entry, activation);
+              if (removed) throw new Error("侧边栏条目已移除");
+              state = snapshotSidebarUpdate(state, patch, {
+                wrap,
+                dragType: type => sidebarDragType(scope.pluginId, type),
+              });
+              resource.update(state);
+            },
+            dispose: () => {
+              removed = true;
+              return owned.dispose();
+            },
+          };
+          return Object.freeze(handle);
         },
+        dragType: (type: string) => sidebarDragType(scope.pluginId, type),
       }),
       pages: Object.freeze({
         register: (definition: PluginPageDefinition) => {
