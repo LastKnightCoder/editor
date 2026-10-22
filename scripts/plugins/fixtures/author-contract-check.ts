@@ -21,6 +21,8 @@ import type {
   PluginLink,
   PluginPageProps,
   PluginRecord,
+  PluginSidebarChild,
+  PluginSidebarItemHandle,
 } from "@tau/plugins";
 
 export function checkPageContextContract({ pageContext }: PluginPageProps) {
@@ -32,6 +34,32 @@ export function checkPageContextContract({ pageContext }: PluginPageProps) {
   const active: boolean = api.isActive();
   const drawer = api.registerDismiss(() => console.log("关闭抽屉", active));
   void drawer.dispose();
+}
+
+export function checkSidebarContract(context: PluginContext) {
+  const page = context.pages.register({ id: "groups", title: "分组", component: () => null });
+  const item: PluginSidebarItemHandle = context.sidebar.registerItem({
+    id: "groups",
+    title: "分组",
+    page,
+  });
+  const child: PluginSidebarChild = {
+    id: "g1",
+    title: "读书",
+    params: { group: "g1" },
+    tone: "blue",
+    count: 3,
+    menu: [
+      { title: "编辑分组", run: () => page.open({ edit: "g1" }) },
+      { title: "删除分组", danger: true, run: async () => undefined },
+    ],
+    onDrop: { type: "question", run: (data: string) => console.log("移动", data) },
+  };
+  item.update({ badge: 2, children: [child], action: { title: "新建分组", run: () => {} } });
+  item.update({ badge: null, action: null });
+  const type: string = context.sidebar.dragType("question");
+  void type;
+  void item.dispose();
 }
 
 export function checkNotificationsContract(context: PluginContext) {
