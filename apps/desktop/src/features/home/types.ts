@@ -8,8 +8,6 @@
  * 日程走 calendar 命令与 schedule page。
  */
 
-import type { ActiveQuestionPreview } from "@/types";
-
 /* ---------- 今天 / 继续（HomeSnapshot） ---------- */
 
 export interface TodayEvent {
@@ -92,7 +90,6 @@ export interface HomeSnapshot {
   events: TodayEvent[]; // 最多 5 条
   /** 继续 */
   recentEdits: RecentEdit[]; // 最多 12 条（三栏 × 4）
-  activeQuestions: ActiveQuestionPreview[]; // 按最近活动，最多 6 条
   /** hero：今天的数字 */
   focus: FocusSummary;
   todayStats: TodayStats;

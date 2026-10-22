@@ -30,7 +30,6 @@ interface MessageItemProps {
   regenerateLabel?: string;
   onEditMessage?: (messageIndex: number, content: string) => void;
   onCreateBranch?: (messageIndex: number) => void;
-  onToQuestion?: (messageIndex: number) => void;
   /** 插件可见的对话里传会话 ID：消息动作行末尾出现插件对象动作的「⋯」 */
   pluginSessionId?: string;
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
@@ -107,7 +106,6 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     regenerateLabel,
     onEditMessage,
     onCreateBranch,
-    onToQuestion,
     pluginSessionId,
     onSwitchVersion,
     messageIndex,
@@ -210,7 +208,6 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           regenerateLabel={regenerateLabel}
           onEditUserMessage={onEditMessage}
           onCreateBranch={onCreateBranch}
-          onToQuestion={onToQuestion}
           renderExtraActions={renderExtraActions}
           {...(versions ? { versions } : {})}
           onSwitchVersion={onSwitchVersion}

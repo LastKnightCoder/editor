@@ -33,6 +33,17 @@ export const LEGACY_QUESTION_TABLES = [
 ] as const;
 
 const EMPTY_CONTENT = [{ type: "paragraph", children: [{ text: "" }] }];
+/** 迁移前首页的默认顺序（没调整过首页的用户看到的就是它）：问题面板换成插件面板后按此写下布局 */
+const LEGACY_HOME_ORDER = [
+  "review",
+  "todos",
+  "schedule",
+  "insights",
+  "recent-edits",
+  "questions",
+  "walk",
+  "retro",
+] as const;
 const TITLE_LENGTH = 40;
 
 type CompositionKind =
@@ -518,6 +529,13 @@ export function migrateQuestionsToPlugin(
       `DELETE FROM entity_lineage WHERE src_kind = 'question' OR dst_kind = 'question'`
     ).run();
     if (hasTable(db, "home_panel_layout")) {
+      // 没调整过首页时插件面板会排到末尾：先按迁移前的默认顺序写下布局，保住原位置
+      if (count(db, `SELECT COUNT(*) AS n FROM home_panel_layout`) === 0) {
+        const insert = db.prepare(
+          `INSERT INTO home_panel_layout (panel_id, sort, hidden, update_time) VALUES (?, ?, 0, ?)`
+        );
+        LEGACY_HOME_ORDER.forEach((id, index) => insert.run(id, index, now));
+      }
       db.prepare(
         `UPDATE OR IGNORE home_panel_layout SET panel_id = ?, update_time = ? WHERE panel_id = 'questions'`
       ).run(QUESTIONS_HOME_PANEL, now);
