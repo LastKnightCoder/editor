@@ -14,7 +14,6 @@ import type {
   ContextEntity,
   ContextLineageItem,
   ContextLink,
-  ContextQuestion,
   ContextUsage,
   EntityContext,
 } from "./types";
@@ -137,19 +136,6 @@ function ContextNodeRow({ item }: { item: ContextLineageItem | ContextUsage }) {
   );
 }
 
-function ContextQuestionRow({ question }: { question: ContextQuestion }) {
-  return (
-    <div className="flex w-full items-center gap-3 py-3">
-      <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
-        {question.title || "未命名问题"}
-      </span>
-      {question.status === "resolved" ? (
-        <span className="text-ok shrink-0 text-[11px]">已解决</span>
-      ) : null}
-    </div>
-  );
-}
-
 export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
   const [state, setState] = useState<SnapSheetState>("normal");
   const count = contextCount(context);
@@ -253,14 +239,6 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                   <SectionHeader label="被关联" count={context.pluginLinks.length} />
                   {context.pluginLinks.map(entity => (
                     <ContextEntityRow key={`plugin-link:${entity.id}`} entity={entity} />
-                  ))}
-                </section>
-              ) : null}
-              {context.questions.length > 0 ? (
-                <section>
-                  <SectionHeader label="相关问题" count={context.questions.length} />
-                  {context.questions.map(question => (
-                    <ContextQuestionRow key={`question:${question.id}`} question={question} />
                   ))}
                 </section>
               ) : null}

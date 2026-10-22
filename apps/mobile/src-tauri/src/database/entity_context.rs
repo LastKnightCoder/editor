@@ -179,14 +179,6 @@ pub struct ContextBacklinkData {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ContextQuestionData {
-    pub id: i64,
-    pub title: String,
-    pub status: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ContextLineageItemData {
     pub kind: String,
     /// 谱系端点 id 统一以文本返回（对话 id 是字符串，其余是数字）
@@ -224,7 +216,6 @@ pub struct EntityContextResponse {
     pub projections: Vec<ContextEntityData>,
     pub backlinks: Vec<ContextBacklinkData>,
     pub backlink_total: i64,
-    pub questions: Vec<ContextQuestionData>,
     /// 哪些插件内容关联了我（或共用正文的身份），按最近关联排序
     pub plugin_links: Vec<ContextEntityData>,
     pub sources: Vec<ContextLineageItemData>,
@@ -828,74 +819,6 @@ impl rusqlite::ToSql for StringOrInt {
             StringOrInt::Text(value) => ToSqlOutput::Borrowed(ValueRef::Text(value.as_bytes())),
         })
     }
-}
-
-fn question_target_type(kind: &str) -> Option<&'static str> {
-    match kind {
-        "card" => Some("card"),
-        "article" => Some("article"),
-        "project-item" => Some("project_item"),
-        _ => None,
-    }
-}
-
-/** 「相关问题」分区：问题材料按目标身份关联，答案正文被投影时按 answer:contentId 关联 */
-fn questions_of(
-    conn: &Connection,
-    identities: &[EntityRefLite],
-    content_ids: &[i64],
-) -> Vec<ContextQuestionData> {
-    let mut rows: Vec<(i64, String, String)> = Vec::new();
-    for reference in identities {
-        let Some(target_type) = question_target_type(&reference.kind) else {
-            continue;
-        };
-        let sql = "SELECT q.id, q.question_content, q.status FROM question_link l
-                   JOIN questions q ON q.id = l.question_id
-                   WHERE l.target_type = ?1 AND l.target_id = ?2 ORDER BY q.update_time DESC";
-        if let Ok(found) = conn.prepare(sql).and_then(|mut stmt| {
-            stmt.query_map(params![target_type, reference.id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    row.get::<_, String>(2)?,
-                ))
-            })
-            .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
-        }) {
-            rows.extend(found);
-        }
-    }
-    if !content_ids.is_empty() {
-        let marks = vec!["?"; content_ids.len()].join(",");
-        let sql = format!(
-            "SELECT q.id, q.question_content, q.status FROM question_link l
-             JOIN questions q ON q.id = l.question_id
-             WHERE l.target_type = 'answer' AND l.target_id IN ({marks}) ORDER BY q.update_time DESC"
-        );
-        if let Ok(found) = conn.prepare(&sql).and_then(|mut stmt| {
-            stmt.query_map(params_from_iter(content_ids.iter().copied()), |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    row.get::<_, String>(2)?,
-                ))
-            })
-            .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
-        }) {
-            rows.extend(found);
-        }
-    }
-    let mut seen: HashSet<i64> = HashSet::new();
-    let mut questions: Vec<ContextQuestionData> = Vec::new();
-    for (id, title, status) in rows {
-        if questions.len() >= CONTEXT_LIMIT || seen.contains(&id) {
-            continue;
-        }
-        seen.insert(id);
-        questions.push(ContextQuestionData { id, title, status });
-    }
-    questions
 }
 
 struct LineageEdgeRow {
@@ -1527,7 +1450,6 @@ pub fn entity_context_get(
     let links = explicit_links_of(&conn, &content_ids, &seen);
     let index_conn = open_index_connection(&app)?;
     let (backlinks, backlink_total) = backlinks_of(&conn, &index_conn, &kind, id, &content_ids);
-    let questions = questions_of(&conn, &identities, &content_ids);
     let plugin_links = plugin_links_of(&conn, &identities);
     let sources = sources_of(&conn, &identities);
     let derived = derived_of(&conn, &identities, &content_ids);
@@ -1543,7 +1465,6 @@ pub fn entity_context_get(
         projections,
         backlinks,
         backlink_total,
-        questions,
         plugin_links,
         sources,
         derived,
@@ -1785,40 +1706,6 @@ mod tests {
         assert_eq!(backlinks.len(), 1);
         assert_eq!(backlinks[0].source.id, 9);
         assert_eq!(backlinks[0].snippets.len(), 2);
-    }
-
-    #[test]
-    fn questions_map_target_types_and_answer_projection() {
-        let conn = main_db();
-        conn.execute(
-            "INSERT INTO questions (id, create_time, update_time, question_content, status) VALUES (11, 1, 1, '问题甲', 'not_started')",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO questions (id, create_time, update_time, question_content, status) VALUES (12, 1, 1, '问题乙', 'resolved')",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO question_link (question_id, target_type, target_id, create_time) VALUES (11, 'card', 1, 1)",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO question_link (question_id, target_type, target_id, create_time) VALUES (12, 'answer', 10, 1)",
-            [],
-        )
-        .unwrap();
-        let identities = vec![EntityRefLite {
-            kind: "card".to_string(),
-            id: 1,
-        }];
-        let questions = questions_of(&conn, &identities, &[10]);
-        let titles: Vec<&str> = questions.iter().map(|q| q.title.as_str()).collect();
-        assert_eq!(titles.len(), 2);
-        assert!(titles.contains(&"问题甲"));
-        assert!(titles.contains(&"问题乙"));
     }
 
     #[test]

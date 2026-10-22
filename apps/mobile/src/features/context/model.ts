@@ -51,7 +51,6 @@ export function contextCount(context: EntityContext | null | undefined): number 
     context.backlinkTotal +
     context.projections.length +
     context.notebookProjections.length +
-    context.questions.length +
     context.pluginLinks.length +
     context.sources.length +
     context.derived.length +

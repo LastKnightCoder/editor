@@ -85,7 +85,6 @@ const CONTEXT: EntityContext = {
     },
   ],
   backlinkTotal: 2,
-  questions: [{ id: 9, title: "为什么 transform 不触发重排？", status: "in_progress" }],
   pluginLinks: [],
   sources: [],
   derived: [],
@@ -174,13 +173,13 @@ afterEach(() => {
 });
 
 describe("contextCount", () => {
-  it("连接 + 引用来源总数 + 共用正文 + 问题", () => {
-    expect(contextCount(CONTEXT)).toBe(5);
+  it("连接 + 引用来源总数 + 共用正文", () => {
+    expect(contextCount(CONTEXT)).toBe(4);
     expect(contextCount(null)).toBe(0);
   });
 
   it("来源（含已删除）、衍生、被使用都计入", () => {
-    expect(contextCount({ ...CONTEXT, ...LINEAGE })).toBe(10);
+    expect(contextCount({ ...CONTEXT, ...LINEAGE })).toBe(9);
   });
 });
 
@@ -194,7 +193,6 @@ describe("ContextBadge", () => {
       projections: [],
       backlinks: [],
       backlinkTotal: 0,
-      questions: [],
     };
     render();
     expect(container.innerHTML).toBe("");
@@ -203,20 +201,19 @@ describe("ContextBadge", () => {
   it("显示关联数，点开后列出连接与其余分区与片段", () => {
     mocks.context = CONTEXT;
     render();
-    expect(container.textContent).toContain("5 处关联");
+    expect(container.textContent).toContain("4 处关联");
     click(findButton("处关联"));
     const text = document.body.textContent ?? "";
     expect(text).toContain("连接");
     expect(text).toContain("深度学习简介");
     expect(text).toContain("被引用");
     expect(text).toContain("也出现在");
-    expect(text).toContain("相关问题");
+    expect(text).not.toContain("相关问题");
     expect(text).toContain("还有 1 处未列出");
-    expect(text).toContain("探究中");
     expect(document.querySelector("mark")?.textContent).toBe("重排与重绘");
   });
 
-  it("点击来源打开实体，点击问题跳到问题页，并关闭浮层", () => {
+  it("点击来源打开实体，并关闭浮层", () => {
     mocks.context = CONTEXT;
     render();
     click(findButton("处关联"));
@@ -224,10 +221,6 @@ describe("ContextBadge", () => {
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "article", id: 3 });
     // 关闭有退场动画，以触发器状态判断
     expect(findButton("处关联")?.getAttribute("aria-expanded")).toBe("false");
-
-    click(findButton("处关联"));
-    click(findButton("为什么 transform"));
-    expect(mocks.openPage).toHaveBeenCalledWith("questions", { selectedId: 9 });
   });
 
   it("被关联：列出关联了它的插件内容，计入关联数，点击按插件内容打开", () => {
@@ -241,7 +234,6 @@ describe("ContextBadge", () => {
     const text = document.body.textContent ?? "";
     expect(text).toContain("被关联");
     expect(text).toContain("渲染为什么卡问题");
-    expect(text.indexOf("被关联")).toBeLessThan(text.indexOf("相关问题"));
     click(findButton("渲染为什么卡"));
     expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "plugin-entity", id: 7 });
   });
@@ -302,7 +294,6 @@ describe("ContextBadge", () => {
     expect(text.indexOf("来源")).toBeLessThan(text.indexOf("连接"));
     expect(text.indexOf("也出现在")).toBeLessThan(text.indexOf("衍生"));
     expect(text.indexOf("衍生")).toBeLessThan(text.indexOf("被使用"));
-    expect(text.indexOf("被使用")).toBeLessThan(text.indexOf("相关问题"));
     expect(text).toContain("Notebook 笔记已删除");
     expect(findButton("Notebook 笔记已删除")).toBeUndefined();
     expect(text).toContain("待办 · 已完成");
@@ -350,7 +341,7 @@ describe("ContextBadge", () => {
     ];
     render();
     expect(mocks.relatedEnabled).toBe(false);
-    expect(findButton("处关联")?.textContent).toContain("5 处关联");
+    expect(findButton("处关联")?.textContent).toContain("4 处关联");
     click(findButton("处关联"));
     expect(mocks.relatedEnabled).toBe(true);
     const headings = [...document.querySelectorAll("h5")].map(h => h.textContent);
