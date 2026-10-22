@@ -33,6 +33,7 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   editor: "编辑器扩展",
   whiteboard: "白板扩展",
   excerpts: "摘录来源",
+  home: "首页面板",
 };
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";

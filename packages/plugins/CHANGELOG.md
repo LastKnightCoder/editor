@@ -35,6 +35,7 @@
 - 被插件内容关联的卡片、文章、项目文档在脉络的「被关联」里列出这些内容，按插件声明的类型名与图标显示，插件停用后照样显示；手机上的脉络也会列出（只显示）。
 - 新增 `context.transaction(async tx => …)`：回调里对本插件内容、记录与关联的写入在回调结束后一次提交，任何一条失败全部不生效。`tx.entities.create` 与 `tx.records.insert` 立即返回 ID，可在同一事务里使用；修改与删除的 `expectedRevision` 可省略（省略即无条件写入）。最多 500 条写入。
 - `sidebar.registerItem` 改为返回句柄，新增 `update({ badge, children, action })`：条目右侧的角标、条目下方的子项（色点、计数、右键菜单、接收拖放）与子项末尾的一行动作（如「新建分组」）。子项在条目的页面显示时展开，点击以子项的 `params` 打开页面。新增 `sidebar.dragType(type)` 生成本插件的拖拽类型，子项只接收本插件拖出的数据。新增导出类型 `PluginSidebarItemHandle`、`PluginSidebarChild`、`PluginSidebarItemUpdate` 等。
+- 新增 `context.home.registerPanel({ id, title, component, size })`：在首页放一块面板，Tau 画外框与标题，组件只渲染正文（返回 `null` 时整块不显示）。`size` 为 `wide`（默认，占整行）或 `compact`（宽度足够时并排）。新面板排在末尾，用户可在「⋯」里调整位置或隐藏；插件停用后消失，重新启用回到原位置。新增导出类型 `PluginHomePanelDefinition`、`PluginHomePanelProps`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

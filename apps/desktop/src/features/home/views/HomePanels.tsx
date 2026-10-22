@@ -1,6 +1,6 @@
 /**
  * 首页面板容器（D-182）：按布局渲染面板，一个可换行的流式容器——wide 占整行，compact 约 340px
- * 起并可伸展，排不满的行伸展填满，同行等高。没有内容的面板（组件返回 null）不占位，
+ * 起并可伸展，排不满的行伸展填满，同行等高。没有内容的面板（组件返回 null，插件面板正文为空）不占位，
  * 上移 / 下移也跳过它。每个面板标题右侧的「⋯」由 HomePanelMenu 提供，末尾可恢复已隐藏的面板。
  */
 
@@ -103,11 +103,11 @@ export function HomePanels({
       panels.map(panel => panel.id),
       layout
     );
-  // 组件返回 null 的面板外层是空的，不算「显示出来」
+  // 组件返回 null 的面板外层是空的（插件面板是正文为空），不算「显示出来」
   const renderedIds = () =>
     [
       ...(containerRef.current?.querySelectorAll<HTMLElement>(
-        ":scope > [data-home-panel]:not(:empty)"
+        ":scope > [data-home-panel]:not(:empty):not(:has([data-home-panel-body]:empty))"
       ) ?? []),
     ].map(el => el.dataset.homePanel as string);
 
@@ -138,7 +138,7 @@ export function HomePanels({
               key={panel.id}
               data-home-panel={panel.id}
               className={cn(
-                "group/home-panel flex min-w-0 flex-col empty:hidden [&>*]:flex-1",
+                "group/home-panel flex min-w-0 flex-col empty:hidden has-[[data-home-panel-body]:empty]:hidden [&>*]:flex-1",
                 panel.size === "wide" ? "basis-full" : "min-w-[min(340px,100%)] flex-[1_1_340px]"
               )}
             >

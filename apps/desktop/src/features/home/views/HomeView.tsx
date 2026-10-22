@@ -16,13 +16,21 @@ import { Loading, FadeScroll } from "@tau/ui";
 import { useHomeSnapshot, minutesToHM } from "../queries";
 import { useHomeLayout } from "../layoutQueries";
 import { BUILTIN_HOME_PANELS } from "../panels";
+import { useDesktopPlugins } from "@/app/plugins/context";
 import { HomePanels, HomeScrollRootContext } from "./HomePanels";
+import { pluginHomePanel } from "./PluginHomePanel";
 import "../home.css";
 
 export function HomeView() {
   const { data, loading } = useHomeSnapshot();
   const { layout, save } = useHomeLayout();
   const { navigator } = usePage();
+  const plugins = useDesktopPlugins();
+  // 插件面板排在内置面板之后作为默认顺序；包装组件按注册缓存，重渲染不会重新挂载
+  const panels = [
+    ...BUILTIN_HOME_PANELS,
+    ...(plugins?.listHomePanels() ?? []).map(pluginHomePanel),
+  ];
   // 纸内滚动容器：回顾段懒加载以它为可见性根（state 而非 ref，挂载后触发回顾段重新接线）
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
@@ -71,7 +79,7 @@ export function HomeView() {
           className="mb-4 flex min-h-0 flex-1 flex-col gap-3 pb-2 pl-8 pr-[26px] pt-1"
         >
           <HomeScrollRootContext.Provider value={scrollEl}>
-            <HomePanels panels={BUILTIN_HOME_PANELS} layout={layout} onChange={save} />
+            <HomePanels panels={panels} layout={layout} onChange={save} />
           </HomeScrollRootContext.Provider>
         </FadeScroll>
       </div>

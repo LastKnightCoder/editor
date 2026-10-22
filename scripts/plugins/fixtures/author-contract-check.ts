@@ -22,6 +22,7 @@ import type {
   PluginPageProps,
   PluginRecord,
   PluginSidebarChild,
+  PluginHomePanelProps,
   PluginSidebarItemHandle,
 } from "@tau/plugins";
 
@@ -60,6 +61,18 @@ export function checkSidebarContract(context: PluginContext) {
   const type: string = context.sidebar.dragType("question");
   void type;
   void item.dispose();
+}
+
+export function checkHomePanelContract(context: PluginContext) {
+  const Week = ({ context: ctx }: PluginHomePanelProps) =>
+    ctx.pluginId ? createElement("p", null, "本周阅读") : null;
+  const panel = context.home.registerPanel({
+    id: "week",
+    title: "本周阅读",
+    component: Week,
+    size: "compact",
+  });
+  void panel.dispose();
 }
 
 export function checkNotificationsContract(context: PluginContext) {
