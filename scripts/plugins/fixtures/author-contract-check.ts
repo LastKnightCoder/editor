@@ -101,6 +101,12 @@ export function checkActionsContract(context: PluginContext) {
     targets: ["chat-message", "material"],
     run: fromMessage,
   });
+  context.actions.register({
+    id: "from-text",
+    title: "记为问题",
+    targets: ["text"],
+    run: target => void target.text.trim(),
+  });
 }
 
 export function checkNotificationsContract(context: PluginContext) {
