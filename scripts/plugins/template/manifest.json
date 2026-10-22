@@ -1,14 +1,31 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 3,
   "id": "example.external-counter",
   "name": "计数器示例",
-  "description": "在侧边栏记录并保存计数。",
+  "description": "在功能入口中记录并保存计数。",
   "categories": ["page"],
   "keywords": ["计数", "打卡"],
   "version": "1.0.0",
-  "minAppVersion": "0.59.0",
   "apiVersion": 1,
-  "platform": "desktop",
+  "platform": "portable",
   "format": "cjs",
-  "main": "main.js"
+  "main": "main.js",
+  "profile": "web-v1",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.59.0",
+      "required": ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"],
+      "optional": ["settings.v1", "ui.dialog.v1"]
+    },
+    "android": {
+      "minAppVersion": "0.2.0",
+      "required": ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"],
+      "optional": ["settings.v1", "ui.dialog.v1"]
+    },
+    "ios": {
+      "minAppVersion": "0.2.0",
+      "required": ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"],
+      "optional": ["settings.v1", "ui.dialog.v1"]
+    }
+  }
 }

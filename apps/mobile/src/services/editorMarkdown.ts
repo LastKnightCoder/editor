@@ -5,7 +5,8 @@ import { highlightBlockCodec } from "@tau/editor/extensions/highlight-block/mark
 import { tableMarkdownCodecs } from "@tau/editor/extensions/table/markdown";
 import { listMarkdownCodecs } from "@tau/editor/extensions/list/markdown";
 import { headerCodec } from "@tau/editor/extensions/header/markdown";
-import { createMarkdownProcessor } from "@tau/markdown";
+import { createPluginMarkdownProcessor } from "@tau/plugins/content";
+import { mobileContentPlugins } from "../app/plugins/content";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { linkCodec } from "@tau/editor/extensions/link/markdown";
 import { annotationCodec } from "@tau/editor/extensions/annotation/markdown";
@@ -46,10 +47,13 @@ export const mobileCodecComposition = [
   ...diagramMarkdownCodecs,
   webviewCodec,
 ];
-export const mobileMarkdown = createMarkdownProcessor({
-  codecs: mobileCodecComposition,
-  textCodecs: [textFormattingCodec],
-});
+export const mobileMarkdown = createPluginMarkdownProcessor(
+  {
+    codecs: mobileCodecComposition,
+    textCodecs: [textFormattingCodec],
+  },
+  mobileContentPlugins
+);
 
 export const mobileImportFromMarkdown = (
   markdown: string,

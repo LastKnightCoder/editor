@@ -1,5 +1,7 @@
 # 插件的组成
 
+默认模板使用跨端开发格式 3，targets/profile 与节点支持声明见[跨端契约](portability.md)。下文旧桌面 manifest 示例属于格式 1/2，不应直接混入格式 3。
+
 一个 Tau 插件由以下几部分组成：
 
 - **manifest.json**：插件是谁、需要什么。Tau 不运行代码就能读到它。
@@ -64,7 +66,7 @@
 
 ### 保持模板值的字段
 
-`formatVersion`、`apiVersion`、`platform`、`format`、`main` 保持模板里的值。`styles`、`skills` 和 `integrity`（文件摘要）由 `pnpm build` 自动写入构建产物，不要手写，也不要直接修改 ZIP 里的文件。
+`formatVersion`、`apiVersion`、`platform`、`profile`、`format`、`main` 按所选协议保持一致。`styles` 和 `integrity` 由构建生成；skills 仅旧桌面格式支持。不要直接修改 ZIP。
 
 ## 入口与插件定义
 
@@ -139,6 +141,7 @@ create: () => ({
 | ----------------------------------------------------- | -------------------------------------------- | --------------------------------------------- |
 | `pluginId`、`workspaceId`                             | 当前插件 ID 与工作区 ID（不要解析工作区 ID） |                                               |
 | `signal`                                              | 本次运行结束时中止                           | [取消与清理](#取消与清理)                     |
+| `environment`、`navigation`                           | 当前环境与语义功能入口                       | [跨端契约](portability.md)                    |
 | `register`                                            | 托管需要清理的资源                           | [取消与清理](#取消与清理)                     |
 | `commands`                                            | 注册命令                                     | [界面](ui.md#命令)                            |
 | `pages`、`sidebar`                                    | 注册页面与侧边栏入口                         | [界面](ui.md#页面)                            |

@@ -6,6 +6,7 @@ interface PageContextBinding {
   signal: AbortSignal;
   isAvailable: () => boolean;
   /** 宿主的 Esc 仲裁（D-003）：登记浮层退场回调，返回注销函数 */
+  registerLeaveGuard?: (guard: () => boolean | Promise<boolean>) => () => void;
   registerOverlayDismiss?: (dismiss: () => void) => () => void;
 }
 
@@ -29,6 +30,14 @@ export function createPluginPageContext(binding: PageContextBinding) {
   let mounted = false;
   let registration: Registration | undefined;
   const dismissals = new Set<Dismissal>();
+  const guards = new Set<{ guard: () => boolean | Promise<boolean>; unregister?: () => void }>();
+  const attachGuard = (entry: {
+    guard: () => boolean | Promise<boolean>;
+    unregister?: () => void;
+  }) => {
+    if (!entry.unregister)
+      entry.unregister = binding.registerLeaveGuard?.(() => (isAvailable() ? entry.guard() : true));
+  };
   const isAvailable = () => mounted && !binding.signal.aborted && binding.isAvailable();
 
   const attach = (entry: Dismissal) => {
@@ -41,7 +50,7 @@ export function createPluginPageContext(binding: PageContextBinding) {
       }
     });
   };
-  const detach = (entry: Dismissal) => {
+  const detach = (entry: { unregister?: () => void }) => {
     entry.unregister?.();
     entry.unregister = undefined;
   };
@@ -53,6 +62,8 @@ export function createPluginPageContext(binding: PageContextBinding) {
     clear();
     dismissals.forEach(detach);
     dismissals.clear();
+    guards.forEach(detach);
+    guards.clear();
   };
   const disposable = (dispose: () => void): Disposable => ({ dispose });
 
@@ -70,6 +81,18 @@ export function createPluginPageContext(binding: PageContextBinding) {
       });
     },
     isActive: isAvailable,
+    registerLeaveGuard(guard: () => boolean | Promise<boolean>) {
+      if (typeof guard !== "function") throw new Error("离开守卫必须是函数");
+      if (!binding.registerLeaveGuard) throw new Error("当前页面宿主不支持离开守卫");
+      if (binding.signal.aborted) return disposable(() => undefined);
+      const entry: { guard: () => boolean | Promise<boolean>; unregister?: () => void } = { guard };
+      guards.add(entry);
+      if (isAvailable()) attachGuard(entry);
+      return disposable(() => {
+        detach(entry);
+        guards.delete(entry);
+      });
+    },
     registerDismiss(dismiss: () => void) {
       if (typeof dismiss !== "function") throw new Error("关闭函数必须是函数");
       if (binding.signal.aborted) return disposable(() => undefined);
@@ -90,11 +113,13 @@ export function createPluginPageContext(binding: PageContextBinding) {
       mounted = true;
       binding.signal.addEventListener("abort", release, { once: true });
       dismissals.forEach(attach);
+      guards.forEach(attachGuard);
       return () => {
         mounted = false;
         binding.signal.removeEventListener("abort", release);
         clear();
         dismissals.forEach(detach);
+        guards.forEach(detach);
       };
     },
   };

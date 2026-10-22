@@ -5,6 +5,8 @@ import { createHash } from "node:crypto";
 import AdmZip from "adm-zip";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
+if (manifest.formatVersion === 3 || manifest.platform === "portable")
+  throw new Error("跨端开发包不能写入正式客户端插件目录，请使用显式支持该协议的开发宿主");
 if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.id)) throw new Error("插件 ID 无效");
 if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Error("插件版本无效");
 const root = path.join(homedir(), ".editor/plugins");

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -8,6 +9,15 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => ({
+  define: {
+    __TAU_PLUGIN_VALIDATION_SOURCES__:
+      mode === "plugin-validation"
+        ? readFileSync(
+            path.resolve(__dirname, "../../output/plugin-portability-validation/sources.json"),
+            "utf8"
+          )
+        : "[]",
+  },
   plugins: [react(), tailwindcss(), ...(mode === "plugin-spike" ? [mobilePluginSpike()] : [])],
   resolve: {
     dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],

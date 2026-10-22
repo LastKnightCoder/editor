@@ -141,3 +141,5 @@ export type { Plugin } from "../utils/plugin";
 export { BLOCK_DRAG_GROUP, DragHandle, type DragHandleProps } from "../components/BlockDrag";
 export { panAroundAnchor, pointFromCenter, type Point as ZoomPanPoint } from "../utils/zoomPan";
 export { FloatingToolbar, ToolbarDivider, ToolbarIconButton } from "../components/FloatingToolbar";
+
+export { IElementEditingPolicy, type ElementEditingPolicy } from "../services/elementEditingPolicy";

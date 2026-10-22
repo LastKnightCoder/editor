@@ -1,3 +1,5 @@
+import { mobileContentPlugins } from "../../../app/plugins/content";
+import type { IBlockPanelListItem } from "@tau/editor/api";
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
 import { insertTabs } from "@tau/editor/extensions/tabs";
@@ -74,6 +76,7 @@ type UseMobileEditorToolbarControllerOptions = {
 };
 
 export type MobileEditorToolbarController = {
+  pluginInsertItems: { title: string; icon: IBlockPanelListItem["icon"]; run: () => void }[];
   isEditorFocused: boolean;
   isContentLinkPickerOpen: boolean;
   isInsertSheetOpen: boolean;
@@ -532,8 +535,44 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
 
+  const pluginInsertItems = useMemo(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!isInsertSheetOpen || !editor || ReactEditor.isReadOnly(editor)) return [];
+    const flatten = (
+      items: readonly IBlockPanelListItem[],
+      parent = ""
+    ): MobileEditorToolbarController["pluginInsertItems"] =>
+      items.flatMap(item => {
+        const title = parent ? `${parent} / ${item.title}` : item.title;
+        if (item.children) return flatten(item.children, title);
+        return item.onClick
+          ? [
+              {
+                title,
+                icon: item.icon,
+                run: () => {
+                  const current = restoreEditorSelection();
+                  if (current !== editor || ReactEditor.isReadOnly(editor)) return;
+                  item.onClick?.(editor);
+                  setIsInsertSheetOpen(false);
+                  markSelectionDirty();
+                },
+              },
+            ]
+          : [];
+      });
+    return flatten(
+      mobileContentPlugins.extensions.flatMap(extension =>
+        typeof extension.blockPanel === "function"
+          ? extension.blockPanel(editor)
+          : (extension.blockPanel ?? [])
+      )
+    );
+  }, [isInsertSheetOpen, editorRef, restoreEditorSelection, markSelectionDirty]);
+
   return useMemo(
     () => ({
+      pluginInsertItems,
       isEditorFocused,
       isContentLinkPickerOpen,
       isInsertSheetOpen,
@@ -559,6 +598,7 @@ export function useMobileEditorToolbarController(
       redo,
     }),
     [
+      pluginInsertItems,
       isEditorFocused,
       executeAction,
       applyHeadingLevel,

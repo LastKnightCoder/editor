@@ -14,5 +14,6 @@ export type ContentExecutionRequest =
 export interface ContentExecutionEnvelope {
   hash: string;
   artifacts?: DevelopmentPluginPackage[];
+  portableArtifacts?: import("./portable-development").PortableDevelopmentArtifact[];
   request: ContentExecutionRequest;
 }

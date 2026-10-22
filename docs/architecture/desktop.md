@@ -82,10 +82,12 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 - 插件页面统一经 `features/plugins/pages/plugin-page.page.tsx` 承载，动态定义只在 `DesktopPluginRuntime` 登记，Page 栈机与双注册表不动。承载参数为 pluginId/pageId/instanceId + 标量参数 JSON；single 页每插件页面一实例，params 页默认按完整参数去重、可自定义 getId；`open()` 缺省传空参数，返回/前进保留栈条目自己的参数。
 - 页面从 `PluginPageProps.pageContext` 取实例级上下文登记：`useEffect` 中 `register(() => value)`（任意有限 JSON，宿主不规定结构；MCP 的 `get_current_context` 原样返回快照）、`isActive()`（Activity 可见即栈顶）、`registerDismiss(dismiss)`（显示时挂入 Esc 仲裁，隐藏摘下、再显示按序重挂，插件停用清除）。不提供显示状态通知——effect 生命周期即显示状态（`services/plugin-page-context.ts`）。页面操作由作者自注册 MCP，不加工具分发或导航协议。
-- 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面与导航条目保留；当前无通用未保存守卫。
+- 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面栈条目保留；功能入口随注册资源回收。pageContext.registerLeaveGuard 接通用 PageProvider 守卫，离开前依次检查，停用后不继续阻塞。
 - 作者从 `@tau/plugins` 用定义/上下文/页面 API，从 `@tau/ui` 用组件；SDK 根入口只引 React 类型不加载 UI/DOM。`ctx.pages.register` 返回可打开与注销的页面句柄，页面组件不直接导入 Page/store。私有存储 `context.storage` 在 Electron 存当前库 `plugin_kv`（随云同步），浏览器预览用 localStorage 适配。
 - 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；所有正式插件源码在独立 GitHub 仓库，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）与编辑器实验装配仅开发构建加载。
 - 已启用状态：`plugin-local:set-enabled` 写主进程 `plugins/.enabled.json`（唯一写入者），窗口 localStorage 仅镜像；写入广播 `plugin-local:state-changed` 各窗口重读权威快照；SDK Node 入口 local-state 只读。普通页面插件即时启停，静态内容插件完整重启后生效；活跃内容插件须停用并重启后卸载，切库不改变编辑器快照。
+
+应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
 ### 聊天工具自定义渲染
 
@@ -116,7 +118,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 ### 静态内容插件
 
 - SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
-- 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动端与浏览器扩展不依赖 @tau/plugins，用各自原生 EditorKit，未知节点按编辑器通用保护保留原数据。
+- 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
 - 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 保留宿主原生编译（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。
 - `SourceBlockEditor` / `useSourceBlock` 由 SDK 提供（内部复用 PreviewWithEditor）；宿主共享模块初始化 source-editor-host，作者入口只依赖 SDK。
 - 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与启停）。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，Skill 包始终可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认。
@@ -758,7 +760,7 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 | ---------------------- | --------------------------- | ---------------------------------------------------------------- |
 | page/core/stackMachine | router/core/stackMachine.ts | 已含核心；popTo/多 pane                                          |
 | page/core/paramsSchema | router/core/paramsSchema.ts | oneOf/object 描述子                                              |
-| page/PageProvider      | router/RouterProvider.tsx   | history 适配（**桌面不需要**）、守卫、pushForResult、overlay 栈  |
+| page/PageProvider      | router/RouterProvider.tsx   | history 适配（**桌面不需要**）、pushForResult、overlay 栈        |
 | page/PageHost          | router/PageHost.tsx         | 转场（桌面只做共享元素形变）、手势（不需要）                     |
 | ——                     | router/query/ + store/      | PageQueryProvider / PageStoreScope（桌面未实现，不声明预留字段） |
 

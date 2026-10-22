@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import {
   definePlugin,
+  usePluginEnvironment,
   SIDEBAR_GROUPS,
   type PluginPageProps,
   type PluginSettingsProps,
@@ -18,6 +19,7 @@ import "./styles.css";
 import { CounterIcon } from "./CounterIcon";
 
 declare const __PLUGIN_META__: { id: string; name: string; version: string };
+declare const __PLUGIN_PORTABLE__: boolean;
 
 function Counter({ context }: PluginSettingsProps) {
   const client = useQueryClient();
@@ -41,6 +43,8 @@ function Counter({ context }: PluginSettingsProps) {
     },
   });
   const [help, setHelp] = useState(false);
+  const supportsDialog =
+    !__PLUGIN_PORTABLE__ || context.environment.capabilities.includes("ui.dialog.v1");
   return (
     <Panel className="example-counter">
       <p role="status">{query.isPending ? "正在读取…" : `已保存计数：${query.data}`}</p>
@@ -50,16 +54,20 @@ function Counter({ context }: PluginSettingsProps) {
       >
         增加并保存
       </Button>
-      <Button variant="ghost" onClick={() => setHelp(true)}>
-        说明
-      </Button>
+      {supportsDialog && (
+        <Button variant="ghost" onClick={() => setHelp(true)}>
+          说明
+        </Button>
+      )}
       {(query.error || save.error) && (
         <p role="alert">{query.error?.message ?? save.error?.message}</p>
       )}
       {query.isError && <Button onClick={() => void query.refetch()}>重新读取</Button>}
-      <Dialog open={help} onOpenChange={setHelp} title="使用说明">
-        <DialogBody>设置保存在当前工作区，停用后保留。</DialogBody>
-      </Dialog>
+      {supportsDialog && (
+        <Dialog open={help} onOpenChange={setHelp} title="使用说明">
+          <DialogBody>设置保存在当前工作区，停用后保留。</DialogBody>
+        </Dialog>
+      )}
     </Panel>
   );
 }
@@ -84,19 +92,41 @@ function Page({ context }: PluginPageProps) {
   );
 }
 
+function PortablePage(props: PluginPageProps) {
+  const environment = usePluginEnvironment();
+  return (
+    <div className={environment.layout === "compact" ? "w-full" : "mx-auto max-w-xl"}>
+      <Page {...props} />
+    </div>
+  );
+}
+
 export default definePlugin({
   ...__PLUGIN_META__,
   create: () => ({
     activate(context) {
-      const page = context.pages.register({ id: "counter", title: "计数器", component: Page });
-      context.sidebar.registerItem({
+      const page = context.pages.register({
         id: "counter",
         title: "计数器",
-        icon: CounterIcon,
-        group: SIDEBAR_GROUPS.daily,
-        page,
+        component: __PLUGIN_PORTABLE__ ? PortablePage : Page,
       });
-      context.settings.register({ id: "preferences", title: "计数设置", component: Settings });
+      if (__PLUGIN_PORTABLE__)
+        context.navigation.registerEntry({
+          id: "counter",
+          title: "计数器",
+          icon: CounterIcon,
+          page,
+        });
+      else
+        context.sidebar.registerItem({
+          id: "counter",
+          title: "计数器",
+          icon: CounterIcon,
+          group: SIDEBAR_GROUPS.daily,
+          page,
+        });
+      if (!__PLUGIN_PORTABLE__ || context.environment.capabilities.includes("settings.v1"))
+        context.settings.register({ id: "preferences", title: "计数设置", component: Settings });
       context.commands.register({
         id: "open",
         title: "打开计数器",

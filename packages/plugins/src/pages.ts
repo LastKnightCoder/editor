@@ -13,6 +13,8 @@ export interface PluginPageContext {
    * 这里供命令等 effect 之外的回调判断。
    */
   isActive(): boolean;
+  /** 离开前返回 false 阻止导航；组件卸载或插件失活时自动失效。 */
+  registerLeaveGuard(guard: () => boolean | Promise<boolean>): Disposable;
   /**
    * 登记一个浮层（抽屉、弹出面板）的关闭函数：用户按 Esc 时 Tau 先关最后登记的浮层，
    * 不会后退页面。只在本页显示时生效。@tau/ui 的模态 Dialog / Drawer 已自带，不必登记；

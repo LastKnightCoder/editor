@@ -9,7 +9,7 @@
  * （去重判定也在 reducer 内基于 prev 做，不依赖渲染期的 stateRef 桥）。
  *
  * 刻意未做（接线点见 03 指南）：window.history 同步（桌面不需要，栈机即唯一真相源）、
- * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-002）、离页守卫、
+ * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-002）、
  * 结果通道 pushForResult、实例级 store。
  */
 
@@ -51,6 +51,7 @@ interface PageContextValue {
   navigator: Navigator;
   state: sm.StackMachineState;
   registerOverlayDismiss: RegisterOverlayDismiss;
+  registerLeaveGuard: (guard: () => boolean | Promise<boolean>) => () => void;
   /** 当前栈顶页注册的面包屑（无则 undefined，Titlebar 回退到默认 label） */
   breadcrumbs: ReadonlyMap<string, ReactNode>;
   registerBreadcrumb: RegisterPageSlot;
@@ -149,21 +150,50 @@ export function PageProvider({
     };
   }, []);
 
+  const leaveGuards = useRef(new Set<() => boolean | Promise<boolean>>());
+  const registerLeaveGuard = useMemo(
+    () => (guard: () => boolean | Promise<boolean>) => {
+      leaveGuards.current.add(guard);
+      return () => {
+        leaveGuards.current.delete(guard);
+      };
+    },
+    []
+  );
+  const navigationPending = useRef(false);
   const navigator = useMemo<Navigator>(() => {
+    const request = (action: StackAction, perform = () => dispatch(action)) => {
+      const guards = [...leaveGuards.current];
+      if (!guards.length) return perform();
+      const previous = stateRef.current;
+      if (reducer(previous, action) === previous) return;
+      if (navigationPending.current) return;
+      navigationPending.current = true;
+      void (async () => {
+        for (const guard of guards) if (!(await guard())) return;
+        if (stateRef.current === previous) perform();
+      })()
+        .catch(error => console.error("页面离开守卫失败", error))
+        .finally(() => {
+          navigationPending.current = false;
+        });
+    };
     const traverse = (type: "back" | "forward") => {
       const prev = stateRef.current;
       const from = sm.current(prev);
       const to = sm.current((type === "back" ? sm.back(prev) : sm.forward(prev)) ?? prev);
       const pair = from && to && from.id !== to.id ? findPageMorphPair(from.id, to.id) : null;
-      if (!pair) return dispatch({ type });
-      morph({ from: pair.from, to: pair.to, update: () => dispatch({ type }) });
+      request({ type }, () => {
+        if (!pair) return dispatch({ type });
+        morph({ from: pair.from, to: pair.to, update: () => dispatch({ type }) });
+      });
     };
     return {
-      push: (key, params) => dispatch({ type: "push", key, params }),
-      replace: (key, params) => dispatch({ type: "replace", key, params }),
+      push: (key, params) => request({ type: "push", key, params }),
+      replace: (key, params) => request({ type: "replace", key, params }),
       back: () => traverse("back"),
       forward: () => traverse("forward"),
-      popToTop: () => dispatch({ type: "popToTop" }),
+      popToTop: () => request({ type: "popToTop" }),
       canBack: () => sm.canBack(stateRef.current),
       canForward: () => sm.canForward(stateRef.current),
       current: () => sm.current(stateRef.current),
@@ -197,10 +227,11 @@ export function PageProvider({
       navigator,
       state,
       registerOverlayDismiss,
+      registerLeaveGuard,
       breadcrumbs,
       registerBreadcrumb,
     }),
-    [navigator, state, registerOverlayDismiss, breadcrumbs, registerBreadcrumb]
+    [navigator, state, registerOverlayDismiss, registerLeaveGuard, breadcrumbs, registerBreadcrumb]
   );
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
 }

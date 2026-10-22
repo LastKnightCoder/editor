@@ -1,6 +1,6 @@
 # AI 编程助手指引
 
-这是一个 Tau 桌面端插件项目，用 TypeScript 和 React 编写，`pnpm build` 打包成 ZIP 后安装到 Tau 中运行。
+这是 Tau 的统一插件模板。默认格式 3 为跨端开发包，使用本地 SDK/UI tarball；生产客户端和插件中心尚不接受。先读 docs/portability.md 和 docs/getting-started.md，不发布、不执行正式目录安装。
 
 ## 开始之前
 
@@ -16,6 +16,7 @@
 - 通过 `context` 注册的东西会自动清理；自己创建的计时器、监听、连接交给 `context.register`。异步任务响应 `context.signal`，写回界面前检查 `context.signal.aborted`。
 - 网络请求用 `context.fetch`，检查 `response.ok`。存储、网络响应、用户配置等外部数据读取后先校验类型。
 - 插件代码运行在浏览器环境，不能导入 Node.js 模块；需要 Node.js 时按 `docs/backend.md` 添加本机后台。
+- 格式 3 使用 pages + navigation，平台/布局/输入从 SDK 环境读取；Node 后台只能显式选择旧桌面格式，不能混入跨端包。
 - 编辑器块和白板元素的渲染代码也会在博客中运行，不能依赖 `activate` 或 `context`，见 `docs/editor.md`。
 - 编辑器块里的图片、视频、音频用 `MediaImage` 等宿主组件显示，存地址的字段写进节点的 `resources`，见 `docs/editor.md`。
 - 样式选择器加插件专属前缀；用 Tailwind 时用 `prefix()` 给全部类名加前缀，见 `docs/ui.md`。

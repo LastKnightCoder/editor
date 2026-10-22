@@ -1,5 +1,7 @@
 # 界面
 
+跨端开发包的通用入口用 `context.navigation.registerEntry`，不使用桌面 sidebar API。页面注销会回收相关入口，展示位置由宿主决定；环境与可选能力见[跨端契约](portability.md)。下面的侧边栏、通知等桌面能力不自动包含在 web-v1 中。
+
 插件可以通过四种方式出现在 Tau 的界面里：
 
 - **命令**：出现在 Ctrl+K 命令面板中，用户搜索后执行。

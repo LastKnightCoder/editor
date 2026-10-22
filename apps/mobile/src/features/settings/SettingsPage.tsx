@@ -1,6 +1,7 @@
 // 设置根页（我的 Tab）：功能宫格 + 总览入口。
 // 二级模块由 settingsModule 路由页承载（独立栈级，返回/滚动由 router 管理）。
 
+import type { ReactNode } from "react";
 import { useRef } from "react";
 import { Search } from "lucide-react";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -11,6 +12,7 @@ import type { SettingModuleKey, SettingsPageProps } from "./components/types";
 import { toast } from "../../components/toast";
 
 type SettingsScreenProps = SettingsPageProps & {
+  pluginEntries?: ReactNode;
   /** 打开二级模块（压入 settingsModule 路由页） */
   onOpenModule: (module: SettingModuleKey) => void;
   /** 功能宫格：任务中心（模块启用时展示） */
@@ -154,6 +156,7 @@ export function SettingsPage(props: SettingsScreenProps) {
             onOpenFlashcard={props.onOpenFlashcard}
           />
         </div>
+        {props.pluginEntries}
         <div className="mt-4">
           <OverviewSection
             activeResource={props.safeSetting?.imageBed.active ?? "github"}

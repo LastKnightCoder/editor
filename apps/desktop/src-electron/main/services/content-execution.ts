@@ -1,3 +1,4 @@
+import { portableDevelopmentArtifacts } from "./plugin-portable-development";
 import { app, type BrowserWindow } from "electron";
 import { createHash } from "node:crypto";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
@@ -125,13 +126,16 @@ export class ContentExecutor {
     signal?.throwIfAborted();
     if (this.closed || !this.window) throw new Error("内容执行服务已关闭");
     const window = this.window!;
+    const portableArtifacts = await portableDevelopmentArtifacts();
     const hash = createHash("sha256")
-      .update(JSON.stringify(artifacts.map(artifact => artifact.manifest)))
+      .update(
+        JSON.stringify([...artifacts, ...portableArtifacts].map(artifact => artifact.manifest))
+      )
       .digest("hex");
     const envelope: ContentExecutionEnvelope = {
       hash,
       request,
-      ...(this.snapshot !== hash ? { artifacts } : {}),
+      ...(this.snapshot !== hash ? { artifacts, portableArtifacts } : {}),
     };
     const serialized = JSON.stringify(envelope);
     if (Buffer.byteLength(serialized) > 64 * 1024 * 1024) throw new Error("内容转换输入过大");

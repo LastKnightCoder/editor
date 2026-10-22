@@ -16,6 +16,9 @@ import { randomUUID, createHash } from "node:crypto";
 import { isBuiltin } from "node:module";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
+const portable = manifest.formatVersion === 3;
+if (!portable && (manifest.profile !== undefined || manifest.targets !== undefined))
+  throw new Error("旧桌面格式不能混入跨端 profile/targets 声明");
 if (!/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/.test(manifest.id))
   throw new Error("插件 ID 应为小写字母、数字及点或连字符组成的命名空间");
 if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Error("插件版本无效");
@@ -23,7 +26,11 @@ if (!/^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(manifest.version)) throw new Err
 const skillPackage = manifest.main === undefined;
 let backend;
 let validateManifest;
-if (skillPackage) {
+if (portable) {
+  if (skillPackage) throw new Error("跨端开发包必须有 JS 入口");
+  const api = await import("@tau/plugins/portable");
+  validateManifest = api.validatePortablePluginManifest;
+} else if (skillPackage) {
   if (manifest.backend !== undefined || manifest.formatVersion !== 1)
     throw new Error("Skill 包使用格式 1，不能声明后台");
 } else if (manifest.backend !== undefined) {
@@ -32,8 +39,9 @@ if (skillPackage) {
   validateManifest = api.validatePluginManifest;
   if (manifest.formatVersion !== 2 || backend.entry !== "backend.js")
     throw new Error("后台模板使用格式 2 和 backend.js 入口");
-} else if (manifest.formatVersion !== 1) {
-  throw new Error("普通插件使用格式 1");
+} else {
+  if (manifest.formatVersion !== 1) throw new Error("普通桌面插件使用格式 1");
+  validateManifest = (await import("@tau/plugins/package")).validatePluginManifest;
 }
 /** skills/<id>/ 下每个目录是一个 Skill：必须有带 description 的 SKILL.md，全部文件原样打包。 */
 async function collectSkills(staging) {
@@ -90,6 +98,12 @@ const shared = [
   "react/jsx-runtime",
   "react/jsx-dev-runtime",
 ];
+if (portable)
+  shared.splice(
+    0,
+    shared.length,
+    ...(await import("@tau/plugins/portable")).PORTABLE_SHARED_MODULES
+  );
 await mkdir("dist", { recursive: true });
 const staging = await mkdtemp(path.resolve("dist/.building-"));
 const buildId = randomUUID();
@@ -112,6 +126,7 @@ try {
     }
   }
   const skills = await collectSkills(staging);
+  if (portable && skills.ids.length) throw new Error("跨端开发配置尚不支持 Skill 包");
   if (skillPackage && !skills.ids.length)
     throw new Error("Skill 包至少需要一个 skills/<id>/SKILL.md");
   const result = skillPackage
@@ -125,9 +140,21 @@ try {
         target: "es2022",
         jsx: "automatic",
         external: shared,
+        plugins: [
+          {
+            name: "browser-dependencies",
+            setup(builder) {
+              builder.onResolve({ filter: /.*/ }, args => {
+                if (isBuiltin(args.path))
+                  return { errors: [{ text: `浏览器入口不能依赖 Node 内置模块：${args.path}` }] };
+              });
+            },
+          },
+        ],
         metafile: true,
         loader: { ".svg": "dataurl" },
         define: {
+          __PLUGIN_PORTABLE__: JSON.stringify(portable),
           __PLUGIN_META__: JSON.stringify({
             id: manifest.id,
             name: manifest.name,
@@ -198,7 +225,7 @@ try {
   const archive = path.resolve("dist", `${manifest.id}-${manifest.version}.zip`);
   zip.writeZip(archive);
   console.log(
-    `构建完成：${archive}\n运行 pnpm install:local 安装到 Tau，然后在插件页点「重新扫描」。`
+    `构建完成：${archive}\n${portable ? "跨端开发包仅供显式兼容的开发宿主验证，不可安装到正式客户端或提交生产中心。" : "运行 pnpm install:local 安装到 Tau，然后在插件页点「重新扫描」。"}`
   );
 } catch (error) {
   await rm(staging, { recursive: true, force: true });

@@ -991,7 +991,14 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       <ActionSheet
         open={controller.isInsertSheetOpen}
         title="插入"
-        groups={insertSheetGroups}
+        groups={[
+          ...insertSheetGroups,
+          controller.pluginInsertItems.map(item => ({
+            label: item.title,
+            icon: <item.icon className="size-5" />,
+            onClick: item.run,
+          })),
+        ]}
         onClose={controller.handleCloseInsertSheet}
       />
       <ContentLinkPickerSheet

@@ -5,21 +5,22 @@ import {
   definePlugin,
   usePluginEnvironment,
   type PluginContext,
+  type PluginCapability,
   type PluginPageHandle,
 } from "../index";
 import { PluginEnvironmentProvider, snapshotPluginEnvironment } from "../environment";
 import { PluginHost, createMemoryStorage } from "../host";
 
 it("环境快照不可被作者修改，静态组件读取同一环境且不依赖 activate", () => {
-  const capabilities = ["pages"];
+  const capabilities: PluginCapability[] = ["pages.v1"];
   const environment = snapshotPluginEnvironment({
     platform: "ios",
     layout: "compact",
     input: { touch: true, finePointer: false },
     capabilities,
   });
-  capabilities.push("backend");
-  expect(environment.capabilities).toEqual(["pages"]);
+  capabilities.push("commands.v1");
+  expect(environment.capabilities).toEqual(["pages.v1"]);
   expect(Object.isFrozen(environment.input)).toBe(true);
   function StaticBlock() {
     return createElement("span", null, usePluginEnvironment().platform);
@@ -45,8 +46,8 @@ it("功能入口只接受本次激活的页面，重复和失效句柄被拒绝�
     pages: {
       register: (context, definition) => ({
         id: `${context.pluginId}:${definition.id}`,
-        open: async () => {},
-        dispose() {},
+        open: async () => undefined,
+        dispose: () => undefined,
       }),
     },
   });
@@ -82,6 +83,7 @@ it("功能入口只接受本次激活的页面，重复和失效句柄被拒绝�
   );
   expect(registerEntry).toHaveBeenCalledOnce();
   await page.dispose();
+  expect(disposeEntry).toHaveBeenCalledOnce();
   expect(() => context.navigation.registerEntry({ id: "stale", title: "失效", page })).toThrow(
     "有效页面"
   );

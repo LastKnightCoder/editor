@@ -1002,6 +1002,9 @@ importers:
       '@tau/themes':
         specifier: workspace:*
         version: link:../../packages/themes
+      '@tau/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tauri-apps/api':
         specifier: ^2
         version: 2.10.1
